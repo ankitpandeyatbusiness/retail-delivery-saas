@@ -47,7 +47,7 @@ if (Platform.OS === 'android') {
 }
 
 const MAIN_ROUTE = 'MainTabs';
-const OTP_LENGTH = 4;
+const OTP_LENGTH = 6;
 const EMPTY_DIGITS = Array.from({ length: OTP_LENGTH }, () => '');
 const RESEND_SECONDS = 30;
 const STEP_HEIGHT = 176;
@@ -358,9 +358,7 @@ export default function LoginScreen({ navigation }) {
     }, []);
 
     /* ------------------------- phone number autofill (Android) ------------------------ */
-    // Safely hold the latest sendOtp function to prevent dependency loops
-    const sendOtpRef = useRef(sendOtp);
-    useEffect(() => { sendOtpRef.current = sendOtp; }, [sendOtp]);
+    const sendOtpRef = useRef(null);
 
     useEffect(() => {
         if (Platform.OS !== 'android' || !SmsRetriever) return;
@@ -438,6 +436,10 @@ export default function LoginScreen({ navigation }) {
             setLoading(false);
         }
     }, [phone, loading, startOtpListener, stopOtpListener]);
+
+    useEffect(() => {
+        sendOtpRef.current = sendOtp;
+    }, [sendOtp]);
 
     const verifyOtp = useCallback(
         async (code) => {
@@ -643,27 +645,28 @@ export default function LoginScreen({ navigation }) {
                                             setError('');
                                             const next = normalizePhone(t);
 
-                                            // "bulk" is true if the text jumped by more than 1 character at once
-                                            // This is exactly what happens when you tap a keyboard autocomplete suggestion or paste a number
-                                            const bulk = t !== next || t.length - phone.length > 1;
+                                            // Bulk = more than one new digit arrived at once (autocomplete or paste).
+                                            // Typing '#', '*' or '+' adds no digits, so it is never bulk.
+                                            const bulk = next.length - phone.length > 1;
+
+                                            // Strip junk characters from the visible field
+                                            if (t !== next) {
+                                                try {
+                                                    phoneRef.current?.setNativeProps({ text: next });
+                                                } catch (e) { }
+                                            }
 
                                             if (bulk) {
                                                 animatePhoneIn();
                                                 setCaretHidden(true);
                                                 clearTimeout(caretTimer.current);
                                                 caretTimer.current = setTimeout(() => setCaretHidden(false), 280);
-                                                if (t !== next) {
-                                                    try {
-                                                        phoneRef.current?.setNativeProps({ text: next });
-                                                    } catch (e) { }
-                                                }
                                             }
 
                                             setPhone(next);
 
-                                            // 🔥 NEW: Auto-submit if the number was auto-completed from the keyboard strip
-                                            if (next.length === 10 && bulk) {
-                                                // We add a tiny 150ms delay so the user actually sees the number fill in before the screen slides
+                                            // Auto-send only when a full number was filled in one go
+                                            if (bulk && next.length === 10) {
                                                 setTimeout(() => {
                                                     sendOtpRef.current?.(next);
                                                 }, 150);
@@ -960,9 +963,9 @@ const styles = StyleSheet.create({
         marginBottom: 18,
     },
     otpBox: {
-        width: 56,
-        height: 60,
-        marginHorizontal: 7,
+        width: 46,
+        height: 56,
+        marginHorizontal: 4,
         borderRadius: 14,
         borderWidth: 1.5,
         borderColor: '#E3E3E3',

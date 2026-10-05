@@ -8,6 +8,9 @@ const tenantRouter = require('../routes/tenantRouter');
 
 const app = express();
 
+// Trust proxy for rate-limiting behind load balancers (Render, AWS, etc.)
+app.set('trust proxy', 1);
+
 // Middleware
 app.use(cors());
 app.use(express.json());
