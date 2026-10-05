@@ -4,30 +4,30 @@ const Tenant = require('./src/models/Tenant');
 
 mongoose.connect(process.env.MONGODB_URI).then(async () => {
     await Tenant.findOneAndUpdate(
-        { slug: 'savera' },
+        { slug: 'burgerking' },
         {
-            slug: 'savera',
-            name: 'Savera',
-            tagline: 'Delicious food, delivered to your door',
-            colors: {
-                primary: '#E23744',
-                primaryLight: '#EE4B58',
-                primaryDark: '#D42A38',
-                background: '#FFFFFF',
-                text: '#1C1C1C',
-                error: '#C62828'
+            "slug": "burgerking",
+            "name": "Burger King",
+            "tagline": "Home of the Whopper",
+            "colors": {
+                "primary": "#D62300",
+                "primaryLight": "#FF4500",
+                "primaryDark": "#A31A00",
+                "background": "#F8F5F0",
+                "text": "#502314",
+                "error": "#E21B1B"
             },
-            heroImages: [
-                'https://images.unsplash.com/photo-1504674900247-0877df9cc836',
-                'https://images.unsplash.com/photo-1555939594-58d7cb561ad1',
-                'https://images.unsplash.com/photo-1493770348161-369560ae357d'
+            "heroImages": [
+                "https://images.unsplash.com/photo-1568901346375-23c9450c58cd",
+                "https://images.unsplash.com/photo-1572802419224-296b0aeee0d9"
             ]
         },
         { upsert: true, new: true }
     );
-    console.log('✅ Savera tenant seeded successfully!');
+    console.log('✅ Burger King tenant seeded successfully!');
     process.exit();
 }).catch(err => {
+
     console.error(err);
     process.exit(1);
 });

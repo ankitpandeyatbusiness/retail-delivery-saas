@@ -459,7 +459,7 @@ export default function LoginScreen({ navigation }) {
             } catch (e) {
                 setError(e.response?.data?.error || 'Incorrect OTP. Please try again.');
                 setDigits(EMPTY_DIGITS);
-                otpRefs.current[0]?.focus();
+                setTimeout(() => otpRefs.current[0]?.focus(), 80);
             } finally {
                 verifyingRef.current = false;
                 setLoading(false);

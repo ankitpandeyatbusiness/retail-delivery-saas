@@ -21,6 +21,18 @@ const tenantConfigs = {
       backgroundColor: '#E23744',
     },
   },
+  burgerking: {
+    name: 'Burger King',
+    bundleId: 'com.ankit.burgerking',
+    // Point these to your new Burger King image files
+    icon: './src/assets/tenants/default/icon.png',
+    splashImage: './src/assets/tenants/default/icon.png', // You can create a new splash image for Burger King if you want
+    backgroundColor: '#D62300',
+    adaptiveIcon: {
+      foregroundImage: './src/assets/tenants/default/icon.png',
+      backgroundColor: '#D62300',
+    },
+  },
 };
 
 if (!tenantConfigs[tenant]) {
@@ -51,7 +63,8 @@ export default {
       tenantId: tenant,
     },
     plugins: [
-      'expo-image'
+      'expo-image',
+      './plugins/withNoAutofillHighlight',
     ]
   },
 };
