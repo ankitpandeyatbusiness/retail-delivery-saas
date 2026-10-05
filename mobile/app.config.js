@@ -47,6 +47,9 @@ export default {
     ios: {
       bundleIdentifier: currentConfig.bundleId,
     },
+    extra: {
+      tenantId: tenant,
+    },
     plugins: [
       'expo-image'
     ]
