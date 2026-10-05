@@ -5,6 +5,7 @@ const cors = require('cors');
 const connectDB = require('../database/database');
 const authRouter = require('../routes/authRouter');
 const tenantRouter = require('../routes/tenantRouter');
+const catalogRouter = require('../routes/catalogRouter');
 
 const app = express();
 
@@ -18,6 +19,7 @@ app.use(express.json());
 // Mount Routers
 app.use('/api/auth', authRouter);
 app.use('/api/tenants', tenantRouter);
+app.use('/api/catalog', catalogRouter);
 
 const PORT = process.env.PORT || 5000;
 

@@ -3,7 +3,8 @@ import { ActivityIndicator, View } from 'react-native';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import LoginScreen from '../screens/LoginScreen';
-import MainScreen from '../screens/MainScreen';
+import HomeScreen from '../screens/HomeScreen';
+import { useThemeStore } from '../store/useThemeStore';
 import { useAuthStore } from '../store/useAuthStore';
 
 const Stack = createNativeStackNavigator();
@@ -19,6 +20,10 @@ export default function AppNavigator() {
     useEffect(() => {
         hydrate();
     }, [hydrate]);
+
+    useEffect(() => {
+        useThemeStore.getState().loadTheme();
+    }, []);
 
     // 2) If a signed-in user becomes signed-out (logout, or the refresh token
     //    was rejected), send them back to Login. Guests who tapped "Skip" never
@@ -49,7 +54,7 @@ export default function AppNavigator() {
             >
                 {/* Both stay registered so LoginScreen's Skip / goToMain keep working */}
                 <Stack.Screen name="Login" component={LoginScreen} />
-                <Stack.Screen name="MainTabs" component={MainScreen} />
+                <Stack.Screen name="MainTabs" component={HomeScreen} />
             </Stack.Navigator>
         </NavigationContainer>
     );

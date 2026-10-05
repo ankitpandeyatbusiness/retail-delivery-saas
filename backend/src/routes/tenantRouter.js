@@ -1,15 +1,31 @@
 const express = require('express');
 const tenantRouter = express.Router();
 const tenantRecognizer = require('../middlewares/tenantRecognizer');
+const { resolveHomeConfig } = require('../services/homeConfigService');
 
-// Route is now just /theme (mapped to /api/tenants/theme in server.js)
-tenantRouter.get('/theme', tenantRecognizer, async (req, res) => {
-    // req.tenant is already fetched and verified by the middleware!
+tenantRouter.get('/theme', tenantRecognizer, (req, res) => {
+    const t = req.tenant;
     res.json({
-        name: req.tenant.name,
-        tagline: req.tenant.tagline,
-        colors: req.tenant.colors,
-        heroImages: req.tenant.heroImages
+        name: t.name,
+        tagline: t.tagline,
+        logo: t.logo,
+        colors: t.colors,
+        heroImages: t.heroImages,
+    });
+});
+
+// NEW: everything the home screen needs to draw itself
+tenantRouter.get('/config', tenantRecognizer, (req, res) => {
+    const t = req.tenant;
+    res.json({
+        version: new Date(t.updatedAt).getTime(), // lets the app know when its cache is old
+        homeConfig: resolveHomeConfig(t),
+        delivery: {
+            latitude: t.delivery?.latitude ?? null,
+            longitude: t.delivery?.longitude ?? null,
+            radiusKm: t.delivery?.radiusKm ?? null,
+            minOrder: t.delivery?.minOrder ?? 0,
+        },
     });
 });
 

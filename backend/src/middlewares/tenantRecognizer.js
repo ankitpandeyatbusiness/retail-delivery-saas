@@ -5,7 +5,7 @@ const SLUG_RE = /^[a-z0-9-]{3,40}$/;
 const cache = new LRUCache({ max: 1000, ttl: 60 * 1000 });
 
 // Adjust to your real Tenant field names
-const FIELDS = '_id name slug tagline colors heroImages status androidPackage';
+const FIELDS = '_id name slug tagline logo colors heroImages status androidPackage homeConfig delivery updatedAt';
 
 const tenantRecognizer = async (req, res, next) => {
     const raw = req.headers['x-tenant-slug'];

@@ -34,4 +34,13 @@ export const useThemeStore = create((set) => ({
             },
         }
     })),
+
+    loadTheme: async () => {
+        try {
+            const { data } = await api.get('/tenants/theme');
+            const { heroImages, ...rest } = data;
+            // an empty list from the server must not wipe the fallback images
+            get().setTheme({ ...rest, ...(heroImages?.length ? { heroImages } : {}) });
+        } catch (e) { }
+    },
 }));
