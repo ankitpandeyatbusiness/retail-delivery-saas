@@ -13,6 +13,8 @@ import {
     StatusBar,
     useWindowDimensions,
 } from 'react-native';
+import api from '../api/client';
+import { useAuthStore } from '../store/useAuthStore';
 import Animated, {
     Easing,
     Extrapolation,
@@ -173,6 +175,7 @@ function OtpBoxes({ digits, setDigits, inputRefs, hasError, dimmed, onEdit, colo
 
 export default function LoginScreen({ navigation }) {
     const insets = useSafeAreaInsets();
+    const loginStore = useAuthStore(state => state.login);
 
     // 1. Fetch dynamic theme configuration
     const { theme } = useThemeStore();
@@ -355,6 +358,10 @@ export default function LoginScreen({ navigation }) {
     }, []);
 
     /* ------------------------- phone number autofill (Android) ------------------------ */
+    // Safely hold the latest sendOtp function to prevent dependency loops
+    const sendOtpRef = useRef(sendOtp);
+    useEffect(() => { sendOtpRef.current = sendOtp; }, [sendOtp]);
+
     useEffect(() => {
         if (Platform.OS !== 'android' || !SmsRetriever) return;
         const timer = setTimeout(async () => {
@@ -365,6 +372,8 @@ export default function LoginScreen({ navigation }) {
                 if (num.length === 10) {
                     setPhone(num);
                     animatePhoneIn();
+                    // 🔥 Auto-trigger the OTP send instantly!
+                    sendOtpRef.current(num);
                 }
             } catch (e) {
             }
@@ -408,21 +417,23 @@ export default function LoginScreen({ navigation }) {
     }, [secondsLeft]);
 
     /* ------------------------------------ actions ------------------------------------ */
-    const sendOtp = useCallback(async () => {
-        if (phone.length !== 10 || loading) return;
+    const sendOtp = useCallback(async (autoPhone) => {
+        // If autoPhone is a string (from auto-complete), use it. Otherwise use state.
+        const targetPhone = typeof autoPhone === 'string' ? autoPhone : phone;
+
+        if (targetPhone.length !== 10 || loading) return;
         setError('');
         setLoading(true);
         setDigits(EMPTY_DIGITS);
         startOtpListener();
         try {
-            // TODO: await api.post('/auth/send-otp', { phone });
-            await new Promise((r) => setTimeout(r, 700));
+            await api.post('/auth/send-otp', { phone: targetPhone }); // Use targetPhone here
             setSecondsLeft(RESEND_SECONDS);
             stepChangedAt.current = Date.now();
             setStep('otp');
         } catch (e) {
             stopOtpListener();
-            setError('Could not send OTP. Please try again.');
+            setError(e.response?.data?.error || 'Could not send OTP. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -435,13 +446,18 @@ export default function LoginScreen({ navigation }) {
             setError('');
             setLoading(true);
             try {
-                // TODO: const { data } = await api.post('/auth/verify-otp', { phone, otp: code });
-                await new Promise((r) => setTimeout(r, 700));
+                // REAL API CALL
+                const { data } = await api.post('/auth/verify-otp', { phone, otp: code });
+
                 stopOtpListener();
                 Keyboard.dismiss();
+
+                // SAVE SECURE TOKENS
+                await loginStore(data.user, data.accessToken, data.refreshToken);
+
                 goToMain();
             } catch (e) {
-                setError('Incorrect OTP. Please try again.');
+                setError(e.response?.data?.error || 'Incorrect OTP. Please try again.');
                 setDigits(EMPTY_DIGITS);
                 otpRefs.current[0]?.focus();
             } finally {
@@ -449,7 +465,7 @@ export default function LoginScreen({ navigation }) {
                 setLoading(false);
             }
         },
-        [phone, goToMain, stopOtpListener]
+        [phone, goToMain, stopOtpListener, loginStore]
     );
 
     useEffect(() => {
@@ -461,9 +477,14 @@ export default function LoginScreen({ navigation }) {
         setError('');
         setDigits(EMPTY_DIGITS);
         startOtpListener();
-        // TODO: await api.post('/auth/send-otp', { phone });
-        setSecondsLeft(RESEND_SECONDS);
-        otpRefs.current[0]?.focus();
+        try {
+            // REAL API CALL
+            await api.post('/auth/send-otp', { phone });
+            setSecondsLeft(RESEND_SECONDS);
+            otpRefs.current[0]?.focus();
+        } catch (e) {
+            setError(e.response?.data?.error || 'Could not resend OTP.');
+        }
     };
 
     const changeNumber = () => {
@@ -621,7 +642,11 @@ export default function LoginScreen({ navigation }) {
                                         onChangeText={(t) => {
                                             setError('');
                                             const next = normalizePhone(t);
+
+                                            // "bulk" is true if the text jumped by more than 1 character at once
+                                            // This is exactly what happens when you tap a keyboard autocomplete suggestion or paste a number
                                             const bulk = t !== next || t.length - phone.length > 1;
+
                                             if (bulk) {
                                                 animatePhoneIn();
                                                 setCaretHidden(true);
@@ -633,7 +658,16 @@ export default function LoginScreen({ navigation }) {
                                                     } catch (e) { }
                                                 }
                                             }
+
                                             setPhone(next);
+
+                                            // 🔥 NEW: Auto-submit if the number was auto-completed from the keyboard strip
+                                            if (next.length === 10 && bulk) {
+                                                // We add a tiny 150ms delay so the user actually sees the number fill in before the screen slides
+                                                setTimeout(() => {
+                                                    sendOtpRef.current?.(next);
+                                                }, 150);
+                                            }
                                         }}
                                         caretHidden={caretHidden}
                                         onFocus={() => setPhoneFocused(true)}
