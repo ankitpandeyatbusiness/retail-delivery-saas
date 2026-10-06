@@ -106,6 +106,60 @@ router.put('/accepting-orders', wrap(async (req, res) => {
     res.json({ ok: true, acceptingOrders: req.body.acceptingOrders });
 }));
 
+router.put('/settings', wrap(async (req, res) => {
+    const body = req.body || {};
+    const updates = {};
+
+    // 1. Allow updating operating hours (validated against your existing rules)
+    if (body.hours !== undefined) {
+        if (!body.hours || typeof body.hours !== 'object') {
+            throw httpError(400, 'Invalid hours format');
+        }
+        updates['settings.hours'] = body.hours;
+    }
+
+    // 2. Allow updating public restaurant contact info
+    if (body.phone !== undefined) {
+        const phone = String(body.phone).trim();
+        if (!/^[6-9]\d{9}$/.test(phone)) throw httpError(400, 'Enter a valid 10-digit mobile number');
+        updates.phone = phone;
+    }
+
+    if (body.address !== undefined) {
+        updates.address = {
+            line: String(body.address.line || '').trim(),
+            city: String(body.address.city || '').trim(),
+            pincode: String(body.address.pincode || '').trim(),
+        };
+    }
+
+    // 3. Allow updating delivery rules (radius, minimum order amount)
+    if (body.delivery !== undefined) {
+        updates.delivery = {
+            latitude: Number(body.delivery.latitude) || req.tenant.delivery?.latitude,
+            longitude: Number(body.delivery.longitude) || req.tenant.delivery?.longitude,
+            radiusKm: Number(body.delivery.radiusKm) || req.tenant.delivery?.radiusKm,
+            minOrder: Number(body.delivery.minOrder) || req.tenant.delivery?.minOrder,
+        };
+    }
+
+    if (!Object.keys(updates).length) {
+        throw httpError(400, 'No valid settings provided to update');
+    }
+
+    // Apply updates securely to this specific tenant only
+    const updatedTenant = await Tenant.findOneAndUpdate(
+        { _id: req.tenant._id },
+        { $set: updates },
+        { new: true, runValidators: true }
+    );
+
+    // Invalidate the cache so the change reflects instantly for customers
+    tenantRecognizer.invalidateTenant(req.tenant.slug);
+
+    res.json({ ok: true, tenant: updatedTenant });
+}));
+
 router.use(require('./shopManageRouter'));
 router.use(apiErrors);
 module.exports = router;
