@@ -18,6 +18,17 @@ function nextStatuses(order) {
 }
 
 // The customer can only cancel before the shop accepts
-const customerCanCancel = (order) => order.status === 'placed';
+const customerCanCancel = (order, tenant) => {
+    if (order.status === 'placed') return true; // Normal cancellation
+
+    // ESCAPE HATCH: If order is active but the shop is frozen
+    if (tenant && ACTIVE_STATUSES.includes(order.status)) {
+        const isMaintenance = tenant.maintenance?.on && (!tenant.maintenance.until || new Date(tenant.maintenance.until) > new Date());
+        if (tenant.status !== 'active' || tenant.ownerBlocked || isMaintenance) {
+            return true;
+        }
+    }
+    return false;
+};
 
 module.exports = { nextStatuses, customerCanCancel, ACTIVE_STATUSES };

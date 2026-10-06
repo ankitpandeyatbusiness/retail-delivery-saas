@@ -112,7 +112,7 @@ router.use('/collections', crud(Collection, {
 router.get('/orders/:id/invoice', wrap(async (req, res) => {
     const order = isId(req.params.id) ? await Order.findOne({ _id: req.params.id, tenantId: req.tenant._id }) : null;
     if (!order) throw httpError(404, 'Order not found');
-    if (order.status === 'cancelled') throw httpError(409, 'There is no invoice for a cancelled order');
+    if (order.status !== 'delivered') throw httpError(409, 'The invoice is only available after delivery');
     streamInvoice(res, order, req.tenant, { inline: req.query.view === '1' });
 }));
 

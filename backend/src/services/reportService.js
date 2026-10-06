@@ -37,9 +37,16 @@ async function salesReport({ tenantId, from, to, groupBy }) {
     const placedInRange = { ...shop, createdAt: { $gte: from, $lte: to } };
     const format = groupBy === 'month' ? '%Y-%m' : '%Y-%m-%d';
 
+    const netRevenue = {
+        $subtract: [
+            { $add: ['$pricing.subtotal', '$pricing.packagingCharge'] },
+            '$pricing.discount'
+        ]
+    };
+
     const sums = {
         orders: { $sum: 1 },
-        revenue: { $sum: '$pricing.total' },
+        revenue: { $sum: netRevenue }, // Replaced $pricing.total
         subtotal: { $sum: '$pricing.subtotal' },
         discount: { $sum: '$pricing.discount' },
         deliveryFees: { $sum: '$pricing.deliveryFee' },
@@ -52,25 +59,26 @@ async function salesReport({ tenantId, from, to, groupBy }) {
         Order.aggregate([{ $match: delivered }, { $group: { _id: null, ...sums } }]),
         Order.aggregate([
             { $match: delivered },
-            { $group: { _id: { $dateToString: { format, date: '$deliveredAt', timezone: 'Asia/Kolkata' } }, orders: { $sum: 1 }, revenue: { $sum: '$pricing.total' } } },
+            { $group: { _id: { $dateToString: { format, date: '$deliveredAt', timezone: 'Asia/Kolkata' } }, orders: { $sum: 1 }, revenue: { $sum: netRevenue } } },
             { $sort: { _id: 1 } },
         ]),
         tenantId ? Promise.resolve([]) : Order.aggregate([
             { $match: delivered },
-            { $group: { _id: '$tenantId', orders: { $sum: 1 }, revenue: { $sum: '$pricing.total' } } },
+            { $group: { _id: '$tenantId', orders: { $sum: 1 }, revenue: { $sum: netRevenue } } },
             { $sort: { revenue: -1 } },
             { $limit: 50 },
         ]),
         Order.aggregate([
             { $match: delivered },
             { $unwind: '$items' },
+            // topItems uses item.lineTotal which is already correct, leave it alone
             { $group: { _id: '$items.productId', name: { $first: '$items.name' }, quantity: { $sum: '$items.quantity' }, revenue: { $sum: '$items.lineTotal' } } },
             { $sort: { quantity: -1 } },
             { $limit: 10 },
         ]),
         Order.aggregate([
             { $match: delivered },
-            { $group: { _id: '$payment.method', orders: { $sum: 1 }, revenue: { $sum: '$pricing.total' } } },
+            { $group: { _id: '$payment.method', orders: { $sum: 1 }, revenue: { $sum: netRevenue } } },
             { $sort: { revenue: -1 } },
         ]),
         Order.aggregate([{ $match: placedInRange }, { $group: { _id: '$status', n: { $sum: 1 } } }]),

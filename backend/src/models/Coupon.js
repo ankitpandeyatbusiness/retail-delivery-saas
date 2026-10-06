@@ -18,6 +18,9 @@ const couponSchema = new mongoose.Schema({
     isActive: { type: Boolean, default: true },
 }, { timestamps: true });
 
-couponSchema.index({ tenantId: 1, code: 1 }, { unique: true });   // same code allowed in different shops
+couponSchema.index(
+    { tenantId: 1, code: 1 },
+    { unique: true, partialFilterExpression: { isActive: true } }
+);
 
 module.exports = mongoose.model('Coupon', couponSchema);

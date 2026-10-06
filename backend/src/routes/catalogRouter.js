@@ -7,6 +7,9 @@ const Banner = require('../models/Banner');
 const Coupon = require('../models/Coupon');
 const { SORTS, buildProductFilter, foodModeFilter, activeNow } = require('../services/catalogQuery');
 const { resolveConfig } = require('../services/tenantConfigService');
+const optionalAuth = require('../middlewares/optionalAuth');
+const Order = require('../models/Order');
+const User = require('../models/User');
 
 const catalogRouter = express.Router();
 catalogRouter.use(tenantRecognizer);   // every request knows its shop
@@ -33,6 +36,13 @@ async function shopContext(req) {
             activeCategoryIds,
         },
     };
+}
+
+async function isReturningCustomer(tenantId, userId) {
+    if (!userId) return false;
+    const user = await User.findById(userId).select('phone').lean();
+    if (!user) return false;
+    return await Order.exists({ tenantId, 'customer.phone': user.phone, status: { $ne: 'cancelled' } });
 }
 
 catalogRouter.get('/categories', async (req, res) => {
@@ -121,9 +131,13 @@ catalogRouter.get('/products/:id', async (req, res) => {
     } catch (e) { fail(res, e); }
 });
 
-catalogRouter.get('/banners', async (req, res) => {
+catalogRouter.get('/banners', optionalAuth, async (req, res) => {
     try {
-        const items = await Banner.find({ tenantId: req.tenant._id, ...activeNow() })
+        const isReturning = await isReturningCustomer(req.tenant._id, req.auth?.userId);
+        const filter = { tenantId: req.tenant._id, ...activeNow() };
+        if (isReturning) filter.firstOrderOnly = { $ne: true };
+
+        const items = await Banner.find(filter)
             .sort({ sortOrder: 1, _id: 1 })
             .select('title subtitle image couponCode firstOrderOnly')
             .lean();
@@ -131,22 +145,25 @@ catalogRouter.get('/banners', async (req, res) => {
     } catch (e) { fail(res, e); }
 });
 
-catalogRouter.get('/offers', async (req, res) => {
+catalogRouter.get('/offers', optionalAuth, async (req, res) => {
     try {
         if (!resolveConfig(req.tenant).offers.couponsEnabled) return res.json({ items: [] });
 
-        const items = await Coupon.find({
+        const isReturning = await isReturningCustomer(req.tenant._id, req.auth?.userId);
+        const filter = {
             tenantId: req.tenant._id,
             isPublic: true,
             ...activeNow(),
-            // hide coupons whose total usage limit is already used up
             $expr: {
                 $or: [
                     { $eq: [{ $ifNull: ['$totalUsageLimit', null] }, null] },
                     { $lt: ['$usedCount', '$totalUsageLimit'] },
                 ],
             },
-        })
+        };
+        if (isReturning) filter.firstOrderOnly = { $ne: true };
+
+        const items = await Coupon.find(filter)
             .sort({ _id: -1 })
             .limit(10)
             .select('code description discountType discountValue maxDiscount minOrder firstOrderOnly endsAt')

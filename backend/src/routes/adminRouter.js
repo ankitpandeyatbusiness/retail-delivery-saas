@@ -18,7 +18,6 @@ const requireSuperAdmin = require('../middlewares/requireSuperAdmin');
 const { invalidateTenant } = require('../middlewares/tenantRecognizer');
 const { getAvailability, invalidateAvailability, applyAutoHide } = require('../services/availability');
 const { foodRuleError } = require('../services/foodRules');
-const keepOwnerPause = require('../utils/keepOwnerPause');
 // The food mode lives at config.home.foodMode (same place the catalog code reads it)
 const getFoodMode = (tenant) => resolveConfig(tenant).home.foodMode;
 
@@ -165,11 +164,25 @@ admin.put('/tenants/:tid', wrap(async (req, res) => {
         throw httpError(400, 'slug cannot be changed: it is built into the tenant\'s app');
     }
 
-    tenant.set(pickFields(TENANT_FIELDS, body));
+    // --- REPLACEMENT STARTS HERE ---
+    const updates = pickFields(TENANT_FIELDS, body);
+    for (const [key, value] of Object.entries(updates)) {
+        // Deep merge for nested objects (delivery, business, subscription, colors, address)
+        if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+            for (const [subKey, subValue] of Object.entries(value)) {
+                tenant.set(`${key}.${subKey}`, subValue);
+            }
+        } else {
+            // Normal assignment for flat fields (name, phone, heroImages array)
+            tenant.set(key, value);
+        }
+    }
+    // --- REPLACEMENT ENDS HERE ---
+
     if (body.settings !== undefined) {
         const v = validateSettings(body.settings);
         if (!v.ok) return res.status(400).json({ error: 'Invalid settings', errors: v.errors });
-        tenant.set('settings', keepOwnerPause(tenant.settings, v.clean));
+        tenant.set('settings', v.clean);
         tenant.markModified('settings');
     }
     await tenant.save();

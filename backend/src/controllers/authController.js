@@ -203,6 +203,7 @@ const rotateSession = async ({ sid, tenantId, oldHash, newHash, now }) => {
         {
             $set: {
                 refreshTokenHash: newHash,
+                prevRefreshTokenHash: oldHash,
                 lastUsedAt: now,
             },
         },
@@ -237,6 +238,16 @@ exports.sendOtp = async (req, res) => {
     }
 
     try {
+        const recentOtp = await OtpRequest.findOne({
+            tenantId: tenant._id,
+            phone,
+            consumed: false,
+            createdAt: { $gt: new Date(Date.now() - 60000) } // 60 seconds ago
+        });
+        if (recentOtp) {
+            return res.status(429).json({ error: 'Please wait 60 seconds before requesting another OTP.' });
+        }
+
         await OtpRequest.updateMany(
             { tenantId: tenant._id, phone, consumed: false },
             { $set: { consumed: true } }
@@ -288,16 +299,6 @@ exports.verifyOtp = async (req, res) => {
 
     try {
         await limiters.verifyIp.consume(ip);
-
-        const lock = await limiters.verifyPhoneLockout.get(phoneKey);
-        if (lock !== null && lock.remainingPoints <= 0) {
-            const retryAfter = Math.max(1, Math.ceil(lock.msBeforeNext / 1000));
-            res.set('Retry-After', String(retryAfter));
-            return res.status(429).json({
-                error: 'Too many failed attempts. Try again later.',
-                retryAfter,
-            });
-        }
     } catch (rej) {
         return handleRateLimitCatch(rej, res);
     }
@@ -324,11 +325,6 @@ exports.verifyOtp = async (req, res) => {
             if (otpRecord.attempts >= MAX_OTP_ATTEMPTS) {
                 await OtpRequest.updateOne({ _id: otpRecord._id }, { $set: { consumed: true } });
             }
-            try {
-                await limiters.verifyPhoneLockout.consume(phoneKey);
-            } catch (rej) {
-                return handleRateLimitCatch(rej, res);
-            }
             return res.status(400).json({ error: 'Invalid OTP' });
         }
 
@@ -339,7 +335,6 @@ exports.verifyOtp = async (req, res) => {
         );
         if (!claimed) return res.status(400).json({ error: 'Invalid or expired OTP' });
 
-        await limiters.verifyPhoneLockout.delete(phoneKey).catch(() => { });
 
         const user = await findOrCreateUser(tenant._id, phone);
         if (!user || user.isBlocked) {

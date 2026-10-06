@@ -18,7 +18,7 @@ const clamp = (n, min, max) => Math.min(Math.max(n, min), max);
 const isId = (v) => typeof v === 'string' && mongoose.isValidObjectId(v);
 
 // order as JSON, plus a flag the app uses to show or hide the Cancel button
-const view = (order) => ({ ...order.toJSON(), canCancel: svc.customerCanCancel(order) });
+const view = (order, tenant) => ({ ...order.toJSON(), canCancel: svc.customerCanCancel(order, tenant) });
 
 const checkId = (req) => {
     if (!isId(req.params.id)) throw httpError(404, 'Order not found');
@@ -42,7 +42,7 @@ router.post('/', wrap(async (req, res) => {
         body: req.body || {},
         idempotencyKey: key,
     });
-    res.status(duplicate ? 200 : 201).json(view(order));
+    res.status(duplicate ? 200 : 201).json(view(order, req.tenant));
 }));
 
 // Order history. ?active=true for the "ongoing" list. Pages: ?page=1&limit=20
@@ -55,25 +55,25 @@ router.get('/', wrap(async (req, res) => {
     const items = await Order.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit + 1);
     const hasMore = items.length > limit;
     if (hasMore) items.pop();
-    res.json({ items: items.map(view), page, hasMore });
+    res.json({ items: items.map((o) => view(o, req.tenant)), page, hasMore });
 }));
 
 router.get('/:id', wrap(async (req, res) => {
     checkId(req);
     const order = await Order.findOne({ _id: req.params.id, tenantId: req.tenant._id, userId: req.auth.userId });
     if (!order) throw httpError(404, 'Order not found');
-    res.json(view(order));
+    res.json(view(order, req.tenant));
 }));
 
 router.post('/:id/cancel', wrap(async (req, res) => {
     checkId(req);
     const order = await svc.cancelByCustomer({
-        tenantId: req.tenant._id,
+        tenant: req.tenant,
         userId: req.auth.userId,
         orderId: req.params.id,
         reason: req.body?.reason,
     });
-    res.json(view(order));
+    res.json(view(order, req.tenant));
 }));
 
 // Returns cart lines to refill the cart. Call /quote next to get today's prices.
@@ -103,7 +103,7 @@ router.get('/:id/invoice', wrap(async (req, res) => {
     checkId(req);
     const order = await Order.findOne({ _id: req.params.id, tenantId: req.tenant._id, userId: req.auth.userId });
     if (!order) throw httpError(404, 'Order not found');
-    if (order.status === 'cancelled') throw httpError(409, 'There is no invoice for a cancelled order');
+    if (order.status !== 'delivered') throw httpError(409, 'The invoice is only available after delivery');
     streamInvoice(res, order, req.tenant, { inline: req.query.view === '1' });
 }));
 

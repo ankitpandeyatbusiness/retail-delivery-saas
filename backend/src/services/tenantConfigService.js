@@ -273,7 +273,12 @@ function resolveConfig(tenant, now = new Date()) {
 
     const orders = merge(DEFAULTS.orders, clean.orders);
     if (clean.orders?.minOrder === undefined && tenant.delivery?.minOrder) orders.minOrder = tenant.delivery.minOrder;
-    if (tenant.ownerBlocked) orders.acceptingOrders = false;   // owner blocked: customers see "not accepting orders"
+    if (tenant.ownerBlocked) orders.acceptingOrders = false;
+
+    // Illegal Tax Fix: Force GST to 'none' if the shop has no GSTIN on file
+    if (!tenant.business?.gstin) {
+        orders.gst = { mode: 'none', percent: 0 };
+    }
 
     const labels = merge(DEFAULTS.labels, clean.labels);
     const weekly = clean.hours?.weekly || null;

@@ -13,6 +13,7 @@ const Tenant = require('../models/Tenant');
 const { streamInvoice } = require('../services/invoiceService');
 const { salesReport, parseRange } = require('../services/reportService');
 const { wrap, httpError } = require('../middlewares/apiErrors');
+const Coupon = require('../models/Coupon');
 
 const router = express.Router();
 const STATUSES = Order.schema.path('status').enumValues;
@@ -80,7 +81,7 @@ router.get('/orders/:id', wrap(async (req, res) => {
 router.get('/orders/:id/invoice', wrap(async (req, res) => {
     const order = isId(req.params.id) ? await Order.findById(req.params.id) : null;
     if (!order) throw httpError(404, 'Order not found');
-    if (order.status === 'cancelled') throw httpError(409, 'There is no invoice for a cancelled order');
+    if (order.status !== 'delivered') throw httpError(409, 'The invoice is only available after delivery');
     const tenant = await Tenant.findById(order.tenantId).select('name address phone').lean();
     streamInvoice(res, order, tenant, { inline: req.query.view === '1' });
 }));
@@ -94,6 +95,41 @@ router.get('/reports/sales', wrap(async (req, res) => {
         tenantId = req.query.tenantId;
     }
     res.json(await salesReport({ tenantId, from, to, groupBy: req.query.groupBy }));
+}));
+
+router.patch('/orders/:id/status', wrap(async (req, res) => {
+    const order = isId(req.params.id) ? await Order.findById(req.params.id) : null;
+    if (!order) throw httpError(404, 'Order not found');
+
+    const status = req.body?.status;
+    if (!['cancelled', 'delivered'].includes(status)) {
+        throw httpError(400, 'Superadmin can only force status to cancelled or delivered');
+    }
+
+    const set = { status };
+    if (status === 'cancelled') {
+        set.cancelledBy = 'shop'; // Schema allows 'customer' or 'shop'
+        set.cancelReason = typeof req.body?.note === 'string' ? req.body.note.trim().slice(0, 200) : 'Force cancelled by Superadmin';
+    } else if (status === 'delivered') {
+        set.deliveredAt = new Date();
+        if (order.payment?.method === 'cod') set['payment.status'] = 'paid';
+    }
+
+    const updated = await Order.findByIdAndUpdate(
+        order._id,
+        {
+            $set: set,
+            $push: { statusHistory: { status, by: req.admin._id, note: req.body?.note || 'Superadmin override' } }
+        },
+        { new: true }
+    );
+
+    // If superadmin cancels it, give the customer their coupon back
+    if (status === 'cancelled' && updated.couponId) {
+        await Coupon.updateOne({ _id: updated.couponId, usedCount: { $gt: 0 } }, { $inc: { usedCount: -1 } });
+    }
+
+    res.json((await withShop([updated]))[0]);
 }));
 
 module.exports = router;

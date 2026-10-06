@@ -92,12 +92,18 @@ async function validateCoupon({ tenant, config, userId, code, subtotal }) {
     if (c.totalUsageLimit != null && c.usedCount >= c.totalUsageLimit) throw httpError(400, 'This coupon has been fully used');
     if (subtotal < (c.minOrder || 0)) throw httpError(400, `Add ₹${round2(c.minOrder - subtotal)} more to use ${c.code}`);
 
+    // EXPLOIT FIX: Check by Phone Number, not just User ID
+    const user = await User.findById(userId).select('phone').lean();
+    const identityFilter = user ? { 'customer.phone': user.phone } : { userId };
+
     if (c.firstOrderOnly) {
-        const hasOrders = await Order.exists({ tenantId: tenant._id, userId, status: { $ne: 'cancelled' } });
+        // If they ever placed a non-cancelled order with this phone number, block it.
+        const hasOrders = await Order.exists({ tenantId: tenant._id, ...identityFilter, status: { $ne: 'cancelled' } });
         if (hasOrders) throw httpError(400, 'This coupon is only for your first order');
     }
     if (c.usageLimitPerUser) {
-        const used = await Order.countDocuments({ tenantId: tenant._id, userId, couponId: c._id, status: { $ne: 'cancelled' } });
+        // Count all past uses attached to this phone number
+        const used = await Order.countDocuments({ tenantId: tenant._id, ...identityFilter, couponId: c._id, status: { $ne: 'cancelled' } });
         if (used >= c.usageLimitPerUser) throw httpError(400, 'You have already used this coupon');
     }
 
@@ -317,21 +323,29 @@ async function placeOrder({ tenant, userId, body, idempotencyKey }) {
 }
 
 /* ------------------------------ 7. customer actions ------------------------------ */
-async function cancelByCustomer({ tenantId, userId, orderId, reason }) {
+async function cancelByCustomer({ tenant, userId, orderId, reason }) {
+    const order = await Order.findOne({ _id: orderId, tenantId: tenant._id, userId });
+    if (!order) throw httpError(404, 'Order not found');
+
+    // Feed both the order AND the tenant into the escape hatch logic
+    if (!customerCanCancel(order, tenant)) {
+        throw httpError(409, 'You can cancel only before the shop accepts your order (unless the shop is suspended)');
+    }
+
+    const cleanNote = typeof reason === 'string' && reason.trim() ? reason.trim().slice(0, 200) : undefined;
+
+    // We use Optimistic Locking (status: order.status) so it fails if the shop just delivered it
     const updated = await Order.findOneAndUpdate(
-        { _id: orderId, tenantId, userId, status: 'placed' },   // only before the shop accepts
+        { _id: order._id, status: order.status },
         {
-            $set: { status: 'cancelled', cancelledBy: 'customer', cancelReason: typeof reason === 'string' ? reason.trim().slice(0, 200) : undefined },
-            $push: { statusHistory: { status: 'cancelled', by: userId, note: typeof reason === 'string' ? reason.trim().slice(0, 200) : undefined } },
+            $set: { status: 'cancelled', cancelledBy: 'customer', cancelReason: cleanNote },
+            $push: { statusHistory: { status: 'cancelled', by: userId, note: cleanNote } },
         },
         { new: true },
     );
-    if (!updated) {
-        const exists = await Order.exists({ _id: orderId, tenantId, userId });
-        throw exists
-            ? httpError(409, 'You can cancel only before the shop accepts your order')
-            : httpError(404, 'Order not found');
-    }
+
+    if (!updated) throw httpError(409, 'This order was just updated. Refresh and try again.');
+
     await releaseCoupon(updated.couponId);
     return updated;
 }
@@ -395,10 +409,16 @@ async function updateStatusByShop({ tenantId, adminId, orderId, status, note }) 
 
     if (status === 'cancelled') await releaseCoupon(updated.couponId);
     if (status === 'delivered') {
-        // feeds the "popularity" sort and the bestsellers strip
-        await Product.bulkWrite(updated.items.map((l) => ({
-            updateOne: { filter: { _id: l.productId, tenantId }, update: { $inc: { orderCount: l.quantity } } },
-        })));
+        // --- FIX STARTS HERE: Block admins from farming bestsellers ---
+        const buyer = await User.findById(order.userId).select('role').lean();
+
+        // Only increment the Bestseller counts if a normal customer bought it
+        if (!buyer || buyer.role !== 'admin') {
+            await Product.bulkWrite(updated.items.map((l) => ({
+                updateOne: { filter: { _id: l.productId, tenantId }, update: { $inc: { orderCount: l.quantity } } },
+            })));
+        }
+        // --- FIX ENDS HERE ---
     }
     return updated;
 }

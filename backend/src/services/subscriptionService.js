@@ -33,10 +33,20 @@ async function createInvoice(tenant, period, platform, now = new Date()) {
     const sub = tenant.subscription || {};
     const fee = Number(sub.monthlyFee) || 0;
     if (!(fee > 0)) return null;                                      // this shop is not billed
-    if (sub.startMonth && period < sub.startMonth) return null;       // billing has not started yet
+
+    // FIX 1: Prevent billing for past months. Default to the month the shop was created.
+    const shopStartMonth = periodOf(tenant.createdAt || new Date());
+    if (period < (sub.startMonth || shopStartMonth)) return null;       // billing has not started yet
+
     if (await SubscriptionInvoice.exists({ tenantId: tenant._id, period })) return null;
 
-    const gstPercent = sub.gstPercent ?? 18;
+    const b = platform?.business || {};
+
+    // FIX 2: Prevent blank invoices. Wait until you've filled out your platform details.
+    if (!b.legalName) return null;
+
+    // FIX 3: Stop illegal tax. Only charge the 18% GST if the platform actually has a GSTIN.
+    const gstPercent = b.gstin ? (sub.gstPercent ?? 18) : 0;
     const gstAmount = round2((fee * gstPercent) / 100);
     const total = round2(fee + gstAmount);
 
@@ -49,7 +59,6 @@ async function createInvoice(tenant, period, platform, now = new Date()) {
     const dueDays = platform?.billing?.dueDays ?? 7;
     const dueDate = new Date(issueDate.getTime() + dueDays * 24 * 60 * 60 * 1000);
 
-    const b = platform?.business || {};
     const biz = tenant.business || {};
     const addr = tenant.address || {};
     try {

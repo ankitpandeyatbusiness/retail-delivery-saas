@@ -16,7 +16,7 @@ const { wrap, httpError } = apiErrors;
 const router = express.Router();
 router.use(tenantRecognizer);
 router.use('/subscription', requireShopAdmin.allowBlocked, require('./shopSubscriptionRouter'));   // rent invoices stay visible even when blocked
-router.use(requireShopAdmin);   // only an admin user of THIS shop gets past here
+router.use('/orders', requireShopAdmin.allowBlocked);
 
 const STATUSES = Order.schema.path('status').enumValues;
 const clamp = (n, min, max) => Math.min(Math.max(n, min), max);
@@ -96,6 +96,7 @@ router.patch('/orders/:id/status', wrap(async (req, res) => {
     res.json(view(order));
 }));
 
+router.use(requireShopAdmin);
 
 // Pause or resume taking orders
 router.put('/accepting-orders', wrap(async (req, res) => {
