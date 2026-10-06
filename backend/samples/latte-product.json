@@ -1,0 +1,85 @@
+{
+    "tenantId": {
+        "$oid": "PASTE_YOUR_TENANT_ID"
+    },
+    "categoryId": {
+        "$oid": "PASTE_A_CATEGORY_ID"
+    },
+    "name": "Caffe Latte",
+    "description": "Espresso with steamed milk and a thin layer of foam.",
+    "price": 149,
+    "mrp": 169,
+    "isVeg": true,
+    "isBestseller": true,
+    "prepTimeMin": 8,
+    "optionGroups": [
+        {
+            "id": "size",
+            "name": "Choose size",
+            "min": 1,
+            "max": 1,
+            "options": [
+                {
+                    "id": "regular",
+                    "name": "Regular (250 ml)",
+                    "price": 0,
+                    "isDefault": true
+                },
+                {
+                    "id": "large",
+                    "name": "Large (350 ml)",
+                    "price": 40
+                }
+            ]
+        },
+        {
+            "id": "milk",
+            "name": "Milk type",
+            "min": 1,
+            "max": 1,
+            "options": [
+                {
+                    "id": "full-cream",
+                    "name": "Full cream",
+                    "price": 0,
+                    "isDefault": true
+                },
+                {
+                    "id": "oat",
+                    "name": "Oat milk",
+                    "price": 50
+                },
+                {
+                    "id": "almond",
+                    "name": "Almond milk",
+                    "price": 60
+                }
+            ]
+        },
+        {
+            "id": "extras",
+            "name": "Add extras",
+            "min": 0,
+            "max": 2,
+            "options": [
+                {
+                    "id": "extra-shot",
+                    "name": "Extra espresso shot",
+                    "price": 35
+                },
+                {
+                    "id": "vanilla",
+                    "name": "Vanilla syrup",
+                    "price": 25
+                },
+                {
+                    "id": "caramel",
+                    "name": "Caramel drizzle",
+                    "price": 25
+                }
+            ]
+        }
+    ],
+    "isAvailable": true,
+    "isActive": true
+}

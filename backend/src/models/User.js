@@ -7,6 +7,7 @@ const userSchema = new mongoose.Schema({
     tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true },
     phone: { type: String, required: true, trim: true, match: /^[6-9]\d{9}$/ },
     name: { type: String, trim: true, maxlength: 80 },
+    email: { type: String, trim: true, lowercase: true, maxlength: 120 },
     role: { type: String, enum: ['customer', 'rider', 'admin'], default: 'customer' },
     isBlocked: { type: Boolean, default: false },
     lastLoginAt: { type: Date },
