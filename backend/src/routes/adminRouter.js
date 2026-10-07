@@ -9,7 +9,7 @@ const Banner = require('../models/Banner');
 const Coupon = require('../models/Coupon');
 const User = require('../models/User');
 const Collection = require('../models/Collection');
-
+const { pickBrandColors } = require('../services/logoColors');
 
 const O = require('../config/tenantOptions');
 const { getPreset } = require('../config/homePresets');
@@ -41,6 +41,13 @@ const pickFields = (fields, body) =>
 const SLUG_RE = /^[a-z0-9-]{3,40}$/;
 const RESERVED_SLUGS = ['admin', 'api', 'www'];
 const TENANT_FIELDS = ['name', 'tagline', 'logo', 'colors', 'heroImages', 'status', 'androidPackage', 'phone', 'address', 'delivery', 'business', 'subscription'];
+const loadTenant = wrap(async (req, res, next) => {
+    if (!isId(req.params.tid)) throw httpError(404, 'Tenant not found');
+    const t = await Tenant.findById(req.params.tid).select('_id slug').lean();
+    if (!t) throw httpError(404, 'Tenant not found');
+    req.tenantDoc = t;
+    next();
+});
 /* ------------------------------ login (public) ------------------------------ */
 // Simple in-memory brake: 5 wrong tries per IP per 15 minutes.
 // (Per server instance. Use a shared store like Redis if you run several servers.)
@@ -207,14 +214,51 @@ admin.put('/tenants/:tid', wrap(async (req, res) => {
     res.json({ tenant, resolved: resolveConfig(tenant.toObject()) });
 }));
 
+// Logo colours. Send the image itself as the request body (Content-Type: image/png, image/jpeg or image/webp).
+//   no query       -> only suggests colours, saves nothing
+//   ?apply=empty   -> fills colour slots that are still empty
+//   ?apply=replace -> overwrites the saved colours
+// A colour set in the panel's brand settings always wins, so it is skipped.
+admin.post('/tenants/:tid/logo-colors',
+    loadTenant,
+    express.raw({ type: ['image/png', 'image/jpeg', 'image/webp'], limit: '1mb' }),
+    wrap(async (req, res) => {
+        if (!Buffer.isBuffer(req.body) || !req.body.length) {
+            throw httpError(400, 'Send the logo image (PNG, JPG or WebP, up to 1 MB) as the request body');
+        }
+        const image = req.body;
+        req.body = { note: 'image left out of the audit log' };
+
+        let suggested;
+        try { suggested = await pickBrandColors(image); } catch (e) { throw httpError(400, 'Could not read this image'); }
+        if (!suggested) {
+            return res.json({ suggested: null, message: 'No usable colour in this logo. Set the colour by hand.' });
+        }
+
+        const mode = req.query.apply;
+        if (!mode) return res.json({ suggested });
+        if (mode !== 'empty' && mode !== 'replace') throw httpError(400, 'apply must be "empty" or "replace"');
+
+        const tenant = await Tenant.findById(req.tenantDoc._id);
+        req.auditBefore = { colors: JSON.parse(JSON.stringify(tenant.colors || {})) };
+        const applied = [];
+        const skipped = [];
+        for (const k of ['primary', 'primaryLight', 'primaryDark']) {
+            const panelColor = tenant.settings?.brand?.colors?.[k];
+            const savedColor = tenant.get(`colors.${k}`);
+            if (panelColor || (savedColor && mode === 'empty')) { skipped.push(k); continue; }
+            tenant.set(`colors.${k}`, suggested[k]);
+            applied.push(k);
+        }
+        if (applied.length) {
+            await tenant.save();
+            invalidateTenant(tenant.slug);
+        }
+        res.json({ suggested, applied, skipped });
+    }));
+
 /* ------------------------------ per-tenant data (categories, products, banners, coupons) ------------------------------ */
-const loadTenant = wrap(async (req, res, next) => {
-    if (!isId(req.params.tid)) throw httpError(404, 'Tenant not found');
-    const t = await Tenant.findById(req.params.tid).select('_id slug').lean();
-    if (!t) throw httpError(404, 'Tenant not found');
-    req.tenantDoc = t;
-    next();
-});
+
 
 // One reusable set of routes: list, create, read, update, delete.
 // Only whitelisted fields are accepted, and tenantId always comes from the URL, never from the body.
@@ -414,7 +458,7 @@ admin.post('/tenants/:tid/owners', loadTenant, wrap(async (req, res) => {
         { upsert: true, new: true, setDefaultsOnInsert: true },
     );
     res.status(201).json({ ok: true, userId: u._id });
-}));
+})); 
 
 admin.use('/tenants/:tid/banners', loadTenant, crud(Banner, {
     fields: ['title', 'subtitle', 'image', 'couponCode', 'firstOrderOnly', 'startsAt', 'endsAt', 'sortOrder', 'isActive'],

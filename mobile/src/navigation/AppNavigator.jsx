@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { ActivityIndicator, View, Text } from 'react-native';
+import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import { NavigationContainer, createNavigationContainerRef, CommonActions, StackActions } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -9,13 +9,15 @@ import HomeScreen from '../screens/HomeScreen';
 import ItemScreen from '../screens/ItemScreen';
 import CartScreen from '../screens/CartScreen';
 import SearchScreen from '../screens/SearchScreen';
+import PaymentMethodsScreen from '../screens/PaymentMethodsScreen';
 import OrdersScreen from '../screens/OrdersScreen';
 import OrderDetailScreen from '../screens/OrderDetailScreen';
 import AccountScreen from '../screens/AccountScreen';
 import { OffersScreen, BestsellersScreen, FavouritesScreen } from '../screens/ExtraPages';
 import { useAuthStore } from '../store/useAuthStore';
 import { useHomeStore } from '../store/useHomeStore';
-import { useBrand } from '../components/ui/kit';
+import { Ionicons } from '@expo/vector-icons';
+import { useBrand, alpha } from '../components/ui/kit';
 import { ToastHost } from '../components/ui/shop';
 import { FrozenOverlay, OfflineBanner } from '../components/ui/status';
 import { useAppStatus } from '../store/useAppStatus';
@@ -27,16 +29,16 @@ const navigationRef = createNavigationContainerRef();
 
 // config tab id -> screen. Unknown ids from the server are skipped.
 const TAB_DEFS = {
-    home: { name: 'Home', label: 'Home', icon: '🏠', component: HomeScreen },
-    search: { name: 'Search', label: 'Search', icon: '🔍', component: SearchScreen },
-    orders: { name: 'Orders', label: 'Orders', icon: '🧾', component: OrdersScreen },
-    profile: { name: 'Account', label: 'Account', icon: '👤', component: AccountScreen },
+    home: { name: 'Home', label: 'Home', icon: 'home', component: HomeScreen },
+    search: { name: 'Search', label: 'Search', icon: 'search', component: SearchScreen },
+    orders: { name: 'Orders', label: 'Orders', icon: 'receipt', component: OrdersScreen },
+    profile: { name: 'Account', label: 'Account', icon: 'person', component: AccountScreen },
 };
 const DEFAULT_TABS = ['home', 'search', 'orders', 'profile'];
 
 function MainTabs() {
     const insets = useSafeAreaInsets();
-    const { primary } = useBrand();
+    const { primary, background, border, muted } = useBrand();
     const load = useHomeStore((s) => s.load);
     const tabsCfg = useHomeStore((s) => s.full.tabs);
 
@@ -51,10 +53,23 @@ function MainTabs() {
             initialRouteName="Home"
             screenOptions={{
                 headerShown: false,
+                tabBarHideOnKeyboard: true,
                 tabBarActiveTintColor: primary,
-                tabBarInactiveTintColor: '#888888',
-                tabBarStyle: { height: 58 + insets.bottom, paddingBottom: insets.bottom + 4, paddingTop: 6, backgroundColor: '#FFFFFF' },
-                tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+                tabBarInactiveTintColor: muted,
+                tabBarStyle: {
+                    height: 62 + insets.bottom,
+                    paddingBottom: insets.bottom + 6,
+                    paddingTop: 8,
+                    backgroundColor: background,
+                    borderTopWidth: StyleSheet.hairlineWidth,
+                    borderTopColor: border,
+                    elevation: 12,
+                    shadowColor: '#000000',
+                    shadowOpacity: 0.08,
+                    shadowRadius: 10,
+                    shadowOffset: { width: 0, height: -3 },
+                },
+                tabBarLabelStyle: { fontSize: 11, fontWeight: '700', marginTop: 2 },
             }}
         >
             {ids.map((id) => {
@@ -66,7 +81,11 @@ function MainTabs() {
                         component={d.component}
                         options={{
                             tabBarLabel: d.label,
-                            tabBarIcon: ({ focused }) => <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.6 }}>{d.icon}</Text>,
+                            tabBarIcon: ({ focused, color }) => (
+                                <View style={{ width: 58, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: focused ? alpha(primary, 0.14) : 'transparent' }}>
+                                    <Ionicons name={focused ? d.icon : `${d.icon}-outline`} size={22} color={color} />
+                                </View>
+                            ),
                         }}
                     />
                 );
@@ -128,6 +147,7 @@ export default function AppNavigator() {
                     <Stack.Screen name="Cart" component={CartScreen} />
                     <Stack.Screen name="Offers" component={OffersScreen} />
                     <Stack.Screen name="Bestsellers" component={BestsellersScreen} />
+                    <Stack.Screen name="PaymentMethods" component={PaymentMethodsScreen} />
                     <Stack.Screen name="Favourites" component={FavouritesScreen} />
                     <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
                 </Stack.Navigator>

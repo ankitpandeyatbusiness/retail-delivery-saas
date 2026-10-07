@@ -62,6 +62,7 @@ const orderSchema = new Schema({
     },
     tableNo: String,
     scheduledFor: Date,
+    pickupUntil: Date,                                      // end of the pickup time window
     note: String,                                           // special instructions for the whole order
     etaMin: Number,
 

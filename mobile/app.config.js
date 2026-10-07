@@ -24,9 +24,8 @@ const tenantConfigs = {
   burgerking: {
     name: 'Burger King',
     bundleId: 'com.ankit.burgerking',
-    // Point these to your new Burger King image files
     icon: './src/assets/tenants/default/icon.png',
-    splashImage: './src/assets/tenants/default/icon.png', // You can create a new splash image for Burger King if you want
+    splashImage: './src/assets/tenants/default/icon.png',
     backgroundColor: '#D62300',
     adaptiveIcon: {
       foregroundImage: './src/assets/tenants/default/icon.png',
@@ -54,6 +53,15 @@ export default {
     },
     android: {
       package: currentConfig.bundleId,
+      // Preserves your previous manual permissions + adds Microphone
+      permissions: [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.VIBRATE"
+      ],
       ...(currentConfig.adaptiveIcon && { adaptiveIcon: currentConfig.adaptiveIcon }),
     },
     ios: {
@@ -65,6 +73,21 @@ export default {
     plugins: [
       'expo-image',
       './plugins/withNoAutofillHighlight',
+      // Adds the Speech Recognition plugin with standard OS prompts
+      [
+        'expo-speech-recognition',
+        {
+          microphonePermission: 'Allow $(PRODUCT_NAME) to access your microphone for voice search.',
+          speechRecognitionPermission: 'Allow $(PRODUCT_NAME) to securely recognize your voice for search.'
+        }
+      ],
+      // Adds the Location plugin based on your package.json
+      [
+        'expo-location',
+        {
+          locationAlwaysAndWhenInUsePermission: 'Allow $(PRODUCT_NAME) to use your location.'
+        }
+      ]
     ]
   },
 };

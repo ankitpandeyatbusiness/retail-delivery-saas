@@ -101,7 +101,7 @@ export default function FilterDialog({ visible, onClose, items }) {
 
     const count = useMemo(
         () => applyFilters(items || [], f, minCount).length,
-        [items, minCount, f.category, f.active, f.sort, f.price, f.spice, f.serves, f.weight],
+        [items, minCount, f.categories, f.active, f.sort, f.price, f.spice, f.serves, f.weight],
     );
 
     const curSort = f.sort || 'popularity';

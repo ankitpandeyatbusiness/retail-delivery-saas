@@ -54,6 +54,11 @@ router.post('/', wrap(async (req, res) => {
     res.status(duplicate ? 200 : 201).json(view(order, req.tenant));
 }));
 
+// Pickup time windows for the cart screen
+router.get('/pickup-slots', wrap(async (req, res) => {
+    res.json(svc.pickupSlots(req.tenant));
+}));
+
 // Order history. ?active=true for the "ongoing" list. Pages: ?page=1&limit=20
 router.get('/', wrap(async (req, res) => {
     const page = clamp(parseInt(req.query.page, 10) || 1, 1, 1000);

@@ -21,7 +21,8 @@
     "lru-cache": "^11.5.3",
     "mongoose": "^9.10.4",
     "pdfkit": "^0.20.2",
-    "rate-limiter-flexible": "^11.2.1"
+    "rate-limiter-flexible": "^11.2.1",
+    "sharp": "^0.35.5"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

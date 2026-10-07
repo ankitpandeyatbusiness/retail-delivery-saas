@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 export const useFilterStore = create((set) => ({
-    category: null,   // category id chip
+    categories: [],   // selected category ids (strings), multi-select
     active: [],       // ids: veg_only, egg_free, rating_4, offers, bestseller, sugar_free, jain, gift_pack, new
     sort: null,       // popularity, price_low, price_high, rating, prep_time, newest
     price: 0,         // 0 none, 1 under 150, 2 150-300, 3 above 300
@@ -9,7 +9,8 @@ export const useFilterStore = create((set) => ({
     serves: null,     // number
     weight: null,     // weight option id
 
-    setCategory: (id) => set((s) => ({ category: s.category === id ? null : id })),
+    toggleCategory: (id) => set((s) => ({ categories: s.categories.includes(id) ? s.categories.filter((x) => x !== id) : [...s.categories, id] })),
+    clearCategories: () => set({ categories: [] }),
     toggleFilter: (id) => set((s) => ({ active: s.active.includes(id) ? s.active.filter((x) => x !== id) : [...s.active, id] })),
     setSort: (sort) => set({ sort }),
     setPrice: (p) => set((s) => ({ price: s.price === p ? 0 : p })),
@@ -34,7 +35,7 @@ const SORTERS = {
 // Same rules as the server filters. Unknown ids are ignored.
 export function applyFilters(items, f, minCount = 5) {
     const L = items.filter((p) => {
-        if (f.category && String(p.categoryId) !== f.category) return false;
+        if (f.categories?.length && !f.categories.includes(String(p.categoryId))) return false;
         for (const id of f.active) {
             if (id === 'veg_only' && !p.isVeg) return false;
             if (id === 'egg_free' && !p.isEggless) return false;

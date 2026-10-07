@@ -12,6 +12,7 @@ export const searchProducts = (params) => d(api.get('/catalog/products', { param
 export const quoteOrder = (body) => d(api.post('/orders/quote', body));
 export const placeOrder = (body, key) => d(api.post('/orders', body, { headers: { 'Idempotency-Key': key } }));
 export const fetchOrders = (params) => d(api.get('/orders', { params }));
+export const fetchPickupSlots = () => d(api.get('/orders/pickup-slots'));
 export const fetchOrder = (id) => d(api.get(`/orders/${id}`));
 export const cancelOrder = (id, reason) => d(api.post(`/orders/${id}/cancel`, { reason }));
 export const reorderOrder = (id) => d(api.post(`/orders/${id}/reorder`));

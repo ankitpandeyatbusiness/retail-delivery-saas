@@ -1,24 +1,30 @@
 // src/screens/CartScreen.jsx
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, ScrollView, TextInput, ActivityIndicator, StyleSheet } from 'react-native';
-import { CommonActions, useNavigation } from '@react-navigation/native';
+import { View, Text, Pressable, ScrollView, TextInput, ActivityIndicator, StyleSheet, LayoutAnimation, UIManager, Platform } from 'react-native';
+import { CommonActions, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import * as Crypto from 'expo-crypto';
 import { useBrand, BackHeader } from '../components/ui/kit';
 import { VegDot, showToast, tint } from '../components/ui/shop';
 import { AddressSheet, addrLine } from '../components/ui/addresses';
+import { Press, Appear, Chip, Bill, ClosedBanner, PickupSlots, FreeDeliveryBar, rs, ease } from '../components/ui/cartParts';
 import { useHomeStore } from '../store/useHomeStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { useCartStore } from '../store/shopStores';
-import { quoteOrder, placeOrder, fetchAddresses } from '../api/shopApi';
+import { quoteOrder, placeOrder, fetchAddresses, fetchPickupSlots } from '../api/shopApi';
 import { useCouponStore } from '../store/useCouponStore';
 
-const rs = (n) => `₹${+Number(n || 0).toFixed(2)}`;
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
 const errMsg = (e) => e?.response?.data?.error
     || (e?.response ? 'Something went wrong. Try again.' : 'Network problem. Check your connection.');
 const hr = (d) => `${d.getHours() % 12 || 12} ${d.getHours() >= 12 ? 'PM' : 'AM'}`;
+const QUICK_NOTES = ['Leave at door', 'Avoid calling', "Don't ring bell"];
 
-// "Today" = next full hour after prep time + 30 min, "Tomorrow" = 1 PM. The server checks shop hours.
 function makeSlots(prepMin) {
     const now = new Date();
     const out = {};
@@ -33,107 +39,87 @@ function makeSlots(prepMin) {
     return out;
 }
 
-function Chip({ label, on, onPress }) {
-    const { primary, text } = useBrand();
-    return (
-        <Pressable onPress={onPress} style={[s.chip, on && { backgroundColor: tint(primary), borderColor: primary }]}>
-            <Text style={[s.chipTxt, { color: on ? primary : text }]}>{label}</Text>
-        </Pressable>
-    );
-}
-
-function Row({ k, v, green, bold }) {
-    const { text } = useBrand();
-    return (
-        <View style={s.bRow}>
-            <Text style={[s.bK, bold && s.bold, { color: green ? '#1E8E3E' : text }]}>{k}</Text>
-            <Text style={[s.bV, bold && s.bold, { color: green ? '#1E8E3E' : text }]}>{v}</Text>
-        </View>
-    );
-}
-
-function Bill({ q, type, busy }) {
-    const p = q.pricing;
-    return (
-        <View style={{ opacity: busy ? 0.5 : 1 }}>
-            <Row k="Subtotal" v={rs(p.subtotal)} />
-            {p.discount > 0 ? <Row k={`Coupon${p.couponCode ? ` (${p.couponCode})` : ''}`} v={`− ${rs(p.discount)}`} green /> : null}
-            {type === 'delivery' ? <Row k="Delivery fee" v={p.deliveryFee > 0 ? rs(p.deliveryFee) : 'Free'} green={!p.deliveryFee} /> : null}
-            {p.packagingCharge > 0 ? <Row k="Packaging" v={rs(p.packagingCharge)} /> : null}
-            {p.taxMode === 'exclusive' && p.tax > 0 ? <Row k="GST" v={rs(p.tax)} /> : null}
-            {p.tip > 0 ? <Row k="Tip" v={rs(p.tip)} /> : null}
-            <View style={s.line} />
-            <Row k="Total" v={rs(p.total)} bold />
-            {p.taxMode === 'inclusive' && p.tax > 0 ? <Text style={s.incl}>Includes {rs(p.tax)} GST</Text> : null}
-        </View>
-    );
-}
-
 export default function CartScreen() {
     const nav = useNavigation();
+    const route = useRoute();
     const insets = useSafeAreaInsets();
-    const { primary, radius, text, error } = useBrand();
+    const { primary, radius, text, error, background, surface, border, muted } = useBrand();
+
     const user = useAuthStore((st) => st.user);
     const full = useHomeStore((st) => st.full);
+    const offers = useHomeStore((st) => st.offers) || [];
     const showDot = useHomeStore((st) => st.config.showVegDot);
     const lines = useCartStore((st) => st.lines);
     const f = full.features;
+    const feeConfig = full.orders.deliveryFee || {};
 
     const types = useMemo(() => {
         const t = (full.orders.types || []).filter((x) => x === 'delivery' || x === 'pickup');
         return t.length ? t : ['delivery'];
     }, [full.orders.types]);
+
     const [pickedType, setPickedType] = useState(types[0]);
     const type = types.includes(pickedType) ? pickedType : types[0];
 
     const [couponIn, setCouponIn] = useState('');
-    const [applied, setApplied] = useState('');
+    const [tryCode, setTryCode] = useState('');      // coupon being checked right now
+    const [applied, setApplied] = useState('');      // coupon the server accepted
     const [couponErr, setCouponErr] = useState('');
     const [when, setWhen] = useState('now');
     const [tip, setTip] = useState(0);
+    const [delNotes, setDelNotes] = useState([]);
+    const [customNote, setCustomNote] = useState('');
     const [addr, setAddr] = useState(null);
     const [sheet, setSheet] = useState(false);
+    const [slotRes, setSlotRes] = useState(null);
+    const [pickedSlot, setPickedSlot] = useState(null);
+
+    const selectedPaymentMethod = route.params?.selectedPaymentMethod || 'Cash on Delivery';
+    const paymentMethodValue = route.params?.paymentMethodValue || 'cod';
+
     const [quote, setQuote] = useState(null);
+    const [quoteKey, setQuoteKey] = useState('');    // which request the quote belongs to
     const [qErr, setQErr] = useState('');
     const [busy, setBusy] = useState(false);
     const [placing, setPlacing] = useState(false);
     const [tick, setTick] = useState(0);
     const [idemKey] = useState(() => Crypto.randomUUID());
     const reqId = useRef(0);
+
     const slots = useMemo(() => makeSlots(full.orders.prepTimeMin || 20), []);
-
     const couponOn = f.couponField && full.offers.couponsEnabled;
-
-    // a code chosen on the Offers page
+    const preview = lines.reduce((a, l) => a + l.price * l.quantity, 0);
+    const priceKey = lines.map((l) => l.price).join(',');
     const pending = useCouponStore((st) => st.code);
-    useEffect(() => {
-        if (pending && user && couponOn && lines.length) {
-            setCouponErr('');
-            setApplied(pending);
-            useCouponStore.getState().clear();
-        }
-    }, [pending, user, couponOn, lines.length]);
 
-    // same body for quote and place order
+    // Only what changes the price goes here, so typing a note never re-quotes.
     const body = useMemo(() => {
         if (!lines.length) return null;
         const b = {
             orderType: type,
-            paymentMethod: 'cod',
+            paymentMethod: paymentMethodValue,
             items: lines.map((l) => ({
                 productId: l.productId, quantity: l.quantity, selections: l.selections || [], note: l.note || undefined,
             })),
         };
-        if (applied && couponOn) b.couponCode = applied;
+        const code = applied || tryCode;
+        if (code && couponOn) b.couponCode = code;
         if (type === 'delivery') {
             if (addr) b.addressId = addr._id;
             if (f.tips && tip > 0) b.tip = tip;
+            if (f.scheduleOrder && when !== 'now' && slots[when]) b.scheduledFor = slots[when].iso;
         }
-        if (f.scheduleOrder && when !== 'now' && slots[when]) b.scheduledFor = slots[when].iso;
+        if (type === 'pickup' && pickedSlot) b.pickupSlot = pickedSlot;
         return b;
-    }, [lines, type, applied, addr, tip, when, couponOn]);
+    }, [lines, type, applied, tryCode, addr, tip, when, couponOn, paymentMethodValue, pickedSlot]);
+    const bodyKey = JSON.stringify(body);
 
-    // default address
+    // refresh every minute so a shop that just closed is noticed
+    useEffect(() => {
+        const i = setInterval(() => setTick((x) => x + 1), 60000);
+        return () => clearInterval(i);
+    }, []);
+
     useEffect(() => {
         if (!user || type !== 'delivery' || addr) return undefined;
         let on = true;
@@ -145,57 +131,88 @@ export default function CartScreen() {
         return () => { on = false; };
     }, [user, type]);
 
-    // server quote, 300 ms after the last change
-    const bodyKey = JSON.stringify(body);
+    // pickup time windows (worked out by the server from the shop hours)
+    useEffect(() => {
+        if (!user || type !== 'pickup') return undefined;
+        let on = true;
+        fetchPickupSlots().then((r) => {
+            if (!on) return;
+            ease();
+            setSlotRes(r);
+            setPickedSlot((p) => (p && r.slots.some((x) => x.from === p) ? p : null));
+        }).catch(() => { if (on) setSlotRes({ open: true, slots: [], message: 'Could not load pickup times. Try again.' }); });
+        return () => { on = false; };
+    }, [user, type, tick]);
+
     useEffect(() => {
         if (!user || !body) { setQuote(null); setQErr(''); setBusy(false); return undefined; }
         setBusy(true);
         const id = ++reqId.current;
         const t = setTimeout(async () => {
-            const run = async (b) => {
-                try { return { q: await quoteOrder(b) }; } catch (e) { return { e }; }
-            };
+            const run = async (b) => { try { return { q: await quoteOrder(b) }; } catch (e) { return { e }; } };
             let r = await run(body);
             let cErr = '';
+            // the server refused the coupon: price the cart without it and say why
             if (r.e && body.couponCode) {
-                // if it works without the coupon, the coupon was the problem
                 const r2 = await run({ ...body, couponCode: undefined });
                 if (r2.q) { cErr = errMsg(r.e); r = r2; }
             }
             if (id !== reqId.current) return;
-            if (cErr) { setCouponErr(cErr); setApplied(''); }
-            if (r.q) { setQuote(r.q); setQErr(''); } else { setQuote(null); setQErr(errMsg(r.e)); }
+            ease();
+            if (cErr) { setCouponErr(cErr); setApplied(''); setTryCode(''); }
+            else if (r.q && body.couponCode && !applied && r.q.pricing.couponCode) {
+                setApplied(body.couponCode); setTryCode(''); setCouponIn(''); setCouponErr('');
+            } else if (r.q && applied && !r.q.pricing.couponCode) {
+                setApplied(''); setCouponErr('Coupon removed. Your order no longer qualifies.');
+            }
+            if (r.q) { setQuote(r.q); setQErr(''); setQuoteKey(bodyKey); } else { setQuote(null); setQErr(errMsg(r.e)); }
             setBusy(false);
         }, 300);
         return () => clearTimeout(t);
-    }, [bodyKey, user, tick]);
+    }, [bodyKey, priceKey, user, tick]);
+
+    useEffect(() => {
+        if (pending && user && couponOn && lines.length) {
+            setCouponIn(pending);
+            setTryCode(String(pending).trim().toUpperCase());
+            useCouponStore.getState().clear();
+        }
+    }, [pending, user, couponOn, lines.length]);
 
     const apply = () => {
         const c = couponIn.trim().toUpperCase();
         if (!c) return;
-        setCouponErr('');
-        setApplied(c);
-        setCouponIn('');
+        ease(); setCouponErr(''); setTryCode(c);
     };
+    const pickOffer = (code) => { setCouponIn(code); ease(); setCouponErr(''); setTryCode(code); };
+    const toggleNote = (n) => { ease(); setDelNotes((p) => (p.includes(n) ? p.filter((x) => x !== n) : [...p, n])); };
+    const setQty = (key, q) => { ease(); useCartStore.getState().setQty(key, q); };
+
+    const fresh = !!quote && quoteKey === bodyKey;
+    const closed = quote ? quote.shopOpen === false : full.restaurant?.isOpen === false;
+    const closedMsg = full.hours?.closedMessage || full.labels?.closedMessage || 'We are closed right now';
 
     const place = async () => {
-        if (placing || busy || !quote?.canPlace) return;
+        if (placing || !fresh || !quote.canPlace || closed) return;
         setPlacing(true);
         try {
-            await placeOrder(body, idemKey);
+            const notes = [...delNotes];
+            if (customNote.trim()) notes.push(customNote.trim());
+            await placeOrder(notes.length ? { ...body, note: notes.join(' | ') } : body, idemKey);
             useCartStore.getState().clear();
-            showToast('Order placed');
+            showToast('Order placed successfully');
             nav.dispatch(CommonActions.reset({
                 index: 0,
                 routes: [{ name: 'MainTabs', state: { routes: [{ name: 'Orders' }] } }],
             }));
         } catch (e) {
-            showToast(errMsg(e));
+            const m = errMsg(e);
+            showToast(m);
+            if (/coupon/i.test(m)) { ease(); setApplied(''); setCouponErr(m); }
             if (e?.response) setTick((x) => x + 1);
         } finally { setPlacing(false); }
     };
 
-    const preview = lines.reduce((a, l) => a + l.price * l.quantity, 0);
     const linePrice = (l, i) => {
         const q = quote?.items?.[i];
         const ok = q && String(q.productId) === String(l.productId) && q.quantity === l.quantity;
@@ -204,192 +221,305 @@ export default function CartScreen() {
 
     if (!lines.length) {
         return (
-            <View style={s.flex}>
-                <BackHeader title="Your cart" />
-                <View style={s.center}>
+            <View style={[s.flex, { backgroundColor: background }]}>
+                <BackHeader title="Cart" />
+                <Appear style={s.center}>
+                    <View style={[s.iconCircle, { backgroundColor: surface, borderColor: border }]}>
+                        <Ionicons name="cart-outline" size={48} color={muted} />
+                    </View>
                     <Text style={[s.big, { color: text }]}>{full.labels.emptyCart}</Text>
-                    <Pressable onPress={() => nav.goBack()} style={[s.cta, { backgroundColor: primary, borderRadius: radius }]}>
-                        <Text style={s.ctaTxt}>Browse the menu</Text>
-                    </Pressable>
-                </View>
+                    <Text style={[s.lSub, { color: muted, marginTop: 6 }]}>Good food is always cooking.</Text>
+                    <Press onPress={() => nav.goBack()} style={[s.cta, { backgroundColor: primary, borderRadius: radius }]}>
+                        <Text style={s.ctaTxt}>Browse Menu</Text>
+                    </Press>
+                </Appear>
             </View>
         );
     }
 
-    // bottom button
-    let btnText;
+    const freeAbove = feeConfig.freeAbove || 0;
+    const unlocked = freeAbove > 0 && preview >= freeAbove;
+
+    let btnText = 'Place Order';
     let btnOn = false;
-    if (!user) { btnText = 'Log in to continue'; btnOn = true; }
-    else if (qErr) btnText = qErr;
-    else if (!quote) btnText = 'Please wait…';
-    else if (!quote.canPlace) btnText = quote.problem || 'Cannot place this order';
-    else { btnText = `${full.labels.orderButton} · ${rs(quote.pricing.total)}`; btnOn = !busy && !placing; }
+    let note = '';
+    if (closed) btnText = 'Shop closed';
+    else if (!user) { btnText = 'Login to Pay'; btnOn = true; }
+    else if (qErr) { btnText = 'Unavailable'; note = qErr; }
+    else if (!quote || !fresh) btnText = 'Calculating...';
+    else if (!quote.canPlace) { btnText = "Can't place"; note = quote.problem || 'Cannot place order'; }
+    else btnOn = !placing;
+
     const onBtn = !user ? () => nav.navigate('Login') : place;
     const shopAddr = full.restaurant?.address;
+    const showSchedule = f.scheduleOrder && type === 'delivery';
 
     return (
-        <View style={s.flex}>
-            <BackHeader title="Your cart" />
-            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+        <View style={[s.flex, { backgroundColor: background }]}>
+            <BackHeader title={full.restaurant?.name || 'Your Cart'} />
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 30 }}>
+                {closed ? <ClosedBanner message={quote?.problem || closedMsg} /> : null}
+
+                {type === 'delivery' && freeAbove > 0 ? <FreeDeliveryBar preview={preview} freeAbove={freeAbove} /> : null}
+
                 <View style={s.pad}>
-                    {lines.map((l, i) => (
-                        <View key={l.key} style={s.lineRow}>
-                            {showDot ? <View style={{ marginTop: 3 }}><VegDot isVeg={l.isVeg} /></View> : null}
-                            <View style={{ flex: 1 }}>
-                                <Text style={[s.lName, { color: text }]}>{l.name}</Text>
-                                {l.optionsText ? <Text style={s.lSub}>{l.optionsText}</Text> : null}
-                                {l.note ? <Text style={s.lSub}>Note: {l.note}</Text> : null}
-                            </View>
-                            <View style={[s.qs, { borderColor: primary, borderRadius: radius }]}>
-                                <Pressable hitSlop={8} onPress={() => useCartStore.getState().setQty(l.key, l.quantity - 1)}>
-                                    <Text style={[s.qBtn, { color: primary }]}>−</Text>
-                                </Pressable>
-                                <Text style={[s.qNum, { color: primary }]}>{l.quantity}</Text>
-                                <Pressable hitSlop={8} onPress={() => useCartStore.getState().setQty(l.key, l.quantity + 1)}>
-                                    <Text style={[s.qBtn, { color: primary }]}>+</Text>
-                                </Pressable>
-                            </View>
-                            <Text style={[s.lPrice, { color: text }]}>{rs(linePrice(l, i))}</Text>
-                        </View>
-                    ))}
+                    <Appear style={[s.card, { backgroundColor: surface, borderColor: border, marginTop: 12 }]}>
+                        {lines.map((l, i) => (
+                            <Appear key={l.key} style={[s.lineRow, i === lines.length - 1 && { borderBottomWidth: 0 }, { borderBottomColor: border }]}>
+                                <View style={s.itemVisuals}>
+                                    <View style={[s.itemImgWrap, { backgroundColor: border }]}>
+                                        {l.image ? <Image source={{ uri: l.image }} style={s.itemImg} contentFit="cover" transition={200} /> : <Ionicons name="fast-food-outline" size={20} color={muted} style={{ alignSelf: 'center', marginTop: 12 }} />}
+                                    </View>
+                                    {showDot ? <View style={[s.itemDot, { backgroundColor: surface }]}><VegDot isVeg={l.isVeg} /></View> : null}
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={[s.lName, { color: text }]} numberOfLines={2}>{l.name}</Text>
+                                    {l.optionsText ? <Text style={[s.lSub, { color: muted }]}>{l.optionsText}</Text> : null}
+                                    {l.note ? <Text style={[s.lSub, { color: primary }]}>✎ {l.note}</Text> : null}
+                                </View>
+                                <View style={{ alignItems: 'flex-end', marginLeft: 12 }}>
+                                    <View style={[s.qs, { borderColor: tint(primary), backgroundColor: tint(primary) }]}>
+                                        <Pressable hitSlop={12} onPress={() => setQty(l.key, l.quantity - 1)}><Text style={[s.qBtn, { color: primary }]}>−</Text></Pressable>
+                                        <Text style={[s.qNum, { color: primary }]}>{l.quantity}</Text>
+                                        <Pressable hitSlop={12} onPress={() => setQty(l.key, l.quantity + 1)}><Text style={[s.qBtn, { color: primary }]}>+</Text></Pressable>
+                                    </View>
+                                    <Text style={[s.lPrice, { color: text }]}>{rs(linePrice(l, i))}</Text>
+                                </View>
+                            </Appear>
+                        ))}
+                        <Pressable onPress={() => nav.goBack()} style={s.addMoreRow}>
+                            <Ionicons name="add-circle-outline" size={16} color={primary} />
+                            <Text style={[s.addMoreTxt, { color: primary }]}>Add more items</Text>
+                        </Pressable>
+                    </Appear>
+
+                    {user && type === 'delivery' ? (
+                        <Appear delay={60} style={{ marginTop: 20 }}>
+                            <Text style={[s.cap, { color: text, marginBottom: 8 }]}>Delivery Instructions</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                                {QUICK_NOTES.map((n) => <Chip key={n} label={n} on={delNotes.includes(n)} onPress={() => toggleNote(n)} />)}
+                            </ScrollView>
+                            <TextInput value={customNote} onChangeText={setCustomNote} placeholder="E.g., Any specific landmark or instructions..."
+                                placeholderTextColor={muted} style={[s.customNoteInput, { color: text, borderColor: border, backgroundColor: surface }]} />
+                        </Appear>
+                    ) : null}
 
                     {user && couponOn ? (
-                        <View style={{ marginTop: 14 }}>
+                        <Appear delay={100} style={{ marginTop: 20 }}>
+                            {offers.length > 0 && !applied ? (
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+                                    {offers.map((o) => (
+                                        <Press key={o._id} onPress={() => pickOffer(o.code)} style={[s.couponChip, { borderColor: primary, backgroundColor: tint(primary) }]}>
+                                            <Text style={{ color: primary, fontWeight: '800', fontSize: 13 }}>{o.code}</Text>
+                                            <Text style={{ color: primary, fontSize: 10, marginTop: 2, opacity: 0.8 }}>
+                                                {o.discountType === 'percent' ? `${o.discountValue}% OFF` : `₹${o.discountValue} OFF`}
+                                            </Text>
+                                        </Press>
+                                    ))}
+                                </ScrollView>
+                            ) : null}
                             {applied ? (
-                                <View style={[s.applied, { borderColor: primary, backgroundColor: tint(primary) }]}>
-                                    <Text style={{ color: primary, fontWeight: '800' }}>{applied} applied</Text>
-                                    <Pressable onPress={() => { setApplied(''); setCouponErr(''); }}>
+                                <Appear style={[s.applied, { borderColor: primary, backgroundColor: tint(primary) }]}>
+                                    <View style={s.cRow}>
+                                        <Ionicons name="checkmark-circle" size={20} color={primary} style={{ marginRight: 8 }} />
+                                        <Text style={{ color: primary, fontWeight: '800', fontSize: 14 }}>'{applied}' applied</Text>
+                                    </View>
+                                    <Pressable hitSlop={8} onPress={() => { ease(); setApplied(''); setCouponErr(''); }}>
                                         <Text style={[s.link, { color: primary }]}>Remove</Text>
                                     </Pressable>
-                                </View>
+                                </Appear>
                             ) : (
                                 <View style={s.cRow}>
-                                    <TextInput
-                                        value={couponIn} onChangeText={setCouponIn} placeholder="Coupon code"
-                                        placeholderTextColor="#999999" autoCapitalize="characters" maxLength={30} style={s.input}
-                                    />
-                                    <Pressable onPress={apply} style={[s.apply, { borderColor: primary, borderRadius: radius }]}>
-                                        <Text style={[s.link, { color: primary }]}>Apply</Text>
-                                    </Pressable>
+                                    <View style={[s.inputWrap, { borderColor: border, backgroundColor: surface }]}>
+                                        <Ionicons name="pricetag-outline" size={16} color={muted} style={{ marginRight: 8 }} />
+                                        <TextInput value={couponIn} onChangeText={setCouponIn} placeholder="Apply coupon" placeholderTextColor={muted}
+                                            autoCapitalize="characters" maxLength={30} style={[s.input, { color: text }]} onSubmitEditing={apply} />
+                                    </View>
+                                    <Press onPress={apply} style={[s.apply, { backgroundColor: surface, borderColor: border, borderRadius: radius }]}>
+                                        {tryCode ? <ActivityIndicator size="small" color={primary} /> : <Text style={[s.link, { color: primary }]}>Apply</Text>}
+                                    </Press>
                                 </View>
                             )}
-                            {couponErr ? <Text style={[s.err, { color: error }]}>{couponErr}</Text> : null}
-                        </View>
+                            {couponErr ? <Appear><Text style={[s.err, { color: error }]}>{couponErr}</Text></Appear> : null}
+                        </Appear>
                     ) : null}
 
-                    {user && types.length > 1 ? (
-                        <View style={s.chips}>
-                            {types.map((t) => <Chip key={t} on={type === t} label={t === 'delivery' ? 'Delivery' : 'Pickup'} onPress={() => setPickedType(t)} />)}
-                        </View>
+                    {user && (types.length > 1 || showSchedule) ? (
+                        <Appear delay={140} style={{ marginTop: 20 }}>
+                            <Text style={[s.cap, { color: text, marginBottom: 8 }]}>Order Settings</Text>
+                            {types.length > 1 ? (
+                                <View style={s.chipsRow}>
+                                    {types.map((t) => <Chip key={t} on={type === t} icon={t === 'delivery' ? 'bicycle-outline' : 'basket-outline'} label={t === 'delivery' ? 'Delivery' : 'Pickup'} onPress={() => setPickedType(t)} />)}
+                                </View>
+                            ) : null}
+                            {showSchedule ? (
+                                <View style={s.chipsRow}>
+                                    <Chip icon="flash-outline" label="Now" on={when === 'now'} onPress={() => setWhen('now')} />
+                                    {slots.today ? <Chip icon="time-outline" label={slots.today.label} on={when === 'today'} onPress={() => setWhen('today')} /> : null}
+                                    <Chip icon="calendar-outline" label={slots.tomorrow.label} on={when === 'tomorrow'} onPress={() => setWhen('tomorrow')} />
+                                </View>
+                            ) : null}
+                        </Appear>
                     ) : null}
 
-                    {user && f.scheduleOrder ? (
-                        <View style={s.chips}>
-                            <Chip label="Now" on={when === 'now'} onPress={() => setWhen('now')} />
-                            {slots.today ? <Chip label={slots.today.label} on={when === 'today'} onPress={() => setWhen('today')} /> : null}
-                            <Chip label={slots.tomorrow.label} on={when === 'tomorrow'} onPress={() => setWhen('tomorrow')} />
-                        </View>
+                    {user && type === 'pickup' ? (
+                        <Appear style={{ marginTop: 20 }}>
+                            <Text style={[s.cap, { color: text }]}>Pickup time</Text>
+                            <Text style={[s.lSub, { color: muted, marginTop: 2, marginBottom: 12 }]}>Choose a time window to collect your order</Text>
+                            <PickupSlots res={slotRes} picked={pickedSlot} onPick={(v) => { ease(); setPickedSlot(v); }} />
+                        </Appear>
                     ) : null}
 
                     {user && f.tips && type === 'delivery' && (full.orders.tipOptions || []).length ? (
-                        <View style={s.chips}>
-                            <Text style={s.cap}>Tip</Text>
-                            <Chip label="None" on={tip === 0} onPress={() => setTip(0)} />
-                            {full.orders.tipOptions.map((n) => <Chip key={n} label={rs(n)} on={tip === n} onPress={() => setTip(n)} />)}
-                        </View>
+                        <Appear style={{ marginTop: 20 }}>
+                            <Text style={[s.cap, { color: text, marginBottom: 8 }]}>Tip your delivery partner</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                                <Chip label="No tip" icon="close" on={tip === 0} onPress={() => setTip(0)} />
+                                {full.orders.tipOptions.map((n) => <Chip key={n} icon="heart-outline" label={rs(n)} on={tip === n} onPress={() => setTip(n)} />)}
+                            </ScrollView>
+                        </Appear>
                     ) : null}
 
                     {user && type === 'delivery' ? (
-                        <View style={s.card}>
-                            <Text style={s.cap}>Deliver to</Text>
+                        <Appear style={[s.card, { backgroundColor: surface, borderColor: border }]}>
+                            <View style={s.cardHead}>
+                                <Ionicons name="location-outline" size={18} color={primary} />
+                                <Text style={[s.cap, { color: muted, marginLeft: 6 }]}>Deliver to</Text>
+                            </View>
                             {addr ? (
-                                <>
+                                <View style={{ marginTop: 8 }}>
                                     <Text style={[s.lName, { color: text }]}>{addr.label}{addr.name ? ` · ${addr.name}` : ''}</Text>
-                                    <Text style={s.lSub}>{addrLine(addr)}</Text>
-                                </>
-                            ) : <Text style={s.lSub}>No address selected</Text>}
-                            <Pressable onPress={() => setSheet(true)} style={{ marginTop: 8 }}>
-                                <Text style={[s.link, { color: primary }]}>{addr ? 'Change' : 'Add address'}</Text>
+                                    <Text style={[s.lSub, { color: muted }]}>{addrLine(addr)}</Text>
+                                </View>
+                            ) : <Text style={[s.lSub, { color: muted, marginTop: 8 }]}>No address selected</Text>}
+                            <Pressable hitSlop={8} onPress={() => setSheet(true)} style={{ marginTop: 12, alignSelf: 'flex-start' }}>
+                                <Text style={[s.link, { color: primary }]}>{addr ? 'Change Address' : 'Add Address'}</Text>
                             </Pressable>
-                        </View>
+                        </Appear>
                     ) : null}
                     {user && type === 'pickup' && shopAddr?.line ? (
-                        <View style={s.card}>
-                            <Text style={s.cap}>Pick up from</Text>
-                            <Text style={s.lSub}>{[shopAddr.line, shopAddr.city, shopAddr.pincode].filter(Boolean).join(', ')}</Text>
-                        </View>
+                        <Appear style={[s.card, { backgroundColor: surface, borderColor: border }]}>
+                            <View style={s.cardHead}>
+                                <Ionicons name="storefront-outline" size={18} color={primary} />
+                                <Text style={[s.cap, { color: muted, marginLeft: 6 }]}>Pick up from</Text>
+                            </View>
+                            <Text style={[s.lSub, { color: muted, marginTop: 8 }]}>{[shopAddr.line, shopAddr.city, shopAddr.pincode].filter(Boolean).join(', ')}</Text>
+                        </Appear>
                     ) : null}
 
-                    <View style={s.card}>
+                    <Appear style={[s.card, { backgroundColor: surface, borderColor: border }]}>
                         <View style={s.billHead}>
-                            <Text style={[s.lName, { color: text }]}>Bill details</Text>
+                            <View style={s.cardHead}>
+                                <Ionicons name="receipt-outline" size={18} color={text} />
+                                <Text style={[s.lName, { color: text, marginLeft: 8 }]}>Bill details</Text>
+                            </View>
                             {busy ? <ActivityIndicator size="small" color={primary} /> : null}
                         </View>
-                        {user && quote ? <Bill q={quote} type={type} busy={busy} />
+                        {user && quote ? <Bill q={quote} type={type} busy={busy} baseDeliveryFee={feeConfig.amount} />
                             : user && qErr ? (
-                                <View>
+                                <View style={{ paddingVertical: 10 }}>
                                     <Text style={[s.err, { color: error }]}>{qErr}</Text>
-                                    <Pressable onPress={() => setTick((x) => x + 1)}><Text style={[s.link, { color: primary, marginTop: 8 }]}>Try again</Text></Pressable>
+                                    <Pressable hitSlop={8} onPress={() => setTick((x) => x + 1)}><Text style={[s.link, { color: primary, marginTop: 8 }]}>Try again</Text></Pressable>
                                 </View>
-                            ) : user ? <ActivityIndicator style={{ margin: 12 }} color={primary} />
-                                : <Row k="Subtotal" v={rs(preview)} />}
-                        <Text style={s.cod}>💵 Cash on delivery</Text>
+                            ) : user ? <ActivityIndicator style={{ margin: 16 }} color={primary} />
+                                : <Bill q={{ pricing: { subtotal: preview, total: preview } }} type={type} busy={false} />}
+                    </Appear>
+
+                    <View style={s.policyBox}>
+                        <Text style={[s.policy, { color: muted }]}>Orders cannot be cancelled once preparation begins at the restaurant.</Text>
                     </View>
                 </View>
             </ScrollView>
 
-            <View style={[s.bottom, { paddingBottom: insets.bottom + 12 }]}>
-                <Pressable
-                    onPress={btnOn ? onBtn : undefined}
-                    style={[s.place, { backgroundColor: btnOn ? primary : '#BBBBBB', borderRadius: radius }]}
-                >
-                    {placing ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.placeTxt} numberOfLines={2}>{btnText}</Text>}
-                </Pressable>
+            <View style={[s.dockWrap, { backgroundColor: surface, borderTopColor: border, paddingBottom: insets.bottom || 12 }]}>
+                {note ? (
+                    <Appear key={note} style={[s.note, { backgroundColor: tint(error) }]}>
+                        <Ionicons name="information-circle-outline" size={16} color={error} />
+                        <Text style={[s.noteTxt, { color: error }]} numberOfLines={2}>{note}</Text>
+                    </Appear>
+                ) : null}
+                <View style={s.dockRow}>
+                    <Pressable onPress={() => nav.navigate('PaymentMethods', { current: paymentMethodValue })} style={s.dockLeft}>
+                        <View style={s.dockIcon}><Ionicons name="wallet-outline" size={18} color={primary} /></View>
+                        <View style={{ flex: 1 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <Text style={[s.dockLabel, { color: text }]} numberOfLines={1}>{selectedPaymentMethod}</Text>
+                                <Ionicons name="chevron-up-outline" size={14} color={muted} style={{ marginLeft: 4 }} />
+                            </View>
+                            <Text style={[s.dockSub, { color: muted }]} numberOfLines={1}>Click to change</Text>
+                        </View>
+                    </Pressable>
+                    <Press onPress={btnOn ? onBtn : undefined} style={[s.dockBtn, { backgroundColor: btnOn ? primary : muted, borderRadius: radius }]}>
+                        {placing ? <ActivityIndicator color="#FFFFFF" /> : (
+                            <View style={s.btnRow}>
+                                <View>
+                                    <Text style={s.btnTotal}>{quote && !closed ? rs(quote.pricing.total) : ' '}</Text>
+                                    <Text style={s.btnLabel} numberOfLines={1}>{btnText}</Text>
+                                </View>
+                                <Ionicons name="caret-forward-outline" size={14} color="#FFFFFF" style={{ marginLeft: 8 }} />
+                            </View>
+                        )}
+                    </Press>
+                </View>
             </View>
 
-            <AddressSheet
-                visible={sheet} onClose={() => setSheet(false)} selectedId={addr?._id}
-                onSelect={setAddr}
-                onChanged={(L) => setAddr((p) => L.find((a) => a._id === p?._id) || L.find((a) => a.isDefault) || L[0] || null)}
-            />
+            <AddressSheet visible={sheet} onClose={() => setSheet(false)} selectedId={addr?._id} onSelect={setAddr}
+                onChanged={(L) => setAddr((p) => L.find((a) => a._id === p?._id) || L.find((a) => a.isDefault) || L[0] || null)} />
         </View>
     );
 }
 
 const s = StyleSheet.create({
-    flex: { flex: 1, backgroundColor: '#FFFFFF' },
-    center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-    big: { fontSize: 18, fontWeight: '800' },
-    cta: { marginTop: 18, paddingHorizontal: 28, paddingVertical: 12 },
+    flex: { flex: 1 },
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, paddingBottom: 60 },
+    iconCircle: { width: 100, height: 100, borderRadius: 50, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginBottom: 24 },
+    big: { fontSize: 20, fontWeight: '900', letterSpacing: -0.5 },
+    cta: { marginTop: 24, paddingHorizontal: 32, paddingVertical: 14, elevation: 2 },
     ctaTxt: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
+    tracker: { backgroundColor: '#FEF3F2', paddingVertical: 10, paddingHorizontal: 16, alignItems: 'center' },
+    trackerTxt: { fontSize: 13, color: '#B3261E', fontWeight: '500' },
+    barBg: { alignSelf: 'stretch', height: 4, borderRadius: 2, backgroundColor: 'rgba(0,0,0,0.08)', marginTop: 8, overflow: 'hidden' },
+    barFill: { height: 4, borderRadius: 2 },
     pad: { paddingHorizontal: 16 },
-    lineRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E5E5E5' },
-    lName: { fontSize: 14, fontWeight: '700', marginLeft: 2 },
-    lSub: { fontSize: 12, color: '#666666', marginTop: 2, marginLeft: 2 },
-    lPrice: { width: 64, textAlign: 'right', fontSize: 14, fontWeight: '700' },
-    qs: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, paddingHorizontal: 8, paddingVertical: 4, marginHorizontal: 8 },
-    qBtn: { fontSize: 18, fontWeight: '800', paddingHorizontal: 3 },
-    qNum: { fontSize: 14, fontWeight: '800', minWidth: 20, textAlign: 'center' },
+    card: { marginTop: 24, borderWidth: 1, borderRadius: 16, padding: 16, elevation: 2, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
+    lineRow: { flexDirection: 'row', paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth },
+    itemVisuals: { width: 52, height: 52, marginRight: 12 },
+    itemImgWrap: { width: 48, height: 48, borderRadius: 8, overflow: 'hidden' },
+    itemImg: { width: '100%', height: '100%' },
+    itemDot: { position: 'absolute', bottom: -2, right: -2, borderRadius: 4, padding: 2, zIndex: 1 },
+    lName: { fontSize: 14, fontWeight: '800' },
+    lSub: { fontSize: 12, marginTop: 4, lineHeight: 16 },
+    lPrice: { textAlign: 'right', fontSize: 14, fontWeight: '800', marginTop: 4 },
+    addMoreRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingTop: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#EEEEEE' },
+    addMoreTxt: { fontSize: 13, fontWeight: '700', marginLeft: 6 },
+    qs: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, paddingHorizontal: 4, paddingVertical: 4, borderRadius: 8 },
+    qBtn: { fontSize: 16, fontWeight: '800', paddingHorizontal: 8 },
+    qNum: { fontSize: 13, fontWeight: '800', minWidth: 20, textAlign: 'center' },
     cRow: { flexDirection: 'row', alignItems: 'center' },
-    input: { flex: 1, borderWidth: 1, borderColor: '#DDDDDD', borderRadius: 10, padding: 11, fontSize: 14, color: '#1C1C1C' },
-    apply: { marginLeft: 10, borderWidth: 1, paddingHorizontal: 16, paddingVertical: 11 },
-    applied: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1.5, borderStyle: 'dashed', borderRadius: 12, padding: 12 },
-    link: { fontSize: 13, fontWeight: '700' },
-    err: { fontSize: 12, marginTop: 6 },
-    chips: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', marginTop: 12 },
-    cap: { fontSize: 12, fontWeight: '700', color: '#777777', marginRight: 8, marginBottom: 2 },
-    chip: { paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: '#DDDDDD', borderRadius: 18, marginRight: 8, marginBottom: 4 },
-    chipTxt: { fontSize: 12, fontWeight: '600' },
-    card: { marginTop: 14, borderWidth: 1, borderColor: '#EEEEEE', borderRadius: 14, padding: 14 },
-    billHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
-    bRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5 },
-    bK: { fontSize: 13 },
-    bV: { fontSize: 13 },
-    bold: { fontSize: 15, fontWeight: '800' },
-    line: { height: StyleSheet.hairlineWidth, backgroundColor: '#CCCCCC', marginVertical: 6 },
-    incl: { fontSize: 11, color: '#777777', marginTop: 2 },
-    cod: { fontSize: 12, color: '#555555', marginTop: 12 },
-    bottom: { paddingHorizontal: 16, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E5E5E5', backgroundColor: '#FFFFFF' },
-    place: { paddingVertical: 14, paddingHorizontal: 12, alignItems: 'center' },
-    placeTxt: { color: '#FFFFFF', fontSize: 15, fontWeight: '800', textAlign: 'center' },
+    inputWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, height: 48 },
+    input: { flex: 1, fontSize: 14, fontWeight: '700', paddingVertical: 0 },
+    apply: { marginLeft: 10, borderWidth: 1, paddingHorizontal: 20, height: 48, justifyContent: 'center', alignItems: 'center', minWidth: 84 },
+    applied: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1.5, borderStyle: 'dashed', borderRadius: 12, padding: 14 },
+    couponChip: { borderWidth: 1, borderStyle: 'dashed', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, marginRight: 12, minWidth: 100, alignItems: 'center', justifyContent: 'center' },
+    link: { fontSize: 13, fontWeight: '800' },
+    err: { fontSize: 12, marginTop: 8, paddingHorizontal: 4 },
+    customNoteInput: { borderWidth: 1, borderRadius: 10, padding: 12, marginTop: 12, fontSize: 13, fontWeight: '500' },
+    chipsRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
+    cap: { fontSize: 14, fontWeight: '800', letterSpacing: -0.2 },
+    cardHead: { flexDirection: 'row', alignItems: 'center' },
+    billHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
+    policyBox: { marginTop: 16, padding: 12, backgroundColor: '#F8F9FA', borderRadius: 8 },
+    policy: { fontSize: 11, lineHeight: 16 },
+    dockWrap: { paddingHorizontal: 16, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth, elevation: 16, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, shadowOffset: { width: 0, height: -4 } },
+    dockRow: { flexDirection: 'row', alignItems: 'center' },
+    note: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, marginBottom: 10 },
+    noteTxt: { flex: 1, marginLeft: 8, fontSize: 12, fontWeight: '700' },
+    dockLeft: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', paddingRight: 12 },
+    dockIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.04)', alignItems: 'center', justifyContent: 'center', marginRight: 10 },
+    dockLabel: { fontSize: 14, fontWeight: '800', marginBottom: 2, flexShrink: 1 },
+    dockSub: { fontSize: 11, fontWeight: '500' },
+    dockBtn: { paddingVertical: 10, paddingHorizontal: 18, minWidth: 140, flexShrink: 0, elevation: 2 },
+    btnRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    btnTotal: { color: '#FFFFFF', fontSize: 12, fontWeight: '600', opacity: 0.9 },
+    btnLabel: { color: '#FFFFFF', fontSize: 15, fontWeight: '900' },
 });
