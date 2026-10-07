@@ -200,17 +200,21 @@ const rotateSession = async ({ sid, tenantId, oldHash, newHash, now }) => {
             rotatedAt: { $gt: new Date(now.getTime() - ROTATION_GRACE_MS) },
             expiresAt: { $gt: now },
         },
-        {
-            $set: {
-                refreshTokenHash: newHash,
-                prevRefreshTokenHash: oldHash,
-                lastUsedAt: now,
+        // Pipeline update: the token that is current right now becomes "previous", so the
+        // token the app may have received from the first request still works for 30 seconds.
+        [
+            {
+                $set: {
+                    prevRefreshTokenHash: '$refreshTokenHash',
+                    refreshTokenHash: newHash,
+                    rotatedAt: now,
+                    lastUsedAt: now,
+                },
             },
-        },
+        ],
         { returnDocument: 'after' }
     );
     if (grace) return 'grace';
-
     return null;
 };
 
@@ -238,16 +242,6 @@ exports.sendOtp = async (req, res) => {
     }
 
     try {
-        const recentOtp = await OtpRequest.findOne({
-            tenantId: tenant._id,
-            phone,
-            consumed: false,
-            createdAt: { $gt: new Date(Date.now() - 60000) } // 60 seconds ago
-        });
-        if (recentOtp) {
-            return res.status(429).json({ error: 'Please wait 60 seconds before requesting another OTP.' });
-        }
-
         await OtpRequest.updateMany(
             { tenantId: tenant._id, phone, consumed: false },
             { $set: { consumed: true } }

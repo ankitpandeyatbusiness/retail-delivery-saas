@@ -9,12 +9,13 @@ const { ACTIVE_STATUSES } = require('../services/orderflow');
 const Product = require('../models/Product');
 const Tenant = require('../models/Tenant');
 const { invalidateAvailability } = require('../services/availability');
-
-const OWNER_PRODUCT_FIELDS = ['price', 'mrp', 'isAvailable', 'isActive', 'gstRate'];   // nothing else
+const auditTrail = require('../middlewares/auditTrail');
+const { validateSettings } = require('../services/tenantConfigService');
 
 const { wrap, httpError } = apiErrors;
 const router = express.Router();
 router.use(tenantRecognizer);
+router.use(auditTrail('owner'));   // records every change a shop owner makes
 router.use('/subscription', requireShopAdmin.allowBlocked, require('./shopSubscriptionRouter'));   // rent invoices stay visible even when blocked
 router.use('/orders', requireShopAdmin.allowBlocked);
 
@@ -110,15 +111,13 @@ router.put('/settings', wrap(async (req, res) => {
     const body = req.body || {};
     const updates = {};
 
-    // 1. Allow updating operating hours (validated against your existing rules)
     if (body.hours !== undefined) {
-        if (!body.hours || typeof body.hours !== 'object') {
-            throw httpError(400, 'Invalid hours format');
-        }
-        updates['settings.hours'] = body.hours;
+        // same validator the superadmin panel uses
+        const v = validateSettings({ hours: body.hours });
+        if (!v.ok) return res.status(400).json({ error: 'Invalid hours', errors: v.errors });
+        updates['settings.hours'] = v.clean.hours;
     }
 
-    // 2. Allow updating public restaurant contact info
     if (body.phone !== undefined) {
         const phone = String(body.phone).trim();
         if (!/^[6-9]\d{9}$/.test(phone)) throw httpError(400, 'Enter a valid 10-digit mobile number');
@@ -126,38 +125,52 @@ router.put('/settings', wrap(async (req, res) => {
     }
 
     if (body.address !== undefined) {
-        updates.address = {
-            line: String(body.address.line || '').trim(),
-            city: String(body.address.city || '').trim(),
-            pincode: String(body.address.pincode || '').trim(),
-        };
+        if (!body.address || typeof body.address !== 'object') throw httpError(400, 'Invalid address');
+        const a = body.address;
+        if (a.line !== undefined) updates['address.line'] = String(a.line).trim().slice(0, 150);
+        if (a.city !== undefined) updates['address.city'] = String(a.city).trim().slice(0, 60);
+        if (a.pincode !== undefined) {
+            const pin = String(a.pincode).trim();
+            if (!/^\d{6}$/.test(pin)) throw httpError(400, 'Enter a valid 6-digit pincode');
+            updates['address.pincode'] = pin;
+        }
     }
 
-    // 3. Allow updating delivery rules (radius, minimum order amount)
     if (body.delivery !== undefined) {
-        updates.delivery = {
-            latitude: Number(body.delivery.latitude) || req.tenant.delivery?.latitude,
-            longitude: Number(body.delivery.longitude) || req.tenant.delivery?.longitude,
-            radiusKm: Number(body.delivery.radiusKm) || req.tenant.delivery?.radiusKm,
-            minOrder: Number(body.delivery.minOrder) || req.tenant.delivery?.minOrder,
+        const d = body.delivery;
+        if (!d || typeof d !== 'object') throw httpError(400, 'Invalid delivery settings');
+        const cur = req.tenant.delivery || {};
+        // keeps the old value when a field is not sent; 0 is allowed
+        const pick = (key, min, max) => {
+            if (d[key] === undefined) return cur[key];
+            const n = Number(d[key]);
+            if (d[key] === '' || !Number.isFinite(n) || n < min || n > max) {
+                throw httpError(400, `${key} must be a number between ${min} and ${max}`);
+            }
+            return n;
         };
+        const rules = [['latitude', -90, 90], ['longitude', -180, 180], ['radiusKm', 0, 100], ['minOrder', 0, 5000]];
+        for (const [key, min, max] of rules) {
+            if (d[key] === undefined) continue;   // not sent, so leave the old value alone
+            updates[`delivery.${key}`] = pick(key, min, max);
+        }
     }
 
-    if (!Object.keys(updates).length) {
-        throw httpError(400, 'No valid settings provided to update');
-    }
+    if (!Object.keys(updates).length) throw httpError(400, 'No valid settings provided to update');
 
-    // Apply updates securely to this specific tenant only
-    const updatedTenant = await Tenant.findOneAndUpdate(
+    req.auditBefore = {   // for the audit log
+        phone: req.tenant.phone, address: req.tenant.address,
+        delivery: req.tenant.delivery, hours: req.tenant.settings?.hours,
+    };
+
+    const t = await Tenant.findOneAndUpdate(
         { _id: req.tenant._id },
         { $set: updates },
-        { new: true, runValidators: true }
-    );
+        { new: true, runValidators: true },
+    ).select('phone address delivery settings.hours').lean();
 
-    // Invalidate the cache so the change reflects instantly for customers
     tenantRecognizer.invalidateTenant(req.tenant.slug);
-
-    res.json({ ok: true, tenant: updatedTenant });
+    res.json({ ok: true, phone: t.phone, address: t.address, delivery: t.delivery, hours: t.settings?.hours || null });
 }));
 
 router.use(require('./shopManageRouter'));

@@ -26,15 +26,19 @@ const tenantRecognizer = async (req, res, next) => {
         }
         if (!tenant) return res.status(404).json({ error: 'Tenant not found' });
 
-        // Hard suspension. Customers are never told the real reason.
-        if (tenant.status && tenant.status !== 'active') {
-            return res.status(402).json({ error: 'This shop is not accepting orders right now' });
-        }
+        // Routes that set req.allowFrozenShop (order history and cancel) skip these two checks,
+        // so customers are never locked out of their own live orders.
+        if (!req.allowFrozenShop) {
+            // Hard suspension. Customers are never told the real reason.
+            if (tenant.status && tenant.status !== 'active') {
+                return res.status(402).json({ error: 'This shop is not accepting orders right now' });
+            }
 
-        // Maintenance for this one shop (the whole-platform switch is handled by platformGate)
-        if (isMaintenanceOn(tenant.maintenance)) {
-            res.set('Retry-After', '300');
-            return res.status(503).json(maintenanceBody(tenant.maintenance));
+            // Maintenance for this one shop (the whole-platform switch is handled by platformGate)
+            if (isMaintenanceOn(tenant.maintenance)) {
+                res.set('Retry-After', '300');
+                return res.status(503).json(maintenanceBody(tenant.maintenance));
+            }
         }
 
         req.tenant = tenant;

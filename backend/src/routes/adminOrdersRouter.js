@@ -14,6 +14,7 @@ const { streamInvoice } = require('../services/invoiceService');
 const { salesReport, parseRange } = require('../services/reportService');
 const { wrap, httpError } = require('../middlewares/apiErrors');
 const Coupon = require('../models/Coupon');
+const { ACTIVE_STATUSES } = require('../services/orderflow');
 
 const router = express.Router();
 const STATUSES = Order.schema.path('status').enumValues;
@@ -97,6 +98,7 @@ router.get('/reports/sales', wrap(async (req, res) => {
     res.json(await salesReport({ tenantId, from, to, groupBy: req.query.groupBy }));
 }));
 
+
 router.patch('/orders/:id/status', wrap(async (req, res) => {
     const order = isId(req.params.id) ? await Order.findById(req.params.id) : null;
     if (!order) throw httpError(404, 'Order not found');
@@ -106,25 +108,34 @@ router.patch('/orders/:id/status', wrap(async (req, res) => {
         throw httpError(400, 'Superadmin can only force status to cancelled or delivered');
     }
 
+    // Only orders still in progress can be forced. Finished orders are final.
+    if (!ACTIVE_STATUSES.includes(order.status)) {
+        throw httpError(409, `This order is already "${order.status}" and cannot be changed`);
+    }
+
+    const note = typeof req.body?.note === 'string' ? req.body.note.trim().slice(0, 200) : '';
+
     const set = { status };
     if (status === 'cancelled') {
-        set.cancelledBy = 'shop'; // Schema allows 'customer' or 'shop'
-        set.cancelReason = typeof req.body?.note === 'string' ? req.body.note.trim().slice(0, 200) : 'Force cancelled by Superadmin';
-    } else if (status === 'delivered') {
+        set.cancelledBy = 'admin';
+        set.cancelReason = note || 'Force cancelled by Superadmin';
+    } else {
         set.deliveredAt = new Date();
         if (order.payment?.method === 'cod') set['payment.status'] = 'paid';
     }
 
-    const updated = await Order.findByIdAndUpdate(
-        order._id,
+    // The status filter makes this fail if the shop or customer moved the order a moment ago
+    const updated = await Order.findOneAndUpdate(
+        { _id: order._id, status: order.status },
         {
             $set: set,
-            $push: { statusHistory: { status, by: req.admin._id, note: req.body?.note || 'Superadmin override' } }
+            $push: { statusHistory: { status, by: req.admin._id, note: `Superadmin: ${note || 'override'}` } },
         },
         { new: true }
     );
+    if (!updated) throw httpError(409, 'This order was just updated. Refresh and try again.');
 
-    // If superadmin cancels it, give the customer their coupon back
+    // The coupon is released only once, because a cancelled order can no longer be changed
     if (status === 'cancelled' && updated.couponId) {
         await Coupon.updateOne({ _id: updated.couponId, usedCount: { $gt: 0 } }, { $inc: { usedCount: -1 } });
     }

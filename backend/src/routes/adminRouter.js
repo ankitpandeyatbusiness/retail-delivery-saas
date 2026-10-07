@@ -10,6 +10,7 @@ const Coupon = require('../models/Coupon');
 const User = require('../models/User');
 const Collection = require('../models/Collection');
 
+
 const O = require('../config/tenantOptions');
 const { getPreset } = require('../config/homePresets');
 const { validateSettings, resolveConfig, DEFAULTS } = require('../services/tenantConfigService');
@@ -18,6 +19,9 @@ const requireSuperAdmin = require('../middlewares/requireSuperAdmin');
 const { invalidateTenant } = require('../middlewares/tenantRecognizer');
 const { getAvailability, invalidateAvailability, applyAutoHide } = require('../services/availability');
 const { foodRuleError } = require('../services/foodRules');
+const keepOwnerPause = require('../utils/keepOwnerPause');
+const { shopState } = require('../utils/shopState');
+const auditTrail = require('../middlewares/auditTrail');
 // The food mode lives at config.home.foodMode (same place the catalog code reads it)
 const getFoodMode = (tenant) => resolveConfig(tenant).home.foodMode;
 
@@ -69,17 +73,23 @@ admin.post('/auth/login', wrap(async (req, res) => {
     attempts.delete(ip);
     account.lastLoginAt = new Date();
     await account.save();
+    auditTrail.record({
+        actorType: 'superadmin', actorId: account._id, actorLabel: account.email,
+        action: 'LOGIN /api/admin/auth/login', method: 'POST', path: '/api/admin/auth/login', status: 200, ip,
+    });
     res.json({ token: signAdminToken(account), admin: { email: account.email, name: account.name || null } });
 }));
 
 /* ------------------------------ everything below needs a superadmin ------------------------------ */
 admin.use(requireSuperAdmin);
+admin.use(auditTrail('superadmin'));   // records every change a superadmin makes
 
 admin.use(require('./adminOrdersRouter'));
 admin.use(require('./adminUsersRouter'));
 admin.use(require('./adminAccessRouter'));
 admin.use(require('./adminPlatformRouter'));
 admin.use(require('./adminSubscriptionRouter'));
+admin.use(require('./adminAuditRouter'));
 
 // any change to a shop's data refreshes that shop's cached counts
 admin.use('/tenants/:tid', (req, res, next) => {
@@ -121,9 +131,14 @@ admin.get('/tenants', wrap(async (req, res) => {
     const items = await Tenant.find(filter)
         .sort({ createdAt: -1 })
         .limit(200)
-        .select('slug name status androidPackage createdAt updatedAt')
+        .select('slug name status androidPackage createdAt updatedAt ownerBlocked ownerBlockedReason maintenance settings.orders.acceptingOrders')
         .lean();
-    res.json({ items });
+    res.json({
+        items: items.map((t) => {
+            const { settings, maintenance, ownerBlockedReason, ...rest } = t;
+            return { ...rest, state: shopState(t) };
+        }),
+    });
 }));
 
 admin.post('/tenants', wrap(async (req, res) => {
@@ -149,7 +164,7 @@ admin.get('/tenants/:tid', wrap(async (req, res) => {
     if (!isId(req.params.tid)) throw httpError(404, 'Tenant not found');
     const tenant = await Tenant.findById(req.params.tid).lean();
     if (!tenant) throw httpError(404, 'Tenant not found');
-    res.json({ tenant, resolved: resolveConfig(tenant) });
+    res.json({ tenant, resolved: resolveConfig(tenant), state: shopState(tenant) });
 }));
 
 // Send only what changed. `settings`, if sent, REPLACES the whole settings document (the panel sends its full form).
@@ -165,6 +180,7 @@ admin.put('/tenants/:tid', wrap(async (req, res) => {
     }
 
     // --- REPLACEMENT STARTS HERE ---
+    req.auditBefore = pickFields([...TENANT_FIELDS, 'settings'], tenant.toObject());   // for the audit log
     const updates = pickFields(TENANT_FIELDS, body);
     for (const [key, value] of Object.entries(updates)) {
         // Deep merge for nested objects (delivery, business, subscription, colors, address)
@@ -182,7 +198,7 @@ admin.put('/tenants/:tid', wrap(async (req, res) => {
     if (body.settings !== undefined) {
         const v = validateSettings(body.settings);
         if (!v.ok) return res.status(400).json({ error: 'Invalid settings', errors: v.errors });
-        tenant.set('settings', v.clean);
+        tenant.set('settings', keepOwnerPause(tenant.settings, v.clean));
         tenant.markModified('settings');
     }
     await tenant.save();
@@ -243,6 +259,7 @@ function crud(Model, { fields, sort, searchField, softDelete, check }) {
         const doc = await findOneDoc(req);
         if (!doc) throw httpError(404, 'Not found');
         const data = pickFields(fields, req.body);
+        req.auditBefore = doc.toObject();   // for the audit log
         if (check) await check({ ...doc.toObject(), ...data }, req);
         doc.set(data);
         await doc.save();
@@ -252,6 +269,7 @@ function crud(Model, { fields, sort, searchField, softDelete, check }) {
     r.delete('/:id', wrap(async (req, res) => {
         const doc = await findOneDoc(req);
         if (!doc) throw httpError(404, 'Not found');
+        req.auditBefore = doc.toObject();   // for the audit log
         if (softDelete) { doc.isActive = false; await doc.save(); } // keeps old orders readable
         else await doc.deleteOne();
         res.json({ ok: true, softDeleted: !!softDelete });

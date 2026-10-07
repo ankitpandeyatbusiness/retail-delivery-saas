@@ -23,17 +23,7 @@ async function rateOrder({ tenantId, userId, orderId, ratings }) {
         if (!Number.isInteger(r.rating) || r.rating < 1 || r.rating > 5) throw httpError(400, 'Rating must be 1 to 5');
     }
 
-    // --- FIX STARTS HERE: O(1) Math instead of O(N) DB Aggregation ---
-
-    // 1. Get the customer's previous ratings for this order (to know if they are updating)
-    const oldReviews = await Review.find({ tenantId, orderId, userId }).lean();
-    const oldReviewMap = new Map(oldReviews.map((r) => [String(r.productId), r.rating]));
-
-    // 2. Get the current product stats
-    const products = await Product.find({ _id: { $in: [...seen] }, tenantId }).select('rating ratingCount').lean();
-    const productMap = new Map(products.map((p) => [String(p._id), p]));
-
-    // 3. Save the actual reviews to the database
+    // Save the reviews first (sending again edits the earlier rating)
     await Review.bulkWrite(ratings.map((r) => ({
         updateOne: {
             filter: { tenantId, orderId: order._id, productId: r.productId, userId },
@@ -42,38 +32,19 @@ async function rateOrder({ tenantId, userId, orderId, ratings }) {
         },
     })));
 
-    // 4. Calculate the new averages instantly using math
-    const productUpdates = ratings.map((r) => {
-        const p = productMap.get(String(r.productId));
-        if (!p) return null;
-
-        let count = p.ratingCount || 0;
-        let currentTotal = (p.rating || 0) * count;
-        const oldUserRating = oldReviewMap.get(String(r.productId));
-
-        if (oldUserRating !== undefined) {
-            // They are updating an existing review: subtract old, add new
-            currentTotal = currentTotal - oldUserRating + r.rating;
-        } else {
-            // Brand new review
-            count += 1;
-            currentTotal += r.rating;
-        }
-
-        const newAvg = count > 0 ? Math.round((currentTotal / count) * 10) / 10 : 0;
-
-        return {
+    // Recalculate each rated product from its real reviews
+    const rows = await Review.aggregate([
+        { $match: { tenantId: new mongoose.Types.ObjectId(String(tenantId)), productId: { $in: [...seen].map((id) => new mongoose.Types.ObjectId(id)) } } },
+        { $group: { _id: '$productId', avg: { $avg: '$rating' }, n: { $sum: 1 } } },
+    ]);
+    if (rows.length) {
+        await Product.bulkWrite(rows.map((r) => ({
             updateOne: {
-                filter: { _id: r.productId, tenantId },
-                update: { $set: { rating: newAvg, ratingCount: count } }
-            }
-        };
-    }).filter(Boolean);
-
-    if (productUpdates.length) {
-        await Product.bulkWrite(productUpdates);
+                filter: { _id: r._id, tenantId },
+                update: { $set: { rating: Math.round(r.avg * 10) / 10, ratingCount: r.n } },
+            },
+        })));
     }
-    // --- FIX ENDS HERE ---
 
     await Order.updateOne({ _id: order._id }, { $set: { ratedAt: new Date() } });
     return getRatings({ tenantId, userId, orderId });

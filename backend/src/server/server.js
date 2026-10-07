@@ -16,6 +16,7 @@ const shopRouter = require('../routes/shopRouter');
 const collectionRouter = require('../routes/collectionRouter');
 const favouriteRouter = require('../routes/favouriteRouter');
 const profileRouter = require('../routes/profileRouter');
+const { startOrderTimeoutScheduler } = require('../services/orderTimeout');
 
 const app = express();
 
@@ -62,6 +63,7 @@ connectDB()
     .then(() => {
         app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
         startBillingScheduler();
+        startOrderTimeoutScheduler();
     })
     .catch((err) => {
         console.error('Database connection failed:', err);

@@ -17,6 +17,13 @@ async function load() {
 
 async function platformGate(req, res, next) {
     if (req.path === '/health' || req.path.startsWith('/api/admin')) return next();
+
+    // Even during platform maintenance, customers can still see their orders, cancel an order,
+    // and keep their login alive. Placing new orders, browsing and signing in stay blocked.
+    const isOrderRead = req.method === 'GET' && (req.path === '/api/orders' || req.path.startsWith('/api/orders/'));
+    const isOrderCancel = req.method === 'POST' && /^\/api\/orders\/[a-fA-F0-9]{24}\/cancel$/.test(req.path);
+    const isRefresh = req.method === 'POST' && req.path === '/api/auth/refresh';
+    if (isOrderRead || isOrderCancel || isRefresh) return next();
     try {
         const m = await load();
         const active = m && m.on && (!m.until || new Date(m.until) > new Date());

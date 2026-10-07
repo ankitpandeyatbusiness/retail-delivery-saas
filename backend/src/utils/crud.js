@@ -51,6 +51,7 @@ function crud(Model, { fields, sort, searchField, softDelete, check }) {
         const doc = await findOneDoc(req);
         if (!doc) throw httpError(404, 'Not found');
         const data = pickFields(fields, req.body);
+        req.auditBefore = doc.toObject();   // for the audit log
         if (check) await check({ ...doc.toObject(), ...data }, req);
         doc.set(data);
         await doc.save();
@@ -62,7 +63,8 @@ function crud(Model, { fields, sort, searchField, softDelete, check }) {
     r.delete('/:id', wrap(async (req, res) => {
         const doc = await findOneDoc(req);
         if (!doc) throw httpError(404, 'Not found');
-        if (softDelete) { doc.isActive = false; await doc.save(); }   // keeps old orders readable
+        req.auditBefore = doc.toObject();   // for the audit log
+        if (softDelete) { doc.isActive = false; await doc.save(); }
         else await doc.deleteOne();
         res.json({ ok: true, softDeleted: !!softDelete });
     }));

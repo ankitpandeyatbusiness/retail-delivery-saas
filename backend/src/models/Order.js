@@ -73,7 +73,7 @@ const orderSchema = new Schema({
         note: String,
     }],
     cancelReason: String,
-    cancelledBy: { type: String, enum: ['customer', 'shop'] },
+    cancelledBy: { type: String, enum: ['customer', 'shop', 'admin', 'system'] },
     deliveredAt: Date,
     ratedAt: Date,
 }, { timestamps: true });
@@ -81,6 +81,8 @@ const orderSchema = new Schema({
 orderSchema.index({ tenantId: 1, orderNo: 1 }, { unique: true });
 orderSchema.index({ tenantId: 1, userId: 1, createdAt: -1 });
 orderSchema.index({ tenantId: 1, status: 1, createdAt: -1 });
+orderSchema.index({ createdAt: 1 }, { partialFilterExpression: { status: 'placed' } });   // auto-cancel job
+orderSchema.index({ tenantId: 1, 'customer.phone': 1, status: 1 });   // returning-customer and coupon checks
 orderSchema.index(
     { tenantId: 1, userId: 1, idempotencyKey: 1 },
     { unique: true, partialFilterExpression: { idempotencyKey: { $type: 'string' } } }

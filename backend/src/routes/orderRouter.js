@@ -11,6 +11,15 @@ const { streamInvoice } = require('../services/invoiceService');
 
 const { wrap, httpError } = apiErrors;
 const router = express.Router();
+
+// A frozen shop (suspended or in maintenance) must still let customers VIEW their orders
+// and CANCEL an order. Everything else (quote, place order, reorder) stays blocked.
+router.use((req, res, next) => {
+    const isRead = req.method === 'GET';
+    const isCancel = req.method === 'POST' && /^\/[a-fA-F0-9]{24}\/cancel$/.test(req.path);
+    req.allowFrozenShop = isRead || isCancel;
+    next();
+});
 router.use(tenantRecognizer);
 router.use(authenticate);   // every order route needs a logged-in customer
 

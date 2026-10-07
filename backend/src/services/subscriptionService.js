@@ -85,7 +85,11 @@ async function createInvoice(tenant, period, platform, now = new Date()) {
             },
         });
     } catch (e) {
-        if (e.code === 11000) return null;   // someone else created it a moment ago
+        if (e.code === 11000) {
+            // give the number back so invoice numbers stay continuous (only if no one took the next one)
+            await Counter.updateOne({ _id: `subinv:${fy}`, seq: counter.seq }, { $inc: { seq: -1 } });
+            return null;   // someone else created it a moment ago
+        }
         throw e;
     }
 }
@@ -97,7 +101,7 @@ async function generateForPeriod({ period, tenantId } = {}) {
 
     const filter = { 'subscription.monthlyFee': { $gt: 0 } };
     if (tenantId) filter._id = tenantId;
-    const tenants = await Tenant.find(filter).select('name phone address business subscription').lean();
+    const tenants = await Tenant.find(filter).select('name phone address business subscription createdAt').lean();
     const platform = await PlatformSettings.findById('main').lean();
 
     let created = 0;

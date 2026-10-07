@@ -311,6 +311,37 @@ async function placeOrder({ tenant, userId, body, idempotencyKey }) {
             etaMin: Math.max(config.orders.prepTimeMin || 0, priced.prepMin),
             statusHistory: [{ status: 'placed', by: userId }],
         });
+        // Second check, AFTER the order exists. The first check (in validateCoupon) can be beaten
+        // by two parallel requests, because neither order existed yet when both checked.
+        if (priced.coupon) {
+            const c = await Coupon.findById(priced.coupon._id).select('firstOrderOnly usageLimitPerUser').lean();
+            const who = user?.phone ? { 'customer.phone': user.phone } : { userId };
+            let lost = false;
+
+            if (c?.firstOrderOnly) {
+                // any OTHER live order from this customer means this was not their first
+                const others = await Order.countDocuments({
+                    tenantId: tenant._id, ...who, _id: { $ne: order._id }, status: { $ne: 'cancelled' },
+                });
+                if (others > 0) lost = true;
+            }
+            if (!lost && c?.usageLimitPerUser) {
+                const used = await Order.countDocuments({
+                    tenantId: tenant._id, ...who, couponId: priced.coupon._id, status: { $ne: 'cancelled' },
+                });
+                if (used > c.usageLimitPerUser) lost = true;   // this order is included in the count
+            }
+
+            if (lost) {
+                await Order.updateOne({ _id: order._id }, {
+                    $set: { status: 'cancelled', cancelledBy: 'customer', cancelReason: 'Coupon was already used' },
+                    $push: { statusHistory: { status: 'cancelled', by: userId, note: 'Coupon was already used' } },
+                });
+                // the catch block below gives the coupon use back, so do not release it here
+                throw httpError(409, 'This coupon has already been used');
+            }
+        }
+
         return { order, duplicate: false };
     } catch (e) {
         await releaseCoupon(priced.coupon?._id);   // the order was not created, give the coupon use back
