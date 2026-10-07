@@ -7,9 +7,9 @@ import {
 import Constants from 'expo-constants';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useBrand, GuestGate } from '../ui/kit';
-import { showToast } from '../ui/shop';
-import { AddressSheet } from '../ui/addresses';
+import { useBrand, GuestGate } from '../components/ui/kit';
+import { showToast } from '../components/ui/shop';
+import { AddressSheet } from '../components/ui/addresses';
 import { useAuthStore } from '../store/useAuthStore';
 import { useHomeStore } from '../store/useHomeStore';
 import { useThemeStore } from '../store/useThemeStore';

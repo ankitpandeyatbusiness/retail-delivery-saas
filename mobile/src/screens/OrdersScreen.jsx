@@ -3,8 +3,8 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, FlatList, ScrollView, ActivityIndicator, StyleSheet } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useBrand, GuestGate } from '../ui/kit';
-import { StatusPill, itemsText, rs, isActive, cancelFlow, reorder } from '../ui/orders';
+import { useBrand, GuestGate } from '../components/ui/kit';
+import { StatusPill, itemsText, rs, isActive, cancelFlow, reorder } from '../components/ui/orders';
 import { useHomeStore } from '../store/useHomeStore';
 import { fetchOrders } from '../api/shopApi';
 

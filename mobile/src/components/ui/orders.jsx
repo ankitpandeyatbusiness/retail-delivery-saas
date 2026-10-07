@@ -3,8 +3,8 @@ import React from 'react';
 import { View, Text, Alert, StyleSheet } from 'react-native';
 import { useBrand } from './kit';
 import { showToast, tint } from './shop';
-import { useCartStore } from '../store/shopStores';
-import { cancelOrder, reorderOrder, fetchProduct } from '../api/shopApi';
+import { useCartStore } from '../../store/shopStores';
+import { cancelOrder, reorderOrder, fetchProduct } from '../../api/shopApi';
 
 export const STATUS_LABEL = {
     placed: 'Placed', accepted: 'Accepted', preparing: 'Preparing', ready: 'Ready for pickup',

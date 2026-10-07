@@ -7,7 +7,7 @@ import {
 import * as Location from 'expo-location';
 import { useBrand } from './kit';
 import { showToast, tint } from './shop';
-import { fetchAddresses, saveAddress, deleteAddress, checkServiceable } from '../api/shopApi';
+import { fetchAddresses, saveAddress, deleteAddress, checkServiceable } from '../../api/shopApi';
 
 export const addrLine = (a) => [a.line1, a.line2, a.landmark, a.city, a.pincode].filter(Boolean).join(', ');
 const errMsg = (e) => e?.response?.data?.error || 'Something went wrong. Try again.';

@@ -6,8 +6,8 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useBrand } from '../ui/kit';
-import { ItemCard, Pic, CartBar } from '../ui/shop';
+import { useBrand } from '../components/ui/kit';
+import { ItemCard, Pic, CartBar } from '../components/ui/shop';
 import { useHomeStore } from '../store/useHomeStore';
 import { useMenuStore } from '../store/shopStores';
 import { searchProducts } from '../api/shopApi';

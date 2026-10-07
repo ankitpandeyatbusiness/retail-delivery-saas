@@ -1,8 +1,8 @@
 // src/screens/FilterDialog.jsx
 import React, { useMemo } from 'react';
 import { Modal, View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
-import { useBrand } from '../ui/kit';
-import { tint } from '../ui/shop';
+import { useBrand } from '../components/ui/kit';
+import { tint } from '../components/ui/shop';
 import { useHomeStore } from '../store/useHomeStore';
 import { useFilterStore, applyFilters } from '../store/useFilterStore';
 

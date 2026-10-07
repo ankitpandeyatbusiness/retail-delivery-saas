@@ -6,9 +6,9 @@ import { create } from 'zustand';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand } from './kit';
-import { useHomeStore } from '../store/useHomeStore';
-import { useAuthStore } from '../store/useAuthStore';
-import { useCartStore, useFavStore } from '../store/shopStores';
+import { useHomeStore } from '../../store/useHomeStore';
+import { useAuthStore } from '../../store/useAuthStore';
+import { useCartStore, useFavStore } from '../../store/shopStores';
 
 export const tint = (c) => (/^#[0-9a-fA-F]{6}$/.test(c || '') ? `${c}1F` : '#F5F5F5');
 

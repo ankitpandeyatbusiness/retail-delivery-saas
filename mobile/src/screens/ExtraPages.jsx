@@ -2,8 +2,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { useBrand, BackHeader } from '../ui/kit';
-import { ItemCard, CartBar, showToast, tint } from '../ui/shop';
+import { useBrand, BackHeader } from '../components/ui/kit';
+import { ItemCard, CartBar, showToast, tint } from '../components/ui/shop';
 import { useHomeStore } from '../store/useHomeStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { useThemeStore } from '../store/useThemeStore';

@@ -3,8 +3,8 @@ import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { useThemeStore } from '../store/useThemeStore';
-import { useAuthStore } from '../store/useAuthStore';
+import { useThemeStore } from '../../store/useThemeStore';
+import { useAuthStore } from '../../store/useAuthStore';
 
 const RADIUS = { rounded: 12, square: 3, pill: 99 };
 

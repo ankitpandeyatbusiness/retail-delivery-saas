@@ -15,9 +15,9 @@ import AccountScreen from '../screens/AccountScreen';
 import { OffersScreen, BestsellersScreen, FavouritesScreen } from '../screens/ExtraPages';
 import { useAuthStore } from '../store/useAuthStore';
 import { useHomeStore } from '../store/useHomeStore';
-import { useBrand } from '../ui/kit';
-import { ToastHost } from '../ui/shop';
-import { FrozenOverlay, OfflineBanner } from '../ui/status';
+import { useBrand } from '../components/ui/kit';
+import { ToastHost } from '../components/ui/shop';
+import { FrozenOverlay, OfflineBanner } from '../components/ui/status';
 import { useAppStatus } from '../store/useAppStatus';
 
 const Stack = createNativeStackNavigator();

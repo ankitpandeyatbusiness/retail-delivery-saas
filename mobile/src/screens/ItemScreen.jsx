@@ -6,8 +6,8 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useBrand, BackHeader } from '../ui/kit';
-import { Pic, VegDot, Heart, Tile, showToast, closedText, tint } from '../ui/shop';
+import { useBrand, BackHeader } from '../components/ui/kit';
+import { Pic, VegDot, Heart, Tile, showToast, closedText, tint } from '../components/ui/shop';
 import { useHomeStore } from '../store/useHomeStore';
 import { useMenuStore, useCartStore } from '../store/shopStores';
 import { fetchProduct } from '../api/shopApi';

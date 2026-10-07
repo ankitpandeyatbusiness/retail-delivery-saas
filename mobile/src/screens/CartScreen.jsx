@@ -4,9 +4,9 @@ import { View, Text, Pressable, ScrollView, TextInput, ActivityIndicator, StyleS
 import { CommonActions, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Crypto from 'expo-crypto';
-import { useBrand, BackHeader } from '../ui/kit';
-import { VegDot, showToast, tint } from '../ui/shop';
-import { AddressSheet, addrLine } from '../ui/addresses';
+import { useBrand, BackHeader } from '../components/ui/kit';
+import { VegDot, showToast, tint } from '../components/ui/shop';
+import { AddressSheet, addrLine } from '../components/ui/addresses';
 import { useHomeStore } from '../store/useHomeStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { useCartStore } from '../store/shopStores';

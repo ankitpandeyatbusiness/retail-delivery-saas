@@ -5,9 +5,9 @@ import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/nativ
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import api from '../api/client';
-import { useBrand, BackHeader } from '../ui/kit';
-import { showToast } from '../ui/shop';
-import { StatusPill, isActive, rs, errMsg, cancelFlow, reorder } from '../ui/orders';
+import { useBrand, BackHeader } from '../components/ui/kit';
+import { showToast } from '../components/ui/shop';
+import { StatusPill, isActive, rs, errMsg, cancelFlow, reorder } from '../components/ui/orders';
 import { useHomeStore } from '../store/useHomeStore';
 import { fetchOrder, rateOrder, fetchRatings } from '../api/shopApi';
 
