@@ -18,6 +18,9 @@ const favouriteRouter = require('../routes/favouriteRouter');
 const profileRouter = require('../routes/profileRouter');
 const { startOrderTimeoutScheduler } = require('../services/orderTimeout');
 
+// Import the awake cron job
+const startAwakeCron = require('../jobs/awakeCrons');
+
 const app = express();
 
 // Trust proxy for rate-limiting behind load balancers (Render, AWS, etc.)
@@ -30,7 +33,7 @@ app.use(express.json({ limit: '200kb' }));
 // Whole-platform maintenance. /health and /api/admin are skipped inside the gate, so you can switch it off again.
 app.use(platformGate);
 
-// For your host's health check
+// For your host's health check (this is also the endpoint your cron job will hit)
 app.get('/health', (req, res) => res.json({ ok: true }));
 
 // Mount Routers
@@ -61,9 +64,18 @@ const PORT = process.env.PORT || 5000;
 // Connect to the database FIRST, then start the server (and the monthly rent-invoice scheduler)
 connectDB()
     .then(() => {
-        app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
-        startBillingScheduler();
-        startOrderTimeoutScheduler();
+        app.listen(PORT, () => {
+            console.log(`🚀 Server running on port ${PORT}`);
+
+            // Start schedulers after server is listening
+            startBillingScheduler();
+            startOrderTimeoutScheduler();
+
+            // Start the awake cron (restricted to production to avoid local console spam)
+            if (process.env.NODE_ENV === 'production') {
+                startAwakeCron();
+            }
+        });
     })
     .catch((err) => {
         console.error('Database connection failed:', err);
