@@ -34,13 +34,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { useThemeStore } from '../store/useThemeStore';
 
-// Native SMS helpers are optional
-let SmsRetriever = null;
+// Native SMS helper is optional
 let OtpVerify = null;
 if (Platform.OS === 'android') {
-    try {
-        SmsRetriever = require('react-native-sms-retriever').default;
-    } catch (e) { }
     try {
         OtpVerify = require('react-native-otp-verify');
     } catch (e) { }
@@ -361,22 +357,26 @@ export default function LoginScreen({ navigation }) {
     const sendOtpRef = useRef(null);
 
     useEffect(() => {
-        if (Platform.OS !== 'android' || !SmsRetriever) return;
+        if (Platform.OS !== 'android' || typeof OtpVerify?.requestHint !== 'function') return;
+        let cancelled = false;
         const timer = setTimeout(async () => {
             try {
-                if (typeof SmsRetriever?.requestPhoneNumber !== 'function') return;
-                const raw = await SmsRetriever.requestPhoneNumber();
+                const raw = await OtpVerify.requestHint();
+                if (cancelled) return;
                 const num = normalizePhone(raw);
                 if (num.length === 10) {
                     setPhone(num);
                     animatePhoneIn();
-                    // 🔥 Auto-trigger the OTP send instantly!
-                    sendOtpRef.current(num);
+                    sendOtpRef.current?.(num);
                 }
             } catch (e) {
+                if (__DEV__) console.log('[LoginScreen] phone hint failed/dismissed:', e?.message || e);
             }
         }, 700);
-        return () => clearTimeout(timer);
+        return () => {
+            cancelled = true;
+            clearTimeout(timer);
+        };
     }, []);
 
     /* ---------------------------------- OTP auto-read --------------------------------- */

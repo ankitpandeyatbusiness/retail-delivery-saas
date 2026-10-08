@@ -21,6 +21,7 @@ if (process.env.SMS_MOCK === 'true' && process.env.NODE_ENV === 'production') {
     console.warn('[WARNING] SMS_MOCK is ON in production. Anyone can log in. Preview only.');
 }
 const OTP_PEPPER = process.env.OTP_PEPPER;
+const SMS_MOCK = process.env.SMS_MOCK === 'true'; // mock mode: send-OTP limits are skipped
 const OTP_LENGTH = 6; // keep in sync with the app (LoginScreen OTP_LENGTH)
 const OTP_TTL_MS = 5 * 60 * 1000;
 const MAX_OTP_ATTEMPTS = 5;
@@ -242,10 +243,12 @@ exports.sendOtp = async (req, res) => {
     const phoneKey = `${tenant._id}-${phone}`;
     const tenantKey = String(tenant._id);
 
-    try {
-        await consumeSendLimits(ip, phoneKey, tenantKey);
-    } catch (rej) {
-        return handleRateLimitCatch(rej, res);
+    if (!SMS_MOCK) {
+        try {
+            await consumeSendLimits(ip, phoneKey, tenantKey);
+        } catch (rej) {
+            return handleRateLimitCatch(rej, res);
+        }
     }
 
     try {
