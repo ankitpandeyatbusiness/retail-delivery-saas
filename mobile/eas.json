@@ -1,0 +1,17 @@
+{
+    "cli": {
+        "version": ">= 12.0.0"
+    },
+    "build": {
+        "savera-preview": {
+            "distribution": "internal",
+            "android": {
+                "buildType": "apk"
+            },
+            "environment": "preview",
+            "env": {
+                "APP_TENANT": "savera"
+            }
+        }
+    }
+}

@@ -42,7 +42,7 @@ const currentConfig = tenantConfigs[tenant] || tenantConfigs.default;
 export default {
   expo: {
     name: currentConfig.name,
-    slug: currentConfig.name.toLowerCase().replace(/\s+/g, '-'),
+    slug: 'retail-delivery-customer',
     version: '1.0.0',
     orientation: 'portrait',
     icon: currentConfig.icon,
@@ -70,9 +70,20 @@ export default {
     },
     extra: {
       tenantId: tenant,
+      eas: { projectId: '863d0304-5faf-47cf-be8b-e69556ecb05e' },
     },
     plugins: [
       'expo-image',
+      [
+        'expo-build-properties',
+        {
+          android: {
+            enableProguardInReleaseBuilds: true,
+            enableShrinkResourcesInReleaseBuilds: true,
+            buildArchs: ['arm64-v8a'],
+          },
+        },
+      ],
       './plugins/withNoAutofillHighlight',
       // Adds the Speech Recognition plugin with standard OS prompts
       [

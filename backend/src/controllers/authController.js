@@ -10,8 +10,15 @@ const tokenService = require('../services/tokenService');
 if (!process.env.OTP_PEPPER) {
     throw new Error('FATAL: OTP_PEPPER is missing in environment variables.');
 }
-if (process.env.SMS_MOCK === 'true' && process.env.NODE_ENV === 'production') {
+if (
+    process.env.SMS_MOCK === 'true' &&
+    process.env.NODE_ENV === 'production' &&
+    process.env.ALLOW_SMS_MOCK_IN_PROD !== 'true'
+) {
     throw new Error('FATAL: SMS_MOCK must not be enabled in production.');
+}
+if (process.env.SMS_MOCK === 'true' && process.env.NODE_ENV === 'production') {
+    console.warn('[WARNING] SMS_MOCK is ON in production. Anyone can log in. Preview only.');
 }
 const OTP_PEPPER = process.env.OTP_PEPPER;
 const OTP_LENGTH = 6; // keep in sync with the app (LoginScreen OTP_LENGTH)
