@@ -13,8 +13,9 @@ import { Press, Appear, Chip, Bill, ClosedBanner, PickupSlots, FreeDeliveryBar, 
 import { useHomeStore } from '../store/useHomeStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { useCartStore } from '../store/shopStores';
-import { quoteOrder, placeOrder, fetchAddresses, fetchPickupSlots } from '../api/shopApi';
 import { useCouponStore } from '../store/useCouponStore';
+import { useAddressStore } from '../store/useAddressStore';
+import { quoteOrder, placeOrder, fetchPickupSlots } from '../api/shopApi';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -69,7 +70,8 @@ export default function CartScreen() {
     const [tip, setTip] = useState(0);
     const [delNotes, setDelNotes] = useState([]);
     const [customNote, setCustomNote] = useState('');
-    const [addr, setAddr] = useState(null);
+    const addr = useAddressStore((st) => st.selected);
+    const setAddr = useAddressStore((st) => st.setSelected);
     const [sheet, setSheet] = useState(false);
     const [slotRes, setSlotRes] = useState(null);
     const [pickedSlot, setPickedSlot] = useState(null);
@@ -120,15 +122,9 @@ export default function CartScreen() {
         return () => clearInterval(i);
     }, []);
 
+    // validate the stored selection against the server (handles deleted or edited addresses)
     useEffect(() => {
-        if (!user || type !== 'delivery' || addr) return undefined;
-        let on = true;
-        fetchAddresses().then((r) => {
-            if (!on) return;
-            const L = r.items || [];
-            setAddr((a) => a || L.find((x) => x.isDefault) || L[0] || null);
-        }).catch(() => { });
-        return () => { on = false; };
+        if (user && type === 'delivery') useAddressStore.getState().refresh();
     }, [user, type]);
 
     // pickup time windows (worked out by the server from the shop hours)
@@ -463,8 +459,13 @@ export default function CartScreen() {
                 </View>
             </View>
 
-            <AddressSheet visible={sheet} onClose={() => setSheet(false)} selectedId={addr?._id} onSelect={setAddr}
-                onChanged={(L) => setAddr((p) => L.find((a) => a._id === p?._id) || L.find((a) => a.isDefault) || L[0] || null)} />
+            <AddressSheet
+                visible={sheet}
+                onClose={() => setSheet(false)}
+                selectedId={addr?._id}
+                onSelect={setAddr}
+                onChanged={(L) => useAddressStore.getState().sync(L)}
+            />
         </View>
     );
 }

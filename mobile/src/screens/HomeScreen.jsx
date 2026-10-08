@@ -1,5 +1,8 @@
 // src/screens/HomeScreen.jsx
-import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { AddressSheet } from '../components/ui/addresses';
+import { useAddressStore } from '../store/useAddressStore';
 import {
     View, Text, Pressable, FlatList, ScrollView, Animated, Easing, ActivityIndicator, StyleSheet, useWindowDimensions,
 } from 'react-native';
@@ -7,7 +10,6 @@ import { FlashList } from '@shopify/flash-list';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand, mix, onColor } from '../components/ui/kit';
 import { ItemCard, Tile, CartBar, closedText, showToast, tint } from '../components/ui/shop';
@@ -25,7 +27,7 @@ const VIEW_CFG = { itemVisiblePercentThreshold: 1 };
 const glass = 'rgba(255,255,255,0.18)';
 
 /* ---------------- storefront header (scrolls away) ---------------- */
-function Header() {
+function Header({ onAddress }) {
     const nav = useNavigation();
     const { primaryLight, primaryDark, onPrimary } = useBrand();
     const theme = useThemeStore((st) => st.theme);
@@ -36,6 +38,9 @@ function Header() {
     const mins = full.orders.prepTimeMin;
     const fee = full.orders.deliveryFee || {};
     const delivers = (full.orders.types || []).includes('delivery');
+    const user = useAuthStore((st) => st.user);
+    const addr = useAddressStore((st) => st.selected);
+    const short = addr ? [addr.line1, addr.line2 || addr.city].filter(Boolean).join(', ') : '';
 
     const chips = [];
     if (full.features.prepTime && mins) chips.push({ icon: 'time-outline', text: `${mins} min` });
@@ -57,7 +62,18 @@ function Header() {
                 </View>
                 <View style={{ flex: 1, marginHorizontal: 12 }}>
                     <Text style={[s.hdName, { color: onPrimary }]} numberOfLines={1}>{theme.name}</Text>
-                    {theme.tagline ? <Text style={[s.hdTag, { color: onPrimary }]} numberOfLines={1}>{theme.tagline}</Text> : null}
+                    {user ? (
+                        <Pressable onPress={onAddress} hitSlop={8} style={s.locRow}>
+                            <Ionicons name="location-sharp" size={13} color={onPrimary} />
+                            <Text style={[s.locTxt, { color: onPrimary }]} numberOfLines={1}>
+                                {addr ? <Text style={s.locLabel}>{addr.label} · </Text> : null}
+                                {addr ? short : 'Select delivery address'}
+                            </Text>
+                            <Ionicons name="chevron-down" size={14} color={onPrimary} />
+                        </Pressable>
+                    ) : theme.tagline ? (
+                        <Text style={[s.hdTag, { color: onPrimary }]} numberOfLines={1}>{theme.tagline}</Text>
+                    ) : null}
                 </View>
                 {full.offers.couponsEnabled ? (
                     <Pressable onPress={() => nav.navigate('Offers')} style={s.ic} hitSlop={6}>
@@ -387,6 +403,13 @@ export default function HomeScreen() {
     const [barH, setBarH] = useState(72);
     const voice = useVoice((t) => nav.navigate('Search', { voice: t, n: Date.now() }));
     const openVoice = voice.start;
+    const [addrOpen, setAddrOpen] = useState(false);
+    const selectedAddr = useAddressStore((st) => st.selected);
+
+    useFocusEffect(useCallback(() => {
+        if (user) useAddressStore.getState().refresh();
+    }, [user?.id || user?._id || null]));
+    useEffect(() => { if (!user) useAddressStore.getState().clear(); }, [user]);
 
     useEffect(() => { useCartStore.getState().hydrate(); loadMenu(); }, []);
     useEffect(() => {
@@ -520,7 +543,7 @@ export default function HomeScreen() {
 
     const renderBase = ({ item: r }) => {
         switch (r.t) {
-            case 'header': return <Header />;
+            case 'header': return <Header onAddress={() => setAddrOpen(true)} />;
             case 'search': return <StickyBar names={names} onHeight={setBarH} onMic={openVoice} />;
             case 'closed': return (
                 <View style={s.closed}>
@@ -592,6 +615,13 @@ export default function HomeScreen() {
             {searchIdx >= 0 ? <StuckPanel ref={panel} top={insets.top + barH} grouped={grouped} /> : null}
             <CartBar />
             <FilterDialog visible={dlg} onClose={() => setDlg(false)} items={all} />
+            <AddressSheet
+                visible={addrOpen}
+                onClose={() => setAddrOpen(false)}
+                selectedId={selectedAddr?._id}
+                onSelect={(a) => useAddressStore.getState().setSelected(a)}
+                onChanged={(items) => useAddressStore.getState().sync(items)}
+            />
             <VoiceOverlay on={voice.on} txt={voice.txt} onStop={voice.stop} />
         </View>
     );
@@ -676,4 +706,7 @@ const s = StyleSheet.create({
     pair: { flexDirection: 'row', paddingHorizontal: 10 },
     empty: { padding: 40, alignItems: 'center' },
     emptyTxt: { fontSize: 14, marginTop: 8 },
+    locRow: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', marginTop: 2, maxWidth: '100%' },
+    locTxt: { flexShrink: 1, fontSize: 12, opacity: 0.92, marginLeft: 3, marginRight: 2 },
+    locLabel: { fontWeight: '900' },
 });
