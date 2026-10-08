@@ -17,7 +17,8 @@ import { useHomeStore } from '../store/useHomeStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { useMenuStore, useCartStore, useFavStore } from '../store/shopStores';
 import { useFilterStore, applyFilters, countActive } from '../store/useFilterStore';
-import { Slider, VegSwitch, Cats, Collapse, useVoice, VoiceOverlay } from '../components/ui/finder';
+import { Slider, VegSwitch, Cats, Collapse, FadeCollapse, useVoice, VoiceOverlay } from '../components/ui/finder';
+import { CopyIcon } from '../components/ui/copyCode';
 
 const Gap = () => <View style={{ width: 12 }} />;
 const VIEW_CFG = { itemVisiblePercentThreshold: 1 };
@@ -228,6 +229,7 @@ function OfferTicket({ o, onPress }) {
             <View style={s.tkRight}>
                 <View style={[s.codeBox, { borderColor: primary, backgroundColor: tint(primary) }]}>
                     <Text style={[s.offerCode, { color: primary }]}>{o.code}</Text>
+                    <CopyIcon code={o.code} color={primary} style={{ marginLeft: 8 }} />
                 </View>
                 <Text style={[s.offerDesc, { color: text }]} numberOfLines={2}>
                     {o.description || (o.discountType === 'percent' ? `${o.discountValue}% off` : `₹${o.discountValue} off`)}
@@ -259,7 +261,6 @@ function OffersStrip({ list }) {
     );
 }
 
-/* ---------------- filters row, strips ---------------- */
 function Chip({ label, on, onPress, badge, icon }) {
     const { primary, onPrimary, surface, border, text } = useBrand();
     const a = useRef(new Animated.Value(on ? 1 : 0)).current;
@@ -295,15 +296,17 @@ function Chip({ label, on, onPress, badge, icon }) {
                         </View>
                     ) : null}
                     <Animated.Text style={[s.chipTxt, { color: fg }]}>{label}</Animated.Text>
-                    <Animated.View style={[s.chipBadge, {
-                        backgroundColor: primary, overflow: 'hidden', opacity: b,
-                        width: b.interpolate({ inputRange: [0, 1], outputRange: [0, 17] }),
-                        marginLeft: b.interpolate({ inputRange: [0, 1], outputRange: [0, 6] }),
-                        paddingHorizontal: 0,
-                        transform: [{ scale: b }],
-                    }]}>
-                        <Text style={[s.cBadgeTxt, { color: onPrimary }]}>{shown}</Text>
-                    </Animated.View>
+                    {shown ? (
+                        <Animated.View style={[s.chipBadge, {
+                            minWidth: 0, paddingHorizontal: 0, overflow: 'hidden',
+                            backgroundColor: primary, opacity: b,
+                            width: b.interpolate({ inputRange: [0, 1], outputRange: [0, 20] }),
+                            marginLeft: b.interpolate({ inputRange: [0, 1], outputRange: [0, 6] }),
+                            transform: [{ scale: b }],
+                        }]}>
+                            <Text style={[s.cBadgeTxt, { color: onPrimary }]}>{shown}</Text>
+                        </Animated.View>
+                    ) : null}
                 </Animated.View>
             </Pressable>
         </Animated.View>
@@ -391,6 +394,8 @@ export default function HomeScreen() {
         else useFavStore.getState().reset();
     }, [user, full.features.favourites]);
 
+    useEffect(() => { useHomeStore.getState().loadOffers(); }, [user?.id || user?._id || null]);
+
     const refresh = async () => {
         setRefreshing(true);
         await Promise.all([useHomeStore.getState().load(), loadMenu()]);
@@ -402,23 +407,35 @@ export default function HomeScreen() {
         () => [...all].sort((a, b) => (b.isBestseller ? 1 : 0) - (a.isBestseller ? 1 : 0)).slice(0, 4).map((i) => i.name),
         [all],
     );
-    const filtered = useMemo(
-        () => applyFilters(all, f, full.ratings.minCount),
-        [all, f.categories, f.active, f.sort, f.price, f.spice, f.serves, f.weight, full.ratings.minCount],
-    );
-    const grouped = full.menu.groupByCategory;
-    const hide = f.categories.length > 0;
-    const extra = useMemo(() => ({ brand, hide }), [brand, hide]);
-
-    // food rows fade and slide in when any filter / category changes
+    // The food list follows the filters one beat late, so it can fade out first, swap, then fade in.
+    const snapOf = () => ({ categories: f.categories, active: f.active, sort: f.sort, price: f.price, spice: f.spice, serves: f.serves, weight: f.weight });
+    const [applied, setApplied] = useState(snapOf);
     const fade = useRef(new Animated.Value(1)).current;
-    const sig = JSON.stringify([f.categories, f.active, f.sort, f.price, f.spice, f.serves, f.weight]);
+    const sig = JSON.stringify(snapOf());
     const firstSig = useRef(true);
     useEffect(() => {
-        if (firstSig.current) { firstSig.current = false; return; }
-        fade.setValue(0.15);
-        Animated.timing(fade, { toValue: 1, duration: 380, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+        if (firstSig.current) { firstSig.current = false; return undefined; }
+        let alive = true;
+        const snap = snapOf();
+        Animated.timing(fade, { toValue: 0, duration: 140, easing: Easing.in(Easing.quad), useNativeDriver: true }).start(({ finished }) => {
+            if (!finished || !alive) return;
+            setApplied(snap);                                   // swap while the list is invisible
+            setTimeout(() => {
+                if (!alive) return;
+                Animated.timing(fade, { toValue: 1, duration: 320, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+            }, 90);
+        });
+        return () => { alive = false; fade.stopAnimation(); };
     }, [sig]);
+
+    const filtered = useMemo(
+        () => applyFilters(all, applied, full.ratings.minCount),
+        [all, applied, full.ratings.minCount],
+    );
+    const grouped = full.menu.groupByCategory;
+    // strips hide at once on select, and come back only after the list has swapped
+    const hide = f.categories.length > 0 || applied.categories.length > 0;
+    const extra = useMemo(() => ({ brand, hide }), [brand, hide]);
 
     const rows = useMemo(() => {
         const R = [{ t: 'header' }];
@@ -455,14 +472,14 @@ export default function HomeScreen() {
                         if (A?.length) { R.push({ t: 'sec', title: c.name, sub: `${A.length} items`, cat: c.name }); pushItems(A, c.name); }
                     });
                 } else {
-                    const nm = chips.filter((c) => f.categories.includes(String(c._id))).map((c) => c.name).join(', ');
+                    const nm = chips.filter((c) => applied.categories.includes(String(c._id))).map((c) => c.name).join(', ');
                     R.push({ t: 'sec', title: nm || 'Full menu', sub: `${filtered.length} dishes` });
                     pushItems(filtered);
                 }
             }
         }
         return R;
-    }, [config, full, banners, chips, offers, recommended, festival, combo, all, filtered, grouped, menuCats, loaded, errorStatus, f.categories]);
+    }, [config, full, banners, chips, offers, recommended, festival, combo, all, filtered, grouped, menuCats, loaded, errorStatus, applied.categories]);
 
     const searchIdx = rows.findIndex((r) => r.t === 'search');
     const catsIdx = rows.findIndex((r) => r.t === 'cats');
@@ -514,8 +531,8 @@ export default function HomeScreen() {
             case 'banner': return <Banners list={banners} onOrder={onOrder} />;
             case 'cats': return <Cats />;
             case 'filters': return <FiltersRow onOpen={() => setDlg(true)} />;
-            case 'offers': return <Collapse hide={hide}><OffersStrip list={offers} /></Collapse>;
-            case 'strip': return <Collapse hide={hide}><Strip r={r} /></Collapse>;
+            case 'offers': return <FadeCollapse hide={hide}><OffersStrip list={offers} /></FadeCollapse>;
+            case 'strip': return <FadeCollapse hide={hide}><Strip r={r} /></FadeCollapse>;
             case 'sec': return <SecHead title={r.title} sub={r.sub} />;
             case 'item': return <ItemCard item={r.item} variant={config.cardStyle} />;
             case 'pair': return (
@@ -547,7 +564,7 @@ export default function HomeScreen() {
         const node = renderBase(info);
         if (!FADE_ROWS.includes(info.item.t)) return node;
         return (
-            <Animated.View style={{ opacity: fade, transform: [{ translateY: fade.interpolate({ inputRange: [0.15, 1], outputRange: [14, 0] }) }] }}>
+            <Animated.View style={{ opacity: fade, transform: [{ translateY: fade.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] }}>
                 {node}
             </Animated.View>
         );
@@ -646,14 +663,14 @@ const s = StyleSheet.create({
     tkOff: { fontSize: 11, fontWeight: '800', marginTop: 1, opacity: 0.9 },
     notch: { position: 'absolute', width: 16, height: 16, borderRadius: 8 },
     tkRight: { flex: 1, paddingHorizontal: 14, justifyContent: 'center' },
-    codeBox: { alignSelf: 'flex-start', borderWidth: 1, borderStyle: 'dashed', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 },
+    codeBox: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderStyle: 'dashed', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
     offerCode: { fontSize: 13, fontWeight: '900', letterSpacing: 1 },
     offerDesc: { fontSize: 12, fontWeight: '600', marginTop: 5 },
     offerMin: { fontSize: 11, marginTop: 2 },
 
     fl: { paddingHorizontal: 16, paddingVertical: 10 },
-    chip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderRadius: 20, marginRight: 8 },
-    chipTxt: { fontSize: 13, fontWeight: '700' },
+    chip: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderRadius: 20, marginRight: 8 },
+    chipTxt: { fontSize: 13, fontWeight: '700', textAlign: 'center', includeFontPadding: false },
     chipBadge: { minWidth: 17, height: 17, borderRadius: 9, paddingHorizontal: 4, marginLeft: 6, alignItems: 'center', justifyContent: 'center' },
 
     pair: { flexDirection: 'row', paddingHorizontal: 10 },

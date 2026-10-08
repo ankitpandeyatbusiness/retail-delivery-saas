@@ -335,41 +335,111 @@ async function seed(def, customerPhone) {
         await Favourite.create({ tenantId: tid, userId: customer._id, productId: p._id });
     }
 
-    // orders: delivered (rated), preparing, cancelled
-    const names = Object.keys(products);
-    const pick = (i, q = 1) => { const p = products[names[i % names.length]]; return { p, q }; };
-    const makeOrder = async (no, status, lines, daysAgo) => {
-        const items = lines.map(({ p, q }) => ({ productId: p._id, name: p.name, image: p.image, isVeg: p.isVeg, quantity: q, unitPrice: p.price, lineTotal: p.price * q, selections: [] }));
-        const subtotal = items.reduce((a, l) => a + l.lineTotal, 0);
-        const fee = status === 'cancelled' ? 0 : 40;
-        const at = new Date(now - daysAgo * DAY);
-        return Order.create({
-            tenantId: tid, userId: customer._id, orderNo: no, status, orderType: 'delivery', items,
-            pricing: { subtotal, deliveryFee: fee, total: subtotal + fee, taxMode: 'none' },
-            seller: { name: def.tenant.name },
-            payment: { method: 'cod', status: status === 'delivered' ? 'paid' : 'pending' },
-            customer: { name: 'Demo Customer', phone: customerPhone },
-            address: { label: addr.label, name: addr.name, phone: addr.phone, line1: addr.line1, line2: addr.line2, landmark: addr.landmark, city: addr.city, pincode: addr.pincode, latitude: addr.latitude, longitude: addr.longitude },
-            etaMin: 35,
-            statusHistory: [{ status: 'placed', at }, ...(status === 'placed' ? [] : [{ status, at: new Date(+at + 30 * 60000) }])],
-            cancelReason: status === 'cancelled' ? 'Changed my mind' : undefined,
-            cancelledBy: status === 'cancelled' ? 'customer' : undefined,
-            deliveredAt: status === 'delivered' ? new Date(+at + 45 * 60000) : undefined,
-            ratedAt: status === 'delivered' ? new Date(+at + 90 * 60000) : undefined,
-            createdAt: at, updatedAt: at,
-        });
-    };
-    const delivered = await makeOrder(1, 'delivered', [pick(5, 1), pick(10, 2)], 6);
-    await makeOrder(2, 'cancelled', [pick(2, 1)], 3);
-    await makeOrder(3, 'preparing', [pick(0, 1), pick(7, 1)], 0);
-    await Counter.findOneAndUpdate({ _id: `order:${tid}` }, { seq: 3 }, { upsert: true });
+    // ---------- orders: every status, spread over ~2 months, so every screen can be tested ----------
+    const MIN = 60000, D = 1440;                    // minutes in a day
+    const all2 = Object.values(products);
+    const sold = all2.find((x) => !x.isAvailable);  // a sold-out dish, to test Reorder skipping
+    const at = (i) => all2[i % all2.length];
 
-    // reviews on the delivered order
-    for (const l of delivered.items) {
-        await Review.create({ tenantId: tid, userId: customer._id, orderId: delivered._id, productId: l.productId, rating: 5, comment: 'Loved it, will order again!' });
+    // ago = minutes ago. lines = [[productIndex, qty], ...]. rate = [stars, comment] means already reviewed.
+    const SPECS = [
+        { ago: 55 * D, st: 'delivered', type: 'delivery', lines: [[1, 1], [8, 2]], rate: [5, 'Loved it, will order again!'] },
+        { ago: 41 * D, st: 'delivered', type: 'pickup', lines: [[3, 2]], rate: [4, ''] },
+        { ago: 33 * D, st: 'cancelled', type: 'delivery', lines: [[6, 1]], by: 'shop', reason: 'Item not available' },
+        { ago: 27 * D, st: 'delivered', type: 'delivery', lines: [[0, 1], [12, 1]], coupon: def.coupons[0][0] },
+        { ago: 20 * D, st: 'delivered', type: 'delivery', lines: [[5, 2], [9, 1]], tip: def.settings.orders.tipOptions[0] || 0, rate: [3, 'Food was good but a bit late.'] },
+        { ago: 14 * D, st: 'cancelled', type: 'delivery', lines: [[2, 1]], by: 'customer', reason: 'Changed my mind' },
+        { ago: 9 * D, st: 'delivered', type: 'pickup', lines: [[7, 1], [10, 1]] },
+        { ago: 6 * D, st: 'delivered', type: 'delivery', lines: [[4, 1], [11, 2], ...(sold ? [['SOLD', 1]] : [])], rate: [5, 'Best in town. Packaging was great.'] },
+        { ago: 4 * D, st: 'delivered', type: 'delivery', lines: [[13, 1], [14, 1]], note: 'Please do not ring the bell' },
+        { ago: 2 * D, st: 'cancelled', type: 'delivery', lines: [[15, 1]], by: 'admin', reason: 'Shop closed early' },
+        { ago: 1 * D, st: 'delivered', type: 'delivery', lines: [[16, 1], [17, 1]], rate: [2, 'Arrived cold.'] },
+        { ago: 40, st: 'out_for_delivery', type: 'delivery', lines: [[1, 1], [3, 1]] },
+        { ago: 25, st: 'ready', type: 'pickup', lines: [[8, 1]] },
+        { ago: 15, st: 'preparing', type: 'delivery', lines: [[0, 1], [7, 1]] },
+        { ago: 3, st: 'placed', type: 'delivery', lines: [[5, 1]] },
+    ].sort((a, b) => b.ago - a.ago);               // oldest first, so order numbers go up with time
+
+    const FLOW = {
+        delivery: ['placed', 'accepted', 'preparing', 'out_for_delivery', 'delivered'],
+        pickup: ['placed', 'accepted', 'preparing', 'ready', 'delivered'],
+    };
+    const round2 = (x) => Math.round(x * 100) / 100;
+    const oc = def.settings.orders;
+
+    function priceOf(items, spec) {
+        const subtotal = items.reduce((a, l) => a + l.lineTotal, 0);
+        const c = spec.coupon && def.coupons.find((x) => x[0] === spec.coupon);
+        let discount = 0;
+        if (c && subtotal >= (c[5] || 0)) {
+            discount = c[2] === 'percent' ? Math.min(Math.floor((subtotal * c[3]) / 100), c[4] || Infinity) : c[3];
+        }
+        const fd = oc.deliveryFee || {};
+        const deliveryFee = spec.type !== 'delivery' || fd.type === 'free' ? 0 : (fd.freeAbove && subtotal >= fd.freeAbove ? 0 : fd.amount || 0);
+        const packagingCharge = oc.packagingCharge || 0;
+        const tip = spec.tip || 0;
+        const g = oc.gst || { mode: 'none', percent: 0 };
+        const base = subtotal - discount;
+        const tax = g.mode === 'inclusive' ? round2((base * g.percent) / (100 + g.percent)) : g.mode === 'exclusive' ? round2((base * g.percent) / 100) : 0;
+        const total = round2(base + deliveryFee + packagingCharge + tip + (g.mode === 'exclusive' ? tax : 0));
+        return { subtotal, discount, couponCode: discount ? spec.coupon : undefined, deliveryFee, packagingCharge, tax, taxMode: g.mode, tip, total };
     }
 
-    console.log(`✔ ${def.tenant.slug}: ${all.length} products, ${def.categories.length} categories, ${def.banners.length} banners, ${def.coupons.length} coupons, 3 orders. Customer login: ${customerPhone}, owner: ${def.tenant.phone}`);
+    let no = 0;
+    for (const spec of SPECS) {
+        no += 1;
+        const when = new Date(now - spec.ago * MIN);
+        const items = spec.lines.map(([i, q]) => {
+            const p = i === 'SOLD' ? sold : at(i);
+            return { productId: p._id, name: p.name, image: p.image, isVeg: p.isVeg, quantity: q, unitPrice: p.price, lineTotal: p.price * q, selections: [] };
+        });
+
+        let steps;
+        if (spec.st === 'cancelled') steps = ['placed', ...(spec.ago > 60 ? ['accepted'] : []), 'cancelled'];
+        else steps = FLOW[spec.type].slice(0, FLOW[spec.type].indexOf(spec.st) + 1);
+        const statusHistory = steps.map((status, k) => ({ status, at: new Date(+when + k * 10 * MIN) }));
+        const delivered = spec.st === 'delivered';
+
+        // pickup orders carry a time window
+        let scheduledFor, pickupUntil;
+        if (spec.type === 'pickup') {
+            scheduledFor = new Date(+when + (delivered || spec.st === 'cancelled' ? 60 : 30) * MIN);
+            pickupUntil = new Date(+scheduledFor + 2 * 60 * MIN);
+        }
+
+        const order = await Order.create({
+            tenantId: tid, userId: customer._id, orderNo: no, status: spec.st, orderType: spec.type, items,
+            pricing: priceOf(items, spec),
+            seller: { name: def.tenant.name },
+            payment: { method: 'cod', status: delivered ? 'paid' : 'pending' },
+            customer: { name: 'Demo Customer', phone: customerPhone },
+            address: spec.type === 'delivery'
+                ? { label: addr.label, name: addr.name, phone: addr.phone, line1: addr.line1, line2: addr.line2, landmark: addr.landmark, city: addr.city, pincode: addr.pincode, latitude: addr.latitude, longitude: addr.longitude }
+                : undefined,
+            note: spec.note,
+            etaMin: 35,
+            scheduledFor, pickupUntil,
+            statusHistory,
+            cancelReason: spec.st === 'cancelled' ? spec.reason : undefined,
+            cancelledBy: spec.st === 'cancelled' ? spec.by : undefined,
+            deliveredAt: delivered ? new Date(+when + 45 * MIN) : undefined,
+            ratedAt: delivered && spec.rate ? new Date(+when + 90 * MIN) : undefined,
+            createdAt: when, updatedAt: when,
+        });
+
+        // reviews: one per dish, same as the app sends them
+        if (delivered && spec.rate) {
+            const seen = new Set();
+            for (const l of order.items) {
+                if (seen.has(String(l.productId))) continue;
+                seen.add(String(l.productId));
+                await Review.create({ tenantId: tid, userId: customer._id, orderId: order._id, productId: l.productId, rating: spec.rate[0], ...(spec.rate[1] ? { comment: spec.rate[1] } : {}) });
+            }
+        }
+    }
+    await Counter.findOneAndUpdate({ _id: `order:${tid}` }, { seq: SPECS.length }, { upsert: true });
+
+    console.log(`✔ ${def.tenant.slug}: ${all.length} products, ${def.categories.length} categories, ${def.banners.length} banners, ${def.coupons.length} coupons, ${SPECS.length} orders. Customer login: ${customerPhone}, owner: ${def.tenant.phone}`);
 }
 
 (async () => {
@@ -377,8 +447,8 @@ async function seed(def, customerPhone) {
     if (!uri) throw new Error('Set MONGO_URI (or MONGODB_URI) in your .env');
     await preloadImages();
     await mongoose.connect(uri);
-    await seed(SAVERA, '9876500001');
-    await seed(CRUMBS, '9876500002');
+    await seed(SAVERA, '8318538918');
+    await seed(CRUMBS, '9454326498');
     console.log('\nDone. Restart the backend once so it drops any cached "tenant not found".');
     await mongoose.disconnect();
 })().catch((e) => { console.error(e); process.exit(1); });

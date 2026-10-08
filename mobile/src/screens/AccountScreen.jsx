@@ -1,15 +1,18 @@
 // src/screens/AccountScreen.jsx
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-    View, Text, Pressable, ScrollView, TextInput, Modal, ActivityIndicator, Alert,
-    KeyboardAvoidingView, Platform, StyleSheet,
+    View, Text, ScrollView, TextInput, Modal, ActivityIndicator, Pressable,
+    KeyboardAvoidingView, Platform, StyleSheet, Linking,
 } from 'react-native';
 import Constants from 'expo-constants';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand, GuestGate } from '../components/ui/kit';
-import { showToast } from '../components/ui/shop';
+import { showToast, tint } from '../components/ui/shop';
+import { Press, Appear } from '../components/ui/cartParts';
 import { AddressSheet } from '../components/ui/addresses';
+import { themedAlert } from '../components/ui/dialog';
 import { useAuthStore } from '../store/useAuthStore';
 import { useHomeStore } from '../store/useHomeStore';
 import { useThemeStore } from '../store/useThemeStore';
@@ -19,7 +22,7 @@ import { fetchMe, updateMe, deleteMe } from '../api/shopApi';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 function EditDialog({ visible, me, onClose, onSaved }) {
-    const { primary, radius, text } = useBrand();
+    const { primary, radius, text, muted, surface, border, background } = useBrand();
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [saving, setSaving] = useState(false);
@@ -44,29 +47,30 @@ function EditDialog({ visible, me, onClose, onSaved }) {
         } finally { setSaving(false); }
     };
 
+    const input = [s.input, { color: text, borderColor: border, backgroundColor: background }];
     return (
         <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
             <KeyboardAvoidingView style={s.backdrop} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
                 <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-                <View style={s.dialog}>
+                <View style={[s.dialog, { backgroundColor: surface, borderColor: border }]}>
                     <Text style={[s.dTitle, { color: text }]}>Edit profile</Text>
-                    <Text style={s.label}>Name</Text>
-                    <TextInput value={name} onChangeText={setName} maxLength={80} placeholder="Your name" placeholderTextColor="#999999" style={s.input} />
-                    <Text style={s.label}>Email (optional)</Text>
+                    <Text style={[s.label, { color: muted }]}>Name</Text>
+                    <TextInput value={name} onChangeText={setName} maxLength={80} placeholder="Your name" placeholderTextColor={muted} style={input} />
+                    <Text style={[s.label, { color: muted }]}>Email (optional)</Text>
                     <TextInput
-                        value={email} onChangeText={setEmail} maxLength={120} placeholder="you@example.com" placeholderTextColor="#999999"
-                        keyboardType="email-address" autoCapitalize="none" autoCorrect={false} style={s.input}
+                        value={email} onChangeText={setEmail} maxLength={120} placeholder="you@example.com" placeholderTextColor={muted}
+                        keyboardType="email-address" autoCapitalize="none" autoCorrect={false} style={input}
                     />
-                    <Text style={s.label}>Phone</Text>
-                    <TextInput value={me?.phone ? `+91 ${me.phone}` : ''} editable={false} style={[s.input, s.locked]} />
-                    <Text style={s.note}>Your phone number is your login, so it cannot be changed.</Text>
+                    <Text style={[s.label, { color: muted }]}>Phone</Text>
+                    <TextInput value={me?.phone ? `+91 ${me.phone}` : ''} editable={false} style={[s.input, { color: muted, borderColor: border, backgroundColor: border }]} />
+                    <Text style={[s.note, { color: muted }]}>Your phone number is your login, so it cannot be changed.</Text>
                     <View style={s.btns}>
-                        <Pressable onPress={onClose} style={[s.ghost, { borderColor: primary, borderRadius: radius }]}>
-                            <Text style={[s.ghostTxt, { color: primary }]}>Cancel</Text>
-                        </Pressable>
-                        <Pressable onPress={save} disabled={saving} style={[s.solid, { backgroundColor: primary, borderRadius: radius }]}>
-                            {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.solidTxt}>Save</Text>}
-                        </Pressable>
+                        <Press wrap={{ flex: 1, marginRight: 10 }} onPress={onClose} style={[s.dBtn, { borderColor: border, borderWidth: 1.5, borderRadius: radius }]}>
+                            <Text style={[s.dTxt, { color: text }]}>Cancel</Text>
+                        </Press>
+                        <Press wrap={{ flex: 1.3 }} disabled={saving} onPress={save} style={[s.dBtn, { backgroundColor: primary, borderRadius: radius }]}>
+                            {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={[s.dTxt, { color: '#FFFFFF' }]}>Save</Text>}
+                        </Press>
                     </View>
                 </View>
             </KeyboardAvoidingView>
@@ -74,13 +78,39 @@ function EditDialog({ visible, me, onClose, onSaved }) {
     );
 }
 
+function Item({ icon, label, sub, onPress, danger, last }) {
+    const { primary, text, muted, error, border } = useBrand();
+    const c = danger ? error : primary;
+    return (
+        <Press onPress={onPress} style={[s.row, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: border }]}>
+            <View style={[s.rowIc, { backgroundColor: tint(c) }]}><Ionicons name={icon} size={18} color={c} /></View>
+            <View style={{ flex: 1 }}>
+                <Text style={[s.rowTxt, { color: danger ? error : text }]}>{label}</Text>
+                {sub ? <Text style={[s.rowSub, { color: muted }]} numberOfLines={1}>{sub}</Text> : null}
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={muted} />
+        </Press>
+    );
+}
+
+function Group({ title, delay, children }) {
+    const { muted, surface, border } = useBrand();
+    return (
+        <Appear delay={delay} style={s.groupWrap}>
+            {title ? <Text style={[s.gTitle, { color: muted }]}>{title}</Text> : null}
+            <View style={[s.group, { backgroundColor: surface, borderColor: border }]}>{children}</View>
+        </Appear>
+    );
+}
+
 function AccountInner() {
     const nav = useNavigation();
     const insets = useSafeAreaInsets();
-    const { primary, radius, text, error, background } = useBrand();
+    const { primary, text, muted, background, surface, border } = useBrand();
     const user = useAuthStore((st) => st.user);
     const favOn = useHomeStore((st) => st.full.features.favourites);
     const shop = useThemeStore((st) => st.theme.name);
+    const shopPhone = useThemeStore((st) => st.theme.phone);
     const [me, setMe] = useState(null);
     const [edit, setEdit] = useState(false);
     const [addrSheet, setAddrSheet] = useState(false);
@@ -107,12 +137,12 @@ function AccountInner() {
         useFavStore.getState().reset();
     };
 
-    const doLogout = () => Alert.alert('Log out?', 'You will need to log in again to order.', [
+    const doLogout = () => themedAlert('Log out?', 'You will need to log in again to order.', [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Log out', onPress: signOut },
-    ]);
+    ], { icon: 'log-out-outline' });
 
-    const doDelete = () => Alert.alert(
+    const doDelete = () => themedAlert(
         'Delete your account?',
         'Your profile, saved addresses and favourites will be removed. Past orders stay with the shop. This cannot be undone.',
         [
@@ -128,46 +158,61 @@ function AccountInner() {
                         await signOut();
                     } catch (e) {
                         const m = e?.response?.data?.error;
-                        if (m) Alert.alert('Cannot delete account', m); else showToast('Network problem. Try again.');
+                        if (m) themedAlert('Cannot delete account', m); else showToast('Network problem. Try again.');
                     } finally { setBusy(false); }
                 },
             },
         ],
+        { icon: 'trash-outline' },
     );
 
-    const soon = () => showToast('Coming soon');
-    const rows = [
-        ['Saved addresses', () => setAddrSheet(true)],
-        favOn ? ['Favourites', () => nav.navigate('Favourites')] : null,
-        ['Payment methods', soon],
-        ['Help and support', soon],
-        ['Delete account', doDelete, true],
-        ['Log out', doLogout],
-    ].filter(Boolean);
+    const shopDigits = String(shopPhone || '').replace(/\D/g, '').slice(-10);
+    const callShop = () => Linking.openURL(`tel:+91${shopDigits}`).catch(() => showToast('Could not open the dialer'));
 
     return (
         <View style={{ flex: 1, paddingTop: insets.top, backgroundColor: background }}>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 30 }}>
-                <View style={s.head}>
+                <Text style={[s.title, { color: text }]}>Account</Text>
+
+                <Appear style={[s.head, { backgroundColor: surface, borderColor: border }]}>
                     <View style={[s.avatar, { backgroundColor: primary }]}><Text style={s.avatarTxt}>{initial}</Text></View>
                     <View style={{ flex: 1 }}>
                         <Text style={[s.name, { color: text }]} numberOfLines={1}>{name || 'Add your name'}</Text>
-                        {phone ? <Text style={s.sub}>{phone}</Text> : null}
-                        {p.email ? <Text style={s.sub} numberOfLines={1}>{p.email}</Text> : null}
+                        {phone ? <Text style={[s.sub, { color: muted }]}>{phone}</Text> : null}
+                        {p.email ? <Text style={[s.sub, { color: muted }]} numberOfLines={1}>{p.email}</Text> : null}
                     </View>
-                    <Pressable onPress={() => setEdit(true)} style={[s.ghost, { borderColor: primary, borderRadius: radius, flex: 0, paddingHorizontal: 16 }]}>
-                        <Text style={[s.ghostTxt, { color: primary }]}>Edit</Text>
-                    </Pressable>
-                </View>
+                    <Press onPress={() => setEdit(true)} style={[s.editBtn, { borderColor: primary }]}>
+                        <Ionicons name="create-outline" size={15} color={primary} />
+                        <Text style={[s.editTxt, { color: primary }]}>Edit</Text>
+                    </Press>
+                </Appear>
 
-                {rows.map(([label, onPress, danger]) => (
-                    <Pressable key={label} onPress={onPress} style={s.row}>
-                        <Text style={[s.rowTxt, { color: danger ? error : text }]}>{label}</Text>
-                        <Text style={s.chev}>›</Text>
-                    </Pressable>
-                ))}
+                {!name ? (
+                    <Appear delay={60} style={s.groupWrap}>
+                        <Press onPress={() => setEdit(true)} style={[s.nudge, { backgroundColor: tint(primary), borderColor: primary }]}>
+                            <Ionicons name="person-circle-outline" size={22} color={primary} />
+                            <Text style={[s.nudgeTxt, { color: text }]}>Add your name so the shop knows who is ordering</Text>
+                        </Press>
+                    </Appear>
+                ) : null}
 
-                <Text style={s.ver}>{shop} · v{Constants.expoConfig?.version || '1.0'}</Text>
+                <Group title="YOUR ACCOUNT" delay={80}>
+                    <Item icon="location-outline" label="Saved addresses" sub="Add, edit or remove delivery addresses" onPress={() => setAddrSheet(true)} last={!favOn} />
+                    {favOn ? <Item icon="heart-outline" label="Favourites" sub="Dishes you saved" onPress={() => nav.navigate('Favourites')} last /> : null}
+                </Group>
+
+                {shopPhone ? (
+                    <Group title="HELP" delay={140}>
+                        <Item icon="call-outline" label={`Contact ${shop || 'the shop'}`} sub={`Call +91 ${shopDigits}`} onPress={callShop} last />
+                    </Group>
+                ) : null}
+
+                <Group title="MANAGE" delay={200}>
+                    <Item icon="log-out-outline" label="Log out" onPress={doLogout} />
+                    <Item icon="trash-outline" label="Delete account" onPress={doDelete} danger last />
+                </Group>
+
+                <Text style={[s.ver, { color: muted }]}>{shop} · v{Constants.expoConfig?.version || '1.0'}</Text>
             </ScrollView>
 
             <EditDialog visible={edit} me={p} onClose={() => setEdit(false)} onSaved={saved} />
@@ -182,26 +227,32 @@ export default function AccountScreen() {
 }
 
 const s = StyleSheet.create({
-    head: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 22 },
-    avatar: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
-    avatarTxt: { color: '#FFFFFF', fontSize: 26, fontWeight: '800' },
-    name: { fontSize: 19, fontWeight: '800' },
-    sub: { fontSize: 12, color: '#777777', marginTop: 2 },
-    row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E5E5E5' },
-    rowTxt: { fontSize: 14, fontWeight: '600' },
-    chev: { fontSize: 22, color: '#999999' },
-    ver: { textAlign: 'center', fontSize: 11, color: '#777777', marginTop: 26 },
+    title: { fontSize: 24, fontWeight: '900', letterSpacing: -0.5, paddingHorizontal: 16, paddingTop: 14 },
+    head: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginTop: 14, padding: 16, borderWidth: 1, borderRadius: 20 },
+    avatar: { width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
+    avatarTxt: { color: '#FFFFFF', fontSize: 24, fontWeight: '800' },
+    name: { fontSize: 18, fontWeight: '800' },
+    sub: { fontSize: 12, marginTop: 2 },
+    editBtn: { flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 7 },
+    editTxt: { fontSize: 13, fontWeight: '800', marginLeft: 4 },
+    nudge: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 14, padding: 12 },
+    nudgeTxt: { flex: 1, fontSize: 13, fontWeight: '700', marginLeft: 10 },
+    groupWrap: { marginHorizontal: 16, marginTop: 18 },
+    gTitle: { fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8, marginLeft: 4 },
+    group: { borderWidth: 1, borderRadius: 18, overflow: 'hidden' },
+    row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 14 },
+    rowIc: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+    rowTxt: { fontSize: 14, fontWeight: '700' },
+    rowSub: { fontSize: 11, marginTop: 2 },
+    ver: { textAlign: 'center', fontSize: 11, marginTop: 26 },
     busy: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' },
-    backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: 18 },
-    dialog: { width: '100%', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 18 },
-    dTitle: { fontSize: 18, fontWeight: '800', marginBottom: 6 },
-    label: { fontSize: 12, fontWeight: '700', color: '#777777', marginTop: 12, marginBottom: 4 },
-    input: { borderWidth: 1, borderColor: '#DDDDDD', borderRadius: 10, padding: 11, fontSize: 14, color: '#1C1C1C' },
-    locked: { backgroundColor: '#F3F3F3', color: '#777777' },
-    note: { fontSize: 11, color: '#777777', marginTop: 6 },
+    backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', padding: 18 },
+    dialog: { width: '100%', maxWidth: 380, borderRadius: 22, borderWidth: 1, padding: 20 },
+    dTitle: { fontSize: 18, fontWeight: '900', marginBottom: 4 },
+    label: { fontSize: 12, fontWeight: '700', marginTop: 12, marginBottom: 4 },
+    input: { borderWidth: 1, borderRadius: 12, padding: 12, fontSize: 14 },
+    note: { fontSize: 11, marginTop: 6 },
     btns: { flexDirection: 'row', marginTop: 18 },
-    ghost: { flex: 1, borderWidth: 1, paddingVertical: 11, alignItems: 'center', marginRight: 10 },
-    ghostTxt: { fontSize: 14, fontWeight: '800' },
-    solid: { flex: 1, paddingVertical: 12, alignItems: 'center' },
-    solidTxt: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
+    dBtn: { paddingVertical: 13, alignItems: 'center', justifyContent: 'center', minHeight: 48 },
+    dTxt: { fontSize: 14, fontWeight: '800' },
 });

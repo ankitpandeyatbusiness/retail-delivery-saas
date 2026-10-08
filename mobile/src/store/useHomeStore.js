@@ -65,7 +65,7 @@ export const useHomeStore = create((set, get) => ({
     async load() {
         // 1) show the saved copy instantly
         const cached = await readCache('home');
-        if (cached && cached.full) set(cached);
+        if (cached && cached.full) set({ ...cached, offers: [] });
 
         // 2) refresh from the server
         try {
@@ -90,5 +90,11 @@ export const useHomeStore = create((set, get) => ({
         } catch (e) {
             // offline or server problem: keep whatever is already on screen
         }
+    },
+    async loadOffers() {
+        try {
+            const r = await fetchOffers();
+            set({ offers: r.items || [] });
+        } catch (e) { /* keep what is on screen */ }
     },
 }));

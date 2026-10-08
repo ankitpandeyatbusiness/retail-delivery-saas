@@ -27,7 +27,10 @@ async function rateOrder({ tenantId, userId, orderId, ratings }) {
     await Review.bulkWrite(ratings.map((r) => ({
         updateOne: {
             filter: { tenantId, orderId: order._id, productId: r.productId, userId },
-            update: { $set: { rating: r.rating, comment: typeof r.comment === 'string' ? r.comment.trim().slice(0, 300) : undefined } },
+            update: (() => {
+    const c = typeof r.comment === 'string' ? r.comment.trim().slice(0, 300) : '';
+    return c ? { $set: { rating: r.rating, comment: c } } : { $set: { rating: r.rating }, $unset: { comment: '' } };
+})(),
             upsert: true,
         },
     })));

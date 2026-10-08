@@ -4,6 +4,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import AppNavigator from './src/navigation/AppNavigator';
 import { useThemeStore } from './src/store/useThemeStore';
+import { DialogHost } from './src/components/ui/dialog';
+import { SheetHost } from './src/components/ui/SheetPortal';
 
 export default function App() {
   const [isReady, setIsReady] = useState(false);
@@ -25,7 +27,11 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <AppNavigator />
+        <SheetHost>
+          <AppNavigator />
+        </SheetHost>
+        {/* after the host so alerts (e.g. "Delete address?") draw above the sheet */}
+        <DialogHost />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

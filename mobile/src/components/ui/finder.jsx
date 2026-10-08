@@ -29,6 +29,27 @@ export function Collapse({ hide, children }) {
     );
 }
 
+/* ---------- strip that fades out, then disappears (and the reverse). No per-frame re-layout ---------- */
+export function FadeCollapse({ hide, children }) {
+    const o = useRef(new Animated.Value(hide ? 0 : 1)).current;
+    const [gone, setGone] = useState(hide);
+    const first = useRef(true);
+    useEffect(() => {
+        if (first.current) { first.current = false; return undefined; }
+        let alive = true;
+        if (hide) {
+            Animated.timing(o, { toValue: 0, duration: 160, useNativeDriver: true }).start(({ finished }) => { if (finished && alive) setGone(true); });
+        } else {
+            setGone(false);
+            o.setValue(0);
+            Animated.timing(o, { toValue: 1, duration: 260, delay: 60, useNativeDriver: true }).start();
+        }
+        return () => { alive = false; };
+    }, [hide]);
+    if (gone) return null;
+    return <Animated.View style={{ opacity: o }}>{children}</Animated.View>;
+}
+
 /* ---------- fade in whenever k changes ---------- */
 export function Fade({ k, children }) {
     const a = useRef(new Animated.Value(0)).current;
@@ -107,15 +128,51 @@ export function VegSwitch({ on, onPress }) {
 }
 
 /* ---------- categories: multi-select with Clear all ---------- */
-export function Cats() {
+const clearOf = (c) => (/^#[0-9a-fA-F]{6}$/.test(c || '') ? `${c}00` : 'rgba(0,0,0,0)');
+
+function CatItem({ c, on, onPress }) {
     const { primary, onPrimary, text, soft } = useBrand();
+    const a = useRef(new Animated.Value(on ? 1 : 0)).current;
+    const p = useRef(new Animated.Value(1)).current;
+    useEffect(() => {
+        Animated.timing(a, { toValue: on ? 1 : 0, duration: 240, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+    }, [on]);
+    const to = (v) => Animated.spring(p, { toValue: v, friction: 6, tension: 220, useNativeDriver: true }).start();
+    const ring = a.interpolate({ inputRange: [0, 1], outputRange: [clearOf(primary), primary] });
+    const fg = a.interpolate({ inputRange: [0, 1], outputRange: [text, primary] });
+    return (
+        <Pressable onPress={onPress} onPressIn={() => to(0.93)} onPressOut={() => to(1)} style={s.cat}>
+            <Animated.View style={{ transform: [{ scale: p }], alignItems: 'center' }}>
+                <Animated.View style={[s.catRing, { borderColor: ring }]}>
+                    <View style={[s.catCircle, { backgroundColor: soft }]}>
+                        {c.image ? <Image source={{ uri: c.image }} style={s.catImg} contentFit="cover" />
+                            : <Text style={{ fontWeight: '800', color: primary, fontSize: 22 }}>{(c.name || '?')[0].toUpperCase()}</Text>}
+                    </View>
+                </Animated.View>
+                <Animated.View style={[s.catX, { backgroundColor: primary, opacity: a, transform: [{ scale: a }] }]}>
+                    <Ionicons name="close" size={11} color={onPrimary} />
+                </Animated.View>
+                <Animated.Text numberOfLines={1} style={[s.catName, { color: fg, fontWeight: '700' }]}>{c.name}</Animated.Text>
+            </Animated.View>
+        </Pressable>
+    );
+}
+
+export function Cats() {
+    const { primary, onPrimary } = useBrand();
     const chips = useHomeStore((st) => st.categories);
     const sel = useFilterStore((st) => st.categories);
     const toggle = useFilterStore((st) => st.toggleCategory);
     const clear = useFilterStore((st) => st.clearCategories);
+    const any = sel.length > 0;
+    const w = useRef(new Animated.Value(any ? 1 : 0)).current;
+    useEffect(() => {
+        Animated.timing(w, { toValue: any ? 1 : 0, duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+    }, [any]);
     return (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.cats} keyboardShouldPersistTaps="handled">
-            {sel.length ? (
+            {/* the "Clear all" bubble grows in and shrinks away, so the row slides instead of jumping */}
+            <Animated.View pointerEvents={any ? 'auto' : 'none'} style={{ width: w.interpolate({ inputRange: [0, 1], outputRange: [0, 84] }), opacity: w, overflow: 'hidden' }}>
                 <Pressable onPress={clear} style={s.cat}>
                     <View style={[s.catRing, { borderColor: 'transparent' }]}>
                         <View style={[s.catCircle, { backgroundColor: primary }]}>
@@ -124,27 +181,14 @@ export function Cats() {
                     </View>
                     <Text numberOfLines={1} style={[s.catName, { color: primary, fontWeight: '800' }]}>Clear all</Text>
                 </Pressable>
-            ) : null}
+            </Animated.View>
             {chips.map((c) => {
                 const id = String(c._id);
-                const on = sel.includes(id);
-                return (
-                    <Pressable key={id} onPress={() => toggle(id)} style={s.cat}>
-                        <View style={[s.catRing, { borderColor: on ? primary : 'transparent' }]}>
-                            <View style={[s.catCircle, { backgroundColor: soft }]}>
-                                {c.image ? <Image source={{ uri: c.image }} style={s.catImg} contentFit="cover" />
-                                    : <Text style={{ fontWeight: '800', color: primary, fontSize: 22 }}>{(c.name || '?')[0].toUpperCase()}</Text>}
-                            </View>
-                        </View>
-                        {on ? <View style={[s.catX, { backgroundColor: primary }]}><Ionicons name="close" size={11} color={onPrimary} /></View> : null}
-                        <Text numberOfLines={1} style={[s.catName, { color: on ? primary : text, fontWeight: on ? '800' : '600' }]}>{c.name}</Text>
-                    </Pressable>
-                );
+                return <CatItem key={id} c={c} on={sel.includes(id)} onPress={() => toggle(id)} />;
             })}
         </ScrollView>
     );
 }
-
 /* ---------- filter chips row ---------- */
 export function Chip({ label, on, onPress, badge, icon }) {
     const { primary, onPrimary, surface, border, text } = useBrand();

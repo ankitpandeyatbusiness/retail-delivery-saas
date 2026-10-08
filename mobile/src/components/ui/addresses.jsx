@@ -1,14 +1,20 @@
 // src/components/ui/addresses.jsx
+// Address sheet in ONE file. Drawn by SheetHost (see SheetPortal.jsx) in the app's own window,
+// so it reaches the true bottom of the screen, over the tab bar.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    Modal, View, Text, Pressable, ScrollView, TextInput, ActivityIndicator, Alert,
-    KeyboardAvoidingView, Platform, StyleSheet, Animated, Easing, Switch,
+    View, Text, Pressable, ScrollView, TextInput, ActivityIndicator, KeyboardAvoidingView,
+    StyleSheet, Animated, Easing, Switch, BackHandler, useWindowDimensions
 } from 'react-native';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SheetPortal } from './SheetPortal';
+import { themedAlert } from './dialog';
 import { useBrand } from './kit';
 import { showToast, tint } from './shop';
 import { fetchAddresses, saveAddress, deleteAddress, checkServiceable } from '../../api/shopApi';
+import MapPicker from './MapPicker';
 
 export const addrLine = (a) => [a.line1, a.line2, a.landmark, a.city, a.pincode].filter(Boolean).join(', ');
 const errMsg = (e) => e?.response?.data?.error || 'Something went wrong. Try again.';
@@ -125,8 +131,11 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
     const [geo, setGeo] = useState(null);
     const [saving, setSaving] = useState(false);
     const [locating, setLocating] = useState(false);
+    const { height: H } = useWindowDimensions();
+    const [mapOpen, setMapOpen] = useState(false);
+    const insets = useSafeAreaInsets();
 
-    // slide in / out
+    // slide in / out; `show` stays true until the close animation ends
     const [show, setShow] = useState(visible);
     const prog = useRef(new Animated.Value(0)).current;
     useEffect(() => {
@@ -134,9 +143,17 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
             setShow(true);
             Animated.timing(prog, { toValue: 1, duration: 300, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
         } else if (show) {
-            Animated.timing(prog, { toValue: 0, duration: 220, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(({ finished }) => { if (finished) setShow(false); });
+            Animated.timing(prog, { toValue: 0, duration: 220, easing: Easing.in(Easing.cubic), useNativeDriver: true })
+                .start(({ finished }) => { if (finished) setShow(false); });
         }
     }, [visible]);
+
+    // phone back button closes the sheet
+    useEffect(() => {
+        if (!visible) return undefined;
+        const sub = BackHandler.addEventListener('hardwareBackPress', () => { onClose(); return true; });
+        return () => sub.remove();
+    }, [visible, onClose]);
 
     const openForm = (a) => {
         setEditId(a ? a._id : null);
@@ -185,6 +202,15 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
         } finally { setLocating(false); }
     };
 
+    const onPinned = async (p) => {
+        setMapOpen(false);
+        setForm((f) => ({
+            ...f, lat: p.latitude, lng: p.longitude,
+            city: p.city || f.city, pincode: p.pincode || f.pincode, line2: f.line2 || p.area || '',
+        }));
+        try { setGeo(await checkServiceable(p.latitude, p.longitude)); } catch (e) { setGeo(null); }
+    };
+
     const save = async () => {
         const msg = !form.line1.trim() ? 'Enter the address line'
             : form.phone && !/^[6-9]\d{9}$/.test(form.phone) ? 'Enter a valid 10-digit phone'
@@ -205,7 +231,7 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
         } finally { setSaving(false); }
     };
 
-    const remove = () => Alert.alert('Delete address?', 'This cannot be undone.', [
+    const remove = () => themedAlert('Delete address?', 'This cannot be undone.', [
         { text: 'Cancel', style: 'cancel' },
         {
             text: 'Delete', style: 'destructive',
@@ -218,111 +244,130 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
     const inForm = mode === 'form';
     const canBack = inForm && list.length > 0;
 
+    if (!show) return null;
+
     return (
-        <Modal visible={show} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
-            <View style={s.backdropWrap}>
-                <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, s.backdrop, { opacity: prog }]} />
-                <Pressable style={{ flex: 1 }} onPress={onClose} />
-                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-                    <Animated.View style={[s.sheet, { backgroundColor: background, transform: [{ translateY: prog.interpolate({ inputRange: [0, 1], outputRange: [600, 0] }) }] }]}>
-                        <View style={[s.handle, { backgroundColor: border }]} />
-                        <View style={s.top}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                                {canBack ? (
-                                    <Pressable onPress={() => setMode('list')} hitSlop={12} style={[s.roundBtn, { backgroundColor: surface, borderColor: border }]}>
-                                        <Ionicons name="chevron-back" size={18} color={text} />
-                                    </Pressable>
-                                ) : null}
-                                <Text style={[s.title, { color: text, marginLeft: canBack ? 10 : 0 }]}>
-                                    {inForm ? (editId ? 'Edit address' : 'New address') : (manage ? 'Saved addresses' : 'Choose address')}
-                                </Text>
-                            </View>
-                            <Pressable onPress={onClose} hitSlop={12} style={[s.roundBtn, { backgroundColor: surface, borderColor: border }]}>
-                                <Ionicons name="close" size={18} color={text} />
-                            </Pressable>
-                        </View>
-
-                        {loading && !list.length ? <ActivityIndicator style={{ margin: 30 }} color={primary} /> : null}
-
-                        {!inForm ? (
-                            <Appear key="list" style={{ flexShrink: 1 }}>
-                                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 12 }}>
-                                    {list.map((a, i) => {
-                                        const on = !manage && selectedId === a._id;
-                                        return (
-                                            <Appear key={a._id} delay={Math.min(i, 6) * 50}>
-                                                <Press
-                                                    onPress={() => (manage ? openForm(a) : (onSelect(a), onClose()))}
-                                                    style={[s.row, { backgroundColor: on ? tint(primary) : surface, borderColor: on ? primary : border }]}
-                                                >
-                                                    <View style={[s.rowIcon, { backgroundColor: on ? primary : tint(primary) }]}>
-                                                        <Ionicons name={ICON[a.label] || 'location-outline'} size={18} color={on ? '#FFFFFF' : primary} />
-                                                    </View>
-                                                    <View style={{ flex: 1, marginLeft: 12 }}>
-                                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                                            <Text style={[s.rowTitle, { color: text }]}>{a.label}</Text>
-                                                            {a.isDefault ? <View style={[s.badge, { backgroundColor: tint(primary) }]}><Text style={[s.badgeTxt, { color: primary }]}>DEFAULT</Text></View> : null}
-                                                        </View>
-                                                        {a.name || a.phone ? <Text style={[s.rowSub, { color: muted }]}>{[a.name, a.phone].filter(Boolean).join(' · ')}</Text> : null}
-                                                        <Text style={[s.rowSub, { color: muted }]} numberOfLines={2}>{addrLine(a)}</Text>
-                                                    </View>
-                                                    {!manage ? (
-                                                        <Pressable onPress={() => openForm(a)} hitSlop={12} style={{ paddingLeft: 10 }}>
-                                                            <Text style={[s.link, { color: primary }]}>Edit</Text>
-                                                        </Pressable>
-                                                    ) : <Ionicons name="chevron-forward" size={18} color={muted} />}
-                                                </Press>
-                                            </Appear>
-                                        );
-                                    })}
-                                    <Press onPress={() => openForm(null)} style={[s.addBtn, { borderColor: primary, borderRadius: radius }]}>
-                                        <Ionicons name="add" size={18} color={primary} />
-                                        <Text style={[s.addTxt, { color: primary }]}>Add new address</Text>
-                                    </Press>
-                                </ScrollView>
-                            </Appear>
-                        ) : (
-                            <Appear key="form" style={{ flexShrink: 1 }}>
-                                <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 16 }}>
-                                    <GpsCard locating={locating} geo={geo} hasPin={form.lat !== null} onPress={here} />
-
-                                    <Text style={[s.sec, { color: muted }]}>SAVE AS</Text>
-                                    <View style={s.pills}>
-                                        {['Home', 'Work', 'Other'].map((l) => <Pill key={l} label={l} on={form.label === l} onPress={() => set('label', l)} />)}
-                                    </View>
-
-                                    <Text style={[s.sec, { color: muted }]}>ADDRESS DETAILS</Text>
-                                    {FIELDS.map(([k, ph, kb, max]) => (
-                                        <Field key={k} label={ph} value={form[k]} onChangeText={(v) => set(k, v)} keyboardType={kb} maxLength={max} />
-                                    ))}
-
-                                    <View style={[s.defRow, { backgroundColor: surface, borderColor: border }]}>
-                                        <Text style={[s.rowSub, { color: text, flex: 1, marginTop: 0, fontWeight: '700' }]}>Make this my default address</Text>
-                                        <Switch value={form.isDefault} onValueChange={(v) => set('isDefault', v)} trackColor={{ true: tint(primary), false: border }} thumbColor={form.isDefault ? primary : '#FFFFFF'} />
-                                    </View>
-
-                                    <Press onPress={save} disabled={saving} style={[s.save, { backgroundColor: primary, borderRadius: radius }]}>
-                                        {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.saveTxt}>Save address</Text>}
-                                    </Press>
-                                    {editId ? (
-                                        <Pressable onPress={remove} style={{ alignItems: 'center', padding: 14 }}>
-                                            <Text style={{ color: error, fontWeight: '700' }}>Delete address</Text>
+        <>
+            <SheetPortal>
+                <View style={s.backdropWrap}>
+                    <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, s.backdrop, { opacity: prog }]} />
+                    <Pressable style={{ flex: 1 }} onPress={onClose} />
+                    <KeyboardAvoidingView behavior="padding">
+                        <Animated.View style={[s.sheet, {
+                            backgroundColor: background,
+                            maxHeight: H * 0.9,
+                            paddingBottom: 18 + insets.bottom,
+                            transform: [{ translateY: prog.interpolate({ inputRange: [0, 1], outputRange: [H, 0] }) }],
+                        }]}>
+                            <View style={[s.handle, { backgroundColor: border }]} />
+                            <View style={s.top}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                                    {canBack ? (
+                                        <Pressable onPress={() => setMode('list')} hitSlop={12} style={[s.roundBtn, { backgroundColor: surface, borderColor: border }]}>
+                                            <Ionicons name="chevron-back" size={18} color={text} />
                                         </Pressable>
                                     ) : null}
-                                </ScrollView>
-                            </Appear>
-                        )}
-                    </Animated.View>
-                </KeyboardAvoidingView>
-            </View>
-        </Modal>
+                                    <Text style={[s.title, { color: text, marginLeft: canBack ? 10 : 0 }]}>
+                                        {inForm ? (editId ? 'Edit address' : 'New address') : (manage ? 'Saved addresses' : 'Choose address')}
+                                    </Text>
+                                </View>
+                                <Pressable onPress={onClose} hitSlop={12} style={[s.roundBtn, { backgroundColor: surface, borderColor: border }]}>
+                                    <Ionicons name="close" size={18} color={text} />
+                                </Pressable>
+                            </View>
+
+                            {loading && !list.length ? <ActivityIndicator style={{ margin: 30 }} color={primary} /> : null}
+
+                            {!inForm ? (
+                                <Appear key="list" style={{ flexShrink: 1 }}>
+                                    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 12 }}>
+                                        {list.map((a, i) => {
+                                            const on = !manage && selectedId === a._id;
+                                            return (
+                                                <Appear key={a._id} delay={Math.min(i, 6) * 50}>
+                                                    <Press
+                                                        onPress={() => (manage ? openForm(a) : (onSelect(a), onClose()))}
+                                                        style={[s.row, { backgroundColor: on ? tint(primary) : surface, borderColor: on ? primary : border }]}
+                                                    >
+                                                        <View style={[s.rowIcon, { backgroundColor: on ? primary : tint(primary) }]}>
+                                                            <Ionicons name={ICON[a.label] || 'location-outline'} size={18} color={on ? '#FFFFFF' : primary} />
+                                                        </View>
+                                                        <View style={{ flex: 1, marginLeft: 12 }}>
+                                                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                                                <Text style={[s.rowTitle, { color: text }]}>{a.label}</Text>
+                                                                {a.isDefault ? <View style={[s.badge, { backgroundColor: tint(primary) }]}><Text style={[s.badgeTxt, { color: primary }]}>DEFAULT</Text></View> : null}
+                                                            </View>
+                                                            {a.name || a.phone ? <Text style={[s.rowSub, { color: muted }]}>{[a.name, a.phone].filter(Boolean).join(' · ')}</Text> : null}
+                                                            <Text style={[s.rowSub, { color: muted }]} numberOfLines={2}>{addrLine(a)}</Text>
+                                                        </View>
+                                                        {!manage ? (
+                                                            <Pressable onPress={() => openForm(a)} hitSlop={12} style={{ paddingLeft: 10 }}>
+                                                                <Text style={[s.link, { color: primary }]}>Edit</Text>
+                                                            </Pressable>
+                                                        ) : <Ionicons name="chevron-forward" size={18} color={muted} />}
+                                                    </Press>
+                                                </Appear>
+                                            );
+                                        })}
+                                        <Press onPress={() => openForm(null)} style={[s.addBtn, { borderColor: primary, borderRadius: radius }]}>
+                                            <Ionicons name="add" size={18} color={primary} />
+                                            <Text style={[s.addTxt, { color: primary }]}>Add new address</Text>
+                                        </Press>
+                                    </ScrollView>
+                                </Appear>
+                            ) : (
+                                <Appear key="form" style={{ flexShrink: 1 }}>
+                                    <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 16 }}>
+                                        <GpsCard locating={locating} geo={geo} hasPin={form.lat !== null} onPress={here} />
+                                        <Press onPress={() => setMapOpen(true)} style={[s.addBtn, { borderColor: primary, borderRadius: radius, marginTop: 10, paddingVertical: 11 }]}>
+                                            <Ionicons name="map-outline" size={17} color={primary} />
+                                            <Text style={[s.addTxt, { color: primary }]}>{form.lat !== null ? 'Adjust pin on map' : 'Pin location on map'}</Text>
+                                        </Press>
+                                        <Text style={[s.sec, { color: muted }]}>SAVE AS</Text>
+                                        <View style={s.pills}>
+                                            {['Home', 'Work', 'Other'].map((l) => <Pill key={l} label={l} on={form.label === l} onPress={() => set('label', l)} />)}
+                                        </View>
+
+                                        <Text style={[s.sec, { color: muted }]}>ADDRESS DETAILS</Text>
+                                        {FIELDS.map(([k, ph, kb, max]) => (
+                                            <Field key={k} label={ph} value={form[k]} onChangeText={(v) => set(k, v)} keyboardType={kb} maxLength={max} />
+                                        ))}
+
+                                        <View style={[s.defRow, { backgroundColor: surface, borderColor: border }]}>
+                                            <Text style={[s.rowSub, { color: text, flex: 1, marginTop: 0, fontWeight: '700' }]}>Make this my default address</Text>
+                                            <Switch value={form.isDefault} onValueChange={(v) => set('isDefault', v)} trackColor={{ true: tint(primary), false: border }} thumbColor={form.isDefault ? primary : '#FFFFFF'} />
+                                        </View>
+
+                                        <Press onPress={save} disabled={saving} style={[s.save, { backgroundColor: primary, borderRadius: radius }]}>
+                                            {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.saveTxt}>Save address</Text>}
+                                        </Press>
+                                        {editId ? (
+                                            <Pressable onPress={remove} style={{ alignItems: 'center', padding: 14 }}>
+                                                <Text style={{ color: error, fontWeight: '700' }}>Delete address</Text>
+                                            </Pressable>
+                                        ) : null}
+                                    </ScrollView>
+                                </Appear>
+                            )}
+                        </Animated.View>
+                    </KeyboardAvoidingView>
+                </View>
+            </SheetPortal>
+
+            <MapPicker
+                visible={mapOpen}
+                initial={form.lat !== null ? { latitude: form.lat, longitude: form.lng } : null}
+                onClose={() => setMapOpen(false)}
+                onPick={onPinned}
+            />
+        </>
     );
 }
 
 const s = StyleSheet.create({
     backdropWrap: { flex: 1, justifyContent: 'flex-end' },
     backdrop: { backgroundColor: 'rgba(0,0,0,0.5)' },
-    sheet: { borderTopLeftRadius: 26, borderTopRightRadius: 26, paddingHorizontal: 18, paddingTop: 10, paddingBottom: 18, maxHeight: '90%' },
+    sheet: { borderTopLeftRadius: 26, borderTopRightRadius: 26, paddingHorizontal: 18, paddingTop: 10 },
     handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, marginBottom: 12 },
     top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
     title: { fontSize: 19, fontWeight: '900', letterSpacing: -0.3 },
@@ -350,6 +395,6 @@ const s = StyleSheet.create({
     fLabel: { fontSize: 11, fontWeight: '700' },
     fInput: { fontSize: 15, fontWeight: '700', paddingVertical: 6 },
     defRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 6, marginTop: 4 },
-    save: { marginTop: 20, paddingVertical: 16, alignItems: 'center', elevation: 3, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 6, shadowOffset: { width: 0, height: 3 } },
+    save: { marginTop: 20, paddingVertical: 16, alignItems: 'center' },
     saveTxt: { color: '#FFFFFF', fontSize: 15, fontWeight: '900', letterSpacing: 0.2 },
 });

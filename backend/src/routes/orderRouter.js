@@ -61,12 +61,29 @@ router.get('/pickup-slots', wrap(async (req, res) => {
 
 // Order history. ?active=true for the "ongoing" list. Pages: ?page=1&limit=20
 router.get('/', wrap(async (req, res) => {
+    console.log('ORDERS LIST →', req.tenant?.slug, String(req.auth?.userId), req.query);
     const page = clamp(parseInt(req.query.page, 10) || 1, 1, 1000);
     const limit = clamp(parseInt(req.query.limit, 10) || 20, 1, 50);
     const filter = { tenantId: req.tenant._id, userId: req.auth.userId };
     if (req.query.active === 'true') filter.status = { $in: ACTIVE_STATUSES };
 
-    const items = await Order.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit + 1);
+    // ?from=2026-10-01&to=2026-10-08 (days in Indian time). One day = same date in both. ?sort=oldest
+    const IST_MS = 330 * 60000;
+    const day = (v, endOfDay) => {
+        if (v === undefined) return null;
+        const m = typeof v === 'string' ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(v) : null;
+        if (!m) throw httpError(400, 'Dates must look like 2026-10-31');
+        const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+        if (mo < 1 || mo > 12 || d < 1 || d > 31) throw httpError(400, 'Invalid date');
+        return new Date(Date.UTC(y, mo - 1, d) - IST_MS + (endOfDay ? 86400000 - 1 : 0));
+    };
+    const from = day(req.query.from, false);
+    const to = day(req.query.to, true);
+    if (from && to && from > to) throw httpError(400, 'The "from" date must not be after the "to" date');
+    if (from || to) filter.createdAt = { ...(from ? { $gte: from } : {}), ...(to ? { $lte: to } : {}) };
+    const dir = req.query.sort === 'oldest' ? 1 : -1;
+
+    const items = await Order.find(filter).sort({ createdAt: dir, _id: dir }).skip((page - 1) * limit).limit(limit + 1);
     const hasMore = items.length > limit;
     if (hasMore) items.pop();
     res.json({ items: items.map((o) => view(o, req.tenant)), page, hasMore });

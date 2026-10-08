@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import { ActivityIndicator, View, StyleSheet,Platform } from 'react-native';
 import { NavigationContainer, createNavigationContainerRef, CommonActions, StackActions } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -13,7 +13,7 @@ import PaymentMethodsScreen from '../screens/PaymentMethodsScreen';
 import OrdersScreen from '../screens/OrdersScreen';
 import OrderDetailScreen from '../screens/OrderDetailScreen';
 import AccountScreen from '../screens/AccountScreen';
-import { OffersScreen, BestsellersScreen, FavouritesScreen } from '../screens/ExtraPages';
+import { OffersScreen, BestsellersScreen, FavouritesScreen } from '../screens/OffersScreen';
 import { useAuthStore } from '../store/useAuthStore';
 import { useHomeStore } from '../store/useHomeStore';
 import { Ionicons } from '@expo/vector-icons';
@@ -63,11 +63,14 @@ function MainTabs() {
                     backgroundColor: background,
                     borderTopWidth: StyleSheet.hairlineWidth,
                     borderTopColor: border,
-                    elevation: 12,
-                    shadowColor: '#000000',
-                    shadowOpacity: 0.08,
-                    shadowRadius: 10,
-                    shadowOffset: { width: 0, height: -3 },
+                    ...(Platform.OS === 'android'
+                        ? { elevation: 0 }
+                        : {
+                            shadowColor: '#000000',
+                            shadowOpacity: 0.08,
+                            shadowRadius: 10,
+                            shadowOffset: { width: 0, height: -3 },
+                        }),
                 },
                 tabBarLabelStyle: { fontSize: 11, fontWeight: '700', marginTop: 2 },
             }}

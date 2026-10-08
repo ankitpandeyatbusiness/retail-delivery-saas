@@ -52,6 +52,7 @@ export default {
       backgroundColor: currentConfig.backgroundColor,
     },
     android: {
+      config: { googleMaps: { apiKey: process.env.GOOGLE_MAPS_API_KEY } },
       package: currentConfig.bundleId,
       // Preserves your previous manual permissions + adds Microphone
       permissions: [

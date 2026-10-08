@@ -11,6 +11,7 @@ import { useMenuStore, useCartStore, useFavStore } from '../store/shopStores';
 import { useCouponStore } from '../store/useCouponStore';
 import { fetchOffers } from '../api/catalogApi';
 import { fetchFavourites } from '../api/shopApi';
+import { CopyButton } from '../components/ui/copyCode';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -22,13 +23,10 @@ function offerText(o) {
 }
 
 export function OffersScreen() {
-    const nav = useNavigation();
-    const { primary, radius, text } = useBrand();
-    const user = useAuthStore((st) => st.user);
+    const { primary, text } = useBrand();
     const storeOffers = useHomeStore((st) => st.offers);
     const enabled = useHomeStore((st) => st.full.offers.couponsEnabled);
-    const hasLines = useCartStore((st) => st.lines.length > 0);
-    const [list, setList] = useState(storeOffers);
+    const [list, setList] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -40,13 +38,7 @@ export function OffersScreen() {
         return () => { on = false; };
     }, []);
 
-    const apply = (o) => {
-        if (!user) { showToast('Log in to use coupons'); return; }
-        useCouponStore.getState().set(o.code);
-        if (!hasLines) { showToast(`${o.code} saved. Add items to use it`); return; }
-        const routes = nav.getState().routes;
-        if (routes[routes.length - 2]?.name === 'Cart') nav.goBack(); else nav.navigate('Cart');
-    };
+
 
     const shown = enabled ? list : [];
     return (
@@ -63,9 +55,7 @@ export function OffersScreen() {
                             <View style={[s.offer, { borderColor: primary, backgroundColor: tint(primary) }]}>
                                 <View style={s.oTop}>
                                     <Text style={[s.code, { color: primary }]}>{o.code}</Text>
-                                    <Pressable onPress={() => apply(o)} style={[s.apply, { borderColor: primary, borderRadius: radius }]}>
-                                        <Text style={[s.applyTxt, { color: primary }]}>Apply</Text>
-                                    </Pressable>
+                                    <CopyButton code={o.code} />
                                 </View>
                                 <Text style={[s.oDesc, { color: text }]}>{offerText(o)}</Text>
                                 <Text style={s.oMeta}>

@@ -8,19 +8,20 @@ import { tint } from './shop';
 export const rs = (n) => `₹${+Number(n || 0).toFixed(2)}`;
 export const ease = () => LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
 
-export function Press({ onPress, style, children, disabled, hitSlop }) {
+export function Press({ onPress, style, children, disabled, hitSlop, wrap }) {
     const v = useRef(new Animated.Value(1)).current;
     const to = (x) => Animated.spring(v, { toValue: x, friction: 6, tension: 220, useNativeDriver: true }).start();
     return (
-        <Pressable onPress={onPress} disabled={disabled} hitSlop={hitSlop} onPressIn={() => to(0.96)} onPressOut={() => to(1)}>
+        <Pressable onPress={onPress} disabled={disabled} hitSlop={hitSlop} style={wrap} onPressIn={() => to(0.96)} onPressOut={() => to(1)}>
             <Animated.View style={[style, { transform: [{ scale: v }] }]}>{children}</Animated.View>
         </Pressable>
     );
 }
 
-export function Appear({ children, delay = 0, style }) {
-    const v = useRef(new Animated.Value(0)).current;
+export function Appear({ children, delay = 0, style, skip }) {
+    const v = useRef(new Animated.Value(skip ? 1 : 0)).current;
     useEffect(() => {
+        if (skip) return;
         Animated.timing(v, { toValue: 1, duration: 320, delay, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
     }, []);
     return (

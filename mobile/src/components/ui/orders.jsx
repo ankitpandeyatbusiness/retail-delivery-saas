@@ -1,6 +1,7 @@
 // src/ui/orders.jsx
 import React from 'react';
-import { View, Text, Alert, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { themedAlert } from './dialog';
 import { useBrand } from './kit';
 import { showToast, tint } from './shop';
 import { useCartStore } from '../../store/shopStores';
@@ -32,7 +33,7 @@ export function StatusPill({ status }) {
 
 // Asks first, then cancels. The server decides if cancel is allowed (canCancel).
 export function cancelFlow(order, { onDone, setBusy } = {}) {
-    Alert.alert('Cancel this order?', `Order #${order.orderNo} will be cancelled.`, [
+    themedAlert('Cancel this order?', `Order #${order.orderNo} will be cancelled.`, [
         { text: 'Keep order', style: 'cancel' },
         {
             text: 'Cancel order',
@@ -93,7 +94,7 @@ export function reorder(order, nav, setBusy) {
         } finally { if (setBusy) setBusy(false); }
     };
     if (useCartStore.getState().lines.length) {
-        Alert.alert('Replace your cart?', 'Your current cart items will be removed.', [
+        themedAlert('Replace your cart?', 'Your current cart items will be removed.', [
             { text: 'Cancel', style: 'cancel' },
             { text: 'Replace', onPress: go },
         ]);
