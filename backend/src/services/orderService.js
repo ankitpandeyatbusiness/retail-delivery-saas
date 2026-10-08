@@ -256,7 +256,7 @@ const findPickupSlot = (tenant, from) =>
 
 /* ------------------------------ 4. can this order be placed? ------------------------------ */
 // Returns null if fine, or { status, message } for the first problem found.
-function checkPlacement({ tenant, config, body, priced, address }) {
+function checkPlacement({ tenant, config, body, priced, address, user }) {
     const o = config.orders;
 
     if (!o.types.includes(priced.orderType)) return { status: 400, message: `This shop does not offer ${TYPE_LABEL[priced.orderType]}` };
@@ -292,6 +292,9 @@ function checkPlacement({ tenant, config, body, priced, address }) {
         if (!address) return { status: 400, message: 'Please choose a delivery address' };
         const s = serviceability(tenant, address.latitude, address.longitude);
         if (!s.serviceable) return { status: 400, message: s.message };
+        if (!/^[6-9]\d{9}$/.test(address.phone || user?.phone || '')) {
+            return { status: 400, message: 'Add a phone number the delivery partner can call' };
+        }
     }
     if (priced.orderType === 'dine_in') {
         const t = typeof body.tableNo === 'string' ? body.tableNo.trim() : '';
@@ -303,6 +306,7 @@ function checkPlacement({ tenant, config, body, priced, address }) {
 async function prepare({ tenant, userId, body }) {
     const config = resolveConfig(tenant);
     const priced = await priceCart({ tenant, config, userId, body });
+    const user = await User.findById(userId).select('name phone').lean();
 
     let address = null;
     if (priced.orderType === 'delivery' && body.addressId !== undefined) {
@@ -310,12 +314,12 @@ async function prepare({ tenant, userId, body }) {
         address = await Address.findOne({ _id: body.addressId, tenantId: tenant._id, userId }).lean();
         if (!address) throw httpError(400, 'Address not found');
     }
-    return { config, priced, address, problem: checkPlacement({ tenant, config, body, priced, address }) };
+    return { config, priced, address, user, problem: checkPlacement({ tenant, config, body, priced, address, user }) };
 }
 
 /* ------------------------------ 5. quote (cart screen) ------------------------------ */
 async function quote({ tenant, userId, body }) {
-    const { config, priced, problem } = await prepare({ tenant, userId, body });
+    const { config, priced, address, user, problem } = await prepare({ tenant, userId, body });
     return {
         items: priced.lines,
         pricing: priced.pricing,
@@ -374,7 +378,10 @@ async function placeOrder({ tenant, userId, body, idempotencyKey }) {
             payment: { method: body.paymentMethod, status: 'pending' },
             customer: { name: user?.name, phone: user?.phone },
             address: address ? {
-                label: address.label, name: address.name, phone: address.phone, line1: address.line1, line2: address.line2,
+                label: address.label,
+                name: address.name || user?.name,
+                phone: address.phone || user?.phone,
+                line1: address.line1, line2: address.line2,
                 landmark: address.landmark, city: address.city, pincode: address.pincode,
                 latitude: address.latitude, longitude: address.longitude,
             } : undefined,

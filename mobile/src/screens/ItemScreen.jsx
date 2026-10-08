@@ -183,6 +183,8 @@ export default function ItemScreen() {
         else if (!valid) blocked = 'Not available right now';
     }
     const total = +(unit * qty).toFixed(2);
+    const cartCount = lines.reduce((a, l) => a + l.quantity, 0);
+    const cartTotal = lines.reduce((a, l) => a + l.price * l.quantity, 0);
 
     useEffect(() => {
         Animated.timing(btn, { toValue: blocked ? 0 : 1, duration: 250, useNativeDriver: false }).start();
@@ -213,7 +215,7 @@ export default function ItemScreen() {
         if (existing) {
             useCartStore.getState().setQty(existing.key, qty);
             setAdded(true);
-            setTimeout(() => nav.replace('Cart'), 450);
+            setTimeout(() => setAdded(false), 1200);
             return;
         }
         const selections = [];
@@ -233,7 +235,7 @@ export default function ItemScreen() {
             note: note.trim() || undefined,
         });
         setAdded(true);
-        setTimeout(() => nav.replace('Cart'), 450);
+        setTimeout(() => setAdded(false), 1200);
     };
 
     const share = async () => {
@@ -365,6 +367,17 @@ export default function ItemScreen() {
             </View>
             {f.favourites ? <Heart item={p} style={{ top: insets.top + 8, right: 14, width: 38, height: 38, borderRadius: 19, zIndex: 20 }} /> : null}
 
+            {cartCount > 0 ? (
+                <Press onPress={() => nav.navigate('Cart')} style={[s.cartBar, { backgroundColor: primary, borderRadius: radius }]}>
+                    <View style={{ flex: 1 }}>
+                        <Text style={s.cartBarTop}>{cartCount} {cartCount === 1 ? 'item' : 'items'} added</Text>
+                        <Text style={s.cartBarSub}>₹{+cartTotal.toFixed(2)}</Text>
+                    </View>
+                    <Text style={s.cartBarGo}>Continue</Text>
+                    <Ionicons name="chevron-forward" size={16} color="#FFFFFF" />
+                </Press>
+            ) : null}
+
             <Appear style={[s.bottom, { paddingBottom: insets.bottom + 12, backgroundColor: surface, borderTopColor: border }]}>
                 <View style={[s.qs, { borderColor: primary, borderRadius: radius, backgroundColor: tint(primary) }]}>
                     <Press onPress={() => setQty((q) => Math.max(1, q - 1))} hitSlop={8}><Text style={[s.qBtn, { color: primary }]}>−</Text></Press>
@@ -442,4 +455,8 @@ const s = StyleSheet.create({
     addBtn: { paddingVertical: 15, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10, minHeight: 50 },
     addRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
     addTxt: { color: '#FFFFFF', fontSize: 15, fontWeight: '900' },
+    cartBar: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 12, marginBottom: 8, paddingHorizontal: 16, paddingVertical: 10, elevation: 6 },
+    cartBarTop: { color: '#FFFFFF', fontSize: 14, fontWeight: '900' },
+    cartBarSub: { color: '#FFFFFF', fontSize: 12, fontWeight: '600', opacity: 0.9, marginTop: 1 },
+    cartBarGo: { color: '#FFFFFF', fontSize: 15, fontWeight: '900', marginRight: 2 },
 });

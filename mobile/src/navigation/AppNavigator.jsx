@@ -16,6 +16,7 @@ import AccountScreen from '../screens/AccountScreen';
 import { OffersScreen, BestsellersScreen, FavouritesScreen } from '../screens/OffersScreen';
 import { useAuthStore } from '../store/useAuthStore';
 import { useHomeStore } from '../store/useHomeStore';
+import { useCartStore } from '../store/shopStores';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../components/ui/kit';
 import { ToastHost } from '../components/ui/shop';
@@ -32,6 +33,7 @@ const TAB_DEFS = {
     home: { name: 'Home', label: 'Home', icon: 'home', component: HomeScreen },
     search: { name: 'Search', label: 'Search', icon: 'search', component: SearchScreen },
     orders: { name: 'Orders', label: 'Orders', icon: 'receipt', component: OrdersScreen },
+    cart: { name: 'CartTab', label: 'Cart', icon: 'cart', component: CartScreen },
     profile: { name: 'Account', label: 'Account', icon: 'person', component: AccountScreen },
 };
 const DEFAULT_TABS = ['home', 'search', 'orders', 'profile'];
@@ -41,12 +43,15 @@ function MainTabs() {
     const { primary, background, border, muted } = useBrand();
     const load = useHomeStore((s) => s.load);
     const tabsCfg = useHomeStore((s) => s.full.tabs);
+    const count = useCartStore((s) => s.lines.reduce((a, l) => a + l.quantity, 0));
 
     // one place loads the shop config for the whole app
     useEffect(() => { load(); }, [load]);
 
     let ids = (tabsCfg || []).filter((id) => TAB_DEFS[id]);
     if (ids.length < 2 || !ids.includes('home')) ids = DEFAULT_TABS;
+    ids = ids.filter((id) => id !== 'cart');
+    ids.splice(Math.min(2, ids.length), 0, 'cart');
 
     return (
         <Tab.Navigator
@@ -84,6 +89,7 @@ function MainTabs() {
                         component={d.component}
                         options={{
                             tabBarLabel: d.label,
+                            tabBarBadge: id === 'cart' && count > 0 ? count : undefined,
                             tabBarIcon: ({ focused, color }) => (
                                 <View style={{ width: 58, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: focused ? alpha(primary, 0.14) : 'transparent' }}>
                                     <Ionicons name={focused ? d.icon : `${d.icon}-outline`} size={22} color={color} />

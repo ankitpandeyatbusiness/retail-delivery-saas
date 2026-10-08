@@ -32,7 +32,7 @@ function Header({ onAddress }) {
     const { primaryLight, primaryDark, onPrimary } = useBrand();
     const theme = useThemeStore((st) => st.theme);
     const full = useHomeStore((st) => st.full);
-    const count = useCartStore((st) => st.lines.reduce((a, l) => a + l.quantity, 0));
+
     const open = full.restaurant.isOpen;
     const logo = typeof theme.logo === 'string' ? theme.logo : null;
     const mins = full.orders.prepTimeMin;
@@ -80,10 +80,7 @@ function Header({ onAddress }) {
                         <Ionicons name="pricetags-outline" size={20} color={onPrimary} />
                     </Pressable>
                 ) : null}
-                <Pressable onPress={() => nav.navigate('Cart')} style={[s.ic, { marginLeft: 8 }]} hitSlop={6}>
-                    <Ionicons name="bag-handle-outline" size={21} color={onPrimary} />
-                    {count ? <View style={[s.cBadge, { backgroundColor: onPrimary }]}><Text style={[s.cBadgeTxt, { color: primaryDark }]}>{count}</Text></View> : null}
-                </Pressable>
+
             </View>
             <View style={s.chipRow}>
                 <View style={s.hChip}>

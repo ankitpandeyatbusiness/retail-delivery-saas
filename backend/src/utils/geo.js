@@ -19,11 +19,12 @@ function serviceability(tenant, lat, lng) {
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
         return { serviceable: false, distanceKm: null, radiusKm: d.radiusKm, message: 'Please pin your location on the map so we can check delivery' };
     }
-    const km = Math.round(haversineKm(d.latitude, d.longitude, lat, lng) * 10) / 10;
-    if (km <= d.radiusKm) return { serviceable: true, distanceKm: km, radiusKm: d.radiusKm, message: null };
+    const raw = haversineKm(d.latitude, d.longitude, lat, lng);
+    const km = Math.round(raw * 10) / 10;
+    if (raw <= d.radiusKm) return { serviceable: true, distanceKm: km, radiusKm: d.radiusKm, message: null };
     return {
         serviceable: false, distanceKm: km, radiusKm: d.radiusKm,
-        message: `Sorry, we deliver only within ${d.radiusKm} km (you are ${km} km away)`,
+        message: `Sorry, we deliver only within ${d.radiusKm} km. This location is ${km} km away.`,
     };
 }
 

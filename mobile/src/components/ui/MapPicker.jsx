@@ -1,6 +1,6 @@
 // src/components/ui/MapPicker.jsx
 import React, { useEffect, useRef, useState } from 'react';
-import { Modal, View, Text, Pressable, ActivityIndicator, StyleSheet, Linking, Platform } from 'react-native';
+import { Modal, View, Text, Pressable, ActivityIndicator, StyleSheet, Linking, Platform, TextInput, Keyboard } from 'react-native';
 import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,7 +11,7 @@ import { useHomeStore } from '../../store/useHomeStore';
 
 const FALLBACK = { latitude: 26.4499, longitude: 80.3319 };
 
-export default function MapPicker({ visible, initial, onClose, onPick }) {
+export default function MapPicker({ visible, initial, onClose, onPick, startAtShop }) {
     const insets = useSafeAreaInsets();
     const { primary, onPrimary, text, muted, surface, border, radius } = useBrand();
     const delivery = useHomeStore((st) => st.delivery);
@@ -28,6 +28,8 @@ export default function MapPicker({ visible, initial, onClose, onPick }) {
     const [granted, setGranted] = useState(false);
     const [ready, setReady] = useState(false);   // map tiles/engine ready
     const [shown, setShown] = useState(false);   // Modal fully shown (mount MapView only after this)
+    const [q, setQ] = useState('');
+    const [searching, setSearching] = useState(false);
 
     const goTo = (c, d = 0.004) => map.current?.animateToRegion({
         latitude: c.latitude, longitude: c.longitude, latitudeDelta: d, longitudeDelta: d,
@@ -43,12 +45,13 @@ export default function MapPicker({ visible, initial, onClose, onPick }) {
         } else {
             setReady(false);
             setShown(false);
+            setQ('');
         }
     }, [visible]);
 
     // opened without a saved pin: if permission is already granted, start near the user
     useEffect(() => {
-        if (!visible || !ready || initial?.latitude) return undefined;
+        if (!visible || !ready || initial?.latitude || startAtShop) return undefined;
         let on = true;
         (async () => {
             try {
@@ -122,6 +125,22 @@ export default function MapPicker({ visible, initial, onClose, onPick }) {
         });
     };
 
+    const search = async () => {
+        const term = q.trim();
+        if (term.length < 3) { showToast('Type at least 3 letters'); return; }
+        Keyboard.dismiss();
+        setSearching(true);
+        try {
+            const r = await Location.geocodeAsync(term);
+            if (!r.length) { showToast('Place not found. Try adding the city name.'); return; }
+            const c = { latitude: r[0].latitude, longitude: r[0].longitude };
+            setCenter(c);
+            goTo(c, 0.003);
+        } catch (e) {
+            showToast('Search failed. Check your internet and try again.');
+        } finally { setSearching(false); }
+    };
+
     const canConfirm = !resolving;
 
     return (
@@ -159,6 +178,20 @@ export default function MapPicker({ visible, initial, onClose, onPick }) {
                     <Ionicons name="arrow-back" size={22} color={text} />
                 </Pressable>
 
+                <View style={[s.search, { top: insets.top + 10, backgroundColor: surface }]}>
+                    <Ionicons name="search" size={18} color={muted} />
+                    <TextInput
+                        value={q} onChangeText={setQ} onSubmitEditing={search}
+                        placeholder="Search area, landmark or street" placeholderTextColor={muted}
+                        returnKeyType="search" style={[s.searchInput, { color: text }]}
+                    />
+                    {searching ? <ActivityIndicator size="small" color={primary} /> : q ? (
+                        <Pressable onPress={() => setQ('')} hitSlop={10}>
+                            <Ionicons name="close-circle" size={18} color={muted} />
+                        </Pressable>
+                    ) : null}
+                </View>
+
                 <Pressable onPress={locate} disabled={locating} style={[s.gps, { backgroundColor: surface, bottom: 170 + insets.bottom }]}>
                     {locating ? <ActivityIndicator color={primary} /> : <Ionicons name="locate" size={24} color={primary} />}
                 </Pressable>
@@ -183,6 +216,8 @@ export default function MapPicker({ visible, initial, onClose, onPick }) {
 
 const s = StyleSheet.create({
     loading: { alignItems: 'center', justifyContent: 'center' },
+    search: { position: 'absolute', left: 64, right: 14, height: 42, borderRadius: 21, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, elevation: 4 },
+    searchInput: { flex: 1, marginLeft: 8, fontSize: 14, paddingVertical: 0 },
     pinWrap: { position: 'absolute', top: '50%', left: '50%', marginLeft: -22, marginTop: -44 },
     back: { position: 'absolute', left: 14, width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', elevation: 4 },
     gps: { position: 'absolute', right: 14, width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', elevation: 4 },

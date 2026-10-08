@@ -143,6 +143,19 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
     // load() is memoized with [], so it would see a stale user. Read through a ref instead.
     const userRef = useRef(user);
     userRef.current = user;
+    const [forOther, setForOther] = useState(false);
+
+    const toggleOther = (v) => {
+        setForOther(v);
+        const prof = profileDefaults();
+        setForm((p) => ({
+            ...p,
+            name: v ? '' : prof.name,
+            phone: v ? '' : prof.phone,
+            lat: v ? null : p.lat, lng: v ? null : p.lng,
+        }));
+        setGeo(null);
+    };
 
     const profileDefaults = () => ({
         name: (userRef.current?.name || '').trim(),
@@ -167,6 +180,7 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
 
     const openForm = (a) => {
         const prof = profileDefaults();
+        setForOther(!!(a && a.phone && a.phone !== prof.phone));
         setEditId(a ? a._id : null);
         setGeo(null);
         setForm(a ? {
@@ -211,8 +225,10 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
             // Highest accuracy = real GPS. Balanced can be off by 100m+ (WiFi/cell towers).
             const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Highest });
             const { latitude, longitude } = pos.coords;
-            setForm((p) => ({ ...p, lat: latitude, lng: longitude }));
-            setGeo(await checkServiceable(latitude, longitude));
+            const res = await checkServiceable(latitude, longitude);
+            setGeo(res);
+            if (res.serviceable) setForm((p) => ({ ...p, lat: latitude, lng: longitude }));
+            else setForm((p) => ({ ...p, lat: null, lng: null }));   // never save a far-away pin
         } catch (e) {
             showToast('Could not get your location. Ensure GPS is turned on.');
         } finally { setLocating(false); }
@@ -231,11 +247,16 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
         }));
         try { setGeo(await checkServiceable(p.latitude, p.longitude)); } catch (e) { setGeo(null); }
     };
-
     const save = async () => {
+        if (geo && !geo.serviceable) {
+            showToast('This spot is outside our delivery area. Pin the receiver’s location on the map.');
+            return;
+        }
         const msg = !form.line1.trim() ? 'Enter the address line'
-            : form.phone && !/^[6-9]\d{9}$/.test(form.phone) ? 'Enter a valid 10-digit phone'
-                : form.pincode && !/^\d{6}$/.test(form.pincode) ? 'Enter a valid 6-digit pincode' : '';
+            : forOther && !form.name.trim() ? 'Enter the receiver’s name'
+                : forOther && !/^[6-9]\d{9}$/.test(form.phone) ? 'Enter the receiver’s 10-digit phone so the rider can call them'
+                    : form.phone && !/^[6-9]\d{9}$/.test(form.phone) ? 'Enter a valid 10-digit phone'
+                        : form.pincode && !/^\d{6}$/.test(form.pincode) ? 'Enter a valid 6-digit pincode' : '';
         if (msg) { showToast(msg); return; }
 
         const body = { label: form.label, isDefault: form.isDefault };
@@ -347,11 +368,30 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
                             ) : (
                                 <Appear key="form" style={{ flexShrink: 1 }}>
                                     <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 16 }}>
-                                        <GpsCard locating={locating} geo={geo} hasPin={form.lat !== null} onPress={here} />
+                                        <View style={[s.defRow, { backgroundColor: surface, borderColor: border, marginBottom: 10 }]}>
+                                            <Text style={[s.rowSub, { color: text, flex: 1, marginTop: 0, fontWeight: '700' }]}>Ordering for someone else?</Text>
+                                            <Switch value={forOther} onValueChange={toggleOther}
+                                                trackColor={{ true: tint(primary), false: border }} thumbColor={forOther ? primary : '#FFFFFF'} />
+                                        </View>
+
+                                        {!forOther ? <GpsCard locating={locating} geo={geo} hasPin={form.lat !== null} onPress={here} /> : null}
+
+                                        {geo && !geo.serviceable && !forOther ? (
+                                            <Pressable onPress={() => toggleOther(true)} style={{ marginTop: 8 }}>
+                                                <Text style={[s.link, { color: primary }]}>Sending to someone nearby? Pin their location instead</Text>
+                                            </Pressable>
+                                        ) : null}
                                         <Press onPress={() => setMapOpen(true)} style={[s.addBtn, { borderColor: primary, borderRadius: radius, marginTop: 10, paddingVertical: 11 }]}>
                                             <Ionicons name="map-outline" size={17} color={primary} />
                                             <Text style={[s.addTxt, { color: primary }]}>{form.lat !== null ? 'Adjust pin on map' : 'Pin location on map'}</Text>
                                         </Press>
+                                        {forOther && geo ? (
+                                            <Text style={[s.rowSub, { color: geo.serviceable ? '#1E8E3E' : error, marginTop: 8 }]}>
+                                                {geo.serviceable
+                                                    ? `Within delivery area${geo.distanceKm != null ? ` · ${geo.distanceKm} km from the shop` : ''}`
+                                                    : geo.message}
+                                            </Text>
+                                        ) : null}
                                         <Text style={[s.sec, { color: muted }]}>SAVE AS</Text>
                                         <View style={s.pills}>
                                             {['Home', 'Work', 'Other'].map((l) => <Pill key={l} label={l} on={form.label === l} onPress={() => set('label', l)} />)}
@@ -359,7 +399,7 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
 
                                         <Text style={[s.sec, { color: muted }]}>ADDRESS DETAILS</Text>
                                         {FIELDS.map(([k, ph, kb, max]) => (
-                                            <Field key={k} label={ph} value={form[k]} onChangeText={(v) => set(k, v)} keyboardType={kb} maxLength={max} />
+                                            <Field key={k} label={forOther && k === 'name' ? 'Receiver name' : forOther && k === 'phone' ? 'Receiver phone (rider will call this)' : ph} value={form[k]} onChangeText={(v) => set(k, v)} keyboardType={kb} maxLength={max} />
                                         ))}
 
                                         <View style={[s.defRow, { backgroundColor: surface, borderColor: border }]}>
@@ -388,6 +428,7 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
                 initial={form.lat !== null ? { latitude: form.lat, longitude: form.lng } : null}
                 onClose={() => setMapOpen(false)}
                 onPick={onPinned}
+                startAtShop={forOther}
             />
         </>
     );

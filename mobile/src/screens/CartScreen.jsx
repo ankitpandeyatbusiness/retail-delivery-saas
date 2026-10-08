@@ -384,7 +384,7 @@ export default function CartScreen() {
                             </View>
                             {addr ? (
                                 <View style={{ marginTop: 8 }}>
-                                    <Text style={[s.lName, { color: text }]}>{addr.label}{addr.name ? ` · ${addr.name}` : ''}</Text>
+                                    <Text style={[s.lName, { color: text }]}>{addr.label}{addr.name ? ` · ${addr.name}` : ''}{addr.phone ? ` · ${addr.phone}` : ''}</Text>
                                     <Text style={[s.lSub, { color: muted }]}>{addrLine(addr)}</Text>
                                 </View>
                             ) : <Text style={[s.lSub, { color: muted, marginTop: 8 }]}>No address selected</Text>}
