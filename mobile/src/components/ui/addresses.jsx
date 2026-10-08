@@ -3,7 +3,7 @@
 // so it reaches the true bottom of the screen, over the tab bar.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    View, Text, Pressable, ScrollView, TextInput, ActivityIndicator, KeyboardAvoidingView,
+    View, Text, Pressable, ScrollView, TextInput, ActivityIndicator, Keyboard, Platform,
     StyleSheet, Animated, Easing, Switch, BackHandler, useWindowDimensions
 } from 'react-native';
 import * as Location from 'expo-location';
@@ -15,6 +15,7 @@ import { useBrand } from './kit';
 import { showToast, tint } from './shop';
 import { fetchAddresses, saveAddress, deleteAddress, checkServiceable } from '../../api/shopApi';
 import MapPicker from './MapPicker';
+import { useAuthStore } from '../../store/useAuthStore';
 
 export const addrLine = (a) => [a.line1, a.line2, a.landmark, a.city, a.pincode].filter(Boolean).join(', ');
 const errMsg = (e) => e?.response?.data?.error || 'Something went wrong. Try again.';
@@ -134,10 +135,19 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
     const { height: H } = useWindowDimensions();
     const [mapOpen, setMapOpen] = useState(false);
     const insets = useSafeAreaInsets();
-
+    const autoFilled = useRef({ line1: '', line2: '' });
     // slide in / out; `show` stays true until the close animation ends
     const [show, setShow] = useState(visible);
     const prog = useRef(new Animated.Value(0)).current;
+    const user = useAuthStore((st) => st.user);
+    // load() is memoized with [], so it would see a stale user. Read through a ref instead.
+    const userRef = useRef(user);
+    userRef.current = user;
+
+    const profileDefaults = () => ({
+        name: (userRef.current?.name || '').trim(),
+        phone: String(userRef.current?.phone || '').replace(/\D/g, '').slice(-10),
+    });
     useEffect(() => {
         if (visible) {
             setShow(true);
@@ -156,13 +166,19 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
     }, [visible, onClose]);
 
     const openForm = (a) => {
+        const prof = profileDefaults();
         setEditId(a ? a._id : null);
         setGeo(null);
         setForm(a ? {
-            label: a.label || 'Home', name: a.name || '', phone: a.phone || '', line1: a.line1 || '', line2: a.line2 || '',
-            landmark: a.landmark || '', city: a.city || '', pincode: a.pincode || '', isDefault: !!a.isDefault,
-            lat: Number.isFinite(a.latitude) ? a.latitude : null, lng: Number.isFinite(a.longitude) ? a.longitude : null,
-        } : EMPTY);
+            label: a.label || 'Home',
+            name: a.name || prof.name,          // blank on an old address -> use profile
+            phone: a.phone || prof.phone,
+            line1: a.line1 || '', line2: a.line2 || '',
+            landmark: a.landmark || '', city: a.city || '', pincode: a.pincode || '',
+            isDefault: !!a.isDefault,
+            lat: Number.isFinite(a.latitude) ? a.latitude : null,
+            lng: Number.isFinite(a.longitude) ? a.longitude : null,
+        } : { ...EMPTY, ...prof });
         setMode('form');
     };
 
@@ -205,8 +221,13 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
     const onPinned = async (p) => {
         setMapOpen(false);
         setForm((f) => ({
-            ...f, lat: p.latitude, lng: p.longitude,
-            city: p.city || f.city, pincode: p.pincode || f.pincode, line2: f.line2 || p.area || '',
+            ...f,
+            lat: p.latitude,
+            lng: p.longitude,
+            line1: p.line1 || f.line1,       // always replaced by the pinned address
+            line2: p.area || f.line2,
+            city: p.city || f.city,
+            pincode: p.pincode || f.pincode,
         }));
         try { setGeo(await checkServiceable(p.latitude, p.longitude)); } catch (e) { setGeo(null); }
     };
@@ -230,7 +251,15 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
             showToast(errMsg(e));
         } finally { setSaving(false); }
     };
-
+    const [kb, setKb] = useState(0);
+    useEffect(() => {
+        if (!visible) return undefined;
+        const showEv = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+        const hideEv = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+        const a = Keyboard.addListener(showEv, (e) => setKb(e.endCoordinates.height));
+        const b = Keyboard.addListener(hideEv, () => setKb(0));
+        return () => { a.remove(); b.remove(); setKb(0); };
+    }, [visible]);
     const remove = () => themedAlert('Delete address?', 'This cannot be undone.', [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -252,11 +281,11 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
                 <View style={s.backdropWrap}>
                     <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, s.backdrop, { opacity: prog }]} />
                     <Pressable style={{ flex: 1 }} onPress={onClose} />
-                    <KeyboardAvoidingView behavior="padding">
+                    <View style={{ paddingBottom: kb }}>
                         <Animated.View style={[s.sheet, {
                             backgroundColor: background,
-                            maxHeight: H * 0.9,
-                            paddingBottom: 18 + insets.bottom,
+                            maxHeight: Math.min(H * 0.9, H - kb - insets.top - 12),
+                            paddingBottom: kb ? 12 : 18 + insets.bottom,
                             transform: [{ translateY: prog.interpolate({ inputRange: [0, 1], outputRange: [H, 0] }) }],
                         }]}>
                             <View style={[s.handle, { backgroundColor: border }]} />
@@ -350,7 +379,7 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
                                 </Appear>
                             )}
                         </Animated.View>
-                    </KeyboardAvoidingView>
+                    </View>
                 </View>
             </SheetPortal>
 
