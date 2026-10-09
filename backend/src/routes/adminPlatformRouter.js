@@ -49,12 +49,20 @@ router.put('/platform/business', wrap(async (req, res) => {
 }));
 
 router.put('/platform/billing', wrap(async (req, res) => {
-    const d = req.body?.dueDays;
-    if (!Number.isInteger(d) || d < 0 || d > 60) throw httpError(400, 'dueDays must be a whole number from 0 to 60');
+    const rules = { dueDays: [0, 60], graceDays: [0, 60], freeOrders: [0, 100000], freeMonths: [0, 36] };
+    const changes = {};
+    for (const [key, [min, max]] of Object.entries(rules)) {
+        const v = req.body?.[key];
+        if (v === undefined) continue;
+        if (!Number.isInteger(v) || v < min || v > max) throw httpError(400, `${key} must be a whole number from ${min} to ${max}`);
+        changes[`billing.${key}`] = v;
+    }
+    if (!Object.keys(changes).length) throw httpError(400, `Send at least one of: ${Object.keys(rules).join(', ')}`);
+
     const doc = await loadDoc();
-    doc.set('billing.dueDays', d);
+    doc.set(changes);
     await doc.save();
-    res.json({ dueDays: d });
+    res.json(doc.toObject().billing);
 }));
 
 module.exports = router;

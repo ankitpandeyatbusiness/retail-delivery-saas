@@ -5,6 +5,8 @@ const User = require('../models/User');
 const Session = require('../models/Session');
 const OtpRequest = require('../models/OtpRequest');
 const tokenService = require('../services/tokenService');
+const sms = require('../services/adapters/sms');
+const wallet = require('../services/smsWalletService');
 
 /* ------------------------------- config ------------------------------- */
 if (!process.env.OTP_PEPPER) {
@@ -81,18 +83,7 @@ const handleRateLimitCatch = (rej, res) => {
     return res.status(429).json({ error: 'Too many requests. Please wait and try again.', retryAfter });
 };
 
-// SMS sending.
-// Dev:  put SMS_MOCK=true in your .env to print the OTP in the server console.
-// Prod: replace the TODO below with your DLT-approved provider call.
-// It MUST throw on failure so the quota refund runs.
-const sendSms = async (phone, otp, tenant) => {
-    if (process.env.SMS_MOCK === 'true') {
-        console.log(`\n[MOCK SMS] OTP ${otp} to ${phone} for ${tenant.name}\n`);
-        return;
-    }
-    // TODO: await smsProvider.send({ to: phone, template: 'OTP', otp });
-    throw new Error('SMS provider not configured');
-};
+
 
 const refundSendLimits = async (phoneKey, tenantKey) => {
     await Promise.allSettled([
@@ -270,10 +261,26 @@ exports.sendOtp = async (req, res) => {
             deviceId,
         });
 
+        // The shop pays for every SMS from its wallet. Zero balance = customers cannot log in.
+        // Shop owners are always allowed (they must log in to top up); the platform pays for those.
+        const known = await User.findOne({ tenantId: tenant._id, phone }).select('role').lean();
+        const debit = await wallet.debitForSms(tenant._id, { purpose: 'otp', allowFree: known?.role === 'admin' });
+        if (!debit.ok) {
+            await OtpRequest.updateOne({ _id: otpDoc._id }, { $set: { consumed: true } });
+            await refundSendLimits(phoneKey, tenantKey);
+            return res.status(503).json({ error: 'Login is not available right now. Please try again later.', code: 'SMS_BALANCE_ZERO' });
+        }
+
         try {
-            await sendSms(phone, otp, tenant);
+            const sent = await sms.sendOtp({ phone, otp, tenant });
+            wallet.logSms({
+                tenantId: tenant._id, phone, purpose: 'otp', debit,
+                status: SMS_MOCK ? 'mock' : 'sent', providerMessageId: sent?.providerMessageId,
+            }).catch(() => {});
         } catch (smsErr) {
             console.error(`SMS failed for ${maskPhone(phone)}:`, smsErr.message);
+            await wallet.refund(debit.txnId);   // give the SMS price back
+            wallet.logSms({ tenantId: tenant._id, phone, purpose: 'otp', debit, status: 'failed' }).catch(() => {});
             await OtpRequest.updateOne({ _id: otpDoc._id }, { $set: { consumed: true } });
             await refundSendLimits(phoneKey, tenantKey); // provider failure must not punish the user
             return res.status(503).json({ error: 'Could not send OTP. Please try again.' });

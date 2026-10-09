@@ -22,6 +22,11 @@ const { foodRuleError } = require('../services/foodRules');
 const keepOwnerPause = require('../utils/keepOwnerPause');
 const { shopState } = require('../utils/shopState');
 const auditTrail = require('../middlewares/auditTrail');
+const apiErrors = require('../middlewares/apiErrors');
+const { wrap, httpError } = apiErrors;
+const loadTenant = require('../middlewares/loadTenant');   // change the file name if yours is different
+const loadFullTenant = require('../middlewares/loadFullTenant');
+const crud = require('../utils/crud');
 // The food mode lives at config.home.foodMode (same place the catalog code reads it)
 const getFoodMode = (tenant) => resolveConfig(tenant).home.foodMode;
 
@@ -30,24 +35,15 @@ const GST_RATES = [0, 0.25, 3, 5, 12, 18, 28];
 const admin = express.Router();
 
 /* ------------------------------ helpers ------------------------------ */
-const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 const isId = (v) => typeof v === 'string' && mongoose.isValidObjectId(v);
-const clamp = (n, min, max) => Math.min(Math.max(n, min), max);
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const httpError = (status, message) => Object.assign(new Error(message), { status });
 const pickFields = (fields, body) =>
     Object.fromEntries(fields.filter((f) => body?.[f] !== undefined).map((f) => [f, body[f]]));
 
 const SLUG_RE = /^[a-z0-9-]{3,40}$/;
 const RESERVED_SLUGS = ['admin', 'api', 'www'];
 const TENANT_FIELDS = ['name', 'tagline', 'logo', 'colors', 'heroImages', 'status', 'androidPackage', 'phone', 'address', 'delivery', 'business', 'subscription'];
-const loadTenant = wrap(async (req, res, next) => {
-    if (!isId(req.params.tid)) throw httpError(404, 'Tenant not found');
-    const t = await Tenant.findById(req.params.tid).select('_id slug').lean();
-    if (!t) throw httpError(404, 'Tenant not found');
-    req.tenantDoc = t;
-    next();
-});
+
 /* ------------------------------ login (public) ------------------------------ */
 // Simple in-memory brake: 5 wrong tries per IP per 15 minutes.
 // (Per server instance. Use a shared store like Redis if you run several servers.)
@@ -95,8 +91,11 @@ admin.use(require('./adminOrdersRouter'));
 admin.use(require('./adminUsersRouter'));
 admin.use(require('./adminAccessRouter'));
 admin.use(require('./adminPlatformRouter'));
+admin.use(require('./adminBillingRouter'));
 admin.use(require('./adminSubscriptionRouter'));
 admin.use(require('./adminAuditRouter'));
+admin.use(require('./adminSmsRouter'));
+admin.use(require('./adminNotifyRouter'));
 
 // any change to a shop's data refreshes that shop's cached counts
 admin.use('/tenants/:tid', (req, res, next) => {
@@ -138,7 +137,7 @@ admin.get('/tenants', wrap(async (req, res) => {
     const items = await Tenant.find(filter)
         .sort({ createdAt: -1 })
         .limit(200)
-        .select('slug name status androidPackage createdAt updatedAt ownerBlocked ownerBlockedReason maintenance settings.orders.acceptingOrders')
+        .select('slug name status androidPackage createdAt updatedAt ownerBlocked ownerBlockedReason maintenance settings.orders.acceptingOrders billing.state billing.graceEndsAt')
         .lean();
     res.json({
         items: items.map((t) => {
@@ -260,67 +259,6 @@ admin.post('/tenants/:tid/logo-colors',
 /* ------------------------------ per-tenant data (categories, products, banners, coupons) ------------------------------ */
 
 
-// One reusable set of routes: list, create, read, update, delete.
-// Only whitelisted fields are accepted, and tenantId always comes from the URL, never from the body.
-function crud(Model, { fields, sort, searchField, softDelete, check }) {
-    const r = express.Router({ mergeParams: true });
-    const scope = (req) => ({ tenantId: req.tenantDoc._id });
-    const findOneDoc = (req) =>
-        isId(req.params.id) ? Model.findOne({ _id: req.params.id, ...scope(req) }) : Promise.resolve(null);
-
-    r.get('/', wrap(async (req, res) => {
-        const page = clamp(parseInt(req.query.page, 10) || 1, 1, 10000);
-        const limit = clamp(parseInt(req.query.limit, 10) || 50, 1, 100);
-        const f = scope(req);
-        if (req.query.active === 'true') f.isActive = true;
-        if (req.query.active === 'false') f.isActive = false;
-        if (Model.schema.path('categoryId') && isId(req.query.categoryId)) f.categoryId = req.query.categoryId;
-        if (searchField && typeof req.query.q === 'string' && req.query.q.trim()) {
-            f[searchField] = new RegExp(esc(req.query.q.trim().slice(0, 40)), 'i');
-        }
-        const [items, total] = await Promise.all([
-            Model.find(f).sort(sort).skip((page - 1) * limit).limit(limit).lean(),
-            Model.countDocuments(f),
-        ]);
-        res.json({ items, total, page, limit });
-    }));
-
-    r.post('/', wrap(async (req, res) => {
-        const data = pickFields(fields, req.body);
-        if (check) await check(data, req);
-        const doc = new Model({ ...data, ...scope(req) });
-        await doc.save();
-        res.status(201).json(doc);
-    }));
-
-    r.get('/:id', wrap(async (req, res) => {
-        const doc = await findOneDoc(req);
-        if (!doc) throw httpError(404, 'Not found');
-        res.json(doc);
-    }));
-
-    r.put('/:id', wrap(async (req, res) => {
-        const doc = await findOneDoc(req);
-        if (!doc) throw httpError(404, 'Not found');
-        const data = pickFields(fields, req.body);
-        req.auditBefore = doc.toObject();   // for the audit log
-        if (check) await check({ ...doc.toObject(), ...data }, req);
-        doc.set(data);
-        await doc.save();
-        res.json(doc);
-    }));
-
-    r.delete('/:id', wrap(async (req, res) => {
-        const doc = await findOneDoc(req);
-        if (!doc) throw httpError(404, 'Not found');
-        req.auditBefore = doc.toObject();   // for the audit log
-        if (softDelete) { doc.isActive = false; await doc.save(); } // keeps old orders readable
-        else await doc.deleteOne();
-        res.json({ ok: true, softDeleted: !!softDelete });
-    }));
-
-    return r;
-}
 
 const dateCheck = (d) => {
     if (d.startsAt && d.endsAt && new Date(d.endsAt) < new Date(d.startsAt)) throw httpError(400, 'endsAt must be after startsAt');
@@ -483,17 +421,13 @@ admin.use('/tenants/:tid/coupons', loadTenant, crud(Coupon, {
     },
 }));
 
-/* ------------------------------ errors ------------------------------ */
-admin.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
-    if (err.name === 'ValidationError') {
-        const errors = err.settingsErrors || Object.values(err.errors || {}).map((e) => e.message);
-        return res.status(400).json({ error: 'Validation failed', errors: errors.length ? errors : [err.message] });
-    }
-    if (err.name === 'CastError') return res.status(400).json({ error: `Invalid value for "${err.path}"` });
-    if (err.code === 11000) return res.status(409).json({ error: 'Already exists (duplicate value)' });
-    if (err.status) return res.status(err.status).json({ error: err.message });
-    console.error('Admin error:', err);
-    res.status(500).json({ error: 'Something went wrong' });
-});
+// The owner's shop routes, used by the superadmin for any shop: /api/admin/tenants/:tid/shop/...
+// Login (requireSuperAdmin) and the audit log (auditTrail('superadmin')) already ran above.
+admin.use('/tenants/:tid/shop', loadFullTenant, require('./shopRouter'));
+// the superadmin acts as one rider: /api/admin/tenants/:tid/riders/:rid/orders ...
+const riderRoutes = require('./riderRouter');
+admin.use('/tenants/:tid/riders/:rid', loadFullTenant, riderRoutes.asRider, riderRoutes.core);
+
+admin.use(apiErrors);   // keep this LAST
 
 module.exports = admin;

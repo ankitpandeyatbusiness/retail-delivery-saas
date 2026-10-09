@@ -24,6 +24,10 @@ function shopState(tenant) {
         reasons.push({ code: 'owner_paused', setBy: 'owner', label: 'Owner paused taking orders' });
     }
 
+    if (tenant.billing?.state === 'paused') {
+        reasons.push({ code: 'billing_paused', setBy: 'platform', label: 'Paused: unpaid bill', note: null });
+    }
+
     return { acceptingOrders: reasons.length === 0, reasons };
 }
 

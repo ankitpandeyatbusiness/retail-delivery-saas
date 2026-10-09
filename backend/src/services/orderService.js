@@ -14,6 +14,8 @@ const { foodModeFilter, activeNow } = require('./catalogQuery');
 const { resolveConfig, openStatus } = require('./tenantConfigService');
 const { nextStatuses, customerCanCancel } = require('./orderflow'); // lowercase: matches the real file name
 const { serviceability } = require('../utils/geo');
+const orderStatus = require('./orderStatusService');
+const notify = require('./notificationService');
 
 const MAX_LINES = 30;
 const MAX_QTY = 20;
@@ -260,7 +262,15 @@ function checkPlacement({ tenant, config, body, priced, address, user }) {
     const o = config.orders;
 
     if (!o.types.includes(priced.orderType)) return { status: 400, message: `This shop does not offer ${TYPE_LABEL[priced.orderType]}` };
-    if (!o.payments.includes(body.paymentMethod)) return { status: 400, message: 'This payment method is not available' };
+    // unpaid rent after grace (the shop is already shown as not accepting orders; this is a second guard)
+    if (tenant.billing?.state === 'paused') return { status: 409, message: 'The shop is not accepting orders right now' };
+
+    // No COD during free service. Switched on with ENFORCE_NO_COD_IN_FREE=true (keep it OFF until online payments exist)
+    const noCod = process.env.ENFORCE_NO_COD_IN_FREE === 'true' && tenant.billing?.state === 'free';
+    const methods = noCod ? o.payments.filter((m) => m !== 'cod') : o.payments;
+    if (!methods.includes(body.paymentMethod)) {
+        return { status: 400, message: noCod && body.paymentMethod === 'cod' ? 'Cash on delivery is not available right now' : 'This payment method is not available' };
+    }
 
     // open now, or open at the chosen time
     if (priced.orderType === 'pickup') {
@@ -424,6 +434,7 @@ async function placeOrder({ tenant, userId, body, idempotencyKey }) {
             }
         }
 
+        notify.orderPlaced(order);   // tells the owner
         return { order, duplicate: false };
     } catch (e) {
         await releaseCoupon(priced.coupon?._id);   // the order was not created, give the coupon use back
@@ -434,33 +445,16 @@ async function placeOrder({ tenant, userId, body, idempotencyKey }) {
         throw e;
     }
 }
-
-/* ------------------------------ 7. customer actions ------------------------------ */
 async function cancelByCustomer({ tenant, userId, orderId, reason }) {
     const order = await Order.findOne({ _id: orderId, tenantId: tenant._id, userId });
     if (!order) throw httpError(404, 'Order not found');
-
-    // Feed both the order AND the tenant into the escape hatch logic
-    if (!customerCanCancel(order, tenant)) {
-        throw httpError(409, 'You can cancel only before the shop accepts your order (unless the shop is suspended)');
-    }
-
-    const cleanNote = typeof reason === 'string' && reason.trim() ? reason.trim().slice(0, 200) : undefined;
-
-    // We use Optimistic Locking (status: order.status) so it fails if the shop just delivered it
-    const updated = await Order.findOneAndUpdate(
-        { _id: order._id, status: order.status },
-        {
-            $set: { status: 'cancelled', cancelledBy: 'customer', cancelReason: cleanNote },
-            $push: { statusHistory: { status: 'cancelled', by: userId, note: cleanNote } },
-        },
-        { new: true },
-    );
-
-    if (!updated) throw httpError(409, 'This order was just updated. Refresh and try again.');
-
-    await releaseCoupon(updated.couponId);
-    return updated;
+    return orderStatus.change({
+        order,
+        status: 'cancelled',
+        actor: { type: 'customer', id: userId, label: order.customer?.phone },
+        note: reason,
+        tenant,
+    });
 }
 
 // Turns an old order back into cart lines. Skips items that are gone or whose options changed.
@@ -495,45 +489,10 @@ async function reorderCart({ tenant, userId, orderId }) {
     return { items, skipped };
 }
 
-/* ------------------------------ 8. shop actions ------------------------------ */
-async function updateStatusByShop({ tenantId, adminId, orderId, status, note }) {
+async function updateStatusByShop({ tenantId, actor, orderId, status, note }) {
     const order = await Order.findOne({ _id: orderId, tenantId });
     if (!order) throw httpError(404, 'Order not found');
-
-    if (!nextStatuses(order).includes(status)) {
-        throw httpError(409, `This order is "${order.status}". It cannot move to "${status}".`);
-    }
-    const cleanNote = typeof note === 'string' && note.trim() ? note.trim().slice(0, 200) : undefined;
-    if (status === 'cancelled' && !cleanNote) throw httpError(400, 'Please give a reason for cancelling');
-
-    const set = { status };
-    if (status === 'delivered') {
-        set.deliveredAt = new Date();
-        if (order.payment?.method === 'cod') set['payment.status'] = 'paid';   // cash collected at the door
-    }
-    if (status === 'cancelled') { set.cancelledBy = 'shop'; set.cancelReason = cleanNote; }
-
-    const updated = await Order.findOneAndUpdate(
-        { _id: orderId, tenantId, status: order.status },   // fails if someone else moved it a moment ago
-        { $set: set, $push: { statusHistory: { status, by: adminId, note: cleanNote } } },
-        { new: true },
-    );
-    if (!updated) throw httpError(409, 'This order was just updated. Refresh and try again.');
-
-    if (status === 'cancelled') await releaseCoupon(updated.couponId);
-    if (status === 'delivered') {
-        // --- FIX STARTS HERE: Block admins from farming bestsellers ---
-        const buyer = await User.findById(order.userId).select('role').lean();
-
-        // Only increment the Bestseller counts if a normal customer bought it
-        if (!buyer || buyer.role !== 'admin') {
-            await Product.bulkWrite(updated.items.map((l) => ({
-                updateOne: { filter: { _id: l.productId, tenantId }, update: { $inc: { orderCount: l.quantity } } },
-            })));
-        }
-        // --- FIX ENDS HERE ---
-    }
-    return updated;
+    return orderStatus.change({ order, status, actor, note });
 }
 
 module.exports = {

@@ -12,7 +12,7 @@ const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).cat
 // a generic message for anything unexpected.
 function apiErrors(err, req, res, next) { // eslint-disable-line no-unused-vars
     if (err.name === 'ValidationError') {
-        const errors = Object.values(err.errors || {}).map((e) => e.message);
+        const errors = err.settingsErrors || Object.values(err.errors || {}).map((e) => e.message);
         return res.status(400).json({ error: 'Validation failed', errors: errors.length ? errors : [err.message] });
     }
     if (err.name === 'CastError') return res.status(400).json({ error: `Invalid value for "${err.path}"` });

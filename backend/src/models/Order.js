@@ -66,13 +66,54 @@ const orderSchema = new Schema({
     note: String,                                           // special instructions for the whole order
     etaMin: Number,
 
+    // Phase 6: delivery by a rider. riderId is the rider's User id. Money here is integer paise.
+    delivery: {
+        riderId: { type: Schema.Types.ObjectId, ref: 'User' },
+        status: { type: String, enum: ['assigned', 'accepted', 'picked_up', 'delivered', 'rejected'] },   // assigned = offered, waiting for the rider
+        assignedAt: Date,
+        acceptedAt: Date,
+        pickedUpAt: Date,
+        deliveredAt: Date,
+        offerExpiresAt: Date,
+        pinRequired: { type: Boolean, default: false },   // shop setting copied when the rider is assigned
+        pinAttempts: { type: Number, default: 0 },
+        problems: [{ _id: false, at: Date, reason: String, note: String }],   // reported by the rider
+        cashCollectedPaise: { type: Number, default: 0 },
+        offers: [{
+            _id: false,
+            riderId: { type: Schema.Types.ObjectId, ref: 'User' },
+            offeredAt: Date,
+            expiresAt: Date,
+            by: String,   // system, owner or superadmin
+            result: { type: String, enum: ['offered', 'accepted', 'rejected', 'timeout', 'cancelled'] },
+            at: Date,
+        }],
+        riderHistory: [{
+            _id: false,
+            riderId: { type: Schema.Types.ObjectId, ref: 'User' },
+            assignedAt: Date,
+            removedAt: Date,
+            reason: String,
+            by: { type: { type: String }, id: String, label: String },
+        }],
+    },
+    deliveryRating: {                                       // separate from the dish ratings
+        rating: { type: Number, min: 1, max: 5 },
+        tags: [String],
+        comment: { type: String, maxlength: 300 },
+        ratedAt: Date,
+    },
+
     statusHistory: [{
         _id: false,
         status: String,
         at: { type: Date, default: Date.now },
         by: { type: Schema.Types.ObjectId },                // who changed it
+        byType: String,                                     // customer, owner, rider, superadmin, system
+        byLabel: String,                                    // readable name, e.g. a phone number or email
         note: String,
     }],
+    stuck: { stage: String, ownerAt: Date, adminAt: Date },   // late-order alerts already sent (internal)
     cancelReason: String,
     cancelledBy: { type: String, enum: ['customer', 'shop', 'admin', 'system'] },
     deliveredAt: Date,
@@ -82,6 +123,10 @@ const orderSchema = new Schema({
 orderSchema.index({ tenantId: 1, orderNo: 1 }, { unique: true });
 orderSchema.index({ tenantId: 1, userId: 1, createdAt: -1 });
 orderSchema.index({ tenantId: 1, status: 1, createdAt: -1 });
+orderSchema.index({ status: 1, createdAt: -1 });   // late-order watcher
+orderSchema.index({ tenantId: 1, status: 1, deliveredAt: 1 });   // monthly billing count
+orderSchema.index({ tenantId: 1, 'delivery.riderId': 1, status: 1 });   // a rider's orders
+orderSchema.index({ 'delivery.offerExpiresAt': 1 }, { partialFilterExpression: { 'delivery.status': 'assigned' } });   // offer timeout job
 orderSchema.index({ createdAt: 1 }, { partialFilterExpression: { status: 'placed' } });   // auto-cancel job
 orderSchema.index({ tenantId: 1, 'customer.phone': 1, status: 1 });   // returning-customer and coupon checks
 orderSchema.index(
@@ -95,6 +140,13 @@ orderSchema.set('toJSON', {
         delete ret._id;
         delete ret.__v;
         delete ret.idempotencyKey;
+        delete ret.stuck;
+        if (ret.delivery) {   // internal details, never sent as plain order JSON
+            delete ret.delivery.offers;
+            delete ret.delivery.riderHistory;
+            delete ret.delivery.pinAttempts;
+            delete ret.delivery.problems;
+        }
         return ret;
     },
 });

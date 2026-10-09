@@ -8,16 +8,29 @@ const svc = require('../services/orderService');
 const { ACTIVE_STATUSES } = require('../services/orderflow');
 const Product = require('../models/Product');
 const Tenant = require('../models/Tenant');
+const Rider = require('../models/Rider');
 const { invalidateAvailability } = require('../services/availability');
 const auditTrail = require('../middlewares/auditTrail');
 const { validateSettings } = require('../services/tenantConfigService');
 
 const { wrap, httpError } = apiErrors;
 const router = express.Router();
-router.use(tenantRecognizer);
-router.use(auditTrail('owner'));   // records every change a shop owner makes
-router.use('/subscription', requireShopAdmin.allowBlocked, require('./shopSubscriptionRouter'));   // rent invoices stay visible even when blocked
-router.use('/orders', requireShopAdmin.allowBlocked);
+
+// These routes are mounted twice: for owners (/api/shop) and for the superadmin
+// (/api/admin/tenants/:tid/shop). The superadmin mount sets req.tenant and req.actor first
+// and has already done its own login and audit, so the owner checks are skipped for him.
+const isSuper = (req) => req.actor?.type === 'superadmin';
+const ownerOnly = (mw) => (req, res, next) => (isSuper(req) ? next() : mw(req, res, next));
+const ownerChain = (chain) => { const r = express.Router(); r.use(chain); return ownerOnly(r); };
+const actorOf = (req) => req.actor || { type: 'owner', id: req.auth.userId, label: req.shopUser?.phone || 'shop owner' };
+
+router.use(ownerOnly(tenantRecognizer));
+router.use(ownerOnly(auditTrail('owner')));   // records every change a shop owner makes
+router.use('/subscription', ownerChain(requireShopAdmin.allowBlocked), require('./shopSubscriptionRouter'));   // rent invoices stay visible even when blocked
+router.use('/orders', ownerChain(requireShopAdmin.allowBlocked));
+router.use('/orders', require('./shopRiderRouter').orders);   // assign riders (open while paused: orders in progress must finish)
+router.use('/notifications', ownerChain(requireShopAdmin.allowBlocked), require('./notificationRouter').shop);   // owner inbox, stays open while paused
+router.use('/billing', ownerChain(requireShopAdmin.allowBlocked), require('./shopBillingRouter'));   // stays open while paused
 
 const STATUSES = Order.schema.path('status').enumValues;
 const clamp = (n, min, max) => Math.min(Math.max(n, min), max);
@@ -89,7 +102,7 @@ router.patch('/orders/:id/status', wrap(async (req, res) => {
 
     const order = await svc.updateStatusByShop({
         tenantId: req.tenant._id,
-        adminId: req.auth.userId,
+        actor: actorOf(req),
         orderId: req.params.id,
         status,
         note: req.body?.note,
@@ -97,7 +110,7 @@ router.patch('/orders/:id/status', wrap(async (req, res) => {
     res.json(view(order));
 }));
 
-router.use(requireShopAdmin);
+router.use(ownerChain(requireShopAdmin));
 
 // Pause or resume taking orders
 router.put('/accepting-orders', wrap(async (req, res) => {
@@ -116,6 +129,12 @@ router.put('/settings', wrap(async (req, res) => {
         const v = validateSettings({ hours: body.hours });
         if (!v.ok) return res.status(400).json({ error: 'Invalid hours', errors: v.errors });
         updates['settings.hours'] = v.clean.hours;
+    }
+
+    if (body.riders !== undefined) {
+        const v = validateSettings({ riders: body.riders });
+        if (!v.ok) return res.status(400).json({ error: 'Invalid rider settings', errors: v.errors });
+        for (const [k, val] of Object.entries(v.clean.riders || {})) updates[`settings.riders.${k}`] = val;   // only the fields sent change
     }
 
     if (body.phone !== undefined) {
@@ -167,12 +186,30 @@ router.put('/settings', wrap(async (req, res) => {
         { _id: req.tenant._id },
         { $set: updates },
         { new: true, runValidators: true },
-    ).select('phone address delivery settings.hours').lean();
+    ).select('phone address delivery settings.hours settings.riders').lean();
 
     tenantRecognizer.invalidateTenant(req.tenant.slug);
-    res.json({ ok: true, phone: t.phone, address: t.address, delivery: t.delivery, hours: t.settings?.hours || null });
+    res.json({ ok: true, phone: t.phone, address: t.address, delivery: t.delivery, hours: t.settings?.hours || null, riders: t.settings?.riders || null });
 }));
 
+router.use('/uploads', require('./uploadRouter'));   // direct-to-R2 uploads (owner and superadmin)
+router.use('/sms', require('./shopSmsRouter'));      // SMS wallet (owner and superadmin)
+// Owner map: riders with a location from the last 5 minutes. Must stay above the /riders mount below.
+router.get('/riders/locations', wrap(async (req, res) => {
+    const since = new Date(Date.now() - 5 * 60000);
+    const items = await Rider.find({
+        tenantId: req.tenant._id, isActive: true, 'lastLocation.at': { $gte: since },
+    }).select('userId name isOnline activeOrderCount lastLocation').lean();
+    res.json({
+        items: items.map((r) => ({
+            riderId: r.userId, name: r.name || null, isOnline: r.isOnline, activeOrderCount: r.activeOrderCount,
+            lat: r.lastLocation.lat, lng: r.lastLocation.lng, at: r.lastLocation.at,
+        })),
+    });
+}));
+router.use('/riders', require('./shopRiderRouter').manage);   // add, list, switch off, remove riders
+router.use('/cod', require('./shopCodRouter'));               // COD cash with riders, rider performance
+router.use('/activity', require('./shopAuditRouter'));   // owner activity log (rows of this shop only)
 router.use(require('./shopManageRouter'));
 router.use(apiErrors);
 module.exports = router;

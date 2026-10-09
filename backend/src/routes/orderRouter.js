@@ -6,6 +6,7 @@ const apiErrors = require('../middlewares/apiErrors');
 const Order = require('../models/Order');
 const svc = require('../services/orderService');
 const ratingSvc = require('../services/ratingService');
+const feedbackSvc = require('../services/deliveryFeedbackService');
 const { ACTIVE_STATUSES } = require('../services/orderflow');
 const { streamInvoice } = require('../services/invoiceService');
 
@@ -61,7 +62,7 @@ router.get('/pickup-slots', wrap(async (req, res) => {
 
 // Order history. ?active=true for the "ongoing" list. Pages: ?page=1&limit=20
 router.get('/', wrap(async (req, res) => {
-    console.log('ORDERS LIST →', req.tenant?.slug, String(req.auth?.userId), req.query);
+
     const page = clamp(parseInt(req.query.page, 10) || 1, 1, 1000);
     const limit = clamp(parseInt(req.query.limit, 10) || 20, 1, 50);
     const filter = { tenantId: req.tenant._id, userId: req.auth.userId };
@@ -128,6 +129,20 @@ router.post('/:id/rating', wrap(async (req, res) => {
 router.get('/:id/rating', wrap(async (req, res) => {
     checkId(req);
     res.json(await ratingSvc.getRatings({ tenantId: req.tenant._id, userId: req.auth.userId, orderId: req.params.id }));
+}));
+
+// Live status of a delivery order: rider, ETA, delivery PIN. Only the customer who placed it.
+router.get('/:id/tracking', wrap(async (req, res) => {
+    checkId(req);
+    res.json(await feedbackSvc.tracking({ tenant: req.tenant, userId: req.auth.userId, orderId: req.params.id }));
+}));
+
+// Rate the delivery (separate from the dishes). Body: { "rating": 5, "tags": ["On time"], "comment": "Polite" }
+router.post('/:id/delivery-rating', wrap(async (req, res) => {
+    checkId(req);
+    res.status(201).json(await feedbackSvc.rateDelivery({
+        tenant: req.tenant, userId: req.auth.userId, orderId: req.params.id, body: req.body || {},
+    }));
 }));
 
 router.get('/:id/invoice', wrap(async (req, res) => {

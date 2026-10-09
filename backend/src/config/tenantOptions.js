@@ -33,6 +33,8 @@ module.exports = {
 
     DAYS: ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'],
 
+    ASSIGN_MODES: ['automatic', 'manual'],   // how riders are picked for delivery orders
+
     LANGUAGES: ['en', 'hi'],
     LABEL_KEYS: ['addButton', 'orderButton', 'emptyCart', 'emptySearch', 'closedMessage'],
 };

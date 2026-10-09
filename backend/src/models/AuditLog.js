@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 // Append-only: there is deliberately no route that edits or deletes these.
 const auditSchema = new mongoose.Schema({
     at: { type: Date, default: Date.now },
-    actorType: { type: String, enum: ['superadmin', 'owner'], required: true },
+    actorType: { type: String, enum: ['superadmin', 'owner', 'rider', 'system'], required: true },
     actorId: { type: mongoose.Schema.Types.ObjectId },
     actorLabel: String,                                   // superadmin email, or owner user id
     tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant' },
@@ -18,7 +18,7 @@ const auditSchema = new mongoose.Schema({
     ip: String,
 }, { minimize: false, versionKey: false });
 
-auditSchema.index({ at: -1 });
+auditSchema.index({ at: 1 }, { expireAfterSeconds: 365 * 24 * 60 * 60 });   // rows older than 1 year are deleted by MongoDB
 auditSchema.index({ tenantId: 1, at: -1 });
 auditSchema.index({ actorId: 1, at: -1 });
 

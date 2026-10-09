@@ -1,6 +1,6 @@
 const AuditLog = require('../models/AuditLog');
 
-const SENSITIVE = /pass|token|secret|otp|authorization|pepper/i;
+const SENSITIVE = /pass|token|secret|otp|authorization|pepper|^pin$/i;
 const MAX_JSON = 30000;
 const ID_IN_PATH = /[a-f0-9]{24}/gi;
 
@@ -46,7 +46,7 @@ function auditTrail(actorType) {
                 } else {
                     if (!req.auth) return;
                     actorId = req.auth.userId;
-                    actorLabel = String(req.auth.userId);
+                    actorLabel = req.shopUser?.phone || String(req.auth.userId);
                 }
 
                 const path = req.originalUrl.split('?')[0];
@@ -56,10 +56,11 @@ function auditTrail(actorType) {
                     actorId,
                     actorLabel,
                     tenantId: req.tenant?._id || (fromPath ? fromPath[1] : undefined),
-                    action: `${req.method} ${path.replace(ID_IN_PATH, ':id')}`,
+                    action: res.locals.auditAction || `${req.method} ${path.replace(ID_IN_PATH, ':id')}`,
                     method: req.method,
                     path,
                     status: res.statusCode,
+                    params: capped(res.locals.auditParams),
                     query: capped(req.query),
                     body: capped(req.body),
                     before: capped(req.auditBefore),

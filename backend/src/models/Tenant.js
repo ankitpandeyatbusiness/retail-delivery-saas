@@ -79,6 +79,22 @@ const tenantSchema = new mongoose.Schema({
         startMonth: { type: String, match: /^\d{4}-(0[1-9]|1[0-2])$/ },    // "2026-10"
     },
 
+    // Rent engine. null means "use the platform value". Only billing code and the superadmin billing routes write this.
+    billing: {
+        goLiveAt: Date,                                         // empty = the shop's createdAt
+        deliveredCount: { type: Number, default: 0, min: 0 },   // only goes up, never down
+        freeOrdersOverride: { type: Number, min: 0, default: null },
+        freeMonthsOverride: { type: Number, min: 0, default: null },
+        tiersOverride: {
+            type: [new mongoose.Schema({ upTo: { type: Number, default: null }, fee: { type: Number, required: true, min: 0 } }, { _id: false })],
+            default: undefined,
+        },
+        fixedFeeOverride: { type: Number, min: 0, default: null },
+        state: { type: String, enum: ['free', 'active', 'grace', 'paused'], default: 'free' },
+        graceEndsAt: Date,
+        freeEndedAt: Date,
+    },
+
     // NEW: every superadmin choice (brand, tabs, home, features, menu, orders, hours, offers, labels).
     // Stored as plain JSON; the validator below is the schema.
     settings: { type: mongoose.Schema.Types.Mixed, default: {} },

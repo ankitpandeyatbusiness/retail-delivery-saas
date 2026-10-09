@@ -9,7 +9,7 @@ const cache = new LRUCache({ max: 1000, ttl: 60 * 1000 });
 // (ownerBlockedReason is deliberately NOT selected, so it can never reach an app.)
 const FIELDS =
     '_id name slug tagline logo colors heroImages status androidPackage ' +
-    'homeConfig delivery settings phone address business ownerBlocked maintenance updatedAt';
+    'homeConfig delivery settings phone address business ownerBlocked maintenance updatedAt billing.state billing.graceEndsAt';
 
 const tenantRecognizer = async (req, res, next) => {
     const raw = req.headers['x-tenant-slug'];
@@ -41,7 +41,11 @@ const tenantRecognizer = async (req, res, next) => {
             }
         }
 
-        req.tenant = tenant;
+        // Unpaid rent after grace: customers get the normal "not accepting orders" answer.
+        // A copy is used, so the cached shop object is never changed.
+        req.tenant = tenant.billing?.state === 'paused'
+            ? { ...tenant, settings: { ...tenant.settings, orders: { ...tenant.settings?.orders, acceptingOrders: false } } }
+            : tenant;
         next();
     } catch (error) {
         console.error('Tenant recognition error:', error);

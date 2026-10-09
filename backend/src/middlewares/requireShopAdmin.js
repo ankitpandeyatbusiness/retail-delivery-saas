@@ -12,8 +12,9 @@ const User = require('../models/User');
 
 async function checkAdmin(req, res, next) {
     try {
-        const user = await User.findById(req.auth.userId).select('role isBlocked');
+        const user = await User.findById(req.auth.userId).select('role isBlocked phone');
         if (!user || user.isBlocked || user.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+        req.shopUser = { id: user._id, phone: user.phone };
         next();
     } catch (e) {
         console.error('Shop admin check error:', e);
@@ -26,6 +27,14 @@ async function checkAdmin(req, res, next) {
 function blockedGate(req, res, next) {
     if (req.tenant.ownerBlocked) {
         return res.status(403).json({ error: 'Your shop panel is paused. Please contact support.', blocked: true });
+    }
+    // unpaid rent after grace: only the routes mounted with .allowBlocked stay open
+    // (orders, billing, and later notifications)
+    if (req.tenant.billing?.state === 'paused') {
+        return res.status(403).json({
+            error: 'Your shop is paused because a bill is unpaid. You can finish current orders and open Billing.',
+            paused: true,
+        });
     }
     next();
 }

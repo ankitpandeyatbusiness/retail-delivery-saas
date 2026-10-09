@@ -54,7 +54,7 @@ function validateSettings(input) {
         clean[name] = out;
     };
 
-    known(s, ['brand', 'tabs', 'home', 'features', 'menu', 'orders', 'hours', 'offers', 'labels'], 'settings');
+    known(s, ['brand', 'tabs', 'home', 'features', 'menu', 'orders', 'hours', 'offers', 'labels', 'riders'], 'settings');
 
     // brand
     section('brand', ['colors', 'fontStyle', 'buttonShape'], (b, out, p) => {
@@ -182,6 +182,16 @@ function validateSettings(input) {
         for (const k of ['couponsEnabled', 'showOnHome', 'showInCart']) if (o[k] !== undefined && bool(p(k), o[k])) out[k] = o[k];
     });
 
+    // riders and delivery assignment
+    section('riders', ['assignMode', 'offerSeconds', 'maxActiveOrders', 'deliveryPin', 'liveTracking', 'locationIntervalSec'], (r, out, p) => {
+        if (r.assignMode !== undefined && oneOf(p('assignMode'), r.assignMode, O.ASSIGN_MODES)) out.assignMode = r.assignMode;
+        if (r.offerSeconds !== undefined && num(p('offerSeconds'), r.offerSeconds, 30, 600)) out.offerSeconds = r.offerSeconds;
+        if (r.maxActiveOrders !== undefined && num(p('maxActiveOrders'), r.maxActiveOrders, 1, 10)) out.maxActiveOrders = r.maxActiveOrders;
+        if (r.deliveryPin !== undefined && bool(p('deliveryPin'), r.deliveryPin)) out.deliveryPin = r.deliveryPin;
+        if (r.liveTracking !== undefined && bool(p('liveTracking'), r.liveTracking)) out.liveTracking = r.liveTracking;
+        if (r.locationIntervalSec !== undefined && num(p('locationIntervalSec'), r.locationIntervalSec, 5, 60)) out.locationIntervalSec = r.locationIntervalSec;
+    });
+
     // labels
     section('labels', ['language', ...O.LABEL_KEYS], (l, out, p) => {
         if (l.language !== undefined && oneOf(p('language'), l.language, O.LANGUAGES)) out.language = l.language;
@@ -208,6 +218,7 @@ const DEFAULTS = {
         tipOptions: [], prepTimeMin: 20, acceptingOrders: true,
     },
     offers: { couponsEnabled: true, showOnHome: true, showInCart: true },
+    riders: { assignMode: 'manual', offerSeconds: 120, maxActiveOrders: 3, deliveryPin: true, liveTracking: true, locationIntervalSec: 10 },
     labels: {
         language: 'en', addButton: 'Add', orderButton: 'Place order',
         emptyCart: 'Your cart is empty', emptySearch: 'No dishes found',
@@ -275,6 +286,11 @@ function resolveConfig(tenant, now = new Date()) {
     if (clean.orders?.minOrder === undefined && tenant.delivery?.minOrder) orders.minOrder = tenant.delivery.minOrder;
     if (tenant.ownerBlocked) orders.acceptingOrders = false;
 
+    // No COD during free service. Switched on with ENFORCE_NO_COD_IN_FREE=true (keep it OFF until online payments exist)
+    if (process.env.ENFORCE_NO_COD_IN_FREE === 'true' && tenant.billing?.state === 'free') {
+        orders.payments = (orders.payments || []).filter((m) => m !== 'cod');
+    }
+
     // Illegal Tax Fix: Force GST to 'none' if the shop has no GSTIN on file
     if (!tenant.business?.gstin) {
         orders.gst = { mode: 'none', percent: 0 };
@@ -292,6 +308,10 @@ function resolveConfig(tenant, now = new Date()) {
         menu: merge(DEFAULTS.menu, clean.menu),
         orders,
         hours: { weekly, closedMessage: clean.hours?.closedMessage || labels.closedMessage },
+        riders: {
+            liveTracking: merge(DEFAULTS.riders, clean.riders).liveTracking,
+            locationIntervalSec: merge(DEFAULTS.riders, clean.riders).locationIntervalSec,
+        },
         offers,
         labels,
         restaurant: {

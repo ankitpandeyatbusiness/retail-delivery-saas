@@ -13,7 +13,8 @@ const express = require('express');
 const mongoose = require('mongoose');
 const SubscriptionInvoice = require('../models/SubscriptionInvoice');
 const Tenant = require('../models/Tenant');
-const { generateForPeriod, periodOf, withOverdue, PERIOD_RE } = require('../services/subscriptionService');
+const { generateForPeriod, periodOf, previousPeriod, withOverdue, PERIOD_RE } = require('../services/subscriptionService');
+const { enforceTenant } = require('../services/billingEnforcement');
 const { streamSubscriptionInvoice } = require('../services/subscriptionInvoicePdf');
 const { wrap, httpError } = require('../middlewares/apiErrors');
 
@@ -44,8 +45,8 @@ router.get('/subscriptions/invoices', wrap(async (req, res) => {
     }
     const s = req.query.status;
     if (s === 'overdue') { filter.status = 'pending'; filter.dueDate = { $lt: new Date() }; }
-    else if (s === 'paid' || s === 'pending') filter.status = s;
-    else if (s !== undefined && s !== '') throw httpError(400, 'status must be paid, pending or overdue');
+    else if (s === 'paid' || s === 'pending' || s === 'void') filter.status = s;
+    else if (s !== undefined && s !== '') throw httpError(400, 'status must be paid, pending, void or overdue');
 
     const items = await SubscriptionInvoice.find(filter)
         .sort({ issueDate: -1, _id: -1 }).skip((page - 1) * limit).limit(limit + 1).lean();
@@ -63,9 +64,9 @@ router.get('/subscriptions/invoices', wrap(async (req, res) => {
 
 // Registered before the /:id routes so "generate" is never read as an id (different method anyway)
 router.post('/subscriptions/invoices/generate', wrap(async (req, res) => {
-    const period = req.body?.period || periodOf(new Date());
+    const period = req.body?.period || previousPeriod();
     if (!PERIOD_RE.test(String(period))) throw httpError(400, 'period must look like 2026-10');
-    if (period > periodOf(new Date())) throw httpError(400, 'You cannot create an invoice for a future month');
+    if (period >= periodOf(new Date())) throw httpError(400, 'You can only create an invoice for a month that has finished');
 
     let tenantId;
     if (req.body?.tenantId !== undefined) {
@@ -84,7 +85,8 @@ router.get('/subscriptions/invoices/:id/pdf', wrap(async (req, res) => {
 }));
 
 router.patch('/subscriptions/invoices/:id/status', wrap(async (req, res) => {
-    await findInvoice(req);   // 404 if it does not exist
+    const current = await findInvoice(req);   // 404 if it does not exist
+    if (current.status === 'void') throw httpError(409, 'This invoice is void and cannot be changed');
     const status = req.body?.status;
     if (status !== 'paid' && status !== 'pending') throw httpError(400, 'status must be paid or pending');
 
@@ -106,6 +108,7 @@ router.patch('/subscriptions/invoices/:id/status', wrap(async (req, res) => {
         };
     }
     const inv = await SubscriptionInvoice.findByIdAndUpdate(req.params.id, update, { new: true }).lean();
+    await enforceTenant(inv.tenantId);   // paid unpauses the shop at once, undo can pause it again
     res.json(withOverdue(inv));
 }));
 

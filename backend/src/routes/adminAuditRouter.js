@@ -18,6 +18,9 @@ const router = express.Router();
 const isId = (v) => typeof v === 'string' && mongoose.isValidObjectId(v);
 const clamp = (n, min, max) => Math.min(Math.max(n, min), max);
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+const dayStart = (s) => (DATE_ONLY.test(s) ? new Date(`${s}T00:00:00+05:30`) : new Date(s));
+const dayEnd = (s) => (DATE_ONLY.test(s) ? new Date(`${s}T23:59:59.999+05:30`) : new Date(s));
 
 router.get('/audit-logs', wrap(async (req, res) => {
     const page = clamp(parseInt(req.query.page, 10) || 1, 1, 1000);
@@ -32,13 +35,13 @@ router.get('/audit-logs', wrap(async (req, res) => {
         if (!isId(req.query.actorId)) throw httpError(400, 'Invalid actorId');
         filter.actorId = req.query.actorId;
     }
-    if (['superadmin', 'owner'].includes(req.query.actorType)) filter.actorType = req.query.actorType;
+    if (['superadmin', 'owner', 'rider', 'system'].includes(req.query.actorType)) filter.actorType = req.query.actorType;
     if (typeof req.query.q === 'string' && req.query.q.trim()) {
         filter.action = new RegExp(esc(req.query.q.trim().slice(0, 40)), 'i');
     }
 
-    const from = req.query.from ? new Date(req.query.from) : null;
-    const to = req.query.to ? new Date(req.query.to) : null;
+    const from = req.query.from ? dayStart(String(req.query.from)) : null;
+    const to = req.query.to ? dayEnd(String(req.query.to)) : null;
     if ((from && Number.isNaN(from.getTime())) || (to && Number.isNaN(to.getTime()))) throw httpError(400, 'Invalid date');
     if (from || to) filter.at = { ...(from && { $gte: from }), ...(to && { $lte: to }) };
 

@@ -1,7 +1,7 @@
 // Cancels orders that the shop never accepted, so customers are never left waiting forever.
 
 const Order = require('../models/Order');
-const Coupon = require('../models/Coupon');
+const orderStatus = require('./orderStatusService');
 
 const TIMEOUT_MIN = Math.max(1, parseInt(process.env.ORDER_ACCEPT_TIMEOUT_MIN, 10) || 10);
 const BATCH = 100;
@@ -16,24 +16,21 @@ async function cancelUnacceptedOrders(now = new Date()) {
         createdAt: { $lte: cutoff },
         // normal orders, or scheduled orders whose time is almost here
         $or: [{ scheduledFor: null }, { scheduledFor: { $lte: soon } }],
-    }).select('_id couponId').limit(BATCH).lean();
+    }).select('_id tenantId status').limit(BATCH).lean();
 
     let cancelled = 0;
     for (const o of stale) {
-        const note = `Auto-cancelled: the shop did not accept within ${TIMEOUT_MIN} minutes`;
-        // the status filter means: if the shop accepted a moment ago, this does nothing
-        const updated = await Order.findOneAndUpdate(
-            { _id: o._id, status: 'placed' },
-            {
-                $set: { status: 'cancelled', cancelledBy: 'system', cancelReason: 'The shop did not respond in time' },
-                $push: { statusHistory: { status: 'cancelled', note } },
-            },
-            { new: true },
-        );
-        if (!updated) continue;
-        cancelled += 1;
-        if (updated.couponId) {
-            await Coupon.updateOne({ _id: updated.couponId, usedCount: { $gt: 0 } }, { $inc: { usedCount: -1 } });
+        try {
+            await orderStatus.change({
+                order: o,
+                status: 'cancelled',
+                actor: { type: 'system', label: `auto-cancel after ${TIMEOUT_MIN} min` },
+                note: 'The shop did not respond in time',
+            });
+            cancelled += 1;
+        } catch (e) {
+            // 409 means the shop accepted it a moment ago, so skip it quietly
+            if (e.status !== 409) console.error('Order timeout: could not cancel', String(o._id), e.message);
         }
     }
     return cancelled;

@@ -9,7 +9,7 @@ const Tenant = M('Tenant'), Category = M('Category'), Product = M('Product'), Ba
 const Coupon = M('Coupon'), Collection = M('Collection'), User = M('User'), Address = M('Address');
 const Order = M('Order'), Review = M('Review'), Favourite = M('Favourite'), Counter = M('Counter');
 const Session = M('Session'), OtpRequest = M('OtpRequest');
-const { validateSettings } = require('../src/services/tenantConfigService');
+const { validateSettings } = require('../services/tenantConfigService');
 
 const DAY = 86400000;
 const now = Date.now();

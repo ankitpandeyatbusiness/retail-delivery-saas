@@ -10,6 +10,7 @@ const LINE = '#d1d5db';
 const BRAND = '#111827';
 const GREEN = '#047857';
 const AMBER = '#b45309';
+const RED = '#b91c1c';
 const L = 40;
 const R = 555;
 
@@ -54,13 +55,15 @@ function drawTotals(doc, inv, y) {
 function render(doc, inv) {
     const s = inv.seller || {};
     const paid = inv.status === 'paid';
+    const isVoid = inv.status === 'void';
     const title = inv.gstPercent > 0 && s.gstin ? 'TAX INVOICE' : 'INVOICE';
 
     // header
     doc.font('Helvetica-Bold').fontSize(20).fillColor(BRAND).text(title, L, 40);
-    doc.font('Helvetica-Bold').fontSize(10).fillColor(paid ? GREEN : AMBER).text(paid ? 'PAID' : 'PAYMENT PENDING', L, 66);
+    doc.font('Helvetica-Bold').fontSize(10).fillColor(isVoid ? RED : paid ? GREEN : AMBER)
+        .text(isVoid ? 'VOID' : paid ? 'PAID' : 'PAYMENT PENDING', L, 66);
     doc.font('Helvetica').fontSize(9).fillColor(MUTED);
-    [`Invoice No: ${inv.invoiceNo}`, `Issue date: ${day(inv.issueDate)}`, `Due date: ${day(inv.dueDate)}`, `Billing month: ${inv.period}`]
+    [`Invoice No: ${inv.invoiceNo}`, `Issue date: ${day(inv.issueDate)}`, `Due date: ${day(inv.dueDate)}`, inv.period ? `Billing month: ${inv.period}` : 'Custom invoice']
         .forEach((t, i) => doc.text(t, 340, 40 + i * 13, { width: R - 340, align: 'right' }));
 
     let y = 106;
@@ -79,11 +82,21 @@ function render(doc, inv) {
         .text('SAC', 376, y + 7, { width: 70 })
         .text('AMOUNT', 450, y + 7, { width: R - 456, align: 'right' });
     y += 22;
-    doc.font('Helvetica').fontSize(9.5).fillColor(INK)
-        .text(inv.description || 'App subscription', L + 6, y + 8, { width: 330 })
-        .text(s.sacCode || '-', 376, y + 8, { width: 70 })
-        .text(money(inv.baseAmount), 450, y + 8, { width: R - 456, align: 'right' });
-    y += 30;
+    // new invoices have lineItems; old ones fall back to description + baseAmount
+    const items = inv.lineItems?.length
+        ? inv.lineItems
+        : [{ description: inv.description || 'App subscription', amount: inv.baseAmount }];
+    items.forEach((it) => {
+        const text = it.qty > 1 ? `${it.description} (${it.qty} x ${money(it.rate)})` : (it.description || '-');
+        doc.font('Helvetica').fontSize(9.5);
+        const h = doc.heightOfString(text, { width: 330 });
+        doc.fillColor(INK)
+            .text(text, L + 6, y + 8, { width: 330 })
+            .text(s.sacCode || '-', 376, y + 8, { width: 70 })
+            .text(money(it.amount), 450, y + 8, { width: R - 456, align: 'right' });
+        y += Math.max(h, 12) + 16;
+    });
+    y += 6;
     doc.moveTo(L, y).lineTo(R, y).lineWidth(1).strokeColor(LINE).stroke();
     y += 12;
 
@@ -100,13 +113,22 @@ function render(doc, inv) {
             .filter(Boolean).join(', ');
         doc.font('Helvetica-Bold').fontSize(9.5).fillColor(GREEN)
             .text(`Paid${inv.paidAt ? ` on ${day(inv.paidAt)}` : ''}${via ? ` (${via})` : ''}`, L, y, { width: R - L });
-    } else if (s.paymentInstructions) {
+    } else if (!isVoid && s.paymentInstructions) {
         doc.font('Helvetica-Bold').fontSize(8.5).fillColor(MUTED).text('HOW TO PAY', L, y);
         doc.font('Helvetica').fontSize(9.5).fillColor(INK).text(s.paymentInstructions, L, y + 13, { width: R - L });
     }
 
     doc.font('Helvetica').fontSize(8).fillColor(MUTED)
         .text('This is a computer generated invoice and does not need a signature.', L, 780, { width: R - L, align: 'center' });
+
+    if (isVoid) {
+        doc.save().rotate(-30, { origin: [300, 420] })
+            .font('Helvetica-Bold').fontSize(110).fillColor(RED).opacity(0.15)
+            .text('VOID', 130, 370).restore();
+        if (inv.voidReason) {
+            doc.font('Helvetica').fontSize(9.5).fillColor(RED).text(`Void reason: ${inv.voidReason}`, L, y, { width: R - L });
+        }
+    }
 }
 
 // Sends the PDF straight to the response. `inv` is a saved SubscriptionInvoice (plain object).
