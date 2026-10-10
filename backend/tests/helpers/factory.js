@@ -8,6 +8,8 @@ const Rider = require('../../src/models/Rider');
 const SuperAdmin = require('../../src/models/SuperAdmin');
 const tokenService = require('../../src/services/tokenService');
 const { signAdminToken } = require('../../src/services/superAdminToken');
+const crypto = require('crypto');
+const OtpRequest = require('../../src/models/OtpRequest');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -80,4 +82,15 @@ async function makeSuperAdmin(email = 'boss@example.com') {
     return { admin, token: signAdminToken(admin) };
 }
 
-module.exports = { sleep, waitFor, makeTenant, makeUser, makeWorld, makeOrder, makeSuperAdmin };
+// Puts a live OTP with a KNOWN code in the database (the real code is only sent by SMS)
+async function plantOtp(tenant, phone, otp = '123456') {
+    await OtpRequest.updateMany({ tenantId: tenant._id, phone, consumed: false }, { $set: { consumed: true } });
+    return OtpRequest.create({
+        tenantId: tenant._id,
+        phone,
+        otpHash: crypto.createHmac('sha256', process.env.OTP_PEPPER).update(`${otp}${tenant._id}${phone}`).digest('hex'),
+        expiresAt: new Date(Date.now() + 5 * 60000),
+    });
+}
+
+module.exports = { sleep, waitFor, makeTenant, makeUser, makeWorld, makeOrder, makeSuperAdmin, plantOtp };

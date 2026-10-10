@@ -27,6 +27,7 @@ const SMS_MOCK = process.env.SMS_MOCK === 'true'; // mock mode: send-OTP limits 
 const OTP_LENGTH = 6; // keep in sync with the app (LoginScreen OTP_LENGTH)
 const OTP_TTL_MS = 5 * 60 * 1000;
 const MAX_OTP_ATTEMPTS = 5;
+const MAX_PHONE_FAILS = 10; // wrong OTPs per phone in 30 minutes, then the phone is locked
 const MAX_SESSIONS_PER_USER = 5;
 const ROTATION_GRACE_MS = 30 * 1000; // retry window after a refresh response is lost
 const TENANT_DAILY_SMS_CAP = parseInt(process.env.TENANT_DAILY_SMS_CAP, 10) || 3000;
@@ -50,7 +51,7 @@ const initLimiters = () => {
 
     // verify-otp
     limiters.verifyIp = make(300, 60 * 60, 'rl_ver_ip');
-    limiters.verifyPhoneLockout = make(10, 30 * 60, 'rl_ver_lockout'); // 10 fails => 30 min lock
+    limiters.verifyPhoneLockout = make(MAX_PHONE_FAILS, 30 * 60, 'rl_ver_lockout'); // 10 fails => 30 min lock
 
     // refresh
     limiters.refreshIp = make(200, 60 * 60, 'rl_refresh_ip');
@@ -82,8 +83,6 @@ const handleRateLimitCatch = (rej, res) => {
     res.set('Retry-After', String(retryAfter));
     return res.status(429).json({ error: 'Too many requests. Please wait and try again.', retryAfter });
 };
-
-
 
 const refundSendLimits = async (phoneKey, tenantKey) => {
     await Promise.allSettled([
@@ -243,44 +242,53 @@ exports.sendOtp = async (req, res) => {
     }
 
     try {
-        await OtpRequest.updateMany(
-            { tenantId: tenant._id, phone, consumed: false },
-            { $set: { consumed: true } }
-        );
-
-        const otp = crypto
-            .randomInt(Math.pow(10, OTP_LENGTH - 1), Math.pow(10, OTP_LENGTH))
-            .toString();
-
-        const otpDoc = await OtpRequest.create({
-            tenantId: tenant._id,
-            phone,
-            otpHash: generateOtpHash(otp, tenant._id.toString(), phone),
-            expiresAt: new Date(Date.now() + OTP_TTL_MS),
-            ipHash: sha256(ip),
-            deviceId,
-        });
-
-        // The shop pays for every SMS from its wallet. Zero balance = customers cannot log in.
-        // Shop owners are always allowed (they must log in to top up); the platform pays for those.
+        // 1) Take the SMS price from the shop wallet FIRST. If the wallet cannot pay, nothing else
+        //    changes, so a customer's earlier OTP that is still valid is NOT destroyed.
+        //    Shop owners are always allowed (they must log in to top up); the platform pays for those.
         const known = await User.findOne({ tenantId: tenant._id, phone }).select('role').lean();
         const debit = await wallet.debitForSms(tenant._id, { purpose: 'otp', allowFree: known?.role === 'admin' });
         if (!debit.ok) {
-            await OtpRequest.updateOne({ _id: otpDoc._id }, { $set: { consumed: true } });
             await refundSendLimits(phoneKey, tenantKey);
             return res.status(503).json({ error: 'Login is not available right now. Please try again later.', code: 'SMS_BALANCE_ZERO' });
         }
 
+        // 2) Make the new OTP, then end the older ones
+        const otp = crypto
+            .randomInt(Math.pow(10, OTP_LENGTH - 1), Math.pow(10, OTP_LENGTH))
+            .toString();
+
+        let otpDoc;
+        try {
+            otpDoc = await OtpRequest.create({
+                tenantId: tenant._id,
+                phone,
+                otpHash: generateOtpHash(otp, tenant._id.toString(), phone),
+                expiresAt: new Date(Date.now() + OTP_TTL_MS),
+                ipHash: sha256(ip),
+                deviceId,
+            });
+            await OtpRequest.updateMany(
+                { tenantId: tenant._id, phone, consumed: false, _id: { $ne: otpDoc._id } },
+                { $set: { consumed: true } }
+            );
+        } catch (dbErr) {
+            if (otpDoc) await OtpRequest.updateOne({ _id: otpDoc._id }, { $set: { consumed: true } }).catch(() => { });
+            await wallet.refund(debit.txnId).catch(() => { });   // give the SMS price back
+            await refundSendLimits(phoneKey, tenantKey);
+            throw dbErr;
+        }
+
+        // 3) Send it
         try {
             const sent = await sms.sendOtp({ phone, otp, tenant });
             wallet.logSms({
                 tenantId: tenant._id, phone, purpose: 'otp', debit,
                 status: SMS_MOCK ? 'mock' : 'sent', providerMessageId: sent?.providerMessageId,
-            }).catch(() => {});
+            }).catch(() => { });
         } catch (smsErr) {
             console.error(`SMS failed for ${maskPhone(phone)}:`, smsErr.message);
             await wallet.refund(debit.txnId);   // give the SMS price back
-            wallet.logSms({ tenantId: tenant._id, phone, purpose: 'otp', debit, status: 'failed' }).catch(() => {});
+            wallet.logSms({ tenantId: tenant._id, phone, purpose: 'otp', debit, status: 'failed' }).catch(() => { });
             await OtpRequest.updateOne({ _id: otpDoc._id }, { $set: { consumed: true } });
             await refundSendLimits(phoneKey, tenantKey); // provider failure must not punish the user
             return res.status(503).json({ error: 'Could not send OTP. Please try again.' });
@@ -310,6 +318,12 @@ exports.verifyOtp = async (req, res) => {
 
     try {
         await limiters.verifyIp.consume(ip);
+        // This phone is locked after 10 wrong OTPs in 30 minutes. Even the right OTP is refused
+        // while it is locked, so guessing across many OTPs does not work.
+        const lock = await limiters.verifyPhoneLockout.get(phoneKey);
+        if (lock && lock.consumedPoints >= MAX_PHONE_FAILS) {
+            return handleRateLimitCatch({ msBeforeNext: lock.msBeforeNext }, res);
+        }
     } catch (rej) {
         return handleRateLimitCatch(rej, res);
     }
@@ -325,6 +339,7 @@ exports.verifyOtp = async (req, res) => {
 
         if (otpRecord.attempts > MAX_OTP_ATTEMPTS) {
             await OtpRequest.updateOne({ _id: otpRecord._id }, { $set: { consumed: true } });
+            await limiters.verifyPhoneLockout.consume(phoneKey).catch(() => { });
             return res.status(400).json({ error: 'Invalid or expired OTP' });
         }
 
@@ -336,6 +351,7 @@ exports.verifyOtp = async (req, res) => {
             if (otpRecord.attempts >= MAX_OTP_ATTEMPTS) {
                 await OtpRequest.updateOne({ _id: otpRecord._id }, { $set: { consumed: true } });
             }
+            await limiters.verifyPhoneLockout.consume(phoneKey).catch(() => { });
             return res.status(400).json({ error: 'Invalid OTP' });
         }
 
@@ -346,6 +362,8 @@ exports.verifyOtp = async (req, res) => {
         );
         if (!claimed) return res.status(400).json({ error: 'Invalid or expired OTP' });
 
+        // a good login clears the wrong-OTP counter of this phone
+        await limiters.verifyPhoneLockout.delete(phoneKey).catch(() => { });
 
         const user = await findOrCreateUser(tenant._id, phone);
         if (!user || user.isBlocked) {

@@ -16,6 +16,7 @@ const Session = require('../models/Session');
 const Address = require('../models/Address');
 const Favourite = require('../models/Favourite');
 const Order = require('../models/Order');
+const Rider = require('../models/Rider');
 const { ACTIVE_STATUSES } = require('../services/orderflow');
 
 const { wrap, httpError } = apiErrors;
@@ -76,10 +77,19 @@ router.delete('/', wrap(async (req, res) => {
     const busy = await Order.exists({ ...scope, status: { $in: ACTIVE_STATUSES } });
     if (busy) throw httpError(409, 'You have an order in progress. You can delete your account after it is delivered or cancelled.');
 
+    // a rider in the middle of a delivery must not vanish
+    if (user.role === 'rider') {
+        const delivering = await Order.exists({
+            tenantId: req.tenant._id, 'delivery.riderId': req.auth.userId, status: { $in: ACTIVE_STATUSES },
+        });
+        if (delivering) throw httpError(409, 'You have a delivery in progress. Finish it first, or ask the shop owner to give it to another rider.');
+    }
+
     await Promise.all([
         Session.deleteMany({ userId: req.auth.userId }),
         Address.deleteMany(scope),
         Favourite.deleteMany(scope),
+        user.role === 'rider' ? Rider.deleteMany({ tenantId: req.tenant._id, userId: req.auth.userId }) : null,
     ]);
     await User.deleteOne({ _id: req.auth.userId, tenantId: req.tenant._id });
     res.json({ ok: true });
