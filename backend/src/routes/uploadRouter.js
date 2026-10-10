@@ -11,6 +11,7 @@ const apiErrors = require('../middlewares/apiErrors');
 const { wrap, httpError } = apiErrors;
 const storage = require('../services/adapters/storage');
 const Media = require('../models/Media');
+const { RateLimiterMongo } = require('rate-limiter-flexible');
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
@@ -46,6 +47,22 @@ function sniff(b) {
     return null;
 }
 
+// 50 upload signs per day per shop. Kept in MongoDB, so it survives a restart.
+let signLimiter;
+async function takeSignSlot(req, res) {
+    signLimiter = signLimiter || new RateLimiterMongo({
+        storeClient: mongoose.connection, points: 50, duration: 24 * 60 * 60, keyPrefix: 'rl_upload_sign',
+    });
+    try {
+        await signLimiter.consume(`upload:${req.tenant._id}`);
+    } catch (rej) {
+        if (rej instanceof Error) throw rej;
+        const retryAfter = Math.max(1, Math.ceil((rej.msBeforeNext || 1000) / 1000));
+        res.set('Retry-After', String(retryAfter));
+        throw httpError(429, 'Too many uploads today. Please try again tomorrow.');
+    }
+}
+
 const router = express.Router();
 
 router.post('/sign', wrap(async (req, res) => {
@@ -55,6 +72,7 @@ router.post('/sign', wrap(async (req, res) => {
     if (!Number.isInteger(bytes) || bytes < 1 || bytes > MAX_BYTES) throw httpError(400, 'File must be between 1 byte and 5 MB');
 
     const p = plan(req, kind, refId);
+    await takeSignSlot(req, res);
     const key = `${p.prefix}${crypto.randomUUID()}.${ext}`;
     const uploadUrl = await storage.presignPut({ key, contentType, bytes });
     res.json({

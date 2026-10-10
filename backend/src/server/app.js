@@ -17,6 +17,8 @@ const profileRouter = require('../routes/profileRouter');
 const webhookRouter = require('../routes/webhookRouter');
 const riderRouter = require('../routes/riderRouter');
 const notificationRouter = require('../routes/notificationRouter');
+const mongoose = require('mongoose');
+const publicRateLimit = require('../middlewares/publicRateLimit');
 
 const app = express();
 
@@ -35,6 +37,22 @@ app.use(platformGate);
 
 // For your host's health check (this is also the endpoint your cron job will hit)
 app.get('/health', (req, res) => res.json({ ok: true }));
+
+// Ready check: 200 only when the database really answers (your host can use this one)
+app.get('/health/ready', async (req, res) => {
+    try {
+        if (mongoose.connection.readyState !== 1) return res.status(503).json({ ok: false });
+        await mongoose.connection.db.admin().ping();
+        return res.json({ ok: true });
+    } catch (e) {
+        return res.status(503).json({ ok: false });
+    }
+});
+
+// 300 requests per minute per IP on public routes
+app.use('/api/catalog', publicRateLimit);
+app.use('/api/tenants', publicRateLimit);
+app.use('/api/addresses/serviceability', publicRateLimit);
 
 app.use('/api/auth', authRouter);
 app.use('/api/tenants', tenantRouter);

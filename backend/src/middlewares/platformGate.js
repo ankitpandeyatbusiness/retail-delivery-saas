@@ -16,7 +16,7 @@ async function load() {
 }
 
 async function platformGate(req, res, next) {
-    if (req.path === '/health' || req.path.startsWith('/api/admin') || req.path.startsWith('/api/webhooks')) return next();
+    if (req.path === '/health' || req.path === '/health/ready' || req.path.startsWith('/api/admin') || req.path.startsWith('/api/webhooks')) return next();
 
     // Even during platform maintenance, customers can still see their orders, cancel an order,
     // and keep their login alive. Placing new orders, browsing and signing in stay blocked.

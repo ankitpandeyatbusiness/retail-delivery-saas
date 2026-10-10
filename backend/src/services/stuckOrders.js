@@ -3,10 +3,9 @@
 //   slow_prep        preparing for too long
 //   no_rider         delivery order, no rider, waiting too long
 //   on_the_way_long  out for delivery for too long
-// The owner is told once per stage. If nothing changes, the superadmin is told once more.
+// Only the shop owner is told, once per stage. The superadmin gets no late-order alerts.
 // Each alert is claimed with a filtered atomic update (Order.stuck), so two servers never send it twice.
 const Order = require('../models/Order');
-const Tenant = require('../models/Tenant');
 const notify = require('./notificationService');
 
 const num = (name, def) => { const n = parseInt(process.env[name], 10); return Number.isFinite(n) && n > 0 ? n : def; };
@@ -16,7 +15,6 @@ const LIMIT = {
     no_rider: num('STUCK_NO_RIDER_MIN', 15),
     on_the_way_long: num('STUCK_ON_THE_WAY_MIN', 75),
 };
-const ESCALATE_MIN = num('STUCK_ESCALATE_MIN', 15);
 const MIN = 60000;
 const ACTIVE = ['accepted', 'preparing', 'ready', 'out_for_delivery'];
 const LOOKBACK_MS = 8 * 86400000;   // scheduled orders can be made up to 7 days ahead
@@ -43,24 +41,13 @@ function stageOf(o, now) {
     return null;
 }
 
-async function escalate(o, st, now) {
-    const t = await Tenant.findById(o.tenantId).select('name').lean();
-    const told = Math.round((now.getTime() - new Date(o.stuck.ownerAt).getTime()) / MIN);
-    notify.send({
-        tenantId: o.tenantId, role: 'superadmin', type: 'order_escalated',
-        title: `Late order at ${t?.name || 'a shop'}`,
-        body: `${TEXT[st.stage].line(o.orderNo, st.min)} The owner was told ${told} min ago.`,
-        data: { orderId: String(o._id), orderNo: o.orderNo, stage: st.stage },
-    });
-}
-
 const BATCH = 200;
 
 // reads all active orders in batches (by _id), so no order is skipped when there are many
 async function checkStuck(now = new Date()) {
     let alerts = 0;
     let lastId = null;
-    for (;;) {
+    for (; ;) {
         const orders = await Order.find({
             status: { $in: ACTIVE },
             createdAt: { $gte: new Date(now.getTime() - LOOKBACK_MS) },
@@ -80,28 +67,18 @@ async function checkBatch(orders, now) {
     for (const o of orders) {
         const st = stageOf(o, now);
         if (!st) continue;
+        if (o.stuck?.stage === st.stage) continue;   // the owner already knows about this stage
 
-        if (o.stuck?.stage !== st.stage) {
-            const r = await Order.updateOne(
-                { _id: o._id, status: o.status, 'stuck.stage': { $ne: st.stage } },
-                { $set: { stuck: { stage: st.stage, ownerAt: now } } },
-            );
-            if (!r.modifiedCount) continue;
-            alerts += 1;
-            notify.toOwner(o.tenantId, {
-                type: 'order_late', title: TEXT[st.stage].title, body: TEXT[st.stage].line(o.orderNo, st.min),
-                data: { orderId: String(o._id), orderNo: o.orderNo, stage: st.stage },
-            });
-        } else if (o.stuck.ownerAt && !o.stuck.adminAt && now.getTime() - new Date(o.stuck.ownerAt).getTime() >= ESCALATE_MIN * MIN) {
-            const r = await Order.updateOne(
-                { _id: o._id, status: o.status, 'stuck.stage': st.stage, 'stuck.adminAt': null },
-                { $set: { 'stuck.adminAt': now } },
-            );
-            if (r.modifiedCount) {
-                alerts += 1;
-                await escalate(o, st, now);
-            }
-        }
+        const r = await Order.updateOne(
+            { _id: o._id, status: o.status, 'stuck.stage': { $ne: st.stage } },
+            { $set: { stuck: { stage: st.stage, ownerAt: now } } },
+        );
+        if (!r.modifiedCount) continue;
+        alerts += 1;
+        notify.toOwner(o.tenantId, {
+            type: 'order_late', title: TEXT[st.stage].title, body: TEXT[st.stage].line(o.orderNo, st.min),
+            data: { orderId: String(o._id), orderNo: o.orderNo, stage: st.stage },
+        });
     }
     return alerts;
 }

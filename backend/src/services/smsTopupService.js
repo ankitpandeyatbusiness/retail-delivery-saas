@@ -31,7 +31,13 @@ async function create({ tenantId, amountPaise, actor }) {
     if (open >= MAX_PENDING) throw bad(429, 'Too many open top-ups. Pay one or wait a few minutes.');
 
     const topup = new SmsTopup({ tenantId, amountPaise, createdBy: actor });
-    const qr = await payments.createQr({ amountPaise, purpose: 'sms_topup', referenceId: String(topup._id) });
+    let qr;
+    try {
+        qr = await payments.createQr({ amountPaise, purpose: 'sms_topup', referenceId: String(topup._id) });
+    } catch (e) {
+        console.error('Top-up QR error:', e.message);
+        throw bad(503, 'Top-up is not available yet. Contact support.');   // superadmin manual credit still works
+    }
     Object.assign(topup, { qrId: qr.qrId, upiString: qr.upiString, imageUrl: qr.imageUrl, expiresAt: qr.expiresAt });
     await topup.save();
     return topup.toObject();

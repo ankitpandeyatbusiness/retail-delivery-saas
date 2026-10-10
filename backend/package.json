@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node src/server/server.js",
     "dev": "nodemon src/server/server.js",
+    "check:requires": "node scripts/checkRequires.js",
     "test": "node --test --test-concurrency=1 --test-force-exit \"tests/**/*.test.js\""
   },
   "keywords": [],

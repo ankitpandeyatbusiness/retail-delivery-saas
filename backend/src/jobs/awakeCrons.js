@@ -8,7 +8,8 @@ const startAwakeCron = () => {
     // Runs every 14 minutes to prevent the 15-minute idle sleep on free tiers
     cron.schedule('*/14 * * * *', () => {
         // Replace with your actual production URL, or use an environment variable
-        const url = process.env.SERVER_URL || 'https://retail-delivery-saas-backend.onrender.com';
+        const base = (process.env.SERVER_URL || 'https://retail-delivery-saas-backend.onrender.com').replace(/\/+$/, '');
+        const url = `${base}/health`;   // the server has no page at "/", so the old ping got 404
 
         console.log('Pinging server to keep awake...');
 

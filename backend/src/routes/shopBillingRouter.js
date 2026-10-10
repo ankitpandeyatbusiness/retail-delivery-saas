@@ -9,7 +9,7 @@ const SubscriptionInvoice = require('../models/SubscriptionInvoice');
 const PlatformSettings = require('../models/PlatformSettings');
 const { resolveFee, freeStatus } = require('../utils/billingRules');
 const { periodOf, nextPeriod, firstBillablePeriod } = require('../services/subscriptionService');
-const { wrap } = require('../middlewares/apiErrors');
+const { wrap, httpError } = require('../middlewares/apiErrors');
 const prompts = require('../services/billingPromptService');
 
 const router = express.Router();
