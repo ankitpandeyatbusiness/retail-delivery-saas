@@ -6,12 +6,11 @@ const apiErrors = require('../middlewares/apiErrors');
 const Order = require('../models/Order');
 const svc = require('../services/orderService');
 const { ACTIVE_STATUSES } = require('../services/orderflow');
-const Product = require('../models/Product');
 const Tenant = require('../models/Tenant');
 const Rider = require('../models/Rider');
-const { invalidateAvailability } = require('../services/availability');
 const auditTrail = require('../middlewares/auditTrail');
 const { validateSettings } = require('../services/tenantConfigService');
+const invoiceRoutes = require('./shopInvoiceRouter');
 
 const { wrap, httpError } = apiErrors;
 const router = express.Router();
@@ -26,11 +25,21 @@ const actorOf = (req) => req.actor || { type: 'owner', id: req.auth.userId, labe
 
 router.use(ownerOnly(tenantRecognizer));
 router.use(ownerOnly(auditTrail('owner')));   // records every change a shop owner makes
-router.use('/subscription', ownerChain(requireShopAdmin.allowBlocked), require('./shopSubscriptionRouter'));   // rent invoices stay visible even when blocked
+
+/* ------------------------------------------------------------------------------------------------
+   Three levels of access:
+   1. allowBlocked : open even when the shop is paused for rent AND when the superadmin blocked the owner panel
+   2. allowPaused  : open while paused for unpaid rent, but closed when the superadmin blocked the owner panel
+   3. normal       : closed while paused for rent, and when blocked
+   ------------------------------------------------------------------------------------------------ */
+
+/* ---------- level 1: orders in progress, billing, bills, messages ---------- */
+router.use('/subscription', ownerChain(requireShopAdmin.allowBlocked), require('./shopSubscriptionRouter'));   // rent invoices stay visible
 router.use('/orders', ownerChain(requireShopAdmin.allowBlocked));
-router.use('/orders', require('./shopRiderRouter').orders);   // assign riders (open while paused: orders in progress must finish)
-router.use('/notifications', ownerChain(requireShopAdmin.allowBlocked), require('./notificationRouter').shop);   // owner inbox, stays open while paused
-router.use('/billing', ownerChain(requireShopAdmin.allowBlocked), require('./shopBillingRouter'));   // stays open while paused
+router.use('/orders', require('./shopRiderRouter').orders);   // assign riders (orders in progress must finish)
+router.use('/orders/:id/invoice', invoiceRoutes.invoice);     // the invoice PDF of an order (already past the login above)
+router.use('/notifications', ownerChain(requireShopAdmin.allowBlocked), require('./notificationRouter').shop);
+router.use('/billing', ownerChain(requireShopAdmin.allowBlocked), require('./shopBillingRouter'));
 
 const STATUSES = Order.schema.path('status').enumValues;
 const clamp = (n, min, max) => Math.min(Math.max(n, min), max);
@@ -49,7 +58,7 @@ const view = (order) => ({ ...order.toJSON(), allowedNext: svc.nextStatuses(orde
   Also returns `counts`: how many active orders per status (for the badges).
 */
 router.get('/orders', wrap(async (req, res) => {
-    const page = clamp(parseInt(req.query.page, 10) || 1, 1, 1000);
+    const page = clamp(parseInt(req.query.page, 10) || 1, 1, 10000);
     const limit = clamp(parseInt(req.query.limit, 10) || 20, 1, 50);
     const filter = { tenantId: req.tenant._id };
 
@@ -110,6 +119,30 @@ router.patch('/orders/:id/status', wrap(async (req, res) => {
     res.json(view(order));
 }));
 
+/* ---------- level 2: open while the shop is paused for unpaid rent ---------- */
+// The owner must be able to settle cash with riders, manage riders, see his money and top up SMS.
+const openWhilePaused = ownerChain(requireShopAdmin.allowPaused);
+
+// Owner map: riders with a location from the last 5 minutes. Must stay above the /riders mount below.
+router.get('/riders/locations', openWhilePaused, wrap(async (req, res) => {
+    const since = new Date(Date.now() - 5 * 60000);
+    const items = await Rider.find({
+        tenantId: req.tenant._id, isActive: true, 'lastLocation.at': { $gte: since },
+    }).select('userId name isOnline activeOrderCount lastLocation').lean();
+    res.json({
+        items: items.map((r) => ({
+            riderId: r.userId, name: r.name || null, isOnline: r.isOnline, activeOrderCount: r.activeOrderCount,
+            lat: r.lastLocation.lat, lng: r.lastLocation.lng, at: r.lastLocation.at,
+        })),
+    });
+}));
+router.use('/riders', openWhilePaused, require('./shopRiderRouter').manage);   // add, list, switch off, remove riders
+router.use('/cod', openWhilePaused, require('./shopCodRouter'));               // COD cash with riders, rider performance
+router.use('/activity', openWhilePaused, require('./shopAuditRouter'));        // owner activity log (rows of this shop only)
+router.use('/sms', openWhilePaused, require('./shopSmsRouter'));               // SMS wallet and top-up
+router.use('/reports', openWhilePaused, invoiceRoutes.reports);                // sales report
+
+/* ---------- level 3: closed while paused ---------- */
 router.use(ownerChain(requireShopAdmin));
 
 // Pause or resume taking orders
@@ -191,31 +224,17 @@ router.put('/settings', wrap(async (req, res) => {
     const t = await Tenant.findOneAndUpdate(
         { _id: req.tenant._id },
         { $set: updates },
-        { new: true, runValidators: true },
+        { returnDocument: 'after', runValidators: true },
     ).select('phone address delivery settings.hours settings.riders settings.notifications').lean();
 
     tenantRecognizer.invalidateTenant(req.tenant.slug);
-    res.json({ ok: true, phone: t.phone, address: t.address, delivery: t.delivery, hours: t.settings?.hours || null, riders: t.settings?.riders || null, notifications: t.settings?.notifications || null });
+    res.json({
+        ok: true, phone: t.phone, address: t.address, delivery: t.delivery,
+        hours: t.settings?.hours || null, riders: t.settings?.riders || null, notifications: t.settings?.notifications || null,
+    });
 }));
 
 router.use('/uploads', require('./uploadRouter'));   // direct-to-R2 uploads (owner and superadmin)
-router.use('/sms', require('./shopSmsRouter'));      // SMS wallet (owner and superadmin)
-// Owner map: riders with a location from the last 5 minutes. Must stay above the /riders mount below.
-router.get('/riders/locations', wrap(async (req, res) => {
-    const since = new Date(Date.now() - 5 * 60000);
-    const items = await Rider.find({
-        tenantId: req.tenant._id, isActive: true, 'lastLocation.at': { $gte: since },
-    }).select('userId name isOnline activeOrderCount lastLocation').lean();
-    res.json({
-        items: items.map((r) => ({
-            riderId: r.userId, name: r.name || null, isOnline: r.isOnline, activeOrderCount: r.activeOrderCount,
-            lat: r.lastLocation.lat, lng: r.lastLocation.lng, at: r.lastLocation.at,
-        })),
-    });
-}));
-router.use('/riders', require('./shopRiderRouter').manage);   // add, list, switch off, remove riders
-router.use('/cod', require('./shopCodRouter'));               // COD cash with riders, rider performance
-router.use('/activity', require('./shopAuditRouter'));   // owner activity log (rows of this shop only)
-router.use(require('./shopManageRouter'));
+router.use(require('./shopManageRouter'));           // menu: categories, products, banners, coupons, collections
 router.use(apiErrors);
 module.exports = router;

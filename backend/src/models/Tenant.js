@@ -82,7 +82,7 @@ const tenantSchema = new mongoose.Schema({
         until: Date,
     },
     subscription: {
-        monthlyFee: { type: Number, min: 0 },                              // 0 or empty = not billed
+        monthlyFee: { type: Number, min: 0 },                              // DEPRECATED: billing does not use this, and the panel cannot set it any more
         gstPercent: { type: Number, min: 0, max: 28 },                     // empty = 18
         startMonth: { type: String, match: /^\d{4}-(0[1-9]|1[0-2])$/ },    // "2026-10"
     },

@@ -24,6 +24,8 @@ const SubscriptionInvoice = require('../src/models/SubscriptionInvoice');
 const { makeTenant, makeWorld, makeSuperAdmin } = require('./helpers/factory');
 
 const ADMIN_PHONE = '9000000099';
+// a LIVE shop: only live shops can pay for an alert SMS
+const makeLive = (slug, extra = {}) => makeTenant(slug, { ...extra, billing: { state: 'active', isLive: true, ...(extra.billing || {}) } });
 const actor = { type: 'system' };
 const enableSms = (extra = {}) => PlatformSettings.findByIdAndUpdate(
     'main', { $set: { 'alerts.smsToAdmin': true, 'alerts.phone': ADMIN_PHONE, ...extra } }, { upsert: true },
@@ -132,7 +134,7 @@ describe('superadmin alerts', () => {
     test('shops pay alert SMS in turns, and the turn wraps around', async () => {
         const shops = [];
         for (const slug of ['rr-a', 'rr-b', 'rr-c']) {
-            const t = await makeTenant(slug);
+            const t = await makeLive(slug);
             await fund(t, 20000);
             shops.push(t);
         }
@@ -149,7 +151,7 @@ describe('superadmin alerts', () => {
     });
 
     test('a shop that would fall below its low-balance level is skipped', async () => {
-        const [a, b, c] = [await makeTenant('lo-a'), await makeTenant('lo-b'), await makeTenant('lo-c')];
+        const [a, b, c] = [await makeLive('lo-a'), await makeLive('lo-b'), await makeLive('lo-c')];
         await fund(a, 20000);
         await fund(b, 5020);          // after one SMS it would be 4990, below the Rs 50 level
         await fund(c, 20000);
@@ -161,9 +163,9 @@ describe('superadmin alerts', () => {
     });
 
     test('a suspended shop and a shop paused for rent never pay', async () => {
-        const a = await makeTenant('sk-a', { status: 'suspended' });
-        const b = await makeTenant('sk-b', { billing: { state: 'paused' } });
-        const c = await makeTenant('sk-c');
+        const a = await makeLive('sk-a', { status: 'suspended' });
+        const b = await makeLive('sk-b', { billing: { state: 'paused' } });
+        const c = await makeLive('sk-c');
         for (const t of [a, b, c]) await fund(t, 20000);
         smsSpy();
         assert.equal(String((await rotate()).tenantId), String(c._id));
@@ -172,8 +174,8 @@ describe('superadmin alerts', () => {
     });
 
     test('when no shop can pay, the platform pays and the cost is saved', async () => {
-        const a = await makeTenant('pp-a');
-        const b = await makeTenant('pp-b');
+        const a = await makeLive('pp-a');
+        const b = await makeLive('pp-b');
         await fund(a, 5000);
         await fund(b, 5000);
         const sms = smsSpy();
@@ -189,7 +191,7 @@ describe('superadmin alerts', () => {
     });
 
     test('a failed SMS gives the shop its money back and saves no cost', async () => {
-        const a = await makeTenant('fail-a');
+        const a = await makeLive('fail-a');
         await fund(a, 20000);
         mock.method(smsAdapter, 'send', async () => { throw new Error('provider down'); });
         const r = await rotate();
@@ -201,7 +203,7 @@ describe('superadmin alerts', () => {
     });
 
     test('in mock SMS mode nobody is charged, the SMS is only printed', async () => {
-        const a = await makeTenant('mock-a');
+        const a = await makeLive('mock-a');
         await fund(a, 20000);
         delete process.env.SMS_WALLET_IN_MOCK;
         const sms = smsSpy();
@@ -301,7 +303,7 @@ describe('superadmin alert routes', () => {
         const { token } = await makeSuperAdmin();
         process.env.SMS_WALLET_IN_MOCK = 'true';
         try {
-            const a = await makeTenant('cost-a');
+            const a = await makeLive('cost-a');
             await fund(a, 20000);
             smsSpy();
             await rotate();                                              // charged to shop a

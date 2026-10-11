@@ -41,3 +41,13 @@ function blockedGate(req, res, next) {
 
 module.exports = [authenticate, checkAdmin, blockedGate];
 module.exports.allowBlocked = [authenticate, checkAdmin];
+
+// Only the superadmin's "block the owner panel" switch. NOT the rent pause.
+function ownerBlockedGate(req, res, next) {
+    if (req.tenant.ownerBlocked) {
+        return res.status(403).json({ error: 'Your shop panel is paused. Please contact support.', blocked: true });
+    }
+    next();
+}
+// Open while the shop is paused for unpaid rent, but still closed when the superadmin blocked the owner panel
+module.exports.allowPaused = [authenticate, checkAdmin, ownerBlockedGate];

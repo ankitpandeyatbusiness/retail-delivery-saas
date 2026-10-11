@@ -4,6 +4,7 @@
 //   unpaid bill, grace not over  -> state "grace"  (graceEndsAt = the earliest unpaid grace end)
 //   unpaid bill, grace is over   -> state "paused" (new orders are refused)
 //   no unpaid bill (paid, void)  -> back to "active" (the free check puts it back to "free" if needed)
+// When a paused shop can take orders again, the owner is told once (the superadmin hears it too, through the notification center).
 //
 // Old invoices made before this system have no graceEndsAt, so they never pause a shop.
 
@@ -12,6 +13,7 @@ const Tenant = require('../models/Tenant');
 const SubscriptionInvoice = require('../models/SubscriptionInvoice');
 const PlatformSettings = require('../models/PlatformSettings');
 const { syncFreeState } = require('./subscriptionService');
+const notify = require('./notificationService');
 const { invalidateTenant } = require('../middlewares/tenantRecognizer');
 
 let running = false;
@@ -21,6 +23,13 @@ async function refreshCache(ids) {
     if (!ids.length) return;
     const shops = await Tenant.find({ _id: { $in: ids } }).select('slug').lean();
     shops.forEach((s) => invalidateTenant(s.slug));
+}
+
+// a shop that WAS paused can take orders again
+function announceUnpaused(ids) {
+    for (const id of ids) {
+        notify.toOwner(id, { type: 'shop_unpaused', title: 'Your shop is open again', body: 'You can take new orders again.' });
+    }
 }
 
 async function enforce(now = new Date()) {
@@ -39,18 +48,23 @@ async function enforce(now = new Date()) {
         { $group: { _id: '$tenantId', graceEndsAt: { $min: '$graceEndsAt' } } },
     ]);
     const changed = [];
+    const unpaused = [];
     for (const p of pending) {
         const state = p.graceEndsAt <= now ? 'paused' : 'grace';
-        const r = await Tenant.updateOne(
+        const before = await Tenant.findOneAndUpdate(
             { _id: p._id, $or: [{ 'billing.state': { $ne: state } }, { 'billing.graceEndsAt': { $ne: p.graceEndsAt } }] },
             { $set: { 'billing.state': state, 'billing.graceEndsAt': p.graceEndsAt } },
-        );
-        if (r.modifiedCount) changed.push(p._id);
+            { returnDocument: 'before' },
+        ).select('billing.state').lean();
+        if (!before) continue;
+        changed.push(p._id);
+        if (before.billing?.state === 'paused' && state !== 'paused') unpaused.push(p._id);   // more grace was given
     }
 
     // 3. shops in grace or paused that no longer owe anything
     const owing = pending.map((p) => p._id);
-    const cleared = await Tenant.find({ 'billing.state': { $in: ['grace', 'paused'] }, _id: { $nin: owing } }).select('_id').lean();
+    const cleared = await Tenant.find({ 'billing.state': { $in: ['grace', 'paused'] }, _id: { $nin: owing } })
+        .select('_id billing.state').lean();
     if (cleared.length) {
         const ids = cleared.map((c) => c._id);
         await Tenant.updateMany(
@@ -58,9 +72,11 @@ async function enforce(now = new Date()) {
             { $set: { 'billing.state': 'active' }, $unset: { 'billing.graceEndsAt': 1 } },
         );
         changed.push(...ids);
+        unpaused.push(...cleared.filter((c) => c.billing?.state === 'paused').map((c) => c._id));
     }
 
     await refreshCache(changed);
+    announceUnpaused(unpaused);
     return { changed: changed.length };
 }
 
@@ -73,14 +89,20 @@ async function enforceTenant(tenantId, now = new Date()) {
         { $group: { _id: '$tenantId', graceEndsAt: { $min: '$graceEndsAt' } } },
     ]);
     if (owing) {
-        await Tenant.updateOne({ _id: id }, {
-            $set: { 'billing.state': owing.graceEndsAt <= now ? 'paused' : 'grace', 'billing.graceEndsAt': owing.graceEndsAt },
-        });
+        const state = owing.graceEndsAt <= now ? 'paused' : 'grace';
+        const before = await Tenant.findOneAndUpdate(
+            { _id: id },
+            { $set: { 'billing.state': state, 'billing.graceEndsAt': owing.graceEndsAt } },
+            { returnDocument: 'before' },
+        ).select('billing.state').lean();
+        if (before?.billing?.state === 'paused' && state !== 'paused') announceUnpaused([id]);
     } else {
-        await Tenant.updateOne(
+        const before = await Tenant.findOneAndUpdate(
             { _id: id, 'billing.state': { $in: ['grace', 'paused'] } },
             { $set: { 'billing.state': 'active' }, $unset: { 'billing.graceEndsAt': 1 } },
-        );
+            { returnDocument: 'before' },
+        ).select('billing.state').lean();
+        if (before?.billing?.state === 'paused') announceUnpaused([id]);
         const t = await Tenant.findById(id).select('slug createdAt billing').lean();
         if (t) await syncFreeState(t, await PlatformSettings.findById('main').lean(), now);   // back to "free" if a limit was raised
     }

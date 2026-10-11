@@ -32,7 +32,7 @@ async function send({ phone, text, eventKey, tenantId }) {
         const order = start === -1 ? ids : [...ids.slice(start), ...ids.slice(0, start)];
 
         for (const id of order) {
-            const shop = await Tenant.findOne({ _id: id, status: { $ne: 'suspended' }, 'billing.state': { $ne: 'paused' } }).select('_id').lean();
+            const shop = await Tenant.findOne({ _id: id, status: { $ne: 'suspended' }, 'billing.state': { $ne: 'paused' }, 'billing.isLive': true }).select('_id').lean();
             if (!shop) continue;
             const s = await wallet.status(id);
             if (s.balancePaise - s.ratePerSmsPaise < s.lowBalancePaise) continue;   // keep every shop above its low level

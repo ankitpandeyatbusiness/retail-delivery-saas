@@ -101,6 +101,7 @@ admin.use(require('./adminAuditRouter'));
 admin.use(require('./adminSmsRouter'));
 admin.use(require('./adminNotifyRouter'));
 admin.use(require('./adminAlertsRouter'));
+admin.use(require('./adminNotificationRulesRouter'));
 
 // any change to a shop's data refreshes that shop's cached counts
 admin.use('/tenants/:tid', (req, res, next) => {
@@ -161,7 +162,9 @@ admin.post('/tenants', wrap(async (req, res) => {
     const v = validateSettings(body.settings || {});
     if (!v.ok) return res.status(400).json({ error: 'Invalid settings', errors: v.errors });
 
-    const tenant = new Tenant({ slug, ...pickFields(TENANT_FIELDS, body), settings: v.clean });
+    const fields = pickFields(TENANT_FIELDS, body);
+    if (fields.subscription && typeof fields.subscription === 'object') delete fields.subscription.monthlyFee;   // B18
+    const tenant = new Tenant({ slug, ...fields, settings: v.clean });
     await tenant.save();
     invalidateTenant(slug); // clears a cached "not found" for this slug
     res.status(201).json({
@@ -193,6 +196,7 @@ admin.put('/tenants/:tid', wrap(async (req, res) => {
     // --- REPLACEMENT STARTS HERE ---
     req.auditBefore = pickFields([...TENANT_FIELDS, 'settings'], tenant.toObject());   // for the audit log
     const updates = pickFields(TENANT_FIELDS, body);
+    if (updates.subscription && typeof updates.subscription === 'object') delete updates.subscription.monthlyFee;   // B18: billing does not use it
     for (const [key, value] of Object.entries(updates)) {
         // Deep merge for nested objects (delivery, business, subscription, colors, address)
         if (value !== null && typeof value === 'object' && !Array.isArray(value)) {

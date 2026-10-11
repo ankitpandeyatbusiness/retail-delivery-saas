@@ -175,7 +175,13 @@ const mask = (phone) => {
     return p.length >= 6 ? `${p.slice(0, 2)}${'X'.repeat(p.length - 4)}${p.slice(-2)}` : 'XXXX';
 };
 
-async function logSms({ tenantId, phone, purpose, debit, status, providerMessageId }) {
+async function logSms(args) {
+    const row = await writeSmsLog(args);
+    if (args.status === 'failed') require('./smsHealth').check().catch(() => {});   // 3 in 10 minutes = alert
+    return row;
+}
+
+async function writeSmsLog({ tenantId, phone, purpose, debit, status, providerMessageId }) {
     return SmsLog.create({
         tenantId, phoneMasked: mask(phone), purpose, status, providerMessageId,
         chargedPaise: status === 'failed' ? 0 : debit?.chargedPaise || 0,

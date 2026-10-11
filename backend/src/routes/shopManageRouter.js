@@ -106,21 +106,4 @@ router.use('/collections', crud(Collection, {
     },
 }));
 
-/* ------------------------------ invoice ------------------------------ */
-// GET /api/shop/orders/:id/invoice            downloads the PDF
-// GET /api/shop/orders/:id/invoice?view=1     opens it in the browser instead
-router.get('/orders/:id/invoice', wrap(async (req, res) => {
-    const order = isId(req.params.id) ? await Order.findOne({ _id: req.params.id, tenantId: req.tenant._id }) : null;
-    if (!order) throw httpError(404, 'Order not found');
-    if (order.status !== 'delivered') throw httpError(409, 'The invoice is only available after delivery');
-    streamInvoice(res, order, req.tenant, { inline: req.query.view === '1' });
-}));
-
-/* ------------------------------ sales report ------------------------------ */
-// GET /api/shop/reports/sales?from=2026-10-01&to=2026-10-31&groupBy=day   (groupBy: day or month)
-router.get('/reports/sales', wrap(async (req, res) => {
-    const { from, to } = parseRange(req.query);
-    res.json(await salesReport({ tenantId: req.tenant._id, from, to, groupBy: req.query.groupBy }));
-}));
-
 module.exports = router;
