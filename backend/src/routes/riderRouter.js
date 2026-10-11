@@ -48,7 +48,7 @@ function riderView(o) {
         id: o._id, orderNo: o.orderNo, status: o.status, createdAt: o.createdAt,
         items: (o.items || []).map((i) => ({ name: i.name, quantity: i.quantity })),
         note: o.note || null,
-        customer: accepted ? o.customer : null,
+        customer: accepted ? { name: o.customer?.name, phone: o.customer?.phone } : null,
         address: accepted ? o.address : { city: o.address?.city, pincode: o.address?.pincode, landmark: o.address?.landmark },
         payment: { method: o.payment?.method, collectAmount: cod ? o.pricing?.total : 0 },
         delivery: { status: d.status, offerExpiresAt: d.offerExpiresAt || null, pinRequired: !!d.pinRequired, deliveredAt: d.deliveredAt || null },

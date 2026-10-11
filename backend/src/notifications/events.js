@@ -1,0 +1,43 @@
+// ONE place that says WHO is told about WHAT and HOW. Change a line here to change the behaviour,
+// or override it live from the database (NotificationRule) without a deploy.
+//
+//   to                   owner | customer | rider  (who normally gets it)
+//   channels             inapp (live message), push, sms. center.js tries them in this order.
+//   alsoPush             send the push even when he is online
+//   escalateSmsAfterSec  send the SMS if he still has not read it after this many seconds
+//   key                  true (or a function of the message) = important enough for a paid SMS
+const INAPP_PUSH = ['inapp', 'push'];
+const ALL = ['inapp', 'push', 'sms'];
+const KEY_CUSTOMER_STATUSES = ['accepted', 'out_for_delivery', 'delivered', 'cancelled'];
+
+const EVENTS = {
+    // owner
+    order_new: { to: 'owner', channels: ALL, alsoPush: true, escalateSmsAfterSec: 180, key: true },
+    order_unaccepted_reminder: { to: 'owner', channels: ALL, alsoPush: true, key: true },
+    order_cancelled: { to: 'owner', channels: INAPP_PUSH },
+    order_late: { to: 'owner', channels: INAPP_PUSH },
+    rider_accepted: { to: 'owner', channels: INAPP_PUSH },
+    rider_rejected: { to: 'owner', channels: INAPP_PUSH },
+    rider_none: { to: 'owner', channels: INAPP_PUSH },
+    rider_problem: { to: 'owner', channels: INAPP_PUSH },
+    delivery_low_rating: { to: 'owner', channels: INAPP_PUSH },
+    bill_issued: { to: 'owner', channels: ALL, key: true },
+    bill_reminder: { to: 'owner', channels: INAPP_PUSH },
+    shop_paused: { to: 'owner', channels: ALL, key: true },
+    payment_received: { to: 'owner', channels: INAPP_PUSH },
+    free_ending: { to: 'owner', channels: INAPP_PUSH },
+    sms_low: { to: 'owner', channels: INAPP_PUSH },      // the platform pays for an SMS here (comes with the admin alerts)
+    sms_zero: { to: 'owner', channels: INAPP_PUSH },
+    platform_message: { to: 'owner', channels: INAPP_PUSH },
+    // customer (an SMS only for the important steps, and never for riders)
+    order_status: { to: 'customer', channels: ALL, key: (ctx) => KEY_CUSTOMER_STATUSES.includes(ctx.data?.status) },
+    rider_assigned: { to: 'customer', channels: INAPP_PUSH },
+    // rider (offers last 2 minutes, so never an SMS)
+    rider_offer: { to: 'rider', channels: INAPP_PUSH, alsoPush: true },
+    rider_removed: { to: 'rider', channels: INAPP_PUSH },
+};
+
+// a type that is not listed above still works: inbox, live and push
+const DEFAULT_EVENT = { to: 'owner', channels: INAPP_PUSH };
+
+module.exports = { EVENTS, DEFAULT_EVENT, KEY_CUSTOMER_STATUSES };

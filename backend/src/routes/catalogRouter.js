@@ -10,6 +10,7 @@ const { resolveConfig } = require('../services/tenantConfigService');
 const optionalAuth = require('../middlewares/optionalAuth');
 const Order = require('../models/Order');
 const User = require('../models/User');
+const { hashPhone } = require('../utils/phoneHash');
 
 const catalogRouter = express.Router();
 catalogRouter.use(tenantRecognizer);   // every request knows its shop
@@ -42,7 +43,7 @@ async function isReturningCustomer(tenantId, userId) {
     if (!userId) return false;
     const user = await User.findById(userId).select('phone').lean();
     if (!user) return false;
-    return await Order.exists({ tenantId, 'customer.phone': user.phone, status: { $ne: 'cancelled' } });
+    return await Order.exists({ tenantId, 'customer.phoneHash': hashPhone(tenantId, user.phone), status: { $ne: 'cancelled' } });
 }
 
 catalogRouter.get('/categories', async (req, res) => {

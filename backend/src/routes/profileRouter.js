@@ -4,8 +4,10 @@
 //   PUT    /api/me        body { "name": "Ravi Kumar", "email": "ravi@example.com" }   (send either or both; email "" removes it)
 //   DELETE /api/me        body { "confirm": true }   deletes the account (Play Store requires this)
 //
-// Deleting removes the profile, saved addresses, favourites and logins. Past orders stay with the shop
-// (they hold their own copy of the name and phone), because the shop needs them for its tax records.
+// Deleting removes the profile, saved addresses, favourites and logins, all in ONE transaction.
+// Past orders stay with the shop (they hold their own copy of the name and phone, and invoices keep the real data),
+// but they are marked deleted, so the owner sees "Deleted customer" and a masked phone.
+// The shop keeps a CustomerRisk row for his phone, so first-order coupons cannot be used again.
 
 const express = require('express');
 const tenantRecognizer = require('../middlewares/tenantRecognizer');
@@ -17,7 +19,10 @@ const Address = require('../models/Address');
 const Favourite = require('../models/Favourite');
 const Order = require('../models/Order');
 const Rider = require('../models/Rider');
+const CustomerRisk = require('../models/CustomerRisk');
 const { ACTIVE_STATUSES } = require('../services/orderflow');
+const withTransaction = require('../services/withTransaction');
+const { hashPhone } = require('../utils/phoneHash');
 
 const { wrap, httpError } = apiErrors;
 const router = express.Router();
@@ -58,7 +63,7 @@ router.put('/', wrap(async (req, res) => {
     const user = await User.findOneAndUpdate(
         { _id: req.auth.userId, tenantId: req.tenant._id },
         update,
-        { new: true, runValidators: true },
+        { returnDocument: 'after', runValidators: true },
     ).lean();
     if (!user) throw httpError(404, 'Account not found');
     res.json(dto(user));
@@ -67,8 +72,10 @@ router.put('/', wrap(async (req, res) => {
 router.delete('/', wrap(async (req, res) => {
     if (req.body?.confirm !== true) throw httpError(400, 'Send confirm: true to delete your account');
 
-    const scope = { tenantId: req.tenant._id, userId: req.auth.userId };
-    const user = await User.findOne({ _id: req.auth.userId, tenantId: req.tenant._id }).select('role isBlocked').lean();
+    const tenantId = req.tenant._id;
+    const userId = req.auth.userId;
+    const scope = { tenantId, userId };
+    const user = await User.findOne({ _id: userId, tenantId }).select('role isBlocked phone').lean();
     if (!user) throw httpError(404, 'Account not found');
     // a blocked person must not be able to wipe the block by deleting and re-registering
     if (user.isBlocked) throw httpError(403, 'This account cannot be deleted');
@@ -79,19 +86,20 @@ router.delete('/', wrap(async (req, res) => {
 
     // a rider in the middle of a delivery must not vanish
     if (user.role === 'rider') {
-        const delivering = await Order.exists({
-            tenantId: req.tenant._id, 'delivery.riderId': req.auth.userId, status: { $in: ACTIVE_STATUSES },
-        });
+        const delivering = await Order.exists({ tenantId, 'delivery.riderId': userId, status: { $in: ACTIVE_STATUSES } });
         if (delivering) throw httpError(409, 'You have a delivery in progress. Finish it first, or ask the shop owner to give it to another rider.');
     }
 
-    await Promise.all([
-        Session.deleteMany({ userId: req.auth.userId }),
-        Address.deleteMany(scope),
-        Favourite.deleteMany(scope),
-        user.role === 'rider' ? Rider.deleteMany({ tenantId: req.tenant._id, userId: req.auth.userId }) : null,
-    ]);
-    await User.deleteOne({ _id: req.auth.userId, tenantId: req.tenant._id });
+    const phoneHash = hashPhone(tenantId, user.phone);
+    await withTransaction(async (session) => {
+        await CustomerRisk.updateOne({ tenantId, phoneHash }, { $set: { deletedAt: new Date() } }, { upsert: true, session });
+        await Order.updateMany(scope, { $set: { 'customer.deleted': true, 'customer.phoneHash': phoneHash } }, { session, timestamps: false });
+        await Session.deleteMany({ userId }, { session });
+        await Address.deleteMany(scope, { session });
+        await Favourite.deleteMany(scope, { session });
+        if (user.role === 'rider') await Rider.deleteMany({ tenantId, userId }, { session });
+        await User.deleteOne({ _id: userId, tenantId }, { session });
+    });
     res.json({ ok: true });
 }));
 

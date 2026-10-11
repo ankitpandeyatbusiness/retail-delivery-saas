@@ -4,6 +4,7 @@ process.env.JWT_ACCESS_SECRET = 'test-access-secret-0123456789abcdef0123';
 process.env.JWT_REFRESH_SECRET = 'test-refresh-secret-0123456789abcdef012';
 process.env.SUPERADMIN_JWT_SECRET = 'test-superadmin-secret-0123456789abcdef01';
 process.env.OTP_PEPPER = 'test-otp-pepper';
+process.env.PHONE_HASH_SECRET = 'test-phone-hash-secret-0123456789abcdef0123';
 process.env.DELIVERY_PIN_SECRET = 'test-delivery-pin-secret';
 process.env.SMS_MOCK = 'true';
 process.env.PAYMENTS_MOCK = 'true';

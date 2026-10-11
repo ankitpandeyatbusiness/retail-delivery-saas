@@ -7,6 +7,7 @@ const OtpRequest = require('../models/OtpRequest');
 const tokenService = require('../services/tokenService');
 const sms = require('../services/adapters/sms');
 const wallet = require('../services/smsWalletService');
+const { hashPhone } = require('../utils/phoneHash');
 
 /* ------------------------------- config ------------------------------- */
 if (!process.env.OTP_PEPPER) {
@@ -121,7 +122,7 @@ const findOrCreateUser = async (tenantId, phone) => {
     const run = () =>
         User.findOneAndUpdate(
             { tenantId, phone },
-            { $set: { lastLoginAt: new Date() } },
+            { $set: { lastLoginAt: new Date(), phoneHash: hashPhone(tenantId, phone) } },   // also heals old users
             { returnDocument: 'after', upsert: true, setDefaultsOnInsert: true }
         );
     try {

@@ -23,6 +23,13 @@ const Order = require('../models/Order');
 
 let io = null;
 
+// who is connected right now (decides live message, push or SMS). Counts each connection. One server only.
+const online = { users: new Map(), owners: new Map() };
+const bump = (map, key, d) => {
+    const n = (map.get(key) || 0) + d;
+    if (n > 0) map.set(key, n); else map.delete(key);
+};
+
 const room = {
     tenant: (t) => `tenant:${t}`,
     user: (t, u) => `user:${t}:${u}`,
@@ -61,6 +68,14 @@ function onConnection(socket) {
     const { userId, tenantId, role, exp } = socket.data;
     socket.join(room.user(tenantId, userId));
     if (role === 'admin') socket.join(room.tenant(tenantId));
+
+    // count this connection, and take it off again when he leaves
+    bump(online.users, `${tenantId}:${userId}`, 1);
+    if (role === 'admin') bump(online.owners, tenantId, 1);
+    socket.on('disconnect', () => {
+        bump(online.users, `${tenantId}:${userId}`, -1);
+        if (role === 'admin') bump(online.owners, tenantId, -1);
+    });
 
     // when the access token ends, tell the app and close. The app reconnects with a fresh token.
     if (exp) {
@@ -137,4 +152,7 @@ function leaveOrder({ tenantId, userId, orderId }) {
     }
 }
 
-module.exports = { init, toUser, toOwner, toOrder, leaveOrder };
+const isUserOnline = (tenantId, userId) => online.users.has(`${tenantId}:${userId}`);
+const isOwnerOnline = (tenantId) => online.owners.has(String(tenantId));
+
+module.exports = { init, toUser, toOwner, toOrder, leaveOrder, isUserOnline, isOwnerOnline };

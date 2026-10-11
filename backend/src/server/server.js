@@ -10,6 +10,7 @@ const { startOfferScheduler } = require('../services/assignmentService');
 const { startBillingAlertsScheduler } = require('../services/billingAlerts');
 const { startStuckOrdersScheduler } = require('../services/stuckOrders');
 const startAwakeCron = require('../jobs/awakeCrons');
+const { startNotificationEscalationScheduler } = require('../jobs/notificationEscalation');
 
 // A crash is logged and the host restarts the server. A stray rejected promise is only logged.
 process.on('unhandledRejection', (reason) => console.error('Unhandled rejection:', reason));
@@ -47,6 +48,7 @@ connectDB()
             startOfferScheduler();
             startBillingAlertsScheduler();
             startStuckOrdersScheduler();
+            startNotificationEscalationScheduler();
 
             // restricted to production to avoid local console spam
             if (process.env.NODE_ENV === 'production') startAwakeCron();

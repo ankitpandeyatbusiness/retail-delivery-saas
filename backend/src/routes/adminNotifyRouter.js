@@ -49,6 +49,7 @@ router.post('/subscriptions/invoices/:id/resend', wrap(async (req, res) => {
     const paused = inv.graceEndsAt && new Date(inv.graceEndsAt) <= new Date();
     const doc = await notify.toOwner(inv.tenantId, {
         type: paused ? 'shop_paused' : 'bill_issued',
+        vars: { invoiceNo: inv.invoiceNo, amount: String(inv.total), date: day(inv.graceEndsAt || inv.dueDate) },
         title: paused ? 'Your shop is paused' : 'Bill notice',
         body: paused
             ? `Invoice ${inv.invoiceNo} (Rs ${inv.total}) is unpaid, so new orders are stopped. Pay now to start again.`

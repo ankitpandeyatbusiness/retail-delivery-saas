@@ -1,19 +1,24 @@
-// SMS wallet. Integer paise only. Every change writes a ledger row first (unique paymentId = safe to repeat),
-// then moves the balance with an atomic update.
+// SMS wallet. Integer paise only.
+// Every change moves the balance AND writes the ledger row inside ONE database transaction,
+// so a crash can never leave a top-up recorded but not added, or money taken with no ledger row.
+// A repeated payment id hits the unique index, the transaction rolls back, and the answer is "duplicate".
 //   const d = await debitForSms(tenantId, { purpose: 'otp' });  // before sending
 //   if (!d.ok) -> stop (no balance)
 //   send ... if the provider fails -> await refund(d.txnId)
 
+const mongoose = require('mongoose');
 const SmsWallet = require('../models/SmsWallet');
 const SmsTransaction = require('../models/SmsTransaction');
 const SmsLog = require('../models/SmsLog');
 const PlatformSettings = require('../models/PlatformSettings');
+const withTransaction = require('./withTransaction');
 
-// Temporary defaults. The platform settings batch replaces these.
+// Temporary defaults. The platform settings replace these.
 const DEFAULTS = { ratePerSmsPaise: 30, costPerSmsPaise: 20, lowBalancePaise: 5000 };
 
 const isPaise = (n) => Number.isInteger(n) && n > 0;
 const dupKey = (e) => e && e.code === 11000;
+const bad = (status, message) => Object.assign(new Error(message), { status });
 
 // Mock SMS does not touch the wallet, unless you turn this flag on for testing
 const shouldCharge = () => process.env.SMS_MOCK !== 'true' || process.env.SMS_WALLET_IN_MOCK === 'true';
@@ -67,20 +72,23 @@ async function debitForSms(tenantId, { purpose = 'otp', allowFree = false } = {}
     const w = await getWallet(tenantId);
     await loadPlatform();
     const rate = rateOf(w);
-    const after = await SmsWallet.findOneAndUpdate(
-        { _id: w._id, balancePaise: { $gte: rate } },
-        { $inc: { balancePaise: -rate } },
-        { new: true },
-    );
-    if (!after) {
-        if (!w.blockAtZero || allowFree) return { ok: true, chargedPaise: 0, costPaise: costOf(w), txnId: null, free: true };
-        return { ok: false, reason: 'no_balance' };
-    }
-    const txn = await SmsTransaction.create({
-        tenantId, type: 'debit', amountPaise: -rate, balanceAfter: after.balancePaise,
-        purpose, actor: { type: 'system', label: 'sms' },
+
+    return withTransaction(async (session) => {
+        const after = await SmsWallet.findOneAndUpdate(
+            { _id: w._id, balancePaise: { $gte: rate } },
+            { $inc: { balancePaise: -rate } },
+            { returnDocument: 'after', session },
+        );
+        if (!after) {
+            if (!w.blockAtZero || allowFree) return { ok: true, chargedPaise: 0, costPaise: costOf(w), txnId: null, free: true };
+            return { ok: false, reason: 'no_balance' };
+        }
+        const [txn] = await SmsTransaction.create([{
+            tenantId, type: 'debit', amountPaise: -rate, balanceAfter: after.balancePaise,
+            purpose, actor: { type: 'system', label: 'sms' },
+        }], { session });
+        return { ok: true, chargedPaise: rate, costPaise: costOf(w), txnId: txn._id, balanceAfter: after.balancePaise };
     });
-    return { ok: true, chargedPaise: rate, costPaise: costOf(w), txnId: txn._id, balanceAfter: after.balancePaise };
 }
 
 // Gives the money back when the provider failed. Safe to call twice.
@@ -90,54 +98,76 @@ async function refund(txnId) {
     if (!debit) return { ok: false, reason: 'not_found' };
 
     const amount = -debit.amountPaise;
-    let txn;
     try {
-        txn = await SmsTransaction.create({
-            tenantId: debit.tenantId, type: 'refund', amountPaise: amount,
-            paymentId: `refund:${debit._id}`, purpose: debit.purpose, note: 'SMS failed',
-            actor: { type: 'system', label: 'sms' },
+        return await withTransaction(async (session) => {
+            const after = await SmsWallet.findOneAndUpdate(
+                { tenantId: debit.tenantId }, { $inc: { balancePaise: amount } }, { returnDocument: 'after', session },
+            );
+            if (!after) throw new Error('Wallet not found');
+            await SmsTransaction.create([{
+                tenantId: debit.tenantId, type: 'refund', amountPaise: amount, balanceAfter: after.balancePaise,
+                paymentId: `refund:${debit._id}`, purpose: debit.purpose, note: 'SMS failed',
+                actor: { type: 'system', label: 'sms' },
+            }], { session });
+            return { ok: true, balanceAfter: after.balancePaise };
         });
     } catch (e) {
-        if (dupKey(e)) return { ok: true, duplicate: true };
+        if (dupKey(e)) return { ok: true, duplicate: true };   // already refunded, the balance was rolled back
         throw e;
     }
-    const after = await SmsWallet.findOneAndUpdate({ tenantId: debit.tenantId }, { $inc: { balancePaise: amount } }, { new: true });
-    await SmsTransaction.updateOne({ _id: txn._id }, { $set: { balanceAfter: after.balancePaise } });
-    return { ok: true, balanceAfter: after.balancePaise };
 }
 
 // Adds money: a paid top-up (with paymentId) or a manual credit by the superadmin.
 async function credit({ tenantId, amountPaise, type = 'topup', paymentId, note, actor }) {
-    if (!isPaise(amountPaise)) throw Object.assign(new Error('Amount must be a whole number of paise above 0'), { status: 400 });
-    if (!['topup', 'adjust'].includes(type)) throw Object.assign(new Error('Invalid type'), { status: 400 });
+    if (!isPaise(amountPaise)) throw bad(400, 'Amount must be a whole number of paise above 0');
+    if (!['topup', 'adjust'].includes(type)) throw bad(400, 'Invalid type');
     await getWallet(tenantId);
 
-    let txn;
     try {
-        txn = await SmsTransaction.create({ tenantId, type, amountPaise, paymentId, note, actor });
+        return await withTransaction(async (session) => {
+            const after = await SmsWallet.findOneAndUpdate(
+                { tenantId }, { $inc: { balancePaise: amountPaise } }, { returnDocument: 'after', session },
+            );
+            const [txn] = await SmsTransaction.create([{
+                tenantId, type, amountPaise, balanceAfter: after.balancePaise, paymentId, note, actor,
+            }], { session });
+            return { ok: true, balanceAfter: after.balancePaise, txnId: txn._id };
+        });
     } catch (e) {
-        if (dupKey(e)) return { ok: true, duplicate: true };     // same payment came twice
+        if (dupKey(e)) return { ok: true, duplicate: true };   // same payment came twice: nothing was added
         throw e;
     }
-    const after = await SmsWallet.findOneAndUpdate({ tenantId }, { $inc: { balancePaise: amountPaise } }, { new: true });
-    await SmsTransaction.updateOne({ _id: txn._id }, { $set: { balanceAfter: after.balancePaise } });
-    return { ok: true, balanceAfter: after.balancePaise, txnId: txn._id };
 }
 
 // Manual take-away by the superadmin. Cannot go below zero.
 async function manualDebit({ tenantId, amountPaise, note, actor }) {
-    if (!isPaise(amountPaise)) throw Object.assign(new Error('Amount must be a whole number of paise above 0'), { status: 400 });
+    if (!isPaise(amountPaise)) throw bad(400, 'Amount must be a whole number of paise above 0');
     const w = await getWallet(tenantId);
-    const after = await SmsWallet.findOneAndUpdate(
-        { _id: w._id, balancePaise: { $gte: amountPaise } },
-        { $inc: { balancePaise: -amountPaise } },
-        { new: true },
-    );
-    if (!after) throw Object.assign(new Error('Balance is lower than this amount'), { status: 400 });
-    const txn = await SmsTransaction.create({
-        tenantId, type: 'adjust', amountPaise: -amountPaise, balanceAfter: after.balancePaise, note, actor,
+
+    return withTransaction(async (session) => {
+        const after = await SmsWallet.findOneAndUpdate(
+            { _id: w._id, balancePaise: { $gte: amountPaise } },
+            { $inc: { balancePaise: -amountPaise } },
+            { returnDocument: 'after', session },
+        );
+        if (!after) throw bad(400, 'Balance is lower than this amount');
+        const [txn] = await SmsTransaction.create([{
+            tenantId, type: 'adjust', amountPaise: -amountPaise, balanceAfter: after.balancePaise, note, actor,
+        }], { session });
+        return { ok: true, balanceAfter: after.balancePaise, txnId: txn._id };
     });
-    return { ok: true, balanceAfter: after.balancePaise, txnId: txn._id };
+}
+
+// Compares the balance with the sum of the ledger. differencePaise must be 0.
+async function reconcileWallet(tenantId) {
+    const id = new mongoose.Types.ObjectId(String(tenantId));
+    const [w, rows] = await Promise.all([
+        SmsWallet.findOne({ tenantId: id }).select('balancePaise').lean(),
+        SmsTransaction.aggregate([{ $match: { tenantId: id } }, { $group: { _id: null, sum: { $sum: '$amountPaise' } } }]),
+    ]);
+    const balancePaise = w?.balancePaise || 0;
+    const ledgerPaise = rows[0]?.sum || 0;
+    return { balancePaise, ledgerPaise, differencePaise: balancePaise - ledgerPaise };
 }
 
 const mask = (phone) => {
@@ -155,5 +185,6 @@ async function logSms({ tenantId, phone, purpose, debit, status, providerMessage
 }
 
 module.exports = {
-    DEFAULTS, refreshPlatform, shouldCharge, getWallet, status, debitForSms, refund, credit, manualDebit, logSms, mask,
+    DEFAULTS, refreshPlatform, shouldCharge, getWallet, status, debitForSms, refund, credit, manualDebit,
+    reconcileWallet, logSms, mask,
 };

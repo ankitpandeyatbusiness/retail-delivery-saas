@@ -12,6 +12,7 @@ const Collection = require('../models/Collection');
 const Order = require('../models/Order');
 const Rider = require('../models/Rider');
 const { ACTIVE_STATUSES } = require('../services/orderflow');
+const { hashPhone } = require('../utils/phoneHash');
 const { pickBrandColors } = require('../services/logoColors');
 
 const O = require('../config/tenantOptions');
@@ -413,7 +414,7 @@ admin.post('/tenants/:tid/owners', loadTenant, wrap(async (req, res) => {
     }
     const u = await User.findOneAndUpdate(
         { tenantId, phone, isBlocked: { $ne: true } },
-        { $set: { role: 'admin' } },
+        { $set: { role: 'admin', phoneHash: hashPhone(tenantId, phone) } },
         { upsert: true, new: true, setDefaultsOnInsert: true },
     );
     if (existing?.role === 'rider') await Rider.deleteMany({ tenantId, userId: u._id });   // an owner is not a rider

@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const { Schema } = mongoose;
+const { maskPhone } = require('../utils/phoneHash');
 
 // Everything below is a SNAPSHOT taken at order time, so later menu or price changes never alter old orders.
 const lineSchema = new Schema({
@@ -55,7 +56,7 @@ const orderSchema = new Schema({
         status: { type: String, enum: ['pending', 'paid', 'failed', 'refunded'], default: 'pending' },
     },
 
-    customer: { name: String, phone: String },
+    customer: { name: String, phone: String, phoneHash: String, deleted: Boolean },   // deleted = he deleted his account
     address: {
         label: String, name: String, phone: String, line1: String, line2: String,
         landmark: String, city: String, pincode: String, latitude: Number, longitude: Number,
@@ -128,6 +129,7 @@ orderSchema.index({ tenantId: 1, status: 1, deliveredAt: 1 });   // monthly bill
 orderSchema.index({ tenantId: 1, 'delivery.riderId': 1, status: 1 });   // a rider's orders
 orderSchema.index({ 'delivery.offerExpiresAt': 1 }, { partialFilterExpression: { 'delivery.status': 'assigned' } });   // offer timeout job
 orderSchema.index({ createdAt: 1 }, { partialFilterExpression: { status: 'placed' } });   // auto-cancel job
+orderSchema.index({ tenantId: 1, 'customer.phoneHash': 1, status: 1 });   // returning-customer and coupon checks (by hash)
 orderSchema.index({ tenantId: 1, 'customer.phone': 1, status: 1 });   // returning-customer and coupon checks
 orderSchema.index(
     { tenantId: 1, userId: 1, idempotencyKey: 1 },
@@ -141,6 +143,12 @@ orderSchema.set('toJSON', {
         delete ret.__v;
         delete ret.idempotencyKey;
         delete ret.stuck;
+        if (ret.customer?.deleted) {   // he deleted his account: hide his details (invoice PDFs keep the real data)
+            ret.customer = { name: 'Deleted customer', phone: maskPhone(ret.customer.phone), deleted: true };
+            if (ret.address) ret.address = { ...ret.address, name: 'Deleted customer', phone: maskPhone(ret.address.phone) };
+        } else if (ret.customer) {
+            delete ret.customer.phoneHash;   // never sent to any app
+        }
         if (ret.delivery) {   // internal details, never sent as plain order JSON
             delete ret.delivery.offers;
             delete ret.delivery.riderHistory;

@@ -1,54 +1,15 @@
-// Notifications. Every function here is safe: it never throws, so a notification problem can never break an order.
-// Each message is saved in the inbox, sent live with Socket.IO, and sent as push (best effort).
-const Notification = require('../models/Notification');
-const DeviceToken = require('../models/DeviceToken');
+// Notifications. The rest of the code keeps calling these names; the real work (inbox, live, push, SMS)
+// is in src/notifications/center.js and the wording is in src/notifications/templates/texts.js.
+// Every function here is safe: it never throws, so a notification problem can never break an order.
 const Rider = require('../models/Rider');
 const Order = require('../models/Order');
-const User = require('../models/User');
-const push = require('./adapters/push');
 const realtime = require('./realtime');
+const center = require('../notifications/center');
 
-// phones of one person, or of every owner (role admin) of the shop
-async function pushTo({ tenantId, userId, title, body, data }) {
-    const userIds = userId
-        ? [userId]
-        : (await User.find({ tenantId, role: 'admin' }).select('_id').lean()).map((u) => u._id);
-    if (!userIds.length) return;
-
-    const rows = await DeviceToken.find({ tenantId, userId: { $in: userIds } }).select('token').lean();
-    const tokens = rows.map((r) => r.token);
-    if (!tokens.length) return;
-
-    const res = await push.send({ tokens, title, body, data });
-    if (res?.invalidTokens?.length) await DeviceToken.deleteMany({ token: { $in: res.invalidTokens } });
-}
-
-async function send({ tenantId, userId, role, type, title, body, data }) {
-    try {
-        if (!tenantId || (!userId && !role)) return null;
-        const doc = await Notification.create({
-            tenantId, userId, role, type,
-            title: String(title).slice(0, 120),
-            body: body ? String(body).slice(0, 300) : undefined,
-            data,
-        });
-
-        const payload = { id: doc._id, type, title: doc.title, body: doc.body || null, data: data || null, createdAt: doc.createdAt };
-        if (role === 'superadmin') return doc;   // platform inbox only: no live message or push to the shop
-        if (userId) realtime.toUser(tenantId, userId, 'notification', payload);
-        else realtime.toOwner(tenantId, 'notification', payload);
-
-        pushTo({ tenantId, userId, title: doc.title, body: doc.body, data: { ...(data || {}), type } })
-            .catch((e) => console.error('Push error:', e.message));
-        return doc;
-    } catch (e) {
-        console.error('Notification error:', e.message);
-        return null;
-    }
-}
-
-const toOwner = (tenantId, p) => send({ tenantId, role: 'owner', ...p });
-const toUser = (tenantId, userId, p) => send({ tenantId, userId, ...p });
+// old style helpers, still used by billing, the superadmin messages and the stuck-order watcher
+const send = (p) => center.notify(p.type, { ...p, to: p.role === 'superadmin' ? 'superadmin' : undefined });
+const toOwner = (tenantId, p) => center.notify(p.type, { ...p, tenantId });
+const toUser = (tenantId, userId, p) => center.notify(p.type, { ...p, tenantId, userId });
 
 // Tells the owner screens (and the order's own screen) that an order changed. The app then reloads that order.
 // kind: status | rider
@@ -66,31 +27,14 @@ const riderName = async (tenantId, userId) => {
 /* ------------------------------ orders ------------------------------ */
 function orderPlaced(order) {
     try {
-        toOwner(order.tenantId, {
-            type: 'order_new',
-            title: 'New order',
-            body: `Order #${order.orderNo} - Rs ${order.pricing?.total ?? ''} - ${String(order.orderType).replace('_', '-')}`,
-            data: { orderId: String(order._id), orderNo: order.orderNo },
+        center.notify('order_new', {
+            tenantId: order.tenantId,
+            vars: { orderNo: order.orderNo, total: order.pricing?.total, orderType: order.orderType },
+            data: { orderId: String(order._id), orderNo: order.orderNo, total: order.pricing?.total },
         });
         pulse({ tenantId: order.tenantId, orderId: order._id, orderNo: order.orderNo, status: 'placed', kind: 'status', toOrder: false });
     } catch (e) {
         console.error('Notification error:', e.message);
-    }
-}
-
-function customerText(order, status) {
-    const no = order.orderNo;
-    switch (status) {
-        case 'accepted': return { title: 'Order accepted', body: `The shop accepted your order #${no}.` };
-        case 'preparing': return { title: 'Being prepared', body: `Your order #${no} is being prepared.` };
-        case 'ready':
-            return order.orderType === 'pickup'
-                ? { title: 'Ready for pickup', body: `Your order #${no} is ready for pickup.` }
-                : { title: 'Order ready', body: `Your order #${no} is ready.` };
-        case 'out_for_delivery': return { title: 'On the way', body: `Your order #${no} is on the way.` };
-        case 'delivered': return { title: 'Delivered', body: `Your order #${no} was delivered. Enjoy!` };
-        case 'cancelled': return { title: 'Order cancelled', body: `Your order #${no} was cancelled.${order.cancelReason ? ` Reason: ${order.cancelReason}` : ''}` };
-        default: return null;
     }
 }
 
@@ -102,18 +46,21 @@ function orderStatusChanged(order, status, actor) {
 
         // the customer is told about every step, except a cancel he made himself
         if (actor.type !== 'customer') {
-            const m = customerText(order, status);
-            if (m) toUser(t, order.userId, { type: 'order_status', ...m, data });
+            center.notify('order_status', {
+                tenantId: t, userId: order.userId, data,
+                vars: { orderNo: no, status, orderType: order.orderType, cancelReason: order.cancelReason },
+            });
         }
         if (status === 'cancelled') {
             if (actor.type === 'customer' || actor.type === 'system') {
-                toOwner(t, {
-                    type: 'order_cancelled', title: 'Order cancelled', data,
-                    body: `Order #${no} was cancelled${actor.type === 'system' ? ' (not accepted in time)' : ' by the customer'}.`,
+                center.notify('order_cancelled', {
+                    tenantId: t, data, vars: { audience: 'owner', orderNo: no, bySystem: actor.type === 'system' },
                 });
             }
             if (order.delivery?.riderId && actor.type !== 'rider') {
-                toUser(t, order.delivery.riderId, { type: 'order_cancelled', title: 'Order cancelled', body: `Order #${no} was cancelled.`, data });
+                center.notify('order_cancelled', {
+                    tenantId: t, userId: order.delivery.riderId, data, vars: { audience: 'rider', orderNo: no },
+                });
             }
         }
         pulse({ tenantId: t, orderId: order._id, orderNo: no, status, kind: 'status' });
@@ -126,9 +73,9 @@ function orderStatusChanged(order, status, actor) {
 function riderOffered(order) {
     try {
         const secs = Math.max(1, Math.round((new Date(order.delivery.offerExpiresAt).getTime() - Date.now()) / 1000));
-        toUser(order.tenantId, order.delivery.riderId, {
-            type: 'rider_offer', title: 'New delivery request',
-            body: `Order #${order.orderNo}. Please accept within ${secs} seconds.`,
+        center.notify('rider_offer', {
+            tenantId: order.tenantId, userId: order.delivery.riderId,
+            vars: { orderNo: order.orderNo, secs },
             data: { orderId: String(order._id), orderNo: order.orderNo },
         });
         pulse({ tenantId: order.tenantId, orderId: order._id, orderNo: order.orderNo, status: order.status, kind: 'rider', toOrder: false });
@@ -141,12 +88,8 @@ async function riderAccepted(order) {
     try {
         const name = await riderName(order.tenantId, order.delivery.riderId);
         const data = { orderId: String(order._id), orderNo: order.orderNo };
-        toUser(order.tenantId, order.userId, {
-            type: 'rider_assigned', title: 'Delivery partner assigned', body: `${name} will deliver your order #${order.orderNo}.`, data,
-        });
-        toOwner(order.tenantId, {
-            type: 'rider_accepted', title: 'Rider accepted', body: `${name} accepted order #${order.orderNo}.`, data,
-        });
+        center.notify('rider_assigned', { tenantId: order.tenantId, userId: order.userId, vars: { riderName: name, orderNo: order.orderNo }, data });
+        center.notify('rider_accepted', { tenantId: order.tenantId, vars: { riderName: name, orderNo: order.orderNo }, data });
         pulse({ tenantId: order.tenantId, orderId: order._id, orderNo: order.orderNo, status: order.status, kind: 'rider' });
     } catch (e) {
         console.error('Notification error:', e.message);
@@ -159,9 +102,8 @@ async function riderRejected({ tenantId, orderId, riderUserId }) {
             Order.findOne({ _id: orderId, tenantId }).select('orderNo status').lean(),
             riderName(tenantId, riderUserId),
         ]);
-        toOwner(tenantId, {
-            type: 'rider_rejected', title: 'Rider said no',
-            body: `${name} rejected order #${o?.orderNo ?? ''}.`,
+        center.notify('rider_rejected', {
+            tenantId, vars: { riderName: name, orderNo: o?.orderNo },
             data: { orderId: String(orderId), orderNo: o?.orderNo },
         });
         pulse({ tenantId, orderId, orderNo: o?.orderNo, status: o?.status, kind: 'rider', toOrder: false });
@@ -172,11 +114,7 @@ async function riderRejected({ tenantId, orderId, riderUserId }) {
 
 function noRiderFree({ tenantId, orderId, orderNo }) {
     try {
-        toOwner(tenantId, {
-            type: 'rider_none', title: 'No rider available',
-            body: `Order #${orderNo} needs a rider. Please assign one by hand.`,
-            data: { orderId: String(orderId), orderNo },
-        });
+        center.notify('rider_none', { tenantId, vars: { orderNo }, data: { orderId: String(orderId), orderNo } });
         pulse({ tenantId, orderId, orderNo, kind: 'rider', toOrder: false });
     } catch (e) {
         console.error('Notification error:', e.message);
@@ -186,28 +124,20 @@ function noRiderFree({ tenantId, orderId, orderNo }) {
 function riderRemoved({ tenantId, riderUserId, orderId, orderNo }) {
     try {
         realtime.leaveOrder({ tenantId, userId: riderUserId, orderId });   // he must stop hearing about this order
-        toUser(tenantId, riderUserId, {
-            type: 'rider_removed', title: 'Order taken back',
-            body: `Order #${orderNo} was given to someone else.`,
-            data: { orderId: String(orderId), orderNo },
+        center.notify('rider_removed', {
+            tenantId, userId: riderUserId, vars: { orderNo }, data: { orderId: String(orderId), orderNo },
         });
         pulse({ tenantId, orderId, orderNo, kind: 'rider' });
     } catch (e) {
         console.error('Notification error:', e.message);
     }
 }
+
 async function riderProblem({ tenantId, orderId, orderNo, riderUserId, reason, note }) {
     try {
         const name = await riderName(tenantId, riderUserId);
-        const text = {
-            cannot_reach: 'cannot reach the customer',
-            customer_not_answering: 'customer is not answering',
-            wrong_address: 'says the address looks wrong',
-            other: 'reported a problem',
-        }[reason] || 'reported a problem';
-        toOwner(tenantId, {
-            type: 'rider_problem', title: 'Delivery problem',
-            body: `${name} ${text} (order #${orderNo}).${note ? ` Note: ${note}` : ''}`,
+        center.notify('rider_problem', {
+            tenantId, vars: { riderName: name, orderNo, reason, note },
             data: { orderId: String(orderId), orderNo, reason },
         });
         pulse({ tenantId, orderId, orderNo, kind: 'rider', toOrder: false });
@@ -219,9 +149,8 @@ async function riderProblem({ tenantId, orderId, orderNo, riderUserId, reason, n
 async function lowDeliveryRating({ tenantId, orderId, orderNo, rating, riderUserId, comment }) {
     try {
         const name = await riderName(tenantId, riderUserId);
-        toOwner(tenantId, {
-            type: 'delivery_low_rating', title: 'Low delivery rating',
-            body: `Order #${orderNo}: ${rating} star(s) for ${name}.${comment ? ` "${String(comment).slice(0, 100)}"` : ''}`,
+        center.notify('delivery_low_rating', {
+            tenantId, vars: { riderName: name, orderNo, rating, comment },
             data: { orderId: String(orderId), orderNo, rating },
         });
     } catch (e) {
@@ -232,5 +161,5 @@ async function lowDeliveryRating({ tenantId, orderId, orderNo, rating, riderUser
 module.exports = {
     send, toOwner, toUser,
     orderPlaced, orderStatusChanged,
-    riderOffered, riderAccepted, riderRejected, noRiderFree, riderRemoved, riderProblem, lowDeliveryRating
+    riderOffered, riderAccepted, riderRejected, noRiderFree, riderRemoved, riderProblem, lowDeliveryRating,
 };

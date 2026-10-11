@@ -54,7 +54,7 @@ function validateSettings(input) {
         clean[name] = out;
     };
 
-    known(s, ['brand', 'tabs', 'home', 'features', 'menu', 'orders', 'hours', 'offers', 'labels', 'riders'], 'settings');
+    known(s, ['brand', 'tabs', 'home', 'features', 'menu', 'orders', 'hours', 'offers', 'labels', 'riders', 'notifications'], 'settings');
 
     // brand
     section('brand', ['colors', 'fontStyle', 'buttonShape'], (b, out, p) => {
@@ -192,6 +192,11 @@ function validateSettings(input) {
         if (r.locationIntervalSec !== undefined && num(p('locationIntervalSec'), r.locationIntervalSec, 5, 60)) out.locationIntervalSec = r.locationIntervalSec;
     });
 
+    // notifications (the owner's own switches)
+    section('notifications', ['smsAlerts'], (n, out, p) => {
+        if (n.smsAlerts !== undefined && bool(p('smsAlerts'), n.smsAlerts)) out.smsAlerts = n.smsAlerts;
+    });
+
     // labels
     section('labels', ['language', ...O.LABEL_KEYS], (l, out, p) => {
         if (l.language !== undefined && oneOf(p('language'), l.language, O.LANGUAGES)) out.language = l.language;
@@ -218,6 +223,7 @@ const DEFAULTS = {
         tipOptions: [], prepTimeMin: 20, acceptingOrders: true,
     },
     offers: { couponsEnabled: true, showOnHome: true, showInCart: true },
+    notifications: { smsAlerts: true },   // key-event SMS (new order, bill, order steps) are on by default
     riders: { assignMode: 'manual', offerSeconds: 120, maxActiveOrders: 3, deliveryPin: true, liveTracking: true, locationIntervalSec: 10 },
     labels: {
         language: 'en', addButton: 'Add', orderButton: 'Place order',

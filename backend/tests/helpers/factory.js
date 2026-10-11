@@ -7,6 +7,7 @@ const Order = require('../../src/models/Order');
 const Rider = require('../../src/models/Rider');
 const SuperAdmin = require('../../src/models/SuperAdmin');
 const tokenService = require('../../src/services/tokenService');
+const { hashPhone } = require('../../src/utils/phoneHash');
 const { signAdminToken } = require('../../src/services/superAdminToken');
 const crypto = require('crypto');
 const OtpRequest = require('../../src/models/OtpRequest');
@@ -70,7 +71,7 @@ const makeOrder = (tenant, user, o = {}) => Order.create({
     items: [{ productId: new mongoose.Types.ObjectId(), name: 'Test item', quantity: 1, unitPrice: 100, lineTotal: 100 }],
     pricing: { subtotal: 100, total: 100 },
     payment: { method: 'cod' },
-    customer: { name: user.name, phone: user.phone },
+    customer: { name: user.name, phone: user.phone, phoneHash: hashPhone(tenant._id, user.phone) },
     statusHistory: [{ status: 'placed' }],
     ...o,
 });

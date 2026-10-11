@@ -5,6 +5,7 @@ const Order = require('../models/Order');
 const Session = require('../models/Session');
 const { ACTIVE_STATUSES } = require('./orderflow');
 const { httpError } = require('../middlewares/apiErrors');
+const { hashPhone } = require('../utils/phoneHash');
 
 const PHONE_RE = /^[6-9]\d{9}$/;
 const WITH_RIDER = ['assigned', 'accepted', 'picked_up'];
@@ -22,7 +23,7 @@ async function addByPhone({ tenantId, phone, name }) {
     try {
         user = await User.findOneAndUpdate(
             { tenantId, phone, role: { $ne: 'admin' } },     // the filter also protects against a race with an owner
-            { $set: { role: 'rider' } },
+            { $set: { role: 'rider', phoneHash: hashPhone(tenantId, phone) } },
             { upsert: true, new: true, setDefaultsOnInsert: true },
         );
     } catch (e) {

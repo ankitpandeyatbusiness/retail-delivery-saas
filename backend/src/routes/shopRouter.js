@@ -137,6 +137,12 @@ router.put('/settings', wrap(async (req, res) => {
         for (const [k, val] of Object.entries(v.clean.riders || {})) updates[`settings.riders.${k}`] = val;   // only the fields sent change
     }
 
+    if (body.notifications !== undefined) {
+        const v = validateSettings({ notifications: body.notifications });
+        if (!v.ok) return res.status(400).json({ error: 'Invalid notification settings', errors: v.errors });
+        for (const [k, val] of Object.entries(v.clean.notifications || {})) updates[`settings.notifications.${k}`] = val;
+    }
+
     if (body.phone !== undefined) {
         const phone = String(body.phone).trim();
         if (!/^[6-9]\d{9}$/.test(phone)) throw httpError(400, 'Enter a valid 10-digit mobile number');
@@ -186,10 +192,10 @@ router.put('/settings', wrap(async (req, res) => {
         { _id: req.tenant._id },
         { $set: updates },
         { new: true, runValidators: true },
-    ).select('phone address delivery settings.hours settings.riders').lean();
+    ).select('phone address delivery settings.hours settings.riders settings.notifications').lean();
 
     tenantRecognizer.invalidateTenant(req.tenant.slug);
-    res.json({ ok: true, phone: t.phone, address: t.address, delivery: t.delivery, hours: t.settings?.hours || null, riders: t.settings?.riders || null });
+    res.json({ ok: true, phone: t.phone, address: t.address, delivery: t.delivery, hours: t.settings?.hours || null, riders: t.settings?.riders || null, notifications: t.settings?.notifications || null });
 }));
 
 router.use('/uploads', require('./uploadRouter'));   // direct-to-R2 uploads (owner and superadmin)

@@ -1,0 +1,57 @@
+// The words of every in-app message and push. Change the wording of a message HERE only.
+const PROBLEM = {
+    cannot_reach: 'cannot reach the customer',
+    customer_not_answering: 'customer is not answering',
+    wrong_address: 'says the address looks wrong',
+    other: 'reported a problem',
+};
+
+function statusText(v) {
+    const no = v.orderNo;
+    switch (v.status) {
+        case 'accepted': return { title: 'Order accepted', body: `The shop accepted your order #${no}.` };
+        case 'preparing': return { title: 'Being prepared', body: `Your order #${no} is being prepared.` };
+        case 'ready':
+            return v.orderType === 'pickup'
+                ? { title: 'Ready for pickup', body: `Your order #${no} is ready for pickup.` }
+                : { title: 'Order ready', body: `Your order #${no} is ready.` };
+        case 'out_for_delivery': return { title: 'On the way', body: `Your order #${no} is on the way.` };
+        case 'delivered': return { title: 'Delivered', body: `Your order #${no} was delivered. Enjoy!` };
+        case 'cancelled':
+            return { title: 'Order cancelled', body: `Your order #${no} was cancelled.${v.cancelReason ? ` Reason: ${v.cancelReason}` : ''}` };
+        default: return null;
+    }
+}
+
+const TEXTS = {
+    order_new: (v) => ({
+        title: 'New order',
+        body: `Order #${v.orderNo} - Rs ${v.total ?? ''} - ${String(v.orderType || '').replace('_', '-')}`,
+    }),
+    order_status: statusText,
+    order_cancelled: (v) => ({
+        title: 'Order cancelled',
+        body: v.audience === 'rider'
+            ? `Order #${v.orderNo} was cancelled.`
+            : `Order #${v.orderNo} was cancelled${v.bySystem ? ' (not accepted in time)' : ' by the customer'}.`,
+    }),
+    rider_offer: (v) => ({ title: 'New delivery request', body: `Order #${v.orderNo}. Please accept within ${v.secs} seconds.` }),
+    rider_assigned: (v) => ({ title: 'Delivery partner assigned', body: `${v.riderName} will deliver your order #${v.orderNo}.` }),
+    rider_accepted: (v) => ({ title: 'Rider accepted', body: `${v.riderName} accepted order #${v.orderNo}.` }),
+    rider_rejected: (v) => ({ title: 'Rider said no', body: `${v.riderName} rejected order #${v.orderNo ?? ''}.` }),
+    rider_none: (v) => ({ title: 'No rider available', body: `Order #${v.orderNo} needs a rider. Please assign one by hand.` }),
+    rider_removed: (v) => ({ title: 'Order taken back', body: `Order #${v.orderNo} was given to someone else.` }),
+    rider_problem: (v) => ({
+        title: 'Delivery problem',
+        body: `${v.riderName} ${PROBLEM[v.reason] || 'reported a problem'} (order #${v.orderNo}).${v.note ? ` Note: ${v.note}` : ''}`,
+    }),
+    delivery_low_rating: (v) => ({
+        title: 'Low delivery rating',
+        body: `Order #${v.orderNo}: ${v.rating} star(s) for ${v.riderName}.${v.comment ? ` "${String(v.comment).slice(0, 100)}"` : ''}`,
+    }),
+};
+
+// returns { title, body }, or null if this event has no built-in text
+const build = (eventKey, vars = {}) => (TEXTS[eventKey] ? TEXTS[eventKey](vars) : null);
+
+module.exports = { build, TEXTS };

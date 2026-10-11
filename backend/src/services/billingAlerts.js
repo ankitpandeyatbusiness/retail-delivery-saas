@@ -37,6 +37,7 @@ async function billIssued(now) {
         if (!claimed.modifiedCount) continue;
         notify.toOwner(inv.tenantId, {
             type: 'bill_issued', title: 'New bill',
+            vars: { invoiceNo: inv.invoiceNo, amount: String(inv.total), date: day(inv.graceEndsAt || inv.dueDate) },
             body: `Invoice ${inv.invoiceNo}: ${rs(inv.total)}. Please pay by ${day(inv.graceEndsAt || inv.dueDate)} to keep taking orders.`,
             data: { invoiceId: String(inv._id), prompt: 'bill' },
         });

@@ -15,6 +15,7 @@ const { resolveConfig, openStatus } = require('./tenantConfigService');
 const { nextStatuses, customerCanCancel } = require('./orderflow'); // lowercase: matches the real file name
 const { serviceability } = require('../utils/geo');
 const orderStatus = require('./orderStatusService');
+const { hashPhone } = require('../utils/phoneHash');
 const notify = require('./notificationService');
 
 const MAX_LINES = 30;
@@ -96,7 +97,7 @@ async function validateCoupon({ tenant, config, userId, code, subtotal }) {
 
     // EXPLOIT FIX: Check by Phone Number, not just User ID
     const user = await User.findById(userId).select('phone').lean();
-    const identityFilter = user ? { 'customer.phone': user.phone } : { userId };
+    const identityFilter = user ? { 'customer.phoneHash': hashPhone(tenant._id, user.phone) } : { userId };
 
     if (c.firstOrderOnly) {
         // If they ever placed a non-cancelled order with this phone number, block it.
@@ -386,7 +387,7 @@ async function placeOrder({ tenant, userId, body, idempotencyKey }) {
                 fssai: tenant.business?.fssai,
             },
             payment: { method: body.paymentMethod, status: 'pending' },
-            customer: { name: user?.name, phone: user?.phone },
+            customer: { name: user?.name, phone: user?.phone, phoneHash: user?.phone ? hashPhone(tenant._id, user.phone) : undefined },
             address: address ? {
                 label: address.label,
                 name: address.name || user?.name,
@@ -407,7 +408,7 @@ async function placeOrder({ tenant, userId, body, idempotencyKey }) {
         // by two parallel requests, because neither order existed yet when both checked.
         if (priced.coupon) {
             const c = await Coupon.findById(priced.coupon._id).select('firstOrderOnly usageLimitPerUser').lean();
-            const who = user?.phone ? { 'customer.phone': user.phone } : { userId };
+            const who = user?.phone ? { 'customer.phoneHash': hashPhone(tenant._id, user.phone) } : { userId };
             let lost = false;
 
             if (c?.firstOrderOnly) {
