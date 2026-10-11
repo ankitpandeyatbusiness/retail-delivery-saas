@@ -50,6 +50,13 @@ const platformSchema = new mongoose.Schema({
         minTopupPaise: { type: Number, default: 10000, min: 100 },
         maxTopupPaise: { type: Number, default: 1000000, min: 100 },
     },
+    // Alerts to the superadmin. smsToAdmin is YOUR global switch for alert SMS to your phone.
+    alerts: {
+        smsToAdmin: { type: Boolean, default: false },
+        allEvents: { type: Boolean, default: false },   // false = SMS only for critical alerts
+        phone: { type: String, trim: true, match: [/^[6-9]\d{9}$/, 'Enter a valid 10-digit mobile number'] },
+        rrCursor: { type: mongoose.Schema.Types.ObjectId },   // the shop that paid the last alert SMS (round robin)
+    },
 }, { timestamps: true });
 
 module.exports = mongoose.model('PlatformSettings', platformSchema);

@@ -100,6 +100,7 @@ admin.use(require('./adminSubscriptionRouter'));
 admin.use(require('./adminAuditRouter'));
 admin.use(require('./adminSmsRouter'));
 admin.use(require('./adminNotifyRouter'));
+admin.use(require('./adminAlertsRouter'));
 
 // any change to a shop's data refreshes that shop's cached counts
 admin.use('/tenants/:tid', (req, res, next) => {

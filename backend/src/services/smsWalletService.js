@@ -186,5 +186,5 @@ async function logSms({ tenantId, phone, purpose, debit, status, providerMessage
 
 module.exports = {
     DEFAULTS, refreshPlatform, shouldCharge, getWallet, status, debitForSms, refund, credit, manualDebit,
-    reconcileWallet, logSms, mask,
+    reconcileWallet, logSms, mask, loadPlatform,
 };

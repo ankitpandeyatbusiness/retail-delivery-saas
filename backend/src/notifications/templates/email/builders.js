@@ -25,7 +25,7 @@ function rentInvoice(v) {
             i.seller?.paymentInstructions ? `How to pay: ${i.seller.paymentInstructions}` : '',
         ],
         rows: [
-            ['Invoice no', i.invoiceNo], ['Billing month', month], ['Delivered orders', i.orderCount], ['Plan', i.tierLabel],
+            ['Invoice no', i.invoiceNo], ['Billing month', month], ['Billable orders', i.orderCount], ['Plan', i.tierLabel],
             ['Amount to pay', rs(i.total)], ['Due date', day(i.dueDate)], ['Keep taking orders until', day(i.graceEndsAt)],
         ],
         button: panelButton(v, 'Open billing'),

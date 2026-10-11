@@ -14,6 +14,8 @@ const SubscriptionInvoice = require('../models/SubscriptionInvoice');
 const PlatformSettings = require('../models/PlatformSettings');
 const Counter = require('../models/Counter');
 const { freeStatus, resolveFee } = require('../utils/billingRules');
+const billable = require('./billableService');
+const adminAlerts = require('./adminAlerts');
 
 const IST_OFFSET_MS = 330 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -84,7 +86,10 @@ async function syncFreeState(tenant, platform, now = new Date()) {
     if (Object.keys(unset).length) update.$unset = unset;
     if (!Object.keys(update).length) return want;
 
-    await Tenant.updateOne({ _id: tenant._id, 'billing.state': { $nin: ['grace', 'paused'] } }, update);
+    const r = await Tenant.updateOne({ _id: tenant._id, 'billing.state': { $nin: ['grace', 'paused'] } }, update);
+    if (r.modifiedCount && set['billing.freeEndedAt']) {   // free service just ended: tell the superadmin, once
+        adminAlerts.alert('admin_free_ended', { tenantId: tenant._id }).catch(() => {});
+    }
     return want;
 }
 
@@ -110,10 +115,7 @@ async function buildInvoice(tenant, period, platform, now = new Date()) {
     const b = platform?.business || {};
     if (!b.legalName) return skip('business_details_missing');                  // fill PUT /api/admin/platform/business first
 
-    const orderCount = await Order.countDocuments({
-        tenantId: tenant._id, status: 'delivered',
-        deliveredAt: { $gte: periodStart(period), $lt: periodStart(nextPeriod(period)) },
-    });
+    const orderCount = await billable.countInPeriod(tenant._id, period);   // orders that earned money, by the month they became billable
     const { fee, label } = resolveFee(tenant, platform, orderCount);
     if (!(fee > 0)) return skip('no_fee');
 
@@ -144,7 +146,7 @@ async function buildInvoice(tenant, period, platform, now = new Date()) {
             graceEndsAt,
             description: `App subscription for ${monthLabel(period)}`,
             lineItems: [{
-                description: `App subscription - ${monthLabel(period)} - ${orderCount} delivered orders (${label})`,
+                description: `App subscription - ${monthLabel(period)} - ${orderCount} orders (${label})`,
                 qty: 1, rate: fee, amount: fee,
             }],
             orderCount,

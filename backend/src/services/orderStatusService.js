@@ -22,6 +22,7 @@ const CodSettlement = require('../models/CodSettlement');
 const { nextStatuses, customerCanCancel, ACTIVE_STATUSES } = require('./orderflow');
 const { httpError } = require('../middlewares/apiErrors');
 const notify = require('./notificationService');
+const billable = require('./billableService');
 
 const CANCELLED_BY = { customer: 'customer', owner: 'shop', superadmin: 'admin', system: 'system' };
 const ACTOR_TYPES = ['customer', 'owner', 'rider', 'superadmin', 'system'];
@@ -144,7 +145,7 @@ async function change({ order, status, actor, note, tenant }) {
 
     if (status === 'delivered') {
         // Billing counter first: delivered orders only. It never goes down.
-        await Tenant.updateOne({ _id: updated.tenantId }, { $inc: { 'billing.deliveredCount': 1 } });
+        await billable.markDelivered(updated).catch((e) => console.error('Billable count error:', e.message));
 
         // Bestseller count: skip orders bought by shop owners. A failure here must not hurt the order.
         try {

@@ -10,6 +10,8 @@
 //   3. Else, a push to his phones (events with alsoPush send the push even when he is online).
 //   4. Else, only for key events and only if allowed -> SMS from the shop wallet.
 //   5. Events with escalateSmsAfterSec also get an SMS later if he never reads the message (jobs/notificationEscalation).
+//   6. Events with email get a mail in the queue.
+//   7. Events with adminAlert also alert the superadmin (before the owner's own rule is checked).
 // It never throws: a notification problem can never break an order.
 const Notification = require('../models/Notification');
 const rules = require('./rules');
@@ -19,6 +21,7 @@ const inapp = require('./channels/inapp');
 const pushChannel = require('./channels/push');
 const smsChannel = require('./channels/sms');
 const emailChannel = require('./channels/email');
+const adminAlerts = require('../services/adminAlerts');
 
 const isKey = (def, ctx) => (typeof def.key === 'function' ? !!def.key(ctx) : !!def.key);
 // riders never get an SMS, whatever the rules say
@@ -67,6 +70,11 @@ async function notify(eventKey, ctx = {}) {
         if (!tenantId && !toAdmin) return null;
 
         const def = await rules.get(eventKey, tenantId);
+
+        // the platform owner also hears about the big owner-side events, whatever the owner's own rule says
+        if (def.adminAlert && tenantId && !ctx.userId && !toAdmin) {
+            await adminAlerts.alert(def.adminAlert, { tenantId, vars: ctx.vars, data: ctx.data });
+        }
         if (def.enabled === false) return null;   // switched off by a rule
 
         const vars = ctx.vars || {};
@@ -84,7 +92,7 @@ async function notify(eventKey, ctx = {}) {
             data: ctx.data,
             escalateAt: escalate ? new Date(Date.now() + def.escalateSmsAfterSec * 1000) : undefined,
         });
-        if (toAdmin) return doc;   // platform inbox only for now (the admin alerts come in the next part)
+        if (toAdmin) return doc;   // platform inbox only (admin alerts go through services/adminAlerts.js)
 
         await deliver(eventKey, def, { ...ctx, vars }, doc);
         if (def.email) await emailChannel.queue({ eventKey, def, ctx: { ...ctx, vars } });   // a mail, whatever happened above

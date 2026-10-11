@@ -117,6 +117,8 @@ const orderSchema = new Schema({
     stuck: { stage: String, ownerAt: Date, adminAt: Date },   // late-order alerts already sent (internal)
     cancelReason: String,
     cancelledBy: { type: String, enum: ['customer', 'shop', 'admin', 'system'] },
+    // billable = this order EARNED MONEY for the shop, so it counts for the free period and the monthly rent. Set once, by billableService.
+    billing: { billable: Boolean, at: Date, reason: String },
     deliveredAt: Date,
     ratedAt: Date,
 }, { timestamps: true });
@@ -125,7 +127,8 @@ orderSchema.index({ tenantId: 1, orderNo: 1 }, { unique: true });
 orderSchema.index({ tenantId: 1, userId: 1, createdAt: -1 });
 orderSchema.index({ tenantId: 1, status: 1, createdAt: -1 });
 orderSchema.index({ status: 1, createdAt: -1 });   // late-order watcher
-orderSchema.index({ tenantId: 1, status: 1, deliveredAt: 1 });   // monthly billing count
+orderSchema.index({ tenantId: 1, status: 1, deliveredAt: 1 });   // reports
+orderSchema.index({ tenantId: 1, 'billing.at': 1 }, { partialFilterExpression: { 'billing.billable': true } });   // monthly billing count
 orderSchema.index({ tenantId: 1, 'delivery.riderId': 1, status: 1 });   // a rider's orders
 orderSchema.index({ 'delivery.offerExpiresAt': 1 }, { partialFilterExpression: { 'delivery.status': 'assigned' } });   // offer timeout job
 orderSchema.index({ createdAt: 1 }, { partialFilterExpression: { status: 'placed' } });   // auto-cancel job

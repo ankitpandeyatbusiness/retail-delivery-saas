@@ -62,10 +62,12 @@ function freeStatus(tenant, platform, now = new Date()) {
     const pb = platform?.billing || {};
     const freeOrders = b.freeOrdersOverride ?? pb.freeOrders ?? 100;
     const freeMonths = b.freeMonthsOverride ?? pb.freeMonths ?? 2;
+    // Before "Go live" the shop is free, with no time limit: its test orders cost nothing and nothing is billed
+    if (!b.isLive) return { free: true, freeOrders, freeMonths, endsAt: null, ordersLeft: freeOrders, live: false };
     const start = new Date(b.goLiveAt || tenant?.createdAt || now);
     const endsAt = new Date(start);
     endsAt.setUTCMonth(endsAt.getUTCMonth() + freeMonths);
-    const delivered = b.deliveredCount || 0;
+    const delivered = b.billableCount || 0;   // orders that earned money for the shop (see billableService)
     return {
         free: delivered < freeOrders && now < endsAt,
         freeOrders,

@@ -104,7 +104,7 @@ async function paymentsReceived(now) {
 
 async function freeEnding(now) {
     const platform = await PlatformSettings.findById('main').lean();
-    const shops = await Tenant.find({ 'billing.state': 'free' }).select('createdAt billing').lean();
+    const shops = await Tenant.find({ 'billing.state': 'free', 'billing.isLive': true }).select('createdAt billing').lean();
     for (const t of shops) {
         const f = freeStatus(t, platform, now);
         if (!f.free) continue;
@@ -128,7 +128,10 @@ async function freeEnding(now) {
 async function smsBalances(now) {
     if (!wallet.shouldCharge()) return;   // mock SMS does not use the wallet
     // only wallets under Rs 1000 can be low; the exact check is done by wallet.status()
-    const rows = await SmsWallet.find({ balancePaise: { $lt: 100000 } }).select('tenantId').lean();
+    // B10: a shop that is not live yet gets no balance alerts
+    const live = new Set((await Tenant.find({ 'billing.isLive': true }).select('_id').lean()).map((t) => String(t._id)));
+    const rows = (await SmsWallet.find({ balancePaise: { $lt: 100000 } }).select('tenantId').lean())
+        .filter((w) => live.has(String(w.tenantId)));
     for (const w of rows) {
         const s = await wallet.status(w.tenantId);
         const type = s.zero ? 'sms_zero' : s.low ? 'sms_low' : null;

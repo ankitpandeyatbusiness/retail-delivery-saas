@@ -24,6 +24,7 @@ const {
     periodOf, nextPeriod, financialYear, firstBillablePeriod, syncFreeState, PERIOD_RE, withOverdue,
 } = require('../services/subscriptionService');
 const { enforceTenant } = require('../services/billingEnforcement');
+const billable = require('../services/billableService');
 const { invalidateTenant } = require('../middlewares/tenantRecognizer');
 const loadTenant = require('../middlewares/loadTenant');
 const { wrap, httpError } = require('../middlewares/apiErrors');
@@ -120,10 +121,7 @@ router.get('/tenants/:tid/billing/preview', loadTenant, wrap(async (req, res) =>
         Tenant.findById(req.tenantDoc._id).select('createdAt billing subscription').lean(),
         PlatformSettings.findById('main').lean(),
     ]);
-    const orderCount = await Order.countDocuments({
-        tenantId: tenant._id, status: 'delivered',
-        deliveredAt: { $gte: monthStart(period), $lt: monthStart(nextPeriod(period)) },
-    });
+    const orderCount = await billable.countInPeriod(tenant._id, period);
     const { fee, label } = resolveFee(tenant, platform, orderCount);
     const gstPercent = platform?.business?.gstin ? (tenant.subscription?.gstPercent ?? 18) : 0;
     const gstAmount = round2((fee * gstPercent) / 100);
@@ -258,6 +256,33 @@ router.patch('/subscriptions/invoices/:id/extend-grace', wrap(async (req, res) =
     ).lean();
     await enforceTenant(inv.tenantId);
     res.json(withOverdue(inv));
+}));
+
+/* ------------------------------ go live ------------------------------ */
+// POST /api/admin/tenants/:tid/billing/go-live   { force?: true }
+// The shop opens for real business: the free period (orders and months) starts NOW and the counter starts at 0.
+// Before this a shop is free and nothing is counted. A shop that is already live is refused unless force is true.
+router.post('/tenants/:tid/billing/go-live', loadTenant, wrap(async (req, res) => {
+    if (req.body?.force !== undefined && typeof req.body.force !== 'boolean') throw httpError(400, 'force must be true or false');
+    const force = req.body?.force === true;
+    const id = req.tenantDoc._id;
+    req.auditBefore = { billing: (await Tenant.findById(id).select('billing').lean())?.billing };
+
+    const r = await Tenant.updateOne(
+        { _id: id, ...(!force && { 'billing.isLive': { $ne: true } }) },
+        {
+            $set: {
+                'billing.goLiveAt': new Date(), 'billing.billableCount': 0, 'billing.isLive': true, 'billing.state': 'free',
+            },
+            $unset: { 'billing.freeEndedAt': 1, 'billing.graceEndsAt': 1 },
+        },
+    );
+    if (!r.matchedCount) throw httpError(409, 'This shop is already live. Send force: true to start its free period again.');
+
+    await enforceTenant(id);   // keeps an unpaid bill in force, otherwise sets the free state right
+    invalidateTenant(req.tenantDoc.slug);
+    const after = await Tenant.findById(id).select('billing').lean();
+    res.json({ ok: true, billing: after.billing });
 }));
 
 /* ------------------------------ unpause ------------------------------ */

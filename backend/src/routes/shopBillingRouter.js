@@ -11,6 +11,7 @@ const { resolveFee, freeStatus } = require('../utils/billingRules');
 const { periodOf, nextPeriod, firstBillablePeriod } = require('../services/subscriptionService');
 const { wrap, httpError } = require('../middlewares/apiErrors');
 const prompts = require('../services/billingPromptService');
+const billable = require('../services/billableService');
 
 const router = express.Router();
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -24,10 +25,7 @@ router.get('/status', wrap(async (req, res) => {
     ]);
     const free = freeStatus(t, platform, now);
     const period = periodOf(now);
-    const orders = await Order.countDocuments({
-        tenantId: t._id, status: 'delivered',
-        deliveredAt: { $gte: monthStart(period), $lt: monthStart(nextPeriod(period)) },
-    });
+    const orders = await billable.countInPeriod(t._id, period);   // orders that earned money this month
     const tier = resolveFee(t, platform, orders);
 
     const [owed] = await SubscriptionInvoice.aggregate([
@@ -47,7 +45,7 @@ router.get('/status', wrap(async (req, res) => {
         graceDaysLeft: graceEndsAt ? Math.max(0, Math.ceil((new Date(graceEndsAt) - now) / DAY_MS)) : null,
         due: { amount: owed?.amount || 0, count: owed?.count || 0 },
         free: { active: free.free, ordersLeft: free.ordersLeft, freeOrders: free.freeOrders, endsAt: free.endsAt },
-        thisMonth: { period, deliveredOrders: orders, tierLabel: tier.label, fee: tier.fee },
+        thisMonth: { period, billableOrders: orders, deliveredOrders: orders, tierLabel: tier.label, fee: tier.fee },
         nextBill: billed
             ? { forPeriod: period, deliveredOrders: orders, fee: tier.fee, tierLabel: tier.label, billedOn: monthStart(nextPeriod(period)), note: 'GST is added if it applies' }
             : null,

@@ -65,4 +65,37 @@ router.put('/platform/billing', wrap(async (req, res) => {
     res.json(doc.toObject().billing);
 }));
 
+// Your alert SMS switch.  PUT /api/admin/platform/alerts  { smsToAdmin, allEvents, phone }
+router.put('/platform/alerts', wrap(async (req, res) => {
+    const b = req.body || {};
+    const set = {};
+    const unset = {};
+    for (const k of ['smsToAdmin', 'allEvents']) {
+        if (b[k] === undefined) continue;
+        if (typeof b[k] !== 'boolean') throw httpError(400, `${k} must be true or false`);
+        set[`alerts.${k}`] = b[k];
+    }
+    if (b.phone !== undefined) {
+        const phone = typeof b.phone === 'string' ? b.phone.trim() : '';
+        if (phone && !/^[6-9]\d{9}$/.test(phone)) throw httpError(400, 'Enter a valid 10-digit mobile number');
+        if (phone) set['alerts.phone'] = phone; else unset['alerts.phone'] = 1;
+    }
+    if (!Object.keys(set).length && !Object.keys(unset).length) throw httpError(400, 'Send smsToAdmin, allEvents or phone');
+
+    const cur = (await PlatformSettings.findById('main').select('alerts').lean())?.alerts || {};
+    req.auditBefore = { alerts: { smsToAdmin: cur.smsToAdmin, allEvents: cur.allEvents, phone: cur.phone } };
+    const phoneAfter = unset['alerts.phone'] ? undefined : (set['alerts.phone'] ?? cur.phone);
+    const smsAfter = set['alerts.smsToAdmin'] ?? cur.smsToAdmin;
+    if (smsAfter && !phoneAfter) throw httpError(400, 'Set your phone number first');
+
+    const update = {};
+    if (Object.keys(set).length) update.$set = set;
+    if (Object.keys(unset).length) update.$unset = unset;
+    const doc = await PlatformSettings.findByIdAndUpdate(
+        'main', update, { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
+    ).lean();
+    const a = doc.alerts || {};
+    res.json({ alerts: { smsToAdmin: !!a.smsToAdmin, allEvents: !!a.allEvents, phone: a.phone || null } });
+}));
+
 module.exports = router;

@@ -90,7 +90,10 @@ const tenantSchema = new mongoose.Schema({
     // Rent engine. null means "use the platform value". Only billing code and the superadmin billing routes write this.
     billing: {
         goLiveAt: Date,                                         // empty = the shop's createdAt
-        deliveredCount: { type: Number, default: 0, min: 0 },   // only goes up, never down
+        deliveredCount: { type: Number, default: 0, min: 0 },   // DEPRECATED: replaced by billableCount (kept so no old data is lost)
+        billableCount: { type: Number, default: 0, min: 0 },    // orders that earned money for the shop since go-live. Only goes up.
+        isLive: { type: Boolean, default: false },              // set by the Go live button. Before that the shop is free and nothing is counted.
+        inactiveAlertedAt: Date,                                // "no order for 14 days" was told to the superadmin at this time
         freeOrdersOverride: { type: Number, min: 0, default: null },
         freeMonthsOverride: { type: Number, min: 0, default: null },
         tiersOverride: {
