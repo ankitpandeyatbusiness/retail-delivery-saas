@@ -18,6 +18,7 @@ const texts = require('./templates/texts');
 const inapp = require('./channels/inapp');
 const pushChannel = require('./channels/push');
 const smsChannel = require('./channels/sms');
+const emailChannel = require('./channels/email');
 
 const isKey = (def, ctx) => (typeof def.key === 'function' ? !!def.key(ctx) : !!def.key);
 // riders never get an SMS, whatever the rules say
@@ -86,6 +87,7 @@ async function notify(eventKey, ctx = {}) {
         if (toAdmin) return doc;   // platform inbox only for now (the admin alerts come in the next part)
 
         await deliver(eventKey, def, { ...ctx, vars }, doc);
+        if (def.email) await emailChannel.queue({ eventKey, def, ctx: { ...ctx, vars } });   // a mail, whatever happened above
         return doc;
     } catch (e) {
         console.error(`Notification (${eventKey}) error:`, e.message);

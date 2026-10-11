@@ -146,4 +146,23 @@ function streamSubscriptionInvoice(res, inv, { inline = false } = {}) {
     doc.end();
 }
 
-module.exports = { streamSubscriptionInvoice };
+// The same PDF as a Buffer, for an email attachment
+function renderToBuffer(inv) {
+    return new Promise((resolve, reject) => {
+        const doc = new PDFDocument({
+            size: 'A4',
+            margin: 40,
+            info: { Title: `Invoice ${inv.invoiceNo}`, Author: inv.seller?.legalName || 'Platform' },
+        });
+        const chunks = [];
+        doc.on('data', (c) => chunks.push(c));
+        doc.on('end', () => resolve(Buffer.concat(chunks)));
+        doc.on('error', reject);
+        render(doc, inv);
+        doc.end();
+    });
+}
+
+const pdfFileName = (inv) => `Invoice-${safeName(inv.invoiceNo)}.pdf`;
+
+module.exports = { streamSubscriptionInvoice, renderToBuffer, pdfFileName };

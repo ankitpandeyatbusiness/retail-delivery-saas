@@ -46,7 +46,7 @@ const pickFields = (fields, body) =>
 
 const SLUG_RE = /^[a-z0-9-]{3,40}$/;
 const RESERVED_SLUGS = ['admin', 'api', 'www'];
-const TENANT_FIELDS = ['name', 'tagline', 'logo', 'colors', 'heroImages', 'status', 'androidPackage', 'phone', 'address', 'delivery', 'business', 'subscription'];
+const TENANT_FIELDS = ['name', 'tagline', 'logo', 'colors', 'heroImages', 'status', 'androidPackage', 'phone', 'address', 'delivery', 'business', 'subscription', 'contact'];
 
 /* ------------------------------ login (public) ------------------------------ */
 // Simple in-memory brake: 5 wrong tries per IP per 15 minutes.

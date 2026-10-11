@@ -6,6 +6,7 @@
 //   alsoPush             send the push even when he is online
 //   escalateSmsAfterSec  send the SMS if he still has not read it after this many seconds
 //   key                  true (or a function of the message) = important enough for a paid SMS
+//   email                a mail from templates/email (queued whatever happened with the channels above)
 const INAPP_PUSH = ['inapp', 'push'];
 const ALL = ['inapp', 'push', 'sms'];
 const KEY_CUSTOMER_STATUSES = ['accepted', 'out_for_delivery', 'delivered', 'cancelled'];
@@ -21,11 +22,12 @@ const EVENTS = {
     rider_none: { to: 'owner', channels: INAPP_PUSH },
     rider_problem: { to: 'owner', channels: INAPP_PUSH },
     delivery_low_rating: { to: 'owner', channels: INAPP_PUSH },
-    bill_issued: { to: 'owner', channels: ALL, key: true },
-    bill_reminder: { to: 'owner', channels: INAPP_PUSH },
-    shop_paused: { to: 'owner', channels: ALL, key: true },
-    payment_received: { to: 'owner', channels: INAPP_PUSH },
-    free_ending: { to: 'owner', channels: INAPP_PUSH },
+    bill_issued: { to: 'owner', channels: ALL, key: true, email: 'rent_invoice' },
+    bill_reminder: { to: 'owner', channels: INAPP_PUSH, email: 'bill_reminder' },
+    shop_paused: { to: 'owner', channels: ALL, key: true, email: 'shop_paused' },
+    payment_received: { to: 'owner', channels: INAPP_PUSH, email: 'payment_receipt' },
+    free_ending: { to: 'owner', channels: INAPP_PUSH, email: 'free_ending' },
+    sms_topup_done: { to: 'owner', channels: INAPP_PUSH, email: 'sms_topup_receipt' },
     sms_low: { to: 'owner', channels: INAPP_PUSH },      // the platform pays for an SMS here (comes with the admin alerts)
     sms_zero: { to: 'owner', channels: INAPP_PUSH },
     platform_message: { to: 'owner', channels: INAPP_PUSH },

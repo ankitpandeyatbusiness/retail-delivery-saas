@@ -66,6 +66,14 @@ const tenantSchema = new mongoose.Schema({
         },
     },
 
+    // Bills and money mails go here. Empty = to the emails of the shop owners.
+    contact: {
+        billingEmail: {
+            type: String, trim: true, lowercase: true, maxlength: 120,
+            match: [/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/, 'Enter a valid email address'],
+        },
+    },
+
     ownerBlocked: { type: Boolean, default: false },
     ownerBlockedReason: { type: String, trim: true, maxlength: 200 },   // private note, never sent to the app
     maintenance: {

@@ -3,6 +3,7 @@ const SmsTopup = require('../models/SmsTopup');
 const PlatformSettings = require('../models/PlatformSettings');
 const payments = require('./adapters/payments');
 const wallet = require('./smsWalletService');
+const notify = require('./notificationService');
 
 const MAX_PENDING = 5;
 const bad = (status, message) => Object.assign(new Error(message), { status });
@@ -59,6 +60,13 @@ async function complete({ topupId, tenantId, paymentId, actor }) {
         { _id: t._id, status: { $ne: 'paid' } },
         { $set: { status: 'paid', paidAt: new Date(), paymentId: paymentId || undefined, paidBy: actor } },
     );
+    if (!r.duplicate) {   // tell the owner once: in the app, and a receipt by email
+        notify.toOwner(t.tenantId, {
+            type: 'sms_topup_done', title: 'SMS balance added',
+            body: `Rs ${(t.amountPaise / 100).toFixed(2)} added to your SMS balance.`,
+            data: { topupId: String(t._id), amountPaise: t.amountPaise, balanceAfter: r.balanceAfter },
+        });
+    }
     return r;
 }
 

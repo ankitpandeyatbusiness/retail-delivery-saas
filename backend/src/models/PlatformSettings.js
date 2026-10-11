@@ -22,6 +22,9 @@ const platformSchema = new mongoose.Schema({
             validate: { validator: (v) => !v || GSTIN_RE.test(v), message: 'GST number must be 15 characters, like 22AAAAA0000A1Z5' },
         },
         email: { type: String, trim: true, lowercase: true, maxlength: 120 },
+        appName: { type: String, trim: true, maxlength: 60 },                       // shown in the mail header when there is no logo
+        brandColor: { type: String, trim: true, match: [/^#[0-9a-fA-F]{6}$/, 'Colour must look like #1D4ED8'] },
+        logoUrl: { type: String, trim: true, maxlength: 300, match: [/^https:\/\/\S+$/, 'The logo link must start with https://'] },
         phone: { type: String, trim: true, maxlength: 20 },
         sacCode: { type: String, trim: true, maxlength: 10 },            // ask your CA which SAC code applies to your service
         paymentInstructions: { type: String, trim: true, maxlength: 500 }, // e.g. UPI id or bank details, printed on pending invoices

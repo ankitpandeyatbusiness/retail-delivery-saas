@@ -119,6 +119,7 @@ async function freeEnding(now) {
         if (timeNear) parts.push(`${Math.max(1, Math.ceil(daysLeft))} day(s) left`);
         notify.toOwner(t._id, {
             type: 'free_ending', title: 'Free service is ending soon',
+            vars: { summary: parts.join(' and ') },
             body: `${parts.join(' and ')}. After that a monthly rent applies.`,
         });
     }
