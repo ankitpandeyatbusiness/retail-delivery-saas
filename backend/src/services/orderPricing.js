@@ -1,0 +1,188 @@
+// Prices a cart on the server. The app only sends WHAT the customer picked
+// (product ids, quantities, option ids, coupon code, tip). Every price is worked out here.
+const mongoose = require('mongoose');
+const Product = require('../models/Product');
+const Category = require('../models/Category');
+const Coupon = require('../models/Coupon');
+const Order = require('../models/Order');
+const User = require('../models/User');
+const { priceSelection } = require('./optionGroups');
+const { foodModeFilter, activeNow } = require('./catalogQuery');
+const { hashPhone } = require('../utils/phoneHash');
+const { httpError } = require('../middlewares/apiErrors');
+
+const MAX_LINES = 30;
+const MAX_QTY = 20;
+const MAX_TIP = 500;
+const ORDER_TYPES = ['delivery', 'pickup', 'dine_in'];
+
+const isId = (v) => typeof v === 'string' && mongoose.isValidObjectId(v);
+const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
+
+/* ------------------------------ 1. cart -> priced lines ------------------------------ */
+async function buildLines(tenant, config, rawItems) {
+    if (!Array.isArray(rawItems) || rawItems.length < 1 || rawItems.length > MAX_LINES) {
+        throw httpError(400, `Your cart needs 1 to ${MAX_LINES} items`);
+    }
+    for (const it of rawItems) {
+        if (!it || !isId(it.productId)) throw httpError(400, 'Invalid item in cart');
+        if (!Number.isInteger(it.quantity) || it.quantity < 1 || it.quantity > MAX_QTY) {
+            throw httpError(400, `Quantity must be between 1 and ${MAX_QTY}`);
+        }
+    }
+
+    // Same visibility rules as the menu: active item, active category, allowed by the shop's food mode
+    const activeCategoryIds = await Category.find({ tenantId: tenant._id, isActive: true }).distinct('_id');
+    const products = await Product.find({
+        _id: { $in: rawItems.map((i) => i.productId) },
+        tenantId: tenant._id,
+        isActive: true,
+        categoryId: { $in: activeCategoryIds },
+        ...foodModeFilter(config.home.foodMode),
+    }).lean();
+    const byId = new Map(products.map((p) => [String(p._id), p]));
+
+    // GST: an item's own rate wins, otherwise the shop's rate. The mode comes from the shop settings.
+    const gstMode = config.orders.gst?.mode || 'none';
+    const shopGst = config.orders.gst?.percent || 0;
+
+    const notesOn = config.features.specialInstructions;
+    let subtotal = 0;
+    let prepMin = 0;
+    const lines = rawItems.map((it) => {
+        const p = byId.get(it.productId);
+        if (!p) throw httpError(400, 'An item in your cart is no longer available');
+        if (p.isAvailable === false) throw httpError(409, `"${p.name}" is out of stock`);
+
+        const { unitPrice, chosen } = priceSelection(p, it.selections ?? []);   // validates min/max and gives the real price
+        const lineTotal = round2(unitPrice * it.quantity);
+        subtotal += lineTotal;
+        prepMin = Math.max(prepMin, p.prepTimeMin || 0);
+
+        return {
+            productId: p._id,
+            name: p.name,
+            image: p.image,
+            isVeg: p.isVeg,
+            quantity: it.quantity,
+            unitPrice: round2(unitPrice),
+            lineTotal,
+            gstRate: gstMode === 'none' ? 0 : (p.gstRate ?? shopGst),
+            selections: chosen,
+            note: notesOn && typeof it.note === 'string' && it.note.trim() ? it.note.trim().slice(0, 200) : undefined,
+        };
+    });
+    return { lines, subtotal: round2(subtotal), prepMin };
+}
+
+/* ------------------------------ 2. coupon ------------------------------ */
+async function validateCoupon({ tenant, config, userId, code, subtotal }) {
+    if (!config.offers.couponsEnabled) throw httpError(400, 'Coupons are not available at this shop');
+
+    const clean = String(code).trim().toUpperCase().slice(0, 30);
+    const c = await Coupon.findOne({ tenantId: tenant._id, code: clean, ...activeNow() }).lean();
+    if (!c) throw httpError(400, 'Invalid or expired coupon');
+    if (c.totalUsageLimit != null && c.usedCount >= c.totalUsageLimit) throw httpError(400, 'This coupon has been fully used');
+    if (subtotal < (c.minOrder || 0)) throw httpError(400, `Add ₹${round2(c.minOrder - subtotal)} more to use ${c.code}`);
+
+    // Check by phone hash (not just the user id): deleting the account and registering again must not give a second first-order coupon
+    const user = await User.findById(userId).select('phone').lean();
+    const identityFilter = user ? { 'customer.phoneHash': hashPhone(tenant._id, user.phone) } : { userId };
+
+    if (c.firstOrderOnly) {
+        // If they ever placed a non-cancelled order with this phone number, block it.
+        const hasOrders = await Order.exists({ tenantId: tenant._id, ...identityFilter, status: { $ne: 'cancelled' } });
+        if (hasOrders) throw httpError(400, 'This coupon is only for your first order');
+    }
+    if (c.usageLimitPerUser) {
+        // Count all past uses attached to this phone number
+        const used = await Order.countDocuments({ tenantId: tenant._id, ...identityFilter, couponId: c._id, status: { $ne: 'cancelled' } });
+        if (used >= c.usageLimitPerUser) throw httpError(400, 'You have already used this coupon');
+    }
+
+    let discount = c.discountType === 'percent' ? (subtotal * c.discountValue) / 100 : c.discountValue;
+    if (c.discountType === 'percent' && c.maxDiscount) discount = Math.min(discount, c.maxDiscount);
+    return { _id: c._id, code: c.code, discount: round2(Math.min(discount, subtotal)) };
+}
+
+// Atomic: two people can never take the last use of a limited coupon
+const reserveCoupon = (couponId, tenantId) => Coupon.findOneAndUpdate(
+    {
+        _id: couponId,
+        tenantId,
+        isActive: true,
+        $expr: { $or: [{ $eq: [{ $ifNull: ['$totalUsageLimit', null] }, null] }, { $lt: ['$usedCount', '$totalUsageLimit'] }] },
+    },
+    { $inc: { usedCount: 1 } },
+    { new: true },
+);
+const releaseCoupon = (couponId) =>
+    couponId ? Coupon.updateOne({ _id: couponId, usedCount: { $gt: 0 } }, { $inc: { usedCount: -1 } }) : null;
+
+/* ------------------------------ 3. totals ------------------------------ */
+// Works out GST for each line, after sharing the coupon discount across the lines.
+// Writes the result into each line (line.tax) and returns the order's total GST.
+function applyTax(lines, { mode, discount, subtotal }) {
+    let left = discount;
+    lines.forEach((l, i) => {
+        const share = i === lines.length - 1 ? left : round2(subtotal ? (discount * l.lineTotal) / subtotal : 0);
+        left = round2(left - share);
+        const taxable = Math.max(l.lineTotal - share, 0);
+        const r = l.gstRate || 0;
+        let t = 0;
+        if (mode === 'exclusive') t = (taxable * r) / 100;
+        else if (mode === 'inclusive') t = (taxable * r) / (100 + r);
+        l.tax = round2(t);
+    });
+    return round2(lines.reduce((s, l) => s + l.tax, 0));
+}
+
+// Delivery and packaging are not taxed here: if your CA says they must be, add them in applyTax.
+function computeTotals(orders, { orderType, subtotal, discount, tip, tax }) {
+    let deliveryFee = 0;
+    if (orderType === 'delivery') {
+        const f = orders.deliveryFee || {};
+        if (f.type === 'flat') deliveryFee = f.amount || 0;
+        else if (f.type === 'free_above') deliveryFee = subtotal >= (f.freeAbove || 0) ? 0 : (f.amount || 0);
+    }
+    const packagingCharge = orderType === 'dine_in' ? 0 : (orders.packagingCharge || 0);
+    const mode = orders.gst?.mode || 'none';
+
+    const total = round2(subtotal - discount + deliveryFee + packagingCharge + (mode === 'exclusive' ? tax : 0) + tip);
+    return {
+        deliveryFee: round2(deliveryFee),
+        packagingCharge: round2(packagingCharge),
+        taxMode: mode,
+        taxPercent: orders.gst?.percent || 0,
+        tax,
+        tip,
+        total,
+    };
+}
+
+async function priceCart({ tenant, config, userId, body }) {
+    const orderType = body.orderType;
+    if (!ORDER_TYPES.includes(orderType)) throw httpError(400, 'Invalid order type');
+
+    const { lines, subtotal, prepMin } = await buildLines(tenant, config, body.items);
+
+    const coupon = body.couponCode
+        ? await validateCoupon({ tenant, config, userId, code: body.couponCode, subtotal })
+        : null;
+    const discount = coupon ? coupon.discount : 0;
+
+    const tip = body.tip === undefined ? 0 : body.tip;
+    if (typeof tip !== 'number' || !Number.isFinite(tip) || tip < 0 || tip > MAX_TIP) throw httpError(400, 'Invalid tip');
+    if (tip > 0 && (!config.features.tips || orderType !== 'delivery')) throw httpError(400, 'Tips are not available');
+
+    const tax = applyTax(lines, { mode: config.orders.gst?.mode || 'none', discount, subtotal });
+    const totals = computeTotals(config.orders, { orderType, subtotal, discount, tip: round2(tip), tax });
+    return {
+        orderType, lines, coupon, prepMin,
+        pricing: { subtotal, discount, couponCode: coupon?.code, ...totals },
+    };
+}
+
+module.exports = {
+    ORDER_TYPES, isId, round2, buildLines, validateCoupon, reserveCoupon, releaseCoupon, applyTax, computeTotals, priceCart,
+};

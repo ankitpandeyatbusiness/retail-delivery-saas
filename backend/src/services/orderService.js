@@ -1,265 +1,35 @@
-// All order rules live here. The app only sends WHAT the customer picked
-// (product ids, quantities, option ids, coupon code, tip). Every price is worked out on the server.
+// Order rules: can this order be placed, quote, place, cancel, reorder.
+// Pricing is in orderPricing.js and pickup windows are in pickupSlots.js.
+// The app only sends WHAT the customer picked. Every price is worked out on the server.
 
-const mongoose = require('mongoose');
-const Product = require('../models/Product');
-const Category = require('../models/Category');
-const Coupon = require('../models/Coupon');
+const crypto = require('crypto');
 const Order = require('../models/Order');
 const Counter = require('../models/Counter');
 const Address = require('../models/Address');
 const User = require('../models/User');
-const { priceSelection } = require('./optionGroups');
-const { foodModeFilter, activeNow } = require('./catalogQuery');
+const Coupon = require('../models/Coupon');
+const CustomerRisk = require('../models/CustomerRisk');
+const OrderGuard = require('../models/OrderGuard');
 const { resolveConfig, openStatus } = require('./tenantConfigService');
 const { nextStatuses, customerCanCancel } = require('./orderflow'); // lowercase: matches the real file name
 const { serviceability } = require('../utils/geo');
 const orderStatus = require('./orderStatusService');
-const { hashPhone } = require('../utils/phoneHash');
 const notify = require('./notificationService');
+const { hashPhone } = require('../utils/phoneHash');
+const { httpError } = require('../middlewares/apiErrors');
+const { isId, round2, buildLines, reserveCoupon, releaseCoupon, priceCart } = require('./orderPricing');
+const { pickupSlots, findPickupSlot } = require('./pickupSlots');
 
-const MAX_LINES = 30;
-const MAX_QTY = 20;
-const MAX_TIP = 500;
 const MAX_SCHEDULE_DAYS = 7;
-const ORDER_TYPES = ['delivery', 'pickup', 'dine_in'];
 const TYPE_LABEL = { delivery: 'delivery', pickup: 'pickup', dine_in: 'dine-in' };
+const SAME_CART_WINDOW_MS = 10 * 1000;   // the same cart twice inside 10 seconds is a double tap
 
-const isId = (v) => typeof v === 'string' && mongoose.isValidObjectId(v);
-const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
-const httpError = (status, message) => Object.assign(new Error(message), { status });
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/* ------------------------------ 1. cart -> priced lines ------------------------------ */
-async function buildLines(tenant, config, rawItems) {
-    if (!Array.isArray(rawItems) || rawItems.length < 1 || rawItems.length > MAX_LINES) {
-        throw httpError(400, `Your cart needs 1 to ${MAX_LINES} items`);
-    }
-    for (const it of rawItems) {
-        if (!it || !isId(it.productId)) throw httpError(400, 'Invalid item in cart');
-        if (!Number.isInteger(it.quantity) || it.quantity < 1 || it.quantity > MAX_QTY) {
-            throw httpError(400, `Quantity must be between 1 and ${MAX_QTY}`);
-        }
-    }
-
-    // Same visibility rules as the menu: active item, active category, allowed by the shop's food mode
-    const activeCategoryIds = await Category.find({ tenantId: tenant._id, isActive: true }).distinct('_id');
-    const products = await Product.find({
-        _id: { $in: rawItems.map((i) => i.productId) },
-        tenantId: tenant._id,
-        isActive: true,
-        categoryId: { $in: activeCategoryIds },
-        ...foodModeFilter(config.home.foodMode),
-    }).lean();
-    const byId = new Map(products.map((p) => [String(p._id), p]));
-
-    // GST: an item's own rate wins, otherwise the shop's rate. The mode comes from the shop settings.
-    const gstMode = config.orders.gst?.mode || 'none';
-    const shopGst = config.orders.gst?.percent || 0;
-
-    const notesOn = config.features.specialInstructions;
-    let subtotal = 0;
-    let prepMin = 0;
-    const lines = rawItems.map((it) => {
-        const p = byId.get(it.productId);
-        if (!p) throw httpError(400, 'An item in your cart is no longer available');
-        if (p.isAvailable === false) throw httpError(409, `"${p.name}" is out of stock`);
-
-        const { unitPrice, chosen } = priceSelection(p, it.selections ?? []);   // validates min/max and gives the real price
-        const lineTotal = round2(unitPrice * it.quantity);
-        subtotal += lineTotal;
-        prepMin = Math.max(prepMin, p.prepTimeMin || 0);
-
-        return {
-            productId: p._id,
-            name: p.name,
-            image: p.image,
-            isVeg: p.isVeg,
-            quantity: it.quantity,
-            unitPrice: round2(unitPrice),
-            lineTotal,
-            gstRate: gstMode === 'none' ? 0 : (p.gstRate ?? shopGst),
-            selections: chosen,
-            note: notesOn && typeof it.note === 'string' && it.note.trim() ? it.note.trim().slice(0, 200) : undefined,
-        };
-    });
-    return { lines, subtotal: round2(subtotal), prepMin };
-}
-
-/* ------------------------------ 2. coupon ------------------------------ */
-async function validateCoupon({ tenant, config, userId, code, subtotal }) {
-    if (!config.offers.couponsEnabled) throw httpError(400, 'Coupons are not available at this shop');
-
-    const clean = String(code).trim().toUpperCase().slice(0, 30);
-    const c = await Coupon.findOne({ tenantId: tenant._id, code: clean, ...activeNow() }).lean();
-    if (!c) throw httpError(400, 'Invalid or expired coupon');
-    if (c.totalUsageLimit != null && c.usedCount >= c.totalUsageLimit) throw httpError(400, 'This coupon has been fully used');
-    if (subtotal < (c.minOrder || 0)) throw httpError(400, `Add ₹${round2(c.minOrder - subtotal)} more to use ${c.code}`);
-
-    // EXPLOIT FIX: Check by Phone Number, not just User ID
-    const user = await User.findById(userId).select('phone').lean();
-    const identityFilter = user ? { 'customer.phoneHash': hashPhone(tenant._id, user.phone) } : { userId };
-
-    if (c.firstOrderOnly) {
-        // If they ever placed a non-cancelled order with this phone number, block it.
-        const hasOrders = await Order.exists({ tenantId: tenant._id, ...identityFilter, status: { $ne: 'cancelled' } });
-        if (hasOrders) throw httpError(400, 'This coupon is only for your first order');
-    }
-    if (c.usageLimitPerUser) {
-        // Count all past uses attached to this phone number
-        const used = await Order.countDocuments({ tenantId: tenant._id, ...identityFilter, couponId: c._id, status: { $ne: 'cancelled' } });
-        if (used >= c.usageLimitPerUser) throw httpError(400, 'You have already used this coupon');
-    }
-
-    let discount = c.discountType === 'percent' ? (subtotal * c.discountValue) / 100 : c.discountValue;
-    if (c.discountType === 'percent' && c.maxDiscount) discount = Math.min(discount, c.maxDiscount);
-    return { _id: c._id, code: c.code, discount: round2(Math.min(discount, subtotal)) };
-}
-
-// Atomic: two people can never take the last use of a limited coupon
-const reserveCoupon = (couponId, tenantId) => Coupon.findOneAndUpdate(
-    {
-        _id: couponId,
-        tenantId,
-        isActive: true,
-        $expr: { $or: [{ $eq: [{ $ifNull: ['$totalUsageLimit', null] }, null] }, { $lt: ['$usedCount', '$totalUsageLimit'] }] },
-    },
-    { $inc: { usedCount: 1 } },
-    { new: true },
-);
-const releaseCoupon = (couponId) =>
-    couponId ? Coupon.updateOne({ _id: couponId, usedCount: { $gt: 0 } }, { $inc: { usedCount: -1 } }) : null;
-
-/* ------------------------------ 3. totals ------------------------------ */
-// Works out GST for each line, after sharing the coupon discount across the lines.
-// Writes the result into each line (line.tax) and returns the order's total GST.
-function applyTax(lines, { mode, discount, subtotal }) {
-    let left = discount;
-    lines.forEach((l, i) => {
-        const share = i === lines.length - 1 ? left : round2(subtotal ? (discount * l.lineTotal) / subtotal : 0);
-        left = round2(left - share);
-        const taxable = Math.max(l.lineTotal - share, 0);
-        const r = l.gstRate || 0;
-        let t = 0;
-        if (mode === 'exclusive') t = (taxable * r) / 100;
-        else if (mode === 'inclusive') t = (taxable * r) / (100 + r);
-        l.tax = round2(t);
-    });
-    return round2(lines.reduce((s, l) => s + l.tax, 0));
-}
-
-// Delivery and packaging are not taxed here: if your CA says they must be, add them in applyTax.
-function computeTotals(orders, { orderType, subtotal, discount, tip, tax }) {
-    let deliveryFee = 0;
-    if (orderType === 'delivery') {
-        const f = orders.deliveryFee || {};
-        if (f.type === 'flat') deliveryFee = f.amount || 0;
-        else if (f.type === 'free_above') deliveryFee = subtotal >= (f.freeAbove || 0) ? 0 : (f.amount || 0);
-    }
-    const packagingCharge = orderType === 'dine_in' ? 0 : (orders.packagingCharge || 0);
-    const mode = orders.gst?.mode || 'none';
-
-    const total = round2(subtotal - discount + deliveryFee + packagingCharge + (mode === 'exclusive' ? tax : 0) + tip);
-    return {
-        deliveryFee: round2(deliveryFee),
-        packagingCharge: round2(packagingCharge),
-        taxMode: mode,
-        taxPercent: orders.gst?.percent || 0,
-        tax,
-        tip,
-        total,
-    };
-}
-
-async function priceCart({ tenant, config, userId, body }) {
-    const orderType = body.orderType;
-    if (!ORDER_TYPES.includes(orderType)) throw httpError(400, 'Invalid order type');
-
-    const { lines, subtotal, prepMin } = await buildLines(tenant, config, body.items);
-
-    const coupon = body.couponCode
-        ? await validateCoupon({ tenant, config, userId, code: body.couponCode, subtotal })
-        : null;
-    const discount = coupon ? coupon.discount : 0;
-
-    const tip = body.tip === undefined ? 0 : body.tip;
-    if (typeof tip !== 'number' || !Number.isFinite(tip) || tip < 0 || tip > MAX_TIP) throw httpError(400, 'Invalid tip');
-    if (tip > 0 && (!config.features.tips || orderType !== 'delivery')) throw httpError(400, 'Tips are not available');
-
-    const tax = applyTax(lines, { mode: config.orders.gst?.mode || 'none', discount, subtotal });
-    const totals = computeTotals(config.orders, { orderType, subtotal, discount, tip: round2(tip), tax });
-    return {
-        orderType, lines, coupon, prepMin,
-        pricing: { subtotal, discount, couponCode: coupon?.code, ...totals },
-    };
-}
-/* ------------------------------ pickup time windows ------------------------------ */
-const IST_MS = 330 * 60000;
-const HOUR_MS = 3600000;
-const DAY_MS = 86400000;
-const STEP_MS = 5 * 60000;
-const MAX_PER_DAY = 12;
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const istFmt = (ms) => {
-    const d = new Date(ms + IST_MS);
-    const h = d.getUTCHours(), m = d.getUTCMinutes();
-    return `${h % 12 || 12}${m ? `:${String(m).padStart(2, '0')}` : ''} ${h >= 12 ? 'PM' : 'AM'}`;
-};
-const istDayStart = (ms) => Math.floor((ms + IST_MS) / DAY_MS) * DAY_MS - IST_MS;
-const istDate = (ms) => {
-    const d = new Date(ms + IST_MS);
-    return `${WEEKDAYS[d.getUTCDay()]}, ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
-};
-
-// 2-hour windows that always start at an odd hour (1 PM, 3 PM, 5 PM ... IST), for today and tomorrow.
-// Parts of a window when the shop is closed are cut off.
-function pickupSlots(tenant, now = new Date()) {
-    const config = resolveConfig(tenant, now);
-    if (!config.restaurant.isOpen) {
-        return {
-            open: false, slots: [],
-            message: config.restaurant.closedReason === 'paused' ? 'The shop is not accepting orders right now' : config.hours.closedMessage,
-        };
-    }
-    const nowMs = now.getTime();
-    const readyMs = nowMs + (config.orders.prepTimeMin || 0) * 60000;
-    const weekly = config.hours.weekly;
-    const isOpenAt = (ms) => openStatus(weekly, true, new Date(ms)).isOpen;
-    const today0 = istDayStart(nowMs);
-
-    let s = Math.floor((nowMs + IST_MS) / HOUR_MS) * HOUR_MS - IST_MS;      // start of this hour
-    if (new Date(s + IST_MS).getUTCHours() % 2 === 0) s -= HOUR_MS;          // go back to the odd hour
-    const slots = [];
-    const perDay = [0, 0];
-    for (; s < today0 + 2 * DAY_MS; s += 2 * HOUR_MS) {
-        const cap = s + 2 * HOUR_MS;
-        let from = Math.ceil(Math.max(s, nowMs) / STEP_MS) * STEP_MS;
-        while (from < cap && !isOpenAt(from)) from += STEP_MS;
-        if (from >= cap) continue;
-        let end = from;
-        while (end < cap && isOpenAt(end)) end += STEP_MS;
-        if (end - from < 30 * 60000 || end < readyMs) continue;
-
-        const day = Math.min(1, Math.max(0, Math.round((istDayStart(s) - today0) / DAY_MS)));
-        if (perDay[day] >= MAX_PER_DAY) continue;
-        perDay[day] += 1;
-        slots.push({
-            from: new Date(s).toISOString(),
-            to: new Date(end).toISOString(),
-            label: `${istFmt(isOpenAt(s) ? s : from)} – ${istFmt(end)}`,
-            dayLabel: day === 0 ? 'Today' : 'Tomorrow',
-            dateLabel: istDate(day === 0 ? nowMs : s),
-        });
-    }
-    return { open: true, slots, message: slots.length ? null : 'No pickup time available' };
-}
-
-const findPickupSlot = (tenant, from) =>
-    (typeof from === 'string' ? pickupSlots(tenant).slots.find((x) => x.from === from) : null) || null;
-
-/* ------------------------------ 4. can this order be placed? ------------------------------ */
+/* ------------------------------ can this order be placed? ------------------------------ */
 // Returns null if fine, or { status, message } for the first problem found.
-function checkPlacement({ tenant, config, body, priced, address, user }) {
+// cod = { earlierOrders, blocked } (only worked out for Cash on delivery orders)
+function checkPlacement({ tenant, config, body, priced, address, user, cod }) {
     const o = config.orders;
 
     if (!o.types.includes(priced.orderType)) return { status: 400, message: `This shop does not offer ${TYPE_LABEL[priced.orderType]}` };
@@ -271,6 +41,18 @@ function checkPlacement({ tenant, config, body, priced, address, user }) {
     const methods = noCod ? o.payments.filter((m) => m !== 'cod') : o.payments;
     if (!methods.includes(body.paymentMethod)) {
         return { status: 400, message: noCod && body.paymentMethod === 'cod' ? 'Cash on delivery is not available right now' : 'This payment method is not available' };
+    }
+
+    // Cash on delivery rules: a blocked phone, and a limit for the first orders of a new phone
+    if (body.paymentMethod === 'cod') {
+        if (cod?.blocked) return { status: 400, message: 'Cash on delivery is not available for this number' };
+        const cap = o.codCap || {};
+        if (cap.amount > 0 && cap.firstOrders > 0 && (cod?.earlierOrders ?? 0) < cap.firstOrders && priced.pricing.total > cap.amount) {
+            return {
+                status: 400,
+                message: `Cash on delivery is limited to Rs ${cap.amount} for your first ${cap.firstOrders} orders. Pay online or reduce the order.`,
+            };
+        }
     }
 
     // open now, or open at the chosen time
@@ -325,12 +107,23 @@ async function prepare({ tenant, userId, body }) {
         address = await Address.findOne({ _id: body.addressId, tenantId: tenant._id, userId }).lean();
         if (!address) throw httpError(400, 'Address not found');
     }
-    return { config, priced, address, user, problem: checkPlacement({ tenant, config, body, priced, address, user }) };
+
+    // Cash on delivery: how many earlier orders this PHONE has in this shop (by hash), and is it blocked
+    let cod = null;
+    if (body.paymentMethod === 'cod' && user?.phone) {
+        const phoneHash = hashPhone(tenant._id, user.phone);
+        const [earlierOrders, risk] = await Promise.all([
+            Order.countDocuments({ tenantId: tenant._id, 'customer.phoneHash': phoneHash, status: { $ne: 'cancelled' } }),
+            CustomerRisk.findOne({ tenantId: tenant._id, phoneHash }).select('codBlocked').lean(),
+        ]);
+        cod = { earlierOrders, blocked: !!risk?.codBlocked };
+    }
+    return { config, priced, address, user, problem: checkPlacement({ tenant, config, body, priced, address, user, cod }) };
 }
 
-/* ------------------------------ 5. quote (cart screen) ------------------------------ */
+/* ------------------------------ quote (cart screen) ------------------------------ */
 async function quote({ tenant, userId, body }) {
-    const { config, priced, address, user, problem } = await prepare({ tenant, userId, body });
+    const { config, priced, problem } = await prepare({ tenant, userId, body });
     return {
         items: priced.lines,
         pricing: priced.pricing,
@@ -340,7 +133,7 @@ async function quote({ tenant, userId, body }) {
     };
 }
 
-/* ------------------------------ 6. place order ------------------------------ */
+/* ------------------------------ place order ------------------------------ */
 async function nextOrderNo(tenantId) {
     const c = await Counter.findOneAndUpdate(
         { _id: `order:${tenantId}` },
@@ -348,6 +141,44 @@ async function nextOrderNo(tenantId) {
         { new: true, upsert: true },
     );
     return 1000 + c.seq;   // first order is #1001
+}
+
+// The app sends the total it showed the customer. If today's total is different, nothing is created.
+function checkExpectedTotal(body, priced) {
+    if (body.expectedTotal === undefined || body.expectedTotal === null) return;   // older apps do not send it
+    const expected = body.expectedTotal;
+    if (typeof expected !== 'number' || !Number.isFinite(expected) || expected < 0) throw httpError(400, 'Invalid expectedTotal');
+    if (round2(expected) !== priced.pricing.total) {
+        throw Object.assign(httpError(409, 'The price changed. Please check your cart.'), {
+            extra: { code: 'PRICE_CHANGED', newTotal: priced.pricing.total, items: priced.lines },
+        });
+    }
+}
+
+// Same shop + person + items + options + total
+function cartKey(tenantId, userId, priced) {
+    const lines = priced.lines.map((l) => ({
+        p: String(l.productId),
+        q: l.quantity,
+        s: (l.selections || []).map((s) => `${s.groupId}:${s.optionId}`).sort(),
+    })).sort((a, b) => `${a.p}${a.s.join()}`.localeCompare(`${b.p}${b.s.join()}`));
+    const raw = JSON.stringify({ t: String(tenantId), u: String(userId), o: priced.orderType, lines, total: priced.pricing.total });
+    return crypto.createHash('sha256').update(raw).digest('hex');
+}
+
+// ONE atomic step: wins if there is no row, or the old row is older than the window. A newer row means a double tap.
+async function takeGuard(key, now = new Date()) {
+    try {
+        await OrderGuard.updateOne(
+            { key, at: { $lt: new Date(now.getTime() - SAME_CART_WINDOW_MS) } },
+            { $set: { at: now } },
+            { upsert: true },
+        );
+        return true;
+    } catch (e) {
+        if (e.code === 11000) return false;
+        throw e;
+    }
 }
 
 async function placeOrder({ tenant, userId, body, idempotencyKey }) {
@@ -361,10 +192,28 @@ async function placeOrder({ tenant, userId, body, idempotencyKey }) {
 
     const { config, priced, address, problem } = await prepare({ tenant, userId, body });
     if (problem) throw httpError(problem.status, problem.message);
+    checkExpectedTotal(body, priced);
+
+    // the same cart again within 10 seconds is refused
+    const guardKey = cartKey(tenant._id, userId, priced);
+    if (!(await takeGuard(guardKey))) {
+        if (idempotencyKey) {   // the same request is still being made: give back its order
+            for (let i = 0; i < 10; i += 1) {
+                const dup = await findDuplicate();
+                if (dup) return { order: dup, duplicate: true };
+                await sleep(150);
+            }
+        }
+        throw httpError(409, 'Duplicate order');
+    }
+    const letGo = () => OrderGuard.deleteOne({ key: guardKey }).catch(() => { });   // a failed order must not block a retry
 
     if (priced.coupon) {
         const reserved = await reserveCoupon(priced.coupon._id, tenant._id);
-        if (!reserved) throw httpError(409, 'This coupon is no longer available');
+        if (!reserved) {
+            await letGo();
+            throw httpError(409, 'This coupon is no longer available');
+        }
     }
 
     try {
@@ -443,9 +292,11 @@ async function placeOrder({ tenant, userId, body, idempotencyKey }) {
             const dup = await findDuplicate();
             if (dup) return { order: dup, duplicate: true };
         }
+        await letGo();
         throw e;
     }
 }
+
 async function cancelByCustomer({ tenant, userId, orderId, reason }) {
     const order = await Order.findOne({ _id: orderId, tenantId: tenant._id, userId });
     if (!order) throw httpError(404, 'Order not found');

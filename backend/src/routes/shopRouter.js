@@ -170,6 +170,16 @@ router.put('/settings', wrap(async (req, res) => {
         for (const [k, val] of Object.entries(v.clean.riders || {})) updates[`settings.riders.${k}`] = val;   // only the fields sent change
     }
 
+    if (body.orders !== undefined) {
+        // an owner can change only the Cash on delivery limit here (the rest of the order settings stay with the superadmin)
+        if (!body.orders || typeof body.orders !== 'object' || Object.keys(body.orders).some((k) => k !== 'codCap')) {
+            throw httpError(400, 'You can change only the Cash on delivery limit (orders.codCap)');
+        }
+        const v = validateSettings({ orders: { codCap: body.orders.codCap } });
+        if (!v.ok) return res.status(400).json({ error: 'Invalid Cash on delivery limit', errors: v.errors });
+        for (const [k, val] of Object.entries(v.clean.orders?.codCap || {})) updates[`settings.orders.codCap.${k}`] = val;
+    }
+
     if (body.notifications !== undefined) {
         const v = validateSettings({ notifications: body.notifications });
         if (!v.ok) return res.status(400).json({ error: 'Invalid notification settings', errors: v.errors });
@@ -225,16 +235,18 @@ router.put('/settings', wrap(async (req, res) => {
         { _id: req.tenant._id },
         { $set: updates },
         { returnDocument: 'after', runValidators: true },
-    ).select('phone address delivery settings.hours settings.riders settings.notifications').lean();
+    ).select('phone address delivery settings.hours settings.riders settings.notifications settings.orders.codCap').lean();
 
     tenantRecognizer.invalidateTenant(req.tenant.slug);
     res.json({
         ok: true, phone: t.phone, address: t.address, delivery: t.delivery,
         hours: t.settings?.hours || null, riders: t.settings?.riders || null, notifications: t.settings?.notifications || null,
+        codCap: t.settings?.orders?.codCap || null,
     });
 }));
 
 router.use('/uploads', require('./uploadRouter'));   // direct-to-R2 uploads (owner and superadmin)
+router.use('/customers', require('./shopCustomersRouter'));   // customer tools (Cash on delivery block)
 router.use(require('./shopManageRouter'));           // menu: categories, products, banners, coupons, collections
 router.use(apiErrors);
 module.exports = router;

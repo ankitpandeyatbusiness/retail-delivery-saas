@@ -126,7 +126,7 @@ function validateSettings(input) {
 
     // orders
     section('orders',
-        ['types', 'payments', 'minOrder', 'deliveryFee', 'packagingCharge', 'gst', 'tipOptions', 'prepTimeMin', 'acceptingOrders'],
+        ['types', 'payments', 'minOrder', 'deliveryFee', 'packagingCharge', 'gst', 'tipOptions', 'prepTimeMin', 'acceptingOrders', 'codCap'],
         (o, out, p) => {
             if (o.types !== undefined) { const v = listOf(p('types'), o.types, O.ORDER_TYPES, 1, 3); if (v) out.types = v; }
             if (o.payments !== undefined) { const v = listOf(p('payments'), o.payments, O.PAYMENT_METHODS, 1, 4); if (v) out.payments = v; }
@@ -153,6 +153,19 @@ function validateSettings(input) {
                     out.gst = {};
                     if (g.mode !== undefined && oneOf(p('gst.mode'), g.mode, O.GST_MODES)) out.gst.mode = g.mode;
                     if (g.percent !== undefined && num(p('gst.percent'), g.percent, 0, 28)) out.gst.percent = g.percent;
+                }
+            }
+            if (o.codCap !== undefined) {
+                const c = o.codCap;
+                if (!isObj(c)) err(p('codCap'), 'must be an object');
+                else {
+                    known(c, ['amount', 'firstOrders'], p('codCap'));
+                    out.codCap = {};
+                    if (c.amount !== undefined && num(p('codCap.amount'), c.amount, 0, 100000)) out.codCap.amount = c.amount;   // 0 = no limit
+                    if (c.firstOrders !== undefined) {
+                        if (!Number.isInteger(c.firstOrders)) err(p('codCap.firstOrders'), 'must be a whole number');
+                        else if (num(p('codCap.firstOrders'), c.firstOrders, 0, 50)) out.codCap.firstOrders = c.firstOrders;
+                    }
                 }
             }
             if (o.tipOptions !== undefined) {
@@ -221,6 +234,7 @@ const DEFAULTS = {
         deliveryFee: { type: 'free', amount: 0, freeAbove: 0 },
         packagingCharge: 0, gst: { mode: 'none', percent: 0 },
         tipOptions: [], prepTimeMin: 20, acceptingOrders: true,
+        codCap: { amount: 1000, firstOrders: 3 },   // Cash on delivery is limited to this amount for a phone's first orders. amount 0 = off
     },
     offers: { couponsEnabled: true, showOnHome: true, showInCart: true },
     notifications: { smsAlerts: true },   // key-event SMS (new order, bill, order steps) are on by default
