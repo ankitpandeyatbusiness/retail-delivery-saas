@@ -29,7 +29,7 @@ const orderSchema = new Schema({
 
     status: {
         type: String,
-        enum: ['placed', 'accepted', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'cancelled'],
+        enum: ['placed', 'accepted', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'cancelled', 'undelivered'],
         default: 'placed',
     },
     orderType: { type: String, enum: ['delivery', 'pickup', 'dine_in'], required: true },
@@ -119,6 +119,10 @@ const orderSchema = new Schema({
     cancelledBy: { type: String, enum: ['customer', 'shop', 'admin', 'system'] },
     // billable = this order EARNED MONEY for the shop, so it counts for the free period and the monthly rent. Set once, by billableService.
     billing: { billable: Boolean, at: Date, reason: String },
+    // how a cancel ended: who, why, and the money (online orders only; whole paise)
+    cancel: { by: String, reasonCode: String, keptPaise: Number, refundPaise: Number },
+    // the owner marked it "not delivered" (customer, shop or rider at fault)
+    undelivered: { reasonCode: String, note: String, at: Date, by: String, keptPaise: Number, refundPaise: Number },
     deliveredAt: Date,
     ratedAt: Date,
 }, { timestamps: true });

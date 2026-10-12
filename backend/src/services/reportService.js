@@ -119,6 +119,7 @@ async function salesReport({ tenantId, from, to, groupBy }) {
         topItems: topItems.map((r) => ({ productId: r._id, name: r.name, quantity: r.quantity, revenue: round2(r.revenue) })),
         payments: byPayment.map((r) => ({ method: r._id, orders: r.orders, revenue: round2(r.revenue) })),
         statuses: Object.fromEntries(byStatus.map((r) => [r._id, r.n])),
+        undelivered: byStatus.find((r) => r._id === 'undelivered')?.n || 0,   // not delivered: shown on its own, never counted as revenue
     };
 }
 

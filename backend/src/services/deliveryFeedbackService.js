@@ -8,7 +8,7 @@ const { httpError } = require('../middlewares/apiErrors');
 
 const AVG_KMH = 20;             // straight-line speed used for the ETA until Phase 7
 const FRESH_MS = 5 * 60000;     // a rider location older than this is ignored
-const DONE = ['delivered', 'cancelled'];
+const DONE = ['delivered', 'cancelled', 'undelivered'];
 const TAG_MAX = 5;
 
 const maskPhone = (p) => (/^\d{10}$/.test(p || '') ? `${p.slice(0, 2)}XXXXXX${p.slice(-2)}` : null);
@@ -25,6 +25,7 @@ function km(a, b) {
 function stateOf(order) {
     if (order.status === 'cancelled') return 'cancelled';
     if (order.status === 'delivered') return 'delivered';
+    if (order.status === 'undelivered') return 'undelivered';
     const d = order.delivery;
     if (!d?.riderId || d.status === 'assigned' || d.status === 'rejected') return 'finding_rider';
     if (d.status === 'accepted') return 'rider_assigned';

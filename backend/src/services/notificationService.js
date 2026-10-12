@@ -48,7 +48,10 @@ function orderStatusChanged(order, status, actor) {
         if (actor.type !== 'customer') {
             center.notify('order_status', {
                 tenantId: t, userId: order.userId, data,
-                vars: { orderNo: no, status, orderType: order.orderType, cancelReason: order.cancelReason },
+                vars: {
+                    orderNo: no, status, orderType: order.orderType, cancelReason: order.cancelReason,
+                    reasonCode: order.undelivered?.reasonCode,
+                },
             });
         }
         if (status === 'cancelled') {
@@ -62,6 +65,11 @@ function orderStatusChanged(order, status, actor) {
                     tenantId: t, userId: order.delivery.riderId, data, vars: { audience: 'rider', orderNo: no },
                 });
             }
+        }
+        if (status === 'undelivered' && order.delivery?.riderId && actor.type !== 'rider') {
+            center.notify('order_cancelled', {
+                tenantId: t, userId: order.delivery.riderId, data, vars: { audience: 'rider', orderNo: no, undelivered: true },
+            });
         }
         pulse({ tenantId: t, orderId: order._id, orderNo: no, status, kind: 'status' });
     } catch (e) {

@@ -106,7 +106,7 @@ core.get('/orders', wrap(async (req, res) => {
     const base = { tenantId: req.tenant._id, 'delivery.riderId': req.riderId };
     const offered = { ...base, 'delivery.status': 'assigned', 'delivery.offerExpiresAt': { $gt: new Date() }, status: { $in: OPEN } };
     const active = { ...base, 'delivery.status': { $in: ['accepted', 'picked_up'] }, status: { $in: ACTIVE_STATUSES } };
-    const history = { ...base, status: { $in: ['delivered', 'cancelled'] } };
+    const history = { ...base, status: { $in: ['delivered', 'cancelled', 'undelivered'] } };
     const filter = { offered, active, history }[tab];
     if (!filter) throw httpError(400, 'tab must be offered, active or history');
 

@@ -341,10 +341,10 @@ async function reorderCart({ tenant, userId, orderId }) {
     return { items, skipped };
 }
 
-async function updateStatusByShop({ tenantId, actor, orderId, status, note }) {
+async function updateStatusByShop({ tenantId, actor, orderId, status, note, reasonCode }) {
     const order = await Order.findOne({ _id: orderId, tenantId });
     if (!order) throw httpError(404, 'Order not found');
-    return orderStatus.change({ order, status, actor, note });
+    return orderStatus.change({ order, status, actor, note, reasonCode });
 }
 
 module.exports = {

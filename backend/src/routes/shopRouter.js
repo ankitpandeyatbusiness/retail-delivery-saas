@@ -115,6 +115,7 @@ router.patch('/orders/:id/status', wrap(async (req, res) => {
         orderId: req.params.id,
         status,
         note: req.body?.note,
+        reasonCode: req.body?.reasonCode,
     });
     res.json(view(order));
 }));

@@ -1,61 +1,94 @@
 // The ONE place where an order's status changes.
-// Shop owner, customer, superadmin, rider (Phase 6) and timers all call change().
+// Shop owner, customer, superadmin, rider and timers all call change().
 //
-//   const orderStatus = require('./orderStatusService');
 //   await orderStatus.change({
 //       order,                                   // the Order document
 //       status: 'accepted',
 //       actor: { type: 'owner', id: userId, label: '9876543210' },
 //       note: 'optional',
-//       tenant,                                  // only needed for actor.type 'customer'
+//       reasonCode: 'busy',                      // needed for: owner cancel, owner undelivered. Optional for superadmin and system.
+//       tenant,                                  // only needed for actor.type 'customer' (the frozen-shop rule)
 //   });
 //
 // actor.type is one of: customer, owner, rider, superadmin, system.
+// Cancel and undelivered work out the money with orderOutcome (pure). Rules are in Handover 4, sections 4 and 6.
 
 const Order = require('../models/Order');
 const Coupon = require('../models/Coupon');
 const Product = require('../models/Product');
 const User = require('../models/User');
-const Tenant = require('../models/Tenant');
 const Rider = require('../models/Rider');
 const CodSettlement = require('../models/CodSettlement');
-const { nextStatuses, customerCanCancel, ACTIVE_STATUSES } = require('./orderflow');
+const {
+    nextStatuses, customerCanCancel, canMarkUndelivered, shopFrozen, ACTIVE_STATUSES,
+} = require('./orderflow');
+const {
+    outcomeFor, OWNER_CANCEL_REASONS, ADMIN_CANCEL_REASONS, SYSTEM_CANCEL_REASONS, UNDELIVERED_REASONS,
+} = require('./orderOutcome');
+const risk = require('./customerRisk');
+const billable = require('./billableService');
 const { httpError } = require('../middlewares/apiErrors');
 const notify = require('./notificationService');
-const billable = require('./billableService');
 
 const CANCELLED_BY = { customer: 'customer', owner: 'shop', superadmin: 'admin', system: 'system' };
 const ACTOR_TYPES = ['customer', 'owner', 'rider', 'superadmin', 'system'];
+const CANCEL_LABEL = {
+    busy: 'The shop is too busy right now',
+    out_of_stock: 'An item is out of stock',
+    shop_fault: 'A problem at the shop',
+    customer_asked: 'Cancelled at your request',
+    customer_fault: 'Cancelled at your request',
+    platform: 'Cancelled by the platform',
+};
 
 const cleanNote = (note) => (typeof note === 'string' && note.trim() ? note.trim().slice(0, 200) : undefined);
+const logError = (what) => (e) => console.error(`${what}:`, e.message);
 
 // Throws a clear error if this actor may not make this move
-function checkAllowed({ order, status, actor, note, tenant }) {
+function checkAllowed({ order, status, actor, note, tenant, reasonCode, now }) {
     switch (actor.type) {
         case 'owner':
-            if (!nextStatuses(order).includes(status)) {
+            if (status === 'undelivered') {
+                if (!UNDELIVERED_REASONS.includes(reasonCode)) throw httpError(400, 'Choose who is at fault: customer, shop or rider');
+                const u = canMarkUndelivered(order, now);
+                if (!u.ok) throw httpError(409, u.message);
+                return;
+            }
+            if (!nextStatuses(order, now).includes(status)) {
                 throw httpError(409, `This order is "${order.status}". It cannot move to "${status}".`);
             }
-            if (status === 'cancelled' && !note) throw httpError(400, 'Please give a reason for cancelling');
+            if (status === 'cancelled') {
+                if (!OWNER_CANCEL_REASONS.includes(reasonCode)) {
+                    throw httpError(400, `Choose a reason for cancelling: ${OWNER_CANCEL_REASONS.join(', ')}`);
+                }
+                if (reasonCode === 'other' && !note) throw httpError(400, 'Please write the reason for cancelling');
+            }
             return;
         case 'customer':
             if (status !== 'cancelled') throw httpError(403, 'Customers can only cancel');
             if (!customerCanCancel(order, tenant)) {
-                throw httpError(409, 'You can cancel only before the shop accepts your order (unless the shop is suspended)');
+                const cod = !order.payment?.method || order.payment.method === 'cod';
+                throw httpError(409, cod
+                    ? 'You can cancel until the shop starts preparing your order. Please call the shop.'
+                    : 'This order can no longer be cancelled.');
             }
             return;
         case 'superadmin':
             if (!ACTIVE_STATUSES.includes(order.status)) {
                 throw httpError(409, `This order is already "${order.status}" and cannot be changed`);
             }
-            // the owner's normal next step, or a force to cancelled / delivered
-            if (!nextStatuses(order).includes(status) && !['cancelled', 'delivered'].includes(status)) {
+            // the owner's normal next step, or a force to cancelled / delivered ("undelivered" is the owner's decision)
+            if (!nextStatuses(order, now).filter((s) => s !== 'undelivered').includes(status) && !['cancelled', 'delivered'].includes(status)) {
                 throw httpError(400, 'Superadmin can move an order one step forward, or force it to cancelled or delivered');
+            }
+            if (status === 'cancelled' && reasonCode !== undefined && !ADMIN_CANCEL_REASONS.includes(reasonCode)) {
+                throw httpError(400, `reasonCode must be one of: ${ADMIN_CANCEL_REASONS.join(', ')}`);
             }
             return;
         case 'system':
             if (status !== 'cancelled') throw httpError(403, 'The system can only cancel');
             if (!ACTIVE_STATUSES.includes(order.status)) throw httpError(409, 'This order is already finished');
+            if (reasonCode !== undefined && !SYSTEM_CANCEL_REASONS.includes(reasonCode)) throw httpError(400, 'Invalid reason');
             return;
         case 'rider': {
             // only the rider who accepted this delivery, and only pickup and delivered
@@ -83,19 +116,30 @@ function checkAllowed({ order, status, actor, note, tenant }) {
     }
 }
 
-const releaseCoupon = (couponId) =>
-    couponId ? Coupon.updateOne({ _id: couponId, usedCount: { $gt: 0 } }, { $inc: { usedCount: -1 } }) : null;
+const releaseCoupon = async (couponId) => {
+    if (!couponId) return null;
+    return Coupon.updateOne({ _id: couponId, usedCount: { $gt: 0 } }, { $inc: { usedCount: -1 } });
+};
 
-async function change({ order, status, actor, note, tenant }) {
+async function change({ order, status, actor, note, tenant, reasonCode }) {
     if (!order) throw httpError(404, 'Order not found');
     if (!actor || !ACTOR_TYPES.includes(actor.type)) throw httpError(500, 'Status change needs an actor');
 
+    const now = new Date();
     const text = cleanNote(note);
-    checkAllowed({ order, status, actor, note: text, tenant });
+    checkAllowed({ order, status, actor, note: text, tenant, reasonCode, now });
+
+    // cancel and undelivered: who pays what, and what it means for billing, strikes and the coupon
+    const outcome = status === 'cancelled' || status === 'undelivered'
+        ? outcomeFor({
+            order, kind: status === 'cancelled' ? 'cancel' : 'undelivered', actorType: actor.type, reasonCode,
+            frozen: actor.type === 'customer' && shopFrozen(tenant), now,
+        })
+        : null;
 
     const set = { status };
     if (status === 'delivered') {
-        set.deliveredAt = new Date();
+        set.deliveredAt = now;
         if (order.payment?.method === 'cod') set['payment.status'] = 'paid';   // cash collected at the door
     }
     // keep the delivery block in line when a rider is on this order
@@ -103,20 +147,33 @@ async function change({ order, status, actor, note, tenant }) {
     if (d.riderId) {
         if (status === 'out_for_delivery' && d.status === 'accepted') {
             set['delivery.status'] = 'picked_up';
-            set['delivery.pickedUpAt'] = new Date();
+            set['delivery.pickedUpAt'] = now;
         }
         if (status === 'delivered' && ['accepted', 'picked_up'].includes(d.status)) {
             set['delivery.status'] = 'delivered';
-            set['delivery.deliveredAt'] = new Date();
+            set['delivery.deliveredAt'] = now;
             if (order.payment?.method === 'cod') set['delivery.cashCollectedPaise'] = Math.round((order.pricing?.total || 0) * 100);
         }
     }
     if (status === 'cancelled') {
         set.cancelledBy = CANCELLED_BY[actor.type];
-        set.cancelReason = text || (actor.type === 'superadmin' ? 'Force cancelled by Superadmin' : undefined);
+        set.cancelReason = text || CANCEL_LABEL[outcome.reasonCode] || (actor.type === 'superadmin' ? 'Force cancelled by Superadmin' : undefined);
+        set.cancel = {
+            by: CANCELLED_BY[actor.type], reasonCode: outcome.reasonCode,
+            keptPaise: outcome.keptPaise, refundPaise: outcome.refundPaise,
+        };
+    }
+    if (status === 'undelivered') {
+        set.undelivered = {
+            reasonCode: outcome.reasonCode, note: text, at: now, by: actor.label ? String(actor.label).slice(0, 80) : actor.type,
+            keptPaise: outcome.keptPaise, refundPaise: outcome.refundPaise,
+        };
     }
 
-    const historyNote = actor.type === 'superadmin' ? `Superadmin: ${text || 'override'}` : text;
+    const historyNote = actor.type === 'superadmin'
+        ? `Superadmin: ${text || 'override'}`
+        : (text || (status === 'cancelled' ? CANCEL_LABEL[outcome.reasonCode] : undefined)
+            || (status === 'undelivered' ? `Not delivered (${outcome.reasonCode})` : undefined));
 
     // The status filter makes this fail if someone else moved the order a moment ago.
     // Because of it, the follow-up work below runs only once per order.
@@ -134,18 +191,25 @@ async function change({ order, status, actor, note, tenant }) {
                 },
             },
         },
-        { new: true },
+        { returnDocument: 'after' },
     );
     if (!updated) throw httpError(409, 'This order was just updated. Refresh and try again.');
 
-    if (status === 'cancelled') {
-        await releaseCoupon(updated.couponId);
-        // PHASE 4: refund here if the order was paid online
+    if (outcome) {
+        // The coupon use goes back ONLY when the customer got a full refund (the shop kept nothing)
+        if (outcome.couponReturn) await releaseCoupon(updated.couponId).catch(logError('Coupon release error'));
+        // The shop kept money: the order counts for the rent
+        if (outcome.billable) {
+            await billable.markBillable(updated, status === 'undelivered' ? 'undelivered_customer' : 'cancel_kept')
+                .catch(logError('Billable count error'));
+        }
+        // PHASE 4: when an online order was paid, money goes back here (outcome.refundPaise) through refundService.issueRefund
+        if (outcome.strike) await risk.addStrike(updated).catch(logError('Strike error'));
     }
 
     if (status === 'delivered') {
-        // Billing counter first: delivered orders only. It never goes down.
-        await billable.markDelivered(updated).catch((e) => console.error('Billable count error:', e.message));
+        // Billing counter: orders that earned money. It never goes down.
+        await billable.markDelivered(updated).catch(logError('Billable count error'));
 
         // Bestseller count: skip orders bought by shop owners. A failure here must not hurt the order.
         try {
@@ -161,16 +225,16 @@ async function change({ order, status, actor, note, tenant }) {
     }
 
     // the rider has one less active order when it ends; COD cash goes to the ledger
-    if (['delivered', 'cancelled'].includes(status) && updated.delivery?.riderId) {
+    if (['delivered', 'cancelled', 'undelivered'].includes(status) && updated.delivery?.riderId) {
         await Rider.updateOne(
             { tenantId: updated.tenantId, userId: updated.delivery.riderId, activeOrderCount: { $gt: 0 } },
             { $inc: { activeOrderCount: -1 } },
-        ).catch((e) => console.error('Rider count error:', e.message));
+        ).catch(logError('Rider count error'));
         // last order finished: forget the saved location
         await Rider.updateOne(
             { tenantId: updated.tenantId, userId: updated.delivery.riderId, activeOrderCount: 0 },
             { $unset: { lastLocation: 1 } },
-        ).catch((e) => console.error('Rider location clear error:', e.message));
+        ).catch(logError('Rider location clear error'));
     }
     if (status === 'delivered' && updated.delivery?.riderId && updated.delivery.cashCollectedPaise > 0) {
         await CodSettlement.create({

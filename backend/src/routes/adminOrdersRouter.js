@@ -107,6 +107,7 @@ router.patch('/orders/:id/status', wrap(async (req, res) => {
         status: req.body?.status,
         actor: { type: 'superadmin', id: req.admin._id, label: req.admin.email },
         note: req.body?.note,
+        reasonCode: req.body?.reasonCode,
     });
     res.json((await withShop([updated]))[0]);
 }));

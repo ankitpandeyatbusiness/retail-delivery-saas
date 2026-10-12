@@ -17,6 +17,13 @@ function statusText(v) {
                 : { title: 'Order ready', body: `Your order #${no} is ready.` };
         case 'out_for_delivery': return { title: 'On the way', body: `Your order #${no} is on the way.` };
         case 'delivered': return { title: 'Delivered', body: `Your order #${no} was delivered. Enjoy!` };
+        case 'undelivered':
+            return {
+                title: 'Order not delivered',
+                body: v.reasonCode === 'customer'
+                    ? `We could not deliver your order #${no} because the delivery partner could not reach you.`
+                    : `We could not deliver your order #${no}. We are sorry. If you paid online you get a full refund.`,
+            };
         case 'cancelled':
             return { title: 'Order cancelled', body: `Your order #${no} was cancelled.${v.cancelReason ? ` Reason: ${v.cancelReason}` : ''}` };
         default: return null;
@@ -30,9 +37,9 @@ const TEXTS = {
     }),
     order_status: statusText,
     order_cancelled: (v) => ({
-        title: 'Order cancelled',
+        title: v.undelivered ? 'Order not delivered' : 'Order cancelled',
         body: v.audience === 'rider'
-            ? `Order #${v.orderNo} was cancelled.`
+            ? (v.undelivered ? `Order #${v.orderNo} was marked as not delivered.` : `Order #${v.orderNo} was cancelled.`)
             : `Order #${v.orderNo} was cancelled${v.bySystem ? ' (not accepted in time)' : ' by the customer'}.`,
     }),
     rider_offer: (v) => ({ title: 'New delivery request', body: `Order #${v.orderNo}. Please accept within ${v.secs} seconds.` }),

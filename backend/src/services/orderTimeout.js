@@ -16,7 +16,7 @@ async function cancelUnacceptedOrders(now = new Date()) {
         createdAt: { $lte: cutoff },
         // normal orders, or scheduled orders whose time is almost here
         $or: [{ scheduledFor: null }, { scheduledFor: { $lte: soon } }],
-    }).select('_id tenantId status').limit(BATCH).lean();
+    }).select('_id tenantId status orderType payment pricing statusHistory delivery couponId userId customer createdAt').limit(BATCH).lean();
 
     let cancelled = 0;
     for (const o of stale) {
