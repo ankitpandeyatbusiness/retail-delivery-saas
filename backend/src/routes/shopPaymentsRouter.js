@@ -3,6 +3,7 @@
 //   GET /report?from=2026-10-01&to=2026-10-31     (days in Indian time; default: the last 30 days)
 //   GET /refunds?status=pending|processing|processed|failed&page=1
 //   GET /disputes                                  chargebacks of this shop
+//   GET /transactions?from&to&category&status&page  every money movement of this shop: received, refunds, SMS top-ups, monthly bills
 // All money is whole paise.
 const express = require('express');
 const OnlinePayment = require('../models/OnlinePayment');
@@ -10,6 +11,7 @@ const OnlineRefund = require('../models/OnlineRefund');
 const PaymentDispute = require('../models/PaymentDispute');
 const Order = require('../models/Order');
 const apiErrors = require('../middlewares/apiErrors');
+const ledger = require('../services/moneyLedger');
 
 const { wrap, httpError } = apiErrors;
 const router = express.Router();
@@ -98,6 +100,11 @@ router.get('/disputes', wrap(async (req, res) => {
             reasonCode: d.reasonCode || null, phase: d.phase || null, respondBy: d.respondBy || null, createdAt: d.createdAt,
         })),
     });
+}));
+
+router.get('/transactions', wrap(async (req, res) => {
+    const filter = ledger.parseQuery(req.query, { view: 'shop' });
+    res.json(await ledger.list({ view: 'shop', tenantId: req.tenant._id, filter }));
 }));
 
 router.use(apiErrors);

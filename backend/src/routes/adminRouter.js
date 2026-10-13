@@ -71,6 +71,7 @@ admin.use(require('./adminSmsRouter'));
 admin.use(require('./adminSmsProviderRouter'));
 admin.use(require('./adminPaymentsRouter'));   // per-shop Razorpay keys, webhook secret, test connection, on/off
 admin.use(require('./adminDisputesRouter'));
+admin.use(require('./adminLedgerRouter'));
 admin.use(require('./adminNotifyRouter'));
 admin.use(require('./adminAlertsRouter'));
 admin.use(require('./adminNotificationRulesRouter'));
