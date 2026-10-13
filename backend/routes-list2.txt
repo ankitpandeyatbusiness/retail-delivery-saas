@@ -1,0 +1,36 @@
+﻿riderRouter.js: core.get('/me', wrap(async (req, res) => {
+riderRouter.js: core.patch('/me', wrap(async (req, res) => {
+riderRouter.js: core.put('/online', wrap(async (req, res) => {
+riderRouter.js: core.get('/orders', wrap(async (req, res) => {
+riderRouter.js: core.get('/orders/:id', wrap(async (req, res) => {
+riderRouter.js: core.post('/orders/:id/accept', wrap(async (req, res) => {
+riderRouter.js: core.post('/orders/:id/reject', wrap(async (req, res) => {
+riderRouter.js: core.post('/orders/:id/pickup', wrap(async (req, res) => {
+riderRouter.js: core.post('/orders/:id/deliver', wrap(async (req, res) => {
+riderRouter.js: core.post('/orders/:id/problem', wrap(async (req, res) => {
+riderRouter.js: core.get('/summary', wrap(async (req, res) => {
+riderRouter.js: router.post('/location', locationRoute);   // before auditTrail on purpose: no log row per update
+shopRiderRouter.js: manage.get('/', wrap(async (req, res) => {
+shopRiderRouter.js: manage.post('/', wrap(async (req, res) => {
+shopRiderRouter.js: manage.patch('/:userId', wrap(async (req, res) => {
+shopRiderRouter.js: manage.delete('/:userId', wrap(async (req, res) => {
+shopRiderRouter.js: orders.get('/:id/delivery', wrap(async (req, res) => {
+shopRiderRouter.js: orders.post('/:id/assign', wrap(async (req, res) => {
+shopRiderRouter.js: orders.post('/:id/unassign', wrap(async (req, res) => {
+notificationRouter.js: r.get('/', wrap(async (req, res) => {
+notificationRouter.js: r.post('/read-all', wrap(async (req, res) => {
+notificationRouter.js: r.post('/:id/read', wrap(async (req, res) => {
+notificationRouter.js: mine.post('/devices', wrap(async (req, res) => {
+notificationRouter.js: mine.post('/devices/remove', wrap(async (req, res) => {
+adminRouter.js: admin.get('/me', (req, res) => res.json({ email: req.admin.email, name: req.admin.name || null }));
+adminRouter.js: admin.get('/options', (req, res) => {
+adminRouter.js: admin.post('/preview-config', (req, res) => {
+adminRouter.js: admin.get('/tenants', wrap(async (req, res) => {
+adminRouter.js: admin.post('/tenants', wrap(async (req, res) => {
+adminRouter.js: admin.get('/tenants/:tid', wrap(async (req, res) => {
+adminRouter.js: admin.put('/tenants/:tid', wrap(async (req, res) => {
+adminRouter.js: admin.post('/tenants/:tid/logo-colors',
+adminRouter.js: admin.post('/tenants/:tid/products/import', loadTenant, wrap(async (req, res) => {
+adminRouter.js: admin.get('/tenants/:tid/availability', loadTenant, wrap(async (req, res) => {
+adminRouter.js: admin.post('/tenants/:tid/owners', loadTenant, wrap(async (req, res) => {
+shopManageRouter.js: router.patch('/products/:id/stock', wrap(async (req, res) => {
