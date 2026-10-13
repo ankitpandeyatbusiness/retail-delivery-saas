@@ -146,7 +146,7 @@ async function nextOrderNo(tenantId) {
     const c = await Counter.findOneAndUpdate(
         { _id: `order:${tenantId}` },
         { $inc: { seq: 1 } },
-        { new: true, upsert: true },
+        { returnDocument: 'after', upsert: true },
     );
     return 1000 + c.seq;   // first order is #1001
 }

@@ -129,7 +129,7 @@ async function buildInvoice(tenant, period, platform, now = new Date()) {
     const graceEndsAt = new Date(issueDate.getTime() + (platform?.billing?.graceDays ?? 5) * DAY_MS);
 
     const fy = financialYear(periodOf(issueDate));   // invoice numbers follow the date the invoice is issued
-    const counter = await Counter.findOneAndUpdate({ _id: `subinv:${fy}` }, { $inc: { seq: 1 } }, { new: true, upsert: true });
+    const counter = await Counter.findOneAndUpdate({ _id: `subinv:${fy}` }, { $inc: { seq: 1 } }, { returnDocument: 'after', upsert: true });
     const invoiceNo = `SUB/${fy}/${String(counter.seq).padStart(4, '0')}`;
 
     const biz = tenant.business || {};

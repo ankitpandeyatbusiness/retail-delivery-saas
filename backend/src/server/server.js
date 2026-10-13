@@ -1,4 +1,6 @@
 require('dotenv').config();   // keep this first: other files read process.env when they load
+const sentry = require('../utils/sentry');
+sentry.init();                // error reporting; does nothing without SENTRY_DSN
 const mongoose = require('mongoose');
 const connectDB = require('../database/database');
 const app = require('./app');
@@ -15,10 +17,16 @@ const { startNotificationEscalationScheduler } = require('../jobs/notificationEs
 const { startEmailWorkerScheduler } = require('../jobs/emailWorker');
 const { startInactiveShopsScheduler } = require('../jobs/inactiveShops');
 const { startCleanupUploadsScheduler } = require('../jobs/cleanupUploads');
+const { startBackupScheduler } = require('../jobs/backupDump');
+const { startNightlyReconcileScheduler } = require('../jobs/nightlyReconcile');
 
 // A crash is logged and the host restarts the server. A stray rejected promise is only logged.
-process.on('unhandledRejection', (reason) => console.error('Unhandled rejection:', reason));
-process.on('uncaughtException', (err) => { console.error('Uncaught exception:', err); process.exit(1); });
+process.on('unhandledRejection', (reason) => { console.error('Unhandled rejection:', reason); sentry.capture(reason); });
+process.on('uncaughtException', (err) => {
+    console.error('Uncaught exception:', err);
+    sentry.capture(err);
+    sentry.flush().finally(() => process.exit(1));
+});
 
 // On deploy or stop, finish current requests and close the database before exit
 function registerShutdown(server) {
@@ -49,6 +57,8 @@ connectDB()
             startBillingScheduler();
             startComplaintRemindersScheduler();
             startCleanupUploadsScheduler();
+            startBackupScheduler();
+            startNightlyReconcileScheduler();
             startOrderTimeoutScheduler();
             startBillingEnforcementScheduler();
             startOfferScheduler();

@@ -76,6 +76,7 @@ app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
     if (err.type === 'entity.parse.failed') return res.status(400).json({ error: 'Invalid JSON' });
     if (err.type === 'entity.too.large') return res.status(413).json({ error: 'Request too large' });
     console.error('Unhandled error:', err);
+    if (!err.status || err.status >= 500) require('../utils/sentry').capture(err);
     res.status(err.status || 500).json({ error: 'Something went wrong' });
 });
 

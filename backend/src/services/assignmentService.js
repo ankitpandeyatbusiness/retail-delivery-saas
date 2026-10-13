@@ -61,7 +61,7 @@ async function settingsOf(tenantId) {
 const reserveSlot = (tenantId, userId, limit, needOnline) => Rider.findOneAndUpdate(
     { tenantId, userId, isActive: true, ...(needOnline && { isOnline: true }), activeOrderCount: { $lt: limit } },
     { $inc: { activeOrderCount: 1 } },
-    { new: true },
+    { returnDocument: 'after' },
 );
 const releaseSlot = (tenantId, userId) => Rider.updateOne(
     { tenantId, userId, activeOrderCount: { $gt: 0 } },
@@ -86,7 +86,7 @@ async function offerTo({ orderId, tenantId, riderUserId, by, settings, slotReser
             },
             $push: { 'delivery.offers': { riderId: riderUserId, offeredAt: now, expiresAt: expires, result: 'offered', by } },
         },
-        { new: true },
+        { returnDocument: 'after' },
     );
     if (!order) {
         await releaseSlot(tenantId, riderUserId);
@@ -108,7 +108,7 @@ async function clearOffer({ orderId, tenantId, riderUserId, result, onlyExpired 
             ...(onlyExpired && { 'delivery.offerExpiresAt': { $lte: now } }),
         },
         { $unset: CLEAR, $set: { 'delivery.offers.$[o].result': result, 'delivery.offers.$[o].at': now } },
-        { new: false, arrayFilters: [{ 'o.riderId': riderUserId, 'o.result': 'offered' }] },
+        { returnDocument: 'before', arrayFilters: [{ 'o.riderId': riderUserId, 'o.result': 'offered' }] },
     );
     if (!old) return null;
     await releaseSlot(tenantId, riderUserId);
@@ -321,7 +321,7 @@ async function removeCurrent({ orderId, tenantId, current, reason, actor }) {
                 },
             },
         },
-        { new: false, arrayFilters: [{ 'o.result': 'offered' }] },
+        { returnDocument: 'before', arrayFilters: [{ 'o.result': 'offered' }] },
     );
     if (!old) throw httpError(409, 'This order just changed. Refresh and try again.');
     await releaseSlot(tenantId, current.riderId);
@@ -407,7 +407,7 @@ async function acceptManual({ orderId, tenantId, riderUserId }) {
             },
             $unset: { 'delivery.offerExpiresAt': 1 },
         },
-        { new: true, arrayFilters: [{ 'o.riderId': riderUserId, 'o.result': 'offered' }] },
+        { returnDocument: 'after', arrayFilters: [{ 'o.riderId': riderUserId, 'o.result': 'offered' }] },
     );
     if (!order) throw httpError(409, 'This request is no longer available');
     notify.riderAccepted(order);   // customer and owner

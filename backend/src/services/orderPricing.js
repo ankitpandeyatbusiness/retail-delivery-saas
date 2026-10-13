@@ -126,7 +126,7 @@ const reserveCoupon = (couponId, tenantId) => Coupon.findOneAndUpdate(
         $expr: { $or: [{ $eq: [{ $ifNull: ['$totalUsageLimit', null] }, null] }, { $lt: ['$usedCount', '$totalUsageLimit'] }] },
     },
     { $inc: { usedCount: 1 } },
-    { new: true },
+    { returnDocument: 'after' },
 );
 const releaseCoupon = (couponId) =>
     couponId ? Coupon.updateOne({ _id: couponId, usedCount: { $gt: 0 } }, { $inc: { usedCount: -1 } }) : null;

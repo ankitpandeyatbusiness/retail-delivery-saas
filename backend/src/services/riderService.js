@@ -25,7 +25,7 @@ async function addByPhone({ tenantId, phone, name }) {
         user = await User.findOneAndUpdate(
             { tenantId, phone, role: { $ne: 'admin' } },     // the filter also protects against a race with an owner
             { $set: { role: 'rider', phoneHash: hashPhone(tenantId, phone) } },
-            { upsert: true, new: true, setDefaultsOnInsert: true },
+            { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
         );
     } catch (e) {
         if (e.code === 11000) throw httpError(409, 'This number belongs to the shop owner. Use another number.');
@@ -38,7 +38,7 @@ async function addByPhone({ tenantId, phone, name }) {
     const rider = await Rider.findOneAndUpdate(
         { tenantId, userId: user._id },
         { $set: set },
-        { upsert: true, new: true, setDefaultsOnInsert: true },
+        { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
     );
     return { userId: user._id, phone, rider };
 }

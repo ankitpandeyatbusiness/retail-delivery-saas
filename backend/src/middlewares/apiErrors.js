@@ -19,6 +19,7 @@ function apiErrors(err, req, res, next) { // eslint-disable-line no-unused-vars
     if (err.code === 11000) return res.status(409).json({ error: 'Already exists (duplicate value)' });
     if (err.status && err.status < 500) return res.status(err.status).json({ error: err.message, ...(err.extra || {}) });   // extra = more fields for the app, e.g. PRICE_CHANGED
     console.error('API error:', err);
+    if (!err.status || err.status === 500) require('../utils/sentry').capture(err);   // unexpected errors only
     res.status(500).json({ error: 'Something went wrong' });
 }
 

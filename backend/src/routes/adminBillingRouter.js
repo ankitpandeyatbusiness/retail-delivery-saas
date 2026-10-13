@@ -179,7 +179,7 @@ router.post('/tenants/:tid/invoices/custom', loadTenant, wrap(async (req, res) =
     const blocksShop = body.blocksShop !== false;   // false = this bill can never pause the shop
 
     const fy = financialYear(periodOf(now));
-    const counter = await Counter.findOneAndUpdate({ _id: `subinv:${fy}` }, { $inc: { seq: 1 } }, { new: true, upsert: true });
+    const counter = await Counter.findOneAndUpdate({ _id: `subinv:${fy}` }, { $inc: { seq: 1 } }, { returnDocument: 'after', upsert: true });
     const invoiceNo = `SUB/${fy}/${String(counter.seq).padStart(4, '0')}`;
 
     const biz = tenant.business || {};
@@ -227,7 +227,7 @@ async function cancelInvoice(req, res, defaultReason) {
     const inv = await SubscriptionInvoice.findOneAndUpdate(
         { _id: req.params.id, status: 'pending' },
         { $set: { status: 'void', voidedAt: new Date(), voidReason: reason, markedBy: req.admin.email } },
-        { new: true },
+        { returnDocument: 'after' },
     ).lean();
     if (!inv) {
         const cur = await SubscriptionInvoice.findById(req.params.id).select('status').lean();
@@ -252,7 +252,7 @@ router.patch('/subscriptions/invoices/:id/extend-grace', wrap(async (req, res) =
     const now = Date.now();
     const base = Math.max(cur.graceEndsAt ? new Date(cur.graceEndsAt).getTime() : now, now);   // from the old end, or from now if it already ended
     const inv = await SubscriptionInvoice.findByIdAndUpdate(
-        req.params.id, { $set: { graceEndsAt: new Date(base + days * DAY_MS) } }, { new: true },
+        req.params.id, { $set: { graceEndsAt: new Date(base + days * DAY_MS) } }, { returnDocument: 'after' },
     ).lean();
     await enforceTenant(inv.tenantId);
     res.json(withOverdue(inv));

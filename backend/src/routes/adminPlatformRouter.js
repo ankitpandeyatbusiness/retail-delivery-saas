@@ -29,7 +29,7 @@ router.put('/platform/maintenance', wrap(async (req, res) => {
     const doc = await PlatformSettings.findByIdAndUpdate(
         'main',
         { $set: { 'maintenance.on': m.on, 'maintenance.message': m.message, 'maintenance.until': m.until } },
-        { upsert: true, new: true, setDefaultsOnInsert: true },
+        { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
     ).lean();
     platformGate.invalidate();   // the gate re-reads the switch right away
     res.json({ ok: true, maintenance: doc.maintenance });

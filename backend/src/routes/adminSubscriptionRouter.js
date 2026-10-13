@@ -107,7 +107,7 @@ router.patch('/subscriptions/invoices/:id/status', wrap(async (req, res) => {
             $unset: { paidAt: 1, paymentMode: 1, paymentRef: 1 },
         };
     }
-    const inv = await SubscriptionInvoice.findByIdAndUpdate(req.params.id, update, { new: true }).lean();
+    const inv = await SubscriptionInvoice.findByIdAndUpdate(req.params.id, update, { returnDocument: 'after' }).lean();
     await enforceTenant(inv.tenantId);   // paid unpauses the shop at once, undo can pause it again
     res.json(withOverdue(inv));
 }));

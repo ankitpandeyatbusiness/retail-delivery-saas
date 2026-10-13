@@ -135,7 +135,7 @@ async function rateDelivery({ tenant, userId, orderId, body }) {
             'deliveryRating.rating': { $exists: false },
         },
         { $set: { deliveryRating: { rating, tags, comment, ratedAt: new Date() } } },
-        { new: true },
+        { returnDocument: 'after' },
     );
     if (!done) throw httpError(409, 'You already rated this delivery');
 
