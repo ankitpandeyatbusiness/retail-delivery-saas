@@ -12,7 +12,7 @@ const tenantConfigs = {
   },
   savera: {
     name: 'Savera',
-    bundleId: 'com.ankit.savera',
+    bundleId: 'com.savera.app',
     icon: './src/assets/tenants/savera/icon.png',
     splashImage: './src/assets/tenants/savera/adaptive-foreground.png',
     backgroundColor: '#E23744',
@@ -23,7 +23,7 @@ const tenantConfigs = {
   },
   burgerking: {
     name: 'Burger King',
-    bundleId: 'com.ankit.burgerking',
+    bundleId: 'com.burgerking.app',
     icon: './src/assets/tenants/default/icon.png',
     splashImage: './src/assets/tenants/default/icon.png',
     backgroundColor: '#D62300',
