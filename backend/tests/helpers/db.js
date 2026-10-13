@@ -19,6 +19,8 @@ exports.clear = async () => {
 };
 
 exports.disconnect = async () => {
+    // let background tasks (push, SMS, feed, audit) finish before the connection closes
+    await new Promise((r) => setTimeout(r, 300));
     await mongoose.disconnect();
     if (repl) await repl.stop();
 };
