@@ -26,12 +26,14 @@ const {
     outcomeFor, OWNER_CANCEL_REASONS, ADMIN_CANCEL_REASONS, SYSTEM_CANCEL_REASONS, UNDELIVERED_REASONS,
 } = require('./orderOutcome');
 const risk = require('./customerRisk');
+const refundService = require('./refundService');
 const billable = require('./billableService');
 const stockService = require('./stockService');
 const riderEarnings = require('./riderEarnings');
 const { httpError } = require('../middlewares/apiErrors');
 const notify = require('./notificationService');
 const liveFeed = require('./liveFeed');
+const { isUnpaidOnline } = require('./onlineOrder');
 
 const CANCELLED_BY = { customer: 'customer', owner: 'shop', superadmin: 'admin', system: 'system' };
 const ACTOR_TYPES = ['customer', 'owner', 'rider', 'superadmin', 'system'];
@@ -51,6 +53,7 @@ const logError = (what) => (e) => console.error(`${what}:`, e.message);
 function checkAllowed({ order, status, actor, note, tenant, reasonCode, now }) {
     switch (actor.type) {
         case 'owner':
+            if (isUnpaidOnline(order)) throw httpError(409, 'Waiting for the customer to pay. You can accept the order once it is paid.');
             if (status === 'undelivered') {
                 if (!UNDELIVERED_REASONS.includes(reasonCode)) throw httpError(400, 'Choose who is at fault: customer, shop or rider');
                 const u = canMarkUndelivered(order, now);
@@ -77,6 +80,7 @@ function checkAllowed({ order, status, actor, note, tenant, reasonCode, now }) {
             }
             return;
         case 'superadmin':
+            if (isUnpaidOnline(order) && status !== 'cancelled') throw httpError(409, 'The customer has not paid yet');
             if (!ACTIVE_STATUSES.includes(order.status)) {
                 throw httpError(409, `This order is already "${order.status}" and cannot be changed`);
             }
@@ -186,7 +190,8 @@ async function change({ order, status, actor, note, tenant, reasonCode }) {
     // The status filter makes this fail if someone else moved the order a moment ago.
     // Because of it, the follow-up work below runs only once per order.
     const updated = await Order.findOneAndUpdate(
-        { _id: order._id, tenantId: order.tenantId, status: order.status },
+        // payment.status must be unchanged too, because the refund maths above used it. If a payment landed meanwhile, it answers 409 and the caller tries again.
+        { _id: order._id, tenantId: order.tenantId, status: order.status, ...(order.payment?.status ? { 'payment.status': order.payment.status } : {}) },
         {
             $set: set,
             $push: {
@@ -215,7 +220,14 @@ async function change({ order, status, actor, note, tenant, reasonCode }) {
             await billable.markBillable(updated, status === 'undelivered' ? 'undelivered_customer' : 'cancel_kept')
                 .catch(logError('Billable count error'));
         }
-        // PHASE 4: when an online order was paid, money goes back here (outcome.refundPaise) through refundService.issueRefund
+        // Money back to the customer (online orders that were paid). It is saved with a fixed key first, so it can never go out twice.
+        // If this step fails, the reconcile job finds the order and sends the refund (paymentReconcile).
+        if (outcome.refundPaise > 0) {
+            await refundService.issueRefund({
+                tenantId: updated.tenantId, orderId: updated._id, amountPaise: outcome.refundPaise,
+                reason: status, key: `order:${updated._id}:${status === 'cancelled' ? 'cancel' : 'undelivered'}`,
+            }).catch(logError('Refund error'));
+        }
         if (outcome.strike) await risk.addStrike(updated).catch(logError('Strike error'));
     }
 

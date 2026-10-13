@@ -7,6 +7,7 @@ const Tenant = require('../models/Tenant');
 const SmsWallet = require('../models/SmsWallet');
 const { ACTIVE_STATUSES } = require('./orderflow');
 const liveFeed = require('./liveFeed');
+const { HIDE_UNPAID } = require('./onlineOrder');
 
 const IST_MS = 330 * 60 * 1000;
 // start of today / this month in Indian time
@@ -24,7 +25,7 @@ async function build(tenantId, { owner = false } = {}) {
 
     const [counts, riders, billableToday, billableMonth, revenue, customers, wallet, tenant, feed] = await Promise.all([
         Order.aggregate([
-            { $match: { tenantId, status: { $in: ACTIVE_STATUSES } } },
+            { $match: { tenantId, status: { $in: ACTIVE_STATUSES }, ...HIDE_UNPAID } },
             { $group: { _id: '$status', n: { $sum: 1 } } },
         ]),
         Rider.find({ tenantId, isActive: true, $or: [{ isOnline: true }, { activeOrderCount: { $gt: 0 } }] })

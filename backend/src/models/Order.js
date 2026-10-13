@@ -54,6 +54,8 @@ const orderSchema = new Schema({
     payment: {
         method: { type: String, enum: ['cod', 'upi', 'card', 'wallet'], required: true },
         status: { type: String, enum: ['pending', 'paid', 'failed', 'refunded'], default: 'pending' },
+        paidAt: Date,
+        paymentId: String,   // the Razorpay payment id
     },
 
     customer: { name: String, phone: String, phoneHash: String, deleted: Boolean },   // deleted = he deleted his account

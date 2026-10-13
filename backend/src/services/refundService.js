@@ -28,4 +28,7 @@ function calcRefund({ paidPaise, tipPaise = 0, reason, status, acceptedAt, now =
 // rupees (with up to 2 decimals) -> whole paise
 const toPaise = (rupees) => Math.round((Number(rupees) || 0) * 100);
 
-module.exports = { calcRefund, toPaise, SHARE, FULL };
+// money really moving back (lazy require keeps the maths above pure)
+const issueRefund = (args) => require('./refundIssuer').issueRefund(args);
+
+module.exports = { calcRefund, toPaise, SHARE, FULL, issueRefund };

@@ -10,6 +10,9 @@ const feedbackSvc = require('../services/deliveryFeedbackService');
 const complaintSvc = require('../services/complaintService');
 const { ACTIVE_STATUSES } = require('../services/orderflow');
 const { streamInvoice } = require('../services/invoiceService');
+const paymentService = require('../services/paymentService');
+const accounts = require('../services/paymentAccounts');
+const { APP_METHODS } = require('../services/onlineOrder');
 
 const { wrap, httpError } = apiErrors;
 const router = express.Router();
@@ -18,7 +21,7 @@ const router = express.Router();
 // and CANCEL an order. Everything else (quote, place order, reorder) stays blocked.
 router.use((req, res, next) => {
     const isRead = req.method === 'GET';
-    const isCancel = req.method === 'POST' && /^\/[a-fA-F0-9]{24}\/(cancel|complaints)$/.test(req.path);
+    const isCancel = req.method === 'POST' && /^\/[a-fA-F0-9]{24}\/(cancel|complaints|pay\/verify)$/.test(req.path);
     req.allowFrozenShop = isRead || isCancel;
     next();
 });
@@ -54,6 +57,12 @@ router.post('/', wrap(async (req, res) => {
         idempotencyKey: key,
     });
     res.status(duplicate ? 200 : 201).json(view(order, req.tenant));
+}));
+
+// Which online payment methods this shop can take right now. The app asks BEFORE it shows the pay button.
+router.get('/payment-config', wrap(async (req, res) => {
+    const can = await accounts.canTakePayments(req.tenant._id);
+    res.json({ online: !!can.ok, methods: can.ok ? APP_METHODS : [] });
 }));
 
 // Pickup time windows for the cart screen
@@ -107,6 +116,29 @@ router.post('/:id/cancel', wrap(async (req, res) => {
         reason: req.body?.reason,
     });
     res.json(view(order, req.tenant));
+}));
+
+// Start paying an online order. Gives the app what its payment screen needs. Safe to call again.
+router.post('/:id/pay', wrap(async (req, res) => {
+    checkId(req);
+    const order = await Order.findOne({ _id: req.params.id, tenantId: req.tenant._id, userId: req.auth.userId });
+    if (!order) throw httpError(404, 'Order not found');
+    res.json(await paymentService.startForOrder({ order }));
+}));
+
+// After the customer paid: the app sends the proof. We check it and ask Razorpay what really happened.
+router.post('/:id/pay/verify', wrap(async (req, res) => {
+    checkId(req);
+    const b = req.body || {};
+    const [rzpOrderId, rzpPaymentId, signature] = [b.razorpay_order_id, b.razorpay_payment_id, b.razorpay_signature];
+    if (![rzpOrderId, rzpPaymentId, signature].every((v) => typeof v === 'string' && v && v.length <= 100)) {
+        throw httpError(400, 'Payment details are missing');
+    }
+    const order = await Order.findOne({ _id: req.params.id, tenantId: req.tenant._id, userId: req.auth.userId });
+    if (!order) throw httpError(404, 'Order not found');
+    const r = await paymentService.verifyFromApp({ order, rzpOrderId, rzpPaymentId, signature });
+    const fresh = await Order.findById(order._id);
+    res.json({ paid: !!r.paid, order: view(fresh, req.tenant) });
 }));
 
 // Returns cart lines to refill the cart. Call /quote next to get today's prices.

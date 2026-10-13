@@ -6,6 +6,7 @@ const Order = require('../models/Order');
 const realtime = require('./realtime');
 const center = require('../notifications/center');
 const liveFeed = require('./liveFeed');
+const { isUnpaidOnline } = require('./onlineOrder');
 
 // old style helpers, still used by billing, the superadmin messages and the stuck-order watcher
 const send = (p) => center.notify(p.type, { ...p, to: p.role === 'superadmin' ? 'superadmin' : undefined });
@@ -60,7 +61,7 @@ function orderStatusChanged(order, status, actor) {
             });
         }
         if (status === 'cancelled') {
-            if (actor.type === 'customer' || actor.type === 'system') {
+            if ((actor.type === 'customer' || actor.type === 'system') && !isUnpaidOnline(order)) {   // the owner never saw an unpaid online order
                 center.notify('order_cancelled', {
                     tenantId: t, data, vars: { audience: 'owner', orderNo: no, bySystem: actor.type === 'system' },
                 });

@@ -1,0 +1,120 @@
+// Handles one Razorpay webhook. Returns { status, body }. Rules:
+//  - the signature is checked on the RAW body with the secret of that shop (or the platform)
+//  - every event id is processed once; a failed event answers 500 so Razorpay sends it again
+const crypto = require('crypto');
+const mongoose = require('mongoose');
+const Tenant = require('../models/Tenant');
+const SmsTopup = require('../models/SmsTopup');
+const OnlinePayment = require('../models/OnlinePayment');
+const Evt = require('../models/PaymentWebhookEvent');
+const payments = require('./adapters/payments');
+const accounts = require('./paymentAccounts');
+const paymentService = require('./paymentService');
+const refundIssuer = require('./refundIssuer');
+const smsTopupService = require('./smsTopupService');
+const alert = require('./paymentAlerts');
+
+const reply = (status, body) => ({ status, body });
+
+async function claim(account, eventId, event) {
+    try {
+        return { ev: await Evt.create({ account, eventId, event, status: 'processing', attempts: 1 }) };
+    } catch (e) {
+        if (e.code !== 11000) throw e;
+    }
+    const stale = new Date(Date.now() - 2 * 60 * 1000);
+    const ev = await Evt.findOneAndUpdate(
+        { account, eventId, $or: [{ status: 'failed' }, { status: 'processing', updatedAt: { $lt: stale } }] },
+        { $set: { status: 'processing' }, $inc: { attempts: 1 } },
+        { returnDocument: 'after' },
+    );
+    if (ev) return { ev };
+    const cur = await Evt.findOne({ account, eventId });
+    return cur?.status === 'done' ? { done: true } : { busy: true };
+}
+
+async function onPayment(account, body, name) {
+    if (account === 'platform') return { ignored: 'platform_payment' };
+    const rzp = paymentService.fromEntity(body.payload?.payment?.entity);
+    if (!rzp.orderId) return { ignored: 'no_order' };   // e.g. a QR payment
+    const payment = await OnlinePayment.findOne({ tenantId: account, rzpOrderId: rzp.orderId });
+    if (!payment) return { ignored: 'unknown_order' };
+    if (name === 'payment.failed') {
+        return paymentService.markFailed({ payment, reason: body.payload?.payment?.entity?.error_description });
+    }
+    return paymentService.confirmCapture({ payment, rzp, source: 'webhook' });
+}
+
+// SMS top-up QR paid (platform account only)
+async function onQrCredited(account, body) {
+    if (account !== 'platform') return { ignored: 'not_platform' };
+    const qr = body.payload?.qr_code?.entity || {};
+    const pay = paymentService.fromEntity(body.payload?.payment?.entity);
+    if (qr.notes?.purpose !== 'sms_topup') return { ignored: 'other_purpose' };
+    const topupId = qr.notes.referenceId;
+    const topup = mongoose.isValidObjectId(topupId) ? await SmsTopup.findById(topupId) : null;
+    const problem = !topup ? 'Top-up not found'
+        : (topup.qrId && topup.qrId !== qr.id) ? 'QR does not match the top-up'
+            : pay.status !== 'captured' ? 'Payment is not captured'
+                : pay.amountPaise !== topup.amountPaise ? 'Amount does not match the top-up' : null;
+    if (problem) {
+        await alert('admin_webhook_failed', { vars: { event: 'qr_code.credited', error: `${problem} (payment ${pay.id}). Check Razorpay and credit by hand if it is real.` } });
+        return { ignored: 'check_failed' };
+    }
+    await smsTopupService.complete({ topupId, paymentId: pay.id, actor: { type: 'system' } });
+    return { topup: 'credited' };
+}
+
+async function route(account, body) {
+    const name = String(body.event || '');
+    switch (name) {
+        case 'payment.captured':
+        case 'payment.failed':
+            return onPayment(account, body, name);
+        case 'refund.processed':
+        case 'refund.failed':
+            return refundIssuer.onRefundEvent({ account, name, entity: body.payload?.refund?.entity || {} });
+        case 'qr_code.credited':
+            return onQrCredited(account, body);
+        default:
+            return { ignored: name };   // disputes and the rest come later
+    }
+}
+
+async function handle({ account, rawBody, signature, eventIdHeader }) {
+    const isPlatform = account === 'platform';
+    let secret = null;
+    if (isPlatform) {
+        secret = payments.platformCredentials()?.webhookSecret || null;
+    } else {
+        if (!mongoose.isValidObjectId(account) || !(await Tenant.exists({ _id: account }))) return reply(404, { error: 'Not found' });
+        secret = (await accounts.forTenant(account)).webhookSecret;
+    }
+    if (!payments.verifyWebhook({ rawBody, signature, secret })) return reply(401, { error: 'Bad signature' });
+
+    if (!isPlatform) await Tenant.updateOne({ _id: account }, { $set: { 'payments.lastWebhookAt': new Date() } });
+
+    let body;
+    try { body = JSON.parse(rawBody.toString('utf8')); } catch (e) { return reply(400, { error: 'Bad body' }); }
+    const name = String(body.event || '');
+    const eventId = eventIdHeader || `h:${crypto.createHash('sha256').update(rawBody).digest('hex')}`;
+
+    const c = await claim(account, eventId, name);
+    if (c.done) return reply(200, { ok: true, duplicate: true });
+    if (c.busy) return reply(500, { error: 'Still processing, try again' });
+
+    try {
+        const result = await route(account, body);
+        await Evt.updateOne({ _id: c.ev._id }, { $set: { status: 'done' }, $unset: { error: 1 } });
+        return reply(200, { ok: true, ...result });
+    } catch (e) {
+        console.error(`Webhook ${name} failed:`, e.message);
+        await Evt.updateOne({ _id: c.ev._id }, { $set: { status: 'failed', error: String(e.message).slice(0, 300) } }).catch(() => { });
+        if (c.ev.attempts <= 1 || c.ev.attempts % 5 === 0) {
+            await alert('admin_webhook_failed', { tenantId: isPlatform ? undefined : account, vars: { event: name, error: e.message } });
+        }
+        return reply(500, { error: 'Could not process, try again' });
+    }
+}
+
+module.exports = { handle };

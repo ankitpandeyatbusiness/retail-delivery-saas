@@ -12,6 +12,7 @@ const auditTrail = require('../middlewares/auditTrail');
 const { validateSettings } = require('../services/tenantConfigService');
 const invoiceRoutes = require('./shopInvoiceRouter');
 const liveSnapshot = require('../services/liveSnapshot');
+const { HIDE_UNPAID } = require('../services/onlineOrder');
 
 const { wrap, httpError } = apiErrors;
 const router = express.Router();
@@ -61,7 +62,7 @@ const view = (order) => ({ ...order.toJSON(), allowedNext: svc.nextStatuses(orde
 router.get('/orders', wrap(async (req, res) => {
     const page = clamp(parseInt(req.query.page, 10) || 1, 1, 10000);
     const limit = clamp(parseInt(req.query.limit, 10) || 20, 1, 50);
-    const filter = { tenantId: req.tenant._id };
+    const filter = { tenantId: req.tenant._id, ...HIDE_UNPAID };   // an online order shows up after it is paid
 
     if (req.query.status === 'active') {
         filter.status = { $in: ACTIVE_STATUSES };
@@ -83,7 +84,7 @@ router.get('/orders', wrap(async (req, res) => {
     const [items, counts] = await Promise.all([
         Order.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit + 1),
         Order.aggregate([
-            { $match: { tenantId: req.tenant._id, status: { $in: ACTIVE_STATUSES } } },
+            { $match: { tenantId: req.tenant._id, status: { $in: ACTIVE_STATUSES }, ...HIDE_UNPAID } },
             { $group: { _id: '$status', n: { $sum: 1 } } },
         ]),
     ]);
@@ -99,7 +100,7 @@ router.get('/orders', wrap(async (req, res) => {
 }));
 
 router.get('/orders/:id', wrap(async (req, res) => {
-    const order = isId(req.params.id) ? await Order.findOne({ _id: req.params.id, tenantId: req.tenant._id }) : null;
+    const order = isId(req.params.id) ? await Order.findOne({ _id: req.params.id, tenantId: req.tenant._id, ...HIDE_UNPAID }) : null;
     if (!order) throw httpError(404, 'Order not found');
     res.json(view(order));
 }));
@@ -145,7 +146,8 @@ router.get('/live', openWhilePaused, wrap(async (req, res) => {
 router.use('/riders', openWhilePaused, require('./shopRiderRouter').manage);   // add, list, switch off, remove riders
 router.use('/cod', openWhilePaused, require('./shopCodRouter'));               // COD cash with riders, rider performance
 router.use('/activity', openWhilePaused, require('./shopAuditRouter'));        // owner activity log (rows of this shop only)
-router.use('/sms', openWhilePaused, require('./shopSmsRouter'));               // SMS wallet and top-up
+router.use('/sms', openWhilePaused, require('./shopSmsRouter'));
+router.use('/payments', openWhilePaused, require('./shopPaymentsRouter'));     // online money: report and refunds       // SMS wallet and top-up
 router.use('/reports', openWhilePaused, invoiceRoutes.reports);                // sales report
 
 /* ---------- level 3: closed while paused ---------- */

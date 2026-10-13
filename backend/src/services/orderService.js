@@ -20,6 +20,8 @@ const { httpError } = require('../middlewares/apiErrors');
 const { isId, round2, buildLines, reserveCoupon, releaseCoupon, priceCart } = require('./orderPricing');
 const { pickupSlots, findPickupSlot } = require('./pickupSlots');
 const stock = require('./stockService');
+const accounts = require('./paymentAccounts');
+const { isOnline, onlineProblem, HIDE_UNPAID } = require('./onlineOrder');
 
 const MAX_SCHEDULE_DAYS = 7;
 const TYPE_LABEL = { delivery: 'delivery', pickup: 'pickup', dine_in: 'dine-in' };
@@ -30,7 +32,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 /* ------------------------------ can this order be placed? ------------------------------ */
 // Returns null if fine, or { status, message } for the first problem found.
 // cod = { earlierOrders, blocked } (only worked out for Cash on delivery orders)
-function checkPlacement({ tenant, config, body, priced, address, user, cod }) {
+function checkPlacement({ tenant, config, body, priced, address, user, cod, online }) {
     const o = config.orders;
 
     if (!o.types.includes(priced.orderType)) return { status: 400, message: `This shop does not offer ${TYPE_LABEL[priced.orderType]}` };
@@ -43,6 +45,10 @@ function checkPlacement({ tenant, config, body, priced, address, user, cod }) {
     if (!methods.includes(body.paymentMethod)) {
         return { status: 400, message: noCod && body.paymentMethod === 'cod' ? 'Cash on delivery is not available right now' : 'This payment method is not available' };
     }
+
+    // Online payment: only UPI for now, and this shop must be able to take money right now
+    const onlineIssue = onlineProblem(body.paymentMethod, online);
+    if (onlineIssue) return onlineIssue;
 
     // Cash on delivery rules: a blocked phone, and a limit for the first orders of a new phone
     if (body.paymentMethod === 'cod') {
@@ -125,7 +131,8 @@ async function prepare({ tenant, userId, body }) {
         ]);
         cod = { earlierOrders, blocked: !!risk?.codBlocked };
     }
-    return { config, priced, address, user, problem: checkPlacement({ tenant, config, body, priced, address, user, cod }) };
+    const online = isOnline({ payment: { method: body.paymentMethod } }) ? await accounts.canTakePayments(tenant._id) : null;
+    return { config, priced, address, user, problem: checkPlacement({ tenant, config, body, priced, address, user, cod, online }) };
 }
 
 /* ------------------------------ quote (cart screen) ------------------------------ */
@@ -273,7 +280,7 @@ async function placeOrder({ tenant, userId, body, idempotencyKey }) {
             if (c?.firstOrderOnly) {
                 // any OTHER live order from this customer means this was not their first
                 const others = await Order.countDocuments({
-                    tenantId: tenant._id, ...who, _id: { $ne: order._id }, status: { $ne: 'cancelled' },
+                    tenantId: tenant._id, ...who, _id: { $ne: order._id }, status: { $ne: 'cancelled' }, ...HIDE_UNPAID,
                 });
                 if (others > 0) lost = true;
             }
@@ -294,7 +301,8 @@ async function placeOrder({ tenant, userId, body, idempotencyKey }) {
             }
         }
 
-        notify.orderPlaced(order);   // tells the owner
+        // Cash orders reach the owner now. Online orders reach him when the money arrives (paymentService).
+        if (!isOnline(order)) notify.orderPlaced(order);
         return { order, duplicate: false };
     } catch (e) {
         await releaseCoupon(priced.coupon?._id);   // the order was not created, give the coupon use back

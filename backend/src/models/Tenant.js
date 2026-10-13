@@ -124,6 +124,16 @@ const tenantSchema = new mongoose.Schema({
         },
     },
 
+    // Online payments with the shop's OWN Razorpay account. Set only by the superadmin routes.
+    payments: {
+        enabled: { type: Boolean, default: false },
+        keyId: { type: String, trim: true },
+        keySecretEnc: { type: String, select: false },       // encrypted, never sent to any app
+        webhookSecretEnc: { type: String, select: false },   // encrypted, shown once when created
+        verifiedAt: Date,                                    // the last successful "test connection"
+        lastWebhookAt: Date,                                 // the last webhook that passed the signature check
+    },
+
     settings: { type: mongoose.Schema.Types.Mixed, default: {} },
 }, { timestamps: true, minimize: false });
 

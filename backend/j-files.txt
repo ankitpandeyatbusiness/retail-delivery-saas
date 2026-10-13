@@ -1,0 +1,1321 @@
+﻿
+=== routes\webhookRouter.js ===
+
+// Webhooks from outside services (Razorpay later). The body stays RAW (a Buffer),
+// because a signature check needs the exact bytes that were sent.
+// This router is mounted ABOVE express.json in server.js.
+
+const express = require('express');
+
+const router = express.Router();
+
+router.use(express.raw({ type: '*/*', limit: '200kb' }));
+
+// PHASE 4: replace this with the real handler. It should:
+//   1. read the shop from req.params.tenantId and load that shop's webhook secret
+//   2. check the signature against req.body (the raw Buffer)
+//   3. use the payment id so a repeated webhook does nothing twice
+router.post('/razorpay/:tenantId', (req, res) => {
+    res.status(501).json({ error: 'Payments are not enabled yet' });
+});
+
+// anything else under /api/webhooks ends here, so it never reaches express.json
+router.use((req, res) => res.status(404).json({ error: 'Not found' }));
+
+module.exports = router;
+
+=== services\refundService.js ===
+
+// Refund maths. PURE: no database, no network. All amounts are WHOLE PAISE.
+// Money really moving back to a customer (issueRefund, the Refund record) comes in Phase 4. COD has no refund at all.
+//
+// paidPaise   what the customer paid online (tip included)
+// tipPaise    part of it that was a tip (the tip is always refunded unless the order was delivered)
+// reason      payment_timeout | not_accepted | shop_reject | shop_fault | platform | rider_fault | duplicate  -> full refund
+//             undelivered_customer                                                                           -> shop keeps the whole base
+//             customer_cancel | customer_asked                                                               -> free until accepted + 2 minutes, then a share
+// status      the order status at the moment of the cancel
+// acceptedAt  when the owner accepted (Date), for the 2 minute free window
+const SHARE = { placed: 0, accepted: 20, preparing: 50, ready: 50, out_for_delivery: 100 };
+const FULL = ['payment_timeout', 'not_accepted', 'shop_reject', 'shop_fault', 'platform', 'rider_fault', 'duplicate'];
+
+function calcRefund({ paidPaise, tipPaise = 0, reason, status, acceptedAt, now = new Date() }) {
+    if (!Number.isInteger(paidPaise) || paidPaise < 0) throw new Error('paidPaise must be whole paise');
+    const base = paidPaise - tipPaise;
+    let pct;
+    if (FULL.includes(reason)) pct = 0;
+    else if (reason === 'undelivered_customer') pct = 100;
+    else if (reason === 'customer_cancel' || reason === 'customer_asked') {
+        const inGrace = status === 'placed' || (status === 'accepted' && acceptedAt && now - acceptedAt <= 2 * 60 * 1000);
+        pct = inGrace ? 0 : (SHARE[status] ?? 100);
+    } else throw new Error('Unknown refund reason');
+    const keptPaise = Math.round((base * pct) / 100);
+    return { keptPaise, refundPaise: paidPaise - keptPaise, pct, couponReturn: keptPaise === 0, billable: keptPaise > 0 };
+}
+
+// rupees (with up to 2 decimals) -> whole paise
+const toPaise = (rupees) => Math.round((Number(rupees) || 0) * 100);
+
+module.exports = { calcRefund, toPaise, SHARE, FULL };
+
+=== services\smsTopupService.js ===
+
+// SMS top-up: make a QR, and credit the wallet when it is paid.
+const SmsTopup = require('../models/SmsTopup');
+const PlatformSettings = require('../models/PlatformSettings');
+const payments = require('./adapters/payments');
+const wallet = require('./smsWalletService');
+const notify = require('./notificationService');
+
+const MAX_PENDING = 5;
+const bad = (status, message) => Object.assign(new Error(message), { status });
+
+async function options() {
+    const p = await PlatformSettings.findById('main').select('sms').lean();
+    return {
+        packs: p?.sms?.packs ?? [10000, 25000, 50000],
+        minPaise: p?.sms?.minTopupPaise ?? 10000,
+        maxPaise: p?.sms?.maxTopupPaise ?? 1000000,
+    };
+}
+
+// a pending top-up whose QR time is over is shown as expired
+const view = (t, now = new Date()) => ({
+    ...t,
+    status: t.status === 'pending' && t.expiresAt && new Date(t.expiresAt) < now ? 'expired' : t.status,
+});
+
+async function create({ tenantId, amountPaise, actor }) {
+    const o = await options();
+    if (!Number.isInteger(amountPaise) || amountPaise < o.minPaise || amountPaise > o.maxPaise) {
+        throw bad(400, `Amount must be between ${o.minPaise} and ${o.maxPaise} paise`);
+    }
+    const open = await SmsTopup.countDocuments({ tenantId, status: 'pending', expiresAt: { $gt: new Date() } });
+    if (open >= MAX_PENDING) throw bad(429, 'Too many open top-ups. Pay one or wait a few minutes.');
+
+    const topup = new SmsTopup({ tenantId, amountPaise, createdBy: actor });
+    let qr;
+    try {
+        qr = await payments.createQr({ amountPaise, purpose: 'sms_topup', referenceId: String(topup._id) });
+    } catch (e) {
+        console.error('Top-up QR error:', e.message);
+        throw bad(503, 'Top-up is not available yet. Contact support.');   // superadmin manual credit still works
+    }
+    Object.assign(topup, { qrId: qr.qrId, upiString: qr.upiString, imageUrl: qr.imageUrl, expiresAt: qr.expiresAt });
+    await topup.save();
+    return topup.toObject();
+}
+
+// Called by the Razorpay webhook (Phase 4) or by the superadmin (mark paid by hand). Safe to call twice.
+// The wallet credit uses one fixed key per top-up, so it can never be added twice.
+async function complete({ topupId, tenantId, paymentId, actor }) {
+    const t = await SmsTopup.findById(topupId);
+    if (!t || (tenantId && String(t.tenantId) !== String(tenantId))) throw bad(404, 'Top-up not found');
+    if (t.status === 'paid') return { ok: true, duplicate: true };
+
+    // a late payment (QR already expired) is still real money, so it is still credited
+    const r = await wallet.credit({
+        tenantId: t.tenantId, amountPaise: t.amountPaise, type: 'topup',
+        paymentId: `topup:${t._id}`, note: 'SMS top-up', actor,
+    });
+    await SmsTopup.updateOne(
+        { _id: t._id, status: { $ne: 'paid' } },
+        { $set: { status: 'paid', paidAt: new Date(), paymentId: paymentId || undefined, paidBy: actor } },
+    );
+    if (!r.duplicate) {   // tell the owner once: in the app, and a receipt by email
+        notify.toOwner(t.tenantId, {
+            type: 'sms_topup_done', title: 'SMS balance added',
+            body: `Rs ${(t.amountPaise / 100).toFixed(2)} added to your SMS balance.`,
+            data: { topupId: String(t._id), amountPaise: t.amountPaise, balanceAfter: r.balanceAfter },
+        });
+    }
+    return r;
+}
+
+module.exports = { options, view, create, complete };
+
+=== services\orderService.js ===
+
+// Order rules: can this order be placed, quote, place, cancel, reorder.
+// Pricing is in orderPricing.js and pickup windows are in pickupSlots.js.
+// The app only sends WHAT the customer picked. Every price is worked out on the server.
+
+const crypto = require('crypto');
+const Order = require('../models/Order');
+const Counter = require('../models/Counter');
+const Address = require('../models/Address');
+const User = require('../models/User');
+const Coupon = require('../models/Coupon');
+const CustomerRisk = require('../models/CustomerRisk');
+const OrderGuard = require('../models/OrderGuard');
+const { resolveConfig, openStatus } = require('./tenantConfigService');
+const { nextStatuses, customerCanCancel } = require('./orderflow'); // lowercase: matches the real file name
+const { serviceability, haversineKm } = require('../utils/geo');
+const orderStatus = require('./orderStatusService');
+const notify = require('./notificationService');
+const { hashPhone } = require('../utils/phoneHash');
+const { httpError } = require('../middlewares/apiErrors');
+const { isId, round2, buildLines, reserveCoupon, releaseCoupon, priceCart } = require('./orderPricing');
+const { pickupSlots, findPickupSlot } = require('./pickupSlots');
+const stock = require('./stockService');
+
+const MAX_SCHEDULE_DAYS = 7;
+const TYPE_LABEL = { delivery: 'delivery', pickup: 'pickup', dine_in: 'dine-in' };
+const SAME_CART_WINDOW_MS = 10 * 1000;   // the same cart twice inside 10 seconds is a double tap
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/* ------------------------------ can this order be placed? ------------------------------ */
+// Returns null if fine, or { status, message } for the first problem found.
+// cod = { earlierOrders, blocked } (only worked out for Cash on delivery orders)
+function checkPlacement({ tenant, config, body, priced, address, user, cod }) {
+    const o = config.orders;
+
+    if (!o.types.includes(priced.orderType)) return { status: 400, message: `This shop does not offer ${TYPE_LABEL[priced.orderType]}` };
+    // unpaid rent after grace (the shop is already shown as not accepting orders; this is a second guard)
+    if (tenant.billing?.state === 'paused') return { status: 409, message: 'The shop is not accepting orders right now' };
+
+    // No COD during free service. Switched on with ENFORCE_NO_COD_IN_FREE=true (keep it OFF until online payments exist)
+    const noCod = process.env.ENFORCE_NO_COD_IN_FREE === 'true' && tenant.billing?.state === 'free';
+    const methods = noCod ? o.payments.filter((m) => m !== 'cod') : o.payments;
+    if (!methods.includes(body.paymentMethod)) {
+        return { status: 400, message: noCod && body.paymentMethod === 'cod' ? 'Cash on delivery is not available right now' : 'This payment method is not available' };
+    }
+
+    // Cash on delivery rules: a blocked phone, and a limit for the first orders of a new phone
+    if (body.paymentMethod === 'cod') {
+        if (cod?.blocked) return { status: 400, message: 'Cash on delivery is not available for this number' };
+        const cap = o.codCap || {};
+        if (cap.amount > 0 && cap.firstOrders > 0 && (cod?.earlierOrders ?? 0) < cap.firstOrders && priced.pricing.total > cap.amount) {
+            return {
+                status: 400,
+                message: `Cash on delivery is limited to Rs ${cap.amount} for your first ${cap.firstOrders} orders. Pay online or reduce the order.`,
+            };
+        }
+    }
+
+    // open now, or open at the chosen time
+    if (priced.orderType === 'pickup') {
+        // pickup always needs a time window from /orders/pickup-slots, and the shop must be open right now
+        if (!config.restaurant.isOpen) {
+            return { status: 409, message: config.restaurant.closedReason === 'paused' ? 'The shop is not accepting orders right now' : config.restaurant.closedMessage };
+        }
+        if (!findPickupSlot(tenant, body.pickupSlot)) {
+            return { status: 409, message: body.pickupSlot ? 'That pickup time is no longer available. Pick another.' : 'Please pick a pickup time' };
+        }
+    } else if (body.scheduledFor) {
+        if (!config.features.scheduleOrder) return { status: 400, message: 'Scheduled orders are not available' };
+        const when = new Date(body.scheduledFor);
+        if (Number.isNaN(when.getTime())) return { status: 400, message: 'Invalid time' };
+        if (when.getTime() < Date.now() + (o.prepTimeMin || 0) * 60000) return { status: 400, message: 'Please pick a later time' };
+        if (when.getTime() > Date.now() + MAX_SCHEDULE_DAYS * 86400000) return { status: 400, message: `You can schedule up to ${MAX_SCHEDULE_DAYS} days ahead` };
+        const st = openStatus(config.hours.weekly, o.acceptingOrders, when, config.hours.closedDates);
+        if (!st.isOpen) return { status: 409, message: st.reason === 'paused' ? 'The shop is not accepting orders right now' : (st.message || 'The shop is closed at that time') };
+    } else if (!config.restaurant.isOpen) {
+        return {
+            status: 409,
+            message: config.restaurant.closedReason === 'paused' ? 'The shop is not accepting orders right now' : config.restaurant.closedMessage,
+        };
+    }
+
+    if (priced.pricing.subtotal < (o.minOrder || 0)) return { status: 400, message: `Minimum order is â‚¹${o.minOrder}` };
+
+    if (priced.orderType === 'delivery') {
+        if (!address) return { status: 400, message: 'Please choose a delivery address' };
+        const s = serviceability(tenant, address.latitude, address.longitude);
+        if (!s.serviceable) return { status: 400, message: s.message };
+        if (!/^[6-9]\d{9}$/.test(address.phone || user?.phone || '')) {
+            return { status: 400, message: 'Add a phone number the delivery partner can call' };
+        }
+    }
+    if (priced.orderType === 'dine_in') {
+        const t = typeof body.tableNo === 'string' ? body.tableNo.trim() : '';
+        if (!t || t.length > 10) return { status: 400, message: 'Table number is required' };
+    }
+    return null;
+}
+
+async function prepare({ tenant, userId, body }) {
+    const config = resolveConfig(tenant);
+    const user = await User.findById(userId).select('name phone').lean();
+
+    // the address comes first: a delivery fee by distance needs it
+    let address = null;
+    if (body.orderType === 'delivery' && body.addressId !== undefined) {
+        if (!isId(body.addressId)) throw httpError(400, 'Invalid address');
+        address = await Address.findOne({ _id: body.addressId, tenantId: tenant._id, userId }).lean();
+        if (!address) throw httpError(400, 'Address not found');
+    }
+    // straight-line distance from the shop to the address (null when either place is unknown)
+    const shopAt = tenant.delivery || {};
+    const distanceKm = address && [shopAt.latitude, shopAt.longitude, address.latitude, address.longitude].every(Number.isFinite)
+        ? Math.round(haversineKm(shopAt.latitude, shopAt.longitude, address.latitude, address.longitude) * 10) / 10
+        : null;
+    const priced = await priceCart({ tenant, config, userId, body, distanceKm });
+
+    // Cash on delivery: how many earlier orders this PHONE has in this shop (by hash), and is it blocked
+    let cod = null;
+    if (body.paymentMethod === 'cod' && user?.phone) {
+        const phoneHash = hashPhone(tenant._id, user.phone);
+        const [earlierOrders, risk] = await Promise.all([
+            Order.countDocuments({ tenantId: tenant._id, 'customer.phoneHash': phoneHash, status: { $ne: 'cancelled' } }),
+            CustomerRisk.findOne({ tenantId: tenant._id, phoneHash }).select('codBlocked').lean(),
+        ]);
+        cod = { earlierOrders, blocked: !!risk?.codBlocked };
+    }
+    return { config, priced, address, user, problem: checkPlacement({ tenant, config, body, priced, address, user, cod }) };
+}
+
+/* ------------------------------ quote (cart screen) ------------------------------ */
+async function quote({ tenant, userId, body }) {
+    const { config, priced, problem } = await prepare({ tenant, userId, body });
+    return {
+        items: priced.lines,
+        pricing: priced.pricing,
+        distanceKm: priced.distanceKm ?? null,
+        shopOpen: config.restaurant.isOpen,
+        canPlace: !problem,
+        problem: problem ? problem.message : null,
+    };
+}
+
+/* ------------------------------ place order ------------------------------ */
+async function nextOrderNo(tenantId) {
+    const c = await Counter.findOneAndUpdate(
+        { _id: `order:${tenantId}` },
+        { $inc: { seq: 1 } },
+        { returnDocument: 'after', upsert: true },
+    );
+    return 1000 + c.seq;   // first order is #1001
+}
+
+// The app sends the total it showed the customer. If today's total is different, nothing is created.
+function checkExpectedTotal(body, priced) {
+    if (body.expectedTotal === undefined || body.expectedTotal === null) return;   // older apps do not send it
+    const expected = body.expectedTotal;
+    if (typeof expected !== 'number' || !Number.isFinite(expected) || expected < 0) throw httpError(400, 'Invalid expectedTotal');
+    if (round2(expected) !== priced.pricing.total) {
+        throw Object.assign(httpError(409, 'The price changed. Please check your cart.'), {
+            extra: { code: 'PRICE_CHANGED', newTotal: priced.pricing.total, items: priced.lines },
+        });
+    }
+}
+
+// Same shop + person + items + options + total
+function cartKey(tenantId, userId, priced) {
+    const lines = priced.lines.map((l) => ({
+        p: String(l.productId),
+        q: l.quantity,
+        s: (l.selections || []).map((s) => `${s.groupId}:${s.optionId}`).sort(),
+    })).sort((a, b) => `${a.p}${a.s.join()}`.localeCompare(`${b.p}${b.s.join()}`));
+    const raw = JSON.stringify({ t: String(tenantId), u: String(userId), o: priced.orderType, lines, total: priced.pricing.total });
+    return crypto.createHash('sha256').update(raw).digest('hex');
+}
+
+// ONE atomic step: wins if there is no row, or the old row is older than the window. A newer row means a double tap.
+async function takeGuard(key, now = new Date()) {
+    try {
+        await OrderGuard.updateOne(
+            { key, at: { $lt: new Date(now.getTime() - SAME_CART_WINDOW_MS) } },
+            { $set: { at: now } },
+            { upsert: true },
+        );
+        return true;
+    } catch (e) {
+        if (e.code === 11000) return false;
+        throw e;
+    }
+}
+
+async function placeOrder({ tenant, userId, body, idempotencyKey }) {
+    const findDuplicate = () => Order.findOne({ tenantId: tenant._id, userId, idempotencyKey });
+
+    // double-tap or retry after a bad network: return the order that was already made
+    if (idempotencyKey) {
+        const dup = await findDuplicate();
+        if (dup) return { order: dup, duplicate: true };
+    }
+
+    const { config, priced, address, problem } = await prepare({ tenant, userId, body });
+    if (problem) throw httpError(problem.status, problem.message);
+    checkExpectedTotal(body, priced);
+
+    // the same cart again within 10 seconds is refused
+    const guardKey = cartKey(tenant._id, userId, priced);
+    if (!(await takeGuard(guardKey))) {
+        if (idempotencyKey) {   // the same request is still being made: give back its order
+            for (let i = 0; i < 10; i += 1) {
+                const dup = await findDuplicate();
+                if (dup) return { order: dup, duplicate: true };
+                await sleep(150);
+            }
+        }
+        throw httpError(409, 'Duplicate order');
+    }
+    const letGo = () => OrderGuard.deleteOne({ key: guardKey }).catch(() => { });   // a failed order must not block a retry
+
+    if (priced.coupon) {
+        const reserved = await reserveCoupon(priced.coupon._id, tenant._id);
+        if (!reserved) {
+            await letGo();
+            throw httpError(409, 'This coupon is no longer available');
+        }
+    }
+
+    let reserved = [];
+    try {
+        reserved = await stock.reserve(tenant._id, priced.stockNeeds || []);   // takes the units, or 409 when short
+        const user = await User.findById(userId).select('name phone').lean();
+        const slot = priced.orderType === 'pickup' ? findPickupSlot(tenant, body.pickupSlot) : null;
+        const orderNo = await nextOrderNo(tenant._id);
+        const order = await Order.create({
+            tenantId: tenant._id,
+            userId,
+            orderNo,
+            idempotencyKey: idempotencyKey || undefined,
+            orderType: priced.orderType,
+            items: priced.lines,
+            pricing: priced.pricing,
+            couponId: priced.coupon?._id,
+            // copied now, so the invoice stays correct even if the shop's details change later
+            seller: {
+                name: tenant.business?.legalName || tenant.name,
+                gstin: tenant.business?.gstin,
+                fssai: tenant.business?.fssai,
+            },
+            payment: { method: body.paymentMethod, status: 'pending' },
+            customer: { name: user?.name, phone: user?.phone, phoneHash: user?.phone ? hashPhone(tenant._id, user.phone) : undefined },
+            address: address ? {
+                label: address.label,
+                name: address.name || user?.name,
+                phone: address.phone || user?.phone,
+                line1: address.line1, line2: address.line2,
+                landmark: address.landmark, city: address.city, pincode: address.pincode,
+                latitude: address.latitude, longitude: address.longitude,
+            } : undefined,
+            tableNo: priced.orderType === 'dine_in' ? String(body.tableNo).trim() : undefined,
+            scheduledFor: slot ? new Date(slot.from) : (body.scheduledFor && priced.orderType !== 'pickup' ? new Date(body.scheduledFor) : undefined),
+            pickupUntil: slot ? new Date(slot.to) : undefined,
+            note: config.features.specialInstructions && typeof body.note === 'string' && body.note.trim()
+                ? body.note.trim().slice(0, 300) : undefined,
+            etaMin: Math.max(config.orders.prepTimeMin || 0, priced.prepMin),
+            statusHistory: [{ status: 'placed', by: userId }],
+        });
+        // Second check, AFTER the order exists. The first check (in validateCoupon) can be beaten
+        // by two parallel requests, because neither order existed yet when both checked.
+        if (priced.coupon) {
+            const c = await Coupon.findById(priced.coupon._id).select('firstOrderOnly usageLimitPerUser').lean();
+            const who = user?.phone ? { 'customer.phoneHash': hashPhone(tenant._id, user.phone) } : { userId };
+            let lost = false;
+
+            if (c?.firstOrderOnly) {
+                // any OTHER live order from this customer means this was not their first
+                const others = await Order.countDocuments({
+                    tenantId: tenant._id, ...who, _id: { $ne: order._id }, status: { $ne: 'cancelled' },
+                });
+                if (others > 0) lost = true;
+            }
+            if (!lost && c?.usageLimitPerUser) {
+                const used = await Order.countDocuments({
+                    tenantId: tenant._id, ...who, couponId: priced.coupon._id, status: { $ne: 'cancelled' },
+                });
+                if (used > c.usageLimitPerUser) lost = true;   // this order is included in the count
+            }
+
+            if (lost) {
+                await Order.updateOne({ _id: order._id }, {
+                    $set: { status: 'cancelled', cancelledBy: 'customer', cancelReason: 'Coupon was already used' },
+                    $push: { statusHistory: { status: 'cancelled', by: userId, note: 'Coupon was already used' } },
+                });
+                // the catch block below gives the coupon use back, so do not release it here
+                throw httpError(409, 'This coupon has already been used');
+            }
+        }
+
+        notify.orderPlaced(order);   // tells the owner
+        return { order, duplicate: false };
+    } catch (e) {
+        await releaseCoupon(priced.coupon?._id);   // the order was not created, give the coupon use back
+        await stock.restore(tenant._id, reserved).catch((err) => console.error('Stock restore error:', err.message));
+        if (e.code === 11000 && idempotencyKey) {
+            const dup = await findDuplicate();
+            if (dup) return { order: dup, duplicate: true };
+        }
+        await letGo();
+        throw e;
+    }
+}
+
+async function cancelByCustomer({ tenant, userId, orderId, reason }) {
+    const order = await Order.findOne({ _id: orderId, tenantId: tenant._id, userId });
+    if (!order) throw httpError(404, 'Order not found');
+    return orderStatus.change({
+        order,
+        status: 'cancelled',
+        actor: { type: 'customer', id: userId, label: order.customer?.phone },
+        note: reason,
+        tenant,
+    });
+}
+
+// Turns an old order back into cart lines. Skips items that are gone or whose options changed.
+// The app should call /quote afterwards to get today's prices.
+async function reorderCart({ tenant, userId, orderId }) {
+    const config = resolveConfig(tenant);
+    if (!config.features.reorder) throw httpError(400, 'Reorder is not available at this shop');
+    const order = await Order.findOne({ _id: orderId, tenantId: tenant._id, userId });
+    if (!order) throw httpError(404, 'Order not found');
+
+    const items = [];
+    const skipped = [];
+    for (const l of order.items) {
+        const byGroup = new Map();
+        for (const s of l.selections || []) {
+            if (!byGroup.has(s.groupId)) byGroup.set(s.groupId, []);
+            byGroup.get(s.groupId).push(s.optionId);
+        }
+        const line = {
+            productId: String(l.productId),
+            quantity: l.quantity,
+            selections: [...byGroup].map(([groupId, optionIds]) => ({ groupId, optionIds })),
+            note: l.note,
+        };
+        try {
+            await buildLines(tenant, config, [line]);
+            items.push(line);
+        } catch (e) {
+            skipped.push(l.name);
+        }
+    }
+    return { items, skipped };
+}
+
+async function updateStatusByShop({ tenantId, actor, orderId, status, note, reasonCode }) {
+    const order = await Order.findOne({ _id: orderId, tenantId });
+    if (!order) throw httpError(404, 'Order not found');
+    return orderStatus.change({ order, status, actor, note, reasonCode });
+}
+
+module.exports = {
+    quote, placeOrder, pickupSlots, cancelByCustomer, reorderCart, updateStatusByShop,
+    customerCanCancel, nextStatuses,
+};
+
+=== services\orderStatusService.js ===
+
+// The ONE place where an order's status changes.
+// Shop owner, customer, superadmin, rider and timers all call change().
+//
+//   await orderStatus.change({
+//       order,                                   // the Order document
+//       status: 'accepted',
+//       actor: { type: 'owner', id: userId, label: '9876543210' },
+//       note: 'optional',
+//       reasonCode: 'busy',                      // needed for: owner cancel, owner undelivered. Optional for superadmin and system.
+//       tenant,                                  // only needed for actor.type 'customer' (the frozen-shop rule)
+//   });
+//
+// actor.type is one of: customer, owner, rider, superadmin, system.
+// Cancel and undelivered work out the money with orderOutcome (pure). Rules are in Handover 4, sections 4 and 6.
+
+const Order = require('../models/Order');
+const Coupon = require('../models/Coupon');
+const Product = require('../models/Product');
+const User = require('../models/User');
+const Rider = require('../models/Rider');
+const CodSettlement = require('../models/CodSettlement');
+const {
+    nextStatuses, customerCanCancel, canMarkUndelivered, shopFrozen, ACTIVE_STATUSES,
+} = require('./orderflow');
+const {
+    outcomeFor, OWNER_CANCEL_REASONS, ADMIN_CANCEL_REASONS, SYSTEM_CANCEL_REASONS, UNDELIVERED_REASONS,
+} = require('./orderOutcome');
+const risk = require('./customerRisk');
+const billable = require('./billableService');
+const stockService = require('./stockService');
+const riderEarnings = require('./riderEarnings');
+const { httpError } = require('../middlewares/apiErrors');
+const notify = require('./notificationService');
+const liveFeed = require('./liveFeed');
+
+const CANCELLED_BY = { customer: 'customer', owner: 'shop', superadmin: 'admin', system: 'system' };
+const ACTOR_TYPES = ['customer', 'owner', 'rider', 'superadmin', 'system'];
+const CANCEL_LABEL = {
+    busy: 'The shop is too busy right now',
+    out_of_stock: 'An item is out of stock',
+    shop_fault: 'A problem at the shop',
+    customer_asked: 'Cancelled at your request',
+    customer_fault: 'Cancelled at your request',
+    platform: 'Cancelled by the platform',
+};
+
+const cleanNote = (note) => (typeof note === 'string' && note.trim() ? note.trim().slice(0, 200) : undefined);
+const logError = (what) => (e) => console.error(`${what}:`, e.message);
+
+// Throws a clear error if this actor may not make this move
+function checkAllowed({ order, status, actor, note, tenant, reasonCode, now }) {
+    switch (actor.type) {
+        case 'owner':
+            if (status === 'undelivered') {
+                if (!UNDELIVERED_REASONS.includes(reasonCode)) throw httpError(400, 'Choose who is at fault: customer, shop or rider');
+                const u = canMarkUndelivered(order, now);
+                if (!u.ok) throw httpError(409, u.message);
+                return;
+            }
+            if (!nextStatuses(order, now).includes(status)) {
+                throw httpError(409, `This order is "${order.status}". It cannot move to "${status}".`);
+            }
+            if (status === 'cancelled') {
+                if (!OWNER_CANCEL_REASONS.includes(reasonCode)) {
+                    throw httpError(400, `Choose a reason for cancelling: ${OWNER_CANCEL_REASONS.join(', ')}`);
+                }
+                if (reasonCode === 'other' && !note) throw httpError(400, 'Please write the reason for cancelling');
+            }
+            return;
+        case 'customer':
+            if (status !== 'cancelled') throw httpError(403, 'Customers can only cancel');
+            if (!customerCanCancel(order, tenant)) {
+                const cod = !order.payment?.method || order.payment.method === 'cod';
+                throw httpError(409, cod
+                    ? 'You can cancel until the shop starts preparing your order. Please call the shop.'
+                    : 'This order can no longer be cancelled.');
+            }
+            return;
+        case 'superadmin':
+            if (!ACTIVE_STATUSES.includes(order.status)) {
+                throw httpError(409, `This order is already "${order.status}" and cannot be changed`);
+            }
+            // the owner's normal next step, or a force to cancelled / delivered ("undelivered" is the owner's decision)
+            if (!nextStatuses(order, now).filter((s) => s !== 'undelivered').includes(status) && !['cancelled', 'delivered'].includes(status)) {
+                throw httpError(400, 'Superadmin can move an order one step forward, or force it to cancelled or delivered');
+            }
+            if (status === 'cancelled' && reasonCode !== undefined && !ADMIN_CANCEL_REASONS.includes(reasonCode)) {
+                throw httpError(400, `reasonCode must be one of: ${ADMIN_CANCEL_REASONS.join(', ')}`);
+            }
+            return;
+        case 'system':
+            if (status !== 'cancelled') throw httpError(403, 'The system can only cancel');
+            if (!ACTIVE_STATUSES.includes(order.status)) throw httpError(409, 'This order is already finished');
+            if (reasonCode !== undefined && !SYSTEM_CANCEL_REASONS.includes(reasonCode)) throw httpError(400, 'Invalid reason');
+            return;
+        case 'rider': {
+            // only the rider who accepted this delivery, and only pickup and delivered
+            const d = order.delivery || {};
+            if (order.orderType !== 'delivery' || !d.riderId || String(d.riderId) !== String(actor.id)
+                || !['accepted', 'picked_up'].includes(d.status)) {
+                throw httpError(403, 'This order is not assigned to you');
+            }
+            if (status === 'out_for_delivery') {
+                if (d.status !== 'accepted' || !['preparing', 'ready'].includes(order.status)) {
+                    throw httpError(409, 'The order is not ready for pickup yet');
+                }
+                return;
+            }
+            if (status === 'delivered') {
+                if (d.status !== 'picked_up' || order.status !== 'out_for_delivery') {
+                    throw httpError(409, 'Mark the order as picked up first');
+                }
+                return;
+            }
+            throw httpError(403, 'Riders can only mark pickup and delivery');
+        }
+        default:
+            throw httpError(403, 'This user cannot change the order status');
+    }
+}
+
+const releaseCoupon = async (couponId) => {
+    if (!couponId) return null;
+    return Coupon.updateOne({ _id: couponId, usedCount: { $gt: 0 } }, { $inc: { usedCount: -1 } });
+};
+
+async function change({ order, status, actor, note, tenant, reasonCode }) {
+    if (!order) throw httpError(404, 'Order not found');
+    if (!actor || !ACTOR_TYPES.includes(actor.type)) throw httpError(500, 'Status change needs an actor');
+
+    const now = new Date();
+    const text = cleanNote(note);
+    checkAllowed({ order, status, actor, note: text, tenant, reasonCode, now });
+
+    // cancel and undelivered: who pays what, and what it means for billing, strikes and the coupon
+    const outcome = status === 'cancelled' || status === 'undelivered'
+        ? outcomeFor({
+            order, kind: status === 'cancelled' ? 'cancel' : 'undelivered', actorType: actor.type, reasonCode,
+            frozen: actor.type === 'customer' && shopFrozen(tenant), now,
+        })
+        : null;
+
+    // what this delivery pays the rider (shop setting, copied now so later changes never touch it)
+    const earnPaise = status === 'delivered' && order.delivery?.riderId
+        ? await riderEarnings.payPerDeliveryPaise(order.tenantId).catch(() => 0)
+        : 0;
+    const set = { status };
+    if (status === 'delivered') {
+        set.deliveredAt = now;
+        if (order.payment?.method === 'cod') set['payment.status'] = 'paid';   // cash collected at the door
+    }
+    // keep the delivery block in line when a rider is on this order
+    const d = order.delivery || {};
+    if (d.riderId) {
+        if (status === 'out_for_delivery' && d.status === 'accepted') {
+            set['delivery.status'] = 'picked_up';
+            set['delivery.pickedUpAt'] = now;
+        }
+        if (status === 'delivered' && ['accepted', 'picked_up'].includes(d.status)) {
+            set['delivery.status'] = 'delivered';
+            set['delivery.deliveredAt'] = now;
+            set['delivery.earnPaise'] = earnPaise;
+            if (order.payment?.method === 'cod') set['delivery.cashCollectedPaise'] = Math.round((order.pricing?.total || 0) * 100);
+        }
+    }
+    if (status === 'cancelled') {
+        set.cancelledBy = CANCELLED_BY[actor.type];
+        set.cancelReason = text || CANCEL_LABEL[outcome.reasonCode] || (actor.type === 'superadmin' ? 'Force cancelled by Superadmin' : undefined);
+        set.cancel = {
+            by: CANCELLED_BY[actor.type], reasonCode: outcome.reasonCode,
+            keptPaise: outcome.keptPaise, refundPaise: outcome.refundPaise,
+        };
+    }
+    if (status === 'undelivered') {
+        set.undelivered = {
+            reasonCode: outcome.reasonCode, note: text, at: now, by: actor.label ? String(actor.label).slice(0, 80) : actor.type,
+            keptPaise: outcome.keptPaise, refundPaise: outcome.refundPaise,
+        };
+    }
+
+    const historyNote = actor.type === 'superadmin'
+        ? `Superadmin: ${text || 'override'}`
+        : (text || (status === 'cancelled' ? CANCEL_LABEL[outcome.reasonCode] : undefined)
+            || (status === 'undelivered' ? `Not delivered (${outcome.reasonCode})` : undefined));
+
+    // The status filter makes this fail if someone else moved the order a moment ago.
+    // Because of it, the follow-up work below runs only once per order.
+    const updated = await Order.findOneAndUpdate(
+        { _id: order._id, tenantId: order.tenantId, status: order.status },
+        {
+            $set: set,
+            $push: {
+                statusHistory: {
+                    status,
+                    by: actor.id || undefined,
+                    byType: actor.type,
+                    byLabel: actor.label ? String(actor.label).slice(0, 80) : undefined,
+                    note: historyNote,
+                },
+            },
+        },
+        { returnDocument: 'after' },
+    );
+    if (!updated) throw httpError(409, 'This order was just updated. Refresh and try again.');
+
+    if (outcome) {
+        // The coupon use goes back ONLY when the customer got a full refund (the shop kept nothing)
+        if (outcome.couponReturn) {
+            await releaseCoupon(updated.couponId).catch(logError('Coupon release error'));
+            // the shop kept nothing, so the stock units go back too
+            await stockService.restoreForOrder(updated).catch(logError('Stock restore error'));
+        }
+        // The shop kept money: the order counts for the rent
+        if (outcome.billable) {
+            await billable.markBillable(updated, status === 'undelivered' ? 'undelivered_customer' : 'cancel_kept')
+                .catch(logError('Billable count error'));
+        }
+        // PHASE 4: when an online order was paid, money goes back here (outcome.refundPaise) through refundService.issueRefund
+        if (outcome.strike) await risk.addStrike(updated).catch(logError('Strike error'));
+    }
+
+    if (status === 'delivered') {
+        // Billing counter: orders that earned money. It never goes down.
+        await billable.markDelivered(updated).catch(logError('Billable count error'));
+
+        // Bestseller count: skip orders bought by shop owners. A failure here must not hurt the order.
+        try {
+            const buyer = await User.findById(updated.userId).select('role').lean();
+            if (!buyer || buyer.role !== 'admin') {
+                await Product.bulkWrite(updated.items.map((l) => ({
+                    updateOne: { filter: { _id: l.productId, tenantId: updated.tenantId }, update: { $inc: { orderCount: l.quantity } } },
+                })));
+            }
+        } catch (e) {
+            console.error('Bestseller count error:', e.message);
+        }
+    }
+
+    // the rider has one less active order when it ends; COD cash goes to the ledger
+    if (['delivered', 'cancelled', 'undelivered'].includes(status) && updated.delivery?.riderId) {
+        await Rider.updateOne(
+            { tenantId: updated.tenantId, userId: updated.delivery.riderId, activeOrderCount: { $gt: 0 } },
+            { $inc: { activeOrderCount: -1 } },
+        ).catch(logError('Rider count error'));
+        // last order finished: forget the saved location
+        await Rider.updateOne(
+            { tenantId: updated.tenantId, userId: updated.delivery.riderId, activeOrderCount: 0 },
+            { $unset: { lastLocation: 1 } },
+        ).catch(logError('Rider location clear error'));
+    }
+    if (status === 'delivered' && updated.delivery?.riderId && updated.delivery.cashCollectedPaise > 0) {
+        await CodSettlement.create({
+            tenantId: updated.tenantId, riderId: updated.delivery.riderId, orderId: updated._id,
+            type: 'collect', amountPaise: updated.delivery.cashCollectedPaise,
+            actor: { type: actor.type, id: actor.id ? String(actor.id) : undefined, label: actor.label },
+        }).catch((e) => { if (e.code !== 11000) console.error('COD ledger error:', e.message); });
+    }
+
+    notify.orderStatusChanged(updated, status, actor);   // customer, owner, rider (never throws)
+    // the live feed (no phone numbers, never throws)
+    liveFeed.emit(updated.tenantId, 'orders', {
+        type: `order.${status}`, orderId: String(updated._id), orderNo: updated.orderNo, status,
+        by: actor.type, reasonCode: outcome?.reasonCode, total: updated.pricing?.total,
+    });
+    if (actor.type === 'rider') {
+        liveFeed.emit(updated.tenantId, 'riders', { type: `rider.${status}`, orderNo: updated.orderNo, riderId: String(actor.id) });
+    }
+    // the owner accepted a delivery order: ask ALL free riders at once (automatic mode). The first one to accept gets it.
+    if (status === 'accepted' && updated.orderType === 'delivery' && !updated.delivery?.riderId) {
+        require('./assignmentService').startBroadcast({ orderId: updated._id, tenantId: updated.tenantId })
+            .catch((e) => console.error('Rider broadcast error:', e.message));
+    }
+    // the order is over: stop asking riders
+    if (['cancelled', 'undelivered', 'delivered'].includes(status) && updated.orderType === 'delivery') {
+        require('./assignmentService').endBroadcast(updated._id, updated.tenantId, 'cancelled')
+            .catch((e) => console.error('Rider broadcast end error:', e.message));
+    }
+
+    return updated;
+}
+
+module.exports = { change };
+
+=== routes\orderRouter.js ===
+
+const express = require('express');
+const mongoose = require('mongoose');
+const tenantRecognizer = require('../middlewares/tenantRecognizer');
+const authenticate = require('../middlewares/authMiddleware');
+const apiErrors = require('../middlewares/apiErrors');
+const Order = require('../models/Order');
+const svc = require('../services/orderService');
+const ratingSvc = require('../services/ratingService');
+const feedbackSvc = require('../services/deliveryFeedbackService');
+const complaintSvc = require('../services/complaintService');
+const { ACTIVE_STATUSES } = require('../services/orderflow');
+const { streamInvoice } = require('../services/invoiceService');
+
+const { wrap, httpError } = apiErrors;
+const router = express.Router();
+
+// A frozen shop (suspended or in maintenance) must still let customers VIEW their orders
+// and CANCEL an order. Everything else (quote, place order, reorder) stays blocked.
+router.use((req, res, next) => {
+    const isRead = req.method === 'GET';
+    const isCancel = req.method === 'POST' && /^\/[a-fA-F0-9]{24}\/(cancel|complaints)$/.test(req.path);
+    req.allowFrozenShop = isRead || isCancel;
+    next();
+});
+router.use(tenantRecognizer);
+router.use(authenticate);   // every order route needs a logged-in customer
+
+const clamp = (n, min, max) => Math.min(Math.max(n, min), max);
+const isId = (v) => typeof v === 'string' && mongoose.isValidObjectId(v);
+
+// order as JSON, plus a flag the app uses to show or hide the Cancel button
+const view = (order, tenant) => ({ ...order.toJSON(), canCancel: svc.customerCanCancel(order, tenant) });
+
+const checkId = (req) => {
+    if (!isId(req.params.id)) throw httpError(404, 'Order not found');
+};
+
+// Cart screen: the server works out the bill. The app never sends a total.
+router.post('/quote', wrap(async (req, res) => {
+    res.json(await svc.quote({ tenant: req.tenant, userId: req.auth.userId, body: req.body || {} }));
+}));
+
+// Place an order. Send an "Idempotency-Key" header (any unique string, e.g. a UUID made when checkout opens)
+// so a double-tap or a retry returns the same order instead of creating two.
+router.post('/', wrap(async (req, res) => {
+    const key = req.get('idempotency-key');
+    if (key !== undefined && (key.length < 8 || key.length > 64)) {
+        throw httpError(400, 'Idempotency-Key must be 8 to 64 characters');
+    }
+    const { order, duplicate } = await svc.placeOrder({
+        tenant: req.tenant,
+        userId: req.auth.userId,
+        body: req.body || {},
+        idempotencyKey: key,
+    });
+    res.status(duplicate ? 200 : 201).json(view(order, req.tenant));
+}));
+
+// Pickup time windows for the cart screen
+router.get('/pickup-slots', wrap(async (req, res) => {
+    res.json(svc.pickupSlots(req.tenant));
+}));
+
+// Order history. ?active=true for the "ongoing" list. Pages: ?page=1&limit=20
+router.get('/', wrap(async (req, res) => {
+
+    const page = clamp(parseInt(req.query.page, 10) || 1, 1, 1000);
+    const limit = clamp(parseInt(req.query.limit, 10) || 20, 1, 50);
+    const filter = { tenantId: req.tenant._id, userId: req.auth.userId };
+    if (req.query.active === 'true') filter.status = { $in: ACTIVE_STATUSES };
+
+    // ?from=2026-10-01&to=2026-10-08 (days in Indian time). One day = same date in both. ?sort=oldest
+    const IST_MS = 330 * 60000;
+    const day = (v, endOfDay) => {
+        if (v === undefined) return null;
+        const m = typeof v === 'string' ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(v) : null;
+        if (!m) throw httpError(400, 'Dates must look like 2026-10-31');
+        const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+        if (mo < 1 || mo > 12 || d < 1 || d > 31) throw httpError(400, 'Invalid date');
+        return new Date(Date.UTC(y, mo - 1, d) - IST_MS + (endOfDay ? 86400000 - 1 : 0));
+    };
+    const from = day(req.query.from, false);
+    const to = day(req.query.to, true);
+    if (from && to && from > to) throw httpError(400, 'The "from" date must not be after the "to" date');
+    if (from || to) filter.createdAt = { ...(from ? { $gte: from } : {}), ...(to ? { $lte: to } : {}) };
+    const dir = req.query.sort === 'oldest' ? 1 : -1;
+
+    const items = await Order.find(filter).sort({ createdAt: dir, _id: dir }).skip((page - 1) * limit).limit(limit + 1);
+    const hasMore = items.length > limit;
+    if (hasMore) items.pop();
+    res.json({ items: items.map((o) => view(o, req.tenant)), page, hasMore });
+}));
+
+router.get('/:id', wrap(async (req, res) => {
+    checkId(req);
+    const order = await Order.findOne({ _id: req.params.id, tenantId: req.tenant._id, userId: req.auth.userId });
+    if (!order) throw httpError(404, 'Order not found');
+    res.json(view(order, req.tenant));
+}));
+
+router.post('/:id/cancel', wrap(async (req, res) => {
+    checkId(req);
+    const order = await svc.cancelByCustomer({
+        tenant: req.tenant,
+        userId: req.auth.userId,
+        orderId: req.params.id,
+        reason: req.body?.reason,
+    });
+    res.json(view(order, req.tenant));
+}));
+
+// Returns cart lines to refill the cart. Call /quote next to get today's prices.
+router.post('/:id/reorder', wrap(async (req, res) => {
+    checkId(req);
+    res.json(await svc.reorderCart({ tenant: req.tenant, userId: req.auth.userId, orderId: req.params.id }));
+}));
+
+// Rate the dishes of a delivered order. Body: { "ratings": [{ "productId": "...", "rating": 5, "comment": "Tasty" }] }
+router.post('/:id/rating', wrap(async (req, res) => {
+    checkId(req);
+    res.json(await ratingSvc.rateOrder({
+        tenantId: req.tenant._id,
+        userId: req.auth.userId,
+        orderId: req.params.id,
+        ratings: req.body?.ratings,
+    }));
+}));
+
+// What the customer already rated on this order (so the app can pre-fill the stars)
+router.get('/:id/rating', wrap(async (req, res) => {
+    checkId(req);
+    res.json(await ratingSvc.getRatings({ tenantId: req.tenant._id, userId: req.auth.userId, orderId: req.params.id }));
+}));
+
+// Live status of a delivery order: rider, ETA, delivery PIN. Only the customer who placed it.
+router.get('/:id/tracking', wrap(async (req, res) => {
+    checkId(req);
+    res.json(await feedbackSvc.tracking({ tenant: req.tenant, userId: req.auth.userId, orderId: req.params.id }));
+}));
+
+// Rate the delivery (separate from the dishes). Body: { "rating": 5, "tags": ["On time"], "comment": "Polite" }
+router.post('/:id/delivery-rating', wrap(async (req, res) => {
+    checkId(req);
+    res.status(201).json(await feedbackSvc.rateDelivery({
+        tenant: req.tenant, userId: req.auth.userId, orderId: req.params.id, body: req.body || {},
+    }));
+}));
+
+// Complaint about a delivered order (within 24 hours of delivery, one per order).
+// Body: { "type": "missing_item|wrong_item|quality|late|packaging|other", "text": "...", "photos": ["https://..."] }
+router.post('/:id/complaints', wrap(async (req, res) => {
+    checkId(req);
+    res.status(201).json(await complaintSvc.create({ tenant: req.tenant, userId: req.auth.userId, orderId: req.params.id, body: req.body }));
+}));
+
+// { items: [the complaint, if any], canComplain, until }
+router.get('/:id/complaints', wrap(async (req, res) => {
+    checkId(req);
+    res.json(await complaintSvc.forOrder({ tenant: req.tenant, userId: req.auth.userId, orderId: req.params.id }));
+}));
+
+router.get('/:id/invoice', wrap(async (req, res) => {
+    checkId(req);
+    const order = await Order.findOne({ _id: req.params.id, tenantId: req.tenant._id, userId: req.auth.userId });
+    if (!order) throw httpError(404, 'Order not found');
+    if (order.status !== 'delivered') throw httpError(409, 'The invoice is only available after delivery');
+    streamInvoice(res, order, req.tenant, { inline: req.query.view === '1' });
+}));
+
+router.use(apiErrors);
+module.exports = router;
+
+=== routes\shopComplaintsRouter.js ===
+
+// Owner: complaints of his customers. Mounted at /api/shop/complaints
+//   GET   /?status=open|in_progress|resolved&page=
+//   PATCH /:id   { ownerReply?, resolution?: refund_full|refund_partial|no_refund, refundPaise? }
+const express = require('express');
+const apiErrors = require('../middlewares/apiErrors');
+const complaints = require('../services/complaintService');
+
+const { wrap } = apiErrors;
+const router = express.Router();
+const actorOf = (req) => req.actor || { type: 'owner', id: req.auth.userId, label: req.shopUser?.phone || 'shop owner' };
+
+router.get('/', wrap(async (req, res) => {
+    res.json(await complaints.ownerList({ tenantId: req.tenant._id, query: req.query }));
+}));
+
+router.patch('/:id', wrap(async (req, res) => {
+    const out = await complaints.decide({ tenant: req.tenant, id: req.params.id, actor: actorOf(req), body: req.body });
+    res.locals.auditAction = 'COMPLAINT_DECISION';
+    res.locals.auditParams = { complaintId: String(out.id), resolution: out.resolution, refundPaise: out.refundPaise };
+    res.json(out);
+}));
+
+router.use(apiErrors);
+module.exports = router;
+
+=== models\Order.js ===
+
+const mongoose = require('mongoose');
+
+const { Schema } = mongoose;
+const { maskPhone } = require('../utils/phoneHash');
+
+// Everything below is a SNAPSHOT taken at order time, so later menu or price changes never alter old orders.
+const lineSchema = new Schema({
+    productId: { type: Schema.Types.ObjectId, ref: 'Product', required: true },
+    name: { type: String, required: true },
+    image: String,
+    isVeg: Boolean,
+    quantity: { type: Number, required: true, min: 1 },
+    unitPrice: { type: Number, required: true, min: 0 },   // base + chosen options
+    lineTotal: { type: Number, required: true, min: 0 },
+    gstRate: Number,
+    tax: { type: Number, default: 0 },
+    selections: [{
+        _id: false,
+        groupId: String, groupName: String, optionId: String, name: String, price: Number,
+    }],
+    note: String,
+}, { _id: false });
+
+const orderSchema = new Schema({
+    tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true },
+    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    orderNo: { type: Number, required: true },              // shown to people, e.g. #1042
+    idempotencyKey: { type: String },                       // stops a double-tap creating two orders
+
+    status: {
+        type: String,
+        enum: ['placed', 'accepted', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'cancelled', 'undelivered'],
+        default: 'placed',
+    },
+    orderType: { type: String, enum: ['delivery', 'pickup', 'dine_in'], required: true },
+
+    items: { type: [lineSchema], validate: (v) => v.length > 0 },
+
+    pricing: {
+        subtotal: Number,
+        discount: { type: Number, default: 0 },
+        couponCode: String,
+        deliveryFee: { type: Number, default: 0 },
+        packagingCharge: { type: Number, default: 0 },
+        taxMode: String,          // none / inclusive / exclusive
+        taxPercent: Number,
+        tax: { type: Number, default: 0 },
+        tip: { type: Number, default: 0 },
+        total: { type: Number, required: true },
+    },
+    couponId: { type: Schema.Types.ObjectId, ref: 'Coupon' },
+    seller: { name: String, gstin: String, fssai: String },   // copied at order time, for the invoice
+
+    payment: {
+        method: { type: String, enum: ['cod', 'upi', 'card', 'wallet'], required: true },
+        status: { type: String, enum: ['pending', 'paid', 'failed', 'refunded'], default: 'pending' },
+    },
+
+    customer: { name: String, phone: String, phoneHash: String, deleted: Boolean },   // deleted = he deleted his account
+    address: {
+        label: String, name: String, phone: String, line1: String, line2: String,
+        landmark: String, city: String, pincode: String, latitude: Number, longitude: Number,
+    },
+    tableNo: String,
+    scheduledFor: Date,
+    pickupUntil: Date,                                      // end of the pickup time window
+    note: String,                                           // special instructions for the whole order
+    etaMin: Number,
+
+    // Phase 6: delivery by a rider. riderId is the rider's User id. Money here is integer paise.
+    delivery: {
+        riderId: { type: Schema.Types.ObjectId, ref: 'User' },
+        status: { type: String, enum: ['assigned', 'accepted', 'picked_up', 'delivered', 'rejected'] },   // assigned = offered, waiting for the rider
+        assignedAt: Date,
+        acceptedAt: Date,
+        pickedUpAt: Date,
+        deliveredAt: Date,
+        offerExpiresAt: Date,
+        pinRequired: { type: Boolean, default: false },   // shop setting copied when the rider is assigned
+        pinAttempts: { type: Number, default: 0 },
+        // the offer to ALL free riders at once (automatic mode)
+        broadcast: { active: Boolean, startedAt: Date, expiresAt: Date, endedAt: Date, endReason: String },
+        problems: [{ _id: false, at: Date, reason: String, note: String }],   // reported by the rider
+        cashCollectedPaise: { type: Number, default: 0 },
+        earnPaise: { type: Number, default: 0 },   // what the rider earned for this delivery (whole paise). Information only.
+        offers: [{
+            _id: false,
+            riderId: { type: Schema.Types.ObjectId, ref: 'User' },
+            offeredAt: Date,
+            expiresAt: Date,
+            by: String,   // system, owner or superadmin
+            result: { type: String, enum: ['offered', 'accepted', 'rejected', 'timeout', 'cancelled', 'taken'] },   // taken = another rider accepted first
+            at: Date,
+        }],
+        riderHistory: [{
+            _id: false,
+            riderId: { type: Schema.Types.ObjectId, ref: 'User' },
+            assignedAt: Date,
+            removedAt: Date,
+            reason: String,
+            by: { type: { type: String }, id: String, label: String },
+        }],
+    },
+    deliveryRating: {                                       // separate from the dish ratings
+        rating: { type: Number, min: 1, max: 5 },
+        tags: [String],
+        comment: { type: String, maxlength: 300 },
+        ratedAt: Date,
+    },
+
+    statusHistory: [{
+        _id: false,
+        status: String,
+        at: { type: Date, default: Date.now },
+        by: { type: Schema.Types.ObjectId },                // who changed it
+        byType: String,                                     // customer, owner, rider, superadmin, system
+        byLabel: String,                                    // readable name, e.g. a phone number or email
+        note: String,
+    }],
+    stuck: { stage: String, ownerAt: Date, adminAt: Date },   // late-order alerts already sent (internal)
+    unacceptedReminders: { type: [Number], default: undefined },   // the "please accept" reminders already sent to the owner, in minutes (3, 6)
+    cancelReason: String,
+    cancelledBy: { type: String, enum: ['customer', 'shop', 'admin', 'system'] },
+    // billable = this order EARNED MONEY for the shop, so it counts for the free period and the monthly rent. Set once, by billableService.
+    billing: { billable: Boolean, at: Date, reason: String },
+    // how a cancel ended: who, why, and the money (online orders only; whole paise)
+    cancel: { by: String, reasonCode: String, keptPaise: Number, refundPaise: Number },
+    // the owner marked it "not delivered" (customer, shop or rider at fault)
+    undelivered: { reasonCode: String, note: String, at: Date, by: String, keptPaise: Number, refundPaise: Number },
+    deliveredAt: Date,
+    ratedAt: Date,
+}, { timestamps: true });
+
+orderSchema.index({ tenantId: 1, orderNo: 1 }, { unique: true });
+orderSchema.index({ tenantId: 1, userId: 1, createdAt: -1 });
+orderSchema.index({ tenantId: 1, status: 1, createdAt: -1 });
+orderSchema.index({ status: 1, createdAt: -1 });   // late-order watcher
+orderSchema.index({ tenantId: 1, status: 1, deliveredAt: 1 });   // reports
+orderSchema.index({ tenantId: 1, 'billing.at': 1 }, { partialFilterExpression: { 'billing.billable': true } });   // monthly billing count
+orderSchema.index({ tenantId: 1, 'delivery.riderId': 1, status: 1 });   // a rider's orders
+orderSchema.index({ 'delivery.offerExpiresAt': 1 }, { partialFilterExpression: { 'delivery.status': 'assigned' } });   // offer timeout job
+orderSchema.index({ 'delivery.broadcast.expiresAt': 1 }, { partialFilterExpression: { 'delivery.broadcast.active': true } });   // broadcast timeout job
+orderSchema.index({ createdAt: 1 }, { partialFilterExpression: { status: 'placed' } });   // auto-cancel job
+orderSchema.index({ tenantId: 1, 'customer.phoneHash': 1, status: 1 });   // returning-customer and coupon checks (by hash)
+orderSchema.index({ tenantId: 1, 'customer.phone': 1, status: 1 });   // returning-customer and coupon checks
+orderSchema.index(
+    { tenantId: 1, userId: 1, idempotencyKey: 1 },
+    { unique: true, partialFilterExpression: { idempotencyKey: { $type: 'string' } } }
+);
+
+orderSchema.set('toJSON', {
+    transform: (_doc, ret) => {
+        ret.id = ret._id;
+        delete ret._id;
+        delete ret.__v;
+        delete ret.idempotencyKey;
+        delete ret.stuck;
+        delete ret.unacceptedReminders;
+        if (ret.customer?.deleted) {   // he deleted his account: hide his details (invoice PDFs keep the real data)
+            ret.customer = { name: 'Deleted customer', phone: maskPhone(ret.customer.phone), deleted: true };
+            if (ret.address) ret.address = { ...ret.address, name: 'Deleted customer', phone: maskPhone(ret.address.phone) };
+        } else if (ret.customer) {
+            delete ret.customer.phoneHash;   // never sent to any app
+        }
+        if (ret.delivery) {   // internal details, never sent as plain order JSON
+            delete ret.delivery.offers;
+            delete ret.delivery.broadcast;
+            delete ret.delivery.riderHistory;
+            delete ret.delivery.pinAttempts;
+            delete ret.delivery.earnPaise;   // the rider's pay is not for the customer
+            delete ret.delivery.problems;
+        }
+        return ret;
+    },
+});
+
+module.exports = mongoose.model('Order', orderSchema);
+
+=== models\Tenant.js ===
+
+const mongoose = require('mongoose');
+const O = require('../config/homeOptions');
+const { validateSettings } = require('../services/tenantConfigService');
+
+const homeConfigSchema = new mongoose.Schema({
+    shopType: { type: String, enum: O.SHOP_TYPES },
+    foodMode: { type: String, enum: O.FOOD_MODES },
+    blocks: [{
+        _id: false,
+        type: { type: String, enum: O.BLOCK_TYPES },
+        enabled: { type: Boolean, default: true },
+    }],
+    filters: [{ type: String, enum: O.FILTER_IDS }],
+    sortOptions: [{ type: String, enum: O.SORT_IDS }],
+    cardStyle: { type: String, enum: O.CARD_STYLES },
+    itemOptions: {
+        sizes: Boolean,
+        addOns: Boolean,
+        spiceLevel: Boolean,
+        weightOptions: Boolean,
+    },
+}, { _id: false });
+
+const tenantSchema = new mongoose.Schema({
+    slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    name: { type: String, required: true },
+    tagline: String,
+    logo: String,
+    colors: {
+        primary: String,
+        primaryLight: String,
+        primaryDark: String,
+        background: String,
+        text: String,
+        error: String,
+    },
+    heroImages: [String],
+    status: { type: String, enum: ['active', 'suspended'], default: 'active' },
+    androidPackage: String,
+
+    // Restaurant details shown in the app
+    phone: String,
+    address: { line: String, city: String, pincode: String },
+
+    // OLD config, still read so existing tenants keep working
+    homeConfig: homeConfigSchema,
+
+    delivery: {
+        latitude: Number,
+        longitude: Number,
+        radiusKm: Number,
+        minOrder: Number,
+    },
+    business: {
+        legalName: String,
+        gstin: {
+            type: String, trim: true, uppercase: true,
+            validate: {
+                validator: (v) => !v || /^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(v),
+                message: 'GST number must be 15 characters, like 22AAAAA0000A1Z5'
+            },
+        },
+        fssai: {
+            type: String, trim: true,
+            validate: { validator: (v) => !v || /^\d{14}$/.test(v), message: 'FSSAI number must be 14 digits' },
+        },
+    },
+
+    // Bills and money mails go here. Empty = to the emails of the shop owners.
+    contact: {
+        billingEmail: {
+            type: String, trim: true, lowercase: true, maxlength: 120,
+            match: [/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/, 'Enter a valid email address'],
+        },
+    },
+
+    ownerBlocked: { type: Boolean, default: false },
+    ownerBlockedReason: { type: String, trim: true, maxlength: 200 },   // private note, never sent to the app
+    maintenance: {
+        on: { type: Boolean, default: false },
+        message: { type: String, trim: true, maxlength: 200 },
+        until: Date,
+    },
+    subscription: {
+        monthlyFee: { type: Number, min: 0 },                              // DEPRECATED: billing does not use this, and the panel cannot set it any more
+        gstPercent: { type: Number, min: 0, max: 28 },                     // empty = 18
+        startMonth: { type: String, match: /^\d{4}-(0[1-9]|1[0-2])$/ },    // "2026-10"
+    },
+
+    // Rent engine. null means "use the platform value". Only billing code and the superadmin billing routes write this.
+    billing: {
+        goLiveAt: Date,                                         // empty = the shop's createdAt
+        deliveredCount: { type: Number, default: 0, min: 0 },   // DEPRECATED: replaced by billableCount (kept so no old data is lost)
+        billableCount: { type: Number, default: 0, min: 0 },    // orders that earned money for the shop since go-live. Only goes up.
+        isLive: { type: Boolean, default: false },              // set by the Go live button. Before that the shop is free and nothing is counted.
+        inactiveAlertedAt: Date,                                // "no order for 14 days" was told to the superadmin at this time
+        freeOrdersOverride: { type: Number, min: 0, default: null },
+        freeMonthsOverride: { type: Number, min: 0, default: null },
+        tiersOverride: {
+            type: [new mongoose.Schema({ upTo: { type: Number, default: null }, fee: { type: Number, required: true, min: 0 } }, { _id: false })],
+            default: undefined,
+        },
+        fixedFeeOverride: { type: Number, min: 0, default: null },
+        state: { type: String, enum: ['free', 'active', 'grace', 'paused'], default: 'free' },
+        graceEndsAt: Date,
+        freeEndedAt: Date,
+    },
+
+    // NEW: every superadmin choice (brand, tabs, home, features, menu, orders, hours, offers, labels).
+    // Stored as plain JSON; the validator below is the schema.
+    // numbers worked out by the server (never edited by hand)
+    stats: { rating: { avg: Number, count: Number } },
+
+    // N14: SMS sender. templateId replaces the platform default template.
+    // own: the shop uses its own DLT sender and provider account; its SMS wallet is not charged.
+    sms: {
+        templateId: { type: String, trim: true },
+        own: {
+            enabled: { type: Boolean, default: false },
+            senderId: { type: String, trim: true },
+            entityId: { type: String, trim: true },
+            templateIds: { type: Map, of: String },
+            providerKeysEnc: { type: String, select: false },     // encrypted, never sent to any app
+        },
+    },
+
+    settings: { type: mongoose.Schema.Types.Mixed, default: {} },
+}, { timestamps: true, minimize: false });
+
+// Reject a bad settings document at save time, with readable messages for the panel
+tenantSchema.pre('validate', function () {
+    if (!this.isModified('settings')) return;
+    const { ok, errors } = validateSettings(this.settings);
+    if (!ok) {
+        const e = new mongoose.Error.ValidationError(this);
+        e.message = `Invalid settings: ${errors.join('; ')}`;
+        e.settingsErrors = errors;
+        throw e;
+    }
+});
+
+module.exports = mongoose.model('Tenant', tenantSchema);
+
+=== FILE SEARCH ===
+
+
+services\refundService.js
+services\adapters\payments.js
+
+
