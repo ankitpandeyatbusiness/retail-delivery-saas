@@ -2,6 +2,7 @@
 // using requireShopAdmin.allowBlocked, so an owner who is blocked can still see and download what they owe.
 //
 //   GET /api/shop/subscription/invoices          ?status=paid|pending  ?page=1   (also returns what is due)
+//   POST /api/shop/subscription/invoices/:id/pay  -> { upiString, imageUrl, amountPaise, expiresAt }  pay a pending bill by UPI QR
 //   GET /api/shop/subscription/invoices/:id/pdf  (?view=1 opens it in the browser)
 
 const express = require('express');
@@ -9,6 +10,7 @@ const mongoose = require('mongoose');
 const SubscriptionInvoice = require('../models/SubscriptionInvoice');
 const { withOverdue } = require('../services/subscriptionService');
 const { streamSubscriptionInvoice } = require('../services/subscriptionInvoicePdf');
+const rentPayments = require('../services/rentPaymentService');
 const { wrap, httpError } = require('../middlewares/apiErrors');
 
 const router = express.Router();
@@ -39,6 +41,13 @@ router.get('/invoices', wrap(async (req, res) => {
         page,
         hasMore,
     });
+}));
+
+// Pay this bill online: returns a UPI QR (the same one again while it is still open).
+// Works while the shop is paused, because this router is mounted with allowBlocked.
+router.post('/invoices/:id/pay', wrap(async (req, res) => {
+    const qr = await rentPayments.createQr({ tenantId: req.tenant._id, invoiceId: req.params.id });
+    res.status(201).json(qr);
 }));
 
 router.get('/invoices/:id/pdf', wrap(async (req, res) => {

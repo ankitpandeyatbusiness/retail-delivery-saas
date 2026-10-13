@@ -48,7 +48,18 @@ const subscriptionInvoiceSchema = new Schema({
     paymentMode: { type: String, enum: ['upi', 'bank_transfer', 'cash', 'cheque', 'other'] },
     paymentRef: { type: String, trim: true, maxlength: 60 },
     note: { type: String, trim: true, maxlength: 200 },
-    markedBy: String,      // which superadmin changed the status
+    markedBy: String,      // which superadmin changed the status ("razorpay" when paid online)
+
+    // The newest "pay online" QR for this bill (Razorpay UPI QR on the platform account). Reused while it is still open.
+    payQr: {
+        _id: false,
+        qrId: String,
+        imageUrl: String,
+        upiString: String,
+        amountPaise: Number,
+        expiresAt: Date,
+        createdAt: Date,
+    },
 }, { timestamps: true });
 
 // one MONTHLY invoice per shop per month (custom invoices are not limited)

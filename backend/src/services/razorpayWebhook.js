@@ -12,6 +12,8 @@ const accounts = require('./paymentAccounts');
 const paymentService = require('./paymentService');
 const refundIssuer = require('./refundIssuer');
 const smsTopupService = require('./smsTopupService');
+const rentPayments = require('./rentPaymentService');
+const auditTrail = require('../middlewares/auditTrail');
 const alert = require('./paymentAlerts');
 const disputeService = require('./disputeService');
 
@@ -51,6 +53,7 @@ async function onQrCredited(account, body) {
     if (account !== 'platform') return { ignored: 'not_platform' };
     const qr = body.payload?.qr_code?.entity || {};
     const pay = paymentService.fromEntity(body.payload?.payment?.entity);
+    if (qr.notes?.purpose === 'rent') return rentPayments.onCredited({ qr, pay });
     if (qr.notes?.purpose !== 'sms_topup') return { ignored: 'other_purpose' };
     const topupId = qr.notes.referenceId;
     const topup = mongoose.isValidObjectId(topupId) ? await SmsTopup.findById(topupId) : null;
@@ -62,7 +65,19 @@ async function onQrCredited(account, body) {
         await alert('admin_webhook_failed', { vars: { event: 'qr_code.credited', error: `${problem} (payment ${pay.id}). Check Razorpay and credit by hand if it is real.` } });
         return { ignored: 'check_failed' };
     }
-    await smsTopupService.complete({ topupId, paymentId: pay.id, actor: { type: 'system' } });
+    const done = await smsTopupService.complete({ topupId, paymentId: pay.id, actor: { type: 'system' } });
+    if (!done.duplicate) {   // a webhook has no logged-in person, so the audit row is written here
+        await auditTrail.record({
+            actorType: 'system',
+            actorLabel: 'razorpay',
+            tenantId: topup.tenantId,
+            action: 'SMS_TOPUP_PAID_ONLINE',
+            method: 'WEBHOOK',
+            path: '/api/webhooks/razorpay/platform',
+            status: 200,
+            params: { topupId: String(topup._id), amountPaise: topup.amountPaise, paymentId: pay.id, qrId: qr.id },
+        });
+    }
     return { topup: 'credited' };
 }
 
