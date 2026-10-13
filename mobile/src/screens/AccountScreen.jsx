@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
     View, Text, ScrollView, TextInput, Modal, ActivityIndicator, Pressable,
-    KeyboardAvoidingView, Platform, StyleSheet, Linking,
+    KeyboardAvoidingView, Platform, StyleSheet, Linking, Switch,
 } from 'react-native';
 import Constants from 'expo-constants';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,11 +13,12 @@ import { showToast, tint } from '../components/ui/shop';
 import { Press, Appear } from '../components/ui/cartParts';
 import { AddressSheet } from '../components/ui/addresses';
 import { themedAlert } from '../components/ui/dialog';
+import { useNotificationStore } from '../store/useNotificationStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { useHomeStore } from '../store/useHomeStore';
 import { useThemeStore } from '../store/useThemeStore';
 import { useFavStore } from '../store/shopStores';
-import { fetchMe, updateMe, deleteMe } from '../api/shopApi';
+import { fetchMe, updateMe, deleteMe, updatePrefs } from '../api/shopApi';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -93,6 +94,23 @@ function Item({ icon, label, sub, onPress, danger, last }) {
     );
 }
 
+function ToggleItem({ icon, label, sub, value, onValueChange, disabled, last }) {
+    const { primary, text, muted, border } = useBrand();
+    return (
+        <View style={[s.row, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: border }]}>
+            <View style={[s.rowIc, { backgroundColor: tint(primary) }]}><Ionicons name={icon} size={18} color={primary} /></View>
+            <View style={{ flex: 1, paddingRight: 8 }}>
+                <Text style={[s.rowTxt, { color: text }]}>{label}</Text>
+                {sub ? <Text style={[s.rowSub, { color: muted }]}>{sub}</Text> : null}
+            </View>
+            <Switch
+                value={value} onValueChange={onValueChange} disabled={disabled}
+                trackColor={{ false: border, true: tint(primary) }} thumbColor={value ? primary : '#F4F4F4'}
+            />
+        </View>
+    );
+}
+
 function Group({ title, delay, children }) {
     const { muted, surface, border } = useBrand();
     return (
@@ -108,10 +126,24 @@ function AccountInner() {
     const insets = useSafeAreaInsets();
     const { primary, text, muted, background, surface, border } = useBrand();
     const user = useAuthStore((st) => st.user);
+    const unread = useNotificationStore((st) => st.unread);
     const favOn = useHomeStore((st) => st.full.features.favourites);
     const shop = useThemeStore((st) => st.theme.name);
     const shopPhone = useThemeStore((st) => st.theme.phone);
     const [me, setMe] = useState(null);
+    const [promoBusy, setPromoBusy] = useState(false);
+    const promos = me ? me.promotions !== false : true;   // GET /me includes it; on until the server says otherwise
+
+    // optimistic: flip at once, put it back if the server refuses
+    const setPromos = async (next) => {
+        if (promoBusy || !me) return;
+        setPromoBusy(true);
+        setMe((m) => ({ ...m, promotions: next }));
+        try { await updatePrefs({ promotions: next }); } catch (e) {
+            setMe((m) => ({ ...m, promotions: !next }));
+            showToast('Could not save. Please try again');
+        } finally { setPromoBusy(false); }
+    };
     const [edit, setEdit] = useState(false);
     const [addrSheet, setAddrSheet] = useState(false);
     const [busy, setBusy] = useState(false);
@@ -197,8 +229,17 @@ function AccountInner() {
                 ) : null}
 
                 <Group title="YOUR ACCOUNT" delay={80}>
+                    <Item icon="notifications-outline" label="Notifications" sub={unread > 0 ? `${unread} unread` : 'Order updates and offers'} onPress={() => nav.navigate('Notifications')} />
                     <Item icon="location-outline" label="Saved addresses" sub="Add, edit or remove delivery addresses" onPress={() => setAddrSheet(true)} last={!favOn} />
                     {favOn ? <Item icon="heart-outline" label="Favourites" sub="Dishes you saved" onPress={() => nav.navigate('Favourites')} last /> : null}
+                </Group>
+
+                <Group title="PREFERENCES" delay={110}>
+                    <ToggleItem
+                        icon="megaphone-outline" label="Offers and promotions"
+                        sub="Order updates always reach you, even when this is off"
+                        value={promos} onValueChange={setPromos} disabled={!me || promoBusy} last
+                    />
                 </Group>
 
                 {shopPhone ? (

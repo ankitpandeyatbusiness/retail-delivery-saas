@@ -1,13 +1,20 @@
 // B15: every 6 hours, delete files in storage under tenants/ that are older than 24 hours
 // and have no Media record (uploads that were never confirmed, or leftovers of a failed confirm).
+// Also: complaint photos that were uploaded and confirmed but never sent with a complaint (the customer closed the
+// app before pressing Send). They have a Media record, so the first rule keeps them, and they would count toward the
+// limit of 3 photos for that order forever.
 // Mock storage does nothing (unless CLEANUP_UPLOADS_IN_MOCK=true, used by the tests).
+const mongoose = require('mongoose');
 const storage = require('../services/adapters/storage');
 const Media = require('../models/Media');
+const Complaint = require('../models/Complaint');
 
 const AGE_MS = 24 * 60 * 60 * 1000;
 const EVERY_MS = 6 * 60 * 60 * 1000;
 const MAX_DELETES = 1000;       // one run never deletes more than this
 const CHUNK = 500;
+// A photo is attached to a complaint within minutes of uploading, so one that is this old and still unused is abandoned.
+const COMPLAINT_PHOTO_AGE_MS = 6 * 60 * 60 * 1000;
 
 async function runCleanupUploads({ now = Date.now() } = {}) {
     if (process.env.STORAGE_MOCK === 'true' && process.env.CLEANUP_UPLOADS_IN_MOCK !== 'true') return { skipped: true, scanned: 0, deleted: 0 };
@@ -33,6 +40,41 @@ async function runCleanupUploads({ now = Date.now() } = {}) {
     return { scanned: old.length, deleted };
 }
 
+// Complaint photos that no complaint uses. Returns { scanned, deleted }.
+async function runCleanupComplaintPhotos({ now = Date.now() } = {}) {
+    if (process.env.STORAGE_MOCK === 'true' && process.env.CLEANUP_UPLOADS_IN_MOCK !== 'true') return { skipped: true, scanned: 0, deleted: 0 };
+
+    const cutoff = new Date(now - COMPLAINT_PHOTO_AGE_MS);
+    let scanned = 0;
+    let deleted = 0;
+    let after = null;   // walk by _id so a photo we keep (it is used) is never looked at twice in one run
+
+    while (deleted < MAX_DELETES) {
+        const filter = { kind: 'complaint', createdAt: { $lt: cutoff }, ...(after ? { _id: { $gt: after } } : {}) };
+        const part = await Media.find(filter).sort({ _id: 1 }).limit(CHUNK).lean();
+        if (!part.length) break;
+        scanned += part.length;
+        after = part[part.length - 1]._id;
+
+        // every photo URL that some complaint of these orders really uses
+        const orderIds = [...new Set(part.map((m) => m.refId).filter((id) => mongoose.isValidObjectId(id)))];
+        const used = new Set();
+        const complaints = await Complaint.find({ orderId: { $in: orderIds } }).select('tenantId orderId photos').lean();
+        for (const c of complaints) for (const u of c.photos || []) used.add(`${c.tenantId}|${c.orderId}|${u}`);
+
+        for (const m of part) {
+            if (deleted >= MAX_DELETES) break;
+            if (used.has(`${m.tenantId}|${m.refId}|${m.url}`)) continue;
+            try {
+                await storage.remove(m.key);
+                await Media.deleteOne({ _id: m._id });
+                deleted += 1;
+            } catch (e) { console.error('Cleanup complaint photos: remove failed', m.key, e.message); }
+        }
+    }
+    return { scanned, deleted };
+}
+
 let running = false;
 function startCleanupUploadsScheduler() {
     const run = async () => {
@@ -41,6 +83,8 @@ function startCleanupUploadsScheduler() {
         try {
             const r = await runCleanupUploads();
             if (r.deleted) console.log(`Cleanup uploads: ${r.deleted} unused file(s) deleted`);
+            const c = await runCleanupComplaintPhotos();
+            if (c.deleted) console.log(`Cleanup uploads: ${c.deleted} unsent complaint photo(s) deleted`);
         } catch (e) {
             console.error('Cleanup uploads error:', e.message);
         } finally {
@@ -51,4 +95,4 @@ function startCleanupUploadsScheduler() {
     setInterval(run, EVERY_MS).unref?.();
 }
 
-module.exports = { runCleanupUploads, startCleanupUploadsScheduler };
+module.exports = { runCleanupUploads, runCleanupComplaintPhotos, startCleanupUploadsScheduler };

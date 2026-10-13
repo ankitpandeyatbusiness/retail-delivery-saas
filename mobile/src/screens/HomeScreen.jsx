@@ -17,6 +17,7 @@ import FilterDialog from './FilterDialog';
 import { useThemeStore } from '../store/useThemeStore';
 import { useHomeStore } from '../store/useHomeStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { useNotificationStore } from '../store/useNotificationStore';
 import { useMenuStore, useCartStore, useFavStore } from '../store/shopStores';
 import { useFilterStore, applyFilters, countActive } from '../store/useFilterStore';
 import { Slider, VegSwitch, Cats, Collapse, FadeCollapse, useVoice, VoiceOverlay } from '../components/ui/finder';
@@ -39,6 +40,7 @@ function Header({ onAddress }) {
     const fee = full.orders.deliveryFee || {};
     const delivers = (full.orders.types || []).includes('delivery');
     const user = useAuthStore((st) => st.user);
+    const unread = useNotificationStore((st) => st.unread);
     const addr = useAddressStore((st) => st.selected);
     const short = addr ? [addr.line1, addr.line2 || addr.city].filter(Boolean).join(', ') : '';
 
@@ -75,6 +77,14 @@ function Header({ onAddress }) {
                         <Text style={[s.hdTag, { color: onPrimary }]} numberOfLines={1}>{theme.tagline}</Text>
                     ) : null}
                 </View>
+                {user ? (
+                    <Pressable onPress={() => nav.navigate('Notifications')} style={[s.ic, { marginRight: full.offers.couponsEnabled ? 8 : 0 }]} hitSlop={6}>
+                        <Ionicons name="notifications-outline" size={20} color={onPrimary} />
+                        {unread > 0 ? (
+                            <View style={s.bellBadge}><Text style={s.bellBadgeTxt}>{unread > 9 ? '9+' : unread}</Text></View>
+                        ) : null}
+                    </Pressable>
+                ) : null}
                 {full.offers.couponsEnabled ? (
                     <Pressable onPress={() => nav.navigate('Offers')} style={s.ic} hitSlop={6}>
                         <Ionicons name="pricetags-outline" size={20} color={onPrimary} />
@@ -634,6 +644,8 @@ const s = StyleSheet.create({
     hdName: { fontSize: 22, fontWeight: '900', letterSpacing: -0.4 },
     hdTag: { fontSize: 12, opacity: 0.88, marginTop: 1 },
     ic: { width: 40, height: 40, borderRadius: 20, backgroundColor: glass, alignItems: 'center', justifyContent: 'center' },
+    bellBadge: { position: 'absolute', top: -2, right: -2, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, backgroundColor: '#E5383B', alignItems: 'center', justifyContent: 'center' },
+    bellBadgeTxt: { color: '#FFFFFF', fontSize: 10, fontWeight: '900' },
     cBadge: { position: 'absolute', top: -3, right: -3, minWidth: 17, height: 17, borderRadius: 9, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center' },
     cBadgeTxt: { fontSize: 10, fontWeight: '800' },
     chipRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 16 },

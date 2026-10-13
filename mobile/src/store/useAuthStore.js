@@ -26,6 +26,9 @@ export const useAuthStore = create((set, get) => ({
     // Clears local session first (so UI updates instantly), then tells the
     // server to delete the session (best effort, errors ignored).
     logout: async () => {
+        // the server needs the login to forget this phone's push token, so this goes first (it has a 4 s limit)
+        try { await require('../utils/push').unregisterPush(); } catch (e) { }
+
         let refreshToken = null;
         try {
             refreshToken = await SecureStore.getItemAsync(REFRESH_KEY);

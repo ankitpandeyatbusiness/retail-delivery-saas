@@ -8,7 +8,8 @@ const mongoose = require('mongoose');
 const db = require('./helpers/db');
 const storage = require('../src/services/adapters/storage');
 const Media = require('../src/models/Media');
-const { runCleanupUploads } = require('../src/jobs/cleanupUploads');
+const { runCleanupUploads, runCleanupComplaintPhotos } = require('../src/jobs/cleanupUploads');
+const Complaint = require('../src/models/Complaint');
 
 process.env.SECRETS_KEY = process.env.SECRETS_KEY || crypto.randomBytes(32).toString('base64');
 const box = require('../src/utils/secretBox');
@@ -93,6 +94,58 @@ describe('H4 cleanup of unused uploads', () => {
     test('in mock mode without the test switch the job does nothing', async () => {
         delete process.env.CLEANUP_UPLOADS_IN_MOCK;
         const r = await runCleanupUploads();
+        assert.equal(r.skipped, true);
+        process.env.CLEANUP_UPLOADS_IN_MOCK = 'true';
+    });
+});
+
+describe('H4 cleanup of complaint photos that were never sent', () => {
+    before(async () => {
+        process.env.STORAGE_MOCK = 'true';
+        process.env.CLEANUP_UPLOADS_IN_MOCK = 'true';
+        await db.connect();
+    });
+    after(async () => {
+        delete process.env.CLEANUP_UPLOADS_IN_MOCK;
+        await fs.rm(path.join(ROOT, 'tenants', 'h4-cp'), { recursive: true, force: true });
+        await db.disconnect();
+    });
+
+    test('an old unused complaint photo goes; used, young and other kinds stay', async () => {
+        const tenantId = new mongoose.Types.ObjectId();
+        const orderId = new mongoose.Types.ObjectId();
+        const userId = new mongoose.Types.ObjectId();
+        const hoursAgo = (h) => new Date(Date.now() - h * 3600 * 1000);
+
+        const mk = async (name, { kind = 'complaint', hours }) => {
+            const key = `tenants/h4-cp/complaints/${name}.webp`;
+            await storage.put({ key, buffer: Buffer.from('x') });
+            const m = await Media.create({ tenantId, key, url: `https://cdn.test/${key}`, kind, refId: String(orderId) });
+            await Media.collection.updateOne({ _id: m._id }, { $set: { createdAt: hoursAgo(hours) } });
+            return { key, url: m.url, id: m._id };
+        };
+
+        const used = await mk('used', { hours: 30 });
+        const unusedOld = await mk('unused-old', { hours: 30 });
+        const unusedYoung = await mk('unused-young', { hours: 1 });
+        const otherKind = await mk('avatar-like', { kind: 'customer', hours: 30 });
+
+        await Complaint.create({ tenantId, orderId, userId, type: 'quality', text: 'cold food', photos: [used.url] });
+
+        const r = await runCleanupComplaintPhotos();
+        assert.equal(r.deleted, 1);
+        assert.equal(await exists(unusedOld.key), false);
+        assert.equal(await Media.exists({ _id: unusedOld.id }), null);
+        assert.equal(await exists(used.key), true);
+        assert.ok(await Media.exists({ _id: used.id }));
+        assert.equal(await exists(unusedYoung.key), true);
+        assert.equal(await exists(otherKind.key), true);
+        assert.equal((await runCleanupComplaintPhotos()).deleted, 0);   // a second run finds nothing
+    });
+
+    test('in mock mode without the test switch it does nothing', async () => {
+        delete process.env.CLEANUP_UPLOADS_IN_MOCK;
+        const r = await runCleanupComplaintPhotos();
         assert.equal(r.skipped, true);
         process.env.CLEANUP_UPLOADS_IN_MOCK = 'true';
     });

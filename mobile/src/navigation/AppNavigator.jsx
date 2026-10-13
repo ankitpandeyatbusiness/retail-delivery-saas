@@ -12,6 +12,8 @@ import SearchScreen from '../screens/SearchScreen';
 import PaymentMethodsScreen from '../screens/PaymentMethodsScreen';
 import OrdersScreen from '../screens/OrdersScreen';
 import OrderDetailScreen from '../screens/OrderDetailScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
+import { bindNavigation, navigationReady } from '../utils/push';
 import AccountScreen from '../screens/AccountScreen';
 import { OffersScreen, BestsellersScreen, FavouritesScreen } from '../screens/OffersScreen';
 import { useAuthStore } from '../store/useAuthStore';
@@ -26,6 +28,7 @@ import { useAppStatus } from '../store/useAppStatus';
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 const navigationRef = createNavigationContainerRef();
+bindNavigation(navigationRef);
 
 
 // config tab id -> screen. Unknown ids from the server are skipped.
@@ -142,7 +145,7 @@ export default function AppNavigator() {
 
     return (
         <View style={{ flex: 1 }}>
-            <NavigationContainer ref={navigationRef}>
+            <NavigationContainer ref={navigationRef} onReady={navigationReady}>
                 <Stack.Navigator
                     screenOptions={{ headerShown: false }}
                     initialRouteName={user ? 'MainTabs' : 'Login'}
@@ -159,6 +162,7 @@ export default function AppNavigator() {
                     <Stack.Screen name="PaymentMethods" component={PaymentMethodsScreen} />
                     <Stack.Screen name="Favourites" component={FavouritesScreen} />
                     <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
+                    <Stack.Screen name="Notifications" component={NotificationsScreen} />
                 </Stack.Navigator>
             </NavigationContainer>
             <FrozenOverlay onOrders={goOrders} />

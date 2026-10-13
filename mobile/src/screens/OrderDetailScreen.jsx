@@ -10,7 +10,10 @@ import { Press, Appear } from '../components/ui/cartParts';
 import { StatusPill, isActive, rs, errMsg, cancelFlow, reorder } from '../components/ui/orders';
 import { viewInvoice, saveInvoice } from '../components/ui/invoice';
 import { useHomeStore } from '../store/useHomeStore';
-import { fetchOrder, rateOrder, fetchRatings } from '../api/shopApi';
+import { fetchOrder, rateOrder, fetchRatings, fetchTracking } from '../api/shopApi';
+import TrackingCard from '../components/ui/tracking';
+import { DeliveryRatingCard, ComplaintCard } from '../components/ui/feedback';
+import { useOrderLive } from '../hooks/useOrderLive';
 import { useAuthStore } from '../store/useAuthStore';
 import { payForOrder } from '../utils/payOnline';
 
@@ -128,22 +131,33 @@ export default function OrderDetailScreen() {
     const [busy, setBusy] = useState(false);
     const [inv, setInv] = useState('');            // '' | 'view' | 'save'
     const user = useAuthStore((st) => st.user);
+    const [track, setTrack] = useState(null);     // GET /orders/:id/tracking, delivery orders only
+    const trackRef = useRef(null);
+    trackRef.current = track;
     const activeRef = useRef(false);
     const ratedLoaded = useRef(false);
     activeRef.current = !!o && isActive(o.status);
 
     const get = useCallback(async () => {
-        try { setO(await fetchOrder(id)); setState('ok'); } catch (e) {
+        try {
+            const ord = await fetchOrder(id);
+            setO(ord); setState('ok');
+            if (ord.orderType === 'delivery' && (isActive(ord.status) || ord.status === 'delivered')) {
+                fetchTracking(id).then(setTrack).catch(() => { /* the card simply stays as it was */ });
+            } else setTrack(null);
+        } catch (e) {
             setState((st) => (st === 'ok' ? 'ok' : e?.response?.status === 404 ? 'gone' : 'error'));
         }
     }, [id]);
 
-    // load now, then every 20 s while the order is still active
+    // The server tells us at once when the order changes (status, rider accepted...). The timer is only a safety net,
+    // and runs faster while the rider is on the way because his position is not pushed.
+    useOrderLive(id, get);
     useFocusEffect(useCallback(() => {
         get();
-        const t = setInterval(() => { if (activeRef.current) get(); }, 20000);
+        const t = setInterval(() => { if (activeRef.current) get(); }, trackRef.current?.state === 'on_the_way' ? 15000 : 45000);
         return () => clearInterval(t);
-    }, [get]));
+    }, [get, track?.state === 'on_the_way']));
 
     // load the review that is already saved for this order
     useEffect(() => {
@@ -232,6 +246,10 @@ export default function OrderDetailScreen() {
                         <Text style={[s.muted, { color: muted }]}>{delivery ? 'Delivery' : 'Pickup'} · {PAY[o.payment?.method] || 'Cash on delivery'}{o.payment?.status === 'paid' ? ' · Paid' : ''}</Text>
                     </View>
                 </Appear>
+
+                {delivery && live && track && track.state !== 'cancelled' ? (
+                    <TrackingCard tracking={track} destination={o.address} />
+                ) : null}
 
                 {!cancelled ? (
                     <Card title="Order status" icon="time-outline" delay={60}>
@@ -352,6 +370,11 @@ export default function OrderDetailScreen() {
                         )}
                     </Card>
                 ) : null}
+
+                {delivered && delivery && track ? (
+                    <DeliveryRatingCard orderId={id} tracking={track} onDone={get} />
+                ) : null}
+                {delivered ? <ComplaintCard orderId={id} /> : null}
             </ScrollView>
 
             {dock ? (

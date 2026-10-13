@@ -1,4 +1,5 @@
 // app.config.js
+const fs = require('fs');
 const tenant = process.env.APP_TENANT || 'default';
 
 const tenantConfigs = {
@@ -39,6 +40,12 @@ if (!tenantConfigs[tenant]) {
 }
 const currentConfig = tenantConfigs[tenant] || tenantConfigs.default;
 
+// Firebase (push) config belongs to ONE Android package. Use google-services.<tenant>.json when it exists,
+// and the plain google-services.json only for the tenant whose package name it was made for (savera).
+// A tenant with neither builds without push instead of failing the build.
+const googleServicesFile = [`./google-services.${tenant}.json`, tenant === 'savera' ? './google-services.json' : null]
+  .filter(Boolean).find((f) => fs.existsSync(f));
+
 export default {
   expo: {
     name: currentConfig.name,
@@ -54,6 +61,7 @@ export default {
     android: {
       config: { googleMaps: { apiKey: process.env.GOOGLE_MAPS_API_KEY } },
       package: currentConfig.bundleId,
+      ...(googleServicesFile && { googleServicesFile }),
       // Preserves your previous manual permissions + adds Microphone
       permissions: [
         "android.permission.RECORD_AUDIO",
@@ -61,7 +69,8 @@ export default {
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.VIBRATE"
+        "android.permission.VIBRATE",
+        "android.permission.POST_NOTIFICATIONS"
       ],
       ...(currentConfig.adaptiveIcon && { adaptiveIcon: currentConfig.adaptiveIcon }),
     },
@@ -94,6 +103,14 @@ export default {
       ],
       './plugins/withNoAutofillHighlight',
       './plugins/withUpiAppQueries',
+      // Complaint photos: camera and gallery. No microphone.
+      ['expo-image-picker', {
+        photosPermission: 'Allow $(PRODUCT_NAME) to attach photos to your complaint.',
+        cameraPermission: 'Allow $(PRODUCT_NAME) to take a photo for your complaint.',
+        microphonePermission: false,
+      }],
+      // Push. defaultChannel must match the channel created in src/utils/push.js
+      ['expo-notifications', { defaultChannel: 'orders', color: currentConfig.backgroundColor }],
       // Adds the Speech Recognition plugin with standard OS prompts
       [
         'expo-speech-recognition',

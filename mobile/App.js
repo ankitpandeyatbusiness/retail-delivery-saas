@@ -6,6 +6,8 @@ import AppNavigator from './src/navigation/AppNavigator';
 import { useThemeStore } from './src/store/useThemeStore';
 import { DialogHost } from './src/components/ui/dialog';
 import { SheetHost } from './src/components/ui/SheetPortal';
+import { startRealtime } from './src/api/socket';
+import { startNotifications } from './src/utils/push';
 
 export default function App() {
   const [isReady, setIsReady] = useState(false);
@@ -13,6 +15,8 @@ export default function App() {
   useEffect(() => {
     // loadTheme never throws: on failure the fallback theme stays
     useThemeStore.getState().loadTheme().finally(() => setIsReady(true));
+    startRealtime();   // live order updates while a customer is logged in
+    startNotifications();   // push, unread badge, open the order from a notification
   }, []);
 
   // Short blank screen while the theme downloads, so the shop name never flashes wrong

@@ -85,4 +85,4 @@ api.interceptors.response.use(
 );
 
 export default api;
-export { refreshSession };
+export { refreshSession, baseURL, tenantSlug };

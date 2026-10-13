@@ -13,6 +13,7 @@ import DateRangeSheet, { rangeLabel } from '../components/ui/DateRangeSheet';
 
 import { useHomeStore } from '../store/useHomeStore';
 import { fetchOrders } from '../api/shopApi';
+import { useAnyOrderLive } from '../hooks/useOrderLive';
 import { viewInvoice } from '../components/ui/invoice';
 
 const PILLS = [['all', 'All'], ['active', 'Active'], ['delivered', 'Delivered'], ['cancelled', 'Cancelled']];
@@ -229,6 +230,7 @@ function OrdersList() {
         } catch (e) { setState((st) => (st === 'ok' ? 'ok' : 'error')); } finally { endSwap(); }
     }, [qParams]);
     useFocusEffect(useCallback(() => { load(); }, [load]));
+    useAnyOrderLive(load);   // an order changed on the server: refresh the list
 
     useEffect(() => {
         if (state !== 'ok') return undefined;
