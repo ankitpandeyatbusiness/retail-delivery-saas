@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import Constants from 'expo-constants';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand, GuestGate } from '../components/ui/kit';
@@ -18,7 +19,8 @@ import { useAuthStore } from '../store/useAuthStore';
 import { useHomeStore } from '../store/useHomeStore';
 import { useThemeStore } from '../store/useThemeStore';
 import { useFavStore } from '../store/shopStores';
-import { fetchMe, updateMe, deleteMe, updatePrefs } from '../api/shopApi';
+import { fetchMe, updateMe, deleteMe, updatePrefs, deleteUpload } from '../api/shopApi';
+import { pickPhoto, uploadAvatar } from '../utils/photoUpload';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -132,6 +134,7 @@ function AccountInner() {
     const shopPhone = useThemeStore((st) => st.theme.phone);
     const [me, setMe] = useState(null);
     const [promoBusy, setPromoBusy] = useState(false);
+    const [avatarBusy, setAvatarBusy] = useState(false);
     const promos = me ? me.promotions !== false : true;   // GET /me includes it; on until the server says otherwise
 
     // optimistic: flip at once, put it back if the server refuses
@@ -163,6 +166,41 @@ function AccountInner() {
         setMe(u);
         useAuthStore.setState((st) => (st.user ? { user: { ...st.user, name: u.name, email: u.email } } : {}));
     };
+
+    // profile picture: camera or gallery (cropped square), or remove
+    const changeAvatar = async (source) => {
+        if (avatarBusy) return;
+        let picked;
+        try { picked = await pickPhoto(source, { square: true }); } catch (e) { showToast(e.safe ? e.message : 'Could not open the camera or gallery'); return; }
+        if (!picked) return;
+        setAvatarBusy(true);
+        try {
+            const up = await uploadAvatar({ uri: picked.uri, mimeType: picked.mimeType });
+            setMe((m) => ({ ...(m || {}), avatarUrl: up.url, avatarId: up.id }));
+            showToast('Profile photo updated');
+        } catch (e) {
+            showToast(e.safe ? e.message : 'Could not update your photo');
+        } finally { setAvatarBusy(false); }
+    };
+
+    const removeAvatar = async () => {
+        if (avatarBusy || !me?.avatarId) return;
+        setAvatarBusy(true);
+        try {
+            await deleteUpload(me.avatarId);
+            setMe((m) => ({ ...(m || {}), avatarUrl: null, avatarId: null }));
+            showToast('Profile photo removed');
+        } catch (e) {
+            showToast('Could not remove your photo. Please try again');
+        } finally { setAvatarBusy(false); }
+    };
+
+    const avatarMenu = () => themedAlert('Profile photo', 'Choose a picture for your account.', [
+        { text: 'Take a photo', onPress: () => changeAvatar('camera') },
+        { text: 'Choose from gallery', onPress: () => changeAvatar('gallery') },
+        ...(me?.avatarUrl ? [{ text: 'Remove photo', style: 'destructive', onPress: removeAvatar }] : []),
+        { text: 'Cancel', style: 'cancel' },
+    ], { icon: 'camera-outline' });
 
     const signOut = async () => {
         try { await useAuthStore.getState().logout(); } catch (e) { /* the navigator resets to Login */ }
@@ -207,7 +245,17 @@ function AccountInner() {
                 <Text style={[s.title, { color: text }]}>Account</Text>
 
                 <Appear style={[s.head, { backgroundColor: surface, borderColor: border }]}>
-                    <View style={[s.avatar, { backgroundColor: primary }]}><Text style={s.avatarTxt}>{initial}</Text></View>
+                    <Pressable onPress={avatarMenu} disabled={avatarBusy} hitSlop={6} style={s.avatarWrap}>
+                        <View style={[s.avatar, { backgroundColor: primary, overflow: 'hidden', marginRight: 0 }]}>
+                            {p.avatarUrl
+                                ? <Image source={{ uri: p.avatarUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
+                                : <Text style={s.avatarTxt}>{initial}</Text>}
+                            {avatarBusy ? <View style={s.avatarBusy}><ActivityIndicator color="#FFFFFF" /></View> : null}
+                        </View>
+                        <View style={[s.camBadge, { backgroundColor: surface, borderColor: border }]}>
+                            <Ionicons name="camera" size={12} color={primary} />
+                        </View>
+                    </Pressable>
                     <View style={{ flex: 1 }}>
                         <Text style={[s.name, { color: text }]} numberOfLines={1}>{name || 'Add your name'}</Text>
                         {phone ? <Text style={[s.sub, { color: muted }]}>{phone}</Text> : null}
@@ -270,7 +318,10 @@ export default function AccountScreen() {
 const s = StyleSheet.create({
     title: { fontSize: 24, fontWeight: '900', letterSpacing: -0.5, paddingHorizontal: 16, paddingTop: 14 },
     head: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginTop: 14, padding: 16, borderWidth: 1, borderRadius: 20 },
+    avatarWrap: { marginRight: 14 },
     avatar: { width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
+    avatarBusy: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' },
+    camBadge: { position: 'absolute', right: -2, bottom: -2, width: 22, height: 22, borderRadius: 11, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
     avatarTxt: { color: '#FFFFFF', fontSize: 24, fontWeight: '800' },
     name: { fontSize: 18, fontWeight: '800' },
     sub: { fontSize: 12, marginTop: 2 },

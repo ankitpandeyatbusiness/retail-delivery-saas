@@ -9,8 +9,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useBrand } from './kit';
 import { showToast, tint } from './shop';
-import { rateDelivery, fetchComplaints, sendComplaint } from '../api/shopApi';
-import { pickPhoto, uploadComplaintPhoto, discardPhoto } from '../utils/photoUpload';
+import { rateDelivery, fetchComplaints, sendComplaint } from '../../api/shopApi';
+import { pickPhoto, uploadComplaintPhoto, discardPhoto } from '../../utils/photoUpload';
 
 const errMsg = (e) => e?.response?.data?.error || e?.message || 'Something went wrong';
 const rs = (paise) => `₹${+(paise / 100).toFixed(2)}`;

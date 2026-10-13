@@ -21,6 +21,7 @@ import Animated, {
     FadeInDown,
     interpolate,
     useAnimatedKeyboard,
+    useAnimatedReaction,
     useAnimatedScrollHandler,
     useAnimatedStyle,
     useDerivedValue,
@@ -217,6 +218,22 @@ export default function LoginScreen({ navigation }) {
     const keyboard = useAnimatedKeyboard({ isStatusBarTranslucentAndroid: true });
     const bottomInset = insets.bottom;
 
+    // The hook can keep a stale height when the keyboard goes away without a normal animation (back button, a blur,
+    // the app losing focus). The panel then stays lifted and the dark background shows where the keyboard was.
+    // React Native's own "keyboard hidden" event is the truth: after it, the height counts as 0 until it really changes again.
+    const keyboardGone = useSharedValue(false);
+    useAnimatedReaction(
+        () => keyboard.height.value,
+        (cur, prev) => {
+            if (keyboardGone.value && prev !== null && cur !== prev) keyboardGone.value = false;
+        }
+    );
+    useEffect(() => {
+        const sub = Keyboard.addListener('keyboardDidHide', () => { keyboardGone.value = true; });
+        return () => sub.remove();
+    }, [keyboardGone]);
+    const keyboardHeight = useDerivedValue(() => (keyboardGone.value ? 0 : keyboard.height.value));
+
     const { width: windowWidth, height: windowHeight } = useWindowDimensions();
     const panelIn = useSharedValue(1);
     const stepProgress = useSharedValue(0);
@@ -296,7 +313,7 @@ export default function LoginScreen({ navigation }) {
         return () => clearTimeout(t);
     }, [step]);
 
-    const shift = useDerivedValue(() => Math.max(0, keyboard.height.value - bottomInset));
+    const shift = useDerivedValue(() => Math.max(0, keyboardHeight.value - bottomInset));
 
     const panelStyle = useAnimatedStyle(() => ({
         transform: [{ translateY: panelIn.value * windowHeight * 0.5 - shift.value }],
@@ -319,7 +336,7 @@ export default function LoginScreen({ navigation }) {
     const phoneTextStyle = useAnimatedStyle(() => ({ opacity: phoneFade.value }));
 
     const dimStyle = useAnimatedStyle(() => ({
-        opacity: interpolate(keyboard.height.value, [0, 160], [0, 1], Extrapolation.CLAMP),
+        opacity: interpolate(keyboardHeight.value, [0, 160], [0, 1], Extrapolation.CLAMP),
     }));
 
     /* ----------------------------- navigation helpers ---------------------------- */

@@ -1,6 +1,6 @@
 // The logged-in customer's own profile. Mounted at /api/me:
 //
-//   GET    /api/me        -> { id, phone, name, email }
+//   GET    /api/me        -> { id, phone, name, email, promotions, avatarUrl, avatarId }   (avatar: see /api/me/uploads, kind 'customer')
 //   PUT    /api/me        body { "name": "Ravi Kumar", "email": "ravi@example.com" }   (send either or both; email "" removes it)
 //   DELETE /api/me        body { "confirm": true }   deletes the account (Play Store requires this)
 //
@@ -20,6 +20,8 @@ const Favourite = require('../models/Favourite');
 const Order = require('../models/Order');
 const Rider = require('../models/Rider');
 const CustomerRisk = require('../models/CustomerRisk');
+const Media = require('../models/Media');
+const storage = require('../services/adapters/storage');
 const { ACTIVE_STATUSES } = require('../services/orderflow');
 const withTransaction = require('../services/withTransaction');
 const { hashPhone } = require('../utils/phoneHash');
@@ -30,12 +32,17 @@ router.use(tenantRecognizer);
 router.use(authenticate);
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-const dto = (u) => ({ id: u._id, phone: u.phone, name: u.name || null, email: u.email || null, promotions: u.prefs?.promotions !== false });
+// the customer's own profile picture, if he uploaded one (a fixed file that is replaced by each new upload)
+const avatarOf = (tenantId, userId) => Media.findOne({ tenantId, kind: 'customer', refId: String(userId) }).select('url').lean();
+const dto = (u, avatar) => ({
+    id: u._id, phone: u.phone, name: u.name || null, email: u.email || null, promotions: u.prefs?.promotions !== false,
+    avatarUrl: avatar?.url || null, avatarId: avatar?._id || null,
+});
 
 router.get('/', wrap(async (req, res) => {
     const user = await User.findOne({ _id: req.auth.userId, tenantId: req.tenant._id }).lean();
     if (!user) throw httpError(404, 'Account not found');
-    res.json(dto(user));
+    res.json(dto(user, await avatarOf(req.tenant._id, user._id)));
 }));
 
 router.put('/', wrap(async (req, res) => {
@@ -66,7 +73,7 @@ router.put('/', wrap(async (req, res) => {
         { returnDocument: 'after', runValidators: true },
     ).lean();
     if (!user) throw httpError(404, 'Account not found');
-    res.json(dto(user));
+    res.json(dto(user, await avatarOf(req.tenant._id, user._id)));
 }));
 
 // Promotions on or off. Information messages (order updates, shop notices) always arrive.
@@ -120,6 +127,16 @@ router.delete('/', wrap(async (req, res) => {
         if (user.role === 'rider') await Rider.deleteMany({ tenantId, userId }, { session });
         await User.deleteOne({ _id: userId, tenantId }, { session });
     });
+
+    // the profile picture goes with the account (best effort: the cleanup job also removes unlinked files later)
+    try {
+        const avatar = await Media.findOne({ tenantId, kind: 'customer', refId: String(userId) });
+        if (avatar) {
+            await storage.remove(avatar.key).catch(() => { });
+            await avatar.deleteOne();
+        }
+    } catch (e) { console.error('Could not remove the avatar of a deleted account:', e.message); }
+
     res.json({ ok: true });
 }));
 
