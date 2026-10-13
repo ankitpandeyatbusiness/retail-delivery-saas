@@ -12,11 +12,12 @@ const { wrap, httpError } = require('../middlewares/apiErrors');
 const secretBox = require('../utils/secretBox');
 const payments = require('../services/adapters/payments');
 const accounts = require('../services/paymentAccounts');
+const paymentGuard = require('../services/paymentGuard');
 
 const router = express.Router();
 const KEY_ID_RE = /^rzp_(test|live)_[A-Za-z0-9]{6,40}$/;
-const baseUrl = (req) => (process.env.PUBLIC_API_URL
-    ? process.env.PUBLIC_API_URL.replace(/\/+$/, '')
+const baseUrl = (req) => (process.env.PUBLIC_BASE_URL
+    ? process.env.PUBLIC_BASE_URL.replace(/\/+$/, '')
     : `${req.protocol}://${req.get('host')}`);
 const status = (req) => accounts.statusFor(req.tenantDoc._id, baseUrl(req));
 
@@ -35,6 +36,10 @@ router.put('/tenants/:tid/payments/keys', loadTenant, wrap(async (req, res) => {
 
     const p = await accounts.rawPayments(req.tenantDoc._id);
     if (p?.enabled) throw httpError(409, 'Switch online payments off before changing the keys');
+    if (body.acknowledgeOpenMoney !== true) {
+        const open = await paymentGuard.openMoney(req.tenantDoc._id);
+        if (open) throw httpError(409, `${open} Wait until it is finished, or send acknowledgeOpenMoney: true if you are sure.`);
+    }
 
     await Tenant.updateOne({ _id: req.tenantDoc._id }, {
         $set: { 'payments.keyId': keyId, 'payments.keySecretEnc': secretBox.encrypt(keySecret), 'payments.enabled': false },
@@ -53,6 +58,7 @@ router.post('/tenants/:tid/payments/webhook-secret', loadTenant, wrap(async (req
         webhookUrl: `${baseUrl(req)}/api/webhooks/razorpay/${req.tenantDoc._id}`,
         secret,
         events: ['payment.captured', 'payment.failed', 'refund.processed', 'refund.failed'],
+        disputeEvents: ['payment.dispute.created', 'payment.dispute.under_review', 'payment.dispute.action_required', 'payment.dispute.won', 'payment.dispute.lost', 'payment.dispute.closed'],
         note: 'The secret is shown only once. Paste the URL and the secret into the shop\'s Razorpay dashboard (Settings, Webhooks). If payments are already on, webhooks fail until the new secret is pasted there.',
     });
 }));

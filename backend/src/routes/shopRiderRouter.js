@@ -8,6 +8,7 @@ const apiErrors = require('../middlewares/apiErrors');
 const riders = require('../services/riderService');
 const assignment = require('../services/assignmentService');
 const Order = require('../models/Order');
+const { UNPAID_QUERY } = require('../services/onlineOrder');
 
 const { wrap, httpError } = apiErrors;
 const isId = (v) => typeof v === 'string' && mongoose.isValidObjectId(v);
@@ -43,6 +44,16 @@ manage.use(apiErrors);
 
 /* ------------------------------ /orders (stays open while the shop is paused) ------------------------------ */
 const orders = express.Router();
+
+// an online order that is not paid yet does not exist for the shop
+orders.param('id', async (req, res, next, id) => {
+    try {
+        if (isId(id) && await Order.exists({ _id: id, tenantId: req.tenant._id, ...UNPAID_QUERY })) return next(httpError(404, 'Order not found'));
+        return next();
+    } catch (e) {
+        return next(e);
+    }
+});
 
 // the full delivery block, including offers and rider history
 orders.get('/:id/delivery', wrap(async (req, res) => {

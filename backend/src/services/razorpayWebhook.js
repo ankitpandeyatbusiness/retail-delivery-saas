@@ -13,6 +13,7 @@ const paymentService = require('./paymentService');
 const refundIssuer = require('./refundIssuer');
 const smsTopupService = require('./smsTopupService');
 const alert = require('./paymentAlerts');
+const disputeService = require('./disputeService');
 
 const reply = (status, body) => ({ status, body });
 
@@ -76,6 +77,13 @@ async function route(account, body) {
             return refundIssuer.onRefundEvent({ account, name, entity: body.payload?.refund?.entity || {} });
         case 'qr_code.credited':
             return onQrCredited(account, body);
+        case 'payment.dispute.created':
+        case 'payment.dispute.under_review':
+        case 'payment.dispute.action_required':
+        case 'payment.dispute.won':
+        case 'payment.dispute.lost':
+        case 'payment.dispute.closed':
+            return disputeService.onDisputeEvent({ account, name, entity: body.payload?.dispute?.entity || {} });
         default:
             return { ignored: name };   // disputes and the rest come later
     }

@@ -8,6 +8,7 @@ const OnlinePayment = require('../models/OnlinePayment');
 const OnlineRefund = require('../models/OnlineRefund');
 const payments = require('./adapters/payments');
 const alert = require('./paymentAlerts');
+const PaymentDispute = require('../models/PaymentDispute');
 
 const LOCK_MS = 60 * 1000;
 const MAX_ATTEMPTS = 12;
@@ -19,6 +20,9 @@ async function issueRefund({ tenantId, orderId, amountPaise, reason, complaintId
     if (!Number.isInteger(amountPaise) || amountPaise <= 0) return { ok: true, skipped: 'nothing_to_refund' };
     const pay = await OnlinePayment.findOne({ tenantId, orderId });
     if (!pay || !['captured', 'mismatch'].includes(pay.status)) return { ok: true, skipped: 'not_paid_online' };   // COD, or never paid
+    if (await PaymentDispute.exists({ paymentId: pay._id, status: { $in: ['created', 'under_review', 'action_required'] } })) {
+        return { ok: false, error: 'This payment is under dispute' };   // no row, no alert; the reconcile job tries again later
+    }
     const refundKey = key || (complaintId ? `complaint:${complaintId}` : `order:${orderId}:${reason}`);
 
     let r;
