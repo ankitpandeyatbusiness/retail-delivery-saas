@@ -3,6 +3,7 @@ const Order = require('../models/Order');
 const Review = require('../models/Review');
 const Product = require('../models/Product');
 const center = require('../notifications/center');
+const shopRating = require('./shopRating');
 
 const isId = (v) => typeof v === 'string' && mongoose.isValidObjectId(v);
 const httpError = (status, message) => Object.assign(new Error(message), { status });
@@ -51,6 +52,7 @@ async function rateOrder({ tenantId, userId, orderId, ratings }) {
     }
 
     await Order.updateOne({ _id: order._id }, { $set: { ratedAt: new Date() } });
+    await shopRating.refresh(tenantId).catch((e) => console.error('Shop rating error:', e.message));
 
     // a dish rated 2 stars or less: the owner is told (never blocks the customer)
     try {

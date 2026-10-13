@@ -28,7 +28,7 @@ module.exports = {
 
     ORDER_TYPES: ['delivery', 'pickup', 'dine_in'],
     PAYMENT_METHODS: ['cod'],
-    FEE_TYPES: ['free', 'flat', 'free_above'],
+    FEE_TYPES: ['free', 'flat', 'free_above', 'distance'],
     GST_MODES: ['none', 'inclusive', 'exclusive'],
 
     DAYS: ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'],

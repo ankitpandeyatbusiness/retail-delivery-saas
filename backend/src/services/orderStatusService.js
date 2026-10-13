@@ -27,6 +27,8 @@ const {
 } = require('./orderOutcome');
 const risk = require('./customerRisk');
 const billable = require('./billableService');
+const stockService = require('./stockService');
+const riderEarnings = require('./riderEarnings');
 const { httpError } = require('../middlewares/apiErrors');
 const notify = require('./notificationService');
 const liveFeed = require('./liveFeed');
@@ -138,6 +140,10 @@ async function change({ order, status, actor, note, tenant, reasonCode }) {
         })
         : null;
 
+    // what this delivery pays the rider (shop setting, copied now so later changes never touch it)
+    const earnPaise = status === 'delivered' && order.delivery?.riderId
+        ? await riderEarnings.payPerDeliveryPaise(order.tenantId).catch(() => 0)
+        : 0;
     const set = { status };
     if (status === 'delivered') {
         set.deliveredAt = now;
@@ -153,6 +159,7 @@ async function change({ order, status, actor, note, tenant, reasonCode }) {
         if (status === 'delivered' && ['accepted', 'picked_up'].includes(d.status)) {
             set['delivery.status'] = 'delivered';
             set['delivery.deliveredAt'] = now;
+            set['delivery.earnPaise'] = earnPaise;
             if (order.payment?.method === 'cod') set['delivery.cashCollectedPaise'] = Math.round((order.pricing?.total || 0) * 100);
         }
     }
@@ -198,7 +205,11 @@ async function change({ order, status, actor, note, tenant, reasonCode }) {
 
     if (outcome) {
         // The coupon use goes back ONLY when the customer got a full refund (the shop kept nothing)
-        if (outcome.couponReturn) await releaseCoupon(updated.couponId).catch(logError('Coupon release error'));
+        if (outcome.couponReturn) {
+            await releaseCoupon(updated.couponId).catch(logError('Coupon release error'));
+            // the shop kept nothing, so the stock units go back too
+            await stockService.restoreForOrder(updated).catch(logError('Stock restore error'));
+        }
         // The shop kept money: the order counts for the rent
         if (outcome.billable) {
             await billable.markBillable(updated, status === 'undelivered' ? 'undelivered_customer' : 'cancel_kept')

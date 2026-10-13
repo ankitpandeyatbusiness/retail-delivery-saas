@@ -4,6 +4,15 @@ const { resolveHomeConfig } = require('./homeConfigService');
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+const VERSION = /^\d{1,4}(\.\d{1,4}){0,3}$/;
+const MIN_SHOP_RATINGS = 20;   // the shop rating is shown to customers from this many dish ratings
+const validDay = (v) => {   // a real calendar date like 2026-10-31
+    if (typeof v !== 'string' || !DAY.test(v)) return false;
+    const [y, mo, d] = v.split('-').map(Number);
+    const t = new Date(Date.UTC(y, mo - 1, d));
+    return t.getUTCFullYear() === y && t.getUTCMonth() === mo - 1 && t.getUTCDate() === d;
+};
 
 /* ------------------------------ VALIDATOR ------------------------------ */
 // Returns { ok, errors, clean }. `clean` only contains valid, known fields.
@@ -54,7 +63,7 @@ function validateSettings(input) {
         clean[name] = out;
     };
 
-    known(s, ['brand', 'tabs', 'home', 'features', 'menu', 'orders', 'hours', 'offers', 'labels', 'riders', 'notifications'], 'settings');
+    known(s, ['brand', 'tabs', 'home', 'features', 'menu', 'orders', 'hours', 'offers', 'labels', 'riders', 'notifications', 'app'], 'settings');
 
     // brand
     section('brand', ['colors', 'fontStyle', 'buttonShape'], (b, out, p) => {
@@ -138,11 +147,16 @@ function validateSettings(input) {
                 const d = o.deliveryFee;
                 if (!isObj(d)) err(p('deliveryFee'), 'must be an object');
                 else {
-                    known(d, ['type', 'amount', 'freeAbove'], p('deliveryFee'));
+                    known(d, ['type', 'amount', 'freeAbove', 'baseKm', 'baseFee', 'perKmFee', 'maxFee'], p('deliveryFee'));
                     out.deliveryFee = {};
                     if (d.type !== undefined && oneOf(p('deliveryFee.type'), d.type, O.FEE_TYPES)) out.deliveryFee.type = d.type;
                     if (d.amount !== undefined && num(p('deliveryFee.amount'), d.amount, 0, 1000)) out.deliveryFee.amount = d.amount;
                     if (d.freeAbove !== undefined && num(p('deliveryFee.freeAbove'), d.freeAbove, 0, 100000)) out.deliveryFee.freeAbove = d.freeAbove;
+                    // type "distance": baseFee covers the first baseKm; every started km after that adds perKmFee; maxFee 0 = no limit
+                    if (d.baseKm !== undefined && num(p('deliveryFee.baseKm'), d.baseKm, 0, 50)) out.deliveryFee.baseKm = d.baseKm;
+                    if (d.baseFee !== undefined && num(p('deliveryFee.baseFee'), d.baseFee, 0, 1000)) out.deliveryFee.baseFee = d.baseFee;
+                    if (d.perKmFee !== undefined && num(p('deliveryFee.perKmFee'), d.perKmFee, 0, 500)) out.deliveryFee.perKmFee = d.perKmFee;
+                    if (d.maxFee !== undefined && num(p('deliveryFee.maxFee'), d.maxFee, 0, 2000)) out.deliveryFee.maxFee = d.maxFee;
                 }
             }
             if (o.gst !== undefined) {
@@ -175,7 +189,22 @@ function validateSettings(input) {
         });
 
     // hours
-    section('hours', ['weekly', 'closedMessage'], (h, out, p) => {
+    section('hours', ['weekly', 'closedMessage', 'closedDates'], (h, out, p) => {
+        // holiday mode: [{ from: '2026-11-01', to: '2026-11-03', message?: 'Closed for Diwali' }] (India dates, up to 30)
+        if (h.closedDates !== undefined) {
+            if (!Array.isArray(h.closedDates) || h.closedDates.length > 30) err(p('closedDates'), 'must be a list of up to 30 date ranges');
+            else {
+                out.closedDates = [];
+                h.closedDates.forEach((r, i) => {
+                    if (!isObj(r) || !validDay(r.from) || !validDay(r.to) || r.to < r.from) {
+                        return err(p(`closedDates[${i}]`), 'needs from and to as YYYY-MM-DD, and "to" must not be before "from"');
+                    }
+                    if (r.message !== undefined && !str(p(`closedDates[${i}].message`), r.message, 120)) return;
+                    const msg = typeof r.message === 'string' ? r.message.trim() : '';
+                    out.closedDates.push({ from: r.from, to: r.to, ...(msg ? { message: msg } : {}) });
+                });
+            }
+        }
         if (h.closedMessage !== undefined && str(p('closedMessage'), h.closedMessage, 120)) out.closedMessage = h.closedMessage.trim();
         if (h.weekly !== undefined) {
             if (!isObj(h.weekly)) return err(p('weekly'), 'must be an object like { mon: [{open, close}] }');
@@ -196,13 +225,22 @@ function validateSettings(input) {
     });
 
     // riders and delivery assignment
-    section('riders', ['assignMode', 'offerSeconds', 'maxActiveOrders', 'deliveryPin', 'liveTracking', 'locationIntervalSec'], (r, out, p) => {
+    section('riders', ['assignMode', 'offerSeconds', 'maxActiveOrders', 'deliveryPin', 'liveTracking', 'locationIntervalSec', 'payPerDelivery'], (r, out, p) => {
+        if (r.payPerDelivery !== undefined && num(p('payPerDelivery'), r.payPerDelivery, 0, 10000)) out.payPerDelivery = r.payPerDelivery;   // rupees per delivery
         if (r.assignMode !== undefined && oneOf(p('assignMode'), r.assignMode, O.ASSIGN_MODES)) out.assignMode = r.assignMode;
         if (r.offerSeconds !== undefined && num(p('offerSeconds'), r.offerSeconds, 30, 600)) out.offerSeconds = r.offerSeconds;
         if (r.maxActiveOrders !== undefined && num(p('maxActiveOrders'), r.maxActiveOrders, 1, 10)) out.maxActiveOrders = r.maxActiveOrders;
         if (r.deliveryPin !== undefined && bool(p('deliveryPin'), r.deliveryPin)) out.deliveryPin = r.deliveryPin;
         if (r.liveTracking !== undefined && bool(p('liveTracking'), r.liveTracking)) out.liveTracking = r.liveTracking;
         if (r.locationIntervalSec !== undefined && num(p('locationIntervalSec'), r.locationIntervalSec, 5, 60)) out.locationIntervalSec = r.locationIntervalSec;
+    });
+
+    // app: the oldest app version that may still be used. "" = no minimum. Set by the superadmin.
+    section('app', ['minVersion'], (a, out, p) => {
+        if (a.minVersion !== undefined) {
+            if (a.minVersion === '' || (typeof a.minVersion === 'string' && VERSION.test(a.minVersion))) out.minVersion = a.minVersion;
+            else err(p('minVersion'), 'must look like 1.2.0');
+        }
     });
 
     // notifications (the owner's own switches)
@@ -258,8 +296,28 @@ const merge = (base, over) => {
 const toMin = (t) => { const [h, m] = t.split(':'); return Number(h) * 60 + Number(m); };
 
 // India time (IST, UTC+5:30). No hours configured = always open.
-function openStatus(weekly, acceptingOrders, now = new Date()) {
+const addDay = (ymd) => new Date(Date.parse(`${ymd}T00:00:00Z`) + 86400000).toISOString().slice(0, 10);
+
+// holiday: today (India date) is inside a closed range. reopensOn = the first day that is not closed.
+function holidayOn(closedDates, now) {
+    if (!Array.isArray(closedDates) || !closedDates.length) return null;
+    const today = new Date(now.getTime() + 330 * 60000).toISOString().slice(0, 10);
+    const hit = closedDates.find((r) => r.from <= today && today <= r.to);
+    if (!hit) return null;
+    let last = hit.to;
+    for (let i = 0; i < 31; i += 1) {
+        const next = addDay(last);
+        const more = closedDates.find((r) => r.from <= next && next <= r.to);
+        if (!more) return { message: hit.message || null, reopensOn: next };
+        last = more.to;
+    }
+    return { message: hit.message || null, reopensOn: addDay(last) };
+}
+
+function openStatus(weekly, acceptingOrders, now = new Date(), closedDates = null) {
     if (acceptingOrders === false) return { isOpen: false, reason: 'paused' };
+    const holiday = holidayOn(closedDates, now);
+    if (holiday) return { isOpen: false, reason: 'holiday', message: holiday.message, reopensOn: holiday.reopensOn };
     if (!weekly || !Object.keys(weekly).length) return { isOpen: true, reason: null };
 
     const ist = new Date(now.getTime() + 330 * 60000);
@@ -318,7 +376,8 @@ function resolveConfig(tenant, now = new Date()) {
 
     const labels = merge(DEFAULTS.labels, clean.labels);
     const weekly = clean.hours?.weekly || null;
-    const status = openStatus(weekly, orders.acceptingOrders, now);
+    const closedDates = clean.hours?.closedDates || [];
+    const status = openStatus(weekly, orders.acceptingOrders, now, closedDates);
 
     return {
         brand,
@@ -327,13 +386,14 @@ function resolveConfig(tenant, now = new Date()) {
         features,
         menu: merge(DEFAULTS.menu, clean.menu),
         orders,
-        hours: { weekly, closedMessage: clean.hours?.closedMessage || labels.closedMessage },
+        hours: { weekly, closedMessage: clean.hours?.closedMessage || labels.closedMessage, closedDates },
         riders: {
             liveTracking: merge(DEFAULTS.riders, clean.riders).liveTracking,
             locationIntervalSec: merge(DEFAULTS.riders, clean.riders).locationIntervalSec,
         },
         offers,
         labels,
+        app: { minVersion: clean.app?.minVersion || null },
         restaurant: {
             name: tenant.name,
             tagline: tenant.tagline || null,
@@ -342,8 +402,14 @@ function resolveConfig(tenant, now = new Date()) {
             phone: tenant.phone || null,
             isOpen: status.isOpen,
             closedReason: status.reason,
+            closedMessage: status.message || clean.hours?.closedMessage || labels.closedMessage,   // what to show when closed
+            reopensOn: status.reopensOn || null,
+            // the shop rating, only once enough customers rated
+            rating: tenant.stats?.rating?.count >= MIN_SHOP_RATINGS
+                ? { avg: tenant.stats.rating.avg, count: tenant.stats.rating.count }
+                : null,                                                   // holiday: first open day (YYYY-MM-DD)
         },
     };
 }
 
-module.exports = { validateSettings, resolveConfig, openStatus, DEFAULTS };
+module.exports = { validateSettings, resolveConfig, openStatus, DEFAULTS, MIN_SHOP_RATINGS };

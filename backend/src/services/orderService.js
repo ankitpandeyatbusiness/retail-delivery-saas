@@ -12,13 +12,14 @@ const CustomerRisk = require('../models/CustomerRisk');
 const OrderGuard = require('../models/OrderGuard');
 const { resolveConfig, openStatus } = require('./tenantConfigService');
 const { nextStatuses, customerCanCancel } = require('./orderflow'); // lowercase: matches the real file name
-const { serviceability } = require('../utils/geo');
+const { serviceability, haversineKm } = require('../utils/geo');
 const orderStatus = require('./orderStatusService');
 const notify = require('./notificationService');
 const { hashPhone } = require('../utils/phoneHash');
 const { httpError } = require('../middlewares/apiErrors');
 const { isId, round2, buildLines, reserveCoupon, releaseCoupon, priceCart } = require('./orderPricing');
 const { pickupSlots, findPickupSlot } = require('./pickupSlots');
+const stock = require('./stockService');
 
 const MAX_SCHEDULE_DAYS = 7;
 const TYPE_LABEL = { delivery: 'delivery', pickup: 'pickup', dine_in: 'dine-in' };
@@ -59,7 +60,7 @@ function checkPlacement({ tenant, config, body, priced, address, user, cod }) {
     if (priced.orderType === 'pickup') {
         // pickup always needs a time window from /orders/pickup-slots, and the shop must be open right now
         if (!config.restaurant.isOpen) {
-            return { status: 409, message: config.restaurant.closedReason === 'paused' ? 'The shop is not accepting orders right now' : config.hours.closedMessage };
+            return { status: 409, message: config.restaurant.closedReason === 'paused' ? 'The shop is not accepting orders right now' : config.restaurant.closedMessage };
         }
         if (!findPickupSlot(tenant, body.pickupSlot)) {
             return { status: 409, message: body.pickupSlot ? 'That pickup time is no longer available. Pick another.' : 'Please pick a pickup time' };
@@ -70,12 +71,12 @@ function checkPlacement({ tenant, config, body, priced, address, user, cod }) {
         if (Number.isNaN(when.getTime())) return { status: 400, message: 'Invalid time' };
         if (when.getTime() < Date.now() + (o.prepTimeMin || 0) * 60000) return { status: 400, message: 'Please pick a later time' };
         if (when.getTime() > Date.now() + MAX_SCHEDULE_DAYS * 86400000) return { status: 400, message: `You can schedule up to ${MAX_SCHEDULE_DAYS} days ahead` };
-        const st = openStatus(config.hours.weekly, o.acceptingOrders, when);
-        if (!st.isOpen) return { status: 409, message: st.reason === 'paused' ? 'The shop is not accepting orders right now' : 'The shop is closed at that time' };
+        const st = openStatus(config.hours.weekly, o.acceptingOrders, when, config.hours.closedDates);
+        if (!st.isOpen) return { status: 409, message: st.reason === 'paused' ? 'The shop is not accepting orders right now' : (st.message || 'The shop is closed at that time') };
     } else if (!config.restaurant.isOpen) {
         return {
             status: 409,
-            message: config.restaurant.closedReason === 'paused' ? 'The shop is not accepting orders right now' : config.hours.closedMessage,
+            message: config.restaurant.closedReason === 'paused' ? 'The shop is not accepting orders right now' : config.restaurant.closedMessage,
         };
     }
 
@@ -98,15 +99,21 @@ function checkPlacement({ tenant, config, body, priced, address, user, cod }) {
 
 async function prepare({ tenant, userId, body }) {
     const config = resolveConfig(tenant);
-    const priced = await priceCart({ tenant, config, userId, body });
     const user = await User.findById(userId).select('name phone').lean();
 
+    // the address comes first: a delivery fee by distance needs it
     let address = null;
-    if (priced.orderType === 'delivery' && body.addressId !== undefined) {
+    if (body.orderType === 'delivery' && body.addressId !== undefined) {
         if (!isId(body.addressId)) throw httpError(400, 'Invalid address');
         address = await Address.findOne({ _id: body.addressId, tenantId: tenant._id, userId }).lean();
         if (!address) throw httpError(400, 'Address not found');
     }
+    // straight-line distance from the shop to the address (null when either place is unknown)
+    const shopAt = tenant.delivery || {};
+    const distanceKm = address && [shopAt.latitude, shopAt.longitude, address.latitude, address.longitude].every(Number.isFinite)
+        ? Math.round(haversineKm(shopAt.latitude, shopAt.longitude, address.latitude, address.longitude) * 10) / 10
+        : null;
+    const priced = await priceCart({ tenant, config, userId, body, distanceKm });
 
     // Cash on delivery: how many earlier orders this PHONE has in this shop (by hash), and is it blocked
     let cod = null;
@@ -127,6 +134,7 @@ async function quote({ tenant, userId, body }) {
     return {
         items: priced.lines,
         pricing: priced.pricing,
+        distanceKm: priced.distanceKm ?? null,
         shopOpen: config.restaurant.isOpen,
         canPlace: !problem,
         problem: problem ? problem.message : null,
@@ -216,7 +224,9 @@ async function placeOrder({ tenant, userId, body, idempotencyKey }) {
         }
     }
 
+    let reserved = [];
     try {
+        reserved = await stock.reserve(tenant._id, priced.stockNeeds || []);   // takes the units, or 409 when short
         const user = await User.findById(userId).select('name phone').lean();
         const slot = priced.orderType === 'pickup' ? findPickupSlot(tenant, body.pickupSlot) : null;
         const orderNo = await nextOrderNo(tenant._id);
@@ -288,6 +298,7 @@ async function placeOrder({ tenant, userId, body, idempotencyKey }) {
         return { order, duplicate: false };
     } catch (e) {
         await releaseCoupon(priced.coupon?._id);   // the order was not created, give the coupon use back
+        await stock.restore(tenant._id, reserved).catch((err) => console.error('Stock restore error:', err.message));
         if (e.code === 11000 && idempotencyKey) {
             const dup = await findDuplicate();
             if (dup) return { order: dup, duplicate: true };

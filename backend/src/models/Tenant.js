@@ -108,6 +108,9 @@ const tenantSchema = new mongoose.Schema({
 
     // NEW: every superadmin choice (brand, tabs, home, features, menu, orders, hours, offers, labels).
     // Stored as plain JSON; the validator below is the schema.
+    // numbers worked out by the server (never edited by hand)
+    stats: { rating: { avg: Number, count: Number } },
+
     settings: { type: mongoose.Schema.Types.Mixed, default: {} },
 }, { timestamps: true, minimize: false });
 

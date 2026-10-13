@@ -82,6 +82,7 @@ const orderSchema = new Schema({
         broadcast: { active: Boolean, startedAt: Date, expiresAt: Date, endedAt: Date, endReason: String },
         problems: [{ _id: false, at: Date, reason: String, note: String }],   // reported by the rider
         cashCollectedPaise: { type: Number, default: 0 },
+        earnPaise: { type: Number, default: 0 },   // what the rider earned for this delivery (whole paise). Information only.
         offers: [{
             _id: false,
             riderId: { type: Schema.Types.ObjectId, ref: 'User' },
@@ -166,6 +167,7 @@ orderSchema.set('toJSON', {
             delete ret.delivery.broadcast;
             delete ret.delivery.riderHistory;
             delete ret.delivery.pinAttempts;
+            delete ret.delivery.earnPaise;   // the rider's pay is not for the customer
             delete ret.delivery.problems;
         }
         return ret;

@@ -7,6 +7,7 @@ const Banner = require('../models/Banner');
 const Coupon = require('../models/Coupon');
 const { SORTS, buildProductFilter, foodModeFilter, activeNow } = require('../services/catalogQuery');
 const { resolveConfig } = require('../services/tenantConfigService');
+const { openCategoryIds, isOpenNow } = require('../services/categoryTimings');
 const optionalAuth = require('../middlewares/optionalAuth');
 const Order = require('../models/Order');
 const User = require('../models/User');
@@ -15,7 +16,7 @@ const { hashPhone } = require('../utils/phoneHash');
 const catalogRouter = express.Router();
 catalogRouter.use(tenantRecognizer);   // every request knows its shop
 
-const PRODUCT_SELECT = '-tenantId -createdAt -updatedAt -__v';
+const PRODUCT_SELECT = '-tenantId -createdAt -updatedAt -__v -stock';   // customers never see the stock count
 const MENU_LIMIT = 500;
 const MENU_SORT = { sortOrder: 1, orderCount: -1, _id: 1 };
 
@@ -28,7 +29,7 @@ const fail = (res, err) => {
 // What every product query needs to know about this shop
 async function shopContext(req) {
     const config = resolveConfig(req.tenant);
-    const activeCategoryIds = await Category.find({ tenantId: req.tenant._id, isActive: true }).distinct('_id');
+    const activeCategoryIds = await openCategoryIds(req.tenant._id);   // active AND inside their menu timings
     return {
         config,
         ctx: {
@@ -48,11 +49,11 @@ async function isReturningCustomer(tenantId, userId) {
 
 catalogRouter.get('/categories', async (req, res) => {
     try {
-        const items = await Category.find({ tenantId: req.tenant._id, isActive: true })
+        const rows = await Category.find({ tenantId: req.tenant._id, isActive: true })
             .sort({ sortOrder: 1, _id: 1 })
-            .select('name image sortOrder')
+            .select('name image sortOrder timings')
             .lean();
-        res.json({ items });
+        res.json({ items: rows.filter((c) => isOpenNow(c.timings)) });
     } catch (e) { fail(res, e); }
 });
 
@@ -125,7 +126,7 @@ catalogRouter.get('/products/:id', async (req, res) => {
             categoryId: { $in: ctx.activeCategoryIds },
             ...foodModeFilter(ctx.foodMode),   // a veg shop can't leak a non-veg item by direct ID
         })
-            .select('-tenantId -__v')
+            .select('-tenantId -__v -stock')
             .lean();
         if (!item) return res.status(404).json({ error: 'Item not found' });
         res.json(item);

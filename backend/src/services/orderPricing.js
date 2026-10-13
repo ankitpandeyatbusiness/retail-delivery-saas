@@ -7,6 +7,7 @@ const Coupon = require('../models/Coupon');
 const Order = require('../models/Order');
 const User = require('../models/User');
 const { priceSelection } = require('./optionGroups');
+const { isOpenNow } = require('./categoryTimings');
 const { foodModeFilter, activeNow } = require('./catalogQuery');
 const { hashPhone } = require('../utils/phoneHash');
 const { httpError } = require('../middlewares/apiErrors');
@@ -20,7 +21,7 @@ const isId = (v) => typeof v === 'string' && mongoose.isValidObjectId(v);
 const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
 
 /* ------------------------------ 1. cart -> priced lines ------------------------------ */
-async function buildLines(tenant, config, rawItems) {
+async function buildLines(tenant, config, rawItems, at = new Date()) {
     if (!Array.isArray(rawItems) || rawItems.length < 1 || rawItems.length > MAX_LINES) {
         throw httpError(400, `Your cart needs 1 to ${MAX_LINES} items`);
     }
@@ -32,7 +33,9 @@ async function buildLines(tenant, config, rawItems) {
     }
 
     // Same visibility rules as the menu: active item, active category, allowed by the shop's food mode
-    const activeCategoryIds = await Category.find({ tenantId: tenant._id, isActive: true }).distinct('_id');
+    const cats = await Category.find({ tenantId: tenant._id, isActive: true }).select('_id timings').lean();
+    const activeCategoryIds = cats.map((c) => c._id);
+    const closedNow = new Set(cats.filter((c) => !isOpenNow(c.timings, at)).map((c) => String(c._id)));   // menu timings
     const products = await Product.find({
         _id: { $in: rawItems.map((i) => i.productId) },
         tenantId: tenant._id,
@@ -49,10 +52,19 @@ async function buildLines(tenant, config, rawItems) {
     const notesOn = config.features.specialInstructions;
     let subtotal = 0;
     let prepMin = 0;
+    const need = new Map();   // tracked stock: productId -> { productId, name, qty }
     const lines = rawItems.map((it) => {
         const p = byId.get(it.productId);
         if (!p) throw httpError(400, 'An item in your cart is no longer available');
         if (p.isAvailable === false) throw httpError(409, `"${p.name}" is out of stock`);
+        if (closedNow.has(String(p.categoryId))) throw httpError(409, `"${p.name}" is not served at this time`);
+        if (p.stock?.enabled) {
+            const key = String(p._id);
+            const want = (need.get(key)?.qty || 0) + it.quantity;
+            if (p.stock.qty <= 0) throw httpError(409, `"${p.name}" is out of stock`);
+            if (want > p.stock.qty) throw httpError(409, `Only ${p.stock.qty} left of "${p.name}"`);
+            need.set(key, { productId: p._id, name: p.name, qty: want });
+        }
 
         const { unitPrice, chosen } = priceSelection(p, it.selections ?? []);   // validates min/max and gives the real price
         const lineTotal = round2(unitPrice * it.quantity);
@@ -72,7 +84,7 @@ async function buildLines(tenant, config, rawItems) {
             note: notesOn && typeof it.note === 'string' && it.note.trim() ? it.note.trim().slice(0, 200) : undefined,
         };
     });
-    return { lines, subtotal: round2(subtotal), prepMin };
+    return { lines, subtotal: round2(subtotal), prepMin, stockNeeds: [...need.values()] };
 }
 
 /* ------------------------------ 2. coupon ------------------------------ */
@@ -120,6 +132,16 @@ const releaseCoupon = (couponId) =>
     couponId ? Coupon.updateOne({ _id: couponId, usedCount: { $gt: 0 } }, { $inc: { usedCount: -1 } }) : null;
 
 /* ------------------------------ 3. totals ------------------------------ */
+// Delivery fee by distance: baseFee covers the first baseKm, every STARTED km after that adds perKmFee,
+// maxFee (when above 0) is the top. Distance unknown (no address yet) = the base fee only.
+function distanceFee(f, km) {
+    const base = f.baseFee || 0;
+    if (!Number.isFinite(km)) return base;
+    const extra = Math.max(0, Math.ceil(km - (f.baseKm || 0) - 1e-9));
+    let fee = base + extra * (f.perKmFee || 0);
+    if (f.maxFee > 0) fee = Math.min(fee, f.maxFee);
+    return round2(fee);
+}
 // Works out GST for each line, after sharing the coupon discount across the lines.
 // Writes the result into each line (line.tax) and returns the order's total GST.
 function applyTax(lines, { mode, discount, subtotal }) {
@@ -138,12 +160,13 @@ function applyTax(lines, { mode, discount, subtotal }) {
 }
 
 // Delivery and packaging are not taxed here: if your CA says they must be, add them in applyTax.
-function computeTotals(orders, { orderType, subtotal, discount, tip, tax }) {
+function computeTotals(orders, { orderType, subtotal, discount, tip, tax, distanceKm = null }) {
     let deliveryFee = 0;
     if (orderType === 'delivery') {
         const f = orders.deliveryFee || {};
         if (f.type === 'flat') deliveryFee = f.amount || 0;
         else if (f.type === 'free_above') deliveryFee = subtotal >= (f.freeAbove || 0) ? 0 : (f.amount || 0);
+        else if (f.type === 'distance') deliveryFee = f.freeAbove > 0 && subtotal >= f.freeAbove ? 0 : distanceFee(f, distanceKm);
     }
     const packagingCharge = orderType === 'dine_in' ? 0 : (orders.packagingCharge || 0);
     const mode = orders.gst?.mode || 'none';
@@ -160,11 +183,14 @@ function computeTotals(orders, { orderType, subtotal, discount, tip, tax }) {
     };
 }
 
-async function priceCart({ tenant, config, userId, body }) {
+async function priceCart({ tenant, config, userId, body, distanceKm = null }) {
     const orderType = body.orderType;
     if (!ORDER_TYPES.includes(orderType)) throw httpError(400, 'Invalid order type');
 
-    const { lines, subtotal, prepMin } = await buildLines(tenant, config, body.items);
+    // a scheduled order is checked against the menu timings of the chosen time
+    const when = body.scheduledFor ? new Date(body.scheduledFor) : null;
+    const at = when && !Number.isNaN(when.getTime()) ? when : new Date();
+    const { lines, subtotal, prepMin, stockNeeds } = await buildLines(tenant, config, body.items, at);
 
     const coupon = body.couponCode
         ? await validateCoupon({ tenant, config, userId, code: body.couponCode, subtotal })
@@ -176,13 +202,13 @@ async function priceCart({ tenant, config, userId, body }) {
     if (tip > 0 && (!config.features.tips || orderType !== 'delivery')) throw httpError(400, 'Tips are not available');
 
     const tax = applyTax(lines, { mode: config.orders.gst?.mode || 'none', discount, subtotal });
-    const totals = computeTotals(config.orders, { orderType, subtotal, discount, tip: round2(tip), tax });
+    const totals = computeTotals(config.orders, { orderType, subtotal, discount, tip: round2(tip), tax, distanceKm });
     return {
-        orderType, lines, coupon, prepMin,
+        orderType, lines, coupon, prepMin, stockNeeds, distanceKm,
         pricing: { subtotal, discount, couponCode: coupon?.code, ...totals },
     };
 }
 
 module.exports = {
-    ORDER_TYPES, isId, round2, buildLines, validateCoupon, reserveCoupon, releaseCoupon, applyTax, computeTotals, priceCart,
+    ORDER_TYPES, isId, round2, buildLines, validateCoupon, reserveCoupon, releaseCoupon, applyTax, computeTotals, priceCart, distanceFee,
 };

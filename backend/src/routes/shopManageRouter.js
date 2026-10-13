@@ -18,6 +18,7 @@ const { resolveConfig } = require('../services/tenantConfigService');
 const { invalidateAvailability } = require('../services/availability');
 const { foodRuleError } = require('../services/foodRules');
 const { streamInvoice } = require('../services/invoiceService');
+const { timingsError } = require('../services/categoryTimings');
 const { salesReport, parseRange } = require('../services/reportService');
 const { wrap, httpError } = require('../middlewares/apiErrors');
 const crud = require('../utils/crud');
@@ -40,10 +41,36 @@ const dateCheck = (d) => {
 
 /* ------------------------------ menu ------------------------------ */
 router.use('/categories', crud(Category, {
-    fields: ['name', 'image', 'sortOrder', 'isActive'],
+    fields: ['name', 'image', 'sortOrder', 'isActive', 'timings'],
     sort: { sortOrder: 1, _id: 1 },
     searchField: 'name',
     softDelete: true,
+    check: (d) => {
+        if (d.timings !== undefined) {
+            const problem = timingsError(d.timings);
+            if (problem) throw httpError(400, problem);
+        }
+    },
+}));
+
+// Stock of one item. Body: { enabled?: true|false, qty?: 0..100000 }.
+// With tracking on, the item is on sale only while qty is above 0. Turning tracking off puts the item on sale again.
+router.patch('/products/:id/stock', wrap(async (req, res) => {
+    if (!isId(req.params.id)) throw httpError(404, 'Item not found');
+    const b = req.body || {};
+    if (b.enabled !== undefined && typeof b.enabled !== 'boolean') throw httpError(400, 'enabled must be true or false');
+    if (b.qty !== undefined && (!Number.isInteger(b.qty) || b.qty < 0 || b.qty > 100000)) throw httpError(400, 'qty must be a whole number from 0 to 100000');
+    if (b.enabled === undefined && b.qty === undefined) throw httpError(400, 'Send enabled and/or qty');
+    const p = await Product.findOne({ _id: req.params.id, tenantId: req.tenant._id }).select('stock').lean();
+    if (!p) throw httpError(404, 'Item not found');
+    const enabled = b.enabled !== undefined ? b.enabled : !!p.stock?.enabled;
+    const qty = b.qty !== undefined ? b.qty : (p.stock?.qty || 0);
+    const out = await Product.findOneAndUpdate(
+        { _id: p._id, tenantId: req.tenant._id },
+        { $set: { 'stock.enabled': enabled, 'stock.qty': qty, isAvailable: enabled ? qty > 0 : true } },
+        { returnDocument: 'after' },
+    ).select('name stock isAvailable').lean();
+    res.json({ id: out._id, name: out.name, stock: out.stock, isAvailable: out.isAvailable });
 }));
 
 router.use('/products', crud(Product, {

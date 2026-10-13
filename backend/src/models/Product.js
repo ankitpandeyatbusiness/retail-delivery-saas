@@ -56,6 +56,10 @@ const productSchema = new mongoose.Schema({
     orderCount: { type: Number, default: 0 },
 
     isAvailable: { type: Boolean, default: true },     // temporarily out of stock
+    stock: {                                           // optional count. Set only through PATCH /api/shop/products/:id/stock
+        enabled: { type: Boolean, default: false },
+        qty: { type: Number, default: 0, min: 0 },
+    },
     isActive: { type: Boolean, default: true },
     sortOrder: { type: Number, default: 0 },
 }, { timestamps: true });

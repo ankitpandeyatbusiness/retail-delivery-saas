@@ -21,6 +21,7 @@ const CodSettlement = require('../models/CodSettlement');
 const orderStatus = require('../services/orderStatusService');
 const assignment = require('../services/assignmentService');
 const pins = require('../services/deliveryPinService');
+const riderEarnings = require('../services/riderEarnings');
 const { ACTIVE_STATUSES } = require('../services/orderflow');
 const notify = require('../services/notificationService');
 const realtime = require('../services/realtime');
@@ -224,7 +225,9 @@ core.get('/summary', wrap(async (req, res) => {
             { $group: { _id: null, balance: { $sum: '$amountPaise' }, collected: { $sum: { $cond: [{ $eq: ['$type', 'collect'] }, '$amountPaise', 0] } } } },
         ]),
     ]);
+    const earnings = await riderEarnings.sums({ tenantId: req.tenant._id, riderId: req.riderId, today, month });   // information only
     res.json({
+        earnings,
         deliveries: { today: dToday, month: dMonth, total: dTotal },
         cash: { owedToShopPaise: cash[0]?.balance || 0, collectedTotalPaise: cash[0]?.collected || 0 },
     });

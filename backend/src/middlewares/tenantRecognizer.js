@@ -1,6 +1,7 @@
 const { LRUCache } = require('lru-cache');
 const Tenant = require('../models/Tenant');
 const { isMaintenanceOn, maintenanceBody } = require('../utils/maintenance');
+const { isOlder } = require('../utils/appVersion');
 
 const SLUG_RE = /^[a-z0-9-]{3,40}$/;
 const cache = new LRUCache({ max: 1000, ttl: 60 * 1000 });
@@ -9,7 +10,7 @@ const cache = new LRUCache({ max: 1000, ttl: 60 * 1000 });
 // (ownerBlockedReason is deliberately NOT selected, so it can never reach an app.)
 const FIELDS =
     '_id name slug tagline logo colors heroImages status androidPackage ' +
-    'homeConfig delivery settings phone address business ownerBlocked maintenance updatedAt billing.state billing.graceEndsAt';
+    'homeConfig delivery settings phone address business ownerBlocked maintenance updatedAt billing.state billing.graceEndsAt stats.rating';
 
 const tenantRecognizer = async (req, res, next) => {
     const raw = req.headers['x-tenant-slug'];
@@ -25,6 +26,13 @@ const tenantRecognizer = async (req, res, next) => {
             cache.set(slug, tenant || false); // cache misses too
         }
         if (!tenant) return res.status(404).json({ error: 'Tenant not found' });
+
+        // An app older than the shop's minimum version must update first.
+        // A missing or unreadable x-app-version header is allowed. The superadmin routes are never blocked.
+        const minVersion = tenant.settings?.app?.minVersion;
+        if (minVersion && !req.originalUrl.startsWith('/api/admin') && isOlder(req.headers['x-app-version'], minVersion)) {
+            return res.status(426).json({ error: 'Please update the app', updateRequired: true, minVersion });
+        }
 
         // Routes that set req.allowFrozenShop (order history and cancel) skip these two checks,
         // so customers are never locked out of their own live orders.
