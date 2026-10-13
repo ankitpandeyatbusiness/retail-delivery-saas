@@ -4,6 +4,7 @@ const smsLogSchema = new mongoose.Schema({
     tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true },
     phoneMasked: String,                                   // 98XXXXXX10
     purpose: { type: String, enum: ['otp', 'bill', 'alert', 'order', 'platform_alert'], required: true },
+    own: { type: Boolean, default: false },                // sent with the shop's own sender: the wallet was not charged
     chargedPaise: { type: Number, default: 0 },            // what the shop paid
     costPaise: { type: Number, default: 0 },               // what you paid the provider
     status: { type: String, enum: ['sent', 'failed', 'mock'], required: true },

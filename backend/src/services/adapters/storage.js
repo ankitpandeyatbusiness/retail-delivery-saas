@@ -41,6 +41,26 @@ const mockProvider = {
     async presignPut() {
         throw Object.assign(new Error('Direct upload needs R2. Set STORAGE_MOCK=false and add the R2 keys.'), { status: 501 });
     },
+    async get(key) {
+        return fs.readFile(path.join(ROOT, safeKey(key)));
+    },
+    async list(prefix = '') {
+        const out = [];
+        const walk = async (dir) => {
+            let ents;
+            try { ents = await fs.readdir(dir, { withFileTypes: true }); } catch { return; }
+            for (const e of ents) {
+                const full = path.join(dir, e.name);
+                if (e.isDirectory()) { await walk(full); continue; }
+                const key = path.relative(ROOT, full).split(path.sep).join('/');
+                if (!key.startsWith(prefix)) continue;
+                const st = await fs.stat(full);
+                out.push({ key, size: st.size, lastModified: st.mtime });
+            }
+        };
+        await walk(ROOT);
+        return out;
+    },
     async head(key) {
         const st = await fs.stat(path.join(ROOT, safeKey(key)));
         return { bytes: st.size, contentType: null };
@@ -102,6 +122,22 @@ const realProvider = {
         const r = await s3().send(new HeadObjectCommand({ Bucket: bucket(), Key: safeKey(key) }));
         return { bytes: r.ContentLength, contentType: r.ContentType };
     },
+    async get(key) {
+        const { GetObjectCommand } = require('@aws-sdk/client-s3');
+        const r = await s3().send(new GetObjectCommand({ Bucket: bucket(), Key: safeKey(key) }));
+        return Buffer.from(await r.Body.transformToByteArray());
+    },
+    async list(prefix = '') {
+        const { ListObjectsV2Command } = require('@aws-sdk/client-s3');
+        const out = [];
+        let token;
+        do {
+            const r = await s3().send(new ListObjectsV2Command({ Bucket: bucket(), Prefix: prefix, ContinuationToken: token }));
+            for (const o of r.Contents || []) out.push({ key: o.Key, size: o.Size, lastModified: o.LastModified });
+            token = r.IsTruncated ? r.NextContinuationToken : undefined;
+        } while (token);
+        return out;
+    },
     // first bytes of the file, to check the real type
     async peek(key, n = 12) {
         const { GetObjectCommand } = require('@aws-sdk/client-s3');
@@ -118,6 +154,8 @@ module.exports = {
     presignPut: (args) => provider().presignPut(args),
     head: (key) => provider().head(key),
     peek: (key, n) => provider().peek(key, n),
+    get: (key) => provider().get(key),
+    list: (prefix) => provider().list(prefix),
     publicUrl,
     safeKey,
 };

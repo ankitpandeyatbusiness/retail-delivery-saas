@@ -68,6 +68,7 @@ admin.use(require('./adminBillingRouter'));
 admin.use(require('./adminSubscriptionRouter'));
 admin.use(require('./adminAuditRouter'));
 admin.use(require('./adminSmsRouter'));
+admin.use(require('./adminSmsProviderRouter'));
 admin.use(require('./adminNotifyRouter'));
 admin.use(require('./adminAlertsRouter'));
 admin.use(require('./adminNotificationRulesRouter'));

@@ -14,6 +14,7 @@ const { startComplaintRemindersScheduler } = require('../jobs/complaintReminders
 const { startNotificationEscalationScheduler } = require('../jobs/notificationEscalation');
 const { startEmailWorkerScheduler } = require('../jobs/emailWorker');
 const { startInactiveShopsScheduler } = require('../jobs/inactiveShops');
+const { startCleanupUploadsScheduler } = require('../jobs/cleanupUploads');
 
 // A crash is logged and the host restarts the server. A stray rejected promise is only logged.
 process.on('unhandledRejection', (reason) => console.error('Unhandled rejection:', reason));
@@ -47,6 +48,7 @@ connectDB()
             realtime.init(server);   // live updates (Socket.IO)
             startBillingScheduler();
             startComplaintRemindersScheduler();
+            startCleanupUploadsScheduler();
             startOrderTimeoutScheduler();
             startBillingEnforcementScheduler();
             startOfferScheduler();

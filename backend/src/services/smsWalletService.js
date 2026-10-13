@@ -12,6 +12,7 @@ const SmsTransaction = require('../models/SmsTransaction');
 const SmsLog = require('../models/SmsLog');
 const PlatformSettings = require('../models/PlatformSettings');
 const withTransaction = require('./withTransaction');
+const smsConfig = require('./smsConfig');
 
 // Temporary defaults. The platform settings replace these.
 const DEFAULTS = { ratePerSmsPaise: 30, costPerSmsPaise: 20, lowBalancePaise: 5000 };
@@ -67,6 +68,8 @@ async function status(tenantId) {
 
 // Takes the price of one SMS. { ok:false, reason:'no_balance' } when the wallet cannot pay.
 async function debitForSms(tenantId, { purpose = 'otp', allowFree = false } = {}) {
+    // the shop sends with its own DLT sender and pays its provider itself: no wallet, no price
+    if (await smsConfig.usesOwn(tenantId, purpose)) return { ok: true, chargedPaise: 0, costPaise: 0, txnId: null, own: true };
     if (!shouldCharge()) return { ok: true, chargedPaise: 0, costPaise: 0, txnId: null, skipped: true };
 
     const w = await getWallet(tenantId);
@@ -183,7 +186,8 @@ async function logSms(args) {
 
 async function writeSmsLog({ tenantId, phone, purpose, debit, status, providerMessageId }) {
     return SmsLog.create({
-        tenantId, phoneMasked: mask(phone), purpose, status, providerMessageId,
+        tenantId, phoneMasked: mask(phone), purpose, status, providerMessageId, own: !!debit?.own,
+
         chargedPaise: status === 'failed' ? 0 : debit?.chargedPaise || 0,
         costPaise: status === 'failed' ? 0 : debit?.costPaise || 0,
         txnId: debit?.txnId || undefined,

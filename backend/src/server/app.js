@@ -65,6 +65,7 @@ app.use('/api/orders', orderRouter);
 app.use('/api/shop', shopRouter);
 app.use('/api/rider', riderRouter);
 app.use('/api/notifications', notificationRouter.mine);
+app.use('/api/me/uploads', require('../routes/customerUploadRouter'));
 app.use('/api/me', profileRouter);
 
 // Unknown URL

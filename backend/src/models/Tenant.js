@@ -111,6 +111,19 @@ const tenantSchema = new mongoose.Schema({
     // numbers worked out by the server (never edited by hand)
     stats: { rating: { avg: Number, count: Number } },
 
+    // N14: SMS sender. templateId replaces the platform default template.
+    // own: the shop uses its own DLT sender and provider account; its SMS wallet is not charged.
+    sms: {
+        templateId: { type: String, trim: true },
+        own: {
+            enabled: { type: Boolean, default: false },
+            senderId: { type: String, trim: true },
+            entityId: { type: String, trim: true },
+            templateIds: { type: Map, of: String },
+            providerKeysEnc: { type: String, select: false },     // encrypted, never sent to any app
+        },
+    },
+
     settings: { type: mongoose.Schema.Types.Mixed, default: {} },
 }, { timestamps: true, minimize: false });
 
