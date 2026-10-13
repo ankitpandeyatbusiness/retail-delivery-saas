@@ -49,48 +49,14 @@ const RESERVED_SLUGS = ['admin', 'api', 'www'];
 const TENANT_FIELDS = ['name', 'tagline', 'logo', 'colors', 'heroImages', 'status', 'androidPackage', 'phone', 'address', 'delivery', 'business', 'subscription', 'contact'];
 
 /* ------------------------------ login (public) ------------------------------ */
-// Simple in-memory brake: 5 wrong tries per IP per 15 minutes.
-// (Per server instance. Use a shared store like Redis if you run several servers.)
-const attempts = new Map();
-const WINDOW_MS = 15 * 60 * 1000;
-const MAX_FAILS = 5;
-const blocked = (ip) => { const a = attempts.get(ip); return !!a && a.resetAt > Date.now() && a.count >= MAX_FAILS; };
-const recordFail = (ip) => {
-    const now = Date.now();
-    if (attempts.size > 5000) for (const [k, v] of attempts) if (v.resetAt <= now) attempts.delete(k);
-    const a = attempts.get(ip);
-    if (!a || a.resetAt <= now) attempts.set(ip, { count: 1, resetAt: now + WINDOW_MS });
-    else a.count += 1;
-};
-
-admin.post('/auth/login', wrap(async (req, res) => {
-    const ip = req.ip;
-    if (blocked(ip)) return res.status(429).json({ error: 'Too many attempts. Try again in 15 minutes.' });
-
-    const email = String(req.body?.email || '').trim().toLowerCase();
-    const password = String(req.body?.password || '');
-    const account = email ? await SuperAdmin.findOne({ email }) : null;
-
-    const ok = account ? await account.verifyPassword(password) : (await SuperAdmin.dummyVerify(password), false);
-    if (!ok || !account.isActive) {
-        recordFail(ip);
-        return res.status(401).json({ error: 'Wrong email or password' });
-    }
-
-    attempts.delete(ip);
-    account.lastLoginAt = new Date();
-    await account.save();
-    auditTrail.record({
-        actorType: 'superadmin', actorId: account._id, actorLabel: account.email,
-        action: 'LOGIN /api/admin/auth/login', method: 'POST', path: '/api/admin/auth/login', status: 200, ip,
-    });
-    res.json({ token: signAdminToken(account), admin: { email: account.email, name: account.name || null } });
-}));
+const authRoutes = require('./adminAuthRouter');
+admin.use('/auth', authRoutes);   // send-otp, verify-otp, login (password: off by default)
 
 /* ------------------------------ everything below needs a superadmin ------------------------------ */
 admin.use(requireSuperAdmin);
 admin.use(auditTrail('superadmin'));   // records every change a superadmin makes
 
+admin.use('/me', authRoutes.me);   // PUT /me/phones
 admin.use(require('./adminOrdersRouter'));
 admin.use(require('./adminUsersRouter'));
 admin.use(require('./adminAccessRouter'));
