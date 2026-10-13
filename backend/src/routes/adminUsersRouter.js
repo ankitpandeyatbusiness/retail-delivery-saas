@@ -11,6 +11,8 @@ const mongoose = require('mongoose');
 const User = require('../models/User');
 const Session = require('../models/Session');
 const loadTenant = require('../middlewares/loadTenant');
+const { maskPhone } = require('../utils/phoneHash');
+const edit = require('../services/userEditService');
 const { wrap, httpError } = require('../middlewares/apiErrors');
 
 const router = express.Router();
@@ -20,9 +22,10 @@ const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const view = (u) => ({
     id: u._id,
-    phone: u.phone,
+    phone: maskPhone(u.phone),   // the full number only through GET .../users/:userId/phone (audited)
     name: u.name || null,
     email: u.email || null,
+    notes: u.notes || null,
     role: u.role,
     isBlocked: !!u.isBlocked,
     lastLoginAt: u.lastLoginAt || null,
@@ -64,6 +67,30 @@ router.patch('/tenants/:tid/users/:userId/block', loadTenant, wrap(async (req, r
     await user.save();
     if (user.isBlocked) await Session.deleteMany({ userId: user._id });
     res.json(view(user));
+}));
+
+// One person: masked phone, orders, Cash on delivery strikes, rider profile.
+router.get('/tenants/:tid/users/:userId', loadTenant, wrap(async (req, res) => {
+    const user = (await findUser(req)).toObject();
+    res.json({ ...view(user), ...(await edit.detail(req.tenantDoc._id, user)) });
+}));
+
+// body { name?, email?, notes? }. An empty text clears the field. An owner's email change tells his OLD email.
+router.patch('/tenants/:tid/users/:userId', loadTenant, wrap(async (req, res) => {
+    const user = (await findUser(req)).toObject();
+    const r = await edit.applyProfile({
+        tenantId: req.tenantDoc._id, user, body: req.body, phoneHint: 'Use PATCH .../phone to change the phone number',
+    });
+    req.auditBefore = r.before;
+    res.json(view(r.user));
+}));
+
+// body { phone, reason }. Superadmin only. The phone is unique per shop, the old logins end, the audit log keeps old and new.
+router.patch('/tenants/:tid/users/:userId/phone', loadTenant, wrap(async (req, res) => {
+    const user = (await findUser(req)).toObject();
+    const r = await edit.changePhone({ tenantId: req.tenantDoc._id, user, phone: req.body?.phone, reason: req.body?.reason });
+    req.auditBefore = r.before;
+    res.json({ ...view(r.user), sessionsEnded: true });
 }));
 
 router.get('/tenants/:tid/owners', loadTenant, wrap(async (req, res) => {

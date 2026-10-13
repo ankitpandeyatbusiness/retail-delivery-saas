@@ -7,6 +7,10 @@ const userSchema = new mongoose.Schema({
     phoneHash: { type: String },   // recognises the same person even after his account is deleted
     name: { type: String, trim: true, maxlength: 80 },
     email: { type: String, trim: true, lowercase: true, maxlength: 120 },
+    notes: { type: String, trim: true, maxlength: 300 },   // a private note by the owner or the superadmin. The person never sees it.
+    prefs: {
+        promotions: { type: Boolean, default: true },   // false = no promotional broadcasts (information messages still arrive)
+    },
     role: { type: String, enum: ['customer', 'rider', 'admin'], default: 'customer' },
     isBlocked: { type: Boolean, default: false },
     lastLoginAt: { type: Date },
@@ -33,6 +37,7 @@ userSchema.set('toJSON', {
         delete ret.refreshTokens;
         delete ret.isBlocked;
         delete ret.phoneHash;
+        delete ret.notes;
         return ret;
     },
 });

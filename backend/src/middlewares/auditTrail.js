@@ -25,7 +25,17 @@ const capped = (v) => {
 };
 
 function record(entry) {
-    return AuditLog.create(entry).catch((e) => console.error('Audit log error:', e.message));
+    return AuditLog.create(entry)
+        .then((row) => {
+            // show shop changes in the live feed (only the KIND of person, never a phone number)
+            if (entry.tenantId && !/^LOGIN/.test(entry.action || '')) {
+                require('../services/liveFeed').emit(entry.tenantId, 'settings', {
+                    type: 'change', action: entry.action, by: entry.actorType,
+                });
+            }
+            return row;
+        })
+        .catch((e) => console.error('Audit log error:', e.message));
 }
 
 // Mount AFTER the login check, so the actor is known when the request finishes.

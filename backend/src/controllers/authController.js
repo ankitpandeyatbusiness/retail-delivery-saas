@@ -8,6 +8,7 @@ const tokenService = require('../services/tokenService');
 const sms = require('../services/adapters/sms');
 const wallet = require('../services/smsWalletService');
 const { hashPhone } = require('../utils/phoneHash');
+const liveFeed = require('../services/liveFeed');
 
 /* ------------------------------- config ------------------------------- */
 if (!process.env.OTP_PEPPER) {
@@ -323,6 +324,7 @@ exports.verifyOtp = async (req, res) => {
         // while it is locked, so guessing across many OTPs does not work.
         const lock = await limiters.verifyPhoneLockout.get(phoneKey);
         if (lock && lock.consumedPoints >= MAX_PHONE_FAILS) {
+            liveFeed.emit(tenant._id, 'logins', { type: 'login.fail', reason: 'locked' });
             return handleRateLimitCatch({ msBeforeNext: lock.msBeforeNext }, res);
         }
     } catch (rej) {
@@ -349,6 +351,7 @@ exports.verifyOtp = async (req, res) => {
         const match = inputHash.length === storedHash.length && crypto.timingSafeEqual(inputHash, storedHash);
 
         if (!match) {
+            liveFeed.emit(tenant._id, 'logins', { type: 'login.fail', reason: 'wrong_otp' });
             if (otpRecord.attempts >= MAX_OTP_ATTEMPTS) {
                 await OtpRequest.updateOne({ _id: otpRecord._id }, { $set: { consumed: true } });
             }
@@ -368,11 +371,13 @@ exports.verifyOtp = async (req, res) => {
 
         const user = await findOrCreateUser(tenant._id, phone);
         if (!user || user.isBlocked) {
+            liveFeed.emit(tenant._id, 'logins', { type: 'login.fail', reason: 'blocked' });
             return res.status(403).json({ error: 'This account cannot sign in' });
         }
 
         const { accessToken, refreshToken } = await issueSession(user, tenant, req, ip);
 
+        liveFeed.emit(tenant._id, 'logins', { type: 'login.ok', role: user.role });
         return res.json({ success: true, user: toUserDto(user), accessToken, refreshToken });
     } catch (error) {
         console.error('Verify OTP error:', error.message);

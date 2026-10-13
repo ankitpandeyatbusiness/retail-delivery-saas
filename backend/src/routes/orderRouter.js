@@ -7,6 +7,7 @@ const Order = require('../models/Order');
 const svc = require('../services/orderService');
 const ratingSvc = require('../services/ratingService');
 const feedbackSvc = require('../services/deliveryFeedbackService');
+const complaintSvc = require('../services/complaintService');
 const { ACTIVE_STATUSES } = require('../services/orderflow');
 const { streamInvoice } = require('../services/invoiceService');
 
@@ -17,7 +18,7 @@ const router = express.Router();
 // and CANCEL an order. Everything else (quote, place order, reorder) stays blocked.
 router.use((req, res, next) => {
     const isRead = req.method === 'GET';
-    const isCancel = req.method === 'POST' && /^\/[a-fA-F0-9]{24}\/cancel$/.test(req.path);
+    const isCancel = req.method === 'POST' && /^\/[a-fA-F0-9]{24}\/(cancel|complaints)$/.test(req.path);
     req.allowFrozenShop = isRead || isCancel;
     next();
 });
@@ -143,6 +144,19 @@ router.post('/:id/delivery-rating', wrap(async (req, res) => {
     res.status(201).json(await feedbackSvc.rateDelivery({
         tenant: req.tenant, userId: req.auth.userId, orderId: req.params.id, body: req.body || {},
     }));
+}));
+
+// Complaint about a delivered order (within 24 hours of delivery, one per order).
+// Body: { "type": "missing_item|wrong_item|quality|late|packaging|other", "text": "...", "photos": ["https://..."] }
+router.post('/:id/complaints', wrap(async (req, res) => {
+    checkId(req);
+    res.status(201).json(await complaintSvc.create({ tenant: req.tenant, userId: req.auth.userId, orderId: req.params.id, body: req.body }));
+}));
+
+// { items: [the complaint, if any], canComplain, until }
+router.get('/:id/complaints', wrap(async (req, res) => {
+    checkId(req);
+    res.json(await complaintSvc.forOrder({ tenant: req.tenant, userId: req.auth.userId, orderId: req.params.id }));
 }));
 
 router.get('/:id/invoice', wrap(async (req, res) => {

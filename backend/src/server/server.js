@@ -10,6 +10,7 @@ const { startOfferScheduler } = require('../services/assignmentService');
 const { startBillingAlertsScheduler } = require('../services/billingAlerts');
 const { startStuckOrdersScheduler } = require('../services/stuckOrders');
 const startAwakeCron = require('../jobs/awakeCrons');
+const { startComplaintRemindersScheduler } = require('../jobs/complaintReminders');
 const { startNotificationEscalationScheduler } = require('../jobs/notificationEscalation');
 const { startEmailWorkerScheduler } = require('../jobs/emailWorker');
 const { startInactiveShopsScheduler } = require('../jobs/inactiveShops');
@@ -45,6 +46,7 @@ connectDB()
             registerShutdown(server);
             realtime.init(server);   // live updates (Socket.IO)
             startBillingScheduler();
+            startComplaintRemindersScheduler();
             startOrderTimeoutScheduler();
             startBillingEnforcementScheduler();
             startOfferScheduler();

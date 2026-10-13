@@ -19,6 +19,8 @@ const tokenService = require('./tokenService');
 const Session = require('../models/Session');
 const Tenant = require('../models/Tenant');
 const User = require('../models/User');
+const SuperAdmin = require('../models/SuperAdmin');
+const { verifyAdminToken } = require('./superAdminToken');
 const Order = require('../models/Order');
 
 let io = null;
@@ -34,13 +36,32 @@ const room = {
     tenant: (t) => `tenant:${t}`,
     user: (t, u) => `user:${t}:${u}`,
     order: (o) => `order:${o}`,
+    adminAll: 'admin:all',                          // a superadmin sees every shop
+    adminTenant: (t) => `admin:tenant:${t}`,        // or only one shop (after admin:watch)
 };
 const MAX_ORDER_ROOMS = 20;
 const MAX_JOINS_PER_MIN = 30;
 
+// A superadmin connects with auth { adminToken }. Shop tokens never work here, and the reverse.
+async function authAdminSocket(socket, adminToken, next) {
+    try {
+        if (typeof adminToken !== 'string') return next(new Error('TOKEN_INVALID'));
+        let decoded;
+        try { decoded = verifyAdminToken(adminToken); } catch (e) { return next(new Error('TOKEN_INVALID')); }
+        const admin = await SuperAdmin.findById(decoded.sub).select('_id isActive').lean();
+        if (!admin || !admin.isActive) return next(new Error('FORBIDDEN'));
+        socket.data = { isAdmin: true, adminId: String(admin._id), exp: decoded.exp };
+        next();
+    } catch (e) {
+        console.error('Socket admin auth error:', e.message);
+        next(new Error('SERVER_ERROR'));
+    }
+}
+
 async function authSocket(socket, next) {
     try {
-        const { token, tenant: slug } = socket.handshake.auth || {};
+        const { token, tenant: slug, adminToken } = socket.handshake.auth || {};
+        if (adminToken !== undefined) return authAdminSocket(socket, adminToken, next);
         if (typeof token !== 'string' || typeof slug !== 'string' || !slug.trim()) return next(new Error('AUTH_REQUIRED'));
 
         let decoded;
@@ -64,7 +85,40 @@ async function authSocket(socket, next) {
     }
 }
 
+function onAdminConnection(socket) {
+    socket.join(room.adminAll);
+    const { exp } = socket.data;
+    if (exp) {
+        const ms = exp * 1000 - Date.now();
+        if (ms <= 0) { socket.disconnect(true); return; }
+        const timer = setTimeout(() => { socket.emit('auth:expired'); socket.disconnect(true); }, Math.min(ms, 2 ** 31 - 1));
+        timer.unref?.();
+        socket.on('disconnect', () => clearTimeout(timer));
+    }
+
+    // watch ONE shop: leave the "all shops" room and join that shop's room. admin:unwatch goes back.
+    let watching = null;
+    socket.on('admin:watch', (payload, ack) => {
+        const done = typeof ack === 'function' ? ack : () => { };
+        const id = payload?.tenantId;
+        if (typeof id !== 'string' || !mongoose.isValidObjectId(id)) return done({ ok: false, error: 'Shop not found' });
+        if (watching) socket.leave(room.adminTenant(watching));
+        socket.leave(room.adminAll);
+        socket.join(room.adminTenant(id));
+        watching = id;
+        done({ ok: true });
+    });
+    socket.on('admin:unwatch', (payload, ack) => {
+        const done = typeof ack === 'function' ? ack : () => { };
+        if (watching) socket.leave(room.adminTenant(watching));
+        watching = null;
+        socket.join(room.adminAll);
+        done({ ok: true });
+    });
+}
+
 function onConnection(socket) {
+    if (socket.data.isAdmin) return onAdminConnection(socket);
     const { userId, tenantId, role, exp } = socket.data;
     socket.join(room.user(tenantId, userId));
     if (role === 'admin') socket.join(room.tenant(tenantId));
@@ -142,6 +196,14 @@ function emit(to, event, payload) {
 const toUser = (tenantId, userId, event, payload) => emit(room.user(tenantId, userId), event, payload);
 const toOwner = (tenantId, event, payload) => emit(room.tenant(tenantId), event, payload);
 const toOrder = (orderId, event, payload) => emit(room.order(orderId), event, payload);
+// to every superadmin who watches all shops, and to those who watch this one shop
+const toAdmin = (tenantId, event, payload) => {
+    try {
+        if (io) io.to([room.adminAll, room.adminTenant(tenantId)]).emit(event, payload);
+    } catch (e) {
+        console.error('Realtime admin emit error:', e.message);
+    }
+};
 
 // a rider who lost an order must stop hearing about it
 function leaveOrder({ tenantId, userId, orderId }) {
@@ -155,4 +217,4 @@ function leaveOrder({ tenantId, userId, orderId }) {
 const isUserOnline = (tenantId, userId) => online.users.has(`${tenantId}:${userId}`);
 const isOwnerOnline = (tenantId) => online.owners.has(String(tenantId));
 
-module.exports = { init, toUser, toOwner, toOrder, leaveOrder, isUserOnline, isOwnerOnline };
+module.exports = { init, toUser, toOwner, toOrder, toAdmin, leaveOrder, isUserOnline, isOwnerOnline };

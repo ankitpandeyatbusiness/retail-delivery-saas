@@ -29,6 +29,7 @@ const risk = require('./customerRisk');
 const billable = require('./billableService');
 const { httpError } = require('../middlewares/apiErrors');
 const notify = require('./notificationService');
+const liveFeed = require('./liveFeed');
 
 const CANCELLED_BY = { customer: 'customer', owner: 'shop', superadmin: 'admin', system: 'system' };
 const ACTOR_TYPES = ['customer', 'owner', 'rider', 'superadmin', 'system'];
@@ -245,6 +246,14 @@ async function change({ order, status, actor, note, tenant, reasonCode }) {
     }
 
     notify.orderStatusChanged(updated, status, actor);   // customer, owner, rider (never throws)
+    // the live feed (no phone numbers, never throws)
+    liveFeed.emit(updated.tenantId, 'orders', {
+        type: `order.${status}`, orderId: String(updated._id), orderNo: updated.orderNo, status,
+        by: actor.type, reasonCode: outcome?.reasonCode, total: updated.pricing?.total,
+    });
+    if (actor.type === 'rider') {
+        liveFeed.emit(updated.tenantId, 'riders', { type: `rider.${status}`, orderNo: updated.orderNo, riderId: String(actor.id) });
+    }
     // the owner accepted a delivery order: ask ALL free riders at once (automatic mode). The first one to accept gets it.
     if (status === 'accepted' && updated.orderType === 'delivery' && !updated.delivery?.riderId) {
         require('./assignmentService').startBroadcast({ orderId: updated._id, tenantId: updated.tenantId })

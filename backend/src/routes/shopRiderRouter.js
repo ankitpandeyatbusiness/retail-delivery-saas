@@ -26,11 +26,11 @@ manage.post('/', wrap(async (req, res) => {
     res.status(201).json(r);
 }));
 
-// { "isActive": false } and/or { "name": "Ravi K" }
+// { "isActive": false } and/or { "name": "Ravi K" } and/or { "email": "ravi@mail.com" } (empty text clears it)
 manage.patch('/:userId', wrap(async (req, res) => {
     if (!isId(req.params.userId)) throw httpError(404, 'Rider not found');
     res.json(await riders.update({
-        tenantId: req.tenant._id, userId: req.params.userId, isActive: req.body?.isActive, name: req.body?.name,
+        tenantId: req.tenant._id, userId: req.params.userId, isActive: req.body?.isActive, name: req.body?.name, email: req.body?.email,
     }));
 }));
 

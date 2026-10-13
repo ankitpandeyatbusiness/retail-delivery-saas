@@ -57,6 +57,9 @@ admin.use(requireSuperAdmin);
 admin.use(auditTrail('superadmin'));   // records every change a superadmin makes
 
 admin.use('/me', authRoutes.me);   // PUT /me/phones
+admin.use(require('./adminLiveRouter'));   // live picture of a shop, phone reveal
+admin.use(require('./adminMessagesRouter'));   // messages to the owners of all shops
+admin.use(require('./adminComplaintsRouter'));   // all complaints
 admin.use(require('./adminOrdersRouter'));
 admin.use(require('./adminUsersRouter'));
 admin.use(require('./adminAccessRouter'));

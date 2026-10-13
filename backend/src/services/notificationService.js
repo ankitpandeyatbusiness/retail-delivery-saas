@@ -5,6 +5,7 @@ const Rider = require('../models/Rider');
 const Order = require('../models/Order');
 const realtime = require('./realtime');
 const center = require('../notifications/center');
+const liveFeed = require('./liveFeed');
 
 // old style helpers, still used by billing, the superadmin messages and the stuck-order watcher
 const send = (p) => center.notify(p.type, { ...p, to: p.role === 'superadmin' ? 'superadmin' : undefined });
@@ -33,6 +34,10 @@ function orderPlaced(order) {
             data: { orderId: String(order._id), orderNo: order.orderNo, total: order.pricing?.total },
         });
         pulse({ tenantId: order.tenantId, orderId: order._id, orderNo: order.orderNo, status: 'placed', kind: 'status', toOrder: false });
+        liveFeed.emit(order.tenantId, 'orders', {
+            type: 'order.placed', orderId: String(order._id), orderNo: order.orderNo,
+            total: order.pricing?.total, orderType: order.orderType,
+        });
     } catch (e) {
         console.error('Notification error:', e.message);
     }
@@ -98,6 +103,9 @@ async function riderAccepted(order) {
         const data = { orderId: String(order._id), orderNo: order.orderNo };
         center.notify('rider_assigned', { tenantId: order.tenantId, userId: order.userId, vars: { riderName: name, orderNo: order.orderNo }, data });
         center.notify('rider_accepted', { tenantId: order.tenantId, vars: { riderName: name, orderNo: order.orderNo }, data });
+        liveFeed.emit(order.tenantId, 'riders', {
+            type: 'rider.accepted', orderNo: order.orderNo, riderId: String(order.delivery.riderId), riderName: name,
+        });
         pulse({ tenantId: order.tenantId, orderId: order._id, orderNo: order.orderNo, status: order.status, kind: 'rider' });
     } catch (e) {
         console.error('Notification error:', e.message);
@@ -115,6 +123,7 @@ async function riderRejected({ tenantId, orderId, riderUserId }) {
             data: { orderId: String(orderId), orderNo: o?.orderNo },
         });
         pulse({ tenantId, orderId, orderNo: o?.orderNo, status: o?.status, kind: 'rider', toOrder: false });
+        liveFeed.emit(tenantId, 'riders', { type: 'rider.rejected', orderNo: o?.orderNo, riderId: String(riderUserId), riderName: name });
     } catch (e) {
         console.error('Notification error:', e.message);
     }
@@ -123,6 +132,7 @@ async function riderRejected({ tenantId, orderId, riderUserId }) {
 function noRiderFree({ tenantId, orderId, orderNo }) {
     try {
         center.notify('rider_none', { tenantId, vars: { orderNo }, data: { orderId: String(orderId), orderNo } });
+        liveFeed.emit(tenantId, 'riders', { type: 'rider.none', orderNo });
         pulse({ tenantId, orderId, orderNo, kind: 'rider', toOrder: false });
     } catch (e) {
         console.error('Notification error:', e.message);
@@ -132,6 +142,7 @@ function noRiderFree({ tenantId, orderId, orderNo }) {
 function riderRemoved({ tenantId, riderUserId, orderId, orderNo }) {
     try {
         realtime.leaveOrder({ tenantId, userId: riderUserId, orderId });   // he must stop hearing about this order
+        liveFeed.emit(tenantId, 'riders', { type: 'rider.removed', orderNo, riderId: String(riderUserId) });
         center.notify('rider_removed', {
             tenantId, userId: riderUserId, vars: { orderNo }, data: { orderId: String(orderId), orderNo },
         });
@@ -144,6 +155,7 @@ function riderRemoved({ tenantId, riderUserId, orderId, orderNo }) {
 async function riderProblem({ tenantId, orderId, orderNo, riderUserId, reason, note }) {
     try {
         const name = await riderName(tenantId, riderUserId);
+        liveFeed.emit(tenantId, 'riders', { type: 'rider.problem', orderNo, riderId: String(riderUserId), riderName: name, reason });
         center.notify('rider_problem', {
             tenantId, vars: { riderName: name, orderNo, reason, note },
             data: { orderId: String(orderId), orderNo, reason },
@@ -157,6 +169,7 @@ async function riderProblem({ tenantId, orderId, orderNo, riderUserId, reason, n
 async function lowDeliveryRating({ tenantId, orderId, orderNo, rating, riderUserId, comment }) {
     try {
         const name = await riderName(tenantId, riderUserId);
+        liveFeed.emit(tenantId, 'riders', { type: 'rider.low_rating', orderNo, riderId: String(riderUserId), rating });
         center.notify('delivery_low_rating', {
             tenantId, vars: { riderName: name, orderNo, rating, comment },
             data: { orderId: String(orderId), orderNo, rating },
@@ -186,6 +199,7 @@ function riderBroadcast(order, riderIds) {
     try {
         const secs = Math.max(1, Math.round((new Date(order.delivery.broadcast.expiresAt).getTime() - Date.now()) / 1000));
         const card = offerCard(order);
+        liveFeed.emit(order.tenantId, 'riders', { type: 'rider.offered', orderNo: order.orderNo, riders: riderIds.length });
         const count = (order.items || []).reduce((n, i) => n + (i.quantity || 0), 0);
         const collect = card.payment.collectAmount > 0 ? card.payment.collectAmount : null;
         for (const riderId of riderIds) {

@@ -11,6 +11,7 @@ const Rider = require('../models/Rider');
 const auditTrail = require('../middlewares/auditTrail');
 const { validateSettings } = require('../services/tenantConfigService');
 const invoiceRoutes = require('./shopInvoiceRouter');
+const liveSnapshot = require('../services/liveSnapshot');
 
 const { wrap, httpError } = apiErrors;
 const router = express.Router();
@@ -137,6 +138,10 @@ router.get('/riders/locations', openWhilePaused, wrap(async (req, res) => {
         })),
     });
 }));
+// The live picture of the shop: order counts, riders, billable orders, revenue, SMS balance, last 50 feed lines
+router.get('/live', openWhilePaused, wrap(async (req, res) => {
+    res.json(await liveSnapshot.build(req.tenant._id, { owner: true }));
+}));
 router.use('/riders', openWhilePaused, require('./shopRiderRouter').manage);   // add, list, switch off, remove riders
 router.use('/cod', openWhilePaused, require('./shopCodRouter'));               // COD cash with riders, rider performance
 router.use('/activity', openWhilePaused, require('./shopAuditRouter'));        // owner activity log (rows of this shop only)
@@ -247,7 +252,9 @@ router.put('/settings', wrap(async (req, res) => {
 }));
 
 router.use('/uploads', require('./uploadRouter'));   // direct-to-R2 uploads (owner and superadmin)
-router.use('/customers', require('./shopCustomersRouter'));   // customer tools (Cash on delivery block)
+router.use('/customers', require('./shopCustomersRouter'));   // customer tools: list, detail, edit, Cash on delivery block
+router.use('/messages', require('./shopMessagesRouter'));     // messages to his customers and riders
+router.use('/complaints', require('./shopComplaintsRouter')); // complaints of his customers
 router.use(require('./shopManageRouter'));           // menu: categories, products, banners, coupons, collections
 router.use(apiErrors);
 module.exports = router;

@@ -30,7 +30,7 @@ router.use(tenantRecognizer);
 router.use(authenticate);
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-const dto = (u) => ({ id: u._id, phone: u.phone, name: u.name || null, email: u.email || null });
+const dto = (u) => ({ id: u._id, phone: u.phone, name: u.name || null, email: u.email || null, promotions: u.prefs?.promotions !== false });
 
 router.get('/', wrap(async (req, res) => {
     const user = await User.findOne({ _id: req.auth.userId, tenantId: req.tenant._id }).lean();
@@ -67,6 +67,26 @@ router.put('/', wrap(async (req, res) => {
     ).lean();
     if (!user) throw httpError(404, 'Account not found');
     res.json(dto(user));
+}));
+
+// Promotions on or off. Information messages (order updates, shop notices) always arrive.
+//   GET /api/me/prefs  ->  { promotions: true }
+//   PUT /api/me/prefs  body { "promotions": false }
+router.get('/prefs', wrap(async (req, res) => {
+    const user = await User.findOne({ _id: req.auth.userId, tenantId: req.tenant._id }).select('prefs').lean();
+    if (!user) throw httpError(404, 'Account not found');
+    res.json({ promotions: user.prefs?.promotions !== false });
+}));
+
+router.put('/prefs', wrap(async (req, res) => {
+    if (typeof req.body?.promotions !== 'boolean') throw httpError(400, 'Send promotions: true or false');
+    const user = await User.findOneAndUpdate(
+        { _id: req.auth.userId, tenantId: req.tenant._id },
+        { $set: { 'prefs.promotions': req.body.promotions } },
+        { returnDocument: 'after' },
+    ).select('prefs').lean();
+    if (!user) throw httpError(404, 'Account not found');
+    res.json({ promotions: user.prefs?.promotions !== false });
 }));
 
 router.delete('/', wrap(async (req, res) => {

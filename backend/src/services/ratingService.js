@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Order = require('../models/Order');
 const Review = require('../models/Review');
 const Product = require('../models/Product');
+const center = require('../notifications/center');
 
 const isId = (v) => typeof v === 'string' && mongoose.isValidObjectId(v);
 const httpError = (status, message) => Object.assign(new Error(message), { status });
@@ -50,6 +51,20 @@ async function rateOrder({ tenantId, userId, orderId, ratings }) {
     }
 
     await Order.updateOne({ _id: order._id }, { $set: { ratedAt: new Date() } });
+
+    // a dish rated 2 stars or less: the owner is told (never blocks the customer)
+    try {
+        const nameOf = Object.fromEntries(order.items.map((l) => [String(l.productId), l.name || l.title || 'a dish']));
+        for (const r of ratings.filter((x) => x.rating <= 2)) {
+            center.notify('dish_low_rating', {
+                tenantId,
+                title: 'Low dish rating',
+                body: `Order #${order.orderNo}: ${r.rating} star(s) for ${nameOf[r.productId]}.${typeof r.comment === 'string' && r.comment.trim() ? ` "${r.comment.trim().slice(0, 100)}"` : ''}`,
+                data: { orderId: String(order._id), orderNo: order.orderNo, productId: r.productId },
+            });
+        }
+    } catch (e) { console.error('Rating notify error:', e.message); }
+
     return getRatings({ tenantId, userId, orderId });
 }
 

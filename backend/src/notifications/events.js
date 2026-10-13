@@ -24,6 +24,9 @@ const EVENTS = {
     rider_none: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // nobody took the order: live AND push
     rider_problem: { to: 'owner', channels: INAPP_PUSH },
     delivery_low_rating: { to: 'owner', channels: INAPP_PUSH },
+    dish_low_rating: { to: 'owner', channels: INAPP_PUSH },
+    complaint_new: { to: 'owner', channels: INAPP_PUSH },
+    complaint_reminder: { to: 'owner', channels: INAPP_PUSH },
     bill_issued: { to: 'owner', channels: ALL, key: true, email: 'rent_invoice', adminAlert: 'admin_bill_issued' },
     bill_reminder: { to: 'owner', channels: INAPP_PUSH, email: 'bill_reminder', adminAlert: 'admin_grace_ending' },
     shop_paused: { to: 'owner', channels: ALL, key: true, email: 'shop_paused', adminAlert: 'admin_shop_paused' },
@@ -34,9 +37,12 @@ const EVENTS = {
     sms_low: { to: 'owner', channels: INAPP_PUSH, adminAlert: 'admin_sms_low' },
     sms_zero: { to: 'owner', channels: INAPP_PUSH, adminAlert: 'admin_sms_zero' },
     platform_message: { to: 'owner', channels: INAPP_PUSH },
+    owner_email_changed: { to: 'owner', channels: ['inapp'], email: 'owner_email_changed' },   // the mail goes to the OLD address (emailTo)
+    broadcast: { to: 'customer', channels: INAPP_PUSH, email: 'broadcast' },                  // never SMS. The mail is queued only when the sender asked for it (ctx.noEmail)
     // customer (an SMS only for the important steps, and never for riders)
     order_status: { to: 'customer', channels: ALL, key: (ctx) => KEY_CUSTOMER_STATUSES.includes(ctx.data?.status) },
     rider_assigned: { to: 'customer', channels: INAPP_PUSH },
+    complaint_decision: { to: 'customer', channels: INAPP_PUSH, email: 'complaint_decision' },
     // rider (offers last 2 minutes, so never an SMS)
     rider_offer: { to: 'rider', channels: INAPP_PUSH, alsoPush: true },
     rider_removed: { to: 'rider', channels: INAPP_PUSH },

@@ -6,6 +6,7 @@ const Session = require('../models/Session');
 const { ACTIVE_STATUSES } = require('./orderflow');
 const { httpError } = require('../middlewares/apiErrors');
 const { hashPhone } = require('../utils/phoneHash');
+const cleanEmail = require('../utils/cleanEmail');
 
 const PHONE_RE = /^[6-9]\d{9}$/;
 const WITH_RIDER = ['assigned', 'accepted', 'picked_up'];
@@ -42,8 +43,9 @@ async function addByPhone({ tenantId, phone, name }) {
     return { userId: user._id, phone, rider };
 }
 
-async function update({ tenantId, userId, isActive, name }) {
+async function update({ tenantId, userId, isActive, name, email }) {
     const set = {};
+    let newEmail;   // undefined = leave alone, '' = clear
     if (isActive !== undefined) {
         if (typeof isActive !== 'boolean') throw httpError(400, 'isActive must be true or false');
         set.isActive = isActive;
@@ -56,10 +58,19 @@ async function update({ tenantId, userId, isActive, name }) {
         }
     }
     if (name !== undefined) set.name = String(name).trim().slice(0, 80);
-    if (!Object.keys(set).length) throw httpError(400, 'Nothing to update');
+    if (email !== undefined) newEmail = cleanEmail(email);
+    if (!Object.keys(set).length && newEmail === undefined) throw httpError(400, 'Nothing to update');
 
-    const rider = await Rider.findOneAndUpdate({ tenantId, userId }, { $set: set }, { new: true });
+    const rider = Object.keys(set).length
+        ? await Rider.findOneAndUpdate({ tenantId, userId }, { $set: set }, { returnDocument: 'after' })
+        : await Rider.findOne({ tenantId, userId });
     if (!rider) throw httpError(404, 'Rider not found');
+    if (newEmail !== undefined) {
+        await User.updateOne(
+            { _id: userId, tenantId, role: 'rider' },
+            newEmail ? { $set: { email: newEmail } } : { $unset: { email: 1 } },
+        );
+    }
     return rider;
 }
 
@@ -83,12 +94,13 @@ async function list(tenantId) {
     const riders = await Rider.find({ tenantId }).sort({ createdAt: 1 }).lean();
     const ids = riders.map((r) => r.userId);
     const [users, orders] = await Promise.all([
-        User.find({ _id: { $in: ids }, tenantId }).select('phone').lean(),
+        User.find({ _id: { $in: ids }, tenantId }).select('phone email').lean(),
         Order.find({
             tenantId, 'delivery.riderId': { $in: ids }, status: { $in: ACTIVE_STATUSES }, 'delivery.status': { $in: WITH_RIDER },
         }).select('orderNo status delivery.riderId delivery.status').lean(),
     ]);
     const phoneOf = new Map(users.map((u) => [String(u._id), u.phone]));
+    const emailOf = new Map(users.map((u) => [String(u._id), u.email]));
     const byRider = new Map();
     for (const o of orders) {
         const k = String(o.delivery.riderId);
@@ -97,6 +109,7 @@ async function list(tenantId) {
     }
     return riders.map((r) => ({
         userId: r.userId, name: r.name || null, phone: phoneOf.get(String(r.userId)) || null,
+        email: emailOf.get(String(r.userId)) || null,
         isActive: r.isActive, isOnline: r.isOnline, vehicle: r.vehicle || null, photo: r.photo || null,
         lastLocation: r.lastLocation || null, activeOrderCount: r.activeOrderCount,
         ratingAvg: r.ratingAvg, ratingCount: r.ratingCount,

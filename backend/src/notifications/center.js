@@ -22,6 +22,26 @@ const pushChannel = require('./channels/push');
 const smsChannel = require('./channels/sms');
 const emailChannel = require('./channels/email');
 const adminAlerts = require('../services/adminAlerts');
+const liveFeed = require('../services/liveFeed');
+
+// Owner-side events that also show in the superadmin live feed: eventKey -> [category, line type].
+// Order and rider lines are made in notificationService, so they are not repeated here.
+const FEED = {
+    bill_issued: ['billing', 'bill.issued'],
+    bill_reminder: ['billing', 'bill.reminder'],
+    payment_received: ['billing', 'payment.received'],
+    free_ending: ['billing', 'free.ending'],
+    shop_paused: ['billing', 'shop.paused'],
+    shop_unpaused: ['billing', 'shop.unpaused'],
+    sms_topup_done: ['sms', 'sms.topup'],
+    sms_low: ['sms', 'sms.low'],
+    sms_zero: ['sms', 'sms.zero'],
+    platform_message: ['messages', 'message.platform'],
+    complaint_new: ['complaints', 'complaint.new'],
+    complaint_reminder: ['complaints', 'complaint.reminder'],
+    dish_low_rating: ['complaints', 'rating.low'],
+    broadcast: ['messages', 'message.broadcast'],   // only the owner side (a superadmin broadcast) reaches this line
+};
 
 const isKey = (def, ctx) => (typeof def.key === 'function' ? !!def.key(ctx) : !!def.key);
 // riders never get an SMS, whatever the rules say
@@ -71,6 +91,11 @@ async function notify(eventKey, ctx = {}) {
 
         const def = await rules.get(eventKey, tenantId);
 
+        // the live feed hears about it even when the owner switched his own message off
+        if (FEED[eventKey] && tenantId && !ctx.userId && !toAdmin) {
+            liveFeed.emit(tenantId, FEED[eventKey][0], { type: FEED[eventKey][1], ...(ctx.data || {}) });
+        }
+
         // the platform owner also hears about the big owner-side events, whatever the owner's own rule says
         if (def.adminAlert && tenantId && !ctx.userId && !toAdmin) {
             await adminAlerts.alert(def.adminAlert, { tenantId, vars: ctx.vars, data: ctx.data });
@@ -95,7 +120,7 @@ async function notify(eventKey, ctx = {}) {
         if (toAdmin) return doc;   // platform inbox only (admin alerts go through services/adminAlerts.js)
 
         await deliver(eventKey, def, { ...ctx, vars }, doc);
-        if (def.email) await emailChannel.queue({ eventKey, def, ctx: { ...ctx, vars } });   // a mail, whatever happened above
+        if (def.email && !ctx.noEmail) await emailChannel.queue({ eventKey, def, ctx: { ...ctx, vars } });   // a mail, whatever happened above
         return doc;
     } catch (e) {
         console.error(`Notification (${eventKey}) error:`, e.message);
