@@ -19,6 +19,12 @@ export const reorderOrder = (id) => d(api.post(`/orders/${id}/reorder`));
 export const rateOrder = (id, ratings) => d(api.post(`/orders/${id}/rating`, { ratings }));
 export const fetchRatings = (id) => d(api.get(`/orders/${id}/rating`));
 
+// online payment: payment-config says what this shop accepts right now, pay gives the Razorpay order,
+// verify sends the proof back (the server then asks Razorpay what really happened)
+export const fetchPaymentConfig = () => d(api.get('/orders/payment-config'));
+export const startOrderPayment = (id) => d(api.post(`/orders/${id}/pay`));
+export const verifyOrderPayment = (id, proof) => d(api.post(`/orders/${id}/pay/verify`, proof));
+
 // favourites
 export const fetchFavIds = () => d(api.get('/favourites/ids'));
 export const fetchFavourites = () => d(api.get('/favourites'));

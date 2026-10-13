@@ -16,6 +16,7 @@ import { useCartStore } from '../store/shopStores';
 import { useCouponStore } from '../store/useCouponStore';
 import { useAddressStore } from '../store/useAddressStore';
 import { quoteOrder, placeOrder, fetchPickupSlots } from '../api/shopApi';
+import { payForOrder } from '../utils/payOnline';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -78,6 +79,7 @@ export default function CartScreen() {
 
     const selectedPaymentMethod = route.params?.selectedPaymentMethod || 'Cash on Delivery';
     const paymentMethodValue = route.params?.paymentMethodValue || 'cod';
+    const upiApp = route.params?.upiApp || null;   // { pkg, label } chosen on the payment screen
 
     const [quote, setQuote] = useState(null);
     const [quoteKey, setQuoteKey] = useState('');    // which request the quote belongs to
@@ -194,13 +196,24 @@ export default function CartScreen() {
         try {
             const notes = [...delNotes];
             if (customNote.trim()) notes.push(customNote.trim());
-            await placeOrder(notes.length ? { ...body, note: notes.join(' | ') } : body, idemKey);
+            const order = await placeOrder(notes.length ? { ...body, note: notes.join(' | ') } : body, idemKey);
             useCartStore.getState().clear();
+            const tabs = { name: 'MainTabs', state: { routes: [{ name: 'Orders' }] } };
+
+            // online order: pay right away, straight into the chosen UPI app. The order exists already,
+            // so if the payment is cancelled or fails the customer lands on it and can pay again.
+            if (order?.payment?.method && order.payment.method !== 'cod' && order.payment.status !== 'paid') {
+                const r = await payForOrder({ order, user, upiApp });
+                showToast(r.status === 'paid' ? 'Payment successful. Order placed' : r.message || 'Payment not completed');
+                const id = order._id || order.id;
+                nav.dispatch(CommonActions.reset(r.status === 'paid'
+                    ? { index: 0, routes: [tabs] }
+                    : { index: 1, routes: [tabs, { name: 'OrderDetail', params: { id } }] }));
+                return;
+            }
+
             showToast('Order placed successfully');
-            nav.dispatch(CommonActions.reset({
-                index: 0,
-                routes: [{ name: 'MainTabs', state: { routes: [{ name: 'Orders' }] } }],
-            }));
+            nav.dispatch(CommonActions.reset({ index: 0, routes: [tabs] }));
         } catch (e) {
             const m = errMsg(e);
             showToast(m);
@@ -435,7 +448,7 @@ export default function CartScreen() {
                     </Appear>
                 ) : null}
                 <View style={s.dockRow}>
-                    <Pressable onPress={() => nav.navigate('PaymentMethods', { current: paymentMethodValue })} style={s.dockLeft}>
+                    <Pressable onPress={() => nav.navigate('PaymentMethods', { current: paymentMethodValue, currentApp: upiApp?.pkg })} style={s.dockLeft}>
                         <View style={s.dockIcon}><Ionicons name="wallet-outline" size={18} color={primary} /></View>
                         <View style={{ flex: 1 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>

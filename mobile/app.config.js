@@ -81,10 +81,19 @@ export default {
             enableProguardInReleaseBuilds: true,
             enableShrinkResourcesInReleaseBuilds: true,
             buildArchs: ['arm64-v8a'],
+            // Razorpay's SDK breaks in release builds without these (from its README)
+            extraProguardRules: [
+              '-keepattributes *Annotation*',
+              '-dontwarn com.razorpay.**',
+              '-keep class com.razorpay.** {*;}',
+              '-optimizations !method/inlining/',
+              '-keepclasseswithmembers class * { public void onPayment*(...); }',
+            ].join('\n'),
           },
         },
       ],
       './plugins/withNoAutofillHighlight',
+      './plugins/withUpiAppQueries',
       // Adds the Speech Recognition plugin with standard OS prompts
       [
         'expo-speech-recognition',

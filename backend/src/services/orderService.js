@@ -21,7 +21,7 @@ const { isId, round2, buildLines, reserveCoupon, releaseCoupon, priceCart } = re
 const { pickupSlots, findPickupSlot } = require('./pickupSlots');
 const stock = require('./stockService');
 const accounts = require('./paymentAccounts');
-const { isOnline, onlineProblem, HIDE_UNPAID } = require('./onlineOrder');
+const { isOnline, onlineProblem, APP_METHODS, HIDE_UNPAID } = require('./onlineOrder');
 
 const MAX_SCHEDULE_DAYS = 7;
 const TYPE_LABEL = { delivery: 'delivery', pickup: 'pickup', dine_in: 'dine-in' };
@@ -42,7 +42,10 @@ function checkPlacement({ tenant, config, body, priced, address, user, cod, onli
     // No COD during free service. Switched on with ENFORCE_NO_COD_IN_FREE=true (keep it OFF until online payments exist)
     const noCod = process.env.ENFORCE_NO_COD_IN_FREE === 'true' && tenant.billing?.state === 'free';
     const methods = noCod ? o.payments.filter((m) => m !== 'cod') : o.payments;
-    if (!methods.includes(body.paymentMethod)) {
+    // Online methods are switched on per shop by the superadmin (payments.enabled, keys tested), so a shop whose online
+    // payments work does not also have to list them in orders.payments. `online` is only set for online methods.
+    const onlineSwitchedOn = !!online?.ok && APP_METHODS.includes(body.paymentMethod);
+    if (!onlineSwitchedOn && !methods.includes(body.paymentMethod)) {
         return { status: 400, message: noCod && body.paymentMethod === 'cod' ? 'Cash on delivery is not available right now' : 'This payment method is not available' };
     }
 

@@ -11,6 +11,8 @@ import { StatusPill, isActive, rs, errMsg, cancelFlow, reorder } from '../compon
 import { viewInvoice, saveInvoice } from '../components/ui/invoice';
 import { useHomeStore } from '../store/useHomeStore';
 import { fetchOrder, rateOrder, fetchRatings } from '../api/shopApi';
+import { useAuthStore } from '../store/useAuthStore';
+import { payForOrder } from '../utils/payOnline';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const FLOW_DELIVERY = ['placed', 'accepted', 'preparing', 'out_for_delivery', 'delivered'];
@@ -125,6 +127,7 @@ export default function OrderDetailScreen() {
     const [saving, setSaving] = useState(false);
     const [busy, setBusy] = useState(false);
     const [inv, setInv] = useState('');            // '' | 'view' | 'save'
+    const user = useAuthStore((st) => st.user);
     const activeRef = useRef(false);
     const ratedLoaded = useRef(false);
     activeRef.current = !!o && isActive(o.status);
@@ -199,7 +202,19 @@ export default function OrderDetailScreen() {
     const sub = cancelled ? `Cancelled by ${WHO[o.cancelledBy] || 'the shop'}${o.cancelReason ? `: ${o.cancelReason}` : ''}`
         : live ? (o.etaMin ? `Usually ready in about ${o.etaMin} min` : 'We will keep this updated')
             : delivered && o.deliveredAt ? `Delivered on ${fmt(o.deliveredAt)}` : '';
-    const dock = o.canCancel || reorderOn;
+    // an online order that was placed but not paid yet (payment cancelled or failed): let the customer pay again
+    const payable = !!o.payment && o.payment.method !== 'cod' && o.payment.status !== 'paid' && o.status === 'placed';
+    const payNow = async () => {
+        if (busy) return;
+        setBusy(true);
+        try {
+            const r = await payForOrder({ order: o, user });
+            if (r.order) setO(r.order);
+            showToast(r.status === 'paid' ? 'Payment successful' : r.message || 'Payment not completed');
+            if (r.status !== 'paid') get();
+        } finally { setBusy(false); }
+    };
+    const dock = o.canCancel || reorderOn || payable;
     const timeLine = o.scheduledFor ? (o.pickupUntil ? `${fmt(o.scheduledFor)} – ${tm(o.pickupUntil)}` : fmt(o.scheduledFor)) : '';
     const showForm = !saved || editing;
 
@@ -347,7 +362,12 @@ export default function OrderDetailScreen() {
                             <Text style={[s.ghostTxt, { color: error }]}>Cancel order</Text>
                         </Press>
                     ) : null}
-                    {reorderOn ? (
+                    {payable ? (
+                        <Press wrap={{ flex: 1.4 }} disabled={busy} onPress={payNow}
+                            style={[s.dBtn, { backgroundColor: primary, borderRadius: radius }]}>
+                            {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.mainTxt}>Pay {rs(o.pricing?.total)}</Text>}
+                        </Press>
+                    ) : reorderOn ? (
                         <Press wrap={{ flex: 1.4 }} disabled={busy} onPress={() => reorder(o, nav, setBusy)}
                             style={[s.dBtn, { backgroundColor: primary, borderRadius: radius }]}>
                             {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.mainTxt}>Reorder</Text>}

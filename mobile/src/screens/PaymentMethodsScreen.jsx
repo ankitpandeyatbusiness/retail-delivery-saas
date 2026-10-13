@@ -1,18 +1,16 @@
 // src/screens/PaymentMethodsScreen.jsx
+// Cash on delivery, or pay online straight from an installed UPI app (GPay, PhonePe, Paytm...).
+// What is offered comes from the server (GET /orders/payment-config), so a shop without online payments shows only cash.
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet, Animated, Easing } from 'react-native';
+import { View, Text, Pressable, ScrollView, StyleSheet, Animated, Easing, ActivityIndicator, Image } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, BackHeader } from '../components/ui/kit';
 import { tint } from '../components/ui/shop';
+import { fetchPaymentConfig } from '../api/shopApi';
+import { detectInstalledUpiApps } from '../utils/upiApps';
 
-const METHODS = [
-    { id: 'cod', label: 'Cash on Delivery', icon: 'cash-outline', desc: 'Pay in cash or UPI when order arrives' },
-    { id: 'upi', label: 'UPI (GPay, PhonePe, Paytm)', icon: 'scan-outline', desc: 'Pay instantly via any UPI app' },
-    { id: 'card', label: 'Credit / Debit Card', icon: 'card-outline', desc: 'Visa, Mastercard, RuPay' },
-    { id: 'wallet', label: 'Wallets', icon: 'wallet-outline', desc: 'Paytm, Amazon Pay, Mobikwik' },
-];
-
+// one selectable row. `mark` + `color` draw a small app badge, otherwise `icon` is used.
 function MethodCard({ m, index, selected, onPick }) {
     const { primary, text, surface, border, muted } = useBrand();
     const enter = useRef(new Animated.Value(0)).current;
@@ -20,7 +18,7 @@ function MethodCard({ m, index, selected, onPick }) {
     const sel = useRef(new Animated.Value(selected ? 1 : 0)).current;
 
     useEffect(() => {
-        Animated.timing(enter, { toValue: 1, duration: 380, delay: index * 80, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+        Animated.timing(enter, { toValue: 1, duration: 380, delay: index * 70, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
     }, []);
     useEffect(() => {
         Animated.spring(sel, { toValue: selected ? 1 : 0, friction: 6, tension: 140, useNativeDriver: true }).start();
@@ -39,9 +37,19 @@ function MethodCard({ m, index, selected, onPick }) {
             <Pressable onPress={() => onPick(m)} onPressIn={() => to(0.97)} onPressOut={() => to(1)}
                 style={[s.card, { backgroundColor: surface, borderColor: selected ? primary : border }]}>
                 <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, s.glow, { backgroundColor: tint(primary), opacity: sel }]} />
-                <View style={[s.iconBox, { backgroundColor: selected ? primary : tint(primary) }]}>
-                    <Ionicons name={m.icon} size={22} color={selected ? '#FFFFFF' : primary} />
-                </View>
+                {m.logo ? (
+                    <View style={[s.iconBox, s.logoBox, { borderColor: border }]}>
+                        <Image source={{ uri: m.logo }} style={s.logo} resizeMode="contain" />
+                    </View>
+                ) : m.mark ? (
+                    <View style={[s.iconBox, { backgroundColor: primary }]}>
+                        <Text style={s.mark}>{m.mark}</Text>
+                    </View>
+                ) : (
+                    <View style={[s.iconBox, { backgroundColor: selected ? primary : tint(primary) }]}>
+                        <Ionicons name={m.icon} size={22} color={selected ? '#FFFFFF' : primary} />
+                    </View>
+                )}
                 <View style={s.textCol}>
                     <Text style={[s.label, { color: text }]}>{m.label}</Text>
                     <Text style={[s.desc, { color: muted }]}>{m.desc}</Text>
@@ -59,23 +67,38 @@ export default function PaymentMethodsScreen() {
     const route = useRoute();
     const { primary, text, background, muted } = useBrand();
 
-    const [picked, setPicked] = useState(route.params?.current || 'cod');
+    // selection key: 'cod' or 'upi:<package name>'
+    const cur = route.params?.current || 'cod';
+    const [picked, setPicked] = useState(cur === 'upi' && route.params?.currentApp ? `upi:${route.params.currentApp}` : 'cod');
+    const [cfg, setCfg] = useState({ loading: true, online: false });
+    const [apps, setApps] = useState(null);   // null while we ask the phone which UPI apps it has
     const timer = useRef(null);
     const head = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
         Animated.timing(head, { toValue: 1, duration: 420, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
-        return () => clearTimeout(timer.current);
+        let on = true;
+        fetchPaymentConfig()
+            .then((r) => { if (on) setCfg({ loading: false, online: !!r.online && (r.methods || []).includes('upi') }); })
+            .catch(() => { if (on) setCfg({ loading: false, online: false }); });
+        detectInstalledUpiApps().then((a) => { if (on) setApps(a); });
+        return () => { on = false; clearTimeout(timer.current); };
     }, []);
 
     const selectMethod = (m) => {
         if (timer.current) return;
-        setPicked(m.id);
+        setPicked(m.key);
         // short pause so the user sees the tick animation, then go back to the cart
         timer.current = setTimeout(() => {
-            nav.navigate('Cart', { selectedPaymentMethod: m.label, paymentMethodValue: m.id });
+            nav.navigate('Cart', { selectedPaymentMethod: m.cartLabel, paymentMethodValue: m.value, upiApp: m.app });
         }, 260);
     };
+
+    const cash = { key: 'cod', value: 'cod', label: 'Cash on Delivery', cartLabel: 'Cash on Delivery', icon: 'cash-outline', desc: 'Pay in cash or UPI when the order arrives' };
+    const upiRows = (apps || []).map((a) => ({
+        key: `upi:${a.pkg}`, value: 'upi', app: { pkg: a.pkg, label: a.label }, label: a.label, cartLabel: `${a.label} (UPI)`,
+        logo: a.logo, mark: a.label.slice(0, 1).toUpperCase(), desc: `Pay with ${a.label}. It opens directly`,
+    }));
 
     return (
         <View style={[s.flex, { backgroundColor: background }]}>
@@ -89,10 +112,21 @@ export default function PaymentMethodsScreen() {
                     <Text style={[s.secureTxt, { color: text }]}>Your payment details are safe and secure</Text>
                 </Animated.View>
 
-                <Text style={[s.title, { color: muted }]}>RECOMMENDED</Text>
-                {METHODS.map((m, i) => (
-                    <MethodCard key={m.id} m={m} index={i} selected={picked === m.id} onPick={selectMethod} />
-                ))}
+                <Text style={[s.title, { color: muted }]}>PAY ONLINE</Text>
+                {cfg.loading || apps === null ? (
+                    <ActivityIndicator color={primary} style={{ marginVertical: 18 }} />
+                ) : !cfg.online ? (
+                    <Text style={[s.note, { color: muted }]}>Online payment is not available for this shop right now.</Text>
+                ) : !upiRows.length ? (
+                    <Text style={[s.note, { color: muted }]}>No UPI app was found on this phone. You can pay on delivery instead.</Text>
+                ) : (
+                    upiRows.map((m, i) => (
+                        <MethodCard key={m.key} m={m} index={i} selected={picked === m.key} onPick={selectMethod} />
+                    ))
+                )}
+
+                <Text style={[s.title, { color: muted }]}>PAY ON DELIVERY</Text>
+                <MethodCard m={cash} index={upiRows.length} selected={picked === 'cod'} onPick={selectMethod} />
             </ScrollView>
         </View>
     );
@@ -104,9 +138,13 @@ const s = StyleSheet.create({
     secure: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 14, marginBottom: 8 },
     secureTxt: { flex: 1, marginLeft: 10, fontSize: 13, fontWeight: '700' },
     title: { fontSize: 12, fontWeight: '800', letterSpacing: 1.2, marginBottom: 12, marginTop: 16 },
+    note: { fontSize: 13, fontWeight: '500', lineHeight: 19, marginBottom: 6 },
     card: { flexDirection: 'row', alignItems: 'center', padding: 16, borderWidth: 1.5, borderRadius: 16, marginBottom: 12, overflow: 'hidden' },
     glow: { borderRadius: 16 },
     iconBox: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
+    mark: { color: '#FFFFFF', fontSize: 15, fontWeight: '900' },
+    logoBox: { backgroundColor: '#FFFFFF', borderWidth: 1, overflow: 'hidden' },
+    logo: { width: 30, height: 30 },
     textCol: { flex: 1 },
     label: { fontSize: 15, fontWeight: '800', marginBottom: 4 },
     desc: { fontSize: 12, fontWeight: '500', lineHeight: 17 },
