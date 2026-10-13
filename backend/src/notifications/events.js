@@ -21,7 +21,7 @@ const EVENTS = {
     order_late: { to: 'owner', channels: INAPP_PUSH },
     rider_accepted: { to: 'owner', channels: INAPP_PUSH },
     rider_rejected: { to: 'owner', channels: INAPP_PUSH },
-    rider_none: { to: 'owner', channels: INAPP_PUSH },
+    rider_none: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // nobody took the order: live AND push
     rider_problem: { to: 'owner', channels: INAPP_PUSH },
     delivery_low_rating: { to: 'owner', channels: INAPP_PUSH },
     bill_issued: { to: 'owner', channels: ALL, key: true, email: 'rent_invoice', adminAlert: 'admin_bill_issued' },

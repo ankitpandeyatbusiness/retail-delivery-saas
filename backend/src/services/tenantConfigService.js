@@ -238,7 +238,7 @@ const DEFAULTS = {
     },
     offers: { couponsEnabled: true, showOnHome: true, showInCart: true },
     notifications: { smsAlerts: true },   // key-event SMS (new order, bill, order steps) are on by default
-    riders: { assignMode: 'manual', offerSeconds: 120, maxActiveOrders: 3, deliveryPin: true, liveTracking: true, locationIntervalSec: 10 },
+    riders: { assignMode: 'automatic', offerSeconds: 120, maxActiveOrders: 3, deliveryPin: true, liveTracking: true, locationIntervalSec: 10 },
     labels: {
         language: 'en', addButton: 'Add', orderButton: 'Place order',
         emptyCart: 'Your cart is empty', emptySearch: 'No dishes found',

@@ -22,6 +22,10 @@ const TEMPLATES = {
         purpose: 'order', vars: ['orderNo', 'shop'],
         text: 'Your order #{#var#} from {#var#} was cancelled.',
     },
+    order_unaccepted_reminder: {
+        purpose: 'order', vars: ['orderNo', 'shop'],
+        text: 'Order #{#var#} at {#var#} is still waiting to be accepted. Please open the app now.',
+    },
     bill_issued: {
         purpose: 'alert', vars: ['invoiceNo', 'amount', 'shop', 'date'],
         text: 'New bill {#var#} of Rs {#var#} for {#var#}. Please pay by {#var#} to keep taking orders.',

@@ -51,7 +51,10 @@ function riderView(o) {
         customer: accepted ? { name: o.customer?.name, phone: o.customer?.phone } : null,
         address: accepted ? o.address : { city: o.address?.city, pincode: o.address?.pincode, landmark: o.address?.landmark },
         payment: { method: o.payment?.method, collectAmount: cod ? o.pricing?.total : 0 },
-        delivery: { status: d.status, offerExpiresAt: d.offerExpiresAt || null, pinRequired: !!d.pinRequired, deliveredAt: d.deliveredAt || null },
+        delivery: {
+            status: d.status, offerExpiresAt: d.offerExpiresAt || (d.broadcast?.active ? d.broadcast.expiresAt : null) || null,
+            pinRequired: !!d.pinRequired, deliveredAt: d.deliveredAt || null,
+        },
     };
 }
 
@@ -104,7 +107,19 @@ core.put('/online', wrap(async (req, res) => {
 core.get('/orders', wrap(async (req, res) => {
     const tab = req.query.tab || 'active';
     const base = { tenantId: req.tenant._id, 'delivery.riderId': req.riderId };
-    const offered = { ...base, 'delivery.status': 'assigned', 'delivery.offerExpiresAt': { $gt: new Date() }, status: { $in: OPEN } };
+    // two kinds of offers: one made to him alone, or the broadcast to all free riders (still open, not expired, he has not answered)
+    const nowTime = new Date();
+    const offered = {
+        tenantId: req.tenant._id, status: { $in: OPEN },
+        $or: [
+            { 'delivery.riderId': req.riderId, 'delivery.status': 'assigned', 'delivery.offerExpiresAt': { $gt: nowTime } },
+            {
+                'delivery.riderId': { $exists: false }, 'delivery.broadcast.active': true,
+                'delivery.broadcast.expiresAt': { $gt: nowTime },
+                'delivery.offers': { $elemMatch: { riderId: req.riderId, result: 'offered' } },
+            },
+        ],
+    };
     const active = { ...base, 'delivery.status': { $in: ['accepted', 'picked_up'] }, status: { $in: ACTIVE_STATUSES } };
     const history = { ...base, status: { $in: ['delivered', 'cancelled', 'undelivered'] } };
     const filter = { offered, active, history }[tab];

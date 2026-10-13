@@ -245,10 +245,15 @@ async function change({ order, status, actor, note, tenant, reasonCode }) {
     }
 
     notify.orderStatusChanged(updated, status, actor);   // customer, owner, rider (never throws)
-    // automatic mode: offer the order to a rider as soon as it is being prepared
-    if (status === 'preparing' && updated.orderType === 'delivery' && !updated.delivery?.riderId) {
-        require('./assignmentService').autoOnPreparing(updated)
-            .catch((e) => console.error('Auto-assign error:', e.message));
+    // the owner accepted a delivery order: ask ALL free riders at once (automatic mode). The first one to accept gets it.
+    if (status === 'accepted' && updated.orderType === 'delivery' && !updated.delivery?.riderId) {
+        require('./assignmentService').startBroadcast({ orderId: updated._id, tenantId: updated.tenantId })
+            .catch((e) => console.error('Rider broadcast error:', e.message));
+    }
+    // the order is over: stop asking riders
+    if (['cancelled', 'undelivered', 'delivered'].includes(status) && updated.orderType === 'delivery') {
+        require('./assignmentService').endBroadcast(updated._id, updated.tenantId, 'cancelled')
+            .catch((e) => console.error('Rider broadcast end error:', e.message));
     }
 
     return updated;

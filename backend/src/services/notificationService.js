@@ -166,8 +166,57 @@ async function lowDeliveryRating({ tenantId, orderId, orderNo, rating, riderUser
     }
 }
 
+/* ------------------------------ rider broadcast: all free riders at once ------------------------------ */
+// What a rider may see BEFORE he accepts: no customer name, phone or full address.
+function offerCard(order) {
+    const d = order.delivery || {};
+    const cod = order.payment?.method === 'cod' && order.payment?.status !== 'paid';
+    return {
+        orderId: String(order._id),
+        orderNo: order.orderNo,
+        expiresAt: d.broadcast?.expiresAt || null,
+        items: (order.items || []).map((i) => ({ name: i.name, quantity: i.quantity })),
+        address: { city: order.address?.city, pincode: order.address?.pincode, landmark: order.address?.landmark },
+        payment: { method: order.payment?.method, collectAmount: cod ? order.pricing?.total : 0 },
+    };
+}
+
+// live card (event "rider:offer") + inbox message + push, for each rider
+function riderBroadcast(order, riderIds) {
+    try {
+        const secs = Math.max(1, Math.round((new Date(order.delivery.broadcast.expiresAt).getTime() - Date.now()) / 1000));
+        const card = offerCard(order);
+        const count = (order.items || []).reduce((n, i) => n + (i.quantity || 0), 0);
+        const collect = card.payment.collectAmount > 0 ? card.payment.collectAmount : null;
+        for (const riderId of riderIds) {
+            realtime.toUser(order.tenantId, riderId, 'rider:offer', card);
+            center.notify('rider_offer', {
+                tenantId: order.tenantId, userId: riderId,
+                vars: { orderNo: order.orderNo, secs, items: count, collect },
+                data: { orderId: String(order._id), orderNo: order.orderNo, broadcast: true },
+            });
+        }
+        pulse({ tenantId: order.tenantId, orderId: order._id, orderNo: order.orderNo, status: order.status, kind: 'rider', toOrder: false });
+    } catch (e) {
+        console.error('Notification error:', e.message);
+    }
+}
+
+// live event "offer:closed" to the riders who were asked: another rider was faster (why = taken), or the request closed
+function offersClosed({ tenantId, orderId, orderNo, why, riderIds = [] }) {
+    try {
+        const message = why === 'taken' ? 'Taken by someone else' : 'This request is closed';
+        for (const riderId of riderIds) {
+            realtime.toUser(tenantId, riderId, 'offer:closed', { orderId: String(orderId), orderNo, why, message });
+        }
+    } catch (e) {
+        console.error('Notification error:', e.message);
+    }
+}
+
 module.exports = {
     send, toOwner, toUser,
     orderPlaced, orderStatusChanged,
     riderOffered, riderAccepted, riderRejected, noRiderFree, riderRemoved, riderProblem, lowDeliveryRating,
+    riderBroadcast, offersClosed,
 };

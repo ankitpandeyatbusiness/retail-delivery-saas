@@ -1,12 +1,16 @@
-// Rider assignment: offer, accept, reject, timeout, reassign.
-// Every change is ONE atomic update with a filter, so an order can never get two riders.
+// Rider assignment. Two ways to find a rider:
 //
+// 1. BROADCAST (automatic mode, the default). When the owner ACCEPTS a delivery order, ALL riders who are online, active and
+//    have NO active order get the offer at once (live message + push). The FIRST rider to accept gets the order: ONE filtered
+//    update decides. The others are told "Taken by someone else". If everybody says no, or offerSeconds (120) pass, the owner
+//    is alerted and assigns by hand. A rider's slot (activeOrderCount + 1) is taken only when he accepts.
+// 2. ONE RIDER at a time: the owner picks a rider (assign), or presses "auto" (autoAssign). offerTo / accept / reject / expireOffers.
+//
+// Every change is ONE atomic update with a filter, so an order can never get two riders.
 // Order.delivery: (no riderId) -> assigned (offer waiting) -> accepted -> picked_up -> delivered
 // A rejected, timed out or removed offer clears riderId again.
-// Rider.activeOrderCount: +1 when an offer is made, -1 when the offer ends
-// (orderStatusService gives it back when the order is delivered or cancelled).
-//
-// PHASE 3 markers: owner alerts and push go where "PHASE 3" is written.
+// Rider.activeOrderCount: +1 when an offer is made (one rider) or accepted (broadcast), -1 when it ends
+// (orderStatusService gives it back when the order is delivered, cancelled or undelivered).
 
 const crypto = require('crypto');
 const Order = require('../models/Order');
@@ -25,6 +29,8 @@ const CLEAR = {
     'delivery.acceptedAt': 1, 'delivery.pickedUpAt': 1,
 };
 const ref = (a) => ({ type: a.type, id: a.id ? String(a.id) : undefined, label: a.label });
+const lastOffer = (order, riderUserId) => [...(order?.delivery?.offers || [])].reverse()
+    .find((o) => String(o.riderId) === String(riderUserId));
 
 // One log row for events nobody clicked (automatic offer, timeout, nobody free).
 // Rows carry tenantId, so the owner log and the superadmin log both show them.
@@ -62,7 +68,7 @@ const releaseSlot = (tenantId, userId) => Rider.updateOne(
     { $inc: { activeOrderCount: -1 } },
 );
 
-/* ------------------------------ offer ------------------------------ */
+/* ------------------------------ one rider at a time: offer ------------------------------ */
 async function offerTo({ orderId, tenantId, riderUserId, by, settings, slotReserved = false, needOnline = false }) {
     settings = settings || await settingsOf(tenantId);
     if (!slotReserved) {
@@ -111,7 +117,7 @@ async function clearOffer({ orderId, tenantId, riderUserId, result, onlyExpired 
     return { by: offer?.by || 'system' };
 }
 
-/* ------------------------------ automatic ------------------------------ */
+/* ------------------------------ one rider at a time: "auto" button ------------------------------ */
 // A random online, active rider under the load limit who has not been offered this order yet.
 async function autoAssign({ orderId, tenantId, settings }) {
     settings = settings || await settingsOf(tenantId);
@@ -137,11 +143,166 @@ async function autoAssign({ orderId, tenantId, settings }) {
     return null;
 }
 
-async function autoOnPreparing(order) {
-    if (order.orderType !== 'delivery' || order.delivery?.riderId) return null;
-    const settings = await settingsOf(order.tenantId);
+/* ------------------------------ broadcast: ask ALL free riders at once ------------------------------ */
+// Stops the broadcast. Safe to call twice (only the first call does anything).
+//   why: no_rider | all_rejected | timeout  (the owner is alerted)   or   cancelled (order ended, or the owner assigned by hand)
+async function endBroadcast(orderId, tenantId, why) {
+    const now = new Date();
+    const closed = { 'delivery.broadcast.active': false, 'delivery.broadcast.endedAt': now, 'delivery.broadcast.endReason': why };
+    const unanswered = why === 'cancelled' ? 'cancelled' : 'timeout';
+
+    // ONE update closes the broadcast AND every offer nobody answered, so nobody can ever see it half closed
+    let old = await Order.findOneAndUpdate(
+        { _id: orderId, tenantId, 'delivery.broadcast.active': true, 'delivery.offers.0': { $exists: true } },
+        { $set: { ...closed, 'delivery.offers.$[o].result': unanswered, 'delivery.offers.$[o].at': now } },
+        { returnDocument: 'before', arrayFilters: [{ 'o.result': 'offered' }] },
+    );
+    if (!old) {
+        // nobody was asked yet (no rider was free): only the broadcast itself is closed
+        old = await Order.findOneAndUpdate(
+            { _id: orderId, tenantId, 'delivery.broadcast.active': true },
+            { $set: closed },
+            { returnDocument: 'before' },
+        );
+    }
+    if (!old) return null;   // already ended
+
+    const waiting = (old.delivery?.offers || []).filter((o) => o.result === 'offered');
+    if (['no_rider', 'all_rejected', 'timeout'].includes(why)) {
+        notify.noRiderFree({ tenantId, orderId, orderNo: old.orderNo });   // ONE alert: the owner assigns by hand
+    }
+    notify.offersClosed({ tenantId, orderId, orderNo: old.orderNo, why: 'closed', riderIds: waiting.map((o) => o.riderId) });
+    logEvent({ tenantId, action: `RIDER_BROADCAST_ENDED (${why})`, orderNo: old.orderNo });
+    return old;
+}
+
+// Starts the broadcast. Only in automatic mode, only for a delivery order that has no rider yet.
+async function startBroadcast({ orderId, tenantId }) {
+    const settings = await settingsOf(tenantId);
     if (settings.assignMode !== 'automatic') return null;
-    return autoAssign({ orderId: order._id, tenantId: order.tenantId, settings });
+    const now = new Date();
+    const expires = new Date(now.getTime() + settings.offerSeconds * 1000);
+    const order = await Order.findOneAndUpdate(
+        {
+            _id: orderId, tenantId, orderType: 'delivery', status: { $in: OPEN },
+            'delivery.riderId': { $exists: false }, 'delivery.broadcast.active': { $ne: true },
+        },
+        { $set: { 'delivery.broadcast': { active: true, startedAt: now, expiresAt: expires }, 'delivery.pinRequired': settings.deliveryPin } },
+        { returnDocument: 'after' },
+    );
+    if (!order) return null;
+
+    // online, active and FREE (no active order) riders only
+    const riders = await Rider.find({ tenantId, isActive: true, isOnline: true, activeOrderCount: 0 }).select('userId').lean();
+    if (!riders.length) {
+        await endBroadcast(order._id, tenantId, 'no_rider');
+        return null;
+    }
+    const offers = riders.map((r) => ({ riderId: r.userId, offeredAt: now, expiresAt: expires, result: 'offered', by: 'system' }));
+    const asked = await Order.findOneAndUpdate(
+        { _id: order._id, tenantId, 'delivery.broadcast.active': true },
+        { $push: { 'delivery.offers': { $each: offers } } },
+        { returnDocument: 'after' },
+    );
+    if (!asked) return null;   // the order was cancelled a moment ago
+    notify.riderBroadcast(asked, riders.map((r) => r.userId));
+    logEvent({ tenantId, action: 'RIDER_BROADCAST', orderNo: asked.orderNo, detail: { riders: riders.length, expiresAt: expires } });
+    return asked;
+}
+
+// A rider says yes. Only the FIRST rider passes the filter of the second step.
+async function acceptBroadcast({ orderId, tenantId, riderUserId }) {
+    const settings = await settingsOf(tenantId);
+    const now = new Date();
+
+    // 1) take a slot for this rider
+    const slot = await Rider.findOneAndUpdate(
+        { tenantId, userId: riderUserId, isActive: true, isOnline: true, activeOrderCount: { $lt: settings.maxActiveOrders } },
+        { $inc: { activeOrderCount: 1 } },
+        { returnDocument: 'after' },
+    );
+    if (!slot) throw httpError(409, 'You cannot take this order now');
+
+    // 2) win the order
+    let won;
+    try {
+        won = await Order.findOneAndUpdate(
+            {
+                _id: orderId, tenantId, status: { $in: OPEN }, 'delivery.riderId': { $exists: false },
+                'delivery.broadcast.active': true, 'delivery.broadcast.expiresAt': { $gt: now },
+                'delivery.offers': { $elemMatch: { riderId: riderUserId, result: 'offered' } },
+            },
+            {
+                $set: {
+                    'delivery.riderId': riderUserId, 'delivery.status': 'accepted', 'delivery.assignedAt': now, 'delivery.acceptedAt': now,
+                    'delivery.broadcast.active': false, 'delivery.broadcast.endedAt': now, 'delivery.broadcast.endReason': 'accepted',
+                    'delivery.offers.$[mine].result': 'accepted', 'delivery.offers.$[mine].at': now,
+                    'delivery.offers.$[other].result': 'taken', 'delivery.offers.$[other].at': now,
+                },
+            },
+            {
+                returnDocument: 'after',
+                arrayFilters: [
+                    { 'mine.riderId': riderUserId, 'mine.result': 'offered' },
+                    { 'other.riderId': { $ne: riderUserId }, 'other.result': 'offered' },
+                ],
+            },
+        );
+    } catch (e) {
+        await releaseSlot(tenantId, riderUserId);
+        throw e;
+    }
+    if (!won) {
+        await releaseSlot(tenantId, riderUserId);   // the loser's count goes back to what it was
+        const cur = await Order.findOne({ _id: orderId, tenantId }).select('status delivery.riderId delivery.broadcast').lean();
+        if (!cur || !OPEN.includes(cur.status)) throw httpError(409, 'This request is no longer available');
+        const expires = cur.delivery?.broadcast?.expiresAt;
+        if (!cur.delivery?.riderId && expires && new Date(expires) <= now) throw httpError(409, 'This request has expired');
+        if (!cur.delivery?.riderId && cur.delivery?.broadcast?.active) throw httpError(409, 'This request is not available for you');
+        throw httpError(409, 'Taken by someone else');
+    }
+
+    let order = won;
+    if (order.status === 'out_for_delivery') {   // the food already left: he takes over from there
+        order = (await Order.findOneAndUpdate(
+            { _id: order._id, tenantId, 'delivery.riderId': riderUserId, 'delivery.status': 'accepted' },
+            { $set: { 'delivery.status': 'picked_up', 'delivery.pickedUpAt': now } },
+            { returnDocument: 'after' },
+        )) || order;
+    }
+
+    notify.riderAccepted(order);   // the owner and the customer see the rider name
+    const lost = (order.delivery?.offers || [])
+        .filter((o) => o.result === 'taken' && o.at && new Date(o.at).getTime() === now.getTime())
+        .map((o) => o.riderId);
+    notify.offersClosed({ tenantId, orderId: order._id, orderNo: order.orderNo, why: 'taken', riderIds: lost });
+    return order;
+}
+
+// A rider says no. If nobody is left to answer, the broadcast ends and the owner is alerted ONCE.
+async function rejectBroadcast({ orderId, tenantId, riderUserId }) {
+    const now = new Date();
+    const r = await Order.updateOne(
+        {
+            _id: orderId, tenantId, 'delivery.broadcast.active': true,
+            'delivery.offers': { $elemMatch: { riderId: riderUserId, result: 'offered' } },
+        },
+        { $set: { 'delivery.offers.$[o].result': 'rejected', 'delivery.offers.$[o].at': now } },
+        { arrayFilters: [{ 'o.riderId': riderUserId, 'o.result': 'offered' }] },
+    );
+    if (!r.modifiedCount) throw httpError(409, 'This request is no longer available');
+    notify.riderRejected({ tenantId, orderId, riderUserId });
+    const left = await Order.exists({ _id: orderId, tenantId, 'delivery.offers': { $elemMatch: { result: 'offered' } } });
+    if (!left) await endBroadcast(orderId, tenantId, 'all_rejected');   // everybody said no
+    return { ok: true };
+}
+
+async function expireBroadcasts(now = new Date()) {
+    const due = await Order.find({ 'delivery.broadcast.active': true, 'delivery.broadcast.expiresAt': { $lte: now } })
+        .select('tenantId').limit(50).lean();
+    let n = 0;
+    for (const o of due) if (await endBroadcast(o._id, o.tenantId, 'timeout')) n += 1;
+    return n;
 }
 
 /* ------------------------------ owner / superadmin ------------------------------ */
@@ -168,9 +329,10 @@ async function removeCurrent({ orderId, tenantId, current, reason, actor }) {
 }
 
 // riderUserId = pick by hand, auto = let the system pick. If the order already has a rider, a reason is needed.
+// Picking a rider by hand ends an open broadcast ("the owner assigns by hand").
 async function assign({ orderId, tenantId, riderUserId, auto = false, reason, actor }) {
     const order = await Order.findOne({ _id: orderId, tenantId })
-        .select('orderType status delivery.riderId delivery.status delivery.assignedAt').lean();
+        .select('orderType status delivery.riderId delivery.status delivery.assignedAt delivery.broadcast').lean();
     if (!order) throw httpError(404, 'Order not found');
     if (order.orderType !== 'delivery') throw httpError(400, 'Only delivery orders need a rider');
     if (!OPEN.includes(order.status)) throw httpError(409, `A rider cannot be set when the order is "${order.status}"`);
@@ -181,6 +343,9 @@ async function assign({ orderId, tenantId, riderUserId, auto = false, reason, ac
 
     if (auto) {
         if (current) throw httpError(409, 'This order already has a rider. Choose a rider by hand to change him.');
+        if (order.delivery?.broadcast?.active) {
+            throw httpError(409, 'All free riders are already being asked. Wait for one to accept, or choose a rider by hand.');
+        }
         const o = await autoAssign({ orderId, tenantId, settings });
         if (!o) throw httpError(409, 'No rider is free right now. Choose one by hand.');
         return o;
@@ -194,6 +359,7 @@ async function assign({ orderId, tenantId, riderUserId, auto = false, reason, ac
     if (!slot) throw httpError(409, 'This rider is not available (switched off, not found, or has too many orders)');
     try {
         if (current) await removeCurrent({ orderId, tenantId, current, reason, actor });
+        await endBroadcast(orderId, tenantId, 'cancelled');   // the other riders are told it is closed
     } catch (e) {
         await releaseSlot(tenantId, riderUserId);
         throw e;
@@ -216,8 +382,8 @@ async function unassign({ orderId, tenantId, reason, actor }) {
     return { ok: true };
 }
 
-/* ------------------------------ rider side (routes come in the next batch) ------------------------------ */
-async function accept({ orderId, tenantId, riderUserId }) {
+/* ------------------------------ rider side ------------------------------ */
+async function acceptManual({ orderId, tenantId, riderUserId }) {
     const cur = await Order.findOne({ _id: orderId, tenantId })
         .select('status delivery.riderId delivery.status delivery.offerExpiresAt').lean();
     if (!cur || String(cur.delivery?.riderId) !== String(riderUserId) || cur.delivery.status !== 'assigned') {
@@ -248,13 +414,27 @@ async function accept({ orderId, tenantId, riderUserId }) {
     return order;
 }
 
-async function reject({ orderId, tenantId, riderUserId }) {
+async function rejectManual({ orderId, tenantId, riderUserId }) {
     const r = await clearOffer({ orderId, tenantId, riderUserId, result: 'rejected' });
     if (!r) throw httpError(409, 'This request is no longer available');
     notify.riderRejected({ tenantId, orderId, riderUserId });   // only the owner is told
     // system offers move on to the next rider
     if (r.by === 'system') await autoAssign({ orderId, tenantId }).catch((e) => console.error('Auto-assign error:', e.message));
     return { ok: true };
+}
+
+// The routes call these two. While a broadcast is open the broadcast rules apply, otherwise the one-rider rules.
+async function accept({ orderId, tenantId, riderUserId }) {
+    const cur = await Order.findOne({ _id: orderId, tenantId }).select('delivery.broadcast delivery.offers').lean();
+    if (cur?.delivery?.broadcast?.active) return acceptBroadcast({ orderId, tenantId, riderUserId });
+    if (lastOffer(cur, riderUserId)?.result === 'taken') throw httpError(409, 'Taken by someone else');
+    return acceptManual({ orderId, tenantId, riderUserId });
+}
+
+async function reject({ orderId, tenantId, riderUserId }) {
+    const cur = await Order.findOne({ _id: orderId, tenantId }).select('delivery.broadcast').lean();
+    if (cur?.delivery?.broadcast?.active) return rejectBroadcast({ orderId, tenantId, riderUserId });
+    return rejectManual({ orderId, tenantId, riderUserId });
 }
 
 /* ------------------------------ timeouts ------------------------------ */
@@ -293,6 +473,8 @@ function startOfferScheduler() {
         try {
             const n = await expireOffers();
             if (n) console.log(`Riders: ${n} offer(s) timed out`);
+            const b = await expireBroadcasts();
+            if (b) console.log(`Riders: ${b} broadcast(s) timed out`);
         } catch (e) {
             console.error('Offer scheduler error:', e.message);
         } finally {
@@ -303,5 +485,6 @@ function startOfferScheduler() {
 }
 
 module.exports = {
-    settingsOf, autoOnPreparing, assign, unassign, accept, reject, expireOffers, startOfferScheduler,
+    settingsOf, assign, unassign, accept, reject, expireOffers, startOfferScheduler,
+    startBroadcast, endBroadcast, acceptBroadcast, rejectBroadcast, expireBroadcasts,
 };

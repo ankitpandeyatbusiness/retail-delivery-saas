@@ -78,6 +78,8 @@ const orderSchema = new Schema({
         offerExpiresAt: Date,
         pinRequired: { type: Boolean, default: false },   // shop setting copied when the rider is assigned
         pinAttempts: { type: Number, default: 0 },
+        // the offer to ALL free riders at once (automatic mode)
+        broadcast: { active: Boolean, startedAt: Date, expiresAt: Date, endedAt: Date, endReason: String },
         problems: [{ _id: false, at: Date, reason: String, note: String }],   // reported by the rider
         cashCollectedPaise: { type: Number, default: 0 },
         offers: [{
@@ -86,7 +88,7 @@ const orderSchema = new Schema({
             offeredAt: Date,
             expiresAt: Date,
             by: String,   // system, owner or superadmin
-            result: { type: String, enum: ['offered', 'accepted', 'rejected', 'timeout', 'cancelled'] },
+            result: { type: String, enum: ['offered', 'accepted', 'rejected', 'timeout', 'cancelled', 'taken'] },   // taken = another rider accepted first
             at: Date,
         }],
         riderHistory: [{
@@ -115,6 +117,7 @@ const orderSchema = new Schema({
         note: String,
     }],
     stuck: { stage: String, ownerAt: Date, adminAt: Date },   // late-order alerts already sent (internal)
+    unacceptedReminders: { type: [Number], default: undefined },   // the "please accept" reminders already sent to the owner, in minutes (3, 6)
     cancelReason: String,
     cancelledBy: { type: String, enum: ['customer', 'shop', 'admin', 'system'] },
     // billable = this order EARNED MONEY for the shop, so it counts for the free period and the monthly rent. Set once, by billableService.
@@ -135,6 +138,7 @@ orderSchema.index({ tenantId: 1, status: 1, deliveredAt: 1 });   // reports
 orderSchema.index({ tenantId: 1, 'billing.at': 1 }, { partialFilterExpression: { 'billing.billable': true } });   // monthly billing count
 orderSchema.index({ tenantId: 1, 'delivery.riderId': 1, status: 1 });   // a rider's orders
 orderSchema.index({ 'delivery.offerExpiresAt': 1 }, { partialFilterExpression: { 'delivery.status': 'assigned' } });   // offer timeout job
+orderSchema.index({ 'delivery.broadcast.expiresAt': 1 }, { partialFilterExpression: { 'delivery.broadcast.active': true } });   // broadcast timeout job
 orderSchema.index({ createdAt: 1 }, { partialFilterExpression: { status: 'placed' } });   // auto-cancel job
 orderSchema.index({ tenantId: 1, 'customer.phoneHash': 1, status: 1 });   // returning-customer and coupon checks (by hash)
 orderSchema.index({ tenantId: 1, 'customer.phone': 1, status: 1 });   // returning-customer and coupon checks
@@ -150,6 +154,7 @@ orderSchema.set('toJSON', {
         delete ret.__v;
         delete ret.idempotencyKey;
         delete ret.stuck;
+        delete ret.unacceptedReminders;
         if (ret.customer?.deleted) {   // he deleted his account: hide his details (invoice PDFs keep the real data)
             ret.customer = { name: 'Deleted customer', phone: maskPhone(ret.customer.phone), deleted: true };
             if (ret.address) ret.address = { ...ret.address, name: 'Deleted customer', phone: maskPhone(ret.address.phone) };
@@ -158,6 +163,7 @@ orderSchema.set('toJSON', {
         }
         if (ret.delivery) {   // internal details, never sent as plain order JSON
             delete ret.delivery.offers;
+            delete ret.delivery.broadcast;
             delete ret.delivery.riderHistory;
             delete ret.delivery.pinAttempts;
             delete ret.delivery.problems;

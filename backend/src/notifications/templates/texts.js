@@ -36,13 +36,20 @@ const TEXTS = {
         body: `Order #${v.orderNo} - Rs ${v.total ?? ''} - ${String(v.orderType || '').replace('_', '-')}`,
     }),
     order_status: statusText,
+    order_unaccepted_reminder: (v) => ({
+        title: v.minutes >= 6 ? 'Please accept the order' : 'Order is waiting',
+        body: `Order #${v.orderNo} is waiting for you. It will be cancelled in ${v.left} minutes if you do not accept it.`,
+    }),
     order_cancelled: (v) => ({
         title: v.undelivered ? 'Order not delivered' : 'Order cancelled',
         body: v.audience === 'rider'
             ? (v.undelivered ? `Order #${v.orderNo} was marked as not delivered.` : `Order #${v.orderNo} was cancelled.`)
             : `Order #${v.orderNo} was cancelled${v.bySystem ? ' (not accepted in time)' : ' by the customer'}.`,
     }),
-    rider_offer: (v) => ({ title: 'New delivery request', body: `Order #${v.orderNo}. Please accept within ${v.secs} seconds.` }),
+    rider_offer: (v) => ({
+        title: 'New delivery request',
+        body: `Order #${v.orderNo}${v.items ? ` (${v.items} item${v.items > 1 ? 's' : ''}${v.collect ? `, collect Rs ${v.collect}` : ''})` : ''}. Please accept within ${v.secs} seconds.`,
+    }),
     rider_assigned: (v) => ({ title: 'Delivery partner assigned', body: `${v.riderName} will deliver your order #${v.orderNo}.` }),
     rider_accepted: (v) => ({ title: 'Rider accepted', body: `${v.riderName} accepted order #${v.orderNo}.` }),
     rider_rejected: (v) => ({ title: 'Rider said no', body: `${v.riderName} rejected order #${v.orderNo ?? ''}.` }),
