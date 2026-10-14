@@ -1,6 +1,6 @@
 // src/screens/CartScreen.jsx
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, ScrollView, TextInput, ActivityIndicator, StyleSheet, LayoutAnimation, UIManager, Platform } from 'react-native';
+import { View, Text, Pressable, ScrollView, TextInput, ActivityIndicator, StyleSheet, LayoutAnimation } from 'react-native';
 import { CommonActions, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,10 +17,6 @@ import { useCouponStore } from '../store/useCouponStore';
 import { useAddressStore } from '../store/useAddressStore';
 import { quoteOrder, placeOrder, fetchPickupSlots } from '../api/shopApi';
 import { payForOrder } from '../utils/payOnline';
-
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-    UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 
 const errMsg = (e) => e?.response?.data?.error
     || (e?.response ? 'Something went wrong. Try again.' : 'Network problem. Check your connection.');
@@ -103,9 +99,7 @@ export default function CartScreen() {
             orderType: type,
             paymentMethod: paymentMethodValue,
             items: lines.map((l) => ({
-                productId: l.productId, quantity: l.quantity, selections: l.selections || [], note: l.note || undefined,
-            })),
-        };
+                productId: l.productId, quantity: l.quantity, selections: l.selections || [], note: l.note || undefined })) };
         const code = applied || tryCode;
         if (code && couponOn) b.couponCode = code;
         if (type === 'delivery') {
@@ -535,5 +529,4 @@ const s = StyleSheet.create({
     dockBtn: { paddingVertical: 10, paddingHorizontal: 18, minWidth: 140, flexShrink: 0, elevation: 2 },
     btnRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     btnTotal: { color: '#FFFFFF', fontSize: 12, fontWeight: '600', opacity: 0.9 },
-    btnLabel: { color: '#FFFFFF', fontSize: 15, fontWeight: '900' },
-});
+    btnLabel: { color: '#FFFFFF', fontSize: 15, fontWeight: '900' } });

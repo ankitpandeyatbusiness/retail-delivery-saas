@@ -1,6 +1,15 @@
 // src/store/useThemeStore.js
 import { create } from 'zustand';
+import { Image } from 'expo-image';
 import api from '../api/client';
+import { readCache, writeCache } from '../utils/cache';
+
+const THEME_CACHE_KEY = 'theme';
+
+// download the hero images to the phone's disk in the background, so the login screen opens with them ready
+const warmHeroImages = (urls) => {
+    if (Array.isArray(urls) && urls.length) Image.prefetch(urls, 'disk').catch(() => { });
+};
 
 export const useThemeStore = create((set, get) => ({
     // Fallback values. loadTheme() overwrites them with the shop's real theme.
@@ -17,11 +26,8 @@ export const useThemeStore = create((set, get) => ({
         },
         fontStyle: 'modern',
         buttonShape: 'rounded',
-        heroImages: [
-            require('../assets/tenants/savera/hero-1.png'),
-            require('../assets/tenants/savera/hero-2.png'),
-            require('../assets/tenants/savera/hero-3.png'),
-        ],
+        // CDN urls from the server (tenants/<slug>/branding/hero/ in the bucket). Nothing is bundled in the app.
+        heroImages: [],
     },
 
     setTheme: (newTheme) => set((state) => ({
@@ -35,9 +41,16 @@ export const useThemeStore = create((set, get) => ({
     loadTheme: async () => {
         try {
             const { data } = await api.get('/tenants/theme');
-            const { heroImages, ...rest } = data;
-            // an empty list from the server must not wipe the fallback images
-            get().setTheme({ ...rest, ...(heroImages?.length ? { heroImages } : {}) });
-        } catch (e) { }
+            get().setTheme(data);
+            writeCache(THEME_CACHE_KEY, data);   // so the next start (even offline) shows the shop's own look
+            warmHeroImages(data.heroImages);
+        } catch (e) {
+            // offline or server error: use the last theme this phone saw
+            const saved = await readCache(THEME_CACHE_KEY);
+            if (saved) {
+                get().setTheme(saved);
+                warmHeroImages(saved.heroImages);
+            }
+        }
     },
 }));

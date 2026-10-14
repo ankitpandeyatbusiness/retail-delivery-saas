@@ -10,7 +10,8 @@
             },
             "environment": "preview",
             "env": {
-                "APP_TENANT": "savera"
+                "APP_TENANT": "savera",
+                "MEDIA_CDN_URL": "https://pub-cdf80baebda94e259103a9ca07fe27e1.r2.dev"
             }
         }
     }

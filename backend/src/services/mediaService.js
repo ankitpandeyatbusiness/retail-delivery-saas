@@ -3,21 +3,33 @@ const crypto = require('crypto');
 const mongoose = require('mongoose');
 const { httpError } = require('../middlewares/apiErrors');
 const storage = require('./adapters/storage');
-const { toWebp } = require('./imageProcessor');
+const { toWebp, toPng } = require('./imageProcessor');
 const Media = require('../models/Media');
 const Product = require('../models/Product');
 const Order = require('../models/Order');
+const Tenant = require('../models/Tenant');
+const { invalidateTenant } = require('../middlewares/tenantRecognizer');
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
 const REF_RE = /^[a-zA-Z0-9_-]{1,40}$/;
 const MAX_COMPLAINT_PHOTOS = 3;
+const MAX_HERO_IMAGES = 5;
 
-const OWNER_KINDS = new Set(['logo', 'product', 'category', 'banner', 'collection', 'rider', 'order']);
+// hero images: the shop owner and the superadmin. icon / splash / adaptive: the superadmin only (they are built into the app).
+const HERO_KINDS = new Set(['hero']);
+const BUILD_KINDS = new Set(['icon', 'splash', 'adaptive']);
+const OWNER_KINDS = new Set(['logo', 'product', 'category', 'banner', 'collection', 'rider', 'order', ...HERO_KINDS]);
+const SUPER_KINDS = new Set([...OWNER_KINDS, ...BUILD_KINDS]);
 const CUSTOMER_KINDS = new Set(['customer', 'complaint']);
 
 // ref: needs a refId. fixed: one file name that is overwritten. max: longest side in pixels.
+// png: stays PNG. square: must be square, scaled to exactly `size`. flatten: no transparency.
 const KINDS = {
+    hero: { max: 1600 },
+    icon: { fixed: true, png: true, square: true, size: 1024, flatten: true },
+    adaptive: { fixed: true, png: true, square: true, size: 1024 },
+    splash: { fixed: true, png: true, max: 1600 },
     logo: { max: 1600 },
     product: { ref: true, max: 1600 },
     category: { max: 1600 },
@@ -66,6 +78,10 @@ async function plan({ tenant, kind, refId, actorId, allowed }) {
         const count = await Media.countDocuments({ tenantId: tenant._id, kind: 'complaint', refId });
         if (count >= MAX_COMPLAINT_PHOTOS) throw httpError(400, `You can add up to ${MAX_COMPLAINT_PHOTOS} photos`);
     }
+    if (kind === 'hero') {
+        const count = await Media.countDocuments({ tenantId: tenant._id, kind: 'hero' });
+        if (count >= MAX_HERO_IMAGES) throw httpError(400, `You can have up to ${MAX_HERO_IMAGES} hero images. Delete one first.`);
+    }
     return { cfg, refId };
 }
 
@@ -74,6 +90,10 @@ async function finalKey(tenant, kind, refId) {
     const base = `tenants/${tenant.slug}/`;
     const stamp = `${ymd()}-${shortId()}.webp`;
     switch (kind) {
+        case 'hero': return `${base}branding/hero/${stamp}`;
+        case 'icon': return `${base}branding/icon.png`;
+        case 'adaptive': return `${base}branding/adaptive-foreground.png`;
+        case 'splash': return `${base}branding/splash.png`;
         case 'logo': case 'category': case 'banner': case 'collection':
             return `${base}${FOLDER[kind]}/${stamp}`;
         case 'product': {
@@ -123,15 +143,19 @@ async function confirm({ tenant, actorId, kind, refId, key, replaces, uploadedBy
 
     let img;
     try {
-        img = await toWebp(await storage.get(key), { maxSide: p.cfg.max });
+        const raw = await storage.get(key);
+        img = p.cfg.png
+            ? await toPng(raw, { size: p.cfg.size, maxSide: p.cfg.max, square: p.cfg.square, flatten: p.cfg.flatten })
+            : await toWebp(raw, { maxSide: p.cfg.max });
     } catch (e) {
         await dropRaw();
         if (/sharp is not installed/.test(e.message)) throw e;
+        if (e.userFacing) throw httpError(400, e.message);
         throw httpError(400, 'Not a valid image (jpeg, png or webp, max 5 MB)');
     }
 
     const finalK = await finalKey(tenant, kind, p.refId);
-    await storage.put({ key: finalK, buffer: img.buffer, contentType: 'image/webp' });
+    await storage.put({ key: finalK, buffer: img.buffer, contentType: p.cfg.png ? 'image/png' : 'image/webp' });
     await dropRaw();
 
     // fixed names are overwritten: only the record needs to go
@@ -148,7 +172,7 @@ async function confirm({ tenant, actorId, kind, refId, key, replaces, uploadedBy
     }
 
     const url = `${storage.publicUrl(finalK)}${p.cfg.fixed ? `?v=${Date.now()}` : ''}`;   // new picture, same name: bust the cache
-    return Media.create({
+    const doc = await Media.create({
         tenantId: tenant._id,
         key: finalK,
         url,
@@ -160,6 +184,13 @@ async function confirm({ tenant, actorId, kind, refId, key, replaces, uploadedBy
         height: img.height,
         uploadedBy,
     });
+
+    // a new hero image goes straight to the end of the shop's hero list
+    if (kind === 'hero') {
+        await Tenant.updateOne({ _id: tenant._id }, { $push: { heroImages: url } });
+        invalidateTenant(tenant.slug);
+    }
+    return doc;
 }
 
 async function removeMedia({ tenant, id, allowed, ownerId }) {
@@ -168,9 +199,27 @@ async function removeMedia({ tenant, id, allowed, ownerId }) {
     if (ownerId) filter['uploadedBy.id'] = String(ownerId);
     const m = await Media.findOne(filter);
     if (!m) throw httpError(404, 'File not found');
-    await storage.remove(m.key).catch(() => { });
+    await storage.remove(m.key).catch(() => { });   // the file is deleted for good
     await m.deleteOne();
+    if (m.kind === 'hero') {
+        await Tenant.updateOne({ _id: tenant._id }, { $pull: { heroImages: m.url } });
+        invalidateTenant(tenant.slug);
+    }
     return { ok: true };
 }
 
-module.exports = { OWNER_KINDS, CUSTOMER_KINDS, MAX_BYTES, sign, confirm, removeMedia, sniff, slugify };
+// New order of the hero images. `ids` must be exactly the shop's current hero Media ids.
+async function reorderHeroes({ tenant, ids }) {
+    if (!Array.isArray(ids) || ids.some((id) => !mongoose.isValidObjectId(id))) throw httpError(400, 'Send ids: a list of hero image ids');
+    const items = await Media.find({ tenantId: tenant._id, kind: 'hero' }).select('url').lean();
+    const byId = new Map(items.map((m) => [String(m._id), m.url]));
+    if (ids.length !== byId.size || new Set(ids.map(String)).size !== ids.length || ids.some((id) => !byId.has(String(id)))) {
+        throw httpError(400, 'ids must list every hero image exactly once');
+    }
+    const heroImages = ids.map((id) => byId.get(String(id)));
+    await Tenant.updateOne({ _id: tenant._id }, { $set: { heroImages } });
+    invalidateTenant(tenant.slug);
+    return { heroImages };
+}
+
+module.exports = { OWNER_KINDS, SUPER_KINDS, CUSTOMER_KINDS, MAX_BYTES, sign, confirm, removeMedia, reorderHeroes, sniff, slugify };

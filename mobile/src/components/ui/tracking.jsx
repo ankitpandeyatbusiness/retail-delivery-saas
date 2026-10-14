@@ -1,6 +1,8 @@
 // The "Track delivery" card on the order screen: who is bringing it, when it arrives, the delivery PIN,
-// and (while the rider is on the way) a small map. Everything comes from GET /orders/:id/tracking.
-import React, { useEffect, useRef } from 'react';
+// and a small map: the rider as a bike pin moving towards the customer's address pin.
+// The rider pin needs a live location from the server (only while the rider is on the way and the phone is
+// sending it). Until then the map shows the address alone. Everything comes from GET /orders/:id/tracking.
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
@@ -35,6 +37,13 @@ function etaText(t) {
 export default function TrackingCard({ tracking: t, destination }) {
     const { primary, text, muted, surface, border } = useBrand();
     const map = useRef(null);
+    // a custom marker view is drawn once, then frozen (keeps the map smooth). Updated when the rider moves.
+    const [settle, setSettle] = useState(true);
+    useEffect(() => {
+        setSettle(true);
+        const id = setTimeout(() => setSettle(false), 600);
+        return () => clearTimeout(id);
+    }, [t.riderLocation?.lat, t.riderLocation?.lng, primary]);
 
     const rider = t.riderLocation ? { latitude: t.riderLocation.lat, longitude: t.riderLocation.lng } : null;
     const dest = destination?.latitude != null && destination?.longitude != null ? destination : null;
@@ -81,18 +90,36 @@ export default function TrackingCard({ tracking: t, destination }) {
                 </View>
             ) : null}
 
-            {rider ? (
+            {(rider || (dest && ['rider_assigned', 'on_the_way'].includes(t.state))) ? (
                 <View style={[s.mapBox, { borderColor: border }]}>
                     <MapView
                         ref={map}
                         provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
                         style={StyleSheet.absoluteFill}
                         initialRegion={{ ...(dest || rider), latitudeDelta: 0.02, longitudeDelta: 0.02 }}
+                        showsCompass={false}
                         toolbarEnabled={false} rotateEnabled={false} pitchEnabled={false}
                     >
-                        <Marker coordinate={rider} title="Delivery partner" pinColor={primary} />
-                        {dest ? <Marker coordinate={dest} title="Your address" pinColor="#1E8E3E" /> : null}
+                        {rider ? (
+                            <Marker coordinate={rider} title="Delivery partner" anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={settle}>
+                                <View style={[s.bike, { backgroundColor: primary }]}>
+                                    <Ionicons name="bicycle" size={20} color="#FFFFFF" />
+                                </View>
+                            </Marker>
+                        ) : null}
+                        {dest ? (
+                            <Marker coordinate={dest} title="Your address" anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={settle}>
+                                <View style={s.home}>
+                                    <Ionicons name="home" size={16} color="#FFFFFF" />
+                                </View>
+                            </Marker>
+                        ) : null}
                     </MapView>
+                    {!rider ? (
+                        <View style={[s.wait, { backgroundColor: surface, borderColor: border }]}>
+                            <Text style={[s.sub, { color: muted, marginTop: 0 }]}>Live location will appear once your order is picked up</Text>
+                        </View>
+                    ) : null}
                 </View>
             ) : null}
         </View>
@@ -110,5 +137,8 @@ const s = StyleSheet.create({
     pin: { marginTop: 14, borderRadius: 14, padding: 12, alignItems: 'center' },
     pinLabel: { fontSize: 12, fontWeight: '600' },
     pinNo: { fontSize: 26, fontWeight: '900', letterSpacing: 4, marginTop: 4 },
+    bike: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#FFFFFF', elevation: 4 },
+    home: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1E8E3E', borderWidth: 2, borderColor: '#FFFFFF', elevation: 3 },
+    wait: { position: 'absolute', left: 8, right: 8, bottom: 8, borderRadius: 10, borderWidth: 1, paddingVertical: 6, paddingHorizontal: 10 },
     mapBox: { marginTop: 14, height: 190, borderRadius: 14, overflow: 'hidden', borderWidth: 1 },
 });

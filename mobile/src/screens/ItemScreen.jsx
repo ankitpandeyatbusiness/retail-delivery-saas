@@ -2,8 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     View, Text, Pressable, FlatList, Share, KeyboardAvoidingView, Platform, StyleSheet,
-    Animated, Easing, LayoutAnimation, UIManager,
-} from 'react-native';
+    Animated, Easing, LayoutAnimation } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,10 +13,6 @@ import SlideNum from '../components/ui/SlideNum';
 import { useHomeStore } from '../store/useHomeStore';
 import { useMenuStore, useCartStore } from '../store/shopStores';
 import { fetchProduct } from '../api/shopApi';
-
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-    UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 
 // pre-select defaults, and the first available options for required groups
 function initSel(p) {
@@ -232,8 +227,7 @@ export default function ItemScreen() {
         useCartStore.getState().add({
             productId: p._id, name: p.name, image: p.image, isVeg: p.isVeg,
             price: unit, quantity: qty, selections, optionsText: names.join(', '),
-            note: note.trim() || undefined,
-        });
+            note: note.trim() || undefined });
         setAdded(true);
         setTimeout(() => setAdded(false), 1200);
     };
@@ -242,8 +236,7 @@ export default function ItemScreen() {
         try {
             await Share.share({
                 title: p?.name,
-                message: `${p?.name} · ₹${p?.price}\nOrder it from ${full.restaurant?.name || 'our shop'}!`,
-            });
+                message: `${p?.name} · ₹${p?.price}\nOrder it from ${full.restaurant?.name || 'our shop'}!` });
         } catch (e) {
             showToast('Could not open share');
         }
@@ -458,5 +451,4 @@ const s = StyleSheet.create({
     cartBar: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 12, marginBottom: 8, paddingHorizontal: 16, paddingVertical: 10, elevation: 6 },
     cartBarTop: { color: '#FFFFFF', fontSize: 14, fontWeight: '900' },
     cartBarSub: { color: '#FFFFFF', fontSize: 12, fontWeight: '600', opacity: 0.9, marginTop: 1 },
-    cartBarGo: { color: '#FFFFFF', fontSize: 15, fontWeight: '900', marginRight: 2 },
-});
+    cartBarGo: { color: '#FFFFFF', fontSize: 15, fontWeight: '900', marginRight: 2 } });

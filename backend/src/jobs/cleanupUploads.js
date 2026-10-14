@@ -8,8 +8,10 @@ const mongoose = require('mongoose');
 const storage = require('../services/adapters/storage');
 const Media = require('../models/Media');
 const Complaint = require('../models/Complaint');
+const Tenant = require('../models/Tenant');
 
 const AGE_MS = 24 * 60 * 60 * 1000;
+const HERO_ORPHAN_AGE_MS = 60 * 60 * 1000;   // a hero image is added to the list within seconds of its upload
 const EVERY_MS = 6 * 60 * 60 * 1000;
 const MAX_DELETES = 1000;       // one run never deletes more than this
 const CHUNK = 500;
@@ -75,6 +77,39 @@ async function runCleanupComplaintPhotos({ now = Date.now() } = {}) {
     return { scanned, deleted };
 }
 
+// Hero images that are in storage and in Media but not in the shop's hero list any more
+// (for example a failed save). Deleted from storage and from Media.
+async function runCleanupHeroOrphans({ now = Date.now() } = {}) {
+    if (process.env.STORAGE_MOCK === 'true' && process.env.CLEANUP_UPLOADS_IN_MOCK !== 'true') return { skipped: true, scanned: 0, deleted: 0 };
+
+    const cutoff = new Date(now - HERO_ORPHAN_AGE_MS);
+    let scanned = 0;
+    let deleted = 0;
+    let after = null;
+
+    while (deleted < MAX_DELETES) {
+        const filter = { kind: 'hero', createdAt: { $lt: cutoff }, ...(after ? { _id: { $gt: after } } : {}) };
+        const part = await Media.find(filter).sort({ _id: 1 }).limit(CHUNK).lean();
+        if (!part.length) break;
+        scanned += part.length;
+        after = part[part.length - 1]._id;
+
+        const tenants = await Tenant.find({ _id: { $in: [...new Set(part.map((m) => String(m.tenantId)))] } }).select('heroImages').lean();
+        const used = new Set(tenants.flatMap((t) => (t.heroImages || []).map((u) => `${t._id}|${u}`)));
+
+        for (const m of part) {
+            if (deleted >= MAX_DELETES) break;
+            if (used.has(`${m.tenantId}|${m.url}`)) continue;
+            try {
+                await storage.remove(m.key);
+                await Media.deleteOne({ _id: m._id });
+                deleted += 1;
+            } catch (e) { console.error('Cleanup hero images: remove failed', m.key, e.message); }
+        }
+    }
+    return { scanned, deleted };
+}
+
 let running = false;
 function startCleanupUploadsScheduler() {
     const run = async () => {
@@ -85,6 +120,8 @@ function startCleanupUploadsScheduler() {
             if (r.deleted) console.log(`Cleanup uploads: ${r.deleted} unused file(s) deleted`);
             const c = await runCleanupComplaintPhotos();
             if (c.deleted) console.log(`Cleanup uploads: ${c.deleted} unsent complaint photo(s) deleted`);
+            const h = await runCleanupHeroOrphans();
+            if (h.deleted) console.log(`Cleanup uploads: ${h.deleted} unused hero image(s) deleted`);
         } catch (e) {
             console.error('Cleanup uploads error:', e.message);
         } finally {
@@ -95,4 +132,4 @@ function startCleanupUploadsScheduler() {
     setInterval(run, EVERY_MS).unref?.();
 }
 
-module.exports = { runCleanupUploads, runCleanupComplaintPhotos, startCleanupUploadsScheduler };
+module.exports = { runCleanupUploads, runCleanupComplaintPhotos, runCleanupHeroOrphans, startCleanupUploadsScheduler };

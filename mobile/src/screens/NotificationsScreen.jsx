@@ -1,12 +1,15 @@
 // src/screens/NotificationsScreen.jsx
 // The customer's inbox: order updates, rider news, payment receipts. Tapping one opens its order.
+// Opening this screen marks everything as read (the rows that were new stay highlighted until you leave).
+// "Clear all" deletes every message.
 import React, { useCallback, useRef, useState } from 'react';
 import { View, Text, FlatList, Pressable, ActivityIndicator, RefreshControl, StyleSheet } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, BackHeader } from '../components/ui/kit';
-import { tint } from '../components/ui/shop';
-import { fetchInbox, markRead, markAllRead } from '../api/notificationApi';
+import { tint, showToast } from '../components/ui/shop';
+import { ask } from '../components/ui/dialog';
+import { fetchInbox, markAllRead, clearAll } from '../api/notificationApi';
 import { useNotificationStore } from '../store/useNotificationStore';
 import { onNotification } from '../api/socket';
 
@@ -33,7 +36,6 @@ export default function NotificationsScreen() {
     const nav = useNavigation();
     const { primary, text, muted, surface, border, background, error } = useBrand();
     const setUnread = useNotificationStore((s) => s.set);
-    const drop = useNotificationStore((s) => s.drop);
 
     const [items, setItems] = useState([]);
     const [state, setState] = useState('loading');   // loading | ok | error
@@ -46,7 +48,11 @@ export default function NotificationsScreen() {
     const load = useCallback(async () => {
         try {
             const r = await fetchInbox({ page: 1, limit: 20 });
-            setItems(r.items); setPage(1); setMore(!!r.hasMore); setUnread(r.unreadCount); setState('ok');
+            setItems(r.items); setPage(1); setMore(!!r.hasMore); setState('ok');
+            if (r.unreadCount > 0) {
+                setUnread(0);                          // seeing the inbox = reading it
+                markAllRead().catch(() => { });
+            } else setUnread(0);
         } catch (e) {
             setState((s) => (s === 'ok' ? 'ok' : 'error'));
         }
@@ -73,22 +79,27 @@ export default function NotificationsScreen() {
     const refresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
     const open = (n) => {
-        if (!n.read) {
-            setItems((cur) => cur.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
-            drop(1);
-            markRead(n.id).catch(() => { });
-        }
         const orderId = n.data?.orderId;
         if (orderId) nav.navigate('OrderDetail', { id: String(orderId) });
     };
 
-    const readAll = async () => {
-        setItems((cur) => cur.map((x) => ({ ...x, read: true })));
-        setUnread(0);
-        try { await markAllRead(); } catch (e) { load(); }
+    const clear = async () => {
+        const yes = await ask({
+            title: 'Clear all notifications?',
+            message: 'Every notification will be deleted. This cannot be undone.',
+            confirmText: 'Clear all',
+            destructive: true,
+            icon: 'trash-outline',
+        });
+        if (!yes) return;
+        const before = items;
+        setItems([]); setMore(false); setUnread(0);
+        try { await clearAll(); } catch (e) {
+            setItems(before);
+            showToast('Could not clear. Try again.');
+            load();
+        }
     };
-
-    const hasUnread = items.some((n) => !n.read);
 
     const renderItem = ({ item: n }) => (
         <Pressable onPress={() => open(n)} style={[s.row, { backgroundColor: n.read ? surface : tint(primary), borderColor: border }]}>
@@ -124,9 +135,9 @@ export default function NotificationsScreen() {
                     onEndReached={loadMore}
                     onEndReachedThreshold={0.4}
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={primary} colors={[primary]} />}
-                    ListHeaderComponent={hasUnread ? (
-                        <Pressable onPress={readAll} hitSlop={8} style={s.readAll}>
-                            <Text style={[s.readAllTxt, { color: primary }]}>Mark all as read</Text>
+                    ListHeaderComponent={items.length ? (
+                        <Pressable onPress={clear} hitSlop={8} style={s.readAll}>
+                            <Text style={[s.readAllTxt, { color: error }]}>Clear all</Text>
                         </Pressable>
                     ) : null}
                     ListFooterComponent={loadingMore ? <ActivityIndicator color={primary} style={{ marginVertical: 16 }} /> : null}

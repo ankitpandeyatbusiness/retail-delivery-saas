@@ -5,6 +5,7 @@
 //   GET  /                ?unread=true&page=1&limit=20   returns { items, unreadCount, page, hasMore }
 //   POST /read-all
 //   POST /:id/read
+//   DELETE /              clear all (customer / rider inbox only)
 const express = require('express');
 const mongoose = require('mongoose');
 const tenantRecognizer = require('../middlewares/tenantRecognizer');
@@ -16,7 +17,9 @@ const DeviceToken = require('../models/DeviceToken');
 const { wrap, httpError } = apiErrors;
 const clamp = (n, min, max) => Math.min(Math.max(n, min), max);
 
-function inbox(filterOf) {
+// allowClear: DELETE / removes the person's whole inbox. Only for customers and riders (`mine`):
+// the owner inbox is read by the escalation job, so the shop side is never cleared this way.
+function inbox(filterOf, { allowClear = false } = {}) {
     const r = express.Router();
 
     r.get('/', wrap(async (req, res) => {
@@ -53,6 +56,14 @@ function inbox(filterOf) {
         res.json({ ok: true });
     }));
 
+    if (allowClear) {
+        // Clear all: deletes every message of this person (filter is always tenant + user, never wider)
+        r.delete('/', wrap(async (req, res) => {
+            const out = await Notification.deleteMany(filterOf(req));
+            res.json({ ok: true, deleted: out.deletedCount });
+        }));
+    }
+
     return r;
 }
 
@@ -87,7 +98,7 @@ mine.post('/devices/remove', wrap(async (req, res) => {
     res.json({ ok: true });
 }));
 
-mine.use(inbox((req) => ({ tenantId: req.tenant._id, userId: req.auth.userId })));
+mine.use(inbox((req) => ({ tenantId: req.tenant._id, userId: req.auth.userId }), { allowClear: true }));
 mine.use(apiErrors);
 
 const shop = express.Router();

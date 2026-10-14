@@ -6,6 +6,7 @@ const d = (p) => p.then((r) => r.data);
 export const fetchInbox = (params) => d(api.get('/notifications', { params }));
 export const markRead = (id) => d(api.post(`/notifications/${id}/read`));
 export const markAllRead = () => d(api.post('/notifications/read-all'));
+export const clearAll = () => d(api.delete('/notifications'));   // deletes every message of this customer
 
 // push: the server stores the phone's FCM token for the logged-in customer
 export const registerDevice = (token, platform = 'android') => d(api.post('/notifications/devices', { token, platform }));

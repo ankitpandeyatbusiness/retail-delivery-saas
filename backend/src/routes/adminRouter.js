@@ -46,7 +46,7 @@ const pickFields = (fields, body) =>
 
 const SLUG_RE = /^[a-z0-9-]{3,40}$/;
 const RESERVED_SLUGS = ['admin', 'api', 'www'];
-const TENANT_FIELDS = ['name', 'tagline', 'logo', 'colors', 'heroImages', 'status', 'androidPackage', 'phone', 'address', 'delivery', 'business', 'subscription', 'contact'];
+const TENANT_FIELDS = ['name', 'tagline', 'logo', 'colors', 'status', 'androidPackage', 'phone', 'address', 'delivery', 'business', 'subscription', 'contact'];
 
 /* ------------------------------ login (public) ------------------------------ */
 const authRoutes = require('./adminAuthRouter');
@@ -154,6 +154,8 @@ admin.get('/tenants/:tid', wrap(async (req, res) => {
     res.json({ tenant, resolved: resolveConfig(tenant), state: shopState(tenant) });
 }));
 
+// heroImages is not a field here: hero images are uploaded (and deleted from the bucket) through
+// /admin/tenants/:tid/shop/uploads, so a file can never be left behind in storage.
 // Send only what changed. `settings`, if sent, REPLACES the whole settings document (the panel sends its full form).
 // `business`, if sent, REPLACES the whole business object: send legalName, gstin and fssai together.
 admin.put('/tenants/:tid', wrap(async (req, res) => {
@@ -177,7 +179,7 @@ admin.put('/tenants/:tid', wrap(async (req, res) => {
                 tenant.set(`${key}.${subKey}`, subValue);
             }
         } else {
-            // Normal assignment for flat fields (name, phone, heroImages array)
+            // Normal assignment for flat fields (name, phone)
             tenant.set(key, value);
         }
     }

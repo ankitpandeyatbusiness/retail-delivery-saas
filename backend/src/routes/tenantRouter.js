@@ -4,11 +4,14 @@ const tenantRouter = express.Router();
 const tenantRecognizer = require('../middlewares/tenantRecognizer');
 const { resolveConfig } = require('../services/tenantConfigService');
 const { getAvailability, applyAutoHide } = require('../services/availability');
+const { getDefaultHeroUrls } = require('../services/defaultHeroes');
 
 // Small and fast: used at app start for colors, name and hero images
-tenantRouter.get('/theme', tenantRecognizer, (req, res) => {
+tenantRouter.get('/theme', tenantRecognizer, async (req, res) => {
     const t = req.tenant;
     const c = resolveConfig(t);
+    // a shop with no hero images of its own shows the platform defaults from the bucket (defaults/hero/)
+    const heroImages = t.heroImages?.length ? t.heroImages : await getDefaultHeroUrls();
     res.json({
         name: t.name,
         tagline: t.tagline,
@@ -16,7 +19,7 @@ tenantRouter.get('/theme', tenantRecognizer, (req, res) => {
         colors: c.brand.colors,
         fontStyle: c.brand.fontStyle,
         buttonShape: c.brand.buttonShape,
-        heroImages: t.heroImages,
+        heroImages,
     });
 });
 

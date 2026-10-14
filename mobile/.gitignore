@@ -44,3 +44,6 @@ yarn-error.*
 .claude/
 AGENTS.md
 .mock-storage/
+
+# downloaded app icon/splash (from the media bucket at build time)
+.branding-cache/

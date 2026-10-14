@@ -473,6 +473,10 @@ export default function HomeScreen() {
         if (B.includes('search')) R.push({ t: 'search' });
         if (!full.restaurant.isOpen) R.push({ t: 'closed' });
 
+        // the VEG switch also applies to the strips (bestsellers, combos, festival, new arrivals); an empty strip is not shown
+        const vegOnly = applied.active.includes('veg_only');
+        const keep = (list) => (vegOnly ? list.filter((p) => p.isVeg) : list);
+
         const pushItems = (list, cat) => {
             if (config.cardStyle === 'grid') {
                 for (let i = 0; i < list.length; i += 2) R.push({ t: 'pair', a: list[i], b: list[i + 1], cat });
@@ -484,11 +488,11 @@ export default function HomeScreen() {
             else if (b === 'categories' && chips.length) R.push({ t: 'cats' });
             else if (b === 'filters') R.push({ t: 'filters' });
             else if (b === 'offers' && offers.length && full.offers.couponsEnabled && full.offers.showOnHome) R.push({ t: 'offers' });
-            else if (b === 'bestsellers' && recommended.length) R.push({ t: 'strip', id: 'best', title: 'Bestsellers', sub: 'Most ordered', items: recommended, see: 'Bestsellers' });
-            else if (b === 'festival') festival.forEach((c) => R.push({ t: 'strip', id: `f${c.id}`, title: c.title, sub: c.subtitle || '', items: c.products }));
-            else if (b === 'combos') combo.forEach((c) => R.push({ t: 'strip', id: `c${c.id}`, title: c.title, sub: c.subtitle || '', items: c.products }));
+            else if (b === 'bestsellers' && keep(recommended).length) R.push({ t: 'strip', id: 'best', title: 'Bestsellers', sub: 'Most ordered', items: keep(recommended), see: 'Bestsellers' });
+            else if (b === 'festival') festival.forEach((c) => { const items = keep(c.products); if (items.length) R.push({ t: 'strip', id: `f${c.id}`, title: c.title, sub: c.subtitle || '', items }); });
+            else if (b === 'combos') combo.forEach((c) => { const items = keep(c.products); if (items.length) R.push({ t: 'strip', id: `c${c.id}`, title: c.title, sub: c.subtitle || '', items }); });
             else if (b === 'new_arrivals') {
-                const news = all.filter((i) => i.isNewArrival).slice(0, 10);
+                const news = keep(all.filter((i) => i.isNewArrival)).slice(0, 10);
                 if (news.length) R.push({ t: 'strip', id: 'new', title: 'New arrivals', sub: 'Just added', items: news });
             } else if (b === 'items') {
                 if (!loaded) R.push({ t: 'loading' });
@@ -509,7 +513,7 @@ export default function HomeScreen() {
             }
         }
         return R;
-    }, [config, full, banners, chips, offers, recommended, festival, combo, all, filtered, grouped, menuCats, loaded, errorStatus, applied.categories]);
+    }, [config, full, banners, chips, offers, recommended, festival, combo, all, filtered, grouped, menuCats, loaded, errorStatus, applied.categories, applied.active]);
 
     const searchIdx = rows.findIndex((r) => r.t === 'search');
     const catsIdx = rows.findIndex((r) => r.t === 'cats');

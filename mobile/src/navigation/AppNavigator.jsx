@@ -12,6 +12,7 @@ import SearchScreen from '../screens/SearchScreen';
 import PaymentMethodsScreen from '../screens/PaymentMethodsScreen';
 import OrdersScreen from '../screens/OrdersScreen';
 import OrderDetailScreen from '../screens/OrderDetailScreen';
+import RiderHomeScreen from '../screens/RiderHomeScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import { bindNavigation, navigationReady } from '../utils/push';
 import AccountScreen from '../screens/AccountScreen';
@@ -106,6 +107,12 @@ function MainTabs() {
     );
 }
 
+// A user with role "rider" gets the delivery screen instead of the shop tabs (same app, same login).
+function Landing() {
+    const role = useAuthStore((s) => s.user?.role);
+    return role === 'rider' ? <RiderHomeScreen /> : <MainTabs />;
+}
+
 export default function AppNavigator() {
     const isHydrated = useAuthStore((s) => s.isHydrated);
     const user = useAuthStore((s) => s.user);
@@ -152,7 +159,7 @@ export default function AppNavigator() {
                 >
                     {/* LoginScreen is untouched. Its Skip / success go to "MainTabs" */}
                     <Stack.Screen name="Login" component={LoginScreen} />
-                    <Stack.Screen name="MainTabs" component={MainTabs} />
+                    <Stack.Screen name="MainTabs" component={Landing} />
 
                     {/* full-screen pages (back arrow top left) */}
                     <Stack.Screen name="Item" component={ItemScreen} />
