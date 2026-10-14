@@ -35,7 +35,6 @@ function Header({ onAddress }) {
     const full = useHomeStore((st) => st.full);
 
     const open = full.restaurant.isOpen;
-    const logo = typeof theme.logo === 'string' ? theme.logo : null;
     const mins = full.orders.prepTimeMin;
     const fee = full.orders.deliveryFee || {};
     const delivers = (full.orders.types || []).includes('delivery');
@@ -57,26 +56,25 @@ function Header({ onAddress }) {
         <LinearGradient colors={[primaryLight, primaryDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.hd}>
             <View style={[s.blob, { top: -50, right: -40, width: 170, height: 170 }]} />
             <View style={[s.blob, { bottom: -60, left: -30, width: 130, height: 130 }]} />
-            <View style={s.hdRow}>
-                <View style={s.logo}>
-                    {logo ? <Image source={{ uri: logo }} style={s.logoImg} contentFit="cover" />
-                        : <Text style={[s.logoTxt, { color: primaryDark }]}>{(theme.name || '?')[0].toUpperCase()}</Text>}
-                </View>
-                <View style={{ flex: 1, marginHorizontal: 12 }}>
-                    <Text style={[s.hdName, { color: onPrimary }]} numberOfLines={1}>{theme.name}</Text>
-                    {user ? (
-                        <Pressable onPress={onAddress} hitSlop={8} style={s.locRow}>
-                            <Ionicons name="location-sharp" size={13} color={onPrimary} />
+            {/* top line: where to deliver (or a welcome), and the quick actions */}
+            <View style={s.hdTop}>
+                {user ? (
+                    <Pressable onPress={onAddress} hitSlop={8} style={s.locBlock}>
+                        <Text style={[s.locCap, { color: onPrimary }]}>DELIVER TO</Text>
+                        <View style={s.locRow}>
+                            <Ionicons name="location-sharp" size={16} color={onPrimary} />
                             <Text style={[s.locTxt, { color: onPrimary }]} numberOfLines={1}>
-                                {addr ? <Text style={s.locLabel}>{addr.label} · </Text> : null}
+                                {addr ? <Text style={s.locLabel}>{addr.label}  </Text> : null}
                                 {addr ? short : 'Select delivery address'}
                             </Text>
-                            <Ionicons name="chevron-down" size={14} color={onPrimary} />
-                        </Pressable>
-                    ) : theme.tagline ? (
-                        <Text style={[s.hdTag, { color: onPrimary }]} numberOfLines={1}>{theme.tagline}</Text>
-                    ) : null}
-                </View>
+                            <Ionicons name="chevron-down" size={15} color={onPrimary} />
+                        </View>
+                    </Pressable>
+                ) : (
+                    <View style={s.locBlock}>
+                        <Text style={[s.locCap, { color: onPrimary }]}>WELCOME TO</Text>
+                    </View>
+                )}
                 {user ? (
                     <Pressable onPress={() => nav.navigate('Notifications')} style={[s.ic, { marginRight: full.offers.couponsEnabled ? 8 : 0 }]} hitSlop={6}>
                         <Ionicons name="notifications-outline" size={20} color={onPrimary} />
@@ -90,8 +88,12 @@ function Header({ onAddress }) {
                         <Ionicons name="pricetags-outline" size={20} color={onPrimary} />
                     </Pressable>
                 ) : null}
-
             </View>
+
+            {/* the shop is the hero */}
+            <Text style={[s.hdTitle, { color: onPrimary }]} numberOfLines={1}>{theme.name}</Text>
+            {theme.tagline ? <Text style={[s.hdTagline, { color: onPrimary }]} numberOfLines={1}>{theme.tagline}</Text> : null}
+
             <View style={s.chipRow}>
                 <View style={s.hChip}>
                     <View style={[s.statusDot, { backgroundColor: open ? '#4ADE80' : '#FF6B6B' }]} />
@@ -641,11 +643,11 @@ export default function HomeScreen() {
 const s = StyleSheet.create({
     hd: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 22, borderBottomLeftRadius: 28, borderBottomRightRadius: 28, overflow: 'hidden' },
     blob: { position: 'absolute', borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.1)' },
-    hdRow: { flexDirection: 'row', alignItems: 'center' },
-    logo: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 2, borderColor: 'rgba(255,255,255,0.6)' },
-    logoImg: { width: 50, height: 50 },
-    logoTxt: { fontSize: 22, fontWeight: '900' },
-    hdName: { fontSize: 22, fontWeight: '900', letterSpacing: -0.4 },
+    hdTop: { flexDirection: 'row', alignItems: 'center' },
+    locBlock: { flex: 1, marginRight: 12 },
+    locCap: { fontSize: 10.5, fontWeight: '800', letterSpacing: 1.4, opacity: 0.78 },
+    hdTitle: { fontSize: 30, fontWeight: '900', letterSpacing: -0.8, marginTop: 14 },
+    hdTagline: { fontSize: 13.5, fontWeight: '500', opacity: 0.9, marginTop: 3 },
     hdTag: { fontSize: 12, opacity: 0.88, marginTop: 1 },
     ic: { width: 40, height: 40, borderRadius: 20, backgroundColor: glass, alignItems: 'center', justifyContent: 'center' },
     bellBadge: { position: 'absolute', top: -2, right: -2, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, backgroundColor: '#E5383B', alignItems: 'center', justifyContent: 'center' },
@@ -653,7 +655,7 @@ const s = StyleSheet.create({
     cBadge: { position: 'absolute', top: -3, right: -3, minWidth: 17, height: 17, borderRadius: 9, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center' },
     cBadgeTxt: { fontSize: 10, fontWeight: '800' },
     chipRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 16 },
-    hChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: glass, borderRadius: 99, paddingHorizontal: 11, paddingVertical: 6, marginRight: 8, marginBottom: 4 },
+    hChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: glass, borderRadius: 99, paddingHorizontal: 12, paddingVertical: 7, marginRight: 8, marginBottom: 6, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.28)' },
     hChipTxt: { fontSize: 12, fontWeight: '700' },
     statusDot: { width: 8, height: 8, borderRadius: 4, marginRight: 6 },
 
@@ -719,7 +721,7 @@ const s = StyleSheet.create({
     pair: { flexDirection: 'row', paddingHorizontal: 10 },
     empty: { padding: 40, alignItems: 'center' },
     emptyTxt: { fontSize: 14, marginTop: 8 },
-    locRow: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', marginTop: 2, maxWidth: '100%' },
-    locTxt: { flexShrink: 1, fontSize: 12, opacity: 0.92, marginLeft: 3, marginRight: 2 },
+    locRow: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', marginTop: 4, maxWidth: '100%' },
+    locTxt: { flexShrink: 1, fontSize: 14.5, fontWeight: '600', marginLeft: 3, marginRight: 3 },
     locLabel: { fontWeight: '900' },
 });

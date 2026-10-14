@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { ActivityIndicator, View, StyleSheet,Platform } from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
 import { NavigationContainer, createNavigationContainerRef, CommonActions, StackActions } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -13,6 +13,7 @@ import PaymentMethodsScreen from '../screens/PaymentMethodsScreen';
 import OrdersScreen from '../screens/OrdersScreen';
 import OrderDetailScreen from '../screens/OrderDetailScreen';
 import RiderHomeScreen from '../screens/RiderHomeScreen';
+import CardDetailsScreen from '../screens/CardDetailsScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import { bindNavigation, navigationReady } from '../utils/push';
 import AccountScreen from '../screens/AccountScreen';
@@ -116,7 +117,6 @@ function Landing() {
 export default function AppNavigator() {
     const isHydrated = useAuthStore((s) => s.isHydrated);
     const user = useAuthStore((s) => s.user);
-    const hydrate = useAuthStore((s) => s.hydrate);
     const hadUser = useRef(false);
 
     // "My orders" on the frozen screen: back to the tabs (no reload) and open Orders
@@ -127,12 +127,9 @@ export default function AppNavigator() {
         navigationRef.dispatch(CommonActions.navigate({ name: 'Orders' }));
     };
 
-    // 1) On app start: restore the saved session from SecureStore
-    useEffect(() => {
-        hydrate();
-    }, [hydrate]);
+    // (The saved session is restored by App.js before this screen is ever drawn.)
 
-    // 2) Signed-in user became signed-out (logout, or refresh token rejected): back to Login.
+    // Signed-in user became signed-out (logout, or refresh token rejected): back to Login.
     //    Guests who tapped "Skip" never had a user, so they are not affected.
     useEffect(() => {
         if (!isHydrated) return;
@@ -142,13 +139,7 @@ export default function AppNavigator() {
         hadUser.current = !!user;
     }, [isHydrated, user]);
 
-    if (!isHydrated) {
-        return (
-            <View style={{ flex: 1, backgroundColor: '#111111', alignItems: 'center', justifyContent: 'center' }}>
-                <ActivityIndicator color="#FFFFFF" />
-            </View>
-        );
-    }
+    if (!isHydrated) return null;   // App.js keeps the native splash screen up until this is true
 
     return (
         <View style={{ flex: 1 }}>
@@ -167,6 +158,7 @@ export default function AppNavigator() {
                     <Stack.Screen name="Offers" component={OffersScreen} />
                     <Stack.Screen name="Bestsellers" component={BestsellersScreen} />
                     <Stack.Screen name="PaymentMethods" component={PaymentMethodsScreen} />
+                    <Stack.Screen name="CardDetails" component={CardDetailsScreen} />
                     <Stack.Screen name="Favourites" component={FavouritesScreen} />
                     <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
                     <Stack.Screen name="Notifications" component={NotificationsScreen} />

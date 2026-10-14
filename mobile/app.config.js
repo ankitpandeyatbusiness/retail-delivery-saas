@@ -86,11 +86,6 @@ export default {
     version: '1.0.0',
     orientation: 'portrait',
     icon,
-    splash: {
-      image: splashImage,
-      resizeMode: 'contain',
-      backgroundColor: currentConfig.backgroundColor,
-    },
     android: {
       config: { googleMaps: { apiKey: process.env.GOOGLE_MAPS_API_KEY } },
       package: currentConfig.bundleId,
@@ -137,8 +132,17 @@ export default {
           },
         },
       ],
+      // the one splash screen: brand colour + logo. App.js keeps it up until the shop's look and the login state
+      // are ready, then fades it out, so there is no black screen and no second loader.
+      ['expo-splash-screen', {
+        backgroundColor: currentConfig.backgroundColor,
+        image: splashImage,
+        imageWidth: 180,
+        resizeMode: 'contain',
+      }],
       './plugins/withNoAutofillHighlight',
       './plugins/withUpiAppQueries',
+      './plugins/withTranslucentRazorpay',   // Razorpay's screen is see-through: the app's own screen shows while it works
       // Complaint photos: camera and gallery.
       // Do NOT set microphonePermission: false here: it strips RECORD_AUDIO from the manifest,
       // and voice search (expo-speech-recognition below) then never gets a permission prompt.

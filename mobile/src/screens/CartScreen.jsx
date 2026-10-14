@@ -16,7 +16,9 @@ import { useCartStore } from '../store/shopStores';
 import { useCouponStore } from '../store/useCouponStore';
 import { useAddressStore } from '../store/useAddressStore';
 import { quoteOrder, placeOrder, fetchPickupSlots } from '../api/shopApi';
-import { payForOrder } from '../utils/payOnline';
+import { payForOrder, prewarmPayments, abandonUnpaidOrder } from '../utils/payOnline';
+import PayShimmer from '../components/ui/PayShimmer';
+import { usePayChoice } from '../store/usePayChoice';
 
 const errMsg = (e) => e?.response?.data?.error
     || (e?.response ? 'Something went wrong. Try again.' : 'Network problem. Check your connection.');
@@ -73,9 +75,13 @@ export default function CartScreen() {
     const [slotRes, setSlotRes] = useState(null);
     const [pickedSlot, setPickedSlot] = useState(null);
 
-    const selectedPaymentMethod = route.params?.selectedPaymentMethod || 'Cash on Delivery';
-    const paymentMethodValue = route.params?.paymentMethodValue || 'cod';
-    const upiApp = route.params?.upiApp || null;   // { pkg, label } chosen on the payment screen
+    // chosen on the payment screens (they write the store and go back; the card lives in memory for ONE payment)
+    const selectedPaymentMethod = usePayChoice((st) => st.label);
+    const paymentMethodValue = usePayChoice((st) => st.value);
+    const upiApp = usePayChoice((st) => st.upiApp);   // { pkg, label }
+    const card = usePayChoice((st) => st.card);       // { number, month, year, cvv, name }
+    // an online method is chosen: get the payment SDK ready now, so "Place order" goes straight to the UPI app
+    useEffect(() => { if (paymentMethodValue !== 'cod') prewarmPayments(); }, [paymentMethodValue]);
 
     const [quote, setQuote] = useState(null);
     const [quoteKey, setQuoteKey] = useState('');    // which request the quote belongs to
@@ -83,7 +89,7 @@ export default function CartScreen() {
     const [busy, setBusy] = useState(false);
     const [placing, setPlacing] = useState(false);
     const [tick, setTick] = useState(0);
-    const [idemKey] = useState(() => Crypto.randomUUID());
+    const [idemKey, setIdemKey] = useState(() => Crypto.randomUUID());   // a new one after a withdrawn payment, so the next try is a new order
     const reqId = useRef(0);
 
     const slots = useMemo(() => makeSlots(full.orders.prepTimeMin || 20), []);
@@ -186,26 +192,44 @@ export default function CartScreen() {
 
     const place = async () => {
         if (placing || !fresh || !quote.canPlace || closed) return;
+        if (paymentMethodValue === 'card' && !card) { nav.navigate('CardDetails', { depth: 1 }); return; }   // card details are asked every time
         setPlacing(true);
         try {
             const notes = [...delNotes];
             if (customNote.trim()) notes.push(customNote.trim());
+            const t0 = Date.now();
             const order = await placeOrder(notes.length ? { ...body, note: notes.join(' | ') } : body, idemKey);
-            useCartStore.getState().clear();
+            if (__DEV__) console.log(`[pay] place order took ${Date.now() - t0} ms, paymentStart: ${order?.paymentStart ? 'yes' : 'no'}`);
             const tabs = { name: 'MainTabs', state: { routes: [{ name: 'Orders' }] } };
 
-            // online order: pay right away, straight into the chosen UPI app. The order exists already,
-            // so if the payment is cancelled or fails the customer lands on it and can pay again.
+            // online order: pay right away, straight into the chosen UPI app. Like Zomato / Blinkit, the order only
+            // counts once the money is in: the cart is kept until then, and a cancelled or failed payment
+            // takes the customer back to the cart with nothing ordered.
             if (order?.payment?.method && order.payment.method !== 'cod' && order.payment.status !== 'paid') {
-                const r = await payForOrder({ order, user, upiApp });
-                showToast(r.status === 'paid' ? 'Payment successful. Order placed' : r.message || 'Payment not completed');
                 const id = order._id || order.id;
+                const r = await payForOrder({ order, user, upiApp, card });
+                if (card) usePayChoice.getState().clearCard();   // card details never outlive the attempt
+
+                if (r.status === 'cancelled' || r.status === 'failed') {
+                    const a = await abandonUnpaidOrder(id);
+                    if (!a.paid) {
+                        setIdemKey(Crypto.randomUUID());   // the next "Place order" is a fresh order
+                        setTick((x) => x + 1);             // price the cart again
+                        showToast(r.status === 'cancelled' ? 'Payment cancelled. Your cart is safe' : r.message || 'Payment failed. Try again');
+                        return;                            // stay on the cart
+                    }
+                    r.status = 'paid';                     // the money had arrived after all
+                }
+
+                useCartStore.getState().clear();
+                showToast(r.status === 'paid' ? 'Payment successful. Order placed' : r.message || 'We are confirming your payment');
                 nav.dispatch(CommonActions.reset(r.status === 'paid'
                     ? { index: 0, routes: [tabs] }
-                    : { index: 1, routes: [tabs, { name: 'OrderDetail', params: { id } }] }));
+                    : { index: 1, routes: [tabs, { name: 'OrderDetail', params: { id } }] }));   // still confirming: show the order
                 return;
             }
 
+            useCartStore.getState().clear();
             showToast('Order placed successfully');
             nav.dispatch(CommonActions.reset({ index: 0, routes: [tabs] }));
         } catch (e) {
@@ -473,6 +497,10 @@ export default function CartScreen() {
                 onSelect={setAddr}
                 onChanged={(L) => useAddressStore.getState().sync(L)}
             />
+
+            {/* online order: our own screen appears the moment "Place order" is tapped, like Zomato / Blinkit,
+                instead of a dead pause before the payment app opens */}
+            {placing && paymentMethodValue !== 'cod' ? <PayShimmer appName={upiApp?.label} /> : null}
         </View>
     );
 }

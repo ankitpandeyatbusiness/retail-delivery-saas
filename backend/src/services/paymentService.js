@@ -65,6 +65,21 @@ async function startForOrder({ order }) {
     return { keyId: creds.keyId, rzpOrderId: p.rzpOrderId, amountPaise: p.amountPaise, currency: 'INR', orderId: String(order._id) };
 }
 
+// "Did it get paid?" answered by Razorpay itself, right now. The app calls this after it came back from the
+// payment app without a usable proof (or when it is unsure), so it never depends on a webhook arriving in time.
+// Safe to repeat. -> { paid, status }
+async function checkWithRazorpay({ order }) {
+    if (order.payment?.status === 'paid') return { paid: true, status: 'captured' };
+    const p = await OnlinePayment.findOne({ orderId: order._id, tenantId: order.tenantId });
+    if (!p) return { paid: false, status: 'none' };
+    const creds = await credsFor(order.tenantId);
+    const list = await payments.listOrderPayments({ orderId: p.rzpOrderId, credentials: creds });
+    const captured = list.find((x) => x.status === 'captured');
+    if (!captured) return { paid: false, status: list[0]?.status || 'created' };
+    const r = await confirmCapture({ payment: p, rzp: captured, source: 'app-check' });
+    return { paid: !!r.paid, status: 'captured' };
+}
+
 // The app says "paid". We do NOT trust that: check the proof, then ask Razorpay what really happened.
 async function verifyFromApp({ order, rzpOrderId, rzpPaymentId, signature }) {
     const p = await OnlinePayment.findOne({ orderId: order._id, tenantId: order.tenantId });
@@ -152,4 +167,4 @@ async function markFailed({ payment, reason }) {
     return { ok: true };
 }
 
-module.exports = { ONLINE, MOCK_SECRET, fromEntity, credsFor, startForOrder, verifyFromApp, confirmCapture, settleOrder, markFailed };
+module.exports = { ONLINE, MOCK_SECRET, fromEntity, credsFor, startForOrder, checkWithRazorpay, verifyFromApp, confirmCapture, settleOrder, markFailed };

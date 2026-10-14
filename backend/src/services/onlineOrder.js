@@ -2,7 +2,7 @@
 // An online order exists from the moment the customer taps "place order", but the SHOP only gets to know about it
 // (list, alert, accept) after the money has arrived.
 const ONLINE = ['upi', 'card', 'wallet'];
-const APP_METHODS = ['upi'];   // what the customer app offers for now
+const APP_METHODS = ['upi', 'card'];   // what the customer app offers (wallet is not offered yet)
 
 const isOnline = (order) => ONLINE.includes(order?.payment?.method);
 const isUnpaidOnline = (order) => isOnline(order) && ['pending', 'failed', undefined].includes(order.payment?.status);

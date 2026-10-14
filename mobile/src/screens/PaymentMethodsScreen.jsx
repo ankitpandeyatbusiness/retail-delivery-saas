@@ -1,5 +1,5 @@
 // src/screens/PaymentMethodsScreen.jsx
-// Cash on delivery, or pay online straight from an installed UPI app (GPay, PhonePe, Paytm...).
+// Cash on delivery, pay online straight from an installed UPI app (GPay, PhonePe, Paytm...), or by credit / debit card.
 // What is offered comes from the server (GET /orders/payment-config), so a shop without online payments shows only cash.
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet, Animated, Easing, ActivityIndicator, Image } from 'react-native';
@@ -8,7 +8,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useBrand, BackHeader } from '../components/ui/kit';
 import { tint } from '../components/ui/shop';
 import { fetchPaymentConfig } from '../api/shopApi';
-import { detectInstalledUpiApps } from '../utils/upiApps';
+import { standardUpiApps } from '../utils/upiApps';
+import { prewarmPayments } from '../utils/payOnline';
+import { usePayChoice } from '../store/usePayChoice';
 
 // one selectable row. `mark` + `color` draw a small app badge, otherwise `icon` is used.
 function MethodCard({ m, index, selected, onPick }) {
@@ -69,8 +71,8 @@ export default function PaymentMethodsScreen() {
 
     // selection key: 'cod' or 'upi:<package name>'
     const cur = route.params?.current || 'cod';
-    const [picked, setPicked] = useState(cur === 'upi' && route.params?.currentApp ? `upi:${route.params.currentApp}` : 'cod');
-    const [cfg, setCfg] = useState({ loading: true, online: false });
+    const [picked, setPicked] = useState(cur === 'upi' && route.params?.currentApp ? `upi:${route.params.currentApp}` : cur === 'card' ? 'card' : 'cod');
+    const [cfg, setCfg] = useState({ loading: true, online: false, upi: false, card: false });
     const [apps, setApps] = useState(null);   // null while we ask the phone which UPI apps it has
     const timer = useRef(null);
     const head = useRef(new Animated.Value(0)).current;
@@ -79,26 +81,35 @@ export default function PaymentMethodsScreen() {
         Animated.timing(head, { toValue: 1, duration: 420, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
         let on = true;
         fetchPaymentConfig()
-            .then((r) => { if (on) setCfg({ loading: false, online: !!r.online && (r.methods || []).includes('upi') }); })
-            .catch(() => { if (on) setCfg({ loading: false, online: false }); });
-        detectInstalledUpiApps().then((a) => { if (on) setApps(a); });
+            .then((r) => {
+                prewarmPayments(r);   // start the payment SDK now, so tapping a UPI app later opens it at once
+                const ms = r.methods || [];
+                if (on) setCfg({ loading: false, online: !!r.online, upi: !!r.online && ms.includes('upi'), card: !!r.online && ms.includes('card') });
+            })
+            .catch(() => { if (on) setCfg({ loading: false, online: false, upi: false, card: false }); });
+        standardUpiApps().then((a) => { if (on) setApps(a); });
         return () => { on = false; clearTimeout(timer.current); };
     }, []);
 
     const selectMethod = (m) => {
         if (timer.current) return;
+        if (m.value === 'card') { nav.navigate('CardDetails', { depth: 2 }); return; }   // the card is entered on its own screen
         setPicked(m.key);
         // short pause so the user sees the tick animation, then go back to the cart
         timer.current = setTimeout(() => {
-            nav.navigate('Cart', { selectedPaymentMethod: m.cartLabel, paymentMethodValue: m.value, upiApp: m.app });
+            usePayChoice.getState().choose({ label: m.cartLabel, value: m.value, upiApp: m.app });
+            nav.goBack();   // back to the SAME cart screen (navigate('Cart') would stack a second one)
         }, 260);
     };
 
     const cash = { key: 'cod', value: 'cod', label: 'Cash on Delivery', cartLabel: 'Cash on Delivery', icon: 'cash-outline', desc: 'Pay in cash or UPI when the order arrives' };
-    const upiRows = (apps || []).map((a) => ({
-        key: `upi:${a.pkg}`, value: 'upi', app: { pkg: a.pkg, label: a.label }, label: a.label, cartLabel: `${a.label} (UPI)`,
-        logo: a.logo, mark: a.label.slice(0, 1).toUpperCase(), desc: `Pay with ${a.label}. It opens directly`,
-    }));
+    const cardRow = { key: 'card', value: 'card', label: 'Credit / Debit card', cartLabel: 'Credit / Debit card', icon: 'card-outline', desc: 'Visa, Mastercard, RuPay. You confirm with your bank OTP' };
+    const upiRows = [
+        ...(apps || []).map((a) => ({
+            key: `upi:${a.pkg}`, value: 'upi', app: { pkg: a.pkg, label: a.label }, label: a.label, cartLabel: `${a.label} (UPI)`,
+            logo: a.logo, mark: a.mark || a.label.slice(0, 1).toUpperCase(), desc: `Pay with ${a.label}. It opens directly`,
+        })),
+    ];
 
     return (
         <View style={[s.flex, { backgroundColor: background }]}>
@@ -117,16 +128,19 @@ export default function PaymentMethodsScreen() {
                     <ActivityIndicator color={primary} style={{ marginVertical: 18 }} />
                 ) : !cfg.online ? (
                     <Text style={[s.note, { color: muted }]}>Online payment is not available for this shop right now.</Text>
-                ) : !upiRows.length ? (
-                    <Text style={[s.note, { color: muted }]}>No UPI app was found on this phone. You can pay on delivery instead.</Text>
                 ) : (
-                    upiRows.map((m, i) => (
-                        <MethodCard key={m.key} m={m} index={i} selected={picked === m.key} onPick={selectMethod} />
-                    ))
+                    <>
+                        {cfg.upi ? upiRows.map((m, i) => (
+                            <MethodCard key={m.key} m={m} index={i} selected={picked === m.key} onPick={selectMethod} />
+                        )) : null}
+                        {cfg.card ? (
+                            <MethodCard m={cardRow} index={upiRows.length} selected={picked === 'card'} onPick={selectMethod} />
+                        ) : null}
+                    </>
                 )}
 
                 <Text style={[s.title, { color: muted }]}>PAY ON DELIVERY</Text>
-                <MethodCard m={cash} index={upiRows.length} selected={picked === 'cod'} onPick={selectMethod} />
+                <MethodCard m={cash} index={upiRows.length + 1} selected={picked === 'cod'} onPick={selectMethod} />
             </ScrollView>
         </View>
     );

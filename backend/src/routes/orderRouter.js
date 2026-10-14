@@ -12,7 +12,7 @@ const { ACTIVE_STATUSES } = require('../services/orderflow');
 const { streamInvoice } = require('../services/invoiceService');
 const paymentService = require('../services/paymentService');
 const accounts = require('../services/paymentAccounts');
-const { APP_METHODS } = require('../services/onlineOrder');
+const { APP_METHODS, UNPAID_QUERY } = require('../services/onlineOrder');
 
 const { wrap, httpError } = apiErrors;
 const router = express.Router();
@@ -50,19 +50,32 @@ router.post('/', wrap(async (req, res) => {
     if (key !== undefined && (key.length < 8 || key.length > 64)) {
         throw httpError(400, 'Idempotency-Key must be 8 to 64 characters');
     }
+    const t0 = Date.now();
     const { order, duplicate } = await svc.placeOrder({
         tenant: req.tenant,
         userId: req.auth.userId,
         body: req.body || {},
         idempotencyKey: key,
     });
-    res.status(duplicate ? 200 : 201).json(view(order, req.tenant));
+    const tPlaced = Date.now() - t0;
+    const out = view(order, req.tenant);
+    // An online order: send what the payment screen needs in the SAME answer, so the app opens the UPI app
+    // without a second round trip. If this fails the app just calls /:id/pay as before.
+    if (order.payment?.method && order.payment.method !== 'cod' && order.payment.status !== 'paid' && order.status === 'placed') {
+        try { out.paymentStart = await paymentService.startForOrder({ order }); } catch (e) { /* the app asks again */ }
+    }
+    // how long each part took (visible in the network tab / app log): place = order saved, rzp = Razorpay order made
+    res.set('Server-Timing', `place;dur=${tPlaced}, total;dur=${Date.now() - t0}`);
+    res.status(duplicate ? 200 : 201).json(out);
 }));
 
 // Which online payment methods this shop can take right now. The app asks BEFORE it shows the pay button.
 router.get('/payment-config', wrap(async (req, res) => {
     const can = await accounts.canTakePayments(req.tenant._id);
-    res.json({ online: !!can.ok, methods: can.ok ? APP_METHODS : [] });
+    // keyId is Razorpay's PUBLIC key: the app uses it to get the payment SDK ready before the customer taps pay
+    let keyId = null;
+    if (can.ok) { try { keyId = (await paymentService.credsFor(req.tenant._id)).keyId || null; } catch (e) { /* none */ } }
+    res.json({ online: !!can.ok, methods: can.ok ? APP_METHODS : [], keyId });
 }));
 
 // Pickup time windows for the cart screen
@@ -77,6 +90,8 @@ router.get('/', wrap(async (req, res) => {
     const limit = clamp(parseInt(req.query.limit, 10) || 20, 1, 50);
     const filter = { tenantId: req.tenant._id, userId: req.auth.userId };
     if (req.query.active === 'true') filter.status = { $in: ACTIVE_STATUSES };
+    // a payment the customer abandoned (cancelled before paying) is not an order: it never shows in his history
+    filter.$nor = [{ status: 'cancelled', ...UNPAID_QUERY }];
 
     // ?from=2026-10-01&to=2026-10-08 (days in Indian time). One day = same date in both. ?sort=oldest
     const IST_MS = 330 * 60000;
@@ -124,6 +139,21 @@ router.post('/:id/pay', wrap(async (req, res) => {
     const order = await Order.findOne({ _id: req.params.id, tenantId: req.tenant._id, userId: req.auth.userId });
     if (!order) throw httpError(404, 'Order not found');
     res.json(await paymentService.startForOrder({ order }));
+}));
+
+// "Is it paid?": asks Razorpay directly (no webhook needed). The app uses it when it came back without a payment proof.
+router.post('/:id/pay/check', wrap(async (req, res) => {
+    checkId(req);
+    const order = await Order.findOne({ _id: req.params.id, tenantId: req.tenant._id, userId: req.auth.userId });
+    if (!order) throw httpError(404, 'Order not found');
+    let r;
+    try {
+        r = await paymentService.checkWithRazorpay({ order });
+    } catch (e) {
+        r = { paid: false, status: 'unknown' };   // Razorpay not reachable: the app treats it as "not known yet"
+    }
+    const fresh = await Order.findById(order._id);
+    res.json({ paid: !!r.paid, status: r.status, order: view(fresh, req.tenant) });
 }));
 
 // After the customer paid: the app sends the proof. We check it and ask Razorpay what really happened.

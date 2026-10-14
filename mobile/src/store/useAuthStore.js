@@ -48,7 +48,7 @@ export const useAuthStore = create((set, get) => ({
 
     setAccessToken: (accessToken) => set({ accessToken }),
 
-    // Called once on app start (by AppNavigator).
+    // Called once on app start (by App.js, before anything is drawn).
     // Restores the saved user immediately so the app opens fast, then
     // refreshes the access token in the background.
     hydrate: async () => {

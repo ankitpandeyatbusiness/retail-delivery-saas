@@ -14,22 +14,45 @@ const PREFERRED = [   // shown first, in this order
     'com.dreamplug.androidapp',                 // CRED
 ];
 
+// The only apps offered by name, in this order. Everything else on the phone is reached through "Other UPI app".
+export const STANDARD_UPI_APPS = [
+    { pkg: 'com.phonepe.app', label: 'PhonePe', mark: 'P' },
+    { pkg: 'com.google.android.apps.nbu.paisa.user', label: 'Google Pay', mark: 'G' },
+    { pkg: 'net.one97.paytm', label: 'Paytm', mark: 'P' },
+    { pkg: 'com.naviapp', label: 'Navi', mark: 'N' },
+];
+
 const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
 const asUri = (v) => (v ? (String(v).startsWith('data:') || /^https?:/.test(v) ? v : `data:image/png;base64,${v}`) : null);
 
 // -> [{ id, pkg, label, logo }]. Never throws: if the check fails we simply show none.
+let cache = null;   // { at, apps }: the list is asked from the phone once, then reused for a minute
 export async function detectInstalledUpiApps() {
     if (Platform.OS !== 'android') return [];
+    if (cache && Date.now() - cache.at < 60000) return cache.apps;
     try {
         const r = await withTimeout(Razorpay.getAppsWhichSupportUPI(), 4000);
         const list = (r?.data || [])
             .filter((a) => a?.packageName)
             .map((a) => ({ id: a.packageName, pkg: a.packageName, label: a.appName || a.packageName, logo: asUri(a.iconBase64) || asUri(a.appLogo) }));
         const rank = (a) => { const i = PREFERRED.indexOf(a.pkg); return i === -1 ? PREFERRED.length : i; };
-        return list.sort((a, b) => rank(a) - rank(b) || a.label.localeCompare(b.label));
+        const apps = list.sort((a, b) => rank(a) - rank(b) || a.label.localeCompare(b.label));
+        if (apps.length) cache = { at: Date.now(), apps };
+        return apps;
     } catch (e) {
         return [];
     }
+}
+
+// The standard apps that are installed on this phone (with their real logo), plus nothing else.
+// If the phone cannot tell us what is installed, all of them are listed.
+export async function standardUpiApps() {
+    const found = await detectInstalledUpiApps();
+    const byPkg = new Map(found.map((a) => [a.pkg, a]));
+    const list = STANDARD_UPI_APPS
+        .filter((a) => !found.length || byPkg.has(a.pkg))
+        .map((a) => ({ ...a, id: a.pkg, logo: byPkg.get(a.pkg)?.logo || null }));
+    return list;
 }
 
 export const rememberUpiApp = (pkg) => AsyncStorage.setItem(LAST_KEY, pkg).catch(() => {});

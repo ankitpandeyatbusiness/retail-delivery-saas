@@ -1,0 +1,24 @@
+diff --git a/node_modules/react-native-customui/android/src/main/java/com/razorpay/rn/custom/RazorpayPaymentActivity.java b/node_modules/react-native-customui/android/src/main/java/com/razorpay/rn/custom/RazorpayPaymentActivity.java
+index 965ac69..ca4d41c 100644
+--- a/node_modules/react-native-customui/android/src/main/java/com/razorpay/rn/custom/RazorpayPaymentActivity.java
++++ b/node_modules/react-native-customui/android/src/main/java/com/razorpay/rn/custom/RazorpayPaymentActivity.java
+@@ -162,6 +162,19 @@ public class RazorpayPaymentActivity extends Activity implements PaymentResultWi
+         rootview.addView(webview);
+         razorpay.setWebView(webview);
+ 
++        // HIDE_CHECKOUT_UI (patched): a UPI intent payment has nothing for the customer to do on Razorpay's
++        // page. Card payments are NOT hidden: the bank's OTP / 3-D Secure page must be seen. Keep the WebView running (alpha, not INVISIBLE: Android pauses hidden WebViews)
++        // but invisible, so the app's own screen stays in view until the UPI app opens.
++        // Safety: if the page is still here after 25 s, show it, so a payment that needs the customer never hangs.
++        if (!isAttachMode && payload != null && "upi".equals(payload.optString("method"))) {
++            webview.setAlpha(0f);
++            final WebView wv = webview;
++            wv.postDelayed(new Runnable() {
++                @Override
++                public void run() { wv.setAlpha(1f); }
++            }, 25000);
++        }
++
+         // Arm OTP Assist only when the merchant called enableOtpAssist() for this payment
+         try {
+             if (armOtpAssist && razorpay.otpAssist != null) {

@@ -38,6 +38,16 @@ export const useThemeStore = create((set, get) => ({
         },
     })),
 
+    // The last theme this phone saw, read from disk. Used at start so the app opens in the shop's own look at once,
+    // instead of waiting for the network (or showing another shop's default).
+    hydrateFromCache: async () => {
+        const saved = await readCache(THEME_CACHE_KEY);
+        if (saved) {
+            get().setTheme(saved);
+            warmHeroImages(saved.heroImages);
+        }
+    },
+
     loadTheme: async () => {
         try {
             const { data } = await api.get('/tenants/theme');

@@ -25,6 +25,7 @@ export const fetchTracking = (id) => d(api.get(`/orders/${id}/tracking`));
 // online payment: payment-config says what this shop accepts right now, pay gives the Razorpay order,
 // verify sends the proof back (the server then asks Razorpay what really happened)
 export const fetchPaymentConfig = () => d(api.get('/orders/payment-config'));
+export const checkOrderPayment = (id) => d(api.post(`/orders/${id}/pay/check`));   // asks Razorpay now: { paid, status, order }
 export const startOrderPayment = (id) => d(api.post(`/orders/${id}/pay`));
 export const verifyOrderPayment = (id, proof) => d(api.post(`/orders/${id}/pay/verify`, proof));
 
