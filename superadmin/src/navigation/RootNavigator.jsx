@@ -1,4 +1,5 @@
 import React from 'react';
+import { StackActions } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View } from 'react-native';
@@ -85,6 +86,7 @@ import BannerFormScreen from '../screens/catalog/BannerFormScreen';
 import CouponsScreen from '../screens/catalog/CouponsScreen';
 import CouponFormScreen from '../screens/catalog/CouponFormScreen';
 
+
 const Root = createNativeStackNavigator();
 const Tabs = createBottomTabNavigator();
 const Shops = createNativeStackNavigator();
@@ -95,7 +97,7 @@ const Money = createNativeStackNavigator();
 // All shop screens live in one stack inside the Shops tab, so the tab bar stays and back always works.
 function ShopsStack() {
     return (
-        <Shops.Navigator screenOptions={{ headerShown: false }}>
+        <Shops.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right', animationDuration: 180 }}>
             <Shops.Screen name="ShopsList" component={ShopsListScreen} />
             <Shops.Screen name="ShopCreate" component={ShopCreateScreen} />
             <Shops.Screen name="ShopDetail" component={ShopDetailScreen} />
@@ -151,7 +153,7 @@ function ShopsStack() {
 
 function OrdersStack() {
     return (
-        <Orders.Navigator screenOptions={{ headerShown: false }}>
+        <Orders.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right', animationDuration: 180 }}>
             <Orders.Screen name="OrdersHome" component={OrdersHomeScreen} />
             <Orders.Screen name="OrderDetail" component={OrderDetailScreen} />
             <Orders.Screen name="SalesReport" component={SalesReportScreen} />
@@ -162,7 +164,7 @@ function OrdersStack() {
 
 function MoneyStack() {
     return (
-        <Money.Navigator screenOptions={{ headerShown: false }}>
+        <Money.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right', animationDuration: 180 }}>
             <Money.Screen name="MoneyHome" component={MoneyHomeScreen} />
             <Money.Screen name="Invoices" component={InvoicesScreen} />
             <Money.Screen name="InvoiceDetail" component={InvoiceDetailScreen} />
@@ -179,7 +181,7 @@ function MoneyStack() {
 
 function MoreStack() {
     return (
-        <More.Navigator screenOptions={{ headerShown: false }}>
+        <More.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right', animationDuration: 180 }}>
             <More.Screen name="MoreHome" component={MoreScreen} />
             <More.Screen name="Team" component={TeamScreen} />
             <More.Screen name="Maintenance" component={MaintenanceScreen} />
@@ -205,11 +207,20 @@ function AdminTabs() {
     const insets = useSafeAreaInsets();
     return (
         <Tabs.Navigator
+            // pressing any tab (even from another tab) lands on that tab's first screen, not wherever it was left
+            screenListeners={({ navigation, route }) => ({
+                tabPress: () => {
+                    const child = navigation.getState().routes.find((r) => r.key === route.key)?.state;
+                    if (child?.key && child.index > 0) navigation.dispatch({ ...StackActions.popToTop(), target: child.key });
+                },
+            })}
             screenOptions={({ route }) => {
                 const cfg = TABS[route.name];
                 const color = section(t, cfg.section).color;
                 return {
                     headerShown: false,
+                    animation: 'shift',
+                    transitionSpec: { animation: 'timing', config: { duration: 150 } },
                     tabBarActiveTintColor: color,
                     tabBarInactiveTintColor: t.muted,
                     tabBarStyle: {
@@ -237,7 +248,7 @@ function AdminTabs() {
 export default function RootNavigator() {
     const token = useAuthStore((s) => s.token);
     return (
-        <Root.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
+        <Root.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right', animationDuration: 180 }}>
             {token ? (
                 <>
                     <Root.Screen name="Admin" component={AdminTabs} />
@@ -253,7 +264,7 @@ export default function RootNavigator() {
                     <Root.Screen name="Expenses" component={ExpensesScreen} />
                     <Root.Screen name="ExpenseForm" component={ExpenseFormScreen} />
                 </>
-            ) : <Root.Screen name="Login" component={LoginScreen} />}
+            ) : <Root.Screen name="Login" component={LoginScreen} options={{ animation: 'fade' }} />}
         </Root.Navigator>
     );
 }
