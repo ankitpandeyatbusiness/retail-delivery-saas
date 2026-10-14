@@ -4,6 +4,8 @@ import api, { data } from './adminClient';
 export const fetchInbox = (params) => data(api.get('/admin/notifications', { params }));          // { unread: 'true', page, limit }
 export const readAllInbox = () => data(api.post('/admin/notifications/read-all'));
 export const readInbox = (id) => data(api.post(`/admin/notifications/${id}/read`));
+export const clearInbox = () => data(api.delete('/admin/notifications'));
+export const deleteInboxItem = (id) => data(api.delete(`/admin/notifications/${id}`));
 
 /* ---- messages to the owners of shops ---- */
 export const listOwnerMessages = () => data(api.get('/admin/messages'));

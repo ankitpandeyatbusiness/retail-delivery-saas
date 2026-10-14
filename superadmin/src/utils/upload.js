@@ -2,6 +2,7 @@
 // Throws an Error whose message can be shown as it is.
 import * as ImagePicker from 'expo-image-picker';
 import { signUpload, confirmUpload } from '../api/shopsApi';
+import { signMyPhoto, confirmMyPhoto } from '../api/authApi';
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const ALLOWED = ['image/jpeg', 'image/png', 'image/webp'];
@@ -42,4 +43,19 @@ export async function uploadImage(shopId, { kind, uri, mimeType, refId }) {
     } catch (e) {
         throw fail(e?.response?.data?.error || 'Could not save that picture');
     }
+}
+
+// the superadmin's own picture -> the saved public URL
+export async function uploadMyPhoto({ uri, mimeType }) {
+    let blob;
+    try { blob = await (await fetch(uri)).blob(); } catch (e) { throw fail('Could not read that picture'); }
+    if (!blob.size) throw fail('That picture is empty');
+    if (blob.size > MAX_BYTES) throw fail('That picture is larger than 5 MB. Choose a smaller one.');
+    const contentType = ALLOWED.includes(mimeType) ? mimeType : 'image/jpeg';
+    let signed;
+    try { signed = await signMyPhoto({ contentType, bytes: blob.size }); } catch (e) { throw fail(e?.response?.data?.error || 'Uploads are not available right now'); }
+    let put;
+    try { put = await fetch(signed.uploadUrl, { method: signed.method || 'PUT', headers: signed.headers || { 'Content-Type': contentType }, body: blob }); } catch (e) { throw fail('Upload failed. Check the connection and try again.'); }
+    if (!put.ok) throw fail('Upload failed. Please try again.');
+    try { return (await confirmMyPhoto(signed.key)).photo; } catch (e) { throw fail(e?.response?.data?.error || 'Could not save that picture'); }
 }

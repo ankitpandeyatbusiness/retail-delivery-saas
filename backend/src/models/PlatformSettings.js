@@ -41,6 +41,19 @@ const platformSchema = new mongoose.Schema({
             default: () => [{ upTo: 305, fee: 3000 }, { upTo: 1005, fee: 6000 }, { upTo: null, fee: 10000 }],
         },
     },
+    // The ONE GST for every shop's bills. Set only by the superadmin; a shop charges it only while it has a GST number.
+    tax: {
+        gstPercent: { type: Number, default: 0, min: 0, max: 28 },
+        gstMode: { type: String, enum: ['inclusive', 'exclusive'], default: 'inclusive' },   // included in prices, or added on top
+    },
+    // YOUR Razorpay account (receives SMS top-ups and rent). Written only by /api/admin/platform/payments.
+    payments: {
+        keyId: { type: String, trim: true },
+        keySecretEnc: { type: String, select: false },       // encrypted, never sent to any app
+        webhookSecretEnc: { type: String, select: false },   // encrypted, shown once when created
+        verifiedAt: Date,
+        lastWebhookAt: Date,
+    },
     // SMS wallet prices. All money is integer paise (100 paise = Rs 1).
     sms: {
         ratePerSmsPaise: { type: Number, default: 30, min: 0 },     // selling price per SMS

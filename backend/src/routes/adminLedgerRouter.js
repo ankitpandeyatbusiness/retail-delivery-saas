@@ -8,6 +8,7 @@ const express = require('express');
 const loadTenant = require('../middlewares/loadTenant');
 const ledger = require('../services/moneyLedger');
 const { wrap } = require('../middlewares/apiErrors');
+const { buildSheet, XLSX_TYPE } = require('../services/xlsxExport');
 
 const router = express.Router();
 const EXPORT_MAX = 5000;
@@ -24,9 +25,33 @@ const handle = (view, csv) => wrap(async (req, res) => {
         if (!next.items.length) break;
         items = items.concat(next.items);
     }
-    res.set('Content-Type', 'text/csv; charset=utf-8');
-    res.set('Content-Disposition', 'attachment; filename="transactions.csv"');
-    return res.send(ledger.toCsv(items.slice(0, EXPORT_MAX), view));
+    if (req.query.format === 'csv') {
+        res.set('Content-Type', 'text/csv; charset=utf-8');
+        res.set('Content-Disposition', 'attachment; filename="transactions.csv"');
+        return res.send(ledger.toCsv(items.slice(0, EXPORT_MAX), view));
+    }
+    const rows = items.slice(0, EXPORT_MAX).map((i) => {
+        const m = i.meta || {};
+        return {
+            at: i.at, shop: i.shop?.name || '', type: i.label, dir: i.direction === 'in' ? 'In' : 'Out', amount: (i.amountPaise || 0) / 100,
+            status: i.status === 'pending' ? 'Pending' : 'Done', orderNo: i.orderNo ?? '', ref: i.ref ?? '',
+            details: [m.period && `period ${m.period}`, m.paymentMode, m.paymentRef, m.reason, m.method, m.note].filter(Boolean).join(' / '),
+        };
+    });
+    const columns = [
+        { header: 'Date (India time)', key: 'at', kind: 'date' },
+        ...(view === 'platform' ? [{ header: 'Shop', key: 'shop' }] : []),
+        { header: 'Type', key: 'type' },
+        { header: 'Direction', key: 'dir', kind: 'status' },
+        { header: 'Amount', key: 'amount', kind: 'money' },
+        { header: 'Status', key: 'status', kind: 'status' },
+        { header: 'Order no', key: 'orderNo', kind: 'center' },
+        { header: 'Reference', key: 'ref' },
+        { header: 'Details', key: 'details', kind: 'wide' },
+    ];
+    res.set('Content-Type', XLSX_TYPE);
+    res.set('Content-Disposition', 'attachment; filename="transactions.xlsx"');
+    return res.send(await buildSheet({ title: view === 'platform' ? 'Transactions (all shops)' : 'Transactions', columns, rows }));
 });
 
 router.get('/ledger', handle('platform', false));

@@ -9,7 +9,7 @@ const cache = new LRUCache({ max: 1000, ttl: 60 * 1000 });
 // ownerBlocked and maintenance are needed here: the config and the maintenance check read them.
 // (ownerBlockedReason is deliberately NOT selected, so it can never reach an app.)
 const FIELDS =
-    '_id name slug tagline logo colors heroImages status androidPackage ' +
+    '_id name slug businessType tagline logo colors heroImages status androidPackage ' +
     'homeConfig delivery settings phone address business ownerBlocked maintenance updatedAt billing.state billing.graceEndsAt stats.rating';
 
 const tenantRecognizer = async (req, res, next) => {

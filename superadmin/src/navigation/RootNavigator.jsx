@@ -29,6 +29,17 @@ import ShopComplaintsScreen from '../screens/operations/ShopComplaintsScreen';
 import ShopMessagesScreen from '../screens/operations/ShopMessagesScreen';
 import ShopActivityScreen from '../screens/operations/ShopActivityScreen';
 import MoneyHomeScreen from '../screens/money/MoneyHomeScreen';
+import MyRazorpayScreen from '../screens/money/MyRazorpayScreen';
+import GstScreen from '../screens/money/GstScreen';
+import SearchScreen from '../screens/insights/SearchScreen';
+import HealthScreen from '../screens/insights/HealthScreen';
+import ReadinessScreen from '../screens/insights/ReadinessScreen';
+import SystemScreen from '../screens/insights/SystemScreen';
+import ExportsScreen from '../screens/insights/ExportsScreen';
+import ProfitLossScreen from '../screens/insights/ProfitLossScreen';
+import ReceivablesScreen from '../screens/insights/ReceivablesScreen';
+import ExpensesScreen from '../screens/insights/ExpensesScreen';
+import ExpenseFormScreen from '../screens/insights/ExpenseFormScreen';
 import InvoicesScreen from '../screens/money/InvoicesScreen';
 import InvoiceDetailScreen from '../screens/money/InvoiceDetailScreen';
 import LedgerScreen from '../screens/money/LedgerScreen';
@@ -160,6 +171,8 @@ function MoneyStack() {
             <Money.Screen name="PlatformSms" component={PlatformSmsScreen} />
             <Money.Screen name="PlatformBilling" component={PlatformBillingScreen} />
             <Money.Screen name="PlatformBusiness" component={PlatformBusinessScreen} />
+            <Money.Screen name="MyRazorpay" component={MyRazorpayScreen} />
+            <Money.Screen name="Gst" component={GstScreen} />
         </Money.Navigator>
     );
 }
@@ -230,6 +243,15 @@ export default function RootNavigator() {
                     <Root.Screen name="Admin" component={AdminTabs} />
                     <Root.Screen name="Inbox" component={InboxScreen} />
                     <Root.Screen name="OwnerMessages" component={OwnerMessagesScreen} />
+                    <Root.Screen name="Search" component={SearchScreen} />
+                    <Root.Screen name="Health" component={HealthScreen} />
+                    <Root.Screen name="ShopReadiness" component={ReadinessScreen} />
+                    <Root.Screen name="System" component={SystemScreen} />
+                    <Root.Screen name="Exports" component={ExportsScreen} />
+                    <Root.Screen name="ProfitLoss" component={ProfitLossScreen} />
+                    <Root.Screen name="Receivables" component={ReceivablesScreen} />
+                    <Root.Screen name="Expenses" component={ExpensesScreen} />
+                    <Root.Screen name="ExpenseForm" component={ExpenseFormScreen} />
                 </>
             ) : <Root.Screen name="Login" component={LoginScreen} />}
         </Root.Navigator>

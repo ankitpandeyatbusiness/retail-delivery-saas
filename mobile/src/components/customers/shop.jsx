@@ -1,4 +1,5 @@
 // src/components/ui/shop.jsx
+import { isMeasured, priceSuffix } from '../../utils/customers/measure';
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Animated } from 'react-native';
 import { Image } from 'expo-image';
@@ -98,7 +99,7 @@ function Price({ item, big }) {
     const { text, muted } = useBrand();
     return (
         <View style={s.priceRow}>
-            <Text style={[big ? s.priceBig : s.price, { color: text }]}>₹{item.price}</Text>
+            <Text style={[big ? s.priceBig : s.price, { color: text }]}>₹{item.price}{priceSuffix(item)}</Text>
             {item.mrp > item.price ? <Text style={[s.mrp, { color: muted }]}>₹{item.mrp}</Text> : null}
         </View>
     );
@@ -225,6 +226,7 @@ export function quickAdd(item, nav) {
         st.setQty(last.key, last.quantity + 1);
         return undefined;
     }
+    if (isMeasured(item)) return nav.navigate('Item', { id: item._id });   // an amount must be chosen first
     if ((item.optionGroups || []).some((g) => (g.min || 0) >= 1)) return nav.navigate('Item', { id: item._id });
     useCartStore.getState().add({
         productId: item._id, name: item.name, image: item.image, isVeg: item.isVeg,
@@ -332,7 +334,7 @@ export function Tile({ item }) {
                     <Text numberOfLines={1} style={[s.tn, { color: text }]}>{item.name}</Text>
                 </View>
                 <View style={s.priceRow}>
-                    <Text style={[s.price, { color: text }]}>₹{item.price}</Text>
+                    <Text style={[s.price, { color: text }]}>₹{item.price}{priceSuffix(item)}</Text>
                     {item.mrp > item.price ? <Text style={[s.mrp, { color: muted }]}>₹{item.mrp}</Text> : null}
                 </View>
             </View>

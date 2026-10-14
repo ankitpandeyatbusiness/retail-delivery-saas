@@ -1,4 +1,5 @@
 // src/ui/orders.jsx
+import { isMeasured, packPrice } from '../../utils/customers/measure';
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { themedAlert } from '../common/dialog';
@@ -54,7 +55,8 @@ export function cancelFlow(order, { onDone, setBusy } = {}) {
 
 // product + what was ordered -> a cart line (price is only a preview, the quote is the truth)
 function toLine(p, it) {
-    let price = p.price;
+    const measured = isMeasured(p) && it.measureQty;
+    let price = measured ? packPrice(p, it.measureQty) : p.price;
     const names = [];
     (it.selections || []).forEach((sel) => {
         const g = (p.optionGroups || []).find((x) => x.id === sel.groupId);
@@ -65,8 +67,9 @@ function toLine(p, it) {
     });
     return {
         productId: p._id, name: p.name, image: p.image, isVeg: p.isVeg, price,
-        quantity: it.quantity, selections: it.selections || [], optionsText: names.join(', '),
+        quantity: measured ? 1 : it.quantity, selections: it.selections || [], optionsText: names.join(', '),
         note: it.note || undefined,
+        ...(measured ? { measureQty: it.measureQty, sellBy: p.sellBy } : {}),
     };
 }
 

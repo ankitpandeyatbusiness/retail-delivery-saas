@@ -18,6 +18,8 @@ const lineSchema = new Schema({
         _id: false,
         groupId: String, groupName: String, optionId: String, name: String, price: Number,
     }],
+    // items sold by weight or volume: what the customer asked for (the pack price is unitPrice, quantity is 1)
+    measure: { _id: false, qty: Number, unit: String, label: String },
     note: String,
 }, { _id: false });
 

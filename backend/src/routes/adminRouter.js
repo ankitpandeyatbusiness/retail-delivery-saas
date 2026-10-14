@@ -23,6 +23,8 @@ const requireSuperAdmin = require('../middlewares/requireSuperAdmin');
 const { invalidateTenant } = require('../middlewares/tenantRecognizer');
 const { getAvailability, invalidateAvailability, applyAutoHide } = require('../services/availability');
 const { foodRuleError } = require('../services/foodRules');
+const { applyItemRules } = require('../services/itemRules');
+const { BUSINESS_TYPES } = require('../config/businessTypes');
 const keepOwnerPause = require('../utils/keepOwnerPause');
 const { shopState } = require('../utils/shopState');
 const auditTrail = require('../middlewares/auditTrail');
@@ -46,7 +48,7 @@ const pickFields = (fields, body) =>
 
 const SLUG_RE = /^[a-z0-9-]{3,40}$/;
 const RESERVED_SLUGS = ['admin', 'api', 'www'];
-const TENANT_FIELDS = ['name', 'tagline', 'logo', 'colors', 'status', 'androidPackage', 'phone', 'address', 'delivery', 'business', 'subscription', 'contact'];
+const TENANT_FIELDS = ['businessType', 'name', 'tagline', 'logo', 'colors', 'status', 'androidPackage', 'phone', 'address', 'delivery', 'business', 'subscription', 'contact'];
 
 /* ------------------------------ login (public) ------------------------------ */
 const authRoutes = require('./adminAuthRouter');
@@ -56,6 +58,7 @@ admin.use('/auth', authRoutes);   // send-otp, verify-otp, login (password: off 
 admin.use(requireSuperAdmin);
 admin.use(auditTrail('superadmin'));   // records every change a superadmin makes
 
+admin.use(require('./adminProfilePhotoRouter'));   // my profile picture
 admin.use('/me', authRoutes.me);   // PUT /me/phones
 admin.use(require('./adminLiveRouter'));   // live picture of a shop, phone reveal
 admin.use(require('./adminMessagesRouter'));   // messages to the owners of all shops
@@ -77,6 +80,11 @@ admin.use(require('./adminLedgerRouter'));
 admin.use(require('./adminNotifyRouter'));
 admin.use(require('./adminAlertsRouter'));
 admin.use(require('./adminNotificationRulesRouter'));
+admin.use(require('./adminInsightsRouter'));   // search, shop health, readiness, system, backups, exports
+admin.use(require('./adminPlatformTaxRouter'));   // the one GST for all shops
+admin.use(require('./adminPlatformPaymentsRouter'));   // my own Razorpay account
+admin.use(require('./adminGeoRouter'));   // place search for the map picker
+admin.use(require('./adminFinanceRouter'));   // profit and loss, receivables, expenses
 
 // any change to a shop's data refreshes that shop's cached counts
 admin.use('/tenants/:tid', (req, res, next) => {
@@ -86,12 +94,13 @@ admin.use('/tenants/:tid', (req, res, next) => {
 
 // admins added from the app have a hidden placeholder email (the model needs one): never show it
 const shownEmail = (e) => (e && !e.endsWith('@superadmin.local') ? e : null);
-admin.get('/me', (req, res) => res.json({ email: shownEmail(req.admin.email), name: req.admin.name || null }));
+admin.get('/me', (req, res) => res.json({ email: shownEmail(req.admin.email), name: req.admin.name || null, photo: req.admin.photo || null }));
 
 // Everything the panel needs to draw its form: allowed values, defaults, and a starting template per shop type
 admin.get('/options', (req, res) => {
     res.json({
         options: O,
+        businessTypes: BUSINESS_TYPES,
         defaults: DEFAULTS,
         presets: Object.fromEntries(O.SHOP_TYPES.map((t) => [t, getPreset(t)])),
     });
@@ -140,6 +149,9 @@ admin.post('/tenants', wrap(async (req, res) => {
     if (!v.ok) return res.status(400).json({ error: 'Invalid settings', errors: v.errors });
 
     const fields = pickFields(TENANT_FIELDS, body);
+    if (fields.businessType && BUSINESS_TYPES[fields.businessType]?.status !== 'active') {
+        throw httpError(400, 'This kind of business is not open yet');
+    }
     if (fields.subscription && typeof fields.subscription === 'object') delete fields.subscription.monthlyFee;   // B18
     const tenant = new Tenant({ slug, ...fields, settings: v.clean });
     await tenant.save();
@@ -352,16 +364,18 @@ admin.use('/tenants/:tid/products', loadTenant, crud(Product, {
         'isVeg', 'isEggless', 'isSugarFree', 'isJain', 'spiceLevel',
         'isBestseller', 'isNewArrival', 'isGiftPack', 'serves', 'calories', 'prepTimeMin',
         'optionGroups', 'sizes', 'weightOptions', 'addOns',
-        'isAvailable', 'isActive', 'sortOrder', 'gstRate',
+        'itemKind', 'sellBy', 'measure',
+        'isAvailable', 'isActive', 'sortOrder',
     ],
     sort: { sortOrder: 1, _id: 1 },
     searchField: 'name',
     softDelete: true,
     check: async (d, req) => {
+        const tenant = await Tenant.findById(req.tenantDoc._id).lean();
+        await applyItemRules(d, tenant);
         const ok = d.categoryId && isId(String(d.categoryId)) &&
             await Category.exists({ _id: d.categoryId, tenantId: req.tenantDoc._id });
         if (!ok) throw httpError(400, 'categoryId must be a category of this shop');
-        const tenant = await Tenant.findById(req.tenantDoc._id).lean();
         const problem = foodRuleError(getFoodMode(tenant), d);
         if (problem) throw httpError(400, problem);
     },

@@ -2,7 +2,7 @@ import React, { useCallback } from 'react';
 import { View, Text } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useTheme, spacing, font } from '../../theme';
-import { Screen } from '../../components/layout';
+import { Screen, HeaderButton } from '../../components/layout';
 import { Stat, Card, Button, SectionTitle, ListRow } from '../../components/ui';
 import { ShopRow } from '../../components/shopBits';
 import { QuickActions, StatStrip, RankRow, SkeletonDashboard } from '../../components/blocks';
@@ -36,6 +36,7 @@ export default function DashboardScreen() {
     return (
         <Screen
             tabScreen
+            right={<HeaderButton icon="search" onPress={() => nav.navigate('Search')} />}
             title={greeting()}
             subtitle={admin?.name || 'Platform overview'}
             refreshing={d.refreshing}

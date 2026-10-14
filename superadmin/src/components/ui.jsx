@@ -12,7 +12,7 @@ export function Card({ children, style, onPress, padded = true }) {
     const base = [s.card, { backgroundColor: t.surface }, t.shadow, padded && { padding: spacing.lg }, style];
     if (!onPress) return <View style={base}>{children}</View>;
     return (
-        <Pressable onPress={onPress} android_ripple={{ color: t.border }} style={({ pressed }) => [...base, pressed && { opacity: 0.88, transform: [{ scale: 0.99 }] }]}>
+        <Pressable onPress={onPress} style={({ pressed }) => [...base, pressed && { opacity: 0.88, transform: [{ scale: 0.99 }] }]}>
             {children}
         </Pressable>
     );
@@ -23,9 +23,11 @@ export function IconTile({ icon, section = 'shops', size = 44, danger }) {
     const t = useTheme();
     const g = danger ? sec(t, 'alerts').gradient : sec(t, section).gradient;
     return (
-        <LinearGradient colors={g} {...GRAD} style={{ width: size, height: size, borderRadius: size * 0.32, alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name={icon} size={size * 0.55} color="#FFFFFF" />
-        </LinearGradient>
+        <View style={{ width: size, height: size, borderRadius: size * 0.32, overflow: 'hidden', backgroundColor: g[0] }}>
+            <LinearGradient colors={g} {...GRAD} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                <Icon name={icon} size={size * 0.55} color="#FFFFFF" />
+            </LinearGradient>
+        </View>
     );
 }
 
@@ -43,7 +45,9 @@ export function Button({ title, onPress, kind = 'primary', loading, disabled, ic
     if (kind === 'primary') {
         return (
             <Pressable onPress={off ? undefined : onPress} style={({ pressed }) => [{ opacity: off ? 0.5 : pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.985 : 1 }] }, style]}>
-                <LinearGradient colors={t.gradient} {...GRAD} style={[s.btn, { height }, t.shadow]}>{content('#FFFFFF')}</LinearGradient>
+                <View style={[{ borderRadius: radius.md, overflow: 'hidden', backgroundColor: t.gradient[0] }, t.shadow]}>
+                    <LinearGradient colors={t.gradient} {...GRAD} style={[s.btn, { height }]}>{content('#FFFFFF')}</LinearGradient>
+                </View>
             </Pressable>
         );
     }
@@ -98,13 +102,15 @@ export function Stat({ label, value, tone, icon, section, onPress }) {
     if (section) {
         const g = sec(t, section).gradient;
         const body = (
-            <LinearGradient colors={g} {...GRAD} style={[s.statFill, t.shadow]}>
-                <View style={s.rowBetween}>
-                    <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: font.sm, fontWeight: '600' }}>{label}</Text>
-                    {icon ? <Icon name={icon} size={22} color="#FFFFFF" /> : null}
-                </View>
-                <Text style={{ color: '#FFFFFF', fontSize: font.xxl, fontWeight: '800', marginTop: spacing.sm }} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
-            </LinearGradient>
+            <View style={[s.statWrap, { backgroundColor: g[0] }, t.shadow]}>
+                <LinearGradient colors={g} {...GRAD} style={s.statFill}>
+                    <View style={s.rowBetween}>
+                        <Text style={{ flex: 1, color: 'rgba(255,255,255,0.9)', fontSize: font.sm, fontWeight: '600' }} numberOfLines={2}>{label}</Text>
+                        {icon ? <View style={{ marginLeft: spacing.sm, flexShrink: 0 }}><Icon name={icon} size={22} color="#FFFFFF" /></View> : null}
+                    </View>
+                    <Text style={{ color: '#FFFFFF', fontSize: font.xxl, fontWeight: '800', marginTop: spacing.sm }} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
+                </LinearGradient>
+            </View>
         );
         return onPress ? <Pressable onPress={onPress} style={{ flex: 1 }}>{body}</Pressable> : <View style={{ flex: 1 }}>{body}</View>;
     }
@@ -112,8 +118,8 @@ export function Stat({ label, value, tone, icon, section, onPress }) {
     return (
         <Card onPress={onPress} style={{ flex: 1 }}>
             <View style={s.rowBetween}>
-                <Text style={{ color: t.muted, fontSize: font.sm, fontWeight: '600' }}>{label}</Text>
-                {icon ? <Icon name={icon} size={22} color={color === t.text ? t.primary : color} /> : null}
+                <Text style={{ flex: 1, color: t.muted, fontSize: font.sm, fontWeight: '600' }} numberOfLines={2}>{label}</Text>
+                {icon ? <View style={{ marginLeft: spacing.sm, flexShrink: 0 }}><Icon name={icon} size={22} color={color === t.text ? t.primary : color} /></View> : null}
             </View>
             <Text style={{ color, fontSize: font.xxl, fontWeight: '800', marginTop: spacing.xs }} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
         </Card>
@@ -139,7 +145,6 @@ export function ListRow({ icon, title, subtitle, right, onPress, last, danger, s
     return (
         <Pressable
             onPress={onPress}
-            android_ripple={{ color: t.border }}
             style={[s.listRow, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: t.border }]}
         >
             {icon ? <View style={{ marginRight: spacing.md }}><IconTile icon={icon} section={section} danger={danger} size={42} /></View> : null}
@@ -184,7 +189,8 @@ const s = StyleSheet.create({
     badge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.pill, alignSelf: 'flex-start' },
     dot: { width: 6, height: 6, borderRadius: 3, marginRight: 6 },
     chip: { flexDirection: 'row', paddingHorizontal: 16, height: 38, borderRadius: radius.pill, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginRight: spacing.sm },
-    statFill: { borderRadius: radius.lg, padding: spacing.lg },
+    statWrap: { flex: 1, borderRadius: radius.lg, overflow: 'hidden' },
+    statFill: { padding: spacing.lg, minHeight: 92 },
     rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     kv: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: spacing.md, gap: spacing.md },
     listRow: { flexDirection: 'row', alignItems: 'center', minHeight: 64, paddingVertical: spacing.md },

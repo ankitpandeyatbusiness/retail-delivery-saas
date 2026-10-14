@@ -79,7 +79,7 @@ describe('orders across shops', () => {
 
     test('sales report: totals, per-day series, per-shop list', async () => {
         const w = await f.makeWorld(`ops-${++n}`);
-        const day = new Date().toISOString().slice(0, 10);
+        const day = new Date(Date.now() + 330 * 60000).toISOString().slice(0, 10);   // the Indian day, as the server counts it
         await f.makeOrder(w.tenant, w.customer.user, {
             orderType: 'pickup', status: 'delivered', deliveredAt: new Date(),
             pricing: { subtotal: 200, packagingCharge: 0, discount: 0, total: 200 },
@@ -163,7 +163,7 @@ describe('riders, assignment and cash', () => {
         assert.equal(ledger.body.items.length, 2);
         assert.equal(ledger.body.hasMore, true);
 
-        const day = new Date().toISOString().slice(0, 10);
+        const day = new Date(Date.now() + 330 * 60000).toISOString().slice(0, 10);   // the Indian day, as the server counts it
         const perf = await get(shopUrl(w.tenant, `cod/performance?from=${day}&to=${day}`));
         assert.equal(perf.status, 200);
         assert.ok(Array.isArray(perf.body.items));

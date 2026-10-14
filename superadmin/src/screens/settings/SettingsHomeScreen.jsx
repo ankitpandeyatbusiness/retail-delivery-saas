@@ -6,7 +6,6 @@ import { Button } from '../../components/ui';
 import { toast } from '../../components/feedback';
 import useSettingsEditor from '../../hooks/useSettingsEditor';
 import { choices, nameOf, fullBlockList } from '../../utils/settings';
-import { titleCase } from '../../utils/format';
 
 // The home screen of the customer app: what kind of shop, food mode, which blocks in which order, filters, cards.
 export default function SettingsHomeScreen() {
@@ -15,7 +14,7 @@ export default function SettingsHomeScreen() {
     const h = ed.draft?.home;
 
     const useTemplate = () => {
-        const p = ed.presets?.[h.shopType];
+        const p = ed.presets?.restaurant;
         if (!p) { toast('No template for this type', 'error'); return; }
         ed.set('home', 'foodMode', p.foodMode);
         ed.set('home', 'blocks', fullBlockList(p.blocks, ed.options.BLOCK_TYPES));
@@ -30,15 +29,9 @@ export default function SettingsHomeScreen() {
         <SettingsPage ed={ed} title="Home layout" subtitle={name} preview>
             {ed.ready ? (
                 <>
-                    <Group title="Kind of shop" section="catalog">
-                        <Choice
-                            label="Shop type"
-                            options={(ed.options.SHOP_TYPES || []).map((v) => ({ value: v, label: titleCase(v) }))}
-                            value={h.shopType}
-                            onChange={(v) => ed.set('home', 'shopType', v)}
-                        />
-                        <Button title="Fill home layout from this type's template" kind="soft" small icon="sparkle" onPress={useTemplate} />
-                        <Hint>A template sets food mode, blocks, filters, sorting and card style in one go. You can still change each one below.</Hint>
+                    <Group title="Start again" section="catalog">
+                        <Button title="Reset layout to the restaurant template" kind="soft" small icon="sparkle" onPress={useTemplate} />
+                        <Hint>Sets food mode, blocks, filters, sorting and card style in one go. You can still change each one below.</Hint>
                     </Group>
 
                     <Group title="Food mode" section="catalog">

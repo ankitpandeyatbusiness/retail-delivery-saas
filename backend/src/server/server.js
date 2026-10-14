@@ -69,6 +69,8 @@ connectDB()
             startEmailWorkerScheduler();
             startInactiveShopsScheduler();
             startPaymentReconcileScheduler();
+            require('../services/platformTax').start();   // the one GST for all shops
+            require('../services/platformPayments').start();   // my own Razorpay keys saved in the app
 
             // restricted to production to avoid local console spam
             if (process.env.NODE_ENV === 'production') startAwakeCron();

@@ -2,8 +2,6 @@
 //   GET/PUT /platform/sms                  prices, packs, min/max
 //   GET     /sms/profit?from=&to=          revenue - cost per shop
 //   PUT     /tenants/:tid/sms/settings     per-shop price/cost/low/blockAtZero (null = platform default)
-//   POST    /tenants/:tid/sms/credit       { amountPaise, note }
-//   POST    /tenants/:tid/sms/debit        { amountPaise, note }
 //   POST    /tenants/:tid/sms/topups/:id/mark-paid
 // (The shop's own wallet screens also work for you at /tenants/:tid/shop/sms/...)
 
@@ -126,28 +124,6 @@ sub.put('/settings', wrap(async (req, res) => {
     req.auditBefore = w.toObject();
     await SmsWallet.updateOne({ _id: w._id }, { $set: set });
     res.json(await wallet.status(req.tenantDoc._id));
-}));
-
-const noteOf = (b) => {
-    const note = String(b?.note || '').trim().slice(0, 200);
-    if (!note) throw httpError(400, 'A note (reason) is required');
-    return note;
-};
-
-sub.post('/credit', wrap(async (req, res) => {
-    const r = await wallet.credit({
-        tenantId: req.tenantDoc._id, amountPaise: req.body?.amountPaise, type: 'adjust',
-        note: noteOf(req.body), actor: actorOf(req),
-    });
-    res.status(201).json(r);
-}));
-
-sub.post('/debit', wrap(async (req, res) => {
-    const r = await wallet.manualDebit({
-        tenantId: req.tenantDoc._id, amountPaise: req.body?.amountPaise,
-        note: noteOf(req.body), actor: actorOf(req),
-    });
-    res.status(201).json(r);
 }));
 
 // the owner paid but the webhook did not arrive (or Razorpay is not connected yet)

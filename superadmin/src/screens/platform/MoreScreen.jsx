@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { spacing } from '../../theme';
 import { Screen } from '../../components/layout';
-import { Card, SectionTitle, Avatar, KeyValue, Button, ListRow, Badge } from '../../components/ui';
-import { Hero } from '../../components/blocks';
+import { Card, SectionTitle, KeyValue, Button, ListRow } from '../../components/ui';
+import ProfileCard from '../../components/ProfileCard';
 import { ConfirmSheet } from '../../components/feedback';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useThemeStore } from '../../store/useThemeStore';
@@ -15,19 +15,20 @@ export default function MoreScreen() {
     const admin = useAuthStore((s) => s.admin);
     const logout = useAuthStore((s) => s.logout);
     const [confirm, setConfirm] = useState(false);
-    const mode = useThemeStore((s) => s.mode);
-    const setMode = useThemeStore((s) => s.setMode);
+    const mode = useThemeStore((s2) => s2.mode);
+    const setMode = useThemeStore((s2) => s2.setMode);
 
     return (
         <Screen tabScreen title="More" subtitle="Account and platform">
-            <Hero
-                section="platform"
-                leading={<Avatar section="platform" name={admin?.name || admin?.email || 'Superadmin'} size={58} />}
-                title={admin?.name || 'Superadmin'}
-                subtitle={admin?.email || 'Platform owner'}
-            >
-                <Badge label="Superadmin" tone="primary" icon="crown" />
-            </Hero>
+            <ProfileCard name={admin?.name} subtitle={admin?.email} />
+
+            <SectionTitle section="shops">Find and watch</SectionTitle>
+            <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
+                <ListRow section="shops" icon="search" title="Search everything" subtitle="Shops, orders, people, invoices" onPress={() => nav.navigate('Search')} />
+                <ListRow section="riders" icon="shield" title="Shop health" subtitle="Scores, cancellations, late orders" onPress={() => nav.navigate('Health')} />
+                <ListRow section="settings" icon="bolt" title="System and backups" subtitle="Database, SMS, nightly jobs, backups" onPress={() => nav.navigate('System')} />
+                <ListRow section="money" icon="copy" title="Export data" subtitle="Orders, invoices, customers as Excel sheets" onPress={() => nav.navigate('Exports')} last />
+            </Card>
 
             <SectionTitle section="alerts">Alerts and messages</SectionTitle>
             <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>

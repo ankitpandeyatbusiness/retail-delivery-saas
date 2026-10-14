@@ -4,6 +4,8 @@
 //   GET  /notifications                          superadmin inbox (late-order alerts) ?unread=true&page=1&limit=20
 //   POST /notifications/read-all
 //   POST /notifications/:id/read
+//   DELETE /notifications            clear all
+//   DELETE /notifications/:id
 // Mounted inside adminRouter, so login and the audit log already ran.
 const express = require('express');
 const mongoose = require('mongoose');
@@ -95,6 +97,19 @@ router.post('/notifications/:id/read', wrap(async (req, res) => {
     const filter = { _id: req.params.id, role: 'superadmin' };
     if (!(await Notification.exists(filter))) throw httpError(404, 'Message not found');
     await Notification.updateOne({ ...filter, readAt: null }, { $set: { readAt: new Date() } });
+    res.json({ ok: true });
+}));
+
+// clear the inbox: all of it, or one alert
+router.delete('/notifications', wrap(async (req, res) => {
+    const out = await Notification.deleteMany({ role: 'superadmin' });
+    res.json({ ok: true, deleted: out.deletedCount });
+}));
+
+router.delete('/notifications/:id', wrap(async (req, res) => {
+    if (!isId(req.params.id)) throw httpError(404, 'Message not found');
+    const out = await Notification.deleteOne({ _id: req.params.id, role: 'superadmin' });
+    if (!out.deletedCount) throw httpError(404, 'Message not found');
     res.json({ ok: true });
 }));
 

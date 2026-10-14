@@ -70,9 +70,11 @@ export function QuickActions({ items }) {
                 return (
                     <Pressable key={it.label} onPress={it.onPress} style={({ pressed }) => ({ flex: 1, alignItems: 'center', opacity: pressed ? 0.8 : 1 })}>
                         <View>
-                            <LinearGradient colors={g} {...GRAD} style={[s.qa, t.shadow]}>
-                                <Icon name={it.icon} size={26} color="#FFFFFF" />
-                            </LinearGradient>
+                            <View style={[s.qa, { backgroundColor: g[0], overflow: 'hidden' }, t.shadow]}>
+                                <LinearGradient colors={g} {...GRAD} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                                    <Icon name={it.icon} size={26} color="#FFFFFF" />
+                                </LinearGradient>
+                            </View>
                             {it.badge ? <View style={s.qaBadge}><Text style={s.qaBadgeText}>{it.badge}</Text></View> : null}
                         </View>
                         <Text style={{ color: t.text, fontSize: font.xs, fontWeight: '700', marginTop: 6, textAlign: 'center' }} numberOfLines={2}>{it.label}</Text>

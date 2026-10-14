@@ -49,7 +49,8 @@ function buildProductFilter(tenantId, q = {}, ctx = {}) {
     if (isTrue(q.newArrival)) f.isNewArrival = true;
     if (isTrue(q.giftPack)) f.isGiftPack = true;
     if (isTrue(q.offers)) f.$expr = { $gt: ['$mrp', '$price'] };
-    if (typeof q.weight === 'string' && /^[a-z0-9_-]{1,30}$/.test(q.weight)) {
+    if (isTrue(q.weight)) f.sellBy = { $in: ['weight', 'volume'] };
+    else if (typeof q.weight === 'string' && /^[a-z0-9_-]{1,30}$/.test(q.weight)) {
         f.optionGroups = { $elemMatch: { id: 'weight', options: { $elemMatch: { id: q.weight, isAvailable: { $ne: false } } } } };
     }
     if (SPICE.includes(q.spice)) f.spiceLevel = q.spice;

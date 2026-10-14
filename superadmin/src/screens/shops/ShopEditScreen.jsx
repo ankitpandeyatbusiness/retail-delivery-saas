@@ -6,6 +6,7 @@ import { Screen } from '../../components/layout';
 import { Button, Card, SectionTitle } from '../../components/ui';
 import { Field, Segmented } from '../../components/inputs';
 import { SkeletonList } from '../../components/blocks';
+import MapPicker from '../../components/MapPicker';
 import { toast, ConfirmSheet } from '../../components/feedback';
 import { updateShop } from '../../api/shopsApi';
 import { errMsg } from '../../api/adminClient';
@@ -24,6 +25,7 @@ export default function ShopEditScreen() {
     const { shopId } = useRoute().params;
     const rec = useShopStore((s) => s.byId[shopId]);
     const [f, setF] = useState(null);
+    const [mapOpen, setMapOpen] = useState(false);
     const [err, setErr] = useState({});
     const [busy, setBusy] = useState(false);
     const [confirmStatus, setConfirmStatus] = useState(false);
@@ -141,6 +143,19 @@ export default function ShopEditScreen() {
                 <Text style={{ color: t.muted, fontSize: font.sm, marginBottom: spacing.md }}>
                     The delivery radius and distance-based delivery fees are measured from this point.
                 </Text>
+                <Button title={hasPoint ? 'Change the pin on the map' : 'Point on the map'} icon="pin" onPress={() => setMapOpen(true)} style={{ marginBottom: spacing.md }} />
+                <MapPicker
+                    visible={mapOpen}
+                    initial={hasPoint ? { latitude: f.latitude, longitude: f.longitude } : null}
+                    onClose={() => setMapOpen(false)}
+                    onPick={(p) => {
+                        setF((x) => ({
+                            ...x, latitude: String(p.latitude), longitude: String(p.longitude),
+                            line: x.line || p.line || '', city: x.city || p.city || '', pincode: x.pincode || p.pincode || '',
+                        }));
+                        setMapOpen(false);
+                    }}
+                />
                 <Field label="Latitude" value={f.latitude} onChangeText={(v) => set('latitude')(decimal(v))} keyboardType="numbers-and-punctuation" error={err.latitude} placeholder="e.g. 18.5204" />
                 <Field label="Longitude" value={f.longitude} onChangeText={(v) => set('longitude')(decimal(v))} keyboardType="numbers-and-punctuation" error={err.longitude} placeholder="e.g. 73.8567" style={{ marginBottom: hasPoint ? spacing.md : 0 }} />
                 {hasPoint ? (
@@ -157,7 +172,7 @@ export default function ShopEditScreen() {
             <SectionTitle section="money">Business and billing</SectionTitle>
             <Card>
                 <Field label="Legal name" value={f.legalName} onChangeText={set('legalName')} />
-                <Field label="GST number" value={f.gstin} onChangeText={(v) => set('gstin')(v.toUpperCase())} autoCapitalize="characters" maxLength={15} error={err.gstin} />
+                <Field label="GST number" value={f.gstin} onChangeText={(v) => set('gstin')(v.toUpperCase())} autoCapitalize="characters" maxLength={15} error={err.gstin} hint="Only you can set this. GST is charged on this shop's bills only while this number is filled." />
                 <Field label="FSSAI number" value={f.fssai} onChangeText={(v) => set('fssai')(v.replace(/\D/g, '').slice(0, 14))} keyboardType="number-pad" error={err.fssai} />
                 <Field label="Billing email" value={f.billingEmail} onChangeText={set('billingEmail')} keyboardType="email-address" autoCapitalize="none" hint="Bills and money mails go here. Empty = the owners' emails." error={err.billingEmail} style={{ marginBottom: 0 }} />
             </Card>

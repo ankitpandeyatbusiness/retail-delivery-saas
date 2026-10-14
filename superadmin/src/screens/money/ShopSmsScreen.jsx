@@ -5,10 +5,9 @@ import { useTheme, spacing, font } from '../../theme';
 import { Screen } from '../../components/layout';
 import { Card, Button, Badge, Chip, SectionTitle, KeyValue, ListRow } from '../../components/ui';
 import { Hero, SkeletonList } from '../../components/blocks';
-import { Field } from '../../components/inputs';
 import { NumberField, Switch, Choice, Hint } from '../../components/settingsForm';
 import { ErrorBox, Empty, Sheet, ConfirmSheet, toast } from '../../components/feedback';
-import { smsWallet, smsTransactions, smsTopups, saveSmsSettings, smsCredit, smsDebit, markTopupPaid } from '../../api/moneyApi';
+import { smsWallet, smsTransactions, smsTopups, saveSmsSettings, markTopupPaid } from '../../api/moneyApi';
 import { errMsg } from '../../api/adminClient';
 import { rupeesFromPaise, toPaise, dateTime, titleCase } from '../../utils/format';
 
@@ -25,8 +24,6 @@ export default function ShopSmsScreen() {
     const [type, setType] = useState('');
     const [error, setError] = useState('');
     const [sheet, setSheet] = useState(null);       // credit | debit | prices
-    const [amount, setAmount] = useState(undefined);
-    const [note, setNote] = useState('');
     const [prices, setPrices] = useState({});
     const [busy, setBusy] = useState('');
     const [paid, setPaid] = useState(null);
@@ -40,16 +37,6 @@ export default function ShopSmsScreen() {
     useEffect(() => { load(); }, [load]);
 
     if (!w) return <Screen title="SMS wallet" subtitle={name}>{error ? <ErrorBox message={error} onRetry={load} /> : <SkeletonList count={3} avatar={false} />}</Screen>;
-
-    const move = async (kind) => {
-        if (!(amount > 0)) { toast('Enter an amount', 'error'); return; }
-        if (!note.trim()) { toast('A reason is needed', 'error'); return; }
-        setBusy(kind);
-        try {
-            await (kind === 'credit' ? smsCredit : smsDebit)(shopId, { amountPaise: toPaise(amount), note: note.trim() });
-            toast(kind === 'credit' ? 'Credit added' : 'Amount taken'); setSheet(null); setAmount(undefined); setNote(''); await load();
-        } catch (e) { toast(errMsg(e), 'error'); } finally { setBusy(''); }
-    };
 
     const savePrices = async () => {
         setBusy('prices');
@@ -70,13 +57,10 @@ export default function ShopSmsScreen() {
     return (
         <Screen title="SMS wallet" subtitle={name} refreshing={false} onRefresh={load}>
             <Hero section={state.section} title={rupeesFromPaise(w.balancePaise)} subtitle={`${rupeesFromPaise(w.ratePerSmsPaise)} per SMS`} right={<Badge label={state.label} tone={state.tone} />}>
-                <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg }}>
-                    <Button style={{ flex: 1 }} small icon="add" title="Add credit" onPress={() => { setAmount(undefined); setNote(''); setSheet('credit'); }} />
-                    <Button style={{ flex: 1 }} small kind="outline" icon="back" title="Take amount" onPress={() => { setAmount(undefined); setNote(''); setSheet('debit'); }} />
-                </View>
                 <Text style={{ color: t.muted, fontSize: font.xs, marginTop: spacing.md }}>
                     {w.blockAtZero ? 'SMS stop when the balance runs out.' : 'SMS keep going at zero balance (free for the shop).'}
                 </Text>
+                <Text style={{ color: t.muted, fontSize: font.xs, marginTop: spacing.xs }}>The owner adds credit himself, from the shop app, by paying with UPI.</Text>
             </Hero>
 
             {tops.length ? (
@@ -129,14 +113,6 @@ export default function ShopSmsScreen() {
                 </Card>
             ))}
 
-            {['credit', 'debit'].map((k) => (
-                <Sheet key={k} visible={sheet === k} onClose={() => setSheet(null)} title={k === 'credit' ? 'Add credit' : 'Take an amount'}>
-                    <Text style={{ color: t.muted, marginBottom: spacing.md }}>{k === 'credit' ? 'Adds money to the wallet, for example after the shop paid you directly.' : 'Takes money out of the wallet, to correct a mistake.'} A reason is kept in the log.</Text>
-                    <NumberField label="Amount" prefix="₹" value={amount} onChange={setAmount} />
-                    <Field label="Reason" value={note} onChangeText={setNote} maxLength={200} />
-                    <Button title={k === 'credit' ? 'Add credit' : 'Take amount'} kind={k === 'credit' ? 'primary' : 'danger'} loading={busy === k} onPress={() => move(k)} />
-                </Sheet>
-            ))}
 
             <Sheet visible={sheet === 'prices'} onClose={() => setSheet(null)} title="Prices for this shop">
                 <Hint>Leave a box empty to use the platform price.</Hint>

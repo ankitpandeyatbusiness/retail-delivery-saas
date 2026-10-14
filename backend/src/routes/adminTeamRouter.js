@@ -30,6 +30,7 @@ const view = (a, meId) => {
     return {
         id: a._id,
         name: a.name || null,
+        photo: a.photo || null,
         email: a.email && !a.email.endsWith(PLACEHOLDER_DOMAIN) ? a.email : null,
         phones: me ? a.phones : (a.phones || []).map(maskPhone),   // other people's numbers stay masked
         isActive: !!a.isActive,

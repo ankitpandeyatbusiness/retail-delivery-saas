@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import * as SplashScreen from 'expo-splash-screen';
+import * as SystemUI from 'expo-system-ui';
 import RootNavigator from './src/navigation/RootNavigator';
 import { ToastHost } from './src/components/feedback';
 import { useAuthStore } from './src/store/useAuthStore';
@@ -19,6 +20,8 @@ function Shell() {
 
     useEffect(() => { useThemeStore.getState().hydrate(); useAuthStore.getState().hydrate(); }, []);
     useEffect(() => { if (hydrated) SplashScreen.hideAsync().catch(() => { }); }, [hydrated]);
+    // the phone window behind the app (seen above the keyboard) follows the screen colour, never the splash colour
+    useEffect(() => { SystemUI.setBackgroundColorAsync(t.bg).catch(() => { }); }, [t.bg]);
 
     const token = useAuthStore((st) => st.token);
     useEffect(() => {

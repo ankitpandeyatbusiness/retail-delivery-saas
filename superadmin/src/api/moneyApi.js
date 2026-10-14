@@ -43,13 +43,21 @@ export const listRefunds = (shopId, params) => data(api.get(`${S(shopId)}/paymen
 export const listDisputes = (shopId) => data(api.get(`${T(shopId)}/disputes`));
 export const addDisputeNote = (shopId, id, text) => data(api.post(`${T(shopId)}/disputes/${id}/notes`, { text }));
 
+/* ---------------- the ONE GST for every shop's bills ---------------- */
+export const platformTax = () => data(api.get('/admin/platform/tax'));
+export const savePlatformTax = (body) => data(api.put('/admin/platform/tax', body));   // { gstPercent, gstMode }
+
+/* ---------------- MY Razorpay account (receives SMS top-ups and rent) ---------------- */
+export const platformPaymentStatus = () => data(api.get('/admin/platform/payments'));
+export const savePlatformKeys = (body) => data(api.put('/admin/platform/payments/keys', body));        // { keyId, keySecret } write only
+export const newPlatformWebhookSecret = () => data(api.post('/admin/platform/payments/webhook-secret'));
+export const testPlatformPayments = () => data(api.post('/admin/platform/payments/test'));
+
 /* ---------------- SMS wallet and sender of one shop ---------------- */
 export const smsWallet = (shopId) => data(api.get(`${S(shopId)}/sms/wallet`));
 export const smsTransactions = (shopId, params) => data(api.get(`${S(shopId)}/sms/transactions`, { params }));
 export const smsTopups = (shopId) => data(api.get(`${S(shopId)}/sms/topups`));
 export const saveSmsSettings = (shopId, body) => data(api.put(`${T(shopId)}/sms/settings`, body));    // price overrides (null = platform value), blockAtZero
-export const smsCredit = (shopId, body) => data(api.post(`${T(shopId)}/sms/credit`, body));           // { amountPaise, note }
-export const smsDebit = (shopId, body) => data(api.post(`${T(shopId)}/sms/debit`, body));
 export const markTopupPaid = (shopId, id) => data(api.post(`${T(shopId)}/sms/topups/${id}/mark-paid`, {}));
 export const smsProvider = (shopId) => data(api.get(`${T(shopId)}/sms-provider`));
 export const saveSmsProvider = (shopId, body) => data(api.put(`${T(shopId)}/sms-provider`, body));
@@ -58,15 +66,19 @@ export const saveSmsProvider = (shopId, body) => data(api.put(`${T(shopId)}/sms-
 export const platformLedger = (params) => data(api.get('/admin/ledger', { params }));
 export const shopLedger = (shopId, params) => data(api.get(`${T(shopId)}/ledger`, { params }));
 
-// The CSV is behind the login: fetch it with the token, save to cache, open the share sheet.
+// The Excel sheet is behind the login: fetch it with the token, save to cache, open the share sheet.
 export async function shareLedgerCsv(shopId, params) {
     const url = shopId ? `${T(shopId)}/ledger/export` : '/admin/ledger/export';
-    const res = await api.get(url, { params: { ...params, page: undefined, limit: undefined }, responseType: 'text', transformResponse: (d) => d });
-    const file = new File(Paths.cache, `transactions-${Date.now()}.csv`);
+    const res = await api.get(url, { params: { ...params, page: undefined, limit: undefined }, responseType: 'arraybuffer' });
+    const file = new File(Paths.cache, `transactions-${Date.now()}.xlsx`);
     file.create();
-    file.write(String(res.data));
+    file.write(new Uint8Array(res.data));
     if (!(await Sharing.isAvailableAsync())) throw Object.assign(new Error('Sharing is not available on this phone'), { safe: true });
-    await Sharing.shareAsync(file.uri, { mimeType: 'text/csv', dialogTitle: 'Transactions', UTI: 'public.comma-separated-values-text' });
+    await Sharing.shareAsync(file.uri, {
+        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        dialogTitle: 'Transactions',
+        UTI: 'org.openxmlformats.spreadsheetml.sheet',
+    });
 }
 
 // A rent invoice PDF

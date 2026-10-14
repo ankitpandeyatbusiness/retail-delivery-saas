@@ -34,19 +34,34 @@ export function ErrorBox({ message, onRetry }) {
     return <Empty icon="cloud-offline-outline" title="Could not load" hint={message} action="Try again" onAction={onRetry} />;
 }
 
+// the sheet itself rises from the bottom (the dim layer only fades, so no dark band slides across the screen)
+function SlideUp({ children }) {
+    const y = useRef(new Animated.Value(60)).current;
+    const o = useRef(new Animated.Value(0)).current;
+    useEffect(() => {
+        Animated.parallel([
+            Animated.timing(y, { toValue: 0, duration: 220, useNativeDriver: true }),
+            Animated.timing(o, { toValue: 1, duration: 180, useNativeDriver: true }),
+        ]).start();
+    }, [y, o]);
+    return <Animated.View style={{ transform: [{ translateY: y }], opacity: o }}>{children}</Animated.View>;
+}
+
 /* Bottom sheet. Use it for secondary actions and short forms instead of a new screen. */
 export function Sheet({ visible, onClose, title, children }) {
     const t = useTheme();
     const insets = useSafeAreaInsets();
     return (
-        <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+        <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
             <KeyboardAvoidingView style={{ flex: 1, justifyContent: 'flex-end' }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
                 <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: t.overlay }]} onPress={onClose} />
-                <View style={[s.sheet, { backgroundColor: t.surface, paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
-                    <View style={[s.grab, { backgroundColor: t.border }]} />
-                    {title ? <Text style={{ color: t.text, fontSize: font.lg, fontWeight: '700', marginBottom: spacing.lg }}>{title}</Text> : null}
-                    {children}
-                </View>
+                <SlideUp>
+                    <View style={[s.sheet, { backgroundColor: t.surface, paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
+                        <View style={[s.grab, { backgroundColor: t.border }]} />
+                        {title ? <Text style={{ color: t.text, fontSize: font.lg, fontWeight: '700', marginBottom: spacing.lg }}>{title}</Text> : null}
+                        {children}
+                    </View>
+                </SlideUp>
             </KeyboardAvoidingView>
         </Modal>
     );

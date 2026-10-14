@@ -19,10 +19,17 @@ if (
 const API = 'https://api.razorpay.com/v1';
 const isMock = () => process.env.PAYMENTS_MOCK === 'true';
 
+// Keys saved from the superadmin app (services/platformPayments.js) win over .env
+let platformOverride = null;
+let platformWebhookSecret = null;
+const setPlatformOverride = (creds, webhookOnly = null) => { platformOverride = creds; platformWebhookSecret = webhookOnly; };
+
 const platformCredentials = () => {
+    if (platformOverride) return platformOverride;
     const keyId = process.env.RAZORPAY_KEY_ID;
     const keySecret = process.env.RAZORPAY_KEY_SECRET;
-    return keyId && keySecret ? { keyId, keySecret, webhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET || null } : null;
+    const webhookSecret = platformWebhookSecret || process.env.RAZORPAY_WEBHOOK_SECRET || null;
+    return keyId && keySecret ? { keyId, keySecret, webhookSecret } : null;
 };
 
 const hmac = (secret, data) => crypto.createHmac('sha256', secret).update(data).digest('hex');
@@ -169,6 +176,7 @@ const provider = () => (isMock() ? mockProvider : realProvider);
 module.exports = {
     isMock,
     platformCredentials,
+    setPlatformOverride,
     verifyPaymentSignature,
     ping: (args) => provider().ping(args),
     createQr: (args) => provider().createQr(args),

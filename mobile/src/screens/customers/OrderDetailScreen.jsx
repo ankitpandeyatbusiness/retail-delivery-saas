@@ -263,7 +263,7 @@ export default function OrderDetailScreen() {
                 <Card title="Items" icon="fast-food-outline" delay={100}>
                     {o.items.map((l, i) => (
                         <View key={`${l.productId}${i}`} style={s.item}>
-                            <View style={[s.qty, { backgroundColor: tint(primary) }]}><Text style={[s.qtyTxt, { color: primary }]}>{l.quantity}×</Text></View>
+                            <View style={[s.qty, { backgroundColor: tint(primary) }]}><Text style={[s.qtyTxt, { color: primary }]}>{l.measure?.label || `${l.quantity}×`}</Text></View>
                             <View style={{ flex: 1, marginHorizontal: 10 }}>
                                 <Text style={[s.itemName, { color: text }]}>{l.name}</Text>
                                 {l.selections?.length ? <Text style={[s.muted, { color: muted }]}>{l.selections.map((x) => x.name).join(', ')}</Text> : null}

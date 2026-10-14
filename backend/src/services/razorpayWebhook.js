@@ -116,6 +116,7 @@ async function handle({ account, rawBody, signature, eventIdHeader }) {
     if (!payments.verifyWebhook({ rawBody, signature, secret })) return reply(401, { error: 'Bad signature' });
 
     if (!isPlatform) await Tenant.updateOne({ _id: account }, { $set: { 'payments.lastWebhookAt': new Date() } });
+    else await require('../models/PlatformSettings').collection.updateOne({ _id: 'main' }, { $set: { 'payments.lastWebhookAt': new Date() } }, { upsert: true });
 
     let body;
     try { body = JSON.parse(rawBody.toString('utf8')); } catch (e) { return reply(400, { error: 'Bad body' }); }

@@ -12,10 +12,13 @@ module.exports = {
         orientation: 'portrait',
         scheme: 'retailcontrol',
         userInterfaceStyle: 'automatic',
+        backgroundColor: '#FFFFFF',   // the window behind the app: white, not the splash blue
         icon: './assets/icon.png',
         android: {
             package: 'com.ankitpandey.retailcontrol',
             allowBackup: false,
+            // Google Maps SDK key (put GOOGLE_MAPS_API_KEY=... in superadmin/.env): the map where you point to the shop
+            config: { googleMaps: { apiKey: process.env.GOOGLE_MAPS_API_KEY } },
             ...(hasFirebase ? { googleServicesFile: './google-services.json' } : {}),
             adaptiveIcon: {
                 foregroundImage: './assets/adaptive-foreground.png',
@@ -27,6 +30,7 @@ module.exports = {
         },
         plugins: [
             'expo-secure-store',
+            ['expo-location', { locationWhenInUsePermission: 'Allow Retail Control to use your location to point to a shop on the map.' }],
             // no coloured box on autofilled fields (phone number, OTP). Written into the Android theme on every prebuild.
             './plugins/withNoAutofillHighlight',
             ['expo-notifications', { defaultChannel: 'alerts', color: palette.brand.gradient[1] }],

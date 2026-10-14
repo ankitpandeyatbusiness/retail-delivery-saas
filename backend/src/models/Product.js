@@ -24,7 +24,20 @@ const productSchema = new mongoose.Schema({
     description: String,
     image: String,
 
-    price: { type: Number, required: true, min: 0 },   // base / starting price
+    // What the item is (Sweet, Food, Drink...) and how it is sold. The kinds come from config/businessTypes.js.
+    itemKind: { type: String, trim: true, lowercase: true, match: /^[a-z_]{2,20}$/ },
+    sellBy: { type: String, enum: ['piece', 'weight', 'volume'], default: 'piece' },
+    // sellBy weight or volume: price is the price of 1 kg (1 L); the customer picks grams (ml)
+    measure: {
+        _id: false,
+        options: [{ type: Number, min: 10, max: 50000 }],   // quick sizes in g / ml. Empty = the platform's quick sizes
+        min: { type: Number, min: 10, max: 50000 },
+        max: { type: Number, min: 10, max: 50000 },
+        step: { type: Number, min: 1, max: 5000 },
+        allowManual: { type: Boolean, default: true },       // may the customer type an amount
+    },
+
+    price: { type: Number, required: true, min: 0 },   // base / starting price (per kg or litre when sold by weight / volume)
     mrp: Number,                                        // price before discount
 
     // Food type flags
@@ -63,6 +76,18 @@ const productSchema = new mongoose.Schema({
     isActive: { type: Boolean, default: true },
     sortOrder: { type: Number, default: 0 },
 }, { timestamps: true });
+
+// Sold by weight or volume: the amount is the quantity, so size, serves and a piece count make no sense
+productSchema.pre('validate', function () {
+    if (this.sellBy && this.sellBy !== 'piece') {
+        this.serves = undefined;
+        this.sizes = [];
+        this.weightOptions = [];
+        if (this.stock) { this.stock.enabled = false; this.stock.qty = 0; }
+    } else {
+        this.measure = undefined;
+    }
+});
 
 productSchema.pre('validate', function () {
     if (!this.isModified('optionGroups')) return;

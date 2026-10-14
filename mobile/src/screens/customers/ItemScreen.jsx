@@ -13,6 +13,8 @@ import SlideNum from '../../components/common/SlideNum';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useMenuStore, useCartStore } from '../../store/customers/shopStores';
 import { fetchProduct } from '../../api/customers/shopApi';
+import { isMeasured, perUnit, amountLabel, measureRules, packPrice, startAmount } from '../../utils/customers/measure';
+import { TextInput } from 'react-native';
 
 // pre-select defaults, and the first available options for required groups
 function initSel(p) {
@@ -130,6 +132,9 @@ export default function ItemScreen() {
     const [state, setState] = useState('loading'); // loading | ok | gone | error
     const [sel, setSel] = useState({});
     const [qty, setQty] = useState(1);
+    const [amt, setAmt] = useState(500);          // grams / ml for items sold by weight or volume
+    const [typed, setTyped] = useState('');
+    const [typedUnit, setTypedUnit] = useState('small');   // g / ml, or kg / L
     const [note, setNote] = useState('');
     const [more, setMore] = useState(false);
     const [added, setAdded] = useState(false);
@@ -141,7 +146,8 @@ export default function ItemScreen() {
             const inCart = useCartStore.getState().lines.find((l) => String(l.productId) === String(d._id));
             const base = initSel(d);
             if (inCart) (inCart.selections || []).forEach((x) => { base[x.groupId] = x.optionIds; });
-            setP(d); setSel(base); setQty(inCart ? inCart.quantity : 1); setNote(''); setMore(false); setAdded(false);
+            setAmt(isMeasured(d) ? startAmount(d, inCart?.measureQty) : 500); setTyped('');
+            setP(d); setSel(base); setQty(inCart ? (inCart.measureQty ? 1 : inCart.quantity) : 1); setNote(''); setMore(false); setAdded(false);
             setState('ok');
             scrollRef.current?.getNode?.().scrollTo?.({ y: 0, animated: false });
             scrollRef.current?.scrollTo?.({ y: 0, animated: false });
@@ -154,16 +160,19 @@ export default function ItemScreen() {
     const groups = p?.optionGroups || [];
     const unit = useMemo(() => {
         if (!p) return 0;
-        let t = p.price;
+        let t = isMeasured(p) ? packPrice(p, amt) : p.price;
         groups.forEach((g) => (sel[g.id] || []).forEach((oid) => {
             const o = (g.options || []).find((x) => x.id === oid);
             if (o) t += o.price || 0;
         }));
         return t;
-    }, [p, sel]);
-    const valid = groups.every((g) => (sel[g.id] || []).length >= (g.min ?? 0));
+    }, [p, sel, amt]);
+    const measured = isMeasured(p);
+    const rules = measured ? measureRules(p) : null;
+    const amtOk = !measured || (amt >= rules.min && amt <= rules.max);
+    const valid = amtOk && groups.every((g) => (sel[g.id] || []).length >= (g.min ?? 0));
     const curSig = sigOf(groups.filter((g) => (sel[g.id] || []).length).map((g) => ({ groupId: g.id, optionIds: sel[g.id] })));
-    const existing = p ? lines.find((l) => String(l.productId) === String(p._id) && sigOf(l.selections) === curSig) : null;
+    const existing = p ? lines.find((l) => String(l.productId) === String(p._id) && sigOf(l.selections) === curSig && (l.measureQty || 0) === (measured ? amt : 0)) : null;
 
     const related = useMemo(() => {
         if (!p) return [];
@@ -177,7 +186,7 @@ export default function ItemScreen() {
         else if (p.isAvailable === false) blocked = 'Sold out';
         else if (!valid) blocked = 'Not available right now';
     }
-    const total = +(unit * qty).toFixed(2);
+    const total = +(unit * (measured ? 1 : qty)).toFixed(2);
     const cartCount = lines.reduce((a, l) => a + l.quantity, 0);
     const cartTotal = lines.reduce((a, l) => a + l.price * l.quantity, 0);
 
@@ -205,8 +214,38 @@ export default function ItemScreen() {
         setSel({ ...sel, [g.id]: [...cur, o.id] });
     };
 
+    const applyTyped = () => {
+        const n = Number(String(typed).replace(',', '.'));
+        if (!(n > 0)) { showToast('Type an amount'); return; }
+        const q = Math.round(n * (typedUnit === 'big' ? 1000 : 1));
+        if (q < rules.min) { showToast(`The smallest amount is ${amountLabel(p.sellBy, rules.min)}`); return; }
+        if (q > rules.max) { showToast(`The largest amount is ${amountLabel(p.sellBy, rules.max)}`); return; }
+        ease();
+        setAmt(q);
+    };
+
     const add = () => {
         if (added) return;
+        if (measured) {
+            // one amount per item: a new amount replaces the old line
+            const st = useCartStore.getState();
+            st.lines.filter((l) => String(l.productId) === String(p._id)).forEach((l) => st.setQty(l.key, 0));
+            const selections = [];
+            const names = [];
+            groups.forEach((g) => {
+                const ids = sel[g.id] || [];
+                if (!ids.length) return;
+                selections.push({ groupId: g.id, optionIds: ids });
+                ids.forEach((oid) => { const o = (g.options || []).find((x) => x.id === oid); if (o) names.push(o.name); });
+            });
+            useCartStore.getState().add({
+                productId: p._id, name: p.name, image: p.image, isVeg: p.isVeg,
+                price: unit, quantity: 1, selections, optionsText: names.join(', '),
+                note: note.trim() || undefined, measureQty: amt, sellBy: p.sellBy });
+            setAdded(true);
+            setTimeout(() => setAdded(false), 1200);
+            return;
+        }
         if (existing) {
             useCartStore.getState().setQty(existing.key, qty);
             setAdded(true);
@@ -318,7 +357,7 @@ export default function ItemScreen() {
                             ))}
                         </View>
                         <View style={s.priceRow}>
-                            <Text style={[s.price, { color: text }]}>₹{p.price}</Text>
+                            <Text style={[s.price, { color: text }]}>₹{p.price}{measured ? perUnit(p) : ''}</Text>
                             {off ? <Text style={s.mrp}>₹{p.mrp}</Text> : null}
                             {off ? <View style={s.offBadge}><Text style={s.offTxt}>{off}% OFF</Text></View> : null}
                         </View>
@@ -329,6 +368,55 @@ export default function ItemScreen() {
                             </Pressable>
                         ) : null}
                     </Appear>
+
+                    {measured ? (
+                        <Appear delay={60} style={[s.group, { backgroundColor: surface, borderColor: border }]}>
+                            <View style={s.gHead}>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={[s.gName, { color: text }]}>How much do you want?</Text>
+                                    <Text style={[s.gHint, { color: muted }]}>Choose a size or type your own amount</Text>
+                                </View>
+                            </View>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', padding: 12 }}>
+                                {rules.options.map((q) => {
+                                    const on = amt === q;
+                                    return (
+                                        <Press key={q} onPress={() => { ease(); setAmt(q); setTyped(''); }}
+                                            style={{ paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, borderWidth: 1.5, borderColor: on ? primary : border, backgroundColor: on ? tint(primary) : 'transparent', marginRight: 8, marginBottom: 8 }}>
+                                            <Text style={{ color: on ? primary : text, fontWeight: '800' }}>{amountLabel(p.sellBy, q)}</Text>
+                                        </Press>
+                                    );
+                                })}
+                            </View>
+                            {rules.allowManual ? (
+                                <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingBottom: 12 }}>
+                                    <TextInput
+                                        value={typed}
+                                        onChangeText={(v) => setTyped(v.replace(/[^0-9.,]/g, ''))}
+                                        onSubmitEditing={applyTyped}
+                                        keyboardType="decimal-pad"
+                                        placeholder="Type amount"
+                                        placeholderTextColor={muted}
+                                        style={{ flex: 1, height: 44, borderWidth: 1, borderColor: border, borderRadius: 12, paddingHorizontal: 12, color: text, fontSize: 15 }}
+                                    />
+                                    <Press onPress={() => setTypedUnit(typedUnit === 'small' ? 'big' : 'small')} style={{ marginLeft: 8, height: 44, minWidth: 56, borderRadius: 12, backgroundColor: tint(primary), alignItems: 'center', justifyContent: 'center' }}>
+                                        <Text style={{ color: primary, fontWeight: '800' }}>
+                                            {p.sellBy === 'volume' ? (typedUnit === 'big' ? 'L' : 'ml') : (typedUnit === 'big' ? 'kg' : 'g')}
+                                        </Text>
+                                    </Press>
+                                    <Press onPress={applyTyped} style={{ marginLeft: 8, height: 44, paddingHorizontal: 16, borderRadius: 12, backgroundColor: primary, alignItems: 'center', justifyContent: 'center' }}>
+                                        <Text style={{ color: '#FFFFFF', fontWeight: '800' }}>Set</Text>
+                                    </Press>
+                                </View>
+                            ) : null}
+                            <View style={{ paddingHorizontal: 14, paddingBottom: 12 }}>
+                                <Text style={{ color: text, fontWeight: '800' }}>
+                                    {amountLabel(p.sellBy, amt)} = ₹{+packPrice(p, amt).toFixed(2)}
+                                </Text>
+                                {!amtOk ? <Text style={{ color: '#D93025', fontSize: 12, marginTop: 2 }}>This amount is not allowed for this item</Text> : null}
+                            </View>
+                        </Appear>
+                    ) : null}
 
                     {groups.map((g, i) => <Group key={g.id} g={g} index={i} chosen={sel[g.id] || []} onPick={pick} />)}
 
@@ -372,11 +460,17 @@ export default function ItemScreen() {
             ) : null}
 
             <Appear style={[s.bottom, { paddingBottom: insets.bottom + 12, backgroundColor: surface, borderTopColor: border }]}>
-                <View style={[s.qs, { borderColor: primary, borderRadius: radius, backgroundColor: tint(primary) }]}>
-                    <Press onPress={() => setQty((q) => Math.max(1, q - 1))} hitSlop={8}><Text style={[s.qBtn, { color: primary }]}>−</Text></Press>
-                    <SlideNum value={qty} style={[s.qNum, { color: primary }]} />
-                    <Press onPress={() => setQty((q) => Math.min(20, q + 1))} hitSlop={8}><Text style={[s.qBtn, { color: primary }]}>+</Text></Press>
-                </View>
+                {measured ? (
+                    <View style={[s.qs, { borderColor: primary, borderRadius: radius, backgroundColor: tint(primary), paddingHorizontal: 14, justifyContent: 'center' }]}>
+                        <Text style={{ color: primary, fontWeight: '900', fontSize: 15 }}>{amountLabel(p.sellBy, amt)}</Text>
+                    </View>
+                ) : (
+                    <View style={[s.qs, { borderColor: primary, borderRadius: radius, backgroundColor: tint(primary) }]}>
+                        <Press onPress={() => setQty((q) => Math.max(1, q - 1))} hitSlop={8}><Text style={[s.qBtn, { color: primary }]}>−</Text></Press>
+                        <SlideNum value={qty} style={[s.qNum, { color: primary }]} />
+                        <Press onPress={() => setQty((q) => Math.min(20, q + 1))} hitSlop={8}><Text style={[s.qBtn, { color: primary }]}>+</Text></Press>
+                    </View>
+                )}
                 <View style={{ flex: 1, marginLeft: 12 }}>
                     <Press onPress={blocked ? undefined : add} disabled={!!blocked}>
                         <Animated.View style={[s.addBtn, { backgroundColor: added ? '#1E8E3E' : btnBg, borderRadius: radius }]}>

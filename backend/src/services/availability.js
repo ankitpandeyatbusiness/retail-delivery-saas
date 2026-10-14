@@ -16,7 +16,10 @@ const cache = new LRUCache({ max: 500, ttl: 60 * 1000 });
 
 const count = (cond) => ({ $sum: { $cond: [cond, 1, 0] } });
 const hasWeightGroup = {
-    $gt: [{ $size: { $filter: { input: { $ifNull: ['$optionGroups', []] }, cond: { $eq: ['$$this.id', 'weight'] } } } }, 0],
+    $or: [
+        { $in: ['$sellBy', ['weight', 'volume']] },
+        { $gt: [{ $size: { $filter: { input: { $ifNull: ['$optionGroups', []] }, cond: { $eq: ['$this.id', 'weight'] } } } }, 0] },
+    ],
 };
 
 const ZERO = {
@@ -84,7 +87,7 @@ const FILTER_RULES = {
     spice_level: [(a) => a.spice > 0, 'No item has a spice level'],
     sugar_free: [(a) => a.sugarFree > 0, 'No item is marked sugar free'],
     jain: [(a) => a.jain > 0, 'No item is marked Jain'],
-    weight: [(a) => a.weight > 0, 'No item has a "weight" option group'],
+    weight: [(a) => a.weight > 0, 'No item is sold by weight or volume'],
     serves: [(a) => a.serves > 0, 'No item has a "serves" number'],
     gift_pack: [(a) => a.giftPack > 0, 'No item is marked gift pack'],
     new: [(a) => a.newArrival > 0, 'No item is marked new arrival'],

@@ -76,9 +76,9 @@ describe('products', () => {
         }));
         assert.equal(res.status, 201, JSON.stringify(res.body));
         assert.equal(res.body.optionGroups[0].options.length, 2);
-        assert.equal(res.body.gstRate, 5);
+        assert.equal(res.body.gstRate ?? null, null);   // an item has no GST of its own any more: the platform's one rate applies
 
-        // later the owner clears MRP, serves and the GST rate (the app sends null)
+        // later the owner clears MRP and serves (the app sends null)
         const upd = await patch(`products/${res.body._id}`, productBody(c._id, { mrp: null, serves: null, gstRate: null, optionGroups: [] }));
         assert.equal(upd.status, 200, JSON.stringify(upd.body));
         assert.equal(upd.body.mrp ?? null, null);

@@ -352,6 +352,7 @@ async function reorderCart({ tenant, userId, orderId }) {
             quantity: l.quantity,
             selections: [...byGroup].map(([groupId, optionIds]) => ({ groupId, optionIds })),
             note: l.note,
+            ...(l.measure?.qty ? { measureQty: l.measure.qty } : {}),
         };
         try {
             await buildLines(tenant, config, [line]);

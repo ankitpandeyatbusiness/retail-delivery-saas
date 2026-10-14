@@ -46,11 +46,11 @@ export const useCartStore = create((set, get) => ({
 
     // line: { productId, name, image, isVeg, price, quantity, selections:[{groupId,optionIds}], optionsText, note }
     add(line) {
-        const key = `${line.productId}#${sig(line.selections)}#${line.note || ''}`;
+        const key = `${line.productId}#${sig(line.selections)}#${line.note || ''}#${line.measureQty || ''}`;
         const cur = get().lines;
         const found = cur.find((l) => l.key === key);
         const lines = found
-            ? cur.map((l) => (l.key === key ? { ...l, quantity: Math.min(20, l.quantity + line.quantity) } : l))
+            ? cur.map((l) => (l.key === key ? { ...l, quantity: line.measureQty ? 1 : Math.min(20, l.quantity + line.quantity) } : l))
             : [...cur, { ...line, selections: line.selections || [], key }];
         save(lines);
         set({ lines });

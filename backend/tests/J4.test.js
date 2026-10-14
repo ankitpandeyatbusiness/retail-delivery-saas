@@ -162,7 +162,7 @@ describe('J4: money ledger (owner and superadmin)', () => {
         assert.equal(r.body.totals.inPaise, 10000);
         assert.ok(r.body.items.some((i) => i.category === 'customer_payment'));
 
-        const csv = await request(app).get(`/api/admin/tenants/${w.tenant._id}/ledger/export`).set(auth);
+        const csv = await request(app).get(`/api/admin/tenants/${w.tenant._id}/ledger/export?format=csv`).set(auth);
         assert.equal(csv.status, 200);
         assert.match(csv.headers['content-type'], /text\/csv/);
         const lines = csv.text.trim().split('\r\n');
@@ -171,7 +171,7 @@ describe('J4: money ledger (owner and superadmin)', () => {
         assert.ok(csv.text.includes('100.00'));
         assert.ok(!csv.text.includes('"=HYPERLINK'));   // a formula never starts a cell
 
-        const plat = await request(app).get('/api/admin/ledger/export').set(auth);
+        const plat = await request(app).get('/api/admin/ledger/export?format=csv').set(auth);
         assert.equal(plat.status, 200);
         assert.match(plat.text.split('\r\n')[0], /Shop/);
         assert.equal((await request(app).get(`/api/admin/tenants/${w.tenant._id}/ledger/export`).set(w.owner.headers)).status === 200, false);

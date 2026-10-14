@@ -18,6 +18,7 @@ const superAdminSchema = new mongoose.Schema({
             { validator: (a) => a.every((p) => /^[6-9]\d{9}$/.test(p)), message: 'Phones must be 10-digit mobile numbers' },
         ],
     },
+    photo: String,    // his profile picture (public URL)
     isActive: { type: Boolean, default: true },
     lastLoginAt: Date,
 }, { timestamps: true });

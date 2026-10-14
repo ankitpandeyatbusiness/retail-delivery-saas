@@ -67,6 +67,13 @@ export default function MoneyHomeScreen() {
                         </Card>
                     ) : null}
 
+                    <SectionTitle section="alerts">Am I in profit?</SectionTitle>
+                    <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
+                        <ListRow section="money" icon="chart" title="Profit and loss" subtitle="Income, costs and exactly why" onPress={go('ProfitLoss')} />
+                        <ListRow section="alerts" icon="warning" title="Who owes you money" subtitle="Unpaid rent, late payers, never paid" onPress={go('Receivables')} />
+                        <ListRow section="catalog" icon="wallet" title="Your expenses" subtitle="Hosting, SMS provider, staff..." onPress={go('Expenses')} last />
+                    </Card>
+
                     <SectionTitle section="money">Invoices and money</SectionTitle>
                     <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
                         <ListRow section="money" icon="receipt" title="Rent invoices" subtitle="Monthly bills to shops: pay, waive, void, extend" onPress={go('Invoices')} />
@@ -81,8 +88,10 @@ export default function MoneyHomeScreen() {
 
                     <SectionTitle section="settings">Rules and details</SectionTitle>
                     <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
+                        <ListRow section="money" icon="percent" title="GST on shop bills" subtitle="One rate for every shop, set only by you" onPress={go('Gst')} />
                         <ListRow section="settings" icon="tune" title="Billing rules" subtitle="Free service, due days, grace, price tiers" onPress={go('PlatformBilling')} />
-                        <ListRow section="platform" icon="bank" title="Business details" subtitle={d.gstSet ? 'Printed on every invoice' : 'No GST number saved yet'} onPress={go('PlatformBusiness')} last />
+                        <ListRow section="platform" icon="bank" title="Business details" subtitle={d.gstSet ? 'Printed on every invoice' : 'No GST number saved yet'} onPress={go('PlatformBusiness')} />
+                        <ListRow section="money" icon="bank" title="My Razorpay" subtitle="Your account for SMS top-ups and rent" onPress={go('MyRazorpay')} last />
                     </Card>
                 </>
             )}

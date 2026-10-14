@@ -10,6 +10,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const Category = require('../models/Category');
 const Product = require('../models/Product');
+const { applyItemRules } = require('../services/itemRules');
 const Banner = require('../models/Banner');
 const Coupon = require('../models/Coupon');
 const Collection = require('../models/Collection');
@@ -79,12 +80,14 @@ router.use('/products', crud(Product, {
         'isVeg', 'isEggless', 'isSugarFree', 'isJain', 'spiceLevel',
         'isBestseller', 'isNewArrival', 'isGiftPack', 'serves', 'calories', 'prepTimeMin',
         'optionGroups', 'sizes', 'weightOptions', 'addOns',
-        'isAvailable', 'isActive', 'sortOrder', 'gstRate',
+        'itemKind', 'sellBy', 'measure',
+        'isAvailable', 'isActive', 'sortOrder',
     ],
     sort: { sortOrder: 1, _id: 1 },
     searchField: 'name',
     softDelete: true,
     check: async (d, req) => {
+        await applyItemRules(d, req.tenant);
         const ok = d.categoryId && isId(String(d.categoryId)) &&
             await Category.exists({ _id: d.categoryId, tenantId: req.tenant._id });
         if (!ok) throw httpError(400, 'categoryId must be a category of this shop');

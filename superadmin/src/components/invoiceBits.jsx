@@ -17,7 +17,7 @@ export function InvoiceRow({ invoice, onPress, showShop = true }) {
     const tone = invoiceTone(invoice);
     const edge = { success: t.success, neutral: t.muted, danger: t.danger, warn: t.warn }[tone];
     return (
-        <Pressable onPress={onPress} android_ripple={{ color: t.border }} style={({ pressed }) => [s.row, { backgroundColor: t.surface, opacity: pressed ? 0.9 : 1 }, t.shadow]}>
+        <Pressable onPress={onPress} style={({ pressed }) => [s.row, { backgroundColor: t.surface, opacity: pressed ? 0.9 : 1 }, t.shadow]}>
             <View style={[s.edge, { backgroundColor: edge }]} />
             <View style={{ flex: 1, padding: spacing.md, paddingLeft: spacing.lg }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>

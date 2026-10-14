@@ -4,10 +4,11 @@ const PRESETS = {
     restaurant: {
         foodMode: 'mixed',
         blocks: blocks('search', 'banner', 'categories', 'filters', 'offers', 'bestsellers', 'items'),
-        filters: ['veg_only', 'rating_4', 'price_range', 'offers', 'bestseller'],
-        sortOptions: ['popularity', 'price_low', 'price_high', 'rating'],
+        // every filter: the app shows only the ones that have data (config/availability), so they follow the menu by themselves
+        filters: ['veg_only', 'egg_free', 'sugar_free', 'jain', 'spice_level', 'weight', 'serves', 'gift_pack', 'new', 'rating_4', 'price_range', 'offers', 'bestseller'],
+        sortOptions: ['popularity', 'price_low', 'price_high', 'rating', 'newest'],
         cardStyle: 'big',
-        itemOptions: { sizes: true, addOns: true, spiceLevel: true, weightOptions: false },
+        itemOptions: { sizes: true, addOns: true, spiceLevel: true, weightOptions: true },
     },
     sweet_shop: {
         foodMode: 'veg',

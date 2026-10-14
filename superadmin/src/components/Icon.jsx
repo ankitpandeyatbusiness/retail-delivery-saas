@@ -95,11 +95,14 @@ const ALIAS = {
  * <Icon name="orders" size={22} color={...} filled />
  * duotone by default; `filled` makes it solid (use for the active tab).
  */
+// duotone adds a soft filled shape behind the glyph. For simple glyphs that shape is a square, so they stay plain.
+const PLAIN = new Set(['add', 'addCircle', 'back', 'next', 'check', 'clear', 'search', 'copy', 'trash', 'edit', 'percent', 'block', 'logout', 'send', 'warning', 'ok', 'info', 'menu', 'eye', 'lock', 'key']);
+
 export default function Icon({ name, size = 22, color, filled, style }) {
     const t = useTheme();
     const key = MAP[name] ? name : ALIAS[name];
     const Cmp = key ? MAP[key] : null;
     const c = color || t.text;
-    if (Cmp) return <Cmp size={size} color={c} weight={filled ? 'fill' : 'duotone'} style={style} />;
+    if (Cmp) return <Cmp size={size} color={c} weight={filled ? 'fill' : PLAIN.has(key) ? 'bold' : 'duotone'} style={style} />;
     return <Ionicons name={name} size={size} color={c} style={style} />;   // anything not mapped yet
 }

@@ -229,7 +229,7 @@ describe('payments (Razorpay) of one shop', () => {
 
     test('report and refunds lists answer; dispute notes are saved', async () => {
         const w = await f.makeWorld(`money-${++n}`);
-        const day = new Date().toISOString().slice(0, 10);
+        const day = new Date(Date.now() + 330 * 60000).toISOString().slice(0, 10);   // the Indian day, as the server counts it
         const rep = await get(`/api/admin/tenants/${w.tenant._id}/shop/payments/report?from=${day}&to=${day}`);
         assert.equal(rep.status, 200);
         assert.ok(rep.body.captured && rep.body.refunded);
@@ -250,20 +250,13 @@ describe('payments (Razorpay) of one shop', () => {
 });
 
 describe('SMS wallet and sender of one shop', () => {
-    test('credit, debit with a reason, prices with null = platform value, wallet and history', async () => {
+    test('no manual credit or debit; prices with null = platform value, wallet and history', async () => {
         const shop = await f.makeTenant(`money-${++n}`);
         const base = `/api/admin/tenants/${shop._id}`;
 
-        assert.equal((await post(`${base}/sms/credit`, { amountPaise: 5000 })).status, 400);   // reason needed
-        const c = await post(`${base}/sms/credit`, { amountPaise: 5000, note: 'Paid by cash' });
-        assert.equal(c.status, 201, JSON.stringify(c.body));
-
-        const w = await get(`${base}/shop/sms/wallet`);
-        assert.equal(w.body.balancePaise, 5000);
-
-        const d = await post(`${base}/sms/debit`, { amountPaise: 1000, note: 'Wrong credit' });
-        assert.equal(d.status, 201, JSON.stringify(d.body));
-        assert.equal((await post(`${base}/sms/debit`, { amountPaise: 999999, note: 'Too much' })).status >= 400, true);
+        // the superadmin cannot move wallet money by hand: the owner tops up by paying
+        assert.equal((await post(`${base}/sms/credit`, { amountPaise: 5000, note: 'x' })).status, 404);
+        assert.equal((await post(`${base}/sms/debit`, { amountPaise: 1000, note: 'x' })).status, 404);
 
         const st = await put(`${base}/sms/settings`, { ratePerSmsPaise: 50, costPerSmsPaise: null, lowBalancePaise: null, blockAtZero: true });
         assert.equal(st.status, 200, JSON.stringify(st.body));
@@ -272,8 +265,8 @@ describe('SMS wallet and sender of one shop', () => {
 
         const tx = await get(`${base}/shop/sms/transactions?limit=20`);
         assert.equal(tx.status, 200);
-        assert.equal(tx.body.items.length, 2);
-        assert.equal((await get(`${base}/shop/sms/transactions?type=adjust`)).body.items.length, 2);   // a manual credit and a manual debit are both "adjust"
+        assert.equal(tx.body.items.length, 0);
+        assert.equal((await get(`${base}/shop/sms/transactions?type=adjust`)).body.items.length, 0);
         assert.equal((await get(`${base}/shop/sms/transactions?type=nonsense`)).status, 400);
         assert.equal((await get(`${base}/shop/sms/topups`)).status, 200);
     });
@@ -307,7 +300,7 @@ describe('ledger', () => {
         await put('/api/admin/platform/business', businessBody);
         await post(`/api/admin/tenants/${shop._id}/invoices/custom`, { lineItems: [{ description: 'Fee', qty: 1, rate: 100 }] });
 
-        const day = new Date().toISOString().slice(0, 10);
+        const day = new Date(Date.now() + 330 * 60000).toISOString().slice(0, 10);   // the Indian day, as the server counts it
         const plat = await get(`/api/admin/ledger?from=${day}&to=${day}&limit=20`);
         assert.equal(plat.status, 200);
         assert.equal(plat.body.items.length, 1);
@@ -319,7 +312,7 @@ describe('ledger', () => {
         const shopView = await get(`/api/admin/tenants/${shop._id}/ledger?category=rent&status=pending`);
         assert.equal(shopView.body.items.length, 1);
 
-        const csv = await get(`/api/admin/tenants/${shop._id}/ledger/export`);
+        const csv = await get(`/api/admin/tenants/${shop._id}/ledger/export?format=csv`);
         assert.equal(csv.status, 200);
         assert.match(String(csv.headers['content-type']), /csv/);
         assert.match(csv.text, /Monthly bill/);

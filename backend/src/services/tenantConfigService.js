@@ -1,4 +1,5 @@
 const O = require('../config/tenantOptions');
+const platformTax = require('./platformTax');
 const { resolveHomeConfig } = require('./homeConfigService');
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -369,10 +370,9 @@ function resolveConfig(tenant, now = new Date()) {
         orders.payments = (orders.payments || []).filter((m) => m !== 'cod');
     }
 
-    // Illegal Tax Fix: Force GST to 'none' if the shop has no GSTIN on file
-    if (!tenant.business?.gstin) {
-        orders.gst = { mode: 'none', percent: 0 };
-    }
+    // GST is ONE rate for every shop, set by the superadmin (never the shop), and only for a shop whose GST number
+    // the superadmin has saved. Whatever a shop's own settings say about GST is ignored.
+    orders.gst = tenant.business?.gstin ? platformTax.get() : { mode: 'none', percent: 0 };
 
     const labels = merge(DEFAULTS.labels, clean.labels);
     const weekly = clean.hours?.weekly || null;

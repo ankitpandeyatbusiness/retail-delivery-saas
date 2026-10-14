@@ -3,8 +3,9 @@ import { Text, View, Linking } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme, spacing, font } from '../../theme';
 import { Screen } from '../../components/layout';
-import { Card, Button, Badge, Avatar, ListRow, SectionTitle } from '../../components/ui';
-import { Hero, SkeletonList } from '../../components/blocks';
+import { Card, Button, Badge, ListRow, SectionTitle } from '../../components/ui';
+import { SkeletonList } from '../../components/blocks';
+import ProfileCard from '../../components/ProfileCard';
 import { Field } from '../../components/inputs';
 import { Hint } from '../../components/settingsForm';
 import { ErrorBox, Sheet, toast } from '../../components/feedback';
@@ -80,9 +81,7 @@ export default function MyAccountScreen() {
 
     return (
         <Screen title="My account" subtitle="Superadmin" refreshing={false} onRefresh={load}>
-            <Hero section="platform" leading={<Avatar section="platform" name={me.name || me.phones?.[0]} size={58} />} title={me.name || 'Superadmin'} subtitle={me.phones?.join(' · ')}>
-                <Badge label="Superadmin" tone="primary" icon="crown" />
-            </Hero>
+            <ProfileCard name={me.name} subtitle={me.phones?.join(' · ')} />
 
             <SectionTitle section="settings">Account</SectionTitle>
             <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>

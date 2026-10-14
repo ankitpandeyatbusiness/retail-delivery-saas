@@ -56,3 +56,8 @@ export async function logoColors(id, logoUrl, apply) {
     if (!res.ok) throw Object.assign(new Error(json.error || 'Could not read the logo colours'), { safe: true });
     return json;
 }
+
+/* ---- map: place search and the address of a point ---- */
+export const searchPlaces = (q, near) => data(api.get('/admin/geo/search', { params: { q, ...(near ? { lat: near.latitude, lng: near.longitude } : {}) } }));
+export const placePoint = (id) => data(api.get('/admin/geo/place', { params: { id } }));
+export const reversePlace = (lat, lng) => data(api.get('/admin/geo/reverse', { params: { lat, lng } }));

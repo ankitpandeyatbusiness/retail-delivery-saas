@@ -1,4 +1,5 @@
 // src/screens/CartScreen.jsx
+import { amountLabel } from '../../utils/customers/measure';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, ScrollView, TextInput, ActivityIndicator, StyleSheet, LayoutAnimation } from 'react-native';
 import { CommonActions, useNavigation, useRoute } from '@react-navigation/native';
@@ -105,7 +106,7 @@ export default function CartScreen() {
             orderType: type,
             paymentMethod: paymentMethodValue,
             items: lines.map((l) => ({
-                productId: l.productId, quantity: l.quantity, selections: l.selections || [], note: l.note || undefined })) };
+                productId: l.productId, quantity: l.quantity, selections: l.selections || [], note: l.note || undefined, ...(l.measureQty ? { measureQty: l.measureQty } : {}) })) };
         const code = applied || tryCode;
         if (code && couponOn) b.couponCode = code;
         if (type === 'delivery') {
@@ -305,11 +306,22 @@ export default function CartScreen() {
                                     {l.note ? <Text style={[s.lSub, { color: primary }]}>✎ {l.note}</Text> : null}
                                 </View>
                                 <View style={{ alignItems: 'flex-end', marginLeft: 12 }}>
-                                    <View style={[s.qs, { borderColor: tint(primary), backgroundColor: tint(primary) }]}>
-                                        <Pressable hitSlop={12} onPress={() => setQty(l.key, l.quantity - 1)}><Text style={[s.qBtn, { color: primary }]}>−</Text></Pressable>
-                                        <Text style={[s.qNum, { color: primary }]}>{l.quantity}</Text>
-                                        <Pressable hitSlop={12} onPress={() => setQty(l.key, l.quantity + 1)}><Text style={[s.qBtn, { color: primary }]}>+</Text></Pressable>
-                                    </View>
+                                    {l.measureQty ? (
+                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                            <Pressable onPress={() => nav.navigate('Item', { id: l.productId })} hitSlop={8} style={[s.qs, { borderColor: tint(primary), backgroundColor: tint(primary), paddingHorizontal: 10 }]}>
+                                                <Text style={[s.qNum, { color: primary }]}>{amountLabel(l.sellBy, l.measureQty)}</Text>
+                                            </Pressable>
+                                            <Pressable hitSlop={12} onPress={() => setQty(l.key, 0)} style={{ marginLeft: 8 }}>
+                                                <Ionicons name="trash-outline" size={18} color={muted} />
+                                            </Pressable>
+                                        </View>
+                                    ) : (
+                                        <View style={[s.qs, { borderColor: tint(primary), backgroundColor: tint(primary) }]}>
+                                            <Pressable hitSlop={12} onPress={() => setQty(l.key, l.quantity - 1)}><Text style={[s.qBtn, { color: primary }]}>−</Text></Pressable>
+                                            <Text style={[s.qNum, { color: primary }]}>{l.quantity}</Text>
+                                            <Pressable hitSlop={12} onPress={() => setQty(l.key, l.quantity + 1)}><Text style={[s.qBtn, { color: primary }]}>+</Text></Pressable>
+                                        </View>
+                                    )}
                                     <Text style={[s.lPrice, { color: text }]}>{rs(linePrice(l, i))}</Text>
                                 </View>
                             </Appear>

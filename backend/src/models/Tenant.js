@@ -36,6 +36,8 @@ const tenantSchema = new mongoose.Schema({
     },
     heroImages: [String],
     status: { type: String, enum: ['active', 'suspended'], default: 'active' },
+    // what kind of business this is (config/businessTypes.js). Only restaurant is open today.
+    businessType: { type: String, enum: ['restaurant', 'general_store', 'stationery', 'garments'], default: 'restaurant' },
     androidPackage: String,
 
     // Restaurant details shown in the app

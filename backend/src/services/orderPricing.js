@@ -7,6 +7,7 @@ const Coupon = require('../models/Coupon');
 const Order = require('../models/Order');
 const User = require('../models/User');
 const { priceSelection } = require('./optionGroups');
+const { priceMeasure } = require('./itemMeasure');
 const { isOpenNow } = require('./categoryTimings');
 const { foodModeFilter, activeNow } = require('./catalogQuery');
 const { hashPhone } = require('../utils/phoneHash');
@@ -30,6 +31,7 @@ async function buildLines(tenant, config, rawItems, at = new Date()) {
         if (!Number.isInteger(it.quantity) || it.quantity < 1 || it.quantity > MAX_QTY) {
             throw httpError(400, `Quantity must be between 1 and ${MAX_QTY}`);
         }
+        if (it.measureQty !== undefined && !Number.isInteger(it.measureQty)) throw httpError(400, 'Invalid amount in cart');
     }
 
     // Same visibility rules as the menu: active item, active category, allowed by the shop's food mode
@@ -45,7 +47,7 @@ async function buildLines(tenant, config, rawItems, at = new Date()) {
     }).lean();
     const byId = new Map(products.map((p) => [String(p._id), p]));
 
-    // GST: an item's own rate wins, otherwise the shop's rate. The mode comes from the shop settings.
+    // GST: the platform's one rate (config.orders.gst), on every item. Items and shops cannot set their own.
     const gstMode = config.orders.gst?.mode || 'none';
     const shopGst = config.orders.gst?.percent || 0;
 
@@ -66,21 +68,32 @@ async function buildLines(tenant, config, rawItems, at = new Date()) {
             need.set(key, { productId: p._id, name: p.name, qty: want });
         }
 
-        const { unitPrice, chosen } = priceSelection(p, it.selections ?? []);   // validates min/max and gives the real price
+        const sold = p.sellBy === 'weight' || p.sellBy === 'volume';
+        if (sold && it.quantity !== 1) throw httpError(400, `"${p.name}" is sold by ${p.sellBy}: choose an amount, not a quantity`);
+        if (!sold && it.measureQty !== undefined) throw httpError(400, `"${p.name}" is not sold by weight`);
+        let { unitPrice, chosen } = priceSelection(p, it.selections ?? []);   // validates min/max and gives the real price
+        let measure;
+        if (sold) {
+            // the price on the item is per kg (L): the pack price replaces it, option extras still add on top
+            const m = priceMeasure(p, it.measureQty, tenant.businessType);
+            unitPrice = m.unitPrice + (unitPrice - p.price);
+            measure = { qty: m.qty, unit: m.unit, label: m.label };
+        }
         const lineTotal = round2(unitPrice * it.quantity);
         subtotal += lineTotal;
         prepMin = Math.max(prepMin, p.prepTimeMin || 0);
 
         return {
             productId: p._id,
-            name: p.name,
+            name: measure ? `${p.name} · ${measure.label}` : p.name,   // the amount travels with the name: riders, bills and SMS all show it
             image: p.image,
             isVeg: p.isVeg,
             quantity: it.quantity,
             unitPrice: round2(unitPrice),
             lineTotal,
-            gstRate: gstMode === 'none' ? 0 : (p.gstRate ?? shopGst),
+            gstRate: gstMode === 'none' ? 0 : shopGst,
             selections: chosen,
+            ...(measure ? { measure } : {}),
             note: notesOn && typeof it.note === 'string' && it.note.trim() ? it.note.trim().slice(0, 200) : undefined,
         };
     });

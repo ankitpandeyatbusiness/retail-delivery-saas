@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "215093345228",
+    "project_id": "retail-delivery-saas",
+    "storage_bucket": "retail-delivery-saas.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:215093345228:android:70fff3620fb2f17be4fb69",
+        "android_client_info": {
+          "package_name": "com.ankitpandey.retailcontrol"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyARjl7U36RND00lnRrtGs31babn5qTvTe4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:215093345228:android:a651d8d7334c70e0e4fb69",
+        "android_client_info": {
+          "package_name": "com.savera.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyARjl7U36RND00lnRrtGs31babn5qTvTe4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

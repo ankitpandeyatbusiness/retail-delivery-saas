@@ -1,15 +1,15 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, FlatList, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useTheme, spacing, font, radius } from '../../theme';
 import { Screen, HeaderButton } from '../../components/layout';
 import { Chip, Badge } from '../../components/ui';
 import { SkeletonList } from '../../components/blocks';
-import { Empty, ErrorBox, toast } from '../../components/feedback';
+import { Empty, ErrorBox, ConfirmSheet, toast } from '../../components/feedback';
 import Icon from '../../components/Icon';
 import usePagedList from '../../hooks/usePagedList';
 import { useInboxStore } from '../../store/useInboxStore';
-import { fetchInbox, readAllInbox, readInbox } from '../../api/platformApi';
+import { fetchInbox, readAllInbox, readInbox, clearInbox, deleteInboxItem } from '../../api/platformApi';
 import { errMsg } from '../../api/adminClient';
 import { ago, titleCase } from '../../utils/format';
 
@@ -30,7 +30,9 @@ export default function InboxScreen() {
     const nav = useNavigation();
     const [unreadOnly, setUnreadOnly] = useState(false);
     const [busy, setBusy] = useState(false);
+    const [confirmClear, setConfirmClear] = useState(false);
     const first = useRef(true);
+    const autoRead = useRef(false);
     const setUnread = useInboxStore((s) => s.setUnread);
 
     const list = usePagedList(async (page) => {
@@ -38,6 +40,13 @@ export default function InboxScreen() {
         setUnread(r.unreadCount || 0);
         return { items: r.items, hasMore: r.hasMore, page: r.page };
     }, [unreadOnly]);
+
+    useEffect(() => {
+        if (list.state !== 'ready' || autoRead.current) return;
+        autoRead.current = true;
+        readAllInbox().then(() => setUnread(0)).catch(() => { });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [list.state]);
 
     useFocusEffect(useCallback(() => {
         if (first.current) { first.current = false; return; }
@@ -48,6 +57,15 @@ export default function InboxScreen() {
     const markAll = async () => {
         setBusy(true);
         try { await readAllInbox(); list.setItems((c) => c.map((x) => ({ ...x, read: true }))); setUnread(0); toast('All marked as read'); } catch (e) { toast(errMsg(e), 'error'); } finally { setBusy(false); }
+    };
+
+    const clearAll = async () => {
+        try { await clearInbox(); list.setItems(() => []); setUnread(0); toast('All alerts cleared'); } catch (e) { toast(errMsg(e), 'error'); throw e; }
+    };
+
+    const removeOne = async (n) => {
+        list.setItems((c) => c.filter((x) => x.id !== n.id));
+        try { await deleteInboxItem(n.id); } catch (e) { toast(errMsg(e), 'error'); list.silentReload(); }
     };
 
     const open = async (n) => {
@@ -63,7 +81,7 @@ export default function InboxScreen() {
     };
 
     return (
-        <Screen title="Alerts" subtitle="Things that need you" scroll={false} right={<HeaderButton icon="ok" onPress={busy ? undefined : markAll} />}>
+        <Screen title="Alerts" subtitle="Things that need you" scroll={false} right={<HeaderButton icon="trash" onPress={() => setConfirmClear(true)} />}>
             <View style={{ height: 52, marginTop: spacing.md }}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: spacing.lg, alignItems: 'center' }} style={{ flexGrow: 0 }}>
                     <Chip label="All" active={!unreadOnly} onPress={() => setUnreadOnly(false)} />
@@ -100,11 +118,23 @@ export default function InboxScreen() {
                                         <Text style={{ color: t.muted, fontSize: font.xs }}>{ago(n.createdAt)}</Text>
                                     </View>
                                 </View>
+                                <Pressable onPress={() => removeOne(n)} hitSlop={10} style={{ paddingLeft: spacing.sm, justifyContent: 'flex-start' }}>
+                                    <Icon name="clear" size={20} color={t.muted} />
+                                </Pressable>
                             </Pressable>
                         );
                     }}
                 />
             )}
+            <ConfirmSheet
+                visible={confirmClear}
+                onClose={() => setConfirmClear(false)}
+                title="Clear all alerts?"
+                message="Every alert in this list is deleted for good."
+                confirmLabel="Clear all"
+                danger
+                onConfirm={clearAll}
+            />
         </Screen>
     );
 }

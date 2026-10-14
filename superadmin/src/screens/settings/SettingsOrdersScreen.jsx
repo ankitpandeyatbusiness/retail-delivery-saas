@@ -74,9 +74,11 @@ export default function SettingsOrdersScreen() {
 
                     <Group title="Charges and tax" section="money">
                         <NumberField label="Packaging charge" prefix="₹" value={o.packagingCharge} onChange={(v) => ed.set('orders', 'packagingCharge', v ?? 0)} />
-                        <Choice label="GST" options={choices('gst', ed.options.GST_MODES)} value={gst.mode || 'none'} onChange={(v) => setGst('mode', v)} last={(gst.mode || 'none') === 'none'} />
-                        {gst.mode && gst.mode !== 'none' ? <NumberField label="GST rate" suffix="%" value={gst.percent} onChange={(v) => setGst('percent', v ?? 0)} last /> : null}
-                        {!hasGstin ? <Hint tone="warn">This shop has no GST number yet, so GST stays off for customers until you add it in Edit shop.</Hint> : null}
+                        <Hint tone={hasGstin ? 'muted' : 'warn'}>
+                            {hasGstin
+                                ? 'GST on this shop\'s bills is the one platform rate (Money → GST on shop bills). It cannot be set per shop.'
+                                : 'This shop has no GST number, so it charges no GST. Save the number in Edit shop to start charging the platform GST.'}
+                        </Hint>
                     </Group>
 
                     <Group title="Tips" section="money" hint="Quick amounts shown to the customer (up to 5). Needs the Tips feature to be on.">

@@ -29,7 +29,6 @@ export function ShopRow({ shop, onPress, compact }) {
     return (
         <Pressable
             onPress={onPress}
-            android_ripple={{ color: t.border }}
             style={({ pressed }) => [s.row, { backgroundColor: t.surface, opacity: pressed ? 0.9 : 1 }, t.shadow]}
         >
             <View style={[s.edge, { backgroundColor: edge }]} />
