@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { View, Text, Modal, ScrollView, Pressable, ActivityIndicator, Animated, Easing, PanResponder, Dimensions, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
+import { View, Text, Modal, ScrollView, Pressable, ActivityIndicator, Animated, Easing, PanResponder, Dimensions, Keyboard, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
 import Icon from './Icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme, spacing, radius, font, tint } from '../theme';
@@ -78,6 +78,15 @@ export function Sheet({ visible, onClose, title, children, dismissible = true })
 
     useEffect(() => { if (visible) drag.setValue(0); }, [visible, drag]);
 
+    // Android: a transparent Modal ignores adjustResize, so lift the sheet by the keyboard height ourselves
+    const [kb, setKb] = useState(0);
+    useEffect(() => {
+        if (Platform.OS !== 'android') return undefined;
+        const a = Keyboard.addListener('keyboardDidShow', (e) => setKb(e.endCoordinates.height));
+        const b = Keyboard.addListener('keyboardDidHide', () => setKb(0));
+        return () => { a.remove(); b.remove(); };
+    }, []);
+
     const pan = useRef(PanResponder.create({
         // claim only a clearly vertical, downward drag (capture phase, so it also works when the finger starts on an input or button);
         // a SheetScroll that is scrolled down keeps its own gesture
@@ -102,7 +111,7 @@ export function Sheet({ visible, onClose, title, children, dismissible = true })
 
     return (
         <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
-            <KeyboardAvoidingView style={{ flex: 1, justifyContent: 'flex-end' }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <KeyboardAvoidingView style={{ flex: 1, justifyContent: 'flex-end', paddingBottom: kb }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
                 <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: t.overlay, opacity: dim }]}>
                     <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
                 </Animated.View>
@@ -110,7 +119,7 @@ export function Sheet({ visible, onClose, title, children, dismissible = true })
                     <Animated.View
                         {...pan.panHandlers}
                         onTouchStartCapture={() => { ctx.inScroll = false; }}
-                        style={[s.sheet, { backgroundColor: t.surface, paddingBottom: Math.max(insets.bottom, spacing.lg), transform: [{ translateY: y }] }]}
+                        style={[s.sheet, { backgroundColor: t.surface, paddingBottom: kb ? spacing.lg : Math.max(insets.bottom, spacing.lg), transform: [{ translateY: y }] }]}
                     >
                         <View style={s.grabHit}><View style={[s.grab, { backgroundColor: t.border }]} /></View>
                         {title ? <Text style={{ color: t.text, fontSize: font.lg, fontWeight: '700', marginBottom: spacing.lg }}>{title}</Text> : null}
