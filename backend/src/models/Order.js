@@ -84,6 +84,8 @@ const orderSchema = new Schema({
         broadcast: { active: Boolean, startedAt: Date, expiresAt: Date, endedAt: Date, endReason: String },
         problems: [{ _id: false, at: Date, reason: String, note: String }],   // reported by the rider
         cashCollectedPaise: { type: Number, default: 0 },
+        // the rider's photo of the food handed over: proof of a safe delivery. Optional. Shown to the customer, the owner and the superadmin.
+        proof: { _id: false, url: String, at: Date, mediaId: { type: Schema.Types.ObjectId, ref: 'Media' } },
         earnPaise: { type: Number, default: 0 },   // what the rider earned for this delivery (whole paise). Information only.
         offers: [{
             _id: false,

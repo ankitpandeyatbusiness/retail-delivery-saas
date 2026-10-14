@@ -47,12 +47,12 @@ describe('J2: online order flow', () => {
     beforeEach(async () => { await db.clear(); payments._mock.reset(); });
     afterEach(() => mock.restoreAll());
 
-    test('payment-config tells the app that UPI is available', async () => {
+    test('payment-config tells the app that UPI and card are available', async () => {
         const w = await makeWorld('j2-config');
         const r = await request(app).get('/api/orders/payment-config').set(w.customer.headers);
         assert.equal(r.status, 200);
         assert.equal(r.body.online, true);
-        assert.deepEqual(r.body.methods, ['upi']);
+        assert.deepEqual(r.body.methods, ['upi', 'card']);
     });
 
     test('the customer starts and verifies a payment through the routes, and only for his own order', async () => {
@@ -198,12 +198,13 @@ describe('J2: online order flow', () => {
         assert.equal((await Order.findById(paid._id)).cancel.refundPaise, 10000);
     });
 
-    test('placing an online order: only UPI, and only when the shop can take money', () => {
+    test('placing an online order: UPI and card, and only when the shop can take money', () => {
         assert.equal(onlineProblem('cod', null), null);
         assert.equal(onlineProblem('upi', { ok: true }), null);
         assert.equal(onlineProblem('upi', { ok: false, reason: 'x' }).status, 409);
         assert.equal(onlineProblem('upi', null).status, 409);
-        assert.equal(onlineProblem('card', { ok: true }).status, 400);
-        assert.equal(onlineProblem('wallet', { ok: true }).status, 400);
+        assert.equal(onlineProblem('card', { ok: true }), null);
+        assert.equal(onlineProblem('card', { ok: false, reason: 'x' }).status, 409);
+        assert.equal(onlineProblem('wallet', { ok: true }).status, 400);   // wallet is not offered yet
     });
 });

@@ -63,7 +63,7 @@ router.post('/verify-otp', wrap(async (req, res) => {
         actorType: 'superadmin', actorId: r.admin._id, actorLabel: r.admin.email,
         action: 'LOGIN /api/admin/auth/verify-otp', method: 'POST', path: '/api/admin/auth/verify-otp', status: 200, ip: req.ip,
     });
-    res.json({ token: signAdminToken(r.admin), admin: { email: r.admin.email, name: r.admin.name || null } });
+    res.json({ token: signAdminToken(r.admin), admin: { email: r.admin.email.endsWith('@superadmin.local') ? null : r.admin.email, name: r.admin.name || null } });
 }));
 
 // Password login: OFF unless SUPERADMIN_PASSWORD_LOGIN=true. Wrong tries per IP are counted in MongoDB.

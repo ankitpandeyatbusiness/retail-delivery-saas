@@ -13,6 +13,7 @@ const Session = require('../models/Session');
 const loadTenant = require('../middlewares/loadTenant');
 const { maskPhone } = require('../utils/phoneHash');
 const edit = require('../services/userEditService');
+const roleService = require('../services/userRoleService');
 const { wrap, httpError } = require('../middlewares/apiErrors');
 
 const router = express.Router();
@@ -67,6 +68,14 @@ router.patch('/tenants/:tid/users/:userId/block', loadTenant, wrap(async (req, r
     await user.save();
     if (user.isBlocked) await Session.deleteMany({ userId: user._id });
     res.json(view(user));
+}));
+
+// Move a person between customer, rider and owner. Refused while they are blocked or have an order in progress.
+router.patch('/tenants/:tid/users/:userId/role', loadTenant, wrap(async (req, res) => {
+    const user = (await findUser(req)).toObject();
+    req.auditBefore = { role: user.role };
+    const r = await roleService.changeRole({ tenantId: req.tenantDoc._id, user, role: req.body?.role });
+    res.json({ ...view(r.user), unchanged: r.unchanged, sessionsEnded: !r.unchanged });
 }));
 
 // One person: masked phone, orders, Cash on delivery strikes, rider profile.

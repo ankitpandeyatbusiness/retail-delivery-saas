@@ -1,6 +1,6 @@
 // src/screens/OrderDetailScreen.jsx
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, ScrollView, ActivityIndicator, TextInput, StyleSheet, Animated, Easing } from 'react-native';
+import { View, Text, Pressable, ScrollView, ActivityIndicator, TextInput, StyleSheet, Animated, Easing, Image } from 'react-native';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -368,6 +368,13 @@ export default function OrderDetailScreen() {
                                 </Press>
                             </>
                         )}
+                    </Card>
+                ) : null}
+
+                {delivered && delivery && o.delivery?.proof?.url ? (
+                    <Card title="Delivery photo" icon="camera-outline" delay={90}>
+                        <Image source={{ uri: o.delivery.proof.url }} style={{ width: '100%', height: 220, borderRadius: 12, backgroundColor: border }} resizeMode="cover" />
+                        <Text style={[s.muted, { color: muted, marginTop: 8 }]}>Taken by your delivery partner when the food was handed over.</Text>
                     </Card>
                 ) : null}
 

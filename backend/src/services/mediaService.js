@@ -22,6 +22,9 @@ const BUILD_KINDS = new Set(['icon', 'splash', 'adaptive']);
 const OWNER_KINDS = new Set(['logo', 'product', 'category', 'banner', 'collection', 'rider', 'order', ...HERO_KINDS]);
 const SUPER_KINDS = new Set([...OWNER_KINDS, ...BUILD_KINDS]);
 const CUSTOMER_KINDS = new Set(['customer', 'complaint']);
+const RIDER_KINDS = new Set(['rider', 'proof']);   // his own photo, and the photo of food handed over on his own delivery
+const MAX_PROOF_PHOTOS = 3;
+const PROOF_WINDOW_MS = 24 * 60 * 60 * 1000;     // a proof can be added up to a day after the delivery
 
 // ref: needs a refId. fixed: one file name that is overwritten. max: longest side in pixels.
 // png: stays PNG. square: must be square, scaled to exactly `size`. flatten: no transparency.
@@ -36,6 +39,7 @@ const KINDS = {
     banner: { max: 1600 },
     collection: { max: 1600 },
     rider: { ref: true, fixed: true, max: 512 },
+    proof: { ref: true, max: 1600 },
     order: { ref: true, max: 1600 },
     customer: { fixed: true, max: 512 },
     complaint: { ref: true, max: 1600 },
@@ -62,8 +66,8 @@ function sniff(b) {
 async function plan({ tenant, kind, refId, actorId, allowed }) {
     const cfg = KINDS[kind];
     if (!cfg || !allowed.has(kind)) throw httpError(400, 'Unknown upload kind');
-    if (kind === 'customer') {
-        refId = cleanId(actorId);
+    if (kind === 'customer' || (kind === 'rider' && allowed === RIDER_KINDS)) {
+        refId = cleanId(actorId);   // a rider can only ever touch his own photo
     } else if (cfg.ref) {
         if (!REF_RE.test(String(refId || ''))) throw httpError(400, 'refId is required for this kind');
         refId = String(refId);
@@ -77,6 +81,19 @@ async function plan({ tenant, kind, refId, actorId, allowed }) {
         if (!mine) throw httpError(404, 'Order not found');
         const count = await Media.countDocuments({ tenantId: tenant._id, kind: 'complaint', refId });
         if (count >= MAX_COMPLAINT_PHOTOS) throw httpError(400, `You can add up to ${MAX_COMPLAINT_PHOTOS} photos`);
+    }
+    if (kind === 'proof') {
+        // only on his own delivery, after he picked the food up, and at most a day after it was delivered
+        if (!mongoose.isValidObjectId(refId) || !mongoose.isValidObjectId(actorId)) throw httpError(404, 'Order not found');
+        const since = new Date(Date.now() - PROOF_WINDOW_MS);
+        const mine = await Order.exists({
+            _id: refId, tenantId: tenant._id, orderType: 'delivery', 'delivery.riderId': actorId,
+            'delivery.status': { $in: ['picked_up', 'delivered'] },
+            $or: [{ status: { $ne: 'delivered' } }, { deliveredAt: { $gte: since } }],
+        });
+        if (!mine) throw httpError(409, 'A delivery photo can be added only on your own order, after pickup (and within a day of delivery)');
+        const count = await Media.countDocuments({ tenantId: tenant._id, kind: 'proof', refId });
+        if (count >= MAX_PROOF_PHOTOS) throw httpError(400, 'This delivery already has its photo');
     }
     if (kind === 'hero') {
         const count = await Media.countDocuments({ tenantId: tenant._id, kind: 'hero' });
@@ -105,6 +122,7 @@ async function finalKey(tenant, kind, refId) {
             return `${base}products/${refId}${name ? `-${name}` : ''}/${stamp}`;
         }
         case 'rider': return `${base}riders/${refId}/photo.webp`;
+        case 'proof': return `${base}proofs/${ym()}/${refId}/${stamp}`;
         case 'order': return `${base}orders/${ym()}/${refId}/${stamp}`;
         case 'customer': return `${base}customers/${refId}/avatar.webp`;
         case 'complaint': {
@@ -205,6 +223,12 @@ async function removeMedia({ tenant, id, allowed, ownerId }) {
         await Tenant.updateOne({ _id: tenant._id }, { $pull: { heroImages: m.url } });
         invalidateTenant(tenant.slug);
     }
+    if (m.kind === 'proof') {
+        await Order.updateOne({ _id: m.refId, tenantId: tenant._id, 'delivery.proof.mediaId': m._id }, { $unset: { 'delivery.proof': 1 } });
+    }
+    if (m.kind === 'rider') {
+        await require('../models/Rider').updateOne({ tenantId: tenant._id, userId: m.refId, photo: m.url }, { $unset: { photo: 1 } });
+    }
     return { ok: true };
 }
 
@@ -222,4 +246,4 @@ async function reorderHeroes({ tenant, ids }) {
     return { heroImages };
 }
 
-module.exports = { OWNER_KINDS, SUPER_KINDS, CUSTOMER_KINDS, MAX_BYTES, sign, confirm, removeMedia, reorderHeroes, sniff, slugify };
+module.exports = { OWNER_KINDS, SUPER_KINDS, CUSTOMER_KINDS, RIDER_KINDS, MAX_BYTES, sign, confirm, removeMedia, reorderHeroes, sniff, slugify };

@@ -7,6 +7,9 @@
 //   POST  /orders/:id/accept | /reject | /pickup
 //   POST  /orders/:id/deliver {pin}      POST /orders/:id/problem {reason, note}
 //   GET   /summary
+//   POST  /me/photo/sign {contentType, bytes}  ->  POST /me/photo {key}       DELETE /me/photo      his own picture
+//   POST  /orders/:id/proof/sign {contentType, bytes}  ->  POST /orders/:id/proof {key}   DELETE /orders/:id/proof
+//         the photo of the food handed over (proof of a safe delivery). Optional.
 
 const express = require('express');
 const mongoose = require('mongoose');
@@ -24,6 +27,10 @@ const pins = require('../services/deliveryPinService');
 const riderEarnings = require('../services/riderEarnings');
 const { ACTIVE_STATUSES } = require('../services/orderflow');
 const notify = require('../services/notificationService');
+const media = require('../services/mediaService');
+const Media = require('../models/Media');
+const liveFeed = require('../services/liveFeed');
+const { takeSignSlot } = require('../middlewares/uploadLimit');
 const realtime = require('../services/realtime');
 const { wrap, httpError } = apiErrors;
 const isId = (v) => typeof v === 'string' && mongoose.isValidObjectId(v);
@@ -55,6 +62,7 @@ function riderView(o) {
         delivery: {
             status: d.status, offerExpiresAt: d.offerExpiresAt || (d.broadcast?.active ? d.broadcast.expiresAt : null) || null,
             pinRequired: !!d.pinRequired, deliveredAt: d.deliveredAt || null,
+            proof: d.proof?.url ? { url: d.proof.url, at: d.proof.at } : null,
         },
     };
 }
@@ -75,7 +83,7 @@ core.get('/me', wrap(async (req, res) => {
     if (!r) throw httpError(404, 'Rider not found');
     res.json({
         userId: r.userId, name: r.name || null, phone: req.riderPhone, shop: req.tenant.name,
-        isActive: r.isActive, isOnline: r.isOnline, vehicle: r.vehicle || null,
+        isActive: r.isActive, isOnline: r.isOnline, vehicle: r.vehicle || null, photo: r.photo || null,
         activeOrderCount: r.activeOrderCount, ratingAvg: r.ratingAvg, ratingCount: r.ratingCount,
     });
 }));
@@ -91,6 +99,81 @@ core.patch('/me', wrap(async (req, res) => {
     }
     if (!Object.keys(set).length) throw httpError(400, 'Nothing to update');
     await Rider.updateOne({ tenantId: req.tenant._id, userId: req.riderId }, { $set: set });
+    res.json({ ok: true });
+}));
+
+/* ------------------------------ photos ------------------------------ */
+const photoActor = (req) => ({ type: 'rider', id: String(req.riderId), label: req.riderPhone });
+async function signSlot(req, res) {
+    try {
+        await takeSignSlot('rl_upload_r', `upload:r:${req.tenant._id}:${req.riderId}`, 40);
+    } catch (e) {
+        if (e.retryAfter) res.set('Retry-After', String(e.retryAfter));
+        throw e;
+    }
+}
+
+// his own picture: sign -> PUT the file to the address -> confirm
+core.post('/me/photo/sign', wrap(async (req, res) => {
+    await signSlot(req, res);
+    const { contentType, bytes } = req.body || {};
+    res.json(await media.sign({
+        tenant: req.tenant, actorId: String(req.riderId), kind: 'rider', refId: String(req.riderId), contentType, bytes, allowed: media.RIDER_KINDS,
+    }));
+}));
+
+core.post('/me/photo', wrap(async (req, res) => {
+    const doc = await media.confirm({
+        tenant: req.tenant, actorId: String(req.riderId), kind: 'rider', refId: String(req.riderId), key: req.body?.key,
+        allowed: media.RIDER_KINDS, uploadedBy: photoActor(req),
+    });
+    await Rider.updateOne({ tenantId: req.tenant._id, userId: req.riderId }, { $set: { photo: doc.url } });
+    res.locals.auditAction = 'RIDER_PHOTO';
+    res.status(201).json({ ok: true, photo: doc.url });
+}));
+
+core.delete('/me/photo', wrap(async (req, res) => {
+    const m = await Media.findOne({ tenantId: req.tenant._id, kind: 'rider', refId: String(req.riderId) }).select('_id').lean();
+    if (!m) throw httpError(404, 'No photo to remove');
+    await media.removeMedia({ tenant: req.tenant, id: String(m._id), allowed: media.RIDER_KINDS });
+    res.json({ ok: true });
+}));
+
+// proof of a safe delivery: the photo of the food handed over to the customer
+core.post('/orders/:id/proof/sign', wrap(async (req, res) => {
+    const order = await findMine(req);
+    await signSlot(req, res);
+    const { contentType, bytes } = req.body || {};
+    res.json(await media.sign({
+        tenant: req.tenant, actorId: String(req.riderId), kind: 'proof', refId: String(order._id), contentType, bytes, allowed: media.RIDER_KINDS,
+    }));
+}));
+
+core.post('/orders/:id/proof', wrap(async (req, res) => {
+    const order = await findMine(req);
+    const doc = await media.confirm({
+        tenant: req.tenant, actorId: String(req.riderId), kind: 'proof', refId: String(order._id), key: req.body?.key,
+        allowed: media.RIDER_KINDS, uploadedBy: photoActor(req),
+    });
+    const before = order.delivery?.proof?.mediaId;
+    await Order.updateOne(
+        { _id: order._id, tenantId: req.tenant._id },
+        { $set: { 'delivery.proof': { url: doc.url, at: new Date(), mediaId: doc._id } } },
+    );
+    // a new photo replaces the old one (set first, so a failure never leaves the order without a photo)
+    if (before && String(before) !== String(doc._id)) {
+        media.removeMedia({ tenant: req.tenant, id: String(before), allowed: media.RIDER_KINDS }).catch(() => { });
+    }
+    liveFeed.emit(req.tenant._id, 'orders', { type: 'delivery.proof', orderNo: order.orderNo });
+    res.locals.auditAction = `RIDER_PROOF (order #${order.orderNo})`;
+    res.status(201).json({ ok: true, proof: { url: doc.url, at: new Date() } });
+}));
+
+core.delete('/orders/:id/proof', wrap(async (req, res) => {
+    const order = await findMine(req);
+    const id = order.delivery?.proof?.mediaId;
+    if (!id) throw httpError(404, 'This delivery has no photo');
+    await media.removeMedia({ tenant: req.tenant, id: String(id), allowed: media.RIDER_KINDS });
     res.json({ ok: true });
 }));
 

@@ -62,6 +62,8 @@ admin.use(require('./adminMessagesRouter'));   // messages to the owners of all 
 admin.use(require('./adminComplaintsRouter'));   // all complaints
 admin.use(require('./adminOrdersRouter'));
 admin.use(require('./adminUsersRouter'));
+admin.use(require('./adminTeamRouter'));
+admin.use(require('./adminMediaRouter'));   // list a shop's uploaded images (hero, logo, build icons)   // other superadmins: add, rename, revoke, restore
 admin.use(require('./adminAccessRouter'));
 admin.use(require('./adminPlatformRouter'));
 admin.use(require('./adminBillingRouter'));
@@ -82,7 +84,9 @@ admin.use('/tenants/:tid', (req, res, next) => {
     next();
 });
 
-admin.get('/me', (req, res) => res.json({ email: req.admin.email, name: req.admin.name || null }));
+// admins added from the app have a hidden placeholder email (the model needs one): never show it
+const shownEmail = (e) => (e && !e.endsWith('@superadmin.local') ? e : null);
+admin.get('/me', (req, res) => res.json({ email: shownEmail(req.admin.email), name: req.admin.name || null }));
 
 // Everything the panel needs to draw its form: allowed values, defaults, and a starting template per shop type
 admin.get('/options', (req, res) => {
