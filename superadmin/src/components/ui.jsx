@@ -45,7 +45,8 @@ export function Button({ title, onPress, kind = 'primary', loading, disabled, ic
     if (kind === 'primary') {
         return (
             <Pressable onPress={off ? undefined : onPress} style={({ pressed }) => [{ opacity: off ? 0.5 : pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.985 : 1 }] }, style]}>
-                <View style={[{ borderRadius: radius.md, overflow: 'hidden', backgroundColor: t.gradient[0] }, t.shadow]}>
+                {/* no shadow while faded: Android draws the elevation as a hard rectangle behind a translucent button */}
+                <View style={[{ borderRadius: radius.md, overflow: 'hidden', backgroundColor: t.gradient[0] }, !off && t.shadow]}>
                     <LinearGradient colors={t.gradient} {...GRAD} style={[s.btn, { height }]}>{content('#FFFFFF')}</LinearGradient>
                 </View>
             </Pressable>

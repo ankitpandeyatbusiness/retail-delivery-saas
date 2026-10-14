@@ -69,7 +69,9 @@ const svg = (body) => Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width
 
 (async () => {
     await sharp(svg(bgLayer + glyph)).png().toFile(path.join(out, 'icon.png'));
-    await sharp(svg(glyph)).png().toFile(path.join(out, 'adaptive-foreground.png'));
+    // Android crops adaptive icons to a circle of ~66% of the canvas (varies by launcher), so shrink the glyph to sit inside that safe zone
+    const safe = `<g transform="translate(512,512) scale(0.78) translate(-512,-512)">${glyph}</g>`;
+    await sharp(svg(safe)).png().toFile(path.join(out, 'adaptive-foreground.png'));
     await sharp(svg(bgLayer)).png().toFile(path.join(out, 'adaptive-background.png'));
     await sharp(svg(glyph)).png().toFile(path.join(out, 'splash-icon.png'));
     console.log(`Logo written to assets/ from palette (${g1} -> ${g2} -> ${g3})`);

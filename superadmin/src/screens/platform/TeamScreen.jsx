@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
 import { useTheme, spacing, font } from '../../theme';
 import { Screen, HeaderButton } from '../../components/layout';
-import { Card, Button, Badge, Avatar, Chip, SectionTitle } from '../../components/ui';
+import { Card, Button, Badge, Chip, SectionTitle } from '../../components/ui';
+import PersonPhoto from '../../components/PersonPhoto';
 import { Field } from '../../components/inputs';
 import { Loading, Empty, ErrorBox, Sheet, ConfirmSheet, toast } from '../../components/feedback';
 import { fetchTeam, addSuperadmin, revokeSuperadmin, restoreSuperadmin } from '../../api/teamApi';
@@ -69,7 +70,7 @@ export default function TeamScreen() {
             ) : items.map((a) => (
                 <Card key={String(a.id)} style={{ marginBottom: spacing.md }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Avatar name={a.name || a.phones?.[0]} section={a.isActive ? 'shops' : 'alerts'} size={50} />
+                        <PersonPhoto uri={a.photo} name={a.name || a.phones?.[0]} section={a.isActive ? 'shops' : 'alerts'} size={50} />
                         <View style={{ flex: 1, marginLeft: spacing.md }}>
                             <Text style={{ color: t.text, fontSize: font.md, fontWeight: '800' }} numberOfLines={1}>{a.name || 'Superadmin'}{a.isMe ? '  (you)' : ''}</Text>
                             <Text style={{ color: t.muted, fontSize: font.sm, marginTop: 2 }} numberOfLines={1}>{(a.phones || []).join(' · ')}</Text>

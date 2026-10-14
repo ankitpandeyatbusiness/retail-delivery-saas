@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, TextInput, Image, Pressable, Animated, Easing, Keyboard, KeyboardAvoidingView, Platform, StyleSheet, useWindowDimensions } from 'react-native';
+import { View, Text, TextInput, Image, Pressable, Animated, Easing, Keyboard, Platform, StyleSheet, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,6 +15,7 @@ const OTP_LENGTH = 6;
 const EMPTY = Array.from({ length: OTP_LENGTH }, () => '');
 const RESEND_SECONDS = 30;
 const STEP_HEIGHT = 250;
+const BLOCK = 190;   // logo + name + tagline, used to centre the hero
 
 const normalizePhone = (text) => {
     let d = String(text || '').replace(/\D/g, '');
@@ -44,8 +45,11 @@ export default function LoginScreen() {
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState('');
     const [wait, setWait] = useState(0);
-    const [kbOpen, setKbOpen] = useState(false);
+    const [heroH, setHeroH] = useState(0);                 // measured once; the hero never changes size, so nothing re-lays-out while the keyboard moves
 
+    const root = useRef(null);
+    const kb = useRef(new Animated.Value(0)).current;       // 0 = keyboard closed, 1 = open (logo scale, fades)
+    const lifted = useRef(new Animated.Value(0)).current;   // px the sheet is raised (negative)
     const refs = useRef([]);
     const slide = useRef(new Animated.Value(0)).current;     // 0 = phone panel, 1 = otp panel
     const rise = useRef(new Animated.Value(0)).current;      // sheet entrance
@@ -57,8 +61,15 @@ export default function LoginScreen() {
 
     useEffect(() => {
         Animated.timing(rise, { toValue: 1, duration: 520, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
-        const a = Keyboard.addListener('keyboardDidShow', () => setKbOpen(true));
-        const b = Keyboard.addListener('keyboardDidHide', () => setKbOpen(false));
+        const ios = Platform.OS === 'ios';
+        const ease = { duration: 240, easing: Easing.out(Easing.cubic), useNativeDriver: true };   // transform + opacity only: runs on the UI thread, no JS per frame
+        const move = (open, by = 0) => Animated.parallel([Animated.timing(kb, { ...ease, toValue: open ? 1 : 0 }), Animated.timing(lifted, { ...ease, toValue: -by })]).start();
+        const a = Keyboard.addListener(ios ? 'keyboardWillShow' : 'keyboardDidShow', (e) => {
+            // lift by how much the keyboard actually covers (0 if the window was already resized for it)
+            const top = e.endCoordinates.screenY;
+            root.current?.measureInWindow((x, y, w, h) => move(true, Math.max(0, Math.round(y + h - top))));
+        });
+        const b = Keyboard.addListener(ios ? 'keyboardWillHide' : 'keyboardDidHide', () => move(false, 0));
         return () => { a.remove(); b.remove(); clearInterval(timer.current); };
     }, [rise]);
 
@@ -136,32 +147,34 @@ export default function LoginScreen() {
     const riseY = rise.interpolate({ inputRange: [0, 1], outputRange: [60, 0] });
 
     return (
-        <View style={{ flex: 1, backgroundColor: t.gradient[1] }}>
+        <View ref={root} collapsable={false} style={{ flex: 1, backgroundColor: t.surface }}>
             <StatusBar style="light" />
             <LinearGradient colors={t.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
             <View style={[s.circle, { width: 300, height: 300, top: -90, right: -100 }]} />
             <View style={[s.circle, { width: 200, height: 200, top: 130, left: -90, opacity: 0.6 }]} />
             <View style={[s.circle, { width: 120, height: 120, top: 70, right: 60, opacity: 0.5 }]} />
 
-            <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            {/* white under the sheet, so nothing blue shows while the keyboard slides away */}
+            <View style={[s.under, { backgroundColor: t.surface }]} />
+
+            <View style={{ flex: 1 }}>
                 {/* brand */}
-                <View style={[s.brand, { paddingTop: insets.top + spacing.xl }, kbOpen && { flex: 0, paddingBottom: spacing.lg }]}>
-                    <View style={s.logoWrap}>
-                        <Image source={require('../../../assets/icon.png')} style={{ width: kbOpen ? 64 : 96, height: kbOpen ? 64 : 96, borderRadius: kbOpen ? 18 : 28 }} />
-                    </View>
-                    {!kbOpen ? (
-                        <>
-                            <Text style={s.brandName}>Retail Control</Text>
-                            <Text style={s.tagline}>Run every shop from one place</Text>
-                        </>
-                    ) : null}
+                <View style={[s.brand, { paddingTop: insets.top }]} onLayout={(e) => setHeroH(e.nativeEvent.layout.height)}>
+                    {/* centred while the keyboard is closed; slides to the top and shrinks (transform only) while it is open */}
+                    <Animated.View style={[s.logoWrap, { transform: [{ translateY: kb.interpolate({ inputRange: [0, 1], outputRange: [0, -Math.max(0, heroH - insets.top - BLOCK) / 2 - 12] }) }, { scale: kb.interpolate({ inputRange: [0, 1], outputRange: [1, 0.58] }) }] }]}>
+                        <Image source={require('../../../assets/icon.png')} style={{ width: 96, height: 96, borderRadius: 28 }} />
+                    </Animated.View>
+                    <Animated.View style={{ alignItems: 'center', opacity: kb.interpolate({ inputRange: [0, 0.6], outputRange: [1, 0], extrapolate: 'clamp' }) }}>
+                        <Text style={s.brandName}>Retail Control</Text>
+                        <Text style={s.tagline}>Run every shop from one place</Text>
+                    </Animated.View>
                 </View>
 
                 {/* sheet */}
                 <Animated.View
                     style={[
                         s.sheet,
-                        { backgroundColor: t.surface, paddingBottom: Math.max(insets.bottom, spacing.xl), transform: [{ translateY: riseY }], opacity: rise },
+                        { backgroundColor: t.surface, paddingBottom: Math.max(insets.bottom, spacing.xl), transform: [{ translateY: Animated.add(riseY, lifted) }], opacity: rise },
                     ]}
                 >
                     {notice ? (
@@ -241,19 +254,20 @@ export default function LoginScreen() {
                         </Animated.View>
                     </View>
 
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: spacing.lg }}>
+                    <Animated.View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: spacing.lg, opacity: kb.interpolate({ inputRange: [0, 0.6], outputRange: [1, 0], extrapolate: 'clamp' }) }}>
                         <Icon name="lock" size={14} color={t.muted} />
                         <Text style={{ color: t.muted, fontSize: font.xs, marginLeft: 6 }}>Only registered superadmin numbers can sign in</Text>
-                    </View>
+                    </Animated.View>
                 </Animated.View>
-            </KeyboardAvoidingView>
+            </View>
         </View>
     );
 }
 
 const s = StyleSheet.create({
     circle: { position: 'absolute', borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.1)' },
-    brand: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.xl },
+    brand: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.xl, overflow: 'hidden' },
+    under: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 300 },
     logoWrap: {
         padding: 6, borderRadius: 34, backgroundColor: 'rgba(255,255,255,0.28)',
         shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 20, shadowOffset: { width: 0, height: 10 }, elevation: 8,

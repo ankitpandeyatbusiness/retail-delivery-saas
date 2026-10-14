@@ -6,7 +6,7 @@ import { Screen, HeaderButton } from '../../components/layout';
 import { Chip, Button } from '../../components/ui';
 import { InvoiceRow } from '../../components/invoiceBits';
 import { SkeletonList } from '../../components/blocks';
-import { Empty, ErrorBox, Sheet, toast } from '../../components/feedback';
+import { Empty, ErrorBox, Sheet, SheetScroll, toast } from '../../components/feedback';
 import Icon from '../../components/Icon';
 import usePagedList from '../../hooks/usePagedList';
 import { useShopsStore } from '../../store/useShopsStore';
@@ -110,7 +110,7 @@ export default function InvoicesScreen() {
             )}
 
             <Sheet visible={picker} onClose={() => setPicker(false)} title="Which shop?">
-                <ScrollView style={{ maxHeight: 380 }}>
+                <SheetScroll style={{ maxHeight: 380 }}>
                     <Pressable onPress={() => { setShopId(''); setPicker(false); }} style={{ paddingVertical: spacing.md, flexDirection: 'row' }}>
                         <Text style={{ flex: 1, color: t.text, fontWeight: '800' }}>All shops</Text>
                         {!shopId ? <Icon name="ok" size={20} color={t.primary} /> : null}
@@ -121,7 +121,7 @@ export default function InvoicesScreen() {
                             {shopId === s._id ? <Icon name="ok" size={20} color={t.primary} /> : null}
                         </Pressable>
                     ))}
-                </ScrollView>
+                </SheetScroll>
             </Sheet>
 
             <Sheet visible={gen} onClose={() => setGen(false)} title="Create monthly invoices">

@@ -9,7 +9,7 @@ import { Field } from '../../components/inputs';
 import { NumberField, Switch, Hint } from '../../components/settingsForm';
 import { DateField } from '../../components/catalogBits';
 import TiersEditor, { tiersProblem } from '../../components/tiersEditor';
-import { ErrorBox, Sheet, ConfirmSheet, toast } from '../../components/feedback';
+import { ErrorBox, Sheet, SheetScroll, ConfirmSheet, toast } from '../../components/feedback';
 import { billingStatus, billingPreview, saveShopBilling, goLive, unpauseShop } from '../../api/moneyApi';
 import { useShopStore } from '../../store/useShopStore';
 import { errMsg } from '../../api/adminClient';
@@ -202,7 +202,7 @@ export default function ShopBillingScreen() {
 
             <Sheet visible={sheet === 'rules'} onClose={() => setSheet(null)} title="This shop's own pricing">
                 {rules ? (
-                    <ScrollView style={{ maxHeight: 460 }} keyboardShouldPersistTaps="handled">
+                    <SheetScroll style={{ maxHeight: 460 }} keyboardShouldPersistTaps="handled">
                         <Hint>Leave a box empty to use the platform rule.</Hint>
                         <View style={{ height: spacing.md }} />
                         <NumberField label="Free orders" integer value={rules.freeOrders} onChange={(v) => setRules({ ...rules, freeOrders: v })} />
@@ -211,7 +211,7 @@ export default function ShopBillingScreen() {
                         <DateField label="Go-live date (optional)" hint="Free service counts from this day" value={rules.goLive} onChange={(v) => setRules({ ...rules, goLive: v })} />
                         <Switch title="Use own price tiers" subtitle="Instead of the platform tiers" value={rules.ownTiers} onValueChange={(v) => setRules({ ...rules, ownTiers: v })} last />
                         {rules.ownTiers ? <View style={{ marginTop: spacing.md }}><TiersEditor value={rules.tiers} onChange={(v) => setRules({ ...rules, tiers: v })} /></View> : null}
-                    </ScrollView>
+                    </SheetScroll>
                 ) : null}
                 <Button title="Save" loading={busy === 'rules'} onPress={saveRules} style={{ marginTop: spacing.md }} />
                 <Button title="Use the platform rules for everything" kind="outline" small style={{ marginTop: spacing.sm }} onPress={async () => { try { await run('rules', () => saveShopBilling(shopId, { reset: true }), 'Back to the platform rules'); setSheet(null); } catch (e) { /* shown */ } }} />

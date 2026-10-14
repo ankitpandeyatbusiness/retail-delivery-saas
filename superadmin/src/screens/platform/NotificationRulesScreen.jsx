@@ -6,7 +6,7 @@ import { Card, Badge, Chip, Button, SectionTitle } from '../../components/ui';
 import { SearchBar } from '../../components/inputs';
 import { MultiChoice, NumberField, Switch, Choice, Hint } from '../../components/settingsForm';
 import { SkeletonList } from '../../components/blocks';
-import { Empty, ErrorBox, Sheet, toast } from '../../components/feedback';
+import { Empty, ErrorBox, Sheet, SheetScroll, toast } from '../../components/feedback';
 import { fetchRules, saveRule } from '../../api/platformApi';
 import { useShopsStore } from '../../store/useShopsStore';
 import { errMsg } from '../../api/adminClient';
@@ -117,7 +117,7 @@ export default function NotificationRulesScreen() {
 
             <Sheet visible={!!edit} onClose={() => setEdit(null)} title={edit ? nice(edit.eventKey) : ''}>
                 {edit && f ? (
-                    <ScrollView style={{ maxHeight: 520 }} keyboardShouldPersistTaps="handled">
+                    <SheetScroll style={{ maxHeight: 520 }} keyboardShouldPersistTaps="handled">
                         <Choice
                             label="Applies to"
                             options={[{ value: '', label: 'Every shop' }, ...shops.slice(0, 12).map((s) => ({ value: s._id, label: s.name }))]}
@@ -131,7 +131,7 @@ export default function NotificationRulesScreen() {
                         <View style={{ height: spacing.md }} />
                         <NumberField label="Send an SMS if not read within" suffix="seconds" integer hint="Empty = no SMS follow-up. 0 to 86400." value={f.escalate} onChange={(v) => setF({ ...f, escalate: v })} last />
                         <Hint>Only the changed values are saved; the rest keep the built-in default.</Hint>
-                    </ScrollView>
+                    </SheetScroll>
                 ) : null}
                 <Button title="Save rule" loading={busy} onPress={save} style={{ marginTop: spacing.md }} />
                 <Button title="Back to the default" kind="outline" small onPress={reset} style={{ marginTop: spacing.sm }} disabled={busy || !ruleFor(edit?.eventKey, scope)} />

@@ -5,7 +5,7 @@ import { Screen } from '../../components/layout';
 import { Card, Chip, Badge } from '../../components/ui';
 import { SearchBar } from '../../components/inputs';
 import { SkeletonList } from '../../components/blocks';
-import { Empty, ErrorBox, Sheet } from '../../components/feedback';
+import { Empty, ErrorBox, Sheet, SheetScroll } from '../../components/feedback';
 import Icon from '../../components/Icon';
 import usePagedList from '../../hooks/usePagedList';
 import { useShopsStore } from '../../store/useShopsStore';
@@ -102,7 +102,7 @@ export default function AuditLogScreen() {
             )}
 
             <Sheet visible={picker} onClose={() => setPicker(false)} title="Which shop?">
-                <ScrollView style={{ maxHeight: 380 }}>
+                <SheetScroll style={{ maxHeight: 380 }}>
                     <Pressable onPress={() => { setShopId(''); setPicker(false); }} style={{ paddingVertical: spacing.md, flexDirection: 'row' }}>
                         <Text style={{ flex: 1, color: t.text, fontWeight: '800' }}>All shops</Text>
                         {!shopId ? <Icon name="ok" size={20} color={t.primary} /> : null}
@@ -113,7 +113,7 @@ export default function AuditLogScreen() {
                             {shopId === s._id ? <Icon name="ok" size={20} color={t.primary} /> : null}
                         </Pressable>
                     ))}
-                </ScrollView>
+                </SheetScroll>
             </Sheet>
 
             <Sheet visible={!!row} onClose={() => setRow(null)} title="Details">

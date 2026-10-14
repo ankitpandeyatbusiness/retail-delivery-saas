@@ -5,7 +5,7 @@ import { useTheme, spacing, font } from '../theme';
 import { Chip } from './ui';
 import { SearchBar } from './inputs';
 import { SkeletonList } from './blocks';
-import { Empty, ErrorBox, Sheet } from './feedback';
+import { Empty, ErrorBox, Sheet, SheetScroll } from './feedback';
 import { OrderRow } from './orderBits';
 import Icon from './Icon';
 import usePagedList from '../hooks/usePagedList';
@@ -118,7 +118,7 @@ export default function OrdersList({ tenantId, showShop = true, header }) {
             )}
 
             <Sheet visible={picker} onClose={() => setPicker(false)} title="Which shop?">
-                <ScrollView style={{ maxHeight: 380 }}>
+                <SheetScroll style={{ maxHeight: 380 }}>
                     <Pressable onPress={() => { setShopId(''); setPicker(false); }} style={{ paddingVertical: spacing.md, flexDirection: 'row', alignItems: 'center' }}>
                         <Text style={{ flex: 1, color: t.text, fontWeight: '800', fontSize: font.md }}>All shops</Text>
                         {!shopId ? <Icon name="ok" size={20} color={t.primary} /> : null}
@@ -129,7 +129,7 @@ export default function OrdersList({ tenantId, showShop = true, header }) {
                             {shopId === s._id ? <Icon name="ok" size={20} color={t.primary} /> : null}
                         </Pressable>
                     ))}
-                </ScrollView>
+                </SheetScroll>
             </Sheet>
         </View>
     );
