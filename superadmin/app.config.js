@@ -11,6 +11,9 @@ module.exports = {
         version: '1.0.0',
         owner: 'retail-delivery-saass-team',
         extra: { eas: { projectId: 'a555451d-87ad-4029-996c-84f50a62fc17' } },
+        // OTA updates (eas update): a build only receives updates made for the same app version
+        runtimeVersion: { policy: 'appVersion' },
+        updates: { url: 'https://u.expo.dev/a555451d-87ad-4029-996c-84f50a62fc17' },
         orientation: 'portrait',
         scheme: 'retailcontrol',
         userInterfaceStyle: 'automatic',
