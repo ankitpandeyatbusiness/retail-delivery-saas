@@ -3,12 +3,12 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as SplashScreen from 'expo-splash-screen';
 import AppNavigator from './src/navigation/AppNavigator';
-import { useThemeStore } from './src/store/useThemeStore';
-import { useAuthStore } from './src/store/useAuthStore';
-import { DialogHost } from './src/components/ui/dialog';
-import { SheetHost } from './src/components/ui/SheetPortal';
-import { startRealtime } from './src/api/socket';
-import { startNotifications } from './src/utils/push';
+import { useThemeStore } from './src/store/common/useThemeStore';
+import { useAuthStore } from './src/store/common/useAuthStore';
+import { DialogHost } from './src/components/common/dialog';
+import { SheetHost } from './src/components/common/SheetPortal';
+import { startRealtime } from './src/api/common/socket';
+import { startNotifications } from './src/utils/common/push';
 
 // The native splash screen (brand colour + logo) is the only loading screen. It stays up until the shop's look
 // and the saved login are ready, then fades out into the app: no black screen, no second spinner.

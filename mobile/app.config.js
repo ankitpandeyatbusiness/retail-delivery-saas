@@ -150,7 +150,7 @@ export default {
         photosPermission: 'Allow $(PRODUCT_NAME) to attach photos to your complaint.',
         cameraPermission: 'Allow $(PRODUCT_NAME) to take a photo for your complaint.',
       }],
-      // Push. defaultChannel must match the channel created in src/utils/push.js
+      // Push. defaultChannel must match the channel created in src/utils/common/push.js
       ['expo-notifications', { defaultChannel: 'orders', color: currentConfig.backgroundColor }],
       // Adds the Speech Recognition plugin with standard OS prompts
       [
