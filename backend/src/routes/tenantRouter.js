@@ -19,6 +19,11 @@ tenantRouter.get('/theme', tenantRecognizer, async (req, res) => {
         colors: c.brand.colors,
         fontStyle: c.brand.fontStyle,
         buttonShape: c.brand.buttonShape,
+        look: c.brand.look,
+        motion: c.brand.motion,
+        headerStyle: c.brand.headerStyle,
+        tabBarStyle: c.brand.tabBarStyle,
+        categoryStyle: c.brand.categoryStyle,
         heroImages,
     });
 });

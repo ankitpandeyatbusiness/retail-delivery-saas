@@ -7,13 +7,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as Crypto from 'expo-crypto';
-import { useBrand, BackHeader } from '../../components/common/kit';
+import { useBrand, BackHeader, CardGlow } from '../../components/common/kit';
 import { VegDot, showToast, tint } from '../../components/customers/shop';
 import { AddressSheet, addrLine } from '../../components/customers/addresses';
 import { Press, Appear, Chip, Bill, ClosedBanner, PickupSlots, FreeDeliveryBar, rs, ease } from '../../components/customers/cartParts';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { useCartStore } from '../../store/customers/shopStores';
+import { CouponTicket } from '../../components/customers/coupon';
 import { useCouponStore } from '../../store/customers/useCouponStore';
 import { useAddressStore } from '../../store/customers/useAddressStore';
 import { quoteOrder, placeOrder, fetchPickupSlots } from '../../api/customers/shopApi';
@@ -44,7 +45,7 @@ export default function CartScreen() {
     const nav = useNavigation();
     const route = useRoute();
     const insets = useSafeAreaInsets();
-    const { primary, radius, text, error, background, surface, border, muted } = useBrand();
+    const { primary, radius, text, error, background, surface, border, muted, neutralSoft } = useBrand();
 
     const user = useAuthStore((st) => st.user);
     const full = useHomeStore((st) => st.full);
@@ -292,6 +293,7 @@ export default function CartScreen() {
 
                 <View style={s.pad}>
                     <Appear style={[s.card, { backgroundColor: surface, borderColor: border, marginTop: 12 }]}>
+                        <CardGlow radius={16} />
                         {lines.map((l, i) => (
                             <Appear key={l.key} style={[s.lineRow, i === lines.length - 1 && { borderBottomWidth: 0 }, { borderBottomColor: border }]}>
                                 <View style={s.itemVisuals}>
@@ -348,12 +350,7 @@ export default function CartScreen() {
                             {offers.length > 0 && !applied ? (
                                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
                                     {offers.map((o) => (
-                                        <Press key={o._id} onPress={() => pickOffer(o.code)} style={[s.couponChip, { borderColor: primary, backgroundColor: tint(primary) }]}>
-                                            <Text style={{ color: primary, fontWeight: '800', fontSize: 13 }}>{o.code}</Text>
-                                            <Text style={{ color: primary, fontSize: 10, marginTop: 2, opacity: 0.8 }}>
-                                                {o.discountType === 'percent' ? `${o.discountValue}% OFF` : `₹${o.discountValue} OFF`}
-                                            </Text>
-                                        </Press>
+                                        <CouponTicket key={o._id} o={o} size="mini" onPress={() => pickOffer(o.code)} style={{ marginRight: 10 }} />
                                     ))}
                                 </ScrollView>
                             ) : null}
@@ -421,6 +418,7 @@ export default function CartScreen() {
 
                     {user && type === 'delivery' ? (
                         <Appear style={[s.card, { backgroundColor: surface, borderColor: border }]}>
+                            <CardGlow radius={16} />
                             <View style={s.cardHead}>
                                 <Ionicons name="location-outline" size={18} color={primary} />
                                 <Text style={[s.cap, { color: muted, marginLeft: 6 }]}>Deliver to</Text>
@@ -438,6 +436,7 @@ export default function CartScreen() {
                     ) : null}
                     {user && type === 'pickup' && shopAddr?.line ? (
                         <Appear style={[s.card, { backgroundColor: surface, borderColor: border }]}>
+                            <CardGlow radius={16} />
                             <View style={s.cardHead}>
                                 <Ionicons name="storefront-outline" size={18} color={primary} />
                                 <Text style={[s.cap, { color: muted, marginLeft: 6 }]}>Pick up from</Text>
@@ -447,6 +446,7 @@ export default function CartScreen() {
                     ) : null}
 
                     <Appear style={[s.card, { backgroundColor: surface, borderColor: border }]}>
+                            <CardGlow radius={16} />
                         <View style={s.billHead}>
                             <View style={s.cardHead}>
                                 <Ionicons name="receipt-outline" size={18} color={text} />
@@ -464,7 +464,7 @@ export default function CartScreen() {
                                 : <Bill q={{ pricing: { subtotal: preview, total: preview } }} type={type} busy={false} />}
                     </Appear>
 
-                    <View style={s.policyBox}>
+                    <View style={[s.policyBox, { backgroundColor: neutralSoft }]}>
                         <Text style={[s.policy, { color: muted }]}>Orders cannot be cancelled once preparation begins at the restaurant.</Text>
                     </View>
                 </View>

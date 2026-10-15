@@ -67,7 +67,7 @@ function validateSettings(input) {
     known(s, ['brand', 'tabs', 'home', 'features', 'menu', 'orders', 'hours', 'offers', 'labels', 'riders', 'notifications', 'app'], 'settings');
 
     // brand
-    section('brand', ['colors', 'fontStyle', 'buttonShape'], (b, out, p) => {
+    section('brand', ['colors', 'fontStyle', 'buttonShape', 'look', 'motion', 'headerStyle', 'tabBarStyle', 'categoryStyle'], (b, out, p) => {
         if (b.colors !== undefined) {
             if (!isObj(b.colors)) err(p('colors'), 'must be an object');
             else {
@@ -81,6 +81,11 @@ function validateSettings(input) {
         }
         if (b.fontStyle !== undefined && oneOf(p('fontStyle'), b.fontStyle, O.FONT_STYLES)) out.fontStyle = b.fontStyle;
         if (b.buttonShape !== undefined && oneOf(p('buttonShape'), b.buttonShape, O.BUTTON_SHAPES)) out.buttonShape = b.buttonShape;
+        if (b.look !== undefined && oneOf(p('look'), b.look, O.LOOKS)) out.look = b.look;
+        if (b.motion !== undefined && oneOf(p('motion'), b.motion, O.MOTION_LEVELS)) out.motion = b.motion;
+        if (b.headerStyle !== undefined && oneOf(p('headerStyle'), b.headerStyle, O.HEADER_STYLES)) out.headerStyle = b.headerStyle;
+        if (b.tabBarStyle !== undefined && oneOf(p('tabBarStyle'), b.tabBarStyle, O.TAB_BAR_STYLES)) out.tabBarStyle = b.tabBarStyle;
+        if (b.categoryStyle !== undefined && oneOf(p('categoryStyle'), b.categoryStyle, O.CATEGORY_STYLES)) out.categoryStyle = b.categoryStyle;
     });
 
     // tabs (ordered list)
@@ -260,7 +265,11 @@ function validateSettings(input) {
 
 /* ------------------------------ DEFAULTS ------------------------------ */
 const DEFAULTS = {
-    brand: { fontStyle: 'modern', buttonShape: 'rounded' },
+    // the look defaults reproduce the app as it was before looks existed, so a shop changes only when its settings say so
+    brand: {
+        fontStyle: 'modern', buttonShape: 'rounded',
+        look: 'bold', motion: 'full', headerStyle: 'hero', tabBarStyle: 'classic', categoryStyle: 'circles',
+    },
     tabs: ['home', 'search', 'orders', 'profile'],
     features: {
         ratingBadge: true, prepTime: true, serves: false, calories: false,
@@ -339,6 +348,19 @@ function openStatus(weekly, acceptingOrders, now = new Date(), closedDates = nul
 /* ------------------------------ RESOLVER ------------------------------ */
 // Turns a raw tenant document into the one config the app uses. Never throws on bad data:
 // invalid parts are dropped and defaults fill the gaps.
+// The logo's colours are the base; colours set in the panel win. If the panel sets a MAIN colour but not its light and
+// dark shades, the logo's old shades are dropped, so the app derives matching ones from the new main colour
+// (a blue main colour must not end up next to the logo's red light and dark shades).
+function brandColors(fromLogo, fromPanel) {
+    const set = fromPanel || {};
+    const colors = { ...(fromLogo || {}), ...set };
+    if (set.primary) {
+        if (!set.primaryLight) delete colors.primaryLight;
+        if (!set.primaryDark) delete colors.primaryDark;
+    }
+    return colors;
+}
+
 function resolveConfig(tenant, now = new Date()) {
     const { clean } = validateSettings(tenant.settings);
 
@@ -347,9 +369,14 @@ function resolveConfig(tenant, now = new Date()) {
     if (Array.isArray(clean.home?.filters)) home.filters = clean.home.filters; // explicit [] is respected
 
     const brand = {
-        colors: { ...(tenant.colors || {}), ...(clean.brand?.colors || {}) },
+        colors: brandColors(tenant.colors, clean.brand?.colors),
         fontStyle: clean.brand?.fontStyle || DEFAULTS.brand.fontStyle,
         buttonShape: clean.brand?.buttonShape || DEFAULTS.brand.buttonShape,
+        look: clean.brand?.look || DEFAULTS.brand.look,
+        motion: clean.brand?.motion || DEFAULTS.brand.motion,
+        headerStyle: clean.brand?.headerStyle || DEFAULTS.brand.headerStyle,
+        tabBarStyle: clean.brand?.tabBarStyle || DEFAULTS.brand.tabBarStyle,
+        categoryStyle: clean.brand?.categoryStyle || DEFAULTS.brand.categoryStyle,
     };
 
     const features = merge(DEFAULTS.features, clean.features);

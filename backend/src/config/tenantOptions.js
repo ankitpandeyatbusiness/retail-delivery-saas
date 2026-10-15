@@ -8,9 +8,18 @@ module.exports = {
 
     TABS: ['home', 'search', 'offers', 'orders', 'profile'],
 
-    COLOR_KEYS: ['primary', 'primaryLight', 'primaryDark', 'background', 'text', 'error'],
+    // 'accent' is the second colour: offer ribbons and highlights (the main colour stays for buttons and headers)
+    COLOR_KEYS: ['primary', 'primaryLight', 'primaryDark', 'background', 'text', 'error', 'accent'],
     FONT_STYLES: ['modern', 'classic', 'rounded'],
     BUTTON_SHAPES: ['rounded', 'pill', 'square'],
+
+    // the look of the customer app. 'bold' is the original brand-gradient look (the default, so existing shops do not change);
+    // the others set the background, card and text colours and let the brand colour be an accent.
+    LOOKS: ['bold', 'fresh', 'cream', 'midnight'],
+    MOTION_LEVELS: ['full', 'subtle', 'off'],        // entrance and press animations; 'off' = none
+    HEADER_STYLES: ['hero', 'compact'],               // the top of the home screen
+    TAB_BAR_STYLES: ['classic', 'floating'],          // bottom tabs: a flat strip, or a rounded bar that floats
+    CATEGORY_STYLES: ['circles', 'tiles', 'pills'],   // how the category row is drawn
 
     // on/off switches
     FEATURE_KEYS: [

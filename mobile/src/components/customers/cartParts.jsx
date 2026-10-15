@@ -55,7 +55,7 @@ function Row({ k, v, green, bold, strike }) {
 }
 
 export function Bill({ q, type, busy, baseDeliveryFee }) {
-    const { muted, border } = useBrand();
+    const { muted, border, ok, okSoft } = useBrand();
     const op = useRef(new Animated.Value(1)).current;
     useEffect(() => {
         Animated.timing(op, { toValue: busy ? 0.5 : 1, duration: 200, useNativeDriver: true }).start();
@@ -74,8 +74,8 @@ export function Bill({ q, type, busy, baseDeliveryFee }) {
             <Row k="Grand Total" v={rs(p.total)} bold />
             {p.taxMode === 'inclusive' && p.tax > 0 ? <Text style={[s.incl, { color: muted }]}>Includes {rs(p.tax)} taxes</Text> : null}
             {p.discount > 0 || isFreeDel ? (
-                <Appear style={s.savings}>
-                    <Text style={s.savingsTxt}>🎉 You saved {rs(p.discount + (isFreeDel ? baseDeliveryFee : 0))} on this order!</Text>
+                <Appear style={[s.savings, { backgroundColor: okSoft }]}>
+                    <Text style={[s.savingsTxt, { color: ok }]}>🎉 You saved {rs(p.discount + (isFreeDel ? baseDeliveryFee : 0))} on this order!</Text>
                 </Appear>
             ) : null}
         </Animated.View>

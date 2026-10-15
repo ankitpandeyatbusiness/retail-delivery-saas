@@ -84,13 +84,11 @@ export default function SearchScreen() {
         if (v) { fromVoice.current = true; setQ(v); }
     }, [route.params?.n]);
 
-    // open the keyboard when the tab is shown (not after a voice search)
+    // The keyboard no longer opens by itself: the page opens calm (popular dishes first) and the keyboard comes
+    // up only when the customer taps the search bar.
     useFocusEffect(useCallback(() => {
-        const t = setTimeout(() => {
-            if (fromVoice.current) fromVoice.current = false;
-            else inputRef.current?.focus();
-        }, 200);
-        return () => clearTimeout(t);
+        fromVoice.current = false;
+        return undefined;
     }, []));
 
     const all = useMemo(() => categories.flatMap((c) => c.items), [categories]);

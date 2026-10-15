@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { create } from 'zustand';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useBrand } from '../common/kit';
+import { useBrand, CardGlow } from '../common/kit';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { useCartStore, useFavStore } from '../../store/customers/shopStores';
@@ -31,10 +31,12 @@ export function ToastHost() {
         const t = setTimeout(() => setOn(false), 1800);
         return () => clearTimeout(t);
     }, [n]);
+    const { dark } = useBrand();
     if (!on) return null;
+    // on a dark app the toast is a light pill (a dark one would vanish into the page)
     return (
         <View pointerEvents="none" style={[s.toastWrap, { top: insets.top + 12 }]}>
-            <View style={s.toast}><Text style={s.toastText}>{msg}</Text></View>
+            <View style={[s.toast, dark && { backgroundColor: '#F3F3F5' }]}><Text style={[s.toastText, dark && { color: '#1B1B1F' }]}>{msg}</Text></View>
         </View>
     );
 }
@@ -174,11 +176,11 @@ function Pop({ mode, style, children }) {
 // kind: 'pill' (filled), 'overlap' (white pill that sits on the photo), 'circle' (icon only)
 // Once the dish is in the cart, the button turns into  −  1  +
 export function AddButton({ item, onPress, kind = 'pill', style }) {
-    const { primary, onPrimary, radius } = useBrand();
+    const { primary, onPrimary, radius, neutralSoft, muted } = useBrand();
     const label = useHomeStore((st) => st.full.labels.addButton);
     const qty = useCartStore((st) => st.lines.reduce((a, l) => (l.productId === item._id ? a + l.quantity : a), 0));
     if (item.isAvailable === false) {
-        return <View style={[s.so, { borderRadius: radius }, style]}><Text style={s.soText}>Sold out</Text></View>;
+        return <View style={[s.so, { borderRadius: radius, backgroundColor: neutralSoft }, style]}><Text style={[s.soText, { color: muted }]}>Sold out</Text></View>;
     }
     const mode = qty > 0 ? 'step' : 'add';
     let inner;
@@ -240,7 +242,10 @@ function ItemCardBase({ item, variant }) {
     const nav = useNavigation();
     const full = useHomeStore((st) => st.full);
     const showDot = useHomeStore((st) => st.config.showVegDot);
-    const { text, surface, border, primary, onPrimary, dark } = useBrand();
+    const { text, surface, border, primary, onPrimary, dark, accent, onAccent, look, ok } = useBrand();
+    // offer ribbon: the shop's accent colour in the new looks, the main colour in the original one
+    const ribbon = look === 'bold' ? primary : accent;
+    const onRibbon = look === 'bold' ? onPrimary : onAccent;
     const off = item.isAvailable === false;
     const dim = off && full.menu.outOfStock === 'dim';
     const open = () => nav.navigate('Item', { id: item._id });
@@ -259,11 +264,12 @@ function ItemCardBase({ item, variant }) {
     if (variant === 'compact') {
         return (
             <Pressable onPress={open} style={press2([s.compact, card, dim && s.dim])}>
+                <CardGlow radius={20} />
                 <View style={{ flex: 1, paddingRight: 12 }}>
                     {name(2)}
                     <Meta item={item} full={full} />
                     <Price item={item} />
-                    {pct ? <Text style={s.offTxt}>{pct}% off</Text> : null}
+                    {pct ? <Text style={[s.offTxt, { color: ok }]}>{pct}% off</Text> : null}
                 </View>
                 <View style={s.cWrap}>
                     <Pic item={item} style={s.cImg} />
@@ -276,6 +282,7 @@ function ItemCardBase({ item, variant }) {
     if (variant === 'grid') {
         return (
             <Pressable onPress={open} style={press2([s.grid, card, dim && s.dim])}>
+                <CardGlow radius={18} />
                 <View>
                     <Pic item={item} style={s.gImg} />
                     {heart}
@@ -294,11 +301,12 @@ function ItemCardBase({ item, variant }) {
     }
     return (
         <Pressable onPress={open} style={press2([s.big, card, dim && s.dim])}>
+            <CardGlow radius={22} strength={0.26} />
             <View>
                 <Pic item={item} style={s.bImg} />
                 <LinearGradient pointerEvents="none" colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.35)']} style={s.bShade} />
                 {heart}
-                {pct ? <View style={[s.badge, { backgroundColor: primary }]}><Text style={[s.badgeTxt, { color: onPrimary }]}>{pct}% OFF</Text></View> : null}
+                {pct ? <View style={[s.badge, { backgroundColor: ribbon }]}><Text style={[s.badgeTxt, { color: onRibbon }]}>{pct}% OFF</Text></View> : null}
             </View>
             <View style={s.bBody}>
                 <View style={{ flex: 1, paddingRight: 10 }}>
@@ -324,6 +332,7 @@ export function Tile({ item }) {
             onPress={() => nav.navigate('Item', { id: item._id })}
             style={({ pressed }) => [s.tile, { backgroundColor: surface, borderColor: border }, off && s.dim, pressed && { transform: [{ scale: 0.97 }] }]}
         >
+            <CardGlow radius={18} />
             <View>
                 <Pic item={item} style={s.tImg} />
                 {!off ? <AddButton item={item} kind="circle" onPress={() => quickAdd(item, nav)} style={s.tAdd} /> : null}

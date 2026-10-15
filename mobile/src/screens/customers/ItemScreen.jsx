@@ -118,7 +118,7 @@ export default function ItemScreen() {
     const nav = useNavigation();
     const insets = useSafeAreaInsets();
     const { id } = useRoute().params || {};
-    const { primary, radius, text, muted, background, surface, border } = useBrand();
+    const { primary, radius, text, muted, background, surface, border, ok, okSoft } = useBrand();
     const full = useHomeStore((st) => st.full);
     const showDot = useHomeStore((st) => st.config.showVegDot);
     const menuCats = useMenuStore((st) => st.categories);
@@ -358,8 +358,8 @@ export default function ItemScreen() {
                         </View>
                         <View style={s.priceRow}>
                             <Text style={[s.price, { color: text }]}>₹{p.price}{measured ? perUnit(p) : ''}</Text>
-                            {off ? <Text style={s.mrp}>₹{p.mrp}</Text> : null}
-                            {off ? <View style={s.offBadge}><Text style={s.offTxt}>{off}% OFF</Text></View> : null}
+                            {off ? <Text style={[s.mrp, { color: muted }]}>₹{p.mrp}</Text> : null}
+                            {off ? <View style={[s.offBadge, { backgroundColor: okSoft }]}><Text style={[s.offTxt, { color: ok }]}>{off}% OFF</Text></View> : null}
                         </View>
                         {p.description ? (
                             <Pressable onPress={() => { if (longDesc) { ease(); setMore((m) => !m); } }}>

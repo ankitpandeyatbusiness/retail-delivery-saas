@@ -11,19 +11,13 @@ import { useMenuStore, useCartStore, useFavStore } from '../../store/customers/s
 import { useCouponStore } from '../../store/customers/useCouponStore';
 import { fetchOffers } from '../../api/customers/catalogApi';
 import { fetchFavourites } from '../../api/customers/shopApi';
-import { CopyButton } from '../../components/common/copyCode';
-
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+import { copyCode } from '../../components/common/copyCode';
+import { CouponTicket } from '../../components/customers/coupon';
+import { FadeIn, Skel } from '../../components/common/motion';
 
 /* ---------------- Offers ---------------- */
-function offerText(o) {
-    if (o.description) return o.description;
-    if (o.discountType === 'percent') return `${o.discountValue}% off${o.maxDiscount ? ` up to ₹${o.maxDiscount}` : ''}`;
-    return `₹${o.discountValue} off`;
-}
-
 export function OffersScreen() {
-    const { primary, text } = useBrand();
+    const { background, muted } = useBrand();
     const storeOffers = useHomeStore((st) => st.offers);
     const enabled = useHomeStore((st) => st.full.offers.couponsEnabled);
     const [list, setList] = useState([]);
@@ -42,32 +36,23 @@ export function OffersScreen() {
 
     const shown = enabled ? list : [];
     return (
-        <View style={s.flex}>
+        <View style={[s.flex, { backgroundColor: background }]}>
             <BackHeader title="Offers" />
-            {loading && !shown.length ? <ActivityIndicator style={{ margin: 40 }} color={primary} /> : (
+            {loading && !shown.length ? (
+                <View style={{ padding: 16 }}>
+                    {[0, 1, 2].map((i) => <Skel key={i} height={108} radius={18} style={{ marginBottom: 14 }} />)}
+                </View>
+            ) : (
                 <FlatList
                     data={shown} keyExtractor={(o) => o._id}
-                    contentContainerStyle={{ padding: 16 }}
+                    contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+                    ListHeaderComponent={shown.length ? <Text style={[s.sub, { color: muted, paddingHorizontal: 2 }]}>Tap a coupon to copy its code, then paste it in your cart</Text> : null}
                     ListEmptyComponent={<Text style={s.empty}>No offers right now</Text>}
-                    renderItem={({ item: o }) => {
-                        const end = o.endsAt ? new Date(o.endsAt) : null;
-                        return (
-                            <View style={[s.offer, { borderColor: primary, backgroundColor: tint(primary) }]}>
-                                <View style={s.oTop}>
-                                    <Text style={[s.code, { color: primary }]}>{o.code}</Text>
-                                    <CopyButton code={o.code} />
-                                </View>
-                                <Text style={[s.oDesc, { color: text }]}>{offerText(o)}</Text>
-                                <Text style={s.oMeta}>
-                                    {[
-                                        o.minOrder ? `Min order ₹${o.minOrder}` : '',
-                                        o.firstOrderOnly ? 'First order only' : '',
-                                        end ? `Ends ${end.getDate()} ${MONTHS[end.getMonth()]}` : '',
-                                    ].filter(Boolean).join(' · ')}
-                                </Text>
-                            </View>
-                        );
-                    }}
+                    renderItem={({ item: o, index }) => (
+                        <FadeIn index={index} style={{ marginBottom: 14 }}>
+                            <CouponTicket o={o} size="full" onPress={() => copyCode(o.code)} />
+                        </FadeIn>
+                    )}
                 />
             )}
         </View>
@@ -76,7 +61,7 @@ export function OffersScreen() {
 
 /* ---------------- Bestsellers ---------------- */
 export function BestsellersScreen() {
-    const { text } = useBrand();
+    const { text, background } = useBrand();
     const name = useThemeStore((st) => st.theme.name);
     const cats = useMenuStore((st) => st.categories);
     const loaded = useMenuStore((st) => st.loaded);
@@ -87,7 +72,7 @@ export function BestsellersScreen() {
     useEffect(() => { if (!loaded) useMenuStore.getState().load(); }, []);
 
     return (
-        <View style={s.flex}>
+        <View style={[s.flex, { backgroundColor: background }]}>
             <BackHeader title="Bestsellers" />
             <FlatList
                 data={list} keyExtractor={(i) => i._id}
@@ -104,7 +89,7 @@ export function BestsellersScreen() {
 /* ---------------- Favourites ---------------- */
 export function FavouritesScreen() {
     const nav = useNavigation();
-    const { primary, radius, text } = useBrand();
+    const { primary, radius, text, background } = useBrand();
     const user = useAuthStore((st) => st.user);
     const enabled = useHomeStore((st) => st.full.features.favourites);
     const ids = useFavStore((st) => st.ids);
@@ -145,7 +130,7 @@ export function FavouritesScreen() {
     }
 
     return (
-        <View style={s.flex}>
+        <View style={[s.flex, { backgroundColor: background }]}>
             <BackHeader title="Favourites" />
             {state === 'loading' ? <ActivityIndicator style={{ margin: 40 }} color={primary} />
                 : state === 'error' && !items.length ? (
@@ -170,16 +155,16 @@ const s = StyleSheet.create({
     flex: { flex: 1, backgroundColor: '#FFFFFF' },
     center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
     big: { fontSize: 18, fontWeight: '800', textAlign: 'center' },
-    empty: { fontSize: 14, color: '#777777', textAlign: 'center', padding: 30 },
+    empty: { fontSize: 14, color: '#8A8F98', textAlign: 'center', padding: 30 },
     link: { marginTop: 12, fontSize: 13, fontWeight: '700' },
     cta: { marginTop: 18, paddingHorizontal: 32, paddingVertical: 12 },
     ctaTxt: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
-    sub: { fontSize: 12, color: '#777777', paddingHorizontal: 16, paddingBottom: 14 },
+    sub: { fontSize: 12, color: '#8A8F98', paddingHorizontal: 16, paddingBottom: 14 },
     offer: { borderWidth: 1.5, borderStyle: 'dashed', borderRadius: 14, padding: 14, marginBottom: 12 },
     oTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     code: { fontSize: 16, fontWeight: '800', letterSpacing: 1 },
     apply: { borderWidth: 1, paddingHorizontal: 16, paddingVertical: 6, backgroundColor: '#FFFFFF' },
     applyTxt: { fontSize: 12, fontWeight: '800' },
     oDesc: { fontSize: 14, fontWeight: '600', marginTop: 6 },
-    oMeta: { fontSize: 11, color: '#777777', marginTop: 4 },
+    oMeta: { fontSize: 11, color: '#8A8F98', marginTop: 4 },
 });

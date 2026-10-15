@@ -5,7 +5,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useBrand, GuestGate } from '../../components/common/kit';
+import { useBrand, GuestGate, CardGlow } from '../../components/common/kit';
 import { tint } from '../../components/customers/shop';
 import { Press, Appear } from '../../components/customers/cartParts';
 import { StatusPill, itemsText, rs, isActive, cancelFlow, reorder } from '../../components/customers/orders';
@@ -117,6 +117,7 @@ function OrderCard({ o, index, animate, onOpen, onCancel, onReorder, onInvoice, 
     return (
         <Appear skip={!animate} delay={Math.min(index, 5) * 70}>
             <Press onPress={onOpen} style={[s.card, { backgroundColor: surface, borderColor: border }]}>
+                <CardGlow radius={18} />
                 <View style={[s.accent, { backgroundColor: accent }]} />
                 <View style={s.cardIn}>
                     <View style={s.row}>

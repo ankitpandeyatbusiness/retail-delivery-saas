@@ -23,8 +23,18 @@ export function AppPreview({ config }) {
     if (!config) return null;
     const c = config.brand?.colors || {};
     const primary = c.primary || '#E23744';
-    const bg = c.background || '#FFFFFF';
-    const text = c.text || '#1C1C1C';
+    // the same surface colours the customer app uses for each look ('bold' = the shop's own background and text)
+    const mixHex = (a, b, t) => '#' + [1, 3, 5].map((i) => Math.round(parseInt(a.slice(i, i + 2), 16) + (parseInt(b.slice(i, i + 2), 16) - parseInt(a.slice(i, i + 2), 16)) * t).toString(16).padStart(2, '0')).join('');
+    const LOOK = {
+        fresh: ['#F6F6F8', '#1B1B1F'],
+        cream: ['#FBF5EA', '#2A2118'],
+        midnight: [mixHex('#101013', primary, 0.07), '#F6F2F2'],   // the shop's own colour taken down to a deep tone
+    }[config.brand?.look];
+    const bg = LOOK ? LOOK[0] : (c.background || '#FFFFFF');
+    const text = LOOK ? LOOK[1] : (c.text || '#1C1C1C');
+    const floating = config.brand?.tabBarStyle === 'floating';
+    const headerBg = config.brand?.look && config.brand.look !== 'bold' ? bg : primary;
+    const headerFg = headerBg === primary ? '#FFFFFF' : text;
     const r = SHAPE[config.brand?.buttonShape] ?? 12;
     const home = config.home || {};
 
@@ -34,9 +44,9 @@ export function AppPreview({ config }) {
             <Card style={{ alignItems: 'center' }}>
                 <View style={{ width: 250, borderRadius: 30, borderWidth: 6, borderColor: t.text, overflow: 'hidden', backgroundColor: bg }}>
                     {/* top bar */}
-                    <View style={{ backgroundColor: primary, paddingHorizontal: 14, paddingVertical: 12 }}>
-                        <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 15 }} numberOfLines={1}>{config.restaurant?.name || 'Your shop'}</Text>
-                        <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 11 }}>
+                    <View style={{ backgroundColor: headerBg, paddingHorizontal: 14, paddingVertical: config.brand?.headerStyle === 'compact' ? 8 : 12 }}>
+                        <Text style={{ color: headerFg, fontWeight: '800', fontSize: 15 }} numberOfLines={1}>{config.restaurant?.name || 'Your shop'}</Text>
+                        <Text style={{ color: headerFg, opacity: 0.85, fontSize: 11 }}>
                             {config.restaurant?.isOpen ? 'Open now' : 'Closed'} · {nameOf('foodMode', home.foodMode)}
                         </Text>
                     </View>
@@ -67,7 +77,14 @@ export function AppPreview({ config }) {
                         </View>
                     </View>
                     {/* tab bar */}
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-around', borderTopWidth: 1, borderTopColor: tint(text, 0.1), paddingVertical: 8 }}>
+                    <View
+                        style={[
+                            { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 8 },
+                            floating
+                                ? { margin: 8, borderRadius: 20, backgroundColor: LOOK ? tint(text, 0.08) : '#FFFFFF', borderWidth: 1, borderColor: tint(text, 0.1) }
+                                : { borderTopWidth: 1, borderTopColor: tint(text, 0.1) },
+                        ]}
+                    >
                         {(config.tabs || []).map((tab, i) => (
                             <View key={tab} style={{ alignItems: 'center' }}>
                                 <Icon name={TAB_ICON[tab] || 'info'} size={18} color={i === 0 ? primary : tint(text, 0.5)} filled={i === 0} />
@@ -77,6 +94,7 @@ export function AppPreview({ config }) {
                     </View>
                 </View>
                 <Text style={{ color: t.muted, fontSize: font.xs, marginTop: spacing.md, textAlign: 'center' }}>
+                    {nameOf('look', config.brand?.look)} · {nameOf('categoryStyle', config.brand?.categoryStyle)} · {nameOf('tabBarStyle', config.brand?.tabBarStyle)}{'\n'}
                     Font: {nameOf('font', config.brand?.fontStyle)} · Buttons: {nameOf('shape', config.brand?.buttonShape)} · {nameOf('cardStyle', home.cardStyle)}
                 </Text>
             </Card>

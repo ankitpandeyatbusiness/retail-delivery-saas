@@ -20,12 +20,12 @@ export const errMsg = (e) => e?.response?.data?.error
 export const itemsText = (o) => (o.items || []).map((l) => `${l.quantity} × ${l.name}`).join(', ');
 
 export function StatusPill({ status }) {
-    const { primary } = useBrand();
+    const { primary, ok, okSoft, neutralSoft, muted } = useBrand();
     const done = status === 'delivered';
     const gone = status === 'cancelled';
     return (
-        <View style={[s.pill, { backgroundColor: done ? '#E6F4EA' : gone ? '#EEEEEE' : tint(primary) }]}>
-            <Text style={[s.pillTxt, { color: done ? '#1E8E3E' : gone ? '#777777' : primary }]}>
+        <View style={[s.pill, { backgroundColor: done ? okSoft : gone ? neutralSoft : tint(primary) }]}>
+            <Text style={[s.pillTxt, { color: done ? ok : gone ? muted : primary }]}>
                 {STATUS_LABEL[status] || status}
             </Text>
         </View>

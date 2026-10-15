@@ -17,7 +17,7 @@ function Bar({ w, h, r = 10, style, shine, base }) {
 
 export default function PayShimmer({ appName }) {
     const insets = useSafeAreaInsets();
-    const { primary, text, muted, background } = useBrand();
+    const { primary, text, muted, background, border } = useBrand();
     const x = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
@@ -46,7 +46,7 @@ export default function PayShimmer({ appName }) {
             <B w={150} h={22} r={8} />
             <B w={220} h={14} r={7} style={{ marginTop: 10 }} />
 
-            <View style={s.card}>
+            <View style={[s.card, { borderColor: border }]}>
                 <View style={s.row}>
                     <B w={52} h={52} r={26} />
                     <View style={{ marginLeft: 14 }}>

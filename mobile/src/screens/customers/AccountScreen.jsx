@@ -2,14 +2,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
     View, Text, ScrollView, TextInput, Modal, ActivityIndicator, Pressable,
-    KeyboardAvoidingView, Platform, StyleSheet, Linking, Switch,
+    KeyboardAvoidingView, Platform, StyleSheet, Linking, Switch, Animated, Easing, InteractionManager,
 } from 'react-native';
 import Constants from 'expo-constants';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useBrand, GuestGate } from '../../components/common/kit';
+import { useBrand, GuestGate, CardGlow } from '../../components/common/kit';
 import { showToast, tint } from '../../components/customers/shop';
 import { Press, Appear } from '../../components/customers/cartParts';
 import { AddressSheet } from '../../components/customers/addresses';
@@ -113,12 +113,59 @@ function ToggleItem({ icon, label, sub, value, onValueChange, disabled, last }) 
     );
 }
 
+// Appearance: the customer's own choice, kept on this phone. System follows the phone's dark mode.
+const MODES = [['system', 'phone-portrait-outline', 'System'], ['light', 'sunny-outline', 'Light'], ['dark', 'moon-outline', 'Dark']];
+function AppearanceRow({ last }) {
+    const { primary, onPrimary, text, muted, border, background } = useBrand();
+    const saved = useThemeStore((st) => st.appearance);
+    const setAppearance = useThemeStore((st) => st.setAppearance);
+    // What the control draws is local and changes the instant it is tapped. The whole app re-themes only AFTER the
+    // pill has finished sliding, so that heavy repaint can never make the slide stutter.
+    const [mode, setMode] = useState(saved);
+    const idx = Math.max(0, MODES.findIndex((m) => m[0] === mode));
+    const [w, setW] = useState(0);
+    const slide = React.useRef(new Animated.Value(idx)).current;
+    useEffect(() => { setMode(saved); }, [saved]);
+    const choose = (id) => {
+        if (id === mode) return;
+        setMode(id);
+        Animated.timing(slide, { toValue: MODES.findIndex((m) => m[0] === id), duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+        InteractionManager.runAfterInteractions(() => setAppearance(id));
+    };
+    const segW = w ? (w - 6) / MODES.length : 0;
+    return (
+        <View style={[s.row, { flexDirection: 'column', alignItems: 'stretch' }, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: border }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={[s.rowIc, { backgroundColor: tint(primary) }]}><Ionicons name="contrast-outline" size={18} color={primary} /></View>
+                <View style={{ flex: 1 }}>
+                    <Text style={[s.rowTxt, { color: text }]}>Appearance</Text>
+                    <Text style={[s.rowSub, { color: muted }]}>{mode === 'system' ? "Follows your phone's dark mode" : mode === 'dark' ? 'Always dark' : 'Always light'}</Text>
+                </View>
+            </View>
+            <View onLayout={(e) => setW(e.nativeEvent.layout.width)} style={[s.seg, { backgroundColor: background, borderColor: border }]}>
+                {segW ? (
+                    <Animated.View style={[s.segPill, { width: segW, backgroundColor: primary, transform: [{ translateX: Animated.multiply(slide, segW) }] }]} />
+                ) : null}
+                {MODES.map(([id, icon, label]) => {
+                    const on = id === mode;
+                    return (
+                        <Pressable key={id} onPress={() => choose(id)} style={s.segItem} accessibilityRole="button" accessibilityState={{ selected: on }}>
+                            <Ionicons name={icon} size={15} color={on ? onPrimary : muted} />
+                            <Text style={[s.segTxt, { color: on ? onPrimary : muted }]}>{label}</Text>
+                        </Pressable>
+                    );
+                })}
+            </View>
+        </View>
+    );
+}
+
 function Group({ title, delay, children }) {
     const { muted, surface, border } = useBrand();
     return (
         <Appear delay={delay} style={s.groupWrap}>
             {title ? <Text style={[s.gTitle, { color: muted }]}>{title}</Text> : null}
-            <View style={[s.group, { backgroundColor: surface, borderColor: border }]}>{children}</View>
+            <View style={[s.group, { backgroundColor: surface, borderColor: border }]}><CardGlow radius={18} from="tl" strength={0.14} />{children}</View>
         </Appear>
     );
 }
@@ -245,6 +292,7 @@ function AccountInner() {
                 <Text style={[s.title, { color: text }]}>Account</Text>
 
                 <Appear style={[s.head, { backgroundColor: surface, borderColor: border }]}>
+                    <CardGlow radius={20} from="tl" strength={0.2} />
                     <Pressable onPress={avatarMenu} disabled={avatarBusy} hitSlop={6} style={s.avatarWrap}>
                         <View style={[s.avatar, { backgroundColor: primary, overflow: 'hidden', marginRight: 0 }]}>
                             {p.avatarUrl
@@ -283,6 +331,7 @@ function AccountInner() {
                 </Group>
 
                 <Group title="PREFERENCES" delay={110}>
+                    <AppearanceRow />
                     <ToggleItem
                         icon="megaphone-outline" label="Offers and promotions"
                         sub="Order updates always reach you, even when this is off"
@@ -337,6 +386,10 @@ const s = StyleSheet.create({
     rowTxt: { fontSize: 14, fontWeight: '700' },
     rowSub: { fontSize: 11, marginTop: 2 },
     ver: { textAlign: 'center', fontSize: 11, marginTop: 26 },
+    seg: { flexDirection: 'row', height: 40, borderRadius: 12, borderWidth: 1, padding: 3, marginTop: 12 },
+    segPill: { position: 'absolute', left: 3, top: 3, bottom: 3, borderRadius: 9 },
+    segItem: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+    segTxt: { fontSize: 12.5, fontWeight: '800', marginLeft: 5 },
     busy: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' },
     backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', padding: 18 },
     dialog: { width: '100%', maxWidth: 380, borderRadius: 22, borderWidth: 1, padding: 20 },

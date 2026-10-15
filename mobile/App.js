@@ -9,6 +9,8 @@ import { DialogHost } from './src/components/common/dialog';
 import { SheetHost } from './src/components/common/SheetPortal';
 import { startRealtime } from './src/api/common/socket';
 import { startNotifications } from './src/utils/common/push';
+import { applyTypography } from './src/components/common/typography';
+import { useBrand } from './src/components/common/kit';
 
 // The native splash screen (brand colour + logo) is the only loading screen. It stays up until the shop's look
 // and the saved login are ready, then fades out into the app: no black screen, no second spinner.
@@ -21,7 +23,7 @@ const withTimeout = (p, ms) => Promise.race([p, new Promise((r) => setTimeout(r,
 
 export default function App() {
   const [isReady, setIsReady] = useState(false);
-  const background = useThemeStore((s) => s.theme.colors?.background) || '#FFFFFF';
+  const background = useBrand().background;   // follows the look that is actually drawn (shop look, or the customer's Appearance choice)
 
   useEffect(() => {
     let alive = true;
@@ -33,6 +35,9 @@ export default function App() {
           useAuthStore.getState().hydrate(),                  // saved login, from SecureStore
           withTimeout(theme.loadTheme(), MAX_WAIT_MS),        // fresh look; a slow network does not hold the app
         ]);
+        // the shop's font (classic / rounded, or modern in the new looks): loaded before the first frame so text never changes font
+        const look = useThemeStore.getState().theme;
+        await withTimeout(applyTypography(look.fontStyle, look.look), MAX_WAIT_MS);
       } catch (e) { /* both helpers swallow their own errors; open the app anyway */ }
       if (alive) setIsReady(true);
     })();

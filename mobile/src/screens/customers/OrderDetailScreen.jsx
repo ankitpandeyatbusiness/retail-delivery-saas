@@ -4,7 +4,7 @@ import { View, Text, Pressable, ScrollView, ActivityIndicator, TextInput, StyleS
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useBrand, BackHeader } from '../../components/common/kit';
+import { useBrand, BackHeader, CardGlow } from '../../components/common/kit';
 import { showToast, tint } from '../../components/customers/shop';
 import { Press, Appear } from '../../components/customers/cartParts';
 import { StatusPill, isActive, rs, errMsg, cancelFlow, reorder } from '../../components/customers/orders';
@@ -40,6 +40,7 @@ function Card({ title, icon, delay = 0, children }) {
     const { primary, text, surface, border } = useBrand();
     return (
         <Appear delay={delay} style={[s.card, { backgroundColor: surface, borderColor: border }]}>
+            <CardGlow radius={18} from="tl" strength={0.14} />
             {title ? (
                 <View style={s.cHead}>
                     <Ionicons name={icon} size={17} color={primary} />

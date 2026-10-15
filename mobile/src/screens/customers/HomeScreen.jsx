@@ -4,7 +4,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { AddressSheet } from '../../components/customers/addresses';
 import { useAddressStore } from '../../store/customers/useAddressStore';
 import {
-    View, Text, Pressable, FlatList, ScrollView, Animated, Easing, ActivityIndicator, StyleSheet, useWindowDimensions,
+    View, Text, Pressable, FlatList, ScrollView, Animated, Easing, StatusBar, StyleSheet, useWindowDimensions,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { Image } from 'expo-image';
@@ -12,6 +12,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand, mix, onColor } from '../../components/common/kit';
+import { FadeIn, useMotion } from '../../components/common/motion';
+import { SkelBanner, SkelFeed } from '../../components/customers/skeletons';
+import { CouponTicket } from '../../components/customers/coupon';
 import { ItemCard, Tile, CartBar, closedText, showToast, tint } from '../../components/customers/shop';
 import FilterDialog from './FilterDialog';
 import { useThemeStore } from '../../store/common/useThemeStore';
@@ -21,18 +24,27 @@ import { useNotificationStore } from '../../store/common/useNotificationStore';
 import { useMenuStore, useCartStore, useFavStore } from '../../store/customers/shopStores';
 import { useFilterStore, applyFilters, countActive } from '../../store/customers/useFilterStore';
 import { Slider, VegSwitch, Cats, Collapse, FadeCollapse, useVoice, VoiceOverlay } from '../../components/customers/finder';
-import { CopyIcon } from '../../components/common/copyCode';
 
 const Gap = () => <View style={{ width: 12 }} />;
 const VIEW_CFG = { itemVisiblePercentThreshold: 1 };
 const glass = 'rgba(255,255,255,0.18)';
 
 /* ---------------- storefront header (scrolls away) ---------------- */
-function Header({ onAddress }) {
+// bold look: the brand-gradient header. Other looks: a light header on the canvas with a soft wash of the brand colour.
+// The shop name, tagline and chips drift down and fade as the page scrolls (parallax), so the header melts away.
+function Header({ onAddress, scrollY }) {
     const nav = useNavigation();
-    const { primaryLight, primaryDark, onPrimary } = useBrand();
+    const { primary, primaryLight, primaryDark, onPrimary, look, text, background, surface, border, wash } = useBrand();
     const theme = useThemeStore((st) => st.theme);
     const full = useHomeStore((st) => st.full);
+    const motion = useMotion();
+
+    const light = look !== 'bold';
+    const compact = theme.headerStyle === 'compact';
+    const fg = light ? text : onPrimary;
+    const glassBg = light ? surface : glass;
+    const glassLine = light ? border : 'rgba(255,255,255,0.28)';
+    const colors = light ? [wash, background] : [primaryLight, primaryDark];
 
     const open = full.restaurant.isOpen;
     const mins = full.orders.prepTimeMin;
@@ -51,61 +63,73 @@ function Header({ onAddress }) {
         else chips.push({ icon: 'bicycle-outline', text: `₹${fee.amount} delivery` });
     }
     if (full.orders.minOrder > 0) chips.push({ icon: 'bag-check-outline', text: `Min ₹${full.orders.minOrder}` });
+    const shownChips = compact ? chips.slice(0, 1) : chips;
+
+    const drift = motion === 'full' && scrollY ? {
+        opacity: scrollY.interpolate({ inputRange: [0, 170], outputRange: [1, 0.1], extrapolate: 'clamp' }),
+        transform: [{ translateY: scrollY.interpolate({ inputRange: [0, 240], outputRange: [0, 64], extrapolate: 'clamp' }) }],
+    } : null;
 
     return (
-        <LinearGradient colors={[primaryLight, primaryDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.hd}>
-            <View style={[s.blob, { top: -50, right: -40, width: 170, height: 170 }]} />
-            <View style={[s.blob, { bottom: -60, left: -30, width: 130, height: 130 }]} />
+        <LinearGradient colors={colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[s.hd, compact && s.hdCompact, light && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: border }]}>
+            {light ? null : (
+                <>
+                    <View style={[s.blob, { top: -50, right: -40, width: 170, height: 170 }]} />
+                    <View style={[s.blob, { bottom: -60, left: -30, width: 130, height: 130 }]} />
+                </>
+            )}
             {/* top line: where to deliver (or a welcome), and the quick actions */}
             <View style={s.hdTop}>
                 {user ? (
                     <Pressable onPress={onAddress} hitSlop={8} style={s.locBlock}>
-                        <Text style={[s.locCap, { color: onPrimary }]}>DELIVER TO</Text>
+                        <Text style={[s.locCap, { color: fg }]}>DELIVER TO</Text>
                         <View style={s.locRow}>
-                            <Ionicons name="location-sharp" size={16} color={onPrimary} />
-                            <Text style={[s.locTxt, { color: onPrimary }]} numberOfLines={1}>
+                            <Ionicons name="location-sharp" size={16} color={light ? primary : fg} />
+                            <Text style={[s.locTxt, { color: fg }]} numberOfLines={1}>
                                 {addr ? <Text style={s.locLabel}>{addr.label}  </Text> : null}
                                 {addr ? short : 'Select delivery address'}
                             </Text>
-                            <Ionicons name="chevron-down" size={15} color={onPrimary} />
+                            <Ionicons name="chevron-down" size={15} color={fg} />
                         </View>
                     </Pressable>
                 ) : (
                     <View style={s.locBlock}>
-                        <Text style={[s.locCap, { color: onPrimary }]}>WELCOME TO</Text>
+                        <Text style={[s.locCap, { color: fg }]}>WELCOME TO</Text>
                     </View>
                 )}
                 {user ? (
-                    <Pressable onPress={() => nav.navigate('Notifications')} style={[s.ic, { marginRight: full.offers.couponsEnabled ? 8 : 0 }]} hitSlop={6}>
-                        <Ionicons name="notifications-outline" size={20} color={onPrimary} />
+                    <Pressable onPress={() => nav.navigate('Notifications')} style={[s.ic, { backgroundColor: glassBg, marginRight: full.offers.couponsEnabled ? 8 : 0 }, light && { borderWidth: StyleSheet.hairlineWidth, borderColor: border }]} hitSlop={6}>
+                        <Ionicons name="notifications-outline" size={20} color={fg} />
                         {unread > 0 ? (
                             <View style={s.bellBadge}><Text style={s.bellBadgeTxt}>{unread > 9 ? '9+' : unread}</Text></View>
                         ) : null}
                     </Pressable>
                 ) : null}
                 {full.offers.couponsEnabled ? (
-                    <Pressable onPress={() => nav.navigate('Offers')} style={s.ic} hitSlop={6}>
-                        <Ionicons name="pricetags-outline" size={20} color={onPrimary} />
+                    <Pressable onPress={() => nav.navigate('Offers')} style={[s.ic, { backgroundColor: glassBg }, light && { borderWidth: StyleSheet.hairlineWidth, borderColor: border }]} hitSlop={6}>
+                        <Ionicons name="pricetags-outline" size={20} color={fg} />
                     </Pressable>
                 ) : null}
             </View>
 
             {/* the shop is the hero */}
-            <Text style={[s.hdTitle, { color: onPrimary }]} numberOfLines={1}>{theme.name}</Text>
-            {theme.tagline ? <Text style={[s.hdTagline, { color: onPrimary }]} numberOfLines={1}>{theme.tagline}</Text> : null}
+            <Animated.View style={drift}>
+                <Text style={[s.hdTitle, compact && s.hdTitleCompact, { color: fg }]} numberOfLines={1}>{theme.name}</Text>
+                {theme.tagline && !compact ? <Text style={[s.hdTagline, { color: fg }]} numberOfLines={1}>{theme.tagline}</Text> : null}
 
-            <View style={s.chipRow}>
-                <View style={s.hChip}>
-                    <View style={[s.statusDot, { backgroundColor: open ? '#4ADE80' : '#FF6B6B' }]} />
-                    <Text style={[s.hChipTxt, { color: onPrimary }]}>{open ? 'Open now' : 'Closed'}</Text>
-                </View>
-                {chips.map((c) => (
-                    <View key={c.text} style={s.hChip}>
-                        <Ionicons name={c.icon} size={13} color={onPrimary} />
-                        <Text style={[s.hChipTxt, { color: onPrimary, marginLeft: 4 }]}>{c.text}</Text>
+                <View style={[s.chipRow, compact && { marginTop: 10 }]}>
+                    <View style={[s.hChip, { backgroundColor: glassBg, borderColor: glassLine }]}>
+                        <View style={[s.statusDot, { backgroundColor: open ? '#4ADE80' : '#FF6B6B' }]} />
+                        <Text style={[s.hChipTxt, { color: fg }]}>{open ? 'Open now' : 'Closed'}</Text>
                     </View>
-                ))}
-            </View>
+                    {shownChips.map((c) => (
+                        <View key={c.text} style={[s.hChip, { backgroundColor: glassBg, borderColor: glassLine }]}>
+                            <Ionicons name={c.icon} size={13} color={fg} />
+                            <Text style={[s.hChipTxt, { color: fg, marginLeft: 4 }]}>{c.text}</Text>
+                        </View>
+                    ))}
+                </View>
+            </Animated.View>
         </LinearGradient>
     );
 }
@@ -172,6 +196,8 @@ function Banners({ list, onOrder }) {
     const ref = useRef(null);
     const idx = useRef(0);
     const [cur, setCur] = useState(0);
+    const motion = useMotion();
+    const sx = useRef(new Animated.Value(0)).current;   // scroll position, on the UI thread: the cards beside the active one shrink a little
 
     const grads = [
         [primaryLight, primaryDark],
@@ -192,10 +218,12 @@ function Banners({ list, onOrder }) {
 
     return (
         <View>
-            <FlatList
+            <Animated.FlatList
                 ref={ref}
                 data={list} horizontal showsHorizontalScrollIndicator={false}
                 snapToInterval={snap} decelerationRate="fast" disableIntervalMomentum
+                onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: sx } } }], { useNativeDriver: true })}
+                scrollEventThrottle={16}
                 onMomentumScrollEnd={(e) => {
                     const i = Math.round(e.nativeEvent.contentOffset.x / snap);
                     idx.current = i;
@@ -205,8 +233,11 @@ function Banners({ list, onOrder }) {
                 renderItem={({ item: b, index }) => {
                     const g = grads[index % 3];
                     const fg = b.image ? '#FFFFFF' : onColor(g[0]);
+                    const scale = motion === 'full' && list.length > 1
+                        ? sx.interpolate({ inputRange: [(index - 1) * snap, index * snap, (index + 1) * snap], outputRange: [0.93, 1, 0.93], extrapolate: 'clamp' })
+                        : 1;
                     return (
-                        <View style={[s.banner, { width: w }]}>
+                        <Animated.View style={[s.banner, { width: w, transform: [{ scale }] }]}>
                             {b.image ? (
                                 <>
                                     <Image source={{ uri: b.image }} style={StyleSheet.absoluteFill} contentFit="cover" />
@@ -224,7 +255,7 @@ function Banners({ list, onOrder }) {
                                 <Text style={[s.bPillTxt, { color: onColor(fg) }]}>Order now</Text>
                                 <Ionicons name="arrow-forward" size={13} color={onColor(fg)} style={{ marginLeft: 4 }} />
                             </Pressable>
-                        </View>
+                        </Animated.View>
                     );
                 }}
             />
@@ -239,32 +270,7 @@ function Banners({ list, onOrder }) {
     );
 }
 
-/* ---------------- offers: coupon tickets ---------------- */
-function OfferTicket({ o, onPress }) {
-    const { primary, onPrimary, text, muted, surface, border, background } = useBrand();
-    const value = o.discountType === 'percent' ? `${o.discountValue}%` : `₹${o.discountValue}`;
-    return (
-        <Pressable onPress={onPress} style={({ pressed }) => [s.ticket, { backgroundColor: surface, borderColor: border }, pressed && { transform: [{ scale: 0.97 }] }]}>
-            <View style={[s.tkLeft, { backgroundColor: primary }]}>
-                <Text style={[s.tkVal, { color: onPrimary }]}>{value}</Text>
-                <Text style={[s.tkOff, { color: onPrimary }]}>OFF</Text>
-            </View>
-            <View style={[s.notch, { top: -8, left: 56, backgroundColor: background }]} />
-            <View style={[s.notch, { bottom: -8, left: 56, backgroundColor: background }]} />
-            <View style={s.tkRight}>
-                <View style={[s.codeBox, { borderColor: primary, backgroundColor: tint(primary) }]}>
-                    <Text style={[s.offerCode, { color: primary }]}>{o.code}</Text>
-                    <CopyIcon code={o.code} color={primary} style={{ marginLeft: 8 }} />
-                </View>
-                <Text style={[s.offerDesc, { color: text }]} numberOfLines={2}>
-                    {o.description || (o.discountType === 'percent' ? `${o.discountValue}% off` : `₹${o.discountValue} off`)}
-                </Text>
-                {o.minOrder ? <Text style={[s.offerMin, { color: muted }]}>Min order ₹{o.minOrder}</Text> : null}
-            </View>
-        </Pressable>
-    );
-}
-
+/* ---------------- offers: coupon tickets (shared design: components/customers/coupon.jsx) ---------------- */
 function OffersStrip({ list }) {
     const nav = useNavigation();
     const { primary, text } = useBrand();
@@ -280,7 +286,7 @@ function OffersStrip({ list }) {
             <FlatList
                 horizontal data={list} showsHorizontalScrollIndicator={false}
                 keyExtractor={(o) => o._id} contentContainerStyle={s.hpad} ItemSeparatorComponent={Gap}
-                renderItem={({ item: o }) => <OfferTicket o={o} onPress={() => nav.navigate('Offers')} />}
+                renderItem={({ item: o }) => <CouponTicket o={o} size="strip" onPress={() => nav.navigate('Offers')} />}
             />
         </View>
     );
@@ -290,7 +296,6 @@ function Chip({ label, on, onPress, badge, icon }) {
     const { primary, onPrimary, surface, border, text } = useBrand();
     const a = useRef(new Animated.Value(on ? 1 : 0)).current;
     const b = useRef(new Animated.Value(badge ? 1 : 0)).current;
-    const p = useRef(new Animated.Value(1)).current;
     const [shown, setShown] = useState(badge);
 
     useEffect(() => {
@@ -301,14 +306,14 @@ function Chip({ label, on, onPress, badge, icon }) {
         Animated.timing(b, { toValue: badge ? 1 : 0, duration: 240, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
     }, [badge]);
 
-    const to = (v) => Animated.spring(p, { toValue: v, friction: 6, tension: 220, useNativeDriver: true }).start();
     const bg = a.interpolate({ inputRange: [0, 1], outputRange: [surface, primary] });
     const bd = a.interpolate({ inputRange: [0, 1], outputRange: [border, primary] });
     const fg = a.interpolate({ inputRange: [0, 1], outputRange: [text, onPrimary] });
 
+    // no press-down squeeze: the chip just fades to its new colour, so tapping feels instant and calm
     return (
-        <Animated.View style={{ transform: [{ scale: p }], marginRight: 8 }}>
-            <Pressable onPress={onPress} onPressIn={() => to(0.95)} onPressOut={() => to(1)}>
+        <Animated.View style={{ marginRight: 8 }}>
+            <Pressable onPress={onPress}>
                 <Animated.View style={[s.chip, { marginRight: 0, backgroundColor: bg, borderColor: bd }]}>
                     {icon ? (
                         <View style={{ width: 14, height: 14, marginRight: 5 }}>
@@ -321,6 +326,10 @@ function Chip({ label, on, onPress, badge, icon }) {
                         </View>
                     ) : null}
                     <Animated.Text style={[s.chipTxt, { color: fg }]}>{label}</Animated.Text>
+                    {/* active chips can be switched off right here: a small x opens up beside the label */}
+                    <Animated.View style={{ width: a.interpolate({ inputRange: [0, 1], outputRange: [0, 18] }), marginLeft: a.interpolate({ inputRange: [0, 1], outputRange: [0, 4] }), opacity: a, overflow: 'hidden' }}>
+                        <Ionicons name="close" size={14} color={onPrimary} />
+                    </Animated.View>
                     {shown ? (
                         <Animated.View style={[s.chipBadge, {
                             minWidth: 0, paddingHorizontal: 0, overflow: 'hidden',
@@ -409,6 +418,7 @@ export default function HomeScreen() {
     const [dlg, setDlg] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const panel = useRef(null);
+    const scrollY = useRef(new Animated.Value(0)).current;   // pushed to the native node: the header drifts with the scroll
     const [barH, setBarH] = useState(72);
     const voice = useVoice((t) => nav.navigate('Search', { voice: t, n: Date.now() }));
     const openVoice = voice.start;
@@ -439,7 +449,8 @@ export default function HomeScreen() {
         () => [...all].sort((a, b) => (b.isBestseller ? 1 : 0) - (a.isBestseller ? 1 : 0)).slice(0, 4).map((i) => i.name),
         [all],
     );
-    // The food list follows the filters one beat late, so it can fade out first, swap, then fade in.
+    // The food list updates AT ONCE when a filter changes (no waiting, no blank gap), and eases from slightly
+    // faded back to full over a quarter second, so the change reads as smooth instead of a blink.
     const snapOf = () => ({ categories: f.categories, active: f.active, sort: f.sort, price: f.price, spice: f.spice, serves: f.serves, weight: f.weight });
     const [applied, setApplied] = useState(snapOf);
     const fade = useRef(new Animated.Value(1)).current;
@@ -447,17 +458,11 @@ export default function HomeScreen() {
     const firstSig = useRef(true);
     useEffect(() => {
         if (firstSig.current) { firstSig.current = false; return undefined; }
-        let alive = true;
-        const snap = snapOf();
-        Animated.timing(fade, { toValue: 0, duration: 140, easing: Easing.in(Easing.quad), useNativeDriver: true }).start(({ finished }) => {
-            if (!finished || !alive) return;
-            setApplied(snap);                                   // swap while the list is invisible
-            setTimeout(() => {
-                if (!alive) return;
-                Animated.timing(fade, { toValue: 1, duration: 320, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
-            }, 90);
-        });
-        return () => { alive = false; fade.stopAnimation(); };
+        setApplied(snapOf());
+        fade.setValue(0.55);
+        const a = Animated.timing(fade, { toValue: 1, duration: 260, easing: Easing.out(Easing.quad), useNativeDriver: true });
+        a.start();
+        return () => a.stop();
     }, [sig]);
 
     const filtered = useMemo(
@@ -469,6 +474,7 @@ export default function HomeScreen() {
     const hide = f.categories.length > 0 || applied.categories.length > 0;
     const extra = useMemo(() => ({ brand, hide }), [brand, hide]);
 
+    const waiting = !loaded && !errorStatus;   // the menu has not arrived: show shapes instead of nothing
     const rows = useMemo(() => {
         const R = [{ t: 'header' }];
         const B = config.blocks;
@@ -486,8 +492,8 @@ export default function HomeScreen() {
         };
 
         for (const b of B) {
-            if (b === 'banner' && banners.length) R.push({ t: 'banner' });
-            else if (b === 'categories' && chips.length) R.push({ t: 'cats' });
+            if (b === 'banner' && (banners.length || waiting)) R.push({ t: 'banner' });
+            else if (b === 'categories' && (chips.length || waiting)) R.push({ t: 'cats' });
             else if (b === 'filters') R.push({ t: 'filters' });
             else if (b === 'offers' && offers.length && full.offers.couponsEnabled && full.offers.showOnHome) R.push({ t: 'offers' });
             else if (b === 'bestsellers' && keep(recommended).length) R.push({ t: 'strip', id: 'best', title: 'Bestsellers', sub: 'Most ordered', items: keep(recommended), see: 'Bestsellers' });
@@ -515,7 +521,7 @@ export default function HomeScreen() {
             }
         }
         return R;
-    }, [config, full, banners, chips, offers, recommended, festival, combo, all, filtered, grouped, menuCats, loaded, errorStatus, applied.categories, applied.active]);
+    }, [config, full, banners, chips, offers, recommended, festival, combo, all, filtered, grouped, menuCats, loaded, errorStatus, waiting, applied.categories, applied.active]);
 
     const searchIdx = rows.findIndex((r) => r.t === 'search');
     const catsIdx = rows.findIndex((r) => r.t === 'cats');
@@ -556,17 +562,17 @@ export default function HomeScreen() {
 
     const renderBase = ({ item: r }) => {
         switch (r.t) {
-            case 'header': return <Header onAddress={() => setAddrOpen(true)} />;
+            case 'header': return <Header onAddress={() => setAddrOpen(true)} scrollY={scrollY} />;
             case 'search': return <StickyBar names={names} onHeight={setBarH} onMic={openVoice} />;
             case 'closed': return (
-                <View style={s.closed}>
-                    <Ionicons name="moon-outline" size={15} color="#B3261E" />
-                    <Text style={s.closedTxt}>{closedText(full)}</Text>
+                <View style={[s.closed, { backgroundColor: brand.errorSoft }]}>
+                    <Ionicons name="moon-outline" size={15} color={brand.errorText} />
+                    <Text style={[s.closedTxt, { color: brand.errorText }]}>{closedText(full)}</Text>
                 </View>
             );
-            case 'banner': return <Banners list={banners} onOrder={onOrder} />;
-            case 'cats': return <Cats />;
-            case 'filters': return <FiltersRow onOpen={() => setDlg(true)} />;
+            case 'banner': return banners.length ? <FadeIn><Banners list={banners} onOrder={onOrder} /></FadeIn> : <SkelBanner />;
+            case 'cats': return <FadeIn><Cats loading={waiting} /></FadeIn>;
+            case 'filters': return <FadeIn index={1}><FiltersRow onOpen={() => setDlg(true)} /></FadeIn>;
             case 'offers': return <FadeCollapse hide={hide}><OffersStrip list={offers} /></FadeCollapse>;
             case 'strip': return <FadeCollapse hide={hide}><Strip r={r} /></FadeCollapse>;
             case 'sec': return <SecHead title={r.title} sub={r.sub} />;
@@ -577,7 +583,7 @@ export default function HomeScreen() {
                     <View style={{ flex: 1 }}>{r.b ? <ItemCard item={r.b} variant="grid" /> : null}</View>
                 </View>
             );
-            case 'loading': return <ActivityIndicator style={{ margin: 32 }} color={brand.primary} />;
+            case 'loading': return <SkelFeed variant={config.cardStyle} count={3} />;
             case 'error': return (
                 <View style={s.empty}>
                     <Ionicons name="cloud-offline-outline" size={34} color={brand.muted} />
@@ -600,7 +606,7 @@ export default function HomeScreen() {
         const node = renderBase(info);
         if (!FADE_ROWS.includes(info.item.t)) return node;
         return (
-            <Animated.View style={{ opacity: fade, transform: [{ translateY: fade.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] }}>
+            <Animated.View style={{ opacity: fade }}>
                 {node}
             </Animated.View>
         );
@@ -609,7 +615,8 @@ export default function HomeScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: brand.background }}>
             {/* the status bar area takes the header's top colour so the header flows into it */}
-            <View style={{ height: insets.top, backgroundColor: brand.primaryLight }} />
+            {brand.look !== 'bold' ? <StatusBar barStyle={brand.dark ? 'light-content' : 'dark-content'} translucent backgroundColor="transparent" /> : null}
+            <View style={{ height: insets.top, backgroundColor: brand.look === 'bold' ? brand.primaryLight : brand.wash }} />
             <FlashList
                 ref={listRef}
                 data={rows}
@@ -622,6 +629,8 @@ export default function HomeScreen() {
                 viewabilityConfig={VIEW_CFG}
                 refreshing={refreshing}
                 onRefresh={refresh}
+                onScroll={(e) => scrollY.setValue(e.nativeEvent.contentOffset.y)}
+                scrollEventThrottle={16}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ paddingBottom: 100 }}
             />
@@ -642,6 +651,8 @@ export default function HomeScreen() {
 
 const s = StyleSheet.create({
     hd: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 22, borderBottomLeftRadius: 28, borderBottomRightRadius: 28, overflow: 'hidden' },
+    hdCompact: { paddingBottom: 14 },
+    hdTitleCompact: { fontSize: 22, marginTop: 8 },
     blob: { position: 'absolute', borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.1)' },
     hdTop: { flexDirection: 'row', alignItems: 'center' },
     locBlock: { flex: 1, marginRight: 12 },

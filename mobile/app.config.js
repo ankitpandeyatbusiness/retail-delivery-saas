@@ -85,6 +85,9 @@ export default {
     slug: 'retail-delivery-customer',
     version: '1.0.0',
     orientation: 'portrait',
+    // lets the app know when the phone is in dark mode (Account → Appearance → System). Without this, Android always
+    // reports light. Needs expo-system-ui and a new native build; an OTA update alone does not change it.
+    userInterfaceStyle: 'automatic',
     icon,
     android: {
       config: { googleMaps: { apiKey: process.env.GOOGLE_MAPS_API_KEY } },

@@ -23,7 +23,7 @@ export function FrozenOverlay({ onOrders }) {
     const frozen = useAppStatus((st) => st.frozen);
     const user = useAuthStore((st) => st.user);
     const shop = useThemeStore((st) => st.theme.name);
-    const { primary, radius, text, background } = useBrand();
+    const { primary, radius, text, background, muted } = useBrand();
     const insets = useSafeAreaInsets();
     const [busy, setBusy] = useState(false);
     if (!frozen) return null;
@@ -40,12 +40,12 @@ export function FrozenOverlay({ onOrders }) {
 
     return (
         <View style={[s.full, { backgroundColor: background, paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-            <Text style={s.shop}>{shop}</Text>
+            <Text style={[s.shop, { color: muted }]}>{shop}</Text>
             <View style={s.body}>
                 <Text style={s.emoji}>{maint ? '🛠' : '⛔'}</Text>
                 <Text style={[s.title, { color: text }]}>{maint ? 'Back soon' : 'Not available right now'}</Text>
-                <Text style={s.msg}>{msg}</Text>
-                {maint && until ? <Text style={s.until}>Expected back by {until}</Text> : null}
+                <Text style={[s.msg, { color: muted }]}>{msg}</Text>
+                {maint && until ? <Text style={[s.until, { color: muted }]}>Expected back by {until}</Text> : null}
 
                 <Pressable onPress={retry} disabled={busy} style={[s.solid, { backgroundColor: primary, borderRadius: radius }]}>
                     {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.solidTxt}>Try again</Text>}
