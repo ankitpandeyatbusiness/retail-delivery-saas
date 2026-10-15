@@ -14,6 +14,7 @@ import { viewInvoice, saveInvoice } from '../../components/customers/invoice';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { fetchOrder, rateOrder, fetchRatings, fetchTracking } from '../../api/customers/shopApi';
 import TrackingCard from '../../components/customers/tracking';
+import { StoreLocation, useStoreSpot } from '../../components/customers/storeLocation';
 import { DeliveryRatingCard, ComplaintCard } from '../../components/common/feedback';
 import { useOrderLive } from '../../hooks/customers/useOrderLive';
 import { useAuthStore } from '../../store/common/useAuthStore';
@@ -124,6 +125,7 @@ export default function OrderDetailScreen() {
     const { id } = useRoute().params || {};
     const { primary, radius, text, muted, error, background, surface, border, ok } = useBrand();
     const reorderOn = useHomeStore((st) => st.full.features.reorder);
+    const spot = useStoreSpot();
     const [o, setO] = useState(null);
     const [state, setState] = useState('loading'); // loading | ok | gone | error
     const [stars, setStars] = useState(0);
@@ -362,6 +364,12 @@ export default function OrderDetailScreen() {
                 {timeLine ? (
                     <Card title={delivery ? 'Scheduled for' : 'Pickup time'} icon="calendar-outline" delay={180}>
                         <Text style={[s.itemName, { color: text }]}>{timeLine}</Text>
+                    </Card>
+                ) : null}
+                {/* a pickup order: where to collect it, with Directions */}
+                {!delivery && spot.on && (spot.address || spot.pinned) ? (
+                    <Card title="Pickup from" icon="storefront-outline" delay={190}>
+                        <StoreLocation inline />
                     </Card>
                 ) : null}
                 {delivery && o.address ? (

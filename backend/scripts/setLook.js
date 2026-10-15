@@ -14,8 +14,8 @@ const Tenant = require('../src/models/Tenant');
 const O = require('../src/config/tenantOptions');
 const { validateSettings } = require('../src/services/tenantConfigService');
 
-const KEYS = ['look', 'headerStyle', 'categoryStyle', 'tabBarStyle', 'filterStyle', 'motion', 'fontStyle', 'buttonShape'];
-const PREMIUM = { look: 'fresh', headerStyle: 'hero', categoryStyle: 'tiles', tabBarStyle: 'floating', filterStyle: 'rail', motion: 'full', accent: '#F59E0B' };
+const KEYS = ['look', 'lightLook', 'darkLook', 'headerStyle', 'categoryStyle', 'tabBarStyle', 'filterStyle', 'motion', 'fontStyle', 'buttonShape'];
+const PREMIUM = { lightLook: 'fresh', darkLook: 'midnight', headerStyle: 'hero', categoryStyle: 'tiles', tabBarStyle: 'floating', filterStyle: 'rail', motion: 'full', accent: '#F59E0B' };
 
 (async () => {
     const [slug, ...rest] = process.argv.slice(2);

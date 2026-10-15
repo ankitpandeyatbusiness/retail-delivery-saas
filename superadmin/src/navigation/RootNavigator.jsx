@@ -59,6 +59,7 @@ import ShopDetailScreen from '../screens/shops/ShopDetailScreen';
 import ShopEditScreen from '../screens/shops/ShopEditScreen';
 import ShopLiveScreen from '../screens/shops/ShopLiveScreen';
 import ShopAccessScreen from '../screens/shops/ShopAccessScreen';
+import ShopDevScreen from '../screens/shops/ShopDevScreen';
 import ShopNotifyScreen from '../screens/shops/ShopNotifyScreen';
 import ShopUsersScreen from '../screens/shops/ShopUsersScreen';
 import ShopUserDetailScreen from '../screens/shops/ShopUserDetailScreen';
@@ -104,6 +105,7 @@ function ShopsStack() {
             <Shops.Screen name="ShopEdit" component={ShopEditScreen} />
             <Shops.Screen name="ShopLive" component={ShopLiveScreen} />
             <Shops.Screen name="ShopAccess" component={ShopAccessScreen} />
+            <Shops.Screen name="ShopDev" component={ShopDevScreen} />
             <Shops.Screen name="ShopNotify" component={ShopNotifyScreen} />
             <Shops.Screen name="ShopUsers" component={ShopUsersScreen} />
             <Shops.Screen name="ShopUserDetail" component={ShopUserDetailScreen} />

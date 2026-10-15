@@ -27,12 +27,15 @@ export const useThemeStore = create((set, get) => ({
         fontStyle: 'modern',
         buttonShape: 'rounded',
         // how the app is drawn (set per shop in the superadmin panel). These defaults are the original look.
-        look: 'bold',            // bold | fresh | cream | midnight
+        lightLook: 'bold',       // the theme in LIGHT mode: bold | fresh | cream | mist
+        darkLook: 'midnight',    // the theme in DARK mode:  midnight | charcoal | black | slate
+        look: 'bold',            // the old single field (an older saved theme may only have this)
         motion: 'full',          // full | subtle | off
         headerStyle: 'hero',     // hero | compact
         tabBarStyle: 'classic',  // classic | floating
         categoryStyle: 'circles', // circles | tiles | pills
         filterStyle: 'dialog',   // dialog | sheet | rail
+        locationStyle: 'card',   // card | list | chip | banner (the shop's address and Directions)
         // CDN urls from the server (tenants/<slug>/branding/hero/ in the bucket). Nothing is bundled in the app.
         heroImages: [],
     },

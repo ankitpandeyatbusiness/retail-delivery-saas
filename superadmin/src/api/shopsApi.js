@@ -6,6 +6,9 @@ export const fetchShops = (q) => data(api.get('/admin/tenants', { params: q ? { 
 export const fetchShop = (id) => data(api.get(T(id)));
 export const createShop = (body) => data(api.post('/admin/tenants', body));
 export const updateShop = (id, body) => data(api.put(T(id), body));
+// everything a developer needs to know about one shop's app (read only), plus the developer's own notes
+export const fetchDevDetails = (id) => data(api.get(`${T(id)}/dev-details`));
+export const saveDevNotes = (id, notes) => data(api.put(`${T(id)}/dev-notes`, { notes }));
 export const fetchOptions = () => data(api.get('/admin/options'));
 
 export const fetchLive = (id) => data(api.get(`${T(id)}/live`));
@@ -48,6 +51,20 @@ export async function logoColors(id, logoUrl, apply) {
     const blob = await img.blob();
     const type = ['image/png', 'image/jpeg', 'image/webp'].includes(blob.type) ? blob.type : 'image/png';
     const res = await fetch(`${baseURL}/admin/tenants/${id}/logo-colors${apply ? `?apply=${apply}` : ''}`, {
+        method: 'POST',
+        headers: { 'Content-Type': type, Authorization: `Bearer ${useAuthStore.getState().token}`, 'ngrok-skip-browser-warning': 'true' },
+        body: blob,
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw Object.assign(new Error(json.error || 'Could not read the logo colours'), { safe: true });
+    return json;
+}
+
+// Colours of a logo picture on this phone, before any shop exists (used by the new-shop wizard). Saves nothing.
+export async function previewLogoColors(uri) {
+    const blob = await (await fetch(uri)).blob();
+    const type = ['image/png', 'image/jpeg', 'image/webp'].includes(blob.type) ? blob.type : 'image/png';
+    const res = await fetch(`${baseURL}/admin/logo-colors`, {
         method: 'POST',
         headers: { 'Content-Type': type, Authorization: `Bearer ${useAuthStore.getState().token}`, 'ngrok-skip-browser-warning': 'true' },
         body: blob,

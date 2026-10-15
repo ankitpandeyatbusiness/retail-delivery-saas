@@ -2,6 +2,7 @@ import axios from 'axios';
 import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
+import { Platform } from 'react-native';
 import { useAuthStore } from '../../store/common/useAuthStore';
 
 const baseURL = process.env.EXPO_PUBLIC_BASE_URL || (__DEV__ ? 'http://localhost:5000/api' : '');
@@ -10,6 +11,14 @@ if (!__DEV__ && !baseURL.startsWith('https://')) throw new Error('API must use H
 
 const tenantSlug = Constants.expoConfig?.extra?.tenantId;
 if (!tenantSlug) throw new Error('extra.tenantId missing in app config');
+
+// Which build this is, so the superadmin can see which versions are out there (Development details)
+const appHeaders = {
+    'x-app-version': String(Constants.expoConfig?.version || ''),
+    'x-app-build': String(Constants.nativeBuildVersion || ''),
+    'x-app-platform': Platform.OS,
+    'x-app-os': String(Platform.Version || ''),
+};
 
 const api = axios.create({ baseURL, timeout: 15000 });
 
@@ -26,6 +35,7 @@ const getDeviceId = () =>
 
 api.interceptors.request.use(async (config) => {
     config.headers['x-tenant-slug'] = tenantSlug;
+    Object.assign(config.headers, appHeaders);
     config.headers['x-device-id'] = await getDeviceId();
     const { accessToken } = useAuthStore.getState();
     if (accessToken) config.headers['Authorization'] = `Bearer ${accessToken}`;

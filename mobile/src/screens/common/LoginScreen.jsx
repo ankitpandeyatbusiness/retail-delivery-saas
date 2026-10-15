@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import api from '../../api/common/client';
 import { useAuthStore } from '../../store/common/useAuthStore';
+import { useBrand } from '../../components/common/kit';
 import Animated, {
     Easing,
     Extrapolation,
@@ -158,6 +159,7 @@ function OtpBoxes({ digits, setDigits, inputRefs, hasError, dimmed, onEdit, colo
                     importantForAutofill={i === 0 ? 'yes' : 'no'}
                     style={[
                         styles.otpBox,
+                        { backgroundColor: colors.bg, borderColor: colors.border, color: colors.text },
                         !!digit && { borderColor: colors.ink },
                         focused === i && !hasError && { borderColor: colors.primary, borderWidth: 2 },
                         hasError && { borderColor: colors.error, borderWidth: 2 },
@@ -177,11 +179,14 @@ export default function LoginScreen({ navigation }) {
     // 1. Fetch dynamic theme configuration
     const { theme } = useThemeStore();
 
-    const primaryColor = theme?.colors?.primary || '#E23744';
-    const primaryLight = theme?.colors?.primaryLight || '#EE4B58';
-    const primaryDark = theme?.colors?.primaryDark || '#D42A38';
-    const errorColor = theme?.colors?.error || '#C62828';
-    const inkColor = theme?.colors?.text || '#1A1A1A';
+    // The colours come from the shop's theme: its brand colours AND its light or dark theme (the panel, the fields and
+    // the texts follow it), so the login matches the rest of the app in both modes.
+    const brand = useBrand();
+    const primaryColor = brand.primary;
+    const primaryLight = brand.primaryLight;
+    const primaryDark = brand.primaryDark;
+    const errorColor = brand.errorText || brand.error;
+    const inkColor = brand.text;
 
     const brandName = theme?.name || 'Delivery';
     const tagline = theme?.tagline || 'Delicious food, delivered to your door';
@@ -541,6 +546,9 @@ export default function LoginScreen({ navigation }) {
                     setHeroHeight(Math.round(e.nativeEvent.layout.height));
                 }}
             >
+                {heroData.length === 0 ? (
+                    <LinearGradient colors={[primaryLight, primaryDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+                ) : null}
                 {heroData.length > 0 && (
                     <Animated.FlatList
                         ref={heroListRef}
@@ -627,11 +635,11 @@ export default function LoginScreen({ navigation }) {
 
             {/* LOGIN PANEL */}
             <View style={styles.panelOuter}>
-                <Animated.View style={[styles.panel, { paddingBottom: insets.bottom + 16 }, panelStyle]}>
+                <Animated.View style={[styles.panel, { paddingBottom: insets.bottom + 16, backgroundColor: brand.surface }, panelStyle]}>
                     <View style={styles.titleRow}>
-                        <View style={styles.titleLine} />
-                        <Text style={styles.title}>Log in or sign up</Text>
-                        <View style={styles.titleLine} />
+                        <View style={[styles.titleLine, { backgroundColor: brand.border }]} />
+                        <Text style={[styles.title, { color: brand.muted }]}>Log in or sign up</Text>
+                        <View style={[styles.titleLine, { backgroundColor: brand.border }]} />
                     </View>
 
                     <View style={{ height: STEP_HEIGHT }}>
@@ -642,21 +650,21 @@ export default function LoginScreen({ navigation }) {
                             <View
                                 style={[
                                     styles.inputRow,
-                                    { borderColor: phoneFocused || phone ? primaryColor : '#E3E3E3' },
+                                    { borderColor: phoneFocused || phone ? primaryColor : brand.border, backgroundColor: brand.background },
                                 ]}
                             >
                                 <View style={styles.countryCode}>
                                     <Text style={styles.flag}>🇮🇳</Text>
-                                    <Text style={styles.countryCodeText}>+91</Text>
-                                    <View style={styles.verticalDivider} />
+                                    <Text style={[styles.countryCodeText, { color: brand.text }]}>+91</Text>
+                                    <View style={[styles.verticalDivider, { backgroundColor: brand.border }]} />
                                 </View>
                                 <Animated.View style={[styles.phoneField, phoneTextStyle]}>
                                     <TextInput
                                         ref={phoneRef}
-                                        style={styles.phoneInput}
+                                        style={[styles.phoneInput, { color: brand.text }]}
                                         keyboardType="phone-pad"
                                         placeholder="Enter phone number"
-                                        placeholderTextColor="#9A9A9A"
+                                        placeholderTextColor={brand.muted}
                                         value={phone}
                                         onChangeText={(t) => {
                                             setError('');
@@ -711,9 +719,9 @@ export default function LoginScreen({ navigation }) {
                                             phoneRef.current?.focus();
                                         }}
                                         hitSlop={12}
-                                        style={styles.clearButton}
+                                        style={[styles.clearButton, { backgroundColor: brand.border }]}
                                     >
-                                        <Text style={styles.clearIcon}>✕</Text>
+                                        <Text style={[styles.clearIcon, { color: brand.muted }]}>✕</Text>
                                     </Pressable>
                                 )}
                             </View>
@@ -734,9 +742,9 @@ export default function LoginScreen({ navigation }) {
                                 pointerEvents={step === 'otp' ? 'auto' : 'none'}
                                 style={[styles.step, otpStepStyle]}
                             >
-                                <Text style={styles.otpSubtitle}>
+                                <Text style={[styles.otpSubtitle, { color: brand.muted }]}>
                                     Enter the {OTP_LENGTH}-digit code sent to{' '}
-                                    <Text style={styles.otpPhone}>
+                                    <Text style={[styles.otpPhone, { color: brand.text }]}>
                                         +91 {phone.slice(0, 5)} {phone.slice(5)}
                                     </Text>
                                 </Text>
@@ -748,7 +756,7 @@ export default function LoginScreen({ navigation }) {
                                     hasError={!!error}
                                     dimmed={loading}
                                     onEdit={() => setError('')}
-                                    colors={{ primary: primaryColor, error: errorColor, ink: inkColor }}
+                                    colors={{ primary: primaryColor, error: errorColor, ink: inkColor, bg: brand.background, border: brand.border, text: brand.text }}
                                 />
 
                                 {!!error ? (
@@ -756,7 +764,7 @@ export default function LoginScreen({ navigation }) {
                                 ) : loading ? (
                                     <View style={styles.verifyingRow}>
                                         <ActivityIndicator size="small" color={primaryColor} />
-                                        <Text style={styles.verifyingText}>Verifying...</Text>
+                                        <Text style={[styles.verifyingText, { color: brand.muted }]}>Verifying...</Text>
                                     </View>
                                 ) : (
                                     <View style={styles.otpFooter}>
@@ -767,7 +775,7 @@ export default function LoginScreen({ navigation }) {
                                             <Text
                                                 style={[
                                                     styles.linkText,
-                                                    { color: secondsLeft > 0 ? '#9A9A9A' : primaryColor },
+                                                    { color: secondsLeft > 0 ? brand.muted : primaryColor },
                                                 ]}
                                             >
                                                 {secondsLeft > 0
@@ -781,11 +789,11 @@ export default function LoginScreen({ navigation }) {
                         )}
                     </View>
 
-                    <Text style={styles.terms}>
+                    <Text style={[styles.terms, { color: brand.muted }]}>
                         By continuing, you agree to our{'\n'}
-                        <Text style={styles.termsLink}>Terms of Service</Text>
+                        <Text style={[styles.termsLink, { color: brand.text }]}>Terms of Service</Text>
                         {'   '}
-                        <Text style={styles.termsLink}>Privacy Policy</Text>
+                        <Text style={[styles.termsLink, { color: brand.text }]}>Privacy Policy</Text>
                     </Text>
                 </Animated.View>
             </View>

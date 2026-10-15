@@ -2,6 +2,7 @@ const { LRUCache } = require('lru-cache');
 const Tenant = require('../models/Tenant');
 const { isMaintenanceOn, maintenanceBody } = require('../utils/maintenance');
 const { isOlder } = require('../utils/appVersion');
+const { noteAppVersion } = require('../services/appVersionTracker');
 
 const SLUG_RE = /^[a-z0-9-]{3,40}$/;
 const cache = new LRUCache({ max: 1000, ttl: 60 * 1000 });
@@ -26,6 +27,9 @@ const tenantRecognizer = async (req, res, next) => {
             cache.set(slug, tenant || false); // cache misses too
         }
         if (!tenant) return res.status(404).json({ error: 'Tenant not found' });
+
+        // Remember which app version this is (for the superadmin's Development details). Customer routes only.
+        if (!req.originalUrl.startsWith('/api/admin')) noteAppVersion(tenant._id, req.headers);
 
         // An app older than the shop's minimum version must update first.
         // A missing or unreadable x-app-version header is allowed. The superadmin routes are never blocked.

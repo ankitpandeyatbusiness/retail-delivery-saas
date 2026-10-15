@@ -44,8 +44,8 @@ export default function ShopDetailScreen() {
                 section={section}
                 title={tenant.name}
                 subtitle={[tenant.address?.city, `Since ${dateOnly(tenant.createdAt)}`].filter(Boolean).join(' · ')}
-                leading={tenant.logo
-                    ? <Image source={{ uri: tenant.logo }} style={{ width: 56, height: 56, borderRadius: radius.md, backgroundColor: t.surfaceAlt }} />
+                leading={(rec.appIcon || tenant.logo)
+                    ? <Image source={{ uri: rec.appIcon || tenant.logo }} style={{ width: 56, height: 56, borderRadius: radius.md, backgroundColor: t.surfaceAlt }} />
                     : <Avatar name={tenant.name} size={56} />}
             >
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md }}>
@@ -117,7 +117,8 @@ export default function ShopDetailScreen() {
             <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
                 <ListRow section="settings" icon="edit" title="Edit shop" subtitle="Name, contact, address, delivery, GST" onPress={go('ShopEdit')} />
                 <ListRow section="platform" icon="bell" title="Message the owner" subtitle="A notice in the owner's app" onPress={go('ShopNotify')} />
-                <ListRow section="alerts" icon="shield" title="Access and maintenance" subtitle="Block owner panel, pause the shop" onPress={go('ShopAccess')} last />
+                <ListRow section="alerts" icon="shield" title="Access and maintenance" subtitle="Block owner panel, pause the shop" onPress={go('ShopAccess')} />
+                <ListRow section="platform" icon="tool" title="Development details" subtitle="App id, versions, Razorpay, SMS and DLT, build commands" onPress={go('ShopDev')} last />
             </Card>
 
             <SectionTitle section="platform">Details</SectionTitle>

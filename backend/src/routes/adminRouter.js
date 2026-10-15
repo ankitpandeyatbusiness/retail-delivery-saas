@@ -36,6 +36,16 @@ const crud = require('../utils/crud');
 // The food mode lives at config.home.foodMode (same place the catalog code reads it)
 const getFoodMode = (tenant) => resolveConfig(tenant).home.foodMode;
 
+// The picture shown for a shop in the panel: its app icon (the one customers see on their home screen), else its logo.
+// Returns Map(tenantId string -> url).
+const Media_ = require('../models/Media');
+async function appIcons(tenants) {
+    const rows = await Media_.find({ tenantId: { $in: tenants.map((t) => t._id) }, kind: 'icon' }).select('tenantId url createdAt').sort({ createdAt: 1 }).lean();
+    const m = new Map(rows.map((r) => [String(r.tenantId), r.url]));
+    for (const t of tenants) if (!m.has(String(t._id)) && t.logo) m.set(String(t._id), t.logo);
+    return m;
+}
+
 const GST_RATES = [0, 0.25, 3, 5, 12, 18, 28];
 
 const admin = express.Router();
@@ -74,6 +84,7 @@ admin.use(require('./adminSubscriptionRouter'));
 admin.use(require('./adminAuditRouter'));
 admin.use(require('./adminSmsRouter'));
 admin.use(require('./adminSmsProviderRouter'));
+admin.use(require('./adminDevRouter'));   // Development details of one shop (read only) + developer notes
 admin.use(require('./adminPaymentsRouter'));   // per-shop Razorpay keys, webhook secret, test connection, on/off
 admin.use(require('./adminDisputesRouter'));
 admin.use(require('./adminLedgerRouter'));
@@ -129,12 +140,13 @@ admin.get('/tenants', wrap(async (req, res) => {
     const items = await Tenant.find(filter)
         .sort({ createdAt: -1 })
         .limit(200)
-        .select('slug name status androidPackage createdAt updatedAt ownerBlocked ownerBlockedReason maintenance settings.orders.acceptingOrders billing.state billing.graceEndsAt')
+        .select('_id slug name logo status androidPackage createdAt updatedAt ownerBlocked ownerBlockedReason maintenance settings.orders.acceptingOrders billing.state billing.graceEndsAt')
         .lean();
+    const icons = await appIcons(items);
     res.json({
         items: items.map((t) => {
             const { settings, maintenance, ownerBlockedReason, ...rest } = t;
-            return { ...rest, state: shopState(t) };
+            return { ...rest, appIcon: icons.get(String(t._id)) || null, state: shopState(t) };
         }),
     });
 }));
@@ -167,7 +179,8 @@ admin.get('/tenants/:tid', wrap(async (req, res) => {
     if (!isId(req.params.tid)) throw httpError(404, 'Tenant not found');
     const tenant = await Tenant.findById(req.params.tid).lean();
     if (!tenant) throw httpError(404, 'Tenant not found');
-    res.json({ tenant, resolved: resolveConfig(tenant), state: shopState(tenant) });
+    const icons = await appIcons([tenant]);
+    res.json({ tenant, appIcon: icons.get(String(tenant._id)) || null, resolved: resolveConfig(tenant), state: shopState(tenant) });
 }));
 
 // heroImages is not a field here: hero images are uploaded (and deleted from the bucket) through
@@ -213,6 +226,20 @@ admin.put('/tenants/:tid', wrap(async (req, res) => {
     res.json({ tenant, resolved: resolveConfig(tenant.toObject()) });
 }));
 
+// Colours of a logo that has no shop yet (the new-shop wizard). Only suggests; nothing is saved.
+admin.post('/logo-colors',
+    express.raw({ type: () => true, limit: '8mb' }),
+    wrap(async (req, res) => {
+        if (!Buffer.isBuffer(req.body) || !req.body.length) {
+            throw httpError(400, 'The logo picture did not arrive. Try again with a PNG, JPG or WebP picture (up to 8 MB).');
+        }
+        const image = req.body;
+        req.body = { note: 'image left out of the audit log' };
+        let suggested;
+        try { suggested = await pickBrandColors(image); } catch (e) { throw httpError(400, 'That file is not a picture we can read. Use a PNG, JPG or WebP logo.'); }
+        res.json({ suggested: suggested || null, message: suggested ? undefined : 'No usable colour in this logo. Set the colour by hand.' });
+    }));
+
 // Logo colours. Send the image itself as the request body (Content-Type: image/png, image/jpeg or image/webp).
 //   no query       -> only suggests colours, saves nothing
 //   ?apply=empty   -> fills colour slots that are still empty
@@ -220,16 +247,16 @@ admin.put('/tenants/:tid', wrap(async (req, res) => {
 // A colour set in the panel's brand settings always wins, so it is skipped.
 admin.post('/tenants/:tid/logo-colors',
     loadTenant,
-    express.raw({ type: ['image/png', 'image/jpeg', 'image/webp'], limit: '1mb' }),
+    express.raw({ type: () => true, limit: '8mb' }),
     wrap(async (req, res) => {
         if (!Buffer.isBuffer(req.body) || !req.body.length) {
-            throw httpError(400, 'Send the logo image (PNG, JPG or WebP, up to 1 MB) as the request body');
+            throw httpError(400, 'The logo picture did not arrive. Try again with a PNG, JPG or WebP picture (up to 8 MB).');
         }
         const image = req.body;
         req.body = { note: 'image left out of the audit log' };
 
         let suggested;
-        try { suggested = await pickBrandColors(image); } catch (e) { throw httpError(400, 'Could not read this image'); }
+        try { suggested = await pickBrandColors(image); } catch (e) { throw httpError(400, 'That file is not a picture we can read. Use a PNG, JPG or WebP logo.'); }
         if (!suggested) {
             return res.json({ suggested: null, message: 'No usable colour in this logo. Set the colour by hand.' });
         }

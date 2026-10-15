@@ -15,6 +15,7 @@ import { useBrand, mix, onColor } from '../../components/common/kit';
 import { FadeIn, useMotion } from '../../components/common/motion';
 import { SkelBanner, SkelFeed } from '../../components/customers/skeletons';
 import { CouponTicket } from '../../components/customers/coupon';
+import { StoreLocation } from '../../components/customers/storeLocation';
 import { ItemCard, Tile, CartBar, closedText, showToast, tint } from '../../components/customers/shop';
 import FilterDialog from './FilterDialog';
 import { useThemeStore } from '../../store/common/useThemeStore';
@@ -476,7 +477,7 @@ export default function HomeScreen() {
 
     const waiting = !loaded && !errorStatus;   // the menu has not arrived: show shapes instead of nothing
     const rows = useMemo(() => {
-        const R = [{ t: 'header' }];
+        const R = [{ t: 'header' }, { t: 'where' }];   // 'where': the shop's address and its Directions button (when switched on)
         const B = config.blocks;
         if (B.includes('search')) R.push({ t: 'search' });
         if (!full.restaurant.isOpen) R.push({ t: 'closed' });
@@ -570,6 +571,7 @@ export default function HomeScreen() {
                     <Text style={[s.closedTxt, { color: brand.errorText }]}>{closedText(full)}</Text>
                 </View>
             );
+            case 'where': return <StoreLocation />;
             case 'banner': return banners.length ? <FadeIn><Banners list={banners} onOrder={onOrder} /></FadeIn> : <SkelBanner />;
             case 'cats': return <FadeIn><Cats loading={waiting} /></FadeIn>;
             case 'filters': return <FadeIn index={1}><FiltersRow onOpen={() => setDlg(true)} /></FadeIn>;

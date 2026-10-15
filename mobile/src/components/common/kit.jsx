@@ -35,6 +35,11 @@ export const onColor = (c) => (isHex(c) && lum(c) > 0.6 ? '#1A1A1A' : '#FFFFFF')
 const LOOKS = {
     fresh: { background: '#F6F6F8', surface: '#FFFFFF', text: '#1B1B1F' },
     cream: { background: '#FBF5EA', surface: '#FFFDF8', text: '#2A2118' },
+    mist: { background: '#EEF3F8', surface: '#FFFFFF', text: '#16202B' },
+    // the dark themes besides midnight (which is built from the shop's own colour, below)
+    charcoal: { background: '#1A1B21', surface: '#25272F', text: '#F0F0F3' },
+    black: { background: '#000000', surface: '#121214', text: '#F2F2F4' },
+    slate: { background: '#0F172A', surface: '#1B2438', text: '#E8EEF8' },
 };
 
 // Midnight is not a fixed grey: it is the shop's OWN colour taken down to a deep tone, so a red shop gets a deep wine-black,
@@ -62,7 +67,7 @@ export function smoothTheme(apply) {
     const st = useThemeStore.getState();
     if (st.theme.motion === 'off') { apply(); return; }
     const cur = useSchemeStore.getState().scheme;
-    const from = computeBrand({ ...st.theme, look: resolveLook(st.theme.look, st.appearance, cur) });
+    const from = computeBrand({ ...st.theme, look: resolveLook(st.theme, st.appearance, cur) });
     cancelAnimationFrame(blendTimer);
     useBlend.setState({ from, t: 0 });
     apply();
@@ -120,7 +125,7 @@ function wireScheme() {
         const st = useThemeStore.getState();
         const apply = () => useSchemeStore.setState({ scheme: next });
         // only a change that alters the look is blended (a shop that stays the same in both modes needs nothing)
-        if (resolveLook(st.theme.look, st.appearance, next) === resolveLook(st.theme.look, st.appearance, cur)) apply();
+        if (resolveLook(st.theme, st.appearance, next) === resolveLook(st.theme, st.appearance, cur)) apply();
         else smoothTheme(apply);
     };
     Appearance.addChangeListener(({ colorScheme }) => change(colorScheme || Appearance.getColorScheme()));
@@ -133,17 +138,16 @@ export function useSystemScheme() {
     return useSchemeStore((st) => st.scheme);
 }
 
-// Which look is drawn. The customer's Account → Appearance choice decides light or dark:
-//   dark   -> midnight
-//   light  -> the shop's look, or 'fresh' when the shop's own look is the dark one
-//   system -> follows the phone: midnight in dark mode, the light look in light mode
-// (a shop whose own look is midnight is therefore light on a light phone, in System mode)
-export function resolveLook(shopLook, appearance, scheme) {
-    const base = shopLook || 'bold';
-    const light = base === 'midnight' ? 'fresh' : base;
-    if (appearance === 'dark') return 'midnight';
-    if (appearance === 'light') return light;
-    return scheme === 'dark' ? 'midnight' : light;
+// Which look is drawn. The shop has TWO themes, one for light mode and one for dark mode, chosen separately in the
+// panel. The customer's Account → Appearance choice (or the phone, for System) decides which of the two is shown.
+const DARK_IDS = ['midnight', 'charcoal', 'black', 'slate'];
+const lightOf = (t) => t.lightLook || (DARK_IDS.includes(t.look) ? 'fresh' : t.look) || 'bold';   // an old saved theme only has `look`
+const darkOf = (t) => t.darkLook || (DARK_IDS.includes(t.look) ? t.look : 'midnight');
+export function resolveLook(theme, appearance, scheme) {
+    const t = theme || {};
+    if (appearance === 'dark') return darkOf(t);
+    if (appearance === 'light') return lightOf(t);
+    return scheme === 'dark' ? darkOf(t) : lightOf(t);
 }
 
 // A soft pool of the brand colour inside a card, so a dark card is not a flat grey slab.
@@ -175,9 +179,9 @@ export function useBrand() {
     const shopTheme = useThemeStore((s) => s.theme);
     const appearance = useThemeStore((s) => s.appearance);
     const scheme = useSystemScheme();
-    const lookId = resolveLook(shopTheme.look, appearance, scheme);
+    const lookId = resolveLook(shopTheme, appearance, scheme);
     const target = useMemo(
-        () => computeBrand(lookId === shopTheme.look ? shopTheme : { ...shopTheme, look: lookId }),
+        () => computeBrand({ ...shopTheme, look: lookId }),
         [shopTheme, lookId],
     );
     const from = useBlend((st) => st.from);

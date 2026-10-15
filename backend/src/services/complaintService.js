@@ -25,6 +25,9 @@ const view = (c, { forOwner = false } = {}) => ({
     ...(forOwner ? { customerName: c.customerName || null } : {}),
 });
 
+// For these the customer must send at least one photo of the food (a wrong or bad dish needs proof)
+const PHOTO_REQUIRED = ['wrong_item', 'quality'];
+
 function parseNew(body) {
     const b = body || {};
     if (!TYPES.includes(b.type)) throw httpError(400, 'Choose what went wrong');
@@ -37,6 +40,7 @@ function parseNew(body) {
         if (bad) throw httpError(400, 'Send up to 3 photo links');
         photos = b.photos;
     }
+    if (PHOTO_REQUIRED.includes(b.type) && photos.length < 1) throw httpError(400, 'Please add a photo of the food for this complaint');
     return { type: b.type, text: t, photos };
 }
 

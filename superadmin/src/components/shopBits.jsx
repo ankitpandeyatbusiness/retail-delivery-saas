@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { Image } from 'react-native';
 import { Badge, Avatar } from './ui';
 import Icon from './Icon';
 import { useTheme, spacing, radius, font } from '../theme';
@@ -34,7 +35,9 @@ export function ShopRow({ shop, onPress, compact }) {
             <View style={[s.edge, { backgroundColor: edge }]} />
             <View style={{ flex: 1, padding: spacing.md, paddingLeft: spacing.lg }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Avatar name={shop.name} size={compact ? 38 : 46} />
+                    {(shop.appIcon || shop.logo)
+                        ? <Image source={{ uri: shop.appIcon || shop.logo }} resizeMode="contain" style={{ width: compact ? 38 : 46, height: compact ? 38 : 46, borderRadius: radius.md, backgroundColor: t.surfaceAlt }} />
+                        : <Avatar name={shop.name} size={compact ? 38 : 46} />}
                     <View style={{ flex: 1, marginLeft: spacing.md }}>
                         <Text style={{ color: t.text, fontSize: font.md, fontWeight: '800' }} numberOfLines={1}>{shop.name}</Text>
                         <Text style={{ color: t.muted, fontSize: font.sm, marginTop: 1 }} numberOfLines={1}>{shop.slug}</Text>

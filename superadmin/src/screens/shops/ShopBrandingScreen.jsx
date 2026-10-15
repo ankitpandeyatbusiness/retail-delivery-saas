@@ -71,7 +71,9 @@ export default function ShopBrandingScreen() {
 
     const applyColours = (mode) => run('apply', async () => {
         const r = await logoColors(shopId, logoUrl, mode);
-        toast(r.applied?.length ? `Colours applied: ${r.applied.length}` : 'Nothing to change');
+        if (r.skipped?.length && !r.applied?.length) {
+            toast('Not applied: this shop has colours you picked yourself. Remove one source in Brand and look.', 'error');
+        } else toast(r.applied?.length ? `Colours applied: ${r.applied.length}` : 'Nothing to change');
         setSuggest(null);
         useShopStore.getState().load(shopId, { quiet: true });
     });

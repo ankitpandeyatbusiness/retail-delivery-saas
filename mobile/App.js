@@ -37,7 +37,7 @@ export default function App() {
         ]);
         // the shop's font (classic / rounded, or modern in the new looks): loaded before the first frame so text never changes font
         const look = useThemeStore.getState().theme;
-        await withTimeout(applyTypography(look.fontStyle, look.look), MAX_WAIT_MS);
+        await withTimeout(applyTypography(look.fontStyle, look.lightLook || look.look), MAX_WAIT_MS);
       } catch (e) { /* both helpers swallow their own errors; open the app anyway */ }
       if (alive) setIsReady(true);
     })();

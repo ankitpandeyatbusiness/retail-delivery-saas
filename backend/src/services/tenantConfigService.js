@@ -67,7 +67,7 @@ function validateSettings(input) {
     known(s, ['brand', 'tabs', 'home', 'features', 'menu', 'orders', 'hours', 'offers', 'labels', 'riders', 'notifications', 'app'], 'settings');
 
     // brand
-    section('brand', ['colors', 'fontStyle', 'buttonShape', 'look', 'motion', 'headerStyle', 'tabBarStyle', 'categoryStyle', 'filterStyle'], (b, out, p) => {
+    section('brand', ['colors', 'fontStyle', 'buttonShape', 'look', 'lightLook', 'darkLook', 'motion', 'headerStyle', 'tabBarStyle', 'categoryStyle', 'filterStyle', 'locationStyle'], (b, out, p) => {
         if (b.colors !== undefined) {
             if (!isObj(b.colors)) err(p('colors'), 'must be an object');
             else {
@@ -81,12 +81,15 @@ function validateSettings(input) {
         }
         if (b.fontStyle !== undefined && oneOf(p('fontStyle'), b.fontStyle, O.FONT_STYLES)) out.fontStyle = b.fontStyle;
         if (b.buttonShape !== undefined && oneOf(p('buttonShape'), b.buttonShape, O.BUTTON_SHAPES)) out.buttonShape = b.buttonShape;
-        if (b.look !== undefined && oneOf(p('look'), b.look, O.LOOKS)) out.look = b.look;
+        if (b.look !== undefined && oneOf(p('look'), b.look, O.LOOKS)) out.look = b.look;   // the old single setting
+        if (b.lightLook !== undefined && oneOf(p('lightLook'), b.lightLook, O.LIGHT_LOOKS)) out.lightLook = b.lightLook;
+        if (b.darkLook !== undefined && oneOf(p('darkLook'), b.darkLook, O.DARK_LOOKS)) out.darkLook = b.darkLook;
         if (b.motion !== undefined && oneOf(p('motion'), b.motion, O.MOTION_LEVELS)) out.motion = b.motion;
         if (b.headerStyle !== undefined && oneOf(p('headerStyle'), b.headerStyle, O.HEADER_STYLES)) out.headerStyle = b.headerStyle;
         if (b.tabBarStyle !== undefined && oneOf(p('tabBarStyle'), b.tabBarStyle, O.TAB_BAR_STYLES)) out.tabBarStyle = b.tabBarStyle;
         if (b.categoryStyle !== undefined && oneOf(p('categoryStyle'), b.categoryStyle, O.CATEGORY_STYLES)) out.categoryStyle = b.categoryStyle;
         if (b.filterStyle !== undefined && oneOf(p('filterStyle'), b.filterStyle, O.FILTER_STYLES)) out.filterStyle = b.filterStyle;
+        if (b.locationStyle !== undefined && oneOf(p('locationStyle'), b.locationStyle, O.LOCATION_STYLES)) out.locationStyle = b.locationStyle;
     });
 
     // tabs (ordered list)
@@ -269,13 +272,14 @@ const DEFAULTS = {
     // the look defaults reproduce the app as it was before looks existed, so a shop changes only when its settings say so
     brand: {
         fontStyle: 'modern', buttonShape: 'rounded',
-        look: 'bold', motion: 'full', headerStyle: 'hero', tabBarStyle: 'classic', categoryStyle: 'circles', filterStyle: 'dialog',
+        lightLook: 'bold', darkLook: 'midnight', motion: 'full', headerStyle: 'hero', tabBarStyle: 'classic', categoryStyle: 'circles', filterStyle: 'dialog', locationStyle: 'card',
     },
     tabs: ['home', 'search', 'orders', 'profile'],
     features: {
         ratingBadge: true, prepTime: true, serves: false, calories: false,
         specialInstructions: true, scheduleOrder: false, reorder: true, favourites: false,
         guestBrowsing: true, couponField: true, tips: false,
+        directions: true,
     },
     menu: { outOfStock: 'dim', groupByCategory: true },
     orders: {
@@ -373,12 +377,17 @@ function resolveConfig(tenant, now = new Date()) {
         colors: brandColors(tenant.colors, clean.brand?.colors),
         fontStyle: clean.brand?.fontStyle || DEFAULTS.brand.fontStyle,
         buttonShape: clean.brand?.buttonShape || DEFAULTS.brand.buttonShape,
-        look: clean.brand?.look || DEFAULTS.brand.look,
+        // a shop that only has the old single "look": a light one becomes its light theme, "midnight" meant
+        // "fresh in light mode, midnight in dark mode"
+        lightLook: clean.brand?.lightLook
+            || (O.LIGHT_LOOKS.includes(clean.brand?.look) ? clean.brand.look : (clean.brand?.look ? 'fresh' : DEFAULTS.brand.lightLook)),
+        darkLook: clean.brand?.darkLook || (O.DARK_LOOKS.includes(clean.brand?.look) ? clean.brand.look : DEFAULTS.brand.darkLook),
         motion: clean.brand?.motion || DEFAULTS.brand.motion,
         headerStyle: clean.brand?.headerStyle || DEFAULTS.brand.headerStyle,
         tabBarStyle: clean.brand?.tabBarStyle || DEFAULTS.brand.tabBarStyle,
         categoryStyle: clean.brand?.categoryStyle || DEFAULTS.brand.categoryStyle,
         filterStyle: clean.brand?.filterStyle || DEFAULTS.brand.filterStyle,
+        locationStyle: clean.brand?.locationStyle || DEFAULTS.brand.locationStyle,
     };
 
     const features = merge(DEFAULTS.features, clean.features);
@@ -428,6 +437,9 @@ function resolveConfig(tenant, now = new Date()) {
             tagline: tenant.tagline || null,
             logo: tenant.logo || null,
             address: tenant.address || null,
+            // where the shop is pinned on the map (null when it is not): the customer app's Directions button needs it
+            latitude: Number.isFinite(tenant.delivery?.latitude) ? tenant.delivery.latitude : null,
+            longitude: Number.isFinite(tenant.delivery?.longitude) ? tenant.delivery.longitude : null,
             phone: tenant.phone || null,
             isOpen: status.isOpen,
             closedReason: status.reason,

@@ -1,18 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text, Image, Pressable } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme, spacing, font } from '../../theme';
 import { Screen } from '../../components/layout';
 import { Button, Card } from '../../components/ui';
 import { Field } from '../../components/inputs';
 import { Choice, MultiChoice, NumberField, Hint, ReorderList, ColorField } from '../../components/settingsForm';
-import AppPreview from '../../components/AppPreview';
+import PhonePreview from '../../components/preview/PhonePreview';
 import MapPicker from '../../components/MapPicker';
 import { toast } from '../../components/feedback';
-import { createShop, addOwner, fetchOptions } from '../../api/shopsApi';
+import { createShop, addOwner, fetchOptions, previewLogoColors, updateShop, logoColors } from '../../api/shopsApi';
+import { pickImage, uploadImage } from '../../utils/upload';
+import { bestPalette, readableOnWhiteText, PALETTE_LABELS } from '../../utils/palette';
 import { errMsg } from '../../api/adminClient';
 import { useShopsStore } from '../../store/useShopsStore';
-import { choices, nameOf } from '../../utils/settings';
+import { choices, nameOf, RECOMMENDED_LOOK } from '../../utils/settings';
 
 const PHONE_RE = /^[6-9]\d{9}$/;
 const SLUG_RE = /^[a-z0-9-]{3,40}$/;
@@ -27,7 +29,7 @@ function Steps({ index }) {
             {STEPS.map((s, i) => (
                 <View key={s} style={{ flex: 1, marginRight: i < STEPS.length - 1 ? spacing.sm : 0 }}>
                     <View style={{ height: 5, borderRadius: 3, backgroundColor: i <= index ? t.primary : t.border }} />
-                    <Text style={{ color: i === index ? t.text : t.muted, fontSize: font.xs, fontWeight: '800', marginTop: 6 }}>{`${i + 1}. ${s}`}</Text>
+                    <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ color: i === index ? t.text : t.muted, fontSize: font.xs, fontWeight: '800', marginTop: 6 }}>{s}</Text>
                 </View>
             ))}
         </View>
@@ -46,11 +48,41 @@ export default function ShopCreateScreen() {
         name: '', slug: '', slugTouched: false, phone: '', line: '', city: '', pincode: '', ownerPhone: '',
         foodMode: 'mixed', types: ['delivery'], minOrder: 0, feeType: 'free', feeAmount: 0, freeAbove: 0,
         latitude: null, longitude: null, radiusKm: 5,
-        primary: '#E8590C', fontStyle: 'modern', buttonShape: 'rounded', cardStyle: 'big',
+        primary: '#E8590C', accent: '', fontStyle: 'modern', buttonShape: 'rounded', cardStyle: 'big',
+        logoUri: '', logoType: '', logoCols: null, source: 'own',   // source: 'logo' (colours read from the logo) or 'own' (picked here): never both
+        locationStyle: 'card',
+        lightLook: 'fresh', darkLook: 'midnight', headerStyle: 'hero', categoryStyle: 'tiles', tabBarStyle: 'floating', filterStyle: 'rail', motion: 'full',
         tabs: ['home', 'search', 'orders', 'profile'], blocks: null,
     });
     const [mapOpen, setMapOpen] = useState(false);
     const [err, setErr] = useState({});
+    const [logoBusy, setLogoBusy] = useState(false);
+
+    // the colours the shop will really use: the logo's, or the ones picked here. Never both.
+    const fromLogo = f.source === 'logo' && f.logoCols;
+    // the best combination for the main colour: the shades, the alert colour, text, page and accent are all chosen for you
+    const best = bestPalette(fromLogo ? f.logoCols.primary : f.primary);
+    const mainColours = fromLogo ? f.logoCols : { primary: best.primary, primaryLight: best.primaryLight, primaryDark: best.primaryDark };
+    const otherColours = { error: best.error, text: best.text, background: best.background };
+    const accentColour = { accent: /^#[0-9a-fA-F]{6}$/.test(f.accent) ? f.accent : best.accent };
+    // what is saved with the shop: with the logo as the source its main colours are saved from the logo, not here
+    const settingsColours = fromLogo ? { ...otherColours, ...accentColour } : { ...mainColours, ...otherColours, ...accentColour };
+
+    const pickLogo = async () => {
+        setLogoBusy(true);
+        try {
+            const img = await pickImage({});
+            if (!img) return;
+            setF((p) => ({ ...p, logoUri: img.uri, logoType: img.mimeType }));
+            const r = await previewLogoColors(img.uri);
+            if (r.suggested) setF((p) => ({ ...p, logoCols: r.suggested, source: 'logo' }));
+            else {
+                setF((p) => ({ ...p, logoCols: null, source: 'own' }));
+                toast(r.message || 'No usable colour in this logo. Pick the colour yourself.', 'error');
+            }
+        } catch (e) { toast(e.safe ? e.message : errMsg(e), 'error'); } finally { setLogoBusy(false); }
+    };
+    const removeLogo = () => setF((p) => ({ ...p, logoUri: '', logoType: '', logoCols: null, source: 'own' }));
 
     useEffect(() => { fetchOptions().then(setOpts).catch(() => { }); }, []);
     const preset = opts?.presets?.restaurant;   // the only business type open today: a restaurant
@@ -92,7 +124,13 @@ export default function ShopCreateScreen() {
         if (f.feeType === 'flat' || f.feeType === 'free_above') deliveryFee.amount = f.feeAmount || 0;
         if (f.feeType === 'free_above') deliveryFee.freeAbove = f.freeAbove || 0;
         return {
-            brand: { colors: { primary: f.primary }, fontStyle: f.fontStyle, buttonShape: f.buttonShape },
+            brand: {
+                // with the logo as the source, no main colour is saved here (the logo's colours are saved on the shop after it is made)
+                colors: settingsColours,
+                fontStyle: f.fontStyle, buttonShape: f.buttonShape,
+                lightLook: f.lightLook, darkLook: f.darkLook, headerStyle: f.headerStyle, categoryStyle: f.categoryStyle, locationStyle: f.locationStyle,
+                tabBarStyle: f.tabBarStyle, filterStyle: f.filterStyle, motion: f.motion,
+            },
             tabs: f.tabs,
             home,
             orders: { types: f.types, minOrder: f.minOrder || 0, deliveryFee },
@@ -114,6 +152,14 @@ export default function ShopCreateScreen() {
             };
             const { tenant } = await createShop(body);
             useShopsStore.getState().add({ ...tenant, state: { acceptingOrders: true, reasons: [] } });
+            // the logo (optional): saved on the new shop, then its colours if the logo is the colour source
+            if (f.logoUri) {
+                try {
+                    const m = await uploadImage(tenant._id, { kind: 'logo', uri: f.logoUri, mimeType: f.logoType });
+                    await updateShop(tenant._id, { logo: m.url });
+                    if (f.source === 'logo' && f.logoCols) await logoColors(tenant._id, m.url, 'empty');
+                } catch (e) { toast(`Shop created, but the logo was not saved: ${e.safe ? e.message : errMsg(e)}`, 'error'); }
+            }
             let ownerOk = true;
             if (f.ownerPhone) {
                 try { await addOwner(tenant._id, f.ownerPhone); } catch (e) { ownerOk = false; toast(`Shop created, but owner not added: ${errMsg(e)}`, 'error'); }
@@ -128,10 +174,30 @@ export default function ShopCreateScreen() {
     };
 
     const last = step === STEPS.length - 1;
+    const phoneConfig = {
+        restaurant: {
+            name: f.name.trim() || 'Your shop', tagline: '', isOpen: true, logo: f.logoUri,
+            address: { line: f.line, city: f.city, pincode: f.pincode }, latitude: f.latitude, longitude: f.longitude,
+        },
+        brand: {
+            colors: { ...mainColours, ...otherColours, ...accentColour },
+            fontStyle: f.fontStyle, buttonShape: f.buttonShape, lightLook: f.lightLook, darkLook: f.darkLook, locationStyle: f.locationStyle, headerStyle: f.headerStyle,
+            categoryStyle: f.categoryStyle, tabBarStyle: f.tabBarStyle, filterStyle: f.filterStyle, motion: f.motion,
+        },
+        tabs: f.tabs,
+        home: { blocks, cardStyle: f.cardStyle, foodMode: f.foodMode },
+        orders: { minOrder: f.minOrder || 0, prepTimeMin: 25, deliveryFee: { type: f.feeType, amount: f.feeAmount || 0, freeAbove: f.freeAbove || 0 } },
+        features: { vegToggle: f.foodMode === 'mixed', vegDot: f.foodMode === 'mixed', ratingBadge: true, prepTime: true, directions: true },
+    };
     return (
         <Screen
             title="New shop"
             subtitle={`Step ${step + 1} of ${STEPS.length}`}
+            pinned={(
+                <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.sm, backgroundColor: t.surface, borderBottomWidth: 1, borderBottomColor: t.border }}>
+                    <PhonePreview config={phoneConfig} scale={0.46} collapsible title={`${f.name.trim() || 'Your shop'}: live preview`} />
+                </View>
+            )}
             footer={
                 <View style={{ flexDirection: 'row', gap: spacing.md }}>
                     {step > 0 ? <Button title="Back" kind="outline" onPress={() => setStep(step - 1)} style={{ flex: 1 }} disabled={busy} /> : null}
@@ -207,8 +273,61 @@ export default function ShopCreateScreen() {
 
             {step === 3 ? (
                 <>
-                    <AppPreview name={f.name || 'Your shop'} primary={f.primary} tabs={f.tabs} blocks={blocks} cardStyle={f.cardStyle} shape={f.buttonShape} />
-                    <Card style={{ marginTop: spacing.lg }}>
+                    <Card>
+                        <Text style={{ color: t.text, fontWeight: '800', fontSize: font.md }}>Logo (optional)</Text>
+                        <Text style={{ color: t.muted, fontSize: font.sm, marginTop: 2, marginBottom: spacing.md }}>
+                            Add the shop's logo to see it in the phone and read its colours. You can skip this and add it later.
+                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <View style={{ width: 64, height: 64, borderRadius: 18, backgroundColor: t.surfaceAlt, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                                {f.logoUri ? <Image source={{ uri: f.logoUri }} style={{ width: 64, height: 64 }} resizeMode="cover" /> : <Text style={{ color: t.muted, fontSize: font.xs, fontWeight: '700' }}>No logo</Text>}
+                            </View>
+                            <View style={{ flex: 1, marginLeft: spacing.md, flexDirection: 'row', gap: spacing.sm }}>
+                                <Button style={{ flex: 1 }} small kind={f.logoUri ? 'outline' : 'soft'} icon="banner" title={f.logoUri ? 'Change' : 'Add logo'} loading={logoBusy} onPress={pickLogo} />
+                                {f.logoUri ? <Button style={{ flex: 1 }} small kind="outline" title="Remove" onPress={removeLogo} disabled={logoBusy} /> : null}
+                            </View>
+                        </View>
+                    </Card>
+                    <Card style={{ marginTop: spacing.md }}>
+                        <Text style={{ color: t.text, fontWeight: '800', fontSize: font.md, marginBottom: 2 }}>Where do the colours come from?</Text>
+                        <Text style={{ color: t.muted, fontSize: font.sm, marginBottom: spacing.md }}>
+                            Only one source is used. Switching to the other one switches this one off.
+                        </Text>
+                        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                            {[['logo', 'From the logo', 'palette'], ['own', 'Pick my own', 'pin']].map(([k, label, ic]) => {
+                                const on = f.source === k;
+                                const off = k === 'logo' && !f.logoCols;
+                                return (
+                                    <Pressable
+                                        key={k}
+                                        disabled={off}
+                                        onPress={() => set('source')(k)}
+                                        style={{ flex: 1, borderRadius: 14, borderWidth: 2, borderColor: on ? t.primary : t.border, backgroundColor: on ? t.primarySoft : t.surface, padding: spacing.md, opacity: off ? 0.45 : 1 }}
+                                    >
+                                        <Text style={{ color: on ? t.primary : t.text, fontWeight: '900', fontSize: font.md }}>{label}</Text>
+                                        <Text style={{ color: t.muted, fontSize: font.xs, marginTop: 2 }}>
+                                            {k === 'logo' ? (f.logoCols ? 'Read from your logo' : 'Add a logo first') : 'Swatches or any colour'}
+                                        </Text>
+                                    </Pressable>
+                                );
+                            })}
+                        </View>
+                    </Card>
+                    {f.source === 'logo' && f.logoCols ? (
+                        <Card style={{ marginTop: spacing.md }}>
+                            <Text style={{ color: t.text, fontWeight: '800', fontSize: font.md, marginBottom: spacing.sm }}>Colours found in the logo</Text>
+                            <View style={{ flexDirection: 'row' }}>
+                                {['primary', 'primaryLight', 'primaryDark'].map((k) => (
+                                    <View key={k} style={{ alignItems: 'center', marginRight: spacing.lg }}>
+                                        <View style={{ width: 52, height: 52, borderRadius: 16, backgroundColor: f.logoCols[k] }} />
+                                        <Text style={{ color: t.muted, fontSize: 10, marginTop: 4 }}>{k === 'primary' ? 'main' : k === 'primaryLight' ? 'light' : 'dark'}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                            <Hint>Want a different colour? Choose "Pick my own" above. The logo's colours will then not be used.</Hint>
+                        </Card>
+                    ) : (
+                    <Card style={{ marginTop: spacing.md }}>
                         <Text style={{ color: t.text, fontWeight: '800', fontSize: font.md, marginBottom: spacing.sm }}>Main colour</Text>
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md }}>
                             {SWATCHES.map((c) => (
@@ -216,6 +335,41 @@ export default function ShopCreateScreen() {
                             ))}
                         </View>
                         <ColorField label="Or any colour" value={f.primary} onChange={(v) => set('primary')(v || '#E8590C')} last />
+                    </Card>
+                    )}
+                    <Card style={{ marginTop: spacing.md }}>
+                        <Text style={{ color: t.text, fontWeight: '800', fontSize: font.md }}>Colours chosen for you</Text>
+                        <Text style={{ color: t.muted, fontSize: font.sm, marginTop: 2, marginBottom: spacing.md, lineHeight: 19 }}>
+                            The shades, alert, text, page and accent colours are worked out from the main colour, so they match and stay readable. No design skills needed.
+                        </Text>
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                            {PALETTE_LABELS.map(([k, label]) => {
+                                const c = k === 'primary' || k === 'primaryLight' || k === 'primaryDark' ? mainColours[k] : (k === 'accent' ? accentColour.accent : otherColours[k]);
+                                return (
+                                    <View key={k} style={{ alignItems: 'center', marginRight: spacing.md, marginBottom: spacing.sm }}>
+                                        <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: c, borderWidth: 1, borderColor: t.border }} />
+                                        <Text style={{ color: t.muted, fontSize: 10, marginTop: 4 }}>{label}</Text>
+                                    </View>
+                                );
+                            })}
+                        </View>
+                        {!readableOnWhiteText(fromLogo ? f.logoCols.primary : f.primary) ? (
+                            <Text style={{ color: t.warn, fontSize: font.xs, marginBottom: spacing.sm }}>The main colour is a little too light for white text, so it is darkened slightly.</Text>
+                        ) : null}
+                        <Button small kind="soft" title="Reset to best colours" onPress={() => setF((p) => ({ ...p, accent: '', primary: best.primary }))} />
+                    </Card>
+                    <Card style={{ marginTop: spacing.md }}>
+                        <Text style={{ color: t.text, fontWeight: '800', fontSize: font.md, marginBottom: spacing.sm }}>Look of the app</Text>
+                        <Button small kind="soft" title="Reset look to recommended" onPress={() => setF((p) => ({ ...p, ...RECOMMENDED_LOOK }))} style={{ marginBottom: spacing.sm }} />
+                        <Choice label="Light theme" options={choices('look', opts?.options?.LIGHT_LOOKS || [])} value={f.lightLook} onChange={set('lightLook')} />
+                        <Choice label="Dark theme" options={choices('look', opts?.options?.DARK_LOOKS || [])} value={f.darkLook} onChange={set('darkLook')} />
+                        <Choice label="Home header" options={choices('headerStyle', opts?.options?.HEADER_STYLES || [])} value={f.headerStyle} onChange={set('headerStyle')} />
+                        <Choice label="Categories" options={choices('categoryStyle', opts?.options?.CATEGORY_STYLES || [])} value={f.categoryStyle} onChange={set('categoryStyle')} />
+                        <Choice label="Bottom tabs" options={choices('tabBarStyle', opts?.options?.TAB_BAR_STYLES || [])} value={f.tabBarStyle} onChange={set('tabBarStyle')} />
+                        <Choice label="Shop location" options={choices('locationStyle', opts?.options?.LOCATION_STYLES || [])} value={f.locationStyle} onChange={set('locationStyle')} />
+                        <Choice label="Filters" options={choices('filterStyle', opts?.options?.FILTER_STYLES || [])} value={f.filterStyle} onChange={set('filterStyle')} />
+                        <Choice label="Animations" options={choices('motion', opts?.options?.MOTION_LEVELS || [])} value={f.motion} onChange={set('motion')} />
+                        <ColorField label="Accent colour (optional)" hint="A second colour for the OFFER tags on dish photos, like '20% OFF'. Left empty, the best one is chosen for you." value={f.accent} onChange={(v) => set('accent')(v || '')} last />
                     </Card>
                     <Card style={{ marginTop: spacing.md }}>
                         <Choice label="Font style" options={choices('font', opts?.options?.FONT_STYLES || [])} value={f.fontStyle} onChange={set('fontStyle')} />

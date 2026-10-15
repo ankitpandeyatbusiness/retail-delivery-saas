@@ -15,11 +15,15 @@ module.exports = {
 
     // the look of the customer app. 'bold' is the original brand-gradient look (the default, so existing shops do not change);
     // the others set the background, card and text colours and let the brand colour be an accent.
-    LOOKS: ['bold', 'fresh', 'cream', 'midnight'],
+    // Two separate choices: the theme the customer sees in LIGHT mode and the one in DARK mode.
+    LIGHT_LOOKS: ['bold', 'fresh', 'cream', 'mist'],
+    DARK_LOOKS: ['midnight', 'charcoal', 'black', 'slate'],
+    LOOKS: ['bold', 'fresh', 'cream', 'mist', 'midnight', 'charcoal', 'black', 'slate'],   // every theme: the old single "look" setting is still read
     MOTION_LEVELS: ['full', 'subtle', 'off'],        // entrance and press animations; 'off' = none
     HEADER_STYLES: ['hero', 'compact'],               // the top of the home screen
     TAB_BAR_STYLES: ['classic', 'floating'],          // bottom tabs: a flat strip, or a rounded bar that floats
     CATEGORY_STYLES: ['circles', 'tiles', 'pills'],   // how the category row is drawn
+    LOCATION_STYLES: ['card', 'list', 'chip', 'banner'],   // how the shop's address and Directions button are drawn
     FILTER_STYLES: ['dialog', 'sheet', 'rail'],       // the filters: a centred dialog, a bottom sheet, or a bottom sheet with a side list of sections
 
     // on/off switches
@@ -31,6 +35,7 @@ module.exports = {
         'scheduleOrder',        // order for later
         'reorder', 'favourites',
         'guestBrowsing',        // "Skip" on login
+        'directions',           // the shop's address and a Directions button (Google Maps) when the shop is pinned on the map
         'couponField', 'tips',
     ],
 

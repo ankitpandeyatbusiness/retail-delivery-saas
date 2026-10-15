@@ -129,6 +129,7 @@ const TYPES = [
     ['other', 'Something else'],
 ];
 const TYPE_LABEL = Object.fromEntries(TYPES);
+const PHOTO_REQUIRED = ['wrong_item', 'quality'];   // a photo of the food must be attached for these (the server checks too)
 const MAX_PHOTOS = 3;   // the server allows 3 photos per complaint
 const STATUS = { open: 'Open', in_progress: 'In progress', resolved: 'Resolved' };
 
@@ -163,6 +164,7 @@ export function ComplaintCard({ orderId }) {
     const c = data.items?.[0];
 
     const uploading = photos.some((p) => p.status === 'uploading');
+    const needPhoto = PHOTO_REQUIRED.includes(type);
 
     const addPhoto = async (source) => {
         if (photos.length >= MAX_PHOTOS) return;
@@ -198,6 +200,7 @@ export function ComplaintCard({ orderId }) {
         if (!type) { showToast('Choose what went wrong'); return; }
         if (body.trim().length < 3) { showToast('Please describe the problem'); return; }
         if (uploading) { showToast('Please wait, your photo is uploading'); return; }
+        if (needPhoto && !photos.some((p) => p.status === 'done')) { showToast('Please add a photo of the food'); return; }
         setBusy(true);
         try {
             const urls = photos.filter((p) => p.status === 'done').map((p) => p.url);
@@ -269,7 +272,9 @@ export function ComplaintCard({ orderId }) {
                             />
                             <Text style={[s.count, { color: body.length >= 500 ? error : muted }]}>{body.length}/500</Text>
 
-                            <Text style={[s.label, { color: muted }]}>PHOTOS (OPTIONAL, UP TO {MAX_PHOTOS})</Text>
+                            <Text style={[s.label, { color: needPhoto && !photos.length ? error : muted }]}>
+                                {needPhoto ? `PHOTO OF THE FOOD (REQUIRED, UP TO ${MAX_PHOTOS})` : `PHOTOS (OPTIONAL, UP TO ${MAX_PHOTOS})`}
+                            </Text>
                             <View style={s.thumbs}>
                                 {photos.map((p) => (
                                     <View key={p.key} style={[s.thumb, { borderColor: border }]}>

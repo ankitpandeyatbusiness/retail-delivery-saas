@@ -136,6 +136,9 @@ const tenantSchema = new mongoose.Schema({
         lastWebhookAt: Date,                                 // the last webhook that passed the signature check
     },
 
+    // Free notes for the developer (superadmin only, never sent to any app). See routes/adminDevRouter.js
+    devNotes: { type: String, maxlength: 4000, default: '' },
+
     settings: { type: mongoose.Schema.Types.Mixed, default: {} },
 }, { timestamps: true, minimize: false });
 

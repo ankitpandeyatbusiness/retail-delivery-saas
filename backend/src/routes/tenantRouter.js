@@ -19,12 +19,15 @@ tenantRouter.get('/theme', tenantRecognizer, async (req, res) => {
         colors: c.brand.colors,
         fontStyle: c.brand.fontStyle,
         buttonShape: c.brand.buttonShape,
-        look: c.brand.look,
+        look: c.brand.lightLook,   // the old single field, for apps built before light and dark were separate
+        lightLook: c.brand.lightLook,
+        darkLook: c.brand.darkLook,
         motion: c.brand.motion,
         headerStyle: c.brand.headerStyle,
         tabBarStyle: c.brand.tabBarStyle,
         categoryStyle: c.brand.categoryStyle,
         filterStyle: c.brand.filterStyle,
+        locationStyle: c.brand.locationStyle,
         heroImages,
     });
 });

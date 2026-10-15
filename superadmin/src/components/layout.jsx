@@ -52,8 +52,9 @@ export function Header({ title, subtitle, back = true, right, bell }) {
  *   scroll={false}  for screens that own a FlatList (children fill the space)
  *   footer          the one primary action, kept above the keyboard and the gesture bar
  *   tabScreen       a top-level tab: no back arrow
+ *   pinned          something that stays in view above the scrolling form (the live phone preview)
  */
-export function Screen({ title, subtitle, back, right, children, scroll = true, refreshing, onRefresh, footer, tabScreen }) {
+export function Screen({ title, subtitle, back, right, children, scroll = true, refreshing, onRefresh, footer, tabScreen, pinned }) {
     const t = useTheme();
     const insets = useSafeAreaInsets();
     const body = scroll ? (
@@ -71,6 +72,7 @@ export function Screen({ title, subtitle, back, right, children, scroll = true, 
         <View style={{ flex: 1, backgroundColor: t.bg }}>
             <StatusBar style="light" />
             <Header title={title} subtitle={subtitle} back={back ?? !tabScreen} right={right} bell={!!tabScreen} />
+            {pinned || null}
             <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
                 {body}
                 {footer ? (
