@@ -32,6 +32,7 @@ export const useThemeStore = create((set, get) => ({
         headerStyle: 'hero',     // hero | compact
         tabBarStyle: 'classic',  // classic | floating
         categoryStyle: 'circles', // circles | tiles | pills
+        filterStyle: 'dialog',   // dialog | sheet | rail
         // CDN urls from the server (tenants/<slug>/branding/hero/ in the bucket). Nothing is bundled in the app.
         heroImages: [],
     },

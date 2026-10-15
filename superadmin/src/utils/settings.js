@@ -39,6 +39,7 @@ export const NAMES = {
     headerStyle: { hero: 'Big shop header', compact: 'Compact header' },
     tabBarStyle: { classic: 'Classic strip', floating: 'Floating bar' },
     categoryStyle: { circles: 'Circles', tiles: 'Photo tiles', pills: 'Pills' },
+    filterStyle: { dialog: 'Centred dialog', sheet: 'Bottom sheet', rail: 'Bottom sheet with section list' },
     tab: { home: 'Home', search: 'Search', offers: 'Offers', orders: 'Orders', profile: 'Profile' },
     orderType: { delivery: 'Delivery', pickup: 'Pickup', dine_in: 'Dine in' },
     payment: { cod: 'Cash on delivery', online: 'Online payment' },
@@ -112,6 +113,7 @@ export function effectiveSettings({ tenant, resolved, options, defaults, presets
             headerStyle: raw.brand?.headerStyle || D.brand?.headerStyle || 'hero',
             tabBarStyle: raw.brand?.tabBarStyle || D.brand?.tabBarStyle || 'classic',
             categoryStyle: raw.brand?.categoryStyle || D.brand?.categoryStyle || 'circles',
+            filterStyle: raw.brand?.filterStyle || D.brand?.filterStyle || 'dialog',
         },
         tabs: raw.tabs || D.tabs || ['home', 'search', 'orders', 'profile'],
         home: {

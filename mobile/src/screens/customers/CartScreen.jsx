@@ -13,8 +13,9 @@ import { AddressSheet, addrLine } from '../../components/customers/addresses';
 import { Press, Appear, Chip, Bill, ClosedBanner, PickupSlots, FreeDeliveryBar, rs, ease } from '../../components/customers/cartParts';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useAuthStore } from '../../store/common/useAuthStore';
-import { useCartStore } from '../../store/customers/shopStores';
+import { useCartStore, useFavStore } from '../../store/customers/shopStores';
 import { CouponTicket } from '../../components/customers/coupon';
+import { FavouriteDishes } from '../../components/customers/favourites';
 import { useCouponStore } from '../../store/customers/useCouponStore';
 import { useAddressStore } from '../../store/customers/useAddressStore';
 import { quoteOrder, placeOrder, fetchPickupSlots } from '../../api/customers/shopApi';
@@ -99,6 +100,9 @@ export default function CartScreen() {
     const preview = lines.reduce((a, l) => a + l.price * l.quantity, 0);
     const priceKey = lines.map((l) => l.price).join(',');
     const pending = useCouponStore((st) => st.code);
+    // an empty cart with saved dishes: the message stays put at the top and the dishes scroll below it
+    const favCount = useFavStore((st) => st.ids.length);
+    const hasFavs = !!user && !!f.favourites && favCount > 0;
 
     // Only what changes the price goes here, so typing a note never re-quotes.
     const body = useMemo(() => {
@@ -259,7 +263,7 @@ export default function CartScreen() {
         return (
             <View style={[s.flex, { backgroundColor: background }]}>
                 <BackHeader title="Cart" />
-                <Appear style={s.center}>
+                <Appear style={hasFavs ? [s.center, { flex: 0, paddingTop: 28, paddingBottom: 18 }] : s.center}>
                     <View style={[s.iconCircle, { backgroundColor: surface, borderColor: border }]}>
                         <Ionicons name="cart-outline" size={48} color={muted} />
                     </View>
@@ -269,6 +273,7 @@ export default function CartScreen() {
                         <Text style={s.ctaTxt}>Browse Menu</Text>
                     </Press>
                 </Appear>
+                {hasFavs ? <FavouriteDishes mode="list" /> : null}
             </View>
         );
     }
@@ -340,6 +345,8 @@ export default function CartScreen() {
                             <Text style={[s.addMoreTxt, { color: primary }]}>Add more items</Text>
                         </Pressable>
                     </Appear>
+
+                    <FavouriteDishes mode="strip" />
 
                     {user && type === 'delivery' ? (
                         <Appear delay={60} style={{ marginTop: 20 }}>

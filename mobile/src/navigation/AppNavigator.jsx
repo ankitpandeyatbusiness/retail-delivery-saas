@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, Animated, Easing, Keyboard, StyleSheet, Platform } from 'react-native';
+import { View, Text, Pressable, Animated, Easing, Keyboard, StyleSheet, Platform, Dimensions, BackHandler } from 'react-native';
 import { NavigationContainer, createNavigationContainerRef, CommonActions, StackActions } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -26,7 +26,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../components/common/kit';
 import { useMotion } from '../components/common/motion';
 import { useThemeStore } from '../store/common/useThemeStore';
-import { ToastHost } from '../components/customers/shop';
+import { ToastHost, showToast } from '../components/customers/shop';
 import { FrozenOverlay, OfflineBanner } from '../components/common/status';
 import { useAppStatus } from '../store/common/useAppStatus';
 
@@ -37,13 +37,30 @@ const tb = StyleSheet.create({
         flexDirection: 'row', alignItems: 'center', height: 64, borderRadius: 32, borderWidth: StyleSheet.hairlineWidth,
         shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 10,
     },
-    floatPill: { borderRadius: 22 },
+    floatPill: { position: 'absolute', left: 0, top: 7, bottom: 7, borderRadius: 24 },
     // the highlight is exactly as wide as its tab (minus a small gap), so the last tab can never poke out of the bar
     floatItem: { flex: 1, height: '100%', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
     floatInner: { width: '100%', paddingHorizontal: 2, paddingVertical: 7, alignItems: 'center', justifyContent: 'center' },
     floatBadge: { position: 'absolute', top: -6, right: -12 },
     floatLabel: { fontSize: 10.5, fontWeight: '700', marginTop: 3 },
 });
+
+// While a page is sliding in or out (the stack transition), a tab switch is NOT started on top of it: two
+// transitions at once left the leaving page showing over the tab that slid in. The tap is kept and played the
+// moment the page has finished moving (never more than half a second later).
+const gate = { busy: false, pending: null, timer: null };
+const holdGate = () => {
+    gate.busy = true;
+    clearTimeout(gate.timer);
+    gate.timer = setTimeout(() => releaseGate(), 500);   // safety: never stay held
+};
+function releaseGate() {
+    gate.busy = false;
+    clearTimeout(gate.timer);
+    const name = gate.pending;
+    gate.pending = null;
+    if (name && navigationRef.isReady()) navigationRef.dispatch(CommonActions.navigate({ name }));
+}
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -60,6 +77,19 @@ const TAB_DEFS = {
     profile: { name: 'Account', label: 'Account', icon: 'person', component: AccountScreen },
 };
 const DEFAULT_TABS = ['home', 'search', 'orders', 'profile'];
+
+// progress is -1 for a tab left of the open one, 0 for the open one, 1 for a tab to its right.
+// The pages slide the FULL width, so a page that is not open is parked completely off the screen.
+// (No opacity on purpose: on Android a card's shadow ignores its parent's opacity, so a "hidden" page that is
+// parked on screen still shows its card shadows as a ghost. Off screen there is nothing to show.)
+const slideScenes = ({ current }) => {
+    const W = Dimensions.get('window').width + 24;   // a little extra so no shadow reaches the edge
+    return {
+        sceneStyle: {
+            transform: [{ translateX: current.progress.interpolate({ inputRange: [-1, 0, 1], outputRange: [-W, 0, W] }) }],
+        },
+    };
+};
 
 // the icon springs up a little when its tab becomes active
 function TabGlyph({ focused, color, icon, size = 22 }) {
@@ -96,23 +126,12 @@ function CountBadge({ n }) {
     );
 }
 
-// The highlight sits INSIDE the tab, around the icon and its label together, so it always covers both
-// (it grows with the content, never a fixed circle that the text can spill out of).
+// One tab: the icon (springs up when active), its label, and the cart count when there is one.
 function TabItem({ focused, icon, label, badge, onPress, onLongPress }) {
     const { primary, muted } = useBrand();
-    const motion = useMotion();
-    const v = useRef(new Animated.Value(focused ? 1 : 0)).current;
-    useEffect(() => {
-        if (motion === 'off') { v.setValue(focused ? 1 : 0); return; }
-        Animated.timing(v, { toValue: focused ? 1 : 0, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
-    }, [focused, motion, v]);
     return (
         <Pressable onPress={onPress} onLongPress={onLongPress} style={tb.floatItem} accessibilityRole="button" accessibilityState={focused ? { selected: true } : {}}>
             <View style={tb.floatInner}>
-                <Animated.View
-                    pointerEvents="none"
-                    style={[StyleSheet.absoluteFill, tb.floatPill, { backgroundColor: alpha(primary, 0.14), opacity: v, transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] }) }] }]}
-                />
                 <View>
                     <TabGlyph focused={focused} color={focused ? primary : muted} icon={icon || 'ellipse'} />
                     {typeof badge === 'number' ? <View style={tb.floatBadge}><CountBadge n={badge} /></View> : null}
@@ -127,7 +146,15 @@ function TabItem({ focused, icon, label, badge, onPress, onLongPress }) {
 function FloatingTabBar({ state, descriptors, navigation, defs }) {
     const insets = useSafeAreaInsets();
     const { primary, background, surface, border, dark } = useBrand();
+    const motion = useMotion();
     const [kb, setKb] = useState(false);
+    const [w, setW] = useState(0);
+    const slide = useRef(new Animated.Value(state.index)).current;
+    useEffect(() => {
+        if (motion === 'off') { slide.setValue(state.index); return; }
+        // same duration and curve as the page slide, so the highlight and the page arrive together
+        Animated.timing(slide, { toValue: state.index, duration: 300, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+    }, [state.index, motion, slide]);
 
     useEffect(() => {
         const a = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setKb(true));
@@ -138,7 +165,21 @@ function FloatingTabBar({ state, descriptors, navigation, defs }) {
     if (kb) return null;
     return (
         <View style={{ backgroundColor: background, paddingHorizontal: 14, paddingTop: 6, paddingBottom: Math.max(insets.bottom, 8) + 4 }}>
-            <View style={[tb.floatBar, { backgroundColor: surface, borderColor: border, shadowColor: dark ? '#000000' : primary }]}>
+            <View
+                onLayout={(e) => setW(e.nativeEvent.layout.width)}
+                style={[tb.floatBar, { backgroundColor: surface, borderColor: border, shadowColor: dark ? '#000000' : primary }]}
+            >
+                {/* exactly as wide as one tab (minus a small gap), so it can never poke out of the bar */}
+                {w ? (
+                    <Animated.View
+                        pointerEvents="none"
+                        style={[tb.floatPill, {
+                            width: w / state.routes.length - 10,
+                            backgroundColor: alpha(primary, 0.14),
+                            transform: [{ translateX: Animated.add(Animated.multiply(slide, w / state.routes.length), 5) }],
+                        }]}
+                    />
+                ) : null}
                 {state.routes.map((route, i) => {
                     const focused = state.index === i;
                     const d = defs[route.name] || {};
@@ -170,6 +211,7 @@ function MainTabs() {
     const tabsCfg = useHomeStore((s) => s.full.tabs);
     const count = useCartStore((s) => s.lines.reduce((a, l) => a + l.quantity, 0));
     const floating = useThemeStore((s) => s.theme.tabBarStyle) === 'floating';
+    const tabMotion = useMotion();
     const defsByRoute = Object.fromEntries(Object.values(TAB_DEFS).map((d) => [d.name, d]));
 
     // one place loads the shop config for the whole app
@@ -183,10 +225,19 @@ function MainTabs() {
     return (
         <Tab.Navigator
             initialRouteName="Home"
+            backBehavior="initialRoute"
+            screenListeners={({ route }) => ({
+                tabPress: (e) => {
+                    if (gate.busy) { e.preventDefault(); gate.pending = route.name; }
+                },
+            })}
             tabBar={floating ? (props) => <FloatingTabBar {...props} defs={defsByRoute} /> : undefined}
             screenOptions={{
                 headerShown: false,
                 tabBarHideOnKeyboard: true,
+                animation: tabMotion === 'off' ? 'none' : 'shift',
+                sceneStyleInterpolator: tabMotion === 'off' ? undefined : slideScenes,
+                transitionSpec: { animation: 'timing', config: { duration: 300, easing: Easing.out(Easing.cubic) } },
                 tabBarActiveTintColor: primary,
                 tabBarInactiveTintColor: muted,
                 tabBarStyle: {
@@ -237,8 +288,32 @@ function Landing() {
     return role === 'rider' ? <RiderHomeScreen /> : <MainTabs />;
 }
 
+// Android back button, in three steps:
+//   1. pages (Item, Cart, Order detail...) go back one page, as the stack already does;
+//   2. on any other tab, Back goes to the Home tab (the tabs' backBehavior is "initialRoute");
+//   3. on Home, the first Back shows "Press back again to exit" and a second one within 2 seconds leaves the app.
+function useDoubleBackExit() {
+    const last = useRef(0);
+    useEffect(() => {
+        if (Platform.OS !== 'android') return undefined;
+        const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+            if (!navigationRef.isReady()) return false;
+            if (navigationRef.getCurrentRoute()?.name !== 'Home') return false;   // not the Home tab: normal behaviour
+            const now = Date.now();
+            if (now - last.current < 2000) { BackHandler.exitApp(); return true; }
+            last.current = now;
+            showToast('Press back again to exit');
+            return true;
+        });
+        return () => sub.remove();
+    }, []);
+}
+
 export default function AppNavigator() {
+    useDoubleBackExit();
     const isHydrated = useAuthStore((s) => s.isHydrated);
+    const motion = useMotion();   // the shop's Animations setting (and the phone's reduce-motion) can turn transitions off
+    const slide = motion === 'off' ? 'none' : 'slide_from_right';
     const user = useAuthStore((s) => s.user);
     const hadUser = useRef(false);
 
@@ -268,23 +343,25 @@ export default function AppNavigator() {
         <View style={{ flex: 1 }}>
             <NavigationContainer ref={navigationRef} onReady={navigationReady}>
                 <Stack.Navigator
-                    screenOptions={{ headerShown: false }}
+                    screenOptions={{ headerShown: false, animation: slide, animationDuration: 220, gestureEnabled: true }}
+                    screenListeners={{ transitionStart: holdGate, transitionEnd: releaseGate }}
                     initialRouteName={user ? 'MainTabs' : 'Login'}
                 >
                     {/* LoginScreen is untouched. Its Skip / success go to "MainTabs" */}
-                    <Stack.Screen name="Login" component={LoginScreen} />
+                    <Stack.Screen name="Login" component={LoginScreen} options={{ animation: motion === 'off' ? 'none' : 'fade' }} />
                     <Stack.Screen name="MainTabs" component={Landing} />
 
                     {/* full-screen pages (back arrow top left) */}
-                    <Stack.Screen name="Item" component={ItemScreen} />
-                    <Stack.Screen name="Cart" component={CartScreen} />
+                    {/* a dish rises from the bottom, like opening a card */}
+                    <Stack.Screen name="Item" component={ItemScreen} options={{ animation: motion === 'off' ? 'none' : 'fade_from_bottom', animationDuration: 260 }} />
+                    <Stack.Screen name="Cart" component={CartScreen} options={{ animation: motion === 'off' ? 'none' : 'slide_from_bottom', animationDuration: 260 }} />
                     <Stack.Screen name="Offers" component={OffersScreen} />
                     <Stack.Screen name="Bestsellers" component={BestsellersScreen} />
                     <Stack.Screen name="PaymentMethods" component={PaymentMethodsScreen} />
                     <Stack.Screen name="CardDetails" component={CardDetailsScreen} />
                     <Stack.Screen name="Favourites" component={FavouritesScreen} />
                     <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
-                    <Stack.Screen name="OrderPlaced" component={OrderPlacedScreen} options={{ gestureEnabled: false, animation: 'fade' }} />
+                    <Stack.Screen name="OrderPlaced" component={OrderPlacedScreen} options={{ gestureEnabled: false, animation: motion === 'off' ? 'none' : 'fade', animationDuration: 300 }} />
                     <Stack.Screen name="Notifications" component={NotificationsScreen} />
                 </Stack.Navigator>
             </NavigationContainer>

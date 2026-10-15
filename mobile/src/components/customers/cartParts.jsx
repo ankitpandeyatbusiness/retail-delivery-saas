@@ -25,7 +25,7 @@ export function Appear({ children, delay = 0, style, skip }) {
         Animated.timing(v, { toValue: 1, duration: 320, delay, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
     }, []);
     return (
-        <Animated.View style={[style, { opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }] }]}>
+        <Animated.View needsOffscreenAlphaCompositing style={[style, { opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }] }]}>
             {children}
         </Animated.View>
     );
@@ -84,19 +84,23 @@ export function Bill({ q, type, busy, baseDeliveryFee }) {
 
 // Free delivery bar: the fill slides, the colour fades, the text cross-fades. Nothing jumps.
 export function FreeDeliveryBar({ preview, freeAbove }) {
+    const { errorText, errorSoft, ok, okSoft } = useBrand();
     const unlocked = preview >= freeAbove;
     const pct = Math.min(1, Math.max(0, preview / freeAbove));
-    const w = useRef(new Animated.Value(pct)).current;
-    const col = useRef(new Animated.Value(unlocked ? 1 : 0)).current;
+
+    // Everything that moves is on the native driver (scale and opacity only), so a busy JS thread
+    // (the cart re-pricing, the list re-laying out) can no longer make the bar stutter.
+    const w = useRef(new Animated.Value(pct)).current;         // how full the bar is, 0..1 (drawn as scaleX)
+    const col = useRef(new Animated.Value(unlocked ? 1 : 0)).current;   // 0 = still earning, 1 = unlocked
     const fade = useRef(new Animated.Value(1)).current;
     const [shown, setShown] = useState(unlocked);
 
     useEffect(() => {
-        Animated.timing(w, { toValue: pct, duration: 450, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+        Animated.timing(w, { toValue: pct, duration: 520, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
     }, [pct]);
 
     useEffect(() => {
-        Animated.timing(col, { toValue: unlocked ? 1 : 0, duration: 400, useNativeDriver: false }).start();
+        Animated.timing(col, { toValue: unlocked ? 1 : 0, duration: 420, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
         if (shown === unlocked) return;
         Animated.timing(fade, { toValue: 0, duration: 120, useNativeDriver: true }).start(() => {
             setShown(unlocked);
@@ -104,20 +108,23 @@ export function FreeDeliveryBar({ preview, freeAbove }) {
         });
     }, [unlocked]);
 
-    const bg = col.interpolate({ inputRange: [0, 1], outputRange: ['#FEF3F2', '#E6F4EA'] });
-    const fg = col.interpolate({ inputRange: [0, 1], outputRange: ['#B3261E', '#1E8E3E'] });
+    const fg = shown ? ok : errorText;
     return (
-        <Animated.View style={[s.tr, { backgroundColor: bg }]}>
+        <View style={[s.tr, { backgroundColor: errorSoft, overflow: 'hidden' }]}>
+            {/* the "unlocked" background fades in over the "keep going" one (no colour animation on the JS thread) */}
+            <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: okSoft, opacity: col }]} />
             <Animated.View style={{ opacity: fade }}>
-                <Animated.Text style={[s.trTxt, { color: fg }]}>
+                <Text style={[s.trTxt, { color: fg }]}>
                     {shown ? 'Yay! You unlocked ' : `Add ${rs(Math.max(0, freeAbove - preview))} more to get `}
                     <Text style={{ fontWeight: '800' }}>FREE Delivery</Text> 🚲
-                </Animated.Text>
+                </Text>
             </Animated.View>
             <View style={s.trBg}>
-                <Animated.View style={[s.trFill, { backgroundColor: fg, width: w.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} />
+                {/* two fills of the same size; the bar is shown by scaling them from the left edge */}
+                <Animated.View style={[s.trFill, { backgroundColor: errorText, transform: [{ scaleX: w }], transformOrigin: 'left' }]} />
+                <Animated.View style={[s.trFill, StyleSheet.absoluteFill, { backgroundColor: ok, opacity: col, transform: [{ scaleX: w }], transformOrigin: 'left' }]} />
             </View>
-        </Animated.View>
+        </View>
     );
 }
 
@@ -173,7 +180,7 @@ const s = StyleSheet.create({
     tr: { paddingVertical: 10, paddingHorizontal: 16, alignItems: 'center', minHeight: 54 },
     trTxt: { fontSize: 13, fontWeight: '500', textAlign: 'center' },
     trBg: { alignSelf: 'stretch', height: 4, borderRadius: 2, backgroundColor: 'rgba(0,0,0,0.08)', marginTop: 8, overflow: 'hidden' },
-    trFill: { height: 4, borderRadius: 2 },
+    trFill: { height: 4, width: '100%', borderRadius: 2 },
     chip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderRadius: 20, marginRight: 8, marginBottom: 8 },
     chipTxt: { fontSize: 13, fontWeight: '700' },
     bRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },

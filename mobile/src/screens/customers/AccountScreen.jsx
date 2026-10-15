@@ -7,9 +7,10 @@ import {
 import Constants from 'expo-constants';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useBrand, GuestGate, CardGlow } from '../../components/common/kit';
+import { useBrand, GuestGate, CardGlow, smoothTheme } from '../../components/common/kit';
 import { showToast, tint } from '../../components/customers/shop';
 import { Press, Appear } from '../../components/customers/cartParts';
 import { AddressSheet } from '../../components/customers/addresses';
@@ -96,6 +97,22 @@ function Item({ icon, label, sub, onPress, danger, last }) {
     );
 }
 
+// A big tappable tile: icon on a soft circle, a label and one line under it
+function AccountTile({ icon, label, sub, onPress, badge }) {
+    const { primary, text, muted, surface, border } = useBrand();
+    return (
+        <Press onPress={onPress} style={[s.tile, { backgroundColor: surface, borderColor: border }]}>
+            <CardGlow radius={18} />
+            <View style={[s.tileIc, { backgroundColor: tint(primary) }]}>
+                <Ionicons name={icon} size={22} color={primary} />
+                {badge > 0 ? <View style={[s.tileBadge, { backgroundColor: primary }]}><Text style={s.tileBadgeTxt}>{badge > 9 ? '9+' : badge}</Text></View> : null}
+            </View>
+            <Text style={[s.tileLabel, { color: text }]} numberOfLines={1}>{label}</Text>
+            <Text style={[s.tileSub, { color: muted }]} numberOfLines={1}>{sub}</Text>
+        </Press>
+    );
+}
+
 function ToggleItem({ icon, label, sub, value, onValueChange, disabled, last }) {
     const { primary, text, muted, border } = useBrand();
     return (
@@ -130,7 +147,8 @@ function AppearanceRow({ last }) {
         if (id === mode) return;
         setMode(id);
         Animated.timing(slide, { toValue: MODES.findIndex((m) => m[0] === id), duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
-        InteractionManager.runAfterInteractions(() => setAppearance(id));
+        // the colours start gliding into the new look at once, together with the pill (the screen itself does not move)
+        setTimeout(() => smoothTheme(() => setAppearance(id)), 40);
     };
     const segW = w ? (w - 6) / MODES.length : 0;
     return (
@@ -173,8 +191,9 @@ function Group({ title, delay, children }) {
 function AccountInner() {
     const nav = useNavigation();
     const insets = useSafeAreaInsets();
-    const { primary, text, muted, background, surface, border } = useBrand();
+    const { primary, primaryLight, primaryDark, onPrimary, text, muted, background, surface, border } = useBrand();
     const user = useAuthStore((st) => st.user);
+    const favCount = useFavStore((st) => st.ids.length);
     const unread = useNotificationStore((st) => st.unread);
     const favOn = useHomeStore((st) => st.full.features.favourites);
     const shop = useThemeStore((st) => st.theme.name);
@@ -291,28 +310,36 @@ function AccountInner() {
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 30 }}>
                 <Text style={[s.title, { color: text }]}>Account</Text>
 
-                <Appear style={[s.head, { backgroundColor: surface, borderColor: border }]}>
-                    <CardGlow radius={20} from="tl" strength={0.2} />
-                    <Pressable onPress={avatarMenu} disabled={avatarBusy} hitSlop={6} style={s.avatarWrap}>
-                        <View style={[s.avatar, { backgroundColor: primary, overflow: 'hidden', marginRight: 0 }]}>
-                            {p.avatarUrl
-                                ? <Image source={{ uri: p.avatarUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
-                                : <Text style={s.avatarTxt}>{initial}</Text>}
-                            {avatarBusy ? <View style={s.avatarBusy}><ActivityIndicator color="#FFFFFF" /></View> : null}
+                {/* hero: the brand gradient with the person's photo, name and number */}
+                <Appear style={s.heroWrap}>
+                    <LinearGradient colors={[primaryLight, primaryDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.hero}>
+                        <View style={[s.blob, { top: -50, right: -30, width: 160, height: 160 }]} />
+                        <View style={[s.blob, { bottom: -60, left: 40, width: 110, height: 110, opacity: 0.6 }]} />
+                        <View style={s.heroRow}>
+                            <Pressable onPress={avatarMenu} disabled={avatarBusy} hitSlop={6} style={s.avatarWrap}>
+                                <View style={s.avatarRing}>
+                                    <View style={[s.avatar, { backgroundColor: 'rgba(255,255,255,0.22)', overflow: 'hidden', marginRight: 0 }]}>
+                                        {p.avatarUrl
+                                            ? <Image source={{ uri: p.avatarUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
+                                            : <Text style={[s.avatarTxt, { color: onPrimary }]}>{initial}</Text>}
+                                        {avatarBusy ? <View style={s.avatarBusy}><ActivityIndicator color="#FFFFFF" /></View> : null}
+                                    </View>
+                                </View>
+                                <View style={[s.camBadge, { backgroundColor: surface, borderColor: border }]}>
+                                    <Ionicons name="camera" size={12} color={primary} />
+                                </View>
+                            </Pressable>
+                            <View style={{ flex: 1 }}>
+                                <Text style={[s.heroName, { color: onPrimary }]} numberOfLines={1}>{name || 'Add your name'}</Text>
+                                {phone ? <Text style={[s.heroSub, { color: onPrimary }]}>{phone}</Text> : null}
+                                {p.email ? <Text style={[s.heroSub, { color: onPrimary }]} numberOfLines={1}>{p.email}</Text> : null}
+                            </View>
+                            <Press onPress={() => setEdit(true)} style={s.heroEdit}>
+                                <Ionicons name="create-outline" size={15} color={onPrimary} />
+                                <Text style={[s.editTxt, { color: onPrimary }]}>Edit</Text>
+                            </Press>
                         </View>
-                        <View style={[s.camBadge, { backgroundColor: surface, borderColor: border }]}>
-                            <Ionicons name="camera" size={12} color={primary} />
-                        </View>
-                    </Pressable>
-                    <View style={{ flex: 1 }}>
-                        <Text style={[s.name, { color: text }]} numberOfLines={1}>{name || 'Add your name'}</Text>
-                        {phone ? <Text style={[s.sub, { color: muted }]}>{phone}</Text> : null}
-                        {p.email ? <Text style={[s.sub, { color: muted }]} numberOfLines={1}>{p.email}</Text> : null}
-                    </View>
-                    <Press onPress={() => setEdit(true)} style={[s.editBtn, { borderColor: primary }]}>
-                        <Ionicons name="create-outline" size={15} color={primary} />
-                        <Text style={[s.editTxt, { color: primary }]}>Edit</Text>
-                    </Press>
+                    </LinearGradient>
                 </Appear>
 
                 {!name ? (
@@ -324,11 +351,23 @@ function AccountInner() {
                     </Appear>
                 ) : null}
 
-                <Group title="YOUR ACCOUNT" delay={80}>
-                    <Item icon="notifications-outline" label="Notifications" sub={unread > 0 ? `${unread} unread` : 'Order updates and offers'} onPress={() => nav.navigate('Notifications')} />
-                    <Item icon="location-outline" label="Saved addresses" sub="Add, edit or remove delivery addresses" onPress={() => setAddrSheet(true)} last={!favOn} />
-                    {favOn ? <Item icon="heart-outline" label="Favourites" sub="Dishes you saved" onPress={() => nav.navigate('Favourites')} last /> : null}
-                </Group>
+                {/* the four things people come here for, as big tiles */}
+                <View style={s.tiles}>
+                    <Appear delay={60} style={s.tileCell}>
+                        <AccountTile icon="receipt-outline" label="Orders" sub="Track and reorder" onPress={() => nav.navigate('Orders')} />
+                    </Appear>
+                    <Appear delay={90} style={s.tileCell}>
+                        <AccountTile icon="location-outline" label="Addresses" sub="Where we deliver" onPress={() => setAddrSheet(true)} />
+                    </Appear>
+                    <Appear delay={120} style={s.tileCell}>
+                        {favOn
+                            ? <AccountTile icon="heart-outline" label="Favourites" sub={favCount ? `${favCount} saved` : 'Dishes you love'} onPress={() => nav.navigate('Favourites')} />
+                            : <AccountTile icon="pricetags-outline" label="Offers" sub="Coupons for you" onPress={() => nav.navigate('Offers')} />}
+                    </Appear>
+                    <Appear delay={150} style={s.tileCell}>
+                        <AccountTile icon="notifications-outline" label="Notifications" sub={unread > 0 ? `${unread} unread` : 'All caught up'} badge={unread} onPress={() => nav.navigate('Notifications')} />
+                    </Appear>
+                </View>
 
                 <Group title="PREFERENCES" delay={110}>
                     <AppearanceRow />
@@ -386,6 +425,22 @@ const s = StyleSheet.create({
     rowTxt: { fontSize: 14, fontWeight: '700' },
     rowSub: { fontSize: 11, marginTop: 2 },
     ver: { textAlign: 'center', fontSize: 11, marginTop: 26 },
+    heroWrap: { marginHorizontal: 16, marginTop: 14 },
+    hero: { borderRadius: 24, padding: 18, overflow: 'hidden' },
+    blob: { position: 'absolute', borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.12)' },
+    heroRow: { flexDirection: 'row', alignItems: 'center' },
+    avatarRing: { padding: 3, borderRadius: 40, borderWidth: 2, borderColor: 'rgba(255,255,255,0.7)' },
+    heroName: { fontSize: 21, fontWeight: '900', letterSpacing: -0.4 },
+    heroSub: { fontSize: 12.5, marginTop: 2, opacity: 0.88 },
+    heroEdit: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 },
+    tiles: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginHorizontal: 16, marginTop: 16 },
+    tileCell: { width: '48.5%', marginBottom: 12 },
+    tile: { borderWidth: 1, borderRadius: 18, padding: 14, minHeight: 112 },
+    tileIc: { width: 46, height: 46, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+    tileBadge: { position: 'absolute', top: -5, right: -6, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center' },
+    tileBadgeTxt: { color: '#FFFFFF', fontSize: 10, fontWeight: '900' },
+    tileLabel: { fontSize: 15, fontWeight: '900', marginTop: 12 },
+    tileSub: { fontSize: 11.5, marginTop: 2 },
     seg: { flexDirection: 'row', height: 40, borderRadius: 12, borderWidth: 1, padding: 3, marginTop: 12 },
     segPill: { position: 'absolute', left: 3, top: 3, bottom: 3, borderRadius: 9 },
     segItem: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },

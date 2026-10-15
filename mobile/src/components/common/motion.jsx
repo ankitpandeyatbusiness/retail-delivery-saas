@@ -44,7 +44,7 @@ export function FadeIn({ index = 0, children, style, distance = 14 }) {
     if (motion === 'off') return <View style={style}>{children}</View>;
     const move = motion === 'subtle' ? 0 : distance;
     return (
-        <Animated.View style={[{ opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [move, 0] }) }] }, style]}>
+        <Animated.View needsOffscreenAlphaCompositing style={[{ opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [move, 0] }) }] }, style]}>
             {children}
         </Animated.View>
     );

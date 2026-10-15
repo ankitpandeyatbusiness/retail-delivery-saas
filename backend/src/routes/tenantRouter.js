@@ -24,6 +24,7 @@ tenantRouter.get('/theme', tenantRecognizer, async (req, res) => {
         headerStyle: c.brand.headerStyle,
         tabBarStyle: c.brand.tabBarStyle,
         categoryStyle: c.brand.categoryStyle,
+        filterStyle: c.brand.filterStyle,
         heroImages,
     });
 });

@@ -4,7 +4,9 @@ import { View, Text, Pressable, ScrollView, ActivityIndicator, TextInput, StyleS
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useBrand, BackHeader, CardGlow } from '../../components/common/kit';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useBrand, BackHeader, CardGlow, mix } from '../../components/common/kit';
+import { Skel } from '../../components/common/motion';
 import { showToast, tint } from '../../components/customers/shop';
 import { Press, Appear } from '../../components/customers/cartParts';
 import { StatusPill, isActive, rs, errMsg, cancelFlow, reorder } from '../../components/customers/orders';
@@ -53,8 +55,8 @@ function Card({ title, icon, delay = 0, children }) {
 }
 
 function Row({ k, v, green, bold }) {
-    const { text } = useBrand();
-    const c = green ? '#1E8E3E' : text;
+    const { text, ok } = useBrand();
+    const c = green ? ok : text;
     return (
         <View style={s.bRow}>
             <Text style={[s.bK, bold && s.bold, { color: c }]}>{k}</Text>
@@ -64,7 +66,7 @@ function Row({ k, v, green, bold }) {
 }
 
 function Step({ st, k, idx, last, hist, live }) {
-    const { text, muted } = useBrand();
+    const { text, muted, surface, border, ok } = useBrand();
     const done = k <= idx;
     const cur = k === idx && live;
     const a = useRef(new Animated.Value(done ? 1 : 0)).current;
@@ -78,14 +80,14 @@ function Step({ st, k, idx, last, hist, live }) {
         loop.start();
         return () => loop.stop();
     }, [cur]);
-    const dotBg = a.interpolate({ inputRange: [0, 1], outputRange: ['#FFFFFF', '#1E8E3E'] });
-    const dotBd = a.interpolate({ inputRange: [0, 1], outputRange: ['#BBBBBB', '#1E8E3E'] });
-    const barC = l.interpolate({ inputRange: [0, 1], outputRange: ['#DDDDDD', '#1E8E3E'] });
+    const dotBg = a.interpolate({ inputRange: [0, 1], outputRange: [surface, ok] });
+    const dotBd = a.interpolate({ inputRange: [0, 1], outputRange: [muted, ok] });
+    const barC = l.interpolate({ inputRange: [0, 1], outputRange: [border, ok] });
     return (
         <View style={s.step}>
             <View style={s.rail}>
                 <View style={s.dotWrap}>
-                    {cur ? <Animated.View style={[s.ring, { opacity: ring.interpolate({ inputRange: [0, 1], outputRange: [0.5, 0] }), transform: [{ scale: ring.interpolate({ inputRange: [0, 1], outputRange: [1, 2.3] }) }] }]} /> : null}
+                    {cur ? <Animated.View style={[s.ring, { backgroundColor: ok, opacity: ring.interpolate({ inputRange: [0, 1], outputRange: [0.5, 0] }), transform: [{ scale: ring.interpolate({ inputRange: [0, 1], outputRange: [1, 2.3] }) }] }]} /> : null}
                     <Animated.View style={[s.dot, { backgroundColor: dotBg, borderColor: dotBd }]} />
                 </View>
                 {!last ? <Animated.View style={[s.bar, { backgroundColor: barC }]} /> : null}
@@ -120,7 +122,7 @@ export default function OrderDetailScreen() {
     const nav = useNavigation();
     const insets = useSafeAreaInsets();
     const { id } = useRoute().params || {};
-    const { primary, radius, text, muted, error, background, surface, border } = useBrand();
+    const { primary, radius, text, muted, error, background, surface, border, ok } = useBrand();
     const reorderOn = useHomeStore((st) => st.full.features.reorder);
     const [o, setO] = useState(null);
     const [state, setState] = useState('loading'); // loading | ok | gone | error
@@ -189,7 +191,28 @@ export default function OrderDetailScreen() {
     const startEdit = () => { setStars(saved.stars); setComment(saved.comment); setEditing(true); };
 
     if (state === 'loading') {
-        return <View style={[s.flex, { backgroundColor: background }]}><BackHeader title="Order" /><ActivityIndicator style={{ marginTop: 60 }} color={primary} /></View>;
+        return (
+            <View style={[s.flex, { backgroundColor: background }]}>
+                <BackHeader title="Order" />
+                <View style={s.pad}>
+                    <Skel height={150} radius={22} />
+                    <View style={[s.card, { backgroundColor: surface, borderColor: border }]}>
+                        <Skel width="35%" height={16} />
+                        {[0, 1, 2].map((i) => (
+                            <View key={i} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 16 }}>
+                                <Skel width={16} height={16} radius={8} />
+                                <Skel width="50%" height={14} style={{ marginLeft: 14 }} />
+                            </View>
+                        ))}
+                    </View>
+                    <View style={[s.card, { backgroundColor: surface, borderColor: border }]}>
+                        <Skel width="28%" height={16} />
+                        <Skel height={44} style={{ marginTop: 16 }} />
+                        <Skel height={44} style={{ marginTop: 10 }} />
+                    </View>
+                </View>
+            </View>
+        );
     }
     if (state !== 'ok') {
         return (
@@ -213,7 +236,8 @@ export default function OrderDetailScreen() {
     const live = isActive(o.status);
     const flow = delivery ? FLOW_DELIVERY : FLOW_OTHER;
     const idx = flow.indexOf(o.status);
-    const accent = cancelled ? error : delivered ? '#1E8E3E' : primary;
+    const accent = cancelled ? error : delivered ? ok : primary;
+    const headline = cancelled ? 'Order cancelled' : (STEP[o.status] || 'Order');
     const sub = cancelled ? `Cancelled by ${WHO[o.cancelledBy] || 'the shop'}${o.cancelReason ? `: ${o.cancelReason}` : ''}`
         : live ? (o.etaMin ? `Usually ready in about ${o.etaMin} min` : 'We will keep this updated')
             : delivered && o.deliveredAt ? `Delivered on ${fmt(o.deliveredAt)}` : '';
@@ -237,15 +261,36 @@ export default function OrderDetailScreen() {
         <View style={[s.flex, { backgroundColor: background }]}>
             <BackHeader title={`Order #${o.orderNo}`} />
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={[s.pad, { paddingBottom: dock ? 110 : 40 }]}>
-                <Appear style={[s.hero, { backgroundColor: tint(accent), borderColor: accent }]}>
-                    <View style={[s.heroIc, { backgroundColor: accent }]}>
-                        <Ionicons name={ICON[o.status] || 'receipt-outline'} size={26} color="#FFFFFF" />
-                    </View>
-                    <View style={{ flex: 1, marginLeft: 14 }}>
-                        <View style={{ alignSelf: 'flex-start' }}><StatusPill status={o.status} /></View>
-                        {sub ? <Text style={[s.heroSub, { color: text }]}>{sub}</Text> : null}
-                        <Text style={[s.muted, { color: muted }]}>{delivery ? 'Delivery' : 'Pickup'} · {PAY[o.payment?.method] || 'Cash on delivery'}{o.payment?.status === 'paid' ? ' · Paid' : ''}</Text>
-                    </View>
+                <Appear>
+                    <LinearGradient colors={[accent, mix(accent, '#000000', 0.28)]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.hero}>
+                        <View style={[s.blob, { top: -50, right: -30, width: 150, height: 150 }]} />
+                        <View style={[s.blob, { bottom: -60, left: 40, width: 110, height: 110, opacity: 0.6 }]} />
+                        <View style={s.heroTop}>
+                            <View style={{ flex: 1, paddingRight: 12 }}>
+                                <Text style={s.heroCap}>{delivery ? 'DELIVERY' : 'PICKUP'}  ·  {fmt(o.createdAt)}</Text>
+                                <Text style={s.heroHead} numberOfLines={2}>{headline}</Text>
+                                {sub ? <Text style={s.heroSub}>{sub}</Text> : null}
+                            </View>
+                            <View style={s.heroIc}>
+                                <Ionicons name={ICON[o.status] || 'receipt-outline'} size={30} color="#FFFFFF" />
+                            </View>
+                        </View>
+
+                        {live && idx >= 0 ? (
+                            <View style={s.segs}>
+                                {flow.map((st, k) => <View key={st} style={[s.seg, { backgroundColor: k <= idx ? '#FFFFFF' : 'rgba(255,255,255,0.28)' }]} />)}
+                            </View>
+                        ) : null}
+
+                        <View style={s.facts}>
+                            <View style={s.fact}><Text style={s.factK}>TOTAL</Text><Text style={s.factV}>{rs(p.total)}</Text></View>
+                            <View style={s.fact}><Text style={s.factK}>ITEMS</Text><Text style={s.factV}>{o.items.reduce((n, l) => n + (l.measure ? 1 : l.quantity), 0)}</Text></View>
+                            <View style={s.fact}>
+                                <Text style={s.factK}>PAYMENT</Text>
+                                <Text style={s.factV} numberOfLines={1}>{PAY[o.payment?.method] || 'Cash'}{o.payment?.status === 'paid' ? ' · Paid' : ''}</Text>
+                            </View>
+                        </View>
+                    </LinearGradient>
                 </Appear>
 
                 {delivery && live && track && track.state !== 'cancelled' ? (
@@ -264,7 +309,8 @@ export default function OrderDetailScreen() {
                 <Card title="Items" icon="fast-food-outline" delay={100}>
                     {o.items.map((l, i) => (
                         <View key={`${l.productId}${i}`} style={s.item}>
-                            <View style={[s.qty, { backgroundColor: tint(primary) }]}><Text style={[s.qtyTxt, { color: primary }]}>{l.measure?.label || `${l.quantity}×`}</Text></View>
+                            {l.image ? <Image source={{ uri: l.image }} style={[s.itemPic, { backgroundColor: border }]} /> : <View style={[s.itemPic, { backgroundColor: tint(primary), alignItems: 'center', justifyContent: 'center' }]}><Ionicons name="fast-food-outline" size={18} color={primary} /></View>}
+                            <View style={[s.qty, { backgroundColor: tint(primary), marginLeft: 10 }]}><Text style={[s.qtyTxt, { color: primary }]}>{l.measure?.label || `${l.quantity}×`}</Text></View>
                             <View style={{ flex: 1, marginHorizontal: 10 }}>
                                 <Text style={[s.itemName, { color: text }]}>{l.name}</Text>
                                 {l.selections?.length ? <Text style={[s.muted, { color: muted }]}>{l.selections.map((x) => x.name).join(', ')}</Text> : null}
@@ -415,9 +461,20 @@ const s = StyleSheet.create({
     pad: { padding: 16 },
     center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
     big: { fontSize: 18, fontWeight: '800', marginTop: 12 },
-    hero: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 18, padding: 16 },
-    heroIc: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
-    heroSub: { fontSize: 13, fontWeight: '700', marginTop: 8, lineHeight: 18 },
+    hero: { borderRadius: 24, padding: 18, overflow: 'hidden' },
+    blob: { position: 'absolute', borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.12)' },
+    heroTop: { flexDirection: 'row', alignItems: 'center' },
+    heroCap: { color: '#FFFFFF', fontSize: 10.5, fontWeight: '900', letterSpacing: 1, opacity: 0.85 },
+    heroHead: { color: '#FFFFFF', fontSize: 26, fontWeight: '900', letterSpacing: -0.6, marginTop: 6 },
+    heroSub: { color: '#FFFFFF', fontSize: 13, fontWeight: '600', marginTop: 6, lineHeight: 18, opacity: 0.92 },
+    heroIc: { width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
+    segs: { flexDirection: 'row', marginTop: 18 },
+    seg: { flex: 1, height: 5, borderRadius: 3, marginRight: 5 },
+    facts: { flexDirection: 'row', marginTop: 18, paddingTop: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.35)' },
+    fact: { flex: 1 },
+    factK: { color: '#FFFFFF', fontSize: 10, fontWeight: '800', letterSpacing: 0.8, opacity: 0.75 },
+    factV: { color: '#FFFFFF', fontSize: 14, fontWeight: '900', marginTop: 3 },
+    itemPic: { width: 44, height: 44, borderRadius: 12, overflow: 'hidden' },
     card: { marginTop: 14, borderWidth: 1, borderRadius: 18, padding: 16 },
     cHead: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
     h: { fontSize: 15, fontWeight: '900', marginLeft: 8 },

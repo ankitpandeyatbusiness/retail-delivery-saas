@@ -1,6 +1,6 @@
 // Sets how a shop's customer app LOOKS, without opening the superadmin panel.
 // It changes only these keys of settings.brand (everything else the shop has is kept):
-//   look, headerStyle, categoryStyle, tabBarStyle, motion, fontStyle, buttonShape, and colors.accent
+//   look, headerStyle, categoryStyle, tabBarStyle, filterStyle, motion, fontStyle, buttonShape, and colors.accent
 //
 //   node scripts/setLook.js savera                       the premium preset (fresh, photo tiles, floating tabs)
 //   node scripts/setLook.js savera look=midnight accent=#FFB020 categoryStyle=pills
@@ -14,8 +14,8 @@ const Tenant = require('../src/models/Tenant');
 const O = require('../src/config/tenantOptions');
 const { validateSettings } = require('../src/services/tenantConfigService');
 
-const KEYS = ['look', 'headerStyle', 'categoryStyle', 'tabBarStyle', 'motion', 'fontStyle', 'buttonShape'];
-const PREMIUM = { look: 'fresh', headerStyle: 'hero', categoryStyle: 'tiles', tabBarStyle: 'floating', motion: 'full', accent: '#F59E0B' };
+const KEYS = ['look', 'headerStyle', 'categoryStyle', 'tabBarStyle', 'filterStyle', 'motion', 'fontStyle', 'buttonShape'];
+const PREMIUM = { look: 'fresh', headerStyle: 'hero', categoryStyle: 'tiles', tabBarStyle: 'floating', filterStyle: 'rail', motion: 'full', accent: '#F59E0B' };
 
 (async () => {
     const [slug, ...rest] = process.argv.slice(2);

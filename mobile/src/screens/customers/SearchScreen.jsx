@@ -14,6 +14,9 @@ import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useMenuStore } from '../../store/customers/shopStores';
 import { useFilterStore, applyFilters } from '../../store/customers/useFilterStore';
 import { searchProducts } from '../../api/customers/shopApi';
+import { readCache, writeCache } from '../../utils/common/cache';
+import { FadeIn } from '../../components/common/motion';
+import { SkelDish } from '../../components/customers/skeletons';
 
 // Popular card: photo, name, price and the ADD / − 1 + pill, so dishes can be added straight from here.
 function Poster({ item, w }) {
@@ -68,6 +71,14 @@ export default function SearchScreen() {
     const [state, setState] = useState('idle'); // idle | loading | ok | error
     const [more, setMore] = useState(false);
     const [dlg, setDlg] = useState(false);
+    const [recent, setRecent] = useState([]);
+    useEffect(() => { readCache('recentSearches').then((v) => { if (Array.isArray(v)) setRecent(v.slice(0, 8)); }); }, []);
+    const saveRecent = (list) => { setRecent(list); writeCache('recentSearches', list); };
+    const remember = (t) => {
+        const w = String(t || '').trim();
+        if (w.length < 2) return;
+        saveRecent([w, ...recent.filter((x) => x.toLowerCase() !== w.toLowerCase())].slice(0, 8));
+    };
 
     const term = q.trim();
     const active = term.length >= 2;
@@ -148,6 +159,25 @@ export default function SearchScreen() {
         body = (
             <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ paddingBottom: 110 }}>
                 {term.length === 1 ? <Text style={[s.hint, { color: muted }]}>Type at least 2 letters</Text> : null}
+                {recent.length && !term ? (
+                    <FadeIn>
+                        <View style={s.recHead}>
+                            <Text style={[s.sec, { color: text, paddingHorizontal: 0, paddingTop: 0, paddingBottom: 0 }]}>Recent searches</Text>
+                            <Pressable onPress={() => saveRecent([])} hitSlop={8}><Text style={[s.link, { color: primary, marginTop: 0 }]}>Clear</Text></Pressable>
+                        </View>
+                        <View style={s.recWrap}>
+                            {recent.map((r) => (
+                                <Pressable key={r} onPress={() => setQ(r)} style={[s.recChip, { backgroundColor: surface, borderColor: border }]}>
+                                    <Ionicons name="time-outline" size={14} color={muted} />
+                                    <Text style={[s.recTxt, { color: text }]} numberOfLines={1}>{r}</Text>
+                                    <Pressable onPress={() => saveRecent(recent.filter((x) => x !== r))} hitSlop={8}>
+                                        <Ionicons name="close" size={14} color={muted} />
+                                    </Pressable>
+                                </Pressable>
+                            ))}
+                        </View>
+                    </FadeIn>
+                ) : null}
                 <Text style={[s.sec, { color: text }]}>Popular right now</Text>
                 {!loaded && !popular.length ? <ActivityIndicator style={{ margin: 30 }} color={primary} /> : !popular.length ? (
                     <Text style={[s.emptyTxt, { color: muted, marginTop: 20 }]}>{emptyText}</Text>
@@ -161,7 +191,11 @@ export default function SearchScreen() {
             </ScrollView>
         );
     } else if (state === 'loading') {
-        body = <ActivityIndicator style={{ margin: 40 }} color={primary} />;
+        body = (
+            <View style={{ paddingTop: 12 }}>
+                {[0, 1, 2, 3].map((i) => <SkelDish key={i} variant="compact" />)}
+            </View>
+        );
     } else if (state === 'error') {
         body = (
             <View style={s.center}>
@@ -170,7 +204,15 @@ export default function SearchScreen() {
             </View>
         );
     } else if (!shown.length) {
-        body = <View style={s.center}><Text style={[s.emptyTxt, { color: muted }]}>{emptyText}</Text></View>;
+        body = (
+            <FadeIn style={s.center}>
+                <View style={[s.emptyIc, { backgroundColor: surface, borderColor: border }]}>
+                    <Ionicons name="search-outline" size={34} color={muted} />
+                </View>
+                <Text style={[s.emptyHead, { color: text }]}>{emptyText}</Text>
+                <Text style={[s.emptyTxt, { color: muted, marginTop: 6 }]}>Check the spelling or try a shorter word.</Text>
+            </FadeIn>
+        );
     } else {
         body = (
             <FlatList
@@ -195,6 +237,7 @@ export default function SearchScreen() {
                             {!q ? <View pointerEvents="none" style={s.phLayer}><Slider names={names} /></View> : null}
                             <TextInput
                                 ref={inputRef} value={q} onChangeText={setQ}
+                                onSubmitEditing={() => remember(q)} onBlur={() => remember(q)}
                                 returnKeyType="search" autoCorrect={false}
                                 style={[s.input, { color: text }]}
                             />
@@ -238,6 +281,12 @@ const s = StyleSheet.create({
     pp: { fontSize: 14, fontWeight: '800' },
     mrp: { marginLeft: 6, fontSize: 12, textDecorationLine: 'line-through' },
     center: { padding: 40, alignItems: 'center' },
+    recHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 16 },
+    recWrap: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, paddingTop: 10 },
+    recChip: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 18, paddingHorizontal: 12, paddingVertical: 8, marginRight: 8, marginBottom: 8, maxWidth: '100%' },
+    recTxt: { fontSize: 13, fontWeight: '700', marginHorizontal: 6, flexShrink: 1 },
+    emptyIc: { width: 76, height: 76, borderRadius: 38, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+    emptyHead: { fontSize: 16, fontWeight: '800', textAlign: 'center' },
     emptyTxt: { fontSize: 14, textAlign: 'center' },
     link: { marginTop: 12, fontSize: 13, fontWeight: '700' },
 });

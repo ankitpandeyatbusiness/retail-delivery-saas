@@ -5,7 +5,9 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useBrand, GuestGate, CardGlow } from '../../components/common/kit';
+import { Skel, FadeIn } from '../../components/common/motion';
 import { tint } from '../../components/customers/shop';
 import { Press, Appear } from '../../components/customers/cartParts';
 import { StatusPill, itemsText, rs, isActive, cancelFlow, reorder } from '../../components/customers/orders';
@@ -24,6 +26,27 @@ const FILTERS = {
     cancelled: (o) => o.status === 'cancelled',
 };
 const PAY = { cod: 'Cash on delivery', upi: 'UPI', card: 'Card', wallet: 'Wallet' };
+const FLOW_DELIVERY = ['placed', 'accepted', 'preparing', 'out_for_delivery', 'delivered'];
+const FLOW_OTHER = ['placed', 'accepted', 'preparing', 'ready', 'delivered'];
+const STEP = {
+    placed: 'Order placed', accepted: 'Accepted', preparing: 'Preparing', ready: 'Ready for pickup',
+    out_for_delivery: 'On the way', delivered: 'Delivered',
+};
+const STEP_ICON = {
+    placed: 'receipt-outline', accepted: 'checkmark-done-outline', preparing: 'restaurant-outline', ready: 'bag-check-outline',
+    out_for_delivery: 'bicycle-outline', delivered: 'checkmark-circle-outline',
+};
+const MONTHS_FULL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+// "Today", "Yesterday", "This week", then the month: the headings the list is grouped under
+const dayLabel = (v) => {
+    const d = new Date(v);
+    const sod = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+    const diff = Math.round((sod(new Date()) - sod(d)) / 86400000);
+    if (diff <= 0) return 'Today';
+    if (diff === 1) return 'Yesterday';
+    if (diff < 7) return 'This week';
+    return `${MONTHS_FULL[d.getMonth()]} ${d.getFullYear()}`;
+};
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const fmtDate = (v) => {
     const d = new Date(v);
@@ -39,7 +62,7 @@ function useChipAnim(on) {
         if (first.current) { first.current = false; return; }
         Animated.timing(a, { toValue: on ? 1 : 0, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
     }, [on]);
-    const to = (v) => Animated.spring(p, { toValue: v, friction: 6, tension: 220, useNativeDriver: true }).start();
+    const to = () => { };   // no squeeze on press: the chip just fades to its new colour
     return { a, p, to };
 }
 
@@ -85,32 +108,98 @@ function DateChip({ label, on, onPress, onClear }) {
 
 function Skeleton() {
     const { surface, border } = useBrand();
-    const v = useRef(new Animated.Value(0.5)).current;
+    return (
+        <View style={{ paddingTop: 6 }}>
+            {[0, 1, 2].map((i) => (
+                <View key={i} style={[s.card, { backgroundColor: surface, borderColor: border, padding: 16, flexDirection: 'column' }]}>
+                    <View style={s.row}>
+                        <View style={{ flex: 1 }}>
+                            <Skel width="42%" height={16} />
+                            <Skel width="62%" height={11} style={{ marginTop: 8 }} />
+                        </View>
+                        <Skel width={78} height={26} radius={13} />
+                    </View>
+                    <View style={[s.thumbRow, { marginTop: 14 }]}>
+                        <Skel width={34} height={34} radius={17} />
+                        <Skel width={34} height={34} radius={17} style={{ marginLeft: -10 }} />
+                        <Skel width="55%" height={12} style={{ marginLeft: 12 }} />
+                    </View>
+                    <View style={[s.row, { marginTop: 18 }]}>
+                        <Skel width={70} height={18} />
+                        <Skel width={92} height={34} radius={12} />
+                    </View>
+                </View>
+            ))}
+        </View>
+    );
+}
+
+// An order that is still in progress gets its own prominent card: the current step in big letters,
+// a progress bar across the whole journey, and one clear way to follow it.
+function LiveOrderCard({ o, onOpen }) {
+    const { primaryLight, primaryDark, onPrimary, primary } = useBrand();
+    const delivery = o.orderType === 'delivery';
+    const flow = delivery ? FLOW_DELIVERY : FLOW_OTHER;
+    const idx = Math.max(0, flow.indexOf(o.status));
+    const pct = (idx + 1) / flow.length;
+    const fill = useRef(new Animated.Value(pct)).current;
+    const beat = useRef(new Animated.Value(0)).current;
     useEffect(() => {
-        const loop = Animated.loop(Animated.sequence([
-            Animated.timing(v, { toValue: 1, duration: 700, useNativeDriver: true }),
-            Animated.timing(v, { toValue: 0.5, duration: 700, useNativeDriver: true }),
-        ]));
+        Animated.timing(fill, { toValue: pct, duration: 600, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+    }, [pct]);
+    useEffect(() => {
+        const loop = Animated.loop(Animated.timing(beat, { toValue: 1, duration: 1400, easing: Easing.out(Easing.quad), useNativeDriver: true }));
         loop.start();
         return () => loop.stop();
     }, []);
-    const bar = (w, h, mt) => <View style={{ width: w, height: h, borderRadius: 7, backgroundColor: border, marginTop: mt }} />;
+    const eta = o.etaMin ? `Ready in about ${o.etaMin} min` : (delivery ? 'Arriving soon' : 'We will let you know when it is ready');
     return (
-        <Animated.View style={{ opacity: v, paddingTop: 6 }}>
-            {[0, 1, 2].map((i) => (
-                <View key={i} style={[s.card, { backgroundColor: surface, borderColor: border, padding: 16, flexDirection: 'column' }]}>
-                    {bar('45%', 16, 0)}{bar('30%', 11, 8)}{bar('100%', 42, 14)}{bar('60%', 14, 14)}
+        <Press onPress={onOpen} style={s.live}>
+            <LinearGradient colors={[primaryLight, primaryDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.liveIn}>
+                <View style={[s.blob, { top: -50, right: -30, width: 150, height: 150 }]} />
+                <View style={[s.blob, { bottom: -60, left: 50, width: 110, height: 110, opacity: 0.6 }]} />
+                <View style={s.row}>
+                    <View style={{ flex: 1, paddingRight: 10 }}>
+                        <View style={s.liveTag}>
+                            <View style={s.beatWrap}>
+                                <Animated.View style={[s.beat, { opacity: beat.interpolate({ inputRange: [0, 1], outputRange: [0.7, 0] }), transform: [{ scale: beat.interpolate({ inputRange: [0, 1], outputRange: [1, 2.6] }) }] }]} />
+                                <View style={s.beatDot} />
+                            </View>
+                            <Text style={[s.liveTagTxt, { color: onPrimary }]}>LIVE · ORDER #{o.orderNo}</Text>
+                        </View>
+                        <Text style={[s.liveStep, { color: onPrimary }]} numberOfLines={1}>{STEP[o.status] || 'In progress'}</Text>
+                        <Text style={[s.liveEta, { color: onPrimary }]} numberOfLines={1}>{eta}</Text>
+                    </View>
+                    <View style={s.liveIc}>
+                        <Ionicons name={STEP_ICON[o.status] || 'receipt-outline'} size={28} color={onPrimary} />
+                    </View>
                 </View>
-            ))}
-        </Animated.View>
+
+                <View style={s.track}>
+                    <Animated.View style={[s.trackFill, { width: fill.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} />
+                </View>
+                <View style={[s.row, { marginTop: 6 }]}>
+                    <Text style={[s.trackTxt, { color: onPrimary }]}>{STEP[flow[0]]}</Text>
+                    <Text style={[s.trackTxt, { color: onPrimary }]}>{STEP[flow[flow.length - 1]]}</Text>
+                </View>
+
+                <View style={[s.row, { marginTop: 14 }]}>
+                    <Text style={[s.liveItems, { color: onPrimary }]} numberOfLines={1}>{itemsText(o)}</Text>
+                    <View style={s.liveBtn}>
+                        <Text style={[s.liveBtnTxt, { color: primary }]}>Track</Text>
+                        <Ionicons name="arrow-forward" size={14} color={primary} style={{ marginLeft: 4 }} />
+                    </View>
+                </View>
+            </LinearGradient>
+        </Press>
     );
 }
 
 function OrderCard({ o, index, animate, onOpen, onCancel, onReorder, onInvoice, reorderOn, busy }) {
-    const { primary, text, muted, surface, border, error } = useBrand();
+    const { primary, text, muted, surface, border, error, ok } = useBrand();
     const active = isActive(o.status);
     const delivered = o.status === 'delivered';
-    const accent = o.status === 'cancelled' ? error : delivered ? '#1E8E3E' : primary;
+    const accent = o.status === 'cancelled' ? error : delivered ? ok : primary;
     const list = o.items || [];
     const thumbs = list.slice(0, 3);
     const extra = list.length - thumbs.length;
@@ -176,7 +265,8 @@ function OrderCard({ o, index, animate, onOpen, onCancel, onReorder, onInvoice, 
 }
 
 function Empty({ filter, ranged }) {
-    const { text, muted, surface, border } = useBrand();
+    const nav = useNavigation();
+    const { text, muted, surface, border, primary } = useBrand();
     const msg = ranged ? 'No orders in this period'
         : { all: 'No orders yet', active: 'No active orders', delivered: 'No delivered orders', cancelled: 'No cancelled orders' }[filter];
     return (
@@ -186,6 +276,11 @@ function Empty({ filter, ranged }) {
             </View>
             <Text style={[s.emptyBig, { color: text }]}>{msg}</Text>
             <Text style={[s.emptySub, { color: muted }]}>{ranged ? 'Try another date or clear the date filter.' : 'Your orders will show up here.'}</Text>
+            {!ranged && filter === 'all' ? (
+                <Press onPress={() => nav.navigate('Home')} style={[s.fill, { backgroundColor: primary, marginTop: 18, paddingHorizontal: 26, paddingVertical: 11 }]}>
+                    <Text style={s.fillTxt}>Browse the menu</Text>
+                </Press>
+            ) : null}
         </Appear>
     );
 }
@@ -250,6 +345,17 @@ function OrdersList() {
     };
 
     const filtered = useMemo(() => orders.filter(FILTERS[filter]), [orders, filter]);
+    // rows: a heading, then its orders. Orders in progress sit under "Live now" as big cards.
+    const rows = useMemo(() => {
+        const out = [];
+        let last = '';
+        filtered.forEach((o) => {
+            const label = isActive(o.status) ? 'Live now' : dayLabel(o.createdAt);
+            if (label !== last) { out.push({ h: label }); last = label; }
+            out.push({ o });
+        });
+        return out;
+    }, [filtered]);
 
     const loadMore = async () => {
         if (more || !hasMore || state !== 'ok') return;
@@ -300,14 +406,24 @@ function OrdersList() {
                 ) : (
                     <Animated.View style={{ flex: 1, opacity: fade }}>
                         <FlatList
-                            data={filtered} keyExtractor={(o) => o.id}
+                            data={rows} keyExtractor={(r, i) => (r.h ? `h-${r.h}-${i}` : r.o.id)}
                             refreshing={refreshing} onRefresh={refresh}
                             onEndReached={loadMore} onEndReachedThreshold={0.4}
                             ListEmptyComponent={hasMore ? null : <Empty filter={filter} ranged={!!range?.from} />}
                             ListFooterComponent={more ? <ActivityIndicator style={{ margin: 16 }} color={primary} /> : null}
                             contentContainerStyle={{ paddingTop: 4, paddingBottom: 24 }}
                             showsVerticalScrollIndicator={false}
-                                renderItem={({ item: o, index }) => (
+                                renderItem={({ item: r, index }) => {
+                                    if (r.h) return <Text style={[s.group, { color: r.h === 'Live now' ? primary : muted }]}>{r.h.toUpperCase()}</Text>;
+                                    const o = r.o;
+                                    if (isActive(o.status)) {
+                                        return (
+                                            <FadeIn index={index} distance={12}>
+                                                <LiveOrderCard o={o} onOpen={() => nav.navigate('OrderDetail', { id: o.id })} />
+                                            </FadeIn>
+                                        );
+                                    }
+                                    return (
                                     <OrderCard
                                         o={o} index={index} animate={intro.current} reorderOn={reorderOn} busy={busyId === o.id}
                                         onOpen={() => nav.navigate('OrderDetail', { id: o.id })}
@@ -318,7 +434,8 @@ function OrdersList() {
                                             onDone: (u) => setOrders((p) => p.map((x) => (x.id === u.id ? u : x))),
                                         })}
                                     />
-                                )}
+                                    );
+                                }}
                         />
                     </Animated.View>
                 )}
@@ -341,6 +458,24 @@ const s = StyleSheet.create({
     pillTxt: { fontSize: 13, fontWeight: '800', textAlign: 'center' },
     card: { flexDirection: 'row', marginHorizontal: 16, marginBottom: 14, borderWidth: 1, borderRadius: 18, overflow: 'hidden', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
     accent: { width: 4 },
+    group: { fontSize: 11, fontWeight: '900', letterSpacing: 1.2, paddingHorizontal: 20, paddingTop: 10, paddingBottom: 8 },
+    live: { marginHorizontal: 16, marginBottom: 14, borderRadius: 22, overflow: 'hidden', elevation: 4, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 12, shadowOffset: { width: 0, height: 6 } },
+    liveIn: { padding: 18, overflow: 'hidden' },
+    blob: { position: 'absolute', borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.12)' },
+    liveTag: { flexDirection: 'row', alignItems: 'center' },
+    beatWrap: { width: 14, height: 14, alignItems: 'center', justifyContent: 'center', marginRight: 6 },
+    beat: { position: 'absolute', width: 8, height: 8, borderRadius: 4, backgroundColor: '#FFFFFF' },
+    beatDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#FFFFFF' },
+    liveTagTxt: { fontSize: 11, fontWeight: '900', letterSpacing: 1, opacity: 0.9 },
+    liveStep: { fontSize: 24, fontWeight: '900', letterSpacing: -0.5, marginTop: 8 },
+    liveEta: { fontSize: 13, fontWeight: '600', marginTop: 3, opacity: 0.9 },
+    liveIc: { width: 56, height: 56, borderRadius: 28, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
+    track: { height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.28)', marginTop: 18, overflow: 'hidden' },
+    trackFill: { height: 6, borderRadius: 3, backgroundColor: '#FFFFFF' },
+    trackTxt: { fontSize: 10.5, fontWeight: '700', opacity: 0.8 },
+    liveItems: { flex: 1, fontSize: 12.5, fontWeight: '600', opacity: 0.92, paddingRight: 12 },
+    liveBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 9 },
+    liveBtnTxt: { fontSize: 13, fontWeight: '900' },
     cardIn: { flex: 1, padding: 14 },
     row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     no: { fontSize: 15, fontWeight: '900' },

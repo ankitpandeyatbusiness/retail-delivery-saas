@@ -67,7 +67,7 @@ function validateSettings(input) {
     known(s, ['brand', 'tabs', 'home', 'features', 'menu', 'orders', 'hours', 'offers', 'labels', 'riders', 'notifications', 'app'], 'settings');
 
     // brand
-    section('brand', ['colors', 'fontStyle', 'buttonShape', 'look', 'motion', 'headerStyle', 'tabBarStyle', 'categoryStyle'], (b, out, p) => {
+    section('brand', ['colors', 'fontStyle', 'buttonShape', 'look', 'motion', 'headerStyle', 'tabBarStyle', 'categoryStyle', 'filterStyle'], (b, out, p) => {
         if (b.colors !== undefined) {
             if (!isObj(b.colors)) err(p('colors'), 'must be an object');
             else {
@@ -86,6 +86,7 @@ function validateSettings(input) {
         if (b.headerStyle !== undefined && oneOf(p('headerStyle'), b.headerStyle, O.HEADER_STYLES)) out.headerStyle = b.headerStyle;
         if (b.tabBarStyle !== undefined && oneOf(p('tabBarStyle'), b.tabBarStyle, O.TAB_BAR_STYLES)) out.tabBarStyle = b.tabBarStyle;
         if (b.categoryStyle !== undefined && oneOf(p('categoryStyle'), b.categoryStyle, O.CATEGORY_STYLES)) out.categoryStyle = b.categoryStyle;
+        if (b.filterStyle !== undefined && oneOf(p('filterStyle'), b.filterStyle, O.FILTER_STYLES)) out.filterStyle = b.filterStyle;
     });
 
     // tabs (ordered list)
@@ -268,7 +269,7 @@ const DEFAULTS = {
     // the look defaults reproduce the app as it was before looks existed, so a shop changes only when its settings say so
     brand: {
         fontStyle: 'modern', buttonShape: 'rounded',
-        look: 'bold', motion: 'full', headerStyle: 'hero', tabBarStyle: 'classic', categoryStyle: 'circles',
+        look: 'bold', motion: 'full', headerStyle: 'hero', tabBarStyle: 'classic', categoryStyle: 'circles', filterStyle: 'dialog',
     },
     tabs: ['home', 'search', 'orders', 'profile'],
     features: {
@@ -377,6 +378,7 @@ function resolveConfig(tenant, now = new Date()) {
         headerStyle: clean.brand?.headerStyle || DEFAULTS.brand.headerStyle,
         tabBarStyle: clean.brand?.tabBarStyle || DEFAULTS.brand.tabBarStyle,
         categoryStyle: clean.brand?.categoryStyle || DEFAULTS.brand.categoryStyle,
+        filterStyle: clean.brand?.filterStyle || DEFAULTS.brand.filterStyle,
     };
 
     const features = merge(DEFAULTS.features, clean.features);

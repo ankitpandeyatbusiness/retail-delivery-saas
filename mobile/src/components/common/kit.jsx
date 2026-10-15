@@ -1,6 +1,7 @@
 // src/components/ui/kit.jsx
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Appearance, AppState } from 'react-native';
+import { create } from 'zustand';
+import { View, Text, Pressable, StyleSheet, Appearance, AppState, Animated, Easing } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -46,20 +47,90 @@ const midnightFrom = (hue) => {
 const lookColors = (theme) => (theme?.look === 'midnight' ? midnightFrom(theme?.colors?.primary) : LOOKS[theme?.look]);
 const DEFAULT_ACCENT = '#F59E0B';
 
-// The phone's light/dark setting, kept live.
-// The built-in useColorScheme can miss a change made while the app was in the background (the person goes to
-// Settings, flips the theme and comes back, and it keeps the old value until a restart). So it is also re-read
+// ---- a theme change: the screen stays exactly where it is and its colours MORPH into the new look ----
+// Every colour the app draws comes from useBrand(). For about a third of a second after a change, useBrand returns
+// the colours part-way between the old look and the new one, so backgrounds, cards, text and brand colours all glide
+// together. Nothing fades to black or white, and nothing moves.
+const useBlend = create(() => ({ from: null, t: 1 }));
+let blendTimer = null;
+
+const BLEND_MS = 240;
+const ease = (p) => (p < 0.5 ? 4 * p * p * p : 1 - ((-2 * p + 2) ** 3) / 2);   // ease in and out
+
+// run `apply` (which switches the theme) and glide the colours from what is on screen now to the new ones
+export function smoothTheme(apply) {
+    const st = useThemeStore.getState();
+    if (st.theme.motion === 'off') { apply(); return; }
+    const cur = useSchemeStore.getState().scheme;
+    const from = computeBrand({ ...st.theme, look: resolveLook(st.theme.look, st.appearance, cur) });
+    cancelAnimationFrame(blendTimer);
+    useBlend.setState({ from, t: 0 });
+    apply();
+    const start = Date.now();
+    const step = () => {
+        const p = Math.min(1, (Date.now() - start) / BLEND_MS);
+        if (p >= 1) {
+            useBlend.setState({ from: null, t: 1 });
+            return;
+        }
+        useBlend.setState({ t: ease(p) });
+        blendTimer = requestAnimationFrame(step);   // next frame, as soon as this one has been drawn
+    };
+    blendTimer = requestAnimationFrame(step);
+}
+
+// #RRGGBB or #RRGGBBAA (the soft tints carry an alpha), blended channel by channel
+const HEXA = /^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$/;
+const blendHex = (a, b, t) => {
+    const ch = (c) => [1, 3, 5, 7].map((i) => (i < c.length ? parseInt(c.slice(i, i + 2), 16) : 255));
+    const A = ch(a);
+    const B = ch(b);
+    const plain = a.length === 7 && b.length === 7;   // no alpha on either side: keep it a 6-digit colour
+    const out = A.slice(0, plain ? 3 : 4).map((v, i) => Math.round(v + (B[i] - v) * t).toString(16).padStart(2, '0')).join('');
+    return '#' + out;
+};
+
+// every colour in two token sets, blended by t (non-colour values switch at the half way point)
+function blendTokens(from, to, t) {
+    const out = {};
+    Object.keys(to).forEach((key) => {
+        const x = from[key];
+        const y = to[key];
+        if (typeof y === 'string' && HEXA.test(y) && HEXA.test(x)) out[key] = blendHex(x, y, t);
+        else out[key] = t < 0.5 && x !== undefined ? x : y;
+    });
+    out.dark = to.dark;   // the target decides light/dark things (status bar icons) right away
+    out.look = to.look;
+    return out;
+}
+
+// The phone's light/dark setting, kept live. There is ONE value for the whole app (a store), with one listener, so
+// every screen switches in the same moment, behind the veil.
+// The built-in useColorScheme can miss a change made while the app was in the background, so it is also re-read
 // every time the app comes back to the foreground.
+const useSchemeStore = create(() => ({ scheme: Appearance.getColorScheme() }));
+let schemeWired = false;
+function wireScheme() {
+    if (schemeWired) return;
+    schemeWired = true;
+    const change = (next) => {
+        if (!next) return;
+        const cur = useSchemeStore.getState().scheme;
+        if (next === cur) return;
+        const st = useThemeStore.getState();
+        const apply = () => useSchemeStore.setState({ scheme: next });
+        // only a change that alters the look is blended (a shop that stays the same in both modes needs nothing)
+        if (resolveLook(st.theme.look, st.appearance, next) === resolveLook(st.theme.look, st.appearance, cur)) apply();
+        else smoothTheme(apply);
+    };
+    Appearance.addChangeListener(({ colorScheme }) => change(colorScheme || Appearance.getColorScheme()));
+    AppState.addEventListener('change', (state) => {
+        if (state === 'active') { change(Appearance.getColorScheme()); setTimeout(() => change(Appearance.getColorScheme()), 250); }
+    });
+}
 export function useSystemScheme() {
-    const [scheme, setScheme] = useState(() => Appearance.getColorScheme());
-    useEffect(() => {
-        const read = () => setScheme(Appearance.getColorScheme());
-        const sub = Appearance.addChangeListener(({ colorScheme }) => setScheme(colorScheme || Appearance.getColorScheme()));
-        const app = AppState.addEventListener('change', (s) => { if (s === 'active') { read(); setTimeout(read, 250); } });
-        read();
-        return () => { sub.remove(); app.remove(); };
-    }, []);
-    return scheme;
+    wireScheme();
+    return useSchemeStore((st) => st.scheme);
 }
 
 // Which look is drawn. The customer's Account → Appearance choice decides light or dark:
@@ -78,9 +149,15 @@ export function resolveLook(shopLook, appearance, scheme) {
 // A soft pool of the brand colour inside a card, so a dark card is not a flat grey slab.
 // Put it as the FIRST child of the card; it fills the card, ignores touches, and draws nothing in the light looks.
 //   from: 'br' (glow in the bottom-right corner, behind the price and the ADD button) or 'tl' (top-left)
-export function CardGlow({ radius = 18, from = 'br', strength = 0.2 }) {
+export function CardGlow({ radius = 18, from = 'br', strength: base = 0.2 }) {
     const { primary, dark, look } = useBrand();
-    if (look === 'bold' || !dark || !isHex(primary)) return null;
+    const prev = useBlend((st) => st.from);
+    const t = useBlend((st) => st.t);
+    const glows = (d, l) => (l !== 'bold' && d ? 1 : 0);
+    // part-way through a theme change the glow is a mix of "had one" and "has one"
+    const amount = prev && t < 1 ? glows(prev.dark, prev.look) * (1 - t) + glows(dark, look) * t : glows(dark, look);
+    if (amount <= 0.01 || !isHex(primary)) return null;
+    const strength = base * amount;
     const br = from === 'br';
     return (
         <LinearGradient
@@ -99,8 +176,18 @@ export function useBrand() {
     const appearance = useThemeStore((s) => s.appearance);
     const scheme = useSystemScheme();
     const lookId = resolveLook(shopTheme.look, appearance, scheme);
-    return useMemo(() => {
-        const theme = lookId === shopTheme.look ? shopTheme : { ...shopTheme, look: lookId };
+    const target = useMemo(
+        () => computeBrand(lookId === shopTheme.look ? shopTheme : { ...shopTheme, look: lookId }),
+        [shopTheme, lookId],
+    );
+    const from = useBlend((st) => st.from);
+    const t = useBlend((st) => st.t);
+    return useMemo(() => (from && t < 1 ? blendTokens(from, target, t) : target), [target, from, t]);
+}
+
+// the colours of one theme (theme.look already says which look to draw)
+export function computeBrand(theme) {
+    {
         const c = theme.colors || {};
         const L = lookColors(theme);
         const background = L ? L.background : (c.background || '#FFFFFF');
@@ -140,7 +227,7 @@ export function useBrand() {
             errorSoft: dark ? alpha('#FF6B6B', 0.16) : '#FDECEA',
             neutralSoft: dark ? mix(surface, '#FFFFFF', 0.1) : '#EEEEEE',
         };
-    }, [shopTheme, lookId]);
+    }
 }
 
 // Top bar with a back arrow on the left (for full-screen pages)

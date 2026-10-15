@@ -20,6 +20,7 @@ module.exports = {
     HEADER_STYLES: ['hero', 'compact'],               // the top of the home screen
     TAB_BAR_STYLES: ['classic', 'floating'],          // bottom tabs: a flat strip, or a rounded bar that floats
     CATEGORY_STYLES: ['circles', 'tiles', 'pills'],   // how the category row is drawn
+    FILTER_STYLES: ['dialog', 'sheet', 'rail'],       // the filters: a centred dialog, a bottom sheet, or a bottom sheet with a side list of sections
 
     // on/off switches
     FEATURE_KEYS: [

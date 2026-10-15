@@ -6,6 +6,7 @@ import { View, Text, Pressable, ScrollView, StyleSheet, Animated, Easing, Activi
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, BackHeader } from '../../components/common/kit';
+import { Skel } from '../../components/common/motion';
 import { tint } from '../../components/customers/shop';
 import { fetchPaymentConfig } from '../../api/customers/shopApi';
 import { standardUpiApps } from '../../utils/customers/upiApps';
@@ -61,6 +62,25 @@ function MethodCard({ m, index, selected, onPick }) {
                 </View>
             </Pressable>
         </Animated.View>
+    );
+}
+
+// the shape of the payment rows while the phone and the server are asked what can be offered
+function MethodSkeleton({ count = 3 }) {
+    const { surface, border } = useBrand();
+    return (
+        <View>
+            {Array.from({ length: count }).map((_, i) => (
+                <View key={i} style={[s.card, { backgroundColor: surface, borderColor: border }]}>
+                    <Skel width={46} height={46} radius={23} style={{ marginRight: 14 }} />
+                    <View style={{ flex: 1 }}>
+                        <Skel width={i % 2 ? '52%' : '40%'} height={15} />
+                        <Skel width="78%" height={11} style={{ marginTop: 10 }} />
+                    </View>
+                    <Skel width={22} height={22} radius={11} style={{ marginLeft: 12 }} />
+                </View>
+            ))}
+        </View>
     );
 }
 
@@ -125,7 +145,7 @@ export default function PaymentMethodsScreen() {
 
                 <Text style={[s.title, { color: muted }]}>PAY ONLINE</Text>
                 {cfg.loading || apps === null ? (
-                    <ActivityIndicator color={primary} style={{ marginVertical: 18 }} />
+                    <MethodSkeleton />
                 ) : !cfg.online ? (
                     <Text style={[s.note, { color: muted }]}>Online payment is not available for this shop right now.</Text>
                 ) : (

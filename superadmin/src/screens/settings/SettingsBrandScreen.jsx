@@ -49,6 +49,7 @@ export default function SettingsBrandScreen() {
                         <Choice label="Look" options={choices('look', ed.options.LOOKS)} value={ed.draft.brand.look} onChange={(v) => ed.set('brand', 'look', v)} />
                         <Choice label="Home header" options={choices('headerStyle', ed.options.HEADER_STYLES)} value={ed.draft.brand.headerStyle} onChange={(v) => ed.set('brand', 'headerStyle', v)} />
                         <Choice label="Categories" options={choices('categoryStyle', ed.options.CATEGORY_STYLES)} value={ed.draft.brand.categoryStyle} onChange={(v) => ed.set('brand', 'categoryStyle', v)} />
+                        <Choice label="Filters" options={choices('filterStyle', ed.options.FILTER_STYLES)} value={ed.draft.brand.filterStyle} onChange={(v) => ed.set('brand', 'filterStyle', v)} />
                         <Choice label="Bottom tabs" options={choices('tabBarStyle', ed.options.TAB_BAR_STYLES)} value={ed.draft.brand.tabBarStyle} onChange={(v) => ed.set('brand', 'tabBarStyle', v)} />
                         <Choice label="Animations" options={choices('motion', ed.options.MOTION_LEVELS)} value={ed.draft.brand.motion} onChange={(v) => ed.set('brand', 'motion', v)} last />
                         <Hint>Animations: Full is the premium feel. Subtle keeps only fades. Off is for very old phones.</Hint>
