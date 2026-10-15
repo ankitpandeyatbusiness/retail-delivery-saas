@@ -76,7 +76,7 @@ router.patch('/products/:id/stock', wrap(async (req, res) => {
 
 router.use('/products', crud(Product, {
     fields: [
-        'categoryId', 'name', 'description', 'image', 'price', 'mrp',
+        'categoryId', 'categoryName', 'name', 'description', 'image', 'price', 'mrp',
         'isVeg', 'isEggless', 'isSugarFree', 'isJain', 'spiceLevel',
         'isBestseller', 'isNewArrival', 'isGiftPack', 'serves', 'calories', 'prepTimeMin',
         'optionGroups', 'sizes', 'weightOptions', 'addOns',

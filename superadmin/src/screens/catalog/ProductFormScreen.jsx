@@ -17,10 +17,16 @@ import { errMsg } from '../../api/adminClient';
 import { useShopStore } from '../../store/useShopStore';
 import { nameOf } from '../../utils/settings';
 
+// same rule as the server: "south  indian" -> "South Indian", short all-capital words (BBQ) stay
+const titleCase = (s) =>
+    String(s).trim().replace(/\s+/g, ' ').split(' ')
+        .map((w) => (w.length <= 3 && /[A-Z]/.test(w) && w === w.toUpperCase() ? w : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()))
+        .join(' ');
+
 const SPICE = [['none', 'No spice'], ['mild', 'Mild'], ['medium', 'Medium'], ['hot', 'Hot']];
 
 const BLANK = {
-    categoryId: '', name: '', description: '', image: '', price: undefined, mrp: undefined,
+    categoryId: '', newCategory: '', name: '', description: '', image: '', price: undefined, mrp: undefined,
     isVeg: undefined, isEggless: false, isSugarFree: false, isJain: false, spiceLevel: 'none',
     isBestseller: false, isNewArrival: false, isGiftPack: false, serves: undefined, calories: undefined, prepTimeMin: undefined,
     optionGroups: [], isAvailable: true, isActive: true, sortOrder: 0,
@@ -28,7 +34,7 @@ const BLANK = {
 };
 
 const fromRecord = (r) => ({
-    categoryId: r.categoryId ? String(r.categoryId) : '',
+    categoryId: r.categoryId ? String(r.categoryId) : '', newCategory: '',
     name: r.name || '', description: r.description || '', image: r.image || '',
     price: r.price, mrp: r.mrp,
     isVeg: r.isVeg, isEggless: !!r.isEggless, isSugarFree: !!r.isSugarFree, isJain: !!r.isJain, spiceLevel: r.spiceLevel || 'none',
@@ -69,7 +75,8 @@ export default function ProductFormScreen() {
         shopId, resource: 'products', id, blank: BLANK, fromRecord,
         validate: (v) => {
             const e = {};
-            if (!v.categoryId && !v.itemKind) e.categoryId = 'Pick what the item is, or a category';
+            if (!v.categoryId && !v.newCategory.trim() && !v.itemKind) e.categoryId = 'Pick what the item is, or a category';
+            if (v.newCategory.trim() && (v.newCategory.trim().length < 2 || v.newCategory.trim().length > 40)) e.newCategory = 'A category name is 2 to 40 letters';
             if (v.sellBy !== 'piece' && v.measure.min !== undefined && v.measure.min < 10) e.measure = 'The smallest amount is at least 10';
             if (!v.name.trim()) e.name = 'Enter the item name';
             if (v.price === undefined || v.price < 0) e.price = 'Enter the price';
@@ -83,7 +90,8 @@ export default function ProductFormScreen() {
             return e;
         },
         toBody: (v) => ({
-            ...(v.categoryId ? { categoryId: v.categoryId } : {}),
+            // a typed new category wins: the server reuses the shop's category of that name, or creates it
+            ...(v.newCategory.trim() ? { categoryName: v.newCategory.trim() } : v.categoryId ? { categoryId: v.categoryId } : {}),
             ...(v.itemKind ? { itemKind: v.itemKind } : {}),
             sellBy: v.sellBy,
             ...(v.sellBy !== 'piece' ? { measure: { options: v.measure.options, min: v.measure.min ?? undefined, allowManual: v.measure.allowManual } } : {}),
@@ -174,9 +182,22 @@ export default function ProductFormScreen() {
                     label={v.itemKind ? 'Category (leave empty to file it by kind)' : 'Category'}
                     options={[...(v.itemKind ? [{ value: '', label: 'Automatic' }] : []), ...cats.map((c) => ({ value: String(c._id), label: c.name }))]}
                     value={v.categoryId}
-                    onChange={(x) => f.set('categoryId', x)}
+                    onChange={(x) => { f.set('categoryId', x); if (x) f.set('newCategory', ''); }}
                 />
-                {!cats.length ? <Hint tone="warn">This shop has no category yet. Add a category first (Menu → Categories).</Hint> : null}
+                <Field
+                    label="Or type a new category"
+                    value={v.newCategory}
+                    onChangeText={(x) => { f.set('newCategory', x); if (x.trim()) f.set('categoryId', ''); }}
+                    error={f.errors.newCategory}
+                    maxLength={40}
+                    placeholder="e.g. rice"
+                />
+                {v.newCategory.trim() ? (() => {
+                    const shown = titleCase(v.newCategory);
+                    const same = cats.find((c) => c.name.trim().toLowerCase() === shown.toLowerCase());
+                    return <Hint>{same ? `"${same.name}" already exists, this item will go into it.` : `A new category "${shown}" will be created. You can remove it later in Menu → Categories.`}</Hint>;
+                })() : null}
+                {!cats.length && !v.newCategory.trim() ? <Hint tone="warn">This shop has no category yet. Type a new one above, or add one in Menu → Categories.</Hint> : null}
                 <View style={{ height: spacing.md }} />
                 <Field label="Item name" value={v.name} onChangeText={(x) => f.set('name', x)} error={f.errors.name} maxLength={80} placeholder="e.g. Paneer Tikka" />
                 <Field label="Description (optional)" value={v.description} onChangeText={(x) => f.set('description', x)} multiline maxLength={300} />

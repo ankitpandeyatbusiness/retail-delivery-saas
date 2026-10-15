@@ -6,12 +6,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
 import { useBrand } from '../common/kit';
+import { ask } from '../common/dialog';
 import { FadeIn } from '../common/motion';
 import { SkelCats } from './skeletons';
 import { useThemeStore } from '../../store/common/useThemeStore';
 import { tint, showToast } from './shop';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useFilterStore, countActive } from '../../store/customers/useFilterStore';
+import { useMenuStore } from '../../store/customers/shopStores';
 
 /* ---------- smooth collapse (height + fade) ---------- */
 export function Collapse({ hide, children }) {
@@ -127,8 +129,24 @@ export function VegSwitch({ on, onPress }) {
 
     const press = () => {
         if (busy.current) return;
+        // switching OFF asks first, like Zomato: the switch only moves if the customer confirms
+        if (shown) {
+            // themed dialog: the brand-coloured button keeps veg on, the outlined one turns it off
+            ask({
+                title: 'Turn off veg mode?',
+                message: 'You will start seeing non-veg dishes again in the menu, bestsellers and search.',
+                icon: 'leaf-outline',
+                confirmText: 'Keep veg only',
+                cancelText: 'Turn off',
+            }).then((keep) => { if (!keep) commit(false); });
+            return;
+        }
+        commit(true);
+    };
+
+    const commit = (next) => {
+        if (busy.current) return;
         busy.current = true;
-        const next = !shown;
         setShown(next);
         Animated.timing(x, { toValue: next ? 1 : 0, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
         InteractionManager.runAfterInteractions(() => {
@@ -160,29 +178,36 @@ export function VegSwitch({ on, onPress }) {
 /* ---------- categories: multi-select with Clear all ---------- */
 const clearOf = (c) => (/^#[0-9a-fA-F]{6}$/.test(c || '') ? `${c}00` : 'rgba(0,0,0,0)');
 
+// The highlight animations below only use opacity and scale, so they run on the native thread: they stay smooth
+// even while the list underneath is busy changing.
+function useOn(on, ms = 200) {
+    const a = useRef(new Animated.Value(on ? 1 : 0)).current;
+    useEffect(() => {
+        Animated.timing(a, { toValue: on ? 1 : 0, duration: ms, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+    }, [on]);
+    return a;
+}
+
 function CatItem({ c, on, onPress }) {
     const { primary, onPrimary, text, soft } = useBrand();
-    const a = useRef(new Animated.Value(on ? 1 : 0)).current;
+    const a = useOn(on);
     const p = useRef(new Animated.Value(1)).current;
-    useEffect(() => {
-        Animated.timing(a, { toValue: on ? 1 : 0, duration: 240, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
-    }, [on]);
     const to = (v) => Animated.spring(p, { toValue: v, friction: 6, tension: 220, useNativeDriver: true }).start();
-    const ring = a.interpolate({ inputRange: [0, 1], outputRange: [clearOf(primary), primary] });
-    const fg = a.interpolate({ inputRange: [0, 1], outputRange: [text, primary] });
     return (
         <Pressable onPress={onPress} onPressIn={() => to(0.93)} onPressOut={() => to(1)} style={s.cat}>
             <Animated.View style={{ transform: [{ scale: p }], alignItems: 'center' }}>
-                <Animated.View style={[s.catRing, { borderColor: ring }]}>
+                <View style={[s.catRing, { borderColor: 'transparent' }]}>
+                    {/* the brand ring fades in over the plain one */}
+                    <Animated.View pointerEvents="none" style={[s.edge, { borderRadius: 36, borderColor: primary, opacity: a }]} />
                     <View style={[s.catCircle, { backgroundColor: soft }]}>
                         {c.image ? <Image source={{ uri: c.image }} style={s.catImg} contentFit="cover" />
                             : <Text style={{ fontWeight: '800', color: primary, fontSize: 22 }}>{(c.name || '?')[0].toUpperCase()}</Text>}
                     </View>
-                </Animated.View>
+                </View>
                 <Animated.View style={[s.catX, { backgroundColor: primary, opacity: a, transform: [{ scale: a }] }]}>
                     <Ionicons name="close" size={11} color={onPrimary} />
                 </Animated.View>
-                <Animated.Text numberOfLines={1} style={[s.catName, { color: fg, fontWeight: '700' }]}>{c.name}</Animated.Text>
+                <Text numberOfLines={1} style={[s.catName, { color: on ? primary : text, fontWeight: '700' }]}>{c.name}</Text>
             </Animated.View>
         </Pressable>
     );
@@ -190,19 +215,15 @@ function CatItem({ c, on, onPress }) {
 
 /* photo tile: the dish photo with the name on a shade; the selected one lifts and gets a brand border + check */
 function CatTile({ c, on, onPress }) {
-    const { primary, onPrimary, text, soft, background } = useBrand();
-    const a = useRef(new Animated.Value(on ? 1 : 0)).current;
+    const { primary, onPrimary, text, soft } = useBrand();
+    const a = useOn(on);
     const p = useRef(new Animated.Value(1)).current;
-    useEffect(() => {
-        Animated.timing(a, { toValue: on ? 1 : 0, duration: 240, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
-    }, [on]);
     const to = (v) => Animated.spring(p, { toValue: v, friction: 6, tension: 220, useNativeDriver: true }).start();
-    const ring = a.interpolate({ inputRange: [0, 1], outputRange: [clearOf(primary), primary] });
-    const lift = a.interpolate({ inputRange: [0, 1], outputRange: [0, -3] });
     return (
         <Pressable onPress={onPress} onPressIn={() => to(0.95)} onPressOut={() => to(1)} style={s.tileWrap}>
             <Animated.View style={{ transform: [{ scale: p }] }}>
-                <Animated.View style={[s.tile, { backgroundColor: soft, borderColor: ring }]}>
+                <View style={[s.tile, { backgroundColor: soft, borderColor: 'transparent' }]}>
+                    <Animated.View pointerEvents="none" style={[s.edge, { borderRadius: 18, borderColor: primary, opacity: a, zIndex: 2 }]} />
                     {c.image ? (
                         <>
                             <Image source={{ uri: c.image }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />
@@ -215,7 +236,7 @@ function CatTile({ c, on, onPress }) {
                     <Animated.View style={[s.tileCheck, { backgroundColor: primary, opacity: a, transform: [{ scale: a }] }]}>
                         <Ionicons name="checkmark" size={12} color={onPrimary} />
                     </Animated.View>
-                </Animated.View>
+                </View>
             </Animated.View>
         </Pressable>
     );
@@ -224,25 +245,21 @@ function CatTile({ c, on, onPress }) {
 /* pill: a small photo circle and the name; the selected one fills with the brand colour */
 function CatPill({ c, on, onPress }) {
     const { primary, onPrimary, text, soft, surface, border } = useBrand();
-    const a = useRef(new Animated.Value(on ? 1 : 0)).current;
+    const a = useOn(on, 180);
     const p = useRef(new Animated.Value(1)).current;
-    useEffect(() => {
-        Animated.timing(a, { toValue: on ? 1 : 0, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
-    }, [on]);
     const to = (v) => Animated.spring(p, { toValue: v, friction: 6, tension: 220, useNativeDriver: true }).start();
-    const bg = a.interpolate({ inputRange: [0, 1], outputRange: [surface, primary] });
-    const bd = a.interpolate({ inputRange: [0, 1], outputRange: [border, primary] });
-    const fg = a.interpolate({ inputRange: [0, 1], outputRange: [text, onPrimary] });
     return (
         <Pressable onPress={onPress} onPressIn={() => to(0.95)} onPressOut={() => to(1)} style={s.pillWrap}>
             <Animated.View style={{ transform: [{ scale: p }] }}>
-                <Animated.View style={[s.catPill, { backgroundColor: bg, borderColor: bd }]}>
+                <View style={[s.catPill, { backgroundColor: surface, borderColor: border }]}>
+                    {/* the brand fill fades in over the plain pill */}
+                    <Animated.View pointerEvents="none" style={[s.pillFill, { backgroundColor: primary, borderColor: primary, opacity: a }]} />
                     <View style={[s.pillPic, { backgroundColor: soft }]}>
                         {c.image ? <Image source={{ uri: c.image }} style={s.pillImg} contentFit="cover" />
                             : <Text style={{ fontWeight: '800', color: primary, fontSize: 13 }}>{(c.name || '?')[0].toUpperCase()}</Text>}
                     </View>
-                    <Animated.Text numberOfLines={1} style={[s.pillName, { color: fg }]}>{c.name}</Animated.Text>
-                </Animated.View>
+                    <Text numberOfLines={1} style={[s.pillName, { color: on ? onPrimary : text }]}>{c.name}</Text>
+                </View>
             </Animated.View>
         </Pressable>
     );
@@ -251,26 +268,51 @@ function CatPill({ c, on, onPress }) {
 // The category row. Drawn as circles (the original), photo tiles, or pills, as the shop's settings say.
 // loading: the menu has not arrived yet, so show the shape of the row instead of nothing.
 export function Cats({ loading = false }) {
-    const { primary, onPrimary } = useBrand();
+    const { primary, onPrimary, background } = useBrand();
     const style = useThemeStore((st) => st.theme.categoryStyle) || 'circles';
-    const chips = useHomeStore((st) => st.categories);
+    const allChips = useHomeStore((st) => st.categories);
+    const vegOnly = useFilterStore((st) => st.active.includes('veg_only'));
+    const menu = useMenuStore((st) => st.categories);
+    // with VEG on, a category that has no veg dish is not shown at all
+    const chips = React.useMemo(() => {
+        if (!vegOnly || !menu.length) return allChips;
+        const has = new Set(menu.filter((c) => (c.items || []).some((p) => p.isVeg)).map((c) => String(c._id)));
+        return allChips.filter((c) => has.has(String(c._id)));
+    }, [allChips, menu, vegOnly]);
     const sel = useFilterStore((st) => st.categories);
     const toggle = useFilterStore((st) => st.toggleCategory);
     const clear = useFilterStore((st) => st.clearCategories);
     const any = sel.length > 0;
-    const w = useRef(new Animated.Value(any ? 1 : 0)).current;
-    useEffect(() => {
-        Animated.timing(w, { toValue: any ? 1 : 0, duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
-    }, [any]);
+    const w = useOn(any, 220);   // opacity / slide only: nothing in the row is ever pushed sideways
 
     if (!chips.length) return loading ? <SkelCats style={style} /> : null;
 
     const clearW = style === 'circles' ? 84 : style === 'tiles' ? 70 : 52;
     const contentStyle = style === 'pills' ? s.catsPills : s.cats;
     return (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={contentStyle} keyboardShouldPersistTaps="handled">
-            {/* the "Clear all" bubble grows in and shrinks away, so the row slides instead of jumping */}
-            <Animated.View pointerEvents={any ? 'auto' : 'none'} style={{ width: w.interpolate({ inputRange: [0, 1], outputRange: [0, clearW] }), opacity: w, overflow: 'hidden', justifyContent: 'center' }}>
+        <View>
+            <ScrollView
+                horizontal showsHorizontalScrollIndicator={false}
+                contentContainerStyle={[contentStyle, any ? { paddingRight: 16 + clearW } : null]}
+                keyboardShouldPersistTaps="handled"
+            >
+                {chips.map((c, i) => {
+                    const id = String(c._id);
+                    const on = sel.includes(id);
+                    const Item = style === 'tiles' ? CatTile : style === 'pills' ? CatPill : CatItem;
+                    return (
+                        <FadeIn key={id} index={i} distance={10}>
+                            <Item c={c} on={on} onPress={() => toggle(id)} />
+                        </FadeIn>
+                    );
+                })}
+            </ScrollView>
+            {/* "Clear all" floats at the right edge: it fades in over the row, so no chip ever moves when it appears */}
+            <Animated.View
+                pointerEvents={any ? 'box-none' : 'none'}
+                style={[s.clearFloat, style === 'circles' ? { justifyContent: 'flex-start', paddingTop: 12 } : null, { width: clearW + 28, opacity: w, transform: [{ translateX: w.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }]}
+            >
+                <LinearGradient pointerEvents="none" colors={[clearOf(background), background, background]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
                 {style === 'circles' ? (
                     <Pressable onPress={clear} style={s.cat}>
                         <View style={[s.catRing, { borderColor: 'transparent' }]}>
@@ -289,17 +331,7 @@ export function Cats({ loading = false }) {
                     </Pressable>
                 )}
             </Animated.View>
-            {chips.map((c, i) => {
-                const id = String(c._id);
-                const on = sel.includes(id);
-                const Item = style === 'tiles' ? CatTile : style === 'pills' ? CatPill : CatItem;
-                return (
-                    <FadeIn key={id} index={i} distance={10}>
-                        <Item c={c} on={on} onPress={() => toggle(id)} />
-                    </FadeIn>
-                );
-            })}
-        </ScrollView>
+        </View>
     );
 }
 /* ---------- filter chips row ---------- */
@@ -431,6 +463,10 @@ const s = StyleSheet.create({
     tileInitial: { position: 'absolute', top: 18, fontSize: 30, fontWeight: '800', opacity: 0.7 },
     tileName: { fontSize: 12, fontWeight: '800', textAlign: 'center', paddingHorizontal: 6, paddingBottom: 7 },
     tileCheck: { position: 'absolute', top: 5, right: 5, width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+    // sits exactly over a bordered parent's border, so a brand-coloured outline can fade in on top of it
+    edge: { position: 'absolute', top: -2.5, left: -2.5, right: -2.5, bottom: -2.5, borderWidth: 2.5 },
+    pillFill: { position: 'absolute', top: -1, left: -1, right: -1, bottom: -1, borderRadius: 21, borderWidth: 1 },
+    clearFloat: { position: 'absolute', right: 0, top: 0, bottom: 0, justifyContent: 'center', alignItems: 'flex-end' },
     pillWrap: { marginRight: 8 },
     catPill: { flexDirection: 'row', alignItems: 'center', height: 42, paddingLeft: 5, paddingRight: 14, borderRadius: 21, borderWidth: 1 },
     pillPic: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginRight: 8 },

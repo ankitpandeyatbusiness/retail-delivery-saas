@@ -262,6 +262,10 @@ core.post('/orders/:id/deliver', wrap(async (req, res) => {
         ).select('_id');
         if (!tryOk) throw httpError(429, 'Too many wrong PINs. Ask the shop owner to complete this delivery.');
         if (!pins.matches(order, req.body?.pin)) throw httpError(400, 'Wrong delivery PIN');
+    } else if (!order.delivery.proof?.url && req.actor?.type !== 'superadmin') {
+        // no PIN at this shop: the photo of the food handed over is the proof, so it is compulsory
+        // (the superadmin acting as the rider has no camera, and the owner completes orders on his own route)
+        throw httpError(409, 'Take a photo of the food handed over before marking it delivered');
     }
     const updated = await orderStatus.change({ order, status: 'delivered', actor: actorOf(req) });
     res.locals.auditAction = `RIDER_DELIVERED (order #${updated.orderNo})`;

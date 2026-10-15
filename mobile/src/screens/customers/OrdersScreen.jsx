@@ -453,9 +453,11 @@ const s = StyleSheet.create({
     title: { fontSize: 24, fontWeight: '900', letterSpacing: -0.5 },
     sub: { fontSize: 12, fontWeight: '700', marginTop: 2 },
     pills: { paddingHorizontal: 16, paddingVertical: 10, alignItems: 'center' },
-    pill: { paddingHorizontal: 16, paddingVertical: 8, borderWidth: 1.5, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+    // fixed height + centred on both axes; the font's own top/bottom padding is switched off so the text is
+    // truly in the middle (otherwise Android draws it a little high)
+    pill: { height: 38, paddingHorizontal: 18, borderWidth: 1.5, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
     pillRow: { flexDirection: 'row' },
-    pillTxt: { fontSize: 13, fontWeight: '800', textAlign: 'center' },
+    pillTxt: { fontSize: 13, lineHeight: 18, fontWeight: '800', textAlign: 'center', textAlignVertical: 'center', includeFontPadding: false },
     card: { flexDirection: 'row', marginHorizontal: 16, marginBottom: 14, borderWidth: 1, borderRadius: 18, overflow: 'hidden', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
     accent: { width: 4 },
     group: { fontSize: 11, fontWeight: '900', letterSpacing: 1.2, paddingHorizontal: 20, paddingTop: 10, paddingBottom: 8 },

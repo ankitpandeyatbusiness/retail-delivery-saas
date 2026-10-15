@@ -4,7 +4,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { AddressSheet } from '../../components/customers/addresses';
 import { useAddressStore } from '../../store/customers/useAddressStore';
 import {
-    View, Text, Pressable, FlatList, ScrollView, Animated, Easing, StatusBar, StyleSheet, useWindowDimensions,
+    View, Text, Pressable, FlatList, ScrollView, Animated, Easing, StatusBar, StyleSheet, useWindowDimensions, InteractionManager,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { Image } from 'expo-image';
@@ -24,7 +24,7 @@ import { useAuthStore } from '../../store/common/useAuthStore';
 import { useNotificationStore } from '../../store/common/useNotificationStore';
 import { useMenuStore, useCartStore, useFavStore } from '../../store/customers/shopStores';
 import { useFilterStore, applyFilters, countActive } from '../../store/customers/useFilterStore';
-import { Slider, VegSwitch, Cats, Collapse, FadeCollapse, useVoice, VoiceOverlay } from '../../components/customers/finder';
+import { Slider, VegSwitch, Cats, Collapse, useVoice, VoiceOverlay } from '../../components/customers/finder';
 
 const Gap = () => <View style={{ width: 12 }} />;
 const VIEW_CFG = { itemVisiblePercentThreshold: 1 };
@@ -164,7 +164,7 @@ function StickyBar({ names, onHeight, onMic }) {
 }
 
 // Floats under the sticky search bar. It has its own state, so scrolling never re-renders the screen.
-const StuckPanel = forwardRef(function StuckPanel({ top, grouped }, ref) {
+const StuckPanel = forwardRef(function StuckPanel({ top, grouped, onHeight }, ref) {
     const { text, background, border } = useBrand();
     const [st, setSt] = useState({ cats: false, sec: '' });
     const a = useRef(new Animated.Value(0)).current;
@@ -180,7 +180,7 @@ const StuckPanel = forwardRef(function StuckPanel({ top, grouped }, ref) {
     const ty = a.interpolate({ inputRange: [0, 1], outputRange: [-30, 0] });
     return (
         <View pointerEvents={st.cats ? 'auto' : 'none'} style={[s.panelWrap, { top }]}>
-            <Animated.View style={{ backgroundColor: background, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: border, opacity: a, transform: [{ translateY: ty }] }}>
+            <Animated.View onLayout={(e) => onHeight?.(Math.round(e.nativeEvent.layout.height))} style={{ backgroundColor: background, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: border, opacity: a, transform: [{ translateY: ty }] }}>
                 <Cats />
                 {grouped && st.sec ? <Text style={[s.stuckSec, { color: text, paddingBottom: 8 }]}>{st.sec}</Text> : null}
             </Animated.View>
@@ -441,14 +441,18 @@ export default function HomeScreen() {
 
     const refresh = async () => {
         setRefreshing(true);
+        // pull to refresh = start fresh: every filter, the VEG switch, the sort and the selected categories go
+        // back to default (the list change plays through the same smooth transition as any other change)
+        useFilterStore.setState({ categories: [], active: [], sort: null, price: 0, spice: null, serves: null, weight: null });
         await Promise.all([useHomeStore.getState().load(), loadMenu()]);
         setRefreshing(false);
     };
 
     const all = useMemo(() => menuCats.flatMap((c) => c.items), [menuCats]);
+    const vegNow = f.active.includes('veg_only');
     const names = useMemo(
-        () => [...all].sort((a, b) => (b.isBestseller ? 1 : 0) - (a.isBestseller ? 1 : 0)).slice(0, 4).map((i) => i.name),
-        [all],
+        () => (vegNow ? all.filter((i) => i.isVeg) : [...all]).sort((a, b) => (b.isBestseller ? 1 : 0) - (a.isBestseller ? 1 : 0)).slice(0, 4).map((i) => i.name),
+        [all, vegNow],
     );
     // The food list updates AT ONCE when a filter changes (no waiting, no blank gap), and eases from slightly
     // faded back to full over a quarter second, so the change reads as smooth instead of a blink.
@@ -457,13 +461,35 @@ export default function HomeScreen() {
     const fade = useRef(new Animated.Value(1)).current;
     const sig = JSON.stringify(snapOf());
     const firstSig = useRef(true);
+    // the customer is down the page with the sticky category bar showing: after a category change the list
+    // is put back so its first result sits right under the bar (instead of jumping or showing the wrong place)
+    const stuck = useRef(false);
+    const panelH = useRef(0);
+    const reanchor = useRef(false);
+    const swapped = useRef(false);
+    // While the list is being swapped, rows come and go and the "which rows are on screen" answer is briefly
+    // wrong (the real category row can look visible for a moment). The sticky category bar must not react to
+    // that, so it is held as it was and checked again once the new list is in and has faded back.
+    const holdBar = useRef(false);
+    const lastView = useRef({ cats: false, sec: '' });
+    // A filter / category change never shows a reflow. Everything under the category row fades out (native
+    // thread), the chip animations are allowed to finish, and ONLY THEN the list is swapped (and scrolled back
+    // into place) while it is invisible; then it fades in. The user sees chips move smoothly and results appear.
     useEffect(() => {
         if (firstSig.current) { firstSig.current = false; return undefined; }
-        setApplied(snapOf());
-        fade.setValue(0.55);
-        const a = Animated.timing(fade, { toValue: 1, duration: 260, easing: Easing.out(Easing.quad), useNativeDriver: true });
-        a.start();
-        return () => a.stop();
+        let alive = true;
+        holdBar.current = true;
+        const out = Animated.timing(fade, { toValue: 0, duration: 110, easing: Easing.out(Easing.quad), useNativeDriver: true });
+        out.start(({ finished }) => {
+            if (!finished || !alive) return;
+            InteractionManager.runAfterInteractions(() => {
+                if (!alive) return;
+                reanchor.current = stuck.current;
+                swapped.current = true;
+                setApplied(snapOf());
+            });
+        });
+        return () => { alive = false; out.stop(); };
     }, [sig]);
 
     const filtered = useMemo(
@@ -471,9 +497,10 @@ export default function HomeScreen() {
         [all, applied, full.ratings.minCount],
     );
     const grouped = full.menu.groupByCategory;
-    // strips hide at once on select, and come back only after the list has swapped
-    const hide = f.categories.length > 0 || applied.categories.length > 0;
-    const extra = useMemo(() => ({ brand, hide }), [brand, hide]);
+    // the strips (offers, bestsellers...) are left out in the SAME render that swaps the list, so the page
+    // changes height once, not twice (that was the jerk)
+    const showStrips = applied.categories.length === 0;
+    const extra = useMemo(() => ({ brand }), [brand]);
 
     const waiting = !loaded && !errorStatus;   // the menu has not arrived: show shapes instead of nothing
     const rows = useMemo(() => {
@@ -496,7 +523,8 @@ export default function HomeScreen() {
             if (b === 'banner' && (banners.length || waiting)) R.push({ t: 'banner' });
             else if (b === 'categories' && (chips.length || waiting)) R.push({ t: 'cats' });
             else if (b === 'filters') R.push({ t: 'filters' });
-            else if (b === 'offers' && offers.length && full.offers.couponsEnabled && full.offers.showOnHome) R.push({ t: 'offers' });
+            else if (b === 'offers' && showStrips && offers.length && full.offers.couponsEnabled && full.offers.showOnHome) R.push({ t: 'offers' });
+            else if (!showStrips && ['bestsellers', 'festival', 'combos', 'new_arrivals'].includes(b)) continue;
             else if (b === 'bestsellers' && keep(recommended).length) R.push({ t: 'strip', id: 'best', title: 'Bestsellers', sub: 'Most ordered', items: keep(recommended), see: 'Bestsellers' });
             else if (b === 'festival') festival.forEach((c) => { const items = keep(c.products); if (items.length) R.push({ t: 'strip', id: `f${c.id}`, title: c.title, sub: c.subtitle || '', items }); });
             else if (b === 'combos') combo.forEach((c) => { const items = keep(c.products); if (items.length) R.push({ t: 'strip', id: `c${c.id}`, title: c.title, sub: c.subtitle || '', items }); });
@@ -522,7 +550,7 @@ export default function HomeScreen() {
             }
         }
         return R;
-    }, [config, full, banners, chips, offers, recommended, festival, combo, all, filtered, grouped, menuCats, loaded, errorStatus, waiting, applied.categories, applied.active]);
+    }, [config, full, banners, chips, offers, recommended, festival, combo, all, filtered, grouped, menuCats, loaded, errorStatus, waiting, showStrips, applied.categories, applied.active]);
 
     const searchIdx = rows.findIndex((r) => r.t === 'search');
     const catsIdx = rows.findIndex((r) => r.t === 'cats');
@@ -553,8 +581,35 @@ export default function HomeScreen() {
                 sec = first.cat;
             }
         }
+        lastView.current = { cats, sec };
+        if (holdBar.current) return;
+        stuck.current = cats;
         panel.current?.set(cats, sec);
     }).current;
+
+    // the new list is in, still invisible: put the first result under the sticky bar (when the customer was down
+    // the page), give the layout a frame, then fade it in
+    useEffect(() => {
+        if (!swapped.current) return undefined;
+        swapped.current = false;
+        const scroll = reanchor.current;
+        reanchor.current = false;
+        const target = menuIdx;
+        let id2 = 0;
+        const id1 = requestAnimationFrame(() => {
+            if (scroll && target >= 0) {
+                try { listRef.current?.scrollToIndex({ index: target, animated: false, viewOffset: barH + panelH.current }); } catch (e) { /* list not ready: stay */ }
+            }
+            id2 = requestAnimationFrame(() => {
+                Animated.timing(fade, { toValue: 1, duration: 240, easing: Easing.out(Easing.quad), useNativeDriver: true }).start(({ finished }) => {
+                    if (!finished) return;
+                    holdBar.current = false;
+                    panel.current?.set(lastView.current.cats, lastView.current.sec);   // settle on the real answer
+                });
+            });
+        });
+        return () => { cancelAnimationFrame(id1); if (id2) cancelAnimationFrame(id2); };
+    }, [applied]);
 
     const onOrder = (b) => {
         if (b.couponCode) nav.navigate('Offers');
@@ -575,8 +630,8 @@ export default function HomeScreen() {
             case 'banner': return banners.length ? <FadeIn><Banners list={banners} onOrder={onOrder} /></FadeIn> : <SkelBanner />;
             case 'cats': return <FadeIn><Cats loading={waiting} /></FadeIn>;
             case 'filters': return <FadeIn index={1}><FiltersRow onOpen={() => setDlg(true)} /></FadeIn>;
-            case 'offers': return <FadeCollapse hide={hide}><OffersStrip list={offers} /></FadeCollapse>;
-            case 'strip': return <FadeCollapse hide={hide}><Strip r={r} /></FadeCollapse>;
+            case 'offers': return <OffersStrip list={offers} />;
+            case 'strip': return <Strip r={r} />;
             case 'sec': return <SecHead title={r.title} sub={r.sub} />;
             case 'item': return <ItemCard item={r.item} variant={config.cardStyle} />;
             case 'pair': return (
@@ -603,7 +658,8 @@ export default function HomeScreen() {
         }
     };
 
-    const FADE_ROWS = ['sec', 'item', 'pair', 'empty'];
+    // everything under the category row takes part in the fade, so no height change is ever seen
+    const FADE_ROWS = ['offers', 'strip', 'sec', 'item', 'pair', 'empty', 'loading', 'error'];
     const renderRow = (info) => {
         const node = renderBase(info);
         if (!FADE_ROWS.includes(info.item.t)) return node;
@@ -636,7 +692,7 @@ export default function HomeScreen() {
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ paddingBottom: 100 }}
             />
-            {searchIdx >= 0 ? <StuckPanel ref={panel} top={insets.top + barH} grouped={grouped} /> : null}
+            {searchIdx >= 0 ? <StuckPanel ref={panel} top={insets.top + barH} grouped={grouped} onHeight={(h) => { panelH.current = h; }} /> : null}
             <CartBar />
             <FilterDialog visible={dlg} onClose={() => setDlg(false)} items={all} />
             <AddressSheet

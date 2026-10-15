@@ -30,13 +30,19 @@ export const ask = (o) => new Promise((res) => show({
 function Card({ d }) {
     const { primary, text, muted, surface, border, error, radius } = useBrand();
     const v = useRef(new Animated.Value(0)).current;
-    useEffect(() => { Animated.timing(v, { toValue: 1, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start(); }, []);
+    // wait one frame so the modal window is on screen first; otherwise the first frames of the animation are lost
+    useEffect(() => {
+        const r = requestAnimationFrame(() => {
+            Animated.timing(v, { toValue: 1, duration: 320, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+        });
+        return () => cancelAnimationFrame(r);
+    }, []);
     const bad = d.buttons.some((b) => b.style === 'destructive');
     const icon = d.icon || (bad ? 'alert-circle-outline' : 'help-circle-outline');
     const accent = bad ? error : primary;
 
     const done = (b) => {
-        Animated.timing(v, { toValue: 0, duration: 140, useNativeDriver: true }).start(() => {
+        Animated.timing(v, { toValue: 0, duration: 220, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(() => {
             next();
             if (b?.onPress) b.onPress();
             else if (!b && d.onClose) d.onClose();
@@ -50,7 +56,7 @@ function Card({ d }) {
             <View style={s.wrap}>
                 <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, s.backdrop, { opacity: v }]} />
                 <Pressable style={StyleSheet.absoluteFill} onPress={() => done(cancelBtn)} />
-                <Animated.View style={[s.card, { backgroundColor: surface, borderColor: border, opacity: v, transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) }] }]}>
+                <Animated.View style={[s.card, { backgroundColor: surface, borderColor: border, opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [28, 0] }) }, { scale: v.interpolate({ inputRange: [0, 1], outputRange: [0.88, 1] }) }] }]}>
                     <View style={[s.ic, { backgroundColor: tint(accent) }]}><Ionicons name={icon} size={26} color={accent} /></View>
                     <Text style={[s.title, { color: text }]}>{d.title}</Text>
                     {d.message ? <Text style={[s.msg, { color: muted }]}>{d.message}</Text> : null}

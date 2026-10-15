@@ -85,16 +85,32 @@ const km = (a, b) => {
     return 12742 * Math.asin(Math.sqrt(x));
 };
 const uniq = (list) => [...new Set(list.filter(Boolean))];
+// a box of roughly 50 km around a point: { minLon, minLat, maxLon, maxLat }
+const boxAround = (near, d = 0.45) => ({ minLon: near.lng - d, minLat: near.lat - d, maxLon: near.lng + d, maxLat: near.lat + d });
 
 /* ---------------------------------- sources ---------------------------------- */
-async function googleSources(q, near) {
+async function googleSources(q, near, strong = false) {
     if (!KEY()) return [];
-    const bias = near ? `&location=${near.lat},${near.lng}&radius=50000` : '';
+    const bias = near ? `&location=${near.lat},${near.lng}&radius=${strong ? 25000 : 50000}` : '';
     const out = [];
-    const [text, auto] = await Promise.allSettled([
+    const [text, auto, local] = await Promise.allSettled([
         getJson(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=${enc(q)}&region=in${bias}&key=${KEY()}`),
         getJson(`https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${enc(q)}&components=country:in${bias}&key=${KEY()}`),
+        // a customer: ALSO ask only inside the area around them, so nearby places are always in the answer
+        strong && near
+            ? getJson(`https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${enc(q)}&components=country:in${bias}&strictbounds=true&key=${KEY()}`)
+            : Promise.reject(new Error('skip')),
     ]);
+    if (local.status === 'fulfilled' && local.value.status === 'OK') {
+        for (const p of local.value.predictions || []) {
+            out.push({
+                src: 'google', placeId: p.place_id, name: p.description,
+                title: p.structured_formatting?.main_text || p.description,
+                subtitle: p.structured_formatting?.secondary_text || '',
+                boost: 0.12,
+            });
+        }
+    }
     if (text.status === 'fulfilled' && text.value.status === 'OK') {
         for (const r of text.value.results || []) {
             const addr = r.formatted_address || '';
@@ -119,8 +135,12 @@ async function googleSources(q, near) {
     return out;
 }
 
-async function photonSource(q, near) {
-    const bias = near ? `&lat=${near.lat}&lon=${near.lng}` : '';
+async function photonSource(q, near, opts = {}) {
+    let bias = near ? `&lat=${near.lat}&lon=${near.lng}&location_bias_scale=${opts.box ? 0.5 : 0.3}` : '';
+    if (opts.box && near) {
+        const b = boxAround(near);
+        bias += `&bbox=${b.minLon},${b.minLat},${b.maxLon},${b.maxLat}`;   // only inside the area around the customer
+    }
     const j = await getJson(`https://photon.komoot.io/api/?q=${enc(q)}&limit=10&lang=en${bias}`, { 'User-Agent': UA });
     return (j.features || [])
         .filter((f) => !f.properties?.countrycode || f.properties.countrycode === 'IN')
@@ -140,8 +160,13 @@ async function photonSource(q, near) {
         });
 }
 
-async function nominatimSource(q) {
-    const j = await getJson(`https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=8&countrycodes=in&q=${enc(q)}`, { 'User-Agent': UA });
+async function nominatimSource(q, near, opts = {}) {
+    let area = '';
+    if (opts.box && near) {
+        const b = boxAround(near);
+        area = `&viewbox=${b.minLon},${b.maxLat},${b.maxLon},${b.minLat}&bounded=1`;
+    }
+    const j = await getJson(`https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=8&countrycodes=in${area}&q=${enc(q)}`, { 'User-Agent': UA });
     return (Array.isArray(j) ? j : []).map((r) => {
         const a = r.address || {};
         const parts = String(r.display_name || '').split(',').map((x) => x.trim());
@@ -170,13 +195,44 @@ function variants(q) {
     return [...out].slice(0, 3);
 }
 
+// The point (and city / pincode) of a Google suggestion, which only comes with a name at first
+async function placeDetails(placeId) {
+    if (!KEY()) return null;
+    const j = await getJson(`https://maps.googleapis.com/maps/api/place/details/json?place_id=${enc(placeId)}&fields=geometry,formatted_address,address_component&key=${KEY()}`);
+    if (j.status !== 'OK' || !j.result) return null;
+    const get = (type) => j.result.address_components?.find((c) => c.types.includes(type))?.long_name || '';
+    const loc = j.result.geometry?.location;
+    if (!loc) return null;
+    return {
+        name: j.result.formatted_address,
+        latitude: loc.lat,
+        longitude: loc.lng,
+        city: get('locality') || get('administrative_area_level_2'),
+        pincode: /^d{6}$/.test(get('postal_code')) ? get('postal_code') : '',
+    };
+}
+
 /* ---------------------------------- search ---------------------------------- */
-async function search(q, near) {
+// opts (all optional):
+//   limit      how many to give back (default 8)
+//   proximity  'strong' = places near `near` rank clearly higher (for a customer choosing where to deliver)
+//   resolve    look up the point of the first N Google suggestions that came without one, so they can be
+//              ranked and measured by distance too
+//   bonus      (candidate) => number, added to a candidate's score (e.g. "inside the delivery area")
+//   keep       also return each candidate's score
+async function search(q, near, opts = {}) {
     const asks = [];
-    asks.push(googleSources(q, near));
+    const strongNear = opts.proximity === 'strong' && near;
+    asks.push(googleSources(q, near, !!strongNear));
     for (const v of variants(q)) {
         asks.push(photonSource(v, near));
-        if (v === q.trim()) asks.push(nominatimSource(v));
+        if (v === q.trim()) asks.push(nominatimSource(v, near));
+    }
+    if (strongNear) {
+        // the same question asked only inside the ~50 km around the customer: the best matches of ALL India
+        // may be far away, and would otherwise crowd the nearby ones out
+        asks.push(photonSource(q, near, { box: true }));
+        asks.push(nominatimSource(q, near, { box: true }));
     }
     const settled = await Promise.allSettled(asks);
     let all = settled.filter((s) => s.status === 'fulfilled').flatMap((s) => s.value);
@@ -193,13 +249,37 @@ async function search(q, near) {
         if (!have || (c.boost || 0) > (have.boost || 0)) seen.set(key, c);
     }
 
-    const ranked = [...seen.values()].map((c) => {
-        let score = relevance(q, c) + (c.boost || 0);
-        if (near && c.latitude != null) score += Math.max(0, 0.2 - km(near, { lat: c.latitude, lng: c.longitude }) / 500);   // a little for being close
-        return { ...c, score };
-    }).filter((c) => c.score >= 0.35).sort((a, b) => b.score - a.score);
+    // Google suggestions come with a name only: find the point of the best few so they can be measured too
+    if (opts.resolve && KEY()) {
+        const need = [...seen.values()]
+            .filter((c) => c.placeId && c.latitude == null)
+            .map((c) => ({ c, r: relevance(q, c) }))
+            .sort((a, b) => b.r - a.r)
+            .slice(0, opts.resolve);
+        await Promise.allSettled(need.map(async ({ c }) => {
+            const d = await placeDetails(c.placeId);
+            if (d && IN_BOX(d.latitude, d.longitude)) {
+                c.latitude = d.latitude; c.longitude = d.longitude;
+                c.city = c.city || d.city; c.pincode = c.pincode || d.pincode;
+            }
+        }));
+    }
 
-    return ranked.slice(0, 8).map(({ src, boost, score, ...c }) => c);
+    const strong = opts.proximity === 'strong';
+    const ranked = [...seen.values()].map((c) => {
+        const rel = relevance(q, c) + (c.boost || 0);
+        let score = rel;
+        if (near && c.latitude != null) {
+            const d = km(near, { lat: c.latitude, lng: c.longitude });
+            // a customer wants what is near them first: the bonus fades over roughly 15 km
+            score += strong ? 0.55 * Math.exp(-d / 12) : Math.max(0, 0.2 - d / 500);
+        }
+        if (opts.bonus) score += opts.bonus(c) || 0;
+        // being close never makes a place that does not match the typed words a match
+        return { ...c, score, rel };
+    }).filter((c) => (strong ? c.rel >= 0.35 : c.score >= 0.35)).sort((a, b) => b.score - a.score);
+
+    return ranked.slice(0, opts.limit || 8).map(({ src, boost, score, rel, ...c }) => (opts.keep ? { ...c, score } : c));
 }
 
-module.exports = { search, relevance, wordSimilarity, KEY, getJson, UA };
+module.exports = { search, relevance, wordSimilarity, placeDetails, KEY, getJson, UA };

@@ -104,8 +104,8 @@ export default function SearchScreen() {
 
     const all = useMemo(() => categories.flatMap((c) => c.items), [categories]);
     const names = useMemo(
-        () => [...all].sort((a, b) => (b.isBestseller ? 1 : 0) - (a.isBestseller ? 1 : 0)).slice(0, 4).map((i) => i.name),
-        [all],
+        () => (veg ? all.filter((i) => i.isVeg) : [...all]).sort((a, b) => (b.isBestseller ? 1 : 0) - (a.isBestseller ? 1 : 0)).slice(0, 4).map((i) => i.name),
+        [all, veg],
     );
 
     const fKey = [f.categories, f.active, f.sort, f.price, f.spice, f.serves, f.weight];

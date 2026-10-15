@@ -36,6 +36,7 @@ function crud(Model, { fields, sort, searchField, softDelete, check }) {
     r.post('/', wrap(async (req, res) => {
         const data = pickFields(fields, req.body);
         if (check) await check(data, req);
+        delete data.categoryName;   // an item form may type a new category: the check turned it into categoryId
         const doc = new Model({ ...data, ...scope(req) });
         await doc.save();
         res.status(201).json(doc);
@@ -52,7 +53,12 @@ function crud(Model, { fields, sort, searchField, softDelete, check }) {
         if (!doc) throw httpError(404, 'Not found');
         const data = pickFields(fields, req.body);
         req.auditBefore = doc.toObject();   // for the audit log
-        if (check) await check({ ...doc.toObject(), ...data }, req);
+        const merged = { ...doc.toObject(), ...data };
+        if (check) await check(merged, req);
+        if (data.categoryName !== undefined) {
+            if (merged.categoryId) data.categoryId = merged.categoryId;
+            delete data.categoryName;
+        }
         doc.set(data);
         await doc.save();
         res.json(doc);

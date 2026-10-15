@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from 'react';
-import { View, Text, Pressable } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { View, Text, Pressable, ScrollView, Image } from 'react-native';
 import { useRoute } from '@react-navigation/native';
-import { useTheme, spacing, font } from '../../theme';
+import { useTheme, spacing, font, radius } from '../../theme';
+import { listRecords } from '../../api/catalogApi';
 import { Screen } from '../../components/layout';
 import { Button, Chip, Card } from '../../components/ui';
 import { Field } from '../../components/inputs';
@@ -20,11 +21,52 @@ const maskTime = (v) => {
 
 const BLANK = { name: '', image: '', sortOrder: 0, isActive: true, timings: [] };
 
+// "Or pick one of this category's dishes": a row of the dishes' pictures, the chosen one is outlined
+function DishPictures({ pics, value, onPick }) {
+    const t = useTheme();
+    if (!pics.length) return <Hint>Add dishes with pictures to this category and you can pick one of them here.</Hint>;
+    return (
+        <View style={{ marginTop: spacing.lg, marginBottom: spacing.sm }}>
+            <Label>Or pick a picture from this category's dishes</Label>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingVertical: spacing.sm }}>
+                {pics.map((p) => {
+                    const on = p.url === value;
+                    return (
+                        <Pressable key={p.url} onPress={() => onPick(on ? '' : p.url)} accessibilityLabel={p.name} style={{ marginRight: spacing.sm }}>
+                            <Image
+                                source={{ uri: p.url }}
+                                style={{ width: 72, height: 72, borderRadius: radius.md, backgroundColor: t.surfaceAlt, borderWidth: 3, borderColor: on ? t.primary : 'transparent' }}
+                            />
+                            {on ? (
+                                <View style={{ position: 'absolute', right: 4, top: 4, width: 20, height: 20, borderRadius: 10, backgroundColor: t.primary, alignItems: 'center', justifyContent: 'center' }}>
+                                    <Icon name="check" size={13} color="#FFFFFF" />
+                                </View>
+                            ) : null}
+                        </Pressable>
+                    );
+                })}
+            </ScrollView>
+        </View>
+    );
+}
+
 // A category of the menu. Timings make it appear only at some hours (breakfast, lunch...).
 export default function CategoryFormScreen() {
     const t = useTheme();
     const { shopId, name: shopName, id } = useRoute().params;
     const [confirmOff, setConfirmOff] = useState(false);
+    const [dishPics, setDishPics] = useState([]);   // pictures of the dishes that are in this category
+
+    // the pictures of this category's dishes, so one can be picked as the category picture
+    useEffect(() => {
+        if (!id) return;
+        listRecords(shopId, 'products', { categoryId: id, limit: 100 })
+            .then((r) => {
+                const seen = new Set();
+                setDishPics((r.items || []).filter((p) => p.image && !seen.has(p.image) && seen.add(p.image)).map((p) => ({ url: p.image, name: p.name })));
+            })
+            .catch(() => setDishPics([]));
+    }, [shopId, id]);
 
     const f = useRecordForm({
         shopId, resource: 'categories', id, blank: BLANK,
@@ -57,7 +99,15 @@ export default function CategoryFormScreen() {
         >
             <Card>
                 <Field label="Name" value={v.name} onChangeText={(x) => f.set('name', x)} error={f.errors.name} placeholder="e.g. Starters" maxLength={60} />
-                <ImageField label="Picture (optional)" value={v.image} onChange={(x) => f.set('image', x)} shopId={shopId} kind="category" last />
+                <ImageField label="Picture (optional)" value={v.image} onChange={(x) => f.set('image', x)} shopId={shopId} kind="category" />
+                {id ? (
+                    <DishPictures
+                        pics={dishPics}
+                        value={v.image}
+                        onPick={(x) => f.set('image', x)}
+                    />
+                ) : null}
+                <Hint>No picture chosen: customers see the picture of the first dish added to this category.</Hint>
             </Card>
 
             <Group title="Show it" section="catalog" flush>

@@ -133,6 +133,14 @@ export default function RiderHomeScreen() {
     };
     const onDeliver = (o) => {
         if (o.delivery?.proof?.url) { proceedDeliver(o); return; }
+        if (!o.delivery?.pinRequired) {
+            // this shop has no delivery PIN, so the photo is the proof and cannot be skipped
+            themedAlert('Photo needed', 'Take a photo of the food handed over to finish this delivery.', [
+                { text: 'Take photo', onPress: async () => { if (await takeProof(o)) proceedDeliver(o); } },
+                { text: 'Cancel', style: 'cancel' },
+            ], { icon: 'camera-outline' });
+            return;
+        }
         themedAlert('Add a delivery photo?', 'A photo of the food handed over protects you if the customer says it did not arrive.', [
             { text: 'Take photo', onPress: async () => { await takeProof(o); proceedDeliver(o); } },
             { text: 'Skip', onPress: () => proceedDeliver(o) },

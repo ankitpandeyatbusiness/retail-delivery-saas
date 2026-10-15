@@ -387,7 +387,7 @@ admin.post('/tenants/:tid/products/import', loadTenant, wrap(async (req, res) =>
 
 admin.use('/tenants/:tid/products', loadTenant, crud(Product, {
     fields: [
-        'categoryId', 'name', 'description', 'image', 'price', 'mrp',
+        'categoryId', 'categoryName', 'name', 'description', 'image', 'price', 'mrp',
         'isVeg', 'isEggless', 'isSugarFree', 'isJain', 'spiceLevel',
         'isBestseller', 'isNewArrival', 'isGiftPack', 'serves', 'calories', 'prepTimeMin',
         'optionGroups', 'sizes', 'weightOptions', 'addOns',

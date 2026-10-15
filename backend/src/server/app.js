@@ -53,6 +53,8 @@ app.get('/health/ready', async (req, res) => {
 app.use('/api/catalog', publicRateLimit);
 app.use('/api/tenants', publicRateLimit);
 app.use('/api/addresses/serviceability', publicRateLimit);
+// place search spends the shop's map quota: stricter than the other public routes (per IP)
+app.use('/api/geo', publicRateLimit.make({ points: 90, duration: 60 }));
 
 app.use('/api/auth', authRouter);
 app.use('/api/tenants', tenantRouter);
@@ -61,6 +63,7 @@ app.use('/api/favourites', favouriteRouter);
 app.use('/api/catalog', catalogRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/addresses', addressRouter);
+app.use('/api/geo', require('../routes/customerGeoRouter'));
 app.use('/api/orders', orderRouter);
 app.use('/api/shop', shopRouter);
 app.use('/api/rider', riderRouter);

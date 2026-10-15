@@ -8,6 +8,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, BackHeader } from '../../components/common/kit';
 import { tint, showToast } from '../../components/customers/shop';
+import { SkelNotifications } from '../../components/customers/skeletons';
 import { ask } from '../../components/common/dialog';
 import { fetchInbox, markAllRead, clearAll } from '../../api/common/notificationApi';
 import { useNotificationStore } from '../../store/common/useNotificationStore';
@@ -119,7 +120,7 @@ export default function NotificationsScreen() {
         <View style={[s.flex, { backgroundColor: background }]}>
             <BackHeader title="Notifications" />
             {state === 'loading' ? (
-                <View style={s.center}><ActivityIndicator color={primary} /></View>
+                <SkelNotifications />
             ) : state === 'error' ? (
                 <View style={s.center}>
                     <Ionicons name="cloud-offline-outline" size={40} color={muted} />

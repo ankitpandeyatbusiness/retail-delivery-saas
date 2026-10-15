@@ -81,7 +81,31 @@ export function SkelFeed({ variant = 'big', count = 3 }) {
     );
 }
 
+// the Notifications inbox: rows with the exact shape of a real message (icon, title, two text lines, time)
+export function SkelNotifications({ count = 7 }) {
+    const { surface, border } = useBrand();
+    return (
+        <View style={s.notePad}>
+            <View style={s.noteHead}><Skel width={64} height={14} /></View>
+            {Array.from({ length: count }).map((_, i) => (
+                <View key={i} style={[s.note, { backgroundColor: surface, borderColor: border }]}>
+                    <Skel width={40} height={40} radius={20} />
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Skel width={i % 2 ? '55%' : '70%'} height={14} />
+                        <Skel width="92%" height={12} style={{ marginTop: 9 }} />
+                        <Skel width={i % 3 ? '60%' : '40%'} height={12} style={{ marginTop: 6 }} />
+                        <Skel width={54} height={10} style={{ marginTop: 10 }} />
+                    </View>
+                </View>
+            ))}
+        </View>
+    );
+}
+
 const s = StyleSheet.create({
+    notePad: { padding: 16 },
+    noteHead: { alignSelf: 'flex-end', paddingVertical: 6, marginBottom: 6 },
+    note: { flexDirection: 'row', alignItems: 'flex-start', padding: 14, borderWidth: 1, borderRadius: 16, marginBottom: 10 },
     catRow: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 12 },
     catGap: { marginRight: 10 },
     circleWrap: { width: 72, alignItems: 'center' },

@@ -1,6 +1,6 @@
 // src/screens/FilterDialog.jsx
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Modal, View, Text, Pressable, ScrollView, StyleSheet, Animated, Easing, PanResponder, Dimensions } from 'react-native';
+import { Modal, View, Text, Pressable, ScrollView, StyleSheet, Animated, Easing, PanResponder, Dimensions, InteractionManager } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FadeIn } from '../../components/common/motion';
 import { useThemeStore } from '../../store/common/useThemeStore';
@@ -41,13 +41,13 @@ const SERVES = [2, 4, 6];
 // same colour with zero opacity, so colour fades never pass through black
 const clearOf = (c) => (/^#[0-9a-fA-F]{6}$/.test(c || '') ? `${c}00` : 'rgba(0,0,0,0)');
 
-// colour fade; skips the first render so opening the dialog does no extra work
-function useFade(on, ms = 220) {
+// fade 0..1 on the native thread (opacity only); skips the first render so opening the dialog does no extra work
+function useFade(on, ms = 160) {
     const a = useRef(new Animated.Value(on ? 1 : 0)).current;
     const first = useRef(true);
     useEffect(() => {
         if (first.current) { first.current = false; return undefined; }
-        Animated.timing(a, { toValue: on ? 1 : 0, duration: ms, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+        Animated.timing(a, { toValue: on ? 1 : 0, duration: ms, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
         return undefined;
     }, [on]);
     return a;
@@ -73,13 +73,13 @@ function Mark({ on, radio }) {
 function Opt({ on, label, onPress, radio }) {
     const { primary, text } = useBrand();
     const a = useFade(on);
-    const bg = a.interpolate({ inputRange: [0, 1], outputRange: [clearOf(primary), tint(primary)] });
     return (
         <Press onPress={onPress}>
-            <Animated.View style={[s.opt, { backgroundColor: bg }]}>
+            <View style={s.opt}>
+                <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: 10, backgroundColor: tint(primary), opacity: a }]} />
                 <Mark on={on} radio={radio} />
                 <Text style={[s.optTxt, { color: text }]}>{label}</Text>
-            </Animated.View>
+            </View>
         </Press>
     );
 }
@@ -87,14 +87,12 @@ function Opt({ on, label, onPress, radio }) {
 function Pill({ on, label, onPress }) {
     const { primary, text, border } = useBrand();
     const a = useFade(on);
-    const bg = a.interpolate({ inputRange: [0, 1], outputRange: [clearOf(primary), tint(primary)] });
-    const bd = a.interpolate({ inputRange: [0, 1], outputRange: [border, primary] });
-    const fg = a.interpolate({ inputRange: [0, 1], outputRange: [text, primary] });
     return (
         <Press onPress={onPress} style={{ marginRight: 8, marginBottom: 8 }}>
-            <Animated.View style={[s.pill, { backgroundColor: bg, borderColor: bd }]}>
-                <Animated.Text style={[s.pillTxt, { color: fg }]}>{label}</Animated.Text>
-            </Animated.View>
+            <View style={[s.pill, { borderColor: border }]}>
+                <Animated.View pointerEvents="none" style={[s.pillOn, { backgroundColor: tint(primary), borderColor: primary, opacity: a }]} />
+                <Text style={[s.pillTxt, { color: on ? primary : text }]}>{label}</Text>
+            </View>
         </Press>
     );
 }
@@ -117,7 +115,40 @@ export default function FilterDialog({ visible, onClose, items }) {
     const insets = useSafeAreaInsets();
     const config = useHomeStore((st) => st.config);
     const minCount = useHomeStore((st) => st.full.ratings.minCount);
-    const f = useFilterStore();
+    const categories = useFilterStore((st) => st.categories);
+
+    // The dialog works on its own copy, so a tap is drawn at once. The shared filters (which re-render the whole
+    // Home screen and recount the dishes) are updated a moment later, after the tap's animation has played.
+    const pickFilters = (x) => ({ active: x.active, sort: x.sort, price: x.price, spice: x.spice, serves: x.serves, weight: x.weight });
+    const [draft, setDraft] = useState(() => pickFilters(useFilterStore.getState()));
+    const draftRef = useRef(draft);
+    const commitTimer = useRef(null);
+    const flush = () => {
+        if (commitTimer.current) { clearTimeout(commitTimer.current); commitTimer.current = null; }
+        useFilterStore.setState(pickFilters(draftRef.current));
+    };
+    const edit = (fn) => {
+        const next = fn(draftRef.current);
+        draftRef.current = next;
+        setDraft(next);
+        if (commitTimer.current) clearTimeout(commitTimer.current);
+        commitTimer.current = setTimeout(() => {
+            commitTimer.current = null;
+            InteractionManager.runAfterInteractions(flush);
+        }, 140);
+    };
+    const f = {
+        categories,
+        ...draft,
+        toggleFilter: (id) => edit((d) => ({ ...d, active: d.active.includes(id) ? d.active.filter((x) => x !== id) : [...d.active, id] })),
+        setSort: (v) => edit((d) => ({ ...d, sort: v })),
+        setPrice: (v) => edit((d) => ({ ...d, price: d.price === v ? 0 : v })),
+        setSpice: (v) => edit((d) => ({ ...d, spice: d.spice === v ? null : v })),
+        setServes: (v) => edit((d) => ({ ...d, serves: d.serves === v ? null : v })),
+        setWeight: (v) => edit((d) => ({ ...d, weight: d.weight === v ? null : v })),
+        clear: () => edit((d) => ({ ...d, active: [], sort: null, price: 0, spice: null, serves: null, weight: null })),
+    };
+    useEffect(() => () => { if (commitTimer.current) flush(); }, []);   // closed or left with a change not yet applied
 
     const [show, setShow] = useState(visible);
     const prog = useRef(new Animated.Value(0)).current;
@@ -136,6 +167,9 @@ export default function FilterDialog({ visible, onClose, items }) {
 
     useEffect(() => {
         if (visible) {
+            const d = pickFilters(useFilterStore.getState());   // start from what is really applied
+            draftRef.current = d;
+            setDraft(d);
             started.current = false;
             prog.setValue(0);
             sect.setValue(0);
@@ -144,6 +178,7 @@ export default function FilterDialog({ visible, onClose, items }) {
             return () => clearTimeout(t);
         }
         if (show) {
+            flush();
             started.current = true;
             Animated.timing(prog, { toValue: 0, duration: 200, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(({ finished }) => { if (finished) setShow(false); });
         }
@@ -172,13 +207,26 @@ export default function FilterDialog({ visible, onClose, items }) {
 
     const count = useMemo(
         () => applyFilters(items || [], f, minCount).length,
-        [items, minCount, f.categories, f.active, f.sort, f.price, f.spice, f.serves, f.weight],
+        [items, minCount, categories, draft],
     );
 
     const curSort = f.sort || 'popularity';
     const showSort = sorts.length > 1;
     const active = countActive(f) > 0;
-    const clearA = useFade(active);
+    const clearA = useFade(active);   // native: opacity / scale of the header's "Clear all"
+
+    // Footer: ONE native value (0 = nothing selected, 1 = something selected) drives everything, and nothing
+    // in the footer changes its layout, so the two buttons can never drift apart or lag:
+    //   - the Clear button slides in from the left and fades in,
+    //   - the Show button's left end slides right to make room (its text glides with it).
+    const footSlide = useRef(new Animated.Value(active ? 1 : 0)).current;
+    const footFirst = useRef(true);
+    useEffect(() => {
+        if (footFirst.current) { footFirst.current = false; return undefined; }
+        const t = Animated.timing(footSlide, { toValue: active ? 1 : 0, duration: 300, easing: Easing.out(Easing.cubic), useNativeDriver: true });
+        t.start();
+        return () => t.stop();
+    }, [active]);
     const style = useThemeStore((st) => st.theme.filterStyle) || 'dialog';   // dialog | sheet | rail
     const sheetLike = style !== 'dialog';
 
@@ -232,21 +280,42 @@ export default function FilterDialog({ visible, onClose, items }) {
         },
     })).current;
 
-    const footer = (
-        <View style={s.foot}>
-            {sheetLike ? (
-                <Animated.View pointerEvents={active ? 'auto' : 'none'} style={{ opacity: clearA, width: clearA.interpolate({ inputRange: [0, 1], outputRange: [0, 92] }), overflow: 'hidden' }}>
-                    <Pressable onPress={() => f.clear()} style={[s.footClear, { borderColor: border, borderRadius: radius }]}>
-                        <Text style={[s.footClearTxt, { color: text }]}>Clear</Text>
-                    </Pressable>
+    const showBg = count ? primary : border;
+    const showTxt = [s.btnTxt, !count && { color: text }];
+    const showRow = (
+        <View style={s.btnRow}>
+            <Text style={showTxt}>{count ? 'Show ' : 'No '}</Text>
+            <SlideNum value={count} minWidth={12} style={showTxt} />
+            <Text style={showTxt}> dish{count === 1 ? '' : 'es'}</Text>
+        </View>
+    );
+
+    const footer = sheetLike ? (
+        <View style={s.foot2}>
+            <Animated.View
+                pointerEvents={active ? 'auto' : 'none'}
+                style={[s.footClearAbs, { opacity: footSlide, transform: [{ translateX: footSlide.interpolate({ inputRange: [0, 1], outputRange: [-84, 0] }) }] }]}   /* right edge always stays behind the Show button's left edge */
+            >
+                <Pressable onPress={() => f.clear()} style={[s.footClear, { borderColor: border, borderRadius: radius, marginRight: 0 }]}>
+                    <Text style={[s.footClearTxt, { color: text }]}>Clear</Text>
+                </Pressable>
+            </Animated.View>
+            {/* the Show button always sits to the right of the Clear slot; a piece of the same colour covers the
+                slot while nothing is selected, and slides away to the right as Clear arrives */}
+            <Press onPress={onClose} wrap={s.showWrap} style={[s.btn, { flex: 1, justifyContent: 'center', backgroundColor: showBg, borderRadius: radius }]}>
+                <Animated.View
+                    pointerEvents="none"
+                    style={[s.showExt, { backgroundColor: showBg, borderTopLeftRadius: radius, borderBottomLeftRadius: radius, transform: [{ translateX: footSlide.interpolate({ inputRange: [0, 1], outputRange: [0, 92] }) }] }]}
+                />
+                <Animated.View style={{ transform: [{ translateX: footSlide.interpolate({ inputRange: [0, 1], outputRange: [-46, 0] }) }] }}>
+                    {showRow}
                 </Animated.View>
-            ) : null}
-            <Press onPress={onClose} wrap={{ flex: 1 }} style={[s.btn, { backgroundColor: count ? primary : border, borderRadius: radius, marginTop: sheetLike ? 0 : 14 }]}>
-                <View style={s.btnRow}>
-                    <Text style={[s.btnTxt, !count && { color: text }]}>{count ? 'Show ' : 'No '}</Text>
-                    <SlideNum value={count} minWidth={12} style={[s.btnTxt, !count && { color: text }]} />
-                    <Text style={[s.btnTxt, !count && { color: text }]}> dish{count === 1 ? '' : 'es'}</Text>
-                </View>
+            </Press>
+        </View>
+    ) : (
+        <View style={s.foot}>
+            <Press onPress={onClose} wrap={{ flex: 1 }} style={[s.btn, { backgroundColor: showBg, borderRadius: radius, marginTop: 14 }]}>
+                {showRow}
             </Press>
         </View>
     );
@@ -367,9 +436,14 @@ const s = StyleSheet.create({
     wrapRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 },
     pill: { paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1.5, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
     pillTxt: { fontSize: 12, fontWeight: '700', textAlign: 'center' },
+    pillOn: { position: 'absolute', top: -1.5, left: -1.5, right: -1.5, bottom: -1.5, borderRadius: 18, borderWidth: 1.5 },
     btn: { paddingVertical: 14, alignItems: 'center' },
     foot: { flexDirection: 'row', alignItems: 'center' },
     footClear: { height: 48, width: 84, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
+    foot2: { height: 48 },
+    footClearAbs: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 84 },
+    showWrap: { position: 'absolute', left: 92, right: 0, top: 0, bottom: 0 },
+    showExt: { position: 'absolute', left: -92, top: 0, bottom: 0, width: 116 },
     footClearTxt: { fontSize: 14, fontWeight: '800' },
     sheetWrap: { flex: 1, justifyContent: 'flex-end' },
     sheet: { borderTopLeftRadius: 26, borderTopRightRadius: 26, overflow: 'hidden', elevation: 16 },

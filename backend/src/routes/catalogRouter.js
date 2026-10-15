@@ -6,6 +6,7 @@ const Product = require('../models/Product');
 const Banner = require('../models/Banner');
 const Coupon = require('../models/Coupon');
 const { SORTS, buildProductFilter, foodModeFilter, activeNow } = require('../services/catalogQuery');
+const { rank } = require('../services/fuzzySearch');
 const { resolveConfig } = require('../services/tenantConfigService');
 const { openCategoryIds, isOpenNow } = require('../services/categoryTimings');
 const optionalAuth = require('../middlewares/optionalAuth');
@@ -53,7 +54,20 @@ catalogRouter.get('/categories', async (req, res) => {
             .sort({ sortOrder: 1, _id: 1 })
             .select('name image sortOrder timings')
             .lean();
-        res.json({ items: rows.filter((c) => isOpenNow(c.timings)) });
+        const open = rows.filter((c) => isOpenNow(c.timings));
+
+        // a category with no picture of its own shows the first picture uploaded to one of its dishes
+        const bare = open.filter((c) => !c.image).map((c) => c._id);
+        if (bare.length) {
+            const firsts = await Product.aggregate([
+                { $match: { tenantId: req.tenant._id, isActive: true, categoryId: { $in: bare }, image: { $type: 'string', $ne: '' } } },
+                { $sort: { _id: 1 } },
+                { $group: { _id: '$categoryId', image: { $first: '$image' } } },
+            ]);
+            const byCat = new Map(firsts.map((x) => [String(x._id), x.image]));
+            open.forEach((c) => { if (!c.image && byCat.has(String(c._id))) c.image = byCat.get(String(c._id)); });
+        }
+        res.json({ items: open });
     } catch (e) { fail(res, e); }
 });
 
@@ -63,16 +77,40 @@ catalogRouter.get('/products', async (req, res) => {
         const { ctx } = await shopContext(req);
         const page = clamp(parseInt(req.query.page, 10) || 1, 1, 1000);
         const limit = clamp(parseInt(req.query.limit, 10) || 20, 1, 30);
-        const filter = buildProductFilter(req.tenant._id, req.query, ctx);
+        const term = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 40) : '';
+        const fuzzy = term.length >= 2;
+        // with a search word the text match is done below (typo tolerant), so build the filter without it
+        const filter = buildProductFilter(req.tenant._id, fuzzy ? { ...req.query, q: undefined } : req.query, ctx);
         const sort = SORTS[req.query.sort] || SORTS.popularity;
 
+        let finder = Product.find(filter);
+        let orderIds = null;
+        if (fuzzy) {
+            // every dish this customer may see (same filters), ranked by how close its name is to what was typed
+            const pool = await Product.find(filter).select('name description').limit(MENU_LIMIT).lean();
+            const ranked = rank(term, pool);
+            if (!ranked.length) return res.json({ items: [], page, hasMore: false });
+            const ids = ranked.map((r) => r._id);
+            finder = Product.find({ _id: { $in: ids } });
+            // best match first, unless the customer picked a sort
+            if (!SORTS[req.query.sort]) orderIds = ids;
+        }
+
         // ask for one extra item to learn if there is a next page, no slow count needed
-        const items = await Product.find(filter)
-            .sort(sort)
-            .skip((page - 1) * limit)
-            .limit(limit + 1)
-            .select(PRODUCT_SELECT)
-            .lean();
+        let items;
+        if (orderIds) {
+            const pageIds = orderIds.slice((page - 1) * limit, page * limit + 1);
+            const rows = await Product.find({ _id: { $in: pageIds } }).select(PRODUCT_SELECT).lean();
+            const byId = new Map(rows.map((p) => [String(p._id), p]));
+            items = pageIds.map((id) => byId.get(String(id))).filter(Boolean);
+        } else {
+            items = await finder
+                .sort(sort)
+                .skip((page - 1) * limit)
+                .limit(limit + 1)
+                .select(PRODUCT_SELECT)
+                .lean();
+        }
 
         const hasMore = items.length > limit;
         if (hasMore) items.pop();
@@ -101,6 +139,12 @@ catalogRouter.get('/menu', async (req, res) => {
 
         const byCategory = new Map(cats.map((c) => [String(c._id), { ...c, items: [] }]));
         products.forEach((p) => byCategory.get(String(p.categoryId))?.items.push(p));
+        // no picture of its own: the picture of the dish uploaded first to this category
+        byCategory.forEach((c) => {
+            if (c.image) return;
+            const first = c.items.filter((p) => p.image).sort((a, b) => String(a._id).localeCompare(String(b._id)))[0];
+            if (first) c.image = first.image;
+        });
         const categories = [...byCategory.values()].filter((c) => c.items.length);
 
         const searching = typeof req.query.q === 'string' && req.query.q.trim().length >= 2;
