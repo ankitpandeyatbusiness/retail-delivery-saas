@@ -212,7 +212,7 @@ const rotateSession = async ({ sid, tenantId, oldHash, newHash, now }) => {
                 },
             },
         ],
-        { returnDocument: 'after' }
+        { returnDocument: 'after', updatePipeline: true }
     );
     if (grace) return 'grace';
     return null;
