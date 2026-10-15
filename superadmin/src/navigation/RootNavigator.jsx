@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { StackActions } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { View, Animated } from 'react-native';
+import { View, Animated, Dimensions, Easing } from 'react-native';
 import Icon from '../components/Icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../store/useAuthStore';
@@ -225,6 +225,17 @@ function TabIcon({ focused, color, icon, soft }) {
     );
 }
 
+// Tabs slide the FULL width and a tab that is not open is parked completely off screen. No opacity on purpose: on
+// Android a card's shadow ignores its parent's opacity, so a faded-out page still showed its shadows as a ghost.
+const slideScenes = ({ current }) => {
+    const W = Dimensions.get('window').width + 24;   // a little extra so no shadow reaches the edge
+    return {
+        sceneStyle: {
+            transform: [{ translateX: current.progress.interpolate({ inputRange: [-1, 0, 1], outputRange: [-W, 0, W] }) }],
+        },
+    };
+};
+
 function AdminTabs() {
     const t = useTheme();
     const insets = useSafeAreaInsets();
@@ -243,7 +254,8 @@ function AdminTabs() {
                 return {
                     headerShown: false,
                     animation: 'shift',
-                    transitionSpec: { animation: 'timing', config: { duration: 150 } },
+                    sceneStyleInterpolator: slideScenes,
+                    transitionSpec: { animation: 'timing', config: { duration: 240, easing: Easing.out(Easing.cubic) } },
                     tabBarActiveTintColor: color,
                     tabBarInactiveTintColor: t.muted,
                     tabBarStyle: {

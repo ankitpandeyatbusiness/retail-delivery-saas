@@ -8,23 +8,30 @@ const { execFileSync } = require('child_process');
 const tenant = process.env.APP_TENANT || 'default';
 
 // Name, package and colour of each shop's app. The pictures come from the media bucket, not from this repo.
-const tenantConfigs = {
-  default: {
-    name: 'Retail SaaS',
-    bundleId: 'com.ankit.retailsaas',
-    backgroundColor: '#ffffff',
-  },
-  savera: {
-    name: 'Savera',
-    bundleId: 'com.savera.app',
-    backgroundColor: '#E23744',
-  },
-  burgerking: {
-    name: 'Burger King',
-    bundleId: 'com.burgerking.app',
-    backgroundColor: '#D62300',
-  },
-};
+const tenantConfigs = require('./tenants');   // the one list of shops (also read by scripts/release.js)
+
+// Released through scripts/release.js (or an EAS build): a wrong shop name or a local server address stops here.
+const guarded = process.env.RELEASE_GUARD === '1' || !!process.env.EAS_BUILD;
+if (guarded) {
+  if (!tenantConfigs[tenant] || tenant === 'default') {
+    throw new Error('[release guard] APP_TENANT "' + tenant + '" is not a shop in tenants.js.');
+  }
+  if (process.env.RELEASE_SLUG && process.env.RELEASE_SLUG !== tenant) {
+    throw new Error('[release guard] APP_TENANT and the shop you chose do not match.');
+  }
+  const prof = process.env.EAS_BUILD_PROFILE;
+  if (prof && !prof.startsWith(tenant + '-')) {
+    throw new Error('[release guard] build profile "' + prof + '" is not for shop "' + tenant + '".');
+  }
+  // Only on the EAS build server, where the real (EAS-hosted) value is in place. On your own machine eas-cli reads
+  // this config BEFORE it has loaded the EAS environment, so the value seen here is not the one that gets built.
+  if (process.env.EAS_BUILD) {
+    const api = process.env.EXPO_PUBLIC_BASE_URL || '';
+    if (!/^https:\/\//.test(api) || /ngrok|localhost|127\.0\.0\.1|192\.168\.|\b10\.\d+\.\d+\.\d+/.test(api)) {
+      throw new Error('[release guard] EXPO_PUBLIC_BASE_URL is "' + (api || 'empty') + '": a release must use the live https server, not a local or tunnel address.');
+    }
+  }
+}
 
 if (!tenantConfigs[tenant]) {
   console.warn(`[app.config] Unknown APP_TENANT "${tenant}", falling back to "default"`);
@@ -84,6 +91,10 @@ export default {
     name: currentConfig.name,
     slug: 'retail-delivery-customer',
     version: '1.0.0',
+    // OTA updates (eas update). A build only receives updates made for the same app version (1.0.0), and only from
+    // the channel set in eas.json for that build, so each shop's app gets only its own updates.
+    runtimeVersion: { policy: 'appVersion' },
+    updates: { url: 'https://u.expo.dev/863d0304-5faf-47cf-be8b-e69556ecb05e' },
     orientation: 'portrait',
     // lets the app know when the phone is in dark mode (Account → Appearance → System). Without this, Android always
     // reports light. Needs expo-system-ui and a new native build; an OTA update alone does not change it.

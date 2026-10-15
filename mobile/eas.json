@@ -4,6 +4,7 @@
     },
     "build": {
         "savera-preview": {
+            "channel": "savera",
             "distribution": "internal",
             "android": {
                 "buildType": "apk"
