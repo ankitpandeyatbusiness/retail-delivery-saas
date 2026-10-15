@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, Animated, Easing, Keyboard, StyleSheet, Platform, Dimensions, BackHandler } from 'react-native';
-import { NavigationContainer, createNavigationContainerRef, CommonActions, StackActions } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, createNavigationContainerRef, CommonActions, StackActions } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -234,6 +234,7 @@ function MainTabs() {
             tabBar={floating ? (props) => <FloatingTabBar {...props} defs={defsByRoute} /> : undefined}
             screenOptions={{
                 headerShown: false,
+                sceneStyle: { backgroundColor: background },
                 tabBarHideOnKeyboard: true,
                 animation: tabMotion === 'off' ? 'none' : 'shift',
                 sceneStyleInterpolator: tabMotion === 'off' ? undefined : slideScenes,
@@ -312,6 +313,13 @@ function useDoubleBackExit() {
 export default function AppNavigator() {
     useDoubleBackExit();
     const isHydrated = useAuthStore((s) => s.isHydrated);
+    const { background, surface, border, primary, text, dark } = useBrand();
+    // The default navigation theme is white: it showed as a white bar behind the tabs while they slid, in dark mode.
+    const navTheme = React.useMemo(() => ({
+        ...DefaultTheme,
+        dark: !!dark,
+        colors: { ...DefaultTheme.colors, background, card: surface, border, primary, text: text || DefaultTheme.colors.text },
+    }), [background, surface, border, primary, text, dark]);
     const motion = useMotion();   // the shop's Animations setting (and the phone's reduce-motion) can turn transitions off
     const slide = motion === 'off' ? 'none' : 'slide_from_right';
     const user = useAuthStore((s) => s.user);
@@ -340,10 +348,10 @@ export default function AppNavigator() {
     if (!isHydrated) return null;   // App.js keeps the native splash screen up until this is true
 
     return (
-        <View style={{ flex: 1 }}>
-            <NavigationContainer ref={navigationRef} onReady={navigationReady}>
+        <View style={{ flex: 1, backgroundColor: background }}>
+            <NavigationContainer ref={navigationRef} onReady={navigationReady} theme={navTheme}>
                 <Stack.Navigator
-                    screenOptions={{ headerShown: false, animation: slide, animationDuration: 220, gestureEnabled: true }}
+                    screenOptions={{ headerShown: false, contentStyle: { backgroundColor: background }, animation: slide, animationDuration: 220, gestureEnabled: true }}
                     screenListeners={{ transitionStart: holdGate, transitionEnd: releaseGate }}
                     initialRouteName={user ? 'MainTabs' : 'Login'}
                 >
