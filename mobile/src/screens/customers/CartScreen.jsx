@@ -203,6 +203,14 @@ export default function CartScreen() {
             const order = await placeOrder(notes.length ? { ...body, note: notes.join(' | ') } : body, idemKey);
             if (__DEV__) console.log(`[pay] place order took ${Date.now() - t0} ms, paymentStart: ${order?.paymentStart ? 'yes' : 'no'}`);
             const tabs = { name: 'MainTabs', state: { routes: [{ name: 'Orders' }] } };
+            // the celebration page: Back from it goes to the Orders tab; it offers Track order / Back to menu
+            const placed = (paid) => ({
+                name: 'OrderPlaced',
+                params: {
+                    id: order?._id || order?.id, orderNo: order?.orderNo, total: order?.pricing?.total, paid,
+                    method: selectedPaymentMethod, type, etaMin: full.orders?.prepTimeMin || null,
+                },
+            });
 
             // online order: pay right away, straight into the chosen UPI app. Like Zomato / Blinkit, the order only
             // counts once the money is in: the cart is kept until then, and a cancelled or failed payment
@@ -224,16 +232,15 @@ export default function CartScreen() {
                 }
 
                 useCartStore.getState().clear();
-                showToast(r.status === 'paid' ? 'Payment successful. Order placed' : r.message || 'We are confirming your payment');
+                if (r.status !== 'paid') showToast(r.message || 'We are confirming your payment');
                 nav.dispatch(CommonActions.reset(r.status === 'paid'
-                    ? { index: 0, routes: [tabs] }
+                    ? { index: 1, routes: [tabs, placed(true)] }
                     : { index: 1, routes: [tabs, { name: 'OrderDetail', params: { id } }] }));   // still confirming: show the order
                 return;
             }
 
             useCartStore.getState().clear();
-            showToast('Order placed successfully');
-            nav.dispatch(CommonActions.reset({ index: 0, routes: [tabs] }));
+            nav.dispatch(CommonActions.reset({ index: 1, routes: [tabs, placed(false)] }));
         } catch (e) {
             const m = errMsg(e);
             showToast(m);

@@ -12,6 +12,7 @@ import SearchScreen from '../screens/customers/SearchScreen';
 import PaymentMethodsScreen from '../screens/customers/PaymentMethodsScreen';
 import OrdersScreen from '../screens/customers/OrdersScreen';
 import OrderDetailScreen from '../screens/customers/OrderDetailScreen';
+import OrderPlacedScreen from '../screens/customers/OrderPlacedScreen';
 import RiderHomeScreen from '../screens/riders/RiderHomeScreen';
 import CardDetailsScreen from '../screens/customers/CardDetailsScreen';
 import NotificationsScreen from '../screens/common/NotificationsScreen';
@@ -283,6 +284,7 @@ export default function AppNavigator() {
                     <Stack.Screen name="CardDetails" component={CardDetailsScreen} />
                     <Stack.Screen name="Favourites" component={FavouritesScreen} />
                     <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
+                    <Stack.Screen name="OrderPlaced" component={OrderPlacedScreen} options={{ gestureEnabled: false, animation: 'fade' }} />
                     <Stack.Screen name="Notifications" component={NotificationsScreen} />
                 </Stack.Navigator>
             </NavigationContainer>

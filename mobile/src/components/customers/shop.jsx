@@ -6,7 +6,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { create } from 'zustand';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, StackActions } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand, CardGlow } from '../common/kit';
 import { useHomeStore } from '../../store/customers/useHomeStore';
@@ -322,14 +322,16 @@ function ItemCardBase({ item, variant }) {
 export const ItemCard = React.memo(ItemCardBase);
 
 /* ---------------- small tile for the horizontal strips ---------------- */
-export function Tile({ item }) {
+// push: open the dish as a NEW page on top of the current one (used by the suggestions on a dish page),
+// so Back returns to the dish you came from and the new page starts clean.
+export function Tile({ item, push }) {
     const nav = useNavigation();
     const { text, muted, surface, border } = useBrand();
     const showDot = useHomeStore((st) => st.config.showVegDot);
     const off = item.isAvailable === false;
     return (
         <Pressable
-            onPress={() => nav.navigate('Item', { id: item._id })}
+            onPress={() => (push ? nav.dispatch(StackActions.push('Item', { id: item._id })) : nav.navigate('Item', { id: item._id }))}
             style={({ pressed }) => [s.tile, { backgroundColor: surface, borderColor: border }, off && s.dim, pressed && { transform: [{ scale: 0.97 }] }]}
         >
             <CardGlow radius={18} />

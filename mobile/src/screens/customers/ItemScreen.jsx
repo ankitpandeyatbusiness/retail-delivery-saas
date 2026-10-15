@@ -6,7 +6,9 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useBrand, BackHeader } from '../../components/common/kit';
+import { Skel } from '../../components/common/motion';
 import { Pic, VegDot, Heart, Tile, showToast, closedText, tint } from '../../components/customers/shop';
 import { Press, Appear, ease } from '../../components/customers/cartParts';
 import SlideNum from '../../components/common/SlideNum';
@@ -37,24 +39,31 @@ function initSel(p) {
 const sigOf = (sels) => (sels || []).map((x) => `${x.groupId}:${[...(x.optionIds || [])].sort().join(',')}`).sort().join('|');
 
 function Skeleton() {
-    const { border, background } = useBrand();
-    const v = useRef(new Animated.Value(0.45)).current;
-    useEffect(() => {
-        const loop = Animated.loop(Animated.sequence([
-            Animated.timing(v, { toValue: 1, duration: 700, useNativeDriver: true }),
-            Animated.timing(v, { toValue: 0.45, duration: 700, useNativeDriver: true }),
-        ]));
-        loop.start();
-        return () => loop.stop();
-    }, []);
-    const bar = (w, h, mt) => <View style={{ width: w, height: h, borderRadius: 8, backgroundColor: border, marginTop: mt }} />;
+    const { background, surface, border } = useBrand();
     return (
-        <Animated.View style={{ flex: 1, opacity: v, backgroundColor: background }}>
-            <View style={{ height: 250, backgroundColor: border }} />
-            <View style={{ padding: 16 }}>
-                {bar('70%', 24, 0)}{bar('40%', 14, 14)}{bar('30%', 22, 14)}{bar('100%', 14, 20)}{bar('90%', 14, 8)}
+        <View style={{ flex: 1, backgroundColor: background }}>
+            <Skel height={270} radius={0} />
+            <View style={{ marginTop: -26, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 18, paddingTop: 22, backgroundColor: background }}>
+                <Skel width="68%" height={24} />
+                <View style={{ flexDirection: 'row', marginTop: 14 }}>
+                    <Skel width={46} height={24} radius={7} style={{ marginRight: 8 }} />
+                    <Skel width={74} height={24} radius={7} style={{ marginRight: 8 }} />
+                    <Skel width={86} height={24} radius={7} />
+                </View>
+                <Skel width="32%" height={26} style={{ marginTop: 16 }} />
+                <Skel height={14} style={{ marginTop: 20 }} />
+                <Skel width="88%" height={14} style={{ marginTop: 8 }} />
+                <View style={{ marginTop: 22, padding: 14, borderRadius: 16, borderWidth: 1, backgroundColor: surface, borderColor: border }}>
+                    <Skel width="42%" height={16} />
+                    {[0, 1, 2].map((i) => (
+                        <View key={i} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 16 }}>
+                            <Skel width={22} height={22} radius={11} />
+                            <Skel width="50%" height={14} style={{ marginLeft: 12 }} />
+                        </View>
+                    ))}
+                </View>
             </View>
-        </Animated.View>
+        </View>
     );
 }
 
@@ -127,6 +136,7 @@ export default function ItemScreen() {
     const scrollY = useRef(new Animated.Value(0)).current;
     const bump = useRef(new Animated.Value(1)).current;
     const btn = useRef(new Animated.Value(0)).current;
+    const addPop = useRef(new Animated.Value(1)).current;
 
     const [p, setP] = useState(null);
     const [state, setState] = useState('loading'); // loading | ok | gone | error
@@ -140,6 +150,9 @@ export default function ItemScreen() {
     const [added, setAdded] = useState(false);
 
     const load = useCallback(async () => {
+        // a different dish can arrive in this same screen: forget the old scroll position, or the title bar and
+        // the photo keep the offset of the previous dish until the first scroll
+        scrollY.setValue(0);
         setState('loading');
         try {
             const d = await fetchProduct(id);
@@ -193,6 +206,11 @@ export default function ItemScreen() {
     useEffect(() => {
         Animated.timing(btn, { toValue: blocked ? 0 : 1, duration: 250, useNativeDriver: false }).start();
     }, [!!blocked]);
+    useEffect(() => {
+        if (!added) return;
+        addPop.setValue(0.94);
+        Animated.spring(addPop, { toValue: 1, friction: 4, tension: 190, useNativeDriver: true }).start();
+    }, [added]);
     useEffect(() => {
         bump.setValue(1.1);
         Animated.spring(bump, { toValue: 1, friction: 5, tension: 160, useNativeDriver: true }).start();
@@ -333,7 +351,7 @@ export default function ItemScreen() {
             >
                 <Animated.View style={{ transform: [{ translateY: heroY }, { scale: heroS }] }}>
                     <Pic item={p} style={s.hero} />
-                    <View pointerEvents="none" style={s.scrim} />
+                    <LinearGradient pointerEvents="none" colors={['rgba(0,0,0,0.38)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0.22)']} locations={[0, 0.45, 1]} style={StyleSheet.absoluteFill} />
                 </Animated.View>
 
                 <View style={[s.body, { backgroundColor: background }]}>
@@ -429,7 +447,7 @@ export default function ItemScreen() {
                             horizontal data={related} showsHorizontalScrollIndicator={false}
                             keyExtractor={(i) => i._id} contentContainerStyle={s.strip}
                             ItemSeparatorComponent={() => <View style={{ width: 10 }} />}
-                            renderItem={({ item }) => <Tile item={item} />}
+                            renderItem={({ item }) => <Tile item={item} push />}
                         />
                     </Appear>
                 ) : null}
@@ -473,6 +491,7 @@ export default function ItemScreen() {
                 )}
                 <View style={{ flex: 1, marginLeft: 12 }}>
                     <Press onPress={blocked ? undefined : add} disabled={!!blocked}>
+                        <Animated.View style={{ transform: [{ scale: addPop }] }}>
                         <Animated.View style={[s.addBtn, { backgroundColor: added ? '#1E8E3E' : btnBg, borderRadius: radius }]}>
                             {added ? (
                                 <View style={s.addRow}><Ionicons name="checkmark-circle" size={18} color="#FFFFFF" /><Text style={[s.addTxt, { marginLeft: 6 }]}>Added</Text></View>
@@ -482,6 +501,7 @@ export default function ItemScreen() {
                                     <Animated.Text style={[s.addTxt, { marginLeft: 8, transform: [{ scale: bump }] }]}>· ₹{total}</Animated.Text>
                                 </View>
                             )}
+                        </Animated.View>
                         </Animated.View>
                     </Press>
                 </View>
