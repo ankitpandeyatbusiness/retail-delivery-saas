@@ -180,7 +180,7 @@ describe('holiday, timings and stock in orders', () => {
         const w = await shop('h1-short', { stock: { enabled: true, qty: 2 } });
         const q = await request(app).post('/api/orders/quote').set(w.customer.headers).send(body(w, {}, 3));
         assert.equal(q.status, 409);
-        assert.match(q.body.error, /Only 2 left/);
+        assert.match(q.body.error, /not enough/);   // never the real number
         const res = await place(w, 3);
         assert.equal(res.status, 409);
         assert.equal((await stockOf(w)).stock.qty, 2);
@@ -238,7 +238,8 @@ describe('holiday, timings and stock in orders', () => {
         assert.equal((await place(w)).status, 201);                       // now 0 and off
         const up = await patch({ qty: 10 });
         assert.equal(up.status, 200);
-        assert.deepEqual(up.body.stock, { enabled: true, qty: 10 });
+        assert.equal(up.body.stock.enabled, true);
+        assert.equal(up.body.stock.qty, 10);
         assert.equal(up.body.isAvailable, true);
         const zero = await patch({ qty: 0 });
         assert.equal(zero.body.isAvailable, false);

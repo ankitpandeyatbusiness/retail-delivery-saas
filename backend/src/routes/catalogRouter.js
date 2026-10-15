@@ -7,6 +7,8 @@ const Banner = require('../models/Banner');
 const Coupon = require('../models/Coupon');
 const { SORTS, buildProductFilter, foodModeFilter, activeNow } = require('../services/catalogQuery');
 const { rank } = require('../services/fuzzySearch');
+const { publicProduct } = require('../services/stockHints');
+const { ensureToday } = require('../services/stockService');
 const { resolveConfig } = require('../services/tenantConfigService');
 const { openCategoryIds, isOpenNow } = require('../services/categoryTimings');
 const optionalAuth = require('../middlewares/optionalAuth');
@@ -17,7 +19,7 @@ const { hashPhone } = require('../utils/phoneHash');
 const catalogRouter = express.Router();
 catalogRouter.use(tenantRecognizer);   // every request knows its shop
 
-const PRODUCT_SELECT = '-tenantId -createdAt -updatedAt -__v -stock';   // customers never see the stock count
+const PRODUCT_SELECT = '-tenantId -createdAt -updatedAt -__v';   // the stock count is turned into hints (publicProduct) and removed
 const MENU_LIMIT = 500;
 const MENU_SORT = { sortOrder: 1, orderCount: -1, _id: 1 };
 
@@ -29,6 +31,7 @@ const fail = (res, err) => {
 
 // What every product query needs to know about this shop
 async function shopContext(req) {
+    await ensureToday(req.tenant._id).catch(() => { });
     const config = resolveConfig(req.tenant);
     const activeCategoryIds = await openCategoryIds(req.tenant._id);   // active AND inside their menu timings
     return {
@@ -102,7 +105,7 @@ catalogRouter.get('/products', async (req, res) => {
             const pageIds = orderIds.slice((page - 1) * limit, page * limit + 1);
             const rows = await Product.find({ _id: { $in: pageIds } }).select(PRODUCT_SELECT).lean();
             const byId = new Map(rows.map((p) => [String(p._id), p]));
-            items = pageIds.map((id) => byId.get(String(id))).filter(Boolean);
+            items = pageIds.map((id) => byId.get(String(id))).filter(Boolean).map(publicProduct);
         } else {
             items = await finder
                 .sort(sort)
@@ -110,6 +113,7 @@ catalogRouter.get('/products', async (req, res) => {
                 .limit(limit + 1)
                 .select(PRODUCT_SELECT)
                 .lean();
+            items.forEach(publicProduct);
         }
 
         const hasMore = items.length > limit;
@@ -136,6 +140,7 @@ catalogRouter.get('/menu', async (req, res) => {
 
         const truncated = products.length > MENU_LIMIT;
         if (truncated) products.pop();
+        products.forEach(publicProduct);
 
         const byCategory = new Map(cats.map((c) => [String(c._id), { ...c, items: [] }]));
         products.forEach((p) => byCategory.get(String(p.categoryId))?.items.push(p));
@@ -170,10 +175,10 @@ catalogRouter.get('/products/:id', async (req, res) => {
             categoryId: { $in: ctx.activeCategoryIds },
             ...foodModeFilter(ctx.foodMode),   // a veg shop can't leak a non-veg item by direct ID
         })
-            .select('-tenantId -__v -stock')
+            .select('-tenantId -__v')
             .lean();
         if (!item) return res.status(404).json({ error: 'Item not found' });
-        res.json(item);
+        res.json(publicProduct(item));
     } catch (e) { fail(res, e); }
 });
 

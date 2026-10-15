@@ -12,6 +12,7 @@ const { isOpenNow } = require('./categoryTimings');
 const { foodModeFilter, activeNow } = require('./catalogQuery');
 const { hashPhone } = require('../utils/phoneHash');
 const { httpError } = require('../middlewares/apiErrors');
+const stockSvc = require('./stockService');
 
 const MAX_LINES = 30;
 const MAX_QTY = 20;
@@ -33,6 +34,9 @@ async function buildLines(tenant, config, rawItems, at = new Date()) {
         }
         if (it.measureQty !== undefined && !Number.isInteger(it.measureQty)) throw httpError(400, 'Invalid amount in cart');
     }
+
+    // a new shop day starts the daily quantities again (before the counts are read below)
+    await stockSvc.ensureToday(tenant._id).catch(() => { });
 
     // Same visibility rules as the menu: active item, active category, allowed by the shop's food mode
     const cats = await Category.find({ tenantId: tenant._id, isActive: true }).select('_id timings').lean();
@@ -60,14 +64,6 @@ async function buildLines(tenant, config, rawItems, at = new Date()) {
         if (!p) throw httpError(400, 'An item in your cart is no longer available');
         if (p.isAvailable === false) throw httpError(409, `"${p.name}" is out of stock`);
         if (closedNow.has(String(p.categoryId))) throw httpError(409, `"${p.name}" is not served at this time`);
-        if (p.stock?.enabled) {
-            const key = String(p._id);
-            const want = (need.get(key)?.qty || 0) + it.quantity;
-            if (p.stock.qty <= 0) throw httpError(409, `"${p.name}" is out of stock`);
-            if (want > p.stock.qty) throw httpError(409, `Only ${p.stock.qty} left of "${p.name}"`);
-            need.set(key, { productId: p._id, name: p.name, qty: want });
-        }
-
         const sold = p.sellBy === 'weight' || p.sellBy === 'volume';
         if (sold && it.quantity !== 1) throw httpError(400, `"${p.name}" is sold by ${p.sellBy}: choose an amount, not a quantity`);
         if (!sold && it.measureQty !== undefined) throw httpError(400, `"${p.name}" is not sold by weight`);
@@ -78,6 +74,15 @@ async function buildLines(tenant, config, rawItems, at = new Date()) {
             const m = priceMeasure(p, it.measureQty, tenant.businessType);
             unitPrice = m.unitPrice + (unitPrice - p.price);
             measure = { qty: m.qty, unit: m.unit, label: m.label };
+        }
+        if (p.stock?.enabled) {
+            // pieces for a normal item; grams / ml for an item sold by weight / volume (the amount IS the quantity)
+            const key = String(p._id);
+            const amount = measure ? measure.qty * it.quantity : it.quantity;
+            const want = (need.get(key)?.qty || 0) + amount;
+            if (p.stock.qty <= 0) throw httpError(409, `"${p.name}" is out of stock`);
+            if (want > p.stock.qty) throw httpError(409, `There is not enough "${p.name}" left. Please order a little less.`);
+            need.set(key, { productId: p._id, name: p.name, qty: want });
         }
         const lineTotal = round2(unitPrice * it.quantity);
         subtotal += lineTotal;

@@ -238,6 +238,7 @@ export default function ItemScreen() {
         const q = Math.round(n * (typedUnit === 'big' ? 1000 : 1));
         if (q < rules.min) { showToast(`The smallest amount is ${amountLabel(p.sellBy, rules.min)}`); return; }
         if (q > rules.max) { showToast(`The largest amount is ${amountLabel(p.sellBy, rules.max)}`); return; }
+        if (p.maxQty != null && q > p.maxQty) { showToast('That is more than we have right now. Try a smaller amount.'); return; }
         ease();
         setAmt(q);
     };
@@ -259,7 +260,7 @@ export default function ItemScreen() {
             useCartStore.getState().add({
                 productId: p._id, name: p.name, image: p.image, isVeg: p.isVeg,
                 price: unit, quantity: 1, selections, optionsText: names.join(', '),
-                note: note.trim() || undefined, measureQty: amt, sellBy: p.sellBy });
+                note: note.trim() || undefined, measureQty: amt, sellBy: p.sellBy, maxQty: p.maxQty });
             setAdded(true);
             setTimeout(() => setAdded(false), 1200);
             return;
@@ -284,7 +285,7 @@ export default function ItemScreen() {
         useCartStore.getState().add({
             productId: p._id, name: p.name, image: p.image, isVeg: p.isVeg,
             price: unit, quantity: qty, selections, optionsText: names.join(', '),
-            note: note.trim() || undefined });
+            note: note.trim() || undefined, maxQty: p.maxQty });
         setAdded(true);
         setTimeout(() => setAdded(false), 1200);
     };
@@ -379,6 +380,7 @@ export default function ItemScreen() {
                             {off ? <Text style={[s.mrp, { color: muted }]}>₹{p.mrp}</Text> : null}
                             {off ? <View style={[s.offBadge, { backgroundColor: okSoft }]}><Text style={[s.offTxt, { color: ok }]}>{off}% OFF</Text></View> : null}
                         </View>
+                        {p.fewLeft ? <Text style={{ color: '#C2410C', fontSize: 12, fontWeight: '800', marginTop: 6 }}>Few left. Order soon</Text> : null}
                         {p.description ? (
                             <Pressable onPress={() => { if (longDesc) { ease(); setMore((m) => !m); } }}>
                                 <Text style={[s.desc, { color: muted }]} numberOfLines={more || !longDesc ? undefined : 3}>{p.description}</Text>
@@ -396,7 +398,7 @@ export default function ItemScreen() {
                                 </View>
                             </View>
                             <View style={{ flexDirection: 'row', flexWrap: 'wrap', padding: 12 }}>
-                                {rules.options.map((q) => {
+                                {rules.options.filter((q) => p.maxQty == null || q <= p.maxQty).map((q) => {
                                     const on = amt === q;
                                     return (
                                         <Press key={q} onPress={() => { ease(); setAmt(q); setTyped(''); }}
@@ -486,7 +488,11 @@ export default function ItemScreen() {
                     <View style={[s.qs, { borderColor: primary, borderRadius: radius, backgroundColor: tint(primary) }]}>
                         <Press onPress={() => setQty((q) => Math.max(1, q - 1))} hitSlop={8}><Text style={[s.qBtn, { color: primary }]}>−</Text></Press>
                         <SlideNum value={qty} style={[s.qNum, { color: primary }]} />
-                        <Press onPress={() => setQty((q) => Math.min(20, q + 1))} hitSlop={8}><Text style={[s.qBtn, { color: primary }]}>+</Text></Press>
+                        <Press onPress={() => {
+                            const cap = p.maxQty != null ? Math.min(20, p.maxQty) : 20;
+                            if (qty >= cap) { if (p.maxQty != null && qty >= p.maxQty) showToast('Only a few left. You cannot add more.'); return; }
+                            setQty(qty + 1);
+                        }} hitSlop={8}><Text style={[s.qBtn, { color: primary }]}>+</Text></Press>
                     </View>
                 )}
                 <View style={{ flex: 1, marginLeft: 12 }}>

@@ -40,7 +40,6 @@ export default function ShopMenuScreen() {
     const [cats, setCats] = useState([]);
     const [hidden, setHidden] = useState([]);
     const [showHidden, setShowHidden] = useState(false);
-    const [busyId, setBusyId] = useState('');
     const first = useRef(true);
 
     useEffect(() => { const id = setTimeout(() => setDq(q.trim()), 300); return () => clearTimeout(id); }, [q]);
@@ -66,13 +65,30 @@ export default function ShopMenuScreen() {
     }, [loadCats, loadHidden]));
 
     const catName = (id) => cats.find((c) => c._id === id)?.name;
+    // The switch changes at once (the list is updated before the server answers), so it slides one way and stays.
+    // If the save fails it is put back and the reason is shown. A second tap on the same row waits for the first.
+    const saving = useRef(new Set());
     const toggle = async (resource, item, field, value, setList) => {
-        setBusyId(item._id);
+        if (saving.current.has(item._id)) return;
+        saving.current.add(item._id);
+        const before = item[field] === undefined ? true : item[field];
+        const put = (v) => setList((cur) => cur.map((x) => (x._id === item._id ? { ...x, [field]: v } : x)));
+        put(value);
         try {
             await updateRecord(shopId, resource, item._id, { [field]: value });
-            setList((cur) => cur.map((x) => (x._id === item._id ? { ...x, [field]: value } : x)));
             loadHidden();
-        } catch (e) { toast(errMsg(e), 'error'); } finally { setBusyId(''); }
+        } catch (e) {
+            put(before);
+            toast(errMsg(e), 'error');
+        } finally { saving.current.delete(item._id); }
+    };
+
+    // "3 left", "2.5 kg left": pieces, or kg / litres for items sold by weight / volume
+    const leftText = (p) => {
+        const q = p.stock?.qty || 0;
+        if (p.sellBy === 'weight') return `${Math.round(q) / 1000} kg left`;
+        if (p.sellBy === 'volume') return `${Math.round(q) / 1000} L left`;
+        return `${q} left`;
     };
 
     const addProduct = () => nav.navigate('ProductForm', { shopId, name });
@@ -152,14 +168,13 @@ export default function ShopMenuScreen() {
                                             <View style={{ flexDirection: 'row', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
                                                 {p.isActive === false ? <Badge label="Switched off" tone="danger" /> : null}
                                                 {p.isActive !== false && p.isAvailable === false ? <Badge label="Out of stock" tone="warn" /> : null}
-                                                {p.stock?.enabled ? <Badge label={`${p.stock.qty} left`} tone="info" /> : null}
+                                                {p.stock?.enabled ? <Badge label={leftText(p)} tone="info" /> : null}
                                                 {p.isBestseller ? <Badge label="Bestseller" tone="success" /> : null}
                                             </View>
                                         </View>
                                         {p.isActive !== false ? (
                                             <Switch
                                                 value={p.isAvailable !== false}
-                                                disabled={busyId === p._id}
                                                 onValueChange={(v) => toggle('products', p, 'isAvailable', v, products.setItems)}
                                                 trackColor={{ true: t.success, false: t.border }}
                                             />
@@ -188,7 +203,6 @@ export default function ShopMenuScreen() {
                                     </View>
                                     <Switch
                                         value={c.isActive !== false}
-                                        disabled={busyId === c._id}
                                         onValueChange={(v) => toggle('categories', c, 'isActive', v, (fn) => setCats(fn))}
                                         trackColor={{ true: t.success, false: t.border }}
                                     />

@@ -23,6 +23,20 @@ const titleCase = (s) =>
         .map((w) => (w.length <= 3 && /[A-Z]/.test(w) && w === w.toUpperCase() ? w : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()))
         .join(' ');
 
+// stock units for the form: show() turns the stored amount into what is typed, fromUi() the other way
+function v_unit(sellBy) {
+    if (sellBy === 'weight' || sellBy === 'volume') {
+        const big = sellBy === 'volume' ? 'litres' : 'kg';
+        return {
+            suffix: big,
+            integer: false,
+            show: (n) => (n === undefined || n === null ? undefined : Math.round(n) / 1000),
+            fromUi: (x) => Math.round(x * 1000),
+        };
+    }
+    return { suffix: '', integer: true, show: (n) => (n === undefined || n === null ? undefined : n), fromUi: (x) => Math.round(x) };
+}
+
 const SPICE = [['none', 'No spice'], ['mild', 'Mild'], ['medium', 'Medium'], ['hot', 'Hot']];
 
 const BLANK = {
@@ -119,7 +133,19 @@ export default function ProductFormScreen() {
         label: id ? 'Item saved' : 'Item added',
     });
 
-    useEffect(() => { if (f.record) setStockState({ enabled: !!f.record.stock?.enabled, qty: f.record.stock?.qty || 0 }); }, [f.record]);
+    useEffect(() => {
+        if (f.record) {
+            setStockState({
+                enabled: !!f.record.stock?.enabled,
+                qty: f.record.stock?.qty || 0,
+                dailyQty: Number.isFinite(f.record.stock?.dailyQty) ? f.record.stock.dailyQty : undefined,
+            });
+        }
+    }, [f.record]);
+
+    // What the stock is counted in: pieces, or kg / litres for an item sold by weight / volume.
+    // The server keeps whole pieces, grams or millilitres; the owner types kg and litres.
+    const unit = v_unit(f.form?.sellBy);
 
     if (!f.form || cats === null || kinds === null) return <Screen title="Item" subtitle={shopName}>{f.error ? <ErrorBox message={f.error} onRetry={f.reload} /> : <Loading />}</Screen>;
     const v = f.form;
@@ -127,7 +153,11 @@ export default function ProductFormScreen() {
     const saveStock = async () => {
         setSavingStock(true);
         try {
-            const r = await setStock(shopId, id, { enabled: stock.enabled, qty: Math.max(0, Math.floor(stock.qty || 0)) });
+            const r = await setStock(shopId, id, {
+                enabled: stock.enabled,
+                qty: Math.max(0, Math.floor(stock.qty || 0)),
+                dailyQty: stock.dailyQty === undefined ? null : Math.max(0, Math.floor(stock.dailyQty)),
+            });
             f.set('isAvailable', r.isAvailable);
             toast('Stock saved');
         } catch (e) { toast(errMsg(e), 'error'); } finally { setSavingStock(false); }
@@ -249,13 +279,37 @@ export default function ProductFormScreen() {
                 <Switch title="Visible to customers" subtitle="Switch off to remove it from the menu" value={v.isActive} onValueChange={(x) => f.set('isActive', x)} last />
             </Group>
 
-            {!f.isNew && stock && v.sellBy === 'piece' ? (
-                <Group title="Stock count" section="riders" hint="Optional. The item goes out of stock by itself when the count reaches 0.">
-                    <Switch title="Count stock" value={stock.enabled} onValueChange={(x) => setStockState({ ...stock, enabled: x })} last={!stock.enabled} />
+            {!f.isNew && stock ? (
+                <Group
+                    title="Daily stock"
+                    section="riders"
+                    hint="Off = unlimited (the default). With a limit on, customers see Few left when it runs low, the item goes out of stock by itself at 0, and every new day starts again with the daily amount."
+                >
+                    <Switch title="Limit the stock" subtitle={stock.enabled ? undefined : 'Unlimited'} value={stock.enabled} onValueChange={(x) => setStockState({ ...stock, enabled: x })} last={!stock.enabled} />
                     {stock.enabled ? (
                         <>
                             <View style={{ height: spacing.md }} />
-                            <NumberField label="Pieces left" integer value={stock.qty} onChange={(x) => setStockState({ ...stock, qty: x ?? 0 })} last />
+                            <NumberField
+                                label={`Every day starts with${unit.suffix ? ` (${unit.suffix})` : ' (pieces)'}`}
+                                integer={unit.integer}
+                                suffix={unit.suffix || 'pcs'}
+                                value={unit.show(stock.dailyQty)}
+                                placeholder="Optional"
+                                hint="Optional. Empty: only the count below, changed by hand and by orders."
+                                onChange={(x) => {
+                                    const base = x === undefined ? undefined : unit.fromUi(x);
+                                    // first time a daily amount is typed and nothing is left: today starts with it too
+                                    setStockState({ ...stock, dailyQty: base, qty: base !== undefined && !stock.qty ? base : stock.qty });
+                                }}
+                            />
+                            <NumberField
+                                label={`Left right now${unit.suffix ? ` (${unit.suffix})` : ' (pieces)'}`}
+                                integer={unit.integer}
+                                suffix={unit.suffix || 'pcs'}
+                                value={unit.show(stock.qty)}
+                                onChange={(x) => setStockState({ ...stock, qty: x === undefined ? 0 : unit.fromUi(x) })}
+                                last
+                            />
                         </>
                     ) : null}
                     <Button title="Save stock" kind="soft" small style={{ marginTop: spacing.md }} loading={savingStock} onPress={saveStock} />

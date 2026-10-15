@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand, CardGlow } from '../common/kit';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useAuthStore } from '../../store/common/useAuthStore';
-import { useCartStore, useFavStore } from '../../store/customers/shopStores';
+import { useCartStore, useFavStore, cartHooks } from '../../store/customers/shopStores';
 import SlideNum from '../common/SlideNum';
 
 export const tint = (c) => (/^#[0-9a-fA-F]{6}$/.test(c || '') ? `${c}1F` : '#F5F5F5');
@@ -19,6 +19,7 @@ export const tint = (c) => (/^#[0-9a-fA-F]{6}$/.test(c || '') ? `${c}1F` : '#F5F
 /* ---------------- toast ---------------- */
 const useToast = create((set) => ({ msg: '', n: 0, show: (msg) => set((st) => ({ msg, n: st.n + 1 })) }));
 export const showToast = (msg) => useToast.getState().show(msg);
+cartHooks.onCap = (msg) => showToast(msg);   // the cart tells the customer when stock stops them
 
 export function ToastHost() {
     const msg = useToast((st) => st.msg);
@@ -232,7 +233,7 @@ export function quickAdd(item, nav) {
     if ((item.optionGroups || []).some((g) => (g.min || 0) >= 1)) return nav.navigate('Item', { id: item._id });
     useCartStore.getState().add({
         productId: item._id, name: item.name, image: item.image, isVeg: item.isVeg,
-        price: item.price, quantity: 1, selections: [], optionsText: '',
+        price: item.price, quantity: 1, selections: [], optionsText: '', maxQty: item.maxQty,
     });
     return undefined;
 }
@@ -255,9 +256,12 @@ function ItemCardBase({ item, variant }) {
     const press = ({ pressed }) => pressed && { transform: [{ scale: 0.985 }] };
     const press2 = (extra) => (st) => [extra, press(st)];
     const name = (lines) => (
-        <View style={s.nameRow}>
-            {showDot ? <VegDot isVeg={item.isVeg} /> : null}
-            <Text style={[s.name, { color: text }]} numberOfLines={lines}>{item.name}</Text>
+        <View>
+            <View style={s.nameRow}>
+                {showDot ? <VegDot isVeg={item.isVeg} /> : null}
+                <Text style={[s.name, { color: text }]} numberOfLines={lines}>{item.name}</Text>
+            </View>
+            {item.fewLeft && !off ? <Text style={s.few}>Few left</Text> : null}
         </View>
     );
 
@@ -384,6 +388,7 @@ const s = StyleSheet.create({
     dotBox: { width: 14, height: 14, borderWidth: 1.5, borderRadius: 3, alignItems: 'center', justifyContent: 'center', marginRight: 6 },
     dot: { width: 6, height: 6, borderRadius: 3 },
     nameRow: { flexDirection: 'row', alignItems: 'center' },
+    few: { color: '#C2410C', fontSize: 11, fontWeight: '800', marginTop: 3 },
     name: { flex: 1, fontSize: 16, fontWeight: '800' },
     meta: { flexDirection: 'row', alignItems: 'center', marginTop: 5 },
     rate: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1E8E3E', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginRight: 8 },

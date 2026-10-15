@@ -70,8 +70,10 @@ const productSchema = new mongoose.Schema({
 
     isAvailable: { type: Boolean, default: true },     // temporarily out of stock
     stock: {                                           // optional count. Set only through PATCH /api/shop/products/:id/stock
-        enabled: { type: Boolean, default: false },
-        qty: { type: Number, default: 0, min: 0 },
+        enabled: { type: Boolean, default: false },    // false = unlimited
+        qty: { type: Number, default: 0, min: 0 },     // left right now: pieces, or g / ml for weight / volume items
+        dailyQty: { type: Number, min: 0 },            // what every new day starts with (empty = no daily reset)
+        resetOn: String,                               // the shop day (YYYY-MM-DD) this count belongs to
     },
     isActive: { type: Boolean, default: true },
     sortOrder: { type: Number, default: 0 },
@@ -83,7 +85,6 @@ productSchema.pre('validate', function () {
         this.serves = undefined;
         this.sizes = [];
         this.weightOptions = [];
-        if (this.stock) { this.stock.enabled = false; this.stock.qty = 0; }
     } else {
         this.measure = undefined;
     }

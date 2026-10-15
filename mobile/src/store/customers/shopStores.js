@@ -36,6 +36,9 @@ export const useMenuStore = create((set, get) => ({
 const sig = (sel) => (sel || []).map((x) => `${x.groupId}:${[...x.optionIds].sort().join('.')}`).sort().join('|');
 const save = (lines) => writeCache('cart', { lines });
 
+// the screens plug their toast in here (the store file must not import UI code)
+export const cartHooks = { onCap: null };
+
 export const useCartStore = create((set, get) => ({
     lines: [],
 
@@ -45,20 +48,48 @@ export const useCartStore = create((set, get) => ({
     },
 
     // line: { productId, name, image, isVeg, price, quantity, selections:[{groupId,optionIds}], optionsText, note }
+    // The item may carry maxQty (the most the shop can give right now: pieces, or g / ml). The cart never asks for
+    // more than that, and tells the customer in words, never with the real number. The server checks again.
     add(line) {
         const key = `${line.productId}#${sig(line.selections)}#${line.note || ''}#${line.measureQty || ''}`;
         const cur = get().lines;
         const found = cur.find((l) => l.key === key);
+        const max = line.maxQty;
+        const others = cur.filter((l) => l.key !== key && String(l.productId) === String(line.productId));
+        let quantity = found ? (line.measureQty ? 1 : Math.min(20, found.quantity + line.quantity)) : line.quantity;
+        if (max != null) {
+            if (line.measureQty) {
+                const used = others.reduce((a, l) => a + (l.measureQty || 0) * l.quantity, 0);
+                if (used + line.measureQty > max) { cartHooks.onCap?.('That is more than we have right now. Try a smaller amount.'); return; }
+            } else {
+                const room = max - others.reduce((a, l) => a + l.quantity, 0);
+                if (quantity > room) {
+                    quantity = Math.max(0, room);
+                    cartHooks.onCap?.('Only a few left. You cannot add more.');
+                    if (quantity <= 0) return;
+                }
+            }
+        }
         const lines = found
-            ? cur.map((l) => (l.key === key ? { ...l, quantity: line.measureQty ? 1 : Math.min(20, l.quantity + line.quantity) } : l))
-            : [...cur, { ...line, selections: line.selections || [], key }];
+            ? cur.map((l) => (l.key === key ? { ...l, quantity, maxQty: max ?? l.maxQty } : l))
+            : [...cur, { ...line, quantity, selections: line.selections || [], key }];
         save(lines);
         set({ lines });
     },
 
     setQty(key, q) {
-        const lines = get().lines
-            .map((l) => (l.key === key ? { ...l, quantity: Math.min(20, q) } : l))
+        const cur = get().lines;
+        const line = cur.find((l) => l.key === key);
+        let want = Math.min(20, q);
+        if (line && line.maxQty != null && !line.measureQty && want > line.quantity) {
+            const room = line.maxQty - cur.filter((l) => l.key !== key && String(l.productId) === String(line.productId)).reduce((a, l) => a + l.quantity, 0);
+            if (want > room) {
+                want = Math.max(line.quantity, room);   // never below what is already in the cart
+                cartHooks.onCap?.('Only a few left. You cannot add more.');
+            }
+        }
+        const lines = cur
+            .map((l) => (l.key === key ? { ...l, quantity: want } : l))
             .filter((l) => l.quantity > 0);
         save(lines);
         set({ lines });

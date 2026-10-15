@@ -11,6 +11,7 @@ const mongoose = require('mongoose');
 const Category = require('../models/Category');
 const Product = require('../models/Product');
 const { applyItemRules } = require('../services/itemRules');
+const stockSvc = require('../services/stockService');
 const Banner = require('../models/Banner');
 const Coupon = require('../models/Coupon');
 const Collection = require('../models/Collection');
@@ -54,24 +55,37 @@ router.use('/categories', crud(Category, {
     },
 }));
 
-// Stock of one item. Body: { enabled?: true|false, qty?: 0..100000 }.
-// With tracking on, the item is on sale only while qty is above 0. Turning tracking off puts the item on sale again.
+// Stock of one item. Body: { enabled?, qty?, dailyQty? }
+//   enabled   false = unlimited (the default). true = counted.
+//   qty       what is left right now. Pieces; for an item sold by weight / volume, grams / millilitres.
+//   dailyQty  what every new shop day starts with (null = no daily reset: the count only changes by hand and by orders)
+// With counting on, the item is on sale only while qty is above 0. Turning it off puts the item on sale again.
 router.patch('/products/:id/stock', wrap(async (req, res) => {
     if (!isId(req.params.id)) throw httpError(404, 'Item not found');
     const b = req.body || {};
     if (b.enabled !== undefined && typeof b.enabled !== 'boolean') throw httpError(400, 'enabled must be true or false');
-    if (b.qty !== undefined && (!Number.isInteger(b.qty) || b.qty < 0 || b.qty > 100000)) throw httpError(400, 'qty must be a whole number from 0 to 100000');
-    if (b.enabled === undefined && b.qty === undefined) throw httpError(400, 'Send enabled and/or qty');
-    const p = await Product.findOne({ _id: req.params.id, tenantId: req.tenant._id }).select('stock').lean();
+    const p = await Product.findOne({ _id: req.params.id, tenantId: req.tenant._id }).select('stock sellBy').lean();
     if (!p) throw httpError(404, 'Item not found');
+    const max = p.sellBy === 'weight' || p.sellBy === 'volume' ? 100000000 : 100000;
+    const whole = (v, name) => {
+        if (!Number.isInteger(v) || v < 0 || v > max) throw httpError(400, `${name} must be a whole number from 0 to ${max}`);
+    };
+    if (b.qty !== undefined) whole(b.qty, 'qty');
+    if (b.dailyQty !== undefined && b.dailyQty !== null) whole(b.dailyQty, 'dailyQty');
+    if (b.enabled === undefined && b.qty === undefined && b.dailyQty === undefined) throw httpError(400, 'Send enabled, qty and/or dailyQty');
+
     const enabled = b.enabled !== undefined ? b.enabled : !!p.stock?.enabled;
     const qty = b.qty !== undefined ? b.qty : (p.stock?.qty || 0);
+    const set = { 'stock.enabled': enabled, 'stock.qty': qty, isAvailable: enabled ? qty > 0 : true };
+    if (b.dailyQty !== undefined) set['stock.dailyQty'] = b.dailyQty;   // null clears it
+    // the count entered now belongs to today: the daily reset must not wipe it before tomorrow
+    if (enabled) set['stock.resetOn'] = stockSvc.dayKey();
     const out = await Product.findOneAndUpdate(
         { _id: p._id, tenantId: req.tenant._id },
-        { $set: { 'stock.enabled': enabled, 'stock.qty': qty, isAvailable: enabled ? qty > 0 : true } },
+        { $set: set },
         { returnDocument: 'after' },
-    ).select('name stock isAvailable').lean();
-    res.json({ id: out._id, name: out.name, stock: out.stock, isAvailable: out.isAvailable });
+    ).select('name stock isAvailable sellBy').lean();
+    res.json({ id: out._id, name: out.name, sellBy: out.sellBy, stock: out.stock, isAvailable: out.isAvailable });
 }));
 
 router.use('/products', crud(Product, {
