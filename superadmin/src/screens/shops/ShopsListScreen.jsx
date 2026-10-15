@@ -7,6 +7,7 @@ import { Chip } from '../../components/ui';
 import { SearchBar } from '../../components/inputs';
 import { ShopRow } from '../../components/shopBits';
 import { SkeletonList } from '../../components/blocks';
+import { FadeInRow } from '../../components/motion';
 import { Empty, ErrorBox } from '../../components/feedback';
 import { useShopsStore, FILTERS, matchesFilter } from '../../store/useShopsStore';
 
@@ -61,7 +62,7 @@ export default function ShopsListScreen() {
                     contentContainerStyle={{ padding: spacing.lg, paddingTop: spacing.xs, paddingBottom: spacing.xxl * 2, flexGrow: 1 }}
                     refreshing={refreshing}
                     onRefresh={() => load({ q, refresh: true })}
-                    renderItem={({ item }) => <ShopRow shop={item} onPress={() => nav.navigate('ShopDetail', { shopId: item._id, name: item.name })} />}
+                    renderItem={({ item, index }) => <FadeInRow index={index}><ShopRow shop={item} onPress={() => nav.navigate('ShopDetail', { shopId: item._id, name: item.name })} /></FadeInRow>}
                     ListEmptyComponent={
                         <Empty
                             icon="shops"

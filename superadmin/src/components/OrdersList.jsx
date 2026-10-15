@@ -5,6 +5,7 @@ import { useTheme, spacing, font } from '../theme';
 import { Chip } from './ui';
 import { SearchBar } from './inputs';
 import { SkeletonList } from './blocks';
+import { FadeInRow } from './motion';
 import { Empty, ErrorBox, Sheet, SheetScroll } from './feedback';
 import { OrderRow } from './orderBits';
 import Icon from './Icon';
@@ -111,8 +112,10 @@ export default function OrdersList({ tenantId, showShop = true, header }) {
                             hint={filtered ? 'Try other filters, or "All" to see finished orders.' : 'New orders appear here as they arrive.'}
                         />
                     }
-                    renderItem={({ item }) => (
-                        <OrderRow order={item} showShop={showShop && !tenantId} onPress={() => nav.navigate('OrderDetail', { orderId: item.id, orderNo: item.orderNo })} />
+                    renderItem={({ item, index }) => (
+                        <FadeInRow index={index}>
+                            <OrderRow order={item} showShop={showShop && !tenantId} onPress={() => nav.navigate('OrderDetail', { orderId: item.id, orderNo: item.orderNo })} />
+                        </FadeInRow>
                     )}
                 />
             )}

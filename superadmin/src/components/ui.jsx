@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useTheme, section as sec, spacing, radius, font, TAP } from '../theme';
+import { useTheme, section as sec, spacing, radius, font, TAP, tint } from '../theme';
 import Icon from './Icon';
 
 const GRAD = { start: { x: 0, y: 0 }, end: { x: 1, y: 1 } };
@@ -61,7 +61,8 @@ export function Button({ title, onPress, kind = 'primary', loading, disabled, ic
     return (
         <Pressable
             onPress={off ? undefined : onPress}
-            style={({ pressed }) => [s.btn, { height, backgroundColor: map.bg, borderColor: map.border, borderWidth: 1, opacity: off ? 0.5 : pressed ? 0.88 : 1 }, style]}
+            android_ripple={{ color: tint(map.fg, 0.16) }}
+            style={({ pressed }) => [s.btn, { height, backgroundColor: map.bg, borderColor: map.border, borderWidth: 1, overflow: 'hidden', opacity: off ? 0.5 : pressed ? 0.88 : 1, transform: [{ scale: pressed ? 0.985 : 1 }] }, style]}
         >
             {content(map.fg)}
         </Pressable>
@@ -86,7 +87,11 @@ export function Badge({ label, tone = 'neutral', icon }) {
 export function Chip({ label, active, onPress, icon }) {
     const t = useTheme();
     return (
-        <Pressable onPress={onPress} style={[s.chip, active ? { backgroundColor: t.primary, borderColor: t.primary } : { backgroundColor: t.surface, borderColor: t.border }]}>
+        <Pressable
+            onPress={onPress}
+            android_ripple={{ color: tint(t.primary, 0.18) }}
+            style={({ pressed }) => [s.chip, { overflow: 'hidden', transform: [{ scale: pressed ? 0.96 : 1 }] }, active ? { backgroundColor: t.primary, borderColor: t.primary } : { backgroundColor: t.surface, borderColor: t.border }]}
+        >
             {icon ? <Icon name={icon} size={15} color={active ? '#FFFFFF' : t.muted} style={{ marginRight: 6 }} /> : null}
             <Text style={{ color: active ? '#FFFFFF' : t.text, fontSize: font.sm, fontWeight: '700' }}>{label}</Text>
         </Pressable>
@@ -146,7 +151,8 @@ export function ListRow({ icon, title, subtitle, right, onPress, last, danger, s
     return (
         <Pressable
             onPress={onPress}
-            style={[s.listRow, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: t.border }]}
+            android_ripple={onPress ? { color: tint(t.primary, 0.1) } : undefined}
+            style={({ pressed }) => [s.listRow, pressed && onPress && { backgroundColor: tint(t.primary, 0.05) }, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: t.border }]}
         >
             {icon ? <View style={{ marginRight: spacing.md }}><IconTile icon={icon} section={section} danger={danger} size={42} /></View> : null}
             <View style={{ flex: 1 }}>

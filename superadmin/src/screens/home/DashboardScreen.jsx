@@ -1,4 +1,5 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useRef } from 'react';
+import { FadeIn, animateNext } from '../../components/motion';
 import { View, Text } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useTheme, spacing, font } from '../../theme';
@@ -33,6 +34,11 @@ export default function DashboardScreen() {
         overdue > 0 && { icon: 'receipt', title: `${d.overdueInvoices} overdue rent invoice${String(d.overdueInvoices) === '1' ? '' : 's'}`, hint: 'Shops that have not paid yet' },
     ].filter(Boolean);
 
+    // sections that appear or disappear (alerts, attention list) let their neighbours glide
+    const shape = `${alerts.length}-${d.attention.length}-${d.today?.topShops?.length || 0}`;
+    const lastShape = useRef(shape);
+    if (lastShape.current !== shape) { lastShape.current = shape; animateNext(); }
+
     return (
         <Screen
             tabScreen
@@ -51,38 +57,44 @@ export default function DashboardScreen() {
                 </>
             ) : (
                 <>
-                    <View style={{ flexDirection: 'row', gap: spacing.md }}>
-                        <Stat section="orders" label="Orders today" value={d.today ? d.today.orders : '—'} icon="orders" />
-                        <Stat section="money" label="Sales today" value={d.today ? rupees(d.today.revenue) : '—'} icon="rupee" />
-                    </View>
+                    <FadeIn index={0}>
+                        <View style={{ flexDirection: 'row', gap: spacing.md }}>
+                            <Stat section="orders" label="Orders today" value={d.today ? d.today.orders : '—'} icon="orders" />
+                            <Stat section="money" label="Sales today" value={d.today ? rupees(d.today.revenue) : '—'} icon="rupee" />
+                        </View>
+                    </FadeIn>
 
-                    <SectionTitle section="shops">Shops</SectionTitle>
-                    <StatStrip
-                        items={[
-                            { label: 'Total', value: d.shops ? d.shops.total : '—', section: 'shops', onPress: () => goShops({ filter: 'all' }) },
-                            { label: 'Taking orders', value: d.shops ? d.shops.taking : '—', section: 'money', onPress: () => goShops({ filter: 'open' }) },
-                            { label: 'Need attention', value: d.shops ? d.shops.attention : '—', section: d.shops?.attention ? 'alerts' : 'riders', onPress: () => goShops({ filter: 'attention' }) },
-                            { label: 'Suspended', value: d.shops ? d.shops.suspended : '—', section: 'platform', onPress: () => goShops({ filter: 'suspended' }) },
-                        ]}
-                    />
+                    <FadeIn index={1}>
+                        <SectionTitle section="shops">Shops</SectionTitle>
+                        <StatStrip
+                            items={[
+                                { label: 'Total', value: d.shops ? d.shops.total : '—', section: 'shops', onPress: () => goShops({ filter: 'all' }) },
+                                { label: 'Taking orders', value: d.shops ? d.shops.taking : '—', section: 'money', onPress: () => goShops({ filter: 'open' }) },
+                                { label: 'Need attention', value: d.shops ? d.shops.attention : '—', section: d.shops?.attention ? 'alerts' : 'riders', onPress: () => goShops({ filter: 'attention' }) },
+                                { label: 'Suspended', value: d.shops ? d.shops.suspended : '—', section: 'platform', onPress: () => goShops({ filter: 'suspended' }) },
+                            ]}
+                        />
+                    </FadeIn>
 
-                    <SectionTitle section="settings">Quick actions</SectionTitle>
-                    <QuickActions
-                        items={[
-                            { label: 'New shop', icon: 'addCircle', section: 'shops', onPress: () => nav.navigate('ShopsTab', { screen: 'ShopCreate' }) },
-                            { label: 'All shops', icon: 'shops', section: 'platform', onPress: () => goShops({ filter: 'all' }) },
-                            { label: 'Needs attention', icon: 'warning', section: 'alerts', badge: d.shops?.attention || undefined, onPress: () => goShops({ filter: 'attention' }) },
-                            { label: 'Team', icon: 'crown', section: 'settings', onPress: () => nav.navigate('MoreTab', { screen: 'Team' }) },
-                        ]}
-                    />
+                    <FadeIn index={2}>
+                        <SectionTitle section="settings">Quick actions</SectionTitle>
+                        <QuickActions
+                            items={[
+                                { label: 'New shop', icon: 'addCircle', section: 'shops', onPress: () => nav.navigate('ShopsTab', { screen: 'ShopCreate' }) },
+                                { label: 'All shops', icon: 'shops', section: 'platform', onPress: () => goShops({ filter: 'all' }) },
+                                { label: 'Needs attention', icon: 'warning', section: 'alerts', badge: d.shops?.attention || undefined, onPress: () => goShops({ filter: 'attention' }) },
+                                { label: 'Team', icon: 'crown', section: 'settings', onPress: () => nav.navigate('MoreTab', { screen: 'Team' }) },
+                            ]}
+                        />
+                    </FadeIn>
 
                     {alerts.length ? (
-                        <>
+                        <FadeIn index={3}>
                             <SectionTitle section="alerts">Alerts</SectionTitle>
                             <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
                                 {alerts.map((a, i) => <ListRow key={a.title} icon={a.icon} section="alerts" title={a.title} subtitle={a.hint} last={i === alerts.length - 1} />)}
                             </Card>
-                        </>
+                        </FadeIn>
                     ) : null}
 
                     {d.attention.length ? (

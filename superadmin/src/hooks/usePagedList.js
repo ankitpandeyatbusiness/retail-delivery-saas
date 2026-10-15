@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { errMsg } from '../api/adminClient';
+import { animateNext } from '../components/motion';
 
 /*
  * A list that loads page by page.
@@ -26,6 +27,7 @@ export default function usePagedList(fetchPage, deps = []) {
         try {
             const r = await fetchRef.current(p);
             if (mine !== seq.current) return;
+            if (p === 1 && silent) animateNext();   // rows added or removed by a quiet refresh glide into place
             setItems((cur) => (p === 1 ? r.items : [...cur, ...r.items]));
             setPage(p);
             setTotal(r.total ?? null);

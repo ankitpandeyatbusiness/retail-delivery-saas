@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { View, FlatList, ActivityIndicator } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Screen, HeaderButton } from './layout';
+import { FadeInRow } from './motion';
 import { SearchBar } from './inputs';
 import { Loading, Empty, ErrorBox } from './feedback';
 import { listRecords } from '../api/catalogApi';
@@ -65,7 +66,7 @@ export default function RecordList({ shopId, shopName, resource, title, subtitle
                             onAction={add}
                         />
                     }
-                    renderItem={({ item }) => renderRow(item, { open: () => open(item) })}
+                    renderItem={({ item, index }) => <FadeInRow index={index}>{renderRow(item, { open: () => open(item) })}</FadeInRow>}
                 />
             )}
         </Screen>

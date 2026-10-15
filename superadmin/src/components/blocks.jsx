@@ -1,6 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { View, Text, Pressable, Animated, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useShimmer } from './motion';
 import { useTheme, section as sec, spacing, radius, font, tint } from '../theme';
 import Icon from './Icon';
 import { Card } from './ui';
@@ -8,19 +9,28 @@ import { Card } from './ui';
 const GRAD = { start: { x: 0, y: 0 }, end: { x: 1, y: 1 } };
 
 /* ---------------------------- loading skeletons ---------------------------- */
-// grey bars that pulse: shows the SHAPE of what is coming, which feels faster than a spinner
+// grey bars with a light band sweeping across: shows the SHAPE of what is coming, which feels faster than a spinner
 export function SkeletonBar({ width = '100%', height = 14, radiusPx = 8, style }) {
     const t = useTheme();
-    const a = useRef(new Animated.Value(0.45)).current;
-    useEffect(() => {
-        const loop = Animated.loop(Animated.sequence([
-            Animated.timing(a, { toValue: 1, duration: 700, useNativeDriver: true }),
-            Animated.timing(a, { toValue: 0.45, duration: 700, useNativeDriver: true }),
-        ]));
-        loop.start();
-        return () => loop.stop();
-    }, [a]);
-    return <Animated.View style={[{ width, height, borderRadius: radiusPx, backgroundColor: t.border, opacity: a }, style]} />;
+    const sweep = useShimmer();
+    const [w, setW] = useState(0);
+    const band = w * 0.7;
+    const glow = t.dark ? ['#FFFFFF00', '#FFFFFF22', '#FFFFFF00'] : ['#FFFFFF00', '#FFFFFFB3', '#FFFFFF00'];
+    return (
+        <View
+            onLayout={(e) => setW(e.nativeEvent.layout.width)}
+            style={[{ width, height, borderRadius: radiusPx, backgroundColor: t.border, overflow: 'hidden' }, style]}
+        >
+            {w ? (
+                <Animated.View
+                    pointerEvents="none"
+                    style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: band, transform: [{ translateX: sweep.interpolate({ inputRange: [0, 1], outputRange: [-band, w] }) }] }}
+                >
+                    <LinearGradient colors={glow} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={{ flex: 1 }} />
+                </Animated.View>
+            ) : null}
+        </View>
+    );
 }
 
 // n card-shaped placeholders (a list of shops, users...)

@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { StackActions } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { View } from 'react-native';
+import { View, Animated } from 'react-native';
 import Icon from '../components/Icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../store/useAuthStore';
@@ -202,6 +202,27 @@ const TABS = {
     MoreTab: { icon: 'menu', section: 'platform' },
 };
 
+// the pill grows out of the icon and the icon pops with a spring when its tab becomes active
+function TabIcon({ focused, color, icon, soft }) {
+    const v = useRef(new Animated.Value(focused ? 1 : 0)).current;
+    useEffect(() => {
+        Animated.spring(v, { toValue: focused ? 1 : 0, friction: 5, tension: 160, useNativeDriver: true }).start();
+    }, [focused, v]);
+    return (
+        <View style={{ width: 46, height: 30, alignItems: 'center', justifyContent: 'center' }}>
+            <Animated.View
+                style={{
+                    position: 'absolute', width: 46, height: 30, borderRadius: 15, backgroundColor: soft,
+                    opacity: v, transform: [{ scaleX: v.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) }],
+                }}
+            />
+            <Animated.View style={{ transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [1, 1.14] }) }] }}>
+                <Icon name={icon} size={24} color={color} filled={focused} />
+            </Animated.View>
+        </View>
+    );
+}
+
 function AdminTabs() {
     const t = useTheme();
     const insets = useSafeAreaInsets();
@@ -228,11 +249,7 @@ function AdminTabs() {
                         borderTopLeftRadius: 24, borderTopRightRadius: 24, ...t.shadow, shadowOpacity: t.dark ? 0 : 0.18, elevation: 12,
                     },
                     tabBarLabelStyle: { fontSize: 12, fontWeight: '700', marginBottom: 4 },
-                    tabBarIcon: ({ focused, color: c }) => (
-                        <View style={{ width: 46, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: focused ? section(t, cfg.section).soft : 'transparent' }}>
-                            <Icon name={cfg.icon} size={24} color={c} filled={focused} />
-                        </View>
-                    ),
+                    tabBarIcon: ({ focused, color: c }) => <TabIcon focused={focused} color={c} icon={cfg.icon} soft={section(t, cfg.section).soft} />,
                 };
             }}
         >
