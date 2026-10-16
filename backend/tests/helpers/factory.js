@@ -76,8 +76,9 @@ const makeOrder = (tenant, user, o = {}) => Order.create({
     ...o,
 });
 
-async function makeSuperAdmin(email = 'boss@example.com') {
-    const admin = new SuperAdmin({ email, name: 'Boss' });
+// the default test superadmin is the supreme admin (the number in config/supreme.js); pass { phones: [] } for an ordinary one
+async function makeSuperAdmin(email = 'boss@example.com', { phones = ['8318538918'] } = {}) {
+    const admin = new SuperAdmin({ email, name: 'Boss', phones });
     await admin.setPassword('a-long-test-password');
     await admin.save();
     return { admin, token: signAdminToken(admin) };

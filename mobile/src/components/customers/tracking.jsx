@@ -45,8 +45,15 @@ export default function TrackingCard({ tracking: t, destination }) {
         return () => clearTimeout(id);
     }, [t.riderLocation?.lat, t.riderLocation?.lng, primary]);
 
+    const bike = useRef(null);
+    const first = useRef(null);   // where the bike pin was first drawn; later moves are animated, not jumped
     const rider = t.riderLocation ? { latitude: t.riderLocation.lat, longitude: t.riderLocation.lng } : null;
     const dest = destination?.latitude != null && destination?.longitude != null ? destination : null;
+
+    if (rider && !first.current) first.current = rider;
+    useEffect(() => {
+        if (rider && first.current && bike.current?.animateMarkerToCoordinate) bike.current.animateMarkerToCoordinate(rider, 1500);
+    }, [t.riderLocation?.lat, t.riderLocation?.lng]);   // eslint-disable-line react-hooks/exhaustive-deps
 
     // keep both pins in view as the rider moves
     useEffect(() => {
@@ -101,7 +108,7 @@ export default function TrackingCard({ tracking: t, destination }) {
                         toolbarEnabled={false} rotateEnabled={false} pitchEnabled={false}
                     >
                         {rider ? (
-                            <Marker coordinate={rider} title="Delivery partner" anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={settle}>
+                            <Marker ref={bike} coordinate={first.current || rider} title="Delivery partner" anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={settle}>
                                 <View style={[s.bike, { backgroundColor: primary }]}>
                                     <Ionicons name="bicycle" size={20} color="#FFFFFF" />
                                 </View>

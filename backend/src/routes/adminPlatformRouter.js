@@ -15,7 +15,7 @@ const { parseMaintenanceBody } = require('../utils/maintenance');
 
 const router = express.Router();
 
-const BUSINESS_FIELDS = ['legalName', 'address', 'gstin', 'email', 'phone', 'sacCode', 'paymentInstructions', 'appName', 'brandColor', 'logoUrl'];
+const BUSINESS_FIELDS = ['legalName', 'address', 'gstin', 'pan', 'state', 'stateCode', 'invoicePrefix', 'poweredBy', 'contactPhone', 'email', 'phone', 'sacCode', 'paymentInstructions', 'appName', 'brandColor', 'logoUrl'];
 const EMPTY = { _id: 'main', maintenance: { on: false }, business: {}, billing: { dueDays: 7 } };
 
 const loadDoc = async () => (await PlatformSettings.findById('main')) || new PlatformSettings({ _id: 'main' });
@@ -41,10 +41,19 @@ router.put('/platform/business', wrap(async (req, res) => {
         if (typeof req.body?.[f] === 'string') changes[`business.${f}`] = req.body[f];
     }
     if (!Object.keys(changes).length) throw httpError(400, `Send at least one of: ${BUSINESS_FIELDS.join(', ')}`);
+    // the state decides CGST+SGST or IGST: it must be a real state, and its code follows it unless a code is sent
+    if (changes['business.state']) {
+        const gstSplit = require('../services/gstSplit');
+        const code = gstSplit.codeFromName(changes['business.state']);
+        if (!code) throw httpError(400, 'Enter an Indian state name, like Uttar Pradesh');
+        changes['business.state'] = gstSplit.nameOf(code);
+        if (changes['business.stateCode'] === undefined || changes['business.stateCode'] === '') changes['business.stateCode'] = code;
+    }
 
     const doc = await loadDoc();
     doc.set(changes);
     await doc.save();   // runs the GST number check
+    await require('../services/operators').syncActiveFromLive().catch((e) => console.error('Company sync error:', e.message));   // the active company's saved copy follows
     res.json(doc.toObject().business);
 }));
 

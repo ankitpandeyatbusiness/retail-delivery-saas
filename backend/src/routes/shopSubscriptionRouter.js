@@ -10,6 +10,7 @@ const mongoose = require('mongoose');
 const SubscriptionInvoice = require('../models/SubscriptionInvoice');
 const { withOverdue } = require('../services/subscriptionService');
 const { streamSubscriptionInvoice } = require('../services/subscriptionInvoicePdf');
+const CreditNote = require('../models/CreditNote');
 const rentPayments = require('../services/rentPaymentService');
 const platformCheckout = require('../services/platformCheckout');
 const { wrap, httpError } = require('../middlewares/apiErrors');
@@ -67,6 +68,13 @@ router.get('/invoices/:id/pdf', wrap(async (req, res) => {
         : null;
     if (!inv) throw httpError(404, 'Invoice not found');
     streamSubscriptionInvoice(res, inv, { inline: req.query.view === '1' });
+}));
+
+// a credit note the platform issued to this shop when a bill was cancelled
+router.get('/credit-notes/:id/pdf', wrap(async (req, res) => {
+    const note = isId(req.params.id) ? await CreditNote.findOne({ _id: req.params.id, tenantId: req.tenant._id }).lean() : null;
+    if (!note) throw httpError(404, 'Credit note not found');
+    streamSubscriptionInvoice(res, note, { inline: req.query.view === '1', creditNote: true });
 }));
 
 module.exports = router;

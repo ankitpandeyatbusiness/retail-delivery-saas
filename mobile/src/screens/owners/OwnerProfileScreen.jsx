@@ -1,4 +1,4 @@
-// The owner's own profile: picture, name and email (optional). The registered mobile number is shown but cannot be changed
+// The owner's own profile: picture, name and email (needed: bills and documents are sent there). The registered mobile number is shown but cannot be changed
 // here (it is the login); contact support to change it.
 import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
@@ -9,6 +9,7 @@ import { useBrand, alpha } from '../../components/common/kit';
 import { Button, Empty } from '../../components/owners/ui';
 import { FormPage, Group, TextBox, Hint, Label } from '../../components/owners/menuBits';
 import { FormShimmer, LineShimmer } from '../../components/owners/shimmer';
+import EmailVerifySheet from '../../components/owners/EmailVerifySheet';
 import { fetchProfile, saveProfile, apiError } from '../../api/owners/shopApi';
 import { deleteUpload } from '../../api/customers/shopApi';
 import { pickPhoto, uploadAvatar } from '../../utils/common/photoUpload';
@@ -26,8 +27,9 @@ export default function OwnerProfileScreen() {
     const [errors, setErrors] = useState({});
     const [saving, setSaving] = useState(false);
     const [photoBusy, setPhotoBusy] = useState(false);
+    const [emailOpen, setEmailOpen] = useState(false);
 
-    const apply = (u) => { setP(u); setForm({ name: u.name || '', email: u.email || '' }); };
+    const apply = (u) => { setP(u); setForm({ name: u.name || '' }); };
     useEffect(() => {
         fetchProfile().then(apply).catch((e) => { useOwnerStore.getState().noteError(e); setErr(apiError(e, 'Could not open your profile.')); });
     }, []);
@@ -35,19 +37,18 @@ export default function OwnerProfileScreen() {
     if (!p) return <FormPage title="My profile">{err ? <Empty icon="cloud-offline-outline" title="Could not open" hint={err} /> : <FormShimmer cards={2} />}</FormPage>;
 
     const initial = (p.name || p.phone || '?').trim().charAt(0).toUpperCase();
-    const dirty = form.name.trim() !== (p.name || '') || form.email.trim().toLowerCase() !== (p.email || '');
+    const dirty = form.name.trim() !== (p.name || '');
 
     const save = async () => {
         const e = {};
         if (form.name.trim().length < 2) e.name = 'Enter your name (at least 2 letters)';
-        if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email.trim())) e.email = 'Enter a valid email, or leave it empty';
         if (Object.keys(e).length) { setErrors(e); showToast(Object.values(e)[0]); return; }
         setErrors({});
         setSaving(true);
         try {
-            const u = await saveProfile({ name: form.name.trim(), email: form.email.trim() });
+            const u = await saveProfile({ name: form.name.trim() });
             apply(u);
-            useAuthStore.setState((st) => (st.user ? { user: { ...st.user, name: u.name, email: u.email } } : {}));
+            useAuthStore.setState((st) => (st.user ? { user: { ...st.user, name: u.name } } : {}));
             showToast('Profile saved');
         } catch (er) { useOwnerStore.getState().noteError(er); showToast(apiError(er)); } finally { setSaving(false); }
     };
@@ -94,7 +95,11 @@ export default function OwnerProfileScreen() {
 
             <Group title="About you">
                 <TextBox label="Your name" value={form.name} onChangeText={(x) => setForm({ ...form, name: x })} error={errors.name} maxLength={80} placeholder="e.g. Anita Rao" />
-                <TextBox label="Email (optional)" value={form.email} onChangeText={(x) => setForm({ ...form, email: x })} error={errors.email} maxLength={120} keyboardType="email-address" placeholder="you@example.com" hint="Used for bills and important notices. If you change it, the old address is told." last />
+                <Label hint="Your bills and official documents are sent here. To change it we mail a code to the new address.">Email (needed)</Label>
+                <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: border, borderRadius: 12, paddingHorizontal: 14, minHeight: 46 }}>
+                    <Text style={{ flex: 1, color: p.email ? text : muted, fontSize: 15, fontWeight: '700' }} numberOfLines={1}>{p.email || 'Not added yet'}</Text>
+                    <Pressable onPress={() => setEmailOpen(true)} hitSlop={8}><Text style={{ color: primary, fontWeight: '800' }}>{p.email ? 'Change' : 'Add'}</Text></Pressable>
+                </View>
             </Group>
 
             <Group title="Registered mobile number">
@@ -104,6 +109,7 @@ export default function OwnerProfileScreen() {
                 </View>
                 <Hint>This is your login number, so it cannot be changed here. Please contact support if it must change.</Hint>
             </Group>
+            <EmailVerifySheet visible={emailOpen} onClose={() => setEmailOpen(false)} title="Change your email" onDone={(u) => { setP((o) => ({ ...o, email: u.email, emailRequired: false })); setEmailOpen(false); }} />
         </FormPage>
     );
 }

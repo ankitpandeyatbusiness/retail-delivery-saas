@@ -5,9 +5,10 @@ import { View, Text, ScrollView } from 'react-native';
 import { Image } from 'expo-image';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useBrand } from '../../components/common/kit';
-import { Card, Button, Pill, SectionTitle, Chips, Field } from '../../components/owners/ui';
+import { Card, Button, Pill, SectionTitle, Chips, Field, Empty } from '../../components/owners/ui';
+import { FormShimmer } from '../../components/owners/shimmer';
 import { FormPage, Group, Hint, Label } from '../../components/owners/menuBits';
-import { fetchOrder, updateComplaint, apiError } from '../../api/owners/shopApi';
+import { fetchOrder, fetchComplaint, updateComplaint, apiError } from '../../api/owners/shopApi';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { COMPLAINT_TYPES, RESOLUTION_TEXT } from '../../utils/owners/hubRules';
 import { toPaise, ago, rupees } from '../../utils/owners/riderRules';
@@ -15,9 +16,21 @@ import { showToast } from '../../components/customers/shop';
 
 const CHOICES = [['none', 'Reply only'], ['refund_full', 'Full refund'], ['refund_partial', 'Part refund'], ['no_refund', 'No refund']];
 
+// Opened from the list (the complaint is given) or from a notification (only its id).
 export default function OwnerComplaintScreen() {
+    const { complaint, id } = useRoute().params || {};
+    const [c, setC] = useState(complaint || null);
+    const [err, setErr] = useState('');
+    useEffect(() => {
+        if (complaint || !id) return;
+        fetchComplaint(id).then(setC).catch((e) => setErr(apiError(e, 'Could not open this complaint.')));
+    }, [id]);   // eslint-disable-line react-hooks/exhaustive-deps
+    if (!c) return <FormPage title="Complaint">{err ? <Empty icon="cloud-offline-outline" title="Could not open" hint={err} /> : <FormShimmer />}</FormPage>;
+    return <ComplaintView c0={c} />;
+}
+
+function ComplaintView({ c0 }) {
     const nav = useNavigation();
-    const { complaint: c0 } = useRoute().params || {};
     const { text, muted, error, ok } = useBrand();
     const [c, setC] = useState(c0);
     const [order, setOrder] = useState(null);

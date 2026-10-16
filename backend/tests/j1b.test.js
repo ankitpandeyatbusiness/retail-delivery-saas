@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const crypto = require('crypto');
 const mongoose = require('mongoose');
 const request = require('supertest');
+const PlatformSettings = require('../src/models/PlatformSettings');
 const db = require('./helpers/db');
 const app = require('../src/server/app');
 const { makeTenant } = require('./helpers/factory');
@@ -257,6 +258,7 @@ describe('J1b: online payments, refunds, webhooks', () => {
 
     test('SMS top-up: the platform webhook credits the wallet once, and a wrong amount credits nothing', async () => {
         const tenant = await makeTenant('j1b-topup');
+        await PlatformSettings.findByIdAndUpdate('main', { $set: { 'business.gstin': '22AAAAA0000A1Z5' } }, { upsert: true });
         const t1 = await smsTopupService.create({ tenantId: tenant._id, amountPaise: 10000, actor: { type: 'system' } });
         const qrBody = (topup, amount) => ({
             event: 'qr_code.credited',
@@ -268,9 +270,9 @@ describe('J1b: online payments, refunds, webhooks', () => {
         const bad = await hook('platform', qrBody(t1, 5000));
         assert.equal(bad.status, 200);
         assert.equal((await SmsTopup.findById(t1._id)).status, 'pending');
-        const ok = await hook('platform', qrBody(t1, 10000));
+        const ok = await hook('platform', qrBody(t1, 11800));   // Rs 100 + 18% GST
         assert.equal(ok.body.topup, 'credited');
-        await hook('platform', qrBody(t1, 10000));   // again, other event id
+        await hook('platform', qrBody(t1, 11800));   // again, other event id
         assert.equal((await SmsTopup.findById(t1._id)).status, 'paid');
         assert.equal((await SmsWallet.findOne({ tenantId: tenant._id })).balancePaise, 10000);
     });

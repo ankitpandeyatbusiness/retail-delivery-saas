@@ -64,6 +64,14 @@ import { FrozenOverlay, OfflineBanner } from '../components/common/status';
 import { useAppStatus } from '../store/common/useAppStatus';
 import { useViewMode } from '../store/owners/useViewMode';
 import OwnerViewPill from '../components/owners/OwnerViewPill';
+import NewOrderPopup from '../components/owners/NewOrderPopup';
+import LegalGate from '../components/common/LegalGate';
+import { LegalDocScreen, LegalListScreen } from '../screens/common/LegalScreens';
+import OwnerBusinessScreen from '../screens/owners/OwnerBusinessScreen';
+import OwnerAutopilotScreen from '../screens/owners/OwnerAutopilotScreen';
+import OwnerSupportScreen from '../screens/owners/OwnerSupportScreen';
+import OwnerSupportNewScreen from '../screens/owners/OwnerSupportNewScreen';
+import OwnerSupportTicketScreen from '../screens/owners/OwnerSupportTicketScreen';
 import OwnerProfileScreen from '../screens/owners/OwnerProfileScreen';
 import OwnerPopularScreen from '../screens/owners/OwnerPopularScreen';
 import OwnerPayScreen from '../screens/owners/OwnerPayScreen';
@@ -279,6 +287,8 @@ export default function AppNavigator() {
                     <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
                     <Stack.Screen name="OrderPlaced" component={OrderPlacedScreen} options={{ gestureEnabled: false, animation: motion === 'off' ? 'none' : 'fade', animationDuration: 300 }} />
                     <Stack.Screen name="Notifications" component={NotificationsScreen} />
+                    <Stack.Screen name="LegalList" component={LegalListScreen} />
+                    <Stack.Screen name="LegalDoc" component={LegalDocScreen} />
 
                     {/* owner pages (role "admin"); the owner's tabs are MainTabs -> Landing -> OwnerTabs */}
                     <Stack.Screen name="ShopHub" component={ShopHubScreen} />
@@ -309,6 +319,11 @@ export default function AppNavigator() {
                     <Stack.Screen name="OwnerActivity" component={OwnerActivityScreen} />
                     <Stack.Screen name="OwnerClosing" component={OwnerClosingScreen} />
                     <Stack.Screen name="CustomerPreview" component={CustomerPreview} />
+                    <Stack.Screen name="OwnerBusiness" component={OwnerBusinessScreen} />
+                    <Stack.Screen name="OwnerAutopilot" component={OwnerAutopilotScreen} />
+                    <Stack.Screen name="OwnerSupport" component={OwnerSupportScreen} />
+                    <Stack.Screen name="OwnerSupportNew" component={OwnerSupportNewScreen} />
+                    <Stack.Screen name="OwnerSupportTicket" component={OwnerSupportTicketScreen} />
                     <Stack.Screen name="OwnerProfile" component={OwnerProfileScreen} />
                     <Stack.Screen name="OwnerPopular" component={OwnerPopularScreen} />
                     <Stack.Screen name="OwnerPay" component={OwnerPayScreen} />
@@ -322,6 +337,8 @@ export default function AppNavigator() {
                 </Stack.Navigator>
             </NavigationContainer>
             <OwnerViewPill onBack={() => { if (navigationRef.isReady() && (navigationRef.getRootState()?.routes?.length || 0) > 1) navigationRef.dispatch(StackActions.popToTop()); }} />
+            <NewOrderPopup navRef={navigationRef} />
+            <LegalGate />
             <FrozenOverlay onOrders={goOrders} />
             <OfflineBanner />
             <ToastHost />

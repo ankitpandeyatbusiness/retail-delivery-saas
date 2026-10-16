@@ -18,6 +18,8 @@ const superAdminSchema = new mongoose.Schema({
             { validator: (a) => a.every((p) => /^[6-9]\d{9}$/.test(p)), message: 'Phones must be 10-digit mobile numbers' },
         ],
     },
+    // which agreement this person gets: the operator partner gets the operating agreement, everybody else the administrators' terms
+    legalRole: { type: String, enum: ['partner', 'team'], default: 'team' },
     photo: String,    // his profile picture (public URL)
     isActive: { type: Boolean, default: true },
     lastLoginAt: Date,

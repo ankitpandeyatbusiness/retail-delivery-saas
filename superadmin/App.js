@@ -5,10 +5,12 @@ import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';
 import RootNavigator from './src/navigation/RootNavigator';
 import { ToastHost } from './src/components/feedback';
+import LegalGate from './src/components/LegalGate';
 import { useAuthStore } from './src/store/useAuthStore';
 import { useThemeStore } from './src/store/useThemeStore';
 import { useInboxStore } from './src/store/useInboxStore';
-import { configurePush, enablePush } from './src/utils/push';
+import { configurePush, enablePush, startPushTaps } from './src/utils/push';
+import { navigationRef, flushPending } from './src/navigation/ref';
 import { fetchMe } from './src/api/authApi';
 import { useTheme } from './src/theme';
 
@@ -27,6 +29,7 @@ function Shell() {
     useEffect(() => {
         if (!token) return undefined;
         configurePush();
+        startPushTaps();                         // tapping a help-request alert opens that request
         enablePush({ ask: false });              // registers this phone only if alerts are already allowed
         useInboxStore.getState().refresh();
         // a stale token is found out here (the client logs out on 401), and the name stays current
@@ -38,8 +41,9 @@ function Shell() {
     if (!hydrated) return null;   // the splash stays up until the saved login is read
     const base = t.dark ? DarkTheme : DefaultTheme;
     return (
-        <NavigationContainer theme={{ ...base, colors: { ...base.colors, background: t.bg, card: t.surface, text: t.text, border: t.border, primary: t.primary } }}>
+        <NavigationContainer ref={navigationRef} onReady={flushPending} theme={{ ...base, colors: { ...base.colors, background: t.bg, card: t.surface, text: t.text, border: t.border, primary: t.primary } }}>
             <RootNavigator />
+            <LegalGate />
             <ToastHost />
         </NavigationContainer>
     );

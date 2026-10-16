@@ -48,6 +48,7 @@ router.use('/orders', ownerChain(requireShopAdmin.allowBlocked));
 router.use('/orders', require('./shopRiderRouter').orders);   // assign riders (orders in progress must finish)
 router.use('/orders/:id/invoice', invoiceRoutes.invoice);     // the invoice PDF of an order (already past the login above)
 router.use('/notifications', ownerChain(requireShopAdmin.allowBlocked), require('./notificationRouter').shop);
+router.use('/support', ownerChain(requireShopAdmin.allowBlocked), require('./shopSupportRouter'));          // help & support: also for a blocked or unpaid shop
 router.use('/profile', ownerChain(requireShopAdmin.allowBlocked), require('./shopProfileRouter'));          // the owner's own name, email and picture
 router.use('/billing', ownerChain(requireShopAdmin.allowBlocked), require('./shopBillingRouter'));
 
@@ -170,6 +171,10 @@ router.get('/dashboard', openWhilePaused, wrap(async (req, res) => {
             pausedUntil: cfg.orders.pausedUntil || null,
         },
     });
+}));
+// The shop's progress report: GET /api/shop/business-report?range=7|30|90|2026-09
+router.get('/business-report', openWhilePaused, wrap(async (req, res) => {
+    res.json(await require('../services/businessReport').build({ tenantId: req.tenant._id, range: req.query.range || '30' }));
 }));
 router.get('/live', openWhilePaused, wrap(async (req, res) => {
     res.json(await liveSnapshot.build(req.tenant._id, { owner: true }));
@@ -348,6 +353,12 @@ router.put('/settings', wrap(async (req, res) => {
         const a = body.address;
         if (a.line !== undefined) updates['address.line'] = String(a.line).trim().slice(0, 150);
         if (a.city !== undefined) updates['address.city'] = String(a.city).trim().slice(0, 60);
+        if (a.state !== undefined) {
+            const st = String(a.state).trim();
+            const gs = require('../services/gstSplit');
+            if (st && !gs.codeFromName(st)) throw httpError(400, 'Enter an Indian state name, like Uttar Pradesh');
+            updates['address.state'] = st ? gs.nameOf(gs.codeFromName(st)) : '';
+        }
         if (a.pincode !== undefined) {
             const pin = String(a.pincode).trim();
             if (!/^\d{6}$/.test(pin)) throw httpError(400, 'Enter a valid 6-digit pincode');
@@ -399,6 +410,7 @@ router.put('/settings', wrap(async (req, res) => {
 router.use('/uploads', require('./uploadRouter'));   // direct-to-R2 uploads (owner and superadmin)
 router.get('/reviews', wrap(async (req, res) => { res.json(await require('../services/reviewsService').list({ tenantId: req.tenant._id, query: req.query })); }));   // what customers say: dishes and delivery
 router.use('/customers', require('./shopCustomersRouter'));   // customer tools: list, detail, edit, Cash on delivery block
+router.use('/autopilot', require('./shopAutopilotRouter'));   // automatic reminders to customers (push and inbox only)
 router.use('/messages', require('./shopMessagesRouter'));     // messages to his customers and riders
 router.use('/complaints', require('./shopComplaintsRouter')); // complaints of his customers
 router.use(require('./shopManageRouter'));           // menu: categories, products, banners, coupons, collections

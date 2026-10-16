@@ -17,6 +17,7 @@ import TrackingCard from '../../components/customers/tracking';
 import { StoreLocation, useStoreSpot } from '../../components/customers/storeLocation';
 import { DeliveryRatingCard, ComplaintCard } from '../../components/common/feedback';
 import { useOrderLive } from '../../hooks/customers/useOrderLive';
+import { onRiderLocation } from '../../api/common/socket';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { payForOrder } from '../../utils/customers/payOnline';
 
@@ -158,6 +159,11 @@ export default function OrderDetailScreen() {
     // The server tells us at once when the order changes (status, rider accepted...). The timer is only a safety net,
     // and runs faster while the rider is on the way because his position is not pushed.
     useOrderLive(id, get);
+    // the rider's pin moves the moment the server hears from his phone (no waiting for the next refresh)
+    useEffect(() => onRiderLocation((p) => {
+        if (String(p?.orderId) !== String(id) || typeof p.lat !== 'number') return;
+        setTrack((t) => (t && t.state !== 'delivered' && t.state !== 'cancelled' ? { ...t, riderLocation: { lat: p.lat, lng: p.lng, at: p.at } } : t));
+    }), [id]);
     useFocusEffect(useCallback(() => {
         get();
         const t = setInterval(() => { if (activeRef.current) get(); }, trackRef.current?.state === 'on_the_way' ? 15000 : 45000);

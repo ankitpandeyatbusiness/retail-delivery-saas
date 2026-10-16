@@ -5,6 +5,7 @@ import {
     KeyboardAvoidingView, Platform, StyleSheet, Linking, Switch, Animated, Easing, InteractionManager,
 } from 'react-native';
 import Constants from 'expo-constants';
+import PoweredBy from '../../components/common/PoweredBy';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -385,11 +386,13 @@ function AccountInner() {
                 ) : null}
 
                 <Group title="MANAGE" delay={200}>
+                    <Item icon="document-text-outline" label="Terms and privacy" onPress={() => nav.navigate('LegalList')} />
                     <Item icon="log-out-outline" label="Log out" onPress={doLogout} />
                     <Item icon="trash-outline" label="Delete account" onPress={doDelete} danger last />
                 </Group>
 
                 <Text style={[s.ver, { color: muted }]}>{shop} · v{Constants.expoConfig?.version || '1.0'}</Text>
+                <PoweredBy />
             </ScrollView>
 
             <EditDialog visible={edit} me={p} onClose={() => setEdit(false)} onSaved={saved} />

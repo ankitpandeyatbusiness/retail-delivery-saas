@@ -5,6 +5,7 @@ import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as SecureStore from 'expo-secure-store';
 import { registerDevice, removeDevice } from '../api/platformApi';
+import { openScreen } from '../navigation/ref';
 
 const TOKEN_KEY = 'rc_push_token';
 const CHANNEL = 'alerts';
@@ -18,6 +19,30 @@ export function configurePush() {
             handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: false }),
         });
     } catch (e) { /* older native build */ }
+}
+
+// A tapped alert opens what it is about: a help request, an order, an invoice, the shop, or else the Alerts inbox.
+let lastTapped = null;
+function handleTap(resp) {
+    const id = resp?.notification?.request?.identifier;
+    if (id && id === lastTapped) return;   // the same tap is reported again when the app restarts
+    lastTapped = id;
+    const data = resp?.notification?.request?.content?.data || {};
+    if (data.entryId) openScreen('Admin', { screen: 'MoreTab', params: { screen: 'SettlementEntry', params: { id: String(data.entryId) } } });
+    else if (data.ticketId) openScreen('SupportDetail', { id: String(data.ticketId) });
+    else if (data.orderId) openScreen('Admin', { screen: 'OrdersTab', params: { screen: 'OrderDetail', params: { orderId: String(data.orderId) } } });
+    else if (data.invoiceId) openScreen('Admin', { screen: 'MoneyTab', params: { screen: 'InvoiceDetail', params: { invoiceId: String(data.invoiceId) } } });
+    else if (data.tenantId) openScreen('Admin', { screen: 'ShopsTab', params: { screen: 'ShopDetail', params: { shopId: String(data.tenantId), name: data.shopName } } });
+    else openScreen('Inbox');
+}
+let listening = false;
+export function startPushTaps() {
+    if (listening) return;
+    listening = true;
+    try {
+        Notifications.addNotificationResponseReceivedListener(handleTap);
+        Notifications.getLastNotificationResponseAsync().then((r) => { if (r) handleTap(r); }).catch(() => { });
+    } catch (e) { /* this build has no notifications */ }
 }
 
 export async function pushStatus() {

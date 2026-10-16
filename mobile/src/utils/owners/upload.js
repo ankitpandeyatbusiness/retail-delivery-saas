@@ -1,7 +1,7 @@
 // A picture for a menu record (item, category, collection...): pick it, then sign -> PUT to storage -> confirm.
 // Throws an Error with `safe: true` whose message can be shown to the owner as it is.
 import * as ImagePicker from 'expo-image-picker';
-import { signUpload, confirmUpload } from '../../api/owners/shopApi';
+import { signUpload, confirmUpload, signSupportPhoto, confirmSupportPhoto } from '../../api/owners/shopApi';
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const ALLOWED = ['image/jpeg', 'image/png', 'image/webp'];
@@ -20,7 +20,10 @@ export async function pickImage({ square = false } = {}) {
 
 // kind: product | category | collection | banner. 'product' needs refId (the item's id, or a temporary one for a new item).
 // -> the saved Media { url, ... }
-export async function uploadImage({ kind, uri, mimeType, refId }) {
+export async function uploadImage({ kind, uri, mimeType, refId, via }) {
+    // via 'support': the picture of a help request (its own route, which stays open while the shop is paused)
+    const sign = via === 'support' ? signSupportPhoto : signUpload;
+    const confirm = via === 'support' ? confirmSupportPhoto : confirmUpload;
     let blob;
     try { blob = await (await fetch(uri)).blob(); } catch (e) { throw fail('Could not read that picture'); }
     if (!blob.size) throw fail('That picture is empty');
@@ -29,7 +32,7 @@ export async function uploadImage({ kind, uri, mimeType, refId }) {
     const ref = refId ? { refId: String(refId) } : {};
 
     let signed;
-    try { signed = await signUpload({ kind, contentType, bytes: blob.size, ...ref }); }
+    try { signed = await sign({ kind, contentType, bytes: blob.size, ...ref }); }
     catch (e) { throw fail(e?.response?.data?.error || 'Uploads are not available right now'); }
 
     let put;
@@ -37,6 +40,6 @@ export async function uploadImage({ kind, uri, mimeType, refId }) {
     catch (e) { throw fail('Upload failed. Check the connection and try again.'); }
     if (!put.ok) throw fail('Upload failed. Please try again.');
 
-    try { return await confirmUpload({ kind, key: signed.key, ...ref }); }
+    try { return await confirm({ kind, key: signed.key, ...ref }); }
     catch (e) { throw fail(e?.response?.data?.error || 'Could not save that picture'); }
 }

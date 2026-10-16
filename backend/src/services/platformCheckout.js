@@ -85,11 +85,12 @@ async function startTopup({ tenantId, amountPaise, actor }) {
     if (open >= 5) throw bad(429, 'Too many open top-ups. Pay one or wait a few minutes.');
 
     const c = creds();
-    const topup = new SmsTopup({ tenantId, amountPaise, createdBy: actor, expiresAt: new Date(Date.now() + TOPUP_WINDOW_MS) });
-    const order = await makeOrder({ amountPaise, receipt: `topup_${topup._id}`, notes: { purpose: 'sms_topup', referenceId: String(topup._id), tenantId: String(tenantId) } });
+    const cost = smsTopups.price(amountPaise, o.gstPercent);
+    const topup = new SmsTopup({ tenantId, ...cost, createdBy: actor, expiresAt: new Date(Date.now() + TOPUP_WINDOW_MS) });
+    const order = await makeOrder({ amountPaise: cost.payablePaise, receipt: `topup_${topup._id}`, notes: { purpose: 'sms_topup', referenceId: String(topup._id), tenantId: String(tenantId) } });
     topup.rzpOrderId = order.id;
     await topup.save();
-    return { topupId: topup._id, ...startView(c, order.id, amountPaise, 'SMS balance') };
+    return { topupId: topup._id, ...startView(c, order.id, cost.payablePaise, 'SMS balance'), creditPaise: amountPaise, gstPaise: cost.gstPaise, gstPercent: cost.gstPercent };
 }
 
 async function verifyTopup({ tenantId, topupId, proof }) {
@@ -108,7 +109,7 @@ async function verifyTopup({ tenantId, topupId, proof }) {
 
 // a captured payment for a top-up: check the amount, credit once (the wallet credit key makes a repeat harmless)
 async function creditTopup(t, pay, via) {
-    if (pay.amountPaise !== t.amountPaise) throw bad(409, 'The amount paid does not match this top-up. Please contact support.');
+    if (pay.amountPaise !== smsTopups.payable(t)) throw bad(409, 'The amount paid does not match this top-up. Please contact support.');
     const done = await smsTopups.complete({ topupId: t._id, tenantId: t.tenantId, paymentId: pay.id, actor: { type: 'system' } });
     if (!done.duplicate) {
         await auditTrail.record({

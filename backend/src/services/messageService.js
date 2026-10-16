@@ -67,6 +67,7 @@ async function create(draft) {
 
 async function startShop({ tenant, actor, body }) {
     const content = parseContent(body);
+    content.sendEmail = false;   // email is kept for the platform's official documents: a shop reaches its people by push and the in-app inbox
     const audience = body?.audience === undefined ? 'customers' : body.audience;
     if (!SHOP_ROLES[audience]) throw httpError(400, 'audience must be "customers", "riders" or "both"');
     if (content.kind === 'promo' && audience !== 'customers') throw httpError(400, 'Promotions can go to customers only');

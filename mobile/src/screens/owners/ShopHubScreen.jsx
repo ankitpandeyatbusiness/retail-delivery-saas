@@ -26,12 +26,14 @@ const GROUPS = [
         ['chatbubble-ellipses', 'Complaints', 'Reply to and resolve complaints', 'OwnerComplaints'],
         ['star', 'Reviews', 'What customers say about your food and delivery', 'OwnerReviews'],
         ['megaphone', 'Messages', 'Send a message to customers or riders', 'OwnerMessages'],
+        ['rocket', 'Autopilot', 'Reminders that bring customers back, by themselves', 'OwnerAutopilot'],
     ]],
     ['Offers', [
         ['pricetag', 'Coupons', 'Discount codes', 'OwnerCoupons'],
         ['images', 'Banners', 'Pictures on the home screen', 'OwnerBanners'],
     ]],
     ['Money', [
+        ['trending-up', 'Business report', 'Progress charts, what customers like, tips', 'OwnerBusiness'],
         ['trophy', 'Popular items', 'What sells most: last 7 days, 30 days, 3 months', 'OwnerPopular'],
         ['swap-vertical', 'Transactions and bills', 'Every payment, year by year and month by month', 'OwnerTransactions'],
     ]],
@@ -40,11 +42,12 @@ const GROUPS = [
         ['navigate', 'Delivery area and fees', 'Pin, distance, delivery fee, packaging, tips', 'OwnerDelivery'],
         ['settings', 'Shop settings', 'Phone, address, SMS alerts', 'OwnerShopSettings'],
         ['list-circle', 'Activity log', 'Who changed what', 'OwnerActivity'],
+        ['document-text', 'Terms and privacy', 'Your agreement, the terms and the privacy policy', 'LegalList'],
     ]],
 ];
 
 // Busy mode: the kitchen is rushed, customers see a longer wait for a while. It ends by itself.
-function BusySheet({ visible, busy, onClose, onChanged }) {
+export function BusySheet({ visible, busy, onClose, onChanged }) {
     const [extra, setExtra] = useState(15);
     const [work, setWork] = useState(false);
     const go = async (body) => {
@@ -75,6 +78,7 @@ export function ShopMenu({ onGo }) {
     const { error } = useBrand();
     const logout = useAuthStore((s) => s.logout);
     const unread = useOwnerStore((st) => st.unread);
+    const supportUnread = useOwnerStore((st) => st.supportUnread);
     const user = useAuthStore((st) => st.user);
     const [busy, setBusyState] = useState(null);
     const [busyOpen, setBusyOpen] = useState(false);
@@ -121,6 +125,7 @@ export function ShopMenu({ onGo }) {
 
             <SectionTitle title="Your app" />
             <Card>
+                <Row icon="help-buoy" title="Help and support" subtitle="Ask the platform team for help" onPress={() => go('OwnerSupport')} right={supportUnread > 0 ? <Pill label={String(supportUnread)} color={error} /> : undefined} />
                 <Row icon="person-circle" title="My profile" subtitle={user?.name || user?.phone || 'Your name, picture and email'} onPress={() => go('OwnerProfile')} />
                 <AppearanceSwitch />
                 <Row icon="eye" title="See the customer app" subtitle="Look at your shop the way customers do. You cannot order from your own number." onPress={customerView} />

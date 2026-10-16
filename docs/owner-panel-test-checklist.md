@@ -26,6 +26,52 @@ You stay in the owner (admin) panel the whole time. Tick each line. If a line fa
 - [ ] Your logo shows in the top bar and at the top of the side menu.
 - [ ] Menu, **See the customer app** slides in from the right like a normal page. **Back to owner panel** (or Android Back on the customer Home) slides it out to the right.
 
+## Help and support (new)
+Owner app:
+- [ ] Side menu → **Help and support**: a card "We are here to help" (empty buttons until the superadmin fills the contact details), **Ask for help**, Open / Solved chips.
+- [ ] **Ask for help**: choose a topic, write a title and a message, add a screenshot, **Send request**. You land on the request with your message on the right.
+- [ ] When the superadmin replies (superadmin app), you get a message in the bell and a push; the request shows a red dot; opening it shows the reply on the left.
+- [ ] Reply from the owner app, then **Mark solved**; a "How was our help?" star box appears; rate it.
+- [ ] Even with rent unpaid (or the panel paused) you can still open Help and support and send a request.
+Superadmin app:
+- [ ] More → **Support requests** (a red "n waiting" badge and a line on Home). Open one: you see the shop and the owner (tap the owner to call).
+- [ ] Send a reply; use a saved reply chip; add a picture; **Send and solve**.
+- [ ] Switch to **Private note**, write a note: the owner app must NOT show it.
+- [ ] Change priority to Urgent: it shows on the list.
+- [ ] Top right button → **Contact details**: fill phone, WhatsApp, email, hours; the owner app card shows Call / WhatsApp / Email buttons.
+
+## Email, report and monthly report (new)
+- [ ] An owner without an email sees the **Add your email** sheet; typing an email sends a code (in a test setup the sheet also prints the code); the right code closes the sheet. Profile → Email → Change works the same way.
+- [ ] Menu → Messages → New message: there is no "send by email" switch any more.
+- [ ] Home → **See how your shop is growing** (or Menu → Money → Business report): charts for 7 days / 30 days / 3 months / last month, "What the app brought you", tips with buttons, best food, best rider, a positive line, **Share my progress**.
+- [ ] Shop settings → Alerts and reports: switch **Monthly report** off, then **Reset to recommended** brings both switches back on.
+- [ ] Superadmin app → a shop → **Progress report**; More → **Owner report settings** (change the commission, press Reset to recommended).
+- [ ] On the 1st (or when you ask me to run it once), the owner gets the notification "Your <month> report is ready" and an email with a PDF.
+
+## Billing papers, settlement sheet, agreements and Switch (new)
+- [ ] Restart the backend (new setting: SUPREME_ADMIN_PHONE in backend/.env, default 8318538918). Log in to the superadmin app with that number and with a second superadmin (add one in More, Superadmin team).
+- [ ] The second superadmin can open the settlement sheet, GST register, Companies and Agreements but cannot change anything (a clear message appears).
+- [ ] Money, Business details: fill legal name, address, GST number, PAN, state, invoice prefix, "Powered by" name and contact number. Save.
+- [ ] Owner app, SMS balance: type 200, below it you see "You pay 236 ... 18% GST 36" (only with a GST number saved). After paying, History shows "Open invoice (PDF)".
+- [ ] Owner app, Money, Monthly bill: a cancelled bill shows "Credit note (PDF)".
+- [ ] Shop settings (owner) and the shop form (superadmin): the State field; wrong text is refused.
+- [ ] More, GST register: pick a month, see the bills, top-up invoices and credit notes with CGST/SGST/IGST; Download Excel.
+- [ ] A shop pays (or mark a bill paid in Money, with "received by"): a row appears on More, Settlement sheet and the supreme admin gets a notification. Open the row: timeline. "Record a payment", "Set off against another row", "Add shared cost". The second superadmin can only press "I have paid".
+- [ ] Shop detail: "Who brought this shop" (supreme admin chooses), then pay again and see the ratio (50/50 or 70/30).
+- [ ] More, Agreements and terms: open a document, "Edit draft", fill the [blanks], "Send new version". Then Shop detail: "Mark as handed over". On the owner phone open the app, close it for 30 minutes, open it again: the full-screen agree screen appears and cannot be closed. Same for a rider and for the second superadmin.
+- [ ] Customer app: login screen and Account show "Terms and privacy" and "Powered by ... Contact" (the Contact button calls the number).
+- [ ] More, Companies and Switch: "Save the current company", add your agency with its Razorpay keys, press "Switch to this company": read the checklist, switch. New bills show the new company and prefix; the sheet shows nothing to settle.
+
+## Customers, Remind and Autopilot (new)
+- [ ] Menu, Customers: chips Everyone / Slipping / Lost / New / Regular / Loyal / VIP with numbers. Slipping and Lost rows have a **Remind** button.
+- [ ] Open a customer who has ordered: the card **How he orders** shows his tag, usual hour, favourite food. **Remind him** shows a pre-filled friendly message you can edit; **Send reminder** puts it in his app inbox and sends a notification.
+- [ ] Remind the same customer again straight away: it says to wait (3 days between reminders). A customer who ordered today, or turned offers off, cannot be reminded.
+- [ ] Menu, **Autopilot**: nothing is on at first. **Turn on recommended** switches on win-back, welcome, thank you, daily summary and Monday digest.
+- [ ] Change language (English / Hinglish / Hindi), how often (Gentle / Normal / Pushy), the offer, quiet hours. Each change is saved at once. **Reset to recommended** brings them all back.
+- [ ] **See and edit the messages**: tap one, write your own wording, save; then **Use the app's messages again**.
+- [ ] After a day or two: "Last 30 days" on the Autopilot screen shows messages sent and customers who came back. At your summary time you get "Today: ... from N orders".
+- [ ] Superadmin app: More, **Shops growth** (top, growing, slowing); a shop, **Autopilot** (stop it for that shop); More, Owner report settings, **Autopilot reminders** kill switch.
+
 ## Phase 1: Home, Orders, Pause
 **Home**
 - [ ] Shows today's sales, orders, a bar chart by hour, riders, SMS balance. No red error box.

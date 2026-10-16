@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { useNavigation } from '@react-navigation/native';
+import React, { useCallback, useState } from 'react';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { spacing } from '../../theme';
 import { Screen } from '../../components/layout';
-import { Card, SectionTitle, KeyValue, Button, ListRow } from '../../components/ui';
+import { Card, SectionTitle, KeyValue, Button, ListRow, Badge } from '../../components/ui';
+import { fetchSupportCounts } from '../../api/supportApi';
 import ProfileCard from '../../components/ProfileCard';
 import { ConfirmSheet } from '../../components/feedback';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -15,6 +16,8 @@ export default function MoreScreen() {
     const admin = useAuthStore((s) => s.admin);
     const logout = useAuthStore((s) => s.logout);
     const [confirm, setConfirm] = useState(false);
+    const [help, setHelp] = useState(0);   // support requests waiting for a reply
+    useFocusEffect(useCallback(() => { fetchSupportCounts().then((c) => setHelp(c.open || 0)).catch(() => { }); }, []));
     const mode = useThemeStore((s2) => s2.mode);
     const setMode = useThemeStore((s2) => s2.setMode);
 
@@ -32,6 +35,7 @@ export default function MoreScreen() {
 
             <SectionTitle section="alerts">Alerts and messages</SectionTitle>
             <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
+                <ListRow section="orders" icon="message" title="Support requests" subtitle="Help requests from shop owners" right={help > 0 ? <Badge label={`${help} waiting`} tone="danger" /> : null} onPress={() => nav.navigate('Support')} />
                 <ListRow section="alerts" icon="bell" title="Alerts inbox" subtitle="Late orders, unpaid bills, problems" onPress={() => nav.navigate('Inbox')} />
                 <ListRow section="platform" icon="megaphone" title="Messages to owners" subtitle="Write to all shop owners" onPress={() => nav.navigate('OwnerMessages')} />
                 <ListRow section="catalog" icon="message" title="Alert SMS" subtitle="SMS to your phone and what they cost" onPress={() => nav.navigate('AlertSettings')} />
@@ -40,6 +44,12 @@ export default function MoreScreen() {
 
             <SectionTitle section="platform">Platform</SectionTitle>
             <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
+                <ListRow section="platform" icon="bank" title="Companies and Switch" subtitle="Who runs the platform now, and the Switch button" onPress={() => nav.navigate('Operators')} />
+                <ListRow section="platform" icon="notes" title="Agreements and terms" subtitle="Read them; the supreme admin writes and sends them" onPress={() => nav.navigate('Agreements')} />
+                <ListRow section="money" icon="rupee" title="Settlement sheet" subtitle="Who owes whom between the two of you, row by row" onPress={() => nav.navigate('Settlement')} />
+                <ListRow section="money" icon="receipt" title="GST register" subtitle="Every bill and credit note of a month, with CGST, SGST and IGST" onPress={() => nav.navigate('GstRegister')} />
+                <ListRow section="shops" icon="chart" title="Shops growth" subtitle="Top shops, who is growing, who is slowing down" onPress={() => nav.navigate('ShopsGrowth')} />
+                <ListRow section="money" icon="chart" title="Owner report settings" subtitle="Monthly report email and the comparison shown to owners" onPress={() => nav.navigate('InsightsSettings')} />
                 <ListRow section="alerts" icon="tool" title="Maintenance" subtitle="Pause every shop's app for an upgrade" onPress={() => nav.navigate('Maintenance')} />
                 <ListRow section="settings" icon="crown" title="Superadmin team" subtitle="Add, revoke or restore superadmins" onPress={() => nav.navigate('Team')} />
                 <ListRow section="platform" icon="notes" title="Audit log" subtitle="Who changed what, everywhere" onPress={() => nav.navigate('AuditLog')} />

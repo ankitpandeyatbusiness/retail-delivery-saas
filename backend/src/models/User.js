@@ -7,6 +7,7 @@ const userSchema = new mongoose.Schema({
     phoneHash: { type: String },   // recognises the same person even after his account is deleted
     name: { type: String, trim: true, maxlength: 80 },
     email: { type: String, trim: true, lowercase: true, maxlength: 120 },
+    emailVerifiedAt: Date,   // the owner proved the address with a code (services/emailVerifyService.js)
     notes: { type: String, trim: true, maxlength: 300 },   // a private note by the owner or the superadmin. The person never sees it.
     prefs: {
         promotions: { type: Boolean, default: true },   // false = no promotional broadcasts (information messages still arrive)

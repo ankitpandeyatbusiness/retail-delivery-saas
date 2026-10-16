@@ -6,7 +6,9 @@ import { useBrand } from '../../components/common/kit';
 import { Card, Button, Pill, SectionTitle, Stat, Empty, money } from '../../components/owners/ui';
 import { FormPage, Group, TextBox, Hint } from '../../components/owners/menuBits';
 import { callPhone, whatsApp } from '../../components/owners/orderBits';
-import { fetchCustomer, updateCustomer, allowCod, apiError } from '../../api/owners/shopApi';
+import { fetchCustomer, fetchCustomerInsight, updateCustomer, allowCod, apiError } from '../../api/owners/shopApi';
+import RemindSheet from '../../components/owners/RemindSheet';
+import { TAGS, usualLine, sinceLine } from '../../utils/owners/customerTags';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { personName } from '../../utils/owners/hubRules';
 import { ago } from '../../utils/owners/riderRules';
@@ -22,10 +24,13 @@ export default function OwnerCustomerScreen() {
     const [form, setForm] = useState({ name: '', email: '', notes: '' });
     const [saving, setSaving] = useState(false);
     const [busy, setBusy] = useState(false);
+    const [ins, setIns] = useState(null);
+    const [remind, setRemind] = useState(false);
 
     const apply = (r) => { setC(r); setForm({ name: r.name || '', email: r.email || '', notes: r.notes || '' }); };
     useEffect(() => {
         fetchCustomer(id).then(apply).catch((e) => { useOwnerStore.getState().noteError(e); setErr(apiError(e, 'Could not open this customer.')); });
+        fetchCustomerInsight(id).then(setIns).catch(() => { });
     }, [id]);
 
     if (!c) return <FormPage title="Customer">{err ? <Empty icon="cloud-offline-outline" title="Could not open" hint={err} /> : <FormShimmer />}</FormPage>;
@@ -58,6 +63,25 @@ export default function OwnerCustomerScreen() {
                     <View style={{ flex: 1, marginLeft: 6 }}><Button label="WhatsApp" icon="logo-whatsapp" kind="ghost" onPress={() => whatsApp(c.phone)} /></View>
                 </View>
             </Card>
+
+            {ins && ins.orders > 0 ? (
+                <>
+                    <SectionTitle title="How he orders" />
+                    <Card>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
+                            <Pill label={TAGS[ins.tag]?.label || ins.tag} color={TAGS[ins.tag]?.color} />
+                            {ins.vip && ins.tag !== 'vip' ? <View style={{ marginLeft: 8 }}><Pill label="VIP" color={TAGS.vip.color} /></View> : null}
+                        </View>
+                        <Text style={{ color: text, marginTop: 10, fontWeight: '700' }}>{sinceLine(ins)}</Text>
+                        <Text style={{ color: muted, marginTop: 2 }}>Usually {usualLine(ins)}</Text>
+                        {ins.favourites?.length ? <Text style={{ color: muted, marginTop: 2 }}>Favourites: {ins.favourites.map((f) => `${f.name} (${f.quantity})`).join(', ')}</Text> : null}
+                        {ins.gapDays ? <Text style={{ color: muted, marginTop: 2 }}>Orders about every {Math.max(1, Math.round(ins.gapDays))} day{Math.round(ins.gapDays) === 1 ? '' : 's'}</Text> : null}
+                        <Text style={{ color: ins.reachable ? muted : error, marginTop: 2, fontSize: 12 }}>{ins.reachNote}</Text>
+                        {ins.nudges?.length ? <Text style={{ color: muted, marginTop: 6, fontSize: 12 }}>Last reminder: {ago(ins.nudges[0].createdAt)}</Text> : null}
+                        <View style={{ marginTop: 12 }}><Button label="Remind him" icon="notifications" disabled={!ins.reachable} onPress={() => setRemind(true)} /></View>
+                    </Card>
+                </>
+            ) : null}
 
             <SectionTitle title="Orders" />
             <Card>
@@ -95,6 +119,7 @@ export default function OwnerCustomerScreen() {
                 <TextBox label="Your notes" value={form.notes} onChangeText={(x) => setForm({ ...form, notes: x })} multiline maxLength={300} last />
                 <Hint>Only the platform can change a phone number.</Hint>
             </Group>
+            {ins ? <RemindSheet visible={remind} customer={{ id: ins.id, name: ins.name }} onClose={() => setRemind(false)} onSent={() => fetchCustomerInsight(id).then(setIns).catch(() => { })} /> : null}
         </FormPage>
     );
 }

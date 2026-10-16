@@ -1,3 +1,5 @@
+import { isState } from '../../utils/states';
+import { BroughtByPicker } from '../../components/settlementBits';
 import React, { useEffect, useState } from 'react';
 import { View, Text, Image, Pressable } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -45,7 +47,7 @@ export default function ShopCreateScreen() {
     const [busy, setBusy] = useState(false);
     const [opts, setOpts] = useState(null);
     const [f, setF] = useState({
-        name: '', slug: '', slugTouched: false, phone: '', line: '', city: '', pincode: '', ownerPhone: '',
+        name: '', slug: '', slugTouched: false, phone: '', line: '', city: '', state: '', pincode: '', ownerPhone: '', broughtBy: '',
         foodMode: 'mixed', types: ['delivery'], minOrder: 0, feeType: 'free', feeAmount: 0, freeAbove: 0,
         latitude: null, longitude: null, radiusKm: 5,
         primary: '#E8590C', accent: '', fontStyle: 'modern', buttonShape: 'rounded', cardStyle: 'big',
@@ -146,7 +148,8 @@ export default function ShopCreateScreen() {
                 businessType: 'restaurant',
                 name: f.name.trim(),
                 ...(f.phone ? { phone: f.phone } : {}),
-                address: { line: f.line.trim(), city: f.city.trim(), pincode: f.pincode },
+                ...(f.broughtBy ? { broughtBy: f.broughtBy } : {}),
+                address: { line: f.line.trim(), city: f.city.trim(), state: f.state.trim(), pincode: f.pincode },
                 ...(f.latitude != null ? { delivery: { latitude: f.latitude, longitude: f.longitude, radiusKm: f.radiusKm || 5 } } : {}),
                 settings: buildSettings(),
             };
@@ -177,7 +180,7 @@ export default function ShopCreateScreen() {
     const phoneConfig = {
         restaurant: {
             name: f.name.trim() || 'Your shop', tagline: '', isOpen: true, logo: f.logoUri,
-            address: { line: f.line, city: f.city, pincode: f.pincode }, latitude: f.latitude, longitude: f.longitude,
+            address: { line: f.line, city: f.city, state: f.state, pincode: f.pincode }, latitude: f.latitude, longitude: f.longitude,
         },
         brand: {
             colors: { ...mainColours, ...otherColours, ...accentColour },
@@ -250,6 +253,7 @@ export default function ShopCreateScreen() {
                     />
                     <Field label="Address" value={f.line} onChangeText={set('line')} placeholder="Street, area" multiline />
                     <Field label="City" value={f.city} onChangeText={set('city')} />
+                    <Field label="State" value={f.state} onChangeText={set('state')} placeholder="e.g. Uttar Pradesh" error={err.state} hint="Decides the tax on this shop's bills" />
                     <Field label="Pincode" value={f.pincode} onChangeText={(v) => set('pincode')(v.replace(/\D/g, '').slice(0, 6))} keyboardType="number-pad" error={err.pincode} />
                     <NumberField label="Delivery radius" suffix="km" value={f.radiusKm} onChange={(v) => set('radiusKm')(v ?? 5)} hint="How far from the pin this shop delivers" last />
                 </>
@@ -400,6 +404,7 @@ export default function ShopCreateScreen() {
                             {choices('foodMode', [f.foodMode])[0].label} · {f.types.map((x) => choices('orderType', [x])[0].label).join(', ')}
                         </Text>
                     </Card>
+                    <BroughtByPicker value={f.broughtBy} onChange={set('broughtBy')} />
                     <Field
                         label="Owner mobile number (optional)"
                         value={f.ownerPhone}

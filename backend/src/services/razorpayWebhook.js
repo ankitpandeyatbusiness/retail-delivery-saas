@@ -60,7 +60,7 @@ async function onQrCredited(account, body) {
     const problem = !topup ? 'Top-up not found'
         : (topup.qrId && topup.qrId !== qr.id) ? 'QR does not match the top-up'
             : pay.status !== 'captured' ? 'Payment is not captured'
-                : pay.amountPaise !== topup.amountPaise ? 'Amount does not match the top-up' : null;
+                : pay.amountPaise !== smsTopupService.payable(topup) ? 'Amount does not match the top-up' : null;
     if (problem) {
         await alert('admin_webhook_failed', { vars: { event: 'qr_code.credited', error: `${problem} (payment ${pay.id}). Check Razorpay and credit by hand if it is real.` } });
         return { ignored: 'check_failed' };

@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { useBrand } from '../../components/common/kit';
+import { useBrand, alpha } from '../../components/common/kit';
 import { PageHeader, Card, Chips, Button, Pill, SectionTitle, Field } from '../../components/owners/ui';
 import { MoneyRow } from '../../components/owners/moneyBits';
 import { fetchSmsWallet, fetchSmsTransactions, fetchTopupOptions } from '../../api/owners/shopApi';
@@ -10,6 +10,8 @@ import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { rupees, toPaise, ago } from '../../utils/owners/riderRules';
 import { smsLine } from '../../utils/owners/moneyRules';
 import { showToast } from '../../components/customers/shop';
+import { downloadAndOpen } from '../../utils/owners/files';
+import { topupInvoicePdfPath } from '../../api/owners/shopApi';
 import { LineShimmer, ListShimmer } from '../../components/owners/shimmer';
 
 export default function OwnerSmsScreen() {
@@ -36,11 +38,19 @@ export default function OwnerSmsScreen() {
     useEffect(() => { fetchTopupOptions().then(setOpts).catch(() => { }); }, []);
     useEffect(() => { setRows(null); loadRows(1, type); }, [type]);   // eslint-disable-line react-hooks/exhaustive-deps
 
+    const openInvoice = async (id) => {
+        try { await downloadAndOpen({ path: topupInvoicePdfPath(id), filename: `sms-invoice-${id}.pdf`, mime: 'application/pdf', title: 'SMS top-up invoice' }); }
+        catch (e) { showToast(e.safe ? e.message : (e?.response?.status === 409 ? 'The invoice is not ready yet' : 'Could not open the invoice')); }
+    };
     const paise = toPaise(amount);
     const bad = paise && opts && (paise < opts.minPaise || paise > opts.maxPaise);
+    // GST is added on top of what he types; he pays the total
+    const gstPercent = opts?.gstPercent ?? 0;
+    const gstPaise = paise ? Math.round((paise * gstPercent) / 100) : 0;
+    const payablePaise = (paise || 0) + gstPaise;
 
     // the payment options page: any UPI app, a card, or a QR code
-    const pay = () => { if (paise && !bad) nav.navigate('OwnerPay', { kind: 'sms', amountPaise: paise, title: 'SMS balance' }); };
+    const pay = () => { if (paise && !bad) nav.navigate('OwnerPay', { kind: 'sms', amountPaise: paise, payablePaise, gstPaise, gstPercent, title: 'SMS balance' }); };
 
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
@@ -62,10 +72,16 @@ export default function OwnerSmsScreen() {
                     {opts ? (
                         <Chips options={opts.packs.map((p) => [String(p / 100), rupees(p)])} value={amount} onChange={setAmount} style={{ marginTop: 0 }} />
                     ) : <LineShimmer width="100%" height={44} />}
-                    <Field value={amount} onChangeText={(x) => setAmount(x.replace(/[^\d.]/g, '').slice(0, 8))} placeholder="Or type an amount in ₹" keyboardType="decimal-pad" maxLength={8} />
+                    <Field value={amount} onChangeText={(x) => setAmount(x.replace(/[^\d.]/g, '').slice(0, 8))} placeholder={opts ? `Or type an amount in ₹ (minimum ${rupees(opts.minPaise)})` : 'Or type an amount in ₹'} keyboardType="decimal-pad" maxLength={8} />
                     {bad ? <Text style={{ color: error, marginTop: 6, fontSize: 12 }}>Amount must be from {rupees(opts.minPaise)} to {rupees(opts.maxPaise)}.</Text> : null}
+                    {paise && !bad && gstPercent ? (
+                        <View style={{ marginTop: 10, padding: 12, borderRadius: 12, backgroundColor: alpha(primary, 0.08) }}>
+                            <Text style={{ color: text, fontWeight: '900', fontSize: 16 }}>You pay {rupees(payablePaise)}</Text>
+                            <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{rupees(paise)} goes to your SMS balance + {gstPercent}% GST {rupees(gstPaise)}</Text>
+                        </View>
+                    ) : opts ? <Text style={{ color: muted, marginTop: 6, fontSize: 12 }}>Minimum {rupees(opts.minPaise)}. {gstPercent ? `${gstPercent}% GST is added on top.` : ''}</Text> : null}
                     <View style={{ marginTop: 12 }}>
-                        <Button label={paise && !bad ? `Pay ${rupees(paise)}` : 'Choose an amount'} icon="card" disabled={!paise || !!bad} onPress={pay} />
+                        <Button label={paise && !bad ? `Pay ${rupees(payablePaise)}` : 'Choose an amount'} icon="card" disabled={!paise || !!bad} onPress={pay} />
                     </View>
                 </Card>
 
@@ -84,6 +100,8 @@ export default function OwnerSmsScreen() {
                             value={`${t.type === 'debit' ? '−' : '+'}${rupees(Math.abs(t.amountPaise))}`}
                             color={t.type === 'debit' ? text : ok}
                             last={i === rows.length - 1}
+                            action={t.type === 'topup' && t.topupId ? 'Open invoice (PDF)' : undefined}
+                            onAction={() => openInvoice(t.topupId)}
                         />
                     ))}
                     {more ? <View style={{ marginTop: 8 }}><Button label="Show more" kind="ghost" onPress={() => loadRows(page + 1)} /></View> : null}

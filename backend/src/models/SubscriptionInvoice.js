@@ -8,6 +8,9 @@ const partySchema = new Schema({
     legalName: String,
     address: String,
     gstin: String,
+    pan: String,
+    state: String,
+    stateCode: String,
     email: String,
     phone: String,
     sacCode: String,
@@ -38,6 +41,9 @@ const subscriptionInvoiceSchema = new Schema({
     baseAmount: { type: Number, required: true, min: 0 },
     gstPercent: { type: Number, default: 0 },
     gstAmount: { type: Number, default: 0 },
+    placeOfSupply: { _id: false, code: String, name: String },                                  // the buyer's state
+    taxSplit: { _id: false, intraState: Boolean, cgst: Number, sgst: Number, igst: Number },    // which tax heads the GST is made of
+    reverseCharge: { type: Boolean, default: false },
     total: { type: Number, required: true, min: 0 },
 
     seller: partySchema,   // you
@@ -48,6 +54,8 @@ const subscriptionInvoiceSchema = new Schema({
     paymentMode: { type: String, enum: ['upi', 'bank_transfer', 'cash', 'cheque', 'other'] },
     paymentRef: { type: String, trim: true, maxlength: 60 },
     note: { type: String, trim: true, maxlength: 200 },
+    receivedBy: { type: String, enum: ['owner', 'partner'] },           // who got the money when it was marked paid by hand (settlement sheet)
+    creditNoteId: { type: Schema.Types.ObjectId, ref: 'CreditNote' },   // the credit note issued when this bill was cancelled
     markedBy: String,      // which superadmin changed the status ("razorpay" when paid online)
 
     // The newest "pay online" QR for this bill (Razorpay UPI QR on the platform account). Reused while it is still open.

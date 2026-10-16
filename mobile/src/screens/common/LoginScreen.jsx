@@ -1,5 +1,6 @@
 // src/screens/LoginScreen.jsx
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import PoweredBy from '../../components/common/PoweredBy';
 import {
     View,
     Text,
@@ -791,10 +792,11 @@ export default function LoginScreen({ navigation }) {
 
                     <Text style={[styles.terms, { color: brand.muted }]}>
                         By continuing, you agree to our{'\n'}
-                        <Text style={[styles.termsLink, { color: brand.text }]}>Terms of Service</Text>
+                        <Text onPress={() => navigation.navigate('LegalDoc', { key: 'customer_terms', pub: true })} style={[styles.termsLink, { color: brand.text }]}>Terms of Service</Text>
                         {'   '}
-                        <Text style={[styles.termsLink, { color: brand.text }]}>Privacy Policy</Text>
+                        <Text onPress={() => navigation.navigate('LegalDoc', { key: 'privacy', pub: true })} style={[styles.termsLink, { color: brand.text }]}>Privacy Policy</Text>
                     </Text>
+                    <PoweredBy />
                 </Animated.View>
             </View>
         </View>

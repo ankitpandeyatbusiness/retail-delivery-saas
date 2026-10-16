@@ -8,7 +8,7 @@ import {
     Modal, TextInput, KeyboardAvoidingView, Platform, Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
 import { tint, showToast } from '../../components/customers/shop';
@@ -37,6 +37,7 @@ export default function RiderHomeScreen() {
     const insets = useSafeAreaInsets();
     const { primary, onPrimary, text, muted, surface, border, background, error } = useBrand();
     const logout = useAuthStore((s) => s.logout);
+    const nav = useNavigation();
 
     const [me, setMe] = useState(null);
     const [tab, setTab] = useState('active');
@@ -272,6 +273,9 @@ export default function RiderHomeScreen() {
                     <Text style={[s.sub, { color: muted }]}>{me?.shop || ''}{me?.isOnline ? ' · Online' : ' · Offline'}</Text>
                 </View>
                 <Switch value={!!me?.isOnline} onValueChange={toggleOnline} trackColor={{ true: primary }} />
+                <Pressable hitSlop={10} style={{ marginLeft: 14 }} onPress={() => nav.navigate('LegalList')}>
+                    <Ionicons name="document-text-outline" size={22} color={muted} />
+                </Pressable>
                 <Pressable
                     hitSlop={10}
                     style={{ marginLeft: 14 }}

@@ -26,7 +26,7 @@ function drawParty(doc, title, p, x, y, w) {
     doc.font('Helvetica-Bold').fontSize(8.5).fillColor(MUTED).text(title, x, y);
     doc.font('Helvetica-Bold').fontSize(10.5).fillColor(INK).text(p?.legalName || '-', x, y + 13, { width: w });
     doc.font('Helvetica').fontSize(9).fillColor(MUTED);
-    [p?.address, p?.gstin && `GSTIN: ${p.gstin}`, p?.phone && `Phone: ${p.phone}`, p?.email && `Email: ${p.email}`]
+    [p?.address, p?.gstin && `GSTIN: ${p.gstin}`, p?.pan && `PAN: ${p.pan}`, p?.phone && `Phone: ${p.phone}`, p?.email && `Email: ${p.email}`]
         .filter(Boolean)
         .forEach((line) => doc.text(line, x, doc.y, { width: w }));
     return doc.y;
@@ -35,8 +35,14 @@ function drawParty(doc, title, p, x, y, w) {
 function drawTotals(doc, inv, y) {
     const bx = 340;
     const bw = R - bx;
-    const rows = [['Amount', rs(inv.baseAmount)]];
-    if (inv.gstAmount) rows.push([`GST @ ${inv.gstPercent}%`, rs(inv.gstAmount)]);
+    const rows = [[inv.gstAmount ? 'Taxable value' : 'Amount', rs(inv.baseAmount)]];
+    const t = inv.taxSplit;
+    if (inv.gstAmount && t && (t.cgst || t.sgst || t.igst)) {
+        // the tax heads: CGST + SGST inside one state, IGST between states
+        const half = inv.gstPercent / 2;
+        if (t.igst) rows.push([`IGST @ ${inv.gstPercent}%`, rs(t.igst)]);
+        else rows.push([`CGST @ ${half}%`, rs(t.cgst)], [`SGST @ ${half}%`, rs(t.sgst)]);
+    } else if (inv.gstAmount) rows.push([`GST @ ${inv.gstPercent}%`, rs(inv.gstAmount)]);
 
     doc.font('Helvetica').fontSize(9.5);
     rows.forEach(([k, v]) => {
@@ -52,19 +58,24 @@ function drawTotals(doc, inv, y) {
     return y + 28 + 18;
 }
 
-function render(doc, inv) {
+// opts.creditNote: draw the document as a credit note (inv is a CreditNote)
+function render(doc, inv, opts = {}) {
     const s = inv.seller || {};
-    const paid = inv.status === 'paid';
-    const isVoid = inv.status === 'void';
-    const title = inv.gstPercent > 0 && s.gstin ? 'TAX INVOICE' : 'INVOICE';
+    const credit = !!opts.creditNote;
+    const paid = !credit && inv.status === 'paid';
+    const isVoid = !credit && inv.status === 'void';
+    const taxed = inv.gstPercent > 0 && s.gstin;
+    const title = credit ? 'CREDIT NOTE' : taxed ? 'TAX INVOICE' : (inv.kind === 'sms_topup' ? 'RECEIPT' : 'INVOICE');
 
     // header
     doc.font('Helvetica-Bold').fontSize(20).fillColor(BRAND).text(title, L, 40);
-    doc.font('Helvetica-Bold').fontSize(10).fillColor(isVoid ? RED : paid ? GREEN : AMBER)
-        .text(isVoid ? 'VOID' : paid ? 'PAID' : 'PAYMENT PENDING', L, 66);
+    doc.font('Helvetica-Bold').fontSize(10).fillColor(credit ? AMBER : isVoid ? RED : paid ? GREEN : AMBER)
+        .text(credit ? 'AMOUNT CREDITED TO THE SHOP' : isVoid ? 'VOID' : paid ? 'PAID' : 'PAYMENT PENDING', L, 66);
     doc.font('Helvetica').fontSize(9).fillColor(MUTED);
-    [`Invoice No: ${inv.invoiceNo}`, `Issue date: ${day(inv.issueDate)}`, `Due date: ${day(inv.dueDate)}`, inv.period ? `Billing month: ${inv.period}` : 'Custom invoice']
-        .forEach((t, i) => doc.text(t, 340, 40 + i * 13, { width: R - 340, align: 'right' }));
+    const head = credit
+        ? [`Credit note No: ${inv.invoiceNo}`, `Date: ${day(inv.issueDate)}`, `Against invoice: ${inv.originalInvoiceNo || '-'}`, inv.originalIssueDate ? `Invoice date: ${day(inv.originalIssueDate)}` : '']
+        : [`Invoice No: ${inv.invoiceNo}`, `Issue date: ${day(inv.issueDate)}`, inv.dueDate && inv.kind !== 'sms_topup' ? `Due date: ${day(inv.dueDate)}` : '', inv.period ? `Billing month: ${inv.period}` : (inv.kind === 'sms_topup' ? 'SMS balance top-up' : 'Custom invoice')];
+    head.filter(Boolean).forEach((t, i) => doc.text(t, 340, 40 + i * 13, { width: R - 340, align: 'right' }));
 
     let y = 106;
     doc.moveTo(L, y).lineTo(R, y).lineWidth(1).strokeColor(LINE).stroke();
@@ -75,6 +86,10 @@ function render(doc, inv) {
     const b = drawParty(doc, 'BILL TO', inv.buyer, 310, y, 245);
     y = Math.max(a, b) + 18;
 
+    // where the service is supplied, and who pays the tax
+    doc.font('Helvetica').fontSize(8.5).fillColor(MUTED)
+        .text(`Place of supply: ${inv.placeOfSupply?.name ? `${inv.placeOfSupply.name} (${inv.placeOfSupply.code})` : '-'}     Reverse charge: ${inv.reverseCharge ? 'Yes' : 'No'}`, L, y - 8, { width: R - L });
+    y = doc.y + 10;
     // one line item
     doc.save().rect(L, y, R - L, 22).fill(BRAND).restore();
     doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#ffffff')
@@ -107,8 +122,15 @@ function render(doc, inv) {
     doc.font('Helvetica').fontSize(9.5).fillColor(INK).text(amountInWords(inv.total), L, y + 13, { width: R - L });
     y = doc.y + 14;
 
+    if (credit && inv.reason) {
+        doc.font('Helvetica-Bold').fontSize(8.5).fillColor(MUTED).text('REASON', L, y);
+        doc.font('Helvetica').fontSize(9.5).fillColor(INK).text(inv.reason, L, y + 13, { width: R - L });
+        y = doc.y + 14;
+    }
     // paid details, or how to pay
-    if (paid) {
+    if (credit) {
+        doc.font('Helvetica').fontSize(9).fillColor(MUTED).text('This credit note cancels the invoice above (in full). Nothing is due on that invoice.', L, y, { width: R - L });
+    } else if (paid) {
         const via = [inv.paymentMode && inv.paymentMode.replace('_', ' '), inv.paymentRef && `Ref ${inv.paymentRef}`]
             .filter(Boolean).join(', ');
         doc.font('Helvetica-Bold').fontSize(9.5).fillColor(GREEN)
@@ -131,34 +153,34 @@ function render(doc, inv) {
     }
 }
 
-// Sends the PDF straight to the response. `inv` is a saved SubscriptionInvoice (plain object).
-function streamSubscriptionInvoice(res, inv, { inline = false } = {}) {
+// Sends the PDF straight to the response. `inv` is a saved SubscriptionInvoice (plain object), or a CreditNote with { creditNote: true }.
+function streamSubscriptionInvoice(res, inv, { inline = false, creditNote = false } = {}) {
     const doc = new PDFDocument({
         size: 'A4',
         margin: 40,
-        info: { Title: `Invoice ${inv.invoiceNo}`, Author: inv.seller?.legalName || 'Platform' },
+        info: { Title: `${creditNote ? 'Credit note' : 'Invoice'} ${inv.invoiceNo}`, Author: inv.seller?.legalName || 'Platform' },
     });
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `${inline ? 'inline' : 'attachment'}; filename="Invoice-${safeName(inv.invoiceNo)}.pdf"`);
     res.setHeader('Cache-Control', 'private, no-store');
     doc.pipe(res);
-    render(doc, inv);
+    render(doc, inv, { creditNote });
     doc.end();
 }
 
 // The same PDF as a Buffer, for an email attachment
-function renderToBuffer(inv) {
+function renderToBuffer(inv, { creditNote = false } = {}) {
     return new Promise((resolve, reject) => {
         const doc = new PDFDocument({
             size: 'A4',
             margin: 40,
-            info: { Title: `Invoice ${inv.invoiceNo}`, Author: inv.seller?.legalName || 'Platform' },
+            info: { Title: `${creditNote ? 'Credit note' : 'Invoice'} ${inv.invoiceNo}`, Author: inv.seller?.legalName || 'Platform' },
         });
         const chunks = [];
         doc.on('data', (c) => chunks.push(c));
         doc.on('end', () => resolve(Buffer.concat(chunks)));
         doc.on('error', reject);
-        render(doc, inv);
+        render(doc, inv, { creditNote });
         doc.end();
     });
 }

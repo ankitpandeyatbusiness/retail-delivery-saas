@@ -103,13 +103,14 @@ export function Bars({ series, height = 70 }) {
 }
 
 // a label on the left, an amount on the right, an optional note under the label
-export function MoneyRow({ title, note, value, color, last }) {
-    const { text, muted, border } = useBrand();
+export function MoneyRow({ title, note, value, color, last, action, onAction }) {
+    const { text, muted, border, primary } = useBrand();
     return (
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: last ? 0 : 0.5, borderBottomColor: border }}>
             <View style={{ flex: 1, minWidth: 0, paddingRight: 10 }}>
                 <Text style={{ color: text, fontWeight: '700' }} numberOfLines={2}>{title}</Text>
                 {note ? <Text style={{ color: muted, fontSize: 12, marginTop: 1 }}>{note}</Text> : null}
+                {action && onAction ? <Text onPress={onAction} suppressHighlighting style={{ color: primary, fontSize: 12, fontWeight: '800', marginTop: 4, paddingVertical: 4 }}>{action}</Text> : null}
             </View>
             <Text style={{ color: color || text, fontWeight: '900' }}>{value}</Text>
         </View>

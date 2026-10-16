@@ -1,3 +1,4 @@
+import { isState } from '../../utils/states';
 import React, { useEffect, useState } from 'react';
 import { Text, Linking } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -35,7 +36,7 @@ export default function ShopEditScreen() {
             const x = rec.tenant;
             setF({
                 name: str(x.name), tagline: str(x.tagline), phone: str(x.phone),
-                line: str(x.address?.line), city: str(x.address?.city), pincode: str(x.address?.pincode),
+                line: str(x.address?.line), city: str(x.address?.city), state: str(x.address?.state), pincode: str(x.address?.pincode),
                 minOrder: str(x.delivery?.minOrder), radiusKm: str(x.delivery?.radiusKm),
                 latitude: str(x.delivery?.latitude), longitude: str(x.delivery?.longitude),
                 legalName: str(x.business?.legalName), gstin: str(x.business?.gstin), fssai: str(x.business?.fssai),
@@ -80,8 +81,8 @@ export default function ShopEditScreen() {
         if (f.phone !== str(orig.phone)) body.phone = f.phone;
         if (f.status !== (orig.status || 'active')) body.status = f.status;
         if (f.androidPackage !== str(orig.androidPackage)) body.androidPackage = f.androidPackage.trim();
-        if (f.line !== str(orig.address?.line) || f.city !== str(orig.address?.city) || f.pincode !== str(orig.address?.pincode)) {
-            body.address = { line: f.line.trim(), city: f.city.trim(), pincode: f.pincode };
+        if (f.line !== str(orig.address?.line) || f.city !== str(orig.address?.city) || f.state !== str(orig.address?.state) || f.pincode !== str(orig.address?.pincode)) {
+            body.address = { line: f.line.trim(), city: f.city.trim(), state: f.state.trim(), pincode: f.pincode };
         }
         const dChanged = ['minOrder', 'radiusKm', 'latitude', 'longitude'].filter((k) => f[k] !== str(orig.delivery?.[k]));
         if (dChanged.length) {
@@ -129,6 +130,7 @@ export default function ShopEditScreen() {
             <Card>
                 <Field label="Address" value={f.line} onChangeText={set('line')} multiline />
                 <Field label="City" value={f.city} onChangeText={set('city')} />
+                <Field label="State" value={f.state} onChangeText={set('state')} placeholder="e.g. Uttar Pradesh" error={err.state} hint="Decides the tax on this shop's bills" />
                 <Field label="Pincode" value={f.pincode} onChangeText={(v) => set('pincode')(v.replace(/\D/g, '').slice(0, 6))} keyboardType="number-pad" error={err.pincode} style={{ marginBottom: 0 }} />
             </Card>
 

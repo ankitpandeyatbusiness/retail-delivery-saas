@@ -68,4 +68,29 @@ async function queue({ def, ctx }) {
     }
 }
 
-module.exports = { queue };
+// One mail to one address, not tied to an event (e.g. the verification code). -> { queued: 0 | 1 }
+async function sendDirect({ tenantId, to, key, vars = {} }) {
+    try {
+        if (!email.enabled()) return { queued: 0 };
+        const entry = registry.get(key);
+        if (!entry) return { queued: 0 };
+        const [tenant, platform] = await Promise.all([
+            Tenant.findById(tenantId).select('name logo colors contact').lean(),
+            PlatformSettings.findById('main').lean(),
+        ]);
+        if (!tenant) return { queued: 0 };
+        const all = { shopName: tenant.name, ...vars };
+        const extra = entry.load ? await entry.load({ tenant, vars: all }) : {};
+        const mail = entry.build({ ...all, ...extra, ctx: baseCtx(tenant, platform, entry.audience) });
+        const job = await emailQueue.enqueue({
+            tenantId: tenant._id, to, subject: mail.subject, html: mail.html, text: mail.text,
+            attachments: extra.attachments, priority: entry.priority || 2, kind: key,
+        });
+        return { queued: job ? 1 : 0 };
+    } catch (e) {
+        console.error(`Email channel direct (${key}) error:`, e.message);
+        return { queued: 0, error: true };
+    }
+}
+
+module.exports = { queue, sendDirect };

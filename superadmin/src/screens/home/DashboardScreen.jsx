@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { FadeIn, animateNext } from '../../components/motion';
 import { View, Text } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -11,6 +11,7 @@ import { ErrorBox, Empty } from '../../components/feedback';
 import { useDashboardStore } from '../../store/useDashboardStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { rupees } from '../../utils/format';
+import { fetchSupportCounts } from '../../api/supportApi';
 
 const greeting = () => {
     const h = new Date().getHours();
@@ -24,12 +25,17 @@ export default function DashboardScreen() {
     const d = useDashboardStore();
     const admin = useAuthStore((s) => s.admin);
 
-    useFocusEffect(useCallback(() => { useDashboardStore.getState().load({ refresh: !!useDashboardStore.getState().shops }); }, []));
+    const [helpOpen, setHelpOpen] = useState(0);
+    useFocusEffect(useCallback(() => {
+        useDashboardStore.getState().load({ refresh: !!useDashboardStore.getState().shops });
+        fetchSupportCounts().then((c) => setHelpOpen(c.open || 0)).catch(() => { });
+    }, []));
 
     const first = d.shops === null && d.loading;
     const goShops = (params) => nav.navigate('ShopsTab', params ? { screen: 'ShopsList', params } : undefined);
     const overdue = parseInt(d.overdueInvoices, 10) || 0;
     const alerts = [
+        helpOpen > 0 && { icon: 'message', title: `${helpOpen} support request${helpOpen > 1 ? 's' : ''} waiting`, hint: 'Shop owners are waiting for your reply', go: () => nav.navigate('Support') },
         d.unreadAlerts > 0 && { icon: 'bell', title: `${d.unreadAlerts} unread alert${d.unreadAlerts > 1 ? 's' : ''}`, hint: 'Late orders and platform messages' },
         overdue > 0 && { icon: 'receipt', title: `${d.overdueInvoices} overdue rent invoice${String(d.overdueInvoices) === '1' ? '' : 's'}`, hint: 'Shops that have not paid yet' },
     ].filter(Boolean);
@@ -92,7 +98,7 @@ export default function DashboardScreen() {
                         <FadeIn index={3}>
                             <SectionTitle section="alerts">Alerts</SectionTitle>
                             <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
-                                {alerts.map((a, i) => <ListRow key={a.title} icon={a.icon} section="alerts" title={a.title} subtitle={a.hint} last={i === alerts.length - 1} />)}
+                                {alerts.map((a, i) => <ListRow key={a.title} icon={a.icon} section="alerts" title={a.title} subtitle={a.hint} onPress={a.go} last={i === alerts.length - 1} />)}
                             </Card>
                         </FadeIn>
                     ) : null}

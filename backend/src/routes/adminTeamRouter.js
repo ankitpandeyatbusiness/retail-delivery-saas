@@ -34,6 +34,7 @@ const view = (a, meId) => {
         email: a.email && !a.email.endsWith(PLACEHOLDER_DOMAIN) ? a.email : null,
         phones: me ? a.phones : (a.phones || []).map(maskPhone),   // other people's numbers stay masked
         isActive: !!a.isActive,
+        legalRole: a.legalRole || 'team',
         isMe: me,
         lastLoginAt: a.lastLoginAt || null,
         createdAt: a.createdAt,

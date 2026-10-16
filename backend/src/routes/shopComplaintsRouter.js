@@ -1,5 +1,6 @@
 // Owner: complaints of his customers. Mounted at /api/shop/complaints
 //   GET   /?status=open|in_progress|resolved&page=
+//   GET   /:id   one complaint
 //   PATCH /:id   { ownerReply?, resolution?: refund_full|refund_partial|no_refund, refundPaise? }
 const express = require('express');
 const apiErrors = require('../middlewares/apiErrors');
@@ -11,6 +12,10 @@ const actorOf = (req) => req.actor || { type: 'owner', id: req.auth.userId, labe
 
 router.get('/', wrap(async (req, res) => {
     res.json(await complaints.ownerList({ tenantId: req.tenant._id, query: req.query }));
+}));
+
+router.get('/:id', wrap(async (req, res) => {
+    res.json(await complaints.ownerOne({ tenantId: req.tenant._id, id: req.params.id }));
 }));
 
 router.patch('/:id', wrap(async (req, res) => {

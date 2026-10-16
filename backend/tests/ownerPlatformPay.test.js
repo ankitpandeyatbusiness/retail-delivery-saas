@@ -3,6 +3,7 @@ const { describe, test, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const crypto = require('crypto');
 const request = require('supertest');
+const PlatformSettings = require('../src/models/PlatformSettings');
 const db = require('./helpers/db');
 const f = require('./helpers/factory');
 const appModule = require('../src/server/app');
@@ -22,6 +23,7 @@ after(async () => { await db.disconnect(); });
 beforeEach(async () => {
     await db.clear();
     payments._mock.reset();
+    await PlatformSettings.findByIdAndUpdate('main', { $set: { 'business.gstin': '22AAAAA0000A1Z5' } }, { upsert: true });   // GST on a top-up needs a registered platform
     w = await f.makeWorld('pp-shop');
     tenantRecognizer.invalidateTenant('pp-shop');
 });
@@ -92,7 +94,10 @@ describe('SMS top-up with a UPI app or card', () => {
     test('start, pay, verify: the balance goes up once', async () => {
         const s = (await call('post', '/sms/topup/start', { amountPaise: 10000 })).body;
         assert.ok(s.topupId && s.rzpOrderId);
-        captured(s.rzpOrderId, 10000, 'pay_t1');
+        assert.equal(s.amountPaise, 11800, 'he pays the amount plus 18% GST');
+        assert.equal(s.creditPaise, 10000);
+        assert.equal(s.gstPaise, 1800);
+        captured(s.rzpOrderId, 11800, 'pay_t1');
         const v = await call('post', `/sms/topup/${s.topupId}/verify`, proof(s.rzpOrderId, 'pay_t1'));
         assert.equal(v.body.paid, true, JSON.stringify(v.body));
         assert.equal((await wallet.status(w.tenant._id)).balancePaise, 10000);
@@ -101,18 +106,40 @@ describe('SMS top-up with a UPI app or card', () => {
         assert.equal((await SmsTopup.findById(s.topupId).lean()).status, 'paid');
     });
 
+    test('the options say GST is added on top, the minimum is Rs 100, and paying only the amount without GST credits nothing', async () => {
+        const o = (await call('get', '/sms/topup/options')).body;
+        assert.equal(o.gstPercent, 18);
+        assert.equal(o.minPaise, 10000);
+        assert.equal((await call('post', '/sms/topup/start', { amountPaise: 9900 })).status, 400);
+        const s = (await call('post', '/sms/topup/start', { amountPaise: 25000 })).body;
+        assert.equal(s.amountPaise, 29500);
+        captured(s.rzpOrderId, 25000, 'pay_short');
+        const v = await call('post', `/sms/topup/${s.topupId}/verify`, proof(s.rzpOrderId, 'pay_short'));
+        assert.equal(v.status, 409);
+        assert.equal((await wallet.status(w.tenant._id)).balancePaise, 0);
+    });
+
+    test('without a GST number on the platform business no GST is charged', async () => {
+        await PlatformSettings.findByIdAndUpdate('main', { $unset: { 'business.gstin': '' } });
+        const o = (await call('get', '/sms/topup/options')).body;
+        assert.equal(o.gstPercent, 0);
+        const s = (await call('post', '/sms/topup/start', { amountPaise: 10000 })).body;
+        assert.equal(s.amountPaise, 10000);
+        assert.equal(s.gstPaise, 0);
+    });
+
     test('too small an amount and a forged proof are refused', async () => {
         assert.equal((await call('post', '/sms/topup/start', { amountPaise: 5 })).status, 400);
         const s = (await call('post', '/sms/topup/start', { amountPaise: 10000 })).body;
-        captured(s.rzpOrderId, 10000, 'pay_t2');
+        captured(s.rzpOrderId, 11800, 'pay_t2');
         assert.equal((await call('post', `/sms/topup/${s.topupId}/verify`, proof(s.rzpOrderId, 'pay_t2', 'a'.repeat(64)))).status, 400);
         assert.equal((await wallet.status(w.tenant._id)).balancePaise, 0);
     });
 
     test('the webhook credits it if the app never came back', async () => {
         const s = (await call('post', '/sms/topup/start', { amountPaise: 10000 })).body;
-        captured(s.rzpOrderId, 10000, 'pay_t3');
-        const r = await require('../src/services/platformCheckout').onPlatformPayment({ id: 'pay_t3', orderId: s.rzpOrderId, status: 'captured', amountPaise: 10000 });
+        captured(s.rzpOrderId, 11800, 'pay_t3');
+        const r = await require('../src/services/platformCheckout').onPlatformPayment({ id: 'pay_t3', orderId: s.rzpOrderId, status: 'captured', amountPaise: 11800 });
         assert.equal(r.topup, 'credited');
         assert.equal((await wallet.status(w.tenant._id)).balancePaise, 10000);
     });

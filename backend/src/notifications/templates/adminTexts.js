@@ -41,6 +41,15 @@ const T = {
     admin_shop_inactive: (v) => ({
         title: 'Shop is quiet', body: `${v.shop} had no order for ${v.days || 14} days.`, sms: `No orders: ${v.shop}`,
     }),
+    admin_settlement_due: (v) => ({
+        title: v.title || 'A payment arrived', body: v.body || '', sms: v.title || 'A payment arrived',
+    }),
+    admin_support_new: (v) => ({
+        title: `Support request #${v.number}`, body: `${v.shop}: ${v.subject || 'needs help'}`, sms: `Support: ${v.shop}`,
+    }),
+    admin_support_reply: (v) => ({
+        title: `Shop replied on #${v.number}`, body: `${v.shop} wrote again: ${v.subject || ''}`, sms: `Support reply: ${v.shop}`,
+    }),
     admin_webhook_failed: (v) => ({
         title: 'Payment webhook failed', body: `${v.shop}: ${v.detail || 'a payment webhook could not be processed'}.`, sms: `Webhook failed: ${v.shop}`,
     }),

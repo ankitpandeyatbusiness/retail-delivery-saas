@@ -52,7 +52,7 @@ const SAMPLES = {
     shop_paused: { invoice: INV },
     shop_unpaused: { reason: 'We received your payment.' },
     free_ending: { summary: '3 free order(s) left and 5 day(s) left' },
-    sms_topup_receipt: { amountPaise: 20000, balanceAfter: 25000, paidAt: new Date() },
+    sms_topup_receipt: { amountPaise: 20000, gstPercent: 18, gstPaise: 3600, payablePaise: 23600, balanceAfter: 25000, paidAt: new Date() },
     welcome: { name: 'Ravi', phoneMasked: '98XXXXXX10' },
     invoice_void: { invoice: INV, action: 'waived', reason: 'Goodwill' },
     owner_email_changed: { newEmailMasked: 'n***@shop.test', when: new Date() },
@@ -61,6 +61,8 @@ const SAMPLES = {
     refund_decision: { orderNo: 1042, status: 'done', amountPaise: 25000, reason: 'The shop could not deliver.' },
     complaint_decision: { orderNo: 1042, resolution: 'refund_partial', refundPaise: 10000, ownerReply: 'Sorry about the missing item.' },
     broadcast: { title: 'Diwali offer', body: 'Flat 20% off.\n\nOrder today.', kind: 'promo', sender: 'Savera' },
+    email_code: { code: '482913', minutes: 10, ownerName: 'Ravi' },
+    monthly_report: { report: { range: { label: 'September 2026' }, totals: { revenue: 125000, orders: 80, avgOrder: 1562, placed: 90, cancelled: 10 }, change: { revenue: 12 }, customers: { unique: 50, newCount: 20, repeatPct: 40 }, food: { top: [{ name: 'Paneer Roll', quantity: 30 }], loved: [{ name: 'Paneer Roll', avg: 4.6 }] }, delivery: { best: { name: 'Raju', deliveries: 25 } }, value: { show: true, revenue: 125000, marketplaceCost: 31250, feeBilled: 1180 }, tips: [{ title: 'Try a coupon', detail: 'Coupons bring people back.' }], quote: 'Keep going.', milestones: ['100 orders reached'] } },
 };
 
 let invoiceSeq = 0;

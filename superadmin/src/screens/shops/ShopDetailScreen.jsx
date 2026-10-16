@@ -3,6 +3,7 @@ import { View, Text, Image } from 'react-native';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useTheme, spacing, font, radius } from '../../theme';
 import { Screen } from '../../components/layout';
+import { BroughtByCard, HandoverCard } from '../../components/settlementBits';
 import { Card, ListRow, SectionTitle, KeyValue, Avatar, Badge } from '../../components/ui';
 import { ShopStateBadge, stateTone } from '../../components/shopBits';
 import { Hero, QuickActions, SkeletonList } from '../../components/blocks';
@@ -74,8 +75,13 @@ export default function ShopDetailScreen() {
                 />
             </View>
 
+            <BroughtByCard shopId={shopId} current={tenant.broughtBy} onChanged={refresh} />
+            <HandoverCard shopId={shopId} handedOverAt={tenant.handedOverAt} onChanged={refresh} />
+
             <SectionTitle section="orders">Operations</SectionTitle>
             <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
+                <ListRow section="money" icon="chart" title="Progress report" subtitle="How this shop is doing: sales, customers, food, riders, tips" onPress={() => nav.navigate('ShopReport', { shopId, name: tenant.name })} />
+                <ListRow section="platform" icon="megaphone" title="Autopilot" subtitle="Reminders this shop sends its customers: what it did, stop it" onPress={() => nav.navigate('ShopAutopilot', { shopId, name: tenant.name })} />
                 <ListRow section="orders" icon="orders" title="Orders" subtitle="Every order of this shop, with status and rider" onPress={go('ShopOrders')} />
                 <ListRow section="riders" icon="rider" title="Riders and cash" subtitle="Riders, cash they hold, performance" onPress={go('ShopRiders')} />
                 <ListRow section="alerts" icon="message" title="Complaints" subtitle="Answer and refund customer complaints" onPress={go('ShopComplaints')} />

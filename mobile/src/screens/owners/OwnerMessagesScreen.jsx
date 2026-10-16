@@ -18,7 +18,6 @@ function Compose({ visible, onClose, onSent }) {
     const [body, setBody] = useState('');
     const [audience, setAudience] = useState('customers');
     const [kind, setKind] = useState('info');
-    const [email, setEmail] = useState(false);
     const [busy, setBusy] = useState(false);
     const ok = title.trim().length >= 1 && body.trim().length >= 1;
 
@@ -28,9 +27,9 @@ function Compose({ visible, onClose, onSent }) {
         if (!yes) return;
         setBusy(true);
         try {
-            await sendMessage({ title: title.trim(), body: body.trim(), audience, kind, sendEmail: email });
+            await sendMessage({ title: title.trim(), body: body.trim(), audience, kind });
             showToast('Sending. It reaches everyone in a few minutes.');
-            setTitle(''); setBody(''); setEmail(false);
+            setTitle(''); setBody('');
             onSent(); onClose();
         } catch (e) { showToast(apiError(e)); } finally { setBusy(false); }
     };
@@ -44,7 +43,7 @@ function Compose({ visible, onClose, onSent }) {
             <View style={{ height: 6 }} />
             <Field value={title} onChangeText={setTitle} placeholder="Title (shown in bold)" maxLength={120} style={{ marginBottom: 10 }} />
             <Field value={body} onChangeText={setBody} placeholder="Message" multiline maxLength={1000} style={{ marginBottom: 6 }} />
-            <ToggleRow title="Also send by email" subtitle="Only to people who have an email" value={email} onValueChange={setEmail} last />
+            <Hint>It reaches people as a notification and in their app inbox.</Hint>
             <View style={{ height: 12 }} />
             <Button label="Send message" icon="send" disabled={!ok} busy={busy} onPress={send} />
         </Sheet>

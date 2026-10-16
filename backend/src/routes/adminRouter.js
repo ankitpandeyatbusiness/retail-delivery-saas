@@ -20,6 +20,8 @@ const { getPreset } = require('../config/homePresets');
 const { validateSettings, resolveConfig, DEFAULTS } = require('../services/tenantConfigService');
 const { signAdminToken } = require('../services/superAdminToken');
 const requireSuperAdmin = require('../middlewares/requireSuperAdmin');
+const { moneyGuard } = require('../middlewares/supremeAdmin');
+const { isSupreme } = require('../config/supreme');
 const { invalidateTenant } = require('../middlewares/tenantRecognizer');
 const { getAvailability, invalidateAvailability, applyAutoHide } = require('../services/availability');
 const { foodRuleError } = require('../services/foodRules');
@@ -67,12 +69,15 @@ admin.use('/auth', authRoutes);   // send-otp, verify-otp, login (password: off 
 /* ------------------------------ everything below needs a superadmin ------------------------------ */
 admin.use(requireSuperAdmin);
 admin.use(auditTrail('superadmin'));   // records every change a superadmin makes
+admin.use(moneyGuard);                 // changes that touch the platform's income: the supreme admin only (middlewares/supremeAdmin.js)
 
 admin.use(require('./adminProfilePhotoRouter'));   // my profile picture
 admin.use('/me', authRoutes.me);   // PUT /me/phones
 admin.use(require('./adminLiveRouter'));   // live picture of a shop, phone reveal
 admin.use(require('./adminMessagesRouter'));   // messages to the owners of all shops
 admin.use(require('./adminComplaintsRouter'));   // all complaints
+admin.use(require('./adminSupportRouter'));   // help & support requests from shop owners
+admin.use(require('./adminReportRouter'));   // how the progress report is presented (commission used for the estimate...)
 admin.use(require('./adminOrdersRouter'));
 admin.use(require('./adminUsersRouter'));
 admin.use(require('./adminTeamRouter'));
@@ -81,6 +86,10 @@ admin.use(require('./adminAccessRouter'));
 admin.use(require('./adminPlatformRouter'));
 admin.use(require('./adminBillingRouter'));
 admin.use(require('./adminSubscriptionRouter'));
+admin.use(require('./adminOperatorsRouter'));   // the companies that run the platform + Switch operator (everyone looks, the supreme admin changes)
+admin.use(require('./adminLegalRouter'));   // terms, agreements and privacy (everyone reads, the supreme admin writes and sends)
+admin.use(require('./adminSettlementRouter'));   // the common settlement sheet (everyone reads, the supreme admin changes)
+admin.use(require('./adminGstRouter'));   // GST register (all superadmins read it) and credit notes
 admin.use(require('./adminAuditRouter'));
 admin.use(require('./adminSmsRouter'));
 admin.use(require('./adminSmsProviderRouter'));
@@ -105,7 +114,7 @@ admin.use('/tenants/:tid', (req, res, next) => {
 
 // admins added from the app have a hidden placeholder email (the model needs one): never show it
 const shownEmail = (e) => (e && !e.endsWith('@superadmin.local') ? e : null);
-admin.get('/me', (req, res) => res.json({ email: shownEmail(req.admin.email), name: req.admin.name || null, photo: req.admin.photo || null }));
+admin.get('/me', (req, res) => res.json({ email: shownEmail(req.admin.email), name: req.admin.name || null, photo: req.admin.photo || null, supreme: isSupreme(req.admin) }));
 
 // Everything the panel needs to draw its form: allowed values, defaults, and a starting template per shop type
 admin.get('/options', (req, res) => {
@@ -166,6 +175,8 @@ admin.post('/tenants', wrap(async (req, res) => {
     }
     if (fields.subscription && typeof fields.subscription === 'object') delete fields.subscription.monthlyFee;   // B18
     const tenant = new Tenant({ slug, ...fields, settings: v.clean });
+    // who brought the shop decides the revenue split; only the supreme admin marks it
+    if (isSupreme(req.admin) && ['owner', 'partner'].includes(body.broughtBy)) { tenant.broughtBy = body.broughtBy; tenant.broughtBySetAt = new Date(); }
     await tenant.save();
     invalidateTenant(slug); // clears a cached "not found" for this slug
     res.status(201).json({

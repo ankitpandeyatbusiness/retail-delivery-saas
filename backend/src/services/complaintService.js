@@ -103,6 +103,14 @@ async function ownerList({ tenantId, query }) {
     return { items: rows.map((c) => view(c, { forOwner: true })), page, hasMore };
 }
 
+// one complaint of this shop (a notification opens it by its id)
+async function ownerOne({ tenantId, id }) {
+    if (!isId(id)) throw httpError(404, 'Complaint not found');
+    const c = await Complaint.findOne({ _id: id, tenantId }).lean();
+    if (!c) throw httpError(404, 'Complaint not found');
+    return view(c, { forOwner: true });
+}
+
 async function adminList({ query }) {
     if (query.tenantId !== undefined && !isId(query.tenantId)) throw httpError(400, 'Bad shop id');
     const page = Math.min(Math.max(parseInt(query.page, 10) || 1, 1), 1000);
@@ -193,4 +201,4 @@ async function decide({ tenant, id, actor, body }) {
     return view(final, { forOwner: true });
 }
 
-module.exports = { create, forOrder, ownerList, adminList, decide, view, WINDOW_MS };
+module.exports = { create, forOrder, ownerList, ownerOne, adminList, decide, view, WINDOW_MS };

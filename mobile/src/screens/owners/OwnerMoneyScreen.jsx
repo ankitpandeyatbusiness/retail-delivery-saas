@@ -156,6 +156,7 @@ export default function OwnerMoneyScreen() {
             </Card>
 
             <Card>
+                <Row icon="trending-up" title="Business report" subtitle="Progress, customers, best food and tips" onPress={() => nav.navigate('OwnerBusiness')} />
                 <Row icon="swap-vertical" title="Transactions and bills" subtitle="Every payment, year by year and month by month" onPress={() => nav.navigate('OwnerTransactions')} last />
             </Card>
 

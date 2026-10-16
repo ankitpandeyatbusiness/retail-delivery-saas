@@ -25,6 +25,8 @@ const {
 } = require('../services/subscriptionService');
 const { enforceTenant } = require('../services/billingEnforcement');
 const billable = require('../services/billableService');
+const invoicing = require('../services/platformInvoicing');
+const creditNotes = require('../services/creditNotes');
 const { invalidateTenant } = require('../middlewares/tenantRecognizer');
 const loadTenant = require('../middlewares/loadTenant');
 const feePlanNotice = require('../services/feePlanNotice');
@@ -187,12 +189,10 @@ router.post('/tenants/:tid/invoices/custom', loadTenant, wrap(async (req, res) =
     const graceDays = body.graceDays === undefined ? (platform?.billing?.graceDays ?? 5) : wholeDays(body.graceDays, 1, 60, 'graceDays');
     const blocksShop = body.blocksShop !== false;   // false = this bill can never pause the shop
 
-    const fy = financialYear(periodOf(now));
-    const counter = await Counter.findOneAndUpdate({ _id: `subinv:${fy}` }, { $inc: { seq: 1 } }, { returnDocument: 'after', upsert: true });
-    const invoiceNo = `SUB/${fy}/${String(counter.seq).padStart(4, '0')}`;
-
-    const biz = tenant.business || {};
-    const addr = tenant.address || {};
+    const num = await invoicing.allocate('SUB', { now });
+    const invoiceNo = num.invoiceNo;
+    const { seller, buyer } = invoicing.parties(b, tenant);
+    const tax = invoicing.taxFor({ seller, buyer, gstAmount });
     let inv;
     try {
         inv = await SubscriptionInvoice.create({
@@ -210,19 +210,12 @@ router.post('/tenants/:tid/invoices/custom', loadTenant, wrap(async (req, res) =
             total: round2(base + gstAmount),
             note: cleanText(body.note, 200),
             markedBy: req.admin.email,
-            seller: {
-                legalName: b.legalName, address: b.address, gstin: b.gstin, email: b.email, phone: b.phone,
-                sacCode: b.sacCode, paymentInstructions: b.paymentInstructions,
-            },
-            buyer: {
-                legalName: biz.legalName || tenant.name,
-                address: [addr.line, addr.city, addr.pincode].filter(Boolean).join(', '),
-                gstin: biz.gstin,
-                phone: tenant.phone,
-            },
+            ...tax,
+            seller,
+            buyer,
         });
     } catch (e) {
-        await Counter.updateOne({ _id: `subinv:${fy}`, seq: counter.seq }, { $inc: { seq: -1 } });   // keep numbers continuous
+        await num.undo();   // keep numbers continuous
         throw e;
     }
     await enforceTenant(tenant._id);
@@ -243,8 +236,9 @@ async function cancelInvoice(req, res, defaultReason) {
         if (!cur) throw httpError(404, 'Invoice not found');
         throw httpError(409, `This invoice is "${cur.status}". Only a pending invoice can be voided or waived`);
     }
+    await creditNotes.issueFor(inv, { reason, by: req.admin.email });   // a bill that was issued is cancelled by a credit note, not just a stamp
     await enforceTenant(inv.tenantId);
-    res.json(withOverdue(inv));
+    res.json(withOverdue((await SubscriptionInvoice.findById(inv._id).lean()) || inv));
 }
 
 // Both end the bill and unpause the shop. The difference is only the reason saved with it.

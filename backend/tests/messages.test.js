@@ -85,7 +85,7 @@ describe('owner broadcast', () => {
         assert.equal(await got(w.tenant._id, w.c2.user._id), 0);
     });
 
-    test('the mail is queued only when asked, with priority 3, only for people who have an email', async () => {
+    test('a shop never sends email: sendEmail is ignored for an owner', async () => {
         const w = await shop('msg-mail');
         await User.updateOne({ _id: w.c1.user._id }, { $set: { email: 'c1@mail.test' } });
 
@@ -93,13 +93,11 @@ describe('owner broadcast', () => {
         await finished(quiet.body.id);
         assert.equal(await EmailJob.countDocuments({ to: 'c1@mail.test' }), 0);
 
-        const loud = await post(w, { title: 'With mail', body: 'Inbox and mail.', sendEmail: true });
+        const loud = await post(w, { title: 'With mail', body: 'Inbox only.', sendEmail: true });
         await finished(loud.body.id);
-        await f.waitFor(async () => (await EmailJob.countDocuments({ to: 'c1@mail.test' })) === 1);
-        const job = await EmailJob.findOne({ to: 'c1@mail.test' }).lean();
-        assert.equal(job.priority, 3);
-        assert.equal(job.kind, 'broadcast');
-        assert.equal(await EmailJob.countDocuments({}), 1);   // c2 and c3 have no email
+        await f.sleep(300);
+        assert.equal(await EmailJob.countDocuments({}), 0);
+        assert.equal((await Broadcast.findById(loud.body.id).lean()).sendEmail, false);
     });
 
     test('bad input is refused: title, body, kind, audience, sendEmail', async () => {

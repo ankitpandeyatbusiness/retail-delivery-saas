@@ -15,6 +15,7 @@ const PlatformSettings = require('../models/PlatformSettings');
 const Counter = require('../models/Counter');
 const { freeStatus, resolveFee } = require('../utils/billingRules');
 const billable = require('./billableService');
+const invoicing = require('./platformInvoicing');
 const adminAlerts = require('./adminAlerts');
 
 const IST_OFFSET_MS = 330 * 60 * 1000;
@@ -128,12 +129,10 @@ async function buildInvoice(tenant, period, platform, now = new Date()) {
     const dueDate = new Date(issueDate.getTime() + (platform?.billing?.dueDays ?? 7) * DAY_MS);
     const graceEndsAt = new Date(issueDate.getTime() + (platform?.billing?.graceDays ?? 5) * DAY_MS);
 
-    const fy = financialYear(periodOf(issueDate));   // invoice numbers follow the date the invoice is issued
-    const counter = await Counter.findOneAndUpdate({ _id: `subinv:${fy}` }, { $inc: { seq: 1 } }, { returnDocument: 'after', upsert: true });
-    const invoiceNo = `SUB/${fy}/${String(counter.seq).padStart(4, '0')}`;
-
-    const biz = tenant.business || {};
-    const addr = tenant.address || {};
+    const num = await invoicing.allocate('SUB', { now: issueDate });   // numbers follow the date the invoice is issued
+    const invoiceNo = num.invoiceNo;
+    const { seller, buyer } = invoicing.parties(b, tenant);
+    const tax = invoicing.taxFor({ seller, buyer, gstAmount });
     let invoice;
     try {
         invoice = await SubscriptionInvoice.create({
@@ -155,20 +154,12 @@ async function buildInvoice(tenant, period, platform, now = new Date()) {
             gstPercent,
             gstAmount,
             total,
-            seller: {
-                legalName: b.legalName, address: b.address, gstin: b.gstin, email: b.email, phone: b.phone,
-                sacCode: b.sacCode, paymentInstructions: b.paymentInstructions,
-            },
-            buyer: {
-                legalName: biz.legalName || tenant.name,
-                address: [addr.line, addr.city, addr.pincode].filter(Boolean).join(', '),
-                gstin: biz.gstin,
-                phone: tenant.phone,
-            },
+            ...tax,
+            seller,
+            buyer,
         });
     } catch (e) {
-        // give the number back so invoice numbers stay continuous (only if no one took the next one)
-        await Counter.updateOne({ _id: `subinv:${fy}`, seq: counter.seq }, { $inc: { seq: -1 } });
+        await num.undo();   // give the number back so invoice numbers stay continuous (only if no one took the next one)
         if (e.code === 11000) return skip('already_invoiced');   // someone else created it a moment ago
         throw e;
     }

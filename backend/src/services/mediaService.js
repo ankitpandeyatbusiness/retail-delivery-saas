@@ -19,7 +19,7 @@ const MAX_HERO_IMAGES = 5;
 // hero images: the shop owner and the superadmin. icon / splash / adaptive: the superadmin only (they are built into the app).
 const HERO_KINDS = new Set(['hero']);
 const BUILD_KINDS = new Set(['icon', 'splash', 'adaptive']);
-const OWNER_KINDS = new Set(['logo', 'product', 'category', 'banner', 'collection', 'rider', 'order', ...HERO_KINDS]);
+const OWNER_KINDS = new Set(['logo', 'product', 'category', 'banner', 'collection', 'rider', 'order', 'support', ...HERO_KINDS]);
 const SUPER_KINDS = new Set([...OWNER_KINDS, ...BUILD_KINDS]);
 const CUSTOMER_KINDS = new Set(['customer', 'complaint']);
 const RIDER_KINDS = new Set(['rider', 'proof']);   // his own photo, and the photo of food handed over on his own delivery
@@ -41,6 +41,7 @@ const KINDS = {
     rider: { ref: true, fixed: true, max: 512 },
     proof: { ref: true, max: 1600 },
     order: { ref: true, max: 1600 },
+    support: { ref: true, max: 1600 },   // a picture on a help request
     customer: { fixed: true, max: 512 },
     complaint: { ref: true, max: 1600 },
 };
@@ -124,6 +125,7 @@ async function finalKey(tenant, kind, refId) {
         case 'rider': return `${base}riders/${refId}/photo.webp`;
         case 'proof': return `${base}proofs/${ym()}/${refId}/${stamp}`;
         case 'order': return `${base}orders/${ym()}/${refId}/${stamp}`;
+        case 'support': return `${base}support/${ym()}/${refId}/${stamp}`;
         case 'customer': return `${base}customers/${refId}/avatar.webp`;
         case 'complaint': {
             const used = (await Media.find({ tenantId: tenant._id, kind: 'complaint', refId }).select('key').lean()).map((m) => m.key);

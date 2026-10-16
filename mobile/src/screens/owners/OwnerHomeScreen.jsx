@@ -182,6 +182,19 @@ export default function OwnerHomeScreen() {
             {/* the free period: how many days and orders are left */}
             <FreePeriod free={billing?.free} now={now} />
 
+            {/* what is happening to the orders, right at the top */}
+            <SectionTitle title="Order pipeline" action="Open orders" onAction={() => toOrders('active')} />
+            <View style={{ flexDirection: 'row', paddingHorizontal: 13 }}>
+                {PIPELINE.map(([key, label, icon]) => (
+                    <Card key={key} onPress={() => toOrders(key)} style={{ flex: 1, marginHorizontal: 3, paddingHorizontal: 2, alignItems: 'center', paddingVertical: 12 }}>
+                        <Ionicons name={icon} size={20} color={active[key] ? primary : muted} />
+                        <Text style={{ fontSize: 22, fontWeight: '900', color: active[key] ? primary : muted, marginTop: 2 }}>{active[key] || 0}</Text>
+                        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={{ fontSize: 11, color: muted, fontWeight: '700', maxWidth: '100%' }}>{label}</Text>
+                    </Card>
+                ))}
+            </View>
+
+
             {/* needs him now */}
             {waiting.length ? (
                 <Card tone={warn} onPress={() => (waiting.length === 1 ? nav.navigate('OwnerOrder', { id: String(waiting[0].id) }) : toOrders('placed'))}>
@@ -222,16 +235,19 @@ export default function OwnerHomeScreen() {
                 ) : null}
             </Card>
 
-            <SectionTitle title="Order pipeline" action="Open orders" onAction={() => toOrders('active')} />
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 10 }}>
-                {PIPELINE.map(([key, label, icon]) => (
-                    <Card key={key} onPress={() => toOrders(key)} style={{ width: '29%', marginHorizontal: '2%', alignItems: 'center', paddingVertical: 12 }}>
-                        <Ionicons name={icon} size={20} color={active[key] ? primary : muted} />
-                        <Text style={{ fontSize: 22, fontWeight: '900', color: active[key] ? primary : muted, marginTop: 2 }}>{active[key] || 0}</Text>
-                        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={{ fontSize: 11, color: muted, fontWeight: '700', maxWidth: '100%' }}>{label}</Text>
-                    </Card>
-                ))}
-            </View>
+            {/* the week in one line, and the way to the full report */}
+            {d ? (
+                <Card onPress={() => nav.navigate('OwnerBusiness', { range: '7' })}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Ionicons name="trending-up" size={24} color={primary} />
+                        <View style={{ flex: 1, marginLeft: 12 }}>
+                            <Text style={{ color: text, fontWeight: '900' }}>See how your shop is growing</Text>
+                            <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>Charts, best food, your best rider and tips, for the last 7 days or more</Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={18} color={muted} />
+                    </View>
+                </Card>
+            ) : null}
 
             <SectionTitle title="Delivery" />
             <Card>

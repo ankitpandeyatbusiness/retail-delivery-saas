@@ -11,7 +11,7 @@ const cache = new LRUCache({ max: 1000, ttl: 60 * 1000 });
 // (ownerBlockedReason is deliberately NOT selected, so it can never reach an app.)
 const FIELDS =
     '_id name slug businessType tagline logo colors heroImages status androidPackage ' +
-    'homeConfig delivery settings phone address business ownerBlocked maintenance updatedAt billing.state billing.graceEndsAt stats.rating';
+    'homeConfig delivery settings phone address business ownerBlocked maintenance updatedAt billing.state billing.graceEndsAt stats.rating handedOverAt';
 
 const tenantRecognizer = async (req, res, next) => {
     const raw = req.headers['x-tenant-slug'];

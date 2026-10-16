@@ -15,6 +15,8 @@ const rules = require('../notifications/rules');
 const adminTexts = require('../notifications/templates/adminTexts');
 const pushAdapter = require('./adapters/push');
 const alertSmsRotation = require('./alertSmsRotation');
+const SuperAdmin = require('../models/SuperAdmin');
+const { PHONE: SUPREME_PHONE } = require('../config/supreme');
 
 const day = (d) => new Date(d).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short' });
 
@@ -34,8 +36,14 @@ async function extraVars(tenantId, data) {
     return out;
 }
 
-async function pushToAdmins({ title, body, data }) {
-    const rows = await AdminDevice.find({}).select('token').lean();
+async function pushToAdmins({ title, body, data, supremeOnly }) {
+    // a supreme-only alert goes to the phones of the supreme admin alone
+    let filter = {};
+    if (supremeOnly) {
+        const ids = (await SuperAdmin.find({ phones: SUPREME_PHONE, isActive: true }).select('_id').lean()).map((a) => a._id);
+        filter = { adminId: { $in: ids } };
+    }
+    const rows = await AdminDevice.find(filter).select('token').lean();
     const tokens = rows.map((r) => r.token);
     if (!tokens.length) return { sent: 0 };
     const res = await pushAdapter.send({ tokens, title, body, data });
@@ -43,7 +51,8 @@ async function pushToAdmins({ title, body, data }) {
     return { sent: res?.sent || 0 };
 }
 
-async function alert(eventKey, { tenantId, vars = {}, data = {} } = {}) {
+// supremeOnly: only the supreme admin sees it (inbox) and gets the push; never an SMS
+async function alert(eventKey, { tenantId, vars = {}, data = {}, supremeOnly = false } = {}) {
     try {
         const def = await rules.get(eventKey, null);
         if (def.enabled === false) return null;
@@ -58,6 +67,7 @@ async function alert(eventKey, { tenantId, vars = {}, data = {} } = {}) {
         const doc = await Notification.create({
             tenantId: tenantId || undefined,
             role: 'superadmin',
+            ...(supremeOnly ? { supremeOnly: true } : {}),
             type: eventKey,
             title: text.title.slice(0, 120),
             body: text.body.slice(0, 300),
@@ -67,14 +77,19 @@ async function alert(eventKey, { tenantId, vars = {}, data = {} } = {}) {
         if (channels.includes('push')) {
             try {
                 await pushToAdmins({
-                    title: doc.title, body: doc.body, data: { type: eventKey, ...(tenantId && { tenantId: String(tenantId) }) },
+                    supremeOnly,
+                    title: doc.title, body: doc.body, data: {
+                        type: eventKey, ...(tenantId && { tenantId: String(tenantId) }), ...(tenant?.name && { shopName: tenant.name }),
+                        // what the alert is about, so tapping the push opens it
+                        ...(data.ticketId && { ticketId: String(data.ticketId) }), ...(data.orderId && { orderId: String(data.orderId) }), ...(data.invoiceId && { invoiceId: String(data.invoiceId) }), ...(data.entryId && { entryId: String(data.entryId) }),
+                    },
                 });
             } catch (e) {
                 console.error('Admin push error:', e.message);
             }
         }
 
-        if (channels.includes('sms')) {
+        if (channels.includes('sms') && !supremeOnly) {
             try {
                 const platform = await PlatformSettings.findById('main').select('alerts').lean();
                 const a = platform?.alerts || {};

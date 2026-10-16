@@ -5,7 +5,7 @@ import { View, Text, ScrollView } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useBrand, alpha } from '../../components/common/kit';
 import { PageHeader, Card, Pill, Button, SectionTitle, Empty, Stat, money } from '../../components/owners/ui';
-import { fetchBillingStatus, fetchRentInvoices, rentInvoicePdfPath, apiError } from '../../api/owners/shopApi';
+import { fetchBillingStatus, fetchRentInvoices, rentInvoicePdfPath, creditNotePdfPath, apiError } from '../../api/owners/shopApi';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { downloadAndOpen } from '../../utils/owners/files';
 import { dayTime } from '../../utils/owners/orderFlow';
@@ -44,6 +44,12 @@ export default function OwnerRentScreen() {
         setBusyId(`pdf${inv._id}`);
         try { await downloadAndOpen({ path: rentInvoicePdfPath(inv._id), filename: `bill-${String(inv.invoiceNo).replace(/\W+/g, '-')}.pdf`, mime: 'application/pdf', title: inv.invoiceNo }); }
         catch (e) { showToast(e.safe ? e.message : 'Could not open the bill'); } finally { setBusyId(null); }
+    };
+
+    const noteOf = async (inv) => {
+        setBusyId(`cn${inv._id}`);
+        try { await downloadAndOpen({ path: creditNotePdfPath(inv.creditNoteId), filename: `credit-note-${String(inv.invoiceNo).replace(/\W+/g, '-')}.pdf`, mime: 'application/pdf', title: 'Credit note' }); }
+        catch (e) { showToast(e.safe ? e.message : 'Could not open the credit note'); } finally { setBusyId(null); }
     };
 
     const due = bill?.due?.amount || 0;
@@ -127,6 +133,7 @@ export default function OwnerRentScreen() {
                             {inv.status === 'pending' ? <View style={{ flex: 1, marginRight: 6 }}><Button label="Pay now" icon="card" onPress={() => pay(inv)} /></View> : null}
                             <View style={{ flex: 1, marginLeft: inv.status === 'pending' ? 6 : 0 }}><Button label="Open bill (PDF)" icon="document-text" kind="ghost" busy={busyId === `pdf${inv._id}`} onPress={() => pdf(inv)} /></View>
                         </View>
+                        {inv.status === 'void' && inv.creditNoteId ? <View style={{ marginTop: 8 }}><Button label="Credit note (PDF)" icon="document-text" kind="ghost" busy={busyId === `cn${inv._id}`} onPress={() => noteOf(inv)} /></View> : null}
                     </Card>
                 ))}
                 {more ? <View style={{ paddingHorizontal: 16 }}><Button label="Show more" kind="ghost" onPress={() => load(page + 1)} /></View> : null}

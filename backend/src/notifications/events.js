@@ -36,12 +36,16 @@ const EVENTS = {
     shop_paused: { to: 'owner', channels: ALL, key: true, email: 'shop_paused', adminAlert: 'admin_shop_paused' },
     shop_unpaused: { to: 'owner', channels: INAPP_PUSH, email: 'shop_unpaused', adminAlert: 'admin_shop_unpaused' },
     payment_received: { to: 'owner', channels: INAPP_PUSH, email: 'payment_receipt', adminAlert: 'admin_bill_paid' },
+    monthly_report: { to: 'owner', channels: INAPP_PUSH, email: 'monthly_report' },   // the shop's progress report, once a month
     free_ending: { to: 'owner', channels: INAPP_PUSH, email: 'free_ending', adminAlert: 'admin_free_ending' },
     sms_topup_done: { to: 'owner', channels: INAPP_PUSH, email: 'sms_topup_receipt', adminAlert: 'admin_sms_topup_done' },
     sms_low: { to: 'owner', channels: INAPP_PUSH, adminAlert: 'admin_sms_low' },
     sms_zero: { to: 'owner', channels: INAPP_PUSH, adminAlert: 'admin_sms_zero' },
     platform_message: { to: 'owner', channels: INAPP_PUSH },
     owner_email_changed: { to: 'owner', channels: ['inapp'], email: 'owner_email_changed' },   // the mail goes to the OLD address (emailTo)
+    owner_daily_summary: { to: 'owner', channels: INAPP_PUSH },   // Autopilot: how today went
+    owner_weekly_digest: { to: 'owner', channels: INAPP_PUSH },   // Autopilot: how last week went
+    shop_nudge: { to: 'customer', channels: INAPP_PUSH },         // a shop's reminder to a customer (Remind / Autopilot). Never SMS, never email
     broadcast: { to: 'customer', channels: INAPP_PUSH, email: 'broadcast' },                  // never SMS. The mail is queued only when the sender asked for it (ctx.noEmail)
     // customer (an SMS only for the important steps, and never for riders)
     order_status: { to: 'customer', channels: ALL, key: (ctx) => KEY_CUSTOMER_STATUSES.includes(ctx.data?.status) },
@@ -66,6 +70,9 @@ const EVENTS = {
     admin_webhook_failed: { to: 'superadmin', channels: ALL, critical: true },
     admin_sms_provider_failing: { to: 'superadmin', channels: ALL, critical: true },
     admin_refund_failed: { to: 'superadmin', channels: ALL, critical: true },
+    admin_settlement_due: { to: 'superadmin', channels: INAPP_PUSH },   // a shop paid: what the partner owes the supreme admin (supreme admin only)
+    admin_support_new: { to: 'superadmin', channels: ALL },
+    admin_support_reply: { to: 'superadmin', channels: ALL },
 };
 
 // a type that is not listed above still works: inbox, live and push

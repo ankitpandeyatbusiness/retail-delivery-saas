@@ -38,6 +38,7 @@ router.put('/platform/payments/keys', wrap(async (req, res) => {
         $unset: { 'payments.verifiedAt': 1, 'payments.lastWebhookAt': 1 },   // new keys must be tested again
     });
     await platformPayments.load();
+    await require('../services/operators').syncActiveFromLive().catch((e) => console.error('Company sync error:', e.message));
     res.json(await status(req));
 }));
 
@@ -48,6 +49,7 @@ router.post('/platform/payments/webhook-secret', wrap(async (req, res) => {
         $unset: { 'payments.lastWebhookAt': 1 },
     });
     await platformPayments.load();
+    await require('../services/operators').syncActiveFromLive().catch((e) => console.error('Company sync error:', e.message));
     const s = await status(req);
     res.json({
         webhookUrl: s.webhookUrl,

@@ -114,18 +114,15 @@ export function Button({ label, onPress, icon, kind = 'primary', busy, working, 
     const { primary, onPrimary, text, border, error, radius } = useBrand();
     const fill = kind === 'primary' ? primary : kind === 'danger' ? error : 'transparent';
     const ink = kind === 'primary' ? onPrimary : kind === 'danger' ? '#FFFFFF' : text;
-    const ripple = kind === 'ghost' ? alpha(text, 0.18) : alpha(ink, 0.35);
     return (
         <Pressable
             onPress={onPress}
             disabled={disabled || busy}
-            android_ripple={{ color: ripple, borderless: false, foreground: true }}
             style={({ pressed }) => [
                 s.btn,
                 {
-                    backgroundColor: fill, borderRadius: radius, borderColor: kind === 'ghost' ? border : fill, overflow: 'hidden',
+                    paddingHorizontal: 0, backgroundColor: fill, borderRadius: radius, borderColor: kind === 'ghost' ? border : fill,
                     opacity: disabled ? 0.45 : pressed ? 0.72 : 1,
-                    transform: [{ scale: pressed && !disabled ? 0.96 : 1 }],
                 },
                 kind === 'ghost' && pressed && { backgroundColor: alpha(text, 0.1) },
                 style,
@@ -133,8 +130,15 @@ export function Button({ label, onPress, icon, kind = 'primary', busy, working, 
         >
             {busy ? <ActivityIndicator color={ink} size="small" /> : (
                 <>
-                    {working ? <ActivityIndicator color={ink} size="small" style={{ marginRight: 10 }} /> : (icon ? <Ionicons name={icon} size={18} color={ink} style={{ marginRight: 8 }} /> : null)}
-                    <Text numberOfLines={1} style={{ color: ink, fontWeight: '800', fontSize: 15, flexShrink: 1 }}>{label}</Text>
+                    {/* Only things with real content (text, icons) take touches on some phones, never the empty part of a button.
+                        So the label, and an icon on each side, together cover the button from edge to edge (the right icon is invisible). */}
+                    {working ? (
+                        <View style={{ alignSelf: 'stretch', justifyContent: 'center', paddingLeft: 18, paddingRight: 8 }}><ActivityIndicator color={ink} size="small" /></View>
+                    ) : icon ? (
+                        <Ionicons name={icon} size={18} color={ink} style={{ alignSelf: 'stretch', textAlignVertical: 'center', paddingLeft: 18, paddingRight: 8, paddingVertical: 15 }} />
+                    ) : null}
+                    <Text numberOfLines={1} style={{ flexGrow: 1, flexShrink: 1, alignSelf: 'stretch', textAlign: 'center', textAlignVertical: 'center', color: ink, fontWeight: '800', fontSize: 15, paddingVertical: 14, paddingLeft: working || icon ? 0 : 18, paddingRight: working || icon ? 0 : 18 }}>{label}</Text>
+                    {working || icon ? <Ionicons name={icon || 'ellipse'} size={18} color={ink} style={{ opacity: 0, alignSelf: 'stretch', textAlignVertical: 'center', paddingLeft: 8, paddingRight: 18, paddingVertical: 15 }} /> : null}
                 </>
             )}
         </Pressable>
@@ -189,21 +193,29 @@ export function ShopLogo({ size = 40 }) {
 // The big Live switch: ON = the shop takes orders, OFF = paused. Turning it OFF asks for how long (the pause sheet); turning it
 // ON starts at once. The knob slides and the track changes colour.
 export function LiveToggle({ on, busy, onPress }) {
-    const { ok, error, border, surface } = useBrand();
+    const { ok, error } = useBrand();
     const v = useRef(new Animated.Value(on ? 1 : 0)).current;
+    // a soft spring on the UI thread: nothing here waits for JavaScript while the knob moves
     useEffect(() => {
-        Animated.timing(v, { toValue: on ? 1 : 0, duration: 240, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+        Animated.spring(v, { toValue: on ? 1 : 0, friction: 9, tension: 110, useNativeDriver: true }).start();
     }, [on, v]);
     const W = 74; const H = 36; const K = 28;
     return (
-        <Pressable onPress={onPress} disabled={busy} hitSlop={8} accessibilityRole="switch" accessibilityState={{ checked: on }} accessibilityLabel={on ? 'Shop is live. Tap to pause orders' : 'Shop is off. Tap to go live'} style={{ marginRight: 4, opacity: busy ? 0.7 : 1 }}>
-            <Animated.View style={{ width: W, height: H, borderRadius: H / 2, justifyContent: 'center', backgroundColor: v.interpolate({ inputRange: [0, 1], outputRange: [alpha(error, 0.85), ok] }), shadowColor: on ? ok : error, shadowOpacity: 0.35, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 5 }}>
+        <Pressable onPress={onPress} disabled={busy} hitSlop={8} accessibilityRole="switch" accessibilityState={{ checked: on }} accessibilityLabel={on ? 'Shop is live. Tap to pause orders' : 'Shop is off. Tap to go live'} style={{ marginRight: 4 }}>
+            <View style={{ width: W, height: H, borderRadius: H / 2, backgroundColor: alpha(error, 0.9), overflow: 'hidden', justifyContent: 'center', elevation: 3, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 5, shadowOffset: { width: 0, height: 2 } }}>
+                {/* the green track fades in over the red one */}
+                <Animated.View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: ok, opacity: v }} />
                 <Animated.Text style={{ position: 'absolute', left: 11, color: '#FFFFFF', fontWeight: '900', fontSize: 11, letterSpacing: 0.8, opacity: v }}>LIVE</Animated.Text>
                 <Animated.Text style={{ position: 'absolute', right: 11, color: '#FFFFFF', fontWeight: '900', fontSize: 11, letterSpacing: 0.8, opacity: v.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }) }}>OFF</Animated.Text>
-                <Animated.View style={{ position: 'absolute', width: K, height: K, borderRadius: K / 2, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', transform: [{ translateX: v.interpolate({ inputRange: [0, 1], outputRange: [4, W - K - 4] }) }], shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 3 }}>
-                    {busy ? <LineShimmer width={14} height={14} /> : <Ionicons name="power" size={15} color={on ? ok : error} />}
+                <Animated.View style={{ position: 'absolute', width: K, height: K, borderRadius: K / 2, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', transform: [{ translateX: v.interpolate({ inputRange: [0, 1], outputRange: [4, W - K - 4] }) }] }}>
+                    {busy ? <LineShimmer width={14} height={14} /> : (
+                        <>
+                            <Animated.View style={{ position: 'absolute', opacity: v.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }) }}><Ionicons name="power" size={15} color={error} /></Animated.View>
+                            <Animated.View style={{ position: 'absolute', opacity: v }}><Ionicons name="power" size={15} color={ok} /></Animated.View>
+                        </>
+                    )}
                 </Animated.View>
-            </Animated.View>
+            </View>
         </Pressable>
     );
 }
@@ -224,6 +236,7 @@ export function OwnerHeader({ title }) {
     const pausedUntil = useHomeStore((st) => st.full.orders.pausedUntil);
     const [pauseOpen, setPauseOpen] = useState(false);
     const [switching, setSwitching] = useState(false);
+    const [pending, setPending] = useState(null);   // what the switch shows right now, before the server has answered
 
     const timedPause = !!pausedUntil && new Date(pausedUntil).getTime() > Date.now();
     const open = restaurant?.isOpen !== false && accepting !== false;
@@ -231,19 +244,22 @@ export function OwnerHeader({ title }) {
         : accepting === false ? 'Orders paused'
             : restaurant?.isOpen === false ? 'Closed now' : 'Open';
     const canToggle = access === 'ok';
-    const isOn = accepting !== false;
+    const storeOn = accepting !== false;
+    useEffect(() => { setPending(null); }, [storeOn]);   // the server's answer has arrived
+    const isOn = pending ?? storeOn;
 
     // ON -> ask for how long (30 min ... until I start again). OFF -> go live at once.
     const flip = async () => {
         if (!canToggle) { showToast(access === 'blocked' ? 'Your shop panel is paused by the platform' : 'Locked while the monthly bill is unpaid'); return; }
         if (isOn) { setPauseOpen(true); return; }
+        setPending(true);
         setSwitching(true);
         try {
             await setAcceptingOrders(true);
             await useHomeStore.getState().load();
             useOwnerStore.getState().refresh();
             showToast('You are live. Customers can order.');
-        } catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); } finally { setSwitching(false); }
+        } catch (e) { setPending(null); useOwnerStore.getState().noteError(e); showToast(apiError(e)); } finally { setSwitching(false); }
     };
 
     return (
@@ -262,7 +278,7 @@ export function OwnerHeader({ title }) {
                 <Ionicons name="notifications-outline" size={24} color={text} />
                 {unread > 0 ? <View style={[s.dot, { backgroundColor: error }]} /> : null}
             </Pressable>
-            <PauseSheet visible={pauseOpen} onClose={() => setPauseOpen(false)} />
+            <PauseSheet visible={pauseOpen} onClose={() => setPauseOpen(false)} onPending={setPending} />
         </View>
     );
 }
@@ -290,7 +306,7 @@ export function AccessBanner() {
                     </Text>
                 </View>
             </View>
-            {!blocked ? <Button label="Pay rent" kind="primary" onPress={() => nav.navigate('MoneyTab')} style={{ marginTop: 10 }} /> : null}
+            {!blocked ? <Button label="Pay rent" kind="primary" onPress={() => nav.navigate('MainTabs', { screen: 'MoneyTab' })} style={{ marginTop: 10 }} /> : null}
         </Card>
     );
 }
@@ -404,7 +420,7 @@ const PAUSE_CHOICES = [
 
 // Stop taking orders for a while, or start again. A timed pause reopens the shop BY ITSELF, so a forgotten pause cannot
 // lose a day of sales.
-export function PauseSheet({ visible, onClose }) {
+export function PauseSheet({ visible, onClose, onPending }) {
     const { muted, error } = useBrand();
     const accepting = useHomeStore((st) => st.full.orders.acceptingOrders);
     const pausedUntil = useHomeStore((st) => st.full.orders.pausedUntil);
@@ -413,6 +429,7 @@ export function PauseSheet({ visible, onClose }) {
 
     const apply = async (acceptingOrders, extra) => {
         setBusy(true);
+        if (onPending) onPending(acceptingOrders);   // the header switch starts moving at once
         try {
             await setAcceptingOrders(acceptingOrders, extra);
             await useHomeStore.getState().load();
@@ -420,6 +437,7 @@ export function PauseSheet({ visible, onClose }) {
             showToast(acceptingOrders ? 'Taking orders again' : 'Orders paused');
             onClose();
         } catch (e) {
+            if (onPending) onPending(null);
             useOwnerStore.getState().noteError(e);
             showToast(apiError(e));
         } finally { setBusy(false); }

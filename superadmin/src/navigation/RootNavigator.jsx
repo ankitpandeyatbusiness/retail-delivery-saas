@@ -13,6 +13,9 @@ import DashboardScreen from '../screens/home/DashboardScreen';
 import MoreScreen from '../screens/platform/MoreScreen';
 import TeamScreen from '../screens/platform/TeamScreen';
 import InboxScreen from '../screens/platform/InboxScreen';
+import SupportInboxScreen from '../screens/support/SupportInboxScreen';
+import SupportDetailScreen from '../screens/support/SupportDetailScreen';
+import SupportSettingsScreen from '../screens/support/SupportSettingsScreen';
 import OwnerMessagesScreen from '../screens/platform/OwnerMessagesScreen';
 import MaintenanceScreen from '../screens/platform/MaintenanceScreen';
 import AlertSettingsScreen from '../screens/platform/AlertSettingsScreen';
@@ -28,6 +31,10 @@ import ShopRidersScreen from '../screens/operations/ShopRidersScreen';
 import RiderDetailScreen from '../screens/operations/RiderDetailScreen';
 import ShopComplaintsScreen from '../screens/operations/ShopComplaintsScreen';
 import ShopMessagesScreen from '../screens/operations/ShopMessagesScreen';
+import ShopAutopilotScreen from '../screens/operations/ShopAutopilotScreen';
+import ShopsGrowthScreen from '../screens/platform/ShopsGrowthScreen';
+import ShopReportScreen from '../screens/operations/ShopReportScreen';
+import InsightsSettingsScreen from '../screens/platform/InsightsSettingsScreen';
 import ShopActivityScreen from '../screens/operations/ShopActivityScreen';
 import MoneyHomeScreen from '../screens/money/MoneyHomeScreen';
 import MyRazorpayScreen from '../screens/money/MyRazorpayScreen';
@@ -48,6 +55,14 @@ import SmsProfitScreen from '../screens/money/SmsProfitScreen';
 import PlatformSmsScreen from '../screens/money/PlatformSmsScreen';
 import PlatformBillingScreen from '../screens/money/PlatformBillingScreen';
 import PlatformBusinessScreen from '../screens/money/PlatformBusinessScreen';
+import GstRegisterScreen from '../screens/money/GstRegisterScreen';
+import OperatorsScreen from '../screens/operators/OperatorsScreen';
+import OperatorEditScreen from '../screens/operators/OperatorEditScreen';
+import AgreementsScreen from '../screens/agreements/AgreementsScreen';
+import AgreementDocScreen from '../screens/agreements/AgreementDocScreen';
+import SettlementScreen from '../screens/settlement/SettlementScreen';
+import SettlementEntryScreen from '../screens/settlement/SettlementEntryScreen';
+import SettlementSettingsScreen from '../screens/settlement/SettlementSettingsScreen';
 import ShopBillingScreen from '../screens/money/ShopBillingScreen';
 import CustomInvoiceScreen from '../screens/money/CustomInvoiceScreen';
 import ShopPaymentsScreen from '../screens/money/ShopPaymentsScreen';
@@ -122,6 +137,8 @@ function ShopsStack() {
             <Shops.Screen name="SettingsLabels" component={SettingsLabelsScreen} />
             <Shops.Screen name="SettingsApp" component={SettingsAppScreen} />
             <Shops.Screen name="ShopBranding" component={ShopBrandingScreen} />
+            <Shops.Screen name="ShopReport" component={ShopReportScreen} />
+            <Shops.Screen name="ShopAutopilot" component={ShopAutopilotScreen} />
             <Shops.Screen name="ShopOrders" component={ShopOrdersScreen} />
             <Shops.Screen name="OrderDetail" component={OrderDetailScreen} />
             <Shops.Screen name="SalesReport" component={SalesReportScreen} />
@@ -175,6 +192,7 @@ function MoneyStack() {
             <Money.Screen name="PlatformSms" component={PlatformSmsScreen} />
             <Money.Screen name="PlatformBilling" component={PlatformBillingScreen} />
             <Money.Screen name="PlatformBusiness" component={PlatformBusinessScreen} />
+            <Money.Screen name="GstRegister" component={GstRegisterScreen} />
             <Money.Screen name="MyRazorpay" component={MyRazorpayScreen} />
             <Money.Screen name="Gst" component={GstScreen} />
         </Money.Navigator>
@@ -187,6 +205,16 @@ function MoreStack() {
             <More.Screen name="MoreHome" component={MoreScreen} />
             <More.Screen name="Team" component={TeamScreen} />
             <More.Screen name="Maintenance" component={MaintenanceScreen} />
+            <More.Screen name="InsightsSettings" component={InsightsSettingsScreen} />
+            <More.Screen name="GstRegister" component={GstRegisterScreen} />
+            <More.Screen name="Settlement" component={SettlementScreen} />
+            <More.Screen name="Agreements" component={AgreementsScreen} />
+            <More.Screen name="Operators" component={OperatorsScreen} />
+            <More.Screen name="OperatorEdit" component={OperatorEditScreen} />
+            <More.Screen name="AgreementDoc" component={AgreementDocScreen} />
+            <More.Screen name="SettlementEntry" component={SettlementEntryScreen} />
+            <More.Screen name="SettlementSettings" component={SettlementSettingsScreen} />
+            <More.Screen name="ShopsGrowth" component={ShopsGrowthScreen} />
             <More.Screen name="AlertSettings" component={AlertSettingsScreen} />
             <More.Screen name="NotificationRules" component={NotificationRulesScreen} />
             <More.Screen name="AuditLog" component={AuditLogScreen} />
@@ -284,6 +312,9 @@ export default function RootNavigator() {
                 <>
                     <Root.Screen name="Admin" component={AdminTabs} />
                     <Root.Screen name="Inbox" component={InboxScreen} />
+                    <Root.Screen name="Support" component={SupportInboxScreen} />
+                    <Root.Screen name="SupportDetail" component={SupportDetailScreen} />
+                    <Root.Screen name="SupportSettings" component={SupportSettingsScreen} />
                     <Root.Screen name="OwnerMessages" component={OwnerMessagesScreen} />
                     <Root.Screen name="Search" component={SearchScreen} />
                     <Root.Screen name="Health" component={HealthScreen} />

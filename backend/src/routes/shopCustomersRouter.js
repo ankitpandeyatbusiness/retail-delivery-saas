@@ -9,6 +9,8 @@ const apiErrors = require('../middlewares/apiErrors');
 const User = require('../models/User');
 const CustomerRisk = require('../models/CustomerRisk');
 const edit = require('../services/userEditService');
+const insights = require('../services/customerInsights');
+const autopilot = require('../services/autopilot');
 const { hashPhone } = require('../utils/phoneHash');
 
 const { wrap, httpError } = apiErrors;
@@ -38,6 +40,28 @@ router.get('/', wrap(async (req, res) => {
     const hasMore = items.length > limit;
     if (hasMore) items.pop();
     res.json({ items: items.map(edit.profileView), page, hasMore });
+}));
+
+// who the customers are: tags (new, regular, loyal, vip, slipping, lost), usual time, favourite food
+router.get('/insights', wrap(async (req, res) => {
+    const page = clamp(parseInt(req.query.page, 10) || 1, 1, 1000);
+    const limit = clamp(parseInt(req.query.limit, 10) || 20, 1, 50);
+    res.json(await insights.list({ tenantId: req.tenant._id, tag: typeof req.query.tag === 'string' ? req.query.tag : 'all', q: req.query.q, page, limit }));
+}));
+
+router.get('/:userId/insight', wrap(async (req, res) => {
+    const r = isId(req.params.userId) ? await insights.one({ tenantId: req.tenant._id, userId: req.params.userId }) : null;
+    if (!r) throw httpError(404, 'Customer not found');
+    res.json(r);
+}));
+
+// the one-tap Remind: GET shows the message (and whether it can go now), POST sends it. Push and the in-app inbox only.
+router.get('/:userId/remind', wrap(async (req, res) => {
+    res.json(await autopilot.previewRemind({ tenant: req.tenant, userId: req.params.userId, withOffer: req.query.offer === 'true' }));
+}));
+router.post('/:userId/remind', wrap(async (req, res) => {
+    const b = req.body || {};
+    res.json(await autopilot.remind({ tenant: req.tenant, userId: req.params.userId, title: b.title, body: b.body, withOffer: b.withOffer === true }));
 }));
 
 router.get('/:userId', wrap(async (req, res) => {

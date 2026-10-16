@@ -42,7 +42,8 @@ const tenantSchema = new mongoose.Schema({
 
     // Restaurant details shown in the app
     phone: String,
-    address: { line: String, city: String, pincode: String },
+    // state: an Indian state (decides CGST+SGST or IGST on the platform's bills). Free text is refused so a typo cannot change the tax.
+    address: { line: String, city: String, state: { type: String, validate: { validator: (v) => !v || !!require('../services/gstSplit').codeFromName(v), message: 'Enter an Indian state name, like Uttar Pradesh' } }, pincode: String },
 
     // OLD config, still read so existing tenants keep working
     homeConfig: homeConfigSchema,
@@ -75,6 +76,13 @@ const tenantSchema = new mongoose.Schema({
             match: [/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/, 'Enter a valid email address'],
         },
     },
+
+    // who brought this shop to the platform: decides the revenue split on the settlement sheet. Only the supreme admin sets it.
+    broughtBy: { type: String, enum: ['owner', 'partner'] },
+    broughtBySetAt: Date,
+    // the day the supreme admin handed the app to this shop's owner: from then on the owner and riders are asked to agree to the terms
+    handedOverAt: Date,
+    handedOverBy: String,
 
     ownerBlocked: { type: Boolean, default: false },
     ownerBlockedReason: { type: String, trim: true, maxlength: 200 },   // private note, never sent to the app

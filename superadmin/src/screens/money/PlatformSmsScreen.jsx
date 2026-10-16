@@ -25,7 +25,7 @@ export default function PlatformSmsScreen() {
             const { sms } = await fetchPlatformSms();
             setF({
                 rate: sms.ratePerSmsPaise / 100, cost: sms.costPerSmsPaise / 100, low: sms.lowBalancePaise / 100,
-                min: sms.minTopupPaise / 100, max: sms.maxTopupPaise / 100, packs: (sms.packs || []).map((p) => p / 100),
+                gst: sms.gstPercent ?? 18, min: sms.minTopupPaise / 100, max: sms.maxTopupPaise / 100, packs: (sms.packs || []).map((p) => p / 100),
             });
             setError('');
         } catch (e) { setError(errMsg(e)); }
@@ -43,7 +43,7 @@ export default function PlatformSmsScreen() {
         try {
             await savePlatformSms({
                 ratePerSmsPaise: toPaise(f.rate), costPerSmsPaise: toPaise(f.cost), lowBalancePaise: toPaise(f.low),
-                minTopupPaise: toPaise(f.min), maxTopupPaise: toPaise(f.max), packs: f.packs.map(toPaise),
+                gstPercent: f.gst, minTopupPaise: toPaise(f.min), maxTopupPaise: toPaise(f.max), packs: f.packs.map(toPaise),
             });
             toast('SMS prices saved');
             nav.goBack();
@@ -63,7 +63,8 @@ export default function PlatformSmsScreen() {
             <Group title="Wallet" section="catalog">
                 <NumberField label="Warn the owner below" prefix="₹" value={f.low} onChange={set('low')} />
                 <NumberField label="Smallest top-up" prefix="₹" value={f.min} onChange={set('min')} />
-                <NumberField label="Largest top-up" prefix="₹" value={f.max} onChange={set('max')} last />
+                <NumberField label="Largest top-up" prefix="₹" value={f.max} onChange={set('max')} />
+                <NumberField label="GST added on top of a top-up" value={f.gst} onChange={set('gst')} hint="Percent. The owner types the amount he wants in his balance and pays that plus this GST. Recommended: 18. 0 = no GST." last />
             </Group>
 
             <Group title="Top-up packs" section="shops" hint="Quick amounts shown to the owner (1 to 8).">

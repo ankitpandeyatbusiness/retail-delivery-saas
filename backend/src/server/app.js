@@ -56,6 +56,8 @@ app.use('/api/addresses/serviceability', publicRateLimit);
 // place search spends the shop's map quota: stricter than the other public routes (per IP)
 app.use('/api/geo', publicRateLimit.make({ points: 90, duration: 60 }));
 
+app.use('/legal', require('../routes/publicLegalRouter'));   // the Terms and the Privacy Policy as web pages
+app.use('/api/legal', require('../routes/legalRouter'));
 app.use('/api/auth', authRouter);
 app.use('/api/tenants', tenantRouter);
 app.use('/api/catalog/collections', collectionRouter);

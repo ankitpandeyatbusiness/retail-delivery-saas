@@ -8,6 +8,7 @@
 //   DELETE /notifications/:id
 // Mounted inside adminRouter, so login and the audit log already ran.
 const express = require('express');
+const { isSupreme } = require('../config/supreme');
 const mongoose = require('mongoose');
 const loadTenant = require('../middlewares/loadTenant');
 const apiErrors = require('../middlewares/apiErrors');
@@ -64,10 +65,12 @@ router.post('/subscriptions/invoices/:id/resend', wrap(async (req, res) => {
 }));
 
 /* ------------------------------ superadmin inbox ------------------------------ */
+// every superadmin shares one inbox, but the supreme admin's own alerts (the settlement sheet) are his alone
+const scope = (req) => (isSupreme(req.admin) ? { role: 'superadmin' } : { role: 'superadmin', supremeOnly: { $ne: true } });
 router.get('/notifications', wrap(async (req, res) => {
     const page = clamp(parseInt(req.query.page, 10) || 1, 1, 1000);
     const limit = clamp(parseInt(req.query.limit, 10) || 20, 1, 50);
-    const base = { role: 'superadmin' };
+    const base = scope(req);
     const filter = req.query.unread === 'true' ? { ...base, readAt: null } : base;
 
     const [items, unreadCount] = await Promise.all([
@@ -88,13 +91,13 @@ router.get('/notifications', wrap(async (req, res) => {
 }));
 
 router.post('/notifications/read-all', wrap(async (req, res) => {
-    const out = await Notification.updateMany({ role: 'superadmin', readAt: null }, { $set: { readAt: new Date() } });
+    const out = await Notification.updateMany({ ...scope(req), readAt: null }, { $set: { readAt: new Date() } });
     res.json({ ok: true, marked: out.modifiedCount });
 }));
 
 router.post('/notifications/:id/read', wrap(async (req, res) => {
     if (!isId(req.params.id)) throw httpError(404, 'Message not found');
-    const filter = { _id: req.params.id, role: 'superadmin' };
+    const filter = { _id: req.params.id, ...scope(req) };
     if (!(await Notification.exists(filter))) throw httpError(404, 'Message not found');
     await Notification.updateOne({ ...filter, readAt: null }, { $set: { readAt: new Date() } });
     res.json({ ok: true });
@@ -102,13 +105,13 @@ router.post('/notifications/:id/read', wrap(async (req, res) => {
 
 // clear the inbox: all of it, or one alert
 router.delete('/notifications', wrap(async (req, res) => {
-    const out = await Notification.deleteMany({ role: 'superadmin' });
+    const out = await Notification.deleteMany(scope(req));
     res.json({ ok: true, deleted: out.deletedCount });
 }));
 
 router.delete('/notifications/:id', wrap(async (req, res) => {
     if (!isId(req.params.id)) throw httpError(404, 'Message not found');
-    const out = await Notification.deleteOne({ _id: req.params.id, role: 'superadmin' });
+    const out = await Notification.deleteOne({ _id: req.params.id, ...scope(req) });
     if (!out.deletedCount) throw httpError(404, 'Message not found');
     res.json({ ok: true });
 }));

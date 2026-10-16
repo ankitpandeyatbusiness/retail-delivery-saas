@@ -15,6 +15,7 @@ import { acknowledge } from '../../utils/owners/soundbox';
 import { useNow } from '../../hooks/owners/useNow';
 import * as flow from '../../utils/owners/orderFlow';
 import { FormShimmer } from '../../components/owners/shimmer';
+import RiderLiveMap from '../../components/owners/RiderLiveMap';
 
 const UNDELIVERED_WAIT_MS = 15 * 60 * 1000;   // the server allows "not delivered" 15 minutes after the rider's first problem
 
@@ -230,7 +231,10 @@ export default function OwnerOrderScreen() {
                             {rider?.phone ? (
                                 <Button label="Call the rider" icon="call" kind="ghost" onPress={() => callPhone(rider.phone)} style={{ marginTop: 10 }} />
                             ) : null}
-                            {rider?.lastLocation?.lat && rider?.lastLocation?.at && now - new Date(rider.lastLocation.at).getTime() < 5 * 60000 ? (
+                            {order.status === 'out_for_delivery' && order.orderType === 'delivery' ? (
+                                <RiderLiveMap orderId={String(order._id || order.id)} initial={rider?.lastLocation} destination={order.address} riderName={rider?.name} />
+                            ) : null}
+                            {order.status !== 'out_for_delivery' && rider?.lastLocation?.lat && rider?.lastLocation?.at && now - new Date(rider.lastLocation.at).getTime() < 5 * 60000 ? (
                                 <Button label="See where the rider is" icon="locate" kind="ghost" onPress={() => openMap(rider.lastLocation.lat, rider.lastLocation.lng, rider.name)} style={{ marginTop: 8 }} />
                             ) : null}
                             {!flow.isFinal(order.status) ? (

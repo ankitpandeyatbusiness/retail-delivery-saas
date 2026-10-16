@@ -96,6 +96,8 @@ async function settle({ invoiceId, pay, via }) {
         return { ignored: 'bill_not_pending' };
     }
 
+    require('./settlement').recordInvoicePaid(paid).catch((e) => console.error('Settlement row error:', e.message));
+
     // paid bill: unpause the shop at once (the "payment received" message is sent by the billing alerts job)
     await require('./billingEnforcement').enforceTenant(paid.tenantId)
         .catch((e) => console.error('Billing enforce error:', e.message));

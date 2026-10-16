@@ -95,7 +95,8 @@ function cardProblems(c) {
 
 export default function OwnerPayScreen() {
     const nav = useNavigation();
-    const { kind, id, amountPaise, title } = useRoute().params || {};
+    const { kind, id, amountPaise, title, payablePaise, gstPaise, gstPercent } = useRoute().params || {};
+    const toPay = payablePaise || amountPaise;   // an SMS top-up: the amount plus GST
     const { background, primary, text, muted, ok, border } = useBrand();
     const user = useAuthStore((s) => s.user);
     const [apps, setApps] = useState(null);
@@ -175,14 +176,15 @@ export default function OwnerPayScreen() {
                 <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
                     <Ionicons name="checkmark-circle" size={92} color={ok} />
                     <Text style={{ color: ok, fontSize: 22, fontWeight: '900', marginTop: 10 }}>Payment received</Text>
-                    <Text style={{ color: muted, marginTop: 4 }}>{rupees(amountPaise)} · {title}</Text>
+                    <Text style={{ color: muted, marginTop: 4 }}>{rupees(toPay)} · {title}</Text>
                 </View>
             ) : (
                 <>
                     <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 150 }} keyboardShouldPersistTaps="handled">
                         <Card>
                             <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }}>{title}</Text>
-                            <Text style={{ color: text, fontSize: 34, fontWeight: '900', marginTop: 2 }}>{rupees(amountPaise)}</Text>
+                            <Text style={{ color: text, fontSize: 34, fontWeight: '900', marginTop: 2 }}>{rupees(toPay)}</Text>
+                            {gstPaise ? <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{rupees(amountPaise)} added to your balance + {gstPercent}% GST {rupees(gstPaise)}</Text> : null}
                             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
                                 <Ionicons name="shield-checkmark" size={15} color={ok} />
                                 <Text style={{ color: muted, fontSize: 12, marginLeft: 6 }}>Secure payment by Razorpay</Text>
@@ -198,7 +200,7 @@ export default function OwnerPayScreen() {
                         </Card>
                     </ScrollView>
                     <View style={[styles.dock, { backgroundColor: background, borderTopColor: border }]}>
-                        <Button label={!current ? 'Choose how to pay' : current.key === 'qr' ? 'Show QR code' : `Pay ${rupees(amountPaise)}`} icon={current?.key === 'qr' ? 'qr-code' : 'lock-closed'} disabled={!current} busy={qrBusy} onPress={pay} />
+                        <Button label={!current ? 'Choose how to pay' : current.key === 'qr' ? 'Show QR code' : `Pay ${rupees(toPay)}`} icon={current?.key === 'qr' ? 'qr-code' : 'lock-closed'} disabled={!current} busy={qrBusy} onPress={pay} />
                     </View>
                     {paying ? <PayShimmer appName={paying} /> : null}
                 </>

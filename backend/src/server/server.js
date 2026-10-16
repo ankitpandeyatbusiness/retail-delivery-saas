@@ -15,7 +15,9 @@ const startAwakeCron = require('../jobs/awakeCrons');
 const { startComplaintRemindersScheduler } = require('../jobs/complaintReminders');
 const { startNotificationEscalationScheduler } = require('../jobs/notificationEscalation');
 const { startEmailWorkerScheduler } = require('../jobs/emailWorker');
+const { startMonthlyReportsScheduler } = require('../jobs/monthlyReports');
 const { startInactiveShopsScheduler } = require('../jobs/inactiveShops');
+const { startAutopilotScheduler } = require('../jobs/autopilot');
 const { startCleanupUploadsScheduler } = require('../jobs/cleanupUploads');
 const { startBackupScheduler } = require('../jobs/backupDump');
 const { startNightlyReconcileScheduler } = require('../jobs/nightlyReconcile');
@@ -67,7 +69,9 @@ connectDB()
             startStuckOrdersScheduler();
             startNotificationEscalationScheduler();
             startEmailWorkerScheduler();
+            startMonthlyReportsScheduler();
             startInactiveShopsScheduler();
+            startAutopilotScheduler();
             startPaymentReconcileScheduler();
             require('../services/platformTax').start();   // the one GST for all shops
             require('../services/platformPayments').start();   // my own Razorpay keys saved in the app

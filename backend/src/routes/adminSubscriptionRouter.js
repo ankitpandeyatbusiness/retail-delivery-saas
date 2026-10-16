@@ -10,6 +10,7 @@
 //         (invoices are also created automatically every month)
 
 const express = require('express');
+const settlement = require('../services/settlement');
 const mongoose = require('mongoose');
 const SubscriptionInvoice = require('../models/SubscriptionInvoice');
 const Tenant = require('../models/Tenant');
@@ -100,6 +101,10 @@ router.patch('/subscriptions/invoices/:id/status', wrap(async (req, res) => {
         if (ref) set.paymentRef = ref;
         const note = cleanText(req.body.note, 200);
         if (note) set.note = note;
+        if (req.body.receivedBy !== undefined) {
+            if (!['owner', 'partner'].includes(req.body.receivedBy)) throw httpError(400, 'receivedBy must be "owner" or "partner" (who got the money)');
+            set.receivedBy = req.body.receivedBy;
+        }
         update = { $set: set };
     } else {
         update = {
@@ -108,6 +113,8 @@ router.patch('/subscriptions/invoices/:id/status', wrap(async (req, res) => {
         };
     }
     const inv = await SubscriptionInvoice.findByIdAndUpdate(req.params.id, update, { returnDocument: 'after' }).lean();
+    if (status === 'paid') await settlement.recordInvoicePaid(inv, { by: req.admin }).catch((e) => console.error('Settlement row error:', e.message));
+    else await settlement.invoiceUnpaid(inv._id, req.admin).catch((e) => console.error('Settlement row error:', e.message));
     await enforceTenant(inv.tenantId);   // paid unpauses the shop at once, undo can pause it again
     res.json(withOverdue(inv));
 }));

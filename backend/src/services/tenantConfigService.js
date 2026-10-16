@@ -273,8 +273,9 @@ function validateSettings(input) {
     });
 
     // notifications (the owner's own switches)
-    section('notifications', ['smsAlerts'], (n, out, p) => {
+    section('notifications', ['smsAlerts', 'monthlyReport'], (n, out, p) => {
         if (n.smsAlerts !== undefined && bool(p('smsAlerts'), n.smsAlerts)) out.smsAlerts = n.smsAlerts;
+        if (n.monthlyReport !== undefined && bool(p('monthlyReport'), n.monthlyReport)) out.monthlyReport = n.monthlyReport;   // the monthly progress report (in the app and by email)
     });
 
     // labels
@@ -309,7 +310,7 @@ const DEFAULTS = {
         codCap: { amount: 1000, firstOrders: 3 },   // Cash on delivery is limited to this amount for a phone's first orders. amount 0 = off
     },
     offers: { couponsEnabled: true, showOnHome: true, showInCart: true },
-    notifications: { smsAlerts: true },   // key-event SMS (new order, bill, order steps) are on by default
+    notifications: { smsAlerts: true, monthlyReport: true },   // key-event SMS (new order, bill, order steps) are on by default
     riders: { assignMode: 'automatic', offerSeconds: 120, maxActiveOrders: 3, deliveryPin: true, liveTracking: true, locationIntervalSec: 10 },
     labels: {
         language: 'en', addButton: 'Add', orderButton: 'Place order',

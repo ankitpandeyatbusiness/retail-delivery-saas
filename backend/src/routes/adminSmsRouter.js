@@ -44,6 +44,10 @@ router.put('/platform/sms', wrap(async (req, res) => {
         if (!isInt(b[k], 100)) throw httpError(400, `${k} must be a whole number of paise (100 or more)`);
         set[`sms.${k}`] = b[k];
     }
+    if (b.gstPercent !== undefined) {
+        if (typeof b.gstPercent !== 'number' || !(b.gstPercent >= 0 && b.gstPercent <= 28)) throw httpError(400, 'gstPercent must be a number from 0 to 28');
+        set['sms.gstPercent'] = b.gstPercent;
+    }
     if (b.packs !== undefined) {
         if (!Array.isArray(b.packs) || b.packs.length < 1 || b.packs.length > 8 || !b.packs.every((n) => isInt(n, 100))) {
             throw httpError(400, 'packs must be 1 to 8 whole numbers of paise (100 or more)');

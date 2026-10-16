@@ -12,6 +12,7 @@ import { useHomeStore } from '../store/customers/useHomeStore';
 import { FloatingTabBar, slideScenes, gate } from './tabKit';
 import OwnerDrawer from '../components/owners/OwnerDrawer';
 import BillingPrompt from '../components/owners/BillingPrompt';
+import EmailPrompt from '../components/owners/EmailPrompt';
 import OwnerHomeScreen from '../screens/owners/OwnerHomeScreen';
 import OwnerOrdersScreen from '../screens/owners/OwnerOrdersScreen';
 import OwnerMenuScreen from '../screens/owners/OwnerMenuScreen';
@@ -65,6 +66,7 @@ export default function OwnerTabs() {
             </Tab.Navigator>
             <OwnerDrawer />
             <BillingPrompt />
+            <EmailPrompt />
         </View>
     );
 }

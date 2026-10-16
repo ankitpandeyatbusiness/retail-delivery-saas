@@ -4,6 +4,7 @@
 //   - tapping a notification opens its order
 // The server stores the phone's FCM token (POST /notifications/devices) and sends with firebase-admin.
 // Android only for now. All of it is best effort: a failure here must never get in the way of ordering.
+import { ownerRoute } from '../owners/notificationRoute';
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as SecureStore from 'expo-secure-store';
@@ -36,16 +37,20 @@ Notifications.setNotificationHandler({
 
 /* ------------------------------ opening an order from a notification ------------------------------ */
 let navRef = null;
-let pending = null;   // an order to open as soon as the navigator is ready (app was closed when the user tapped)
+let pending = null;   // a screen to open as soon as the navigator is ready (app was closed when the user tapped)
+
+function openScreen(name, params) {
+    if (!useAuthStore.getState().user) return;
+    if (!navRef?.isReady()) { pending = { name, params }; return; }
+    navRef.dispatch(CommonActions.navigate({ name, params }));
+}
 
 function openOrder(orderId) {
     if (!orderId) return;
     const user = useAuthStore.getState().user;
     if (!user) return;
-    if (!navRef?.isReady()) { pending = String(orderId); return; }
     // the owner has his own order page; customers and riders keep theirs
-    const name = user.role === 'admin' ? 'OwnerOrder' : 'OrderDetail';
-    navRef.dispatch(CommonActions.navigate({ name, params: { id: String(orderId) } }));
+    openScreen(user.role === 'admin' ? 'OwnerOrder' : 'OrderDetail', { id: String(orderId) });
 }
 
 // Called by the navigator once it exists, and again when it is ready.
@@ -53,7 +58,7 @@ export function bindNavigation(ref) {
     navRef = ref;
 }
 export function navigationReady() {
-    if (pending) { const id = pending; pending = null; openOrder(id); }
+    if (pending) { const p = pending; pending = null; openScreen(p.name, p.params); }
 }
 
 const dataOf = (resp) => {
@@ -68,6 +73,12 @@ function handleTap(resp) {
     if (data.test === '1' && useAuthStore.getState().user?.role === 'admin') {
         speakOnOpen({ ...data, orderId: 'test-push' }).catch(() => { });
         return;
+    }
+    // the owner: every push that has somewhere to go opens it (an order, a complaint, the bill, the SMS balance, a help request...)
+    if (useAuthStore.getState().user?.role === 'admin') {
+        if (data.type === 'order_new' || data.type === 'order_unaccepted_reminder') speakOnOpen(data).catch(() => { });
+        const to = ownerRoute({ type: data.type, data });
+        if (to) { openScreen(to.name, to.params); return; }
     }
     if (!data.orderId) return;
     if (useAuthStore.getState().user?.role === 'admin' && (data.type === 'order_new' || data.type === 'order_unaccepted_reminder')) {

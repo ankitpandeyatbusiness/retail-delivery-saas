@@ -10,6 +10,9 @@ import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { showToast } from '../../components/customers/shop';
 import { FormShimmer } from '../../components/owners/shimmer';
 
+// what we recommend for most shops (the platform's own defaults)
+const RECOMMENDED = { assignMode: 'automatic', offerSeconds: 120, maxActiveOrders: 3, payPerDelivery: 0, deliveryPin: true, liveTracking: true, locationIntervalSec: 10, codAmount: 1000, codFirst: 3 };
+
 export default function OwnerRiderRulesScreen() {
     const nav = useNavigation();
     const access = useOwnerStore((s) => s.access);
@@ -26,6 +29,7 @@ export default function OwnerRiderRulesScreen() {
     }, []);
 
     const set = (k, v) => { setForm((f) => ({ ...f, [k]: v })); setErrors((e) => (e[k] ? { ...e, [k]: undefined } : e)); };
+    const reset = () => { setForm((f) => ({ ...f, ...RECOMMENDED })); setErrors({}); showToast('Back to the recommended rules. Press Save to keep them.'); };
 
     if (!form) {
         return (
@@ -94,6 +98,7 @@ export default function OwnerRiderRulesScreen() {
                 <NumberBox label="Highest cash order for a new customer" prefix="₹" value={v.codAmount} onChange={(x) => set('codAmount', x)} error={errors.codAmount} hint="0 = no limit" />
                 <NumberBox label="Applies to his first" suffix="orders" integer value={v.codFirst} onChange={(x) => set('codFirst', x)} error={errors.codFirst} last />
             </Group>
+            <View style={{ paddingHorizontal: 16, marginTop: 4 }}><Button label="Reset to recommended" icon="refresh" kind="ghost" onPress={reset} /></View>
         </FormPage>
     );
 }

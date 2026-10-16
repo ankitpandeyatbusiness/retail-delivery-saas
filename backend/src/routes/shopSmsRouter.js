@@ -12,6 +12,7 @@ const topups = require('../services/smsTopupService');
 const platformCheckout = require('../services/platformCheckout');
 const SmsTransaction = require('../models/SmsTransaction');
 const SmsTopup = require('../models/SmsTopup');
+const { streamSubscriptionInvoice } = require('../services/subscriptionInvoicePdf');
 
 const { wrap, httpError } = apiErrors;
 const router = express.Router();
@@ -32,10 +33,21 @@ router.get('/transactions', wrap(async (req, res) => {
     }
     const items = await SmsTransaction.find(filter)
         .sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit + 1)
-        .select('type amountPaise balanceAfter purpose note createdAt').lean();
+        .select('type amountPaise balanceAfter purpose note paymentId createdAt').lean();
     const hasMore = items.length > limit;
     if (hasMore) items.pop();
-    res.json({ items, page, hasMore });
+    // a top-up line carries the id of its top-up, so the app can open its invoice
+    res.json({ items: items.map(({ paymentId, ...t }) => ({ ...t, ...(t.type === 'topup' && /^topup:[0-9a-f]{24}$/.test(paymentId || '') ? { topupId: paymentId.slice(6) } : {}) })), page, hasMore });
+}));
+
+// the tax invoice / receipt of a paid top-up (PDF). ?view=1 opens it in the browser
+router.get('/topups/:id/invoice', wrap(async (req, res) => {
+    const t = /^[0-9a-f]{24}$/.test(req.params.id) ? await SmsTopup.findOne({ _id: req.params.id, tenantId: req.tenant._id }).select('status').lean() : null;
+    if (!t) throw httpError(404, 'Top-up not found');
+    if (t.status !== 'paid') throw httpError(409, 'The invoice is made when the top-up is paid');
+    const inv = await topups.ensureInvoice(req.params.id);
+    if (!inv) throw httpError(409, 'The invoice is not ready yet. Please try again later.');
+    streamSubscriptionInvoice(res, inv, { inline: req.query.view === '1' });
 }));
 
 router.get('/topup/options', wrap(async (req, res) => {

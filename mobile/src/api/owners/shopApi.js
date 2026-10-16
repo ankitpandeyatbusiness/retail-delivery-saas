@@ -100,6 +100,7 @@ export const allowCod = (userId) => d(api.patch(`/shop/customers/${userId}/cod-b
 // what customers say: { kind:'dish'|'delivery', items, page, hasMore, summary:{dish:{avg,count,stars},delivery:{...}} }; params { kind, rating, page }
 export const fetchReviews = (params) => d(api.get('/shop/reviews', q(params)));
 export const fetchComplaints = (params) => d(api.get('/shop/complaints', q(params)));
+export const fetchComplaint = (id) => d(api.get(`/shop/complaints/${id}`));
 export const updateComplaint = (id, body) => d(api.patch(`/shop/complaints/${id}`, body));
 
 export const sendMessage = (body) => d(api.post('/shop/messages', body));
@@ -128,15 +129,34 @@ export const fetchBillingPrompts = () => d(api.get('/shop/billing/prompts'));
 export const answerBillingPrompt = (kind, choice) => d(api.post('/shop/billing/prompts/choice', { kind, choice }));
 export const fetchRentInvoices = (params) => d(api.get('/shop/subscription/invoices', q(params)));
 export const payRentInvoice = (id) => d(api.post(`/shop/subscription/invoices/${id}/pay`));
-// the owner's own profile: { id, phone, name, email, avatarUrl, avatarId }. PUT { name?, email? }; the phone cannot be changed
+/* ------------------------------ help & support (works even when the shop is paused for rent) ------------------------------ */
+export const fetchSupportInfo = () => d(api.get('/shop/support/info'));                 // { phone, whatsapp, email, hours, replyPromise }
+export const fetchSupport = (params) => d(api.get('/shop/support', q(params)));         // { items, unreadCount, page, hasMore }; params { status:'open'|'resolved', page }
+export const createSupport = (body) => d(api.post('/shop/support', body));              // { category, subject, message, photos?, appVersion?, platform? }
+export const fetchSupportTicket = (id) => d(api.get(`/shop/support/${id}`));
+export const replySupport = (id, body) => d(api.post(`/shop/support/${id}/reply`, body));   // { message, photos? }
+export const resolveSupport = (id) => d(api.post(`/shop/support/${id}/resolve`));
+export const rateSupport = (id, body) => d(api.post(`/shop/support/${id}/rate`, body));     // { stars, comment? }
+export const signSupportPhoto = (body) => d(api.post('/shop/support/uploads/sign', body));
+export const confirmSupportPhoto = (body) => d(api.post('/shop/support/uploads/confirm', body));
+
+// the progress report. range: '7' | '30' | '90' | '2026-09' (a past month). See backend services/businessReport.js for the shape.
+export const fetchBusinessReport = (range) => d(api.get('/shop/business-report', q({ range })));
+
+// the owner's own profile: { id, phone, name, email, emailRequired, avatarUrl, avatarId }. PUT { name }; the phone cannot be changed
 export const fetchProfile = () => d(api.get('/shop/profile'));
-export const saveProfile = (body) => d(api.put('/shop/profile', body));
+export const saveProfile = (body) => d(api.put('/shop/profile', body));   // { name } (the email changes only with a code)
+// the email: mail a 6-digit code to the address, then save the address with the code. send-code -> { sent, resendInSec, devCode? (test setups only) }
+export const sendEmailCode = (email) => d(api.post('/shop/profile/email/send-code', { email }));
+export const verifyEmailCode = (email, code) => d(api.post('/shop/profile/email/verify', { email, code }));
 // Pay with a UPI app or a card (Razorpay checkout in the app): start -> pay -> verify
 export const startRentPay = (id) => d(api.post(`/shop/subscription/invoices/${id}/pay/start`));
 export const verifyRentPay = (id, proof) => d(api.post(`/shop/subscription/invoices/${id}/pay/verify`, proof));
 export const startTopupPay = (amountPaise) => d(api.post('/shop/sms/topup/start', { amountPaise }));
 export const verifyTopupPay = (id, proof) => d(api.post(`/shop/sms/topup/${id}/verify`, proof));
 export const rentInvoicePdfPath = (id) => `/shop/subscription/invoices/${id}/pdf`;
+export const creditNotePdfPath = (id) => `/shop/subscription/credit-notes/${id}/pdf`;   // issued when a bill was cancelled
+export const topupInvoicePdfPath = (id) => `/shop/sms/topups/${id}/invoice`;               // the tax invoice / receipt of a paid SMS top-up
 
 /* ------------------------------ activity and notifications ------------------------------ */
 export const fetchActivity = (params) => d(api.get('/shop/activity', q(params)));
@@ -155,3 +175,17 @@ export const accessState = (e) => {
     if (x?.paused) return 'paused';
     return null;
 };
+
+/* ------------------------------ customer profiles, Remind, Autopilot ------------------------------ */
+// { counts:{new,regular,loyal,vip,slipping,lost}, total, items:[{id,name,phone,tag,vip,orders,spent,daysSince,usualHourLabel,usualDay,favourites,reachable,reachNote,...}], hasMore }
+export const fetchCustomerInsights = (params) => d(api.get('/shop/customers/insights', q(params)));
+export const fetchCustomerInsight = (userId) => d(api.get(`/shop/customers/${userId}/insight`));
+// the message he will see, and whether it can go now: { title, body, canSend, holdBack, maxDiscount }
+export const fetchRemindPreview = (userId, offer) => d(api.get(`/shop/customers/${userId}/remind`, q({ offer: offer ? 'true' : undefined })));
+export const sendRemind = (userId, body) => d(api.post(`/shop/customers/${userId}/remind`, body));   // { title?, body?, withOffer? }
+// settings: { on:{welcome,thanks,winback,mealtime,festival,dailySummary,weeklyDigest}, frequency, language, maxDiscount, quietFrom, quietTo, summaryHour, custom, recommended, names, limits }
+export const fetchAutopilot = () => d(api.get('/shop/autopilot'));
+export const saveAutopilot = (body) => d(api.put('/shop/autopilot', body));   // any part, or { recommended: true }
+export const fetchAutopilotLibrary = (params) => d(api.get('/shop/autopilot/library', q(params)));
+// { sent, broughtBack, orders, revenue, byKind, recent }
+export const fetchAutopilotStats = (days = 30) => d(api.get('/shop/autopilot/stats', q({ days })));

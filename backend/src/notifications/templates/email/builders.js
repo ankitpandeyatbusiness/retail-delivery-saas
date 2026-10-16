@@ -112,7 +112,7 @@ function smsTopupReceipt(v) {
         preheader: `${rs((v.amountPaise || 0) / 100)} added to your SMS balance`,
         heading: 'SMS balance added',
         paragraphs: [`Thank you, ${shop(v)}. Your SMS top-up is done.`],
-        rows: [['Amount added', rs((v.amountPaise || 0) / 100)], ['New balance', rs((v.balanceAfter || 0) / 100)], ['Date', dateTime(v.paidAt || new Date())]],
+        rows: [['Amount added to your balance', rs((v.amountPaise || 0) / 100)], ...(v.gstPaise ? [[`GST (${v.gstPercent}%)`, rs(v.gstPaise / 100)], ['Total paid', rs((v.payablePaise || 0) / 100)]] : []), ['New balance', rs((v.balanceAfter || 0) / 100)], ['Date', dateTime(v.paidAt || new Date())]],
         button: panelButton(v, 'Open SMS balance'),
         note: help(v.ctx),
     });
@@ -132,7 +132,56 @@ function invoiceVoid(v) {
     });
 }
 
+/* ------------------------------ the monthly progress report ------------------------------ */
+function monthlyReport(v) {
+    const r = v.report;
+    const t = r?.totals || {};
+    const amount = (n) => rs(n || 0).replace('.00', '');
+    const up = (c) => (c === null || c === undefined ? null : `${c >= 0 ? '+' : ''}${c}% compared with the month before`);
+    const best = r?.delivery?.best;
+    const tips = (r?.tips || []).slice(0, 3).map((x) => `• ${x.title}. ${x.detail}`);
+    return compose({
+        ctx: v.ctx,
+        subject: `Your ${r?.range?.label || 'monthly'} report: ${amount(t.revenue)} from ${t.orders || 0} orders`,
+        preheader: `${amount(t.revenue)} in sales. See how ${shop(v)} did.`,
+        heading: `How ${shop(v)} did in ${r?.range?.label || 'the last month'}`,
+        paragraphs: [
+            `Hello ${shop(v)}, here is your monthly report. The full report is attached as a PDF.`,
+            `You made ${amount(t.revenue)} from ${t.orders || 0} delivered orders.${r?.milestones?.length ? ` ${r.milestones[0]}.` : ''}`,
+            tips.length ? `What we suggest:\n${tips.join('\n')}` : '',
+        ],
+        rows: [
+            ['Sales', amount(t.revenue)], ['Compared with the month before', up(r?.change?.revenue)], ['Delivered orders', t.orders],
+            ['Average order', amount(t.avgOrder)], ['Customers', r?.customers?.unique], ['New customers', r?.customers?.newCount],
+            ['Customers who came back', r?.customers?.unique ? `${r.customers.repeatPct}%` : null],
+            ['Best seller', r?.food?.top?.[0] ? `${r.food.top[0].name} (${r.food.top[0].quantity})` : null],
+            ['Best rated dish', r?.food?.loved?.[0] ? `${r.food.loved[0].name} (${r.food.loved[0].avg} stars)` : null],
+            ['Best delivery partner', best ? `${best.name} (${best.deliveries} deliveries)` : null],
+            ['Orders cancelled', t.placed ? `${t.cancelled} of ${t.placed}` : null],
+            ...(r?.value?.show ? [['Sales through the app', amount(r.value.revenue)], ['Marketplace commission you avoided (estimate)', amount(r.value.marketplaceCost)], ['Paid for the app', amount(r.value.feeBilled)]] : []),
+        ],
+        button: panelButton(v, 'Open the full report'),
+        note: [r?.quote, help(v.ctx)].filter(Boolean).join('\n\n'),
+    });
+}
+
 /* ------------------------------ account ------------------------------ */
+function emailCode(v) {
+    return compose({
+        ctx: v.ctx,
+        subject: `Your verification code: ${v.code}`,
+        preheader: `${v.code} is your code. It works for ${v.minutes || 10} minutes.`,
+        heading: 'Confirm your email address',
+        paragraphs: [
+            `Hello${v.ownerName ? ` ${v.ownerName}` : ''}, enter this code in the app to confirm that this address is yours. Your bills and official documents will be sent here.`,
+            `Your code is ${v.code}. It works for ${v.minutes || 10} minutes.`,
+            'If you did not ask for this, you can ignore this email. Nobody can use your account without the code.',
+        ],
+        rows: [['Verification code', v.code]],
+        note: help(v.ctx),
+    });
+}
+
 function welcome(v) {
     return compose({
         ctx: v.ctx,
@@ -236,7 +285,7 @@ function broadcast(v) {
     });
 }
 
-module.exports = {
+module.exports = { monthlyReport, emailCode,
     rentInvoice, paymentReceipt, billReminder, shopPaused, shopUnpaused, freeEnding, smsTopupReceipt, invoiceVoid,
     welcome, ownerEmailChanged, loginAlert, policyChange, refundDecision, complaintDecision, broadcast,
 };

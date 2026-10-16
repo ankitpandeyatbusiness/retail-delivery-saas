@@ -3,6 +3,7 @@
 // The server sends:
 //   'order:update'  { orderId, orderNo, status, kind }  an order we joined changed -> reload it
 //   'notification'  { type, title, body, data }          a new inbox message for this customer
+//   'rider:location' { orderId, lat, lng, at }           the rider moved (only for an order that is on the way and that we joined)
 //   'auth:expired'  the token ended -> we reconnect with a fresh one
 // Everything here is best effort: when the socket is down the screens keep their slow polling.
 import { AppState } from 'react-native';
@@ -16,7 +17,7 @@ const AUTH_ERRORS = ['TOKEN_INVALID', 'SESSION_ENDED', 'AUTH_REQUIRED'];
 let socket = null;
 let retryTimer = null;
 const joined = new Map();   // orderId -> how many screens want it
-const listeners = { 'order:update': new Set(), notification: new Set() };
+const listeners = { 'order:update': new Set(), notification: new Set(), 'rider:location': new Set() };
 
 const emitJoin = (orderId) => {
     if (socket?.connected) socket.emit('order:join', { orderId }, () => { });
@@ -45,6 +46,7 @@ function connect() {
     socket.on('connect', () => { joined.forEach((_, id) => emitJoin(id)); });
     socket.on('order:update', (p) => dispatch('order:update', p));
     socket.on('notification', (p) => dispatch('notification', p));
+    socket.on('rider:location', (p) => dispatch('rider:location', p));
 
     // an ended token does not retry by itself: get a new one, then try again
     const renew = () => {
@@ -78,6 +80,12 @@ export function startRealtime() {
 export function onOrderUpdate(fn) {
     listeners['order:update'].add(fn);
     return () => listeners['order:update'].delete(fn);
+}
+
+// The rider's position, pushed as he moves. Join the order first (watchOrder).
+export function onRiderLocation(fn) {
+    listeners['rider:location'].add(fn);
+    return () => listeners['rider:location'].delete(fn);
 }
 
 export function onNotification(fn) {

@@ -12,6 +12,7 @@ const notificationSchema = new mongoose.Schema({
     body: { type: String, maxlength: 300 },
     data: { type: mongoose.Schema.Types.Mixed },
     readAt: Date,
+    supremeOnly: Boolean,   // a platform alert only the supreme admin may see (the settlement sheet)
     clearedAt: Date,    // the owner pressed "Clear all": hidden from his inbox (the row stays for the escalation job and the 90-day cleanup)
     escalateAt: Date,   // send the key-event SMS if he has not read it by then
     smsSentAt: Date,    // the SMS was sent (or tried) once

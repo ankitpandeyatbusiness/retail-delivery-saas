@@ -16,7 +16,7 @@ module.exports = async function requireSuperAdmin(req, res, next) {
 
     try {
         // Re-check on every call, so deactivating an admin takes effect immediately
-        const admin = await SuperAdmin.findById(decoded.sub).select('_id email name isActive photo');
+        const admin = await SuperAdmin.findById(decoded.sub).select('_id email name isActive photo phones legalRole');
         if (!admin || !admin.isActive) return res.status(401).json({ error: 'Account disabled' });
         req.admin = admin;
         next();
