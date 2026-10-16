@@ -110,6 +110,22 @@ export default function SoundboxScreen() {
                 <View pointerEvents={st.soundbox ? 'auto' : 'none'} style={{ opacity: st.soundbox ? 1 : 0.4 }}>
                 <Card>
                     <Switcher
+                        title="Keep Soundbox always ready"
+                        subtitle={st.alwaysReady
+                            ? 'ON: the app stays awake in the background and shows "Soundbox is on" in your notification panel. A new order keeps repeating, even with the screen off, until you open it.'
+                            : 'OFF: no permanent notification. A new order plays the "New order received" sound and is read out once, and repeats only while the app is open. Best for a phone you also use for other things.'}
+                        value={st.alwaysReady}
+                        onChange={(v) => st.update({ alwaysReady: v })}
+                    />
+                    {st.alwaysReady ? (
+                        <Text style={{ color: muted, fontSize: 12, marginTop: 6 }}>
+                            Recommended for a counter phone that stays on charge. Other apps (music, videos) still play normally.
+                        </Text>
+                    ) : null}
+                </Card>
+
+                <Card>
+                    <Switcher
                         title="Repeating chime"
                         subtitle="Rings again and again until you open the order."
                         value={st.ring}

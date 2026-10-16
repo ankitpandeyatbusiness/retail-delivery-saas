@@ -1,13 +1,11 @@
 // Tabs and pages whose real screens arrive in later phases. Each one already sits in the right place in the
 // navigation, so the panel can be walked through end to end while the phases are built.
 import React from 'react';
-import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRoute } from '@react-navigation/native';
 import { useBrand } from '../../components/common/kit';
-import { OwnerScreen, PageHeader, Card, Empty, Pill, money } from '../../components/owners/ui';
-import { fetchOrder } from '../../api/owners/shopApi';
-import { acknowledge } from '../../utils/owners/soundbox';
+import { OwnerScreen, PageHeader, Card, Pill } from '../../components/owners/ui';
 
 function Soon({ icon, title, phase, items }) {
     const { text, muted, primary } = useBrand();
@@ -27,17 +25,6 @@ function Soon({ icon, title, phase, items }) {
         </Card>
     );
 }
-
-export const OwnerOrdersScreen = () => (
-    <OwnerScreen title="Orders">
-        <Soon icon="receipt" title="Live order board" phase="Phase 1" items={[
-            'New, cooking, ready and on-the-road orders with live counts',
-            'Accept, reject with a reason, and move orders along',
-            'Assign or change the rider, see the rider on the map',
-            'Invoice PDF, customer call, search by order number',
-        ]} />
-    </OwnerScreen>
-);
 
 export const OwnerMenuScreen = () => (
     <OwnerScreen title="Menu">
@@ -79,45 +66,6 @@ export function OwnerStubPage() {
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={title || 'Coming soon'} />
             <ScrollView><Soon icon={icon} title={title || 'Coming soon'} phase={phase || 'Later'} items={items} /></ScrollView>
-        </View>
-    );
-}
-
-// The page a new-order push opens. Phase 1 turns this into the full order page; for now it shows the order.
-export function OwnerOrderScreen() {
-    const { id } = useRoute().params || {};
-    const { background, text, muted } = useBrand();
-    const [order, setOrder] = React.useState(null);
-    const [failed, setFailed] = React.useState(false);
-
-    React.useEffect(() => {
-        acknowledge(id);   // he is looking at it: the chime stops for this order
-        let alive = true;
-        fetchOrder(id).then((o) => alive && setOrder(o)).catch(() => alive && setFailed(true));
-        return () => { alive = false; };
-    }, [id]);
-
-    return (
-        <View style={{ flex: 1, backgroundColor: background }}>
-            <PageHeader title={order ? `Order #${order.orderNo}` : 'Order'} />
-            {failed ? <Empty icon="alert-circle-outline" title="Could not open this order" hint="Check your connection and try again." /> : null}
-            {!order && !failed ? <ActivityIndicator style={{ marginTop: 40 }} /> : null}
-            {order ? (
-                <ScrollView>
-                    <Card style={{ marginTop: 8 }}>
-                        <Pill label={String(order.status).replace(/_/g, ' ')} />
-                        {(order.items || []).map((l, i) => (
-                            <View key={i} style={{ flexDirection: 'row', marginTop: 10 }}>
-                                <Text style={{ color: text, fontWeight: '800', width: 34 }}>{l.quantity}×</Text>
-                                <Text style={{ color: text, flex: 1 }}>{l.name}</Text>
-                                <Text style={{ color: muted }}>{money(l.lineTotal)}</Text>
-                            </View>
-                        ))}
-                        <Text style={{ color: text, fontWeight: '900', fontSize: 18, marginTop: 14 }}>Total {money(order.pricing?.total)}</Text>
-                    </Card>
-                    <Soon icon="flash" title="Accept, reject and assign a rider" phase="Phase 1" items={['The full order page with action buttons arrives in Phase 1.']} />
-                </ScrollView>
-            ) : null}
         </View>
     );
 }

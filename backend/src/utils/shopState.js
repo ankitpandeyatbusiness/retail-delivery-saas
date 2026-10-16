@@ -20,8 +20,13 @@ function shopState(tenant) {
             note: tenant.ownerBlockedReason || null,
         });
     }
-    if (tenant.settings?.orders?.acceptingOrders === false) {
-        reasons.push({ code: 'owner_paused', setBy: 'owner', label: 'Owner paused taking orders' });
+    const pausedUntil = tenant.settings?.orders?.pausedUntil ? new Date(tenant.settings.orders.pausedUntil) : null;
+    const timedPause = !!pausedUntil && pausedUntil.getTime() > Date.now();
+    if (tenant.settings?.orders?.acceptingOrders === false || timedPause) {
+        reasons.push({
+            code: 'owner_paused', setBy: 'owner', label: 'Owner paused taking orders',
+            ...(timedPause ? { until: pausedUntil.toISOString() } : {}),
+        });
     }
 
     if (tenant.billing?.state === 'paused') {

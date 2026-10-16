@@ -10,7 +10,8 @@ import { useBrand, alpha } from '../components/common/kit';
 import { useOwnerStore } from '../store/owners/useOwnerStore';
 import { useHomeStore } from '../store/customers/useHomeStore';
 import OwnerHomeScreen from '../screens/owners/OwnerHomeScreen';
-import { OwnerOrdersScreen, OwnerMenuScreen, OwnerRidersScreen, OwnerMoneyScreen } from '../screens/owners/OwnerStubScreens';
+import OwnerOrdersScreen from '../screens/owners/OwnerOrdersScreen';
+import { OwnerMenuScreen, OwnerRidersScreen, OwnerMoneyScreen } from '../screens/owners/OwnerStubScreens';
 
 const Tab = createBottomTabNavigator();
 

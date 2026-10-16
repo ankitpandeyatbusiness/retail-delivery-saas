@@ -16,6 +16,9 @@ const { HIDE_UNPAID } = require('../services/onlineOrder');
 const { orderSpeech, orderSpeechHi } = require('../utils/orderSpeech');
 const pushChannel = require('../notifications/channels/push');
 const { NEW_ORDER_CHANNEL } = require('../notifications/events');
+const dashboardService = require('../services/dashboardService');
+const { acceptDeadline } = require('../services/orderTimeout');
+const { resolveConfig } = require('../services/tenantConfigService');
 
 const { wrap, httpError } = apiErrors;
 const router = express.Router();
@@ -52,7 +55,14 @@ const isId = (v) => typeof v === 'string' && mongoose.isValidObjectId(v);
 
 // order as JSON, plus the next steps the shop is allowed to take (the panel draws its buttons from this)
 // speech / speechHi: what the owner's Soundbox reads out for this order (English and Hindi)
-const view = (order) => ({ ...order.toJSON(), allowedNext: svc.nextStatuses(order), speech: orderSpeech(order), speechHi: orderSpeechHi(order) });
+// acceptBy: while an order waits, the moment the server will cancel it if nobody accepts (the owner sees a countdown)
+const view = (order) => ({
+    ...order.toJSON(),
+    allowedNext: svc.nextStatuses(order),
+    speech: orderSpeech(order),
+    speechHi: orderSpeechHi(order),
+    ...(order.status === 'placed' ? { acceptBy: acceptDeadline(order) } : {}),
+});
 
 /*
   GET /api/shop/orders
@@ -144,6 +154,21 @@ router.get('/riders/locations', openWhilePaused, wrap(async (req, res) => {
     });
 }));
 // The live picture of the shop: order counts, riders, billable orders, revenue, SMS balance, last 50 feed lines
+// Everything the owner's Home screen shows, in one call (see services/dashboardService.js). Open while rent is unpaid,
+// like /live: the owner still needs his orders and numbers.
+router.get('/dashboard', openWhilePaused, wrap(async (req, res) => {
+    const data = await dashboardService.build(req.tenant._id);
+    const cfg = resolveConfig(req.tenant);
+    res.json({
+        ...data,
+        shop: {
+            isOpen: cfg.restaurant.isOpen,
+            closedReason: cfg.restaurant.closedReason,
+            acceptingOrders: cfg.orders.acceptingOrders,
+            pausedUntil: cfg.orders.pausedUntil || null,
+        },
+    });
+}));
 router.get('/live', openWhilePaused, wrap(async (req, res) => {
     res.json(await liveSnapshot.build(req.tenant._id, { owner: true }));
 }));
@@ -191,12 +216,36 @@ router.use('/reports', openWhilePaused, invoiceRoutes.reports);                /
 router.use(ownerChain(requireShopAdmin));
 
 // Pause or resume taking orders
+//   { acceptingOrders: true }                        start taking orders now (also ends a timed pause)
+//   { acceptingOrders: false }                       pause until he starts again
+//   { acceptingOrders: false, pauseMinutes: 30 }     pause for 30 minutes (1 to 1440): the shop reopens BY ITSELF
+//   { acceptingOrders: false, untilMorning: true }   pause until 4 AM (India time): tomorrow's 4 AM, or today's if it is earlier
 router.put('/accepting-orders', wrap(async (req, res) => {
-    if (typeof req.body?.acceptingOrders !== 'boolean') throw httpError(400, 'Send acceptingOrders: true or false');
-    await Tenant.updateOne({ _id: req.tenant._id }, { $set: { 'settings.orders.acceptingOrders': req.body.acceptingOrders } });
+    const b = req.body || {};
+    if (typeof b.acceptingOrders !== 'boolean') throw httpError(400, 'Send acceptingOrders: true or false');
+
+    let pausedUntil = null;
+    if (!b.acceptingOrders && b.pauseMinutes !== undefined) {
+        const m = Number(b.pauseMinutes);
+        if (!Number.isInteger(m) || m < 1 || m > 1440) throw httpError(400, 'pauseMinutes must be a whole number from 1 to 1440');
+        pausedUntil = new Date(Date.now() + m * 60000);
+    } else if (!b.acceptingOrders && b.untilMorning === true) {
+        const IST_MS = 330 * 60000;
+        const ist = new Date(Date.now() + IST_MS);
+        const morning = Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth(), ist.getUTCDate(), 4, 0, 0) - IST_MS;   // today 4 AM India
+        pausedUntil = new Date(morning > Date.now() ? morning : morning + 86400000);
+    }
+
+    req.auditBefore = { acceptingOrders: req.tenant.settings?.orders?.acceptingOrders, pausedUntil: req.tenant.settings?.orders?.pausedUntil || null };
+    const update = pausedUntil
+        // a timed pause leaves the on/off switch ON: when the time is over the shop simply reopens, nothing has to run
+        ? { $set: { 'settings.orders.acceptingOrders': true, 'settings.orders.pausedUntil': pausedUntil } }
+        : { $set: { 'settings.orders.acceptingOrders': b.acceptingOrders }, $unset: { 'settings.orders.pausedUntil': '' } };
+    await Tenant.updateOne({ _id: req.tenant._id }, update);
     tenantRecognizer.invalidateTenant(req.tenant.slug);
-    res.json({ ok: true, acceptingOrders: req.body.acceptingOrders });
+    res.json({ ok: true, acceptingOrders: b.acceptingOrders, pausedUntil });
 }));
+
 
 router.put('/settings', wrap(async (req, res) => {
     const body = req.body || {};

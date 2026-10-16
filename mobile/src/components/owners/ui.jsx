@@ -1,7 +1,7 @@
 // The owner panel's building blocks. Everything draws from useBrand(), so the panel wears the shop's own logo,
 // colours, font and light/dark look: the owner feels he is on his own app.
-import React from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet, RefreshControl, ActivityIndicator } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, Pressable, ScrollView, StyleSheet, RefreshControl, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -12,7 +12,7 @@ import { useNotificationStore } from '../../store/common/useNotificationStore';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { setAcceptingOrders, apiError } from '../../api/owners/shopApi';
-import { ask } from '../common/dialog';
+import { clockTime } from '../../utils/owners/orderFlow';
 import { showToast } from '../customers/shop';
 
 export const money = (n) => `₹${Math.round(Number(n) || 0).toLocaleString('en-IN')}`;
@@ -191,36 +191,22 @@ export function OwnerHeader({ title }) {
     const accepting = useHomeStore((st) => st.full.orders.acceptingOrders);
     const access = useOwnerStore((st) => st.access);
 
-    const open = restaurant?.isOpen !== false && accepting !== false;
-    const label = accepting === false ? 'Orders paused' : restaurant?.isOpen === false ? 'Closed now' : 'Open';
-    const canToggle = access === 'ok';
+    const pausedUntil = useHomeStore((st) => st.full.orders.pausedUntil);
+    const [pauseOpen, setPauseOpen] = useState(false);
 
-    const toggle = async () => {
-        if (!canToggle) return;
-        const pausing = accepting !== false;
-        const yes = await ask({
-            title: pausing ? 'Pause new orders?' : 'Start taking orders?',
-            message: pausing ? 'Customers will see that the shop is not taking orders until you start again.' : 'Customers will be able to order again.',
-            confirmText: pausing ? 'Pause' : 'Start',
-            destructive: pausing,
-        });
-        if (!yes) return;
-        try {
-            await setAcceptingOrders(!pausing);
-            await useHomeStore.getState().load();
-            showToast(pausing ? 'Orders paused' : 'Taking orders');
-        } catch (e) {
-            useOwnerStore.getState().noteError(e);
-            showToast(apiError(e));
-        }
-    };
+    const timedPause = !!pausedUntil && new Date(pausedUntil).getTime() > Date.now();
+    const open = restaurant?.isOpen !== false && accepting !== false;
+    const label = timedPause ? `Paused until ${clockTime(pausedUntil)}`
+        : accepting === false ? 'Orders paused'
+            : restaurant?.isOpen === false ? 'Closed now' : 'Open';
+    const canToggle = access === 'ok';
 
     return (
         <View style={[s.header, { paddingTop: insets.top + 8, backgroundColor: background }]}>
             <Pressable onPress={() => nav.navigate('ShopHub')} hitSlop={8}><ShopLogo /></Pressable>
             <View style={{ flex: 1, marginLeft: 12 }}>
                 <Text style={{ color: text, fontSize: 18, fontWeight: '900' }} numberOfLines={1}>{title || name}</Text>
-                <Pressable onPress={toggle} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+                <Pressable onPress={() => canToggle && setPauseOpen(true)} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
                     <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: open ? ok : error, marginRight: 6 }} />
                     <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }}>{label}{canToggle ? ' · tap to change' : ''}</Text>
                 </Pressable>
@@ -229,6 +215,7 @@ export function OwnerHeader({ title }) {
                 <Ionicons name="notifications-outline" size={24} color={text} />
                 {unread > 0 ? <View style={[s.dot, { backgroundColor: error }]} /> : null}
             </Pressable>
+            <PauseSheet visible={pauseOpen} onClose={() => setPauseOpen(false)} />
         </View>
     );
 }
@@ -306,6 +293,7 @@ const s = StyleSheet.create({
     pill: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99, alignSelf: 'flex-start' },
     btn: { minHeight: 48, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
     row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12 },
+    sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingHorizontal: 16, maxHeight: '90%' },
     option: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13 },
     radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
     radioDot: { width: 10, height: 10, borderRadius: 5 },
@@ -314,3 +302,99 @@ const s = StyleSheet.create({
     header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 10 },
     dot: { position: 'absolute', top: 5, right: 6, width: 10, height: 10, borderRadius: 5 },
 });
+
+/* ------------------------------ sheet and fields ------------------------------ */
+// A panel that slides up from the bottom. Tapping the dark area or the back button closes it.
+export function Sheet({ visible, onClose, title, children }) {
+    const { surface, text, border, muted } = useBrand();
+    const insets = useSafeAreaInsets();
+    return (
+        <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
+                <Pressable style={StyleSheet.absoluteFill} onPress={onClose}><View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }} /></Pressable>
+                <View style={[s.sheet, { backgroundColor: surface, paddingBottom: Math.max(insets.bottom, 12) + 8 }]}>
+                    <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: border, marginBottom: 10 }} />
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                        <Text style={{ flex: 1, color: text, fontSize: 18, fontWeight: '900' }}>{title}</Text>
+                        <Pressable onPress={onClose} hitSlop={12}><Ionicons name="close" size={24} color={muted} /></Pressable>
+                    </View>
+                    <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>{children}</ScrollView>
+                </View>
+            </KeyboardAvoidingView>
+        </Modal>
+    );
+}
+
+// a text box: for a reason the owner types himself
+export function Field({ value, onChangeText, placeholder, multiline, maxLength = 200, autoFocus, style }) {
+    const { text, muted, border, surface } = useBrand();
+    return (
+        <TextInput
+            value={value}
+            onChangeText={onChangeText}
+            placeholder={placeholder}
+            placeholderTextColor={muted}
+            multiline={multiline}
+            maxLength={maxLength}
+            autoFocus={autoFocus}
+            style={[{
+                borderWidth: 1, borderColor: border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, color: text, fontSize: 15,
+                backgroundColor: surface, minHeight: multiline ? 84 : 46, textAlignVertical: multiline ? 'top' : 'center',
+            }, style]}
+        />
+    );
+}
+
+/* ------------------------------ pause orders ------------------------------ */
+const PAUSE_CHOICES = [
+    ['30 minutes', { pauseMinutes: 30 }, 'time-outline'],
+    ['1 hour', { pauseMinutes: 60 }, 'time-outline'],
+    ['2 hours', { pauseMinutes: 120 }, 'time-outline'],
+    ['Until tomorrow morning', { untilMorning: true }, 'moon-outline'],
+    ['Until I start again', {}, 'hand-left-outline'],
+];
+
+// Stop taking orders for a while, or start again. A timed pause reopens the shop BY ITSELF, so a forgotten pause cannot
+// lose a day of sales.
+export function PauseSheet({ visible, onClose }) {
+    const { muted, error } = useBrand();
+    const accepting = useHomeStore((st) => st.full.orders.acceptingOrders);
+    const pausedUntil = useHomeStore((st) => st.full.orders.pausedUntil);
+    const [busy, setBusy] = useState(false);
+    const paused = accepting === false;
+
+    const apply = async (acceptingOrders, extra) => {
+        setBusy(true);
+        try {
+            await setAcceptingOrders(acceptingOrders, extra);
+            await useHomeStore.getState().load();
+            useOwnerStore.getState().refresh();
+            showToast(acceptingOrders ? 'Taking orders again' : 'Orders paused');
+            onClose();
+        } catch (e) {
+            useOwnerStore.getState().noteError(e);
+            showToast(apiError(e));
+        } finally { setBusy(false); }
+    };
+
+    return (
+        <Sheet visible={visible} onClose={onClose} title={paused ? 'Orders are paused' : 'Pause new orders'}>
+            {paused ? (
+                <View>
+                    <Text style={{ color: muted, marginBottom: 14 }}>
+                        {pausedUntil ? `Customers can not order until ${clockTime(pausedUntil)}, then the shop opens by itself.` : 'Customers can not order until you start again.'}
+                    </Text>
+                    <Button label="Start taking orders now" icon="play" busy={busy} onPress={() => apply(true)} />
+                </View>
+            ) : (
+                <View>
+                    <Text style={{ color: muted, marginBottom: 8 }}>Customers will see that the shop is not taking orders. Orders already placed are not affected.</Text>
+                    {PAUSE_CHOICES.map(([label, extra, icon], i) => (
+                        <Row key={label} icon={icon} title={label} color={i === PAUSE_CHOICES.length - 1 ? error : undefined} onPress={busy ? undefined : () => apply(false, extra)} last={i === PAUSE_CHOICES.length - 1} />
+                    ))}
+                    {busy ? <ActivityIndicator style={{ marginTop: 10 }} /> : null}
+                </View>
+            )}
+        </Sheet>
+    );
+}

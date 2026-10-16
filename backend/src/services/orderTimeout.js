@@ -31,6 +31,9 @@ function waitingSince(order) {
     return Math.max(reached, new Date(order.scheduledFor).getTime() - 2 * TIMEOUT_MIN * MIN);
 }
 
+// the moment the server cancels an order that is still waiting: the owner sees a countdown to it
+const acceptDeadline = (order) => new Date(waitingSince(order) + TIMEOUT_MIN * MIN);
+
 // database filter: "reached the shop at or before t"
 const reachedBy = (t) => ({
     $or: [
@@ -168,5 +171,5 @@ function startOrderTimeoutScheduler() {
 
 module.exports = {
     startOrderTimeoutScheduler, cancelUnacceptedOrders, cancelUnpaidOnlineOrders, remindUnacceptedOrders, runOrderTimeout,
-    REMINDER_MINUTES, TIMEOUT_MIN, PAY_TIMEOUT_MIN,
+    REMINDER_MINUTES, TIMEOUT_MIN, PAY_TIMEOUT_MIN, acceptDeadline,
 };

@@ -14,6 +14,8 @@ export const DEFAULTS = {
     language: 'en',    // the language orders are read in: 'en' or 'hi' (Hindi)
     voiceId: null,     // the phone's voice for English (null = the best Indian English voice it has)
     voiceIdHi: null,   // the phone's voice for Hindi
+    alwaysReady: false, // keep the app awake in the background (a permanent notification) so a new order keeps repeating with the screen off.
+                        // OFF: no permanent notification; the push plays the clip and reads the order once, and the app repeats it only while it is open.
     greetFaith: null,  // a greeting of the owner's faith, e.g. 'krishna', 'salaam', 'satsriakal', 'masih' (null = none)
     callMe: false,     // address the owner ("sir", "madam" or his name) in the greeting
     addressAs: 'sir',  // how: sir | madam | name
@@ -30,6 +32,7 @@ const clean = (v = {}) => ({
     language: v.language === 'hi' ? 'hi' : 'en',
     voiceId: typeof v.voiceId === 'string' ? v.voiceId : null,
     voiceIdHi: typeof v.voiceIdHi === 'string' ? v.voiceIdHi : null,
+    alwaysReady: typeof v.alwaysReady === 'boolean' ? v.alwaysReady : DEFAULTS.alwaysReady,
     greetFaith: typeof v.greetFaith === 'string' ? v.greetFaith : null,
     callMe: typeof v.callMe === 'boolean' ? v.callMe : DEFAULTS.callMe,
     addressAs: ['sir', 'madam', 'name'].includes(v.addressAs) ? v.addressAs : DEFAULTS.addressAs,

@@ -14,6 +14,8 @@ const q = (params) => ({ params });
 /* ------------------------------ the shop right now ------------------------------ */
 // { orders:{active,activeTotal}, riders:[], billable, revenueToday, customers, sms:{balancePaise}, billingState, openComplaints, feed }
 export const fetchLive = () => d(api.get('/shop/live'));
+// the whole Home screen in one call: today vs yesterday, sales by hour, orders waiting, stock, riders, complaints, SMS, rent
+export const fetchDashboard = () => d(api.get('/shop/dashboard'));
 export const fetchRiderLocations = () => d(api.get('/shop/riders/locations'));
 
 /* ------------------------------ orders ------------------------------ */
@@ -29,7 +31,11 @@ export const unassignRider = (id, reason) => d(api.post(`/shop/orders/${id}/unas
 export const invoiceUrl = (id) => `/shop/orders/${id}/invoice`;   // a PDF: fetched as a file by the screen
 
 /* ------------------------------ open / closed and shop settings ------------------------------ */
-export const setAcceptingOrders = (acceptingOrders) => d(api.put('/shop/accepting-orders', { acceptingOrders }));
+// setAcceptingOrders(true)                                    start taking orders (also ends a timed pause)
+// setAcceptingOrders(false)                                   pause until he starts again
+// setAcceptingOrders(false, { pauseMinutes: 30 })             pause for 30 minutes: the shop reopens by itself
+// setAcceptingOrders(false, { untilMorning: true })           pause until 4 AM
+export const setAcceptingOrders = (acceptingOrders, extra = {}) => d(api.put('/shop/accepting-orders', { acceptingOrders, ...extra }));
 // send only what changed: { hours, riders, orders:{codCap}, notifications, phone, address, delivery }
 export const saveSettings = (body) => d(api.put('/shop/settings', body));
 

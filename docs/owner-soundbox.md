@@ -18,9 +18,10 @@ The owner panel itself is part of the customer app (`mobile/`): a user whose rol
 | **App open, Soundbox on** | Bell, then the order read out loud (greeting first, once), then quiet for the chosen "Repeat every", then again, until he opens the order or someone accepts it. |
 | **Screen off or app closed** | The phone plays a 3.5 s clip "New order received" and vibrates. About 4 to 10 s later the app reads the full order out loud (his voice, language and greeting), **without him touching the phone**. |
 | **He taps the notification** | The app opens on the order and reads it out. |
+| **"Keep Soundbox always ready" (setting, default OFF)** | **ON**: the app keeps a silent track playing inside Android's media foreground service, which shows a permanent "Soundbox is on" notification. A new order keeps repeating (bell, then voice) with the screen off until he opens it. **OFF**: no permanent notification. The push plays the clip and the app reads the order **once** (the silent data message); the server's reminders at 3 and 6 minutes ring again; the app repeats the alert only while it is open (the notification then exists only while an alert rings, and goes away after). |
 | **Soundbox off** | No new-order sound anywhere (not in the app, not from the push). A normal silent notification still appears. |
 
-Settings (phone-local, never sent to the server except the on/off flag): Soundbox mode, repeating chime, volume, repeat time,
+Settings (phone-local, never sent to the server except the on/off flag): Soundbox mode, keep always ready, repeating chime, volume, repeat time,
 language (English / Hindi), voice (named Indian names, recommended one first), "Call me" (sir / madam / his name), and one
 greeting of his faith (Hindu, Muslim, Sikh, Christian, Jain). The **Phone check** card on the Soundbox screen shows five
 green ticks when the phone is ready; any red line says how to fix it.
@@ -59,6 +60,7 @@ starts the in-app alert instead (`soundbox.js`): a looping audio track whose pos
    must run with the screen off may use `setTimeout`. The in-app loop is clocked by the audio player's status events; the
    3.6 s wait for the clip is done **on the server**.
 3. **One audio player only.** Two players fought for audio focus and the "Soundbox is on" foreground service died.
+   **And it must not own the audio while idle** (see pitfall 10): idle = `mixWithOthers` (no focus), alert = `duckOthers`.
 4. The silent keep-alive track plus `setActiveForLockScreen` makes Android keep the app alive with the screen off.
 
 ---
@@ -174,6 +176,19 @@ unzip -l app-release.apk | grep 156312                      # new_order.wav is 1
    `speaking` blocks the auto-resume while it talks.
 8. **A rebuild installed over an old build keeps old notification channels.** Check with the Phone check before assuming a fix failed.
 9. Check the phone with adb before guessing. Most wrong turns came from guessing.
+11. **The permanent "Soundbox is on" notification is Android's price for staying alive with the screen off** (a foreground service cannot hide its
+    notification). It is only shown when `alwaysReady` is ON. With it OFF the engine stops the player and clears the lock-screen
+    controls after every alert (`applyTrack('off')`), and `raise()` does not start a repeating alert while the app is in the background
+    (the push does the ringing and reading). Starting a media foreground service from the background on demand was NOT tried:
+    Android 12+ restricts it, and a failed start would have made the order silent.
+10. **Soundbox must not hold audio focus while idle.** The first version ran its silent keep-alive with `doNotMix`, so with Soundbox on,
+    music, podcasts and videos in OTHER apps were paused for as long as the app was alive (and did not resume). `expo-audio` asks for
+    focus when a track starts playing and gives it back only when playback stops, so `soundbox.js` now: idle = `mixWithOthers`
+    (never asks for focus), alert = `duckOthers` (other apps get quieter, not paused); a mode change = pause, wait for the player
+    to report it has stopped, `setAudioModeAsync`, play (`applyTrack`, queued in `trackChain`). The keep-alive service
+    (`AudioControlsService`) does not depend on the interruption mode (checked in the library source). To check: play a song in
+    another app with Soundbox on and the app minimised: it must keep playing; `adb shell dumpsys audio` must not list
+    `com.savera.app` in the audio focus stack while idle.
 
 ---
 

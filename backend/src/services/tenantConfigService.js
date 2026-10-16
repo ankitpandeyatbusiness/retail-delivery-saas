@@ -145,7 +145,7 @@ function validateSettings(input) {
 
     // orders
     section('orders',
-        ['types', 'payments', 'minOrder', 'deliveryFee', 'packagingCharge', 'gst', 'tipOptions', 'prepTimeMin', 'acceptingOrders', 'codCap'],
+        ['types', 'payments', 'minOrder', 'deliveryFee', 'packagingCharge', 'gst', 'tipOptions', 'prepTimeMin', 'acceptingOrders', 'pausedUntil', 'codCap'],
         (o, out, p) => {
             if (o.types !== undefined) { const v = listOf(p('types'), o.types, O.ORDER_TYPES, 1, 3); if (v) out.types = v; }
             if (o.payments !== undefined) { const v = listOf(p('payments'), o.payments, O.PAYMENT_METHODS, 1, 4); if (v) out.payments = v; }
@@ -153,6 +153,13 @@ function validateSettings(input) {
             if (o.packagingCharge !== undefined && num(p('packagingCharge'), o.packagingCharge, 0, 500)) out.packagingCharge = o.packagingCharge;
             if (o.prepTimeMin !== undefined && num(p('prepTimeMin'), o.prepTimeMin, 0, 240)) out.prepTimeMin = o.prepTimeMin;
             if (o.acceptingOrders !== undefined && bool(p('acceptingOrders'), o.acceptingOrders)) out.acceptingOrders = o.acceptingOrders;
+            // a timed pause set by the owner ("pause for 30 minutes"): taking orders resumes by itself at this moment. null = none.
+            // It is saved as a Date, and read back as a Date or an ISO text.
+            if (o.pausedUntil !== undefined) {
+                if (o.pausedUntil === null) out.pausedUntil = null;
+                else if ((o.pausedUntil instanceof Date || typeof o.pausedUntil === 'string') && !Number.isNaN(new Date(o.pausedUntil).getTime())) out.pausedUntil = o.pausedUntil;
+                else err(p('pausedUntil'), 'must be a date and time');
+            }
             if (o.deliveryFee !== undefined) {
                 const d = o.deliveryFee;
                 if (!isObj(d)) err(p('deliveryFee'), 'must be an object');
@@ -402,6 +409,15 @@ function resolveConfig(tenant, now = new Date()) {
     const orders = merge(DEFAULTS.orders, clean.orders);
     if (clean.orders?.minOrder === undefined && tenant.delivery?.minOrder) orders.minOrder = tenant.delivery.minOrder;
     if (tenant.ownerBlocked) orders.acceptingOrders = false;
+    // A timed pause: while it lasts nobody can order; when it is over this simply stops applying, so the shop reopens by
+    // itself (nothing has to run at that moment). The config shows pausedUntil only while it is in force.
+    const pausedUntil = orders.pausedUntil ? new Date(orders.pausedUntil) : null;
+    if (pausedUntil && pausedUntil.getTime() > now.getTime()) {
+        orders.acceptingOrders = false;
+        orders.pausedUntil = pausedUntil.toISOString();
+    } else {
+        delete orders.pausedUntil;
+    }
 
     // No COD during free service. Switched on with ENFORCE_NO_COD_IN_FREE=true (keep it OFF until online payments exist)
     if (process.env.ENFORCE_NO_COD_IN_FREE === 'true' && tenant.billing?.state === 'free') {

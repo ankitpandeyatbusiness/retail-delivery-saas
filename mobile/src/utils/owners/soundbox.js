@@ -47,6 +47,18 @@ let wantPlaying = false;      // Soundbox is on: the player must keep playing, w
 let speaking = false;         // the voice is talking: the player is allowed to stay paused, or it takes focus back and cuts the voice off
 let lastResume = 0;
 
+// AUDIO FOCUS. Android lets only one app "own" the audio. A player that asks for focus makes music, podcasts and videos in
+// other apps pause, and they do not always restart. The silent keep-alive plays all day, so it must NEVER ask for focus:
+//   idle  -> 'mixWithOthers'  no focus requested: other apps play as usual while Soundbox is on
+//   alert -> 'duckOthers'     an order is ringing: other apps get quieter (they are not paused), full volume afterwards
+// expo-audio asks for focus when a track STARTS playing and gives it back only when playback stops, so changing the mode
+// means: pause, wait until it has really stopped, change the mode, play again.
+const MODE_FOR = { idle: 'mixWithOthers', alert: 'duckOthers' };
+let modeNow = null;           // the focus mode currently set
+let switching = false;        // changing mode: the pause is on purpose, so the auto-resume must not undo it
+let trackChain = Promise.resolve();   // track changes happen one after the other, in order
+let pausedWaiters = [];       // resolved by the player's next "not playing" report (event driven: no timers needed)
+
 // A short memory of what the Soundbox did, shown on the Soundbox screen ("If orders are missed"). When the phone freezes
 // the app with the screen off, the gaps in these times show it.
 const eventLog = [];
@@ -71,16 +83,28 @@ const settings = () => useSoundboxStore.getState();
 const isOwner = () => useAuthStore.getState().user?.role === 'admin';
 
 /* ------------------------------ audio ------------------------------ */
+async function setMode(mode) {
+    if (modeNow === mode) return;
+    try {
+        await setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: true, interruptionMode: mode });
+        modeNow = mode;
+    } catch (e) { /* keep the previous mode */ }
+}
+
 async function ensureAudio() {
     if (audioReady) return;
-    try {
-        await setAudioModeAsync({
-            playsInSilentMode: true,
-            shouldPlayInBackground: true,
-            interruptionMode: 'doNotMix',
-        });
-    } catch (e) { /* keep the defaults */ }
+    await setMode(MODE_FOR.idle);   // start without asking for focus
     audioReady = true;
+}
+
+// resolves when the player has really stopped (its next "not playing" report), or after a second at most
+function untilPaused() {
+    return new Promise((resolve) => {
+        if (!player || player.playing === false) { resolve(); return; }
+        const done = () => { pausedWaiters = pausedWaiters.filter((w) => w !== done); resolve(); };
+        pausedWaiters.push(done);
+        setTimeout(done, 1000);
+    });
 }
 
 function getPlayer() {
@@ -93,7 +117,8 @@ function getPlayer() {
         // once, or Android stops the foreground service and freezes the app with the screen off.
         player.addListener('playbackStatusUpdate', (status) => {
             onClock(status);   // the alert's clock (works with the screen off, unlike JavaScript timers)
-            if (!wantPlaying || status?.playing || speaking) return;   // while the voice talks it may stay paused
+            if (!status?.playing && pausedWaiters.length) pausedWaiters.slice().forEach((w) => w());
+            if (!wantPlaying || status?.playing || speaking || switching) return;   // while the voice talks, or the mode changes, it may stay paused
             const now = Date.now();
             note('player was paused: playing again');
             if (now - lastResume < 700) return;   // not a tight loop if something keeps taking focus
@@ -104,11 +129,37 @@ function getPlayer() {
     return player;
 }
 
-// kind: 'alert' (the repeating chime) or 'idle' (the silent keep-alive)
+// kind: 'alert' (the repeating chime) or 'idle' (the silent keep-alive). Changes are queued so they never overlap.
 function setTrack(kind) {
+    trackChain = trackChain.then(() => applyTrack(kind)).catch(() => { /* never let audio break the chain */ });
+}
+
+async function applyTrack(kind) {
     try {
+        // 'off': nothing plays and nothing is kept alive: the notification in the notification panel goes away
+        if (kind === 'off') {
+            wantPlaying = false;
+            resetClock();
+            if (player) {
+                try { player.pause(); } catch (e) { /* ignore */ }
+                try { player.setActiveForLockScreen?.(false); } catch (e) { /* ignore */ }
+                switching = true;   // the pause is on purpose
+                await untilPaused();
+                await setMode(MODE_FOR.idle);
+            }
+            return;
+        }
         const p = getPlayer();
         wantPlaying = true;
+
+        // a different focus mode (idle <-> alert): stop, let Android give the focus back, switch, and play again below
+        if (modeNow !== MODE_FOR[kind]) {
+            switching = true;
+            try { p.pause(); } catch (e) { /* ignore */ }
+            await untilPaused();
+            await setMode(MODE_FOR[kind]);
+        }
+
         const changed = kind !== trackNow;
         if (changed) {
             p.replace(kind === 'alert' ? ALERT_TRACK : IDLE_TRACK);
@@ -129,7 +180,7 @@ function setTrack(kind) {
             title: kind === 'alert' ? 'New order' : 'Soundbox is on',
             artist: useThemeStore.getState().theme?.name || 'Your shop',
         });
-    } catch (e) { /* a missing sound is not an error worth stopping for */ }
+    } catch (e) { /* a missing sound is not an error worth stopping for */ } finally { switching = false; }
 }
 
 // The phone's voices, read once.
@@ -385,15 +436,18 @@ function stopLoop() {
     setRinging(false);
     resetClock();
     try { Speech.stop(); } catch (e) { /* ignore */ }
-    // back to the silent keep-alive (Soundbox stays on), or fully quiet when Soundbox is off
-    if (wantPlaying) setTrack('idle');
-    else { try { player?.pause(); } catch (e) { /* ignore */ } }
+    // "Always ready": back to the silent keep-alive. Otherwise everything stops, and the notification goes away.
+    if (keepAliveWanted()) setTrack('idle');
+    else if (player) setTrack('off');
 }
 
 /* ------------------------------ orders waiting ------------------------------ */
 export function raise({ orderId, orderNo, speech, speechHi }) {
     // Soundbox off = the owner wants no new-order sound at all: no chime, no voice, no greeting
     if (!orderId || !isOwner() || !settings().soundbox) return;
+    // Not "always ready" and the app is in the background: the PUSH rings and reads this order (clip, then the order once).
+    // Starting a repeating alert from the background would need the permanent notification this mode exists to avoid.
+    if (!settings().alwaysReady && AppState.currentState !== 'active') return;
     const id = String(orderId);
     if (acked.has(id)) return;
     const isNew = !pending.has(id);
@@ -474,6 +528,9 @@ async function syncWaiting() {
 }
 
 /* ------------------------------ Soundbox mode: stay alive ------------------------------ */
+// Should the app stay alive in the background with its permanent notification? Only when Soundbox is on AND "always ready" is.
+const keepAliveWanted = () => !!settings().soundbox && !!settings().alwaysReady && isOwner();
+
 async function holdAlive(on) {
     try {
         if (on) {
@@ -496,7 +553,7 @@ function begin() {
     if (started) return;
     started = true;
     useSoundboxStore.getState().hydrate().then(() => {
-        holdAlive(settings().soundbox && isOwner());
+        holdAlive(keepAliveWanted());
         syncWaiting();
         fillOwnerName();
     });
@@ -520,9 +577,13 @@ function begin() {
     // the settings changed on the Soundbox screen
     unsubs.push(useSoundboxStore.subscribe((st, prev) => {
         if (st.soundbox !== prev.soundbox) {
-            holdAlive(st.soundbox && isOwner());
+            holdAlive(keepAliveWanted());
             if (!st.soundbox) clearAll();      // switched off: whatever is ringing stops now
             else syncWaiting();                // switched on: ring for the orders that are still waiting
+        } else if (st.alwaysReady !== prev.alwaysReady) {
+            // the permanent notification appears or goes away at once (an alert that is ringing right now is left alone)
+            if (!looping) holdAlive(keepAliveWanted());
+            else if (!keepAliveWanted()) { /* it ends with the alert: stopLoop() then stops everything */ }
         }
         // the volume or the chime switch changed while it is ringing: apply it now, without starting the round again
         // (the repeat time is read when the voice finishes, so it needs nothing)
