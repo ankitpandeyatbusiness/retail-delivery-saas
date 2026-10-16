@@ -241,6 +241,10 @@ describe('seeing it', () => {
         assert.equal(polyline.decode(t.body.route.polyline).length, 3);
         assert.ok(t.body.remaining.meters > 4000 && t.body.remaining.seconds > 0);
         assert.equal(t.body.riderQuiet, false);
+        assert.equal(t.body.rider.phone, w.rider.user.phone);          // the customer can call the rider while he carries the order
+        await Order.updateOne({ _id: order._id }, { $set: { status: 'delivered', 'delivery.status': 'delivered' } });
+        const after = await request(app).get(`/api/orders/${order._id}/tracking`).set(w.customer.headers);
+        assert.equal(after.body.rider.phone, null);                    // and not after the delivery
         assert.equal(typeof t.body.destination?.latitude, 'number');   // the address pin for the live map
     });
 

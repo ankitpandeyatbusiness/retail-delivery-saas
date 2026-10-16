@@ -53,6 +53,8 @@ async function tracking({ tenant, userId, orderId }) {
         rider = {
             name: profile?.name || user?.name || 'Delivery partner',
             phoneMasked: maskPhone(user?.phone),
+            // the real number, only while he is carrying this order (so the customer can call him); never after delivery or cancel
+            phone: ['accepted', 'picked_up'].includes(d.status) && !DONE.includes(order.status) && /^\d{10}$/.test(user?.phone || '') ? user.phone : null,
             vehicle: profile?.vehicle?.type || null,
             photo: profile?.photo || null,
         };

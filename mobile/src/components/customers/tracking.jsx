@@ -3,7 +3,7 @@
 // The rider pin needs a live location from the server (only while the rider is on the way and the phone is
 // sending it). Until then the map shows the address alone. Everything comes from GET /orders/:id/tracking.
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Platform, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Platform, Pressable, Linking } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../common/kit';
@@ -95,9 +95,15 @@ export default function TrackingCard({ tracking: t, destination }) {
                     <View style={{ flex: 1, marginLeft: 10 }}>
                         <Text style={[s.rName, { color: text }]}>{t.rider.name}</Text>
                         <Text style={[s.sub, { color: muted }]}>
-                            {[t.rider.vehicle, t.rider.phoneMasked].filter(Boolean).join(' · ')}
+                            {[t.rider.vehicle, t.rider.phone ? null : t.rider.phoneMasked].filter(Boolean).join(' · ')}
                         </Text>
                     </View>
+                    {t.rider.phone ? (
+                        <Pressable onPress={() => Linking.openURL(`tel:${t.rider.phone}`).catch(() => { })} style={[s.callBtn, { backgroundColor: primary }]} accessibilityRole="button" accessibilityLabel={`Call ${t.rider.name}`}>
+                            <Ionicons name="call" size={18} color="#FFFFFF" />
+                            <Text style={s.callTxt}>Call</Text>
+                        </Pressable>
+                    ) : null}
                 </View>
             ) : null}
 
@@ -152,6 +158,8 @@ const s = StyleSheet.create({
     sub: { fontSize: 12.5, fontWeight: '500', marginTop: 2 },
     rider: { flexDirection: 'row', alignItems: 'center', marginTop: 14, paddingTop: 14, borderTopWidth: StyleSheet.hairlineWidth },
     rName: { fontSize: 14, fontWeight: '700' },
+    callBtn: { height: 40, borderRadius: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
+    callTxt: { color: '#FFFFFF', fontSize: 13.5, fontWeight: '800', marginLeft: 6, paddingRight: 16 },
     liveBtn: { marginTop: 14, height: 46, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
     liveTxt: { color: '#FFFFFF', fontSize: 14.5, fontWeight: '800', marginLeft: 8, paddingHorizontal: 40 },
     pin: { marginTop: 14, borderRadius: 14, padding: 12, alignItems: 'center' },

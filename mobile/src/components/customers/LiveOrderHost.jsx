@@ -8,7 +8,7 @@
 //
 // Mounted once in the navigator. The data comes from useLiveTrip (socket first, polling when the server asks for it).
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, BackHandler, PanResponder, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Animated, BackHandler, Linking, PanResponder, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -208,9 +208,15 @@ export default function LiveOrderHost({ routeName }) {
                             <View style={{ flex: 1, marginLeft: 12 }}>
                                 <Text style={[s.rName, { color: text }]} numberOfLines={1}>{track.rider.name}</Text>
                                 <Text style={[s.barSub, { color: muted }]} numberOfLines={1}>
-                                    {['Your delivery partner', track.rider.vehicle, track.rider.phoneMasked].filter(Boolean).join(' · ')}
+                                    {['Your delivery partner', track.rider.vehicle].filter(Boolean).join(' · ')}
                                 </Text>
                             </View>
+                            {track.rider.phone ? (
+                                <Pressable onPress={() => Linking.openURL(`tel:${track.rider.phone}`).catch(() => { })} style={[s.call, { backgroundColor: primary }]} accessibilityRole="button" accessibilityLabel={`Call ${track.rider.name}`}>
+                                    <Ionicons name="call" size={20} color="#FFFFFF" />
+                                    <Text style={s.callTxt}>Call</Text>
+                                </Pressable>
+                            ) : null}
                         </View>
                     ) : null}
                     {track.deliveryPin ? (
@@ -246,6 +252,8 @@ const s = StyleSheet.create({
     rider: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
     avatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
     rName: { fontSize: 15, fontWeight: '800' },
+    call: { height: 44, borderRadius: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
+    callTxt: { color: '#FFFFFF', fontSize: 14, fontWeight: '800', marginLeft: 6, paddingRight: 18 },
     pin: { marginTop: 10, borderRadius: 14, padding: 12, alignItems: 'center' },
     pinNo: { fontSize: 26, fontWeight: '900', letterSpacing: 4, marginTop: 4 },
     bike: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#FFFFFF', elevation: 4 },

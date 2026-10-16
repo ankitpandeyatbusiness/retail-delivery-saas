@@ -59,7 +59,7 @@ No timer polling in the live path. If a socket cannot be used, the apps poll lig
 - **Quiet rider:** when his phone goes quiet for a minute the bar says "Reconnecting to your delivery partner".
 - **Socket first, polling when asked:** the app joins the order room and listens to `rider:location`, `rider:route`, `order:eta`, `rider:quiet`. If the socket is down or the server is in polling mode it fetches `GET /orders/:id/tracking` every `pollSec` seconds (15 by default); with a healthy socket it fetches only every 40 seconds as a safety net.
 - The tracking page now also returns `destination { latitude, longitude }`.
-- Not done: calling the rider (only a masked number is held for the customer); that needs a masked-call decision.
+- Calling the rider: a Call button sits next to his name (the sheet and the Order page). It dials his real number, which the server sends only while he carries that order (never after delivery or cancel). No masked calling yet.
 
 ## Phase 5: lock screen and the owner's map
 - **Lock-screen notification (customer):** one notification per trip, "Arriving in about 8 min - Raju is bringing order #12". Every push carries the same `tag` (`trip-<orderId>`), so Android **replaces** it instead of stacking. It goes out on its own quiet channel (`live_trip`, no sound), only when the time has moved by 2 minutes and 90 seconds have passed, at most 10 times a trip; the first one waits a minute after pickup. The "arriving" and "reached" pushes use the same tag, so they replace it too. This is a push, so it works with the app closed; it is not a second-by-second counter like Zomato's (that needs a native Live Activity-style notification and is not available to a push-only app).
