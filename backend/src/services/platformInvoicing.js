@@ -1,15 +1,16 @@
 // What every document the PLATFORM issues to a shop shares: the number, the two parties, and the tax split.
-//   rent / setup bills   SUB/<prefix>/2026-27/0001      (models/SubscriptionInvoice)
-//   SMS top-up invoices  TOP/<prefix>/2026-27/0001      (saved on the top-up, models/SmsTopup)
-//   credit notes         CN/<prefix>/2026-27/0001       (models/CreditNote)
-// <prefix> is the "invoice prefix" of the business that issues them (Platform, Business details). Blank = no prefix.
-// A new prefix starts a new series from 0001, which is what a new GSTIN needs.
+// GST rule 46: an invoice number is at most 16 characters (letters, digits, / and -). So:
+//   no prefix    SUB/2026-27/0001  (rent / setup bill)   TOP/2026-27/0001  (SMS top-up)   CN/2026-27/0001  (credit note)
+//   with prefix  BABC/26-27/0001   (B bill, T top-up, C credit note, then the prefix of up to 4 letters or digits)
+// <prefix> is the "invoice prefix" of the business that issues them (Platform, Business details). A new prefix starts a new
+// series from 0001, which is what a new GSTIN needs.
 const Counter = require('../models/Counter');
 const PlatformSettings = require('../models/PlatformSettings');
 const gst = require('./gstSplit');
 
 const IST_OFFSET_MS = 330 * 60 * 1000;
 const KEYS = { SUB: 'subinv', TOP: 'topinv', CN: 'cnote' };
+const KIND_CHAR = { SUB: 'B', TOP: 'T', CN: 'C' };   // one letter in front of a prefix, to stay within 16 characters
 
 // Indian financial year (April to March) of a moment: 2026-10-05 -> "2026-27"
 function financialYearOf(date = new Date()) {
@@ -20,7 +21,8 @@ function financialYearOf(date = new Date()) {
     return `${start}-${String((start + 1) % 100).padStart(2, '0')}`;
 }
 
-const cleanPrefix = (p) => String(p || '').trim().toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 12);
+const cleanPrefix = (p) => String(p || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
+const shortYear = (fy) => `${fy.slice(2, 4)}-${fy.slice(5)}`;   // 2026-27 -> 26-27
 
 // Takes the next number. Returns { invoiceNo, undo }: call undo() if saving the document failed, so numbers stay continuous.
 async function allocate(kind, { now = new Date(), prefix } = {}) {
@@ -30,7 +32,7 @@ async function allocate(kind, { now = new Date(), prefix } = {}) {
     const id = p ? `${base}:${p}:${fy}` : `${base}:${fy}`;   // no prefix keeps the counters that already exist
     const counter = await Counter.findOneAndUpdate({ _id: id }, { $inc: { seq: 1 } }, { returnDocument: 'after', upsert: true });
     return {
-        invoiceNo: `${kind}/${p ? `${p}/` : ''}${fy}/${String(counter.seq).padStart(4, '0')}`,
+        invoiceNo: p ? `${KIND_CHAR[kind]}${p}/${shortYear(fy)}/${String(counter.seq).padStart(4, '0')}` : `${kind}/${fy}/${String(counter.seq).padStart(4, '0')}`,
         undo: () => Counter.updateOne({ _id: id, seq: counter.seq }, { $inc: { seq: -1 } }),
     };
 }

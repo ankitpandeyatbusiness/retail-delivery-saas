@@ -47,7 +47,7 @@ const platformSchema = new mongoose.Schema({
         pan: { type: String, trim: true, uppercase: true, validate: { validator: (v) => !v || /^[A-Z]{5}[0-9]{4}[A-Z]$/.test(v), message: 'PAN must look like ABCDE1234F' } },
         state: { type: String, trim: true, maxlength: 40 },              // the state the business is registered in (decides CGST+SGST or IGST)
         stateCode: { type: String, trim: true, validate: { validator: (v) => !v || /^\d{2}$/.test(v), message: 'State code is 2 digits, like 09' } },
-        invoicePrefix: { type: String, trim: true, uppercase: true, maxlength: 12, match: [/^[A-Z0-9-]*$/, 'Prefix: letters, digits and - only'] },   // SUB/<prefix>/2026-27/0001. A new prefix starts a new series
+        invoicePrefix: { type: String, trim: true, uppercase: true, maxlength: 4, match: [/^[A-Z0-9]*$/, 'Prefix: up to 4 letters or digits'] },   // BABC/26-27/0001 (at most 16 characters in all, as GST requires). A new prefix starts a new series
         poweredBy: { type: String, trim: true, maxlength: 40 },          // "Powered by ..." in the customer app
         contactPhone: { type: String, trim: true, maxlength: 20 },       // the number its Contact button calls
         paymentInstructions: { type: String, trim: true, maxlength: 500 }, // e.g. UPI id or bank details, printed on pending invoices

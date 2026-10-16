@@ -15,7 +15,7 @@ const operatorSchema = new Schema({
         state: { type: String, trim: true, maxlength: 40 },
         stateCode: { type: String, trim: true },
         sacCode: { type: String, trim: true, maxlength: 10 },
-        invoicePrefix: { type: String, trim: true, uppercase: true, maxlength: 12 },
+        invoicePrefix: { type: String, trim: true, uppercase: true, maxlength: 4 },
         poweredBy: { type: String, trim: true, maxlength: 40 },
         contactPhone: { type: String, trim: true, maxlength: 20 },
         email: { type: String, trim: true, lowercase: true, maxlength: 120 },

@@ -60,8 +60,8 @@ export default function PlatformBusinessScreen() {
                 <TextField label="SAC code" value={f.sacCode} onChange={set('sacCode')} maxLength={10} keyboardType="number-pad" last />
                 <Hint>Ask your accountant which SAC code applies to your service. The state decides whether a bill shows CGST + SGST (shop in the same state) or IGST (another state).</Hint>
             </Group>
-            <Group title="Invoice numbers and the customer app" section="catalog" hint="Bills are numbered like SUB/<prefix>/2026-27/0001. A new prefix starts a new series from 0001, which a new GST number needs.">
-                <TextField label="Invoice prefix" value={f.invoicePrefix} onChange={(v) => set('invoicePrefix')(v.toUpperCase())} maxLength={12} autoCapitalize="characters" placeholder="e.g. ABC (can be empty)" />
+            <Group title="Invoice numbers and the customer app" section="catalog" hint="With a prefix, bills are numbered like BABC/26-27/0001 (GST allows 16 characters at most). A new prefix starts a new series from 0001, which a new GST number needs.">
+                <TextField label="Invoice prefix" value={f.invoicePrefix} onChange={(v) => set('invoicePrefix')(v.toUpperCase())} maxLength={4} autoCapitalize="characters" placeholder="e.g. ABC (up to 4, can be empty)" />
                 <TextField label="Powered by (name shown in the customer app)" value={f.poweredBy} onChange={set('poweredBy')} maxLength={40} />
                 <TextField label="Contact phone for customers" value={f.contactPhone} onChange={set('contactPhone')} maxLength={20} keyboardType="phone-pad" last />
             </Group>

@@ -9,7 +9,7 @@ Not legal advice. Everything here is software; the signed paper agreement betwee
 - One exception: any superadmin can add an **"I have paid" note** on a settlement row (the supreme admin confirms it).
 
 ## Invoices (platform to shop)
-- Rent and setup bills `SUB/<prefix>/2026-27/0001`, SMS top-up invoices `TOP/...`, credit notes `CN/...`. The **prefix** is a field in Business details (or in the company profile). A new prefix starts a new series from 0001; it locks once a bill with it exists.
+- Rent and setup bills `SUB/2026-27/0001` (with a prefix of up to 4 letters: `BABC/26-27/0001`; GST allows 16 characters at most), SMS top-up invoices `TOP/...`, credit notes `CN/...`. The **prefix** is a field in Business details (or in the company profile). A new prefix starts a new series from 0001; it locks once a bill with it exists.
 - Every bill carries the seller (name, address, GSTIN, PAN, state), the buyer, the **place of supply**, "reverse charge: No", and the tax as **CGST + SGST** (same state) or **IGST** (other state). The shop's state is in its address (owner app: Shop settings; superadmin: shop form). An unknown state counts as the seller's state.
 - GST is charged only while the platform business has a GST number saved. SMS top-ups add the GST on top of the amount typed (minimum Rs 100).
 - Cancelling an issued bill (void or waive) issues a **credit note** automatically. Owners open credit notes and top-up invoices from the app.

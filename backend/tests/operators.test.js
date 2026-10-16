@@ -137,7 +137,7 @@ describe('the switch', () => {
         assert.equal(l.payments.verifiedAt, undefined);   // the new account must be tested
 
         const newBill = await bill();
-        assert.match(newBill.invoiceNo, /^SUB\/ABC\/\d{4}-\d{2}\/0001$/);
+        assert.match(newBill.invoiceNo, /^BABC\/\d{2}-\d{2}\/0001$/);
         assert.equal(newBill.seller.legalName, 'My Agency');
         assert.equal(newBill.seller.pan, 'AAAAA1111A');
         const untouched = await SubscriptionInvoice.findById(oldBill._id).lean();

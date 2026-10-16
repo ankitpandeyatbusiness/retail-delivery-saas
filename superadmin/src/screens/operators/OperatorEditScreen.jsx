@@ -101,8 +101,8 @@ export default function OperatorEditScreen() {
                 <TextField label="Phone" value={f.phone} onChange={set('phone')} maxLength={20} keyboardType="phone-pad" />
                 <TextField label="How shops pay (printed on pending bills)" value={f.paymentInstructions} onChange={set('paymentInstructions')} maxLength={500} multiline last />
             </Group>
-            <Group title="Numbering and the customer app" section="catalog" hint={locked ? 'Bills with this prefix already exist, so the prefix is locked.' : 'Bills are numbered like SUB/<prefix>/2026-27/0001. A new GST number needs a new prefix.'}>
-                <TextField label="Invoice prefix" value={f.invoicePrefix} onChange={(v) => !locked && set('invoicePrefix')(v.toUpperCase())} maxLength={12} autoCapitalize="characters" placeholder="e.g. ABC (can be empty)" />
+            <Group title="Numbering and the customer app" section="catalog" hint={locked ? 'Bills with this prefix already exist, so the prefix is locked.' : 'With a prefix, bills are numbered like BABC/26-27/0001 (16 characters at most). A new GST number needs a new prefix.'}>
+                <TextField label="Invoice prefix" value={f.invoicePrefix} onChange={(v) => !locked && set('invoicePrefix')(v.toUpperCase())} maxLength={4} autoCapitalize="characters" placeholder="e.g. ABC (up to 4, can be empty)" />
                 <TextField label="App name (in mails)" value={f.appName} onChange={set('appName')} maxLength={60} />
                 <TextField label="“Powered by” name in the customer app" value={f.poweredBy} onChange={set('poweredBy')} maxLength={40} />
                 <TextField label="Contact phone for customers" value={f.contactPhone} onChange={set('contactPhone')} maxLength={20} keyboardType="phone-pad" last />

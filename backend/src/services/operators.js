@@ -38,7 +38,7 @@ function cleanBusiness(input = {}) {
     }
     if (out.gstin !== undefined) { out.gstin = out.gstin.toUpperCase(); if (out.gstin && !GSTIN_RE.test(out.gstin)) throw httpError(400, 'GST number must be 15 characters, like 22AAAAA0000A1Z5'); }
     if (out.pan !== undefined) { out.pan = out.pan.toUpperCase(); if (out.pan && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(out.pan)) throw httpError(400, 'PAN must look like ABCDE1234F'); }
-    if (out.invoicePrefix !== undefined) { out.invoicePrefix = out.invoicePrefix.toUpperCase(); if (!/^[A-Z0-9-]{0,12}$/.test(out.invoicePrefix)) throw httpError(400, 'Prefix: letters, digits and - only (up to 12)'); }
+    if (out.invoicePrefix !== undefined) { out.invoicePrefix = out.invoicePrefix.toUpperCase(); if (!/^[A-Z0-9]{0,4}$/.test(out.invoicePrefix)) throw httpError(400, 'Prefix: up to 4 letters or digits (an invoice number may have 16 characters at most)'); }
     if (out.stateCode !== undefined && out.stateCode && !/^\d{2}$/.test(out.stateCode)) throw httpError(400, 'State code is 2 digits, like 09');
     if (out.state) {
         const code = gstSplit.codeFromName(out.state);
