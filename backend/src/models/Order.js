@@ -82,6 +82,8 @@ const orderSchema = new Schema({
         offerExpiresAt: Date,
         pinRequired: { type: Boolean, default: false },   // shop setting copied when the rider is assigned
         pinAttempts: { type: Number, default: 0 },
+        arrivingNotifiedAt: Date,   // the "arriving soon" push was sent (once per order)
+        reachedNotifiedAt: Date,    // the "reached" push was sent (once per order)
         // the offer to ALL free riders at once (automatic mode)
         broadcast: { active: Boolean, startedAt: Date, expiresAt: Date, endedAt: Date, endReason: String },
         problems: [{ _id: false, at: Date, reason: String, note: String }],   // reported by the rider

@@ -10,7 +10,7 @@
 const v8 = require('v8');
 const PlatformSettings = require('../models/PlatformSettings');
 
-const DEFAULTS = { mode: 'socket', maxSockets: 400, pollSec: 15 };
+const DEFAULTS = { mode: 'socket', maxSockets: 400, pollSec: 15, routeCap: 8000 };
 const SETTINGS_TTL_MS = 15000;
 const AUTO_MS = 2 * 60000;          // how long the watchdog keeps polling mode on
 const LAG_LIMIT_MS = 300;           // an event loop that answers 300 ms late 3 times in a row is struggling
@@ -35,6 +35,8 @@ async function loadSettings() {
 }
 
 const autoOn = () => auto.until > Date.now();
+
+const loadedSettings = loadSettings;   // for the route service: the monthly cap
 
 // the mode right now, and what an app should do about it
 async function status() {
@@ -114,4 +116,4 @@ function stats() {
     return { ...counters, lagMaxMs: Math.round(lag.max), heapPercent: heap, autoUntil: autoOn() ? new Date(auto.until) : null };
 }
 
-module.exports = { DEFAULTS, config, status, middleware, start, stop, refresh, forceAuto, clearAuto, stats, counters };
+module.exports = { DEFAULTS, config, loadedSettings, status, middleware, start, stop, refresh, forceAuto, clearAuto, stats, counters };

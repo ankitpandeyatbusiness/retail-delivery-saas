@@ -173,6 +173,7 @@ function onConnection(socket) {
             // the map should not wait for the next ping: send the last known position of the rider at once
             if (o.status === 'out_for_delivery' && o.delivery?.status === 'picked_up' && o.delivery?.riderId) {
                 require('./liveTracking').sendSnapshot(socket, orderId, o.delivery.riderId);   // required here: liveTracking uses this file
+                require('./tripEta').sendSnapshot(socket, orderId);                            // and the route + arrival time
             }
         } catch (e) {
             console.error('Socket join error:', e.message);

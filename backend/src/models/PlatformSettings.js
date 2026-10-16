@@ -74,6 +74,7 @@ const platformSchema = new mongoose.Schema({
         mode: { type: String, enum: ['socket', 'polling', 'off'], default: 'socket' },
         maxSockets: { type: Number, default: 400, min: 10, max: 5000 },   // new sockets are refused beyond this many at once
         pollSec: { type: Number, default: 15, min: 5, max: 120 },        // how often an app polls in polling mode
+        routeCap: { type: Number, default: 8000, min: 0, max: 1000000 }, // road-route calls to Google per month; beyond it the app uses an estimate
     },
     activeOperatorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Operator' },   // the company whose details are in business/payments now (services/operators.js)
 

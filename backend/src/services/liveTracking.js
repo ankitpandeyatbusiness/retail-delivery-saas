@@ -11,6 +11,7 @@ const Order = require('../models/Order');
 const Tenant = require('../models/Tenant');
 const realtime = require('./realtime');
 const guard = require('./trackingGuard');
+const tripEta = require('./tripEta');
 
 const MIN_GAP_MS = 2000;            // faster pings than this are dropped
 const FLUSH_MS = 10000;             // the database is written at most this often per rider
@@ -20,7 +21,7 @@ const KEEP_MS = 6 * 3600 * 1000;    // positions older than this are forgotten
 const FRESH_MS = 5 * 60000;
 
 const latest = new Map();           // riderId -> { tenantId, lat, lng, heading, speed, accuracy, at, seq, flushedAt, dirty }
-const ordersCache = new Map();      // riderId -> { at, ids: [orderId] }
+const ordersCache = new Map();      // riderId -> { at, ids: [orderId], orders: [{ id, tenantId, userId, orderNo, dest }], name }
 const shopCache = new Map();        // tenantId -> { at, on }
 let flushTimer = null;
 
@@ -60,9 +61,17 @@ async function ordersOnTheWay(tenantId, riderId) {
     if (hit && Date.now() - hit.at < ORDERS_TTL_MS) return hit.ids;
     const rows = await Order.find({
         tenantId, 'delivery.riderId': riderId, 'delivery.status': 'picked_up', status: 'out_for_delivery',
-    }).select('_id').lean();
+    }).select('_id userId orderNo address.latitude address.longitude').lean();
     const ids = rows.map((o) => String(o._id));
-    ordersCache.set(k, { at: Date.now(), ids });
+    const orders = rows.map((o) => ({
+        id: String(o._id), tenantId: String(tenantId), userId: String(o.userId), orderNo: o.orderNo,
+        dest: Number.isFinite(o.address?.latitude) && Number.isFinite(o.address?.longitude) ? { lat: o.address.latitude, lng: o.address.longitude } : null,
+    }));
+    const prev = ordersCache.get(k);
+    let name = prev?.name;
+    if (name === undefined) name = (await Rider.findOne({ tenantId, userId: riderId }).select('name').lean())?.name || null;
+    ordersCache.set(k, { at: Date.now(), ids, orders, name });
+    tripEta.keepOnly(riderId, ids);   // an order that is no longer on the way loses its route
     return ids;
 }
 
@@ -99,6 +108,11 @@ async function ingest({ tenantId, riderId, body, via = 'http', now = Date.now() 
 
     for (const id of ids) {
         realtime.toOrder(id, 'rider:location', { orderId: id, lat, lng, heading, speed, accuracy, at, seq });
+    }
+    // the road route, the arrival time and the "arriving" alerts. Never waits for it and never fails the ping.
+    const cached = ordersCache.get(key);
+    for (const o of cached?.orders || []) {
+        tripEta.update({ order: o, riderId, riderName: cached.name, pos: here, now }).catch((e) => console.error('Trip ETA error:', e.message));
     }
     startFlusher();
     return { ok: true, saved: true, orders: ids.length };
@@ -156,10 +170,11 @@ function stopFlusher() { if (flushTimer) clearInterval(flushTimer); flushTimer =
 function forget(riderId) {
     latest.delete(String(riderId));
     ordersCache.delete(String(riderId));
+    tripEta.dropForRider(riderId);
 }
 // an order changed status: the rider's list of orders on the way is looked up again next time
 function orderChanged(riderId) { if (riderId) ordersCache.delete(String(riderId)); }
-const reset = () => { latest.clear(); ordersCache.clear(); shopCache.clear(); stopFlusher(); };
+const reset = () => { latest.clear(); ordersCache.clear(); shopCache.clear(); stopFlusher(); tripEta.reset(); };
 const size = () => latest.size;
 
 module.exports = { ingest, latestFor, newest, sendSnapshot, flush, forget, orderChanged, reset, size, stopFlusher, bearing, metres, MIN_GAP_MS, FLUSH_MS };

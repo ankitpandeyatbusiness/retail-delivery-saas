@@ -251,6 +251,7 @@ async function change({ order, status, actor, note, tenant, reasonCode }) {
 
     // the rider's list of orders on the way is looked up again (live tracking keeps it for a few seconds)
     if (updated.delivery?.riderId) liveTracking.orderChanged(updated.delivery.riderId);
+    if (['delivered', 'cancelled', 'undelivered'].includes(status)) require('./tripEta').drop(updated._id);
     // the rider has one less active order when it ends; COD cash goes to the ledger
     if (['delivered', 'cancelled', 'undelivered'].includes(status) && updated.delivery?.riderId) {
         await Rider.updateOne(

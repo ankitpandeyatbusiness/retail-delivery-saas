@@ -1,6 +1,7 @@
 // Customer side of delivery: live status for one order, and the delivery rating.
 const Order = require('../models/Order');
 const liveTracking = require('./liveTracking');
+const tripEta = require('./tripEta');
 const Rider = require('../models/Rider');
 const User = require('../models/User');
 const pinSvc = require('./deliveryPinService');
@@ -61,10 +62,14 @@ async function tracking({ tenant, userId, orderId }) {
     // ETA: distance based when the rider is on the way and sent a fresh location, otherwise the shop's estimate
     let etaAt = null;
     let etaSource = null;
+    const trip = state === 'on_the_way' ? tripEta.view(order._id) : null;   // the road route and arrival time kept up to date by the pings
     if (!DONE.includes(order.status)) {
         const a = order.address;
         const fresh = live?.at && Date.now() - new Date(live.at).getTime() < FRESH_MS;
-        if (state === 'on_the_way' && fresh && a?.latitude != null && a?.longitude != null) {
+        if (trip) {
+            etaAt = new Date(trip.eta.etaAt);
+            etaSource = trip.route.source === 'google' ? 'route' : 'distance';
+        } else if (state === 'on_the_way' && fresh && a?.latitude != null && a?.longitude != null) {
             const to = { lat: a.latitude, lng: a.longitude };
             let mins;
             try {
@@ -99,6 +104,9 @@ async function tracking({ tenant, userId, orderId }) {
         state,                       // finding_rider | rider_assigned | on_the_way | delivered | cancelled
         rider,                       // null until a rider accepts
         riderLocation,               // { lat, lng, at } or null. Draw the rider on the map.
+        route: trip?.route || null,  // { polyline, distanceM, durationSec, source } while he is on the way (decode the polyline and draw it)
+        remaining: trip ? { meters: trip.eta.remainingM, seconds: trip.eta.remainingSec } : null,
+        riderQuiet: !!trip?.quiet,   // his phone has not reported for a minute: show "reconnecting"
         deliveryPin: pin,            // show it to the customer, he tells it to the rider
         etaAt, etaSource,            // etaSource: distance | scheduled | estimate
         canRate: order.status === 'delivered' && !!d.riderId && !order.deliveryRating?.rating,

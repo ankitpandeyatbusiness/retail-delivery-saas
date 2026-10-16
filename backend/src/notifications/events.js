@@ -27,6 +27,7 @@ const EVENTS = {
     rider_rejected: { to: 'owner', channels: INAPP_PUSH },
     rider_none: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // nobody took the order: live AND push
     rider_problem: { to: 'owner', channels: INAPP_PUSH },
+    rider_quiet: { to: 'owner', channels: INAPP_PUSH },   // the rider's phone has not reported for 3 minutes while he has an order
     delivery_low_rating: { to: 'owner', channels: INAPP_PUSH },
     dish_low_rating: { to: 'owner', channels: INAPP_PUSH },
     complaint_new: { to: 'owner', channels: INAPP_PUSH },
@@ -50,6 +51,8 @@ const EVENTS = {
     // customer (an SMS only for the important steps, and never for riders)
     order_status: { to: 'customer', channels: ALL, key: (ctx) => KEY_CUSTOMER_STATUSES.includes(ctx.data?.status) },
     rider_assigned: { to: 'customer', channels: INAPP_PUSH },
+    rider_arriving: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },   // live tracking: 3 minutes away (once per order)
+    rider_reached: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },    // live tracking: at the door (once per order)
     complaint_decision: { to: 'customer', channels: INAPP_PUSH, email: 'complaint_decision' },
     // rider (offers last 2 minutes, so never an SMS)
     rider_offer: { to: 'rider', channels: INAPP_PUSH, alsoPush: true },
