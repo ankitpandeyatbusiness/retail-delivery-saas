@@ -31,7 +31,7 @@ export default function ShopsGrowthScreen() {
         <ListRow
             key={s.id}
             section="shops"
-            icon="store"
+            icon="shops"
             title={s.name}
             subtitle={extra || `${rupees(s.revenue)} · ${s.orders} orders · ${s.customers} customers`}
             right={<Badge label={pct(s.change)} tone={s.change === null ? 'neutral' : s.change >= 0 ? 'success' : 'danger'} />}
@@ -42,7 +42,7 @@ export default function ShopsGrowthScreen() {
 
     return (
         <Screen title="Shops growth" subtitle="Sales of delivered orders against the same number of days before" onRefresh={load}>
-            <Segmented options={[['7', '7 days'], ['30', '30 days'], ['90', '90 days']]} value={days} onChange={setDays} />
+            <Segmented options={[{ value: '7', label: '7 days' }, { value: '30', label: '30 days' }, { value: '90', label: '90 days' }]} value={days} onChange={setDays} />
             {!r && !err ? <SkeletonList /> : null}
             {err ? <ErrorBox message={err} onRetry={load} /> : null}
             {r ? (
