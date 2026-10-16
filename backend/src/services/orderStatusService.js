@@ -26,6 +26,7 @@ const {
     outcomeFor, OWNER_CANCEL_REASONS, ADMIN_CANCEL_REASONS, SYSTEM_CANCEL_REASONS, UNDELIVERED_REASONS,
 } = require('./orderOutcome');
 const risk = require('./customerRisk');
+const liveTracking = require('./liveTracking');
 const refundService = require('./refundService');
 const billable = require('./billableService');
 const stockService = require('./stockService');
@@ -248,6 +249,8 @@ async function change({ order, status, actor, note, tenant, reasonCode }) {
         }
     }
 
+    // the rider's list of orders on the way is looked up again (live tracking keeps it for a few seconds)
+    if (updated.delivery?.riderId) liveTracking.orderChanged(updated.delivery.riderId);
     // the rider has one less active order when it ends; COD cash goes to the ledger
     if (['delivered', 'cancelled', 'undelivered'].includes(status) && updated.delivery?.riderId) {
         await Rider.updateOne(
@@ -259,6 +262,8 @@ async function change({ order, status, actor, note, tenant, reasonCode }) {
             { tenantId: updated.tenantId, userId: updated.delivery.riderId, activeOrderCount: 0 },
             { $unset: { lastLocation: 1 } },
         ).catch(logError('Rider location clear error'));
+        // and the live position in memory goes too
+        if (await Rider.exists({ tenantId: updated.tenantId, userId: updated.delivery.riderId, activeOrderCount: 0 }).catch(() => null)) liveTracking.forget(updated.delivery.riderId);
     }
     if (status === 'delivered' && updated.delivery?.riderId && updated.delivery.cashCollectedPaise > 0) {
         await CodSettlement.create({

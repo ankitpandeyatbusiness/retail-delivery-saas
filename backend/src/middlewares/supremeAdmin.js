@@ -12,7 +12,7 @@ function requireSupreme(req, res, next) {
 
 // paths are relative to /api/admin
 const MONEY = [
-    /^\/platform\/(business|billing|tax|payments|sms|operators|agreements|settlement)(\/|$)/,
+    /^\/platform\/(business|billing|tax|payments|sms|operators|agreements|settlement|tracking)(\/|$)/,
     /^\/subscriptions\//,                                   // generate, mark paid, void, waive, extend the grace
     /^\/tenants\/[^/]+\/(billing|invoices|sms|sms-provider)(\/|$)/,   // a shop's fee plan, go-live, custom bills, SMS wallet and prices
     /^\/finance\//,                                         // the platform's expenses

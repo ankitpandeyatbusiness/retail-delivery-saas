@@ -152,7 +152,7 @@ router.get('/riders/locations', openWhilePaused, wrap(async (req, res) => {
     res.json({
         items: items.map((r) => ({
             riderId: r.userId, name: r.name || null, isOnline: r.isOnline, activeOrderCount: r.activeOrderCount,
-            lat: r.lastLocation.lat, lng: r.lastLocation.lng, at: r.lastLocation.at,
+            ...(() => { const p = require('../services/liveTracking').newest(r.userId, r.lastLocation); return { lat: p.lat, lng: p.lng, at: p.at, heading: p.heading ?? null }; })(),
         })),
     });
 }));

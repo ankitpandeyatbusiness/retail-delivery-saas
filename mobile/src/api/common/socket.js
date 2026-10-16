@@ -19,6 +19,31 @@ let retryTimer = null;
 const joined = new Map();   // orderId -> how many screens want it
 const listeners = { 'order:update': new Set(), notification: new Set(), 'rider:location': new Set() };
 
+// What the server asks of us: "socket" (normal) or "polling" (it is busy: poll every pollSec seconds and try the socket again
+// later). Screens read this to decide whether they need a timer. We never retry a refused connection sooner than retryAfterSec.
+let trackingMode = { mode: 'socket', pollSec: 15, retryAfterSec: 0 };
+const modeListeners = new Set();
+let comeBackTimer = null;
+const setMode = (m) => {
+    trackingMode = { ...trackingMode, ...m };
+    modeListeners.forEach((fn) => { try { fn(trackingMode); } catch (e) { /* a screen bug must not stop the others */ } });
+};
+export const getTrackingMode = () => trackingMode;
+export function onTrackingMode(fn) {
+    modeListeners.add(fn);
+    return () => modeListeners.delete(fn);
+}
+// try the socket again after the wait the server gave (plus a random extra, so phones do not all return at the same second)
+function comeBackLater(seconds) {
+    clearTimeout(comeBackTimer);
+    const wait = (Math.max(30, seconds || 90) + Math.random() * 30) * 1000;
+    comeBackTimer = setTimeout(() => {
+        if (!socket || socket.connected) return;
+        socket.io.opts.reconnection = true;
+        socket.connect();
+    }, wait);
+}
+
 const emitJoin = (orderId) => {
     if (socket?.connected) socket.emit('order:join', { orderId }, () => { });
 };
@@ -29,6 +54,7 @@ function dispatch(event, payload) {
 
 function disconnect() {
     clearTimeout(retryTimer);
+    clearTimeout(comeBackTimer);
     if (socket) { socket.removeAllListeners(); socket.disconnect(); socket = null; }
 }
 
@@ -43,7 +69,16 @@ function connect() {
         reconnectionDelayMax: 20000,
     });
 
-    socket.on('connect', () => { joined.forEach((_, id) => emitJoin(id)); });
+    socket.on('connect', () => { setMode({ mode: 'socket', retryAfterSec: 0 }); joined.forEach((_, id) => emitJoin(id)); });
+    // the server is busy or tracking is off: poll, and do not keep knocking
+    socket.on('tracking:mode', (p) => {
+        setMode({ mode: p?.mode || 'socket', pollSec: p?.pollSec || 15, retryAfterSec: p?.retryAfterSec || 0 });
+        if (p?.mode && p.mode !== 'socket') { socket.io.opts.reconnection = false; comeBackLater(p.retryAfterSec); }
+    });
+    socket.on('disconnect', (reason) => {
+        // closed by the server while it is in polling mode: do not reconnect at once
+        if (reason === 'io server disconnect' && trackingMode.mode !== 'socket') comeBackLater(trackingMode.retryAfterSec);
+    });
     socket.on('order:update', (p) => dispatch('order:update', p));
     socket.on('notification', (p) => dispatch('notification', p));
     socket.on('rider:location', (p) => dispatch('rider:location', p));
@@ -56,7 +91,15 @@ function connect() {
             if (socket && !socket.connected) socket.connect();
         }, 1500);
     };
-    socket.on('connect_error', (err) => { if (AUTH_ERRORS.includes(err?.message)) renew(); });
+    socket.on('connect_error', (err) => {
+        if (AUTH_ERRORS.includes(err?.message)) { renew(); return; }
+        if (err?.message === 'SERVER_BUSY' || err?.message === 'TRACKING_OFF') {
+            setMode({ mode: err.data?.mode || 'polling', pollSec: err.data?.pollSec || 15, retryAfterSec: err.data?.retryAfterSec || 90 });
+            socket.io.opts.reconnection = false;
+            socket.disconnect();
+            comeBackLater(err.data?.retryAfterSec);
+        }
+    });
     socket.on('auth:expired', renew);
 }
 

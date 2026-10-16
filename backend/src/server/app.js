@@ -58,6 +58,14 @@ app.use('/api/geo', publicRateLimit.make({ points: 90, duration: 60 }));
 
 app.use('/legal', require('../routes/publicLegalRouter'));   // the Terms and the Privacy Policy as web pages
 app.use('/api/legal', require('../routes/legalRouter'));
+// what a phone should do about live tracking right now (sockets, or light polling): works even when a socket cannot connect
+app.get('/api/tracking/mode', publicRateLimit, async (req, res) => {
+    try {
+        const st = await require('../services/trackingGuard').status();
+        res.set('Cache-Control', 'no-store');
+        res.json({ mode: st.mode, pollSec: st.pollSec, retryAfterSec: st.retryAfterSec });
+    } catch (e) { res.json({ mode: 'socket', pollSec: 15, retryAfterSec: 0 }); }
+});
 app.use('/api/auth', authRouter);
 app.use('/api/tenants', tenantRouter);
 app.use('/api/catalog/collections', collectionRouter);

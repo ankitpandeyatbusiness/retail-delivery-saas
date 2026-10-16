@@ -1,5 +1,6 @@
 // Customer side of delivery: live status for one order, and the delivery rating.
 const Order = require('../models/Order');
+const liveTracking = require('./liveTracking');
 const Rider = require('../models/Rider');
 const User = require('../models/User');
 const pinSvc = require('./deliveryPinService');
@@ -54,7 +55,7 @@ async function tracking({ tenant, userId, orderId }) {
             vehicle: profile?.vehicle?.type || null,
             photo: profile?.photo || null,
         };
-        live = profile?.lastLocation;
+        live = liveTracking.newest(d.riderId, profile?.lastLocation);   // the live position (memory) is never behind the saved one
     }
 
     // ETA: distance based when the rider is on the way and sent a fresh location, otherwise the shop's estimate
@@ -89,7 +90,7 @@ async function tracking({ tenant, userId, orderId }) {
     const trackingOn = tenant.settings?.riders?.liveTracking !== false;
     const riderLocation = trackingOn && state === 'on_the_way' && live?.lat != null && live?.at
         && Date.now() - new Date(live.at).getTime() < FRESH_MS
-        ? { lat: live.lat, lng: live.lng, at: live.at } : null;
+        ? { lat: live.lat, lng: live.lng, at: live.at, heading: live.heading ?? null, speed: live.speed ?? null } : null;
 
     return {
         orderId: order._id,

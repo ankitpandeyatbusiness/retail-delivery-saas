@@ -31,7 +31,7 @@ const media = require('../services/mediaService');
 const Media = require('../models/Media');
 const liveFeed = require('../services/liveFeed');
 const { takeSignSlot } = require('../middlewares/uploadLimit');
-const realtime = require('../services/realtime');
+const liveTracking = require('../services/liveTracking');
 const { wrap, httpError } = apiErrors;
 const isId = (v) => typeof v === 'string' && mongoose.isValidObjectId(v);
 const clamp = (n, min, max) => Math.min(Math.max(n, min), max);
@@ -325,34 +325,11 @@ core.use(apiErrors);
 /* ------------------------------ a rider logs in ------------------------------ */
 // POST /api/rider/location  { "lat": 26.84, "lng": 80.94 }
 // The app sends this every locationIntervalSec seconds while the rider has an order.
-const MIN_GAP_MS = 3000;   // the server ignores updates faster than this
 const locationRoute = wrap(async (req, res) => {
-    const { lat, lng } = req.body || {};
-    const okNum = (v, lim) => typeof v === 'number' && Number.isFinite(v) && Math.abs(v) <= lim;
-    if (!okNum(lat, 90) || !okNum(lng, 180)) throw httpError(400, 'Send lat and lng as numbers');
-
-    // shop switched tracking off
-    if (req.tenant.settings?.riders?.liveTracking === false) return res.json({ ok: true, saved: false });
-
-    // save only while the rider has an order, and not more often than MIN_GAP_MS
-    const now = new Date();
-    const r = await Rider.updateOne(
-        {
-            tenantId: req.tenant._id, userId: req.riderId, activeOrderCount: { $gt: 0 },
-            $or: [{ 'lastLocation.at': { $exists: false } }, { 'lastLocation.at': { $lte: new Date(now.getTime() - MIN_GAP_MS) } }],
-        },
-        { $set: { lastLocation: { lat, lng, at: now } } },
-    );
-    if (!r.matchedCount) return res.json({ ok: true, saved: false });
-
-    // tell the customer and the owner only for orders that are on the way
-    const onTheWay = await Order.find({
-        tenantId: req.tenant._id, 'delivery.riderId': req.riderId,
-        'delivery.status': 'picked_up', status: 'out_for_delivery',
-    }).select('_id').lean();
-    onTheWay.forEach((o) => realtime.toOrder(String(o._id), 'rider:location', { orderId: String(o._id), lat, lng, at: now }));
-
-    res.json({ ok: true, saved: true });
+    // the same code as the socket path (services/liveTracking.js): a position is kept only while the rider has an order on the way
+    const r = await liveTracking.ingest({ tenantId: req.tenant._id, riderId: req.riderId, body: req.body || {}, via: 'http' });
+    if (!r.ok) throw httpError(400, r.reason || 'Send lat and lng as numbers');
+    res.json({ ok: true, saved: !!r.saved });
 });
 
 async function requireRider(req, res, next) {

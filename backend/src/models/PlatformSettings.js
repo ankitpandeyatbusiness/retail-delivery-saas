@@ -69,6 +69,12 @@ const platformSchema = new mongoose.Schema({
         gstPercent: { type: Number, default: 0, min: 0, max: 28 },
         gstMode: { type: String, enum: ['inclusive', 'exclusive'], default: 'inclusive' },   // included in prices, or added on top
     },
+    // live tracking of riders (services/trackingGuard.js). mode: socket = normal, polling = apps poll instead of using sockets, off = no live tracking
+    tracking: {
+        mode: { type: String, enum: ['socket', 'polling', 'off'], default: 'socket' },
+        maxSockets: { type: Number, default: 400, min: 10, max: 5000 },   // new sockets are refused beyond this many at once
+        pollSec: { type: Number, default: 15, min: 5, max: 120 },        // how often an app polls in polling mode
+    },
     activeOperatorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Operator' },   // the company whose details are in business/payments now (services/operators.js)
 
     // The common settlement sheet between the two partners (services/settlement.js). Only the supreme admin changes it.

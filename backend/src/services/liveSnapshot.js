@@ -1,5 +1,6 @@
 // The "live" picture of one shop, used by the superadmin panel and the owner panel.
 const mongoose = require('mongoose');
+const liveTracking = require('./liveTracking');
 const Order = require('../models/Order');
 const Rider = require('../models/Rider');
 const User = require('../models/User');
@@ -65,7 +66,7 @@ async function build(tenantId, { owner = false } = {}) {
         orders: { active, activeTotal: Object.values(active).reduce((a, b) => a + b, 0) },
         riders: riders.map((r) => ({
             riderId: r.userId, name: r.name || null, isOnline: !!r.isOnline, activeOrderCount: r.activeOrderCount || 0,
-            location: r.lastLocation?.at ? { lat: r.lastLocation.lat, lng: r.lastLocation.lng, at: r.lastLocation.at } : null,
+            location: (() => { const p = liveTracking.newest(r.userId, r.lastLocation); return p?.at ? { lat: p.lat, lng: p.lng, at: p.at } : null; })(),
         })),
         billable: { today: billableToday, month: billableMonth },
         revenueToday: Math.round((revenue[0]?.total || 0) * 100) / 100,   // rupees

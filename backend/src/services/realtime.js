@@ -11,6 +11,11 @@
 // The server sends:  'notification'  (a new inbox message)
 //                    'order:update'  ({ orderId, orderNo, status, kind })  the app should reload that order
 //                    'auth:expired'  (the token ended, connect again with a fresh token)
+//                    'rider:location' ({ orderId, lat, lng, heading, speed, at, seq })  the rider moved (rooms order:<id>); also sent once when you join
+//                    'tracking:mode' ({ mode, pollSec })  the server asks the apps to poll instead of using sockets (or to come back)
+// A rider sends his position with  emit('rider:ping', { lat, lng, heading?, speed?, accuracy? }, ack)  (see services/liveTracking.js).
+// A new connection can be refused with the error SERVER_BUSY / TRACKING_OFF and err.data { mode, pollSec, retryAfterSec }:
+// the app then polls and tries the socket again later (services/trackingGuard.js).
 //
 // If the server runs on more than one machine, add the Redis adapter later (Phase 9).
 const { Server } = require('socket.io');
@@ -22,6 +27,7 @@ const User = require('../models/User');
 const SuperAdmin = require('../models/SuperAdmin');
 const { verifyAdminToken } = require('./superAdminToken');
 const Order = require('../models/Order');
+const guard = require('./trackingGuard');
 
 let io = null;
 
@@ -154,7 +160,7 @@ function onConnection(socket) {
             const already = [...socket.rooms].filter((r) => r.startsWith('order:')).length;
             if (already >= MAX_ORDER_ROOMS) return done({ ok: false, error: 'Too many open orders' });
 
-            const o = await Order.findOne({ _id: orderId, tenantId }).select('userId delivery.riderId delivery.status').lean();
+            const o = await Order.findOne({ _id: orderId, tenantId }).select('userId status delivery.riderId delivery.status').lean();
             if (!o) return done({ ok: false, error: 'Order not found' });
 
             const isOwner = role === 'admin';
@@ -164,11 +170,35 @@ function onConnection(socket) {
 
             socket.join(room.order(orderId));
             done({ ok: true });
+            // the map should not wait for the next ping: send the last known position of the rider at once
+            if (o.status === 'out_for_delivery' && o.delivery?.status === 'picked_up' && o.delivery?.riderId) {
+                require('./liveTracking').sendSnapshot(socket, orderId, o.delivery.riderId);   // required here: liveTracking uses this file
+            }
         } catch (e) {
             console.error('Socket join error:', e.message);
             done({ ok: false, error: 'Something went wrong' });
         }
     });
+
+    // a rider's position over the socket. Same rules as the web request (services/liveTracking.js), plus a small limit per socket.
+    if (role === 'rider') {
+        let tokens = 20;
+        let refilled = Date.now();
+        socket.on('rider:ping', async (payload, ack) => {
+            const done = typeof ack === 'function' ? ack : () => { };
+            try {
+                const now = Date.now();
+                tokens = Math.min(20, tokens + (now - refilled) / 1500);
+                refilled = now;
+                if (tokens < 1) return done({ ok: true, saved: false, reason: 'too_fast' });
+                tokens -= 1;
+                done(await require('./liveTracking').ingest({ tenantId, riderId: userId, body: payload, via: 'socket', now }));
+            } catch (e) {
+                console.error('Socket ping error:', e.message);
+                done({ ok: false, reason: 'Something went wrong' });
+            }
+        });
+    }
 
     socket.on('order:leave', (payload) => {
         if (typeof payload?.orderId === 'string') socket.leave(room.order(payload.orderId));
@@ -178,8 +208,25 @@ function onConnection(socket) {
 function init(httpServer) {
     if (io) return io;
     io = new Server(httpServer, { cors: { origin: true }, maxHttpBufferSize: 10 * 1024 });
+    io.use(guard.middleware(() => io.engine.clientsCount));   // refuses new sockets when the server is struggling or full
     io.use(authSocket);
     io.on('connection', onConnection);
+    // when the mode changes, tell every connected app at once (they switch to polling, or come back)
+    guard.start((st) => {
+        try {
+            io.emit('tracking:mode', { mode: st.mode, pollSec: st.pollSec, retryAfterSec: st.retryAfterSec || 0 });
+            // calm the server: after a moment close the open sockets (never a superadmin's). The apps poll and come back later.
+            if (st.mode !== 'socket') {
+                const t = setTimeout(async () => {
+                    try {
+                        if ((await guard.status()).mode === 'socket') return;   // it recovered in the meantime
+                        for (const s of io.sockets.sockets.values()) if (!s.data?.isAdmin) { s.disconnect(true); guard.counters.shed += 1; }
+                    } catch (e) { /* ignore */ }
+                }, guard.config.shedDelayMs);
+                t.unref?.();
+            }
+        } catch (e) { /* ignore */ }
+    });
     console.log('Realtime (Socket.IO) is on');
     return io;
 }
@@ -214,7 +261,8 @@ function leaveOrder({ tenantId, userId, orderId }) {
     }
 }
 
+const connectionCount = () => (io ? io.engine.clientsCount : 0);
 const isUserOnline = (tenantId, userId) => online.users.has(`${tenantId}:${userId}`);
 const isOwnerOnline = (tenantId) => online.owners.has(String(tenantId));
 
-module.exports = { init, toUser, toOwner, toOrder, toAdmin, leaveOrder, isUserOnline, isOwnerOnline };
+module.exports = { init, connectionCount, toUser, toOwner, toOrder, toAdmin, leaveOrder, isUserOnline, isOwnerOnline };
