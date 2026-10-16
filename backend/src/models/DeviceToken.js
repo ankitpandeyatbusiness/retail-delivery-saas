@@ -6,6 +6,9 @@ const deviceTokenSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     token: { type: String, required: true, unique: true, maxlength: 4096 },
     platform: { type: String, enum: ['android', 'ios', 'web'] },
+    // The owner's phone says whether Soundbox is on. Off = no loud new-order sound from this phone: its pushes go to the
+    // app's normal channel instead of the loud "new_orders" one. Phones that never say are treated as on.
+    loudAlerts: { type: Boolean, default: true },
     lastSeenAt: { type: Date, default: Date.now },
 }, { timestamps: { createdAt: true, updatedAt: false } });
 

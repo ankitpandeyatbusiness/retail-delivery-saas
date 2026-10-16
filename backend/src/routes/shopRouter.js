@@ -13,6 +13,9 @@ const { validateSettings } = require('../services/tenantConfigService');
 const invoiceRoutes = require('./shopInvoiceRouter');
 const liveSnapshot = require('../services/liveSnapshot');
 const { HIDE_UNPAID } = require('../services/onlineOrder');
+const { orderSpeech, orderSpeechHi } = require('../utils/orderSpeech');
+const pushChannel = require('../notifications/channels/push');
+const { NEW_ORDER_CHANNEL } = require('../notifications/events');
 
 const { wrap, httpError } = apiErrors;
 const router = express.Router();
@@ -48,7 +51,8 @@ const clamp = (n, min, max) => Math.min(Math.max(n, min), max);
 const isId = (v) => typeof v === 'string' && mongoose.isValidObjectId(v);
 
 // order as JSON, plus the next steps the shop is allowed to take (the panel draws its buttons from this)
-const view = (order) => ({ ...order.toJSON(), allowedNext: svc.nextStatuses(order) });
+// speech / speechHi: what the owner's Soundbox reads out for this order (English and Hindi)
+const view = (order) => ({ ...order.toJSON(), allowedNext: svc.nextStatuses(order), speech: orderSpeech(order), speechHi: orderSpeechHi(order) });
 
 /*
   GET /api/shop/orders
@@ -143,6 +147,39 @@ router.get('/riders/locations', openWhilePaused, wrap(async (req, res) => {
 router.get('/live', openWhilePaused, wrap(async (req, res) => {
     res.json(await liveSnapshot.build(req.tenant._id, { owner: true }));
 }));
+// A test of the real new-order alert: sends the owner's own phone(s) a push exactly like a new order (the loud channel,
+// the voice clip, the spoken sentence), after delaySec seconds so he can lock the screen first. Nothing is saved: no
+// order, no inbox row, no SMS. Only the phones of the person who asks.   Body: { delaySec: 0..30 }
+const lastTestAlert = new Map();   // userId -> time, so the button can not be used to flood a phone
+router.post('/test-alert', openWhilePaused, wrap(async (req, res) => {
+    if (isSuper(req) || !req.auth?.userId) throw httpError(400, 'Only the shop owner can send a test alert to his own phone');
+    const who = String(req.auth.userId);
+    if (Date.now() - (lastTestAlert.get(who) || 0) < 8000) throw httpError(429, 'Wait a few seconds before sending another test');
+    lastTestAlert.set(who, Date.now());
+
+    const delaySec = Math.min(Math.max(Math.round(Number(req.body?.delaySec) || 0), 0), 30);
+    const sample = {
+        orderType: 'delivery', pricing: { total: 540 }, payment: { method: 'cod' },
+        items: [
+            { name: 'Butter Naan', quantity: 2 }, { name: 'Laccha Paratha', quantity: 1 },
+            { name: 'Paneer Butter Masala', quantity: 1, selections: [{ name: 'Full' }] },
+        ],
+    };
+    const push = () => pushChannel.send({
+        tenantId: req.tenant._id,
+        userId: who,
+        title: 'New order (test)',
+        body: 'This is a test of your new-order alert',
+        data: { type: 'order_new', test: '1', orderNo: 'TEST', speech: orderSpeech(sample), speechHi: orderSpeechHi(sample) },
+        channelId: NEW_ORDER_CHANNEL,
+        sound: 'new_order',
+    }).catch((e) => console.error('Test alert push error:', e.message));
+
+    if (delaySec) setTimeout(push, delaySec * 1000).unref?.();
+    const r = delaySec ? { sent: null } : await push();
+    res.json({ ok: true, delaySec, sent: r.sent });
+}));
+
 router.use('/riders', openWhilePaused, require('./shopRiderRouter').manage);   // add, list, switch off, remove riders
 router.use('/cod', openWhilePaused, require('./shopCodRouter'));               // COD cash with riders, rider performance
 router.use('/activity', openWhilePaused, require('./shopAuditRouter'));        // owner activity log (rows of this shop only)

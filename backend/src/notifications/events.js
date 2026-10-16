@@ -9,14 +9,18 @@
 //   email                a mail from templates/email (queued whatever happened with the channels above)
 //   adminAlert           ALSO tell the superadmin, with this admin_ alert (whatever the owner's own rule says)
 //   critical             (admin alerts) may go to the superadmin's phone as SMS when he switched that on
+// The id of the owner app's loud new-order channel. Android freezes a channel's sound and vibration when it is first
+// created on a phone, so a changed sound needs a NEW id (and the app creates it under the same name: mobile push.js).
+const NEW_ORDER_CHANNEL = 'new_orders_v2';
 const INAPP_PUSH = ['inapp', 'push'];
 const ALL = ['inapp', 'push', 'sms'];
 const KEY_CUSTOMER_STATUSES = ['accepted', 'out_for_delivery', 'delivered', 'cancelled'];
 
 const EVENTS = {
     // owner
-    order_new: { to: 'owner', channels: ALL, alsoPush: true, escalateSmsAfterSec: 180, key: true },
-    order_unaccepted_reminder: { to: 'owner', channels: ALL, alsoPush: true, key: true },
+    // pushChannel / pushSound: the owner app's loud channel (a voice clip "New order received"). Both names are built into the app.
+    order_new: { to: 'owner', channels: ALL, alsoPush: true, escalateSmsAfterSec: 180, key: true, pushChannel: NEW_ORDER_CHANNEL, pushSound: 'new_order' },
+    order_unaccepted_reminder: { to: 'owner', channels: ALL, alsoPush: true, key: true, pushChannel: NEW_ORDER_CHANNEL, pushSound: 'new_order' },
     order_cancelled: { to: 'owner', channels: INAPP_PUSH },
     order_late: { to: 'owner', channels: INAPP_PUSH },
     rider_accepted: { to: 'owner', channels: INAPP_PUSH },
@@ -67,4 +71,4 @@ const EVENTS = {
 // a type that is not listed above still works: inbox, live and push
 const DEFAULT_EVENT = { to: 'owner', channels: INAPP_PUSH };
 
-module.exports = { EVENTS, DEFAULT_EVENT, KEY_CUSTOMER_STATUSES };
+module.exports = { EVENTS, DEFAULT_EVENT, KEY_CUSTOMER_STATUSES, NEW_ORDER_CHANNEL };

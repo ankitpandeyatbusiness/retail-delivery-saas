@@ -72,16 +72,18 @@ mine.use((req, res, next) => { req.allowFrozenShop = true; next(); });   // mess
 mine.use(tenantRecognizer);
 mine.use(authenticate);
 // Register this phone for push. The app calls it after login, and again when the push token changes.
-// Body: { "token": "<fcm token>", "platform": "android" }
+// Body: { "token": "<fcm token>", "platform": "android", "loudAlerts": true }
+//   loudAlerts (optional): false = the owner switched Soundbox off on this phone, so it gets no loud new-order sound
 mine.post('/devices', wrap(async (req, res) => {
-    const { token, platform } = req.body || {};
+    const { token, platform, loudAlerts } = req.body || {};
     if (typeof token !== 'string' || token.length < 20 || token.length > 4096) throw httpError(400, 'Invalid device token');
     if (platform !== undefined && !['android', 'ios', 'web'].includes(platform)) throw httpError(400, 'Invalid platform');
+    if (loudAlerts !== undefined && typeof loudAlerts !== 'boolean') throw httpError(400, 'loudAlerts must be true or false');
 
     const who = { tenantId: req.tenant._id, userId: req.auth.userId };
     await DeviceToken.findOneAndUpdate(
         { token },
-        { $set: { ...who, ...(platform && { platform }), lastSeenAt: new Date() } },   // a phone moves to whoever logs in on it now
+        { $set: { ...who, ...(platform && { platform }), ...(loudAlerts !== undefined && { loudAlerts }), lastSeenAt: new Date() } },   // a phone moves to whoever logs in on it now
         { upsert: true },
     );
     // keep the newest 10 phones per person

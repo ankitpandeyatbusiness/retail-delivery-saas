@@ -14,6 +14,10 @@ import OrdersScreen from '../screens/customers/OrdersScreen';
 import OrderDetailScreen from '../screens/customers/OrderDetailScreen';
 import OrderPlacedScreen from '../screens/customers/OrderPlacedScreen';
 import RiderHomeScreen from '../screens/riders/RiderHomeScreen';
+import OwnerTabs from './OwnerNavigator';
+import ShopHubScreen from '../screens/owners/ShopHubScreen';
+import SoundboxScreen from '../screens/owners/SoundboxScreen';
+import { OwnerStubPage, OwnerOrderScreen } from '../screens/owners/OwnerStubScreens';
 import CardDetailsScreen from '../screens/customers/CardDetailsScreen';
 import NotificationsScreen from '../screens/common/NotificationsScreen';
 import { bindNavigation, navigationReady } from '../utils/common/push';
@@ -283,10 +287,13 @@ function MainTabs() {
     );
 }
 
-// A user with role "rider" gets the delivery screen instead of the shop tabs (same app, same login).
+// One app, three panels, chosen by the phone number's role: a rider gets the delivery screen, the shop owner
+// ("admin") gets the owner panel, everybody else gets the customer tabs.
 function Landing() {
     const role = useAuthStore((s) => s.user?.role);
-    return role === 'rider' ? <RiderHomeScreen /> : <MainTabs />;
+    if (role === 'rider') return <RiderHomeScreen />;
+    if (role === 'admin') return <OwnerTabs />;
+    return <MainTabs />;
 }
 
 // Android back button, in three steps:
@@ -299,7 +306,8 @@ function useDoubleBackExit() {
         if (Platform.OS !== 'android') return undefined;
         const sub = BackHandler.addEventListener('hardwareBackPress', () => {
             if (!navigationRef.isReady()) return false;
-            if (navigationRef.getCurrentRoute()?.name !== 'Home') return false;   // not the Home tab: normal behaviour
+            const here = navigationRef.getCurrentRoute()?.name;
+            if (here !== 'Home' && here !== 'HomeTab') return false;   // not a Home tab: normal behaviour
             const now = Date.now();
             if (now - last.current < 2000) { BackHandler.exitApp(); return true; }
             last.current = now;
@@ -371,6 +379,12 @@ export default function AppNavigator() {
                     <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
                     <Stack.Screen name="OrderPlaced" component={OrderPlacedScreen} options={{ gestureEnabled: false, animation: motion === 'off' ? 'none' : 'fade', animationDuration: 300 }} />
                     <Stack.Screen name="Notifications" component={NotificationsScreen} />
+
+                    {/* owner pages (role "admin"); the owner's tabs are MainTabs -> Landing -> OwnerTabs */}
+                    <Stack.Screen name="ShopHub" component={ShopHubScreen} />
+                    <Stack.Screen name="Soundbox" component={SoundboxScreen} />
+                    <Stack.Screen name="OwnerStub" component={OwnerStubPage} />
+                    <Stack.Screen name="OwnerOrder" component={OwnerOrderScreen} />
                 </Stack.Navigator>
             </NavigationContainer>
             <FrozenOverlay onOrders={goOrders} />

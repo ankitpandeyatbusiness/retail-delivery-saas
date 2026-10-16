@@ -13,14 +13,23 @@ import { useNotificationStore } from '../../store/common/useNotificationStore';
 import { registerDevice, removeDevice } from '../../api/common/notificationApi';
 import { onNotification, realtimeConnected } from '../../api/common/socket';
 import { showToast } from '../../components/customers/shop';
+import { speakOnOpen } from '../owners/soundbox';
+import { useSoundboxStore } from '../../store/owners/useSoundboxStore';
 
 const TOKEN_KEY = 'pushToken';
 const CHANNEL = 'orders';   // must match defaultChannel in app.config.js
+// The owner's new-order channel: maximum importance and the bundled voice clip "New order received".
+// The server names it in the push (backend notifications/events.js: pushChannel / pushSound). A channel's sound can not be
+// changed once it exists on a phone, so a new sound needs a new channel id.
+const NEW_ORDERS_CHANNEL = 'new_orders_v2';   // must match NEW_ORDER_CHANNEL in backend notifications/events.js
+const OLD_NEW_ORDERS_CHANNELS = ['new_orders'];   // earlier ids: they may be stuck without the sound, so they are removed
 
 // While the socket is connected the app shows its own toast and badge, so the system banner would be a duplicate.
 Notifications.setNotificationHandler({
-    handleNotification: async () => {
-        const quiet = realtimeConnected();
+    handleNotification: async (notification) => {
+        // the owner's test push has no live message behind it, so it is always shown, even with the app in front
+        const isTest = notification?.request?.content?.data?.test === '1';
+        const quiet = realtimeConnected() && !isTest;
         return { shouldShowBanner: !quiet, shouldShowList: !quiet, shouldPlaySound: !quiet, shouldSetBadge: false };
     },
 });
@@ -31,9 +40,12 @@ let pending = null;   // an order to open as soon as the navigator is ready (app
 
 function openOrder(orderId) {
     if (!orderId) return;
-    if (!useAuthStore.getState().user) return;
+    const user = useAuthStore.getState().user;
+    if (!user) return;
     if (!navRef?.isReady()) { pending = String(orderId); return; }
-    navRef.dispatch(CommonActions.navigate({ name: 'OrderDetail', params: { id: String(orderId) } }));
+    // the owner has his own order page; customers and riders keep theirs
+    const name = user.role === 'admin' ? 'OwnerOrder' : 'OrderDetail';
+    navRef.dispatch(CommonActions.navigate({ name, params: { id: String(orderId) } }));
 }
 
 // Called by the navigator once it exists, and again when it is ready.
@@ -44,10 +56,25 @@ export function navigationReady() {
     if (pending) { const id = pending; pending = null; openOrder(id); }
 }
 
-const orderIdOf = (resp) => {
+const dataOf = (resp) => {
     const c = resp?.notification?.request?.content;
-    return c?.data?.orderId || resp?.notification?.request?.trigger?.remoteMessage?.data?.orderId || null;
+    return c?.data || resp?.notification?.request?.trigger?.remoteMessage?.data || {};
 };
+
+// A notification was tapped: open its order. For the owner's new-order push, Soundbox mode also reads it out.
+function handleTap(resp) {
+    const data = dataOf(resp);
+    // the owner's test push (Soundbox screen): there is no order to open, but Soundbox reads it out like a real one
+    if (data.test === '1' && useAuthStore.getState().user?.role === 'admin') {
+        speakOnOpen({ ...data, orderId: 'test-push' }).catch(() => { });
+        return;
+    }
+    if (!data.orderId) return;
+    if (useAuthStore.getState().user?.role === 'admin' && (data.type === 'order_new' || data.type === 'order_unaccepted_reminder')) {
+        speakOnOpen(data).catch(() => { });
+    }
+    openOrder(data.orderId);
+}
 
 /* ------------------------------ the phone's push token ------------------------------ */
 async function getToken() {
@@ -57,6 +84,29 @@ async function getToken() {
         name: 'Order updates',
         importance: Notifications.AndroidImportance.HIGH,
     });
+    // The owner's loud channel. Its sound file is bundled at BUILD time (app.config.js, expo-notifications "sounds"), so a
+    // phone running an older build does not have it. That must never stop push from working: fall back to the
+    // default channel.
+    const loud = {
+        name: 'New orders',
+        description: 'Rings loudly when a customer places an order',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 600, 300, 600, 300, 600],
+        lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+        audioAttributes: {
+            usage: Notifications.AndroidAudioUsage.ALARM,
+            contentType: Notifications.AndroidAudioContentType.SONIFICATION,
+        },
+    };
+    for (const old of OLD_NEW_ORDERS_CHANNELS) {
+        try { await Notifications.deleteNotificationChannelAsync(old); } catch (e) { /* not there */ }
+    }
+    try {
+        await Notifications.setNotificationChannelAsync(NEW_ORDERS_CHANNEL, { ...loud, sound: 'new_order.wav' });
+    } catch (e) {
+        // Create NOTHING here. Android freezes a channel's sound once it exists, so a channel made now (without the
+        // clip) would keep a later, correct build silent. With no channel, the push lands on the app's default one.
+    }
 
     let { status, canAskAgain } = await Notifications.getPermissionsAsync();
     if (status !== 'granted' && canAskAgain) status = (await Notifications.requestPermissionsAsync()).status;
@@ -66,11 +116,42 @@ async function getToken() {
     return typeof t?.data === 'string' ? t.data : null;
 }
 
+// What this phone really holds for the owner's loud channel, for the Soundbox screen's "Phone check".
+// Android freezes a channel's sound when it is created, so this is the truth about what a push will do here.
+export async function newOrderChannelInfo() {
+    if (Platform.OS !== 'android') return { supported: false };
+    try {
+        const perm = await Notifications.getPermissionsAsync();
+        const ch = await Notifications.getNotificationChannelAsync(NEW_ORDERS_CHANNEL);
+        return {
+            supported: true,
+            allowed: perm.status === 'granted',
+            exists: !!ch,
+            // Android only reports 'custom' (a sound the app set: ours), 'default' (the phone's normal ping, which it
+            // falls back to when the sound file is not inside the app) or null (silent). Never the file name.
+            sound: ch ? (ch.sound === undefined ? 'unknown' : ch.sound) : null,
+            importance: ch?.importance ?? null,            // 5 = MAX (rings and pops up), 4 = HIGH, 3 = DEFAULT, 0/1 = silent
+            vibration: !!(ch?.vibrationPattern?.length) || ch?.enableVibrate === true,
+        };
+    } catch (e) {
+        return { supported: true, error: String(e.message || e) };
+    }
+}
+
+// Owner phones tell the server whether Soundbox is on. Off means no loud new-order sound from this phone at all, so
+// the server then sends its pushes to the app's normal channel. Customers and riders say nothing (undefined).
+async function loudFlag() {
+    if (useAuthStore.getState().user?.role !== 'admin') return undefined;
+    const st = useSoundboxStore.getState();
+    if (!st.loaded) await st.hydrate();
+    return useSoundboxStore.getState().soundbox;
+}
+
 export async function registerPush() {
     try {
         const token = await getToken();
         if (!token) return;
-        await registerDevice(token, 'android');
+        await registerDevice(token, 'android', await loudFlag());
         await SecureStore.setItemAsync(TOKEN_KEY, token);
     } catch (e) { /* no push on this phone: the inbox and the socket still work */ }
 }
@@ -107,12 +188,17 @@ export function startNotifications() {
     // the phone got a new token: tell the server
     Notifications.addPushTokenListener(async ({ data }) => {
         if (typeof data !== 'string' || !useAuthStore.getState().user) return;
-        try { await registerDevice(data, 'android'); await SecureStore.setItemAsync(TOKEN_KEY, data); } catch (e) { /* retried next login */ }
+        try { await registerDevice(data, 'android', await loudFlag()); await SecureStore.setItemAsync(TOKEN_KEY, data); } catch (e) { /* retried next login */ }
+    });
+
+    // the owner switched Soundbox on or off: tell the server at once, so the very next order sounds (or not) as chosen
+    useSoundboxStore.subscribe((st, prev) => {
+        if (st.soundbox !== prev.soundbox && useAuthStore.getState().user?.role === 'admin') registerPush();
     });
 
     // tapped while the app was open or in the background
-    Notifications.addNotificationResponseReceivedListener((resp) => openOrder(orderIdOf(resp)));
+    Notifications.addNotificationResponseReceivedListener((resp) => handleTap(resp));
 
     // tapped while the app was closed
-    Notifications.getLastNotificationResponseAsync().then((resp) => { const id = orderIdOf(resp); if (id) openOrder(id); }).catch(() => { });
+    Notifications.getLastNotificationResponseAsync().then((resp) => { if (resp) handleTap(resp); }).catch(() => { });
 }

@@ -7,6 +7,7 @@ const realtime = require('./realtime');
 const center = require('../notifications/center');
 const liveFeed = require('./liveFeed');
 const { isUnpaidOnline } = require('./onlineOrder');
+const { orderSpeech, orderSpeechHi } = require('../utils/orderSpeech');
 
 // old style helpers, still used by billing, the superadmin messages and the stuck-order watcher
 const send = (p) => center.notify(p.type, { ...p, to: p.role === 'superadmin' ? 'superadmin' : undefined });
@@ -32,7 +33,11 @@ function orderPlaced(order) {
         center.notify('order_new', {
             tenantId: order.tenantId,
             vars: { orderNo: order.orderNo, total: order.pricing?.total, orderType: order.orderType },
-            data: { orderId: String(order._id), orderNo: order.orderNo, total: order.pricing?.total },
+            // speech: the sentence the owner's phone reads out loud in Soundbox mode (see utils/orderSpeech.js)
+            data: {
+                orderId: String(order._id), orderNo: order.orderNo, total: order.pricing?.total,
+                speech: orderSpeech(order), speechHi: orderSpeechHi(order), itemCount: order.items?.length || 0,
+            },
         });
         pulse({ tenantId: order.tenantId, orderId: order._id, orderNo: order.orderNo, status: 'placed', kind: 'status', toOrder: false });
         liveFeed.emit(order.tenantId, 'orders', {

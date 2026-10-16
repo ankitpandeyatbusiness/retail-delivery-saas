@@ -133,7 +133,10 @@ export default {
         {
           android: {
             enableProguardInReleaseBuilds: true,
-            enableShrinkResourcesInReleaseBuilds: true,
+            // OFF on purpose: the resource shrinker deleted res/raw/new_order.wav (the new-order notification sound), which the
+            // app only looks up by name at run time, and the notification then played the phone's normal ping.
+            // (plugins/withKeepSounds.js also writes a keep rule, but switching the shrinker off cannot go wrong.)
+            enableShrinkResourcesInReleaseBuilds: false,
             buildArchs: ['arm64-v8a'],
             // Razorpay's SDK breaks in release builds without these (from its README)
             extraProguardRules: [
@@ -157,6 +160,7 @@ export default {
       './plugins/withNoAutofillHighlight',
       './plugins/withUpiAppQueries',
       './plugins/withTranslucentRazorpay',   // Razorpay's screen is see-through: the app's own screen shows while it works
+      './plugins/withKeepSounds',            // a release build must not strip the new-order sound (it is only looked up by name)
       // Complaint photos: camera and gallery.
       // Do NOT set microphonePermission: false here: it strips RECORD_AUDIO from the manifest,
       // and voice search (expo-speech-recognition below) then never gets a permission prompt.
@@ -165,7 +169,16 @@ export default {
         cameraPermission: 'Allow $(PRODUCT_NAME) to take a photo for your complaint.',
       }],
       // Push. defaultChannel must match the channel created in src/utils/common/push.js
-      ['expo-notifications', { defaultChannel: 'orders', color: currentConfig.backgroundColor }],
+      // sounds: bundled into the app so the owner's "new_orders" channel can play the voice clip "New order received"
+      // even when the app is closed (a push can only play a sound that is already inside the app).
+      ['expo-notifications', {
+        defaultChannel: 'orders',
+        color: currentConfig.backgroundColor,
+        sounds: ['./assets/sounds/new_order.wav'],
+      }],
+      // Soundbox mode: the owner's phone keeps repeating the new-order sound and speaks the order with the screen off.
+      // Background playback adds Android's media-playback foreground service, which keeps the app alive while it plays.
+      ['expo-audio', { enableBackgroundPlayback: true }],
       // Adds the Speech Recognition plugin with standard OS prompts
       [
         'expo-speech-recognition',

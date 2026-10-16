@@ -21,10 +21,13 @@ function getMessaging() {
     if (messaging) return messaging;
     const b64 = process.env.FCM_SERVICE_ACCOUNT_B64;
     if (!b64) return null;
-    const admin = require('firebase-admin');   // loaded only when push is really set up
+    // firebase-admin 12 and later: the modular API. The old namespaced one (admin.apps, admin.credential, app.messaging())
+    // is gone in version 14, and using it made every push fail with "Push setup failed" and send nothing.
+    const { initializeApp, getApps, getApp, cert } = require('firebase-admin/app');   // loaded only when push is really set up
+    const { getMessaging: messagingOf } = require('firebase-admin/messaging');
     const cred = JSON.parse(Buffer.from(b64, 'base64').toString('utf8'));
-    const app = admin.apps.length ? admin.app() : admin.initializeApp({ credential: admin.credential.cert(cred) });
-    messaging = app.messaging();
+    const app = getApps().length ? getApp() : initializeApp({ credential: cert(cred) });
+    messaging = messagingOf(app);
     return messaging;
 }
 
@@ -32,7 +35,9 @@ function getMessaging() {
 const DEAD = new Set(['messaging/registration-token-not-registered', 'messaging/invalid-registration-token']);
 
 const realProvider = {
-    async send({ tokens, title, body, data }) {
+    // dataOnly: a silent message with no notification in it. It shows nothing and plays nothing; it only wakes the app's
+    // own code for a few seconds (the owner's Soundbox uses it to read the order out with the screen off).
+    async send({ tokens, title, body, data, channelId, sound, dataOnly }) {
         if (!tokens?.length) return { sent: 0, invalidTokens: [] };
 
         let m;
@@ -54,15 +59,22 @@ const realProvider = {
         const invalidTokens = [];
         for (let i = 0; i < tokens.length; i += 500) {
             const chunk = tokens.slice(i, i + 500);
-            const r = await m.sendEachForMulticast({
-                tokens: chunk,
-                notification: { title, body },
-                data: strData,
-                android: { priority: 'high' },
-            });
+            const r = await m.sendEachForMulticast(dataOnly
+                ? { tokens: chunk, data: strData, android: { priority: 'high' } }
+                : {
+                    tokens: chunk,
+                    notification: { title, body },
+                    data: strData,
+                    // channelId picks the phone's channel (its sound is fixed inside the app). Without one the app's default is used.
+                    android: {
+                        priority: 'high',
+                        ...(channelId ? { notification: { channelId, ...(sound ? { sound } : {}) } } : {}),
+                    },
+                });
             r.responses.forEach((x, idx) => {
                 if (x.success) sent += 1;
                 else if (DEAD.has(x.error?.code)) invalidTokens.push(chunk[idx]);
+                else console.warn('Push not delivered:', x.error?.code || 'unknown error');   // it used to vanish without a trace
             });
         }
         return { sent, invalidTokens };
@@ -71,4 +83,7 @@ const realProvider = {
 
 const provider = () => (process.env.PUSH_MOCK === 'true' ? mockProvider : realProvider);
 
-module.exports = { send: (args) => provider().send(args) };
+module.exports = {
+    send: (args) => provider().send(args),
+    _messaging: getMessaging,   // for the test that checks the Firebase setup works with the installed library
+};

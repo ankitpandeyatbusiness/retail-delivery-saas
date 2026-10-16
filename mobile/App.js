@@ -9,6 +9,7 @@ import { DialogHost } from './src/components/common/dialog';
 import { SheetHost } from './src/components/common/SheetPortal';
 import { startRealtime } from './src/api/common/socket';
 import { startNotifications } from './src/utils/common/push';
+import { startSoundbox } from './src/utils/owners/soundbox';
 import { applyTypography } from './src/components/common/typography';
 import { useBrand } from './src/components/common/kit';
 
@@ -43,6 +44,7 @@ export default function App() {
     })();
     startRealtime();        // live order updates while a customer is logged in
     startNotifications();   // push, unread badge, open the order from a notification
+    startSoundbox();        // the shop owner's new-order alert (does nothing for customers and riders)
     return () => { alive = false; };
   }, []);
 
