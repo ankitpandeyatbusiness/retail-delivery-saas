@@ -11,7 +11,7 @@ No timer polling in the live path. If a socket cannot be used, the apps poll lig
 |---|---|---|
 | 1 | Server foundation: socket ping from the rider, memory + batched database writes, last position on join, connection cap, degraded mode, kill switch, tests | **done** |
 | 2 | Road route and arrival time (with a monthly cap and a straight-line fallback), arrival pushes, "reconnecting" when a rider goes quiet | **done** |
-| 3 | Rider background service (foreground notification, GPS + socket with the screen off, permission and battery guide). Needs a new Android build | |
+| 3 | Rider background service (foreground notification, GPS + socket with the screen off, permission and battery guide). Needs a new Android build | **done (code); needs a new build and a phone test** |
 | 4 | Customer live-order bar and the draggable map sheet (full / half / minimised), polling fallback in the app | |
 | 5 | Lock-screen notification updated by push, owner map polish and quiet-rider warning | |
 | 6 | Load test script, superadmin screen for the switch, phone test checklist | |
@@ -37,6 +37,20 @@ No timer polling in the live path. If a socket cannot be used, the apps poll lig
 - **Pushes:** "Arriving in about N min" (3 minutes or 600 m away) and "has reached" (80 m), each once per order (saved on the order). The owner is told once when a rider has been quiet for 3 minutes.
 - **The polling path:** `GET /api/orders/:id/tracking` now also returns `route`, `remaining { meters, seconds }`, `riderQuiet` and `etaSource: "route"` when a route is known.
 - Tests: `tests/tripEta.test.js` (10).
+
+## Phase 3: the rider's phone with the screen off ()
+- **How:** when the rider has an order on the way the app starts an Android **foreground service** (expo-location + expo-task-manager). A small notification ("Delivering your orders - sharing your live location") stays in the phone while it runs. Android allows GPS with the screen off or the app swiped away only with that notification.
+- **Sending:** each GPS reading goes over the socket () when the app's socket is connected, otherwise as  (after a swipe-away there is no socket, so this path is used; the server rules are the same). The server answers with the shop's interval (, the owner's Rider rules); the task sends no faster than that.
+- **Stops:** by itself after 3 answers in a row of "no order on the way" or "tracking off"; when the rider logs out.
+- **Permissions:** the app explains first, then asks "Allow all the time". If he refuses it still works while the app is open, and he is shown how to switch it on (Settings, and Battery: Unrestricted). Some makes (Xiaomi, Oppo, Vivo, Realme, Samsung) also kill background apps unless the app is set to "No restrictions" / "Autostart".
+- **Needs a new native build** (new permissions and the service): , , . An OTA update is not enough. Google Play will ask for a background-location declaration with a short video when you publish.
+
+## Phase 3: the rider's phone with the screen off (`mobile/src/utils/riders/locationTask.js`)
+- **How:** when the rider has an order on the way the app starts an Android **foreground service** (expo-location + expo-task-manager). A small notification ("Delivering your orders - sharing your live location") stays in the phone while it runs. Android allows GPS with the screen off or the app swiped away only with that notification.
+- **Sending:** each GPS reading goes over the socket (`rider:ping`) when the app's socket is connected, otherwise as `POST /api/rider/location` (after a swipe-away there is no socket, so this path is used; the server rules are the same). The server answers with the shop's interval (`everySec`, from the owner's Rider rules); the task sends no faster than that.
+- **Stops:** by itself after 3 answers in a row of "no order on the way" or "tracking off"; and when the rider logs out.
+- **Permissions:** the app explains first, then asks "Allow all the time". If he refuses it still works while the app is open, and he is shown how to switch it on (Settings, and Battery: Unrestricted). Some makes (Xiaomi, Oppo, Vivo, Realme, Samsung) also kill background apps unless the app is set to "No restrictions" / "Autostart".
+- **Needs a new native build** (new permissions and the service): `ACCESS_BACKGROUND_LOCATION`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_LOCATION`. An OTA update is not enough. Google Play will ask for a background-location declaration (with a short video) when you publish.
 
 ## The free Render server
 Render's free plan goes to sleep after about 15 minutes with no requests, and a sleeping server has no sockets. Live tracking needs an awake server: a paid instance (about $7 a month) or an uptime pinger.

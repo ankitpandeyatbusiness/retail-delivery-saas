@@ -112,7 +112,10 @@ export default {
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.VIBRATE",
-        "android.permission.POST_NOTIFICATIONS"
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION"
       ],
       // the default app has no adaptive icon (as before); every shop gets one
       ...(tenant !== 'default' && {
@@ -191,7 +194,9 @@ export default {
       [
         'expo-location',
         {
-          locationAlwaysAndWhenInUsePermission: 'Allow $(PRODUCT_NAME) to use your location.'
+          locationAlwaysAndWhenInUsePermission: 'Allow $(PRODUCT_NAME) to use your location while you deliver, so customers can see where you are even when the screen is off.',
+          isAndroidBackgroundLocationEnabled: true,
+          isAndroidForegroundServiceEnabled: true
         }
       ]
     ]

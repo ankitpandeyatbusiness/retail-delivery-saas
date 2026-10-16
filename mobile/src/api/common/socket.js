@@ -149,4 +149,14 @@ export function watchOrder(orderId) {
     };
 }
 
+// The rider's phone sends its position over the socket. Resolves with the server's answer, or null when the socket is not
+// connected (or the server is slow): the caller then uses the web request instead.
+export function sendRiderPing(payload) {
+    return new Promise((resolve) => {
+        if (!socket?.connected) { resolve(null); return; }
+        const t = setTimeout(() => resolve(null), 4000);
+        socket.emit('rider:ping', payload, (ack) => { clearTimeout(t); resolve(ack || null); });
+    });
+}
+
 export const realtimeConnected = () => !!socket?.connected;

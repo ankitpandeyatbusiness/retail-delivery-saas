@@ -48,9 +48,10 @@ async function shopTrackingOn(tenantId) {
     const k = String(tenantId);
     const hit = shopCache.get(k);
     if (hit && Date.now() - hit.at < SHOP_TTL_MS) return hit.on;
-    const t = await Tenant.findById(tenantId).select('settings.riders.liveTracking').lean();
+    const t = await Tenant.findById(tenantId).select('settings.riders.liveTracking settings.riders.locationIntervalSec').lean();
     const on = t?.settings?.riders?.liveTracking !== false;
-    shopCache.set(k, { at: Date.now(), on });
+    const every = Number(t?.settings?.riders?.locationIntervalSec);
+    shopCache.set(k, { at: Date.now(), on, every: every >= 5 && every <= 60 ? every : 10 });
     return on;
 }
 
@@ -115,7 +116,7 @@ async function ingest({ tenantId, riderId, body, via = 'http', now = Date.now() 
         tripEta.update({ order: o, riderId, riderName: cached.name, pos: here, now }).catch((e) => console.error('Trip ETA error:', e.message));
     }
     startFlusher();
-    return { ok: true, saved: true, orders: ids.length };
+    return { ok: true, saved: true, orders: ids.length, everySec: shopCache.get(String(tenantId))?.every || 10 };
 }
 
 /* ------------------------------ reading ------------------------------ */

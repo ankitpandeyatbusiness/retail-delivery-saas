@@ -1,31 +1,50 @@
-// Sends the rider's phone location to the server while he has an order in progress.
-// The customer's tracking map reads it (bike pin). The server saves it only while the rider has an active
-// order, at most every 3 seconds, and only if the shop has live tracking on.
+// Keeps the rider's location going while he has an order on the way.
 //
-// Foreground only: it works while the app is open (or the screen is on). Sending with the app in the
-// background needs a foreground service (expo-task-manager), which is not part of this build.
+// It starts the foreground service (src/utils/riders/locationTask.js) when he has an order and stops it when he has none.
+// The service keeps sending with the screen off or the app swiped away, so the customer's map never freezes. Asking for
+// "Allow all the time" is explained first, in the rider's own words; if he refuses, it still works while the app is open.
 import { useEffect } from 'react';
-import * as Location from 'expo-location';
-import { sendLocation } from '../../api/riders/riderApi';
+import { Alert, Linking } from 'react-native';
+import { startRiderTracking, stopRiderTracking } from '../../utils/riders/locationTask';
 
-const EVERY_MS = 10000;
+let explained = false;   // the explanation is shown once per app start, not on every order
 
-export function useRiderLocation(enabled) {
+const ask = (title, message, yes) => new Promise((resolve) => {
+    Alert.alert(title, message, [
+        { text: 'Not now', style: 'cancel', onPress: () => resolve(false) },
+        { text: yes, onPress: () => resolve(true) },
+    ], { cancelable: false });
+});
+
+export function useRiderLocation(enabled, everySec = 10) {
     useEffect(() => {
-        if (!enabled) return undefined;
+        if (!enabled) { stopRiderTracking(); return undefined; }
         let dead = false;
-        let sub = null;
         (async () => {
             try {
-                const p = await Location.requestForegroundPermissionsAsync();
-                if (!p.granted || dead) return;
-                sub = await Location.watchPositionAsync(
-                    { accuracy: Location.Accuracy.Balanced, timeInterval: EVERY_MS, distanceInterval: 10 },
-                    (pos) => { sendLocation(pos.coords.latitude, pos.coords.longitude).catch(() => { }); },
-                );
-                if (dead) sub.remove();
+                if (!explained) {
+                    explained = true;
+                    const ok = await ask(
+                        'Share your location while delivering',
+                        'The customer sees where you are on the map, even when your screen is off. Next, choose "Allow all the time" for this app. A small notification stays in your phone while you deliver, and it stops when you finish.',
+                        'Continue',
+                    );
+                    if (!ok || dead) return;
+                }
+                const r = await startRiderTracking({ everySec });
+                if (dead) return;
+                if (r === 'foreground_only') {
+                    const open = await ask(
+                        'One more step',
+                        'Your location is shared only while the app is open. To keep it going with the screen off, open Settings > Location > choose "Allow all the time". Also set Battery to "Unrestricted" for this app.',
+                        'Open Settings',
+                    );
+                    if (open) Linking.openSettings().catch(() => { });
+                }
             } catch (e) { /* no GPS or no permission: the customer just sees no bike */ }
         })();
-        return () => { dead = true; if (sub) sub.remove(); };
-    }, [enabled]);
+        // leaving this screen must not stop it: the service is meant to run with the app closed. It stops by itself when the
+        // server says there is no order on the way, and when he logs out.
+        return () => { dead = true; };
+    }, [enabled, everySec]);
 }

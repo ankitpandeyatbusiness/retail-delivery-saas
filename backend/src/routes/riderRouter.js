@@ -329,7 +329,7 @@ const locationRoute = wrap(async (req, res) => {
     // the same code as the socket path (services/liveTracking.js): a position is kept only while the rider has an order on the way
     const r = await liveTracking.ingest({ tenantId: req.tenant._id, riderId: req.riderId, body: req.body || {}, via: 'http' });
     if (!r.ok) throw httpError(400, r.reason || 'Send lat and lng as numbers');
-    res.json({ ok: true, saved: !!r.saved });
+    res.json({ ok: true, saved: !!r.saved, reason: r.reason, everySec: r.everySec });
 });
 
 async function requireRider(req, res, next) {

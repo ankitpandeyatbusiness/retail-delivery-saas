@@ -29,6 +29,9 @@ export const useAuthStore = create((set, get) => ({
         // the server needs the login to forget this phone's push token, so this goes first (it has a 4 s limit)
         try { await require('../../utils/common/push').unregisterPush(); } catch (e) { }
 
+        // a rider who logs out stops sharing his location
+        try { await require('../../utils/riders/locationTask').stopRiderTracking(); } catch (e) { }
+
         let refreshToken = null;
         try {
             refreshToken = await SecureStore.getItemAsync(REFRESH_KEY);
