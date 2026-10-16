@@ -9,6 +9,7 @@ const express = require('express');
 const apiErrors = require('../middlewares/apiErrors');
 const wallet = require('../services/smsWalletService');
 const topups = require('../services/smsTopupService');
+const platformCheckout = require('../services/platformCheckout');
 const SmsTransaction = require('../models/SmsTransaction');
 const SmsTopup = require('../models/SmsTopup');
 
@@ -51,6 +52,16 @@ router.post('/topup', wrap(async (req, res) => {
         id: t._id, amountPaise: t.amountPaise, status: 'pending',
         upiString: t.upiString, imageUrl: t.imageUrl, expiresAt: t.expiresAt,
     });
+}));
+
+// Top up with a UPI app or a card (Razorpay checkout in the app)
+//   POST /topup/start   { amountPaise } -> { topupId, keyId, rzpOrderId, amountPaise, currency }
+//   POST /topup/:id/verify  { razorpay_order_id, razorpay_payment_id, razorpay_signature } -> { paid }
+router.post('/topup/start', wrap(async (req, res) => {
+    res.status(201).json(await platformCheckout.startTopup({ tenantId: req.tenant._id, amountPaise: req.body?.amountPaise, actor: actorOf(req) }));
+}));
+router.post('/topup/:id/verify', wrap(async (req, res) => {
+    res.json(await platformCheckout.verifyTopup({ tenantId: req.tenant._id, topupId: req.params.id, proof: req.body }));
 }));
 
 router.get('/topups', wrap(async (req, res) => {

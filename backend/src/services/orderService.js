@@ -200,6 +200,10 @@ async function takeGuard(key, now = new Date()) {
 }
 
 async function placeOrder({ tenant, userId, body, idempotencyKey }) {
+    // the shop owner (and a rider) logs in to the same app and can look at the customer side, but cannot order from it
+    const who = await User.findOne({ _id: userId, tenantId: tenant._id }).select('role').lean();
+    if (who && who.role !== 'customer') throw httpError(403, 'Shop owners and riders cannot place orders. Please use a customer number.');
+
     const findDuplicate = () => Order.findOne({ tenantId: tenant._id, userId, idempotencyKey });
 
     // double-tap or retry after a bad network: return the order that was already made

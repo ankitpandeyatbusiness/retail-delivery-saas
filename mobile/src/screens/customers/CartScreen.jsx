@@ -198,6 +198,7 @@ export default function CartScreen() {
 
     const place = async () => {
         if (placing || !fresh || !quote.canPlace || closed) return;
+        if (useAuthStore.getState().user?.role === 'admin') { showToast('Shop owners cannot order from their own number. Log in with a customer number to try an order.'); return; }
         if (paymentMethodValue === 'card' && !card) { nav.navigate('CardDetails', { depth: 1 }); return; }   // card details are asked every time
         setPlacing(true);
         try {

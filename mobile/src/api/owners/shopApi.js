@@ -36,6 +36,12 @@ export const invoiceUrl = (id) => `/shop/orders/${id}/invoice`;   // a PDF: fetc
 // setAcceptingOrders(false, { pauseMinutes: 30 })             pause for 30 minutes: the shop reopens by itself
 // setAcceptingOrders(false, { untilMorning: true })           pause until 4 AM
 export const setAcceptingOrders = (acceptingOrders, extra = {}) => d(api.put('/shop/accepting-orders', { acceptingOrders, ...extra }));
+// what the owner can change, as it is now: { riders:{assignMode,offerSeconds,maxActiveOrders,deliveryPin,liveTracking,locationIntervalSec,payPerDelivery}, orders:{codCap:{amount,firstOrders}} }
+export const fetchSettings = () => d(api.get('/shop/settings'));
+// busy mode: customers see a longer wait for a while. { extraMin:15, minutes:60 } | { extraMin:30, untilMorning:true } | { off:true }
+export const setBusy = (body) => d(api.put('/shop/busy', body));
+// the end-of-day summary; params { date:'2026-10-31' } (default today)
+export const fetchClosingReport = (params) => d(api.get('/shop/closing-report', q(params)));
 // send only what changed: { hours, riders, orders:{codCap}, notifications, phone, address, delivery }
 export const saveSettings = (body) => d(api.put('/shop/settings', body));
 
@@ -69,6 +75,14 @@ export const coupons = crud('coupons');
 export const collections = crud('collections');
 // body: { enabled?, qty?, dailyQty? }
 export const setStock = (id, body) => d(api.patch(`/shop/products/${id}/stock`, body));
+// the whole menu in one call: { categories (hidden too, with itemCount), products (light), truncated }
+export const fetchMenu = () => d(api.get('/shop/menu'));
+// { foodMode, businessType, itemKinds:[{id,label,sellBy,category}], measures:{weight:{presets,...},volume:{...}} }
+export const fetchMenuOptions = () => d(api.get('/shop/menu/options'));
+// sold out for a while: { available:true } | { available:false } | { available:false, minutes } | { available:false, untilMorning:true }
+export const setAvailability = (id, body) => d(api.patch(`/shop/products/${id}/availability`, body));
+// drag order: the first id gets position 0. kind: categories | products | collections
+export const reorder = (kind, ids) => d(api.put(`/shop/${kind}/order`, { ids }));
 
 /* ------------------------------ uploads (direct to storage) ------------------------------ */
 // kind: logo | product | category | banner | collection | rider | order | hero
@@ -83,6 +97,8 @@ export const fetchCustomer = (userId) => d(api.get(`/shop/customers/${userId}`))
 export const updateCustomer = (userId, body) => d(api.patch(`/shop/customers/${userId}`, body));   // { name?, email?, notes? }
 export const allowCod = (userId) => d(api.patch(`/shop/customers/${userId}/cod-block`, { blocked: false }));
 
+// what customers say: { kind:'dish'|'delivery', items, page, hasMore, summary:{dish:{avg,count,stars},delivery:{...}} }; params { kind, rating, page }
+export const fetchReviews = (params) => d(api.get('/shop/reviews', q(params)));
 export const fetchComplaints = (params) => d(api.get('/shop/complaints', q(params)));
 export const updateComplaint = (id, body) => d(api.patch(`/shop/complaints/${id}`, body));
 
@@ -96,6 +112,9 @@ export const fetchPaymentsReport = (params) => d(api.get('/shop/payments/report'
 export const fetchRefunds = (params) => d(api.get('/shop/payments/refunds', q(params)));
 export const fetchDisputes = (params) => d(api.get('/shop/payments/disputes', q(params)));
 export const fetchTransactions = (params) => d(api.get('/shop/payments/transactions', q(params)));
+// the year month by month: { year, years, months:[{month, inPaise, outPaise, netPaise, pendingPaise, count}], totals }
+export const fetchTransactionSummary = (year) => d(api.get('/shop/payments/summary', q({ year })));
+export const transactionsCsvPath = '/shop/payments/transactions';   // + params { from, to, category?, format:'csv' }
 
 export const fetchSmsWallet = () => d(api.get('/shop/sms/wallet'));
 export const fetchSmsTransactions = (params) => d(api.get('/shop/sms/transactions', q(params)));
@@ -109,12 +128,22 @@ export const fetchBillingPrompts = () => d(api.get('/shop/billing/prompts'));
 export const answerBillingPrompt = (kind, choice) => d(api.post('/shop/billing/prompts/choice', { kind, choice }));
 export const fetchRentInvoices = (params) => d(api.get('/shop/subscription/invoices', q(params)));
 export const payRentInvoice = (id) => d(api.post(`/shop/subscription/invoices/${id}/pay`));
+// the owner's own profile: { id, phone, name, email, avatarUrl, avatarId }. PUT { name?, email? }; the phone cannot be changed
+export const fetchProfile = () => d(api.get('/shop/profile'));
+export const saveProfile = (body) => d(api.put('/shop/profile', body));
+// Pay with a UPI app or a card (Razorpay checkout in the app): start -> pay -> verify
+export const startRentPay = (id) => d(api.post(`/shop/subscription/invoices/${id}/pay/start`));
+export const verifyRentPay = (id, proof) => d(api.post(`/shop/subscription/invoices/${id}/pay/verify`, proof));
+export const startTopupPay = (amountPaise) => d(api.post('/shop/sms/topup/start', { amountPaise }));
+export const verifyTopupPay = (id, proof) => d(api.post(`/shop/sms/topup/${id}/verify`, proof));
 export const rentInvoicePdfPath = (id) => `/shop/subscription/invoices/${id}/pdf`;
 
 /* ------------------------------ activity and notifications ------------------------------ */
 export const fetchActivity = (params) => d(api.get('/shop/activity', q(params)));
 export const fetchShopNotifications = (params) => d(api.get('/shop/notifications', q(params)));
 export const readAllShopNotifications = () => d(api.post('/shop/notifications/read-all'));
+// "Clear all": hides every message of the owner's inbox
+export const clearShopNotifications = () => d(api.delete('/shop/notifications'));
 export const readShopNotification = (id) => d(api.post(`/shop/notifications/${id}/read`));
 
 // What a failed call says, in the server's own words (they are written for the owner).

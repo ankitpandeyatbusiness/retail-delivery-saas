@@ -6,6 +6,7 @@ module.exports = function keepOwnerPause(oldSettings, newSettings) {
     const keep = {};
     if (typeof old.acceptingOrders === 'boolean') keep.acceptingOrders = old.acceptingOrders;
     if (old.pausedUntil) keep.pausedUntil = old.pausedUntil;
+    if (old.busy) keep.busy = old.busy;   // busy mode is the owner's too
     if (!Object.keys(keep).length) return newSettings;
     return { ...newSettings, orders: { ...(newSettings.orders || {}), ...keep } };
 };

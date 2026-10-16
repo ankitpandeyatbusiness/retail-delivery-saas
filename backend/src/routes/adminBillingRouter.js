@@ -27,6 +27,7 @@ const { enforceTenant } = require('../services/billingEnforcement');
 const billable = require('../services/billableService');
 const { invalidateTenant } = require('../middlewares/tenantRecognizer');
 const loadTenant = require('../middlewares/loadTenant');
+const feePlanNotice = require('../services/feePlanNotice');
 const { wrap, httpError } = require('../middlewares/apiErrors');
 
 const router = express.Router();
@@ -44,10 +45,13 @@ const wholeDays = (v, min, max, name) => {
 router.put('/platform/billing/tiers', wrap(async (req, res) => {
     const v = validateTiers(req.body?.tiers);
     if (!v.ok) return res.status(400).json({ error: 'Invalid tiers', errors: v.errors });
+    const before = await PlatformSettings.findById('main').select('billing.tiers').lean();
     await PlatformSettings.findByIdAndUpdate(
         'main', { $set: { 'billing.tiers': v.clean } }, { upsert: true, setDefaultsOnInsert: true },
     );
-    res.json({ tiers: v.clean });   // only invoices made from now on use these; issued invoices never change
+    // every shop on the platform plan is told about the new plan (in the app, as a push)
+    const told = await feePlanNotice.platformChanged(before?.billing?.tiers, v.clean);
+    res.json({ tiers: v.clean, shopsTold: told.told });   // only invoices made from now on use these; issued invoices never change
 }));
 
 /* ------------------------------ one shop: overrides ------------------------------ */
@@ -99,7 +103,12 @@ router.put('/tenants/:tid/billing', loadTenant, wrap(async (req, res) => {
     if (Object.keys(set).length) update.$set = set;
     if (Object.keys(unset).length) update.$unset = unset;
     if (!Object.keys(update).length) throw httpError(400, 'Nothing to change');
+    const planBefore = JSON.stringify([req.auditBefore.billing?.tiersOverride || null, req.auditBefore.billing?.fixedFeeOverride ?? null]);
     await Tenant.updateOne({ _id: id }, update);
+    const planAfterDoc = await Tenant.findById(id).select('billing').lean();
+    if (planBefore !== JSON.stringify([planAfterDoc.billing?.tiersOverride || null, planAfterDoc.billing?.fixedFeeOverride ?? null])) {
+        await feePlanNotice.shopChanged(id);   // this shop's own plan changed: tell him
+    }
 
     // a changed limit or go-live date can reopen or end free service: update the state now
     const platform = await PlatformSettings.findById('main').lean();

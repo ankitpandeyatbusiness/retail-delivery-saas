@@ -5,7 +5,7 @@
 //           'paused'  rent is unpaid: orders, riders, cash, money and rent stay open; menu and settings are closed
 //           'blocked' the platform switched this panel off: only orders in progress, rent and notifications stay open
 import { create } from 'zustand';
-import { fetchLive, fetchBillingStatus, fetchDashboard, accessState } from '../../api/owners/shopApi';
+import { fetchLive, fetchBillingStatus, fetchDashboard, fetchShopNotifications, accessState } from '../../api/owners/shopApi';
 
 let seq = 0;   // the newest answer wins when two refreshes overlap
 
@@ -14,6 +14,7 @@ export const useOwnerStore = create((set, get) => ({
     dashboard: null,     // GET /shop/dashboard: today vs yesterday, by hour, waiting orders, stock, riders, complaints, SMS, rent
     billing: null,       // GET /shop/billing/status
     access: 'ok',
+    unread: 0,           // unread messages in the owner's inbox (the bell)
     loadedAt: 0,
     error: null,
 
@@ -27,11 +28,12 @@ export const useOwnerStore = create((set, get) => ({
     refresh: async () => {
         const mine = ++seq;
         try {
-            const [live, billing, dashboard] = await Promise.allSettled([fetchLive(), fetchBillingStatus(), fetchDashboard()]);
+            const [live, billing, dashboard, inbox] = await Promise.allSettled([fetchLive(), fetchBillingStatus(), fetchDashboard(), fetchShopNotifications({ unread: true, limit: 1 })]);
             if (mine !== seq) return;
             const next = { loadedAt: Date.now(), error: null };
             if (live.status === 'fulfilled') next.live = live.value;
             if (dashboard.status === 'fulfilled') next.dashboard = dashboard.value;
+            if (inbox.status === 'fulfilled') next.unread = inbox.value.unreadCount || 0;
             if (billing.status === 'fulfilled') {
                 next.billing = billing.value;
                 if (get().access !== 'blocked') next.access = billing.value.paused ? 'paused' : 'ok';
@@ -49,5 +51,5 @@ export const useOwnerStore = create((set, get) => ({
         }
     },
 
-    reset: () => set({ live: null, dashboard: null, billing: null, access: 'ok', loadedAt: 0, error: null }),
+    reset: () => set({ unread: 0, live: null, dashboard: null, billing: null, access: 'ok', loadedAt: 0, error: null }),
 }));

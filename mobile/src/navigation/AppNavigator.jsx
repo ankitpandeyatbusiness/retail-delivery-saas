@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, Animated, Easing, Keyboard, StyleSheet, Platform, Dimensions, BackHandler } from 'react-native';
-import { NavigationContainer, DefaultTheme, createNavigationContainerRef, CommonActions, StackActions } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, createNavigationContainerRef, CommonActions, StackActions, useNavigation, useFocusEffect } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,6 +19,34 @@ import ShopHubScreen from '../screens/owners/ShopHubScreen';
 import SoundboxScreen from '../screens/owners/SoundboxScreen';
 import { OwnerStubPage } from '../screens/owners/OwnerStubScreens';
 import OwnerOrderScreen from '../screens/owners/OwnerOrderScreen';
+import OwnerRiderScreen from '../screens/owners/OwnerRiderScreen';
+import OwnerRiderMapScreen from '../screens/owners/OwnerRiderMapScreen';
+import OwnerPerformanceScreen from '../screens/owners/OwnerPerformanceScreen';
+import OwnerRiderRulesScreen from '../screens/owners/OwnerRiderRulesScreen';
+import OwnerPaymentsScreen from '../screens/owners/OwnerPaymentsScreen';
+import OwnerSmsScreen from '../screens/owners/OwnerSmsScreen';
+import OwnerRentScreen from '../screens/owners/OwnerRentScreen';
+import OwnerCustomersScreen from '../screens/owners/OwnerCustomersScreen';
+import OwnerCustomerScreen from '../screens/owners/OwnerCustomerScreen';
+import OwnerComplaintsScreen from '../screens/owners/OwnerComplaintsScreen';
+import OwnerComplaintScreen from '../screens/owners/OwnerComplaintScreen';
+import OwnerReviewsScreen from '../screens/owners/OwnerReviewsScreen';
+import OwnerMessagesScreen from '../screens/owners/OwnerMessagesScreen';
+import OwnerCouponsScreen from '../screens/owners/OwnerCouponsScreen';
+import OwnerCouponScreen from '../screens/owners/OwnerCouponScreen';
+import OwnerBannersScreen from '../screens/owners/OwnerBannersScreen';
+import OwnerBannerScreen from '../screens/owners/OwnerBannerScreen';
+import OwnerHoursScreen from '../screens/owners/OwnerHoursScreen';
+import OwnerDeliveryScreen from '../screens/owners/OwnerDeliveryScreen';
+import OwnerShopSettingsScreen from '../screens/owners/OwnerShopSettingsScreen';
+import OwnerNotificationsScreen from '../screens/owners/OwnerNotificationsScreen';
+import OwnerActivityScreen from '../screens/owners/OwnerActivityScreen';
+import OwnerClosingScreen from '../screens/owners/OwnerClosingScreen';
+import OwnerItemScreen from '../screens/owners/OwnerItemScreen';
+import OwnerCategoriesScreen from '../screens/owners/OwnerCategoriesScreen';
+import OwnerCategoryScreen from '../screens/owners/OwnerCategoryScreen';
+import OwnerCollectionsScreen from '../screens/owners/OwnerCollectionsScreen';
+import OwnerCollectionScreen from '../screens/owners/OwnerCollectionScreen';
 import CardDetailsScreen from '../screens/customers/CardDetailsScreen';
 import NotificationsScreen from '../screens/common/NotificationsScreen';
 import { bindNavigation, navigationReady } from '../utils/common/push';
@@ -34,43 +62,20 @@ import { useThemeStore } from '../store/common/useThemeStore';
 import { ToastHost, showToast } from '../components/customers/shop';
 import { FrozenOverlay, OfflineBanner } from '../components/common/status';
 import { useAppStatus } from '../store/common/useAppStatus';
-
-const tb = StyleSheet.create({
-    badge: { minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 5, alignItems: 'center', justifyContent: 'center' },
-    badgeTxt: { fontSize: 10, fontWeight: '800' },
-    floatBar: {
-        flexDirection: 'row', alignItems: 'center', height: 64, borderRadius: 32, borderWidth: StyleSheet.hairlineWidth,
-        shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 10,
-    },
-    floatPill: { position: 'absolute', left: 0, top: 7, bottom: 7, borderRadius: 24 },
-    // the highlight is exactly as wide as its tab (minus a small gap), so the last tab can never poke out of the bar
-    floatItem: { flex: 1, height: '100%', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
-    floatInner: { width: '100%', paddingHorizontal: 2, paddingVertical: 7, alignItems: 'center', justifyContent: 'center' },
-    floatBadge: { position: 'absolute', top: -6, right: -12 },
-    floatLabel: { fontSize: 10.5, fontWeight: '700', marginTop: 3 },
-});
-
-// While a page is sliding in or out (the stack transition), a tab switch is NOT started on top of it: two
-// transitions at once left the leaving page showing over the tab that slid in. The tap is kept and played the
-// moment the page has finished moving (never more than half a second later).
-const gate = { busy: false, pending: null, timer: null };
-const holdGate = () => {
-    gate.busy = true;
-    clearTimeout(gate.timer);
-    gate.timer = setTimeout(() => releaseGate(), 500);   // safety: never stay held
-};
-function releaseGate() {
-    gate.busy = false;
-    clearTimeout(gate.timer);
-    const name = gate.pending;
-    gate.pending = null;
-    if (name && navigationRef.isReady()) navigationRef.dispatch(CommonActions.navigate({ name }));
-}
+import { useViewMode } from '../store/owners/useViewMode';
+import OwnerViewPill from '../components/owners/OwnerViewPill';
+import OwnerProfileScreen from '../screens/owners/OwnerProfileScreen';
+import OwnerPopularScreen from '../screens/owners/OwnerPopularScreen';
+import OwnerPayScreen from '../screens/owners/OwnerPayScreen';
+import OwnerTransactionsScreen from '../screens/owners/OwnerTransactionsScreen';
+import OwnerMonthScreen from '../screens/owners/OwnerMonthScreen';
+import { FloatingTabBar, slideScenes, TabGlyph, gate, holdGate, releaseGate, bindGateNavigation } from './tabKit';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 const navigationRef = createNavigationContainerRef();
 bindNavigation(navigationRef);
+bindGateNavigation(navigationRef);
 
 
 // config tab id -> screen. Unknown ids from the server are skipped.
@@ -82,132 +87,6 @@ const TAB_DEFS = {
     profile: { name: 'Account', label: 'Account', icon: 'person', component: AccountScreen },
 };
 const DEFAULT_TABS = ['home', 'search', 'orders', 'profile'];
-
-// progress is -1 for a tab left of the open one, 0 for the open one, 1 for a tab to its right.
-// The pages slide the FULL width, so a page that is not open is parked completely off the screen.
-// (No opacity on purpose: on Android a card's shadow ignores its parent's opacity, so a "hidden" page that is
-// parked on screen still shows its card shadows as a ghost. Off screen there is nothing to show.)
-const slideScenes = ({ current }) => {
-    const W = Dimensions.get('window').width + 24;   // a little extra so no shadow reaches the edge
-    return {
-        sceneStyle: {
-            transform: [{ translateX: current.progress.interpolate({ inputRange: [-1, 0, 1], outputRange: [-W, 0, W] }) }],
-        },
-    };
-};
-
-// the icon springs up a little when its tab becomes active
-function TabGlyph({ focused, color, icon, size = 22 }) {
-    const v = useRef(new Animated.Value(focused ? 1 : 0)).current;
-    const motion = useMotion();
-    useEffect(() => {
-        if (motion === 'off') { v.setValue(focused ? 1 : 0); return; }
-        Animated.spring(v, { toValue: focused ? 1 : 0, friction: 5, tension: 170, useNativeDriver: true }).start();
-    }, [focused, motion, v]);
-    return (
-        <Animated.View style={{ transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [1, 1.14] }) }] }}>
-            <Ionicons name={focused ? icon : `${icon}-outline`} size={size} color={color} />
-        </Animated.View>
-    );
-}
-
-// the cart count: pops each time the number changes
-function CountBadge({ n }) {
-    const { primary, onPrimary } = useBrand();
-    const v = useRef(new Animated.Value(1)).current;
-    const last = useRef(n);
-    useEffect(() => {
-        if (last.current !== n && n > 0) {
-            v.setValue(0.6);
-            Animated.spring(v, { toValue: 1, friction: 4, tension: 200, useNativeDriver: true }).start();
-        }
-        last.current = n;
-    }, [n, v]);
-    if (!n) return null;
-    return (
-        <Animated.View style={[tb.badge, { backgroundColor: primary, transform: [{ scale: v }] }]}>
-            <Text style={[tb.badgeTxt, { color: onPrimary }]}>{n > 9 ? '9+' : n}</Text>
-        </Animated.View>
-    );
-}
-
-// One tab: the icon (springs up when active), its label, and the cart count when there is one.
-function TabItem({ focused, icon, label, badge, onPress, onLongPress }) {
-    const { primary, muted } = useBrand();
-    return (
-        <Pressable onPress={onPress} onLongPress={onLongPress} style={tb.floatItem} accessibilityRole="button" accessibilityState={focused ? { selected: true } : {}}>
-            <View style={tb.floatInner}>
-                <View>
-                    <TabGlyph focused={focused} color={focused ? primary : muted} icon={icon || 'ellipse'} />
-                    {typeof badge === 'number' ? <View style={tb.floatBadge}><CountBadge n={badge} /></View> : null}
-                </View>
-                <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={[tb.floatLabel, { color: focused ? primary : muted }]}>{label}</Text>
-            </View>
-        </Pressable>
-    );
-}
-
-// A rounded bar that floats above the screen.
-function FloatingTabBar({ state, descriptors, navigation, defs }) {
-    const insets = useSafeAreaInsets();
-    const { primary, background, surface, border, dark } = useBrand();
-    const motion = useMotion();
-    const [kb, setKb] = useState(false);
-    const [w, setW] = useState(0);
-    const slide = useRef(new Animated.Value(state.index)).current;
-    useEffect(() => {
-        if (motion === 'off') { slide.setValue(state.index); return; }
-        // same duration and curve as the page slide, so the highlight and the page arrive together
-        Animated.timing(slide, { toValue: state.index, duration: 300, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
-    }, [state.index, motion, slide]);
-
-    useEffect(() => {
-        const a = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setKb(true));
-        const b = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setKb(false));
-        return () => { a.remove(); b.remove(); };
-    }, []);
-
-    if (kb) return null;
-    return (
-        <View style={{ backgroundColor: background, paddingHorizontal: 14, paddingTop: 6, paddingBottom: Math.max(insets.bottom, 8) + 4 }}>
-            <View
-                onLayout={(e) => setW(e.nativeEvent.layout.width)}
-                style={[tb.floatBar, { backgroundColor: surface, borderColor: border, shadowColor: dark ? '#000000' : primary }]}
-            >
-                {/* exactly as wide as one tab (minus a small gap), so it can never poke out of the bar */}
-                {w ? (
-                    <Animated.View
-                        pointerEvents="none"
-                        style={[tb.floatPill, {
-                            width: w / state.routes.length - 10,
-                            backgroundColor: alpha(primary, 0.14),
-                            transform: [{ translateX: Animated.add(Animated.multiply(slide, w / state.routes.length), 5) }],
-                        }]}
-                    />
-                ) : null}
-                {state.routes.map((route, i) => {
-                    const focused = state.index === i;
-                    const d = defs[route.name] || {};
-                    const onPress = () => {
-                        const e = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-                        if (!focused && !e.defaultPrevented) navigation.navigate(route.name, route.params);
-                    };
-                    return (
-                        <TabItem
-                            key={route.key}
-                            focused={focused}
-                            icon={d.icon}
-                            label={d.label || route.name}
-                            badge={descriptors[route.key].options.tabBarBadge}
-                            onPress={onPress}
-                            onLongPress={() => navigation.emit({ type: 'tabLongPress', target: route.key })}
-                        />
-                    );
-                })}
-            </View>
-        </View>
-    );
-}
 
 function MainTabs() {
     const insets = useSafeAreaInsets();
@@ -294,6 +173,26 @@ function Landing() {
     const role = useAuthStore((s) => s.user?.role);
     if (role === 'rider') return <RiderHomeScreen />;
     if (role === 'admin') return <OwnerTabs />;
+    return <MainTabs />;
+}
+
+// The owner looking at the customer app. It is a page on top of the owner panel, so it slides in from the right and slides
+// out again like every other page. The Android Back button on its Home tab closes it (instead of "press back again to exit").
+function CustomerPreview() {
+    const nav = useNavigation();
+    useEffect(() => {
+        useViewMode.getState().setCustomerView(true);
+        return () => useViewMode.getState().setCustomerView(false);
+    }, []);
+    useFocusEffect(React.useCallback(() => {
+        if (Platform.OS !== 'android') return undefined;
+        const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+            if (navigationRef.getCurrentRoute()?.name !== 'Home') return false;   // other tabs: the tabs go back to Home first
+            nav.goBack();
+            return true;
+        });
+        return () => sub.remove();
+    }, [nav]));
     return <MainTabs />;
 }
 
@@ -386,8 +285,43 @@ export default function AppNavigator() {
                     <Stack.Screen name="Soundbox" component={SoundboxScreen} />
                     <Stack.Screen name="OwnerStub" component={OwnerStubPage} />
                     <Stack.Screen name="OwnerOrder" component={OwnerOrderScreen} />
+                    <Stack.Screen name="OwnerRider" component={OwnerRiderScreen} />
+                    <Stack.Screen name="OwnerRiderMap" component={OwnerRiderMapScreen} />
+                    <Stack.Screen name="OwnerPerformance" component={OwnerPerformanceScreen} />
+                    <Stack.Screen name="OwnerRiderRules" component={OwnerRiderRulesScreen} />
+                    <Stack.Screen name="OwnerPayments" component={OwnerPaymentsScreen} />
+                    <Stack.Screen name="OwnerSms" component={OwnerSmsScreen} />
+                    <Stack.Screen name="OwnerRent" component={OwnerRentScreen} />
+                    <Stack.Screen name="OwnerCustomers" component={OwnerCustomersScreen} />
+                    <Stack.Screen name="OwnerCustomer" component={OwnerCustomerScreen} />
+                    <Stack.Screen name="OwnerComplaints" component={OwnerComplaintsScreen} />
+                    <Stack.Screen name="OwnerComplaint" component={OwnerComplaintScreen} />
+                    <Stack.Screen name="OwnerReviews" component={OwnerReviewsScreen} />
+                    <Stack.Screen name="OwnerMessages" component={OwnerMessagesScreen} />
+                    <Stack.Screen name="OwnerCoupons" component={OwnerCouponsScreen} />
+                    <Stack.Screen name="OwnerCoupon" component={OwnerCouponScreen} />
+                    <Stack.Screen name="OwnerBanners" component={OwnerBannersScreen} />
+                    <Stack.Screen name="OwnerBanner" component={OwnerBannerScreen} />
+                    <Stack.Screen name="OwnerHours" component={OwnerHoursScreen} />
+                    <Stack.Screen name="OwnerDelivery" component={OwnerDeliveryScreen} />
+                    <Stack.Screen name="OwnerShopSettings" component={OwnerShopSettingsScreen} />
+                    <Stack.Screen name="OwnerNotifications" component={OwnerNotificationsScreen} />
+                    <Stack.Screen name="OwnerActivity" component={OwnerActivityScreen} />
+                    <Stack.Screen name="OwnerClosing" component={OwnerClosingScreen} />
+                    <Stack.Screen name="CustomerPreview" component={CustomerPreview} />
+                    <Stack.Screen name="OwnerProfile" component={OwnerProfileScreen} />
+                    <Stack.Screen name="OwnerPopular" component={OwnerPopularScreen} />
+                    <Stack.Screen name="OwnerPay" component={OwnerPayScreen} />
+                    <Stack.Screen name="OwnerTransactions" component={OwnerTransactionsScreen} />
+                    <Stack.Screen name="OwnerMonth" component={OwnerMonthScreen} />
+                    <Stack.Screen name="OwnerItem" component={OwnerItemScreen} />
+                    <Stack.Screen name="OwnerCategories" component={OwnerCategoriesScreen} />
+                    <Stack.Screen name="OwnerCategory" component={OwnerCategoryScreen} />
+                    <Stack.Screen name="OwnerCollections" component={OwnerCollectionsScreen} />
+                    <Stack.Screen name="OwnerCollection" component={OwnerCollectionScreen} />
                 </Stack.Navigator>
             </NavigationContainer>
+            <OwnerViewPill onBack={() => { if (navigationRef.isReady() && (navigationRef.getRootState()?.routes?.length || 0) > 1) navigationRef.dispatch(StackActions.popToTop()); }} />
             <FrozenOverlay onOrders={goOrders} />
             <OfflineBanner />
             <ToastHost />

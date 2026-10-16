@@ -6,6 +6,7 @@ const smsTopupSchema = new mongoose.Schema({
     amountPaise: { type: Number, required: true, validate: Number.isInteger },
     status: { type: String, enum: ['pending', 'paid', 'expired'], default: 'pending' },
     qrId: String,
+    rzpOrderId: String,      // paid with a UPI app or card: the Razorpay order the app pays (services/platformCheckout.js)
     upiString: String,
     imageUrl: String,
     expiresAt: Date,

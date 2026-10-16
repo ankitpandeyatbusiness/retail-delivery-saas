@@ -26,38 +26,6 @@ function Soon({ icon, title, phase, items }) {
     );
 }
 
-export const OwnerMenuScreen = () => (
-    <OwnerScreen title="Menu">
-        <Soon icon="restaurant" title="Your menu" phase="Phase 2" items={[
-            'Categories with timings, items with photos, sizes and add-ons',
-            'In-stock switch and stock count on every item',
-            'Collections for the home screen',
-        ]} />
-    </OwnerScreen>
-);
-
-export const OwnerRidersScreen = () => (
-    <OwnerScreen title="Riders">
-        <Soon icon="bicycle" title="Delivery team" phase="Phase 3" items={[
-            'Add riders, switch them off, see who is online',
-            'Live map of your riders',
-            'Cash on delivery ledger and handover',
-            'Rider performance and delivery rules',
-        ]} />
-    </OwnerScreen>
-);
-
-export const OwnerMoneyScreen = () => (
-    <OwnerScreen title="Money">
-        <Soon icon="wallet" title="Earnings and bills" phase="Phase 4" items={[
-            'Sales by day, week and month, top items, payment split',
-            'Online payments, refunds and disputes',
-            'SMS wallet and top-up',
-            'Rent invoices and payment',
-        ]} />
-    </OwnerScreen>
-);
-
 // A generic page for hub destinations that are not built yet. Opened with params { title, phase, items }.
 export function OwnerStubPage() {
     const { title, phase, items = [], icon = 'construct' } = useRoute().params || {};

@@ -17,8 +17,9 @@ const { orderSpeech, orderSpeechHi } = require('../utils/orderSpeech');
 const pushChannel = require('../notifications/channels/push');
 const { NEW_ORDER_CHANNEL } = require('../notifications/events');
 const dashboardService = require('../services/dashboardService');
+const { nextMorning } = require('../utils/nextMorning');
 const { acceptDeadline } = require('../services/orderTimeout');
-const { resolveConfig } = require('../services/tenantConfigService');
+const { resolveConfig, DEFAULTS } = require('../services/tenantConfigService');
 
 const { wrap, httpError } = apiErrors;
 const router = express.Router();
@@ -47,6 +48,7 @@ router.use('/orders', ownerChain(requireShopAdmin.allowBlocked));
 router.use('/orders', require('./shopRiderRouter').orders);   // assign riders (orders in progress must finish)
 router.use('/orders/:id/invoice', invoiceRoutes.invoice);     // the invoice PDF of an order (already past the login above)
 router.use('/notifications', ownerChain(requireShopAdmin.allowBlocked), require('./notificationRouter').shop);
+router.use('/profile', ownerChain(requireShopAdmin.allowBlocked), require('./shopProfileRouter'));          // the owner's own name, email and picture
 router.use('/billing', ownerChain(requireShopAdmin.allowBlocked), require('./shopBillingRouter'));
 
 const STATUSES = Order.schema.path('status').enumValues;
@@ -230,10 +232,7 @@ router.put('/accepting-orders', wrap(async (req, res) => {
         if (!Number.isInteger(m) || m < 1 || m > 1440) throw httpError(400, 'pauseMinutes must be a whole number from 1 to 1440');
         pausedUntil = new Date(Date.now() + m * 60000);
     } else if (!b.acceptingOrders && b.untilMorning === true) {
-        const IST_MS = 330 * 60000;
-        const ist = new Date(Date.now() + IST_MS);
-        const morning = Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth(), ist.getUTCDate(), 4, 0, 0) - IST_MS;   // today 4 AM India
-        pausedUntil = new Date(morning > Date.now() ? morning : morning + 86400000);
+        pausedUntil = nextMorning();
     }
 
     req.auditBefore = { acceptingOrders: req.tenant.settings?.orders?.acceptingOrders, pausedUntil: req.tenant.settings?.orders?.pausedUntil || null };
@@ -246,6 +245,58 @@ router.put('/accepting-orders', wrap(async (req, res) => {
     res.json({ ok: true, acceptingOrders: b.acceptingOrders, pausedUntil });
 }));
 
+
+// What the owner can change on his own shop, as it is now (the screens fill their forms from this).
+// riders: the delivery rules. orders.codCap: the cash on delivery limit for a phone's first orders.
+router.get('/settings', wrap(async (req, res) => {
+    const st = req.tenant.settings || {};
+    const cfg = resolveConfig(req.tenant);
+    res.json({
+        phone: req.tenant.phone || null,
+        address: req.tenant.address || {},
+        delivery: req.tenant.delivery || {},
+        hours: { weekly: cfg.hours.weekly || {}, closedMessage: st.hours?.closedMessage || '', closedDates: cfg.hours.closedDates || [] },
+        riders: { payPerDelivery: 0, ...DEFAULTS.riders, ...(st.riders || {}) },
+        notifications: { ...DEFAULTS.notifications, ...(st.notifications || {}) },
+        orders: {
+            codCap: { ...DEFAULTS.orders.codCap, ...(st.orders?.codCap || {}) },
+            deliveryFee: { ...DEFAULTS.orders.deliveryFee, ...(st.orders?.deliveryFee || {}) },
+            packagingCharge: cfg.orders.packagingCharge || 0,
+            tipOptions: cfg.orders.tipOptions || [],
+            minOrder: cfg.orders.minOrder || 0,
+            prepTimeMin: st.orders?.prepTimeMin ?? DEFAULTS.orders.prepTimeMin,
+            gst: cfg.orders.gst,   // set by the platform, shown only
+            busy: cfg.orders.busy || null,
+        },
+    });
+}));
+
+// Busy mode: the kitchen is rushed, so customers see a longer wait for a while. It ends by itself.
+//   { extraMin: 15, minutes: 60 } | { extraMin: 30, untilMorning: true } | { off: true }
+router.put('/busy', wrap(async (req, res) => {
+    const b = req.body || {};
+    req.auditBefore = { busy: req.tenant.settings?.orders?.busy || null };
+    if (b.off === true) {
+        await Tenant.updateOne({ _id: req.tenant._id }, { $unset: { 'settings.orders.busy': '' } });
+        tenantRecognizer.invalidateTenant(req.tenant.slug);
+        return res.json({ ok: true, busy: null });
+    }
+    if (!Number.isInteger(b.extraMin) || b.extraMin < 5 || b.extraMin > 120) throw httpError(400, 'extraMin must be a whole number from 5 to 120');
+    let until;
+    if (b.untilMorning === true) until = nextMorning();
+    else {
+        if (!Number.isInteger(b.minutes) || b.minutes < 1 || b.minutes > 1440) throw httpError(400, 'minutes must be a whole number from 1 to 1440');
+        until = new Date(Date.now() + b.minutes * 60000);
+    }
+    await Tenant.updateOne({ _id: req.tenant._id }, { $set: { 'settings.orders.busy': { extraMin: b.extraMin, until } } });
+    tenantRecognizer.invalidateTenant(req.tenant.slug);
+    res.json({ ok: true, busy: { extraMin: b.extraMin, until } });
+}));
+
+// The end-of-day summary. ?date=2026-10-31 (default today, India time)
+router.get('/closing-report', wrap(async (req, res) => {
+    res.json(await require('../services/closingReport').build({ tenantId: req.tenant._id, date: req.query.date }));
+}));
 
 router.put('/settings', wrap(async (req, res) => {
     const body = req.body || {};
@@ -265,13 +316,19 @@ router.put('/settings', wrap(async (req, res) => {
     }
 
     if (body.orders !== undefined) {
-        // an owner can change only the Cash on delivery limit here (the rest of the order settings stay with the superadmin)
-        if (!body.orders || typeof body.orders !== 'object' || Object.keys(body.orders).some((k) => k !== 'codCap')) {
-            throw httpError(400, 'You can change only the Cash on delivery limit (orders.codCap)');
+        // what the owner may change of the order settings: the cash limit and what a customer pays on top of the food.
+        // GST, payment methods and order types stay with the platform.
+        const OWNER_ORDER_KEYS = ['codCap', 'deliveryFee', 'packagingCharge', 'tipOptions', 'minOrder', 'prepTimeMin'];
+        if (!body.orders || typeof body.orders !== 'object' || Array.isArray(body.orders) || Object.keys(body.orders).some((k) => !OWNER_ORDER_KEYS.includes(k))) {
+            throw httpError(400, 'You can change only the cash limit, delivery fee, packaging charge, tips, minimum order and preparation time');
         }
-        const v = validateSettings({ orders: { codCap: body.orders.codCap } });
-        if (!v.ok) return res.status(400).json({ error: 'Invalid Cash on delivery limit', errors: v.errors });
-        for (const [k, val] of Object.entries(v.clean.orders?.codCap || {})) updates[`settings.orders.codCap.${k}`] = val;
+        const v = validateSettings({ orders: body.orders });
+        if (!v.ok) return res.status(400).json({ error: 'Invalid order settings', errors: v.errors });
+        for (const [k, val] of Object.entries(v.clean.orders || {})) {
+            if (val && typeof val === 'object' && !Array.isArray(val)) {
+                for (const [k2, val2] of Object.entries(val)) updates[`settings.orders.${k}.${k2}`] = val2;
+            } else updates[`settings.orders.${k}`] = val;
+        }
     }
 
     if (body.notifications !== undefined) {
@@ -322,24 +379,25 @@ router.put('/settings', wrap(async (req, res) => {
 
     req.auditBefore = {   // for the audit log
         phone: req.tenant.phone, address: req.tenant.address,
-        delivery: req.tenant.delivery, hours: req.tenant.settings?.hours,
+        delivery: req.tenant.delivery, hours: req.tenant.settings?.hours, orders: req.tenant.settings?.orders,
     };
 
     const t = await Tenant.findOneAndUpdate(
         { _id: req.tenant._id },
         { $set: updates },
         { returnDocument: 'after', runValidators: true },
-    ).select('phone address delivery settings.hours settings.riders settings.notifications settings.orders.codCap').lean();
+    ).select('phone address delivery settings.hours settings.riders settings.notifications settings.orders').lean();
 
     tenantRecognizer.invalidateTenant(req.tenant.slug);
     res.json({
         ok: true, phone: t.phone, address: t.address, delivery: t.delivery,
         hours: t.settings?.hours || null, riders: t.settings?.riders || null, notifications: t.settings?.notifications || null,
-        codCap: t.settings?.orders?.codCap || null,
+        codCap: t.settings?.orders?.codCap || null, orders: t.settings?.orders || null,
     });
 }));
 
 router.use('/uploads', require('./uploadRouter'));   // direct-to-R2 uploads (owner and superadmin)
+router.get('/reviews', wrap(async (req, res) => { res.json(await require('../services/reviewsService').list({ tenantId: req.tenant._id, query: req.query })); }));   // what customers say: dishes and delivery
 router.use('/customers', require('./shopCustomersRouter'));   // customer tools: list, detail, edit, Cash on delivery block
 router.use('/messages', require('./shopMessagesRouter'));     // messages to his customers and riders
 router.use('/complaints', require('./shopComplaintsRouter')); // complaints of his customers

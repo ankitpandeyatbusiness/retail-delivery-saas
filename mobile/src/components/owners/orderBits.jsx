@@ -2,7 +2,7 @@
 // countdown to the automatic cancel, the reason sheets (reject, "not delivered"), the rider sheet, and opening the invoice.
 // What buttons an order shows comes from the SERVER (order.allowedNext), so the app can never offer a step it would refuse.
 import React, { useEffect, useState } from 'react';
-import { View, Text, ActivityIndicator, Linking, Platform } from 'react-native';
+import { View, Text, Linking, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
@@ -17,6 +17,7 @@ import { setOrderStatus, fetchRiders, assignRider, unassignRider, apiError } fro
 import { acknowledge } from '../../utils/owners/soundbox';
 import { showToast } from '../customers/shop';
 import * as flow from '../../utils/owners/orderFlow';
+import { ListShimmer } from './shimmer';
 
 /* ------------------------------ small labels ------------------------------ */
 export function useToneColors() {
@@ -252,7 +253,7 @@ export function RiderSheet({ order, visible, onClose, onChanged }) {
             <Button label="Let the app choose (ask all free riders)" icon="flash" busy={busy} onPress={() => run(() => assignRider(order.id, { auto: true, ...(has ? { reason: reason.trim() } : {}) }))} />
 
             <Text style={{ color: muted, fontWeight: '800', fontSize: 12, marginTop: 16, marginBottom: 4 }}>YOUR RIDERS</Text>
-            {riders === null ? <ActivityIndicator style={{ margin: 16 }} /> : null}
+            {riders === null ? <ListShimmer count={3} rows /> : null}
             {riders && !riders.length ? <Text style={{ color: muted, paddingVertical: 10 }}>You have no active riders. Add one in the Riders tab.</Text> : null}
             {sorted.map((r, i) => (
                 <View key={r.userId} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: i === sorted.length - 1 ? 0 : 1, borderBottomColor: border }}>

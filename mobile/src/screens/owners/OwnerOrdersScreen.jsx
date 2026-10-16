@@ -1,7 +1,7 @@
 // Orders: the live board. Chips for each stage (with counts), search by order number, and the orders as cards with
 // Accept / Reject and the next step right on them. It refreshes by itself when an order changes anywhere.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, FlatList, Pressable, ScrollView, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, Pressable, ScrollView, RefreshControl } from 'react-native';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../../components/common/kit';
@@ -11,6 +11,7 @@ import { useOrdersStore } from '../../store/owners/useOrdersStore';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { onOrderUpdate } from '../../api/common/socket';
 import { BOARD_FILTERS } from '../../utils/owners/orderFlow';
+import { ListShimmer } from '../../components/owners/shimmer';
 
 const ACTIVE_STAGES = ['placed', 'accepted', 'preparing', 'ready', 'out_for_delivery'];
 
@@ -131,7 +132,7 @@ export default function OwnerOrdersScreen() {
                         hint={searching ? 'Check the number and try again.' : s.filter === 'active' ? 'New orders appear here the moment a customer places them, with a sound.' : 'Orders in this stage will show here.'}
                     />
                 )}
-                ListFooterComponent={s.loadingMore ? <ActivityIndicator style={{ margin: 16 }} color={primary} /> : <View style={{ height: 110 }} />}
+                ListFooterComponent={s.loadingMore ? <ListShimmer count={1} /> : <View style={{ height: 110 }} />}
                 onEndReachedThreshold={0.4}
                 onEndReached={() => useOrdersStore.getState().loadMore()}
                 refreshControl={<RefreshControl refreshing={s.refreshing} onRefresh={() => useOrdersStore.getState().refresh()} tintColor={primary} colors={[primary]} />}

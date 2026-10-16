@@ -51,6 +51,8 @@ const subscriptionInvoiceSchema = new Schema({
     markedBy: String,      // which superadmin changed the status ("razorpay" when paid online)
 
     // The newest "pay online" QR for this bill (Razorpay UPI QR on the platform account). Reused while it is still open.
+    // The Razorpay order of a "pay with a UPI app / card" attempt (services/platformCheckout.js). Reused while the amount is the same.
+    payOrder: { _id: false, rzpOrderId: String, amountPaise: Number, createdAt: Date },
     payQr: {
         _id: false,
         qrId: String,

@@ -11,6 +11,7 @@ const SubscriptionInvoice = require('../models/SubscriptionInvoice');
 const { withOverdue } = require('../services/subscriptionService');
 const { streamSubscriptionInvoice } = require('../services/subscriptionInvoicePdf');
 const rentPayments = require('../services/rentPaymentService');
+const platformCheckout = require('../services/platformCheckout');
 const { wrap, httpError } = require('../middlewares/apiErrors');
 
 const router = express.Router();
@@ -48,6 +49,16 @@ router.get('/invoices', wrap(async (req, res) => {
 router.post('/invoices/:id/pay', wrap(async (req, res) => {
     const qr = await rentPayments.createQr({ tenantId: req.tenant._id, invoiceId: req.params.id });
     res.status(201).json(qr);
+}));
+
+// Pay this bill with a UPI app or a card (Razorpay checkout in the app), the way a customer pays an order.
+//   POST /invoices/:id/pay/start   -> { keyId, rzpOrderId, amountPaise, currency, description }
+//   POST /invoices/:id/pay/verify  { razorpay_order_id, razorpay_payment_id, razorpay_signature } -> { paid }
+router.post('/invoices/:id/pay/start', wrap(async (req, res) => {
+    res.status(201).json(await platformCheckout.startRent({ tenantId: req.tenant._id, invoiceId: req.params.id }));
+}));
+router.post('/invoices/:id/pay/verify', wrap(async (req, res) => {
+    res.json(await platformCheckout.verifyRent({ tenantId: req.tenant._id, invoiceId: req.params.id, proof: req.body }));
 }));
 
 router.get('/invoices/:id/pdf', wrap(async (req, res) => {

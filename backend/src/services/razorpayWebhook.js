@@ -37,8 +37,8 @@ async function claim(account, eventId, event) {
 }
 
 async function onPayment(account, body, name) {
-    if (account === 'platform') return { ignored: 'platform_payment' };
     const rzp = paymentService.fromEntity(body.payload?.payment?.entity);
+    if (account === 'platform') return name === 'payment.captured' ? require('./platformCheckout').onPlatformPayment(rzp) : { ignored: 'platform_payment' };
     if (!rzp.orderId) return { ignored: 'no_order' };   // e.g. a QR payment
     const payment = await OnlinePayment.findOne({ tenantId: account, rzpOrderId: rzp.orderId });
     if (!payment) return { ignored: 'unknown_order' };

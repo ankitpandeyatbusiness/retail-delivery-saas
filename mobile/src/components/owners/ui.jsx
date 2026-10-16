@@ -1,7 +1,7 @@
 // The owner panel's building blocks. Everything draws from useBrand(), so the panel wears the shop's own logo,
 // colours, font and light/dark look: the owner feels he is on his own app.
-import React, { useState } from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet, RefreshControl, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, Pressable, ScrollView, StyleSheet, RefreshControl, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform, Animated, Easing } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -11,9 +11,11 @@ import { useThemeStore } from '../../store/common/useThemeStore';
 import { useNotificationStore } from '../../store/common/useNotificationStore';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
+import { useDrawer } from '../../store/owners/useDrawer';
 import { setAcceptingOrders, apiError } from '../../api/owners/shopApi';
 import { clockTime } from '../../utils/owners/orderFlow';
 import { showToast } from '../customers/shop';
+import { LineShimmer } from './shimmer';
 
 export const money = (n) => `₹${Math.round(Number(n) || 0).toLocaleString('en-IN')}`;
 
@@ -167,16 +169,42 @@ export function Empty({ icon = 'file-tray-outline', title, hint }) {
 }
 
 /* ------------------------------ header ------------------------------ */
-function ShopLogo({ size = 40 }) {
+export function ShopLogo({ size = 40 }) {
     const { primary, onPrimary, border } = useBrand();
-    const theme = useThemeStore((st) => st.theme);
-    const initial = String(theme.name || '?').trim().charAt(0).toUpperCase();
-    return theme.logo ? (
-        <Image source={{ uri: theme.logo }} style={{ width: size, height: size, borderRadius: size / 3, borderWidth: StyleSheet.hairlineWidth, borderColor: border }} contentFit="cover" />
+    const logo = useHomeStore((st) => st.full.restaurant?.logo);
+    const shopName = useHomeStore((st) => st.full.restaurant?.name);
+    const themeName = useThemeStore((st) => st.theme.name);
+    const name = shopName || themeName;
+    const [broken, setBroken] = useState(false);
+    const initial = String(name || '?').trim().charAt(0).toUpperCase();
+    return logo && !broken ? (
+        <Image source={{ uri: logo }} onError={() => setBroken(true)} style={{ width: size, height: size, borderRadius: size / 3, borderWidth: StyleSheet.hairlineWidth, borderColor: border, backgroundColor: '#FFFFFF' }} contentFit="contain" />
     ) : (
         <View style={{ width: size, height: size, borderRadius: size / 3, backgroundColor: primary, alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ color: onPrimary, fontWeight: '900', fontSize: size * 0.45 }}>{initial}</Text>
         </View>
+    );
+}
+
+// The big Live switch: ON = the shop takes orders, OFF = paused. Turning it OFF asks for how long (the pause sheet); turning it
+// ON starts at once. The knob slides and the track changes colour.
+export function LiveToggle({ on, busy, onPress }) {
+    const { ok, error, border, surface } = useBrand();
+    const v = useRef(new Animated.Value(on ? 1 : 0)).current;
+    useEffect(() => {
+        Animated.timing(v, { toValue: on ? 1 : 0, duration: 240, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+    }, [on, v]);
+    const W = 74; const H = 36; const K = 28;
+    return (
+        <Pressable onPress={onPress} disabled={busy} hitSlop={8} accessibilityRole="switch" accessibilityState={{ checked: on }} accessibilityLabel={on ? 'Shop is live. Tap to pause orders' : 'Shop is off. Tap to go live'} style={{ marginRight: 4, opacity: busy ? 0.7 : 1 }}>
+            <Animated.View style={{ width: W, height: H, borderRadius: H / 2, justifyContent: 'center', backgroundColor: v.interpolate({ inputRange: [0, 1], outputRange: [alpha(error, 0.85), ok] }), shadowColor: on ? ok : error, shadowOpacity: 0.35, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 5 }}>
+                <Animated.Text style={{ position: 'absolute', left: 11, color: '#FFFFFF', fontWeight: '900', fontSize: 11, letterSpacing: 0.8, opacity: v }}>LIVE</Animated.Text>
+                <Animated.Text style={{ position: 'absolute', right: 11, color: '#FFFFFF', fontWeight: '900', fontSize: 11, letterSpacing: 0.8, opacity: v.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }) }}>OFF</Animated.Text>
+                <Animated.View style={{ position: 'absolute', width: K, height: K, borderRadius: K / 2, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', transform: [{ translateX: v.interpolate({ inputRange: [0, 1], outputRange: [4, W - K - 4] }) }], shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 3 }}>
+                    {busy ? <LineShimmer width={14} height={14} /> : <Ionicons name="power" size={15} color={on ? ok : error} />}
+                </Animated.View>
+            </Animated.View>
+        </Pressable>
     );
 }
 
@@ -185,14 +213,17 @@ export function OwnerHeader({ title }) {
     const nav = useNavigation();
     const insets = useSafeAreaInsets();
     const { text, muted, background, ok, error } = useBrand();
-    const name = useThemeStore((st) => st.theme.name);
-    const unread = useNotificationStore((st) => st.unread);
+    const shopName = useHomeStore((st) => st.full.restaurant?.name);
+    const themeName = useThemeStore((st) => st.theme.name);
+    const name = shopName || themeName;
+    const unread = useOwnerStore((st) => st.unread);
     const restaurant = useHomeStore((st) => st.full.restaurant);
     const accepting = useHomeStore((st) => st.full.orders.acceptingOrders);
     const access = useOwnerStore((st) => st.access);
 
     const pausedUntil = useHomeStore((st) => st.full.orders.pausedUntil);
     const [pauseOpen, setPauseOpen] = useState(false);
+    const [switching, setSwitching] = useState(false);
 
     const timedPause = !!pausedUntil && new Date(pausedUntil).getTime() > Date.now();
     const open = restaurant?.isOpen !== false && accepting !== false;
@@ -200,18 +231,34 @@ export function OwnerHeader({ title }) {
         : accepting === false ? 'Orders paused'
             : restaurant?.isOpen === false ? 'Closed now' : 'Open';
     const canToggle = access === 'ok';
+    const isOn = accepting !== false;
+
+    // ON -> ask for how long (30 min ... until I start again). OFF -> go live at once.
+    const flip = async () => {
+        if (!canToggle) { showToast(access === 'blocked' ? 'Your shop panel is paused by the platform' : 'Locked while the monthly bill is unpaid'); return; }
+        if (isOn) { setPauseOpen(true); return; }
+        setSwitching(true);
+        try {
+            await setAcceptingOrders(true);
+            await useHomeStore.getState().load();
+            useOwnerStore.getState().refresh();
+            showToast('You are live. Customers can order.');
+        } catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); } finally { setSwitching(false); }
+    };
 
     return (
         <View style={[s.header, { paddingTop: insets.top + 8, backgroundColor: background }]}>
-            <Pressable onPress={() => nav.navigate('ShopHub')} hitSlop={8}><ShopLogo /></Pressable>
+            <Pressable onPress={() => useDrawer.getState().show()} hitSlop={10} style={{ paddingRight: 12 }} accessibilityLabel="Open the menu"><Ionicons name="menu" size={26} color={text} /></Pressable>
+            <ShopLogo />
             <View style={{ flex: 1, marginLeft: 12 }}>
                 <Text style={{ color: text, fontSize: 18, fontWeight: '900' }} numberOfLines={1}>{title || name}</Text>
-                <Pressable onPress={() => canToggle && setPauseOpen(true)} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
                     <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: open ? ok : error, marginRight: 6 }} />
-                    <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }}>{label}{canToggle ? ' · tap to change' : ''}</Text>
-                </Pressable>
+                    <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }} numberOfLines={1}>{label}</Text>
+                </View>
             </View>
-            <Pressable onPress={() => nav.navigate('ShopHub')} hitSlop={10} style={{ padding: 6 }}>
+            <LiveToggle on={isOn} busy={switching} onPress={flip} />
+            <Pressable onPress={() => nav.navigate('OwnerNotifications')} hitSlop={10} style={{ padding: 6 }}>
                 <Ionicons name="notifications-outline" size={24} color={text} />
                 {unread > 0 ? <View style={[s.dot, { backgroundColor: error }]} /> : null}
             </Pressable>
@@ -293,7 +340,7 @@ const s = StyleSheet.create({
     pill: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99, alignSelf: 'flex-start' },
     btn: { minHeight: 48, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
     row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12 },
-    sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingHorizontal: 16, maxHeight: '90%' },
+    sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 10, paddingHorizontal: 16, maxHeight: '90%', elevation: 24, shadowColor: '#000', shadowOpacity: 0.14, shadowRadius: 18, shadowOffset: { width: 0, height: -6 } },
     option: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13 },
     radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
     radioDot: { width: 10, height: 10, borderRadius: 5 },
@@ -311,8 +358,8 @@ export function Sheet({ visible, onClose, title, children }) {
     return (
         <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
-                <Pressable style={StyleSheet.absoluteFill} onPress={onClose}><View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }} /></Pressable>
-                <View style={[s.sheet, { backgroundColor: surface, paddingBottom: Math.max(insets.bottom, 12) + 8 }]}>
+                <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+                <View style={[s.sheet, { backgroundColor: surface, borderTopColor: border, paddingBottom: Math.max(insets.bottom, 12) + 8 }]}>
                     <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: border, marginBottom: 10 }} />
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                         <Text style={{ flex: 1, color: text, fontSize: 18, fontWeight: '900' }}>{title}</Text>
@@ -326,7 +373,7 @@ export function Sheet({ visible, onClose, title, children }) {
 }
 
 // a text box: for a reason the owner types himself
-export function Field({ value, onChangeText, placeholder, multiline, maxLength = 200, autoFocus, style }) {
+export function Field({ value, onChangeText, placeholder, multiline, maxLength = 200, autoFocus, style, keyboardType }) {
     const { text, muted, border, surface } = useBrand();
     return (
         <TextInput
@@ -337,6 +384,7 @@ export function Field({ value, onChangeText, placeholder, multiline, maxLength =
             multiline={multiline}
             maxLength={maxLength}
             autoFocus={autoFocus}
+            keyboardType={keyboardType}
             style={[{
                 borderWidth: 1, borderColor: border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, color: text, fontSize: 15,
                 backgroundColor: surface, minHeight: multiline ? 84 : 46, textAlignVertical: multiline ? 'top' : 'center',
@@ -392,7 +440,7 @@ export function PauseSheet({ visible, onClose }) {
                     {PAUSE_CHOICES.map(([label, extra, icon], i) => (
                         <Row key={label} icon={icon} title={label} color={i === PAUSE_CHOICES.length - 1 ? error : undefined} onPress={busy ? undefined : () => apply(false, extra)} last={i === PAUSE_CHOICES.length - 1} />
                     ))}
-                    {busy ? <ActivityIndicator style={{ marginTop: 10 }} /> : null}
+                    {busy ? <LineShimmer width={120} height={14} /> : null}
                 </View>
             )}
         </Sheet>

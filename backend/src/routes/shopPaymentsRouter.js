@@ -4,6 +4,8 @@
 //   GET /refunds?status=pending|processing|processed|failed&page=1
 //   GET /disputes                                  chargebacks of this shop
 //   GET /transactions?from&to&category&status&page  every money movement of this shop: received, refunds, SMS top-ups, monthly bills
+//        add &format=csv to download the same list (at most 5000 rows) as a spreadsheet file
+//   GET /summary?year=2026                         the year month by month: money in, money out, kept, still to pay
 // All money is whole paise.
 const express = require('express');
 const OnlinePayment = require('../models/OnlinePayment');
@@ -102,9 +104,47 @@ router.get('/disputes', wrap(async (req, res) => {
     });
 }));
 
+const EXPORT_MAX = 5000;
 router.get('/transactions', wrap(async (req, res) => {
     const filter = ledger.parseQuery(req.query, { view: 'shop' });
-    res.json(await ledger.list({ view: 'shop', tenantId: req.tenant._id, filter }));
+    const tenantId = req.tenant._id;
+    if (req.query.format !== 'csv') return res.json(await ledger.list({ view: 'shop', tenantId, filter }));
+    // the download walks the pages, so one request never loads everything at once
+    const first = await ledger.list({ view: 'shop', tenantId, filter: { ...filter, page: 1, limit: 100 } });
+    let items = first.items;
+    for (let p = 2; items.length < Math.min(first.total, EXPORT_MAX); p += 1) {
+        const next = await ledger.list({ view: 'shop', tenantId, filter: { ...filter, page: p, limit: 100 } });
+        if (!next.items.length) break;
+        items = items.concat(next.items);
+    }
+    res.set('Content-Type', 'text/csv; charset=utf-8');
+    res.set('Content-Disposition', 'attachment; filename="transactions.csv"');
+    res.send(ledger.toCsv(items.slice(0, EXPORT_MAX), 'shop'));
+}));
+
+// A year month by month (India time). The list of years runs from the year the shop joined to this year.
+router.get('/summary', wrap(async (req, res) => {
+    const nowYear = new Date(Date.now() + IST_MS).getUTCFullYear();
+    const firstYear = Math.min(nowYear, new Date(req.tenant.createdAt || Date.now()).getUTCFullYear());
+    const year = req.query.year === undefined ? nowYear : Number(req.query.year);
+    if (!Number.isInteger(year) || year < 2000 || year > nowYear) throw httpError(400, 'year must be a year from 2000 to this year');
+    const pad = (n) => String(n).padStart(2, '0');
+    const months = await Promise.all(Array.from({ length: 12 }, async (_, i) => {
+        const m = i + 1;
+        const last = new Date(Date.UTC(year, m, 0)).getUTCDate();
+        const filter = { from: day(`${year}-${pad(m)}-01`, false), to: day(`${year}-${pad(m)}-${pad(last)}`, true), page: 1, limit: 1 };
+        const r = await ledger.list({ view: 'shop', tenantId: req.tenant._id, filter });
+        return { month: `${year}-${pad(m)}`, inPaise: r.totals.inPaise, outPaise: r.totals.outPaise, netPaise: r.totals.netPaise, pendingPaise: r.totals.pending.paise, count: r.total };
+    }));
+    res.json({
+        year,
+        years: Array.from({ length: nowYear - firstYear + 1 }, (_, i) => nowYear - i),
+        months,
+        totals: {
+            inPaise: months.reduce((a, m) => a + m.inPaise, 0), outPaise: months.reduce((a, m) => a + m.outPaise, 0),
+            netPaise: months.reduce((a, m) => a + m.netPaise, 0), count: months.reduce((a, m) => a + m.count, 0),
+        },
+    });
 }));
 
 router.use(apiErrors);

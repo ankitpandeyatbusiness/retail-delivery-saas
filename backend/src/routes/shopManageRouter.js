@@ -24,6 +24,8 @@ const { timingsError } = require('../services/categoryTimings');
 const { salesReport, parseRange } = require('../services/reportService');
 const { wrap, httpError } = require('../middlewares/apiErrors');
 const crud = require('../utils/crud');
+const { typeOf } = require('../config/businessTypes');
+const { nextMorning } = require('../utils/nextMorning');
 
 const router = express.Router();
 const isId = (v) => typeof v === 'string' && mongoose.isValidObjectId(v);
@@ -42,6 +44,75 @@ const dateCheck = (d) => {
 };
 
 /* ------------------------------ menu ------------------------------ */
+// The owner's whole menu in one go: every category (hidden ones too) with its item count, and light items.
+router.get('/menu', wrap(async (req, res) => {
+    await stockSvc.ensureToday(req.tenant._id);
+    const tenantId = req.tenant._id;
+    const [categories, products] = await Promise.all([
+        Category.find({ tenantId }).sort({ sortOrder: 1, _id: 1 }).limit(200).lean(),
+        Product.find({ tenantId, isActive: true }).sort({ sortOrder: 1, _id: 1 }).limit(600)
+            .select('categoryId name image price mrp isVeg isAvailable unavailableUntil stock sellBy itemKind isBestseller isNewArrival isGiftPack isJain isEggless isSugarFree sortOrder').lean(),
+    ]);
+    const counts = {};
+    for (const p of products) counts[String(p.categoryId)] = (counts[String(p.categoryId)] || 0) + 1;
+    res.json({
+        categories: categories.map((c) => ({ ...c, itemCount: counts[String(c._id)] || 0 })),
+        products,
+        truncated: products.length >= 600,
+    });
+}));
+
+// What the item form needs to know about this shop
+router.get('/menu/options', wrap(async (req, res) => {
+    const cfg = resolveConfig(req.tenant);
+    const bt = typeOf(req.tenant.businessType);
+    res.json({ foodMode: cfg.home?.foodMode || 'any', businessType: req.tenant.businessType || null, itemKinds: bt.itemKinds, measures: bt.measures });
+}));
+
+// Sold out for a while. Body: { available: true } | { available: false } | { available: false, minutes } | { available: false, untilMorning: true }
+router.patch('/products/:id/availability', wrap(async (req, res) => {
+    if (!isId(req.params.id)) throw httpError(404, 'Item not found');
+    const b = req.body || {};
+    if (typeof b.available !== 'boolean') throw httpError(400, 'available must be true or false');
+    const p = await Product.findOne({ _id: req.params.id, tenantId: req.tenant._id }).select('stock').lean();
+    if (!p) throw httpError(404, 'Item not found');
+    let until = null;
+    if (!b.available) {
+        if (b.untilMorning) until = nextMorning();
+        else if (b.minutes !== undefined) {
+            if (!Number.isInteger(b.minutes) || b.minutes < 1 || b.minutes > 1440) throw httpError(400, 'minutes must be from 1 to 1440');
+            until = new Date(Date.now() + b.minutes * 60000);
+        }
+    } else if (p.stock?.enabled && !(p.stock.qty > 0)) {
+        throw httpError(409, 'This item has no stock left. Add stock first.');
+    }
+    const update = b.available
+        ? { $set: { isAvailable: true }, $unset: { unavailableUntil: 1 } }
+        : until ? { $set: { isAvailable: false, unavailableUntil: until } } : { $set: { isAvailable: false }, $unset: { unavailableUntil: 1 } };
+    const out = await Product.findOneAndUpdate({ _id: p._id, tenantId: req.tenant._id }, update, { returnDocument: 'after' })
+        .select('name isAvailable unavailableUntil').lean();
+    res.json({ id: out._id, name: out.name, isAvailable: out.isAvailable, unavailableUntil: out.unavailableUntil || null });
+}));
+
+// Put things in the order the owner dragged them. Body: { ids: [...] } — the first id becomes 0, and so on.
+// Must be registered before the crud mounts, otherwise "/:id" would take the word "order".
+const reorder = (path, Model) => router.put(`${path}/order`, wrap(async (req, res) => {
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(String) : null;
+    if (!ids || !ids.length || ids.length > 700 || ids.some((x) => !isId(x)) || new Set(ids).size !== ids.length) {
+        throw httpError(400, 'ids must be a list of valid, different ids');
+    }
+    const n = await Model.countDocuments({ _id: { $in: ids }, tenantId: req.tenant._id });
+    if (n !== ids.length) throw httpError(400, 'Every id must belong to this shop');
+    await Model.bulkWrite(ids.map((id, i) => ({
+        updateOne: { filter: { _id: id, tenantId: req.tenant._id }, update: { $set: { sortOrder: i } } },
+    })));
+    res.json({ ok: true, count: ids.length });
+}));
+reorder('/categories', Category);
+reorder('/products', Product);
+reorder('/collections', Collection);
+reorder('/banners', Banner);
+
 router.use('/categories', crud(Category, {
     fields: ['name', 'image', 'sortOrder', 'isActive', 'timings'],
     sort: { sortOrder: 1, _id: 1 },
@@ -77,12 +148,13 @@ router.patch('/products/:id/stock', wrap(async (req, res) => {
     const enabled = b.enabled !== undefined ? b.enabled : !!p.stock?.enabled;
     const qty = b.qty !== undefined ? b.qty : (p.stock?.qty || 0);
     const set = { 'stock.enabled': enabled, 'stock.qty': qty, isAvailable: enabled ? qty > 0 : true };
+    const unset = { unavailableUntil: 1 };   // the stock count decides now, not an earlier "sold out until"
     if (b.dailyQty !== undefined) set['stock.dailyQty'] = b.dailyQty;   // null clears it
     // the count entered now belongs to today: the daily reset must not wipe it before tomorrow
     if (enabled) set['stock.resetOn'] = stockSvc.dayKey();
     const out = await Product.findOneAndUpdate(
         { _id: p._id, tenantId: req.tenant._id },
-        { $set: set },
+        { $set: set, $unset: unset },
         { returnDocument: 'after' },
     ).select('name stock isAvailable sellBy').lean();
     res.json({ id: out._id, name: out.name, sellBy: out.sellBy, stock: out.stock, isAvailable: out.isAvailable });

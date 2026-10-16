@@ -145,7 +145,7 @@ function validateSettings(input) {
 
     // orders
     section('orders',
-        ['types', 'payments', 'minOrder', 'deliveryFee', 'packagingCharge', 'gst', 'tipOptions', 'prepTimeMin', 'acceptingOrders', 'pausedUntil', 'codCap'],
+        ['types', 'payments', 'minOrder', 'deliveryFee', 'packagingCharge', 'gst', 'tipOptions', 'prepTimeMin', 'acceptingOrders', 'pausedUntil', 'busy', 'codCap'],
         (o, out, p) => {
             if (o.types !== undefined) { const v = listOf(p('types'), o.types, O.ORDER_TYPES, 1, 3); if (v) out.types = v; }
             if (o.payments !== undefined) { const v = listOf(p('payments'), o.payments, O.PAYMENT_METHODS, 1, 4); if (v) out.payments = v; }
@@ -159,6 +159,18 @@ function validateSettings(input) {
                 if (o.pausedUntil === null) out.pausedUntil = null;
                 else if ((o.pausedUntil instanceof Date || typeof o.pausedUntil === 'string') && !Number.isNaN(new Date(o.pausedUntil).getTime())) out.pausedUntil = o.pausedUntil;
                 else err(p('pausedUntil'), 'must be a date and time');
+            }
+            // busy mode set by the owner: for a while customers see a longer wait. null = none.
+            if (o.busy !== undefined) {
+                if (o.busy === null) out.busy = null;
+                else if (!isObj(o.busy)) err(p('busy'), 'must be an object');
+                else {
+                    known(o.busy, ['extraMin', 'until'], p('busy'));
+                    const u = o.busy.until;
+                    if (!Number.isInteger(o.busy.extraMin) || o.busy.extraMin < 0 || o.busy.extraMin > 120) err(p('busy.extraMin'), 'must be a whole number from 0 to 120');
+                    else if (!((u instanceof Date || typeof u === 'string') && !Number.isNaN(new Date(u).getTime()))) err(p('busy.until'), 'must be a date and time');
+                    else out.busy = { extraMin: o.busy.extraMin, until: u };
+                }
             }
             if (o.deliveryFee !== undefined) {
                 const d = o.deliveryFee;
@@ -373,6 +385,12 @@ function brandColors(fromLogo, fromPanel) {
     return colors;
 }
 
+// The logo shown inside the apps: the shop's own logo, else the app icon saved for its branding on the media storage
+const brandingIcon = (slug) => {
+    const base = String(process.env.MEDIA_CDN_URL || process.env.R2_PUBLIC_URL || '').replace(/\/+$/, '');
+    return base && slug ? `${base}/tenants/${slug}/branding/icon.png` : null;
+};
+
 function resolveConfig(tenant, now = new Date()) {
     const { clean } = validateSettings(tenant.settings);
 
@@ -419,6 +437,15 @@ function resolveConfig(tenant, now = new Date()) {
         delete orders.pausedUntil;
     }
 
+    // Busy mode: while it lasts the prepare time is longer; afterwards it simply stops applying
+    const busy = orders.busy;
+    if (busy && busy.until && new Date(busy.until).getTime() > now.getTime() && busy.extraMin > 0) {
+        orders.prepTimeMin = (orders.prepTimeMin || 0) + busy.extraMin;
+        orders.busy = { extraMin: busy.extraMin, until: new Date(busy.until).toISOString() };
+    } else {
+        delete orders.busy;
+    }
+
     // No COD during free service. Switched on with ENFORCE_NO_COD_IN_FREE=true (keep it OFF until online payments exist)
     if (process.env.ENFORCE_NO_COD_IN_FREE === 'true' && tenant.billing?.state === 'free') {
         orders.payments = (orders.payments || []).filter((m) => m !== 'cod');
@@ -451,7 +478,7 @@ function resolveConfig(tenant, now = new Date()) {
         restaurant: {
             name: tenant.name,
             tagline: tenant.tagline || null,
-            logo: tenant.logo || null,
+            logo: tenant.logo || brandingIcon(tenant.slug),
             address: tenant.address || null,
             // where the shop is pinned on the map (null when it is not): the customer app's Directions button needs it
             latitude: Number.isFinite(tenant.delivery?.latitude) ? tenant.delivery.latitude : null,

@@ -19,8 +19,10 @@ const clamp = (n, min, max) => Math.min(Math.max(n, min), max);
 
 // allowClear: DELETE / removes the person's whole inbox. Only for customers and riders (`mine`):
 // the owner inbox is read by the escalation job, so the shop side is never cleared this way.
-function inbox(filterOf, { allowClear = false } = {}) {
+function inbox(rawFilterOf, { allowClear = false, softClear = false } = {}) {
     const r = express.Router();
+    // softClear (the owner side): cleared messages are hidden from every list and count
+    const filterOf = softClear ? (req) => ({ ...rawFilterOf(req), clearedAt: null }) : rawFilterOf;
 
     r.get('/', wrap(async (req, res) => {
         const page = clamp(parseInt(req.query.page, 10) || 1, 1, 1000);
@@ -55,6 +57,16 @@ function inbox(filterOf, { allowClear = false } = {}) {
         await Notification.updateOne({ ...filter, readAt: null }, { $set: { readAt: new Date() } });
         res.json({ ok: true });
     }));
+
+    if (softClear) {
+        // Clear all: hides the owner's messages (marks them read first, so no SMS is sent for them later)
+        r.delete('/', wrap(async (req, res) => {
+            const now = new Date();
+            await Notification.updateMany({ ...filterOf(req), readAt: null }, { $set: { readAt: now } });
+            const out = await Notification.updateMany(filterOf(req), { $set: { clearedAt: now } });
+            res.json({ ok: true, cleared: out.modifiedCount });
+        }));
+    }
 
     if (allowClear) {
         // Clear all: deletes every message of this person (filter is always tenant + user, never wider)
@@ -104,7 +116,7 @@ mine.use(inbox((req) => ({ tenantId: req.tenant._id, userId: req.auth.userId }),
 mine.use(apiErrors);
 
 const shop = express.Router();
-shop.use(inbox((req) => ({ tenantId: req.tenant._id, role: 'owner' })));
+shop.use(inbox((req) => ({ tenantId: req.tenant._id, role: 'owner' }), { softClear: true }));
 shop.use(apiErrors);
 
 module.exports = { mine, shop };

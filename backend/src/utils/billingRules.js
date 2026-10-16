@@ -84,4 +84,15 @@ function resolveFee(tenant, platform, orderCount) {
     return feeForCount(resolveTiers(tenant, platform), orderCount);
 }
 
-module.exports = { DEFAULT_TIERS, validateTiers, resolveTiers, feeForCount, freeStatus, resolveFee };
+// The tiers as rows the owner can read: [{ from, to (null = no end), fee, label }]
+function tierTable(tiers) {
+    let from = 0;
+    return tiers.map((t) => {
+        const open = t.upTo === null || t.upTo === undefined;
+        const row = { from, to: open ? null : t.upTo, fee: t.fee, label: open ? `${from}+ orders` : `${from} to ${t.upTo} orders` };
+        if (!open) from = t.upTo + 1;
+        return row;
+    });
+}
+
+module.exports = { tierTable, DEFAULT_TIERS, validateTiers, resolveTiers, feeForCount, freeStatus, resolveFee };

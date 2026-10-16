@@ -69,6 +69,9 @@ const productSchema = new mongoose.Schema({
     orderCount: { type: Number, default: 0 },
 
     isAvailable: { type: Boolean, default: true },     // temporarily out of stock
+    // "sold out until ...": the owner switched it off for a while. It switches ON again by itself at this time
+    // (stockService.sweepSoldOut, run whenever the menu is read). No date = off until the owner switches it on.
+    unavailableUntil: Date,
     stock: {                                           // optional count. Set only through PATCH /api/shop/products/:id/stock
         enabled: { type: Boolean, default: false },    // false = unlimited
         qty: { type: Number, default: 0, min: 0 },     // left right now: pieces, or g / ml for weight / volume items

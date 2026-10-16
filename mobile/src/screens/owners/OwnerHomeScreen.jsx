@@ -54,11 +54,52 @@ function HourBars({ byHour, nowHour }) {
     );
 }
 
+// "Free period": days left and free orders left. Free ends when EITHER runs out. Before the shop goes live it is free
+// with no limit (the test orders cost nothing).
+function FreePeriod({ free, now }) {
+    const { text, muted, primary, ok, accent } = useBrand();
+    if (!free || !free.active) return null;
+    const warn = accent || '#F59E0B';
+    const total = free.freeOrders || 0;
+    const left = free.ordersLeft ?? total;
+    const used = Math.max(0, total - left);
+    const days = free.endsAt ? Math.max(0, Math.ceil((new Date(free.endsAt).getTime() - now) / 86400000)) : null;
+    const low = (total > 0 && left <= Math.max(5, total * 0.1)) || (days !== null && days <= 7);
+    const color = low ? warn : ok;
+    return (
+        <Card tone={color}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons name="gift" size={22} color={color} />
+                <Text style={{ color: text, fontWeight: '900', fontSize: 16, flex: 1, marginLeft: 8 }}>{free.live === false ? 'Free while you set up' : 'Your free period'}</Text>
+                <Pill label="FREE" color={color} />
+            </View>
+            {free.live === false ? (
+                <Text style={{ color: muted, marginTop: 8 }}>Nothing is charged while you test. Your {free.freeMonths || 2} free months and {total} free orders start when your shop goes live.</Text>
+            ) : (
+                <>
+                    <View style={{ flexDirection: 'row', marginTop: 12 }}>
+                        <Stat label="Days left" value={days === null ? '–' : String(days)} hint={free.endsAt ? `until ${new Date(free.endsAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : undefined} color={days !== null && days <= 7 ? warn : undefined} />
+                        <Stat label="Free orders left" value={String(left)} hint={`of ${total}`} color={left <= Math.max(5, total * 0.1) ? warn : undefined} />
+                    </View>
+                    {total > 0 ? (
+                        <View style={{ height: 8, borderRadius: 4, backgroundColor: alpha(muted, 0.2), marginTop: 12 }}>
+                            <View style={{ width: `${Math.min(100, (used / total) * 100)}%`, height: 8, borderRadius: 4, backgroundColor: color }} />
+                        </View>
+                    ) : null}
+                    {low ? <Text style={{ color, fontWeight: '800', marginTop: 10 }}>Your free period is ending soon. After it ends, the monthly fee starts (see Money, Monthly bill).</Text> : null}
+                    <Text style={{ color: muted, fontSize: 12, marginTop: 8 }}>The free period ends when you reach {total} delivered orders or when the days run out, whichever comes first.</Text>
+                </>
+            )}
+        </Card>
+    );
+}
+
 export default function OwnerHomeScreen() {
     const nav = useNavigation();
     const { muted, primary, error, ok, text, accent } = useBrand();
     const live = useOwnerStore((st) => st.live);
     const d = useOwnerStore((st) => st.dashboard);
+    const billing = useOwnerStore((st) => st.billing);
     const loadError = useOwnerStore((st) => st.error);
     const refresh = useOwnerStore((st) => st.refresh);
     const soundbox = useSoundboxStore((st) => st.soundbox);
@@ -102,7 +143,7 @@ export default function OwnerHomeScreen() {
     if (d) {
         if (d.stock.outCount) attention.push({ key: 'out', icon: 'ban', color: error, title: `${d.stock.outCount} item${d.stock.outCount === 1 ? '' : 's'} out of stock`, sub: d.stock.out.slice(0, 3).map((p) => p.name).join(', ') + (d.stock.outCount > 3 ? ' and more' : ''), go: () => nav.navigate('MenuTab') });
         if (d.stock.lowCount) attention.push({ key: 'low', icon: 'trending-down', color: warn, title: `${d.stock.lowCount} item${d.stock.lowCount === 1 ? '' : 's'} running low`, sub: d.stock.low.slice(0, 3).map((p) => `${p.name} (${p.qty})`).join(', '), go: () => nav.navigate('MenuTab') });
-        if (d.complaints.open) attention.push({ key: 'cmp', icon: 'chatbubble-ellipses', color: error, title: `${d.complaints.open} open complaint${d.complaints.open === 1 ? '' : 's'}`, sub: 'Customers are waiting for a reply', go: () => nav.navigate('ShopHub') });
+        if (d.complaints.open) attention.push({ key: 'cmp', icon: 'chatbubble-ellipses', color: error, title: `${d.complaints.open} open complaint${d.complaints.open === 1 ? '' : 's'}`, sub: 'Customers are waiting for a reply', go: () => nav.navigate('OwnerComplaints') });
         if (d.sms.zero) attention.push({ key: 'sms0', icon: 'mail-unread', color: error, title: 'SMS balance is finished', sub: 'Order alerts by SMS have stopped. Top up.', go: () => nav.navigate('MoneyTab') });
         else if (d.sms.low) attention.push({ key: 'sms', icon: 'mail-unread', color: warn, title: 'SMS balance is low', sub: `${money(d.sms.balancePaise / 100)} left`, go: () => nav.navigate('MoneyTab') });
         if (d.rent.dueAmount) attention.push({ key: 'rent', icon: 'card', color: error, title: `Rent due: ${money(d.rent.dueAmount)}`, sub: d.rent.graceEndsAt ? `Pay before ${flow.dayTime(d.rent.graceEndsAt)}` : 'Please pay it', go: () => nav.navigate('MoneyTab') });
@@ -137,6 +178,9 @@ export default function OwnerHomeScreen() {
                     </View>
                 </Card>
             ) : null}
+
+            {/* the free period: how many days and orders are left */}
+            <FreePeriod free={billing?.free} now={now} />
 
             {/* needs him now */}
             {waiting.length ? (

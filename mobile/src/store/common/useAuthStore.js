@@ -36,6 +36,12 @@ export const useAuthStore = create((set, get) => ({
 
         await clearStoredSession();
         set({ user: null, accessToken: null });
+        // the next person on this phone must not see this shop's menu, riders or orders
+        try {
+            require('../owners/useOwnerStore').useOwnerStore.getState().reset();
+            require('../owners/useMenuStore').useMenuStore.getState().reset();
+            require('../owners/useRidersStore').useRidersStore.getState().reset();
+        } catch (e) { }
 
         if (refreshToken) {
             try {

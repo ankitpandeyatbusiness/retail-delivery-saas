@@ -31,7 +31,7 @@ function parseRange(query = {}) {
     return { from, to };
 }
 
-async function salesReport({ tenantId, from, to, groupBy }) {
+async function salesReport({ tenantId, from, to, groupBy, topLimit = 10 }) {
     const shop = tenantId ? { tenantId: oid(tenantId) } : {};
     const delivered = { ...shop, status: 'delivered', deliveredAt: { $gte: from, $lte: to } };
     const placedInRange = { ...shop, createdAt: { $gte: from, $lte: to } };
@@ -74,7 +74,7 @@ async function salesReport({ tenantId, from, to, groupBy }) {
             // topItems uses item.lineTotal which is already correct, leave it alone
             { $group: { _id: '$items.productId', name: { $first: '$items.name' }, quantity: { $sum: '$items.quantity' }, revenue: { $sum: '$items.lineTotal' } } },
             { $sort: { quantity: -1 } },
-            { $limit: 10 },
+            { $limit: Math.min(Math.max(Number(topLimit) || 10, 1), 50) },
         ]),
         Order.aggregate([
             { $match: delivered },

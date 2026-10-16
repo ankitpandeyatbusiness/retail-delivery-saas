@@ -7,7 +7,7 @@ const Tenant = require('../models/Tenant');
 const Order = require('../models/Order');
 const SubscriptionInvoice = require('../models/SubscriptionInvoice');
 const PlatformSettings = require('../models/PlatformSettings');
-const { resolveFee, freeStatus } = require('../utils/billingRules');
+const { resolveFee, freeStatus, resolveTiers, tierTable } = require('../utils/billingRules');
 const { periodOf, nextPeriod, firstBillablePeriod } = require('../services/subscriptionService');
 const { wrap, httpError } = require('../middlewares/apiErrors');
 const prompts = require('../services/billingPromptService');
@@ -44,8 +44,12 @@ router.get('/status', wrap(async (req, res) => {
         graceEndsAt,
         graceDaysLeft: graceEndsAt ? Math.max(0, Math.ceil((new Date(graceEndsAt) - now) / DAY_MS)) : null,
         due: { amount: owed?.amount || 0, count: owed?.count || 0 },
-        free: { active: free.free, ordersLeft: free.ordersLeft, freeOrders: free.freeOrders, endsAt: free.endsAt },
+        free: { active: free.free, ordersLeft: free.ordersLeft, freeOrders: free.freeOrders, freeMonths: free.freeMonths, endsAt: free.endsAt, live: free.live !== false },
         thisMonth: { period, billableOrders: orders, deliveredOrders: orders, tierLabel: tier.label, fee: tier.fee },
+        // the monthly fee plan that applies to THIS shop: one fixed fee, or the order tiers (his own tiers if he has them)
+        plan: Number.isFinite(t.billing?.fixedFeeOverride)
+            ? { kind: 'fixed', fee: t.billing.fixedFeeOverride, tiers: [] }
+            : { kind: 'tiers', fee: null, tiers: tierTable(resolveTiers(t, platform)) },
         nextBill: billed
             ? { forPeriod: period, deliveredOrders: orders, fee: tier.fee, tierLabel: tier.label, billedOn: monthStart(nextPeriod(period)), note: 'GST is added if it applies' }
             : null,

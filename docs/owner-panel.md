@@ -16,14 +16,14 @@ Related: `docs/owner-soundbox.md` (the new-order alert, built first).
 |---|---|---|
 | 0 | Role routing, owner tabs, UI kit, API layer, Soundbox | done |
 | **1** | **Home dashboard, Orders board, order detail, pause orders** | **done (written; needs a device run)** |
-| 2 | Menu: categories, items, stock, photos, collections | next |
-| 3 | Riders, live map, cash on delivery, performance, rider rules | |
-| 4 | Money: sales, payments, refunds, SMS wallet, rent | |
-| 5 | Hub: customers, complaints, offers, messages, reviews | |
-| 6 | Settings: hours, delivery area and fee editor, COD limit, activity log | |
+| **2** | **Menu: categories, items, stock, photos, sold-out timer, collections** | **done (written; needs a device run)** |
+| **3** | **Riders, live map, cash on delivery, performance, rider rules** | **done (written; needs a device run)** |
+| **4** | **Money: sales, Excel export, payments, refunds, SMS wallet, rent** | **done (written; needs a device run)** |
+| **5** | **Hub: customers, complaints, reviews, messages, coupons, banners** | **done (written; needs a device run)** |
+| **6** | **Settings: hours, holidays, delivery area and fee editor, shop details, inbox, activity log, busy mode, closing report** | **done (written; needs a device run)** |
 | 7 | Growth: insights, win-back, scheduled orders, KOT, staff accounts | |
 
-Tabs: **Home · Orders · Menu · Riders · Money**. Everything else is in the **Shop hub** (tap the shop logo).
+Tabs: **Home · Orders · Menu · Riders · Money**. Everything else is in the **Shop hub** (the hamburger at the top left).
 Access levels enforced by the server (and shown as a banner): normal / rent unpaid (menu and settings locked, orders, riders,
 money open) / panel blocked by the platform (only orders in progress, rent, notifications).
 
@@ -93,7 +93,89 @@ Run the whole suite with `npm test` in `backend/`.
 App: run a development build (`npx expo run:android`), log in with an owner number; place orders from a customer phone
 (or the seed shop) to see them arrive. Pure helpers can be checked with Node (they have no React in them).
 
+## Phase 2 in detail (Menu)
+- **Menu tab** (`OwnerMenuScreen`): search, chips (All, Sold out, one per category), items grouped by category. Each row has an **In stock** switch: off asks *For today / 1 hour / 2 hours / Until I switch it on*; a counted item shows "N left" with − and +. Tap = edit, **Add item** button, links to Categories and Collections (also in the Shop hub).
+- **Item form** (`OwnerItemScreen`): kind + sold-by (piece/weight/volume, amounts editor), category (pick, or type a new one: the server reuses/creates it), name, description, picture (uploaded at once), price/MRP, veg/non-veg and flags, spice, serves/calories/prep time, bestseller/new/gift, choice groups (sizes, add-ons), daily stock, visible, remove (soft delete). Rules mirror the server in `utils/owners/menuRules.js`.
+- **Categories** list (up/down reorder, visible switch) and form (name, picture or one of its dishes' pictures, opening-hours slots). **Collections** list (reorder, switch) and form (kind, title, items picker, dates).
+- Files: `screens/owners/Owner{Menu,Item,Categories,Category,Collections,Collection}Screen.jsx`, `components/owners/menuBits.jsx`, `store/owners/useMenuStore.js`, `utils/owners/{menuRules,upload}.js`. Stack routes: OwnerItem, OwnerCategories, OwnerCategory, OwnerCollections, OwnerCollection.
+- **Backend added**: `Product.unavailableUntil` + `stockService.sweepSoldOut` (items come back by themselves; runs when the menu is read, at most every 20 s per shop; a counted item with no stock stays off); `PATCH /api/shop/products/:id/availability` `{available, minutes? | untilMorning?}` (409 when turning on a counted item with 0 left); `GET /api/shop/menu` (all categories incl. hidden with item counts + light items, up to 600); `GET /api/shop/menu/options` (item kinds, quick sizes, food mode); `PUT /api/shop/{categories,products,collections}/order` `{ids}`; `utils/nextMorning.js` (4 AM India, shared with the timed pause). Setting stock clears an older "sold out until". Tests: `backend/tests/ownerMenu.test.js` (full suite 611 pass).
+- Not built (by design): drag handles (arrows instead), bulk import (superadmin has it), banners/coupons (Phase 5).
+
+## Phase 3 in detail (Riders)
+- **Riders tab** (`OwnerRidersScreen`): online count and total cash with riders, quick buttons (Live map, Performance, Rules), "Cash to collect" list, every rider as a card (online/offline, orders on delivery, rating, **Can deliver** switch), **Add a rider** by mobile number.
+- **Rider page** (`OwnerRiderScreen`, param `userId`): call/WhatsApp, orders he is delivering (tap opens the order), the cash he owes with **Cash received** (handover, cannot exceed what he owes) and **Correction** (reason required), cash history with paging, switch off, remove.
+- **Live map** (`OwnerRiderMapScreen`): riders seen in the last 5 minutes, refreshed every 10 s, list below the map.
+- **Performance** (`OwnerPerformanceScreen`): last 7 / 30 days / this month: deliveries, average minutes, rating, cash collected per rider.
+- **Delivery rules** (`OwnerRiderRulesScreen`): automatic or manual assignment, answer time, orders at once, pay per delivery, delivery PIN, live tracking + interval, and the cash-on-delivery limit for new customers (`orders.codCap`). Saved with `PUT /shop/settings`; closed while rent is unpaid.
+- Files: `screens/owners/Owner{Riders,Rider,RiderMap,Performance,RiderRules}Screen.jsx`, `store/owners/useRidersStore.js`, `utils/owners/riderRules.js` (rupees/paise, ledger lines, date ranges). Stack routes: OwnerRider, OwnerRiderMap, OwnerPerformance, OwnerRiderRules. Logout now clears the owner, menu and riders stores.
+- **Backend added**: only `GET /api/shop/settings` (riders rules with defaults + `orders.codCap`; the Phase 6 settings screens will use it too). Everything else already existed. Tests: `backend/tests/ownerRiders.test.js`.
+- Money is in paise on the wire; the screens show rupees (`rupees()`), and typed rupees become whole paise (`toPaise()`).
+
+## Phase 4 in detail (Money)
+- **Money tab** (`OwnerMoneyScreen`): bill-due banner; period chips (Today / 7 days / 30 days / This month); sales (delivered orders): total, orders, average order, not-delivered count, bars per day, payment split, best sellers, delivery fees / tax / tips / discounts; **Download Excel**; cards for Online money, SMS balance and Monthly bill.
+- **Online money** (`OwnerPaymentsScreen`): received / refunded / kept for a period; tabs Money (every movement, filter All / Received / Refunds / Chargebacks / SMS / Bills), Refunds (status Asked / On the way / Done / Failed), Chargebacks (status, answer-by date).
+- **SMS balance** (`OwnerSmsScreen`): balance and about how many messages, top-up packs or a typed amount, pay by UPI QR, history (All / Top-ups / Used).
+- **Monthly bill** (`OwnerRentScreen`): what is due, grace days, free period, this month's orders and rate, next bill, all bills with **Pay by UPI** and **Open bill (PDF)**. Open even while the shop is paused for rent.
+- `PayQrSheet` (components/owners/moneyBits.jsx) shows the QR, "Pay with a UPI app" (opens the `upi://` link), and checks every 5 s whether the money arrived (top-up status `paid` / invoice status `paid`).
+- Files open through `utils/owners/files.js` (`downloadAndOpen`: PDF in the viewer, Excel through the share sheet). Helpers: `utils/owners/moneyRules.js`. Units: sales report in RUPEES; wallet, payments, refunds, top-ups in PAISE; rent invoices in rupees.
+- **Backend added**: `GET /api/shop/reports/export?from&to` (Excel: Orders, Sales by day, Items sold; newest 5000 orders; formula-safe cells; unpaid online orders left out) in `services/salesExport.js`. Everything else already existed. Tests: `backend/tests/ownerMoney.test.js`.
+- Stack routes: OwnerPayments, OwnerSms, OwnerRent.
+
+## Phase 5 in detail (Shop hub: customers, care, offers)
+All of these are opened from the **Shop hub** (tap the shop logo).
+- **Customers** (`OwnerCustomersScreen`, `OwnerCustomerScreen`): search by name or phone; a customer's page has call/WhatsApp, orders / delivered / cancelled / spent / last order, cash-on-delivery status with **Allow cash again**, and editable name, email and private notes (phone is platform-only).
+- **Complaints** (`OwnerComplaintsScreen`, `OwnerComplaintScreen`): New / In progress / Decided; the page shows the text and photos, links to the order, and the answer: *Reply only*, *Full refund*, *Part refund* (amount, capped to the order without the tip), *No refund* (reply required). Online orders are refunded automatically; for cash orders the refund is only noted (the screen says so).
+- **Reviews** (`OwnerReviewsScreen`): Food / Delivery, average, count per star, star filter, comments, tap opens the order.
+- **Messages** (`OwnerMessagesScreen`): compose (customers / riders / both, information or offer, optional email), confirm before sending, list of sent messages with delivered / failed counts (refreshes every 8 s). 5 a day, never SMS.
+- **Coupons** (`OwnerCouponsScreen`, `OwnerCouponScreen`) and **Banners** (`OwnerBannersScreen`, `OwnerBannerScreen`): list with on/off switch (banners can be ordered with arrows), form with all fields, dates as YYYY-MM-DD, banner can show one of the active coupon codes.
+- Collections (Phase 2) stay under Menu / Shop hub → Menu.
+- Helpers: `utils/owners/hubRules.js` (labels, coupon text and checks). Stack routes: OwnerCustomers, OwnerCustomer, OwnerComplaints, OwnerComplaint, OwnerReviews, OwnerMessages, OwnerCoupons, OwnerCoupon, OwnerBanners, OwnerBanner.
+- **Backend added**: `GET /api/shop/reviews?kind=dish|delivery&rating=1..5&page=` with a summary (`services/reviewsService.js`; Tier-1 #7) and `PUT /api/shop/banners/order {ids}`. Tests: `backend/tests/ownerHub.test.js`.
+
+## Phase 6 in detail (Settings, polish)
+Opened from the **Shop hub**.
+- **Opening hours** (`OwnerHoursScreen`): switch "Use opening hours" (off = no hours, orders whenever they are on); each day open/closed with up to 3 time slots (`HH:MM`, a closing time before the opening time means past midnight); closed message; **holidays** (first and last closed day, optional message, up to 30). Saved with `PUT /shop/settings { hours }` (the whole hours object, every day present).
+- **Delivery area and fees** (`OwnerDeliveryScreen`): pin on a map (`components/owners/pinMap.jsx`, drag the map or "Use my position", circle shows the distance), delivery distance, smallest order, **delivery fee editor** (Free / Same for all / By distance, free-above, highest fee), packaging charge, usual preparation time, tip buttons (up to 5), GST shown read-only. Saved with `PUT /shop/settings { orders:{deliveryFee, packagingCharge, minOrder, tipOptions, prepTimeMin}, delivery:{latitude, longitude, radiusKm} }`.
+- **Shop settings** (`OwnerShopSettingsScreen`): shop phone, address, SMS alerts on/off.
+- **Messages for you** (`OwnerNotificationsScreen`, the bell on every tab and a hub row): the owner inbox `GET /shop/notifications`, tap = read, "Mark all read"; the bell badge now counts THIS inbox (`useOwnerStore.unread`), not the customer inbox.
+- **Activity log** (`OwnerActivityScreen`): who changed what, filter Everyone / You / Riders / Platform / Automatic; technical actions are turned into plain words by `activityLabel()` in `utils/owners/settingsRules.js`.
+- **Busy mode** (sheet in the hub, backend #5): "+15/30/45/60 min for 1 h / 2 h / until tomorrow morning" or off. Customers see a longer preparation time; it ends by itself (resolved in `resolveConfig`, nothing runs at the end). `keepOwnerPause` also keeps it when the superadmin panel saves the whole form.
+- **Closing report** (`OwnerClosingScreen`, backend #6): Today / Yesterday / two days ago: sales, payment split, orders placed / delivered / cancelled (by whom) / not delivered, cash collected by riders and still with riders, online received / refunded, best sellers, complaints; **Share** sends it as text.
+- **Backend added**: `GET /api/shop/settings` now returns everything the owner can change (phone, address, delivery, hours, riders, notifications, orders incl. fees, busy, GST read-only); `PUT /api/shop/settings` accepts `orders.{codCap, deliveryFee, packagingCharge, tipOptions, minOrder, prepTimeMin}` (Tier-1 #1; GST, payment methods and order types stay with the platform); `PUT /api/shop/busy`; `GET /api/shop/closing-report?date=`. Tests: `backend/tests/ownerSettings.test.js`.
+- Stack routes: OwnerHours, OwnerDelivery, OwnerShopSettings, OwnerNotifications, OwnerActivity, OwnerClosing.
+
+## Round 2 changes (after the first look at the app)
+- **Tab bar**: the owner tabs now use the customer app's floating bar, rounded sliding highlight and page motion (`navigation/tabKit.jsx`, shared by both). Tab switches wait for a page that is still sliding (the "gate").
+- **Side menu**: a hamburger at the top left of every tab opens `components/owners/OwnerDrawer.jsx` (the whole Shop menu: `ShopMenu` in `screens/owners/ShopHubScreen.jsx`). The logo/name in the header are no longer buttons. No dark layer over the page; tap beside it or press Back to close.
+- **Logo**: the header and the menu show the shop's real logo (`restaurant.logo` from the shop config; the theme never had one), with the first letter as fallback.
+- **Bottom sheets**: no dark/shadow layer any more over the page (the sheet has a thin border and a soft top shadow instead).
+- **Inbox**: opening "Messages for you" marks everything read (new ones keep their dot until you leave); **Clear all** hides all messages (`DELETE /api/shop/notifications`, soft: `Notification.clearedAt`, marked read first so no SMS escalation).
+- **Customer view**: menu → "See the customer app" (`store/owners/useViewMode.js`, `Landing` in AppNavigator). A "Back to owner panel" button stays on screen (`OwnerViewPill`). The owner cannot order: the cart refuses, and the server refuses too (`orderService.placeOrder`: only role `customer` may order, 403 otherwise).
+- **Paying rent / SMS top-up**: "Pay now" opens **Payment options** (`OwnerPayScreen`): PhonePe / Google Pay / Paytm / Navi, Other UPI app, Credit/Debit card, or Scan a QR. Same Razorpay checkout as the customer app (`utils/owners/payPlatform.js`). Server side `services/platformCheckout.js`: `POST /shop/subscription/invoices/:id/pay/start|verify`, `POST /shop/sms/topup/start`, `POST /shop/sms/topup/:id/verify`; the platform webhook `payment.captured` is the safety net. Fields: `SubscriptionInvoice.payOrder`, `SmsTopup.rzpOrderId`.
+- **Transactions and bills** (menu → Transactions and bills, and a card on the Money tab): year chips, 12 months with money in / out / kept (`GET /shop/payments/summary?year=`), tap a month for its entries with filters; a monthly bill opens its PDF, an order entry opens the order; **Download** gives a spreadsheet (CSV) of the month or the year (`GET /shop/payments/transactions?format=csv`).
+- Tests: `backend/tests/ownerPlatformPay.test.js`.
+
+## Round 3 changes
+- **Shimmer, not spinners**: every loading state in the owner panel is a shimmer of the shape of what is coming (`components/owners/shimmer.jsx`: `ListShimmer`, `FormShimmer`, `StatShimmer`, `LineShimmer`, built on the customer app's `Skel`). Only the small spinner inside a button (while it saves) remains.
+- **Side menu** sits inside the safe area: its top starts below the status bar and its bottom above the navigation bar (rounded right corners), so it no longer covers the status bar.
+- **Customer view** is a real stack page (`CustomerPreview` in AppNavigator): it slides in from the right like any page and slides out when you go back (the on-screen button, swipe or Android Back from its Home tab).
+- **Logo**: a shop without its own logo shows the app icon from its media storage (`tenants/<slug>/branding/icon.png`, set as `restaurant.logo` in `resolveConfig`).
+- **Appearance** (System / Light / Dark) is in the side menu, under "Your app".
+
 ## Not done yet (known)
-- The owner's bell still reads the customer inbox route; the owner inbox is `GET /api/shop/notifications` (Phase 6).
-- Menu, Riders, Money tabs and the Shop hub destinations are placeholders until their phases.
-- Phase 1 has not been run on a device at the time of writing: expect small layout fixes on first run.
+- Phases 1 to 6 have not been run on a device at the time of writing: expect small layout fixes on first run.
+
+## Round 4 changes
+- **Tabs**: all five owner tabs are mounted at start (`lazy: false`), so a tab no longer shows an empty page while it slides in for the first time; the Money tab shows a shimmer instead of a blank block while it loads.
+- **Popular items** (menu → Popular items, and "See all" on Money): best sellers for the last 7 days, 30 days or 3 months, up to 30 items (`GET /shop/reports/sales?topLimit=`, default 10, max 50).
+- **Billing pop-up** (`components/owners/BillingPrompt.jsx`): an unpaid bill (grace days, or the shop paused) and a low/finished SMS balance open a "Pay now / Remind me later" sheet a moment after the panel opens and whenever the app returns to the front (server rules in `billingPromptService`: postponed warnings return after 6 hours; a paused shop or a finished balance that blocks login cannot be postponed).
+- **Free period** card on Home shows a clear "ending soon" line when 7 days or 10% of the free orders (or fewer than 5) are left. The server also sends the owner a push and an inbox message when the free period is ending (`free_ending`, `bill_reminder`).
+- Not tracked: what customers **search** for. Searches are not recorded anywhere yet.
+
+## Round 5 changes
+- **Live switch** (top bar, `LiveToggle` in `components/owners/ui.jsx`): replaces "tap to change". ON ("LIVE", green) = the shop takes orders. Turning it OFF opens the same questions as before (30 minutes, 1 hour, 2 hours, until tomorrow morning, until I start again); turning it ON starts at once. It uses the existing `PUT /shop/accepting-orders`. (This is the owner's open/closed switch, not the platform's billing "go live".)
+- **My profile** (side menu → Your app → My profile, `OwnerProfileScreen`): profile picture (camera or gallery, via `/api/me/uploads`, kind `customer`), name (2 to 80 letters) and email (optional). The registered mobile number is shown greyed out with a lock and cannot be edited. Backend: `GET/PUT /api/shop/profile` (`routes/shopProfileRouter.js`, open even while the shop is paused; refuses a phone change and any field but name and email; the OLD email address is told when the email changes). Tests: `backend/tests/ownerProfile.test.js`.
+
+## Round 6 changes
+- **Monthly fee plan** is shown on Money → Monthly bill (`plan` in `GET /shop/billing/status`: the order tiers with the shop's current tier highlighted, or a fixed fee if the platform set one for the shop; a shop's own tiers win over the platform's).
+- **Plan change notices** (`services/feePlanNotice.js`): when the platform changes the tiers, every active shop that uses them gets an inbox message and a push ("Your monthly fee plan changed" with the new table); a shop with its own plan is not told about the platform plan. When one shop's own plan (tiers or fixed fee) is set or removed, that shop is told. Saving the same plan again tells nobody. Bills already issued never change. Tests: `backend/tests/ownerPlan.test.js`.

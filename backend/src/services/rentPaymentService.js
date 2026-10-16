@@ -58,7 +58,11 @@ async function createQr({ tenantId, invoiceId }) {
 // Called by the webhook for a paid QR with purpose "rent". Safe to call twice (Razorpay repeats events).
 // Returns a small object for the webhook reply; throws only for real faults, so Razorpay retries those.
 async function onCredited({ qr, pay }) {
-    const invoiceId = qr.notes?.referenceId;
+    return settle({ invoiceId: qr.notes?.referenceId, pay, via: { path: '/api/webhooks/razorpay/platform', method: 'WEBHOOK', qrId: qr.id } });
+}
+
+// The one place a bill becomes paid, whichever way the money came (QR webhook, the app's check, the payment webhook).
+async function settle({ invoiceId, pay, via }) {
     const inv = mongoose.isValidObjectId(invoiceId) ? await SubscriptionInvoice.findById(invoiceId) : null;
     const where = `(payment ${pay.id})`;
 
@@ -69,7 +73,7 @@ async function onCredited({ qr, pay }) {
     if (problem) {
         await alert('admin_webhook_failed', {
             tenantId: inv?.tenantId,
-            vars: { event: 'qr_code.credited (rent)', error: `${problem} ${where}. Check Razorpay, then mark the bill paid by hand if it is real.` },
+            vars: { event: 'rent payment', error: `${problem} ${where}. Check Razorpay, then mark the bill paid by hand if it is real.` },
         });
         return { ignored: 'check_failed' };
     }
@@ -87,7 +91,7 @@ async function onCredited({ qr, pay }) {
         // real money arrived for a bill that was already paid or cancelled
         await alert('admin_webhook_failed', {
             tenantId: inv.tenantId,
-            vars: { event: 'qr_code.credited (rent)', error: `Bill ${cur?.invoiceNo || inv.invoiceNo} is already ${cur?.status}, but payment ${pay.id} arrived. Refund it from Razorpay.` },
+            vars: { event: 'rent payment', error: `Bill ${cur?.invoiceNo || inv.invoiceNo} is already ${cur?.status}, but payment ${pay.id} arrived. Refund it from Razorpay.` },
         });
         return { ignored: 'bill_not_pending' };
     }
@@ -101,13 +105,13 @@ async function onCredited({ qr, pay }) {
         actorLabel: 'razorpay',
         tenantId: paid.tenantId,
         action: 'RENT_PAID_ONLINE',
-        method: 'WEBHOOK',
-        path: '/api/webhooks/razorpay/platform',
+        method: via.method,
+        path: via.path,
         status: 200,
-        params: { invoiceId: String(paid._id), invoiceNo: paid.invoiceNo, period: paid.period, amountPaise: pay.amountPaise, paymentId: pay.id, qrId: qr.id },
+        params: { invoiceId: String(paid._id), invoiceNo: paid.invoiceNo, period: paid.period, amountPaise: pay.amountPaise, paymentId: pay.id, qrId: via.qrId },
         before: { status: 'pending' },
     });
     return { rent: 'paid' };
 }
 
-module.exports = { createQr, onCredited };
+module.exports = { createQr, onCredited, settle };

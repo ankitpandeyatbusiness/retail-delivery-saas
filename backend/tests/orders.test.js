@@ -218,14 +218,14 @@ describe('orders: price changed, double tap, Cash on delivery limit', () => {
         assert.equal(res.body.error, 'Cash on delivery is not available for this number');
     });
 
-    test('N2: the owner can change the limit or switch it off, and only that setting', async () => {
+    test('N2: the owner can change the limit or switch it off, and not the tax or payment settings', async () => {
         const w = await shop('od-cap-owner');
         const put = (b) => request(app).put('/api/shop/settings').set(w.owner.headers).send(b);
 
         assert.equal((await put({ orders: { codCap: { amount: -1 } } })).status, 400);
         assert.equal((await put({ orders: { codCap: { firstOrders: 1.5 } } })).status, 400);
         assert.equal((await put({ orders: { codCap: { price: 1 } } })).status, 400);
-        assert.equal((await put({ orders: { minOrder: 5 } })).status, 400);              // other order settings are not for owners
+        assert.equal((await put({ orders: { gst: { mode: 'inclusive', percent: 5 } } })).status, 400);   // tax and payment methods are not for owners
 
         const ok = await put({ orders: { codCap: { amount: 500 } } });
         assert.equal(ok.status, 200);

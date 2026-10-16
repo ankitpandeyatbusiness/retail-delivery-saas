@@ -20,7 +20,26 @@ const dayKey = (now = new Date()) => new Date(now.getTime() + (330 - DAY_START_H
 // Items with a daily quantity start each shop day with it again. Done lazily: the first request of a new day for
 // a shop does it (one update, remembered per shop), so no night job can be missed.
 const doneFor = new Map();   // tenantId -> shop day already refreshed
+// Items the owner switched off "until 3 PM" / "until tomorrow morning" come back when that time has passed. Done lazily too
+// (whenever the menu is read, at most every 20 seconds per shop), so no job has to run at that moment.
+// An item that counts its stock and has none left stays off.
+const sweptAt = new Map();   // tenantId -> when we last looked
+async function sweepSoldOut(tenantId, now = new Date(), { force = false } = {}) {
+    const k = String(tenantId);
+    if (!force && now.getTime() - (sweptAt.get(k) || 0) < 20000) return;
+    sweptAt.set(k, now.getTime());
+    await Product.updateMany(
+        { tenantId, unavailableUntil: { $lte: now } },
+        [
+            { $set: { isAvailable: { $cond: [{ $and: [{ $eq: ['$stock.enabled', true] }, { $lte: [{ $ifNull: ['$stock.qty', 0] }, 0] }] }, false, true] } } },
+            { $unset: 'unavailableUntil' },
+        ],
+        { updatePipeline: true },
+    );
+}
+
 async function ensureToday(tenantId, now = new Date()) {
+    await sweepSoldOut(tenantId, now);
     const today = dayKey(now);
     const k = String(tenantId);
     if (doneFor.get(k) === today) return;
@@ -69,4 +88,4 @@ async function reserve(tenantId, needs = []) {
 
 const restoreForOrder = (order) => restore(order.tenantId, sumItems(order.items));
 
-module.exports = { sumItems, reserve, restore, restoreForOrder, dayKey, ensureToday };
+module.exports = { sumItems, reserve, restore, restoreForOrder, dayKey, ensureToday, sweepSoldOut };

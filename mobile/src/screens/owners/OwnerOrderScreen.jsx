@@ -1,7 +1,7 @@
 // One order, everything about it: the items, the bill, the customer, the address, the rider, the timeline, and the
 // buttons to move it on. Opening it silences the new-order alert for it.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, RefreshControl } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../../components/common/kit';
@@ -14,6 +14,7 @@ import { onOrderUpdate } from '../../api/common/socket';
 import { acknowledge } from '../../utils/owners/soundbox';
 import { useNow } from '../../hooks/owners/useNow';
 import * as flow from '../../utils/owners/orderFlow';
+import { FormShimmer } from '../../components/owners/shimmer';
 
 const UNDELIVERED_WAIT_MS = 15 * 60 * 1000;   // the server allows "not delivered" 15 minutes after the rider's first problem
 
@@ -93,7 +94,7 @@ export default function OwnerOrderScreen() {
         return (
             <View style={{ flex: 1, backgroundColor: background }}>
                 <PageHeader title="Order" />
-                <ActivityIndicator style={{ marginTop: 40 }} />
+                <FormShimmer cards={2} />
             </View>
         );
     }
