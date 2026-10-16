@@ -12,6 +12,7 @@ import SearchScreen from '../screens/customers/SearchScreen';
 import PaymentMethodsScreen from '../screens/customers/PaymentMethodsScreen';
 import OrdersScreen from '../screens/customers/OrdersScreen';
 import OrderDetailScreen from '../screens/customers/OrderDetailScreen';
+import LiveOrderHost from '../components/customers/LiveOrderHost';
 import OrderPlacedScreen from '../screens/customers/OrderPlacedScreen';
 import RiderHomeScreen from '../screens/riders/RiderHomeScreen';
 import OwnerTabs from './OwnerNavigator';
@@ -240,6 +241,7 @@ export default function AppNavigator() {
     const slide = motion === 'off' ? 'none' : 'slide_from_right';
     const user = useAuthStore((s) => s.user);
     const hadUser = useRef(false);
+    const [routeName, setRouteName] = useState(null);   // the screen in front (the live-delivery bar hides on some)
 
     // "My orders" on the frozen screen: back to the tabs (no reload) and open Orders
     const goOrders = () => {
@@ -265,7 +267,7 @@ export default function AppNavigator() {
 
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
-            <NavigationContainer ref={navigationRef} onReady={navigationReady} theme={navTheme}>
+            <NavigationContainer ref={navigationRef} onReady={() => { navigationReady(); setRouteName(navigationRef.getCurrentRoute()?.name); }} onStateChange={() => setRouteName(navigationRef.getCurrentRoute()?.name)} theme={navTheme}>
                 <Stack.Navigator
                     screenOptions={{ headerShown: false, contentStyle: { backgroundColor: background }, animation: slide, animationDuration: 220, gestureEnabled: true }}
                     screenListeners={{ transitionStart: holdGate, transitionEnd: releaseGate }}
@@ -337,6 +339,7 @@ export default function AppNavigator() {
                 </Stack.Navigator>
             </NavigationContainer>
             <OwnerViewPill onBack={() => { if (navigationRef.isReady() && (navigationRef.getRootState()?.routes?.length || 0) > 1) navigationRef.dispatch(StackActions.popToTop()); }} />
+            <LiveOrderHost routeName={routeName} />
             <NewOrderPopup navRef={navigationRef} />
             <LegalGate />
             <FrozenOverlay onOrders={goOrders} />

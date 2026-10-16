@@ -3,11 +3,12 @@
 // The rider pin needs a live location from the server (only while the rider is on the way and the phone is
 // sending it). Until then the map shows the address alone. Everything comes from GET /orders/:id/tracking.
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform, Pressable } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../common/kit';
 import { tint } from './shop';
+import { useLiveTripStore } from '../../store/customers/useLiveTripStore';
 
 const HEADLINE = {
     finding_rider: 'Finding a delivery partner',
@@ -65,6 +66,9 @@ export default function TrackingCard({ tracking: t, destination }) {
     const name = t.rider?.name;
     const title = ['rider_assigned', 'on_the_way'].includes(t.state) && name ? `${name} ${HEADLINE[t.state]}` : HEADLINE[t.state] || 'Tracking';
     const eta = etaText(t);
+    // the big live map (the sheet that opens over the app) is for this order when it is the one on the way
+    const liveHere = useLiveTripStore((st) => !!st.orderId && String(st.orderId) === String(t.orderId));
+    const openLive = useLiveTripStore((st) => st.setSheet);
 
     return (
         <View style={[s.card, { backgroundColor: surface, borderColor: border }]}>
@@ -77,6 +81,13 @@ export default function TrackingCard({ tracking: t, destination }) {
                     {eta ? <Text style={[s.sub, { color: muted }]}>{eta}</Text> : null}
                 </View>
             </View>
+
+            {liveHere && t.state === 'on_the_way' ? (
+                <Pressable onPress={() => openLive('full')} style={[s.liveBtn, { backgroundColor: primary }]} accessibilityRole="button">
+                    <Ionicons name="map" size={18} color="#FFFFFF" />
+                    <Text style={s.liveTxt}>Open live map</Text>
+                </Pressable>
+            ) : null}
 
             {t.rider ? (
                 <View style={[s.rider, { borderTopColor: border }]}>
@@ -141,6 +152,8 @@ const s = StyleSheet.create({
     sub: { fontSize: 12.5, fontWeight: '500', marginTop: 2 },
     rider: { flexDirection: 'row', alignItems: 'center', marginTop: 14, paddingTop: 14, borderTopWidth: StyleSheet.hairlineWidth },
     rName: { fontSize: 14, fontWeight: '700' },
+    liveBtn: { marginTop: 14, height: 46, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+    liveTxt: { color: '#FFFFFF', fontSize: 14.5, fontWeight: '800', marginLeft: 8, paddingHorizontal: 40 },
     pin: { marginTop: 14, borderRadius: 14, padding: 12, alignItems: 'center' },
     pinLabel: { fontSize: 12, fontWeight: '600' },
     pinNo: { fontSize: 26, fontWeight: '900', letterSpacing: 4, marginTop: 4 },

@@ -12,7 +12,7 @@ No timer polling in the live path. If a socket cannot be used, the apps poll lig
 | 1 | Server foundation: socket ping from the rider, memory + batched database writes, last position on join, connection cap, degraded mode, kill switch, tests | **done** |
 | 2 | Road route and arrival time (with a monthly cap and a straight-line fallback), arrival pushes, "reconnecting" when a rider goes quiet | **done** |
 | 3 | Rider background service (foreground notification, GPS + socket with the screen off, permission and battery guide). Needs a new Android build | **done (code); needs a new build and a phone test** |
-| 4 | Customer live-order bar and the draggable map sheet (full / half / minimised), polling fallback in the app | |
+| 4 | Customer live-order bar and the draggable map sheet (full / half / minimised), polling fallback in the app | **done (code); phone test pending** |
 | 5 | Lock-screen notification updated by push, owner map polish and quiet-rider warning | |
 | 6 | Load test script, superadmin screen for the switch, phone test checklist | |
 
@@ -51,6 +51,15 @@ No timer polling in the live path. If a socket cannot be used, the apps poll lig
 - **Stops:** by itself after 3 answers in a row of "no order on the way" or "tracking off"; and when the rider logs out.
 - **Permissions:** the app explains first, then asks "Allow all the time". If he refuses it still works while the app is open, and he is shown how to switch it on (Settings, and Battery: Unrestricted). Some makes (Xiaomi, Oppo, Vivo, Realme, Samsung) also kill background apps unless the app is set to "No restrictions" / "Autostart".
 - **Needs a new native build** (new permissions and the service): `ACCESS_BACKGROUND_LOCATION`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_LOCATION`. An OTA update is not enough. Google Play will ask for a background-location declaration (with a short video) when you publish.
+
+## Phase 4: what the customer sees (`mobile/src/components/customers/LiveOrderHost.jsx`)
+- **The bar:** while a delivery is on its way a small bar sits above the tabs ("Arriving in 8 min", the rider's name, how far away). Tap it to open the map. It is hidden on Cart, Item, Order placed, Order detail and Login.
+- **The sheet:** opens half screen with the map on top and the rider and delivery PIN below. Drag the handle up for full screen, down to shrink back to the bar; the Back button shrinks it too. The Order page has an "Open live map" button.
+- **The map:** the road line from the route, the bike pin turning in the direction he travels and sliding between pings, the address pin, and a button to centre again (the map stops following when the customer moves it himself).
+- **Quiet rider:** when his phone goes quiet for a minute the bar says "Reconnecting to your delivery partner".
+- **Socket first, polling when asked:** the app joins the order room and listens to `rider:location`, `rider:route`, `order:eta`, `rider:quiet`. If the socket is down or the server is in polling mode it fetches `GET /orders/:id/tracking` every `pollSec` seconds (15 by default); with a healthy socket it fetches only every 40 seconds as a safety net.
+- The tracking page now also returns `destination { latitude, longitude }`.
+- Not done: calling the rider (only a masked number is held for the customer); that needs a masked-call decision.
 
 ## The free Render server
 Render's free plan goes to sleep after about 15 minutes with no requests, and a sleeping server has no sockets. Live tracking needs an awake server: a paid instance (about $7 a month) or an uptime pinger.

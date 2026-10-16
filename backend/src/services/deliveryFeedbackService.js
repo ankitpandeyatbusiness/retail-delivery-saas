@@ -108,6 +108,7 @@ async function tracking({ tenant, userId, orderId }) {
         remaining: trip ? { meters: trip.eta.remainingM, seconds: trip.eta.remainingSec } : null,
         riderQuiet: !!trip?.quiet,   // his phone has not reported for a minute: show "reconnecting"
         deliveryPin: pin,            // show it to the customer, he tells it to the rider
+        destination: order.address?.latitude != null && order.address?.longitude != null ? { latitude: order.address.latitude, longitude: order.address.longitude } : null,   // the address pin on the map
         etaAt, etaSource,            // etaSource: distance | scheduled | estimate
         canRate: order.status === 'delivered' && !!d.riderId && !order.deliveryRating?.rating,
         deliveryRating: order.deliveryRating?.rating ? order.deliveryRating : null,

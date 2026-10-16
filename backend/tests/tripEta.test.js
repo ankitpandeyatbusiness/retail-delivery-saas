@@ -241,6 +241,7 @@ describe('seeing it', () => {
         assert.equal(polyline.decode(t.body.route.polyline).length, 3);
         assert.ok(t.body.remaining.meters > 4000 && t.body.remaining.seconds > 0);
         assert.equal(t.body.riderQuiet, false);
+        assert.equal(typeof t.body.destination?.latitude, 'number');   // the address pin for the live map
     });
 
     test('the superadmin sees the road-route use, and sets the monthly cap (supreme admin only)', async () => {
