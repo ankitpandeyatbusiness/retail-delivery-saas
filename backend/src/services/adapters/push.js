@@ -37,7 +37,7 @@ const DEAD = new Set(['messaging/registration-token-not-registered', 'messaging/
 const realProvider = {
     // dataOnly: a silent message with no notification in it. It shows nothing and plays nothing; it only wakes the app's
     // own code for a few seconds (the owner's Soundbox uses it to read the order out with the screen off).
-    async send({ tokens, title, body, data, channelId, sound, dataOnly }) {
+    async send({ tokens, title, body, data, channelId, sound, dataOnly, tag }) {
         if (!tokens?.length) return { sent: 0, invalidTokens: [] };
 
         let m;
@@ -68,7 +68,8 @@ const realProvider = {
                     // channelId picks the phone's channel (its sound is fixed inside the app). Without one the app's default is used.
                     android: {
                         priority: 'high',
-                        ...(channelId ? { notification: { channelId, ...(sound ? { sound } : {}) } } : {}),
+                        // tag: the next push with the same tag replaces this one instead of stacking
+                        ...(channelId || tag ? { notification: { ...(channelId ? { channelId } : {}), ...(sound ? { sound } : {}), ...(tag ? { tag } : {}) } } : {}),
                     },
                 });
             r.responses.forEach((x, idx) => {

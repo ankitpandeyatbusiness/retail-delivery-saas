@@ -18,6 +18,7 @@ import SupportDetailScreen from '../screens/support/SupportDetailScreen';
 import SupportSettingsScreen from '../screens/support/SupportSettingsScreen';
 import OwnerMessagesScreen from '../screens/platform/OwnerMessagesScreen';
 import MaintenanceScreen from '../screens/platform/MaintenanceScreen';
+import LiveTrackingScreen from '../screens/platform/LiveTrackingScreen';
 import AlertSettingsScreen from '../screens/platform/AlertSettingsScreen';
 import NotificationRulesScreen from '../screens/platform/NotificationRulesScreen';
 import AuditLogScreen from '../screens/platform/AuditLogScreen';
@@ -205,6 +206,7 @@ function MoreStack() {
             <More.Screen name="MoreHome" component={MoreScreen} />
             <More.Screen name="Team" component={TeamScreen} />
             <More.Screen name="Maintenance" component={MaintenanceScreen} />
+            <More.Screen name="LiveTracking" component={LiveTrackingScreen} />
             <More.Screen name="InsightsSettings" component={InsightsSettingsScreen} />
             <More.Screen name="GstRegister" component={GstRegisterScreen} />
             <More.Screen name="Settlement" component={SettlementScreen} />

@@ -95,6 +95,11 @@ async function getToken() {
         name: 'Order updates',
         importance: Notifications.AndroidImportance.HIGH,
     });
+    // The customer's live-delivery update ("Arriving in about 8 min"): quiet, so a notification that is replaced every few
+    // minutes never rings again. The server sends it with a tag, so each one replaces the last.
+    try {
+        await Notifications.setNotificationChannelAsync('live_trip', { name: 'Live delivery', importance: Notifications.AndroidImportance.LOW });
+    } catch (e) { /* the push then lands on the default channel */ }
     // The owner's loud channel. Its sound file is bundled at BUILD time (app.config.js, expo-notifications "sounds"), so a
     // phone running an older build does not have it. That must never stop push from working: fall back to the
     // default channel.

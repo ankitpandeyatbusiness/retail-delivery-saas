@@ -28,6 +28,10 @@ export const listAudit = (params) => data(api.get('/admin/audit-logs', { params 
 /* ---- my account ---- */
 export const changeMyPhones = (body) => data(api.put('/admin/me/phones', body));                   // { phones, verifyPhone, otp }
 
+/* ---- live tracking of riders: how the server is doing, and the switch (the supreme admin changes it) ---- */
+export const fetchTracking = () => data(api.get('/admin/platform/tracking'));
+export const saveTracking = (body) => data(api.put('/admin/platform/tracking', body));            // { mode?, maxSockets?, pollSec?, routeCap? } or { reset: true }
+
 /* ---- alert devices (push) ---- */
 export const registerDevice = (body) => data(api.post('/admin/devices', body));                    // { token, platform }
 export const removeDevice = (token) => data(api.post('/admin/devices/remove', { token }));

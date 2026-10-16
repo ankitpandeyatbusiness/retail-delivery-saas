@@ -7,7 +7,9 @@ const adapter = require('../../services/adapters/push');
 // channelId / sound: an Android notification channel the app created (the owner's loud "new_orders" channel).
 // A phone that switched Soundbox off (loudAlerts false) does not get it: its push goes to the app's normal channel,
 // so "off" means no loud new-order sound from that phone, on screen or off.
-async function send({ tenantId, userId, title, body, data, channelId, sound }) {
+// tag: a later push with the same tag REPLACES the earlier one on the lock screen (the live-delivery update).
+// quietChannel: send everything on that channel (a silent one) instead of the loud/normal split.
+async function send({ tenantId, userId, title, body, data, channelId, sound, tag, quietChannel }) {
     const userIds = userId
         ? [userId]
         : (await User.find({ tenantId, role: 'admin' }).select('_id').lean()).map((u) => u._id);
@@ -17,7 +19,9 @@ async function send({ tenantId, userId, title, body, data, channelId, sound }) {
     if (!rows.length) return { sent: 0, tokens: 0 };
 
     // [tokens, channel, sound]: loud phones get the loud channel, quiet phones get none (the app's default one)
-    const groups = channelId
+    const groups = quietChannel
+        ? [[rows.map((r) => r.token), quietChannel, undefined]]
+        : channelId
         ? [
             [rows.filter((r) => r.loudAlerts !== false).map((r) => r.token), channelId, sound],
             [rows.filter((r) => r.loudAlerts === false).map((r) => r.token), undefined, undefined],
@@ -28,7 +32,7 @@ async function send({ tenantId, userId, title, body, data, channelId, sound }) {
     const invalid = [];
     for (const [tokens, ch, snd] of groups) {
         if (!tokens.length) continue;
-        const res = await adapter.send({ tokens, title, body, data, channelId: ch, sound: snd });
+        const res = await adapter.send({ tokens, title, body, data, channelId: ch, sound: snd, tag });
         sent += res?.sent || 0;
         if (res?.invalidTokens?.length) invalid.push(...res.invalidTokens);
 

@@ -256,3 +256,46 @@ describe('seeing it', () => {
         assert.equal((await request(app).put('/api/admin/platform/tracking').set({ Authorization: `Bearer ${other.token}` }).send({ routeCap: 1 })).status, 403);
     });
 });
+
+describe('the lock-screen notification', () => {
+    const pushChannel = require('../src/notifications/channels/push');
+    const realSend = pushChannel.send;
+    let sent;
+    beforeEach(() => { sent = []; pushChannel.send = async (a) => { sent.push(a); return { sent: 1, tokens: 1 }; }; });
+    afterEach(() => { pushChannel.send = realSend; });
+
+    test('one silent, replaceable update: not at once, then only when the time moved 2 minutes and 90 seconds passed', async () => {
+        const t0 = Date.now();
+        await ping(A, t0);
+        await ping(A, t0 + 30000);
+        assert.equal(sent.length, 0);                              // too soon after pickup
+        await ping(A, t0 + 61000);
+        assert.equal(sent.length, 1);
+        assert.equal(sent[0].tag, `trip-${order._id}`);
+        assert.equal(sent[0].quietChannel, 'live_trip');
+        assert.equal(String(sent[0].userId), String(w.customer.user._id));
+        assert.match(sent[0].title, /Arriving in about \d+ min/);
+        await ping({ lat: 26.8, lng: 80.9005 }, t0 + 100000);      // 90 seconds not over yet
+        assert.equal(sent.length, 1);
+        await ping(A, t0 + 160000);                                // 90 seconds over, but the time has not moved
+        assert.equal(sent.length, 1);
+        await ping(B, t0 + 170000);                                // about half way: many minutes less
+        assert.equal(sent.length, 2);
+        assert.equal(sent[1].tag, sent[0].tag);                    // same tag: it replaces the first one
+    });
+
+    test('the arriving push carries the same tag, so it replaces the update', async () => {
+        const center = require('../src/notifications/center');
+        const real = center.notify;
+        const seen = [];
+        center.notify = async (k, ctx) => { seen.push({ k, tag: ctx.tag }); return null; };
+        try {
+            const t0 = Date.now();
+            await ping(A, t0);
+            await ping({ lat: 26.8470, lng: 80.95 }, t0 + 3000);
+            await f.waitFor(async () => seen.length >= 1);
+            assert.equal(seen[0].k, 'rider_arriving');
+            assert.equal(seen[0].tag, `trip-${order._id}`);
+        } finally { center.notify = real; }
+    });
+});

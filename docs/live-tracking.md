@@ -13,8 +13,8 @@ No timer polling in the live path. If a socket cannot be used, the apps poll lig
 | 2 | Road route and arrival time (with a monthly cap and a straight-line fallback), arrival pushes, "reconnecting" when a rider goes quiet | **done** |
 | 3 | Rider background service (foreground notification, GPS + socket with the screen off, permission and battery guide). Needs a new Android build | **done (code); needs a new build and a phone test** |
 | 4 | Customer live-order bar and the draggable map sheet (full / half / minimised), polling fallback in the app | **done (code); phone test pending** |
-| 5 | Lock-screen notification updated by push, owner map polish and quiet-rider warning | |
-| 6 | Load test script, superadmin screen for the switch, phone test checklist | |
+| 5 | Lock-screen notification updated by push, owner map polish and quiet-rider warning | **done (code); phone test pending** |
+| 6 | Load test script, superadmin screen for the switch, phone test checklist | **done (code); phone test pending** |
 
 ## Phase 1: how it works
 - **Rider to server:** `emit('rider:ping', { lat, lng, heading?, speed?, accuracy? }, ack)` on the rider's socket. The web request `POST /api/rider/location` is the fallback and goes through the same code (`services/liveTracking.js`). Rules: a position is kept only while the rider has an order on the way (`out_for_delivery` and picked up) and the shop's live tracking is on; pings closer than 2 seconds are dropped; a socket may send at most one ping per 1.5 seconds (a bucket of 20).
@@ -60,6 +60,16 @@ No timer polling in the live path. If a socket cannot be used, the apps poll lig
 - **Socket first, polling when asked:** the app joins the order room and listens to `rider:location`, `rider:route`, `order:eta`, `rider:quiet`. If the socket is down or the server is in polling mode it fetches `GET /orders/:id/tracking` every `pollSec` seconds (15 by default); with a healthy socket it fetches only every 40 seconds as a safety net.
 - The tracking page now also returns `destination { latitude, longitude }`.
 - Not done: calling the rider (only a masked number is held for the customer); that needs a masked-call decision.
+
+## Phase 5: lock screen and the owner's map
+- **Lock-screen notification (customer):** one notification per trip, "Arriving in about 8 min - Raju is bringing order #12". Every push carries the same `tag` (`trip-<orderId>`), so Android **replaces** it instead of stacking. It goes out on its own quiet channel (`live_trip`, no sound), only when the time has moved by 2 minutes and 90 seconds have passed, at most 10 times a trip; the first one waits a minute after pickup. The "arriving" and "reached" pushes use the same tag, so they replace it too. This is a push, so it works with the app closed; it is not a second-by-second counter like Zomato's (that needs a native Live Activity-style notification and is not available to a push-only app).
+- **Owner's map (order page):** the road line, the bike turning with his direction, "12 min - 3.4 km" chip, a centre button, and an amber warning when his phone has not reported for 90 seconds (the push to the owner after 3 minutes was Phase 2).
+- The `live_trip` channel is created by the app at start-up (JavaScript only, an OTA update is enough). A phone that never created it gets the update on the normal channel, with sound.
+
+## Phase 6: load test, the switch screen, the phone test
+- **Load test:** `cd backend && npm run load:tracking -- --riders 30 --watchers 10 --seconds 30 --cap 400`. It starts its own server and an in-memory database, connects the riders and the watching phones over real sockets, and prints how many positions every watcher got, the time from rider to phone (p50, p95, worst), the server delay, memory growth, how many connections the cap refused, and a verdict. It runs on one computer, so its numbers are kinder than a small free server; run the same figures against a staging copy of the real server for the true answer.
+- **Superadmin screen:** More > **Live tracking**. Everybody with a superadmin login sees the phones connected, riders sending, counters, server delay, memory and the Google route use. Only the supreme admin can change the mode (Live / Polling / Off), the socket cap, the polling interval and the monthly Google cap, or reset to the recommended values. It refreshes itself every 15 seconds.
+- **Phone test:** `docs/live-tracking-phone-test.md` is the list to tick off on real phones.
 
 ## The free Render server
 Render's free plan goes to sleep after about 15 minutes with no requests, and a sleeping server has no sockets. Live tracking needs an awake server: a paid instance (about $7 a month) or an uptime pinger.

@@ -67,6 +67,7 @@ async function deliver(eventKey, def, ctx, doc) {
             const r = await pushChannel.send({
                 tenantId, userId, title: doc.title, body: doc.body, data: { ...(ctx.data || {}), type: doc.type },
                 channelId: def.pushChannel, sound: def.pushSound,   // e.g. the owner's loud new-order channel
+                tag: ctx.tag,                                        // the same tag replaces the earlier push (live delivery)
             });
             if (r && r.sent > 0) delivered = true;
         } catch (e) {

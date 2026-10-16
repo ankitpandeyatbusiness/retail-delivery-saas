@@ -72,7 +72,7 @@ async function update({ order, riderId, riderName, pos, now = Date.now() }) {
     let trip = trips.get(order.id);
     if (trip?.busy) return trip.eta || null;   // a route request is already on its way
 
-    if (!trip) trip = { orderId: order.id, tenantId: String(order.tenantId), userId: String(order.userId), orderNo: order.orderNo, riderId: String(riderId), riderName, dest, route: null, eta: null, lastEtaEmit: 0, offRoute: 0, routedAt: 0, flags: {}, quiet: false, quietOwner: false };
+    if (!trip) trip = { startedAt: now, lock: { at: 0, mins: null, count: 0 }, orderId: order.id, tenantId: String(order.tenantId), userId: String(order.userId), orderNo: order.orderNo, riderId: String(riderId), riderName, dest, route: null, eta: null, lastEtaEmit: 0, offRoute: 0, routedAt: 0, flags: {}, quiet: false, quietOwner: false };
     trip.riderId = String(riderId);
     trip.lastPingAt = now;
     if (trip.quiet) trip.quiet = false;
@@ -116,8 +116,34 @@ async function update({ order, riderId, riderName, pos, now = Date.now() }) {
     }
     if (arriving) { trip.flags.arrivingSeen = true; claimAndNotify(trip, 'arriving').catch((e) => console.error('Arriving alert error:', e.message)); }
     if (reached) { trip.flags.reachedSeen = true; claimAndNotify(trip, 'reached').catch((e) => console.error('Reached alert error:', e.message)); }
+    if (!arriving) lockScreenUpdate(trip, now);
     startSweeper();
     return trip.eta;
+}
+
+/* ------------------------------ the lock-screen notification ------------------------------ */
+// One notification per trip ("Arriving in about 12 min") that is REPLACED, not stacked, as the time changes: every push carries
+// the same tag, so Android swaps the old one for the new one. Silent (its own quiet channel), sent only when the time has moved
+// by 2 minutes and at least 90 seconds have passed, at most 10 times a trip. The first one waits a minute after pickup
+// (the normal "out for delivery" message has just been shown). The "arriving" and "reached" pushes use the same tag.
+const LOCK_FIRST_MS = 60000;
+const LOCK_GAP_MS = 90000;
+const LOCK_DELTA_MIN = 2;
+const LOCK_MAX = 10;
+const tagOf = (orderId) => `trip-${orderId}`;
+
+function lockScreenUpdate(trip, now) {
+    const l = trip.lock;
+    if (!trip.eta || l.count >= LOCK_MAX) return;
+    const mins = Math.max(1, Math.ceil(trip.eta.remainingSec / 60));
+    if (l.count === 0 ? now - trip.startedAt < LOCK_FIRST_MS : (now - l.at < LOCK_GAP_MS || Math.abs(mins - l.mins) < LOCK_DELTA_MIN)) return;
+    l.at = now; l.mins = mins; l.count += 1;   // claimed before the send, so a slow push never doubles up
+    const who = trip.riderName || 'Your delivery partner';
+    require('../notifications/channels/push').send({
+        tenantId: trip.tenantId, userId: trip.userId, title: `Arriving in about ${mins} min`,
+        body: `${who} is bringing order #${trip.orderNo}`, data: { orderId: trip.orderId, orderNo: trip.orderNo, kind: 'tracking' },
+        tag: tagOf(trip.orderId), quietChannel: 'live_trip',
+    }).catch((e) => console.error('Lock-screen update error:', e.message));
 }
 
 const serialEta = (trip) => ({ ...trip.eta, etaAt: trip.eta.etaAt.toISOString?.() || trip.eta.etaAt });
@@ -143,6 +169,7 @@ async function claimAndNotify(trip, which) {
         : { title: `${who} has reached`, body: `Order #${trip.orderNo}: your delivery partner is at your address now.` };
     await center.notify(which === 'arriving' ? 'rider_arriving' : 'rider_reached', {
         tenantId: trip.tenantId, userId: trip.userId, title: text.title, body: text.body, data: { orderId: trip.orderId, orderNo: trip.orderNo, kind: 'tracking' },
+        tag: tagOf(trip.orderId),   // replaces the lock-screen "Arriving in about N min" instead of stacking under it
     });
 }
 

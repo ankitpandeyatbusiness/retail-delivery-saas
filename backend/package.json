@@ -9,6 +9,7 @@
     "check:requires": "node scripts/checkRequires.js",
     "backup": "node scripts/backupNow.js",
     "restore": "node scripts/restoreBackup.js",
+    "load:tracking": "node tests/load/trackingLoad.js",
     "test": "node --test --test-concurrency=1 --test-force-exit \"tests/**/*.test.js\""
   },
   "keywords": [],
