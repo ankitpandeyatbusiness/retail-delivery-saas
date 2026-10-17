@@ -148,7 +148,7 @@ describe('with Google', () => {
 
     test('the monthly cap: beyond it the estimate is used and Google is not called; the count never passes the cap', async () => {
         google();
-        await PlatformSettings.findByIdAndUpdate('main', { $set: { 'tracking.routeCap': 2 } }, { upsert: true });
+        await PlatformSettings.findByIdAndUpdate('main', { $set: { 'tracking.routeCap': 2, 'tracking.routeProCap': 0 } }, { upsert: true });   // no traffic stage: the economical cap is the one tested
         await guard.refresh();
         const r1 = await routes.getRoute({ from: A, to: DEST });
         const r2 = await routes.getRoute({ from: A, to: DEST });
@@ -159,6 +159,17 @@ describe('with Google', () => {
         assert.ok(r3.distanceM > 0 && r3.durationSec >= 120);
     });
 
+    test('stages: traffic route first, then the economical one, then the estimate; a traffic route is renewed after 10 minutes, the other is not', async () => {
+        google();
+        await PlatformSettings.findByIdAndUpdate('main', { $set: { 'tracking.routeProCap': 1, 'tracking.routeCap': 1 } }, { upsert: true });
+        await guard.refresh();
+        const r1 = await routes.getRoute({ from: A, to: DEST });
+        const r2 = await routes.getRoute({ from: A, to: DEST });
+        const r3 = await routes.getRoute({ from: A, to: DEST });
+        assert.deepEqual([r1.source, r1.traffic, r2.source, r2.traffic, r3.source, r3.reason], ['google', true, 'google', false, 'estimate', 'monthly_cap']);
+        assert.deepEqual(calls.map((c) => c.traffic), [true, false]);
+    });
+
     test('three failures in a row: Google is left alone for five minutes and the estimate is used meanwhile', async () => {
         google();
         routes.setTransport(async () => { calls.push(1); throw new Error('Google is down'); });
@@ -166,7 +177,7 @@ describe('with Google', () => {
         for (let i = 0; i < 5; i += 1) rs.push(await routes.getRoute({ from: A, to: DEST }));
         assert.deepEqual(rs.map((r) => r.source), ['estimate', 'estimate', 'estimate', 'estimate', 'estimate']);
         assert.deepEqual(rs.map((r) => r.reason), ['error', 'error', 'error', 'breaker', 'breaker']);
-        assert.equal(calls.length, 3);
+        assert.equal(calls.length, 6);   // three failed requests, each tried at both stages
         const s = await routes.stats();
         assert.equal(s.breakerOpen, true);
         assert.match(s.lastError, /Google is down/);
@@ -252,9 +263,13 @@ describe('seeing it', () => {
         const read = await request(app).get('/api/admin/platform/tracking').set({ Authorization: `Bearer ${boss.token}` });
         assert.equal(read.status, 200);
         assert.deepEqual(['provider', 'usedThisMonth', 'calls', 'estimates', 'breakerOpen'].filter((k) => !(k in read.body.routes)), []);
-        assert.equal(read.body.settings.routeCap, 8000);
+        assert.equal(read.body.settings.routeCap, 60000);
+        assert.equal(read.body.settings.routeProCap, 30000);
+        assert.equal(read.body.google.text_search.cap, 30000);
         const put = await request(app).put('/api/admin/platform/tracking').set({ Authorization: `Bearer ${boss.token}` }).send({ routeCap: 500 });
         assert.equal(put.body.settings.routeCap, 500);
+        assert.equal((await request(app).put('/api/admin/platform/tracking').set({ Authorization: `Bearer ${boss.token}` }).send({ textSearchCap: 123 })).body.settings.textSearchCap, 123);
+        assert.equal((await request(app).put('/api/admin/platform/tracking').set({ Authorization: `Bearer ${boss.token}` }).send({ detailsCap: 1.5 })).status, 400);
         assert.equal((await request(app).put('/api/admin/platform/tracking').set({ Authorization: `Bearer ${boss.token}` }).send({ routeCap: -1 })).status, 400);
         const other = await f.makeSuperAdmin('vivek@example.com', { phones: ['9876543210'] });
         assert.equal((await request(app).put('/api/admin/platform/tracking').set({ Authorization: `Bearer ${other.token}` }).send({ routeCap: 1 })).status, 403);

@@ -9,7 +9,7 @@ const places = require('../services/placeSearch');
 
 const router = express.Router();
 const enc = encodeURIComponent;
-const { KEY, getJson, UA } = places;
+const { KEY, getJson, UA } = places;   // the Geocoding API (address of a pin) uses the same server key
 
 const place = (name, lat, lng, extra = {}) => ({ name, latitude: Number(lat), longitude: Number(lng), ...extra });
 
@@ -29,12 +29,6 @@ function fromOsm(r) {
     });
 }
 
-async function details(placeId) {
-    const j = await getJson(`https://maps.googleapis.com/maps/api/place/details/json?place_id=${enc(placeId)}&fields=geometry,formatted_address,address_component&key=${KEY()}`);
-    if (j.status !== 'OK' || !j.result) return null;
-    return fromGoogle({ formatted_address: j.result.formatted_address, geometry: j.result.geometry, address_components: j.result.address_components });
-}
-
 async function reverse(lat, lng) {
     if (KEY()) {
         try {
@@ -52,14 +46,14 @@ router.get('/geo/search', wrap(async (req, res) => {
     const lat = Number(req.query.lat);
     const lng = Number(req.query.lng);
     const near = req.query.lat !== undefined && req.query.lng !== undefined && Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
-    try { res.json({ items: await places.search(q, near) }); } catch { throw httpError(502, 'Place search is not reachable right now'); }
+    try { res.json({ items: await places.search(q, near, { share: 0.5 }) }); } catch { throw httpError(502, 'Place search is not reachable right now'); }
 }));
 
 router.get('/geo/place', wrap(async (req, res) => {
     const id = String(req.query.id || '');
     if (!/^[A-Za-z0-9_-]{10,300}$/.test(id) || !KEY()) throw httpError(400, 'Invalid place');
     let p = null;
-    try { p = await details(id); } catch { /* below */ }
+    try { p = await places.placeDetails(id); } catch { /* below */ }
     if (!p) throw httpError(502, 'Could not open this place');
     res.json({ place: p });
 }));

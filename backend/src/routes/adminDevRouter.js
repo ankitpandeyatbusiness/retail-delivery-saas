@@ -121,7 +121,7 @@ router.get('/tenants/:tid/dev-details', loadTenant, wrap(async (req, res) => {
                 { key: 'APP_TENANT', value: slug },
                 { key: 'EXPO_PUBLIC_BASE_URL', value: `${base(req)}/api` },
                 { key: 'MEDIA_CDN_URL', value: cdn || null, note: cdn ? null : 'Not set on the server: set it, the app build needs it for the icon.' },
-                { key: 'GOOGLE_MAPS_API_KEY', value: null, note: 'Set in the mobile .env / EAS secrets (not known to the server).' },
+                { key: 'GOOGLE_MAPS_SDK_KEY', value: null, note: 'Set in the mobile .env / EAS secrets (not known to the server). The app map key, restricted to the app. The older name GOOGLE_MAPS_API_KEY also works.' },
             ],
             branding: {
                 folder: cdn ? `${cdn}/${brandPath}/` : `${brandPath}/ (bucket path; MEDIA_CDN_URL is not set)`,

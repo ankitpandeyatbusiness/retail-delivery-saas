@@ -2,10 +2,13 @@
 // Sultanpur even with a small spelling mistake, a missing word or words in another order.
 //
 // Several sources are asked at the same time and their answers are merged and RANKED here:
-//   Google Places text search + autocomplete (when the server has GOOGLE_MAPS_API_KEY)
+//   Google Places API (New): autocomplete + text search by name (when the server has GOOGLE_PLACES_SERVER_KEY)
 //   Photon (OpenStreetMap, fuzzy)  and  Nominatim
 // India only: every source is limited to India and a result outside India's box is dropped.
-const KEY = () => process.env.GOOGLE_GEOCODING_API_KEY || process.env.GOOGLE_MAPS_API_KEY || '';
+// The server's own key (Places API (New) + Geocoding API enabled, NOT restricted to an app). The older names still work.
+const KEY = () => process.env.GOOGLE_PLACES_SERVER_KEY || process.env.GOOGLE_GEOCODING_API_KEY || process.env.GOOGLE_MAPS_API_KEY || '';
+const { LRUCache } = require('lru-cache');
+const budget = require('./googleBudget');
 const UA = 'RetailControl/1.0 (superadmin place search)';
 const enc = encodeURIComponent;
 
@@ -14,6 +17,16 @@ async function getJson(url, headers = {}, ms = 6000) {
     const timer = setTimeout(() => ctl.abort(), ms);
     try {
         const res = await fetch(url, { headers, signal: ctl.signal });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return await res.json();
+    } finally { clearTimeout(timer); }
+}
+
+async function postJson(url, body, headers = {}, ms = 6000) {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), ms);
+    try {
+        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body), signal: ctl.signal });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return await res.json();
     } finally { clearTimeout(timer); }
@@ -89,49 +102,67 @@ const uniq = (list) => [...new Set(list.filter(Boolean))];
 const boxAround = (near, d = 0.45) => ({ minLon: near.lng - d, minLat: near.lat - d, maxLon: near.lng + d, maxLat: near.lat + d });
 
 /* ---------------------------------- sources ---------------------------------- */
-async function googleSources(q, near, strong = false) {
+// What Google answered for a typed text, kept for 10 minutes: the same words asked again (the same town, the same
+// landmark) cost nothing. Only the Google part is kept; ranking is done fresh for every request.
+const googleCache = new LRUCache({ max: 500, ttl: 10 * 60 * 1000 });
+const G_PLACES = 'https://places.googleapis.com/v1';
+
+// share: how much of the monthly allowance this caller may use (1 = all; the superadmin's own searches use half)
+async function googleSources(q, near, strong = false, share = 1) {
     if (!KEY()) return [];
-    const bias = near ? `&location=${near.lat},${near.lng}&radius=${strong ? 25000 : 50000}` : '';
-    const out = [];
+    const ckey = [norm(q), near ? `${near.lat.toFixed(2)},${near.lng.toFixed(2)}` : '-', strong ? 's' : 'n', share].join('|');
+    const hit = googleCache.get(ckey);
+    if (hit) return hit;
+
+    const key = { 'X-Goog-Api-Key': KEY() };
+    const circle = near ? { circle: { center: { latitude: near.lat, longitude: near.lng }, radius: strong ? 25000 : 50000 } } : null;
+    const box = near ? (() => { const b = boxAround(near); return { rectangle: { low: { latitude: b.minLat, longitude: b.minLon }, high: { latitude: b.maxLat, longitude: b.maxLon } } }; })() : null;
+    const spend = async (sku, call) => { if (!(await budget.take(sku, { share }))) throw new Error('skip'); return call(); };
+
     const [text, auto, local] = await Promise.allSettled([
-        getJson(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=${enc(q)}&region=in${bias}&key=${KEY()}`),
-        getJson(`https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${enc(q)}&components=country:in${bias}&key=${KEY()}`),
+        // 1. the best answer for shop names (Pro price): only while the month's allowance lasts
+        spend('text_search', () => postJson(`${G_PLACES}/places:searchText`,
+            { textQuery: q, regionCode: 'IN', ...(circle ? { locationBias: circle } : {}) },
+            { ...key, 'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location' })),
+        // 2. suggestions as it is typed (Essentials price)
+        spend('autocomplete', () => postJson(`${G_PLACES}/places:autocomplete`,
+            { input: q, includedRegionCodes: ['in'], ...(circle ? { locationBias: circle } : {}) }, key)),
         // a customer: ALSO ask only inside the area around them, so nearby places are always in the answer
         strong && near
-            ? getJson(`https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${enc(q)}&components=country:in${bias}&strictbounds=true&key=${KEY()}`)
+            ? spend('autocomplete', () => postJson(`${G_PLACES}/places:autocomplete`, { input: q, includedRegionCodes: ['in'], locationRestriction: box }, key))
             : Promise.reject(new Error('skip')),
     ]);
-    if (local.status === 'fulfilled' && local.value.status === 'OK') {
-        for (const p of local.value.predictions || []) {
+
+    const out = [];
+    const suggestions = (r, boost) => {
+        if (r.status !== 'fulfilled') return;
+        for (const x of r.value.suggestions || []) {
+            const pp = x.placePrediction;
+            if (!pp) continue;
             out.push({
-                src: 'google', placeId: p.place_id, name: p.description,
-                title: p.structured_formatting?.main_text || p.description,
-                subtitle: p.structured_formatting?.secondary_text || '',
-                boost: 0.12,
+                src: 'google', placeId: pp.placeId || String(pp.place || '').replace(/^places\//, ''),
+                name: pp.text?.text || '',
+                title: pp.structuredFormat?.mainText?.text || pp.text?.text || '',
+                subtitle: pp.structuredFormat?.secondaryText?.text || '',
+                boost,
             });
         }
-    }
-    if (text.status === 'fulfilled' && text.value.status === 'OK') {
-        for (const r of text.value.results || []) {
-            const addr = r.formatted_address || '';
+    };
+    suggestions(local, 0.12);
+    if (text.status === 'fulfilled') {
+        for (const r of text.value.places || []) {
+            const name = r.displayName?.text || '';
+            const addr = r.formattedAddress || '';
             out.push({
-                src: 'google', placeId: r.place_id, title: r.name, name: `${r.name}, ${addr}`,
+                src: 'google', placeId: r.id, title: name, name: `${name}, ${addr}`,
                 subtitle: addr.replace(/, India$/, ''),
-                latitude: r.geometry?.location?.lat, longitude: r.geometry?.location?.lng,
+                latitude: r.location?.latitude, longitude: r.location?.longitude,
                 boost: 0.15,
             });
         }
     }
-    if (auto.status === 'fulfilled' && auto.value.status === 'OK') {
-        for (const p of auto.value.predictions || []) {
-            out.push({
-                src: 'google', placeId: p.place_id, name: p.description,
-                title: p.structured_formatting?.main_text || p.description,
-                subtitle: p.structured_formatting?.secondary_text || '',
-                boost: 0.1,
-            });
-        }
-    }
+    suggestions(auto, 0.1);
+    if (out.length) googleCache.set(ckey, out);
     return out;
 }
 
@@ -195,20 +226,22 @@ function variants(q) {
     return [...out].slice(0, 3);
 }
 
-// The point (and city / pincode) of a Google suggestion, which only comes with a name at first
+// The point (and city / pincode) of a Google suggestion, which only comes with a name at first.
+// Only the Essentials fields are asked for (address, point, parts), which keeps it at the cheap price.
+// null = no allowance left this month (the caller uses a free source) or Google had nothing.
 async function placeDetails(placeId) {
     if (!KEY()) return null;
-    const j = await getJson(`https://maps.googleapis.com/maps/api/place/details/json?place_id=${enc(placeId)}&fields=geometry,formatted_address,address_component&key=${KEY()}`);
-    if (j.status !== 'OK' || !j.result) return null;
-    const get = (type) => j.result.address_components?.find((c) => c.types.includes(type))?.long_name || '';
-    const loc = j.result.geometry?.location;
-    if (!loc) return null;
+    if (!(await budget.take('details'))) return null;
+    const j = await getJson(`${G_PLACES}/places/${enc(placeId)}`, { 'X-Goog-Api-Key': KEY(), 'X-Goog-FieldMask': 'formattedAddress,location,addressComponents' });
+    const loc = j?.location;
+    if (!loc || !Number.isFinite(loc.latitude)) return null;
+    const get = (type) => j.addressComponents?.find((c) => c.types?.includes(type))?.longText || '';
     return {
-        name: j.result.formatted_address,
-        latitude: loc.lat,
-        longitude: loc.lng,
+        name: j.formattedAddress,
+        latitude: loc.latitude,
+        longitude: loc.longitude,
         city: get('locality') || get('administrative_area_level_2'),
-        pincode: /^d{6}$/.test(get('postal_code')) ? get('postal_code') : '',
+        pincode: /^\d{6}$/.test(get('postal_code')) ? get('postal_code') : '',
     };
 }
 
@@ -223,7 +256,7 @@ async function placeDetails(placeId) {
 async function search(q, near, opts = {}) {
     const asks = [];
     const strongNear = opts.proximity === 'strong' && near;
-    asks.push(googleSources(q, near, !!strongNear));
+    asks.push(googleSources(q, near, !!strongNear, opts.share ?? 1));
     for (const v of variants(q)) {
         asks.push(photonSource(v, near));
         if (v === q.trim()) asks.push(nominatimSource(v, near));
@@ -265,8 +298,10 @@ async function search(q, near, opts = {}) {
         }));
     }
 
+    // a Google suggestion has no point until Details is asked: with no allowance left it could not be opened, so it is left out
+    const detailsLeft = !KEY() || await budget.hasLeft('details');
     const strong = opts.proximity === 'strong';
-    const ranked = [...seen.values()].map((c) => {
+    const ranked = [...seen.values()].filter((c) => detailsLeft || !(c.placeId && c.latitude == null)).map((c) => {
         const rel = relevance(q, c) + (c.boost || 0);
         let score = rel;
         if (near && c.latitude != null) {
@@ -282,4 +317,4 @@ async function search(q, near, opts = {}) {
     return ranked.slice(0, opts.limit || 8).map(({ src, boost, score, rel, ...c }) => (opts.keep ? { ...c, score } : c));
 }
 
-module.exports = { search, relevance, wordSimilarity, placeDetails, KEY, getJson, UA };
+module.exports = { search, relevance, wordSimilarity, placeDetails, KEY, getJson, postJson, UA, googleCache };

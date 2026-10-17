@@ -10,7 +10,11 @@
 const v8 = require('v8');
 const PlatformSettings = require('../models/PlatformSettings');
 
-const DEFAULTS = { mode: 'socket', maxSockets: 400, pollSec: 15, routeCap: 8000 };
+// the caps sit just under Google's free monthly allowance (India): see services/googleBudget.js
+const DEFAULTS = {
+    mode: 'socket', maxSockets: 400, pollSec: 15,
+    routeCap: 60000, routeProCap: 30000, textSearchCap: 30000, autocompleteCap: 60000, detailsCap: 60000,
+};
 const SETTINGS_TTL_MS = 15000;
 const AUTO_MS = 2 * 60000;          // how long the watchdog keeps polling mode on
 const LAG_LIMIT_MS = 300;           // an event loop that answers 300 ms late 3 times in a row is struggling

@@ -47,3 +47,7 @@ AGENTS.md
 
 # downloaded app icon/splash (from the media bucket at build time)
 .branding-cache/
+
+# local secrets and keys (never commit)
+.env
+.env.*

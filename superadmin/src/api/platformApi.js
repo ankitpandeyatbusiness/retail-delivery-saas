@@ -30,7 +30,7 @@ export const changeMyPhones = (body) => data(api.put('/admin/me/phones', body));
 
 /* ---- live tracking of riders: how the server is doing, and the switch (the supreme admin changes it) ---- */
 export const fetchTracking = () => data(api.get('/admin/platform/tracking'));
-export const saveTracking = (body) => data(api.put('/admin/platform/tracking', body));            // { mode?, maxSockets?, pollSec?, routeCap? } or { reset: true }
+export const saveTracking = (body) => data(api.put('/admin/platform/tracking', body));            // { mode?, maxSockets?, pollSec?, routeCap?, routeProCap?, textSearchCap?, autocompleteCap?, detailsCap? } or { reset: true }
 
 /* ---- alert devices (push) ---- */
 export const registerDevice = (body) => data(api.post('/admin/devices', body));                    // { token, platform }

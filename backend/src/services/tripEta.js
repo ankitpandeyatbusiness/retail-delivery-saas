@@ -1,7 +1,7 @@
 // The road route and the arrival time of every order that is on its way, kept up to date as the rider's pings come in.
 //
 //   - the route is asked for ONCE when the order is picked up, and again only when the rider leaves it (150 m away on two pings
-//     in a row) or the route is 10 minutes old. Between those the arrival time is worked out from how far along the route he is,
+//     in a row) or a route with traffic is 10 minutes old (a route without traffic stays good for an hour). Between those the arrival time is worked out from how far along the route he is,
 //     so there is no call per ping.
 //   - events to the people watching the order (room order:<id>):
 //       rider:route { orderId, polyline, distanceM, durationSec, source }          when a route is made
@@ -16,7 +16,8 @@ const polyline = require('../utils/polyline');
 
 const OFF_ROUTE_M = 150;
 const REROUTE_GAP_MS = 60000;
-const ROUTE_MAX_AGE_MS = 10 * 60000;
+const ROUTE_MAX_AGE_MS = 10 * 60000;       // a route WITH traffic is asked again after this (jams change)
+const ROUTE_NOTRAFFIC_AGE_MS = 60 * 60000; // a route without traffic never changes: only a wrong turn needs a new one
 const ESTIMATE_RETRY_MS = 2 * 60000;
 const ETA_EMIT_MS = 5000;
 const ARRIVING_SEC = 180;
@@ -82,7 +83,7 @@ async function update({ order, riderId, riderName, pos, now = Date.now() }) {
     if (trip.route?.source === 'google') {
         const pr = project(trip.route, here);
         trip.offRoute = pr.distM > OFF_ROUTE_M ? trip.offRoute + 1 : 0;
-        if (now - trip.routedAt > ROUTE_MAX_AGE_MS || (trip.offRoute >= 2 && now - trip.routedAt > REROUTE_GAP_MS)) need = true;
+        if (now - trip.routedAt > (trip.route.traffic ? ROUTE_MAX_AGE_MS : ROUTE_NOTRAFFIC_AGE_MS) || (trip.offRoute >= 2 && now - trip.routedAt > REROUTE_GAP_MS)) need = true;
     } else if (trip.route) {
         // an estimate costs nothing: redo it from where he is. Ask Google again now and then.
         const est = routes.estimate(here, dest, trip.route.reason);

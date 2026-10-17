@@ -5,14 +5,17 @@
 //
 // ROUTES_PROVIDER=google (and a key in GOOGLE_ROUTES_API_KEY, or GOOGLE_MAPS_API_KEY) uses Google's Routes API.
 // Anything else, or any problem, gives an ESTIMATE (a straight line, a road factor and an average speed): free, always works.
+// Three stages, so the best answer comes first and the bill stays at zero (caps in PlatformSettings.tracking, see googleBudget.js):
+//   1. a route WITH live traffic (Routes "Pro"): the first routeProCap calls of the month
+//   2. a route without traffic (Routes "Essentials"): the next routeCap calls of the month
+//   3. the free estimate
 // Safety so the bill can never surprise you:
-//   - a monthly cap on Google calls (PlatformSettings.tracking.routeCap, default 8000). When it is reached the estimate is used.
+//   - a monthly cap (and a daily pace) on every stage. When both are used up the estimate is used.
 //   - a circuit breaker: after 3 failures in a row Google is not called for 5 minutes.
 //   - a time limit on every call.
 // NOTE: the key in the phone app is usually restricted to the app. The server needs its OWN key (no app restriction) with the
 // Routes API enabled in Google Cloud.
-const Counter = require('../../models/Counter');
-const guard = require('../trackingGuard');
+const budget = require('../googleBudget');
 const polyline = require('../../utils/polyline');
 
 const AVG_KMH = parseFloat(process.env.RIDER_AVG_SPEED_KMH) || 20;
@@ -49,14 +52,14 @@ function thin(points, max = MAX_POINTS) {
 }
 
 // the real call (tests replace it with setTransport)
-async function googleCall({ from, to }) {
-    const key = process.env.GOOGLE_ROUTES_API_KEY || process.env.GOOGLE_MAPS_API_KEY;
+async function googleCall({ from, to, traffic }) {
+    const key = process.env.GOOGLE_ROUTES_SERVER_KEY || process.env.GOOGLE_ROUTES_API_KEY || process.env.GOOGLE_MAPS_API_KEY;
     if (!key) throw new Error('No Google key for the server');
     const body = {
         origin: { location: { latLng: { latitude: from.lat, longitude: from.lng } } },
         destination: { location: { latLng: { latitude: to.lat, longitude: to.lng } } },
         travelMode: 'TWO_WHEELER',
-        routingPreference: 'TRAFFIC_UNAWARE',
+        routingPreference: traffic ? 'TRAFFIC_AWARE' : 'TRAFFIC_UNAWARE',
     };
     const res = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
         method: 'POST',
@@ -73,35 +76,41 @@ async function googleCall({ from, to }) {
 let transport = googleCall;
 const setTransport = (fn) => { transport = fn || googleCall; };
 
-const monthKey = (d = new Date()) => `routes:${new Date(d.getTime() + 330 * 60000).toISOString().slice(0, 7)}`;
-
 async function usedThisMonth() {
-    const c = await Counter.findById(monthKey()).lean();
-    return c?.seq || 0;
+    const u = await budget.usage();
+    return (u.route_pro?.used || 0) + (u.route_ess?.used || 0);
 }
 
 const googleOn = () => process.env.ROUTES_PROVIDER === 'google';
+
+// the stages in order: [counter name in googleBudget, does it use live traffic]
+const STAGES = [['route_pro', true], ['route_ess', false]];
 
 async function getRoute({ from, to }) {
     const fb = (reason) => estimate(from, to, reason);
     if (!googleOn()) return fb('estimate_only');
     if (Date.now() < state.openUntil) return fb('breaker');
-    try {
-        const cap = (await guard.loadedSettings()).routeCap;
-        // take a call from the month's allowance first; give it back if the cap was passed
-        const c = await Counter.findOneAndUpdate({ _id: monthKey() }, { $inc: { seq: 1 } }, { returnDocument: 'after', upsert: true });
-        if (c.seq > cap) { await Counter.updateOne({ _id: monthKey() }, { $inc: { seq: -1 } }); return fb('monthly_cap'); }
-        state.calls += 1;
-        const r = await transport({ from, to });
-        state.failures = 0;
-        const points = thin(r.points?.length ? r.points : [from, to]);
-        return { source: 'google', points, distanceM: Math.round(r.distanceM), durationSec: Math.max(60, Math.round(r.durationSec)) };
-    } catch (e) {
-        state.failures += 1;
-        state.lastError = String(e.message || e).slice(0, 120);
-        if (state.failures >= BREAKER_AFTER) { state.openUntil = Date.now() + BREAKER_MS; state.failures = 0; console.warn('Routes: Google failed 3 times, using estimates for 5 minutes'); }
-        return fb('error');
+    let failed = false;
+    for (const [sku, traffic] of STAGES) {
+        let allowed = false;
+        try { allowed = await budget.take(sku); } catch (e) { return fb('error'); }
+        if (!allowed) continue;   // this stage is used up this month (or today): try the economical one
+        try {
+            state.calls += 1;
+            const r = await transport({ from, to, traffic });
+            state.failures = 0;
+            const points = thin(r.points?.length ? r.points : [from, to]);
+            return { source: 'google', traffic, points, distanceM: Math.round(r.distanceM), durationSec: Math.max(60, Math.round(r.durationSec)) };
+        } catch (e) {
+            failed = true;   // the next stage is still tried once (for example when "with traffic" is refused for a travel mode)
+            state.lastError = String(e.message || e).slice(0, 120);
+        }
     }
+    if (failed) {
+        state.failures += 1;   // one failure per request, however many stages were tried
+        if (state.failures >= BREAKER_AFTER) { state.openUntil = Date.now() + BREAKER_MS; state.failures = 0; console.warn('Routes: Google failed 3 times, using estimates for 5 minutes'); }
+    }
+    return fb(failed ? 'error' : 'monthly_cap');
 }
 
 async function stats() {

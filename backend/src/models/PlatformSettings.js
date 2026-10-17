@@ -74,7 +74,12 @@ const platformSchema = new mongoose.Schema({
         mode: { type: String, enum: ['socket', 'polling', 'off'], default: 'socket' },
         maxSockets: { type: Number, default: 400, min: 10, max: 5000 },   // new sockets are refused beyond this many at once
         pollSec: { type: Number, default: 15, min: 5, max: 120 },        // how often an app polls in polling mode
-        routeCap: { type: Number, default: 8000, min: 0, max: 1000000 }, // road-route calls to Google per month; beyond it the app uses an estimate
+        // Google calls per month. Each is kept just under Google's free allowance (India); beyond it the apps use a free source (services/googleBudget.js)
+        routeCap: { type: Number, default: 60000, min: 0, max: 1000000 },        // road routes without traffic (the economical stage)
+        routeProCap: { type: Number, default: 30000, min: 0, max: 1000000 },     // road routes with traffic (the best stage, first)
+        textSearchCap: { type: Number, default: 30000, min: 0, max: 1000000 },   // place search by name (Pro price)
+        autocompleteCap: { type: Number, default: 60000, min: 0, max: 1000000 }, // suggestions while typing
+        detailsCap: { type: Number, default: 60000, min: 0, max: 1000000 },      // address and point of the picked place
     },
     activeOperatorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Operator' },   // the company whose details are in business/payments now (services/operators.js)
 

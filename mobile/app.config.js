@@ -101,7 +101,7 @@ export default {
     userInterfaceStyle: 'automatic',
     icon,
     android: {
-      config: { googleMaps: { apiKey: process.env.GOOGLE_MAPS_API_KEY } },
+      config: { googleMaps: { apiKey: process.env.GOOGLE_MAPS_SDK_KEY || process.env.GOOGLE_MAPS_API_KEY } },   // the app's own Maps key (restricted to the app); GOOGLE_MAPS_API_KEY is the older name
       package: currentConfig.bundleId,
       ...(googleServicesFile && { googleServicesFile }),
       // Preserves your previous manual permissions + adds Microphone

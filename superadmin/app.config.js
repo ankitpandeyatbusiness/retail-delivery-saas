@@ -22,8 +22,8 @@ module.exports = {
         android: {
             package: 'com.ankitpandey.retailcontrol',
             allowBackup: false,
-            // Google Maps SDK key (put GOOGLE_MAPS_API_KEY=... in superadmin/.env): the map where you point to the shop
-            config: { googleMaps: { apiKey: process.env.GOOGLE_MAPS_API_KEY } },
+            // Google Maps SDK key (put GOOGLE_MAPS_SDK_KEY=... in superadmin/.env; the older name GOOGLE_MAPS_API_KEY also works): the map where you point to the shop
+            config: { googleMaps: { apiKey: process.env.GOOGLE_MAPS_SDK_KEY || process.env.GOOGLE_MAPS_API_KEY } },
             ...(hasFirebase ? { googleServicesFile: './google-services.json' } : {}),
             adaptiveIcon: {
                 foregroundImage: './assets/adaptive-foreground.png',

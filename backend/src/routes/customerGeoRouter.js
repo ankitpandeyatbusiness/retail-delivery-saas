@@ -43,7 +43,7 @@ router.get('/suggest', wrap(async (req, res) => {
         items = await places.search(q, near && { lat: near.lat, lng: near.lng }, {
             limit: 8,
             proximity: 'strong',
-            resolve: 4,
+            resolve: 2,   // only the best two get their point looked up now (each is a billed Details call); the rest on tap
             // an address the shop can deliver to is worth more than one it cannot
             bonus: (c) => (hasArea && c.latitude != null && serviceability(tenant, c.latitude, c.longitude).serviceable ? 0.25 : 0),
         });

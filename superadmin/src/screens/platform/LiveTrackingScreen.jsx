@@ -23,6 +23,15 @@ const num = (v) => (v === '' || v == null ? null : Number(v));
 const digits = (v) => v.replace(/\D/g, '');
 
 // How live tracking is doing, and the switch. Everybody with a superadmin login can look; only the supreme admin changes it.
+// [name in the server's usage list, setting, label]: best first
+const GOOGLE_ROWS = [
+    ['route_pro', 'routeProCap', 'Road routes with traffic per month (best, first)'],
+    ['route_ess', 'routeCap', 'Road routes without traffic per month'],
+    ['text_search', 'textSearchCap', 'Place search by name per month (best, first)'],
+    ['autocomplete', 'autocompleteCap', 'Place suggestions per month'],
+    ['details', 'detailsCap', 'Picked place address and point per month'],
+];
+
 export default function LiveTrackingScreen() {
     const t = useTheme();
     const supreme = useSupreme();
@@ -30,7 +39,7 @@ export default function LiveTrackingScreen() {
     const [error, setError] = useState('');
     const [busy, setBusy] = useState(false);
     const [confirm, setConfirm] = useState(null);
-    const [caps, setCaps] = useState({ maxSockets: '', pollSec: '', routeCap: '' });
+    const [caps, setCaps] = useState({ maxSockets: '', pollSec: '', routeProCap: '', routeCap: '', textSearchCap: '', autocompleteCap: '', detailsCap: '' });
     const [editing, setEditing] = useState(false);
 
     const load = useCallback(async () => {
@@ -38,7 +47,7 @@ export default function LiveTrackingScreen() {
             const r = await fetchTracking();
             setD(r);
             // the numbers being typed are not overwritten by the 15-second refresh
-            setCaps((c) => (editing ? c : { maxSockets: String(r.settings.maxSockets), pollSec: String(r.settings.pollSec), routeCap: String(r.settings.routeCap) }));
+            setCaps((c) => (editing ? c : Object.fromEntries(Object.keys(c).map((k) => [k, String(r.settings[k] ?? '')]))));
             setError('');
         } catch (e) { setError(errMsg(e)); }
     }, [editing]);
@@ -52,7 +61,7 @@ export default function LiveTrackingScreen() {
     };
     const st = d.status;
     const auto = !!d.counters?.autoUntil && new Date(d.counters.autoUntil) > new Date();
-    const changed = String(d.settings.maxSockets) !== caps.maxSockets || String(d.settings.pollSec) !== caps.pollSec || String(d.settings.routeCap) !== caps.routeCap;
+    const changed = Object.keys(caps).some((k) => String(d.settings[k]) !== caps[k]);
     const r = d.routes || {};
     const set = (k) => (v) => { setEditing(true); setCaps((c) => ({ ...c, [k]: digits(v) })); };
     const label = (m) => MODES.find((x) => x.value === m)?.label || m;
@@ -82,6 +91,13 @@ export default function LiveTrackingScreen() {
                 {r.lastError ? <Hint>Last problem: {r.lastError}</Hint> : null}
             </Group>
 
+            <Group title="Google maps use this month" section="money" hint="Each is kept just under Google's free allowance. The best kind is used first; when it is used up the next, cheaper kind takes over, and at the end a free source, so nothing is billed.">
+                {GOOGLE_ROWS.map(([key, field], i) => {
+                    const g = d.google?.[key] || { used: 0, cap: d.settings[field] };
+                    return <KeyValue key={key} label={g.label || key} value={`${g.used} of ${g.cap}`} last={i === GOOGLE_ROWS.length - 1} />;
+                })}
+            </Group>
+
             {supreme ? (
                 <>
                     <Group title="The switch" section="alerts" hint="Polling asks every phone to stop using sockets and ask every few seconds instead. Live returns when you switch back.">
@@ -90,8 +106,8 @@ export default function LiveTrackingScreen() {
                     <Group title="Limits" section="settings">
                         <Field label="Most phones connected at once" value={caps.maxSockets} onChangeText={set('maxSockets')} keyboardType="number-pad" />
                         <Field label="Polling: ask every (seconds)" value={caps.pollSec} onChangeText={set('pollSec')} keyboardType="number-pad" />
-                        <Field label="Google routes per month" value={caps.routeCap} onChangeText={set('routeCap')} keyboardType="number-pad" />
-                        <Button title="Save limits" loading={busy} disabled={!changed} onPress={() => apply({ maxSockets: num(caps.maxSockets), pollSec: num(caps.pollSec), routeCap: num(caps.routeCap) }, 'Limits saved').catch(() => { })} />
+                        {GOOGLE_ROWS.map(([key, field, title]) => <Field key={field} label={title} value={caps[field]} onChangeText={set(field)} keyboardType="number-pad" />)}
+                        <Button title="Save limits" loading={busy} disabled={!changed} onPress={() => apply(Object.fromEntries(Object.entries(caps).map(([k, v]) => [k, num(v)])), 'Limits saved').catch(() => { })} />
                         <Button title="Back to the recommended values" kind="outline" small onPress={() => setConfirm('reset')} style={{ marginTop: spacing.sm }} />
                     </Group>
                 </>
