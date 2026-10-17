@@ -2,6 +2,7 @@
 // server.js starts everything. Tests import this file directly.
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 
 const platformGate = require('../middlewares/platformGate');
 const authRouter = require('../routes/authRouter');
@@ -25,6 +26,8 @@ const app = express();
 // Trust proxy for rate-limiting behind load balancers (Render, AWS, etc.)
 app.set('trust proxy', 1);
 
+// security headers; no CSP because the /legal pages use inline styles, and cross-origin images must still load in the apps
+app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: false }));
 app.use(cors());
 
 // Webhooks need the raw body, so they come BEFORE express.json and before platformGate

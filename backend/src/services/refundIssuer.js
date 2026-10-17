@@ -95,7 +95,9 @@ async function send(refundId) {
         if (processed) await afterProcessed(r);
         return { ok: true, status: set.status, refundId: out.refundId };
     } catch (e) {
-        const clearNo = e.razorpay && e.status >= 400 && e.status < 500 && e.status !== 429;
+        // a shop with too little balance is not a "no": the money may arrive later, so the refund waits and the retry job sends it
+        const shortBalance = e.razorpay && /balance/i.test(e.message || '');
+        const clearNo = e.razorpay && e.status >= 400 && e.status < 500 && e.status !== 429 && !shortBalance;
         if (clearNo) {
             await OnlineRefund.updateOne({ _id: r._id }, { $set: { status: 'failed', lastError: String(e.message).slice(0, 200) }, $unset: { lockedUntil: 1 } });
             await release(r);
@@ -104,7 +106,10 @@ async function send(refundId) {
         }
         // network, timeout or Razorpay problem: keep it pending, the retry job tries again
         await OnlineRefund.updateOne({ _id: r._id }, { $set: { lastError: String(e.message).slice(0, 200) }, $unset: { lockedUntil: 1 } });
-        if (r.attempts >= MAX_ATTEMPTS) {
+        if (shortBalance && r.attempts === 1) {
+            await alert('admin_refund_failed', { tenantId: r.tenantId, vars: { orderId: String(r.orderId), amount: money(r.amountPaise), reason: 'Not enough balance in the shop Razorpay account. It will be sent again once balance is added.' } });
+        }
+        if (r.attempts === MAX_ATTEMPTS) {
             await alert('admin_refund_failed', { tenantId: r.tenantId, vars: { orderId: String(r.orderId), amount: money(r.amountPaise), reason: 'Still not sent after many tries' } });
         }
         return { ok: true, pending: true };

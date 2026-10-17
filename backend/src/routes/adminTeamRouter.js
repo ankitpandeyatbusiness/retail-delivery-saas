@@ -9,6 +9,7 @@
 //
 // Rules:
 //   - Nobody can change their OWN role (revoke themselves). Another superadmin has to do it.
+//   - Only the supreme admin can revoke or restore a superadmin, and the supreme admin can never be revoked.
 //   - A revoked superadmin is logged out at once (the login is re-checked on every call).
 //   - Phones of another superadmin cannot be edited here; the owner of the account changes them with OTP
 //     proof (PUT /api/admin/me/phones), or you revoke and add again.
@@ -19,6 +20,8 @@ const Tenant = require('../models/Tenant');
 const roles = require('../services/userRoleService');
 const { maskPhone } = require('../utils/phoneHash');
 const { wrap, httpError } = require('../middlewares/apiErrors');
+const { requireSupreme } = require('../middlewares/supremeAdmin');
+const { isSupreme } = require('../config/supreme');
 
 const router = express.Router();
 const PHONE_RE = /^[6-9]\d{9}$/;
@@ -98,9 +101,10 @@ router.patch('/team/:id', wrap(async (req, res) => {
     res.json(view(a.toObject(), req.admin._id));
 }));
 
-router.post('/team/:id/revoke', wrap(async (req, res) => {
+router.post('/team/:id/revoke', requireSupreme, wrap(async (req, res) => {
     notSelf(req);
     const a = await findTarget(req);
+    if (isSupreme(a)) throw httpError(403, 'The supreme admin cannot be revoked');
     req.auditBefore = { isActive: a.isActive };
 
     // optional: give the person a shop role at the same time, so they can be a customer / rider / owner again
@@ -124,7 +128,7 @@ router.post('/team/:id/revoke', wrap(async (req, res) => {
     res.json({ ...view(a.toObject(), req.admin._id), shopRole });
 }));
 
-router.post('/team/:id/restore', wrap(async (req, res) => {
+router.post('/team/:id/restore', requireSupreme, wrap(async (req, res) => {
     const a = await findTarget(req);
     req.auditBefore = { isActive: a.isActive };
     a.isActive = true;

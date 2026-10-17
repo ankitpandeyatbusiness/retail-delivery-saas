@@ -240,6 +240,23 @@ describe('J1b: online payments, refunds, webhooks', () => {
         assert.equal((await OnlinePayment.findOne({ orderId: order._id })).refundedPaise, 0);
     });
 
+    test('refunds: too little balance in the shop account keeps the refund pending, and the retry job sends it once balance is added', async () => {
+        const { tenant, order, start } = await paidSetup('j1b-bal');
+        await hook(tenant._id, capturedBody('pay_bal', start.rzpOrderId));
+        mock.method(payments, 'refund', async () => { throw Object.assign(new Error('Your account does not have enough balance to carry out the refund operation.'), { razorpay: true, status: 400 }); });
+        const r = await refundIssuer.issueRefund({ tenantId: tenant._id, orderId: order._id, amountPaise: 3000, reason: 'complaint', key: 'kbal' });
+        assert.equal(r.ok, true);
+        assert.equal(r.pending, true);
+        assert.equal((await OnlineRefund.findOne({ key: 'kbal' })).status, 'pending');
+        assert.equal((await OnlinePayment.findOne({ orderId: order._id })).refundedPaise, 3000);   // still counted, so it cannot be refunded twice
+        mock.restoreAll();
+        mock.method(payments, 'listRefunds', async () => []);
+        mock.method(payments, 'refund', async () => ({ refundId: 'rfnd_late', status: 'processed' }));
+        await OnlineRefund.updateOne({ key: 'kbal' }, { $set: { lastTryAt: new Date(Date.now() - 10 * 60000) } });
+        await refundIssuer.retryPending();
+        assert.equal((await OnlineRefund.findOne({ key: 'kbal' })).status, 'processed');
+    });
+
     test('webhook: a refund made in the Razorpay dashboard is counted, and refund.failed releases the amount', async () => {
         const { tenant, order, start } = await paidSetup('j1b-ext');
         await hook(tenant._id, capturedBody('pay_ext', start.rzpOrderId));

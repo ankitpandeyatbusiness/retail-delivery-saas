@@ -231,6 +231,24 @@ describe('complaints, messages, activity, cod block', () => {
         assert.equal(none.body.items.length, 0);
     });
 
+    test('the owner blocks and unblocks a customer of his shop, but not an owner or a rider', async () => {
+        const w = await f.makeWorld(`ops-${++n}`);
+        const Session = require('../src/models/Session');
+        const User = require('../src/models/User');
+        await Session.create({ userId: w.customer.user._id, tenantId: w.tenant._id, refreshTokenHash: 'x', expiresAt: new Date(Date.now() + 86400000) });
+        assert.equal(await Session.countDocuments({ userId: w.customer.user._id }) >= 1, true);   // there is a login to end
+        const url = (u) => shopUrl(w.tenant, `customers/${u._id}/block`);
+        const bad = await patch(url(w.customer.user), { blocked: 'yes' });
+        assert.equal(bad.status, 400);
+        const r = await patch(url(w.customer.user), { blocked: true });
+        assert.equal(r.status, 200);
+        assert.equal((await User.findById(w.customer.user._id)).isBlocked, true);
+        assert.equal(await Session.countDocuments({ userId: w.customer.user._id }), 0);
+        const back = await patch(url(w.customer.user), { blocked: false });
+        assert.equal(back.body.isBlocked, false);
+        assert.equal((await patch(url(w.owner.user), { blocked: true })).status, 403);
+    });
+
     test('allow cash on delivery again clears the block', async () => {
         const w = await f.makeWorld(`ops-${++n}`);
         const r = await patch(shopUrl(w.tenant, `customers/${w.customer.user._id}/cod-block`), { blocked: false });

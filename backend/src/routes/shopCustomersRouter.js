@@ -2,12 +2,14 @@
 //   GET   /                       ?q=&page=&limit=    the customers of this shop (full phones: they are his own customers)
 //   GET   /:userId                one customer with order numbers and Cash on delivery strikes
 //   PATCH /:userId                { name?, email?, notes? }   never the phone, never an owner or a rider
+//   PATCH /:userId/block          { blocked: true|false }  stop (or allow again) this customer in this shop; logs them out at once
 //   PATCH /:userId/cod-block      { blocked: false }  allow Cash on delivery again (his strikes go back to 0)
 const express = require('express');
 const mongoose = require('mongoose');
 const apiErrors = require('../middlewares/apiErrors');
 const User = require('../models/User');
 const CustomerRisk = require('../models/CustomerRisk');
+const Session = require('../models/Session');
 const edit = require('../services/userEditService');
 const insights = require('../services/customerInsights');
 const autopilot = require('../services/autopilot');
@@ -77,6 +79,15 @@ router.patch('/:userId', wrap(async (req, res) => {
     });
     req.auditBefore = r.before;
     res.json(edit.profileView(r.user));
+}));
+
+router.patch('/:userId/block', wrap(async (req, res) => {
+    if (typeof req.body?.blocked !== 'boolean') throw httpError(400, 'Send blocked: true or false');
+    const user = await findCustomer(req);   // customers only: never an owner or a rider
+    req.auditBefore = { isBlocked: !!user.isBlocked };
+    await User.updateOne({ _id: user._id, tenantId: req.tenant._id }, { $set: { isBlocked: req.body.blocked } });
+    if (req.body.blocked) await Session.deleteMany({ userId: user._id });
+    res.json({ ok: true, isBlocked: req.body.blocked });
 }));
 
 router.patch('/:userId/cod-block', wrap(async (req, res) => {

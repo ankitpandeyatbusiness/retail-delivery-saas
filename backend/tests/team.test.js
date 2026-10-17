@@ -47,7 +47,7 @@ describe('superadmin team', () => {
 
     test('you cannot change your own role, another superadmin can', async () => {
         const a = await f.makeSuperAdmin('a@test.com');
-        const b = await f.makeSuperAdmin('b@test.com');
+        const b = await f.makeSuperAdmin('b@test.com', { phones: [] });
 
         const self = await request(app).post(`/api/admin/team/${a.admin._id}/revoke`).set(auth(a.token)).send({});
         assert.equal(self.status, 403);
@@ -67,9 +67,23 @@ describe('superadmin team', () => {
         assert.equal((await request(app).get('/api/admin/me').set(auth(b.token))).status, 200);
     });
 
+    test('only the supreme admin can revoke or restore, and the supreme admin can never be revoked', async () => {
+        const sup = await f.makeSuperAdmin('sup@test.com');
+        const a = await f.makeSuperAdmin('a@test.com', { phones: [] });
+        const b = await f.makeSuperAdmin('b@test.com', { phones: [] });
+        const byOrdinary = await request(app).post(`/api/admin/team/${b.admin._id}/revoke`).set(auth(a.token)).send({});
+        assert.equal(byOrdinary.status, 403);
+        assert.equal((await SuperAdmin.findById(b.admin._id)).isActive, true);
+        const onSupreme = await request(app).post(`/api/admin/team/${sup.admin._id}/revoke`).set(auth(a.token)).send({});
+        assert.equal(onSupreme.status, 403);
+        assert.equal((await SuperAdmin.findById(sup.admin._id)).isActive, true);
+        await request(app).post(`/api/admin/team/${b.admin._id}/revoke`).set(auth(sup.token)).send({});
+        assert.equal((await request(app).post(`/api/admin/team/${b.admin._id}/restore`).set(auth(a.token))).status, 403);
+    });
+
     test('revoke can make the person a customer, rider or owner of a shop', async () => {
         const a = await f.makeSuperAdmin('a@test.com');
-        const b = await f.makeSuperAdmin('b@test.com');
+        const b = await f.makeSuperAdmin('b@test.com', { phones: [] });
         const p = phone();
         await SuperAdmin.updateOne({ _id: b.admin._id }, { $set: { phones: [p] } });
         const shop = await f.makeTenant('team-shop-1');
