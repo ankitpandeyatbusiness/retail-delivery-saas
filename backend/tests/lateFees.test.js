@@ -112,6 +112,47 @@ describe('late fee', () => {
     });
 });
 
+describe('waive all late fees of one shop', () => {
+    const waive = (token, tenantId, body) => request(app).post(`/api/admin/tenants/${tenantId}/invoices/late-fees/waive-all`).set({ Authorization: `Bearer ${token}` }).send(body);
+
+    test('every unpaid late fee of that shop is cancelled with a credit note; the rent bills and other shops are untouched', async () => {
+        const a = await monthly(65, { period: '2026-07' });
+        const b = await monthly(35, { period: '2026-08' });
+        const other = await f.makeWorld('lf-waive-other');
+        const theirs = await SubscriptionInvoice.create({
+            tenantId: other.tenant._id, kind: 'monthly', period: '2026-08', invoiceNo: 'SUB/LF/OTHER', issueDate: new Date(Date.now() - 42 * DAY), dueDate: new Date(Date.now() - 35 * DAY),
+            baseAmount: 3000, gstPercent: 18, gstAmount: 540, total: 3540, status: 'pending', lineItems: [{ description: 'x', qty: 1, rate: 3000, amount: 3000 }],
+        });
+        await lateFees.run();
+        const st = await call('get', '/billing/status');
+        assert.deepEqual([st.body.lateFees.count, st.body.lateFees.amount], [3, 531]);
+
+        assert.equal((await waive(boss.token, w.tenant._id, {})).status, 400, 'a reason is needed');
+        const r = await waive(boss.token, w.tenant._id, { reason: 'Goodwill' });
+        assert.equal(r.status, 200, JSON.stringify(r.body));
+        assert.deepEqual([r.body.waived, r.body.amount], [3, 531]);
+
+        const mine = await SubscriptionInvoice.find({ tenantId: w.tenant._id, 'lateFee.forInvoiceId': { $exists: true } }).lean();
+        assert.ok(mine.length === 3 && mine.every((x) => x.status === 'void' && x.voidReason === 'Goodwill'));
+        assert.equal(await CreditNote.countDocuments({ originalInvoiceId: { $in: mine.map((x) => x._id) } }), 3);
+        assert.equal((await SubscriptionInvoice.findById(a._id).lean()).status, 'pending');
+        assert.equal((await SubscriptionInvoice.findById(b._id).lean()).status, 'pending');
+        assert.equal((await call('get', '/billing/status')).body.lateFees.count, 0);
+        assert.equal((await call('get', '/subscription/dues')).body.grandTotal, 7080, 'only the rent is left to pay');
+        assert.equal((await SubscriptionInvoice.findById(theirs._id).lean()).status, 'pending');
+        assert.equal((await waive(boss.token, w.tenant._id, { reason: 'again' })).body.waived, 0, 'a second tap changes nothing');
+        assert.equal((await lateFees.run()).issued, 0, 'a waived month is not made again');
+    });
+
+    test('only the supreme admin can do it', async () => {
+        await monthly(35);
+        await lateFees.run();
+        const ordinary = await f.makeSuperAdmin('vivek@example.com', { phones: ['9876543210'] });
+        assert.equal((await waive(ordinary.token, w.tenant._id, { reason: 'x' })).status, 403);
+        assert.equal(await SubscriptionInvoice.countDocuments({ tenantId: w.tenant._id, 'lateFee.forInvoiceId': { $exists: true }, status: 'pending' }), 1);
+    });
+});
+
 describe('reminders every 3 days', () => {
     const overdueNotes = () => Notification.find({ tenantId: w.tenant._id, type: 'bill_overdue' }).lean();
 

@@ -99,21 +99,35 @@ async function run(now = new Date()) {
     return { issued };
 }
 
+// cancel one unpaid fee and issue its credit note. Returns true when this call did it.
+async function voidOne(fee, { reason, by }) {
+    const voided = await SubscriptionInvoice.findOneAndUpdate(
+        { _id: fee._id, status: 'pending' },
+        { $set: { status: 'void', voidedAt: new Date(), voidReason: reason || 'Late fee waived', markedBy: by || 'system' } },
+        { returnDocument: 'after' },
+    ).lean();
+    if (!voided) return false;
+    await creditNotes.issueFor(voided, { reason: voided.voidReason, by });
+    return true;
+}
+
 // the bill was cancelled or waived: its unpaid late fees go with it
 async function voidFor(inv, { reason, by } = {}) {
     const kids = await SubscriptionInvoice.find({ 'lateFee.forInvoiceId': inv._id, status: 'pending' }).lean();
     let n = 0;
-    for (const kid of kids) {
-        const voided = await SubscriptionInvoice.findOneAndUpdate(
-            { _id: kid._id, status: 'pending' },
-            { $set: { status: 'void', voidedAt: new Date(), voidReason: reason || 'The bill was cancelled', markedBy: by || 'system' } },
-            { returnDocument: 'after' },
-        ).lean();
-        if (!voided) continue;
-        await creditNotes.issueFor(voided, { reason: voided.voidReason, by });
-        n += 1;
-    }
+    for (const kid of kids) if (await voidOne(kid, { reason: reason || 'The bill was cancelled', by })) n += 1;
     return n;
 }
 
-module.exports = { run, voidFor, issueOne, rulesOf, MAX_MONTHS };
+// the superadmin waives every unpaid late fee of one shop at once. The rent bills stay as they are.
+async function waiveAllFor(tenantId, { reason, by } = {}) {
+    const fees = await SubscriptionInvoice.find({ tenantId, status: 'pending', 'lateFee.forInvoiceId': { $exists: true } }).lean();
+    let waived = 0;
+    let amount = 0;
+    for (const fee of fees) {
+        if (await voidOne(fee, { reason: reason || 'Late fees waived', by })) { waived += 1; amount += fee.total; }
+    }
+    return { waived, amount: round2(amount) };
+}
+
+module.exports = { run, voidFor, waiveAllFor, issueOne, rulesOf, MAX_MONTHS };

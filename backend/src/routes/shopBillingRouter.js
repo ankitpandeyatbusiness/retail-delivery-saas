@@ -33,6 +33,10 @@ router.get('/status', wrap(async (req, res) => {
         { $group: { _id: null, amount: { $sum: '$total' }, count: { $sum: 1 }, graceEndsAt: { $min: '$graceEndsAt' } } },
     ]);
     const graceEndsAt = owed?.graceEndsAt || null;
+    const [fees] = await SubscriptionInvoice.aggregate([
+        { $match: { tenantId: t._id, status: 'pending', 'lateFee.forInvoiceId': { $exists: true } } },
+        { $group: { _id: null, amount: { $sum: '$total' }, count: { $sum: 1 } } },
+    ]);
 
     // the bill for the current month is made on the 1st of next month, unless this month was free or partly free
     const freeEndedAt = t.billing?.freeEndedAt;
@@ -44,6 +48,7 @@ router.get('/status', wrap(async (req, res) => {
         graceEndsAt,
         graceDaysLeft: graceEndsAt ? Math.max(0, Math.ceil((new Date(graceEndsAt) - now) / DAY_MS)) : null,
         due: { amount: owed?.amount || 0, count: owed?.count || 0 },
+        lateFees: { amount: fees?.amount || 0, count: fees?.count || 0 },   // the part of what is due that is late fee
         free: { active: free.free, ordersLeft: free.ordersLeft, freeOrders: free.freeOrders, freeMonths: free.freeMonths, endsAt: free.endsAt, live: free.live !== false },
         thisMonth: { period, billableOrders: orders, deliveredOrders: orders, tierLabel: tier.label, fee: tier.fee },
         // the monthly fee plan that applies to THIS shop: one fixed fee, or the order tiers (his own tiers if he has them)

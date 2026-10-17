@@ -222,6 +222,15 @@ router.post('/tenants/:tid/invoices/custom', loadTenant, wrap(async (req, res) =
     res.status(201).json(withOverdue(inv.toObject()));
 }));
 
+// Waive EVERY unpaid late fee of one shop. The rent bills stay unpaid and later fees are still made while a bill stays unpaid.
+router.post('/tenants/:tid/invoices/late-fees/waive-all', loadTenant, wrap(async (req, res) => {
+    const reason = cleanText(req.body?.reason, 200);
+    if (!reason) throw httpError(400, 'Write a reason');
+    const r = await require('../services/lateFees').waiveAllFor(req.tenantDoc._id, { reason, by: req.admin.email });
+    req.auditBefore = { waived: r.waived, amount: r.amount };
+    res.json(r);
+}));
+
 /* ------------------------------ void, waive, extend grace ------------------------------ */
 async function cancelInvoice(req, res, defaultReason) {
     if (!isId(req.params.id)) throw httpError(404, 'Invoice not found');

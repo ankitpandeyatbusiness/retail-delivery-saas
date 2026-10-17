@@ -21,6 +21,7 @@ export const generateInvoices = (body) => data(api.post('/admin/subscriptions/in
 export const setInvoiceStatus = (id, body) => data(api.patch(`/admin/subscriptions/invoices/${id}/status`, body));
 export const voidInvoice = (id, reason) => data(api.patch(`/admin/subscriptions/invoices/${id}/void`, { reason }));
 export const waiveInvoice = (id, reason) => data(api.patch(`/admin/subscriptions/invoices/${id}/waive`, { reason }));
+export const waiveAllLateFees = (shopId, reason) => data(api.post(`/admin/tenants/${shopId}/invoices/late-fees/waive-all`, { reason }));   // every unpaid late fee of one shop; the rent bills stay
 export const extendGrace = (id, days) => data(api.patch(`/admin/subscriptions/invoices/${id}/extend-grace`, { days }));
 export const resendInvoiceNotice = (id) => data(api.post(`/admin/subscriptions/invoices/${id}/resend`));
 

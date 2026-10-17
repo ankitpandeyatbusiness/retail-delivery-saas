@@ -10,7 +10,7 @@ import { NumberField, Switch, Hint } from '../../components/settingsForm';
 import { DateField } from '../../components/catalogBits';
 import TiersEditor, { tiersProblem } from '../../components/tiersEditor';
 import { ErrorBox, Sheet, SheetScroll, ConfirmSheet, toast } from '../../components/feedback';
-import { billingStatus, billingPreview, saveShopBilling, goLive, unpauseShop } from '../../api/moneyApi';
+import { billingStatus, billingPreview, saveShopBilling, goLive, unpauseShop, waiveAllLateFees } from '../../api/moneyApi';
 import { useShopStore } from '../../store/useShopStore';
 import { errMsg } from '../../api/adminClient';
 import { rupees, dateOnly, ymdOf, isoOfYmd, titleCase } from '../../utils/format';
@@ -173,9 +173,21 @@ export default function ShopBillingScreen() {
                     onPress={openRules}
                 />
                 <ListRow section="money" icon="receipt" title="Rent invoices" subtitle="All invoices of this shop" onPress={() => nav.navigate('Invoices', { shopId, name })} />
+                {st?.lateFees?.count > 0 ? (
+                    <ListRow section="alerts" icon="ok" title="Waive all late fees" subtitle={`${st.lateFees.count} unpaid · ${rupees(st.lateFees.amount)}. The rent bills stay unpaid.`} onPress={() => setConfirm('waivefees')} />
+                ) : null}
                 <ListRow section="catalog" icon="addCircle" title="Create a custom invoice" subtitle="For something outside the monthly rent" onPress={() => nav.navigate('CustomInvoice', { shopId, name })} last />
             </Card>
 
+            <ConfirmSheet
+                visible={confirm === 'waivefees'}
+                onClose={() => setConfirm(null)}
+                title="Waive all late fees?"
+                message="Every unpaid late fee of this shop is cancelled, each with a credit note. The unpaid rent bills stay. While a bill stays unpaid, a new late fee can still be added later."
+                confirmLabel="Waive all"
+                needReason
+                onConfirm={(r) => run('waivefees', () => waiveAllLateFees(shopId, r), 'Late fees waived')}
+            />
             <ConfirmSheet
                 visible={confirm === 'live'}
                 onClose={() => setConfirm(null)}
