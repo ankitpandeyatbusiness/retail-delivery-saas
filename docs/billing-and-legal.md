@@ -52,3 +52,12 @@ SMS top-up GST is now added only while the platform business has a GSTIN saved (
 - Shop to rider: how riders are engaged and paid.
 - The arrangement with the company whose GSTIN you use now (section 2).
 - A privacy notice naming the company that holds customer data.
+
+## 7. Unpaid rent: late fee, reminders and "pay all" (built 2026-10-18)
+- **What happens:** a monthly bill unpaid after its due date earns a **late fee for every overdue month** (a block of `lateFeeEveryDays`, 30 by default): `lateFeePercent` (5) % **of that bill's amount**, not compounding, plus GST at the bill's own rate. Settings are in the superadmin app: Billing rules > "Late fee and reminders" (`PUT /api/admin/platform/billing`). 0 percent switches it off. At most 12 fees per bill.
+- **Each fee is its own invoice** (kind `custom` with `lateFee` filled, numbered SUB/..., GST shown, one line saying which bill, which overdue month, the dates and the working: "5% of Rs 3000"). It never pauses the shop (no grace date). One per bill per month (unique index), so the job can run twice safely. Code: `services/lateFees.js`, run every 10 minutes by the billing alerts job.
+- **Cancel or waive a bill:** its unpaid late fees are cancelled with it, each with a credit note. A bill that is paid stops earning fees; fees already issued stay to be paid.
+- **Reminders:** every `overdueRemindDays` (3) days while anything is overdue: in the app, push and email (the email has the rent and the late fee apart). SMS is sent only when neither the app nor push reaches the owner (needs the DLT template `DLT_TEMPLATE_BILL_OVERDUE`). The shop is paused as before when the grace date of a bill passes.
+- **What he owes:** `GET /api/shop/subscription/dues` lists each unpaid month with its late fees and one grand total. The owner app shows it on the Monthly bill screen ("What you owe") with a "Pay all" button.
+- **Pay all in one payment:** `POST /api/shop/subscription/dues/pay/start` then `/pay/verify` (and the platform webhook as a safety net). One Razorpay order for the sum of every unpaid bill and fee listed at that moment; when it is captured each bill is settled the usual way (`rentPaymentService.settle`). A repeat changes nothing. If a bill in the list was paid or cancelled in between, the superadmin gets an alert to refund the difference. Model: `DuesPayment`.
+- **To confirm with your CA:** that a late fee is a taxable supply with 18% GST, issued as its own tax invoice, and the SAC code to use on it.

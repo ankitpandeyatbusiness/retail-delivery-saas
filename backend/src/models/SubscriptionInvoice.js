@@ -30,6 +30,8 @@ const subscriptionInvoiceSchema = new Schema({
     reminderForGraceAt: Date,      // the grace end date the "2 days left" reminder was sent for
     pausedNoticeFor: Date,         // the grace end date the "shop paused" message was sent for
     paidNotifiedAt: Date,          // "payment received" message sent
+    // set only on a LATE FEE invoice (services/lateFees.js): which unpaid bill it is for and how it was worked out
+    lateFee: { _id: false, forInvoiceId: { type: Schema.Types.ObjectId, ref: 'SubscriptionInvoice' }, forInvoiceNo: String, month: Number, percent: Number, onAmount: Number, fromDate: Date, toDate: Date },
     voidedAt: Date,
     voidReason: { type: String, trim: true, maxlength: 200 },
     invoiceNo: { type: String, required: true, unique: true },                     // "SUB/2026-27/0001"
@@ -76,6 +78,10 @@ const subscriptionInvoiceSchema = new Schema({
 subscriptionInvoiceSchema.index(
     { tenantId: 1, period: 1, kind: 1 },
     { unique: true, partialFilterExpression: { kind: 'monthly' }, name: 'tenant_period_kind_monthly' },
+);
+subscriptionInvoiceSchema.index(
+    { 'lateFee.forInvoiceId': 1, 'lateFee.month': 1 },
+    { unique: true, partialFilterExpression: { 'lateFee.forInvoiceId': { $exists: true } }, name: 'late_fee_once' },
 );
 subscriptionInvoiceSchema.index({ status: 1, dueDate: 1 });
 subscriptionInvoiceSchema.index({ tenantId: 1, issueDate: -1 });

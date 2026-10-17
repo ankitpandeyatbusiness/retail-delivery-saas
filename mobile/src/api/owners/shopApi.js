@@ -152,6 +152,10 @@ export const verifyEmailCode = (email, code) => d(api.post('/shop/profile/email/
 // Pay with a UPI app or a card (Razorpay checkout in the app): start -> pay -> verify
 export const startRentPay = (id) => d(api.post(`/shop/subscription/invoices/${id}/pay/start`));
 export const verifyRentPay = (id, proof) => d(api.post(`/shop/subscription/invoices/${id}/pay/verify`, proof));
+// Everything owed (every unpaid month and its late fees) as one list, and one payment for all of it
+export const fetchDues = () => d(api.get('/shop/subscription/dues'));
+export const startDuesPay = () => d(api.post('/shop/subscription/dues/pay/start'));
+export const verifyDuesPay = (proof) => d(api.post('/shop/subscription/dues/pay/verify', proof));
 export const startTopupPay = (amountPaise) => d(api.post('/shop/sms/topup/start', { amountPaise }));
 export const verifyTopupPay = (id, proof) => d(api.post(`/shop/sms/topup/${id}/verify`, proof));
 export const rentInvoicePdfPath = (id) => `/shop/subscription/invoices/${id}/pdf`;

@@ -46,6 +46,7 @@ const REGISTRY = {
     rent_invoice: { build: b.rentInvoice, audience: 'platform', priority: 1, needs: 'invoice', load: withInvoice(true) },
     payment_receipt: { build: b.paymentReceipt, audience: 'platform', priority: 2, needs: 'invoice', load: withInvoice(true) },   // the paid bill (stamped PAID) is the receipt
     bill_reminder: { build: b.billReminder, audience: 'platform', priority: 1, needs: 'invoice', load: withInvoice(false) },
+    bill_overdue: { build: b.billOverdue, audience: 'platform', priority: 1 },
     shop_paused: { build: b.shopPaused, audience: 'platform', priority: 1, load: withInvoice(false) },
     shop_unpaused: { build: b.shopUnpaused, audience: 'platform', priority: 2 },
     free_ending: { build: b.freeEnding, audience: 'platform', priority: 2 },

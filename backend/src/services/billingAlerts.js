@@ -14,6 +14,7 @@ const Notification = require('../models/Notification');
 const wallet = require('./smsWalletService');
 const notify = require('./notificationService');
 const { freeStatus } = require('../utils/billingRules');
+const lateFees = require('./lateFees');
 
 const DAY_MS = 86400000;
 const RECENT_MS = 3 * DAY_MS;          // do not announce old bills or old payments
@@ -102,6 +103,36 @@ async function paymentsReceived(now) {
     }
 }
 
+// the late fees that have come due (one invoice per bill per overdue month)
+async function issueLateFees(now) { await lateFees.run(now); }
+
+// A shop that has unpaid bills past their due date hears about it every overdueRemindDays (3) days: in the app, by push and by email
+// (and by SMS when neither reaches the phone). One message for everything it owes, with the late fee shown apart.
+async function overdueReminders(now) {
+    const platform = await PlatformSettings.findById('main').select('billing').lean();
+    const every = platform?.billing?.overdueRemindDays ?? 3;
+    const rows = await SubscriptionInvoice.aggregate([
+        { $match: { status: 'pending', dueDate: { $lte: now } } },   // a late fee is due the moment it is made, so it counts in the same pass
+        { $group: {
+            _id: '$tenantId', total: { $sum: '$total' }, count: { $sum: 1 },
+            fees: { $sum: { $cond: [{ $ifNull: ['$lateFee.forInvoiceId', false] }, '$total', 0] } },
+        } },
+        { $limit: 500 },
+    ]);
+    for (const r of rows) {
+        if (await recentlySent(r._id, 'bill_overdue', every * DAY_MS - 5 * 60000, now)) continue;
+        const total = Math.round(r.total * 100) / 100;
+        const fees = Math.round(r.fees * 100) / 100;
+        const rent = Math.round((r.total - r.fees) * 100) / 100;
+        notify.toOwner(r._id, {
+            type: 'bill_overdue', title: 'Your payment is overdue',
+            vars: { amount: String(total), count: r.count, rent, fees, total },
+            body: `${r.count} bill${r.count === 1 ? ' is' : 's are'} unpaid: ${rs(total)} in all${fees > 0 ? `, including ${rs(fees)} late fee` : ''}. Pay now to stop the late fee from growing.`,
+            data: { prompt: 'bill', dues: true },
+        });
+    }
+}
+
 async function freeEnding(now) {
     const platform = await PlatformSettings.findById('main').lean();
     const shops = await Tenant.find({ 'billing.state': 'free', 'billing.isLive': true }).select('createdAt billing').lean();
@@ -150,7 +181,7 @@ async function smsBalances(now) {
 }
 
 async function runAlerts(now = new Date()) {
-    for (const step of [billIssued, graceReminders, pausedNotices, paymentsReceived, freeEnding, smsBalances]) {
+    for (const step of [issueLateFees, billIssued, graceReminders, pausedNotices, overdueReminders, paymentsReceived, freeEnding, smsBalances]) {
         try {
             await step(now);
         } catch (e) {

@@ -5,7 +5,7 @@ import { View, Text, ScrollView } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useBrand, alpha } from '../../components/common/kit';
 import { PageHeader, Card, Pill, Button, SectionTitle, Empty, Stat, money } from '../../components/owners/ui';
-import { fetchBillingStatus, fetchRentInvoices, rentInvoicePdfPath, creditNotePdfPath, apiError } from '../../api/owners/shopApi';
+import { fetchBillingStatus, fetchRentInvoices, fetchDues, rentInvoicePdfPath, creditNotePdfPath, apiError } from '../../api/owners/shopApi';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { downloadAndOpen } from '../../utils/owners/files';
 import { dayTime } from '../../utils/owners/orderFlow';
@@ -22,6 +22,7 @@ export default function OwnerRentScreen() {
     const nav = useNavigation();
     const { background, text, muted, error, ok, primary } = useBrand();
     const [bill, setBill] = useState(null);
+    const [dues, setDues] = useState(null);
     const [invoices, setInvoices] = useState(null);
     const [more, setMore] = useState(false);
     const [page, setPage] = useState(1);
@@ -30,8 +31,9 @@ export default function OwnerRentScreen() {
 
     const load = useCallback(async (p = 1) => {
         try {
-            const [b, i] = await Promise.all([p === 1 ? fetchBillingStatus() : Promise.resolve(null), fetchRentInvoices({ page: p, limit: 20 })]);
+            const [b, i, du] = await Promise.all([p === 1 ? fetchBillingStatus() : Promise.resolve(null), fetchRentInvoices({ page: p, limit: 20 }), p === 1 ? fetchDues().catch(() => null) : Promise.resolve(null)]);
             if (b) setBill(b);
+            if (p === 1) setDues(du);
             setInvoices((old) => (p === 1 ? i.items : [...(old || []), ...i.items]));
             setMore(!!i.hasMore); setPage(p); setErr('');
         } catch (e) { useOwnerStore.getState().noteError(e); setErr(apiError(e, 'Could not load your bills.')); setInvoices((x) => x || []); }
@@ -52,7 +54,10 @@ export default function OwnerRentScreen() {
         catch (e) { showToast(e.safe ? e.message : 'Could not open the credit note'); } finally { setBusyId(null); }
     };
 
+    const payAll = () => nav.navigate('OwnerPay', { kind: 'dues', amountPaise: Math.round(Number(dues.grandTotal) * 100), title: `All dues (${dues.count} bills)` });
     const due = bill?.due?.amount || 0;
+    // several unpaid bills, or any late fee: show the whole picture and one button to pay it all
+    const showDues = !!dues && dues.count > 0 && (dues.count > 1 || dues.lateFeeTotal > 0 || (dues.looseLateFees || []).length > 0);
 
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
@@ -69,6 +74,44 @@ export default function OwnerRentScreen() {
                                 </Text>
                             ) : <Text style={{ color: muted, marginTop: 4 }}>You are up to date.</Text>}
                         </Card>
+
+                        {showDues ? (
+                            <>
+                                <SectionTitle title="What you owe" />
+                                <Card tone={error}>
+                                    {dues.rows.map((r) => (
+                                        <View key={r.id} style={{ marginBottom: 12 }}>
+                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                                <Text style={{ color: text, fontWeight: '900', flex: 1 }}>{r.label}</Text>
+                                                <Text style={{ color: text, fontWeight: '900' }}>{money(r.total)}</Text>
+                                            </View>
+                                            <Text style={{ color: muted, fontSize: 12 }}>{r.invoiceNo} · due {dayOf(r.dueDate)}{r.daysOverdue > 0 ? ` · ${r.daysOverdue} days late` : ''}</Text>
+                                            {r.lateFees.map((f) => (
+                                                <View key={f.id} style={{ marginTop: 6, paddingLeft: 10, borderLeftWidth: 2, borderLeftColor: error }}>
+                                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                                        <Text style={{ color: error, fontWeight: '800', flex: 1 }}>Late fee, overdue month {f.month}</Text>
+                                                        <Text style={{ color: error, fontWeight: '800' }}>{money(f.total)}</Text>
+                                                    </View>
+                                                    <Text style={{ color: muted, fontSize: 12 }}>{f.percent}% of {money(f.onAmount)} = {money(f.base)}{f.gst ? ` + GST ${money(f.gst)}` : ''} · {dayOf(f.from)} to {dayOf(f.to)}</Text>
+                                                </View>
+                                            ))}
+                                        </View>
+                                    ))}
+                                    {(dues.looseLateFees || []).map((f) => (
+                                        <View key={f.id} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                                            <Text style={{ color: error, fontWeight: '800', flex: 1 }}>{f.description}</Text>
+                                            <Text style={{ color: error, fontWeight: '800' }}>{money(f.total)}</Text>
+                                        </View>
+                                    ))}
+                                    <View style={{ height: 1, backgroundColor: alpha(muted, 0.3), marginVertical: 6 }} />
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><Text style={{ color: muted }}>Rent and bills</Text><Text style={{ color: text, fontWeight: '800' }}>{money(dues.rentTotal)}</Text></View>
+                                    {dues.lateFeeTotal > 0 ? <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}><Text style={{ color: muted }}>Late fees (with GST)</Text><Text style={{ color: error, fontWeight: '800' }}>{money(dues.lateFeeTotal)}</Text></View> : null}
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}><Text style={{ color: text, fontWeight: '900', fontSize: 16 }}>Total to pay</Text><Text style={{ color: error, fontWeight: '900', fontSize: 20 }}>{money(dues.grandTotal)}</Text></View>
+                                    <Text style={{ color: muted, fontSize: 12, marginTop: 8 }}>{dues.rule.text} Paying now stops it from growing.</Text>
+                                    <View style={{ marginTop: 12 }}><Button label={`Pay all ${money(dues.grandTotal)}`} icon="card" onPress={payAll} /></View>
+                                </Card>
+                            </>
+                        ) : null}
 
                         <Card>
                             {bill.free?.active ? (

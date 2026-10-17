@@ -1,6 +1,6 @@
 // Payment options for the owner's own payments (a monthly bill, an SMS top-up): pay with PhonePe / Google Pay / Paytm /
 // any UPI app, a credit or debit card, or scan a QR from another phone. Looks and works like the customer's checkout.
-// Opened with params { kind: 'rent' | 'sms', id? (the bill), amountPaise, title }.
+// Opened with params { kind: 'rent' | 'sms' | 'dues', id? (the bill), amountPaise, title }. 'dues' pays every unpaid bill and late fee at once.
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, ScrollView, TextInput, Image, StyleSheet } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -13,7 +13,7 @@ import { useAuthStore } from '../../store/common/useAuthStore';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { standardUpiApps, detectInstalledUpiApps } from '../../utils/customers/upiApps';
 import { payPlatform } from '../../utils/owners/payPlatform';
-import { fetchRentInvoices, payRentInvoice, startTopup, fetchTopups, apiError } from '../../api/owners/shopApi';
+import { fetchRentInvoices, payRentInvoice, startTopup, fetchTopups, fetchDues, apiError } from '../../api/owners/shopApi';
 import { rupees } from '../../utils/owners/riderRules';
 import { showToast } from '../../components/customers/shop';
 import { ListShimmer } from '../../components/owners/shimmer';
@@ -118,6 +118,7 @@ export default function OwnerPayScreen() {
     // has the money arrived? (also asked when an app gives no proof)
     const confirmPaid = async () => {
         if (kind === 'rent') return !!(await fetchRentInvoices({ page: 1, limit: 20 })).items.find((x) => String(x._id) === String(id) && x.status === 'paid');
+        if (kind === 'dues') return (await fetchDues()).count === 0;
         return false;
     };
 
@@ -132,7 +133,7 @@ export default function OwnerPayScreen() {
         ...upiRows,
         { key: 'upi:any', app: { chooser: true, label: 'UPI' }, label: 'Other UPI app', icon: 'phone-portrait-outline', desc: 'Choose any UPI app on this phone' },
         { key: 'card', label: 'Credit / Debit card', icon: 'card-outline', desc: 'Visa, Mastercard, RuPay. You confirm with your bank OTP' },
-        { key: 'qr', label: 'Scan a QR code', icon: 'qr-code-outline', desc: 'Pay from another phone by scanning a code' },
+        ...(kind === 'dues' ? [] : [{ key: 'qr', label: 'Scan a QR code', icon: 'qr-code-outline', desc: 'Pay from another phone by scanning a code' }]),   // a QR is made for one bill
     ];
     const current = rows.find((r) => r.key === picked);
 

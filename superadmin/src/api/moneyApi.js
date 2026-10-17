@@ -8,7 +8,7 @@ const S = (shopId) => `${T(shopId)}/shop`;
 /* ---------------- platform: your business, billing rules, SMS prices ---------------- */
 export const fetchPlatform = () => data(api.get('/admin/platform'));
 export const saveBusiness = (body) => data(api.put('/admin/platform/business', body));
-export const saveBillingRules = (body) => data(api.put('/admin/platform/billing', body));        // { dueDays?, graceDays?, freeOrders?, freeMonths? }
+export const saveBillingRules = (body) => data(api.put('/admin/platform/billing', body));        // { dueDays?, graceDays?, freeOrders?, freeMonths?, lateFeePercent?, lateFeeEveryDays?, overdueRemindDays? }
 export const saveTiers = (tiers) => data(api.put('/admin/platform/billing/tiers', { tiers }));   // [{ upTo, fee }]  last upTo = null
 export const fetchPlatformSms = () => data(api.get('/admin/platform/sms'));
 export const savePlatformSms = (body) => data(api.put('/admin/platform/sms', body));

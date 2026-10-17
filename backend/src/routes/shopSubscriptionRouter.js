@@ -3,6 +3,9 @@
 //
 //   GET /api/shop/subscription/invoices          ?status=paid|pending  ?page=1   (also returns what is due)
 //   POST /api/shop/subscription/invoices/:id/pay  -> { upiString, imageUrl, amountPaise, expiresAt }  pay a pending bill by UPI QR
+//   GET /api/shop/subscription/dues                every unpaid bill with its late fees, month by month, and the grand total
+//   POST /api/shop/subscription/dues/pay/start     pay ALL of it with one payment -> { keyId, rzpOrderId, amountPaise, currency, description, bills }
+//   POST /api/shop/subscription/dues/pay/verify    { razorpay_order_id, razorpay_payment_id, razorpay_signature } -> { paid }
 //   GET /api/shop/subscription/invoices/:id/pdf  (?view=1 opens it in the browser)
 
 const express = require('express');
@@ -13,6 +16,7 @@ const { streamSubscriptionInvoice } = require('../services/subscriptionInvoicePd
 const CreditNote = require('../models/CreditNote');
 const rentPayments = require('../services/rentPaymentService');
 const platformCheckout = require('../services/platformCheckout');
+const dues = require('../services/dues');
 const { wrap, httpError } = require('../middlewares/apiErrors');
 
 const router = express.Router();
@@ -61,6 +65,10 @@ router.post('/invoices/:id/pay/start', wrap(async (req, res) => {
 router.post('/invoices/:id/pay/verify', wrap(async (req, res) => {
     res.json(await platformCheckout.verifyRent({ tenantId: req.tenant._id, invoiceId: req.params.id, proof: req.body }));
 }));
+
+router.get('/dues', wrap(async (req, res) => { res.json(await dues.statement(req.tenant._id)); }));
+router.post('/dues/pay/start', wrap(async (req, res) => { res.status(201).json(await platformCheckout.startDues({ tenantId: req.tenant._id })); }));
+router.post('/dues/pay/verify', wrap(async (req, res) => { res.json(await platformCheckout.verifyDues({ tenantId: req.tenant._id, proof: req.body })); }));
 
 router.get('/invoices/:id/pdf', wrap(async (req, res) => {
     const inv = isId(req.params.id)

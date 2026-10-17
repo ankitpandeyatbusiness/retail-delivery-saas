@@ -50,6 +50,7 @@ const SAMPLES = {
     payment_receipt: { invoice: INV },
     bill_reminder: { invoice: INV },
     shop_paused: { invoice: INV },
+    bill_overdue: { count: 2, rent: 3540, fees: 177, total: 3717 },
     shop_unpaused: { reason: 'We received your payment.' },
     free_ending: { summary: '3 free order(s) left and 5 day(s) left' },
     sms_topup_receipt: { amountPaise: 20000, gstPercent: 18, gstPaise: 3600, payablePaise: 23600, balanceAfter: 25000, paidAt: new Date() },

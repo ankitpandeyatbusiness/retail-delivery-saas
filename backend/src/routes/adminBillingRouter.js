@@ -237,6 +237,7 @@ async function cancelInvoice(req, res, defaultReason) {
         throw httpError(409, `This invoice is "${cur.status}". Only a pending invoice can be voided or waived`);
     }
     await creditNotes.issueFor(inv, { reason, by: req.admin.email });   // a bill that was issued is cancelled by a credit note, not just a stamp
+    if (inv.kind !== 'custom') await require('../services/lateFees').voidFor(inv, { reason, by: req.admin.email });   // its unpaid late fees go with it
     await enforceTenant(inv.tenantId);
     res.json(withOverdue((await SubscriptionInvoice.findById(inv._id).lean()) || inv));
 }

@@ -58,7 +58,7 @@ router.put('/platform/business', wrap(async (req, res) => {
 }));
 
 router.put('/platform/billing', wrap(async (req, res) => {
-    const rules = { dueDays: [0, 60], graceDays: [0, 60], freeOrders: [0, 100000], freeMonths: [0, 36] };
+    const rules = { dueDays: [0, 60], graceDays: [0, 60], freeOrders: [0, 100000], freeMonths: [0, 36], lateFeePercent: [0, 100], lateFeeEveryDays: [1, 90], overdueRemindDays: [1, 30] };
     const changes = {};
     for (const [key, [min, max]] of Object.entries(rules)) {
         const v = req.body?.[key];

@@ -8,6 +8,8 @@
 const mongoose = require('mongoose');
 const SubscriptionInvoice = require('../models/SubscriptionInvoice');
 const SmsTopup = require('../models/SmsTopup');
+const DuesPayment = require('../models/DuesPayment');
+const alert = require('./paymentAlerts');
 const payments = require('./adapters/payments');
 const rentPayments = require('./rentPaymentService');
 const smsTopups = require('./smsTopupService');
@@ -77,6 +79,54 @@ async function verifyRent({ tenantId, invoiceId, proof }) {
     return { paid: r.rent === 'paid' || r.rent === 'already_paid' };
 }
 
+/* ------------------------------ all dues in one payment ------------------------------ */
+// Every unpaid bill of the shop (rent months and late fees) is paid with ONE Razorpay payment for the sum.
+// The list is fixed when the payment starts. When the money is captured each listed bill is settled the usual way (rentPayments.settle).
+async function startDues({ tenantId }) {
+    const pending = await SubscriptionInvoice.find({ tenantId, status: 'pending' }).select('_id total').sort({ _id: 1 }).lean();
+    if (!pending.length) throw bad(409, 'Nothing is due');
+    const amountPaise = pending.reduce((s, i) => s + toPaise(i.total), 0);
+    if (!(amountPaise >= 100)) throw bad(400, 'This is too small to pay online. Contact support.');
+    const invoiceKey = pending.map((i) => String(i._id)).join(',');
+    const c = creds();
+    const desc = `All dues (${pending.length} bill${pending.length === 1 ? '' : 's'})`;
+
+    const open = await DuesPayment.findOne({ tenantId, invoiceKey, amountPaise, status: 'created' }).sort({ createdAt: -1 }).lean();
+    if (open) return { ...startView(c, open.rzpOrderId, amountPaise, desc), bills: pending.length };   // the same order again
+
+    const o = await makeOrder({ amountPaise, receipt: `dues_${Date.now()}`, notes: { purpose: 'rent_dues', tenantId: String(tenantId), bills: String(pending.length) } });
+    await DuesPayment.create({ tenantId, rzpOrderId: o.id, invoiceIds: pending.map((i) => i._id), invoiceKey, amountPaise });
+    return { ...startView(c, o.id, amountPaise, desc), bills: pending.length };
+}
+
+async function verifyDues({ tenantId, proof }) {
+    const d = proof?.razorpay_order_id ? await DuesPayment.findOne({ tenantId, rzpOrderId: String(proof.razorpay_order_id) }).lean() : null;
+    if (!d) throw bad(404, 'Payment not found');
+    if (d.status === 'paid') return { paid: true };
+    proofOk(proof, d.rzpOrderId);
+    const pay = await payments.fetchPayment({ paymentId: proof.razorpay_payment_id, credentials: payments.isMock() ? undefined : creds() });
+    if (pay.orderId !== d.rzpOrderId) throw bad(400, 'This payment does not belong to these bills');
+    if (pay.status !== 'captured') return { paid: false, status: pay.status };
+    const r = await settleDues(d, pay, { path: '/api/shop/subscription/dues/pay/verify', method: 'APP' });
+    return { paid: r.dues === 'paid' };
+}
+
+// A captured payment for a dues order: the amount must be exactly the sum that was asked. Safe to repeat (each bill settles once).
+async function settleDues(d, pay, via) {
+    if (pay.status !== 'captured') return { ignored: 'not_captured' };
+    if (pay.amountPaise !== d.amountPaise) {
+        await alert('admin_webhook_failed', { tenantId: d.tenantId, vars: { event: 'rent dues payment', error: `Amount ${pay.amountPaise} paise does not match the dues order (${d.amountPaise}) (payment ${pay.id}). Check Razorpay.` } });
+        return { ignored: 'amount_mismatch' };
+    }
+    const invs = await SubscriptionInvoice.find({ _id: { $in: d.invoiceIds } }).select('_id total').lean();
+    for (const inv of invs) {
+        // each bill is settled as if the payment were for it alone: the payment is split by the bill's own total
+        await rentPayments.settle({ invoiceId: inv._id, pay: { ...pay, amountPaise: toPaise(inv.total) }, via });
+    }
+    await DuesPayment.updateOne({ _id: d._id, status: 'created' }, { $set: { status: 'paid', paymentId: pay.id, paidAt: new Date() } });
+    return { dues: 'paid', bills: invs.length };
+}
+
 /* ------------------------------ SMS top-up ------------------------------ */
 async function startTopup({ tenantId, amountPaise, actor }) {
     const o = await smsTopups.options();
@@ -124,6 +174,8 @@ async function creditTopup(t, pay, via) {
 // payment.captured on the platform account for one of the orders made above
 async function onPlatformPayment(pay) {
     if (!pay.orderId || pay.status !== 'captured') return { ignored: 'not_captured' };
+    const dues = await DuesPayment.findOne({ rzpOrderId: pay.orderId }).lean();
+    if (dues) return settleDues(dues, pay, { path: '/api/webhooks/razorpay/platform', method: 'WEBHOOK' });
     const inv = await SubscriptionInvoice.findOne({ 'payOrder.rzpOrderId': pay.orderId }).select('_id').lean();
     if (inv) return rentPayments.settle({ invoiceId: inv._id, pay, via: { path: '/api/webhooks/razorpay/platform', method: 'WEBHOOK' } });
     const t = await SmsTopup.findOne({ rzpOrderId: pay.orderId }).lean();
@@ -134,4 +186,4 @@ async function onPlatformPayment(pay) {
     return { ignored: 'unknown_order' };
 }
 
-module.exports = { startRent, verifyRent, startTopup, verifyTopup, onPlatformPayment, MOCK_SECRET };
+module.exports = { startRent, verifyRent, startDues, verifyDues, settleDues, startTopup, verifyTopup, onPlatformPayment, MOCK_SECRET };

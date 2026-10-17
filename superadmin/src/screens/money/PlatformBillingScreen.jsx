@@ -28,7 +28,7 @@ export default function PlatformBillingScreen() {
             const r = await fetchPlatform();
             const b = r.billing || {};
             setP(r);
-            setRules({ dueDays: b.dueDays ?? 7, graceDays: b.graceDays ?? 5, freeOrders: b.freeOrders ?? 100, freeMonths: b.freeMonths ?? 2 });
+            setRules({ dueDays: b.dueDays ?? 7, graceDays: b.graceDays ?? 5, freeOrders: b.freeOrders ?? 100, freeMonths: b.freeMonths ?? 2, lateFeePercent: b.lateFeePercent ?? 5, lateFeeEveryDays: b.lateFeeEveryDays ?? 30, overdueRemindDays: b.overdueRemindDays ?? 3 });
             setTiers((b.tiers && b.tiers.length ? b.tiers : DEFAULT_TIERS).map((x) => ({ upTo: x.upTo, fee: x.fee })));
             setError('');
         } catch (e) { setError(errMsg(e)); }
@@ -44,7 +44,7 @@ export default function PlatformBillingScreen() {
         if (problem) { toast(problem, 'error'); return; }
         setBusy(true);
         try {
-            await saveBillingRules({ dueDays: rules.dueDays, graceDays: rules.graceDays, freeOrders: rules.freeOrders, freeMonths: rules.freeMonths });
+            await saveBillingRules({ dueDays: rules.dueDays, graceDays: rules.graceDays, freeOrders: rules.freeOrders, freeMonths: rules.freeMonths, lateFeePercent: rules.lateFeePercent, lateFeeEveryDays: rules.lateFeeEveryDays, overdueRemindDays: rules.overdueRemindDays });
             await saveTiers(tiers);
             toast('Billing rules saved');
             nav.goBack();
@@ -61,6 +61,12 @@ export default function PlatformBillingScreen() {
             <Group title="When a bill is due" section="catalog">
                 <NumberField label="Days to pay" integer value={rules.dueDays} onChange={set('dueDays')} hint="From the issue date to the due date. 0 to 60." />
                 <NumberField label="Grace days before pausing the shop" integer value={rules.graceDays} onChange={set('graceDays')} hint="After the bill is issued. 0 to 60." last />
+            </Group>
+
+            <Group title="Late fee and reminders" section="alerts" hint="A bill that stays unpaid after its due date adds a late fee as its own invoice (with GST) for every overdue month, and the shop is reminded until it pays.">
+                <NumberField label="Late fee per month (%)" integer value={rules.lateFeePercent} onChange={set('lateFeePercent')} hint="Of that bill's amount. GST is added. 0 means no late fee. 0 to 100." />
+                <NumberField label="Days that make one overdue month" integer value={rules.lateFeeEveryDays} onChange={set('lateFeeEveryDays')} hint="A fee is added each time a bill passes another block of this many days. 1 to 90." />
+                <NumberField label="Remind an overdue shop every (days)" integer value={rules.overdueRemindDays} onChange={set('overdueRemindDays')} hint="In the app, by push and by email. 1 to 30." last />
             </Group>
 
             <Group title="Monthly rent by orders" section="shops" hint="The fee for a month depends on how many orders earned money that month. A shop can have its own tiers (Shop → Billing).">

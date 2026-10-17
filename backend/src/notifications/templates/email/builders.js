@@ -64,6 +64,23 @@ function billReminder(v) {
     });
 }
 
+function billOverdue(v) {
+    const fees = Number(v.fees) || 0;
+    return compose({
+        ctx: v.ctx,
+        subject: 'Your payment is overdue',
+        preheader: `${rs(v.total)} is unpaid${fees > 0 ? `, including a late fee of ${rs(fees)}` : ''}`,
+        heading: 'Your payment is overdue',
+        paragraphs: [
+            `Hello ${shop(v)}, ${v.count} bill${Number(v.count) === 1 ? ' is' : 's are'} unpaid and past the due date.`,
+            fees > 0 ? 'A late fee is added for every month a bill stays unpaid. Paying now stops it from growing.' : 'Please pay now to avoid a late fee.',
+        ],
+        rows: [['Unpaid bills', v.count], ['Rent and other bills', rs(v.rent)], ['Late fees (with GST)', fees > 0 ? rs(fees) : null], ['Total to pay', rs(v.total)]],
+        button: panelButton(v, 'See what you owe and pay'),
+        note: help(v.ctx),
+    });
+}
+
 function shopPaused(v) {
     const i = inv(v);
     return compose({
@@ -286,6 +303,6 @@ function broadcast(v) {
 }
 
 module.exports = { monthlyReport, emailCode,
-    rentInvoice, paymentReceipt, billReminder, shopPaused, shopUnpaused, freeEnding, smsTopupReceipt, invoiceVoid,
+    rentInvoice, paymentReceipt, billReminder, billOverdue, shopPaused, shopUnpaused, freeEnding, smsTopupReceipt, invoiceVoid,
     welcome, ownerEmailChanged, loginAlert, policyChange, refundDecision, complaintDecision, broadcast,
 };
