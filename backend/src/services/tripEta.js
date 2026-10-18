@@ -100,6 +100,7 @@ async function update({ order, riderId, riderName, pos, now = Date.now() }) {
             trip.routedAt = now;
             trip.offRoute = 0;
             if (first || changed) emitRoute(trip);
+            if (first && r.source === 'google') require('./deliveryPlan').refineWithRoute({ orderId: order.id, tenantId: trip.tenantId, durationSec: r.durationSec });   // no extra call: this route is the tracking's own
         } finally { trip.busy = false; }
     }
 

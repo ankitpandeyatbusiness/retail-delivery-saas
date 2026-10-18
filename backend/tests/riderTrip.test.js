@@ -67,52 +67,51 @@ describe('what the rider sees', () => {
     });
 });
 
-describe('the way and the time allowed', () => {
-    test('the road runs from the shop to the customer, once per order; only his own accepted delivery; no shop point is sent', async () => {
+describe('the time allowed', () => {
+    const routes = require('../src/services/adapters/routes');
+    const plan = require('../src/services/deliveryPlan');
+
+    test('before pickup it is a local estimate that comes with the order: no Google call, no shop point, no road endpoint', async () => {
+        routes.resetForTests();
         const o = await trip({ status: 'preparing', delivery: { riderId: w.rider.user._id, status: 'accepted' } });
-        const ask = (id = o._id, q = '') => request(app).get(`/api/rider/orders/${id}/route${q}`).set(w.rider.headers);
-
-        const r = await ask();
-        assert.equal(r.status, 200);
-        assert.ok(['google', 'estimate'].includes(r.body.source));
-        assert.ok(r.body.polyline && r.body.distanceM > 0);
-        assert.equal(r.body.allowedSec % 60, 0, 'whole minutes');
-        assert.ok(r.body.allowedSec >= r.body.durationSec + 300, 'the 5 minute buffer is in');
-        assert.deepEqual((await ask()).body, r.body, 'asked again: the same answer, no new Google call');
         const v = (await rider('get', `/orders/${o._id}`)).body;
-        assert.equal(v.pickup, undefined, 'the shop location is not sent to the rider');
+        // the shop and the customer are about 1.1 km apart: 1.1 km x 1.3 at 20 km/h is about 4.3 min, plus the 5 minute buffer: 10 whole minutes
+        assert.equal(v.delivery.plannedSec, 600);
         assert.equal(v.delivery.dueAt, null);
-
-        const offered = await f.makeOrder(w.tenant, w.customer.user, {
-            status: 'accepted', address: { line1: 'x', city: 'Kanpur', ...HOME },
-            delivery: { riderId: w.rider.user._id, status: 'assigned', offerExpiresAt: new Date(Date.now() + 60000) },
-        });
-        assert.equal((await ask(offered._id)).status, 409, 'not accepted yet: no map');
-        const other = await f.makeOrder(w.tenant, w.customer.user, { status: 'preparing', address: { line1: 'x', city: 'Kanpur', ...HOME } });
-        assert.equal((await ask(other._id)).status, 404, 'not his order');
+        assert.equal(v.pickup, undefined, 'the shop location is not sent to the rider');
+        assert.equal((await rider('get', `/orders/${o._id}/route`)).status, 404, 'there is no such endpoint any more');
+        assert.equal((await routes.stats()).calls, 0, 'Google was not called');
     });
 
-    test('a shop with no pin: the road starts where the rider is; with no position either there is nothing to show', async () => {
+    test('a shop with no pin on the map: no estimate, and nothing breaks', async () => {
         await Tenant.updateOne({ _id: w.tenant._id }, { $unset: { delivery: 1 } });
         tenantRecognizer.invalidateTenant(w.tenant.slug);
         const o = await trip({ status: 'preparing', delivery: { riderId: w.rider.user._id, status: 'accepted' } });
-        const ask = (q = '') => request(app).get(`/api/rider/orders/${o._id}/route${q}`).set(w.rider.headers);
-        assert.equal((await ask()).status, 404);
-        assert.equal((await ask('?lat=26.4499&lng=80.3319')).status, 200);
+        const v = (await rider('get', `/orders/${o._id}`)).body;
+        assert.equal(v.delivery.plannedSec, null);
     });
 
-    test('collected: the due time is saved (road time + 5 min); delivered: the journey goes on his record, late or not', async () => {
+    test('collected: the due time is saved from the estimate; the first real route replaces it once; delivered: the journey goes on his record', async () => {
+        routes.resetForTests();
         const o = await trip({ status: 'preparing', delivery: { riderId: w.rider.user._id, status: 'accepted' } });
         assert.equal((await rider('post', `/orders/${o._id}/pickup`)).status, 200);
-        let due;
-        for (let i = 0; i < 40 && !due; i += 1) { await new Promise((r) => setTimeout(r, 100)); due = (await Order.findById(o._id)).delivery.dueAt; }
-        assert.ok(due, 'the due time is saved');
-        const fresh = await Order.findById(o._id);
-        assert.equal(Math.round((+fresh.delivery.dueAt - +fresh.delivery.pickedUpAt) / 1000), fresh.delivery.plannedSec);
-        assert.ok(fresh.delivery.plannedSec >= 300);
+        let fresh = null;
+        for (let i = 0; i < 40 && !fresh?.delivery?.dueAt; i += 1) { await new Promise((r) => setTimeout(r, 100)); fresh = await Order.findById(o._id); }
+        assert.ok(fresh.delivery.dueAt, 'the due time is saved');
+        assert.equal(fresh.delivery.plannedSec, 600);
+        assert.equal(Math.round((+fresh.delivery.dueAt - +fresh.delivery.pickedUpAt) / 1000), 600);
+        assert.equal((await routes.stats()).calls, 0, 'still no Google call for it');
 
-        // a journey of 20 minutes that was due in 10: on time? no, late
-        const plan = require('../src/services/deliveryPlan');
+        // the first REAL route after pickup (the tracking asks for it anyway) becomes the time allowed: 20 min of driving + 5 min buffer
+        await plan.refineWithRoute({ orderId: o._id, tenantId: w.tenant._id, durationSec: 1200 });
+        fresh = await Order.findById(o._id);
+        assert.equal(fresh.delivery.plannedSec, 1500);
+        assert.equal(Math.round((+fresh.delivery.dueAt - +fresh.delivery.pickedUpAt) / 1000), 1500);
+        assert.equal(fresh.delivery.dueRefined, true);
+        await plan.refineWithRoute({ orderId: o._id, tenantId: w.tenant._id, durationSec: 3000 });   // only once
+        assert.equal((await Order.findById(o._id)).delivery.plannedSec, 1500);
+
+        // a journey of 20 minutes that was due in 10: late; one of 10 minutes that was due in 15: on time
         const t0 = Date.now() - 20 * 60000;
         const late = await trip({ delivery: { riderId: w.rider.user._id, status: 'delivered', pickedUpAt: new Date(t0), deliveredAt: new Date(), dueAt: new Date(t0 + 10 * 60000) } });
         await plan.recordDone(late);
