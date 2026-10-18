@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../common/kit';
 import { Sheet, Button } from './ui';
 import { fetchBillingPrompts, answerBillingPrompt } from '../../api/owners/shopApi';
+import { tr } from '../../i18n';
 
 export default function BillingPrompt() {
     const nav = useNavigation();
@@ -48,9 +49,9 @@ export default function BillingPrompt() {
                 <Ionicons name={blocked ? 'lock-closed' : 'alert-circle'} size={30} color={error} />
                 <Text style={{ color: text, flex: 1, marginLeft: 12, lineHeight: 21 }}>{item.message}</Text>
             </View>
-            {item.kind === 'bill' && !blocked ? <Text style={{ color: muted, fontSize: 12, marginBottom: 12 }}>Grace days: you can keep taking orders until the last day, then new orders stop until the bill is paid.</Text> : null}
-            <Button label={item.kind === 'bill' ? 'Pay the bill' : 'Top up SMS balance'} icon="card" onPress={() => answer('pay_now')} />
-            {item.canSnooze ? <View style={{ marginTop: 8 }}><Button label="Remind me later" kind="ghost" onPress={() => answer('remind_later')} /></View> : null}
+            {item.kind === 'bill' && !blocked ? <Text style={{ color: muted, fontSize: 12, marginBottom: 12 }}>{tr('Grace days: you can keep taking orders until the last day, then new orders stop until the bill is paid.')}</Text> : null}
+            <Button label={item.kind === 'bill' ? tr('Pay the bill') : tr('Top up SMS balance')} icon="card" onPress={() => answer('pay_now')} />
+            {item.canSnooze ? <View style={{ marginTop: 8 }}><Button label={tr('Remind me later')} kind="ghost" onPress={() => answer('remind_later')} /></View> : null}
         </Sheet>
     );
 }

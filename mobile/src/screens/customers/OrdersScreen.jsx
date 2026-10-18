@@ -17,6 +17,7 @@ import { useHomeStore } from '../../store/customers/useHomeStore';
 import { fetchOrders } from '../../api/customers/shopApi';
 import { useAnyOrderLive } from '../../hooks/customers/useOrderLive';
 import { viewInvoice } from '../../components/customers/invoice';
+import { tr } from '../../i18n';
 
 const PILLS = [['all', 'All'], ['active', 'Active'], ['delivered', 'Delivered'], ['cancelled', 'Cancelled']];
 const FILTERS = {
@@ -94,7 +95,7 @@ function DateChip({ label, on, onPress, onClear }) {
             <Pressable onPress={onPress} onPressIn={() => to(0.95)} onPressOut={() => to(1)}>
                 <Animated.View style={[s.pill, s.pillRow, { backgroundColor: bg, borderColor: bd }]}>
                     <Ionicons name="calendar-outline" size={14} color={on ? '#FFFFFF' : text} style={{ marginRight: 6 }} />
-                    <Animated.Text style={[s.pillTxt, { color: fg }]}>{on ? label : 'Date'}</Animated.Text>
+                    <Animated.Text style={[s.pillTxt, { color: fg }]}>{on ? label : tr('Date')}</Animated.Text>
                     {on ? (
                         <Pressable onPress={onClear} hitSlop={8} style={{ marginLeft: 8 }}>
                             <Ionicons name="close-circle" size={16} color="#FFFFFF" />
@@ -165,9 +166,9 @@ function LiveOrderCard({ o, onOpen }) {
                                 <Animated.View style={[s.beat, { opacity: beat.interpolate({ inputRange: [0, 1], outputRange: [0.7, 0] }), transform: [{ scale: beat.interpolate({ inputRange: [0, 1], outputRange: [1, 2.6] }) }] }]} />
                                 <View style={s.beatDot} />
                             </View>
-                            <Text style={[s.liveTagTxt, { color: onPrimary }]}>LIVE · ORDER #{o.orderNo}</Text>
+                            <Text style={[s.liveTagTxt, { color: onPrimary }]}>{tr('LIVE · ORDER #{orderNo}', { orderNo: o.orderNo })}</Text>
                         </View>
-                        <Text style={[s.liveStep, { color: onPrimary }]} numberOfLines={1}>{STEP[o.status] || 'In progress'}</Text>
+                        <Text style={[s.liveStep, { color: onPrimary }]} numberOfLines={1}>{STEP[o.status] || tr('In progress')}</Text>
                         <Text style={[s.liveEta, { color: onPrimary }]} numberOfLines={1}>{eta}</Text>
                     </View>
                     <View style={s.liveIc}>
@@ -186,7 +187,7 @@ function LiveOrderCard({ o, onOpen }) {
                 <View style={[s.row, { marginTop: 14 }]}>
                     <Text style={[s.liveItems, { color: onPrimary }]} numberOfLines={1}>{itemsText(o)}</Text>
                     <View style={s.liveBtn}>
-                        <Text style={[s.liveBtnTxt, { color: primary }]}>Track</Text>
+                        <Text style={[s.liveBtnTxt, { color: primary }]}>{tr('Track')}</Text>
                         <Ionicons name="arrow-forward" size={14} color={primary} style={{ marginLeft: 4 }} />
                     </View>
                 </View>
@@ -211,8 +212,8 @@ function OrderCard({ o, index, animate, onOpen, onCancel, onReorder, onInvoice, 
                 <View style={s.cardIn}>
                     <View style={s.row}>
                         <View style={{ flex: 1, paddingRight: 8 }}>
-                            <Text style={[s.no, { color: text }]}>Order #{o.orderNo}</Text>
-                            <Text style={[s.date, { color: muted }]}>{fmtDate(o.createdAt)} · {o.orderType === 'delivery' ? 'Delivery' : 'Pickup'}</Text>
+                            <Text style={[s.no, { color: text }]}>{tr('Order #{orderNo}', { orderNo: o.orderNo })}</Text>
+                            <Text style={[s.date, { color: muted }]}>{fmtDate(o.createdAt)} · {o.orderType === 'delivery' ? tr('Delivery') : tr('Pickup')}</Text>
                         </View>
                         <StatusPill status={o.status} />
                     </View>
@@ -231,29 +232,29 @@ function OrderCard({ o, index, animate, onOpen, onCancel, onReorder, onInvoice, 
                     <View style={s.row}>
                         <View>
                             <Text style={[s.total, { color: text }]}>{rs(o.pricing?.total)}</Text>
-                            <Text style={[s.date, { color: muted }]}>{PAY[o.payment?.method] || 'Cash on delivery'}</Text>
+                            <Text style={[s.date, { color: muted }]}>{PAY[o.payment?.method] || tr('Cash on delivery')}</Text>
                         </View>
                         <View style={s.btns}>
                             {o.canCancel ? (
                                 <Press disabled={busy} onPress={onCancel} style={[s.ghost, { borderColor: error }]}>
-                                    <Text style={[s.ghostTxt, { color: error }]}>Cancel</Text>
+                                    <Text style={[s.ghostTxt, { color: error }]}>{tr('Cancel')}</Text>
                                 </Press>
                             ) : null}
                             {delivered ? (
                                 <Press disabled={busy} onPress={onInvoice} style={[s.ghost, { borderColor: primary }]}>
                                     <View style={s.iconRow}>
                                         <Ionicons name="download-outline" size={14} color={primary} />
-                                        <Text style={[s.ghostTxt, { color: primary, marginLeft: 4 }]}>Invoice</Text>
+                                        <Text style={[s.ghostTxt, { color: primary, marginLeft: 4 }]}>{tr('Invoice')}</Text>
                                     </View>
                                 </Press>
                             ) : null}
                             {active ? (
                                 <Press onPress={onOpen} style={[s.fill, { backgroundColor: primary }]}>
-                                    <Text style={s.fillTxt}>Track</Text>
+                                    <Text style={s.fillTxt}>{tr('Track')}</Text>
                                 </Press>
                             ) : reorderOn ? (
                                 <Press disabled={busy} onPress={onReorder} style={[s.fill, { backgroundColor: primary }]}>
-                                    {busy ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.fillTxt}>Reorder</Text>}
+                                    {busy ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={s.fillTxt}>{tr('Reorder')}</Text>}
                                 </Press>
                             ) : null}
                         </View>
@@ -275,10 +276,10 @@ function Empty({ filter, ranged }) {
                 <Ionicons name={ranged ? 'calendar-outline' : 'receipt-outline'} size={42} color={muted} />
             </View>
             <Text style={[s.emptyBig, { color: text }]}>{msg}</Text>
-            <Text style={[s.emptySub, { color: muted }]}>{ranged ? 'Try another date or clear the date filter.' : 'Your orders will show up here.'}</Text>
+            <Text style={[s.emptySub, { color: muted }]}>{ranged ? tr('Try another date or clear the date filter.') : tr('Your orders will show up here.')}</Text>
             {!ranged && filter === 'all' ? (
                 <Press onPress={() => nav.navigate('Home')} style={[s.fill, { backgroundColor: primary, marginTop: 18, paddingHorizontal: 26, paddingVertical: 11 }]}>
-                    <Text style={s.fillTxt}>Browse the menu</Text>
+                    <Text style={s.fillTxt}>{tr('Browse the menu')}</Text>
                 </Press>
             ) : null}
         </Appear>
@@ -383,10 +384,10 @@ function OrdersList() {
     return (
         <View style={{ flex: 1, paddingTop: insets.top, backgroundColor: background }}>
             <View style={s.head}>
-                <Text style={[s.title, { color: text }]}>Your orders</Text>
-                {range ? <Text style={[s.sub, { color: primary }]}>Showing: {dateText}</Text>
-                    : activeCount ? <Text style={[s.sub, { color: primary }]}>{activeCount} active right now</Text>
-                        : <Text style={[s.sub, { color: muted }]}>Track and reorder your favourites</Text>}
+                <Text style={[s.title, { color: text }]}>{tr('Your orders')}</Text>
+                {range ? <Text style={[s.sub, { color: primary }]}>{tr('Showing: {dateText}', { dateText: dateText })}</Text>
+                    : activeCount ? <Text style={[s.sub, { color: primary }]}>{tr('{activeCount} active right now', { activeCount: activeCount })}</Text>
+                        : <Text style={[s.sub, { color: muted }]}>{tr('Track and reorder your favourites')}</Text>}
             </View>
             <View style={{ height: 54 }}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.pills}>
@@ -398,9 +399,9 @@ function OrdersList() {
                 : state === 'error' ? (
                     <Appear style={s.center}>
                         <Ionicons name="cloud-offline-outline" size={42} color={muted} />
-                        <Text style={[s.emptyBig, { color: text, marginTop: 14 }]}>Could not load your orders</Text>
+                        <Text style={[s.emptyBig, { color: text, marginTop: 14 }]}>{tr('Could not load your orders')}</Text>
                         <Press onPress={load} style={[s.fill, { backgroundColor: primary, marginTop: 16, paddingHorizontal: 26, paddingVertical: 11 }]}>
-                            <Text style={s.fillTxt}>Try again</Text>
+                            <Text style={s.fillTxt}>{tr('Try again')}</Text>
                         </Press>
                     </Appear>
                 ) : (
@@ -445,7 +446,7 @@ function OrdersList() {
 }
 
 export default function OrdersScreen() {
-    return <GuestGate title="Your orders"><OrdersList /></GuestGate>;
+    return <GuestGate title={tr('Your orders')}><OrdersList /></GuestGate>;
 }
 
 const s = StyleSheet.create({

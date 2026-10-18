@@ -12,6 +12,7 @@ import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { onOrderUpdate } from '../../api/common/socket';
 import { BOARD_FILTERS } from '../../utils/owners/orderFlow';
 import { ListShimmer } from '../../components/owners/shimmer';
+import { tr } from '../../i18n';
 
 const ACTIVE_STAGES = ['placed', 'accepted', 'preparing', 'ready', 'out_for_delivery'];
 
@@ -96,7 +97,7 @@ export default function OwnerOrdersScreen() {
     const header = (
         <View>
             <View style={{ paddingHorizontal: 16, paddingBottom: 10 }}>
-                <Field value={typed} onChangeText={onType} placeholder="Find by order number" maxLength={9} style={{ minHeight: 44 }} />
+                <Field value={typed} onChangeText={onType} placeholder={tr('Find by order number')} maxLength={9} style={{ minHeight: 44 }} />
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 12 }}>
                 {BOARD_FILTERS.map(([id, label]) => (
@@ -107,7 +108,7 @@ export default function OwnerOrdersScreen() {
     );
 
     return (
-        <OwnerScreen title="Orders" scroll={false}>
+        <OwnerScreen title={tr('Orders')} scroll={false}>
             <FlatList
                 data={s.loading ? [] : data}
                 keyExtractor={(o) => String(o.id)}
@@ -124,12 +125,12 @@ export default function OwnerOrdersScreen() {
                     </View>
                 )}
                 ListEmptyComponent={s.loading ? <Skeleton /> : s.error ? (
-                    <Empty icon="cloud-offline-outline" title="Could not load the orders" hint={s.error} />
+                    <Empty icon="cloud-offline-outline" title={tr('Could not load the orders')} hint={s.error} />
                 ) : (
                     <Empty
                         icon="receipt-outline"
-                        title={searching ? 'No order with that number' : s.filter === 'active' ? 'No orders right now' : 'Nothing here'}
-                        hint={searching ? 'Check the number and try again.' : s.filter === 'active' ? 'New orders appear here the moment a customer places them, with a sound.' : 'Orders in this stage will show here.'}
+                        title={searching ? tr('No order with that number') : s.filter === 'active' ? tr('No orders right now') : tr('Nothing here')}
+                        hint={searching ? tr('Check the number and try again.') : s.filter === 'active' ? tr('New orders appear here the moment a customer places them, with a sound.') : tr('Orders in this stage will show here.')}
                     />
                 )}
                 ListFooterComponent={s.loadingMore ? <ListShimmer count={1} /> : <View style={{ height: 110 }} />}
@@ -141,7 +142,7 @@ export default function OwnerOrdersScreen() {
                 extraData={actions.busyId}
             />
             {access !== 'ok' && !s.loading && !data.length ? (
-                <Text style={{ color: muted, textAlign: 'center', paddingHorizontal: 24, marginBottom: 90 }}>Orders in progress can still be finished.</Text>
+                <Text style={{ color: muted, textAlign: 'center', paddingHorizontal: 24, marginBottom: 90 }}>{tr('Orders in progress can still be finished.')}</Text>
             ) : null}
             {actions.sheets}
         </OwnerScreen>

@@ -13,6 +13,7 @@ import { useThemeStore } from '../../store/common/useThemeStore';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { ShopMenu } from '../../screens/owners/ShopHubScreen';
 import { ShopLogo } from './ui';
+import { tr } from '../../i18n';
 
 const WIDTH = Math.min(340, Math.round(Dimensions.get('window').width * 0.84));
 
@@ -61,8 +62,8 @@ export default function OwnerDrawer() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: border }}>
                     <ShopLogo size={46} />
                     <View style={{ flex: 1, marginLeft: 12 }}>
-                        <Text style={{ color: text, fontSize: 18, fontWeight: '900' }} numberOfLines={1}>{name || 'My shop'}</Text>
-                        <Text style={{ color: muted, fontSize: 12, marginTop: 1 }} numberOfLines={1}>{user?.name || user?.phone || 'Owner'}</Text>
+                        <Text style={{ color: text, fontSize: 18, fontWeight: '900' }} numberOfLines={1}>{name || tr('My shop')}</Text>
+                        <Text style={{ color: muted, fontSize: 12, marginTop: 1 }} numberOfLines={1}>{user?.name || user?.phone || tr('Owner')}</Text>
                     </View>
                     <Pressable onPress={close} hitSlop={10}><Ionicons name="close" size={24} color={muted} /></Pressable>
                 </View>

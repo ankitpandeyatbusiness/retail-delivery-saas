@@ -13,6 +13,7 @@ import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { COMPLAINT_TYPES, RESOLUTION_TEXT } from '../../utils/owners/hubRules';
 import { toPaise, ago, rupees } from '../../utils/owners/riderRules';
 import { showToast } from '../../components/customers/shop';
+import { tr } from '../../i18n';
 
 const CHOICES = [['none', 'Reply only'], ['refund_full', 'Full refund'], ['refund_partial', 'Part refund'], ['no_refund', 'No refund']];
 
@@ -38,7 +39,7 @@ function EvidenceCard({ e }) {
     ].filter(Boolean);
     return (
         <>
-            <SectionTitle title="What we know about the delivery" />
+            <SectionTitle title={tr('What we know about the delivery')} />
             <Card>
                 {lines.map(([line, color], i) => <Text key={i} style={{ color, fontWeight: i === 0 ? '800' : '600', marginTop: i ? 8 : 0, lineHeight: 20 }}>{line}</Text>)}
                 {e.proofUrl ? <Image source={{ uri: e.proofUrl }} style={{ width: 120, height: 120, borderRadius: 12, marginTop: 12 }} contentFit="cover" /> : null}
@@ -56,7 +57,7 @@ export default function OwnerComplaintScreen() {
         if (complaint || !id) return;
         fetchComplaint(id).then(setC).catch((e) => setErr(apiError(e, 'Could not open this complaint.')));
     }, [id]);   // eslint-disable-line react-hooks/exhaustive-deps
-    if (!c) return <FormPage title="Complaint">{err ? <Empty icon="cloud-offline-outline" title="Could not open" hint={err} /> : <FormShimmer />}</FormPage>;
+    if (!c) return <FormPage title={tr('Complaint')}>{err ? <Empty icon="cloud-offline-outline" title={tr('Could not open')} hint={err} /> : <FormShimmer />}</FormPage>;
     return <ComplaintView c0={c} />;
 }
 
@@ -90,65 +91,65 @@ function ComplaintView({ c0 }) {
             if (c.type === 'not_received') body.riderFault = fault === 'yes';
             const r = await updateComplaint(c.id, body);
             setC(r);
-            showToast(r.status === 'resolved' ? 'Decision sent to the customer' : 'Reply sent');
+            showToast(r.status === 'resolved' ? tr('Decision sent to the customer') : tr('Reply sent'));
             if (r.status === 'resolved') nav.goBack();
         } catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); } finally { setBusy(false); }
     };
 
     return (
-        <FormPage title={`Complaint · #${c.orderNo}`} footer={!done ? <Button label={refunds ? 'Send decision' : choice === 'no_refund' ? 'Send decision' : 'Send reply'} icon="send" disabled={!valid} busy={busy} onPress={submit} /> : null}>
+        <FormPage title={tr('Complaint · #{orderNo}', { orderNo: c.orderNo })} footer={!done ? <Button label={refunds ? tr('Send decision') : choice === 'no_refund' ? tr('Send decision') : tr('Send reply')} icon="send" disabled={!valid} busy={busy} onPress={submit} /> : null}>
             <Card>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <Text style={{ color: text, fontWeight: '900', fontSize: 16, flex: 1 }}>{COMPLAINT_TYPES[c.type] || c.type}</Text>
-                    {done ? <Pill label={RESOLUTION_TEXT[c.resolution] || 'Decided'} color={ok} /> : null}
+                    {done ? <Pill label={RESOLUTION_TEXT[c.resolution] || tr('Decided')} color={ok} /> : null}
                 </View>
-                <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{c.customerName || 'Customer'} · {ago(c.createdAt)}</Text>
+                <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{c.customerName || tr('Customer')} · {ago(c.createdAt)}</Text>
                 <Text style={{ color: text, marginTop: 10, lineHeight: 21 }}>{c.text}</Text>
                 {c.photos?.length ? (
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }}>
                         {c.photos.map((u) => <Image key={u} source={{ uri: u }} style={{ width: 120, height: 120, borderRadius: 12, marginRight: 8 }} contentFit="cover" />)}
                     </ScrollView>
                 ) : null}
-                <View style={{ marginTop: 12 }}><Button label={`Open order #${c.orderNo}`} icon="receipt" kind="ghost" onPress={() => nav.navigate('OwnerOrder', { id: String(c.orderId) })} /></View>
+                <View style={{ marginTop: 12 }}><Button label={tr('Open order #{orderNo}', { orderNo: c.orderNo })} icon="receipt" kind="ghost" onPress={() => nav.navigate('OwnerOrder', { id: String(c.orderId) })} /></View>
             </Card>
 
             {c.evidence ? <EvidenceCard e={c.evidence} /> : null}
 
             {done ? (
                 <>
-                    <SectionTitle title="Your answer" />
+                    <SectionTitle title={tr('Your answer')} />
                     <Card>
                         <Text style={{ color: text, fontWeight: '800' }}>{RESOLUTION_TEXT[c.resolution]}{c.refundPaise ? ` · ${rupees(c.refundPaise)}` : ''}</Text>
                         {c.ownerReply ? <Text style={{ color: muted, marginTop: 6 }}>“{c.ownerReply}”</Text> : null}
-                        {c.type === 'not_received' && c.riderFault != null ? <Text style={{ color: c.riderFault ? error : muted, fontSize: 12, marginTop: 6 }}>{c.riderFault ? 'You marked the rider as at fault.' : 'You marked the rider as not at fault.'}</Text> : null}
-                        {c.refundStatus === 'pending' ? <Text style={{ color: muted, fontSize: 12, marginTop: 6 }}>The refund is on its way to the customer.</Text> : null}
-                        {c.refundStatus === 'failed' ? <Text style={{ color: error, fontSize: 12, marginTop: 6 }}>The online refund did not go through. Please contact support.</Text> : null}
-                        {c.refundStatus === 'noted' ? <Text style={{ color: muted, fontSize: 12, marginTop: 6 }}>This was a cash order: the refund is only noted here. Give the money back to the customer yourself.</Text> : null}
+                        {c.type === 'not_received' && c.riderFault != null ? <Text style={{ color: c.riderFault ? error : muted, fontSize: 12, marginTop: 6 }}>{c.riderFault ? tr('You marked the rider as at fault.') : tr('You marked the rider as not at fault.')}</Text> : null}
+                        {c.refundStatus === 'pending' ? <Text style={{ color: muted, fontSize: 12, marginTop: 6 }}>{tr('The refund is on its way to the customer.')}</Text> : null}
+                        {c.refundStatus === 'failed' ? <Text style={{ color: error, fontSize: 12, marginTop: 6 }}>{tr('The online refund did not go through. Please contact support.')}</Text> : null}
+                        {c.refundStatus === 'noted' ? <Text style={{ color: muted, fontSize: 12, marginTop: 6 }}>{tr('This was a cash order: the refund is only noted here. Give the money back to the customer yourself.')}</Text> : null}
                     </Card>
                 </>
             ) : (
-                <Group title="Your answer" hint={c.ownerReply ? `Earlier reply: “${c.ownerReply}”` : 'The customer gets your answer as a notification.'}>
-                    <Label>What do you decide</Label>
+                <Group title={tr('Your answer')} hint={c.ownerReply ? tr('Earlier reply: “{ownerReply}”', { ownerReply: c.ownerReply }) : tr('The customer gets your answer as a notification.')}>
+                    <Label>{tr('What do you decide')}</Label>
                     <Chips options={CHOICES} value={choice} onChange={setChoice} style={{ marginTop: 0 }} />
-                    {choice === 'refund_full' && cap != null ? <Hint>The customer gets {rupees(cap)} back (the order without the tip).</Hint> : null}
+                    {choice === 'refund_full' && cap != null ? <Hint>{tr('The customer gets {rupees} back (the order without the tip).', { rupees: rupees(cap) })}</Hint> : null}
                     {choice === 'refund_partial' ? (
                         <View style={{ marginTop: 6 }}>
-                            <Label hint={cap != null ? `Up to ${rupees(cap)}` : undefined}>Refund amount (₹)</Label>
-                            <Field value={amount} onChangeText={(x) => setAmount(x.replace(/[^\d.]/g, '').slice(0, 8))} placeholder="e.g. 50" keyboardType="decimal-pad" maxLength={8} />
-                            {paise && cap != null && paise > cap ? <Hint tone="warn">That is more than the order allows.</Hint> : null}
+                            <Label hint={cap != null ? tr('Up to {rupees}', { rupees: rupees(cap) }) : undefined}>{tr('Refund amount (₹)')}</Label>
+                            <Field value={amount} onChangeText={(x) => setAmount(x.replace(/[^\d.]/g, '').slice(0, 8))} placeholder={tr('e.g. 50')} keyboardType="decimal-pad" maxLength={8} />
+                            {paise && cap != null && paise > cap ? <Hint tone="warn">{tr('That is more than the order allows.')}</Hint> : null}
                         </View>
                     ) : null}
-                    {refunds && order ? <Hint>{online ? 'This order was paid online: the money goes back to the customer automatically.' : 'This was a cash order: the refund is only noted. Give the money back yourself.'}</Hint> : null}
+                    {refunds && order ? <Hint>{online ? tr('This order was paid online: the money goes back to the customer automatically.') : tr('This was a cash order: the refund is only noted. Give the money back yourself.')}</Hint> : null}
                     {c.type === 'not_received' && choice !== 'none' ? (
                         <View style={{ marginTop: 12 }}>
-                            <Label>Was the rider at fault?</Label>
-                            <Chips options={[['no', 'No'], ['yes', 'Yes']]} value={fault} onChange={setFault} style={{ marginTop: 0 }} />
-                            {fault === 'yes' ? <Hint>It is counted on the rider's page. For a cash order, use Correction there if he should pay the money back.</Hint> : null}
+                            <Label>{tr('Was the rider at fault?')}</Label>
+                            <Chips options={[['no', tr('No')], ['yes', tr('Yes')]]} value={fault} onChange={setFault} style={{ marginTop: 0 }} />
+                            {fault === 'yes' ? <Hint>{tr('It is counted on the rider\'s page. For a cash order, use Correction there if he should pay the money back.')}</Hint> : null}
                         </View>
                     ) : null}
                     <View style={{ height: 12 }} />
-                    <Label>{needReply ? 'Message to the customer' : 'Message to the customer (optional)'}</Label>
-                    <Field value={reply} onChangeText={setReply} multiline maxLength={500} placeholder={choice === 'no_refund' ? 'Tell him why there is no refund' : 'Write a short, kind reply'} />
+                    <Label>{needReply ? tr('Message to the customer') : tr('Message to the customer (optional)')}</Label>
+                    <Field value={reply} onChangeText={setReply} multiline maxLength={500} placeholder={choice === 'no_refund' ? tr('Tell him why there is no refund') : tr('Write a short, kind reply')} />
                 </Group>
             )}
         </FormPage>

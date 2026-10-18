@@ -10,6 +10,7 @@ import { useMenuStore } from '../../store/owners/useMenuStore';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { categories as categoriesApi, apiError } from '../../api/owners/shopApi';
 import { showToast } from '../../components/customers/shop';
+import { tr } from '../../i18n';
 
 // "Mon–Fri 07:00–11:00" for the first slot, "+2 more" for the rest
 function hoursText(timings = []) {
@@ -46,11 +47,11 @@ export default function OwnerCategoriesScreen() {
 
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
-            <PageHeader title="Categories" />
+            <PageHeader title={tr('Categories')} />
             <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 60 }}>
-                <Text style={{ color: muted, paddingHorizontal: 16, marginBottom: 10 }}>The arrows set the order customers see. Switch a category off to hide all its items.</Text>
-                {error && !cats.length ? <Empty icon="cloud-offline-outline" title="Could not load" hint={error} /> : null}
-                {!loading && !error && !cats.length ? <Empty icon="list-outline" title="No categories yet" hint="Add one here, or just type a new category while adding an item." /> : null}
+                <Text style={{ color: muted, paddingHorizontal: 16, marginBottom: 10 }}>{tr('The arrows set the order customers see. Switch a category off to hide all its items.')}</Text>
+                {error && !cats.length ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={error} /> : null}
+                {!loading && !error && !cats.length ? <Empty icon="list-outline" title={tr('No categories yet')} hint={tr('Add one here, or just type a new category while adding an item.')} /> : null}
                 {cats.map((c, i) => (
                     <Card key={c._id} onPress={() => nav.navigate('OwnerCategory', { id: String(c._id) })} style={{ opacity: c.isActive === false ? 0.65 : 1 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -60,15 +61,15 @@ export default function OwnerCategoriesScreen() {
                             </View>
                             <View style={{ flex: 1, minWidth: 0 }}>
                                 <Text style={{ color: text, fontWeight: '900', fontSize: 16 }} numberOfLines={1}>{c.name}</Text>
-                                <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{c.itemCount} {c.itemCount === 1 ? 'item' : 'items'}  ·  {hoursText(c.timings)}</Text>
-                                {c.isActive === false ? <View style={{ marginTop: 6 }}><Pill label="Hidden from customers" color={muted} /></View> : null}
+                                <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{c.itemCount} {c.itemCount === 1 ? tr('item') : tr('items')}  ·  {hoursText(c.timings)}</Text>
+                                {c.isActive === false ? <View style={{ marginTop: 6 }}><Pill label={tr('Hidden from customers')} color={muted} /></View> : null}
                             </View>
                             <Toggle value={c.isActive !== false} onValueChange={(on) => toggle(c, on)} />
                         </View>
                     </Card>
                 ))}
                 <View style={{ paddingHorizontal: 16, marginTop: 8 }}>
-                    <Button label="Add a category" icon="add" onPress={() => nav.navigate('OwnerCategory', {})} />
+                    <Button label={tr('Add a category')} icon="add" onPress={() => nav.navigate('OwnerCategory', {})} />
                 </View>
             </ScrollView>
         </View>

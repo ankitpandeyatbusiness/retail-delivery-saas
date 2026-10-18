@@ -25,6 +25,7 @@ import { useNotificationStore } from '../../store/common/useNotificationStore';
 import { useMenuStore, useCartStore, useFavStore } from '../../store/customers/shopStores';
 import { useFilterStore, applyFilters, countActive } from '../../store/customers/useFilterStore';
 import { Slider, VegSwitch, Cats, Collapse, useVoice, VoiceOverlay } from '../../components/customers/finder';
+import { tr } from '../../i18n';
 
 const Gap = () => <View style={{ width: 12 }} />;
 const VIEW_CFG = { itemVisiblePercentThreshold: 1 };
@@ -83,19 +84,19 @@ function Header({ onAddress, scrollY }) {
             <View style={s.hdTop}>
                 {user ? (
                     <Pressable onPress={onAddress} hitSlop={8} style={s.locBlock}>
-                        <Text style={[s.locCap, { color: fg }]}>DELIVER TO</Text>
+                        <Text style={[s.locCap, { color: fg }]}>{tr('DELIVER TO')}</Text>
                         <View style={s.locRow}>
                             <Ionicons name="location-sharp" size={16} color={light ? primary : fg} />
                             <Text style={[s.locTxt, { color: fg }]} numberOfLines={1}>
                                 {addr ? <Text style={s.locLabel}>{addr.label}  </Text> : null}
-                                {addr ? short : 'Select delivery address'}
+                                {addr ? short : tr('Select delivery address')}
                             </Text>
                             <Ionicons name="chevron-down" size={15} color={fg} />
                         </View>
                     </Pressable>
                 ) : (
                     <View style={s.locBlock}>
-                        <Text style={[s.locCap, { color: fg }]}>WELCOME TO</Text>
+                        <Text style={[s.locCap, { color: fg }]}>{tr('WELCOME TO')}</Text>
                     </View>
                 )}
                 {user ? (
@@ -121,7 +122,7 @@ function Header({ onAddress, scrollY }) {
                 <View style={[s.chipRow, compact && { marginTop: 10 }]}>
                     <View style={[s.hChip, { backgroundColor: glassBg, borderColor: glassLine }]}>
                         <View style={[s.statusDot, { backgroundColor: open ? '#4ADE80' : '#FF6B6B' }]} />
-                        <Text style={[s.hChipTxt, { color: fg }]}>{open ? 'Open now' : 'Closed'}</Text>
+                        <Text style={[s.hChipTxt, { color: fg }]}>{open ? tr('Open now') : tr('Closed')}</Text>
                     </View>
                     {shownChips.map((c) => (
                         <View key={c.text} style={[s.hChip, { backgroundColor: glassBg, borderColor: glassLine }]}>
@@ -253,7 +254,7 @@ function Banners({ list, onOrder }) {
                             <Text style={[s.bTitle, { color: fg }]} numberOfLines={2}>{b.title}</Text>
                             {b.subtitle ? <Text style={[s.bSub, { color: fg }]} numberOfLines={2}>{b.subtitle}</Text> : null}
                             <Pressable onPress={() => onOrder(b)} style={[s.bPill, { backgroundColor: fg }]}>
-                                <Text style={[s.bPillTxt, { color: onColor(fg) }]}>Order now</Text>
+                                <Text style={[s.bPillTxt, { color: onColor(fg) }]}>{tr('Order now')}</Text>
                                 <Ionicons name="arrow-forward" size={13} color={onColor(fg)} style={{ marginLeft: 4 }} />
                             </Pressable>
                         </Animated.View>
@@ -278,9 +279,9 @@ function OffersStrip({ list }) {
     return (
         <View>
             <View style={s.secRow}>
-                <Text style={[s.secTitle, { color: text }]}>Offers for you</Text>
+                <Text style={[s.secTitle, { color: text }]}>{tr('Offers for you')}</Text>
                 <Pressable onPress={() => nav.navigate('Offers')} style={s.seeRow}>
-                    <Text style={[s.link, { color: primary }]}>See all</Text>
+                    <Text style={[s.link, { color: primary }]}>{tr('See all')}</Text>
                     <Ionicons name="chevron-forward" size={14} color={primary} />
                 </Pressable>
             </View>
@@ -363,7 +364,7 @@ function FiltersRow({ onOpen }) {
     if (!canOpen && !quick.length) return null;
     return (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.fl}>
-            {canOpen ? <Chip icon="options-outline" label="Filters" on={false} badge={n} onPress={onOpen} /> : null}
+            {canOpen ? <Chip icon="options-outline" label={tr('Filters')} on={false} badge={n} onPress={onOpen} /> : null}
             {quick.map((q) => <Chip key={q[0]} label={q[0]} on={q[1]} onPress={q[2]} />)}
         </ScrollView>
     );
@@ -384,7 +385,7 @@ function SecHead({ title, sub, see, onSee }) {
             </View>
             {see ? (
                 <Pressable onPress={onSee} style={s.seeRow}>
-                    <Text style={[s.link, { color: primary }]}>See all</Text>
+                    <Text style={[s.link, { color: primary }]}>{tr('See all')}</Text>
                     <Ionicons name="chevron-forward" size={14} color={primary} />
                 </Pressable>
             ) : null}
@@ -644,8 +645,8 @@ export default function HomeScreen() {
             case 'error': return (
                 <View style={s.empty}>
                     <Ionicons name="cloud-offline-outline" size={34} color={brand.muted} />
-                    <Text style={[s.emptyTxt, { color: brand.muted }]}>Could not load the menu</Text>
-                    <Pressable onPress={loadMenu}><Text style={[s.link, { color: brand.primary, marginTop: 10 }]}>Try again</Text></Pressable>
+                    <Text style={[s.emptyTxt, { color: brand.muted }]}>{tr('Could not load the menu')}</Text>
+                    <Pressable onPress={loadMenu}><Text style={[s.link, { color: brand.primary, marginTop: 10 }]}>{tr('Try again')}</Text></Pressable>
                 </View>
             );
             case 'empty': return (

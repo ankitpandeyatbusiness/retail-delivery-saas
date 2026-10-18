@@ -5,15 +5,16 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { useBrand } from './kit';
 import { showToast } from '../customers/shop';
+import { tr } from '../../i18n';
 
 
 export async function copyCode(code) {
     try {
         await Clipboard.setStringAsync(String(code));
-        showToast(`Code ${code} copied`);
+        showToast(tr('Code {code} copied', { code: code }));
         return true;
     } catch (e) {
-        showToast('Could not copy the code');
+        showToast(tr('Could not copy the code'));
         return false;
     }
 }
@@ -54,7 +55,7 @@ export function CopyButton({ code }) {
         <Pressable onPress={copy} style={[s.btn, { backgroundColor: done ? '#1E8E3E' : primary, borderRadius: radius }]}>
             <Animated.View style={[s.row, { transform: [{ scale: pop }] }]}>
                 <Ionicons name={done ? 'checkmark' : 'copy-outline'} size={15} color={onPrimary} />
-                <Text style={[s.txt, { color: onPrimary }]}>{done ? 'Copied' : 'Copy'}</Text>
+                <Text style={[s.txt, { color: onPrimary }]}>{done ? tr('Copied') : tr('Copy')}</Text>
             </Animated.View>
         </Pressable>
     );

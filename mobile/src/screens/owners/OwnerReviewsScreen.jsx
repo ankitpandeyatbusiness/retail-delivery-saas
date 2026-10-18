@@ -9,6 +9,7 @@ import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { starText } from '../../utils/owners/hubRules';
 import { ago } from '../../utils/owners/riderRules';
 import { ListShimmer } from '../../components/owners/shimmer';
+import { tr } from '../../i18n';
 
 function Summary({ s }) {
     const { text, muted, primary } = useBrand();
@@ -19,7 +20,7 @@ function Summary({ s }) {
                 <View style={{ alignItems: 'center', marginRight: 18 }}>
                     <Text style={{ color: text, fontSize: 38, fontWeight: '900' }}>{s.avg != null ? s.avg.toFixed(1) : '—'}</Text>
                     <Text style={{ color: '#D97706' }}>{s.avg != null ? starText(s.avg) : ''}</Text>
-                    <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{s.count} {s.count === 1 ? 'rating' : 'ratings'}</Text>
+                    <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{s.count} {s.count === 1 ? tr('rating') : tr('ratings')}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
                     {[5, 4, 3, 2, 1].map((n) => (
@@ -62,7 +63,7 @@ export default function OwnerReviewsScreen() {
 
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
-            <PageHeader title="Reviews" />
+            <PageHeader title={tr('Reviews')} />
             <FlatList
                 data={items || []}
                 keyExtractor={(r) => String(r.id)}
@@ -70,11 +71,11 @@ export default function OwnerReviewsScreen() {
                 ListHeaderComponent={(
                     <View>
                         <View style={{ paddingHorizontal: 16 }}>
-                            <Chips options={[['dish', 'Food'], ['delivery', 'Delivery']]} value={kind} onChange={(k) => { setKind(k); setRating(''); setData(null); }} style={{ marginTop: 0 }} />
+                            <Chips options={[['dish', tr('Food')], ['delivery', tr('Delivery')]]} value={kind} onChange={(k) => { setKind(k); setRating(''); setData(null); }} style={{ marginTop: 0 }} />
                         </View>
                         {sum ? <Summary s={sum} /> : null}
                         <View style={{ paddingHorizontal: 16 }}>
-                            <Chips options={[['', 'All'], ['5', '5 ★'], ['4', '4 ★'], ['3', '3 ★'], ['2', '2 ★'], ['1', '1 ★']]} value={rating} onChange={setRating} style={{ marginTop: 0 }} />
+                            <Chips options={[['', tr('All')], ['5', '5 ★'], ['4', '4 ★'], ['3', '3 ★'], ['2', '2 ★'], ['1', '1 ★']]} value={rating} onChange={setRating} style={{ marginTop: 0 }} />
                         </View>
                     </View>
                 )}
@@ -87,11 +88,11 @@ export default function OwnerReviewsScreen() {
                         {r.item ? <Text style={{ color: text, fontWeight: '800', marginTop: 4 }}>{r.item}</Text> : null}
                         {r.comment ? <Text style={{ color: text, marginTop: 4 }}>“{r.comment}”</Text> : null}
                         {r.tags?.length ? <Text style={{ color: muted, fontSize: 12, marginTop: 4 }}>{r.tags.map((t) => String(t).replace(/_/g, ' ')).join(' · ')}</Text> : null}
-                        <Text style={{ color: muted, fontSize: 12, marginTop: 6 }}>{r.customer} · order #{r.orderNo}</Text>
+                        <Text style={{ color: muted, fontSize: 12, marginTop: 6 }}>{tr('{customer} · order #{orderNo}', { customer: r.customer, orderNo: r.orderNo })}</Text>
                     </Card>
                 )}
-                ListEmptyComponent={items === null ? <ListShimmer /> : err ? <Empty icon="cloud-offline-outline" title="Could not load" hint={err} /> : <Empty icon="star-outline" title="No reviews yet" hint="Customers can rate dishes and delivery after an order is delivered." />}
-                ListFooterComponent={more ? <Pressable onPress={() => load(page + 1)} style={{ padding: 18, alignItems: 'center' }}><Text style={{ color: primary, fontWeight: '800' }}>Show more</Text></Pressable> : null}
+                ListEmptyComponent={items === null ? <ListShimmer /> : err ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={err} /> : <Empty icon="star-outline" title={tr('No reviews yet')} hint={tr('Customers can rate dishes and delivery after an order is delivered.')} />}
+                ListFooterComponent={more ? <Pressable onPress={() => load(page + 1)} style={{ padding: 18, alignItems: 'center' }}><Text style={{ color: primary, fontWeight: '800' }}>{tr('Show more')}</Text></Pressable> : null}
             />
         </View>
     );

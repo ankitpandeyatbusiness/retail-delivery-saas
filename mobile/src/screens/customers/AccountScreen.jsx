@@ -23,6 +23,8 @@ import { useThemeStore } from '../../store/common/useThemeStore';
 import { useFavStore } from '../../store/customers/shopStores';
 import { fetchMe, updateMe, deleteMe, updatePrefs, deleteUpload } from '../../api/customers/shopApi';
 import { pickPhoto, uploadAvatar } from '../../utils/common/photoUpload';
+import { tr, LANGS, useLang } from '../../i18n';
+import LanguageSheet from '../../components/common/LanguageSheet';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -39,16 +41,16 @@ function EditDialog({ visible, me, onClose, onSaved }) {
     const save = async () => {
         const n = name.trim();
         const e = email.trim();
-        if (n.length < 2 || n.length > 80) { showToast('Name must be 2 to 80 characters'); return; }
-        if (e && !EMAIL_RE.test(e)) { showToast('Enter a valid email address'); return; }
+        if (n.length < 2 || n.length > 80) { showToast(tr('Name must be 2 to 80 characters')); return; }
+        if (e && !EMAIL_RE.test(e)) { showToast(tr('Enter a valid email address')); return; }
         setSaving(true);
         try {
             const u = await updateMe({ name: n, email: e });   // empty email removes it
             onSaved(u);
             onClose();
-            showToast('Profile updated');
+            showToast(tr('Profile updated'));
         } catch (err) {
-            showToast(err?.response?.data?.error || 'Could not save. Try again.');
+            showToast(err?.response?.data?.error || tr('Could not save. Try again.'));
         } finally { setSaving(false); }
     };
 
@@ -58,23 +60,23 @@ function EditDialog({ visible, me, onClose, onSaved }) {
             <KeyboardAvoidingView style={s.backdrop} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
                 <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
                 <View style={[s.dialog, { backgroundColor: surface, borderColor: border }]}>
-                    <Text style={[s.dTitle, { color: text }]}>Edit profile</Text>
-                    <Text style={[s.label, { color: muted }]}>Name</Text>
-                    <TextInput value={name} onChangeText={setName} maxLength={80} placeholder="Your name" placeholderTextColor={muted} style={input} />
-                    <Text style={[s.label, { color: muted }]}>Email (optional)</Text>
+                    <Text style={[s.dTitle, { color: text }]}>{tr('Edit profile')}</Text>
+                    <Text style={[s.label, { color: muted }]}>{tr('Name')}</Text>
+                    <TextInput value={name} onChangeText={setName} maxLength={80} placeholder={tr('Your name')} placeholderTextColor={muted} style={input} />
+                    <Text style={[s.label, { color: muted }]}>{tr('Email (optional)')}</Text>
                     <TextInput
-                        value={email} onChangeText={setEmail} maxLength={120} placeholder="you@example.com" placeholderTextColor={muted}
+                        value={email} onChangeText={setEmail} maxLength={120} placeholder={tr('you@example.com')} placeholderTextColor={muted}
                         keyboardType="email-address" autoCapitalize="none" autoCorrect={false} style={input}
                     />
-                    <Text style={[s.label, { color: muted }]}>Phone</Text>
+                    <Text style={[s.label, { color: muted }]}>{tr('Phone')}</Text>
                     <TextInput value={me?.phone ? `+91 ${me.phone}` : ''} editable={false} style={[s.input, { color: muted, borderColor: border, backgroundColor: border }]} />
-                    <Text style={[s.note, { color: muted }]}>Your phone number is your login, so it cannot be changed.</Text>
+                    <Text style={[s.note, { color: muted }]}>{tr('Your phone number is your login, so it cannot be changed.')}</Text>
                     <View style={s.btns}>
                         <Press wrap={{ flex: 1, marginRight: 10 }} onPress={onClose} style={[s.dBtn, { borderColor: border, borderWidth: 1.5, borderRadius: radius }]}>
-                            <Text style={[s.dTxt, { color: text }]}>Cancel</Text>
+                            <Text style={[s.dTxt, { color: text }]}>{tr('Cancel')}</Text>
                         </Press>
                         <Press wrap={{ flex: 1.3 }} disabled={saving} onPress={save} style={[s.dBtn, { backgroundColor: primary, borderRadius: radius }]}>
-                            {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={[s.dTxt, { color: '#FFFFFF' }]}>Save</Text>}
+                            {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={[s.dTxt, { color: '#FFFFFF' }]}>{tr('Save')}</Text>}
                         </Press>
                     </View>
                 </View>
@@ -157,8 +159,8 @@ function AppearanceRow({ last }) {
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <View style={[s.rowIc, { backgroundColor: tint(primary) }]}><Ionicons name="contrast-outline" size={18} color={primary} /></View>
                 <View style={{ flex: 1 }}>
-                    <Text style={[s.rowTxt, { color: text }]}>Appearance</Text>
-                    <Text style={[s.rowSub, { color: muted }]}>{mode === 'system' ? "Follows your phone's dark mode" : mode === 'dark' ? 'Always dark' : 'Always light'}</Text>
+                    <Text style={[s.rowTxt, { color: text }]}>{tr('Appearance')}</Text>
+                    <Text style={[s.rowSub, { color: muted }]}>{mode === 'system' ? tr('Follows your phone\'s dark mode') : mode === 'dark' ? tr('Always dark') : tr('Always light')}</Text>
                 </View>
             </View>
             <View onLayout={(e) => setW(e.nativeEvent.layout.width)} style={[s.seg, { backgroundColor: background, borderColor: border }]}>
@@ -176,6 +178,27 @@ function AppearanceRow({ last }) {
                 })}
             </View>
         </View>
+    );
+}
+
+// Language: the customer's own choice, kept on this phone (and told to the server, so messages come in it)
+function LanguageRow() {
+    const { primary, text, muted, border } = useBrand();
+    const lang = useLang((st) => st.lang);
+    const [open, setOpen] = useState(false);
+    const cur = LANGS.find((l) => l.code === lang);
+    return (
+        <>
+            <Pressable onPress={() => setOpen(true)} style={[s.row, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: border }]}>
+                <View style={[s.rowIc, { backgroundColor: tint(primary) }]}><Ionicons name="language-outline" size={18} color={primary} /></View>
+                <View style={{ flex: 1 }}>
+                    <Text style={[s.rowTxt, { color: text }]}>{tr('Language')}</Text>
+                    <Text style={[s.rowSub, { color: muted }]}>{cur?.native}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={muted} />
+            </Pressable>
+            <LanguageSheet visible={open} onClose={() => setOpen(false)} />
+        </>
     );
 }
 
@@ -211,7 +234,7 @@ function AccountInner() {
         setMe((m) => ({ ...m, promotions: next }));
         try { await updatePrefs({ promotions: next }); } catch (e) {
             setMe((m) => ({ ...m, promotions: !next }));
-            showToast('Could not save. Please try again');
+            showToast(tr('Could not save. Please try again'));
         } finally { setPromoBusy(false); }
     };
     const [edit, setEdit] = useState(false);
@@ -238,15 +261,15 @@ function AccountInner() {
     const changeAvatar = async (source) => {
         if (avatarBusy) return;
         let picked;
-        try { picked = await pickPhoto(source, { square: true }); } catch (e) { showToast(e.safe ? e.message : 'Could not open the camera or gallery'); return; }
+        try { picked = await pickPhoto(source, { square: true }); } catch (e) { showToast(e.safe ? e.message : tr('Could not open the camera or gallery')); return; }
         if (!picked) return;
         setAvatarBusy(true);
         try {
             const up = await uploadAvatar({ uri: picked.uri, mimeType: picked.mimeType });
             setMe((m) => ({ ...(m || {}), avatarUrl: up.url, avatarId: up.id }));
-            showToast('Profile photo updated');
+            showToast(tr('Profile photo updated'));
         } catch (e) {
-            showToast(e.safe ? e.message : 'Could not update your photo');
+            showToast(e.safe ? e.message : tr('Could not update your photo'));
         } finally { setAvatarBusy(false); }
     };
 
@@ -256,17 +279,17 @@ function AccountInner() {
         try {
             await deleteUpload(me.avatarId);
             setMe((m) => ({ ...(m || {}), avatarUrl: null, avatarId: null }));
-            showToast('Profile photo removed');
+            showToast(tr('Profile photo removed'));
         } catch (e) {
-            showToast('Could not remove your photo. Please try again');
+            showToast(tr('Could not remove your photo. Please try again'));
         } finally { setAvatarBusy(false); }
     };
 
-    const avatarMenu = () => themedAlert('Profile photo', 'Choose a picture for your account.', [
-        { text: 'Take a photo', onPress: () => changeAvatar('camera') },
-        { text: 'Choose from gallery', onPress: () => changeAvatar('gallery') },
+    const avatarMenu = () => themedAlert(tr('Profile photo'), tr('Choose a picture for your account.'), [
+        { text: tr('Take a photo'), onPress: () => changeAvatar('camera') },
+        { text: tr('Choose from gallery'), onPress: () => changeAvatar('gallery') },
         ...(me?.avatarUrl ? [{ text: 'Remove photo', style: 'destructive', onPress: removeAvatar }] : []),
-        { text: 'Cancel', style: 'cancel' },
+        { text: tr('Cancel'), style: 'cancel' },
     ], { icon: 'camera-outline' });
 
     const signOut = async () => {
@@ -274,28 +297,28 @@ function AccountInner() {
         useFavStore.getState().reset();
     };
 
-    const doLogout = () => themedAlert('Log out?', 'You will need to log in again to order.', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Log out', onPress: signOut },
+    const doLogout = () => themedAlert(tr('Log out?'), tr('You will need to log in again to order.'), [
+        { text: tr('Cancel'), style: 'cancel' },
+        { text: tr('Log out'), onPress: signOut },
     ], { icon: 'log-out-outline' });
 
     const doDelete = () => themedAlert(
-        'Delete your account?',
-        'Your profile, saved addresses and favourites will be removed. Past orders stay with the shop. This cannot be undone.',
+        tr('Delete your account?'),
+        tr('Your profile, saved addresses and favourites will be removed. Past orders stay with the shop. This cannot be undone.'),
         [
-            { text: 'Cancel', style: 'cancel' },
+            { text: tr('Cancel'), style: 'cancel' },
             {
-                text: 'Delete',
+                text: tr('Delete'),
                 style: 'destructive',
                 onPress: async () => {
                     setBusy(true);
                     try {
                         await deleteMe();
-                        showToast('Account deleted');
+                        showToast(tr('Account deleted'));
                         await signOut();
                     } catch (e) {
                         const m = e?.response?.data?.error;
-                        if (m) themedAlert('Cannot delete account', m); else showToast('Network problem. Try again.');
+                        if (m) themedAlert(tr('Cannot delete account'), m); else showToast(tr('Network problem. Try again.'));
                     } finally { setBusy(false); }
                 },
             },
@@ -304,12 +327,12 @@ function AccountInner() {
     );
 
     const shopDigits = String(shopPhone || '').replace(/\D/g, '').slice(-10);
-    const callShop = () => Linking.openURL(`tel:+91${shopDigits}`).catch(() => showToast('Could not open the dialer'));
+    const callShop = () => Linking.openURL(`tel:+91${shopDigits}`).catch(() => showToast(tr('Could not open the dialer')));
 
     return (
         <View style={{ flex: 1, paddingTop: insets.top, backgroundColor: background }}>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 30 }}>
-                <Text style={[s.title, { color: text }]}>Account</Text>
+                <Text style={[s.title, { color: text }]}>{tr('Account')}</Text>
 
                 {/* hero: the brand gradient with the person's photo, name and number */}
                 <Appear style={s.heroWrap}>
@@ -331,13 +354,13 @@ function AccountInner() {
                                 </View>
                             </Pressable>
                             <View style={{ flex: 1 }}>
-                                <Text style={[s.heroName, { color: onPrimary }]} numberOfLines={1}>{name || 'Add your name'}</Text>
+                                <Text style={[s.heroName, { color: onPrimary }]} numberOfLines={1}>{name || tr('Add your name')}</Text>
                                 {phone ? <Text style={[s.heroSub, { color: onPrimary }]}>{phone}</Text> : null}
                                 {p.email ? <Text style={[s.heroSub, { color: onPrimary }]} numberOfLines={1}>{p.email}</Text> : null}
                             </View>
                             <Press onPress={() => setEdit(true)} style={s.heroEdit}>
                                 <Ionicons name="create-outline" size={15} color={onPrimary} />
-                                <Text style={[s.editTxt, { color: onPrimary }]}>Edit</Text>
+                                <Text style={[s.editTxt, { color: onPrimary }]}>{tr('Edit')}</Text>
                             </Press>
                         </View>
                     </LinearGradient>
@@ -347,7 +370,7 @@ function AccountInner() {
                     <Appear delay={60} style={s.groupWrap}>
                         <Press onPress={() => setEdit(true)} style={[s.nudge, { backgroundColor: tint(primary), borderColor: primary }]}>
                             <Ionicons name="person-circle-outline" size={22} color={primary} />
-                            <Text style={[s.nudgeTxt, { color: text }]}>Add your name so the shop knows who is ordering</Text>
+                            <Text style={[s.nudgeTxt, { color: text }]}>{tr('Add your name so the shop knows who is ordering')}</Text>
                         </Press>
                     </Appear>
                 ) : null}
@@ -355,43 +378,44 @@ function AccountInner() {
                 {/* the four things people come here for, as big tiles */}
                 <View style={s.tiles}>
                     <Appear delay={60} style={s.tileCell}>
-                        <AccountTile icon="receipt-outline" label="Orders" sub="Track and reorder" onPress={() => nav.navigate('Orders')} />
+                        <AccountTile icon="receipt-outline" label={tr('Orders')} sub={tr('Track and reorder')} onPress={() => nav.navigate('Orders')} />
                     </Appear>
                     <Appear delay={90} style={s.tileCell}>
-                        <AccountTile icon="location-outline" label="Addresses" sub="Where we deliver" onPress={() => setAddrSheet(true)} />
+                        <AccountTile icon="location-outline" label={tr('Addresses')} sub={tr('Where we deliver')} onPress={() => setAddrSheet(true)} />
                     </Appear>
                     <Appear delay={120} style={s.tileCell}>
                         {favOn
-                            ? <AccountTile icon="heart-outline" label="Favourites" sub={favCount ? `${favCount} saved` : 'Dishes you love'} onPress={() => nav.navigate('Favourites')} />
-                            : <AccountTile icon="pricetags-outline" label="Offers" sub="Coupons for you" onPress={() => nav.navigate('Offers')} />}
+                            ? <AccountTile icon="heart-outline" label={tr('Favourites')} sub={favCount ? tr('{favCount} saved', { favCount: favCount }) : tr('Dishes you love')} onPress={() => nav.navigate('Favourites')} />
+                            : <AccountTile icon="pricetags-outline" label={tr('Offers')} sub={tr('Coupons for you')} onPress={() => nav.navigate('Offers')} />}
                     </Appear>
                     <Appear delay={150} style={s.tileCell}>
-                        <AccountTile icon="notifications-outline" label="Notifications" sub={unread > 0 ? `${unread} unread` : 'All caught up'} badge={unread} onPress={() => nav.navigate('Notifications')} />
+                        <AccountTile icon="notifications-outline" label={tr('Notifications')} sub={unread > 0 ? tr('{unread} unread', { unread: unread }) : tr('All caught up')} badge={unread} onPress={() => nav.navigate('Notifications')} />
                     </Appear>
                 </View>
 
-                <Group title="PREFERENCES" delay={110}>
+                <Group title={tr('PREFERENCES')} delay={110}>
+                    <LanguageRow />
                     <AppearanceRow />
                     <ToggleItem
-                        icon="megaphone-outline" label="Offers and promotions"
-                        sub="Order updates always reach you, even when this is off"
+                        icon="megaphone-outline" label={tr('Offers and promotions')}
+                        sub={tr('Order updates always reach you, even when this is off')}
                         value={promos} onValueChange={setPromos} disabled={!me || promoBusy} last
                     />
                 </Group>
 
                 {shopPhone ? (
-                    <Group title="HELP" delay={140}>
-                        <Item icon="call-outline" label={`Contact ${shop || 'the shop'}`} sub={`Call +91 ${shopDigits}`} onPress={callShop} last />
+                    <Group title={tr('HELP')} delay={140}>
+                        <Item icon="call-outline" label={tr('Contact {v1}', { v1: shop || 'the shop' })} sub={tr('Call +91 {shopDigits}', { shopDigits: shopDigits })} onPress={callShop} last />
                     </Group>
                 ) : null}
 
-                <Group title="MANAGE" delay={200}>
-                    <Item icon="document-text-outline" label="Terms and privacy" onPress={() => nav.navigate('LegalList')} />
-                    <Item icon="log-out-outline" label="Log out" onPress={doLogout} />
-                    <Item icon="trash-outline" label="Delete account" onPress={doDelete} danger last />
+                <Group title={tr('MANAGE')} delay={200}>
+                    <Item icon="document-text-outline" label={tr('Terms and privacy')} onPress={() => nav.navigate('LegalList')} />
+                    <Item icon="log-out-outline" label={tr('Log out')} onPress={doLogout} />
+                    <Item icon="trash-outline" label={tr('Delete account')} onPress={doDelete} danger last />
                 </Group>
 
-                <Text style={[s.ver, { color: muted }]}>{shop} · v{Constants.expoConfig?.version || '1.0'}</Text>
+                <Text style={[s.ver, { color: muted }]}>{tr('{shop} · v{v2}', { shop: shop, v2: Constants.expoConfig?.version || '1.0' })}</Text>
                 <PoweredBy />
             </ScrollView>
 
@@ -403,7 +427,7 @@ function AccountInner() {
 }
 
 export default function AccountScreen() {
-    return <GuestGate title="Account"><AccountInner /></GuestGate>;
+    return <GuestGate title={tr('Account')}><AccountInner /></GuestGate>;
 }
 
 const s = StyleSheet.create({

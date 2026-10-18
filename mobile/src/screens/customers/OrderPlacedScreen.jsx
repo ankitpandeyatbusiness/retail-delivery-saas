@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand, CardGlow } from '../../components/common/kit';
 import { useMotion } from '../../components/common/motion';
 import { Press, rs } from '../../components/customers/cartParts';
+import { tr } from '../../i18n';
 
 const PIECES = 18;
 const HALO = 150;   // size of the area the confetti flies over
@@ -116,9 +117,9 @@ export default function OrderPlacedScreen() {
                 </View>
 
                 <Animated.View style={{ alignItems: 'center', opacity: rise, transform: [{ translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }] }}>
-                    <Text style={[s.title, { color: text }]}>Order placed!</Text>
+                    <Text style={[s.title, { color: text }]}>{tr('Order placed!')}</Text>
                     <Text style={[s.sub, { color: muted }]}>
-                        {orderNo ? `Order #${orderNo} is on its way to the kitchen.` : 'Your order is on its way to the kitchen.'}
+                        {orderNo ? tr('Order #{orderNo} is on its way to the kitchen.', { orderNo: orderNo }) : tr('Your order is on its way to the kitchen.')}
                     </Text>
 
                     <View style={[s.card, { backgroundColor: surface, borderColor: border }]}>
@@ -136,10 +137,10 @@ export default function OrderPlacedScreen() {
             <Animated.View style={{ opacity: rise, transform: [{ translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) }] }}>
                 <Press onPress={goOrder} style={[s.main, { backgroundColor: primary, borderRadius: radius }]}>
                     <Ionicons name="navigate-outline" size={18} color={onPrimary} />
-                    <Text style={[s.mainTxt, { color: onPrimary }]}>Track order</Text>
+                    <Text style={[s.mainTxt, { color: onPrimary }]}>{tr('Track order')}</Text>
                 </Press>
                 <Pressable onPress={goMenu} hitSlop={8} style={s.ghost}>
-                    <Text style={[s.ghostTxt, { color: primary }]}>Back to menu</Text>
+                    <Text style={[s.ghostTxt, { color: primary }]}>{tr('Back to menu')}</Text>
                 </Pressable>
             </Animated.View>
         </View>

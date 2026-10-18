@@ -7,6 +7,7 @@ import { useBrand } from '../common/kit';
 import { showToast, tint } from './shop';
 import { useCartStore } from '../../store/customers/shopStores';
 import { cancelOrder, reorderOrder, fetchProduct } from '../../api/customers/shopApi';
+import { tr } from '../../i18n';
 
 export const STATUS_LABEL = {
     placed: 'Placed', accepted: 'Accepted', preparing: 'Preparing', ready: 'Ready for pickup',
@@ -34,16 +35,16 @@ export function StatusPill({ status }) {
 
 // Asks first, then cancels. The server decides if cancel is allowed (canCancel).
 export function cancelFlow(order, { onDone, setBusy } = {}) {
-    themedAlert('Cancel this order?', `Order #${order.orderNo} will be cancelled.`, [
-        { text: 'Keep order', style: 'cancel' },
+    themedAlert(tr('Cancel this order?'), tr('Order #{orderNo} will be cancelled.', { orderNo: order.orderNo }), [
+        { text: tr('Keep order'), style: 'cancel' },
         {
-            text: 'Cancel order',
+            text: tr('Cancel order'),
             style: 'destructive',
             onPress: async () => {
                 if (setBusy) setBusy(true);
                 try {
                     const u = await cancelOrder(order.id);
-                    showToast('Order cancelled');
+                    showToast(tr('Order cancelled'));
                     if (onDone) onDone(u);
                 } catch (e) {
                     showToast(errMsg(e));
@@ -86,20 +87,20 @@ export function reorder(order, nav, setBusy) {
                     return null;
                 }
             }))).filter(Boolean);
-            if (!built.length) { showToast('These items are not available right now'); return; }
+            if (!built.length) { showToast(tr('These items are not available right now')); return; }
             const cart = useCartStore.getState();
             cart.clear();
             built.forEach((l) => cart.add(l));
-            if (skipped.length) showToast(`Not available: ${skipped.join(', ')}`);
+            if (skipped.length) showToast(tr('Not available: {v1}', { v1: skipped.join(', ') }));
             nav.navigate('Cart');
         } catch (e) {
             showToast(errMsg(e));
         } finally { if (setBusy) setBusy(false); }
     };
     if (useCartStore.getState().lines.length) {
-        themedAlert('Replace your cart?', 'Your current cart items will be removed.', [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Replace', onPress: go },
+        themedAlert(tr('Replace your cart?'), tr('Your current cart items will be removed.'), [
+            { text: tr('Cancel'), style: 'cancel' },
+            { text: tr('Replace'), onPress: go },
         ]);
     } else go();
 }

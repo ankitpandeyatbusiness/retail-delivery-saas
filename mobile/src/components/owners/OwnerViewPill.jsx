@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand } from '../common/kit';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { useViewMode } from '../../store/owners/useViewMode';
+import { tr } from '../../i18n';
 
 export default function OwnerViewPill({ onBack }) {
     const insets = useSafeAreaInsets();
@@ -23,7 +24,7 @@ export default function OwnerViewPill({ onBack }) {
             }}
         >
             <Ionicons name="storefront" size={18} color={onPrimary} />
-            <Text style={{ color: onPrimary, fontWeight: '900', marginLeft: 8, fontSize: 13 }}>Back to owner panel</Text>
+            <Text style={{ color: onPrimary, fontWeight: '900', marginLeft: 8, fontSize: 13 }}>{tr('Back to owner panel')}</Text>
         </Pressable>
     );
 }

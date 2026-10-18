@@ -14,6 +14,7 @@ import { fetchFavourites } from '../../api/customers/shopApi';
 import { copyCode } from '../../components/common/copyCode';
 import { CouponTicket } from '../../components/customers/coupon';
 import { FadeIn, Skel } from '../../components/common/motion';
+import { tr } from '../../i18n';
 
 /* ---------------- Offers ---------------- */
 export function OffersScreen() {
@@ -37,7 +38,7 @@ export function OffersScreen() {
     const shown = enabled ? list : [];
     return (
         <View style={[s.flex, { backgroundColor: background }]}>
-            <BackHeader title="Offers" />
+            <BackHeader title={tr('Offers')} />
             {loading && !shown.length ? (
                 <View style={{ padding: 16 }}>
                     {[0, 1, 2].map((i) => <Skel key={i} height={108} radius={18} style={{ marginBottom: 14 }} />)}
@@ -46,8 +47,8 @@ export function OffersScreen() {
                 <FlatList
                     data={shown} keyExtractor={(o) => o._id}
                     contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
-                    ListHeaderComponent={shown.length ? <Text style={[s.sub, { color: muted, paddingHorizontal: 2 }]}>Tap a coupon to copy its code, then paste it in your cart</Text> : null}
-                    ListEmptyComponent={<Text style={s.empty}>No offers right now</Text>}
+                    ListHeaderComponent={shown.length ? <Text style={[s.sub, { color: muted, paddingHorizontal: 2 }]}>{tr('Tap a coupon to copy its code, then paste it in your cart')}</Text> : null}
+                    ListEmptyComponent={<Text style={s.empty}>{tr('No offers right now')}</Text>}
                     renderItem={({ item: o, index }) => (
                         <FadeIn index={index} style={{ marginBottom: 14 }}>
                             <CouponTicket o={o} size="full" onPress={() => copyCode(o.code)} />
@@ -73,11 +74,11 @@ export function BestsellersScreen() {
 
     return (
         <View style={[s.flex, { backgroundColor: background }]}>
-            <BackHeader title="Bestsellers" />
+            <BackHeader title={tr('Bestsellers')} />
             <FlatList
                 data={list} keyExtractor={(i) => i._id}
-                ListHeaderComponent={<Text style={[s.sub, { color: text }]}>Most ordered at {name}</Text>}
-                ListEmptyComponent={<Text style={s.empty}>No bestsellers yet</Text>}
+                ListHeaderComponent={<Text style={[s.sub, { color: text }]}>{tr('Most ordered at {name}', { name: name })}</Text>}
+                ListEmptyComponent={<Text style={s.empty}>{tr('No bestsellers yet')}</Text>}
                 renderItem={({ item }) => <ItemCard item={item} variant="compact" />}
                 contentContainerStyle={{ paddingBottom: 90 }}
             />
@@ -111,7 +112,7 @@ export function FavouritesScreen() {
 
     const msg = (title, sub, btn) => (
         <View style={s.flex}>
-            <BackHeader title="Favourites" />
+            <BackHeader title={tr('Favourites')} />
             <View style={s.center}>
                 <Text style={[s.big, { color: text }]}>{title}</Text>
                 {sub ? <Text style={s.empty}>{sub}</Text> : null}
@@ -124,24 +125,24 @@ export function FavouritesScreen() {
     if (!user) {
         return msg('Log in to see your favourites', '', (
             <Pressable onPress={() => nav.navigate('Login')} style={[s.cta, { backgroundColor: primary, borderRadius: radius }]}>
-                <Text style={s.ctaTxt}>Log in</Text>
+                <Text style={s.ctaTxt}>{tr('Log in')}</Text>
             </Pressable>
         ));
     }
 
     return (
         <View style={[s.flex, { backgroundColor: background }]}>
-            <BackHeader title="Favourites" />
+            <BackHeader title={tr('Favourites')} />
             {state === 'loading' ? <ActivityIndicator style={{ margin: 40 }} color={primary} />
                 : state === 'error' && !items.length ? (
                     <View style={s.center}>
-                        <Text style={s.empty}>Could not load favourites</Text>
-                        <Pressable onPress={load}><Text style={[s.link, { color: primary }]}>Try again</Text></Pressable>
+                        <Text style={s.empty}>{tr('Could not load favourites')}</Text>
+                        <Pressable onPress={load}><Text style={[s.link, { color: primary }]}>{tr('Try again')}</Text></Pressable>
                     </View>
                 ) : (
                     <FlatList
                         data={items} keyExtractor={(i) => i._id}
-                        ListEmptyComponent={<Text style={s.empty}>No favourites yet. Tap the heart on any dish.</Text>}
+                        ListEmptyComponent={<Text style={s.empty}>{tr('No favourites yet. Tap the heart on any dish.')}</Text>}
                         renderItem={({ item }) => <ItemCard item={item} variant="compact" />}
                         contentContainerStyle={{ paddingTop: 8, paddingBottom: 90 }}
                     />

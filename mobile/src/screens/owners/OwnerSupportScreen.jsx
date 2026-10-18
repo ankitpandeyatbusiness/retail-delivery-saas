@@ -13,6 +13,7 @@ import { callPhone, whatsApp } from '../../components/owners/orderBits';
 import { SUPPORT_TOPICS, SUPPORT_STATUS } from '../../utils/owners/supportRules';
 import { ago } from '../../utils/owners/riderRules';
 import { showToast } from '../../components/customers/shop';
+import { tr } from '../../i18n';
 
 function ContactCard({ info }) {
     const { text, muted, primary } = useBrand();
@@ -23,15 +24,15 @@ function ContactCard({ info }) {
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Ionicons name="headset" size={24} color={primary} />
                 <View style={{ flex: 1, marginLeft: 12 }}>
-                    <Text style={{ color: text, fontWeight: '900', fontSize: 16 }}>We are here to help</Text>
-                    <Text style={{ color: muted, fontSize: 12, marginTop: 1 }}>{[info.hours, info.replyPromise].filter(Boolean).join(' · ') || 'Send us a request and we will reply.'}</Text>
+                    <Text style={{ color: text, fontWeight: '900', fontSize: 16 }}>{tr('We are here to help')}</Text>
+                    <Text style={{ color: muted, fontSize: 12, marginTop: 1 }}>{[info.hours, info.replyPromise].filter(Boolean).join(' · ') || tr('Send us a request and we will reply.')}</Text>
                 </View>
             </View>
             {any ? (
                 <View style={{ flexDirection: 'row', marginTop: 12 }}>
-                    {info.phone ? <View style={{ flex: 1, marginRight: 6 }}><Button label="Call" icon="call" kind="ghost" onPress={() => callPhone(info.phone.replace(/[^\d+]/g, ''))} /></View> : null}
-                    {info.whatsapp ? <View style={{ flex: 1, marginHorizontal: 3 }}><Button label="WhatsApp" icon="logo-whatsapp" kind="ghost" onPress={() => whatsApp(info.whatsapp)} /></View> : null}
-                    {info.email ? <View style={{ flex: 1, marginLeft: 6 }}><Button label="Email" icon="mail" kind="ghost" onPress={() => Linking.openURL(`mailto:${info.email}`).catch(() => showToast('No email app found'))} /></View> : null}
+                    {info.phone ? <View style={{ flex: 1, marginRight: 6 }}><Button label={tr('Call')} icon="call" kind="ghost" onPress={() => callPhone(info.phone.replace(/[^\d+]/g, ''))} /></View> : null}
+                    {info.whatsapp ? <View style={{ flex: 1, marginHorizontal: 3 }}><Button label={tr('WhatsApp')} icon="logo-whatsapp" kind="ghost" onPress={() => whatsApp(info.whatsapp)} /></View> : null}
+                    {info.email ? <View style={{ flex: 1, marginLeft: 6 }}><Button label={tr('Email')} icon="mail" kind="ghost" onPress={() => Linking.openURL(`mailto:${info.email}`).catch(() => showToast(tr('No email app found')))} /></View> : null}
                 </View>
             ) : null}
         </Card>
@@ -65,7 +66,7 @@ export default function OwnerSupportScreen() {
 
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
-            <PageHeader title="Help and support" />
+            <PageHeader title={tr('Help and support')} />
             <FlatList
                 data={items || []}
                 keyExtractor={(t) => String(t.id)}
@@ -73,8 +74,8 @@ export default function OwnerSupportScreen() {
                 ListHeaderComponent={(
                     <View>
                         <ContactCard info={info} />
-                        <View style={{ paddingHorizontal: 16, marginBottom: 6 }}><Button label="Ask for help" icon="create" onPress={() => nav.navigate('OwnerSupportNew')} /></View>
-                        <View style={{ paddingHorizontal: 16 }}><Chips options={[['open', 'Open'], ['resolved', 'Solved']]} value={status} onChange={pick} style={{ marginTop: 6 }} /></View>
+                        <View style={{ paddingHorizontal: 16, marginBottom: 6 }}><Button label={tr('Ask for help')} icon="create" onPress={() => nav.navigate('OwnerSupportNew')} /></View>
+                        <View style={{ paddingHorizontal: 16 }}><Chips options={[['open', tr('Open')], ['resolved', tr('Solved')]]} value={status} onChange={pick} style={{ marginTop: 6 }} /></View>
                     </View>
                 )}
                 renderItem={({ item: t }) => {
@@ -86,13 +87,13 @@ export default function OwnerSupportScreen() {
                                 <Text style={{ flex: 1, color: text, fontWeight: t.ownerUnread ? '900' : '800' }} numberOfLines={1}>#{t.number} · {t.subject}</Text>
                                 <Pill label={st.label} color={st.color(primary, error)} />
                             </View>
-                            {t.last ? <Text style={{ color: muted, marginTop: 6 }} numberOfLines={2}>{t.last.from === 'platform' ? 'Support: ' : 'You: '}{t.last.text}</Text> : null}
-                            <Text style={{ color: muted, fontSize: 12, marginTop: 6 }}>{SUPPORT_TOPICS.find((x) => x[0] === t.category)?.[1] || 'Other'} · {ago(t.lastMessageAt)}</Text>
+                            {t.last ? <Text style={{ color: muted, marginTop: 6 }} numberOfLines={2}>{t.last.from === 'platform' ? tr('Support: ') : tr('You: ')}{t.last.text}</Text> : null}
+                            <Text style={{ color: muted, fontSize: 12, marginTop: 6 }}>{SUPPORT_TOPICS.find((x) => x[0] === t.category)?.[1] || tr('Other')} · {ago(t.lastMessageAt)}</Text>
                         </Card>
                     );
                 }}
-                ListEmptyComponent={items === null ? <ListShimmer count={3} /> : err ? <Empty icon="cloud-offline-outline" title="Could not load" hint={err} /> : <Empty icon="chatbubbles-outline" title={status === 'open' ? 'No open requests' : 'Nothing solved yet'} hint={status === 'open' ? 'Tap "Ask for help" and tell us what you need.' : undefined} />}
-                ListFooterComponent={more ? <Pressable onPress={() => load(page + 1)} style={{ padding: 18, alignItems: 'center' }}><Text style={{ color: primary, fontWeight: '800' }}>Show more</Text></Pressable> : null}
+                ListEmptyComponent={items === null ? <ListShimmer count={3} /> : err ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={err} /> : <Empty icon="chatbubbles-outline" title={status === 'open' ? tr('No open requests') : tr('Nothing solved yet')} hint={status === 'open' ? tr('Tap "Ask for help" and tell us what you need.') : undefined} />}
+                ListFooterComponent={more ? <Pressable onPress={() => load(page + 1)} style={{ padding: 18, alignItems: 'center' }}><Text style={{ color: primary, fontWeight: '800' }}>{tr('Show more')}</Text></Pressable> : null}
             />
         </View>
     );

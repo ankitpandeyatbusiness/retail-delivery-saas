@@ -11,6 +11,7 @@ import { Press } from '../../components/customers/cartParts';
 import SlideNum from '../../components/common/SlideNum';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useFilterStore, applyFilters, countActive } from '../../store/customers/useFilterStore';
+import { tr } from '../../i18n';
 
 const SORT_LABELS = {
     popularity: 'Popular',
@@ -284,9 +285,9 @@ export default function FilterDialog({ visible, onClose, items }) {
     const showTxt = [s.btnTxt, !count && { color: text }];
     const showRow = (
         <View style={s.btnRow}>
-            <Text style={showTxt}>{count ? 'Show ' : 'No '}</Text>
+            <Text style={showTxt}>{count ? tr('Show ') : tr('No ')}</Text>
             <SlideNum value={count} minWidth={12} style={showTxt} />
-            <Text style={showTxt}> dish{count === 1 ? '' : 'es'}</Text>
+            <Text style={showTxt}>{tr('dish{v1}', { v1: count === 1 ? '' : 'es' })}</Text>
         </View>
     );
 
@@ -297,7 +298,7 @@ export default function FilterDialog({ visible, onClose, items }) {
                 style={[s.footClearAbs, { opacity: footSlide, transform: [{ translateX: footSlide.interpolate({ inputRange: [0, 1], outputRange: [-84, 0] }) }] }]}   /* right edge always stays behind the Show button's left edge */
             >
                 <Pressable onPress={() => f.clear()} style={[s.footClear, { borderColor: border, borderRadius: radius, marginRight: 0 }]}>
-                    <Text style={[s.footClearTxt, { color: text }]}>Clear</Text>
+                    <Text style={[s.footClearTxt, { color: text }]}>{tr('Clear')}</Text>
                 </Pressable>
             </Animated.View>
             {/* the Show button always sits to the right of the Clear slot; a piece of the same colour covers the
@@ -322,12 +323,12 @@ export default function FilterDialog({ visible, onClose, items }) {
 
     const header = (
         <View style={s.top}>
-            <Text style={[s.title, { color: text }]}>Filters</Text>
+            <Text style={[s.title, { color: text }]}>{tr('Filters')}</Text>
             <View style={s.topR}>
                 {!sheetLike ? (
                     <Animated.View pointerEvents={active ? 'auto' : 'none'} style={{ opacity: clearA, transform: [{ scale: clearA.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] }) }] }}>
                         <Pressable onPress={() => f.clear()} hitSlop={10}>
-                            <Text style={[s.clear, { color: primary }]}>Clear all</Text>
+                            <Text style={[s.clear, { color: primary }]}>{tr('Clear all')}</Text>
                         </Pressable>
                     </Animated.View>
                 ) : null}

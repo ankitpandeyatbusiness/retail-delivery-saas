@@ -13,6 +13,7 @@ import { ask } from '../../components/common/dialog';
 import { fetchInbox, markAllRead, clearAll } from '../../api/common/notificationApi';
 import { useNotificationStore } from '../../store/common/useNotificationStore';
 import { onNotification } from '../../api/common/socket';
+import { tr } from '../../i18n';
 
 const ICON = {
     order_status: 'receipt-outline',
@@ -86,9 +87,9 @@ export default function NotificationsScreen() {
 
     const clear = async () => {
         const yes = await ask({
-            title: 'Clear all notifications?',
-            message: 'Every notification will be deleted. This cannot be undone.',
-            confirmText: 'Clear all',
+            title: tr('Clear all notifications?'),
+            message: tr('Every notification will be deleted. This cannot be undone.'),
+            confirmText: tr('Clear all'),
             destructive: true,
             icon: 'trash-outline',
         });
@@ -97,7 +98,7 @@ export default function NotificationsScreen() {
         setItems([]); setMore(false); setUnread(0);
         try { await clearAll(); } catch (e) {
             setItems(before);
-            showToast('Could not clear. Try again.');
+            showToast(tr('Could not clear. Try again.'));
             load();
         }
     };
@@ -118,14 +119,14 @@ export default function NotificationsScreen() {
 
     return (
         <View style={[s.flex, { backgroundColor: background }]}>
-            <BackHeader title="Notifications" />
+            <BackHeader title={tr('Notifications')} />
             {state === 'loading' ? (
                 <SkelNotifications />
             ) : state === 'error' ? (
                 <View style={s.center}>
                     <Ionicons name="cloud-offline-outline" size={40} color={muted} />
-                    <Text style={[s.emptyBig, { color: text }]}>Could not load notifications</Text>
-                    <Pressable onPress={load} style={[s.btn, { backgroundColor: primary }]}><Text style={s.btnTxt}>Try again</Text></Pressable>
+                    <Text style={[s.emptyBig, { color: text }]}>{tr('Could not load notifications')}</Text>
+                    <Pressable onPress={load} style={[s.btn, { backgroundColor: primary }]}><Text style={s.btnTxt}>{tr('Try again')}</Text></Pressable>
                 </View>
             ) : (
                 <FlatList
@@ -138,15 +139,15 @@ export default function NotificationsScreen() {
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={primary} colors={[primary]} />}
                     ListHeaderComponent={items.length ? (
                         <Pressable onPress={clear} hitSlop={8} style={s.readAll}>
-                            <Text style={[s.readAllTxt, { color: error }]}>Clear all</Text>
+                            <Text style={[s.readAllTxt, { color: error }]}>{tr('Clear all')}</Text>
                         </Pressable>
                     ) : null}
                     ListFooterComponent={loadingMore ? <ActivityIndicator color={primary} style={{ marginVertical: 16 }} /> : null}
                     ListEmptyComponent={(
                         <View style={s.center}>
                             <Ionicons name="notifications-off-outline" size={44} color={muted} />
-                            <Text style={[s.emptyBig, { color: text }]}>No notifications yet</Text>
-                            <Text style={[s.body, { color: muted, textAlign: 'center' }]}>Order updates will show up here.</Text>
+                            <Text style={[s.emptyBig, { color: text }]}>{tr('No notifications yet')}</Text>
+                            <Text style={[s.body, { color: muted, textAlign: 'center' }]}>{tr('Order updates will show up here.')}</Text>
                         </View>
                     )}
                 />

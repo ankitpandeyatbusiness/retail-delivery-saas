@@ -6,6 +6,7 @@ import { View, Text, Pressable, Animated, Easing, StyleSheet } from 'react-nativ
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, smoothTheme, alpha } from '../common/kit';
 import { useThemeStore } from '../../store/common/useThemeStore';
+import { tr } from '../../i18n';
 
 const MODES = [['system', 'phone-portrait-outline', 'System'], ['light', 'sunny-outline', 'Light'], ['dark', 'moon-outline', 'Dark']];
 
@@ -34,8 +35,8 @@ export default function AppearanceSwitch({ last }) {
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <View style={[styles.ic, { backgroundColor: alpha(primary, 0.14) }]}><Ionicons name="contrast-outline" size={18} color={primary} /></View>
                 <View style={{ flex: 1 }}>
-                    <Text style={{ color: text, fontSize: 15, fontWeight: '800' }}>Appearance</Text>
-                    <Text style={{ color: muted, fontSize: 12, marginTop: 1 }}>{mode === 'system' ? "Follows your phone's dark mode" : mode === 'dark' ? 'Always dark' : 'Always light'}</Text>
+                    <Text style={{ color: text, fontSize: 15, fontWeight: '800' }}>{tr('Appearance')}</Text>
+                    <Text style={{ color: muted, fontSize: 12, marginTop: 1 }}>{mode === 'system' ? tr('Follows your phone\'s dark mode') : mode === 'dark' ? tr('Always dark') : tr('Always light')}</Text>
                 </View>
             </View>
             <View onLayout={(e) => setW(e.nativeEvent.layout.width)} style={[styles.seg, { backgroundColor: background, borderColor: border }]}>

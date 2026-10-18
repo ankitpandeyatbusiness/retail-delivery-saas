@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { useBrand, alpha } from '../common/kit';
 import { money } from './ui';
+import { tr } from '../../i18n';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 export function pointLabel(key, kind) {
@@ -25,9 +26,9 @@ export function SalesChart({ points, kind, height = 110 }) {
             <View style={{ minHeight: 34, justifyContent: 'center' }}>
                 {shown ? (
                     <Text style={{ color: text, fontWeight: '900' }}>
-                        {kind === 'week' ? 'Week of ' : ''}{pointLabel(shown.key, kind)}: {money(shown.revenue)} <Text style={{ color: muted, fontWeight: '700' }}>from {shown.orders} {shown.orders === 1 ? 'order' : 'orders'}</Text>
+                        {kind === 'week' ? tr('Week of ') : ''}{pointLabel(shown.key, kind)}: {money(shown.revenue)} <Text style={{ color: muted, fontWeight: '700' }}>{tr('from {orders} {v2}', { orders: shown.orders, v2: shown.orders === 1 ? 'order' : 'orders' })}</Text>
                     </Text>
-                ) : <Text style={{ color: muted }}>Tap a bar to see its number. {total > 0 ? '' : 'No sales yet in this time.'}</Text>}
+                ) : <Text style={{ color: muted }}>{tr('Tap a bar to see its number. {v1}', { v1: total > 0 ? '' : 'No sales yet in this time.' })}</Text>}
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'flex-end', height }}>
                 {points.map((p, i) => {

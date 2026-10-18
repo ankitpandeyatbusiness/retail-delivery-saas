@@ -22,6 +22,7 @@ import {
 } from '../../api/riders/riderApi';
 import { takeAndUploadProof } from '../../utils/riders/riderPhotos';
 import { T, rupee, rupeeAmount, addressLine, errText } from '../../utils/riders/riderText';
+import { tr } from '../../i18n';
 
 const POLL_MS = 5000;
 const STEP_LABELS = [T.stepCollect, T.stepGo, T.stepDeliver];
@@ -105,7 +106,7 @@ export default function RiderTripScreen() {
     const arrived = () => run('arrived', async () => sync(await retrying(() => markArrived(orderId))));
     const navigate = () => {
         const q = spot ? `${spot.latitude},${spot.longitude}` : encodeURIComponent(addressLine(o?.address));
-        Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${q}&travelmode=two-wheeler`).catch(() => showToast('Could not open Maps'));
+        Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${q}&travelmode=two-wheeler`).catch(() => showToast(tr('Could not open Maps')));
     };
     const callCustomer = () => o?.customer?.phone && Linking.openURL(`tel:${o.customer.phone}`).catch(() => { });
     const callShop = () => shopPhone && Linking.openURL(`tel:${shopPhone}`).catch(() => { });
@@ -143,7 +144,7 @@ export default function RiderTripScreen() {
             const fresh = await refresh();
             if (fresh?.status === 'delivered') { setSheet(null); sync(fresh); return; }
             if (pinValue != null) setPin('');
-            themedAlert('Could not deliver', errText(e));
+            themedAlert(tr('Could not deliver'), errText(e));
         } finally { setBusy(''); }
     };
     const startDeliver = async () => {
@@ -167,9 +168,9 @@ export default function RiderTripScreen() {
     if (gone) {
         return (
             <View style={{ flex: 1, backgroundColor: background }}>
-                <PageHeader title="Order" />
+                <PageHeader title={tr('Order')} />
                 <View style={{ padding: 24 }}>
-                    <Text style={{ color: text, fontWeight: '800', fontSize: 16 }}>This order is not yours any more.</Text>
+                    <Text style={{ color: text, fontWeight: '800', fontSize: 16 }}>{tr('This order is not yours any more.')}</Text>
                     <View style={{ marginTop: 16 }}><BigButton label={T.backHome} onPress={() => nav.goBack()} /></View>
                 </View>
             </View>
@@ -190,7 +191,7 @@ export default function RiderTripScreen() {
     if (finished) {
         return (
             <View style={{ flex: 1, backgroundColor: background }}>
-                <PageHeader title={`Order #${o.orderNo}`} />
+                <PageHeader title={tr('Order #{orderNo}', { orderNo: o.orderNo })} />
                 <View style={{ paddingTop: 16 }}>
                     <Banner tone="bad" icon="close-circle" text={T.cancelledTitle} />
                     <Text style={{ color: text, fontWeight: '700', fontSize: 16, marginHorizontal: 16 }}>{T.cancelledText}</Text>
@@ -203,7 +204,7 @@ export default function RiderTripScreen() {
     const ready = o.status === 'preparing' || o.status === 'ready';
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
-            <PageHeader title={`Order #${o.orderNo}`} />
+            <PageHeader title={tr('Order #{orderNo}', { orderNo: o.orderNo })} />
             <Steps labels={STEP_LABELS} step={step} />
             <ScrollView contentContainerStyle={{ paddingTop: 8, paddingBottom: 200 }} keyboardShouldPersistTaps="handled">
                 {offline ? <Banner tone="warn" icon="cloud-offline" text={T.offline} /> : null}
@@ -223,14 +224,14 @@ export default function RiderTripScreen() {
                                 <Text key={k} style={{ color: text, fontSize: 16, fontWeight: '700', marginBottom: 4 }}>{i.quantity} × {i.name}</Text>
                             ))}
                         </View>
-                        {o.note ? <Text style={{ color: muted, marginTop: 8, fontWeight: '600' }}>Note: {o.note}</Text> : null}
+                        {o.note ? <Text style={{ color: muted, marginTop: 8, fontWeight: '600' }}>{tr('Note: {note}', { note: o.note })}</Text> : null}
                         {cash ? <View style={{ marginTop: 12 }}><Banner style={{ marginHorizontal: 0, marginBottom: 0 }} text={T.collectCash(rupeeAmount(o.payment.collectAmount))} /></View> : null}
                     </Card>
                 ) : (
                     <Card>
-                        <Text style={{ color: text, fontWeight: '900', fontSize: 18 }}>{o.customer?.name || 'Customer'}</Text>
+                        <Text style={{ color: text, fontWeight: '900', fontSize: 18 }}>{o.customer?.name || tr('Customer')}</Text>
                         <Text style={{ color: text, fontSize: 16, fontWeight: '600', marginTop: 6, lineHeight: 23 }}>{addressLine(o.address)}</Text>
-                        {o.note ? <Text style={{ color: muted, marginTop: 8, fontWeight: '600' }}>Note: {o.note}</Text> : null}
+                        {o.note ? <Text style={{ color: muted, marginTop: 8, fontWeight: '600' }}>{tr('Note: {note}', { note: o.note })}</Text> : null}
                         <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
                             <View style={{ flex: 1 }}><Button label={T.navigate} icon="navigate" onPress={navigate} /></View>
                             {o.customer?.phone ? <View style={{ flex: 1 }}><Button label={T.call} icon="call" kind="ghost" onPress={callCustomer} /></View> : null}
@@ -241,7 +242,7 @@ export default function RiderTripScreen() {
                 {step === 2 ? (
                     <View style={{ marginHorizontal: 16 }}>
                         {cash && o.doorPay?.canStart ? <SmallLink label={T.customerPaysOnline} icon="qr-code" onPress={payByQr} /> : null}
-                        {!d.pinRequired ? <SmallLink label={d.proof ? 'Retake the photo' : T.addPhoto} icon="camera" onPress={addPhoto} /> : null}
+                        {!d.pinRequired ? <SmallLink label={d.proof ? tr('Retake the photo') : T.addPhoto} icon="camera" onPress={addPhoto} /> : null}
                     </View>
                 ) : null}
 

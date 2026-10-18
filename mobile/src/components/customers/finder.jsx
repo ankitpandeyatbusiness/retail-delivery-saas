@@ -14,6 +14,7 @@ import { tint, showToast } from './shop';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useFilterStore, countActive } from '../../store/customers/useFilterStore';
 import { useMenuStore } from '../../store/customers/shopStores';
+import { tr } from '../../i18n';
 
 /* ---------- smooth collapse (height + fade) ---------- */
 export function Collapse({ hide, children }) {
@@ -90,7 +91,7 @@ export function Slider({ names }) {
         return () => { clearInterval(t); p.stopAnimation(); };
     }, [key]);
 
-    if (!names.length) return <Text style={[s.ph, { color: muted }]}>Search dishes</Text>;
+    if (!names.length) return <Text style={[s.ph, { color: muted }]}>{tr('Search dishes')}</Text>;
 
     const a = names[i % names.length];
     const b = names[(i + 1) % names.length];
@@ -100,12 +101,8 @@ export function Slider({ names }) {
 
     return (
         <View style={s.phBox}>
-            <Animated.Text numberOfLines={1} style={[s.phTxt, { color: muted, opacity: outO, transform: [{ translateY: outY }] }]}>
-                Search "{a}"
-            </Animated.Text>
-            <Animated.Text numberOfLines={1} style={[s.phTxt, s.phAbs, { color: muted, opacity: p, transform: [{ translateY: inY }] }]}>
-                Search "{b}"
-            </Animated.Text>
+            <Animated.Text numberOfLines={1} style={[s.phTxt, { color: muted, opacity: outO, transform: [{ translateY: outY }] }]}>{tr('Search "{a}"', { a: a })}</Animated.Text>
+            <Animated.Text numberOfLines={1} style={[s.phTxt, s.phAbs, { color: muted, opacity: p, transform: [{ translateY: inY }] }]}>{tr('Search "{b}"', { b: b })}</Animated.Text>
         </View>
     );
 }
@@ -133,11 +130,11 @@ export function VegSwitch({ on, onPress }) {
         if (shown) {
             // themed dialog: the brand-coloured button keeps veg on, the outlined one turns it off
             ask({
-                title: 'Turn off veg mode?',
-                message: 'You will start seeing non-veg dishes again in the menu, bestsellers and search.',
+                title: tr('Turn off veg mode?'),
+                message: tr('You will start seeing non-veg dishes again in the menu, bestsellers and search.'),
                 icon: 'leaf-outline',
-                confirmText: 'Keep veg only',
-                cancelText: 'Turn off',
+                confirmText: tr('Keep veg only'),
+                cancelText: tr('Turn off'),
             }).then((keep) => { if (!keep) commit(false); });
             return;
         }
@@ -158,12 +155,12 @@ export function VegSwitch({ on, onPress }) {
     const knobX = x.interpolate({ inputRange: [0, 1], outputRange: [0, 38] });
     const offOp = x.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
     return (
-        <Pressable onPress={press} hitSlop={8} style={s.vegWrap} accessibilityRole="switch" accessibilityState={{ checked: shown }} accessibilityLabel="Veg only">
+        <Pressable onPress={press} hitSlop={8} style={s.vegWrap} accessibilityRole="switch" accessibilityState={{ checked: shown }} accessibilityLabel={tr('Veg only')}>
             <View style={[s.vPill, { backgroundColor: surface, borderColor: border }]}>
                 {/* the green fill fades in over the pill */}
                 <Animated.View pointerEvents="none" style={[s.vFill, { opacity: x }]} />
-                <Animated.Text style={[s.vLabel, { left: 34, color: muted, opacity: offOp }]}>VEG</Animated.Text>
-                <Animated.Text style={[s.vLabel, { left: 12, color: '#FFFFFF', opacity: x }]}>VEG</Animated.Text>
+                <Animated.Text style={[s.vLabel, { left: 34, color: muted, opacity: offOp }]}>{tr('VEG')}</Animated.Text>
+                <Animated.Text style={[s.vLabel, { left: 12, color: '#FFFFFF', opacity: x }]}>{tr('VEG')}</Animated.Text>
                 <Animated.View style={[s.vKnob, { transform: [{ translateX: knobX }] }]}>
                     <View style={[s.vMark, { borderColor: '#8A8F98' }]}><View style={[s.vMarkDot, { backgroundColor: '#8A8F98' }]} /></View>
                     <Animated.View style={[StyleSheet.absoluteFill, s.vMarkOn, { opacity: x }]}>
@@ -320,14 +317,14 @@ export function Cats({ loading = false }) {
                                 <Ionicons name="close" size={26} color={onPrimary} />
                             </View>
                         </View>
-                        <Text numberOfLines={1} style={[s.catName, { color: primary, fontWeight: '800' }]}>Clear all</Text>
+                        <Text numberOfLines={1} style={[s.catName, { color: primary, fontWeight: '800' }]}>{tr('Clear all')}</Text>
                     </Pressable>
                 ) : (
                     <Pressable onPress={clear} hitSlop={6} style={s.clearDot}>
                         <View style={[s.clearCircle, { backgroundColor: primary }]}>
                             <Ionicons name="close" size={20} color={onPrimary} />
                         </View>
-                        {style === 'tiles' ? <Text numberOfLines={1} style={[s.catName, { color: primary, fontWeight: '800' }]}>Clear</Text> : null}
+                        {style === 'tiles' ? <Text numberOfLines={1} style={[s.catName, { color: primary, fontWeight: '800' }]}>{tr('Clear')}</Text> : null}
                     </Pressable>
                 )}
             </Animated.View>
@@ -362,7 +359,7 @@ export function FiltersRow({ onOpen }) {
     if (!canOpen && !quick.length) return null;
     return (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.fl} keyboardShouldPersistTaps="handled">
-            {canOpen ? <Chip icon="options-outline" label="Filters" on={false} badge={n} onPress={onOpen} /> : null}
+            {canOpen ? <Chip icon="options-outline" label={tr('Filters')} on={false} badge={n} onPress={onOpen} /> : null}
             {quick.map((q) => <Chip key={q[0]} label={q[0]} on={q[1]} onPress={q[2]} />)}
         </ScrollView>
     );
@@ -384,8 +381,8 @@ export function useVoice(onDone) {
     });
     useSpeechRecognitionEvent('error', (e) => {
         setOn(false);
-        if (e.error === 'no-speech') showToast("Didn't catch that. Try again.");
-        else if (e.error !== 'aborted') showToast("Couldn't hear that. Try again.");
+        if (e.error === 'no-speech') showToast(tr('Didn\'t catch that. Try again.'));
+        else if (e.error !== 'aborted') showToast(tr('Couldn\'t hear that. Try again.'));
     });
     useSpeechRecognitionEvent('end', () => {
         setOn(false);
@@ -396,7 +393,7 @@ export function useVoice(onDone) {
 
     const start = useCallback(async () => {
         const p = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-        if (!p.granted) { showToast('Allow the microphone to use voice search'); return; }
+        if (!p.granted) { showToast(tr('Allow the microphone to use voice search')); return; }
         ExpoSpeechRecognitionModule.start({ lang: 'en-IN', interimResults: true, continuous: false });
     }, []);
     const stop = useCallback(() => ExpoSpeechRecognitionModule.stop(), []);
@@ -420,15 +417,15 @@ export function VoiceOverlay({ on, txt, onStop }) {
         <Modal visible={on} transparent animationType="fade" onRequestClose={onStop} statusBarTranslucent>
             <View style={s.vBack}>
                 <View style={[s.vCard, { backgroundColor: background }]}>
-                    <Text style={[s.vTitle, { color: text }]}>Listening…</Text>
-                    <Text style={[s.vText, { color: txt ? text : muted }]} numberOfLines={3}>{txt || 'Say a dish name'}</Text>
+                    <Text style={[s.vTitle, { color: text }]}>{tr('Listening…')}</Text>
+                    <Text style={[s.vText, { color: txt ? text : muted }]} numberOfLines={3}>{txt || tr('Say a dish name')}</Text>
                     <Pressable onPress={onStop} style={s.vMicWrap}>
                         <Animated.View style={[s.vPulse, { backgroundColor: tint(primary), transform: [{ scale }] }]} />
                         <View style={[s.vMic, { backgroundColor: primary }]}>
                             <Ionicons name="mic" size={30} color={onPrimary} />
                         </View>
                     </Pressable>
-                    <Text style={[s.vHint, { color: muted }]}>Tap the mic when you're done</Text>
+                    <Text style={[s.vHint, { color: muted }]}>{tr('Tap the mic when you\'re done')}</Text>
                 </View>
             </View>
         </Modal>

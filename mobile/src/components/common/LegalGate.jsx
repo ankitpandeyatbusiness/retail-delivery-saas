@@ -9,6 +9,7 @@ import { useBrand, alpha } from './kit';
 import LegalText from './LegalText';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { fetchLegalStatus, acceptLegal } from '../../api/common/legalApi';
+import { tr } from '../../i18n';
 
 export default function LegalGate() {
     const { surface, text, muted, border, primary, onPrimary, error } = useBrand();
@@ -51,7 +52,7 @@ export default function LegalGate() {
     const agree = async () => {
         setBusy(true); setErr('');
         try { await acceptLegal(doc.key, doc.version); setDoc(null); }
-        catch (e) { setErr(e?.response?.data?.error || 'Could not save. Please try again.'); } finally { setBusy(false); }
+        catch (e) { setErr(e?.response?.data?.error || tr('Could not save. Please try again.')); } finally { setBusy(false); }
     };
     const logout = () => { useAuthStore.getState().logout?.().catch?.(() => { }); setDoc(null); };
 
@@ -64,17 +65,17 @@ export default function LegalGate() {
                     </View>
                     <View style={{ flex: 1, marginLeft: 12 }}>
                         <Text style={{ color: text, fontSize: 17, fontWeight: '900' }}>{doc.title}</Text>
-                        <Text style={{ color: muted, fontSize: 12 }}>Please read this and agree to continue</Text>
+                        <Text style={{ color: muted, fontSize: 12 }}>{tr('Please read this and agree to continue')}</Text>
                     </View>
                 </View>
-                {doc.summary ? <Text style={{ color: text, backgroundColor: alpha(primary, 0.1), marginHorizontal: 18, padding: 10, borderRadius: 10, fontSize: 13, fontWeight: '700' }}>What is new: {doc.summary}</Text> : null}
+                {doc.summary ? <Text style={{ color: text, backgroundColor: alpha(primary, 0.1), marginHorizontal: 18, padding: 10, borderRadius: 10, fontSize: 13, fontWeight: '700' }}>{tr('What is new: {summary}', { summary: doc.summary })}</Text> : null}
                 <ScrollView style={{ flex: 1, marginTop: 10 }} contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 20 }}>
                     <LegalText text={doc.body} title={doc.title} />
                 </ScrollView>
                 <View style={{ borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: border, padding: 16, paddingBottom: Math.max(insets.bottom, 12) + 4 }}>
                     <Pressable onPress={() => setTicked((v) => !v)} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
                         <Ionicons name={ticked ? 'checkbox' : 'square-outline'} size={26} color={ticked ? primary : muted} />
-                        <Text style={{ color: text, flex: 1, marginLeft: 10, fontSize: 14, fontWeight: '700' }}>I have read this and I agree</Text>
+                        <Text style={{ color: text, flex: 1, marginLeft: 10, fontSize: 14, fontWeight: '700' }}>{tr('I have read this and I agree')}</Text>
                     </Pressable>
                     {err ? <Text style={{ color: error, marginBottom: 8 }}>{err}</Text> : null}
                     <Pressable
@@ -82,10 +83,10 @@ export default function LegalGate() {
                         disabled={!ticked || busy}
                         style={{ minHeight: 50, borderRadius: 14, backgroundColor: primary, opacity: !ticked || busy ? 0.45 : 1, alignItems: 'center', justifyContent: 'center' }}
                     >
-                        {busy ? <ActivityIndicator color={onPrimary} /> : <Text style={{ color: onPrimary, fontWeight: '900', fontSize: 16 }}>Agree and continue</Text>}
+                        {busy ? <ActivityIndicator color={onPrimary} /> : <Text style={{ color: onPrimary, fontWeight: '900', fontSize: 16 }}>{tr('Agree and continue')}</Text>}
                     </Pressable>
                     <Pressable onPress={logout} hitSlop={10} style={{ alignItems: 'center', paddingVertical: 12 }}>
-                        <Text style={{ color: muted, fontWeight: '800' }}>Log out</Text>
+                        <Text style={{ color: muted, fontWeight: '800' }}>{tr('Log out')}</Text>
                     </Pressable>
                 </View>
             </View>

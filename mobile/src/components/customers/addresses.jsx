@@ -17,6 +17,7 @@ import { showToast, tint } from './shop';
 import { fetchAddresses, saveAddress, deleteAddress, checkServiceable } from '../../api/customers/shopApi';
 import MapPicker from './MapPicker';
 import { useAuthStore } from '../../store/common/useAuthStore';
+import { tr } from '../../i18n';
 
 export const addrLine = (a) => [a.line1, a.line2, a.landmark, a.city, a.pincode].filter(Boolean).join(', ');
 const errMsg = (e) => e?.response?.data?.error || 'Something went wrong. Try again.';
@@ -238,7 +239,7 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
         try {
             const { status } = await Location.requestForegroundPermissionsAsync();
             if (status !== 'granted') {
-                showToast('Location permission denied. Please enable it in Settings.');
+                showToast(tr('Location permission denied. Please enable it in Settings.'));
                 return;
             }
             // Highest accuracy = real GPS. Balanced can be off by 100m+ (WiFi/cell towers).
@@ -249,7 +250,7 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
             if (res.serviceable) setForm((p) => ({ ...p, lat: latitude, lng: longitude }));
             else setForm((p) => ({ ...p, lat: null, lng: null }));   // never save a far-away pin
         } catch (e) {
-            showToast('Could not get your location. Ensure GPS is turned on.');
+            showToast(tr('Could not get your location. Ensure GPS is turned on.'));
         } finally { setLocating(false); }
     };
 
@@ -268,7 +269,7 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
     };
     const save = async () => {
         if (geo && !geo.serviceable) {
-            showToast('This spot is outside our delivery area. Pin the receiver’s location on the map.');
+            showToast(tr('This spot is outside our delivery area. Pin the receiver’s location on the map.'));
             return;
         }
         const msg = !form.line1.trim() ? 'Enter the address line'
@@ -300,10 +301,10 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
         const b = Keyboard.addListener(hideEv, () => setKb(0));
         return () => { a.remove(); b.remove(); setKb(0); };
     }, [visible]);
-    const remove = () => themedAlert('Delete address?', 'This cannot be undone.', [
-        { text: 'Cancel', style: 'cancel' },
+    const remove = () => themedAlert(tr('Delete address?'), tr('This cannot be undone.'), [
+        { text: tr('Cancel'), style: 'cancel' },
         {
-            text: 'Delete', style: 'destructive',
+            text: tr('Delete'), style: 'destructive',
             onPress: async () => {
                 try { await deleteAddress(editId); await load(); } catch (e) { showToast(errMsg(e)); }
             },
@@ -345,10 +346,10 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
                                     ) : null}
                                     <View style={{ marginLeft: canBack ? 10 : 0, flex: 1 }}>
                                         <Text style={[s.title, { color: text }]}>
-                                            {inForm ? (editId ? 'Edit address' : 'New address') : (manage ? 'Saved addresses' : 'Deliver to')}
+                                            {inForm ? (editId ? tr('Edit address') : tr('New address')) : (manage ? tr('Saved addresses') : tr('Deliver to'))}
                                         </Text>
                                         <Text style={[s.subTitle, { color: muted }]}>
-                                            {inForm ? 'Add the details the rider needs' : (manage ? 'Add, edit or remove addresses' : 'Pick where this order should go')}
+                                            {inForm ? tr('Add the details the rider needs') : (manage ? tr('Add, edit or remove addresses') : tr('Pick where this order should go'))}
                                         </Text>
                                     </View>
                                 </View>
@@ -390,7 +391,7 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
                                                         <View style={{ flex: 1, marginLeft: 12 }}>
                                                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                                                 <Text style={[s.rowTitle, { color: text }]}>{a.label}</Text>
-                                                                {a.isDefault ? <View style={[s.badge, { backgroundColor: tint(primary) }]}><Text style={[s.badgeTxt, { color: primary }]}>DEFAULT</Text></View> : null}
+                                                                {a.isDefault ? <View style={[s.badge, { backgroundColor: tint(primary) }]}><Text style={[s.badgeTxt, { color: primary }]}>{tr('DEFAULT')}</Text></View> : null}
                                                             </View>
                                                             {a.name || a.phone ? <Text style={[s.rowSub, { color: text, opacity: 0.8 }]}>{[a.name, a.phone].filter(Boolean).join(' · ')}</Text> : null}
                                                             <Text style={[s.rowSub, { color: muted }]} numberOfLines={2}>{addrLine(a)}</Text>
@@ -401,7 +402,7 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
                                                         {!manage ? (
                                                             <Pressable onPress={() => openForm(a)} hitSlop={12} style={[s.editPill, { borderColor: border }]}>
                                                                 <Ionicons name="create-outline" size={13} color={primary} />
-                                                                <Text style={[s.link, { color: primary, marginLeft: 4 }]}>Edit</Text>
+                                                                <Text style={[s.link, { color: primary, marginLeft: 4 }]}>{tr('Edit')}</Text>
                                                             </Pressable>
                                                         ) : <Ionicons name="chevron-forward" size={18} color={muted} style={{ marginLeft: 6 }} />}
                                                     </Press>
@@ -410,7 +411,7 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
                                         })}
                                         <Press onPress={() => openForm(null)} style={[s.addBtn, { borderColor: primary, borderRadius: radius, backgroundColor: tint(primary) }]}>
                                             <Ionicons name="add-circle" size={20} color={primary} />
-                                            <Text style={[s.addTxt, { color: primary }]}>Add new address</Text>
+                                            <Text style={[s.addTxt, { color: primary }]}>{tr('Add new address')}</Text>
                                         </Press>
                                     </ScrollView>
                                 </Appear>
@@ -420,7 +421,7 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
                                         <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 12 }}>
                                             <View style={[s.defRow, { backgroundColor: surface, borderColor: border, marginBottom: 10 }]}>
                                                 <Ionicons name="people-outline" size={18} color={primary} style={{ marginRight: 10 }} />
-                                                <Text style={[s.rowSub, { color: text, flex: 1, marginTop: 0, fontWeight: '700' }]}>Ordering for someone else?</Text>
+                                                <Text style={[s.rowSub, { color: text, flex: 1, marginTop: 0, fontWeight: '700' }]}>{tr('Ordering for someone else?')}</Text>
                                                 <Switch value={forOther} onValueChange={toggleOther}
                                                     trackColor={{ true: tint(primary), false: border }} thumbColor={forOther ? primary : '#FFFFFF'} />
                                             </View>
@@ -429,31 +430,31 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
 
                                             {geo && !geo.serviceable && !forOther ? (
                                                 <Pressable onPress={() => toggleOther(true)} style={{ marginTop: 8 }}>
-                                                    <Text style={[s.link, { color: primary }]}>Sending to someone nearby? Pin their location instead</Text>
+                                                    <Text style={[s.link, { color: primary }]}>{tr('Sending to someone nearby? Pin their location instead')}</Text>
                                                 </Pressable>
                                             ) : null}
                                             <Press onPress={() => setMapOpen(true)} style={[s.addBtn, { borderColor: primary, borderRadius: radius, marginTop: 10, paddingVertical: 11, backgroundColor: tint(primary) }]}>
                                                 <Ionicons name="map-outline" size={17} color={primary} />
-                                                <Text style={[s.addTxt, { color: primary }]}>{form.lat !== null ? 'Adjust pin on map' : 'Pin location on map'}</Text>
+                                                <Text style={[s.addTxt, { color: primary }]}>{form.lat !== null ? tr('Adjust pin on map') : tr('Pin location on map')}</Text>
                                             </Press>
                                             {forOther && geo ? (
                                                 <Text style={[s.rowSub, { color: geo.serviceable ? ok : error, marginTop: 8 }]}>
                                                     {geo.serviceable
-                                                        ? `Within delivery area${geo.distanceKm != null ? ` · ${geo.distanceKm} km from the shop` : ''}`
+                                                        ? tr('Within delivery area{v1}', { v1: geo.distanceKm != null ? ` · ${geo.distanceKm} km from the shop` : '' })
                                                         : geo.message}
                                                 </Text>
                                             ) : null}
 
-                                            <Text style={[s.sec, { color: muted }]}>SAVE AS</Text>
+                                            <Text style={[s.sec, { color: muted }]}>{tr('SAVE AS')}</Text>
                                             <View style={s.pills}>
                                                 {['Home', 'Work', 'Other'].map((l) => <Pill key={l} label={l} on={form.label === l} onPress={() => set('label', l)} />)}
                                             </View>
 
-                                            <Text style={[s.sec, { color: muted }]}>{forOther ? 'RECEIVER' : 'CONTACT'}</Text>
+                                            <Text style={[s.sec, { color: muted }]}>{forOther ? tr('RECEIVER') : tr('CONTACT')}</Text>
                                             {renderField('name')}
                                             {renderField('phone')}
 
-                                            <Text style={[s.sec, { color: muted }]}>ADDRESS</Text>
+                                            <Text style={[s.sec, { color: muted }]}>{tr('ADDRESS')}</Text>
                                             {renderField('line1')}
                                             {renderField('line2')}
                                             {renderField('landmark')}
@@ -464,7 +465,7 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
 
                                             <View style={[s.defRow, { backgroundColor: surface, borderColor: border }]}>
                                                 <Ionicons name="star-outline" size={18} color={primary} style={{ marginRight: 10 }} />
-                                                <Text style={[s.rowSub, { color: text, flex: 1, marginTop: 0, fontWeight: '700' }]}>Make this my default address</Text>
+                                                <Text style={[s.rowSub, { color: text, flex: 1, marginTop: 0, fontWeight: '700' }]}>{tr('Make this my default address')}</Text>
                                                 <Switch value={form.isDefault} onValueChange={(v) => set('isDefault', v)} trackColor={{ true: tint(primary), false: border }} thumbColor={form.isDefault ? primary : '#FFFFFF'} />
                                             </View>
                                         </ScrollView>
@@ -473,11 +474,11 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
                                     {/* the Save button stays in view while the form scrolls */}
                                     <View style={[s.footer, { borderTopColor: border }]}>
                                         <Press onPress={save} disabled={saving} style={[s.save, { backgroundColor: primary, borderRadius: radius }]}>
-                                            {saving ? <ActivityIndicator color={onPrimary} /> : <Text style={[s.saveTxt, { color: onPrimary }]}>Save address</Text>}
+                                            {saving ? <ActivityIndicator color={onPrimary} /> : <Text style={[s.saveTxt, { color: onPrimary }]}>{tr('Save address')}</Text>}
                                         </Press>
                                         {editId ? (
                                             <Pressable onPress={remove} style={{ alignItems: 'center', paddingTop: 12 }}>
-                                                <Text style={{ color: error, fontWeight: '700' }}>Delete address</Text>
+                                                <Text style={{ color: error, fontWeight: '700' }}>{tr('Delete address')}</Text>
                                             </Pressable>
                                         ) : null}
                                     </View>

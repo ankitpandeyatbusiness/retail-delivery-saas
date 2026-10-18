@@ -13,6 +13,7 @@ import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { itemState } from '../../utils/owners/menuRules';
 import { showToast } from '../../components/customers/shop';
 import { ListShimmer } from '../../components/owners/shimmer';
+import { tr } from '../../i18n';
 
 function Chip({ label, count, on, onPress, tone }) {
     const { primary, onPrimary, text, border, error } = useBrand();
@@ -86,11 +87,11 @@ export default function OwnerMenuScreen() {
     const header = (
         <View>
             <View style={{ paddingHorizontal: 16, paddingBottom: 10, flexDirection: 'row', alignItems: 'center' }}>
-                <View style={{ flex: 1 }}><Field value={q} onChangeText={setQ} placeholder="Find an item" maxLength={40} style={{ minHeight: 44 }} /></View>
+                <View style={{ flex: 1 }}><Field value={q} onChangeText={setQ} placeholder={tr('Find an item')} maxLength={40} style={{ minHeight: 44 }} /></View>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 12 }}>
-                <Chip label="All" on={cat === 'all' && !soldOut} onPress={() => { setCat('all'); setSoldOut(false); }} />
-                <Chip label="Sold out" count={soldCount} tone="bad" on={soldOut} onPress={() => setSoldOut(!soldOut)} />
+                <Chip label={tr('All')} on={cat === 'all' && !soldOut} onPress={() => { setCat('all'); setSoldOut(false); }} />
+                <Chip label={tr('Sold out')} count={soldCount} tone="bad" on={soldOut} onPress={() => setSoldOut(!soldOut)} />
                 {m.categories.map((c) => (
                     <Chip key={c._id} label={c.name} on={cat === String(c._id)} onPress={() => setCat(cat === String(c._id) ? 'all' : String(c._id))} />
                 ))}
@@ -98,14 +99,14 @@ export default function OwnerMenuScreen() {
             <View style={{ flexDirection: 'row', paddingHorizontal: 16, paddingBottom: 6 }}>
                 <Pressable onPress={() => nav.navigate('OwnerCategories')} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 22 }} hitSlop={6}>
                     <Ionicons name="list" size={17} color={primary} />
-                    <Text style={{ color: primary, fontWeight: '800', marginLeft: 6 }}>Categories</Text>
+                    <Text style={{ color: primary, fontWeight: '800', marginLeft: 6 }}>{tr('Categories')}</Text>
                 </Pressable>
                 <Pressable onPress={() => nav.navigate('OwnerCollections')} style={{ flexDirection: 'row', alignItems: 'center' }} hitSlop={6}>
                     <Ionicons name="albums" size={17} color={primary} />
-                    <Text style={{ color: primary, fontWeight: '800', marginLeft: 6 }}>Collections</Text>
+                    <Text style={{ color: primary, fontWeight: '800', marginLeft: 6 }}>{tr('Collections')}</Text>
                 </Pressable>
             </View>
-            {m.truncated ? <Text style={{ color: muted, fontSize: 12, paddingHorizontal: 16, paddingBottom: 6 }}>Showing the first 600 items. Use search or a category to find the rest.</Text> : null}
+            {m.truncated ? <Text style={{ color: muted, fontSize: 12, paddingHorizontal: 16, paddingBottom: 6 }}>{tr('Showing the first 600 items. Use search or a category to find the rest.')}</Text> : null}
         </View>
     );
 
@@ -115,14 +116,14 @@ export default function OwnerMenuScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 6 }}>
                     <Text style={{ color: text, fontSize: 16, fontWeight: '900' }}>{r.cat.name}</Text>
                     <Text style={{ color: muted, marginLeft: 8, fontWeight: '700' }}>{r.count}</Text>
-                    {r.cat.isActive === false ? <View style={{ marginLeft: 8 }}><Pill label="Hidden" color={muted} /></View> : null}
+                    {r.cat.isActive === false ? <View style={{ marginLeft: 8 }}><Pill label={tr('Hidden')} color={muted} /></View> : null}
                 </View>
             );
         }
         if (r.type === 'none') {
             return (
                 <Pressable onPress={() => nav.navigate('OwnerItem', { categoryId: String(r.cat._id) })} style={{ marginHorizontal: 16, paddingVertical: 10 }}>
-                    <Text style={{ color: primary, fontWeight: '700' }}>No items yet. Add one</Text>
+                    <Text style={{ color: primary, fontWeight: '700' }}>{tr('No items yet. Add one')}</Text>
                 </Pressable>
             );
         }
@@ -136,18 +137,18 @@ export default function OwnerMenuScreen() {
     const empty = m.loading ? (
         <ListShimmer />
     ) : m.error ? (
-        <Empty icon={locked ? 'lock-closed-outline' : 'cloud-offline-outline'} title={locked ? 'The menu is locked' : 'Could not load the menu'} hint={m.error} />
+        <Empty icon={locked ? 'lock-closed-outline' : 'cloud-offline-outline'} title={locked ? tr('The menu is locked') : tr('Could not load the menu')} hint={m.error} />
     ) : !m.categories.length ? (
         <View>
-            <Empty icon="restaurant-outline" title="Your menu is empty" hint="Add your first item. You can type a new category while adding it." />
-            <View style={{ paddingHorizontal: 16 }}><Button label="Add the first item" icon="add" onPress={() => nav.navigate('OwnerItem', {})} /></View>
+            <Empty icon="restaurant-outline" title={tr('Your menu is empty')} hint={tr('Add your first item. You can type a new category while adding it.')} />
+            <View style={{ paddingHorizontal: 16 }}><Button label={tr('Add the first item')} icon="add" onPress={() => nav.navigate('OwnerItem', {})} /></View>
         </View>
     ) : (
-        <Empty icon="search-outline" title={soldOut ? 'Nothing is sold out' : 'No item found'} hint={soldOut ? 'Every item is in stock.' : 'Try another name or category.'} />
+        <Empty icon="search-outline" title={soldOut ? tr('Nothing is sold out') : tr('No item found')} hint={soldOut ? tr('Every item is in stock.') : tr('Try another name or category.')} />
     );
 
     return (
-        <OwnerScreen title="Menu" scroll={false}>
+        <OwnerScreen title={tr('Menu')} scroll={false}>
             <FlatList
                 data={m.loading || m.error ? [] : rows}
                 keyExtractor={(r) => r.key}
@@ -165,7 +166,7 @@ export default function OwnerMenuScreen() {
                     style={{ position: 'absolute', right: 20, bottom: 24, flexDirection: 'row', alignItems: 'center', backgroundColor: primary, paddingHorizontal: 18, height: 54, borderRadius: 27, elevation: 6, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } }}
                 >
                     <Ionicons name="add" size={24} color={onPrimary} />
-                    <Text style={{ color: onPrimary, fontWeight: '900', marginLeft: 6 }}>Add item</Text>
+                    <Text style={{ color: onPrimary, fontWeight: '900', marginLeft: 6 }}>{tr('Add item')}</Text>
                 </Pressable>
             ) : null}
             <SoldOutSheet item={asking} onClose={() => setAsking(null)} onPick={pickSoldOut} />

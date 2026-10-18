@@ -10,6 +10,7 @@ import { useBrand, alpha } from '../common/kit';
 import { Button } from './ui';
 import { showToast } from '../customers/shop';
 import { ListShimmer } from './shimmer';
+import { tr } from '../../i18n';
 
 const FALLBACK = { latitude: 22.5, longitude: 79 };
 
@@ -28,12 +29,12 @@ export function PinMap({ visible, initial, radiusKm, onClose, onPick }) {
         setLocating(true);
         try {
             const p = await Location.requestForegroundPermissionsAsync();
-            if (!p.granted) { showToast('Allow location access to use your position'); return; }
+            if (!p.granted) { showToast(tr('Allow location access to use your position')); return; }
             const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
             const c = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
             setCenter(c);
             map.current?.animateToRegion({ ...c, latitudeDelta: 0.01, longitudeDelta: 0.01 }, 400);
-        } catch (e) { showToast('Could not find your position'); } finally { setLocating(false); }
+        } catch (e) { showToast(tr('Could not find your position')); } finally { setLocating(false); }
     };
 
     return (
@@ -65,9 +66,9 @@ export function PinMap({ visible, initial, radiusKm, onClose, onPick }) {
                     </Pressable>
                 </View>
                 <View style={{ padding: 16, paddingBottom: Math.max(insets.bottom, 12) + 4, backgroundColor: background, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: border }}>
-                    <Text style={{ color: muted, textAlign: 'center', marginBottom: 10 }}>Move the map so the pin is on your shop</Text>
-                    <Button label="Use my position" icon="locate" kind="ghost" working={locating} disabled={locating} onPress={useMine} style={{ marginBottom: 8 }} />
-                    <Button label="Set shop here" icon="checkmark" onPress={() => onPick(center)} />
+                    <Text style={{ color: muted, textAlign: 'center', marginBottom: 10 }}>{tr('Move the map so the pin is on your shop')}</Text>
+                    <Button label={tr('Use my position')} icon="locate" kind="ghost" working={locating} disabled={locating} onPress={useMine} style={{ marginBottom: 8 }} />
+                    <Button label={tr('Set shop here')} icon="checkmark" onPress={() => onPick(center)} />
                 </View>
             </View>
         </Modal>

@@ -13,6 +13,7 @@ import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { TIME_RE } from '../../utils/owners/menuRules';
 import { showToast } from '../../components/customers/shop';
 import { FormShimmer } from '../../components/owners/shimmer';
+import { tr } from '../../i18n';
 
 const BLANK = { name: '', image: '', isActive: true, timings: [] };
 const fromRecord = (r) => ({ name: r.name || '', image: r.image || '', isActive: r.isActive !== false, timings: (r.timings || []).map((s) => ({ days: s.days || [], open: s.open, close: s.close })) });
@@ -20,10 +21,10 @@ const fromRecord = (r) => ({ name: r.name || '', image: r.image || '', isActive:
 // "Or pick a picture from this category's dishes"
 function DishPictures({ pics, value, onPick }) {
     const { primary, border } = useBrand();
-    if (!pics.length) return <Hint>Add items with pictures to this category and you can pick one of them here.</Hint>;
+    if (!pics.length) return <Hint>{tr('Add items with pictures to this category and you can pick one of them here.')}</Hint>;
     return (
         <View style={{ marginTop: 14 }}>
-            <Label>Or pick a picture from this category's items</Label>
+            <Label>{tr('Or pick a picture from this category\'s items')}</Label>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 {pics.map((p) => {
                     const on = p.url === value;
@@ -59,7 +60,7 @@ export default function OwnerCategoryScreen() {
     const set = (k, v) => { setForm((f) => ({ ...f, [k]: v })); setErrors((e) => (e[k] ? { ...e, [k]: undefined } : e)); };
 
     if (!form) {
-        return <FormPage title="Category">{loadError ? <Empty icon="cloud-offline-outline" title="Could not open" hint={loadError} /> : <FormShimmer />}</FormPage>;
+        return <FormPage title={tr('Category')}>{loadError ? <Empty icon="cloud-offline-outline" title={tr('Could not open')} hint={loadError} /> : <FormShimmer />}</FormPage>;
     }
     const v = form;
     const seen = new Set();
@@ -77,24 +78,24 @@ export default function OwnerCategoryScreen() {
         };
         try {
             if (id) await categoriesApi.update(id, body); else await categoriesApi.create(body);
-            showToast(id ? 'Category saved' : 'Category added');
+            showToast(id ? tr('Category saved') : tr('Category added'));
             useMenuStore.getState().load({ quiet: true });
             nav.goBack();
         } catch (err) { useOwnerStore.getState().noteError(err); showToast(apiError(err)); } finally { setSaving(false); }
     };
 
     return (
-        <FormPage title={id ? 'Edit category' : 'New category'} footer={<Button label={id ? 'Save changes' : 'Add category'} icon="checkmark" busy={saving} onPress={save} />}>
-            <Group title="Category">
-                <TextBox label="Name" value={v.name} onChangeText={(x) => set('name', x)} error={errors.name} placeholder="e.g. Starters" maxLength={60} />
-                <ImageField label="Picture (optional)" value={v.image} onChange={(x) => set('image', x)} kind="category" last />
+        <FormPage title={id ? tr('Edit category') : tr('New category')} footer={<Button label={id ? tr('Save changes') : tr('Add category')} icon="checkmark" busy={saving} onPress={save} />}>
+            <Group title={tr('Category')}>
+                <TextBox label={tr('Name')} value={v.name} onChangeText={(x) => set('name', x)} error={errors.name} placeholder={tr('e.g. Starters')} maxLength={60} />
+                <ImageField label={tr('Picture (optional)')} value={v.image} onChange={(x) => set('image', x)} kind="category" last />
                 {id ? <DishPictures pics={pics} value={v.image} onPick={(x) => set('image', x)} /> : null}
-                <Hint>No picture: customers see the picture of the first item in this category.</Hint>
+                <Hint>{tr('No picture: customers see the picture of the first item in this category.')}</Hint>
             </Group>
-            <Group title="Show it">
-                <ToggleRow title="Visible to customers" subtitle="Switch off to hide the whole category" value={v.isActive} onValueChange={(x) => set('isActive', x)} last />
+            <Group title={tr('Show it')}>
+                <ToggleRow title={tr('Visible to customers')} subtitle={tr('Switch off to hide the whole category')} value={v.isActive} onValueChange={(x) => set('isActive', x)} last />
             </Group>
-            <Group title="Only at some hours" hint="Empty = shown all day. For example Breakfast 07:00 to 11:00. A time past midnight, like 18:00 to 02:00, works too.">
+            <Group title={tr('Only at some hours')} hint={tr('Empty = shown all day. For example Breakfast 07:00 to 11:00. A time past midnight, like 18:00 to 02:00, works too.')}>
                 <TimingEditor value={v.timings} onChange={(x) => set('timings', x)} />
                 {errors.timings ? <Hint tone="warn">{errors.timings}</Hint> : null}
             </Group>

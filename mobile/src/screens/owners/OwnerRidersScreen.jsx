@@ -13,6 +13,7 @@ import { addRider, updateRider, apiError } from '../../api/owners/shopApi';
 import { rupees, riderName } from '../../utils/owners/riderRules';
 import { showToast } from '../../components/customers/shop';
 import { ListShimmer } from '../../components/owners/shimmer';
+import { tr } from '../../i18n';
 
 export function Avatar({ rider, size = 44 }) {
     const { primary, onPrimary } = useBrand();
@@ -45,18 +46,18 @@ function AddSheet({ visible, onClose }) {
         setBusy(true);
         try {
             await addRider(phone, name.trim() || undefined);
-            showToast('Rider added');
+            showToast(tr('Rider added'));
             setPhone(''); setName('');
             onClose();
             useRidersStore.getState().load({ quiet: true });
         } catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); } finally { setBusy(false); }
     };
     return (
-        <Sheet visible={visible} onClose={onClose} title="Add a rider">
-            <Text style={{ color: muted, marginBottom: 10 }}>The rider logs in to this app with his phone number and sees his deliveries.</Text>
-            <Field value={phone} onChangeText={(x) => setPhone(x.replace(/\D/g, '').slice(0, 10))} placeholder="Mobile number (10 digits)" maxLength={10} keyboardType="number-pad" style={{ marginBottom: 10 }} />
-            <Field value={name} onChangeText={setName} placeholder="Name (optional)" maxLength={40} style={{ marginBottom: 14 }} />
-            <Button label="Add rider" icon="person-add" disabled={!ok} busy={busy} onPress={submit} />
+        <Sheet visible={visible} onClose={onClose} title={tr('Add a rider')}>
+            <Text style={{ color: muted, marginBottom: 10 }}>{tr('The rider logs in to this app with his phone number and sees his deliveries.')}</Text>
+            <Field value={phone} onChangeText={(x) => setPhone(x.replace(/\D/g, '').slice(0, 10))} placeholder={tr('Mobile number (10 digits)')} maxLength={10} keyboardType="number-pad" style={{ marginBottom: 10 }} />
+            <Field value={name} onChangeText={setName} placeholder={tr('Name (optional)')} maxLength={40} style={{ marginBottom: 14 }} />
+            <Button label={tr('Add rider')} icon="person-add" disabled={!ok} busy={busy} onPress={submit} />
         </Sheet>
     );
 }
@@ -85,31 +86,31 @@ export default function OwnerRidersScreen() {
 
     return (
         <OwnerScreen
-            title="Riders"
+            title={tr('Riders')}
             onRefresh={() => useRidersStore.getState().load({ quiet: true })}
             refreshing={s.refreshing}
         >
             {s.loading ? <ListShimmer /> : null}
-            {s.error && !s.riders.length ? <Empty icon="cloud-offline-outline" title="Could not load" hint={s.error} /> : null}
+            {s.error && !s.riders.length ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={s.error} /> : null}
 
             {!s.loading && !(s.error && !s.riders.length) ? (
                 <>
                     <Card>
                         <View style={{ flexDirection: 'row' }}>
-                            <Stat label="Online now" value={`${online} of ${s.riders.filter((r) => r.isActive).length}`} color={online ? ok : text} />
-                            <Stat label="Cash with riders" value={rupees(s.totalOwedPaise)} color={s.totalOwedPaise > 0 ? error : text} hint={s.totalOwedPaise > 0 ? 'to collect' : 'all settled'} />
+                            <Stat label={tr('Online now')} value={`${online} of ${s.riders.filter((r) => r.isActive).length}`} color={online ? ok : text} />
+                            <Stat label={tr('Cash with riders')} value={rupees(s.totalOwedPaise)} color={s.totalOwedPaise > 0 ? error : text} hint={s.totalOwedPaise > 0 ? tr('to collect') : tr('all settled')} />
                         </View>
                     </Card>
 
                     <View style={{ flexDirection: 'row', paddingHorizontal: 12, marginBottom: 14 }}>
-                        <Quick icon="map" label="Live map" onPress={() => nav.navigate('OwnerRiderMap')} />
-                        <Quick icon="stats-chart" label="Performance" onPress={() => nav.navigate('OwnerPerformance')} />
-                        <Quick icon="options" label="Rules" onPress={() => nav.navigate('OwnerRiderRules')} />
+                        <Quick icon="map" label={tr('Live map')} onPress={() => nav.navigate('OwnerRiderMap')} />
+                        <Quick icon="stats-chart" label={tr('Performance')} onPress={() => nav.navigate('OwnerPerformance')} />
+                        <Quick icon="options" label={tr('Rules')} onPress={() => nav.navigate('OwnerRiderRules')} />
                     </View>
 
                     {owing.length ? (
                         <>
-                            <SectionTitle title="Cash to collect" />
+                            <SectionTitle title={tr('Cash to collect')} />
                             <Card>
                                 {owing.map((r, i) => (
                                     <Pressable key={r.userId} onPress={() => nav.navigate('OwnerRider', { userId: String(r.userId) })} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderTopWidth: i ? 0.5 : 0, borderTopColor: alpha(muted, 0.4) }}>
@@ -123,8 +124,8 @@ export default function OwnerRidersScreen() {
                         </>
                     ) : null}
 
-                    <SectionTitle title={`Your riders (${s.riders.length})`} />
-                    {!s.riders.length ? <Empty icon="bicycle" title="No riders yet" hint="Add a rider with his mobile number. He logs in to this app and gets delivery requests." /> : null}
+                    <SectionTitle title={tr('Your riders ({length})', { length: s.riders.length })} />
+                    {!s.riders.length ? <Empty icon="bicycle" title={tr('No riders yet')} hint={tr('Add a rider with his mobile number. He logs in to this app and gets delivery requests.')} /> : null}
                     {s.riders.map((r) => (
                         <Card key={r.userId} onPress={() => nav.navigate('OwnerRider', { userId: String(r.userId) })} style={{ opacity: r.isActive ? 1 : 0.6 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -133,8 +134,8 @@ export default function OwnerRidersScreen() {
                                     <Text style={{ color: text, fontWeight: '900', fontSize: 16 }} numberOfLines={1}>{riderName(r)}</Text>
                                     <Text style={{ color: muted, fontSize: 12, marginTop: 1 }}>{r.phone || ''}{r.ratingCount ? `  ·  ★ ${Number(r.ratingAvg).toFixed(1)} (${r.ratingCount})` : ''}</Text>
                                     <View style={{ flexDirection: 'row', marginTop: 6, flexWrap: 'wrap' }}>
-                                        {!r.isActive ? <Pill label="Switched off" color={muted} /> : r.isOnline ? <Pill label="Online" color={ok} icon="radio-button-on" /> : <Pill label="Offline" color={muted} />}
-                                        {r.activeOrderCount > 0 ? <View style={{ marginLeft: 6 }}><Pill label={`${r.activeOrderCount} on delivery`} color={primary} icon="bicycle" /></View> : null}
+                                        {!r.isActive ? <Pill label={tr('Switched off')} color={muted} /> : r.isOnline ? <Pill label={tr('Online')} color={ok} icon="radio-button-on" /> : <Pill label={tr('Offline')} color={muted} />}
+                                        {r.activeOrderCount > 0 ? <View style={{ marginLeft: 6 }}><Pill label={tr('{activeOrderCount} on delivery', { activeOrderCount: r.activeOrderCount })} color={primary} icon="bicycle" /></View> : null}
                                     </View>
                                 </View>
                                 <Toggle value={r.isActive} onValueChange={(on) => toggle(r, on)} disabled={access !== 'ok' && access !== 'paused'} />
@@ -142,7 +143,7 @@ export default function OwnerRidersScreen() {
                         </Card>
                     ))}
                     <View style={{ paddingHorizontal: 16, marginTop: 4 }}>
-                        <Button label="Add a rider" icon="person-add" onPress={() => setAdding(true)} />
+                        <Button label={tr('Add a rider')} icon="person-add" onPress={() => setAdding(true)} />
                     </View>
                 </>
             ) : null}

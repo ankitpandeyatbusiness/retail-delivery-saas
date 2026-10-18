@@ -12,6 +12,7 @@ import { useBrand, CardGlow } from '../common/kit';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useThemeStore } from '../../store/common/useThemeStore';
 import { showToast } from './shop';
+import { tr } from '../../i18n';
 
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 const addressText = (a) => (typeof a === 'string' ? a.trim() : [a?.line, a?.city, a?.pincode].filter(Boolean).join(', '));
@@ -35,7 +36,7 @@ export function useStoreSpot() {
 
 export function openDirections(spot) {
     const url = `https://www.google.com/maps/dir/?api=1&destination=${spot.lat},${spot.lng}&travelmode=driving`;
-    Linking.openURL(url).catch(() => showToast('Could not open Google Maps'));
+    Linking.openURL(url).catch(() => showToast(tr('Could not open Google Maps')));
 }
 
 // How it is drawn is the shop's choice (Brand and look → Shop location):
@@ -59,7 +60,7 @@ export function StoreLocation({ inline = false, style }) {
                     accessibilityRole={spot.pinned ? 'button' : 'text'}
                 >
                     <Ionicons name="location-sharp" size={14} color={primary} />
-                    <Text numberOfLines={1} style={[s.chipAddr, { color: text }]}>{spot.address || 'On the map'}</Text>
+                    <Text numberOfLines={1} style={[s.chipAddr, { color: text }]}>{spot.address || tr('On the map')}</Text>
                     {spot.pinned ? (
                         <>
                             <View style={[s.chipDot, { backgroundColor: muted }]} />
@@ -79,8 +80,8 @@ export function StoreLocation({ inline = false, style }) {
             >
                 <Ionicons name={spot.pinned ? 'storefront-outline' : 'location-outline'} size={20} color={primary} />
                 <View style={{ flex: 1, marginLeft: 12 }}>
-                    <Text numberOfLines={2} style={[s.addr, { color: text, marginTop: 0 }]}>{spot.address || 'On the map'}</Text>
-                    {spot.pinned ? <Text style={[s.listSub, { color: primary }]}>Tap the arrow for directions</Text> : null}
+                    <Text numberOfLines={2} style={[s.addr, { color: text, marginTop: 0 }]}>{spot.address || tr('On the map')}</Text>
+                    {spot.pinned ? <Text style={[s.listSub, { color: primary }]}>{tr('Tap the arrow for directions')}</Text> : null}
                 </View>
                 {spot.pinned ? <View style={[s.badge, { backgroundColor: primary }]}><Ionicons name="navigate" size={18} color={onPrimary} /></View> : null}
             </Pressable>
@@ -90,9 +91,9 @@ export function StoreLocation({ inline = false, style }) {
         return (
             <View style={[s.banner, { backgroundColor: `${primary}1A`, borderColor: `${primary}33` }, style]}>
                 <Ionicons name="location-sharp" size={18} color={primary} />
-                <Text numberOfLines={2} style={[s.bannerAddr, { color: text }]}>{spot.address || 'On the map'}</Text>
+                <Text numberOfLines={2} style={[s.bannerAddr, { color: text }]}>{spot.address || tr('On the map')}</Text>
                 {spot.pinned ? (
-                    <Pressable onPress={() => openDirections(spot)} style={[s.badge, { backgroundColor: primary }]} accessibilityRole="button" accessibilityLabel="Get directions">
+                    <Pressable onPress={() => openDirections(spot)} style={[s.badge, { backgroundColor: primary }]} accessibilityRole="button" accessibilityLabel={tr('Get directions')}>
                         <Ionicons name="navigate" size={18} color={onPrimary} />
                     </Pressable>
                 ) : null}
@@ -106,11 +107,11 @@ export function StoreLocation({ inline = false, style }) {
                 <Ionicons name={spot.pinned ? 'storefront-outline' : 'location-outline'} size={19} color={primary} />
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={[s.cap, { color: muted }]}>{spot.pinned ? 'VISIT US' : 'FIND US'}</Text>
-                <Text style={[s.addr, { color: text }]} numberOfLines={2}>{spot.address || 'On the map'}</Text>
+                <Text style={[s.cap, { color: muted }]}>{spot.pinned ? tr('VISIT US') : tr('FIND US')}</Text>
+                <Text style={[s.addr, { color: text }]} numberOfLines={2}>{spot.address || tr('On the map')}</Text>
             </View>
             {spot.pinned ? (
-                <Pressable onPress={() => openDirections(spot)} style={[s.badge, { backgroundColor: primary }]} accessibilityRole="button" accessibilityLabel="Get directions">
+                <Pressable onPress={() => openDirections(spot)} style={[s.badge, { backgroundColor: primary }]} accessibilityRole="button" accessibilityLabel={tr('Get directions')}>
                     <Ionicons name="navigate" size={18} color={onPrimary} />
                 </Pressable>
             ) : null}

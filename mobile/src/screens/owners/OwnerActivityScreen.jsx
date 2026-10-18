@@ -8,6 +8,7 @@ import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { activityLabel, ACTOR_FILTERS } from '../../utils/owners/settingsRules';
 import { dayTime } from '../../utils/owners/orderFlow';
 import { ListShimmer } from '../../components/owners/shimmer';
+import { tr } from '../../i18n';
 
 export default function OwnerActivityScreen() {
     const { background, text, muted, primary, error } = useBrand();
@@ -28,7 +29,7 @@ export default function OwnerActivityScreen() {
 
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
-            <PageHeader title="Activity log" />
+            <PageHeader title={tr('Activity log')} />
             <FlatList
                 data={items || []}
                 keyExtractor={(a, i) => String(a._id || i)}
@@ -40,12 +41,12 @@ export default function OwnerActivityScreen() {
                             <Text style={{ color: text, fontWeight: '800' }}>{activityLabel(a.action)}</Text>
                             <Text style={{ color: muted, fontSize: 12, marginTop: 1 }}>{a.actorLabel || a.actorType} · {dayTime(a.at)}</Text>
                         </View>
-                        {a.status >= 400 ? <Pill label="Failed" color={error} /> : null}
+                        {a.status >= 400 ? <Pill label={tr('Failed')} color={error} /> : null}
                     </View>
                 )}
                 ItemSeparatorComponent={() => <View style={{ height: 0.5, backgroundColor: muted + '33', marginLeft: 16 }} />}
-                ListEmptyComponent={items === null ? <ListShimmer /> : err ? <Empty icon="cloud-offline-outline" title="Could not load" hint={err} /> : <Empty icon="list-outline" title="Nothing yet" hint="Changes made in your shop are listed here." />}
-                ListFooterComponent={more ? <Pressable onPress={() => load(page + 1)} style={{ padding: 18, alignItems: 'center' }}><Text style={{ color: primary, fontWeight: '800' }}>Show more</Text></Pressable> : null}
+                ListEmptyComponent={items === null ? <ListShimmer /> : err ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={err} /> : <Empty icon="list-outline" title={tr('Nothing yet')} hint={tr('Changes made in your shop are listed here.')} />}
+                ListFooterComponent={more ? <Pressable onPress={() => load(page + 1)} style={{ padding: 18, alignItems: 'center' }}><Text style={{ color: primary, fontWeight: '800' }}>{tr('Show more')}</Text></Pressable> : null}
             />
         </View>
     );

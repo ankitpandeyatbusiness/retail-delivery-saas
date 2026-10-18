@@ -11,6 +11,7 @@ import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { ymdOf } from '../../utils/owners/menuRules';
 import { showToast } from '../../components/customers/shop';
 import { ListShimmer } from '../../components/owners/shimmer';
+import { tr } from '../../i18n';
 
 export default function OwnerCollectionsScreen() {
     const nav = useNavigation();
@@ -45,12 +46,12 @@ export default function OwnerCollectionsScreen() {
 
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
-            <PageHeader title="Collections" />
+            <PageHeader title={tr('Collections')} />
             <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 60 }}>
-                <Text style={{ color: muted, paddingHorizontal: 16, marginBottom: 10 }}>A collection is a strip on the home screen made from items you already have. Use it for festivals and combos.</Text>
+                <Text style={{ color: muted, paddingHorizontal: 16, marginBottom: 10 }}>{tr('A collection is a strip on the home screen made from items you already have. Use it for festivals and combos.')}</Text>
                 {items === null ? <ListShimmer /> : null}
-                {error && !items?.length ? <Empty icon="cloud-offline-outline" title="Could not load" hint={error} /> : null}
-                {items && !error && !items.length ? <Empty icon="albums-outline" title="No collections yet" hint="Add one, for example 'Diwali gift boxes'." /> : null}
+                {error && !items?.length ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={error} /> : null}
+                {items && !error && !items.length ? <Empty icon="albums-outline" title={tr('No collections yet')} hint={tr('Add one, for example \'Diwali gift boxes\'.')} /> : null}
                 {(items || []).map((c, i) => (
                     <Card key={c._id} onPress={() => nav.navigate('OwnerCollection', { id: String(c._id) })} style={{ opacity: c.isActive === false ? 0.65 : 1 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -60,15 +61,15 @@ export default function OwnerCollectionsScreen() {
                             </View>
                             <View style={{ flex: 1, minWidth: 0 }}>
                                 <Text style={{ color: text, fontWeight: '900', fontSize: 16 }} numberOfLines={1}>{c.title}</Text>
-                                <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{(c.productIds || []).length} items  ·  {when(c)}</Text>
-                                <View style={{ marginTop: 6 }}><Pill label={c.kind === 'combo' ? 'Combo' : 'Festival'} /></View>
+                                <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{tr('{length} items · {when}', { length: (c.productIds || []).length, when: when(c) })}</Text>
+                                <View style={{ marginTop: 6 }}><Pill label={c.kind === 'combo' ? tr('Combo') : tr('Festival')} /></View>
                             </View>
                             <Toggle value={c.isActive !== false} onValueChange={(on) => toggle(c, on)} />
                         </View>
                     </Card>
                 ))}
                 <View style={{ paddingHorizontal: 16, marginTop: 8 }}>
-                    <Button label="Add a collection" icon="add" onPress={() => nav.navigate('OwnerCollection', {})} />
+                    <Button label={tr('Add a collection')} icon="add" onPress={() => nav.navigate('OwnerCollection', {})} />
                 </View>
             </ScrollView>
         </View>

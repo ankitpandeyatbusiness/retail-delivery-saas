@@ -12,8 +12,11 @@ import SosSheet from '../../components/riders/SosSheet';
 import KeepRunningSheet from '../../components/riders/KeepRunningSheet';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { useRiderStore } from '../../store/riders/useRiderStore';
+import { LANGS, useLang } from '../../i18n';
+import LanguageSheet from '../../components/common/LanguageSheet';
 import { takeAndUploadMyPhoto, removeMyPhoto } from '../../utils/riders/riderPhotos';
 import { T, errText } from '../../utils/riders/riderText';
+import { tr } from '../../i18n';
 
 export default function RiderProfileScreen() {
     const insets = useSafeAreaInsets();
@@ -25,6 +28,8 @@ export default function RiderProfileScreen() {
     const [busy, setBusy] = useState(false);
     const [sosOpen, setSosOpen] = useState(false);
     const [guideOpen, setGuideOpen] = useState(false);
+    const [langOpen, setLangOpen] = useState(false);
+    const lang = useLang((st) => st.lang);
 
     const doPhoto = async (source) => {
         setBusy(true);
@@ -34,9 +39,9 @@ export default function RiderProfileScreen() {
         } catch (e) { showToast(e.safe ? e.message : errText(e)); }
         setBusy(false);
     };
-    const changePhoto = () => themedAlert(T.changePhoto, 'The shop and the customer see this picture.', [
+    const changePhoto = () => themedAlert(T.changePhoto, tr('The shop and the customer see this picture.'), [
         { text: T.takePhoto, onPress: () => doPhoto('camera') },
-        { text: 'Choose from gallery', onPress: () => doPhoto('gallery') },
+        { text: tr('Choose from gallery'), onPress: () => doPhoto('gallery') },
         ...(me?.photo ? [{
             text: 'Remove photo', style: 'destructive',
             onPress: async () => {
@@ -54,13 +59,14 @@ export default function RiderProfileScreen() {
             <ScrollView contentContainerStyle={{ paddingTop: insets.top + 14, paddingBottom: 140 }}>
                 <View style={{ alignItems: 'center', marginBottom: 18 }}>
                     <Avatar uri={me?.photo} size={96} onPress={changePhoto} busy={busy} />
-                    <Text style={{ color: text, fontSize: 22, fontWeight: '900', marginTop: 12 }}>{me?.name || 'Delivery partner'}</Text>
+                    <Text style={{ color: text, fontSize: 22, fontWeight: '900', marginTop: 12 }}>{me?.name || tr('Delivery partner')}</Text>
                     <Text style={{ color: muted, fontWeight: '600', marginTop: 2 }}>{me?.phone}{me?.shop ? ` · ${me.shop}` : ''}</Text>
-                    {me?.ratingCount > 0 ? <Text style={{ color: text, fontWeight: '800', marginTop: 6 }}>★ {Number(me.ratingAvg).toFixed(1)} · {me.ratingCount} ratings</Text> : null}
+                    {me?.ratingCount > 0 ? <Text style={{ color: text, fontWeight: '800', marginTop: 6 }}>{tr('★ {v1} · {ratingCount} ratings', { v1: Number(me.ratingAvg).toFixed(1), ratingCount: me.ratingCount })}</Text> : null}
                     {v?.type || v?.number ? <Text style={{ color: muted, fontWeight: '700', marginTop: 4 }}>{[v.type, v.number].filter(Boolean).join(' · ')}</Text> : null}
                 </View>
                 <Card>
                     {me?.shopPhone ? <Row icon="call-outline" title={T.callShop} subtitle={me.shopPhone} onPress={() => Linking.openURL(`tel:${me.shopPhone}`).catch(() => { })} /> : null}
+                    <Row icon="language-outline" title={tr('Language')} subtitle={LANGS.find((l) => l.code === lang)?.native} onPress={() => setLangOpen(true)} />
                     <Row icon="alert-circle-outline" title={T.sos} color={error} onPress={() => setSosOpen(true)} />
                     <Row icon="battery-charging-outline" title={T.keepRunning} subtitle={T.keepRunningTitle} onPress={() => setGuideOpen(true)} />
                     <Row icon="document-text-outline" title={T.terms} onPress={() => nav.navigate('LegalList')} />
@@ -75,6 +81,7 @@ export default function RiderProfileScreen() {
             </ScrollView>
             <SosSheet visible={sosOpen} onClose={() => setSosOpen(false)} shopPhone={me?.shopPhone} />
             <KeepRunningSheet visible={guideOpen} onClose={() => setGuideOpen(false)} />
+            <LanguageSheet visible={langOpen} onClose={() => setLangOpen(false)} />
         </View>
     );
 }

@@ -14,6 +14,7 @@ import { ownerRoute } from '../../utils/owners/notificationRoute';
 import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
 import { ListShimmer } from '../../components/owners/shimmer';
+import { tr } from '../../i18n';
 
 export default function OwnerNotificationsScreen() {
     const nav = useNavigation();
@@ -40,7 +41,7 @@ export default function OwnerNotificationsScreen() {
     useFocusEffect(useCallback(() => { load(1); }, [load]));
 
     const clearAll = async () => {
-        const yes = await ask({ title: 'Clear all messages?', message: 'They disappear from this list.', confirmText: 'Clear all', destructive: true });
+        const yes = await ask({ title: tr('Clear all messages?'), message: tr('They disappear from this list.'), confirmText: tr('Clear all'), destructive: true });
         if (!yes) return;
         try {
             await clearShopNotifications();
@@ -51,7 +52,7 @@ export default function OwnerNotificationsScreen() {
 
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
-            <PageHeader title="Messages for you" right={items && items.length ? <Pressable onPress={clearAll} hitSlop={10}><Text style={{ color: primary, fontWeight: '800' }}>Clear all</Text></Pressable> : null} />
+            <PageHeader title={tr('Messages for you')} right={items && items.length ? <Pressable onPress={clearAll} hitSlop={10}><Text style={{ color: primary, fontWeight: '800' }}>{tr('Clear all')}</Text></Pressable> : null} />
             <FlatList
                 data={items || []}
                 keyExtractor={(n) => String(n.id)}
@@ -71,8 +72,8 @@ export default function OwnerNotificationsScreen() {
                         </Pressable>
                     );
                 }}
-                ListEmptyComponent={items === null ? <ListShimmer rows count={6} /> : err ? <Empty icon="cloud-offline-outline" title="Could not load" hint={err} /> : <Empty icon="notifications-off-outline" title="No messages" hint="Messages from the platform and about your shop appear here." />}
-                ListFooterComponent={more ? <Pressable onPress={() => load(page + 1)} style={{ padding: 18, alignItems: 'center' }}><Text style={{ color: primary, fontWeight: '800' }}>Show more</Text></Pressable> : null}
+                ListEmptyComponent={items === null ? <ListShimmer rows count={6} /> : err ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={err} /> : <Empty icon="notifications-off-outline" title={tr('No messages')} hint={tr('Messages from the platform and about your shop appear here.')} />}
+                ListFooterComponent={more ? <Pressable onPress={() => load(page + 1)} style={{ padding: 18, alignItems: 'center' }}><Text style={{ color: primary, fontWeight: '800' }}>{tr('Show more')}</Text></Pressable> : null}
             />
         </View>
     );

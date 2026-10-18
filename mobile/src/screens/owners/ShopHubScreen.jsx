@@ -14,6 +14,8 @@ import { clockTime } from '../../utils/owners/orderFlow';
 import { showToast } from '../../components/customers/shop';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { ask } from '../../components/common/dialog';
+import { tr, LANGS, useLang } from '../../i18n';
+import LanguageSheet from '../../components/common/LanguageSheet';
 
 // [icon, title, subtitle, route]
 const GROUPS = [
@@ -55,19 +57,19 @@ export function BusySheet({ visible, busy, onClose, onChanged }) {
         try {
             const r = await setBusy(body);
             onChanged(r.busy);
-            showToast(r.busy ? 'Busy mode is on' : 'Back to normal');
+            showToast(r.busy ? tr('Busy mode is on') : tr('Back to normal'));
             onClose();
         } catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); } finally { setWork(false); }
     };
     return (
-        <Sheet visible={visible} onClose={onClose} title="Busy mode">
-            <Label hint="Customers see a longer waiting time, so nobody expects food too soon. It ends by itself.">How much longer</Label>
+        <Sheet visible={visible} onClose={onClose} title={tr('Busy mode')}>
+            <Label hint={tr('Customers see a longer waiting time, so nobody expects food too soon. It ends by itself.')}>{tr('How much longer')}</Label>
             <Chips options={BUSY_EXTRA} value={extra} onChange={setExtra} style={{ marginTop: 0 }} />
-            <Label>For how long</Label>
+            <Label>{tr('For how long')}</Label>
             {BUSY_FOR.map(([id, label, when]) => (
                 <View key={id} style={{ marginBottom: 8 }}><Button label={label} kind="ghost" disabled={work} onPress={() => go({ extraMin: extra, ...when })} /></View>
             ))}
-            {busy ? <View style={{ marginTop: 6 }}><Button label="Switch busy mode off" kind="danger" disabled={work} onPress={() => go({ off: true })} /></View> : null}
+            {busy ? <View style={{ marginTop: 6 }}><Button label={tr('Switch busy mode off')} kind="danger" disabled={work} onPress={() => go({ off: true })} /></View> : null}
         </Sheet>
     );
 }
@@ -82,6 +84,8 @@ export function ShopMenu({ onGo }) {
     const user = useAuthStore((st) => st.user);
     const [busy, setBusyState] = useState(null);
     const [busyOpen, setBusyOpen] = useState(false);
+    const [langOpen, setLangOpen] = useState(false);
+    const lang = useLang((st) => st.lang);
     useFocusEffect(useCallback(() => {
         fetchSettings().then((x) => setBusyState(x.orders.busy || null)).catch(() => { });
     }, []));
@@ -90,26 +94,26 @@ export function ShopMenu({ onGo }) {
     const customerView = () => {
         if (onGo) onGo();
         nav.navigate('CustomerPreview');   // a page on top of the owner panel; it slides in like any page
-        showToast('Customer view. You cannot place orders from your own number.');
+        showToast(tr('Customer view. You cannot place orders from your own number.'));
     };
     const out = async () => {
         if (onGo) onGo();
-        const yes = await ask({ title: 'Log out?', message: 'You will stop getting new order alerts on this phone.', confirmText: 'Log out', destructive: true });
+        const yes = await ask({ title: tr('Log out?'), message: tr('You will stop getting new order alerts on this phone.'), confirmText: tr('Log out'), destructive: true });
         if (yes) logout();
     };
 
     return (
         <View>
-            <SectionTitle title="Alerts" />
+            <SectionTitle title={tr('Alerts')} />
             <Card>
-                <Row icon="notifications" title="Messages for you" subtitle="From the platform and about your shop" onPress={() => go('OwnerNotifications')} right={unread > 0 ? <Pill label={String(unread)} color={error} /> : undefined} />
-                <Row icon="volume-high" title="Soundbox" subtitle="New-order sound, voice and volume" onPress={() => go('Soundbox')} last />
+                <Row icon="notifications" title={tr('Messages for you')} subtitle={tr('From the platform and about your shop')} onPress={() => go('OwnerNotifications')} right={unread > 0 ? <Pill label={String(unread)} color={error} /> : undefined} />
+                <Row icon="volume-high" title={tr('Soundbox')} subtitle={tr('New-order sound, voice and volume')} onPress={() => go('Soundbox')} last />
             </Card>
 
-            <SectionTitle title="Kitchen" />
+            <SectionTitle title={tr('Kitchen')} />
             <Card>
-                <Row icon="flame" title="Busy mode" subtitle={busy ? `On: +${busy.extraMin} min until ${clockTime(busy.until)}` : 'Show a longer wait when you are rushed'} color={busy ? error : undefined} onPress={() => setBusyOpen(true)} />
-                <Row icon="document-text" title="Closing report" subtitle="The day in one page: sales, cash, orders" onPress={() => go('OwnerClosing')} last />
+                <Row icon="flame" title={tr('Busy mode')} subtitle={busy ? tr('On: +{extraMin} min until {clockTime}', { extraMin: busy.extraMin, clockTime: clockTime(busy.until) }) : tr('Show a longer wait when you are rushed')} color={busy ? error : undefined} onPress={() => setBusyOpen(true)} />
+                <Row icon="document-text" title={tr('Closing report')} subtitle={tr('The day in one page: sales, cash, orders')} onPress={() => go('OwnerClosing')} last />
             </Card>
 
             {GROUPS.map(([group, rows]) => (
@@ -123,15 +127,17 @@ export function ShopMenu({ onGo }) {
                 </View>
             ))}
 
-            <SectionTitle title="Your app" />
+            <SectionTitle title={tr('Your app')} />
             <Card>
-                <Row icon="help-buoy" title="Help and support" subtitle="Ask the platform team for help" onPress={() => go('OwnerSupport')} right={supportUnread > 0 ? <Pill label={String(supportUnread)} color={error} /> : undefined} />
-                <Row icon="person-circle" title="My profile" subtitle={user?.name || user?.phone || 'Your name, picture and email'} onPress={() => go('OwnerProfile')} />
+                <Row icon="help-buoy" title={tr('Help and support')} subtitle={tr('Ask the platform team for help')} onPress={() => go('OwnerSupport')} right={supportUnread > 0 ? <Pill label={String(supportUnread)} color={error} /> : undefined} />
+                <Row icon="person-circle" title={tr('My profile')} subtitle={user?.name || user?.phone || tr('Your name, picture and email')} onPress={() => go('OwnerProfile')} />
                 <AppearanceSwitch />
-                <Row icon="eye" title="See the customer app" subtitle="Look at your shop the way customers do. You cannot order from your own number." onPress={customerView} />
-                <Row icon="log-out" title="Log out" color={error} onPress={out} last />
+                <Row icon="language" title={tr('Language')} subtitle={LANGS.find((l) => l.code === lang)?.native} onPress={() => setLangOpen(true)} />
+                <Row icon="eye" title={tr('See the customer app')} subtitle={tr('Look at your shop the way customers do. You cannot order from your own number.')} onPress={customerView} />
+                <Row icon="log-out" title={tr('Log out')} color={error} onPress={out} last />
             </Card>
 
+            <LanguageSheet visible={langOpen} onClose={() => setLangOpen(false)} />
             <BusySheet visible={busyOpen} busy={busy} onClose={() => setBusyOpen(false)} onChanged={setBusyState} />
         </View>
     );
@@ -141,7 +147,7 @@ export default function ShopHubScreen() {
     const { background } = useBrand();
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
-            <PageHeader title="Shop menu" />
+            <PageHeader title={tr('Shop menu')} />
             <ScrollView contentContainerStyle={{ paddingBottom: 60 }}><ShopMenu /></ScrollView>
         </View>
     );

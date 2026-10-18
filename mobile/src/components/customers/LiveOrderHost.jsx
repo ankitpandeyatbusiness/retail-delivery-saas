@@ -18,6 +18,7 @@ import { useAuthStore } from '../../store/common/useAuthStore';
 import { useLiveTripStore } from '../../store/customers/useLiveTripStore';
 import { useLiveTrip } from '../../hooks/customers/useLiveTrip';
 import { decodePolyline } from '../../utils/common/polyline';
+import { tr } from '../../i18n';
 
 // screens where the bar would sit on top of something the customer is using
 const HIDE_ON = ['Login', 'Cart', 'Item', 'OrderPlaced', 'OrderDetail', 'CardDetails', 'PaymentMethods'];
@@ -136,16 +137,16 @@ export default function LiveOrderHost({ routeName }) {
                 <Pressable
                     onPress={() => setSheet('half')}
                     style={[s.bar, { bottom: insets.bottom + TAB_H + 10, backgroundColor: surface, borderColor: border }]}
-                    accessibilityRole="button" accessibilityLabel="Open live delivery map"
+                    accessibilityRole="button" accessibilityLabel={tr('Open live delivery map')}
                 >
                     <View style={[s.barIc, { backgroundColor: primary }]}>
                         <Ionicons name="bicycle" size={22} color="#FFFFFF" />
                     </View>
                     <View style={s.barText}>
-                        <Text style={[s.barHead, { color: text }]} numberOfLines={1}>{quiet ? 'Reconnecting to your delivery partner' : t.head}</Text>
+                        <Text style={[s.barHead, { color: text }]} numberOfLines={1}>{quiet ? tr('Reconnecting to your delivery partner') : t.head}</Text>
                         <Text style={[s.barSub, { color: muted }]} numberOfLines={1}>{sub}</Text>
                     </View>
-                    <Text style={[s.barGo, { color: primary }]}>Track</Text>
+                    <Text style={[s.barGo, { color: primary }]}>{tr('Track')}</Text>
                     <Ionicons name="chevron-up" size={20} color={primary} />
                 </Pressable>
             ) : null}
@@ -156,7 +157,7 @@ export default function LiveOrderHost({ routeName }) {
             >
                 <View {...pan.panHandlers} style={s.grab}>
                     <View style={[s.handle, { backgroundColor: border }]} />
-                    <Text style={[s.sheetHead, { color: text }]} numberOfLines={1}>{quiet ? 'Reconnecting to your delivery partner' : t.head}</Text>
+                    <Text style={[s.sheetHead, { color: text }]} numberOfLines={1}>{quiet ? tr('Reconnecting to your delivery partner') : t.head}</Text>
                     <Text style={[s.sheetSub, { color: muted }]} numberOfLines={1}>{sub}</Text>
                 </View>
 
@@ -186,10 +187,10 @@ export default function LiveOrderHost({ routeName }) {
                     ) : null}
                     {!rider ? (
                         <View style={[s.wait, { backgroundColor: surface, borderColor: border }]}>
-                            <Text style={[s.barSub, { color: muted }]}>Waiting for the delivery partner's location…</Text>
+                            <Text style={[s.barSub, { color: muted }]}>{tr('Waiting for the delivery partner\'s location…')}</Text>
                         </View>
                     ) : (
-                        <Pressable onPress={() => { manual.current = false; fit(true); }} style={[s.recenter, { backgroundColor: surface, borderColor: border }]} accessibilityLabel="Show rider and my address">
+                        <Pressable onPress={() => { manual.current = false; fit(true); }} style={[s.recenter, { backgroundColor: surface, borderColor: border }]} accessibilityLabel={tr('Show rider and my address')}>
                             <Ionicons name="locate" size={22} color={primary} />
                         </Pressable>
                     )}
@@ -199,7 +200,7 @@ export default function LiveOrderHost({ routeName }) {
                     {quiet ? (
                         <View style={[s.note, { backgroundColor: '#FEF3C7' }]}>
                             <Ionicons name="cloud-offline-outline" size={18} color="#92400E" />
-                            <Text style={s.noteText}>His phone has not reported for a moment. The pin will move again as soon as it does.</Text>
+                            <Text style={s.noteText}>{tr('His phone has not reported for a moment. The pin will move again as soon as it does.')}</Text>
                         </View>
                     ) : null}
                     {track.rider ? (
@@ -212,16 +213,16 @@ export default function LiveOrderHost({ routeName }) {
                                 </Text>
                             </View>
                             {track.rider.phone ? (
-                                <Pressable onPress={() => Linking.openURL(`tel:${track.rider.phone}`).catch(() => { })} style={[s.call, { backgroundColor: primary }]} accessibilityRole="button" accessibilityLabel={`Call ${track.rider.name}`}>
+                                <Pressable onPress={() => Linking.openURL(`tel:${track.rider.phone}`).catch(() => { })} style={[s.call, { backgroundColor: primary }]} accessibilityRole="button" accessibilityLabel={tr('Call {name}', { name: track.rider.name })}>
                                     <Ionicons name="call" size={20} color="#FFFFFF" />
-                                    <Text style={s.callTxt}>Call</Text>
+                                    <Text style={s.callTxt}>{tr('Call')}</Text>
                                 </Pressable>
                             ) : null}
                         </View>
                     ) : null}
                     {track.deliveryPin ? (
                         <View style={[s.pin, { backgroundColor: tint(primary) }]}>
-                            <Text style={[s.barSub, { color: muted }]}>Delivery PIN. Tell it to the rider</Text>
+                            <Text style={[s.barSub, { color: muted }]}>{tr('Delivery PIN. Tell it to the rider')}</Text>
                             <Text style={[s.pinNo, { color: primary }]}>{String(track.deliveryPin).split('').join(' ')}</Text>
                         </View>
                     ) : null}

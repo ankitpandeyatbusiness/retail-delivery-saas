@@ -9,6 +9,7 @@ import { Card, Stat } from '../../components/owners/ui';
 import { BigButton, Banner } from '../../components/riders/riderBits';
 import { fetchMoney } from '../../api/riders/riderApi';
 import { T, rupee, errText } from '../../utils/riders/riderText';
+import { tr } from '../../i18n';
 
 const ago = (d) => new Date(d).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true });
 
@@ -55,7 +56,7 @@ export default function RiderMoneyScreen() {
                     <View style={{ alignItems: 'center', padding: 30 }}>
                         <Ionicons name="cloud-offline-outline" size={44} color={muted} />
                         <Text style={{ color: text, fontWeight: '800', marginTop: 10 }}>{failed}</Text>
-                        <View style={{ marginTop: 14, alignSelf: 'stretch' }}><BigButton label="Try again" onPress={load} /></View>
+                        <View style={{ marginTop: 14, alignSelf: 'stretch' }}><BigButton label={tr('Try again')} onPress={load} /></View>
                     </View>
                 ) : null}
 

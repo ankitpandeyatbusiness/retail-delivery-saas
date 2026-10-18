@@ -14,6 +14,7 @@ import { downloadAndOpen } from '../../utils/owners/files';
 import { dayTime } from '../../utils/owners/orderFlow';
 import { showToast } from '../../components/customers/shop';
 import { LineShimmer, ListShimmer } from '../../components/owners/shimmer';
+import { tr } from '../../i18n';
 
 export default function OwnerMonthScreen() {
     const nav = useNavigation();
@@ -41,12 +42,12 @@ export default function OwnerMonthScreen() {
     const csv = async () => {
         setBusy('csv');
         try { await downloadAndOpen({ path: transactionsCsvPath, params: { ...range, ...(cat ? { category: cat } : {}), format: 'csv' }, filename: `transactions-${month}.csv`, mime: 'text/csv', title: monthName(month) }); }
-        catch (e) { showToast(e.safe ? e.message : 'Could not download'); } finally { setBusy(null); }
+        catch (e) { showToast(e.safe ? e.message : tr('Could not download')); } finally { setBusy(null); }
     };
     const bill = async (t) => {
         setBusy(String(t.id));
         try { await downloadAndOpen({ path: rentInvoicePdfPath(t.id), filename: `bill-${String(t.ref || t.id).replace(/\W+/g, '-')}.pdf`, mime: 'application/pdf', title: String(t.ref || 'Bill') }); }
-        catch (e) { showToast(e.safe ? e.message : 'Could not open the bill'); } finally { setBusy(null); }
+        catch (e) { showToast(e.safe ? e.message : tr('Could not open the bill')); } finally { setBusy(null); }
     };
     const open = (t) => {
         if (t.category === 'rent') bill(t);
@@ -66,11 +67,11 @@ export default function OwnerMonthScreen() {
                         {tot ? (
                             <Card>
                                 <View style={{ flexDirection: 'row' }}>
-                                    <Stat label="Money in" value={rupees(tot.inPaise)} color={ok} />
-                                    <Stat label="Money out" value={rupees(tot.outPaise)} />
-                                    <Stat label="Kept" value={rupees(tot.netPaise)} />
+                                    <Stat label={tr('Money in')} value={rupees(tot.inPaise)} color={ok} />
+                                    <Stat label={tr('Money out')} value={rupees(tot.outPaise)} />
+                                    <Stat label={tr('Kept')} value={rupees(tot.netPaise)} />
                                 </View>
-                                {tot.pending.paise ? <Text style={{ color: error, fontSize: 12, marginTop: 8 }}>{rupees(tot.pending.paise)} of bills still to pay</Text> : null}
+                                {tot.pending.paise ? <Text style={{ color: error, fontSize: 12, marginTop: 8 }}>{tr('{rupees} of bills still to pay', { rupees: rupees(tot.pending.paise) })}</Text> : null}
                             </Card>
                         ) : null}
                         <View style={{ paddingHorizontal: 16 }}><Chips options={MOVES} value={cat} onChange={setCat} style={{ marginTop: 0 }} /></View>
@@ -82,9 +83,9 @@ export default function OwnerMonthScreen() {
                         <Pressable onPress={tappable ? () => open(t) : undefined} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 0.5, borderBottomColor: border, opacity: pressed && tappable ? 0.7 : 1 })}>
                             <View style={{ flex: 1, minWidth: 0, paddingRight: 10 }}>
                                 <Text style={{ color: text, fontWeight: '800' }} numberOfLines={1}>{t.label}{t.orderNo ? ` · #${t.orderNo}` : ''}{t.category === 'rent' && t.ref ? ` · ${t.ref}` : ''}</Text>
-                                <Text style={{ color: muted, fontSize: 12, marginTop: 1 }}>{dayTime(t.at)}{t.category === 'rent' ? ' · tap to open the bill' : ''}</Text>
+                                <Text style={{ color: muted, fontSize: 12, marginTop: 1 }}>{dayTime(t.at)}{t.category === 'rent' ? tr(' · tap to open the bill') : ''}</Text>
                             </View>
-                            {t.status === 'pending' ? <Pill label="To pay" color={error} /> : null}
+                            {t.status === 'pending' ? <Pill label={tr('To pay')} color={error} /> : null}
                             {busy === String(t.id) ? <LineShimmer width={64} height={16} /> : (
                                 <Text style={{ color: t.status === 'pending' ? muted : t.direction === 'in' ? ok : text, fontWeight: '900', marginLeft: 8 }}>{t.direction === 'in' ? '+' : '−'}{rupees(t.amountPaise)}</Text>
                             )}
@@ -92,11 +93,11 @@ export default function OwnerMonthScreen() {
                         </Pressable>
                     );
                 }}
-                ListEmptyComponent={items === null ? <ListShimmer /> : err ? <Empty icon="cloud-offline-outline" title="Could not load" hint={err} /> : <Empty icon="swap-vertical-outline" title="Nothing here" hint="No entries of this kind in this month." />}
+                ListEmptyComponent={items === null ? <ListShimmer /> : err ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={err} /> : <Empty icon="swap-vertical-outline" title={tr('Nothing here')} hint={tr('No entries of this kind in this month.')} />}
                 ListFooterComponent={(
                     <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
-                        {more ? <View style={{ marginBottom: 10 }}><Button label="Show more" kind="ghost" onPress={() => load(page + 1)} /></View> : null}
-                        {items && items.length ? <Button label="Download this month (spreadsheet)" icon="download" kind="ghost" working={busy === 'csv'} disabled={busy === 'csv'} onPress={csv} /> : null}
+                        {more ? <View style={{ marginBottom: 10 }}><Button label={tr('Show more')} kind="ghost" onPress={() => load(page + 1)} /></View> : null}
+                        {items && items.length ? <Button label={tr('Download this month (spreadsheet)')} icon="download" kind="ghost" working={busy === 'csv'} disabled={busy === 'csv'} onPress={csv} /> : null}
                     </View>
                 )}
             />

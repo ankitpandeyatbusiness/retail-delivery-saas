@@ -13,6 +13,7 @@ import { personName } from '../../utils/owners/hubRules';
 import { ago } from '../../utils/owners/riderRules';
 import { TAGS, TAG_ORDER, usualLine, sinceLine } from '../../utils/owners/customerTags';
 import { LineShimmer, ListShimmer } from '../../components/owners/shimmer';
+import { tr } from '../../i18n';
 
 export default function OwnerCustomersScreen() {
     const nav = useNavigation();
@@ -64,7 +65,7 @@ export default function OwnerCustomersScreen() {
 
     const header = (
         <View style={{ paddingBottom: 6 }}>
-            <View style={{ paddingHorizontal: 16, paddingBottom: 10 }}><Field value={typed} onChangeText={onType} placeholder="Search by name or phone" maxLength={40} style={{ minHeight: 44 }} /></View>
+            <View style={{ paddingHorizontal: 16, paddingBottom: 10 }}><Field value={typed} onChangeText={onType} placeholder={tr('Search by name or phone')} maxLength={40} style={{ minHeight: 44 }} /></View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }} style={{ flexGrow: 0 }}>
                 {chip('all', 'Everyone')}
                 {TAG_ORDER.map((k) => chip(k, TAGS[k].label, counts ? counts[k] : null))}
@@ -72,7 +73,7 @@ export default function OwnerCustomersScreen() {
             {tag !== 'all' ? <Text style={{ color: muted, fontSize: 12, paddingHorizontal: 16, marginTop: 8 }}>{TAGS[tag].hint}</Text> : null}
             <Pressable onPress={() => nav.navigate('OwnerAutopilot')} style={{ marginHorizontal: 16, marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: alpha(primary, 0.1), flexDirection: 'row', alignItems: 'center' }}>
                 <Ionicons name="rocket" size={20} color={primary} />
-                <Text style={{ flex: 1, color: text, fontWeight: '800', marginLeft: 10 }}>Autopilot: reminders that go out by themselves</Text>
+                <Text style={{ flex: 1, color: text, fontWeight: '800', marginLeft: 10 }}>{tr('Autopilot: reminders that go out by themselves')}</Text>
                 <Ionicons name="chevron-forward" size={18} color={muted} />
             </Pressable>
         </View>
@@ -80,7 +81,7 @@ export default function OwnerCustomersScreen() {
 
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
-            <PageHeader title="Customers" />
+            <PageHeader title={tr('Customers')} />
             <FlatList
                 data={items || []}
                 keyExtractor={(u) => String(u.id)}
@@ -98,20 +99,20 @@ export default function OwnerCustomersScreen() {
                             <View style={{ flex: 1, marginLeft: 12, minWidth: 0 }}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                     <Text style={{ color: text, fontWeight: '800', fontSize: 15, flexShrink: 1 }} numberOfLines={1}>{personName(u)}</Text>
-                                    {tg ? <Text style={{ color: tg.color, backgroundColor: alpha(tg.color, 0.12), fontSize: 10, fontWeight: '900', marginLeft: 8, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8, overflow: 'hidden' }}>{u.vip && u.tag !== 'vip' ? `VIP · ${tg.label}` : tg.label}</Text> : null}
+                                    {tg ? <Text style={{ color: tg.color, backgroundColor: alpha(tg.color, 0.12), fontSize: 10, fontWeight: '900', marginLeft: 8, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8, overflow: 'hidden' }}>{u.vip && u.tag !== 'vip' ? tr('VIP · {label}', { label: tg.label }) : tg.label}</Text> : null}
                                 </View>
-                                <Text style={{ color: muted, fontSize: 12, marginTop: 1 }} numberOfLines={1}>{u.orders !== undefined ? `${sinceLine(u)} · ${usualLine(u)}` : `${u.phone} · joined ${ago(u.createdAt)}`}</Text>
+                                <Text style={{ color: muted, fontSize: 12, marginTop: 1 }} numberOfLines={1}>{u.orders !== undefined ? `${sinceLine(u)} · ${usualLine(u)}` : tr('{phone} · joined {ago}', { phone: u.phone, ago: ago(u.createdAt) })}</Text>
                             </View>
                             {canRemind && (u.tag === 'slipping' || u.tag === 'lost') ? (
                                 <Pressable onPress={() => setRemind(u)} hitSlop={8} style={{ paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, borderWidth: 1, borderColor: primary }}>
-                                    <Text style={{ color: primary, fontWeight: '800', fontSize: 12 }}>Remind</Text>
+                                    <Text style={{ color: primary, fontWeight: '800', fontSize: 12 }}>{tr('Remind')}</Text>
                                 </Pressable>
                             ) : <Ionicons name="chevron-forward" size={18} color={muted} />}
                         </Pressable>
                     );
                 }}
-                ListEmptyComponent={items === null ? <ListShimmer rows count={6} /> : err ? <Empty icon="cloud-offline-outline" title="Could not load" hint={err} /> : <Empty icon="people-outline" title={q ? 'No customer found' : tag === 'all' ? 'No customers yet' : `No ${TAGS[tag].label.toLowerCase()} customers`} hint={q ? 'Try another name or number.' : tag === 'all' ? 'Customers appear here when they sign in to your app.' : 'Good news: nobody is here right now.'} />}
-                ListFooterComponent={more ? <Pressable onPress={() => { setLoadingMore(true); load(page + 1, q, tag); }} style={{ padding: 18, alignItems: 'center' }}>{loadingMore ? <LineShimmer width={90} height={16} /> : <Text style={{ color: primary, fontWeight: '800' }}>Show more</Text>}</Pressable> : null}
+                ListEmptyComponent={items === null ? <ListShimmer rows count={6} /> : err ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={err} /> : <Empty icon="people-outline" title={q ? tr('No customer found') : tag === 'all' ? tr('No customers yet') : tr('No {v1} customers', { v1: TAGS[tag].label.toLowerCase() })} hint={q ? tr('Try another name or number.') : tag === 'all' ? tr('Customers appear here when they sign in to your app.') : tr('Good news: nobody is here right now.')} />}
+                ListFooterComponent={more ? <Pressable onPress={() => { setLoadingMore(true); load(page + 1, q, tag); }} style={{ padding: 18, alignItems: 'center' }}>{loadingMore ? <LineShimmer width={90} height={16} /> : <Text style={{ color: primary, fontWeight: '800' }}>{tr('Show more')}</Text>}</Pressable> : null}
             />
             {remind ? <RemindSheet visible customer={remind} onClose={() => setRemind(null)} onSent={() => load(1, q, tag)} /> : null}
         </View>

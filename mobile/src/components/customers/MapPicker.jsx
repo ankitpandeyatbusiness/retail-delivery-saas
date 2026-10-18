@@ -12,6 +12,7 @@ import { useAuthStore } from '../../store/common/useAuthStore';
 import { suggestPlaces, placeById } from '../../api/customers/geoApi';
 import { fetchAddresses } from '../../api/customers/shopApi';
 import { readCache, writeCache } from '../../utils/common/cache';
+import { tr } from '../../i18n';
 
 const FALLBACK = { latitude: 26.4499, longitude: 80.3319 };
 
@@ -37,8 +38,8 @@ function PlaceRow({ c, onPress }) {
             </View>
             <View style={s.rowR}>
                 {c.distanceKm != null ? <Text style={[s.rowKm, { color: text }]}>{kmText(c.distanceKm)}</Text> : null}
-                {c.deliverable === true ? <Text style={[s.rowBadge, { color: '#0F8A3C' }]}>Delivers here</Text> : null}
-                {c.deliverable === false ? <Text style={[s.rowBadge, { color: error }]}>Outside area</Text> : null}
+                {c.deliverable === true ? <Text style={[s.rowBadge, { color: '#0F8A3C' }]}>{tr('Delivers here')}</Text> : null}
+                {c.deliverable === false ? <Text style={[s.rowBadge, { color: error }]}>{tr('Outside area')}</Text> : null}
             </View>
         </Pressable>
     );
@@ -141,19 +142,19 @@ export default function MapPicker({ visible, initial, onClose, onPick, startAtSh
         try {
             const perm = await Location.requestForegroundPermissionsAsync();
             if (perm.status !== 'granted') {
-                showToast('Location permission is off');
+                showToast(tr('Location permission is off'));
                 if (!perm.canAskAgain) Linking.openSettings();
                 return;
             }
             setGranted(true);
-            if (!(await Location.hasServicesEnabledAsync())) { showToast('Turn on location (GPS) on your phone'); return; }
+            if (!(await Location.hasServicesEnabledAsync())) { showToast(tr('Turn on location (GPS) on your phone')); return; }
             // same accuracy as the "Use my current location" button in the address form
             const p = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Highest });
             const c = { latitude: p.coords.latitude, longitude: p.coords.longitude };
             setMe(c);
             setCenter(c);      // update immediately, don't wait for the map event
             goTo(c, 0.002);
-        } catch (e) { showToast('Could not get your location'); } finally { setLocating(false); }
+        } catch (e) { showToast(tr('Could not get your location')); } finally { setLocating(false); }
     };
 
     const confirm = () => {
@@ -255,20 +256,20 @@ export default function MapPicker({ visible, initial, onClose, onPick, startAtSh
         try {
             const r = await placeById(c.placeId);
             go({ ...c, latitude: r.place.latitude, longitude: r.place.longitude });
-        } catch (e) { showToast('Could not open this place. Try another.'); } finally { setSearching(false); }
+        } catch (e) { showToast(tr('Could not open this place. Try another.')); } finally { setSearching(false); }
     };
 
     const search = async () => {
-        if (term.length < 3 && !results?.length) { showToast('Type at least 3 letters'); return; }
+        if (term.length < 3 && !results?.length) { showToast(tr('Type at least 3 letters')); return; }
         if (results?.length) { choose(results[0]); return; }   // Enter = the best (nearest) match
         Keyboard.dismiss();
         setSearching(true);
         try {
             const r = await suggestPlaces({ q: term, lat: measureFrom.latitude, lng: measureFrom.longitude });
-            if (!r.items?.length) { showToast('Place not found. Try adding the city name.'); return; }
+            if (!r.items?.length) { showToast(tr('Place not found. Try adding the city name.')); return; }
             await choose(r.items[0]);
         } catch (e) {
-            showToast('Search failed. Check your internet and try again.');
+            showToast(tr('Search failed. Check your internet and try again.'));
         } finally { setSearching(false); }
     };
 
@@ -325,7 +326,7 @@ export default function MapPicker({ visible, initial, onClose, onPick, startAtSh
                     <TextInput
                         value={q} onChangeText={setQ} onSubmitEditing={search}
                         onFocus={() => { setFocused(true); if (!me) findMe(true); }} onBlur={() => setTimeout(() => setFocused(false), 150)}
-                        placeholder="Search area, landmark or street" placeholderTextColor={muted}
+                        placeholder={tr('Search area, landmark or street')} placeholderTextColor={muted}
                         returnKeyType="search" style={[s.searchInput, { color: text }]}
                     />
                     {searching ? <ActivityIndicator size="small" color={primary} /> : q ? (
@@ -344,7 +345,7 @@ export default function MapPicker({ visible, initial, onClose, onPick, startAtSh
                                         <View style={s.rowPad}><ActivityIndicator color={primary} /></View>
                                     ) : null}
                                     {results && !results.length && !suggesting ? (
-                                        <Text style={[s.empty, { color: muted }]}>No match. Try the area or city name too.</Text>
+                                        <Text style={[s.empty, { color: muted }]}>{tr('No match. Try the area or city name too.')}</Text>
                                     ) : null}
                                     {(results || []).map((c, i) => (
                                         <PlaceRow key={`${c.placeId || c.title}-${i}`} c={{ ...c, kind: 'place' }} onPress={() => choose(c)} />
@@ -352,9 +353,9 @@ export default function MapPicker({ visible, initial, onClose, onPick, startAtSh
                                 </>
                             ) : (
                                 <>
-                                    {savedRows.length ? <Text style={[s.sec, { color: muted }]}>YOUR SAVED ADDRESSES</Text> : null}
+                                    {savedRows.length ? <Text style={[s.sec, { color: muted }]}>{tr('YOUR SAVED ADDRESSES')}</Text> : null}
                                     {savedRows.map((c) => <PlaceRow key={c.key} c={c} onPress={() => go(c, { save: false })} />)}
-                                    {recentRows.length ? <Text style={[s.sec, { color: muted }]}>RECENT SEARCHES</Text> : null}
+                                    {recentRows.length ? <Text style={[s.sec, { color: muted }]}>{tr('RECENT SEARCHES')}</Text> : null}
                                     {recentRows.map((c) => <PlaceRow key={c.key} c={c} onPress={() => go(c, { save: false })} />)}
                                 </>
                             )}
@@ -367,16 +368,16 @@ export default function MapPicker({ visible, initial, onClose, onPick, startAtSh
                 </Pressable>
 
                 <View style={[s.bar, { backgroundColor: surface, borderTopColor: border, paddingBottom: (insets.bottom || 0) + 14 }]}>
-                    <Text style={[s.hint, { color: muted }]}>Move the map to place the pin</Text>
+                    <Text style={[s.hint, { color: muted }]}>{tr('Move the map to place the pin')}</Text>
                     <Text style={[s.addr, { color: text }]} numberOfLines={2}>
-                        {resolving ? 'Finding address...' : (label || 'Pinned location')}
+                        {resolving ? tr('Finding address...') : (label || tr('Pinned location'))}
                     </Text>
                     <Pressable
                         onPress={confirm}
                         disabled={!canConfirm}
                         style={[s.btn, { backgroundColor: primary, borderRadius: radius, opacity: canConfirm ? 1 : 0.5 }]}
                     >
-                        <Text style={[s.btnTxt, { color: onPrimary }]}>Confirm location</Text>
+                        <Text style={[s.btnTxt, { color: onPrimary }]}>{tr('Confirm location')}</Text>
                     </Pressable>
                 </View>
             </View>

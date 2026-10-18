@@ -9,6 +9,7 @@ import { fetchRiderPerformance, apiError } from '../../api/owners/shopApi';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { rupees, rangeOf } from '../../utils/owners/riderRules';
 import { ListShimmer } from '../../components/owners/shimmer';
+import { tr } from '../../i18n';
 
 export default function OwnerPerformanceScreen() {
     const nav = useNavigation();
@@ -30,22 +31,22 @@ export default function OwnerPerformanceScreen() {
 
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
-            <PageHeader title="Rider performance" />
+            <PageHeader title={tr('Rider performance')} />
             <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 60 }}>
                 <View style={{ paddingHorizontal: 16 }}>
-                    <Chips options={[['7', 'Last 7 days'], ['30', 'Last 30 days'], ['month', 'This month']]} value={range} onChange={setRange} style={{ marginTop: 0 }} />
+                    <Chips options={[['7', tr('Last 7 days')], ['30', tr('Last 30 days')], ['month', tr('This month')]]} value={range} onChange={setRange} style={{ marginTop: 0 }} />
                 </View>
                 {data === null ? <ListShimmer /> : null}
-                {error ? <Empty icon="cloud-offline-outline" title="Could not load" hint={error} /> : null}
+                {error ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={error} /> : null}
                 {data && !error ? (
                     <>
                         <Card>
                             <View style={{ flexDirection: 'row' }}>
-                                <Stat label="Deliveries" value={String(total)} />
-                                <Stat label="Cash collected" value={rupees(cash)} />
+                                <Stat label={tr('Deliveries')} value={String(total)} />
+                                <Stat label={tr('Cash collected')} value={rupees(cash)} />
                             </View>
                         </Card>
-                        {!items.length ? <Empty icon="bicycle" title="No deliveries in this period" hint="Delivered orders with a rider show up here." /> : null}
+                        {!items.length ? <Empty icon="bicycle" title={tr('No deliveries in this period')} hint={tr('Delivered orders with a rider show up here.')} /> : null}
                         {items.map((r, i) => (
                             <Card key={String(r.riderId)} onPress={() => nav.navigate('OwnerRider', { userId: String(r.riderId) })}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -54,13 +55,13 @@ export default function OwnerPerformanceScreen() {
                                     <View style={{ flex: 1, marginLeft: 12 }}>
                                         <Text style={{ color: text, fontWeight: '900', fontSize: 16 }} numberOfLines={1}>{r.name}</Text>
                                         <Text style={{ color: muted, fontSize: 12, marginTop: 1 }}>
-                                            {r.avgDeliveryMin != null ? `${Math.round(r.avgDeliveryMin)} min average` : 'No time recorded'}
+                                            {r.avgDeliveryMin != null ? tr('{v1} min average', { v1: Math.round(r.avgDeliveryMin) }) : tr('No time recorded')}
                                             {r.periodRatingAvg != null ? `  ·  ★ ${r.periodRatingAvg.toFixed(1)} (${r.periodRatedCount})` : ''}
                                         </Text>
                                     </View>
                                     <View style={{ alignItems: 'flex-end' }}>
                                         <Text style={{ color: primary, fontWeight: '900', fontSize: 20 }}>{r.deliveries}</Text>
-                                        <Text style={{ color: muted, fontSize: 11 }}>deliveries</Text>
+                                        <Text style={{ color: muted, fontSize: 11 }}>{tr('deliveries')}</Text>
                                     </View>
                                 </View>
                             </Card>

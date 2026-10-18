@@ -9,6 +9,7 @@ import { Skel } from '../common/motion';
 import { pickImage, uploadImage } from '../../utils/owners/upload';
 import { MAX_PICTURES } from '../../utils/owners/supportRules';
 import { showToast } from '../customers/shop';
+import { tr } from '../../i18n';
 
 export default function PictureStrip({ value, onChange, refId, size = 64 }) {
     const { primary, border, muted, error } = useBrand();
@@ -21,7 +22,7 @@ export default function PictureStrip({ value, onChange, refId, size = 64 }) {
             if (!img) return;
             const m = await uploadImage({ kind: 'support', refId, via: 'support', ...img });
             onChange([...value, m.url]);
-        } catch (e) { showToast(e.safe ? e.message : 'Could not add that picture'); } finally { setBusy(false); }
+        } catch (e) { showToast(e.safe ? e.message : tr('Could not add that picture')); } finally { setBusy(false); }
     };
     return (
         <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -37,7 +38,7 @@ export default function PictureStrip({ value, onChange, refId, size = 64 }) {
             {value.length < MAX_PICTURES && !busy ? (
                 <Pressable onPress={add} style={{ width: size, height: size, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: border, backgroundColor: alpha(primary, 0.06), alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
                     <Ionicons name="image-outline" size={22} color={primary} />
-                    <Text style={{ color: muted, fontSize: 10, marginTop: 2 }}>Add</Text>
+                    <Text style={{ color: muted, fontSize: 10, marginTop: 2 }}>{tr('Add')}</Text>
                 </Pressable>
             ) : null}
         </View>

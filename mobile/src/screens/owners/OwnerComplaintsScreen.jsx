@@ -9,6 +9,7 @@ import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { COMPLAINT_TYPES, COMPLAINT_STATUS, RESOLUTION_TEXT } from '../../utils/owners/hubRules';
 import { ago } from '../../utils/owners/riderRules';
 import { ListShimmer } from '../../components/owners/shimmer';
+import { tr } from '../../i18n';
 
 export default function OwnerComplaintsScreen() {
     const nav = useNavigation();
@@ -32,7 +33,7 @@ export default function OwnerComplaintsScreen() {
 
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
-            <PageHeader title="Complaints" />
+            <PageHeader title={tr('Complaints')} />
             <FlatList
                 data={items || []}
                 keyExtractor={(c) => String(c.id)}
@@ -41,15 +42,15 @@ export default function OwnerComplaintsScreen() {
                 renderItem={({ item: c }) => (
                     <Card onPress={() => nav.navigate('OwnerComplaint', { complaint: c })}>
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <Text style={{ color: text, fontWeight: '900', flex: 1 }} numberOfLines={1}>Order #{c.orderNo} · {COMPLAINT_TYPES[c.type] || c.type}</Text>
-                            {c.status === 'resolved' ? <Pill label={RESOLUTION_TEXT[c.resolution] || 'Decided'} color={ok} /> : c.status === 'in_progress' ? <Pill label="In progress" color={primary} /> : <Pill label="New" color={error} />}
+                            <Text style={{ color: text, fontWeight: '900', flex: 1 }} numberOfLines={1}>{tr('Order #{orderNo} · {v2}', { orderNo: c.orderNo, v2: COMPLAINT_TYPES[c.type] || c.type })}</Text>
+                            {c.status === 'resolved' ? <Pill label={RESOLUTION_TEXT[c.resolution] || tr('Decided')} color={ok} /> : c.status === 'in_progress' ? <Pill label={tr('In progress')} color={primary} /> : <Pill label={tr('New')} color={error} />}
                         </View>
                         <Text style={{ color: text, marginTop: 6 }} numberOfLines={2}>{c.text}</Text>
-                        <Text style={{ color: muted, fontSize: 12, marginTop: 6 }}>{c.customerName || 'Customer'} · {ago(c.createdAt)}{c.photos?.length ? ` · ${c.photos.length} photo${c.photos.length > 1 ? 's' : ''}` : ''}</Text>
+                        <Text style={{ color: muted, fontSize: 12, marginTop: 6 }}>{c.customerName || tr('Customer')} · {ago(c.createdAt)}{c.photos?.length ? tr(' · {length} photo{v2}', { length: c.photos.length, v2: c.photos.length > 1 ? 's' : '' }) : ''}</Text>
                     </Card>
                 )}
-                ListEmptyComponent={items === null ? <ListShimmer /> : err ? <Empty icon="cloud-offline-outline" title="Could not load" hint={err} /> : <Empty icon="happy-outline" title={status === 'open' ? 'No new complaints' : 'Nothing here'} hint={status === 'open' ? 'Nice. Customers are happy.' : undefined} />}
-                ListFooterComponent={more ? <Pressable onPress={() => load(page + 1)} style={{ padding: 18, alignItems: 'center' }}><Text style={{ color: primary, fontWeight: '800' }}>Show more</Text></Pressable> : null}
+                ListEmptyComponent={items === null ? <ListShimmer /> : err ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={err} /> : <Empty icon="happy-outline" title={status === 'open' ? tr('No new complaints') : tr('Nothing here')} hint={status === 'open' ? tr('Nice. Customers are happy.') : undefined} />}
+                ListFooterComponent={more ? <Pressable onPress={() => load(page + 1)} style={{ padding: 18, alignItems: 'center' }}><Text style={{ color: primary, fontWeight: '800' }}>{tr('Show more')}</Text></Pressable> : null}
             />
         </View>
     );

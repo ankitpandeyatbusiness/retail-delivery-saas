@@ -17,6 +17,7 @@ import { searchProducts } from '../../api/customers/shopApi';
 import { readCache, writeCache } from '../../utils/common/cache';
 import { FadeIn } from '../../components/common/motion';
 import { SkelDish } from '../../components/customers/skeletons';
+import { tr } from '../../i18n';
 
 // Popular card: photo, name, price and the ADD / − 1 + pill, so dishes can be added straight from here.
 function Poster({ item, w }) {
@@ -158,12 +159,12 @@ export default function SearchScreen() {
     if (!active) {
         body = (
             <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ paddingBottom: 110 }}>
-                {term.length === 1 ? <Text style={[s.hint, { color: muted }]}>Type at least 2 letters</Text> : null}
+                {term.length === 1 ? <Text style={[s.hint, { color: muted }]}>{tr('Type at least 2 letters')}</Text> : null}
                 {recent.length && !term ? (
                     <FadeIn>
                         <View style={s.recHead}>
-                            <Text style={[s.sec, { color: text, paddingHorizontal: 0, paddingTop: 0, paddingBottom: 0 }]}>Recent searches</Text>
-                            <Pressable onPress={() => saveRecent([])} hitSlop={8}><Text style={[s.link, { color: primary, marginTop: 0 }]}>Clear</Text></Pressable>
+                            <Text style={[s.sec, { color: text, paddingHorizontal: 0, paddingTop: 0, paddingBottom: 0 }]}>{tr('Recent searches')}</Text>
+                            <Pressable onPress={() => saveRecent([])} hitSlop={8}><Text style={[s.link, { color: primary, marginTop: 0 }]}>{tr('Clear')}</Text></Pressable>
                         </View>
                         <View style={s.recWrap}>
                             {recent.map((r) => (
@@ -178,7 +179,7 @@ export default function SearchScreen() {
                         </View>
                     </FadeIn>
                 ) : null}
-                <Text style={[s.sec, { color: text }]}>Popular right now</Text>
+                <Text style={[s.sec, { color: text }]}>{tr('Popular right now')}</Text>
                 {!loaded && !popular.length ? <ActivityIndicator style={{ margin: 30 }} color={primary} /> : !popular.length ? (
                     <Text style={[s.emptyTxt, { color: muted, marginTop: 20 }]}>{emptyText}</Text>
                 ) : (
@@ -199,8 +200,8 @@ export default function SearchScreen() {
     } else if (state === 'error') {
         body = (
             <View style={s.center}>
-                <Text style={[s.emptyTxt, { color: muted }]}>Could not search. Check your connection.</Text>
-                <Pressable onPress={() => setQ((x) => `${x} `)}><Text style={[s.link, { color: primary }]}>Try again</Text></Pressable>
+                <Text style={[s.emptyTxt, { color: muted }]}>{tr('Could not search. Check your connection.')}</Text>
+                <Pressable onPress={() => setQ((x) => `${x} `)}><Text style={[s.link, { color: primary }]}>{tr('Try again')}</Text></Pressable>
             </View>
         );
     } else if (!shown.length) {
@@ -210,7 +211,7 @@ export default function SearchScreen() {
                     <Ionicons name="search-outline" size={34} color={muted} />
                 </View>
                 <Text style={[s.emptyHead, { color: text }]}>{emptyText}</Text>
-                <Text style={[s.emptyTxt, { color: muted, marginTop: 6 }]}>Check the spelling or try a shorter word.</Text>
+                <Text style={[s.emptyTxt, { color: muted, marginTop: 6 }]}>{tr('Check the spelling or try a shorter word.')}</Text>
             </FadeIn>
         );
     } else {

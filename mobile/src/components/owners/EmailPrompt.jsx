@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import EmailVerifySheet from './EmailVerifySheet';
 import { fetchProfile } from '../../api/owners/shopApi';
+import { tr } from '../../i18n';
 
 export default function EmailPrompt() {
     const [missing, setMissing] = useState(false);
@@ -21,5 +22,5 @@ export default function EmailPrompt() {
         return () => { clearTimeout(t); sub.remove(); };
     }, [check]);
 
-    return <EmailVerifySheet visible={missing} required title="Add your email" onDone={() => setMissing(false)} />;
+    return <EmailVerifySheet visible={missing} required title={tr('Add your email')} onDone={() => setMissing(false)} />;
 }

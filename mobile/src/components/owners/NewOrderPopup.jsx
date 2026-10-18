@@ -16,6 +16,7 @@ import { onNotification, onOrderUpdate } from '../../api/common/socket';
 import { fetchOrder, setOrderStatus, apiError } from '../../api/owners/shopApi';
 import { acknowledge } from '../../utils/owners/soundbox';
 import { showToast } from '../customers/shop';
+import { tr } from '../../i18n';
 
 const TYPE = { delivery: 'Delivery', pickup: 'Pickup', dine_in: 'Dine in' };
 
@@ -67,7 +68,7 @@ export default function NewOrderPopup({ navRef }) {
             acknowledge(order.id);
             useOrdersStore.getState().patch(updated);
             useOwnerStore.getState().refresh();
-            showToast(`Order #${order.orderNo} accepted`);
+            showToast(tr('Order #{orderNo} accepted', { orderNo: order.orderNo }));
             drop(order.id);
         } catch (e) {
             showToast(apiError(e));
@@ -84,7 +85,7 @@ export default function NewOrderPopup({ navRef }) {
                             <Ionicons name="flash" size={22} color={warn || primary} />
                         </View>
                         <View style={{ flex: 1, marginLeft: 12 }}>
-                            <Text style={{ color: text, fontSize: 20, fontWeight: '900' }}>New order #{order.orderNo}</Text>
+                            <Text style={{ color: text, fontSize: 20, fontWeight: '900' }}>{tr('New order #{orderNo}', { orderNo: order.orderNo })}</Text>
                             <Text style={{ color: muted, fontSize: 12, marginTop: 1 }}>{[TYPE[order.orderType], order.customer?.name].filter(Boolean).join(' · ')}</Text>
                         </View>
                         <Pressable onPress={() => drop(order.id)} hitSlop={12}><Ionicons name="close" size={24} color={muted} /></Pressable>
@@ -104,11 +105,11 @@ export default function NewOrderPopup({ navRef }) {
                         <PayBadge order={order} />
                     </View>
                     {order.acceptBy ? <View style={{ marginTop: 8 }}><Countdown until={order.acceptBy} /></View> : null}
-                    {queue.length > 1 ? <View style={{ marginTop: 8, alignSelf: 'flex-start' }}><Pill label={`${queue.length - 1} more order${queue.length === 2 ? '' : 's'} waiting`} color={error} /></View> : null}
+                    {queue.length > 1 ? <View style={{ marginTop: 8, alignSelf: 'flex-start' }}><Pill label={tr('{v1} more order{v2} waiting', { v1: queue.length - 1, v2: queue.length === 2 ? '' : 's' })} color={error} /></View> : null}
 
                     <View style={{ flexDirection: 'row', marginTop: 16 }}>
-                        <Button label="View order" kind="ghost" icon="open-outline" onPress={open} disabled={busy} style={{ flex: 1, marginRight: 8 }} />
-                        <Button label="Accept" icon="checkmark" busy={busy} onPress={accept} style={{ flex: 1.4 }} />
+                        <Button label={tr('View order')} kind="ghost" icon="open-outline" onPress={open} disabled={busy} style={{ flex: 1, marginRight: 8 }} />
+                        <Button label={tr('Accept')} icon="checkmark" busy={busy} onPress={accept} style={{ flex: 1.4 }} />
                     </View>
                 </View>
             </View>

@@ -14,6 +14,7 @@ const userSchema = new mongoose.Schema({
     },
     role: { type: String, enum: ['customer', 'rider', 'admin'], default: 'customer' },
     isBlocked: { type: Boolean, default: false },
+    language: { type: String, enum: ['en', 'hi', 'bho', 'mr', 'gu', 'bn'] },   // the language this person reads (notifications and emails come in it)
     lastLoginAt: { type: Date },
 }, { timestamps: true });
 

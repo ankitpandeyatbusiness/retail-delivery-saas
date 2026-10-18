@@ -8,6 +8,7 @@ import { fetchSettings, saveSettings, apiError } from '../../api/owners/shopApi'
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { showToast } from '../../components/customers/shop';
 import { FormShimmer } from '../../components/owners/shimmer';
+import { tr } from '../../i18n';
 
 export default function OwnerShopSettingsScreen() {
     const nav = useNavigation();
@@ -23,38 +24,38 @@ export default function OwnerShopSettingsScreen() {
         })).catch((e) => { useOwnerStore.getState().noteError(e); setErr(apiError(e, 'Could not load your settings.')); });
     }, []);
 
-    if (!v) return <FormPage title="Shop settings">{err ? <Empty icon={access === 'ok' ? 'cloud-offline-outline' : 'lock-closed-outline'} title={access === 'ok' ? 'Could not load' : 'Locked while rent is unpaid'} hint={err} /> : <FormShimmer />}</FormPage>;
+    if (!v) return <FormPage title={tr('Shop settings')}>{err ? <Empty icon={access === 'ok' ? 'cloud-offline-outline' : 'lock-closed-outline'} title={access === 'ok' ? tr('Could not load') : tr('Locked while rent is unpaid')} hint={err} /> : <FormShimmer />}</FormPage>;
     const set = (k, x) => setV((o) => ({ ...o, [k]: x }));
 
     const save = async () => {
-        if (v.phone && !/^[6-9]\d{9}$/.test(v.phone)) { showToast('Enter a valid 10-digit mobile number'); return; }
-        if (v.pincode && !/^\d{6}$/.test(v.pincode)) { showToast('Pincode is 6 digits'); return; }
+        if (v.phone && !/^[6-9]\d{9}$/.test(v.phone)) { showToast(tr('Enter a valid 10-digit mobile number')); return; }
+        if (v.pincode && !/^\d{6}$/.test(v.pincode)) { showToast(tr('Pincode is 6 digits')); return; }
         const body = { notifications: { smsAlerts: v.smsAlerts, monthlyReport: v.monthlyReport } };
         if (v.phone) body.phone = v.phone;
         body.address = { line: v.line, city: v.city, state: v.state, ...(v.pincode ? { pincode: v.pincode } : {}) };
         setSaving(true);
-        try { await saveSettings(body); showToast('Saved'); nav.goBack(); }
+        try { await saveSettings(body); showToast(tr('Saved')); nav.goBack(); }
         catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); } finally { setSaving(false); }
     };
 
     return (
-        <FormPage title="Shop settings" footer={<Button label="Save" icon="checkmark" busy={saving} onPress={save} />}>
-            <Group title="Contact" hint="Customers and riders call this number.">
-                <TextBox label="Shop phone" value={v.phone} onChangeText={(x) => set('phone', x.replace(/\D/g, '').slice(0, 10))} keyboardType="number-pad" maxLength={10} placeholder="10-digit mobile number" last />
+        <FormPage title={tr('Shop settings')} footer={<Button label={tr('Save')} icon="checkmark" busy={saving} onPress={save} />}>
+            <Group title={tr('Contact')} hint={tr('Customers and riders call this number.')}>
+                <TextBox label={tr('Shop phone')} value={v.phone} onChangeText={(x) => set('phone', x.replace(/\D/g, '').slice(0, 10))} keyboardType="number-pad" maxLength={10} placeholder={tr('10-digit mobile number')} last />
             </Group>
-            <Group title="Address" hint="Shown to customers and on invoices.">
-                <TextBox label="Street and area" value={v.line} onChangeText={(x) => set('line', x)} maxLength={150} multiline />
-                <TextBox label="City" value={v.city} onChangeText={(x) => set('city', x)} maxLength={60} />
-                <TextBox label="State" value={v.state} onChangeText={(x) => set('state', x)} maxLength={40} placeholder="e.g. Uttar Pradesh" hint="Needed for the tax on your bills" />
-                <TextBox label="Pincode" value={v.pincode} onChangeText={(x) => set('pincode', x.replace(/\D/g, '').slice(0, 6))} keyboardType="number-pad" maxLength={6} last />
+            <Group title={tr('Address')} hint={tr('Shown to customers and on invoices.')}>
+                <TextBox label={tr('Street and area')} value={v.line} onChangeText={(x) => set('line', x)} maxLength={150} multiline />
+                <TextBox label={tr('City')} value={v.city} onChangeText={(x) => set('city', x)} maxLength={60} />
+                <TextBox label={tr('State')} value={v.state} onChangeText={(x) => set('state', x)} maxLength={40} placeholder={tr('e.g. Uttar Pradesh')} hint={tr('Needed for the tax on your bills')} />
+                <TextBox label={tr('Pincode')} value={v.pincode} onChangeText={(x) => set('pincode', x.replace(/\D/g, '').slice(0, 6))} keyboardType="number-pad" maxLength={6} last />
             </Group>
-            <Group title="Alerts and reports" hint="Recommended: both on.">
-                <ToggleRow title="Important SMS alerts" subtitle="New orders, bills and order steps. Each SMS is paid from your SMS balance." value={v.smsAlerts} onValueChange={(x) => set('smsAlerts', x)} />
-                <ToggleRow title="Monthly report" subtitle="On the 1st we send last month's progress report to your email and the app" value={v.monthlyReport} onValueChange={(x) => set('monthlyReport', x)} last />
-                <View style={{ marginTop: 12 }}><Button label="Reset to recommended" icon="refresh" kind="ghost" onPress={() => { setV((o) => ({ ...o, smsAlerts: true, monthlyReport: true })); showToast('Back to the recommended settings. Press Save to keep them.'); }} /></View>
+            <Group title={tr('Alerts and reports')} hint={tr('Recommended: both on.')}>
+                <ToggleRow title={tr('Important SMS alerts')} subtitle={tr('New orders, bills and order steps. Each SMS is paid from your SMS balance.')} value={v.smsAlerts} onValueChange={(x) => set('smsAlerts', x)} />
+                <ToggleRow title={tr('Monthly report')} subtitle={tr('On the 1st we send last month\'s progress report to your email and the app')} value={v.monthlyReport} onValueChange={(x) => set('monthlyReport', x)} last />
+                <View style={{ marginTop: 12 }}><Button label={tr('Reset to recommended')} icon="refresh" kind="ghost" onPress={() => { setV((o) => ({ ...o, smsAlerts: true, monthlyReport: true })); showToast(tr('Back to the recommended settings. Press Save to keep them.')); }} /></View>
             </Group>
-            <Group title="Other settings">
-                <Hint>Name, logo, colours and the app's look are set by the platform team. Contact support to change them.</Hint>
+            <Group title={tr('Other settings')}>
+                <Hint>{tr('Name, logo, colours and the app\'s look are set by the platform team. Contact support to change them.')}</Hint>
             </Group>
         </FormPage>
     );

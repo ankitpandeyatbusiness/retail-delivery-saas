@@ -8,6 +8,7 @@ import { useBrand } from '../../components/common/kit';
 import { BigButton } from '../../components/riders/riderBits';
 import { fetchRiderOrders } from '../../api/riders/riderApi';
 import { T, rupee, rupeeAmount, errText } from '../../utils/riders/riderText';
+import { tr } from '../../i18n';
 
 const when = (d) => new Date(d).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true });
 
@@ -44,19 +45,19 @@ export default function RiderHistoryScreen() {
                             <Text style={{ color: text, fontWeight: '800', fontSize: 16, marginTop: 10 }}>{failed || T.noHistory}</Text>
                         </View>
                     )}
-                    ListFooterComponent={more ? <View style={{ padding: 16 }}><BigButton label="Show more" kind="outline" onPress={() => load(page + 1)} /></View> : null}
+                    ListFooterComponent={more ? <View style={{ padding: 16 }}><BigButton label={tr('Show more')} kind="outline" onPress={() => load(page + 1)} /></View> : null}
                     renderItem={({ item: o }) => {
                         const done = o.status === 'delivered';
                         return (
                             <View style={{ marginHorizontal: 16, marginBottom: 10, borderRadius: 16, padding: 14, backgroundColor: surface, borderWidth: 1, borderColor: border, flexDirection: 'row', alignItems: 'center' }}>
                                 <View style={{ flex: 1 }}>
-                                    <Text style={{ color: text, fontWeight: '900', fontSize: 16 }}>Order #{o.orderNo}</Text>
+                                    <Text style={{ color: text, fontWeight: '900', fontSize: 16 }}>{tr('Order #{orderNo}', { orderNo: o.orderNo })}</Text>
                                     <Text style={{ color: muted, fontWeight: '600', fontSize: 12.5, marginTop: 2 }}>{when(o.delivery?.deliveredAt || o.createdAt)}</Text>
                                 </View>
                                 <View style={{ alignItems: 'flex-end' }}>
-                                    <Text style={{ color: done ? ok : error, fontWeight: '900', fontSize: 14 }}>{done ? 'Delivered' : o.status === 'cancelled' ? 'Cancelled' : 'Not delivered'}</Text>
+                                    <Text style={{ color: done ? ok : error, fontWeight: '900', fontSize: 14 }}>{done ? tr('Delivered') : o.status === 'cancelled' ? tr('Cancelled') : tr('Not delivered')}</Text>
                                     {done && o.earnPaise > 0 ? <Text style={{ color: text, fontWeight: '800', fontSize: 13, marginTop: 2 }}>{rupee(o.earnPaise)}</Text> : null}
-                                    {done && o.payment?.collectAmount > 0 ? <Text style={{ color: muted, fontWeight: '700', fontSize: 12, marginTop: 2 }}>{rupeeAmount(o.payment.collectAmount)} cash</Text> : null}
+                                    {done && o.payment?.collectAmount > 0 ? <Text style={{ color: muted, fontWeight: '700', fontSize: 12, marginTop: 2 }}>{tr('{rupeeAmount} cash', { rupeeAmount: rupeeAmount(o.payment.collectAmount) })}</Text> : null}
                                 </View>
                             </View>
                         );

@@ -16,6 +16,7 @@ import { setAcceptingOrders, apiError } from '../../api/owners/shopApi';
 import { clockTime } from '../../utils/owners/orderFlow';
 import { showToast } from '../customers/shop';
 import { LineShimmer } from './shimmer';
+import { tr } from '../../i18n';
 
 export const money = (n) => `₹${Math.round(Number(n) || 0).toLocaleString('en-IN')}`;
 
@@ -201,12 +202,12 @@ export function LiveToggle({ on, busy, onPress }) {
     }, [on, v]);
     const W = 74; const H = 36; const K = 28;
     return (
-        <Pressable onPress={onPress} disabled={busy} hitSlop={8} accessibilityRole="switch" accessibilityState={{ checked: on }} accessibilityLabel={on ? 'Shop is live. Tap to pause orders' : 'Shop is off. Tap to go live'} style={{ marginRight: 4 }}>
+        <Pressable onPress={onPress} disabled={busy} hitSlop={8} accessibilityRole="switch" accessibilityState={{ checked: on }} accessibilityLabel={on ? tr('Shop is live. Tap to pause orders') : tr('Shop is off. Tap to go live')} style={{ marginRight: 4 }}>
             <View style={{ width: W, height: H, borderRadius: H / 2, backgroundColor: alpha(error, 0.9), overflow: 'hidden', justifyContent: 'center', elevation: 3, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 5, shadowOffset: { width: 0, height: 2 } }}>
                 {/* the green track fades in over the red one */}
                 <Animated.View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: ok, opacity: v }} />
-                <Animated.Text style={{ position: 'absolute', left: 11, color: '#FFFFFF', fontWeight: '900', fontSize: 11, letterSpacing: 0.8, opacity: v }}>LIVE</Animated.Text>
-                <Animated.Text style={{ position: 'absolute', right: 11, color: '#FFFFFF', fontWeight: '900', fontSize: 11, letterSpacing: 0.8, opacity: v.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }) }}>OFF</Animated.Text>
+                <Animated.Text style={{ position: 'absolute', left: 11, color: '#FFFFFF', fontWeight: '900', fontSize: 11, letterSpacing: 0.8, opacity: v }}>{tr('LIVE')}</Animated.Text>
+                <Animated.Text style={{ position: 'absolute', right: 11, color: '#FFFFFF', fontWeight: '900', fontSize: 11, letterSpacing: 0.8, opacity: v.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }) }}>{tr('OFF')}</Animated.Text>
                 <Animated.View style={{ position: 'absolute', width: K, height: K, borderRadius: K / 2, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', transform: [{ translateX: v.interpolate({ inputRange: [0, 1], outputRange: [4, W - K - 4] }) }] }}>
                     {busy ? <LineShimmer width={14} height={14} /> : (
                         <>
@@ -250,7 +251,7 @@ export function OwnerHeader({ title }) {
 
     // ON -> ask for how long (30 min ... until I start again). OFF -> go live at once.
     const flip = async () => {
-        if (!canToggle) { showToast(access === 'blocked' ? 'Your shop panel is paused by the platform' : 'Locked while the monthly bill is unpaid'); return; }
+        if (!canToggle) { showToast(access === 'blocked' ? tr('Your shop panel is paused by the platform') : tr('Locked while the monthly bill is unpaid')); return; }
         if (isOn) { setPauseOpen(true); return; }
         setPending(true);
         setSwitching(true);
@@ -258,13 +259,13 @@ export function OwnerHeader({ title }) {
             await setAcceptingOrders(true);
             await useHomeStore.getState().load();
             useOwnerStore.getState().refresh();
-            showToast('You are live. Customers can order.');
+            showToast(tr('You are live. Customers can order.'));
         } catch (e) { setPending(null); useOwnerStore.getState().noteError(e); showToast(apiError(e)); } finally { setSwitching(false); }
     };
 
     return (
         <View style={[s.header, { paddingTop: insets.top + 8, backgroundColor: background }]}>
-            <Pressable onPress={() => useDrawer.getState().show()} hitSlop={10} style={{ paddingRight: 12 }} accessibilityLabel="Open the menu"><Ionicons name="menu" size={26} color={text} /></Pressable>
+            <Pressable onPress={() => useDrawer.getState().show()} hitSlop={10} style={{ paddingRight: 12 }} accessibilityLabel={tr('Open the menu')}><Ionicons name="menu" size={26} color={text} /></Pressable>
             <ShopLogo />
             <View style={{ flex: 1, marginLeft: 12 }}>
                 <Text style={{ color: text, fontSize: 18, fontWeight: '900' }} numberOfLines={1}>{title || name}</Text>
@@ -298,15 +299,15 @@ export function AccessBanner() {
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Ionicons name={blocked ? 'lock-closed' : 'alert-circle'} size={22} color={error} />
                 <View style={{ flex: 1, marginLeft: 10 }}>
-                    <Text style={{ color: error, fontWeight: '900' }}>{blocked ? 'Your shop panel is paused' : 'Rent is unpaid'}</Text>
+                    <Text style={{ color: error, fontWeight: '900' }}>{blocked ? tr('Your shop panel is paused') : tr('Rent is unpaid')}</Text>
                     <Text style={{ color: error, opacity: 0.85, fontSize: 12, marginTop: 2 }}>
                         {blocked
-                            ? 'Please contact support. You can still finish orders that are in progress.'
-                            : `Menu and settings are locked until it is paid.${due} Orders, riders and money still work.`}
+                            ? tr('Please contact support. You can still finish orders that are in progress.')
+                            : tr('Menu and settings are locked until it is paid.{due} Orders, riders and money still work.', { due: due })}
                     </Text>
                 </View>
             </View>
-            {!blocked ? <Button label="Pay rent" kind="primary" onPress={() => nav.navigate('MainTabs', { screen: 'MoneyTab' })} style={{ marginTop: 10 }} /> : null}
+            {!blocked ? <Button label={tr('Pay rent')} kind="primary" onPress={() => nav.navigate('MainTabs', { screen: 'MoneyTab' })} style={{ marginTop: 10 }} /> : null}
         </Card>
     );
 }
@@ -434,7 +435,7 @@ export function PauseSheet({ visible, onClose, onPending }) {
             await setAcceptingOrders(acceptingOrders, extra);
             await useHomeStore.getState().load();
             useOwnerStore.getState().refresh();
-            showToast(acceptingOrders ? 'Taking orders again' : 'Orders paused');
+            showToast(acceptingOrders ? tr('Taking orders again') : tr('Orders paused'));
             onClose();
         } catch (e) {
             if (onPending) onPending(null);
@@ -444,17 +445,17 @@ export function PauseSheet({ visible, onClose, onPending }) {
     };
 
     return (
-        <Sheet visible={visible} onClose={onClose} title={paused ? 'Orders are paused' : 'Pause new orders'}>
+        <Sheet visible={visible} onClose={onClose} title={paused ? tr('Orders are paused') : tr('Pause new orders')}>
             {paused ? (
                 <View>
                     <Text style={{ color: muted, marginBottom: 14 }}>
-                        {pausedUntil ? `Customers can not order until ${clockTime(pausedUntil)}, then the shop opens by itself.` : 'Customers can not order until you start again.'}
+                        {pausedUntil ? tr('Customers can not order until {clockTime}, then the shop opens by itself.', { clockTime: clockTime(pausedUntil) }) : tr('Customers can not order until you start again.')}
                     </Text>
-                    <Button label="Start taking orders now" icon="play" busy={busy} onPress={() => apply(true)} />
+                    <Button label={tr('Start taking orders now')} icon="play" busy={busy} onPress={() => apply(true)} />
                 </View>
             ) : (
                 <View>
-                    <Text style={{ color: muted, marginBottom: 8 }}>Customers will see that the shop is not taking orders. Orders already placed are not affected.</Text>
+                    <Text style={{ color: muted, marginBottom: 8 }}>{tr('Customers will see that the shop is not taking orders. Orders already placed are not affected.')}</Text>
                     {PAUSE_CHOICES.map(([label, extra, icon], i) => (
                         <Row key={label} icon={icon} title={label} color={i === PAUSE_CHOICES.length - 1 ? error : undefined} onPress={busy ? undefined : () => apply(false, extra)} last={i === PAUSE_CHOICES.length - 1} />
                     ))}

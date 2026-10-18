@@ -17,6 +17,7 @@ import { useAuthStore } from '../../store/common/useAuthStore';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { showToast } from '../../components/customers/shop';
 import { themedAlert } from '../../components/common/dialog';
+import { tr } from '../../i18n';
 
 export default function OwnerProfileScreen() {
     const nav = useNavigation();
@@ -34,7 +35,7 @@ export default function OwnerProfileScreen() {
         fetchProfile().then(apply).catch((e) => { useOwnerStore.getState().noteError(e); setErr(apiError(e, 'Could not open your profile.')); });
     }, []);
 
-    if (!p) return <FormPage title="My profile">{err ? <Empty icon="cloud-offline-outline" title="Could not open" hint={err} /> : <FormShimmer cards={2} />}</FormPage>;
+    if (!p) return <FormPage title={tr('My profile')}>{err ? <Empty icon="cloud-offline-outline" title={tr('Could not open')} hint={err} /> : <FormShimmer cards={2} />}</FormPage>;
 
     const initial = (p.name || p.phone || '?').trim().charAt(0).toUpperCase();
     const dirty = form.name.trim() !== (p.name || '');
@@ -49,39 +50,39 @@ export default function OwnerProfileScreen() {
             const u = await saveProfile({ name: form.name.trim() });
             apply(u);
             useAuthStore.setState((st) => (st.user ? { user: { ...st.user, name: u.name } } : {}));
-            showToast('Profile saved');
+            showToast(tr('Profile saved'));
         } catch (er) { useOwnerStore.getState().noteError(er); showToast(apiError(er)); } finally { setSaving(false); }
     };
 
     const change = async (source) => {
         if (photoBusy) return;
         let picked;
-        try { picked = await pickPhoto(source, { square: true }); } catch (e) { showToast(e.safe ? e.message : 'Could not open the camera or gallery'); return; }
+        try { picked = await pickPhoto(source, { square: true }); } catch (e) { showToast(e.safe ? e.message : tr('Could not open the camera or gallery')); return; }
         if (!picked) return;
         setPhotoBusy(true);
         try {
             const up = await uploadAvatar({ uri: picked.uri, mimeType: picked.mimeType });
             setP((o) => ({ ...o, avatarUrl: up.url, avatarId: up.id }));
-            showToast('Profile photo updated');
-        } catch (e) { showToast(e.safe ? e.message : 'Could not update your photo'); } finally { setPhotoBusy(false); }
+            showToast(tr('Profile photo updated'));
+        } catch (e) { showToast(e.safe ? e.message : tr('Could not update your photo')); } finally { setPhotoBusy(false); }
     };
     const remove = async () => {
         if (photoBusy || !p.avatarId) return;
         setPhotoBusy(true);
-        try { await deleteUpload(p.avatarId); setP((o) => ({ ...o, avatarUrl: null, avatarId: null })); showToast('Profile photo removed'); }
-        catch (e) { showToast('Could not remove your photo. Please try again'); } finally { setPhotoBusy(false); }
+        try { await deleteUpload(p.avatarId); setP((o) => ({ ...o, avatarUrl: null, avatarId: null })); showToast(tr('Profile photo removed')); }
+        catch (e) { showToast(tr('Could not remove your photo. Please try again')); } finally { setPhotoBusy(false); }
     };
-    const photoMenu = () => themedAlert('Profile photo', 'Choose a picture for your account.', [
-        { text: 'Take a photo', onPress: () => change('camera') },
-        { text: 'Choose from gallery', onPress: () => change('gallery') },
+    const photoMenu = () => themedAlert(tr('Profile photo'), tr('Choose a picture for your account.'), [
+        { text: tr('Take a photo'), onPress: () => change('camera') },
+        { text: tr('Choose from gallery'), onPress: () => change('gallery') },
         ...(p.avatarUrl ? [{ text: 'Remove photo', style: 'destructive', onPress: remove }] : []),
-        { text: 'Cancel', style: 'cancel' },
+        { text: tr('Cancel'), style: 'cancel' },
     ], { icon: 'camera-outline' });
 
     return (
-        <FormPage title="My profile" footer={<Button label="Save" icon="checkmark" busy={saving} disabled={!dirty} onPress={save} />}>
+        <FormPage title={tr('My profile')} footer={<Button label={tr('Save')} icon="checkmark" busy={saving} disabled={!dirty} onPress={save} />}>
             <View style={{ alignItems: 'center', paddingVertical: 18 }}>
-                <Pressable onPress={photoMenu} accessibilityLabel="Change profile photo">
+                <Pressable onPress={photoMenu} accessibilityLabel={tr('Change profile photo')}>
                     <View style={{ width: 104, height: 104, borderRadius: 52, backgroundColor: alpha(primary, 0.16), alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 2, borderColor: border }}>
                         {p.avatarUrl ? <Image source={{ uri: p.avatarUrl }} style={{ width: 104, height: 104 }} contentFit="cover" /> : <Text style={{ color: primary, fontSize: 40, fontWeight: '900' }}>{initial}</Text>}
                         {photoBusy ? <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }}><LineShimmer width={104} height={104} /></View> : null}
@@ -90,26 +91,26 @@ export default function OwnerProfileScreen() {
                         <Ionicons name="camera" size={16} color={onPrimary} />
                     </View>
                 </Pressable>
-                <Text style={{ color: muted, fontSize: 12, marginTop: 10 }}>Tap the picture to change it</Text>
+                <Text style={{ color: muted, fontSize: 12, marginTop: 10 }}>{tr('Tap the picture to change it')}</Text>
             </View>
 
-            <Group title="About you">
-                <TextBox label="Your name" value={form.name} onChangeText={(x) => setForm({ ...form, name: x })} error={errors.name} maxLength={80} placeholder="e.g. Anita Rao" />
-                <Label hint="Your bills and official documents are sent here. To change it we mail a code to the new address.">Email (needed)</Label>
+            <Group title={tr('About you')}>
+                <TextBox label={tr('Your name')} value={form.name} onChangeText={(x) => setForm({ ...form, name: x })} error={errors.name} maxLength={80} placeholder={tr('e.g. Anita Rao')} />
+                <Label hint={tr('Your bills and official documents are sent here. To change it we mail a code to the new address.')}>{tr('Email (needed)')}</Label>
                 <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: border, borderRadius: 12, paddingHorizontal: 14, minHeight: 46 }}>
-                    <Text style={{ flex: 1, color: p.email ? text : muted, fontSize: 15, fontWeight: '700' }} numberOfLines={1}>{p.email || 'Not added yet'}</Text>
-                    <Pressable onPress={() => setEmailOpen(true)} hitSlop={8}><Text style={{ color: primary, fontWeight: '800' }}>{p.email ? 'Change' : 'Add'}</Text></Pressable>
+                    <Text style={{ flex: 1, color: p.email ? text : muted, fontSize: 15, fontWeight: '700' }} numberOfLines={1}>{p.email || tr('Not added yet')}</Text>
+                    <Pressable onPress={() => setEmailOpen(true)} hitSlop={8}><Text style={{ color: primary, fontWeight: '800' }}>{p.email ? tr('Change') : tr('Add')}</Text></Pressable>
                 </View>
             </Group>
 
-            <Group title="Registered mobile number">
+            <Group title={tr('Registered mobile number')}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: border, borderRadius: 12, paddingHorizontal: 14, minHeight: 46, backgroundColor: alpha(muted, 0.1) }}>
                     <Text style={{ flex: 1, color: muted, fontSize: 15, fontWeight: '700' }}>+91 {p.phone}</Text>
                     <Ionicons name="lock-closed" size={17} color={muted} />
                 </View>
-                <Hint>This is your login number, so it cannot be changed here. Please contact support if it must change.</Hint>
+                <Hint>{tr('This is your login number, so it cannot be changed here. Please contact support if it must change.')}</Hint>
             </Group>
-            <EmailVerifySheet visible={emailOpen} onClose={() => setEmailOpen(false)} title="Change your email" onDone={(u) => { setP((o) => ({ ...o, email: u.email, emailRequired: false })); setEmailOpen(false); }} />
+            <EmailVerifySheet visible={emailOpen} onClose={() => setEmailOpen(false)} title={tr('Change your email')} onDone={(u) => { setP((o) => ({ ...o, email: u.email, emailRequired: false })); setEmailOpen(false); }} />
         </FormPage>
     );
 }

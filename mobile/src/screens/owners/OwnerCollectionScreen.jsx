@@ -13,6 +13,7 @@ import { ymdOf, isoOfYmd } from '../../utils/owners/menuRules';
 import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
 import { FormShimmer } from '../../components/owners/shimmer';
+import { tr } from '../../i18n';
 
 const MAX_ITEMS = 30;
 const BLANK = { kind: 'festival', title: '', subtitle: '', image: '', productIds: [], startsAt: '', endsAt: '', isActive: true };
@@ -25,10 +26,10 @@ function ItemPicker({ visible, onClose, selected, onDone }) {
     const [q, setQ] = useState('');
     useEffect(() => { if (visible) { setPicked(selected); setQ(''); } }, [visible]);   // eslint-disable-line react-hooks/exhaustive-deps
     const list = products.filter((p) => !q.trim() || p.name.toLowerCase().includes(q.trim().toLowerCase())).slice(0, 150);
-    const toggle = (id) => setPicked((x) => (x.includes(id) ? x.filter((y) => y !== id) : x.length >= MAX_ITEMS ? (showToast(`Up to ${MAX_ITEMS} items`), x) : [...x, id]));
+    const toggle = (id) => setPicked((x) => (x.includes(id) ? x.filter((y) => y !== id) : x.length >= MAX_ITEMS ? (showToast(tr('Up to {MAX_ITEMS} items', { MAX_ITEMS: MAX_ITEMS })), x) : [...x, id]));
     return (
-        <Sheet visible={visible} onClose={onClose} title={`Choose items (${picked.length}/${MAX_ITEMS})`}>
-            <Field value={q} onChangeText={setQ} placeholder="Find an item" maxLength={40} style={{ marginBottom: 8 }} />
+        <Sheet visible={visible} onClose={onClose} title={tr('Choose items ({length}/{MAX_ITEMS})', { length: picked.length, MAX_ITEMS: MAX_ITEMS })}>
+            <Field value={q} onChangeText={setQ} placeholder={tr('Find an item')} maxLength={40} style={{ marginBottom: 8 }} />
             {list.map((p) => {
                 const on = picked.includes(String(p._id));
                 return (
@@ -40,9 +41,9 @@ function ItemPicker({ visible, onClose, selected, onDone }) {
                     </Pressable>
                 );
             })}
-            {!list.length ? <Text style={{ color: muted, padding: 20, textAlign: 'center' }}>No item found</Text> : null}
+            {!list.length ? <Text style={{ color: muted, padding: 20, textAlign: 'center' }}>{tr('No item found')}</Text> : null}
             <View style={{ height: 10 }} />
-            <Button label="Done" icon="checkmark" onPress={() => { onDone(picked); onClose(); }} />
+            <Button label={tr('Done')} icon="checkmark" onPress={() => { onDone(picked); onClose(); }} />
         </Sheet>
     );
 }
@@ -73,7 +74,7 @@ export default function OwnerCollectionScreen() {
     const set = (k, v) => { setForm((f) => ({ ...f, [k]: v })); setErrors((e) => (e[k] ? { ...e, [k]: undefined } : e)); };
 
     if (!form) {
-        return <FormPage title="Collection">{loadError ? <Empty icon="cloud-offline-outline" title="Could not open" hint={loadError} /> : <FormShimmer />}</FormPage>;
+        return <FormPage title={tr('Collection')}>{loadError ? <Empty icon="cloud-offline-outline" title={tr('Could not open')} hint={loadError} /> : <FormShimmer />}</FormPage>;
     }
     const v = form;
 
@@ -91,53 +92,53 @@ export default function OwnerCollectionScreen() {
         };
         try {
             if (id) await collectionsApi.update(id, body); else await collectionsApi.create(body);
-            showToast(id ? 'Collection saved' : 'Collection added');
+            showToast(id ? tr('Collection saved') : tr('Collection added'));
             nav.goBack();
         } catch (err) { useOwnerStore.getState().noteError(err); showToast(apiError(err)); } finally { setSaving(false); }
     };
 
     const remove = async () => {
-        const yes = await ask({ title: 'Delete this collection?', message: 'The items stay in your menu. Only this group is removed.', confirmText: 'Delete', destructive: true });
+        const yes = await ask({ title: tr('Delete this collection?'), message: tr('The items stay in your menu. Only this group is removed.'), confirmText: tr('Delete'), destructive: true });
         if (!yes) return;
-        try { await collectionsApi.remove(id); showToast('Collection deleted'); nav.goBack(); }
+        try { await collectionsApi.remove(id); showToast(tr('Collection deleted')); nav.goBack(); }
         catch (err) { useOwnerStore.getState().noteError(err); showToast(apiError(err)); }
     };
 
     return (
-        <FormPage title={id ? 'Edit collection' : 'New collection'} footer={<Button label={id ? 'Save changes' : 'Add collection'} icon="checkmark" busy={saving} onPress={save} />}>
-            <Group title="Collection">
-                <ChoiceBox label="Kind" hint="Festival: special items for an occasion. Combo: meal deals." options={[['festival', 'Festival'], ['combo', 'Combo']]} value={v.kind} onChange={(x) => set('kind', x)} />
-                <TextBox label="Title" value={v.title} onChangeText={(x) => set('title', x)} error={errors.title} maxLength={60} placeholder="e.g. Diwali Gift Boxes" />
-                <TextBox label="Subtitle (optional)" value={v.subtitle} onChangeText={(x) => set('subtitle', x)} maxLength={120} />
+        <FormPage title={id ? tr('Edit collection') : tr('New collection')} footer={<Button label={id ? tr('Save changes') : tr('Add collection')} icon="checkmark" busy={saving} onPress={save} />}>
+            <Group title={tr('Collection')}>
+                <ChoiceBox label={tr('Kind')} hint={tr('Festival: special items for an occasion. Combo: meal deals.')} options={[['festival', tr('Festival')], ['combo', tr('Combo')]]} value={v.kind} onChange={(x) => set('kind', x)} />
+                <TextBox label={tr('Title')} value={v.title} onChangeText={(x) => set('title', x)} error={errors.title} maxLength={60} placeholder={tr('e.g. Diwali Gift Boxes')} />
+                <TextBox label={tr('Subtitle (optional)')} value={v.subtitle} onChangeText={(x) => set('subtitle', x)} maxLength={120} />
                 <ImageField value={v.image} onChange={(x) => set('image', x)} kind="collection" last />
             </Group>
 
-            <Group title={`Items (${v.productIds.length}/${MAX_ITEMS})`} hint="Pick from your existing items. A combo is a normal item with its own price.">
+            <Group title={tr('Items ({length}/{MAX_ITEMS})', { length: v.productIds.length, MAX_ITEMS: MAX_ITEMS })} hint={tr('Pick from your existing items. A combo is a normal item with its own price.')}>
                 {v.productIds.length ? v.productIds.map((pid, i) => {
                     const p = byId.get(pid);
                     return (
                         <View key={pid} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 9, borderTopWidth: i ? 0.5 : 0, borderTopColor: border }}>
                             {p ? <VegMark isVeg={p.isVeg} size={12} /> : <View style={{ width: 12 }} />}
-                            <Text style={{ flex: 1, color: p ? text : muted, fontWeight: '700', marginLeft: 10 }} numberOfLines={1}>{p ? p.name : 'Removed item'}</Text>
+                            <Text style={{ flex: 1, color: p ? text : muted, fontWeight: '700', marginLeft: 10 }} numberOfLines={1}>{p ? p.name : tr('Removed item')}</Text>
                             {p ? <Text style={{ color: muted, marginRight: 10 }}>{money(p.price)}</Text> : null}
                             <Pressable hitSlop={8} onPress={() => set('productIds', v.productIds.filter((x) => x !== pid))}><Ionicons name="close-circle" size={22} color={muted} /></Pressable>
                         </View>
                     );
-                }) : <Hint>No items yet.</Hint>}
-                <View style={{ marginTop: 12 }}><Button label="Choose items" kind="ghost" icon="restaurant-outline" onPress={() => setPicker(true)} /></View>
+                }) : <Hint>{tr('No items yet.')}</Hint>}
+                <View style={{ marginTop: 12 }}><Button label={tr('Choose items')} kind="ghost" icon="restaurant-outline" onPress={() => setPicker(true)} /></View>
             </Group>
 
-            <Group title="When" hint="Optional. Outside these dates the collection is not shown.">
-                <DateBox label="Starts on" value={v.startsAt} onChange={(x) => set('startsAt', x)} />
-                <DateBox label="Ends on" value={v.endsAt} onChange={(x) => set('endsAt', x)} last />
+            <Group title={tr('When')} hint={tr('Optional. Outside these dates the collection is not shown.')}>
+                <DateBox label={tr('Starts on')} value={v.startsAt} onChange={(x) => set('startsAt', x)} />
+                <DateBox label={tr('Ends on')} value={v.endsAt} onChange={(x) => set('endsAt', x)} last />
                 {errors.endsAt ? <Hint tone="warn">{errors.endsAt}</Hint> : null}
             </Group>
 
-            <Group title="Show it">
-                <ToggleRow title="Visible to customers" value={v.isActive} onValueChange={(x) => set('isActive', x)} last />
+            <Group title={tr('Show it')}>
+                <ToggleRow title={tr('Visible to customers')} value={v.isActive} onValueChange={(x) => set('isActive', x)} last />
             </Group>
 
-            {id ? <View style={{ paddingHorizontal: 16, marginTop: 8 }}><Button label="Delete this collection" kind="danger" icon="trash" onPress={remove} /></View> : null}
+            {id ? <View style={{ paddingHorizontal: 16, marginTop: 8 }}><Button label={tr('Delete this collection')} kind="danger" icon="trash" onPress={remove} /></View> : null}
 
             <ItemPicker visible={picker} onClose={() => setPicker(false)} selected={v.productIds} onDone={(ids) => set('productIds', ids)} />
         </FormPage>

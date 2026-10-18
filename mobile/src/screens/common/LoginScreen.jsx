@@ -36,6 +36,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { useThemeStore } from '../../store/common/useThemeStore';
+import { Ionicons } from '@expo/vector-icons';
+import { tr, LANGS, useLang } from '../../i18n';
+import LanguageSheet from '../../components/common/LanguageSheet';
 
 // Native SMS helper is optional
 let OtpVerify = null;
@@ -175,6 +178,8 @@ function OtpBoxes({ digits, setDigits, inputRefs, hasError, dimmed, onEdit, colo
 
 export default function LoginScreen({ navigation }) {
     const insets = useSafeAreaInsets();
+    const [langOpen, setLangOpen] = useState(false);
+    const lang = useLang((st) => st.lang);
     const loginStore = useAuthStore(state => state.login);
 
     // 1. Fetch dynamic theme configuration
@@ -454,7 +459,7 @@ export default function LoginScreen({ navigation }) {
             setStep('otp');
         } catch (e) {
             stopOtpListener();
-            setError(e.response?.data?.error || 'Could not send OTP. Please try again.');
+            setError(e.response?.data?.error || tr('Could not send OTP. Please try again.'));
         } finally {
             setLoading(false);
         }
@@ -482,7 +487,7 @@ export default function LoginScreen({ navigation }) {
 
                 goToMain();
             } catch (e) {
-                setError(e.response?.data?.error || 'Incorrect OTP. Please try again.');
+                setError(e.response?.data?.error || tr('Incorrect OTP. Please try again.'));
                 setDigits(EMPTY_DIGITS);
                 setTimeout(() => otpRefs.current[0]?.focus(), 80);
             } finally {
@@ -508,7 +513,7 @@ export default function LoginScreen({ navigation }) {
             setSecondsLeft(RESEND_SECONDS);
             otpRefs.current[0]?.focus();
         } catch (e) {
-            setError(e.response?.data?.error || 'Could not resend OTP.');
+            setError(e.response?.data?.error || tr('Could not resend OTP.'));
         }
     };
 
@@ -624,13 +629,22 @@ export default function LoginScreen({ navigation }) {
                 </Animated.View>
             </View>
 
+            {/* LANGUAGE */}
+            <View style={[styles.skipWrap, { top: insets.top + 12, right: undefined, left: 16 }]}>
+                <Pressable onPress={() => setLangOpen(true)} style={[styles.skipButton, { flexDirection: 'row', alignItems: 'center' }]} hitSlop={10}>
+                    <Ionicons name="language" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
+                    <Text style={styles.skipText}>{LANGS.find((l) => l.code === lang)?.native}</Text>
+                </Pressable>
+            </View>
+            <LanguageSheet visible={langOpen} onClose={() => setLangOpen(false)} />
+
             {/* SKIP */}
             <Animated.View
                 entering={FadeInDown.delay(500)}
                 style={[styles.skipWrap, { top: insets.top + 12 }]}
             >
                 <Pressable onPress={handleSkip} style={styles.skipButton} hitSlop={10}>
-                    <Text style={styles.skipText}>Skip</Text>
+                    <Text style={styles.skipText}>{tr('Skip')}</Text>
                 </Pressable>
             </Animated.View>
 
@@ -639,7 +653,7 @@ export default function LoginScreen({ navigation }) {
                 <Animated.View style={[styles.panel, { paddingBottom: insets.bottom + 16, backgroundColor: brand.surface }, panelStyle]}>
                     <View style={styles.titleRow}>
                         <View style={[styles.titleLine, { backgroundColor: brand.border }]} />
-                        <Text style={[styles.title, { color: brand.muted }]}>Log in or sign up</Text>
+                        <Text style={[styles.title, { color: brand.muted }]}>{tr('Log in or sign up')}</Text>
                         <View style={[styles.titleLine, { backgroundColor: brand.border }]} />
                     </View>
 
@@ -664,7 +678,7 @@ export default function LoginScreen({ navigation }) {
                                         ref={phoneRef}
                                         style={[styles.phoneInput, { color: brand.text }]}
                                         keyboardType="phone-pad"
-                                        placeholder="Enter phone number"
+                                        placeholder={tr('Enter phone number')}
                                         placeholderTextColor={brand.muted}
                                         value={phone}
                                         onChangeText={(t) => {
@@ -728,7 +742,7 @@ export default function LoginScreen({ navigation }) {
                             </View>
 
                             <PrimaryButton
-                                title="Continue"
+                                title={tr('Continue')}
                                 onPress={sendOtp}
                                 disabled={phone.length !== 10}
                                 loading={loading}
@@ -744,7 +758,7 @@ export default function LoginScreen({ navigation }) {
                                 style={[styles.step, otpStepStyle]}
                             >
                                 <Text style={[styles.otpSubtitle, { color: brand.muted }]}>
-                                    Enter the {OTP_LENGTH}-digit code sent to{' '}
+                                    {tr('Enter the')} {OTP_LENGTH}{tr('-digit code sent to')}{' '}
                                     <Text style={[styles.otpPhone, { color: brand.text }]}>
                                         +91 {phone.slice(0, 5)} {phone.slice(5)}
                                     </Text>
@@ -765,12 +779,12 @@ export default function LoginScreen({ navigation }) {
                                 ) : loading ? (
                                     <View style={styles.verifyingRow}>
                                         <ActivityIndicator size="small" color={primaryColor} />
-                                        <Text style={[styles.verifyingText, { color: brand.muted }]}>Verifying...</Text>
+                                        <Text style={[styles.verifyingText, { color: brand.muted }]}>{tr('Verifying...')}</Text>
                                     </View>
                                 ) : (
                                     <View style={styles.otpFooter}>
                                         <Pressable onPress={changeNumber} hitSlop={10}>
-                                            <Text style={[styles.linkText, { color: primaryColor }]}>Change number</Text>
+                                            <Text style={[styles.linkText, { color: primaryColor }]}>{tr('Change number')}</Text>
                                         </Pressable>
                                         <Pressable onPress={resendOtp} disabled={secondsLeft > 0} hitSlop={10}>
                                             <Text
@@ -780,8 +794,8 @@ export default function LoginScreen({ navigation }) {
                                                 ]}
                                             >
                                                 {secondsLeft > 0
-                                                    ? `Resend in 0:${String(secondsLeft).padStart(2, '0')}`
-                                                    : 'Resend OTP'}
+                                                    ? tr('Resend in 0:{v1}', { v1: String(secondsLeft).padStart(2, '0') })
+                                                    : tr('Resend OTP')}
                                             </Text>
                                         </Pressable>
                                     </View>
@@ -791,10 +805,10 @@ export default function LoginScreen({ navigation }) {
                     </View>
 
                     <Text style={[styles.terms, { color: brand.muted }]}>
-                        By continuing, you agree to our{'\n'}
-                        <Text onPress={() => navigation.navigate('LegalDoc', { key: 'customer_terms', pub: true })} style={[styles.termsLink, { color: brand.text }]}>Terms of Service</Text>
+                        {tr('By continuing, you agree to our')}{'\n'}
+                        <Text onPress={() => navigation.navigate('LegalDoc', { key: 'customer_terms', pub: true })} style={[styles.termsLink, { color: brand.text }]}>{tr('Terms of Service')}</Text>
                         {'   '}
-                        <Text onPress={() => navigation.navigate('LegalDoc', { key: 'privacy', pub: true })} style={[styles.termsLink, { color: brand.text }]}>Privacy Policy</Text>
+                        <Text onPress={() => navigation.navigate('LegalDoc', { key: 'privacy', pub: true })} style={[styles.termsLink, { color: brand.text }]}>{tr('Privacy Policy')}</Text>
                     </Text>
                     <PoweredBy />
                 </Animated.View>

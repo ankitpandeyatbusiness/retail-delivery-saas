@@ -17,6 +17,7 @@ import { onOrderUpdate } from '../../api/common/socket';
 import { clearAll } from '../../utils/owners/soundbox';
 import { useNow } from '../../hooks/owners/useNow';
 import * as flow from '../../utils/owners/orderFlow';
+import { tr } from '../../i18n';
 
 const PIPELINE = [
     ['placed', 'New', 'flash'],
@@ -70,24 +71,24 @@ function FreePeriod({ free, now }) {
         <Card tone={color}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Ionicons name="gift" size={22} color={color} />
-                <Text style={{ color: text, fontWeight: '900', fontSize: 16, flex: 1, marginLeft: 8 }}>{free.live === false ? 'Free while you set up' : 'Your free period'}</Text>
-                <Pill label="FREE" color={color} />
+                <Text style={{ color: text, fontWeight: '900', fontSize: 16, flex: 1, marginLeft: 8 }}>{free.live === false ? tr('Free while you set up') : tr('Your free period')}</Text>
+                <Pill label={tr('FREE')} color={color} />
             </View>
             {free.live === false ? (
-                <Text style={{ color: muted, marginTop: 8 }}>Nothing is charged while you test. Your {free.freeMonths || 2} free months and {total} free orders start when your shop goes live.</Text>
+                <Text style={{ color: muted, marginTop: 8 }}>{tr('Nothing is charged while you test. Your {v1} free months and {total} free orders start when your shop goes live.', { v1: free.freeMonths || 2, total: total })}</Text>
             ) : (
                 <>
                     <View style={{ flexDirection: 'row', marginTop: 12 }}>
-                        <Stat label="Days left" value={days === null ? '–' : String(days)} hint={free.endsAt ? `until ${new Date(free.endsAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : undefined} color={days !== null && days <= 7 ? warn : undefined} />
-                        <Stat label="Free orders left" value={String(left)} hint={`of ${total}`} color={left <= Math.max(5, total * 0.1) ? warn : undefined} />
+                        <Stat label={tr('Days left')} value={days === null ? '–' : String(days)} hint={free.endsAt ? tr('until {v1}', { v1: new Date(free.endsAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) }) : undefined} color={days !== null && days <= 7 ? warn : undefined} />
+                        <Stat label={tr('Free orders left')} value={String(left)} hint={tr('of {total}', { total: total })} color={left <= Math.max(5, total * 0.1) ? warn : undefined} />
                     </View>
                     {total > 0 ? (
                         <View style={{ height: 8, borderRadius: 4, backgroundColor: alpha(muted, 0.2), marginTop: 12 }}>
                             <View style={{ width: `${Math.min(100, (used / total) * 100)}%`, height: 8, borderRadius: 4, backgroundColor: color }} />
                         </View>
                     ) : null}
-                    {low ? <Text style={{ color, fontWeight: '800', marginTop: 10 }}>Your free period is ending soon. After it ends, the monthly fee starts (see Money, Monthly bill).</Text> : null}
-                    <Text style={{ color: muted, fontSize: 12, marginTop: 8 }}>The free period ends when you reach {total} delivered orders or when the days run out, whichever comes first.</Text>
+                    {low ? <Text style={{ color, fontWeight: '800', marginTop: 10 }}>{tr('Your free period is ending soon. After it ends, the monthly fee starts (see Money, Monthly bill).')}</Text> : null}
+                    <Text style={{ color: muted, fontSize: 12, marginTop: 8 }}>{tr('The free period ends when you reach {total} delivered orders or when the days run out, whichever comes first.', { total: total })}</Text>
                 </>
             )}
         </Card>
@@ -128,7 +129,7 @@ export default function OwnerHomeScreen() {
             await setAcceptingOrders(true);
             await useHomeStore.getState().load();
             refresh();
-            showToast('Taking orders again');
+            showToast(tr('Taking orders again'));
         } catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); } finally { setResuming(false); }
     };
 
@@ -159,8 +160,8 @@ export default function OwnerHomeScreen() {
                 <Card tone={error}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Ionicons name="notifications" size={22} color={error} />
-                        <Text style={{ color: error, fontWeight: '900', flex: 1, marginLeft: 10 }}>A new order is waiting</Text>
-                        <Button label="Silence" icon="volume-mute" kind="danger" onPress={clearAll} />
+                        <Text style={{ color: error, fontWeight: '900', flex: 1, marginLeft: 10 }}>{tr('A new order is waiting')}</Text>
+                        <Button label={tr('Silence')} icon="volume-mute" kind="danger" onPress={clearAll} />
                     </View>
                 </Card>
             ) : null}
@@ -171,10 +172,10 @@ export default function OwnerHomeScreen() {
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Ionicons name="pause-circle" size={24} color={error} />
                         <View style={{ flex: 1, marginLeft: 10 }}>
-                            <Text style={{ color: error, fontWeight: '900' }}>Orders are paused</Text>
-                            <Text style={{ color: muted, fontSize: 12 }}>{pausedUntil ? `Reopens by itself at ${flow.clockTime(pausedUntil)}` : 'Customers can not order until you start again'}</Text>
+                            <Text style={{ color: error, fontWeight: '900' }}>{tr('Orders are paused')}</Text>
+                            <Text style={{ color: muted, fontSize: 12 }}>{pausedUntil ? tr('Reopens by itself at {v1}', { v1: flow.clockTime(pausedUntil) }) : tr('Customers can not order until you start again')}</Text>
                         </View>
-                        <Button label="Start" icon="play" busy={resuming} onPress={resume} />
+                        <Button label={tr('Start')} icon="play" busy={resuming} onPress={resume} />
                     </View>
                 </Card>
             ) : null}
@@ -183,7 +184,7 @@ export default function OwnerHomeScreen() {
             <FreePeriod free={billing?.free} now={now} />
 
             {/* what is happening to the orders, right at the top */}
-            <SectionTitle title="Order pipeline" action="Open orders" onAction={() => toOrders('active')} />
+            <SectionTitle title={tr('Order pipeline')} action={tr('Open orders')} onAction={() => toOrders('active')} />
             <View style={{ flexDirection: 'row', paddingHorizontal: 13 }}>
                 {PIPELINE.map(([key, label, icon]) => (
                     <Card key={key} onPress={() => toOrders(key)} style={{ flex: 1, marginHorizontal: 3, paddingHorizontal: 2, alignItems: 'center', paddingVertical: 12 }}>
@@ -200,9 +201,7 @@ export default function OwnerHomeScreen() {
                 <Card tone={warn} onPress={() => (waiting.length === 1 ? nav.navigate('OwnerOrder', { id: String(waiting[0].id) }) : toOrders('placed'))}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Ionicons name="flash" size={22} color={warn} />
-                        <Text style={{ color: text, fontWeight: '900', fontSize: 16, flex: 1, marginLeft: 8 }}>
-                            {waiting.length} new order{waiting.length === 1 ? '' : 's'} waiting
-                        </Text>
+                        <Text style={{ color: text, fontWeight: '900', fontSize: 16, flex: 1, marginLeft: 8 }}>{tr('{length} new order{v2} waiting', { length: waiting.length, v2: waiting.length === 1 ? '' : 's' })}</Text>
                         <Ionicons name="chevron-forward" size={18} color={muted} />
                     </View>
                     <Text style={{ color: muted, marginTop: 6 }} numberOfLines={1}>#{waiting[0].orderNo} · {waiting[0].items.join(', ')} · {money(waiting[0].total)}</Text>
@@ -211,26 +210,26 @@ export default function OwnerHomeScreen() {
             ) : null}
 
             {/* the day */}
-            <SectionTitle title="Today" />
+            <SectionTitle title={tr('Today')} />
             <Card>
                 <View style={{ flexDirection: 'row' }}>
-                    <Stat label="Sales" value={money(d?.today.revenue)} color={primary} />
-                    <Stat label="Delivered" value={String(d?.today.orders ?? '–')} />
-                    <Stat label="Average order" value={money(d?.today.averageOrderValue)} />
+                    <Stat label={tr('Sales')} value={money(d?.today.revenue)} color={primary} />
+                    <Stat label={tr('Delivered')} value={String(d?.today.orders ?? '–')} />
+                    <Stat label={tr('Average order')} value={money(d?.today.averageOrderValue)} />
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
                     {change === null ? (
-                        <Text style={{ color: muted, fontSize: 12 }}>{d ? 'No sales yesterday at this time to compare with' : ''}</Text>
+                        <Text style={{ color: muted, fontSize: 12 }}>{d ? tr('No sales yesterday at this time to compare with') : ''}</Text>
                     ) : (
-                        <Pill label={`${change >= 0 ? '▲' : '▼'} ${Math.abs(change)}% vs yesterday so far`} color={change >= 0 ? ok : error} />
+                        <Pill label={tr('{v1} {v2}% vs yesterday so far', { v1: change >= 0 ? '▲' : '▼', v2: Math.abs(change) })} color={change >= 0 ? ok : error} />
                     )}
                 </View>
                 {d ? <View style={{ marginTop: 14 }}><HourBars byHour={d.byHour} nowHour={nowHour} /></View> : null}
                 {d ? (
                     <View style={{ flexDirection: 'row', marginTop: 14 }}>
-                        <Stat label="Orders placed" value={String(d.today.placed)} />
-                        <Stat label="Cancelled" value={String(d.today.cancelled.count)} hint={d.today.cancelled.count ? `${money(d.today.cancelled.lost)} lost` : null} color={d.today.cancelled.count ? error : undefined} />
-                        <Stat label="Time to accept" value={flow.spanText(d.today.averageAcceptSeconds)} />
+                        <Stat label={tr('Orders placed')} value={String(d.today.placed)} />
+                        <Stat label={tr('Cancelled')} value={String(d.today.cancelled.count)} hint={d.today.cancelled.count ? tr('{money} lost', { money: money(d.today.cancelled.lost) }) : null} color={d.today.cancelled.count ? error : undefined} />
+                        <Stat label={tr('Time to accept')} value={flow.spanText(d.today.averageAcceptSeconds)} />
                     </View>
                 ) : null}
             </Card>
@@ -241,32 +240,32 @@ export default function OwnerHomeScreen() {
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Ionicons name="trending-up" size={24} color={primary} />
                         <View style={{ flex: 1, marginLeft: 12 }}>
-                            <Text style={{ color: text, fontWeight: '900' }}>See how your shop is growing</Text>
-                            <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>Charts, best food, your best rider and tips, for the last 7 days or more</Text>
+                            <Text style={{ color: text, fontWeight: '900' }}>{tr('See how your shop is growing')}</Text>
+                            <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{tr('Charts, best food, your best rider and tips, for the last 7 days or more')}</Text>
                         </View>
                         <Ionicons name="chevron-forward" size={18} color={muted} />
                     </View>
                 </Card>
             ) : null}
 
-            <SectionTitle title="Delivery" />
+            <SectionTitle title={tr('Delivery')} />
             <Card>
                 <Row
                     icon="bicycle"
-                    title="Riders"
-                    subtitle={riders ? (riders.total ? `${riders.online} online · ${riders.free} free · ${riders.total} in all` : 'You have not added a rider yet') : '…'}
+                    title={tr('Riders')}
+                    subtitle={riders ? (riders.total ? tr('{online} online · {free} free · {total} in all', { online: riders.online, free: riders.free, total: riders.total }) : tr('You have not added a rider yet')) : '…'}
                     onPress={() => nav.navigate('RidersTab')}
                     last
                 />
             </Card>
 
-            <SectionTitle title="Needs your attention" />
+            <SectionTitle title={tr('Needs your attention')} />
             <Card>
-                {!d ? <Text style={{ color: muted }}>Loading…</Text> : null}
+                {!d ? <Text style={{ color: muted }}>{tr('Loading…')}</Text> : null}
                 {d && !attention.length ? (
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Ionicons name="checkmark-circle" size={22} color={ok} style={{ marginRight: 10 }} />
-                        <Text style={{ color: text, fontWeight: '700' }}>All good. Nothing needs you right now.</Text>
+                        <Text style={{ color: text, fontWeight: '700' }}>{tr('All good. Nothing needs you right now.')}</Text>
                     </View>
                 ) : null}
                 {attention.map((a, i) => (
@@ -274,13 +273,13 @@ export default function OwnerHomeScreen() {
                 ))}
             </Card>
 
-            <SectionTitle title="Alerts" />
+            <SectionTitle title={tr('Alerts')} />
             <Card>
                 <Row
                     icon="volume-high"
-                    title="Soundbox"
-                    subtitle={soundbox ? 'ON: new orders are read out loud, even with the screen off' : 'OFF: no sound for new orders on this phone'}
-                    right={<Pill label={soundbox ? 'ON' : 'OFF'} color={soundbox ? undefined : muted} />}
+                    title={tr('Soundbox')}
+                    subtitle={soundbox ? tr('ON: new orders are read out loud, even with the screen off') : tr('OFF: no sound for new orders on this phone')}
+                    right={<Pill label={soundbox ? tr('ON') : tr('OFF')} color={soundbox ? undefined : muted} />}
                     onPress={() => nav.navigate('Soundbox')}
                     last
                 />
@@ -288,7 +287,7 @@ export default function OwnerHomeScreen() {
 
             {live?.feed?.length ? (
                 <>
-                    <SectionTitle title="Latest" />
+                    <SectionTitle title={tr('Latest')} />
                     <Card>
                         {live.feed.slice(0, 8).map((e, i, arr) => (
                             <View key={e.id || i} style={{ flexDirection: 'row', paddingVertical: 7, borderBottomWidth: i === arr.length - 1 ? 0 : 1, borderBottomColor: alpha(muted, 0.2) }}>

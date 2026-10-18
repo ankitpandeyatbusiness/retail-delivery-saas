@@ -14,6 +14,7 @@ import { periodRange, PERIODS, PAY_LABEL, shortDay } from '../../utils/owners/mo
 import { rupees } from '../../utils/owners/riderRules';
 import { downloadAndOpen, XLSX } from '../../utils/owners/files';
 import { showToast } from '../../components/customers/shop';
+import { tr } from '../../i18n';
 
 export default function OwnerMoneyScreen() {
     const nav = useNavigation();
@@ -54,7 +55,7 @@ export default function OwnerMoneyScreen() {
         try {
             const r = periodRange(period);
             await downloadAndOpen({ path: '/shop/reports/export', params: r, filename: `sales-${r.from}-to-${r.to}.xlsx`, mime: XLSX, title: 'Sales report' });
-        } catch (e) { showToast(e.safe ? e.message : 'Could not make the Excel file'); } finally { setExporting(false); }
+        } catch (e) { showToast(e.safe ? e.message : tr('Could not make the Excel file')); } finally { setExporting(false); }
     };
 
     const t = sales?.totals;
@@ -62,16 +63,16 @@ export default function OwnerMoneyScreen() {
     const due = bill?.due?.amount || 0;
 
     return (
-        <OwnerScreen title="Money" onRefresh={refresh} refreshing={refreshing}>
+        <OwnerScreen title={tr('Money')} onRefresh={refresh} refreshing={refreshing}>
             {due > 0 ? (
                 <Card tone={error} onPress={() => nav.navigate('OwnerRent')}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Ionicons name="alert-circle" size={26} color={error} />
                         <View style={{ flex: 1, marginLeft: 12 }}>
-                            <Text style={{ color: error, fontWeight: '900' }}>Monthly bill due: {money(due)}</Text>
-                            <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{bill.paused ? 'Your menu and settings are locked until it is paid.' : bill.graceDaysLeft != null ? `${bill.graceDaysLeft} ${bill.graceDaysLeft === 1 ? 'day' : 'days'} left to pay.` : 'Please pay it.'}</Text>
+                            <Text style={{ color: error, fontWeight: '900' }}>{tr('Monthly bill due: {money}', { money: money(due) })}</Text>
+                            <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{bill.paused ? tr('Your menu and settings are locked until it is paid.') : bill.graceDaysLeft != null ? tr('{graceDaysLeft} {v2} left to pay.', { graceDaysLeft: bill.graceDaysLeft, v2: bill.graceDaysLeft === 1 ? 'day' : 'days' }) : tr('Please pay it.')}</Text>
                         </View>
-                        <Pill label="Pay" color={error} />
+                        <Pill label={tr('Pay')} color={error} />
                     </View>
                 </Card>
             ) : null}
@@ -80,23 +81,23 @@ export default function OwnerMoneyScreen() {
                 <Chips options={PERIODS} value={period} onChange={pick} style={{ marginTop: 0 }} />
             </View>
 
-            {salesErr && !sales ? <Empty icon="cloud-offline-outline" title="Could not load" hint={salesErr} /> : null}
+            {salesErr && !sales ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={salesErr} /> : null}
             {sales ? (
                 <>
                     <Card>
-                        <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }}>Sales (delivered orders)</Text>
+                        <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }}>{tr('Sales (delivered orders)')}</Text>
                         <Text style={{ color: text, fontSize: 34, fontWeight: '900', marginTop: 2 }}>{money(t.revenue)}</Text>
                         <View style={{ flexDirection: 'row', marginTop: 12 }}>
-                            <Stat label="Orders" value={String(t.orders)} />
-                            <Stat label="Average order" value={money(t.averageOrderValue)} />
-                            <Stat label="Not delivered" value={String(sales.undelivered)} color={sales.undelivered ? error : undefined} />
+                            <Stat label={tr('Orders')} value={String(t.orders)} />
+                            <Stat label={tr('Average order')} value={money(t.averageOrderValue)} />
+                            <Stat label={tr('Not delivered')} value={String(sales.undelivered)} color={sales.undelivered ? error : undefined} />
                         </View>
                         {series.length > 1 ? <View style={{ marginTop: 16 }}><Bars series={series} /></View> : null}
                     </Card>
 
                     {t.orders ? (
                         <>
-                            <SectionTitle title="Where it came from" />
+                            <SectionTitle title={tr('Where it came from')} />
                             <Card>
                                 {sales.payments.map((p, i) => (
                                     <MoneyRow key={p.method} title={PAY_LABEL[p.method] || p.method} note={`${p.orders} ${p.orders === 1 ? 'order' : 'orders'}`} value={money(p.revenue)} last={i === sales.payments.length - 1} />
@@ -104,40 +105,40 @@ export default function OwnerMoneyScreen() {
                             </Card>
                             {sales.topItems.length ? (
                                 <>
-                                    <SectionTitle title="Best selling items" action="See all" onAction={() => nav.navigate('OwnerPopular')} />
+                                    <SectionTitle title={tr('Best selling items')} action={tr('See all')} onAction={() => nav.navigate('OwnerPopular')} />
                                     <Card>
                                         {sales.topItems.slice(0, 5).map((it, i, a) => (
-                                            <MoneyRow key={String(it.productId)} title={it.name} note={`${it.quantity} sold`} value={money(it.revenue)} last={i === a.length - 1} />
+                                            <MoneyRow key={String(it.productId)} title={it.name} note={tr('{quantity} sold', { quantity: it.quantity })} value={money(it.revenue)} last={i === a.length - 1} />
                                         ))}
                                     </Card>
                                 </>
                             ) : null}
-                            <SectionTitle title="Also in these orders" />
+                            <SectionTitle title={tr('Also in these orders')} />
                             <Card>
-                                <MoneyRow title="Delivery fees" value={money(t.deliveryFees)} />
-                                <MoneyRow title="Tax collected" value={money(t.tax)} />
-                                <MoneyRow title="Tips" value={money(t.tips)} />
-                                <MoneyRow title="Discounts given" value={money(t.discount)} last />
+                                <MoneyRow title={tr('Delivery fees')} value={money(t.deliveryFees)} />
+                                <MoneyRow title={tr('Tax collected')} value={money(t.tax)} />
+                                <MoneyRow title={tr('Tips')} value={money(t.tips)} />
+                                <MoneyRow title={tr('Discounts given')} value={money(t.discount)} last />
                             </Card>
                             <View style={{ paddingHorizontal: 16, marginBottom: 12 }}>
-                                <Button label="Download Excel" icon="download" kind="ghost" working={exporting} disabled={exporting} onPress={exportExcel} />
+                                <Button label={tr('Download Excel')} icon="download" kind="ghost" working={exporting} disabled={exporting} onPress={exportExcel} />
                             </View>
                         </>
-                    ) : <Empty icon="stats-chart-outline" title="No sales in this period" hint="Delivered orders show up here." />}
+                    ) : <Empty icon="stats-chart-outline" title={tr('No sales in this period')} hint={tr('Delivered orders show up here.')} />}
                 </>
             ) : !salesErr ? <StatShimmer /> : null}
 
-            <SectionTitle title="Money in your account" />
+            <SectionTitle title={tr('Money in your account')} />
             <Card onPress={() => nav.navigate('OwnerPayments')}>
                 <View style={{ flexDirection: 'row' }}>
-                    <Stat label="Online received (30 days)" value={online ? rupees(online.captured.paise) : '—'} />
-                    <Stat label="Refunded" value={online ? rupees(online.refunded.paise) : '—'} />
+                    <Stat label={tr('Online received (30 days)')} value={online ? rupees(online.captured.paise) : '—'} />
+                    <Stat label={tr('Refunded')} value={online ? rupees(online.refunded.paise) : '—'} />
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
                     <Text style={{ color: muted, flex: 1, fontSize: 12 }}>
                         {online && (online.refundsOnTheWay.count || online.disputesOpen)
                             ? `${online.refundsOnTheWay.count ? `${online.refundsOnTheWay.count} refunds on the way` : ''}${online.refundsOnTheWay.count && online.disputesOpen ? ' · ' : ''}${online.disputesOpen ? `${online.disputesOpen} chargebacks need a look` : ''}`
-                            : 'Payments, refunds and chargebacks'}
+                            : tr('Payments, refunds and chargebacks')}
                     </Text>
                     <Ionicons name="chevron-forward" size={18} color={muted} />
                 </View>
@@ -146,8 +147,8 @@ export default function OwnerMoneyScreen() {
             <Card tone={sms?.zero ? error : undefined}>
                 <Row
                     icon="mail"
-                    title="SMS balance"
-                    subtitle={sms ? (sms.zero ? 'Finished. Order SMS alerts have stopped.' : sms.low ? 'Running low' : `About ${Math.floor(sms.balancePaise / Math.max(1, sms.ratePerSmsPaise))} messages`) : ''}
+                    title={tr('SMS balance')}
+                    subtitle={sms ? (sms.zero ? tr('Finished. Order SMS alerts have stopped.') : sms.low ? tr('Running low') : tr('About {v1} messages', { v1: Math.floor(sms.balancePaise / Math.max(1, sms.ratePerSmsPaise)) })) : ''}
                     right={<Text style={{ color: sms?.low ? error : text, fontWeight: '900', fontSize: 16 }}>{sms ? rupees(sms.balancePaise) : '—'}</Text>}
                     color={sms?.low ? error : primary}
                     onPress={() => nav.navigate('OwnerSms')}
@@ -156,16 +157,16 @@ export default function OwnerMoneyScreen() {
             </Card>
 
             <Card>
-                <Row icon="trending-up" title="Business report" subtitle="Progress, customers, best food and tips" onPress={() => nav.navigate('OwnerBusiness')} />
-                <Row icon="swap-vertical" title="Transactions and bills" subtitle="Every payment, year by year and month by month" onPress={() => nav.navigate('OwnerTransactions')} last />
+                <Row icon="trending-up" title={tr('Business report')} subtitle={tr('Progress, customers, best food and tips')} onPress={() => nav.navigate('OwnerBusiness')} />
+                <Row icon="swap-vertical" title={tr('Transactions and bills')} subtitle={tr('Every payment, year by year and month by month')} onPress={() => nav.navigate('OwnerTransactions')} last />
             </Card>
 
             <Card>
                 <Row
                     icon="receipt"
-                    title="Monthly bill"
-                    subtitle={bill ? (bill.free?.active ? `Free for now${bill.free.ordersLeft != null ? ` · ${bill.free.ordersLeft} free orders left` : ''}` : `${bill.thisMonth.billableOrders} orders this month · ${bill.thisMonth.tierLabel || ''}`) : ''}
-                    right={due > 0 ? <Pill label={`Due ${money(due)}`} color={error} /> : null}
+                    title={tr('Monthly bill')}
+                    subtitle={bill ? (bill.free?.active ? tr('Free for now{v1}', { v1: bill.free.ordersLeft != null ? ` · ${bill.free.ordersLeft} free orders left` : '' }) : tr('{billableOrders} orders this month · {v2}', { billableOrders: bill.thisMonth.billableOrders, v2: bill.thisMonth.tierLabel || '' })) : ''}
+                    right={due > 0 ? <Pill label={tr('Due {money}', { money: money(due) })} color={error} /> : null}
                     onPress={() => nav.navigate('OwnerRent')}
                     last
                 />

@@ -10,6 +10,7 @@ import { clockTime } from '../../utils/owners/orderFlow';
 import { shortDay } from '../../utils/owners/moneyRules';
 import { showToast } from '../customers/shop';
 import { LineShimmer } from './shimmer';
+import { tr } from '../../i18n';
 
 // qr: { amountPaise, upiString, imageUrl, expiresAt }.  poll(): resolves true once the money has arrived.
 export function PayQrSheet({ visible, title, qr, poll, onPaid, onClose }) {
@@ -38,25 +39,25 @@ export function PayQrSheet({ visible, title, qr, poll, onPaid, onClose }) {
 
     const openUpi = () => {
         if (!qr?.upiString) return;
-        Linking.openURL(qr.upiString).catch(() => showToast('No UPI app found on this phone. Scan the code with another phone.'));
+        Linking.openURL(qr.upiString).catch(() => showToast(tr('No UPI app found on this phone. Scan the code with another phone.')));
     };
     const check = async () => {
         setChecking(true);
         try {
             if (await poll()) { setPaid(true); setTimeout(() => { onPaid && onPaid(); onClose(); }, 1200); }
-            else showToast('Not received yet. It can take a minute.');
-        } catch (e) { showToast('Could not check. Try again.'); } finally { setChecking(false); }
+            else showToast(tr('Not received yet. It can take a minute.'));
+        } catch (e) { showToast(tr('Could not check. Try again.')); } finally { setChecking(false); }
     };
 
     return (
-        <Sheet visible={visible} onClose={onClose} title={title || 'Pay by UPI'}>
+        <Sheet visible={visible} onClose={onClose} title={title || tr('Pay by UPI')}>
             {qr ? (
                 <View style={{ alignItems: 'center', paddingBottom: 8 }}>
                     <Text style={{ color: text, fontSize: 30, fontWeight: '900' }}>{rupees(qr.amountPaise)}</Text>
                     {paid ? (
                         <View style={{ alignItems: 'center', marginVertical: 30 }}>
                             <Text style={{ color: ok, fontSize: 56 }}>✓</Text>
-                            <Text style={{ color: ok, fontWeight: '900', fontSize: 18 }}>Payment received</Text>
+                            <Text style={{ color: ok, fontWeight: '900', fontSize: 18 }}>{tr('Payment received')}</Text>
                         </View>
                     ) : (
                         <>
@@ -65,12 +66,12 @@ export function PayQrSheet({ visible, title, qr, poll, onPaid, onClose }) {
                                     <Image source={{ uri: qr.imageUrl }} style={{ width: 220, height: 220 }} contentFit="contain" />
                                 </View>
                             ) : <View style={{ height: 14 }} />}
-                            {qr.expiresAt ? <Text style={{ color: muted, fontSize: 12, marginBottom: 12 }}>Valid until {clockTime(qr.expiresAt)}</Text> : null}
-                            {qr.upiString ? <View style={{ alignSelf: 'stretch' }}><Button label="Pay with a UPI app" icon="phone-portrait" onPress={openUpi} /></View> : null}
-                            <View style={{ alignSelf: 'stretch', marginTop: 10 }}><Button label="I have paid" kind="ghost" busy={checking} onPress={check} /></View>
+                            {qr.expiresAt ? <Text style={{ color: muted, fontSize: 12, marginBottom: 12 }}>{tr('Valid until {clockTime}', { clockTime: clockTime(qr.expiresAt) })}</Text> : null}
+                            {qr.upiString ? <View style={{ alignSelf: 'stretch' }}><Button label={tr('Pay with a UPI app')} icon="phone-portrait" onPress={openUpi} /></View> : null}
+                            <View style={{ alignSelf: 'stretch', marginTop: 10 }}><Button label={tr('I have paid')} kind="ghost" busy={checking} onPress={check} /></View>
                             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14 }}>
                                 <LineShimmer width={28} height={10} />
-                                <Text style={{ color: muted, marginLeft: 8, fontSize: 12 }}>Waiting for the payment. This page updates by itself.</Text>
+                                <Text style={{ color: muted, marginLeft: 8, fontSize: 12 }}>{tr('Waiting for the payment. This page updates by itself.')}</Text>
                             </View>
                         </>
                     )}

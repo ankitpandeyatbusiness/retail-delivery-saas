@@ -8,6 +8,7 @@ import { useBrand } from '../common/kit';
 import { sendEmailCode, verifyEmailCode, apiError } from '../../api/owners/shopApi';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { showToast } from '../customers/shop';
+import { tr } from '../../i18n';
 
 const OK = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -45,34 +46,34 @@ export default function EmailVerifySheet({ visible, required, title, intro, onCl
         try {
             const u = await verifyEmailCode(email, value);
             useAuthStore.setState((st) => (st.user ? { user: { ...st.user, email: u.email } } : {}));
-            showToast('Email confirmed. Your bills will come here.');
+            showToast(tr('Email confirmed. Your bills will come here.'));
             if (onDone) onDone(u);
         } catch (er) { setProblem(apiError(er)); setCode(''); } finally { setBusy(false); }
     };
 
     return (
-        <Sheet visible={visible} onClose={required ? () => { } : onClose} title={title || (step === 'email' ? 'Your email' : 'Enter the code')}>
+        <Sheet visible={visible} onClose={required ? () => { } : onClose} title={title || (step === 'email' ? tr('Your email') : tr('Enter the code'))}>
             {step === 'email' ? (
                 <View>
-                    <Text style={{ color: muted, marginBottom: 12, lineHeight: 20 }}>{intro || 'We send your monthly bills, receipts and official documents to your email. We will mail you a code to confirm it is yours.'}</Text>
-                    <Field value={email} onChangeText={(x) => { setEmail(x); setProblem(''); }} placeholder="name@example.com" keyboardType="email-address" maxLength={120} autoFocus style={{ marginBottom: 6 }} />
+                    <Text style={{ color: muted, marginBottom: 12, lineHeight: 20 }}>{intro || tr('We send your monthly bills, receipts and official documents to your email. We will mail you a code to confirm it is yours.')}</Text>
+                    <Field value={email} onChangeText={(x) => { setEmail(x); setProblem(''); }} placeholder={tr('name@example.com')} keyboardType="email-address" maxLength={120} autoFocus style={{ marginBottom: 6 }} />
                     {problem ? <Text style={{ color: error, marginBottom: 8 }}>{problem}</Text> : null}
-                    <Button label="Send me a code" icon="mail" busy={busy} onPress={send} style={{ marginTop: 8 }} />
+                    <Button label={tr('Send me a code')} icon="mail" busy={busy} onPress={send} style={{ marginTop: 8 }} />
                 </View>
             ) : (
                 <View>
-                    <Text style={{ color: muted, marginBottom: 12, lineHeight: 20 }}>We sent a 6-digit code to <Text style={{ color: text, fontWeight: '800' }}>{email}</Text>. It works for 10 minutes. Check your spam folder if you do not see it.</Text>
+                    <Text style={{ color: muted, marginBottom: 12, lineHeight: 20 }}>{tr('We sent a 6-digit code to')} <Text style={{ color: text, fontWeight: '800' }}>{email}</Text>{tr('. It works for 10 minutes. Check your spam folder if you do not see it.')}</Text>
                     <Field
                         value={code}
                         onChangeText={(x) => { const d = x.replace(/\D/g, '').slice(0, 6); setCode(d); setProblem(''); if (d.length === 6) confirm(d); }}
-                        placeholder="6-digit code" keyboardType="number-pad" maxLength={6} autoFocus style={{ marginBottom: 6, textAlign: 'center', fontSize: 22, letterSpacing: 6 }}
+                        placeholder={tr('6-digit code')} keyboardType="number-pad" maxLength={6} autoFocus style={{ marginBottom: 6, textAlign: 'center', fontSize: 22, letterSpacing: 6 }}
                     />
-                    {devCode ? <Text style={{ color: muted, fontSize: 12, textAlign: 'center' }}>Test setup: the code is {devCode}</Text> : null}
+                    {devCode ? <Text style={{ color: muted, fontSize: 12, textAlign: 'center' }}>{tr('Test setup: the code is {devCode}', { devCode: devCode })}</Text> : null}
                     {problem ? <Text style={{ color: error, marginVertical: 6 }}>{problem}</Text> : null}
-                    <Button label="Confirm" icon="checkmark" busy={busy} onPress={() => confirm()} style={{ marginTop: 8 }} />
+                    <Button label={tr('Confirm')} icon="checkmark" busy={busy} onPress={() => confirm()} style={{ marginTop: 8 }} />
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 14 }}>
-                        <Pressable onPress={() => { setStep('email'); setProblem(''); }} hitSlop={8}><Text style={{ color: primary, fontWeight: '800' }}>Change the email</Text></Pressable>
-                        <Pressable onPress={wait > 0 || busy ? undefined : send} hitSlop={8}><Text style={{ color: wait > 0 ? muted : primary, fontWeight: '800' }}>{wait > 0 ? `Send again in ${wait}s` : 'Send again'}</Text></Pressable>
+                        <Pressable onPress={() => { setStep('email'); setProblem(''); }} hitSlop={8}><Text style={{ color: primary, fontWeight: '800' }}>{tr('Change the email')}</Text></Pressable>
+                        <Pressable onPress={wait > 0 || busy ? undefined : send} hitSlop={8}><Text style={{ color: wait > 0 ? muted : primary, fontWeight: '800' }}>{wait > 0 ? tr('Send again in {wait}s', { wait: wait }) : tr('Send again')}</Text></Pressable>
                     </View>
                 </View>
             )}

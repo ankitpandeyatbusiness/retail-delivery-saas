@@ -16,6 +16,7 @@ import { useRiderStore } from '../../store/riders/useRiderStore';
 import { useRiderLocation } from '../../hooks/common/useRiderLocation';
 import { acceptOrder, rejectOrder } from '../../api/riders/riderApi';
 import { T, rupee, rupeeAmount, errText } from '../../utils/riders/riderText';
+import { tr } from '../../i18n';
 
 const POLL_MS = 6000;
 
@@ -56,7 +57,7 @@ function OfferCard({ o, busy, onAccept, onReject, onExpire }) {
                 ) : null}
                 {o.distanceKm != null ? (
                     <View style={{ flex: 1, alignItems: o.earnPaise > 0 ? 'flex-end' : 'flex-start' }}>
-                        <Text style={{ color: text, fontSize: 26, fontWeight: '900' }}>{o.distanceKm} km</Text>
+                        <Text style={{ color: text, fontSize: 26, fontWeight: '900' }}>{tr('{distanceKm} km', { distanceKm: o.distanceKm })}</Text>
                         <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }}>{T.away('').trim()}</Text>
                     </View>
                 ) : null}
@@ -99,7 +100,7 @@ export default function RiderHomeScreen() {
     const onDuty = !!me?.isOnline;
     const changeDuty = async (v) => {
         if (!v && (active.length > 0 || offers.length > 0)) {
-            const yes = await ask({ title: T.endDuty + '?', message: active.length ? 'You still have a delivery to finish. You will get no new orders.' : 'You will get no new orders.', confirmText: T.endDuty });
+            const yes = await ask({ title: T.endDuty + '?', message: active.length ? tr('You still have a delivery to finish. You will get no new orders.') : tr('You will get no new orders.'), confirmText: T.endDuty });
             if (!yes) return;
         }
         setDutyBusy(true);
@@ -159,7 +160,7 @@ export default function RiderHomeScreen() {
                     <View style={{ alignItems: 'center', padding: 30 }}>
                         <Ionicons name="cloud-offline-outline" size={44} color={muted} />
                         <Text style={{ color: text, fontWeight: '800', fontSize: 16, marginTop: 10 }}>{T.noNetwork}</Text>
-                        <View style={{ marginTop: 16, alignSelf: 'stretch' }}><BigButton label="Try again" onPress={load} /></View>
+                        <View style={{ marginTop: 16, alignSelf: 'stretch' }}><BigButton label={tr('Try again')} onPress={load} /></View>
                     </View>
                 ) : null}
 
@@ -207,7 +208,7 @@ export default function RiderHomeScreen() {
                                             style={({ pressed }) => [{ marginHorizontal: 16, marginBottom: 10, borderRadius: 18, padding: 14, backgroundColor: surface, borderWidth: 1, borderColor: border, flexDirection: 'row', alignItems: 'center' }, pressed && { opacity: 0.75 }]}
                                         >
                                             <View style={{ flex: 1 }}>
-                                                <Text style={{ color: text, fontWeight: '900', fontSize: 16 }}>Order #{o.orderNo}</Text>
+                                                <Text style={{ color: text, fontWeight: '900', fontSize: 16 }}>{tr('Order #{orderNo}', { orderNo: o.orderNo })}</Text>
                                                 <Text style={{ color: muted, fontWeight: '700', fontSize: 13, marginTop: 2 }}>{nextStep(o)}{cash ? ` · ${T.collectCash(rupeeAmount(o.payment.collectAmount))}` : ''}</Text>
                                             </View>
                                             <Ionicons name="chevron-forward" size={22} color={muted} />

@@ -18,6 +18,7 @@ import { acknowledge } from '../../utils/owners/soundbox';
 import { showToast } from '../customers/shop';
 import * as flow from '../../utils/owners/orderFlow';
 import { ListShimmer } from './shimmer';
+import { tr } from '../../i18n';
 
 /* ------------------------------ small labels ------------------------------ */
 export function useToneColors() {
@@ -33,7 +34,7 @@ export function StatusPill({ status }) {
 export function PayBadge({ order }) {
     const { ok, accent } = useBrand();
     const paid = flow.isPaid(order);
-    return <Pill label={flow.isCod(order) ? 'COD' : paid ? 'Paid' : 'Not paid'} color={paid ? ok : (accent || '#F59E0B')} icon={paid ? 'checkmark-circle' : 'cash-outline'} />;
+    return <Pill label={flow.isCod(order) ? tr('COD') : paid ? tr('Paid') : tr('Not paid')} color={paid ? ok : (accent || '#F59E0B')} icon={paid ? 'checkmark-circle' : 'cash-outline'} />;
 }
 
 // "Cancels in 6:42": the server cancels an order nobody accepts. Turns red in the last 3 minutes.
@@ -48,7 +49,7 @@ export function Countdown({ until, compact }) {
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Ionicons name="timer-outline" size={compact ? 14 : 16} color={color} style={{ marginRight: 4 }} />
             <Text style={{ color, fontSize: compact ? 12 : 13, fontWeight: '800' }}>
-                {left > 0 ? `Cancels in ${flow.mmss(left)} if not accepted` : 'Cancelling now'}
+                {left > 0 ? tr('Cancels in {v1} if not accepted', { v1: flow.mmss(left) }) : tr('Cancelling now')}
             </Text>
         </View>
     );
@@ -75,7 +76,7 @@ export function OrderCard({ order, onOpen, onAdvance, onReject, busy }) {
 
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
                 <Text style={{ color: muted, fontSize: 12, flex: 1 }} numberOfLines={1}>
-                    {order.customer?.name || 'Customer'} · {flow.ago(order.createdAt, now)}
+                    {order.customer?.name || tr('Customer')} · {flow.ago(order.createdAt, now)}
                 </Text>
                 <Text style={{ color: text, fontWeight: '900', fontSize: 16 }}>{money(order.pricing?.total)}</Text>
             </View>
@@ -83,7 +84,7 @@ export function OrderCard({ order, onOpen, onAdvance, onReject, busy }) {
             {order.scheduledFor ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
                     <Ionicons name="calendar-outline" size={14} color={muted} style={{ marginRight: 4 }} />
-                    <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }}>For {flow.dayTime(order.scheduledFor)}</Text>
+                    <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }}>{tr('For {v1}', { v1: flow.dayTime(order.scheduledFor) })}</Text>
                 </View>
             ) : null}
 
@@ -91,8 +92,8 @@ export function OrderCard({ order, onOpen, onAdvance, onReject, busy }) {
 
             {isNew && next ? (
                 <View style={{ flexDirection: 'row', marginTop: 12 }}>
-                    {flow.canCancel(order) ? <Button label="Reject" kind="ghost" icon="close" onPress={() => onReject(order)} disabled={busy} style={{ flex: 1, marginRight: 8 }} /> : null}
-                    <Button label="Accept" icon="checkmark" busy={busy} onPress={() => onAdvance(order)} style={{ flex: 1.4 }} />
+                    {flow.canCancel(order) ? <Button label={tr('Reject')} kind="ghost" icon="close" onPress={() => onReject(order)} disabled={busy} style={{ flex: 1, marginRight: 8 }} /> : null}
+                    <Button label={tr('Accept')} icon="checkmark" busy={busy} onPress={() => onAdvance(order)} style={{ flex: 1.4 }} />
                 </View>
             ) : null}
             {!isNew && next ? (
@@ -125,7 +126,7 @@ export function useOrderActions({ onChanged } = {}) {
             const updated = await setOrderStatus(order.id, { status: next });
             if (next === 'accepted') acknowledge(order.id);   // he dealt with it: the ringing stops
             done(updated);
-            showToast(`Order #${order.orderNo}: ${flow.statusLabel(next)}`);
+            showToast(tr('Order #{orderNo}: {v2}', { orderNo: order.orderNo, v2: flow.statusLabel(next) }));
         } catch (e) { fail(e); } finally { setBusyId(null); }
     };
 
@@ -136,7 +137,7 @@ export function useOrderActions({ onChanged } = {}) {
             acknowledge(order.id);
             done(updated);
             setRejecting(null); setUndelivering(null);
-            showToast(`Order #${order.orderNo}: ${flow.statusLabel(status)}`);
+            showToast(tr('Order #{orderNo}: {v2}', { orderNo: order.orderNo, v2: flow.statusLabel(status) }));
         } catch (e) { fail(e); } finally { setBusyId(null); }
     };
 
@@ -144,22 +145,22 @@ export function useOrderActions({ onChanged } = {}) {
         <>
             <ReasonSheet
                 visible={!!rejecting}
-                title={rejecting ? `Reject order #${rejecting.orderNo}` : ''}
-                intro="Choose a reason. The customer is told the order was cancelled."
+                title={rejecting ? tr('Reject order #{orderNo}', { orderNo: rejecting.orderNo }) : ''}
+                intro={tr('Choose a reason. The customer is told the order was cancelled.')}
                 reasons={flow.CANCEL_REASONS}
                 needsText="other"
-                textLabel="Write the reason"
-                submitLabel="Reject order"
+                textLabel={tr('Write the reason')}
+                submitLabel={tr('Reject order')}
                 busy={busyId !== null && !!rejecting && busyId === rejecting.id}
                 onClose={() => setRejecting(null)}
                 onSubmit={(code, note) => submit(rejecting, 'cancelled', code, note)}
             />
             <ReasonSheet
                 visible={!!undelivering}
-                title={undelivering ? `Order #${undelivering.orderNo} not delivered` : ''}
-                intro="Who was at fault? This decides who bears the cost."
+                title={undelivering ? tr('Order #{orderNo} not delivered', { orderNo: undelivering.orderNo }) : ''}
+                intro={tr('Who was at fault? This decides who bears the cost.')}
                 reasons={flow.UNDELIVERED_WHO}
-                submitLabel="Mark not delivered"
+                submitLabel={tr('Mark not delivered')}
                 busy={busyId !== null && !!undelivering && busyId === undelivering.id}
                 onClose={() => setUndelivering(null)}
                 onSubmit={(code, note) => submit(undelivering, 'undelivered', code, note)}
@@ -195,7 +196,7 @@ export function ReasonSheet({ visible, title, intro, reasons, needsText, textLab
                         multiline
                         autoFocus={!!mustType}
                         maxLength={200}
-                        placeholder={mustType ? `${textLabel || 'Write the reason'} (at least ${flow.MIN_REASON_LENGTH} letters)` : 'Add a note (optional)'}
+                        placeholder={mustType ? tr('{v1} (at least {MIN_REASON_LENGTH} letters)', { v1: textLabel || 'Write the reason', MIN_REASON_LENGTH: flow.MIN_REASON_LENGTH }) : tr('Add a note (optional)')}
                     />
                 </View>
             ) : null}
@@ -229,11 +230,11 @@ export function RiderSheet({ order, visible, onClose, onChanged }) {
     const needReason = has && reason.trim().length < flow.MIN_REASON_LENGTH;
 
     const run = async (fn) => {
-        if (needReason) { showToast('Write why you are changing the rider'); return; }
+        if (needReason) { showToast(tr('Write why you are changing the rider')); return; }
         setBusy(true);
         try {
             await fn();
-            showToast('Done');
+            showToast(tr('Done'));
             onChanged && onChanged();
             onClose();
         } catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); } finally { setBusy(false); }
@@ -242,47 +243,47 @@ export function RiderSheet({ order, visible, onClose, onChanged }) {
     const sorted = (riders || []).slice().sort((a, b) => Number(b.isOnline) - Number(a.isOnline) || a.activeOrderCount - b.activeOrderCount);
 
     return (
-        <Sheet visible={visible} onClose={onClose} title={has ? 'Change the rider' : 'Choose a rider'}>
+        <Sheet visible={visible} onClose={onClose} title={has ? tr('Change the rider') : tr('Choose a rider')}>
             {has ? (
                 <View style={{ marginBottom: 12 }}>
-                    <Text style={{ color: muted, marginBottom: 6 }}>This order already has a rider. Say why you are changing it.</Text>
-                    <Field value={reason} onChangeText={setReason} placeholder="Reason (at least 3 letters)" maxLength={150} />
+                    <Text style={{ color: muted, marginBottom: 6 }}>{tr('This order already has a rider. Say why you are changing it.')}</Text>
+                    <Field value={reason} onChangeText={setReason} placeholder={tr('Reason (at least 3 letters)')} maxLength={150} />
                 </View>
             ) : null}
 
-            <Button label="Let the app choose (ask all free riders)" icon="flash" busy={busy} onPress={() => run(() => assignRider(order.id, { auto: true, ...(has ? { reason: reason.trim() } : {}) }))} />
+            <Button label={tr('Let the app choose (ask all free riders)')} icon="flash" busy={busy} onPress={() => run(() => assignRider(order.id, { auto: true, ...(has ? { reason: reason.trim() } : {}) }))} />
 
-            <Text style={{ color: muted, fontWeight: '800', fontSize: 12, marginTop: 16, marginBottom: 4 }}>YOUR RIDERS</Text>
+            <Text style={{ color: muted, fontWeight: '800', fontSize: 12, marginTop: 16, marginBottom: 4 }}>{tr('YOUR RIDERS')}</Text>
             {riders === null ? <ListShimmer count={3} rows /> : null}
-            {riders && !riders.length ? <Text style={{ color: muted, paddingVertical: 10 }}>You have no active riders. Add one in the Riders tab.</Text> : null}
+            {riders && !riders.length ? <Text style={{ color: muted, paddingVertical: 10 }}>{tr('You have no active riders. Add one in the Riders tab.')}</Text> : null}
             {sorted.map((r, i) => (
                 <View key={r.userId} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: i === sorted.length - 1 ? 0 : 1, borderBottomColor: border }}>
                     <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: r.isOnline ? ok : muted, marginRight: 10 }} />
                     <View style={{ flex: 1, minWidth: 0 }}>
-                        <Text style={{ color: text, fontWeight: '800' }} numberOfLines={1}>{r.name || r.phone || 'Rider'}</Text>
-                        <Text style={{ color: muted, fontSize: 12 }}>{r.isOnline ? 'Online' : 'Offline'} · {r.activeOrderCount} order{r.activeOrderCount === 1 ? '' : 's'} now</Text>
+                        <Text style={{ color: text, fontWeight: '800' }} numberOfLines={1}>{r.name || r.phone || tr('Rider')}</Text>
+                        <Text style={{ color: muted, fontSize: 12 }}>{tr('{v1} · {activeOrderCount} order{v3} now', { v1: r.isOnline ? 'Online' : 'Offline', activeOrderCount: r.activeOrderCount, v3: r.activeOrderCount === 1 ? '' : 's' })}</Text>
                     </View>
-                    <Button label="Assign" kind="ghost" disabled={busy || String(r.userId) === String(order?.delivery?.riderId)} onPress={() => run(() => assignRider(order.id, { riderId: r.userId, ...(has ? { reason: reason.trim() } : {}) }))} />
+                    <Button label={tr('Assign')} kind="ghost" disabled={busy || String(r.userId) === String(order?.delivery?.riderId)} onPress={() => run(() => assignRider(order.id, { riderId: r.userId, ...(has ? { reason: reason.trim() } : {}) }))} />
                 </View>
             ))}
 
             {has ? (
-                <Button label="Take the rider off this order" kind="ghost" icon="remove-circle-outline" disabled={busy} onPress={() => run(() => unassignRider(order.id, reason.trim()))} style={{ marginTop: 16 }} />
+                <Button label={tr('Take the rider off this order')} kind="ghost" icon="remove-circle-outline" disabled={busy} onPress={() => run(() => unassignRider(order.id, reason.trim()))} style={{ marginTop: 16 }} />
             ) : null}
         </Sheet>
     );
 }
 
 /* ------------------------------ phone, maps, invoice ------------------------------ */
-export const callPhone = (phone) => { if (phone) Linking.openURL(`tel:${phone}`).catch(() => showToast('Could not open the phone')); };
+export const callPhone = (phone) => { if (phone) Linking.openURL(`tel:${phone}`).catch(() => showToast(tr('Could not open the phone'))); };
 export const whatsApp = (phone) => {
     const n = String(phone || '').replace(/\D/g, '');
-    if (n.length >= 10) Linking.openURL(`https://wa.me/${n.length === 10 ? `91${n}` : n}`).catch(() => showToast('Could not open WhatsApp'));
+    if (n.length >= 10) Linking.openURL(`https://wa.me/${n.length === 10 ? `91${n}` : n}`).catch(() => showToast(tr('Could not open WhatsApp')));
 };
 export function openMap(lat, lng, label) {
     const q = Number.isFinite(lat) && Number.isFinite(lng) ? `${lat},${lng}` : encodeURIComponent(label || '');
     if (!q) return;
-    Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${q}`).catch(() => showToast('Could not open the map'));
+    Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${q}`).catch(() => showToast(tr('Could not open the map')));
 }
 export const addressLine = (a = {}) => [a.line1, a.line2, a.landmark, a.city, a.pincode].filter(Boolean).join(', ');
 
@@ -302,9 +303,9 @@ export async function openInvoice(order, setBusy) {
             } catch (e) { /* no PDF viewer: share it instead */ }
         }
         if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(file.uri, { mimeType: 'application/pdf', dialogTitle: `Invoice ${order.orderNo}` });
-        else showToast('No app on this phone can open a PDF');
+        else showToast(tr('No app on this phone can open a PDF'));
     } catch (e) {
-        showToast(e?.response?.status === 409 ? 'The invoice is ready after delivery' : 'Could not get the invoice');
+        showToast(e?.response?.status === 409 ? tr('The invoice is ready after delivery') : tr('Could not get the invoice'));
     } finally { if (setBusy) setBusy(false); }
 }
 

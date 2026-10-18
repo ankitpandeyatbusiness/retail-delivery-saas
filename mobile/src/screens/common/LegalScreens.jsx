@@ -8,6 +8,7 @@ import { PageHeader } from '../../components/owners/ui';
 import LegalText from '../../components/common/LegalText';
 import { fetchPublicLegal, fetchLegalDoc, fetchLegalMine } from '../../api/common/legalApi';
 import { useAuthStore } from '../../store/common/useAuthStore';
+import { tr } from '../../i18n';
 
 const day = (d) => (d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
 
@@ -18,18 +19,18 @@ export function LegalDocScreen() {
     const [doc, setDoc] = useState(null);
     const [err, setErr] = useState('');
     useEffect(() => {
-        (pub ? fetchPublicLegal(key) : fetchLegalDoc(key)).then(setDoc).catch((e) => setErr(e?.response?.data?.error || 'Could not open this page.'));
+        (pub ? fetchPublicLegal(key) : fetchLegalDoc(key)).then(setDoc).catch((e) => setErr(e?.response?.data?.error || tr('Could not open this page.')));
     }, [key, pub]);
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
-            <PageHeader title={doc?.title || 'Terms'} />
+            <PageHeader title={doc?.title || tr('Terms')} />
             <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 60 }}>
                 {!doc && !err ? <ActivityIndicator style={{ marginTop: 30 }} /> : null}
                 {err ? <Text style={{ color: error }}>{err}</Text> : null}
                 {doc ? (
                     <>
                         <LegalText text={doc.body} title={doc.title} />
-                        <Text style={{ color: muted, fontSize: 12, marginTop: 20 }}>{doc.no ? `Version ${doc.no}${doc.publishedAt ? `, ${day(doc.publishedAt)}` : ''}` : 'This version has not been sent yet'}</Text>
+                        <Text style={{ color: muted, fontSize: 12, marginTop: 20 }}>{doc.no ? tr('Version {no}{v2}', { no: doc.no, v2: doc.publishedAt ? `, ${day(doc.publishedAt)}` : '' }) : tr('This version has not been sent yet')}</Text>
                     </>
                 ) : null}
             </ScrollView>
@@ -49,7 +50,7 @@ export function LegalListScreen() {
     }, [role]);
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
-            <PageHeader title="Terms and privacy" />
+            <PageHeader title={tr('Terms and privacy')} />
             <ScrollView contentContainerStyle={{ paddingBottom: 60 }}>
                 {items === null ? <ActivityIndicator style={{ marginTop: 30 }} /> : items.map((d) => (
                     <Pressable key={d.key} onPress={() => nav.navigate('LegalDoc', { key: d.key, pub: d.pub })} style={{ flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 0.5, borderBottomColor: border }}>
@@ -58,9 +59,9 @@ export function LegalListScreen() {
                             <Text style={{ color: text, fontWeight: '800', fontSize: 15 }}>{d.title}</Text>
                             {d.mustAgree ? (
                                 <Text style={{ color: d.upToDate ? ok : muted, fontSize: 12, marginTop: 2 }}>
-                                    {d.upToDate ? `You agreed to version ${d.agreedVersion} on ${day(d.agreedAt)}` : d.version ? 'A new version is waiting for you' : 'Not sent yet'}
+                                    {d.upToDate ? tr('You agreed to version {agreedVersion} on {day}', { agreedVersion: d.agreedVersion, day: day(d.agreedAt) }) : d.version ? tr('A new version is waiting for you') : tr('Not sent yet')}
                                 </Text>
-                            ) : (d.version ? <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>Version {d.version}</Text> : null)}
+                            ) : (d.version ? <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{tr('Version {version}', { version: d.version })}</Text> : null)}
                         </View>
                         <Ionicons name="chevron-forward" size={18} color={muted} />
                     </Pressable>

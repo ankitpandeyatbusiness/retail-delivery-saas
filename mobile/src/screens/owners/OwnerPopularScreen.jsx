@@ -7,6 +7,7 @@ import { ListShimmer } from '../../components/owners/shimmer';
 import { fetchSalesReport, apiError } from '../../api/owners/shopApi';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { periodRange } from '../../utils/owners/moneyRules';
+import { tr } from '../../i18n';
 
 const RANGES = [['7', 'Last 7 days'], ['30', 'Last 30 days'], ['90', 'Last 3 months']];
 
@@ -33,15 +34,15 @@ export default function OwnerPopularScreen() {
     const max = Math.max(1, ...(items || []).map((i) => i.quantity));
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
-            <PageHeader title="Popular items" />
+            <PageHeader title={tr('Popular items')} />
             <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 60 }}>
                 <View style={{ paddingHorizontal: 16 }}><Chips options={RANGES} value={range} onChange={setRange} style={{ marginTop: 0 }} /></View>
                 {items === null ? <ListShimmer rows count={6} /> : null}
-                {err ? <Empty icon="cloud-offline-outline" title="Could not load" hint={err} /> : null}
-                {items && !err && !items.length ? <Empty icon="trophy-outline" title="No sales in this period" hint="Delivered orders are counted here." /> : null}
+                {err ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={err} /> : null}
+                {items && !err && !items.length ? <Empty icon="trophy-outline" title={tr('No sales in this period')} hint={tr('Delivered orders are counted here.')} /> : null}
                 {items && items.length ? (
                     <>
-                        <Text style={{ color: muted, paddingHorizontal: 16, marginBottom: 8 }}>From {orders} delivered {orders === 1 ? 'order' : 'orders'}. Most sold first.</Text>
+                        <Text style={{ color: muted, paddingHorizontal: 16, marginBottom: 8 }}>{tr('From {orders} delivered {v2}. Most sold first.', { orders: orders, v2: orders === 1 ? 'order' : 'orders' })}</Text>
                         <Card>
                             {items.map((it, i) => (
                                 <View key={String(it.productId)} style={{ paddingVertical: 10, borderBottomWidth: i === items.length - 1 ? 0 : 0.5, borderBottomColor: alpha(muted, 0.4) }}>
@@ -49,7 +50,7 @@ export default function OwnerPopularScreen() {
                                         <Text style={{ width: 26, color: i < 3 ? primary : muted, fontWeight: '900' }}>{i + 1}</Text>
                                         <Text style={{ flex: 1, color: text, fontWeight: '800' }} numberOfLines={1}>{it.name}</Text>
                                         <Text style={{ color: text, fontWeight: '900' }}>{it.quantity}</Text>
-                                        <Text style={{ color: muted, fontSize: 12, marginLeft: 4 }}>sold</Text>
+                                        <Text style={{ color: muted, fontSize: 12, marginLeft: 4 }}>{tr('sold')}</Text>
                                     </View>
                                     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, marginLeft: 26 }}>
                                         <View style={{ flex: 1, height: 6, borderRadius: 3, backgroundColor: alpha(muted, 0.18) }}>

@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../common/kit';
 import { tint } from './shop';
 import { useLiveTripStore } from '../../store/customers/useLiveTripStore';
+import { tr } from '../../i18n';
 
 const HEADLINE = {
     finding_rider: 'Finding a delivery partner',
@@ -85,7 +86,7 @@ export default function TrackingCard({ tracking: t, destination }) {
             {liveHere && t.state === 'on_the_way' ? (
                 <Pressable onPress={() => openLive('full')} style={[s.liveBtn, { backgroundColor: primary }]} accessibilityRole="button">
                     <Ionicons name="map" size={18} color="#FFFFFF" />
-                    <Text style={s.liveTxt}>Open live map</Text>
+                    <Text style={s.liveTxt}>{tr('Open live map')}</Text>
                 </Pressable>
             ) : null}
 
@@ -99,9 +100,9 @@ export default function TrackingCard({ tracking: t, destination }) {
                         </Text>
                     </View>
                     {t.rider.phone ? (
-                        <Pressable onPress={() => Linking.openURL(`tel:${t.rider.phone}`).catch(() => { })} style={[s.callBtn, { backgroundColor: primary }]} accessibilityRole="button" accessibilityLabel={`Call ${t.rider.name}`}>
+                        <Pressable onPress={() => Linking.openURL(`tel:${t.rider.phone}`).catch(() => { })} style={[s.callBtn, { backgroundColor: primary }]} accessibilityRole="button" accessibilityLabel={tr('Call {name}', { name: t.rider.name })}>
                             <Ionicons name="call" size={18} color="#FFFFFF" />
-                            <Text style={s.callTxt}>Call</Text>
+                            <Text style={s.callTxt}>{tr('Call')}</Text>
                         </Pressable>
                     ) : null}
                 </View>
@@ -109,7 +110,7 @@ export default function TrackingCard({ tracking: t, destination }) {
 
             {t.deliveryPin ? (
                 <View style={[s.pin, { backgroundColor: tint(primary) }]}>
-                    <Text style={[s.pinLabel, { color: muted }]}>Delivery PIN. Tell it to the rider</Text>
+                    <Text style={[s.pinLabel, { color: muted }]}>{tr('Delivery PIN. Tell it to the rider')}</Text>
                     <Text style={[s.pinNo, { color: primary }]}>{String(t.deliveryPin).split('').join(' ')}</Text>
                 </View>
             ) : null}
@@ -125,14 +126,14 @@ export default function TrackingCard({ tracking: t, destination }) {
                         toolbarEnabled={false} rotateEnabled={false} pitchEnabled={false}
                     >
                         {rider ? (
-                            <Marker ref={bike} coordinate={first.current || rider} title="Delivery partner" anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={settle}>
+                            <Marker ref={bike} coordinate={first.current || rider} title={tr('Delivery partner')} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={settle}>
                                 <View style={[s.bike, { backgroundColor: primary }]}>
                                     <Ionicons name="bicycle" size={20} color="#FFFFFF" />
                                 </View>
                             </Marker>
                         ) : null}
                         {dest ? (
-                            <Marker coordinate={dest} title="Your address" anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={settle}>
+                            <Marker coordinate={dest} title={tr('Your address')} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={settle}>
                                 <View style={s.home}>
                                     <Ionicons name="home" size={16} color="#FFFFFF" />
                                 </View>
@@ -141,7 +142,7 @@ export default function TrackingCard({ tracking: t, destination }) {
                     </MapView>
                     {!rider ? (
                         <View style={[s.wait, { backgroundColor: surface, borderColor: border }]}>
-                            <Text style={[s.sub, { color: muted, marginTop: 0 }]}>Live location will appear once your order is picked up</Text>
+                            <Text style={[s.sub, { color: muted, marginTop: 0 }]}>{tr('Live location will appear once your order is picked up')}</Text>
                         </View>
                     ) : null}
                 </View>

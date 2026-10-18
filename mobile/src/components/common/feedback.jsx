@@ -12,6 +12,7 @@ import { showToast, tint } from '../customers/shop';
 import { rateDelivery, fetchComplaints, sendComplaint } from '../../api/customers/shopApi';
 import { pickPhoto, uploadComplaintPhoto, discardPhoto } from '../../utils/common/photoUpload';
 import { ask } from './dialog';
+import { tr } from '../../i18n';
 
 const errMsg = (e) => e?.response?.data?.error || e?.message || 'Something went wrong';
 const rs = (paise) => `₹${+(paise / 100).toFixed(2)}`;
@@ -56,7 +57,7 @@ export function DeliveryRatingCard({ orderId, tracking, onDone }) {
 
     if (done) {
         return (
-            <CardShell title="Your delivery rating" icon="bicycle-outline">
+            <CardShell title={tr('Your delivery rating')} icon="bicycle-outline">
                 <View style={s.stars}>
                     {[1, 2, 3, 4, 5].map((k) => (
                         <Ionicons key={k} name={done.rating >= k ? 'star' : 'star-outline'} size={26} color={done.rating >= k ? '#F5A623' : '#BBBBBB'} style={{ marginRight: 6 }} />
@@ -77,7 +78,7 @@ export function DeliveryRatingCard({ orderId, tracking, onDone }) {
         setBusy(true);
         try {
             await rateDelivery(orderId, { rating, ...(tags.length ? { tags } : {}), ...(comment.trim() ? { comment: comment.trim() } : {}) });
-            showToast('Thanks for rating your delivery');
+            showToast(tr('Thanks for rating your delivery'));
             onDone?.();
         } catch (e) {
             showToast(errMsg(e));
@@ -86,7 +87,7 @@ export function DeliveryRatingCard({ orderId, tracking, onDone }) {
     };
 
     return (
-        <CardShell title={tracking.rider?.name ? `Rate ${tracking.rider.name}'s delivery` : 'Rate the delivery'} icon="bicycle-outline">
+        <CardShell title={tracking.rider?.name ? tr('Rate {name}\'s delivery', { name: tracking.rider.name }) : tr('Rate the delivery')} icon="bicycle-outline">
             <View style={s.stars}>
                 {[1, 2, 3, 4, 5].map((k) => (
                     <Pressable key={k} onPress={() => pickRating(k)} hitSlop={6}>
@@ -94,7 +95,7 @@ export function DeliveryRatingCard({ orderId, tracking, onDone }) {
                     </Pressable>
                 ))}
             </View>
-            <Text style={[s.word, { color: rating ? '#F5A623' : muted }]}>{rating ? WORDS[rating - 1] : 'Tap a star to rate'}</Text>
+            <Text style={[s.word, { color: rating ? '#F5A623' : muted }]}>{rating ? WORDS[rating - 1] : tr('Tap a star to rate')}</Text>
 
             {options.length ? (
                 <View style={s.chips}>
@@ -105,7 +106,7 @@ export function DeliveryRatingCard({ orderId, tracking, onDone }) {
             {rating ? (
                 <TextInput
                     value={comment} onChangeText={setComment} multiline maxLength={300}
-                    placeholder="Anything else? (optional)" placeholderTextColor={muted}
+                    placeholder={tr('Anything else? (optional)')} placeholderTextColor={muted}
                     style={[s.input, { color: text, borderColor: border, backgroundColor: background, minHeight: 64 }]}
                 />
             ) : null}
@@ -114,7 +115,7 @@ export function DeliveryRatingCard({ orderId, tracking, onDone }) {
                 disabled={!rating || busy} onPress={submit}
                 style={[s.btn, { backgroundColor: primary, borderRadius: radius, opacity: rating ? 1 : 0.5 }]}
             >
-                {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.btnTxt}>Submit rating</Text>}
+                {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.btnTxt}>{tr('Submit rating')}</Text>}
             </Pressable>
         </CardShell>
     );
@@ -170,7 +171,7 @@ export function ComplaintCard({ orderId }) {
     const addPhoto = async (source) => {
         if (photos.length >= MAX_PHOTOS) return;
         let picked;
-        try { picked = await pickPhoto(source); } catch (e) { showToast(e.safe ? e.message : 'Could not open the camera or gallery'); return; }
+        try { picked = await pickPhoto(source); } catch (e) { showToast(e.safe ? e.message : tr('Could not open the camera or gallery')); return; }
         if (!picked) return;
         const key = `${Date.now()}-${Math.random()}`;
         setPhotos((cur) => [...cur, { key, uri: picked.uri, status: 'uploading' }]);
@@ -179,7 +180,7 @@ export function ComplaintCard({ orderId }) {
             setPhotos((cur) => cur.map((p) => (p.key === key ? { ...p, status: 'done', id: up.id, url: up.url } : p)));
         } catch (e) {
             setPhotos((cur) => cur.filter((p) => p.key !== key));
-            showToast(e.safe ? e.message : 'Could not upload that photo');
+            showToast(e.safe ? e.message : tr('Could not upload that photo'));
         }
     };
 
@@ -192,10 +193,10 @@ export function ComplaintCard({ orderId }) {
     // "I did not get this order": one tap and one question, no form
     const notReceived = async () => {
         if (busy) return;
-        const yes = await ask({ title: 'You did not get this order?', message: 'The shop will check with the delivery partner and reply to you.', confirmText: 'Yes, I did not get it' });
+        const yes = await ask({ title: tr('You did not get this order?'), message: tr('The shop will check with the delivery partner and reply to you.'), confirmText: tr('Yes, I did not get it') });
         if (!yes) return;
         setBusy(true);
-        try { await sendComplaint(orderId, { type: 'not_received' }); showToast('Sent to the shop'); await load(); }
+        try { await sendComplaint(orderId, { type: 'not_received' }); showToast(tr('Sent to the shop')); await load(); }
         catch (e) { showToast(errMsg(e)); if (e?.response?.status === 409) load(); }
         finally { setBusy(false); }
     };
@@ -209,15 +210,15 @@ export function ComplaintCard({ orderId }) {
 
     const submit = async () => {
         if (busy) return;
-        if (!type) { showToast('Choose what went wrong'); return; }
-        if (body.trim().length < 3) { showToast('Please describe the problem'); return; }
-        if (uploading) { showToast('Please wait, your photo is uploading'); return; }
-        if (needPhoto && !photos.some((p) => p.status === 'done')) { showToast('Please add a photo of the food'); return; }
+        if (!type) { showToast(tr('Choose what went wrong')); return; }
+        if (body.trim().length < 3) { showToast(tr('Please describe the problem')); return; }
+        if (uploading) { showToast(tr('Please wait, your photo is uploading')); return; }
+        if (needPhoto && !photos.some((p) => p.status === 'done')) { showToast(tr('Please add a photo of the food')); return; }
         setBusy(true);
         try {
             const urls = photos.filter((p) => p.status === 'done').map((p) => p.url);
             await sendComplaint(orderId, { type, text: body.trim(), ...(urls.length ? { photos: urls } : {}) });
-            showToast('Complaint sent to the shop');
+            showToast(tr('Complaint sent to the shop'));
             setOpen(false); setType(''); setBody(''); setPhotos([]);
             await load();
         } catch (e) {
@@ -229,9 +230,9 @@ export function ComplaintCard({ orderId }) {
     if (c) {
         const line = resolutionLine(c);
         return (
-            <CardShell title="Your complaint" icon="alert-circle-outline">
+            <CardShell title={tr('Your complaint')} icon="alert-circle-outline">
                 <View style={s.rowBetween}>
-                    <Text style={[s.strong, { color: text }]}>{TYPE_LABEL[c.type] || 'Problem'}</Text>
+                    <Text style={[s.strong, { color: text }]}>{TYPE_LABEL[c.type] || tr('Problem')}</Text>
                     <View style={[s.pill, { backgroundColor: tint(c.status === 'resolved' ? '#1E8E3E' : primary) }]}>
                         <Text style={[s.pillTxt, { color: c.status === 'resolved' ? '#1E8E3E' : primary }]}>{STATUS[c.status] || c.status}</Text>
                     </View>
@@ -244,7 +245,7 @@ export function ComplaintCard({ orderId }) {
                 ) : null}
                 {c.ownerReply ? (
                     <View style={[s.reply, { backgroundColor: tint(primary) }]}>
-                        <Text style={[s.replyLabel, { color: muted }]}>Reply from the shop</Text>
+                        <Text style={[s.replyLabel, { color: muted }]}>{tr('Reply from the shop')}</Text>
                         <Text style={[s.body, { color: text, marginTop: 2 }]}>{c.ownerReply}</Text>
                     </View>
                 ) : null}
@@ -257,15 +258,13 @@ export function ComplaintCard({ orderId }) {
 
     return (
         <>
-            <CardShell title="Something wrong with this order?" icon="alert-circle-outline">
-                <Text style={[s.body, { color: muted }]}>
-                    Tell the shop what went wrong{data.until ? ` (until ${new Date(data.until).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true })})` : ''}.
-                </Text>
+            <CardShell title={tr('Something wrong with this order?')} icon="alert-circle-outline">
+                <Text style={[s.body, { color: muted }]}>{tr('Tell the shop what went wrong{v1}.', { v1: data.until ? ` (until ${new Date(data.until).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true })})` : '' })}</Text>
                 <Pressable onPress={notReceived} disabled={busy} style={[s.ghost, { borderColor: error, borderRadius: radius, marginBottom: 8, opacity: busy ? 0.6 : 1 }]}>
-                    <Text style={[s.ghostTxt, { color: error }]}>I did not get this order</Text>
+                    <Text style={[s.ghostTxt, { color: error }]}>{tr('I did not get this order')}</Text>
                 </Pressable>
                 <Pressable onPress={() => setOpen(true)} style={[s.ghost, { borderColor: primary, borderRadius: radius }]}>
-                    <Text style={[s.ghostTxt, { color: primary }]}>Report a problem</Text>
+                    <Text style={[s.ghostTxt, { color: primary }]}>{tr('Report a problem')}</Text>
                 </Pressable>
             </CardShell>
 
@@ -274,21 +273,21 @@ export function ComplaintCard({ orderId }) {
                     <Pressable style={StyleSheet.absoluteFill} onPress={closeSheet} />
                     <View style={[s.sheet, { backgroundColor: surface }]}>
                         <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-                            <Text style={[s.sheetTitle, { color: text }]}>Report a problem</Text>
-                            <Text style={[s.label, { color: muted }]}>WHAT WENT WRONG?</Text>
+                            <Text style={[s.sheetTitle, { color: text }]}>{tr('Report a problem')}</Text>
+                            <Text style={[s.label, { color: muted }]}>{tr('WHAT WENT WRONG?')}</Text>
                             <View style={s.chips}>
                                 {TYPES.map(([k, label]) => <Chip key={k} label={label} on={type === k} onPress={() => setType(k)} />)}
                             </View>
-                            <Text style={[s.label, { color: muted }]}>TELL US MORE</Text>
+                            <Text style={[s.label, { color: muted }]}>{tr('TELL US MORE')}</Text>
                             <TextInput
                                 value={body} onChangeText={setBody} multiline maxLength={500}
-                                placeholder="What happened?" placeholderTextColor={muted}
+                                placeholder={tr('What happened?')} placeholderTextColor={muted}
                                 style={[s.input, { color: text, borderColor: border, backgroundColor: background, minHeight: 100 }]}
                             />
                             <Text style={[s.count, { color: body.length >= 500 ? error : muted }]}>{body.length}/500</Text>
 
                             <Text style={[s.label, { color: needPhoto && !photos.length ? error : muted }]}>
-                                {needPhoto ? `PHOTO OF THE FOOD (REQUIRED, UP TO ${MAX_PHOTOS})` : `PHOTOS (OPTIONAL, UP TO ${MAX_PHOTOS})`}
+                                {needPhoto ? tr('PHOTO OF THE FOOD (REQUIRED, UP TO {MAX_PHOTOS})', { MAX_PHOTOS: MAX_PHOTOS }) : tr('PHOTOS (OPTIONAL, UP TO {MAX_PHOTOS})', { MAX_PHOTOS: MAX_PHOTOS })}
                             </Text>
                             <View style={s.thumbs}>
                                 {photos.map((p) => (
@@ -307,11 +306,11 @@ export function ComplaintCard({ orderId }) {
                                     <>
                                         <Pressable onPress={() => addPhoto('camera')} style={[s.thumb, s.add, { borderColor: primary }]}>
                                             <Ionicons name="camera-outline" size={22} color={primary} />
-                                            <Text style={[s.addTxt, { color: primary }]}>Camera</Text>
+                                            <Text style={[s.addTxt, { color: primary }]}>{tr('Camera')}</Text>
                                         </Pressable>
                                         <Pressable onPress={() => addPhoto('gallery')} style={[s.thumb, s.add, { borderColor: primary }]}>
                                             <Ionicons name="images-outline" size={22} color={primary} />
-                                            <Text style={[s.addTxt, { color: primary }]}>Gallery</Text>
+                                            <Text style={[s.addTxt, { color: primary }]}>{tr('Gallery')}</Text>
                                         </Pressable>
                                     </>
                                 ) : null}
@@ -319,10 +318,10 @@ export function ComplaintCard({ orderId }) {
 
                             <View style={s.rowBtns}>
                                 <Pressable disabled={busy} onPress={closeSheet} style={[s.ghost, { flex: 1, marginRight: 10, borderColor: border, borderRadius: radius }]}>
-                                    <Text style={[s.ghostTxt, { color: text }]}>Cancel</Text>
+                                    <Text style={[s.ghostTxt, { color: text }]}>{tr('Cancel')}</Text>
                                 </Pressable>
                                 <Pressable disabled={busy || uploading} onPress={submit} style={[s.btn, { flex: 1.4, marginTop: 0, backgroundColor: primary, borderRadius: radius, opacity: uploading ? 0.6 : 1 }]}>
-                                    {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.btnTxt}>Send</Text>}
+                                    {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.btnTxt}>{tr('Send')}</Text>}
                                 </Pressable>
                             </View>
                         </ScrollView>

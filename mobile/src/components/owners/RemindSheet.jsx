@@ -8,6 +8,7 @@ import { ToggleRow, Hint, Label } from './menuBits';
 import { fetchRemindPreview, sendRemind, apiError } from '../../api/owners/shopApi';
 import { showToast } from '../customers/shop';
 import { LineShimmer } from './shimmer';
+import { tr } from '../../i18n';
 
 export default function RemindSheet({ visible, onClose, customer, onSent }) {
     const { muted, error } = useBrand();
@@ -32,30 +33,30 @@ export default function RemindSheet({ visible, onClose, customer, onSent }) {
         setBusy(true);
         try {
             await sendRemind(customer.id, { ...(edited ? { title: title.trim(), body: body.trim() } : {}), withOffer: offer });
-            showToast('Sent');
+            showToast(tr('Sent'));
             onSent?.(); onClose();
         } catch (e) { showToast(apiError(e)); } finally { setBusy(false); }
     };
     const first = (customer?.name || 'him').split(' ')[0];
 
     return (
-        <Sheet visible={visible} onClose={onClose} title={`Remind ${first}`}>
+        <Sheet visible={visible} onClose={onClose} title={tr('Remind {first}', { first: first })}>
             {err ? <Text style={{ color: error, marginVertical: 12 }}>{err}</Text> : null}
             {!p && !err ? <View style={{ paddingVertical: 12 }}><LineShimmer width={220} height={16} /><View style={{ height: 10 }} /><LineShimmer width={280} height={16} /></View> : null}
             {p ? (
                 <>
-                    <Hint>He gets this as a notification and in his app inbox. It is not sent by SMS or email. You can change the words.</Hint>
+                    <Hint>{tr('He gets this as a notification and in his app inbox. It is not sent by SMS or email. You can change the words.')}</Hint>
                     <View style={{ height: 8 }} />
-                    <Label>Title</Label>
+                    <Label>{tr('Title')}</Label>
                     <Field value={title} onChangeText={(x) => { setTitle(x); setEdited(true); }} maxLength={60} />
                     <View style={{ height: 10 }} />
-                    <Label>Message</Label>
+                    <Label>{tr('Message')}</Label>
                     <Field value={body} onChangeText={(x) => { setBody(x); setEdited(true); }} multiline maxLength={200} style={{ minHeight: 70 }} />
                     {p.maxDiscount > 0 ? (
-                        <ToggleRow title={`Add a ${p.maxDiscount}% discount code`} subtitle="A one-time code, valid for 5 days, only for this message" value={offer} onValueChange={toggleOffer} last />
+                        <ToggleRow title={tr('Add a {maxDiscount}% discount code', { maxDiscount: p.maxDiscount })} subtitle={tr('A one-time code, valid for 5 days, only for this message')} value={offer} onValueChange={toggleOffer} last />
                     ) : null}
-                    {!p.canSend ? <Text style={{ color: error, fontWeight: '700', marginVertical: 10 }}>{p.holdBack}</Text> : <Text style={{ color: muted, fontSize: 12, marginVertical: 10 }}>Language: {p.language === 'hi' ? 'Hindi' : p.language === 'en' ? 'English' : 'Hinglish'}. Change it in Autopilot.</Text>}
-                    <Button label="Send reminder" icon="paper-plane" busy={busy} disabled={!p.canSend || !title.trim() || !body.trim()} onPress={send} />
+                    {!p.canSend ? <Text style={{ color: error, fontWeight: '700', marginVertical: 10 }}>{p.holdBack}</Text> : <Text style={{ color: muted, fontSize: 12, marginVertical: 10 }}>{tr('Language: {v1}. Change it in Autopilot.', { v1: p.language === 'hi' ? 'Hindi' : p.language === 'en' ? 'English' : 'Hinglish' })}</Text>}
+                    <Button label={tr('Send reminder')} icon="paper-plane" busy={busy} disabled={!p.canSend || !title.trim() || !body.trim()} onPress={send} />
                 </>
             ) : null}
         </Sheet>

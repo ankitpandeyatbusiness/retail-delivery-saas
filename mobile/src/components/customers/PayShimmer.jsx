@@ -6,6 +6,7 @@ import { View, Text, Animated, Easing, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand, mix } from '../common/kit';
+import { tr } from '../../i18n';
 
 function Bar({ w, h, r = 10, style, shine, base }) {
     return (
@@ -61,7 +62,7 @@ export default function PayShimmer({ appName }) {
             </View>
 
             <B w="100%" h={54} r={14} style={{ marginTop: 'auto' }} />
-            <Text style={[s.note, { color: muted }]}>{appName ? `Opening ${appName}` : 'Preparing your payment'}…</Text>
+            <Text style={[s.note, { color: muted }]}>{appName ? tr('Opening {appName}', { appName: appName }) : tr('Preparing your payment')}…</Text>
             <View style={[s.dot, { backgroundColor: primary }]} />
         </View>
     );

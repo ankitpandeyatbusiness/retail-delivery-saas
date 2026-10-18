@@ -13,6 +13,7 @@ import { monthName } from '../../utils/owners/moneyRules';
 import { downloadAndOpen } from '../../utils/owners/files';
 import { showToast } from '../../components/customers/shop';
 import { StatShimmer } from '../../components/owners/shimmer';
+import { tr } from '../../i18n';
 
 export default function OwnerTransactionsScreen() {
     const nav = useNavigation();
@@ -33,14 +34,14 @@ export default function OwnerTransactionsScreen() {
         if (!data) return;
         setBusy(true);
         try { await downloadAndOpen({ path: transactionsCsvPath, params: { from: `${data.year}-01-01`, to: `${data.year}-12-31`, format: 'csv' }, filename: `transactions-${data.year}.csv`, mime: 'text/csv', title: `Transactions ${data.year}` }); }
-        catch (e) { showToast(e.safe ? e.message : 'Could not download'); } finally { setBusy(false); }
+        catch (e) { showToast(e.safe ? e.message : tr('Could not download')); } finally { setBusy(false); }
     };
 
     const months = data ? data.months.filter((m) => m.count > 0 || m.pendingPaise > 0) : [];
 
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
-            <PageHeader title="Transactions and bills" />
+            <PageHeader title={tr('Transactions and bills')} />
             <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 60 }}>
                 {data && data.years.length > 1 ? (
                     <View style={{ paddingHorizontal: 16 }}>
@@ -48,26 +49,26 @@ export default function OwnerTransactionsScreen() {
                     </View>
                 ) : null}
                 {!data && !err ? <StatShimmer /> : null}
-                {err ? <Empty icon="cloud-offline-outline" title="Could not load" hint={err} /> : null}
+                {err ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={err} /> : null}
                 {data ? (
                     <>
                         <Card>
                             <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }}>{data.year}</Text>
                             <View style={{ flexDirection: 'row', marginTop: 8 }}>
-                                <Stat label="Money in" value={rupees(data.totals.inPaise)} color={ok} />
-                                <Stat label="Money out" value={rupees(data.totals.outPaise)} />
-                                <Stat label="Kept" value={rupees(data.totals.netPaise)} />
+                                <Stat label={tr('Money in')} value={rupees(data.totals.inPaise)} color={ok} />
+                                <Stat label={tr('Money out')} value={rupees(data.totals.outPaise)} />
+                                <Stat label={tr('Kept')} value={rupees(data.totals.netPaise)} />
                             </View>
-                            <Text style={{ color: muted, fontSize: 12, marginTop: 10 }}>In: customers' online payments. Out: refunds, chargebacks, SMS top-ups and your monthly bills.</Text>
+                            <Text style={{ color: muted, fontSize: 12, marginTop: 10 }}>{tr('In: customers\' online payments. Out: refunds, chargebacks, SMS top-ups and your monthly bills.')}</Text>
                         </Card>
 
-                        {!months.length ? <Empty icon="swap-vertical-outline" title="Nothing in this year" hint="Payments, refunds, top-ups and bills appear here." /> : null}
+                        {!months.length ? <Empty icon="swap-vertical-outline" title={tr('Nothing in this year')} hint={tr('Payments, refunds, top-ups and bills appear here.')} /> : null}
                         {months.map((m) => (
                             <Card key={m.month} onPress={() => nav.navigate('OwnerMonth', { month: m.month })}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                     <View style={{ flex: 1 }}>
                                         <Text style={{ color: text, fontWeight: '900', fontSize: 16 }}>{monthName(m.month)}</Text>
-                                        <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{m.count} {m.count === 1 ? 'entry' : 'entries'}{m.pendingPaise ? ` · ${rupees(m.pendingPaise)} to pay` : ''}</Text>
+                                        <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{m.count} {m.count === 1 ? tr('entry') : tr('entries')}{m.pendingPaise ? tr(' · {rupees} to pay', { rupees: rupees(m.pendingPaise) }) : ''}</Text>
                                     </View>
                                     <View style={{ alignItems: 'flex-end', marginRight: 8 }}>
                                         <Text style={{ color: ok, fontWeight: '800' }}>+{rupees(m.inPaise)}</Text>
@@ -77,7 +78,7 @@ export default function OwnerTransactionsScreen() {
                                 </View>
                             </Card>
                         ))}
-                        {months.length ? <View style={{ paddingHorizontal: 16 }}><Button label={`Download ${data.year} (spreadsheet)`} icon="download" kind="ghost" working={busy} disabled={busy} onPress={csv} /></View> : null}
+                        {months.length ? <View style={{ paddingHorizontal: 16 }}><Button label={tr('Download {year} (spreadsheet)', { year: data.year })} icon="download" kind="ghost" working={busy} disabled={busy} onPress={csv} /></View> : null}
                     </>
                 ) : null}
             </ScrollView>

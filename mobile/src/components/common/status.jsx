@@ -8,6 +8,7 @@ import { useAuthStore } from '../../store/common/useAuthStore';
 import { useThemeStore } from '../../store/common/useThemeStore';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useMenuStore } from '../../store/customers/shopStores';
+import { tr } from '../../i18n';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const fmt = (v) => {
@@ -43,16 +44,16 @@ export function FrozenOverlay({ onOrders }) {
             <Text style={[s.shop, { color: muted }]}>{shop}</Text>
             <View style={s.body}>
                 <Text style={s.emoji}>{maint ? '🛠' : '⛔'}</Text>
-                <Text style={[s.title, { color: text }]}>{maint ? 'Back soon' : 'Not available right now'}</Text>
+                <Text style={[s.title, { color: text }]}>{maint ? tr('Back soon') : tr('Not available right now')}</Text>
                 <Text style={[s.msg, { color: muted }]}>{msg}</Text>
-                {maint && until ? <Text style={[s.until, { color: muted }]}>Expected back by {until}</Text> : null}
+                {maint && until ? <Text style={[s.until, { color: muted }]}>{tr('Expected back by {until}', { until: until })}</Text> : null}
 
                 <Pressable onPress={retry} disabled={busy} style={[s.solid, { backgroundColor: primary, borderRadius: radius }]}>
-                    {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.solidTxt}>Try again</Text>}
+                    {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.solidTxt}>{tr('Try again')}</Text>}
                 </Pressable>
                 {user ? (
                     <Pressable onPress={onOrders} style={[s.ghost, { borderColor: primary, borderRadius: radius }]}>
-                        <Text style={[s.ghostTxt, { color: primary }]}>My orders</Text>
+                        <Text style={[s.ghostTxt, { color: primary }]}>{tr('My orders')}</Text>
                     </Pressable>
                 ) : null}
             </View>
@@ -74,8 +75,8 @@ export function OfflineBanner() {
     if (!offline) return null;
     return (
         <View style={[s.off, { paddingTop: insets.top + 4 }]}>
-            <Text style={s.offTxt}>You are offline. Showing saved data.</Text>
-            <Pressable onPress={reloadShop} hitSlop={8}><Text style={s.offBtn}>Retry</Text></Pressable>
+            <Text style={s.offTxt}>{tr('You are offline. Showing saved data.')}</Text>
+            <Pressable onPress={reloadShop} hitSlop={8}><Text style={s.offBtn}>{tr('Retry')}</Text></Pressable>
         </View>
     );
 }

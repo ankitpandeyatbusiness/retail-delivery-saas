@@ -8,6 +8,7 @@ import { useSoundboxStore, REPEAT_CHOICES } from '../../store/owners/useSoundbox
 import { labelledVoices, sampleVoice, previewGreeting } from '../../utils/owners/soundbox';
 import { FAITH_GREETINGS, ADDRESS_CHOICES } from '../../utils/owners/greetings';
 import { newOrderChannelInfo } from '../../utils/common/push';
+import { tr } from '../../i18n';
 
 const VOLUMES = [[0.4, 'Low'], [0.7, 'Medium'], [1, 'Loud']];
 const LANGUAGES = [['en', 'English'], ['hi', 'हिन्दी']];
@@ -59,27 +60,27 @@ export default function SoundboxScreen() {
 
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
-            <PageHeader title="Soundbox" />
+            <PageHeader title={tr('Soundbox')} />
             <ScrollView contentContainerStyle={{ paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
                 <Card style={{ marginTop: 8 }}>
                     <Switcher
-                        title="Soundbox mode"
-                        subtitle="Rings and reads every new order out loud, and keeps listening with the screen off. Keep the phone on charge. Off means no new-order sound at all on this phone."
+                        title={tr('Soundbox mode')}
+                        subtitle={tr('Rings and reads every new order out loud, and keeps listening with the screen off. Keep the phone on charge. Off means no new-order sound at all on this phone.')}
                         value={st.soundbox}
                         onChange={(v) => st.update({ soundbox: v })}
                     />
                     {!st.soundbox ? (
-                        <Text style={{ color: muted, fontSize: 12, marginTop: 4 }}>Turn Soundbox mode on to change the settings below.</Text>
+                        <Text style={{ color: muted, fontSize: 12, marginTop: 4 }}>{tr('Turn Soundbox mode on to change the settings below.')}</Text>
                     ) : null}
                 </Card>
 
-                <SectionTitle title="Phone check" />
+                <SectionTitle title={tr('Phone check')} />
                 <Card>
-                    <Label title="Is this phone ready for new orders?" hint="Every line should have a green tick. Fix any red line, then press Check again." />
+                    <Label title={tr('Is this phone ready for new orders?')} hint={tr('Every line should have a green tick. Fix any red line, then press Check again.')} />
                     <View style={{ marginTop: 10 }}>
-                        {!chan ? <Text style={{ color: muted, fontSize: 13 }}>Checking…</Text> : null}
-                        {chan && !chan.supported ? <Text style={{ color: muted, fontSize: 13 }}>This check is for Android phones.</Text> : null}
-                        {chan?.supported && chan.error ? <Text style={{ color: error, fontSize: 13 }}>Could not read it: {chan.error}</Text> : null}
+                        {!chan ? <Text style={{ color: muted, fontSize: 13 }}>{tr('Checking…')}</Text> : null}
+                        {chan && !chan.supported ? <Text style={{ color: muted, fontSize: 13 }}>{tr('This check is for Android phones.')}</Text> : null}
+                        {chan?.supported && chan.error ? <Text style={{ color: error, fontSize: 13 }}>{tr('Could not read it: {error}', { error: chan.error })}</Text> : null}
                         {chan?.supported && !chan.error ? [
                             [chan.allowed, 'Notifications are allowed for this app', 'Phone settings → Apps → this app → Notifications → Allow.'],
                             [chan.exists, 'The "New orders" channel exists', 'Open the app once while logged in as the owner, then press Check again.'],
@@ -101,8 +102,8 @@ export default function SoundboxScreen() {
                         )) : null}
                     </View>
                     <View style={{ flexDirection: 'row' }}>
-                        <Button label="Check again" kind="ghost" onPress={() => newOrderChannelInfo().then(setChan)} style={{ flex: 1, marginRight: 8 }} />
-                        <Button label="Phone notification settings" kind="ghost" onPress={() => Linking.openSettings()} style={{ flex: 1 }} />
+                        <Button label={tr('Check again')} kind="ghost" onPress={() => newOrderChannelInfo().then(setChan)} style={{ flex: 1, marginRight: 8 }} />
+                        <Button label={tr('Phone notification settings')} kind="ghost" onPress={() => Linking.openSettings()} style={{ flex: 1 }} />
                     </View>
                 </Card>
 
@@ -110,57 +111,57 @@ export default function SoundboxScreen() {
                 <View pointerEvents={st.soundbox ? 'auto' : 'none'} style={{ opacity: st.soundbox ? 1 : 0.4 }}>
                 <Card>
                     <Switcher
-                        title="Keep Soundbox always ready"
+                        title={tr('Keep Soundbox always ready')}
                         subtitle={st.alwaysReady
-                            ? 'ON: the app stays awake in the background and shows "Soundbox is on" in your notification panel. A new order keeps repeating, even with the screen off, until you open it.'
-                            : 'OFF: no permanent notification. A new order plays the "New order received" sound and is read out once, and repeats only while the app is open. Best for a phone you also use for other things.'}
+                            ? tr('ON: the app stays awake in the background and shows "Soundbox is on" in your notification panel. A new order keeps repeating, even with the screen off, until you open it.')
+                            : tr('OFF: no permanent notification. A new order plays the "New order received" sound and is read out once, and repeats only while the app is open. Best for a phone you also use for other things.')}
                         value={st.alwaysReady}
                         onChange={(v) => st.update({ alwaysReady: v })}
                     />
                     {st.alwaysReady ? (
                         <Text style={{ color: muted, fontSize: 12, marginTop: 6 }}>
-                            Recommended for a counter phone that stays on charge. Other apps (music, videos) still play normally.
+                            {tr('Recommended for a counter phone that stays on charge. Other apps (music, videos) still play normally.')}
                         </Text>
                     ) : null}
                 </Card>
 
                 <Card>
                     <Switcher
-                        title="Repeating chime"
-                        subtitle="Rings again and again until you open the order."
+                        title={tr('Repeating chime')}
+                        subtitle={tr('Rings again and again until you open the order.')}
                         value={st.ring}
                         onChange={(v) => st.update({ ring: v })}
                     />
                 </Card>
 
-                <SectionTitle title="Volume and repeat" />
+                <SectionTitle title={tr('Volume and repeat')} />
                 <Card>
-                    <Label title="Volume" />
+                    <Label title={tr('Volume')} />
                     <Chips options={VOLUMES} value={st.volume} onChange={(v) => st.update({ volume: v })} />
                     <View style={{ height: 8 }} />
-                    <Label title="Repeat every" hint="Quiet time after the bell and the voice have finished, before it rings again." />
+                    <Label title={tr('Repeat every')} hint={tr('Quiet time after the bell and the voice have finished, before it rings again.')} />
                     <Chips options={REPEAT_CHOICES.map((n) => [n, `${n} sec`])} value={st.repeatSec} onChange={(v) => st.update({ repeatSec: v })} />
                 </Card>
 
-                <SectionTitle title="Voice" />
+                <SectionTitle title={tr('Voice')} />
                 <Card>
                     <Label
-                        title="Read the order in"
+                        title={tr('Read the order in')}
                         hint={hindi
-                            ? 'नया ऑर्डर। 2 Butter Naan… कुल 540 रुपये। Dish names stay as on your menu.'
-                            : 'New order. 2 Butter Naan… Total 540 rupees.'}
+                            ? tr('नया ऑर्डर। 2 Butter Naan… कुल 540 रुपये। Dish names stay as on your menu.')
+                            : tr('New order. 2 Butter Naan… Total 540 rupees.')}
                     />
                     <Chips options={LANGUAGES} value={st.language} onChange={(v) => st.update({ language: v })} />
                 </Card>
 
                 <Card>
-                    <Label title={hindi ? 'Hindi voice' : 'English voice'} hint="Tap a name to hear it." />
-                    {voices === null ? <Text style={{ color: muted, marginTop: 10 }}>Looking for voices…</Text> : null}
+                    <Label title={hindi ? tr('Hindi voice') : tr('English voice')} hint={tr('Tap a name to hear it.')} />
+                    {voices === null ? <Text style={{ color: muted, marginTop: 10 }}>{tr('Looking for voices…')}</Text> : null}
                     {voices && !voices.length ? (
                         <Text style={{ color: muted, fontSize: 13, marginTop: 10 }}>
                             {hindi
-                                ? 'This phone has no Hindi voice, so orders are read in English. To add one: Settings → Language → Text-to-speech → Google Text-to-speech → Install voice data → हिन्दी.'
-                                : 'No English voice found on this phone. Add one: Settings → Language → Text-to-speech → Google Text-to-speech → Install voice data → English (India).'}
+                                ? tr('This phone has no Hindi voice, so orders are read in English. To add one: Settings → Language → Text-to-speech → Google Text-to-speech → Install voice data → हिन्दी.')
+                                : tr('No English voice found on this phone. Add one: Settings → Language → Text-to-speech → Google Text-to-speech → Install voice data → English (India).')}
                         </Text>
                     ) : null}
                     <View style={{ marginTop: 4 }}>
@@ -170,7 +171,7 @@ export default function SoundboxScreen() {
                                 selected={voice.identifier === chosenId}
                                 title={name}
                                 subtitle={sub}
-                                badge={recommended ? <Pill label="Recommended" color={ok} icon="star" /> : null}
+                                badge={recommended ? <Pill label={tr('Recommended')} color={ok} icon="star" /> : null}
                                 last={i === arr.length - 1}
                                 onPress={() => { st.update(hindi ? { voiceIdHi: voice.identifier } : { voiceId: voice.identifier }); sampleVoice(voice, st.language); }}
                             />
@@ -178,11 +179,11 @@ export default function SoundboxScreen() {
                     </View>
                 </Card>
 
-                <SectionTitle title="Greeting before the order" />
+                <SectionTitle title={tr('Greeting before the order')} />
                 <Card>
                     <Switcher
-                        title="Call me"
-                        subtitle={hindi ? '"सर", "मैडम" या आपका नाम' : 'Say "sir", "madam" or your name'}
+                        title={tr('Call me')}
+                        subtitle={hindi ? '"सर", "मैडम" या आपका नाम' : tr('Say "sir", "madam" or your name')}
                         value={st.callMe}
                         onChange={(v) => st.update({ callMe: v })}
                     />
@@ -191,18 +192,18 @@ export default function SoundboxScreen() {
                             <Chips options={ADDRESS_CHOICES} value={st.addressAs} onChange={(v) => st.update({ addressAs: v })} />
                             {st.addressAs === 'name' ? (
                                 <View style={{ marginTop: 4 }}>
-                                    <Label title="Name to say" hint={hindi ? 'उदाहरण: "Ankit" को "Ankit जी" बोला जाएगा।' : 'For example "Ankit", said as "Ankit".'} />
+                                    <Label title={tr('Name to say')} hint={hindi ? tr('उदाहरण: "Ankit" को "Ankit जी" बोला जाएगा।') : tr('For example "Ankit", said as "Ankit".')} />
                                     <TextInput
                                         value={st.ownerName}
                                         onChangeText={(v) => st.update({ ownerName: v })}
-                                        placeholder="Your name"
+                                        placeholder={tr('Your name')}
                                         placeholderTextColor={muted}
                                         maxLength={30}
                                         autoCapitalize="words"
                                         style={{ marginTop: 8, borderWidth: 1, borderColor: border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, color: text, fontSize: 15 }}
                                     />
                                     {!st.ownerName.trim() ? (
-                                        <Text style={{ color: error, fontSize: 12, marginTop: 6 }}>No name yet, so "sir" is said. Type your name above.</Text>
+                                        <Text style={{ color: error, fontSize: 12, marginTop: 6 }}>{tr('No name yet, so "sir" is said. Type your name above.')}</Text>
                                     ) : null}
                                 </View>
                             ) : null}
@@ -211,9 +212,9 @@ export default function SoundboxScreen() {
                 </Card>
 
                 <Card>
-                    <Label title="Greeting of your faith" hint="Said once when a new order arrives, in front of the order." />
+                    <Label title={tr('Greeting of your faith')} hint={tr('Said once when a new order arrives, in front of the order.')} />
                     <View style={{ marginTop: 4 }}>
-                        <Option selected={!st.greetFaith} title="None" onPress={() => st.update({ greetFaith: null })} last />
+                        <Option selected={!st.greetFaith} title={tr('None')} onPress={() => st.update({ greetFaith: null })} last />
                     </View>
                     {FAITH_GREETINGS.map(([group, rows]) => (
                         <View key={group}>
@@ -230,17 +231,17 @@ export default function SoundboxScreen() {
                             ))}
                         </View>
                     ))}
-                    <Button label="Hear the greeting" icon="volume-high" kind="ghost" onPress={previewGreeting} style={{ marginTop: 14 }} />
+                    <Button label={tr('Hear the greeting')} icon="volume-high" kind="ghost" onPress={previewGreeting} style={{ marginTop: 14 }} />
                     <Text style={{ color: muted, fontSize: 12, marginTop: 10 }}>
-                        The greeting is said once, in front of the order. The short "New order received" voice that plays with the screen off is a fixed sound and has no greeting.
+                        {tr('The greeting is said once, in front of the order. The short "New order received" voice that plays with the screen off is a fixed sound and has no greeting.')}
                     </Text>
                 </Card>
 
                 </View>
 
-                <SectionTitle title="If orders are missed" />
+                <SectionTitle title={tr('If orders are missed')} />
                 <Card>
-                    <Label title="Make the phone keep the app alive" />
+                    <Label title={tr('Make the phone keep the app alive')} />
                     <View style={{ marginTop: 10 }}>
                         {[
                             'Do not force stop the app. Swiping it away from recent apps is fine.',
@@ -254,7 +255,7 @@ export default function SoundboxScreen() {
                             </View>
                         ))}
                     </View>
-                    <Button label="Open phone settings" kind="ghost" onPress={() => Linking.openSettings()} style={{ marginTop: 4 }} />
+                    <Button label={tr('Open phone settings')} kind="ghost" onPress={() => Linking.openSettings()} style={{ marginTop: 4 }} />
                 </Card>
             </ScrollView>
         </View>

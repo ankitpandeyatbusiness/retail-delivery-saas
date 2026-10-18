@@ -12,6 +12,7 @@ import { pickImage, uploadImage } from '../../utils/owners/upload';
 import { amountLabel, stockUnit, itemState, MAX_GROUPS, MAX_OPTIONS, DAYS, maskTime } from '../../utils/owners/menuRules';
 import { clockTime } from '../../utils/owners/orderFlow';
 import { LineShimmer } from './shimmer';
+import { tr } from '../../i18n';
 
 /* ------------------------------ small things ------------------------------ */
 // the small coloured square for veg / non-veg, as on food apps
@@ -175,7 +176,7 @@ export function ImageField({ label = 'Picture', value, onChange, kind, refId, sq
             if (!img) return;
             const m = await uploadImage({ kind, refId, ...img });
             onChange(m.url);
-        } catch (e) { showToast(e.safe ? e.message : 'Could not upload that picture'); } finally { setBusy(false); }
+        } catch (e) { showToast(e.safe ? e.message : tr('Could not upload that picture')); } finally { setBusy(false); }
     };
     return (
         <View style={{ marginBottom: last ? 0 : 16 }}>
@@ -188,13 +189,13 @@ export function ImageField({ label = 'Picture', value, onChange, kind, refId, sq
                 <View style={{ flex: 1, marginLeft: 14 }}>
                     <Pressable onPress={pick} disabled={busy} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Ionicons name="camera" size={18} color={primary} />
-                        <Text style={{ color: primary, fontWeight: '800', marginLeft: 6 }}>{busy ? 'Uploading…' : value ? 'Change picture' : 'Add picture'}</Text>
+                        <Text style={{ color: primary, fontWeight: '800', marginLeft: 6 }}>{busy ? tr('Uploading…') : value ? tr('Change picture') : tr('Add picture')}</Text>
                     </Pressable>
                     {value ? (
                         <Pressable onPress={() => onChange('')} hitSlop={8} style={{ marginTop: 10 }}>
-                            <Text style={{ color: error, fontWeight: '700', fontSize: 13 }}>Remove picture</Text>
+                            <Text style={{ color: error, fontWeight: '700', fontSize: 13 }}>{tr('Remove picture')}</Text>
                         </Pressable>
-                    ) : <Text style={{ color: muted, fontSize: 12, marginTop: 4 }}>JPG, PNG or WebP, up to 5 MB</Text>}
+                    ) : <Text style={{ color: muted, fontSize: 12, marginTop: 4 }}>{tr('JPG, PNG or WebP, up to 5 MB')}</Text>}
                 </View>
             </View>
         </View>
@@ -217,13 +218,13 @@ export function DateBox({ label, hint, value, onChange, last }) {
             <TextInput
                 value={value || ''}
                 onChangeText={(v) => onChange(mask(v))}
-                placeholder="YYYY-MM-DD"
+                placeholder={tr('YYYY-MM-DD')}
                 placeholderTextColor={muted}
                 keyboardType="number-pad"
                 maxLength={10}
                 style={{ minHeight: 46, borderRadius: 12, borderWidth: 1, borderColor: bad ? error : border, backgroundColor: surface, color: text, paddingHorizontal: 14, fontSize: 15, fontWeight: '600' }}
             />
-            {bad ? <Hint tone="warn">Type the date as 2026-11-01</Hint> : null}
+            {bad ? <Hint tone="warn">{tr('Type the date as 2026-11-01')}</Hint> : null}
         </View>
     );
 }
@@ -238,39 +239,39 @@ export function OptionGroupsEditor({ value = [], onChange }) {
             {value.map((g, gi) => (
                 <View key={gi} style={{ borderWidth: 1, borderColor: border, borderRadius: 16, padding: 12, marginBottom: 12 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                        <Text style={{ color: text, fontWeight: '900' }}>Choice {gi + 1}</Text>
+                        <Text style={{ color: text, fontWeight: '900' }}>{tr('Choice {v1}', { v1: gi + 1 })}</Text>
                         <Pressable onPress={() => onChange(value.filter((_, i) => i !== gi))} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center' }}>
                             <Ionicons name="trash-outline" size={17} color={error} />
-                            <Text style={{ color: error, fontWeight: '700', marginLeft: 4 }}>Remove</Text>
+                            <Text style={{ color: error, fontWeight: '700', marginLeft: 4 }}>{tr('Remove')}</Text>
                         </Pressable>
                     </View>
-                    <TextBox label="Question the customer sees" value={g.name} maxLength={40} placeholder="e.g. Choose size" onChangeText={(x) => setGroup(gi, { name: x })} />
+                    <TextBox label={tr('Question the customer sees')} value={g.name} maxLength={40} placeholder={tr('e.g. Choose size')} onChangeText={(x) => setGroup(gi, { name: x })} />
                     <View style={{ flexDirection: 'row' }}>
-                        <NumberBox style={{ flex: 1, marginRight: 10 }} label="Must pick at least" integer value={g.min} onChange={(x) => setGroup(gi, { min: x ?? 0 })} hint="0 = optional" />
-                        <NumberBox style={{ flex: 1 }} label="Can pick up to" integer value={g.max} onChange={(x) => setGroup(gi, { max: x ?? 1 })} hint="1 = pick one" />
+                        <NumberBox style={{ flex: 1, marginRight: 10 }} label={tr('Must pick at least')} integer value={g.min} onChange={(x) => setGroup(gi, { min: x ?? 0 })} hint={tr('0 = optional')} />
+                        <NumberBox style={{ flex: 1 }} label={tr('Can pick up to')} integer value={g.max} onChange={(x) => setGroup(gi, { max: x ?? 1 })} hint={tr('1 = pick one')} />
                     </View>
                     {g.options.map((o, oi) => (
                         <View key={oi} style={{ backgroundColor: alpha(muted, 0.08), borderRadius: 12, padding: 10, marginBottom: 8 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
                                 <View style={{ flex: 1.6, marginRight: 8 }}>
-                                    <TextBox label={oi === 0 ? 'Option' : undefined} value={o.name} maxLength={40} placeholder="e.g. Large" last onChangeText={(x) => setOption(gi, oi, { name: x })} />
+                                    <TextBox label={oi === 0 ? tr('Option') : undefined} value={o.name} maxLength={40} placeholder={tr('e.g. Large')} last onChangeText={(x) => setOption(gi, oi, { name: x })} />
                                 </View>
-                                <NumberBox style={{ flex: 1 }} label={oi === 0 ? 'Extra ₹' : undefined} value={o.price} last onChange={(x) => setOption(gi, oi, { price: x ?? 0 })} />
+                                <NumberBox style={{ flex: 1 }} label={oi === 0 ? tr('Extra ₹') : undefined} value={o.price} last onChange={(x) => setOption(gi, oi, { price: x ?? 0 })} />
                                 <Pressable onPress={() => setGroup(gi, { options: g.options.filter((_, i) => i !== oi) })} hitSlop={8} style={{ height: 46, justifyContent: 'center', paddingLeft: 8 }}>
                                     <Ionicons name="close-circle" size={22} color={muted} />
                                 </Pressable>
                             </View>
-                            <ToggleRow title="Selected by default" value={!!o.isDefault} onValueChange={(x) => setOption(gi, oi, { isDefault: x })} />
-                            <ToggleRow title="Available" value={o.isAvailable !== false} onValueChange={(x) => setOption(gi, oi, { isAvailable: x })} last />
+                            <ToggleRow title={tr('Selected by default')} value={!!o.isDefault} onValueChange={(x) => setOption(gi, oi, { isDefault: x })} />
+                            <ToggleRow title={tr('Available')} value={o.isAvailable !== false} onValueChange={(x) => setOption(gi, oi, { isAvailable: x })} last />
                         </View>
                     ))}
                     {g.options.length < MAX_OPTIONS ? (
-                        <Button label="Add an option" kind="ghost" icon="add" onPress={() => setGroup(gi, { options: [...g.options, { name: '', price: 0, isDefault: false, isAvailable: true }] })} />
+                        <Button label={tr('Add an option')} kind="ghost" icon="add" onPress={() => setGroup(gi, { options: [...g.options, { name: '', price: 0, isDefault: false, isAvailable: true }] })} />
                     ) : null}
                 </View>
             ))}
             {value.length < MAX_GROUPS ? (
-                <Button label="Add a choice" kind="ghost" icon="add-circle-outline" onPress={() => onChange([...value, { name: '', min: 0, max: 1, options: [{ name: '', price: 0, isDefault: false, isAvailable: true }] }])} />
+                <Button label={tr('Add a choice')} kind="ghost" icon="add-circle-outline" onPress={() => onChange([...value, { name: '', min: 0, max: 1, options: [{ name: '', price: 0, isDefault: false, isAvailable: true }] }])} />
             ) : null}
         </View>
     );
@@ -296,13 +297,13 @@ export function MeasureEditor({ sellBy, value, presets, onChange, error }) {
     const toggle = (q) => onChange({ ...value, options: has(q) ? value.options.filter((x) => x !== q) : [...value.options, q].sort((a, b) => a - b) });
     const addTyped = () => {
         const q = Math.round((unit === big ? 1000 : 1) * Number(typed));
-        if (!(q >= 10 && q <= 50000)) { showToast('Type an amount from 10 g (ml) to 50 kg (L)'); return; }
+        if (!(q >= 10 && q <= 50000)) { showToast(tr('Type an amount from 10 g (ml) to 50 kg (L)')); return; }
         if (!has(q)) onChange({ ...value, options: [...value.options, q].sort((a, b) => a - b) });
         setTyped(undefined);
     };
     return (
         <View>
-            <Label hint="Tap to switch a size on or off">Quick sizes</Label>
+            <Label hint={tr('Tap to switch a size on or off')}>{tr('Quick sizes')}</Label>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                 {options.map((q) => (
                     <Pressable key={q} onPress={() => toggle(q)} style={{ paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12, marginRight: 8, marginBottom: 8, borderWidth: 1, borderColor: has(q) ? primary : border, backgroundColor: has(q) ? primary : 'transparent' }}>
@@ -311,21 +312,21 @@ export function MeasureEditor({ sellBy, value, presets, onChange, error }) {
                 ))}
             </View>
             <View style={{ height: 8 }} />
-            <Label>Another size</Label>
+            <Label>{tr('Another size')}</Label>
             <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-                <NumberBox style={{ flex: 1 }} value={typed} onChange={setTyped} placeholder="e.g. 750" last />
+                <NumberBox style={{ flex: 1 }} value={typed} onChange={setTyped} placeholder={tr('e.g. 750')} last />
                 <Pressable onPress={() => setUnit(unit === small ? big : small)} style={{ height: 46, minWidth: 56, marginLeft: 8, borderRadius: 12, backgroundColor: alpha(primary, 0.12), alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 }}>
                     <Text style={{ color: primary, fontWeight: '900' }}>{unit} ⇄</Text>
                 </Pressable>
                 <Pressable onPress={addTyped} style={{ height: 46, marginLeft: 8, borderRadius: 12, backgroundColor: primary, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 }}>
-                    <Text style={{ color: onPrimary, fontWeight: '900' }}>Add</Text>
+                    <Text style={{ color: onPrimary, fontWeight: '900' }}>{tr('Add')}</Text>
                 </Pressable>
             </View>
             <View style={{ height: 16 }} />
-            <ToggleRow title="Customer can type their own amount" subtitle="For example 650 g or 1.25 kg" value={value.allowManual} onValueChange={(x) => onChange({ ...value, allowManual: x })} last />
+            <ToggleRow title={tr('Customer can type their own amount')} subtitle={tr('For example 650 g or 1.25 kg')} value={value.allowManual} onValueChange={(x) => onChange({ ...value, allowManual: x })} last />
             <View style={{ height: 14 }} />
-            <NumberBox label={`Smallest amount the customer can order (${small})`} integer value={value.min} onChange={(x) => onChange({ ...value, min: x })} placeholder="50" error={error} last />
-            <Hint>The customer sees the price worked out from the price per {sellBy === 'volume' ? 'litre' : 'kg'}.</Hint>
+            <NumberBox label={tr('Smallest amount the customer can order ({small})', { small: small })} integer value={value.min} onChange={(x) => onChange({ ...value, min: x })} placeholder="50" error={error} last />
+            <Hint>{tr('The customer sees the price worked out from the price per {v1}.', { v1: sellBy === 'volume' ? 'litre' : 'kg' })}</Hint>
         </View>
     );
 }
@@ -340,12 +341,12 @@ export function TimingEditor({ value = [], onChange }) {
             {value.map((s, i) => (
                 <View key={i} style={{ borderTopWidth: i ? StyleSheet.hairlineWidth : 0, borderTopColor: border, paddingTop: i ? 12 : 0, marginBottom: 12 }}>
                     <View style={{ flexDirection: 'row' }}>
-                        <View style={{ flex: 1 }}><TextBox label="From" value={s.open} placeholder="HH:MM" keyboardType="number-pad" maxLength={5} last onChangeText={(x) => setSlot(i, { open: maskTime(x) })} /></View>
+                        <View style={{ flex: 1 }}><TextBox label={tr('From')} value={s.open} placeholder={tr('HH:MM')} keyboardType="number-pad" maxLength={5} last onChangeText={(x) => setSlot(i, { open: maskTime(x) })} /></View>
                         <View style={{ width: 10 }} />
-                        <View style={{ flex: 1 }}><TextBox label="To" value={s.close} placeholder="HH:MM" keyboardType="number-pad" maxLength={5} last onChangeText={(x) => setSlot(i, { close: maskTime(x) })} /></View>
+                        <View style={{ flex: 1 }}><TextBox label={tr('To')} value={s.close} placeholder={tr('HH:MM')} keyboardType="number-pad" maxLength={5} last onChangeText={(x) => setSlot(i, { close: maskTime(x) })} /></View>
                     </View>
                     <View style={{ height: 12 }} />
-                    <Label hint="Leave all unselected for every day">Days</Label>
+                    <Label hint={tr('Leave all unselected for every day')}>{tr('Days')}</Label>
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                         {DAYS.map(([d, l]) => {
                             const on = (s.days || []).includes(d);
@@ -359,13 +360,13 @@ export function TimingEditor({ value = [], onChange }) {
                     </View>
                     <Pressable onPress={() => onChange(value.filter((_, n) => n !== i))} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
                         <Ionicons name="trash-outline" size={17} color={error} />
-                        <Text style={{ color: error, fontWeight: '700', marginLeft: 6 }}>Remove this time slot</Text>
+                        <Text style={{ color: error, fontWeight: '700', marginLeft: 6 }}>{tr('Remove this time slot')}</Text>
                     </Pressable>
                 </View>
             ))}
             {value.length < 6 ? (
-                <Button label="Add a time slot" kind="ghost" icon="time-outline" onPress={() => onChange([...value, { days: [], open: '07:00', close: '11:00' }])} />
-            ) : <Hint>Up to 6 time slots.</Hint>}
+                <Button label={tr('Add a time slot')} kind="ghost" icon="time-outline" onPress={() => onChange([...value, { days: [], open: '07:00', close: '11:00' }])} />
+            ) : <Hint>{tr('Up to 6 time slots.')}</Hint>}
         </View>
     );
 }
@@ -380,7 +381,7 @@ const SOLD_OUT = [
 
 export function SoldOutSheet({ item, onClose, onPick }) {
     return (
-        <Sheet visible={!!item} onClose={onClose} title={item ? `${item.name} is sold out` : ''}>
+        <Sheet visible={!!item} onClose={onClose} title={item ? tr('{name} is sold out', { name: item.name }) : ''}>
             {SOLD_OUT.map(([title, sub, body, icon], i) => (
                 <Row key={title} icon={icon} title={title} subtitle={sub} last={i === SOLD_OUT.length - 1} onPress={() => onPick(item, { available: false, ...body })} />
             ))}
@@ -411,13 +412,13 @@ export function ItemRow({ item, onOpen, onSwitch, onStep, last }) {
                 </View>
                 <Text style={{ color: muted, fontSize: 13, marginTop: 2 }}>
                     {money(item.price)}{kg}
-                    {item.isBestseller ? '  ·  Bestseller' : ''}
+                    {item.isBestseller ? tr('  ·  Bestseller') : ''}
                 </Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, flexWrap: 'wrap' }}>
-                    {state === 'timed' ? <Pill label={`Back at ${clockTime(item.unavailableUntil)}`} color={error} icon="time-outline" /> : null}
-                    {state === 'off' ? <Pill label="Sold out" color={error} /> : null}
-                    {state === 'stock' ? <Pill label="Stock finished" color={error} /> : null}
-                    {state === 'on' && counted ? <Pill label={`${u.say(item.stock.qty)} left`} color={item.stock.qty <= (item.sellBy === 'piece' ? 5 : 1000) ? '#D97706' : ok} /> : null}
+                    {state === 'timed' ? <Pill label={tr('Back at {clockTime}', { clockTime: clockTime(item.unavailableUntil) })} color={error} icon="time-outline" /> : null}
+                    {state === 'off' ? <Pill label={tr('Sold out')} color={error} /> : null}
+                    {state === 'stock' ? <Pill label={tr('Stock finished')} color={error} /> : null}
+                    {state === 'on' && counted ? <Pill label={tr('{v1} left', { v1: u.say(item.stock.qty) })} color={item.stock.qty <= (item.sellBy === 'piece' ? 5 : 1000) ? '#D97706' : ok} /> : null}
                     {counted && item.sellBy === 'piece' && onStep ? (
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: state === 'on' ? 8 : 0 }}>
                             <Pressable onPress={() => onStep(item, -1)} hitSlop={8} style={[styles.step, { borderColor: border }]}><Ionicons name="remove" size={16} color={text} /></Pressable>
@@ -428,7 +429,7 @@ export function ItemRow({ item, onOpen, onSwitch, onStep, last }) {
             </View>
             <View style={{ alignItems: 'center', marginLeft: 8 }}>
                 <Toggle value={state === 'on'} onValueChange={(on) => onSwitch(item, on)} />
-                <Text style={{ color: muted, fontSize: 10, fontWeight: '700' }}>In stock</Text>
+                <Text style={{ color: muted, fontSize: 10, fontWeight: '700' }}>{tr('In stock')}</Text>
             </View>
         </Pressable>
     );

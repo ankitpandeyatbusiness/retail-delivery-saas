@@ -15,6 +15,7 @@ import { BLANK_ITEM, itemFromRecord, itemProblems, itemBody, stockUnit, titleCas
 import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
 import { FormShimmer } from '../../components/owners/shimmer';
+import { tr } from '../../i18n';
 
 const FOOD_MODES = {
     veg: 'This is a veg-only shop: non-veg items are not allowed.',
@@ -58,8 +59,8 @@ export default function OwnerItemScreen() {
 
     if (!form) {
         return (
-            <FormPage title="Item">
-                {loadError ? <Empty icon="cloud-offline-outline" title="Could not open this item" hint={loadError} /> : <FormShimmer />}
+            <FormPage title={tr('Item')}>
+                {loadError ? <Empty icon="cloud-offline-outline" title={tr('Could not open this item')} hint={loadError} /> : <FormShimmer />}
             </FormPage>
         );
     }
@@ -75,7 +76,7 @@ export default function OwnerItemScreen() {
         setSaving(true);
         try {
             if (id) await products.update(id, itemBody(v)); else await products.create(itemBody(v));
-            showToast(id ? 'Item saved' : 'Item added');
+            showToast(id ? tr('Item saved') : tr('Item added'));
             useMenuStore.getState().load({ quiet: true });
             nav.goBack();
         } catch (e) {
@@ -92,17 +93,17 @@ export default function OwnerItemScreen() {
                 qty: Math.max(0, Math.floor(stock.qty || 0)),
                 dailyQty: stock.dailyQty === undefined ? null : Math.max(0, Math.floor(stock.dailyQty)),
             });
-            showToast('Stock saved');
+            showToast(tr('Stock saved'));
             useMenuStore.getState().load({ quiet: true });
         } catch (e) { showToast(apiError(e)); } finally { setSavingStock(false); }
     };
 
     const remove = async () => {
-        const yes = await ask({ title: 'Remove this item?', message: 'It disappears from the customer app. Past orders keep it.', confirmText: 'Remove item', destructive: true });
+        const yes = await ask({ title: tr('Remove this item?'), message: tr('It disappears from the customer app. Past orders keep it.'), confirmText: tr('Remove item'), destructive: true });
         if (!yes) return;
         try {
             await products.remove(id);
-            showToast('Item removed');
+            showToast(tr('Item removed'));
             useMenuStore.getState().load({ quiet: true });
             nav.goBack();
         } catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); }
@@ -112,11 +113,11 @@ export default function OwnerItemScreen() {
     const sameCat = typedCat ? cats.find((c) => c.name.trim().toLowerCase() === titleCase(typedCat).toLowerCase()) : null;
 
     return (
-        <FormPage title={id ? 'Edit item' : 'New item'} footer={<Button label={id ? 'Save changes' : 'Add item'} icon="checkmark" busy={saving} onPress={save} />}>
+        <FormPage title={id ? tr('Edit item') : tr('New item')} footer={<Button label={id ? tr('Save changes') : tr('Add item')} icon="checkmark" busy={saving} onPress={save} />}>
             {kinds.length ? (
-                <Group title="What is it" hint="The kind puts the item in the right category by itself and sets how it is usually sold.">
+                <Group title={tr('What is it')} hint={tr('The kind puts the item in the right category by itself and sets how it is usually sold.')}>
                     <ChoiceBox
-                        label="Kind of item"
+                        label={tr('Kind of item')}
                         options={kinds.map((k) => [k.id, k.label])}
                         value={v.itemKind}
                         onChange={(x) => {
@@ -126,99 +127,99 @@ export default function OwnerItemScreen() {
                         }}
                     />
                     <ChoiceBox
-                        label="How is it sold"
-                        options={[['piece', 'By piece'], ['weight', 'By weight'], ['volume', 'By volume']]}
+                        label={tr('How is it sold')}
+                        options={[['piece', tr('By piece')], ['weight', tr('By weight')], ['volume', tr('By volume')]]}
                         value={v.sellBy}
                         onChange={(x) => set('sellBy', x)}
                         last
                     />
-                    {v.sellBy !== 'piece' ? <Hint>The customer picks an amount, so there is no quantity or size. Enter the price for 1 {v.sellBy === 'volume' ? 'litre' : 'kg'} below.</Hint> : null}
+                    {v.sellBy !== 'piece' ? <Hint>{tr('The customer picks an amount, so there is no quantity or size. Enter the price for 1 {v1} below.', { v1: v.sellBy === 'volume' ? 'litre' : 'kg' })}</Hint> : null}
                 </Group>
             ) : null}
 
             {v.sellBy !== 'piece' ? (
-                <Group title="Amounts the customer can pick">
+                <Group title={tr('Amounts the customer can pick')}>
                     <MeasureEditor sellBy={v.sellBy} value={v.measure} presets={presets} onChange={(m) => set('measure', m)} error={errors.measure} />
                 </Group>
             ) : null}
 
-            <Group title="Category and name">
+            <Group title={tr('Category and name')}>
                 <ChoiceBox
-                    label={v.itemKind ? 'Category (leave empty to file it by kind)' : 'Category'}
+                    label={v.itemKind ? tr('Category (leave empty to file it by kind)') : tr('Category')}
                     options={cats.filter((c) => c.isActive !== false || String(c._id) === v.categoryId).map((c) => [String(c._id), c.name])}
                     value={v.categoryId}
                     onChange={(x) => { set('categoryId', x === v.categoryId ? '' : x); if (x) set('newCategory', ''); }}
                     error={errors.categoryId}
                 />
                 <TextBox
-                    label="Or type a new category"
+                    label={tr('Or type a new category')}
                     value={v.newCategory}
                     onChangeText={(x) => { set('newCategory', x); if (x.trim()) set('categoryId', ''); }}
                     error={errors.newCategory}
                     maxLength={40}
-                    placeholder="e.g. rice"
-                    hint={typedCat ? (sameCat ? `"${sameCat.name}" already exists, this item will go into it.` : `A new category "${titleCase(typedCat)}" will be created.`) : undefined}
+                    placeholder={tr('e.g. rice')}
+                    hint={typedCat ? (sameCat ? tr('"{name}" already exists, this item will go into it.', { name: sameCat.name }) : tr('A new category "{titleCase}" will be created.', { titleCase: titleCase(typedCat) })) : undefined}
                 />
-                <TextBox label="Item name" value={v.name} onChangeText={(x) => set('name', x)} error={errors.name} maxLength={80} placeholder="e.g. Paneer Tikka" />
-                <TextBox label="Description (optional)" value={v.description} onChangeText={(x) => set('description', x)} multiline maxLength={300} />
+                <TextBox label={tr('Item name')} value={v.name} onChangeText={(x) => set('name', x)} error={errors.name} maxLength={80} placeholder={tr('e.g. Paneer Tikka')} />
+                <TextBox label={tr('Description (optional)')} value={v.description} onChangeText={(x) => set('description', x)} multiline maxLength={300} />
                 <ImageField value={v.image} onChange={(x) => set('image', x)} kind="product" refId={refId} last />
             </Group>
 
-            <Group title="Price" hint="GST is added by the platform, only if your shop has a GST number.">
+            <Group title={tr('Price')} hint={tr('GST is added by the platform, only if your shop has a GST number.')}>
                 <NumberBox
-                    label={v.sellBy === 'weight' ? 'Price per kg' : v.sellBy === 'volume' ? 'Price per litre' : 'Selling price'}
+                    label={v.sellBy === 'weight' ? tr('Price per kg') : v.sellBy === 'volume' ? tr('Price per litre') : tr('Selling price')}
                     prefix="₹" value={v.price} onChange={(x) => set('price', x)}
                     error={errors.price}
-                    hint={v.sellBy !== 'piece' && v.price ? `${amountLabel(v.sellBy, 250)} costs ₹${Math.round(v.price / 4 * 100) / 100}` : undefined}
+                    hint={v.sellBy !== 'piece' && v.price ? tr('{amountLabel} costs ₹{v2}', { amountLabel: amountLabel(v.sellBy, 250), v2: Math.round(v.price / 4 * 100) / 100 }) : undefined}
                 />
-                <NumberBox label="MRP (price before discount, optional)" prefix="₹" value={v.mrp} onChange={(x) => set('mrp', x)} error={errors.mrp} last />
+                <NumberBox label={tr('MRP (price before discount, optional)')} prefix="₹" value={v.mrp} onChange={(x) => set('mrp', x)} error={errors.mrp} last />
             </Group>
 
-            <Group title="Food type">
-                <ChoiceBox label="Veg or non-veg" options={[[true, 'Veg'], [false, 'Non-veg']]} value={v.isVeg} onChange={(x) => set('isVeg', x)} error={errors.isVeg} />
+            <Group title={tr('Food type')}>
+                <ChoiceBox label={tr('Veg or non-veg')} options={[[true, tr('Veg')], [false, tr('Non-veg')]]} value={v.isVeg} onChange={(x) => set('isVeg', x)} error={errors.isVeg} />
                 {foodHint ? <Hint>{foodHint}</Hint> : null}
                 <View style={{ height: 8 }} />
-                <ToggleRow title="Eggless" value={v.isEggless} onValueChange={(x) => set('isEggless', x)} />
-                <ToggleRow title="Sugar free" value={v.isSugarFree} onValueChange={(x) => set('isSugarFree', x)} />
-                <ToggleRow title="Jain" subtitle="Must be veg" value={v.isJain} onValueChange={(x) => set('isJain', x)} last />
+                <ToggleRow title={tr('Eggless')} value={v.isEggless} onValueChange={(x) => set('isEggless', x)} />
+                <ToggleRow title={tr('Sugar free')} value={v.isSugarFree} onValueChange={(x) => set('isSugarFree', x)} />
+                <ToggleRow title={tr('Jain')} subtitle={tr('Must be veg')} value={v.isJain} onValueChange={(x) => set('isJain', x)} last />
                 {errors.isJain ? <Hint tone="warn">{errors.isJain}</Hint> : null}
                 <View style={{ height: 14 }} />
-                <ChoiceBox label="Spice level" options={SPICE} value={v.spiceLevel} onChange={(x) => set('spiceLevel', x)} last />
+                <ChoiceBox label={tr('Spice level')} options={SPICE} value={v.spiceLevel} onChange={(x) => set('spiceLevel', x)} last />
             </Group>
 
-            <Group title="Details and labels">
+            <Group title={tr('Details and labels')}>
                 <View style={{ flexDirection: 'row' }}>
-                    {v.sellBy === 'piece' ? <NumberBox style={{ flex: 1, marginRight: 10 }} label="Serves" integer value={v.serves} onChange={(x) => set('serves', x)} /> : null}
-                    <NumberBox style={{ flex: 1 }} label="Calories" integer value={v.calories} onChange={(x) => set('calories', x)} />
+                    {v.sellBy === 'piece' ? <NumberBox style={{ flex: 1, marginRight: 10 }} label={tr('Serves')} integer value={v.serves} onChange={(x) => set('serves', x)} /> : null}
+                    <NumberBox style={{ flex: 1 }} label={tr('Calories')} integer value={v.calories} onChange={(x) => set('calories', x)} />
                 </View>
-                <NumberBox label="Preparation time" suffix="min" integer value={v.prepTimeMin} onChange={(x) => set('prepTimeMin', x)} />
-                <ToggleRow title="Bestseller" value={v.isBestseller} onValueChange={(x) => set('isBestseller', x)} />
-                <ToggleRow title="New arrival" value={v.isNewArrival} onValueChange={(x) => set('isNewArrival', x)} />
-                <ToggleRow title="Gift pack" value={v.isGiftPack} onValueChange={(x) => set('isGiftPack', x)} last />
+                <NumberBox label={tr('Preparation time')} suffix="min" integer value={v.prepTimeMin} onChange={(x) => set('prepTimeMin', x)} />
+                <ToggleRow title={tr('Bestseller')} value={v.isBestseller} onValueChange={(x) => set('isBestseller', x)} />
+                <ToggleRow title={tr('New arrival')} value={v.isNewArrival} onValueChange={(x) => set('isNewArrival', x)} />
+                <ToggleRow title={tr('Gift pack')} value={v.isGiftPack} onValueChange={(x) => set('isGiftPack', x)} last />
             </Group>
 
-            <Group title="Choices (sizes, add-ons)" hint="What the customer picks on this item. A price here is an EXTRA on top of the selling price.">
+            <Group title={tr('Choices (sizes, add-ons)')} hint={tr('What the customer picks on this item. A price here is an EXTRA on top of the selling price.')}>
                 <OptionGroupsEditor value={v.optionGroups} onChange={(x) => set('optionGroups', x)} />
                 {errors.optionGroups ? <Hint tone="warn">{errors.optionGroups}</Hint> : null}
             </Group>
 
             {id && stock ? (
-                <Group title="Daily stock" hint="Off = unlimited. With a limit on, customers see Few left when it runs low, the item goes out of stock at 0, and every new day starts again with the daily amount.">
-                    <ToggleRow title="Limit the stock" subtitle={stock.enabled ? undefined : 'Unlimited'} value={stock.enabled} onValueChange={(x) => setStockState({ ...stock, enabled: x })} last={!stock.enabled} />
+                <Group title={tr('Daily stock')} hint={tr('Off = unlimited. With a limit on, customers see Few left when it runs low, the item goes out of stock at 0, and every new day starts again with the daily amount.')}>
+                    <ToggleRow title={tr('Limit the stock')} subtitle={stock.enabled ? undefined : tr('Unlimited')} value={stock.enabled} onValueChange={(x) => setStockState({ ...stock, enabled: x })} last={!stock.enabled} />
                     {stock.enabled ? (
                         <View style={{ marginTop: 14 }}>
                             <NumberBox
-                                label={`Every day starts with (${unit.suffix})`}
-                                integer={unit.integer} suffix={unit.suffix} placeholder="Optional"
+                                label={tr('Every day starts with ({suffix})', { suffix: unit.suffix })}
+                                integer={unit.integer} suffix={unit.suffix} placeholder={tr('Optional')}
                                 value={unit.show(stock.dailyQty)}
-                                hint="Optional. Empty: only the count below, changed by hand and by orders."
+                                hint={tr('Optional. Empty: only the count below, changed by hand and by orders.')}
                                 onChange={(x) => {
                                     const base = x === undefined ? undefined : unit.fromUi(x);
                                     setStockState({ ...stock, dailyQty: base, qty: base !== undefined && !stock.qty ? base : stock.qty });
                                 }}
                             />
                             <NumberBox
-                                label={`Left right now (${unit.suffix})`}
+                                label={tr('Left right now ({suffix})', { suffix: unit.suffix })}
                                 integer={unit.integer} suffix={unit.suffix}
                                 value={unit.show(stock.qty)}
                                 onChange={(x) => setStockState({ ...stock, qty: x === undefined ? 0 : unit.fromUi(x) })}
@@ -226,15 +227,15 @@ export default function OwnerItemScreen() {
                             />
                         </View>
                     ) : null}
-                    <View style={{ marginTop: 14 }}><Button label="Save stock" kind="ghost" busy={savingStock} onPress={saveStock} /></View>
+                    <View style={{ marginTop: 14 }}><Button label={tr('Save stock')} kind="ghost" busy={savingStock} onPress={saveStock} /></View>
                 </Group>
             ) : null}
 
-            <Group title="Show it" hint="Switch off to take the item off the customer menu without removing it.">
-                <ToggleRow title="Visible to customers" value={v.isActive} onValueChange={(x) => set('isActive', x)} last />
+            <Group title={tr('Show it')} hint={tr('Switch off to take the item off the customer menu without removing it.')}>
+                <ToggleRow title={tr('Visible to customers')} value={v.isActive} onValueChange={(x) => set('isActive', x)} last />
             </Group>
 
-            {id ? <View style={{ paddingHorizontal: 16, marginTop: 8 }}><Button label="Remove this item" kind="danger" icon="trash" onPress={remove} /></View> : null}
+            {id ? <View style={{ paddingHorizontal: 16, marginTop: 8 }}><Button label={tr('Remove this item')} kind="danger" icon="trash" onPress={remove} /></View> : null}
         </FormPage>
     );
 }

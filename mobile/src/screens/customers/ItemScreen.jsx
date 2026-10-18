@@ -17,6 +17,7 @@ import { useMenuStore, useCartStore } from '../../store/customers/shopStores';
 import { fetchProduct } from '../../api/customers/shopApi';
 import { isMeasured, perUnit, amountLabel, measureRules, packPrice, startAmount } from '../../utils/customers/measure';
 import { TextInput } from 'react-native';
+import { tr } from '../../i18n';
 
 // pre-select defaults, and the first available options for required groups
 function initSel(p) {
@@ -101,7 +102,7 @@ function Group({ g, chosen, onPick, index }) {
                 {min >= 1 ? (
                     <View style={[s.req, { backgroundColor: tint(done ? '#1E8E3E' : error) }]}>
                         {done ? <Ionicons name="checkmark" size={11} color="#1E8E3E" style={{ marginRight: 3 }} /> : null}
-                        <Text style={[s.reqTxt, { color: done ? '#1E8E3E' : error }]}>{done ? 'DONE' : 'REQUIRED'}</Text>
+                        <Text style={[s.reqTxt, { color: done ? '#1E8E3E' : error }]}>{done ? tr('DONE') : tr('REQUIRED')}</Text>
                     </View>
                 ) : null}
             </View>
@@ -112,7 +113,7 @@ function Group({ g, chosen, onPick, index }) {
                     <Press key={o.id} onPress={() => onPick(g, o)} disabled={off}
                         style={[s.opt, { borderBottomColor: border, backgroundColor: on ? tint(primary) : 'transparent' }, off && { opacity: 0.4 }]}>
                         <Mark on={on} radio={radio} />
-                        <Text style={[s.optName, { color: text, fontWeight: on ? '800' : '600' }]}>{o.name}{off ? ' (unavailable)' : ''}</Text>
+                        <Text style={[s.optName, { color: text, fontWeight: on ? '800' : '600' }]}>{o.name}{off ? tr(' (unavailable)') : ''}</Text>
                         {o.price ? <Text style={[s.optPrice, { color: muted }]}>+₹{o.price}</Text> : null}
                     </Press>
                 );
@@ -228,17 +229,17 @@ export default function ItemScreen() {
             return;
         }
         if (has) { setSel({ ...sel, [g.id]: cur.filter((x) => x !== o.id) }); return; }
-        if (cur.length >= max) { showToast(`Choose at most ${max} for ${g.name}`); return; }
+        if (cur.length >= max) { showToast(tr('Choose at most {max} for {name}', { max: max, name: g.name })); return; }
         setSel({ ...sel, [g.id]: [...cur, o.id] });
     };
 
     const applyTyped = () => {
         const n = Number(String(typed).replace(',', '.'));
-        if (!(n > 0)) { showToast('Type an amount'); return; }
+        if (!(n > 0)) { showToast(tr('Type an amount')); return; }
         const q = Math.round(n * (typedUnit === 'big' ? 1000 : 1));
-        if (q < rules.min) { showToast(`The smallest amount is ${amountLabel(p.sellBy, rules.min)}`); return; }
-        if (q > rules.max) { showToast(`The largest amount is ${amountLabel(p.sellBy, rules.max)}`); return; }
-        if (p.maxQty != null && q > p.maxQty) { showToast('That is more than we have right now. Try a smaller amount.'); return; }
+        if (q < rules.min) { showToast(tr('The smallest amount is {amountLabel}', { amountLabel: amountLabel(p.sellBy, rules.min) })); return; }
+        if (q > rules.max) { showToast(tr('The largest amount is {amountLabel}', { amountLabel: amountLabel(p.sellBy, rules.max) })); return; }
+        if (p.maxQty != null && q > p.maxQty) { showToast(tr('That is more than we have right now. Try a smaller amount.')); return; }
         ease();
         setAmt(q);
     };
@@ -296,7 +297,7 @@ export default function ItemScreen() {
                 title: p?.name,
                 message: `${p?.name} · ₹${p?.price}\nOrder it from ${full.restaurant?.name || 'our shop'}!` });
         } catch (e) {
-            showToast('Could not open share');
+            showToast(tr('Could not open share'));
         }
     };
 
@@ -318,9 +319,9 @@ export default function ItemScreen() {
                     <View style={[s.errIcon, { backgroundColor: surface, borderColor: border }]}>
                         <Ionicons name={state === 'gone' ? 'fast-food-outline' : 'cloud-offline-outline'} size={40} color={muted} />
                     </View>
-                    <Text style={[s.big, { color: text }]}>{state === 'gone' ? 'Item not available' : 'Could not load this item'}</Text>
+                    <Text style={[s.big, { color: text }]}>{state === 'gone' ? tr('Item not available') : tr('Could not load this item')}</Text>
                     <Press onPress={state === 'error' ? load : () => nav.goBack()} style={[s.retry, { backgroundColor: primary, borderRadius: radius }]}>
-                        <Text style={s.retryTxt}>{state === 'error' ? 'Try again' : 'Go back'}</Text>
+                        <Text style={s.retryTxt}>{state === 'error' ? tr('Try again') : tr('Go back')}</Text>
                     </Press>
                 </Appear>
             </View>
@@ -378,13 +379,13 @@ export default function ItemScreen() {
                         <View style={s.priceRow}>
                             <Text style={[s.price, { color: text }]}>₹{p.price}{measured ? perUnit(p) : ''}</Text>
                             {off ? <Text style={[s.mrp, { color: muted }]}>₹{p.mrp}</Text> : null}
-                            {off ? <View style={[s.offBadge, { backgroundColor: okSoft }]}><Text style={[s.offTxt, { color: ok }]}>{off}% OFF</Text></View> : null}
+                            {off ? <View style={[s.offBadge, { backgroundColor: okSoft }]}><Text style={[s.offTxt, { color: ok }]}>{tr('{off}% OFF', { off: off })}</Text></View> : null}
                         </View>
-                        {p.fewLeft ? <Text style={{ color: '#C2410C', fontSize: 12, fontWeight: '800', marginTop: 6 }}>Few left. Order soon</Text> : null}
+                        {p.fewLeft ? <Text style={{ color: '#C2410C', fontSize: 12, fontWeight: '800', marginTop: 6 }}>{tr('Few left. Order soon')}</Text> : null}
                         {p.description ? (
                             <Pressable onPress={() => { if (longDesc) { ease(); setMore((m) => !m); } }}>
                                 <Text style={[s.desc, { color: muted }]} numberOfLines={more || !longDesc ? undefined : 3}>{p.description}</Text>
-                                {longDesc ? <Text style={[s.more, { color: primary }]}>{more ? 'Show less' : 'Read more'}</Text> : null}
+                                {longDesc ? <Text style={[s.more, { color: primary }]}>{more ? tr('Show less') : tr('Read more')}</Text> : null}
                             </Pressable>
                         ) : null}
                     </Appear>
@@ -393,8 +394,8 @@ export default function ItemScreen() {
                         <Appear delay={60} style={[s.group, { backgroundColor: surface, borderColor: border }]}>
                             <View style={s.gHead}>
                                 <View style={{ flex: 1 }}>
-                                    <Text style={[s.gName, { color: text }]}>How much do you want?</Text>
-                                    <Text style={[s.gHint, { color: muted }]}>Choose a size or type your own amount</Text>
+                                    <Text style={[s.gName, { color: text }]}>{tr('How much do you want?')}</Text>
+                                    <Text style={[s.gHint, { color: muted }]}>{tr('Choose a size or type your own amount')}</Text>
                                 </View>
                             </View>
                             <View style={{ flexDirection: 'row', flexWrap: 'wrap', padding: 12 }}>
@@ -415,17 +416,17 @@ export default function ItemScreen() {
                                         onChangeText={(v) => setTyped(v.replace(/[^0-9.,]/g, ''))}
                                         onSubmitEditing={applyTyped}
                                         keyboardType="decimal-pad"
-                                        placeholder="Type amount"
+                                        placeholder={tr('Type amount')}
                                         placeholderTextColor={muted}
                                         style={{ flex: 1, height: 44, borderWidth: 1, borderColor: border, borderRadius: 12, paddingHorizontal: 12, color: text, fontSize: 15 }}
                                     />
                                     <Press onPress={() => setTypedUnit(typedUnit === 'small' ? 'big' : 'small')} style={{ marginLeft: 8, height: 44, minWidth: 56, borderRadius: 12, backgroundColor: tint(primary), alignItems: 'center', justifyContent: 'center' }}>
                                         <Text style={{ color: primary, fontWeight: '800' }}>
-                                            {p.sellBy === 'volume' ? (typedUnit === 'big' ? 'L' : 'ml') : (typedUnit === 'big' ? 'kg' : 'g')}
+                                            {p.sellBy === 'volume' ? (typedUnit === 'big' ? 'L' : tr('ml')) : (typedUnit === 'big' ? tr('kg') : 'g')}
                                         </Text>
                                     </Press>
                                     <Press onPress={applyTyped} style={{ marginLeft: 8, height: 44, paddingHorizontal: 16, borderRadius: 12, backgroundColor: primary, alignItems: 'center', justifyContent: 'center' }}>
-                                        <Text style={{ color: '#FFFFFF', fontWeight: '800' }}>Set</Text>
+                                        <Text style={{ color: '#FFFFFF', fontWeight: '800' }}>{tr('Set')}</Text>
                                     </Press>
                                 </View>
                             ) : null}
@@ -433,7 +434,7 @@ export default function ItemScreen() {
                                 <Text style={{ color: text, fontWeight: '800' }}>
                                     {amountLabel(p.sellBy, amt)} = ₹{+packPrice(p, amt).toFixed(2)}
                                 </Text>
-                                {!amtOk ? <Text style={{ color: '#D93025', fontSize: 12, marginTop: 2 }}>This amount is not allowed for this item</Text> : null}
+                                {!amtOk ? <Text style={{ color: '#D93025', fontSize: 12, marginTop: 2 }}>{tr('This amount is not allowed for this item')}</Text> : null}
                             </View>
                         </Appear>
                     ) : null}
@@ -444,7 +445,7 @@ export default function ItemScreen() {
 
                 {related.length ? (
                     <Appear delay={160} style={{ marginTop: 8, backgroundColor: background }}>
-                        <Text style={[s.sec, { color: text }]}>You might also like</Text>
+                        <Text style={[s.sec, { color: text }]}>{tr('You might also like')}</Text>
                         <FlatList
                             horizontal data={related} showsHorizontalScrollIndicator={false}
                             keyExtractor={(i) => i._id} contentContainerStyle={s.strip}
@@ -471,10 +472,10 @@ export default function ItemScreen() {
             {cartCount > 0 ? (
                 <Press onPress={() => nav.navigate('Cart')} style={[s.cartBar, { backgroundColor: primary, borderRadius: radius }]}>
                     <View style={{ flex: 1 }}>
-                        <Text style={s.cartBarTop}>{cartCount} {cartCount === 1 ? 'item' : 'items'} added</Text>
+                        <Text style={s.cartBarTop}>{tr('{cartCount} {v2} added', { cartCount: cartCount, v2: cartCount === 1 ? 'item' : 'items' })}</Text>
                         <Text style={s.cartBarSub}>₹{+cartTotal.toFixed(2)}</Text>
                     </View>
-                    <Text style={s.cartBarGo}>Continue</Text>
+                    <Text style={s.cartBarGo}>{tr('Continue')}</Text>
                     <Ionicons name="chevron-forward" size={16} color="#FFFFFF" />
                 </Press>
             ) : null}
@@ -490,7 +491,7 @@ export default function ItemScreen() {
                         <SlideNum value={qty} style={[s.qNum, { color: primary }]} />
                         <Press onPress={() => {
                             const cap = p.maxQty != null ? Math.min(20, p.maxQty) : 20;
-                            if (qty >= cap) { if (p.maxQty != null && qty >= p.maxQty) showToast('Only a few left. You cannot add more.'); return; }
+                            if (qty >= cap) { if (p.maxQty != null && qty >= p.maxQty) showToast(tr('Only a few left. You cannot add more.')); return; }
                             setQty(qty + 1);
                         }} hitSlop={8}><Text style={[s.qBtn, { color: primary }]}>+</Text></Press>
                     </View>
@@ -500,10 +501,10 @@ export default function ItemScreen() {
                         <Animated.View style={{ transform: [{ scale: addPop }] }}>
                         <Animated.View style={[s.addBtn, { backgroundColor: added ? '#1E8E3E' : btnBg, borderRadius: radius }]}>
                             {added ? (
-                                <View style={s.addRow}><Ionicons name="checkmark-circle" size={18} color="#FFFFFF" /><Text style={[s.addTxt, { marginLeft: 6 }]}>Added</Text></View>
+                                <View style={s.addRow}><Ionicons name="checkmark-circle" size={18} color="#FFFFFF" /><Text style={[s.addTxt, { marginLeft: 6 }]}>{tr('Added')}</Text></View>
                             ) : blocked ? <Text style={s.addTxt} numberOfLines={1}>{blocked}</Text> : (
                                 <View style={s.addRow}>
-                                    <Text style={s.addTxt} numberOfLines={1}>{existing ? 'Update' : full.labels.addButton}</Text>
+                                    <Text style={s.addTxt} numberOfLines={1}>{existing ? tr('Update') : full.labels.addButton}</Text>
                                     <Animated.Text style={[s.addTxt, { marginLeft: 8, transform: [{ scale: bump }] }]}>· ₹{total}</Animated.Text>
                                 </View>
                             )}

@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRoute } from '@react-navigation/native';
 import { useBrand } from '../../components/common/kit';
 import { OwnerScreen, PageHeader, Card, Pill } from '../../components/owners/ui';
+import { tr } from '../../i18n';
 
 function Soon({ icon, title, phase, items }) {
     const { text, muted, primary } = useBrand();
@@ -32,8 +33,8 @@ export function OwnerStubPage() {
     const { background } = useBrand();
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
-            <PageHeader title={title || 'Coming soon'} />
-            <ScrollView><Soon icon={icon} title={title || 'Coming soon'} phase={phase || 'Later'} items={items} /></ScrollView>
+            <PageHeader title={title || tr('Coming soon')} />
+            <ScrollView><Soon icon={icon} title={title || tr('Coming soon')} phase={phase || 'Later'} items={items} /></ScrollView>
         </View>
     );
 }

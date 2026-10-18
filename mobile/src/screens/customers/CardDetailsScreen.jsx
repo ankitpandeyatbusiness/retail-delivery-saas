@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useBrand, BackHeader } from '../../components/common/kit';
 import { tint } from '../../components/customers/shop';
 import { useAuthStore } from '../../store/common/useAuthStore';
+import { tr } from '../../i18n';
 
 const digits = (v) => String(v || '').replace(/\D/g, '');
 
@@ -96,12 +97,12 @@ export default function CardDetailsScreen() {
 
     return (
         <View style={[s.flex, { backgroundColor: background }]}>
-            <BackHeader title="Add card" />
+            <BackHeader title={tr('Add card')} />
             <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
                 <ScrollView contentContainerStyle={s.pad} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
                     <View style={[s.secure, { backgroundColor: tint(primary) }]}>
                         <Ionicons name="lock-closed-outline" size={18} color={primary} />
-                        <Text style={[s.secureTxt, { color: text }]}>Your card details are not saved. You will confirm with your bank's OTP.</Text>
+                        <Text style={[s.secureTxt, { color: text }]}>{tr('Your card details are not saved. You will confirm with your bank\'s OTP.')}</Text>
                     </View>
 
                     {field('Card number', errs.number, (
@@ -128,7 +129,7 @@ export default function CardDetailsScreen() {
                                     value={exp}
                                     onChangeText={(v) => { onExp(v); if (digits(v).length >= 4) cvvRef.current?.focus(); }}
                                     keyboardType="number-pad"
-                                    placeholder="MM/YY"
+                                    placeholder={tr('MM/YY')}
                                     placeholderTextColor={muted}
                                     maxLength={5}
                                     autoComplete="cc-exp"
@@ -160,7 +161,7 @@ export default function CardDetailsScreen() {
                             value={name}
                             onChangeText={setName}
                             autoCapitalize="words"
-                            placeholder="As printed on the card"
+                            placeholder={tr('As printed on the card')}
                             placeholderTextColor={muted}
                             autoComplete="cc-name"
                             style={[s.input, { color: text }]}
@@ -168,7 +169,7 @@ export default function CardDetailsScreen() {
                     ))}
 
                     <Pressable onPress={submit} style={[s.btn, { backgroundColor: primary }]}>
-                        <Text style={[s.btnTxt, { color: onPrimary }]}>Use this card</Text>
+                        <Text style={[s.btnTxt, { color: onPrimary }]}>{tr('Use this card')}</Text>
                     </Pressable>
                 </ScrollView>
             </KeyboardAvoidingView>

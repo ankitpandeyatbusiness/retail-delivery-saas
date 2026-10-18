@@ -8,6 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../../api/common/client';
 import { showToast } from './shop';
 import { ask } from '../common/dialog';
+import { tr } from '../../i18n';
 
 const KEY = 'invoice.saveDir';
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -31,10 +32,10 @@ async function fetchPdf(order) {
     return { file, bytes };
 }
 
-const fail = (e) => showToast(e?.response?.status === 409 ? 'The invoice is only available after delivery' : 'Could not get the invoice');
+const fail = (e) => showToast(e?.response?.status === 409 ? tr('The invoice is only available after delivery') : tr('Could not get the invoice'));
 
 async function share(file, order) {
-    if (!(await Sharing.isAvailableAsync())) { showToast('Sharing is not available on this device'); return; }
+    if (!(await Sharing.isAvailableAsync())) { showToast(tr('Sharing is not available on this device')); return; }
     await Sharing.shareAsync(file.uri, { mimeType: 'application/pdf', dialogTitle: nameOf(order), UTI: 'com.adobe.pdf' });
 }
 
@@ -57,7 +58,7 @@ export async function viewInvoice(order, setBusy) {
 async function pickBase() {
     const saved = await AsyncStorage.getItem(KEY);
     if (saved) { try { return new Directory(saved); } catch (e) { /* ask again */ } }
-    const ok = await ask({ title: 'Choose a folder', message: 'Pick where invoices should be saved, for example Documents. You only do this once.', confirmText: 'Choose', icon: 'folder-open-outline' });
+    const ok = await ask({ title: tr('Choose a folder'), message: tr('Pick where invoices should be saved, for example Documents. You only do this once.'), confirmText: tr('Choose'), icon: 'folder-open-outline' });
     if (!ok) throw Object.assign(new Error('cancelled'), { cancelled: true });
     const d = await Directory.pickDirectoryAsync();
     await AsyncStorage.setItem(KEY, d.uri);
@@ -85,7 +86,7 @@ export async function saveInvoice(order, setBusy) {
                 'Download',
                 decodeURI(file.uri.replace('file://', '')),
             );
-            showToast(`Saved in Downloads/${parts.join('/')}`);
+            showToast(tr('Saved in Downloads/{v1}', { v1: parts.join('/') }));
             return;
         } catch (e) { /* 2) fall back to the picker */ }
 
@@ -99,7 +100,7 @@ export async function saveInvoice(order, setBusy) {
             await AsyncStorage.removeItem(KEY);
             put(await pickBase());
         }
-        showToast(`Saved ${nameOf(order)}`);
+        showToast(tr('Saved {nameOf}', { nameOf: nameOf(order) }));
     } catch (e) {
         if (e?.response) fail(e);
     } finally { if (setBusy) setBusy(false); }

@@ -4,6 +4,7 @@ import React from 'react';
 import { View } from 'react-native';
 import { Option } from './ui';
 import { NumberBox, ChoiceBox } from './menuBits';
+import { tr } from '../../i18n';
 
 export const PAY_TYPES = [
     ['none', 'I pay in hand', 'The app does not track pay'],
@@ -49,7 +50,7 @@ export default function PayPlanForm({ value, onChange, allowSame, sameText }) {
     const hasSalary = v.type === 'salary' || v.type === 'salary_plus';
     return (
         <View>
-            {allowSame ? <Option selected={v.type === 'same'} title="Same as the shop" subtitle={sameText} onPress={() => pick('same')} /> : null}
+            {allowSame ? <Option selected={v.type === 'same'} title={tr('Same as the shop')} subtitle={sameText} onPress={() => pick('same')} /> : null}
             {PAY_TYPES.map(([type, title, sub], i) => (
                 <Option key={type} selected={v.type === type} title={title} subtitle={sub || undefined} onPress={() => pick(type)} last={i === PAY_TYPES.length - 1 && v.type === 'same'} />
             ))}
@@ -57,17 +58,17 @@ export default function PayPlanForm({ value, onChange, allowSame, sameText }) {
                 <View style={{ marginTop: 10 }}>
                     {hasSalary ? (
                         <>
-                            <NumberBox label="Salary" prefix="₹" value={v.salary} onChange={(x) => set({ salary: x })} />
-                            <ChoiceBox label="Paid" options={[['day', 'Every day'], ['week', 'Every week'], ['month', 'Every month']]} value={v.salaryEvery} onChange={(x) => set({ salaryEvery: x })} />
+                            <NumberBox label={tr('Salary')} prefix="₹" value={v.salary} onChange={(x) => set({ salary: x })} />
+                            <ChoiceBox label={tr('Paid')} options={[['day', tr('Every day')], ['week', tr('Every week')], ['month', tr('Every month')]]} value={v.salaryEvery} onChange={(x) => set({ salaryEvery: x })} />
                         </>
                     ) : null}
-                    {v.type === 'per_delivery' || v.type === 'salary_plus' ? <NumberBox label="For each delivery" prefix="₹" value={v.perDelivery} onChange={(x) => set({ perDelivery: x })} /> : null}
-                    {v.type === 'percent' ? <NumberBox label="Percent of the order total" suffix="%" value={v.percent} onChange={(x) => set({ percent: x })} /> : null}
+                    {v.type === 'per_delivery' || v.type === 'salary_plus' ? <NumberBox label={tr('For each delivery')} prefix="₹" value={v.perDelivery} onChange={(x) => set({ perDelivery: x })} /> : null}
+                    {v.type === 'percent' ? <NumberBox label={tr('Percent of the order total')} suffix="%" value={v.percent} onChange={(x) => set({ percent: x })} /> : null}
                     {v.type === 'distance' ? (
                         <>
-                            <NumberBox label="Base amount for each delivery" prefix="₹" value={v.base} onChange={(x) => set({ base: x })} />
-                            <NumberBox label="Distance with no extra pay" suffix="km" value={v.freeKm} onChange={(x) => set({ freeKm: x })} />
-                            <NumberBox label="Extra for every km after that" prefix="₹" value={v.perKm} onChange={(x) => set({ perKm: x })} hint="The distance is a straight line from the shop to the customer." last />
+                            <NumberBox label={tr('Base amount for each delivery')} prefix="₹" value={v.base} onChange={(x) => set({ base: x })} />
+                            <NumberBox label={tr('Distance with no extra pay')} suffix="km" value={v.freeKm} onChange={(x) => set({ freeKm: x })} />
+                            <NumberBox label={tr('Extra for every km after that')} prefix="₹" value={v.perKm} onChange={(x) => set({ perKm: x })} hint={tr('The distance is a straight line from the shop to the customer.')} last />
                         </>
                     ) : null}
                 </View>

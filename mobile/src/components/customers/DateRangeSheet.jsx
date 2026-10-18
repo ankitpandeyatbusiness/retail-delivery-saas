@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../common/kit';
 import { tint } from './shop';
 import { Press } from './cartParts';
+import { tr } from '../../i18n';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -126,7 +127,7 @@ export default function DateRangeSheet({ visible, value, onClose, onApply }) {
                 <Animated.View style={[s.sheet, { backgroundColor: background, transform: [{ translateY: prog.interpolate({ inputRange: [0, 1], outputRange: [640, 0] }) }] }]}>
                     <View style={[s.handle, { backgroundColor: border }]} />
                     <View style={s.top}>
-                        <Text style={[s.title, { color: text }]}>Filter by date</Text>
+                        <Text style={[s.title, { color: text }]}>{tr('Filter by date')}</Text>
                         <Pressable onPress={onClose} hitSlop={10} style={[s.x, { backgroundColor: surface, borderColor: border }]}>
                             <Ionicons name="close" size={16} color={text} />
                         </Pressable>
@@ -167,18 +168,18 @@ export default function DateRangeSheet({ visible, value, onClose, onApply }) {
                     </Animated.View>
 
                     <View style={s.sortRow}>
-                        <Text style={[s.sortLbl, { color: muted }]}>SORT</Text>
-                        <Chip label="Newest first" on={sort === 'newest'} onPress={() => setSort('newest')} />
-                        <Chip label="Oldest first" on={sort === 'oldest'} onPress={() => setSort('oldest')} />
+                        <Text style={[s.sortLbl, { color: muted }]}>{tr('SORT')}</Text>
+                        <Chip label={tr('Newest first')} on={sort === 'newest'} onPress={() => setSort('newest')} />
+                        <Chip label={tr('Oldest first')} on={sort === 'oldest'} onPress={() => setSort('oldest')} />
                     </View>
 
                     <Text style={[s.summary, { color: start ? primary : muted }]}>{summary}</Text>
                     <View style={s.foot}>
                         <Press wrap={{ flex: 1, marginRight: 10 }} onPress={clear} style={[s.fBtn, { borderColor: border, borderWidth: 1.5, borderRadius: radius }]}>
-                            <Text style={[s.fTxt, { color: text }]}>Clear</Text>
+                            <Text style={[s.fTxt, { color: text }]}>{tr('Clear')}</Text>
                         </Press>
                         <Press wrap={{ flex: 2 }} onPress={apply} style={[s.fBtn, { backgroundColor: primary, borderRadius: radius }]}>
-                            <Text style={[s.fTxt, { color: '#FFFFFF' }]}>{start ? 'Show orders' : sort === 'oldest' ? 'Apply' : 'Show all orders'}</Text>
+                            <Text style={[s.fTxt, { color: '#FFFFFF' }]}>{start ? tr('Show orders') : sort === 'oldest' ? tr('Apply') : tr('Show all orders')}</Text>
                         </Press>
                     </View>
                 </Animated.View>

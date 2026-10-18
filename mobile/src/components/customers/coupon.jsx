@@ -9,6 +9,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, CardGlow } from '../common/kit';
 import { CopyIcon } from '../common/copyCode';
+import { tr } from '../../i18n';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -49,7 +50,7 @@ export function CouponTicket({ o, size = 'strip', onPress, hint, style }) {
             <CardGlow radius={18} />
             <LinearGradient colors={[primaryLight, primaryDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[s.stub, { width: stubW }]}>
                 <Text style={[mini ? s.valMini : s.val, { color: onPrimary }]} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
-                <Text style={[s.off, { color: onPrimary }]}>OFF</Text>
+                <Text style={[s.off, { color: onPrimary }]}>{tr('OFF')}</Text>
             </LinearGradient>
             {/* the notches that make it a ticket: the page colour cut out of the edge */}
             <View style={[s.notch, { top: -8, left: stubW - 8, backgroundColor: background }]} />
@@ -63,7 +64,7 @@ export function CouponTicket({ o, size = 'strip', onPress, hint, style }) {
                     {mini ? null : <CopyIcon code={o.code} color={primary} size={17} style={{ marginLeft: 10 }} />}
                 </View>
                 {mini ? (
-                    <Text style={[s.hint, { color: muted }]} numberOfLines={1}>{hint || 'Tap to apply'}</Text>
+                    <Text style={[s.hint, { color: muted }]} numberOfLines={1}>{hint || tr('Tap to apply')}</Text>
                 ) : (
                     <>
                         <Text style={[s.desc, { color: text }]} numberOfLines={2}>{offerText(o)}</Text>

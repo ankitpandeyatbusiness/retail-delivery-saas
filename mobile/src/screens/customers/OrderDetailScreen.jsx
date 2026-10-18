@@ -20,6 +20,7 @@ import { useOrderLive } from '../../hooks/customers/useOrderLive';
 import { onRiderLocation } from '../../api/common/socket';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { payForOrder } from '../../utils/customers/payOnline';
+import { tr } from '../../i18n';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const FLOW_DELIVERY = ['placed', 'accepted', 'preparing', 'out_for_delivery', 'delivered'];
@@ -191,7 +192,7 @@ export default function OrderDetailScreen() {
         const ids = [...new Set(o.items.map((l) => String(l.productId)))];   // the same dish twice would be rejected
         try {
             await rateOrder(o.id, ids.map((productId) => ({ productId, rating: stars, ...(c ? { comment: c } : {}) })));
-            showToast(saved ? 'Review updated' : 'Thanks for your review');
+            showToast(saved ? tr('Review updated') : tr('Thanks for your review'));
             setSaved({ stars, comment: c });
             setEditing(false);
         } catch (e) { showToast(errMsg(e)); } finally { setSaving(false); }
@@ -201,7 +202,7 @@ export default function OrderDetailScreen() {
     if (state === 'loading') {
         return (
             <View style={[s.flex, { backgroundColor: background }]}>
-                <BackHeader title="Order" />
+                <BackHeader title={tr('Order')} />
                 <View style={s.pad}>
                     <Skel height={150} radius={22} />
                     <View style={[s.card, { backgroundColor: surface, borderColor: border }]}>
@@ -225,12 +226,12 @@ export default function OrderDetailScreen() {
     if (state !== 'ok') {
         return (
             <View style={[s.flex, { backgroundColor: background }]}>
-                <BackHeader title="Order" />
+                <BackHeader title={tr('Order')} />
                 <Appear style={s.center}>
                     <Ionicons name="alert-circle-outline" size={44} color={muted} />
-                    <Text style={[s.big, { color: text }]}>{state === 'gone' ? 'Order not found' : 'Could not load this order'}</Text>
+                    <Text style={[s.big, { color: text }]}>{state === 'gone' ? tr('Order not found') : tr('Could not load this order')}</Text>
                     <Press onPress={state === 'gone' ? () => nav.goBack() : get} style={[s.main, { backgroundColor: primary, borderRadius: radius, paddingHorizontal: 28 }]}>
-                        <Text style={s.mainTxt}>{state === 'gone' ? 'Go back' : 'Try again'}</Text>
+                        <Text style={s.mainTxt}>{state === 'gone' ? tr('Go back') : tr('Try again')}</Text>
                     </Press>
                 </Appear>
             </View>
@@ -257,7 +258,7 @@ export default function OrderDetailScreen() {
         try {
             const r = await payForOrder({ order: o, user });
             if (r.order) setO(r.order);
-            showToast(r.status === 'paid' ? 'Payment successful' : r.message || 'Payment not completed');
+            showToast(r.status === 'paid' ? tr('Payment successful') : r.message || tr('Payment not completed'));
             if (r.status !== 'paid') get();
         } finally { setBusy(false); }
     };
@@ -267,7 +268,7 @@ export default function OrderDetailScreen() {
 
     return (
         <View style={[s.flex, { backgroundColor: background }]}>
-            <BackHeader title={`Order #${o.orderNo}`} />
+            <BackHeader title={tr('Order #{orderNo}', { orderNo: o.orderNo })} />
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={[s.pad, { paddingBottom: dock ? 110 : 40 }]}>
                 <Appear>
                     <LinearGradient colors={[accent, mix(accent, '#000000', 0.28)]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.hero}>
@@ -275,7 +276,7 @@ export default function OrderDetailScreen() {
                         <View style={[s.blob, { bottom: -60, left: 40, width: 110, height: 110, opacity: 0.6 }]} />
                         <View style={s.heroTop}>
                             <View style={{ flex: 1, paddingRight: 12 }}>
-                                <Text style={s.heroCap}>{delivery ? 'DELIVERY' : 'PICKUP'}  ·  {fmt(o.createdAt)}</Text>
+                                <Text style={s.heroCap}>{delivery ? tr('DELIVERY') : tr('PICKUP')}  ·  {fmt(o.createdAt)}</Text>
                                 <Text style={s.heroHead} numberOfLines={2}>{headline}</Text>
                                 {sub ? <Text style={s.heroSub}>{sub}</Text> : null}
                             </View>
@@ -291,11 +292,11 @@ export default function OrderDetailScreen() {
                         ) : null}
 
                         <View style={s.facts}>
-                            <View style={s.fact}><Text style={s.factK}>TOTAL</Text><Text style={s.factV}>{rs(p.total)}</Text></View>
-                            <View style={s.fact}><Text style={s.factK}>ITEMS</Text><Text style={s.factV}>{o.items.reduce((n, l) => n + (l.measure ? 1 : l.quantity), 0)}</Text></View>
+                            <View style={s.fact}><Text style={s.factK}>{tr('TOTAL')}</Text><Text style={s.factV}>{rs(p.total)}</Text></View>
+                            <View style={s.fact}><Text style={s.factK}>{tr('ITEMS')}</Text><Text style={s.factV}>{o.items.reduce((n, l) => n + (l.measure ? 1 : l.quantity), 0)}</Text></View>
                             <View style={s.fact}>
-                                <Text style={s.factK}>PAYMENT</Text>
-                                <Text style={s.factV} numberOfLines={1}>{PAY[o.payment?.method] || 'Cash'}{o.payment?.status === 'paid' ? ' · Paid' : ''}</Text>
+                                <Text style={s.factK}>{tr('PAYMENT')}</Text>
+                                <Text style={s.factV} numberOfLines={1}>{PAY[o.payment?.method] || tr('Cash')}{o.payment?.status === 'paid' ? tr(' · Paid') : ''}</Text>
                             </View>
                         </View>
                     </LinearGradient>
@@ -306,7 +307,7 @@ export default function OrderDetailScreen() {
                 ) : null}
 
                 {!cancelled ? (
-                    <Card title="Order status" icon="time-outline" delay={60}>
+                    <Card title={tr('Order status')} icon="time-outline" delay={60}>
                         {flow.map((st, k) => (
                             <Step key={st} st={st} k={k} idx={idx} live={live} last={k === flow.length - 1}
                                 hist={(o.statusHistory || []).find((x) => x.status === st)} />
@@ -314,7 +315,7 @@ export default function OrderDetailScreen() {
                     </Card>
                 ) : null}
 
-                <Card title="Items" icon="fast-food-outline" delay={100}>
+                <Card title={tr('Items')} icon="fast-food-outline" delay={100}>
                     {o.items.map((l, i) => (
                         <View key={`${l.productId}${i}`} style={s.item}>
                             {l.image ? <Image source={{ uri: l.image }} style={[s.itemPic, { backgroundColor: border }]} /> : <View style={[s.itemPic, { backgroundColor: tint(primary), alignItems: 'center', justifyContent: 'center' }]}><Ionicons name="fast-food-outline" size={18} color={primary} /></View>}
@@ -322,34 +323,34 @@ export default function OrderDetailScreen() {
                             <View style={{ flex: 1, marginHorizontal: 10 }}>
                                 <Text style={[s.itemName, { color: text }]}>{l.name}</Text>
                                 {l.selections?.length ? <Text style={[s.muted, { color: muted }]}>{l.selections.map((x) => x.name).join(', ')}</Text> : null}
-                                {l.note ? <Text style={[s.muted, { color: muted }]}>Note: {l.note}</Text> : null}
+                                {l.note ? <Text style={[s.muted, { color: muted }]}>{tr('Note: {note}', { note: l.note })}</Text> : null}
                             </View>
                             <Text style={[s.itemName, { color: text }]}>{rs(l.lineTotal)}</Text>
                         </View>
                     ))}
                 </Card>
 
-                <Card title="Bill details" icon="receipt-outline" delay={140}>
-                    <Row k="Subtotal" v={rs(p.subtotal)} />
-                    {p.discount > 0 ? <Row k={`Coupon${p.couponCode ? ` (${p.couponCode})` : ''}`} v={`− ${rs(p.discount)}`} green /> : null}
-                    {delivery ? <Row k="Delivery fee" v={p.deliveryFee > 0 ? rs(p.deliveryFee) : 'Free'} green={!p.deliveryFee} /> : null}
-                    {p.packagingCharge > 0 ? <Row k="Packaging" v={rs(p.packagingCharge)} /> : null}
-                    {p.taxMode === 'exclusive' && p.tax > 0 ? <Row k="GST" v={rs(p.tax)} /> : null}
-                    {p.tip > 0 ? <Row k="Tip" v={rs(p.tip)} /> : null}
+                <Card title={tr('Bill details')} icon="receipt-outline" delay={140}>
+                    <Row k={tr('Subtotal')} v={rs(p.subtotal)} />
+                    {p.discount > 0 ? <Row k={tr('Coupon{v1}', { v1: p.couponCode ? ` (${p.couponCode})` : '' })} v={`− ${rs(p.discount)}`} green /> : null}
+                    {delivery ? <Row k={tr('Delivery fee')} v={p.deliveryFee > 0 ? rs(p.deliveryFee) : 'Free'} green={!p.deliveryFee} /> : null}
+                    {p.packagingCharge > 0 ? <Row k={tr('Packaging')} v={rs(p.packagingCharge)} /> : null}
+                    {p.taxMode === 'exclusive' && p.tax > 0 ? <Row k={tr('GST')} v={rs(p.tax)} /> : null}
+                    {p.tip > 0 ? <Row k={tr('Tip')} v={rs(p.tip)} /> : null}
                     <View style={[s.line, { backgroundColor: border }]} />
-                    <Row k="Total" v={rs(p.total)} bold />
-                    {p.taxMode === 'inclusive' && p.tax > 0 ? <Text style={[s.muted, { color: muted }]}>Includes {rs(p.tax)} GST</Text> : null}
+                    <Row k={tr('Total')} v={rs(p.total)} bold />
+                    {p.taxMode === 'inclusive' && p.tax > 0 ? <Text style={[s.muted, { color: muted }]}>{tr('Includes {rs} GST', { rs: rs(p.tax) })}</Text> : null}
                 </Card>
 
                 {delivered ? (
-                    <Card title="Invoice" icon="document-text-outline" delay={170}>
+                    <Card title={tr('Invoice')} icon="document-text-outline" delay={170}>
                         <View style={s.iconRow}>
                             <Press wrap={{ flex: 1, marginRight: 10 }} disabled={!!inv} onPress={() => viewInvoice(o, (v) => setInv(v ? 'view' : ''))}
                                 style={[s.dBtn, { borderColor: primary, borderWidth: 1.5, borderRadius: radius }]}>
                                 {inv === 'view' ? <ActivityIndicator color={primary} /> : (
                                     <View style={s.iconRow}>
                                         <Ionicons name="eye-outline" size={18} color={primary} />
-                                        <Text style={[s.ghostTxt, { color: primary, marginLeft: 6 }]}>View</Text>
+                                        <Text style={[s.ghostTxt, { color: primary, marginLeft: 6 }]}>{tr('View')}</Text>
                                     </View>
                                 )}
                             </Press>
@@ -358,45 +359,45 @@ export default function OrderDetailScreen() {
                                 {inv === 'save' ? <ActivityIndicator color="#FFFFFF" /> : (
                                     <View style={s.iconRow}>
                                         <Ionicons name="download-outline" size={18} color="#FFFFFF" />
-                                        <Text style={[s.mainTxt, { marginLeft: 6 }]}>Download</Text>
+                                        <Text style={[s.mainTxt, { marginLeft: 6 }]}>{tr('Download')}</Text>
                                     </View>
                                 )}
                             </Press>
                         </View>
-                        <Text style={[s.muted, { color: muted }]}>Saved as invoice-{o.orderNo}.pdf</Text>
+                        <Text style={[s.muted, { color: muted }]}>{tr('Saved as invoice-{orderNo}.pdf', { orderNo: o.orderNo })}</Text>
                     </Card>
                 ) : null}
 
                 {timeLine ? (
-                    <Card title={delivery ? 'Scheduled for' : 'Pickup time'} icon="calendar-outline" delay={180}>
+                    <Card title={delivery ? tr('Scheduled for') : tr('Pickup time')} icon="calendar-outline" delay={180}>
                         <Text style={[s.itemName, { color: text }]}>{timeLine}</Text>
                     </Card>
                 ) : null}
                 {/* a pickup order: where to collect it, with Directions */}
                 {!delivery && spot.on && (spot.address || spot.pinned) ? (
-                    <Card title="Pickup from" icon="storefront-outline" delay={190}>
+                    <Card title={tr('Pickup from')} icon="storefront-outline" delay={190}>
                         <StoreLocation inline />
                     </Card>
                 ) : null}
                 {delivery && o.address ? (
-                    <Card title="Delivery address" icon="location-outline" delay={200}>
+                    <Card title={tr('Delivery address')} icon="location-outline" delay={200}>
                         <Text style={[s.itemName, { color: text }]}>{[o.address.label, o.address.name].filter(Boolean).join(' · ')}</Text>
                         <Text style={[s.muted, { color: muted }]}>{addr(o.address)}</Text>
                     </Card>
                 ) : null}
-                {o.note ? <Card title="Order note" icon="create-outline" delay={220}><Text style={[s.muted, { color: muted, marginTop: 0 }]}>{o.note}</Text></Card> : null}
+                {o.note ? <Card title={tr('Order note')} icon="create-outline" delay={220}><Text style={[s.muted, { color: muted, marginTop: 0 }]}>{o.note}</Text></Card> : null}
 
                 {delivered ? (
-                    <Card title={showForm ? (editing ? 'Edit your review' : 'Rate this order') : 'Your review'} icon="star-outline" delay={240}>
+                    <Card title={showForm ? (editing ? tr('Edit your review') : tr('Rate this order')) : tr('Your review')} icon="star-outline" delay={240}>
                         {showForm ? (
                             <>
                                 <View style={s.stars}>
                                     {[1, 2, 3, 4, 5].map((k) => <StarBtn key={k} on={stars >= k} onPress={() => setStars(k)} />)}
                                 </View>
-                                <Text style={[s.word, { color: stars ? '#F5A623' : muted }]}>{stars ? WORDS[stars - 1] : 'Tap a star to rate'}</Text>
+                                <Text style={[s.word, { color: stars ? '#F5A623' : muted }]}>{stars ? WORDS[stars - 1] : tr('Tap a star to rate')}</Text>
                                 <TextInput
                                     value={comment} onChangeText={setComment} multiline maxLength={300}
-                                    placeholder="Tell us how it was (optional)" placeholderTextColor={muted}
+                                    placeholder={tr('Tell us how it was (optional)')} placeholderTextColor={muted}
                                     style={[s.review, { color: text, borderColor: border, backgroundColor: background }]}
                                 />
                                 <Text style={[s.count, { color: muted }]}>{comment.length}/300</Text>
@@ -404,12 +405,12 @@ export default function OrderDetailScreen() {
                                     {editing ? (
                                         <Press wrap={{ flex: 1, marginRight: 10 }} disabled={saving} onPress={() => setEditing(false)}
                                             style={[s.dBtn, { borderColor: border, borderWidth: 1.5, borderRadius: radius }]}>
-                                            <Text style={[s.ghostTxt, { color: text }]}>Cancel</Text>
+                                            <Text style={[s.ghostTxt, { color: text }]}>{tr('Cancel')}</Text>
                                         </Press>
                                     ) : null}
                                     <Press wrap={{ flex: 1.4, opacity: stars ? 1 : 0.5 }} disabled={!stars || saving} onPress={submit}
                                         style={[s.dBtn, { backgroundColor: primary, borderRadius: radius }]}>
-                                        {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.mainTxt}>{editing ? 'Update review' : 'Submit review'}</Text>}
+                                        {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.mainTxt}>{editing ? tr('Update review') : tr('Submit review')}</Text>}
                                     </Press>
                                 </View>
                             </>
@@ -420,11 +421,11 @@ export default function OrderDetailScreen() {
                                         <Ionicons key={k} name={saved.stars >= k ? 'star' : 'star-outline'} size={26} color={saved.stars >= k ? '#F5A623' : '#BBBBBB'} style={{ marginRight: 6 }} />
                                     ))}
                                 </View>
-                                <Text style={[s.saved, { color: saved.comment ? text : muted }]}>{saved.comment || 'No comment added'}</Text>
+                                <Text style={[s.saved, { color: saved.comment ? text : muted }]}>{saved.comment || tr('No comment added')}</Text>
                                 <Press onPress={startEdit} style={[s.ghost, { borderColor: primary, borderRadius: radius }]}>
                                     <View style={s.iconRow}>
                                         <Ionicons name="create-outline" size={17} color={primary} />
-                                        <Text style={[s.ghostTxt, { color: primary, marginLeft: 6 }]}>Edit review</Text>
+                                        <Text style={[s.ghostTxt, { color: primary, marginLeft: 6 }]}>{tr('Edit review')}</Text>
                                     </View>
                                 </Press>
                             </>
@@ -433,9 +434,9 @@ export default function OrderDetailScreen() {
                 ) : null}
 
                 {delivered && delivery && o.delivery?.proof?.url ? (
-                    <Card title="Delivery photo" icon="camera-outline" delay={90}>
+                    <Card title={tr('Delivery photo')} icon="camera-outline" delay={90}>
                         <Image source={{ uri: o.delivery.proof.url }} style={{ width: '100%', height: 220, borderRadius: 12, backgroundColor: border }} resizeMode="cover" />
-                        <Text style={[s.muted, { color: muted, marginTop: 8 }]}>Taken by your delivery partner when the food was handed over.</Text>
+                        <Text style={[s.muted, { color: muted, marginTop: 8 }]}>{tr('Taken by your delivery partner when the food was handed over.')}</Text>
                     </Card>
                 ) : null}
 
@@ -450,18 +451,18 @@ export default function OrderDetailScreen() {
                     {o.canCancel ? (
                         <Press wrap={{ flex: 1, marginRight: reorderOn ? 10 : 0 }} disabled={busy} onPress={() => cancelFlow(o, { setBusy, onDone: setO })}
                             style={[s.dBtn, { borderColor: error, borderWidth: 1.5, borderRadius: radius }]}>
-                            <Text style={[s.ghostTxt, { color: error }]}>Cancel order</Text>
+                            <Text style={[s.ghostTxt, { color: error }]}>{tr('Cancel order')}</Text>
                         </Press>
                     ) : null}
                     {payable ? (
                         <Press wrap={{ flex: 1.4 }} disabled={busy} onPress={payNow}
                             style={[s.dBtn, { backgroundColor: primary, borderRadius: radius }]}>
-                            {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.mainTxt}>Pay {rs(o.pricing?.total)}</Text>}
+                            {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.mainTxt}>{tr('Pay {rs}', { rs: rs(o.pricing?.total) })}</Text>}
                         </Press>
                     ) : reorderOn ? (
                         <Press wrap={{ flex: 1.4 }} disabled={busy} onPress={() => reorder(o, nav, setBusy)}
                             style={[s.dBtn, { backgroundColor: primary, borderRadius: radius }]}>
-                            {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.mainTxt}>Reorder</Text>}
+                            {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.mainTxt}>{tr('Reorder')}</Text>}
                         </Press>
                     ) : null}
                 </Appear>

@@ -10,6 +10,7 @@ import { useRidersStore } from '../../store/owners/useRidersStore';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { fetchRiderLocations } from '../../api/owners/shopApi';
 import { ago } from '../../utils/owners/riderRules';
+import { tr } from '../../i18n';
 
 const INDIA = { latitude: 22.5, longitude: 79, latitudeDelta: 20, longitudeDelta: 20 };
 
@@ -45,7 +46,7 @@ export default function OwnerRiderMapScreen() {
 
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
-            <PageHeader title="Live map" />
+            <PageHeader title={tr('Live map')} />
             <View style={{ flex: 1 }}>
                 <MapView
                     ref={map}
@@ -58,7 +59,7 @@ export default function OwnerRiderMapScreen() {
                     pitchEnabled={false}
                 >
                     {(pins || []).map((p) => (
-                        <Marker key={p.riderId} coordinate={{ latitude: p.lat, longitude: p.lng }} title={nameOf(p)} description={`${p.activeOrderCount || 0} on delivery · ${ago(p.at)}`} anchor={{ x: 0.5, y: 0.5 }}>
+                        <Marker key={p.riderId} coordinate={{ latitude: p.lat, longitude: p.lng }} title={nameOf(p)} description={tr('{v1} on delivery · {ago}', { v1: p.activeOrderCount || 0, ago: ago(p.at) })} anchor={{ x: 0.5, y: 0.5 }}>
                             <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: p.activeOrderCount ? primary : ok, borderWidth: 3, borderColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' }}>
                                 <Ionicons name="bicycle" size={20} color={p.activeOrderCount ? onPrimary : '#FFFFFF'} />
                             </View>
@@ -67,8 +68,8 @@ export default function OwnerRiderMapScreen() {
                 </MapView>
                 {pins && !pins.length ? (
                     <View style={{ position: 'absolute', left: 16, right: 16, top: 16, backgroundColor: surface, borderRadius: 16, borderWidth: 1, borderColor: border, padding: 14 }}>
-                        <Text style={{ color: text, fontWeight: '800' }}>No rider is sharing his location</Text>
-                        <Text style={{ color: muted, marginTop: 2, fontSize: 12 }}>A rider shows here while he is online with the app open.</Text>
+                        <Text style={{ color: text, fontWeight: '800' }}>{tr('No rider is sharing his location')}</Text>
+                        <Text style={{ color: muted, marginTop: 2, fontSize: 12 }}>{tr('A rider shows here while he is online with the app open.')}</Text>
                     </View>
                 ) : null}
                 {pins?.length ? (
@@ -78,7 +79,7 @@ export default function OwnerRiderMapScreen() {
                                 <Pressable key={p.riderId} onPress={() => focus(p)} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 9 }}>
                                     <Ionicons name="bicycle" size={20} color={p.activeOrderCount ? primary : ok} />
                                     <Text style={{ flex: 1, color: text, fontWeight: '800', marginLeft: 12 }} numberOfLines={1}>{nameOf(p)}</Text>
-                                    {p.activeOrderCount ? <Pill label={`${p.activeOrderCount} on delivery`} color={primary} /> : <Pill label="Free" color={ok} />}
+                                    {p.activeOrderCount ? <Pill label={tr('{activeOrderCount} on delivery', { activeOrderCount: p.activeOrderCount })} color={primary} /> : <Pill label={tr('Free')} color={ok} />}
                                     <Text style={{ color: muted, fontSize: 11, marginLeft: 8 }}>{ago(p.at)}</Text>
                                 </Pressable>
                             ))}

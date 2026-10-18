@@ -1,28 +1,30 @@
 // Every word the rider reads, in one place. Today it is English only. To add a language later, make a second object with
 // the same keys and pick one by the phone's language; no screen has to change.
-export const T = {
-    hello: (name) => `Hello${name ? `, ${name}` : ''}`,
+import { tr } from '../../i18n';
+
+const BASE = {
+    hello: (name) => (name ? tr('Hello, {name}', { name }) : tr('Hello')),
     onDuty: 'On duty',
     offDuty: 'Off duty',
     startDuty: 'Start duty',
     endDuty: 'End duty',
-    onDutyHint: (shop) => `You will get orders from ${shop || 'the shop'}`,
+    onDutyHint: (shop) => (shop ? tr('You will get orders from {shop}', { shop }) : tr('You will get orders from the shop')),
     offDutyHint: 'Start duty to get orders',
     deliveriesToday: 'Deliveries today',
     earnedToday: 'Earned today',
-    cashHeld: (amount) => `You hold ${amount} cash. Give it to the shop.`,
+    cashHeld: (amount) => tr('You hold {amount} cash. Give it to the shop.', { amount }),
     waiting: 'Waiting for orders',
     waitingHint: 'A new order will appear here with a sound.',
     yourDeliveries: 'Your deliveries',
     newOrder: 'New order',
-    away: (km) => `${km} km away`,
-    youEarn: (amount) => `You earn ${amount}`,
-    collectCash: (amount) => `Collect ${amount} cash`,
+    away: (km) => tr('{km} km away', { km }),
+    youEarn: (amount) => tr('You earn {amount}', { amount }),
+    collectCash: (amount) => tr('Collect {amount} cash', { amount }),
     paidOnline: 'Paid online',
     paidAtDoor: 'Paid at the door',
     accept: 'Accept',
     noThanks: 'No thanks',
-    secondsLeft: (n) => `${n}s left`,
+    secondsLeft: (n) => tr('{n}s left', { n }),
     taken: 'Another rider took this order',
     // the trip
     stepCollect: 'Collect',
@@ -42,7 +44,7 @@ export const T = {
     call: 'Call',
     arrived: 'I have arrived',
     deliver: 'Deliver',
-    deliverCash: (amount) => `I collected ${amount} · Deliver`,
+    deliverCash: (amount) => tr('I collected {amount} · Deliver', { amount }),
     customerPaysOnline: 'Customer will pay online',
     scanToPay: 'Customer scans to pay',
     pinTitle: 'Delivery PIN',
@@ -61,7 +63,7 @@ export const T = {
     callShop: 'Call the shop',
     cancel: 'Cancel',
     delivered: 'Delivered!',
-    deliveredEarned: (amount) => `You earned ${amount}`,
+    deliveredEarned: (amount) => tr('You earned {amount}', { amount }),
     backHome: 'Back to home',
     cancelledTitle: 'This order was cancelled',
     cancelledText: 'Bring the food back to the shop.',
@@ -71,10 +73,10 @@ export const T = {
     cashWithYou: 'Cash with you',
     cashNone: 'No cash with you',
     cashHint: 'Give this cash to the shop. They will note it here.',
-    cashLimit: (amount) => `Limit ${amount}`,
-    cashNearLimit: (amount) => `You are close to the cash limit (${amount}). Give cash to the shop soon.`,
+    cashLimit: (amount) => tr('Limit {amount}', { amount }),
+    cashNearLimit: (amount) => tr('You are close to the cash limit ({amount}). Give cash to the shop soon.', { amount }),
     cashOverLimit: 'Give cash to the shop to get new orders.',
-    cashCollected: (no) => `Collected on order #${no}`,
+    cashCollected: (no) => tr('Collected on order #{no}', { no }),
     cashHanded: 'Given to the shop',
     cashAdjusted: 'Corrected by the shop',
     noCash: 'No cash entries yet',
@@ -86,7 +88,7 @@ export const T = {
     toGet: 'Still to get',
     payments: 'Payments from the shop',
     noPayments: 'No payments recorded yet',
-    salaryLine: (amount, every) => `${amount} every ${every}`,
+    salaryLine: (amount, every) => tr('{amount} every {every}', { amount, every: tr(every) }),
     payKinds: { earnings: 'Delivery pay', advance: 'Advance', salary: 'Salary', bonus: 'Bonus' },
     // reliability
     offline: 'No network. Stay where you are. Your taps will work when the signal is back.',
@@ -125,6 +127,10 @@ export const T = {
     error: 'Something went wrong. Try again.',
     noNetwork: 'No network. Check your internet and try again.',
 };
+
+// T.something is translated when it is READ (so a language change shows at once); a function in it translates when it is called
+const xl = (v) => (typeof v === 'string' ? tr(v) : Array.isArray(v) ? v.map(xl) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, xl(x)])) : v);
+export const T = new Proxy(BASE, { get: (o, k) => xl(o[k]) });
 
 export const rupee = (paise) => `₹${Math.round((Number(paise) || 0) / 100).toLocaleString('en-IN')}`;
 export const rupeeAmount = (n) => `₹${Math.round(Number(n) || 0).toLocaleString('en-IN')}`;

@@ -22,6 +22,7 @@ import { quoteOrder, placeOrder, fetchPickupSlots } from '../../api/customers/sh
 import { payForOrder, prewarmPayments, abandonUnpaidOrder } from '../../utils/customers/payOnline';
 import PayShimmer from '../../components/customers/PayShimmer';
 import { usePayChoice } from '../../store/customers/usePayChoice';
+import { tr } from '../../i18n';
 
 const errMsg = (e) => e?.response?.data?.error
     || (e?.response ? 'Something went wrong. Try again.' : 'Network problem. Check your connection.');
@@ -198,7 +199,7 @@ export default function CartScreen() {
 
     const place = async () => {
         if (placing || !fresh || !quote.canPlace || closed) return;
-        if (useAuthStore.getState().user?.role === 'admin') { showToast('Shop owners cannot order from their own number. Log in with a customer number to try an order.'); return; }
+        if (useAuthStore.getState().user?.role === 'admin') { showToast(tr('Shop owners cannot order from their own number. Log in with a customer number to try an order.')); return; }
         if (paymentMethodValue === 'card' && !card) { nav.navigate('CardDetails', { depth: 1 }); return; }   // card details are asked every time
         setPlacing(true);
         try {
@@ -230,14 +231,14 @@ export default function CartScreen() {
                     if (!a.paid) {
                         setIdemKey(Crypto.randomUUID());   // the next "Place order" is a fresh order
                         setTick((x) => x + 1);             // price the cart again
-                        showToast(r.status === 'cancelled' ? 'Payment cancelled. Your cart is safe' : r.message || 'Payment failed. Try again');
+                        showToast(r.status === 'cancelled' ? tr('Payment cancelled. Your cart is safe') : r.message || tr('Payment failed. Try again'));
                         return;                            // stay on the cart
                     }
                     r.status = 'paid';                     // the money had arrived after all
                 }
 
                 useCartStore.getState().clear();
-                if (r.status !== 'paid') showToast(r.message || 'We are confirming your payment');
+                if (r.status !== 'paid') showToast(r.message || tr('We are confirming your payment'));
                 nav.dispatch(CommonActions.reset(r.status === 'paid'
                     ? { index: 1, routes: [tabs, placed(true)] }
                     : { index: 1, routes: [tabs, { name: 'OrderDetail', params: { id } }] }));   // still confirming: show the order
@@ -263,15 +264,15 @@ export default function CartScreen() {
     if (!lines.length) {
         return (
             <View style={[s.flex, { backgroundColor: background }]}>
-                <BackHeader title="Cart" />
+                <BackHeader title={tr('Cart')} />
                 <Appear style={hasFavs ? [s.center, { flex: 0, paddingTop: 28, paddingBottom: 18 }] : s.center}>
                     <View style={[s.iconCircle, { backgroundColor: surface, borderColor: border }]}>
                         <Ionicons name="cart-outline" size={48} color={muted} />
                     </View>
                     <Text style={[s.big, { color: text }]}>{full.labels.emptyCart}</Text>
-                    <Text style={[s.lSub, { color: muted, marginTop: 6 }]}>Good food is always cooking.</Text>
+                    <Text style={[s.lSub, { color: muted, marginTop: 6 }]}>{tr('Good food is always cooking.')}</Text>
                     <Press onPress={() => nav.goBack()} style={[s.cta, { backgroundColor: primary, borderRadius: radius }]}>
-                        <Text style={s.ctaTxt}>Browse Menu</Text>
+                        <Text style={s.ctaTxt}>{tr('Browse Menu')}</Text>
                     </Press>
                 </Appear>
                 {hasFavs ? <FavouriteDishes mode="list" /> : null}
@@ -298,7 +299,7 @@ export default function CartScreen() {
 
     return (
         <View style={[s.flex, { backgroundColor: background }]}>
-            <BackHeader title={full.restaurant?.name || 'Your Cart'} />
+            <BackHeader title={full.restaurant?.name || tr('Your Cart')} />
             <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 30 }}>
                 {closed ? <ClosedBanner message={quote?.problem || closedMsg} /> : null}
 
@@ -343,7 +344,7 @@ export default function CartScreen() {
                         ))}
                         <Pressable onPress={() => nav.goBack()} style={s.addMoreRow}>
                             <Ionicons name="add-circle-outline" size={16} color={primary} />
-                            <Text style={[s.addMoreTxt, { color: primary }]}>Add more items</Text>
+                            <Text style={[s.addMoreTxt, { color: primary }]}>{tr('Add more items')}</Text>
                         </Pressable>
                     </Appear>
 
@@ -351,11 +352,11 @@ export default function CartScreen() {
 
                     {user && type === 'delivery' ? (
                         <Appear delay={60} style={{ marginTop: 20 }}>
-                            <Text style={[s.cap, { color: text, marginBottom: 8 }]}>Delivery Instructions</Text>
+                            <Text style={[s.cap, { color: text, marginBottom: 8 }]}>{tr('Delivery Instructions')}</Text>
                             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                                 {QUICK_NOTES.map((n) => <Chip key={n} label={n} on={delNotes.includes(n)} onPress={() => toggleNote(n)} />)}
                             </ScrollView>
-                            <TextInput value={customNote} onChangeText={setCustomNote} placeholder="E.g., Any specific landmark or instructions..."
+                            <TextInput value={customNote} onChangeText={setCustomNote} placeholder={tr('E.g., Any specific landmark or instructions...')}
                                 placeholderTextColor={muted} style={[s.customNoteInput, { color: text, borderColor: border, backgroundColor: surface }]} />
                         </Appear>
                     ) : null}
@@ -373,21 +374,21 @@ export default function CartScreen() {
                                 <Appear style={[s.applied, { borderColor: primary, backgroundColor: tint(primary) }]}>
                                     <View style={s.cRow}>
                                         <Ionicons name="checkmark-circle" size={20} color={primary} style={{ marginRight: 8 }} />
-                                        <Text style={{ color: primary, fontWeight: '800', fontSize: 14 }}>'{applied}' applied</Text>
+                                        <Text style={{ color: primary, fontWeight: '800', fontSize: 14 }}>{tr('\'{applied}\' applied', { applied: applied })}</Text>
                                     </View>
                                     <Pressable hitSlop={8} onPress={() => { ease(); setApplied(''); setCouponErr(''); }}>
-                                        <Text style={[s.link, { color: primary }]}>Remove</Text>
+                                        <Text style={[s.link, { color: primary }]}>{tr('Remove')}</Text>
                                     </Pressable>
                                 </Appear>
                             ) : (
                                 <View style={s.cRow}>
                                     <View style={[s.inputWrap, { borderColor: border, backgroundColor: surface }]}>
                                         <Ionicons name="pricetag-outline" size={16} color={muted} style={{ marginRight: 8 }} />
-                                        <TextInput value={couponIn} onChangeText={setCouponIn} placeholder="Apply coupon" placeholderTextColor={muted}
+                                        <TextInput value={couponIn} onChangeText={setCouponIn} placeholder={tr('Apply coupon')} placeholderTextColor={muted}
                                             autoCapitalize="characters" maxLength={30} style={[s.input, { color: text }]} onSubmitEditing={apply} />
                                     </View>
                                     <Press onPress={apply} style={[s.apply, { backgroundColor: surface, borderColor: border, borderRadius: radius }]}>
-                                        {tryCode ? <ActivityIndicator size="small" color={primary} /> : <Text style={[s.link, { color: primary }]}>Apply</Text>}
+                                        {tryCode ? <ActivityIndicator size="small" color={primary} /> : <Text style={[s.link, { color: primary }]}>{tr('Apply')}</Text>}
                                     </Press>
                                 </View>
                             )}
@@ -397,15 +398,15 @@ export default function CartScreen() {
 
                     {user && (types.length > 1 || showSchedule) ? (
                         <Appear delay={140} style={{ marginTop: 20 }}>
-                            <Text style={[s.cap, { color: text, marginBottom: 8 }]}>Order Settings</Text>
+                            <Text style={[s.cap, { color: text, marginBottom: 8 }]}>{tr('Order Settings')}</Text>
                             {types.length > 1 ? (
                                 <View style={s.chipsRow}>
-                                    {types.map((t) => <Chip key={t} on={type === t} icon={t === 'delivery' ? 'bicycle-outline' : 'basket-outline'} label={t === 'delivery' ? 'Delivery' : 'Pickup'} onPress={() => setPickedType(t)} />)}
+                                    {types.map((t) => <Chip key={t} on={type === t} icon={t === 'delivery' ? 'bicycle-outline' : 'basket-outline'} label={t === 'delivery' ? tr('Delivery') : tr('Pickup')} onPress={() => setPickedType(t)} />)}
                                 </View>
                             ) : null}
                             {showSchedule ? (
                                 <View style={s.chipsRow}>
-                                    <Chip icon="flash-outline" label="Now" on={when === 'now'} onPress={() => setWhen('now')} />
+                                    <Chip icon="flash-outline" label={tr('Now')} on={when === 'now'} onPress={() => setWhen('now')} />
                                     {slots.today ? <Chip icon="time-outline" label={slots.today.label} on={when === 'today'} onPress={() => setWhen('today')} /> : null}
                                     <Chip icon="calendar-outline" label={slots.tomorrow.label} on={when === 'tomorrow'} onPress={() => setWhen('tomorrow')} />
                                 </View>
@@ -415,17 +416,17 @@ export default function CartScreen() {
 
                     {user && type === 'pickup' ? (
                         <Appear style={{ marginTop: 20 }}>
-                            <Text style={[s.cap, { color: text }]}>Pickup time</Text>
-                            <Text style={[s.lSub, { color: muted, marginTop: 2, marginBottom: 12 }]}>Choose a time window to collect your order</Text>
+                            <Text style={[s.cap, { color: text }]}>{tr('Pickup time')}</Text>
+                            <Text style={[s.lSub, { color: muted, marginTop: 2, marginBottom: 12 }]}>{tr('Choose a time window to collect your order')}</Text>
                             <PickupSlots res={slotRes} picked={pickedSlot} onPick={(v) => { ease(); setPickedSlot(v); }} />
                         </Appear>
                     ) : null}
 
                     {user && f.tips && type === 'delivery' && (full.orders.tipOptions || []).length ? (
                         <Appear style={{ marginTop: 20 }}>
-                            <Text style={[s.cap, { color: text, marginBottom: 8 }]}>Tip your delivery partner</Text>
+                            <Text style={[s.cap, { color: text, marginBottom: 8 }]}>{tr('Tip your delivery partner')}</Text>
                             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                                <Chip label="No tip" icon="close" on={tip === 0} onPress={() => setTip(0)} />
+                                <Chip label={tr('No tip')} icon="close" on={tip === 0} onPress={() => setTip(0)} />
                                 {full.orders.tipOptions.map((n) => <Chip key={n} icon="heart-outline" label={rs(n)} on={tip === n} onPress={() => setTip(n)} />)}
                             </ScrollView>
                         </Appear>
@@ -436,16 +437,16 @@ export default function CartScreen() {
                             <CardGlow radius={16} />
                             <View style={s.cardHead}>
                                 <Ionicons name="location-outline" size={18} color={primary} />
-                                <Text style={[s.cap, { color: muted, marginLeft: 6 }]}>Deliver to</Text>
+                                <Text style={[s.cap, { color: muted, marginLeft: 6 }]}>{tr('Deliver to')}</Text>
                             </View>
                             {addr ? (
                                 <View style={{ marginTop: 8 }}>
                                     <Text style={[s.lName, { color: text }]}>{addr.label}{addr.name ? ` · ${addr.name}` : ''}{addr.phone ? ` · ${addr.phone}` : ''}</Text>
                                     <Text style={[s.lSub, { color: muted }]}>{addrLine(addr)}</Text>
                                 </View>
-                            ) : <Text style={[s.lSub, { color: muted, marginTop: 8 }]}>No address selected</Text>}
+                            ) : <Text style={[s.lSub, { color: muted, marginTop: 8 }]}>{tr('No address selected')}</Text>}
                             <Pressable hitSlop={8} onPress={() => setSheet(true)} style={{ marginTop: 12, alignSelf: 'flex-start' }}>
-                                <Text style={[s.link, { color: primary }]}>{addr ? 'Change Address' : 'Add Address'}</Text>
+                                <Text style={[s.link, { color: primary }]}>{addr ? tr('Change Address') : tr('Add Address')}</Text>
                             </Pressable>
                         </Appear>
                     ) : null}
@@ -454,7 +455,7 @@ export default function CartScreen() {
                             <CardGlow radius={16} />
                             <View style={s.cardHead}>
                                 <Ionicons name="storefront-outline" size={18} color={primary} />
-                                <Text style={[s.cap, { color: muted, marginLeft: 6 }]}>Pick up from</Text>
+                                <Text style={[s.cap, { color: muted, marginLeft: 6 }]}>{tr('Pick up from')}</Text>
                             </View>
                             <Text style={[s.lSub, { color: muted, marginTop: 8 }]}>{[shopAddr.line, shopAddr.city, shopAddr.pincode].filter(Boolean).join(', ')}</Text>
                         </Appear>
@@ -465,7 +466,7 @@ export default function CartScreen() {
                         <View style={s.billHead}>
                             <View style={s.cardHead}>
                                 <Ionicons name="receipt-outline" size={18} color={text} />
-                                <Text style={[s.lName, { color: text, marginLeft: 8 }]}>Bill details</Text>
+                                <Text style={[s.lName, { color: text, marginLeft: 8 }]}>{tr('Bill details')}</Text>
                             </View>
                             {busy ? <ActivityIndicator size="small" color={primary} /> : null}
                         </View>
@@ -473,14 +474,14 @@ export default function CartScreen() {
                             : user && qErr ? (
                                 <View style={{ paddingVertical: 10 }}>
                                     <Text style={[s.err, { color: error }]}>{qErr}</Text>
-                                    <Pressable hitSlop={8} onPress={() => setTick((x) => x + 1)}><Text style={[s.link, { color: primary, marginTop: 8 }]}>Try again</Text></Pressable>
+                                    <Pressable hitSlop={8} onPress={() => setTick((x) => x + 1)}><Text style={[s.link, { color: primary, marginTop: 8 }]}>{tr('Try again')}</Text></Pressable>
                                 </View>
                             ) : user ? <ActivityIndicator style={{ margin: 16 }} color={primary} />
                                 : <Bill q={{ pricing: { subtotal: preview, total: preview } }} type={type} busy={false} />}
                     </Appear>
 
                     <View style={[s.policyBox, { backgroundColor: neutralSoft }]}>
-                        <Text style={[s.policy, { color: muted }]}>Orders cannot be cancelled once preparation begins at the restaurant.</Text>
+                        <Text style={[s.policy, { color: muted }]}>{tr('Orders cannot be cancelled once preparation begins at the restaurant.')}</Text>
                     </View>
                 </View>
             </ScrollView>
@@ -497,10 +498,10 @@ export default function CartScreen() {
                         <View style={s.dockIcon}><Ionicons name="wallet-outline" size={18} color={primary} /></View>
                         <View style={{ flex: 1 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <Text style={[s.dockLabel, { color: text }]} numberOfLines={1}>{/^cash on delivery$/i.test(selectedPaymentMethod) ? 'COD' : selectedPaymentMethod}</Text>
+                                <Text style={[s.dockLabel, { color: text }]} numberOfLines={1}>{/^cash on delivery$/i.test(selectedPaymentMethod) ? tr('COD') : selectedPaymentMethod}</Text>
                                 <Ionicons name="chevron-up-outline" size={14} color={muted} style={{ marginLeft: 4 }} />
                             </View>
-                            <Text style={[s.dockSub, { color: muted }]} numberOfLines={1}>Click to change</Text>
+                            <Text style={[s.dockSub, { color: muted }]} numberOfLines={1}>{tr('Click to change')}</Text>
                         </View>
                     </Pressable>
                     <Press onPress={btnOn ? onBtn : undefined} style={[s.dockBtn, { backgroundColor: btnOn ? primary : muted, borderRadius: radius }]}>

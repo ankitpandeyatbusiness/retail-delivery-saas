@@ -4,6 +4,7 @@ import { View, Text, Pressable, ActivityIndicator, StyleSheet, LayoutAnimation, 
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../common/kit';
 import { tint } from './shop';
+import { tr } from '../../i18n';
 
 export const rs = (n) => `₹${+Number(n || 0).toFixed(2)}`;
 export const ease = () => LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -64,18 +65,18 @@ export function Bill({ q, type, busy, baseDeliveryFee }) {
     const isFreeDel = type === 'delivery' && p.deliveryFee === 0 && baseDeliveryFee > 0;
     return (
         <Animated.View style={{ opacity: op }}>
-            <Row k="Item Total" v={rs(p.subtotal)} />
-            {p.discount > 0 ? <Row k={`Coupon${p.couponCode ? ` (${p.couponCode})` : ''}`} v={`− ${rs(p.discount)}`} green /> : null}
-            {type === 'delivery' ? <Row k="Delivery Partner Fee" v={isFreeDel ? 'FREE' : rs(p.deliveryFee)} strike={isFreeDel ? rs(baseDeliveryFee) : null} green={isFreeDel} /> : null}
-            {p.packagingCharge > 0 ? <Row k="Restaurant Packaging" v={rs(p.packagingCharge)} /> : null}
-            {p.taxMode === 'exclusive' && p.tax > 0 ? <Row k="Taxes & Charges" v={rs(p.tax)} /> : null}
-            {p.tip > 0 ? <Row k="Delivery Tip" v={rs(p.tip)} /> : null}
+            <Row k={tr('Item Total')} v={rs(p.subtotal)} />
+            {p.discount > 0 ? <Row k={tr('Coupon{v1}', { v1: p.couponCode ? ` (${p.couponCode})` : '' })} v={`− ${rs(p.discount)}`} green /> : null}
+            {type === 'delivery' ? <Row k={tr('Delivery Partner Fee')} v={isFreeDel ? 'FREE' : rs(p.deliveryFee)} strike={isFreeDel ? rs(baseDeliveryFee) : null} green={isFreeDel} /> : null}
+            {p.packagingCharge > 0 ? <Row k={tr('Restaurant Packaging')} v={rs(p.packagingCharge)} /> : null}
+            {p.taxMode === 'exclusive' && p.tax > 0 ? <Row k={tr('Taxes & Charges')} v={rs(p.tax)} /> : null}
+            {p.tip > 0 ? <Row k={tr('Delivery Tip')} v={rs(p.tip)} /> : null}
             <View style={[s.line, { backgroundColor: border }]} />
-            <Row k="Grand Total" v={rs(p.total)} bold />
-            {p.taxMode === 'inclusive' && p.tax > 0 ? <Text style={[s.incl, { color: muted }]}>Includes {rs(p.tax)} taxes</Text> : null}
+            <Row k={tr('Grand Total')} v={rs(p.total)} bold />
+            {p.taxMode === 'inclusive' && p.tax > 0 ? <Text style={[s.incl, { color: muted }]}>{tr('Includes {rs} taxes', { rs: rs(p.tax) })}</Text> : null}
             {p.discount > 0 || isFreeDel ? (
                 <Appear style={[s.savings, { backgroundColor: okSoft }]}>
-                    <Text style={[s.savingsTxt, { color: ok }]}>🎉 You saved {rs(p.discount + (isFreeDel ? baseDeliveryFee : 0))} on this order!</Text>
+                    <Text style={[s.savingsTxt, { color: ok }]}>{tr('🎉 You saved {rs} on this order!', { rs: rs(p.discount + (isFreeDel ? baseDeliveryFee : 0)) })}</Text>
                 </Appear>
             ) : null}
         </Animated.View>
@@ -115,8 +116,8 @@ export function FreeDeliveryBar({ preview, freeAbove }) {
             <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: okSoft, opacity: col }]} />
             <Animated.View style={{ opacity: fade }}>
                 <Text style={[s.trTxt, { color: fg }]}>
-                    {shown ? 'Yay! You unlocked ' : `Add ${rs(Math.max(0, freeAbove - preview))} more to get `}
-                    <Text style={{ fontWeight: '800' }}>FREE Delivery</Text> 🚲
+                    {shown ? tr('Yay! You unlocked ') : tr('Add {rs} more to get ', { rs: rs(Math.max(0, freeAbove - preview)) })}
+                    <Text style={{ fontWeight: '800' }}>{tr('FREE Delivery')}</Text> 🚲
                 </Text>
             </Animated.View>
             <View style={s.trBg}>
@@ -134,8 +135,8 @@ export function ClosedBanner({ message }) {
         <Appear style={[s.closed, { borderColor: error, backgroundColor: tint(error) }]}>
             <Ionicons name="time-outline" size={20} color={error} />
             <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={[s.closedHead, { color: error }]}>Shop is closed</Text>
-                <Text style={[s.closedTxt, { color: error }]}>{message}. You cannot place orders right now.</Text>
+                <Text style={[s.closedHead, { color: error }]}>{tr('Shop is closed')}</Text>
+                <Text style={[s.closedTxt, { color: error }]}>{tr('{message}. You cannot place orders right now.', { message: message })}</Text>
             </View>
         </Appear>
     );
@@ -149,7 +150,7 @@ export function PickupSlots({ res, picked, onPick }) {
         return (
             <View style={[s.noSlot, { borderColor: border, backgroundColor: surface }]}>
                 <Ionicons name="time-outline" size={18} color={muted} />
-                <Text style={[s.noSlotTxt, { color: muted }]}>{res.message || 'No pickup time available right now'}</Text>
+                <Text style={[s.noSlotTxt, { color: muted }]}>{res.message || tr('No pickup time available right now')}</Text>
             </View>
         );
     }

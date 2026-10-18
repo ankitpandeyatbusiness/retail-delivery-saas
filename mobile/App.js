@@ -12,10 +12,13 @@ import { startNotifications } from './src/utils/common/push';
 import { startSoundbox } from './src/utils/owners/soundbox';
 import { applyTypography } from './src/components/common/typography';
 import { useBrand } from './src/components/common/kit';
+import { useLang, syncLanguage } from './src/i18n';
+import { installTextTranslation } from './src/i18n/textPatch';
 
 // The native splash screen (brand colour + logo) is the only loading screen. It stays up until the shop's look
 // and the saved login are ready, then fades out into the app: no black screen, no second spinner.
 // This must run at module level, before the first render.
+installTextTranslation();   // texts that are not wrapped in tr() are still translated when the language has them
 SplashScreen.preventAutoHideAsync().catch(() => { });
 try { SplashScreen.setOptions({ duration: 350, fade: true }); } catch (e) { /* older native build */ }
 
@@ -24,6 +27,7 @@ const withTimeout = (p, ms) => Promise.race([p, new Promise((r) => setTimeout(r,
 
 export default function App() {
   const [isReady, setIsReady] = useState(false);
+  const lang = useLang((st) => st.lang);   // a new language redraws the whole app (the key below)
   const background = useBrand().background;   // follows the look that is actually drawn (shop look, or the customer's Appearance choice)
 
   useEffect(() => {
@@ -34,6 +38,7 @@ export default function App() {
         await theme.hydrateFromCache();   // the last look, from disk: instant
         await Promise.all([
           useAuthStore.getState().hydrate(),                  // saved login, from SecureStore
+          useLang.getState().hydrate(),                       // the saved language (or the phone's)
           withTimeout(theme.loadTheme(), MAX_WAIT_MS),        // fresh look; a slow network does not hold the app
         ]);
         // the shop's font (classic / rounded, or modern in the new looks): loaded before the first frame so text never changes font
@@ -42,10 +47,13 @@ export default function App() {
       } catch (e) { /* both helpers swallow their own errors; open the app anyway */ }
       if (alive) setIsReady(true);
     })();
+    // the server learns the language after every login (so notifications and emails come in it)
+    const unsubLang = useAuthStore.subscribe((st, prev) => { if (st.user && !prev.user) syncLanguage(); });
+    syncLanguage();
     startRealtime();        // live order updates while a customer is logged in
     startNotifications();   // push, unread badge, open the order from a notification
     startSoundbox();        // the shop owner's new-order alert (does nothing for customers and riders)
-    return () => { alive = false; };
+    return () => { alive = false; unsubLang(); };
   }, []);
 
   // hide the splash only after the first real frame is laid out, so there is never a blank flash in between
@@ -56,7 +64,7 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: background }} onLayout={onLayout}>
       <SafeAreaProvider>
-        <SheetHost>
+        <SheetHost key={lang}>
           <AppNavigator />
         </SheetHost>
         {/* after the host so alerts (e.g. "Delete address?") draw above the sheet */}

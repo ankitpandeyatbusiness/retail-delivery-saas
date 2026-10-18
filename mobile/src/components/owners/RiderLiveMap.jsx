@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../common/kit';
 import { onRiderLocation, onRiderRoute, onOrderEta, onRiderQuiet, watchOrder } from '../../api/common/socket';
 import { decodePolyline } from '../../utils/common/polyline';
+import { tr } from '../../i18n';
 
 const ago = (at) => {
     const s = Math.max(0, Math.round((Date.now() - new Date(at).getTime()) / 1000));
@@ -63,7 +64,7 @@ export default function RiderLiveMap({ orderId, initial, destination, riderName 
         return (
             <View style={[s.box, { borderColor: border, backgroundColor: surface, alignItems: 'center', justifyContent: 'center' }]}>
                 <Ionicons name="locate-outline" size={24} color={muted} />
-                <Text style={{ color: muted, marginTop: 6, fontSize: 13 }}>Waiting for {riderName || 'the rider'}’s location</Text>
+                <Text style={{ color: muted, marginTop: 6, fontSize: 13 }}>{tr('Waiting for {v1}’s location', { v1: riderName || 'the rider' })}</Text>
             </View>
         );
     }
@@ -75,7 +76,7 @@ export default function RiderLiveMap({ orderId, initial, destination, riderName 
             {warn ? (
                 <View style={s.warn}>
                     <Ionicons name="cloud-offline-outline" size={18} color="#92400E" />
-                    <Text style={s.warnText}>{riderName || 'The rider'}’s phone has not reported since {ago(pos.at)}. He may be in a weak signal area or have switched location off. You can call him.</Text>
+                    <Text style={s.warnText}>{tr('{v1}’s phone has not reported since {ago}. He may be in a weak signal area or have switched location off. You can call him.', { v1: riderName || 'The rider', ago: ago(pos.at) })}</Text>
                 </View>
             ) : null}
             <View style={[s.box, { borderColor: border }]}>
@@ -89,25 +90,25 @@ export default function RiderLiveMap({ orderId, initial, destination, riderName 
                     onMapReady={() => fit(true)}
                 >
                     {line.length > 1 ? <Polyline coordinates={line} strokeColor={primary} strokeWidth={5} lineDashPattern={route?.source === 'google' ? undefined : [10, 10]} /> : null}
-                    <Marker ref={bike} coordinate={first.current || rider} title={riderName || 'Rider'} anchor={{ x: 0.5, y: 0.5 }} flat rotation={pos.heading || 0} tracksViewChanges={false}>
+                    <Marker ref={bike} coordinate={first.current || rider} title={riderName || tr('Rider')} anchor={{ x: 0.5, y: 0.5 }} flat rotation={pos.heading || 0} tracksViewChanges={false}>
                         <View style={[s.bike, { backgroundColor: primary }]}><Ionicons name="bicycle" size={20} color="#FFFFFF" /></View>
                     </Marker>
                     {dest ? (
-                        <Marker coordinate={dest} title="Customer" anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
+                        <Marker coordinate={dest} title={tr('Customer')} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
                             <View style={s.home}><Ionicons name="home" size={16} color="#FFFFFF" /></View>
                         </Marker>
                     ) : null}
                 </MapView>
                 {mins ? (
                     <View style={[s.chip, { backgroundColor: surface, borderColor: border }]}>
-                        <Text style={{ color: text, fontWeight: '800', fontSize: 13 }}>{mins <= 1 ? 'Arriving now' : `${mins} min`}{eta?.remainingM != null ? ` · ${dist(eta.remainingM)}` : ''}</Text>
+                        <Text style={{ color: text, fontWeight: '800', fontSize: 13 }}>{mins <= 1 ? tr('Arriving now') : tr('{mins} min', { mins: mins })}{eta?.remainingM != null ? ` · ${dist(eta.remainingM)}` : ''}</Text>
                     </View>
                 ) : null}
-                <Pressable onPress={() => { manual.current = false; fit(true); }} style={[s.recenter, { backgroundColor: surface, borderColor: border }]} accessibilityLabel="Show rider and customer">
+                <Pressable onPress={() => { manual.current = false; fit(true); }} style={[s.recenter, { backgroundColor: surface, borderColor: border }]} accessibilityLabel={tr('Show rider and customer')}>
                     <Ionicons name="locate" size={20} color={primary} />
                 </Pressable>
             </View>
-            <Text style={{ color: text, fontSize: 12, marginTop: 6 }}>Live · updated {ago(pos.at)}{route?.source && route.source !== 'google' ? ' · straight-line estimate' : ''}</Text>
+            <Text style={{ color: text, fontSize: 12, marginTop: 6 }}>{tr('Live · updated {ago}{v2}', { ago: ago(pos.at), v2: route?.source && route.source !== 'google' ? ' · straight-line estimate' : '' })}</Text>
         </View>
     );
 }

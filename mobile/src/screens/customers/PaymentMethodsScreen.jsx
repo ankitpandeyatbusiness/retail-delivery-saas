@@ -12,6 +12,7 @@ import { fetchPaymentConfig } from '../../api/customers/shopApi';
 import { standardUpiApps } from '../../utils/customers/upiApps';
 import { prewarmPayments } from '../../utils/customers/payOnline';
 import { usePayChoice } from '../../store/customers/usePayChoice';
+import { tr } from '../../i18n';
 
 // one selectable row. `mark` + `color` draw a small app badge, otherwise `icon` is used.
 function MethodCard({ m, index, selected, onPick }) {
@@ -133,21 +134,21 @@ export default function PaymentMethodsScreen() {
 
     return (
         <View style={[s.flex, { backgroundColor: background }]}>
-            <BackHeader title="Payment Options" />
+            <BackHeader title={tr('Payment Options')} />
             <ScrollView contentContainerStyle={s.pad} showsVerticalScrollIndicator={false}>
                 <Animated.View style={[s.secure, {
                     backgroundColor: tint(primary), opacity: head,
                     transform: [{ translateY: head.interpolate({ inputRange: [0, 1], outputRange: [-10, 0] }) }],
                 }]}>
                     <Ionicons name="shield-checkmark-outline" size={20} color={primary} />
-                    <Text style={[s.secureTxt, { color: text }]}>Your payment details are safe and secure</Text>
+                    <Text style={[s.secureTxt, { color: text }]}>{tr('Your payment details are safe and secure')}</Text>
                 </Animated.View>
 
-                <Text style={[s.title, { color: muted }]}>PAY ONLINE</Text>
+                <Text style={[s.title, { color: muted }]}>{tr('PAY ONLINE')}</Text>
                 {cfg.loading || apps === null ? (
                     <MethodSkeleton />
                 ) : !cfg.online ? (
-                    <Text style={[s.note, { color: muted }]}>Online payment is not available for this shop right now.</Text>
+                    <Text style={[s.note, { color: muted }]}>{tr('Online payment is not available for this shop right now.')}</Text>
                 ) : (
                     <>
                         {cfg.upi ? upiRows.map((m, i) => (
@@ -159,7 +160,7 @@ export default function PaymentMethodsScreen() {
                     </>
                 )}
 
-                <Text style={[s.title, { color: muted }]}>PAY ON DELIVERY</Text>
+                <Text style={[s.title, { color: muted }]}>{tr('PAY ON DELIVERY')}</Text>
                 <MethodCard m={cash} index={upiRows.length + 1} selected={picked === 'cod'} onPick={selectMethod} />
             </ScrollView>
         </View>

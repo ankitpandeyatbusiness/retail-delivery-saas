@@ -13,6 +13,7 @@ import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { useCartStore, useFavStore, cartHooks } from '../../store/customers/shopStores';
 import SlideNum from '../common/SlideNum';
+import { tr } from '../../i18n';
 
 export const tint = (c) => (/^#[0-9a-fA-F]{6}$/.test(c || '') ? `${c}1F` : '#F5F5F5');
 
@@ -114,9 +115,9 @@ export function Heart({ item, style }) {
     const on = useFavStore((st) => st.ids.includes(item._id));
     const user = useAuthStore((st) => st.user);
     const press = async () => {
-        if (!user) { showToast('Log in to save favourites'); nav.navigate('Login'); return; }
+        if (!user) { showToast(tr('Log in to save favourites')); nav.navigate('Login'); return; }
         const ok = await useFavStore.getState().toggle(item._id);
-        if (!ok) showToast('Could not save. Try again.');
+        if (!ok) showToast(tr('Could not save. Try again.'));
     };
     return (
         <Pressable onPress={press} hitSlop={8} style={[s.heart, style]}>
@@ -181,7 +182,7 @@ export function AddButton({ item, onPress, kind = 'pill', style }) {
     const label = useHomeStore((st) => st.full.labels.addButton);
     const qty = useCartStore((st) => st.lines.reduce((a, l) => (l.productId === item._id ? a + l.quantity : a), 0));
     if (item.isAvailable === false) {
-        return <View style={[s.so, { borderRadius: radius, backgroundColor: neutralSoft }, style]}><Text style={[s.soText, { color: muted }]}>Sold out</Text></View>;
+        return <View style={[s.so, { borderRadius: radius, backgroundColor: neutralSoft }, style]}><Text style={[s.soText, { color: muted }]}>{tr('Sold out')}</Text></View>;
     }
     const mode = qty > 0 ? 'step' : 'add';
     let inner;
@@ -225,7 +226,7 @@ export function quickAdd(item, nav) {
     const mine = st.lines.filter((l) => l.productId === item._id);
     const last = mine[mine.length - 1];
     if (last) {
-        if (last.quantity >= 20) return showToast('Max 20 per item');
+        if (last.quantity >= 20) return showToast(tr('Max 20 per item'));
         st.setQty(last.key, last.quantity + 1);
         return undefined;
     }
@@ -261,7 +262,7 @@ function ItemCardBase({ item, variant }) {
                 {showDot ? <VegDot isVeg={item.isVeg} /> : null}
                 <Text style={[s.name, { color: text }]} numberOfLines={lines}>{item.name}</Text>
             </View>
-            {item.fewLeft && !off ? <Text style={s.few}>Few left</Text> : null}
+            {item.fewLeft && !off ? <Text style={s.few}>{tr('Few left')}</Text> : null}
         </View>
     );
 
@@ -273,7 +274,7 @@ function ItemCardBase({ item, variant }) {
                     {name(2)}
                     <Meta item={item} full={full} />
                     <Price item={item} />
-                    {pct ? <Text style={[s.offTxt, { color: ok }]}>{pct}% off</Text> : null}
+                    {pct ? <Text style={[s.offTxt, { color: ok }]}>{tr('{pct}% off', { pct: pct })}</Text> : null}
                 </View>
                 <View style={s.cWrap}>
                     <Pic item={item} style={s.cImg} />
@@ -290,7 +291,7 @@ function ItemCardBase({ item, variant }) {
                 <View>
                     <Pic item={item} style={s.gImg} />
                     {heart}
-                    {pct ? <View style={s.badge}><Text style={s.badgeTxt}>{pct}% OFF</Text></View> : null}
+                    {pct ? <View style={s.badge}><Text style={s.badgeTxt}>{tr('{pct}% OFF', { pct: pct })}</Text></View> : null}
                 </View>
                 <View style={s.gBody}>
                     {name(2)}
@@ -310,7 +311,7 @@ function ItemCardBase({ item, variant }) {
                 <Pic item={item} style={s.bImg} />
                 <LinearGradient pointerEvents="none" colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.35)']} style={s.bShade} />
                 {heart}
-                {pct ? <View style={[s.badge, { backgroundColor: ribbon }]}><Text style={[s.badgeTxt, { color: onRibbon }]}>{pct}% OFF</Text></View> : null}
+                {pct ? <View style={[s.badge, { backgroundColor: ribbon }]}><Text style={[s.badgeTxt, { color: onRibbon }]}>{tr('{pct}% OFF', { pct: pct })}</Text></View> : null}
             </View>
             <View style={s.bBody}>
                 <View style={{ flex: 1, paddingRight: 10 }}>
@@ -369,10 +370,10 @@ export function CartBar() {
             <LinearGradient colors={[primaryLight, primaryDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[s.barIn, { borderRadius: Math.max(radius, 14) }]}>
                 <View style={s.barIcon}><Ionicons name="bag-handle" size={18} color={onPrimary} /></View>
                 <View style={{ flex: 1, marginLeft: 10 }}>
-                    <Text style={[s.barText, { color: onPrimary }]}>{count} item{count > 1 ? 's' : ''}</Text>
+                    <Text style={[s.barText, { color: onPrimary }]}>{tr('{count} item{v2}', { count: count, v2: count > 1 ? 's' : '' })}</Text>
                     <Text style={[s.barSub, { color: onPrimary }]}>₹{+total.toFixed(2)}</Text>
                 </View>
-                <Text style={[s.barText, { color: onPrimary }]}>View cart</Text>
+                <Text style={[s.barText, { color: onPrimary }]}>{tr('View cart')}</Text>
                 <Ionicons name="chevron-forward" size={18} color={onPrimary} />
             </LinearGradient>
         </Pressable>

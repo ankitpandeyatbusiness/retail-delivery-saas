@@ -18,6 +18,7 @@ import { rupees, toPaise, ago, riderName, ledgerLine } from '../../utils/owners/
 import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
 import { ListShimmer } from '../../components/owners/shimmer';
+import { tr } from '../../i18n';
 
 function AmountSheet({ mode, visible, balancePaise, onClose, onSubmit, busy }) {
     const { muted } = useBrand();
@@ -31,18 +32,18 @@ function AmountSheet({ mode, visible, balancePaise, onClose, onSubmit, busy }) {
     const needNote = !handover && note.trim().length < 3;
     const valid = !!paise && !tooMuch && !needNote;
     return (
-        <Sheet visible={visible} onClose={onClose} title={handover ? 'Cash received from rider' : 'Correct the cash'}>
+        <Sheet visible={visible} onClose={onClose} title={handover ? tr('Cash received from rider') : tr('Correct the cash')}>
             <Text style={{ color: muted, marginBottom: 10 }}>
-                {handover ? `He owes ${rupees(balancePaise)}. Enter what he gave you now.` : 'Use this only to fix a mistake. A reason is needed and is kept in the history.'}
+                {handover ? tr('He owes {rupees}. Enter what he gave you now.', { rupees: rupees(balancePaise) }) : tr('Use this only to fix a mistake. A reason is needed and is kept in the history.')}
             </Text>
             {!handover ? (
-                <Chips options={[['more', 'He owes more'], ['less', 'He owes less']]} value={dir} onChange={setDir} style={{ marginTop: 0, marginBottom: 6 }} />
+                <Chips options={[['more', tr('He owes more')], ['less', tr('He owes less')]]} value={dir} onChange={setDir} style={{ marginTop: 0, marginBottom: 6 }} />
             ) : null}
-            <Field value={amount} onChangeText={(x) => setAmount(x.replace(/[^\d.]/g, '').slice(0, 9))} placeholder="Amount in ₹" keyboardType="decimal-pad" maxLength={9} style={{ marginBottom: 10 }} />
-            {tooMuch ? <Text style={{ color: '#C62828', marginBottom: 8 }}>He only owes {rupees(balancePaise)}.</Text> : null}
-            <Field value={note} onChangeText={setNote} placeholder={handover ? 'Note (optional)' : 'Reason (required)'} maxLength={200} style={{ marginBottom: 14 }} />
+            <Field value={amount} onChangeText={(x) => setAmount(x.replace(/[^\d.]/g, '').slice(0, 9))} placeholder={tr('Amount in ₹')} keyboardType="decimal-pad" maxLength={9} style={{ marginBottom: 10 }} />
+            {tooMuch ? <Text style={{ color: '#C62828', marginBottom: 8 }}>{tr('He only owes {rupees}.', { rupees: rupees(balancePaise) })}</Text> : null}
+            <Field value={note} onChangeText={setNote} placeholder={handover ? tr('Note (optional)') : tr('Reason (required)')} maxLength={200} style={{ marginBottom: 14 }} />
             <Button
-                label={handover ? 'Save cash received' : 'Save correction'}
+                label={handover ? tr('Save cash received') : tr('Save correction')}
                 icon="checkmark"
                 disabled={!valid}
                 busy={busy}
@@ -61,12 +62,12 @@ function PaymentSheet({ visible, plan, onClose, onSubmit, busy }) {
     useEffect(() => { if (visible) { setAmount(''); setNote(''); setKind(plan?.type === 'salary' ? 'salary' : 'earnings'); } }, [visible]);   // eslint-disable-line react-hooks/exhaustive-deps
     const paise = toPaise(amount);
     return (
-        <Sheet visible={visible} onClose={onClose} title="Record a payment">
-            <Text style={{ color: muted, marginBottom: 10 }}>Write down money you gave the rider. He will see it in his app.</Text>
-            <Chips options={[['earnings', 'For deliveries'], ['salary', 'Salary'], ['advance', 'Advance'], ['bonus', 'Bonus']]} value={kind} onChange={setKind} style={{ marginTop: 0, marginBottom: 8 }} />
-            <Field value={amount} onChangeText={(x) => setAmount(x.replace(/[^\d.]/g, '').slice(0, 9))} placeholder="Amount in ₹" keyboardType="decimal-pad" maxLength={9} style={{ marginBottom: 10 }} />
-            <Field value={note} onChangeText={setNote} placeholder="Note (optional)" maxLength={200} style={{ marginBottom: 14 }} />
-            <Button label="Save payment" icon="checkmark" disabled={!paise || paise < 100} busy={busy} onPress={() => onSubmit({ amountPaise: paise, kind, note: note.trim() || undefined })} />
+        <Sheet visible={visible} onClose={onClose} title={tr('Record a payment')}>
+            <Text style={{ color: muted, marginBottom: 10 }}>{tr('Write down money you gave the rider. He will see it in his app.')}</Text>
+            <Chips options={[['earnings', tr('For deliveries')], ['salary', tr('Salary')], ['advance', tr('Advance')], ['bonus', tr('Bonus')]]} value={kind} onChange={setKind} style={{ marginTop: 0, marginBottom: 8 }} />
+            <Field value={amount} onChangeText={(x) => setAmount(x.replace(/[^\d.]/g, '').slice(0, 9))} placeholder={tr('Amount in ₹')} keyboardType="decimal-pad" maxLength={9} style={{ marginBottom: 10 }} />
+            <Field value={note} onChangeText={setNote} placeholder={tr('Note (optional)')} maxLength={200} style={{ marginBottom: 14 }} />
+            <Button label={tr('Save payment')} icon="checkmark" disabled={!paise || paise < 100} busy={busy} onPress={() => onSubmit({ amountPaise: paise, kind, note: note.trim() || undefined })} />
         </Sheet>
     );
 }
@@ -107,8 +108,8 @@ export default function OwnerRiderScreen() {
     if (!rider) {
         return (
             <View style={{ flex: 1, backgroundColor: background }}>
-                <PageHeader title="Rider" />
-                {loaded ? <Empty icon="person-outline" title="Rider not found" hint="He may have been removed." /> : <ListShimmer />}
+                <PageHeader title={tr('Rider')} />
+                {loaded ? <Empty icon="person-outline" title={tr('Rider not found')} hint={tr('He may have been removed.')} /> : <ListShimmer />}
             </View>
         );
     }
@@ -117,7 +118,7 @@ export default function OwnerRiderScreen() {
         setSaving(true);
         try {
             if (sheet === 'handover') await recordHandover(userId, body); else await adjustRiderCash(userId, body);
-            showToast('Saved');
+            showToast(tr('Saved'));
             setSheet(null);
             useRidersStore.getState().load({ quiet: true });
             loadLedger(1);
@@ -128,33 +129,33 @@ export default function OwnerRiderScreen() {
     const savePlan = async () => {
         if (planProblem(plan)) { showToast(planProblem(plan)); return; }
         setSaving(true);
-        try { await saveRiderPay(userId, plan.type === 'same' ? null : plan); showToast('Saved'); setPlanSheet(false); useRidersStore.getState().load({ quiet: true }); loadPay(); }
+        try { await saveRiderPay(userId, plan.type === 'same' ? null : plan); showToast(tr('Saved')); setPlanSheet(false); useRidersStore.getState().load({ quiet: true }); loadPay(); }
         catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); } finally { setSaving(false); }
     };
     const savePayment = async (body) => {
         setSaving(true);
-        try { await recordRiderPayment(userId, body); showToast('Payment saved'); setPaySheet(false); loadPay(); }
+        try { await recordRiderPayment(userId, body); showToast(tr('Payment saved')); setPaySheet(false); loadPay(); }
         catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); } finally { setSaving(false); }
     };
     const cancelPayment = async (p) => {
-        if (!(await ask({ title: 'Cancel this payment?', message: 'It stops counting. The history keeps it as cancelled.', confirmText: 'Cancel payment', destructive: true }))) return;
-        try { await voidRiderPayment(userId, p.id, 'Entered by mistake'); showToast('Cancelled'); loadPay(); }
+        if (!(await ask({ title: tr('Cancel this payment?'), message: tr('It stops counting. The history keeps it as cancelled.'), confirmText: tr('Cancel payment'), destructive: true }))) return;
+        try { await voidRiderPayment(userId, p.id, 'Entered by mistake'); showToast(tr('Cancelled')); loadPay(); }
         catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); }
     };
 
     const setActive = async (on) => {
-        try { await updateRider(userId, { isActive: on }); showToast(on ? 'Rider switched on' : 'Rider switched off'); useRidersStore.getState().load({ quiet: true }); }
+        try { await updateRider(userId, { isActive: on }); showToast(on ? tr('Rider switched on') : tr('Rider switched off')); useRidersStore.getState().load({ quiet: true }); }
         catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); }
     };
 
     const remove = async () => {
         const yes = await ask({
-            title: 'Remove this rider?',
-            message: balance > 0 ? `He still owes ${rupees(balance)}. The cash history is kept, but he can no longer deliver.` : 'He can no longer deliver. His history is kept.',
-            confirmText: 'Remove rider', destructive: true,
+            title: tr('Remove this rider?'),
+            message: balance > 0 ? tr('He still owes {rupees}. The cash history is kept, but he can no longer deliver.', { rupees: rupees(balance) }) : tr('He can no longer deliver. His history is kept.'),
+            confirmText: tr('Remove rider'), destructive: true,
         });
         if (!yes) return;
-        try { await removeRider(userId); showToast('Rider removed'); useRidersStore.getState().load({ quiet: true }); nav.goBack(); }
+        try { await removeRider(userId); showToast(tr('Rider removed')); useRidersStore.getState().load({ quiet: true }); nav.goBack(); }
         catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); }
     };
 
@@ -171,53 +172,53 @@ export default function OwnerRiderScreen() {
                             <Text style={{ color: text, fontWeight: '900', fontSize: 18 }} numberOfLines={1}>{riderName(rider)}</Text>
                             <Text style={{ color: muted, marginTop: 2 }}>{rider.phone || ''}</Text>
                             <View style={{ flexDirection: 'row', marginTop: 6, flexWrap: 'wrap' }}>
-                                {!rider.isActive ? <Pill label="Switched off" color={muted} /> : rider.isOnline ? <Pill label="Online" color={ok} icon="radio-button-on" /> : <Pill label="Offline" color={muted} />}
+                                {!rider.isActive ? <Pill label={tr('Switched off')} color={muted} /> : rider.isOnline ? <Pill label={tr('Online')} color={ok} icon="radio-button-on" /> : <Pill label={tr('Offline')} color={muted} />}
                                 {rider.ratingCount ? <View style={{ marginLeft: 6 }}><Pill label={`★ ${Number(rider.ratingAvg).toFixed(1)} · ${rider.ratingCount}`} color="#D97706" /></View> : null}
                             </View>
                         </View>
                     </View>
-                    {seen ? <Text style={{ color: muted, fontSize: 12, marginTop: 10 }}>Location last seen {ago(seen)}</Text> : null}
-                    {rider.faultCount > 0 ? <Text style={{ color: error, fontSize: 12, fontWeight: '700', marginTop: 6 }}>Marked at fault in {rider.faultCount} complaint{rider.faultCount === 1 ? '' : 's'}</Text> : null}
+                    {seen ? <Text style={{ color: muted, fontSize: 12, marginTop: 10 }}>{tr('Location last seen {ago}', { ago: ago(seen) })}</Text> : null}
+                    {rider.faultCount > 0 ? <Text style={{ color: error, fontSize: 12, fontWeight: '700', marginTop: 6 }}>{tr('Marked at fault in {faultCount} complaint{v2}', { faultCount: rider.faultCount, v2: rider.faultCount === 1 ? '' : 's' })}</Text> : null}
                     <View style={{ flexDirection: 'row', marginTop: 12 }}>
-                        <View style={{ flex: 1, marginRight: 6 }}><Button label="Call" icon="call" kind="ghost" onPress={() => callPhone(rider.phone)} /></View>
-                        <View style={{ flex: 1, marginLeft: 6 }}><Button label="WhatsApp" icon="logo-whatsapp" kind="ghost" onPress={() => whatsApp(rider.phone)} /></View>
+                        <View style={{ flex: 1, marginRight: 6 }}><Button label={tr('Call')} icon="call" kind="ghost" onPress={() => callPhone(rider.phone)} /></View>
+                        <View style={{ flex: 1, marginLeft: 6 }}><Button label={tr('WhatsApp')} icon="logo-whatsapp" kind="ghost" onPress={() => whatsApp(rider.phone)} /></View>
                     </View>
                 </Card>
 
                 {rider.activeOrders?.length ? (
                     <>
-                        <SectionTitle title="Delivering now" />
+                        <SectionTitle title={tr('Delivering now')} />
                         <Card>
                             {rider.activeOrders.map((o, i) => (
-                                <Row key={o.id} icon="receipt" title={`Order #${o.orderNo}`} subtitle={String(o.deliveryStatus || o.status).replace(/_/g, ' ')} last={i === rider.activeOrders.length - 1} onPress={() => nav.navigate('OwnerOrder', { id: String(o.id) })} />
+                                <Row key={o.id} icon="receipt" title={tr('Order #{orderNo}', { orderNo: o.orderNo })} subtitle={String(o.deliveryStatus || o.status).replace(/_/g, ' ')} last={i === rider.activeOrders.length - 1} onPress={() => nav.navigate('OwnerOrder', { id: String(o.id) })} />
                             ))}
                         </Card>
                     </>
                 ) : null}
 
-                <SectionTitle title="Pay" />
+                <SectionTitle title={tr('Pay')} />
                 <Card>
-                    <Row icon="wallet" title="How he is paid" subtitle={`${payInfo?.label || rider.payLabel || ''}${(payInfo?.own || rider.ownPay) ? '  ·  his own plan' : ''}`} onPress={openPlan} last={!payInfo || payInfo.money?.hidden} />
+                    <Row icon="wallet" title={tr('How he is paid')} subtitle={`${payInfo?.label || rider.payLabel || ''}${(payInfo?.own || rider.ownPay) ? '  ·  his own plan' : ''}`} onPress={openPlan} last={!payInfo || payInfo.money?.hidden} />
                     {payInfo && !payInfo.money?.hidden && payInfo.money?.earned ? (
                         <View style={{ flexDirection: 'row', marginTop: 8 }}>
-                            <Stat label="Today" value={rupees(payInfo.money.earned.todayPaise)} />
-                            <Stat label="This week" value={rupees(payInfo.money.earned.weekPaise)} />
-                            <Stat label="This month" value={rupees(payInfo.money.earned.monthPaise)} />
+                            <Stat label={tr('Today')} value={rupees(payInfo.money.earned.todayPaise)} />
+                            <Stat label={tr('This week')} value={rupees(payInfo.money.earned.weekPaise)} />
+                            <Stat label={tr('This month')} value={rupees(payInfo.money.earned.monthPaise)} />
                         </View>
                     ) : null}
                     {payInfo?.trackPayouts && !payInfo.money?.hidden ? (
                         <>
                             {payInfo.money.pendingPaise != null ? (
                                 <View style={{ flexDirection: 'row', marginTop: 8 }}>
-                                    <Stat label="You paid" value={rupees(payInfo.money.paidPaise)} color={ok} />
-                                    <Stat label="Still to pay" value={rupees(payInfo.money.pendingPaise)} color={payInfo.money.pendingPaise > 0 ? error : text} />
+                                    <Stat label={tr('You paid')} value={rupees(payInfo.money.paidPaise)} color={ok} />
+                                    <Stat label={tr('Still to pay')} value={rupees(payInfo.money.pendingPaise)} color={payInfo.money.pendingPaise > 0 ? error : text} />
                                 </View>
                             ) : null}
-                            <View style={{ marginTop: 12 }}><Button label="Record a payment" icon="add" onPress={() => setPaySheet(true)} /></View>
+                            <View style={{ marginTop: 12 }}><Button label={tr('Record a payment')} icon="add" onPress={() => setPaySheet(true)} /></View>
                             {payInfo.money.payments.map((p) => (
                                 <View key={p.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderTopWidth: 0.5, borderTopColor: muted + '55', opacity: p.voided ? 0.5 : 1 }}>
                                     <View style={{ flex: 1 }}>
-                                        <Text style={{ color: text, fontWeight: '700' }}>{({ earnings: 'Delivery pay', advance: 'Advance', salary: 'Salary', bonus: 'Bonus' })[p.kind] || p.kind}{p.voided ? ' (cancelled)' : ''}</Text>
+                                        <Text style={{ color: text, fontWeight: '700' }}>{({ earnings: 'Delivery pay', advance: 'Advance', salary: 'Salary', bonus: 'Bonus' })[p.kind] || p.kind}{p.voided ? tr(' (cancelled)') : ''}</Text>
                                         <Text style={{ color: muted, fontSize: 12 }}>{ago(p.paidAt)}{p.note ? `  ·  ${p.note}` : ''}</Text>
                                     </View>
                                     <Text style={{ color: text, fontWeight: '900' }}>{rupees(p.amountPaise)}</Text>
@@ -228,21 +229,21 @@ export default function OwnerRiderScreen() {
                     ) : null}
                 </Card>
 
-                <SectionTitle title="Cash" />
+                <SectionTitle title={tr('Cash')} />
                 <Card tone={balance > 0 ? error : undefined}>
-                    <Text style={{ color: muted, fontWeight: '700', fontSize: 12 }}>{balance > 0 ? 'He owes the shop' : 'Nothing to collect'}</Text>
+                    <Text style={{ color: muted, fontWeight: '700', fontSize: 12 }}>{balance > 0 ? tr('He owes the shop') : tr('Nothing to collect')}</Text>
                     <Text style={{ color: balance > 0 ? error : text, fontSize: 30, fontWeight: '900', marginTop: 2 }}>{rupees(balance)}</Text>
-                    <Text style={{ color: muted, fontSize: 12, marginTop: 4 }}>Collected {rupees(cash?.collectedPaise)} · Given to shop {rupees(cash?.handedPaise)}</Text>
+                    <Text style={{ color: muted, fontSize: 12, marginTop: 4 }}>{tr('Collected {rupees} · Given to shop {rupees2}', { rupees: rupees(cash?.collectedPaise), rupees2: rupees(cash?.handedPaise) })}</Text>
                     <View style={{ flexDirection: 'row', marginTop: 12 }}>
-                        <View style={{ flex: 1, marginRight: 6 }}><Button label="Cash received" icon="cash" disabled={balance <= 0} onPress={() => setSheet('handover')} /></View>
-                        <View style={{ flex: 1, marginLeft: 6 }}><Button label="Correction" icon="create" kind="ghost" onPress={() => setSheet('adjust')} /></View>
+                        <View style={{ flex: 1, marginRight: 6 }}><Button label={tr('Cash received')} icon="cash" disabled={balance <= 0} onPress={() => setSheet('handover')} /></View>
+                        <View style={{ flex: 1, marginLeft: 6 }}><Button label={tr('Correction')} icon="create" kind="ghost" onPress={() => setSheet('adjust')} /></View>
                     </View>
                 </Card>
 
-                <SectionTitle title="Cash history" />
+                <SectionTitle title={tr('Cash history')} />
                 <Card>
                     {rows === null ? <ListShimmer count={2} rows /> : null}
-                    {rows && !rows.length ? <Text style={{ color: muted }}>No cash entries yet. They appear when he delivers a cash-on-delivery order.</Text> : null}
+                    {rows && !rows.length ? <Text style={{ color: muted }}>{tr('No cash entries yet. They appear when he delivers a cash-on-delivery order.')}</Text> : null}
                     {(rows || []).map((r, i) => {
                         const [title, sign] = ledgerLine(r);
                         return (
@@ -255,26 +256,26 @@ export default function OwnerRiderScreen() {
                             </View>
                         );
                     })}
-                    {more ? <View style={{ marginTop: 8 }}><Button label="Show more" kind="ghost" onPress={() => loadLedger(page + 1)} /></View> : null}
+                    {more ? <View style={{ marginTop: 8 }}><Button label={tr('Show more')} kind="ghost" onPress={() => loadLedger(page + 1)} /></View> : null}
                 </Card>
 
-                <SectionTitle title="Rider" />
+                <SectionTitle title={tr('Rider')} />
                 <Card>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <View style={{ flex: 1 }}>
-                            <Text style={{ color: text, fontWeight: '800' }}>Can deliver</Text>
-                            <Text style={{ color: muted, fontSize: 12 }}>Switch off to stop new orders going to him</Text>
+                            <Text style={{ color: text, fontWeight: '800' }}>{tr('Can deliver')}</Text>
+                            <Text style={{ color: muted, fontSize: 12 }}>{tr('Switch off to stop new orders going to him')}</Text>
                         </View>
                         <Toggle value={rider.isActive} onValueChange={setActive} />
                     </View>
                 </Card>
                 <View style={{ paddingHorizontal: 16 }}>
-                    <Button label="Remove this rider" icon="trash" kind="danger" onPress={remove} />
+                    <Button label={tr('Remove this rider')} icon="trash" kind="danger" onPress={remove} />
                 </View>
             </ScrollView>
-            <Sheet visible={planSheet} onClose={() => setPlanSheet(false)} title="How is he paid?">
-                <PayPlanForm value={plan} onChange={setPlan} allowSame sameText="Follows the plan in Delivery rules" />
-                <View style={{ marginTop: 14 }}><Button label="Save" icon="checkmark" busy={saving} onPress={savePlan} /></View>
+            <Sheet visible={planSheet} onClose={() => setPlanSheet(false)} title={tr('How is he paid?')}>
+                <PayPlanForm value={plan} onChange={setPlan} allowSame sameText={tr('Follows the plan in Delivery rules')} />
+                <View style={{ marginTop: 14 }}><Button label={tr('Save')} icon="checkmark" busy={saving} onPress={savePlan} /></View>
             </Sheet>
             <PaymentSheet visible={paySheet} plan={payInfo?.own || payInfo?.shop} busy={saving} onClose={() => setPaySheet(false)} onSubmit={savePayment} />
             <AmountSheet mode={sheet || 'handover'} visible={!!sheet} balancePaise={balance} busy={saving} onClose={() => setSheet(null)} onSubmit={submit} />

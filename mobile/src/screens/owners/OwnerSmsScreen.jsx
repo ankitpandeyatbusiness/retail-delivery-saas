@@ -13,6 +13,7 @@ import { showToast } from '../../components/customers/shop';
 import { downloadAndOpen } from '../../utils/owners/files';
 import { topupInvoicePdfPath } from '../../api/owners/shopApi';
 import { LineShimmer, ListShimmer } from '../../components/owners/shimmer';
+import { tr } from '../../i18n';
 
 export default function OwnerSmsScreen() {
     const nav = useNavigation();
@@ -40,7 +41,7 @@ export default function OwnerSmsScreen() {
 
     const openInvoice = async (id) => {
         try { await downloadAndOpen({ path: topupInvoicePdfPath(id), filename: `sms-invoice-${id}.pdf`, mime: 'application/pdf', title: 'SMS top-up invoice' }); }
-        catch (e) { showToast(e.safe ? e.message : (e?.response?.status === 409 ? 'The invoice is not ready yet' : 'Could not open the invoice')); }
+        catch (e) { showToast(e.safe ? e.message : (e?.response?.status === 409 ? tr('The invoice is not ready yet') : tr('Could not open the invoice'))); }
     };
     const paise = toPaise(amount);
     const bad = paise && opts && (paise < opts.minPaise || paise > opts.maxPaise);
@@ -54,57 +55,55 @@ export default function OwnerSmsScreen() {
 
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
-            <PageHeader title="SMS balance" />
+            <PageHeader title={tr('SMS balance')} />
             <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
                 <Card tone={wallet?.low ? error : undefined}>
-                    <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }}>Balance</Text>
+                    <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }}>{tr('Balance')}</Text>
                     <Text style={{ color: wallet?.low ? error : text, fontSize: 34, fontWeight: '900', marginTop: 2 }}>{wallet ? rupees(wallet.balancePaise) : '—'}</Text>
                     {wallet ? (
-                        <Text style={{ color: muted, marginTop: 4 }}>
-                            About {Math.floor(wallet.balancePaise / Math.max(1, wallet.ratePerSmsPaise))} messages · {rupees(wallet.ratePerSmsPaise)} each
-                        </Text>
+                        <Text style={{ color: muted, marginTop: 4 }}>{tr('About {v1} messages · {rupees} each', { v1: Math.floor(wallet.balancePaise / Math.max(1, wallet.ratePerSmsPaise)), rupees: rupees(wallet.ratePerSmsPaise) })}</Text>
                     ) : null}
-                    {wallet?.zero ? <View style={{ marginTop: 8 }}><Pill label="Finished: SMS alerts have stopped" color={error} /></View> : wallet?.low ? <View style={{ marginTop: 8 }}><Pill label="Running low" color={error} /></View> : null}
+                    {wallet?.zero ? <View style={{ marginTop: 8 }}><Pill label={tr('Finished: SMS alerts have stopped')} color={error} /></View> : wallet?.low ? <View style={{ marginTop: 8 }}><Pill label={tr('Running low')} color={error} /></View> : null}
                 </Card>
 
-                <SectionTitle title="Add money" />
+                <SectionTitle title={tr('Add money')} />
                 <Card>
                     {opts ? (
                         <Chips options={opts.packs.map((p) => [String(p / 100), rupees(p)])} value={amount} onChange={setAmount} style={{ marginTop: 0 }} />
                     ) : <LineShimmer width="100%" height={44} />}
-                    <Field value={amount} onChangeText={(x) => setAmount(x.replace(/[^\d.]/g, '').slice(0, 8))} placeholder={opts ? `Or type an amount in ₹ (minimum ${rupees(opts.minPaise)})` : 'Or type an amount in ₹'} keyboardType="decimal-pad" maxLength={8} />
-                    {bad ? <Text style={{ color: error, marginTop: 6, fontSize: 12 }}>Amount must be from {rupees(opts.minPaise)} to {rupees(opts.maxPaise)}.</Text> : null}
+                    <Field value={amount} onChangeText={(x) => setAmount(x.replace(/[^\d.]/g, '').slice(0, 8))} placeholder={opts ? tr('Or type an amount in ₹ (minimum {rupees})', { rupees: rupees(opts.minPaise) }) : tr('Or type an amount in ₹')} keyboardType="decimal-pad" maxLength={8} />
+                    {bad ? <Text style={{ color: error, marginTop: 6, fontSize: 12 }}>{tr('Amount must be from {rupees} to {rupees2}.', { rupees: rupees(opts.minPaise), rupees2: rupees(opts.maxPaise) })}</Text> : null}
                     {paise && !bad && gstPercent ? (
                         <View style={{ marginTop: 10, padding: 12, borderRadius: 12, backgroundColor: alpha(primary, 0.08) }}>
-                            <Text style={{ color: text, fontWeight: '900', fontSize: 16 }}>You pay {rupees(payablePaise)}</Text>
-                            <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{rupees(paise)} goes to your SMS balance + {gstPercent}% GST {rupees(gstPaise)}</Text>
+                            <Text style={{ color: text, fontWeight: '900', fontSize: 16 }}>{tr('You pay {rupees}', { rupees: rupees(payablePaise) })}</Text>
+                            <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{tr('{rupees} goes to your SMS balance + {gstPercent}% GST {rupees3}', { rupees: rupees(paise), gstPercent: gstPercent, rupees3: rupees(gstPaise) })}</Text>
                         </View>
-                    ) : opts ? <Text style={{ color: muted, marginTop: 6, fontSize: 12 }}>Minimum {rupees(opts.minPaise)}. {gstPercent ? `${gstPercent}% GST is added on top.` : ''}</Text> : null}
+                    ) : opts ? <Text style={{ color: muted, marginTop: 6, fontSize: 12 }}>{tr('Minimum {rupees}. {v2}', { rupees: rupees(opts.minPaise), v2: gstPercent ? `${gstPercent}% GST is added on top.` : '' })}</Text> : null}
                     <View style={{ marginTop: 12 }}>
-                        <Button label={paise && !bad ? `Pay ${rupees(payablePaise)}` : 'Choose an amount'} icon="card" disabled={!paise || !!bad} onPress={pay} />
+                        <Button label={paise && !bad ? tr('Pay {rupees}', { rupees: rupees(payablePaise) }) : tr('Choose an amount')} icon="card" disabled={!paise || !!bad} onPress={pay} />
                     </View>
                 </Card>
 
-                <SectionTitle title="History" />
+                <SectionTitle title={tr('History')} />
                 <View style={{ paddingHorizontal: 16 }}>
-                    <Chips options={[['', 'All'], ['topup', 'Top-ups'], ['debit', 'Used']]} value={type} onChange={setType} style={{ marginTop: 0 }} />
+                    <Chips options={[['', tr('All')], ['topup', tr('Top-ups')], ['debit', tr('Used')]]} value={type} onChange={setType} style={{ marginTop: 0 }} />
                 </View>
                 <Card>
                     {rows === null ? <ListShimmer count={2} rows /> : null}
-                    {rows && !rows.length ? <Text style={{ color: muted }}>Nothing yet.</Text> : null}
+                    {rows && !rows.length ? <Text style={{ color: muted }}>{tr('Nothing yet.')}</Text> : null}
                     {(rows || []).map((t, i) => (
                         <MoneyRow
                             key={String(t._id || t.id || i)}
                             title={smsLine(t)}
-                            note={`${ago(t.createdAt)} · balance ${rupees(t.balanceAfter)}`}
+                            note={tr('{ago} · balance {rupees}', { ago: ago(t.createdAt), rupees: rupees(t.balanceAfter) })}
                             value={`${t.type === 'debit' ? '−' : '+'}${rupees(Math.abs(t.amountPaise))}`}
                             color={t.type === 'debit' ? text : ok}
                             last={i === rows.length - 1}
-                            action={t.type === 'topup' && t.topupId ? 'Open invoice (PDF)' : undefined}
+                            action={t.type === 'topup' && t.topupId ? tr('Open invoice (PDF)') : undefined}
                             onAction={() => openInvoice(t.topupId)}
                         />
                     ))}
-                    {more ? <View style={{ marginTop: 8 }}><Button label="Show more" kind="ghost" onPress={() => loadRows(page + 1)} /></View> : null}
+                    {more ? <View style={{ marginTop: 8 }}><Button label={tr('Show more')} kind="ghost" onPress={() => loadRows(page + 1)} /></View> : null}
                 </Card>
             </ScrollView>
         </View>

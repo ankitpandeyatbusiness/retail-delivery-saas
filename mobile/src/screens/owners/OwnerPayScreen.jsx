@@ -17,6 +17,7 @@ import { fetchRentInvoices, payRentInvoice, startTopup, fetchTopups, fetchDues, 
 import { rupees } from '../../utils/owners/riderRules';
 import { showToast } from '../../components/customers/shop';
 import { ListShimmer } from '../../components/owners/shimmer';
+import { tr } from '../../i18n';
 
 const digits = (v) => String(v || '').replace(/\D/g, '');
 function groupNumber(v) {
@@ -59,24 +60,24 @@ function CardForm({ value, onChange, errors }) {
     const input = (extra) => ({ style: [styles.input, { color: text, borderColor: border, backgroundColor: surface }], placeholderTextColor: muted, ...extra });
     return (
         <View style={{ paddingTop: 6, paddingBottom: 4 }}>
-            <Text style={[styles.lab, { color: muted }]}>Card number {brandOf(raw) ? `· ${brandOf(raw)}` : ''}</Text>
+            <Text style={[styles.lab, { color: muted }]}>{tr('Card number {v1}', { v1: brandOf(raw) ? `· ${brandOf(raw)}` : '' })}</Text>
             <TextInput {...input({ value: value.number, onChangeText: (x) => { const g = groupNumber(x); onChange({ ...value, number: g }); if (digits(g).length >= (/^3[47]/.test(digits(g)) ? 15 : 16)) exp.current?.focus(); }, placeholder: '1234 5678 9012 3456', keyboardType: 'number-pad', maxLength: 23 })} />
             {errors.number ? <Text style={[styles.err, { color: error }]}>{errors.number}</Text> : null}
             <View style={{ flexDirection: 'row', marginTop: 12 }}>
                 <View style={{ flex: 1, marginRight: 10 }}>
-                    <Text style={[styles.lab, { color: muted }]}>Expiry (MM/YY)</Text>
+                    <Text style={[styles.lab, { color: muted }]}>{tr('Expiry (MM/YY)')}</Text>
                     <TextInput ref={exp} {...input({ value: value.exp, onChangeText: (x) => { const d = digits(x).slice(0, 4); onChange({ ...value, exp: d.length > 2 ? `${d.slice(0, 2)}/${d.slice(2)}` : d }); if (d.length === 4) cvv.current?.focus(); }, placeholder: 'MM/YY', keyboardType: 'number-pad', maxLength: 5 })} />
                     {errors.exp ? <Text style={[styles.err, { color: error }]}>{errors.exp}</Text> : null}
                 </View>
                 <View style={{ flex: 1 }}>
-                    <Text style={[styles.lab, { color: muted }]}>CVV</Text>
+                    <Text style={[styles.lab, { color: muted }]}>{tr('CVV')}</Text>
                     <TextInput ref={cvv} {...input({ value: value.cvv, onChangeText: (x) => onChange({ ...value, cvv: digits(x).slice(0, 4) }), placeholder: '•••', keyboardType: 'number-pad', secureTextEntry: true, maxLength: 4 })} />
                     {errors.cvv ? <Text style={[styles.err, { color: error }]}>{errors.cvv}</Text> : null}
                 </View>
             </View>
-            <Text style={[styles.lab, { color: muted, marginTop: 12 }]}>Name on card</Text>
+            <Text style={[styles.lab, { color: muted, marginTop: 12 }]}>{tr('Name on card')}</Text>
             <TextInput ref={nm} {...input({ value: value.name, onChangeText: (x) => onChange({ ...value, name: x }), placeholder: 'Name', maxLength: 40, autoCapitalize: 'words' })} />
-            <Text style={{ color: muted, fontSize: 12, marginTop: 10 }}>Your card is not saved. Your bank may ask for an OTP.</Text>
+            <Text style={{ color: muted, fontSize: 12, marginTop: 10 }}>{tr('Your card is not saved. Your bank may ask for an OTP.')}</Text>
         </View>
     );
 }
@@ -160,7 +161,7 @@ export default function OwnerPayScreen() {
         setCard((c) => ({ ...c, number: '', cvv: '' }));   // the card is never kept
         if (r.status === 'paid') finish();
         else if (r.status === 'pending') { showToast(r.message); nav.goBack(); }
-        else showToast(r.message || 'Payment did not go through');
+        else showToast(r.message || tr('Payment did not go through'));
     };
 
     // QR sheet: the same checks as before
@@ -172,11 +173,11 @@ export default function OwnerPayScreen() {
 
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
-            <PageHeader title="Payment options" />
+            <PageHeader title={tr('Payment options')} />
             {done ? (
                 <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
                     <Ionicons name="checkmark-circle" size={92} color={ok} />
-                    <Text style={{ color: ok, fontSize: 22, fontWeight: '900', marginTop: 10 }}>Payment received</Text>
+                    <Text style={{ color: ok, fontSize: 22, fontWeight: '900', marginTop: 10 }}>{tr('Payment received')}</Text>
                     <Text style={{ color: muted, marginTop: 4 }}>{rupees(toPay)} · {title}</Text>
                 </View>
             ) : (
@@ -185,10 +186,10 @@ export default function OwnerPayScreen() {
                         <Card>
                             <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }}>{title}</Text>
                             <Text style={{ color: text, fontSize: 34, fontWeight: '900', marginTop: 2 }}>{rupees(toPay)}</Text>
-                            {gstPaise ? <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{rupees(amountPaise)} added to your balance + {gstPercent}% GST {rupees(gstPaise)}</Text> : null}
+                            {gstPaise ? <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{tr('{rupees} added to your balance + {gstPercent}% GST {rupees3}', { rupees: rupees(amountPaise), gstPercent: gstPercent, rupees3: rupees(gstPaise) })}</Text> : null}
                             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
                                 <Ionicons name="shield-checkmark" size={15} color={ok} />
-                                <Text style={{ color: muted, fontSize: 12, marginLeft: 6 }}>Secure payment by Razorpay</Text>
+                                <Text style={{ color: muted, fontSize: 12, marginLeft: 6 }}>{tr('Secure payment by Razorpay')}</Text>
                             </View>
                         </Card>
                         <Card style={{ paddingVertical: 4 }}>
@@ -201,7 +202,7 @@ export default function OwnerPayScreen() {
                         </Card>
                     </ScrollView>
                     <View style={[styles.dock, { backgroundColor: background, borderTopColor: border }]}>
-                        <Button label={!current ? 'Choose how to pay' : current.key === 'qr' ? 'Show QR code' : `Pay ${rupees(toPay)}`} icon={current?.key === 'qr' ? 'qr-code' : 'lock-closed'} disabled={!current} busy={qrBusy} onPress={pay} />
+                        <Button label={!current ? tr('Choose how to pay') : current.key === 'qr' ? tr('Show QR code') : tr('Pay {rupees}', { rupees: rupees(toPay) })} icon={current?.key === 'qr' ? 'qr-code' : 'lock-closed'} disabled={!current} busy={qrBusy} onPress={pay} />
                     </View>
                     {paying ? <PayShimmer appName={paying} /> : null}
                 </>
