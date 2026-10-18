@@ -16,6 +16,37 @@ import { showToast } from '../../components/customers/shop';
 
 const CHOICES = [['none', 'Reply only'], ['refund_full', 'Full refund'], ['refund_partial', 'Part refund'], ['no_refund', 'No refund']];
 
+const clock = (d) => new Date(d).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true });
+const metres = (m) => (m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${m} m`);
+
+// What the system knew about the delivery when the customer said "I did not get it". Plain lines, red when it is a warning.
+function EvidenceCard({ e }) {
+    const { text, muted, error, ok } = useBrand();
+    const who = e.markedBy === 'rider' ? (e.riderName || 'The rider') : e.markedBy === 'owner' ? 'You (the shop)' : 'The platform';
+    const lines = [
+        [`${who} marked it delivered · ${e.deliveredAt ? clock(e.deliveredAt) : ''}`, text],
+        e.confirmedBy === 'pin' ? ["The customer's PIN was entered", ok]
+            : e.confirmedBy === 'photo' ? ['A photo of the food handed over was taken', ok]
+                : e.confirmedBy === 'shop' ? ['The shop completed this delivery, so no PIN or photo was needed', muted]
+                    : ['No PIN and no photo for this delivery', error],
+        e.spot ? (e.spot.noGps ? ["The rider's phone sent no location", error]
+            : e.spot.far ? [`The rider was ${metres(e.spot.distanceM)} from the customer's pin`, error]
+                : [`The rider was ${metres(e.spot.distanceM)} from the customer's pin`, ok]) : null,
+        e.collectedAt || e.arrivedAt ? [[e.collectedAt && `Collected ${clock(e.collectedAt)}`, e.arrivedAt && `arrived ${clock(e.arrivedAt)}`].filter(Boolean).join(' · '), muted] : null,
+        e.payment?.cashPaise ? [`Cash order: the rider collected ${rupees(e.payment.cashPaise)}`, muted] : null,
+        e.priorClaims > 0 ? [`This customer said "not received" ${e.priorClaims} time${e.priorClaims === 1 ? '' : 's'} before (${e.priorRefused} refused)`, e.priorClaims >= 2 ? error : muted] : null,
+    ].filter(Boolean);
+    return (
+        <>
+            <SectionTitle title="What we know about the delivery" />
+            <Card>
+                {lines.map(([line, color], i) => <Text key={i} style={{ color, fontWeight: i === 0 ? '800' : '600', marginTop: i ? 8 : 0, lineHeight: 20 }}>{line}</Text>)}
+                {e.proofUrl ? <Image source={{ uri: e.proofUrl }} style={{ width: 120, height: 120, borderRadius: 12, marginTop: 12 }} contentFit="cover" /> : null}
+            </Card>
+        </>
+    );
+}
+
 // Opened from the list (the complaint is given) or from a notification (only its id).
 export default function OwnerComplaintScreen() {
     const { complaint, id } = useRoute().params || {};
@@ -38,6 +69,7 @@ function ComplaintView({ c0 }) {
     const [reply, setReply] = useState('');
     const [amount, setAmount] = useState('');
     const [busy, setBusy] = useState(false);
+    const [fault, setFault] = useState('no');   // not received only: was the rider at fault?
 
     useEffect(() => { fetchOrder(c0.orderId).then(setOrder).catch(() => { }); }, [c0.orderId]);
 
@@ -55,6 +87,7 @@ function ComplaintView({ c0 }) {
         try {
             const body = { ownerReply: reply.trim() || undefined, resolution: choice };
             if (choice === 'refund_partial') body.refundPaise = paise;
+            if (c.type === 'not_received') body.riderFault = fault === 'yes';
             const r = await updateComplaint(c.id, body);
             setC(r);
             showToast(r.status === 'resolved' ? 'Decision sent to the customer' : 'Reply sent');
@@ -79,12 +112,15 @@ function ComplaintView({ c0 }) {
                 <View style={{ marginTop: 12 }}><Button label={`Open order #${c.orderNo}`} icon="receipt" kind="ghost" onPress={() => nav.navigate('OwnerOrder', { id: String(c.orderId) })} /></View>
             </Card>
 
+            {c.evidence ? <EvidenceCard e={c.evidence} /> : null}
+
             {done ? (
                 <>
                     <SectionTitle title="Your answer" />
                     <Card>
                         <Text style={{ color: text, fontWeight: '800' }}>{RESOLUTION_TEXT[c.resolution]}{c.refundPaise ? ` · ${rupees(c.refundPaise)}` : ''}</Text>
                         {c.ownerReply ? <Text style={{ color: muted, marginTop: 6 }}>“{c.ownerReply}”</Text> : null}
+                        {c.type === 'not_received' && c.riderFault != null ? <Text style={{ color: c.riderFault ? error : muted, fontSize: 12, marginTop: 6 }}>{c.riderFault ? 'You marked the rider as at fault.' : 'You marked the rider as not at fault.'}</Text> : null}
                         {c.refundStatus === 'pending' ? <Text style={{ color: muted, fontSize: 12, marginTop: 6 }}>The refund is on its way to the customer.</Text> : null}
                         {c.refundStatus === 'failed' ? <Text style={{ color: error, fontSize: 12, marginTop: 6 }}>The online refund did not go through. Please contact support.</Text> : null}
                         {c.refundStatus === 'noted' ? <Text style={{ color: muted, fontSize: 12, marginTop: 6 }}>This was a cash order: the refund is only noted here. Give the money back to the customer yourself.</Text> : null}
@@ -103,6 +139,13 @@ function ComplaintView({ c0 }) {
                         </View>
                     ) : null}
                     {refunds && order ? <Hint>{online ? 'This order was paid online: the money goes back to the customer automatically.' : 'This was a cash order: the refund is only noted. Give the money back yourself.'}</Hint> : null}
+                    {c.type === 'not_received' && choice !== 'none' ? (
+                        <View style={{ marginTop: 12 }}>
+                            <Label>Was the rider at fault?</Label>
+                            <Chips options={[['no', 'No'], ['yes', 'Yes']]} value={fault} onChange={setFault} style={{ marginTop: 0 }} />
+                            {fault === 'yes' ? <Hint>It is counted on the rider's page. For a cash order, use Correction there if he should pay the money back.</Hint> : null}
+                        </View>
+                    ) : null}
                     <View style={{ height: 12 }} />
                     <Label>{needReply ? 'Message to the customer' : 'Message to the customer (optional)'}</Label>
                     <Field value={reply} onChangeText={setReply} multiline maxLength={500} placeholder={choice === 'no_refund' ? 'Tell him why there is no refund' : 'Write a short, kind reply'} />

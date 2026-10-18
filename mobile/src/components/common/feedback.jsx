@@ -11,6 +11,7 @@ import { useBrand } from './kit';
 import { showToast, tint } from '../customers/shop';
 import { rateDelivery, fetchComplaints, sendComplaint } from '../../api/customers/shopApi';
 import { pickPhoto, uploadComplaintPhoto, discardPhoto } from '../../utils/common/photoUpload';
+import { ask } from './dialog';
 
 const errMsg = (e) => e?.response?.data?.error || e?.message || 'Something went wrong';
 const rs = (paise) => `₹${+(paise / 100).toFixed(2)}`;
@@ -128,7 +129,7 @@ const TYPES = [
     ['packaging', 'Packaging'],
     ['other', 'Something else'],
 ];
-const TYPE_LABEL = Object.fromEntries(TYPES);
+const TYPE_LABEL = { ...Object.fromEntries(TYPES), not_received: 'Order not received' };
 const PHOTO_REQUIRED = ['wrong_item', 'quality'];   // a photo of the food must be attached for these (the server checks too)
 const MAX_PHOTOS = 3;   // the server allows 3 photos per complaint
 const STATUS = { open: 'Open', in_progress: 'In progress', resolved: 'Resolved' };
@@ -188,6 +189,17 @@ export function ComplaintCard({ orderId }) {
     };
 
     // closing without sending: photos already stored for this order would count against the limit of 3, so remove them
+    // "I did not get this order": one tap and one question, no form
+    const notReceived = async () => {
+        if (busy) return;
+        const yes = await ask({ title: 'You did not get this order?', message: 'The shop will check with the delivery partner and reply to you.', confirmText: 'Yes, I did not get it' });
+        if (!yes) return;
+        setBusy(true);
+        try { await sendComplaint(orderId, { type: 'not_received' }); showToast('Sent to the shop'); await load(); }
+        catch (e) { showToast(errMsg(e)); if (e?.response?.status === 409) load(); }
+        finally { setBusy(false); }
+    };
+
     const closeSheet = () => {
         if (busy) return;
         photos.forEach((p) => discardPhoto(p.id));
@@ -249,6 +261,9 @@ export function ComplaintCard({ orderId }) {
                 <Text style={[s.body, { color: muted }]}>
                     Tell the shop what went wrong{data.until ? ` (until ${new Date(data.until).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true })})` : ''}.
                 </Text>
+                <Pressable onPress={notReceived} disabled={busy} style={[s.ghost, { borderColor: error, borderRadius: radius, marginBottom: 8, opacity: busy ? 0.6 : 1 }]}>
+                    <Text style={[s.ghostTxt, { color: error }]}>I did not get this order</Text>
+                </Pressable>
                 <Pressable onPress={() => setOpen(true)} style={[s.ghost, { borderColor: primary, borderRadius: radius }]}>
                     <Text style={[s.ghostTxt, { color: primary }]}>Report a problem</Text>
                 </Pressable>

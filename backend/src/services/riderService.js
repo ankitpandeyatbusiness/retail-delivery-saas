@@ -114,7 +114,7 @@ async function list(tenantId) {
         isActive: r.isActive, isOnline: r.isOnline, vehicle: r.vehicle || null, photo: r.photo || null,
         lastLocation: r.lastLocation || null, activeOrderCount: r.activeOrderCount,
         payLabel: require('./riderPay').describe(require('./riderPay').effectivePlan(shopRiders, r)), ownPay: !!r.pay?.type,
-        ratingAvg: r.ratingAvg, ratingCount: r.ratingCount,
+        ratingAvg: r.ratingAvg, ratingCount: r.ratingCount, faultCount: r.faultCount || 0,
         activeOrders: byRider.get(String(r.userId)) || [],
     }));
 }

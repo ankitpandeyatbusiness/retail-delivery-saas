@@ -65,6 +65,9 @@ describe('the plans (no database)', () => {
         assert.equal(riderPay.describe({ type: 'none' }), 'Paid outside the app');
         assert.equal(riderPay.describe({ type: 'per_delivery', perDelivery: 30 }), '₹30 for each delivery');
         assert.equal(riderPay.describe({ type: 'salary', salary: 12000, salaryEvery: 'month' }), 'Salary ₹12,000 every month');
+        assert.equal(riderPay.describe({ type: 'salary', salary: 500, salaryEvery: 'day' }), 'Salary ₹500 every day');
+        assert.equal(riderPay.validatePlan({ type: 'salary', salary: 500, salaryEvery: 'day' }).ok, true);
+        assert.equal(riderPay.validatePlan({ type: 'salary', salary: 500, salaryEvery: 'year' }).ok, false);
         assert.equal(riderPay.validatePlan({ type: 'per_delivery', perDelivery: 30, junk: 1 }).clean.junk, undefined);
         for (const bad of [{ type: 'weird' }, { type: 'per_delivery' }, { type: 'per_delivery', perDelivery: -5 }, { type: 'percent', percent: 150 }, { type: 'salary', salary: 5000 }, { type: 'distance', base: 0, freeKm: 1, perKm: 0 }]) {
             assert.equal(riderPay.validatePlan(bad).ok, false, JSON.stringify(bad));

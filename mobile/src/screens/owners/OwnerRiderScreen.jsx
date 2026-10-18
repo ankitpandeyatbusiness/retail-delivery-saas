@@ -177,6 +177,7 @@ export default function OwnerRiderScreen() {
                         </View>
                     </View>
                     {seen ? <Text style={{ color: muted, fontSize: 12, marginTop: 10 }}>Location last seen {ago(seen)}</Text> : null}
+                    {rider.faultCount > 0 ? <Text style={{ color: error, fontSize: 12, fontWeight: '700', marginTop: 6 }}>Marked at fault in {rider.faultCount} complaint{rider.faultCount === 1 ? '' : 's'}</Text> : null}
                     <View style={{ flexDirection: 'row', marginTop: 12 }}>
                         <View style={{ flex: 1, marginRight: 6 }}><Button label="Call" icon="call" kind="ghost" onPress={() => callPhone(rider.phone)} /></View>
                         <View style={{ flex: 1, marginLeft: 6 }}><Button label="WhatsApp" icon="logo-whatsapp" kind="ghost" onPress={() => whatsApp(rider.phone)} /></View>

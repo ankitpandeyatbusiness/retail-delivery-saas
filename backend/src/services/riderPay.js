@@ -1,7 +1,7 @@
 // How a rider is paid. The owner picks ONE plan for the shop and can give a single rider his own.
 //
 //   none          paid in hand, the app does not track pay (the rider sees no earnings at all)
-//   salary        a fixed amount every month or week (information; no per-delivery amount)
+//   salary        a fixed amount every day, week or month (information; no per-delivery amount)
 //   per_delivery  a fixed amount for each delivery
 //   percent       a percent of each order's total
 //   distance      a base amount, plus an amount for every km beyond the first few (shop to customer, in a straight line)
@@ -18,7 +18,7 @@ const RiderPayout = require('../models/RiderPayout');
 const { haversineKm } = require('../utils/geo');
 
 const TYPES = ['none', 'salary', 'per_delivery', 'percent', 'distance', 'salary_plus'];
-const EVERY = ['month', 'week'];
+const EVERY = ['month', 'week', 'day'];
 const IST = 330 * 60 * 1000;
 const DAY = 86400000;
 
@@ -42,7 +42,7 @@ function validatePlan(input, { allowSame = false } = {}) {
     };
     if (t === 'salary' || t === 'salary_plus') {
         need('salary', 1, 1000000, 'the salary');
-        if (!EVERY.includes(input.salaryEvery)) errors.push('pay.salaryEvery: choose month or week');
+        if (!EVERY.includes(input.salaryEvery)) errors.push('pay.salaryEvery: choose day, week or month');
         else clean.salaryEvery = input.salaryEvery;
     }
     if (t === 'per_delivery' || t === 'salary_plus') need('perDelivery', 1, 10000, 'the amount for each delivery');

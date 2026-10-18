@@ -33,7 +33,7 @@ order, a wrong amount or a foreign QR pay nothing and alert the superadmin. Taki
 | Plan | A delivery earns |
 |---|---|
 | `none` (paid in hand) | nothing is kept; the rider sees no earnings at all |
-| `salary` | nothing per delivery; the rider sees the salary (month or week) |
+| `salary` | nothing per delivery; the rider sees the salary (every day, week or month) |
 | `per_delivery` | a fixed amount |
 | `percent` | that percent of the order total |
 | `distance` | a base + an amount per km beyond a free distance (straight line shop to customer; unknown distance = base only) |
@@ -46,5 +46,11 @@ order, a wrong amount or a foreign QR pay nothing and alert the superadmin. Taki
 - **Cash limit:** a rider whose cash on hand has reached `cashLimit` is skipped by automatic assignment and by the broadcast to free riders, and cannot accept an old broadcast offer ("Give it to the shop first"). The owner can still assign him by hand. The rider sees a bar and a warning from 80 %.
 - The superadmin's rider settings no longer edit pay; they say the owner sets it.
 
+## Phase 3: "I did not get this order" (built 2026-10-18)
+- **Customer:** on a delivered order (within 24 hours) a red button "I did not get this order", one question, no form. It makes a complaint of type `not_received`.
+- **Evidence for the owner** (`complaintService.deliveryEvidence`, copied at the moment of the complaint so it cannot change later; the customer never sees it): who marked it delivered (rider, owner or platform), when; how it was confirmed (`pin`, `photo`, `shop` = the shop completed it, or `none`); the rider's spot at delivery against the customer's pin (distance, far, no GPS); collected and arrived times; the cash collected on a cash order; and how many times THIS customer said "not received" before and how many were refused.
+- **The owner decides** as for any complaint (reply, full or part refund, no refund; an online order is refunded automatically, a cash order is only noted) and answers one extra question, "Was the rider at fault?". "Yes" counts once on the rider (`Rider.faultCount`, shown on his page). For a cash order the owner uses the rider's "Correction" if he should pay the money back.
+- Not stored: the rider's live path (it is kept only in memory while he rides).
+
 ## Not built yet
-"Not received" complaint with the evidence panel, auto off duty, one device per rider, offline queue, SOS, battery guide.
+Auto off duty, one device per rider, offline queue, SOS, battery guide.

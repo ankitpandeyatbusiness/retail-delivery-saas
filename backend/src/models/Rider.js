@@ -14,6 +14,7 @@ const riderSchema = new mongoose.Schema({
     activeOrderCount: { type: Number, default: 0, min: 0 },   // offered + accepted + picked up
     ratingAvg: { type: Number, default: 0 },
     ratingCount: { type: Number, default: 0 },
+    faultCount: { type: Number, default: 0 },   // complaints the owner decided were the rider's fault
 }, { timestamps: true });
 
 riderSchema.index({ tenantId: 1, userId: 1 }, { unique: true });

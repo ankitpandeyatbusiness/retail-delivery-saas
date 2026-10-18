@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Complaint = require('../models/Complaint');
 const Order = require('../models/Order');
 const Tenant = require('../models/Tenant');
+const Rider = require('../models/Rider');
 const center = require('../notifications/center');
 const liveFeed = require('./liveFeed');
 const refundService = require('./refundService');
@@ -13,6 +14,7 @@ const STATUSES = ['open', 'in_progress', 'resolved'];
 const TYPE_TEXT = {
     missing_item: 'an item is missing', wrong_item: 'a wrong item came', quality: 'food quality',
     late: 'the order was late', packaging: 'packaging problem', other: 'other problem',
+    not_received: 'the customer says the order never arrived',
 };
 const isId = (v) => typeof v === 'string' && mongoose.isValidObjectId(v);
 const rs = (paise) => (paise / 100).toFixed(2).replace(/\.00$/, '');
@@ -22,7 +24,7 @@ const view = (c, { forOwner = false } = {}) => ({
     id: c._id, orderId: c.orderId, orderNo: c.orderNo, type: c.type, text: c.text, photos: c.photos || [],
     status: c.status, ownerReply: c.ownerReply || null, resolution: c.resolution, refundPaise: c.refundPaise || 0,
     refundStatus: c.refundStatus, createdAt: c.createdAt, decidedAt: c.decidedAt || null,
-    ...(forOwner ? { customerName: c.customerName || null } : {}),
+    ...(forOwner ? { customerName: c.customerName || null, evidence: c.evidence || null, riderFault: c.riderFault ?? null } : {}),
 });
 
 // For these the customer must send at least one photo of the food (a wrong or bad dish needs proof)
@@ -31,7 +33,7 @@ const PHOTO_REQUIRED = ['wrong_item', 'quality'];
 function parseNew(body) {
     const b = body || {};
     if (!TYPES.includes(b.type)) throw httpError(400, 'Choose what went wrong');
-    const t = text(b.text, 501);
+    const t = text(b.text, 501) || (b.type === 'not_received' ? 'I did not receive this order.' : '');
     if (t.length < 3 || t.length > 500) throw httpError(400, 'Write 3 to 500 characters');
     let photos = [];
     if (b.photos !== undefined) {
@@ -42,6 +44,39 @@ function parseNew(body) {
     }
     if (PHOTO_REQUIRED.includes(b.type) && photos.length < 1) throw httpError(400, 'Please add a photo of the food for this complaint');
     return { type: b.type, text: t, photos };
+}
+
+// "I never got this order": a copy of what the system knew about the delivery, taken now so it cannot change later.
+//   markedBy      who marked it delivered: rider, owner or superadmin
+//   confirmedBy   pin (the customer's PIN was entered), photo (a photo of the food handed over), shop (the shop completed it), none
+//   spot          where the rider was when he marked it delivered, and how far from the customer's pin (far / noGps are flags)
+//   priorClaims   how many times THIS customer said "not received" before (and how many were refused)
+async function deliveryEvidence({ tenantId, orderId, userId, excludeId }) {
+    const o = await Order.findOne({ _id: orderId, tenantId }).select('delivery deliveredAt statusHistory payment pricing').lean();
+    const d = o?.delivery || {};
+    const rider = d.riderId ? await Rider.findOne({ tenantId, userId: d.riderId }).select('name').lean() : null;
+    const last = [...(o?.statusHistory || [])].reverse().find((h) => h.status === 'delivered');
+    const markedBy = last?.byType || (d.riderId ? 'rider' : 'owner');
+    const confirmedBy = markedBy !== 'rider' ? 'shop' : d.pinRequired ? 'pin' : d.proof?.url ? 'photo' : 'none';
+    const mine = { tenantId, userId, type: 'not_received', _id: { $ne: excludeId } };
+    const [priorClaims, priorRefused] = await Promise.all([
+        Complaint.countDocuments(mine),
+        Complaint.countDocuments({ ...mine, resolution: 'no_refund' }),
+    ]);
+    const spot = d.deliveredPoint;
+    return {
+        deliveredAt: o?.deliveredAt || null,
+        riderId: d.riderId || null,
+        riderName: rider?.name || null,
+        markedBy,
+        confirmedBy,
+        collectedAt: d.pickedUpAt || null,
+        arrivedAt: d.arrivedAt || null,
+        proofUrl: d.proof?.url || null,
+        spot: spot ? { distanceM: spot.distanceM ?? null, far: !!spot.far, noGps: !!spot.noGps } : null,
+        payment: { method: o?.payment?.method || null, cashPaise: o?.payment?.method === 'cod' ? Math.round((Number(o?.pricing?.total) || 0) * 100) : 0 },
+        priorClaims, priorRefused,
+    };
 }
 
 /* ------------------------------ customer ------------------------------ */
@@ -66,10 +101,16 @@ async function create({ tenant, userId, orderId, body }) {
         if (e && e.code === 11000) throw httpError(409, 'You already sent a complaint for this order');
         throw e;
     }
+    if (doc.type === 'not_received') {
+        try {
+            const evidence = await deliveryEvidence({ tenantId: tenant._id, orderId: doc.orderId, userId, excludeId: doc._id });
+            doc = await Complaint.findOneAndUpdate({ _id: doc._id }, { $set: { evidence } }, { returnDocument: 'after' });
+        } catch (e) { console.error('Complaint evidence error:', e.message); }
+    }
     try {
         center.notify('complaint_new', {
             tenantId: tenant._id,
-            title: 'New complaint',
+            title: doc.type === 'not_received' ? 'Customer says the order did not arrive' : 'New complaint',
             body: `Order #${doc.orderNo}: ${TYPE_TEXT[doc.type]}. Please reply within 24 hours.`,
             data: { complaintId: String(doc._id), orderId: String(doc.orderId), orderNo: doc.orderNo },
         });
@@ -168,6 +209,7 @@ async function decide({ tenant, id, actor, body }) {
         {
             $set: {
                 status: resolution === 'none' ? 'in_progress' : 'resolved', resolution, refundPaise, refundStatus,
+                ...(resolution !== 'none' && c.type === 'not_received' && typeof b.riderFault === 'boolean' ? { riderFault: b.riderFault } : {}),
                 ...(reply ? { ownerReply: reply } : {}),
                 ...(resolution === 'none' ? {} : { decidedAt: now, decidedBy: actor?.label || actor?.type || 'owner' }),
             },
@@ -175,6 +217,9 @@ async function decide({ tenant, id, actor, body }) {
         { returnDocument: 'after' },
     );
     if (!done) throw httpError(409, 'This complaint is already decided');
+    if (done.riderFault === true && done.evidence?.riderId) {   // counted once: the complaint can be decided only once
+        await Rider.updateOne({ tenantId: tenant._id, userId: done.evidence.riderId }, { $inc: { faultCount: 1 } }).catch((e) => console.error('Rider fault count error:', e.message));
+    }
 
     // after the save: the money (Phase 4 provides issueRefund), then the messages
     let final = done;

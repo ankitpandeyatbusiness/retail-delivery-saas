@@ -1,7 +1,7 @@
 // One complaint per delivered order, within 24 hours of delivery.
 const mongoose = require('mongoose');
 
-const TYPES = ['missing_item', 'wrong_item', 'quality', 'late', 'packaging', 'other'];
+const TYPES = ['missing_item', 'wrong_item', 'quality', 'late', 'packaging', 'other', 'not_received'];
 const RESOLUTIONS = ['none', 'refund_full', 'refund_partial', 'no_refund'];
 
 const schema = new mongoose.Schema({
@@ -15,6 +15,9 @@ const schema = new mongoose.Schema({
     photos: { type: [String], default: [] },
     status: { type: String, enum: ['open', 'in_progress', 'resolved'], default: 'open' },
     ownerReply: { type: String, maxlength: 500 },
+    // "I never got this order": what the system knew about the delivery at the moment of the complaint (services/complaintService.js)
+    evidence: mongoose.Schema.Types.Mixed,
+    riderFault: Boolean,   // the owner's decision: was the rider at fault (not received only)
     resolution: { type: String, enum: RESOLUTIONS, default: 'none' },
     refundPaise: { type: Number, default: 0, min: 0 },
     // none: no money | noted: COD or unpaid, decision only | pending: online, waiting for the payout | done | failed

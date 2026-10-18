@@ -7,7 +7,7 @@ import { NumberBox, ChoiceBox } from './menuBits';
 
 export const PAY_TYPES = [
     ['none', 'I pay in hand', 'The app does not track pay'],
-    ['salary', 'Fixed salary', 'The same every month or every week'],
+    ['salary', 'Fixed salary', 'The same every day, week or month'],
     ['per_delivery', 'A fixed amount for each delivery', ''],
     ['percent', 'A percent of each order', ''],
     ['distance', 'A base amount + extra for distance', 'Pay grows with the km to the customer'],
@@ -58,7 +58,7 @@ export default function PayPlanForm({ value, onChange, allowSame, sameText }) {
                     {hasSalary ? (
                         <>
                             <NumberBox label="Salary" prefix="₹" value={v.salary} onChange={(x) => set({ salary: x })} />
-                            <ChoiceBox label="Paid" options={[['month', 'Every month'], ['week', 'Every week']]} value={v.salaryEvery} onChange={(x) => set({ salaryEvery: x })} />
+                            <ChoiceBox label="Paid" options={[['day', 'Every day'], ['week', 'Every week'], ['month', 'Every month']]} value={v.salaryEvery} onChange={(x) => set({ salaryEvery: x })} />
                         </>
                     ) : null}
                     {v.type === 'per_delivery' || v.type === 'salary_plus' ? <NumberBox label="For each delivery" prefix="₹" value={v.perDelivery} onChange={(x) => set({ perDelivery: x })} /> : null}

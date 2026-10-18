@@ -1,7 +1,7 @@
 // Small pure helpers for the Shop hub screens (customers, complaints, reviews, messages, coupons, banners).
 
 export const COMPLAINT_TYPES = {
-    missing_item: 'Item missing', wrong_item: 'Wrong item', quality: 'Food quality', late: 'Late delivery', packaging: 'Packaging', other: 'Other',
+    missing_item: 'Item missing', wrong_item: 'Wrong item', quality: 'Food quality', late: 'Late delivery', packaging: 'Packaging', other: 'Other', not_received: 'Order not received',
 };
 export const COMPLAINT_STATUS = { open: 'New', in_progress: 'In progress', resolved: 'Decided' };
 export const RESOLUTION_TEXT = { none: 'Replied', refund_full: 'Full refund', refund_partial: 'Part refund', no_refund: 'No refund' };

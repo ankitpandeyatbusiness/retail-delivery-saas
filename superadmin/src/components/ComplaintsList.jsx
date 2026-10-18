@@ -16,7 +16,7 @@ const CHIPS = [
     { value: 'resolved', label: 'Resolved' },
 ];
 export const TYPE_NAME = {
-    missing_item: 'Missing item', wrong_item: 'Wrong item', quality: 'Quality', late: 'Late', packaging: 'Packaging', other: 'Other',
+    missing_item: 'Missing item', wrong_item: 'Wrong item', quality: 'Quality', late: 'Late', packaging: 'Packaging', other: 'Other', not_received: 'Not received',
 };
 const TONE = { open: 'danger', in_progress: 'warn', resolved: 'success' };
 
