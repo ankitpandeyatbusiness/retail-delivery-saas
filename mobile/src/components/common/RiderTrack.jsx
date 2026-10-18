@@ -14,7 +14,9 @@ import { Polyline, Marker } from 'react-native-maps';
 import { useRoadGlide, bearingBetween } from '../../hooks/common/useRoadGlide';
 import RiderPin, { RIDER_SIZE } from './RiderPin';
 
-export default function RiderTrack({ road, loc, dest, orderId, color, estimate, title, size = RIDER_SIZE }) {
+// lineWidth / casing (the white edge, extra width; 0 = none) / zIndex: for a map with several riders, where lines of different widths
+// are stacked so that two routes on the same road both show. onPress: the scooter was tapped.
+export default function RiderTrack({ road, loc, dest, orderId, color, estimate, title, size = RIDER_SIZE, lineWidth = 5, casing = 4, zIndex = 1, onPress, refreshKey }) {
     const g = useRoadGlide({ road, loc, resetKey: orderId });
     // the scooter is a custom view: its picture is taken again for a moment when it appears / its colour changes, then left alone
     const [loaded, setLoaded] = useState(false);
@@ -24,7 +26,7 @@ export default function RiderTrack({ road, loc, dest, orderId, color, estimate, 
         if (!loaded) return undefined;
         const t = setTimeout(() => setSettle(false), 500);
         return () => clearTimeout(t);
-    }, [loaded, g.ready, color]);
+    }, [loaded, g.ready, color, refreshKey]);   // refreshKey: the screen came back into view, the native marker may have lost its picture
 
     const line = g.line && g.line.length > 1 ? g.line : (g.pos && dest ? [g.pos, dest] : []);
     const dashed = estimate || !(g.line && g.line.length > 1);
@@ -33,8 +35,8 @@ export default function RiderTrack({ road, loc, dest, orderId, color, estimate, 
     return (
         <>
             {/* a white edge under the line, so it stands out on the pale map; thick, as in Blinkit */}
-            {line.length > 1 ? <Polyline coordinates={line} strokeColor="#FFFFFF" strokeWidth={9} /> : null}
-            {line.length > 1 ? <Polyline coordinates={line} strokeColor={color} strokeWidth={5} lineDashPattern={dashed ? [10, 10] : undefined} /> : null}
+            {line.length > 1 && casing > 0 ? <Polyline coordinates={line} strokeColor="#FFFFFF" strokeWidth={lineWidth + casing} zIndex={zIndex * 2} /> : null}
+            {line.length > 1 && lineWidth > 0 ? <Polyline coordinates={line} strokeColor={color} strokeWidth={lineWidth} zIndex={zIndex * 2 + 1} lineDashPattern={dashed ? [10, 10] : undefined} /> : null}
             {g.ready ? (
                 <Marker.Animated
                     coordinate={g.coordinate}
@@ -42,7 +44,8 @@ export default function RiderTrack({ road, loc, dest, orderId, color, estimate, 
                     anchor={{ x: 0.5, y: 0.5 }}
                     flat
                     rotation={heading}
-                    zIndex={10}
+                    zIndex={10 + zIndex}
+                    onPress={onPress}
                     tracksViewChanges={settle}
                 >
                     <RiderPin color={color} size={size} onReady={() => setLoaded(true)} />

@@ -158,6 +158,11 @@ router.get('/riders/locations', openWhilePaused, wrap(async (req, res) => {
             })),
     });
 }));
+// The owner's live map in one answer: the shop pin, every rider with his position, and every delivery on the way with its road, due
+// time and the customer's details (services/liveMap.js).
+router.get('/live-map', openWhilePaused, wrap(async (req, res) => {
+    res.json(await require('../services/liveMap').build(req.tenant));
+}));
 // The live picture of the shop: order counts, riders, billable orders, revenue, SMS balance, last 50 feed lines
 // Everything the owner's Home screen shows, in one call (see services/dashboardService.js). Open while rent is unpaid,
 // like /live: the owner still needs his orders and numbers.

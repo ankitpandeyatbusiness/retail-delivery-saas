@@ -17,6 +17,8 @@ export const fetchLive = () => d(api.get('/shop/live'));
 // the whole Home screen in one call: today vs yesterday, sales by hour, orders waiting, stock, riders, complaints, SMS, rent
 export const fetchDashboard = () => d(api.get('/shop/dashboard'));
 export const fetchRiderLocations = () => d(api.get('/shop/riders/locations'));
+// the live map in one answer: { shop, riders, trips } (see backend services/liveMap.js)
+export const fetchLiveMap = () => d(api.get('/shop/live-map'));
 
 /* ------------------------------ orders ------------------------------ */
 // params: { status: 'active' | 'placed,accepted', q: '1042', from, to, page, limit }  ->  { items, counts, page, hasMore }

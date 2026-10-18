@@ -175,6 +175,37 @@ describe('the rider cancels a delivery he is carrying', () => {
     });
 });
 
+describe("the owner's live map", () => {
+    test('the shop, the rider with his position, and every delivery on the way with the customer and the late flag', async () => {
+        liveTracking.reset();
+        const o = await trip({ delivery: { riderId: w.rider.user._id, status: 'picked_up', pickedUpAt: new Date(Date.now() - 30 * 60000), dueAt: new Date(Date.now() - 5 * 60000), pinRequired: false } });
+        const waiting = await f.makeOrder(w.tenant, w.customer.user, { status: 'preparing', address: { line1: 'x', city: 'Kanpur', ...HOME } });
+        const ask = () => request(app).get('/api/shop/live-map').set(w.owner.headers);
+
+        // no position yet: the rider is listed, quiet, without a spot
+        let r = (await ask()).body;
+        assert.deepEqual({ lat: r.shop.lat, lng: r.shop.lng }, { lat: SHOP.latitude, lng: SHOP.longitude });
+        assert.equal(r.riders.length, 1);
+        assert.equal(r.riders[0].quiet, true);
+        assert.equal(r.riders[0].lat, null);
+
+        // a position arrives (the same call the rider's phone makes)
+        await liveTracking.ingest({ tenantId: w.tenant._id, riderId: w.rider.user._id, body: { lat: 26.4530, lng: 80.3320 } });
+        r = (await ask()).body;
+        assert.equal(r.riders[0].lat, 26.4530);
+        assert.equal(r.riders[0].quiet, false);
+        assert.deepEqual(r.riders[0].orderIds, [String(o._id)]);
+        assert.equal(r.trips.length, 1, 'only the delivery on the way, not the one still being prepared');
+        const t = r.trips[0];
+        assert.equal(t.orderNo, o.orderNo);
+        assert.equal(t.riderId, String(w.rider.user._id));
+        assert.deepEqual(t.dest, { lat: HOME.latitude, lng: HOME.longitude });
+        assert.equal(t.late, true, 'past the due time');
+        assert.ok(t.customer.name !== undefined && t.address.text.includes('Kanpur'));
+        assert.ok(waiting);
+    });
+});
+
 describe('I have arrived', () => {
     test('the time is kept once, and it needs the food collected first', async () => {
         const o = await trip();
