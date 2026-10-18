@@ -10,6 +10,8 @@ import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
 import { Card, Stat } from '../../components/owners/ui';
 import { BigButton, SmallLink, Banner, Avatar } from '../../components/riders/riderBits';
+import KeepRunningSheet from '../../components/riders/KeepRunningSheet';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRiderStore } from '../../store/riders/useRiderStore';
 import { useRiderLocation } from '../../hooks/common/useRiderLocation';
 import { acceptOrder, rejectOrder } from '../../api/riders/riderApi';
@@ -81,6 +83,7 @@ export default function RiderHomeScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [busyId, setBusyId] = useState(null);
     const [dutyBusy, setDutyBusy] = useState(false);
+    const [guide, setGuide] = useState(false);   // "keep the app working", shown once
 
     // new offers arrive while the page is open
     useFocusEffect(useCallback(() => {
@@ -100,7 +103,13 @@ export default function RiderHomeScreen() {
             if (!yes) return;
         }
         setDutyBusy(true);
-        try { await setDuty(v); } catch (e) { showToast(errText(e)); }
+        try {
+            await setDuty(v);
+            if (v) {   // the first time he starts duty: how to stop the phone from killing the app
+                const seen = await AsyncStorage.getItem('rider_keep_running_seen').catch(() => '1');
+                if (!seen) { setGuide(true); AsyncStorage.setItem('rider_keep_running_seen', '1').catch(() => { }); }
+            }
+        } catch (e) { showToast(errText(e)); }
         setDutyBusy(false);
     };
 
@@ -218,6 +227,7 @@ export default function RiderHomeScreen() {
                     </>
                 ) : null}
             </ScrollView>
+            <KeepRunningSheet visible={guide} onClose={() => setGuide(false)} />
         </View>
     );
 }

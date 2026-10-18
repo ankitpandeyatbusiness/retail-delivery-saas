@@ -52,5 +52,13 @@ order, a wrong amount or a foreign QR pay nothing and alert the superadmin. Taki
 - **The owner decides** as for any complaint (reply, full or part refund, no refund; an online order is refunded automatically, a cash order is only noted) and answers one extra question, "Was the rider at fault?". "Yes" counts once on the rider (`Rider.faultCount`, shown on his page). For a cash order the owner uses the rider's "Correction" if he should pay the money back.
 - Not stored: the rider's live path (it is kept only in memory while he rides).
 
+## Phase 4: reliability (built 2026-10-18)
+- **Auto off duty** (`jobs/riderDuty.js`, every 5 minutes): a rider with no order is put off duty and told (a notification) when the shop has been closed for 30 minutes (closing time or holiday; a shop the owner paused by hand does not count) or when he has been on duty for 16 hours (`RIDER_MAX_DUTY_HOURS`). One tap starts duty again. `Rider.onlineSince` is set when he starts duty.
+- **One phone per rider:** a rider signing in on a second phone signs the first one out (owners can still use several phones). The old phone is signed out at its next request.
+- **Offline:** a "no network" banner on the delivery page; collected and arrived are tried again by themselves for about 20 seconds; after any failed step the order is read again, so a step that reached the server (only the answer got lost) shows as done, including a delivery. A PIN is never accepted offline, so the Deliver tap needs the signal.
+- **Help button** (`POST /api/rider/sos`): on the delivery page and in Profile. The owner gets a push at once (and an SMS when the push cannot reach him; needs the DLT template `DLT_TEMPLATE_RIDER_SOS`) with the rider's name, phone, order and last position; tapping it opens the rider's page. A second tap within a minute adds nothing. The rider then sees "Call 112" and "Call the shop".
+- **Keep the app working:** a three-step guide (location "all the time", battery "unrestricted", do not swipe the app away), shown once at the first start of duty and always in Profile.
+- **Forced update:** already exists for every app role (`settings.app.minVersion`, set by the superadmin).
+
 ## Not built yet
-Auto off duty, one device per rider, offline queue, SOS, battery guide.
+Nothing from the rider plan. Ideas for later: more languages, a rider scorecard for the owner (acceptance rate, delivery times), push to a rider who was signed out on another phone.

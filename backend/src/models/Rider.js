@@ -7,6 +7,7 @@ const riderSchema = new mongoose.Schema({
     name: { type: String, trim: true, maxlength: 80 },
     isActive: { type: Boolean, default: true },     // owner can switch a rider off
     isOnline: { type: Boolean, default: false },    // the rider goes online or offline in the app
+    onlineSince: Date,                              // when he went on duty (a very long duty puts him off, jobs/riderDuty.js)
     vehicle: { type: { type: String, trim: true, maxlength: 20 }, number: { type: String, trim: true, maxlength: 20 } },
     photo: String,
     pay: mongoose.Schema.Types.Mixed,   // his own pay plan (services/riderPay.js); empty = the shop's plan

@@ -31,6 +31,7 @@ const OTP_TTL_MS = 5 * 60 * 1000;
 const MAX_OTP_ATTEMPTS = 5;
 const MAX_PHONE_FAILS = 10; // wrong OTPs per phone in 30 minutes, then the phone is locked
 const MAX_SESSIONS_PER_USER = 5;
+const MAX_SESSIONS_PER_RIDER = 1;   // a rider is signed in on ONE phone: a new login signs the old phone out
 const ROTATION_GRACE_MS = 30 * 1000; // retry window after a refresh response is lost
 const TENANT_DAILY_SMS_CAP = parseInt(process.env.TENANT_DAILY_SMS_CAP, 10) || 3000;
 
@@ -156,7 +157,7 @@ const issueSession = async (user, tenant, req, ip) => {
     // Cap devices: keep newest N, delete older sessions
     const stale = await Session.find({ userId: user._id })
         .sort({ createdAt: -1 })
-        .skip(MAX_SESSIONS_PER_USER)
+        .skip(user.role === 'rider' ? MAX_SESSIONS_PER_RIDER : MAX_SESSIONS_PER_USER)
         .select('_id')
         .lean();
     if (stale.length) {

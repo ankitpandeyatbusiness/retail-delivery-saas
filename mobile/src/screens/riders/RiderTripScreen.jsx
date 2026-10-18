@@ -14,6 +14,7 @@ import { showToast } from '../../components/customers/shop';
 import { themedAlert, ask } from '../../components/common/dialog';
 import { Card, PageHeader, Sheet, Button } from '../../components/owners/ui';
 import { PayQrSheet } from '../../components/owners/moneyBits';
+import SosSheet from '../../components/riders/SosSheet';
 import { BigButton, SmallLink, Banner, Steps } from '../../components/riders/riderBits';
 import { useRiderStore } from '../../store/riders/useRiderStore';
 import {
@@ -49,15 +50,23 @@ export default function RiderTripScreen() {
     const [sheet, setSheet] = useState(null);   // 'pin' | 'problem'
     const [pin, setPin] = useState('');
     const [qr, setQr] = useState(null);
+    const [offline, setOffline] = useState(false);   // the last ask for this order got no answer at all
+    const [sosOpen, setSosOpen] = useState(false);
     const shopPhone = useRiderStore((s) => s.me?.shopPhone);
     const alive = useRef(true);
 
+    // asks the server for the order. Returns it (or null). A failed ask with no answer at all means the phone has no network.
     const refresh = useCallback(async () => {
         try {
             const r = await fetchRiderOrder(orderId);
-            if (alive.current) setO(r);
+            if (alive.current) { setO(r); setOffline(false); }
+            return r;
         } catch (e) {
-            if (e?.response?.status === 404 && alive.current) setGone(true);
+            if (alive.current) {
+                if (!e?.response) setOffline(true);
+                else if (e.response.status === 404) setGone(true);
+            }
+            return null;
         }
     }, [orderId]);
     useEffect(() => {
@@ -68,9 +77,21 @@ export default function RiderTripScreen() {
     }, [refresh]);
 
     const sync = (r) => { if (r?.id) setO(r); useRiderStore.getState().load(); };
+    // a step is tried again by itself for a while when there is no network; after any failure the order is read again, so
+    // a step that DID reach the server (and only the answer got lost) shows up as done instead of as an error
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const retrying = async (fn) => {
+        for (let i = 0; ; i += 1) {
+            try { return await fn(); } catch (e) {
+                if (e?.response || i >= 5 || !alive.current) throw e;
+                if (i === 0) showToast(T.retrying);
+                await wait(4000);
+            }
+        }
+    };
     const run = async (key, fn) => {
         setBusy(key);
-        try { return await fn(); } catch (e) { showToast(errText(e)); return null; } finally { setBusy(''); }
+        try { return await fn(); } catch (e) { showToast(errText(e)); await refresh(); return null; } finally { setBusy(''); }
     };
 
     const d = o?.delivery || {};
@@ -80,8 +101,8 @@ export default function RiderTripScreen() {
     const spot = o?.destination;
 
     /* ---------- actions ---------- */
-    const collect = () => run('collect', async () => sync(await pickupOrder(orderId)));
-    const arrived = () => run('arrived', async () => sync(await markArrived(orderId)));
+    const collect = () => run('collect', async () => sync(await retrying(() => pickupOrder(orderId))));
+    const arrived = () => run('arrived', async () => sync(await retrying(() => markArrived(orderId))));
     const navigate = () => {
         const q = spot ? `${spot.latitude},${spot.longitude}` : encodeURIComponent(addressLine(o?.address));
         Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${q}&travelmode=two-wheeler`).catch(() => showToast('Could not open Maps'));
@@ -118,6 +139,9 @@ export default function RiderTripScreen() {
                 if (await ask({ title: T.farTitle, message: body.error, confirmText: T.farDeliver })) await doDeliver(pinValue, true);
                 return;
             }
+            // the delivery may have gone through and only the answer got lost: look before saying it failed
+            const fresh = await refresh();
+            if (fresh?.status === 'delivered') { setSheet(null); sync(fresh); return; }
             if (pinValue != null) setPin('');
             themedAlert('Could not deliver', errText(e));
         } finally { setBusy(''); }
@@ -182,6 +206,7 @@ export default function RiderTripScreen() {
             <PageHeader title={`Order #${o.orderNo}`} />
             <Steps labels={STEP_LABELS} step={step} />
             <ScrollView contentContainerStyle={{ paddingTop: 8, paddingBottom: 200 }} keyboardShouldPersistTaps="handled">
+                {offline ? <Banner tone="warn" icon="cloud-offline" text={T.offline} /> : null}
                 {step > 0 ? (
                     <Banner
                         tone={cash ? 'warn' : 'ok'}
@@ -222,6 +247,7 @@ export default function RiderTripScreen() {
 
                 <View style={{ marginHorizontal: 16, marginTop: 4 }}>
                     <SmallLink label={T.problem} icon="warning" danger onPress={() => setSheet('problem')} />
+                    <SmallLink label={T.sos} icon="alert-circle" danger onPress={() => setSosOpen(true)} />
                     {step === 0 ? <SmallLink label={T.cannotDo} onPress={giveBack} /> : null}
                 </View>
             </ScrollView>
@@ -274,6 +300,8 @@ export default function RiderTripScreen() {
                 ))}
                 {shopPhone ? <View style={{ marginTop: 14 }}><BigButton label={T.callShop} icon="call" kind="outline" onPress={callShop} /></View> : null}
             </Sheet>
+
+            <SosSheet visible={sosOpen} onClose={() => setSosOpen(false)} orderId={orderId} shopPhone={shopPhone} />
 
             {/* a Cash on delivery customer pays by QR at the door: the sheet asks until the money is in */}
             <PayQrSheet

@@ -216,7 +216,7 @@ core.put('/online', wrap(async (req, res) => {
     if (typeof req.body?.isOnline !== 'boolean') throw httpError(400, 'Send isOnline: true or false');
     const r = await Rider.updateOne(
         { tenantId: req.tenant._id, userId: req.riderId, ...(req.body.isOnline && { isActive: true }) },
-        { $set: { isOnline: req.body.isOnline } },
+        req.body.isOnline ? { $set: { isOnline: true, onlineSince: new Date() } } : { $set: { isOnline: false }, $unset: { onlineSince: 1 } },
     );
     if (!r.matchedCount) throw httpError(403, 'Your rider account is switched off');
     res.json({ ok: true, isOnline: req.body.isOnline });
@@ -390,6 +390,22 @@ core.post('/orders/:id/problem', wrap(async (req, res) => {
     res.locals.auditAction = `RIDER_PROBLEM (order #${r.orderNo})`;
     res.locals.auditParams = { reason, note };
     res.status(201).json({ ok: true });
+}));
+
+// The help button. The owner gets a push at once with his name, phone, order and last position (and an SMS when the push cannot reach him).
+// Pressing it again within a minute does nothing new, so a nervous double tap cannot flood the owner.
+const lastSos = new Map();
+core.post('/sos', wrap(async (req, res) => {
+    const key = String(req.riderId);
+    const repeated = Date.now() - (lastSos.get(key) || 0) < 60000;
+    if (!repeated) {
+        lastSos.set(key, Date.now());
+        let orderNo = null;
+        if (isId(String(req.body?.orderId || ''))) orderNo = (await Order.findOne({ _id: req.body.orderId, tenantId: req.tenant._id, 'delivery.riderId': req.riderId }).select('orderNo').lean())?.orderNo || null;
+        notify.riderSos({ tenantId: req.tenant._id, riderUserId: req.riderId, phone: req.riderPhone, orderNo, spot: liveTracking.latestFor(req.riderId) });
+        res.locals.auditAction = 'RIDER_SOS';
+    }
+    res.json({ ok: true, repeated, shopPhone: req.tenant.phone || null });
 }));
 
 // One page for his money: the cash he holds (and the limit), and what he earns. Pay is left out when the shop pays outside the app.

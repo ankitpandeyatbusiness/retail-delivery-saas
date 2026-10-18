@@ -172,6 +172,20 @@ async function riderProblem({ tenantId, orderId, orderNo, riderUserId, reason, n
     }
 }
 
+// the rider pressed the help button: the owner is told with his name, phone, order and last position
+async function riderSos({ tenantId, riderUserId, phone, orderNo, spot }) {
+    try {
+        const name = await riderName(tenantId, riderUserId);
+        liveFeed.emit(tenantId, 'riders', { type: 'rider.sos', orderNo: orderNo || null, riderId: String(riderUserId), riderName: name });
+        center.notify('rider_sos', {
+            tenantId, vars: { riderName: name, phone, orderNo },
+            data: { kind: 'sos', riderId: String(riderUserId), phone, orderNo: orderNo || null, ...(spot ? { lat: spot.lat, lng: spot.lng } : {}) },
+        });
+    } catch (e) {
+        console.error('Notification error:', e.message);
+    }
+}
+
 async function lowDeliveryRating({ tenantId, orderId, orderNo, rating, riderUserId, comment }) {
     try {
         const name = await riderName(tenantId, riderUserId);
@@ -237,6 +251,6 @@ function offersClosed({ tenantId, orderId, orderNo, why, riderIds = [] }) {
 module.exports = {
     send, toOwner, toUser,
     orderPlaced, orderStatusChanged,
-    riderOffered, riderAccepted, riderRejected, noRiderFree, riderRemoved, riderProblem, lowDeliveryRating,
+    riderOffered, riderAccepted, riderRejected, noRiderFree, riderRemoved, riderProblem, riderSos, lowDeliveryRating,
     riderBroadcast, offersClosed,
 };

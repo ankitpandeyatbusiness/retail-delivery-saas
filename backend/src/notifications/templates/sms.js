@@ -30,6 +30,10 @@ const TEMPLATES = {
         purpose: 'alert', vars: ['invoiceNo', 'amount', 'shop', 'date'],
         text: 'New bill {#var#} of Rs {#var#} for {#var#}. Please pay by {#var#} to keep taking orders.',
     },
+    rider_sos: {
+        purpose: 'alert', vars: ['riderName', 'phone'],
+        text: 'Rider {#var#} pressed the help button. Call him now on {#var#}.',
+    },
     bill_overdue: {
         purpose: 'alert', vars: ['amount', 'shop'],
         text: 'Rs {#var#} is overdue for {#var#}. Pay now in the app to stop the late fee from growing.',

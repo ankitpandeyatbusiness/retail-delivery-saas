@@ -22,6 +22,7 @@ const { startCleanupUploadsScheduler } = require('../jobs/cleanupUploads');
 const { startBackupScheduler } = require('../jobs/backupDump');
 const { startNightlyReconcileScheduler } = require('../jobs/nightlyReconcile');
 const { startPaymentReconcileScheduler } = require('../services/paymentReconcile');
+const { startRiderDutyScheduler } = require('../jobs/riderDuty');
 
 // A crash is logged and the host restarts the server. A stray rejected promise is only logged.
 process.on('unhandledRejection', (reason) => { console.error('Unhandled rejection:', reason); sentry.capture(reason); });
@@ -73,6 +74,7 @@ connectDB()
             startInactiveShopsScheduler();
             startAutopilotScheduler();
             startPaymentReconcileScheduler();
+            startRiderDutyScheduler();   // a rider who forgot to end duty is put off duty
             require('../services/platformTax').start();   // the one GST for all shops
             require('../services/platformPayments').start();   // my own Razorpay keys saved in the app
 

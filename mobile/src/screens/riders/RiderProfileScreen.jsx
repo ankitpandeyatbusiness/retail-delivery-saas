@@ -8,6 +8,8 @@ import { showToast } from '../../components/customers/shop';
 import { themedAlert } from '../../components/common/dialog';
 import { Card, Row } from '../../components/owners/ui';
 import { Avatar } from '../../components/riders/riderBits';
+import SosSheet from '../../components/riders/SosSheet';
+import KeepRunningSheet from '../../components/riders/KeepRunningSheet';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { useRiderStore } from '../../store/riders/useRiderStore';
 import { takeAndUploadMyPhoto, removeMyPhoto } from '../../utils/riders/riderPhotos';
@@ -21,6 +23,8 @@ export default function RiderProfileScreen() {
     const patchMe = useRiderStore((s) => s.patchMe);
     const logout = useAuthStore((s) => s.logout);
     const [busy, setBusy] = useState(false);
+    const [sosOpen, setSosOpen] = useState(false);
+    const [guideOpen, setGuideOpen] = useState(false);
 
     const doPhoto = async (source) => {
         setBusy(true);
@@ -57,6 +61,8 @@ export default function RiderProfileScreen() {
                 </View>
                 <Card>
                     {me?.shopPhone ? <Row icon="call-outline" title={T.callShop} subtitle={me.shopPhone} onPress={() => Linking.openURL(`tel:${me.shopPhone}`).catch(() => { })} /> : null}
+                    <Row icon="alert-circle-outline" title={T.sos} color={error} onPress={() => setSosOpen(true)} />
+                    <Row icon="battery-charging-outline" title={T.keepRunning} subtitle={T.keepRunningTitle} onPress={() => setGuideOpen(true)} />
                     <Row icon="document-text-outline" title={T.terms} onPress={() => nav.navigate('LegalList')} />
                     <Row
                         icon="log-out-outline" title={T.logout} color={error} last
@@ -67,6 +73,8 @@ export default function RiderProfileScreen() {
                     />
                 </Card>
             </ScrollView>
+            <SosSheet visible={sosOpen} onClose={() => setSosOpen(false)} shopPhone={me?.shopPhone} />
+            <KeepRunningSheet visible={guideOpen} onClose={() => setGuideOpen(false)} />
         </View>
     );
 }

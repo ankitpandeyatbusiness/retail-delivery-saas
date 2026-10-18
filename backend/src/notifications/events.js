@@ -58,6 +58,8 @@ const EVENTS = {
     // rider (offers last 2 minutes, so never an SMS)
     rider_offer: { to: 'rider', channels: INAPP_PUSH, alsoPush: true },
     rider_removed: { to: 'rider', channels: INAPP_PUSH },
+    rider_off_duty: { to: 'rider', channels: INAPP_PUSH },   // the app put him off duty (shop closed, or a very long duty)
+    rider_sos: { to: 'owner', channels: ALL, key: true, alsoPush: true },   // the rider pressed the help button: push AND, if the phone is unreachable, SMS
     // superadmin (his own keys, so an owner rule never changes them). SMS only if he switched it on.
     admin_bill_issued: { to: 'superadmin', channels: ALL },
     admin_bill_paid: { to: 'superadmin', channels: ALL },

@@ -16,6 +16,8 @@ export const fetchRiderOrder = (id) => d(api.get(`/rider/orders/${id}`));
 export const fetchSummary = () => d(api.get('/rider/summary'));   // { earnings, deliveries: { today, month, total }, cash }
 // his money in one page: the cash he holds (and the limit) and what he earns (left out when the shop pays outside the app)
 export const fetchMoney = () => d(api.get('/rider/money'));
+// the help button: the shop is told at once (name, phone, order, last position)
+export const sendSos = (orderId) => d(api.post('/rider/sos', orderId ? { orderId } : {}));
 export const markArrived = (id) => d(api.post(`/rider/orders/${id}/arrived`));
 export const releaseOrder = (id, note) => d(api.post(`/rider/orders/${id}/release`, { note }));   // before pickup only
 // a Cash on delivery customer pays by QR at the door: start -> { qr }, then ask until { paid: true }

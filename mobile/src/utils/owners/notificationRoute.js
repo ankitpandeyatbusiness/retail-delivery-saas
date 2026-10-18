@@ -17,6 +17,7 @@ export function ownerRoute(n) {
     if (d.kind === 'business_report') return { name: 'OwnerBusiness', params: d.period ? { range: String(d.period) } : undefined };
     if (ORDER.has(type) && d.orderId) return { name: 'OwnerOrder', params: { id: String(d.orderId) } };
     if ((type === 'complaint_new' || type === 'complaint_reminder') && d.complaintId) return { name: 'OwnerComplaint', params: { id: String(d.complaintId) } };
+    if (type === 'rider_sos' && d.riderId) return { name: 'OwnerRider', params: { userId: String(d.riderId) } };
     if (BILL.has(type)) return { name: 'OwnerRent' };
     if (SMS.has(type)) return { name: 'OwnerSms' };
     if (type === 'dish_low_rating' || type === 'delivery_low_rating') return { name: 'OwnerReviews' };

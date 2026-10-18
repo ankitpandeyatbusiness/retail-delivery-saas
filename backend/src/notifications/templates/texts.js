@@ -56,6 +56,8 @@ const TEXTS = {
     rider_rejected: (v) => ({ title: 'Rider said no', body: `${v.riderName} rejected order #${v.orderNo ?? ''}.` }),
     rider_none: (v) => ({ title: 'No rider available', body: `Order #${v.orderNo} needs a rider. Please assign one by hand.` }),
     rider_removed: (v) => ({ title: 'Order taken back', body: `Order #${v.orderNo} was given to someone else.` }),
+    rider_off_duty: () => ({ title: 'You are off duty', body: 'You were put off duty.' }),
+    rider_sos: (v) => ({ title: 'Rider needs help', body: `${v.riderName} pressed the help button${v.orderNo ? ` (order #${v.orderNo})` : ''}. Call him now: ${v.phone}.` }),
     rider_problem: (v) => ({
         title: 'Delivery problem',
         body: `${v.riderName} ${PROBLEM[v.reason] || 'reported a problem'} (order #${v.orderNo}).${v.note ? ` Note: ${v.note}` : ''}`,
