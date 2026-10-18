@@ -48,6 +48,17 @@ async function balances(tenantId) {
     return { items, totalOwedPaise: items.reduce((s, i) => s + i.balancePaise, 0) };
 }
 
+// the riders whose cash on hand has reached the limit (an empty set when there is no limit)
+async function overLimitIds(tenantId, limitPaise) {
+    if (!(limitPaise > 0)) return new Set();
+    const rows = await CodSettlement.aggregate([
+        { $match: { tenantId } },
+        { $group: { _id: '$riderId', balance: { $sum: '$amountPaise' } } },
+        { $match: { balance: { $gte: limitPaise } } },
+    ]);
+    return new Set(rows.map((r) => String(r._id)));
+}
+
 async function balanceOf(tenantId, riderId) {
     const [r] = await CodSettlement.aggregate([
         { $match: { tenantId, riderId: oid(riderId) } },
@@ -134,4 +145,4 @@ async function performance({ tenantId, from, to }) {
     return { from, to, items };
 }
 
-module.exports = { balances, record, ledger, performance };
+module.exports = { balances, balanceOf, overLimitIds, record, ledger, performance };

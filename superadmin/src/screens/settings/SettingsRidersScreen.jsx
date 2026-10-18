@@ -24,8 +24,7 @@ export default function SettingsRidersScreen() {
                             onChange={set('assignMode')}
                         />
                         <NumberField label="Time a rider has to accept" suffix="seconds" integer hint="30 to 600" value={r.offerSeconds} onChange={(v) => set('offerSeconds')(v ?? 120)} />
-                        <NumberField label="Most orders at once per rider" integer hint="1 to 10" value={r.maxActiveOrders} onChange={(v) => set('maxActiveOrders')(v ?? 3)} />
-                        <NumberField label="Pay per delivery" prefix="₹" value={r.payPerDelivery} onChange={(v) => set('payPerDelivery')(v ?? 0)} last />
+                        <NumberField label="Most orders at once per rider" integer hint="1 to 10" value={r.maxActiveOrders} onChange={(v) => set('maxActiveOrders')(v ?? 3)} last />
                     </Group>
 
                     <Group title="Safety and tracking" section="riders" flush>
@@ -47,6 +46,7 @@ export default function SettingsRidersScreen() {
                     <Group title="Location updates" section="riders">
                         <NumberField label="Rider location is sent every" suffix="seconds" integer hint="5 to 60. Lower is smoother but uses more battery and data." value={r.locationIntervalSec} onChange={(v) => set('locationIntervalSec')(v ?? 10)} last />
                     </Group>
+                    <Hint>How riders are paid (salary, per delivery, percent, distance) and the cash limit are set by the shop owner in Delivery rules.</Hint>
                     <Hint>Riders themselves are added under the shop's Riders section.</Hint>
                 </>
             ) : null}

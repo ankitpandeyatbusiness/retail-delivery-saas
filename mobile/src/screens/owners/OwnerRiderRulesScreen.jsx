@@ -5,13 +5,14 @@ import { View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Button, Empty } from '../../components/owners/ui';
 import { FormPage, Group, NumberBox, ChoiceBox, ToggleRow, Hint } from '../../components/owners/menuBits';
+import PayPlanForm, { planProblem, paysPerDelivery } from '../../components/owners/PayPlanForm';
 import { fetchSettings, saveSettings, apiError } from '../../api/owners/shopApi';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { showToast } from '../../components/customers/shop';
 import { FormShimmer } from '../../components/owners/shimmer';
 
 // what we recommend for most shops (the platform's own defaults)
-const RECOMMENDED = { assignMode: 'automatic', offerSeconds: 120, maxActiveOrders: 3, payPerDelivery: 0, deliveryPin: true, liveTracking: true, locationIntervalSec: 10, codAmount: 1000, codFirst: 3 };
+const RECOMMENDED = { assignMode: 'automatic', offerSeconds: 120, maxActiveOrders: 3, pay: { type: 'none' }, trackPayouts: false, payUndelivered: false, cashLimit: 0, deliveryPin: true, liveTracking: true, locationIntervalSec: 10, codAmount: 1000, codFirst: 3 };
 
 export default function OwnerRiderRulesScreen() {
     const nav = useNavigation();
@@ -44,7 +45,8 @@ export default function OwnerRiderRulesScreen() {
         const e = {};
         if (!(v.offerSeconds >= 30 && v.offerSeconds <= 600)) e.offerSeconds = 'From 30 to 600 seconds';
         if (!(v.maxActiveOrders >= 1 && v.maxActiveOrders <= 10)) e.maxActiveOrders = 'From 1 to 10';
-        if (v.payPerDelivery === undefined || v.payPerDelivery < 0 || v.payPerDelivery > 10000) e.payPerDelivery = 'From 0 to 10000';
+        if (planProblem(v.pay)) e.pay = planProblem(v.pay);
+        if (v.cashLimit === undefined || v.cashLimit < 0 || v.cashLimit > 1000000) e.cashLimit = 'From 0 to 1000000';
         if (!(v.locationIntervalSec >= 5 && v.locationIntervalSec <= 60)) e.locationIntervalSec = 'From 5 to 60 seconds';
         if (v.codAmount === undefined || v.codAmount < 0 || v.codAmount > 100000) e.codAmount = 'From 0 to 100000';
         if (v.codFirst === undefined || v.codFirst < 0 || v.codFirst > 50) e.codFirst = 'From 0 to 50';
@@ -53,7 +55,8 @@ export default function OwnerRiderRulesScreen() {
         try {
             await saveSettings({
                 riders: {
-                    assignMode: v.assignMode, offerSeconds: v.offerSeconds, maxActiveOrders: v.maxActiveOrders, payPerDelivery: v.payPerDelivery,
+                    assignMode: v.assignMode, offerSeconds: v.offerSeconds, maxActiveOrders: v.maxActiveOrders,
+                    pay: v.pay, trackPayouts: v.pay.type === 'none' ? false : !!v.trackPayouts, payUndelivered: paysPerDelivery(v.pay) ? !!v.payUndelivered : false, cashLimit: v.cashLimit,
                     deliveryPin: v.deliveryPin, liveTracking: v.liveTracking, locationIntervalSec: v.locationIntervalSec,
                 },
                 orders: { codCap: { amount: v.codAmount, firstOrders: v.codFirst } },
@@ -78,7 +81,21 @@ export default function OwnerRiderRulesScreen() {
                     <NumberBox label="Time a rider has to answer" suffix="seconds" integer value={v.offerSeconds} onChange={(x) => set('offerSeconds', x)} error={errors.offerSeconds} />
                 ) : null}
                 <NumberBox label="Orders one rider can carry at once" integer value={v.maxActiveOrders} onChange={(x) => set('maxActiveOrders', x)} error={errors.maxActiveOrders} />
-                <NumberBox label="Pay for each delivery" prefix="₹" value={v.payPerDelivery} onChange={(x) => set('payPerDelivery', x)} error={errors.payPerDelivery} hint="Shown to the rider as what he earns. 0 = not shown." last />
+            </Group>
+
+            <Group title="How do you pay your riders?" hint="Pick one. A single rider can have his own plan on his page.">
+                <PayPlanForm value={v.pay} onChange={(x) => set('pay', x)} />
+                {errors.pay ? <Hint tone="error">{errors.pay}</Hint> : null}
+                {v.pay.type !== 'none' ? (
+                    <View style={{ marginTop: 10 }}>
+                        <ToggleRow title="Record what you pay riders" subtitle="You write down each payment. The rider sees what he earned and what you paid." value={!!v.trackPayouts} onValueChange={(x) => set('trackPayouts', x)} last={!paysPerDelivery(v.pay)} />
+                        {paysPerDelivery(v.pay) ? <ToggleRow title="Pay when the food was collected but not delivered" subtitle="Off: the rider earns nothing for an order that did not reach the customer." value={!!v.payUndelivered} onValueChange={(x) => set('payUndelivered', x)} last /> : null}
+                    </View>
+                ) : null}
+            </Group>
+
+            <Group title="Cash a rider holds" hint="Cash from cash-on-delivery orders. Over the limit, a rider gets no new orders until he gives cash to the shop.">
+                <NumberBox label="Most cash one rider may hold" prefix="₹" value={v.cashLimit} onChange={(x) => set('cashLimit', x)} error={errors.cashLimit} hint="0 = no limit" last />
             </Group>
 
             <Group title="At the customer's door">

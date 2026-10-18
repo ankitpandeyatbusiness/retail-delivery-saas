@@ -11,7 +11,9 @@ import { callPhone, whatsApp } from '../../components/owners/orderBits';
 import { Avatar } from './OwnerRidersScreen';
 import { useRidersStore } from '../../store/owners/useRidersStore';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
-import { updateRider, removeRider, fetchRiderLedger, recordHandover, adjustRiderCash, apiError } from '../../api/owners/shopApi';
+import { updateRider, removeRider, fetchRiderLedger, recordHandover, adjustRiderCash, fetchRiderPay, saveRiderPay, recordRiderPayment, voidRiderPayment, apiError } from '../../api/owners/shopApi';
+import PayPlanForm, { planProblem } from '../../components/owners/PayPlanForm';
+import { Stat } from '../../components/owners/ui';
 import { rupees, toPaise, ago, riderName, ledgerLine } from '../../utils/owners/riderRules';
 import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
@@ -50,6 +52,25 @@ function AmountSheet({ mode, visible, balancePaise, onClose, onSubmit, busy }) {
     );
 }
 
+// writing down a payment the owner made to the rider (the money moves outside the app)
+function PaymentSheet({ visible, plan, onClose, onSubmit, busy }) {
+    const { muted } = useBrand();
+    const [amount, setAmount] = useState('');
+    const [kind, setKind] = useState('earnings');
+    const [note, setNote] = useState('');
+    useEffect(() => { if (visible) { setAmount(''); setNote(''); setKind(plan?.type === 'salary' ? 'salary' : 'earnings'); } }, [visible]);   // eslint-disable-line react-hooks/exhaustive-deps
+    const paise = toPaise(amount);
+    return (
+        <Sheet visible={visible} onClose={onClose} title="Record a payment">
+            <Text style={{ color: muted, marginBottom: 10 }}>Write down money you gave the rider. He will see it in his app.</Text>
+            <Chips options={[['earnings', 'For deliveries'], ['salary', 'Salary'], ['advance', 'Advance'], ['bonus', 'Bonus']]} value={kind} onChange={setKind} style={{ marginTop: 0, marginBottom: 8 }} />
+            <Field value={amount} onChangeText={(x) => setAmount(x.replace(/[^\d.]/g, '').slice(0, 9))} placeholder="Amount in ₹" keyboardType="decimal-pad" maxLength={9} style={{ marginBottom: 10 }} />
+            <Field value={note} onChangeText={setNote} placeholder="Note (optional)" maxLength={200} style={{ marginBottom: 14 }} />
+            <Button label="Save payment" icon="checkmark" disabled={!paise || paise < 100} busy={busy} onPress={() => onSubmit({ amountPaise: paise, kind, note: note.trim() || undefined })} />
+        </Sheet>
+    );
+}
+
 export default function OwnerRiderScreen() {
     const nav = useNavigation();
     const { userId } = useRoute().params || {};
@@ -58,6 +79,10 @@ export default function OwnerRiderScreen() {
     const cash = useRidersStore((s) => s.cash[String(userId)]);
     const loaded = useRidersStore((s) => s.loadedAt);
     const [sheet, setSheet] = useState(null);       // 'handover' | 'adjust'
+    const [payInfo, setPayInfo] = useState(null);
+    const [planSheet, setPlanSheet] = useState(false);
+    const [plan, setPlan] = useState({ type: 'same' });
+    const [paySheet, setPaySheet] = useState(false);
     const [saving, setSaving] = useState(false);
     const [rows, setRows] = useState(null);
     const [more, setMore] = useState(false);
@@ -74,7 +99,10 @@ export default function OwnerRiderScreen() {
         } catch (e) { useOwnerStore.getState().noteError(e); setRows((x) => x || []); }
     }, [userId]);
 
-    useFocusEffect(useCallback(() => { useRidersStore.getState().load({ quiet: true }); loadLedger(1); }, [loadLedger]));
+    const loadPay = useCallback(async () => {
+        try { setPayInfo(await fetchRiderPay(userId)); } catch (e) { useOwnerStore.getState().noteError(e); }
+    }, [userId]);
+    useFocusEffect(useCallback(() => { useRidersStore.getState().load({ quiet: true }); loadLedger(1); loadPay(); }, [loadLedger, loadPay]));
 
     if (!rider) {
         return (
@@ -94,6 +122,24 @@ export default function OwnerRiderScreen() {
             useRidersStore.getState().load({ quiet: true });
             loadLedger(1);
         } catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); } finally { setSaving(false); }
+    };
+
+    const openPlan = () => { setPlan(payInfo?.own || { type: 'same' }); setPlanSheet(true); };
+    const savePlan = async () => {
+        if (planProblem(plan)) { showToast(planProblem(plan)); return; }
+        setSaving(true);
+        try { await saveRiderPay(userId, plan.type === 'same' ? null : plan); showToast('Saved'); setPlanSheet(false); useRidersStore.getState().load({ quiet: true }); loadPay(); }
+        catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); } finally { setSaving(false); }
+    };
+    const savePayment = async (body) => {
+        setSaving(true);
+        try { await recordRiderPayment(userId, body); showToast('Payment saved'); setPaySheet(false); loadPay(); }
+        catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); } finally { setSaving(false); }
+    };
+    const cancelPayment = async (p) => {
+        if (!(await ask({ title: 'Cancel this payment?', message: 'It stops counting. The history keeps it as cancelled.', confirmText: 'Cancel payment', destructive: true }))) return;
+        try { await voidRiderPayment(userId, p.id, 'Entered by mistake'); showToast('Cancelled'); loadPay(); }
+        catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); }
     };
 
     const setActive = async (on) => {
@@ -148,6 +194,39 @@ export default function OwnerRiderScreen() {
                     </>
                 ) : null}
 
+                <SectionTitle title="Pay" />
+                <Card>
+                    <Row icon="wallet" title="How he is paid" subtitle={`${payInfo?.label || rider.payLabel || ''}${(payInfo?.own || rider.ownPay) ? '  ·  his own plan' : ''}`} onPress={openPlan} last={!payInfo || payInfo.money?.hidden} />
+                    {payInfo && !payInfo.money?.hidden && payInfo.money?.earned ? (
+                        <View style={{ flexDirection: 'row', marginTop: 8 }}>
+                            <Stat label="Today" value={rupees(payInfo.money.earned.todayPaise)} />
+                            <Stat label="This week" value={rupees(payInfo.money.earned.weekPaise)} />
+                            <Stat label="This month" value={rupees(payInfo.money.earned.monthPaise)} />
+                        </View>
+                    ) : null}
+                    {payInfo?.trackPayouts && !payInfo.money?.hidden ? (
+                        <>
+                            {payInfo.money.pendingPaise != null ? (
+                                <View style={{ flexDirection: 'row', marginTop: 8 }}>
+                                    <Stat label="You paid" value={rupees(payInfo.money.paidPaise)} color={ok} />
+                                    <Stat label="Still to pay" value={rupees(payInfo.money.pendingPaise)} color={payInfo.money.pendingPaise > 0 ? error : text} />
+                                </View>
+                            ) : null}
+                            <View style={{ marginTop: 12 }}><Button label="Record a payment" icon="add" onPress={() => setPaySheet(true)} /></View>
+                            {payInfo.money.payments.map((p) => (
+                                <View key={p.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderTopWidth: 0.5, borderTopColor: muted + '55', opacity: p.voided ? 0.5 : 1 }}>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={{ color: text, fontWeight: '700' }}>{({ earnings: 'Delivery pay', advance: 'Advance', salary: 'Salary', bonus: 'Bonus' })[p.kind] || p.kind}{p.voided ? ' (cancelled)' : ''}</Text>
+                                        <Text style={{ color: muted, fontSize: 12 }}>{ago(p.paidAt)}{p.note ? `  ·  ${p.note}` : ''}</Text>
+                                    </View>
+                                    <Text style={{ color: text, fontWeight: '900' }}>{rupees(p.amountPaise)}</Text>
+                                    {!p.voided ? <Pressable onPress={() => cancelPayment(p)} hitSlop={8} style={{ marginLeft: 10 }}><Ionicons name="close-circle-outline" size={20} color={muted} /></Pressable> : null}
+                                </View>
+                            ))}
+                        </>
+                    ) : null}
+                </Card>
+
                 <SectionTitle title="Cash" />
                 <Card tone={balance > 0 ? error : undefined}>
                     <Text style={{ color: muted, fontWeight: '700', fontSize: 12 }}>{balance > 0 ? 'He owes the shop' : 'Nothing to collect'}</Text>
@@ -192,6 +271,11 @@ export default function OwnerRiderScreen() {
                     <Button label="Remove this rider" icon="trash" kind="danger" onPress={remove} />
                 </View>
             </ScrollView>
+            <Sheet visible={planSheet} onClose={() => setPlanSheet(false)} title="How is he paid?">
+                <PayPlanForm value={plan} onChange={setPlan} allowSame sameText="Follows the plan in Delivery rules" />
+                <View style={{ marginTop: 14 }}><Button label="Save" icon="checkmark" busy={saving} onPress={savePlan} /></View>
+            </Sheet>
+            <PaymentSheet visible={paySheet} plan={payInfo?.own || payInfo?.shop} busy={saving} onClose={() => setPaySheet(false)} onSubmit={savePayment} />
             <AmountSheet mode={sheet || 'handover'} visible={!!sheet} balancePaise={balance} busy={saving} onClose={() => setSheet(null)} onSubmit={submit} />
         </View>
     );

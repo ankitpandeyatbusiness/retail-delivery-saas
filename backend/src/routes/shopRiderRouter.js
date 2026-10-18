@@ -6,6 +6,9 @@ const express = require('express');
 const mongoose = require('mongoose');
 const apiErrors = require('../middlewares/apiErrors');
 const riders = require('../services/riderService');
+const riderPay = require('../services/riderPay');
+const Rider = require('../models/Rider');
+const RiderPayout = require('../models/RiderPayout');
 const assignment = require('../services/assignmentService');
 const Order = require('../models/Order');
 const { UNPAID_QUERY } = require('../services/onlineOrder');
@@ -33,6 +36,70 @@ manage.patch('/:userId', wrap(async (req, res) => {
     res.json(await riders.update({
         tenantId: req.tenant._id, userId: req.params.userId, isActive: req.body?.isActive, name: req.body?.name, email: req.body?.email,
     }));
+}));
+
+// One rider's pay: the plan that applies, what he earned, and (when the owner records payments) what was paid.
+manage.get('/:userId/pay', wrap(async (req, res) => {
+    if (!isId(req.params.userId)) throw httpError(404, 'Rider not found');
+    const rider = await Rider.findOne({ tenantId: req.tenant._id, userId: req.params.userId }).select('pay').lean();
+    if (!rider) throw httpError(404, 'Rider not found');
+    const shop = req.tenant.settings?.riders || {};
+    const plan = riderPay.effectivePlan(shop, rider);
+    res.json({
+        own: rider.pay?.type ? rider.pay : null,                         // his own plan, or null when he follows the shop's
+        shop: riderPay.effectivePlan(shop, null),                          // the shop's plan
+        label: riderPay.describe(plan),
+        trackPayouts: !!shop.trackPayouts,
+        money: await riderPay.moneyFor({ tenantId: req.tenant._id, riderId: rider.userId || req.params.userId, plan, riders: shop, limit: 30 }),
+    });
+}));
+
+// { "pay": { type: "per_delivery", perDelivery: 30 } }  or  { "pay": null } to follow the shop's plan again
+manage.put('/:userId/pay', wrap(async (req, res) => {
+    if (!isId(req.params.userId)) throw httpError(404, 'Rider not found');
+    const v = riderPay.validatePlan(req.body?.pay, { allowSame: true });
+    if (!v.ok) return res.status(400).json({ error: v.errors[0], errors: v.errors });
+    const r = await Rider.updateOne(
+        { tenantId: req.tenant._id, userId: req.params.userId },
+        v.clean ? { $set: { pay: v.clean } } : { $unset: { pay: 1 } },
+    );
+    if (!r.matchedCount) throw httpError(404, 'Rider not found');
+    res.json({ ok: true, own: v.clean });
+}));
+
+// the owner records a payment he made to the rider (money moves outside the app). { amountPaise, kind?, note?, paidAt? }
+manage.post('/:userId/payments', wrap(async (req, res) => {
+    if (!isId(req.params.userId)) throw httpError(404, 'Rider not found');
+    if (!req.tenant.settings?.riders?.trackPayouts) throw httpError(409, 'Switch on "Record payments to riders" in the delivery rules first');
+    if (!(await Rider.exists({ tenantId: req.tenant._id, userId: req.params.userId }))) throw httpError(404, 'Rider not found');
+    const b = req.body || {};
+    if (!Number.isInteger(b.amountPaise) || b.amountPaise < 100 || b.amountPaise > 100000000) throw httpError(400, 'Amount must be from ₹1 to ₹10,00,000');
+    const kind = b.kind === undefined ? 'earnings' : b.kind;
+    if (!RiderPayout.KINDS.includes(kind)) throw httpError(400, `kind must be one of: ${RiderPayout.KINDS.join(', ')}`);
+    let paidAt = new Date();
+    if (b.paidAt !== undefined) {
+        paidAt = new Date(b.paidAt);
+        if (Number.isNaN(paidAt.getTime()) || paidAt.getTime() > Date.now() + 60000 || paidAt.getTime() < Date.now() - 400 * 86400000) throw httpError(400, 'The date is not valid');
+    }
+    const row = await RiderPayout.create({
+        tenantId: req.tenant._id, riderId: req.params.userId, amountPaise: b.amountPaise, kind, paidAt,
+        note: typeof b.note === 'string' && b.note.trim() ? b.note.trim().slice(0, 200) : undefined, by: actorOf(req),
+    });
+    req.auditAfter = { amountPaise: row.amountPaise, kind };
+    res.status(201).json(riderPay.payoutView(row));
+}));
+
+// a wrong entry is cancelled (kept in the history, not counted)
+manage.delete('/:userId/payments/:payId', wrap(async (req, res) => {
+    if (!isId(req.params.userId) || !isId(req.params.payId)) throw httpError(404, 'Payment not found');
+    const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim().slice(0, 200) : '';
+    if (!reason) throw httpError(400, 'Write a reason');
+    const r = await RiderPayout.updateOne(
+        { _id: req.params.payId, tenantId: req.tenant._id, riderId: req.params.userId, voidedAt: { $exists: false } },
+        { $set: { voidedAt: new Date(), voidReason: reason } },
+    );
+    if (!r.matchedCount) throw httpError(404, 'Payment not found');
+    res.json({ ok: true });
 }));
 
 manage.delete('/:userId', wrap(async (req, res) => {

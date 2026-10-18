@@ -92,6 +92,7 @@ async function remove({ tenantId, userId }) {
 // riders with live status and their active orders
 async function list(tenantId) {
     const riders = await Rider.find({ tenantId }).sort({ createdAt: 1 }).lean();
+    const shopRiders = (await require('../models/Tenant').findById(tenantId).select('settings.riders').lean())?.settings?.riders || {};
     const ids = riders.map((r) => r.userId);
     const [users, orders] = await Promise.all([
         User.find({ _id: { $in: ids }, tenantId }).select('phone email').lean(),
@@ -112,6 +113,7 @@ async function list(tenantId) {
         email: emailOf.get(String(r.userId)) || null,
         isActive: r.isActive, isOnline: r.isOnline, vehicle: r.vehicle || null, photo: r.photo || null,
         lastLocation: r.lastLocation || null, activeOrderCount: r.activeOrderCount,
+        payLabel: require('./riderPay').describe(require('./riderPay').effectivePlan(shopRiders, r)), ownPay: !!r.pay?.type,
         ratingAvg: r.ratingAvg, ratingCount: r.ratingCount,
         activeOrders: byRider.get(String(r.userId)) || [],
     }));

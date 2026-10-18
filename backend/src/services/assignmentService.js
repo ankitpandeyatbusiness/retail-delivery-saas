@@ -21,6 +21,7 @@ const auditTrail = require('../middlewares/auditTrail');
 const { DEFAULTS } = require('./tenantConfigService');
 const { httpError } = require('../middlewares/apiErrors');
 const notify = require('./notificationService');
+const cod = require('./codService');
 
 const OPEN = ['accepted', 'preparing', 'out_for_delivery'];       // order steps where a rider can be set
 const WITH_RIDER = ['assigned', 'accepted', 'picked_up'];
@@ -54,6 +55,7 @@ async function settingsOf(tenantId) {
         offerSeconds: Math.round(s.offerSeconds),
         maxActiveOrders: Math.max(1, Math.floor(s.maxActiveOrders)),
         deliveryPin: s.deliveryPin !== false,
+        cashLimitPaise: Math.round((Number(s.cashLimit) || 0) * 100),   // 0 = no limit
     };
 }
 
@@ -126,9 +128,11 @@ async function autoAssign({ orderId, tenantId, settings }) {
     if (!order || !OPEN.includes(order.status) || order.delivery?.riderId) return null;
 
     const tried = (order.delivery?.offers || []).map((o) => o.riderId);
-    const pool = await Rider.find({
+    let pool = await Rider.find({
         tenantId, isActive: true, isOnline: true, activeOrderCount: { $lt: settings.maxActiveOrders }, userId: { $nin: tried },
     }).select('userId').lean();
+    const full = await cod.overLimitIds(tenantId, settings.cashLimitPaise);   // riders holding too much cash get no new orders
+    pool = pool.filter((r) => !full.has(String(r.userId)));
 
     while (pool.length) {
         const [pick] = pool.splice(crypto.randomInt(pool.length), 1);
@@ -193,7 +197,9 @@ async function startBroadcast({ orderId, tenantId, excludeRiderId }) {
     if (!order) return null;
 
     // online, active and FREE (no active order) riders only
-    const riders = await Rider.find({ tenantId, isActive: true, isOnline: true, activeOrderCount: 0, ...(excludeRiderId && { userId: { $ne: excludeRiderId } }) }).select('userId').lean();
+    const full = await cod.overLimitIds(tenantId, settings.cashLimitPaise);   // riders holding too much cash get no new orders
+    const riders = (await Rider.find({ tenantId, isActive: true, isOnline: true, activeOrderCount: 0, ...(excludeRiderId && { userId: { $ne: excludeRiderId } }) }).select('userId').lean())
+        .filter((r) => !full.has(String(r.userId)));
     if (!riders.length) {
         await endBroadcast(order._id, tenantId, 'no_rider');
         return null;
@@ -214,6 +220,9 @@ async function startBroadcast({ orderId, tenantId, excludeRiderId }) {
 async function acceptBroadcast({ orderId, tenantId, riderUserId }) {
     const settings = await settingsOf(tenantId);
     const now = new Date();
+    if (settings.cashLimitPaise > 0 && (await cod.balanceOf(tenantId, riderUserId)).balancePaise >= settings.cashLimitPaise) {
+        throw httpError(409, 'You hold too much cash. Give it to the shop before taking more orders.');
+    }
 
     // 1) take a slot for this rider
     const slot = await Rider.findOneAndUpdate(

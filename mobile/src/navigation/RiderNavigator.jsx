@@ -1,4 +1,4 @@
-// The rider's three tabs: Home (duty and orders) · History · Profile. The delivery page (RiderTrip) opens on top of them and is
+// The rider's four tabs: Home (duty and orders) · History · Money (cash and pay) · Profile. The delivery page (RiderTrip) opens on top of them and is
 // registered in AppNavigator's stack. Same floating bar as the customer and owner tabs.
 import React from 'react';
 import { View } from 'react-native';
@@ -8,6 +8,7 @@ import { useRiderStore } from '../store/riders/useRiderStore';
 import { FloatingTabBar } from './tabKit';
 import RiderHomeScreen from '../screens/riders/RiderHomeScreen';
 import RiderHistoryScreen from '../screens/riders/RiderHistoryScreen';
+import RiderMoneyScreen from '../screens/riders/RiderMoneyScreen';
 import RiderProfileScreen from '../screens/riders/RiderProfileScreen';
 
 const Tab = createBottomTabNavigator();
@@ -15,6 +16,7 @@ const Tab = createBottomTabNavigator();
 const TABS = {
     RiderHomeTab: { label: 'Home', icon: 'bicycle', component: RiderHomeScreen },
     RiderHistoryTab: { label: 'History', icon: 'time', component: RiderHistoryScreen },
+    RiderMoneyTab: { label: 'Money', icon: 'wallet', component: RiderMoneyScreen },
     RiderProfileTab: { label: 'Profile', icon: 'person', component: RiderProfileScreen },
 };
 

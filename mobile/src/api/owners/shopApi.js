@@ -53,6 +53,11 @@ export const updateRider = (userId, body) => d(api.patch(`/shop/riders/${userId}
 export const removeRider = (userId) => d(api.delete(`/shop/riders/${userId}`));
 
 /* ------------------------------ cash on delivery with riders ------------------------------ */
+// how a rider is paid: the plan, what he earned, and (when the owner records payments) what was paid
+export const fetchRiderPay = (userId) => d(api.get(`/shop/riders/${userId}/pay`));
+export const saveRiderPay = (userId, pay) => d(api.put(`/shop/riders/${userId}/pay`, { pay }));   // pay: a plan, or null = same as the shop
+export const recordRiderPayment = (userId, body) => d(api.post(`/shop/riders/${userId}/payments`, body));   // { amountPaise, kind?, note? }
+export const voidRiderPayment = (userId, payId, reason) => d(api.delete(`/shop/riders/${userId}/payments/${payId}`, { data: { reason } }));
 export const fetchCodRiders = () => d(api.get('/shop/cod/riders'));
 export const fetchRiderLedger = (userId, params) => d(api.get(`/shop/cod/riders/${userId}/ledger`, q(params)));
 export const recordHandover = (userId, body) => d(api.post(`/shop/cod/riders/${userId}/handover`, body));

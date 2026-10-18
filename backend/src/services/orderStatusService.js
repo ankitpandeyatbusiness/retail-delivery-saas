@@ -30,7 +30,7 @@ const liveTracking = require('./liveTracking');
 const refundService = require('./refundService');
 const billable = require('./billableService');
 const stockService = require('./stockService');
-const riderEarnings = require('./riderEarnings');
+const riderPay = require('./riderPay');
 const { httpError } = require('../middlewares/apiErrors');
 const notify = require('./notificationService');
 const liveFeed = require('./liveFeed');
@@ -147,9 +147,14 @@ async function change({ order, status, actor, note, tenant, reasonCode }) {
 
     // what this delivery pays the rider (shop setting, copied now so later changes never touch it)
     const earnPaise = status === 'delivered' && order.delivery?.riderId
-        ? await riderEarnings.payPerDeliveryPaise(order.tenantId).catch(() => 0)
+        ? await riderPay.earnForOrder(order).catch(() => 0)
+        : 0;
+    // food collected but not delivered: paid only when the shop chose to (a shop setting)
+    const notDeliveredPay = ['undelivered', 'cancelled'].includes(status) && order.delivery?.riderId && order.delivery?.status === 'picked_up'
+        ? await riderPay.earnForOrder(order, { notDelivered: true }).catch(() => 0)
         : 0;
     const set = { status };
+    if (notDeliveredPay > 0) set['delivery.earnPaise'] = notDeliveredPay;
     if (status === 'delivered') {
         set.deliveredAt = now;
         if (order.payment?.method === 'cod') set['payment.status'] = 'paid';   // cash collected at the door

@@ -253,6 +253,7 @@ router.put('/accepting-orders', wrap(async (req, res) => {
 
 // What the owner can change on his own shop, as it is now (the screens fill their forms from this).
 // riders: the delivery rules. orders.codCap: the cash on delivery limit for a phone's first orders.
+const riderPay = require('../services/riderPay');
 router.get('/settings', wrap(async (req, res) => {
     const st = req.tenant.settings || {};
     const cfg = resolveConfig(req.tenant);
@@ -261,7 +262,7 @@ router.get('/settings', wrap(async (req, res) => {
         address: req.tenant.address || {},
         delivery: req.tenant.delivery || {},
         hours: { weekly: cfg.hours.weekly || {}, closedMessage: st.hours?.closedMessage || '', closedDates: cfg.hours.closedDates || [] },
-        riders: { payPerDelivery: 0, ...DEFAULTS.riders, ...(st.riders || {}) },
+        riders: { payPerDelivery: 0, ...DEFAULTS.riders, ...(st.riders || {}), pay: riderPay.effectivePlan(st.riders) },
         notifications: { ...DEFAULTS.notifications, ...(st.notifications || {}) },
         orders: {
             codCap: { ...DEFAULTS.orders.codCap, ...(st.orders?.codCap || {}) },
@@ -318,6 +319,8 @@ router.put('/settings', wrap(async (req, res) => {
         const v = validateSettings({ riders: body.riders });
         if (!v.ok) return res.status(400).json({ error: 'Invalid rider settings', errors: v.errors });
         for (const [k, val] of Object.entries(v.clean.riders || {})) updates[`settings.riders.${k}`] = val;   // only the fields sent change
+        // the day the owner starts recording payments: what a rider is owed is counted from then, never from older deliveries
+        if (v.clean.riders?.trackPayouts === true && !req.tenant.settings?.riders?.trackPayouts) updates['settings.riders.trackFrom'] = new Date();
     }
 
     if (body.orders !== undefined) {

@@ -125,8 +125,11 @@ export default function RiderHomeScreen() {
 
     const liveOffers = offers.filter((o) => { const n = secondsLeft(o); return n === null || n > 0; });
     const earnedToday = summary?.earnings?.todayPaise || 0;
-    const payTracked = (summary?.earnings?.monthPaise || 0) > 0 || earnedToday > 0;
+    const payType = summary?.pay?.type;
+    const payTracked = !!payType && !['none', 'salary'].includes(payType);   // earnings per delivery exist only for those plans
     const cashHeld = summary?.cash?.owedToShopPaise || 0;
+    const cashLimit = summary?.cash?.limitPaise || 0;
+    const cashFull = cashLimit > 0 && cashHeld >= cashLimit;
 
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
@@ -173,6 +176,7 @@ export default function RiderHomeScreen() {
                                     {payTracked ? <Stat label={T.earnedToday} value={rupee(earnedToday)} /> : null}
                                 </View>
                                 {cashHeld > 0 ? <Text style={{ color: '#B45309', fontWeight: '800', fontSize: 13, marginTop: 10 }}>{T.cashHeld(rupee(cashHeld))}</Text> : null}
+                                {cashFull ? <Text style={{ color: '#DC2626', fontWeight: '900', fontSize: 13, marginTop: 6 }}>{T.cashOverLimit}</Text> : null}
                             </Card>
                         ) : null}
 

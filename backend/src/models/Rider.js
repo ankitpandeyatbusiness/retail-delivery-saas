@@ -9,6 +9,7 @@ const riderSchema = new mongoose.Schema({
     isOnline: { type: Boolean, default: false },    // the rider goes online or offline in the app
     vehicle: { type: { type: String, trim: true, maxlength: 20 }, number: { type: String, trim: true, maxlength: 20 } },
     photo: String,
+    pay: mongoose.Schema.Types.Mixed,   // his own pay plan (services/riderPay.js); empty = the shop's plan
     lastLocation: { lat: Number, lng: Number, at: Date },
     activeOrderCount: { type: Number, default: 0, min: 0 },   // offered + accepted + picked up
     ratingAvg: { type: Number, default: 0 },

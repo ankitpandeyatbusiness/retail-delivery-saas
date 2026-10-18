@@ -254,7 +254,14 @@ function validateSettings(input) {
     });
 
     // riders and delivery assignment
-    section('riders', ['assignMode', 'offerSeconds', 'maxActiveOrders', 'deliveryPin', 'liveTracking', 'locationIntervalSec', 'payPerDelivery'], (r, out, p) => {
+    section('riders', ['assignMode', 'offerSeconds', 'maxActiveOrders', 'deliveryPin', 'liveTracking', 'locationIntervalSec', 'payPerDelivery', 'pay', 'trackPayouts', 'payUndelivered', 'cashLimit'], (r, out, p) => {
+        if (r.pay !== undefined) {   // how riders are paid (services/riderPay.js)
+            const v = require('./riderPay').validatePlan(r.pay);
+            if (v.ok) { out.pay = v.clean; out.payPerDelivery = v.clean.type === 'per_delivery' ? v.clean.perDelivery : 0; } else v.errors.forEach((m) => err(p('pay'), m));
+        }
+        if (r.trackPayouts !== undefined && bool(p('trackPayouts'), r.trackPayouts)) out.trackPayouts = r.trackPayouts;   // the owner records what he pays riders
+        if (r.payUndelivered !== undefined && bool(p('payUndelivered'), r.payUndelivered)) out.payUndelivered = r.payUndelivered;   // pay for food collected but not delivered
+        if (r.cashLimit !== undefined && num(p('cashLimit'), r.cashLimit, 0, 1000000)) out.cashLimit = r.cashLimit;   // rupees of cash a rider may hold before new orders stop (0 = no limit)
         if (r.payPerDelivery !== undefined && num(p('payPerDelivery'), r.payPerDelivery, 0, 10000)) out.payPerDelivery = r.payPerDelivery;   // rupees per delivery
         if (r.assignMode !== undefined && oneOf(p('assignMode'), r.assignMode, O.ASSIGN_MODES)) out.assignMode = r.assignMode;
         if (r.offerSeconds !== undefined && num(p('offerSeconds'), r.offerSeconds, 30, 600)) out.offerSeconds = r.offerSeconds;
@@ -311,7 +318,7 @@ const DEFAULTS = {
     },
     offers: { couponsEnabled: true, showOnHome: true, showInCart: true },
     notifications: { smsAlerts: true, monthlyReport: true },   // key-event SMS (new order, bill, order steps) are on by default
-    riders: { assignMode: 'automatic', offerSeconds: 120, maxActiveOrders: 3, deliveryPin: true, liveTracking: true, locationIntervalSec: 10 },
+    riders: { assignMode: 'automatic', offerSeconds: 120, maxActiveOrders: 3, deliveryPin: true, liveTracking: true, locationIntervalSec: 10, trackPayouts: false, payUndelivered: false, cashLimit: 0 },
     labels: {
         language: 'en', addButton: 'Add', orderButton: 'Place order',
         emptyCart: 'Your cart is empty', emptySearch: 'No dishes found',

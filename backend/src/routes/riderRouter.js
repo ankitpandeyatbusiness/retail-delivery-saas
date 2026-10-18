@@ -25,6 +25,8 @@ const orderStatus = require('../services/orderStatusService');
 const assignment = require('../services/assignmentService');
 const pins = require('../services/deliveryPinService');
 const riderEarnings = require('../services/riderEarnings');
+const riderPay = require('../services/riderPay');
+const cod = require('../services/codService');
 const { ACTIVE_STATUSES } = require('../services/orderflow');
 const notify = require('../services/notificationService');
 const media = require('../services/mediaService');
@@ -52,7 +54,7 @@ const actorOf = (req) => ({
 });
 
 // what a rider may see. Customer name, phone and full address only after he accepted.
-// ctx: { shop (the tenant), earnPaise (what a delivery pays him now) }
+// ctx: { shop (the tenant), plan (how he is paid) }
 function riderView(o, ctx = {}) {
     const d = o.delivery || {};
     const accepted = ['accepted', 'picked_up'].includes(d.status);
@@ -70,7 +72,7 @@ function riderView(o, ctx = {}) {
         address: accepted ? o.address : { city: o.address?.city, pincode: o.address?.pincode, landmark: o.address?.landmark },
         payment: { method: o.payment?.method, collectAmount: cod ? o.pricing?.total : 0, paidAtDoor: !!o.payment?.paidAtDoor },
         distanceKm,                                  // shop to the customer, in a straight line
-        earnPaise: ctx.earnPaise || 0,               // what this delivery pays him (information)
+        earnPaise: riderPay.earnPaise(ctx.plan, { totalRupees: o.pricing?.total, distanceKm }),   // what this delivery pays him (0 when pay is not tracked)
         destination: accepted ? spot : null,         // the customer's pin, for the map
         doorPay: {
             canStart: cod && d.status === 'picked_up' && o.status === 'out_for_delivery',
@@ -86,8 +88,9 @@ function riderView(o, ctx = {}) {
 
 // the view function for this request (the shop and what a delivery pays are looked up once)
 const viewer = async (req) => {
-    const earnPaise = await riderEarnings.payPerDeliveryPaise(req.tenant._id).catch(() => 0);
-    return (o) => riderView(o, { shop: req.tenant, earnPaise });
+    const rider = await Rider.findOne({ tenantId: req.tenant._id, userId: req.riderId }).select('pay').lean();
+    const plan = riderPay.effectivePlan(req.tenant.settings?.riders, rider);
+    return (o) => riderView(o, { shop: req.tenant, plan });
 };
 
 // where the rider is right now: the phone's position sent with the request, else the last one the server has (if fresh)
@@ -390,6 +393,27 @@ core.post('/orders/:id/problem', wrap(async (req, res) => {
     res.status(201).json({ ok: true });
 }));
 
+// One page for his money: the cash he holds (and the limit), and what he earns. Pay is left out when the shop pays outside the app.
+core.get('/money', wrap(async (req, res) => {
+    const tenantId = req.tenant._id;
+    const riders = req.tenant.settings?.riders || {};
+    const rider = await Rider.findOne({ tenantId, userId: req.riderId }).select('pay').lean();
+    const plan = riderPay.effectivePlan(riders, rider);
+    const [bal, ledger, pay] = await Promise.all([
+        cod.balanceOf(tenantId, req.riderId),
+        cod.ledger({ tenantId, riderId: req.riderId, page: 1, limit: 15 }),
+        riderPay.moneyFor({ tenantId, riderId: req.riderId, plan, riders }),
+    ]);
+    res.json({
+        cash: {
+            balancePaise: bal.balancePaise,
+            limitPaise: Math.round((riders.cashLimit || 0) * 100),
+            items: ledger.items.map((r) => ({ id: r.id, type: r.type, amountPaise: r.amountPaise, orderNo: r.orderNo, note: r.note, at: r.createdAt })),
+        },
+        pay,
+    });
+}));
+
 core.get('/summary', wrap(async (req, res) => {
     const now = Date.now();
     const today = new Date(Math.floor((now + IST) / DAY) * DAY - IST);
@@ -405,11 +429,14 @@ core.get('/summary', wrap(async (req, res) => {
             { $group: { _id: null, balance: { $sum: '$amountPaise' }, collected: { $sum: { $cond: [{ $eq: ['$type', 'collect'] }, '$amountPaise', 0] } } } },
         ]),
     ]);
-    const earnings = await riderEarnings.sums({ tenantId: req.tenant._id, riderId: req.riderId, today, month });   // information only
+    const rider = await Rider.findOne({ tenantId: req.tenant._id, userId: req.riderId }).select('pay').lean();
+    const plan = riderPay.effectivePlan(req.tenant.settings?.riders, rider);
+    const e = riderPay.paysPerDelivery(plan) ? await riderPay.earned({ tenantId: req.tenant._id, riderId: req.riderId }) : { todayPaise: 0, monthPaise: 0, totalPaise: 0 };
     res.json({
-        earnings,
+        earnings: { todayPaise: e.todayPaise, monthPaise: e.monthPaise, totalPaise: e.totalPaise },   // information only
+        pay: { type: plan.type, label: riderPay.describe(plan) },
         deliveries: { today: dToday, month: dMonth, total: dTotal },
-        cash: { owedToShopPaise: cash[0]?.balance || 0, collectedTotalPaise: cash[0]?.collected || 0 },
+        cash: { owedToShopPaise: cash[0]?.balance || 0, collectedTotalPaise: cash[0]?.collected || 0, limitPaise: Math.round((req.tenant.settings?.riders?.cashLimit || 0) * 100) },
     });
 }));
 
