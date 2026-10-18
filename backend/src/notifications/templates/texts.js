@@ -45,7 +45,9 @@ const TEXTS = {
         title: v.undelivered ? 'Order not delivered' : 'Order cancelled',
         body: v.audience === 'rider'
             ? (v.undelivered ? `Order #${v.orderNo} was marked as not delivered.` : `Order #${v.orderNo} was cancelled.`)
-            : `Order #${v.orderNo} was cancelled${v.bySystem ? ' (not accepted in time)' : ' by the customer'}.`,
+            : v.byRider
+                ? `Order #${v.orderNo} was cancelled by the delivery partner${v.reason ? `: ${v.reason}` : ''}.`
+                : `Order #${v.orderNo} was cancelled${v.bySystem ? ' (not accepted in time)' : ' by the customer'}.`,
     }),
     rider_offer: (v) => ({
         title: 'New delivery request',

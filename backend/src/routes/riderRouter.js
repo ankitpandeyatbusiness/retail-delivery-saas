@@ -4,7 +4,7 @@
 //
 //   GET   /me            PATCH /me {name, vehicle}      PUT /online {isOnline}
 //   GET   /orders?tab=offered|active|history&page=      GET /orders/:id
-//   POST  /orders/:id/accept | /reject | /pickup
+//   POST  /orders/:id/accept | /reject | /pickup | /cancel {reasonCode, note?}
 //   POST  /orders/:id/deliver {pin}      POST /orders/:id/problem {reason, note}
 //   GET   /summary
 //   POST  /me/photo/sign {contentType, bytes}  ->  POST /me/photo {key}       DELETE /me/photo      his own picture
@@ -328,6 +328,17 @@ core.post('/orders/:id/arrived', wrap(async (req, res) => {
 
 // He cannot do this delivery after all, and has NOT collected the food yet: the order goes back to the other riders and the
 // owner is told. After pickup the food must come back, so he calls the shop (the problem button) instead.
+// He cannot finish a delivery he is carrying (after pickup): he cancels it with a reason (a note is optional). The customer and the
+// shop are told. The customer pays nothing for it (see services/orderOutcome.js) and the rider is not paid for the trip.
+core.post('/orders/:id/cancel', wrap(async (req, res) => {
+    const order = await findMine(req);
+    const note = String(req.body?.note || '').trim().slice(0, 120);
+    const updated = await orderStatus.change({ order, status: 'cancelled', actor: actorOf(req), reasonCode: req.body?.reasonCode, note: note || undefined });
+    res.locals.auditAction = `RIDER_CANCEL (order #${updated.orderNo})`;
+    res.locals.auditParams = { reasonCode: req.body?.reasonCode };
+    res.json({ ok: true, status: updated.status });
+}));
+
 core.post('/orders/:id/release', wrap(async (req, res) => {
     const order = await findMine(req);
     if (order.delivery?.status !== 'accepted' || order.status === 'out_for_delivery') throw httpError(409, 'You have the food now. Call the shop to decide what to do.');

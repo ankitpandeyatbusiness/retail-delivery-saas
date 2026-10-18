@@ -10,6 +10,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, BackHandler, Linking, PanResponder, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
+import { useMapStyle } from '../../utils/common/mapStyle';
+import RiderTrack from '../common/RiderTrack';
+import HomePin from '../common/HomePin';
+import { useStoreSpot } from './storeLocation';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand } from '../common/kit';
@@ -49,6 +53,8 @@ export default function LiveOrderHost({ routeName }) {
     const { orderId, orderNo, track, loc, route, eta: e, dest, quiet, sheet } = useLiveTripStore();
     const setSheet = useLiveTripStore((s) => s.setSheet);
     const { primary, text, muted, surface, border, background } = useBrand();
+    const mapStyle = useMapStyle();
+    const spot = useStoreSpot();   // the shop's pin: the start of the way
     const insets = useSafeAreaInsets();
     const { height: H } = useWindowDimensions();
     const now = useNow(20000);
@@ -101,17 +107,15 @@ export default function LiveOrderHost({ routeName }) {
     const first = useRef(null);
     const manual = useRef(false);        // the customer moved the map himself: stop pulling it back
     const lastFit = useRef(0);
-    useEffect(() => { first.current = null; manual.current = false; lastFit.current = 0; }, [orderId]);
+    const [moved, setMoved] = useState(false);   // the customer moved / zoomed the map: the recenter button shows
+    useEffect(() => { first.current = null; manual.current = false; lastFit.current = 0; setMoved(false); }, [orderId]);
     const rider = loc ? { latitude: loc.lat, longitude: loc.lng } : null;
     if (rider && !first.current) first.current = rider;
-    useEffect(() => {
-        if (rider && bike.current?.animateMarkerToCoordinate) bike.current.animateMarkerToCoordinate(rider, 1200);
-    }, [loc?.lat, loc?.lng]);   // eslint-disable-line react-hooks/exhaustive-deps
+    const [settle, setSettle] = useState(true);   // a marker is drawn again for a moment when it appears, then left alone
+    useEffect(() => { setSettle(true); const t = setTimeout(() => setSettle(false), 1500); return () => clearTimeout(t); }, [!!rider, !!dest, primary, sheet]);   // the map is created when the sheet opens   // eslint-disable-line react-hooks/exhaustive-deps
+    // the road (when Google drew one) and the bike sliding along it between pings; glide.line = the road still ahead of the bike
+    const road = useMemo(() => (route?.source === 'google' ? decodePolyline(route.polyline) : []), [route?.source, route?.polyline]);
 
-    const line = useMemo(() => {
-        if (route?.source === 'google') { const pts = decodePolyline(route.polyline); if (pts.length > 1) return pts; }
-        return rider && dest ? [rider, dest] : [];
-    }, [route, loc?.lat, loc?.lng, dest]);   // eslint-disable-line react-hooks/exhaustive-deps
 
     const fit = useCallback((force) => {
         if (!map.current || !rider || sheetRef.current === 'bar') return;
@@ -166,21 +170,25 @@ export default function LiveOrderHost({ routeName }) {
                         <MapView
                             ref={map}
                             provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+                            customMapStyle={mapStyle}
                             style={StyleSheet.absoluteFill}
                             initialRegion={{ ...(dest || rider), latitudeDelta: 0.02, longitudeDelta: 0.02 }}
                             showsCompass={false} toolbarEnabled={false} rotateEnabled={false} pitchEnabled={false}
-                            onPanDrag={() => { manual.current = true; }}
+                            onPanDrag={() => { manual.current = true; setMoved(true); }}
+                            onRegionChangeComplete={(_, g) => { if (g?.isGesture) { manual.current = true; setMoved(true); } }}
                             onMapReady={() => fit(true)}
                         >
-                            {line.length > 1 ? <Polyline coordinates={line} strokeColor={primary} strokeWidth={5} lineDashPattern={route?.source === 'google' ? undefined : [10, 10]} /> : null}
-                            {rider ? (
-                                <Marker ref={bike} coordinate={first.current || rider} anchor={{ x: 0.5, y: 0.5 }} flat rotation={loc?.heading || 0} tracksViewChanges={false}>
-                                    <View style={[s.bike, { backgroundColor: primary }]}><Ionicons name="bicycle" size={20} color="#FFFFFF" /></View>
+                            {spot.on && spot.pinned ? (
+                                <Marker coordinate={{ latitude: spot.lat, longitude: spot.lng }} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={settle}>
+                                    <View style={s.shop}><Ionicons name="storefront" size={15} color="#FFFFFF" /></View>
                                 </Marker>
                             ) : null}
+                            {rider ? (
+                                    <RiderTrack road={road} loc={loc} dest={dest} orderId={orderId} color={primary} estimate={route?.source !== 'google'} title={tr('Delivery partner')} />
+                            ) : null}
                             {dest ? (
-                                <Marker coordinate={dest} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
-                                    <View style={s.home}><Ionicons name="home" size={16} color="#FFFFFF" /></View>
+                                <Marker coordinate={dest} anchor={{ x: 0.5, y: 1 }} tracksViewChanges={settle}>
+                                    <HomePin />
                                 </Marker>
                             ) : null}
                         </MapView>
@@ -190,7 +198,7 @@ export default function LiveOrderHost({ routeName }) {
                             <Text style={[s.barSub, { color: muted }]}>{tr('Waiting for the delivery partner\'s location…')}</Text>
                         </View>
                     ) : (
-                        <Pressable onPress={() => { manual.current = false; fit(true); }} style={[s.recenter, { backgroundColor: surface, borderColor: border }]} accessibilityLabel={tr('Show rider and my address')}>
+                        <Pressable onPress={() => { manual.current = false; setMoved(false); fit(true); }} style={[s.recenter, { backgroundColor: surface, borderColor: border }, !moved && { display: 'none' }]} accessibilityLabel={tr('Show rider and my address')}>
                             <Ionicons name="locate" size={22} color={primary} />
                         </Pressable>
                     )}
@@ -258,5 +266,6 @@ const s = StyleSheet.create({
     pin: { marginTop: 10, borderRadius: 14, padding: 12, alignItems: 'center' },
     pinNo: { fontSize: 26, fontWeight: '900', letterSpacing: 4, marginTop: 4 },
     bike: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#FFFFFF', elevation: 4 },
+    shop: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#F59E0B', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#FFFFFF', elevation: 4 },
     home: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1E8E3E', borderWidth: 2, borderColor: '#FFFFFF', elevation: 4 },
 });

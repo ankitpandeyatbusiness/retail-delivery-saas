@@ -33,7 +33,7 @@ const ICON = {
     placed: 'receipt-outline', accepted: 'checkmark-done-outline', preparing: 'restaurant-outline', ready: 'bag-check-outline',
     out_for_delivery: 'bicycle-outline', delivered: 'checkmark-circle-outline', cancelled: 'close-circle-outline',
 };
-const WHO = { customer: 'you', shop: 'the shop', admin: 'admin', system: 'system' };
+const WHO = { customer: 'you', shop: 'the shop', rider: 'the delivery partner', admin: 'admin', system: 'system' };
 const PAY = { cod: 'Cash on delivery', upi: 'UPI', card: 'Card', wallet: 'Wallet' };
 const WORDS = ['Poor', 'Fair', 'Good', 'Very good', 'Excellent'];
 

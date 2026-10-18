@@ -2,6 +2,7 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { View, Text, Platform, ScrollView, Pressable, StyleSheet } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import { useMapStyle } from '../../utils/common/mapStyle';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
@@ -16,6 +17,7 @@ const INDIA = { latitude: 22.5, longitude: 79, latitudeDelta: 20, longitudeDelta
 
 export default function OwnerRiderMapScreen() {
     const { background, primary, onPrimary, text, muted, surface, border, ok } = useBrand();
+    const mapStyle = useMapStyle();
     const names = useRidersStore((s) => s.riders);
     const map = useRef(null);
     const fitted = useRef(false);
@@ -51,6 +53,7 @@ export default function OwnerRiderMapScreen() {
                 <MapView
                     ref={map}
                     provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+                    customMapStyle={mapStyle}
                     style={StyleSheet.absoluteFill}
                     initialRegion={INDIA}
                     showsCompass={false}

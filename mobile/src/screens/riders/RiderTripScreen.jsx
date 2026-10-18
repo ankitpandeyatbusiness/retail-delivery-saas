@@ -21,9 +21,11 @@ import { onOrderEta, onRiderRoute, watchOrder } from '../../api/common/socket';
 import { BigButton, SmallLink, Banner, Steps } from '../../components/riders/riderBits';
 import { useRiderStore } from '../../store/riders/useRiderStore';
 import {
-    fetchRiderOrder, fetchRoute, pickupOrder, markArrived, deliverOrder, reportProblem, releaseOrder, startDoorPay, checkDoorPay,
+    fetchRiderOrder, fetchRoute, cancelDelivery, pickupOrder, markArrived, deliverOrder, reportProblem, releaseOrder, startDoorPay, checkDoorPay,
 } from '../../api/riders/riderApi';
 import { takeAndUploadProof } from '../../utils/riders/riderPhotos';
+import { startRiderTracking } from '../../utils/riders/locationTask';
+import LocationStatus from '../../components/riders/LocationStatus';
 import { T, rupee, rupeeAmount, addressLine, errText } from '../../utils/riders/riderText';
 import { tr } from '../../i18n';
 
@@ -47,7 +49,7 @@ export default function RiderTripScreen() {
     const nav = useNavigation();
     const insets = useSafeAreaInsets();
     const { orderId } = useRoute().params || {};
-    const { background, text, muted, surface, border, ok, primary } = useBrand();
+    const { background, text, muted, surface, border, ok, primary, error } = useBrand();
     const [o, setO] = useState(null);
     const [gone, setGone] = useState(false);
     const [busy, setBusy] = useState('');
@@ -56,6 +58,8 @@ export default function RiderTripScreen() {
     const [qr, setQr] = useState(null);
     const [offline, setOffline] = useState(false);   // the last ask for this order got no answer at all
     const [sosOpen, setSosOpen] = useState(false);
+    const [cancelReason, setCancelReason] = useState('');   // the reason picked in the cancel sheet
+    const [cancelNote, setCancelNote] = useState('');
     const [mapTouch, setMapTouch] = useState(false);   // a finger is on the map: the page behind it must not scroll
     const [plan, setPlan] = useState(null);   // the road from the shop to the customer and the time allowed (the server keeps it per order)
     const [eta, setEta] = useState(null);     // the server's arrival estimate, from his location
@@ -142,7 +146,12 @@ export default function RiderTripScreen() {
     /* ---------- actions ---------- */
     // the journey starts: the order is marked collected (the customer is told), then Google Maps opens with the way to the customer.
     // His location keeps going to the customer from the background service while Google Maps is in front.
-    const collect = () => run('collect', async () => { sync(await retrying(() => pickupOrder(orderId))); navigate(); });
+    // Collected: the trip is on. Make sure his location service runs (it may have stopped while he waited at the shop), so the customer sees him.
+    const collect = () => run('collect', async () => {
+        sync(await retrying(() => pickupOrder(orderId)));
+        startRiderTracking().catch(() => { });   // never in the way of the delivery
+        navigate();
+    });
     const arrived = () => run('arrived', async () => sync(await retrying(() => markArrived(orderId))));
     const navigate = () => {
         const q = spot ? `${spot.latitude},${spot.longitude}` : encodeURIComponent(addressLine(o?.address));
@@ -162,6 +171,19 @@ export default function RiderTripScreen() {
         setSheet(null);
         const r = await run('problem', () => reportProblem(orderId, reason));
         if (r) showToast(T.problemHint);
+    };
+
+    // He cannot finish this delivery (food collected): cancel it. The customer and the shop are told; the customer pays nothing.
+    const doCancel = async () => {
+        const yes = await ask({ title: tr('Cancel this order?'), message: tr('The customer and the shop will be told. You can not undo it.'), confirmText: tr('Cancel order'), destructive: true });
+        if (!yes) return;
+        const r = await run('cancel', () => cancelDelivery(orderId, cancelReason, cancelNote.trim() || undefined));
+        if (r) {
+            setSheet(null);
+            showToast(tr('The order is cancelled. The shop and the customer are told.'));
+            useRiderStore.getState().load();
+            nav.goBack();
+        }
     };
 
     // the delivery itself: photo (when the shop has no PIN), PIN, where he is, and "deliver anyway" when he is far
@@ -266,6 +288,7 @@ export default function RiderTripScreen() {
                         <View style={{ marginTop: 10 }}>
                             <Button label={tr('Open in Google Maps')} icon="navigate" onPress={navigate} />
                         </View>
+                        {onTheWay ? <LocationStatus style={{ marginTop: 10 }} /> : null}
                     </View>
                 ) : null}
 
@@ -302,6 +325,7 @@ export default function RiderTripScreen() {
 
                 <View style={{ marginHorizontal: 16, marginTop: 4 }}>
                     {step === 0 ? <SmallLink label={T.problem} icon="warning" danger onPress={() => setSheet('problem')} /> : null}
+                    {step >= 1 ? <SmallLink label={tr('Cancel this order')} icon="close-circle" danger onPress={() => { setCancelReason(''); setCancelNote(''); setSheet('cancel'); }} /> : null}
                     <SmallLink label={T.sos} icon="alert-circle" danger onPress={() => setSosOpen(true)} />
                     {step === 0 ? <SmallLink label={T.cannotDo} onPress={giveBack} /> : null}
                 </View>
@@ -343,6 +367,34 @@ export default function RiderTripScreen() {
                     <BigButton label={T.confirmDelivery} onPress={() => doDeliver(pin, false)} busy={busy === 'deliver'} disabled={pin.length < 4} />
                 </View>
                 {shopPhone ? <SmallLink label={T.callShop} icon="call" onPress={callShop} /> : null}
+            </Sheet>
+
+            {/* cancel the delivery he carries: a reason from the list (required), a note (optional) */}
+            <Sheet visible={sheet === 'cancel'} onClose={() => setSheet(null)} title={tr('Cancel this order')}>
+                <Text style={{ color: muted, fontWeight: '600', marginBottom: 8 }}>{tr('Why are you cancelling? Choose one.')}</Text>
+                {[
+                    ['not_answering', tr('The customer is not answering')],
+                    ['wrong_address', tr('I can not find the address')],
+                    ['vehicle_problem', tr('My vehicle broke down')],
+                    ['emergency', tr('I have an emergency or I am not well')],
+                    ['order_damaged', tr('The order is spilled or damaged')],
+                ].map(([key, label]) => (
+                    <Pressable key={key} onPress={() => setCancelReason(key)} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: border }, pressed && { backgroundColor: alpha(primary, 0.08) }]}>
+                        <Ionicons name={cancelReason === key ? 'radio-button-on' : 'radio-button-off'} size={22} color={cancelReason === key ? error : muted} />
+                        <Text style={{ color: text, fontSize: 16, fontWeight: '700', marginLeft: 12, flex: 1 }}>{label}</Text>
+                    </Pressable>
+                ))}
+                <TextInput
+                    value={cancelNote}
+                    onChangeText={setCancelNote}
+                    maxLength={120}
+                    placeholder={tr('Add a note (optional)')}
+                    placeholderTextColor={muted}
+                    style={{ borderWidth: 1, borderColor: border, backgroundColor: surface, color: text, borderRadius: 14, fontSize: 15, paddingVertical: 10, paddingHorizontal: 14, marginTop: 14 }}
+                />
+                <View style={{ marginTop: 14 }}>
+                    <BigButton label={tr('Cancel order')} icon="close-circle" kind="danger" onPress={doCancel} busy={busy === 'cancel'} disabled={!cancelReason} />
+                </View>
             </Sheet>
 
             {/* a problem */}

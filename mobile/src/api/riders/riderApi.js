@@ -22,6 +22,8 @@ export const fetchMoney = () => d(api.get('/rider/money'));
 // the help button: the shop is told at once (name, phone, order, last position)
 export const sendSos = (orderId) => d(api.post('/rider/sos', orderId ? { orderId } : {}));
 export const markArrived = (id) => d(api.post(`/rider/orders/${id}/arrived`));
+// he cannot finish a delivery he is carrying (after pickup): cancel it. reasonCode is from the list; the note is optional.
+export const cancelDelivery = (id, reasonCode, note) => d(api.post(`/rider/orders/${id}/cancel`, { reasonCode, note }));
 export const releaseOrder = (id, note) => d(api.post(`/rider/orders/${id}/release`, { note }));   // before pickup only
 // a Cash on delivery customer pays by QR at the door: start -> { qr }, then ask until { paid: true }
 export const startDoorPay = (id) => d(api.post(`/rider/orders/${id}/door-pay`));

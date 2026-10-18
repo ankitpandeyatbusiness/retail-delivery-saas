@@ -23,7 +23,7 @@ const {
     nextStatuses, customerCanCancel, canMarkUndelivered, shopFrozen, ACTIVE_STATUSES,
 } = require('./orderflow');
 const {
-    outcomeFor, OWNER_CANCEL_REASONS, ADMIN_CANCEL_REASONS, SYSTEM_CANCEL_REASONS, UNDELIVERED_REASONS,
+    outcomeFor, RIDER_CANCEL_REASONS, OWNER_CANCEL_REASONS, ADMIN_CANCEL_REASONS, SYSTEM_CANCEL_REASONS, UNDELIVERED_REASONS,
 } = require('./orderOutcome');
 const risk = require('./customerRisk');
 const liveTracking = require('./liveTracking');
@@ -36,7 +36,7 @@ const notify = require('./notificationService');
 const liveFeed = require('./liveFeed');
 const { isUnpaidOnline } = require('./onlineOrder');
 
-const CANCELLED_BY = { customer: 'customer', owner: 'shop', superadmin: 'admin', system: 'system' };
+const CANCELLED_BY = { customer: 'customer', owner: 'shop', rider: 'rider', superadmin: 'admin', system: 'system' };
 const ACTOR_TYPES = ['customer', 'owner', 'rider', 'superadmin', 'system'];
 const CANCEL_LABEL = {
     busy: 'The shop is too busy right now',
@@ -45,6 +45,12 @@ const CANCEL_LABEL = {
     customer_asked: 'Cancelled at your request',
     customer_fault: 'Cancelled at your request',
     platform: 'Cancelled by the platform',
+    // a rider cancels the delivery he is carrying (these words are shown to the customer and the shop)
+    not_answering: 'Our delivery partner could not reach you',
+    wrong_address: 'Our delivery partner could not find the address',
+    vehicle_problem: "Our delivery partner's vehicle broke down",
+    emergency: 'Our delivery partner had an emergency',
+    order_damaged: 'The order was damaged on the way',
 };
 
 const cleanNote = (note) => (typeof note === 'string' && note.trim() ? note.trim().slice(0, 200) : undefined);
@@ -117,7 +123,15 @@ function checkAllowed({ order, status, actor, note, tenant, reasonCode, now }) {
                 }
                 return;
             }
-            throw httpError(403, 'Riders can only mark pickup and delivery');
+            // He may cancel only a delivery he is carrying (after pickup). Before pickup he gives the order back instead.
+            if (status === 'cancelled') {
+                if (d.status !== 'picked_up' || order.status !== 'out_for_delivery') {
+                    throw httpError(409, 'You can cancel only after you collected the order. Before that, give it back.');
+                }
+                if (!RIDER_CANCEL_REASONS.includes(reasonCode)) throw httpError(400, 'Choose a reason for cancelling');
+                return;
+            }
+            throw httpError(403, 'Riders can only mark pickup, delivery or cancel what they carry');
         }
         default:
             throw httpError(403, 'This user cannot change the order status');
@@ -150,7 +164,7 @@ async function change({ order, status, actor, note, tenant, reasonCode }) {
         ? await riderPay.earnForOrder(order).catch(() => 0)
         : 0;
     // food collected but not delivered: paid only when the shop chose to (a shop setting)
-    const notDeliveredPay = ['undelivered', 'cancelled'].includes(status) && order.delivery?.riderId && order.delivery?.status === 'picked_up'
+    const notDeliveredPay = ['undelivered', 'cancelled'].includes(status) && actor.type !== 'rider' && order.delivery?.riderId && order.delivery?.status === 'picked_up'
         ? await riderPay.earnForOrder(order, { notDelivered: true }).catch(() => 0)
         : 0;
     const set = { status };
@@ -175,7 +189,9 @@ async function change({ order, status, actor, note, tenant, reasonCode }) {
     }
     if (status === 'cancelled') {
         set.cancelledBy = CANCELLED_BY[actor.type];
-        set.cancelReason = text || CANCEL_LABEL[outcome.reasonCode] || (actor.type === 'superadmin' ? 'Force cancelled by Superadmin' : undefined);
+        set.cancelReason = actor.type === 'rider'
+            ? [CANCEL_LABEL[outcome.reasonCode], text].filter(Boolean).join(': ')
+            : (text || CANCEL_LABEL[outcome.reasonCode] || (actor.type === 'superadmin' ? 'Force cancelled by Superadmin' : undefined));
         set.cancel = {
             by: CANCELLED_BY[actor.type], reasonCode: outcome.reasonCode,
             keptPaise: outcome.keptPaise, refundPaise: outcome.refundPaise,

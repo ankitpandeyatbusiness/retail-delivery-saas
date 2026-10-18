@@ -136,7 +136,7 @@ const orderSchema = new Schema({
     stuck: { stage: String, ownerAt: Date, adminAt: Date },   // late-order alerts already sent (internal)
     unacceptedReminders: { type: [Number], default: undefined },   // the "please accept" reminders already sent to the owner, in minutes (3, 6)
     cancelReason: String,
-    cancelledBy: { type: String, enum: ['customer', 'shop', 'admin', 'system'] },
+    cancelledBy: { type: String, enum: ['customer', 'shop', 'rider', 'admin', 'system'] },
     // billable = this order EARNED MONEY for the shop, so it counts for the free period and the monthly rent. Set once, by billableService.
     billing: { billable: Boolean, at: Date, reason: String },
     // how a cancel ended: who, why, and the money (online orders only; whole paise)

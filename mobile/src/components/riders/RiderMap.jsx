@@ -16,6 +16,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, View, Text, StyleSheet, Platform, Pressable, Animated, Easing } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
+import { useMapStyle } from '../../utils/common/mapStyle';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../common/kit';
@@ -114,6 +115,7 @@ function Needle({ mapHeading }) {
 /* ------------------------------ the map itself (in the box, or full screen) ------------------------------ */
 function MapPane({ line, start, end, destination, estimate, live, label, startLabel, endLabel, metres, etaMin, full, onToggle, topInset = 0, onGesture }) {
     const { primary, border, surface, muted, text } = useBrand();
+    const mapStyle = useMapStyle();
     const map = useRef(null);
     const ready = useRef(false);
     const programmatic = useRef(0);    // when our own camera move ends, that is not a hand gesture
@@ -180,6 +182,7 @@ function MapPane({ line, start, end, destination, estimate, live, label, startLa
             <MapView
                 ref={map}
                 provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+                customMapStyle={mapStyle}
                 style={StyleSheet.absoluteFill}
                 initialRegion={{ ...first, latitudeDelta: 0.03, longitudeDelta: 0.03 }}
                 scrollEnabled zoomEnabled rotateEnabled pitchEnabled

@@ -4,6 +4,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Platform, Pressable } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
+import { useMapStyle } from '../../utils/common/mapStyle';
+import RiderTrack from '../common/RiderTrack';
+import HomePin from '../common/HomePin';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../common/kit';
 import { onRiderLocation, onRiderRoute, onOrderEta, onRiderQuiet, watchOrder } from '../../api/common/socket';
@@ -18,10 +21,12 @@ const dist = (m) => (m == null ? '' : m >= 1000 ? `${(m / 1000).toFixed(1)} km` 
 
 export default function RiderLiveMap({ orderId, initial, destination, riderName }) {
     const { primary, muted, border, surface, text } = useBrand();
+    const mapStyle = useMapStyle();
     const map = useRef(null);
     const bike = useRef(null);
     const first = useRef(null);
     const manual = useRef(false);     // the owner moved the map himself: stop pulling it back
+    const [moved, setMoved] = useState(false);   // the owner moved / zoomed the map: the recenter button shows
     const [pos, setPos] = useState(initial?.lat != null ? { lat: initial.lat, lng: initial.lng, at: initial.at, heading: null } : null);
     const [route, setRoute] = useState(null);
     const [eta, setEta] = useState(null);
@@ -45,10 +50,9 @@ export default function RiderLiveMap({ orderId, initial, destination, riderName 
     const rider = pos ? { latitude: pos.lat, longitude: pos.lng } : null;
     const dest = destination?.latitude != null && destination?.longitude != null ? destination : null;
     if (rider && !first.current) first.current = rider;
-    const line = useMemo(() => {
-        if (route?.source === 'google') { const pts = decodePolyline(route.polyline); if (pts.length > 1) return pts; }
-        return rider && dest ? [rider, dest] : [];
-    }, [route, pos?.lat, pos?.lng, dest?.latitude, dest?.longitude]);   // eslint-disable-line react-hooks/exhaustive-deps
+    const [settle, setSettle] = useState(true);   // a marker is drawn again for a moment when it appears, then left alone
+    useEffect(() => { setSettle(true); const t = setTimeout(() => setSettle(false), 1500); return () => clearTimeout(t); }, [!!rider, !!dest, primary]);   // eslint-disable-line react-hooks/exhaustive-deps
+    const road = useMemo(() => (route?.source === 'google' ? decodePolyline(route.polyline) : []), [route?.source, route?.polyline]);
 
     const fit = (force) => {
         if (!rider || (manual.current && !force)) return;
@@ -56,7 +60,6 @@ export default function RiderLiveMap({ orderId, initial, destination, riderName 
     };
     useEffect(() => {
         if (!rider) return;
-        if (first.current && bike.current?.animateMarkerToCoordinate) bike.current.animateMarkerToCoordinate(rider, 1500);
         fit(false);
     }, [pos?.lat, pos?.lng]);   // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -83,19 +86,18 @@ export default function RiderLiveMap({ orderId, initial, destination, riderName 
                 <MapView
                     ref={map}
                     provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+                    customMapStyle={mapStyle}
                     style={StyleSheet.absoluteFill}
                     initialRegion={{ ...(dest || rider), latitudeDelta: 0.02, longitudeDelta: 0.02 }}
                     showsCompass={false} toolbarEnabled={false} rotateEnabled={false} pitchEnabled={false}
-                    onPanDrag={() => { manual.current = true; }}
+                    onPanDrag={() => { manual.current = true; setMoved(true); }}
+                    onRegionChangeComplete={(_, g) => { if (g?.isGesture) { manual.current = true; setMoved(true); } }}
                     onMapReady={() => fit(true)}
                 >
-                    {line.length > 1 ? <Polyline coordinates={line} strokeColor={primary} strokeWidth={5} lineDashPattern={route?.source === 'google' ? undefined : [10, 10]} /> : null}
-                    <Marker ref={bike} coordinate={first.current || rider} title={riderName || tr('Rider')} anchor={{ x: 0.5, y: 0.5 }} flat rotation={pos.heading || 0} tracksViewChanges={false}>
-                        <View style={[s.bike, { backgroundColor: primary }]}><Ionicons name="bicycle" size={20} color="#FFFFFF" /></View>
-                    </Marker>
+                    <RiderTrack road={road} loc={pos} dest={dest} orderId={orderId} color={primary} estimate={route?.source !== 'google'} title={riderName || tr('Rider')} />
                     {dest ? (
-                        <Marker coordinate={dest} title={tr('Customer')} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
-                            <View style={s.home}><Ionicons name="home" size={16} color="#FFFFFF" /></View>
+                        <Marker coordinate={dest} title={tr('Customer')} anchor={{ x: 0.5, y: 1 }} tracksViewChanges={settle}>
+                                    <HomePin />
                         </Marker>
                     ) : null}
                 </MapView>
@@ -104,7 +106,7 @@ export default function RiderLiveMap({ orderId, initial, destination, riderName 
                         <Text style={{ color: text, fontWeight: '800', fontSize: 13 }}>{mins <= 1 ? tr('Arriving now') : tr('{mins} min', { mins: mins })}{eta?.remainingM != null ? ` · ${dist(eta.remainingM)}` : ''}</Text>
                     </View>
                 ) : null}
-                <Pressable onPress={() => { manual.current = false; fit(true); }} style={[s.recenter, { backgroundColor: surface, borderColor: border }]} accessibilityLabel={tr('Show rider and customer')}>
+                <Pressable onPress={() => { manual.current = false; setMoved(false); fit(true); }} style={[s.recenter, { backgroundColor: surface, borderColor: border }, !moved && { display: 'none' }]} accessibilityLabel={tr('Show rider and customer')}>
                     <Ionicons name="locate" size={20} color={primary} />
                 </Pressable>
             </View>

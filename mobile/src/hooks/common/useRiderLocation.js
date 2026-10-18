@@ -5,7 +5,7 @@
 // "Allow all the time" is explained first, in the rider's own words; if he refuses, it still works while the app is open.
 import { useEffect } from 'react';
 import { Alert, Linking } from 'react-native';
-import { startRiderTracking, stopRiderTracking } from '../../utils/riders/locationTask';
+import { startRiderTracking, stopRiderTracking, restartRiderTracking, getLocationStatus } from '../../utils/riders/locationTask';
 
 let explained = false;   // the explanation is shown once per app start, not on every order
 
@@ -46,5 +46,26 @@ export function useRiderLocation(enabled, everySec = 10) {
         // leaving this screen must not stop it: the service is meant to run with the app closed. It stops by itself when the
         // server says there is no order on the way, and when he logs out.
         return () => { dead = true; };
+    }, [enabled, everySec]);
+
+    // Watchdog. The service can be "running" (its notification is up) while the phone never gave it a position, for example when
+    // the first registration did not take. startRiderTracking sees "already running" and does nothing, so nobody asks again.
+    // So: while he has a delivery, if no position arrived for 40 seconds, register the service again (a few times at most).
+    useEffect(() => {
+        if (!enabled) return undefined;
+        let restarts = 0;
+        let since = Date.now();
+        const id = setInterval(async () => {
+            try {
+                const s = getLocationStatus();
+                const silent = !s.fixAt || Date.now() - s.fixAt > 40000;
+                if (silent && Date.now() - since > 25000 && restarts < 6) {
+                    restarts += 1;
+                    since = Date.now();
+                    await restartRiderTracking({ everySec });
+                }
+            } catch (e) { /* the next check tries again */ }
+        }, 15000);
+        return () => clearInterval(id);
     }, [enabled, everySec]);
 }

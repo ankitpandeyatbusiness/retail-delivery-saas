@@ -16,7 +16,10 @@ import { sendRiderPing } from '../../api/common/socket';
 
 export const RIDER_LOCATION_TASK = 'RIDER_LIVE_LOCATION';
 
-const state = { lastSentAt: 0, everySec: 10, idle: 0 };
+// what the service did last, for the rider's status line (components/riders/LocationStatus.jsx)
+const status = { fixAt: 0, fixes: 0, sentAt: 0, saved: null, reason: '', error: '' };
+export const getLocationStatus = () => ({ ...status });
+const state = { lastSentAt: 0, everySec: 10, idle: 0, wasOnTheWay: false };   // wasOnTheWay: the server has taken a position of this trip
 
 async function send(c) {
     const body = {
@@ -37,18 +40,24 @@ async function send(c) {
 TaskManager.defineTask(RIDER_LOCATION_TASK, async ({ data, error }) => {
     if (error || !data?.locations?.length) return;
     const c = data.locations[data.locations.length - 1].coords;   // the newest reading
+    status.fixAt = Date.now(); status.fixes += 1;   // the phone gave a position (even if it is not sent this time)
     const now = Date.now();
     if (now - state.lastSentAt < Math.max(2, state.everySec - 1) * 1000) return;   // the shop's chosen rhythm
     state.lastSentAt = now;
     try {
         const ack = await send(c);
+        status.sentAt = Date.now(); status.saved = !!ack?.saved; status.reason = ack?.saved ? '' : (ack?.reason || (ack ? '' : 'no answer')); status.error = '';
         if (ack?.everySec) state.everySec = ack.everySec;
-        // nothing to track any more (delivered, or the shop switched tracking off): stop after a few answers in a row
+        // Nothing to track any more: stop after a few answers in a row. BUT "no order on the way" is also the answer for every ping
+        // BEFORE the food is collected (the server tracks only from pickup): stopping then switched the service off while he waited
+        // at the shop, and the customer lost him after pickup. So that answer only counts once this trip has really been tracked
+        // (or after a very long silence); the screen stops the service when he has no delivery left, and pickup starts it again.
         if (ack && ack.saved === false && (ack.reason === 'no_order_on_the_way' || ack.reason === 'tracking_off')) {
             state.idle += 1;
-            if (state.idle >= 3) await stopRiderTracking();
-        } else if (ack?.saved) state.idle = 0;
-    } catch (e) { /* no network for a moment: the next reading tries again */ }
+            const limit = ack.reason === 'tracking_off' || state.wasOnTheWay ? 3 : 360;   // 360 answers = about an hour of waiting before pickup
+            if (state.idle >= limit) { state.wasOnTheWay = false; await stopRiderTracking(); }
+        } else if (ack?.saved) { state.idle = 0; state.wasOnTheWay = true; }
+    } catch (e) { status.error = String(e?.message || e).slice(0, 60); /* no network for a moment: the next reading tries again */ }
 });
 
 export async function isRiderTracking() {
@@ -81,6 +90,13 @@ export async function startRiderTracking({ everySec = 10 } = {}) {
     });
     return background ? 'started' : 'foreground_only';
 }
+// Stop and start again: the phone is asked for positions again from scratch. Used when the service runs but no position arrives.
+export async function restartRiderTracking(opts) {
+    await stopRiderTracking();
+    await new Promise((r) => setTimeout(r, 400));
+    return startRiderTracking(opts);
+}
+
 
 export async function stopRiderTracking() {
     try {

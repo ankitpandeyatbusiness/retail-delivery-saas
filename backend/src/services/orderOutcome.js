@@ -9,6 +9,8 @@ const OWNER_CANCEL_REASONS = ['busy', 'out_of_stock', 'shop_fault', 'customer_as
 const ADMIN_CANCEL_REASONS = ['platform', 'shop_fault', 'customer_fault'];
 const SYSTEM_CANCEL_REASONS = ['not_accepted', 'payment_timeout'];
 const UNDELIVERED_REASONS = ['customer', 'shop', 'rider'];
+// the reasons a rider can pick when he cancels a delivery he is carrying (his cancel is treated as the rider's fault)
+const RIDER_CANCEL_REASONS = ['not_answering', 'wrong_address', 'vehicle_problem', 'emergency', 'order_damaged'];
 const PENALTY_STATUSES = ['preparing', 'ready', 'out_for_delivery'];   // a COD customer who cancels from here costs the shop food
 
 function acceptedAtOf(order) {
@@ -38,6 +40,11 @@ function reasonsOf({ kind, actorType, reasonCode, frozen }) {
         const code = reasonCode || 'platform';
         if (!ADMIN_CANCEL_REASONS.includes(code)) throw new Error('Unknown cancel reason');
         return { code, refundReason: { platform: 'platform', shop_fault: 'shop_fault', customer_fault: 'customer_asked' }[code] };
+    }
+    if (actorType === 'rider') {
+        if (!RIDER_CANCEL_REASONS.includes(reasonCode)) throw new Error('Unknown cancel reason');
+        // the customer must never pay for it: full refund on an online order, nothing to collect on cash, no strike, the coupon goes back
+        return { code: reasonCode, refundReason: 'rider_fault' };
     }
     if (actorType === 'system') {
         const code = reasonCode || 'not_accepted';
@@ -74,4 +81,4 @@ function outcomeFor({ order, kind, actorType, reasonCode, frozen = false, now = 
     };
 }
 
-module.exports = { outcomeFor, OWNER_CANCEL_REASONS, ADMIN_CANCEL_REASONS, SYSTEM_CANCEL_REASONS, UNDELIVERED_REASONS, PENALTY_STATUSES };
+module.exports = { outcomeFor, RIDER_CANCEL_REASONS, OWNER_CANCEL_REASONS, ADMIN_CANCEL_REASONS, SYSTEM_CANCEL_REASONS, UNDELIVERED_REASONS, PENALTY_STATUSES };

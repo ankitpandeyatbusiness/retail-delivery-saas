@@ -131,6 +131,50 @@ describe('the way and the time allowed', () => {
     });
 });
 
+describe('the rider cancels a delivery he is carrying', () => {
+    const Notification = require('../src/models/Notification');
+    const waitFor = async (fn) => { for (let i = 0; i < 40; i += 1) { const v = await fn(); if (v) return v; await new Promise((r) => setTimeout(r, 100)); } return null; };
+
+    test('after pickup, with a reason: cancelled, the customer and the shop are told, the customer pays nothing, the rider gets no pay', async () => {
+        const o = await trip({ payment: { method: 'cod' } });
+        const bad = await rider('post', `/orders/${o._id}/cancel`, { reasonCode: 'because' });
+        assert.equal(bad.status, 400, 'a reason from the list is needed');
+
+        const res = await rider('post', `/orders/${o._id}/cancel`, { reasonCode: 'wrong_address', note: 'gate is locked' });
+        assert.equal(res.status, 200);
+        const after = await Order.findById(o._id);
+        assert.equal(after.status, 'cancelled');
+        assert.equal(after.cancelledBy, 'rider');
+        assert.match(after.cancelReason, /could not find the address: gate is locked/);
+        assert.equal(after.cancel.reasonCode, 'wrong_address');
+        assert.equal(after.delivery.earnPaise || 0, 0, 'no pay for a trip he gave up');
+        assert.equal((await Rider.findOne({ userId: w.rider.user._id })).activeOrderCount, 0, 'his slot is free again');
+
+        // the customer is told with the reason; the shop is told that the delivery partner cancelled
+        const toCustomer = await waitFor(() => Notification.findOne({ tenantId: w.tenant._id, userId: o.userId, type: 'order_status' }).sort({ createdAt: -1 }).lean());
+        assert.ok(toCustomer, 'the customer got a message');
+        assert.match(JSON.stringify(toCustomer), /could not find the address/);
+        const toShop = await waitFor(() => Notification.findOne({ tenantId: w.tenant._id, role: 'owner', type: 'order_cancelled' }).lean());
+        assert.ok(toShop, 'the shop got a message');
+        assert.match(toShop.body, /cancelled by the delivery partner/);
+
+        // twice: it is over
+        assert.ok([403, 409].includes((await rider('post', `/orders/${o._id}/cancel`, { reasonCode: 'emergency' })).status));
+    });
+
+    test('before pickup he cannot cancel (he gives the order back); another rider cannot cancel it', async () => {
+        const early = await trip({ status: 'preparing', delivery: { riderId: w.rider.user._id, status: 'accepted' } });
+        const r = await rider('post', `/orders/${early._id}/cancel`, { reasonCode: 'emergency' });
+        assert.equal(r.status, 409);
+        assert.equal((await Order.findById(early._id)).status, 'preparing');
+
+        const carried = await trip();
+        const other = await f.makeOrder(w.tenant, w.customer.user, { status: 'out_for_delivery', delivery: { riderId: w.customer.user._id, status: 'picked_up' } });
+        assert.equal((await rider('post', `/orders/${other._id}/cancel`, { reasonCode: 'emergency' })).status, 404);
+        assert.ok(carried);
+    });
+});
+
 describe('I have arrived', () => {
     test('the time is kept once, and it needs the food collected first', async () => {
         const o = await trip();

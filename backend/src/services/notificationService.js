@@ -71,6 +71,11 @@ function orderStatusChanged(order, status, actor) {
                     tenantId: t, data, vars: { audience: 'owner', orderNo: no, bySystem: actor.type === 'system' },
                 });
             }
+            if (actor.type === 'rider') {   // the delivery partner cancelled: the shop is told at once, with his reason
+                center.notify('order_cancelled', {
+                    tenantId: t, data, vars: { audience: 'owner', orderNo: no, byRider: true, reason: order.cancelReason },
+                });
+            }
             if (order.delivery?.riderId && actor.type !== 'rider') {
                 center.notify('order_cancelled', {
                     tenantId: t, userId: order.delivery.riderId, data, vars: { audience: 'rider', orderNo: no },
