@@ -2,13 +2,13 @@
 // countdown to the automatic cancel, the reason sheets (reject, "not delivered"), the rider sheet, and opening the invoice.
 // What buttons an order shows comes from the SERVER (order.allowedNext), so the app can never offer a step it would refuse.
 import React, { useEffect, useState } from 'react';
-import { View, Text, Linking, Platform } from 'react-native';
+import { View, Text, Linking, Platform, Pressable, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as IntentLauncher from 'expo-intent-launcher';
 import api from '../../api/common/client';
-import { useBrand } from '../common/kit';
+import { useBrand, alpha } from '../common/kit';
 import { Card, Pill, Button, Sheet, Field, Option, money } from './ui';
 import { useNow } from '../../hooks/owners/useNow';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
@@ -215,7 +215,7 @@ export function ReasonSheet({ visible, title, intro, reasons, needsText, textLab
 /* ------------------------------ riders ------------------------------ */
 // Pick a rider for an order, let the app pick (auto), or take the rider off. Changing or removing needs a reason.
 export function RiderSheet({ order, visible, onClose, onChanged }) {
-    const { muted, ok, text, border } = useBrand();
+    const { muted, ok, text, border, primary, onPrimary, background, radius } = useBrand();
     const [riders, setRiders] = useState(null);
     const [reason, setReason] = useState('');
     const [busy, setBusy] = useState(false);
@@ -251,21 +251,61 @@ export function RiderSheet({ order, visible, onClose, onChanged }) {
                 </View>
             ) : null}
 
-            <Button label={tr('Let the app choose (ask all free riders)')} icon="flash" busy={busy} onPress={() => run(() => assignRider(order.id, { auto: true, ...(has ? { reason: reason.trim() } : {}) }))} />
+            {/* the app picks: asks every free rider, the first to accept gets the order */}
+            <Pressable
+                disabled={busy}
+                onPress={() => run(() => assignRider(order.id, { auto: true, ...(has ? { reason: reason.trim() } : {}) }))}
+                style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', borderRadius: radius, borderWidth: 1.5, borderColor: primary, backgroundColor: alpha(primary, pressed ? 0.16 : 0.08), padding: 14, opacity: busy ? 0.5 : 1 }]}
+                accessibilityRole="button"
+            >
+                <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: primary, alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name="flash" size={20} color={onPrimary} />
+                </View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Text style={{ color: text, fontWeight: '900', fontSize: 15 }}>{tr('Let the app choose')}</Text>
+                    <Text style={{ color: muted, fontSize: 12, marginTop: 1 }}>{tr('Asks all free riders. The first to accept gets it.')}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={muted} />
+            </Pressable>
 
-            <Text style={{ color: muted, fontWeight: '800', fontSize: 12, marginTop: 16, marginBottom: 4 }}>{tr('YOUR RIDERS')}</Text>
+            <Text style={{ color: muted, fontWeight: '800', fontSize: 12, marginTop: 18, marginBottom: 8 }}>{tr('OR PICK ONE OF YOUR RIDERS')}</Text>
             {riders === null ? <ListShimmer count={3} rows /> : null}
             {riders && !riders.length ? <Text style={{ color: muted, paddingVertical: 10 }}>{tr('You have no active riders. Add one in the Riders tab.')}</Text> : null}
-            {sorted.map((r, i) => (
-                <View key={r.userId} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: i === sorted.length - 1 ? 0 : 1, borderBottomColor: border }}>
-                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: r.isOnline ? ok : muted, marginRight: 10 }} />
-                    <View style={{ flex: 1, minWidth: 0 }}>
-                        <Text style={{ color: text, fontWeight: '800' }} numberOfLines={1}>{r.name || r.phone || tr('Rider')}</Text>
-                        <Text style={{ color: muted, fontSize: 12 }}>{tr('{v1} · {activeOrderCount} order{v3} now', { v1: r.isOnline ? 'Online' : 'Offline', activeOrderCount: r.activeOrderCount, v3: r.activeOrderCount === 1 ? '' : 's' })}</Text>
-                    </View>
-                    <Button label={tr('Assign')} kind="ghost" disabled={busy || String(r.userId) === String(order?.delivery?.riderId)} onPress={() => run(() => assignRider(order.id, { riderId: r.userId, ...(has ? { reason: reason.trim() } : {}) }))} />
-                </View>
-            ))}
+            {/* a long list scrolls inside the sheet, the buttons around it stay in view */}
+            <ScrollView style={{ maxHeight: 320 }} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+                {sorted.map((r) => {
+                    const current = String(r.userId) === String(order?.delivery?.riderId);
+                    const initial = String(r.name || r.phone || 'R').trim().charAt(0).toUpperCase();
+                    return (
+                        <View key={r.userId} style={{ flexDirection: 'row', alignItems: 'center', borderRadius: radius, borderWidth: 1, borderColor: current ? primary : border, padding: 10, marginBottom: 8, opacity: r.isOnline ? 1 : 0.65 }}>
+                            <View>
+                                <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: alpha(primary, 0.12), alignItems: 'center', justifyContent: 'center' }}>
+                                    <Text style={{ color: primary, fontWeight: '900', fontSize: 17 }}>{initial}</Text>
+                                </View>
+                                <View style={{ position: 'absolute', right: -1, bottom: -1, width: 13, height: 13, borderRadius: 7, borderWidth: 2, borderColor: background, backgroundColor: r.isOnline ? ok : muted }} />
+                            </View>
+                            <View style={{ flex: 1, minWidth: 0, marginLeft: 12 }}>
+                                <Text style={{ color: text, fontWeight: '800', fontSize: 15 }} numberOfLines={1}>{r.name || r.phone || tr('Rider')}</Text>
+                                <Text style={{ color: muted, fontSize: 12, marginTop: 1 }} numberOfLines={1}>
+                                    {r.isOnline ? tr('Online') : tr('Offline')} · {r.activeOrderCount ? tr('{activeOrderCount} order{v3} now', { activeOrderCount: r.activeOrderCount, v3: r.activeOrderCount === 1 ? '' : 's' }) : tr('Free')}
+                                </Text>
+                            </View>
+                            {current ? (
+                                <Text style={{ color: primary, fontWeight: '900', fontSize: 13, marginLeft: 8 }}>{tr('Current')}</Text>
+                            ) : (
+                                <Pressable
+                                    disabled={busy}
+                                    onPress={() => run(() => assignRider(order.id, { riderId: r.userId, ...(has ? { reason: reason.trim() } : {}) }))}
+                                    style={({ pressed }) => ({ marginLeft: 8, minWidth: 84, alignItems: 'center', borderRadius: radius, backgroundColor: pressed ? alpha(primary, 0.85) : primary, paddingVertical: 10, paddingHorizontal: 14, opacity: busy ? 0.5 : 1 })}
+                                    accessibilityRole="button"
+                                >
+                                    <Text style={{ color: onPrimary, fontWeight: '900', fontSize: 14 }}>{tr('Assign')}</Text>
+                                </Pressable>
+                            )}
+                        </View>
+                    );
+                })}
+            </ScrollView>
 
             {has ? (
                 <Button label={tr('Take the rider off this order')} kind="ghost" icon="remove-circle-outline" disabled={busy} onPress={() => run(() => unassignRider(order.id, reason.trim()))} style={{ marginTop: 16 }} />

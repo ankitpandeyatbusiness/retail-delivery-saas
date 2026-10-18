@@ -125,7 +125,7 @@ export function FavouritesScreen() {
     if (!user) {
         return msg('Log in to see your favourites', '', (
             <Pressable onPress={() => nav.navigate('Login')} style={[s.cta, { backgroundColor: primary, borderRadius: radius }]}>
-                <Text style={s.ctaTxt}>{tr('Log in')}</Text>
+                <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} style={s.ctaTxt}>{tr('Log in')}</Text>
             </Pressable>
         ));
     }

@@ -91,6 +91,21 @@ export function CountBadge({ n }) {
     );
 }
 
+// a small red dot that blinks: "something here you have not seen" (tabBarBadge: 'dot')
+function BlinkDot() {
+    const { error } = useBrand();
+    const v = useRef(new Animated.Value(1)).current;
+    useEffect(() => {
+        const loop = Animated.loop(Animated.sequence([
+            Animated.timing(v, { toValue: 0.15, duration: 600, useNativeDriver: true }),
+            Animated.timing(v, { toValue: 1, duration: 600, useNativeDriver: true }),
+        ]));
+        loop.start();
+        return () => loop.stop();
+    }, [v]);
+    return <Animated.View style={{ width: 11, height: 11, borderRadius: 6, backgroundColor: error, opacity: v }} />;
+}
+
 // One tab: the icon (springs up when active), its label, and the cart count when there is one.
 function TabItem({ focused, icon, label, badge, onPress, onLongPress }) {
     const { primary, muted } = useBrand();
@@ -100,6 +115,7 @@ function TabItem({ focused, icon, label, badge, onPress, onLongPress }) {
                 <View>
                     <TabGlyph focused={focused} color={focused ? primary : muted} icon={icon || 'ellipse'} />
                     {typeof badge === 'number' ? <View style={tb.floatBadge}><CountBadge n={badge} /></View> : null}
+                    {badge === 'dot' ? <View style={tb.floatBadge}><BlinkDot /></View> : null}
                 </View>
                 <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={[tb.floatLabel, { color: focused ? primary : muted }]}>{label}</Text>
             </View>

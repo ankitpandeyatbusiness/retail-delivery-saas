@@ -377,7 +377,7 @@ export default function MapPicker({ visible, initial, onClose, onPick, startAtSh
                         disabled={!canConfirm}
                         style={[s.btn, { backgroundColor: primary, borderRadius: radius, opacity: canConfirm ? 1 : 0.5 }]}
                     >
-                        <Text style={[s.btnTxt, { color: onPrimary }]}>{tr('Confirm location')}</Text>
+                        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} style={[s.btnTxt, { color: onPrimary }]}>{tr('Confirm location')}</Text>
                     </Pressable>
                 </View>
             </View>

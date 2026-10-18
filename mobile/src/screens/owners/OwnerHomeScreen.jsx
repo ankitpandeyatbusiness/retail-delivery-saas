@@ -161,8 +161,8 @@ export default function OwnerHomeScreen() {
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Ionicons name="notifications" size={22} color={error} />
                         <Text style={{ color: error, fontWeight: '900', flex: 1, marginLeft: 10 }}>{tr('A new order is waiting')}</Text>
-                        <Button label={tr('Silence')} icon="volume-mute" kind="danger" onPress={clearAll} />
                     </View>
+                    <Button label={tr('Silence')} icon="volume-mute" kind="danger" onPress={clearAll} style={{ marginTop: 10 }} />
                 </Card>
             ) : null}
 
@@ -175,8 +175,8 @@ export default function OwnerHomeScreen() {
                             <Text style={{ color: error, fontWeight: '900' }}>{tr('Orders are paused')}</Text>
                             <Text style={{ color: muted, fontSize: 12 }}>{pausedUntil ? tr('Reopens by itself at {v1}', { v1: flow.clockTime(pausedUntil) }) : tr('Customers can not order until you start again')}</Text>
                         </View>
-                        <Button label={tr('Start')} icon="play" busy={resuming} onPress={resume} />
                     </View>
+                    <Button label={tr('Start')} icon="play" busy={resuming} onPress={resume} style={{ marginTop: 10 }} />
                 </Card>
             ) : null}
 

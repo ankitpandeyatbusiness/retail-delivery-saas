@@ -26,7 +26,7 @@ export function StatusPill({ status }) {
     const gone = status === 'cancelled';
     return (
         <View style={[s.pill, { backgroundColor: done ? okSoft : gone ? neutralSoft : tint(primary) }]}>
-            <Text style={[s.pillTxt, { color: done ? ok : gone ? muted : primary }]}>
+            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} style={[s.pillTxt, { color: done ? ok : gone ? muted : primary }]}>
                 {STATUS_LABEL[status] || status}
             </Text>
         </View>

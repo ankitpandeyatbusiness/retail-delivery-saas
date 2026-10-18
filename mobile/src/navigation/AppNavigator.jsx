@@ -291,7 +291,8 @@ export default function AppNavigator() {
                     <Stack.Screen name="OrderPlaced" component={OrderPlacedScreen} options={{ gestureEnabled: false, animation: motion === 'off' ? 'none' : 'fade', animationDuration: 300 }} />
                     <Stack.Screen name="Notifications" component={NotificationsScreen} />
                     <Stack.Screen name="LegalList" component={LegalListScreen} />
-                    <Stack.Screen name="RiderTrip" component={RiderTripScreen} />   {/* a rider's delivery, one step at a time */}
+                    {/* RiderTrip: a rider's delivery, one step at a time */}
+                    <Stack.Screen name="RiderTrip" component={RiderTripScreen} />
                     <Stack.Screen name="LegalDoc" component={LegalDocScreen} />
 
                     {/* owner pages (role "admin"); the owner's tabs are MainTabs -> Landing -> OwnerTabs */}

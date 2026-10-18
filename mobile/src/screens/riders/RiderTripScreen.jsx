@@ -15,10 +15,13 @@ import { themedAlert, ask } from '../../components/common/dialog';
 import { Card, PageHeader, Sheet, Button } from '../../components/owners/ui';
 import { PayQrSheet } from '../../components/owners/moneyBits';
 import SosSheet from '../../components/riders/SosSheet';
+import RiderMap from '../../components/riders/RiderMap';
+import TripClock, { dueOf } from '../../components/riders/TripClock';
+import { onOrderEta, onRiderRoute, watchOrder } from '../../api/common/socket';
 import { BigButton, SmallLink, Banner, Steps } from '../../components/riders/riderBits';
 import { useRiderStore } from '../../store/riders/useRiderStore';
 import {
-    fetchRiderOrder, pickupOrder, markArrived, deliverOrder, reportProblem, releaseOrder, startDoorPay, checkDoorPay,
+    fetchRiderOrder, fetchRoute, pickupOrder, markArrived, deliverOrder, reportProblem, releaseOrder, startDoorPay, checkDoorPay,
 } from '../../api/riders/riderApi';
 import { takeAndUploadProof } from '../../utils/riders/riderPhotos';
 import { T, rupee, rupeeAmount, addressLine, errText } from '../../utils/riders/riderText';
@@ -53,7 +56,12 @@ export default function RiderTripScreen() {
     const [qr, setQr] = useState(null);
     const [offline, setOffline] = useState(false);   // the last ask for this order got no answer at all
     const [sosOpen, setSosOpen] = useState(false);
+    const [mapTouch, setMapTouch] = useState(false);   // a finger is on the map: the page behind it must not scroll
+    const [plan, setPlan] = useState(null);   // the road from the shop to the customer and the time allowed (the server keeps it per order)
+    const [eta, setEta] = useState(null);     // the server's arrival estimate, from his location
+    const [liveRoute, setLiveRoute] = useState(null);   // the server's road from where he is to the customer (after pickup)
     const shopPhone = useRiderStore((s) => s.me?.shopPhone);
+    const shopName = useRiderStore((s) => s.me?.shop);
     const alive = useRef(true);
 
     // asks the server for the order. Returns it (or null). A failed ask with no answer at all means the phone has no network.
@@ -76,6 +84,29 @@ export default function RiderTripScreen() {
         const id = setInterval(refresh, POLL_MS);
         return () => { alive.current = false; clearInterval(id); };
     }, [refresh]);
+
+    // the road and the time allowed: asked once; tried again after 30 seconds if it failed
+    const accepted = ['accepted', 'picked_up'].includes(o?.delivery?.status);
+    useEffect(() => {
+        if (!accepted) return undefined;
+        let dead = false;
+        let timer;
+        const go = async () => {
+            try { const r = await fetchRoute(orderId); if (!dead) setPlan(r); } catch (e) { if (!dead && e?.response?.status !== 404 && e?.response?.status !== 409) timer = setTimeout(go, 30000); }
+        };
+        go();
+        return () => { dead = true; clearTimeout(timer); };
+    }, [orderId, accepted]);
+
+    // on his way: the server's arrival estimate (it needs his location, which the background service sends)
+    const onTheWay = o?.delivery?.status === 'picked_up';
+    useEffect(() => {
+        if (!onTheWay) return undefined;
+        const leave = watchOrder(String(orderId));
+        const mine = (p) => String(p?.orderId) === String(orderId);
+        const offs = [onOrderEta((p) => { if (mine(p)) setEta(p); }), onRiderRoute((p) => { if (mine(p)) setLiveRoute(p); })];
+        return () => { offs.forEach((f) => f()); leave(); };
+    }, [orderId, onTheWay]);
 
     const sync = (r) => { if (r?.id) setO(r); useRiderStore.getState().load(); };
     // a step is tried again by itself for a while when there is no network; after any failure the order is read again, so
@@ -100,9 +131,18 @@ export default function RiderTripScreen() {
     const step = d.status === 'accepted' ? 0 : d.arrivedAt ? 2 : 1;
     const cash = (o?.payment?.collectAmount || 0) > 0;
     const spot = o?.destination;
+    // the due time (saved by the server when the food was collected; until it arrives, worked out here the same way) and the pin's text
+    const due = step >= 1 ? dueOf({ dueAt: d.dueAt, collectedAt: d.collectedAt, allowedSec: d.plannedSec || plan?.allowedSec }) : null;
+    const etaMin = eta?.etaAt ? Math.max(1, Math.ceil((new Date(eta.etaAt).getTime() - Date.now()) / 60000)) : null;   // tentative minutes to reach, from his location
+    const secsLeft = due ? Math.round((due - Date.now()) / 1000) : null;
+    const pinLabel = step === 0
+        ? ((d.plannedSec || plan?.allowedSec) ? tr('~{min} min', { min: Math.round((d.plannedSec || plan.allowedSec) / 60) }) : null)
+        : secsLeft == null ? null : secsLeft >= 0 ? tr('{min} min left', { min: Math.max(1, Math.ceil(secsLeft / 60)) }) : tr('Late');
 
     /* ---------- actions ---------- */
-    const collect = () => run('collect', async () => sync(await retrying(() => pickupOrder(orderId))));
+    // the journey starts: the order is marked collected (the customer is told), then Google Maps opens with the way to the customer.
+    // His location keeps going to the customer from the background service while Google Maps is in front.
+    const collect = () => run('collect', async () => { sync(await retrying(() => pickupOrder(orderId))); navigate(); });
     const arrived = () => run('arrived', async () => sync(await retrying(() => markArrived(orderId))));
     const navigate = () => {
         const q = spot ? `${spot.latitude},${spot.longitude}` : encodeURIComponent(addressLine(o?.address));
@@ -206,13 +246,27 @@ export default function RiderTripScreen() {
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Order #{orderNo}', { orderNo: o.orderNo })} />
             <Steps labels={STEP_LABELS} step={step} />
-            <ScrollView contentContainerStyle={{ paddingTop: 8, paddingBottom: 200 }} keyboardShouldPersistTaps="handled">
+            <ScrollView contentContainerStyle={{ paddingTop: 8, paddingBottom: 200 }} keyboardShouldPersistTaps="handled" scrollEnabled={!mapTouch}>
                 {offline ? <Banner tone="warn" icon="cloud-offline" text={T.offline} /> : null}
                 {step > 0 ? (
                     <Banner
                         tone={cash ? 'warn' : 'ok'}
                         text={cash ? T.collectCash(rupeeAmount(o.payment.collectAmount)) : (o.payment.paidAtDoor ? T.paidAtDoor : T.paidOnline)}
                     />
+                ) : null}
+
+                {/* the time for this delivery, then the whole way from the shop to the customer as a picture. The journey itself runs in
+                    Google Maps: tapping the map (or the button under it) opens it, and it opens by itself when he taps "collected". */}
+                {!finished ? (
+                    <View style={{ marginHorizontal: 16, marginBottom: 10 }}>
+                        <TripClock onTheWay={step >= 1} allowedSec={d.plannedSec || plan?.allowedSec} due={due} eta={eta} style={{ marginBottom: 10 }} />
+                        <RiderMap destination={spot} route={onTheWay && liveRoute ? liveRoute : plan} live={onTheWay} etaMin={etaMin} label={pinLabel} height={260} onGesture={setMapTouch}
+                            startLabel={onTheWay ? tr('Your location') : shopName} endLabel={o.customer?.name || tr('Customer')} />
+                        {/* always there from the moment he accepts: the journey in Google Maps, with its own turn-by-turn voice */}
+                        <View style={{ marginTop: 10 }}>
+                            <Button label={tr('Open in Google Maps')} icon="navigate" onPress={navigate} />
+                        </View>
+                    </View>
                 ) : null}
 
                 {step === 0 ? (
@@ -233,7 +287,7 @@ export default function RiderTripScreen() {
                         <Text style={{ color: text, fontSize: 16, fontWeight: '600', marginTop: 6, lineHeight: 23 }}>{addressLine(o.address)}</Text>
                         {o.note ? <Text style={{ color: muted, marginTop: 8, fontWeight: '600' }}>{tr('Note: {note}', { note: o.note })}</Text> : null}
                         <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
-                            <View style={{ flex: 1 }}><Button label={T.navigate} icon="navigate" onPress={navigate} /></View>
+                            <View style={{ flex: 1 }}><Button label={T.problem} icon="warning" kind="ghost" onPress={() => setSheet('problem')} /></View>
                             {o.customer?.phone ? <View style={{ flex: 1 }}><Button label={T.call} icon="call" kind="ghost" onPress={callCustomer} /></View> : null}
                         </View>
                     </Card>
@@ -247,7 +301,7 @@ export default function RiderTripScreen() {
                 ) : null}
 
                 <View style={{ marginHorizontal: 16, marginTop: 4 }}>
-                    <SmallLink label={T.problem} icon="warning" danger onPress={() => setSheet('problem')} />
+                    {step === 0 ? <SmallLink label={T.problem} icon="warning" danger onPress={() => setSheet('problem')} /> : null}
                     <SmallLink label={T.sos} icon="alert-circle" danger onPress={() => setSosOpen(true)} />
                     {step === 0 ? <SmallLink label={T.cannotDo} onPress={giveBack} /> : null}
                 </View>

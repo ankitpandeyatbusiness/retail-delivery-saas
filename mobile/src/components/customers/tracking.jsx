@@ -98,6 +98,9 @@ export default function TrackingCard({ tracking: t, destination }) {
                         <Text style={[s.sub, { color: muted }]}>
                             {[t.rider.vehicle, t.rider.phone ? null : t.rider.phoneMasked].filter(Boolean).join(' · ')}
                         </Text>
+                        {t.rider.avgDeliveryMin ? (
+                            <Text style={[s.sub, { color: muted }]} numberOfLines={1}>{tr('Usually delivers in about {min} min', { min: t.rider.avgDeliveryMin })}</Text>
+                        ) : null}
                     </View>
                     {t.rider.phone ? (
                         <Pressable onPress={() => Linking.openURL(`tel:${t.rider.phone}`).catch(() => { })} style={[s.callBtn, { backgroundColor: primary }]} accessibilityRole="button" accessibilityLabel={tr('Call {name}', { name: t.rider.name })}>

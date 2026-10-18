@@ -62,6 +62,7 @@ export default function RiderProfileScreen() {
                     <Text style={{ color: text, fontSize: 22, fontWeight: '900', marginTop: 12 }}>{me?.name || tr('Delivery partner')}</Text>
                     <Text style={{ color: muted, fontWeight: '600', marginTop: 2 }}>{me?.phone}{me?.shop ? ` · ${me.shop}` : ''}</Text>
                     {me?.ratingCount > 0 ? <Text style={{ color: text, fontWeight: '800', marginTop: 6 }}>{tr('★ {v1} · {ratingCount} ratings', { v1: Number(me.ratingAvg).toFixed(1), ratingCount: me.ratingCount })}</Text> : null}
+                    {me?.avgDeliveryMin ? <Text style={{ color: text, fontWeight: '800', marginTop: 4 }}>{tr('Average delivery time: {min} min · {n} deliveries', { min: me.avgDeliveryMin, n: me.deliveryCount })}</Text> : null}
                     {v?.type || v?.number ? <Text style={{ color: muted, fontWeight: '700', marginTop: 4 }}>{[v.type, v.number].filter(Boolean).join(' · ')}</Text> : null}
                 </View>
                 <Card>

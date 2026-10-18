@@ -209,7 +209,7 @@ describe('rider broadcast', () => {
         assert.equal((await riderCall(r1, o, 'accept')).status, 409);
     });
 
-    test('120 seconds pass: the broadcast ends, the owner is alerted ONCE, and nobody can accept any more', async () => {
+    test('120 seconds pass: the broadcast ends, the owner is alerted ONCE, the offer shows as missed, and a rider can still take the open order', async () => {
         const s = await shop('bc-timeout');
         const o = await deliveryOrder(s);
         await startBroadcast(s, o, 3);
@@ -226,20 +226,30 @@ describe('rider broadcast', () => {
         await sleep(300);
         assert.equal(await noteCount(s, { type: 'rider_none' }), 1);
         assert.equal(closedFor().length, 3);                                  // every rider was told it is closed
-        assert.equal((await riderCall(s.team[0], o, 'accept')).status, 409);
-        assert.equal(await slots(s.team[0]), 0);
+        // not in "offered" any more, but in "missed" (with the red-dot count), and still takeable
+        const head = s.team[0].headers;
+        assert.equal((await request(app).get('/api/rider/orders?tab=offered').set(head)).body.items.length, 0);
+        const miss = await request(app).get('/api/rider/orders?tab=missed&since=2000-01-01').set(head);
+        assert.equal(miss.body.items.length, 1);
+        assert.equal(miss.body.items[0].missed.canTake, true);
+        assert.equal(miss.body.counts.missed, 1);
+        assert.equal((await request(app).get(`/api/rider/orders?tab=missed&since=${new Date(Date.now() + 60000).toISOString()}`).set(head)).body.counts.missed, 0);
+        assert.equal((await riderCall(s.team[0], o, 'accept')).status, 200);   // late, but nobody else had it
+        assert.equal((await fresh(o)).delivery.riderId?.toString(), String(s.team[0].user._id));
+        assert.equal(await slots(s.team[0]), 1);
+        assert.equal((await riderCall(s.team[1], o, 'accept')).status, 409);   // now it is taken
+        assert.equal(await slots(s.team[1]), 0);
     });
 
-    test('accepting after the 120 seconds but before the job runs gives "expired" and frees the slot', async () => {
+    test('accepting after the 120 seconds but before the job runs still works while the order is free, and the slot is kept', async () => {
         const s = await shop('bc-expired');
         const o = await deliveryOrder(s);
         await startBroadcast(s, o, 3);
         await Order.updateOne({ _id: o._id }, { $set: { 'delivery.broadcast.expiresAt': new Date(Date.now() - 1000) } });
         const res = await riderCall(s.team[0], o, 'accept');
-        assert.equal(res.status, 409);
-        assert.equal(res.body.error, 'This request has expired');
-        assert.equal(await slots(s.team[0]), 0);
-        assert.equal((await request(app).get('/api/rider/orders?tab=offered').set(s.team[0].headers)).body.items.length, 0);
+        assert.equal(res.status, 200);
+        assert.equal(await slots(s.team[0]), 1);
+        assert.equal((await request(app).get('/api/rider/orders?tab=offered').set(s.team[1].headers)).body.items.length, 0);   // the others lost it
     });
 
     test('cancelling the order ends the broadcast: no alert, the riders are told it is closed', async () => {

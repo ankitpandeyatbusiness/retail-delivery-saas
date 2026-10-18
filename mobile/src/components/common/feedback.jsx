@@ -115,7 +115,7 @@ export function DeliveryRatingCard({ orderId, tracking, onDone }) {
                 disabled={!rating || busy} onPress={submit}
                 style={[s.btn, { backgroundColor: primary, borderRadius: radius, opacity: rating ? 1 : 0.5 }]}
             >
-                {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.btnTxt}>{tr('Submit rating')}</Text>}
+                {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} style={s.btnTxt}>{tr('Submit rating')}</Text>}
             </Pressable>
         </CardShell>
     );
@@ -321,7 +321,7 @@ export function ComplaintCard({ orderId }) {
                                     <Text style={[s.ghostTxt, { color: text }]}>{tr('Cancel')}</Text>
                                 </Pressable>
                                 <Pressable disabled={busy || uploading} onPress={submit} style={[s.btn, { flex: 1.4, marginTop: 0, backgroundColor: primary, borderRadius: radius, opacity: uploading ? 0.6 : 1 }]}>
-                                    {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.btnTxt}>{tr('Send')}</Text>}
+                                    {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} style={s.btnTxt}>{tr('Send')}</Text>}
                                 </Pressable>
                             </View>
                         </ScrollView>

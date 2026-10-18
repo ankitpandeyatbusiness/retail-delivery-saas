@@ -261,7 +261,7 @@ export function GuestGate({ title, children }) {
             <Text style={[s.gateTitle, { color: text }]}>{title}</Text>
             <Text style={[s.gateText, { color: muted }]}>Log in to see this.</Text>
             <Pressable onPress={() => nav.navigate('Login')} style={[s.btn, { backgroundColor: primary, borderRadius: radius }]}>
-                <Text style={[s.btnText, { color: onPrimary }]}>Log in</Text>
+                <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} style={[s.btnText, { color: onPrimary }]}>Log in</Text>
             </Pressable>
         </View>
     );

@@ -272,7 +272,7 @@ export default function CartScreen() {
                     <Text style={[s.big, { color: text }]}>{full.labels.emptyCart}</Text>
                     <Text style={[s.lSub, { color: muted, marginTop: 6 }]}>{tr('Good food is always cooking.')}</Text>
                     <Press onPress={() => nav.goBack()} style={[s.cta, { backgroundColor: primary, borderRadius: radius }]}>
-                        <Text style={s.ctaTxt}>{tr('Browse Menu')}</Text>
+                        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} style={s.ctaTxt}>{tr('Browse Menu')}</Text>
                     </Press>
                 </Appear>
                 {hasFavs ? <FavouriteDishes mode="list" /> : null}
@@ -508,8 +508,8 @@ export default function CartScreen() {
                         {placing ? <ActivityIndicator color="#FFFFFF" /> : (
                             <View style={s.btnRow}>
                                 <View>
-                                    <Text style={s.btnTotal}>{quote && !closed ? rs(quote.pricing.total) : ' '}</Text>
-                                    <Text style={s.btnLabel} numberOfLines={1}>{btnText}</Text>
+                                    <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} style={s.btnTotal}>{quote && !closed ? rs(quote.pricing.total) : ' '}</Text>
+                                    <Text style={s.btnLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65}>{btnText}</Text>
                                 </View>
                                 <Ionicons name="caret-forward-outline" size={14} color="#FFFFFF" style={{ marginLeft: 8 }} />
                             </View>

@@ -20,7 +20,7 @@ const polyline = require('../../utils/polyline');
 
 const AVG_KMH = parseFloat(process.env.RIDER_AVG_SPEED_KMH) || 20;
 const ROAD_FACTOR = 1.3;
-const MAX_POINTS = 300;
+const MAX_POINTS = 1500;   // enough to follow every bend (fewer points cut the corners across blocks)
 const BREAKER_AFTER = 3;
 const BREAKER_MS = 5 * 60000;
 const TIMEOUT_MS = 4000;

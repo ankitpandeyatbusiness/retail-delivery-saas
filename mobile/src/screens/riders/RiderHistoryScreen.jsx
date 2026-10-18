@@ -2,11 +2,13 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, FlatList, RefreshControl, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
 import { BigButton } from '../../components/riders/riderBits';
-import { fetchRiderOrders } from '../../api/riders/riderApi';
+import { fetchRiderOrders, acceptOrder } from '../../api/riders/riderApi';
+import { useRiderStore } from '../../store/riders/useRiderStore';
+import { showToast } from '../../components/customers/shop';
 import { T, rupee, rupeeAmount, errText } from '../../utils/riders/riderText';
 import { tr } from '../../i18n';
 
@@ -21,14 +23,34 @@ export default function RiderHistoryScreen() {
     const [failed, setFailed] = useState('');
     const [refreshing, setRefreshing] = useState(false);
 
+    const [missed, setMissed] = useState([]);   // offers whose time ran out before he answered
+    const [busyId, setBusyId] = useState(null);
+    const nav = useNavigation();
+
     const load = useCallback(async (p = 1) => {
         try {
-            const r = await fetchRiderOrders('history', p);
+            const [r, m] = await Promise.all([fetchRiderOrders('history', p), p === 1 ? fetchRiderOrders('missed').catch(() => null) : null]);
+            if (m) setMissed(m.items || []);
             setItems((old) => (p === 1 ? r.items || [] : [...(old || []), ...(r.items || [])]));
             setMore(!!r.hasMore); setPage(p); setFailed('');
         } catch (e) { setFailed(errText(e)); setItems((x) => x || []); }
     }, []);
-    useFocusEffect(useCallback(() => { load(1); }, [load]));
+    // opening History clears the red dot on its tab
+    useFocusEffect(useCallback(() => { load(1); useRiderStore.getState().markMissedSeen(); }, [load]));
+
+    // a missed order nobody has taken yet: he can still take it
+    const take = async (o) => {
+        setBusyId(o.id);
+        try {
+            await acceptOrder(o.id);
+            await useRiderStore.getState().load();
+            nav.navigate('RiderTrip', { orderId: String(o.id) });
+        } catch (e) {
+            showToast(e?.response?.status === 409 ? T.taken : errText(e));
+            load(1);
+        }
+        setBusyId(null);
+    };
 
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
@@ -45,6 +67,23 @@ export default function RiderHistoryScreen() {
                             <Text style={{ color: text, fontWeight: '800', fontSize: 16, marginTop: 10 }}>{failed || T.noHistory}</Text>
                         </View>
                     )}
+                    ListHeaderComponent={missed.length ? (
+                        <View style={{ marginBottom: 6 }}>
+                            <Text style={{ color: error, fontWeight: '900', fontSize: 14, paddingHorizontal: 16, marginBottom: 8 }}>{tr('Missed orders')}</Text>
+                            {missed.map((o) => (
+                                <View key={String(o.id)} style={{ marginHorizontal: 16, marginBottom: 10, borderRadius: 16, padding: 14, backgroundColor: surface, borderWidth: 1, borderColor: error }}>
+                                    <Text style={{ color: text, fontWeight: '900', fontSize: 16 }}>{tr('Order #{orderNo}', { orderNo: o.orderNo })}</Text>
+                                    <Text style={{ color: muted, fontWeight: '600', fontSize: 12.5, marginTop: 2 }}>{tr('You did not answer in time')} · {o.missed?.at ? when(o.missed.at) : ''}</Text>
+                                    {o.missed?.canTake ? (
+                                        <View style={{ marginTop: 10 }}><BigButton label={tr('Still open: take it now')} busy={busyId === o.id} onPress={() => take(o)} /></View>
+                                    ) : (
+                                        <Text style={{ color: muted, fontWeight: '800', marginTop: 8 }}>{o.status === 'cancelled' ? tr('Cancelled') : tr('Taken by someone else')}</Text>
+                                    )}
+                                </View>
+                            ))}
+                            <Text style={{ color: text, fontWeight: '900', fontSize: 14, paddingHorizontal: 16, marginTop: 4, marginBottom: 8 }}>{tr('Deliveries')}</Text>
+                        </View>
+                    ) : null}
                     ListFooterComponent={more ? <View style={{ padding: 16 }}><BigButton label={tr('Show more')} kind="outline" onPress={() => load(page + 1)} /></View> : null}
                     renderItem={({ item: o }) => {
                         const done = o.status === 'delivered';

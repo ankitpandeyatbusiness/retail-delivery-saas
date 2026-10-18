@@ -84,6 +84,8 @@ const orderSchema = new Schema({
         pinRequired: { type: Boolean, default: false },   // shop setting copied when the rider is assigned
         pinAttempts: { type: Number, default: 0 },
         arrivedAt: Date,   // the rider tapped "I have arrived" at the customer
+        plannedSec: Number,   // the time allowed for the journey, saved when the food is collected (services/deliveryPlan.js)
+        dueAt: Date,          // collected + the time allowed
         // where the rider was when he marked it delivered, and how far from the customer's pin (far / noGps are shown to the owner)
         deliveredPoint: { _id: false, lat: Number, lng: Number, distanceM: Number, far: Boolean, noGps: Boolean, at: Date },
         // a Cash on delivery customer who pays by QR at the door (services/doorPayment.js)

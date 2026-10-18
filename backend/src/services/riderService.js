@@ -116,6 +116,7 @@ async function list(tenantId) {
         activeOrderCount: r.activeOrderCount,
         payLabel: require('./riderPay').describe(require('./riderPay').effectivePlan(shopRiders, r)), ownPay: !!r.pay?.type,
         ratingAvg: r.ratingAvg, ratingCount: r.ratingCount, faultCount: r.faultCount || 0,
+        avgDeliveryMin: require('./deliveryPlan').avgMin(r), deliveryCount: r.deliveryCount || 0, lateCount: r.lateCount || 0,
         activeOrders: byRider.get(String(r.userId)) || [],
     }));
 }

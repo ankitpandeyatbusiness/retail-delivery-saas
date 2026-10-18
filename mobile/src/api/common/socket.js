@@ -17,7 +17,7 @@ const AUTH_ERRORS = ['TOKEN_INVALID', 'SESSION_ENDED', 'AUTH_REQUIRED'];
 let socket = null;
 let retryTimer = null;
 const joined = new Map();   // orderId -> how many screens want it
-const listeners = { 'order:update': new Set(), notification: new Set(), 'rider:location': new Set(), 'rider:route': new Set(), 'order:eta': new Set(), 'rider:quiet': new Set() };
+const listeners = { 'order:update': new Set(), notification: new Set(), 'rider:location': new Set(), 'rider:route': new Set(), 'order:eta': new Set(), 'rider:quiet': new Set(), 'rider:offer': new Set(), 'offer:closed': new Set() };
 
 // What the server asks of us: "socket" (normal) or "polling" (it is busy: poll every pollSec seconds and try the socket again
 // later). Screens read this to decide whether they need a timer. We never retry a refused connection sooner than retryAfterSec.
@@ -85,6 +85,8 @@ function connect() {
     socket.on('rider:route', (p) => dispatch('rider:route', p));
     socket.on('order:eta', (p) => dispatch('order:eta', p));
     socket.on('rider:quiet', (p) => dispatch('rider:quiet', p));
+    socket.on('rider:offer', (p) => dispatch('rider:offer', p));      // a rider is asked to take an order
+    socket.on('offer:closed', (p) => dispatch('offer:closed', p));    // someone else took it, or it closed
 
     // an ended token does not retry by itself: get a new one, then try again
     const renew = () => {
@@ -139,6 +141,8 @@ const sub = (ev) => (fn) => { listeners[ev].add(fn); return () => listeners[ev].
 export const onRiderRoute = sub('rider:route');
 export const onOrderEta = sub('order:eta');
 export const onRiderQuiet = sub('rider:quiet');
+export const onRiderOffer = sub('rider:offer');
+export const onOfferClosed = sub('offer:closed');
 
 export function onNotification(fn) {
     listeners.notification.add(fn);

@@ -283,6 +283,11 @@ async function change({ order, status, actor, note, tenant, reasonCode }) {
     if (actor.type === 'rider') {
         liveFeed.emit(updated.tenantId, 'riders', { type: `rider.${status}`, orderNo: updated.orderNo, riderId: String(actor.id) });
     }
+    // the food was collected: save the time allowed for the journey. It was delivered: add the journey to the rider's record.
+    if (status === 'out_for_delivery' && updated.delivery?.riderId && updated.delivery?.pickedUpAt && !updated.delivery?.dueAt) {
+        require('./deliveryPlan').recordStart(updated, tenant);
+    }
+    if (status === 'delivered' && updated.delivery?.riderId) require('./deliveryPlan').recordDone(updated);
     // the owner accepted a delivery order: ask ALL free riders at once (automatic mode). The first one to accept gets it.
     if (status === 'accepted' && updated.orderType === 'delivery' && !updated.delivery?.riderId) {
         require('./assignmentService').startBroadcast({ orderId: updated._id, tenantId: updated.tenantId })

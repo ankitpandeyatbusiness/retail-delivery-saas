@@ -237,9 +237,9 @@ async function acceptBroadcast({ orderId, tenantId, riderUserId }) {
     try {
         won = await Order.findOneAndUpdate(
             {
+                // still open and nobody has it: he can take it even after his time ran out ("timeout" = he missed it)
                 _id: orderId, tenantId, status: { $in: OPEN }, 'delivery.riderId': { $exists: false },
-                'delivery.broadcast.active': true, 'delivery.broadcast.expiresAt': { $gt: now },
-                'delivery.offers': { $elemMatch: { riderId: riderUserId, result: 'offered' } },
+                'delivery.offers': { $elemMatch: { riderId: riderUserId, result: { $in: ['offered', 'timeout'] } } },
             },
             {
                 $set: {
@@ -252,7 +252,7 @@ async function acceptBroadcast({ orderId, tenantId, riderUserId }) {
             {
                 returnDocument: 'after',
                 arrayFilters: [
-                    { 'mine.riderId': riderUserId, 'mine.result': 'offered' },
+                    { 'mine.riderId': riderUserId, 'mine.result': { $in: ['offered', 'timeout'] } },
                     { 'other.riderId': { $ne: riderUserId }, 'other.result': 'offered' },
                 ],
             },
@@ -265,9 +265,7 @@ async function acceptBroadcast({ orderId, tenantId, riderUserId }) {
         await releaseSlot(tenantId, riderUserId);   // the loser's count goes back to what it was
         const cur = await Order.findOne({ _id: orderId, tenantId }).select('status delivery.riderId delivery.broadcast').lean();
         if (!cur || !OPEN.includes(cur.status)) throw httpError(409, 'This request is no longer available');
-        const expires = cur.delivery?.broadcast?.expiresAt;
-        if (!cur.delivery?.riderId && expires && new Date(expires) <= now) throw httpError(409, 'This request has expired');
-        if (!cur.delivery?.riderId && cur.delivery?.broadcast?.active) throw httpError(409, 'This request is not available for you');
+        if (!cur.delivery?.riderId) throw httpError(409, 'This request is not available for you');
         throw httpError(409, 'Taken by someone else');
     }
 
@@ -434,8 +432,11 @@ async function rejectManual({ orderId, tenantId, riderUserId }) {
 
 // The routes call these two. While a broadcast is open the broadcast rules apply, otherwise the one-rider rules.
 async function accept({ orderId, tenantId, riderUserId }) {
-    const cur = await Order.findOne({ _id: orderId, tenantId }).select('delivery.broadcast delivery.offers').lean();
-    if (cur?.delivery?.broadcast?.active) return acceptBroadcast({ orderId, tenantId, riderUserId });
+    const cur = await Order.findOne({ _id: orderId, tenantId }).select('delivery.broadcast delivery.offers delivery.riderId').lean();
+    // a missed (timed out) offer on an order nobody has taken yet is taken the same way as a live one
+    if (cur?.delivery?.broadcast?.active || (!cur?.delivery?.riderId && lastOffer(cur, riderUserId)?.result === 'timeout')) {
+        return acceptBroadcast({ orderId, tenantId, riderUserId });
+    }
     if (lastOffer(cur, riderUserId)?.result === 'taken') throw httpError(409, 'Taken by someone else');
     return acceptManual({ orderId, tenantId, riderUserId });
 }

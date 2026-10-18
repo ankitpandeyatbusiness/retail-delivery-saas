@@ -16,6 +16,10 @@ const riderSchema = new mongoose.Schema({
     ratingAvg: { type: Number, default: 0 },
     ratingCount: { type: Number, default: 0 },
     faultCount: { type: Number, default: 0 },   // complaints the owner decided were the rider's fault
+    // the record of his journeys (collected -> delivered), kept by services/deliveryPlan.js. Only a record, never a warning.
+    deliveryCount: { type: Number, default: 0 },
+    deliverySecTotal: { type: Number, default: 0 },
+    lateCount: { type: Number, default: 0 },    // deliveries that took longer than the time allowed
 }, { timestamps: true });
 
 riderSchema.index({ tenantId: 1, userId: 1 }, { unique: true });

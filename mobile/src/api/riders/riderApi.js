@@ -6,8 +6,11 @@ const d = (p) => p.then((r) => r.data);
 export const fetchRiderMe = () => d(api.get('/rider/me'));
 export const setOnline = (isOnline) => d(api.put('/rider/online', { isOnline }));
 // tab: offered | active | history  -> { items, counts: { offered, active }, page, hasMore }
-export const fetchRiderOrders = (tab, page = 1) => d(api.get('/rider/orders', { params: { tab, page, limit: 20 } }));
-export const acceptOrder = (id) => d(api.post(`/rider/orders/${id}/accept`));
+// tab "missed": offers whose time ran out. since (ISO time): counts.missed = how many he missed after it (the History red dot)
+export const fetchRiderOrders = (tab, page = 1, since) => d(api.get('/rider/orders', { params: { tab, page, limit: 20, since } }));
+// the road from where he is to the customer: { source: 'google' | 'estimate', polyline, distanceM, durationSec }
+export const fetchRoute = (id, lat, lng) => d(api.get(`/rider/orders/${id}/route`, { params: { lat, lng } }));
+export const acceptOrder =(id) => d(api.post(`/rider/orders/${id}/accept`));
 export const rejectOrder = (id) => d(api.post(`/rider/orders/${id}/reject`));
 export const pickupOrder = (id) => d(api.post(`/rider/orders/${id}/pickup`));
 // extra: { lat, lng } where he is now, and farOk: true when he chose "deliver anyway" after the server said he is far from the customer

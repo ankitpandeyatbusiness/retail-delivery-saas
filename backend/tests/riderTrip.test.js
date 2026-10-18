@@ -67,6 +67,70 @@ describe('what the rider sees', () => {
     });
 });
 
+describe('the way and the time allowed', () => {
+    test('the road runs from the shop to the customer, once per order; only his own accepted delivery; no shop point is sent', async () => {
+        const o = await trip({ status: 'preparing', delivery: { riderId: w.rider.user._id, status: 'accepted' } });
+        const ask = (id = o._id, q = '') => request(app).get(`/api/rider/orders/${id}/route${q}`).set(w.rider.headers);
+
+        const r = await ask();
+        assert.equal(r.status, 200);
+        assert.ok(['google', 'estimate'].includes(r.body.source));
+        assert.ok(r.body.polyline && r.body.distanceM > 0);
+        assert.equal(r.body.allowedSec % 60, 0, 'whole minutes');
+        assert.ok(r.body.allowedSec >= r.body.durationSec + 300, 'the 5 minute buffer is in');
+        assert.deepEqual((await ask()).body, r.body, 'asked again: the same answer, no new Google call');
+        const v = (await rider('get', `/orders/${o._id}`)).body;
+        assert.equal(v.pickup, undefined, 'the shop location is not sent to the rider');
+        assert.equal(v.delivery.dueAt, null);
+
+        const offered = await f.makeOrder(w.tenant, w.customer.user, {
+            status: 'accepted', address: { line1: 'x', city: 'Kanpur', ...HOME },
+            delivery: { riderId: w.rider.user._id, status: 'assigned', offerExpiresAt: new Date(Date.now() + 60000) },
+        });
+        assert.equal((await ask(offered._id)).status, 409, 'not accepted yet: no map');
+        const other = await f.makeOrder(w.tenant, w.customer.user, { status: 'preparing', address: { line1: 'x', city: 'Kanpur', ...HOME } });
+        assert.equal((await ask(other._id)).status, 404, 'not his order');
+    });
+
+    test('a shop with no pin: the road starts where the rider is; with no position either there is nothing to show', async () => {
+        await Tenant.updateOne({ _id: w.tenant._id }, { $unset: { delivery: 1 } });
+        tenantRecognizer.invalidateTenant(w.tenant.slug);
+        const o = await trip({ status: 'preparing', delivery: { riderId: w.rider.user._id, status: 'accepted' } });
+        const ask = (q = '') => request(app).get(`/api/rider/orders/${o._id}/route${q}`).set(w.rider.headers);
+        assert.equal((await ask()).status, 404);
+        assert.equal((await ask('?lat=26.4499&lng=80.3319')).status, 200);
+    });
+
+    test('collected: the due time is saved (road time + 5 min); delivered: the journey goes on his record, late or not', async () => {
+        const o = await trip({ status: 'preparing', delivery: { riderId: w.rider.user._id, status: 'accepted' } });
+        assert.equal((await rider('post', `/orders/${o._id}/pickup`)).status, 200);
+        let due;
+        for (let i = 0; i < 40 && !due; i += 1) { await new Promise((r) => setTimeout(r, 100)); due = (await Order.findById(o._id)).delivery.dueAt; }
+        assert.ok(due, 'the due time is saved');
+        const fresh = await Order.findById(o._id);
+        assert.equal(Math.round((+fresh.delivery.dueAt - +fresh.delivery.pickedUpAt) / 1000), fresh.delivery.plannedSec);
+        assert.ok(fresh.delivery.plannedSec >= 300);
+
+        // a journey of 20 minutes that was due in 10: on time? no, late
+        const plan = require('../src/services/deliveryPlan');
+        const t0 = Date.now() - 20 * 60000;
+        const late = await trip({ delivery: { riderId: w.rider.user._id, status: 'delivered', pickedUpAt: new Date(t0), deliveredAt: new Date(), dueAt: new Date(t0 + 10 * 60000) } });
+        await plan.recordDone(late);
+        const ontime = await trip({ delivery: { riderId: w.rider.user._id, status: 'delivered', pickedUpAt: new Date(Date.now() - 10 * 60000), deliveredAt: new Date(), dueAt: new Date(Date.now() + 5 * 60000) } });
+        await plan.recordDone(ontime);
+        const me = (await rider('get', '/me')).body;
+        assert.equal(me.deliveryCount, 2);
+        assert.equal(me.lateCount, 1);
+        assert.equal(me.avgDeliveryMin, 15);
+        const shop = (await request(app).get('/api/shop/riders').set(w.owner.headers)).body.items.find((x) => String(x.userId) === String(w.rider.user._id));
+        assert.equal(shop.avgDeliveryMin, 15);
+        assert.equal(shop.lateCount, 1);
+        // a forgotten order marked delivered a day later does not spoil the average
+        await plan.recordDone(await trip({ delivery: { riderId: w.rider.user._id, status: 'delivered', pickedUpAt: new Date(Date.now() - 86400000), deliveredAt: new Date() } }));
+        assert.equal((await rider('get', '/me')).body.deliveryCount, 2);
+    });
+});
+
 describe('I have arrived', () => {
     test('the time is kept once, and it needs the food collected first', async () => {
         const o = await trip();

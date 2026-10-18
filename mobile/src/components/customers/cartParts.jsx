@@ -37,7 +37,7 @@ export function Chip({ label, on, onPress, icon }) {
     return (
         <Press onPress={() => { ease(); onPress(); }} style={[s.chip, { backgroundColor: on ? tint(primary) : surface, borderColor: on ? primary : border }]}>
             {icon ? <Ionicons name={icon} size={14} color={on ? primary : text} style={{ marginRight: 6 }} /> : null}
-            <Text style={[s.chipTxt, { color: on ? primary : text }]}>{label}</Text>
+            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} style={[s.chipTxt, { color: on ? primary : text }]}>{label}</Text>
         </Press>
     );
 }

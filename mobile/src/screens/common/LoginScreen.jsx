@@ -83,7 +83,7 @@ function PrimaryButton({ title, onPress, disabled, loading, colors }) {
                     {loading ? (
                         <ActivityIndicator color="#FFFFFF" />
                     ) : (
-                        <Text style={styles.buttonText}>{title}</Text>
+                        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} style={styles.buttonText}>{title}</Text>
                     )}
                 </LinearGradient>
             </Pressable>

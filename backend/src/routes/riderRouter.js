@@ -36,6 +36,7 @@ const { takeSignSlot } = require('../middlewares/uploadLimit');
 const liveTracking = require('../services/liveTracking');
 const doorPayment = require('../services/doorPayment');
 const { haversineKm } = require('../utils/geo');
+const deliveryPlan = require('../services/deliveryPlan');
 const { wrap, httpError } = apiErrors;
 const isId = (v) => typeof v === 'string' && mongoose.isValidObjectId(v);
 const clamp = (n, min, max) => Math.min(Math.max(n, min), max);
@@ -81,6 +82,7 @@ function riderView(o, ctx = {}) {
         delivery: {
             status: d.status, offerExpiresAt: d.offerExpiresAt || (d.broadcast?.active ? d.broadcast.expiresAt : null) || null,
             pinRequired: !!d.pinRequired, deliveredAt: d.deliveredAt || null, collectedAt: d.pickedUpAt || null, arrivedAt: d.arrivedAt || null,
+            plannedSec: d.plannedSec || null, dueAt: d.dueAt || null,   // the time allowed for the journey, saved when the food is collected
             proof: d.proof?.url ? { url: d.proof.url, at: d.proof.at } : null,
         },
     };
@@ -119,6 +121,7 @@ core.get('/me', wrap(async (req, res) => {
         userId: r.userId, name: r.name || null, phone: req.riderPhone, shop: req.tenant.name, shopPhone: req.tenant.phone || null,
         isActive: r.isActive, isOnline: r.isOnline, vehicle: r.vehicle || null, photo: r.photo || null,
         activeOrderCount: r.activeOrderCount, ratingAvg: r.ratingAvg, ratingCount: r.ratingCount,
+        avgDeliveryMin: deliveryPlan.avgMin(r), deliveryCount: r.deliveryCount || 0, lateCount: r.lateCount || 0,   // the record of his journeys
     });
 }));
 
@@ -240,8 +243,16 @@ core.get('/orders', wrap(async (req, res) => {
     };
     const active = { ...base, 'delivery.status': { $in: ['accepted', 'picked_up'] }, status: { $in: ACTIVE_STATUSES } };
     const history = { ...base, status: { $in: ['delivered', 'cancelled', 'undelivered'] } };
-    const filter = { offered, active, history }[tab];
-    if (!filter) throw httpError(400, 'tab must be offered, active or history');
+    // asked, but the time ran out before he answered (shown in History; he can still take it while nobody else has)
+    const missed = { tenantId: req.tenant._id, 'delivery.offers': { $elemMatch: { riderId: req.riderId, result: 'timeout' } } };
+    const filter = { offered, active, history, missed }[tab];
+    if (!filter) throw httpError(400, 'tab must be offered, active, history or missed');
+
+    // "since" = when he last looked at History: how many offers he missed after that (the red dot)
+    const since = new Date(req.query.since);
+    const newMissed = Number.isNaN(since.getTime()) ? 0 : await Order.countDocuments({
+        tenantId: req.tenant._id, 'delivery.offers': { $elemMatch: { riderId: req.riderId, result: 'timeout', at: { $gt: since } } },
+    });
 
     const page = clamp(parseInt(req.query.page, 10) || 1, 1, 1000);
     const limit = clamp(parseInt(req.query.limit, 10) || 20, 1, 50);
@@ -253,12 +264,32 @@ core.get('/orders', wrap(async (req, res) => {
     const hasMore = items.length > limit;
     if (hasMore) items.pop();
     const view = await viewer(req);
-    res.json({ items: items.map(view), counts: { offered: nOffered, active: nActive }, page, hasMore });
+    const row = tab !== 'missed' ? view : (o) => {
+        const miss = [...(o.delivery?.offers || [])].reverse().find((x) => String(x.riderId) === String(req.riderId) && x.result === 'timeout');
+        return { ...view(o), missed: { at: miss?.at || null, canTake: OPEN.includes(o.status) && !o.delivery?.riderId } };
+    };
+    res.json({ items: items.map(row), counts: { offered: nOffered, active: nActive, missed: newMissed }, page, hasMore });
 }));
 
 core.get('/orders/:id', wrap(async (req, res) => {
     const view = await viewer(req);
     res.json(view((await findMine(req)).toObject()));
+}));
+
+// The way for the map on his phone and the time allowed: from the shop to the customer (he collects at the shop and delivers from
+// there). One road per order, kept for 30 minutes (services/deliveryPlan.js), so Google is called once per order and counted in
+// the same monthly caps as every route; when the caps are used up or Google fails the answer is the free estimate
+// (source "estimate") and the app still shows the time. The shop's location is not sent as a point, only the road.
+core.get('/orders/:id/route', wrap(async (req, res) => {
+    const order = await findMine(req);
+    if (!['accepted', 'picked_up'].includes(order.delivery?.status) || !OPEN.includes(order.status)) throw httpError(409, 'No delivery to show');
+    // a shop without a pin on the map: the road starts where the rider is
+    const lat = Number(req.query.lat);
+    const lng = Number(req.query.lng);
+    const from = Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180 ? { lat, lng } : null;
+    const result = await deliveryPlan.plan(order, req.tenant, from);
+    if (!result) throw httpError(404, 'The shop or the customer has no pin on the map');
+    res.json(result);
 }));
 
 core.post('/orders/:id/accept', wrap(async (req, res) => {

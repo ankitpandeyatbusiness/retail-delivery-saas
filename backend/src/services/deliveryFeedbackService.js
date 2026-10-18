@@ -47,7 +47,7 @@ async function tracking({ tenant, userId, orderId }) {
     let live = null;
     if (showRider) {
         const [profile, user] = await Promise.all([
-            Rider.findOne({ tenantId: tenant._id, userId: d.riderId }).select('name vehicle photo lastLocation').lean(),
+            Rider.findOne({ tenantId: tenant._id, userId: d.riderId }).select('name vehicle photo lastLocation deliveryCount deliverySecTotal').lean(),
             User.findById(d.riderId).select('name phone').lean(),
         ]);
         rider = {
@@ -57,6 +57,7 @@ async function tracking({ tenant, userId, orderId }) {
             phone: ['accepted', 'picked_up'].includes(d.status) && !DONE.includes(order.status) && /^\d{10}$/.test(user?.phone || '') ? user.phone : null,
             vehicle: profile?.vehicle?.type || null,
             photo: profile?.photo || null,
+            avgDeliveryMin: require('./deliveryPlan').avgMin(profile),   // how long his journeys usually take (null until he has one on record)
         };
         live = liveTracking.newest(d.riderId, profile?.lastLocation);   // the live position (memory) is never behind the saved one
     }
