@@ -46,7 +46,7 @@ function verifyPaymentSignature({ orderId, paymentId, signature, secret }) {
 }
 
 /* ------------------------------ mock ------------------------------ */
-const mockState = { payments: new Map() };
+const mockState = { payments: new Map(), qrPayments: new Map() };
 
 const mockProvider = {
     async ping() {
@@ -81,6 +81,12 @@ const mockProvider = {
     },
     async listRefunds() {
         return [];
+    },
+    async closeQr() {
+        return { ok: true };
+    },
+    async listQrPayments({ qrId }) {
+        return mockState.qrPayments.get(qrId) || [];
     },
 };
 
@@ -165,6 +171,14 @@ const realProvider = {
         const r = await call(credentials || platformCredentials(), 'GET', `/orders/${encodeURIComponent(orderId)}/payments`);
         return (r.items || []).map(normalizePayment);
     },
+    async closeQr({ qrId, credentials }) {
+        await call(credentials || platformCredentials(), 'POST', `/payments/qr_codes/${encodeURIComponent(qrId)}/close`, {});
+        return { ok: true };
+    },
+    async listQrPayments({ qrId, credentials }) {
+        const r = await call(credentials || platformCredentials(), 'GET', `/payments/qr_codes/${encodeURIComponent(qrId)}/payments`);
+        return (r.items || []).map(normalizePayment);
+    },
     async listRefunds({ paymentId, credentials }) {
         const r = await call(credentials || platformCredentials(), 'GET', `/payments/${encodeURIComponent(paymentId)}/refunds`);
         return (r.items || []).map(normalizeRefund);
@@ -186,6 +200,8 @@ module.exports = {
     refund: (args) => provider().refund(args),
     listOrderPayments: (args) => provider().listOrderPayments(args),
     listRefunds: (args) => provider().listRefunds(args),
+    closeQr: (args) => provider().closeQr(args),
+    listQrPayments: (args) => provider().listQrPayments(args),
     // for tests only
-    _mock: { setPayment: (p) => mockState.payments.set(p.id, p), reset: () => mockState.payments.clear() },
+    _mock: { setPayment: (p) => mockState.payments.set(p.id, p), setQrPayments: (qrId, list) => mockState.qrPayments.set(qrId, list), reset: () => { mockState.payments.clear(); mockState.qrPayments.clear(); } },
 };

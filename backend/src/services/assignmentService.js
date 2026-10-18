@@ -177,7 +177,7 @@ async function endBroadcast(orderId, tenantId, why) {
 }
 
 // Starts the broadcast. Only in automatic mode, only for a delivery order that has no rider yet.
-async function startBroadcast({ orderId, tenantId }) {
+async function startBroadcast({ orderId, tenantId, excludeRiderId }) {
     const settings = await settingsOf(tenantId);
     if (settings.assignMode !== 'automatic') return null;
     const now = new Date();
@@ -193,7 +193,7 @@ async function startBroadcast({ orderId, tenantId }) {
     if (!order) return null;
 
     // online, active and FREE (no active order) riders only
-    const riders = await Rider.find({ tenantId, isActive: true, isOnline: true, activeOrderCount: 0 }).select('userId').lean();
+    const riders = await Rider.find({ tenantId, isActive: true, isOnline: true, activeOrderCount: 0, ...(excludeRiderId && { userId: { $ne: excludeRiderId } }) }).select('userId').lean();
     if (!riders.length) {
         await endBroadcast(order._id, tenantId, 'no_rider');
         return null;

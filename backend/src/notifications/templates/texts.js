@@ -4,6 +4,7 @@ const PROBLEM = {
     customer_not_answering: 'customer is not answering',
     wrong_address: 'says the address looks wrong',
     other: 'reported a problem',
+    released: 'cannot do this delivery any more and gave the order back',
 };
 
 function statusText(v) {

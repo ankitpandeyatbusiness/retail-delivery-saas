@@ -58,6 +58,7 @@ const orderSchema = new Schema({
         status: { type: String, enum: ['pending', 'paid', 'failed', 'refunded'], default: 'pending' },
         paidAt: Date,
         paymentId: String,   // the Razorpay payment id
+        paidAtDoor: Boolean, // a Cash on delivery order that was paid by QR at the door
     },
 
     customer: { name: String, phone: String, phoneHash: String, deleted: Boolean },   // deleted = he deleted his account
@@ -82,6 +83,11 @@ const orderSchema = new Schema({
         offerExpiresAt: Date,
         pinRequired: { type: Boolean, default: false },   // shop setting copied when the rider is assigned
         pinAttempts: { type: Number, default: 0 },
+        arrivedAt: Date,   // the rider tapped "I have arrived" at the customer
+        // where the rider was when he marked it delivered, and how far from the customer's pin (far / noGps are shown to the owner)
+        deliveredPoint: { _id: false, lat: Number, lng: Number, distanceM: Number, far: Boolean, noGps: Boolean, at: Date },
+        // a Cash on delivery customer who pays by QR at the door (services/doorPayment.js)
+        doorQr: { _id: false, qrId: String, imageUrl: String, upiString: String, amountPaise: Number, expiresAt: Date, createdAt: Date, paidAt: Date, closedAt: Date },
         arrivingNotifiedAt: Date,   // the "arriving soon" push was sent (once per order)
         reachedNotifiedAt: Date,    // the "reached" push was sent (once per order)
         // the offer to ALL free riders at once (automatic mode)

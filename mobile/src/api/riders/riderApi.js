@@ -10,7 +10,15 @@ export const fetchRiderOrders = (tab, page = 1) => d(api.get('/rider/orders', { 
 export const acceptOrder = (id) => d(api.post(`/rider/orders/${id}/accept`));
 export const rejectOrder = (id) => d(api.post(`/rider/orders/${id}/reject`));
 export const pickupOrder = (id) => d(api.post(`/rider/orders/${id}/pickup`));
-export const deliverOrder = (id, pin) => d(api.post(`/rider/orders/${id}/deliver`, { pin }));
+// extra: { lat, lng } where he is now, and farOk: true when he chose "deliver anyway" after the server said he is far from the customer
+export const deliverOrder = (id, pin, extra = {}) => d(api.post(`/rider/orders/${id}/deliver`, { pin, ...extra }));
+export const fetchRiderOrder = (id) => d(api.get(`/rider/orders/${id}`));
+export const fetchSummary = () => d(api.get('/rider/summary'));   // { earnings, deliveries: { today, month, total }, cash }
+export const markArrived = (id) => d(api.post(`/rider/orders/${id}/arrived`));
+export const releaseOrder = (id, note) => d(api.post(`/rider/orders/${id}/release`, { note }));   // before pickup only
+// a Cash on delivery customer pays by QR at the door: start -> { qr }, then ask until { paid: true }
+export const startDoorPay = (id) => d(api.post(`/rider/orders/${id}/door-pay`));
+export const checkDoorPay = (id) => d(api.get(`/rider/orders/${id}/door-pay`));
 export const reportProblem = (id, reason, note) => d(api.post(`/rider/orders/${id}/problem`, { reason, note }));
 export const sendLocation = (lat, lng) => d(api.post('/rider/location', { lat, lng }));
 

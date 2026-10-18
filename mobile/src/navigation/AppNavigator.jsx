@@ -14,7 +14,8 @@ import OrdersScreen from '../screens/customers/OrdersScreen';
 import OrderDetailScreen from '../screens/customers/OrderDetailScreen';
 import LiveOrderHost from '../components/customers/LiveOrderHost';
 import OrderPlacedScreen from '../screens/customers/OrderPlacedScreen';
-import RiderHomeScreen from '../screens/riders/RiderHomeScreen';
+import RiderTabs from './RiderNavigator';
+import RiderTripScreen from '../screens/riders/RiderTripScreen';
 import OwnerTabs from './OwnerNavigator';
 import ShopHubScreen from '../screens/owners/ShopHubScreen';
 import SoundboxScreen from '../screens/owners/SoundboxScreen';
@@ -180,7 +181,7 @@ function MainTabs() {
 // ("admin") gets the owner panel, everybody else gets the customer tabs.
 function Landing() {
     const role = useAuthStore((s) => s.user?.role);
-    if (role === 'rider') return <RiderHomeScreen />;
+    if (role === 'rider') return <RiderTabs />;
     if (role === 'admin') return <OwnerTabs />;
     return <MainTabs />;
 }
@@ -290,6 +291,7 @@ export default function AppNavigator() {
                     <Stack.Screen name="OrderPlaced" component={OrderPlacedScreen} options={{ gestureEnabled: false, animation: motion === 'off' ? 'none' : 'fade', animationDuration: 300 }} />
                     <Stack.Screen name="Notifications" component={NotificationsScreen} />
                     <Stack.Screen name="LegalList" component={LegalListScreen} />
+                    <Stack.Screen name="RiderTrip" component={RiderTripScreen} />   {/* a rider's delivery, one step at a time */}
                     <Stack.Screen name="LegalDoc" component={LegalDocScreen} />
 
                     {/* owner pages (role "admin"); the owner's tabs are MainTabs -> Landing -> OwnerTabs */}

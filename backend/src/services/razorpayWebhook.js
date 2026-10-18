@@ -50,9 +50,9 @@ async function onPayment(account, body, name) {
 
 // SMS top-up QR paid (platform account only)
 async function onQrCredited(account, body) {
-    if (account !== 'platform') return { ignored: 'not_platform' };
     const qr = body.payload?.qr_code?.entity || {};
     const pay = paymentService.fromEntity(body.payload?.payment?.entity);
+    if (account !== 'platform') return require('./doorPayment').credit({ account, qr, pay });   // a customer paid a Cash on delivery order by QR at the door
     if (qr.notes?.purpose === 'rent') return rentPayments.onCredited({ qr, pay });
     if (qr.notes?.purpose !== 'sms_topup') return { ignored: 'other_purpose' };
     const topupId = qr.notes.referenceId;

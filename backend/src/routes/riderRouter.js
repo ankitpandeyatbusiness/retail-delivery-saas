@@ -32,12 +32,16 @@ const Media = require('../models/Media');
 const liveFeed = require('../services/liveFeed');
 const { takeSignSlot } = require('../middlewares/uploadLimit');
 const liveTracking = require('../services/liveTracking');
+const doorPayment = require('../services/doorPayment');
+const { haversineKm } = require('../utils/geo');
 const { wrap, httpError } = apiErrors;
 const isId = (v) => typeof v === 'string' && mongoose.isValidObjectId(v);
 const clamp = (n, min, max) => Math.min(Math.max(n, min), max);
 
 const OPEN = ['accepted', 'preparing', 'out_for_delivery'];
 const MAX_PIN_TRIES = 5;
+const MAX_DELIVER_M = 300;          // marking delivered from farther than this from the customer's pin needs a tap on "deliver anyway"
+const GPS_FRESH_MS = 5 * 60 * 1000;  // the last position sent to the server counts if it is this fresh
 const REASONS = ['cannot_reach', 'customer_not_answering', 'wrong_address', 'other'];
 const IST = 330 * 60 * 1000;
 const DAY = 24 * 60 * 60 * 1000;
@@ -48,23 +52,51 @@ const actorOf = (req) => ({
 });
 
 // what a rider may see. Customer name, phone and full address only after he accepted.
-function riderView(o) {
+// ctx: { shop (the tenant), earnPaise (what a delivery pays him now) }
+function riderView(o, ctx = {}) {
     const d = o.delivery || {};
     const accepted = ['accepted', 'picked_up'].includes(d.status);
     const cod = o.payment?.method === 'cod' && o.payment?.status !== 'paid';
+    const spot = Number.isFinite(o.address?.latitude) && Number.isFinite(o.address?.longitude) ? { latitude: o.address.latitude, longitude: o.address.longitude } : null;
+    const from = ctx.shop?.delivery || {};
+    const distanceKm = spot && Number.isFinite(from.latitude) && Number.isFinite(from.longitude)
+        ? Math.round(haversineKm(from.latitude, from.longitude, spot.latitude, spot.longitude) * 10) / 10 : null;
+    const qr = d.doorQr;
     return {
         id: o._id, orderNo: o.orderNo, status: o.status, createdAt: o.createdAt,
         items: (o.items || []).map((i) => ({ name: i.name, quantity: i.quantity })),
         note: o.note || null,
         customer: accepted ? { name: o.customer?.name, phone: o.customer?.phone } : null,
         address: accepted ? o.address : { city: o.address?.city, pincode: o.address?.pincode, landmark: o.address?.landmark },
-        payment: { method: o.payment?.method, collectAmount: cod ? o.pricing?.total : 0 },
+        payment: { method: o.payment?.method, collectAmount: cod ? o.pricing?.total : 0, paidAtDoor: !!o.payment?.paidAtDoor },
+        distanceKm,                                  // shop to the customer, in a straight line
+        earnPaise: ctx.earnPaise || 0,               // what this delivery pays him (information)
+        destination: accepted ? spot : null,         // the customer's pin, for the map
+        doorPay: {
+            canStart: cod && d.status === 'picked_up' && o.status === 'out_for_delivery',
+            qr: cod && doorPayment.isOpen(qr) ? doorPayment.qrView(qr) : null,
+        },
         delivery: {
             status: d.status, offerExpiresAt: d.offerExpiresAt || (d.broadcast?.active ? d.broadcast.expiresAt : null) || null,
-            pinRequired: !!d.pinRequired, deliveredAt: d.deliveredAt || null,
+            pinRequired: !!d.pinRequired, deliveredAt: d.deliveredAt || null, collectedAt: d.pickedUpAt || null, arrivedAt: d.arrivedAt || null,
             proof: d.proof?.url ? { url: d.proof.url, at: d.proof.at } : null,
         },
     };
+}
+
+// the view function for this request (the shop and what a delivery pays are looked up once)
+const viewer = async (req) => {
+    const earnPaise = await riderEarnings.payPerDeliveryPaise(req.tenant._id).catch(() => 0);
+    return (o) => riderView(o, { shop: req.tenant, earnPaise });
+};
+
+// where the rider is right now: the phone's position sent with the request, else the last one the server has (if fresh)
+async function whereIsHe(req) {
+    const b = req.body || {};
+    if (Number.isFinite(b.lat) && Number.isFinite(b.lng) && Math.abs(b.lat) <= 90 && Math.abs(b.lng) <= 180) return { lat: b.lat, lng: b.lng };
+    const r = await Rider.findOne({ tenantId: req.tenant._id, userId: req.riderId }).select('lastLocation').lean();
+    const l = r?.lastLocation;
+    return l?.at && Number.isFinite(l.lat) && Date.now() - new Date(l.at).getTime() < GPS_FRESH_MS ? { lat: l.lat, lng: l.lng } : null;
 }
 
 const findMine = async (req) => {
@@ -82,7 +114,7 @@ core.get('/me', wrap(async (req, res) => {
     const r = await Rider.findOne({ tenantId: req.tenant._id, userId: req.riderId }).lean();
     if (!r) throw httpError(404, 'Rider not found');
     res.json({
-        userId: r.userId, name: r.name || null, phone: req.riderPhone, shop: req.tenant.name,
+        userId: r.userId, name: r.name || null, phone: req.riderPhone, shop: req.tenant.name, shopPhone: req.tenant.phone || null,
         isActive: r.isActive, isOnline: r.isOnline, vehicle: r.vehicle || null, photo: r.photo || null,
         activeOrderCount: r.activeOrderCount, ratingAvg: r.ratingAvg, ratingCount: r.ratingCount,
     });
@@ -218,18 +250,20 @@ core.get('/orders', wrap(async (req, res) => {
     ]);
     const hasMore = items.length > limit;
     if (hasMore) items.pop();
-    res.json({ items: items.map(riderView), counts: { offered: nOffered, active: nActive }, page, hasMore });
+    const view = await viewer(req);
+    res.json({ items: items.map(view), counts: { offered: nOffered, active: nActive }, page, hasMore });
 }));
 
 core.get('/orders/:id', wrap(async (req, res) => {
-    res.json(riderView((await findMine(req)).toObject()));
+    const view = await viewer(req);
+    res.json(view((await findMine(req)).toObject()));
 }));
 
 core.post('/orders/:id/accept', wrap(async (req, res) => {
     if (!isId(req.params.id)) throw httpError(404, 'Order not found');
     const order = await assignment.accept({ orderId: req.params.id, tenantId: req.tenant._id, riderUserId: req.riderId });
     res.locals.auditAction = `RIDER_ACCEPT (order #${order.orderNo})`;
-    res.json(riderView(order.toObject()));
+    res.json((await viewer(req))(order.toObject()));
 }));
 
 core.post('/orders/:id/reject', wrap(async (req, res) => {
@@ -245,14 +279,68 @@ core.post('/orders/:id/pickup', wrap(async (req, res) => {
     const order = await findMine(req);
     const updated = await orderStatus.change({ order, status: 'out_for_delivery', actor: actorOf(req) });
     res.locals.auditAction = `RIDER_PICKUP (order #${updated.orderNo})`;
-    res.json(riderView(updated.toObject()));
+    res.json((await viewer(req))(updated.toObject()));
 }));
 
 // { "pin": "1234" }  (when the shop uses the delivery PIN)
+// "I have arrived": the time is kept (waiting time, and the owner can see it). Safe to tap twice.
+core.post('/orders/:id/arrived', wrap(async (req, res) => {
+    const order = await findMine(req);
+    if (order.delivery?.status !== 'picked_up' || order.status !== 'out_for_delivery') throw httpError(409, 'Collect the order from the shop first');
+    await Order.updateOne({ _id: order._id, tenantId: req.tenant._id, 'delivery.arrivedAt': { $exists: false } }, { $set: { 'delivery.arrivedAt': new Date() } });
+    liveFeed.emit(req.tenant._id, 'riders', { type: 'rider.arrived', orderNo: order.orderNo, riderId: String(req.riderId) });
+    res.locals.auditAction = `RIDER_ARRIVED (order #${order.orderNo})`;
+    res.json((await viewer(req))((await findMine(req)).toObject()));
+}));
+
+// He cannot do this delivery after all, and has NOT collected the food yet: the order goes back to the other riders and the
+// owner is told. After pickup the food must come back, so he calls the shop (the problem button) instead.
+core.post('/orders/:id/release', wrap(async (req, res) => {
+    const order = await findMine(req);
+    if (order.delivery?.status !== 'accepted' || order.status === 'out_for_delivery') throw httpError(409, 'You have the food now. Call the shop to decide what to do.');
+    const note = String(req.body?.note || '').trim().slice(0, 120);
+    await assignment.unassign({ orderId: order._id, tenantId: req.tenant._id, reason: `Rider gave it back${note ? `: ${note}` : ''}`, actor: actorOf(req) });
+    assignment.startBroadcast({ orderId: order._id, tenantId: req.tenant._id, excludeRiderId: req.riderId })
+        .catch((e) => console.error('Rider broadcast error:', e.message));
+    notify.riderProblem({ tenantId: req.tenant._id, orderId: order._id, orderNo: order.orderNo, riderUserId: req.riderId, reason: 'released', note });
+    res.locals.auditAction = `RIDER_RELEASED (order #${order.orderNo})`;
+    res.json({ ok: true });
+}));
+
+// A Cash on delivery customer wants to pay online at the door: a QR for the exact amount (see services/doorPayment.js).
+core.post('/orders/:id/door-pay', wrap(async (req, res) => {
+    const order = await findMine(req);
+    const qr = await doorPayment.start({ order, tenant: req.tenant });
+    res.locals.auditAction = `RIDER_DOOR_QR (order #${order.orderNo})`;
+    res.status(201).json({ qr });
+}));
+// has it been paid? (asks Razorpay now, so the rider never waits for a late webhook)
+core.get('/orders/:id/door-pay', wrap(async (req, res) => {
+    res.json(await doorPayment.check({ order: await findMine(req), tenant: req.tenant }));
+}));
+
 core.post('/orders/:id/deliver', wrap(async (req, res) => {
     const order = await findMine(req);
     if (order.delivery?.status !== 'picked_up' || order.status !== 'out_for_delivery') {
         throw httpError(409, 'Mark the order as picked up first');
+    }
+    // Where is he? A phone far from the customer's pin must tap "deliver anyway" (and the owner can see it was flagged).
+    let point = null;
+    if (req.actor?.type !== 'superadmin') {
+        const dest = order.address || {};
+        if (Number.isFinite(dest.latitude) && Number.isFinite(dest.longitude)) {
+            const here = await whereIsHe(req);
+            if (here) {
+                const distanceM = Math.round(haversineKm(here.lat, here.lng, dest.latitude, dest.longitude) * 1000);
+                point = { lat: here.lat, lng: here.lng, distanceM, far: distanceM > MAX_DELIVER_M, noGps: false };
+                if (point.far && req.body?.farOk !== true) {
+                    const away = distanceM >= 1000 ? `${(distanceM / 1000).toFixed(1)} km` : `${distanceM} m`;
+                    throw Object.assign(httpError(409, `You seem to be ${away} from the customer.`), { extra: { code: 'TOO_FAR', distanceM } });
+                }
+            } else {
+                point = { noGps: true, far: false };   // no position at all: allowed, but flagged
+            }
+        }
     }
     if (order.delivery.pinRequired) {
         // count the try first (atomic), so the PIN cannot be guessed by many fast requests
@@ -267,9 +355,14 @@ core.post('/orders/:id/deliver', wrap(async (req, res) => {
         // (the superadmin acting as the rider has no camera, and the owner completes orders on his own route)
         throw httpError(409, 'Take a photo of the food handed over before marking it delivered');
     }
+    if (order.delivery?.doorQr?.qrId) await doorPayment.closeOpen({ order, tenantId: req.tenant._id });   // he takes cash after all: the QR must not stay open
     const updated = await orderStatus.change({ order, status: 'delivered', actor: actorOf(req) });
+    if (point) {
+        await Order.updateOne({ _id: order._id, tenantId: req.tenant._id }, { $set: { 'delivery.deliveredPoint': { ...point, at: new Date() } } });
+        if (point.far || point.noGps) liveFeed.emit(req.tenant._id, 'orders', { type: 'delivery.flagged', orderNo: updated.orderNo, distanceM: point.distanceM, noGps: !!point.noGps });
+    }
     res.locals.auditAction = `RIDER_DELIVERED (order #${updated.orderNo})`;
-    res.json(riderView(updated.toObject()));
+    res.json((await viewer(req))(updated.toObject()));
 }));
 
 // { "reason": "cannot_reach", "note": "gate is locked" }
