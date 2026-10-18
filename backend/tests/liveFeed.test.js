@@ -111,10 +111,9 @@ describe('live picture of a shop', () => {
             pricing: { subtotal: 200, discount: 20, packagingCharge: 10, total: 190 },
             billing: { billable: true, at: new Date(), reason: 'delivered' },
         });
-        await Rider.updateOne(
-            { tenantId: w.tenant._id, userId: w.rider.user._id },
-            { $set: { isOnline: true, lastLocation: { lat: 26.1, lng: 82.2, at: new Date() } } },
-        );
+        await Rider.updateOne({ tenantId: w.tenant._id, userId: w.rider.user._id }, { $set: { isOnline: true } });
+        const trip = await f.makeOrder(w.tenant, w.customer.user, { status: 'out_for_delivery', delivery: { riderId: w.rider.user._id, status: 'picked_up' } });
+        await require('../src/services/liveTracking').ingest({ tenantId: w.tenant._id, riderId: w.rider.user._id, body: { lat: 26.1, lng: 82.2 }, via: 'socket' });   // the position is memory only
         liveFeed.emit(w.tenant._id, 'orders', { type: 'order.test1' });
         liveFeed.emit(w.tenant._id, 'sms', { type: 'sms.test2' });
         await f.waitFor(async () => (await feedCount(w.tenant._id)) === 2);
@@ -122,7 +121,7 @@ describe('live picture of a shop', () => {
         const res = await request(app).get(`/api/admin/tenants/${w.tenant._id}/live`).set(bearer(token));
         assert.equal(res.status, 200);
         assert.equal(res.body.orders.active.placed, 1);
-        assert.equal(res.body.orders.activeTotal, 1);
+        assert.equal(res.body.orders.activeTotal, 2);   // the placed order and the one on its way (the rider's live position needs it)
         assert.equal(res.body.revenueToday, 190);
         assert.equal(res.body.billable.today, 1);
         assert.equal(res.body.billable.month, 1);

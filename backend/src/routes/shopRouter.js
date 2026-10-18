@@ -143,17 +143,19 @@ router.patch('/orders/:id/status', wrap(async (req, res) => {
 // The owner must be able to settle cash with riders, manage riders, see his money and top up SMS.
 const openWhilePaused = ownerChain(requireShopAdmin.allowPaused);
 
-// Owner map: riders with a location from the last 5 minutes. Must stay above the /riders mount below.
+// Owner map: riders whose live position (memory, from the socket) is from the last 5 minutes. Must stay above the /riders mount below.
 router.get('/riders/locations', openWhilePaused, wrap(async (req, res) => {
-    const since = new Date(Date.now() - 5 * 60000);
-    const items = await Rider.find({
-        tenantId: req.tenant._id, isActive: true, 'lastLocation.at': { $gte: since },
-    }).select('userId name isOnline activeOrderCount lastLocation').lean();
+    const liveTracking = require('../services/liveTracking');
+    const riders = await Rider.find({ tenantId: req.tenant._id, isActive: true, $or: [{ isOnline: true }, { activeOrderCount: { $gt: 0 } }] })
+        .select('userId name isOnline activeOrderCount').lean();
     res.json({
-        items: items.map((r) => ({
-            riderId: r.userId, name: r.name || null, isOnline: r.isOnline, activeOrderCount: r.activeOrderCount,
-            ...(() => { const p = require('../services/liveTracking').newest(r.userId, r.lastLocation); return { lat: p.lat, lng: p.lng, at: p.at, heading: p.heading ?? null }; })(),
-        })),
+        items: riders
+            .map((r) => ({ r, p: liveTracking.latestFor(r.userId) }))
+            .filter(({ p }) => p)
+            .map(({ r, p }) => ({
+                riderId: r.userId, name: r.name || null, isOnline: r.isOnline, activeOrderCount: r.activeOrderCount,
+                lat: p.lat, lng: p.lng, at: p.at, heading: p.heading ?? null,
+            })),
     });
 }));
 // The live picture of the shop: order counts, riders, billable orders, revenue, SMS balance, last 50 feed lines

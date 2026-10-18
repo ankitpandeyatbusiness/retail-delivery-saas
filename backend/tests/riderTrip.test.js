@@ -12,6 +12,7 @@ const payments = require('../src/services/adapters/payments');
 const accounts = require('../src/services/paymentAccounts');
 const doorPayment = require('../src/services/doorPayment');
 const Tenant = require('../src/models/Tenant');
+const liveTracking = require('../src/services/liveTracking');
 const Order = require('../src/models/Order');
 const Rider = require('../src/models/Rider');
 const OnlinePayment = require('../src/models/OnlinePayment');
@@ -108,7 +109,8 @@ describe('delivery needs the rider to be near the customer', () => {
 
     test('no position at all: it is allowed, and flagged "no GPS"; an old position does not count', async () => {
         const o = await trip();
-        await Rider.updateOne({ tenantId: w.tenant._id, userId: w.rider.user._id }, { $set: { lastLocation: { lat: 26.4499, lng: 80.3319, at: new Date(Date.now() - 20 * 60000) } } });
+        // an old position (older than a few minutes) does not count
+        liveTracking.reset();
         const r = await rider('post', `/orders/${o._id}/deliver`, {});
         assert.equal(r.status, 200, JSON.stringify(r.body));
         assert.equal((await Order.findById(o._id)).delivery.deliveredPoint.noGps, true);
@@ -116,7 +118,7 @@ describe('delivery needs the rider to be near the customer', () => {
 
     test('a fresh server position is used when the phone sends none', async () => {
         const o = await trip();
-        await Rider.updateOne({ tenantId: w.tenant._id, userId: w.rider.user._id }, { $set: { lastLocation: { ...{ lat: 26.4499, lng: 80.3319 }, at: new Date() } } });
+        await liveTracking.ingest({ tenantId: w.tenant._id, riderId: w.rider.user._id, body: { lat: 26.4499, lng: 80.3319 }, via: 'socket' });   // the live position, in memory
         assert.equal((await rider('post', `/orders/${o._id}/deliver`, {})).body.code, 'TOO_FAR');
     });
 });

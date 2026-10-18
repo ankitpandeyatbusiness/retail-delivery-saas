@@ -263,12 +263,7 @@ async function change({ order, status, actor, note, tenant, reasonCode }) {
             { tenantId: updated.tenantId, userId: updated.delivery.riderId, activeOrderCount: { $gt: 0 } },
             { $inc: { activeOrderCount: -1 } },
         ).catch(logError('Rider count error'));
-        // last order finished: forget the saved location
-        await Rider.updateOne(
-            { tenantId: updated.tenantId, userId: updated.delivery.riderId, activeOrderCount: 0 },
-            { $unset: { lastLocation: 1 } },
-        ).catch(logError('Rider location clear error'));
-        // and the live position in memory goes too
+        // last order finished: the live position in memory goes (nothing is saved in the database)
         if (await Rider.exists({ tenantId: updated.tenantId, userId: updated.delivery.riderId, activeOrderCount: 0 }).catch(() => null)) liveTracking.forget(updated.delivery.riderId);
     }
     if (status === 'delivered' && updated.delivery?.riderId && updated.delivery.cashCollectedPaise > 0) {

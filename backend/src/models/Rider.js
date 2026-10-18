@@ -10,7 +10,7 @@ const riderSchema = new mongoose.Schema({
     vehicle: { type: { type: String, trim: true, maxlength: 20 }, number: { type: String, trim: true, maxlength: 20 } },
     photo: String,
     pay: mongoose.Schema.Types.Mixed,   // his own pay plan (services/riderPay.js); empty = the shop's plan
-    lastLocation: { lat: Number, lng: Number, at: Date },
+    lastLocation: { lat: Number, lng: Number, at: Date },   // OLD: no longer written. The live position is memory only (services/liveTracking.js)
     activeOrderCount: { type: Number, default: 0, min: 0 },   // offered + accepted + picked up
     ratingAvg: { type: Number, default: 0 },
     ratingCount: { type: Number, default: 0 },

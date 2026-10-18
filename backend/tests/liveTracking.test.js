@@ -148,25 +148,21 @@ describe('opening the map', () => {
         assert.equal(t.body.riderLocation.lat, 26.84);
         const m = await request(app).get('/api/shop/riders/locations').set(w.owner.headers);
         assert.equal(m.status, 200);
-        assert.equal(m.body.items.length, 0);   // the database is only written every 10 seconds ...
-        await liveTracking.flush(Date.now() + 20000);
-        const m2 = await request(app).get('/api/shop/riders/locations').set(w.owner.headers);
-        assert.equal(m2.body.items[0].lat, 26.84);   // ... and then the owner map has it too
+        assert.equal(m.body.items[0].lat, 26.84);   // the owner map has it at once: it reads the live position, not the database
     });
 });
 
-describe('the database is written in batches', () => {
-    test('many pings are one write per rider per 10 seconds, and the memory is cleared when the last order is done', async () => {
+describe('the database is never written for a position', () => {
+    test('many pings write nothing to the database, and the memory is cleared when the last order is done', async () => {
         const t0 = Date.now();
         for (let i = 0; i < 3; i += 1) {   // three pings 3 seconds apart (the clock is passed in, so the test is fast)
             const r = await liveTracking.ingest({ tenantId: w.tenant._id, riderId: w.rider.user._id, body: { lat: 26.84 + i / 10000, lng: 80.94 }, via: 'socket', now: t0 + i * 3000 });
             assert.equal(r.saved, true);
         }
-        assert.equal((await Rider.findOne({ userId: w.rider.user._id }).lean()).lastLocation, undefined);   // nothing written yet
-        assert.equal(await liveTracking.flush(Date.now() + 1), 1);
-        assert.equal(await liveTracking.flush(Date.now() + 2), 0);   // nothing new: no second write
-        const saved = await Rider.findOne({ userId: w.rider.user._id }).lean();
-        assert.ok(Math.abs(saved.lastLocation.lat - 26.8402) < 1e-6);
+        assert.ok(liveTracking.latestFor(w.rider.user._id));
+        assert.equal((await Rider.findOne({ userId: w.rider.user._id }).lean()).lastLocation, undefined);   // nothing was written, now or later
+        await liveTracking.flush(Date.now() + 20000);
+        assert.equal((await Rider.findOne({ userId: w.rider.user._id }).lean()).lastLocation, undefined);
 
         const orderStatus = require('../src/services/orderStatusService');
         const Order = require('../src/models/Order');
@@ -176,7 +172,7 @@ describe('the database is written in batches', () => {
 });
 
 describe('a crowd', () => {
-    test('150 phones watching one order all get every ping, and the database still takes one write', async () => {
+    test('150 phones watching one order all get every ping, and the database takes no write', async () => {
         const crowd = [];
         for (let i = 0; i < 150; i += 1) crowd.push(connectAs(w.customer));
         const phones = await Promise.all(crowd);
@@ -191,7 +187,7 @@ describe('a crowd', () => {
         }
         await f.waitFor(async () => got.every((n) => n === 10), 5000);
         assert.ok(got.every((n) => n === 10), `some phones missed pings: ${got.filter((n) => n !== 10).length}`);
-        assert.equal(await liveTracking.flush(t0 + 40000), 1);   // ten pings, one database write
+        assert.equal((await Rider.findOne({ userId: w.rider.user._id }).lean()).lastLocation, undefined);   // ten pings, no database write
     });
 });
 

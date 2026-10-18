@@ -9,7 +9,7 @@ No timer polling in the live path. If a socket cannot be used, the apps poll lig
 ## Phases
 | Phase | What | Status |
 |---|---|---|
-| 1 | Server foundation: socket ping from the rider, memory + batched database writes, last position on join, connection cap, degraded mode, kill switch, tests | **done** |
+| 1 | Server foundation: socket ping from the rider, memory only (no database writes), last position on join, connection cap, degraded mode, kill switch, tests | **done** |
 | 2 | Road route and arrival time (with a monthly cap and a straight-line fallback), arrival pushes, "reconnecting" when a rider goes quiet | **done** |
 | 3 | Rider background service (foreground notification, GPS + socket with the screen off, permission and battery guide). Needs a new Android build | **done (code); needs a new build and a phone test** |
 | 4 | Customer live-order bar and the draggable map sheet (full / half / minimised), polling fallback in the app | **done (code); phone test pending** |
@@ -20,7 +20,7 @@ No timer polling in the live path. If a socket cannot be used, the apps poll lig
 - **Rider to server:** `emit('rider:ping', { lat, lng, heading?, speed?, accuracy? }, ack)` on the rider's socket. The web request `POST /api/rider/location` is the fallback and goes through the same code (`services/liveTracking.js`). Rules: a position is kept only while the rider has an order on the way (`out_for_delivery` and picked up) and the shop's live tracking is on; pings closer than 2 seconds are dropped; a socket may send at most one ping per 1.5 seconds (a bucket of 20).
 - **Server to apps:** each accepted ping is sent at once to the room `order:<id>` as `rider:location { orderId, lat, lng, heading, speed, accuracy, at, seq }`. The direction (`heading`) is worked out from the last two points when the phone does not send one.
 - **Joining late:** when someone joins an order's room (`order:join`) the last known position is sent to that socket at once.
-- **Database:** the newest position of every rider lives in memory. A timer writes the changed ones in one batch at most every 10 seconds per rider. The order tracking page and the owner map read the live (memory) position first, so they are never behind. When the last order of a rider ends, his position is forgotten.
+- **Database: none.** The newest position of every rider lives in memory only and travels over the socket (changed 2026-10-18; before, a batch wrote it to `Rider.lastLocation` every 10 seconds). The order tracking page, the owner map, the owner's rider list and the delivery location check all read the live (memory) position. A server restart empties it and the map waits for the next ping (a few seconds). When the last order of a rider ends, his position is forgotten. `Rider.lastLocation` is an old field that nothing writes or reads any more.
 - **Protection** (`services/trackingGuard.js`):
   - New sockets are refused with the error `SERVER_BUSY` (or `TRACKING_OFF`) and `err.data { mode, pollSec, retryAfterSec }` when the mode is not "socket" or the socket cap (default 400) is reached. A superadmin socket is never refused.
   - A watchdog watches the event loop (answers 300 ms late three times) and memory (above 85%). If the server struggles it switches to polling by itself for 2 minutes, then returns.

@@ -1,8 +1,9 @@
 // A rider's live position. It comes in over the rider's socket (`rider:ping`) or, as the fallback, over a normal web request
 // (POST /api/rider/location); both go through ingest(), so the rules are the same.
 //
-//   - the NEWEST position of every rider lives in memory; the database is written at most every FLUSH_MS per rider (not on every
-//     ping), which is what keeps a small server and a small database healthy
+//   - the NEWEST position of every rider lives in MEMORY ONLY and travels over the socket. The database is never written for a
+//     position (no row per ping, no "last location" field), so tracking costs the database nothing. After a server restart the
+//     map waits for the next ping (a few seconds)
 //   - every ping is pushed at once to the people watching the order (`rider:location` to the room order:<id>)
 //   - a position is accepted only while the rider has an order on the way, and only if the shop has live tracking on
 //   - someone who opens the map gets the last known position immediately (latestFor)
@@ -14,7 +15,6 @@ const guard = require('./trackingGuard');
 const tripEta = require('./tripEta');
 
 const MIN_GAP_MS = 2000;            // faster pings than this are dropped
-const FLUSH_MS = 10000;             // the database is written at most this often per rider
 const ORDERS_TTL_MS = 10000;        // a rider's orders on the way are looked up at most this often
 const SHOP_TTL_MS = 60000;
 const KEEP_MS = 6 * 3600 * 1000;    // positions older than this are forgotten
@@ -102,7 +102,6 @@ async function ingest({ tenantId, riderId, body, via = 'http', now = Date.now() 
 
     latest.set(key, {
         tenantId: String(tenantId), lat, lng, heading, speed, accuracy, at, t: now, seq,
-        flushedAt: prev?.flushedAt || 0, dirty: true,
     });
     guard.counters.pings += 1;
     if (via === 'http') guard.counters.httpFallbacks += 1;
@@ -127,12 +126,10 @@ function latestFor(riderId) {
     return { lat: p.lat, lng: p.lng, heading: p.heading ?? null, speed: p.speed ?? null, at: p.at, seq: p.seq };
 }
 
-// Replace a saved position (from the database) by the live one when the live one is newer
-function newest(riderId, saved) {
+// The rider's position right now (memory). The second argument is kept for older callers and ignored: nothing is saved to the database.
+function newest(riderId) {
     const live = latestFor(riderId);
-    if (!live) return saved || null;
-    if (saved?.at && new Date(saved.at).getTime() > new Date(live.at).getTime()) return saved;
-    return { lat: live.lat, lng: live.lng, at: live.at, heading: live.heading, speed: live.speed };
+    return live ? { lat: live.lat, lng: live.lng, at: live.at, heading: live.heading, speed: live.speed } : null;
 }
 
 // somebody joined an order's room: tell only that socket where the rider is now
@@ -143,26 +140,20 @@ function sendSnapshot(socket, orderId, riderId) {
     } catch (e) { /* the map just waits for the next ping */ }
 }
 
-/* ------------------------------ saving to the database, in batches ------------------------------ */
+/* ------------------------------ housekeeping (memory only) ------------------------------ */
+// Forgets positions nobody has updated for hours and old cached order lists. No database call. Returns how many positions were forgotten.
 async function flush(now = Date.now()) {
-    const ops = [];
+    let gone = 0;
     for (const [riderId, p] of latest) {
-        if (now - p.t > KEEP_MS) { latest.delete(riderId); continue; }
-        if (!p.dirty || now - p.flushedAt < FLUSH_MS) continue;
-        ops.push({ updateOne: { filter: { tenantId: p.tenantId, userId: riderId }, update: { $set: { lastLocation: { lat: p.lat, lng: p.lng, at: p.at } } } } });
-        p.dirty = false;
-        p.flushedAt = now;
-    }
-    if (ops.length) {
-        try { await Rider.bulkWrite(ops, { ordered: false }); } catch (e) { console.error('Live tracking save error:', e.message); }
+        if (now - p.t > KEEP_MS) { latest.delete(riderId); gone += 1; }
     }
     for (const [k, v] of ordersCache) if (now - v.at > 5 * 60000) ordersCache.delete(k);
-    return ops.length;
+    return gone;
 }
 
 function startFlusher() {
     if (flushTimer) return;
-    flushTimer = setInterval(() => { flush().catch(() => { }); }, 5000);
+    flushTimer = setInterval(() => { flush().catch(() => { }); }, 60000);
     flushTimer.unref?.();
 }
 function stopFlusher() { if (flushTimer) clearInterval(flushTimer); flushTimer = null; }
@@ -178,4 +169,4 @@ function orderChanged(riderId) { if (riderId) ordersCache.delete(String(riderId)
 const reset = () => { latest.clear(); ordersCache.clear(); shopCache.clear(); stopFlusher(); tripEta.reset(); };
 const size = () => latest.size;
 
-module.exports = { ingest, latestFor, newest, sendSnapshot, flush, forget, orderChanged, reset, size, stopFlusher, bearing, metres, MIN_GAP_MS, FLUSH_MS };
+module.exports = { ingest, latestFor, newest, sendSnapshot, flush, forget, orderChanged, reset, size, stopFlusher, bearing, metres, MIN_GAP_MS };

@@ -108,7 +108,7 @@ async function main() {
     const expected = trips.reduce((a, t) => a + t.watchers.length * saved / trips.length, 0);
     const received = trips.reduce((a, t) => a + t.watchers.reduce((b, w) => b + w.mine.n, 0), 0);
     const stats = guard.stats();
-    const writes = await liveTracking.flush(Date.now() + 60000);
+    await liveTracking.flush(Date.now() + 60000);   // memory housekeeping only: no position is ever written to the database
     console.log('\n=========== RESULT ===========');
     console.log(`Positions sent by riders:     ${sent} (${saved} accepted)`);
     console.log(`Watchers got them:            ${received} of about ${Math.round(expected)} expected (${expected ? Math.round((received / expected) * 100) : 100}%)`);
@@ -116,7 +116,7 @@ async function main() {
     console.log(`Server delay (event loop):    mean ${(lag.mean / 1e6).toFixed(1)} ms, worst ${(lag.max / 1e6).toFixed(0)} ms`);
     console.log(`Memory growth:                ${Math.round((process.memoryUsage().heapUsed - heap0) / 1048576)} MB`);
     console.log(`Refused at the cap:           ${refused} (would fall back to polling)`);
-    console.log(`Still to save at the end:     ${writes} riders (the rest were already saved in batches, at most one write per rider every 10 s)`);
+    console.log('Database writes for positions: 0 (positions live in memory and on the socket only)');
     console.log(`Server switched to polling:   ${stats.autoUntil ? 'YES (watchdog)' : 'no'}`);
     const bad = received < expected * 0.99 || pct(latencies, 95) > 1000;
     console.log(bad ? '\nVERDICT: PROBLEM. Positions were missed or slow. Lower the cap or add a paid server.' : '\nVERDICT: OK for this load.');

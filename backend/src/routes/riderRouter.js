@@ -97,9 +97,8 @@ const viewer = async (req) => {
 async function whereIsHe(req) {
     const b = req.body || {};
     if (Number.isFinite(b.lat) && Number.isFinite(b.lng) && Math.abs(b.lat) <= 90 && Math.abs(b.lng) <= 180) return { lat: b.lat, lng: b.lng };
-    const r = await Rider.findOne({ tenantId: req.tenant._id, userId: req.riderId }).select('lastLocation').lean();
-    const l = r?.lastLocation;
-    return l?.at && Number.isFinite(l.lat) && Date.now() - new Date(l.at).getTime() < GPS_FRESH_MS ? { lat: l.lat, lng: l.lng } : null;
+    const l = liveTracking.latestFor(req.riderId);   // the live position (memory); null when it is older than a few minutes
+    return l && Date.now() - new Date(l.at).getTime() < GPS_FRESH_MS ? { lat: l.lat, lng: l.lng } : null;
 }
 
 const findMine = async (req) => {

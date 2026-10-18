@@ -112,7 +112,8 @@ async function list(tenantId) {
         userId: r.userId, name: r.name || null, phone: phoneOf.get(String(r.userId)) || null,
         email: emailOf.get(String(r.userId)) || null,
         isActive: r.isActive, isOnline: r.isOnline, vehicle: r.vehicle || null, photo: r.photo || null,
-        lastLocation: r.lastLocation || null, activeOrderCount: r.activeOrderCount,
+        lastLocation: (() => { const p = require('./liveTracking').latestFor(r.userId); return p ? { lat: p.lat, lng: p.lng, at: p.at } : null; })(),   // live, from memory
+        activeOrderCount: r.activeOrderCount,
         payLabel: require('./riderPay').describe(require('./riderPay').effectivePlan(shopRiders, r)), ownPay: !!r.pay?.type,
         ratingAvg: r.ratingAvg, ratingCount: r.ratingCount, faultCount: r.faultCount || 0,
         activeOrders: byRider.get(String(r.userId)) || [],
