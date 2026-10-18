@@ -187,7 +187,7 @@ function LiveOrderCard({ o, onOpen }) {
                 <View style={[s.row, { marginTop: 14 }]}>
                     <Text style={[s.liveItems, { color: onPrimary }]} numberOfLines={1}>{itemsText(o)}</Text>
                     <View style={s.liveBtn}>
-                        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} style={[s.liveBtnTxt, { color: primary }]}>{tr('Track')}</Text>
+                        <Text numberOfLines={1} style={[s.liveBtnTxt, { color: primary }]}>{tr('Track')}</Text>
                         <Ionicons name="arrow-forward" size={14} color={primary} style={{ marginLeft: 4 }} />
                     </View>
                 </View>

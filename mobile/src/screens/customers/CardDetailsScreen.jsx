@@ -169,7 +169,7 @@ export default function CardDetailsScreen() {
                     ))}
 
                     <Pressable onPress={submit} style={[s.btn, { backgroundColor: primary }]}>
-                        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} style={[s.btnTxt, { color: onPrimary }]}>{tr('Use this card')}</Text>
+                        <Text numberOfLines={1} style={[s.btnTxt, { color: onPrimary }]}>{tr('Use this card')}</Text>
                     </Pressable>
                 </ScrollView>
             </KeyboardAvoidingView>

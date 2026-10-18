@@ -76,7 +76,7 @@ export function OfflineBanner() {
     return (
         <View style={[s.off, { paddingTop: insets.top + 4 }]}>
             <Text style={s.offTxt}>{tr('You are offline. Showing saved data.')}</Text>
-            <Pressable onPress={reloadShop} hitSlop={8}><Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} style={s.offBtn}>{tr('Retry')}</Text></Pressable>
+            <Pressable onPress={reloadShop} hitSlop={8}><Text numberOfLines={1} style={s.offBtn}>{tr('Retry')}</Text></Pressable>
         </View>
     );
 }

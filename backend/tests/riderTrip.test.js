@@ -71,7 +71,7 @@ describe('the time allowed', () => {
     const routes = require('../src/services/adapters/routes');
     const plan = require('../src/services/deliveryPlan');
 
-    test('before pickup it is a local estimate that comes with the order: no Google call, no shop point, no road endpoint', async () => {
+    test('before pickup the time is a local estimate that comes with the order; the fixed road is its own call and sends no shop point', async () => {
         routes.resetForTests();
         const o = await trip({ status: 'preparing', delivery: { riderId: w.rider.user._id, status: 'accepted' } });
         const v = (await rider('get', `/orders/${o._id}`)).body;
@@ -79,8 +79,11 @@ describe('the time allowed', () => {
         assert.equal(v.delivery.plannedSec, 600);
         assert.equal(v.delivery.dueAt, null);
         assert.equal(v.pickup, undefined, 'the shop location is not sent to the rider');
-        assert.equal((await rider('get', `/orders/${o._id}/route`)).status, 404, 'there is no such endpoint any more');
-        assert.equal((await routes.stats()).calls, 0, 'Google was not called');
+        assert.equal((await routes.stats()).calls, 0, 'the order itself costs no Google call');
+        const r = await rider('get', `/orders/${o._id}/route`);
+        assert.equal(r.status, 200);
+        assert.ok(r.body.polyline && r.body.allowedSec > 0, 'the road shop -> customer and the time allowed');
+        assert.equal(r.body.shop, undefined, 'the shop location is sent only as a road, never as a point');
     });
 
     test('a shop with no pin on the map: no estimate, and nothing breaks', async () => {

@@ -338,7 +338,7 @@ export function Chip({ label, on, onPress, badge, icon }) {
     return (
         <Pressable onPress={onPress} style={[s.chip, { backgroundColor: on ? primary : surface, borderColor: on ? primary : border }]}>
             {icon ? <Ionicons name={icon} size={14} color={fg} style={{ marginRight: 5 }} /> : null}
-            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} style={[s.chipTxt, { color: fg }]}>{label}</Text>
+            <Text numberOfLines={1} style={[s.chipTxt, { color: fg }]}>{label}</Text>
             {badge ? <View style={[s.chipBadge, { backgroundColor: primary }]}><Text style={[s.cBadgeTxt, { color: onPrimary }]}>{badge}</Text></View> : null}
         </Pressable>
     );

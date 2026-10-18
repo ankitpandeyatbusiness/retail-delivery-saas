@@ -8,6 +8,8 @@ export const setOnline = (isOnline) => d(api.put('/rider/online', { isOnline }))
 // tab: offered | active | history  -> { items, counts: { offered, active }, page, hasMore }
 // tab "missed": offers whose time ran out. since (ISO time): counts.missed = how many he missed after it (the History red dot)
 export const fetchRiderOrders = (tab, page = 1, since) => d(api.get('/rider/orders', { params: { tab, page, limit: 20, since } }));
+// the fixed road from the shop to the customer: { source: 'google' | 'estimate', polyline, distanceM, durationSec, allowedSec }
+export const fetchRoute = (id, lat, lng) => d(api.get(`/rider/orders/${id}/route`, { params: { lat, lng } }));
 export const acceptOrder =(id) => d(api.post(`/rider/orders/${id}/accept`));
 export const rejectOrder = (id) => d(api.post(`/rider/orders/${id}/reject`));
 export const pickupOrder = (id) => d(api.post(`/rider/orders/${id}/pickup`));

@@ -276,6 +276,19 @@ core.get('/orders/:id', wrap(async (req, res) => {
     res.json(view((await findMine(req)).toObject()));
 }));
 
+// The fixed road for the map on his phone: from the shop to the customer. The shop's location is not sent as a point, only the road.
+core.get('/orders/:id/route', wrap(async (req, res) => {
+    const order = await findMine(req);
+    if (!['accepted', 'picked_up'].includes(order.delivery?.status) || !OPEN.includes(order.status)) throw httpError(409, 'No delivery to show');
+    // a shop without a pin on the map: the road starts where the rider is
+    const lat = Number(req.query.lat);
+    const lng = Number(req.query.lng);
+    const from = Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180 ? { lat, lng } : null;
+    const result = await deliveryPlan.plan(order, req.tenant, from);
+    if (!result) throw httpError(404, 'The shop or the customer has no pin on the map');
+    res.json(result);
+}));
+
 core.post('/orders/:id/accept', wrap(async (req, res) => {
     if (!isId(req.params.id)) throw httpError(404, 'Order not found');
     const order = await assignment.accept({ orderId: req.params.id, tenantId: req.tenant._id, riderUserId: req.riderId });

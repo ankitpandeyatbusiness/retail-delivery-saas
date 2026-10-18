@@ -126,7 +126,7 @@ export default function NotificationsScreen() {
                 <View style={s.center}>
                     <Ionicons name="cloud-offline-outline" size={40} color={muted} />
                     <Text style={[s.emptyBig, { color: text }]}>{tr('Could not load notifications')}</Text>
-                    <Pressable onPress={load} style={[s.btn, { backgroundColor: primary }]}><Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} style={s.btnTxt}>{tr('Try again')}</Text></Pressable>
+                    <Pressable onPress={load} style={[s.btn, { backgroundColor: primary }]}><Text numberOfLines={1} style={s.btnTxt}>{tr('Try again')}</Text></Pressable>
                 </View>
             ) : (
                 <FlatList

@@ -197,7 +197,7 @@ export function AddButton({ item, onPress, kind = 'pill', style }) {
     } else if (kind === 'overlap') {
         inner = (
             <Pressable onPress={onPress} style={[s.overlap, { borderColor: primary, borderRadius: radius }]}>
-                <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} style={[s.overlapTxt, { color: primary }]}>{String(label).toUpperCase()}</Text>
+                <Text numberOfLines={1} style={[s.overlapTxt, { color: primary }]}>{String(label).toUpperCase()}</Text>
                 <Ionicons name="add" size={14} color={primary} style={{ marginLeft: 2 }} />
             </Pressable>
         );
@@ -207,7 +207,7 @@ export function AddButton({ item, onPress, kind = 'pill', style }) {
                 onPress={onPress}
                 style={({ pressed }) => [s.pill, { backgroundColor: primary, borderRadius: radius }, pressed && { opacity: 0.85, transform: [{ scale: 0.96 }] }]}
             >
-                <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} style={[s.pillTxt, { color: onPrimary }]}>{String(label).toUpperCase()}</Text>
+                <Text numberOfLines={1} style={[s.pillTxt, { color: onPrimary }]}>{String(label).toUpperCase()}</Text>
                 <Ionicons name="add" size={15} color={onPrimary} style={{ marginLeft: 2 }} />
             </Pressable>
         );

@@ -11,11 +11,35 @@ const Order = require('../models/Order');
 const Rider = require('../models/Rider');
 const Tenant = require('../models/Tenant');
 const routes = require('./adapters/routes');
+const polyline = require('../utils/polyline');
 
 const BUFFER_SEC = 5 * 60;
+const KEEP_MS = 30 * 60000;
+const kept = new Map();   // orderId -> { at, plan }
 
 const spot = (lat, lng) => (Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180 ? { lat, lng } : null);
 const wholeMinutes = (sec) => Math.ceil(sec / 60) * 60;
+
+// The fixed road shown on the rider's map: from the shop to the customer. One road per order (kept for 30 minutes), so Google is
+// called once per order and counted in the same monthly caps as every route; when the caps are used up or Google fails the answer is the
+// free estimate (source "estimate"). { source, polyline, distanceM, durationSec, allowedSec } or null when a pin is missing.
+// "from" is the fallback start when the shop has no pin of its own (the rider's position).
+async function plan(order, tenant, from) {
+    const key = String(order._id);
+    const hit = kept.get(key);
+    if (hit && Date.now() - hit.at < KEEP_MS) return hit.plan;
+    const a = spot(tenant?.delivery?.latitude, tenant?.delivery?.longitude) || from || null;
+    const b = spot(order.address?.latitude, order.address?.longitude);
+    if (!a || !b) return null;
+    const r = await routes.getRoute({ from: a, to: b });
+    const result = {
+        source: r.source, polyline: polyline.encode(r.points), distanceM: r.distanceM, durationSec: r.durationSec,
+        allowedSec: wholeMinutes(r.durationSec + BUFFER_SEC),
+    };
+    kept.set(key, { at: Date.now(), plan: result });
+    if (kept.size > 500) kept.delete(kept.keys().next().value);
+    return result;
+}
 
 // seconds allowed, or null when the shop or the customer has no pin on the map
 function estimateSec(order, tenant) {
@@ -77,4 +101,4 @@ async function recordDone(order) {
 // the average for the screens: minutes, or null until there is a delivery on record
 const avgMin = (r) => (r?.deliveryCount > 0 ? Math.max(1, Math.round(r.deliverySecTotal / r.deliveryCount / 60)) : null);
 
-module.exports = { estimateSec, recordStart, refineWithRoute, recordDone, avgMin, BUFFER_SEC };
+module.exports = { plan, estimateSec, recordStart, refineWithRoute, recordDone, avgMin, BUFFER_SEC };

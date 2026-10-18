@@ -22,7 +22,7 @@ export function BigButton({ label, onPress, kind = 'primary', icon, busy, disabl
             {busy ? <ActivityIndicator color={ink} /> : (
                 <>
                     {icon ? <Ionicons name={icon} size={22} color={ink} style={{ marginRight: 10 }} /> : null}
-                    <Text style={[s.bigText, { color: ink }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65}>{label}</Text>
+                    <Text style={[s.bigText, { color: ink }]} numberOfLines={1}>{label}</Text>
                 </>
             )}
         </Pressable>
@@ -35,7 +35,7 @@ export function SmallLink({ label, onPress, danger, icon }) {
     return (
         <Pressable onPress={onPress} hitSlop={8} style={({ pressed }) => [s.link, pressed && { opacity: 0.6 }]}>
             {icon ? <Ionicons name={icon} size={16} color={danger ? error : muted} style={{ marginRight: 6 }} /> : null}
-            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} style={{ color: danger ? error : muted, fontWeight: '800', fontSize: 14 }}>{label}</Text>
+            <Text numberOfLines={1} style={{ color: danger ? error : muted, fontWeight: '800', fontSize: 14 }}>{label}</Text>
         </Pressable>
     );
 }

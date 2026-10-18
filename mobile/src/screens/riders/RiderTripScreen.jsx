@@ -3,8 +3,8 @@
 //   2 On the way   "I have arrived"           (Navigate and Call are right above)
 //   3 Deliver      "Deliver"                  (PIN, or a photo, or the cash / QR when the customer pays at the door)
 // Everything else (a problem, giving the order back) is a small link, never a second big button.
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, ScrollView, Linking, TextInput, ActivityIndicator, Pressable, Animated, PanResponder } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { View, Text, ScrollView, Linking, TextInput, ActivityIndicator, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,13 +15,13 @@ import { themedAlert, ask } from '../../components/common/dialog';
 import { Card, PageHeader, Sheet, Button } from '../../components/owners/ui';
 import { PayQrSheet } from '../../components/owners/moneyBits';
 import SosSheet from '../../components/riders/SosSheet';
-import RiderJourneyMap from '../../components/riders/RiderJourneyMap';
+import RiderMap from '../../components/riders/RiderMap';
 import TripClock, { dueOf } from '../../components/riders/TripClock';
 import { onOrderEta, onRiderRoute, watchOrder } from '../../api/common/socket';
 import { BigButton, SmallLink, Banner, Steps } from '../../components/riders/riderBits';
 import { useRiderStore } from '../../store/riders/useRiderStore';
 import {
-    fetchRiderOrder, cancelDelivery, pickupOrder, markArrived, deliverOrder, reportProblem, releaseOrder, startDoorPay, checkDoorPay,
+    fetchRiderOrder, fetchRoute, cancelDelivery, pickupOrder, markArrived, deliverOrder, reportProblem, releaseOrder, startDoorPay, checkDoorPay,
 } from '../../api/riders/riderApi';
 import { takeAndUploadProof } from '../../utils/riders/riderPhotos';
 import { startRiderTracking } from '../../utils/riders/locationTask';
@@ -63,37 +63,10 @@ export default function RiderTripScreen() {
     const [eta, setEta] = useState(null);     // the server's arrival estimate, from his location
     const [liveRoute, setLiveRoute] = useState(null);   // the server's road from where he is to the customer (after pickup)
 
-    // The bottom sheet over the full-screen map: "peek" (the clock and the main button), "half", "full". The map keeps the scooter and
-    // the customer's pin in view above it. Drag the handle, or flick, to change the size.
-    const [areaH, setAreaH] = useState(0);
-    const [snap, setSnap] = useState('half');
-    const sheetY = useRef(new Animated.Value(2000)).current;
-    const sheetBase = useRef(0);
-    const snapRef = useRef(snap);
-    snapRef.current = snap;
-    const SHEET_H = Math.round(areaH * 0.94);
-    const VISIBLE = useMemo(() => ({ peek: Math.min(250, Math.round(areaH * 0.42)), half: Math.round(areaH * 0.58), full: SHEET_H }), [areaH, SHEET_H]);
-    const snapTo = useCallback((name) => {
-        const to = SHEET_H - VISIBLE[name];
-        sheetBase.current = to;
-        Animated.spring(sheetY, { toValue: to, useNativeDriver: true, bounciness: 3, speed: 16 }).start();
-    }, [sheetY, SHEET_H, VISIBLE]);
-    useEffect(() => { if (areaH) snapTo(snap); }, [snap, areaH, snapTo]);
-    const sheetPan = useMemo(() => PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 4,
-        onPanResponderGrant: () => { sheetY.stopAnimation((v) => { sheetBase.current = v; }); },
-        onPanResponderMove: (_, g) => { sheetY.setValue(Math.min(SHEET_H - VISIBLE.peek, Math.max(0, sheetBase.current + g.dy))); },
-        onPanResponderRelease: (_, g) => {
-            const visible = SHEET_H - Math.min(SHEET_H - VISIBLE.peek, Math.max(0, sheetBase.current + g.dy));
-            const order = ['peek', 'half', 'full'];
-            let i = order.indexOf(snapRef.current);
-            if (Math.abs(g.vy) > 0.6) i = Math.max(0, Math.min(2, i + (g.vy < 0 ? 1 : -1)));   // a flick goes one step
-            else i = order.map((n) => Math.abs(VISIBLE[n] - visible)).reduce((b, d, k, a) => (d < a[b] ? k : b), 0);   // a slow drag: the nearest size
-            if (order[i] === snapRef.current) snapTo(order[i]); else setSnap(order[i]);
-        },
-    }), [sheetY, SHEET_H, VISIBLE, snapTo]);
+    const [mapTouch, setMapTouch] = useState(false);   // a finger is on the map: the page behind it must not scroll
+    const [plan, setPlan] = useState(null);   // the fixed road from the shop to the customer and the time allowed (the server keeps it per order)
     const shopPhone = useRiderStore((s) => s.me?.shopPhone);
+    const shopName = useRiderStore((s) => s.me?.shop);
     const alive = useRef(true);
 
     // asks the server for the order. Returns it (or null). A failed ask with no answer at all means the phone has no network.
@@ -117,6 +90,19 @@ export default function RiderTripScreen() {
         return () => { alive.current = false; clearInterval(id); };
     }, [refresh]);
 
+
+    // the fixed road and the time allowed: asked once; tried again after 30 seconds if it failed
+    const accepted = ['accepted', 'picked_up'].includes(o?.delivery?.status);
+    useEffect(() => {
+        if (!accepted) return undefined;
+        let dead = false;
+        let timer;
+        const go = async () => {
+            try { const r = await fetchRoute(orderId); if (!dead) setPlan(r); } catch (e) { if (!dead && e?.response?.status !== 404 && e?.response?.status !== 409) timer = setTimeout(go, 30000); }
+        };
+        go();
+        return () => { dead = true; clearTimeout(timer); };
+    }, [orderId, accepted]);
 
     // on his way: the server's arrival estimate (it needs his location, which the background service sends)
     const onTheWay = o?.delivery?.status === 'picked_up';
@@ -152,9 +138,13 @@ export default function RiderTripScreen() {
     const cash = (o?.payment?.collectAmount || 0) > 0;
     const spot = o?.destination;
     // the due time (saved by the server when the food was collected; until it arrives, worked out here the same way) and the pin's text
-    const due = step >= 1 ? dueOf({ dueAt: d.dueAt, collectedAt: d.collectedAt, allowedSec: d.plannedSec }) : null;
+    const due = step >= 1 ? dueOf({ dueAt: d.dueAt, collectedAt: d.collectedAt, allowedSec: d.plannedSec || plan?.allowedSec }) : null;
     const etaMin = eta?.etaAt ? Math.max(1, Math.ceil((new Date(eta.etaAt).getTime() - Date.now()) / 60000)) : null;   // tentative minutes to reach, from his location
     const secsLeft = due ? Math.round((due - Date.now()) / 1000) : null;
+
+    const pinLabel = step === 0
+        ? ((d.plannedSec || plan?.allowedSec) ? tr('~{min} min', { min: Math.round((d.plannedSec || plan.allowedSec) / 60) }) : null)
+        : secsLeft == null ? null : secsLeft >= 0 ? tr('{min} min left', { min: Math.max(1, Math.ceil(secsLeft / 60)) }) : tr('Late');
 
     /* ---------- actions ---------- */
     // the journey starts: the order is marked collected (the customer is told). The live map below shows the road; Google Maps opens only when he taps
@@ -280,17 +270,7 @@ export default function RiderTripScreen() {
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Order #{orderNo}', { orderNo: o.orderNo })} />
             <Steps labels={STEP_LABELS} step={step} />
-            {/* full-screen map with the delivery sheet sliding over it */}
-            <View style={{ flex: 1 }} onLayout={(e) => setAreaH(Math.round(e.nativeEvent.layout.height))}>
-                <RiderJourneyMap
-                    destination={spot} route={liveRoute} onTheWay={onTheWay} customerName={o.customer?.name}
-                    bottomPad={areaH ? VISIBLE[snap] : 0} remainingM={eta?.remainingM} etaMin={etaMin}
-                />
-                <Animated.View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: SHEET_H, backgroundColor: background, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderColor: border, elevation: 16, transform: [{ translateY: sheetY }] }}>
-                    <View {...sheetPan.panHandlers} style={{ alignItems: 'center', paddingTop: 10, paddingBottom: 8 }}>
-                        <View style={{ width: 44, height: 5, borderRadius: 3, backgroundColor: border }} />
-                    </View>
-            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: 4, paddingBottom: 200 }} keyboardShouldPersistTaps="handled">
+            <ScrollView contentContainerStyle={{ paddingTop: 8, paddingBottom: 200 }} keyboardShouldPersistTaps="handled" scrollEnabled={!mapTouch}>
                 {offline ? <Banner tone="warn" icon="cloud-offline" text={T.offline} /> : null}
                 {step > 0 ? (
                     <Banner
@@ -299,10 +279,12 @@ export default function RiderTripScreen() {
                     />
                 ) : null}
 
-                {/* the time for this delivery and the way in Google Maps: the map itself is the full-screen one behind this sheet */}
+                {/* the time for this delivery, then the fixed way from the shop to the customer as a picture, and Google Maps one tap away */}
                 {!finished ? (
                     <View style={{ marginHorizontal: 16, marginBottom: 10 }}>
-                        <TripClock onTheWay={step >= 1} allowedSec={d.plannedSec} due={due} eta={eta} style={{ marginBottom: 10 }} />
+                        <TripClock onTheWay={step >= 1} allowedSec={d.plannedSec || plan?.allowedSec} due={due} eta={eta} style={{ marginBottom: 10 }} />
+                        <RiderMap destination={spot} route={onTheWay && liveRoute ? liveRoute : plan} live={onTheWay} etaMin={etaMin} label={pinLabel} height={260} onGesture={setMapTouch}
+                            startLabel={onTheWay ? tr('Your location') : shopName} endLabel={o.customer?.name || tr('Customer')} />
                         {/* always there from the moment he accepts: the journey in Google Maps, with its own turn-by-turn voice */}
                         <View style={{ marginTop: 10 }}>
                             <Button label={tr('Open in Google Maps')} icon="navigate" onPress={navigate} />
@@ -329,7 +311,7 @@ export default function RiderTripScreen() {
                         <Text style={{ color: text, fontSize: 16, fontWeight: '600', marginTop: 6, lineHeight: 23 }}>{addressLine(o.address)}</Text>
                         {o.note ? <Text style={{ color: muted, marginTop: 8, fontWeight: '600' }}>{tr('Note: {note}', { note: o.note })}</Text> : null}
                         <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
-                            <View style={{ flex: 1 }}><Button label={T.problem} icon="warning" kind="ghost" onPress={() => setSheet('problem')} /></View>
+                            <View style={{ flex: 1 }}><Button label={tr('Cancel order')} icon="close-circle" kind="ghost" onPress={() => { setCancelReason(''); setCancelNote(''); setSheet('cancel'); }} /></View>
                             {o.customer?.phone ? <View style={{ flex: 1 }}><Button label={T.call} icon="call" kind="ghost" onPress={callCustomer} /></View> : null}
                         </View>
                     </Card>
@@ -342,15 +324,20 @@ export default function RiderTripScreen() {
                     </View>
                 ) : null}
 
-                <View style={{ marginHorizontal: 16, marginTop: 4 }}>
-                    {step === 0 ? <SmallLink label={T.problem} icon="warning" danger onPress={() => setSheet('problem')} /> : null}
-                    {step >= 1 ? <SmallLink label={tr('Cancel this order')} icon="close-circle" danger onPress={() => { setCancelReason(''); setCancelNote(''); setSheet('cancel'); }} /> : null}
-                    <SmallLink label={T.sos} icon="alert-circle" danger onPress={() => setSosOpen(true)} />
-                    {step === 0 ? <SmallLink label={T.cannotDo} onPress={giveBack} /> : null}
+                {/* two clear buttons side by side: a problem with the order, and the help (SOS) button that tells the shop at once */}
+                <View style={{ marginHorizontal: 16, marginTop: 6, flexDirection: 'row', gap: 10 }}>
+                    {[['warning', T.problem, () => setSheet('problem')], ['alert-circle', T.sos, () => setSosOpen(true)]].map(([icon, label, onPress]) => (
+                        <Pressable
+                            key={icon} onPress={onPress}
+                            style={({ pressed }) => [{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, paddingHorizontal: 10, borderRadius: 14, borderWidth: 1.5, borderColor: error, backgroundColor: alpha(error, 0.08) }, pressed && { opacity: 0.6 }]}
+                        >
+                            <Ionicons name={icon} size={18} color={error} style={{ marginRight: 8 }} />
+                            <Text numberOfLines={1} style={{ color: error, fontWeight: '900', fontSize: 15, flexShrink: 1 }}>{label}</Text>
+                        </Pressable>
+                    ))}
                 </View>
+                {step === 0 ? <View style={{ marginHorizontal: 16 }}><SmallLink label={T.cannotDo} onPress={giveBack} /></View> : null}
             </ScrollView>
-                </Animated.View>
-            </View>
 
             {/* the one big button */}
             <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, paddingBottom: Math.max(insets.bottom, 16), backgroundColor: background, borderTopWidth: 1, borderTopColor: border }}>

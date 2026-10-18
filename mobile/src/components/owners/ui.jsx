@@ -44,7 +44,7 @@ export function Pill({ label, color, icon }) {
     return (
         <View style={[s.pill, { backgroundColor: alpha(c, 0.14) }]}>
             {icon ? <Ionicons name={icon} size={12} color={c} style={{ marginRight: 4 }} /> : null}
-            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} style={{ color: c, fontSize: 12, fontWeight: '800', flexShrink: 1 }}>{label}</Text>
+            <Text numberOfLines={1} style={{ color: c, fontSize: 12, fontWeight: '800', flexShrink: 1 }}>{label}</Text>
         </View>
     );
 }
@@ -67,7 +67,7 @@ export function Chips({ options, value, onChange, style }) {
                             borderColor: on ? primary : border, backgroundColor: on ? primary : 'transparent',
                         }}
                     >
-                        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={{ color: on ? onPrimary : text, fontWeight: '800', fontSize: 14 }}>{label}</Text>
+                        <Text numberOfLines={1} style={{ color: on ? onPrimary : text, fontWeight: '800', fontSize: 14 }}>{label}</Text>
                     </Pressable>
                 );
             })}
@@ -138,7 +138,7 @@ export function Button({ label, onPress, icon, kind = 'primary', busy, working, 
                     ) : icon ? (
                         <Ionicons name={icon} size={18} color={ink} style={{ alignSelf: 'stretch', textAlignVertical: 'center', paddingLeft: 18, paddingRight: 8, paddingVertical: 15 }} />
                     ) : null}
-                    <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} style={{ flexGrow: 1, flexShrink: 1, alignSelf: 'stretch', textAlign: 'center', textAlignVertical: 'center', color: ink, fontWeight: '800', fontSize: 15, paddingVertical: 14, paddingLeft: working || icon ? 0 : 18, paddingRight: working || icon ? 0 : 18 }}>{label}</Text>
+                    <Text numberOfLines={1} style={{ flexGrow: 1, flexShrink: 1, alignSelf: 'stretch', textAlign: 'center', textAlignVertical: 'center', color: ink, fontWeight: '800', fontSize: 15, paddingVertical: 14, paddingLeft: working || icon ? 0 : 18, paddingRight: working || icon ? 0 : 18 }}>{label}</Text>
                     {working || icon ? <Ionicons name={icon || 'ellipse'} size={18} color={ink} style={{ opacity: 0, alignSelf: 'stretch', textAlignVertical: 'center', paddingLeft: 8, paddingRight: 18, paddingVertical: 15 }} /> : null}
                 </>
             )}
