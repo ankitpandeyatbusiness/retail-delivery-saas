@@ -89,7 +89,7 @@ async function saveConfig(tenantId, body = {}) {
             }
         }
         if (body.frequency !== undefined) { if (!WEEKLY_CAP[body.frequency]) throw httpError(400, 'frequency must be gentle, normal or pushy'); set.frequency = body.frequency; }
-        if (body.language !== undefined) { if (!msgs.LANGUAGES.includes(body.language)) throw httpError(400, 'language must be en, hinglish or hi'); set.language = body.language; }
+        if (body.language !== undefined) { if (!msgs.LANGUAGES.includes(body.language)) throw httpError(400, 'language must be en, hinglish, hi or mixed'); set.language = body.language; }
         if (body.maxDiscount !== undefined) set.maxDiscount = intIn(body.maxDiscount, 0, 50, 'maxDiscount');
         if (body.quietFrom !== undefined) set.quietFrom = intIn(body.quietFrom, 0, 23, 'quietFrom');
         if (body.quietTo !== undefined) set.quietTo = intIn(body.quietTo, 0, 23, 'quietTo');
@@ -319,8 +319,8 @@ async function runOwnerNotes(tenant, cfg, now) {
             if (!r.orders.placed) return null;
             const best = r.topItems[0];
             return {
-                title: `Today: ${money(r.sales.revenue)} from ${r.sales.orders} order${r.sales.orders === 1 ? '' : 's'}`,
-                body: `${r.orders.cancelled ? `${r.orders.cancelled} cancelled. ` : ''}${best ? `Best seller: ${best.name} (${best.quantity}). ` : ''}Tap for the full day.`.trim(),
+                title: `📊 Today: ${money(r.sales.revenue)} from ${r.sales.orders} order${r.sales.orders === 1 ? '' : 's'}`,
+                body: `${r.orders.cancelled ? `❌ ${r.orders.cancelled} cancelled. ` : ''}${best ? `🏆 Best seller: ${best.name} (${best.quantity}). ` : ''}👉 Tap for the full day.`.trim(),
                 data: { kind: 'closing_report' },
             };
         });
@@ -331,8 +331,8 @@ async function runOwnerNotes(tenant, cfg, now) {
             if (!r.totals.orders) return null;
             const c = r.change.revenue;
             return {
-                title: `Last week: ${money(r.totals.revenue)} from ${r.totals.orders} orders`,
-                body: `${c === null || c === undefined ? '' : `${c >= 0 ? 'Up' : 'Down'} ${Math.abs(c)}% on the week before. `}${r.customers.unique} customers, ${r.customers.repeatPct}% came back. Tap to see more.`,
+                title: `📈 Last week: ${money(r.totals.revenue)} from ${r.totals.orders} orders`,
+                body: `${c === null || c === undefined ? '' : `${c >= 0 ? '🔼 Up' : '🔽 Down'} ${Math.abs(c)}% on the week before. `}👥 ${r.customers.unique} customers, ${r.customers.repeatPct}% came back. 👉 Tap to see more.`,
                 data: { kind: 'business_report' },
             };
         });

@@ -26,7 +26,7 @@ const OWNER_ROWS = [
     ['dailySummary', 'Daily summary for you', 'How today went, as a notification at the time you choose (only on days with orders)'],
     ['weeklyDigest', 'Monday digest for you', 'How last week went, every Monday morning'],
 ];
-const LANGS = [['en', 'English'], ['hinglish', 'Hinglish'], ['hi', 'हिंदी']];
+const LANGS = [['en', 'English'], ['hinglish', 'Hinglish'], ['hi', 'हिंदी'], ['mixed', 'Mixed']];
 const FREQ = [['gentle', 'Gentle'], ['normal', 'Normal'], ['pushy', 'Pushy']];
 const FREQ_NOTE = {
     gentle: 'Recommended. A week between win-back messages, and 2 promotional messages a week to one customer at most.',

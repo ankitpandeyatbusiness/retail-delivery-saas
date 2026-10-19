@@ -8,6 +8,7 @@ const center = require('../notifications/center');
 const liveFeed = require('./liveFeed');
 const { isUnpaidOnline } = require('./onlineOrder');
 const { orderSpeech, orderSpeechHi } = require('../utils/orderSpeech');
+const { brief, payWord } = require('../utils/orderBrief');
 
 // old style helpers, still used by billing, the superadmin messages and the stuck-order watcher
 const send = (p) => center.notify(p.type, { ...p, to: p.role === 'superadmin' ? 'superadmin' : undefined });
@@ -32,7 +33,7 @@ function orderPlaced(order) {
     try {
         center.notify('order_new', {
             tenantId: order.tenantId,
-            vars: { orderNo: order.orderNo, total: order.pricing?.total, orderType: order.orderType },
+            vars: { orderNo: order.orderNo, total: order.pricing?.total, orderType: order.orderType, brief: brief(order, 3), pay: payWord(order) },
             // speech: the sentence the owner's phone reads out loud in Soundbox mode (see utils/orderSpeech.js)
             data: {
                 orderId: String(order._id), orderNo: order.orderNo, total: order.pricing?.total,
@@ -54,20 +55,21 @@ function orderStatusChanged(order, status, actor) {
         const t = order.tenantId;
         const no = order.orderNo;
         const data = { orderId: String(order._id), orderNo: no, status };
+        const what = { brief: brief(order), total: order.pricing?.total };   // what the order is, for the words of the message
 
         // the customer is told about every step, except a cancel he made himself
         if (actor.type !== 'customer') {
             center.notify('order_status', {
                 tenantId: t, userId: order.userId, data,
                 vars: {
-                    orderNo: no, status, orderType: order.orderType, cancelReason: order.cancelReason,
+                    orderNo: no, status, orderType: order.orderType, cancelReason: order.cancelReason, ...what,
                     reasonCode: order.undelivered?.reasonCode,
                 },
             });
         }
         if (status === 'delivered') {
-            if (actor.type !== 'owner') center.notify('order_delivered_shop', { tenantId: t, data, vars: { orderNo: no } });   // the shop already knows when it marked it itself
-            if (order.delivery?.riderId) center.notify('delivery_done_rider', { tenantId: t, userId: order.delivery.riderId, data, vars: { orderNo: no } });
+            if (actor.type !== 'owner') center.notify('order_delivered_shop', { tenantId: t, data, vars: { orderNo: no, ...what } });   // the shop already knows when it marked it itself
+            if (order.delivery?.riderId) center.notify('delivery_done_rider', { tenantId: t, userId: order.delivery.riderId, data, vars: { orderNo: no, brief: what.brief } });
         }
         if (status === 'cancelled') {
             // the sentence the owner's phone may read out (Soundbox) when the app is closed: only for a cancelled order
@@ -105,7 +107,11 @@ function riderOffered(order) {
         const secs = Math.max(1, Math.round((new Date(order.delivery.offerExpiresAt).getTime() - Date.now()) / 1000));
         center.notify('rider_offer', {
             tenantId: order.tenantId, userId: order.delivery.riderId,
-            vars: { orderNo: order.orderNo, secs },
+            vars: {
+                orderNo: order.orderNo, secs, brief: brief(order, 2), items: order.items?.length || 0,
+                area: [order.address?.landmark, order.address?.city].filter(Boolean).join(', ').slice(0, 40),
+                collect: order.payment?.method === 'cod' ? Math.round(Number(order.pricing?.total) || 0) : 0,
+            },
             data: { orderId: String(order._id), orderNo: order.orderNo },
         });
         pulse({ tenantId: order.tenantId, orderId: order._id, orderNo: order.orderNo, status: order.status, kind: 'rider', toOrder: false });

@@ -14,6 +14,7 @@ import OrdersScreen from '../screens/customers/OrdersScreen';
 import OrderDetailScreen from '../screens/customers/OrderDetailScreen';
 import LiveOrderHost from '../components/customers/LiveOrderHost';
 import ActiveOrderBar from '../components/customers/ActiveOrderBar';
+import ReviewPrompts from '../components/customers/ReviewPrompts';
 import OrderPlacedScreen from '../screens/customers/OrderPlacedScreen';
 import RiderTabs from './RiderNavigator';
 import RiderTripScreen from '../screens/riders/RiderTripScreen';
@@ -348,6 +349,7 @@ export default function AppNavigator() {
             <OwnerViewPill onBack={() => { if (navigationRef.isReady() && (navigationRef.getRootState()?.routes?.length || 0) > 1) navigationRef.dispatch(StackActions.popToTop()); }} />
             <LiveOrderHost routeName={routeName} onOpenOrder={(id) => { if (navigationRef.isReady()) navigationRef.navigate('OrderDetail', { id }); }} />
             <ActiveOrderBar routeName={routeName} onOpen={(id) => { if (navigationRef.isReady()) navigationRef.navigate('OrderDetail', { id }); }} onOpenAll={goOrders} />
+            <ReviewPrompts />
             <NewOrderPopup navRef={navigationRef} />
             <LegalGate />
             <FrozenOverlay onOrders={goOrders} />

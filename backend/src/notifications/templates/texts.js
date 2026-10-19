@@ -7,39 +7,43 @@ const PROBLEM = {
     released: 'cannot do this delivery any more and gave the order back',
 };
 
+// what is in the order, for the second line: "2× Butter Naan, Paneer Butter Masala +1 more · ₹540"
+const about = (v) => [v.brief, v.total ? `₹${Math.round(v.total)}` : ''].filter(Boolean).join(' · ');
+
 function statusText(v) {
     const no = v.orderNo;
+    const a = about(v);
     switch (v.status) {
-        case 'accepted': return { title: 'Order accepted', body: `The shop accepted your order #${no}.` };
-        case 'preparing': return { title: 'Being prepared', body: `Your order #${no} is being prepared.` };
+        case 'accepted': return { title: `Order #${no} accepted`, body: a ? `${a}. The shop is getting started.` : 'The shop is getting started.' };
+        case 'preparing': return { title: 'Being prepared', body: v.brief ? `${v.brief} is on the stove.` : `Your order #${no} is on the stove.` };
         case 'ready':
             return v.orderType === 'pickup'
-                ? { title: 'Ready for pickup', body: `Your order #${no} is ready for pickup.` }
-                : { title: 'Order ready', body: `Your order #${no} is ready.` };
-        case 'out_for_delivery': return { title: 'On the way', body: `Your order #${no} is on the way.` };
-        case 'delivered': return { title: 'Delivered', body: `Your order #${no} has been delivered. Thank you for ordering! We would love to serve you again. Order more anytime.` };
+                ? { title: 'Ready for pickup', body: v.brief ? `${v.brief} is packed. Come and collect it.` : `Your order #${no} is ready for pickup.` }
+                : { title: 'Order is ready', body: v.brief ? `${v.brief} is packed and waiting for the delivery partner.` : `Your order #${no} is ready.` };
+        case 'out_for_delivery': return { title: 'On the way', body: v.brief ? `${v.brief} is on its way to you. Keep your phone close.` : `Your order #${no} is on the way.` };
+        case 'delivered': return { title: 'Delivered. Enjoy!', body: `${v.brief || `Order #${no}`} has reached you. Hungry again? Order anytime.` };
         case 'undelivered':
             return {
                 title: 'Order not delivered',
                 body: v.reasonCode === 'customer'
-                    ? `We could not deliver your order #${no} because the delivery partner could not reach you.`
-                    : `We could not deliver your order #${no}. We are sorry. If you paid online you get a full refund.`,
+                    ? `Order #${no}${v.brief ? ` (${v.brief})` : ''}: the delivery partner could not reach you.`
+                    : `Order #${no}${v.brief ? ` (${v.brief})` : ''} could not be delivered. Sorry! Paid online? You get a full refund.`,
             };
         case 'cancelled':
-            return { title: 'Order cancelled', body: `Your order #${no} was cancelled.${v.cancelReason ? ` Reason: ${v.cancelReason}` : ''}` };
+            return { title: `Order #${no} cancelled`, body: `${v.brief ? `${v.brief}. ` : ''}${v.cancelReason ? `Reason: ${v.cancelReason}` : 'If you paid online, the refund is on its way.'}` };
         default: return null;
     }
 }
 
 const TEXTS = {
     order_new: (v) => ({
-        title: 'New order',
-        body: `Order #${v.orderNo} - Rs ${v.total ?? ''} - ${String(v.orderType || '').replace('_', '-')}`,
+        title: `New order #${v.orderNo}${v.total ? ` · ₹${Math.round(v.total)}` : ''}`,
+        body: [v.brief, v.orderType === 'pickup' ? 'Pickup' : v.orderType === 'dine_in' ? 'Dine-in' : 'Delivery', v.pay].filter(Boolean).join(' · '),
     }),
     order_status: statusText,
     order_unaccepted_reminder: (v) => ({
         title: v.minutes >= 6 ? 'Please accept the order' : 'Order is waiting',
-        body: `Order #${v.orderNo} is waiting for you. It will be cancelled in ${v.left} minutes if you do not accept it.`,
+        body: `${v.brief ? `${v.brief} (#${v.orderNo}). ` : `Order #${v.orderNo}. `}Accept within ${v.left} min or it is cancelled.`,
     }),
     order_cancelled: (v) => ({
         title: v.undelivered ? 'Order not delivered' : 'Order cancelled',
@@ -53,11 +57,11 @@ const TEXTS = {
     }),
     delivery_late_warning: (v) => ({ title: 'Delivery is very late', body: `Order #${v.orderNo} is ${v.late} min late. It is cancelled and fully refunded in ${v.left} min if it is not delivered.` }),
     delivery_late_warning_rider: (v) => ({ title: 'Deliver now', body: `Order #${v.orderNo} is ${v.late} min late. It will be cancelled in ${v.left} min if it is not delivered.` }),
-    order_delivered_shop: (v) => ({ title: 'Order delivered', body: `Order #${v.orderNo} was delivered to the customer.` }),
-    delivery_done_rider: (v) => ({ title: 'Delivery complete', body: `Thank you! Order #${v.orderNo} is delivered. Great work.` }),
+    order_delivered_shop: (v) => ({ title: `Delivered #${v.orderNo}`, body: `${v.brief ? `${v.brief}${v.total ? ` · ₹${Math.round(v.total)}` : ''}. ` : ''}Reached the customer.` }),
+    delivery_done_rider: (v) => ({ title: 'Delivery complete', body: `Order #${v.orderNo}${v.brief ? ` (${v.brief})` : ''} is done. Great work, thank you!` }),
     rider_offer: (v) => ({
         title: 'New delivery request',
-        body: `Order #${v.orderNo}${v.items ? ` (${v.items} item${v.items > 1 ? 's' : ''}${v.collect ? `, collect Rs ${v.collect}` : ''})` : ''}. Please accept within ${v.secs} seconds.`,
+        body: [v.brief || `Order #${v.orderNo}`, v.area, v.collect ? `Collect ₹${v.collect}` : v.items ? `${v.items} item${v.items > 1 ? 's' : ''}` : '', `accept in ${v.secs}s`].filter(Boolean).join(' · '),
     }),
     rider_assigned: (v) => ({ title: 'Delivery partner assigned', body: `${v.riderName} will deliver your order #${v.orderNo}.` }),
     rider_arrived_shop: (v) => ({ title: 'Delivery partner has arrived', body: `${v.riderName} reached the customer for order #${v.orderNo}.` }),

@@ -14,7 +14,7 @@ const autopilotSchema = new mongoose.Schema({
         weeklyDigest: { type: Boolean, default: false },  // to the OWNER on Monday: how last week went
     },
     frequency: { type: String, enum: ['gentle', 'normal', 'pushy'], default: 'gentle' },
-    language: { type: String, enum: ['en', 'hinglish', 'hi'], default: 'hinglish' },
+    language: { type: String, enum: ['en', 'hinglish', 'hi', 'mixed'], default: 'hinglish' },
     maxDiscount: { type: Number, default: 10, min: 0, max: 50 },   // % off in the win-back offer step. 0 = no offer, only reminders
     quietFrom: { type: Number, default: 21, min: 0, max: 23 },     // no promotional message from this hour (India time) ...
     quietTo: { type: Number, default: 9, min: 0, max: 23 },        // ... until this hour

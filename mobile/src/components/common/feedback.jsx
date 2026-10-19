@@ -48,7 +48,7 @@ const BAD = ['Late', 'Rude', 'Careless handling', 'Did not follow instructions']
 const WORDS = ['Very bad', 'Bad', 'Okay', 'Good', 'Excellent'];
 
 // tracking = GET /orders/:id/tracking of a delivered order ({ canRate, deliveryRating, rider })
-export function DeliveryRatingCard({ orderId, tracking, onDone }) {
+export function DeliveryRatingCard({ orderId, tracking, onDone, bare }) {   // bare: no card around it (inside a sheet)
     const { primary, text, muted, border, background, radius } = useBrand();
     const [rating, setRating] = useState(0);
     const [tags, setTags] = useState([]);
@@ -72,6 +72,7 @@ export function DeliveryRatingCard({ orderId, tracking, onDone }) {
         );
     }
 
+    const Wrap = bare ? ({ children }) => <View>{children}</View> : CardShell;
     const options = rating >= 4 ? GOOD : rating > 0 ? BAD : [];
     const pickRating = (k) => { setRating(k); setTags([]); };
     const toggle = (t) => setTags((cur) => (cur.includes(t) ? cur.filter((x) => x !== t) : cur.length >= 5 ? cur : [...cur, t]));
@@ -82,7 +83,7 @@ export function DeliveryRatingCard({ orderId, tracking, onDone }) {
         try {
             await rateDelivery(orderId, { rating, ...(tags.length ? { tags } : {}), ...(comment.trim() ? { comment: comment.trim() } : {}) });
             showToast(tr('Thanks for rating your delivery'));
-            onDone?.();
+            onDone?.(rating);
         } catch (e) {
             showToast(errMsg(e));
             if (e?.response?.status === 409) onDone?.();   // already rated: reload and show it
@@ -90,7 +91,7 @@ export function DeliveryRatingCard({ orderId, tracking, onDone }) {
     };
 
     return (
-        <CardShell title={tracking.rider?.name ? tr('Rate {name}\'s delivery', { name: tracking.rider.name }) : tr('Rate the delivery')} icon="bicycle-outline">
+        <Wrap title={tracking.rider?.name ? tr('Rate {name}\'s delivery', { name: tracking.rider.name }) : tr('Rate the delivery')} icon="bicycle-outline">
             <View style={s.stars}>
                 {[1, 2, 3, 4, 5].map((k) => (
                     <Pressable key={k} onPress={() => pickRating(k)} hitSlop={6}>
@@ -120,7 +121,7 @@ export function DeliveryRatingCard({ orderId, tracking, onDone }) {
             >
                 {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text numberOfLines={1} style={s.btnTxt}>{tr('Submit rating')}</Text>}
             </Pressable>
-        </CardShell>
+        </Wrap>
     );
 }
 

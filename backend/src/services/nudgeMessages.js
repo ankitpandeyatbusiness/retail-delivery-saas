@@ -5,7 +5,27 @@
 // A message without a favourite food uses the fallback wording for {food}.
 const FOOD_FALLBACK = { en: 'your favourite', hinglish: 'aapka favourite', hi: 'आपका पसंदीदा' };
 const NAME_FALLBACK = { en: 'there', hinglish: 'dost', hi: 'दोस्त' };
-const LANGUAGES = ['en', 'hinglish', 'hi'];
+// 'mixed' is not a fourth wording: every message picks English, Hinglish or Hindi by chance, so the customer does not get bored
+const LANGUAGES = ['en', 'hinglish', 'hi', 'mixed'];
+const MIX = ['en', 'hinglish', 'hinglish', 'hi'];   // Hinglish is the most natural, so it comes up the most
+
+// Emojis: one for the front of the title and one for the end of the text, chosen by the message so the same message always wears
+// the same pair. The owner's own wording is left exactly as he wrote it.
+const EMOJI = {
+    winback_1: ['😋', '🍽️', '🥘', '🍕', '🍛', '🥗', '🍜'],
+    winback_2: ['🎁', '💸', '🎉', '🏷️', '✨', '🤑'],
+    winback_3: ['👋', '🙏', '💛', '🤗', '🚪', '😊'],
+    welcome: ['🎉', '👋', '🥳', '💛', '🙌'],
+    thanks: ['❤️', '🙏', '😊', '🌟', '🤗', '🍽️'],
+    mealtime_breakfast: ['🌅', '☕', '🥐', '🍳', '🥞'],
+    mealtime_lunch: ['🍛', '🥘', '🍱', '😋', '🍲'],
+    mealtime_snacks: ['🍟', '☕', '🍪', '🥪', '😋'],
+    mealtime_dinner: ['🌙', '🍽️', '🍝', '🍛', '😋'],
+    festival: ['🪔', '🎊', '✨', '🎆', '🙏'],
+    manual: ['😊', '🍽️', '👋', '💛'],
+};
+const GENERIC = ['😊', '🍽️', '✨'];
+const pools = (kind) => EMOJI[kind] || GENERIC;
 
 const LIB = {
     // win-back, step 1: a friendly nudge at the hour he usually orders
@@ -113,7 +133,8 @@ function fill(text, vars) {
 // custom: the owner's own wording { title, body }, used instead of the library when he wrote one.
 // Returns { title, body, idx } (idx = which library message, or -1 for the owner's own).
 function build({ kind, lang = 'hinglish', avoid = [], custom, vars = {}, pickIdx }) {
-    const language = LANGUAGES.includes(lang) ? lang : 'hinglish';
+    const asked = LANGUAGES.includes(lang) ? lang : 'hinglish';
+    const language = asked === 'mixed' ? MIX[Math.floor(Math.random() * MIX.length)] : asked;
     const list = LIB[kind];
     if (!list) throw new Error(`unknown message kind ${kind}`);
     const v = { ...vars, name: firstName(vars.name, language), food: vars.food || FOOD_FALLBACK[language] };
@@ -126,7 +147,10 @@ function build({ kind, lang = 'hinglish', avoid = [], custom, vars = {}, pickIdx
         idx = pool[Math.floor(Math.random() * pool.length)];
     }
     const [title, body] = list[idx][language];
-    return { title: fill(title, v).slice(0, 120), body: fill(body, v).slice(0, 300), idx };
+    const pool = pools(kind);
+    const front = pool[idx % pool.length];
+    const back = pool[(idx + 3) % pool.length];
+    return { title: `${front} ${fill(title, v)}`.slice(0, 120), body: `${fill(body, v)} ${back === front ? '' : back}`.trim().slice(0, 300), idx, language };
 }
 
 module.exports = { LIB, KINDS, LANGUAGES, FOOD_FALLBACK, count, build, fill, firstName };

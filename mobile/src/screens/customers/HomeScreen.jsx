@@ -208,33 +208,49 @@ function Banners({ list, onOrder }) {
         [mix(primary, '#000000', 0.2), mix(primaryLight, '#FFFFFF', 0.25)],
     ];
 
+    // One way only: the banners slide forward, and after the last one the first comes in from the right again (never a slide
+    // back). For that the list is drawn three times in a row and we live in the middle copy; when the slide ends in another
+    // copy, the strip is moved by one whole copy without animation, which the eye cannot see.
+    const n = list.length;
+    const loop = n > 1;
+    const data = useMemo(() => (loop ? [...list, ...list, ...list] : list), [list, loop]);
+    const home = (i) => { idx.current = i; ref.current?.scrollToOffset({ offset: i * snap, animated: false }); };
+    const settle = (i) => {   // i = the position the strip stopped at
+        if (!loop) return;
+        let k = i;
+        if (k >= 2 * n) k -= n; else if (k < n) k += n;
+        if (k !== i) home(k); else idx.current = i;
+        setCur(k % n);
+    };
+    useEffect(() => { if (loop) { const t = setTimeout(() => home(n), 0); return () => clearTimeout(t); } return undefined; }, [n, snap]);   // eslint-disable-line react-hooks/exhaustive-deps
     useEffect(() => {
-        if (list.length < 2) return undefined;
+        if (!loop) return undefined;
         const t = setInterval(() => {
-            const next = (idx.current + 1) % list.length;
+            const next = idx.current + 1;
             idx.current = next;
             ref.current?.scrollToOffset({ offset: next * snap, animated: true });
-            setCur(next);
+            setCur(next % n);
+            setTimeout(() => settle(next), 650);   // after the slide: back into the middle copy
         }, 4500);
         return () => clearInterval(t);
-    }, [list.length, snap]);
+    }, [n, snap]);   // eslint-disable-line react-hooks/exhaustive-deps
 
     return (
         <View>
             <Animated.FlatList
                 ref={ref}
-                data={list} horizontal showsHorizontalScrollIndicator={false}
+                data={data} horizontal showsHorizontalScrollIndicator={false}
+                getItemLayout={(_, i) => ({ length: w, offset: i * snap, index: i })}
                 snapToInterval={snap} decelerationRate="fast" disableIntervalMomentum
                 onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: sx } } }], { useNativeDriver: true })}
                 scrollEventThrottle={16}
                 onMomentumScrollEnd={(e) => {
                     const i = Math.round(e.nativeEvent.contentOffset.x / snap);
-                    idx.current = i;
-                    setCur(i);
+                    if (loop) settle(i); else { idx.current = i; setCur(i); }
                 }}
-                keyExtractor={(b) => b._id} contentContainerStyle={s.hpad} ItemSeparatorComponent={Gap}
+                keyExtractor={(b, i) => `${b._id}-${i}`} contentContainerStyle={s.hpad} ItemSeparatorComponent={Gap}
                 renderItem={({ item: b, index }) => {
-                    const g = grads[index % 3];
+                    const g = grads[(loop ? index % n : index) % 3];
                     const fg = b.image ? '#FFFFFF' : onColor(g[0]);
                     const scale = motion === 'full' && list.length > 1
                         ? sx.interpolate({ inputRange: [(index - 1) * snap, index * snap, (index + 1) * snap], outputRange: [0.93, 1, 0.93], extrapolate: 'clamp' })
