@@ -35,7 +35,7 @@ export default function OwnerCouponsScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Coupons')} />
-            <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 60 }}>
+            <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 32 }}>
                 {items === null ? <ListShimmer /> : null}
                 {err && !items?.length ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={err} /> : null}
                 {items && !items.length && !err ? <Empty icon="pricetag-outline" title={tr('No coupons yet')} hint={tr('Make a code like FIRST50 and tell your customers.')} /> : null}

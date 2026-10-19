@@ -61,7 +61,7 @@ export default function OwnerMonthScreen() {
             <FlatList
                 data={items || []}
                 keyExtractor={(t) => `${t.category}-${t.id}`}
-                contentContainerStyle={{ paddingBottom: 60 }}
+                contentContainerStyle={{ paddingBottom: 32 }}
                 ListHeaderComponent={(
                     <View>
                         {tot ? (

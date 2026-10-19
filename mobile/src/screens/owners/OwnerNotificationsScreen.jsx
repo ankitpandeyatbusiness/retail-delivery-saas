@@ -56,7 +56,7 @@ export default function OwnerNotificationsScreen() {
             <FlatList
                 data={items || []}
                 keyExtractor={(n) => String(n.id)}
-                contentContainerStyle={{ paddingBottom: 60 }}
+                contentContainerStyle={{ paddingBottom: 32 }}
                 renderItem={({ item: n }) => {
                     const isNew = fresh.current.has(n.id);
                     const go = ownerRoute(n);

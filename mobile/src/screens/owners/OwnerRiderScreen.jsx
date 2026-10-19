@@ -164,7 +164,7 @@ export default function OwnerRiderScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={riderName(rider)} />
-            <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 60 }}>
+            <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 32 }}>
                 <Card>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Avatar rider={rider} size={56} />

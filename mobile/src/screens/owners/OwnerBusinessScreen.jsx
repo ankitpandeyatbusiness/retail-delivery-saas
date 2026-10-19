@@ -85,7 +85,7 @@ export default function OwnerBusinessScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Business report')} right={r ? <Ionicons name="share-social" size={22} color={text} onPress={share} /> : null} />
-            <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 70 }}>
+            <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 32 }}>
                 <View style={{ paddingHorizontal: 16 }}><Chips options={options} value={range} onChange={setRange} style={{ marginTop: 0 }} /></View>
                 {!r && !err ? <StatShimmer /> : null}
                 {err ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={err} /> : null}

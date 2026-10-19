@@ -78,6 +78,8 @@ export default function ActiveOrderBar({ routeName, onOpen, onOpenAll }) {
     useEffect(() => {
         Animated.timing(slide, { toValue: show ? 1 : 0, duration: 260, useNativeDriver: true }).start();
     }, [show, slide]);
+    const setBarH = useLiveTripStore((s) => s.setBarH);
+    useEffect(() => { setBarH(show && !hidden ? 76 : 0); return () => setBarH(0); }, [show, hidden, setBarH]);
     useEffect(() => {
         const loop = Animated.loop(Animated.sequence([
             Animated.timing(pulse, { toValue: 0.25, duration: 700, useNativeDriver: true }),

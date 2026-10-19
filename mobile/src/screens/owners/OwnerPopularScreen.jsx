@@ -35,7 +35,7 @@ export default function OwnerPopularScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Popular items')} />
-            <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 60 }}>
+            <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 32 }}>
                 <View style={{ paddingHorizontal: 16 }}><Chips options={RANGES} value={range} onChange={setRange} style={{ marginTop: 0 }} /></View>
                 {items === null ? <ListShimmer rows count={6} /> : null}
                 {err ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={err} /> : null}

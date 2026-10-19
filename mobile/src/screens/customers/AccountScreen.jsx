@@ -26,6 +26,7 @@ import { fetchMe, updateMe, deleteMe, updatePrefs, deleteUpload } from '../../ap
 import { pickPhoto, uploadAvatar } from '../../utils/common/photoUpload';
 import { tr, LANGS, useLang } from '../../i18n';
 import LanguageSheet from '../../components/common/LanguageSheet';
+import { useBottomSpace } from '../../store/customers/useLiveTripStore';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -214,6 +215,7 @@ function Group({ title, delay, children }) {
 }
 
 function AccountInner() {
+    const space = useBottomSpace();   // room for the floating order bar, only while it is on screen
     const nav = useNavigation();
     const insets = useSafeAreaInsets();
     const { primary, primaryLight, primaryDark, onPrimary, text, muted, background, surface, border } = useBrand();
@@ -332,7 +334,7 @@ function AccountInner() {
 
     return (
         <View style={{ flex: 1, paddingTop: insets.top, backgroundColor: background }}>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 30 }}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: space }}>
                 <Text style={[s.title, { color: text }]}>{tr('Account')}</Text>
 
                 {/* hero: the brand gradient with the person's photo, name and number */}

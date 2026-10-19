@@ -70,7 +70,7 @@ export default function OwnerSupportScreen() {
             <FlatList
                 data={items || []}
                 keyExtractor={(t) => String(t.id)}
-                contentContainerStyle={{ paddingBottom: 60 }}
+                contentContainerStyle={{ paddingBottom: 32 }}
                 ListHeaderComponent={(
                     <View>
                         <ContactCard info={info} />

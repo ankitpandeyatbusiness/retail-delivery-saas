@@ -49,7 +49,7 @@ export default function OwnerPaymentsScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Online money')} />
-            <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 60 }}>
+            <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 32 }}>
                 {report ? (
                     <Card>
                         <View style={{ flexDirection: 'row' }}>

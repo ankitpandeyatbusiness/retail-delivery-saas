@@ -44,7 +44,7 @@ export default function OwnerBannersScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Banners')} />
-            <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 60 }}>
+            <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 32 }}>
                 <Text style={{ color: muted, paddingHorizontal: 16, marginBottom: 10 }}>{tr('Banners slide across the top of the home screen in this order.')}</Text>
                 {items === null ? <ListShimmer /> : null}
                 {err && !items?.length ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={err} /> : null}

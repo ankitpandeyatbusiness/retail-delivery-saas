@@ -33,7 +33,7 @@ export default function OwnerActivityScreen() {
             <FlatList
                 data={items || []}
                 keyExtractor={(a, i) => String(a._id || i)}
-                contentContainerStyle={{ paddingBottom: 60 }}
+                contentContainerStyle={{ paddingBottom: 32 }}
                 ListHeaderComponent={<View style={{ paddingHorizontal: 16 }}><Chips options={ACTOR_FILTERS} value={actor} onChange={setActor} style={{ marginTop: 0 }} /></View>}
                 renderItem={({ item: a }) => (
                     <View style={{ paddingHorizontal: 16, paddingVertical: 11, flexDirection: 'row', alignItems: 'center' }}>

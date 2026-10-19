@@ -38,7 +38,7 @@ export default function OwnerComplaintsScreen() {
             <FlatList
                 data={items || []}
                 keyExtractor={(c) => String(c.id)}
-                contentContainerStyle={{ paddingBottom: 60 }}
+                contentContainerStyle={{ paddingBottom: 32 }}
                 ListHeaderComponent={<View style={{ paddingHorizontal: 16, paddingBottom: 16 }}><Chips options={Object.entries(COMPLAINT_STATUS)} value={status} onChange={pick} style={{ marginTop: 0 }} /></View>}
                 renderItem={({ item: c }) => (
                     <GlowBorder active={c.status !== 'resolved'} radius={18} style={{ marginHorizontal: 16, marginBottom: 12 }}>

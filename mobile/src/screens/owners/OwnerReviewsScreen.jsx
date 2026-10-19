@@ -67,7 +67,7 @@ export default function OwnerReviewsScreen() {
             <FlatList
                 data={items || []}
                 keyExtractor={(r) => String(r.id)}
-                contentContainerStyle={{ paddingBottom: 60 }}
+                contentContainerStyle={{ paddingBottom: 32 }}
                 ListHeaderComponent={(
                     <View>
                         <View style={{ paddingHorizontal: 16 }}>

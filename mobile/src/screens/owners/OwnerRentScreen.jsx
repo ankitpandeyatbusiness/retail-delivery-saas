@@ -63,7 +63,7 @@ export default function OwnerRentScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Monthly bill')} />
-            <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 60 }}>
+            <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 32 }}>
                 {bill ? (
                     <>
                         <Card tone={due > 0 ? error : undefined}>

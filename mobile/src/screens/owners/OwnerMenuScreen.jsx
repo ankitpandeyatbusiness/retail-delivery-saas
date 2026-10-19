@@ -168,7 +168,7 @@ export default function OwnerMenuScreen() {
                 ListHeaderComponent={header}
                 ListEmptyComponent={empty}
                 keyboardShouldPersistTaps="handled"
-                contentContainerStyle={{ paddingBottom: 120 }}
+                contentContainerStyle={{ paddingBottom: 24 }}
                 refreshControl={<RefreshControl refreshing={m.refreshing} onRefresh={() => { useMenuStore.getState().load({ quiet: true }); }} tintColor={primary} colors={[primary]} />}
                 ListFooterComponent={<View style={{ height: 1 }} />}
             />

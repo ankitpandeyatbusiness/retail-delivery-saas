@@ -183,7 +183,7 @@ export default function OwnerPayScreen() {
                 </View>
             ) : (
                 <>
-                    <KeyboardScroll contentContainerStyle={{ paddingTop: 6, paddingBottom: 150 }} keyboardShouldPersistTaps="handled">
+                    <KeyboardScroll contentContainerStyle={{ paddingTop: 6, paddingBottom: 120 }} keyboardShouldPersistTaps="handled">
                         <Card>
                             <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }}>{title}</Text>
                             <Text style={{ color: text, fontSize: 34, fontWeight: '900', marginTop: 2 }}>{rupees(toPay)}</Text>

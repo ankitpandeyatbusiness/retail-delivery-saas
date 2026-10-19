@@ -86,7 +86,7 @@ export default function OwnerCustomersScreen() {
                 data={items || []}
                 keyExtractor={(u) => String(u.id)}
                 keyboardShouldPersistTaps="handled"
-                contentContainerStyle={{ paddingBottom: 60 }}
+                contentContainerStyle={{ paddingBottom: 32 }}
                 ListHeaderComponent={header}
                 renderItem={({ item: u }) => {
                     const tg = TAGS[u.tag];

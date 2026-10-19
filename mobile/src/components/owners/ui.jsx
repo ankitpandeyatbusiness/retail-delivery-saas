@@ -326,7 +326,7 @@ export function OwnerScreen({ title, children, onRefresh, refreshing, scroll = t
     const { background, primary } = useBrand();
     const body = scroll ? (
         <ScrollView
-            contentContainerStyle={{ paddingBottom: 120 }}
+            contentContainerStyle={{ paddingBottom: 24 }}
             showsVerticalScrollIndicator={false}
             refreshControl={onRefresh ? <RefreshControl refreshing={!!refreshing} onRefresh={onRefresh} tintColor={primary} colors={[primary]} /> : undefined}
         >

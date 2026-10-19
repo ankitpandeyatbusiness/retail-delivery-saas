@@ -146,7 +146,7 @@ export default function ShopHubScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Shop menu')} />
-            <ScrollView contentContainerStyle={{ paddingBottom: 60 }}><ShopMenu /></ScrollView>
+            <ScrollView contentContainerStyle={{ paddingBottom: 32 }}><ShopMenu /></ScrollView>
         </View>
     );
 }

@@ -9,6 +9,8 @@ export const useLiveTripStore = create((set) => ({
     sheet: 'bar',
     liveOffset: 0,   // how much room the delivery bar (or its small chip) takes above the tabs, so the active-order bar can sit above it
     setLiveOffset: (liveOffset) => set((s) => (s.liveOffset === liveOffset ? s : { liveOffset })),
+    barH: 0,   // room the floating active-order bar takes above the tabs (0 when it is not shown)
+    setBarH: (barH) => set((s) => (s.barH === barH ? s : { barH })),
     setSheet: (sheet) => set({ sheet }),
     // a different (or no) order: forget the old one completely
     reset: (orderId = null, orderNo = null) => set({ ...EMPTY, orderId, orderNo, sheet: 'bar' }),
@@ -29,3 +31,6 @@ export const useLiveTripStore = create((set) => ({
     setEta: (eta) => set({ eta, lastDataAt: Date.now() }),
     setQuiet: (quiet) => set({ quiet }),
 }));
+
+// The bottom padding of a customer tab screen: a normal 24, plus the room of the floating bar while one is on screen.
+export const useBottomSpace = () => useLiveTripStore((s) => 24 + Math.max(s.liveOffset, s.barH));

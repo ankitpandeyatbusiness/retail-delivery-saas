@@ -60,6 +60,7 @@ const TEXTS = {
         body: `Order #${v.orderNo}${v.items ? ` (${v.items} item${v.items > 1 ? 's' : ''}${v.collect ? `, collect Rs ${v.collect}` : ''})` : ''}. Please accept within ${v.secs} seconds.`,
     }),
     rider_assigned: (v) => ({ title: 'Delivery partner assigned', body: `${v.riderName} will deliver your order #${v.orderNo}.` }),
+    rider_arrived_shop: (v) => ({ title: 'Delivery partner has arrived', body: `${v.riderName} reached the customer for order #${v.orderNo}.` }),
     rider_accepted: (v) => ({ title: 'Rider accepted', body: `${v.riderName} accepted order #${v.orderNo}.` }),
     rider_rejected: (v) => ({ title: 'Rider said no', body: `${v.riderName} rejected order #${v.orderNo ?? ''}.` }),
     rider_none: (v) => ({ title: 'No rider available', body: `Order #${v.orderNo} needs a rider. Please assign one by hand.` }),

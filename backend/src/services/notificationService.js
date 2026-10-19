@@ -292,8 +292,28 @@ function offersClosed({ tenantId, orderId, orderNo, why, riderIds = [] }) {
     }
 }
 
+// The rider tapped "I have arrived": the customer is told at once (once per order: the live tracking may already have said it)
+// and so is the shop.
+async function riderArrived(order) {
+    try {
+        const name = await riderName(order.tenantId, order.delivery?.riderId);
+        const first = await Order.updateOne({ _id: order._id, tenantId: order.tenantId, 'delivery.reachedNotifiedAt': { $exists: false } }, { $set: { 'delivery.reachedNotifiedAt': new Date() } });
+        const data = { orderId: String(order._id), orderNo: order.orderNo };
+        if (first.modifiedCount) {
+            center.notify('rider_reached', {
+                tenantId: order.tenantId, userId: order.userId,
+                title: `${name} has reached`, body: `Order #${order.orderNo}: your delivery partner is at your address now. Please keep your delivery PIN ready.`,
+                data: { ...data, kind: 'tracking' },
+            });
+        }
+        center.notify('rider_arrived_shop', { tenantId: order.tenantId, vars: { riderName: name, orderNo: order.orderNo }, data });
+    } catch (e) {
+        console.error('Notification error:', e.message);
+    }
+}
+
 module.exports = {
-    send, toOwner, toUser,
+    send, toOwner, toUser, riderArrived,
     orderPlaced, orderStatusChanged,
     riderOffered, riderAccepted, riderRejected, noRiderFree, riderRemoved, riderProblem, riderSos, lowDeliveryRating, foodReviewed, deliveryReviewed,
     riderBroadcast, offersClosed,

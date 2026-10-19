@@ -25,7 +25,7 @@ export function LegalDocScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={doc?.title || tr('Terms')} />
-            <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 60 }}>
+            <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 32 }}>
                 {!doc && !err ? <ListShimmer count={2} /> : null}
                 {err ? <Text style={{ color: error }}>{err}</Text> : null}
                 {doc ? (
@@ -52,7 +52,7 @@ export function LegalListScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Terms and privacy')} />
-            <ScrollView contentContainerStyle={{ paddingBottom: 60 }}>
+            <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
                 {items === null ? <ListShimmer count={2} /> : items.map((d) => (
                     <Pressable key={d.key} onPress={() => nav.navigate('LegalDoc', { key: d.key, pub: d.pub })} style={{ flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 0.5, borderBottomColor: border }}>
                         <Ionicons name="document-text-outline" size={24} color={primary} />

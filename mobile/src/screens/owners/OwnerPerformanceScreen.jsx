@@ -32,7 +32,7 @@ export default function OwnerPerformanceScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Rider performance')} />
-            <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 60 }}>
+            <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 32 }}>
                 <View style={{ paddingHorizontal: 16 }}>
                     <Chips options={[['7', tr('Last 7 days')], ['30', tr('Last 30 days')], ['month', tr('This month')]]} value={range} onChange={setRange} style={{ marginTop: 0 }} />
                 </View>

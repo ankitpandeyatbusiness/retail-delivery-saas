@@ -26,6 +26,7 @@ import { useMenuStore, useCartStore, useFavStore } from '../../store/customers/s
 import { useFilterStore, applyFilters, countActive } from '../../store/customers/useFilterStore';
 import { Slider, VegSwitch, Cats, Collapse, useVoice, VoiceOverlay } from '../../components/customers/finder';
 import { tr } from '../../i18n';
+import { useBottomSpace } from '../../store/customers/useLiveTripStore';
 
 const Gap = () => <View style={{ width: 12 }} />;
 const VIEW_CFG = { itemVisiblePercentThreshold: 1 };
@@ -409,6 +410,7 @@ function Strip({ r }) {
 
 /* ---------------- the screen ---------------- */
 export default function HomeScreen() {
+    const space = useBottomSpace();   // room for the floating order bar, only while it is on screen
     const nav = useNavigation();
     const insets = useSafeAreaInsets();
     const brand = useBrand();
@@ -692,7 +694,7 @@ export default function HomeScreen() {
                 onScroll={(e) => scrollY.setValue(e.nativeEvent.contentOffset.y)}
                 scrollEventThrottle={16}
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ paddingBottom: 100 }}
+                contentContainerStyle={{ paddingBottom: space }}
             />
             {searchIdx >= 0 ? <StuckPanel ref={panel} top={insets.top + barH} grouped={grouped} onHeight={(h) => { panelH.current = h; }} /> : null}
             <CartBar />

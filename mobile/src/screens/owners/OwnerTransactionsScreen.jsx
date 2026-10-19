@@ -42,7 +42,7 @@ export default function OwnerTransactionsScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Transactions and bills')} />
-            <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 60 }}>
+            <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 32 }}>
                 {data && data.years.length > 1 ? (
                     <View style={{ paddingHorizontal: 16 }}>
                         <Chips options={data.years.map((y) => [y, String(y)])} value={data.year} onChange={setYear} style={{ marginTop: 0 }} />

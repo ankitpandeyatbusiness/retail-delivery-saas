@@ -35,7 +35,7 @@ export default function OwnerClosingScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Closing report')} />
-            <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 60 }}>
+            <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 32 }}>
                 <View style={{ paddingHorizontal: 16 }}>
                     <Chips options={[['0', tr('Today')], ['1', tr('Yesterday')], ['2', istDay(2).slice(5).split('-').reverse().join('/')]]} value={which} onChange={setWhich} style={{ marginTop: 0 }} />
                 </View>

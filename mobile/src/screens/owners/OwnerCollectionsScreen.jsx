@@ -47,7 +47,7 @@ export default function OwnerCollectionsScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Collections')} />
-            <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 60 }}>
+            <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 32 }}>
                 <Text style={{ color: muted, paddingHorizontal: 16, marginBottom: 10 }}>{tr('A collection is a strip on the home screen made from items you already have. Use it for festivals and combos.')}</Text>
                 {items === null ? <ListShimmer /> : null}
                 {error && !items?.length ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={error} /> : null}

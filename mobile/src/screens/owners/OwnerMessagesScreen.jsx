@@ -70,7 +70,7 @@ export default function OwnerMessagesScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Messages')} />
-            <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 60 }}>
+            <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 32 }}>
                 <View style={{ paddingHorizontal: 16, marginBottom: 6 }}>
                     <Button label={tr('New message')} icon="create" onPress={() => setWriting(true)} />
                     <Hint>{tr('Up to 5 messages a day. They arrive as notifications in the app.')}</Hint>

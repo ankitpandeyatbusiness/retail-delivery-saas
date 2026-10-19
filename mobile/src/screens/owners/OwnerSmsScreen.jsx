@@ -56,7 +56,7 @@ export default function OwnerSmsScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('SMS balance')} />
-            <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
+            <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
                 <Card tone={wallet?.low ? error : undefined}>
                     <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }}>{tr('Balance')}</Text>
                     <Text style={{ color: wallet?.low ? error : text, fontSize: 34, fontWeight: '900', marginTop: 2 }}>{wallet ? rupees(wallet.balancePaise) : '—'}</Text>

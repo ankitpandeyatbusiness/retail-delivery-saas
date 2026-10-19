@@ -133,7 +133,7 @@ export default function OwnerOrdersScreen() {
                         hint={searching ? tr('Check the number and try again.') : s.filter === 'active' ? tr('New orders appear here the moment a customer places them, with a sound.') : tr('Orders in this stage will show here.')}
                     />
                 )}
-                ListFooterComponent={s.loadingMore ? <ListShimmer count={1} /> : <View style={{ height: 110 }} />}
+                ListFooterComponent={s.loadingMore ? <ListShimmer count={1} /> : <View style={{ height: 24 }} />}
                 onEndReachedThreshold={0.4}
                 onEndReached={() => useOrdersStore.getState().loadMore()}
                 refreshControl={<RefreshControl refreshing={s.refreshing} onRefresh={() => useOrdersStore.getState().refresh()} tintColor={primary} colors={[primary]} />}

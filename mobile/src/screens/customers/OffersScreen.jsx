@@ -16,9 +16,11 @@ import { copyCode } from '../../components/common/copyCode';
 import { CouponTicket } from '../../components/customers/coupon';
 import { FadeIn, Skel } from '../../components/common/motion';
 import { tr } from '../../i18n';
+import { useBottomSpace } from '../../store/customers/useLiveTripStore';
 
 /* ---------------- Offers ---------------- */
 export function OffersScreen() {
+    const space = useBottomSpace();   // room for the floating order bar, only while it is on screen
     const closedStyle = useClosedStyle();
     const { background, muted } = useBrand();
     const storeOffers = useHomeStore((st) => st.offers);
@@ -48,7 +50,7 @@ export function OffersScreen() {
             ) : (
                 <FlatList
                     data={shown} keyExtractor={(o) => o._id}
-                    contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+                    contentContainerStyle={{ padding: 16, paddingBottom: space }}
                     ListHeaderComponent={shown.length ? <Text style={[s.sub, { color: muted, paddingHorizontal: 2 }]}>{tr('Tap a coupon to copy its code, then paste it in your cart')}</Text> : null}
                     ListEmptyComponent={<Text style={s.empty}>{tr('No offers right now')}</Text>}
                     renderItem={({ item: o, index }) => (
@@ -64,6 +66,7 @@ export function OffersScreen() {
 
 /* ---------------- Bestsellers ---------------- */
 export function BestsellersScreen() {
+    const space = useBottomSpace();   // room for the floating order bar, only while it is on screen
     const closedStyle = useClosedStyle();
     const { text, background } = useBrand();
     const name = useThemeStore((st) => st.theme.name);
@@ -83,7 +86,7 @@ export function BestsellersScreen() {
                 ListHeaderComponent={<Text style={[s.sub, { color: text }]}>{tr('Most ordered at {name}', { name: name })}</Text>}
                 ListEmptyComponent={<Text style={s.empty}>{tr('No bestsellers yet')}</Text>}
                 renderItem={({ item }) => <ItemCard item={item} variant="compact" />}
-                contentContainerStyle={{ paddingBottom: 90 }}
+                contentContainerStyle={{ paddingBottom: space }}
             />
             <CartBar />
         </View>
@@ -92,6 +95,7 @@ export function BestsellersScreen() {
 
 /* ---------------- Favourites ---------------- */
 export function FavouritesScreen() {
+    const space = useBottomSpace();   // room for the floating order bar, only while it is on screen
     const closedStyle = useClosedStyle();
     const nav = useNavigation();
     const { primary, radius, text, background } = useBrand();
@@ -148,7 +152,7 @@ export function FavouritesScreen() {
                         data={items} keyExtractor={(i) => i._id}
                         ListEmptyComponent={<Text style={s.empty}>{tr('No favourites yet. Tap the heart on any dish.')}</Text>}
                         renderItem={({ item }) => <ItemCard item={item} variant="compact" />}
-                        contentContainerStyle={{ paddingTop: 8, paddingBottom: 90 }}
+                        contentContainerStyle={{ paddingTop: 8, paddingBottom: space }}
                     />
                 )}
             <CartBar />

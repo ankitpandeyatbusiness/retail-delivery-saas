@@ -48,7 +48,7 @@ export default function OwnerCategoriesScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Categories')} />
-            <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 60 }}>
+            <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 32 }}>
                 <Text style={{ color: muted, paddingHorizontal: 16, marginBottom: 10 }}>{tr('The arrows set the order customers see. Switch a category off to hide all its items.')}</Text>
                 {error && !cats.length ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={error} /> : null}
                 {!loading && !error && !cats.length ? <Empty icon="list-outline" title={tr('No categories yet')} hint={tr('Add one here, or just type a new category while adding an item.')} /> : null}

@@ -62,7 +62,7 @@ export default function SoundboxScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Soundbox')} />
-            <KeyboardScroll contentContainerStyle={{ paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
+            <KeyboardScroll contentContainerStyle={{ paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
                 <Card style={{ marginTop: 8 }}>
                     <Switcher
                         title={tr('Soundbox mode')}

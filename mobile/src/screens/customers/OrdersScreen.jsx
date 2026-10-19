@@ -21,6 +21,7 @@ import { fetchOrders } from '../../api/customers/shopApi';
 import { useAnyOrderLive } from '../../hooks/customers/useOrderLive';
 import { viewInvoice } from '../../components/customers/invoice';
 import { tr } from '../../i18n';
+import { useBottomSpace } from '../../store/customers/useLiveTripStore';
 
 const PILLS = [['all', 'All'], ['active', 'Active'], ['delivered', 'Delivered'], ['cancelled', 'Cancelled']];
 const FILTERS = {
@@ -290,6 +291,7 @@ function Empty({ filter, ranged }) {
 }
 
 function OrdersList() {
+    const space = useBottomSpace();   // room for the floating order bar, only while it is on screen
     const closedStyle = useClosedStyle();   // the shop is closed: this whole screen turns grey
     const nav = useNavigation();
     const insets = useSafeAreaInsets();
@@ -421,7 +423,7 @@ function OrdersList() {
                             onEndReached={loadMore} onEndReachedThreshold={0.4}
                             ListEmptyComponent={hasMore ? null : <Empty filter={filter} ranged={!!range?.from} />}
                             ListFooterComponent={more ? <ListShimmer count={2} /> : null}
-                            contentContainerStyle={{ paddingTop: 4, paddingBottom: 24 }}
+                            contentContainerStyle={{ paddingTop: 4, paddingBottom: space }}
                             showsVerticalScrollIndicator={false}
                                 renderItem={({ item: r, index }) => {
                                     if (r.h) return <Text style={[s.group, { color: r.h === 'Live now' ? primary : muted }]}>{r.h.toUpperCase()}</Text>;

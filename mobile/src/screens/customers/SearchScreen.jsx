@@ -19,6 +19,7 @@ import { readCache, writeCache } from '../../utils/common/cache';
 import { FadeIn } from '../../components/common/motion';
 import { SkelDish } from '../../components/customers/skeletons';
 import { tr } from '../../i18n';
+import { useBottomSpace } from '../../store/customers/useLiveTripStore';
 
 // Popular card: photo, name, price and the ADD / − 1 + pill, so dishes can be added straight from here.
 function Poster({ item, w }) {
@@ -52,6 +53,7 @@ function Poster({ item, w }) {
 }
 
 export default function SearchScreen() {
+    const space = useBottomSpace();   // room for the floating order bar, only while it is on screen
     const insets = useSafeAreaInsets();
     const nav = useNavigation();
     const route = useRoute();
@@ -162,7 +164,7 @@ export default function SearchScreen() {
     let body;
     if (!active) {
         body = (
-            <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ paddingBottom: 110 }}>
+            <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{ paddingBottom: space }}>
                 {term.length === 1 ? <Text style={[s.hint, { color: muted }]}>{tr('Type at least 2 letters')}</Text> : null}
                 {recent.length && !term ? (
                     <FadeIn>
@@ -225,7 +227,7 @@ export default function SearchScreen() {
                 renderItem={({ item }) => <ItemCard item={item} variant="compact" />}
                 onEndReached={loadMore} onEndReachedThreshold={0.4}
                 ListFooterComponent={more ? <ListShimmer count={2} /> : null}
-                contentContainerStyle={{ paddingTop: 8, paddingBottom: 110 }}
+                contentContainerStyle={{ paddingTop: 8, paddingBottom: space }}
             />
         );
     }

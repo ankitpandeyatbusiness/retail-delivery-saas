@@ -317,7 +317,8 @@ core.post('/orders/:id/pickup', wrap(async (req, res) => {
 core.post('/orders/:id/arrived', wrap(async (req, res) => {
     const order = await findMine(req);
     if (order.delivery?.status !== 'picked_up' || order.status !== 'out_for_delivery') throw httpError(409, 'Collect the order from the shop first');
-    await Order.updateOne({ _id: order._id, tenantId: req.tenant._id, 'delivery.arrivedAt': { $exists: false } }, { $set: { 'delivery.arrivedAt': new Date() } });
+    const marked = await Order.updateOne({ _id: order._id, tenantId: req.tenant._id, 'delivery.arrivedAt': { $exists: false } }, { $set: { 'delivery.arrivedAt': new Date() } });
+    if (marked.modifiedCount) notify.riderArrived(order);   // the customer and the shop are told, once
     liveFeed.emit(req.tenant._id, 'riders', { type: 'rider.arrived', orderNo: order.orderNo, riderId: String(req.riderId) });
     res.locals.auditAction = `RIDER_ARRIVED (order #${order.orderNo})`;
     res.json((await viewer(req))((await findMine(req)).toObject()));
