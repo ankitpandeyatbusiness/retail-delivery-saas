@@ -176,6 +176,21 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
         }
     }, [visible]);
 
+    // Pulled away with the finger: the dim background fades while the sheet is still sliding out and the screen takes touches at once;
+    // when the sheet is gone it is removed on the spot (no slow exit animation that leaves a shadow and blocks the screen).
+    const [leaving, setLeaving] = useState(false);
+    const fadeAway = () => {
+        setLeaving(true);
+        Animated.timing(prog, { toValue: 0, duration: 150, easing: Easing.linear, useNativeDriver: true }).start();
+    };
+    const closeNow = () => {
+        prog.setValue(0);
+        setShow(false);
+        setLeaving(false);
+        onClose();
+    };
+    useEffect(() => { if (visible) setLeaving(false); }, [visible]);
+
     // phone back button closes the sheet
     useEffect(() => {
         if (!visible) return undefined;
@@ -313,11 +328,11 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
     return (
         <>
             <SheetPortal>
-                <View style={s.backdropWrap}>
+                <View style={s.backdropWrap} pointerEvents={leaving ? 'none' : 'auto'}>
                     <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, s.backdrop, { opacity: prog }]} />
                     <Pressable style={{ flex: 1 }} onPress={onClose} />
                     <View style={{ paddingBottom: kb }}>
-                        <DragDown visible={visible} onClose={onClose}>{(scroll) => (
+                        <DragDown visible={visible} onClose={closeNow} onCloseStart={fadeAway}>{(scroll) => (
                         <Animated.View style={[s.sheet, {
                             backgroundColor: background,
                             maxHeight: Math.min(H * 0.9, H - kb - insets.top - 12),

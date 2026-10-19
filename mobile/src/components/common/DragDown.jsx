@@ -17,7 +17,7 @@ const SPRING = { damping: 22, stiffness: 260 };
 
 // The pull gesture. ty: how far down the sheet is (shared value); h: its height. Returns the gesture and the props that
 // tell it how far the sheet's own list is scrolled (spread them on the list: a ScrollView, FlatList, KeyboardScroll).
-export function useSheetPan({ ty, h, onClose, stillOpen }) {
+export function useSheetPan({ ty, h, onClose, stillOpen, onCloseStart }) {
     // The sheet has slid out under the finger; now the screen is told. If the screen refuses to close it, the sheet comes
     // back instead of staying off screen (the wait is long enough for a slow screen to finish its own update).
     const closeNow = () => { onClose(); if (stillOpen) setTimeout(() => { if (stillOpen.current) ty.value = withSpring(0, SPRING); }, 400); };
@@ -45,9 +45,10 @@ export function useSheetPan({ ty, h, onClose, stillOpen }) {
             'worklet';
             if (ty.value > h.value / 3 || e.velocityY > 900) {
                 // carry on down with the finger's momentum, and only then close: no stop-and-go at the end
+                if (onCloseStart) runOnJS(onCloseStart)();   // the sheet starts leaving: the dim background fades and touches go through already
                 ty.value = withTiming(h.value + 60, { duration: 170 }, (done) => { if (done) runOnJS(closeNow)(); });
             } else ty.value = withSpring(0, SPRING);
-        }), [ty, h, onClose, stillOpen, scrollY, x0, y0, start, on]);   // eslint-disable-line react-hooks/exhaustive-deps
+        }), [ty, h, onClose, stillOpen, onCloseStart, scrollY, x0, y0, start, on]);   // eslint-disable-line react-hooks/exhaustive-deps
     const scrollProps = useMemo(() => ({
         onScroll: (e) => { scrollY.value = e.nativeEvent.contentOffset.y; },
         scrollEventThrottle: 16,
@@ -57,12 +58,12 @@ export function useSheetPan({ ty, h, onClose, stillOpen }) {
     return { gesture, scrollProps, scrollY };
 }
 
-export function DragDown({ onClose, visible = true, children }) {
+export function DragDown({ onClose, onCloseStart, visible = true, children }) {
     const ty = useSharedValue(0);
     const h = useSharedValue(400);
     const stillOpen = useRef(visible);
     stillOpen.current = visible;
-    const { gesture, scrollProps, scrollY } = useSheetPan({ ty, h, onClose, stillOpen });
+    const { gesture, scrollProps, scrollY } = useSheetPan({ ty, h, onClose, stillOpen, onCloseStart });
     useEffect(() => { if (visible) { cancelAnimation(ty); ty.value = 0; scrollY.value = 0; } }, [visible]);   // eslint-disable-line react-hooks/exhaustive-deps
     const move = useAnimatedStyle(() => ({ transform: [{ translateY: ty.value }] }));
     return (
