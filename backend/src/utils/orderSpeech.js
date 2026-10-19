@@ -69,4 +69,44 @@ function orderSpeechHi(order) {
     return parts.join(' ');
 }
 
-module.exports = { orderSpeech, orderSpeechHi, MAX_ITEMS };
+// A cancelled order, said with the same detail as a new one: who cancelled it, what was in it, the total and how it was paid.
+//   who: 'customer' | 'rider' | 'system' (not accepted in time) | 'late' (more than an hour late) | '' (unknown)
+const WHO = {
+    customer: ' by the customer', rider: ' by the delivery partner', system: ' because it was not accepted in time',
+    late: ' because the delivery was more than an hour late', '': '',
+};
+const WHO_HI = {
+    customer: 'ग्राहक ने', rider: 'डिलीवरी पार्टनर ने', system: 'समय पर स्वीकार न होने से', late: 'एक घंटे से ज़्यादा देरी होने से', '': '',
+};
+
+function cancelSpeech(order, who = '') {
+    const items = Array.isArray(order.items) ? order.items : [];
+    const shown = items.slice(0, MAX_ITEMS).map(lineSpeech);
+    const rest = items.length - shown.length;
+    if (rest > 0) shown.push(`and ${rest} more ${rest === 1 ? 'item' : 'items'}`);
+    const total = Math.round(Number(order.pricing?.total) || 0);
+    const parts = [`Order ${order.orderNo} was cancelled${WHO[who] ?? ''}.`];
+    if (shown.length) parts.push(`${shown.join(', ')}.`);
+    if (total > 0) parts.push(`Total ${total} rupees.`);
+    const pay = paymentSpeech(order);
+    if (pay) parts.push(`${pay}.`);
+    return parts.join(' ');
+}
+
+function cancelSpeechHi(order, who = '') {
+    const items = Array.isArray(order.items) ? order.items : [];
+    const shown = items.slice(0, MAX_ITEMS).map(lineSpeech);
+    const rest = items.length - shown.length;
+    if (rest > 0) shown.push(`और ${rest} आइटम`);
+    const total = Math.round(Number(order.pricing?.total) || 0);
+    // a person cancelled it: "ग्राहक ने ऑर्डर 12 रद्द कर दिया". A reason: "समय पर स्वीकार न होने से ऑर्डर 12 रद्द हो गया"
+    const doer = who === 'customer' || who === 'rider';
+    const parts = [`${WHO_HI[who] ? `${WHO_HI[who]} ` : ''}ऑर्डर ${order.orderNo} ${doer ? 'रद्द कर दिया।' : 'रद्द हो गया।'}`];
+    if (shown.length) parts.push(`${shown.join(', ')}।`);
+    if (total > 0) parts.push(`कुल ${total} रुपये।`);
+    const pay = paymentSpeechHi(order);
+    if (pay) parts.push(pay);
+    return parts.join(' ');
+}
+
+module.exports = { orderSpeech, orderSpeechHi, cancelSpeech, cancelSpeechHi, MAX_ITEMS };

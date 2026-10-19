@@ -38,6 +38,8 @@ export const invoiceUrl = (id) => `/shop/orders/${id}/invoice`;   // a PDF: fetc
 // setAcceptingOrders(false, { pauseMinutes: 30 })             pause for 30 minutes: the shop reopens by itself
 // setAcceptingOrders(false, { untilMorning: true })           pause until 4 AM
 export const setAcceptingOrders = (acceptingOrders, extra = {}) => d(api.put('/shop/accepting-orders', { acceptingOrders, ...extra }));
+// the Orders tab was opened: everything under "Needs a look" counts as seen
+export const markLooksSeen = () => d(api.post('/shop/orders/look-seen'));
 // riders' leave: status 'pending' (default) | 'all'; decide with { approve: true | false, note? }
 export const fetchLeaves = (status = 'pending') => d(api.get('/shop/riders/leaves', { params: { status } }));
 export const decideLeave = (id, body) => d(api.put(`/shop/riders/leaves/${id}`, body));

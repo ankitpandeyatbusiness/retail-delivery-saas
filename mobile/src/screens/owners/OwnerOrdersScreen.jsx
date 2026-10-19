@@ -2,7 +2,7 @@
 // Accept / Reject and the next step right on them. It refreshes by itself when an order changes anywhere.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, FlatList, Pressable, ScrollView, RefreshControl, LayoutAnimation } from 'react-native';
-import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused, useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../../components/common/kit';
 import { OwnerScreen, Empty, Field } from '../../components/owners/ui';
@@ -12,7 +12,6 @@ import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { onOrderUpdate } from '../../api/common/socket';
 import { BOARD_FILTERS } from '../../utils/owners/orderFlow';
 import { ListShimmer } from '../../components/owners/shimmer';
-import GlowBorder from '../../components/common/GlowBorder';
 import { tr } from '../../i18n';
 
 const ACTIVE_STAGES = ['placed', 'accepted', 'preparing', 'ready', 'out_for_delivery'];
@@ -94,13 +93,20 @@ export default function OwnerOrdersScreen() {
 
     const data = useMemo(() => arrange(s.items, s.filter), [s.items, s.filter]);
     // nothing is left to look at: the chip slides away and the board goes back to the usual chips
+    const heldCount = s.hold?.items.length || 0;
     useEffect(() => {
-        if (s.filter === 'look' && !s.loading && s.look.count === 0 && s.items.length === 0) {
+        if (s.filter === 'look' && heldCount === 0) {
             LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
             useOrdersStore.getState().setFilter('active');
         }
-    }, [s.filter, s.loading, s.look.count, s.items.length]);
-    useEffect(() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); }, [s.look.count > 0]);   // the chip slides in and out
+    }, [s.filter, heldCount]);
+    useEffect(() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); }, [heldCount > 0]);   // the chip slides in and out
+    // Opening this tab counts everything under "Needs a look" as seen (the tab stops blinking, like the notification panel);
+    // the chip stays for this visit and is gone when he leaves the tab.
+    const focused = useIsFocused();
+    useEffect(() => {
+        if (focused) { if (s.look.count > 0) useOrdersStore.getState().openLook({ jump: true }); } else useOrdersStore.getState().closeLook();
+    }, [focused, s.look.count]);
     const searching = /^\d{1,9}$/.test(s.query.trim());
 
     const header = (
@@ -109,10 +115,8 @@ export default function OwnerOrdersScreen() {
                 <Field value={typed} onChangeText={onType} placeholder={tr('Find by order number')} maxLength={9} style={{ minHeight: 44 }} />
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 12 }}>
-                {s.look.count > 0 || s.filter === 'look' ? (
-                    <GlowBorder active={s.look.urgent > 0} radius={20} width={2} style={{ marginRight: 12 }}>
-                        <Chip label={tr('Needs a look')} count={s.look.count} on={s.filter === 'look'} urgent onPress={() => useOrdersStore.getState().setFilter('look')} />
-                    </GlowBorder>
+                {heldCount > 0 ? (
+                    <Chip label={tr('Needs a look')} count={heldCount} on={s.filter === 'look'} urgent onPress={() => useOrdersStore.getState().setFilter('look')} />
                 ) : null}
                 {BOARD_FILTERS.map(([id, label]) => (
                     <Chip key={id} label={label} count={countOf(id)} on={s.filter === id} urgent={id === 'placed'} onPress={() => useOrdersStore.getState().setFilter(id)} />
@@ -133,7 +137,6 @@ export default function OwnerOrdersScreen() {
                             order={item}
                             busy={actions.busyId === item.id}
                             onOpen={() => {
-                                useOrdersStore.getState().markSeenLocal(item.id);
                                 nav.navigate('OwnerOrder', { id: String(item.id) });
                                 setTimeout(() => useOwnerStore.getState().refresh?.(), 1200);   // the Orders tab stops blinking once nothing is left
                             }}

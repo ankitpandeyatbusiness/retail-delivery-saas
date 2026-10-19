@@ -7,7 +7,7 @@ const realtime = require('./realtime');
 const center = require('../notifications/center');
 const liveFeed = require('./liveFeed');
 const { isUnpaidOnline } = require('./onlineOrder');
-const { orderSpeech, orderSpeechHi } = require('../utils/orderSpeech');
+const { orderSpeech, orderSpeechHi, cancelSpeech, cancelSpeechHi } = require('../utils/orderSpeech');
 const { brief, payWord } = require('../utils/orderBrief');
 const look = require('./orderLook');
 
@@ -76,7 +76,8 @@ function orderStatusChanged(order, status, actor) {
         }
         if (status === 'cancelled') {
             // the sentence the owner's phone may read out (Soundbox) when the app is closed: only for a cancelled order
-            const spoken = (by) => ({ ...data, speech: `Order ${no} was cancelled${by}.`, speechHi: `ऑर्डर ${no} रद्द हो गया।` });
+            // said with the full detail of a new order: who cancelled it, the dishes, the total and how it was paid
+            const spoken = (who) => ({ ...data, speech: cancelSpeech(order, who), speechHi: cancelSpeechHi(order, who) });
             // the owner has to look at it once (Orders tab: "Needs a look")
             if (actor.type === 'rider') look.byId(t, order._id, 'rider_cancelled');
             else if (!isUnpaidOnline(order)) {
@@ -85,12 +86,12 @@ function orderStatusChanged(order, status, actor) {
             }
             if ((actor.type === 'customer' || actor.type === 'system') && !isUnpaidOnline(order)) {   // the owner never saw an unpaid online order
                 center.notify('order_cancelled', {
-                    tenantId: t, data: spoken(''), vars: { audience: 'owner', orderNo: no, bySystem: actor.type === 'system', lateDelivery: /hour late/.test(order.cancelReason || '') },
+                    tenantId: t, data: spoken(actor.type === 'system' ? (/hour late/.test(order.cancelReason || '') ? 'late' : 'system') : 'customer'), vars: { audience: 'owner', orderNo: no, bySystem: actor.type === 'system', lateDelivery: /hour late/.test(order.cancelReason || '') },
                 });
             }
             if (actor.type === 'rider') {   // the delivery partner cancelled: the shop is told at once, with his reason
                 center.notify('order_cancelled', {
-                    tenantId: t, data: { ...spoken(' by the delivery partner'), byRider: true }, vars: { audience: 'owner', orderNo: no, byRider: true, reason: order.cancelReason },
+                    tenantId: t, data: { ...spoken('rider'), byRider: true }, vars: { audience: 'owner', orderNo: no, byRider: true, reason: order.cancelReason },
                 });
             }
             if (order.delivery?.riderId && actor.type !== 'rider') {

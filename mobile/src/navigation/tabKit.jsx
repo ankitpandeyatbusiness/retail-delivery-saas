@@ -22,6 +22,7 @@ const tb = StyleSheet.create({
     floatItem: { flex: 1, height: '100%', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
     floatInner: { width: '100%', paddingHorizontal: 2, paddingVertical: 7, alignItems: 'center', justifyContent: 'center' },
     floatBadge: { position: 'absolute', top: -6, right: -12 },
+    floatDot: { position: 'absolute', top: -3, right: -4, padding: 2, borderRadius: 8, backgroundColor: 'transparent' },   // on the icon's top-right corner
     floatLabel: { fontSize: 10.5, fontWeight: '700', marginTop: 3 },
 });
 
@@ -127,18 +128,17 @@ function TabItem({ focused, icon, label, badge, onPress, onLongPress, greyWhenCl
     const { primary, muted, error } = useBrand();
     const alert = badge === 'alert' || !!(badge && typeof badge === 'object' && badge.alert);
     const count = typeof badge === 'number' ? badge : (badge && typeof badge === 'object' ? badge.n : 0);
-    const blink = useBlink(alert);
-    const tone = alert ? error : focused ? primary : muted;
+    const tone = focused ? primary : muted;
     const closedStyle = useClosedStyle();   // the shop is closed: a customer's tabs turn grey (the Account tab does not)
     return (
         <Pressable onPress={onPress} onLongPress={onLongPress} style={[tb.floatItem, greyWhenClosed && closedStyle]} accessibilityRole="button" accessibilityState={focused ? { selected: true } : {}}>
             <View style={tb.floatInner}>
-                <Animated.View style={{ opacity: blink }}>
+                <View>
                     <TabGlyph focused={focused} color={tone} icon={icon || 'ellipse'} />
-                </Animated.View>
-                {count > 0 ? <View style={tb.floatBadge}><CountBadge n={count} /></View> : null}
-                {badge === 'dot' || badge === 'alert' || (badge && badge.alert && !(count > 0)) ? <View style={tb.floatBadge}><BlinkDot /></View> : null}
-                <Animated.Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={[tb.floatLabel, { color: tone, opacity: blink }]}>{label}</Animated.Text>
+                    {count > 0 ? <View style={tb.floatBadge}><CountBadge n={count} /></View> : null}
+                    {badge === 'dot' || alert ? <View style={[tb.floatDot, count > 0 && { right: undefined, left: -6 }]}><BlinkDot /></View> : null}
+                </View>
+                <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={[tb.floatLabel, { color: tone }]}>{label}</Text>
             </View>
         </Pressable>
     );

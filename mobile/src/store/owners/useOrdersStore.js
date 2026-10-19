@@ -4,7 +4,7 @@
 //   items   orders of that filter, newest first (each carries allowedNext, acceptBy, speech... from the server)
 //   counts  how many ACTIVE orders per status, for the chip badges (always for active orders, whatever the filter)
 import { create } from 'zustand';
-import { fetchOrders, apiError } from '../../api/owners/shopApi';
+import { fetchOrders, markLooksSeen, apiError } from '../../api/owners/shopApi';
 import { serverStatusFor, isFinal } from '../../utils/owners/orderFlow';
 import { useOwnerStore } from './useOwnerStore';
 
@@ -16,7 +16,8 @@ export const useOrdersStore = create((set, get) => ({
     query: '',
     items: [],
     counts: {},
-    look: { count: 0, urgent: 0, top: null },   // orders that need a look once (chip "Needs a look")
+    look: { count: 0, urgent: 0, top: null },   // what the server says is still unseen
+    hold: null,   // { items } the orders shown under "Needs a look" during THIS visit to the tab. They count as seen the moment the tab opens, but stay listed until he leaves it (like the notification panel)
     page: 1,
     hasMore: false,
     loading: true,       // first load of a list: show skeletons
@@ -36,6 +37,7 @@ export const useOrdersStore = create((set, get) => ({
     load: async ({ quiet = false } = {}) => {
         const mine = ++seq;
         const { filter, query } = get();
+        if (filter === 'look') { set({ items: get().hold?.items || [], hasMore: false, loading: false, refreshing: false, error: null, loadedAt: Date.now() }); return; }   // already in hand
         if (!quiet) set({ loading: get().items.length === 0, error: null });
         try {
             const params = filter === 'look' ? { look: 'true', page: 1, limit: PAGE } : { status: serverStatusFor(filter), page: 1, limit: PAGE };
@@ -49,6 +51,33 @@ export const useOrdersStore = create((set, get) => ({
             set({ loading: false, refreshing: false, error: apiError(e, 'Could not load the orders. Pull down to try again.') });
         }
     },
+    // The Orders tab is open: read what needs a look, then count all of it as seen at once. The list stays for this visit.
+    openLook: async ({ jump = false } = {}) => {
+        if (get()._holding) return;
+        set({ _holding: true });
+        try {
+            const r = await fetchOrders({ look: 'true', page: 1, limit: 50 });
+            const fresh = r.items || [];
+            if (!fresh.length) return;
+            const old = get().hold?.items || [];
+            const have = new Set(old.map((o) => String(o.id)));
+            const items = [...fresh.filter((o) => !have.has(String(o.id))), ...old];
+            set({ hold: { items }, look: { count: 0, urgent: 0, top: null } });
+            if (get().filter === 'look') set({ items });
+            // he came because the tab was blinking: take him straight to "Needs a look" (once per visit, and only from the plain board)
+            else if (jump && !get().jumped && get().filter === 'active') { set({ jumped: true }); get().setFilter('look'); }
+            await markLooksSeen();
+            useOwnerStore.getState().refresh?.();   // the Orders tab and the Home card stop blinking
+        } catch (e) { /* tried again the next time the tab is opened */ } finally { set({ _holding: false }); }
+    },
+    // he left the Orders tab: the chip goes away for good
+    closeLook: () => {
+        set({ jumped: false });
+        if (!get().hold) return;
+        set({ hold: null });
+        if (get().filter === 'look') get().setFilter('active');
+    },
+
     // the owner opened an order from "Needs a look": it leaves that list at once (the server marks it seen when the order is read)
     markSeenLocal: (id) => {
         const { items, look } = get();
@@ -60,7 +89,7 @@ export const useOrdersStore = create((set, get) => ({
 
     loadMore: async () => {
         const { hasMore, loadingMore, page, filter, query } = get();
-        if (!hasMore || loadingMore) return;
+        if (!hasMore || loadingMore || filter === 'look') return;
         const mine = seq;
         set({ loadingMore: true });
         try {
@@ -77,7 +106,7 @@ export const useOrdersStore = create((set, get) => ({
     patch: (order) => {
         if (!order?.id) return;
         const { filter } = get();
-        const stays = filter === 'look' ? !!order.needsLook && !order.needsLook.seenAt
+        const stays = filter === 'look' ? !!get().hold?.items.some((o) => String(o.id) === String(order.id))
             : filter === 'active' ? !isFinal(order.status)
             : filter === 'cancelled' ? ['cancelled', 'undelivered'].includes(order.status)
                 : order.status === filter;

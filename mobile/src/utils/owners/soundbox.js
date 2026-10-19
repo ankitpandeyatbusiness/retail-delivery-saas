@@ -582,9 +582,11 @@ async function announceCancel(d) {
     try {
         const language = await languageToUse();
         const no = d.orderNo || '';
-        const text = language === 'hi'
+        // the server sends the whole sentence (who cancelled, the dishes, the total, how it was paid); the short one is the fallback
+        const full = language === 'hi' ? d.speechHi : d.speech;
+        const text = full || (language === 'hi'
             ? 'ऑर्डर ' + no + ' रद्द हो गया।'
-            : 'Order ' + no + ' was cancelled' + (d.byRider ? ' by the delivery partner.' : '.');
+            : 'Order ' + no + ' was cancelled' + (d.byRider ? ' by the delivery partner.' : '.'));
         await new Promise((r) => setTimeout(r, 1300));   // the tone first, then the voice
         if (!speaking) await speak(text, language);
     } catch (e) { /* the tone is enough */ }

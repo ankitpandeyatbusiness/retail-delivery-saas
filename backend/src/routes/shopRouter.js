@@ -122,6 +122,11 @@ router.get('/orders', wrap(async (req, res) => {
     });
 }));
 
+// the owner opened the Orders tab: every order waiting under "Needs a look" counts as seen
+router.post('/orders/look-seen', wrap(async (req, res) => {
+    res.json({ ok: true, seen: await orderLook.markAllSeen(req.tenant._id) });
+}));
+
 router.get('/orders/:id', wrap(async (req, res) => {
     const order = isId(req.params.id) ? await Order.findOne({ _id: req.params.id, tenantId: req.tenant._id, ...HIDE_UNPAID }) : null;
     if (!order) throw httpError(404, 'Order not found');

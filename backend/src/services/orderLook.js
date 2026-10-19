@@ -52,4 +52,12 @@ async function summary(tenantId) {
     };
 }
 
-module.exports = { REASONS, byId, byNo, markSeen, waiting, summary };
+// the owner opened the Orders tab: everything waiting counts as seen (like opening the notification panel)
+async function markAllSeen(tenantId) {
+    try {
+        const r = await Order.updateMany(waiting(tenantId), { $set: { 'needsLook.seenAt': new Date() } });
+        return r.modifiedCount || 0;
+    } catch (e) { return 0; }
+}
+
+module.exports = { REASONS, byId, byNo, markSeen, markAllSeen, waiting, summary };
