@@ -109,7 +109,13 @@ export function OrderCard({ order, onOpen, onAdvance, onReject, busy }) {
                     <Button label={tr('Accept')} icon="checkmark" busy={busy} onPress={() => onAdvance(order)} style={{ flex: 1, marginLeft: flow.canCancel(order) ? 8 : 0 }} />
                 </View>
             ) : null}
-            {!isNew && next ? (
+            {!isNew && next && flow.riderHandles(order, next) ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+                    <Ionicons name="bicycle" size={18} color={muted} />
+                    <Text style={{ flex: 1, marginLeft: 8, color: muted, fontWeight: '700', fontSize: 13 }}>{next === 'out_for_delivery' ? tr('The delivery partner will collect it. Nothing to do.') : tr('On the way. The delivery partner will finish it.')}</Text>
+                </View>
+            ) : null}
+            {!isNew && next && !flow.riderHandles(order, next) ? (
                 <Button label={flow.stepLabel(order, next)} busy={busy} onPress={() => onAdvance(order)} style={{ marginTop: 12 }} />
             ) : null}
         </Card>
@@ -119,7 +125,7 @@ export function OrderCard({ order, onOpen, onAdvance, onReject, busy }) {
 /* ------------------------------ doing things to an order ------------------------------ */
 // Accept / next step, reject, not delivered. Returns the sheets to draw once per screen.
 //   onChanged(order)  the server's new version of the order, so the screen can show it at once
-export function useOrderActions({ onChanged } = {}) {
+export function useOrderActions({ onChanged, onOptimistic } = {}) {
     const [busyId, setBusyId] = useState(null);
     const [rejecting, setRejecting] = useState(null);       // the order being rejected
     const [undelivering, setUndelivering] = useState(null);
@@ -136,12 +142,20 @@ export function useOrderActions({ onChanged } = {}) {
         if (!next) return;
         if (flow.needsRider(order, next)) { showToast(tr('Assign a delivery partner first')); return; }
         setBusyId(order.id);
+        // the board shows the result at once; the server's answer replaces it, and a refused step puts the old state back
+        const guess = flow.afterStep(order, next);
+        useOrdersStore.getState().patch(guess);
+        if (onOptimistic) onOptimistic(guess);
+        if (next === 'accepted') acknowledge(order.id);   // he dealt with it: the ringing stops
         try {
             const updated = await setOrderStatus(order.id, { status: next });
-            if (next === 'accepted') acknowledge(order.id);   // he dealt with it: the ringing stops
             done(updated);
             showToast(tr('Order #{orderNo}: {v2}', { orderNo: order.orderNo, v2: flow.statusLabel(next) }));
-        } catch (e) { fail(e); } finally { setBusyId(null); }
+        } catch (e) {
+            useOrdersStore.getState().patch(order);
+            if (onOptimistic) onOptimistic(order);
+            fail(e);
+        } finally { setBusyId(null); }
     };
 
     const submit = async (order, status, reasonCode, note) => {

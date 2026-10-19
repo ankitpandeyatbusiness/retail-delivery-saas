@@ -20,6 +20,8 @@ import RiderMap from '../../components/riders/RiderMap';
 import TripClock, { dueOf } from '../../components/riders/TripClock';
 import { onOrderEta, onRiderRoute, watchOrder } from '../../api/common/socket';
 import { BigButton, SmallLink, Banner, Steps } from '../../components/riders/riderBits';
+import SwipeButton from '../../components/riders/SwipeButton';
+import DeliveredView from '../../components/riders/DeliveredView';
 import { useRiderStore } from '../../store/riders/useRiderStore';
 import {
     fetchRiderOrder, fetchRoute, cancelDelivery, pickupOrder, markArrived, deliverOrder, reportProblem, releaseOrder, startDoorPay, checkDoorPay,
@@ -252,16 +254,7 @@ export default function RiderTripScreen() {
     }
     if (!o) return <View style={{ flex: 1, backgroundColor: background }}><PageHeader title={tr('Order')} /><ListShimmer count={3} /></View>;
 
-    if (o.status === 'delivered') {
-        return (
-            <View style={{ flex: 1, backgroundColor: background, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-                <Ionicons name="checkmark-circle" size={110} color={ok} />
-                <Text style={{ color: ok, fontSize: 28, fontWeight: '900', marginTop: 8 }}>{T.delivered}</Text>
-                {o.earnPaise > 0 ? <Text style={{ color: text, fontSize: 18, fontWeight: '800', marginTop: 8 }}>{T.deliveredEarned(rupee(o.earnPaise))}</Text> : null}
-                <View style={{ alignSelf: 'stretch', marginTop: 36 }}><BigButton label={T.backHome} onPress={() => nav.goBack()} /></View>
-            </View>
-        );
-    }
+    if (o.status === 'delivered') return <DeliveredView o={o} onDone={() => nav.goBack()} />;
     if (finished) {
         return (
             <View style={{ flex: 1, backgroundColor: background }}>
@@ -357,7 +350,7 @@ export default function RiderTripScreen() {
                         {!ready ? <Text style={{ color: muted, textAlign: 'center', fontWeight: '700', marginTop: 8 }}>{T.waitForShop}</Text> : null}
                     </>
                 ) : step === 1 ? (
-                    <BigButton label={T.arrived} icon="location" onPress={arrived} busy={busy === 'arrived'} />
+                    <SwipeButton label={tr('Arrived')} icon="location" onConfirm={arrived} busy={busy === 'arrived'} />
                 ) : (
                     <BigButton
                         label={cash ? T.deliverCash(rupeeAmount(o.payment.collectAmount)) : T.deliver}

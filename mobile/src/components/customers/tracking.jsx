@@ -97,14 +97,19 @@ export default function TrackingCard({ tracking: t, destination }) {
 
             {t.rider ? (
                 <View style={[s.rider, { borderTopColor: border }]}>
-                    {t.rider.photo ? <Image source={{ uri: t.rider.photo }} style={{ width: 40, height: 40, borderRadius: 20 }} contentFit="cover" /> : <Ionicons name="person-circle-outline" size={40} color={muted} />}
-                    <View style={{ flex: 1, marginLeft: 10 }}>
-                        <Text style={[s.rName, { color: text }]}>{t.rider.name}</Text>
-                        <Text style={[s.sub, { color: muted }]}>
-                            {[t.rider.vehicle, t.rider.phone ? null : t.rider.phoneMasked].filter(Boolean).join(' · ')}
-                        </Text>
+                    {/* the same round frame for a photo and for the no-photo icon, so the name always starts at the same place */}
+                    <View style={[s.avatar, { backgroundColor: tint(primary) }]}>
+                        {t.rider.photo
+                            ? <Image source={{ uri: t.rider.photo }} style={s.avatarImg} contentFit="cover" />
+                            : <Ionicons name="person" size={24} color={primary} />}
+                    </View>
+                    <View style={s.rText}>
+                        <Text style={[s.rName, { color: text }]} numberOfLines={1}>{t.rider.name}</Text>
+                        {[t.rider.vehicle, t.rider.phone ? null : t.rider.phoneMasked].filter(Boolean).length ? (
+                            <Text style={[s.sub, { color: muted }]} numberOfLines={1}>{[t.rider.vehicle, t.rider.phone ? null : t.rider.phoneMasked].filter(Boolean).join(' · ')}</Text>
+                        ) : null}
                         {t.rider.avgDeliveryMin ? (
-                            <Text style={[s.sub, { color: muted }]}>{tr('Usually delivers in about {min} min', { min: t.rider.avgDeliveryMin })}</Text>
+                            <Text style={[s.sub, { color: muted }]} numberOfLines={2}>{tr('Usually delivers in about {min} min', { min: t.rider.avgDeliveryMin })}</Text>
                         ) : null}
                     </View>
                     {t.rider.phone ? (
@@ -173,14 +178,17 @@ const s = StyleSheet.create({
     title: { fontSize: 15, fontWeight: '800' },
     sub: { fontSize: 12.5, fontWeight: '500', marginTop: 2 },
     rider: { flexDirection: 'row', alignItems: 'center', marginTop: 14, paddingTop: 14, borderTopWidth: StyleSheet.hairlineWidth },
-    rName: { fontSize: 14, fontWeight: '700' },
-    callBtn: { width: 40, height: 40, borderRadius: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
+    avatar: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+    avatarImg: { width: 46, height: 46 },
+    rText: { flex: 1, minWidth: 0, marginLeft: 12, marginRight: 10, justifyContent: 'center' },
+    rName: { fontSize: 15, fontWeight: '800' },
+    callBtn: { width: 46, height: 46, borderRadius: 23, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
     callTxt: { color: '#FFFFFF', fontSize: 13.5, fontWeight: '800', marginLeft: 6, paddingRight: 16 },
     liveBtn: { marginTop: 14, height: 46, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
     liveTxt: { color: '#FFFFFF', fontSize: 14.5, fontWeight: '800', marginLeft: 8, paddingHorizontal: 40 },
-    pin: { marginTop: 14, borderRadius: 14, padding: 12, alignItems: 'center' },
-    pinLabel: { fontSize: 12, fontWeight: '600' },
-    pinNo: { fontSize: 26, fontWeight: '900', letterSpacing: 4, marginTop: 4 },
+    pin: { marginTop: 14, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    pinLabel: { flex: 1, fontSize: 12.5, fontWeight: '600', marginRight: 12 },
+    pinNo: { fontSize: 26, fontWeight: '900', letterSpacing: 4 },
     bike: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#FFFFFF', elevation: 4 },
     shop: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F59E0B', borderWidth: 2, borderColor: '#FFFFFF', elevation: 4 },
     recenter: { position: 'absolute', right: 8, bottom: 8, width: 38, height: 38, borderRadius: 19, borderWidth: 1, alignItems: 'center', justifyContent: 'center', elevation: 3 },

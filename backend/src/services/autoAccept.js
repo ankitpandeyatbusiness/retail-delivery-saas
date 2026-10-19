@@ -40,7 +40,7 @@ function describe(tenant, now = new Date()) {
     const { date } = istNow(now);
     const expired = !!a.on && a.repeat !== 'daily' && a.day !== date;
     return {
-        on: !!a.on && !expired, from: a.from || null, to: a.to || null, repeat: a.repeat === 'daily' ? 'daily' : 'today',
+        on: !!a.on && !expired, from: a.from || null, to: a.to || null, repeat: a.repeat === 'daily' ? 'daily' : 'today', prepare: !!a.prepare,
         active: applies(tenant, now),   // right now an order would be accepted by itself
     };
 }
@@ -50,7 +50,7 @@ function clean(body, now = new Date()) {
     const b = body || {};
     if (typeof b.on !== 'boolean') throw Object.assign(new Error('Send on: true or false'), { status: 400 });
     if (!b.on) return { on: false };
-    const out = { on: true, repeat: b.repeat === 'daily' ? 'daily' : 'today', day: istNow(now).date };
+    const out = { on: true, repeat: b.repeat === 'daily' ? 'daily' : 'today', day: istNow(now).date, prepare: b.prepare === true };
     const hasFrom = b.from !== undefined && b.from !== null && b.from !== '';
     const hasTo = b.to !== undefined && b.to !== null && b.to !== '';
     if (hasFrom !== hasTo) throw Object.assign(new Error('Give both the start and the end time, or neither'), { status: 400 });
@@ -68,9 +68,11 @@ function clean(body, now = new Date()) {
 async function afterPlaced(order) {
     const notify = require('./notificationService');
     let auto = false;
+    let tenantA = null;   // the auto accept setting of the shop
     try {
         const tenant = await Tenant.findById(order.tenantId).select('settings.orders').lean();
         auto = applies(tenant);
+        tenantA = tenant?.settings?.orders?.autoAccept || null;
     } catch (e) { /* manual */ }
     notify.orderPlaced(order, { autoAccepted: auto });   // the Soundbox rings as usual, with "auto accepted" on it
     if (!auto) return false;
@@ -78,6 +80,11 @@ async function afterPlaced(order) {
         const fresh = await Order.findOne({ _id: order._id, tenantId: order.tenantId });
         if (!fresh || fresh.status !== 'placed') return false;
         await orderStatus.change({ order: fresh, status: 'accepted', actor: { type: 'system', label: 'auto accept' }, note: 'Accepted automatically' });
+        // "start preparing at once": the kitchen's next step is done for him too
+        if (tenantA?.prepare) {
+            const again = await Order.findOne({ _id: order._id, tenantId: order.tenantId });
+            if (again && again.status === 'accepted') await orderStatus.change({ order: again, status: 'preparing', actor: { type: 'system', label: 'auto accept' }, note: 'Preparing started automatically' });
+        }
         return true;
     } catch (e) {
         console.error('Auto accept error:', e.message);   // stays "placed": the owner accepts it by hand, the usual reminders run

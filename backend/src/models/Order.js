@@ -95,7 +95,7 @@ const orderSchema = new Schema({
         arrivingNotifiedAt: Date,   // the "arriving soon" push was sent (once per order)
         reachedNotifiedAt: Date,    // the "reached" push was sent (once per order)
         // the offer to ALL free riders at once (automatic mode)
-        broadcast: { active: Boolean, startedAt: Date, expiresAt: Date, endedAt: Date, endReason: String },
+        broadcast: { active: Boolean, startedAt: Date, expiresAt: Date, endedAt: Date, endReason: String, reoffer: Boolean },   // reoffer: opened again for a rider who came on duty later
         problems: [{ _id: false, at: Date, reason: String, note: String }],   // reported by the rider
         cashCollectedPaise: { type: Number, default: 0 },
         // the rider's photo of the food handed over: proof of a safe delivery. Optional. Shown to the customer, the owner and the superadmin.

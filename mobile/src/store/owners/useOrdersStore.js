@@ -9,6 +9,7 @@ import { serverStatusFor, isFinal } from '../../utils/owners/orderFlow';
 import { useOwnerStore } from './useOwnerStore';
 
 const PAGE = 20;
+const recent = new Map();   // order id -> { order, at }: orders changed on this phone a moment ago
 let seq = 0;   // an old answer must never overwrite a newer one (chip tapped twice, typing in the search box)
 
 export const useOrdersStore = create((set, get) => ({
@@ -36,6 +37,7 @@ export const useOrdersStore = create((set, get) => ({
     // the first page of the current filter
     load: async ({ quiet = false } = {}) => {
         const mine = ++seq;
+        const startedAt = Date.now();
         const { filter, query } = get();
         if (filter === 'look') { set({ items: get().hold?.items || [], hasMore: false, loading: false, refreshing: false, error: null, loadedAt: Date.now() }); return; }   // already in hand
         if (!quiet) set({ loading: get().items.length === 0, error: null });
@@ -44,7 +46,9 @@ export const useOrdersStore = create((set, get) => ({
             if (/^\d{1,9}$/.test(query.trim())) params.q = query.trim();
             const r = await fetchOrders(params);
             if (mine !== seq) return;
-            set({ items: r.items || [], counts: r.counts || {}, look: r.look || { count: 0, urgent: 0, top: null }, page: 1, hasMore: !!r.hasMore, loading: false, refreshing: false, loadedAt: Date.now(), error: null });
+            // an order changed on this phone while this list was on its way: keep the newer version, never the old one
+            const fresh = (r.items || []).map((o) => { const p = recent.get(String(o.id)); return p && p.at > startedAt ? p.order : o; });
+            set({ items: fresh, counts: r.counts || {}, look: r.look || { count: 0, urgent: 0, top: null }, page: 1, hasMore: !!r.hasMore, loading: false, refreshing: false, loadedAt: Date.now(), error: null });
         } catch (e) {
             if (mine !== seq) return;
             useOwnerStore.getState().noteError(e);
@@ -105,6 +109,8 @@ export const useOrdersStore = create((set, get) => ({
     // an order changed (accepted, cancelled...): show the new version at once, or drop it from a list it no longer belongs to
     patch: (order) => {
         if (!order?.id) return;
+        recent.set(String(order.id), { order, at: Date.now() });
+        if (recent.size > 40) recent.delete(recent.keys().next().value);
         const { filter } = get();
         const stays = filter === 'look' ? !!get().hold?.items.some((o) => String(o.id) === String(order.id))
             : filter === 'active' ? !isFinal(order.status)

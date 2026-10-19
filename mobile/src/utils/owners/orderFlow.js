@@ -34,6 +34,17 @@ export function stepLabel(order, next) {
 export const forwardStep = (order) => (order?.allowedNext || []).find((s) => s !== 'cancelled' && s !== 'undelivered') || null;
 // a delivery order cannot go out until a delivery partner is assigned (the server refuses too)
 export const needsRider = (order, next) => next === 'out_for_delivery' && order?.orderType === 'delivery' && order.riderAssigned === false;
+// What the order looks like the moment a step is tapped, before the server has answered: the board shows the next button at once.
+// The server's answer replaces it a moment later (and puts the old state back if the step is refused).
+export function afterStep(order, next) {
+    const delivery = order.orderType === 'delivery';
+    const flow = delivery ? ['placed', 'accepted', 'preparing', 'out_for_delivery', 'delivered'] : ['placed', 'accepted', 'preparing', 'ready', 'delivered'];
+    const following = flow[flow.indexOf(next) + 1];
+    return { ...order, status: next, allowedNext: following ? [following, 'cancelled'] : [] };
+}
+// A delivery order with a delivery partner: HE collects it ("I have collected") and delivers it (the PIN), and the order moves by itself.
+// So the owner has no "Out for delivery" or "Mark delivered" button on the board for it.
+export const riderHandles = (order, next) => order?.orderType === 'delivery' && order.riderAssigned !== false && (next === 'out_for_delivery' || next === 'delivered');
 export const canCancel = (order) => (order?.allowedNext || []).includes('cancelled');
 export const canMarkUndelivered = (order) => (order?.allowedNext || []).includes('undelivered');
 

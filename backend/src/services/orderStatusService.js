@@ -115,6 +115,10 @@ function checkAllowed({ order, status, actor, note, tenant, reasonCode, now }) {
                 if (isUnpaidOnline(order)) throw httpError(409, 'The customer has not paid yet');
                 return;
             }
+            if (status === 'preparing') {   // auto accept with "start preparing at once"
+                if (order.status !== 'accepted') throw httpError(409, 'This order is not waiting to be prepared');
+                return;
+            }
             if (status !== 'cancelled') throw httpError(403, 'The system can only cancel or accept');
             if (!ACTIVE_STATUSES.includes(order.status)) throw httpError(409, 'This order is already finished');
             if (reasonCode !== undefined && !SYSTEM_CANCEL_REASONS.includes(reasonCode)) throw httpError(400, 'Invalid reason');

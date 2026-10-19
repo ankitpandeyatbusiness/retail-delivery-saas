@@ -82,7 +82,7 @@ export default function OwnerOrderScreen() {
         return () => { alive.current = false; off(); };
     }, [id, load]);
 
-    const actions = useOrderActions({ onChanged: (o) => { setOrder(o); load(); } });
+    const actions = useOrderActions({ onChanged: (o) => { setOrder(o); load(); }, onOptimistic: setOrder });
 
     const pull = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
@@ -326,11 +326,14 @@ export default function OwnerOrderScreen() {
                     {flow.needsRider(order, next) ? (
                         <Text style={{ color: warn, fontWeight: '800', fontSize: 13, marginBottom: 8, textAlign: 'center' }}>{tr('Assign a delivery partner first. Then you can send it out.')}</Text>
                     ) : null}
+                    {flow.riderHandles(order, next) ? (
+                        <Text style={{ color: muted, fontWeight: '700', fontSize: 13, marginBottom: 8, textAlign: 'center' }}>{next === 'out_for_delivery' ? tr('The delivery partner will collect it. Nothing to do.') : tr('On the way. The delivery partner will finish it.')}</Text>
+                    ) : null}
                     <View style={{ flexDirection: 'row' }}>
                         {isNew && flow.canCancel(order) ? (
                             <Button label={tr('Reject')} icon="close" iconOnly kind="ghost" disabled={busy} onPress={() => actions.requestReject(order)} style={{ width: 54 }} />
                         ) : null}
-                        <Button label={flow.stepLabel(order, next)} icon="checkmark" busy={busy} disabled={flow.needsRider(order, next)} onPress={() => actions.advance(order)} style={{ flex: 1, marginLeft: isNew && flow.canCancel(order) ? 8 : 0 }} />
+                        <Button label={flow.riderHandles(order, next) ? (next === 'out_for_delivery' ? tr('I handed it over myself') : tr('Mark delivered myself')) : flow.stepLabel(order, next)} icon="checkmark" kind={flow.riderHandles(order, next) ? 'ghost' : 'primary'} busy={busy} disabled={flow.needsRider(order, next)} onPress={() => actions.advance(order)} style={{ flex: 1, marginLeft: isNew && flow.canCancel(order) ? 8 : 0 }} />
                         {!isNew && flow.canCancel(order) ? (
                             <Button label={tr('Cancel this order')} icon="close" iconOnly kind="ghost" disabled={busy} onPress={() => actions.requestReject(order)} style={{ width: 54, marginLeft: 8 }} />
                         ) : null}

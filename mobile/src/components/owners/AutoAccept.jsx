@@ -41,6 +41,7 @@ function AutoAcceptSheet({ visible, onClose, current, onSaved }) {
     const [from, setFrom] = useState('13:00');
     const [to, setTo] = useState('15:00');
     const [repeat, setRepeat] = useState('today');
+    const [prepare, setPrepare] = useState(false);
     const [busy, setBusy] = useState(false);
 
     useEffect(() => {
@@ -50,12 +51,13 @@ function AutoAcceptSheet({ visible, onClose, current, onSaved }) {
         setFrom(current?.from || '13:00');
         setTo(current?.to || '15:00');
         setRepeat(current?.repeat || 'today');
+        setPrepare(!!current?.prepare);
     }, [visible]);   // eslint-disable-line react-hooks/exhaustive-deps
 
     const save = async () => {
         setBusy(true);
         try {
-            const r = await saveAutoAccept(on ? { on: true, repeat, ...(timed ? { from, to } : {}) } : { on: false });
+            const r = await saveAutoAccept(on ? { on: true, repeat, prepare, ...(timed ? { from, to } : {}) } : { on: false });
             onSaved(r);
             showToast(on ? tr('Auto accept is on') : tr('Auto accept is off. You accept orders by hand'));
             onClose();
@@ -88,6 +90,13 @@ function AutoAcceptSheet({ visible, onClose, current, onSaved }) {
 
                     <Text style={{ color: muted, fontSize: 12, fontWeight: '800', marginTop: 16 }}>{tr('FOR')}</Text>
                     <Chips options={[['today', tr('Today only')], ['daily', tr('Every day')]]} value={repeat} onChange={setRepeat} />
+                    <ToggleRow
+                        title={tr('Also start preparing at once')}
+                        subtitle={tr('The order goes straight to Preparing. You only press Ready when needed. The delivery partner collects and delivers by himself.')}
+                        value={prepare}
+                        onValueChange={setPrepare}
+                        last
+                    />
                     <Text style={{ color: muted, fontSize: 12.5, marginTop: 10 }}>
                         {repeat === 'today'
                             ? tr('It switches itself off after today. Tomorrow you accept by hand again.')

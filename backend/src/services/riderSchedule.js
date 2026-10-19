@@ -212,6 +212,7 @@ async function tick(now = new Date()) {
                 const res = await Rider.updateOne({ _id: r._id, isOnline: false, isActive: true }, { $set: { isOnline: true, onlineSince: now, 'duty.lastAutoOn': now, 'duty.autoSession': true } });
                 if (res.modifiedCount) {
                     on += 1;
+                    require('./assignmentService').offerOpenToRider({ tenantId: r.tenantId, riderUserId: r.userId }).catch((e) => console.error('Show open orders error:', e.message));   // open orders are shown to him at once
                     tell('rider_duty_auto', { tenantId: r.tenantId, userId: r.userId, vars: { on: true }, data: { kind: 'duty_auto' } });
                 }
             } else if (!shouldBeOn && r.isOnline && r.duty?.autoSession && r.activeOrderCount === 0) {

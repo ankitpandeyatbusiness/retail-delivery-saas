@@ -172,7 +172,7 @@ async function endBroadcast(orderId, tenantId, why) {
     if (!old) return null;   // already ended
 
     const waiting = (old.delivery?.offers || []).filter((o) => o.result === 'offered');
-    if (['no_rider', 'all_rejected', 'timeout'].includes(why)) {
+    if (['no_rider', 'all_rejected', 'timeout'].includes(why) && !old.delivery?.broadcast?.reoffer) {   // (an order offered again to a rider who just came on duty already alerted him once)
         notify.noRiderFree({ tenantId, orderId, orderNo: old.orderNo });   // ONE alert: the owner assigns by hand
     }
     notify.offersClosed({ tenantId, orderId, orderNo: old.orderNo, why: 'closed', riderIds: waiting.map((o) => o.riderId) });
@@ -214,6 +214,46 @@ async function startBroadcast({ orderId, tenantId, excludeRiderId }) {
     notify.riderBroadcast(asked, riders.map((r) => r.userId));
     logEvent({ tenantId, action: 'RIDER_BROADCAST', orderNo: asked.orderNo, detail: { riders: riders.length, expiresAt: expires } });
     return asked;
+}
+
+// A rider has just gone on duty (by hand, or by his timing). Every open delivery order that still has no rider is shown to him at once,
+// so an order that came in while nobody was on duty is not left waiting. Same rules as a broadcast: automatic mode only, he must be
+// free and not hold too much cash; he sees it as a normal request (live card + push) and the first to accept gets it.
+async function offerOpenToRider({ tenantId, riderUserId }) {
+    const settings = await settingsOf(tenantId);
+    if (settings.assignMode !== 'automatic') return 0;
+    const rider = await Rider.findOne({ tenantId, userId: riderUserId, isActive: true, isOnline: true }).select('activeOrderCount').lean();
+    if (!rider || rider.activeOrderCount >= settings.maxActiveOrders) return 0;
+    if (settings.cashLimitPaise > 0 && (await cod.balanceOf(tenantId, riderUserId)).balancePaise >= settings.cashLimitPaise) return 0;
+
+    const { HIDE_UNPAID } = require('./onlineOrder');
+    const open = await Order.find({
+        tenantId, orderType: 'delivery', status: { $in: ['accepted', 'preparing'] }, 'delivery.riderId': { $exists: false }, ...HIDE_UNPAID,
+    }).sort({ createdAt: 1 }).limit(3).select('_id').lean();
+
+    const now = new Date();
+    const expires = new Date(now.getTime() + settings.offerSeconds * 1000);
+    let shown = 0;
+    for (const o of open) {
+        // the broadcast is opened again if it had ended (nobody was free)
+        await Order.updateOne(
+            { _id: o._id, tenantId, 'delivery.riderId': { $exists: false }, 'delivery.broadcast.active': { $ne: true } },
+            { $set: { 'delivery.broadcast': { active: true, startedAt: now, expiresAt: expires, reoffer: true }, 'delivery.pinRequired': settings.deliveryPin } },
+        );
+        const asked = await Order.findOneAndUpdate(
+            {
+                _id: o._id, tenantId, 'delivery.riderId': { $exists: false }, 'delivery.broadcast.active': true,
+                'delivery.offers': { $not: { $elemMatch: { riderId: riderUserId, result: 'offered' } } },
+            },
+            { $push: { 'delivery.offers': { riderId: riderUserId, offeredAt: now, expiresAt: expires, result: 'offered', by: 'system' } } },
+            { returnDocument: 'after' },
+        );
+        if (!asked) continue;
+        notify.riderBroadcast(asked, [riderUserId]);
+        shown += 1;
+    }
+    if (shown) logEvent({ tenantId, action: 'RIDER_ORDERS_SHOWN_ON_DUTY', riderUserId, detail: { orders: shown } });
+    return shown;
 }
 
 // A rider says yes. Only the FIRST rider passes the filter of the second step.
@@ -496,5 +536,5 @@ function startOfferScheduler() {
 
 module.exports = {
     settingsOf, assign, unassign, accept, reject, expireOffers, startOfferScheduler,
-    startBroadcast, endBroadcast, acceptBroadcast, rejectBroadcast, expireBroadcasts,
+    startBroadcast, endBroadcast, acceptBroadcast, rejectBroadcast, expireBroadcasts, offerOpenToRider,
 };

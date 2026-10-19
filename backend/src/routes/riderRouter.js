@@ -224,6 +224,8 @@ core.put('/online', wrap(async (req, res) => {
         req.body.isOnline ? { $set: { isOnline: true, onlineSince: new Date(), 'duty.autoSession': false } } : { $set: { isOnline: false, 'duty.autoSession': false }, $unset: { onlineSince: 1 } },
     );
     if (!r.matchedCount) throw httpError(403, 'Your rider account is switched off');
+    // just came on duty: the open orders nobody has taken are shown to him at once
+    if (req.body.isOnline) assignment.offerOpenToRider({ tenantId: req.tenant._id, riderUserId: req.riderId }).catch((e) => console.error('Show open orders error:', e.message));
     res.json({ ok: true, isOnline: req.body.isOnline });
 }));
 
