@@ -56,7 +56,7 @@ const TEXTS = {
                     : `Order #${v.orderNo} was cancelled${v.bySystem ? ' (not accepted in time)' : ' by the customer'}.`,
     }),
     delivery_late_warning: (v) => ({ title: 'Delivery is very late', body: `Order #${v.orderNo} is ${v.late} min late. It is cancelled and fully refunded in ${v.left} min if it is not delivered.` }),
-    delivery_late_warning_rider: (v) => ({ title: 'Deliver now', body: `Order #${v.orderNo} is ${v.late} min late. It will be cancelled in ${v.left} min if it is not delivered.` }),
+    delivery_late_warning_rider: (v) => ({ title: `Order #${v.orderNo} is ${v.late} min late`, body: `Deliver it now. It is cancelled in ${v.left} min if it is not delivered.` }),
     order_delivered_shop: (v) => ({ title: `Delivered #${v.orderNo}`, body: `${v.brief ? `${v.brief}${v.total ? ` · ₹${Math.round(v.total)}` : ''}. ` : ''}Reached the customer.` }),
     delivery_done_rider: (v) => ({ title: 'Delivery complete', body: `Order #${v.orderNo}${v.brief ? ` (${v.brief})` : ''} is done. Great work, thank you!` }),
     rider_offer: (v) => ({
@@ -68,8 +68,8 @@ const TEXTS = {
     rider_accepted: (v) => ({ title: 'Rider accepted', body: `${v.riderName} accepted order #${v.orderNo}.` }),
     rider_rejected: (v) => ({ title: 'Rider said no', body: `${v.riderName} rejected order #${v.orderNo ?? ''}.` }),
     rider_none: (v) => ({ title: 'No rider available', body: `Order #${v.orderNo} needs a rider. Please assign one by hand.` }),
-    rider_removed: (v) => ({ title: 'Order taken back', body: `Order #${v.orderNo} was given to someone else.` }),
-    rider_off_duty: () => ({ title: 'You are off duty', body: 'You were put off duty.' }),
+    rider_removed: (v) => ({ title: 'Order taken back', body: `Order #${v.orderNo} was given to another delivery partner. You do not need to do anything.` }),
+    rider_off_duty: () => ({ title: 'You are off duty', body: 'You will not get new orders until you go on duty again.' }),
     rider_sos: (v) => ({ title: 'Rider needs help', body: `${v.riderName} pressed the help button${v.orderNo ? ` (order #${v.orderNo})` : ''}. Call him now: ${v.phone}.` }),
     rider_problem: (v) => ({
         title: 'Delivery problem',

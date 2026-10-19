@@ -276,7 +276,10 @@ function riderBroadcast(order, riderIds) {
             realtime.toUser(order.tenantId, riderId, 'rider:offer', card);
             center.notify('rider_offer', {
                 tenantId: order.tenantId, userId: riderId,
-                vars: { orderNo: order.orderNo, secs, items: count, collect },
+                vars: {
+                    orderNo: order.orderNo, secs, items: count, collect, brief: brief(order, 2),
+                    area: [order.address?.landmark, order.address?.city].filter(Boolean).join(', ').slice(0, 40),   // no name, phone or full address before accepting
+                },
                 data: { orderId: String(order._id), orderNo: order.orderNo, broadcast: true },
             });
         }
