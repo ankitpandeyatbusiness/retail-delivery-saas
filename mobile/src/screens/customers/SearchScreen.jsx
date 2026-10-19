@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand } from '../../components/common/kit';
-import { ItemCard, Pic, CartBar, AddButton, VegDot, ImageRibbon, Tags, quickAdd } from '../../components/customers/shop';
+import { ItemCard, Pic, CartBar, AddButton, VegDot, ImageRibbon, Tags, useClosedStyle, quickAdd } from '../../components/customers/shop';
 import { Slider, VegSwitch, Cats, FiltersRow, Fade, useVoice, VoiceOverlay } from '../../components/customers/finder';
 import FilterDialog from './FilterDialog';
 import { useHomeStore } from '../../store/customers/useHomeStore';
@@ -60,6 +60,7 @@ export default function SearchScreen() {
     const foodMode = useHomeStore((st) => st.config.foodMode);
     const emptyText = full.labels.emptySearch;
     const minCount = full.ratings.minCount;
+    const closedStyle = useClosedStyle();   // the shop is closed: this whole screen turns grey
     const { categories, recommended, loaded, load: loadMenu } = useMenuStore();
     const f = useFilterStore();
     const veg = f.active.includes('veg_only');
@@ -231,7 +232,7 @@ export default function SearchScreen() {
     const fadeKey = !active ? 'idle' : state;
 
     return (
-        <View style={{ flex: 1, paddingTop: insets.top, backgroundColor: background }}>
+        <View style={[{ flex: 1, paddingTop: insets.top, backgroundColor: background }, closedStyle]}>
             <View style={[s.head, { backgroundColor: background, borderBottomColor: border }]}>
                 <View style={s.searchRow}>
                     <View style={[s.sb, { backgroundColor: surface, borderColor: border }]}>

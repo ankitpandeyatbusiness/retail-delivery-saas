@@ -62,7 +62,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../components/common/kit';
 import { useMotion } from '../components/common/motion';
 import { useThemeStore } from '../store/common/useThemeStore';
-import { ToastHost, showToast } from '../components/customers/shop';
+import { ToastHost, showToast, useClosedStyle } from '../components/customers/shop';
 import { FrozenOverlay, OfflineBanner } from '../components/common/status';
 import { useAppStatus } from '../store/common/useAppStatus';
 import { useViewMode } from '../store/owners/useViewMode';
@@ -107,6 +107,7 @@ function MainTabs() {
     const count = useCartStore((s) => s.lines.reduce((a, l) => a + l.quantity, 0));
     const floating = useThemeStore((s) => s.theme.tabBarStyle) === 'floating';
     const tabMotion = useMotion();
+    const closedStyle = useClosedStyle();   // the shop is closed: the tabs turn grey with the screens
     const defsByRoute = Object.fromEntries(Object.values(TAB_DEFS).map((d) => [d.name, d]));
 
     // one place loads the shop config for the whole app
@@ -164,6 +165,7 @@ function MainTabs() {
                         component={d.component}
                         options={{
                             tabBarLabel: d.label,
+                            tabBarItemStyle: d.name === 'Account' ? undefined : closedStyle,   // the shop is closed: these tabs turn grey, Account stays in colour
                             tabBarBadge: id === 'cart' && count > 0 ? count : undefined,
                             tabBarIcon: ({ focused, color }) => (
                                 <View style={{ width: 58, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: focused ? alpha(primary, 0.14) : 'transparent' }}>

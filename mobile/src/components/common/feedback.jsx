@@ -8,7 +8,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useBrand } from './kit';
-import { showToast, tint } from '../customers/shop';
+import { showToast, tint, useClosedStyle } from '../customers/shop';
 import { rateDelivery, fetchComplaints, sendComplaint } from '../../api/customers/shopApi';
 import { pickPhoto, uploadComplaintPhoto, discardPhoto } from '../../utils/common/photoUpload';
 import { ask } from './dialog';
@@ -152,6 +152,7 @@ function resolutionLine(c) {
 export function ComplaintCard({ orderId }) {
     const { primary, text, muted, border, background, surface, radius, error } = useBrand();
     const [data, setData] = useState(null);       // { items, canComplain, until }
+    const closedStyle = useClosedStyle();   // the shop is closed: this popup turns grey
     const [open, setOpen] = useState(false);
     // The dim background fades while only the sheet slides. (With the Modal's own "slide" the dim layer slid up too: a black block.)
     const [shown, setShown] = useState(false);
@@ -282,7 +283,7 @@ export function ComplaintCard({ orderId }) {
             </CardShell>
 
             <Modal visible={shown} transparent animationType="none" statusBarTranslucent onRequestClose={closeSheet}>
-                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalWrap}>
+                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[s.modalWrap, closedStyle]}>
                     <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.45)', opacity: anim }]} />
                     <Pressable style={StyleSheet.absoluteFill} onPress={closeSheet} />
                     <Animated.View style={[s.sheet, { backgroundColor: surface, transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [640, 0] }) }] }]}>

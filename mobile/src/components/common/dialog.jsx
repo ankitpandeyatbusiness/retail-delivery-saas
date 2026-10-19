@@ -4,7 +4,7 @@ import { Modal, View, Text, Pressable, StyleSheet, Animated, Easing } from 'reac
 import { create } from 'zustand';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from './kit';
-import { tint } from '../customers/shop';
+import { tint, useClosedStyle } from '../customers/shop';
 import { Press } from '../customers/cartParts';
 
 const useDlg = create(() => ({ cur: null }));
@@ -14,7 +14,7 @@ const next = () => useDlg.setState({ cur: queue.shift() || null });
 
 // Same arguments as Alert.alert(title, message, [{ text, style, onPress }]) so it is a drop-in replacement.
 export function themedAlert(title, message, buttons, opts = {}) {
-    show({ id: Math.random(), title, message, icon: opts.icon, buttons: buttons && buttons.length ? buttons : [{ text: 'OK' }] });
+    show({ id: Math.random(), title, message, icon: opts.icon, noGrey: !!opts.noGrey, buttons: buttons && buttons.length ? buttons : [{ text: 'OK' }] });
 }
 
 // const ok = await ask({ title, message, confirmText, cancelText, destructive, icon })
@@ -24,7 +24,7 @@ export const ask = (o) => new Promise((res) => show({
         { text: o.cancelText || 'Cancel', style: 'cancel', onPress: () => res(false) },
         { text: o.confirmText || 'OK', style: o.destructive ? 'destructive' : 'default', onPress: () => res(true) },
     ],
-    onClose: () => res(false),
+    onClose: () => res(null),   // closed by tapping outside or Back: not "Cancel", not "OK"
 }));
 
 function Card({ d }) {
@@ -48,14 +48,16 @@ function Card({ d }) {
             else if (!b && d.onClose) d.onClose();
         });
     };
+    // d.noGrey: a popup the shop being closed does not affect (the profile picture one)
+    const closedStyle = useClosedStyle();   // the shop is closed: a customer's popups turn grey too
     const cancelBtn = d.buttons.find((b) => b.style === 'cancel');
     const row = d.buttons.length <= 2;
 
     return (
-        <Modal transparent visible animationType="none" statusBarTranslucent onRequestClose={() => done(cancelBtn)}>
-            <View style={s.wrap}>
+        <Modal transparent visible animationType="none" statusBarTranslucent onRequestClose={() => done(d.onClose ? null : cancelBtn)}>
+            <View style={[s.wrap, d.noGrey ? null : closedStyle]}>
                 <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, s.backdrop, { opacity: v }]} />
-                <Pressable style={StyleSheet.absoluteFill} onPress={() => done(cancelBtn)} />
+                <Pressable style={StyleSheet.absoluteFill} onPress={() => done(d.onClose ? null : cancelBtn)} />
                 <Animated.View style={[s.card, { backgroundColor: surface, borderColor: border, opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [28, 0] }) }, { scale: v.interpolate({ inputRange: [0, 1], outputRange: [0.88, 1] }) }] }]}>
                     <View style={[s.ic, { backgroundColor: tint(accent) }]}><Ionicons name={icon} size={26} color={accent} /></View>
                     <Text style={[s.title, { color: text }]}>{d.title}</Text>

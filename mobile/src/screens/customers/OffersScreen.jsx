@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View, Text, Pressable, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useBrand, BackHeader } from '../../components/common/kit';
-import { ItemCard, CartBar, showToast, tint } from '../../components/customers/shop';
+import { ItemCard, CartBar, showToast, tint, useClosedStyle } from '../../components/customers/shop';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { useThemeStore } from '../../store/common/useThemeStore';
@@ -18,6 +18,7 @@ import { tr } from '../../i18n';
 
 /* ---------------- Offers ---------------- */
 export function OffersScreen() {
+    const closedStyle = useClosedStyle();
     const { background, muted } = useBrand();
     const storeOffers = useHomeStore((st) => st.offers);
     const enabled = useHomeStore((st) => st.full.offers.couponsEnabled);
@@ -37,7 +38,7 @@ export function OffersScreen() {
 
     const shown = enabled ? list : [];
     return (
-        <View style={[s.flex, { backgroundColor: background }]}>
+        <View style={[s.flex, { backgroundColor: background }, closedStyle]}>
             <BackHeader title={tr('Offers')} />
             {loading && !shown.length ? (
                 <View style={{ padding: 16 }}>
@@ -62,6 +63,7 @@ export function OffersScreen() {
 
 /* ---------------- Bestsellers ---------------- */
 export function BestsellersScreen() {
+    const closedStyle = useClosedStyle();
     const { text, background } = useBrand();
     const name = useThemeStore((st) => st.theme.name);
     const cats = useMenuStore((st) => st.categories);
@@ -73,7 +75,7 @@ export function BestsellersScreen() {
     useEffect(() => { if (!loaded) useMenuStore.getState().load(); }, []);
 
     return (
-        <View style={[s.flex, { backgroundColor: background }]}>
+        <View style={[s.flex, { backgroundColor: background }, closedStyle]}>
             <BackHeader title={tr('Bestsellers')} />
             <FlatList
                 data={list} keyExtractor={(i) => i._id}
@@ -89,6 +91,7 @@ export function BestsellersScreen() {
 
 /* ---------------- Favourites ---------------- */
 export function FavouritesScreen() {
+    const closedStyle = useClosedStyle();
     const nav = useNavigation();
     const { primary, radius, text, background } = useBrand();
     const user = useAuthStore((st) => st.user);
@@ -131,7 +134,7 @@ export function FavouritesScreen() {
     }
 
     return (
-        <View style={[s.flex, { backgroundColor: background }]}>
+        <View style={[s.flex, { backgroundColor: background }, closedStyle]}>
             <BackHeader title={tr('Favourites')} />
             {state === 'loading' ? <ActivityIndicator style={{ margin: 40 }} color={primary} />
                 : state === 'error' && !items.length ? (

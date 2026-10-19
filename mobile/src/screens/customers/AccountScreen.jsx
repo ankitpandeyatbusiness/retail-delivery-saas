@@ -291,7 +291,7 @@ function AccountInner() {
         { text: tr('Choose from gallery'), onPress: () => changeAvatar('gallery') },
         ...(me?.avatarUrl ? [{ text: 'Remove photo', style: 'destructive', onPress: removeAvatar }] : []),
         { text: tr('Cancel'), style: 'cancel' },
-    ], { icon: 'camera-outline' });
+    ], { icon: 'camera-outline', noGrey: true });
 
     const signOut = async () => {
         try { await useAuthStore.getState().logout(); } catch (e) { /* the navigator resets to Login */ }

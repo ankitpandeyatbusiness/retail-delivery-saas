@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, View, Text, Pressable, ScrollView, StyleSheet, Animated, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../common/kit';
-import { tint } from './shop';
+import { tint, useClosedStyle } from './shop';
 import { Press } from './cartParts';
 import { tr } from '../../i18n';
 
@@ -56,6 +56,7 @@ function Chip({ label, on, onPress }) {
 
 // value: { from: 'YYYY-MM-DD' | null, to: 'YYYY-MM-DD' | null, sort: 'newest' | 'oldest' } or null
 export default function DateRangeSheet({ visible, value, onClose, onApply }) {
+    const closedStyle = useClosedStyle();   // the shop is closed: this popup turns grey
     const { primary, text, muted, background, surface, border, radius } = useBrand();
     const today = useMemo(() => sod(new Date()), [visible]);
     const earliest = useMemo(() => new Date(today.getFullYear(), today.getMonth() - MAX_BACK, 1), [today]);
@@ -121,7 +122,7 @@ export default function DateRangeSheet({ visible, value, onClose, onApply }) {
 
     return (
         <Modal visible={show} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
-            <View style={s.wrap}>
+            <View style={[s.wrap, closedStyle]}>
                 <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, s.backdrop, { opacity: prog }]} />
                 <Pressable style={{ flex: 1 }} onPress={onClose} />
                 <Animated.View style={[s.sheet, { backgroundColor: background, transform: [{ translateY: prog.interpolate({ inputRange: [0, 1], outputRange: [640, 0] }) }] }]}>

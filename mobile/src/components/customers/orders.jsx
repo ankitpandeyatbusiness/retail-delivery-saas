@@ -4,7 +4,8 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { themedAlert } from '../common/dialog';
 import { useBrand } from '../common/kit';
-import { showToast, tint } from './shop';
+import { showToast, tint, closedText } from './shop';
+import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useCartStore } from '../../store/customers/shopStores';
 import { cancelOrder, reorderOrder, fetchProduct } from '../../api/customers/shopApi';
 import { playSfx } from '../../utils/common/sfx';
@@ -78,6 +79,8 @@ function toLine(p, it) {
 
 // Reorder: ask the server, reload each dish for name/image/price, rebuild the cart, open the cart (it quotes by itself)
 export function reorder(order, nav, setBusy) {
+    const full = useHomeStore.getState().full;
+    if (full.restaurant?.isOpen === false) { showToast(closedText(full)); return; }   // closed right now: nothing to reorder from
     const go = async () => {
         if (setBusy) setBusy(true);
         try {

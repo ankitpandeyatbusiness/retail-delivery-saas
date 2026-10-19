@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../components/common/kit';
 import { useMotion } from '../components/common/motion';
+import { useClosedStyle } from '../components/customers/shop';
 
 const tb = StyleSheet.create({
     badge: { minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 5, alignItems: 'center', justifyContent: 'center' },
@@ -107,10 +108,11 @@ function BlinkDot() {
 }
 
 // One tab: the icon (springs up when active), its label, and the cart count when there is one.
-function TabItem({ focused, icon, label, badge, onPress, onLongPress }) {
+function TabItem({ focused, icon, label, badge, onPress, onLongPress, greyWhenClosed }) {
     const { primary, muted } = useBrand();
+    const closedStyle = useClosedStyle();   // the shop is closed: a customer's tabs turn grey (the Account tab does not)
     return (
-        <Pressable onPress={onPress} onLongPress={onLongPress} style={tb.floatItem} accessibilityRole="button" accessibilityState={focused ? { selected: true } : {}}>
+        <Pressable onPress={onPress} onLongPress={onLongPress} style={[tb.floatItem, greyWhenClosed && closedStyle]} accessibilityRole="button" accessibilityState={focused ? { selected: true } : {}}>
             <View style={tb.floatInner}>
                 <View>
                     <TabGlyph focused={focused} color={focused ? primary : muted} icon={icon || 'ellipse'} />
@@ -173,6 +175,7 @@ export function FloatingTabBar({ state, descriptors, navigation, defs }) {
                             key={route.key}
                             focused={focused}
                             icon={d.icon}
+                            greyWhenClosed={route.name !== 'Account'}
                             label={d.label || route.name}
                             badge={descriptors[route.key].options.tabBarBadge}
                             onPress={onPress}

@@ -64,8 +64,10 @@ export const useHomeStore = create((set, get) => ({
 
     async load() {
         // 1) show the saved copy instantly
-        const cached = await readCache('home');
-        if (cached && cached.full) set({ ...cached, offers: [] });
+        if (!get().seen) {
+            const cached = await readCache('home');
+            if (cached && cached.full) set({ ...cached, offers: [] });
+        }
 
         // 2) refresh from the server
         try {
@@ -85,7 +87,10 @@ export const useHomeStore = create((set, get) => ({
                 banners: ban.value?.items ?? get().banners,
                 offers: off.value?.items ?? get().offers,
             };
-            set(fresh);
+            // nothing changed: leave everything as it is (this is read often, and new objects would redraw the whole page)
+            const sig = JSON.stringify(fresh);
+            if (sig !== get().sig) set({ ...fresh, sig, seen: true });
+            else if (!get().seen) set({ seen: true });
             writeCache('home', fresh);
         } catch (e) {
             // offline or server problem: keep whatever is already on screen

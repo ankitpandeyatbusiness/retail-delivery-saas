@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useBrand, BackHeader, CardGlow, mix } from '../../components/common/kit';
 import { Skel } from '../../components/common/motion';
-import { showToast, tint } from '../../components/customers/shop';
+import { showToast, tint, useClosedStyle } from '../../components/customers/shop';
 import { Press, Appear } from '../../components/customers/cartParts';
 import { StatusPill, isActive, rs, errMsg, cancelFlow, reorder } from '../../components/customers/orders';
 import { viewInvoice, saveInvoice } from '../../components/customers/invoice';
@@ -124,6 +124,7 @@ function StarBtn({ on, onPress }) {
 
 export default function OrderDetailScreen() {
     const nav = useNavigation();
+    const closedStyle = useClosedStyle();   // the shop is closed: this screen turns grey
     const insets = useSafeAreaInsets();
     const { id } = useRoute().params || {};
     const { primary, radius, text, muted, error, background, surface, border, ok } = useBrand();
@@ -268,7 +269,7 @@ export default function OrderDetailScreen() {
     const showForm = !saved || editing;
 
     return (
-        <View style={[s.flex, { backgroundColor: background }]}>
+        <View style={[s.flex, { backgroundColor: background }, closedStyle]}>
             <BackHeader title={tr('Order #{orderNo}', { orderNo: o.orderNo })} />
             <KeyboardScroll showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={[s.pad, { paddingBottom: dock ? 110 : 40 }]}>
                 <Appear>

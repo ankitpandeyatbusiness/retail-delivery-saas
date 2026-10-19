@@ -11,6 +11,7 @@ import { Skel, FadeIn } from '../../components/common/motion';
 import { tint } from '../../components/customers/shop';
 import { Press, Appear } from '../../components/customers/cartParts';
 import { StatusPill, itemsText, rs, isActive, cancelFlow, reorder } from '../../components/customers/orders';
+import { useClosedStyle } from '../../components/customers/shop';
 import DateRangeSheet, { rangeLabel } from '../../components/customers/DateRangeSheet';
 
 import { useHomeStore } from '../../store/customers/useHomeStore';
@@ -287,6 +288,7 @@ function Empty({ filter, ranged }) {
 }
 
 function OrdersList() {
+    const closedStyle = useClosedStyle();   // the shop is closed: this whole screen turns grey
     const nav = useNavigation();
     const insets = useSafeAreaInsets();
     const { primary, text, muted, background } = useBrand();
@@ -387,7 +389,7 @@ function OrdersList() {
     const dateText = [rangeLabel(range), range?.sort === 'oldest' ? 'Oldest first' : ''].filter(Boolean).join(' · ');
 
     return (
-        <View style={{ flex: 1, paddingTop: insets.top, backgroundColor: background }}>
+        <View style={[{ flex: 1, paddingTop: insets.top, backgroundColor: background }, closedStyle]}>
             <View style={s.head}>
                 <Text style={[s.title, { color: text }]}>{tr('Your orders')}</Text>
                 {range ? <Text style={[s.sub, { color: primary }]}>{tr('Showing: {dateText}', { dateText: dateText })}</Text>

@@ -9,7 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useBrand, BackHeader } from '../../components/common/kit';
 import { Skel } from '../../components/common/motion';
-import { Pic, VegDot, Heart, Tile, showToast, closedText, tint, soldOutText } from '../../components/customers/shop';
+import { Pic, VegDot, Heart, Tile, showToast, closedText, tint, soldOutText, useClosedStyle } from '../../components/customers/shop';
 import { Press, Appear, ease } from '../../components/customers/cartParts';
 import SlideNum from '../../components/common/SlideNum';
 import { useHomeStore } from '../../store/customers/useHomeStore';
@@ -140,6 +140,7 @@ export default function ItemScreen() {
     const btn = useRef(new Animated.Value(0)).current;
     const addPop = useRef(new Animated.Value(1)).current;
 
+    const closedStyle = useClosedStyle();   // the shop is closed: the suggestions turn grey (the page itself does not)
     const [p, setP] = useState(null);
     const [state, setState] = useState('loading'); // loading | ok | gone | error
     const [sel, setSel] = useState({});
@@ -458,7 +459,7 @@ export default function ItemScreen() {
                 {related.length ? (
                     <Appear delay={160} style={{ marginTop: 8, backgroundColor: background }}>
                         <Text style={[s.sec, { color: text }]}>{tr('You might also like')}</Text>
-                        <FlatList
+                        <FlatList style={closedStyle}
                             horizontal data={related} showsHorizontalScrollIndicator={false}
                             keyExtractor={(i) => i._id} contentContainerStyle={s.strip}
                             ItemSeparatorComponent={() => <View style={{ width: 10 }} />}

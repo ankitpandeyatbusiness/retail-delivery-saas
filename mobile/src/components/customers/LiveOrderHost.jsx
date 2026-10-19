@@ -62,8 +62,9 @@ export default function LiveOrderHost({ routeName, onOpenOrder }) {
         if (!shopper) return undefined;
         const load = () => { if (AppState.currentState === 'active') useMenuStore.getState().load(); };
         const t = setInterval(load, 20000);
+        const t2 = setInterval(() => { if (AppState.currentState === 'active') useHomeStore.getState().load(); }, 30000);   // open / closed by the clock, and settings
         const sub = AppState.addEventListener('change', (st) => { if (st === 'active') { useMenuStore.getState().load(); useHomeStore.getState().load(); } });
-        return () => { clearInterval(t); sub.remove(); };
+        return () => { clearInterval(t); clearInterval(t2); sub.remove(); };
     }, [shopper]);
 
     // The shop changed a dish (price, sold out for today, back in 2 hours...): the menu is read again at once, so the customer

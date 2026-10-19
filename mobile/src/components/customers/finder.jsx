@@ -10,7 +10,7 @@ import { ask } from '../common/dialog';
 import { FadeIn } from '../common/motion';
 import { SkelCats } from './skeletons';
 import { useThemeStore } from '../../store/common/useThemeStore';
-import { tint, showToast } from './shop';
+import { tint, showToast, useClosedStyle } from './shop';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useFilterStore, countActive } from '../../store/customers/useFilterStore';
 import { useMenuStore } from '../../store/customers/shopStores';
@@ -135,7 +135,7 @@ export function VegSwitch({ on, onPress }) {
                 icon: 'leaf-outline',
                 confirmText: tr('Keep veg only'),
                 cancelText: tr('Turn off'),
-            }).then((keep) => { if (!keep) commit(false); });
+            }).then((keep) => { if (keep === false) commit(false); });   // only the "Turn off" button (false); tapping outside gives null and changes nothing
             return;
         }
         commit(true);
@@ -401,6 +401,7 @@ export function useVoice(onDone) {
 }
 
 export function VoiceOverlay({ on, txt, onStop }) {
+    const closedStyle = useClosedStyle();   // the shop is closed: this popup turns grey too
     const { primary, onPrimary, text, muted, background } = useBrand();
     const pulse = useRef(new Animated.Value(0)).current;
     useEffect(() => {
@@ -415,7 +416,7 @@ export function VoiceOverlay({ on, txt, onStop }) {
     const scale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.35] });
     return (
         <Modal visible={on} transparent animationType="fade" onRequestClose={onStop} statusBarTranslucent>
-            <View style={s.vBack}>
+            <View style={[s.vBack, closedStyle]}>
                 <View style={[s.vCard, { backgroundColor: background }]}>
                     <Text style={[s.vTitle, { color: text }]}>{tr('Listening…')}</Text>
                     <Text style={[s.vText, { color: txt ? text : muted }]} numberOfLines={3}>{txt || tr('Say a dish name')}</Text>

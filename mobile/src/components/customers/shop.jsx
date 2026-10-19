@@ -101,10 +101,7 @@ export function Pic({ item, style }) {
     // sold out: the photo turns grey (a grey layer that takes the colour out of what is under it)
     if (item.isAvailable === false) {
         return (
-            <View style={[style, { overflow: 'hidden', backgroundColor: soft }]}>
-                <Image source={{ uri: item.image }} style={{ width: '100%', height: '100%' }} contentFit="cover" transition={150} cachePolicy="memory-disk" />
-                <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#808080', mixBlendMode: 'saturation' }]} />
-            </View>
+            <Image source={{ uri: item.image }} style={[{ backgroundColor: soft }, style, GREY]} contentFit="cover" transition={150} cachePolicy="memory-disk" />
         );
     }
     return (
@@ -114,6 +111,15 @@ export function Pic({ item, style }) {
             contentFit="cover" transition={150} cachePolicy="memory-disk"
         />
     );
+}
+
+// The shop is closed / switched off (not taking orders): the whole screen turns grey. Add the returned style to the screen's root
+// View:  <View style={[..., closedStyle]}>.  The dish page does NOT use it: only its Add button turns grey.
+export const GREY = { filter: [{ grayscale: 1 }] };
+export function useClosedStyle() {
+    const closed = useHomeStore((st) => st.full.restaurant?.isOpen === false);
+    const role = useAuthStore((st) => st.user?.role);
+    return closed && role !== 'admin' && role !== 'rider' ? GREY : undefined;
 }
 
 // Bestseller / New: a solid label on the corner of the photo (hidden when the dish is sold out)

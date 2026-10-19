@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as Crypto from 'expo-crypto';
 import { useBrand, BackHeader, CardGlow } from '../../components/common/kit';
-import { VegDot, showToast, tint } from '../../components/customers/shop';
+import { VegDot, useClosedStyle, showToast, tint } from '../../components/customers/shop';
 import { AddressSheet, addrLine } from '../../components/customers/addresses';
 import { Press, Appear, Chip, Bill, ClosedBanner, PickupSlots, FreeDeliveryBar, rs, ease } from '../../components/customers/cartParts';
 import { useHomeStore } from '../../store/customers/useHomeStore';
@@ -75,6 +75,7 @@ export default function CartScreen() {
     const [delNotes, setDelNotes] = useState([]);
     const [customNote, setCustomNote] = useState('');
     const addr = useAddressStore((st) => st.selected);
+    const closedStyle = useClosedStyle();   // the shop is closed: this whole screen turns grey
     const setAddr = useAddressStore((st) => st.setSelected);
     const [sheet, setSheet] = useState(false);
     const [slotRes, setSlotRes] = useState(null);
@@ -264,7 +265,7 @@ export default function CartScreen() {
 
     if (!lines.length) {
         return (
-            <View style={[s.flex, { backgroundColor: background }]}>
+            <View style={[s.flex, { backgroundColor: background }, closedStyle]}>
                 <BackHeader title={tr('Cart')} />
                 <Appear style={hasFavs ? [s.center, { flex: 0, paddingTop: 28, paddingBottom: 18 }] : s.center}>
                     <View style={[s.iconCircle, { backgroundColor: surface, borderColor: border }]}>
@@ -299,7 +300,7 @@ export default function CartScreen() {
     const showSchedule = f.scheduleOrder && type === 'delivery';
 
     return (
-        <View style={[s.flex, { backgroundColor: background }]}>
+        <View style={[s.flex, { backgroundColor: background }, closedStyle]}>
             <BackHeader title={full.restaurant?.name || tr('Your Cart')} />
             <KeyboardScroll keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 30 }}>
                 {closed ? <ClosedBanner message={quote?.problem || closedMsg} /> : null}

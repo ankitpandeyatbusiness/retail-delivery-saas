@@ -258,6 +258,7 @@ router.put('/accepting-orders', wrap(async (req, res) => {
         : { $set: { 'settings.orders.acceptingOrders': b.acceptingOrders }, $unset: { 'settings.orders.pausedUntil': '' } };
     await Tenant.updateOne({ _id: req.tenant._id }, update);
     tenantRecognizer.invalidateTenant(req.tenant.slug);
+    try { require('../services/realtime').toShop(req.tenant._id, 'menu:changed', {}); } catch (e) { /* the apps also refresh on their own */ }   // customers see open / closed at once
     res.json({ ok: true, acceptingOrders: b.acceptingOrders, pausedUntil });
 }));
 
@@ -425,7 +426,7 @@ router.put('/settings', wrap(async (req, res) => {
     ).select('phone address delivery settings.hours settings.riders settings.notifications settings.orders').lean();
 
     tenantRecognizer.invalidateTenant(req.tenant.slug);
-    if (menuSwitched) { try { require('../services/realtime').toShop(req.tenant._id, 'menu:changed', {}); } catch (e) { /* the apps also refresh on their own */ } }   // customers see it at once
+    if (menuSwitched || updates['settings.hours'] || updates['delivery.latitude'] !== undefined) { try { require('../services/realtime').toShop(req.tenant._id, 'menu:changed', {}); } catch (e) { /* the apps also refresh on their own */ } }   // customers see it at once
     res.json({
         ok: true, phone: t.phone, address: t.address, delivery: t.delivery,
         hours: t.settings?.hours || null, riders: t.settings?.riders || null, notifications: t.settings?.notifications || null,

@@ -16,7 +16,7 @@ import { FadeIn, useMotion } from '../../components/common/motion';
 import { SkelBanner, SkelFeed } from '../../components/customers/skeletons';
 import { CouponTicket } from '../../components/customers/coupon';
 import { StoreLocation } from '../../components/customers/storeLocation';
-import { ItemCard, Tile, CartBar, closedText, showToast, tint } from '../../components/customers/shop';
+import { ItemCard, Tile, CartBar, useClosedStyle, closedText, showToast, tint } from '../../components/customers/shop';
 import FilterDialog from './FilterDialog';
 import { useThemeStore } from '../../store/common/useThemeStore';
 import { useHomeStore } from '../../store/customers/useHomeStore';
@@ -412,6 +412,7 @@ export default function HomeScreen() {
     const nav = useNavigation();
     const insets = useSafeAreaInsets();
     const brand = useBrand();
+    const closedStyle = useClosedStyle();   // the shop is closed: this whole screen turns grey
     const user = useAuthStore((st) => st.user);
     const { config, full, categories: chips, banners, offers } = useHomeStore();
     const { categories: menuCats, recommended, festival, combo, loaded, errorStatus, load: loadMenu } = useMenuStore();
@@ -672,7 +673,7 @@ export default function HomeScreen() {
     };
 
     return (
-        <View style={{ flex: 1, backgroundColor: brand.background }}>
+        <View style={[{ flex: 1, backgroundColor: brand.background }, closedStyle]}>
             {/* the status bar area takes the header's top colour so the header flows into it */}
             {brand.look !== 'bold' ? <StatusBar barStyle={brand.dark ? 'light-content' : 'dark-content'} translucent backgroundColor="transparent" /> : null}
             <View style={{ height: insets.top, backgroundColor: brand.look === 'bold' ? brand.primaryLight : brand.wash }} />

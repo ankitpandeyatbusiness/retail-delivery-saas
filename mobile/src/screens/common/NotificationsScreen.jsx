@@ -14,6 +14,7 @@ import { fetchInbox, markAllRead, clearAll } from '../../api/common/notification
 import { useNotificationStore } from '../../store/common/useNotificationStore';
 import { onNotification } from '../../api/common/socket';
 import { tr } from '../../i18n';
+import { useClosedStyle } from '../../components/customers/shop';
 
 const ICON = {
     order_status: 'receipt-outline',
@@ -35,6 +36,7 @@ function ago(d) {
 }
 
 export default function NotificationsScreen() {
+    const closedStyle = useClosedStyle();   // the shop is closed: a customer's screen turns grey
     const nav = useNavigation();
     const { primary, text, muted, surface, border, background, error } = useBrand();
     const setUnread = useNotificationStore((s) => s.set);
@@ -118,7 +120,7 @@ export default function NotificationsScreen() {
     );
 
     return (
-        <View style={[s.flex, { backgroundColor: background }]}>
+        <View style={[s.flex, { backgroundColor: background }, closedStyle]}>
             <BackHeader title={tr('Notifications')} />
             {state === 'loading' ? (
                 <SkelNotifications />

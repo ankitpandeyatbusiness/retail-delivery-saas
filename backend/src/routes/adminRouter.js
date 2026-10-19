@@ -234,6 +234,7 @@ admin.put('/tenants/:tid', wrap(async (req, res) => {
     }
     await tenant.save();
     invalidateTenant(tenant.slug); // app sees the change immediately on this server
+    try { require('../services/realtime').toShop(tenant._id, 'menu:changed', {}); } catch (e) { /* the apps also refresh on their own */ }
 
     res.json({ tenant, resolved: resolveConfig(tenant.toObject()) });
 }));

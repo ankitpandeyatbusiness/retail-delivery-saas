@@ -6,7 +6,7 @@ import { FadeIn } from '../../components/common/motion';
 import { useThemeStore } from '../../store/common/useThemeStore';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
-import { tint } from '../../components/customers/shop';
+import { tint, useClosedStyle } from '../../components/customers/shop';
 import { Press } from '../../components/customers/cartParts';
 import SlideNum from '../../components/common/SlideNum';
 import { useHomeStore } from '../../store/customers/useHomeStore';
@@ -112,6 +112,7 @@ function Section({ title, index, sect, children }) {
 }
 
 export default function FilterDialog({ visible, onClose, items }) {
+    const closedStyle = useClosedStyle();   // the shop is closed: this popup turns grey
     const { primary, radius, text, muted, background, border, surface } = useBrand();
     const insets = useSafeAreaInsets();
     const config = useHomeStore((st) => st.config);
@@ -343,7 +344,7 @@ export default function FilterDialog({ visible, onClose, items }) {
     if (!sheetLike) {
         return (
             <Modal visible={show} transparent animationType="none" onShow={play} onRequestClose={onClose} statusBarTranslucent>
-                <View style={s.wrap}>
+                <View style={[s.wrap, closedStyle]}>
                     <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, s.backdrop, { opacity: prog }]} />
                     <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
                     <Animated.View style={[s.card, {
@@ -371,7 +372,7 @@ export default function FilterDialog({ visible, onClose, items }) {
     const slideY = prog.interpolate({ inputRange: [0, 1], outputRange: [H, 0] });
     return (
         <Modal visible={show} transparent animationType="none" onShow={play} onRequestClose={onClose} statusBarTranslucent>
-            <View style={s.sheetWrap}>
+            <View style={[s.sheetWrap, closedStyle]}>
                 <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, s.backdrop, { opacity: prog }]} />
                 <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
                 <Animated.View style={[s.sheet, { height: H, backgroundColor: background, transform: [{ translateY: Animated.add(slideY, drag) }] }]}>
