@@ -1,5 +1,5 @@
 // src/components/ui/DateRangeSheet.jsx
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, View, Text, Pressable, ScrollView, StyleSheet, Animated, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../common/kit';
@@ -30,21 +30,29 @@ export const rangeLabel = (v) => {
     return to === v.from ? fmt(v.from) : `${fmt(v.from)} – ${fmt(to)}`;
 };
 
-function Day({ d, sel, mid, off, today, onPress }) {
+// memo + no animation on the first draw: 30-40 of these are drawn when the sheet opens, and that made it slow to appear
+const Day = memo(function Day({ d, sel, mid, off, today, onPick }) {
     const { primary, text } = useBrand();
     const a = useRef(new Animated.Value(sel ? 1 : 0)).current;
     const m = useRef(new Animated.Value(mid ? 1 : 0)).current;
-    useEffect(() => { Animated.spring(a, { toValue: sel ? 1 : 0, friction: 6, tension: 180, useNativeDriver: true }).start(); }, [sel]);
-    useEffect(() => { Animated.timing(m, { toValue: mid ? 1 : 0, duration: 180, useNativeDriver: true }).start(); }, [mid]);
+    const fresh = useRef(true);
+    useEffect(() => {
+        if (fresh.current) return;
+        Animated.spring(a, { toValue: sel ? 1 : 0, friction: 6, tension: 180, useNativeDriver: true }).start();
+    }, [sel]);
+    useEffect(() => {
+        if (fresh.current) { fresh.current = false; return; }
+        Animated.timing(m, { toValue: mid ? 1 : 0, duration: 180, useNativeDriver: true }).start();
+    }, [mid]);
     return (
-        <Pressable disabled={off} onPress={onPress} style={s.cell}>
+        <Pressable disabled={off} onPress={() => onPick(d)} style={s.cell}>
             <Animated.View pointerEvents="none" style={[s.midBg, { backgroundColor: tint(primary), opacity: m }]} />
             <Animated.View pointerEvents="none" style={[s.selDot, { backgroundColor: primary, opacity: a, transform: [{ scale: a }] }]} />
             <Text style={[s.dayTxt, { color: sel ? '#FFFFFF' : off ? '#C4C4C4' : text, fontWeight: sel || today ? '900' : '600' }]}>{d.getDate()}</Text>
             {today && !sel ? <View style={[s.todayDot, { backgroundColor: primary }]} /> : null}
         </Pressable>
     );
-}
+});
 
 function Chip({ label, on, onPress }) {
     const { primary, text, border, surface } = useBrand();
@@ -78,12 +86,13 @@ export default function DateRangeSheet({ visible, value, onClose, onApply }) {
             const base = e0 || s0 || today;
             setView({ y: base.getFullYear(), m: base.getMonth() });
             setShow(true);
-            prog.setValue(0);
-            Animated.timing(prog, { toValue: 1, duration: 300, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+            prog.setValue(0);   // the slide-in starts when the window is really on screen (onShow below)
         } else if (show) {
             Animated.timing(prog, { toValue: 0, duration: 220, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(({ finished }) => { if (finished) setShow(false); });
         }
     }, [visible]);
+
+    const play = () => Animated.timing(prog, { toValue: 1, duration: 280, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
 
     const goto = (y, m) => {
         Animated.timing(gridOp, { toValue: 0, duration: 90, useNativeDriver: true }).start(() => {
@@ -101,18 +110,25 @@ export default function DateRangeSheet({ visible, value, onClose, onApply }) {
         if (d < start) { setEnd(start); setStart(d); } else setEnd(d);
     };
     const preset = (a, b) => { setStart(a); setEnd(same(a, b) ? null : b); goto(b.getFullYear(), b.getMonth()); };
+    const pickRef = useRef(pick);
+    pickRef.current = pick;
+    const onDay = useCallback((d) => pickRef.current(d), []);
     const clear = () => { setStart(null); setEnd(null); setSort('newest'); };
     const apply = () => {
         if (!start && sort === 'newest') { onApply(null); return; }
         onApply({ from: start ? keyOf(start) : null, to: start ? keyOf(end || start) : null, sort });
     };
 
-    const first = new Date(view.y, view.m, 1);
-    const dim = new Date(view.y, view.m + 1, 0).getDate();
-    const cells = [...Array(first.getDay()).fill(null), ...Array.from({ length: dim }, (_, i) => new Date(view.y, view.m, i + 1))];
-    while (cells.length % 7) cells.push(null);
-    const weeks = [];
-    for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+    // the same Date objects for the same month, so the memoised days are not drawn again on every tap
+    const weeks = useMemo(() => {
+        const first = new Date(view.y, view.m, 1);
+        const dim = new Date(view.y, view.m + 1, 0).getDate();
+        const cells = [...Array(first.getDay()).fill(null), ...Array.from({ length: dim }, (_, i) => new Date(view.y, view.m, i + 1))];
+        while (cells.length % 7) cells.push(null);
+        const out = [];
+        for (let i = 0; i < cells.length; i += 7) out.push(cells.slice(i, i + 7));
+        return out;
+    }, [view.y, view.m]);
 
     const t = today;
     const PRESETS = [
@@ -122,11 +138,11 @@ export default function DateRangeSheet({ visible, value, onClose, onApply }) {
     const summary = start ? (end ? `${fmt(keyOf(start))} – ${fmt(keyOf(end))}` : fmt(keyOf(start))) : 'Tap a day, or tap two days for a range';
 
     return (
-        <Modal visible={show} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
+        <Modal visible={show} transparent animationType="none" onShow={play} onRequestClose={onClose} statusBarTranslucent>
             <View style={[s.wrap, closedStyle]}>
                 <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, s.backdrop, { opacity: prog }]} />
                 <Pressable style={{ flex: 1 }} onPress={onClose} />
-                <DragDown visible={show} onClose={onClose}>
+                <DragDown visible={visible} onClose={onClose}>
                 <Animated.View style={[s.sheet, { backgroundColor: background, transform: [{ translateY: prog.interpolate({ inputRange: [0, 1], outputRange: [640, 0] }) }] }]}>
                     <Grip>
                     <View style={[s.handle, { backgroundColor: border }]} />
@@ -165,7 +181,7 @@ export default function DateRangeSheet({ visible, value, onClose, onApply }) {
                                     const mid = !!start && !!end && d > start && d < end;
                                     return (
                                         <Day key={i} d={d} sel={isS || isE} mid={mid} today={same(d, today)}
-                                            off={d > today || d < earliest} onPress={() => pick(d)} />
+                                            off={d > today || d < earliest} onPick={onDay} />
                                     );
                                 })}
                             </View>

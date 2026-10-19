@@ -17,6 +17,7 @@ import { fetchOrder, setOrderStatus, apiError } from '../../api/owners/shopApi';
 import { acknowledge } from '../../utils/owners/soundbox';
 import { showToast } from '../customers/shop';
 import { tr } from '../../i18n';
+import { DragDown, Grip } from '../common/DragDown';
 
 const TYPE = { delivery: 'Delivery', pickup: 'Pickup', dine_in: 'Dine in' };
 
@@ -79,7 +80,9 @@ export default function NewOrderPopup({ navRef }) {
     return (
         <Modal visible transparent animationType="slide" onRequestClose={() => drop(order.id)} statusBarTranslucent>
             <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.35)' }}>
+                <DragDown onClose={() => drop(order.id)}>{(scroll) => (
                 <View style={[s.sheet, { backgroundColor: surface, borderColor: border, paddingBottom: Math.max(insets.bottom, 12) + 10 }]}>
+                    <Grip style={{ paddingBottom: 12 }}><View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: border }} /></Grip>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: alpha(warn || primary, 0.16), alignItems: 'center', justifyContent: 'center' }}>
                             <Ionicons name="flash" size={22} color={warn || primary} />
@@ -91,7 +94,7 @@ export default function NewOrderPopup({ navRef }) {
                         <Pressable onPress={() => drop(order.id)} hitSlop={12}><Ionicons name="close" size={24} color={muted} /></Pressable>
                     </View>
 
-                    <ScrollView style={{ maxHeight: 220, marginTop: 14 }} showsVerticalScrollIndicator={false}>
+                    <ScrollView {...scroll} style={{ maxHeight: 220, marginTop: 14 }} showsVerticalScrollIndicator={false}>
                         {items.map((it, i) => (
                             <View key={i} style={{ flexDirection: 'row', paddingVertical: 4 }}>
                                 <Text style={{ color: primary, fontWeight: '900', width: 34 }}>{it.quantity}×</Text>
@@ -112,6 +115,7 @@ export default function NewOrderPopup({ navRef }) {
                         <Button label={tr('Accept')} icon="checkmark" busy={busy} onPress={accept} style={{ flex: 1, marginLeft: 8 }} />
                     </View>
                 </View>
+                )}</DragDown>
             </View>
         </Modal>
     );

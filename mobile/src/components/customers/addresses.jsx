@@ -4,12 +4,13 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     View, Text, Pressable, ScrollView, TextInput, ActivityIndicator, Keyboard, Platform,
-    StyleSheet, Animated, Easing, Switch, BackHandler, useWindowDimensions, PanResponder,
+    StyleSheet, Animated, Easing, Switch, BackHandler, useWindowDimensions,
 } from 'react-native';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SheetPortal } from '../common/SheetPortal';
+import { DragDown } from '../common/DragDown';
 import { themedAlert } from '../common/dialog';
 import { useBrand, CardGlow } from '../common/kit';
 import { Skel } from '../common/motion';
@@ -147,23 +148,7 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
     userRef.current = user;
     const [forOther, setForOther] = useState(false);
 
-    // drag the handle down to close; released past 90px (or flicked) it closes, otherwise it springs back
-    const drag = useRef(new Animated.Value(0)).current;
-    const closeRef = useRef(onClose);
-    closeRef.current = onClose;
-    const pan = useRef(PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: () => true,
-        onPanResponderMove: (_, g) => drag.setValue(Math.max(0, g.dy)),
-        onPanResponderRelease: (_, g) => {
-            if (g.dy > 90 || g.vy > 0.8) {
-                Animated.timing(drag, { toValue: 700, duration: 180, easing: Easing.out(Easing.quad), useNativeDriver: true }).start(() => closeRef.current());
-            } else {
-                Animated.spring(drag, { toValue: 0, bounciness: 0, speed: 18, useNativeDriver: true }).start();
-            }
-        },
-    })).current;
-    useEffect(() => { if (visible) drag.setValue(0); }, [visible]);
+    // the whole sheet is pulled down to close (see DragDown.jsx); the lists inside scroll first
 
     const toggleOther = (v) => {
         setForOther(v);
@@ -332,13 +317,14 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
                     <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, s.backdrop, { opacity: prog }]} />
                     <Pressable style={{ flex: 1 }} onPress={onClose} />
                     <View style={{ paddingBottom: kb }}>
+                        <DragDown visible={visible} onClose={onClose}>{(scroll) => (
                         <Animated.View style={[s.sheet, {
                             backgroundColor: background,
                             maxHeight: Math.min(H * 0.9, H - kb - insets.top - 12),
                             paddingBottom: kb ? 12 : 18 + insets.bottom,
-                            transform: [{ translateY: Animated.add(prog.interpolate({ inputRange: [0, 1], outputRange: [H, 0] }), drag) }],
+                            transform: [{ translateY: prog.interpolate({ inputRange: [0, 1], outputRange: [H, 0] }) }],
                         }]}>
-                            <View {...pan.panHandlers} style={s.grabHit}><View style={[s.handle, { backgroundColor: border }]} /></View>
+                            <View style={s.grabHit}><View style={[s.handle, { backgroundColor: border }]} /></View>
                             <View style={s.top}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                                     {canBack ? (
@@ -377,7 +363,7 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
 
                             {!inForm ? (
                                 <Appear key="list" style={{ flexShrink: 1 }}>
-                                    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 12 }}>
+                                    <ScrollView {...scroll} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 12 }}>
                                         {list.map((a, i) => {
                                             const on = !manage && selectedId === a._id;
                                             return (
@@ -420,7 +406,7 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
                             ) : (
                                 <>
                                     <Appear key="form" style={{ flexShrink: 1 }}>
-                                        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 12 }}>
+                                        <ScrollView {...scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 12 }}>
                                             <View style={[s.defRow, { backgroundColor: surface, borderColor: border, marginBottom: 10 }]}>
                                                 <Ionicons name="people-outline" size={18} color={primary} style={{ marginRight: 10 }} />
                                                 <Text style={[s.rowSub, { color: text, flex: 1, marginTop: 0, fontWeight: '700' }]}>{tr('Ordering for someone else?')}</Text>
@@ -487,6 +473,7 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
                                 </>
                             )}
                         </Animated.View>
+                        )}</DragDown>
                     </View>
                 </View>
             </SheetPortal>

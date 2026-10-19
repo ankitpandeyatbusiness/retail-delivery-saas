@@ -19,7 +19,8 @@ import { LineShimmer } from './shimmer';
 import { tr } from '../../i18n';
 import KeyboardScroll from '../common/KeyboardScroll';
 import Reanimated, { interpolate, runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming, cancelAnimation } from 'react-native-reanimated';
-import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useSheetPan } from '../common/DragDown';
 
 export const money = (n) => `₹${Math.round(Number(n) || 0).toLocaleString('en-IN')}`;
 
@@ -384,28 +385,19 @@ export function Sheet({ visible, onClose, title, children }) {
     const [shown, setShown] = useState(visible);   // the Modal stays until the slide-out has finished
     const ty = useSharedValue(SHEET_OFF);
     const h = useSharedValue(400);
-    const start = useSharedValue(0);
     const stillOpen = useRef(visible);
     stillOpen.current = visible;
-    // dragged away: close it; if the screen refuses to close it (it is busy), the sheet comes back instead of hanging off screen
-    const dragClose = () => { onClose(); setTimeout(() => { if (stillOpen.current) ty.value = withSpring(0, { damping: 22, stiffness: 260 }); }, 80); };
 
     useEffect(() => {
-        if (visible) { ty.value = SHEET_OFF; setShown(true); }
+        if (visible) { ty.value = SHEET_OFF; scrollY.value = 0; setShown(true); }
         else if (shown) {
             cancelAnimation(ty);
             ty.value = withTiming(Math.max(h.value, 300), { duration: 220 }, (done) => { if (done) runOnJS(setShown)(false); });
         }
     }, [visible]);   // eslint-disable-line react-hooks/exhaustive-deps
 
-    const drag = Gesture.Pan()
-        .onStart(() => { 'worklet'; cancelAnimation(ty); start.value = ty.value; })
-        .onUpdate((e) => { 'worklet'; ty.value = Math.max(0, start.value + e.translationY); })
-        .onEnd((e) => {
-            'worklet';
-            if (ty.value > h.value / 3 || e.velocityY > 900) runOnJS(dragClose)();
-            else ty.value = withSpring(0, { damping: 22, stiffness: 260 });
-        });
+    // the whole panel can be pulled; a list inside it scrolls first and gives way only when it is at its top
+    const { gesture: drag, scrollProps, scrollY } = useSheetPan({ ty, h, onClose, stillOpen });
     const move = useAnimatedStyle(() => ({ transform: [{ translateY: ty.value }] }));
     const fade = useAnimatedStyle(() => ({ opacity: interpolate(ty.value, [0, Math.max(h.value, 1)], [1, 0], 'clamp') }));
 
@@ -415,21 +407,19 @@ export function Sheet({ visible, onClose, title, children }) {
                 <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
                     <Reanimated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.45)' }, fade]} />
                     <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+                    <GestureDetector gesture={drag}>
                     <Reanimated.View
                         onLayout={(e) => { h.value = e.nativeEvent.layout.height; if (ty.value >= SHEET_OFF - 1 && visible) ty.value = withTiming(0, { duration: 260 }); }}
                         style={[s.sheet, { backgroundColor: surface, borderTopColor: border, paddingBottom: Math.max(insets.bottom, 12) + 8 }, move]}
                     >
-                        <GestureDetector gesture={drag}>
-                            <View collapsable={false}>
-                                <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: border, marginBottom: 10 }} />
-                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                                    <Text style={{ flex: 1, color: text, fontSize: 18, fontWeight: '900' }}>{title}</Text>
-                                    <Pressable onPress={onClose} hitSlop={12}><Ionicons name="close" size={24} color={muted} /></Pressable>
-                                </View>
-                            </View>
-                        </GestureDetector>
-                        <KeyboardScroll keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>{children}</KeyboardScroll>
+                        <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: border, marginBottom: 10 }} />
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                            <Text style={{ flex: 1, color: text, fontSize: 18, fontWeight: '900' }}>{title}</Text>
+                            <Pressable onPress={onClose} hitSlop={12}><Ionicons name="close" size={24} color={muted} /></Pressable>
+                        </View>
+                        <KeyboardScroll {...scrollProps} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>{children}</KeyboardScroll>
                     </Reanimated.View>
+                    </GestureDetector>
                 </KeyboardAvoidingView>
             </GestureHandlerRootView>
         </Modal>

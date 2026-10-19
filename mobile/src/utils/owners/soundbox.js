@@ -57,6 +57,7 @@ let lastResume = 0;
 const MODE_FOR = { idle: 'mixWithOthers', alert: 'duckOthers' };
 let modeNow = null;           // the focus mode currently set
 let switching = false;        // changing mode: the pause is on purpose, so the auto-resume must not undo it
+let lockScreenOn = false;   // the media session (the "Soundbox is on" notification) exists
 let trackChain = Promise.resolve();   // track changes happen one after the other, in order
 let pausedWaiters = [];       // resolved by the player's next "not playing" report (event driven: no timers needed)
 
@@ -143,7 +144,7 @@ async function applyTrack(kind) {
             resetClock();
             if (player) {
                 try { player.pause(); } catch (e) { /* ignore */ }
-                try { player.setActiveForLockScreen?.(false); } catch (e) { /* ignore */ }
+                try { { lockScreenOn = false; player.setActiveForLockScreen?.(false); } } catch (e) { /* ignore */ }
                 switching = true;   // the pause is on purpose
                 await untilPaused();
                 await setMode(MODE_FOR.idle);
@@ -177,10 +178,10 @@ async function applyTrack(kind) {
             p.play();
         }
         // the notification of the media-playback foreground service ("Soundbox is on")
-        p.setActiveForLockScreen?.(true, {
-            title: kind === 'alert' ? 'New order' : 'Soundbox is on',
-            artist: useThemeStore.getState().theme?.name || 'Your shop',
-        });
+        // The lock-screen session is made ONCE. Asking for it again while one exists (a quick idle -> alert change) builds a
+        // second session with the same id and the app crashes ("Session ID must be unique"); later changes only update the text.
+        const meta = { title: kind === 'alert' ? 'New order' : 'Soundbox is on', artist: useThemeStore.getState().theme?.name || 'Your shop' };
+        if (!lockScreenOn) { lockScreenOn = true; p.setActiveForLockScreen?.(true, meta); } else p.updateLockScreenMetadata?.(meta);
     } catch (e) { /* a missing sound is not an error worth stopping for */ } finally { switching = false; }
 }
 
@@ -262,7 +263,20 @@ async function languageToUse() {
 async function pickVoice(language) {
     const all = (await labelledVoices(language)).map((r) => r.voice);   // the recommended voice first
     const chosen = language === 'hi' ? settings().voiceIdHi : settings().voiceId;
-    return all.find((v) => v.identifier === chosen) || all[0] || null;
+    const voice = all.find((v) => v.identifier === chosen) || all[0] || null;
+    return voice && (await engineHasVoices()) ? voice : null;
+}
+
+// Ask the phone's speech engine right now whether it can list its voices. Naming a voice while the engine cannot (it is
+// starting up, was switched, or has no voice data) makes the speak call fail inside the phone ("getVoices(...) must not be
+// null"). Without a named voice the phone simply uses its default one.
+async function engineHasVoices() {
+    try {
+        const live = await Speech.getAvailableVoicesAsync();
+        if (live && live.length) return true;
+    } catch (e) { /* fall through */ }
+    voicesCache = null;   // read the list again next time
+    return false;
 }
 
 const SAMPLE = {
@@ -271,7 +285,8 @@ const SAMPLE = {
 };
 
 // Plays a short sample in one of the phone's voices (the voice list on the Soundbox screen).
-export function sampleVoice(voice, language = 'en') {
+export async function sampleVoice(voice, language = 'en') {
+    if (voice && !(await engineHasVoices())) voice = null;
     try {
         Speech.stop();
         speaking = true;   // let the voice finish, then the keep-alive plays again (voiceDone)
@@ -592,7 +607,7 @@ async function holdAlive(on) {
             wantPlaying = false;
             deactivateKeepAwake(WAKE_TAG);
             if (player) {
-                try { player.setActiveForLockScreen?.(false); } catch (e) { /* ignore */ }
+                try { { lockScreenOn = false; player.setActiveForLockScreen?.(false); } } catch (e) { /* ignore */ }
                 try { player.pause(); } catch (e) { /* ignore */ }
             }
         }

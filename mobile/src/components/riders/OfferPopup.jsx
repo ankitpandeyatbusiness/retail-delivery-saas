@@ -12,6 +12,7 @@ import { acceptOrder, rejectOrder } from '../../api/riders/riderApi';
 import { useRiderStore } from '../../store/riders/useRiderStore';
 import { T, rupee, rupeeAmount, errText } from '../../utils/riders/riderText';
 import { tr } from '../../i18n';
+import { DragDown, Grip } from '../common/DragDown';
 import { BigButton, SmallLink, Banner } from './riderBits';
 
 const secondsLeft = (o) => {
@@ -71,8 +72,10 @@ export default function OfferPopup() {
     return (
         <Modal visible transparent animationType="slide" onRequestClose={() => setId(null)} statusBarTranslucent>
             <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}>
+                <DragDown onClose={() => setId(null)}>{(scroll) => (
                 <View style={{ backgroundColor: background, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '92%', paddingBottom: insets.bottom + 12 }}>
-                    <ScrollView contentContainerStyle={{ padding: 16 }} bounces={false}>
+                    <Grip style={{ paddingTop: 10 }}><View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: muted, opacity: 0.4 }} /></Grip>
+                    <ScrollView {...scroll} contentContainerStyle={{ padding: 16 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                             <Text style={{ color: primary, fontWeight: '900', fontSize: 17 }}>{T.newOrder} · #{o.orderNo}</Text>
                             {left != null ? <Text style={{ color: left <= 10 ? '#DC2626' : muted, fontWeight: '900', fontSize: 15 }}>{T.secondsLeft(left)}</Text> : null}
@@ -103,6 +106,7 @@ export default function OfferPopup() {
                         <SmallLink label={T.noThanks} onPress={reject} />
                     </ScrollView>
                 </View>
+                )}</DragDown>
             </View>
         </Modal>
     );
