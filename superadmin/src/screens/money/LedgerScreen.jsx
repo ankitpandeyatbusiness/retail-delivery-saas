@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, FlatList, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, ScrollView } from 'react-native';
+import { ActivityIndicator } from '../../components/Loading';
 import { useRoute } from '@react-navigation/native';
 import { useTheme, spacing, font } from '../../theme';
 import { Screen, HeaderButton } from '../../components/layout';

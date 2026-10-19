@@ -2,7 +2,8 @@
 // When it shows is decided by the server (backend/src/services/legal.js): on the person's SECOND visit after the admin sent a
 // new version, and only after the shop was handed over. Opening the app counts as a visit when it was closed for 30+ minutes.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, Modal, ScrollView, Pressable, AppState, BackHandler, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, Modal, ScrollView, Pressable, AppState, BackHandler, StyleSheet } from 'react-native';
+import { ActivityIndicator } from './Loading';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand, alpha } from './kit';

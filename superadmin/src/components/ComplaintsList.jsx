@@ -1,5 +1,6 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { View, Text, FlatList, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, ScrollView } from 'react-native';
+import { ActivityIndicator } from './Loading';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useTheme, spacing, font, radius } from '../theme';
 import { Card, Chip, Badge } from './ui';

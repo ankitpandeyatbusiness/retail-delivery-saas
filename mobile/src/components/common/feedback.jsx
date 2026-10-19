@@ -3,8 +3,9 @@
 //   ComplaintCard       GET/POST /orders/:id/complaints     { type, text }                    (once, within 24 h of delivery)
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    View, Text, Pressable, TextInput, Modal, Animated, Easing, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet,
+    View, Text, Pressable, TextInput, Modal, Animated, Easing, KeyboardAvoidingView, Platform, ScrollView, StyleSheet,
 } from 'react-native';
+import { ActivityIndicator } from './Loading';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useBrand } from './kit';

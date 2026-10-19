@@ -1,6 +1,8 @@
 // src/screens/OrdersScreen.jsx
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, FlatList, ScrollView, StyleSheet, Animated, Easing, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, FlatList, ScrollView, StyleSheet, Animated, Easing } from 'react-native';
+import { ActivityIndicator } from '../../components/common/Loading';
+import { ListShimmer } from '../../components/owners/shimmer';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -418,7 +420,7 @@ function OrdersList() {
                             refreshing={refreshing} onRefresh={refresh}
                             onEndReached={loadMore} onEndReachedThreshold={0.4}
                             ListEmptyComponent={hasMore ? null : <Empty filter={filter} ranged={!!range?.from} />}
-                            ListFooterComponent={more ? <ActivityIndicator style={{ margin: 16 }} color={primary} /> : null}
+                            ListFooterComponent={more ? <ListShimmer count={2} /> : null}
                             contentContainerStyle={{ paddingTop: 4, paddingBottom: 24 }}
                             showsVerticalScrollIndicator={false}
                                 renderItem={({ item: r, index }) => {

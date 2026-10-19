@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Modal, View, Text, Pressable, ActivityIndicator, StyleSheet, Linking, Platform, TextInput, Keyboard } from 'react-native';
+import { Modal, View, Text, Pressable, StyleSheet, Linking, Platform, TextInput, Keyboard } from 'react-native';
+import { ActivityIndicator } from './Loading';
 import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

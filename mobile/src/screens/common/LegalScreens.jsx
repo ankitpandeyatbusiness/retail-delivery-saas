@@ -1,6 +1,7 @@
 // Terms, privacy and the agreement you agreed to: read-only pages. Once agreed they can only be read, never taken back.
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, Pressable } from 'react-native';
+import { ListShimmer } from '../../components/owners/shimmer';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
@@ -25,7 +26,7 @@ export function LegalDocScreen() {
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={doc?.title || tr('Terms')} />
             <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 60 }}>
-                {!doc && !err ? <ActivityIndicator style={{ marginTop: 30 }} /> : null}
+                {!doc && !err ? <ListShimmer count={2} /> : null}
                 {err ? <Text style={{ color: error }}>{err}</Text> : null}
                 {doc ? (
                     <>
@@ -52,7 +53,7 @@ export function LegalListScreen() {
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Terms and privacy')} />
             <ScrollView contentContainerStyle={{ paddingBottom: 60 }}>
-                {items === null ? <ActivityIndicator style={{ marginTop: 30 }} /> : items.map((d) => (
+                {items === null ? <ListShimmer count={2} /> : items.map((d) => (
                     <Pressable key={d.key} onPress={() => nav.navigate('LegalDoc', { key: d.key, pub: d.pub })} style={{ flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 0.5, borderBottomColor: border }}>
                         <Ionicons name="document-text-outline" size={24} color={primary} />
                         <View style={{ flex: 1, marginLeft: 14 }}>

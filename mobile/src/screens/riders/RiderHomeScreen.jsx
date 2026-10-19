@@ -1,7 +1,8 @@
 // The rider's Home: one page. Start or end duty, the new order waiting for him (if any), and the deliveries he is carrying.
 // Nothing else. A rider glances at this between stops, so it shows only what needs a decision.
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, ScrollView, Pressable, RefreshControl, AppState, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, Pressable, RefreshControl, AppState } from 'react-native';
+import { ListShimmer } from '../../components/owners/shimmer';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -180,7 +181,7 @@ export default function RiderHomeScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <ScrollView
-                contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: 130, flexGrow: 1 }}
+                contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: 24, flexGrow: 1 }}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} />}
             >
                 <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, marginBottom: 16 }}>
@@ -191,7 +192,7 @@ export default function RiderHomeScreen() {
                     </View>
                 </View>
 
-                {!ready && !error ? <View style={{ padding: 40 }}><ActivityIndicator /></View> : null}
+                {!ready && !error ? <ListShimmer count={3} /> : null}
                 {error ? (
                     <View style={{ alignItems: 'center', padding: 30 }}>
                         <Ionicons name="cloud-offline-outline" size={44} color={muted} />

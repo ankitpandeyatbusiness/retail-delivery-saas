@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, FlatList, ScrollView, ActivityIndicator, Pressable } from 'react-native';
+import { View, Text, FlatList, ScrollView, Pressable } from 'react-native';
+import { ActivityIndicator } from '../../components/Loading';
 import { useTheme, spacing, font } from '../../theme';
 import { Screen } from '../../components/layout';
 import { Card, Chip, Badge } from '../../components/ui';

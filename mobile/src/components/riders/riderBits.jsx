@@ -1,6 +1,7 @@
 // The small building blocks of the rider's screens. Big, plain and few: a rider uses these with one hand, outdoors.
 import React from 'react';
-import { View, Text, Pressable, ActivityIndicator, Image, StyleSheet } from 'react-native';
+import { View, Text, Pressable, Image, StyleSheet } from 'react-native';
+import { ActivityIndicator } from '../common/Loading';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../common/kit';
 
@@ -24,6 +25,8 @@ export function BigButton({ label, onPress, kind = 'primary', icon, busy, disabl
                 <>
                     {icon ? <Ionicons name={icon} size={iconOnly ? 26 : 22} color={ink} style={{ marginRight: iconOnly ? 0 : 10 }} /> : null}
                     {iconOnly && icon ? null : <Text style={[s.bigText, { color: ink }]} numberOfLines={1}>{label}</Text>}
+                    {/* an invisible twin of the icon on the right, so the words sit exactly in the middle of the button */}
+                    {icon && !iconOnly ? <Ionicons name={icon} size={22} color={ink} style={{ marginLeft: 10, opacity: 0 }} /> : null}
                 </>
             )}
         </Pressable>

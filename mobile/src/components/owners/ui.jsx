@@ -1,7 +1,8 @@
 // The owner panel's building blocks. Everything draws from useBrand(), so the panel wears the shop's own logo,
 // colours, font and light/dark look: the owner feels he is on his own app.
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet, RefreshControl, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform, Animated, Easing } from 'react-native';
+import { View, Text, Pressable, ScrollView, StyleSheet, RefreshControl, Modal, TextInput, KeyboardAvoidingView, Platform, Animated, Easing } from 'react-native';
+import { ActivityIndicator } from '../common/Loading';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';

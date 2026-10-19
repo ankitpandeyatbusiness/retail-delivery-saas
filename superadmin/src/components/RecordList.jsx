@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, FlatList, ActivityIndicator } from 'react-native';
+import { View, FlatList } from 'react-native';
+import { ActivityIndicator } from './Loading';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Screen, HeaderButton } from './layout';
 import { FadeInRow } from './motion';

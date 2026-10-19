@@ -92,7 +92,7 @@ export function OrderCard({ order, onOpen, onAdvance, onReject, busy }) {
 
             {isNew && next ? (
                 <View style={{ flexDirection: 'row', marginTop: 12 }}>
-                    {flow.canCancel(order) ? <Button label={tr('Reject')} kind="ghost" icon="close" onPress={() => onReject(order)} disabled={busy} style={{ flex: 1 }} /> : null}
+                    {flow.canCancel(order) ? <Button label={tr('Reject')} kind="ghost" icon="close" iconOnly onPress={() => onReject(order)} disabled={busy} style={{ width: 54 }} /> : null}
                     <Button label={tr('Accept')} icon="checkmark" busy={busy} onPress={() => onAdvance(order)} style={{ flex: 1, marginLeft: flow.canCancel(order) ? 8 : 0 }} />
                 </View>
             ) : null}

@@ -56,7 +56,7 @@ export default function RiderProfileScreen() {
     const v = me?.vehicle;
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
-            <ScrollView contentContainerStyle={{ paddingTop: insets.top + 14, paddingBottom: 140 }}>
+            <ScrollView contentContainerStyle={{ paddingTop: insets.top + 14, paddingBottom: 24 }}>
                 <View style={{ alignItems: 'center', marginBottom: 18 }}>
                     <Avatar uri={me?.photo} size={96} onPress={changePhoto} busy={busy} />
                     <Text style={{ color: text, fontSize: 22, fontWeight: '900', marginTop: 12 }}>{me?.name || tr('Delivery partner')}</Text>

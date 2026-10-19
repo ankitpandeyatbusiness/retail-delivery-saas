@@ -328,13 +328,13 @@ export default function OwnerOrderScreen() {
                     ) : null}
                     <View style={{ flexDirection: 'row' }}>
                         {isNew && flow.canCancel(order) ? (
-                            <Button label={tr('Reject')} icon="close" kind="ghost" disabled={busy} onPress={() => actions.requestReject(order)} style={{ flex: 1 }} />
+                            <Button label={tr('Reject')} icon="close" iconOnly kind="ghost" disabled={busy} onPress={() => actions.requestReject(order)} style={{ width: 54 }} />
                         ) : null}
                         <Button label={flow.stepLabel(order, next)} icon="checkmark" busy={busy} disabled={flow.needsRider(order, next)} onPress={() => actions.advance(order)} style={{ flex: 1, marginLeft: isNew && flow.canCancel(order) ? 8 : 0 }} />
+                        {!isNew && flow.canCancel(order) ? (
+                            <Button label={tr('Cancel this order')} icon="close" iconOnly kind="ghost" disabled={busy} onPress={() => actions.requestReject(order)} style={{ width: 54, marginLeft: 8 }} />
+                        ) : null}
                     </View>
-                    {!isNew && flow.canCancel(order) ? (
-                        <Button label={tr('Cancel this order')} kind="ghost" disabled={busy} onPress={() => actions.requestReject(order)} style={{ marginTop: 8 }} />
-                    ) : null}
                 </View>
             ) : null}
 

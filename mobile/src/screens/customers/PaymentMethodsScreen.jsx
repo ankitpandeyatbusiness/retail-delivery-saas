@@ -2,7 +2,7 @@
 // Cash on delivery, pay online straight from an installed UPI app (GPay, PhonePe, Paytm...), or by credit / debit card.
 // What is offered comes from the server (GET /orders/payment-config), so a shop without online payments shows only cash.
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet, Animated, Easing, ActivityIndicator, Image } from 'react-native';
+import { View, Text, Pressable, ScrollView, StyleSheet, Animated, Easing, Image } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, BackHeader } from '../../components/common/kit';

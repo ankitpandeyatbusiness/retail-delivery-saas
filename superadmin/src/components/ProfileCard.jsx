@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
+import { ActivityIndicator } from './Loading';
 import { useTheme, spacing, font } from '../theme';
 import { Card, Button, Badge } from './ui';
 import PersonPhoto from './PersonPhoto';

@@ -1,6 +1,7 @@
 // src/screens/OrderDetailScreen.jsx
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, ScrollView, ActivityIndicator, TextInput, StyleSheet, Animated, Easing, Image } from 'react-native';
+import { View, Text, Pressable, ScrollView, TextInput, StyleSheet, Animated, Easing, Image } from 'react-native';
+import { ActivityIndicator } from '../../components/common/Loading';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';

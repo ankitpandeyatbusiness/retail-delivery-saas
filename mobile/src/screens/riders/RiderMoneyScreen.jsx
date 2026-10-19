@@ -1,6 +1,7 @@
 // The rider's Money page: the cash he holds, and (only when the shop tracks pay) what he earns. Two cards, plain words.
 import React, { useCallback, useState } from 'react';
-import { View, Text, ScrollView, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, RefreshControl } from 'react-native';
+import { ListShimmer } from '../../components/owners/shimmer';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -47,11 +48,11 @@ export default function RiderMoneyScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <ScrollView
-                contentContainerStyle={{ paddingTop: insets.top + 14, paddingBottom: 140, flexGrow: 1 }}
+                contentContainerStyle={{ paddingTop: insets.top + 14, paddingBottom: 24, flexGrow: 1 }}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} />}
             >
                 <Text style={{ color: text, fontSize: 22, fontWeight: '900', paddingHorizontal: 16, paddingBottom: 10 }}>{T.money}</Text>
-                {!m && !failed ? <View style={{ padding: 40 }}><ActivityIndicator /></View> : null}
+                {!m && !failed ? <ListShimmer count={3} /> : null}
                 {failed && !m ? (
                     <View style={{ alignItems: 'center', padding: 30 }}>
                         <Ionicons name="cloud-offline-outline" size={44} color={muted} />

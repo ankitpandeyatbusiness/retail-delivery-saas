@@ -3,7 +3,8 @@
 // Opening this screen marks everything as read (the rows that were new stay highlighted until you leave).
 // "Clear all" deletes every message.
 import React, { useCallback, useRef, useState } from 'react';
-import { View, Text, FlatList, Pressable, ActivityIndicator, RefreshControl, StyleSheet } from 'react-native';
+import { View, Text, FlatList, Pressable, RefreshControl, StyleSheet } from 'react-native';
+import { ListShimmer } from '../../components/owners/shimmer';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, BackHeader } from '../../components/common/kit';
@@ -144,7 +145,7 @@ export default function NotificationsScreen() {
                             <Text style={[s.readAllTxt, { color: error }]}>{tr('Clear all')}</Text>
                         </Pressable>
                     ) : null}
-                    ListFooterComponent={loadingMore ? <ActivityIndicator color={primary} style={{ marginVertical: 16 }} /> : null}
+                    ListFooterComponent={loadingMore ? <ListShimmer count={2} /> : null}
                     ListEmptyComponent={(
                         <View style={s.center}>
                             <Ionicons name="notifications-off-outline" size={44} color={muted} />

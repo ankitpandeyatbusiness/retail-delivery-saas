@@ -2,18 +2,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import PoweredBy from '../../components/common/PoweredBy';
 import {
-    View,
-    Text,
-    TextInput,
-    StyleSheet,
-    Keyboard,
-    Pressable,
-    ActivityIndicator,
-    BackHandler,
-    Platform,
-    StatusBar,
-    useWindowDimensions,
+    View, Text, TextInput, StyleSheet, Keyboard, Pressable, BackHandler, Platform, StatusBar, useWindowDimensions,
 } from 'react-native';
+import { ActivityIndicator } from '../../components/common/Loading';
 import api from '../../api/common/client';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { useBrand } from '../../components/common/kit';

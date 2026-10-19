@@ -1,7 +1,9 @@
 // src/screens/CartScreen.jsx
 import { amountLabel } from '../../utils/customers/measure';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, ScrollView, TextInput, ActivityIndicator, StyleSheet, LayoutAnimation } from 'react-native';
+import { View, Text, Pressable, ScrollView, TextInput, StyleSheet, LayoutAnimation } from 'react-native';
+import { ActivityIndicator } from '../../components/common/Loading';
+import { ListShimmer } from '../../components/owners/shimmer';
 import { CommonActions, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -478,7 +480,7 @@ export default function CartScreen() {
                                     <Text style={[s.err, { color: error }]}>{qErr}</Text>
                                     <Pressable hitSlop={8} onPress={() => setTick((x) => x + 1)}><Text style={[s.link, { color: primary, marginTop: 8 }]}>{tr('Try again')}</Text></Pressable>
                                 </View>
-                            ) : user ? <ActivityIndicator style={{ margin: 16 }} color={primary} />
+                            ) : user ? <ListShimmer count={2} />
                                 : <Bill q={{ pricing: { subtotal: preview, total: preview } }} type={type} busy={false} />}
                     </Appear>
 

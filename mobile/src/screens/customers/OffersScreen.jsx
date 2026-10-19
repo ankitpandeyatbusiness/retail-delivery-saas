@@ -1,6 +1,7 @@
 // src/screens/ExtraPages.jsx
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, Pressable, FlatList, StyleSheet } from 'react-native';
+import { ListShimmer } from '../../components/owners/shimmer';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useBrand, BackHeader } from '../../components/common/kit';
 import { ItemCard, CartBar, showToast, tint, useClosedStyle } from '../../components/customers/shop';
@@ -136,7 +137,7 @@ export function FavouritesScreen() {
     return (
         <View style={[s.flex, { backgroundColor: background }, closedStyle]}>
             <BackHeader title={tr('Favourites')} />
-            {state === 'loading' ? <ActivityIndicator style={{ margin: 40 }} color={primary} />
+            {state === 'loading' ? <ListShimmer count={2} />
                 : state === 'error' && !items.length ? (
                     <View style={s.center}>
                         <Text style={s.empty}>{tr('Could not load favourites')}</Text>

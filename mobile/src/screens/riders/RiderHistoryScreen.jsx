@@ -1,6 +1,7 @@
 // Past deliveries, newest first. Plain rows: the order, when, and how it ended. Nothing to tap, nothing to learn.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, FlatList, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, RefreshControl } from 'react-native';
+import { ListShimmer } from '../../components/owners/shimmer';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -61,11 +62,11 @@ export default function RiderHistoryScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <Text style={{ color: text, fontSize: 22, fontWeight: '900', paddingHorizontal: 16, paddingTop: insets.top + 14, paddingBottom: 10 }}>{T.history}</Text>
-            {items === null ? <View style={{ padding: 40 }}><ActivityIndicator /></View> : (
+            {items === null ? <ListShimmer count={3} /> : (
                 <FlatList
                     data={items}
                     keyExtractor={(o) => String(o.id)}
-                    contentContainerStyle={{ paddingBottom: 140, flexGrow: 1 }}
+                    contentContainerStyle={{ paddingBottom: 24, flexGrow: 1 }}
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(1); setRefreshing(false); }} />}
                     ListEmptyComponent={(
                         <View style={{ alignItems: 'center', padding: 40 }}>

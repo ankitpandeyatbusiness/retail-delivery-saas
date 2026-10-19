@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { ActivityIndicator } from './Loading';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme, section as sec, spacing, radius, font, TAP, tint } from '../theme';
 import Icon from './Icon';

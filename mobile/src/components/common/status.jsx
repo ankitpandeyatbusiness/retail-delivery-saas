@@ -1,6 +1,7 @@
 // src/ui/status.jsx
 import React, { useEffect, useState } from 'react';
-import { View, Text, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { ActivityIndicator } from './Loading';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand } from './kit';
 import { useAppStatus } from '../../store/common/useAppStatus';

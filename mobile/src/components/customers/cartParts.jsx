@@ -1,6 +1,7 @@
 // src/components/ui/cartParts.jsx
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, ActivityIndicator, StyleSheet, LayoutAnimation, Animated, Easing } from 'react-native';
+import { View, Text, Pressable, StyleSheet, LayoutAnimation, Animated, Easing } from 'react-native';
+import { ListShimmer } from '../owners/shimmer';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../common/kit';
 import { tint } from './shop';
@@ -145,7 +146,7 @@ export function ClosedBanner({ message }) {
 // Pickup time windows from the server, grouped by day
 export function PickupSlots({ res, picked, onPick }) {
     const { primary, text, muted, border, surface } = useBrand();
-    if (!res) return <ActivityIndicator style={{ margin: 16 }} color={primary} />;
+    if (!res) return <ListShimmer count={2} />;
     if (!res.slots.length) {
         return (
             <View style={[s.noSlot, { borderColor: border, backgroundColor: surface }]}>

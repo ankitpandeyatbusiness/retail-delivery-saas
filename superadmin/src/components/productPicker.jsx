@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, Pressable } from 'react-native';
+import { ActivityIndicator } from './Loading';
 import { useTheme, spacing, font } from '../theme';
 import { Sheet } from './feedback';
 import { SearchBar } from './inputs';

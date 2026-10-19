@@ -1,9 +1,9 @@
 // src/screens/AccountScreen.jsx
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-    View, Text, ScrollView, TextInput, Modal, ActivityIndicator, Pressable,
-    KeyboardAvoidingView, Platform, StyleSheet, Linking, Switch, Animated, Easing, InteractionManager,
+    View, Text, ScrollView, TextInput, Modal, Pressable, KeyboardAvoidingView, Platform, StyleSheet, Linking, Switch, Animated, Easing, InteractionManager,
 } from 'react-native';
+import { ActivityIndicator } from '../../components/common/Loading';
 import Constants from 'expo-constants';
 import PoweredBy from '../../components/common/PoweredBy';
 import { Ionicons } from '@expo/vector-icons';

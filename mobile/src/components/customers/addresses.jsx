@@ -3,9 +3,9 @@
 // so it reaches the true bottom of the screen, over the tab bar.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    View, Text, Pressable, ScrollView, TextInput, ActivityIndicator, Keyboard, Platform,
-    StyleSheet, Animated, Easing, Switch, BackHandler, useWindowDimensions,
+    View, Text, Pressable, ScrollView, TextInput, Keyboard, Platform, StyleSheet, Animated, Easing, Switch, BackHandler, useWindowDimensions,
 } from 'react-native';
+import { ActivityIndicator } from '../common/Loading';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

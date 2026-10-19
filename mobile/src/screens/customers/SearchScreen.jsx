@@ -1,8 +1,9 @@
 // src/screens/SearchScreen.jsx
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    View, Text, TextInput, Pressable, FlatList, ScrollView, ActivityIndicator, Keyboard, StyleSheet, useWindowDimensions,
+    View, Text, TextInput, Pressable, FlatList, ScrollView, Keyboard, StyleSheet, useWindowDimensions,
 } from 'react-native';
+import { ListShimmer } from '../../components/owners/shimmer';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -183,7 +184,7 @@ export default function SearchScreen() {
                     </FadeIn>
                 ) : null}
                 <Text style={[s.sec, { color: text }]}>{tr('Popular right now')}</Text>
-                {!loaded && !popular.length ? <ActivityIndicator style={{ margin: 30 }} color={primary} /> : !popular.length ? (
+                {!loaded && !popular.length ? <ListShimmer count={2} /> : !popular.length ? (
                     <Text style={[s.emptyTxt, { color: muted, marginTop: 20 }]}>{emptyText}</Text>
                 ) : (
                     <View style={s.grid}>
@@ -223,7 +224,7 @@ export default function SearchScreen() {
                 data={shown} keyExtractor={(i) => i._id} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"
                 renderItem={({ item }) => <ItemCard item={item} variant="compact" />}
                 onEndReached={loadMore} onEndReachedThreshold={0.4}
-                ListFooterComponent={more ? <ActivityIndicator style={{ margin: 16 }} color={primary} /> : null}
+                ListFooterComponent={more ? <ListShimmer count={2} /> : null}
                 contentContainerStyle={{ paddingTop: 8, paddingBottom: 110 }}
             />
         );

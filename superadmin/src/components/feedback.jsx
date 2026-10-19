@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { View, Text, Modal, ScrollView, Pressable, ActivityIndicator, Animated, Easing, PanResponder, Dimensions, Keyboard, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
+import { View, Text, Modal, ScrollView, Pressable, Animated, Easing, PanResponder, Dimensions, Keyboard, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
+import { ActivityIndicator } from './Loading';
 import Icon from './Icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme, spacing, radius, font, tint } from '../theme';

@@ -1,7 +1,8 @@
 // The agree screen for administrators (every superadmin except the supreme one). It cannot be closed: "Agree and continue" or "Log out".
 // The server decides when it shows: on the person's SECOND visit after a new version was sent.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, Modal, ScrollView, Pressable, AppState, BackHandler, ActivityIndicator } from 'react-native';
+import { View, Text, Modal, ScrollView, Pressable, AppState, BackHandler } from 'react-native';
+import { ActivityIndicator } from './Loading';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme, spacing, font } from '../theme';
 import Icon from './Icon';

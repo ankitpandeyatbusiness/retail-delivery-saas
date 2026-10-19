@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, FlatList, ScrollView, Image, ActivityIndicator, Switch } from 'react-native';
+import { View, Text, FlatList, ScrollView, Image, Switch } from 'react-native';
+import { ActivityIndicator } from '../../components/Loading';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useTheme, spacing, font, radius } from '../../theme';
 import { Screen, HeaderButton } from '../../components/layout';

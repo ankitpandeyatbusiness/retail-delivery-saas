@@ -4,7 +4,8 @@
 //   3 Deliver      "Deliver"                  (PIN, or a photo, or the cash / QR when the customer pays at the door)
 // Everything else (a problem, giving the order back) is a small link, never a second big button.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, ScrollView, Linking, TextInput, ActivityIndicator, Pressable } from 'react-native';
+import { View, Text, ScrollView, Linking, TextInput, Pressable } from 'react-native';
+import { ListShimmer } from '../../components/owners/shimmer';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -52,6 +53,7 @@ export default function RiderTripScreen() {
     const { orderId } = useRoute().params || {};
     const { background, text, muted, surface, border, ok, primary, error } = useBrand();
     const [o, setO] = useState(null);
+    const [dockH, setDockH] = useState(120);   // the height of the big button fixed at the bottom: the page ends just above it
     const [gone, setGone] = useState(false);
     const [busy, setBusy] = useState('');
     const [sheet, setSheet] = useState(null);   // 'pin' | 'problem'
@@ -99,7 +101,14 @@ export default function RiderTripScreen() {
         let dead = false;
         let timer;
         const go = async () => {
-            try { const r = await fetchRoute(orderId); if (!dead) setPlan(r); } catch (e) { if (!dead && e?.response?.status !== 404 && e?.response?.status !== 409) timer = setTimeout(go, 30000); }
+            // where he is now goes along: the server starts the road from the rider when the shop has no pin of its own
+            let at = null;
+            try { at = (await Location.getLastKnownPositionAsync())?.coords || null; } catch (e) { /* no permission yet: the road may start at the shop */ }
+            try { const r = await fetchRoute(orderId, at?.latitude, at?.longitude); if (!dead) setPlan(r); } catch (e) {
+                const code = e?.response?.status;
+                // 404 = no pin to start from: tried again (his location may be known by then). 409 = nothing to show
+                if (!dead && code !== 409 && (code !== 404 || !at)) timer = setTimeout(go, 30000);
+            }
         };
         go();
         return () => { dead = true; clearTimeout(timer); };
@@ -241,7 +250,7 @@ export default function RiderTripScreen() {
             </View>
         );
     }
-    if (!o) return <View style={{ flex: 1, backgroundColor: background, justifyContent: 'center' }}><ActivityIndicator /></View>;
+    if (!o) return <View style={{ flex: 1, backgroundColor: background }}><PageHeader title={tr('Order')} /><ListShimmer count={3} /></View>;
 
     if (o.status === 'delivered') {
         return (
@@ -271,7 +280,7 @@ export default function RiderTripScreen() {
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Order #{orderNo}', { orderNo: o.orderNo })} />
             <Steps labels={STEP_LABELS} step={step} />
-            <KeyboardScroll contentContainerStyle={{ paddingTop: 8, paddingBottom: 200 }} keyboardShouldPersistTaps="handled" scrollEnabled={!mapTouch}>
+            <KeyboardScroll contentContainerStyle={{ paddingTop: 8, paddingBottom: dockH + 16 }} keyboardShouldPersistTaps="handled" scrollEnabled={!mapTouch}>
                 {offline ? <Banner tone="warn" icon="cloud-offline" text={T.offline} /> : null}
                 {step > 0 ? (
                     <Banner
@@ -312,7 +321,7 @@ export default function RiderTripScreen() {
                         <Text style={{ color: text, fontSize: 16, fontWeight: '600', marginTop: 6, lineHeight: 23 }}>{addressLine(o.address)}</Text>
                         {o.note ? <Text style={{ color: muted, marginTop: 8, fontWeight: '600' }}>{tr('Note: {note}', { note: o.note })}</Text> : null}
                         <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
-                            <View style={{ flex: 1 }}><Button label={tr('Cancel order')} icon="close-circle" kind="ghost" onPress={() => { setCancelReason(''); setCancelNote(''); setSheet('cancel'); }} /></View>
+                            <View style={{ flex: 1 }}><Button label={tr('Cancel order')} icon="close-circle" iconOnly kind="ghost" onPress={() => { setCancelReason(''); setCancelNote(''); setSheet('cancel'); }} /></View>
                             {o.customer?.phone ? <View style={{ flex: 1 }}><Button label={T.call} icon="call" iconOnly kind="ghost" onPress={callCustomer} /></View> : null}
                         </View>
                     </Card>
@@ -341,7 +350,7 @@ export default function RiderTripScreen() {
             </KeyboardScroll>
 
             {/* the one big button */}
-            <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, paddingBottom: Math.max(insets.bottom, 16), backgroundColor: background, borderTopWidth: 1, borderTopColor: border }}>
+            <View onLayout={(e) => setDockH(Math.ceil(e.nativeEvent.layout.height))} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, paddingBottom: Math.max(insets.bottom, 16), backgroundColor: background, borderTopWidth: 1, borderTopColor: border }}>
                 {step === 0 ? (
                     <>
                         <BigButton label={T.collected} icon="bag-check" onPress={collect} busy={busy === 'collect'} disabled={!ready} />
