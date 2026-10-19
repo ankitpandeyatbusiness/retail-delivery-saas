@@ -88,6 +88,8 @@ export const fetchMenu = () => d(api.get('/shop/menu'));
 export const fetchMenuOptions = () => d(api.get('/shop/menu/options'));
 // sold out for a while: { available:true } | { available:false } | { available:false, minutes } | { available:false, untilMorning:true }
 export const setAvailability = (id, body) => d(api.patch(`/shop/products/${id}/availability`, body));
+// one portion (Half / Full) on or off: { groupId, optionId, available }
+export const setOptionAvailability = (id, body) => d(api.patch(`/shop/products/${id}/option-availability`, body));
 // drag order: the first id gets position 0. kind: categories | products | collections
 export const reorder = (kind, ids) => d(api.put(`/shop/${kind}/order`, { ids }));
 

@@ -199,7 +199,7 @@ export default function OwnerItemScreen() {
             </Group>
 
             <Group title={tr('Choices (sizes, add-ons)')} hint={tr('What the customer picks on this item. A price here is an EXTRA on top of the selling price.')}>
-                <OptionGroupsEditor value={v.optionGroups} onChange={(x) => set('optionGroups', x)} />
+                <OptionGroupsEditor value={v.optionGroups} onChange={(x) => set('optionGroups', x)} basePrice={v.price} onBasePrice={(x) => set('price', x)} />
                 {errors.optionGroups ? <Hint tone="warn">{errors.optionGroups}</Hint> : null}
             </Group>
 

@@ -231,7 +231,9 @@ export function DateBox({ label, hint, value, onChange, last }) {
 }
 
 /* ------------------------------ choices on an item (sizes, add-ons) ------------------------------ */
-export function OptionGroupsEditor({ value = [], onChange }) {
+// basePrice / onBasePrice: the item's selling price. A group with "each option has its own full price" keeps the cheapest option
+// as the item's price and stores the others as the difference, so the totals the server works out stay exactly the real prices.
+export function OptionGroupsEditor({ value = [], onChange, basePrice = 0, onBasePrice }) {
     const { text, muted, border, surface, error, primary } = useBrand();
     const setGroup = (gi, patch) => onChange(value.map((g, i) => (i === gi ? { ...g, ...patch } : g)));
     const setOption = (gi, oi, patch) => setGroup(gi, { options: value[gi].options.map((o, i) => (i === oi ? { ...o, ...patch } : o)) });
@@ -251,13 +253,37 @@ export function OptionGroupsEditor({ value = [], onChange }) {
                         <NumberBox style={{ flex: 1, marginRight: 10 }} label={tr('Must pick at least')} integer value={g.min} onChange={(x) => setGroup(gi, { min: x ?? 0 })} hint={tr('0 = optional')} />
                         <NumberBox style={{ flex: 1 }} label={tr('Can pick up to')} integer value={g.max} onChange={(x) => setGroup(gi, { max: x ?? 1 })} hint={tr('1 = pick one')} />
                     </View>
+                    <ToggleRow
+                        title={tr('Each option has its own full price')}
+                        subtitle={tr('For Half and Full, or Small and Big: type the real price of each, such as Half ₹150 and Full ₹280. The customer sees "From ₹150".')}
+                        value={!!g.absolute}
+                        onValueChange={(x) => {
+                            if (x && value.some((o, i) => i !== gi && o.absolute)) { showToast(tr('Only one choice on an item can have its own full prices')); return; }
+                            setGroup(gi, x ? { absolute: true, min: 1, max: 1 } : { absolute: false });
+                        }}
+                        last
+                    />
                     {g.options.map((o, oi) => (
                         <View key={oi} style={{ backgroundColor: alpha(muted, 0.08), borderRadius: 12, padding: 10, marginBottom: 8 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
                                 <View style={{ flex: 1.6, marginRight: 8 }}>
                                     <TextBox label={oi === 0 ? tr('Option') : undefined} value={o.name} maxLength={40} placeholder={tr('e.g. Large')} last onChangeText={(x) => setOption(gi, oi, { name: x })} />
                                 </View>
-                                <NumberBox style={{ flex: 1 }} label={oi === 0 ? tr('Extra ₹') : undefined} value={o.price} last onChange={(x) => setOption(gi, oi, { price: x ?? 0 })} />
+                                <NumberBox
+                                    style={{ flex: 1 }}
+                                    label={oi === 0 ? (g.absolute ? tr('Price ₹') : tr('Extra ₹')) : undefined}
+                                    value={g.absolute ? (basePrice || 0) + (o.price || 0) : o.price}
+                                    last
+                                    onChange={(x) => {
+                                        if (!g.absolute) { setOption(gi, oi, { price: x ?? 0 }); return; }
+                                        // the real prices of all options; the cheapest one becomes the item's price, the rest are the difference
+                                        const abs = g.options.map((q, k) => (k === oi ? (x ?? 0) : (basePrice || 0) + (q.price || 0)));
+                                        const paid = abs.filter((a) => a > 0);
+                                        const nb = paid.length ? Math.min(...paid) : 0;
+                                        if (onBasePrice) onBasePrice(nb);
+                                        setGroup(gi, { options: g.options.map((q, k) => ({ ...q, price: Math.max(0, abs[k] - nb) })) });
+                                    }}
+                                />
                                 <Pressable onPress={() => setGroup(gi, { options: g.options.filter((_, i) => i !== oi) })} hitSlop={8} style={{ height: 46, justifyContent: 'center', paddingLeft: 8 }}>
                                     <Ionicons name="close-circle" size={22} color={muted} />
                                 </Pressable>
@@ -392,13 +418,15 @@ export function SoldOutSheet({ item, onClose, onPick }) {
 
 /* ------------------------------ an item in the menu list ------------------------------ */
 // Tap = edit. The switch is "in stock": off asks for how long. A counted item shows how many are left, with − and +.
-export function ItemRow({ item, onOpen, onSwitch, onStep, last }) {
+export function ItemRow({ item, onOpen, onSwitch, onStep, onPortion, last }) {
     const { text, muted, border, primary, error, ok, surface } = useBrand();
     const state = itemState(item);
     const kg = item.sellBy === 'weight' ? '/kg' : item.sellBy === 'volume' ? '/L' : '';
     const u = stockUnit(item.sellBy);
     const counted = !!item.stock?.enabled;
     const dim = state !== 'on';
+    // Half / Full style portions with their own prices: a quick switch for each one
+    const portions = (item.optionGroups || []).find((g) => g.absolute && (g.options || []).length > 1) || null;
     return (
         <Pressable onPress={onOpen} style={({ pressed }) => [styles.itemRow, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: border }, pressed && { opacity: 0.75 }]}>
             {item.image ? (
@@ -427,6 +455,20 @@ export function ItemRow({ item, onOpen, onSwitch, onStep, last }) {
                         </View>
                     ) : null}
                 </View>
+                {portions ? (
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 }}>
+                        {portions.options.map((o) => {
+                            const live = o.isAvailable !== false;
+                            return (
+                                <Pressable key={o.id} onPress={() => onPortion && onPortion(item, portions, o, !live)} hitSlop={4}
+                                    style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: live ? primary : border, backgroundColor: live ? alpha(primary, 0.1) : 'transparent', borderRadius: 99, paddingHorizontal: 10, paddingVertical: 5, marginRight: 6, marginBottom: 6 }}>
+                                    <Ionicons name={live ? 'checkmark-circle' : 'close-circle'} size={14} color={live ? primary : muted} />
+                                    <Text numberOfLines={1} style={{ color: live ? text : muted, fontWeight: '800', fontSize: 12, marginLeft: 4, textDecorationLine: live ? 'none' : 'line-through' }}>{o.name} · {money((item.price || 0) + (o.price || 0))}{!live && o.unavailableUntil ? `  ·  ${tr('back')} ${clockTime(o.unavailableUntil)}` : ''}</Text>
+                                </Pressable>
+                            );
+                        })}
+                    </View>
+                ) : null}
             </View>
             <View style={{ alignItems: 'center', marginLeft: 8 }}>
                 <Toggle value={state === 'on'} onValueChange={(on) => onSwitch(item, on)} />

@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand } from '../../components/common/kit';
-import { ItemCard, Pic, CartBar, AddButton, VegDot, ImageRibbon, Tags, useClosedStyle, quickAdd } from '../../components/customers/shop';
+import { ItemCard, Pic, CartBar, AddButton, VegDot, ImageRibbon, Tags, useClosedStyle, shownPrice, quickAdd } from '../../components/customers/shop';
 import { Slider, VegSwitch, Cats, FiltersRow, Fade, useVoice, VoiceOverlay } from '../../components/customers/finder';
 import FilterDialog from './FilterDialog';
 import { useHomeStore } from '../../store/customers/useHomeStore';
@@ -42,7 +42,7 @@ function Poster({ item, w }) {
                 </View>
                 <Tags item={item} max={1} />
                 <View style={s.priceRow}>
-                    <Text style={[s.pp, { color: text }]}>₹{item.price}</Text>
+                    <Text style={[s.pp, { color: text }]}>{shownPrice(item)}</Text>
                     {item.mrp > item.price ? <Text style={[s.mrp, { color: muted }]}>₹{item.mrp}</Text> : null}
                 </View>
             </View>

@@ -181,11 +181,24 @@ function Meta({ item, full }) {
 
 const offPct = (item) => (item.mrp > item.price ? Math.round(100 - (item.price * 100) / item.mrp) : 0);
 
+// a dish sold in portions with their own prices (Half / Full): the card says "From ₹150"
+export const hasPortions = (item) => (item.optionGroups || []).some((g) => g.absolute && (g.options || []).filter((o) => o.isAvailable !== false).length > 1);
+// The price on a card. Several portions on sale: "From ₹120" (the cheapest one that can be ordered now). Only one left (say only
+// Full): its own price, no "From". Nothing special: the item's price.
+export function shownPrice(item) {
+    const g = (item.optionGroups || []).find((x) => x.absolute);
+    if (!g) return `₹${item.price}`;
+    const live = (g.options || []).filter((o) => o.isAvailable !== false);
+    if (!live.length) return `₹${item.price}`;
+    const price = item.price + Math.min(...live.map((o) => o.price || 0));
+    return `${live.length > 1 ? tr('From') + ' ' : ''}₹${price}`;
+}
+
 function Price({ item, big }) {
     const { text, muted } = useBrand();
     return (
         <View style={s.priceRow}>
-            <Text style={[big ? s.priceBig : s.price, { color: text }]}>₹{item.price}{priceSuffix(item)}</Text>
+            <Text style={[big ? s.priceBig : s.price, { color: text }]}>{shownPrice(item)}{priceSuffix(item)}</Text>
             {item.mrp > item.price ? <Text style={[s.mrp, { color: muted }]}>₹{item.mrp}</Text> : null}
         </View>
     );
@@ -437,7 +450,7 @@ export function Tile({ item, push }) {
                     <Text numberOfLines={1} style={[s.tn, { color: text }]}>{item.name}</Text>
                 </View>
                 <View style={s.priceRow}>
-                    <Text style={[s.price, { color: text }]}>₹{item.price}{priceSuffix(item)}</Text>
+                    <Text style={[s.price, { color: text }]}>{shownPrice(item)}{priceSuffix(item)}</Text>
                     {item.mrp > item.price ? <Text style={[s.mrp, { color: muted }]}>₹{item.mrp}</Text> : null}
                 </View>
             </View>

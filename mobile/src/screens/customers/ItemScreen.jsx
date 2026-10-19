@@ -84,7 +84,7 @@ function Mark({ on, radio }) {
     );
 }
 
-function Group({ g, chosen, onPick, index }) {
+function Group({ g, chosen, onPick, index, base = 0 }) {
     const { text, muted, surface, border, primary, error } = useBrand();
     const min = g.min ?? 0;
     const max = g.max ?? 1;
@@ -114,8 +114,8 @@ function Group({ g, chosen, onPick, index }) {
                     <Press key={o.id} onPress={() => onPick(g, o)} disabled={off}
                         style={[s.opt, { borderBottomColor: border, backgroundColor: on ? tint(primary) : 'transparent' }, off && { opacity: 0.4 }]}>
                         <Mark on={on} radio={radio} />
-                        <Text style={[s.optName, { color: text, fontWeight: on ? '800' : '600' }]}>{o.name}{off ? tr(' (unavailable)') : ''}</Text>
-                        {o.price ? <Text style={[s.optPrice, { color: muted }]}>+₹{o.price}</Text> : null}
+                        <Text style={[s.optName, { color: text, fontWeight: on ? '800' : '600' }]}>{o.name}{off ? ` (${soldOutText(o)})` : ''}</Text>
+                        {g.absolute ? <Text style={[s.optPrice, { color: text, fontWeight: '800' }]}>₹{base + (o.price || 0)}</Text> : o.price ? <Text style={[s.optPrice, { color: muted }]}>+₹{o.price}</Text> : null}
                     </Press>
                 );
             })}
@@ -452,7 +452,7 @@ export default function ItemScreen() {
                         </Appear>
                     ) : null}
 
-                    {groups.map((g, i) => <Group key={g.id} g={g} index={i} chosen={sel[g.id] || []} onPick={pick} />)}
+                    {groups.map((g, i) => <Group key={g.id} g={g} index={i} base={p.price} chosen={sel[g.id] || []} onPick={pick} />)}
 
                 </View>
 

@@ -51,7 +51,7 @@ router.get('/menu', wrap(async (req, res) => {
     const [categories, products] = await Promise.all([
         Category.find({ tenantId }).sort({ sortOrder: 1, _id: 1 }).limit(200).lean(),
         Product.find({ tenantId, isActive: true }).sort({ sortOrder: 1, _id: 1 }).limit(600)
-            .select('categoryId name image price mrp isVeg isAvailable unavailableUntil stock sellBy itemKind isBestseller isNewArrival isGiftPack isJain isEggless isSugarFree sortOrder').lean(),
+            .select('categoryId name image price mrp isVeg isAvailable unavailableUntil optionGroups stock sellBy itemKind isBestseller isNewArrival isGiftPack isJain isEggless isSugarFree sortOrder').lean(),
     ]);
     const counts = {};
     for (const p of products) counts[String(p.categoryId)] = (counts[String(p.categoryId)] || 0) + 1;
@@ -92,6 +92,40 @@ router.patch('/products/:id/availability', wrap(async (req, res) => {
     const out = await Product.findOneAndUpdate({ _id: p._id, tenantId: req.tenant._id }, update, { returnDocument: 'after' })
         .select('name isAvailable unavailableUntil').lean();
     res.json({ id: out._id, name: out.name, isAvailable: out.isAvailable, unavailableUntil: out.unavailableUntil || null });
+}));
+
+// One portion (Half / Full / Small...) of an item on or off, without touching the others.
+// Body: { groupId, optionId, available }. When no portion of a "must pick one" choice is left, the whole item is sold out;
+// when the first portion comes back to an item that had none, the item is back too.
+router.patch('/products/:id/option-availability', wrap(async (req, res) => {
+    if (!isId(req.params.id)) throw httpError(404, 'Item not found');
+    const b = req.body || {};
+    if (typeof b.available !== 'boolean' || typeof b.groupId !== 'string' || typeof b.optionId !== 'string') throw httpError(400, 'Send groupId, optionId and available');
+    const p = await Product.findOne({ _id: req.params.id, tenantId: req.tenant._id });
+    if (!p) throw httpError(404, 'Item not found');
+    const g = (p.optionGroups || []).find((x) => x.id === b.groupId);
+    const o = g && g.options.find((x) => x.id === b.optionId);
+    if (!o) throw httpError(404, 'That choice was not found');
+    const hadOne = g.options.some((x) => x.isAvailable !== false);
+    o.isAvailable = b.available;
+    // for a while: { minutes } or { untilMorning: true }; neither = off until the owner switches it on
+    let until = null;
+    if (!b.available) {
+        if (b.untilMorning) until = nextMorning();
+        else if (b.minutes !== undefined) {
+            if (!Number.isInteger(b.minutes) || b.minutes < 1 || b.minutes > 1440) throw httpError(400, 'minutes must be from 1 to 1440');
+            until = new Date(Date.now() + b.minutes * 60000);
+        }
+    }
+    o.unavailableUntil = until || undefined;
+    if ((g.min || 0) >= 1) {
+        const hasOne = g.options.some((x) => x.isAvailable !== false);
+        if (!hasOne) { p.isAvailable = false; p.unavailableUntil = undefined; }
+        else if (!hadOne && !p.unavailableUntil) p.isAvailable = true;
+    }
+    p.markModified('optionGroups');
+    await p.save();
+    res.json({ id: p._id, isAvailable: p.isAvailable, unavailableUntil: p.unavailableUntil || null, optionGroups: p.optionGroups });
 }));
 
 // Put things in the order the owner dragged them. Body: { ids: [...] } — the first id becomes 0, and so on.

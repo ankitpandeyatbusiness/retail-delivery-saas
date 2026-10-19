@@ -75,8 +75,20 @@ export default function OwnerMenuScreen() {
     };
     const pickSoldOut = async (item, body) => {
         setAsking(null);
+        if (item._portion) {   // one portion (Half / Full), not the whole item
+            const { item: it, group, option } = item._portion;
+            try { await useMenuStore.getState().setPortion(it._id, group.id, option.id, false, body); showToast(tr('{n} is sold out', { n: option.name })); } catch (e) { showToast(e.message); }
+            return;
+        }
         try { await useMenuStore.getState().setAvailable(item._id, body); }
         catch (e) { showToast(e.message); }
+    };
+    const onPortion = async (item, group, option, on) => {
+        if (!on) { setAsking({ name: `${item.name} · ${option.name}`, _portion: { item, group, option } }); return; }   // off: ask for how long, like a whole item
+        try {
+            await useMenuStore.getState().setPortion(item._id, group.id, option.id, true);
+            showToast(tr('{n} is back on the menu', { n: option.name }));
+        } catch (e) { showToast(e.message); }
     };
     const onStep = async (item, d) => {
         const qty = Math.max(0, (item.stock?.qty || 0) + d);
@@ -129,7 +141,7 @@ export default function OwnerMenuScreen() {
         }
         return (
             <View style={{ marginHorizontal: 16, paddingHorizontal: 12, backgroundColor: surface, borderLeftWidth: 1, borderRightWidth: 1, borderColor: border }}>
-                <ItemRow item={r.item} last={r.last} onOpen={() => nav.navigate('OwnerItem', { id: String(r.item._id) })} onSwitch={onSwitch} onStep={onStep} />
+                <ItemRow item={r.item} last={r.last} onOpen={() => nav.navigate('OwnerItem', { id: String(r.item._id) })} onSwitch={onSwitch} onStep={onStep} onPortion={onPortion} />
             </View>
         );
     };

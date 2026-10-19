@@ -1,7 +1,7 @@
 // The owner's menu: every category (hidden ones too) and light items, loaded in one call. Switches and stock steppers
 // change the row at once and are put back if the server says no.
 import { create } from 'zustand';
-import { fetchMenu, fetchMenuOptions, setAvailability, setStock, reorder, apiError } from '../../api/owners/shopApi';
+import { fetchMenu, fetchMenuOptions, setAvailability, setOptionAvailability, setStock, reorder, apiError } from '../../api/owners/shopApi';
 import { useOwnerStore } from './useOwnerStore';
 
 let seq = 0;
@@ -40,6 +40,17 @@ export const useMenuStore = create((set, get) => ({
     },
 
     patchProduct: (id, patch) => set((st) => ({ products: st.products.map((p) => (String(p._id) === String(id) ? { ...p, ...patch } : p)) })),
+
+    // one portion (Half / Full) of an item on or off. The item itself goes sold out when no portion is left.
+    setPortion: async (id, groupId, optionId, available, when = {}) => {
+        try {
+            const r = await setOptionAvailability(id, { groupId, optionId, available, ...when });
+            get().patchProduct(id, { isAvailable: r.isAvailable, unavailableUntil: r.unavailableUntil, optionGroups: r.optionGroups });
+        } catch (e) {
+            useOwnerStore.getState().noteError(e);
+            throw new Error(apiError(e));
+        }
+    },
 
     // body as for setAvailability. Throws the server's words when it refuses (the row is put back).
     setAvailable: async (id, body) => {

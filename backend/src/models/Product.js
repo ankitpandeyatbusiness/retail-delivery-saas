@@ -7,6 +7,7 @@ const optionSchema = new mongoose.Schema({
     price: { type: Number, default: 0, min: 0 },     // EXTRA on top of the item's base price
     isDefault: { type: Boolean, default: false },
     isAvailable: { type: Boolean, default: true },
+    unavailableUntil: Date,                          // switched off for a while ("back in 2 h", "sold out today"): it comes back by itself (stockService.sweepSoldOut)
 }, { _id: false });
 
 const optionGroupSchema = new mongoose.Schema({
@@ -14,6 +15,7 @@ const optionGroupSchema = new mongoose.Schema({
     name: { type: String, required: true, trim: true }, // shown to the customer: "Choose size"
     min: { type: Number, default: 0 },               // 0 = optional, 1 = must choose
     max: { type: Number, default: 1 },               // 1 = pick one, 3 = up to three
+    absolute: { type: Boolean, default: false },     // the owner types each option's FULL price (Half 150, Full 280). Stored as base price + extra; this only changes how it is shown
     options: [optionSchema],
 }, { _id: false });
 

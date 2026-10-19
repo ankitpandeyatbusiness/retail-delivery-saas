@@ -36,6 +36,25 @@ async function sweepSoldOut(tenantId, now = new Date(), { force = false } = {}) 
         ],
         { updatePipeline: true },
     );
+    await sweepPortions(tenantId, now).catch(() => { });
+}
+
+// A portion (Half / Full) that was switched off "for a while" comes back when its time is over. Same 20 s rhythm as the items.
+async function sweepPortions(tenantId, now) {
+    const due = await Product.find({ tenantId, 'optionGroups.options.unavailableUntil': { $lte: now } }).select('optionGroups isAvailable unavailableUntil');
+    for (const p of due) {
+        for (const g of p.optionGroups) {
+            const hadOne = g.options.some((x) => x.isAvailable !== false);
+            let back = false;
+            for (const o of g.options) {
+                if (o.unavailableUntil && o.unavailableUntil <= now) { o.isAvailable = true; o.unavailableUntil = undefined; back = true; }
+            }
+            // the item was sold out only because no portion was left: it is back with the first portion
+            if (back && !hadOne && (g.min || 0) >= 1 && !p.unavailableUntil) p.isAvailable = true;
+        }
+        p.markModified('optionGroups');
+        await p.save().catch(() => { });
+    }
 }
 
 async function ensureToday(tenantId, now = new Date()) {
