@@ -4,11 +4,11 @@
 //         userId = a customer or rider. No userId = the owner side of the shop.
 //         title/body = your own words. Left out = the wording from templates/texts.js.
 //
-// The waterfall (the first step that reaches him ends it):
-//   1. The inbox row is ALWAYS saved.
-//   2. He is online and the event has "inapp"  -> live message. Done.
-//   3. Else, a push to his phones (events with alsoPush send the push even when he is online).
-//   4. Else, only for key events and only if allowed -> SMS from the shop wallet.
+// What every message does (nobody has to be on the app, or off it, to get it):
+//   1. The inbox row is ALWAYS saved (the in-app notification).
+//   2. He is on the app right now  -> the live message too (toast and badge).
+//   3. A push to his phones, ALWAYS, whether he is on the app or not. (`channels` and `alsoPush` in events.js no longer hold a push back.)
+//   4. Only when neither the live message nor the push reached anyone, and only for key events and only if allowed -> SMS from the shop wallet.
 //   5. Events with escalateSmsAfterSec also get an SMS later if he never reads the message (jobs/notificationEscalation).
 //   6. Events with email get a mail in the queue.
 //   7. Events with adminAlert also alert the superadmin (before the owner's own rule is checked).
@@ -49,11 +49,10 @@ const wantsSms = (def, ctx) => (def.channels || []).includes('sms') && def.to !=
 
 async function deliver(eventKey, def, ctx, doc) {
     const { tenantId, userId } = ctx;
-    const channels = def.channels || [];
     const online = userId ? presence.isOnline(tenantId, userId) : presence.ownerOnline(tenantId);
     let delivered = false;
 
-    if (online && channels.includes('inapp')) {
+    if (online) {
         try {
             inapp.live({ tenantId, userId, doc });
             delivered = true;
@@ -62,7 +61,7 @@ async function deliver(eventKey, def, ctx, doc) {
         }
     }
 
-    if (channels.includes('push') && (!delivered || def.alsoPush)) {
+    {
         try {
             const r = await pushChannel.send({
                 tenantId, userId, title: doc.title, body: doc.body, data: { ...(ctx.data || {}), type: doc.type },

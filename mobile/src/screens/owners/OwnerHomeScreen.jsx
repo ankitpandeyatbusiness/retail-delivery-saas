@@ -18,6 +18,7 @@ import { onOrderUpdate } from '../../api/common/socket';
 import { clearAll } from '../../utils/owners/soundbox';
 import { useNow } from '../../hooks/owners/useNow';
 import * as flow from '../../utils/owners/orderFlow';
+import { AutoAcceptCard } from '../../components/owners/AutoAccept';
 import { tr } from '../../i18n';
 
 const PIPELINE = [
@@ -165,6 +166,22 @@ export default function OwnerHomeScreen() {
         <OwnerScreen onRefresh={pull} refreshing={refreshing}>
             {loadError && !d ? <Card tone={error}><Text style={{ color: error, fontWeight: '700' }}>{loadError}</Text></Card> : null}
 
+            {/* something needs him now (the delivery partner cancelled or asked for help, nobody took an order, a very late delivery) */}
+            {attn.look?.urgent > 0 ? (
+                <GlowBorder active radius={18} style={{ marginHorizontal: 16, marginTop: 14, marginBottom: 16 }}>
+                    <Card onPress={() => toOrders('look')} style={{ marginHorizontal: 0, marginBottom: 0 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Ionicons name="warning" size={22} color={error} />
+                            <View style={{ flex: 1, marginLeft: 10 }}>
+                                <Text style={{ color: error, fontWeight: '900' }}>{attn.look.urgent === 1 ? tr('1 order needs you now') : tr('{n} orders need you now', { n: attn.look.urgent })}</Text>
+                                {attn.look.top ? <Text style={{ color: muted, fontSize: 12, marginTop: 2 }} numberOfLines={2}>{`#${attn.look.top.orderNo} · ${tr(attn.look.top.text)}`}</Text> : null}
+                            </View>
+                            <Ionicons name="chevron-forward" size={18} color={muted} />
+                        </View>
+                    </Card>
+                </GlowBorder>
+            ) : null}
+
             {/* a real order is ringing: one tap silences it (opening the order does the same) */}
             {ringing ? (
                 <Card tone={error}>
@@ -191,6 +208,8 @@ export default function OwnerHomeScreen() {
                     </Card>
                 </GlowBorder>
             ) : null}
+
+            <AutoAcceptCard />
 
             {/* paused */}
             {accepting === false ? (

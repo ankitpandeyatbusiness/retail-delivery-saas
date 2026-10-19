@@ -479,7 +479,7 @@ function stopLoop() {
 }
 
 /* ------------------------------ orders waiting ------------------------------ */
-export function raise({ orderId, orderNo, speech, speechHi }) {
+export function raise({ orderId, orderNo, speech, speechHi, autoAccepted }) {
     // Soundbox off = the owner wants no new-order sound at all: no chime, no voice, no greeting
     note('new-order message received' + (orderNo ? ' (' + orderNo + ')' : ''));
     if (!orderId || !isOwner() || !settings().soundbox) { note('ignored: ' + (!isOwner() ? 'not an owner' : !settings().soundbox ? 'Soundbox is off' : 'no order id')); return; }
@@ -488,10 +488,24 @@ export function raise({ orderId, orderNo, speech, speechHi }) {
     if (!settings().alwaysReady && AppState.currentState !== 'active') { note('ignored: app in background and Always ready is off'); return; }
     const id = String(orderId);
     if (acked.has(id)) { note('ignored: you already opened this order'); return; }
+    if (autoAccepted) { acked.add(id); announceAuto({ orderNo, speech, speechHi }); return; }   // the shop accepts it by itself: told once, no ringing
     const isNew = !pending.has(id);
     if (isNew) note('order ' + (orderNo || id) + ' arrived');
     pending.set(id, { orderNo, speech, speechHi });
     if (isNew) { stopLoop(); kick(); } else kick();   // a new order starts a fresh round at once
+}
+
+// An order the shop accepted BY ITSELF (auto accept): the same Soundbox, but once: the "accepted" chime, then the order read out
+// (it ends with "Auto accepted"). It does not repeat, because there is nothing for the owner to press.
+async function announceAuto({ orderNo, speech, speechHi }) {
+    if (speaking) return;
+    note('order ' + (orderNo || '') + ' accepted by itself');
+    playSfx('orderAccepted');
+    try {
+        const language = await languageToUse();
+        await new Promise((r) => setTimeout(r, 1300));   // the chime first, then the voice
+        if (!speaking) await speak(withGreeting(textOf({ orderNo, speech, speechHi }, language), language), language);
+    } catch (e) { /* the chime is enough */ }
 }
 
 // The order is dealt with (opened, accepted, cancelled): stop alerting for it.
@@ -628,7 +642,7 @@ function begin() {
         if (n?.type === 'order_cancelled' && n.data?.orderId) { announceCancel(n.data); return; }
         if (!n || !ALERT_TYPES.includes(n.type)) return;
         const d = n.data || {};
-        raise({ orderId: d.orderId, orderNo: d.orderNo, speech: d.speech, speechHi: d.speechHi });
+        raise({ orderId: d.orderId, orderNo: d.orderNo, speech: d.speech, speechHi: d.speechHi, autoAccepted: !!d.autoAccepted });
     }));
 
     unsubs.push(onOrderUpdate((p) => {

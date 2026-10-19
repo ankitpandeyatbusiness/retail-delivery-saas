@@ -13,7 +13,7 @@ import { amountLabel, stockUnit, itemState, MAX_GROUPS, MAX_OPTIONS, DAYS, maskT
 import { clockTime } from '../../utils/owners/orderFlow';
 import { LineShimmer } from './shimmer';
 import { tr } from '../../i18n';
-import KeyboardScroll from '../common/KeyboardScroll';
+import KeyboardScroll, { useKeyboardLift } from '../common/KeyboardScroll';
 
 /* ------------------------------ small things ------------------------------ */
 // the small coloured square for veg / non-veg, as on food apps
@@ -146,10 +146,12 @@ export function Group({ title, hint, children, flush }) {
 export function FormPage({ title, children, footer, right }) {
     const { background, border } = useBrand();
     const insets = useSafeAreaInsets();
+    const [boxRef, lift] = useKeyboardLift();   // Android: the page, with its bar, is lifted above the keyboard
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={title} right={right} />
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+                <View ref={boxRef} collapsable={false} style={{ flex: 1, paddingBottom: lift }}>
                 <KeyboardScroll contentContainerStyle={{ paddingTop: 6, paddingBottom: 40 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
                     {children}
                 </KeyboardScroll>
@@ -158,6 +160,7 @@ export function FormPage({ title, children, footer, right }) {
                         {footer}
                     </View>
                 ) : null}
+                </View>
             </KeyboardAvoidingView>
         </View>
     );

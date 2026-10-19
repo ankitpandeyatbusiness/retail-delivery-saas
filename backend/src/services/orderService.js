@@ -309,7 +309,7 @@ async function placeOrder({ tenant, userId, body, idempotencyKey }) {
         }
 
         // Cash orders reach the owner now. Online orders reach him when the money arrives (paymentService).
-        if (!isOnline(order)) notify.orderPlaced(order);
+        if (!isOnline(order)) require('./autoAccept').afterPlaced(order);   // tells the owner, and accepts it by itself when he asked for that
         return { order, duplicate: false };
     } catch (e) {
         await releaseCoupon(priced.coupon?._id);   // the order was not created, give the coupon use back

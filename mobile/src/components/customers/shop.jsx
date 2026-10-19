@@ -329,7 +329,7 @@ export function quickAdd(item, nav) {
     if ((item.optionGroups || []).some((g) => (g.min || 0) >= 1)) return nav.navigate('Item', { id: item._id });
     useCartStore.getState().add({
         productId: item._id, name: item.name, image: item.image, isVeg: item.isVeg,
-        price: item.price, quantity: 1, selections: [], optionsText: '', maxQty: item.maxQty,
+        price: item.price, quantity: 1, selections: [], optionsText: '', maxQty: item.maxQty, maxPerOrder: item.maxPerOrder,
     });
     return undefined;
 }

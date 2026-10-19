@@ -107,19 +107,38 @@ function BlinkDot() {
     return <Animated.View style={{ width: 11, height: 11, borderRadius: 6, backgroundColor: error, opacity: v }} />;
 }
 
+// badge: a number (a count) | 'dot' (a blinking dot) | 'alert' (the whole tab blinks red, with a dot) | { n, alert: true } (a count AND the blinking)
+function useBlink(on) {
+    const v = useRef(new Animated.Value(1)).current;
+    useEffect(() => {
+        if (!on) { v.setValue(1); return undefined; }
+        const loop = Animated.loop(Animated.sequence([
+            Animated.timing(v, { toValue: 0.25, duration: 600, useNativeDriver: true }),
+            Animated.timing(v, { toValue: 1, duration: 600, useNativeDriver: true }),
+        ]));
+        loop.start();
+        return () => loop.stop();
+    }, [on, v]);
+    return v;
+}
+
 // One tab: the icon (springs up when active), its label, and the cart count when there is one.
 function TabItem({ focused, icon, label, badge, onPress, onLongPress, greyWhenClosed }) {
-    const { primary, muted } = useBrand();
+    const { primary, muted, error } = useBrand();
+    const alert = badge === 'alert' || !!(badge && typeof badge === 'object' && badge.alert);
+    const count = typeof badge === 'number' ? badge : (badge && typeof badge === 'object' ? badge.n : 0);
+    const blink = useBlink(alert);
+    const tone = alert ? error : focused ? primary : muted;
     const closedStyle = useClosedStyle();   // the shop is closed: a customer's tabs turn grey (the Account tab does not)
     return (
         <Pressable onPress={onPress} onLongPress={onLongPress} style={[tb.floatItem, greyWhenClosed && closedStyle]} accessibilityRole="button" accessibilityState={focused ? { selected: true } : {}}>
             <View style={tb.floatInner}>
-                <View>
-                    <TabGlyph focused={focused} color={focused ? primary : muted} icon={icon || 'ellipse'} />
-                    {typeof badge === 'number' ? <View style={tb.floatBadge}><CountBadge n={badge} /></View> : null}
-                    {badge === 'dot' ? <View style={tb.floatBadge}><BlinkDot /></View> : null}
-                </View>
-                <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={[tb.floatLabel, { color: focused ? primary : muted }]}>{label}</Text>
+                <Animated.View style={{ opacity: blink }}>
+                    <TabGlyph focused={focused} color={tone} icon={icon || 'ellipse'} />
+                </Animated.View>
+                {count > 0 ? <View style={tb.floatBadge}><CountBadge n={count} /></View> : null}
+                {badge === 'dot' || badge === 'alert' || (badge && badge.alert && !(count > 0)) ? <View style={tb.floatBadge}><BlinkDot /></View> : null}
+                <Animated.Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={[tb.floatLabel, { color: tone, opacity: blink }]}>{label}</Animated.Text>
             </View>
         </Pressable>
     );

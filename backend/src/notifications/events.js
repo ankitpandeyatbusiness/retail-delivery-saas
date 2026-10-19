@@ -25,6 +25,9 @@ const EVENTS = {
     order_cancelled: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },
     order_late: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },
     rider_accepted: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },
+    rider_leave_request: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // a rider asked for leave
+    rider_leave_decision: { to: 'rider', channels: INAPP_PUSH, alsoPush: true },  // the owner approved or rejected it
+    rider_duty_auto: { to: 'rider', channels: ['inapp'] },                        // his schedule put him on or off duty
     rider_arrived_shop: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // the rider tapped "I have arrived" at the customer
     rider_rejected: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },
     rider_none: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // nobody took the order: live AND push

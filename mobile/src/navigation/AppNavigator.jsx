@@ -18,6 +18,7 @@ import ReviewPrompts from '../components/customers/ReviewPrompts';
 import OrderPlacedScreen from '../screens/customers/OrderPlacedScreen';
 import RiderTabs from './RiderNavigator';
 import RiderTripScreen from '../screens/riders/RiderTripScreen';
+import RiderDutyScreen from '../screens/riders/RiderDutyScreen';
 import OwnerTabs from './OwnerNavigator';
 import ShopHubScreen from '../screens/owners/ShopHubScreen';
 import SoundboxScreen from '../screens/owners/SoundboxScreen';
@@ -298,6 +299,7 @@ export default function AppNavigator() {
                     <Stack.Screen name="LegalList" component={LegalListScreen} />
                     {/* RiderTrip: a rider's delivery, one step at a time */}
                     <Stack.Screen name="RiderTrip" component={RiderTripScreen} />
+                    <Stack.Screen name="RiderDuty" component={RiderDutyScreen} />
                     <Stack.Screen name="LegalDoc" component={LegalDocScreen} />
 
                     {/* owner pages (role "admin"); the owner's tabs are MainTabs -> Landing -> OwnerTabs */}

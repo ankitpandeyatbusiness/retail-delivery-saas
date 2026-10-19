@@ -1,6 +1,7 @@
 // src/screens/OrderDetailScreen.jsx
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, ScrollView, TextInput, StyleSheet, Animated, Easing, Image } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 import { ActivityIndicator } from '../../components/common/Loading';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -321,7 +322,7 @@ export default function OrderDetailScreen() {
                 <Card title={tr('Items')} icon="fast-food-outline" delay={100}>
                     {o.items.map((l, i) => (
                         <View key={`${l.productId}${i}`} style={s.item}>
-                            {l.image ? <Image source={{ uri: l.image }} style={[s.itemPic, { backgroundColor: border }]} /> : <View style={[s.itemPic, { backgroundColor: tint(primary), alignItems: 'center', justifyContent: 'center' }]}><Ionicons name="fast-food-outline" size={18} color={primary} /></View>}
+                            {l.image ? <ExpoImage source={{ uri: l.image }} style={[s.itemPic, { backgroundColor: border }]} contentFit="cover" transition={150} cachePolicy="memory-disk" /> : <View style={[s.itemPic, { backgroundColor: tint(primary), alignItems: 'center', justifyContent: 'center' }]}><Ionicons name="fast-food-outline" size={18} color={primary} /></View>}
                             <View style={[s.qty, { backgroundColor: tint(primary), marginLeft: 10 }]}><Text style={[s.qtyTxt, { color: primary }]}>{l.measure?.label || `${l.quantity}×`}</Text></View>
                             <View style={{ flex: 1, marginHorizontal: 10 }}>
                                 <Text style={[s.itemName, { color: text }]}>{l.name}</Text>

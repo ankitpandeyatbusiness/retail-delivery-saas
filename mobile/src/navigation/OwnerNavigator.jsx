@@ -36,6 +36,7 @@ export default function OwnerTabs() {
     const motion = useMotion();
     const waiting = useOwnerStore((st) => st.live?.orders?.active?.placed || 0);
     const riderAttention = useAlertStore((st) => st.riderAttention);
+    const needsLook = useOwnerStore((st) => st.live?.orders?.attention?.look?.count || 0);   // orders he has not looked at yet (cancelled, rider problem...)
     // a rider cancelled, reported a problem or pressed help: the Riders tab blinks until the owner opens it
     useEffect(() => onNotification((n) => {
         if (n?.type === 'rider_problem' || n?.type === 'rider_sos' || (n?.type === 'order_cancelled' && n.data?.byRider)) setRiderAttention(true);
@@ -68,7 +69,7 @@ export default function OwnerTabs() {
                         key={name}
                         name={name}
                         component={def.component}
-                        options={{ title: def.label, tabBarBadge: name === 'OrdersTab' && waiting > 0 ? waiting : name === 'RidersTab' && riderAttention ? 'dot' : undefined }}
+                        options={{ title: def.label, tabBarBadge: name === 'OrdersTab' ? (needsLook > 0 ? (waiting > 0 ? { n: waiting, alert: true } : 'alert') : waiting > 0 ? waiting : undefined) : name === 'RidersTab' && riderAttention ? 'dot' : undefined }}
                     />
                 ))}
             </Tab.Navigator>

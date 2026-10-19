@@ -18,6 +18,7 @@ import { rupees, toPaise, ago, riderName, ledgerLine } from '../../utils/owners/
 import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
 import { ListShimmer } from '../../components/owners/shimmer';
+import { LeavePanel } from '../../components/owners/RiderLeave';
 import { tr } from '../../i18n';
 
 function AmountSheet({ mode, visible, balancePaise, onClose, onSubmit, busy }) {
@@ -230,6 +231,8 @@ export default function OwnerRiderScreen() {
                         </>
                     ) : null}
                 </Card>
+
+                <LeavePanel riderId={userId} monthDays={rider.leave?.monthDays || 0} />
 
                 <SectionTitle title={tr('Cash')} />
                 <Card tone={balance > 0 ? error : undefined}>

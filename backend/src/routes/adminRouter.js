@@ -402,7 +402,7 @@ admin.use('/tenants/:tid/products', loadTenant, crud(Product, {
     fields: [
         'categoryId', 'categoryName', 'name', 'description', 'image', 'price', 'mrp',
         'isVeg', 'isEggless', 'isSugarFree', 'isJain', 'spiceLevel',
-        'isBestseller', 'isNewArrival', 'isGiftPack', 'serves', 'calories', 'prepTimeMin',
+        'isBestseller', 'isNewArrival', 'isGiftPack', 'serves', 'calories', 'prepTimeMin', 'maxPerOrder',
         'optionGroups', 'sizes', 'weightOptions', 'addOns',
         'itemKind', 'sellBy', 'measure',
         'isAvailable', 'isActive', 'sortOrder',

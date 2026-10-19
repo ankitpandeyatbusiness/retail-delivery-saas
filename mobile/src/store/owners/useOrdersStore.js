@@ -16,6 +16,7 @@ export const useOrdersStore = create((set, get) => ({
     query: '',
     items: [],
     counts: {},
+    look: { count: 0, urgent: 0, top: null },   // orders that need a look once (chip "Needs a look")
     page: 1,
     hasMore: false,
     loading: true,       // first load of a list: show skeletons
@@ -37,16 +38,23 @@ export const useOrdersStore = create((set, get) => ({
         const { filter, query } = get();
         if (!quiet) set({ loading: get().items.length === 0, error: null });
         try {
-            const params = { status: serverStatusFor(filter), page: 1, limit: PAGE };
+            const params = filter === 'look' ? { look: 'true', page: 1, limit: PAGE } : { status: serverStatusFor(filter), page: 1, limit: PAGE };
             if (/^\d{1,9}$/.test(query.trim())) params.q = query.trim();
             const r = await fetchOrders(params);
             if (mine !== seq) return;
-            set({ items: r.items || [], counts: r.counts || {}, page: 1, hasMore: !!r.hasMore, loading: false, refreshing: false, loadedAt: Date.now(), error: null });
+            set({ items: r.items || [], counts: r.counts || {}, look: r.look || { count: 0, urgent: 0, top: null }, page: 1, hasMore: !!r.hasMore, loading: false, refreshing: false, loadedAt: Date.now(), error: null });
         } catch (e) {
             if (mine !== seq) return;
             useOwnerStore.getState().noteError(e);
             set({ loading: false, refreshing: false, error: apiError(e, 'Could not load the orders. Pull down to try again.') });
         }
+    },
+    // the owner opened an order from "Needs a look": it leaves that list at once (the server marks it seen when the order is read)
+    markSeenLocal: (id) => {
+        const { items, look } = get();
+        if (!items.some((o) => String(o.id) === String(id) && o.needsLook && !o.needsLook.seenAt)) return;
+        const left = items.filter((o) => String(o.id) !== String(id));
+        set({ items: get().filter === 'look' ? left : items.map((o) => (String(o.id) === String(id) ? { ...o, needsLook: { ...o.needsLook, seenAt: new Date().toISOString() } } : o)), look: { ...look, count: Math.max(0, look.count - 1), urgent: Math.max(0, look.urgent - (items.find((o) => String(o.id) === String(id))?.needsLook?.urgent ? 1 : 0)) } });
     },
     refresh: async () => { set({ refreshing: true }); await get().load({ quiet: true }); },
 
@@ -56,7 +64,7 @@ export const useOrdersStore = create((set, get) => ({
         const mine = seq;
         set({ loadingMore: true });
         try {
-            const params = { status: serverStatusFor(filter), page: page + 1, limit: PAGE };
+            const params = filter === 'look' ? { look: 'true', page: page + 1, limit: PAGE } : { status: serverStatusFor(filter), page: page + 1, limit: PAGE };
             if (/^\d{1,9}$/.test(query.trim())) params.q = query.trim();
             const r = await fetchOrders(params);
             if (mine !== seq) return;
@@ -69,7 +77,8 @@ export const useOrdersStore = create((set, get) => ({
     patch: (order) => {
         if (!order?.id) return;
         const { filter } = get();
-        const stays = filter === 'active' ? !isFinal(order.status)
+        const stays = filter === 'look' ? !!order.needsLook && !order.needsLook.seenAt
+            : filter === 'active' ? !isFinal(order.status)
             : filter === 'cancelled' ? ['cancelled', 'undelivered'].includes(order.status)
                 : order.status === filter;
         const items = get().items;

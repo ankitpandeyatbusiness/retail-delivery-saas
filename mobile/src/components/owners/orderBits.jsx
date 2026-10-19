@@ -56,8 +56,15 @@ export function Countdown({ until, compact }) {
 }
 
 /* ------------------------------ the order card ------------------------------ */
+// why an order is on the "Needs a look" list (same words as the server's services/orderLook.js)
+const LOOK_TEXT = {
+    rider_cancelled: 'The delivery partner cancelled it', rider_sos: 'The delivery partner pressed the help button', rider_problem: 'The delivery partner reported a problem',
+    no_rider: 'No delivery partner took it', late: 'The delivery is very late', late_cancelled: 'Cancelled: the delivery was more than an hour late',
+    customer_cancelled: 'The customer cancelled it', not_accepted: 'Cancelled: it was not accepted in time', undelivered: 'It could not be delivered',
+};
+
 export function OrderCard({ order, onOpen, onAdvance, onReject, busy }) {
-    const { text, muted, accent } = useBrand();
+    const { text, muted, accent, error } = useBrand();
     const now = useNow(30000, true);
     const isNew = order.status === 'placed';
     const next = flow.forwardStep(order);
@@ -88,6 +95,12 @@ export function OrderCard({ order, onOpen, onAdvance, onReject, busy }) {
                 </View>
             ) : null}
 
+            {order.needsLook && !order.needsLook.seenAt ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, paddingVertical: 7, paddingHorizontal: 10, borderRadius: 10, backgroundColor: alpha(order.needsLook.urgent ? error : warn, 0.12) }}>
+                    <Ionicons name={order.needsLook.urgent ? 'warning' : 'information-circle'} size={16} color={order.needsLook.urgent ? error : warn} />
+                    <Text style={{ flex: 1, marginLeft: 8, color: order.needsLook.urgent ? error : warn, fontWeight: '800', fontSize: 12.5 }}>{tr(LOOK_TEXT[order.needsLook.reason] || 'Please have a look')}</Text>
+                </View>
+            ) : null}
             {isNew && order.acceptBy ? <View style={{ marginTop: 8 }}><Countdown until={order.acceptBy} compact /></View> : null}
 
             {isNew && next ? (

@@ -159,8 +159,9 @@ export function VegSwitch({ on, onPress }) {
             <View style={[s.vPill, { backgroundColor: surface, borderColor: border }]}>
                 {/* the green fill fades in over the pill */}
                 <Animated.View pointerEvents="none" style={[s.vFill, { opacity: x }]} />
-                <Animated.Text style={[s.vLabel, { left: 34, color: muted, opacity: offOp }]}>{tr('VEG')}</Animated.Text>
-                <Animated.Text style={[s.vLabel, { left: 12, color: '#FFFFFF', opacity: x }]}>{tr('VEG')}</Animated.Text>
+                {/* a leaf, not the word: the word does not fit in other languages. It sits on the side the knob has left, with room around it */}
+                <Animated.View pointerEvents="none" style={[s.vLeaf, { left: 42, opacity: offOp }]}><Ionicons name="leaf" size={16} color={muted} /></Animated.View>
+                <Animated.View pointerEvents="none" style={[s.vLeaf, { left: 13, opacity: x }]}><Ionicons name="leaf" size={16} color="#FFFFFF" /></Animated.View>
                 <Animated.View style={[s.vKnob, { transform: [{ translateX: knobX }] }]}>
                     <View style={[s.vMark, { borderColor: '#8A8F98' }]}><View style={[s.vMarkDot, { backgroundColor: '#8A8F98' }]} /></View>
                     <Animated.View style={[StyleSheet.absoluteFill, s.vMarkOn, { opacity: x }]}>
@@ -442,7 +443,7 @@ const s = StyleSheet.create({
     vegWrap: { marginLeft: 12 },
     vPill: { width: 72, height: 36, borderRadius: 18, borderWidth: 1.5, justifyContent: 'center' },
     vFill: { position: 'absolute', top: -1.5, left: -1.5, right: -1.5, bottom: -1.5, borderRadius: 18, backgroundColor: '#0F8A3C' },
-    vLabel: { position: 'absolute', top: 0, bottom: 0, fontSize: 12, fontWeight: '900', letterSpacing: 0.8, textAlignVertical: 'center', lineHeight: 33 },
+    vLeaf: { position: 'absolute', top: 0, bottom: 0, width: 16, alignItems: 'center', justifyContent: 'center' },
     vMarkOn: { alignItems: 'center', justifyContent: 'center' },
     vKnob: { position: 'absolute', top: 3, left: 3, width: 26, height: 26, borderRadius: 13, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', elevation: 2, shadowColor: '#000000', shadowOpacity: 0.2, shadowRadius: 3, shadowOffset: { width: 0, height: 1 } },
     vMark: { width: 14, height: 14, borderWidth: 1.8, borderRadius: 3, alignItems: 'center', justifyContent: 'center' },

@@ -299,7 +299,7 @@ export default function ItemScreen() {
         useCartStore.getState().add({
             productId: p._id, name: p.name, image: p.image, isVeg: p.isVeg,
             price: unit, quantity: qty, selections, optionsText: names.join(', '),
-            note: note.trim() || undefined, maxQty: p.maxQty });
+            note: note.trim() || undefined, maxQty: p.maxQty, maxPerOrder: p.maxPerOrder });
         setAdded(true);
         setTimeout(() => setAdded(false), 1200);
     };
@@ -503,8 +503,12 @@ export default function ItemScreen() {
                         <Press onPress={() => setQty((q) => Math.max(1, q - 1))} hitSlop={8}><Text style={[s.qBtn, { color: primary }]}>−</Text></Press>
                         <SlideNum value={qty} style={[s.qNum, { color: primary }]} />
                         <Press onPress={() => {
-                            const cap = p.maxQty != null ? Math.min(20, p.maxQty) : 20;
-                            if (qty >= cap) { if (p.maxQty != null && qty >= p.maxQty) showToast(tr('Only a few left. You cannot add more.')); return; }
+                            const cap = Math.min(20, p.maxQty != null ? p.maxQty : 20, p.maxPerOrder != null ? p.maxPerOrder : 20);
+                            if (qty >= cap) {
+                                if (p.maxPerOrder != null && qty >= p.maxPerOrder) showToast(tr('You can order only {n} of this in one order.', { n: p.maxPerOrder }));
+                                else if (p.maxQty != null && qty >= p.maxQty) showToast(tr('Only a few left. You cannot add more.'));
+                                return;
+                            }
                             setQty(qty + 1);
                         }} hitSlop={8}><Text style={[s.qBtn, { color: primary }]}>+</Text></Press>
                     </View>

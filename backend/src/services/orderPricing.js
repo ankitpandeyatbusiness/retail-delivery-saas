@@ -59,6 +59,7 @@ async function buildLines(tenant, config, rawItems, at = new Date()) {
     let subtotal = 0;
     let prepMin = 0;
     const need = new Map();   // tracked stock: productId -> { productId, name, qty }
+    const perOrder = new Map();   // productId -> pieces of it in this order, for the item's "most per order"
     const lines = rawItems.map((it) => {
         const p = byId.get(it.productId);
         if (!p) throw httpError(400, 'An item in your cart is no longer available');
@@ -74,6 +75,11 @@ async function buildLines(tenant, config, rawItems, at = new Date()) {
             const m = priceMeasure(p, it.measureQty, tenant.businessType);
             unitPrice = m.unitPrice + (unitPrice - p.price);
             measure = { qty: m.qty, unit: m.unit, label: m.label };
+        }
+        if (p.maxPerOrder > 0 && !sold) {   // the shop limits how many of this one item an order may have (all its lines together)
+            const got = (perOrder.get(String(p._id)) || 0) + it.quantity;
+            if (got > p.maxPerOrder) throw httpError(409, `You can order at most ${p.maxPerOrder} of "${p.name}" in one order`);
+            perOrder.set(String(p._id), got);
         }
         if (p.stock?.enabled) {
             // pieces for a normal item; grams / ml for an item sold by weight / volume (the amount IS the quantity)

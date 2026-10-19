@@ -60,6 +60,15 @@ export const useCartStore = create((set, get) => ({
         const max = line.maxQty;
         const others = cur.filter((l) => l.key !== key && String(l.productId) === String(line.productId));
         let quantity = found ? (line.measureQty ? 1 : Math.min(20, found.quantity + line.quantity)) : line.quantity;
+        const most = line.maxPerOrder;   // the shop's limit for one order, all lines of this item together
+        if (most != null && !line.measureQty) {
+            const room = most - others.reduce((a, l) => a + l.quantity, 0);
+            if (quantity > room) {
+                quantity = Math.max(0, room);
+                cartHooks.onCap?.(`You can order only ${most} of this in one order.`);
+                if (quantity <= 0 || (found && quantity <= found.quantity)) return;
+            }
+        }
         if (max != null) {
             if (line.measureQty) {
                 const used = others.reduce((a, l) => a + (l.measureQty || 0) * l.quantity, 0);
@@ -74,7 +83,7 @@ export const useCartStore = create((set, get) => ({
             }
         }
         const lines = found
-            ? cur.map((l) => (l.key === key ? { ...l, quantity, maxQty: max ?? l.maxQty } : l))
+            ? cur.map((l) => (l.key === key ? { ...l, quantity, maxQty: max ?? l.maxQty, maxPerOrder: most ?? l.maxPerOrder } : l))
             : [...cur, { ...line, quantity, selections: line.selections || [], key }];
         save(lines);
         set({ lines });
@@ -84,6 +93,13 @@ export const useCartStore = create((set, get) => ({
         const cur = get().lines;
         const line = cur.find((l) => l.key === key);
         let want = Math.min(20, q);
+        if (line && line.maxPerOrder != null && !line.measureQty && want > line.quantity) {
+            const room = line.maxPerOrder - cur.filter((l) => l.key !== key && String(l.productId) === String(line.productId)).reduce((a, l) => a + l.quantity, 0);
+            if (want > room) {
+                want = Math.max(line.quantity, room);
+                cartHooks.onCap?.(`You can order only ${line.maxPerOrder} of this in one order.`);
+            }
+        }
         if (line && line.maxQty != null && !line.measureQty && want > line.quantity) {
             const room = line.maxQty - cur.filter((l) => l.key !== key && String(l.productId) === String(line.productId)).reduce((a, l) => a + l.quantity, 0);
             if (want > room) {

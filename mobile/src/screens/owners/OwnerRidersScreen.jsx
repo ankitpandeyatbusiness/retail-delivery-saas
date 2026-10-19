@@ -14,6 +14,7 @@ import { rupees, riderName } from '../../utils/owners/riderRules';
 import { showToast } from '../../components/customers/shop';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { Image } from 'expo-image';
+import { LeavePanel } from '../../components/owners/RiderLeave';
 import { tr } from '../../i18n';
 
 export function Avatar({ rider, size = 44 }) {
@@ -66,7 +67,7 @@ function AddSheet({ visible, onClose }) {
 
 export default function OwnerRidersScreen() {
     const nav = useNavigation();
-    const { primary, muted, text, ok, error } = useBrand();
+    const { primary, muted, text, ok, error, warn } = useBrand();
     const s = useRidersStore();
     const access = useOwnerStore((st) => st.access);
     const [adding, setAdding] = useState(false);
@@ -126,6 +127,8 @@ export default function OwnerRidersScreen() {
                         </>
                     ) : null}
 
+                    <LeavePanel />
+
                     <SectionTitle title={tr('Your riders ({length})', { length: s.riders.length })} />
                     {!s.riders.length ? <Empty icon="bicycle" title={tr('No riders yet')} hint={tr('Add a rider with his mobile number. He logs in to this app and gets delivery requests.')} /> : null}
                     {s.riders.map((r) => (
@@ -137,6 +140,8 @@ export default function OwnerRidersScreen() {
                                     <Text style={{ color: muted, fontSize: 12, marginTop: 1 }}>{r.phone || ''}{r.ratingCount ? `  ·  ★ ${Number(r.ratingAvg).toFixed(1)} (${r.ratingCount})` : ''}{r.avgDeliveryMin ? `  ·  ${r.avgDeliveryMin} min avg` : ''}</Text>
                                     <View style={{ flexDirection: 'row', marginTop: 6, flexWrap: 'wrap' }}>
                                         {!r.isActive ? <Pill label={tr('Switched off')} color={muted} /> : r.isOnline ? <Pill label={tr('Online')} color={ok} icon="radio-button-on" /> : <Pill label={tr('Offline')} color={muted} />}
+                                        {r.leave?.onLeaveToday ? <View style={{ marginLeft: 6 }}><Pill label={tr('On leave today')} color={warn} /></View> : null}
+                                        {r.leave?.pending > 0 ? <View style={{ marginLeft: 6 }}><Pill label={tr('Leave request')} color={warn} /></View> : null}
                                         {r.activeOrderCount > 0 ? <View style={{ marginLeft: 6 }}><Pill label={tr('{activeOrderCount} on delivery', { activeOrderCount: r.activeOrderCount })} color={primary} icon="bicycle" /></View> : null}
                                     </View>
                                 </View>

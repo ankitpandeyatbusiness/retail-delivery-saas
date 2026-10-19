@@ -29,6 +29,8 @@ const riderPay = require('../services/riderPay');
 const cod = require('../services/codService');
 const { ACTIVE_STATUSES } = require('../services/orderflow');
 const notify = require('../services/notificationService');
+const schedule = require('../services/riderSchedule');
+const RiderLeave = require('../models/RiderLeave');
 const media = require('../services/mediaService');
 const Media = require('../models/Media');
 const liveFeed = require('../services/liveFeed');
@@ -219,10 +221,75 @@ core.put('/online', wrap(async (req, res) => {
     if (typeof req.body?.isOnline !== 'boolean') throw httpError(400, 'Send isOnline: true or false');
     const r = await Rider.updateOne(
         { tenantId: req.tenant._id, userId: req.riderId, ...(req.body.isOnline && { isActive: true }) },
-        req.body.isOnline ? { $set: { isOnline: true, onlineSince: new Date() } } : { $set: { isOnline: false }, $unset: { onlineSince: 1 } },
+        req.body.isOnline ? { $set: { isOnline: true, onlineSince: new Date(), 'duty.autoSession': false } } : { $set: { isOnline: false, 'duty.autoSession': false }, $unset: { onlineSince: 1 } },
     );
     if (!r.matchedCount) throw httpError(403, 'Your rider account is switched off');
     res.json({ ok: true, isOnline: req.body.isOnline });
+}));
+
+/* ------------------------------ duty timing, holidays and leave ------------------------------ */
+// His timing: { mode: 'manual' | 'auto', weekly: { mon: { on, from, to }, ... }, holidays: [...] , today: {...} }
+const dutyView = async (req) => {
+    const r = await Rider.findOne({ tenantId: req.tenant._id, userId: req.riderId }).select('duty holidays isOnline').lean();
+    if (!r) throw httpError(404, 'Rider not found');
+    const sum = (await schedule.summaries(req.tenant._id, [req.riderId])).get(String(req.riderId));
+    const { date } = schedule.istNow();
+    const leaves = await RiderLeave.find({ tenantId: req.tenant._id, riderUserId: req.riderId, status: { $in: ['pending', 'approved', 'rejected'] }, to: { $gte: schedule.addDays(date, -60) } })
+        .sort({ from: -1 }).limit(30).lean();
+    const onLeave = leaves.some((l) => l.status === 'approved' && l.from <= date && date <= l.to);
+    const holiday = (r.holidays || []).some((h) => h.from <= date && date <= h.to);
+    return {
+        mode: r.duty?.mode || 'manual',
+        weekly: schedule.weeklyOf(r),
+        holidays: (r.holidays || []).filter((h) => h.to >= date).map((h) => ({ id: String(h._id), from: h.from, to: h.to, note: h.note || '' })),
+        leaves: leaves.map((l) => ({ id: String(l._id), from: l.from, to: l.to, days: l.days, reason: l.reason, status: l.status, note: l.decidedNote || '' })),
+        month: { leaveDays: sum.monthDays, leaveRequests: sum.monthRequests, pending: sum.pending },
+        today: { onLeave, holiday, inWindow: schedule.windowNow(r).inWindow },
+        isOnline: r.isOnline,
+    };
+};
+core.get('/duty', wrap(async (req, res) => { res.json(await dutyView(req)); }));
+
+// { mode?, weekly? }  (a day you leave out stays as it was)
+core.put('/duty', wrap(async (req, res) => {
+    let clean;
+    try { clean = schedule.cleanDuty(req.body); } catch (e) { throw httpError(e.status || 400, e.message); }
+    const set = {};
+    if (clean.mode) set['duty.mode'] = clean.mode;
+    if (clean.weekly) for (const [d, v] of Object.entries(clean.weekly)) set[`duty.weekly.${d}`] = v;
+    if (!Object.keys(set).length) throw httpError(400, 'Nothing to change');
+    const r = await Rider.updateOne({ tenantId: req.tenant._id, userId: req.riderId }, { $set: set });
+    if (!r.matchedCount) throw httpError(404, 'Rider not found');
+    res.json(await dutyView(req));
+}));
+
+// a day or a few days off, set by himself, no approval needed: { from, to, note? }
+core.post('/duty/holidays', wrap(async (req, res) => {
+    const { from, to, note } = req.body || {};
+    if (!schedule.validDate(from) || !schedule.validDate(to) || to < from) throw httpError(400, 'Choose the first and the last day');
+    if (from < schedule.istNow().date) throw httpError(400, 'A holiday cannot start in the past');
+    if (schedule.daysBetween(from, to) > 31) throw httpError(400, 'A holiday can be at most 31 days');
+    const r = await Rider.findOne({ tenantId: req.tenant._id, userId: req.riderId }).select('holidays').lean();
+    if (!r) throw httpError(404, 'Rider not found');
+    if ((r.holidays || []).filter((h) => h.to >= schedule.istNow().date).length >= schedule.MAX_HOLIDAYS) throw httpError(409, 'Too many holidays are set. Remove one first.');
+    await Rider.updateOne({ tenantId: req.tenant._id, userId: req.riderId }, { $push: { holidays: { from, to, note: String(note || '').trim().slice(0, 80) } } });
+    res.status(201).json(await dutyView(req));
+}));
+core.delete('/duty/holidays/:id', wrap(async (req, res) => {
+    if (!isId(req.params.id)) throw httpError(404, 'Holiday not found');
+    await Rider.updateOne({ tenantId: req.tenant._id, userId: req.riderId }, { $pull: { holidays: { _id: req.params.id } } });
+    res.json(await dutyView(req));
+}));
+
+// leave that the owner must approve: { from, to, reason }
+core.post('/leaves', wrap(async (req, res) => {
+    try { await schedule.requestLeave({ tenantId: req.tenant._id, userId: req.riderId, from: req.body?.from, to: req.body?.to, reason: req.body?.reason }); } catch (e) { throw httpError(e.status || 400, e.message); }
+    res.status(201).json(await dutyView(req));
+}));
+core.post('/leaves/:id/cancel', wrap(async (req, res) => {
+    if (!isId(req.params.id)) throw httpError(404, 'Leave not found');
+    try { await schedule.cancelLeave({ tenantId: req.tenant._id, userId: req.riderId, id: req.params.id }); } catch (e) { throw httpError(e.status || 400, e.message); }
+    res.json(await dutyView(req));
 }));
 
 core.get('/orders', wrap(async (req, res) => {

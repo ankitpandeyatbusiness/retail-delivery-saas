@@ -158,7 +158,7 @@ async function settleOrder(pay) {
         return;
     }
     // the shop hears about an online order only now, once, when the money is here
-    if (res.modifiedCount === 1) require('./notificationService').orderPlaced(order);
+    if (res.modifiedCount === 1) require('./autoAccept').afterPlaced(order);
 }
 
 // payment.failed: remember why. The customer may try again on the same Razorpay order, so nothing else changes.

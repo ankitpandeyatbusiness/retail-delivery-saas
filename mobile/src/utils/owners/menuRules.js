@@ -83,7 +83,7 @@ export const SPICE = [['none', 'No spice'], ['mild', 'Mild'], ['medium', 'Medium
 export const BLANK_ITEM = {
     categoryId: '', newCategory: '', name: '', description: '', image: '', price: undefined, mrp: undefined,
     isVeg: undefined, isEggless: false, isSugarFree: false, isJain: false, spiceLevel: 'none',
-    isBestseller: false, isNewArrival: false, isGiftPack: false, serves: undefined, calories: undefined, prepTimeMin: undefined,
+    isBestseller: false, isNewArrival: false, isGiftPack: false, serves: undefined, calories: undefined, prepTimeMin: undefined, maxPerOrder: undefined,
     optionGroups: [], isActive: true,
     itemKind: '', sellBy: 'piece', measure: { options: [], min: undefined, allowManual: true },
 };
@@ -94,7 +94,7 @@ export const itemFromRecord = (r) => ({
     price: r.price, mrp: r.mrp,
     isVeg: r.isVeg, isEggless: !!r.isEggless, isSugarFree: !!r.isSugarFree, isJain: !!r.isJain, spiceLevel: r.spiceLevel || 'none',
     isBestseller: !!r.isBestseller, isNewArrival: !!r.isNewArrival, isGiftPack: !!r.isGiftPack,
-    serves: r.serves, calories: r.calories, prepTimeMin: r.prepTimeMin,
+    serves: r.serves, calories: r.calories, prepTimeMin: r.prepTimeMin, maxPerOrder: r.maxPerOrder ?? undefined,
     optionGroups: (r.optionGroups || []).map((g) => ({ ...g, options: (g.options || []).map((o) => ({ ...o })) })),
     isActive: r.isActive !== false,
     itemKind: r.itemKind || '', sellBy: r.sellBy || 'piece',
@@ -112,6 +112,7 @@ export function itemProblems(v) {
     if (typeof v.isVeg !== 'boolean') e.isVeg = 'Choose veg or non-veg';
     if (v.mrp !== undefined && v.price !== undefined && v.mrp < v.price) e.mrp = 'MRP cannot be lower than the price';
     if (v.isJain && v.isVeg === false) e.isJain = 'A Jain item must be veg';
+    if (v.maxPerOrder !== undefined && (!Number.isInteger(v.maxPerOrder) || v.maxPerOrder < 1 || v.maxPerOrder > 20)) e.maxPerOrder = 'The most per order is a whole number from 1 to 20';
     v.optionGroups.forEach((g, i) => {
         if (!g.name.trim()) e.optionGroups = `Choice group ${i + 1} needs a question`;
         else if (!g.options.length || g.options.some((o) => !o.name.trim())) e.optionGroups = `Choice group ${i + 1}: every option needs a name`;
@@ -141,6 +142,7 @@ export const itemBody = (v) => ({
     serves: v.serves ?? null,
     calories: v.calories ?? null,
     prepTimeMin: v.prepTimeMin ?? null,
+    maxPerOrder: v.maxPerOrder ?? null,
     optionGroups: withIds(v.optionGroups),
     isActive: v.isActive,
 });

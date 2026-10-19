@@ -9,6 +9,7 @@ const liveFeed = require('./liveFeed');
 const { isUnpaidOnline } = require('./onlineOrder');
 const { orderSpeech, orderSpeechHi } = require('../utils/orderSpeech');
 const { brief, payWord } = require('../utils/orderBrief');
+const look = require('./orderLook');
 
 // old style helpers, still used by billing, the superadmin messages and the stuck-order watcher
 const send = (p) => center.notify(p.type, { ...p, to: p.role === 'superadmin' ? 'superadmin' : undefined });
@@ -29,15 +30,17 @@ const riderName = async (tenantId, userId) => {
 };
 
 /* ------------------------------ orders ------------------------------ */
-function orderPlaced(order) {
+function orderPlaced(order, opts = {}) {
     try {
+        const auto = !!opts.autoAccepted;   // the shop accepts it by itself: the owner is told, with that on it
         center.notify('order_new', {
             tenantId: order.tenantId,
-            vars: { orderNo: order.orderNo, total: order.pricing?.total, orderType: order.orderType, brief: brief(order, 3), pay: payWord(order) },
+            vars: { orderNo: order.orderNo, total: order.pricing?.total, orderType: order.orderType, brief: brief(order, 3), pay: payWord(order), auto },
             // speech: the sentence the owner's phone reads out loud in Soundbox mode (see utils/orderSpeech.js)
             data: {
                 orderId: String(order._id), orderNo: order.orderNo, total: order.pricing?.total,
-                speech: orderSpeech(order), speechHi: orderSpeechHi(order), itemCount: order.items?.length || 0,
+                speech: orderSpeech(order) + (auto ? ' Auto accepted.' : ''), speechHi: orderSpeechHi(order) + (auto ? ' अपने आप स्वीकार हुआ।' : ''), itemCount: order.items?.length || 0,
+                ...(auto ? { autoAccepted: true } : {}),
             },
         });
         pulse({ tenantId: order.tenantId, orderId: order._id, orderNo: order.orderNo, status: 'placed', kind: 'status', toOrder: false });
@@ -74,6 +77,12 @@ function orderStatusChanged(order, status, actor) {
         if (status === 'cancelled') {
             // the sentence the owner's phone may read out (Soundbox) when the app is closed: only for a cancelled order
             const spoken = (by) => ({ ...data, speech: `Order ${no} was cancelled${by}.`, speechHi: `ऑर्डर ${no} रद्द हो गया।` });
+            // the owner has to look at it once (Orders tab: "Needs a look")
+            if (actor.type === 'rider') look.byId(t, order._id, 'rider_cancelled');
+            else if (!isUnpaidOnline(order)) {
+                if (actor.type === 'system') look.byId(t, order._id, /hour late/.test(order.cancelReason || '') ? 'late_cancelled' : 'not_accepted');
+                else if (actor.type === 'customer') look.byId(t, order._id, 'customer_cancelled');   // whether or not the shop had accepted it yet
+            }
             if ((actor.type === 'customer' || actor.type === 'system') && !isUnpaidOnline(order)) {   // the owner never saw an unpaid online order
                 center.notify('order_cancelled', {
                     tenantId: t, data: spoken(''), vars: { audience: 'owner', orderNo: no, bySystem: actor.type === 'system', lateDelivery: /hour late/.test(order.cancelReason || '') },
@@ -90,6 +99,7 @@ function orderStatusChanged(order, status, actor) {
                 });
             }
         }
+        if (status === 'undelivered' && actor.type !== 'owner') look.byId(t, order._id, 'undelivered');
         if (status === 'undelivered' && order.delivery?.riderId && actor.type !== 'rider') {
             center.notify('order_cancelled', {
                 tenantId: t, userId: order.delivery.riderId, data, vars: { audience: 'rider', orderNo: no, undelivered: true },
@@ -154,6 +164,7 @@ async function riderRejected({ tenantId, orderId, riderUserId }) {
 
 function noRiderFree({ tenantId, orderId, orderNo }) {
     try {
+        look.byId(tenantId, orderId, 'no_rider');
         center.notify('rider_none', { tenantId, vars: { orderNo }, data: { orderId: String(orderId), orderNo } });
         liveFeed.emit(tenantId, 'riders', { type: 'rider.none', orderNo });
         pulse({ tenantId, orderId, orderNo, kind: 'rider', toOrder: false });
@@ -177,6 +188,7 @@ function riderRemoved({ tenantId, riderUserId, orderId, orderNo }) {
 
 async function riderProblem({ tenantId, orderId, orderNo, riderUserId, reason, note }) {
     try {
+        look.byId(tenantId, orderId, 'rider_problem');
         const name = await riderName(tenantId, riderUserId);
         liveFeed.emit(tenantId, 'riders', { type: 'rider.problem', orderNo, riderId: String(riderUserId), riderName: name, reason });
         center.notify('rider_problem', {
@@ -192,6 +204,7 @@ async function riderProblem({ tenantId, orderId, orderNo, riderUserId, reason, n
 // the rider pressed the help button: the owner is told with his name, phone, order and last position
 async function riderSos({ tenantId, riderUserId, phone, orderNo, spot }) {
     try {
+        look.byNo(tenantId, orderNo, 'rider_sos');
         const name = await riderName(tenantId, riderUserId);
         liveFeed.emit(tenantId, 'riders', { type: 'rider.sos', orderNo: orderNo || null, riderId: String(riderUserId), riderName: name });
         center.notify('rider_sos', {

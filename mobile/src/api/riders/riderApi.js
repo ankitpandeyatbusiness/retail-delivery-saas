@@ -5,6 +5,13 @@ const d = (p) => p.then((r) => r.data);
 // Rider API (/api/rider). Only a user with role "rider" may call these.
 export const fetchRiderMe = () => d(api.get('/rider/me'));
 export const setOnline = (isOnline) => d(api.put('/rider/online', { isOnline }));
+// duty timing, holidays and leave (services/riderSchedule.js)
+export const fetchDuty = () => d(api.get('/rider/duty'));
+export const saveDuty = (body) => d(api.put('/rider/duty', body));   // { mode?, weekly? }
+export const addHoliday = (body) => d(api.post('/rider/duty/holidays', body));   // { from, to, note? }
+export const removeHoliday = (id) => d(api.delete(`/rider/duty/holidays/${id}`));
+export const requestLeave = (body) => d(api.post('/rider/leaves', body));   // { from, to, reason }
+export const cancelLeave = (id) => d(api.post(`/rider/leaves/${id}/cancel`));
 // tab: offered | active | history  -> { items, counts: { offered, active }, page, hasMore }
 // tab "missed": offers whose time ran out. since (ISO time): counts.missed = how many he missed after it (the History red dot)
 export const fetchRiderOrders = (tab, page = 1, since) => d(api.get('/rider/orders', { params: { tab, page, limit: 20, since } }));

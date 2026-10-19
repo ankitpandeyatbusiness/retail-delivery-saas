@@ -38,7 +38,7 @@ function statusText(v) {
 const TEXTS = {
     order_new: (v) => ({
         title: `New order #${v.orderNo}${v.total ? ` · ₹${Math.round(v.total)}` : ''}`,
-        body: [v.brief, v.orderType === 'pickup' ? 'Pickup' : v.orderType === 'dine_in' ? 'Dine-in' : 'Delivery', v.pay].filter(Boolean).join(' · '),
+        body: [v.brief, v.orderType === 'pickup' ? 'Pickup' : v.orderType === 'dine_in' ? 'Dine-in' : 'Delivery', v.pay, v.auto ? 'Auto accepted' : ''].filter(Boolean).join(' · '),
     }),
     order_status: statusText,
     order_unaccepted_reminder: (v) => ({
@@ -64,6 +64,9 @@ const TEXTS = {
         body: [v.brief || `Order #${v.orderNo}`, v.area, v.collect ? `Collect ₹${v.collect}` : v.items ? `${v.items} item${v.items > 1 ? 's' : ''}` : '', `accept in ${v.secs}s`].filter(Boolean).join(' · '),
     }),
     rider_assigned: (v) => ({ title: 'Delivery partner assigned', body: `${v.riderName} will deliver your order #${v.orderNo}.` }),
+    rider_leave_request: (v) => ({ title: `${v.riderName} asks for leave`, body: `${v.from === v.to ? v.from : `${v.from} to ${v.to}`} (${v.days} day${v.days > 1 ? 's' : ''}). ${v.reason ? `"${v.reason}" ` : ''}Open Riders to approve or reject.` }),
+    rider_leave_decision: (v) => ({ title: v.approved ? 'Leave approved' : 'Leave not approved', body: `${v.from === v.to ? v.from : `${v.from} to ${v.to}`}${v.note ? `: ${v.note}` : v.approved ? '. Enjoy your break.' : '. Please talk to the shop if you need those days.'}` }),
+    rider_duty_auto: (v) => ({ title: v.on ? 'You are on duty' : 'Your duty has ended', body: v.on ? 'Your duty time has started, so you are on duty now. New orders can reach you.' : (v.why === 'leave' ? 'You are on leave today, so you were put off duty.' : 'Your duty time is over, so you were put off duty. See you next time.') }),
     rider_arrived_shop: (v) => ({ title: 'Delivery partner has arrived', body: `${v.riderName} reached the customer for order #${v.orderNo}.` }),
     rider_accepted: (v) => ({ title: 'Rider accepted', body: `${v.riderName} accepted order #${v.orderNo}.` }),
     rider_rejected: (v) => ({ title: 'Rider said no', body: `${v.riderName} rejected order #${v.orderNo ?? ''}.` }),

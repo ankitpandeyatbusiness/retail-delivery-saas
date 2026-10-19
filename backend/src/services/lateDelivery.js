@@ -37,6 +37,7 @@ async function check(now = new Date()) {
             const late = Math.max(1, Math.floor((now.getTime() - new Date(o.delivery.dueAt).getTime()) / MIN));
             const vars = { orderNo: o.orderNo, late, left: Math.max(1, CANCEL_MIN - late) };
             const data = { orderId: String(o._id), orderNo: o.orderNo };
+            require('./orderLook').byId(o.tenantId, o._id, 'late');   // the owner has to see it: Orders tab, Needs a look
             center.notify('delivery_late_warning', { tenantId: o.tenantId, data, vars });
             if (o.delivery.riderId) center.notify('delivery_late_warning_rider', { tenantId: o.tenantId, userId: o.delivery.riderId, data, vars });
             done += 1;

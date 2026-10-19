@@ -12,6 +12,8 @@ const RiderPayout = require('../models/RiderPayout');
 const assignment = require('../services/assignmentService');
 const Order = require('../models/Order');
 const { UNPAID_QUERY } = require('../services/onlineOrder');
+const schedule = require('../services/riderSchedule');
+const RiderLeave = require('../models/RiderLeave');
 
 const { wrap, httpError } = apiErrors;
 const isId = (v) => typeof v === 'string' && mongoose.isValidObjectId(v);
@@ -21,7 +23,23 @@ const actorOf = (req) => req.actor || { type: 'owner', id: req.auth.userId, labe
 const manage = express.Router();
 
 manage.get('/', wrap(async (req, res) => {
-    res.json({ items: await riders.list(req.tenant._id) });
+    const items = await riders.list(req.tenant._id);
+    const sums = await schedule.summaries(req.tenant._id, items.map((r) => r.userId));
+    // leave: requests waiting, days of approved leave this month, and whether he is on leave today
+    res.json({ items: items.map((r) => ({ ...r, leave: sums.get(String(r.userId)) || { pending: 0, monthDays: 0, monthRequests: 0, onLeaveToday: false } })) });
+}));
+
+// Leave requests. GET /leaves?status=pending (default) | all   ·   PUT /leaves/:id { approve: true | false, note? }
+manage.get('/leaves', wrap(async (req, res) => {
+    const all = req.query.status === 'all';
+    const rows = await RiderLeave.find({ tenantId: req.tenant._id, ...(all ? {} : { status: 'pending' }) }).sort({ createdAt: -1 }).limit(60).lean();
+    res.json({ items: rows.map((l) => ({ id: String(l._id), riderId: String(l.riderUserId), riderName: l.riderName || null, from: l.from, to: l.to, days: l.days, reason: l.reason, status: l.status, note: l.decidedNote || '', createdAt: l.createdAt })) });
+}));
+manage.put('/leaves/:id', wrap(async (req, res) => {
+    if (!isId(req.params.id)) throw httpError(404, 'Leave not found');
+    if (typeof req.body?.approve !== 'boolean') throw httpError(400, 'Send approve: true or false');
+    try { await schedule.decide({ tenantId: req.tenant._id, id: req.params.id, approve: req.body.approve, note: req.body.note }); } catch (e) { throw httpError(e.status || 400, e.message); }
+    res.json({ ok: true });
 }));
 
 // { "phone": "9876543210", "name": "Ravi" }

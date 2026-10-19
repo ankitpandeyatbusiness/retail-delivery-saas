@@ -32,7 +32,7 @@ const clamp = (n, min, max) => Math.min(Math.max(n, min), max);
 const isId = (v) => typeof v === 'string' && mongoose.isValidObjectId(v);
 
 // order as JSON, plus a flag the app uses to show or hide the Cancel button
-const view = (order, tenant) => ({ ...order.toJSON(), canCancel: svc.customerCanCancel(order, tenant) });
+const view = (order, tenant) => { const j = order.toJSON(); delete j.needsLook; return { ...j, canCancel: svc.customerCanCancel(order, tenant) }; };   // needsLook is for the shop only
 
 const checkId = (req) => {
     if (!isId(req.params.id)) throw httpError(404, 'Order not found');

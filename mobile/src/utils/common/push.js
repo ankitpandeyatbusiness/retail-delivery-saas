@@ -25,17 +25,16 @@ const CHANNEL = 'orders';   // must match defaultChannel in app.config.js
 const NEW_ORDERS_CHANNEL = 'new_orders_v2';   // must match NEW_ORDER_CHANNEL in backend notifications/events.js
 const OLD_NEW_ORDERS_CHANNELS = ['new_orders'];   // earlier ids: they may be stuck without the sound, so they are removed
 
-// While the socket is connected the app shows its own toast and badge, so the system banner would be a duplicate...
-// EXCEPT for anything about an order (status steps, offers, cancels, problems): that push is always shown, so nobody misses it
-// (a toast fades in seconds). Its sound is left to the app while it is open, which plays its own sound, so it does not sound twice.
+// Every notification is shown twice on purpose, whether the app is open or not: the in-app toast and badge, AND the system banner
+// (a toast fades in seconds, the banner stays in the notification list). The sound is left to the app while it is open, which plays
+// its own sound for the events that have one, so it does not sound twice.
 Notifications.setNotificationHandler({
     handleNotification: async (notification) => {
         // the owner's test push has no live message behind it, so it is always shown, even with the app in front
         const isTest = notification?.request?.content?.data?.test === '1';
         const d = notification?.request?.content?.data || {};
-        const orderRelated = !!(d.orderId || d.orderNo);
         const quiet = realtimeConnected() && !isTest;
-        return { shouldShowBanner: !quiet || orderRelated, shouldShowList: !quiet || orderRelated, shouldPlaySound: !quiet, shouldSetBadge: false };
+        return { shouldShowBanner: true, shouldShowList: true, shouldPlaySound: !quiet, shouldSetBadge: false };
     },
 });
 
@@ -202,7 +201,7 @@ export function startNotifications() {
     // a new message arrived while the app is open
     onNotification((n) => {
         useNotificationStore.getState().bump();
-        if (n?.title) showToast(n.title);
+        if (n?.title) showToast(n.body ? `${n.title}: ${String(n.body).slice(0, 90)}` : n.title);
     });
 
     // the phone got a new token: tell the server

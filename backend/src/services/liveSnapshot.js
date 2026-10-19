@@ -37,6 +37,7 @@ async function attention(tenantId, now) {
         else if (o.status === 'out_for_delivery' && o.delivery?.dueAt) out.roadDue.push(new Date(o.delivery.dueAt).toISOString());
     }
     out.roadDue = out.roadDue.slice(0, 30);
+    out.look = await require('./orderLook').summary(tenantId);   // orders that need a look once: { count, urgent, top }
     return out;
 }
 

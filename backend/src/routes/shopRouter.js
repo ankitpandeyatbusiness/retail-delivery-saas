@@ -20,6 +20,7 @@ const dashboardService = require('../services/dashboardService');
 const { nextMorning } = require('../utils/nextMorning');
 const { acceptDeadline } = require('../services/orderTimeout');
 const { resolveConfig, DEFAULTS } = require('../services/tenantConfigService');
+const orderLook = require('../services/orderLook');
 
 const { wrap, httpError } = apiErrors;
 const router = express.Router();
@@ -90,6 +91,8 @@ router.get('/orders', wrap(async (req, res) => {
         filter.status = { $in: list };
     }
 
+    if (req.query.look === 'true') Object.assign(filter, orderLook.waiting(req.tenant._id));   // the "Needs a look" chip: any status
+
     if (typeof req.query.q === 'string' && /^\d{1,9}$/.test(req.query.q.trim())) {
         filter.orderNo = Number(req.query.q.trim());
     }
@@ -99,12 +102,13 @@ router.get('/orders', wrap(async (req, res) => {
     if ((from && Number.isNaN(from.getTime())) || (to && Number.isNaN(to.getTime()))) throw httpError(400, 'Invalid date');
     if (from || to) filter.createdAt = { ...(from && { $gte: from }), ...(to && { $lte: to }) };
 
-    const [items, counts] = await Promise.all([
-        Order.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit + 1),
+    const [items, counts, lookSummary] = await Promise.all([
+        Order.find(filter).sort(req.query.look === 'true' ? { 'needsLook.at': -1 } : { createdAt: -1 }).skip((page - 1) * limit).limit(limit + 1),
         Order.aggregate([
             { $match: { tenantId: req.tenant._id, status: { $in: ACTIVE_STATUSES }, ...HIDE_UNPAID } },
             { $group: { _id: '$status', n: { $sum: 1 } } },
         ]),
+        orderLook.summary(req.tenant._id),
     ]);
     const hasMore = items.length > limit;
     if (hasMore) items.pop();
@@ -112,6 +116,7 @@ router.get('/orders', wrap(async (req, res) => {
     res.json({
         items: items.map(view),
         counts: Object.fromEntries(counts.map((c) => [c._id, c.n])),
+        look: lookSummary,
         page,
         hasMore,
     });
@@ -120,6 +125,7 @@ router.get('/orders', wrap(async (req, res) => {
 router.get('/orders/:id', wrap(async (req, res) => {
     const order = isId(req.params.id) ? await Order.findOne({ _id: req.params.id, tenantId: req.tenant._id, ...HIDE_UNPAID }) : null;
     if (!order) throw httpError(404, 'Order not found');
+    orderLook.markSeen(req.tenant._id, order._id);   // the owner has looked: it leaves the "Needs a look" list
     // what the customer said about the food of this order (the delivery review is part of the order itself)
     const reviews = order.ratedAt ? await require('../models/Review').find({ tenantId: req.tenant._id, orderId: order._id }).select('productId rating comment -_id').lean() : [];
     const nameOf = Object.fromEntries((order.items || []).map((l) => [String(l.productId), l.name || l.title || 'Dish']));
@@ -262,6 +268,22 @@ router.put('/accepting-orders', wrap(async (req, res) => {
     res.json({ ok: true, acceptingOrders: b.acceptingOrders, pausedUntil });
 }));
 
+
+// Auto accept: new orders are accepted by themselves (see services/autoAccept.js).
+//   GET  /auto-accept
+//   PUT  /auto-accept   { on: false }  |  { on: true, repeat: 'today' | 'daily', from?: '13:00', to?: '15:00' }
+router.get('/auto-accept', wrap(async (req, res) => {
+    res.json(require('../services/autoAccept').describe(req.tenant));
+}));
+router.put('/auto-accept', wrap(async (req, res) => {
+    const autoAccept = require('../services/autoAccept');
+    let value;
+    try { value = autoAccept.clean(req.body); } catch (e) { throw httpError(e.status || 400, e.message); }
+    req.auditBefore = { autoAccept: req.tenant.settings?.orders?.autoAccept || null };
+    await Tenant.updateOne({ _id: req.tenant._id }, { $set: { 'settings.orders.autoAccept': value } });
+    tenantRecognizer.invalidateTenant(req.tenant.slug);
+    res.json(autoAccept.describe({ settings: { orders: { autoAccept: value } } }));
+}));
 
 // What the owner can change on his own shop, as it is now (the screens fill their forms from this).
 // riders: the delivery rules. orders.codCap: the cash on delivery limit for a phone's first orders.

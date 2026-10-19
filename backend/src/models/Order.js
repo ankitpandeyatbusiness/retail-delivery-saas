@@ -147,6 +147,8 @@ const orderSchema = new Schema({
     undelivered: { reasonCode: String, note: String, at: Date, by: String, keptPaise: Number, refundPaise: Number },
     deliveredAt: Date,
     ratedAt: Date,
+    // something happened that the owner has to see once (services/orderLook.js); seenAt is set when he opens the order
+    needsLook: { reason: String, urgent: Boolean, at: Date, seenAt: Date },
 }, { timestamps: true });
 
 orderSchema.index({ tenantId: 1, orderNo: 1 }, { unique: true });

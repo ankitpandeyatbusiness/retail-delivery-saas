@@ -38,6 +38,12 @@ export const invoiceUrl = (id) => `/shop/orders/${id}/invoice`;   // a PDF: fetc
 // setAcceptingOrders(false, { pauseMinutes: 30 })             pause for 30 minutes: the shop reopens by itself
 // setAcceptingOrders(false, { untilMorning: true })           pause until 4 AM
 export const setAcceptingOrders = (acceptingOrders, extra = {}) => d(api.put('/shop/accepting-orders', { acceptingOrders, ...extra }));
+// riders' leave: status 'pending' (default) | 'all'; decide with { approve: true | false, note? }
+export const fetchLeaves = (status = 'pending') => d(api.get('/shop/riders/leaves', { params: { status } }));
+export const decideLeave = (id, body) => d(api.put(`/shop/riders/leaves/${id}`, body));
+// auto accept: { on, repeat: 'today' | 'daily', from?: '13:00', to?: '15:00' }  ->  { on, from, to, repeat, active }
+export const fetchAutoAccept = () => d(api.get('/shop/auto-accept'));
+export const saveAutoAccept = (body) => d(api.put('/shop/auto-accept', body));
 // what the owner can change, as it is now: { riders:{assignMode,offerSeconds,maxActiveOrders,deliveryPin,liveTracking,locationIntervalSec,payPerDelivery}, orders:{codCap:{amount,firstOrders}} }
 export const fetchSettings = () => d(api.get('/shop/settings'));
 // busy mode: customers see a longer wait for a while. { extraMin:15, minutes:60 } | { extraMin:30, untilMorning:true } | { off:true }

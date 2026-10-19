@@ -110,7 +110,12 @@ function checkAllowed({ order, status, actor, note, tenant, reasonCode, now }) {
             }
             return;
         case 'system':
-            if (status !== 'cancelled') throw httpError(403, 'The system can only cancel');
+            if (status === 'accepted') {   // the owner switched on auto accept (services/autoAccept.js)
+                if (order.status !== 'placed') throw httpError(409, 'This order is no longer waiting');
+                if (isUnpaidOnline(order)) throw httpError(409, 'The customer has not paid yet');
+                return;
+            }
+            if (status !== 'cancelled') throw httpError(403, 'The system can only cancel or accept');
             if (!ACTIVE_STATUSES.includes(order.status)) throw httpError(409, 'This order is already finished');
             if (reasonCode !== undefined && !SYSTEM_CANCEL_REASONS.includes(reasonCode)) throw httpError(400, 'Invalid reason');
             return;

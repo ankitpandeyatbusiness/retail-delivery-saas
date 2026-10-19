@@ -54,6 +54,7 @@ const productSchema = new mongoose.Schema({
     isBestseller: { type: Boolean, default: false },
     isNewArrival: { type: Boolean, default: false },   // not "isNew": Mongoose reserves that name
     isGiftPack: { type: Boolean, default: false },
+    maxPerOrder: { type: Number, min: 1, max: 20, validate: { validator: Number.isInteger, message: 'maxPerOrder must be a whole number' } },   // the most one order may have of this item (empty = no limit)
     serves: Number,
     calories: { type: Number, min: 0 },
     prepTimeMin: Number,
