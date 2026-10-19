@@ -29,6 +29,7 @@ const GROUPS = [
         ['star', 'Reviews', 'What customers say about your food and delivery', 'OwnerReviews'],
         ['megaphone', 'Messages', 'Send a message to customers or riders', 'OwnerMessages'],
         ['rocket', 'Autopilot', 'Reminders that bring customers back, by themselves', 'OwnerAutopilot'],
+        ['gift', 'Rewards and points', 'Customer points, rider points and badges', 'OwnerRewards'],
     ]],
     ['Offers', [
         ['pricetag', 'Coupons', 'Discount codes', 'OwnerCoupons'],

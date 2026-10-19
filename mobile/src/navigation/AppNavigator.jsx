@@ -19,6 +19,9 @@ import OrderPlacedScreen from '../screens/customers/OrderPlacedScreen';
 import RiderTabs from './RiderNavigator';
 import RiderTripScreen from '../screens/riders/RiderTripScreen';
 import RiderDutyScreen from '../screens/riders/RiderDutyScreen';
+import RiderPointsScreen from '../screens/riders/RiderPointsScreen';
+import MyPointsScreen from '../screens/customers/MyPointsScreen';
+import OwnerRewardsScreen from '../screens/owners/OwnerRewardsScreen';
 import OwnerTabs from './OwnerNavigator';
 import ShopHubScreen from '../screens/owners/ShopHubScreen';
 import SoundboxScreen from '../screens/owners/SoundboxScreen';
@@ -222,7 +225,7 @@ function useDoubleBackExit() {
         const sub = BackHandler.addEventListener('hardwareBackPress', () => {
             if (!navigationRef.isReady()) return false;
             const here = navigationRef.getCurrentRoute()?.name;
-            if (here !== 'Home' && here !== 'HomeTab') return false;   // not a Home tab: normal behaviour
+            if (here !== 'Home' && here !== 'HomeTab' && here !== 'RiderHomeTab') return false;   // not a Home tab: normal behaviour
             const now = Date.now();
             if (now - last.current < 2000) { BackHandler.exitApp(); return true; }
             last.current = now;
@@ -300,6 +303,8 @@ export default function AppNavigator() {
                     {/* RiderTrip: a rider's delivery, one step at a time */}
                     <Stack.Screen name="RiderTrip" component={RiderTripScreen} />
                     <Stack.Screen name="RiderDuty" component={RiderDutyScreen} />
+                    <Stack.Screen name="RiderPoints" component={RiderPointsScreen} />
+                    <Stack.Screen name="MyPoints" component={MyPointsScreen} />
                     <Stack.Screen name="LegalDoc" component={LegalDocScreen} />
 
                     {/* owner pages (role "admin"); the owner's tabs are MainTabs -> Landing -> OwnerTabs */}
@@ -333,6 +338,7 @@ export default function AppNavigator() {
                     <Stack.Screen name="CustomerPreview" component={CustomerPreview} />
                     <Stack.Screen name="OwnerBusiness" component={OwnerBusinessScreen} />
                     <Stack.Screen name="OwnerAutopilot" component={OwnerAutopilotScreen} />
+                    <Stack.Screen name="OwnerRewards" component={OwnerRewardsScreen} />
                     <Stack.Screen name="OwnerSupport" component={OwnerSupportScreen} />
                     <Stack.Screen name="OwnerSupportNew" component={OwnerSupportNewScreen} />
                     <Stack.Screen name="OwnerSupportTicket" component={OwnerSupportTicketScreen} />

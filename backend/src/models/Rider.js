@@ -18,6 +18,8 @@ const riderSchema = new mongoose.Schema({
         lastAutoOn: Date,
         autoSession: { type: Boolean, default: false },   // the duty he is on now was started by the schedule
     },
+    loyalty: { points30: Number, badge: String, faults30: Number, at: Date },   // his points of the last 30 days and his badge (services/loyaltyService.js)
+    newsSeenAt: Date,   // the rating news on his Home screen was shown and closed at this time
     holidays: [{ from: String, to: String, note: { type: String, maxlength: 80 } }],   // days off he added himself
     lastLocation: { lat: Number, lng: Number, at: Date },   // OLD: no longer written. The live position is memory only (services/liveTracking.js)
     activeOrderCount: { type: Number, default: 0, min: 0 },   // offered + accepted + picked up

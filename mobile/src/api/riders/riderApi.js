@@ -4,6 +4,11 @@ const d = (p) => p.then((r) => r.data);
 
 // Rider API (/api/rider). Only a user with role "rider" may call these.
 export const fetchRiderMe = () => d(api.get('/rider/me'));
+// ratings given to him since he closed the news on Home: { items: [{ rating, points, orderNo }], standing }
+export const fetchRiderNews = () => d(api.get('/rider/news'));
+export const markNewsSeen = () => d(api.post('/rider/news/seen'));
+// his points and badge: { enabled, badge, points, rating, next, rules, history }
+export const fetchRiderPoints = () => d(api.get('/rider/points'));
 export const setOnline = (isOnline) => d(api.put('/rider/online', { isOnline }));
 // duty timing, holidays and leave (services/riderSchedule.js)
 export const fetchDuty = () => d(api.get('/rider/duty'));

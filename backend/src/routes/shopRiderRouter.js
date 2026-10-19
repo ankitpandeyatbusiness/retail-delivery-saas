@@ -25,8 +25,13 @@ const manage = express.Router();
 manage.get('/', wrap(async (req, res) => {
     const items = await riders.list(req.tenant._id);
     const sums = await schedule.summaries(req.tenant._id, items.map((r) => r.userId));
+    // each rider's points and badge
+    const loyalty = require('../services/loyaltyService');
+    const docs = await Rider.find({ tenantId: req.tenant._id }).select('userId ratingAvg ratingCount deliveryCount loyalty').lean();
+    await loyalty.freshen(req.tenant._id, docs);
+    const stand = new Map(docs.map((d) => [String(d.userId), loyalty.standing(req.tenant, d)]));
     // leave: requests waiting, days of approved leave this month, and whether he is on leave today
-    res.json({ items: items.map((r) => ({ ...r, leave: sums.get(String(r.userId)) || { pending: 0, monthDays: 0, monthRequests: 0, onLeaveToday: false } })) });
+    res.json({ items: items.map((r) => ({ ...r, standing: stand.get(String(r.userId)) || null, leave: sums.get(String(r.userId)) || { pending: 0, monthDays: 0, monthRequests: 0, onLeaveToday: false } })) });
 }));
 
 // Leave requests. GET /leaves?status=pending (default) | all   ·   PUT /leaves/:id { approve: true | false, note? }
@@ -54,6 +59,16 @@ manage.patch('/:userId', wrap(async (req, res) => {
     res.json(await riders.update({
         tenantId: req.tenant._id, userId: req.params.userId, isActive: req.body?.isActive, name: req.body?.name, email: req.body?.email,
     }));
+}));
+
+// One rider's points: where he stands and his last lines.
+manage.get('/:userId/points', wrap(async (req, res) => {
+    if (!isId(req.params.userId)) throw httpError(404, 'Rider not found');
+    const loyalty = require('../services/loyaltyService');
+    const r = await Rider.findOne({ tenantId: req.tenant._id, userId: req.params.userId }).select('userId ratingAvg ratingCount deliveryCount loyalty').lean();
+    if (!r) throw httpError(404, 'Rider not found');
+    await loyalty.freshen(req.tenant._id, [r]);
+    res.json({ standing: loyalty.standing(req.tenant, r), history: await loyalty.riderHistory(req.tenant._id, req.params.userId, 60) });
 }));
 
 // One rider's pay: the plan that applies, what he earned, and (when the owner records payments) what was paid.

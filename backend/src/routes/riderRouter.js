@@ -229,6 +229,26 @@ core.put('/online', wrap(async (req, res) => {
     res.json({ ok: true, isOnline: req.body.isOnline });
 }));
 
+// Ratings customers gave him since he closed the news on his Home screen (shown there when he is not on a delivery).
+core.get('/news', wrap(async (req, res) => {
+    res.json(await require('../services/loyaltyService').riderNews(req.tenant, req.riderId));
+}));
+core.post('/news/seen', wrap(async (req, res) => {
+    await require('../services/loyaltyService').riderNewsSeen(req.tenant._id, req.riderId);
+    res.json({ ok: true });
+}));
+
+// His points and badge: where he stands, what is needed for the next badge, what each thing is worth, and his last lines.
+core.get('/points', wrap(async (req, res) => {
+    const loyalty = require('../services/loyaltyService');
+    const r = await Rider.findOne({ tenantId: req.tenant._id, userId: req.riderId }).select('userId ratingAvg ratingCount deliveryCount loyalty').lean();
+    if (!r) throw httpError(404, 'Rider not found');
+    await loyalty.freshen(req.tenant._id, [r]);
+    const st = loyalty.standing(req.tenant, r);
+    if (!st) return res.json({ enabled: false });
+    res.json({ enabled: true, ...st, rules: loyalty.settingsOf(req.tenant).rider, history: await loyalty.riderHistory(req.tenant._id, req.riderId) });
+}));
+
 /* ------------------------------ duty timing, holidays and leave ------------------------------ */
 // His timing: { mode: 'manual' | 'auto', weekly: { mon: { on, from, to }, ... }, holidays: [...] , today: {...} }
 const dutyView = async (req) => {

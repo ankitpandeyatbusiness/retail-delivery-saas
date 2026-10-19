@@ -1,7 +1,7 @@
 // src/screens/CartScreen.jsx
 import { amountLabel } from '../../utils/customers/measure';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, ScrollView, TextInput, StyleSheet, LayoutAnimation } from 'react-native';
+import { View, Text, Pressable, ScrollView, TextInput, StyleSheet, LayoutAnimation, Switch } from 'react-native';
 import { ActivityIndicator } from '../../components/common/Loading';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { CommonActions, useNavigation, useRoute } from '@react-navigation/native';
@@ -92,6 +92,7 @@ export default function CartScreen() {
     useEffect(() => { if (paymentMethodValue !== 'cod') prewarmPayments(); }, [paymentMethodValue]);
 
     const [quote, setQuote] = useState(null);
+    const [usePts, setUsePts] = useState(false);   // "use my points" in the bill
     const [quoteKey, setQuoteKey] = useState('');    // which request the quote belongs to
     const [qErr, setQErr] = useState('');
     const [busy, setBusy] = useState(false);
@@ -119,6 +120,7 @@ export default function CartScreen() {
                 productId: l.productId, quantity: l.quantity, selections: l.selections || [], note: l.note || undefined, ...(l.measureQty ? { measureQty: l.measureQty } : {}) })) };
         const code = applied || tryCode;
         if (code && couponOn) b.couponCode = code;
+        if (usePts) b.usePoints = true;
         if (type === 'delivery') {
             if (addr) b.addressId = addr._id;
             if (f.tips && tip > 0) b.tip = tip;
@@ -126,7 +128,7 @@ export default function CartScreen() {
         }
         if (type === 'pickup' && pickedSlot) b.pickupSlot = pickedSlot;
         return b;
-    }, [lines, type, applied, tryCode, addr, tip, when, couponOn, paymentMethodValue, pickedSlot]);
+    }, [lines, type, applied, tryCode, addr, tip, when, couponOn, paymentMethodValue, pickedSlot, usePts]);
     const bodyKey = JSON.stringify(body);
 
     // refresh every minute so a shop that just closed is noticed
@@ -462,6 +464,24 @@ export default function CartScreen() {
                                 <Text style={[s.cap, { color: muted, marginLeft: 6 }]}>{tr('Pick up from')}</Text>
                             </View>
                             <Text style={[s.lSub, { color: muted, marginTop: 8 }]}>{[shopAddr.line, shopAddr.city, shopAddr.pincode].filter(Boolean).join(', ')}</Text>
+                        </Appear>
+                    ) : null}
+
+                    {user && quote?.points?.enabled && (quote.points.balance > 0 || quote.points.pendingPoints > 0) ? (
+                        <Appear style={[s.card, { backgroundColor: surface, borderColor: border }]}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <Ionicons name="gift" size={22} color={primary} />
+                                <View style={{ flex: 1, marginLeft: 10, marginRight: 8 }}>
+                                    <Text style={[s.lName, { color: text }]}>{tr('Use my points')}</Text>
+                                    <Text style={[s.lSub, { color: muted, marginTop: 2 }]}>
+                                        {quote.points.canUse
+                                            ? tr('Use {p} points and save ₹{r}', { p: quote.points.maxPoints, r: quote.points.maxRupees })
+                                            : tr('You have {b} points. You can use them from {m} points.', { b: quote.points.balance, m: quote.points.minRedeem })}
+                                    </Text>
+                                    {quote.points.pendingPoints > 0 ? <Text style={[s.lSub, { color: muted, marginTop: 2 }]}>{tr('{n} more points are on the way', { n: quote.points.pendingPoints })}</Text> : null}
+                                </View>
+                                <Switch value={usePts && quote.points.canUse} disabled={!quote.points.canUse && !usePts} onValueChange={setUsePts} trackColor={{ true: primary }} />
+                            </View>
                         </Appear>
                     ) : null}
 

@@ -14,6 +14,7 @@ import { useMapStyle } from '../../utils/common/mapStyle';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../common/kit';
 import { tint } from './shop';
+import { RiderStanding } from '../common/RiderBadge';
 import { useLiveTripStore } from '../../store/customers/useLiveTripStore';
 import { tr } from '../../i18n';
 
@@ -105,6 +106,7 @@ export default function TrackingCard({ tracking: t, destination }) {
                     </View>
                     <View style={s.rText}>
                         <Text style={[s.rName, { color: text }]} numberOfLines={1}>{t.rider.name}</Text>
+                        <RiderStanding standing={t.rider.standing} />
                         {[t.rider.vehicle, t.rider.phone ? null : t.rider.phoneMasked].filter(Boolean).length ? (
                             <Text style={[s.sub, { color: muted }]} numberOfLines={1}>{[t.rider.vehicle, t.rider.phone ? null : t.rider.phoneMasked].filter(Boolean).join(' · ')}</Text>
                         ) : null}

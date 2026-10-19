@@ -19,6 +19,7 @@ import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { LeavePanel } from '../../components/owners/RiderLeave';
+import RiderPointsCard from '../../components/owners/RiderPointsCard';
 import { tr } from '../../i18n';
 
 function AmountSheet({ mode, visible, balancePaise, onClose, onSubmit, busy }) {
@@ -231,6 +232,8 @@ export default function OwnerRiderScreen() {
                         </>
                     ) : null}
                 </Card>
+
+                <RiderPointsCard userId={userId} />
 
                 <LeavePanel riderId={userId} monthDays={rider.leave?.monthDays || 0} />
 

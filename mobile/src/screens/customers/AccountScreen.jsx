@@ -396,6 +396,10 @@ function AccountInner() {
                     </Appear>
                 </View>
 
+                <Group title={tr('REWARDS')} delay={100}>
+                    <Item icon="gift-outline" label={tr('My points')} sub={tr('Earn points and get money off')} onPress={() => nav.navigate('MyPoints')} last />
+                </Group>
+
                 <Group title={tr('PREFERENCES')} delay={110}>
                     <LanguageRow />
                     <AppearanceRow />

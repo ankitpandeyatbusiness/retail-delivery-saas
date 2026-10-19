@@ -42,6 +42,8 @@ const orderSchema = new Schema({
         subtotal: Number,
         discount: { type: Number, default: 0 },
         couponCode: String,
+        pointsUsed: { type: Number, default: 0 },       // loyalty points spent on this order (their rupees are inside `discount`)
+        pointsDiscount: { type: Number, default: 0 },
         deliveryFee: { type: Number, default: 0 },
         packagingCharge: { type: Number, default: 0 },
         taxMode: String,          // none / inclusive / exclusive

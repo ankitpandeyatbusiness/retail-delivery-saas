@@ -221,15 +221,22 @@ async function priceCart({ tenant, config, userId, body, distanceKm = null }) {
         : null;
     const discount = coupon ? coupon.discount : 0;
 
+    // "use my points": whole rupees off, never more than the shop allows (loyaltyService.cartInfo)
+    const loyalty = require('./loyaltyService');
+    const pts = body.usePoints === true ? await loyalty.priceWithPoints({ tenant, userId, subtotal, couponDiscount: discount }) : null;
+    const pointsDiscount = pts ? pts.rupees : 0;
+    const discountAll = round2(discount + pointsDiscount);
+    const pointsInfo = await loyalty.cartInfo({ tenant, userId, subtotal, couponDiscount: discount }).catch(() => ({ enabled: false }));
+
     const tip = body.tip === undefined ? 0 : body.tip;
     if (typeof tip !== 'number' || !Number.isFinite(tip) || tip < 0 || tip > MAX_TIP) throw httpError(400, 'Invalid tip');
     if (tip > 0 && (!config.features.tips || orderType !== 'delivery')) throw httpError(400, 'Tips are not available');
 
-    const tax = applyTax(lines, { mode: config.orders.gst?.mode || 'none', discount, subtotal });
-    const totals = computeTotals(config.orders, { orderType, subtotal, discount, tip: round2(tip), tax, distanceKm });
+    const tax = applyTax(lines, { mode: config.orders.gst?.mode || 'none', discount: discountAll, subtotal });
+    const totals = computeTotals(config.orders, { orderType, subtotal, discount: discountAll, tip: round2(tip), tax, distanceKm });
     return {
-        orderType, lines, coupon, prepMin, stockNeeds, distanceKm,
-        pricing: { subtotal, discount, couponCode: coupon?.code, ...totals },
+        orderType, lines, coupon, prepMin, stockNeeds, distanceKm, pointsInfo,
+        pricing: { subtotal, discount: discountAll, couponCode: coupon?.code, pointsUsed: pts ? pts.points : 0, pointsDiscount, ...totals },
     };
 }
 

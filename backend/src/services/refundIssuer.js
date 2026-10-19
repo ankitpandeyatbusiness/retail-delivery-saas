@@ -23,6 +23,7 @@ async function issueRefund({ tenantId, orderId, amountPaise, reason, complaintId
     if (await PaymentDispute.exists({ paymentId: pay._id, status: { $in: ['created', 'under_review', 'action_required'] } })) {
         return { ok: false, error: 'This payment is under dispute' };   // no row, no alert; the reconcile job tries again later
     }
+    require('./loyaltyService').voidPendingForOrder(tenantId, orderId);   // money goes back: the points of this order that are still waiting never arrive
     const refundKey = key || (complaintId ? `complaint:${complaintId}` : `order:${orderId}:${reason}`);
 
     let r;

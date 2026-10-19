@@ -144,6 +144,7 @@ async function quote({ tenant, userId, body }) {
     return {
         items: priced.lines,
         pricing: priced.pricing,
+        points: priced.pointsInfo || { enabled: false },   // the customer's points for this bill
         distanceKm: priced.distanceKm ?? null,
         shopOpen: config.restaurant.isOpen,
         canPlace: !problem,
@@ -239,12 +240,16 @@ async function placeOrder({ tenant, userId, body, idempotencyKey }) {
     }
 
     let reserved = [];
+    const newOrderId = new (require('mongoose').Types.ObjectId)();
     try {
         reserved = await stock.reserve(tenant._id, priced.stockNeeds || []);   // takes the units, or 409 when short
         const user = await User.findById(userId).select('name phone').lean();
         const slot = priced.orderType === 'pickup' ? findPickupSlot(tenant, body.pickupSlot) : null;
         const orderNo = await nextOrderNo(tenant._id);
+        // loyalty points the customer chose to use are taken now (one atomic step); they go back if the order does not happen
+        if (priced.pricing.pointsUsed > 0) await require('./loyaltyService').debit({ tenantId: tenant._id, userId, points: priced.pricing.pointsUsed, orderId: newOrderId, orderNo });
         const order = await Order.create({
+            _id: newOrderId,
             tenantId: tenant._id,
             userId,
             orderNo,
@@ -313,6 +318,7 @@ async function placeOrder({ tenant, userId, body, idempotencyKey }) {
         return { order, duplicate: false };
     } catch (e) {
         await releaseCoupon(priced.coupon?._id);   // the order was not created, give the coupon use back
+        if (priced.pricing.pointsUsed > 0) await require('./loyaltyService').giveBack({ tenantId: tenant._id, userId, orderId: newOrderId }).catch(() => { });   // and the points
         await stock.restore(tenant._id, reserved).catch((err) => console.error('Stock restore error:', err.message));
         if (e.code === 11000 && idempotencyKey) {
             const dup = await findDuplicate();

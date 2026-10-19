@@ -25,6 +25,8 @@ const EVENTS = {
     order_cancelled: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },
     order_late: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },
     rider_accepted: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },
+    points_arrived: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },   // loyalty points reached the customer
+    rider_badge: { to: 'rider', channels: INAPP_PUSH, alsoPush: true },        // the rider moved up a badge
     rider_leave_request: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // a rider asked for leave
     rider_leave_decision: { to: 'rider', channels: INAPP_PUSH, alsoPush: true },  // the owner approved or rejected it
     rider_duty_auto: { to: 'rider', channels: ['inapp'] },                        // his schedule put him on or off duty

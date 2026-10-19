@@ -73,6 +73,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/tenants', tenantRouter);
 app.use('/api/catalog/collections', collectionRouter);
 app.use('/api/favourites', favouriteRouter);
+app.use('/api/loyalty', require('../routes/loyaltyRouter'));
 app.use('/api/catalog', catalogRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/addresses', addressRouter);

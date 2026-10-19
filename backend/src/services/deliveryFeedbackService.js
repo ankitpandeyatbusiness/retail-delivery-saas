@@ -47,7 +47,7 @@ async function tracking({ tenant, userId, orderId }) {
     let live = null;
     if (showRider) {
         const [profile, user] = await Promise.all([
-            Rider.findOne({ tenantId: tenant._id, userId: d.riderId }).select('name vehicle photo lastLocation deliveryCount deliverySecTotal').lean(),
+            Rider.findOne({ tenantId: tenant._id, userId: d.riderId }).select('name vehicle photo lastLocation deliveryCount deliverySecTotal ratingAvg ratingCount loyalty').lean(),
             User.findById(d.riderId).select('name phone').lean(),
         ]);
         rider = {
@@ -58,6 +58,8 @@ async function tracking({ tenant, userId, orderId }) {
             vehicle: profile?.vehicle?.type || null,
             photo: profile?.photo || null,
             avgDeliveryMin: require('./deliveryPlan').avgMin(profile),   // how long his journeys usually take (null until he has one on record)
+            // his badge and rating, so the customer knows who is coming (null when the shop switched rider points off)
+            standing: require('./loyaltyService').standing(tenant, profile),
         };
         live = liveTracking.newest(d.riderId, profile?.lastLocation);   // the live position (memory) is never behind the saved one
     }
@@ -167,6 +169,8 @@ async function rateDelivery({ tenant, userId, orderId, body }) {
     } catch (e) {
         console.error('rider rating update failed', e.message);
     }
+
+    require('./loyaltyService').onDeliveryRated(done, rating).catch((e) => console.error('Points error:', e.message));
 
     // the rider hears about every review of his delivery; the shop too (a low one has its own, louder alert)
     require('./notificationService').deliveryReviewed({

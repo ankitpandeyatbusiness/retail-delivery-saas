@@ -219,6 +219,7 @@ async function decide({ tenant, id, actor, body }) {
     if (!done) throw httpError(409, 'This complaint is already decided');
     if (done.riderFault === true && done.evidence?.riderId) {   // counted once: the complaint can be decided only once
         await Rider.updateOne({ tenantId: tenant._id, userId: done.evidence.riderId }, { $inc: { faultCount: 1 } }).catch((e) => console.error('Rider fault count error:', e.message));
+        require('./loyaltyService').onRiderFault({ tenantId: tenant._id, userId: done.evidence.riderId, orderId: done.orderId, orderNo: done.orderNo }).catch((e) => console.error('Points error:', e.message));
     }
 
     // after the save: the money (Phase 4 provides issueRefund), then the messages

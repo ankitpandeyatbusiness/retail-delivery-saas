@@ -15,6 +15,7 @@ import { showToast } from '../../components/customers/shop';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { Image } from 'expo-image';
 import { LeavePanel } from '../../components/owners/RiderLeave';
+import { RiderBadge, BADGES } from '../../components/common/RiderBadge';
 import { tr } from '../../i18n';
 
 export function Avatar({ rider, size = 44 }) {
@@ -127,6 +128,22 @@ export default function OwnerRidersScreen() {
                         </>
                     ) : null}
 
+                    {s.riders.filter((r) => r.standing && r.standing.points > 0).length ? (
+                        <View>
+                            <SectionTitle title={tr('Top riders (last 30 days)')} />
+                            <Card>
+                                {[...s.riders].filter((r) => r.standing && r.standing.points > 0).sort((a, b) => b.standing.points - a.standing.points).slice(0, 3).map((r, i) => (
+                                    <View key={r.userId} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6 }}>
+                                        <Text style={{ width: 22, color: muted, fontWeight: '900' }}>{i + 1}</Text>
+                                        <Text style={{ flex: 1, color: text, fontWeight: '800' }} numberOfLines={1}>{riderName(r)}</Text>
+                                        <RiderBadge badge={r.standing.badge} />
+                                        <Text style={{ color: text, fontWeight: '900', marginLeft: 10, minWidth: 44, textAlign: 'right' }}>{r.standing.points}</Text>
+                                    </View>
+                                ))}
+                            </Card>
+                        </View>
+                    ) : null}
+
                     <LeavePanel />
 
                     <SectionTitle title={tr('Your riders ({length})', { length: s.riders.length })} />
@@ -140,6 +157,7 @@ export default function OwnerRidersScreen() {
                                     <Text style={{ color: muted, fontSize: 12, marginTop: 1 }}>{r.phone || ''}{r.ratingCount ? `  ·  ★ ${Number(r.ratingAvg).toFixed(1)} (${r.ratingCount})` : ''}{r.avgDeliveryMin ? `  ·  ${r.avgDeliveryMin} min avg` : ''}</Text>
                                     <View style={{ flexDirection: 'row', marginTop: 6, flexWrap: 'wrap' }}>
                                         {!r.isActive ? <Pill label={tr('Switched off')} color={muted} /> : r.isOnline ? <Pill label={tr('Online')} color={ok} icon="radio-button-on" /> : <Pill label={tr('Offline')} color={muted} />}
+                                        {r.standing ? <View style={{ marginLeft: 6 }}><RiderBadge badge={r.standing.badge} /></View> : null}
                                         {r.leave?.onLeaveToday ? <View style={{ marginLeft: 6 }}><Pill label={tr('On leave today')} color={warn} /></View> : null}
                                         {r.leave?.pending > 0 ? <View style={{ marginLeft: 6 }}><Pill label={tr('Leave request')} color={warn} /></View> : null}
                                         {r.activeOrderCount > 0 ? <View style={{ marginLeft: 6 }}><Pill label={tr('{activeOrderCount} on delivery', { activeOrderCount: r.activeOrderCount })} color={primary} icon="bicycle" /></View> : null}

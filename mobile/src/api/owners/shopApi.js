@@ -43,6 +43,10 @@ export const markLooksSeen = () => d(api.post('/shop/orders/look-seen'));
 // riders' leave: status 'pending' (default) | 'all'; decide with { approve: true | false, note? }
 export const fetchLeaves = (status = 'pending') => d(api.get('/shop/riders/leaves', { params: { status } }));
 export const decideLeave = (id, body) => d(api.put(`/shop/riders/leaves/${id}`, body));
+// rewards: customer points and rider points / badges. saveRewards({ customer, rider }) or ({ reset: true })
+export const fetchRewards = () => d(api.get('/shop/loyalty'));
+export const saveRewards = (body) => d(api.put('/shop/loyalty', body));
+export const fetchRiderPointsFor = (userId) => d(api.get(`/shop/riders/${userId}/points`));
 // auto accept: { on, repeat: 'today' | 'daily', from?: '13:00', to?: '15:00' }  ->  { on, from, to, repeat, active }
 export const fetchAutoAccept = () => d(api.get('/shop/auto-accept'));
 export const saveAutoAccept = (body) => d(api.put('/shop/auto-accept', body));

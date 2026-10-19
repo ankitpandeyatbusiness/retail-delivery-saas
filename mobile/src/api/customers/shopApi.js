@@ -9,6 +9,8 @@ export const fetchProduct = (id) => d(api.get(`/catalog/products/${id}`));
 export const searchProducts = (params) => d(api.get('/catalog/products', { params }));
 
 // orders
+// the customer's points at this shop: { enabled, balance, pending: { points, nextAt, items }, rules, history }
+export const fetchPoints = () => d(api.get('/loyalty/me'));
 export const quoteOrder = (body) => d(api.post('/orders/quote', body));
 export const placeOrder = (body, key) => d(api.post('/orders', body, { headers: { 'Idempotency-Key': key } }));
 export const fetchOrders = (params) => d(api.get('/orders', { params }));

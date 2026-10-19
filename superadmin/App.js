@@ -1,16 +1,17 @@
 import React, { useEffect } from 'react';
+import { BackHandler, Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';
 import RootNavigator from './src/navigation/RootNavigator';
-import { ToastHost } from './src/components/feedback';
+import { ToastHost, toast } from './src/components/feedback';
 import LegalGate from './src/components/LegalGate';
 import { useAuthStore } from './src/store/useAuthStore';
 import { useThemeStore } from './src/store/useThemeStore';
 import { useInboxStore } from './src/store/useInboxStore';
 import { configurePush, enablePush, startPushTaps } from './src/utils/push';
-import { navigationRef, flushPending } from './src/navigation/ref';
+import { navigationRef, flushPending, handleBack } from './src/navigation/ref';
 import { fetchMe } from './src/api/authApi';
 import { useTheme } from './src/theme';
 
@@ -37,6 +38,13 @@ function Shell() {
         const id = setInterval(() => useInboxStore.getState().refresh(), 60000);
         return () => clearInterval(id);
     }, [token]);
+
+    // Android Back: see handleBack in navigation/ref.js
+    useEffect(() => {
+        if (Platform.OS !== 'android') return undefined;
+        const sub = BackHandler.addEventListener('hardwareBackPress', () => handleBack(() => toast('Press back again to exit')));
+        return () => sub.remove();
+    }, []);
 
     if (!hydrated) return null;   // the splash stays up until the saved login is read
     const base = t.dark ? DarkTheme : DefaultTheme;

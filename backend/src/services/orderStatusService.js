@@ -310,6 +310,13 @@ async function change({ order, status, actor, note, tenant, reasonCode }) {
     }
 
     notify.orderStatusChanged(updated, status, actor);   // customer, owner, rider (never throws)
+    // points: delivered = the customer's wait starts and the rider is scored; cancelled = the points he used go back
+    const points = require('./loyaltyService');
+    if (status === 'delivered') points.onDelivered(updated).catch(logError('Points error'));
+    if (status === 'cancelled') {
+        Promise.resolve(points.returnForOrder(updated)).catch(logError('Points give-back error'));
+        if (actor.type === 'rider' && order.delivery?.status === 'picked_up' && order.delivery?.riderId) points.onRiderCancelledAfterPickup(updated).catch(logError('Points error'));
+    }
     // the live feed (no phone numbers, never throws)
     liveFeed.emit(updated.tenantId, 'orders', {
         type: `order.${status}`, orderId: String(updated._id), orderNo: updated.orderNo, status,

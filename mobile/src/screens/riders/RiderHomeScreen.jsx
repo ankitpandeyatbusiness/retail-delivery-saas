@@ -16,6 +16,8 @@ import { BigButton, SmallLink, Banner, Avatar } from '../../components/riders/ri
 import KeepRunningSheet from '../../components/riders/KeepRunningSheet';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRiderStore } from '../../store/riders/useRiderStore';
+import RatingNews from '../../components/riders/RatingNews';
+import { fetchRiderNews, markNewsSeen } from '../../api/riders/riderApi';
 import { useRiderLocation } from '../../hooks/common/useRiderLocation';
 import { playSfx } from '../../utils/common/sfx';
 import { acceptOrder, rejectOrder } from '../../api/riders/riderApi';
@@ -121,6 +123,15 @@ export default function RiderHomeScreen() {
     const [busyId, setBusyId] = useState(null);
     const [dutyBusy, setDutyBusy] = useState(false);
     const [guide, setGuide] = useState(false);   // "keep the app working", shown once
+    // ratings customers gave him: read when he is free (after a delivery), shown on top until he closes it
+    const [news, setNews] = useState(null);
+    useEffect(() => {
+        if (active.length > 0) return;
+        let dead = false;
+        fetchRiderNews().then((n) => { if (!dead) setNews(n?.items?.length ? n : null); }).catch(() => { });
+        return () => { dead = true; };
+    }, [active.length, summary]);   // eslint-disable-line react-hooks/exhaustive-deps
+    const closeNews = () => { setNews(null); markNewsSeen().catch(() => { }); };
 
     // new offers arrive while the page is open
     useFocusEffect(useCallback(() => {
@@ -203,6 +214,8 @@ export default function RiderHomeScreen() {
 
                 {ready ? (
                     <>
+                        {/* the ratings he got, only while he is free (not carrying an order) */}
+                        {active.length === 0 ? <RatingNews news={news} onClose={closeNews} /> : null}
                         {/* what needs him now comes first: a new order to accept, then the deliveries he carries */}
                         {liveOffers.map((o) => (
                             <OfferCard key={String(o.id)} o={o} busy={busyId === o.id} onAccept={() => accept(o)} onReject={() => reject(o)} onExpire={load} />

@@ -79,6 +79,7 @@ connectDB()
             startPaymentReconcileScheduler();
             startRiderDutyScheduler();   // a rider who forgot to end duty is put off duty
             startRiderScheduleTicker();  // riders on "auto" go on and off duty by their own timing
+            setInterval(() => require('../services/loyaltyService').releaseDue().catch((e) => console.error('Points job error:', e.message)), 5 * 60 * 1000).unref?.();   // points whose 24 hours are over become spendable
             require('../services/platformTax').start();   // the one GST for all shops
             require('../services/platformPayments').start();   // my own Razorpay keys saved in the app
 

@@ -14,7 +14,8 @@ import { Press, Appear } from '../../components/customers/cartParts';
 import { StatusPill, isActive, rs, errMsg, cancelFlow, reorder } from '../../components/customers/orders';
 import { viewInvoice, saveInvoice } from '../../components/customers/invoice';
 import { useHomeStore } from '../../store/customers/useHomeStore';
-import { fetchOrder, rateOrder, fetchRatings, fetchTracking } from '../../api/customers/shopApi';
+import { fetchOrder, rateOrder, fetchRatings, fetchTracking, fetchPoints } from '../../api/customers/shopApi';
+import { arriveText } from './MyPointsScreen';
 import TrackingCard from '../../components/customers/tracking';
 import { StoreLocation, useStoreSpot } from '../../components/customers/storeLocation';
 import { DeliveryRatingCard, ComplaintCard } from '../../components/common/feedback';
@@ -143,6 +144,7 @@ export default function OrderDetailScreen() {
     const [inv, setInv] = useState('');            // '' | 'view' | 'save'
     const user = useAuthStore((st) => st.user);
     const [track, setTrack] = useState(null);     // GET /orders/:id/tracking, delivery orders only
+    const [pts, setPts] = useState(null);         // the customer's points (the ones this order earns are still on the way)
     const trackRef = useRef(null);
     trackRef.current = track;
     const activeRef = useRef(false);
@@ -164,6 +166,7 @@ export default function OrderDetailScreen() {
     // The server tells us at once when the order changes (status, rider accepted...). The timer is only a safety net,
     // and runs faster while the rider is on the way because his position is not pushed.
     useOrderLive(id, get);
+    useEffect(() => { if (o?.status === 'delivered') fetchPoints().then(setPts).catch(() => { }); }, [o?.status]);   // eslint-disable-line react-hooks/exhaustive-deps
     // the rider's pin moves the moment the server hears from his phone (no waiting for the next refresh)
     useEffect(() => onRiderLocation((p) => {
         if (String(p?.orderId) !== String(id) || typeof p.lat !== 'number') return;
@@ -444,6 +447,15 @@ export default function OrderDetailScreen() {
                     </Card>
                 ) : null}
 
+                {delivered && pts?.enabled && pts.pending.items.some((p) => p.orderNo === o.orderNo) ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 12, padding: 12, borderRadius: 14, backgroundColor: tint(primary) }}>
+                        <Ionicons name="gift" size={22} color={primary} />
+                        <View style={{ flex: 1, marginLeft: 10 }}>
+                            <Text style={{ color: text, fontWeight: '900' }}>{tr('{n} points on the way', { n: pts.pending.items.filter((p) => p.orderNo === o.orderNo).reduce((a, p) => a + p.points, 0) })}</Text>
+                            <Text style={{ color: muted, fontSize: 12.5, marginTop: 2 }}>{tr('They reach you by {time}', { time: arriveText(pts.pending.items.find((p) => p.orderNo === o.orderNo).at) })}</Text>
+                        </View>
+                    </View>
+                ) : null}
                 {delivered && delivery && track ? (
                     <DeliveryRatingCard orderId={id} tracking={track} onDone={get} />
                 ) : null}

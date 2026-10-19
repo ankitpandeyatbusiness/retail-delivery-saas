@@ -290,6 +290,25 @@ router.put('/auto-accept', wrap(async (req, res) => {
     res.json(autoAccept.describe({ settings: { orders: { autoAccept: value } } }));
 }));
 
+// Rewards: customer points and rider points / badges. The shop chooses the numbers; "reset" puts the recommended ones back.
+//   GET /loyalty  ->  { settings, recommended }      PUT /loyalty  { customer?, rider? } | { reset: true }      GET /loyalty/riders  ->  Top riders
+router.get('/loyalty', wrap(async (req, res) => {
+    const loyalty = require('../services/loyaltyService');
+    res.json({ settings: loyalty.settingsOf(req.tenant), recommended: loyalty.RECOMMENDED });
+}));
+router.put('/loyalty', wrap(async (req, res) => {
+    const loyalty = require('../services/loyaltyService');
+    let value;
+    try { value = req.body?.reset === true ? JSON.parse(JSON.stringify(loyalty.RECOMMENDED)) : loyalty.clean(req.body, req.tenant.settings?.loyalty); } catch (e) { throw httpError(e.status || 400, e.message); }
+    req.auditBefore = { loyalty: req.tenant.settings?.loyalty || null };
+    await Tenant.updateOne({ _id: req.tenant._id }, { $set: { 'settings.loyalty': value } });
+    tenantRecognizer.invalidateTenant(req.tenant.slug);
+    res.json({ settings: loyalty.settingsOf({ settings: { loyalty: value } }), recommended: loyalty.RECOMMENDED });
+}));
+router.get('/loyalty/riders', wrap(async (req, res) => {
+    res.json({ items: await require('../services/loyaltyService').board(req.tenant) });
+}));
+
 // What the owner can change on his own shop, as it is now (the screens fill their forms from this).
 // riders: the delivery rules. orders.codCap: the cash on delivery limit for a phone's first orders.
 const riderPay = require('../services/riderPay');

@@ -52,6 +52,7 @@ async function rateOrder({ tenantId, userId, orderId, ratings }) {
     }
 
     await Order.updateOne({ _id: order._id }, { $set: { ratedAt: new Date() } });
+    require('./loyaltyService').onFoodRated(order).catch((e) => console.error('Points error:', e.message));   // the review bonus (waits like the other points)
     await shopRating.refresh(tenantId).catch((e) => console.error('Shop rating error:', e.message));
 
     // the shop is told about the review (a dish rated 2 stars or less also gets its own low-rating alert below). Never blocks the customer.
