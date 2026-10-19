@@ -418,7 +418,7 @@ async function speakRound() {
     const firstId = pending.keys().next().value;
     if (firstId && firstId !== 'test-push') {
         try {
-            const o = await fetchOrder(firstId);
+            const o = await Promise.race([fetchOrder(firstId), new Promise((r) => setTimeout(() => r(null), 3000))]);   // a slow network must not hold the voice back
             if (o && o.status !== 'placed') { note('order ' + (o.orderNo || firstId) + ' is no longer waiting: dropped'); speaking = false; dismiss(firstId); endVoice(); return; }
         } catch (e) { /* offline: read it as before */ }
     }
@@ -434,15 +434,27 @@ async function speakRound() {
     endVoice();   // the voice has finished: the next bell comes after the gap
 }
 
+// Backup clock for when the app is open. The player's own reports can stop (the bell track ended and the player sat paused:
+// "player was paused: playing again" and then nothing), and the round would never reach the voice. JavaScript timers run
+// fine while the app is open; with the screen off the player's reports are still the clock, as before.
+let backupClock = null;
+function startBackupClock() {
+    if (backupClock) return;
+    backupClock = setInterval(() => { if (AppState.currentState === 'active') onClock({ playing: true }); }, 500);
+}
+function stopBackupClock() { if (backupClock) { clearInterval(backupClock); backupClock = null; } }
+
 function kick() {
     if (looping || !pending.size) return;
     looping = true;
+    startBackupClock();
     setRinging(true);
     ensureAudio().then(() => { if (looping) setTrack('alert'); });   // the chime loop starts; the audio then clocks the rounds
 }
 
 function stopLoop() {
     looping = false;
+    stopBackupClock();
     setRinging(false);
     resetClock();
     try { Speech.stop(); } catch (e) { /* ignore */ }
@@ -454,12 +466,13 @@ function stopLoop() {
 /* ------------------------------ orders waiting ------------------------------ */
 export function raise({ orderId, orderNo, speech, speechHi }) {
     // Soundbox off = the owner wants no new-order sound at all: no chime, no voice, no greeting
-    if (!orderId || !isOwner() || !settings().soundbox) return;
+    note('new-order message received' + (orderNo ? ' (' + orderNo + ')' : ''));
+    if (!orderId || !isOwner() || !settings().soundbox) { note('ignored: ' + (!isOwner() ? 'not an owner' : !settings().soundbox ? 'Soundbox is off' : 'no order id')); return; }
     // Not "always ready" and the app is in the background: the PUSH rings and reads this order (clip, then the order once).
     // Starting a repeating alert from the background would need the permanent notification this mode exists to avoid.
-    if (!settings().alwaysReady && AppState.currentState !== 'active') return;
+    if (!settings().alwaysReady && AppState.currentState !== 'active') { note('ignored: app in background and Always ready is off'); return; }
     const id = String(orderId);
-    if (acked.has(id)) return;
+    if (acked.has(id)) { note('ignored: you already opened this order'); return; }
     const isNew = !pending.has(id);
     if (isNew) note('order ' + (orderNo || id) + ' arrived');
     pending.set(id, { orderNo, speech, speechHi });
@@ -505,9 +518,11 @@ export async function speakForPush(data) {
     // this order, and a second voice from the push would mix with it.
     // The voice is ONLY for a new order (and its reminder) or a cancelled one. Any other push (no rider yet, late, ...) is never spoken.
     if (!['order_new', 'order_unaccepted_reminder', 'order_cancelled'].includes(String(data?.type))) return;
-    const liveHandles = () => AppState.currentState === 'active' || looping || speaking || (started && realtimeConnected());
-    if (liveHandles()) return;
     await useSoundboxStore.getState().hydrate();
+    // A connected socket only counts when the running Soundbox really rings in the background ("always ready"). Otherwise
+    // raise() ignores the order and the push is the ONLY thing that can read it out.
+    const liveHandles = () => AppState.currentState === 'active' || looping || speaking || (started && settings().alwaysReady && realtimeConnected());
+    if (liveHandles()) return;
     if (!settings().soundbox) return;                 // Soundbox off: no voice at all
 
     const id = String(data?.orderId || data?.orderNo || '');
