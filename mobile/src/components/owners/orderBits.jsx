@@ -59,7 +59,7 @@ export function Countdown({ until, compact }) {
 // why an order is on the "Needs a look" list (same words as the server's services/orderLook.js)
 const LOOK_TEXT = {
     rider_cancelled: 'The delivery partner cancelled it', rider_sos: 'The delivery partner pressed the help button', rider_problem: 'The delivery partner reported a problem',
-    no_rider: 'No delivery partner took it', late: 'The delivery is very late', late_cancelled: 'Cancelled: the delivery was more than an hour late',
+    pickup_no_show: 'The customer has not collected it', no_rider: 'No delivery partner took it', late: 'The delivery is very late', late_cancelled: 'Cancelled: the delivery was more than an hour late',
     customer_cancelled: 'The customer cancelled it', not_accepted: 'Cancelled: it was not accepted in time', undelivered: 'It could not be delivered',
 };
 
@@ -129,6 +129,9 @@ export function useOrderActions({ onChanged, onOptimistic } = {}) {
     const [busyId, setBusyId] = useState(null);
     const [rejecting, setRejecting] = useState(null);       // the order being rejected
     const [undelivering, setUndelivering] = useState(null);
+    const { muted: ink } = useBrand();
+    const [codeFor, setCodeFor] = useState(null);       // a pickup order being handed over: asks for the customer's code
+    const [code, setCode] = useState('');
 
     const done = (updated) => {
         useOrdersStore.getState().patch(updated);
@@ -141,6 +144,7 @@ export function useOrderActions({ onChanged, onOptimistic } = {}) {
         const next = flow.forwardStep(order);
         if (!next) return;
         if (flow.needsRider(order, next)) { showToast(tr('Assign a delivery partner first')); return; }
+        if (order.orderType === 'pickup' && next === 'delivered') { setCode(''); setCodeFor(order); return; }   // handed over against the customer's code
         setBusyId(order.id);
         // the board shows the result at once; the server's answer replaces it, and a refused step puts the old state back
         const guess = flow.afterStep(order, next);
@@ -169,8 +173,25 @@ export function useOrderActions({ onChanged, onOptimistic } = {}) {
         } catch (e) { fail(e); } finally { setBusyId(null); }
     };
 
+    // handing a pickup order over: the customer's 4-digit code, or (if he cannot show it) the owner says so and it is written down
+    const handOver = async (order, body) => {
+        setBusyId(order.id);
+        try {
+            const updated = await setOrderStatus(order.id, { status: 'delivered', ...body });
+            done(updated);
+            setCodeFor(null);
+            showToast(tr('Order #{orderNo}: {v2}', { orderNo: order.orderNo, v2: flow.stepLabel(order, 'delivered') }));
+        } catch (e) { fail(e); } finally { setBusyId(null); }
+    };
+
     const sheets = (
         <>
+            <Sheet visible={!!codeFor} onClose={() => setCodeFor(null)} title={tr('Pickup code')}>
+                <Text style={{ fontSize: 14, marginBottom: 12, color: ink }}>{tr('Ask the customer for his 4-digit pickup code. It is on his order page.')}</Text>
+                <Field value={code} onChangeText={(x) => setCode(x.replace(/\D/g, '').slice(0, 4))} placeholder="••••" keyboardType="number-pad" maxLength={4} autoFocus style={{ fontSize: 28, fontWeight: '900', letterSpacing: 10, textAlign: 'center', minHeight: 60 }} />
+                <Button label={tr('Confirm and hand over')} icon="checkmark" busy={busyId !== null && !!codeFor && busyId === codeFor.id} disabled={code.length !== 4} onPress={() => handOver(codeFor, { pickupCode: code })} style={{ marginTop: 14 }} />
+                <Button label={tr('He cannot show the code. Hand over anyway')} kind="ghost" disabled={busyId !== null} onPress={() => handOver(codeFor, { skipCode: true })} style={{ marginTop: 10 }} />
+            </Sheet>
             <ReasonSheet
                 visible={!!rejecting}
                 title={rejecting ? tr('Reject order #{orderNo}', { orderNo: rejecting.orderNo }) : ''}
@@ -185,10 +206,10 @@ export function useOrderActions({ onChanged, onOptimistic } = {}) {
             />
             <ReasonSheet
                 visible={!!undelivering}
-                title={undelivering ? tr('Order #{orderNo} not delivered', { orderNo: undelivering.orderNo }) : ''}
+                title={undelivering ? (undelivering.orderType === 'pickup' ? tr('Order #{orderNo} not collected', { orderNo: undelivering.orderNo }) : tr('Order #{orderNo} not delivered', { orderNo: undelivering.orderNo })) : ''}
                 intro={tr('Who was at fault? This decides who bears the cost.')}
-                reasons={flow.UNDELIVERED_WHO}
-                submitLabel={tr('Mark not delivered')}
+                reasons={undelivering?.orderType === 'pickup' ? flow.UNDELIVERED_WHO.filter((x) => x[0] !== 'rider') : flow.UNDELIVERED_WHO}
+                submitLabel={undelivering?.orderType === 'pickup' ? tr('Mark not collected') : tr('Mark not delivered')}
                 busy={busyId !== null && !!undelivering && busyId === undelivering.id}
                 onClose={() => setUndelivering(null)}
                 onSubmit={(code, note) => submit(undelivering, 'undelivered', code, note)}

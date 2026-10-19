@@ -18,7 +18,7 @@ function statusText(v) {
         case 'preparing': return { title: 'Being prepared', body: v.brief ? `${v.brief} is on the stove.` : `Your order #${no} is on the stove.` };
         case 'ready':
             return v.orderType === 'pickup'
-                ? { title: 'Ready for pickup', body: v.brief ? `${v.brief} is packed. Come and collect it.` : `Your order #${no} is ready for pickup.` }
+                ? { title: 'Ready for pickup', body: `${v.brief ? `${v.brief} is packed. Come and collect it.` : `Your order #${no} is ready for pickup.`}${v.pickupCode ? ` Your pickup code: ${v.pickupCode}.` : ''}` }
                 : { title: 'Order is ready', body: v.brief ? `${v.brief} is packed and waiting for the delivery partner.` : `Your order #${no} is ready.` };
         case 'out_for_delivery': return { title: 'On the way', body: v.brief ? `${v.brief} is on its way to you. Keep your phone close.` : `Your order #${no} is on the way.` };
         case 'delivered': return { title: 'Delivered. Enjoy!', body: `${v.brief || `Order #${no}`} has reached you. Hungry again? Order anytime.` };
@@ -66,6 +66,8 @@ const TEXTS = {
     rider_assigned: (v) => ({ title: 'Delivery partner assigned', body: `${v.riderName} will deliver your order #${v.orderNo}.` }),
     points_arrived: (v) => ({ title: `${v.points} points added`, body: `Your balance is ${v.balance} points. Use them to get money off your next order.` }),
     rider_badge: (v) => ({ title: `You are now ${String(v.badge).charAt(0).toUpperCase()}${String(v.badge).slice(1)}!`, body: 'Customers and the shop can see your new badge. Keep up the good work.' }),
+    pickup_waiting: (v) => ({ title: v.over ? 'Your food is still waiting' : 'Your food is waiting', body: `${v.brief ? `${v.brief} (#${v.orderNo})` : `Order #${v.orderNo}`} ${v.over ? 'was ready for your pickup time, which is over. Please come soon, before it gets cold.' : `is ready. Please collect it by ${v.until}.`}${v.pickupCode ? ` Pickup code: ${v.pickupCode}.` : ''}` }),
+    pickup_no_show: (v) => ({ title: `Order #${v.orderNo} was not collected`, body: `${v.brief ? `${v.brief}. ` : ''}The pickup time ended at ${v.until} and the customer has not come. Call him, or mark it as not collected.` }),
     rider_leave_request: (v) => ({ title: `${v.riderName} asks for leave`, body: `${v.from === v.to ? v.from : `${v.from} to ${v.to}`} (${v.days} day${v.days > 1 ? 's' : ''}). ${v.reason ? `"${v.reason}" ` : ''}Open Riders to approve or reject.` }),
     rider_leave_decision: (v) => ({ title: v.approved ? 'Leave approved' : 'Leave not approved', body: `${v.from === v.to ? v.from : `${v.from} to ${v.to}`}${v.note ? `: ${v.note}` : v.approved ? '. Enjoy your break.' : '. Please talk to the shop if you need those days.'}` }),
     rider_duty_auto: (v) => ({ title: v.on ? 'You are on duty' : 'Your duty has ended', body: v.on ? 'Your duty time has started, so you are on duty now. New orders can reach you.' : (v.why === 'leave' ? 'You are on leave today, so you were put off duty.' : 'Your duty time is over, so you were put off duty. See you next time.') }),

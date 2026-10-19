@@ -55,7 +55,7 @@ function reasonsOf({ kind, actorType, reasonCode, frozen }) {
 }
 
 // kind: 'cancel' | 'undelivered'.  order needs: status, payment, pricing, statusHistory
-function outcomeFor({ order, kind, actorType, reasonCode, frozen = false, now = new Date() }) {
+function outcomeFor({ order, kind, actorType, reasonCode, frozen = false, now = new Date(), rules }) {
     const { code, refundReason } = reasonsOf({ kind, actorType, reasonCode, frozen });
     const cod = !order.payment?.method || order.payment.method === 'cod';
     const strikeByRule = kind === 'undelivered' && code === 'customer';
@@ -64,7 +64,7 @@ function outcomeFor({ order, kind, actorType, reasonCode, frozen = false, now = 
         const paid = order.payment?.status === 'paid';
         const paidPaise = paid ? toPaise(order.pricing?.total) : 0;
         const tipPaise = paid ? Math.min(toPaise(order.pricing?.tip), paidPaise) : 0;
-        const r = calcRefund({ paidPaise, tipPaise, reason: refundReason, status: order.status, acceptedAt: acceptedAtOf(order), now });
+        const r = calcRefund({ paidPaise, tipPaise, reason: refundReason, status: order.status, acceptedAt: acceptedAtOf(order), now, rules });
         return {
             reasonCode: code, refundReason, keptPaise: r.keptPaise, refundPaise: r.refundPaise, pct: r.pct,
             billable: r.keptPaise > 0, strike: strikeByRule, couponReturn: r.keptPaise === 0, cod: false,

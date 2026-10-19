@@ -21,7 +21,15 @@ function shopFrozen(tenant) {
 }
 
 // The owner may mark a delivery order "undelivered" only after the rider reported a problem AND 15 minutes passed since the first report
+const NO_SHOW_WAIT_MS = 30 * 60 * 1000;   // pickup: after the customer's time window ended
 function canMarkUndelivered(order, now = new Date()) {
+    if (order.orderType === 'pickup') {
+        if (order.status !== 'ready') return { ok: false, message: 'Only an order that is ready and waiting can be marked as not collected' };
+        const end = order.pickupUntil ? new Date(order.pickupUntil).getTime() : null;
+        const left = end ? end + NO_SHOW_WAIT_MS - now.getTime() : 1;
+        if (left > 0) return { ok: false, minutesLeft: Math.ceil(left / 60000), message: 'You can mark it as not collected 30 minutes after the pickup time ends' };
+        return { ok: true };
+    }
     if (order.orderType !== 'delivery') return { ok: false, message: 'Only a delivery order can be marked as not delivered' };
     if (!ACTIVE_STATUSES.includes(order.status)) return { ok: false, message: `This order is already "${order.status}"` };
     const first = order.delivery?.problems?.[0];
@@ -57,5 +65,5 @@ const customerCanCancel = (order, tenant) => {
 };
 
 module.exports = {
-    nextStatuses, customerCanCancel, canMarkUndelivered, shopFrozen, ACTIVE_STATUSES, UNDELIVERED_WAIT_MS,
+    nextStatuses, customerCanCancel, canMarkUndelivered, shopFrozen, ACTIVE_STATUSES, UNDELIVERED_WAIT_MS, NO_SHOW_WAIT_MS,
 };

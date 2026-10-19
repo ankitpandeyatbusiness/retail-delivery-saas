@@ -43,6 +43,8 @@ const GROUPS = [
     ['Shop', [
         ['time', 'Opening hours', 'Weekly hours and holidays', 'OwnerHours'],
         ['navigate', 'Delivery area and fees', 'Pin, distance, delivery fee, packaging, tips', 'OwnerDelivery'],
+        ['bicycle', 'Delivery and cash rules', 'Riders, cash limits, cash for pickup orders', 'OwnerRiderRules'],
+        ['cash', 'Cancel and refund rules', 'Who bears the cost of a cancelled order', 'OwnerMoneyRules'],
         ['settings', 'Shop settings', 'Phone, address, SMS alerts', 'OwnerShopSettings'],
         ['list-circle', 'Activity log', 'Who changed what', 'OwnerActivity'],
         ['document-text', 'Terms and privacy', 'Your agreement, the terms and the privacy policy', 'LegalList'],

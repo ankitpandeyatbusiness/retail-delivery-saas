@@ -145,7 +145,7 @@ function validateSettings(input) {
 
     // orders
     section('orders',
-        ['types', 'payments', 'minOrder', 'deliveryFee', 'packagingCharge', 'gst', 'tipOptions', 'prepTimeMin', 'acceptingOrders', 'pausedUntil', 'busy', 'codCap'],
+        ['types', 'payments', 'minOrder', 'deliveryFee', 'packagingCharge', 'gst', 'tipOptions', 'prepTimeMin', 'acceptingOrders', 'pausedUntil', 'busy', 'codCap', 'pickupCod'],
         (o, out, p) => {
             if (o.types !== undefined) { const v = listOf(p('types'), o.types, O.ORDER_TYPES, 1, 3); if (v) out.types = v; }
             if (o.payments !== undefined) { const v = listOf(p('payments'), o.payments, O.PAYMENT_METHODS, 1, 4); if (v) out.payments = v; }
@@ -196,6 +196,17 @@ function validateSettings(input) {
                     out.gst = {};
                     if (g.mode !== undefined && oneOf(p('gst.mode'), g.mode, O.GST_MODES)) out.gst.mode = g.mode;
                     if (g.percent !== undefined && num(p('gst.percent'), g.percent, 0, 28)) out.gst.percent = g.percent;
+                }
+            }
+            // cash for PICKUP orders: the shop can switch it off, or allow it only up to an amount (0 = no limit)
+            if (o.pickupCod !== undefined) {
+                const c = o.pickupCod;
+                if (!isObj(c)) err(p('pickupCod'), 'must be an object');
+                else {
+                    known(c, ['enabled', 'max'], p('pickupCod'));
+                    out.pickupCod = {};
+                    if (c.enabled !== undefined && bool(p('pickupCod.enabled'), c.enabled)) out.pickupCod.enabled = c.enabled;
+                    if (c.max !== undefined && num(p('pickupCod.max'), c.max, 0, 100000)) out.pickupCod.max = c.max;
                 }
             }
             if (o.codCap !== undefined) {
@@ -314,6 +325,7 @@ const DEFAULTS = {
         deliveryFee: { type: 'free', amount: 0, freeAbove: 0 },
         packagingCharge: 0, gst: { mode: 'none', percent: 0 },
         tipOptions: [], prepTimeMin: 20, acceptingOrders: true,
+        pickupCod: { enabled: true, max: 0 },   // cash when the customer collects: allowed or not, and the highest order (0 = no limit)
         codCap: { amount: 1000, firstOrders: 3 },   // Cash on delivery is limited to this amount for a phone's first orders. amount 0 = off
     },
     offers: { couponsEnabled: true, showOnHome: true, showInCart: true },

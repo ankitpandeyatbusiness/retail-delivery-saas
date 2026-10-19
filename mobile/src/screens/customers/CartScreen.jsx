@@ -130,6 +130,12 @@ export default function CartScreen() {
         return b;
     }, [lines, type, applied, tryCode, addr, tip, when, couponOn, paymentMethodValue, pickedSlot, usePts]);
     const bodyKey = JSON.stringify(body);
+    // cash for a pickup order may be switched off or capped by the shop: say so, and point to the payment choice
+    const pcod = full.orders?.pickupCod;
+    const codBlocked = type === 'pickup'
+        ? (pcod?.enabled === false ? tr('This shop does not take cash for pickup orders. Please pay online.')
+            : (pcod?.max > 0 && quote?.pricing?.total > pcod.max ? tr('Cash for a pickup order is allowed up to ₹{max}. Please pay online for this order.', { max: pcod.max }) : null))
+        : null;
 
     // refresh every minute so a shop that just closed is noticed
     useEffect(() => {
@@ -467,6 +473,14 @@ export default function CartScreen() {
                         </Appear>
                     ) : null}
 
+                    {codBlocked && paymentMethodValue === 'cod' ? (
+                        <Pressable onPress={() => nav.navigate('PaymentMethods', { current: paymentMethodValue, currentApp: upiApp?.pkg, codBlocked })} style={[s.card, { backgroundColor: surface, borderColor: error, flexDirection: 'row', alignItems: 'center' }]}>
+                            <Ionicons name="cash-outline" size={22} color={error} />
+                            <Text style={[s.lSub, { color: text, flex: 1, marginLeft: 10, fontWeight: '700' }]}>{codBlocked}</Text>
+                            <Ionicons name="chevron-forward" size={18} color={muted} />
+                        </Pressable>
+                    ) : null}
+
                     {user && quote?.points?.enabled && (quote.points.balance > 0 || quote.points.pendingPoints > 0) ? (
                         <Appear style={[s.card, { backgroundColor: surface, borderColor: border }]}>
                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -518,7 +532,7 @@ export default function CartScreen() {
                     </Appear>
                 ) : null}
                 <View style={s.dockRow}>
-                    <Pressable onPress={() => nav.navigate('PaymentMethods', { current: paymentMethodValue, currentApp: upiApp?.pkg })} style={s.dockLeft}>
+                    <Pressable onPress={() => nav.navigate('PaymentMethods', { current: paymentMethodValue, currentApp: upiApp?.pkg, codBlocked })} style={s.dockLeft}>
                         <View style={s.dockIcon}><Ionicons name="wallet-outline" size={18} color={primary} /></View>
                         <View style={{ flex: 1 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>

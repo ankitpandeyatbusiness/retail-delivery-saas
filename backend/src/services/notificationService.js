@@ -58,7 +58,7 @@ function orderStatusChanged(order, status, actor) {
         const t = order.tenantId;
         const no = order.orderNo;
         const data = { orderId: String(order._id), orderNo: no, status };
-        const what = { brief: brief(order), total: order.pricing?.total };   // what the order is, for the words of the message
+        const what = { brief: brief(order), total: order.pricing?.total, ...(order.orderType === 'pickup' ? { pickupCode: (() => { try { return require('./deliveryPinService').pinFor(order); } catch (e) { return null; } })() } : {}) };   // what the order is, for the words of the message
 
         // the customer is told about every step, except a cancel he made himself
         if (actor.type !== 'customer') {

@@ -32,7 +32,11 @@ const clamp = (n, min, max) => Math.min(Math.max(n, min), max);
 const isId = (v) => typeof v === 'string' && mongoose.isValidObjectId(v);
 
 // order as JSON, plus a flag the app uses to show or hide the Cancel button
-const view = (order, tenant) => { const j = order.toJSON(); delete j.needsLook; return { ...j, canCancel: svc.customerCanCancel(order, tenant) }; };   // needsLook is for the shop only
+const { pinFor } = require('../services/deliveryPinService');
+const view = (order, tenant) => { const j = order.toJSON(); delete j.needsLook;
+    // the 4-digit code he shows when he collects a pickup order (worked out from a secret, nothing is stored)
+    if (order.orderType === 'pickup' && ['placed', 'accepted', 'preparing', 'ready'].includes(order.status)) { try { j.pickupCode = pinFor(order); } catch (e) { /* no secret set up: no code */ } }
+    return { ...j, canCancel: svc.customerCanCancel(order, tenant) }; };   // needsLook is for the shop only
 
 const checkId = (req) => {
     if (!isId(req.params.id)) throw httpError(404, 'Order not found');

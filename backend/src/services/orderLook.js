@@ -16,6 +16,7 @@ const REASONS = {
     customer_cancelled: { text: 'The customer cancelled it', urgent: false },
     not_accepted: { text: 'Cancelled: it was not accepted in time', urgent: false },
     undelivered: { text: 'It could not be delivered', urgent: false },
+    pickup_no_show: { text: 'The customer has not collected it', urgent: false },
 };
 
 async function flag(filter, reason) {

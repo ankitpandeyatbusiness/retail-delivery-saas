@@ -310,8 +310,8 @@ export default function OwnerOrderScreen() {
 
                 {flow.canMarkUndelivered(order) ? (
                     <Card>
-                        <Text style={{ color: muted, fontSize: 12, marginBottom: 8 }}>{tr('The rider could not deliver this order.')}</Text>
-                        <Button label={tr('Mark as not delivered')} icon="close-circle-outline" kind="ghost" onPress={() => actions.requestUndeliver(order)} />
+                        <Text style={{ color: muted, fontSize: 12, marginBottom: 8 }}>{order.orderType === 'pickup' ? tr('The customer did not come for this order.') : tr('The rider could not deliver this order.')}</Text>
+                        <Button label={order.orderType === 'pickup' ? tr('Mark as not collected') : tr('Mark as not delivered')} icon="close-circle-outline" kind="ghost" onPress={() => actions.requestUndeliver(order)} />
                     </Card>
                 ) : (order.orderType === 'delivery' && !flow.isFinal(order.status) && undeliveredWait !== null && undeliveredWait > 0) ? (
                     <Card>

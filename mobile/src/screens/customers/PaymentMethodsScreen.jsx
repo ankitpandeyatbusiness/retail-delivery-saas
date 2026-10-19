@@ -123,7 +123,8 @@ export default function PaymentMethodsScreen() {
         }, 260);
     };
 
-    const cash = { key: 'cod', value: 'cod', label: 'Cash on Delivery', cartLabel: 'Cash on Delivery', icon: 'cash-outline', desc: 'Pay in cash or UPI when the order arrives' };
+    const codBlocked = route.params?.codBlocked || null;   // a pickup order the shop does not take cash for (or too big for cash)
+    const cash = { key: 'cod', value: 'cod', label: 'Cash on Delivery', cartLabel: 'Cash on Delivery', icon: 'cash-outline', desc: codBlocked || 'Pay in cash or UPI when the order arrives' };
     const cardRow = { key: 'card', value: 'card', label: 'Credit / Debit card', cartLabel: 'Credit / Debit card', icon: 'card-outline', desc: 'Visa, Mastercard, RuPay. You confirm with your bank OTP' };
     const upiRows = [
         ...(apps || []).map((a) => ({
@@ -161,7 +162,9 @@ export default function PaymentMethodsScreen() {
                 )}
 
                 <Text style={[s.title, { color: muted }]}>{tr('PAY ON DELIVERY')}</Text>
-                <MethodCard m={cash} index={upiRows.length + 1} selected={picked === 'cod'} onPick={selectMethod} />
+                <View style={{ opacity: codBlocked ? 0.45 : 1 }}>
+                    <MethodCard m={cash} index={upiRows.length + 1} selected={picked === 'cod' && !codBlocked} onPick={codBlocked ? () => { } : selectMethod} />
+                </View>
             </ScrollView>
         </View>
     );

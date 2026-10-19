@@ -150,6 +150,8 @@ router.patch('/orders/:id/status', wrap(async (req, res) => {
         status,
         note: req.body?.note,
         reasonCode: req.body?.reasonCode,
+        pickupCode: req.body?.pickupCode,
+        skipCode: req.body?.skipCode === true,
     });
     res.json(view(order));
 }));
@@ -290,6 +292,23 @@ router.put('/auto-accept', wrap(async (req, res) => {
     res.json(autoAccept.describe({ settings: { orders: { autoAccept: value } } }));
 }));
 
+// Cancel and refund rules: who bears the cost of an order paid online that is cancelled or not collected. The platform sets them; the shop
+// may be kinder (never keep more, never give less free time). "reset" goes back to the platform's.
+router.get('/money-rules', wrap(async (req, res) => {
+    res.json(await require('../services/moneyRules').shopView(req.tenant));
+}));
+router.put('/money-rules', wrap(async (req, res) => {
+    const mr = require('../services/moneyRules');
+    const plat = await mr.loadPlatform(true);
+    let value = null;
+    try { value = req.body?.reset === true ? null : mr.cleanShop(req.body, plat); } catch (e) { throw httpError(e.status || 400, e.message); }
+    req.auditBefore = { cancelRules: req.tenant.settings?.orders?.cancelRules || null };
+    await Tenant.updateOne({ _id: req.tenant._id }, value ? { $set: { 'settings.orders.cancelRules': value } } : { $unset: { 'settings.orders.cancelRules': '' } });
+    tenantRecognizer.invalidateTenant(req.tenant.slug);
+    const fresh = await Tenant.findById(req.tenant._id).select('settings.orders.cancelRules').lean();
+    res.json(await mr.shopView(fresh));
+}));
+
 // Rewards: customer points and rider points / badges. The shop chooses the numbers; "reset" puts the recommended ones back.
 //   GET /loyalty  ->  { settings, recommended }      PUT /loyalty  { customer?, rider? } | { reset: true }      GET /loyalty/riders  ->  Top riders
 router.get('/loyalty', wrap(async (req, res) => {
@@ -325,6 +344,7 @@ router.get('/settings', wrap(async (req, res) => {
         menu: { outOfStock: cfg.menu.outOfStock },   // 'dim' = sold-out dishes stay on the menu, greyed out. 'hide' = they disappear. Shared with the superadmin panel.
         orders: {
             codCap: { ...DEFAULTS.orders.codCap, ...(st.orders?.codCap || {}) },
+            pickupCod: { ...DEFAULTS.orders.pickupCod, ...(cfg.orders.pickupCod || {}) },
             deliveryFee: { ...DEFAULTS.orders.deliveryFee, ...(st.orders?.deliveryFee || {}) },
             packagingCharge: cfg.orders.packagingCharge || 0,
             tipOptions: cfg.orders.tipOptions || [],
@@ -395,7 +415,7 @@ router.put('/settings', wrap(async (req, res) => {
     if (body.orders !== undefined) {
         // what the owner may change of the order settings: the cash limit and what a customer pays on top of the food.
         // GST, payment methods and order types stay with the platform.
-        const OWNER_ORDER_KEYS = ['codCap', 'deliveryFee', 'packagingCharge', 'tipOptions', 'minOrder', 'prepTimeMin'];
+        const OWNER_ORDER_KEYS = ['codCap', 'pickupCod', 'deliveryFee', 'packagingCharge', 'tipOptions', 'minOrder', 'prepTimeMin'];
         if (!body.orders || typeof body.orders !== 'object' || Array.isArray(body.orders) || Object.keys(body.orders).some((k) => !OWNER_ORDER_KEYS.includes(k))) {
             throw httpError(400, 'You can change only the cash limit, delivery fee, packaging charge, tips, minimum order and preparation time');
         }

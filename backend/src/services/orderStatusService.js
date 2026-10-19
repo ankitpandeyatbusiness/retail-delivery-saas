@@ -171,8 +171,9 @@ async function change({ order, status, actor, note, tenant, reasonCode }) {
     checkAllowed({ order, status, actor, note: text, tenant, reasonCode, now });
 
     // cancel and undelivered: who pays what, and what it means for billing, strikes and the coupon
+    const rules = status === 'cancelled' || status === 'undelivered' ? await require('./moneyRules').forTenant(order.tenantId).catch(() => null) : null;   // who bears the cost: the platform's rules, or the shop's kinder ones
     const outcome = status === 'cancelled' || status === 'undelivered'
-        ? outcomeFor({
+        ? outcomeFor({ rules,
             order, kind: status === 'cancelled' ? 'cancel' : 'undelivered', actorType: actor.type, reasonCode,
             frozen: actor.type === 'customer' && shopFrozen(tenant), now,
         })

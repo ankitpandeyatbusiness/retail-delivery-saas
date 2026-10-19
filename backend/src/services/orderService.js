@@ -54,6 +54,12 @@ function checkPlacement({ tenant, config, body, priced, address, user, cod, onli
     if (onlineIssue) return onlineIssue;
 
     // Cash on delivery rules: a blocked phone, and a limit for the first orders of a new phone
+    // Cash for a PICKUP order: the shop may switch it off or cap it (Delivery rules > Pickup orders)
+    if (body.paymentMethod === 'cod' && priced.orderType === 'pickup') {
+        const pc = o.pickupCod || {};
+        if (pc.enabled === false) return { status: 400, message: 'This shop does not take cash for pickup orders. Please pay online.' };
+        if (pc.max > 0 && priced.pricing.total > pc.max) return { status: 400, message: `Cash for a pickup order is allowed up to ₹${pc.max}. Please pay online for this order.` };
+    }
     if (body.paymentMethod === 'cod') {
         if (cod?.blocked) return { status: 400, message: 'Cash on delivery is not available for this number' };
         const cap = o.codCap || {};
@@ -374,9 +380,19 @@ async function reorderCart({ tenant, userId, orderId }) {
     return { items, skipped };
 }
 
-async function updateStatusByShop({ tenantId, actor, orderId, status, note, reasonCode }) {
+async function updateStatusByShop({ tenantId, actor, orderId, status, note, reasonCode, pickupCode, skipCode }) {
     const order = await Order.findOne({ _id: orderId, tenantId });
     if (!order) throw httpError(404, 'Order not found');
+    // a pickup order is handed over against the customer's 4-digit code (or, if he cannot show it, the owner says so and it is written down)
+    if (status === 'delivered' && order.orderType === 'pickup' && actor.type === 'owner') {
+        if (pickupCode !== undefined && pickupCode !== null && pickupCode !== '') {
+            if (!require('./deliveryPinService').matches(order, pickupCode)) throw httpError(400, 'That is not the right pickup code');
+        } else if (skipCode === true) {
+            note = note || 'Handed over without the pickup code';
+        } else {
+            throw httpError(400, 'Ask the customer for his 4-digit pickup code');
+        }
+    }
     return orderStatus.change({ order, status, actor, note, reasonCode });
 }
 

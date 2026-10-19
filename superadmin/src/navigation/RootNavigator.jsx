@@ -40,6 +40,7 @@ import ShopActivityScreen from '../screens/operations/ShopActivityScreen';
 import MoneyHomeScreen from '../screens/money/MoneyHomeScreen';
 import MyRazorpayScreen from '../screens/money/MyRazorpayScreen';
 import GstScreen from '../screens/money/GstScreen';
+import MoneyRulesScreen from '../screens/money/MoneyRulesScreen';
 import SearchScreen from '../screens/insights/SearchScreen';
 import HealthScreen from '../screens/insights/HealthScreen';
 import ReadinessScreen from '../screens/insights/ReadinessScreen';
@@ -196,6 +197,7 @@ function MoneyStack() {
             <Money.Screen name="GstRegister" component={GstRegisterScreen} />
             <Money.Screen name="MyRazorpay" component={MyRazorpayScreen} />
             <Money.Screen name="Gst" component={GstScreen} />
+            <Money.Screen name="MoneyRules" component={MoneyRulesScreen} />
         </Money.Navigator>
     );
 }

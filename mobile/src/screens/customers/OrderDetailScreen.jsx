@@ -309,6 +309,16 @@ export default function OrderDetailScreen() {
                     </LinearGradient>
                 </Appear>
 
+                {o.orderType === 'pickup' && o.pickupCode ? (
+                    <View style={{ alignItems: 'center', marginHorizontal: 16, marginBottom: 12, padding: 16, borderRadius: 18, backgroundColor: tint(primary) }}>
+                        <Text style={{ color: muted, fontWeight: '700', fontSize: 12.5 }}>{tr('YOUR PICKUP CODE')}</Text>
+                        <Text style={{ color: primary, fontSize: 40, fontWeight: '900', letterSpacing: 12, marginTop: 4, paddingLeft: 12 }}>{o.pickupCode}</Text>
+                        <Text style={{ color: muted, fontSize: 12.5, marginTop: 6, textAlign: 'center' }}>
+                            {o.status === 'ready' ? tr('Your order is ready. Show this code when you collect it.') : tr('Show this code when you collect your order.')}
+                            {o.pickupUntil ? ' ' + tr('Pickup time: until {time}', { time: new Date(o.pickupUntil).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' }) }) : ''}
+                        </Text>
+                    </View>
+                ) : null}
                 {delivery && live && track && track.state !== 'cancelled' ? (
                     <TrackingCard tracking={track} destination={o.address} />
                 ) : null}

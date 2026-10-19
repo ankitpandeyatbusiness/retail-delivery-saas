@@ -48,6 +48,10 @@ export const addDisputeNote = (shopId, id, text) => data(api.post(`${T(shopId)}/
 export const platformTax = () => data(api.get('/admin/platform/tax'));
 export const savePlatformTax = (body) => data(api.put('/admin/platform/tax', body));   // { gstPercent, gstMode }
 
+/* ---------------- who bears the cost of a cancelled order (the platform's rules) ---------------- */
+export const platformMoneyRules = () => data(api.get('/admin/platform/money-rules'));   // { rules, recommended }
+export const savePlatformMoneyRules = (body) => data(api.put('/admin/platform/money-rules', body));   // the rules, or { reset: true }
+
 /* ---------------- MY Razorpay account (receives SMS top-ups and rent) ---------------- */
 export const platformPaymentStatus = () => data(api.get('/admin/platform/payments'));
 export const savePlatformKeys = (body) => data(api.put('/admin/platform/payments/keys', body));        // { keyId, keySecret } write only

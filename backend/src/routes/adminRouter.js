@@ -103,6 +103,7 @@ admin.use(require('./adminAlertsRouter'));
 admin.use(require('./adminNotificationRulesRouter'));
 admin.use(require('./adminInsightsRouter'));   // search, shop health, readiness, system, backups, exports
 admin.use(require('./adminPlatformTaxRouter'));   // the one GST for all shops
+admin.use(require('./adminMoneyRulesRouter'));    // who bears the cost of a cancelled order (the platform's rules)
 admin.use(require('./adminPlatformPaymentsRouter'));   // my own Razorpay account
 admin.use(require('./adminGeoRouter'));   // place search for the map picker
 admin.use(require('./adminFinanceRouter'));   // profit and loss, receivables, expenses

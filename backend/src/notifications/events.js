@@ -27,6 +27,8 @@ const EVENTS = {
     rider_accepted: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },
     points_arrived: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },   // loyalty points reached the customer
     rider_badge: { to: 'rider', channels: INAPP_PUSH, alsoPush: true },        // the rider moved up a badge
+    pickup_waiting: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },   // a pickup order is ready and waiting
+    pickup_no_show: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },     // the customer did not come after his pickup time
     rider_leave_request: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // a rider asked for leave
     rider_leave_decision: { to: 'rider', channels: INAPP_PUSH, alsoPush: true },  // the owner approved or rejected it
     rider_duty_auto: { to: 'rider', channels: ['inapp'] },                        // his schedule put him on or off duty

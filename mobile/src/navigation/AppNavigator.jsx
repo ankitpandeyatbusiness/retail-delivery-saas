@@ -22,6 +22,7 @@ import RiderDutyScreen from '../screens/riders/RiderDutyScreen';
 import RiderPointsScreen from '../screens/riders/RiderPointsScreen';
 import MyPointsScreen from '../screens/customers/MyPointsScreen';
 import OwnerRewardsScreen from '../screens/owners/OwnerRewardsScreen';
+import OwnerMoneyRulesScreen from '../screens/owners/OwnerMoneyRulesScreen';
 import OwnerTabs from './OwnerNavigator';
 import ShopHubScreen from '../screens/owners/ShopHubScreen';
 import SoundboxScreen from '../screens/owners/SoundboxScreen';
@@ -339,6 +340,7 @@ export default function AppNavigator() {
                     <Stack.Screen name="OwnerBusiness" component={OwnerBusinessScreen} />
                     <Stack.Screen name="OwnerAutopilot" component={OwnerAutopilotScreen} />
                     <Stack.Screen name="OwnerRewards" component={OwnerRewardsScreen} />
+                    <Stack.Screen name="OwnerMoneyRules" component={OwnerMoneyRulesScreen} />
                     <Stack.Screen name="OwnerSupport" component={OwnerSupportScreen} />
                     <Stack.Screen name="OwnerSupportNew" component={OwnerSupportNewScreen} />
                     <Stack.Screen name="OwnerSupportTicket" component={OwnerSupportTicketScreen} />

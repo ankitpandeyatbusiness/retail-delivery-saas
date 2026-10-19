@@ -70,6 +70,7 @@ const orderSchema = new Schema({
     },
     tableNo: String,
     scheduledFor: Date,
+    pickupNotified: { waitingAt: Date, overAt: Date, noShowAt: Date },   // the reminders for a pickup order, each sent once (jobs/pickupReminders.js)
     pickupUntil: Date,                                      // end of the pickup time window
     note: String,                                           // special instructions for the whole order
     etaMin: Number,

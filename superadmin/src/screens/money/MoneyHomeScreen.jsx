@@ -88,6 +88,7 @@ export default function MoneyHomeScreen() {
 
                     <SectionTitle section="settings">Rules and details</SectionTitle>
                     <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
+                        <ListRow section="money" icon="tune" title="Cancel and refund rules" subtitle="Who bears the cost of a cancelled order. Recommended in one tap" onPress={go('MoneyRules')} />
                         <ListRow section="money" icon="percent" title="GST on shop bills" subtitle="One rate for every shop, set only by you" onPress={go('Gst')} />
                         <ListRow section="settings" icon="tune" title="Billing rules" subtitle="Free service, due days, grace, price tiers" onPress={go('PlatformBilling')} />
                         <ListRow section="platform" icon="bank" title="Business details" subtitle={d.gstSet ? 'Printed on every invoice' : 'No GST number saved yet'} onPress={go('PlatformBusiness')} />
