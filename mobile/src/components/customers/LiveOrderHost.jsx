@@ -8,7 +8,8 @@
 //
 // Mounted once in the navigator. The data comes from useLiveTrip (socket first, polling when the server asks for it).
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, BackHandler, Linking, PanResponder, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Animated, AppState, BackHandler, Linking, PanResponder, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Image } from 'expo-image';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { useMapStyle } from '../../utils/common/mapStyle';
 import RiderTrack from '../common/RiderTrack';
@@ -22,6 +23,10 @@ import { useAuthStore } from '../../store/common/useAuthStore';
 import { useLiveTripStore } from '../../store/customers/useLiveTripStore';
 import { useLiveTrip } from '../../hooks/customers/useLiveTrip';
 import { decodePolyline } from '../../utils/common/polyline';
+import { onNotification, onMenuChanged } from '../../api/common/socket';
+import { useMenuStore } from '../../store/customers/shopStores';
+import { useHomeStore } from '../../store/customers/useHomeStore';
+import { playSfx, buzz } from '../../utils/common/sfx';
 import { tr } from '../../i18n';
 
 // screens where the bar would sit on top of something the customer is using
@@ -45,10 +50,45 @@ function eta(e, now) {
     return { head: mins <= 1 ? 'Arriving now' : `Arriving in ${mins} min`, mins };
 }
 
-export default function LiveOrderHost({ routeName }) {
+export default function LiveOrderHost({ routeName, onOpenOrder }) {
     const user = useAuthStore((s) => s.user);
     const enabled = !!user && user.role !== 'rider' && user.role !== 'admin';
     useLiveTrip(enabled);
+
+    // Without a live connection (a guest who skipped login, or the connection is down) the menu is still read again every 20 s
+    // while the app is open, and the moment the app comes back to the front.
+    const shopper = !user || (user.role !== 'rider' && user.role !== 'admin');
+    useEffect(() => {
+        if (!shopper) return undefined;
+        const load = () => { if (AppState.currentState === 'active') useMenuStore.getState().load(); };
+        const t = setInterval(load, 20000);
+        const sub = AppState.addEventListener('change', (st) => { if (st === 'active') { useMenuStore.getState().load(); useHomeStore.getState().load(); } });
+        return () => { clearInterval(t); sub.remove(); };
+    }, [shopper]);
+
+    // The shop changed a dish (price, sold out for today, back in 2 hours...): the menu is read again at once, so the customer
+    // sees exactly what the shop chose with no delay.
+    useEffect(() => {
+        if (!enabled) return undefined;
+        return onMenuChanged(() => { useMenuStore.getState().load(); useHomeStore.getState().load(); });   // the dishes AND the shop's settings (show / hide sold-out dishes)
+    }, [enabled]);
+
+    // The shop's answer and the ride, heard as they happen: accepted, turned down (cancelled by the shop), out for delivery.
+    // (The customer's own cancel is not announced to him; its sound plays where he taps Cancel.)
+    useEffect(() => {
+        if (!enabled) return undefined;
+        const seen = new Map();   // orderId:status -> time, so one change sounds once
+        return onNotification((n) => {
+            const d = n?.data;
+            if (n?.type !== 'order_status' || !d?.orderId) return;
+            const key = d.orderId + ':' + d.status;
+            if (Date.now() - (seen.get(key) || 0) < 15000) return;
+            seen.set(key, Date.now());
+            if (d.status === 'accepted') playSfx('orderAccepted');
+            else if (d.status === 'cancelled') { playSfx('orderCancelled'); buzz(); }
+            else if (d.status === 'out_for_delivery') { playSfx('outForDelivery'); buzz([0, 80, 90, 80, 90, 160]); }
+        });
+    }, [enabled]);
 
     const { orderId, orderNo, track, loc, route, eta: e, dest, quiet, sheet } = useLiveTripStore();
     const setSheet = useLiveTripStore((s) => s.setSheet);
@@ -58,6 +98,18 @@ export default function LiveOrderHost({ routeName }) {
     const insets = useSafeAreaInsets();
     const { height: H } = useWindowDimensions();
     const now = useNow(20000);
+
+    // the customer can slide the bar down out of the way; a small chip brings it back
+    const [hidden, setHidden] = useState(false);
+    const slide = useRef(new Animated.Value(0)).current;   // 0 = bar shown, 1 = bar hidden
+    useEffect(() => { Animated.timing(slide, { toValue: hidden ? 1 : 0, duration: 280, useNativeDriver: true }).start(); }, [hidden, slide]);
+    useEffect(() => { setHidden(false); }, [orderId]);
+    // tell the active-order bar how much room this bar takes (the bar, or the small chip when it is hidden)
+    const setLiveOffset = useLiveTripStore((s) => s.setLiveOffset);
+    useEffect(() => {
+        const visible = enabled && !!orderId && !!track && !HIDE_ON.includes(routeName) && sheet === 'bar';
+        setLiveOffset(visible ? (hidden ? 54 : 126) : 0);
+    }, [enabled, orderId, track, routeName, sheet, hidden, setLiveOffset]);
 
     const SHEET_H = Math.round(H * 0.93);
     const VISIBLE = useMemo(() => ({ bar: 0, half: Math.round(H * 0.58), full: SHEET_H }), [H, SHEET_H]);
@@ -134,25 +186,56 @@ export default function LiveOrderHost({ routeName }) {
     const estimate = e?.source && e.source !== 'google' && e.source !== 'route';
     const sub = [name, far && `${estimate ? 'about ' : ''}${far} away`].filter(Boolean).join(' · ') || `Order #${orderNo}`;
     const showBar = !HIDE_ON.includes(routeName) && sheet === 'bar';
+    const barBottom = insets.bottom + TAB_H + 18;
 
     return (
         <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
             {showBar ? (
-                <Pressable
-                    onPress={() => setSheet('half')}
-                    style={[s.bar, { bottom: insets.bottom + TAB_H + 10, backgroundColor: surface, borderColor: border }]}
-                    accessibilityRole="button" accessibilityLabel={tr('Open live delivery map')}
-                >
-                    <View style={[s.barIc, { backgroundColor: primary }]}>
-                        <Ionicons name="bicycle" size={22} color="#FFFFFF" />
-                    </View>
-                    <View style={s.barText}>
-                        <Text style={[s.barHead, { color: text }]} numberOfLines={1}>{quiet ? tr('Reconnecting to your delivery partner') : t.head}</Text>
-                        <Text style={[s.barSub, { color: muted }]} numberOfLines={1}>{sub}</Text>
-                    </View>
-                    <Text style={[s.barGo, { color: primary }]}>{tr('Track')}</Text>
-                    <Ionicons name="chevron-up" size={20} color={primary} />
-                </Pressable>
+                <>
+                    <Animated.View
+                        pointerEvents={hidden ? 'none' : 'auto'}
+                        style={{ position: 'absolute', left: 12, right: 12, bottom: barBottom, opacity: slide.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }), transform: [{ translateY: slide.interpolate({ inputRange: [0, 1], outputRange: [0, barBottom + 90] }) }] }}
+                    >
+                        <Pressable
+                            onPress={() => setSheet('half')}
+                            style={[s.bar, { position: 'relative', left: undefined, right: undefined, flexDirection: 'column', alignItems: 'stretch', backgroundColor: surface, borderColor: border }]}
+                            accessibilityRole="button" accessibilityLabel={tr('Open live delivery map')}
+                        >
+                            {/* ONE card for a delivery on its way: what is happening, then View order and Track, and Hide */}
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <View style={[s.barIc, { backgroundColor: primary }]}>
+                                    <Ionicons name="bicycle" size={22} color="#FFFFFF" />
+                                </View>
+                                <View style={s.barText}>
+                                    <Text style={[s.barHead, { color: text }]} numberOfLines={1}>{quiet ? tr('Reconnecting to your delivery partner') : t.head}</Text>
+                                    <Text style={[s.barSub, { color: muted }]} numberOfLines={1}>{sub}</Text>
+                                </View>
+                                <Pressable onPress={() => setHidden(true)} hitSlop={8} style={[s.hide, { backgroundColor: tint(primary) }]} accessibilityRole="button" accessibilityLabel={tr('Hide')}>
+                                    <Ionicons name="chevron-down" size={18} color={primary} />
+                                </Pressable>
+                            </View>
+                            <View style={{ flexDirection: 'row', marginTop: 10 }}>
+                                <Pressable onPress={() => onOpenOrder && onOpenOrder(String(orderId))} style={[s.act, { borderColor: primary, flex: 1 }]} accessibilityRole="button" accessibilityLabel={tr('View your active order')}>
+                                    <Ionicons name="receipt-outline" size={16} color={primary} />
+                                    <Text style={[s.actTxt, { color: primary }]}>{tr('View order')}</Text>
+                                </Pressable>
+                                <Pressable onPress={() => setSheet('half')} style={[s.act, { backgroundColor: primary, borderColor: primary, flex: 1, marginLeft: 8 }]} accessibilityRole="button">
+                                    <Ionicons name="navigate" size={16} color="#FFFFFF" />
+                                    <Text style={[s.actTxt, { color: '#FFFFFF' }]}>{tr('Track')}</Text>
+                                </Pressable>
+                            </View>
+                        </Pressable>
+                    </Animated.View>
+                    <Animated.View
+                        pointerEvents={hidden ? 'auto' : 'none'}
+                        style={{ position: 'absolute', right: 14, bottom: barBottom, opacity: slide, transform: [{ translateY: slide.interpolate({ inputRange: [0, 1], outputRange: [60, 0] }) }] }}
+                    >
+                        <Pressable onPress={() => setHidden(false)} style={[s.chip, { backgroundColor: primary }]} accessibilityRole="button" accessibilityLabel={tr('Show live delivery')}>
+                            <Ionicons name="bicycle" size={20} color="#FFFFFF" />
+                            <Ionicons name="chevron-up" size={16} color="#FFFFFF" style={{ marginLeft: 2 }} />
+                        </Pressable>
+                    </Animated.View>
+                </>
             ) : null}
 
             <Animated.View
@@ -213,7 +296,7 @@ export default function LiveOrderHost({ routeName }) {
                     ) : null}
                     {track.rider ? (
                         <View style={s.rider}>
-                            <View style={[s.avatar, { backgroundColor: tint(primary) }]}><Ionicons name="person" size={22} color={primary} /></View>
+                            <View style={[s.avatar, { backgroundColor: tint(primary), overflow: 'hidden' }]}>{track.rider.photo ? <Image source={{ uri: track.rider.photo }} style={{ width: 44, height: 44 }} contentFit="cover" /> : <Ionicons name="person" size={22} color={primary} />}</View>
                             <View style={{ flex: 1, marginLeft: 12 }}>
                                 <Text style={[s.rName, { color: text }]} numberOfLines={1}>{track.rider.name}</Text>
                                 <Text style={[s.barSub, { color: muted }]} numberOfLines={1}>
@@ -223,7 +306,6 @@ export default function LiveOrderHost({ routeName }) {
                             {track.rider.phone ? (
                                 <Pressable onPress={() => Linking.openURL(`tel:${track.rider.phone}`).catch(() => { })} style={[s.call, { backgroundColor: primary }]} accessibilityRole="button" accessibilityLabel={tr('Call {name}', { name: track.rider.name })}>
                                     <Ionicons name="call" size={20} color="#FFFFFF" />
-                                    <Text style={s.callTxt}>{tr('Call')}</Text>
                                 </Pressable>
                             ) : null}
                         </View>
@@ -246,6 +328,10 @@ const s = StyleSheet.create({
     barText: { flex: 1, marginHorizontal: 12 },
     barHead: { fontSize: 15, fontWeight: '800' },
     barSub: { fontSize: 12.5, fontWeight: '500', marginTop: 2 },
+    act: { height: 38, borderRadius: 19, borderWidth: 1.5, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+    actTxt: { fontSize: 13.5, fontWeight: '800', marginLeft: 6 },
+    hide: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
+    chip: { height: 44, minWidth: 64, borderRadius: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14, elevation: 8, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 10, shadowOffset: { width: 0, height: 3 } },
     barGo: { fontSize: 13, fontWeight: '800', marginRight: 2 },
     sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderBottomWidth: 0, overflow: 'hidden', elevation: 16, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 16, shadowOffset: { width: 0, height: -4 } },
     grab: { paddingTop: 8, paddingBottom: 12, paddingHorizontal: 20, alignItems: 'center' },
@@ -261,7 +347,7 @@ const s = StyleSheet.create({
     rider: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
     avatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
     rName: { fontSize: 15, fontWeight: '800' },
-    call: { height: 44, borderRadius: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
+    call: { width: 44, height: 44, borderRadius: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
     callTxt: { color: '#FFFFFF', fontSize: 14, fontWeight: '800', marginLeft: 6, paddingRight: 18 },
     pin: { marginTop: 10, borderRadius: 14, padding: 12, alignItems: 'center' },
     pinNo: { fontSize: 26, fontWeight: '900', letterSpacing: 4, marginTop: 4 },

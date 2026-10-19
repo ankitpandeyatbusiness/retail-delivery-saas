@@ -25,13 +25,17 @@ const CHANNEL = 'orders';   // must match defaultChannel in app.config.js
 const NEW_ORDERS_CHANNEL = 'new_orders_v2';   // must match NEW_ORDER_CHANNEL in backend notifications/events.js
 const OLD_NEW_ORDERS_CHANNELS = ['new_orders'];   // earlier ids: they may be stuck without the sound, so they are removed
 
-// While the socket is connected the app shows its own toast and badge, so the system banner would be a duplicate.
+// While the socket is connected the app shows its own toast and badge, so the system banner would be a duplicate...
+// EXCEPT for anything about an order (status steps, offers, cancels, problems): that push is always shown, so nobody misses it
+// (a toast fades in seconds). Its sound is left to the app while it is open, which plays its own sound, so it does not sound twice.
 Notifications.setNotificationHandler({
     handleNotification: async (notification) => {
         // the owner's test push has no live message behind it, so it is always shown, even with the app in front
         const isTest = notification?.request?.content?.data?.test === '1';
+        const d = notification?.request?.content?.data || {};
+        const orderRelated = !!(d.orderId || d.orderNo);
         const quiet = realtimeConnected() && !isTest;
-        return { shouldShowBanner: !quiet, shouldShowList: !quiet, shouldPlaySound: !quiet, shouldSetBadge: false };
+        return { shouldShowBanner: !quiet || orderRelated, shouldShowList: !quiet || orderRelated, shouldPlaySound: !quiet, shouldSetBadge: false };
     },
 });
 

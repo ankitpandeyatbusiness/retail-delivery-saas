@@ -7,6 +7,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useBrand } from '../common/kit';
 import { showToast } from '../customers/shop';
 import { onRiderOffer } from '../../api/common/socket';
+import { playSfx } from '../../utils/common/sfx';
 import { acceptOrder, rejectOrder } from '../../api/riders/riderApi';
 import { useRiderStore } from '../../store/riders/useRiderStore';
 import { T, rupee, rupeeAmount, errText } from '../../utils/riders/riderText';
@@ -51,6 +52,7 @@ export default function OfferPopup() {
         setBusy(true);
         try {
             await acceptOrder(o.id);
+            playSfx('riderAccept');
             await useRiderStore.getState().load();
             setId(null);
             nav.navigate('RiderTrip', { orderId: String(o.id) });
@@ -62,7 +64,7 @@ export default function OfferPopup() {
     };
     const reject = async () => {
         setId(null);
-        try { await rejectOrder(o.id); } catch (e) { showToast(errText(e)); }
+        try { await rejectOrder(o.id); playSfx('riderReject'); } catch (e) { showToast(errText(e)); }
         useRiderStore.getState().load();
     };
 

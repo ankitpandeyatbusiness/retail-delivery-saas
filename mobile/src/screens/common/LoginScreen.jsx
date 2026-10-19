@@ -651,6 +651,9 @@ export default function LoginScreen({ navigation }) {
             {/* LOGIN PANEL */}
             <View style={styles.panelOuter}>
                 <Animated.View style={[styles.panel, { paddingBottom: insets.bottom + 16, backgroundColor: brand.surface }, panelStyle]}>
+                    {/* The panel is lifted by the keyboard height. This filler rides along under it, so the dark
+                        background can never show below the panel while the keyboard hides or shows. */}
+                    <View pointerEvents="none" style={[styles.panelFiller, { backgroundColor: brand.surface }]} />
                     <View style={styles.titleRow}>
                         <View style={[styles.titleLine, { backgroundColor: brand.border }]} />
                         <Text style={[styles.title, { color: brand.muted }]}>{tr('Log in or sign up')}</Text>
@@ -904,6 +907,13 @@ const styles = StyleSheet.create({
         borderTopRightRadius: 28,
         paddingHorizontal: 24,
         paddingTop: 26,
+    },
+    panelFiller: {
+        position: 'absolute',
+        top: '100%',
+        left: 0,
+        right: 0,
+        height: 700,
     },
     titleRow: {
         flexDirection: 'row',

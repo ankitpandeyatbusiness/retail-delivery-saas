@@ -23,6 +23,7 @@ import { payForOrder, prewarmPayments, abandonUnpaidOrder } from '../../utils/cu
 import PayShimmer from '../../components/customers/PayShimmer';
 import { usePayChoice } from '../../store/customers/usePayChoice';
 import { tr } from '../../i18n';
+import KeyboardScroll from '../../components/common/KeyboardScroll';
 
 const errMsg = (e) => e?.response?.data?.error
     || (e?.response ? 'Something went wrong. Try again.' : 'Network problem. Check your connection.');
@@ -300,7 +301,7 @@ export default function CartScreen() {
     return (
         <View style={[s.flex, { backgroundColor: background }]}>
             <BackHeader title={full.restaurant?.name || tr('Your Cart')} />
-            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 30 }}>
+            <KeyboardScroll keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 30 }}>
                 {closed ? <ClosedBanner message={quote?.problem || closedMsg} /> : null}
 
                 {type === 'delivery' && freeAbove > 0 ? <FreeDeliveryBar preview={preview} freeAbove={freeAbove} /> : null}
@@ -484,7 +485,7 @@ export default function CartScreen() {
                         <Text style={[s.policy, { color: muted }]}>{tr('Orders cannot be cancelled once preparation begins at the restaurant.')}</Text>
                     </View>
                 </View>
-            </ScrollView>
+            </KeyboardScroll>
 
             <View style={[s.dockWrap, { backgroundColor: surface, borderTopColor: border, paddingBottom: insets.bottom || 12 }]}>
                 {note ? (

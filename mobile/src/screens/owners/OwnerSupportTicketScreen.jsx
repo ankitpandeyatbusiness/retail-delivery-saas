@@ -17,6 +17,7 @@ import { dayTime } from '../../utils/owners/orderFlow';
 import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
 import { tr } from '../../i18n';
+import KeyboardScroll from '../../components/common/KeyboardScroll';
 
 function Bubble({ m }) {
     const { primary, onPrimary, surface, border, text, muted } = useBrand();
@@ -111,7 +112,7 @@ export default function OwnerSupportTicketScreen({ route }) {
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Request #{number}', { number: t.number })} right={!resolved ? <Pressable onPress={solved} hitSlop={10}><Text style={{ color: primary, fontWeight: '800' }}>{tr('Mark solved')}</Text></Pressable> : null} />
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-                <ScrollView ref={scroll} contentContainerStyle={{ paddingTop: 6, paddingBottom: 16 }} keyboardShouldPersistTaps="handled">
+                <KeyboardScroll ref={scroll} contentContainerStyle={{ paddingTop: 6, paddingBottom: 16 }} keyboardShouldPersistTaps="handled">
                     <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
                         <Text style={{ color: text, fontSize: 18, fontWeight: '900' }}>{t.subject}</Text>
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
@@ -122,7 +123,7 @@ export default function OwnerSupportTicketScreen({ route }) {
                     {t.messages.map((m) => <Bubble key={m.id} m={m} />)}
                     {resolved && !t.rating ? <Rate onRate={rate} /> : null}
                     {resolved && t.rating ? <Text style={{ color: muted, textAlign: 'center', marginVertical: 8 }}>{tr('You rated this {stars} of 5. Thank you!', { stars: t.rating.stars })}</Text> : null}
-                </ScrollView>
+                </KeyboardScroll>
 
                 {resolved && !t.canReopen ? (
                     <View style={{ padding: 16, paddingBottom: Math.max(insets.bottom, 12) + 4, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: border, backgroundColor: background }}>

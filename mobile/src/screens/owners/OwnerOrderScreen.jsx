@@ -16,6 +16,8 @@ import { useNow } from '../../hooks/owners/useNow';
 import * as flow from '../../utils/owners/orderFlow';
 import { FormShimmer } from '../../components/owners/shimmer';
 import RiderLiveMap from '../../components/owners/RiderLiveMap';
+import TripClock from '../../components/riders/TripClock';
+import { Avatar } from './OwnerRidersScreen';
 import { tr } from '../../i18n';
 
 const UNDELIVERED_WAIT_MS = 15 * 60 * 1000;   // the server allows "not delivered" 15 minutes after the rider's first problem
@@ -54,6 +56,7 @@ export default function OwnerOrderScreen() {
     const [failed, setFailed] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [riderOpen, setRiderOpen] = useState(false);
+    const [dockH, setDockH] = useState(220);   // the height of the buttons fixed at the bottom
     const [invoiceBusy, setInvoiceBusy] = useState(false);
     const now = useNow(1000, true);
     const alive = useRef(true);
@@ -120,7 +123,7 @@ export default function OwnerOrderScreen() {
             <PageHeader title={tr('Order #{orderNo}', { orderNo: order.orderNo })} right={<StatusPill status={order.status} />} />
 
             <ScrollView
-                contentContainerStyle={{ paddingBottom: 150 }}
+                contentContainerStyle={{ paddingBottom: dockH + 24 }}
                 showsVerticalScrollIndicator={false}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={pull} />}
             >
@@ -188,7 +191,7 @@ export default function OwnerOrderScreen() {
                     {order.customer?.phone ? <Text style={{ color: muted, marginTop: 2 }}>{order.customer.phone}</Text> : null}
                     {order.customer?.phone && !order.customer?.deleted ? (
                         <View style={{ flexDirection: 'row', marginTop: 10 }}>
-                            <Button label={tr('Call')} icon="call" kind="ghost" onPress={() => callPhone(order.customer.phone)} style={{ flex: 1, marginRight: 8 }} />
+                            <Button label={tr('Call')} icon="call" iconOnly kind="ghost" onPress={() => callPhone(order.customer.phone)} style={{ flex: 1, marginRight: 8 }} />
                             <Button label={tr('WhatsApp')} icon="logo-whatsapp" kind="ghost" onPress={() => whatsApp(order.customer.phone)} style={{ flex: 1 }} />
                         </View>
                     ) : null}
@@ -215,12 +218,22 @@ export default function OwnerOrderScreen() {
                     ) : null}
                 </Card>
 
+                {/* the delivery time runs from the moment the rider collects the order; it turns red when he is late */}
+                {order.status === 'out_for_delivery' && order.orderType === 'delivery' && (delivery?.dueAt || order.delivery?.dueAt) ? (
+                    <TripClock onTheWay due={new Date(delivery?.dueAt || order.delivery?.dueAt).getTime()} style={{ marginHorizontal: 16, marginBottom: 12 }} />
+                ) : null}
+
                 {showRider ? (
                     <>
                         <SectionTitle title={tr('Delivery rider')} />
                         <Card>
-                            <Text style={{ color: text, fontWeight: '800' }}>{riderStatusText(delivery || order.delivery, rider)}</Text>
-                            {rider?.phone ? <Text style={{ color: muted, marginTop: 2 }}>{rider.phone}</Text> : null}
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                {rider ? <View style={{ marginRight: 12 }}><Avatar rider={rider} size={48} /></View> : null}
+                                <View style={{ flex: 1 }}>
+                                    <Text style={{ color: text, fontWeight: '800' }}>{riderStatusText(delivery || order.delivery, rider)}</Text>
+                                    {rider?.phone ? <Text style={{ color: muted, marginTop: 2 }}>{rider.phone}</Text> : null}
+                                </View>
+                            </View>
                             {(delivery?.problems || []).map((pr, i) => (
                                 <View key={i} style={{ flexDirection: 'row', marginTop: 8 }}>
                                     <Ionicons name="warning" size={16} color={error} style={{ marginRight: 6, marginTop: 1 }} />
@@ -228,7 +241,7 @@ export default function OwnerOrderScreen() {
                                 </View>
                             ))}
                             {rider?.phone ? (
-                                <Button label={tr('Call the rider')} icon="call" kind="ghost" onPress={() => callPhone(rider.phone)} style={{ marginTop: 10 }} />
+                                <Button label={tr('Call the rider')} icon="call" iconOnly kind="ghost" onPress={() => callPhone(rider.phone)} style={{ marginTop: 10 }} />
                             ) : null}
                             {order.status === 'out_for_delivery' && order.orderType === 'delivery' ? (
                                 <RiderLiveMap orderId={String(order._id || order.id)} initial={rider?.lastLocation} destination={order.address} riderName={rider?.name} />
@@ -238,6 +251,33 @@ export default function OwnerOrderScreen() {
                             ) : null}
                             {!flow.isFinal(order.status) ? (
                                 <Button label={riderId ? tr('Change or remove the rider') : tr('Assign a rider')} icon="bicycle" onPress={() => setRiderOpen(true)} style={{ marginTop: 10 }} />
+                            ) : null}
+                        </Card>
+                    </>
+                ) : null}
+
+                {(order.foodReviews?.length || order.deliveryRating?.rating) ? (
+                    <>
+                        <SectionTitle title={tr('Customer review')} />
+                        <Card>
+                            {(order.foodReviews || []).map((r, i) => (
+                                <View key={i} style={{ marginBottom: 10 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                        <Text style={{ color: text, fontWeight: '800', flex: 1 }} numberOfLines={2}>{r.name}</Text>
+                                        <Text style={{ color: '#D97706', fontWeight: '900' }}>{'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</Text>
+                                    </View>
+                                    {r.comment ? <Text style={{ color: muted, marginTop: 2 }}>{r.comment}</Text> : null}
+                                </View>
+                            ))}
+                            {order.deliveryRating?.rating ? (
+                                <View style={order.foodReviews?.length ? { borderTopWidth: 1, borderTopColor: alpha(muted, 0.25), paddingTop: 10 } : null}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                        <Text style={{ color: text, fontWeight: '800', flex: 1 }}>{tr('Delivery')}</Text>
+                                        <Text style={{ color: '#D97706', fontWeight: '900' }}>{'★'.repeat(order.deliveryRating.rating)}{'☆'.repeat(5 - order.deliveryRating.rating)}</Text>
+                                    </View>
+                                    {(order.deliveryRating.tags || []).length ? <Text style={{ color: muted, marginTop: 2 }}>{order.deliveryRating.tags.map((t) => String(t).replace(/_/g, ' ')).join(' · ')}</Text> : null}
+                                    {order.deliveryRating.comment ? <Text style={{ color: muted, marginTop: 2 }}>{order.deliveryRating.comment}</Text> : null}
+                                </View>
                             ) : null}
                         </Card>
                     </>
@@ -282,12 +322,15 @@ export default function OwnerOrderScreen() {
 
             {/* the buttons that move the order on: always in reach */}
             {next ? (
-                <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, paddingBottom: 24, backgroundColor: background, borderTopWidth: 1, borderTopColor: alpha(muted, 0.25) }}>
+                <View onLayout={(e) => setDockH(Math.ceil(e.nativeEvent.layout.height))} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, paddingBottom: 24, backgroundColor: background, borderTopWidth: 1, borderTopColor: alpha(muted, 0.25) }}>
+                    {flow.needsRider(order, next) ? (
+                        <Text style={{ color: warn, fontWeight: '800', fontSize: 13, marginBottom: 8, textAlign: 'center' }}>{tr('Assign a delivery partner first. Then you can send it out.')}</Text>
+                    ) : null}
                     <View style={{ flexDirection: 'row' }}>
                         {isNew && flow.canCancel(order) ? (
                             <Button label={tr('Reject')} icon="close" kind="ghost" disabled={busy} onPress={() => actions.requestReject(order)} style={{ flex: 1, marginRight: 8 }} />
                         ) : null}
-                        <Button label={flow.stepLabel(order, next)} icon="checkmark" busy={busy} onPress={() => actions.advance(order)} style={{ flex: isNew ? 1.4 : 1 }} />
+                        <Button label={flow.stepLabel(order, next)} icon="checkmark" busy={busy} disabled={flow.needsRider(order, next)} onPress={() => actions.advance(order)} style={{ flex: isNew ? 1.4 : 1 }} />
                     </View>
                     {!isNew && flow.canCancel(order) ? (
                         <Button label={tr('Cancel this order')} kind="ghost" disabled={busy} onPress={() => actions.requestReject(order)} style={{ marginTop: 8 }} />

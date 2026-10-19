@@ -13,11 +13,13 @@ import { addRider, updateRider, apiError } from '../../api/owners/shopApi';
 import { rupees, riderName } from '../../utils/owners/riderRules';
 import { showToast } from '../../components/customers/shop';
 import { ListShimmer } from '../../components/owners/shimmer';
+import { Image } from 'expo-image';
 import { tr } from '../../i18n';
 
 export function Avatar({ rider, size = 44 }) {
     const { primary, onPrimary } = useBrand();
     const initial = riderName(rider).replace(/^Rider\s*/, '').charAt(0).toUpperCase() || 'R';
+    if (rider?.photo) return <Image source={{ uri: rider.photo }} style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: alpha(primary, 0.16) }} contentFit="cover" />;
     return (
         <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: alpha(primary, 0.16), alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ color: primary, fontWeight: '900', fontSize: size * 0.42 }}>{initial}</Text>

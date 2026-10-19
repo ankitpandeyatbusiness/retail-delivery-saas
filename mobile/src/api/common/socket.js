@@ -17,7 +17,7 @@ const AUTH_ERRORS = ['TOKEN_INVALID', 'SESSION_ENDED', 'AUTH_REQUIRED'];
 let socket = null;
 let retryTimer = null;
 const joined = new Map();   // orderId -> how many screens want it
-const listeners = { 'order:update': new Set(), notification: new Set(), 'rider:location': new Set(), 'rider:route': new Set(), 'order:eta': new Set(), 'rider:quiet': new Set(), 'rider:offer': new Set(), 'offer:closed': new Set() };
+const listeners = { 'menu:changed': new Set(), 'order:update': new Set(), notification: new Set(), 'rider:location': new Set(), 'rider:route': new Set(), 'order:eta': new Set(), 'rider:quiet': new Set(), 'rider:offer': new Set(), 'offer:closed': new Set() };
 
 // What the server asks of us: "socket" (normal) or "polling" (it is busy: poll every pollSec seconds and try the socket again
 // later). Screens read this to decide whether they need a timer. We never retry a refused connection sooner than retryAfterSec.
@@ -80,6 +80,7 @@ function connect() {
         if (reason === 'io server disconnect' && trackingMode.mode !== 'socket') comeBackLater(trackingMode.retryAfterSec);
     });
     socket.on('order:update', (p) => dispatch('order:update', p));
+    socket.on('menu:changed', (p) => dispatch('menu:changed', p));
     socket.on('notification', (p) => dispatch('notification', p));
     socket.on('rider:location', (p) => dispatch('rider:location', p));
     socket.on('rider:route', (p) => dispatch('rider:route', p));
@@ -122,6 +123,12 @@ export function startRealtime() {
         if (s === 'active' && useAuthStore.getState().user && socket && !socket.connected) socket.connect();
     });
     sync();
+}
+
+// A dish changed in the shop (price, sold out, back in stock...). Returns a function that stops listening.
+export function onMenuChanged(fn) {
+    listeners['menu:changed'].add(fn);
+    return () => listeners['menu:changed'].delete(fn);
 }
 
 // Returns a function that stops listening.

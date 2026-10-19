@@ -2,6 +2,7 @@
 // One call (GET /shop/dashboard) fills it; it refreshes whenever an order changes anywhere.
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text } from 'react-native';
+import GlowBorder from '../../components/common/GlowBorder';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../../components/common/kit';
@@ -134,6 +135,16 @@ export default function OwnerHomeScreen() {
     };
 
     const active = live?.orders?.active || {};
+    // what waits for the owner: each of these makes its pipeline card blink until it is dealt with
+    const attn = live?.orders?.attention || {};
+    const lateMin = Math.max(0, ...(attn.roadDue || []).map((d) => Math.floor((now - new Date(d).getTime()) / 60000)));   // the most late delivery on the road, in minutes
+    const blink = {
+        placed: (active.placed || 0) > 0,                 // accept or reject
+        accepted: (attn.accepted || 0) > 0,               // mark preparing
+        preparing: (attn.cookingNoRider || 0) > 0,        // nobody took it: assign a rider by hand
+        ready: (attn.ready || 0) > 0,                     // no rider yet, or waiting to be handed over
+        out_for_delivery: lateMin > 0,                    // a delivery is late
+    };
     const riders = d?.riders;
     const waiting = d?.waiting || [];
     const change = d ? flow.percentChange(d.today.revenue, d.yesterday.revenue) : null;
@@ -187,11 +198,19 @@ export default function OwnerHomeScreen() {
             <SectionTitle title={tr('Order pipeline')} action={tr('Open orders')} onAction={() => toOrders('active')} />
             <View style={{ flexDirection: 'row', paddingHorizontal: 13 }}>
                 {PIPELINE.map(([key, label, icon]) => (
-                    <Card key={key} onPress={() => toOrders(key)} style={{ flex: 1, marginHorizontal: 3, paddingHorizontal: 2, alignItems: 'center', paddingVertical: 12 }}>
-                        <Ionicons name={icon} size={20} color={active[key] ? primary : muted} />
-                        <Text style={{ fontSize: 22, fontWeight: '900', color: active[key] ? primary : muted, marginTop: 2 }}>{active[key] || 0}</Text>
-                        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={{ fontSize: 11, color: muted, fontWeight: '700', maxWidth: '100%' }}>{label}</Text>
-                    </Card>
+                    // New orders blink with a glowing rim until they are accepted or rejected (the count drops to 0)
+                    <GlowBorder key={key} active={!!blink[key]} radius={18} style={{ flex: 1, marginHorizontal: 3, marginBottom: 12 }}>
+                        <Card onPress={() => toOrders(key)} style={{ flex: 1, marginHorizontal: 0, marginBottom: 0, paddingHorizontal: 2, alignItems: 'center', paddingVertical: 12 }}>
+                            <Ionicons name={icon} size={20} color={active[key] ? primary : muted} />
+                            <Text style={{ fontSize: 22, fontWeight: '900', color: active[key] ? primary : muted, marginTop: 2 }}>{active[key] || 0}</Text>
+                            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={{ fontSize: 11, color: muted, fontWeight: '700', maxWidth: '100%' }}>{label}</Text>
+                            {key === 'out_for_delivery' && lateMin > 0 ? (
+                                <View style={{ marginTop: 4, backgroundColor: error, borderRadius: 99, paddingHorizontal: 6, paddingVertical: 1 }}>
+                                    <Text numberOfLines={1} style={{ color: '#FFFFFF', fontSize: 9.5, fontWeight: '900' }}>{tr('Late {min}m', { min: lateMin })}</Text>
+                                </View>
+                            ) : null}
+                        </Card>
+                    </GlowBorder>
                 ))}
             </View>
 

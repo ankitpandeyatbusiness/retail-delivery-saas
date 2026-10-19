@@ -319,8 +319,11 @@ function OrdersList() {
 
     const load = useCallback(async () => {
         try {
-            const r = await fetchOrders({ page: 1, limit: 30, ...qParams });
-            setOrders(r.items || []);
+            // The orders in progress are asked for on their own as well, so they are always here, whatever the date filter or page
+            const [r, act] = await Promise.all([fetchOrders({ page: 1, limit: 30, ...qParams }), fetchOrders({ active: true, limit: 20 }).catch(() => null)]);
+            const have = new Set((r.items || []).map((o) => o.id));
+            const extra = (act?.items || []).filter((o) => isActive(o.status) && !have.has(o.id));
+            setOrders([...extra, ...(r.items || [])]);
             setPage(1);
             setHasMore(!!r.hasMore);
             setState('ok');
@@ -350,7 +353,9 @@ function OrdersList() {
     const rows = useMemo(() => {
         const out = [];
         let last = '';
-        filtered.forEach((o) => {
+        // active orders first (the rest keep their newest-first order)
+        const sorted = [...filtered].sort((a, b) => (isActive(b.status) ? 1 : 0) - (isActive(a.status) ? 1 : 0));
+        sorted.forEach((o) => {
             const label = isActive(o.status) ? 'Live now' : dayLabel(o.createdAt);
             if (label !== last) { out.push({ h: label }); last = label; }
             out.push({ o });

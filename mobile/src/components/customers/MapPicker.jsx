@@ -45,7 +45,8 @@ function PlaceRow({ c, onPress }) {
     );
 }
 
-export default function MapPicker({ visible, initial, onClose, onPick, startAtShop }) {
+// forShop: the SHOP OWNER is pinning his own shop (shop settings): no saved customer addresses, and no "delivers here" badges
+export default function MapPicker({ visible, initial, onClose, onPick, startAtShop, forShop }) {
     const insets = useSafeAreaInsets();
     const { primary, onPrimary, text, muted, surface, border, radius } = useBrand();
     const delivery = useHomeStore((st) => st.delivery);
@@ -166,6 +167,7 @@ export default function MapPicker({ visible, initial, onClose, onPick, startAtSh
             city: place?.city || place?.subregion || '',
             pincode: /^\d{6}$/.test(place?.postalCode || '') ? place.postalCode : '',
             area: place?.district || place?.street || '',
+            state: place?.region || '',
         });
     };
 
@@ -202,7 +204,7 @@ export default function MapPicker({ visible, initial, onClose, onPick, startAtSh
     useEffect(() => {
         if (!visible) return;
         readCache('recentPlaces').then((v) => { if (Array.isArray(v)) setRecents(v.slice(0, 6)); });
-        if (user) fetchAddresses().then((r) => setSaved((r.items || []).filter((a) => a.latitude != null))).catch(() => setSaved([]));
+        if (user && !forShop) fetchAddresses().then((r) => setSaved((r.items || []).filter((a) => a.latitude != null))).catch(() => setSaved([]));
         else setSaved([]);
     }, [visible, user?.id || user?._id || null]);
 
@@ -215,7 +217,7 @@ export default function MapPicker({ visible, initial, onClose, onPick, startAtSh
         const t = setTimeout(async () => {
             try {
                 const r = await suggestPlaces({ q: term, lat: measureFrom.latitude, lng: measureFrom.longitude });
-                if (id === askId.current) setResults(r.items || []);
+                if (id === askId.current) setResults((r.items || []).map((x) => (forShop ? { ...x, deliverable: null } : x)));
             } catch (e) {
                 // server unreachable: fall back to the phone's own geocoder so searching still works
                 try {

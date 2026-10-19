@@ -7,7 +7,7 @@ const { calcRefund, toPaise } = require('./refundService');
 
 const OWNER_CANCEL_REASONS = ['busy', 'out_of_stock', 'shop_fault', 'customer_asked', 'other'];
 const ADMIN_CANCEL_REASONS = ['platform', 'shop_fault', 'customer_fault'];
-const SYSTEM_CANCEL_REASONS = ['not_accepted', 'payment_timeout'];
+const SYSTEM_CANCEL_REASONS = ['not_accepted', 'payment_timeout', 'late_delivery'];   // late_delivery: over an hour past the delivery time, full refund
 const UNDELIVERED_REASONS = ['customer', 'shop', 'rider'];
 // the reasons a rider can pick when he cancels a delivery he is carrying (his cancel is treated as the rider's fault)
 const RIDER_CANCEL_REASONS = ['not_answering', 'wrong_address', 'vehicle_problem', 'emergency', 'order_damaged'];

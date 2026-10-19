@@ -156,8 +156,9 @@ catalogRouter.get('/menu', async (req, res) => {
         const recommended = searching
             ? []
             : products
-                .filter((p) => p.isBestseller && p.isAvailable)
-                .sort((a, b) => b.orderCount - a.orderCount)
+                // a sold-out bestseller stays in Popular (greyed out) unless the shop chose to hide sold-out dishes; available ones come first
+                .filter((p) => p.isBestseller && (p.isAvailable || !ctx.hideOutOfStock))
+                .sort((a, b) => (b.isAvailable ? 1 : 0) - (a.isAvailable ? 1 : 0) || b.orderCount - a.orderCount)
                 .slice(0, 10);
 
         res.json({ categories, recommended, truncated });

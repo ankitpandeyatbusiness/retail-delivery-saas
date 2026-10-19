@@ -182,7 +182,7 @@ export default function OwnerRiderScreen() {
                     {seen ? <Text style={{ color: muted, fontSize: 12, marginTop: 10 }}>{tr('Location last seen {ago}', { ago: ago(seen) })}</Text> : null}
                     {rider.faultCount > 0 ? <Text style={{ color: error, fontSize: 12, fontWeight: '700', marginTop: 6 }}>{tr('Marked at fault in {faultCount} complaint{v2}', { faultCount: rider.faultCount, v2: rider.faultCount === 1 ? '' : 's' })}</Text> : null}
                     <View style={{ flexDirection: 'row', marginTop: 12 }}>
-                        <View style={{ flex: 1, marginRight: 6 }}><Button label={tr('Call')} icon="call" kind="ghost" onPress={() => callPhone(rider.phone)} /></View>
+                        <View style={{ flex: 1, marginRight: 6 }}><Button label={tr('Call')} icon="call" iconOnly kind="ghost" onPress={() => callPhone(rider.phone)} /></View>
                         <View style={{ flex: 1, marginLeft: 6 }}><Button label={tr('WhatsApp')} icon="logo-whatsapp" kind="ghost" onPress={() => whatsApp(rider.phone)} /></View>
                     </View>
                 </Card>

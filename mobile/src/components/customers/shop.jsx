@@ -15,6 +15,19 @@ import { useCartStore, useFavStore, cartHooks } from '../../store/customers/shop
 import SlideNum from '../common/SlideNum';
 import { tr } from '../../i18n';
 
+// What the shop chose when it switched a dish off: "Sold out today" (until tomorrow morning), "Back in 2 h" (a set time), or just "Sold out".
+export function soldOutText(item) {
+    const t = item?.unavailableUntil ? new Date(item.unavailableUntil).getTime() : 0;
+    if (!t) return tr('Sold out');
+    const mins = Math.ceil((t - Date.now()) / 60000);
+    if (mins <= 0) return tr('Sold out');
+    if (mins > 360) return tr('Sold out today');   // the shop's "out of stock for today" lasts until the next morning
+    if (mins < 60) return tr('Back in {n} min', { n: mins });
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return tr('Back in {n}', { n: m ? `${h} h ${m} min` : `${h} h` });
+}
+
 export const tint = (c) => (/^#[0-9a-fA-F]{6}$/.test(c || '') ? `${c}1F` : '#F5F5F5');
 
 /* ---------------- toast ---------------- */
@@ -27,19 +40,38 @@ export function ToastHost() {
     const n = useToast((st) => st.n);
     const [on, setOn] = useState(false);
     const insets = useSafeAreaInsets();
+    const slide = useRef(new Animated.Value(0)).current;   // 0 = off screen (to the right), 1 = in place
     useEffect(() => {
         if (!n) return undefined;
         setOn(true);
-        const t = setTimeout(() => setOn(false), 1800);
+        slide.setValue(0);
+        Animated.spring(slide, { toValue: 1, useNativeDriver: true, bounciness: 6, speed: 16 }).start();
+        const t = setTimeout(() => {
+            Animated.timing(slide, { toValue: 0, duration: 220, useNativeDriver: true }).start(() => setOn(false));
+        }, 2400);
         return () => clearTimeout(t);
-    }, [n]);
-    const { dark } = useBrand();
+    }, [n, slide]);
+    const { dark, primary, surface, text, border } = useBrand();
     if (!on) return null;
-    // on a dark app the toast is a light pill (a dark one would vanish into the page)
+    const bad = /could not|can ?not|fail|cancel|error|not |max |only /i.test(String(msg));
+    const accent = bad ? '#E5484D' : '#16A34A';
+    // a card in the top right corner: coloured edge, round icon, slides in from the right and back out
     return (
-        <View pointerEvents="none" style={[s.toastWrap, { top: insets.top + 12 }]}>
-            <View style={[s.toast, dark && { backgroundColor: '#F3F3F5' }]}><Text style={[s.toastText, dark && { color: '#1B1B1F' }]}>{msg}</Text></View>
-        </View>
+        <Animated.View
+            pointerEvents="none"
+            style={[s.toastWrap, {
+                top: insets.top + 12, left: undefined, right: 12, alignItems: 'flex-end', opacity: slide,
+                transform: [{ translateX: slide.interpolate({ inputRange: [0, 1], outputRange: [120, 0] }) }],
+            }]}
+        >
+            <View style={[s.toastCard, { backgroundColor: dark ? surface : '#FFFFFF', borderColor: border }]}>
+                <View style={[s.toastEdge, { backgroundColor: accent }]} />
+                <View style={[s.toastIcon, { backgroundColor: accent + '22' }]}>
+                    <Ionicons name={bad ? 'alert' : 'checkmark'} size={16} color={accent} />
+                </View>
+                <Text numberOfLines={3} style={[s.toastMsg, { color: dark ? text : '#1B1B1F' }]}>{msg}</Text>
+            </View>
+        </Animated.View>
     );
 }
 
@@ -61,8 +93,17 @@ export function Pic({ item, style }) {
     const { primary, soft } = useBrand();
     if (!item.image) {
         return (
-            <View style={[{ backgroundColor: soft, alignItems: 'center', justifyContent: 'center' }, style]}>
-                <Text style={{ color: primary, fontSize: 30, fontWeight: '800', opacity: 0.7 }}>{(item.name || '?')[0].toUpperCase()}</Text>
+            <View style={[{ backgroundColor: item.isAvailable === false ? '#D4D4D4' : soft, alignItems: 'center', justifyContent: 'center' }, style]}>
+                <Text style={{ color: item.isAvailable === false ? '#8A8A8A' : primary, fontSize: 30, fontWeight: '800', opacity: 0.7 }}>{(item.name || '?')[0].toUpperCase()}</Text>
+            </View>
+        );
+    }
+    // sold out: the photo turns grey (a grey layer that takes the colour out of what is under it)
+    if (item.isAvailable === false) {
+        return (
+            <View style={[style, { overflow: 'hidden', backgroundColor: soft }]}>
+                <Image source={{ uri: item.image }} style={{ width: '100%', height: '100%' }} contentFit="cover" transition={150} cachePolicy="memory-disk" />
+                <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#808080', mixBlendMode: 'saturation' }]} />
             </View>
         );
     }
@@ -182,7 +223,7 @@ export function AddButton({ item, onPress, kind = 'pill', style }) {
     const label = useHomeStore((st) => st.full.labels.addButton);
     const qty = useCartStore((st) => st.lines.reduce((a, l) => (l.productId === item._id ? a + l.quantity : a), 0));
     if (item.isAvailable === false) {
-        return <View style={[s.so, { borderRadius: radius, backgroundColor: neutralSoft }, style]}><Text style={[s.soText, { color: muted }]}>{tr('Sold out')}</Text></View>;
+        return <View style={[s.so, { borderRadius: radius, backgroundColor: neutralSoft }, style]}><Text numberOfLines={2} style={[s.soText, { color: muted, textAlign: 'center' }]}>{soldOutText(item)}</Text></View>;
     }
     const mode = qty > 0 ? 'step' : 'add';
     let inner;
@@ -385,6 +426,10 @@ const shadow = { elevation: 4, shadowOpacity: 0.12, shadowRadius: 10, shadowOffs
 const s = StyleSheet.create({
     toastWrap: { position: 'absolute', left: 0, right: 0, alignItems: 'center', zIndex: 99 },
     toast: { backgroundColor: '#1C1C1C', paddingHorizontal: 16, paddingVertical: 9, borderRadius: 99 },
+    toastCard: { flexDirection: 'row', alignItems: 'center', maxWidth: 300, minHeight: 48, borderRadius: 14, borderWidth: 1, paddingVertical: 10, paddingRight: 14, paddingLeft: 16, overflow: 'hidden', elevation: 10, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
+    toastEdge: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 4 },
+    toastIcon: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
+    toastMsg: { flexShrink: 1, fontSize: 13.5, fontWeight: '700' },
     toastText: { color: '#FFFFFF', fontSize: 12, fontWeight: '600' },
     dotBox: { width: 14, height: 14, borderWidth: 1.5, borderRadius: 3, alignItems: 'center', justifyContent: 'center', marginRight: 6 },
     dot: { width: 6, height: 6, borderRadius: 3 },
@@ -415,7 +460,7 @@ const s = StyleSheet.create({
     circle: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', elevation: 3 },
     so: { backgroundColor: '#EEEEEE', paddingHorizontal: 12, paddingVertical: 6 },
     soText: { fontSize: 11, fontWeight: '700', color: '#888888' },
-    dim: { opacity: 0.5 },
+    dim: {},   // sold-out look comes from the grey photo and the label, not from fading the whole card
     big: { marginHorizontal: 16, marginBottom: 18, borderRadius: 22, ...shadow },
     bImg: { width: '100%', height: 190, borderTopLeftRadius: 22, borderTopRightRadius: 22 },
     bShade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 70 },

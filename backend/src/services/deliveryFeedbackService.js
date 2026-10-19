@@ -168,6 +168,10 @@ async function rateDelivery({ tenant, userId, orderId, body }) {
         console.error('rider rating update failed', e.message);
     }
 
+    // the rider hears about every review of his delivery; the shop too (a low one has its own, louder alert)
+    require('./notificationService').deliveryReviewed({
+        tenantId: tenant._id, orderId: order._id, orderNo: done.orderNo, rating, riderUserId: order.delivery.riderId, comment, toOwner: rating > 2,
+    });
     if (rating <= 2) {
         require('./notificationService').lowDeliveryRating({
             tenantId: tenant._id, orderId: order._id, orderNo: done.orderNo,

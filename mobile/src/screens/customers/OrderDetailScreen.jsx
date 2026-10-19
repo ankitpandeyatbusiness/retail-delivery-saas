@@ -21,6 +21,7 @@ import { onRiderLocation } from '../../api/common/socket';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { payForOrder } from '../../utils/customers/payOnline';
 import { tr } from '../../i18n';
+import KeyboardScroll from '../../components/common/KeyboardScroll';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const FLOW_DELIVERY = ['placed', 'accepted', 'preparing', 'out_for_delivery', 'delivered'];
@@ -269,7 +270,7 @@ export default function OrderDetailScreen() {
     return (
         <View style={[s.flex, { backgroundColor: background }]}>
             <BackHeader title={tr('Order #{orderNo}', { orderNo: o.orderNo })} />
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={[s.pad, { paddingBottom: dock ? 110 : 40 }]}>
+            <KeyboardScroll showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={[s.pad, { paddingBottom: dock ? 110 : 40 }]}>
                 <Appear>
                     <LinearGradient colors={[accent, mix(accent, '#000000', 0.28)]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.hero}>
                         <View style={[s.blob, { top: -50, right: -30, width: 150, height: 150 }]} />
@@ -444,7 +445,7 @@ export default function OrderDetailScreen() {
                     <DeliveryRatingCard orderId={id} tracking={track} onDone={get} />
                 ) : null}
                 {delivered ? <ComplaintCard orderId={id} /> : null}
-            </ScrollView>
+            </KeyboardScroll>
 
             {dock ? (
                 <Appear style={[s.dock, { backgroundColor: surface, borderTopColor: border, paddingBottom: (insets.bottom || 12) + 4 }]}>

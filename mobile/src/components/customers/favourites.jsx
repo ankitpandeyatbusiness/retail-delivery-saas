@@ -38,7 +38,8 @@ export function FavouriteDishes({ mode = 'strip' }) {
 
     const list = useMemo(() => {
         const inCart = new Set(lines.map((l) => String(l.productId)));
-        return (items || []).filter((i) => i.isAvailable !== false && (mode === 'list' || !inCart.has(String(i._id))));
+        // the favourites LIST keeps a sold-out dish (greyed out); the quick-add strip only offers dishes that can be added
+        return (items || []).filter((i) => (mode === 'list' || (i.isAvailable !== false && !inCart.has(String(i._id)))));
     }, [items, lines, mode]);
 
     if (!user || !enabled) return null;

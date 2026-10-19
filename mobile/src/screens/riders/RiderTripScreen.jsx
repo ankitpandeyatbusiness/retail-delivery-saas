@@ -28,6 +28,7 @@ import { startRiderTracking } from '../../utils/riders/locationTask';
 import LocationStatus from '../../components/riders/LocationStatus';
 import { T, rupee, rupeeAmount, addressLine, errText } from '../../utils/riders/riderText';
 import { tr } from '../../i18n';
+import KeyboardScroll from '../../components/common/KeyboardScroll';
 
 const POLL_MS = 5000;
 const STEP_LABELS = [T.stepCollect, T.stepGo, T.stepDeliver];
@@ -270,7 +271,7 @@ export default function RiderTripScreen() {
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Order #{orderNo}', { orderNo: o.orderNo })} />
             <Steps labels={STEP_LABELS} step={step} />
-            <ScrollView contentContainerStyle={{ paddingTop: 8, paddingBottom: 200 }} keyboardShouldPersistTaps="handled" scrollEnabled={!mapTouch}>
+            <KeyboardScroll contentContainerStyle={{ paddingTop: 8, paddingBottom: 200 }} keyboardShouldPersistTaps="handled" scrollEnabled={!mapTouch}>
                 {offline ? <Banner tone="warn" icon="cloud-offline" text={T.offline} /> : null}
                 {step > 0 ? (
                     <Banner
@@ -312,7 +313,7 @@ export default function RiderTripScreen() {
                         {o.note ? <Text style={{ color: muted, marginTop: 8, fontWeight: '600' }}>{tr('Note: {note}', { note: o.note })}</Text> : null}
                         <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
                             <View style={{ flex: 1 }}><Button label={tr('Cancel order')} icon="close-circle" kind="ghost" onPress={() => { setCancelReason(''); setCancelNote(''); setSheet('cancel'); }} /></View>
-                            {o.customer?.phone ? <View style={{ flex: 1 }}><Button label={T.call} icon="call" kind="ghost" onPress={callCustomer} /></View> : null}
+                            {o.customer?.phone ? <View style={{ flex: 1 }}><Button label={T.call} icon="call" iconOnly kind="ghost" onPress={callCustomer} /></View> : null}
                         </View>
                     </Card>
                 )}
@@ -337,7 +338,7 @@ export default function RiderTripScreen() {
                     ))}
                 </View>
                 {step === 0 ? <View style={{ marginHorizontal: 16 }}><SmallLink label={T.cannotDo} onPress={giveBack} /></View> : null}
-            </ScrollView>
+            </KeyboardScroll>
 
             {/* the one big button */}
             <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, paddingBottom: Math.max(insets.bottom, 16), backgroundColor: background, borderTopWidth: 1, borderTopColor: border }}>
@@ -374,7 +375,7 @@ export default function RiderTripScreen() {
                 <View style={{ marginTop: 14 }}>
                     <BigButton label={T.confirmDelivery} onPress={() => doDeliver(pin, false)} busy={busy === 'deliver'} disabled={pin.length < 4} />
                 </View>
-                {shopPhone ? <SmallLink label={T.callShop} icon="call" onPress={callShop} /> : null}
+                {shopPhone ? <SmallLink label={T.callShop} icon="call" iconOnly onPress={callShop} /> : null}
             </Sheet>
 
             {/* cancel the delivery he carries: a reason from the list (required), a note (optional) */}
@@ -413,7 +414,7 @@ export default function RiderTripScreen() {
                         <Text style={{ color: text, fontSize: 16, fontWeight: '700' }}>{label}</Text>
                     </Pressable>
                 ))}
-                {shopPhone ? <View style={{ marginTop: 14 }}><BigButton label={T.callShop} icon="call" kind="outline" onPress={callShop} /></View> : null}
+                {shopPhone ? <View style={{ marginTop: 14 }}><BigButton label={T.callShop} icon="call" iconOnly kind="outline" onPress={callShop} /></View> : null}
             </Sheet>
 
             <SosSheet visible={sosOpen} onClose={() => setSosOpen(false)} orderId={orderId} shopPhone={shopPhone} />

@@ -19,7 +19,6 @@ import { tr } from '../../i18n';
 const CUSTOMER_ROWS = [
     ['winback', 'Bring back customers who stopped ordering', 'A friendly nudge at the hour they usually order, then a small offer, then a last call. Three messages at most, then they are left alone for a month. It stops the moment they order.'],
     ['welcome', 'Welcome after the first order', 'A warm hello after a new customer’s first delivery'],
-    ['thanks', 'Thank you after a delivery', 'A short thank you, at most once in 3 days to one person'],
     ['mealtime', 'Meal-time reminder', 'Before the hour a regular customer usually orders: “Lunch time? Your Paneer Roll is ready”'],
     ['festival', 'Festival greetings', 'Diwali, Dussehra, New Year and a few other days, to people who ordered in the last 3 months'],
 ];

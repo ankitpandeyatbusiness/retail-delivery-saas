@@ -24,7 +24,10 @@ export const useMenuStore = create((set, get) => ({
                 festival: f.value?.items ?? get().festival,
                 combo: c.value?.items ?? get().combo,
             };
-            set({ ...fresh, loaded: true, errorStatus: null });
+            // nothing changed: leave the lists alone (the menu is read often, and a new list would redraw the whole page)
+            const sig = JSON.stringify(fresh);
+            if (sig !== get().sig || get().errorStatus) set({ ...fresh, sig, loaded: true, errorStatus: null });
+            else if (!get().loaded) set({ loaded: true });
             writeCache('menu', fresh);
         } catch (e) {
             set({ loaded: true, errorStatus: e?.response?.status || 'network' });

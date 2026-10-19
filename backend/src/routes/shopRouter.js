@@ -62,6 +62,7 @@ const isId = (v) => typeof v === 'string' && mongoose.isValidObjectId(v);
 const view = (order) => ({
     ...order.toJSON(),
     allowedNext: svc.nextStatuses(order),
+    riderAssigned: !!(order.delivery?.riderId && order.delivery?.status !== 'rejected'),   // a delivery order cannot go out without one
     speech: orderSpeech(order),
     speechHi: orderSpeechHi(order),
     ...(order.status === 'placed' ? { acceptBy: acceptDeadline(order) } : {}),
@@ -119,7 +120,10 @@ router.get('/orders', wrap(async (req, res) => {
 router.get('/orders/:id', wrap(async (req, res) => {
     const order = isId(req.params.id) ? await Order.findOne({ _id: req.params.id, tenantId: req.tenant._id, ...HIDE_UNPAID }) : null;
     if (!order) throw httpError(404, 'Order not found');
-    res.json(view(order));
+    // what the customer said about the food of this order (the delivery review is part of the order itself)
+    const reviews = order.ratedAt ? await require('../models/Review').find({ tenantId: req.tenant._id, orderId: order._id }).select('productId rating comment -_id').lean() : [];
+    const nameOf = Object.fromEntries((order.items || []).map((l) => [String(l.productId), l.name || l.title || 'Dish']));
+    res.json({ ...view(order), foodReviews: reviews.map((r) => ({ name: nameOf[String(r.productId)] || 'Dish', rating: r.rating, comment: r.comment || '' })) });
 }));
 
 // Body: { "status": "accepted", "note": "optional" }. Cancelling needs a "note" (the reason).
@@ -271,6 +275,7 @@ router.get('/settings', wrap(async (req, res) => {
         hours: { weekly: cfg.hours.weekly || {}, closedMessage: st.hours?.closedMessage || '', closedDates: cfg.hours.closedDates || [] },
         riders: { payPerDelivery: 0, ...DEFAULTS.riders, ...(st.riders || {}), pay: riderPay.effectivePlan(st.riders) },
         notifications: { ...DEFAULTS.notifications, ...(st.notifications || {}) },
+        menu: { outOfStock: cfg.menu.outOfStock },   // 'dim' = sold-out dishes stay on the menu, greyed out. 'hide' = they disappear. Shared with the superadmin panel.
         orders: {
             codCap: { ...DEFAULTS.orders.codCap, ...(st.orders?.codCap || {}) },
             deliveryFee: { ...DEFAULTS.orders.deliveryFee, ...(st.orders?.deliveryFee || {}) },
@@ -314,6 +319,7 @@ router.get('/closing-report', wrap(async (req, res) => {
 router.put('/settings', wrap(async (req, res) => {
     const body = req.body || {};
     const updates = {};
+    let menuSwitched = false;
 
     if (body.hours !== undefined) {
         // same validator the superadmin panel uses
@@ -328,6 +334,15 @@ router.put('/settings', wrap(async (req, res) => {
         for (const [k, val] of Object.entries(v.clean.riders || {})) updates[`settings.riders.${k}`] = val;   // only the fields sent change
         // the day the owner starts recording payments: what a rider is owed is counted from then, never from older deliveries
         if (v.clean.riders?.trackPayouts === true && !req.tenant.settings?.riders?.trackPayouts) updates['settings.riders.trackFrom'] = new Date();
+    }
+
+    if (body.menu !== undefined) {
+        // the one menu switch the owner shares with the superadmin: show sold-out dishes (greyed out) or hide them. Whoever saves last decides.
+        if (!body.menu || typeof body.menu !== 'object' || Object.keys(body.menu).some((k) => k !== 'outOfStock')) throw httpError(400, 'You can change only whether sold-out dishes are shown');
+        const v = validateSettings({ menu: { outOfStock: body.menu.outOfStock } });
+        if (!v.ok || !v.clean.menu?.outOfStock) throw httpError(400, 'Choose show or hide');
+        updates['settings.menu.outOfStock'] = v.clean.menu.outOfStock;
+        menuSwitched = true;
     }
 
     if (body.orders !== undefined) {
@@ -410,6 +425,7 @@ router.put('/settings', wrap(async (req, res) => {
     ).select('phone address delivery settings.hours settings.riders settings.notifications settings.orders').lean();
 
     tenantRecognizer.invalidateTenant(req.tenant.slug);
+    if (menuSwitched) { try { require('../services/realtime').toShop(req.tenant._id, 'menu:changed', {}); } catch (e) { /* the apps also refresh on their own */ } }   // customers see it at once
     res.json({
         ok: true, phone: t.phone, address: t.address, delivery: t.delivery,
         hours: t.settings?.hours || null, riders: t.settings?.riders || null, notifications: t.settings?.notifications || null,

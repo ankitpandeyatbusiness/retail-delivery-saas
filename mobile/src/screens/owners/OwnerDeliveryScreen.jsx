@@ -7,7 +7,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
 import { Button, Empty } from '../../components/owners/ui';
 import { FormPage, Group, NumberBox, ChoiceBox, Hint, Label } from '../../components/owners/menuBits';
-import { PinMap } from '../../components/owners/pinMap';
 import { fetchSettings, saveSettings, apiError } from '../../api/owners/shopApi';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { FEE_TYPES, feeText, feeProblem } from '../../utils/owners/settingsRules';
@@ -21,7 +20,6 @@ export default function OwnerDeliveryScreen() {
     const access = useOwnerStore((s) => s.access);
     const [v, setV] = useState(null);
     const [gst, setGst] = useState(null);
-    const [pin, setPin] = useState(false);
     const [err, setErr] = useState('');
     const [saving, setSaving] = useState(false);
 
@@ -51,7 +49,7 @@ export default function OwnerDeliveryScreen() {
         fee.freeAbove = v.type === 'free' ? 0 : (v.freeAbove ?? 0);
         const body = {
             orders: { deliveryFee: fee, packagingCharge: v.packaging ?? 0, minOrder: v.minOrder ?? 0, tipOptions: v.tips, ...(v.prepTimeMin !== undefined ? { prepTimeMin: v.prepTimeMin } : {}) },
-            delivery: { ...(pinned ? { latitude: v.latitude, longitude: v.longitude } : {}), ...(v.radiusKm !== undefined ? { radiusKm: v.radiusKm } : {}) },
+            delivery: { ...(v.radiusKm !== undefined ? { radiusKm: v.radiusKm } : {}) },
         };
         setSaving(true);
         try { await saveSettings(body); showToast(tr('Saved. Customers see the new fees now.')); nav.goBack(); }
@@ -62,15 +60,7 @@ export default function OwnerDeliveryScreen() {
 
     return (
         <FormPage title={tr('Delivery area and fees')} footer={<Button label={tr('Save')} icon="checkmark" busy={saving} onPress={save} />}>
-            <Group title={tr('Where you deliver')}>
-                <Pressable onPress={() => setPin(true)} style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: border, borderRadius: 14, padding: 12, marginBottom: 14 }}>
-                    <Ionicons name="location" size={24} color={pinned ? primary : muted} />
-                    <View style={{ flex: 1, marginLeft: 12 }}>
-                        <Text style={{ color: text, fontWeight: '800' }}>{pinned ? tr('Shop is pinned on the map') : tr('Pin your shop on the map')}</Text>
-                        <Text style={{ color: muted, fontSize: 12 }}>{pinned ? `${v.latitude.toFixed(5)}, ${v.longitude.toFixed(5)}` : tr('Needed for delivery distance and fees')}</Text>
-                    </View>
-                    <Text style={{ color: primary, fontWeight: '800' }}>{pinned ? tr('Change') : tr('Set')}</Text>
-                </Pressable>
+            <Group title={tr('Where you deliver')} hint={pinned ? undefined : tr('Pin your shop on the map in Shop settings first. The distance is measured from it.')}>
                 <NumberBox label={tr('How far you deliver')} suffix="km" value={v.radiusKm} onChange={(x) => set('radiusKm', x)} hint={tr('Straight-line distance from your shop.')} />
                 <NumberBox label={tr('Smallest order')} prefix="₹" value={v.minOrder} onChange={(x) => set('minOrder', x)} last />
             </Group>
@@ -97,7 +87,7 @@ export default function OwnerDeliveryScreen() {
             <Group title={tr('Tip buttons')} hint={tr('Amounts the customer can give the rider. Up to 5, from ₹0 to ₹500. Empty = no tipping.')}>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                     {v.tips.map((t, i) => (
-                        <Pressable key={`${t}-${i}`} onPress={() => set('tips', v.tips.filter((_, n) => n !== i))} style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 12, borderWidth: 1, borderColor: border, paddingHorizontal: 12, paddingVertical: 8, marginRight: 8, marginBottom: 8 }}>
+                        <Pressable key={`${t}-${i}`} onPress={() => set('tips', v.tips.filter((_, n) => n !== i))} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', minWidth: 76, borderRadius: 12, borderWidth: 1, borderColor: border, paddingHorizontal: 12, paddingVertical: 10, marginRight: 8, marginBottom: 8 }}>
                             <Text style={{ color: text, fontWeight: '800' }}>₹{t}</Text><Ionicons name="close" size={16} color={muted} style={{ marginLeft: 6 }} />
                         </Pressable>
                     ))}
@@ -109,7 +99,6 @@ export default function OwnerDeliveryScreen() {
                 <Text style={{ color: text, fontWeight: '800' }}>{gst && gst.mode !== 'none' ? `${gst.percent}% (${gst.mode === 'inclusive' ? 'included in prices' : 'added on top'})` : tr('No GST is charged')}</Text>
             </Group>
 
-            <PinMap visible={pin} initial={pinned ? { latitude: v.latitude, longitude: v.longitude } : null} radiusKm={v.radiusKm} onClose={() => setPin(false)} onPick={(c) => { set('latitude', c.latitude); set('longitude', c.longitude); setPin(false); }} />
         </FormPage>
     );
 }
@@ -117,10 +106,10 @@ export default function OwnerDeliveryScreen() {
 function TipAdder({ onAdd }) {
     const [x, setX] = useState(undefined);
     return (
-        <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
-            <NumberBox style={{ flex: 1 }} label={tr('Add a tip amount')} prefix="₹" integer value={x} onChange={setX} last />
-            <View style={{ width: 10 }} />
-            <Button label={tr('Add')} kind="ghost" onPress={() => { if (x === undefined || x > 500) { showToast(tr('A tip is from ₹0 to ₹500')); return; } onAdd(x); setX(undefined); }} />
+        <View>
+            <NumberBox label={tr('Add a tip amount')} prefix="₹" integer value={x} onChange={setX} last />
+            <View style={{ height: 10 }} />
+            <Button label={tr('Add tip')} icon="add" kind="ghost" onPress={() => { if (x === undefined || x > 500) { showToast(tr('A tip is from ₹0 to ₹500')); return; } onAdd(x); setX(undefined); }} />
         </View>
     );
 }

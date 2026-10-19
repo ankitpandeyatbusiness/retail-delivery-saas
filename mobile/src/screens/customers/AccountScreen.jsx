@@ -18,6 +18,7 @@ import { AddressSheet } from '../../components/customers/addresses';
 import { themedAlert } from '../../components/common/dialog';
 import { useNotificationStore } from '../../store/common/useNotificationStore';
 import { useAuthStore } from '../../store/common/useAuthStore';
+import { useAddressStore } from '../../store/customers/useAddressStore';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useThemeStore } from '../../store/common/useThemeStore';
 import { useFavStore } from '../../store/customers/shopStores';
@@ -420,7 +421,7 @@ function AccountInner() {
             </ScrollView>
 
             <EditDialog visible={edit} me={p} onClose={() => setEdit(false)} onSaved={saved} />
-            <AddressSheet visible={addrSheet} onClose={() => setAddrSheet(false)} manage />
+            <AddressSheet visible={addrSheet} onClose={() => setAddrSheet(false)} onChanged={(L) => useAddressStore.getState().sync(L)} manage />
             {busy ? <View style={s.busy}><ActivityIndicator color="#FFFFFF" size="large" /></View> : null}
         </View>
     );

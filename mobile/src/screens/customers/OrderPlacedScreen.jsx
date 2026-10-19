@@ -13,6 +13,7 @@ import { useBrand, CardGlow } from '../../components/common/kit';
 import { useMotion } from '../../components/common/motion';
 import { Press, rs } from '../../components/customers/cartParts';
 import { tr } from '../../i18n';
+import { playSfx } from '../../utils/common/sfx';
 
 const PIECES = 18;
 const HALO = 150;   // size of the area the confetti flies over
@@ -47,6 +48,9 @@ export default function OrderPlacedScreen() {
     const ring = useRef(new Animated.Value(still ? 1 : 0)).current;     // the ring that expands once
     const burst = useRef(new Animated.Value(still ? 1 : 0)).current;    // the confetti
     const rise = useRef(new Animated.Value(still ? 1 : 0)).current;     // the text and the card
+
+    // the "done" chime, once, as the tick pops (not on silent phones, see sfx.js)
+    useEffect(() => { playSfx('orderPlaced'); }, []);
 
     useEffect(() => {
         if (still) return undefined;

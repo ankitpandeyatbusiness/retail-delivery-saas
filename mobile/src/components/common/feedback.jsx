@@ -1,9 +1,9 @@
 // After delivery: rate the delivery partner, and report a problem with the order.
 //   DeliveryRatingCard  POST /orders/:id/delivery-rating   { rating 1-5, tags[], comment }   (once per order)
 //   ComplaintCard       GET/POST /orders/:id/complaints     { type, text }                    (once, within 24 h of delivery)
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    View, Text, Pressable, TextInput, Modal, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet,
+    View, Text, Pressable, TextInput, Modal, Animated, Easing, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -13,6 +13,7 @@ import { rateDelivery, fetchComplaints, sendComplaint } from '../../api/customer
 import { pickPhoto, uploadComplaintPhoto, discardPhoto } from '../../utils/common/photoUpload';
 import { ask } from './dialog';
 import { tr } from '../../i18n';
+import KeyboardScroll from './KeyboardScroll';
 
 const errMsg = (e) => e?.response?.data?.error || e?.message || 'Something went wrong';
 const rs = (paise) => `₹${+(paise / 100).toFixed(2)}`;
@@ -152,6 +153,18 @@ export function ComplaintCard({ orderId }) {
     const { primary, text, muted, border, background, surface, radius, error } = useBrand();
     const [data, setData] = useState(null);       // { items, canComplain, until }
     const [open, setOpen] = useState(false);
+    // The dim background fades while only the sheet slides. (With the Modal's own "slide" the dim layer slid up too: a black block.)
+    const [shown, setShown] = useState(false);
+    const anim = useRef(new Animated.Value(0)).current;   // 0 = closed, 1 = open
+    useEffect(() => {
+        if (open) {
+            setShown(true);
+            const r = requestAnimationFrame(() => Animated.timing(anim, { toValue: 1, duration: 300, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start());
+            return () => cancelAnimationFrame(r);
+        }
+        Animated.timing(anim, { toValue: 0, duration: 220, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(() => setShown(false));
+        return undefined;
+    }, [open, anim]);
     const [type, setType] = useState('');
     const [body, setBody] = useState('');
     const [busy, setBusy] = useState(false);
@@ -268,11 +281,12 @@ export function ComplaintCard({ orderId }) {
                 </Pressable>
             </CardShell>
 
-            <Modal visible={open} transparent animationType="slide" onRequestClose={closeSheet}>
+            <Modal visible={shown} transparent animationType="none" statusBarTranslucent onRequestClose={closeSheet}>
                 <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalWrap}>
+                    <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.45)', opacity: anim }]} />
                     <Pressable style={StyleSheet.absoluteFill} onPress={closeSheet} />
-                    <View style={[s.sheet, { backgroundColor: surface }]}>
-                        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                    <Animated.View style={[s.sheet, { backgroundColor: surface, transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [640, 0] }) }] }]}>
+                        <KeyboardScroll keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
                             <Text style={[s.sheetTitle, { color: text }]}>{tr('Report a problem')}</Text>
                             <Text style={[s.label, { color: muted }]}>{tr('WHAT WENT WRONG?')}</Text>
                             <View style={s.chips}>
@@ -324,8 +338,8 @@ export function ComplaintCard({ orderId }) {
                                     {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text numberOfLines={1} style={s.btnTxt}>{tr('Send')}</Text>}
                                 </Pressable>
                             </View>
-                        </ScrollView>
-                    </View>
+                        </KeyboardScroll>
+                    </Animated.View>
                 </KeyboardAvoidingView>
             </Modal>
         </>
@@ -354,7 +368,7 @@ const s = StyleSheet.create({
     pillTxt: { fontSize: 12, fontWeight: '800' },
     reply: { marginTop: 12, borderRadius: 12, padding: 12 },
     replyLabel: { fontSize: 11.5, fontWeight: '700' },
-    modalWrap: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' },
+    modalWrap: { flex: 1, justifyContent: 'flex-end' },
     sheet: { borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 18, paddingBottom: 26, maxHeight: '88%' },
     sheetTitle: { fontSize: 18, fontWeight: '900', marginBottom: 14 },
     label: { fontSize: 11.5, fontWeight: '800', letterSpacing: 1, marginTop: 8 },

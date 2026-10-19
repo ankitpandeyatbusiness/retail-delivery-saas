@@ -8,6 +8,8 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useBrand } from '../components/common/kit';
 import { useMotion } from '../components/common/motion';
 import { useOwnerStore } from '../store/owners/useOwnerStore';
+import { useAlertStore, setRiderAttention } from '../store/owners/useAlertStore';
+import { onNotification } from '../api/common/socket';
 import { useHomeStore } from '../store/customers/useHomeStore';
 import { FloatingTabBar, slideScenes, gate } from './tabKit';
 import OwnerDrawer from '../components/owners/OwnerDrawer';
@@ -33,6 +35,11 @@ export default function OwnerTabs() {
     const { background } = useBrand();
     const motion = useMotion();
     const waiting = useOwnerStore((st) => st.live?.orders?.active?.placed || 0);
+    const riderAttention = useAlertStore((st) => st.riderAttention);
+    // a rider cancelled, reported a problem or pressed help: the Riders tab blinks until the owner opens it
+    useEffect(() => onNotification((n) => {
+        if (n?.type === 'rider_problem' || n?.type === 'rider_sos' || (n?.type === 'order_cancelled' && n.data?.byRider)) setRiderAttention(true);
+    }), []);
     // the shop's config (open / paused, labels) is read by the header; the customer tabs load it in MainTabs
     useEffect(() => { useHomeStore.getState().load(); }, []);
     return (
@@ -42,6 +49,7 @@ export default function OwnerTabs() {
                 backBehavior="initialRoute"
                 screenListeners={({ route }) => ({
                     // do not start a tab switch on top of a page that is still sliding (see tabKit)
+                    focus: () => { if (route.name === 'RidersTab') setRiderAttention(false); },
                     tabPress: (e) => { if (gate.busy) { e.preventDefault(); gate.pending = route.name; } },
                 })}
                 tabBar={(props) => <FloatingTabBar {...props} defs={TABS} />}
@@ -60,7 +68,7 @@ export default function OwnerTabs() {
                         key={name}
                         name={name}
                         component={def.component}
-                        options={{ title: def.label, tabBarBadge: name === 'OrdersTab' && waiting > 0 ? waiting : undefined }}
+                        options={{ title: def.label, tabBarBadge: name === 'OrdersTab' && waiting > 0 ? waiting : name === 'RidersTab' && riderAttention ? 'dot' : undefined }}
                     />
                 ))}
             </Tab.Navigator>

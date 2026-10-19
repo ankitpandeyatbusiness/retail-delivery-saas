@@ -4,6 +4,7 @@
 // sending it). Until then the map shows the address alone. Everything comes from GET /orders/:id/tracking.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Platform, Pressable, Linking } from 'react-native';
+import { Image } from 'expo-image';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import RiderTrack from '../common/RiderTrack';
 import HomePin from '../common/HomePin';
@@ -96,20 +97,19 @@ export default function TrackingCard({ tracking: t, destination }) {
 
             {t.rider ? (
                 <View style={[s.rider, { borderTopColor: border }]}>
-                    <Ionicons name="person-circle-outline" size={34} color={muted} />
+                    {t.rider.photo ? <Image source={{ uri: t.rider.photo }} style={{ width: 40, height: 40, borderRadius: 20 }} contentFit="cover" /> : <Ionicons name="person-circle-outline" size={40} color={muted} />}
                     <View style={{ flex: 1, marginLeft: 10 }}>
                         <Text style={[s.rName, { color: text }]}>{t.rider.name}</Text>
                         <Text style={[s.sub, { color: muted }]}>
                             {[t.rider.vehicle, t.rider.phone ? null : t.rider.phoneMasked].filter(Boolean).join(' · ')}
                         </Text>
                         {t.rider.avgDeliveryMin ? (
-                            <Text style={[s.sub, { color: muted }]} numberOfLines={1}>{tr('Usually delivers in about {min} min', { min: t.rider.avgDeliveryMin })}</Text>
+                            <Text style={[s.sub, { color: muted }]}>{tr('Usually delivers in about {min} min', { min: t.rider.avgDeliveryMin })}</Text>
                         ) : null}
                     </View>
                     {t.rider.phone ? (
                         <Pressable onPress={() => Linking.openURL(`tel:${t.rider.phone}`).catch(() => { })} style={[s.callBtn, { backgroundColor: primary }]} accessibilityRole="button" accessibilityLabel={tr('Call {name}', { name: t.rider.name })}>
                             <Ionicons name="call" size={18} color="#FFFFFF" />
-                            <Text style={s.callTxt}>{tr('Call')}</Text>
                         </Pressable>
                     ) : null}
                 </View>
@@ -174,7 +174,7 @@ const s = StyleSheet.create({
     sub: { fontSize: 12.5, fontWeight: '500', marginTop: 2 },
     rider: { flexDirection: 'row', alignItems: 'center', marginTop: 14, paddingTop: 14, borderTopWidth: StyleSheet.hairlineWidth },
     rName: { fontSize: 14, fontWeight: '700' },
-    callBtn: { height: 40, borderRadius: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
+    callBtn: { width: 40, height: 40, borderRadius: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
     callTxt: { color: '#FFFFFF', fontSize: 13.5, fontWeight: '800', marginLeft: 6, paddingRight: 16 },
     liveBtn: { marginTop: 14, height: 46, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
     liveTxt: { color: '#FFFFFF', fontSize: 14.5, fontWeight: '800', marginLeft: 8, paddingHorizontal: 40 },

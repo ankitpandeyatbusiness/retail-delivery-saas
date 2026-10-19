@@ -11,6 +11,7 @@ const { startBillingEnforcementScheduler } = require('../services/billingEnforce
 const { startOfferScheduler } = require('../services/assignmentService');
 const { startBillingAlertsScheduler } = require('../services/billingAlerts');
 const { startStuckOrdersScheduler } = require('../services/stuckOrders');
+const { startLateDeliveryScheduler } = require('../services/lateDelivery');
 const startAwakeCron = require('../jobs/awakeCrons');
 const { startComplaintRemindersScheduler } = require('../jobs/complaintReminders');
 const { startNotificationEscalationScheduler } = require('../jobs/notificationEscalation');
@@ -68,6 +69,7 @@ connectDB()
             startOfferScheduler();
             startBillingAlertsScheduler();
             startStuckOrdersScheduler();
+            startLateDeliveryScheduler();
             startNotificationEscalationScheduler();
             startEmailWorkerScheduler();
             startMonthlyReportsScheduler();

@@ -42,7 +42,8 @@ async function send({ tenantId, userId, title, body, data, channelId, sound, tag
         // It is sent a moment AFTER the notification, so the voice follows the clip (3.5 s) and does not talk over it. The wait
         // is done here, on the server, on purpose: the phone's own timers stop while its screen is off, so a wait on the phone
         // only finished when the owner woke it. SPEECH_DELAY_MS=0 sends it at once.
-        if (ch && data?.speech) {
+        // (and a cancelled order: its short sentence goes the same way, with no clip). Nothing else is ever read out.
+        if ((ch || data?.type === 'order_cancelled') && data?.speech) {
             const silent = async () => {
                 try {
                     await adapter.send({ tokens, dataOnly: true, data: { ...data, speakOnly: '1' } });

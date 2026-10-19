@@ -5,6 +5,8 @@ import { View, Text, ScrollView, Pressable, RefreshControl, AppState, ActivityIn
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import GlowBorder from '../../components/common/GlowBorder';
 import { useBrand, alpha } from '../../components/common/kit';
 import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
@@ -14,6 +16,7 @@ import KeepRunningSheet from '../../components/riders/KeepRunningSheet';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRiderStore } from '../../store/riders/useRiderStore';
 import { useRiderLocation } from '../../hooks/common/useRiderLocation';
+import { playSfx } from '../../utils/common/sfx';
 import { acceptOrder, rejectOrder } from '../../api/riders/riderApi';
 import { T, rupee, rupeeAmount, errText } from '../../utils/riders/riderText';
 import { tr } from '../../i18n';
@@ -30,7 +33,7 @@ const nextStep = (o) => (o.delivery?.status === 'accepted' ? T.collectTitle : o.
 
 // A new order for him. Big numbers: what he earns, how far, what to collect. Accept is the only big button.
 function OfferCard({ o, busy, onAccept, onReject, onExpire }) {
-    const { primary, text, muted, surface } = useBrand();
+    const { primary, primaryLight, primaryDark, onPrimary, text, muted, surface } = useBrand();
     const [left, setLeft] = useState(secondsLeft(o));
     useEffect(() => {
         const id = setInterval(() => {
@@ -43,11 +46,16 @@ function OfferCard({ o, busy, onAccept, onReject, onExpire }) {
     if (left === 0) return null;
     const cash = o.payment?.collectAmount > 0;
     return (
-        <View style={{ marginHorizontal: 16, marginBottom: 14, borderRadius: 22, borderWidth: 2, borderColor: primary, backgroundColor: surface, padding: 16 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Text style={{ color: primary, fontWeight: '900', fontSize: 15 }}>{T.newOrder} · #{o.orderNo}</Text>
-                {left != null ? <Text style={{ color: left <= 10 ? '#DC2626' : muted, fontWeight: '900', fontSize: 14 }}>{T.secondsLeft(left)}</Text> : null}
-            </View>
+        <GlowBorder active radius={22} colors={[primaryLight, '#FFB703', primaryDark]} style={{ marginHorizontal: 16, marginBottom: 14 }}>
+        <View style={{ borderRadius: 22, backgroundColor: surface, overflow: 'hidden' }}>
+            <LinearGradient colors={[primaryLight, primaryDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 11 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Ionicons name="flash" size={18} color={onPrimary} />
+                    <Text style={{ color: onPrimary, fontWeight: '900', fontSize: 15, marginLeft: 6 }}>{T.newOrder} · #{o.orderNo}</Text>
+                </View>
+                {left != null ? <Text style={{ color: left <= 10 ? '#FFE0E0' : onPrimary, fontWeight: '900', fontSize: 14 }}>{T.secondsLeft(left)}</Text> : null}
+            </LinearGradient>
+            <View style={{ padding: 16, paddingTop: 4 }}>
             <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 12 }}>
                 {o.earnPaise > 0 ? (
                     <View style={{ flex: 1 }}>
@@ -72,7 +80,34 @@ function OfferCard({ o, busy, onAccept, onReject, onExpire }) {
                 <BigButton label={T.accept} icon="checkmark" onPress={onAccept} busy={busy} />
             </View>
             <SmallLink label={T.noThanks} onPress={onReject} />
+            </View>
         </View>
+        </GlowBorder>
+    );
+}
+
+// The delivery he is carrying: a bold coloured card with the next thing to do. Tap anywhere to continue the trip.
+function ActiveCard({ o, onPress }) {
+    const { primaryLight, primaryDark, onPrimary } = useBrand();
+    const cash = o.payment?.collectAmount > 0;
+    return (
+        <Pressable onPress={onPress} style={({ pressed }) => [{ marginHorizontal: 16, marginBottom: 14 }, pressed && { opacity: 0.85 }]}>
+            <LinearGradient colors={[primaryLight, primaryDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 22, padding: 16, elevation: 6 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.22)', borderRadius: 99, paddingHorizontal: 10, paddingVertical: 4 }}>
+                        <Ionicons name="bicycle" size={15} color={onPrimary} />
+                        <Text style={{ color: onPrimary, fontWeight: '900', fontSize: 12, marginLeft: 5 }}>{tr('ON A DELIVERY')}</Text>
+                    </View>
+                    <Text style={{ color: onPrimary, fontWeight: '900', fontSize: 15 }}>{tr('Order #{orderNo}', { orderNo: o.orderNo })}</Text>
+                </View>
+                <Text style={{ color: onPrimary, fontSize: 24, fontWeight: '900', marginTop: 14 }} numberOfLines={2}>{nextStep(o)}</Text>
+                {cash ? <Text style={{ color: onPrimary, opacity: 0.92, fontSize: 14, fontWeight: '800', marginTop: 4 }}>{T.collectCash(rupeeAmount(o.payment.collectAmount))}</Text> : null}
+                <View style={{ marginTop: 14, backgroundColor: '#FFFFFF', borderRadius: 14, height: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ color: primaryDark, fontWeight: '900', fontSize: 16 }}>{tr('Continue')}</Text>
+                    <Ionicons name="arrow-forward" size={18} color={primaryDark} style={{ marginLeft: 6 }} />
+                </View>
+            </LinearGradient>
+        </Pressable>
     );
 }
 
@@ -118,6 +153,7 @@ export default function RiderHomeScreen() {
         setBusyId(o.id);
         try {
             await acceptOrder(o.id);
+            playSfx('riderAccept');
             await load();
             nav.navigate('RiderTrip', { orderId: String(o.id) });
         } catch (e) {
@@ -128,7 +164,7 @@ export default function RiderHomeScreen() {
     };
     const reject = async (o) => {
         setBusyId(o.id);
-        try { await rejectOrder(o.id); } catch (e) { showToast(errText(e)); }
+        try { await rejectOrder(o.id); playSfx('riderReject'); } catch (e) { showToast(errText(e)); }
         setBusyId(null);
         load();
     };
@@ -166,6 +202,14 @@ export default function RiderHomeScreen() {
 
                 {ready ? (
                     <>
+                        {/* what needs him now comes first: a new order to accept, then the deliveries he carries */}
+                        {liveOffers.map((o) => (
+                            <OfferCard key={String(o.id)} o={o} busy={busyId === o.id} onAccept={() => accept(o)} onReject={() => reject(o)} onExpire={load} />
+                        ))}
+                        {active.map((o) => (
+                            <ActiveCard key={String(o.id)} o={o} onPress={() => nav.navigate('RiderTrip', { orderId: String(o.id) })} />
+                        ))}
+
                         {/* duty */}
                         <View style={{ marginHorizontal: 16, marginBottom: 14, borderRadius: 22, padding: 16, backgroundColor: onDuty ? alpha(ok, 0.14) : surface, borderWidth: 1, borderColor: onDuty ? alpha(ok, 0.5) : border }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: onDuty ? 0 : 14 }}>
@@ -188,34 +232,6 @@ export default function RiderHomeScreen() {
                                 {cashHeld > 0 ? <Text style={{ color: '#B45309', fontWeight: '800', fontSize: 13, marginTop: 10 }}>{T.cashHeld(rupee(cashHeld))}</Text> : null}
                                 {cashFull ? <Text style={{ color: '#DC2626', fontWeight: '900', fontSize: 13, marginTop: 6 }}>{T.cashOverLimit}</Text> : null}
                             </Card>
-                        ) : null}
-
-                        {/* a new order */}
-                        {onDuty ? liveOffers.map((o) => (
-                            <OfferCard key={String(o.id)} o={o} busy={busyId === o.id} onAccept={() => accept(o)} onReject={() => reject(o)} onExpire={load} />
-                        )) : null}
-
-                        {/* what he carries */}
-                        {active.length > 0 ? (
-                            <>
-                                <Text style={{ color: text, fontSize: 16, fontWeight: '900', marginHorizontal: 16, marginBottom: 10 }}>{T.yourDeliveries}</Text>
-                                {active.map((o) => {
-                                    const cash = o.payment?.collectAmount > 0;
-                                    return (
-                                        <Pressable
-                                            key={String(o.id)}
-                                            onPress={() => nav.navigate('RiderTrip', { orderId: String(o.id) })}
-                                            style={({ pressed }) => [{ marginHorizontal: 16, marginBottom: 10, borderRadius: 18, padding: 14, backgroundColor: surface, borderWidth: 1, borderColor: border, flexDirection: 'row', alignItems: 'center' }, pressed && { opacity: 0.75 }]}
-                                        >
-                                            <View style={{ flex: 1 }}>
-                                                <Text style={{ color: text, fontWeight: '900', fontSize: 16 }}>{tr('Order #{orderNo}', { orderNo: o.orderNo })}</Text>
-                                                <Text style={{ color: muted, fontWeight: '700', fontSize: 13, marginTop: 2 }}>{nextStep(o)}{cash ? ` · ${T.collectCash(rupeeAmount(o.payment.collectAmount))}` : ''}</Text>
-                                            </View>
-                                            <Ionicons name="chevron-forward" size={22} color={muted} />
-                                        </Pressable>
-                                    );
-                                })}
-                            </>
                         ) : null}
 
                         {onDuty && liveOffers.length === 0 && active.length === 0 ? (

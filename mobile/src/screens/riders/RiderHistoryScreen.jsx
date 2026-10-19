@@ -1,5 +1,5 @@
 // Past deliveries, newest first. Plain rows: the order, when, and how it ended. Nothing to tap, nothing to learn.
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, FlatList, RefreshControl, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -35,6 +35,10 @@ export default function RiderHistoryScreen() {
             setMore(!!r.hasMore); setPage(p); setFailed('');
         } catch (e) { setFailed(errText(e)); setItems((x) => x || []); }
     }, []);
+    // The deliveries he carries changed (he accepted or finished one, from anywhere): the list updates at once, not on the next visit
+    const activeKey = useRiderStore((st) => st.active.map((o) => String(o.id)).join(','));
+    const firstKey = useRef(true);
+    useEffect(() => { if (firstKey.current) { firstKey.current = false; return; } load(1); }, [activeKey, load]);
     // opening History clears the red dot on its tab
     useFocusEffect(useCallback(() => { load(1); useRiderStore.getState().markMissedSeen(); }, [load]));
 
@@ -43,6 +47,8 @@ export default function RiderHistoryScreen() {
         setBusyId(o.id);
         try {
             await acceptOrder(o.id);
+            setMissed((m) => m.filter((x) => String(x.id) !== String(o.id)));   // it is his now: gone from the missed list at once
+            load(1);
             await useRiderStore.getState().load();
             nav.navigate('RiderTrip', { orderId: String(o.id) });
         } catch (e) {

@@ -108,4 +108,23 @@ productSchema.index({ tenantId: 1, isActive: 1, isBestseller: -1, orderCount: -1
 productSchema.index({ tenantId: 1, isActive: 1, price: 1 });
 productSchema.index({ tenantId: 1, isActive: 1, rating: -1 });
 
+// Price, "sold out", "back after 2 hours", stock, name, picture: whatever changes a dish, the customers' menus must follow at once.
+// The apps are told over the live connection (they reload the menu); several changes within half a second make one message.
+const told = new Map();   // tenantId -> timer
+function menuChanged(tenantId) {
+    const key = tenantId && String(tenantId);
+    if (!key || told.has(key)) return;
+    told.set(key, setTimeout(() => {
+        told.delete(key);
+        try { require('../services/realtime').toShop(key, 'menu:changed', {}); } catch (e) { /* the apps also refresh when opened */ }
+    }, 500).unref?.() || 0);
+}
+productSchema.post('save', (doc) => menuChanged(doc?.tenantId));
+productSchema.post(['findOneAndUpdate', 'findOneAndDelete', 'findOneAndReplace'], (doc) => menuChanged(doc?.tenantId));
+// (a sweep that changed nothing, such as the automatic 'back in stock' check on every menu read, says nothing)
+productSchema.post(['updateOne', 'updateMany', 'deleteOne', 'deleteMany'], function (res) {
+    if (res && (res.modifiedCount === 0 || res.deletedCount === 0 || res.matchedCount === 0)) return;
+    menuChanged(this.getFilter?.()?.tenantId);
+});
+
 module.exports = mongoose.model('Product', productSchema);

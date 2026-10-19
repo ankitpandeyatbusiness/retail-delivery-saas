@@ -32,6 +32,8 @@ export function stepLabel(order, next) {
 
 // the one step forward the server allows (never cancel or "not delivered")
 export const forwardStep = (order) => (order?.allowedNext || []).find((s) => s !== 'cancelled' && s !== 'undelivered') || null;
+// a delivery order cannot go out until a delivery partner is assigned (the server refuses too)
+export const needsRider = (order, next) => next === 'out_for_delivery' && order?.orderType === 'delivery' && order.riderAssigned === false;
 export const canCancel = (order) => (order?.allowedNext || []).includes('cancelled');
 export const canMarkUndelivered = (order) => (order?.allowedNext || []).includes('undelivered');
 

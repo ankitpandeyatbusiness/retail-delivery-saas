@@ -7,7 +7,7 @@ import { useBrand, alpha } from '../common/kit';
 const AMBER = '#F59E0B';
 
 // the one big button of a screen
-export function BigButton({ label, onPress, kind = 'primary', icon, busy, disabled, style }) {
+export function BigButton({ label, onPress, kind = 'primary', icon, busy, disabled, style, iconOnly }) {
     const { primary, onPrimary, text, border, error } = useBrand();
     const fill = kind === 'primary' ? primary : kind === 'danger' ? error : 'transparent';
     const ink = kind === 'primary' ? onPrimary : kind === 'danger' ? '#FFFFFF' : text;
@@ -15,14 +15,15 @@ export function BigButton({ label, onPress, kind = 'primary', icon, busy, disabl
         <Pressable
             onPress={onPress}
             disabled={disabled || busy}
+            accessibilityRole="button" accessibilityLabel={iconOnly ? label : undefined}
             style={({ pressed }) => [
                 s.big, { backgroundColor: fill, borderColor: kind === 'outline' ? border : fill, opacity: disabled ? 0.4 : pressed ? 0.8 : 1 }, style,
             ]}
         >
             {busy ? <ActivityIndicator color={ink} /> : (
                 <>
-                    {icon ? <Ionicons name={icon} size={22} color={ink} style={{ marginRight: 10 }} /> : null}
-                    <Text style={[s.bigText, { color: ink }]} numberOfLines={1}>{label}</Text>
+                    {icon ? <Ionicons name={icon} size={iconOnly ? 26 : 22} color={ink} style={{ marginRight: iconOnly ? 0 : 10 }} /> : null}
+                    {iconOnly && icon ? null : <Text style={[s.bigText, { color: ink }]} numberOfLines={1}>{label}</Text>}
                 </>
             )}
         </Pressable>
@@ -30,12 +31,12 @@ export function BigButton({ label, onPress, kind = 'primary', icon, busy, disabl
 }
 
 // a quiet text button under the main one
-export function SmallLink({ label, onPress, danger, icon }) {
+export function SmallLink({ label, onPress, danger, icon, iconOnly }) {
     const { muted, error } = useBrand();
     return (
-        <Pressable onPress={onPress} hitSlop={8} style={({ pressed }) => [s.link, pressed && { opacity: 0.6 }]}>
-            {icon ? <Ionicons name={icon} size={16} color={danger ? error : muted} style={{ marginRight: 6 }} /> : null}
-            <Text numberOfLines={1} style={{ color: danger ? error : muted, fontWeight: '800', fontSize: 14 }}>{label}</Text>
+        <Pressable onPress={onPress} hitSlop={8} accessibilityRole="button" accessibilityLabel={iconOnly ? label : undefined} style={({ pressed }) => [s.link, pressed && { opacity: 0.6 }]}>
+            {icon ? <Ionicons name={icon} size={iconOnly ? 22 : 16} color={danger ? error : muted} style={{ marginRight: iconOnly ? 0 : 6 }} /> : null}
+            {iconOnly && icon ? null : <Text numberOfLines={1} style={{ color: danger ? error : muted, fontWeight: '800', fontSize: 14 }}>{label}</Text>}
         </Pressable>
     );
 }

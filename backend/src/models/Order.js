@@ -86,6 +86,7 @@ const orderSchema = new Schema({
         arrivedAt: Date,   // the rider tapped "I have arrived" at the customer
         plannedSec: Number,   // the time allowed for the journey, saved when the food is collected (services/deliveryPlan.js)
         dueAt: Date,          // collected + the time allowed
+        lateWarnedAt: Date,   // the rider and the shop were warned that the order will be cancelled soon (services/lateDelivery.js)
         dueRefined: Boolean,  // the time allowed was replaced by the first real route after pickup (services/deliveryPlan.js)
         // where the rider was when he marked it delivered, and how far from the customer's pin (far / noGps are shown to the owner)
         deliveredPoint: { _id: false, lat: Number, lng: Number, distanceM: Number, far: Boolean, noGps: Boolean, at: Date },

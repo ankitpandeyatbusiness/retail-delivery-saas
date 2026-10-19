@@ -21,13 +21,17 @@ const EVENTS = {
     // pushChannel / pushSound: the owner app's loud channel (a voice clip "New order received"). Both names are built into the app.
     order_new: { to: 'owner', channels: ALL, alsoPush: true, escalateSmsAfterSec: 180, key: true, pushChannel: NEW_ORDER_CHANNEL, pushSound: 'new_order' },
     order_unaccepted_reminder: { to: 'owner', channels: ALL, alsoPush: true, key: true, pushChannel: NEW_ORDER_CHANNEL, pushSound: 'new_order' },
-    order_cancelled: { to: 'owner', channels: INAPP_PUSH },
-    order_late: { to: 'owner', channels: INAPP_PUSH },
-    rider_accepted: { to: 'owner', channels: INAPP_PUSH },
-    rider_rejected: { to: 'owner', channels: INAPP_PUSH },
+    order_delivered_shop: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // the food reached the customer
+    order_cancelled: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },
+    order_late: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },
+    rider_accepted: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },
+    rider_rejected: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },
     rider_none: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // nobody took the order: live AND push
-    rider_problem: { to: 'owner', channels: INAPP_PUSH },
-    rider_quiet: { to: 'owner', channels: INAPP_PUSH },   // the rider's phone has not reported for 3 minutes while he has an order
+    rider_problem: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },
+    delivery_late_warning: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },          // same warning, for the shop
+    rider_quiet: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // the rider's phone has not reported for 3 minutes while he has an order
+    review_food: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },        // a customer reviewed the food of a delivered order (any rating)
+    review_delivery: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },    // a customer reviewed the delivery (any rating)
     delivery_low_rating: { to: 'owner', channels: INAPP_PUSH },
     dish_low_rating: { to: 'owner', channels: INAPP_PUSH },
     complaint_new: { to: 'owner', channels: INAPP_PUSH },
@@ -50,14 +54,17 @@ const EVENTS = {
     shop_nudge: { to: 'customer', channels: INAPP_PUSH },         // a shop's reminder to a customer (Remind / Autopilot). Never SMS, never email
     broadcast: { to: 'customer', channels: INAPP_PUSH, email: 'broadcast' },                  // never SMS. The mail is queued only when the sender asked for it (ctx.noEmail)
     // customer (an SMS only for the important steps, and never for riders)
-    order_status: { to: 'customer', channels: ALL, key: (ctx) => KEY_CUSTOMER_STATUSES.includes(ctx.data?.status) },
-    rider_assigned: { to: 'customer', channels: INAPP_PUSH },
+    order_status: { to: 'customer', channels: ALL, alsoPush: true, key: (ctx) => KEY_CUSTOMER_STATUSES.includes(ctx.data?.status) },
+    rider_assigned: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },
     rider_arriving: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },   // live tracking: 3 minutes away (once per order)
     rider_reached: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },    // live tracking: at the door (once per order)
     complaint_decision: { to: 'customer', channels: INAPP_PUSH, email: 'complaint_decision' },
     // rider (offers last 2 minutes, so never an SMS)
     rider_offer: { to: 'rider', channels: INAPP_PUSH, alsoPush: true },
-    rider_removed: { to: 'rider', channels: INAPP_PUSH },
+    delivery_late_warning_rider: { to: 'rider', channels: INAPP_PUSH, alsoPush: true },   // the order will be cancelled in ~10 minutes (services/lateDelivery.js)
+    delivery_done_rider: { to: 'rider', channels: INAPP_PUSH, alsoPush: true },   // thank you to the rider who delivered
+    review_delivery_rider: { to: 'rider', channels: INAPP_PUSH, alsoPush: true },   // the customer reviewed HIS delivery. The food review never goes to the rider
+    rider_removed: { to: 'rider', channels: INAPP_PUSH, alsoPush: true },
     rider_off_duty: { to: 'rider', channels: INAPP_PUSH },   // the app put him off duty (shop closed, or a very long duty)
     rider_sos: { to: 'owner', channels: ALL, key: true, alsoPush: true },   // the rider pressed the help button: push AND, if the phone is unreachable, SMS
     // superadmin (his own keys, so an owner rule never changes them). SMS only if he switched it on.

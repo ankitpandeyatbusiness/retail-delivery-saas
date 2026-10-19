@@ -18,6 +18,7 @@ import { rupees } from '../../utils/owners/riderRules';
 import { showToast } from '../../components/customers/shop';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { tr } from '../../i18n';
+import KeyboardScroll from '../../components/common/KeyboardScroll';
 
 const digits = (v) => String(v || '').replace(/\D/g, '');
 function groupNumber(v) {
@@ -182,7 +183,7 @@ export default function OwnerPayScreen() {
                 </View>
             ) : (
                 <>
-                    <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 150 }} keyboardShouldPersistTaps="handled">
+                    <KeyboardScroll contentContainerStyle={{ paddingTop: 6, paddingBottom: 150 }} keyboardShouldPersistTaps="handled">
                         <Card>
                             <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }}>{title}</Text>
                             <Text style={{ color: text, fontSize: 34, fontWeight: '900', marginTop: 2 }}>{rupees(toPay)}</Text>
@@ -200,7 +201,7 @@ export default function OwnerPayScreen() {
                                 </View>
                             ))}
                         </Card>
-                    </ScrollView>
+                    </KeyboardScroll>
                     <View style={[styles.dock, { backgroundColor: background, borderTopColor: border }]}>
                         <Button label={!current ? tr('Choose how to pay') : current.key === 'qr' ? tr('Show QR code') : tr('Pay {rupees}', { rupees: rupees(toPay) })} icon={current?.key === 'qr' ? 'qr-code' : 'lock-closed'} disabled={!current} busy={qrBusy} onPress={pay} />
                     </View>

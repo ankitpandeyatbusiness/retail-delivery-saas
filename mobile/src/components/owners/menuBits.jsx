@@ -13,6 +13,7 @@ import { amountLabel, stockUnit, itemState, MAX_GROUPS, MAX_OPTIONS, DAYS, maskT
 import { clockTime } from '../../utils/owners/orderFlow';
 import { LineShimmer } from './shimmer';
 import { tr } from '../../i18n';
+import KeyboardScroll from '../common/KeyboardScroll';
 
 /* ------------------------------ small things ------------------------------ */
 // the small coloured square for veg / non-veg, as on food apps
@@ -149,9 +150,9 @@ export function FormPage({ title, children, footer, right }) {
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={title} right={right} />
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-                <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 40 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                <KeyboardScroll contentContainerStyle={{ paddingTop: 6, paddingBottom: 40 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
                     {children}
-                </ScrollView>
+                </KeyboardScroll>
                 {footer ? (
                     <View style={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: Math.max(insets.bottom, 10), borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: border, backgroundColor: background }}>
                         {footer}

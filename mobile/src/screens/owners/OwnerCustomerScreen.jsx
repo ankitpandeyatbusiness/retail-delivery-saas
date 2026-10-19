@@ -60,7 +60,7 @@ export default function OwnerCustomerScreen() {
                 <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{tr('Joined {ago}{v2}', { ago: ago(c.createdAt), v2: c.lastLoginAt ? ` · last seen ${ago(c.lastLoginAt)}` : '' })}</Text>
                 {c.isBlocked ? <View style={{ marginTop: 8 }}><Pill label={tr('Blocked by the platform')} color={error} /></View> : null}
                 <View style={{ flexDirection: 'row', marginTop: 12 }}>
-                    <View style={{ flex: 1, marginRight: 6 }}><Button label={tr('Call')} icon="call" kind="ghost" onPress={() => callPhone(c.phone)} /></View>
+                    <View style={{ flex: 1, marginRight: 6 }}><Button label={tr('Call')} icon="call" iconOnly kind="ghost" onPress={() => callPhone(c.phone)} /></View>
                     <View style={{ flex: 1, marginLeft: 6 }}><Button label={tr('WhatsApp')} icon="logo-whatsapp" kind="ghost" onPress={() => whatsApp(c.phone)} /></View>
                 </View>
             </Card>

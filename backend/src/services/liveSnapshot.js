@@ -19,6 +19,27 @@ function startOf(now, unit) {
     return new Date(t.getTime() - IST_MS);
 }
 
+// What is waiting for the OWNER (the pipeline cards blink for these):
+//   accepted      orders he has accepted but not started: he must mark them preparing
+//   cookingNoRider  delivery orders being prepared with no rider (nobody accepted): he must assign one by hand
+//   ready         ready orders with no rider yet, or waiting 5+ minutes to be handed over
+//   roadDue       when each order on the road is due (the app turns the late ones red and counts the minutes)
+const READY_WAIT_MS = 5 * 60 * 1000;
+async function attention(tenantId, now) {
+    const rows = await Order.find({ tenantId, status: { $in: ['accepted', 'preparing', 'ready', 'out_for_delivery'] }, ...HIDE_UNPAID })
+        .select('status orderType delivery.riderId delivery.status delivery.dueAt updatedAt').limit(300).lean();
+    const out = { accepted: 0, cookingNoRider: 0, ready: 0, roadDue: [] };
+    for (const o of rows) {
+        const noRider = o.orderType === 'delivery' && (!o.delivery?.riderId || o.delivery?.status === 'rejected');
+        if (o.status === 'accepted') out.accepted += 1;
+        else if (o.status === 'preparing' && noRider) out.cookingNoRider += 1;
+        else if (o.status === 'ready' && (noRider || now.getTime() - new Date(o.updatedAt).getTime() >= READY_WAIT_MS)) out.ready += 1;
+        else if (o.status === 'out_for_delivery' && o.delivery?.dueAt) out.roadDue.push(new Date(o.delivery.dueAt).toISOString());
+    }
+    out.roadDue = out.roadDue.slice(0, 30);
+    return out;
+}
+
 async function build(tenantId, { owner = false } = {}) {
     const now = new Date();
     const day = startOf(now, 'day');
@@ -63,7 +84,7 @@ async function build(tenantId, { owner = false } = {}) {
     const active = Object.fromEntries(counts.map((c) => [c._id, c.n]));
     return {
         at: now,
-        orders: { active, activeTotal: Object.values(active).reduce((a, b) => a + b, 0) },
+        orders: { active, activeTotal: Object.values(active).reduce((a, b) => a + b, 0), attention: await attention(tenantId, now) },
         riders: riders.map((r) => ({
             riderId: r.userId, name: r.name || null, isOnline: !!r.isOnline, activeOrderCount: r.activeOrderCount || 0,
             location: (() => { const p = liveTracking.newest(r.userId, r.lastLocation); return p?.at ? { lat: p.lat, lng: p.lng, at: p.at } : null; })(),

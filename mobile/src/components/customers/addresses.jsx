@@ -286,8 +286,10 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
         setSaving(true);
         try {
             const doc = await saveAddress(body, editId);
+            // takes effect at once, before the list is fetched again: a new address, or the selected one edited, is what the app uses now
+            if (!manage && onSelect && (!editId || String(editId) === String(selectedId))) onSelect(doc);
             const items = await load();
-            if (!manage && !editId && onSelect) { onSelect(doc); onClose(); } else if (items.length) setMode('list');
+            if (!manage && !editId && onSelect) onClose(); else if (items.length) setMode('list');
         } catch (e) {
             showToast(errMsg(e));
         } finally { setSaving(false); }

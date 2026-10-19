@@ -121,6 +121,7 @@ export function useOrderActions({ onChanged } = {}) {
     const advance = async (order) => {
         const next = flow.forwardStep(order);
         if (!next) return;
+        if (flow.needsRider(order, next)) { showToast(tr('Assign a delivery partner first')); return; }
         setBusyId(order.id);
         try {
             const updated = await setOrderStatus(order.id, { status: next });

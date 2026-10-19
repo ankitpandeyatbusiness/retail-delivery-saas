@@ -10,6 +10,7 @@ import { useBrand, BackHeader } from '../../components/common/kit';
 import { tint } from '../../components/customers/shop';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { tr } from '../../i18n';
+import KeyboardScroll from '../../components/common/KeyboardScroll';
 
 const digits = (v) => String(v || '').replace(/\D/g, '');
 
@@ -99,7 +100,7 @@ export default function CardDetailsScreen() {
         <View style={[s.flex, { backgroundColor: background }]}>
             <BackHeader title={tr('Add card')} />
             <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-                <ScrollView contentContainerStyle={s.pad} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                <KeyboardScroll contentContainerStyle={s.pad} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
                     <View style={[s.secure, { backgroundColor: tint(primary) }]}>
                         <Ionicons name="lock-closed-outline" size={18} color={primary} />
                         <Text style={[s.secureTxt, { color: text }]}>{tr('Your card details are not saved. You will confirm with your bank\'s OTP.')}</Text>
@@ -171,7 +172,7 @@ export default function CardDetailsScreen() {
                     <Pressable onPress={submit} style={[s.btn, { backgroundColor: primary }]}>
                         <Text numberOfLines={1} style={[s.btnTxt, { color: onPrimary }]}>{tr('Use this card')}</Text>
                     </Pressable>
-                </ScrollView>
+                </KeyboardScroll>
             </KeyboardAvoidingView>
         </View>
     );

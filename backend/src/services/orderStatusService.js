@@ -45,6 +45,7 @@ const CANCEL_LABEL = {
     customer_asked: 'Cancelled at your request',
     customer_fault: 'Cancelled at your request',
     platform: 'Cancelled by the platform',
+    late_delivery: 'The delivery was more than an hour late. You get a full refund.',
     // a rider cancels the delivery he is carrying (these words are shown to the customer and the shop)
     not_answering: 'Our delivery partner could not reach you',
     wrong_address: 'Our delivery partner could not find the address',
@@ -55,6 +56,13 @@ const CANCEL_LABEL = {
 
 const cleanNote = (note) => (typeof note === 'string' && note.trim() ? note.trim().slice(0, 200) : undefined);
 const logError = (what) => (e) => console.error(`${what}:`, e.message);
+
+// A delivery order cannot be sent out until a delivery partner is assigned to it
+function needsRider(order, status) {
+    if (status !== 'out_for_delivery' || order.orderType !== 'delivery') return;
+    const d = order.delivery || {};
+    if (!d.riderId || d.status === 'rejected') throw httpError(409, 'Assign a delivery partner first. The order can go out for delivery once someone is assigned.');
+}
 
 // Throws a clear error if this actor may not make this move
 function checkAllowed({ order, status, actor, note, tenant, reasonCode, now }) {
@@ -70,6 +78,7 @@ function checkAllowed({ order, status, actor, note, tenant, reasonCode, now }) {
             if (!nextStatuses(order, now).includes(status)) {
                 throw httpError(409, `This order is "${order.status}". It cannot move to "${status}".`);
             }
+            needsRider(order, status);
             if (status === 'cancelled') {
                 if (!OWNER_CANCEL_REASONS.includes(reasonCode)) {
                     throw httpError(400, `Choose a reason for cancelling: ${OWNER_CANCEL_REASONS.join(', ')}`);
@@ -91,6 +100,7 @@ function checkAllowed({ order, status, actor, note, tenant, reasonCode, now }) {
             if (!ACTIVE_STATUSES.includes(order.status)) {
                 throw httpError(409, `This order is already "${order.status}" and cannot be changed`);
             }
+            needsRider(order, status);
             // the owner's normal next step, or a force to cancelled / delivered ("undelivered" is the owner's decision)
             if (!nextStatuses(order, now).filter((s) => s !== 'undelivered').includes(status) && !['cancelled', 'delivered'].includes(status)) {
                 throw httpError(400, 'Superadmin can move an order one step forward, or force it to cancelled or delivered');

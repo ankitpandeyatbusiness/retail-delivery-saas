@@ -9,12 +9,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useBrand, BackHeader } from '../../components/common/kit';
 import { Skel } from '../../components/common/motion';
-import { Pic, VegDot, Heart, Tile, showToast, closedText, tint } from '../../components/customers/shop';
+import { Pic, VegDot, Heart, Tile, showToast, closedText, tint, soldOutText } from '../../components/customers/shop';
 import { Press, Appear, ease } from '../../components/customers/cartParts';
 import SlideNum from '../../components/common/SlideNum';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useMenuStore, useCartStore } from '../../store/customers/shopStores';
 import { fetchProduct } from '../../api/customers/shopApi';
+import { onMenuChanged } from '../../api/common/socket';
 import { isMeasured, perUnit, amountLabel, measureRules, packPrice, startAmount } from '../../utils/customers/measure';
 import { TextInput } from 'react-native';
 import { tr } from '../../i18n';
@@ -150,6 +151,17 @@ export default function ItemScreen() {
     const [more, setMore] = useState(false);
     const [added, setAdded] = useState(false);
 
+    // The shop switched this dish off / on / changed its price while it is open: show it at once (the choices made stay as they are)
+    useEffect(() => {
+        if (state !== 'ok') return undefined;
+        const quiet = () => fetchProduct(id).then((d) => setP((cur) => (cur && String(cur._id) === String(d._id)
+            ? { ...cur, isAvailable: d.isAvailable, unavailableUntil: d.unavailableUntil, price: d.price, mrp: d.mrp, fewLeft: d.fewLeft, maxQty: d.maxQty, optionGroups: d.optionGroups }
+            : cur))).catch(() => { });
+        const off = onMenuChanged(quiet);
+        const t = setInterval(quiet, 15000);   // and every 15 s when there is no live connection
+        return () => { off(); clearInterval(t); };
+    }, [id, state]);
+
     const load = useCallback(async () => {
         // a different dish can arrive in this same screen: forget the old scroll position, or the title bar and
         // the photo keep the offset of the previous dish until the first scroll
@@ -197,7 +209,7 @@ export default function ItemScreen() {
     let blocked = null;
     if (p) {
         if (!full.restaurant.isOpen) blocked = closedText(full);
-        else if (p.isAvailable === false) blocked = 'Sold out';
+        else if (p.isAvailable === false) blocked = soldOutText(p);
         else if (!valid) blocked = 'Not available right now';
     }
     const total = +(unit * (measured ? 1 : qty)).toFixed(2);

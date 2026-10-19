@@ -7,6 +7,8 @@ const EMPTY = { orderId: null, orderNo: null, track: null, loc: null, route: nul
 export const useLiveTripStore = create((set) => ({
     ...EMPTY,
     sheet: 'bar',
+    liveOffset: 0,   // how much room the delivery bar (or its small chip) takes above the tabs, so the active-order bar can sit above it
+    setLiveOffset: (liveOffset) => set((s) => (s.liveOffset === liveOffset ? s : { liveOffset })),
     setSheet: (sheet) => set({ sheet }),
     // a different (or no) order: forget the old one completely
     reset: (orderId = null, orderNo = null) => set({ ...EMPTY, orderId, orderNo, sheet: 'bar' }),

@@ -21,9 +21,10 @@ import { useAuthStore } from '../../store/common/useAuthStore';
 import { useSoundboxStore } from '../../store/owners/useSoundboxStore';
 import { useThemeStore } from '../../store/common/useThemeStore';
 import { setRinging } from '../../store/owners/useAlertStore';
-import { onNotification, onOrderUpdate } from '../../api/common/socket';
+import { onNotification, onOrderUpdate, realtimeConnected } from '../../api/common/socket';
+import { playSfx } from '../common/sfx';
 import api from '../../api/common/client';
-import { fetchOrders } from '../../api/owners/shopApi';
+import { fetchOrders, fetchOrder } from '../../api/owners/shopApi';
 import { buildGreeting } from './greetings';
 
 const SPEECH_TIMEOUT_MS = 20000;
@@ -412,6 +413,15 @@ async function speakRound() {
     const s = settings();
     if (!next || !isOwner() || !s.soundbox || speaking) { endVoice(); return; }   // Soundbox off: no voice at all
     speaking = true;   // from now until the voice has finished, no clock tick may take the voice as done or ring the bell
+    // Ask the server whether this order is still waiting. One that was accepted, cancelled or is already out for delivery
+    // (the update never reached this phone) must never be read out as a new order again.
+    const firstId = pending.keys().next().value;
+    if (firstId && firstId !== 'test-push') {
+        try {
+            const o = await fetchOrder(firstId);
+            if (o && o.status !== 'placed') { note('order ' + (o.orderNo || firstId) + ' is no longer waiting: dropped'); speaking = false; dismiss(firstId); endVoice(); return; }
+        } catch (e) { /* offline: read it as before */ }
+    }
     note('round' + (AppState.currentState !== 'active' ? ' (app in background)' : ''));
     const language = await languageToUse();
     const more = pending.size - 1;
@@ -491,7 +501,12 @@ export async function speakOnOpen(data) {
 // Called by the background task (backgroundTask.js) for the server's silent data message. Nothing here is on screen: the
 // app may not even be running, so the stores start empty and are read back from the phone first.
 export async function speakForPush(data) {
-    if (AppState.currentState === 'active') return;   // the app is in front: the live alert already handles it
+    // The app is in front, or the running Soundbox is connected / already ringing / already talking: the live alert handles
+    // this order, and a second voice from the push would mix with it.
+    // The voice is ONLY for a new order (and its reminder) or a cancelled one. Any other push (no rider yet, late, ...) is never spoken.
+    if (!['order_new', 'order_unaccepted_reminder', 'order_cancelled'].includes(String(data?.type))) return;
+    const liveHandles = () => AppState.currentState === 'active' || looping || speaking || (started && realtimeConnected());
+    if (liveHandles()) return;
     await useSoundboxStore.getState().hydrate();
     if (!settings().soundbox) return;                 // Soundbox off: no voice at all
 
@@ -503,11 +518,32 @@ export async function speakForPush(data) {
     const language = await languageToUse();
     await pickVoice(language);   // finds the voice; wakes the speech engine if it has gone to sleep
     // the running app (Soundbox alive in the background) already rings and reads it, or the owner opened it: do not say it twice
-    if (id && (pending.has(id) || acked.has(id))) { note('already handled by the live alert'); return; }
+    if ((id && data?.type !== 'order_cancelled' && (pending.has(id) || acked.has(id))) || liveHandles()) { note('already handled by the live alert'); return; }
 
     const text = withGreeting(textOf({ orderNo: data?.orderNo, speech: data?.speech, speechHi: data?.speechHi }, language), language);
     note('reading the order in the background');
     await speak(text, language);
+}
+
+// An order was cancelled (by the customer, the system or the rider): stop ringing for it, then a falling tone and, in
+// Soundbox mode, the voice says so once. Only while the app runs; a closed app gets the normal push.
+async function announceCancel(d) {
+    const id = String(d.orderId);
+    const wasWaiting = pending.has(id);
+    dismiss(id);
+    if (!isOwner() || !settings().soundbox || speaking) return;
+    if (!settings().alwaysReady && AppState.currentState !== 'active' && !wasWaiting) return;
+    note('order ' + (d.orderNo || id) + ' cancelled');
+    playSfx('orderCancelled');
+    try {
+        const language = await languageToUse();
+        const no = d.orderNo || '';
+        const text = language === 'hi'
+            ? 'ऑर्डर ' + no + ' रद्द हो गया।'
+            : 'Order ' + no + ' was cancelled' + (d.byRider ? ' by the delivery partner.' : '.');
+        await new Promise((r) => setTimeout(r, 1300));   // the tone first, then the voice
+        if (!speaking) await speak(text, language);
+    } catch (e) { /* the tone is enough */ }
 }
 
 /* ------------------------------ catching up ------------------------------ */
@@ -559,6 +595,7 @@ function begin() {
     });
 
     unsubs.push(onNotification((n) => {
+        if (n?.type === 'order_cancelled' && n.data?.orderId) { announceCancel(n.data); return; }
         if (!n || !ALERT_TYPES.includes(n.type)) return;
         const d = n.data || {};
         raise({ orderId: d.orderId, orderNo: d.orderNo, speech: d.speech, speechHi: d.speechHi });

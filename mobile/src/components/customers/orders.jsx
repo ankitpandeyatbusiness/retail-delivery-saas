@@ -7,6 +7,7 @@ import { useBrand } from '../common/kit';
 import { showToast, tint } from './shop';
 import { useCartStore } from '../../store/customers/shopStores';
 import { cancelOrder, reorderOrder, fetchProduct } from '../../api/customers/shopApi';
+import { playSfx } from '../../utils/common/sfx';
 import { tr } from '../../i18n';
 
 export const STATUS_LABEL = {
@@ -45,6 +46,7 @@ export function cancelFlow(order, { onDone, setBusy } = {}) {
                 try {
                     const u = await cancelOrder(order.id);
                     showToast(tr('Order cancelled'));
+                    playSfx('orderCancelled');
                     if (onDone) onDone(u);
                 } catch (e) {
                     showToast(errMsg(e));

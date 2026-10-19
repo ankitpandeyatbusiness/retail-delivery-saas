@@ -26,9 +26,9 @@ const { httpError } = require('../middlewares/apiErrors');
 
 const DAY = 86400000;
 const IST = 330 * 60000;
-const AUTOMATIONS = ['welcome', 'thanks', 'winback', 'mealtime', 'festival', 'dailySummary', 'weeklyDigest'];
+const AUTOMATIONS = ['welcome', 'winback', 'mealtime', 'festival', 'dailySummary', 'weeklyDigest'];
 const RECOMMENDED = {
-    on: { welcome: true, thanks: true, winback: true, mealtime: false, festival: false, dailySummary: true, weeklyDigest: true },
+    on: { welcome: true, winback: true, mealtime: false, festival: false, dailySummary: true, weeklyDigest: true },
     frequency: 'gentle', language: 'hinglish', maxDiscount: 10, quietFrom: 21, quietTo: 9, summaryHour: 22,
 };
 const WEEKLY_CAP = { gentle: 2, normal: 3, pushy: 4 };
@@ -219,7 +219,7 @@ const setup = async (tenant, cfg, now) => {
 
 async function runWelcomeAndThanks(tenant, cfg, ctx, now) {
     let sent = 0;
-    if (!cfg.on.welcome && !cfg.on.thanks) return sent;
+    if (!cfg.on.welcome) return sent;
     if (inQuiet(istHour(now), cfg.quietFrom, cfg.quietTo)) return sent;
     const orders = await Order.find({ tenantId: tenant._id, status: 'delivered', deliveredAt: { $gte: new Date(now.getTime() - DAY), $lte: new Date(now.getTime() - 20 * 60000) } }).select('userId').sort({ deliveredAt: 1 }).lean();
     for (const o of orders) {
@@ -229,10 +229,6 @@ async function runWelcomeAndThanks(tenant, cfg, ctx, now) {
         const first = profile.orders === 1;
         if (first && cfg.on.welcome) {
             if (await deliver({ tenant, user, profile, cfg, kind: 'welcome', by: 'autopilot', promo: false, orderId: o._id, now })) sent += 1;
-        } else if (!first && cfg.on.thanks) {
-            const recent = await NudgeLog.exists({ tenantId: tenant._id, userId: user._id, kind: 'thanks', createdAt: { $gte: new Date(now.getTime() - 3 * DAY) } });
-            if (recent) continue;
-            if (await deliver({ tenant, user, profile, cfg, kind: 'thanks', by: 'autopilot', promo: false, orderId: o._id, now })) sent += 1;
         }
     }
     return sent;
@@ -347,7 +343,7 @@ async function runOwnerNotes(tenant, cfg, now) {
 async function runForTenant(tenant, cfg, now = new Date()) {
     if (cfg.platformPaused || tenant.ownerBlocked || tenant.status === 'suspended') return { customers: 0, owner: 0 };
     const owner = await runOwnerNotes(tenant, cfg, now);
-    if (!cfg.on.welcome && !cfg.on.thanks && !cfg.on.winback && !cfg.on.mealtime && !cfg.on.festival) return { customers: 0, owner };
+    if (!cfg.on.welcome && !cfg.on.winback && !cfg.on.mealtime && !cfg.on.festival) return { customers: 0, owner };
     const ctx = await setup(tenant, cfg, now);
     let customers = 0;
     for (const run of [runWelcomeAndThanks, runWinback, runMealtime, runFestival]) {

@@ -18,7 +18,10 @@ const KEEP_MS = 30 * 60000;
 const kept = new Map();   // orderId -> { at, plan }
 
 const spot = (lat, lng) => (Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180 ? { lat, lng } : null);
-const wholeMinutes = (sec) => Math.ceil(sec / 60) * 60;
+// No delivery is given more than this (DELIVERY_MAX_MIN, default 90 min): a very long time means a wrong pin on the map, and a rider
+// must never be handed hours for one order.
+const MAX_SEC = (parseInt(process.env.DELIVERY_MAX_MIN, 10) || 90) * 60;
+const wholeMinutes = (sec) => Math.min(Math.ceil(sec / 60) * 60, MAX_SEC);
 
 // The fixed road shown on the rider's map: from the shop to the customer. One road per order (kept for 30 minutes), so Google is
 // called once per order and counted in the same monthly caps as every route; when the caps are used up or Google fails the answer is the

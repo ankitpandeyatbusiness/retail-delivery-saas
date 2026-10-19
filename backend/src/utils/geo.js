@@ -24,7 +24,7 @@ function serviceability(tenant, lat, lng) {
     if (raw <= d.radiusKm) return { serviceable: true, distanceKm: km, radiusKm: d.radiusKm, message: null };
     return {
         serviceable: false, distanceKm: km, radiusKm: d.radiusKm,
-        message: `Sorry, we deliver only within ${d.radiusKm} km. This location is ${km} km away.`,
+        message: `Sorry, this spot is ${km} km from the shop and we can deliver only within ${d.radiusKm} km. Whether you are ordering for yourself or for someone else, please pin a location inside our delivery area.`,
     };
 }
 

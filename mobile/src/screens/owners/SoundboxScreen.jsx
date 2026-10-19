@@ -9,6 +9,7 @@ import { labelledVoices, sampleVoice, previewGreeting } from '../../utils/owners
 import { FAITH_GREETINGS, ADDRESS_CHOICES } from '../../utils/owners/greetings';
 import { newOrderChannelInfo } from '../../utils/common/push';
 import { tr } from '../../i18n';
+import KeyboardScroll from '../../components/common/KeyboardScroll';
 
 const VOLUMES = [[0.4, 'Low'], [0.7, 'Medium'], [1, 'Loud']];
 const LANGUAGES = [['en', 'English'], ['hi', 'हिन्दी']];
@@ -61,7 +62,7 @@ export default function SoundboxScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Soundbox')} />
-            <ScrollView contentContainerStyle={{ paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
+            <KeyboardScroll contentContainerStyle={{ paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
                 <Card style={{ marginTop: 8 }}>
                     <Switcher
                         title={tr('Soundbox mode')}
@@ -257,7 +258,7 @@ export default function SoundboxScreen() {
                     </View>
                     <Button label={tr('Open phone settings')} kind="ghost" onPress={() => Linking.openSettings()} style={{ marginTop: 4 }} />
                 </Card>
-            </ScrollView>
+            </KeyboardScroll>
         </View>
     );
 }

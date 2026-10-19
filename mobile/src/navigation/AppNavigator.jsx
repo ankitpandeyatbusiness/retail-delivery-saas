@@ -13,6 +13,7 @@ import PaymentMethodsScreen from '../screens/customers/PaymentMethodsScreen';
 import OrdersScreen from '../screens/customers/OrdersScreen';
 import OrderDetailScreen from '../screens/customers/OrderDetailScreen';
 import LiveOrderHost from '../components/customers/LiveOrderHost';
+import ActiveOrderBar from '../components/customers/ActiveOrderBar';
 import OrderPlacedScreen from '../screens/customers/OrderPlacedScreen';
 import RiderTabs from './RiderNavigator';
 import RiderTripScreen from '../screens/riders/RiderTripScreen';
@@ -248,7 +249,8 @@ export default function AppNavigator() {
     const goOrders = () => {
         useAppStatus.getState().clearFrozen();
         if (!navigationRef.isReady()) return;
-        navigationRef.dispatch(StackActions.popToTop());
+        // popToTop is refused (an error) when the stack has only its first screen
+        if ((navigationRef.getRootState()?.routes?.length || 0) > 1) navigationRef.dispatch(StackActions.popToTop());
         navigationRef.dispatch(CommonActions.navigate({ name: 'Orders' }));
     };
 
@@ -342,7 +344,8 @@ export default function AppNavigator() {
                 </Stack.Navigator>
             </NavigationContainer>
             <OwnerViewPill onBack={() => { if (navigationRef.isReady() && (navigationRef.getRootState()?.routes?.length || 0) > 1) navigationRef.dispatch(StackActions.popToTop()); }} />
-            <LiveOrderHost routeName={routeName} />
+            <LiveOrderHost routeName={routeName} onOpenOrder={(id) => { if (navigationRef.isReady()) navigationRef.navigate('OrderDetail', { id }); }} />
+            <ActiveOrderBar routeName={routeName} onOpen={(id) => { if (navigationRef.isReady()) navigationRef.navigate('OrderDetail', { id }); }} onOpenAll={goOrders} />
             <NewOrderPopup navRef={navigationRef} />
             <LegalGate />
             <FrozenOverlay onOrders={goOrders} />

@@ -9,7 +9,7 @@
 // status      the order status at the moment of the cancel
 // acceptedAt  when the owner accepted (Date), for the 2 minute free window
 const SHARE = { placed: 0, accepted: 20, preparing: 50, ready: 50, out_for_delivery: 100 };
-const FULL = ['payment_timeout', 'not_accepted', 'shop_reject', 'shop_fault', 'platform', 'rider_fault', 'duplicate'];
+const FULL = ['payment_timeout', 'not_accepted', 'late_delivery', 'shop_reject', 'shop_fault', 'platform', 'rider_fault', 'duplicate'];
 
 function calcRefund({ paidPaise, tipPaise = 0, reason, status, acceptedAt, now = new Date() }) {
     if (!Number.isInteger(paidPaise) || paidPaise < 0) throw new Error('paidPaise must be whole paise');

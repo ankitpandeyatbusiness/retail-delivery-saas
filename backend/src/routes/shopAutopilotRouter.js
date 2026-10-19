@@ -13,7 +13,7 @@ const { wrap, httpError } = apiErrors;
 const router = express.Router();
 
 const NAMES = {
-    welcome: 'Welcome after the first order', thanks: 'Thank you after a delivery', winback: 'Bring back customers who stopped ordering',
+    welcome: 'Welcome after the first order', winback: 'Bring back customers who stopped ordering',
     mealtime: 'Meal-time reminder at their usual hour', festival: 'Festival greeting', dailySummary: 'Your daily summary', weeklyDigest: 'Your Monday digest',
 };
 const KIND_NAMES = {

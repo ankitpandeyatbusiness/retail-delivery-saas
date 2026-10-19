@@ -111,8 +111,8 @@ function Details({ kind, rider, trip, colour, now, onClose, onOrder }) {
             )}
 
             <View style={{ flexDirection: 'row', marginTop: 12 }}>
-                {kind === 'rider' && rider?.phone ? <View style={{ flex: 1, marginRight: 8 }}><Button label={tr('Call rider')} icon="call" kind="ghost" onPress={() => callPhone(rider.phone)} /></View> : null}
-                {kind === 'customer' && trip?.customer?.phone ? <View style={{ flex: 1, marginRight: 8 }}><Button label={tr('Call customer')} icon="call" kind="ghost" onPress={() => callPhone(trip.customer.phone)} /></View> : null}
+                {kind === 'rider' && rider?.phone ? <View style={{ flex: 1, marginRight: 8 }}><Button label={tr('Call rider')} icon="call" iconOnly kind="ghost" onPress={() => callPhone(rider.phone)} /></View> : null}
+                {kind === 'customer' && trip?.customer?.phone ? <View style={{ flex: 1, marginRight: 8 }}><Button label={tr('Call customer')} icon="call" iconOnly kind="ghost" onPress={() => callPhone(trip.customer.phone)} /></View> : null}
                 {trip ? <View style={{ flex: 1 }}><Button label={tr('Open order')} icon="open-outline" onPress={() => onOrder(trip.orderId)} /></View> : null}
             </View>
         </View>

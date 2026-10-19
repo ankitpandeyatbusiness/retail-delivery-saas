@@ -17,7 +17,7 @@ function statusText(v) {
                 ? { title: 'Ready for pickup', body: `Your order #${no} is ready for pickup.` }
                 : { title: 'Order ready', body: `Your order #${no} is ready.` };
         case 'out_for_delivery': return { title: 'On the way', body: `Your order #${no} is on the way.` };
-        case 'delivered': return { title: 'Delivered', body: `Your order #${no} was delivered. Enjoy!` };
+        case 'delivered': return { title: 'Delivered', body: `Your order #${no} has been delivered. Thank you for ordering! We would love to serve you again. Order more anytime.` };
         case 'undelivered':
             return {
                 title: 'Order not delivered',
@@ -44,11 +44,17 @@ const TEXTS = {
     order_cancelled: (v) => ({
         title: v.undelivered ? 'Order not delivered' : 'Order cancelled',
         body: v.audience === 'rider'
-            ? (v.undelivered ? `Order #${v.orderNo} was marked as not delivered.` : `Order #${v.orderNo} was cancelled.`)
+            ? (v.undelivered ? `Order #${v.orderNo} was marked as not delivered.` : `Order #${v.orderNo} was cancelled${v.lateDelivery ? ' because it was more than an hour late' : ''}.`)
             : v.byRider
                 ? `Order #${v.orderNo} was cancelled by the delivery partner${v.reason ? `: ${v.reason}` : ''}.`
-                : `Order #${v.orderNo} was cancelled${v.bySystem ? ' (not accepted in time)' : ' by the customer'}.`,
+                : v.lateDelivery
+                    ? `Order #${v.orderNo} was cancelled: the delivery was more than an hour late. The customer is refunded in full.`
+                    : `Order #${v.orderNo} was cancelled${v.bySystem ? ' (not accepted in time)' : ' by the customer'}.`,
     }),
+    delivery_late_warning: (v) => ({ title: 'Delivery is very late', body: `Order #${v.orderNo} is ${v.late} min late. It is cancelled and fully refunded in ${v.left} min if it is not delivered.` }),
+    delivery_late_warning_rider: (v) => ({ title: 'Deliver now', body: `Order #${v.orderNo} is ${v.late} min late. It will be cancelled in ${v.left} min if it is not delivered.` }),
+    order_delivered_shop: (v) => ({ title: 'Order delivered', body: `Order #${v.orderNo} was delivered to the customer.` }),
+    delivery_done_rider: (v) => ({ title: 'Delivery complete', body: `Thank you! Order #${v.orderNo} is delivered. Great work.` }),
     rider_offer: (v) => ({
         title: 'New delivery request',
         body: `Order #${v.orderNo}${v.items ? ` (${v.items} item${v.items > 1 ? 's' : ''}${v.collect ? `, collect Rs ${v.collect}` : ''})` : ''}. Please accept within ${v.secs} seconds.`,

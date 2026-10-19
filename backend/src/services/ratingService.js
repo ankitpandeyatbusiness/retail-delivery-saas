@@ -54,9 +54,10 @@ async function rateOrder({ tenantId, userId, orderId, ratings }) {
     await Order.updateOne({ _id: order._id }, { $set: { ratedAt: new Date() } });
     await shopRating.refresh(tenantId).catch((e) => console.error('Shop rating error:', e.message));
 
-    // a dish rated 2 stars or less: the owner is told (never blocks the customer)
+    // the shop is told about the review (a dish rated 2 stars or less also gets its own low-rating alert below). Never blocks the customer.
     try {
         const nameOf = Object.fromEntries(order.items.map((l) => [String(l.productId), l.name || l.title || 'a dish']));
+        if (!ratings.some((x) => x.rating <= 2)) require('./notificationService').foodReviewed({ tenantId, orderId: order._id, orderNo: order.orderNo, ratings, nameOf });
         for (const r of ratings.filter((x) => x.rating <= 2)) {
             center.notify('dish_low_rating', {
                 tenantId,

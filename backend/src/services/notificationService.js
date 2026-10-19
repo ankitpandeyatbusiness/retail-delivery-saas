@@ -65,20 +65,26 @@ function orderStatusChanged(order, status, actor) {
                 },
             });
         }
+        if (status === 'delivered') {
+            if (actor.type !== 'owner') center.notify('order_delivered_shop', { tenantId: t, data, vars: { orderNo: no } });   // the shop already knows when it marked it itself
+            if (order.delivery?.riderId) center.notify('delivery_done_rider', { tenantId: t, userId: order.delivery.riderId, data, vars: { orderNo: no } });
+        }
         if (status === 'cancelled') {
+            // the sentence the owner's phone may read out (Soundbox) when the app is closed: only for a cancelled order
+            const spoken = (by) => ({ ...data, speech: `Order ${no} was cancelled${by}.`, speechHi: `ऑर्डर ${no} रद्द हो गया।` });
             if ((actor.type === 'customer' || actor.type === 'system') && !isUnpaidOnline(order)) {   // the owner never saw an unpaid online order
                 center.notify('order_cancelled', {
-                    tenantId: t, data, vars: { audience: 'owner', orderNo: no, bySystem: actor.type === 'system' },
+                    tenantId: t, data: spoken(''), vars: { audience: 'owner', orderNo: no, bySystem: actor.type === 'system', lateDelivery: /hour late/.test(order.cancelReason || '') },
                 });
             }
             if (actor.type === 'rider') {   // the delivery partner cancelled: the shop is told at once, with his reason
                 center.notify('order_cancelled', {
-                    tenantId: t, data, vars: { audience: 'owner', orderNo: no, byRider: true, reason: order.cancelReason },
+                    tenantId: t, data: { ...spoken(' by the delivery partner'), byRider: true }, vars: { audience: 'owner', orderNo: no, byRider: true, reason: order.cancelReason },
                 });
             }
             if (order.delivery?.riderId && actor.type !== 'rider') {
                 center.notify('order_cancelled', {
-                    tenantId: t, userId: order.delivery.riderId, data, vars: { audience: 'rider', orderNo: no },
+                    tenantId: t, userId: order.delivery.riderId, data, vars: { audience: 'rider', orderNo: no, lateDelivery: /hour late/.test(order.cancelReason || '') },
                 });
             }
         }
@@ -204,6 +210,39 @@ async function lowDeliveryRating({ tenantId, orderId, orderNo, rating, riderUser
     }
 }
 
+// A customer reviewed the FOOD of a delivered order: the shop is told, whatever the stars. (Never the rider.)
+function foodReviewed({ tenantId, orderId, orderNo, ratings, nameOf }) {
+    try {
+        const stars = ratings.map((r) => r.rating);
+        const avg = Math.round((stars.reduce((a, b) => a + b, 0) / stars.length) * 10) / 10;
+        const first = ratings.find((r) => typeof r.comment === 'string' && r.comment.trim());
+        const dish = ratings.length === 1 ? ` for ${nameOf[ratings[0].productId] || 'a dish'}` : ` for ${ratings.length} dishes`;
+        center.notify('review_food', {
+            tenantId, title: 'New food review',
+            body: `Order #${orderNo}: ${avg} star${avg === 1 ? '' : 's'}${dish}.${first ? ` "${first.comment.trim().slice(0, 100)}"` : ''}`,
+            data: { orderId: String(orderId), orderNo, rating: avg },
+        });
+    } catch (e) {
+        console.error('Notification error:', e.message);
+    }
+}
+
+// A customer reviewed the DELIVERY: the rider who delivered it and the shop are both told.
+function deliveryReviewed({ tenantId, orderId, orderNo, rating, riderUserId, comment, toOwner = true }) {
+    try {
+        const note = typeof comment === 'string' && comment.trim() ? ` "${comment.trim().slice(0, 100)}"` : '';
+        const data = { orderId: String(orderId), orderNo, rating };
+        if (toOwner) {
+            center.notify('review_delivery', { tenantId, title: 'New delivery review', body: `Order #${orderNo}: ${rating} star${rating === 1 ? '' : 's'} for the delivery.${note}`, data });
+        }
+        if (riderUserId) {
+            center.notify('review_delivery_rider', { tenantId, userId: riderUserId, title: 'You got a review', body: `The customer of order #${orderNo} gave your delivery ${rating} star${rating === 1 ? '' : 's'}.${note}`, data });
+        }
+    } catch (e) {
+        console.error('Notification error:', e.message);
+    }
+}
+
 /* ------------------------------ rider broadcast: all free riders at once ------------------------------ */
 // What a rider may see BEFORE he accepts: no customer name, phone or full address.
 function offerCard(order) {
@@ -256,6 +295,6 @@ function offersClosed({ tenantId, orderId, orderNo, why, riderIds = [] }) {
 module.exports = {
     send, toOwner, toUser,
     orderPlaced, orderStatusChanged,
-    riderOffered, riderAccepted, riderRejected, noRiderFree, riderRemoved, riderProblem, riderSos, lowDeliveryRating,
+    riderOffered, riderAccepted, riderRejected, noRiderFree, riderRemoved, riderProblem, riderSos, lowDeliveryRating, foodReviewed, deliveryReviewed,
     riderBroadcast, offersClosed,
 };

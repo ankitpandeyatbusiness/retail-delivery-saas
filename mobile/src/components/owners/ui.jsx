@@ -17,6 +17,7 @@ import { clockTime } from '../../utils/owners/orderFlow';
 import { showToast } from '../customers/shop';
 import { LineShimmer } from './shimmer';
 import { tr } from '../../i18n';
+import KeyboardScroll from '../common/KeyboardScroll';
 
 export const money = (n) => `₹${Math.round(Number(n) || 0).toLocaleString('en-IN')}`;
 
@@ -111,7 +112,7 @@ export function Stat({ label, value, hint, color }) {
 
 // kind: primary | danger | ghost.   busy = a spinner only.   working = a spinner next to the label ("Playing…").
 // Pressing shows at once: the button shrinks a little, darkens and ripples, so a tap is never in doubt.
-export function Button({ label, onPress, icon, kind = 'primary', busy, working, disabled, style }) {
+export function Button({ label, onPress, icon, kind = 'primary', busy, working, disabled, style, iconOnly }) {
     const { primary, onPrimary, text, border, error, radius } = useBrand();
     const fill = kind === 'primary' ? primary : kind === 'danger' ? error : 'transparent';
     const ink = kind === 'primary' ? onPrimary : kind === 'danger' ? '#FFFFFF' : text;
@@ -119,6 +120,7 @@ export function Button({ label, onPress, icon, kind = 'primary', busy, working, 
         <Pressable
             onPress={onPress}
             disabled={disabled || busy}
+            accessibilityRole="button" accessibilityLabel={iconOnly ? label : undefined}
             style={({ pressed }) => [
                 s.btn,
                 {
@@ -129,7 +131,9 @@ export function Button({ label, onPress, icon, kind = 'primary', busy, working, 
                 style,
             ]}
         >
-            {busy ? <ActivityIndicator color={ink} size="small" /> : (
+            {busy ? <ActivityIndicator color={ink} size="small" /> : iconOnly && icon ? (
+                <Ionicons name={icon} size={22} color={ink} style={{ flexGrow: 1, alignSelf: 'stretch', textAlign: 'center', textAlignVertical: 'center', paddingVertical: 13 }} />
+            ) : (
                 <>
                     {/* Only things with real content (text, icons) take touches on some phones, never the empty part of a button.
                         So the label, and an icon on each side, together cover the button from edge to edge (the right icon is invisible). */}
@@ -382,7 +386,7 @@ export function Sheet({ visible, onClose, title, children }) {
                         <Text style={{ flex: 1, color: text, fontSize: 18, fontWeight: '900' }}>{title}</Text>
                         <Pressable onPress={onClose} hitSlop={12}><Ionicons name="close" size={24} color={muted} /></Pressable>
                     </View>
-                    <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>{children}</ScrollView>
+                    <KeyboardScroll keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>{children}</KeyboardScroll>
                 </View>
             </KeyboardAvoidingView>
         </Modal>

@@ -30,7 +30,7 @@ function ContactCard({ info }) {
             </View>
             {any ? (
                 <View style={{ flexDirection: 'row', marginTop: 12 }}>
-                    {info.phone ? <View style={{ flex: 1, marginRight: 6 }}><Button label={tr('Call')} icon="call" kind="ghost" onPress={() => callPhone(info.phone.replace(/[^\d+]/g, ''))} /></View> : null}
+                    {info.phone ? <View style={{ flex: 1, marginRight: 6 }}><Button label={tr('Call')} icon="call" iconOnly kind="ghost" onPress={() => callPhone(info.phone.replace(/[^\d+]/g, ''))} /></View> : null}
                     {info.whatsapp ? <View style={{ flex: 1, marginHorizontal: 3 }}><Button label={tr('WhatsApp')} icon="logo-whatsapp" kind="ghost" onPress={() => whatsApp(info.whatsapp)} /></View> : null}
                     {info.email ? <View style={{ flex: 1, marginLeft: 6 }}><Button label={tr('Email')} icon="mail" kind="ghost" onPress={() => Linking.openURL(`mailto:${info.email}`).catch(() => showToast(tr('No email app found')))} /></View> : null}
                 </View>
