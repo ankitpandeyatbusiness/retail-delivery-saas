@@ -116,6 +116,41 @@ export function Pic({ item, style }) {
     );
 }
 
+// Bestseller / New: a solid label on the corner of the photo (hidden when the dish is sold out)
+export function ImageRibbon({ item }) {
+    if (item.isAvailable === false) return null;
+    const r = item.isBestseller ? ['Bestseller', 'flame', '#E8590C'] : item.isNewArrival ? ['New', 'sparkles', '#059669'] : null;
+    if (!r) return null;
+    return (
+        <View pointerEvents="none" style={[s.ribbon, { backgroundColor: r[2] }]}>
+            <Ionicons name={r[1]} size={11} color="#FFFFFF" />
+            <Text numberOfLines={1} style={s.ribbonTxt}>{tr(r[0])}</Text>
+        </View>
+    );
+}
+
+// Small coloured tags under the name: spice and the diet marks. Most important first, never more than `max`.
+export function Tags({ item, max = 2 }) {
+    const list = [];
+    if (item.spiceLevel === 'hot') list.push(['Spicy', 'flame', '#B91C1C']);
+    else if (item.spiceLevel === 'medium') list.push(['Medium spicy', 'flame-outline', '#C2410C']);
+    if (item.isGiftPack) list.push(['Gift pack', 'gift-outline', '#7C3AED']);
+    if (item.isJain) list.push(['Jain', 'leaf-outline', '#475569']);
+    if (item.isEggless) list.push(['Eggless', 'egg-outline', '#475569']);
+    if (item.isSugarFree) list.push(['Sugar free', 'nutrition-outline', '#475569']);
+    if (!list.length) return null;
+    return (
+        <View style={s.tags}>
+            {list.slice(0, max).map(([label, icon, c]) => (
+                <View key={label} style={[s.tag, { backgroundColor: `${c}1F` }]}>
+                    <Ionicons name={icon} size={11} color={c} />
+                    <Text numberOfLines={1} style={[s.tagTxt, { color: c }]}>{tr(label)}</Text>
+                </View>
+            ))}
+        </View>
+    );
+}
+
 function Meta({ item, full }) {
     const { muted } = useBrand();
     const f = full.features;
@@ -304,6 +339,7 @@ function ItemCardBase({ item, variant }) {
                 <Text style={[s.name, { color: text }]} numberOfLines={lines}>{item.name}</Text>
             </View>
             {item.fewLeft && !off ? <Text style={s.few}>{tr('Few left')}</Text> : null}
+            <Tags item={item} max={variant === 'big' ? 3 : 2} />
         </View>
     );
 
@@ -319,6 +355,7 @@ function ItemCardBase({ item, variant }) {
                 </View>
                 <View style={s.cWrap}>
                     <Pic item={item} style={s.cImg} />
+                    <ImageRibbon item={item} />
                     {heart}
                     <AddButton item={item} kind="overlap" onPress={() => quickAdd(item, nav)} style={s.overPos} />
                 </View>
@@ -331,6 +368,7 @@ function ItemCardBase({ item, variant }) {
                 <CardGlow radius={18} />
                 <View>
                     <Pic item={item} style={s.gImg} />
+                    <ImageRibbon item={item} />
                     {heart}
                     {pct ? <View style={s.badge}><Text style={s.badgeTxt}>{tr('{pct}% OFF', { pct: pct })}</Text></View> : null}
                 </View>
@@ -351,6 +389,7 @@ function ItemCardBase({ item, variant }) {
             <View>
                 <Pic item={item} style={s.bImg} />
                 <LinearGradient pointerEvents="none" colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.35)']} style={s.bShade} />
+                <ImageRibbon item={item} />
                 {heart}
                 {pct ? <View style={[s.badge, { backgroundColor: ribbon }]}><Text style={[s.badgeTxt, { color: onRibbon }]}>{tr('{pct}% OFF', { pct: pct })}</Text></View> : null}
             </View>
@@ -383,6 +422,7 @@ export function Tile({ item, push }) {
             <CardGlow radius={18} />
             <View>
                 <Pic item={item} style={s.tImg} />
+                <ImageRibbon item={item} />
                 {!off ? <AddButton item={item} kind="circle" onPress={() => quickAdd(item, nav)} style={s.tAdd} /> : null}
             </View>
             <View style={{ padding: 9 }}>
@@ -436,6 +476,11 @@ const s = StyleSheet.create({
     nameRow: { flexDirection: 'row', alignItems: 'center' },
     few: { color: '#C2410C', fontSize: 11, fontWeight: '800', marginTop: 3 },
     name: { flex: 1, fontSize: 16, fontWeight: '800' },
+    ribbon: { position: 'absolute', top: 8, left: 8, flexDirection: 'row', alignItems: 'center', borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3, elevation: 3, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 3, shadowOffset: { width: 0, height: 1 } },
+    ribbonTxt: { color: '#FFFFFF', fontSize: 10.5, fontWeight: '900', marginLeft: 3, letterSpacing: 0.2 },
+    tags: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 5 },
+    tag: { flexDirection: 'row', alignItems: 'center', borderRadius: 7, paddingHorizontal: 6, paddingVertical: 2, marginRight: 5, marginBottom: 2 },
+    tagTxt: { fontSize: 10.5, fontWeight: '800', marginLeft: 3 },
     meta: { flexDirection: 'row', alignItems: 'center', marginTop: 5 },
     rate: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1E8E3E', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginRight: 8 },
     rateText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800' },

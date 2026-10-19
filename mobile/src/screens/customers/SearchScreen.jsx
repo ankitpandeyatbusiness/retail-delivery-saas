@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand } from '../../components/common/kit';
-import { ItemCard, Pic, CartBar, AddButton, VegDot, quickAdd } from '../../components/customers/shop';
+import { ItemCard, Pic, CartBar, AddButton, VegDot, ImageRibbon, Tags, quickAdd } from '../../components/customers/shop';
 import { Slider, VegSwitch, Cats, FiltersRow, Fade, useVoice, VoiceOverlay } from '../../components/customers/finder';
 import FilterDialog from './FilterDialog';
 import { useHomeStore } from '../../store/customers/useHomeStore';
@@ -32,6 +32,7 @@ function Poster({ item, w }) {
         >
             <View>
                 <Pic item={item} style={{ width: w, height: Math.round(w * 0.78), borderRadius: 14 }} />
+                <ImageRibbon item={item} />
                 <AddButton item={item} kind="overlap" onPress={() => quickAdd(item, nav)} style={s.posAdd} />
             </View>
             <View style={{ paddingTop: 22 }}>
@@ -39,6 +40,7 @@ function Poster({ item, w }) {
                     {showDot ? <VegDot isVeg={item.isVeg} /> : null}
                     <Text numberOfLines={1} style={[s.pn, { color: text }]}>{item.name}</Text>
                 </View>
+                <Tags item={item} max={1} />
                 <View style={s.priceRow}>
                     <Text style={[s.pp, { color: text }]}>₹{item.price}</Text>
                     {item.mrp > item.price ? <Text style={[s.mrp, { color: muted }]}>₹{item.mrp}</Text> : null}
