@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from './kit';
 import { LANGS, useLang, tr } from '../../i18n';
+import { DragDown, Grip } from './DragDown';
 
 export default function LanguageSheet({ visible, onClose }) {
     const { surface, text, muted, border, primary } = useBrand();
@@ -17,9 +18,12 @@ export default function LanguageSheet({ visible, onClose }) {
         <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
             <View style={{ flex: 1, justifyContent: 'flex-end' }}>
                 <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+                <DragDown visible={visible} onClose={onClose}>
                 <View style={[s.sheet, { backgroundColor: surface, borderTopColor: border, paddingBottom: Math.max(insets.bottom, 12) + 8 }]}>
-                    <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: border, marginBottom: 10 }} />
-                    <Text style={{ color: text, fontSize: 18, fontWeight: '900', marginBottom: 4 }}>{tr('Language')}</Text>
+                    <Grip>
+                        <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: border, marginBottom: 10 }} />
+                        <Text style={{ color: text, fontSize: 18, fontWeight: '900', marginBottom: 4 }}>{tr('Language')}</Text>
+                    </Grip>
                     <ScrollView>
                         {LANGS.map((l) => (
                             <Pressable key={l.code} onPress={() => pick(l.code)} style={({ pressed }) => [s.row, { borderBottomColor: border }, pressed && { opacity: 0.7 }]}>
@@ -32,6 +36,7 @@ export default function LanguageSheet({ visible, onClose }) {
                         ))}
                     </ScrollView>
                 </View>
+                </DragDown>
             </View>
         </Modal>
     );

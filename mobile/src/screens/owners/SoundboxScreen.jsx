@@ -104,7 +104,7 @@ export default function SoundboxScreen() {
                     </View>
                     <View style={{ flexDirection: 'row' }}>
                         <Button label={tr('Check again')} kind="ghost" onPress={() => newOrderChannelInfo().then(setChan)} style={{ flex: 1, marginRight: 8 }} />
-                        <Button label={tr('Phone notification settings')} kind="ghost" onPress={() => Linking.openSettings()} style={{ flex: 1 }} />
+                        <Button label={tr('Settings')} kind="ghost" onPress={() => Linking.openSettings()} style={{ flex: 1 }} />
                     </View>
                 </Card>
 

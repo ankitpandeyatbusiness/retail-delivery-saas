@@ -97,7 +97,7 @@ export default function OwnerMonthScreen() {
                 ListFooterComponent={(
                     <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
                         {more ? <View style={{ marginBottom: 10 }}><Button label={tr('Show more')} kind="ghost" onPress={() => load(page + 1)} /></View> : null}
-                        {items && items.length ? <Button label={tr('Download this month (spreadsheet)')} icon="download" kind="ghost" working={busy === 'csv'} disabled={busy === 'csv'} onPress={csv} /> : null}
+                        {items && items.length ? <Button label={tr('Excel Sheet')} icon="download" kind="ghost" working={busy === 'csv'} disabled={busy === 'csv'} onPress={csv} /> : null}
                     </View>
                 )}
             />

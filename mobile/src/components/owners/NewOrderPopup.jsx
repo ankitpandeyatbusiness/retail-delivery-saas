@@ -108,8 +108,8 @@ export default function NewOrderPopup({ navRef }) {
                     {queue.length > 1 ? <View style={{ marginTop: 8, alignSelf: 'flex-start' }}><Pill label={tr('{v1} more order{v2} waiting', { v1: queue.length - 1, v2: queue.length === 2 ? '' : 's' })} color={error} /></View> : null}
 
                     <View style={{ flexDirection: 'row', marginTop: 16 }}>
-                        <Button label={tr('View order')} kind="ghost" icon="open-outline" onPress={open} disabled={busy} style={{ flex: 1, marginRight: 8 }} />
-                        <Button label={tr('Accept')} icon="checkmark" busy={busy} onPress={accept} style={{ flex: 1.4 }} />
+                        <Button label={tr('View')} kind="ghost" icon="open-outline" onPress={open} disabled={busy} style={{ flex: 1 }} />
+                        <Button label={tr('Accept')} icon="checkmark" busy={busy} onPress={accept} style={{ flex: 1, marginLeft: 8 }} />
                     </View>
                 </View>
             </View>

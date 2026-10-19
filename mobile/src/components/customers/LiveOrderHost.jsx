@@ -7,8 +7,10 @@
 // Drag the handle (the top of the sheet) up or down to change size; the Back button shrinks it to the bar.
 //
 // Mounted once in the navigator. The data comes from useLiveTrip (socket first, polling when the server asks for it).
+import Reanimated, { cancelAnimation, runOnJS, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, AppState, BackHandler, Linking, PanResponder, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Animated, AppState, BackHandler, Linking, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Image } from 'expo-image';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { useMapStyle } from '../../utils/common/mapStyle';
@@ -114,36 +116,34 @@ export default function LiveOrderHost({ routeName, onOpenOrder }) {
 
     const SHEET_H = Math.round(H * 0.93);
     const VISIBLE = useMemo(() => ({ bar: 0, half: Math.round(H * 0.58), full: SHEET_H }), [H, SHEET_H]);
-    const y = useRef(new Animated.Value(SHEET_H)).current;
-    const base = useRef(SHEET_H);
+    // The sheet's position lives on the UI thread (a shared value), so dragging follows the finger at the screen's full
+    // frame rate, even while the map and the rider's marker are busy on the JavaScript side.
+    const y = useSharedValue(SHEET_H);
+    const startY = useSharedValue(SHEET_H);
     const sheetRef = useRef(sheet);
     sheetRef.current = sheet;
 
     const snapTo = useCallback((name) => {
         const to = SHEET_H - VISIBLE[name];
-        base.current = to;
-        Animated.spring(y, { toValue: to, useNativeDriver: true, bounciness: 3, speed: 16 }).start();
+        y.value = withSpring(to, { damping: 20, stiffness: 240, mass: 0.8 });
     }, [y, SHEET_H, VISIBLE]);
     useEffect(() => { snapTo(orderId ? sheet : 'bar'); }, [sheet, orderId, snapTo]);
 
     // dragging the handle
-    const pan = useMemo(() => PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 4,
-        onPanResponderGrant: () => { y.stopAnimation((v) => { base.current = v; }); },
-        onPanResponderMove: (_, g) => {
-            y.setValue(Math.min(SHEET_H, Math.max(SHEET_H - VISIBLE.full, base.current + g.dy)));
-        },
-        onPanResponderRelease: (_, g) => {
-            const visible = SHEET_H - Math.min(SHEET_H, Math.max(SHEET_H - VISIBLE.full, base.current + g.dy));
-            // a quick flick goes one step; a slow drag goes to the nearest size
-            const order = ['bar', 'half', 'full'];
-            let i = order.indexOf(sheetRef.current);
-            if (Math.abs(g.vy) > 0.6) i = Math.max(0, Math.min(2, i + (g.vy < 0 ? 1 : -1)));
-            else i = order.map((n) => Math.abs(VISIBLE[n] - visible)).reduce((b, d, k, a) => (d < a[b] ? k : b), 0);
-            if (order[i] === sheetRef.current) snapTo(order[i]); else setSheet(order[i]);
-        },
-    }), [y, SHEET_H, VISIBLE, snapTo, setSheet]);
+    const settleDrag = useCallback((visible, vy) => {
+        // a quick flick goes one step; a slow drag goes to the nearest size (vy in px per millisecond, up is negative)
+        const order = ['bar', 'half', 'full'];
+        let i = order.indexOf(sheetRef.current);
+        if (Math.abs(vy) > 0.6) i = Math.max(0, Math.min(2, i + (vy < 0 ? 1 : -1)));
+        else i = order.map((n) => Math.abs(VISIBLE[n] - visible)).reduce((b, d, k, a) => (d < a[b] ? k : b), 0);
+        if (order[i] === sheetRef.current) snapTo(order[i]); else setSheet(order[i]);
+    }, [VISIBLE, snapTo, setSheet]);
+    const pan = useMemo(() => Gesture.Pan()
+        .onStart(() => { 'worklet'; cancelAnimation(y); startY.value = y.value; })
+        .onUpdate((e) => { 'worklet'; y.value = Math.min(SHEET_H, Math.max(SHEET_H - VISIBLE.full, startY.value + e.translationY)); })
+        .onEnd((e) => { 'worklet'; runOnJS(settleDrag)(SHEET_H - y.value, e.velocityY / 1000); }),
+    [y, startY, SHEET_H, VISIBLE, settleDrag]);
+    const sheetMove = useAnimatedStyle(() => ({ transform: [{ translateY: y.value }] }));
 
     // Back shrinks the sheet to the bar
     useEffect(() => {
@@ -239,15 +239,17 @@ export default function LiveOrderHost({ routeName, onOpenOrder }) {
                 </>
             ) : null}
 
-            <Animated.View
+            <Reanimated.View
                 pointerEvents={sheet === 'bar' ? 'none' : 'auto'}
-                style={[s.sheet, { height: SHEET_H, backgroundColor: background, borderColor: border, transform: [{ translateY: y }] }]}
+                style={[s.sheet, { height: SHEET_H, backgroundColor: background, borderColor: border }, sheetMove]}
             >
-                <View {...pan.panHandlers} style={s.grab}>
+                <GestureDetector gesture={pan}>
+                <View style={s.grab}>
                     <View style={[s.handle, { backgroundColor: border }]} />
                     <Text style={[s.sheetHead, { color: text }]} numberOfLines={1}>{quiet ? tr('Reconnecting to your delivery partner') : t.head}</Text>
                     <Text style={[s.sheetSub, { color: muted }]} numberOfLines={1}>{sub}</Text>
                 </View>
+                </GestureDetector>
 
                 <View style={s.mapBox}>
                     {sheet !== 'bar' && (rider || dest) ? (
@@ -318,7 +320,7 @@ export default function LiveOrderHost({ routeName, onOpenOrder }) {
                         </View>
                     ) : null}
                 </View>
-            </Animated.View>
+            </Reanimated.View>
         </View>
     );
 }

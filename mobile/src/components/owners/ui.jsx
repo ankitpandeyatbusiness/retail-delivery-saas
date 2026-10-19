@@ -18,6 +18,8 @@ import { showToast } from '../customers/shop';
 import { LineShimmer } from './shimmer';
 import { tr } from '../../i18n';
 import KeyboardScroll from '../common/KeyboardScroll';
+import Reanimated, { interpolate, runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming, cancelAnimation } from 'react-native-reanimated';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 
 export const money = (n) => `₹${Math.round(Number(n) || 0).toLocaleString('en-IN')}`;
 
@@ -372,23 +374,64 @@ const s = StyleSheet.create({
 });
 
 /* ------------------------------ sheet and fields ------------------------------ */
-// A panel that slides up from the bottom. Tapping the dark area or the back button closes it.
+// A panel that slides up from the bottom. Tapping the dark area or the back button closes it, and so does dragging it down:
+// hold the handle or the title and pull it down as far as you like. Past a third of its height (or a quick flick) it goes
+// away; let go earlier and it springs back. The position lives on the UI thread, so it follows the finger smoothly.
+const SHEET_OFF = 2000;   // "not on screen yet"
 export function Sheet({ visible, onClose, title, children }) {
     const { surface, text, border, muted } = useBrand();
     const insets = useSafeAreaInsets();
+    const [shown, setShown] = useState(visible);   // the Modal stays until the slide-out has finished
+    const ty = useSharedValue(SHEET_OFF);
+    const h = useSharedValue(400);
+    const start = useSharedValue(0);
+    const stillOpen = useRef(visible);
+    stillOpen.current = visible;
+    // dragged away: close it; if the screen refuses to close it (it is busy), the sheet comes back instead of hanging off screen
+    const dragClose = () => { onClose(); setTimeout(() => { if (stillOpen.current) ty.value = withSpring(0, { damping: 22, stiffness: 260 }); }, 80); };
+
+    useEffect(() => {
+        if (visible) { ty.value = SHEET_OFF; setShown(true); }
+        else if (shown) {
+            cancelAnimation(ty);
+            ty.value = withTiming(Math.max(h.value, 300), { duration: 220 }, (done) => { if (done) runOnJS(setShown)(false); });
+        }
+    }, [visible]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+    const drag = Gesture.Pan()
+        .onStart(() => { 'worklet'; cancelAnimation(ty); start.value = ty.value; })
+        .onUpdate((e) => { 'worklet'; ty.value = Math.max(0, start.value + e.translationY); })
+        .onEnd((e) => {
+            'worklet';
+            if (ty.value > h.value / 3 || e.velocityY > 900) runOnJS(dragClose)();
+            else ty.value = withSpring(0, { damping: 22, stiffness: 260 });
+        });
+    const move = useAnimatedStyle(() => ({ transform: [{ translateY: ty.value }] }));
+    const fade = useAnimatedStyle(() => ({ opacity: interpolate(ty.value, [0, Math.max(h.value, 1)], [1, 0], 'clamp') }));
+
     return (
-        <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
-                <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-                <View style={[s.sheet, { backgroundColor: surface, borderTopColor: border, paddingBottom: Math.max(insets.bottom, 12) + 8 }]}>
-                    <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: border, marginBottom: 10 }} />
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                        <Text style={{ flex: 1, color: text, fontSize: 18, fontWeight: '900' }}>{title}</Text>
-                        <Pressable onPress={onClose} hitSlop={12}><Ionicons name="close" size={24} color={muted} /></Pressable>
-                    </View>
-                    <KeyboardScroll keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>{children}</KeyboardScroll>
-                </View>
-            </KeyboardAvoidingView>
+        <Modal visible={shown} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
+            <GestureHandlerRootView style={{ flex: 1 }}>
+                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
+                    <Reanimated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.45)' }, fade]} />
+                    <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+                    <Reanimated.View
+                        onLayout={(e) => { h.value = e.nativeEvent.layout.height; if (ty.value >= SHEET_OFF - 1 && visible) ty.value = withTiming(0, { duration: 260 }); }}
+                        style={[s.sheet, { backgroundColor: surface, borderTopColor: border, paddingBottom: Math.max(insets.bottom, 12) + 8 }, move]}
+                    >
+                        <GestureDetector gesture={drag}>
+                            <View collapsable={false}>
+                                <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: border, marginBottom: 10 }} />
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                                    <Text style={{ flex: 1, color: text, fontSize: 18, fontWeight: '900' }}>{title}</Text>
+                                    <Pressable onPress={onClose} hitSlop={12}><Ionicons name="close" size={24} color={muted} /></Pressable>
+                                </View>
+                            </View>
+                        </GestureDetector>
+                        <KeyboardScroll keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>{children}</KeyboardScroll>
+                    </Reanimated.View>
+                </KeyboardAvoidingView>
+            </GestureHandlerRootView>
         </Modal>
     );
 }

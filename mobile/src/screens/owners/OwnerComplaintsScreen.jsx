@@ -9,6 +9,7 @@ import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { COMPLAINT_TYPES, COMPLAINT_STATUS, RESOLUTION_TEXT } from '../../utils/owners/hubRules';
 import { ago } from '../../utils/owners/riderRules';
 import { ListShimmer } from '../../components/owners/shimmer';
+import GlowBorder from '../../components/common/GlowBorder';
 import { tr } from '../../i18n';
 
 export default function OwnerComplaintsScreen() {
@@ -38,9 +39,10 @@ export default function OwnerComplaintsScreen() {
                 data={items || []}
                 keyExtractor={(c) => String(c.id)}
                 contentContainerStyle={{ paddingBottom: 60 }}
-                ListHeaderComponent={<View style={{ paddingHorizontal: 16 }}><Chips options={Object.entries(COMPLAINT_STATUS)} value={status} onChange={pick} style={{ marginTop: 0 }} /></View>}
+                ListHeaderComponent={<View style={{ paddingHorizontal: 16, paddingBottom: 16 }}><Chips options={Object.entries(COMPLAINT_STATUS)} value={status} onChange={pick} style={{ marginTop: 0 }} /></View>}
                 renderItem={({ item: c }) => (
-                    <Card onPress={() => nav.navigate('OwnerComplaint', { complaint: c })}>
+                    <GlowBorder active={c.status !== 'resolved'} radius={18} style={{ marginHorizontal: 16, marginBottom: 12 }}>
+                    <Card onPress={() => nav.navigate('OwnerComplaint', { complaint: c })} style={{ marginHorizontal: 0, marginBottom: 0 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                             <Text style={{ color: text, fontWeight: '900', flex: 1 }} numberOfLines={1}>{tr('Order #{orderNo} · {v2}', { orderNo: c.orderNo, v2: COMPLAINT_TYPES[c.type] || c.type })}</Text>
                             {c.status === 'resolved' ? <Pill label={RESOLUTION_TEXT[c.resolution] || tr('Decided')} color={ok} /> : c.status === 'in_progress' ? <Pill label={tr('In progress')} color={primary} /> : <Pill label={tr('New')} color={error} />}
@@ -48,6 +50,7 @@ export default function OwnerComplaintsScreen() {
                         <Text style={{ color: text, marginTop: 6 }} numberOfLines={2}>{c.text}</Text>
                         <Text style={{ color: muted, fontSize: 12, marginTop: 6 }}>{c.customerName || tr('Customer')} · {ago(c.createdAt)}{c.photos?.length ? tr(' · {length} photo{v2}', { length: c.photos.length, v2: c.photos.length > 1 ? 's' : '' }) : ''}</Text>
                     </Card>
+                    </GlowBorder>
                 )}
                 ListEmptyComponent={items === null ? <ListShimmer /> : err ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={err} /> : <Empty icon="happy-outline" title={status === 'open' ? tr('No new complaints') : tr('Nothing here')} hint={status === 'open' ? tr('Nice. Customers are happy.') : undefined} />}
                 ListFooterComponent={more ? <Pressable onPress={() => load(page + 1)} style={{ padding: 18, alignItems: 'center' }}><Text style={{ color: primary, fontWeight: '800' }}>{tr('Show more')}</Text></Pressable> : null}

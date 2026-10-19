@@ -79,7 +79,6 @@ export function ShopMenu({ onGo }) {
     const nav = useNavigation();
     const { error } = useBrand();
     const logout = useAuthStore((s) => s.logout);
-    const unread = useOwnerStore((st) => st.unread);
     const supportUnread = useOwnerStore((st) => st.supportUnread);
     const user = useAuthStore((st) => st.user);
     const [busy, setBusyState] = useState(null);
@@ -106,7 +105,6 @@ export function ShopMenu({ onGo }) {
         <View>
             <SectionTitle title={tr('Alerts')} />
             <Card>
-                <Row icon="notifications" title={tr('Messages for you')} subtitle={tr('From the platform and about your shop')} onPress={() => go('OwnerNotifications')} right={unread > 0 ? <Pill label={String(unread)} color={error} /> : undefined} />
                 <Row icon="volume-high" title={tr('Soundbox')} subtitle={tr('New-order sound, voice and volume')} onPress={() => go('Soundbox')} last />
             </Card>
 

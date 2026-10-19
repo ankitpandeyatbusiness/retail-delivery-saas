@@ -14,6 +14,7 @@ import { pickPhoto, uploadComplaintPhoto, discardPhoto } from '../../utils/commo
 import { ask } from './dialog';
 import { tr } from '../../i18n';
 import KeyboardScroll from './KeyboardScroll';
+import { DragDown, Grip } from './DragDown';
 
 const errMsg = (e) => e?.response?.data?.error || e?.message || 'Something went wrong';
 const rs = (paise) => `₹${+(paise / 100).toFixed(2)}`;
@@ -286,7 +287,9 @@ export function ComplaintCard({ orderId }) {
                 <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[s.modalWrap, closedStyle]}>
                     <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.45)', opacity: anim }]} />
                     <Pressable style={StyleSheet.absoluteFill} onPress={closeSheet} />
+                    <DragDown visible={shown} onClose={closeSheet}>
                     <Animated.View style={[s.sheet, { backgroundColor: surface, transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [640, 0] }) }] }]}>
+                        <Grip><View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: border, marginBottom: 12 }} /></Grip>
                         <KeyboardScroll keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
                             <Text style={[s.sheetTitle, { color: text }]}>{tr('Report a problem')}</Text>
                             <Text style={[s.label, { color: muted }]}>{tr('WHAT WENT WRONG?')}</Text>
@@ -341,6 +344,7 @@ export function ComplaintCard({ orderId }) {
                             </View>
                         </KeyboardScroll>
                     </Animated.View>
+                    </DragDown>
                 </KeyboardAvoidingView>
             </Modal>
         </>

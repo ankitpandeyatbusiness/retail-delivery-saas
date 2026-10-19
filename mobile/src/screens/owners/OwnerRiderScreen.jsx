@@ -183,7 +183,7 @@ export default function OwnerRiderScreen() {
                     {rider.faultCount > 0 ? <Text style={{ color: error, fontSize: 12, fontWeight: '700', marginTop: 6 }}>{tr('Marked at fault in {faultCount} complaint{v2}', { faultCount: rider.faultCount, v2: rider.faultCount === 1 ? '' : 's' })}</Text> : null}
                     <View style={{ flexDirection: 'row', marginTop: 12 }}>
                         <View style={{ flex: 1, marginRight: 6 }}><Button label={tr('Call')} icon="call" iconOnly kind="ghost" onPress={() => callPhone(rider.phone)} /></View>
-                        <View style={{ flex: 1, marginLeft: 6 }}><Button label={tr('WhatsApp')} icon="logo-whatsapp" kind="ghost" onPress={() => whatsApp(rider.phone)} /></View>
+                        <View style={{ flex: 1, marginLeft: 6 }}><Button label={tr('WhatsApp')} icon="logo-whatsapp" iconOnly kind="ghost" onPress={() => whatsApp(rider.phone)} /></View>
                     </View>
                 </Card>
 
@@ -237,8 +237,8 @@ export default function OwnerRiderScreen() {
                     <Text style={{ color: balance > 0 ? error : text, fontSize: 30, fontWeight: '900', marginTop: 2 }}>{rupees(balance)}</Text>
                     <Text style={{ color: muted, fontSize: 12, marginTop: 4 }}>{tr('Collected {rupees} · Given to shop {rupees2}', { rupees: rupees(cash?.collectedPaise), rupees2: rupees(cash?.handedPaise) })}</Text>
                     <View style={{ flexDirection: 'row', marginTop: 12 }}>
-                        <View style={{ flex: 1, marginRight: 6 }}><Button label={tr('Cash received')} icon="cash" disabled={balance <= 0} onPress={() => setSheet('handover')} /></View>
-                        <View style={{ flex: 1, marginLeft: 6 }}><Button label={tr('Correction')} icon="create" kind="ghost" onPress={() => setSheet('adjust')} /></View>
+                        <View style={{ flex: 1, marginRight: 6 }}><Button label={tr('Cash received')} icon="cash" iconOnly disabled={balance <= 0} onPress={() => setSheet('handover')} /></View>
+                        <View style={{ flex: 1, marginLeft: 6 }}><Button label={tr('Correction')} icon="create" iconOnly kind="ghost" onPress={() => setSheet('adjust')} /></View>
                     </View>
                 </Card>
 

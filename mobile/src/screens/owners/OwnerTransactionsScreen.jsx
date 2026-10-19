@@ -78,7 +78,7 @@ export default function OwnerTransactionsScreen() {
                                 </View>
                             </Card>
                         ))}
-                        {months.length ? <View style={{ paddingHorizontal: 16 }}><Button label={tr('Download {year} (spreadsheet)', { year: data.year })} icon="download" kind="ghost" working={busy} disabled={busy} onPress={csv} /></View> : null}
+                        {months.length ? <View style={{ paddingHorizontal: 16 }}><Button label={tr('Excel Sheet')} icon="download" kind="ghost" working={busy} disabled={busy} onPress={csv} /></View> : null}
                     </>
                 ) : null}
             </ScrollView>

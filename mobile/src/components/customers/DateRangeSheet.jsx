@@ -6,6 +6,7 @@ import { useBrand } from '../common/kit';
 import { tint, useClosedStyle } from './shop';
 import { Press } from './cartParts';
 import { tr } from '../../i18n';
+import { DragDown, Grip } from '../common/DragDown';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -125,7 +126,9 @@ export default function DateRangeSheet({ visible, value, onClose, onApply }) {
             <View style={[s.wrap, closedStyle]}>
                 <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, s.backdrop, { opacity: prog }]} />
                 <Pressable style={{ flex: 1 }} onPress={onClose} />
+                <DragDown visible={show} onClose={onClose}>
                 <Animated.View style={[s.sheet, { backgroundColor: background, transform: [{ translateY: prog.interpolate({ inputRange: [0, 1], outputRange: [640, 0] }) }] }]}>
+                    <Grip>
                     <View style={[s.handle, { backgroundColor: border }]} />
                     <View style={s.top}>
                         <Text style={[s.title, { color: text }]}>{tr('Filter by date')}</Text>
@@ -133,6 +136,7 @@ export default function DateRangeSheet({ visible, value, onClose, onApply }) {
                             <Ionicons name="close" size={16} color={text} />
                         </Pressable>
                     </View>
+                    </Grip>
 
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={s.presets}>
                         {PRESETS.map(([label, a, b]) => (
@@ -184,6 +188,7 @@ export default function DateRangeSheet({ visible, value, onClose, onApply }) {
                         </Press>
                     </View>
                 </Animated.View>
+                </DragDown>
             </View>
         </Modal>
     );

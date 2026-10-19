@@ -123,7 +123,7 @@ export default function OwnerOrderScreen() {
             <PageHeader title={tr('Order #{orderNo}', { orderNo: order.orderNo })} right={<StatusPill status={order.status} />} />
 
             <ScrollView
-                contentContainerStyle={{ paddingBottom: dockH + 24 }}
+                contentContainerStyle={{ paddingBottom: next ? dockH + 24 : 32 }}
                 showsVerticalScrollIndicator={false}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={pull} />}
             >
@@ -192,7 +192,7 @@ export default function OwnerOrderScreen() {
                     {order.customer?.phone && !order.customer?.deleted ? (
                         <View style={{ flexDirection: 'row', marginTop: 10 }}>
                             <Button label={tr('Call')} icon="call" iconOnly kind="ghost" onPress={() => callPhone(order.customer.phone)} style={{ flex: 1, marginRight: 8 }} />
-                            <Button label={tr('WhatsApp')} icon="logo-whatsapp" kind="ghost" onPress={() => whatsApp(order.customer.phone)} style={{ flex: 1 }} />
+                            <Button label={tr('WhatsApp')} icon="logo-whatsapp" iconOnly kind="ghost" onPress={() => whatsApp(order.customer.phone)} style={{ flex: 1 }} />
                         </View>
                     ) : null}
                     {order.orderType === 'dine_in' && order.tableNo ? (
@@ -328,9 +328,9 @@ export default function OwnerOrderScreen() {
                     ) : null}
                     <View style={{ flexDirection: 'row' }}>
                         {isNew && flow.canCancel(order) ? (
-                            <Button label={tr('Reject')} icon="close" kind="ghost" disabled={busy} onPress={() => actions.requestReject(order)} style={{ flex: 1, marginRight: 8 }} />
+                            <Button label={tr('Reject')} icon="close" kind="ghost" disabled={busy} onPress={() => actions.requestReject(order)} style={{ flex: 1 }} />
                         ) : null}
-                        <Button label={flow.stepLabel(order, next)} icon="checkmark" busy={busy} disabled={flow.needsRider(order, next)} onPress={() => actions.advance(order)} style={{ flex: isNew ? 1.4 : 1 }} />
+                        <Button label={flow.stepLabel(order, next)} icon="checkmark" busy={busy} disabled={flow.needsRider(order, next)} onPress={() => actions.advance(order)} style={{ flex: 1, marginLeft: isNew && flow.canCancel(order) ? 8 : 0 }} />
                     </View>
                     {!isNew && flow.canCancel(order) ? (
                         <Button label={tr('Cancel this order')} kind="ghost" disabled={busy} onPress={() => actions.requestReject(order)} style={{ marginTop: 8 }} />

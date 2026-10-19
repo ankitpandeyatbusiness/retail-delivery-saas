@@ -155,7 +155,6 @@ export default function OwnerHomeScreen() {
     if (d) {
         if (d.stock.outCount) attention.push({ key: 'out', icon: 'ban', color: error, title: `${d.stock.outCount} item${d.stock.outCount === 1 ? '' : 's'} out of stock`, sub: d.stock.out.slice(0, 3).map((p) => p.name).join(', ') + (d.stock.outCount > 3 ? ' and more' : ''), go: () => nav.navigate('MenuTab') });
         if (d.stock.lowCount) attention.push({ key: 'low', icon: 'trending-down', color: warn, title: `${d.stock.lowCount} item${d.stock.lowCount === 1 ? '' : 's'} running low`, sub: d.stock.low.slice(0, 3).map((p) => `${p.name} (${p.qty})`).join(', '), go: () => nav.navigate('MenuTab') });
-        if (d.complaints.open) attention.push({ key: 'cmp', icon: 'chatbubble-ellipses', color: error, title: `${d.complaints.open} open complaint${d.complaints.open === 1 ? '' : 's'}`, sub: 'Customers are waiting for a reply', go: () => nav.navigate('OwnerComplaints') });
         if (d.sms.zero) attention.push({ key: 'sms0', icon: 'mail-unread', color: error, title: 'SMS balance is finished', sub: 'Order alerts by SMS have stopped. Top up.', go: () => nav.navigate('MoneyTab') });
         else if (d.sms.low) attention.push({ key: 'sms', icon: 'mail-unread', color: warn, title: 'SMS balance is low', sub: `${money(d.sms.balancePaise / 100)} left`, go: () => nav.navigate('MoneyTab') });
         if (d.rent.dueAmount) attention.push({ key: 'rent', icon: 'card', color: error, title: `Rent due: ${money(d.rent.dueAmount)}`, sub: d.rent.graceEndsAt ? `Pay before ${flow.dayTime(d.rent.graceEndsAt)}` : 'Please pay it', go: () => nav.navigate('MoneyTab') });
@@ -175,6 +174,22 @@ export default function OwnerHomeScreen() {
                     </View>
                     <Button label={tr('Silence')} icon="volume-mute" kind="danger" onPress={clearAll} style={{ marginTop: 10 }} />
                 </Card>
+            ) : null}
+
+            {/* complaints nobody has answered: always on top, blinking, until they are decided */}
+            {d?.complaints?.open ? (
+                <GlowBorder active radius={18} style={{ marginHorizontal: 16, marginTop: 14, marginBottom: 16 }}>
+                    <Card onPress={() => nav.navigate('OwnerComplaints')} style={{ marginHorizontal: 0, marginBottom: 0 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Ionicons name="chatbubble-ellipses" size={22} color={error} />
+                            <View style={{ flex: 1, marginLeft: 10 }}>
+                                <Text style={{ color: error, fontWeight: '900' }}>{tr('{n} complaint(s) not resolved', { n: d.complaints.open })}</Text>
+                                <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{tr('Customers are waiting. Please answer now.')}</Text>
+                            </View>
+                            <Ionicons name="chevron-forward" size={18} color={muted} />
+                        </View>
+                    </Card>
+                </GlowBorder>
             ) : null}
 
             {/* paused */}
