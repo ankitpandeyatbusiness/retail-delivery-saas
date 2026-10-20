@@ -13,7 +13,7 @@ import { FormShimmer } from '../../components/owners/shimmer';
 import { tr } from '../../i18n';
 
 // what we recommend for most shops (the platform's own defaults)
-const RECOMMENDED = { pickupCodOn: true, pickupCodMax: 0, assignMode: 'automatic', offerSeconds: 120, maxActiveOrders: 3, pay: { type: 'none' }, trackPayouts: false, payUndelivered: false, cashLimit: 0, deliveryPin: true, liveTracking: true, locationIntervalSec: 10, codAmount: 1000, codFirst: 3 };
+const RECOMMENDED = { pickupCodOn: true, pickupCodMax: 0, pickupOpenMax: 2, pickupChange: true, assignMode: 'automatic', offerSeconds: 120, maxActiveOrders: 3, pay: { type: 'none' }, trackPayouts: false, payUndelivered: false, cashLimit: 0, deliveryPin: true, liveTracking: true, locationIntervalSec: 10, codAmount: 1000, codFirst: 3 };
 
 export default function OwnerRiderRulesScreen() {
     const nav = useNavigation();
@@ -25,7 +25,7 @@ export default function OwnerRiderRulesScreen() {
 
     useEffect(() => {
         let alive = true;
-        fetchSettings().then((s) => alive && setForm({ ...s.riders, codAmount: s.orders.codCap.amount, codFirst: s.orders.codCap.firstOrders, pickupCodOn: s.orders.pickupCod?.enabled !== false, pickupCodMax: s.orders.pickupCod?.max || 0 }))
+        fetchSettings().then((s) => alive && setForm({ ...s.riders, codAmount: s.orders.codCap.amount, codFirst: s.orders.codCap.firstOrders, pickupCodOn: s.orders.pickupCod?.enabled !== false, pickupCodMax: s.orders.pickupCod?.max || 0, pickupOpenMax: s.orders.pickupRules?.openMax ?? 2, pickupChange: s.orders.pickupRules?.canChange !== false }))
             .catch((e) => { useOwnerStore.getState().noteError(e); if (alive) setErr(apiError(e, 'Could not load your delivery rules.')); });
         return () => { alive = false; };
     }, []);
@@ -61,7 +61,7 @@ export default function OwnerRiderRulesScreen() {
                     pay: v.pay, trackPayouts: v.pay.type === 'none' ? false : !!v.trackPayouts, payUndelivered: paysPerDelivery(v.pay) ? !!v.payUndelivered : false, cashLimit: v.cashLimit,
                     deliveryPin: v.deliveryPin, liveTracking: v.liveTracking, locationIntervalSec: v.locationIntervalSec,
                 },
-                orders: { codCap: { amount: v.codAmount, firstOrders: v.codFirst }, pickupCod: { enabled: v.pickupCodOn !== false, max: v.pickupCodMax || 0 } },
+                orders: { codCap: { amount: v.codAmount, firstOrders: v.codFirst }, pickupCod: { enabled: v.pickupCodOn !== false, max: v.pickupCodMax || 0 }, pickupRules: { openMax: v.pickupOpenMax ?? 2, canChange: v.pickupChange !== false } },
             });
             showToast(tr('Delivery rules saved'));
             nav.goBack();
@@ -118,8 +118,10 @@ export default function OwnerRiderRulesScreen() {
                 <NumberBox label={tr('Applies to his first')} suffix="orders" integer value={v.codFirst} onChange={(x) => set('codFirst', x)} error={errors.codFirst} last />
             </Group>
             <Group title={tr('Pickup orders')} hint={tr('When a customer collects the order himself. You can stop cash for pickup, or allow cash only up to an amount. Then he pays online for bigger orders.')}>
-                <ToggleRow title={tr('Allow cash for pickup orders')} subtitle={v.pickupCodOn !== false ? undefined : tr('Pickup orders must be paid online')} value={v.pickupCodOn !== false} onValueChange={(x) => set('pickupCodOn', x)} last={v.pickupCodOn === false} />
-                {v.pickupCodOn !== false ? <NumberBox label={tr('Highest cash pickup order')} prefix="₹" value={v.pickupCodMax} onChange={(x) => set('pickupCodMax', x ?? 0)} error={errors.pickupCodMax} hint={tr('0 = no limit')} last /> : null}
+                <ToggleRow title={tr('Allow cash for pickup orders')} subtitle={v.pickupCodOn !== false ? undefined : tr('Pickup orders must be paid online')} value={v.pickupCodOn !== false} onValueChange={(x) => set('pickupCodOn', x)} />
+                {v.pickupCodOn !== false ? <NumberBox label={tr('Highest cash pickup order')} prefix="₹" value={v.pickupCodMax} onChange={(x) => set('pickupCodMax', x ?? 0)} error={errors.pickupCodMax} hint={tr('0 = no limit')} /> : null}
+                <NumberBox label={tr('Pickup orders one customer can have waiting')} integer value={v.pickupOpenMax} onChange={(x) => set('pickupOpenMax', x ?? 0)} hint={tr('A new one can be placed after one is collected. 0 = no limit')} />
+                <ToggleRow title={tr('Customer can change the pickup time')} subtitle={tr('To a later time only. You are told when it happens')} value={v.pickupChange !== false} onValueChange={(x) => set('pickupChange', x)} last />
             </Group>
             <View style={{ paddingHorizontal: 16, marginTop: 4 }}><Button label={tr('Reset to recommended')} icon="refresh" kind="ghost" onPress={reset} /></View>
         </FormPage>

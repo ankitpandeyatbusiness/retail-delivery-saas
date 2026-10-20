@@ -229,7 +229,7 @@ router.use('/coupons', crud(Coupon, {
     // usedCount is deliberately NOT editable: only real orders change it
     fields: [
         'code', 'description', 'discountType', 'discountValue', 'maxDiscount', 'minOrder',
-        'firstOrderOnly', 'usageLimitPerUser', 'totalUsageLimit', 'isPublic', 'startsAt', 'endsAt', 'isActive',
+        'firstOrderOnly', 'dineInOnly', 'usageLimitPerUser', 'totalUsageLimit', 'isPublic', 'startsAt', 'endsAt', 'isActive',
     ],
     sort: { _id: -1 },
     searchField: 'code',

@@ -217,8 +217,8 @@ catalogRouter.get('/offers', optionalAuth, async (req, res) => {
 
         const items = await Coupon.find(filter)
             .sort({ _id: -1 })
-            .limit(10)
-            .select('code description discountType discountValue maxDiscount minOrder firstOrderOnly endsAt')
+            .limit(20)
+            .select('code description discountType discountValue maxDiscount minOrder firstOrderOnly dineInOnly endsAt')
             .lean();
         res.json({ items });
     } catch (e) { fail(res, e); }

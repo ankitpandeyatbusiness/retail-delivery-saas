@@ -36,7 +36,7 @@ const { pinFor } = require('../services/deliveryPinService');
 const view = (order, tenant) => { const j = order.toJSON(); delete j.needsLook;
     // the 4-digit code he shows when he collects a pickup order (worked out from a secret, nothing is stored)
     if (order.orderType === 'pickup' && ['placed', 'accepted', 'preparing', 'ready'].includes(order.status)) { try { j.pickupCode = pinFor(order); } catch (e) { /* no secret set up: no code */ } }
-    return { ...j, canCancel: svc.customerCanCancel(order, tenant) }; };   // needsLook is for the shop only
+    return { ...j, canCancel: svc.customerCanCancel(order, tenant), canChangePickup: svc.canChangePickup(order, tenant) }; };   // needsLook is for the shop only
 
 const checkId = (req) => {
     if (!isId(req.params.id)) throw httpError(404, 'Order not found');
@@ -123,6 +123,13 @@ router.get('/:id', wrap(async (req, res) => {
     checkId(req);
     const order = await Order.findOne({ _id: req.params.id, tenantId: req.tenant._id, userId: req.auth.userId });
     if (!order) throw httpError(404, 'Order not found');
+    res.json(view(order, req.tenant));
+}));
+
+// move a pickup to a later time window (the shop is told)
+router.post('/:id/pickup-time', wrap(async (req, res) => {
+    checkId(req);
+    const order = await svc.changePickupTime({ tenant: req.tenant, userId: req.auth.userId, orderId: req.params.id, pickupSlot: req.body?.pickupSlot });
     res.json(view(order, req.tenant));
 }));
 

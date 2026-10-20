@@ -10,13 +10,14 @@ const User = require('../models/User');
 const Coupon = require('../models/Coupon');
 const CustomerRisk = require('../models/CustomerRisk');
 const OrderGuard = require('../models/OrderGuard');
-const { resolveConfig, openStatus } = require('./tenantConfigService');
+const { resolveConfig, openStatus, DEFAULTS } = require('./tenantConfigService');
 const { nextStatuses, customerCanCancel } = require('./orderflow'); // lowercase: matches the real file name
 const { serviceability, haversineKm } = require('../utils/geo');
 const orderStatus = require('./orderStatusService');
 const notify = require('./notificationService');
 const { hashPhone } = require('../utils/phoneHash');
 const { httpError } = require('../middlewares/apiErrors');
+const DEFAULTS_DINE = require('./tenantConfigService').DEFAULTS.orders.dineIn;
 const { isId, round2, buildLines, reserveCoupon, releaseCoupon, priceCart } = require('./orderPricing');
 const { pickupSlots, findPickupSlot } = require('./pickupSlots');
 const stock = require('./stockService');
@@ -32,10 +33,11 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 /* ------------------------------ can this order be placed? ------------------------------ */
 // Returns null if fine, or { status, message } for the first problem found.
 // cod = { earlierOrders, blocked } (only worked out for Cash on delivery orders)
-function checkPlacement({ tenant, config, body, priced, address, user, cod, online }) {
+function checkPlacement({ tenant, config, body, priced, address, user, cod, online, dine, quoting }) {
     const o = config.orders;
 
-    if (!o.types.includes(priced.orderType)) return { status: 400, message: `This shop does not offer ${TYPE_LABEL[priced.orderType]}` };
+    // dine in is switched on by the shop in its Dine in screen; delivery and pickup follow the order types
+    if (priced.orderType === 'dine_in' ? !o.dineIn?.enabled : !o.types.includes(priced.orderType)) return { status: 400, message: `This shop does not offer ${TYPE_LABEL[priced.orderType]}` };
     // unpaid rent after grace (the shop is already shown as not accepting orders; this is a second guard)
     if (tenant.billing?.state === 'paused') return { status: 409, message: 'The shop is not accepting orders right now' };
 
@@ -61,7 +63,7 @@ function checkPlacement({ tenant, config, body, priced, address, user, cod, onli
         if (pc.max > 0 && priced.pricing.total > pc.max) return { status: 400, message: `Cash for a pickup order is allowed up to ₹${pc.max}. Please pay online for this order.` };
     }
     if (body.paymentMethod === 'cod') {
-        if (cod?.blocked) return { status: 400, message: 'Cash on delivery is not available for this number' };
+        if (cod?.blocked) return { status: 400, message: 'Paying by cash is not available for this number because of earlier unpaid or missed orders. Please pay online, or call the shop to sort it out.' };
         const cap = o.codCap || {};
         if (cap.amount > 0 && cap.firstOrders > 0 && (cod?.earlierOrders ?? 0) < cap.firstOrders && priced.pricing.total > cap.amount) {
             return {
@@ -108,12 +110,35 @@ function checkPlacement({ tenant, config, body, priced, address, user, cod, onli
     if (priced.orderType === 'dine_in') {
         const t = typeof body.tableNo === 'string' ? body.tableNo.trim() : '';
         if (!t || t.length > 10) return { status: 400, message: 'Table number is required' };
+        const count = o.dineIn?.tableCount || 10;
+        if (!/^\d{1,3}$/.test(t) || Number(t) < 1 || Number(t) > count) return { status: 400, message: `Please choose a table from 1 to ${count}` };
+        // protection for the shop: he must be at the shop, and a table's unpaid bill has a limit
+        const d = { ...DEFAULTS_DINE, ...(o.dineIn || {}) };
+        const pin = tenant.delivery || {};
+        if (!quoting && d.atShopCheck && Number.isFinite(pin.latitude) && Number.isFinite(pin.longitude)) {
+            const at = body.at;
+            if (!at || !Number.isFinite(at.lat) || !Number.isFinite(at.lng)) return { status: 400, message: 'Please allow your location, so we know you are at the shop.' };
+            if (haversineKm(pin.latitude, pin.longitude, at.lat, at.lng) * 1000 > d.radiusM) return { status: 400, message: 'You seem to be away from the shop. Dine in orders can only be placed from the shop.' };
+        }
+        // he cannot move to another table while a bill of his is still open
+        if (dine?.elsewhere) return { status: 409, message: `You still have an open bill at table ${dine.elsewhere}. Please pay it before ordering from another table.` };
+        if (body.paymentMethod === 'cod' && dine) {
+            if (dine.owes) return { status: 400, message: 'You have an unpaid bill from an earlier visit. Please pay it at the counter, or pay this order online.' };
+            // the owner's choice: a customer's very first table visit is paid online, not at the end
+            if (d.firstOnline && !dine.visits) return { status: 400, message: 'For your first visit here, please pay online. Choose an online payment method.' };
+            const limit = dine.trusted ? d.tabLimitTrusted : d.tabLimitNew;
+            if (limit > 0 && dine.due + priced.pricing.total > limit) {
+                return { status: 409, message: `Your table bill would be ₹${Math.round(dine.due + priced.pricing.total)}, above the ₹${limit} limit. Please ask for the bill and pay first, or pay this order online.` };
+            }
+        }
     }
     return null;
 }
 
-async function prepare({ tenant, userId, body }) {
+async function prepare({ tenant, userId, body, quoting }) {
     const config = resolveConfig(tenant);
+    const dine = body.orderType === 'dine_in' && /^\d{1,3}$/.test(String(body.tableNo || '').trim())
+        ? await require('./tableBill').placementInfo({ tenant, userId, table: String(body.tableNo).trim() }).catch(() => null) : null;
     const user = await User.findById(userId).select('name phone').lean();
 
     // the address comes first: a delivery fee by distance needs it
@@ -141,12 +166,24 @@ async function prepare({ tenant, userId, body }) {
         cod = { earlierOrders, blocked: !!risk?.codBlocked };
     }
     const online = isOnline({ payment: { method: body.paymentMethod } }) ? await accounts.canTakePayments(tenant._id) : null;
-    return { config, priced, address, user, problem: checkPlacement({ tenant, config, body, priced, address, user, cod, online }) };
+    // a bill he left unpaid blocks every kind of order (delivery, pickup, dine in) until it is paid
+    const owed = await require('./tableBill').owedBy(tenant._id, userId).catch(() => null);
+    const owedProblem = owed ? { status: 409, message: `You have an unpaid bill of ₹${Math.round(owed.amount)} from table ${owed.table}. Please pay it first${owed.phone ? ` or call the shop on ${owed.phone} to sort it out` : ''}. Until then you cannot place any order.` } : null;
+    // pickup: only a few orders waiting to be collected at a time
+    let pickupProblem = null;
+    if (priced.orderType === 'pickup') {
+        const max = ({ ...DEFAULTS.orders.pickupRules, ...(config.orders.pickupRules || {}) }).openMax;
+        if (max > 0) {
+            const waiting = await Order.countDocuments({ tenantId: tenant._id, userId, orderType: 'pickup', status: { $in: ['placed', 'accepted', 'preparing', 'ready'] }, ...HIDE_UNPAID });
+            if (waiting >= max) pickupProblem = { status: 409, message: `You already have ${waiting} pickup order${waiting === 1 ? '' : 's'} waiting to be collected. Collect ${waiting === 1 ? 'it' : 'one'} first, then order again.` };
+        }
+    }
+    return { config, priced, address, user, problem: owedProblem || pickupProblem || checkPlacement({ tenant, config, body, priced, address, user, cod, online, dine, quoting }) };
 }
 
 /* ------------------------------ quote (cart screen) ------------------------------ */
 async function quote({ tenant, userId, body }) {
-    const { config, priced, problem } = await prepare({ tenant, userId, body });
+    const { config, priced, problem } = await prepare({ tenant, userId, body, quoting: true });   // the location is checked when the order is placed, not while quoting
     return {
         items: priced.lines,
         pricing: priced.pricing,
@@ -254,8 +291,13 @@ async function placeOrder({ tenant, userId, body, idempotencyKey }) {
         const orderNo = await nextOrderNo(tenant._id);
         // loyalty points the customer chose to use are taken now (one atomic step); they go back if the order does not happen
         if (priced.pricing.pointsUsed > 0) await require('./loyaltyService').debit({ tenantId: tenant._id, userId, points: priced.pricing.pointsUsed, orderId: newOrderId, orderNo });
+        // dine in: this order is a round of the table's bill (a visit is opened if the table has none)
+        const session = priced.orderType === 'dine_in' ? await require('./tableBill').joinOrOpen({ tenantId: tenant._id, table: String(body.tableNo).trim(), userId }) : null;
+        let etaMin = Math.max(config.orders.prepTimeMin || 0, priced.prepMin);
+        if (priced.orderType === 'dine_in') etaMin = await require('./tableBill').etaFor(tenant, etaMin);   // the owner's average, and a longer wait when the shop is full
         const order = await Order.create({
             _id: newOrderId,
+            tableSessionId: session?._id,
             tenantId: tenant._id,
             userId,
             orderNo,
@@ -283,9 +325,9 @@ async function placeOrder({ tenant, userId, body, idempotencyKey }) {
             tableNo: priced.orderType === 'dine_in' ? String(body.tableNo).trim() : undefined,
             scheduledFor: slot ? new Date(slot.from) : (body.scheduledFor && priced.orderType !== 'pickup' ? new Date(body.scheduledFor) : undefined),
             pickupUntil: slot ? new Date(slot.to) : undefined,
-            note: config.features.specialInstructions && typeof body.note === 'string' && body.note.trim()
+            note: (config.features.specialInstructions || priced.orderType === 'dine_in') && typeof body.note === 'string' && body.note.trim()
                 ? body.note.trim().slice(0, 300) : undefined,
-            etaMin: Math.max(config.orders.prepTimeMin || 0, priced.prepMin),
+            etaMin,
             statusHistory: [{ status: 'placed', by: userId }],
         });
         // Second check, AFTER the order exists. The first check (in validateCoupon) can be beaten
@@ -380,6 +422,44 @@ async function reorderCart({ tenant, userId, orderId }) {
     return { items, skipped };
 }
 
+// The customer moves his pickup to a LATER time window (never an earlier one). The shop is told.
+const PICKUP_CHANGES_MAX = 2;
+const istClock = (d) => new Date(d).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit' });
+const istDay = (d) => new Date(d).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short' });
+const when = (from, to) => `${istDay(from)}, ${istClock(from)} – ${istClock(to)}`;
+function canChangePickup(order, tenant) {
+    const rules = { ...DEFAULTS.orders.pickupRules, ...(tenant.settings?.orders?.pickupRules || {}) };
+    return order.orderType === 'pickup' && rules.canChange !== false && ['placed', 'accepted', 'preparing', 'ready'].includes(order.status)
+        && (order.pickupChanges || 0) < PICKUP_CHANGES_MAX && !!order.scheduledFor;
+}
+async function changePickupTime({ tenant, userId, orderId, pickupSlot }) {
+    const order = await Order.findOne({ _id: orderId, tenantId: tenant._id, userId });
+    if (!order) throw httpError(404, 'Order not found');
+    if (order.orderType !== 'pickup') throw httpError(400, 'Only a pickup order has a pickup time');
+    if (!['placed', 'accepted', 'preparing', 'ready'].includes(order.status)) throw httpError(409, 'This order can no longer be changed');
+    const rules = { ...DEFAULTS.orders.pickupRules, ...(resolveConfig(tenant).orders.pickupRules || {}) };
+    if (rules.canChange === false) throw httpError(400, 'This shop does not allow changing the pickup time');
+    if ((order.pickupChanges || 0) >= PICKUP_CHANGES_MAX) throw httpError(409, `The pickup time can be changed only ${PICKUP_CHANGES_MAX} times`);
+    const slot = findPickupSlot(tenant, pickupSlot);
+    if (!slot) throw httpError(409, 'That pickup time is no longer available. Pick another.');
+    const oldFrom = order.scheduledFor, oldTo = order.pickupUntil;
+    if (new Date(slot.from).getTime() <= new Date(oldFrom).getTime()) throw httpError(400, 'Pick a time later than your current pickup time');
+    const r = await Order.updateOne(
+        { _id: order._id, status: { $in: ['placed', 'accepted', 'preparing', 'ready'] }, scheduledFor: oldFrom },
+        { $set: { scheduledFor: new Date(slot.from), pickupUntil: new Date(slot.to), pickupNotified: {} }, $inc: { pickupChanges: 1 } },
+    );
+    if (!r.modifiedCount) throw httpError(409, 'This order just changed. Please try again.');
+    try {
+        require('./orderLook').byId(tenant._id, order._id, 'pickup_time_changed');
+        require('../notifications/center').notify('pickup_time_changed', {
+            tenantId: tenant._id,
+            vars: { orderNo: order.orderNo, brief: require('../utils/orderBrief').brief(order), was: when(oldFrom, oldTo), now: when(slot.from, slot.to) },
+            data: { orderId: String(order._id), orderNo: order.orderNo },
+        });
+    } catch (e) { console.error('Pickup time notice error:', e.message); }
+    return Order.findById(order._id);
+}
+
 async function updateStatusByShop({ tenantId, actor, orderId, status, note, reasonCode, pickupCode, skipCode }) {
     const order = await Order.findOne({ _id: orderId, tenantId });
     if (!order) throw httpError(404, 'Order not found');
@@ -397,6 +477,6 @@ async function updateStatusByShop({ tenantId, actor, orderId, status, note, reas
 }
 
 module.exports = {
-    quote, placeOrder, pickupSlots, cancelByCustomer, reorderCart, updateStatusByShop,
+    quote, placeOrder, pickupSlots, changePickupTime, canChangePickup, cancelByCustomer, reorderCart, updateStatusByShop,
     customerCanCancel, nextStatuses,
 };

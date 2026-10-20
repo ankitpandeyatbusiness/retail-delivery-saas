@@ -3,8 +3,37 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useBrand } from './kit';
 
-export default function GlowBorder({ active, colors = ['#FF3B30', '#FF9500', '#FFD60A'], radius = 16, width = 2.5, style, children }) {
+// The glow must be seen on ANY shop's background. A colour that is too close to the page colour (a red glow on a red theme) is swapped
+// for the most visible one of a few alert colours.
+const rgb = (h) => {
+    const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(h || '');
+    if (!m) return null;
+    const x = m[1].length === 3 ? m[1].split('').map((c) => c + c).join('') : m[1];
+    return [0, 2, 4].map((i) => parseInt(x.slice(i, i + 2), 16));
+};
+const lum = (h) => {
+    const c = rgb(h);
+    if (!c) return null;
+    const f = (v) => { const u = v / 255; return u <= 0.03928 ? u / 12.92 : ((u + 0.055) / 1.055) ** 2.4; };
+    return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]);
+};
+const ratio = (a, b) => {
+    const x = lum(a);
+    const y = lum(b);
+    if (x == null || y == null) return 21;   // not a plain colour: leave it alone
+    return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+};
+const ALERTS = ['#FF3B30', '#FF9500', '#FFD60A', '#00B8D9', '#7C4DFF', '#FF2D95', '#00E676', '#FFFFFF', '#000000'];
+export function visibleColors(colors, bg) {
+    const best = () => ALERTS.find((c) => ratio(c, bg) >= 2.6) || ALERTS.reduce((a, c) => (ratio(c, bg) > ratio(a, bg) ? c : a), ALERTS[0]);
+    return colors.map((c) => (ratio(c, bg) >= 2.2 ? c : best()));
+}
+
+export default function GlowBorder({ active, colors: wanted = ['#FF3B30', '#FF9500', '#FFD60A'], radius = 16, width = 2.5, style, children }) {
+    const { background } = useBrand();
+    const colors = visibleColors(wanted, background);
     const v = useRef(new Animated.Value(1)).current;
     useEffect(() => {
         if (!active) { v.setValue(1); return undefined; }

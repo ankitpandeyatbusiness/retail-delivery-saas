@@ -67,7 +67,8 @@ export function Bill({ q, type, busy, baseDeliveryFee }) {
     return (
         <Animated.View style={{ opacity: op }}>
             <Row k={tr('Item Total')} v={rs(p.subtotal)} />
-            {p.discount > 0 ? <Row k={tr('Coupon{v1}', { v1: p.couponCode ? ` (${p.couponCode})` : '' })} v={`− ${rs(p.discount)}`} green /> : null}
+            {p.offerDiscount > 0 ? <Row k={tr(p.offerLabel)} v={`− ${rs(p.offerDiscount)}`} green /> : null}
+            {p.discount - (p.offerDiscount || 0) > 0 ? <Row k={tr('Coupon{v1}', { v1: p.couponCode ? ` (${p.couponCode})` : '' })} v={`− ${rs(p.discount - (p.offerDiscount || 0))}`} green /> : null}
             {type === 'delivery' ? <Row k={tr('Delivery Partner Fee')} v={isFreeDel ? 'FREE' : rs(p.deliveryFee)} strike={isFreeDel ? rs(baseDeliveryFee) : null} green={isFreeDel} /> : null}
             {p.packagingCharge > 0 ? <Row k={tr('Restaurant Packaging')} v={rs(p.packagingCharge)} /> : null}
             {p.taxMode === 'exclusive' && p.tax > 0 ? <Row k={tr('Taxes & Charges')} v={rs(p.tax)} /> : null}

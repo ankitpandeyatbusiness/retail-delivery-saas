@@ -15,7 +15,7 @@ import { tr } from '../../i18n';
 
 const BLANK = {
     code: '', description: '', discountType: 'percent', discountValue: undefined, maxDiscount: undefined, minOrder: undefined,
-    firstOrderOnly: false, usageLimitPerUser: 1, totalUsageLimit: undefined, isPublic: true, startsAt: '', endsAt: '', isActive: true,
+    firstOrderOnly: false, dineInOnly: false, usageLimitPerUser: 1, totalUsageLimit: undefined, isPublic: true, startsAt: '', endsAt: '', isActive: true,
 };
 
 export default function OwnerCouponScreen() {
@@ -29,7 +29,7 @@ export default function OwnerCouponScreen() {
         if (!id) return;
         couponsApi.get(id).then((r) => setForm({
             code: r.code || '', description: r.description || '', discountType: r.discountType, discountValue: r.discountValue, maxDiscount: r.maxDiscount,
-            minOrder: r.minOrder || undefined, firstOrderOnly: !!r.firstOrderOnly, usageLimitPerUser: r.usageLimitPerUser ?? 1, totalUsageLimit: r.totalUsageLimit,
+            minOrder: r.minOrder || undefined, firstOrderOnly: !!r.firstOrderOnly, dineInOnly: !!r.dineInOnly, usageLimitPerUser: r.usageLimitPerUser ?? 1, totalUsageLimit: r.totalUsageLimit,
             isPublic: r.isPublic !== false, startsAt: ymdOf(r.startsAt), endsAt: ymdOf(r.endsAt), isActive: r.isActive !== false,
         })).catch((e) => { useOwnerStore.getState().noteError(e); setErr(apiError(e, 'Could not open this coupon.')); });
     }, [id]);
@@ -45,7 +45,7 @@ export default function OwnerCouponScreen() {
         const body = {
             code: v.code.trim().toUpperCase(), description: v.description.trim(), discountType: v.discountType, discountValue: v.discountValue,
             maxDiscount: v.discountType === 'percent' ? (v.maxDiscount ?? null) : null, minOrder: v.minOrder ?? 0,
-            firstOrderOnly: v.firstOrderOnly, usageLimitPerUser: v.usageLimitPerUser ?? 1, totalUsageLimit: v.totalUsageLimit ?? null,
+            firstOrderOnly: v.firstOrderOnly, dineInOnly: v.dineInOnly, usageLimitPerUser: v.usageLimitPerUser ?? 1, totalUsageLimit: v.totalUsageLimit ?? null,
             isPublic: v.isPublic, startsAt: isoOfYmd(v.startsAt) ?? null, endsAt: isoOfYmd(v.endsAt, true) ?? null, isActive: v.isActive,
         };
         try {
@@ -76,6 +76,7 @@ export default function OwnerCouponScreen() {
             </Group>
             <Group title={tr('Who and how often')}>
                 <ToggleRow title={tr('First order only')} subtitle={tr('Only customers who never ordered before')} value={v.firstOrderOnly} onValueChange={(x) => set('firstOrderOnly', x)} />
+                <ToggleRow title={tr('Only for Dine In')} subtitle={tr('Shown and used only on dine in orders')} value={v.dineInOnly} onValueChange={(x) => set('dineInOnly', x)} />
                 <View style={{ height: 12 }} />
                 <NumberBox label={tr('Times one customer can use it')} integer value={v.usageLimitPerUser} onChange={(x) => set('usageLimitPerUser', x)} />
                 <NumberBox label={tr('Total uses allowed (optional)')} integer value={v.totalUsageLimit} onChange={(x) => set('totalUsageLimit', x)} last />

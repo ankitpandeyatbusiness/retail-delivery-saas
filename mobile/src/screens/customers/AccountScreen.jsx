@@ -24,6 +24,7 @@ import { useThemeStore } from '../../store/common/useThemeStore';
 import { useFavStore } from '../../store/customers/shopStores';
 import { fetchMe, updateMe, deleteMe, updatePrefs, deleteUpload } from '../../api/customers/shopApi';
 import { pickPhoto, uploadAvatar } from '../../utils/common/photoUpload';
+import OwedStrip from '../../components/customers/OwedStrip';
 import { tr, LANGS, useLang } from '../../i18n';
 import LanguageSheet from '../../components/common/LanguageSheet';
 import { useBottomSpace } from '../../store/customers/useLiveTripStore';
@@ -223,6 +224,7 @@ function AccountInner() {
     const favCount = useFavStore((st) => st.ids.length);
     const unread = useNotificationStore((st) => st.unread);
     const favOn = useHomeStore((st) => st.full.features.favourites);
+    const referOn = useHomeStore((st) => !!(st.full.orders.dineIn?.enabled && st.full.orders.dineIn?.referOn));
     const shop = useThemeStore((st) => st.theme.name);
     const shopPhone = useThemeStore((st) => st.theme.phone);
     const [me, setMe] = useState(null);
@@ -336,6 +338,7 @@ function AccountInner() {
         <View style={{ flex: 1, paddingTop: insets.top, backgroundColor: background }}>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: space }}>
                 <Text style={[s.title, { color: text }]}>{tr('Account')}</Text>
+                <OwedStrip style={{ marginHorizontal: 0 }} />
 
                 {/* hero: the brand gradient with the person's photo, name and number */}
                 <Appear style={s.heroWrap}>
@@ -394,6 +397,11 @@ function AccountInner() {
                     <Appear delay={150} style={s.tileCell}>
                         <AccountTile icon="notifications-outline" label={tr('Notifications')} sub={unread > 0 ? tr('{unread} unread', { unread: unread }) : tr('All caught up')} badge={unread} onPress={() => nav.navigate('Notifications')} />
                     </Appear>
+                    {referOn ? (
+                        <Appear delay={180} style={s.tileCell}>
+                            <AccountTile icon="gift-outline" label={tr('Refer a friend')} sub={tr('Share your code')} onPress={() => nav.navigate('ReferFriend')} />
+                        </Appear>
+                    ) : null}
                 </View>
 
                 <Group title={tr('REWARDS')} delay={100}>

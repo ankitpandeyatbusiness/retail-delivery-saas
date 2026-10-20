@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand } from '../common/kit';
 import { tint } from './shop';
 import { useAuthStore } from '../../store/common/useAuthStore';
+import { useTableBill } from '../../store/customers/useTableBill';
 import { useLiveTripStore } from '../../store/customers/useLiveTripStore';
 import { fetchOrders } from '../../api/customers/shopApi';
 import { onOrderUpdate, onNotification } from '../../api/common/socket';
@@ -48,7 +49,7 @@ export default function ActiveOrderBar({ routeName, onOpen, onOpenAll }) {
         try {
             const r = await fetchOrders({ active: true, limit: 5 });
             // an online order that was never paid is not an order in progress
-            const live = (r.items || []).filter((o) => isActive(o.status) && !(o.payment?.method && o.payment.method !== 'cod' && o.payment.status !== 'paid'));
+            const live = (r.items || []).filter((o) => isActive(o.status) && o.orderType !== 'dine_in' && !(o.payment?.method && o.payment.method !== 'cod' && o.payment.status !== 'paid'));
             setOrders(live);
         } catch (e) { /* the bar stays as it was */ } finally { busy.current = false; }
     }, []);
@@ -65,7 +66,8 @@ export default function ActiveOrderBar({ routeName, onOpen, onOpenAll }) {
 
     const first = orders[0];
     // One card only: when the live track bar is available (rider on the way), IT is the card (it has Track and Hide), so this one stays away
-    const show = enabled && !!first && !HIDE_ON.includes(routeName) && !tracking && liveOffset === 0;
+    const tableOpen = useTableBill((s) => !!s.bill?.open);   // dining in: the table bill bar is shown instead
+    const show = enabled && !!first && !HIDE_ON.includes(routeName) && !tracking && liveOffset === 0 && !tableOpen;
     const orderKey = orders.map((o) => String(o.id || o._id)).join(',');
     useEffect(() => { setHidden(false); }, [orderKey]);   // a different set of orders: show the bar again
     useEffect(() => {

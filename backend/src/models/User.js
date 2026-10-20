@@ -14,6 +14,7 @@ const userSchema = new mongoose.Schema({
     },
     role: { type: String, enum: ['customer', 'rider', 'admin'], default: 'customer' },
     isBlocked: { type: Boolean, default: false },
+    referralCode: { type: String, trim: true, uppercase: true },   // the code he shares to refer a friend (made the first time he asks)
     language: { type: String, enum: ['en', 'hi', 'bho', 'mr', 'gu', 'bn'] },   // the language this person reads (notifications and emails come in it)
     lastLoginAt: { type: Date },
 }, { timestamps: true });
@@ -21,6 +22,7 @@ const userSchema = new mongoose.Schema({
 // Same phone can exist once per shop, never twice in the same shop
 userSchema.index({ tenantId: 1, phone: 1 }, { unique: true });
 userSchema.index({ tenantId: 1, phoneHash: 1 });
+userSchema.index({ tenantId: 1, referralCode: 1 }, { unique: true, partialFilterExpression: { referralCode: { $type: 'string' } } });
 
 // set the hash on every normal save (upserts set it by hand where they are written)
 userSchema.pre('validate', function () {

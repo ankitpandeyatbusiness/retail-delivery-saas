@@ -119,6 +119,14 @@ function checkAllowed({ order, status, actor, note, tenant, reasonCode, now }) {
                 if (order.status !== 'accepted') throw httpError(409, 'This order is not waiting to be prepared');
                 return;
             }
+            if (status === 'ready') {   // a dine in dish is marked ready by itself after the average time (tableBill.autoReady)
+                if (order.orderType !== 'dine_in' || order.status !== 'preparing') throw httpError(409, 'This order is not being prepared');
+                return;
+            }
+            if (status === 'delivered') {   // a ready dine in dish is marked served by itself (tableBill.autoReady, the owner's choice)
+                if (order.orderType !== 'dine_in' || order.status !== 'ready') throw httpError(409, 'This order is not waiting to be served');
+                return;
+            }
             if (status !== 'cancelled') throw httpError(403, 'The system can only cancel or accept');
             if (!ACTIVE_STATUSES.includes(order.status)) throw httpError(409, 'This order is already finished');
             if (reasonCode !== undefined && !SYSTEM_CANCEL_REASONS.includes(reasonCode)) throw httpError(400, 'Invalid reason');
@@ -191,7 +199,7 @@ async function change({ order, status, actor, note, tenant, reasonCode }) {
     if (notDeliveredPay > 0) set['delivery.earnPaise'] = notDeliveredPay;
     if (status === 'delivered') {
         set.deliveredAt = now;
-        if (order.payment?.method === 'cod') set['payment.status'] = 'paid';   // cash collected at the door
+        if (order.payment?.method === 'cod' && !order.tableSessionId) set['payment.status'] = 'paid';   // cash collected at the door (a table's round is paid when the table bill is settled)
     }
     // keep the delivery block in line when a rider is on this order
     const d = order.delivery || {};

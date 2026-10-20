@@ -41,6 +41,7 @@ const GROUPS = [
         ['swap-vertical', 'Transactions and bills', 'Every payment, year by year and month by month', 'OwnerTransactions'],
     ]],
     ['Shop', [
+        ['restaurant', 'Dine in', 'Customers eating at your tables: switch on, tables', 'OwnerDineIn'],
         ['time', 'Opening hours', 'Weekly hours and holidays', 'OwnerHours'],
         ['navigate', 'Delivery area and fees', 'Pin, distance, delivery fee, packaging, tips', 'OwnerDelivery'],
         ['bicycle', 'Delivery and cash rules', 'Riders, cash limits, cash for pickup orders', 'OwnerRiderRules'],

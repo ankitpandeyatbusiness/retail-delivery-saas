@@ -21,7 +21,7 @@ function lineSpeech(line) {
 
 function paymentSpeech(order) {
     const p = order.payment || {};
-    if (p.method === 'cod') return 'Cash on delivery';
+    if (p.method === 'cod') return order.orderType === 'dine_in' ? 'Cash at the counter' : order.orderType === 'pickup' ? 'Cash on pickup' : 'Cash on delivery';
     if (p.status === 'paid') return 'Paid online';
     return '';
 }
@@ -35,7 +35,7 @@ function orderSpeech(order) {
     if (rest > 0) shown.push(`and ${rest} more ${rest === 1 ? 'item' : 'items'}`);
 
     const total = Math.round(Number(order.pricing?.total) || 0);
-    const parts = [TYPE_WORDS[order.orderType] ? `New ${TYPE_WORDS[order.orderType].toLowerCase()}.` : 'New order.'];
+    const parts = [order.orderType === 'dine_in' && order.tableNo ? `New dine in order for table ${order.tableNo}.` : TYPE_WORDS[order.orderType] ? `New ${TYPE_WORDS[order.orderType].toLowerCase()}.` : 'New order.'];
     if (shown.length) parts.push(`${shown.join(', ')}.`);
     if (total > 0) parts.push(`Total ${total} rupees.`);
     const pay = paymentSpeech(order);
@@ -49,7 +49,7 @@ const HI_TYPE = { pickup: 'नया पिकअप ऑर्डर।', dine_i
 
 function paymentSpeechHi(order) {
     const p = order.payment || {};
-    if (p.method === 'cod') return 'कैश ऑन डिलीवरी।';
+    if (p.method === 'cod') return order.orderType === 'dine_in' ? 'काउंटर पर कैश।' : order.orderType === 'pickup' ? 'पिकअप पर कैश।' : 'कैश ऑन डिलीवरी।';
     if (p.status === 'paid') return 'ऑनलाइन पेमेंट हो चुका है।';
     return '';
 }
@@ -61,7 +61,7 @@ function orderSpeechHi(order) {
     if (rest > 0) shown.push(`और ${rest} आइटम`);
 
     const total = Math.round(Number(order.pricing?.total) || 0);
-    const parts = [HI_TYPE[order.orderType] || 'नया ऑर्डर।'];
+    const parts = [order.orderType === 'dine_in' && order.tableNo ? `टेबल ${order.tableNo} के लिए नया डाइन इन ऑर्डर।` : HI_TYPE[order.orderType] || 'नया ऑर्डर।'];
     if (shown.length) parts.push(`${shown.join(', ')}।`);
     if (total > 0) parts.push(`कुल ${total} रुपये।`);
     const pay = paymentSpeechHi(order);

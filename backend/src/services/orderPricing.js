@@ -112,12 +112,13 @@ async function buildLines(tenant, config, rawItems, at = new Date()) {
 }
 
 /* ------------------------------ 2. coupon ------------------------------ */
-async function validateCoupon({ tenant, config, userId, code, subtotal }) {
+async function validateCoupon({ tenant, config, userId, code, subtotal, orderType }) {
     if (!config.offers.couponsEnabled) throw httpError(400, 'Coupons are not available at this shop');
 
     const clean = String(code).trim().toUpperCase().slice(0, 30);
     const c = await Coupon.findOne({ tenantId: tenant._id, code: clean, ...activeNow() }).lean();
     if (!c) throw httpError(400, 'Invalid or expired coupon');
+    if (c.dineInOnly && orderType !== 'dine_in') throw httpError(400, 'This coupon works only on dine in orders');
     if (c.totalUsageLimit != null && c.usedCount >= c.totalUsageLimit) throw httpError(400, 'This coupon has been fully used');
     if (subtotal < (c.minOrder || 0)) throw httpError(400, `Add ₹${round2(c.minOrder - subtotal)} more to use ${c.code}`);
 
@@ -217,9 +218,12 @@ async function priceCart({ tenant, config, userId, body, distanceKm = null }) {
     const { lines, subtotal, prepMin, stockNeeds } = await buildLines(tenant, config, body.items, at);
 
     const coupon = body.couponCode
-        ? await validateCoupon({ tenant, config, userId, code: body.couponCode, subtotal })
+        ? await validateCoupon({ tenant, config, userId, code: body.couponCode, subtotal, orderType })
         : null;
-    const discount = coupon ? coupon.discount : 0;
+    // a table offer (welcome / regular / happy hour) comes by itself; a coupon replaces it
+    const offer = !coupon && orderType === 'dine_in'
+        ? await require('./dineOffers').best({ tenant, config, userId, subtotal, now: at }).catch(() => null) : null;
+    const discount = coupon ? coupon.discount : (offer ? offer.amount : 0);
 
     // "use my points": whole rupees off, never more than the shop allows (loyaltyService.cartInfo)
     const loyalty = require('./loyaltyService');
@@ -236,7 +240,7 @@ async function priceCart({ tenant, config, userId, body, distanceKm = null }) {
     const totals = computeTotals(config.orders, { orderType, subtotal, discount: discountAll, tip: round2(tip), tax, distanceKm });
     return {
         orderType, lines, coupon, prepMin, stockNeeds, distanceKm, pointsInfo,
-        pricing: { subtotal, discount: discountAll, couponCode: coupon?.code, pointsUsed: pts ? pts.points : 0, pointsDiscount, ...totals },
+        pricing: { subtotal, discount: discountAll, couponCode: coupon?.code, ...(offer ? { offerKind: offer.kind, offerLabel: offer.label, offerDiscount: offer.amount } : {}), pointsUsed: pts ? pts.points : 0, pointsDiscount, ...totals },
     };
 }
 

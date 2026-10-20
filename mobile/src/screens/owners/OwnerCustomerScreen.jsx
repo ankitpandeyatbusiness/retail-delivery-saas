@@ -6,7 +6,7 @@ import { useBrand } from '../../components/common/kit';
 import { Card, Button, Pill, SectionTitle, Stat, Empty, money } from '../../components/owners/ui';
 import { FormPage, Group, TextBox, Hint } from '../../components/owners/menuBits';
 import { callPhone, whatsApp } from '../../components/owners/orderBits';
-import { fetchCustomer, fetchCustomerInsight, updateCustomer, allowCod, apiError } from '../../api/owners/shopApi';
+import { fetchCustomer, fetchCustomerInsight, updateCustomer, allowCod, blockCustomer, fetchDineDebts, apiError } from '../../api/owners/shopApi';
 import RemindSheet from '../../components/owners/RemindSheet';
 import { TAGS, usualLine, sinceLine } from '../../utils/owners/customerTags';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
@@ -51,6 +51,19 @@ export default function OwnerCustomerScreen() {
         catch (e) { showToast(apiError(e)); } finally { setBusy(false); }
     };
 
+    const toggleBlock = async () => {
+        const to = !c.isBlocked;
+        let owes = 0;
+        if (!to) {   // unblocking: does he still owe an unpaid table bill?
+            try { const r = await fetchDineDebts(); owes = (r.items || []).filter((x) => x.customers.some((u) => String(u.id) === String(id))).reduce((n, x) => n + x.amount, 0); } catch (e) { /* no warning, the dialog still asks */ }
+        }
+        const yes = await ask({ title: to ? tr('Block this customer?') : tr('Unblock this customer?'), message: to ? tr('He will not be able to use the app of your shop.') : (owes ? tr('He still owes ₹{n}. He can use the app again, but cannot order until the bill is paid or forgiven.', { n: Math.round(owes) }) : tr('He can use the app of your shop again.')), confirmText: to ? tr('Block') : tr('Unblock'), cancelText: tr('No') });
+        if (!yes) return;
+        setBusy(true);
+        try { await blockCustomer(id, to); setC((old) => ({ ...old, isBlocked: to })); showToast(to ? tr('Customer blocked') : tr('Customer unblocked')); }
+        catch (e) { showToast(apiError(e)); } finally { setBusy(false); }
+    };
+
     const s = c.stats || {};
     return (
         <FormPage title={personName(c)} footer={<Button label={tr('Save details')} icon="checkmark" busy={saving} onPress={save} />}>
@@ -58,7 +71,7 @@ export default function OwnerCustomerScreen() {
                 <Text style={{ color: text, fontSize: 18, fontWeight: '900' }}>{personName(c)}</Text>
                 <Text style={{ color: muted, marginTop: 2 }}>{c.phone}</Text>
                 <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{tr('Joined {ago}{v2}', { ago: ago(c.createdAt), v2: c.lastLoginAt ? ` · last seen ${ago(c.lastLoginAt)}` : '' })}</Text>
-                {c.isBlocked ? <View style={{ marginTop: 8 }}><Pill label={tr('Blocked by the platform')} color={error} /></View> : null}
+                {c.isBlocked ? <View style={{ marginTop: 8 }}><Pill label={tr('Blocked')} color={error} /></View> : null}
                 <View style={{ flexDirection: 'row', marginTop: 12 }}>
                     <View style={{ flex: 1, marginRight: 6 }}><Button label={tr('Call')} icon="call" iconOnly kind="ghost" onPress={() => callPhone(c.phone)} /></View>
                     <View style={{ flex: 1, marginLeft: 6 }}><Button label={tr('WhatsApp')} icon="logo-whatsapp" iconOnly kind="ghost" onPress={() => whatsApp(c.phone)} /></View>
@@ -113,6 +126,12 @@ export default function OwnerCustomerScreen() {
                     </Card>
                 </>
             ) : null}
+
+            <SectionTitle title={tr('Account')} />
+            <Card tone={c.isBlocked ? error : undefined}>
+                <Text style={{ color: c.isBlocked ? error : muted, fontWeight: c.isBlocked ? '900' : '600', fontSize: 12.5 }}>{c.isBlocked ? tr('This customer is blocked and cannot use your shop app.') : tr('Block a customer who spams or never pays. You can undo it any time.')}</Text>
+                <View style={{ marginTop: 10 }}><Button label={c.isBlocked ? tr('Unblock this customer') : tr('Block this customer')} icon={c.isBlocked ? 'checkmark-circle' : 'ban'} kind={c.isBlocked ? 'primary' : 'danger'} busy={busy} onPress={toggleBlock} /></View>
+            </Card>
 
             <Group title={tr('Details')} hint={tr('Notes are only for you. The customer never sees them.')}>
                 <TextBox label={tr('Name')} value={form.name} onChangeText={(x) => setForm({ ...form, name: x })} maxLength={80} />

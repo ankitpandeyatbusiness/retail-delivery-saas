@@ -1,7 +1,7 @@
 // Asks the customer for reviews at the right moments, and thanks him when he gives one.
 //   - the order is delivered (the app is open): a sheet slides up at once to rate the DELIVERY
 //   - the next time he opens the app: a sheet slides up to rate the FOOD of a delivered order he has not reviewed yet.
-//     "Later" is always there; after three "later"s, or three days, the order is not asked about again
+//     "Later" is always there; after one "later", or three days, the order is not asked about again
 //   - any review given: a glowing "Thank you" note for a moment
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Modal, Pressable, Text, TextInput, View } from 'react-native';
@@ -19,7 +19,7 @@ import { showToast } from './shop';
 import { tr } from '../../i18n';
 
 const LATER_KEY = 'review.later.v1';
-const MAX_LATER = 3;
+const MAX_LATER = 1;   // one "Later" and that order is never asked about again
 const WINDOW_MS = 3 * 24 * 3600 * 1000;
 const AWAY_MS = 20 * 60 * 1000;   // away from the app this long = "the next time he opens it"
 const WORDS = ['Very bad', 'Bad', 'Okay', 'Good', 'Excellent'];
@@ -144,7 +144,7 @@ export default function ReviewPrompts() {
             const o = (r.items || []).find((x) => {
                 const id = String(x.id || x._id);
                 const at = new Date(x.delivery?.deliveredAt || x.updatedAt || 0).getTime();
-                return x.status === 'delivered' && !x.ratedAt && now - at < WINDOW_MS && (later[id]?.n || 0) < MAX_LATER && !askedThisOpen.has(id);
+                return x.status === 'delivered' && x.orderType !== 'dine_in' && !x.ratedAt && now - at < WINDOW_MS && (later[id]?.n || 0) < MAX_LATER && !askedThisOpen.has(id);
             });
             if (o && !curRef.current) { askedThisOpen.add(String(o.id || o._id)); setCur({ kind: 'food', order: o }); }
         } catch (e) { /* asked again next time */ }
@@ -161,7 +161,7 @@ export default function ReviewPrompts() {
     }, [enabled, checkFood]);
 
     const later = async () => {
-        const o = cur?.order;
+        const o = cur?.order || (cur?.orderId ? { id: cur.orderId } : null);
         setCur(null);
         if (!o) return;
         const id = String(o.id || o._id);
@@ -175,7 +175,7 @@ export default function ReviewPrompts() {
     if (!enabled) return null;
     return (
         <>
-            <Sheet visible={!!cur} onClose={cur?.kind === 'food' ? later : () => setCur(null)} title={cur?.kind === 'food' ? tr('How was the food?') : tr('How was the delivery?')}>
+            <Sheet visible={!!cur} onClose={later} title={cur?.kind === 'food' ? tr('How was the food?') : tr('How was the delivery?')}>
                 {cur?.kind === 'delivery' ? <DeliveryRatingCard bare orderId={cur.orderId} tracking={cur.tracking} onDone={done} /> : null}
                 {cur?.kind === 'food' ? <FoodForm order={cur.order} onDone={done} onLater={later} /> : null}
             </Sheet>

@@ -167,7 +167,7 @@ export default function OwnerOrderScreen() {
                     {order.note ? (
                         <View style={{ marginTop: 10, padding: 10, borderRadius: 10, backgroundColor: alpha(warn, 0.14) }}>
                             <Text style={{ color: text, fontWeight: '800', fontSize: 12 }}>{tr('CUSTOMER\'S INSTRUCTIONS')}</Text>
-                            <Text style={{ color: text, marginTop: 2 }}>{order.note}</Text>
+                            <Text style={{ color: text, marginTop: 2, fontWeight: '900', fontSize: 15 }}>{order.note}</Text>
                         </View>
                     ) : null}
                 </Card>

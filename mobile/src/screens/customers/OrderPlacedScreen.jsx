@@ -84,7 +84,7 @@ export default function OrderPlacedScreen() {
     const rows = [];
     if (total != null) rows.push(['Total', rs(total)]);
     rows.push(['Payment', paid ? 'Paid online' : (method || 'Pay on delivery')]);
-    if (etaMin) rows.push([type === 'pickup' ? 'Ready in about' : 'Arriving in about', `${etaMin} min`]);
+    if (etaMin) rows.push([type === 'pickup' || type === 'dine_in' ? 'Ready in about' : 'Arriving in about', `${etaMin} min`]);
 
     return (
         <View style={[s.root, { backgroundColor: background, paddingTop: insets.top + 24, paddingBottom: insets.bottom + 16 }]}>

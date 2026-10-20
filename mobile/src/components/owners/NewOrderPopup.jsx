@@ -41,11 +41,15 @@ export default function NewOrderPopup({ navRef }) {
             if (!id || seen.current.has(id)) return;
             seen.current.add(id);
             fetchOrder(id)
-                .then((o) => { if (o && o.status === 'placed') setQueue((q) => (q.some((x) => String(x.id) === id) ? q : [...q, o])); })
+                .then((o) => {
+                    // a table order the shop accepted by itself (auto accept) still shows, so the kitchen sees the table and what he asked for
+                    const info = !!o && o.status !== 'placed' && o.orderType === 'dine_in' && !!n?.data?.autoAccepted && ['accepted', 'preparing'].includes(o.status);
+                    if (o && (o.status === 'placed' || info)) setQueue((q) => (q.some((x) => String(x.id) === id) ? q : [...q, info ? { ...o, info: true } : o]));
+                })
                 .catch(() => { });
         });
         // accepted by someone else, cancelled by the customer, timed out: nothing left to decide
-        const offUpd = onOrderUpdate((p) => { if (p?.status && p.status !== 'placed') drop(p.orderId); });
+        const offUpd = onOrderUpdate((p) => { if (p?.status && p.status !== 'placed') setQueue((q) => q.filter((o) => String(o.id) !== String(p.orderId) || (o.info && p.status !== 'cancelled'))); });
         return () => { offNew(); offUpd(); };
     }, [on, drop]);
 
@@ -89,7 +93,7 @@ export default function NewOrderPopup({ navRef }) {
                         </View>
                         <View style={{ flex: 1, marginLeft: 12 }}>
                             <Text style={{ color: text, fontSize: 20, fontWeight: '900' }}>{tr('New order #{orderNo}', { orderNo: order.orderNo })}</Text>
-                            <Text style={{ color: muted, fontSize: 12, marginTop: 1 }}>{[TYPE[order.orderType], order.customer?.name].filter(Boolean).join(' · ')}</Text>
+                            <Text style={{ color: muted, fontSize: 12, marginTop: 1 }}>{[TYPE[order.orderType], order.orderType === 'dine_in' && order.tableNo ? `Table ${order.tableNo}` : null, order.customer?.name, order.info ? 'Auto accepted' : null].filter(Boolean).join(' · ')}</Text>
                         </View>
                         <Pressable onPress={() => drop(order.id)} hitSlop={12}><Ionicons name="close" size={24} color={muted} /></Pressable>
                     </View>
@@ -102,17 +106,20 @@ export default function NewOrderPopup({ navRef }) {
                             </View>
                         ))}
                     </ScrollView>
+                    {order.note ? <View style={{ marginTop: 8, padding: 10, borderRadius: 10, backgroundColor: alpha(warn, 0.16) }}><Text style={{ color: text, fontWeight: '900', fontSize: 15 }}>{order.note}</Text></View> : null}
 
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: border }}>
                         <Text style={{ color: text, fontSize: 24, fontWeight: '900', flex: 1 }}>{money(order.pricing?.total)}</Text>
                         <PayBadge order={order} />
                     </View>
-                    {order.acceptBy ? <View style={{ marginTop: 8 }}><Countdown until={order.acceptBy} /></View> : null}
+                    {order.acceptBy && !order.info ? <View style={{ marginTop: 8 }}><Countdown until={order.acceptBy} /></View> : null}
                     {queue.length > 1 ? <View style={{ marginTop: 8, alignSelf: 'flex-start' }}><Pill label={tr('{v1} more order{v2} waiting', { v1: queue.length - 1, v2: queue.length === 2 ? '' : 's' })} color={error} /></View> : null}
 
                     <View style={{ flexDirection: 'row', marginTop: 16 }}>
                         <Button label={tr('View')} kind="ghost" icon="open-outline" onPress={open} disabled={busy} style={{ flex: 1 }} />
-                        <Button label={tr('Accept')} icon="checkmark" busy={busy} onPress={accept} style={{ flex: 1, marginLeft: 8 }} />
+                        {order.info
+                            ? <Button label={tr('Got it')} icon="checkmark" onPress={() => { acknowledge(order.id); drop(order.id); }} style={{ flex: 1, marginLeft: 8 }} />
+                            : <Button label={tr('Accept')} icon="checkmark" busy={busy} onPress={accept} style={{ flex: 1, marginLeft: 8 }} />}
                     </View>
                 </View>
                 )}</DragDown>

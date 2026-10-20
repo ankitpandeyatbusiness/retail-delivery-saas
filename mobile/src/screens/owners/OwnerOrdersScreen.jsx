@@ -12,6 +12,7 @@ import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { onOrderUpdate } from '../../api/common/socket';
 import { BOARD_FILTERS } from '../../utils/owners/orderFlow';
 import { ListShimmer } from '../../components/owners/shimmer';
+import { DebtCard, DebtSheet, RemindAll, useDebts } from '../../components/owners/UnpaidBills';
 import { tr } from '../../i18n';
 
 const ACTIVE_STAGES = ['placed', 'accepted', 'preparing', 'ready', 'out_for_delivery'];
@@ -60,6 +61,10 @@ export default function OwnerOrdersScreen() {
     const live = useOwnerStore((st) => st.live);
     const [typed, setTyped] = useState('');
     const debounce = useRef(null);
+    const [unpaid, setUnpaid] = useState(false);   // the "Unpaid bills" tag: customers who left without paying
+    const [debts, loadDebts] = useDebts(true);
+    const [openDebt, setOpenDebt] = useState(null);
+    useEffect(() => { if (route.params?.filter === 'unpaid') setUnpaid(true); }, [route.params?.filter, route.params?.stamp]);
 
     const actions = useOrderActions();
 
@@ -118,20 +123,22 @@ export default function OwnerOrdersScreen() {
                 {heldCount > 0 ? (
                     <Chip label={tr('Needs a look')} count={heldCount} on={s.filter === 'look'} urgent onPress={() => useOrdersStore.getState().setFilter('look')} />
                 ) : null}
+                {debts?.length || unpaid ? <Chip label={tr('Unpaid bills')} count={debts?.length || 0} on={unpaid} urgent onPress={() => setUnpaid(true)} /> : null}
                 {BOARD_FILTERS.map(([id, label]) => (
-                    <Chip key={id} label={label} count={countOf(id)} on={s.filter === id} urgent={id === 'placed'} onPress={() => useOrdersStore.getState().setFilter(id)} />
+                    <Chip key={id} label={label} count={countOf(id)} on={!unpaid && s.filter === id} urgent={id === 'placed'} onPress={() => { setUnpaid(false); useOrdersStore.getState().setFilter(id); }} />
                 ))}
             </ScrollView>
+            {unpaid && debts?.length ? <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}><RemindAll count={debts.length} onDone={loadDebts} /></View> : null}
         </View>
     );
 
     return (
         <OwnerScreen title={tr('Orders')} scroll={false}>
             <FlatList
-                data={s.loading ? [] : data}
+                data={unpaid ? (debts || []) : (s.loading ? [] : data)}
                 keyExtractor={(o) => String(o.id)}
                 ListHeaderComponent={header}
-                renderItem={({ item }) => (
+                renderItem={unpaid ? ({ item }) => <DebtCard d={item} onOpen={() => setOpenDebt(item)} /> : ({ item }) => (
                     <View style={{ paddingHorizontal: 0 }}>
                         <OrderCard
                             order={item}
@@ -145,7 +152,7 @@ export default function OwnerOrdersScreen() {
                         />
                     </View>
                 )}
-                ListEmptyComponent={s.loading ? <Skeleton /> : s.error ? (
+                ListEmptyComponent={unpaid ? <Empty icon="checkmark-circle-outline" title={tr('No unpaid bills')} hint={tr('Customers who leave a table without paying will show here.')} /> : s.loading ? <Skeleton /> : s.error ? (
                     <Empty icon="cloud-offline-outline" title={tr('Could not load the orders')} hint={s.error} />
                 ) : (
                     <Empty
@@ -165,6 +172,7 @@ export default function OwnerOrdersScreen() {
             {access !== 'ok' && !s.loading && !data.length ? (
                 <Text style={{ color: muted, textAlign: 'center', paddingHorizontal: 24, marginBottom: 90 }}>{tr('Orders in progress can still be finished.')}</Text>
             ) : null}
+            <DebtSheet debt={openDebt} onClose={() => setOpenDebt(null)} onChanged={loadDebts} />
             {actions.sheets}
         </OwnerScreen>
     );

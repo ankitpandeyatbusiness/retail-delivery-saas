@@ -2,6 +2,7 @@
 // The customer's inbox: order updates, rider news, payment receipts. Tapping one opens its order.
 // Opening this screen marks everything as read (the rows that were new stay highlighted until you leave).
 // "Clear all" deletes every message.
+import { useOwedPrompt } from '../../store/customers/useOwedPrompt';
 import React, { useCallback, useRef, useState } from 'react';
 import { View, Text, FlatList, Pressable, RefreshControl, StyleSheet } from 'react-native';
 import { ListShimmer } from '../../components/owners/shimmer';
@@ -85,6 +86,7 @@ export default function NotificationsScreen() {
 
     const open = (n) => {
         const orderId = n.data?.orderId;
+        if (/^owed_/.test(String(n.type || n.data?.type || '')) || n.data?.type === 'table_walkout') { useOwedPrompt.getState().show(); return; }
         if (orderId) nav.navigate('OrderDetail', { id: String(orderId) });
     };
 

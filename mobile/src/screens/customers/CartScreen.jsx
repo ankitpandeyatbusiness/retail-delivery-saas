@@ -9,6 +9,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as Crypto from 'expo-crypto';
+import { whereAmI, openPhoneSettings } from '../../utils/customers/whereAmI';
+import { ask } from '../../components/common/dialog';
 import { useBrand, BackHeader, CardGlow } from '../../components/common/kit';
 import { VegDot, useClosedStyle, showToast, tint } from '../../components/customers/shop';
 import { AddressSheet, addrLine } from '../../components/customers/addresses';
@@ -19,11 +21,16 @@ import { useCartStore, useFavStore } from '../../store/customers/shopStores';
 import { CouponTicket } from '../../components/customers/coupon';
 import { FavouriteDishes } from '../../components/customers/favourites';
 import { useCouponStore } from '../../store/customers/useCouponStore';
+import { useOrderMode } from '../../store/customers/useOrderMode';
+import { useTableBill } from '../../store/customers/useTableBill';
+import TableSheet from '../../components/customers/TableSheet';
 import { useAddressStore } from '../../store/customers/useAddressStore';
 import { quoteOrder, placeOrder, fetchPickupSlots } from '../../api/customers/shopApi';
 import { payForOrder, prewarmPayments, abandonUnpaidOrder } from '../../utils/customers/payOnline';
 import PayShimmer from '../../components/customers/PayShimmer';
 import { usePayChoice } from '../../store/customers/usePayChoice';
+import DineBusyNote from '../../components/customers/DineBusyNote';
+import { useOwedPrompt } from '../../store/customers/useOwedPrompt';
 import { tr } from '../../i18n';
 import KeyboardScroll from '../../components/common/KeyboardScroll';
 
@@ -50,7 +57,7 @@ export default function CartScreen() {
     const nav = useNavigation();
     const route = useRoute();
     const insets = useSafeAreaInsets();
-    const { primary, radius, text, error, background, surface, border, muted, neutralSoft } = useBrand();
+    const { primary, onPrimary, radius, text, error, background, surface, border, muted, neutralSoft } = useBrand();
 
     const user = useAuthStore((st) => st.user);
     const full = useHomeStore((st) => st.full);
@@ -65,8 +72,14 @@ export default function CartScreen() {
         return t.length ? t : ['delivery'];
     }, [full.orders.types]);
 
-    const [pickedType, setPickedType] = useState(types[0]);
-    const type = types.includes(pickedType) ? pickedType : types[0];
+    // the way he orders is chosen on the Home screen; the choice here moves it too
+    const mode = useOrderMode((st) => st.mode);
+    const table = useOrderMode((st) => st.table);
+    const dineOn = !!full.orders.dineIn?.enabled;
+    const [tableOpen, setTableOpen] = useState(false);
+    const [pickedType, setPickedType] = useState(types.includes(mode) ? mode : types[0]);
+    useEffect(() => { if (types.includes(mode)) setPickedType(mode); }, [mode]);   // eslint-disable-line react-hooks/exhaustive-deps
+    const type = dineOn && mode === 'dine_in' ? 'dine_in' : (types.includes(pickedType) ? pickedType : types[0]);
 
     const [couponIn, setCouponIn] = useState('');
     const [tryCode, setTryCode] = useState('');      // coupon being checked right now
@@ -76,6 +89,8 @@ export default function CartScreen() {
     const [tip, setTip] = useState(0);
     const [delNotes, setDelNotes] = useState([]);
     const [customNote, setCustomNote] = useState('');
+    const [prefs, setPrefs] = useState([]);       // "Make it spicy"... (dine in)
+    const [prefNote, setPrefNote] = useState('');  // what he writes himself
     const addr = useAddressStore((st) => st.selected);
     const closedStyle = useClosedStyle();   // the shop is closed: this whole screen turns grey
     const setAddr = useAddressStore((st) => st.setSelected);
@@ -103,6 +118,7 @@ export default function CartScreen() {
 
     const slots = useMemo(() => makeSlots(full.orders.prepTimeMin || 20), []);
     const couponOn = f.couponField && full.offers.couponsEnabled;
+    const shownOffers = offers.filter((o) => !o.dineInOnly || type === 'dine_in');
     const preview = lines.reduce((a, l) => a + l.price * l.quantity, 0);
     const priceKey = lines.map((l) => l.price).join(',');
     const pending = useCouponStore((st) => st.code);
@@ -127,8 +143,9 @@ export default function CartScreen() {
             if (f.scheduleOrder && when !== 'now' && slots[when]) b.scheduledFor = slots[when].iso;
         }
         if (type === 'pickup' && pickedSlot) b.pickupSlot = pickedSlot;
+        if (type === 'dine_in') b.tableNo = table;
         return b;
-    }, [lines, type, applied, tryCode, addr, tip, when, couponOn, paymentMethodValue, pickedSlot, usePts]);
+    }, [table, lines, type, applied, tryCode, addr, tip, when, couponOn, paymentMethodValue, pickedSlot, usePts]);
     const bodyKey = JSON.stringify(body);
     // cash for a pickup order may be switched off or capped by the shop: say so, and point to the payment choice
     const pcod = full.orders?.pickupCod;
@@ -202,6 +219,8 @@ export default function CartScreen() {
         ease(); setCouponErr(''); setTryCode(c);
     };
     const pickOffer = (code) => { setCouponIn(code); ease(); setCouponErr(''); setTryCode(code); };
+    const prefList = full.orders.dineIn?.prefs || [];
+    const togglePref = (n) => setPrefs((p) => (p.includes(n) ? p.filter((x) => x !== n) : [...p, n]));
     const toggleNote = (n) => { ease(); setDelNotes((p) => (p.includes(n) ? p.filter((x) => x !== n) : [...p, n])); };
     const setQty = (key, q) => { ease(); useCartStore.getState().setQty(key, q); };
 
@@ -210,6 +229,7 @@ export default function CartScreen() {
     const closedMsg = full.hours?.closedMessage || full.labels?.closedMessage || 'We are closed right now';
 
     const place = async () => {
+        if (type === 'dine_in' && !table) { setTableOpen(true); return; }   // he has not chosen his table yet
         if (placing || !fresh || !quote.canPlace || closed) return;
         if (useAuthStore.getState().user?.role === 'admin') { showToast(tr('Shop owners cannot order from their own number. Log in with a customer number to try an order.')); return; }
         if (paymentMethodValue === 'card' && !card) { nav.navigate('CardDetails', { depth: 1 }); return; }   // card details are asked every time
@@ -217,8 +237,24 @@ export default function CartScreen() {
         try {
             const notes = [...delNotes];
             if (customNote.trim()) notes.push(customNote.trim());
+            if (type === 'dine_in') { notes.push(...prefs); if (prefNote.trim()) notes.push(prefNote.trim()); }
             const t0 = Date.now();
-            const order = await placeOrder(notes.length ? { ...body, note: notes.join(' | ') } : body, idemKey);
+            let at;
+            if (type === 'dine_in' && full.orders?.dineIn?.atShopCheck !== false) {
+                const w = await whereAmI();
+                if (w.problem) {
+                    setPlacing(false);
+                    const msg = w.problem === 'off' ? tr('Please switch on your phone location, so the shop knows you are at the shop.')
+                        : w.problem === 'none' ? tr('We could not find your location yet. Please try again in a moment.')
+                            : tr('Location is needed to confirm you are at the shop. Please allow it.');
+                    const go = await ask({ title: tr('Location needed'), message: msg, confirmText: w.problem === 'denied' ? tr('Allow') : tr('Open settings'), cancelText: tr('Not now') });
+                    if (go) { if (w.problem === 'denied') place(); else openPhoneSettings(); }
+                    return;
+                }
+                at = w.at;
+            }
+            const order = await placeOrder({ ...(notes.length ? { ...body, note: notes.join(' | ') } : body), ...(at ? { at } : {}) }, idemKey);
+            if (type === 'dine_in') useTableBill.getState().load();   // the new round is on his table bill
             if (__DEV__) console.log(`[pay] place order took ${Date.now() - t0} ms, paymentStart: ${order?.paymentStart ? 'yes' : 'no'}`);
             const tabs = { name: 'MainTabs', state: { routes: [{ name: 'Orders' }] } };
             // the celebration page: Back from it goes to the Orders tab; it offers Track order / Back to menu
@@ -226,7 +262,7 @@ export default function CartScreen() {
                 name: 'OrderPlaced',
                 params: {
                     id: order?._id || order?.id, orderNo: order?.orderNo, total: order?.pricing?.total, paid,
-                    method: selectedPaymentMethod, type, etaMin: full.orders?.prepTimeMin || null,
+                    method: selectedPaymentMethod, type, etaMin: order?.etaMin || full.orders?.prepTimeMin || null,
                 },
             });
 
@@ -262,6 +298,7 @@ export default function CartScreen() {
         } catch (e) {
             const m = errMsg(e);
             showToast(m);
+            if (/unpaid bill/i.test(m)) useOwedPrompt.getState().show();   // the reminder with the Call button
             if (/coupon/i.test(m)) { ease(); setApplied(''); setCouponErr(m); }
             if (e?.response) setTick((x) => x + 1);
         } finally { setPlacing(false); }
@@ -295,7 +332,7 @@ export default function CartScreen() {
     const freeAbove = feeConfig.freeAbove || 0;
     const unlocked = freeAbove > 0 && preview >= freeAbove;
 
-    let btnText = 'Place Order';
+    let btnText = type === 'dine_in' && paymentMethodValue === 'cod' ? 'Send to kitchen' : 'Place Order';
     let btnOn = false;
     let note = '';
     if (closed) btnText = 'Shop closed';
@@ -373,11 +410,23 @@ export default function CartScreen() {
                         </Appear>
                     ) : null}
 
+                    {user && type === 'dine_in' ? (
+                        <Appear delay={80} style={{ marginTop: 20 }}>
+                            <Text style={[s.cap, { color: text, marginBottom: 8 }]}>{tr('How should we make it?')}</Text>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                                {prefList.map((n) => <Chip key={n} label={tr(n)} on={prefs.includes(n)} onPress={() => togglePref(n)} />)}
+                            </View>
+                            <TextInput value={prefNote} onChangeText={setPrefNote} maxLength={120} placeholder={tr('Or write it yourself: extra hot, no ice...')}
+                                placeholderTextColor={muted} style={[s.customNoteInput, { color: text, borderColor: border, backgroundColor: surface, marginTop: prefList.length ? 4 : 0 }]} />
+                            <Text style={{ color: muted, fontSize: 12, marginTop: 6 }}>{tr('The kitchen sees this before your food is made.')}</Text>
+                        </Appear>
+                    ) : null}
+
                     {user && couponOn ? (
                         <Appear delay={100} style={{ marginTop: 20 }}>
-                            {offers.length > 0 && !applied ? (
+                            {shownOffers.length > 0 && !applied ? (
                                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-                                    {offers.map((o) => (
+                                    {shownOffers.map((o) => (
                                         <CouponTicket key={o._id} o={o} size="mini" onPress={() => pickOffer(o.code)} style={{ marginRight: 10 }} />
                                     ))}
                                 </ScrollView>
@@ -408,12 +457,24 @@ export default function CartScreen() {
                         </Appear>
                     ) : null}
 
-                    {user && (types.length > 1 || showSchedule) ? (
+                    {user && type === 'dine_in' ? (
+                        <Appear delay={140} style={{ marginTop: 20 }}>
+                            <Text style={[s.cap, { color: text, marginBottom: 8 }]}>{tr('Dining at')}</Text>
+                            <Pressable onPress={() => setTableOpen(true)} style={[s.card, { backgroundColor: surface, borderColor: border, flexDirection: 'row', alignItems: 'center', marginHorizontal: 0 }]}>
+                                <Ionicons name="restaurant" size={22} color={primary} />
+                                <Text style={[s.lName, { color: text, flex: 1, marginLeft: 10 }]}>{table ? tr('Table {n}', { n: table }) : tr('Choose your table')}</Text>
+                                <Text style={{ color: primary, fontWeight: '800' }}>{tr('Change')}</Text>
+                            </Pressable>
+                            <DineBusyNote />
+                        </Appear>
+                    ) : null}
+
+                    {user && type !== 'dine_in' && (types.length > 1 || showSchedule) ? (
                         <Appear delay={140} style={{ marginTop: 20 }}>
                             <Text style={[s.cap, { color: text, marginBottom: 8 }]}>{tr('Order Settings')}</Text>
                             {types.length > 1 ? (
                                 <View style={s.chipsRow}>
-                                    {types.map((t) => <Chip key={t} on={type === t} icon={t === 'delivery' ? 'bicycle-outline' : 'basket-outline'} label={t === 'delivery' ? tr('Delivery') : tr('Pickup')} onPress={() => setPickedType(t)} />)}
+                                    {types.map((t) => <Chip key={t} on={type === t} icon={t === 'delivery' ? 'bicycle-outline' : 'basket-outline'} label={t === 'delivery' ? tr('Delivery') : tr('Pickup')} onPress={() => { setPickedType(t); useOrderMode.getState().setMode(t); }} />)}
                                 </View>
                             ) : null}
                             {showSchedule ? (
@@ -528,15 +589,20 @@ export default function CartScreen() {
                 {note ? (
                     <Appear key={note} style={[s.note, { backgroundColor: tint(error) }]}>
                         <Ionicons name="information-circle-outline" size={16} color={error} />
-                        <Text style={[s.noteTxt, { color: error }]} numberOfLines={2}>{note}</Text>
+                        <Text style={[s.noteTxt, { color: error }]} numberOfLines={3}>{note}</Text>
                     </Appear>
                 ) : null}
+                {/unpaid bill/i.test(note) ? (
+                    <Pressable onPress={() => useOwedPrompt.getState().show()} style={{ alignSelf: 'stretch', alignItems: 'center', paddingVertical: 12, borderRadius: 12, backgroundColor: primary, marginBottom: 10 }}>
+                        <Text style={{ color: onPrimary, fontWeight: '900' }}>{tr('View bill and pay')}</Text>
+                    </Pressable>
+                ) : null}
                 <View style={s.dockRow}>
-                    <Pressable onPress={() => nav.navigate('PaymentMethods', { current: paymentMethodValue, currentApp: upiApp?.pkg, codBlocked })} style={s.dockLeft}>
+                    <Pressable onPress={() => nav.navigate('PaymentMethods', { current: paymentMethodValue, currentApp: upiApp?.pkg, codBlocked, dineIn: type === 'dine_in' })} style={s.dockLeft}>
                         <View style={s.dockIcon}><Ionicons name="wallet-outline" size={18} color={primary} /></View>
                         <View style={{ flex: 1 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <Text style={[s.dockLabel, { color: text }]} numberOfLines={1}>{/^cash on delivery$/i.test(selectedPaymentMethod) ? tr('COD') : selectedPaymentMethod}</Text>
+                                <Text style={[s.dockLabel, { color: text }]} numberOfLines={1}>{/^cash on delivery$/i.test(selectedPaymentMethod) ? (type === 'dine_in' ? tr('Pay at the end') : tr('COD')) : selectedPaymentMethod}</Text>
                                 <Ionicons name="chevron-up-outline" size={14} color={muted} style={{ marginLeft: 4 }} />
                             </View>
                             <Text style={[s.dockSub, { color: muted }]} numberOfLines={1}>{tr('Click to change')}</Text>
@@ -566,6 +632,7 @@ export default function CartScreen() {
 
             {/* online order: our own screen appears the moment "Place order" is tapped, like Zomato / Blinkit,
                 instead of a dead pause before the payment app opens */}
+            <TableSheet visible={tableOpen} onClose={() => setTableOpen(false)} />
             {placing && paymentMethodValue !== 'cod' ? <PayShimmer appName={upiApp?.label} /> : null}
         </View>
     );

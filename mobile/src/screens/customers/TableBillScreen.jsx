@@ -1,0 +1,154 @@
+// The table bill: every round he ordered with what it cost, what is still to pay, and the two things to do: order more, or ask for the bill.
+import React, { useCallback, useState } from 'react';
+import { View, Text, ScrollView, RefreshControl } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useBrand, alpha } from '../../components/common/kit';
+import { PageHeader, Card, SectionTitle, Button, Pill } from '../../components/owners/ui';
+import { ListShimmer } from '../../components/owners/shimmer';
+import { useTableBill } from '../../store/customers/useTableBill';
+import WaitTimer, { ServedIn, useTick, clock as mmss } from '../../components/common/WaitTimer';
+import { CallCard, TipCard, SplitCard } from '../../components/customers/TableExtras';
+import { nudgeTable } from '../../api/customers/shopApi';
+import { showToast } from '../../components/customers/shop';
+import { ask } from '../../components/common/dialog';
+import { tr } from '../../i18n';
+
+const STATE = { placed: 'Waiting for the shop', accepted: 'Accepted', preparing: 'Being prepared', ready: 'Coming to your table', delivered: 'Served' };
+const rs = (n) => `₹${Math.round(n * 100) / 100}`;
+const clock = (d) => new Date(d).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
+
+export default function TableBillScreen() {
+    const nav = useNavigation();
+    const { background, text, muted, ok, warn, border } = useBrand();
+    const bill = useTableBill((s) => s.bill);
+    const loading = useTableBill((s) => s.loading);
+    const [busy, setBusy] = useState(false);
+    useFocusEffect(useCallback(() => { useTableBill.getState().load(); }, []));
+
+    const tick = useTick(!!bill?.open);
+    const hurry = async () => {
+        try { await nudgeTable(); await useTableBill.getState().load(); showToast(tr('The kitchen has been reminded. Thank you for waiting!')); } catch (e) { showToast(e?.response?.data?.error || tr('Could not send. Please try again.')); }
+    };
+    const refresh = async () => { setBusy(true); await useTableBill.getState().load(); setBusy(false); };
+    const askBill = async () => {
+        const yes = await ask({ title: tr('Ask for the bill?'), message: tr('The shop will bring your bill or take your payment at the counter.'), confirmText: tr('Ask for the bill'), cancelText: tr('Not yet') });
+        if (!yes) return;
+        try { await useTableBill.getState().ask(); showToast(tr('The shop has been told')); } catch (e) { showToast(e?.response?.data?.error || tr('Could not ask for the bill. Please try again.')); }
+    };
+
+    if (!bill) return <View style={{ flex: 1, backgroundColor: background }}><PageHeader title={tr('Table bill')} /><ListShimmer count={3} /></View>;
+    if (!bill.open) {
+        return (
+            <View style={{ flex: 1, backgroundColor: background }}>
+                <PageHeader title={tr('Table bill')} />
+                <View style={{ alignItems: 'center', padding: 40 }}>
+                    <Ionicons name="checkmark-circle" size={64} color={ok} />
+                    <Text style={{ color: text, fontWeight: '900', fontSize: 20, marginTop: 12 }}>{tr('Nothing to pay')}</Text>
+                    <Text style={{ color: muted, textAlign: 'center', marginTop: 6 }}>{tr('You have no open table bill. Thank you for dining with us!')}</Text>
+                    {bill.owed ? <Text style={{ color: warn, fontWeight: '900', textAlign: 'center', marginTop: 16 }}>{tr('You still owe {n} from table {t}. Please pay it at the counter on your next visit.', { n: rs(bill.owed.amount), t: bill.owed.table })}</Text> : null}
+                </View>
+            </View>
+        );
+    }
+    const asked = bill.status === 'bill_asked';
+    // he may remind the kitchen 3 minutes after ordering, then once every 10 minutes (the server enforces the same)
+    const live = bill.rounds.filter((r) => ['placed', 'accepted', 'preparing', 'ready'].includes(r.status));
+    const oldest = live.length ? Math.min(...live.map((r) => new Date(r.times?.placed || r.at).getTime())) : 0;
+    const cool = Math.max(oldest ? oldest + 3 * 60000 - tick : 0, bill.nudgeAt ? new Date(bill.nudgeAt).getTime() + 10 * 60000 - tick : 0);
+    return (
+        <View style={{ flex: 1, backgroundColor: background }}>
+            <PageHeader title={tr('Table {t} bill', { t: bill.table })} />
+            <ScrollView contentContainerStyle={{ paddingBottom: 150 }} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={busy} onRefresh={refresh} />}>
+                {asked ? (
+                    <Card tone={warn}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Ionicons name="receipt" size={22} color={warn} />
+                            <View style={{ flex: 1, marginLeft: 10 }}>
+                                <Text style={{ color: text, fontWeight: '900' }}>{tr('You asked for the bill')}</Text>
+                                <Text style={{ color: muted, fontSize: 12.5, marginTop: 2 }}>{tr('The shop is on its way. You can pay in cash or UPI at the counter.')}</Text>
+                            </View>
+                        </View>
+                    </Card>
+                ) : null}
+
+                {bill.rounds.some((r) => ['placed', 'accepted', 'preparing', 'ready'].includes(r.status)) && !asked ? (
+                    <Card>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Ionicons name="hourglass" size={22} color={warn} />
+                            <View style={{ flex: 1, marginLeft: 10 }}>
+                                <Text style={{ color: text, fontWeight: '900' }}>{tr('Taking too long?')}</Text>
+                                <Text style={{ color: muted, fontSize: 12.5, marginTop: 2 }}>{tr('Send the kitchen a gentle reminder.')}</Text>
+                            </View>
+                        </View>
+                        {cool > 0 ? (
+                            <View style={{ marginTop: 10, paddingVertical: 14, borderRadius: 14, backgroundColor: alpha(muted, 0.14), alignItems: 'center' }}>
+                                <Text style={{ color: text, fontWeight: '800' }}>{tr('The kitchen knows. You can remind again in {t}', { t: mmss(cool) })}</Text>
+                            </View>
+                        ) : <Button label={tr('Please bring it fast 🙏')} icon="notifications" kind="ghost" onPress={hurry} style={{ marginTop: 10 }} />}
+                    </Card>
+                ) : null}
+
+                <CallCard />
+
+                {bill.rounds.map((r, i) => (
+                    <View key={r.id}>
+                        <SectionTitle title={tr('Round {n} · {time}', { n: i + 1, time: clock(r.at) })} />
+                        <Card>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                                <Pill label={tr(STATE[r.status] || r.status)} color={r.status === 'delivered' ? ok : warn} />
+                                {r.paid ? <View style={{ marginLeft: 6 }}><Pill label={tr('Paid')} color={ok} /></View> : null}
+                            </View>
+                            {r.status === 'delivered' ? <ServedIn times={r.times} style={{ marginBottom: 6 }} /> : <WaitTimer since={r.times?.placed || r.at} style={{ marginBottom: 6 }} />}
+                            {r.items.map((it, k) => (
+                                <View key={k} style={{ flexDirection: 'row', paddingVertical: 4 }}>
+                                    <Text style={{ flex: 1, color: text, fontWeight: '600' }} numberOfLines={2}>{it.quantity}× {it.name}</Text>
+                                    <Text style={{ color: muted, fontWeight: '700' }}>{rs(it.total)}</Text>
+                                </View>
+                            ))}
+                            <View style={{ flexDirection: 'row', paddingTop: 8, marginTop: 6, borderTopWidth: 1, borderTopColor: alpha(border, 0.7) }}>
+                                <Text style={{ flex: 1, color: muted, fontWeight: '700' }}>{tr('Round total')}</Text>
+                                <Text style={{ color: text, fontWeight: '900' }}>{rs(r.total)}</Text>
+                            </View>
+                        </Card>
+                    </View>
+                ))}
+
+                <TipCard bill={bill} />
+
+                <Card>
+                    <View style={{ flexDirection: 'row' }}>
+                        <Text style={{ flex: 1, color: muted, fontWeight: '700' }}>{tr('Total so far')}</Text>
+                        <Text style={{ color: text, fontWeight: '900' }}>{rs(bill.total)}</Text>
+                    </View>
+                    {bill.total !== bill.due ? (
+                        <View style={{ flexDirection: 'row', marginTop: 6 }}>
+                            <Text style={{ flex: 1, color: muted, fontWeight: '700' }}>{tr('Already paid')}</Text>
+                            <Text style={{ color: ok, fontWeight: '900' }}>- {rs(bill.total - bill.due)}</Text>
+                        </View>
+                    ) : null}
+                    {bill.tip > 0 ? (
+                        <View style={{ flexDirection: 'row', marginTop: 6 }}>
+                            <Text style={{ flex: 1, color: muted, fontWeight: '700' }}>{tr('Tip for the waiter')}</Text>
+                            <Text style={{ color: text, fontWeight: '900' }}>+ {rs(bill.tip)}</Text>
+                        </View>
+                    ) : null}
+                    <View style={{ flexDirection: 'row', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: alpha(border, 0.7) }}>
+                        <Text style={{ flex: 1, color: text, fontWeight: '900', fontSize: 17 }}>{tr('To pay')}</Text>
+                        <Text style={{ color: text, fontWeight: '900', fontSize: 20 }}>{rs(bill.payable ?? bill.due)}</Text>
+                    </View>
+                    <Text style={{ color: muted, fontSize: 12.5, marginTop: 8 }}>{tr('You pay once, at the end. Cash or UPI at the counter.')}</Text>
+                </Card>
+
+                <SplitCard bill={bill} />
+            </ScrollView>
+
+            <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, paddingBottom: 24, backgroundColor: background, borderTopWidth: 1, borderTopColor: alpha(border, 0.7) }}>
+                <View style={{ flexDirection: 'row' }}>
+                    <Button label={tr('Order more')} icon="add" kind="ghost" onPress={() => nav.navigate('MainTabs', { screen: 'Home' })} style={{ flex: 1, marginRight: 8 }} />
+                    {asked ? null : <Button label={tr('Ask for the bill')} icon="receipt" busy={loading} onPress={askBill} style={{ flex: 1.3 }} />}
+                </View>
+            </View>
+        </View>
+    );
+}

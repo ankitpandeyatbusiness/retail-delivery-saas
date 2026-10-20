@@ -43,6 +43,25 @@ export const markLooksSeen = () => d(api.post('/shop/orders/look-seen'));
 // riders' leave: status 'pending' (default) | 'all'; decide with { approve: true | false, note? }
 export const fetchLeaves = (status = 'pending') => d(api.get('/shop/riders/leaves', { params: { status } }));
 export const decideLeave = (id, body) => d(api.put(`/shop/riders/leaves/${id}`, body));
+// dine in: the tables board, one table's bill, and taking the payment (method: 'cash' | 'upi')
+export const fetchDineTables = () => d(api.get('/shop/dine-in/tables'));
+export const fetchDineBill = (id) => d(api.get(`/shop/dine-in/sessions/${id}`));
+export const fetchDineQrSheet = (size) => d(api.get('/shop/dine-in/qr/sheet', { params: { size } }));
+export const fetchOwedClaims = () => d(api.get('/shop/dine-in/claims'));
+export const answerOwedClaim = (id, ok, message) => d(api.post(`/shop/dine-in/claims/${id}/answer`, { ok, message }));
+export const fetchDineQr = () => d(api.get('/shop/dine-in/qr'));
+export const walkoutDineBill = (id) => d(api.post(`/shop/dine-in/sessions/${id}/walkout`));
+export const fetchDineDebts = () => d(api.get('/shop/dine-in/debts'));
+export const fetchDineReport = (days) => d(api.get('/shop/dine-in/report', { params: { days } }));
+export const fetchTableRequests = () => d(api.get('/shop/dine-in/requests'));
+export const doneTableRequest = (id) => d(api.post(`/shop/dine-in/requests/${id}/done`));
+export const fetchTableFeedback = () => d(api.get('/shop/dine-in/feedback'));
+export const seenTableFeedback = () => d(api.post('/shop/dine-in/feedback/seen'));
+export const forgiveDebt = (id) => d(api.post(`/shop/dine-in/debts/${id}/forgive`));
+export const remindDebt = (id) => d(api.post(`/shop/dine-in/debts/${id}/remind`));
+export const remindAllDebts = () => d(api.post('/shop/dine-in/debts/remind-all'));
+export const payDineDebt = (id, method) => d(api.post(`/shop/dine-in/debts/${id}/paid`, { method }));
+export const settleDineBill = (id, method) => d(api.post(`/shop/dine-in/sessions/${id}/settle`, { method }));
 // cancel and refund rules: { platform, own, effective, recommended }; save the numbers, or { reset: true } to follow the platform
 export const fetchMoneyRules = () => d(api.get('/shop/money-rules'));
 export const saveMoneyRules = (body) => d(api.put('/shop/money-rules', body));
@@ -119,6 +138,7 @@ export const deleteUpload = (id) => d(api.delete(`/shop/uploads/${id}`));
 export const fetchCustomers = (params) => d(api.get('/shop/customers', q(params)));
 export const fetchCustomer = (userId) => d(api.get(`/shop/customers/${userId}`));
 export const updateCustomer = (userId, body) => d(api.patch(`/shop/customers/${userId}`, body));   // { name?, email?, notes? }
+export const blockCustomer = (userId, blocked) => d(api.patch(`/shop/customers/${userId}/block`, { blocked }));
 export const allowCod = (userId) => d(api.patch(`/shop/customers/${userId}/cod-block`, { blocked: false }));
 
 // what customers say: { kind:'dish'|'delivery', items, page, hasMore, summary:{dish:{avg,count,stars},delivery:{...}} }; params { kind, rating, page }

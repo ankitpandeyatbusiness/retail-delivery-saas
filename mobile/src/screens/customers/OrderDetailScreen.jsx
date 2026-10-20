@@ -25,6 +25,7 @@ import { useAuthStore } from '../../store/common/useAuthStore';
 import { payForOrder } from '../../utils/customers/payOnline';
 import { tr } from '../../i18n';
 import KeyboardScroll from '../../components/common/KeyboardScroll';
+import PickupTimeSheet from '../../components/customers/PickupTimeSheet';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const FLOW_DELIVERY = ['placed', 'accepted', 'preparing', 'out_for_delivery', 'delivered'];
@@ -33,6 +34,7 @@ const STEP = {
     placed: 'Order placed', accepted: 'Accepted', preparing: 'Preparing', ready: 'Ready for pickup',
     out_for_delivery: 'Out for delivery', delivered: 'Delivered',
 };
+const DINE_STEP = { ready: 'Coming to your table', delivered: 'Served' };   // eating at the shop
 const ICON = {
     placed: 'receipt-outline', accepted: 'checkmark-done-outline', preparing: 'restaurant-outline', ready: 'bag-check-outline',
     out_for_delivery: 'bicycle-outline', delivered: 'checkmark-circle-outline', cancelled: 'close-circle-outline',
@@ -72,7 +74,7 @@ function Row({ k, v, green, bold }) {
     );
 }
 
-function Step({ st, k, idx, last, hist, live }) {
+function Step({ st, k, idx, last, hist, live, dine }) {
     const { text, muted, surface, border, ok } = useBrand();
     const done = k <= idx;
     const cur = k === idx && live;
@@ -100,7 +102,7 @@ function Step({ st, k, idx, last, hist, live }) {
                 {!last ? <Animated.View style={[s.bar, { backgroundColor: barC }]} /> : null}
             </View>
             <Animated.View style={{ flex: 1, paddingBottom: 16, opacity: a.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) }}>
-                <Text style={[s.stepTxt, { color: text, fontWeight: cur ? '900' : '700' }]}>{STEP[st]}</Text>
+                <Text style={[s.stepTxt, { color: text, fontWeight: cur ? '900' : '700' }]}>{(dine && DINE_STEP[st]) || STEP[st]}</Text>
                 {done && hist?.at ? <Text style={[s.stepTime, { color: muted }]}>{fmt(hist.at)}</Text> : null}
             </Animated.View>
         </View>
@@ -141,6 +143,7 @@ export default function OrderDetailScreen() {
     const [editing, setEditing] = useState(false);
     const [saving, setSaving] = useState(false);
     const [busy, setBusy] = useState(false);
+    const [ptSheet, setPtSheet] = useState(false);
     const [inv, setInv] = useState('');            // '' | 'view' | 'save'
     const user = useAuthStore((st) => st.user);
     const [track, setTrack] = useState(null);     // GET /orders/:id/tracking, delivery orders only
@@ -253,10 +256,11 @@ export default function OrderDetailScreen() {
     const flow = delivery ? FLOW_DELIVERY : FLOW_OTHER;
     const idx = flow.indexOf(o.status);
     const accent = cancelled ? error : delivered ? ok : primary;
-    const headline = cancelled ? 'Order cancelled' : (STEP[o.status] || 'Order');
+    const dineIn = o.orderType === 'dine_in';
+    const headline = cancelled ? 'Order cancelled' : ((dineIn && DINE_STEP[o.status]) || STEP[o.status] || 'Order');
     const sub = cancelled ? `Cancelled by ${WHO[o.cancelledBy] || 'the shop'}${o.cancelReason ? `: ${o.cancelReason}` : ''}`
         : live ? (o.etaMin ? `Usually ready in about ${o.etaMin} min` : 'We will keep this updated')
-            : delivered && o.deliveredAt ? `Delivered on ${fmt(o.deliveredAt)}` : '';
+            : delivered && o.deliveredAt ? `${dineIn ? 'Served' : 'Delivered'} on ${fmt(o.deliveredAt)}` : '';
     // an online order that was placed but not paid yet (payment cancelled or failed): let the customer pay again
     const payable = !!o.payment && o.payment.method !== 'cod' && o.payment.status !== 'paid' && o.status === 'placed';
     const payNow = async () => {
@@ -326,7 +330,7 @@ export default function OrderDetailScreen() {
                 {!cancelled ? (
                     <Card title={tr('Order status')} icon="time-outline" delay={60}>
                         {flow.map((st, k) => (
-                            <Step key={st} st={st} k={k} idx={idx} live={live} last={k === flow.length - 1}
+                            <Step key={st} st={st} dine={o.orderType === 'dine_in'} k={k} idx={idx} live={live} last={k === flow.length - 1}
                                 hist={(o.statusHistory || []).find((x) => x.status === st)} />
                         ))}
                     </Card>
@@ -388,6 +392,11 @@ export default function OrderDetailScreen() {
                 {timeLine ? (
                     <Card title={delivery ? tr('Scheduled for') : tr('Pickup time')} icon="calendar-outline" delay={180}>
                         <Text style={[s.itemName, { color: text }]}>{timeLine}</Text>
+                        {o.canChangePickup ? (
+                            <Pressable onPress={() => setPtSheet(true)} hitSlop={8} style={{ marginTop: 10 }}>
+                                <Text style={{ color: primary, fontWeight: '800', fontSize: 14 }}>{tr('Change pickup time')}</Text>
+                            </Pressable>
+                        ) : null}
                     </Card>
                 ) : null}
                 {/* a pickup order: where to collect it, with Directions */}
@@ -471,6 +480,7 @@ export default function OrderDetailScreen() {
                 ) : null}
                 {delivered ? <ComplaintCard orderId={id} /> : null}
             </KeyboardScroll>
+            {o.canChangePickup ? <PickupTimeSheet visible={ptSheet} order={o} onClose={() => setPtSheet(false)} onDone={setO} /> : null}
 
             {dock ? (
                 <Appear style={[s.dock, { backgroundColor: surface, borderTopColor: border, paddingBottom: (insets.bottom || 12) + 4 }]}>

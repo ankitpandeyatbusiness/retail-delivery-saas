@@ -20,7 +20,7 @@ function brief(order, max = 2) {
 }
 
 const rupees = (n) => `₹${Math.round(Number(n) || 0)}`;
-const payWord = (order) => (order?.payment?.method === 'cod' ? 'Cash on delivery' : order?.payment?.status === 'paid' ? 'Paid online' : '');
+const payWord = (order) => (order?.payment?.method === 'cod' ? (order.orderType === 'dine_in' ? 'Cash at the counter' : order.orderType === 'pickup' ? 'Cash on pickup' : 'Cash on delivery') : order?.payment?.status === 'paid' ? 'Paid online' : '');
 const typeWord = (t) => ({ pickup: 'Pickup', dine_in: 'Dine-in', delivery: 'Delivery' }[t] || '');
 
 module.exports = { brief, rupees, payWord, typeWord };

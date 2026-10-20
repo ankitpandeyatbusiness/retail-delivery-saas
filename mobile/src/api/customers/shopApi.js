@@ -11,11 +11,28 @@ export const searchProducts = (params) => d(api.get('/catalog/products', { param
 // orders
 // the customer's points at this shop: { enabled, balance, pending: { points, nextAt, items }, rules, history }
 export const fetchPoints = () => d(api.get('/loyalty/me'));
+// the table bill while dining in: { open, table, status, rounds, total, due } / ask for the bill
+export const fetchTableBill = () => d(api.get('/dinein/bill'));
+export const fetchDineOffers = () => d(api.get('/dinein/offers'));   // { items: [{ kind, text }] } the table offers he can get
+export const fetchDineUsual = () => d(api.get('/dinein/usual'));     // { usual: { id, brief, count } | null } what he had last time
+export const fetchDineStatus = () => d(api.get('/dinein/status'));   // { busy, extraMin }: the shop is full, food may take longer
+export const nudgeTable = () => d(api.post('/dinein/nudge'));   // "please bring it fast"
+export const claimPaid = () => d(api.post('/dinein/paid-claim'));   // "I already paid" the bill I left unpaid
+export const startOwedPayment = () => d(api.post('/dinein/owed/pay'));   // pay the bill I left unpaid, online
+export const checkOwedPayment = () => d(api.post('/dinein/owed/pay/check'));
+export const verifyOwedPayment = (proof) => d(api.post('/dinein/owed/pay/verify', proof));
+export const callTable = (kind, text) => d(api.post('/dinein/call', { kind, text }));   // call the waiter / water / cutlery / clean the table
+export const setTableTip = (amount) => d(api.post('/dinein/tip', { amount }));          // the tip for the waiter, paid with the bill
+export const sendTableFeedback = (body) => d(api.post('/dinein/feedback', body));      // private feedback after the meal
+export const fetchReferral = () => d(api.get('/dinein/referral'));                    // my code, and how my friends are doing
+export const applyReferralCode = (code) => d(api.post('/dinein/referral/apply', { code }));   // a new guest types a friend's code
+export const askTableBill = () => d(api.post('/dinein/ask-bill'));
 export const quoteOrder = (body) => d(api.post('/orders/quote', body));
 export const placeOrder = (body, key) => d(api.post('/orders', body, { headers: { 'Idempotency-Key': key } }));
 export const fetchOrders = (params) => d(api.get('/orders', { params }));
 export const fetchPickupSlots = () => d(api.get('/orders/pickup-slots'));
 export const fetchOrder = (id) => d(api.get(`/orders/${id}`));
+export const changePickupTime = (id, pickupSlot) => d(api.post(`/orders/${id}/pickup-time`, { pickupSlot }));
 export const cancelOrder = (id, reason) => d(api.post(`/orders/${id}/cancel`, { reason }));
 export const reorderOrder = (id) => d(api.post(`/orders/${id}/reorder`));
 export const rateOrder = (id, ratings) => d(api.post(`/orders/${id}/rating`, { ratings }));

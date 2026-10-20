@@ -20,6 +20,7 @@ import { useHomeStore } from '../../store/customers/useHomeStore';
 import { fetchOrders } from '../../api/customers/shopApi';
 import { useAnyOrderLive } from '../../hooks/customers/useOrderLive';
 import { viewInvoice } from '../../components/customers/invoice';
+import OwedStrip from '../../components/customers/OwedStrip';
 import { tr } from '../../i18n';
 import { useBottomSpace } from '../../store/customers/useLiveTripStore';
 
@@ -146,6 +147,7 @@ function LiveOrderCard({ o, onOpen }) {
     const delivery = o.orderType === 'delivery';
     const flow = delivery ? FLOW_DELIVERY : FLOW_OTHER;
     const idx = Math.max(0, flow.indexOf(o.status));
+    const lab = (st) => (o.orderType === 'dine_in' && { ready: 'Coming to your table', delivered: 'Served' }[st]) || STEP[st];
     const pct = (idx + 1) / flow.length;
     const fill = useRef(new Animated.Value(pct)).current;
     const beat = useRef(new Animated.Value(0)).current;
@@ -172,7 +174,7 @@ function LiveOrderCard({ o, onOpen }) {
                             </View>
                             <Text style={[s.liveTagTxt, { color: onPrimary }]}>{tr('LIVE · ORDER #{orderNo}', { orderNo: o.orderNo })}</Text>
                         </View>
-                        <Text style={[s.liveStep, { color: onPrimary }]} numberOfLines={1}>{STEP[o.status] || tr('In progress')}</Text>
+                        <Text style={[s.liveStep, { color: onPrimary }]} numberOfLines={1}>{lab(o.status) || tr('In progress')}</Text>
                         <Text style={[s.liveEta, { color: onPrimary }]} numberOfLines={1}>{eta}</Text>
                     </View>
                     <View style={s.liveIc}>
@@ -184,8 +186,8 @@ function LiveOrderCard({ o, onOpen }) {
                     <Animated.View style={[s.trackFill, { width: fill.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} />
                 </View>
                 <View style={[s.row, { marginTop: 6 }]}>
-                    <Text style={[s.trackTxt, { color: onPrimary }]}>{STEP[flow[0]]}</Text>
-                    <Text style={[s.trackTxt, { color: onPrimary }]}>{STEP[flow[flow.length - 1]]}</Text>
+                    <Text style={[s.trackTxt, { color: onPrimary }]}>{lab(flow[0])}</Text>
+                    <Text style={[s.trackTxt, { color: onPrimary }]}>{lab(flow[flow.length - 1])}</Text>
                 </View>
 
                 <View style={[s.row, { marginTop: 14 }]}>
@@ -217,9 +219,9 @@ function OrderCard({ o, index, animate, onOpen, onCancel, onReorder, onInvoice, 
                     <View style={s.row}>
                         <View style={{ flex: 1, paddingRight: 8 }}>
                             <Text style={[s.no, { color: text }]}>{tr('Order #{orderNo}', { orderNo: o.orderNo })}</Text>
-                            <Text style={[s.date, { color: muted }]}>{fmtDate(o.createdAt)} · {o.orderType === 'delivery' ? tr('Delivery') : tr('Pickup')}</Text>
+                            <Text style={[s.date, { color: muted }]}>{fmtDate(o.createdAt)} · {o.orderType === 'delivery' ? tr('Delivery') : o.orderType === 'dine_in' ? tr('Dine in') : tr('Pickup')}</Text>
                         </View>
-                        <StatusPill status={o.status} />
+                        <StatusPill status={o.status} type={o.orderType} />
                     </View>
 
                     <View style={s.thumbRow}>
@@ -400,6 +402,7 @@ function OrdersList() {
                     : activeCount ? <Text style={[s.sub, { color: primary }]}>{tr('{activeCount} active right now', { activeCount: activeCount })}</Text>
                         : <Text style={[s.sub, { color: muted }]}>{tr('Track and reorder your favourites')}</Text>}
             </View>
+            <OwedStrip />
             <View style={{ height: 54 }}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.pills}>
                     <DateChip label={dateText} on={!!range} onPress={() => setSheet(true)} onClear={() => applyRange(null)} />

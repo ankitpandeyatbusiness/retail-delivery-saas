@@ -96,6 +96,8 @@ export default {
     runtimeVersion: { policy: 'appVersion' },
     updates: { url: 'https://u.expo.dev/863d0304-5faf-47cf-be8b-e69556ecb05e' },
     orientation: 'portrait',
+    // the app link a table QR opens: <shop>://table/7?k=... (needs a new native build)
+    scheme: tenant === 'default' ? 'retailsaas' : tenant,
     // lets the app know when the phone is in dark mode (Account → Appearance → System). Without this, Android always
     // reports light. Needs expo-system-ui and a new native build; an OTA update alone does not change it.
     userInterfaceStyle: 'automatic',
@@ -131,6 +133,7 @@ export default {
     },
     plugins: [
       'expo-image',
+      ['expo-camera', { cameraPermission: 'Allow the camera to scan the QR code on your table.', recordAudioAndroidPermission: false }],
       [
         'expo-build-properties',
         {

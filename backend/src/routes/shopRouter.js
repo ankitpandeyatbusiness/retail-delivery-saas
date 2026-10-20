@@ -309,6 +309,82 @@ router.put('/money-rules', wrap(async (req, res) => {
     res.json(await mr.shopView(fresh));
 }));
 
+// Dine in: the tables board and the table bill.
+//   GET /dine-in/tables  ·  GET /dine-in/sessions/:id  ·  POST /dine-in/sessions/:id/settle { method: 'cash' | 'upi' }
+router.get('/dine-in/tables', wrap(async (req, res) => {
+    res.json({ items: await require('../services/tableBill').board(req.tenant) });
+}));
+router.get('/dine-in/sessions/:id', wrap(async (req, res) => {
+    if (!isId(req.params.id)) throw httpError(404, 'Bill not found');
+    const s = await require('../models/TableSession').findOne({ _id: req.params.id, tenantId: req.tenant._id });
+    if (!s) throw httpError(404, 'Bill not found');
+    res.json(await require('../services/tableBill').billOf(s, { owner: true }));
+}));
+router.post('/dine-in/sessions/:id/settle', wrap(async (req, res) => {
+    if (!isId(req.params.id)) throw httpError(404, 'Bill not found');
+    const method = ['cash', 'upi'].includes(req.body?.method) ? req.body.method : null;
+    if (!method) throw httpError(400, 'Choose cash or upi');
+    try { res.json(await require('../services/tableBill').settle({ tenantId: req.tenant._id, sessionId: req.params.id, method })); } catch (e) { throw httpError(e.status || 400, e.message); }
+}));
+
+// The table QR stickers: the link to print them all, and one table's link to test with.
+router.get('/dine-in/qr', wrap(async (req, res) => {
+    const q = require('../services/tableQr');
+    res.json({ printUrl: q.printUrl(req, req.tenant), sample: { table: '1', url: q.tableUrl(req, req.tenant, '1') } });
+}));
+
+// the same stickers as one page of HTML, for the app to print or save as a PDF
+router.get('/dine-in/qr/sheet', wrap(async (req, res) => {
+    res.json({ html: await require('../services/tableQr').printHtml(req, req.tenant, false, String(req.query.size || '')) });
+}));
+
+// A customer left without paying: the table closes, the amount stays owed, and he is told. Later he pays at the counter and it is cleared.
+router.post('/dine-in/sessions/:id/walkout', wrap(async (req, res) => {
+    if (!isId(req.params.id)) throw httpError(404, 'Bill not found');
+    try { res.json(await require('../services/tableBill').walkout({ tenantId: req.tenant._id, sessionId: req.params.id })); } catch (e) { throw httpError(e.status || 400, e.message); }
+}));
+router.get('/dine-in/debts', wrap(async (req, res) => {
+    res.json({ items: await require('../services/tableBill').debts(req.tenant._id) });
+}));
+// a customer who left unpaid says he paid: the owner answers yes / no (with a message)
+router.get('/dine-in/claims', wrap(async (req, res) => {
+    res.json({ items: await require('../services/tableBill').pendingClaims(req.tenant._id) });
+}));
+router.post('/dine-in/claims/:id/answer', wrap(async (req, res) => {
+    if (!isId(req.params.id)) throw httpError(404, 'Not found');
+    if (typeof req.body?.ok !== 'boolean') throw httpError(400, 'Send ok: true or false');
+    try { res.json(await require('../services/tableBill').answerClaim({ tenantId: req.tenant._id, sessionId: req.params.id, ok: req.body.ok, message: req.body.message })); } catch (e) { throw httpError(e.status || 400, e.message); }
+}));
+// the Dine in report: ?days=7|30|90
+router.get('/dine-in/report', wrap(async (req, res) => { res.json(await require('../services/dineReport').build({ tenant: req.tenant, days: parseInt(req.query.days, 10) })); }));
+
+// what is waiting for the staff (calls and bill requests), and the private feedback guests leave
+router.get('/dine-in/requests', wrap(async (req, res) => { res.json({ items: await require('../services/tableBill').requests(req.tenant) }); }));
+router.post('/dine-in/requests/:id/done', wrap(async (req, res) => {
+    if (!isId(req.params.id)) throw httpError(404, 'Not found');
+    try { res.json(await require('../services/tableBill').doneRequest({ tenantId: req.tenant._id, id: req.params.id })); } catch (e) { throw httpError(e.status || 400, e.message); }
+}));
+router.get('/dine-in/feedback', wrap(async (req, res) => { res.json(await require('../services/tableBill').feedbackList(req.tenant._id)); }));
+router.post('/dine-in/feedback/seen', wrap(async (req, res) => { res.json(await require('../services/tableBill').feedbackSeen(req.tenant._id)); }));
+
+// remind a customer about the bill he left unpaid; or everybody at once
+router.post('/dine-in/debts/remind-all', wrap(async (req, res) => { res.json(await require('../services/tableBill').remindAll(req.tenant._id)); }));
+router.post('/dine-in/debts/:id/remind', wrap(async (req, res) => {
+    if (!isId(req.params.id)) throw httpError(404, 'Not found');
+    try { res.json(await require('../services/tableBill').remind({ tenantId: req.tenant._id, sessionId: req.params.id })); } catch (e) { throw httpError(e.status || 400, e.message); }
+}));
+router.post('/dine-in/debts/:id/forgive', wrap(async (req, res) => {
+    if (!isId(req.params.id)) throw httpError(404, 'Not found');
+    req.auditBefore = { debt: req.params.id };
+    try { res.json(await require('../services/tableBill').forgive({ tenantId: req.tenant._id, sessionId: req.params.id })); } catch (e) { throw httpError(e.status || 400, e.message); }
+}));
+router.post('/dine-in/debts/:id/paid', wrap(async (req, res) => {
+    if (!isId(req.params.id)) throw httpError(404, 'Bill not found');
+    const method = ['cash', 'upi'].includes(req.body?.method) ? req.body.method : null;
+    if (!method) throw httpError(400, 'Choose cash or upi');
+    try { res.json(await require('../services/tableBill').clearDebt({ tenantId: req.tenant._id, sessionId: req.params.id, method })); } catch (e) { throw httpError(e.status || 400, e.message); }
+}));
+
 // Rewards: customer points and rider points / badges. The shop chooses the numbers; "reset" puts the recommended ones back.
 //   GET /loyalty  ->  { settings, recommended }      PUT /loyalty  { customer?, rider? } | { reset: true }      GET /loyalty/riders  ->  Top riders
 router.get('/loyalty', wrap(async (req, res) => {
@@ -345,6 +421,8 @@ router.get('/settings', wrap(async (req, res) => {
         orders: {
             codCap: { ...DEFAULTS.orders.codCap, ...(st.orders?.codCap || {}) },
             pickupCod: { ...DEFAULTS.orders.pickupCod, ...(cfg.orders.pickupCod || {}) },
+            pickupRules: { ...DEFAULTS.orders.pickupRules, ...(cfg.orders.pickupRules || {}) },
+            dineIn: { ...DEFAULTS.orders.dineIn, ...(cfg.orders.dineIn || {}) },
             deliveryFee: { ...DEFAULTS.orders.deliveryFee, ...(st.orders?.deliveryFee || {}) },
             packagingCharge: cfg.orders.packagingCharge || 0,
             tipOptions: cfg.orders.tipOptions || [],
@@ -415,7 +493,7 @@ router.put('/settings', wrap(async (req, res) => {
     if (body.orders !== undefined) {
         // what the owner may change of the order settings: the cash limit and what a customer pays on top of the food.
         // GST, payment methods and order types stay with the platform.
-        const OWNER_ORDER_KEYS = ['codCap', 'pickupCod', 'deliveryFee', 'packagingCharge', 'tipOptions', 'minOrder', 'prepTimeMin'];
+        const OWNER_ORDER_KEYS = ['codCap', 'pickupCod', 'pickupRules', 'dineIn', 'deliveryFee', 'packagingCharge', 'tipOptions', 'minOrder', 'prepTimeMin'];
         if (!body.orders || typeof body.orders !== 'object' || Array.isArray(body.orders) || Object.keys(body.orders).some((k) => !OWNER_ORDER_KEYS.includes(k))) {
             throw httpError(400, 'You can change only the cash limit, delivery fee, packaging charge, tips, minimum order and preparation time');
         }

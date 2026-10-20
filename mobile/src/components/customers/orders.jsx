@@ -16,20 +16,22 @@ export const STATUS_LABEL = {
     out_for_delivery: 'Out for delivery', delivered: 'Delivered', cancelled: 'Cancelled',
 };
 const ACTIVE = ['placed', 'accepted', 'preparing', 'ready', 'out_for_delivery'];
+// a dish at a table is served, not delivered
+const DINE_LABEL = { ready: 'Coming to your table', delivered: 'Served' };
 export const isActive = (st) => ACTIVE.includes(st);
 export const rs = (n) => `₹${+Number(n || 0).toFixed(2)}`;
 export const errMsg = (e) => e?.response?.data?.error
     || (e?.response ? 'Something went wrong. Try again.' : 'Network problem. Check your connection.');
 export const itemsText = (o) => (o.items || []).map((l) => `${l.quantity} × ${l.name}`).join(', ');
 
-export function StatusPill({ status }) {
+export function StatusPill({ status, type }) {
     const { primary, ok, okSoft, neutralSoft, muted } = useBrand();
     const done = status === 'delivered';
     const gone = status === 'cancelled';
     return (
         <View style={[s.pill, { backgroundColor: done ? okSoft : gone ? neutralSoft : tint(primary) }]}>
             <Text numberOfLines={1} style={[s.pillTxt, { color: done ? ok : gone ? muted : primary }]}>
-                {STATUS_LABEL[status] || status}
+                {(type === 'dine_in' && DINE_LABEL[status]) || STATUS_LABEL[status] || status}
             </Text>
         </View>
     );

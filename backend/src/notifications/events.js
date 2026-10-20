@@ -28,7 +28,20 @@ const EVENTS = {
     points_arrived: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },   // loyalty points reached the customer
     rider_badge: { to: 'rider', channels: INAPP_PUSH, alsoPush: true },        // the rider moved up a badge
     pickup_waiting: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },   // a pickup order is ready and waiting
+    pickup_time_changed: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // the customer moved his pickup time to a later one
     pickup_no_show: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },     // the customer did not come after his pickup time
+    table_bill_asked: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // a customer at a table asked for the bill
+    table_paid_claim: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // a customer who left unpaid says he paid: the owner must confirm
+    owed_cleared: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },    // his unpaid bill is settled
+    owed_claim_rejected: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },   // the shop could not find his payment
+    owed_reminder: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },   // the shop reminds him of the bill he left unpaid
+    referral_reward: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },   // a friend he referred had a first meal: points for him
+    table_call: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },         // a guest calls the waiter / asks for water...
+    table_feedback_low: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // a guest was not happy (private)
+    table_nudge: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },        // a customer at a table asks the kitchen to hurry
+    table_check: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },        // people finished eating and nobody asked for the bill
+    table_walkout: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },   // he left without paying
+    table_paid: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },      // the table bill was paid
     rider_leave_request: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // a rider asked for leave
     rider_leave_decision: { to: 'rider', channels: INAPP_PUSH, alsoPush: true },  // the owner approved or rejected it
     rider_duty_auto: { to: 'rider', channels: ['inapp'] },                        // his schedule put him on or off duty

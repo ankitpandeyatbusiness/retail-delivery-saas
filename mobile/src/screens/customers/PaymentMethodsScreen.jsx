@@ -124,7 +124,8 @@ export default function PaymentMethodsScreen() {
     };
 
     const codBlocked = route.params?.codBlocked || null;   // a pickup order the shop does not take cash for (or too big for cash)
-    const cash = { key: 'cod', value: 'cod', label: 'Cash on Delivery', cartLabel: 'Cash on Delivery', icon: 'cash-outline', desc: codBlocked || 'Pay in cash or UPI when the order arrives' };
+    const dineIn = !!route.params?.dineIn;   // eating at the shop: pay once, at the end
+    const cash = { key: 'cod', value: 'cod', label: dineIn ? 'Pay at the end' : 'Cash on Delivery', cartLabel: 'Cash on Delivery', icon: 'cash-outline', desc: codBlocked || (dineIn ? 'Order now and pay once when you finish. Cash or UPI at the counter' : 'Pay in cash or UPI when the order arrives') };
     const cardRow = { key: 'card', value: 'card', label: 'Credit / Debit card', cartLabel: 'Credit / Debit card', icon: 'card-outline', desc: 'Visa, Mastercard, RuPay. You confirm with your bank OTP' };
     const upiRows = [
         ...(apps || []).map((a) => ({

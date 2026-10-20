@@ -19,6 +19,9 @@ import { clearAll } from '../../utils/owners/soundbox';
 import { useNow } from '../../hooks/owners/useNow';
 import * as flow from '../../utils/owners/orderFlow';
 import { AutoAcceptCard } from '../../components/owners/AutoAccept';
+import OccupiedTables from '../../components/owners/OccupiedTables';
+import TableRequests from '../../components/owners/TableRequests';
+import { UnpaidHomeCard } from '../../components/owners/UnpaidBills';
 import { tr } from '../../i18n';
 
 const PIPELINE = [
@@ -248,6 +251,9 @@ export default function OwnerHomeScreen() {
                 ))}
             </View>
 
+            <OccupiedTables />
+            <TableRequests />
+            <UnpaidHomeCard />
 
             {/* needs him now */}
             {waiting.length ? (

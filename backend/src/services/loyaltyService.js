@@ -150,11 +150,20 @@ async function earnPending({ tenantId, userId, orderId, orderNo, reason, points,
     return e;
 }
 
+// a bonus that is not an order's own (a referral): written once per reason per order, waits like any points
+async function grant({ tenantId, userId, orderId, orderNo, reason, points, note }) {
+    const tenant = await Tenant.findById(tenantId).select('settings.loyalty').lean();
+    const cfg = settingsOf(tenant);
+    if (!cfg.customer.enabled) return null;
+    return earnPending({ tenantId, userId, orderId, orderNo, reason, points, cfg: cfg.customer, note });
+}
+
 // the order was delivered: the customer's points start waiting, the rider's points are written
 async function onDelivered(order) {
     const tenant = await Tenant.findById(order.tenantId).select('settings.loyalty').lean();
     const cfg = settingsOf(tenant);
-    if (cfg.customer.enabled && order.userId) {
+    // a round on a table bill earns nothing until the bill is paid (settle in tableBill.js calls this again, with the round paid)
+    if (cfg.customer.enabled && order.userId && !(order.tableSessionId && order.payment?.status !== 'paid')) {
         const base = foodMoney(order);
         const lvl = levelOf(await yearSpend(order.tenantId, order.userId), cfg.customer);   // his level, with this order counted
         const pts = Math.floor((base / 10) * cfg.customer.pointsPerTen * (1 + lvl.bonusPct / 100));
@@ -409,7 +418,7 @@ async function onRiderCancelledAfterPickup(order) {
 module.exports = {
     riderNews, riderNewsSeen, onRiderFault, onRiderCancelledAfterPickup,
     RECOMMENDED, BADGES, settingsOf, clean,
-    onDelivered, onFoodRated, onDeliveryRated, voidPendingForOrder, releaseDue,
+    grant, onDelivered, onFoodRated, onDeliveryRated, voidPendingForOrder, releaseDue,
     cartInfo, priceWithPoints, debit, giveBack, returnForOrder, pendingOf, customerView,
     riderAdd, refreshRider, freshen, standing, riderHistory, board,
 };

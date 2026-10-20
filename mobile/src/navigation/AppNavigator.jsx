@@ -21,7 +21,17 @@ import RiderTripScreen from '../screens/riders/RiderTripScreen';
 import RiderDutyScreen from '../screens/riders/RiderDutyScreen';
 import RiderPointsScreen from '../screens/riders/RiderPointsScreen';
 import MyPointsScreen from '../screens/customers/MyPointsScreen';
+import TableBillScreen from '../screens/customers/TableBillScreen';
+import TableBillStrip from '../components/customers/TableBillStrip';
+import TableLinkHost from '../components/customers/TableLinkHost';
+import OwedReminder from '../components/customers/OwedReminder';
+import TableFeedbackHost from '../components/customers/TableFeedbackHost';
+import OwedClaimHost from '../components/owners/OwedClaimHost';
+import ScanTableScreen from '../screens/customers/ScanTableScreen';
 import OwnerRewardsScreen from '../screens/owners/OwnerRewardsScreen';
+import OwnerDineInScreen from '../screens/owners/OwnerDineInScreen';
+import OwnerDineInReportScreen from '../screens/owners/OwnerDineInReportScreen';
+import ReferFriendScreen from '../screens/customers/ReferFriendScreen';
 import OwnerMoneyRulesScreen from '../screens/owners/OwnerMoneyRulesScreen';
 import OwnerTabs from './OwnerNavigator';
 import ShopHubScreen from '../screens/owners/ShopHubScreen';
@@ -306,6 +316,9 @@ export default function AppNavigator() {
                     <Stack.Screen name="RiderDuty" component={RiderDutyScreen} />
                     <Stack.Screen name="RiderPoints" component={RiderPointsScreen} />
                     <Stack.Screen name="MyPoints" component={MyPointsScreen} />
+                    <Stack.Screen name="TableBill" component={TableBillScreen} />
+                    <Stack.Screen name="ReferFriend" component={ReferFriendScreen} />
+                    <Stack.Screen name="ScanTable" component={ScanTableScreen} />
                     <Stack.Screen name="LegalDoc" component={LegalDocScreen} />
 
                     {/* owner pages (role "admin"); the owner's tabs are MainTabs -> Landing -> OwnerTabs */}
@@ -340,6 +353,8 @@ export default function AppNavigator() {
                     <Stack.Screen name="OwnerBusiness" component={OwnerBusinessScreen} />
                     <Stack.Screen name="OwnerAutopilot" component={OwnerAutopilotScreen} />
                     <Stack.Screen name="OwnerRewards" component={OwnerRewardsScreen} />
+                    <Stack.Screen name="OwnerDineIn" component={OwnerDineInScreen} />
+                    <Stack.Screen name="OwnerDineInReport" component={OwnerDineInReportScreen} />
                     <Stack.Screen name="OwnerMoneyRules" component={OwnerMoneyRulesScreen} />
                     <Stack.Screen name="OwnerSupport" component={OwnerSupportScreen} />
                     <Stack.Screen name="OwnerSupportNew" component={OwnerSupportNewScreen} />
@@ -359,8 +374,13 @@ export default function AppNavigator() {
             <OwnerViewPill onBack={() => { if (navigationRef.isReady() && (navigationRef.getRootState()?.routes?.length || 0) > 1) navigationRef.dispatch(StackActions.popToTop()); }} />
             <LiveOrderHost routeName={routeName} onOpenOrder={(id) => { if (navigationRef.isReady()) navigationRef.navigate('OrderDetail', { id }); }} />
             <ActiveOrderBar routeName={routeName} onOpen={(id) => { if (navigationRef.isReady()) navigationRef.navigate('OrderDetail', { id }); }} onOpenAll={goOrders} />
+            <TableLinkHost onDone={() => { if (navigationRef.isReady()) navigationRef.navigate('MainTabs'); }} />
+            <TableBillStrip routeName={routeName} onOpen={() => { if (navigationRef.isReady()) navigationRef.navigate('TableBill'); }} />
             <ReviewPrompts />
+            <OwedReminder />
+            <TableFeedbackHost navRef={navigationRef} />
             <NewOrderPopup navRef={navigationRef} />
+            <OwedClaimHost />
             <LegalGate />
             <FrozenOverlay onOrders={goOrders} />
             <OfflineBanner />

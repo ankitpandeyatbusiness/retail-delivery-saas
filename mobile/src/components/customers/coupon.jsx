@@ -24,6 +24,7 @@ export function offerMeta(o) {
     return [
         o.minOrder ? `Min order ₹${o.minOrder}` : '',
         o.firstOrderOnly ? 'First order only' : '',
+        o.dineInOnly ? 'Dine in only' : '',
         end ? `Ends ${end.getDate()} ${MONTHS[end.getMonth()]}` : '',
     ].filter(Boolean).join(' · ');
 }

@@ -145,7 +145,7 @@ function validateSettings(input) {
 
     // orders
     section('orders',
-        ['types', 'payments', 'minOrder', 'deliveryFee', 'packagingCharge', 'gst', 'tipOptions', 'prepTimeMin', 'acceptingOrders', 'pausedUntil', 'busy', 'codCap', 'pickupCod'],
+        ['types', 'payments', 'minOrder', 'deliveryFee', 'packagingCharge', 'gst', 'tipOptions', 'prepTimeMin', 'acceptingOrders', 'pausedUntil', 'busy', 'codCap', 'pickupCod', 'pickupRules', 'dineIn'],
         (o, out, p) => {
             if (o.types !== undefined) { const v = listOf(p('types'), o.types, O.ORDER_TYPES, 1, 3); if (v) out.types = v; }
             if (o.payments !== undefined) { const v = listOf(p('payments'), o.payments, O.PAYMENT_METHODS, 1, 4); if (v) out.payments = v; }
@@ -207,6 +207,99 @@ function validateSettings(input) {
                     out.pickupCod = {};
                     if (c.enabled !== undefined && bool(p('pickupCod.enabled'), c.enabled)) out.pickupCod.enabled = c.enabled;
                     if (c.max !== undefined && num(p('pickupCod.max'), c.max, 0, 100000)) out.pickupCod.max = c.max;
+                }
+            }
+            // pickup orders: how many one customer may have waiting at a time (0 = no limit), and whether he may move the time
+            if (o.pickupRules !== undefined) {
+                const c = o.pickupRules;
+                if (!isObj(c)) err(p('pickupRules'), 'must be an object');
+                else {
+                    known(c, ['openMax', 'canChange'], p('pickupRules'));
+                    out.pickupRules = {};
+                    if (c.openMax !== undefined && num(p('pickupRules.openMax'), c.openMax, 0, 10)) out.pickupRules.openMax = Math.floor(c.openMax);
+                    if (c.canChange !== undefined && bool(p('pickupRules.canChange'), c.canChange)) out.pickupRules.canChange = c.canChange;
+                }
+            }
+            // dine in: the owner switches it on and says how many tables there are (more settings come with the table bill)
+            if (o.dineIn !== undefined) {
+                const c = o.dineIn;
+                if (!isObj(c)) err(p('dineIn'), 'must be an object');
+                else {
+                    known(c, ['enabled', 'tableCount', 'autoCloseHours', 'tabLimitNew', 'tabLimitTrusted', 'trustedAfter', 'atShopCheck', 'radiusM', 'checkMinutes', 'autoReady', 'readyMin', 'autoServe', 'serveMin', 'owedDaily', 'owedHour', 'owedOnHome', 'owedMax', 'firstOnline', 'prefs', 'welcomeOn', 'welcomePercent', 'welcomeMax', 'regularOn', 'regularAfter', 'regularPercent', 'regularMax', 'happyOn', 'happyFrom', 'happyTo', 'happyPercent', 'happyMax', 'waitMin', 'callOn', 'tipOn', 'tipChoices', 'feedbackOn', 'referOn', 'referFriendPercent', 'referFriendMax', 'referPoints', 'referLimit', 'busyAuto', 'busyPercent', 'busyExtraMin'], p('dineIn'));
+                    out.dineIn = {};
+                    if (c.enabled !== undefined && bool(p('dineIn.enabled'), c.enabled)) out.dineIn.enabled = c.enabled;
+                    if (c.tableCount !== undefined) {
+                        if (!Number.isInteger(c.tableCount)) err(p('dineIn.tableCount'), 'must be a whole number');
+                        else if (num(p('dineIn.tableCount'), c.tableCount, 1, 200)) out.dineIn.tableCount = c.tableCount;
+                    }
+                    // walk-out protection: how much a table may owe, who is trusted, the "must be at the shop" check, the "check on the table" time
+                    if (c.tabLimitNew !== undefined && num(p('dineIn.tabLimitNew'), c.tabLimitNew, 0, 100000)) out.dineIn.tabLimitNew = c.tabLimitNew;   // 0 = no limit
+                    if (c.tabLimitTrusted !== undefined && num(p('dineIn.tabLimitTrusted'), c.tabLimitTrusted, 0, 100000)) out.dineIn.tabLimitTrusted = c.tabLimitTrusted;
+                    if (c.trustedAfter !== undefined) {
+                        if (!Number.isInteger(c.trustedAfter)) err(p('dineIn.trustedAfter'), 'must be a whole number');
+                        else if (num(p('dineIn.trustedAfter'), c.trustedAfter, 1, 50)) out.dineIn.trustedAfter = c.trustedAfter;
+                    }
+                    if (c.atShopCheck !== undefined && bool(p('dineIn.atShopCheck'), c.atShopCheck)) out.dineIn.atShopCheck = c.atShopCheck;
+                    if (c.radiusM !== undefined) {
+                        if (!Number.isInteger(c.radiusM)) err(p('dineIn.radiusM'), 'must be a whole number');
+                        else if (num(p('dineIn.radiusM'), c.radiusM, 50, 5000)) out.dineIn.radiusM = c.radiusM;
+                    }
+                    if (c.checkMinutes !== undefined) {
+                        if (!Number.isInteger(c.checkMinutes)) err(p('dineIn.checkMinutes'), 'must be a whole number');
+                        else if (num(p('dineIn.checkMinutes'), c.checkMinutes, 5, 240)) out.dineIn.checkMinutes = c.checkMinutes;
+                    }
+                    if (c.autoReady !== undefined && bool(p('dineIn.autoReady'), c.autoReady)) out.dineIn.autoReady = c.autoReady;
+                    if (c.owedDaily !== undefined && bool(p('dineIn.owedDaily'), c.owedDaily)) out.dineIn.owedDaily = c.owedDaily;   // remind everyone with an unpaid bill, once a day
+                    if (c.owedOnHome !== undefined && bool(p('dineIn.owedOnHome'), c.owedOnHome)) out.dineIn.owedOnHome = c.owedOnHome;   // the Unpaid bills card on the owner's Home
+                    if (c.firstOnline !== undefined && bool(p('dineIn.firstOnline'), c.firstOnline)) out.dineIn.firstOnline = c.firstOnline;   // a customer's very first table visit must be paid online
+                    if (c.owedMax !== undefined) {
+                        if (!Number.isInteger(c.owedMax)) err(p('dineIn.owedMax'), 'must be a whole number');
+                        else if (num(p('dineIn.owedMax'), c.owedMax, 1, 60)) out.dineIn.owedMax = c.owedMax;
+                    }
+                    if (c.prefs !== undefined) {   // the quick choices a customer taps on his table order: "Make it spicy"...
+                        const list = Array.isArray(c.prefs) ? c.prefs.map((x) => (typeof x === 'string' ? x.trim() : '')) : null;
+                        if (!list || list.length > 12) err(p('dineIn.prefs'), 'must be a list of up to 12 choices');
+                        else if (list.some((x) => !x || x.length > 30)) err(p('dineIn.prefs'), 'each choice must be 1 to 30 letters');
+                        else out.dineIn.prefs = [...new Set(list)];
+                    }
+                    if (c.owedHour !== undefined) {
+                        if (!Number.isInteger(c.owedHour)) err(p('dineIn.owedHour'), 'must be a whole number');
+                        else if (num(p('dineIn.owedHour'), c.owedHour, 0, 23)) out.dineIn.owedHour = c.owedHour;
+                    }
+                    if (c.referOn !== undefined && bool(p('dineIn.referOn'), c.referOn)) out.dineIn.referOn = c.referOn;   // "refer a friend"
+                    for (const [k, lo, hi] of [['referFriendPercent', 1, 100], ['referFriendMax', 0, 100000], ['referPoints', 1, 1000], ['referLimit', 1, 100]]) {
+                        if (c[k] === undefined) continue;
+                        if (!Number.isInteger(c[k])) err(p('dineIn.' + k), 'must be a whole number');
+                        else if (num(p('dineIn.' + k), c[k], lo, hi)) out.dineIn[k] = c[k];
+                    }
+                    for (const k of ['callOn', 'tipOn', 'feedbackOn']) { if (c[k] !== undefined && bool(p('dineIn.' + k), c[k])) out.dineIn[k] = c[k]; }
+                    if (c.tipChoices !== undefined) {   // the tip amounts a guest can tap (rupees)
+                        const list = Array.isArray(c.tipChoices) ? c.tipChoices : null;
+                        if (!list || list.length > 4 || list.some((x) => !Number.isInteger(x) || x < 1 || x > 1000)) err(p('dineIn.tipChoices'), 'must be up to 4 whole amounts from 1 to 1000');
+                        else out.dineIn.tipChoices = [...new Set(list)];
+                    }
+                    for (const k of ['welcomeOn', 'regularOn', 'happyOn']) { if (c[k] !== undefined && bool(p('dineIn.' + k), c[k])) out.dineIn[k] = c[k]; }
+                    for (const [k, lo, hi] of [['welcomePercent', 1, 100], ['welcomeMax', 0, 100000], ['regularAfter', 1, 50], ['regularPercent', 1, 100], ['regularMax', 0, 100000], ['happyPercent', 1, 90], ['happyMax', 0, 100000], ['waitMin', 0, 180]]) {
+                        if (c[k] === undefined) continue;
+                        if (!Number.isInteger(c[k])) err(p('dineIn.' + k), 'must be a whole number');
+                        else if (num(p('dineIn.' + k), c[k], lo, hi)) out.dineIn[k] = c[k];
+                    }
+                    for (const k of ['happyFrom', 'happyTo']) {
+                        if (c[k] === undefined) continue;
+                        if (typeof c[k] !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(c[k])) err(p('dineIn.' + k), 'must look like 15:30');
+                        else out.dineIn[k] = c[k];
+                    }
+                    if (c.autoServe !== undefined && bool(p('dineIn.autoServe'), c.autoServe)) out.dineIn.autoServe = c.autoServe;   // a ready dish is marked served by itself after serveMin   // dishes are marked ready by themselves after readyMin
+                    if (c.busyAuto !== undefined && bool(p('dineIn.busyAuto'), c.busyAuto)) out.dineIn.busyAuto = c.busyAuto;   // customers are told it may take longer when many tables are full
+                    for (const [k, lo, hi] of [['readyMin', 1, 120], ['serveMin', 1, 120], ['busyPercent', 10, 100], ['busyExtraMin', 5, 90]]) {
+                        if (c[k] === undefined) continue;
+                        if (!Number.isInteger(c[k])) err(p('dineIn.' + k), 'must be a whole number');
+                        else if (num(p('dineIn.' + k), c[k], lo, hi)) out.dineIn[k] = c[k];
+                    }
+                    if (c.autoCloseHours !== undefined) {
+                        if (!Number.isInteger(c.autoCloseHours)) err(p('dineIn.autoCloseHours'), 'must be a whole number');
+                        else if (num(p('dineIn.autoCloseHours'), c.autoCloseHours, 1, 48)) out.dineIn.autoCloseHours = c.autoCloseHours;
+                    }
                 }
             }
             if (o.codCap !== undefined) {
@@ -325,6 +418,8 @@ const DEFAULTS = {
         deliveryFee: { type: 'free', amount: 0, freeAbove: 0 },
         packagingCharge: 0, gst: { mode: 'none', percent: 0 },
         tipOptions: [], prepTimeMin: 20, acceptingOrders: true,
+        dineIn: { enabled: false, tableCount: 10, autoCloseHours: 6, tabLimitNew: 500, tabLimitTrusted: 2000, trustedAfter: 3, atShopCheck: true, radiusM: 250, checkMinutes: 20, autoReady: false, readyMin: 15, autoServe: false, serveMin: 10, owedDaily: false, owedHour: 11, owedOnHome: true, referOn: false, referFriendPercent: 15, referFriendMax: 150, referPoints: 50, referLimit: 10, callOn: false, tipOn: false, tipChoices: [10, 20, 50], feedbackOn: false, welcomeOn: false, welcomePercent: 10, welcomeMax: 100, regularOn: false, regularAfter: 5, regularPercent: 5, regularMax: 50, happyOn: false, happyFrom: '15:00', happyTo: '18:00', happyPercent: 15, happyMax: 150, waitMin: 0, owedMax: 7, firstOnline: false, prefs: ['Make it spicy', 'Less spicy', 'Not spicy', 'Extra gravy', 'Less gravy', 'No coriander', 'No onion', 'No garlic', 'Less oil', 'Less salt'], busyAuto: true, busyPercent: 70, busyExtraMin: 10 },   // eating at the shop: on/off and how many tables
+        pickupRules: { openMax: 2, canChange: true },   // pickup: orders one customer may have waiting (0 = no limit), and may he move his time
         pickupCod: { enabled: true, max: 0 },   // cash when the customer collects: allowed or not, and the highest order (0 = no limit)
         codCap: { amount: 1000, firstOrders: 3 },   // Cash on delivery is limited to this amount for a phone's first orders. amount 0 = off
     },

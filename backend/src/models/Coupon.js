@@ -9,6 +9,7 @@ const couponSchema = new mongoose.Schema({
     maxDiscount: Number,                // cap for percent coupons
     minOrder: { type: Number, default: 0 },
     firstOrderOnly: { type: Boolean, default: false },
+    dineInOnly: { type: Boolean, default: false },   // works, and is shown, only on dine in orders
     usageLimitPerUser: { type: Number, default: 1 },
     totalUsageLimit: Number,
     usedCount: { type: Number, default: 0 },

@@ -20,11 +20,16 @@ import { ItemCard, Tile, CartBar, useClosedStyle, closedText, showToast, tint } 
 import FilterDialog from './FilterDialog';
 import { useThemeStore } from '../../store/common/useThemeStore';
 import { useHomeStore } from '../../store/customers/useHomeStore';
+import ModeSlider from '../../components/customers/ModeSlider';
+import { useOrderMode, modesOf } from '../../store/customers/useOrderMode';
+import TableSheet from '../../components/customers/TableSheet';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { useNotificationStore } from '../../store/common/useNotificationStore';
 import { useMenuStore, useCartStore, useFavStore } from '../../store/customers/shopStores';
 import { useFilterStore, applyFilters, countActive } from '../../store/customers/useFilterStore';
 import { Slider, VegSwitch, Cats, Collapse, useVoice, VoiceOverlay } from '../../components/customers/finder';
+import DineBusyNote from '../../components/customers/DineBusyNote';
+import DineHomeCard from '../../components/customers/DineHomeCard';
 import { tr } from '../../i18n';
 import { useBottomSpace } from '../../store/customers/useLiveTripStore';
 
@@ -35,7 +40,7 @@ const glass = 'rgba(255,255,255,0.18)';
 /* ---------------- storefront header (scrolls away) ---------------- */
 // bold look: the brand-gradient header. Other looks: a light header on the canvas with a soft wash of the brand colour.
 // The shop name, tagline and chips drift down and fade as the page scrolls (parallax), so the header melts away.
-function Header({ onAddress, scrollY }) {
+function Header({ onAddress, onTable, scrollY }) {
     const nav = useNavigation();
     const { primary, primaryLight, primaryDark, onPrimary, look, text, background, surface, border, wash } = useBrand();
     const theme = useThemeStore((st) => st.theme);
@@ -53,6 +58,14 @@ function Header({ onAddress, scrollY }) {
     const mins = full.orders.prepTimeMin;
     const fee = full.orders.deliveryFee || {};
     const delivers = (full.orders.types || []).includes('delivery');
+    // delivery / pickup / dine in: shown only when the shop offers more than one
+    const modes = modesOf(full);
+    const picked = useOrderMode((st) => st.mode);
+    const setMode = useOrderMode((st) => st.setMode);
+    const table = useOrderMode((st) => st.table);
+    const withDine = modes.includes('dine_in') && modes.length > 1;   // no dine in: Home is as it was, delivery or pickup is chosen in the cart
+    const mode = withDine ? (modes.includes(picked) ? picked : modes[0]) : 'delivery';
+    const MODE = { delivery: ['bicycle-outline', 'Delivery'], pickup: ['basket-outline', 'Pickup'], dine_in: ['restaurant-outline', 'Dine in'] };
     const user = useAuthStore((st) => st.user);
     const unread = useNotificationStore((st) => st.unread);
     const addr = useAddressStore((st) => st.selected);
@@ -60,7 +73,7 @@ function Header({ onAddress, scrollY }) {
 
     const chips = [];
     if (full.features.prepTime && mins) chips.push({ icon: 'time-outline', text: `${mins} min` });
-    if (delivers) {
+    if (delivers && mode === 'delivery') {
         if (fee.type === 'free' || !fee.amount) chips.push({ icon: 'bicycle-outline', text: 'Free delivery' });
         else if (fee.freeAbove > 0) chips.push({ icon: 'bicycle-outline', text: `Free above ₹${fee.freeAbove}` });
         else chips.push({ icon: 'bicycle-outline', text: `₹${fee.amount} delivery` });
@@ -83,7 +96,24 @@ function Header({ onAddress, scrollY }) {
             )}
             {/* top line: where to deliver (or a welcome), and the quick actions */}
             <View style={s.hdTop}>
-                {user ? (
+                {mode === 'dine_in' ? (
+                    <Pressable onPress={onTable} hitSlop={8} style={s.locBlock}>
+                        <Text style={[s.locCap, { color: fg }]}>{tr('DINING AT')}</Text>
+                        <View style={s.locRow}>
+                            <Ionicons name="restaurant" size={16} color={light ? primary : fg} />
+                            <Text style={[s.locTxt, { color: fg }]} numberOfLines={1}>{table ? tr('Table {n}', { n: table }) : tr('Choose your table')}</Text>
+                            <Ionicons name="chevron-down" size={15} color={fg} />
+                        </View>
+                    </Pressable>
+                ) : mode === 'pickup' ? (
+                    <View style={s.locBlock}>
+                        <Text style={[s.locCap, { color: fg }]}>{tr('PICK UP')}</Text>
+                        <View style={s.locRow}>
+                            <Ionicons name="basket" size={16} color={light ? primary : fg} />
+                            <Text style={[s.locTxt, { color: fg }]} numberOfLines={1}>{tr('Collect it from the shop')}</Text>
+                        </View>
+                    </View>
+                ) : user ? (
                     <Pressable onPress={onAddress} hitSlop={8} style={s.locBlock}>
                         <Text style={[s.locCap, { color: fg }]}>{tr('DELIVER TO')}</Text>
                         <View style={s.locRow}>
@@ -100,6 +130,11 @@ function Header({ onAddress, scrollY }) {
                         <Text style={[s.locCap, { color: fg }]}>{tr('WELCOME TO')}</Text>
                     </View>
                 )}
+                {mode === 'dine_in' ? (
+                    <Pressable onPress={() => nav.navigate('ScanTable')} style={[s.ic, { backgroundColor: glassBg, marginRight: 8 }, light && { borderWidth: StyleSheet.hairlineWidth, borderColor: border }]} hitSlop={6}>
+                        <Ionicons name="qr-code-outline" size={20} color={fg} />
+                    </Pressable>
+                ) : null}
                 {user ? (
                     <Pressable onPress={() => nav.navigate('Notifications')} style={[s.ic, { backgroundColor: glassBg, marginRight: full.offers.couponsEnabled ? 8 : 0 }, light && { borderWidth: StyleSheet.hairlineWidth, borderColor: border }]} hitSlop={6}>
                         <Ionicons name="notifications-outline" size={20} color={fg} />
@@ -114,6 +149,14 @@ function Header({ onAddress, scrollY }) {
                     </Pressable>
                 ) : null}
             </View>
+
+            {withDine ? (
+                <ModeSlider
+                    modes={modes} value={mode} trackBg={glassBg} trackLine={glassLine} pillBg={light ? primary : '#FFFFFF'} onPill={light ? onPrimary : primaryDark} idle={fg}
+                    onChange={(m) => { setMode(m); if (m === 'dine_in' && !table) onTable(); }}
+                />
+            ) : null}
+            {withDine && mode === 'dine_in' ? <DineBusyNote plain color={fg} /> : null}
 
             {/* the shop is the hero */}
             <Animated.View style={drift}>
@@ -432,7 +475,7 @@ export default function HomeScreen() {
     const brand = useBrand();
     const closedStyle = useClosedStyle();   // the shop is closed: this whole screen turns grey
     const user = useAuthStore((st) => st.user);
-    const { config, full, categories: chips, banners, offers } = useHomeStore();
+    const { config, full, categories: chips, banners, offers: allOffers } = useHomeStore();
     const { categories: menuCats, recommended, festival, combo, loaded, errorStatus, load: loadMenu } = useMenuStore();
     const f = useFilterStore();
     const listRef = useRef(null);
@@ -444,6 +487,8 @@ export default function HomeScreen() {
     const voice = useVoice((t) => nav.navigate('Search', { voice: t, n: Date.now() }));
     const openVoice = voice.start;
     const [addrOpen, setAddrOpen] = useState(false);
+    const [tableOpen, setTableOpen] = useState(false);
+    useEffect(() => { useOrderMode.getState().load(); }, []);
     const selectedAddr = useAddressStore((st) => st.selected);
 
     useFocusEffect(useCallback(() => {
@@ -522,12 +567,16 @@ export default function HomeScreen() {
     const showStrips = applied.categories.length === 0;
     const extra = useMemo(() => ({ brand }), [brand]);
 
+    const modeNow = useOrderMode((st) => st.mode);
+    const dineMode = modeNow === 'dine_in' && modesOf(full).includes('dine_in');   // the table offers, waiting time and "your usual" show only while he is dining in
+    const offers = useMemo(() => (dineMode ? allOffers : allOffers.filter((o) => !o.dineInOnly)), [allOffers, dineMode]);   // a dine-in-only coupon is shown only while dining in
     const waiting = !loaded && !errorStatus;   // the menu has not arrived: show shapes instead of nothing
     const rows = useMemo(() => {
         const R = [{ t: 'header' }, { t: 'where' }];   // 'where': the shop's address and its Directions button (when switched on)
         const B = config.blocks;
         if (B.includes('search')) R.push({ t: 'search' });
         if (!full.restaurant.isOpen) R.push({ t: 'closed' });
+        if (dineMode) R.push({ t: 'dine' });
 
         // the VEG switch also applies to the strips (bestsellers, combos, festival, new arrivals); an empty strip is not shown
         const vegOnly = applied.active.includes('veg_only');
@@ -570,7 +619,7 @@ export default function HomeScreen() {
             }
         }
         return R;
-    }, [config, full, banners, chips, offers, recommended, festival, combo, all, filtered, grouped, menuCats, loaded, errorStatus, waiting, showStrips, applied.categories, applied.active]);
+    }, [config, full, banners, chips, offers, recommended, festival, combo, all, filtered, grouped, menuCats, loaded, errorStatus, waiting, showStrips, applied.categories, applied.active, dineMode]);
 
     const searchIdx = rows.findIndex((r) => r.t === 'search');
     const catsIdx = rows.findIndex((r) => r.t === 'cats');
@@ -638,7 +687,7 @@ export default function HomeScreen() {
 
     const renderBase = ({ item: r }) => {
         switch (r.t) {
-            case 'header': return <Header onAddress={() => setAddrOpen(true)} scrollY={scrollY} />;
+            case 'header': return <Header onAddress={() => setAddrOpen(true)} onTable={() => setTableOpen(true)} scrollY={scrollY} />;
             case 'search': return <StickyBar names={names} onHeight={setBarH} onMic={openVoice} />;
             case 'closed': return (
                 <View style={[s.closed, { backgroundColor: brand.errorSoft }]}>
@@ -647,6 +696,7 @@ export default function HomeScreen() {
                 </View>
             );
             case 'where': return <StoreLocation />;
+            case 'dine': return <DineHomeCard />;
             case 'banner': return banners.length ? <FadeIn><Banners list={banners} onOrder={onOrder} /></FadeIn> : <SkelBanner />;
             case 'cats': return <FadeIn><Cats loading={waiting} /></FadeIn>;
             case 'filters': return <FadeIn index={1}><FiltersRow onOpen={() => setDlg(true)} /></FadeIn>;
@@ -715,6 +765,7 @@ export default function HomeScreen() {
             {searchIdx >= 0 ? <StuckPanel ref={panel} top={insets.top + barH} grouped={grouped} onHeight={(h) => { panelH.current = h; }} /> : null}
             <CartBar />
             <FilterDialog visible={dlg} onClose={() => setDlg(false)} items={all} />
+            <TableSheet visible={tableOpen} onClose={() => setTableOpen(false)} />
             <AddressSheet
                 visible={addrOpen}
                 onClose={() => setAddrOpen(false)}

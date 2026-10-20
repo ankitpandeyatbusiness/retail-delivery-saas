@@ -42,6 +42,7 @@ const orderSchema = new Schema({
         subtotal: Number,
         discount: { type: Number, default: 0 },
         couponCode: String,
+        offerKind: String, offerLabel: String, offerDiscount: { type: Number, default: 0 },   // the table offer this order got (welcome, regular, happy hour); its rupees are inside `discount`
         pointsUsed: { type: Number, default: 0 },       // loyalty points spent on this order (their rupees are inside `discount`)
         pointsDiscount: { type: Number, default: 0 },
         deliveryFee: { type: Number, default: 0 },
@@ -61,6 +62,8 @@ const orderSchema = new Schema({
         paidAt: Date,
         paymentId: String,   // the Razorpay payment id
         paidAtDoor: Boolean, // a Cash on delivery order that was paid by QR at the door
+        settledAt: Date,     // a dine in round paid when the owner settled the table bill
+        settledVia: String,  // cash | upi (at the counter)
     },
 
     customer: { name: String, phone: String, phoneHash: String, deleted: Boolean },   // deleted = he deleted his account
@@ -69,8 +72,10 @@ const orderSchema = new Schema({
         landmark: String, city: String, pincode: String, latitude: Number, longitude: Number,
     },
     tableNo: String,
+    tableSessionId: { type: Schema.Types.ObjectId, ref: 'TableSession' },   // the table bill this round belongs to (dine in)
     scheduledFor: Date,
     pickupNotified: { waitingAt: Date, overAt: Date, noShowAt: Date },   // the reminders for a pickup order, each sent once (jobs/pickupReminders.js)
+    pickupChanges: { type: Number, default: 0 },            // how many times the customer moved his pickup time
     pickupUntil: Date,                                      // end of the pickup time window
     note: String,                                           // special instructions for the whole order
     etaMin: Number,

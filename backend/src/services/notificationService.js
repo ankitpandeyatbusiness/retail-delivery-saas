@@ -35,7 +35,7 @@ function orderPlaced(order, opts = {}) {
         const auto = !!opts.autoAccepted;   // the shop accepts it by itself: the owner is told, with that on it
         center.notify('order_new', {
             tenantId: order.tenantId,
-            vars: { orderNo: order.orderNo, total: order.pricing?.total, orderType: order.orderType, brief: brief(order, 3), pay: payWord(order), auto },
+            vars: { orderNo: order.orderNo, total: order.pricing?.total, orderType: order.orderType, brief: brief(order, 3), pay: payWord(order), auto, tableNo: order.tableNo },
             // speech: the sentence the owner's phone reads out loud in Soundbox mode (see utils/orderSpeech.js)
             data: {
                 orderId: String(order._id), orderNo: order.orderNo, total: order.pricing?.total,
@@ -58,7 +58,7 @@ function orderStatusChanged(order, status, actor) {
         const t = order.tenantId;
         const no = order.orderNo;
         const data = { orderId: String(order._id), orderNo: no, status };
-        const what = { brief: brief(order), total: order.pricing?.total, ...(order.orderType === 'pickup' ? { pickupCode: (() => { try { return require('./deliveryPinService').pinFor(order); } catch (e) { return null; } })() } : {}) };   // what the order is, for the words of the message
+        const what = { brief: brief(order), total: order.pricing?.total, tableNo: order.tableNo, orderType: order.orderType, ...(order.orderType === 'pickup' ? { pickupCode: (() => { try { return require('./deliveryPinService').pinFor(order); } catch (e) { return null; } })() } : {}) };   // what the order is, for the words of the message
 
         // the customer is told about every step, except a cancel he made himself
         if (actor.type !== 'customer') {

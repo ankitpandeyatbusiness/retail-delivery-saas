@@ -17,6 +17,7 @@ import { CouponTicket } from '../../components/customers/coupon';
 import { FadeIn, Skel } from '../../components/common/motion';
 import { tr } from '../../i18n';
 import { useBottomSpace } from '../../store/customers/useLiveTripStore';
+import { useOrderMode } from '../../store/customers/useOrderMode';
 
 /* ---------------- Offers ---------------- */
 export function OffersScreen() {
@@ -39,7 +40,8 @@ export function OffersScreen() {
 
 
 
-    const shown = enabled ? list : [];
+    const mode = useOrderMode((st) => st.mode);
+    const shown = enabled ? list.filter((o) => !o.dineInOnly || mode === 'dine_in') : [];
     return (
         <View style={[s.flex, { backgroundColor: background }, closedStyle]}>
             <BackHeader title={tr('Offers')} />

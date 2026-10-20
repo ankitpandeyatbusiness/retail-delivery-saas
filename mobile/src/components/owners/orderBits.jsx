@@ -59,7 +59,7 @@ export function Countdown({ until, compact }) {
 // why an order is on the "Needs a look" list (same words as the server's services/orderLook.js)
 const LOOK_TEXT = {
     rider_cancelled: 'The delivery partner cancelled it', rider_sos: 'The delivery partner pressed the help button', rider_problem: 'The delivery partner reported a problem',
-    pickup_no_show: 'The customer has not collected it', no_rider: 'No delivery partner took it', late: 'The delivery is very late', late_cancelled: 'Cancelled: the delivery was more than an hour late',
+    pickup_no_show: 'The customer has not collected it', pickup_time_changed: 'The customer moved the pickup time', no_rider: 'No delivery partner took it', late: 'The delivery is very late', late_cancelled: 'Cancelled: the delivery was more than an hour late',
     customer_cancelled: 'The customer cancelled it', not_accepted: 'Cancelled: it was not accepted in time', undelivered: 'It could not be delivered',
 };
 

@@ -41,7 +41,7 @@ async function onPayment(account, body, name) {
     if (account === 'platform') return name === 'payment.captured' ? require('./platformCheckout').onPlatformPayment(rzp) : { ignored: 'platform_payment' };
     if (!rzp.orderId) return { ignored: 'no_order' };   // e.g. a QR payment
     const payment = await OnlinePayment.findOne({ tenantId: account, rzpOrderId: rzp.orderId });
-    if (!payment) return { ignored: 'unknown_order' };
+    if (!payment) return (name !== 'payment.failed' && await require('./owedPayment').onWebhook({ account, rzp })) || { ignored: 'unknown_order' };   // or the online payment of an unpaid table bill
     if (name === 'payment.failed') {
         return paymentService.markFailed({ payment, reason: body.payload?.payment?.entity?.error_description });
     }

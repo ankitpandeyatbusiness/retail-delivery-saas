@@ -16,6 +16,7 @@ import { onNotification, realtimeConnected } from '../../api/common/socket';
 import { showToast } from '../../components/customers/shop';
 import { speakOnOpen } from '../owners/soundbox';
 import { useSoundboxStore } from '../../store/owners/useSoundboxStore';
+import { useOwedPrompt } from '../../store/customers/useOwedPrompt';
 
 const TOKEN_KEY = 'pushToken';
 const CHANNEL = 'orders';   // must match defaultChannel in app.config.js
@@ -83,6 +84,8 @@ function handleTap(resp) {
         const to = ownerRoute({ type: data.type, data });
         if (to) { openScreen(to.name, to.params); return; }
     }
+    // a customer's reminder about the bill he left unpaid: open the bill with the Pay button
+    if (/^owed_/.test(String(data.type || '')) || data.type === 'table_walkout') { useOwedPrompt.getState().show(); return; }
     if (!data.orderId) return;
     if (useAuthStore.getState().user?.role === 'admin' && (data.type === 'order_new' || data.type === 'order_unaccepted_reminder')) {
         speakOnOpen(data).catch(() => { });

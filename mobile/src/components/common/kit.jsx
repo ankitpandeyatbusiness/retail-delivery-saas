@@ -227,6 +227,7 @@ export function computeBrand(theme) {
             // meaning colours that stay readable on a dark canvas (pale pastels and mid greens only work on light ones)
             ok: dark ? '#4ADE80' : '#1E8E3E',
             okSoft: dark ? alpha('#4ADE80', 0.16) : '#E6F4EA',
+            warn: dark ? '#FBBF24' : '#B45309',   // amber that stays readable on both canvases
             errorText: dark ? '#FF8A80' : '#B3261E',
             errorSoft: dark ? alpha('#FF6B6B', 0.16) : '#FDECEA',
             neutralSoft: dark ? mix(surface, '#FFFFFF', 0.1) : '#EEEEEE',

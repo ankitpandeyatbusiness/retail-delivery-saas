@@ -592,6 +592,39 @@ async function announceCancel(d) {
     } catch (e) { /* the tone is enough */ }
 }
 
+// A customer at a table asked for the bill: a short tone, then the voice says it two times ("Table 7 asked for the bill"). Only while
+// the app runs (in front, or Soundbox "always ready"); a closed app gets the normal notification.
+async function announceBill(d) {
+    if (!isOwner() || !settings().soundbox || speaking) return;
+    if (!settings().alwaysReady && AppState.currentState !== 'active') return;
+    const table = String(d?.table || '');
+    if (!table) return;
+    note('table ' + table + ' asked for the bill');
+    try {
+        const language = await languageToUse();
+        const text = language === 'hi' ? 'टेबल ' + table + ' ने बिल मांगा है।' : 'Table ' + table + ' asked for the bill.';
+        await speak(text, language);
+        await new Promise((res) => setTimeout(res, 700));
+        await speak(text, language);
+    } catch (e) { /* the notification is enough */ }
+}
+
+// A guest calls the waiter, or asks for water...: the voice says it once (same rules as announceBill).
+const CALL_EN = { waiter: 'is calling the waiter', water: 'needs water', cutlery: 'needs a spoon or a plate', clean: 'needs the table cleaned', other: 'needs help' };
+const CALL_HI = { waiter: 'वेटर को बुला रहा है', water: 'को पानी चाहिए', cutlery: 'को चम्मच या प्लेट चाहिए', clean: 'की सफाई चाहिए', other: 'को मदद चाहिए' };
+async function announceCall(d) {
+    if (!isOwner() || !settings().soundbox || speaking) return;
+    if (!settings().alwaysReady && AppState.currentState !== 'active') return;
+    const table = String(d?.table || '');
+    if (!table) return;
+    note('table ' + table + ' called: ' + d?.what);
+    try {
+        const language = await languageToUse();
+        const what = d?.what in CALL_EN ? d.what : 'other';
+        await speak(language === 'hi' ? 'टेबल ' + table + ' ' + CALL_HI[what] + '।' : 'Table ' + table + ' ' + CALL_EN[what] + '.', language);
+    } catch (e) { /* the notification is enough */ }
+}
+
 /* ------------------------------ catching up ------------------------------ */
 // Orders that are still waiting for the owner. Runs when the app opens or the socket comes back, so an order that
 // arrived while nothing was listening is not missed.
@@ -642,6 +675,8 @@ function begin() {
 
     unsubs.push(onNotification((n) => {
         if (n?.type === 'order_cancelled' && n.data?.orderId) { announceCancel(n.data); return; }
+        if (n?.type === 'table_bill_asked') { announceBill(n.data); return; }
+        if (n?.type === 'table_call') { announceCall(n.data); return; }
         if (!n || !ALERT_TYPES.includes(n.type)) return;
         const d = n.data || {};
         raise({ orderId: d.orderId, orderNo: d.orderNo, speech: d.speech, speechHi: d.speechHi, autoAccepted: !!d.autoAccepted });
