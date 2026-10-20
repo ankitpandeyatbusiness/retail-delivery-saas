@@ -4,7 +4,7 @@
 // runs on the UI thread. The shop's "Animations" setting (full / subtle / off) and the phone's "reduce motion"
 // both turn it down: `off` draws everything in its final place at once.
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Animated, Easing, AccessibilityInfo, StyleSheet } from 'react-native';
+import { View, Animated, Easing, AccessibilityInfo, StyleSheet, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useThemeStore } from '../../store/common/useThemeStore';
 import { useBrand, mix, alpha } from './kit';
@@ -55,16 +55,20 @@ export function FadeIn({ index = 0, children, style, distance = 14 }) {
 let sweep = null;
 let users = 0;
 let loop = null;
+let stopTimer = null;
 function useSweep() {
     if (!sweep) sweep = new Animated.Value(0);
     useEffect(() => {
-        if (users++ === 0) {
+        if (stopTimer) { clearTimeout(stopTimer); stopTimer = null; }   // another skeleton took over at once: the sweep goes on, unbroken
+        if (users++ === 0 && !loop) {
             sweep.setValue(0);
             loop = Animated.loop(Animated.timing(sweep, { toValue: 1, duration: 1300, easing: Easing.inOut(Easing.ease), useNativeDriver: true }));
             loop.start();
         }
         return () => {
-            if (--users === 0 && loop) { loop.stop(); loop = null; }
+            if (--users === 0) {
+                stopTimer = setTimeout(() => { stopTimer = null; if (users === 0 && loop) { loop.stop(); loop = null; } }, 500);
+            }
         };
     }, []);
     return sweep;
@@ -75,13 +79,15 @@ export function Skel({ width = '100%', height = 14, radius = 8, style }) {
     const { background, text, dark } = useBrand();
     const motion = useMotion();
     const v = useSweep();
-    const [w, setW] = useState(0);
+    // the band can be drawn in the very first frame (a guess from the width asked for), so a skeleton that replaces another one does not blink; the real width follows
+    const guess = typeof width === 'number' ? width : (parseFloat(width) || 100) / 100 * Dimensions.get('window').width;
+    const [w, setW] = useState(guess);
     const base = mix(background, text, dark ? 0.12 : 0.07);
     const glow = dark ? mix(background, '#FFFFFF', 0.22) : '#FFFFFF';
     const band = w * 0.7;
     return (
         <View
-            onLayout={(e) => setW(e.nativeEvent.layout.width)}
+            onLayout={(e) => { const lw = e.nativeEvent.layout.width; setW((old) => (Math.abs(old - lw) < 0.5 ? old : lw)); }}
             style={[{ width, height, borderRadius: radius, backgroundColor: base, overflow: 'hidden' }, style]}
         >
             {w && motion !== 'off' ? (

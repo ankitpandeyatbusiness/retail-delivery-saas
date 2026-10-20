@@ -42,32 +42,61 @@ function initSel(p) {
 // same options picked = same cart line
 const sigOf = (sels) => (sels || []).map((x) => `${x.groupId}:${[...(x.optionIds || [])].sort().join(',')}`).sort().join('|');
 
-// The dish pictures: swipe left and right, dots show which one it is. It also moves on by itself every few seconds,
-// and leaves the picture alone for a while after the customer has touched it.
-function Gallery({ item, width, height }) {
+// The dish pictures: swipe left and right, dots show which one it is. It also moves on by itself every few seconds, always forward:
+// after the last picture the first one slides in again (like the banners), and it leaves the picture alone for a while after a touch.
+// Under the hood the list is [last, ...pictures, first]; when a copy at either end has slid into view, it jumps (unseen) to the real one.
+function Gallery({ item, width, height, onShown }) {
     const { soft } = useBrand();
     const list = useMemo(() => [item.image, ...(Array.isArray(item.images) ? item.images : [])].filter(Boolean), [item.image, item.images]);
+    const n = list.length;
+    const pages = n > 1 ? [list[n - 1], ...list, list[0]] : list;
     const [at, setAt] = useState(0);
     const ref = useRef(null);
     const touched = useRef(0);
+    const page = useRef(1);   // the page in view: 1 to n are the real pictures, 0 and n + 1 are the copies at the ends
     const off = item.isAvailable === false;   // sold out: every picture is grey
+
+    // a copy at an end is in view: jump to the real picture, then remember where we are
+    const settle = (x) => {
+        let p = Math.round(x / width);
+        if (p <= 0) { p = n; ref.current?.scrollTo({ x: n * width, animated: false }); }
+        else if (p >= n + 1) { p = 1; ref.current?.scrollTo({ x: width, animated: false }); }
+        page.current = p;
+        setAt(p - 1);
+    };
+    useEffect(() => {   // start on the first real picture, not on the copy in front of it
+        if (n < 2) return;
+        page.current = 1; setAt(0);
+        const t = setTimeout(() => ref.current?.scrollTo({ x: width, animated: false }), 0);
+        return () => clearTimeout(t);
+    }, [n, width]);
     useEffect(() => {
-        if (list.length < 2) return undefined;
+        if (n < 2) return undefined;
+        let fix;
         const id = setInterval(() => {
             if (Date.now() - touched.current < 8000) return;
-            setAt((a) => { const n = (a + 1) % list.length; ref.current?.scrollTo({ x: n * width, animated: true }); return n; });
+            const next = page.current + 1;   // always forward
+            page.current = next;
+            setAt((next - 1) % n);
+            ref.current?.scrollTo({ x: next * width, animated: true });
+            clearTimeout(fix);
+            fix = setTimeout(() => settle(next * width), 500);   // when the copy of the first picture has arrived, jump to the real one
         }, 4000);
-        return () => clearInterval(id);
-    }, [list.length, width]);
-    if (list.length < 2) return <Pic item={item} style={{ width, height }} />;
+        return () => { clearInterval(id); clearTimeout(fix); };
+    }, [n, width]);
+    useEffect(() => { if (!n) onShown && onShown(); }, [n]);   // no picture: nothing to wait for
+    if (!n) return <Pic item={item} style={{ width, height }} />;
+    if (n === 1) {
+        return <Image source={{ uri: list[0] }} style={[{ width, height, backgroundColor: soft }, off && GREY]} contentFit="cover" cachePolicy="memory-disk" priority="high" transition={0} onLoad={onShown} onError={onShown} />;
+    }
     return (
         <View style={{ width, height, backgroundColor: soft }}>
             <ScrollView
-                ref={ref} horizontal pagingEnabled showsHorizontalScrollIndicator={false} scrollEventThrottle={16}
+                ref={ref} horizontal pagingEnabled showsHorizontalScrollIndicator={false} scrollEventThrottle={16} contentOffset={{ x: width, y: 0 }}
                 onScrollBeginDrag={() => { touched.current = Date.now(); }}
-                onMomentumScrollEnd={(e) => setAt(Math.max(0, Math.min(list.length - 1, Math.round(e.nativeEvent.contentOffset.x / width))))}
+                onMomentumScrollEnd={(e) => settle(e.nativeEvent.contentOffset.x)}
             >
-                {list.map((u) => <Image key={u} source={{ uri: u }} style={[{ width, height, backgroundColor: soft }, off && GREY]} contentFit="cover" cachePolicy="memory-disk" />)}
+                {pages.map((u, i) => <Image key={`${i}-${u}`} source={{ uri: u }} style={[{ width, height, backgroundColor: soft }, off && GREY]} contentFit="cover" cachePolicy="memory-disk" priority={i === 1 ? 'high' : 'normal'} transition={0} onLoad={i === 1 ? onShown : undefined} onError={i === 1 ? onShown : undefined} />)}
             </ScrollView>
             <View pointerEvents="none" style={{ position: 'absolute', bottom: 34, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center' }}>
                 {list.map((u, i) => <View key={u} style={{ width: i === at ? 18 : 7, height: 7, borderRadius: 4, marginHorizontal: 3, backgroundColor: i === at ? '#FFFFFF' : 'rgba(255,255,255,0.55)' }} />)}
@@ -261,9 +290,32 @@ export default function ItemScreen() {
     // arrived) the shimmer stays, so the picture never jumps from one size to another.
     const [viewH, setViewH] = useState(0);    // the scrolling area: the screen above the buttons
     const [belowH, setBelowH] = useState(0);  // everything under the picture
-    const [boxW, setBoxW] = useState(Dimensions.get('window').width);
-    const ready = viewH > 0 && belowH > 0 && (!needFavs || favsDone);
-    const heroH = ready ? Math.round(Math.min(Math.max(270, viewH - belowH), viewH * 0.62)) : 270;
+    const [boxW, setBoxW] = useState(0);
+    const [heroShown, setHeroShown] = useState(false);
+    useEffect(() => {
+        setHeroShown(false);
+        if (!p) return undefined;
+        const t = setTimeout(() => setHeroShown(true), 2000);   // a slow picture does not keep the page waiting for ever
+        return () => clearTimeout(t);
+    }, [p?._id]);
+    // safety net: if something never reports (a picture, the favourites, a measurement), the page is shown anyway after 3.5 seconds
+    const [force, setForce] = useState(false);
+    useEffect(() => {
+        setForce(false);
+        if (!p) return undefined;
+        const t = setTimeout(() => setForce(true), 3500);
+        return () => clearTimeout(t);
+    }, [p?._id]);
+    const laidOut = viewH > 0 && belowH > 0 && boxW > 0;
+    const ready = force || (laidOut && heroShown && (!needFavs || favsDone));
+    const reveal = useRef(new Animated.Value(0)).current;   // 0 = shimmer, 1 = the page
+    const [veil, setVeil] = useState(true);                   // the shimmer stays until it has faded out
+    useEffect(() => { if (state === 'loading') { reveal.setValue(0); setVeil(true); } }, [state]);
+    useEffect(() => {
+        if (ready) Animated.timing(reveal, { toValue: 1, duration: 320, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start(({ finished }) => { if (finished) setVeil(false); });
+        else { reveal.setValue(0); setVeil(true); }
+    }, [ready]);
+    const heroH = laidOut ? Math.round(Math.min(Math.max(270, viewH - belowH), viewH * 0.62)) : 270;
 
     let blocked = null;
     if (p) {
@@ -374,12 +426,13 @@ export default function ItemScreen() {
 
     if (state === 'loading') {
         return (
-            <View style={[s.flex, { backgroundColor: background }]}>
-                <Skeleton />
+            <KeyboardAvoidingView style={[s.flex, { backgroundColor: background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                <View pointerEvents="none" style={StyleSheet.absoluteFill}><Skeleton /></View>
+                {null}
                 <View style={[s.cbWrap, { top: insets.top + 8, left: 14 }]}>
                     <Press onPress={() => nav.goBack()} style={s.cb}><Ionicons name="arrow-back" size={20} color="#1C1C1C" /></Press>
                 </View>
-            </View>
+            </KeyboardAvoidingView>
         );
     }
     if (state !== 'ok') {
@@ -416,15 +469,15 @@ export default function ItemScreen() {
     const btnBg = btn.interpolate({ inputRange: [0, 1], outputRange: ['#BBBBBB', primary] });
 
     return (
-        <KeyboardAvoidingView style={[s.flex, { backgroundColor: background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            onLayout={(e) => setBoxW(Math.round(e.nativeEvent.layout.width))}>
+        <KeyboardAvoidingView style={[s.flex, { backgroundColor: background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            {veil ? <View pointerEvents="none" style={StyleSheet.absoluteFill}><Skeleton /></View> : null}
             <Animated.ScrollView
-                ref={scrollRef} style={{ opacity: ready ? 1 : 0 }} onLayout={(e) => setViewH(Math.round(e.nativeEvent.layout.height))} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
+                ref={scrollRef} style={{ opacity: reveal }} onLayout={(e) => { setViewH(Math.round(e.nativeEvent.layout.height)); setBoxW(Math.round(e.nativeEvent.layout.width)); }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
                 scrollEventThrottle={16}
                 onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
             >
                 <Animated.View style={{ transform: [{ translateY: heroY }, { scale: heroS }] }}>
-                    <Gallery item={p} width={boxW} height={heroH} />
+                    <Gallery item={p} width={boxW || Dimensions.get('window').width} height={heroH} onShown={() => setHeroShown(true)} />
                     <LinearGradient pointerEvents="none" colors={['rgba(0,0,0,0.38)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0.22)']} locations={[0, 0.45, 1]} style={StyleSheet.absoluteFill} />
                 </Animated.View>
 
@@ -541,7 +594,6 @@ export default function ItemScreen() {
                 <View style={{ height: 24, backgroundColor: background }} />
                 </View>
             </Animated.ScrollView>
-            {!ready ? <View pointerEvents="none" style={StyleSheet.absoluteFill}><Skeleton /></View> : null}
 
             {/* top bar fades in after scrolling */}
             <Animated.View pointerEvents="none" style={[s.bar, { height: insets.top + 56, paddingTop: insets.top, backgroundColor: background, borderBottomColor: border, opacity: barOp }]}>

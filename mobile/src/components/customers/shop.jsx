@@ -125,16 +125,18 @@ export function Pic({ item, style, dots }) {
     const img = (
         <Image
             source={{ uri }}
-            style={dots && slides ? [StyleSheet.absoluteFill, off && GREY] : [{ backgroundColor: soft }, style, off && GREY]}
+            style={slides ? [StyleSheet.absoluteFill, off && GREY] : [{ backgroundColor: soft }, style, off && GREY]}
             contentFit="cover" transition={slides ? 450 : 150} cachePolicy="memory-disk"
         />
     );
-    if (!(dots && slides)) return img;
+    if (!slides) return img;
+    // more than one picture: little dots show which one it is
+    const big = !!dots;
     return (
         <View style={[{ backgroundColor: soft, overflow: 'hidden' }, style]}>
             {img}
-            <View pointerEvents="none" style={{ position: 'absolute', bottom: 12, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center' }}>
-                {list.map((_, i) => <View key={i} style={{ width: i === at ? 18 : 6, height: 6, borderRadius: 3, marginHorizontal: 3, backgroundColor: i === at ? '#FFFFFF' : 'rgba(255,255,255,0.55)' }} />)}
+            <View pointerEvents="none" style={{ position: 'absolute', bottom: big ? 12 : 6, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center' }}>
+                {list.map((_, i) => <View key={i} style={{ width: i === at ? (big ? 18 : 12) : (big ? 6 : 5), height: big ? 6 : 5, borderRadius: 3, marginHorizontal: big ? 3 : 2, backgroundColor: i === at ? '#FFFFFF' : 'rgba(255,255,255,0.6)' }} />)}
             </View>
         </View>
     );
