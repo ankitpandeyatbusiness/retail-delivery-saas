@@ -36,8 +36,8 @@ const notify = require('./notificationService');
 const liveFeed = require('./liveFeed');
 const { isUnpaidOnline } = require('./onlineOrder');
 
-const CANCELLED_BY = { customer: 'customer', owner: 'shop', rider: 'rider', superadmin: 'admin', system: 'system' };
-const ACTOR_TYPES = ['customer', 'owner', 'rider', 'superadmin', 'system'];
+const CANCELLED_BY = { customer: 'customer', owner: 'shop', rider: 'rider', staff: 'shop', superadmin: 'admin', system: 'system' };
+const ACTOR_TYPES = ['customer', 'owner', 'rider', 'staff', 'superadmin', 'system'];
 const CANCEL_LABEL = {
     busy: 'The shop is too busy right now',
     out_of_stock: 'An item is out of stock',
@@ -131,6 +131,18 @@ function checkAllowed({ order, status, actor, note, tenant, reasonCode, now }) {
             if (!ACTIVE_STATUSES.includes(order.status)) throw httpError(409, 'This order is already finished');
             if (reasonCode !== undefined && !SYSTEM_CANCEL_REASONS.includes(reasonCode)) throw httpError(400, 'Invalid reason');
             return;
+        case 'staff':   // actor.role: 'kitchen' (the cook). Never cancels, never touches money.
+            if (isUnpaidOnline(order)) throw httpError(409, 'Waiting for the customer to pay');
+            if (actor.role === 'kitchen' && status === 'preparing') {
+                if (order.status !== 'accepted') throw httpError(409, `This order is "${order.status}". It is not waiting to be cooked.`);
+                return;
+            }
+            // a delivery order has no "ready" step (the rider takes it from "preparing"): the kitchen marks it on the order instead (services/kitchenService.js)
+            if (actor.role === 'kitchen' && status === 'ready') {
+                if (order.orderType === 'delivery' || order.status !== 'preparing') throw httpError(409, `This order is "${order.status}". It is not being cooked.`);
+                return;
+            }
+            throw httpError(403, 'You cannot make this change');
         case 'rider': {
             // only the rider who accepted this delivery, and only pickup and delivered
             const d = order.delivery || {};
@@ -170,7 +182,7 @@ const releaseCoupon = async (couponId) => {
     return Coupon.updateOne({ _id: couponId, usedCount: { $gt: 0 } }, { $inc: { usedCount: -1 } });
 };
 
-async function change({ order, status, actor, note, tenant, reasonCode, outcomeOverride }) {
+async function change({ order, status, actor, note, tenant, reasonCode, outcomeOverride, extraSet }) {
     if (!order) throw httpError(404, 'Order not found');
     if (!actor || !ACTOR_TYPES.includes(actor.type)) throw httpError(500, 'Status change needs an actor');
 
@@ -195,7 +207,7 @@ async function change({ order, status, actor, note, tenant, reasonCode, outcomeO
     const notDeliveredPay = ['undelivered', 'cancelled'].includes(status) && actor.type !== 'rider' && order.delivery?.riderId && order.delivery?.status === 'picked_up'
         ? await riderPay.earnForOrder(order, { notDelivered: true }).catch(() => 0)
         : 0;
-    const set = { status };
+    const set = { status, ...(extraSet || {}) };
     if (notDeliveredPay > 0) set['delivery.earnPaise'] = notDeliveredPay;
     if (status === 'delivered') {
         set.deliveredAt = now;
@@ -322,6 +334,7 @@ async function change({ order, status, actor, note, tenant, reasonCode, outcomeO
     }
 
     notify.orderStatusChanged(updated, status, actor);   // customer, owner, rider (never throws)
+    require('./kitchenAlerts').onStatus({ before: order, updated, status }).catch(logError('Kitchen alert error'));   // the cooks' screens and phones
     // points: delivered = the customer's wait starts and the rider is scored; cancelled = the points he used go back
     const points = require('./loyaltyService');
     if (status === 'delivered') points.onDelivered(updated).catch(logError('Points error'));

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useRoute } from '@react-navigation/native';
 import { SettingsPage } from '../../components/settingsPage';
-import { Group, NumberField, TextField, Switch, Hint } from '../../components/settingsForm';
+import { Group, NumberField, TextField, Switch, Hint, MultiChoice } from '../../components/settingsForm';
 import useSettingsEditor from '../../hooks/useSettingsEditor';
 
 // Dine in, pickup rules, orders at the same time, and the timings and counts that used to be fixed in the code.
@@ -35,7 +35,9 @@ export default function SettingsDineInScreen() {
                     <Group title="Kitchen and waiter staff" section="orders" hint="Lets the owner add cooks and waiters by phone number. Each person signs in with an OTP and sees only their own screen. Off by default. Switching one off locks out the people with that job at once; their data stays and they come back when it is on again.">
                         <Switch title="Kitchen screen" subtitle="The cook sees the orders to make" value={sf.kitchenOn === true} onValueChange={P('staff', sf, 'kitchenOn')} />
                         <Switch title="Waiter screen" subtitle="The waiter sees dishes to serve and table requests" value={sf.waiterOn === true} onValueChange={P('staff', sf, 'waiterOn')} />
-                        <NumberField label="Most staff this shop can add" integer hint="Cooks and waiters together" value={sf.max} onChange={(v) => P('staff', sf, 'max')(v ?? 10)} last />
+                        <NumberField label="Most staff this shop can add" integer hint="Cooks and waiters together" value={sf.max} onChange={(v) => P('staff', sf, 'max')(v ?? 10)} />
+                        <MultiChoice label="The cook sees these orders" hint="Pick at least one" options={[{ value: 'delivery', label: 'Delivery' }, { value: 'pickup', label: 'Pickup' }, { value: 'dine_in', label: 'Dine in' }]} value={sf.kitchenSees || ['delivery', 'pickup', 'dine_in']} min={1} onChange={(v) => P('staff', sf, 'kitchenSees')(v)} />
+                        <NumberField label="Show an order as late after" suffix="min" integer hint="Counted from when it was accepted (a pickup for later: from 30 minutes before its time)" value={sf.lateMin} onChange={(v) => P('staff', sf, 'lateMin')(v ?? 20)} last />
                     </Group>
 
                     <Group title="Walk-out protection" section="orders">

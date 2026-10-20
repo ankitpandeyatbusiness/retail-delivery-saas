@@ -10,6 +10,7 @@
 //
 // The server sends:  'notification'  (a new inbox message)
 //                    'order:update'  ({ orderId, orderNo, status, kind })  the app should reload that order
+//                    'kitchen:update' ({ orderId, orderNo, status })  an order the kitchen cares about changed (kitchen and owner phones)
 //                    'menu:changed'  ({})  a dish changed (price, sold out, back in stock...): the customer app reloads the menu at once
 //                    'auth:expired'  (the token ended, connect again with a fresh token)
 //                    'rider:location' ({ orderId, lat, lng, heading, speed, at, seq })  the rider moved (rooms order:<id>); also sent once when you join
@@ -44,6 +45,8 @@ const room = {
     shop: (t) => `shop:${t}`,                       // everyone of one shop (customers, riders, owners): shop-wide news such as "the menu changed"
     user: (t, u) => `user:${t}:${u}`,
     order: (o) => `order:${o}`,
+    kitchen: (t) => `kitchen:${t}`,                 // the cooks of one shop
+    waiter: (t) => `waiter:${t}`,                   // the waiters of one shop
     adminAll: 'admin:all',                          // a superadmin sees every shop
     adminTenant: (t) => `admin:tenant:${t}`,        // or only one shop (after admin:watch)
 };
@@ -131,6 +134,8 @@ function onConnection(socket) {
     socket.join(room.user(tenantId, userId));
     socket.join(room.shop(tenantId));
     if (role === 'admin') socket.join(room.tenant(tenantId));
+    if (role === 'kitchen') socket.join(room.kitchen(tenantId));
+    if (role === 'waiter') socket.join(room.waiter(tenantId));
 
     // count this connection, and take it off again when he leaves
     bump(online.users, `${tenantId}:${userId}`, 1);
@@ -247,6 +252,8 @@ function emit(to, event, payload) {
 const toUser = (tenantId, userId, event, payload) => emit(room.user(tenantId, userId), event, payload);
 const toOwner = (tenantId, event, payload) => emit(room.tenant(tenantId), event, payload);
 const toShop = (tenantId, event, payload) => emit(room.shop(tenantId), event, payload);
+const toKitchen = (tenantId, event, payload) => emit(room.kitchen(tenantId), event, payload);
+const toWaiter = (tenantId, event, payload) => emit(room.waiter(tenantId), event, payload);
 const toOrder = (orderId, event, payload) => emit(room.order(orderId), event, payload);
 // to every superadmin who watches all shops, and to those who watch this one shop
 const toAdmin = (tenantId, event, payload) => {
@@ -270,4 +277,4 @@ const connectionCount = () => (io ? io.engine.clientsCount : 0);
 const isUserOnline = (tenantId, userId) => online.users.has(`${tenantId}:${userId}`);
 const isOwnerOnline = (tenantId) => online.owners.has(String(tenantId));
 
-module.exports = { init, connectionCount, toUser, toOwner, toShop, toOrder, toAdmin, leaveOrder, isUserOnline, isOwnerOnline };
+module.exports = { init, connectionCount, toUser, toOwner, toShop, toKitchen, toWaiter, toOrder, toAdmin, leaveOrder, isUserOnline, isOwnerOnline };

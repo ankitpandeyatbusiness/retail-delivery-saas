@@ -289,6 +289,15 @@ export default function OwnerOrderScreen() {
                     </>
                 ) : null}
 
+                {order.kitchen?.problem?.at || (order.orderType === 'delivery' && order.kitchen?.readyAt) ? (
+                    <Card tone={order.kitchen?.problem?.at ? warn : undefined}>
+                        {order.kitchen?.problem?.at ? (
+                            <Text style={{ color: warn, fontWeight: '800' }}>{tr('The kitchen says')}: {order.kitchen.problem.kind === 'out_of_stock' ? tr('a dish is finished') : order.kitchen.problem.kind === 'cannot_make' ? tr('it cannot be made') : order.kitchen.problem.note}{order.kitchen.problem.byName ? ` · ${order.kitchen.problem.byName}` : ''}</Text>
+                        ) : null}
+                        {order.orderType === 'delivery' && order.kitchen?.readyAt ? <Text style={{ color: ok, fontWeight: '800', marginTop: order.kitchen?.problem?.at ? 6 : 0 }}>{tr('Food is packed')} · {flow.dayTime(order.kitchen.readyAt)}{order.kitchen.readyByName ? ` · ${order.kitchen.readyByName}` : ''}</Text> : null}
+                    </Card>
+                ) : null}
+
                 <SectionTitle title={tr('What happened')} />
                 <Card>
                     {(order.statusHistory || []).slice().reverse().map((h, i, arr) => (
@@ -300,7 +309,7 @@ export default function OwnerOrderScreen() {
                             <View style={{ flex: 1 }}>
                                 <Text style={{ color: text, fontWeight: '800' }}>{flow.statusLabel(h.status)}</Text>
                                 <Text style={{ color: muted, fontSize: 12 }}>
-                                    {flow.dayTime(h.at)}{h.byType ? tr(' · by {v1}', { v1: h.byType === 'owner' ? 'you' : h.byType }) : ''}
+                                    {flow.dayTime(h.at)}{h.byType ? tr(' · by {v1}', { v1: h.byType === 'owner' ? 'you' : h.byType === 'staff' ? (h.byLabel || 'kitchen') : h.byType }) : ''}
                                 </Text>
                                 {h.note ? <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{h.note}</Text> : null}
                             </View>

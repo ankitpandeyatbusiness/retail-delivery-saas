@@ -7,9 +7,15 @@ import { useBrand, alpha } from '../../components/common/kit';
 import { Card } from '../../components/owners/ui';
 import { JobBadge, StaffHeader, JOBS } from '../../components/staff/staffBits';
 import { useStaffStore } from '../../store/staff/useStaffStore';
+import KitchenScreen from './KitchenScreen';
 import { tr } from '../../i18n';
 
 export default function StaffHomeScreen() {
+    const job = useStaffStore((st) => st.me?.role);
+    return job === 'kitchen' ? <KitchenScreen /> : <WaiterHome />;
+}
+
+function WaiterHome() {
     const { background, text, muted, primary } = useBrand();
     const me = useStaffStore((s) => s.me);
     const [busy, setBusy] = useState(false);

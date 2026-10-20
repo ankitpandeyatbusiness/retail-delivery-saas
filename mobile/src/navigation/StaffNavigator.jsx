@@ -10,6 +10,8 @@ import StaffProfileScreen from '../screens/staff/StaffProfileScreen';
 import StaffBlockedView from '../components/staff/StaffBlockedView';
 import { StaffSkeleton } from '../components/staff/staffBits';
 import { useStaffStore } from '../store/staff/useStaffStore';
+import { useKitchenStore } from '../store/staff/useKitchenStore';
+import useKitchenSync from '../components/staff/useKitchenSync';
 import { useAuthStore } from '../store/common/useAuthStore';
 
 const Tab = createBottomTabNavigator();
@@ -24,9 +26,12 @@ export default function StaffTabs() {
     const state = useStaffStore((s) => s.state);
     const uid = useAuthStore((s) => s.user?.id);
     const load = useStaffStore((s) => s.load);
+    const role = useStaffStore((s) => s.me?.role);
+    const waiting = useKitchenStore((s) => s.counts.new);   // orders waiting for Start cooking
+    useKitchenSync(state === 'ok' && role === 'kitchen');
 
     // a new person on this phone starts clean; coming back to the app asks again (the owner may have paused them meanwhile)
-    useEffect(() => { useStaffStore.getState().reset(); load(); }, [uid, load]);
+    useEffect(() => { useStaffStore.getState().reset(); useKitchenStore.getState().reset(); load(); }, [uid, load]);
     useEffect(() => {
         const sub = AppState.addEventListener('change', (st) => { if (st === 'active') load(); });
         return () => sub.remove();
@@ -43,7 +48,7 @@ export default function StaffTabs() {
                 screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: background }, tabBarHideOnKeyboard: true }}
             >
                 {Object.entries(TABS).map(([name, def]) => (
-                    <Tab.Screen key={name} name={name} component={def.component} options={{ title: def.label }} />
+                    <Tab.Screen key={name} name={name} component={def.component} options={{ title: def.label, tabBarBadge: name === 'StaffHomeTab' && role === 'kitchen' && waiting > 0 ? waiting : undefined }} />
                 ))}
             </Tab.Navigator>
         </View>

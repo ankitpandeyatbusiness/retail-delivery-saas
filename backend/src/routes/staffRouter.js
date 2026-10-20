@@ -2,11 +2,13 @@
 // The panels (kitchen queue, waiter tables) are added to `core` in the next phases; every route here is already limited to
 // an active staff member of THIS shop whose panel the super admin has switched on.
 const express = require('express');
+const mongoose = require('mongoose');
 const tenantRecognizer = require('../middlewares/tenantRecognizer');
 const authenticate = require('../middlewares/authMiddleware');
 const apiErrors = require('../middlewares/apiErrors');
 const auditTrail = require('../middlewares/auditTrail');
 const staff = require('../services/staffService');
+const kitchen = require('../services/kitchenService');
 const Staff = require('../models/Staff');
 
 const { wrap, httpError } = apiErrors;
@@ -38,6 +40,25 @@ core.patch('/me', wrap(async (req, res) => {
     if (!name) throw httpError(400, 'Write your name');
     await Staff.updateOne({ tenantId: req.tenant._id, userId: req.staff.id }, { $set: { name } });
     res.json({ ok: true, name });
+}));
+
+// the kitchen: the cook's queue and the three things a cook can do
+const onlyKitchen = (req, res, next) => (req.staff.role === 'kitchen' ? next() : res.status(403).json({ error: 'This is for the kitchen', code: 'not_staff' }));
+const isId = (v) => typeof v === 'string' && mongoose.isValidObjectId(v);
+const who = (req) => ({ id: req.staff.id, name: req.staff.name || req.shopUser.phone, phone: req.shopUser.phone });
+core.get('/kitchen/orders', onlyKitchen, wrap(async (req, res) => { res.json(await kitchen.queue(req.tenant)); }));
+core.post('/kitchen/orders/:id/start', onlyKitchen, wrap(async (req, res) => {
+    if (!isId(req.params.id)) throw httpError(404, 'Order not found');
+    res.json(await kitchen.start({ tenant: req.tenant, orderId: req.params.id, staff: who(req) }));
+}));
+core.post('/kitchen/orders/:id/ready', onlyKitchen, wrap(async (req, res) => {
+    if (!isId(req.params.id)) throw httpError(404, 'Order not found');
+    res.json(await kitchen.ready({ tenant: req.tenant, orderId: req.params.id, staff: who(req) }));
+}));
+// { kind: 'out_of_stock' | 'cannot_make' | 'other', note?, productId? }  tells the owner; out_of_stock with a dish also switches that dish off
+core.post('/kitchen/orders/:id/problem', onlyKitchen, wrap(async (req, res) => {
+    if (!isId(req.params.id)) throw httpError(404, 'Order not found');
+    res.json(await kitchen.problem({ tenant: req.tenant, orderId: req.params.id, staff: who(req), kind: req.body?.kind, note: req.body?.note, productId: req.body?.productId }));
 }));
 
 const router = express.Router();

@@ -35,6 +35,7 @@ const EVENTS = {
     pickup_not_wanted_claim: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // the customer does not want his pickup any more: the owner chooses the refund
     pickup_thanks: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },          // thank you for collecting
     pickup_claim_no: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },        // the shop could not find it collected yet
+    kitchen_problem: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },          // the cook cannot make something (a dish is finished, or another problem)
     order_cancel_request: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },      // a table guest asks the shop to cancel a round
     order_cancel_no: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },        // the shop could not cancel it
     pickup_no_show: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },     // the customer did not come after his pickup time

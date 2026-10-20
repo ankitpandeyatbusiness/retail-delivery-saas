@@ -84,6 +84,8 @@ function handleTap(resp) {
         const to = ownerRoute({ type: data.type, data });
         if (to) { openScreen(to.name, to.params); return; }
     }
+    // a cook's or waiter's push: the work screen is their home, there is no order page for them
+    if (['kitchen', 'waiter'].includes(useAuthStore.getState().user?.role)) return;
     // a customer's reminder about the bill he left unpaid: open the bill with the Pay button
     if (/^owed_/.test(String(data.type || '')) || data.type === 'table_walkout') { useOwedPrompt.getState().show(); return; }
     if (!data.orderId) return;

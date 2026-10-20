@@ -158,6 +158,13 @@ const orderSchema = new Schema({
     undelivered: { reasonCode: String, note: String, at: Date, by: String, keptPaise: Number, refundPaise: Number },
     deliveredAt: Date,
     ratedAt: Date,
+    // the kitchen screen (services/kitchenService.js): who started cooking and who marked it ready, and a problem the cook told the shop
+    kitchen: {
+        _id: false,
+        startedAt: Date, startedBy: { type: Schema.Types.ObjectId }, startedByName: String,
+        readyAt: Date, readyBy: { type: Schema.Types.ObjectId }, readyByName: String,
+        problem: { _id: false, kind: String, note: String, at: Date, byName: String },
+    },
     // something happened that the owner has to see once (services/orderLook.js); seenAt is set when he opens the order
     needsLook: { reason: String, urgent: Boolean, at: Date, seenAt: Date },
 }, { timestamps: true });

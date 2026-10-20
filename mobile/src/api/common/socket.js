@@ -17,7 +17,7 @@ const AUTH_ERRORS = ['TOKEN_INVALID', 'SESSION_ENDED', 'AUTH_REQUIRED'];
 let socket = null;
 let retryTimer = null;
 const joined = new Map();   // orderId -> how many screens want it
-const listeners = { 'menu:changed': new Set(), 'order:update': new Set(), notification: new Set(), 'rider:location': new Set(), 'rider:route': new Set(), 'order:eta': new Set(), 'rider:quiet': new Set(), 'rider:offer': new Set(), 'offer:closed': new Set() };
+const listeners = { 'kitchen:update': new Set(), 'menu:changed': new Set(), 'order:update': new Set(), notification: new Set(), 'rider:location': new Set(), 'rider:route': new Set(), 'order:eta': new Set(), 'rider:quiet': new Set(), 'rider:offer': new Set(), 'offer:closed': new Set() };
 
 // What the server asks of us: "socket" (normal) or "polling" (it is busy: poll every pollSec seconds and try the socket again
 // later). Screens read this to decide whether they need a timer. We never retry a refused connection sooner than retryAfterSec.
@@ -81,6 +81,7 @@ function connect() {
     });
     socket.on('order:update', (p) => dispatch('order:update', p));
     socket.on('menu:changed', (p) => dispatch('menu:changed', p));
+    socket.on('kitchen:update', (p) => dispatch('kitchen:update', p));   // the kitchen's orders changed (cooks only)
     socket.on('notification', (p) => dispatch('notification', p));
     socket.on('rider:location', (p) => dispatch('rider:location', p));
     socket.on('rider:route', (p) => dispatch('rider:route', p));
@@ -150,6 +151,7 @@ export const onOrderEta = sub('order:eta');
 export const onRiderQuiet = sub('rider:quiet');
 export const onRiderOffer = sub('rider:offer');
 export const onOfferClosed = sub('offer:closed');
+export const onKitchenUpdate = sub('kitchen:update');
 
 export function onNotification(fn) {
     listeners.notification.add(fn);
