@@ -15,6 +15,7 @@ import { useLiveTripStore } from '../../store/customers/useLiveTripStore';
 import { fetchOrders } from '../../api/customers/shopApi';
 import { onOrderUpdate, onNotification } from '../../api/common/socket';
 import { isActive } from './orders';
+import { queueText } from './QueueLine';
 import { tr } from '../../i18n';
 
 const HIDE_ON = ['Login', 'Cart', 'Item', 'OrderPlaced', 'OrderDetail', 'CardDetails', 'PaymentMethods', 'Orders'];
@@ -121,7 +122,7 @@ export default function ActiveOrderBar({ routeName, onOpen, onOpenAll }) {
                     <Text style={[s.head, { color: text }]} numberOfLines={1}>
                         {many ? tr('{n} orders in progress', { n: orders.length }) : tr('Order #{orderNo}', { orderNo: first.orderNo })}
                     </Text>
-                    <Text style={[s.sub, { color: muted }]} numberOfLines={1}>{many ? tr('Tap to see them') : tr(words)}</Text>
+                    <Text style={[s.sub, { color: muted }]} numberOfLines={1}>{many ? tr('Tap to see them') : (queueText(first.queue) || tr(words))}</Text>
                 </View>
                 <View style={[s.go, { backgroundColor: primary }]}>
                     <Text style={s.goTxt}>{tr('View')}</Text>

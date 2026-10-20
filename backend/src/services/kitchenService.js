@@ -159,6 +159,9 @@ async function ready({ tenant, orderId, staff }) {
     realtime.toOwner(tenant._id, 'order:update', { orderId: String(o._id), orderNo: o.orderNo, status: o.status, kind: 'kitchen_ready' });
     if (updated.delivery?.riderId) realtime.toUser(tenant._id, updated.delivery.riderId, 'order:update', { orderId: String(o._id), orderNo: o.orderNo, status: o.status, kind: 'kitchen_ready' });
     require('./kitchenAlerts').tell(tenant._id, { orderId: String(o._id), orderNo: o.orderNo, status: updated.status });
+    if (updated.delivery?.riderId && ['assigned', 'accepted'].includes(updated.delivery.status)) {   // the rider who is coming for it knows it is packed
+        require('../notifications/center').notify('food_packed_rider', { tenantId: tenant._id, userId: updated.delivery.riderId, data: { orderId: String(o._id), orderNo: o.orderNo }, vars: { orderNo: o.orderNo, brief: require('../utils/orderBrief').brief(updated, 2) } });
+    }
     return { already: false, order: view(tenant, updated) };
 }
 

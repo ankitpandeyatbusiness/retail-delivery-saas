@@ -164,6 +164,7 @@ const orderSchema = new Schema({
         startedAt: Date, startedBy: { type: Schema.Types.ObjectId }, startedByName: String,
         readyAt: Date, readyBy: { type: Schema.Types.ObjectId }, readyByName: String,
         problem: { _id: false, kind: String, note: String, at: Date, byName: String },
+        nudgedAt: Date, lateNudgedAt: Date, serveNudgedAt: Date,   // the nudges already sent for this order, each once (jobs/staffNudges.js)
     },
     // something happened that the owner has to see once (services/orderLook.js); seenAt is set when he opens the order
     needsLook: { reason: String, urgent: Boolean, at: Date, seenAt: Date },

@@ -8,7 +8,7 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useBrand, alpha } from '../../components/common/kit';
 import { Empty } from '../../components/owners/ui';
 import { ListShimmer } from '../../components/owners/shimmer';
-import { StaffHeader, Segment } from '../../components/staff/staffBits';
+import { StaffHeader, Segment, useColumns, cellStyle } from '../../components/staff/staffBits';
 import { ServeCard, RequestCard, TableCell } from '../../components/staff/WaiterCards';
 import TableSheet from '../../components/staff/TableSheet';
 import { useWaiterStore } from '../../store/staff/useWaiterStore';
@@ -24,6 +24,8 @@ export default function WaiterScreen() {
     const [tab, setTab] = useState('serve');
     const [open, setOpen] = useState(null);   // the table whose bill is open: { table, sessionId }
     const [pulling, setPulling] = useState(false);
+    const cols = useColumns();
+    const tcols = cols === 1 ? 3 : cols === 2 ? 5 : 7;   // table cells per row
 
     // the phone stays awake while the waiter's screen is on the front
     useFocusEffect(useCallback(() => { activateKeepAwakeAsync('waiter').catch(() => { }); return () => { deactivateKeepAwake('waiter').catch(() => { }); }; }, []));
@@ -42,7 +44,7 @@ export default function WaiterScreen() {
     const sub = w.counts.late > 0 ? tr('{n} waiting too long', { n: w.counts.late }) : shop;
     const tabs = [['serve', tr('Serve'), w.counts.serve, w.counts.late > 0], ['requests', tr('Requests'), w.counts.requests, false], ['tables', tr('Tables'), 0, false]];
     const tableRows = useMemo(() => w.tables, [w.tables]);
-    const pad = (3 - (tableRows.length % 3)) % 3;
+    const pad = (tcols - (tableRows.length % tcols)) % tcols;
 
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
@@ -65,9 +67,11 @@ export default function WaiterScreen() {
 
             {!first && !failedFirst && tab === 'serve' ? (
                 <FlatList
+                    key={`serve${cols}`}
+                    numColumns={cols}
                     data={w.serve}
                     keyExtractor={(o) => o.id}
-                    renderItem={({ item }) => <ServeCard o={item} lateMin={w.rules.serveLateMin} busy={!!w.busy[`serve${item.id}`]} onServe={() => act('serve', item.id)} />}
+                    renderItem={({ item }) => <View style={cellStyle(cols)}><ServeCard o={item} lateMin={w.rules.serveLateMin} busy={!!w.busy[`serve${item.id}`]} onServe={() => act('serve', item.id)} /></View>}
                     contentContainerStyle={{ paddingBottom: 130, flexGrow: 1 }}
                     showsVerticalScrollIndicator={false}
                     refreshControl={<RefreshControl refreshing={pulling} onRefresh={refresh} tintColor={primary} colors={[primary]} />}
@@ -79,10 +83,12 @@ export default function WaiterScreen() {
 
             {!first && !failedFirst && tab === 'requests' ? (
                 <FlatList
+                    key={`req${cols}`}
+                    numColumns={cols}
                     data={w.requests}
                     keyExtractor={(q) => q.id}
                     renderItem={({ item }) => (
-                        <RequestCard q={item} lateMin={w.rules.serveLateMin} busy={!!w.busy[`done${item.id}`]} onDone={() => act('done', item.id)} onOpenBill={() => openBill(item.table, item.sessionId)} />
+                        <View style={cellStyle(cols)}><RequestCard q={item} lateMin={w.rules.serveLateMin} busy={!!w.busy[`done${item.id}`]} onDone={() => act('done', item.id)} onOpenBill={() => openBill(item.table, item.sessionId)} /></View>
                     )}
                     contentContainerStyle={{ paddingBottom: 130, flexGrow: 1 }}
                     showsVerticalScrollIndicator={false}
@@ -100,8 +106,8 @@ export default function WaiterScreen() {
                     {tableRows.length === 0 ? <Empty icon="grid-outline" title={tr('No tables')} hint={tr('Dine in is not set up yet.')} /> : null}
                     <Text style={{ color: muted, fontSize: 12.5, marginBottom: 10 }}>{tr('Tap a table that is in use to see its bill.')}</Text>
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-                        {tableRows.map((t) => <TableCell key={t.table} t={t} onPress={() => openBill(t.table, t.sessionId)} />)}
-                        {Array.from({ length: pad }).map((_, i) => <View key={`pad${i}`} style={{ width: '31.5%' }} />)}
+                        {tableRows.map((t) => <TableCell key={t.table} t={t} cols={tcols} onPress={() => openBill(t.table, t.sessionId)} />)}
+                        {Array.from({ length: pad }).map((_, i) => <View key={`pad${i}`} style={{ width: `${(100 - (tcols - 1) * 2) / tcols}%` }} />)}
                     </View>
                 </ScrollView>
             ) : null}

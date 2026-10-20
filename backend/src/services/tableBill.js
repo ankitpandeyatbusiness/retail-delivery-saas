@@ -55,14 +55,15 @@ function timesOf(o) {
 // owner = true adds who ordered each round (the customer's own app never gets another person's number)
 async function billOf(session, { owner = false } = {}) {
     const orders = await Order.find({ tenantId: session.tenantId, tableSessionId: session._id, ...HIDE_UNPAID }).sort({ createdAt: 1 }).lean();
-    const lite = (await Tenant.findById(session.tenantId).select('settings.orders.dineIn.cancelGraceMin status maintenance ownerBlocked').lean()) || {};
+    const lite = (await Tenant.findById(session.tenantId).select('settings.orders.dineIn.cancelGraceMin settings.orders.staff settings.orders.prepTimeMin status maintenance ownerBlocked').lean()) || {};
     const asks = require('./customerAsks');
     const mine = require('./orderflow');
+    const q = owner ? new Map() : await require('./queueInfo').forOrders(lite, orders.filter((o) => ['accepted', 'preparing', 'ready'].includes(o.status)));
     const rounds = orders.filter((o) => !DEAD.includes(o.status)).map((o) => ({
         id: String(o._id), orderNo: o.orderNo, status: o.status, at: o.createdAt, total: o.pricing?.total || 0, paid: o.payment?.status === 'paid',
         canCancel: mine.customerCanCancel(o, lite), canAsk: asks.canAskCancel(o, lite), asked: !!o.cancelRequest?.at,   // the guest may cancel it himself / ask the shop / has asked
         items: (o.items || []).map((l) => ({ name: l.name, quantity: l.quantity, total: l.lineTotal, addons: (l.selections || []).map((x) => x.name).filter(Boolean), note: l.note || null })), summary: brief(o, 3),
-        note: o.note || null, times: timesOf(o),
+        note: o.note || null, times: timesOf(o), queue: q.get(String(o._id)) || null,
         ...(owner ? { customer: { name: o.customer?.name || null, phone: o.customer?.phone || null } } : {}),
     }));
     const total = rounds.reduce((n, r) => n + r.total, 0);

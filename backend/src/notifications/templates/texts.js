@@ -76,6 +76,7 @@ const TEXTS = {
     pickup_not_wanted_claim: (v) => ({ title: `Order #${v.orderNo}: not wanted`, body: `${v.name || 'A customer'} does not want ${v.brief || 'their order'} (₹${Math.round(v.total)}, ${v.cod ? 'cash' : 'paid online'}). Choose how much to refund.` }),
     pickup_thanks: (v) => ({ title: 'Thank you!', body: `Thank you for collecting order #${v.orderNo}. We hope you enjoy it. Come again soon!${v.message ? ` ${v.message}` : ''}` }),
     pickup_claim_no: (v) => ({ title: 'We could not find it as collected', body: `The shop could not confirm that order #${v.orderNo} was collected. Please come to the shop or call them.${v.message ? ` The shop says: “${v.message}”.` : ''} Thank you for understanding.` }),
+    food_packed_rider: (v) => ({ title: `Order #${v.orderNo} is packed`, body: `${v.brief ? `${v.brief}. ` : ''}It is ready for you to collect.` }),
     kitchen_problem: (v) => ({ title: `Kitchen: order #${v.orderNo}`, body: `${v.name || 'The cook'} says: ${v.what}${v.note ? ` (${v.note})` : ''}. Please decide what to do.` }),
     order_cancel_request: (v) => ({ title: `${v.where || 'Table'}: cancel order #${v.orderNo}?`, body: `${v.name || 'A guest'} asks to cancel ${v.brief || 'their order'}${v.note ? `: “${v.note}”` : ''}. It is already being made. Please say yes or no.` }),
     order_cancel_no: (v) => ({ title: 'We could not cancel it', body: `Sorry, order #${v.orderNo} is already being made, so the shop could not cancel it.${v.message ? ` The shop says: “${v.message}”.` : ''} Thank you for understanding.` }),

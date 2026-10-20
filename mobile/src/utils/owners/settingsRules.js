@@ -79,6 +79,9 @@ export const BUSY_FOR = [
 /* ------------------------------ activity log ------------------------------ */
 // the server stores "PUT /api/shop/settings" style actions; the owner reads plain words
 const ACTIVITY = [
+    [/staff\/kitchen\/orders\/:id\/start/, 'Started cooking an order'], [/staff\/kitchen\/orders\/:id\/ready/, 'Marked an order ready'], [/staff\/kitchen\/orders\/:id\/problem/, 'Told you about a problem in the kitchen'],
+    [/staff\/waiter\/orders\/:id\/serve/, 'Served a dish'], [/staff\/waiter\/requests/, 'Finished a table request'], [/staff\/waiter\/tables\/:sessionId\/settle/, 'Took the money for a table bill'], [/staff\/me/, 'Changed their own name'],
+    [/shop\/staff/, 'Changed the staff list'],
     [/^BROADCAST/, 'Sent a message'], [/^COMPLAINT_DECISION/, 'Answered a complaint'], [/^LOGIN/, 'Logged in'],
     [/accepting-orders/, 'Paused or resumed orders'], [/\/busy/, 'Changed busy mode'],
     [/settings/, 'Changed shop settings'], [/products\/:id\/stock/, 'Changed stock'], [/products\/:id\/availability/, 'Changed an item\'s availability'],
@@ -92,7 +95,7 @@ export function activityLabel(action = '') {
     if (hit) return hit[1];
     return String(action).replace(/^(GET|POST|PUT|PATCH|DELETE)\s+\/api\/(shop\/)?/, '').replace(/[/:_-]+/g, ' ').trim() || 'Change';
 }
-export const ACTOR_FILTERS = [['', 'Everyone'], ['owner', 'You'], ['rider', 'Riders'], ['superadmin', 'Platform'], ['system', 'Automatic']];
+export const ACTOR_FILTERS = [['', 'Everyone'], ['owner', 'You'], ['rider', 'Riders'], ['staff', 'Staff'], ['superadmin', 'Platform'], ['system', 'Automatic']];
 
 /* ------------------------------ closing report as a message ------------------------------ */
 const PAY = { cod: 'Cash', upi: 'UPI', card: 'Card', wallet: 'Wallet' };

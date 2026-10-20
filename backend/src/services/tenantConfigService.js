@@ -226,7 +226,7 @@ function validateSettings(input) {
                 const c = o.staff;
                 if (!isObj(c)) err(p('staff'), 'must be an object');
                 else {
-                    known(c, ['kitchenOn', 'waiterOn', 'max', 'kitchenSees', 'lateMin', 'serveLateMin'], p('staff'));
+                    known(c, ['kitchenOn', 'waiterOn', 'max', 'kitchenSees', 'lateMin', 'serveLateMin', 'queueShown', 'queueEta', 'kitchenLanes', 'nudgeMin'], p('staff'));
                     out.staff = {};
                     if (c.kitchenOn !== undefined && bool(p('staff.kitchenOn'), c.kitchenOn)) out.staff.kitchenOn = c.kitchenOn;
                     if (c.waiterOn !== undefined && bool(p('staff.waiterOn'), c.waiterOn)) out.staff.waiterOn = c.waiterOn;
@@ -238,6 +238,15 @@ function validateSettings(input) {
                     if (c.lateMin !== undefined) {   // minutes after an order is accepted (or its start time) before the kitchen shows it as late
                         if (!Number.isInteger(c.lateMin)) err(p('staff.lateMin'), 'must be a whole number');
                         else if (num(p('staff.lateMin'), c.lateMin, 5, 180)) out.staff.lateMin = c.lateMin;
+                    }
+                    for (const k of ['queueShown', 'queueEta']) { if (c[k] !== undefined && bool(p('staff.' + k), c[k])) out.staff[k] = c[k]; }   // the guest sees his place in the kitchen / the time it will take
+                    if (c.nudgeMin !== undefined) {   // minutes an accepted order may wait for a cook before the cooks get a push (0 = no nudges)
+                        if (!Number.isInteger(c.nudgeMin)) err(p('staff.nudgeMin'), 'must be a whole number');
+                        else if (num(p('staff.nudgeMin'), c.nudgeMin, 0, 120)) out.staff.nudgeMin = c.nudgeMin;
+                    }
+                    if (c.kitchenLanes !== undefined) {   // how many orders the kitchen cooks at the same time (the time estimate uses it)
+                        if (!Number.isInteger(c.kitchenLanes)) err(p('staff.kitchenLanes'), 'must be a whole number');
+                        else if (num(p('staff.kitchenLanes'), c.kitchenLanes, 1, 20)) out.staff.kitchenLanes = c.kitchenLanes;
                     }
                     if (c.serveLateMin !== undefined) {   // minutes a ready dish may wait for the waiter before it shows as late
                         if (!Number.isInteger(c.serveLateMin)) err(p('staff.serveLateMin'), 'must be a whole number');
@@ -471,7 +480,7 @@ const DEFAULTS = {
         packagingCharge: 0, gst: { mode: 'none', percent: 0 },
         tipOptions: [], prepTimeMin: 20, acceptingOrders: true,
         dineIn: { enabled: false, tableCount: 10, autoCloseHours: 6, tabLimitNew: 500, tabLimitTrusted: 2000, trustedAfter: 3, atShopCheck: true, radiusM: 250, checkMinutes: 20, autoReady: false, readyMin: 15, autoServe: false, serveMin: 10, owedDaily: false, owedHour: 11, owedOnHome: true, referOn: false, referFriendPercent: 15, referFriendMax: 150, referPoints: 50, referLimit: 10, callOn: false, tipOn: false, tipChoices: [10, 20, 50], feedbackOn: false, welcomeOn: false, welcomePercent: 10, welcomeMax: 100, regularOn: false, regularAfter: 5, regularPercent: 5, regularMax: 50, happyOn: false, happyFrom: '15:00', happyTo: '18:00', happyPercent: 15, happyMax: 150, waitMin: 0, owedMax: 7, firstOnline: false, prefs: ['Make it spicy', 'Less spicy', 'Not spicy', 'Extra gravy', 'Less gravy', 'No coriander', 'No onion', 'No garlic', 'Less oil', 'Less salt'], busyAuto: true, busyPercent: 70, busyExtraMin: 10, cancelGraceMin: 3, waiterSettles: true },   // eating at the shop: on/off and how many tables
-        staff: { kitchenOn: false, waiterOn: false, max: 10, kitchenSees: ['delivery', 'pickup', 'dine_in'], lateMin: 20, serveLateMin: 5 },   // kitchen and waiter panels (services/staffService.js): off until the super admin switches them on
+        staff: { kitchenOn: false, waiterOn: false, max: 10, kitchenSees: ['delivery', 'pickup', 'dine_in'], lateMin: 20, serveLateMin: 5, queueShown: true, queueEta: true, kitchenLanes: 3, nudgeMin: 10 },   // kitchen and waiter panels (services/staffService.js): off until the super admin switches them on
         mixRules: { dineBlocksOthers: true, deliveryOpenMax: 3, exposureOn: true, exposureNew: 800, exposureTrusted: 3000, regularAfter: 3 },
         limits: { pickupAsksMax: 3, nudgeFirstMin: 3, nudgeEveryMin: 10, callGapMin: 2, callClearHours: 2, remindGapMin: 30, claimRetryMin: 5, scanGapMin: 5, strikesMax: 2, pickupSlotsPerDay: 12 },   // timings and counts, set by the super admin   // several kinds of order at once (services/orderMix.js)
         pickupRules: { openMax: 2, canChange: true },   // pickup: orders one customer may have waiting (0 = no limit), and may he move his time

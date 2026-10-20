@@ -16,6 +16,7 @@ import { viewInvoice, saveInvoice } from '../../components/customers/invoice';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { fetchOrder, rateOrder, fetchRatings, fetchTracking, fetchPoints, askCancelOrder } from '../../api/customers/shopApi';
 import { themedAlert } from '../../components/common/dialog';
+import QueueLine from '../../components/customers/QueueLine';
 import { arriveText } from './MyPointsScreen';
 import TrackingCard from '../../components/customers/tracking';
 import { StoreLocation, useStoreSpot } from '../../components/customers/storeLocation';
@@ -178,9 +179,9 @@ export default function OrderDetailScreen() {
     }), [id]);
     useFocusEffect(useCallback(() => {
         get();
-        const t = setInterval(() => { if (activeRef.current) get(); }, trackRef.current?.state === 'on_the_way' ? 15000 : 45000);
+        const t = setInterval(() => { if (activeRef.current) get(); }, trackRef.current?.state === 'on_the_way' ? 15000 : o?.queue ? 20000 : 45000);   // his place in the kitchen moves when OTHER orders move: look more often
         return () => clearInterval(t);
-    }, [get, track?.state === 'on_the_way']));
+    }, [get, track?.state === 'on_the_way', !!o?.queue]));
 
     // load the review that is already saved for this order
     useEffect(() => {
@@ -317,6 +318,8 @@ export default function OrderDetailScreen() {
                         </View>
                     </LinearGradient>
                 </Appear>
+
+                {live && !cancelled ? <QueueLine q={o.queue} /> : null}
 
                 {o.orderType === 'pickup' && o.pickupCode ? (
                     <View style={{ alignItems: 'center', marginHorizontal: 16, marginTop: 14, marginBottom: 12, padding: 16, borderRadius: 18, backgroundColor: tint(primary) }}>

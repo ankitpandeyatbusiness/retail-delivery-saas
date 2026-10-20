@@ -13,6 +13,7 @@ import { nudgeTable, cancelOrder, askCancelOrder } from '../../api/customers/sho
 import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
 import { whereOf } from '../../utils/common/where';
+import QueueLine from '../../components/customers/QueueLine';
 import { tr } from '../../i18n';
 
 const STATE = { placed: 'Waiting for the shop', accepted: 'Accepted', preparing: 'Being prepared', ready: 'Coming to your table', delivered: 'Served' };
@@ -116,7 +117,7 @@ export default function TableBillScreen() {
                                 <Pill label={tr(STATE[r.status] || r.status)} color={r.status === 'delivered' ? ok : warn} />
                                 {r.paid ? <View style={{ marginLeft: 6 }}><Pill label={tr('Paid')} color={ok} /></View> : null}
                             </View>
-                            {r.status === 'delivered' ? <ServedIn times={r.times} style={{ marginBottom: 6 }} /> : <WaitTimer since={r.times?.placed || r.at} style={{ marginBottom: 6 }} />}
+                            {r.status === 'delivered' ? <ServedIn times={r.times} style={{ marginBottom: 6 }} /> : <><QueueLine q={r.queue} compact /><WaitTimer since={r.times?.placed || r.at} style={{ marginBottom: 6 }} /></>}
                             {r.items.map((it, k) => (
                                 <View key={k} style={{ flexDirection: 'row', paddingVertical: 4 }}>
                                     <Text style={{ flex: 1, color: text, fontWeight: '600' }} numberOfLines={2}>{it.quantity}× {it.name}</Text>

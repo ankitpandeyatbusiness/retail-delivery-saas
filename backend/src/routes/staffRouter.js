@@ -19,7 +19,7 @@ async function requireStaff(req, res, next) {
         const a = await staff.accessOf({ tenant: req.tenant, userId: req.auth.userId });
         if (!a.ok) return res.status(403).json({ error: a.message, code: a.code });
         req.staff = { id: a.user._id, role: a.role, name: a.row.name || a.user.name || '' };
-        req.shopUser = { phone: a.user.phone };   // the label in the activity log
+        req.shopUser = { phone: a.user.phone, label: `${req.staff.name || a.user.phone} (${staff.JOB[a.role].toLowerCase()})` };   // the label in the activity log: "Ramesh (kitchen)"
         return next();
     } catch (e) { return next(e); }
 }

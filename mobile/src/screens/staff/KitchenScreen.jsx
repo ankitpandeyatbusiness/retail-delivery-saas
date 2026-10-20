@@ -1,14 +1,15 @@
 // The cook's screen. Two lists: "To make" (oldest first; new ones wait for Start cooking, cooking ones for Ready) and "Ready" (waiting for the
 // waiter, the rider or the customer). New orders arrive by themselves with a chime; the screen stays awake while it is open.
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, FlatList, Pressable, RefreshControl } from 'react-native';
+import { View, Text, FlatList, ScrollView, Pressable, RefreshControl } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useBrand, alpha } from '../../components/common/kit';
 import { Empty } from '../../components/owners/ui';
 import { ListShimmer } from '../../components/owners/shimmer';
-import { StaffHeader, Segment } from '../../components/staff/staffBits';
+import { StaffHeader, Segment, useColumns, cellStyle } from '../../components/staff/staffBits';
+import DishTotals from '../../components/staff/DishTotals';
 import KitchenOrderCard from '../../components/staff/KitchenOrderCard';
 import ProblemSheet from '../../components/staff/ProblemSheet';
 import { useKitchenStore } from '../../store/staff/useKitchenStore';
@@ -18,7 +19,7 @@ import { showToast } from '../../components/customers/shop';
 import { tr } from '../../i18n';
 
 export default function KitchenScreen() {
-    const { background, text, warn, primary } = useBrand();
+    const { background, text, muted, warn, primary } = useBrand();
     const shop = useStaffStore((s) => s.me?.shop);
     const items = useKitchenStore((s) => s.items);
     const counts = useKitchenStore((s) => s.counts);
@@ -29,6 +30,7 @@ export default function KitchenScreen() {
     const [tab, setTab] = useState('make');
     const [problem, setProblem] = useState(null);
     const [pulling, setPulling] = useState(false);
+    const cols = useColumns();
 
     // the phone stays awake while the kitchen screen is on the front
     useFocusEffect(useCallback(() => { activateKeepAwakeAsync('kitchen').catch(() => { }); return () => { deactivateKeepAwake('kitchen').catch(() => { }); }; }, []));
@@ -51,7 +53,7 @@ export default function KitchenScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <StaffHeader title={tr('Kitchen')} subtitle={sub} right={<Live live={state === 'ok'} />} />
-            <Segment value={tab} onChange={setTab} tabs={[['make', tr('To make'), counts.new + counts.cooking, counts.late > 0], ['ready', tr('Ready'), counts.ready, false]]} />
+            <Segment value={tab} onChange={setTab} tabs={[['make', tr('To make'), counts.new + counts.cooking, counts.late > 0], ['dish', tr('By dish'), 0, false], ['ready', tr('Ready'), counts.ready, false]]} />
             {state === 'error' && loadedAt ? (
                 <View style={{ marginHorizontal: 16, marginBottom: 10, padding: 10, borderRadius: 12, backgroundColor: alpha(warn, 0.16), flexDirection: 'row', alignItems: 'center' }}>
                     <Ionicons name="cloud-offline-outline" size={18} color={warn} style={{ marginRight: 8 }} />
@@ -66,12 +68,24 @@ export default function KitchenScreen() {
                     <Pressable onPress={refresh} style={{ alignSelf: 'center', padding: 12 }}><Text style={{ color: primary, fontWeight: '900' }}>{tr('Try again')}</Text></Pressable>
                 </View>
             ) : null}
-            {!first && !(state === 'error' && !loadedAt) ? (
+            {!first && !(state === 'error' && !loadedAt) && tab === 'dish' ? (
+                <ScrollView
+                    contentContainerStyle={{ paddingBottom: 130 }}
+                    showsVerticalScrollIndicator={false}
+                    refreshControl={<RefreshControl refreshing={pulling} onRefresh={refresh} tintColor={primary} colors={[primary]} />}
+                >
+                    <Text style={{ color: muted, fontSize: 12.5, marginHorizontal: 16, marginBottom: 10 }}>{tr('Everything still to make, added up. Cook the same dish together.')}</Text>
+                    <DishTotals orders={make} />
+                </ScrollView>
+            ) : null}
+            {!first && !(state === 'error' && !loadedAt) && tab !== 'dish' ? (
                 <FlatList
+                    key={cols}
+                    numColumns={cols}
                     data={list}
                     keyExtractor={(o) => o.id}
                     renderItem={({ item }) => (
-                        <KitchenOrderCard o={item} lateMin={rules.lateMin || 20} busy={!!busy[item.id]} onAct={(k) => act(item, k)} onProblem={() => setProblem(item)} />
+                        <View style={cellStyle(cols)}><KitchenOrderCard o={item} lateMin={rules.lateMin || 20} busy={!!busy[item.id]} onAct={(k) => act(item, k)} onProblem={() => setProblem(item)} /></View>
                     )}
                     contentContainerStyle={{ paddingBottom: 130, flexGrow: 1 }}
                     showsVerticalScrollIndicator={false}

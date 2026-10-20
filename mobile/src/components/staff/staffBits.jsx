@@ -1,6 +1,6 @@
 // Small pieces the kitchen and waiter screens share: the page header, the job badge and the loading skeleton.
 import React, { useEffect, useState } from 'react';
-import { View, Text, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand, alpha } from '../common/kit';
@@ -104,3 +104,11 @@ export function Segment({ value, onChange, tabs }) {
         </View>
     );
 }
+
+// how many columns a list of cards gets: one on a phone, two on a small tablet, three on a big one (a kitchen screen on a tablet shows more at a glance)
+export function useColumns() {
+    const { width } = useWindowDimensions();
+    return width >= 1000 ? 3 : width >= 700 ? 2 : 1;
+}
+// every card in a multi-column list gets an equal share, and a lone card on the last row does not stretch across the screen
+export const cellStyle = (cols) => (cols > 1 ? { flex: 1, maxWidth: `${100 / cols}%` } : null);

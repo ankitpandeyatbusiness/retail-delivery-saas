@@ -33,7 +33,11 @@ const isId = (v) => typeof v === 'string' && mongoose.isValidObjectId(v);
 
 // order as JSON, plus a flag the app uses to show or hide the Cancel button
 const { pinFor } = require('../services/deliveryPinService');
-const view = (order, tenant) => { const j = order.toJSON(); delete j.needsLook;
+const queueInfo = require('../services/queueInfo');
+const view = (order, tenant, queue) => { const j = order.toJSON(); delete j.needsLook;
+    // what the kitchen did is the shop's business: the guest only learns that the food is packed (delivery) - never a cook's name or a problem note
+    if (j.kitchen) j.kitchen = j.kitchen.readyAt ? { readyAt: j.kitchen.readyAt } : undefined;
+    if (queue) j.queue = queue;   // where it is in the kitchen: { stage, position, ahead, etaMin } (only when the shop shows it)
     // the 4-digit code he shows when he collects a pickup order (worked out from a secret, nothing is stored)
     if (order.orderType === 'pickup' && ['placed', 'accepted', 'preparing', 'ready'].includes(order.status)) { try { j.pickupCode = pinFor(order); } catch (e) { /* no secret set up: no code */ } }
     return { ...j, canCancel: svc.customerCanCancel(order, tenant), canChangePickup: svc.canChangePickup(order, tenant), canAskCancel: require('../services/customerAsks').canAskCancel(order, tenant) }; };   // needsLook is for the shop only
@@ -119,14 +123,15 @@ router.get('/', wrap(async (req, res) => {
     const items = await Order.find(filter).sort({ createdAt: dir, _id: dir }).skip((page - 1) * limit).limit(limit + 1);
     const hasMore = items.length > limit;
     if (hasMore) items.pop();
-    res.json({ items: items.map((o) => view(o, req.tenant)), page, hasMore });
+    const q = await queueInfo.forOrders(req.tenant, items);
+    res.json({ items: items.map((o) => view(o, req.tenant, q.get(String(o._id)))), page, hasMore });
 }));
 
 router.get('/:id', wrap(async (req, res) => {
     checkId(req);
     const order = await Order.findOne({ _id: req.params.id, tenantId: req.tenant._id, userId: req.auth.userId });
     if (!order) throw httpError(404, 'Order not found');
-    res.json(view(order, req.tenant));
+    res.json(view(order, req.tenant, (await queueInfo.forOrders(req.tenant, [order])).get(String(order._id))));
 }));
 
 router.post('/:id/pickup-answer', wrap(async (req, res) => {

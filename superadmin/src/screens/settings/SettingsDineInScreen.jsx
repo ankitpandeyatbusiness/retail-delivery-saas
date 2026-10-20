@@ -36,9 +36,13 @@ export default function SettingsDineInScreen() {
                         <Switch title="Kitchen screen" subtitle="The cook sees the orders to make" value={sf.kitchenOn === true} onValueChange={P('staff', sf, 'kitchenOn')} />
                         <Switch title="Waiter screen" subtitle="The waiter sees dishes to serve and table requests" value={sf.waiterOn === true} onValueChange={P('staff', sf, 'waiterOn')} />
                         <NumberField label="Most staff this shop can add" integer hint="Cooks and waiters together" value={sf.max} onChange={(v) => P('staff', sf, 'max')(v ?? 10)} />
+                        <Switch title="The guest sees his place in the kitchen" subtitle="For example: 2 orders ahead of yours" value={sf.queueShown !== false} onValueChange={P('staff', sf, 'queueShown')} />
+                        {sf.queueShown !== false ? <Switch title="...and about how long it will take" subtitle="A guess from how long this shop really takes" value={sf.queueEta !== false} onValueChange={P('staff', sf, 'queueEta')} /> : null}
+                        {sf.queueShown !== false ? <NumberField label="Orders the kitchen cooks at the same time" integer hint="Used for the time guess. More at once means a shorter wait." value={sf.kitchenLanes} onChange={(v) => P('staff', sf, 'kitchenLanes')(v ?? 3)} /> : null}
                         <MultiChoice label="The cook sees these orders" hint="Pick at least one" options={[{ value: 'delivery', label: 'Delivery' }, { value: 'pickup', label: 'Pickup' }, { value: 'dine_in', label: 'Dine in' }]} value={sf.kitchenSees || ['delivery', 'pickup', 'dine_in']} min={1} onChange={(v) => P('staff', sf, 'kitchenSees')(v)} />
                         <NumberField label="A ready dish waits for the waiter at most" suffix="min" integer hint="After this it shows as late on the waiter's screen" value={sf.serveLateMin} onChange={(v) => P('staff', sf, 'serveLateMin')(v ?? 5)} />
                         <Switch title="A waiter can take the money for a bill" subtitle="The owner has the same switch in the shop app" value={dn.waiterSettles !== false} onValueChange={D('waiterSettles')} />
+                        <NumberField label="Nudge the cooks when an order waits" suffix="min" integer hint="A push for an accepted order nobody started. 0 = no nudges. Late and unserved dishes are nudged once too." value={sf.nudgeMin} onChange={(v) => P('staff', sf, 'nudgeMin')(v ?? 10)} />
                         <NumberField label="Show an order as late after" suffix="min" integer hint="Counted from when it was accepted (a pickup for later: from 30 minutes before its time)" value={sf.lateMin} onChange={(v) => P('staff', sf, 'lateMin')(v ?? 20)} last />
                     </Group>
 

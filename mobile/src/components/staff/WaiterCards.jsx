@@ -85,13 +85,13 @@ export function RequestCard({ q, busy, lateMin, onDone, onOpenBill }) {
 const STATE = { free: ['Free', 'ellipse-outline'], eating: ['Eating', 'restaurant'], bill_asked: ['Bill', 'receipt'] };
 
 // one table in the grid: its number, its state, and what needs the waiter
-export function TableCell({ t, onPress }) {
+export function TableCell({ t, onPress, cols = 3 }) {
     const { surface, border, text, muted, primary, warn, ok } = useBrand();
     const free = t.state === 'free';
     const bill = t.state === 'bill_asked';
     const c = free ? muted : bill ? warn : primary;
     return (
-        <Pressable onPress={onPress} disabled={free} accessibilityRole="button" style={({ pressed }) => ({ width: '31.5%', marginBottom: 10, padding: 10, borderRadius: 16, backgroundColor: free ? surface : alpha(c, 0.12), borderWidth: free ? 1 : 1.5, borderColor: free ? border : alpha(c, 0.7), opacity: pressed ? 0.8 : 1 })}>
+        <Pressable onPress={onPress} disabled={free} accessibilityRole="button" style={({ pressed }) => ({ width: `${(100 - (cols - 1) * 2) / cols}%`, marginBottom: 10, padding: 10, borderRadius: 16, backgroundColor: free ? surface : alpha(c, 0.12), borderWidth: free ? 1 : 1.5, borderColor: free ? border : alpha(c, 0.7), opacity: pressed ? 0.8 : 1 })}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Text style={{ color: free ? muted : text, fontSize: 22, fontWeight: '900', flex: 1 }}>{t.table}</Text>
                 <Ionicons name={STATE[t.state]?.[1] || 'ellipse-outline'} size={16} color={c} />

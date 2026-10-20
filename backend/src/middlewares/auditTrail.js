@@ -56,7 +56,7 @@ function auditTrail(actorType) {
                 } else {
                     if (!req.auth) return;
                     actorId = req.auth.userId;
-                    actorLabel = req.shopUser?.phone || String(req.auth.userId);
+                    actorLabel = req.shopUser?.label || req.shopUser?.phone || String(req.auth.userId);
                 }
 
                 const path = req.originalUrl.split('?')[0];
