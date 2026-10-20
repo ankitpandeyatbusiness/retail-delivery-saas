@@ -81,7 +81,7 @@ export function isoOfYmd(ymd, endOfDay = false) {
 export const SPICE = [['none', 'No spice'], ['mild', 'Mild'], ['medium', 'Medium'], ['hot', 'Hot']];
 
 export const BLANK_ITEM = {
-    categoryId: '', newCategory: '', name: '', description: '', image: '', price: undefined, mrp: undefined,
+    categoryId: '', newCategory: '', name: '', description: '', image: '', images: [], price: undefined, mrp: undefined,
     isVeg: undefined, isEggless: false, isSugarFree: false, isJain: false, spiceLevel: 'none',
     isBestseller: false, isNewArrival: false, isGiftPack: false, serves: undefined, calories: undefined, prepTimeMin: undefined, maxPerOrder: undefined,
     optionGroups: [], isActive: true,
@@ -90,7 +90,7 @@ export const BLANK_ITEM = {
 
 export const itemFromRecord = (r) => ({
     categoryId: r.categoryId ? String(r.categoryId) : '', newCategory: '',
-    name: r.name || '', description: r.description || '', image: r.image || '',
+    name: r.name || '', description: r.description || '', image: r.image || '', images: Array.isArray(r.images) ? r.images : [],
     price: r.price, mrp: r.mrp,
     isVeg: r.isVeg, isEggless: !!r.isEggless, isSugarFree: !!r.isSugarFree, isJain: !!r.isJain, spiceLevel: r.spiceLevel || 'none',
     isBestseller: !!r.isBestseller, isNewArrival: !!r.isNewArrival, isGiftPack: !!r.isGiftPack,
@@ -129,6 +129,7 @@ export const itemBody = (v) => ({
     name: v.name.trim(),
     description: v.description.trim(),
     image: v.image || '',
+    images: v.image ? (v.images || []) : [],   // the extra pictures need a main one
     price: v.price,
     mrp: v.mrp ?? null,
     isVeg: v.isVeg,

@@ -53,7 +53,8 @@ export default function ShopSettingsScreen() {
             <SectionTitle section="catalog">Features and menu</SectionTitle>
             <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
                 <ListRow section="catalog" icon="tune" title="App features" subtitle={`${onFeatures} switched on · veg switch ${eff.features.vegToggle ? 'on' : 'off'}`} onPress={go('SettingsFeatures')} />
-                <ListRow section="catalog" icon="coupon" title="Menu and offers" subtitle={`Out of stock: ${nameOf('outOfStock', eff.menu.outOfStock).toLowerCase()} · coupons ${eff.offers.couponsEnabled ? 'on' : 'off'}`} onPress={go('SettingsMenuOffers')} last />
+                <ListRow section="catalog" icon="coupon" title="Menu and offers" subtitle={`Out of stock: ${nameOf('outOfStock', eff.menu.outOfStock).toLowerCase()} · coupons ${eff.offers.couponsEnabled ? 'on' : 'off'}`} onPress={go('SettingsMenuOffers')} />
+                <ListRow section="catalog" icon="coupon" title="Points and rewards" subtitle="Customer points, rider points and badges" onPress={go('SettingsPoints')} last />
             </Card>
 
             <SectionTitle section="orders">Ordering</SectionTitle>
@@ -65,6 +66,7 @@ export default function ShopSettingsScreen() {
                     subtitle={`${(eff.orders.types || []).map((t) => nameOf('orderType', t)).join(', ')} · min ₹${eff.orders.minOrder || 0} · fee ${nameOf('fee', fee.type || 'free').toLowerCase()}`}
                     onPress={go('SettingsOrders')}
                 />
+                <ListRow section="orders" icon="orders" title="Dine in and pickup rules" subtitle={`Dine in ${eff.orders.dineIn?.enabled ? 'on' : 'off'} · pickup waiting ${eff.orders.pickupRules?.openMax ?? 2} · delivery at once ${eff.orders.mixRules?.deliveryOpenMax ?? 3}`} onPress={go('SettingsDineIn')} />
                 <ListRow section="orders" icon="clock" title="Opening hours" subtitle={openDays ? `Open ${openDays} day${openDays > 1 ? 's' : ''} a week${eff.hours.closedDates.length ? ` · ${eff.hours.closedDates.length} holiday(s)` : ''}` : 'Always open'} onPress={go('SettingsHours')} />
                 <ListRow section="riders" icon="rider" title="Riders and delivery" subtitle={`${nameOf('assign', eff.riders.assignMode)} assigning · PIN ${eff.riders.deliveryPin ? 'on' : 'off'} · tracking ${eff.riders.liveTracking ? 'on' : 'off'}`} onPress={go('SettingsRiders')} last />
             </Card>

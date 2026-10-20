@@ -68,7 +68,7 @@ export default function RiderProfileScreen() {
                 </View>
                 <Card>
                     {me?.shopPhone ? <Row icon="call-outline" title={T.callShop} subtitle={me.shopPhone} onPress={() => Linking.openURL(`tel:${me.shopPhone}`).catch(() => { })} /> : null}
-                    <Row icon="ribbon-outline" title={tr('My points and badge')} subtitle={tr('Your badge is shown to customers')} onPress={() => nav.navigate('RiderPoints')} />
+                    {me?.pointsOn !== false ? <Row icon="ribbon-outline" title={tr('My points and badge')} subtitle={tr('Your badge is shown to customers')} onPress={() => nav.navigate('RiderPoints')} /> : null}
                     <Row icon="calendar-outline" title={tr('Duty timing and leave')} subtitle={tr('Automatic duty, holidays, ask for leave')} onPress={() => nav.navigate('RiderDuty')} />
                     <AppearanceSwitch />
                     <Row icon="language-outline" title={tr('Language')} subtitle={LANGS.find((l) => l.code === lang)?.native} onPress={() => setLangOpen(true)} />

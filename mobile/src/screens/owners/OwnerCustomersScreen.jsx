@@ -7,7 +7,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../../components/common/kit';
 import { PageHeader, Field, Empty } from '../../components/owners/ui';
 import RemindSheet from '../../components/owners/RemindSheet';
-import { fetchCustomers, fetchCustomerInsights, apiError } from '../../api/owners/shopApi';
+import { fetchCustomers, fetchCustomerInsights, fetchBlocked, fetchDineDebts, blockCustomer, apiError } from '../../api/owners/shopApi';
+import { BlockedCard } from '../../components/owners/BlockSheet';
+import { showToast } from '../../components/customers/shop';
+import { ask } from '../../components/common/dialog';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { personName } from '../../utils/owners/hubRules';
 import { ago } from '../../utils/owners/riderRules';
@@ -28,6 +31,19 @@ export default function OwnerCustomersScreen() {
     const [err, setErr] = useState('');
     const [loadingMore, setLoadingMore] = useState(false);
     const [remind, setRemind] = useState(null);
+    const [blocked, setBlocked] = useState(null);   // the blocked customers (the Blocked tab)
+    const [busyId, setBusyId] = useState('');
+    const loadBlocked = useCallback(() => fetchBlocked().then((r) => setBlocked(r.items || [])).catch(() => setBlocked((x) => x || [])), []);
+    useFocusEffect(useCallback(() => { loadBlocked(); }, [loadBlocked]));
+    const unblock = async (b) => {
+        let owes = 0;
+        try { const r = await fetchDineDebts(); owes = (r.items || []).filter((x) => x.customers.some((u) => String(u.id) === String(b.id))).reduce((n, x) => n + x.amount, 0); } catch (e) { /* no warning */ }
+        const yes = await ask({ title: tr('Unblock this customer?'), message: owes ? tr('He still owes ₹{n}. He can use the app again, but cannot order until he pays.', { n: Math.round(owes) }) : tr('He can use the app of your shop again.'), confirmText: tr('Unblock'), cancelText: tr('No') });
+        if (!yes) return;
+        setBusyId(b.id);
+        try { await blockCustomer(b.id, false); setBlocked((l) => (l || []).filter((x) => x.id !== b.id)); showToast(tr('Customer unblocked')); } catch (e) { showToast(apiError(e)); } finally { setBusyId(''); }
+    };
+    const blockedShown = (blocked || []).filter((b) => !q || (b.name || '').toLowerCase().includes(q.toLowerCase()) || (b.phone || '').includes(q));
     const t = useRef(null);
     const seq = useRef(0);
 
@@ -49,7 +65,7 @@ export default function OwnerCustomersScreen() {
         } finally { setLoadingMore(false); }
     }, []);
 
-    useEffect(() => { setItems(null); load(1, q, tag); }, [q, tag, load]);
+    useEffect(() => { if (tag === 'blocked') return; setItems(null); load(1, q, tag); }, [q, tag, load]);
     // the numbers on the chips, and again when we come back from a customer's page
     useFocusEffect(useCallback(() => { fetchCustomerInsights({ limit: 1 }).then((r) => setCounts(r.counts)).catch(() => { }); }, []));
     const onType = (v) => { setTyped(v); clearTimeout(t.current); t.current = setTimeout(() => setQ(v.trim()), 400); };
@@ -69,8 +85,9 @@ export default function OwnerCustomersScreen() {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }} style={{ flexGrow: 0 }}>
                 {chip('all', 'Everyone')}
                 {TAG_ORDER.map((k) => chip(k, TAGS[k].label, counts ? counts[k] : null))}
+                {chip('blocked', 'Blocked', blocked ? blocked.length : null)}
             </ScrollView>
-            {tag !== 'all' ? <Text style={{ color: muted, fontSize: 12, paddingHorizontal: 16, marginTop: 8 }}>{TAGS[tag].hint}</Text> : null}
+            {tag === 'blocked' ? <Text style={{ color: muted, fontSize: 12, paddingHorizontal: 16, marginTop: 8 }}>{tr('Customers you blocked: when, why, and the order it was about. You can unblock them here.')}</Text> : tag !== 'all' ? <Text style={{ color: muted, fontSize: 12, paddingHorizontal: 16, marginTop: 8 }}>{TAGS[tag].hint}</Text> : null}
             <Pressable onPress={() => nav.navigate('OwnerAutopilot')} style={{ marginHorizontal: 16, marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: alpha(primary, 0.1), flexDirection: 'row', alignItems: 'center' }}>
                 <Ionicons name="rocket" size={20} color={primary} />
                 <Text style={{ flex: 1, color: text, fontWeight: '800', marginLeft: 10 }}>{tr('Autopilot: reminders that go out by themselves')}</Text>
@@ -83,12 +100,13 @@ export default function OwnerCustomersScreen() {
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Customers')} />
             <FlatList
-                data={items || []}
+                data={tag === 'blocked' ? blockedShown : (items || [])}
                 keyExtractor={(u) => String(u.id)}
                 keyboardShouldPersistTaps="handled"
                 contentContainerStyle={{ paddingBottom: 32 }}
                 ListHeaderComponent={header}
                 renderItem={({ item: u }) => {
+                    if (tag === 'blocked') return <BlockedCard b={u} busy={busyId === u.id} onUnblock={unblock} />;
                     const tg = TAGS[u.tag];
                     const canRemind = u.id && u.orders > 0;
                     return (
@@ -111,8 +129,8 @@ export default function OwnerCustomersScreen() {
                         </Pressable>
                     );
                 }}
-                ListEmptyComponent={items === null ? <ListShimmer rows count={6} /> : err ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={err} /> : <Empty icon="people-outline" title={q ? tr('No customer found') : tag === 'all' ? tr('No customers yet') : tr('No {v1} customers', { v1: TAGS[tag].label.toLowerCase() })} hint={q ? tr('Try another name or number.') : tag === 'all' ? tr('Customers appear here when they sign in to your app.') : tr('Good news: nobody is here right now.')} />}
-                ListFooterComponent={more ? <Pressable onPress={() => { setLoadingMore(true); load(page + 1, q, tag); }} style={{ padding: 18, alignItems: 'center' }}>{loadingMore ? <LineShimmer width={90} height={16} /> : <Text style={{ color: primary, fontWeight: '800' }}>{tr('Show more')}</Text>}</Pressable> : null}
+                ListEmptyComponent={tag === 'blocked' ? (blocked === null ? <ListShimmer rows count={3} /> : <Empty icon="checkmark-circle-outline" title={tr('No blocked customers')} hint={tr('Nobody is blocked right now.')} />) : items === null ? <ListShimmer rows count={6} /> : err ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={err} /> : <Empty icon="people-outline" title={q ? tr('No customer found') : tag === 'all' ? tr('No customers yet') : tr('No {v1} customers', { v1: TAGS[tag].label.toLowerCase() })} hint={q ? tr('Try another name or number.') : tag === 'all' ? tr('Customers appear here when they sign in to your app.') : tr('Good news: nobody is here right now.')} />}
+                ListFooterComponent={tag === 'blocked' ? null : more ? <Pressable onPress={() => { setLoadingMore(true); load(page + 1, q, tag); }} style={{ padding: 18, alignItems: 'center' }}>{loadingMore ? <LineShimmer width={90} height={16} /> : <Text style={{ color: primary, fontWeight: '800' }}>{tr('Show more')}</Text>}</Pressable> : null}
             />
             {remind ? <RemindSheet visible customer={remind} onClose={() => setRemind(null)} onSent={() => load(1, q, tag)} /> : null}
         </View>

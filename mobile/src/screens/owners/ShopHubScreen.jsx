@@ -1,9 +1,11 @@
 // The shop menu: everything that is not one of the five tabs. It is the side menu opened by the hamburger at the top
 // left of every tab (components/owners/OwnerDrawer.jsx); the same list is also available as a full page (ShopHub).
-import React, { useCallback, useState } from 'react';
-import { View, ScrollView } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { View, ScrollView, TextInput, Pressable, Text } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useBrand } from '../../components/common/kit';
+import { searchMenu } from '../../utils/owners/menuSearch';
 import AppearanceSwitch from '../../components/owners/AppearanceSwitch';
 import { PageHeader, Card, Row, SectionTitle, Sheet, Button, Pill, Chips } from '../../components/owners/ui';
 import { Label } from '../../components/owners/menuBits';
@@ -16,6 +18,32 @@ import { useAuthStore } from '../../store/common/useAuthStore';
 import { ask } from '../../components/common/dialog';
 import { tr, LANGS, useLang } from '../../i18n';
 import LanguageSheet from '../../components/common/LanguageSheet';
+
+// words hidden inside each screen, so a search finds a screen by what is in it ("tip" finds Delivery area and fees)
+const WORDS = {
+    OwnerCategories: 'category section menu pictures timing hours reorder sort',
+    OwnerCollections: 'festival combo strip home collection special',
+    OwnerCustomers: 'customer block blocked unblock allow cash on delivery cod strikes phone orders history person people',
+    OwnerComplaints: 'complaint issue problem reply resolve',
+    OwnerReviews: 'review rating stars feedback delivery food',
+    OwnerMessages: 'message notify announcement broadcast sms push send',
+    OwnerAutopilot: 'autopilot reminder win back coupon inactive customers automatic',
+    OwnerRewards: 'points rewards badge loyalty levels expiry top riders gift bronze silver gold platinum',
+    OwnerCoupons: 'coupon discount code offer promo voucher only for dine in first order percent flat',
+    OwnerBanners: 'banner offer picture home slider image',
+    OwnerHero: 'hero login picture photo image slider home screen background',
+    OwnerBusiness: 'report chart sales progress revenue tips analytics growth',
+    OwnerPopular: 'popular best selling items top dishes week month',
+    OwnerTransactions: 'transactions bills payments invoice money history year month gst receipt',
+    OwnerDineIn: 'dine in tables table qr sticker print walkout unpaid bill tip waiter call feedback refer friend offers welcome regular happy hour split busy auto ready served report scan nudge limit',
+    OwnerHours: 'opening hours timing holiday closed weekly open close time',
+    OwnerDelivery: 'delivery area fee distance radius pin map packaging charge tips minimum order preparation time free above km',
+    OwnerRiderRules: 'rider riders cash limit cod pickup cash orders waiting change pickup time orders at the same time delivery limit table bill block pay payout pin tracking assign automatic manual',
+    OwnerMoneyRules: 'cancel cancelled refund rules cost who pays order loss',
+    OwnerShopSettings: 'phone address sms alerts monthly report shop name contact',
+    OwnerActivity: 'activity log history changes audit who changed',
+    LegalList: 'terms privacy policy agreement legal',
+};
 
 // [icon, title, subtitle, route]
 const GROUPS = [
@@ -34,6 +62,7 @@ const GROUPS = [
     ['Offers', [
         ['pricetag', 'Coupons', 'Discount codes', 'OwnerCoupons'],
         ['images', 'Banners', 'Pictures on the home screen', 'OwnerBanners'],
+        ['image', 'Login and home pictures', 'The big pictures that slide at the top', 'OwnerHero'],
     ]],
     ['Money', [
         ['trending-up', 'Business report', 'Progress charts, what customers like, tips', 'OwnerBusiness'],
@@ -105,7 +134,44 @@ export function ShopMenu({ onGo }) {
         if (yes) logout();
     };
 
+    const [q, setQ] = useState('');
+    const { primary, border, muted, text, surface } = useBrand();
+    // every row of the menu as one list for the search (the ones with a screen of their own, and the ones that open a sheet)
+    const entries = useMemo(() => [
+        { icon: 'volume-high', title: 'Soundbox', subtitle: 'New-order sound, voice and volume', group: 'Alerts', words: 'sound voice volume alert new order ring announce speaker', act: () => go('Soundbox') },
+        { icon: 'flame', title: 'Busy mode', subtitle: 'Show a longer wait when you are rushed', group: 'Kitchen', words: 'busy rushed longer wait kitchen crowd', act: () => setBusyOpen(true) },
+        { icon: 'document-text', title: 'Closing report', subtitle: 'The day in one page: sales, cash, orders', group: 'Kitchen', words: 'closing report day sales cash end of day summary', act: () => go('OwnerClosing') },
+        ...GROUPS.flatMap(([group, rows]) => rows.map(([icon, title, subtitle, route]) => ({ icon, title, subtitle, group, words: WORDS[route] || '', act: () => go(route) }))),
+        { icon: 'help-buoy', title: 'Help and support', subtitle: 'Ask the platform team for help', group: 'Your app', words: 'help support ask platform team contact problem', act: () => go('OwnerSupport') },
+        { icon: 'person-circle', title: 'My profile', subtitle: 'Your name, picture and email', group: 'Your app', words: 'profile name picture email account', act: () => go('OwnerProfile') },
+        { icon: 'language', title: 'Language', subtitle: 'Choose the language of the app', group: 'Your app', words: 'language hindi tamil telugu marathi translate', act: () => setLangOpen(true) },
+        { icon: 'eye', title: 'See the customer app', subtitle: 'Look at your shop the way customers do', group: 'Your app', words: 'customer view preview app', act: customerView },
+        { icon: 'log-out', title: 'Log out', subtitle: 'Sign out of this phone', group: 'Your app', words: 'logout log out sign out exit', act: out },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    ], []);
+    const found = q.trim() ? searchMenu(entries, q, (e) => `${e.title} ${tr(e.title)}`) : null;
+
     return (
+        <View>
+            <View style={{ marginHorizontal: 16, marginTop: 6, marginBottom: 4, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: border, backgroundColor: surface, borderRadius: 14, paddingHorizontal: 12 }}>
+                <Ionicons name="search" size={18} color={muted} />
+                <TextInput
+                    value={q} onChangeText={setQ} placeholder={tr('Search the menu')} placeholderTextColor={muted} autoCorrect={false} autoCapitalize="none"
+                    style={{ flex: 1, paddingVertical: 11, paddingHorizontal: 8, color: text, fontSize: 15 }}
+                />
+                {q ? <Pressable onPress={() => setQ('')} hitSlop={8}><Ionicons name="close-circle" size={18} color={muted} /></Pressable> : null}
+            </View>
+
+            {found ? (
+                <View>
+                    <SectionTitle title={found.length ? tr('{n} found', { n: found.length }) : tr('Nothing found')} />
+                    {found.length ? (
+                        <Card>
+                            {found.map((e, i) => <Row key={e.title} icon={e.icon} title={e.title} subtitle={`${tr(e.group)} · ${e.subtitle}`} last={i === found.length - 1} onPress={() => { setQ(''); e.act(); }} />)}
+                        </Card>
+                    ) : <Text style={{ color: muted, paddingHorizontal: 20, paddingVertical: 8 }}>{tr('Try another word, like cash, tip, table or picture.')}</Text>}
+                </View>
+            ) : (
         <View>
             <SectionTitle title={tr('Alerts')} />
             <Card>
@@ -138,6 +204,9 @@ export function ShopMenu({ onGo }) {
                 <Row icon="eye" title={tr('See the customer app')} subtitle={tr('Look at your shop the way customers do. You cannot order from your own number.')} onPress={customerView} />
                 <Row icon="log-out" title={tr('Log out')} color={error} onPress={out} last />
             </Card>
+
+        </View>
+            )}
 
             <LanguageSheet visible={langOpen} onClose={() => setLangOpen(false)} />
             <BusySheet visible={busyOpen} busy={busy} onClose={() => setBusyOpen(false)} onChanged={setBusyState} />

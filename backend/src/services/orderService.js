@@ -178,7 +178,9 @@ async function prepare({ tenant, userId, body, quoting }) {
             if (waiting >= max) pickupProblem = { status: 409, message: `You already have ${waiting} pickup order${waiting === 1 ? '' : 's'} waiting to be collected. Collect ${waiting === 1 ? 'it' : 'one'} first, then order again.` };
         }
     }
-    return { config, priced, address, user, problem: owedProblem || pickupProblem || checkPlacement({ tenant, config, body, priced, address, user, cod, online, dine, quoting }) };
+    // different kinds of order at once: a table bill blocks delivery / pickup, too many open deliveries, too much cash owed together
+    const mixProblem = owedProblem || pickupProblem ? null : await require('./orderMix').check({ tenant, config, userId, priced, body }).catch(() => null);
+    return { config, priced, address, user, problem: owedProblem || pickupProblem || mixProblem || checkPlacement({ tenant, config, body, priced, address, user, cod, online, dine, quoting }) };
 }
 
 /* ------------------------------ quote (cart screen) ------------------------------ */
@@ -422,42 +424,85 @@ async function reorderCart({ tenant, userId, orderId }) {
     return { items, skipped };
 }
 
-// The customer moves his pickup to a LATER time window (never an earlier one). The shop is told.
-const PICKUP_CHANGES_MAX = 2;
+// The customer ASKS to move his pickup to a LATER time window (never an earlier one). Nothing changes until the shop says yes.
+const ACTIVE_PICKUP = ['placed', 'accepted', 'preparing', 'ready'];
 const istClock = (d) => new Date(d).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit' });
 const istDay = (d) => new Date(d).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short' });
 const when = (from, to) => `${istDay(from)}, ${istClock(from)} – ${istClock(to)}`;
 function canChangePickup(order, tenant) {
     const rules = { ...DEFAULTS.orders.pickupRules, ...(tenant.settings?.orders?.pickupRules || {}) };
-    return order.orderType === 'pickup' && rules.canChange !== false && ['placed', 'accepted', 'preparing', 'ready'].includes(order.status)
-        && (order.pickupChanges || 0) < PICKUP_CHANGES_MAX && !!order.scheduledFor;
+    return order.orderType === 'pickup' && rules.canChange !== false && ACTIVE_PICKUP.includes(order.status)
+        && (order.pickupChanges || 0) < ({ ...DEFAULTS.orders.limits, ...(tenant.settings?.orders?.limits || {}) }).pickupAsksMax && !!order.scheduledFor && !order.pickupRequest?.from;
 }
-async function changePickupTime({ tenant, userId, orderId, pickupSlot }) {
+async function requestPickupTime({ tenant, userId, orderId, pickupSlot }) {
     const order = await Order.findOne({ _id: orderId, tenantId: tenant._id, userId });
     if (!order) throw httpError(404, 'Order not found');
     if (order.orderType !== 'pickup') throw httpError(400, 'Only a pickup order has a pickup time');
-    if (!['placed', 'accepted', 'preparing', 'ready'].includes(order.status)) throw httpError(409, 'This order can no longer be changed');
+    if (!ACTIVE_PICKUP.includes(order.status)) throw httpError(409, 'This order can no longer be changed');
     const rules = { ...DEFAULTS.orders.pickupRules, ...(resolveConfig(tenant).orders.pickupRules || {}) };
     if (rules.canChange === false) throw httpError(400, 'This shop does not allow changing the pickup time');
-    if ((order.pickupChanges || 0) >= PICKUP_CHANGES_MAX) throw httpError(409, `The pickup time can be changed only ${PICKUP_CHANGES_MAX} times`);
+    if (order.pickupRequest?.from) throw httpError(409, 'You have already asked. Please wait for the shop to reply.');
+    const asksMax = ({ ...DEFAULTS.orders.limits, ...(resolveConfig(tenant).orders.limits || {}) }).pickupAsksMax;
+    if ((order.pickupChanges || 0) >= asksMax) throw httpError(409, `You can ask to change the pickup time only ${asksMax} times`);
     const slot = findPickupSlot(tenant, pickupSlot);
     if (!slot) throw httpError(409, 'That pickup time is no longer available. Pick another.');
-    const oldFrom = order.scheduledFor, oldTo = order.pickupUntil;
-    if (new Date(slot.from).getTime() <= new Date(oldFrom).getTime()) throw httpError(400, 'Pick a time later than your current pickup time');
+    if (new Date(slot.from).getTime() <= new Date(order.scheduledFor).getTime()) throw httpError(400, 'Pick a time later than your current pickup time');
     const r = await Order.updateOne(
-        { _id: order._id, status: { $in: ['placed', 'accepted', 'preparing', 'ready'] }, scheduledFor: oldFrom },
-        { $set: { scheduledFor: new Date(slot.from), pickupUntil: new Date(slot.to), pickupNotified: {} }, $inc: { pickupChanges: 1 } },
+        { _id: order._id, status: { $in: ACTIVE_PICKUP }, 'pickupRequest.from': { $exists: false } },
+        { $set: { pickupRequest: { from: new Date(slot.from), to: new Date(slot.to), at: new Date() } }, $inc: { pickupChanges: 1 } },
     );
     if (!r.modifiedCount) throw httpError(409, 'This order just changed. Please try again.');
     try {
-        require('./orderLook').byId(tenant._id, order._id, 'pickup_time_changed');
-        require('../notifications/center').notify('pickup_time_changed', {
+        require('./orderLook').byId(tenant._id, order._id, 'pickup_time_request');
+        require('../notifications/center').notify('pickup_time_request', {
             tenantId: tenant._id,
-            vars: { orderNo: order.orderNo, brief: require('../utils/orderBrief').brief(order), was: when(oldFrom, oldTo), now: when(slot.from, slot.to) },
+            vars: { orderNo: order.orderNo, name: order.customer?.name, brief: require('../utils/orderBrief').brief(order), was: when(order.scheduledFor, order.pickupUntil), asked: when(slot.from, slot.to) },
             data: { orderId: String(order._id), orderNo: order.orderNo },
         });
     } catch (e) { console.error('Pickup time notice error:', e.message); }
     return Order.findById(order._id);
+}
+
+// the owner's list of asks waiting for an answer
+async function pickupRequests(tenantId) {
+    const list = await Order.find({ tenantId, orderType: 'pickup', status: { $in: ACTIVE_PICKUP }, 'pickupRequest.from': { $exists: true }, ...HIDE_UNPAID })
+        .sort({ 'pickupRequest.at': 1 }).limit(20).lean();
+    return list.map((o) => ({
+        id: String(o._id), orderNo: o.orderNo, status: o.status, at: o.pickupRequest.at,
+        customer: { name: o.customer?.name || null, phone: o.customer?.phone || null },
+        items: (o.items || []).map((l) => ({ name: l.name, quantity: l.quantity })),
+        total: o.pricing?.total || 0, pay: { method: o.payment?.method, status: o.payment?.status },
+        was: { from: o.scheduledFor, to: o.pickupUntil }, asked: { from: o.pickupRequest.from, to: o.pickupRequest.to },
+    }));
+}
+
+// the owner says yes (the time is changed) or no (it stays); the customer is told politely either way
+async function answerPickupRequest({ tenant, orderId, accept, message }) {
+    const order = await Order.findOne({ _id: orderId, tenantId: tenant._id, orderType: 'pickup' });
+    const ask = order?.pickupRequest;
+    if (!ask?.from) throw httpError(404, 'There is nothing to answer for this order');
+    if (!ACTIVE_PICKUP.includes(order.status)) {
+        await Order.updateOne({ _id: order._id }, { $unset: { pickupRequest: 1 } });
+        throw httpError(409, 'This order is already closed');
+    }
+    const msg = String(message || '').trim().slice(0, 200);
+    const was = when(order.scheduledFor, order.pickupUntil);
+    if (accept && new Date(ask.to).getTime() <= Date.now()) throw httpError(409, 'That time is already over. Please say no.');
+    const r = await Order.updateOne(
+        { _id: order._id, 'pickupRequest.from': ask.from },
+        accept
+            ? { $set: { scheduledFor: ask.from, pickupUntil: ask.to, pickupNotified: {} }, $unset: { pickupRequest: 1 } }
+            : { $unset: { pickupRequest: 1 } },
+    );
+    if (!r.modifiedCount) throw httpError(409, 'This was already answered');
+    try {
+        require('../notifications/center').notify(accept ? 'pickup_time_ok' : 'pickup_time_no', {
+            tenantId: tenant._id, userId: order.userId,
+            vars: { orderNo: order.orderNo, was, now: when(ask.from, ask.to), asked: when(ask.from, ask.to), message: msg },
+            data: { orderId: String(order._id), orderNo: order.orderNo },
+        });
+    } catch (e) { console.error('Pickup answer notice error:', e.message); }
+    return { ok: true, accepted: !!accept };
 }
 
 async function updateStatusByShop({ tenantId, actor, orderId, status, note, reasonCode, pickupCode, skipCode }) {
@@ -477,6 +522,6 @@ async function updateStatusByShop({ tenantId, actor, orderId, status, note, reas
 }
 
 module.exports = {
-    quote, placeOrder, pickupSlots, changePickupTime, canChangePickup, cancelByCustomer, reorderCart, updateStatusByShop,
+    quote, placeOrder, pickupSlots, requestPickupTime, pickupRequests, answerPickupRequest, canChangePickup, cancelByCustomer, reorderCart, updateStatusByShop,
     customerCanCancel, nextStatuses,
 };

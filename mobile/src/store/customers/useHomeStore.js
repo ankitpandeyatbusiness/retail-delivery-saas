@@ -35,6 +35,7 @@ const FULL_DEFAULTS = {
         emptySearch: 'No dishes found', closedMessage: 'We are closed right now',
     },
     offers: { couponsEnabled: true, showOnHome: true, showInCart: true },
+    points: { customer: true, rider: true },
     brand: {},
     hours: {},
     restaurant: { isOpen: true, closedReason: null },

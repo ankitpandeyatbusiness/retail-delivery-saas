@@ -126,10 +126,10 @@ router.get('/:id', wrap(async (req, res) => {
     res.json(view(order, req.tenant));
 }));
 
-// move a pickup to a later time window (the shop is told)
+// ask to move a pickup to a later time window (the shop says yes or no)
 router.post('/:id/pickup-time', wrap(async (req, res) => {
     checkId(req);
-    const order = await svc.changePickupTime({ tenant: req.tenant, userId: req.auth.userId, orderId: req.params.id, pickupSlot: req.body?.pickupSlot });
+    const order = await svc.requestPickupTime({ tenant: req.tenant, userId: req.auth.userId, orderId: req.params.id, pickupSlot: req.body?.pickupSlot });
     res.json(view(order, req.tenant));
 }));
 

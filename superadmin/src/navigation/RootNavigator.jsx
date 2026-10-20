@@ -88,6 +88,8 @@ import SettingsHomeScreen from '../screens/settings/SettingsHomeScreen';
 import SettingsFeaturesScreen from '../screens/settings/SettingsFeaturesScreen';
 import SettingsMenuOffersScreen from '../screens/settings/SettingsMenuOffersScreen';
 import SettingsOrdersScreen from '../screens/settings/SettingsOrdersScreen';
+import SettingsDineInScreen from '../screens/settings/SettingsDineInScreen';
+import SettingsPointsScreen from '../screens/settings/SettingsPointsScreen';
 import SettingsHoursScreen from '../screens/settings/SettingsHoursScreen';
 import SettingsRidersScreen from '../screens/settings/SettingsRidersScreen';
 import SettingsLabelsScreen from '../screens/settings/SettingsLabelsScreen';
@@ -134,6 +136,8 @@ function ShopsStack() {
             <Shops.Screen name="SettingsFeatures" component={SettingsFeaturesScreen} />
             <Shops.Screen name="SettingsMenuOffers" component={SettingsMenuOffersScreen} />
             <Shops.Screen name="SettingsOrders" component={SettingsOrdersScreen} />
+            <Shops.Screen name="SettingsDineIn" component={SettingsDineInScreen} />
+            <Shops.Screen name="SettingsPoints" component={SettingsPointsScreen} />
             <Shops.Screen name="SettingsHours" component={SettingsHoursScreen} />
             <Shops.Screen name="SettingsRiders" component={SettingsRidersScreen} />
             <Shops.Screen name="SettingsLabels" component={SettingsLabelsScreen} />

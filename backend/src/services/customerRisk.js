@@ -3,6 +3,7 @@
 // (PATCH /api/shop/customers/:userId/cod-block).
 const User = require('../models/User');
 const CustomerRisk = require('../models/CustomerRisk');
+const Tenant = require('../models/Tenant');
 const { hashPhone } = require('../utils/phoneHash');
 
 const MAX_STRIKES = 2;
@@ -21,7 +22,10 @@ async function addStrike(order, now = new Date()) {
         { $inc: { strikes: 1 } },
         { upsert: true, returnDocument: 'after' },
     );
-    if (row.strikes >= MAX_STRIKES && !row.codBlocked) {
+    // the shop's own number of strikes (orders.limits.strikesMax, set by the super admin)
+    const t = await Tenant.findById(order.tenantId).select('settings.orders.limits.strikesMax').lean();
+    const max = t?.settings?.orders?.limits?.strikesMax || MAX_STRIKES;
+    if (row.strikes >= max && !row.codBlocked) {
         await CustomerRisk.updateOne({ _id: row._id, codBlocked: { $ne: true } }, { $set: { codBlocked: true, codBlockedAt: now } });
     }
     return row.strikes;

@@ -9,6 +9,8 @@ export const updateShop = (id, body) => data(api.put(T(id), body));
 // everything a developer needs to know about one shop's app (read only), plus the developer's own notes
 export const fetchDevDetails = (id) => data(api.get(`${T(id)}/dev-details`));
 export const saveDevNotes = (id, notes) => data(api.put(`${T(id)}/dev-notes`, { notes }));
+export const fetchPoints = (id) => data(api.get(`${T(id)}/loyalty`));
+export const savePoints = (id, body) => data(api.put(`${T(id)}/loyalty`, body));
 export const fetchOptions = () => data(api.get('/admin/options'));
 
 export const fetchLive = (id) => data(api.get(`${T(id)}/live`));

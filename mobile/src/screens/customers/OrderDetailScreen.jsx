@@ -314,7 +314,7 @@ export default function OrderDetailScreen() {
                 </Appear>
 
                 {o.orderType === 'pickup' && o.pickupCode ? (
-                    <View style={{ alignItems: 'center', marginHorizontal: 16, marginBottom: 12, padding: 16, borderRadius: 18, backgroundColor: tint(primary) }}>
+                    <View style={{ alignItems: 'center', marginHorizontal: 16, marginTop: 14, marginBottom: 12, padding: 16, borderRadius: 18, backgroundColor: tint(primary) }}>
                         <Text style={{ color: muted, fontWeight: '700', fontSize: 12.5 }}>{tr('YOUR PICKUP CODE')}</Text>
                         <Text style={{ color: primary, fontSize: 40, fontWeight: '900', letterSpacing: 12, marginTop: 4, paddingLeft: 12 }}>{o.pickupCode}</Text>
                         <Text style={{ color: muted, fontSize: 12.5, marginTop: 6, textAlign: 'center' }}>
@@ -392,6 +392,9 @@ export default function OrderDetailScreen() {
                 {timeLine ? (
                     <Card title={delivery ? tr('Scheduled for') : tr('Pickup time')} icon="calendar-outline" delay={180}>
                         <Text style={[s.itemName, { color: text }]}>{timeLine}</Text>
+                        {o.pickupRequest?.from ? (
+                            <Text style={{ color: muted, marginTop: 8, fontSize: 13 }}>{tr('You asked for {time}. Waiting for the shop to reply.', { time: `${fmt(o.pickupRequest.from)} – ${tm(o.pickupRequest.to)}` })}</Text>
+                        ) : null}
                         {o.canChangePickup ? (
                             <Pressable onPress={() => setPtSheet(true)} hitSlop={8} style={{ marginTop: 10 }}>
                                 <Text style={{ color: primary, fontWeight: '800', fontSize: 14 }}>{tr('Change pickup time')}</Text>

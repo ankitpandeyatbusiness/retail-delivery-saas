@@ -25,6 +25,7 @@ const productSchema = new mongoose.Schema({
     name: { type: String, required: true, trim: true },
     description: String,
     image: String,
+    images: [String],   // up to 4 more pictures of the dish; the customer app slides through image + images
 
     // What the item is (Sweet, Food, Drink...) and how it is sold. The kinds come from config/businessTypes.js.
     itemKind: { type: String, trim: true, lowercase: true, match: /^[a-z_]{2,20}$/ },
@@ -54,7 +55,7 @@ const productSchema = new mongoose.Schema({
     isBestseller: { type: Boolean, default: false },
     isNewArrival: { type: Boolean, default: false },   // not "isNew": Mongoose reserves that name
     isGiftPack: { type: Boolean, default: false },
-    maxPerOrder: { type: Number, min: 1, max: 20, validate: { validator: Number.isInteger, message: 'maxPerOrder must be a whole number' } },   // the most one order may have of this item (empty = no limit)
+    maxPerOrder: { type: Number, min: 1, max: 20, validate: { validator: (v) => v == null || Number.isInteger(v), message: 'maxPerOrder must be a whole number' } },   // the most one order may have of this item (empty = no limit)
     serves: Number,
     calories: { type: Number, min: 0 },
     prepTimeMin: Number,

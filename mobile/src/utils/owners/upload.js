@@ -1,6 +1,7 @@
 // A picture for a menu record (item, category, collection...): pick it, then sign -> PUT to storage -> confirm.
 // Throws an Error with `safe: true` whose message can be shown to the owner as it is.
 import * as ImagePicker from 'expo-image-picker';
+import { fileSize, putFile } from '../common/fileUpload';
 import { signUpload, confirmUpload, signSupportPhoto, confirmSupportPhoto } from '../../api/owners/shopApi';
 
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -24,21 +25,20 @@ export async function uploadImage({ kind, uri, mimeType, refId, via }) {
     // via 'support': the picture of a help request (its own route, which stays open while the shop is paused)
     const sign = via === 'support' ? signSupportPhoto : signUpload;
     const confirm = via === 'support' ? confirmSupportPhoto : confirmUpload;
-    let blob;
-    try { blob = await (await fetch(uri)).blob(); } catch (e) { throw fail('Could not read that picture'); }
-    if (!blob.size) throw fail('That picture is empty');
-    if (blob.size > MAX_BYTES) throw fail('That picture is larger than 5 MB. Choose a smaller one.');
+    const size = fileSize(uri);
+    if (!size) throw fail('Could not read that picture');
+    if (size > MAX_BYTES) throw fail('That picture is larger than 5 MB. Choose a smaller one.');
     const contentType = ALLOWED.includes(mimeType) ? mimeType : 'image/jpeg';
     const ref = refId ? { refId: String(refId) } : {};
 
     let signed;
-    try { signed = await sign({ kind, contentType, bytes: blob.size, ...ref }); }
+    try { signed = await sign({ kind, contentType, bytes: size, ...ref }); }
     catch (e) { throw fail(e?.response?.data?.error || 'Uploads are not available right now'); }
 
-    let put;
-    try { put = await fetch(signed.uploadUrl, { method: signed.method || 'PUT', headers: signed.headers || { 'Content-Type': contentType }, body: blob }); }
+    let sent;
+    try { sent = await putFile(uri, { url: signed.uploadUrl, method: signed.method, headers: signed.headers || { 'Content-Type': contentType } }); }
     catch (e) { throw fail('Upload failed. Check the connection and try again.'); }
-    if (!put.ok) throw fail('Upload failed. Please try again.');
+    if (!sent) throw fail('Upload failed. Please try again.');
 
     try { return await confirm({ kind, key: signed.key, ...ref }); }
     catch (e) { throw fail(e?.response?.data?.error || 'Could not save that picture'); }

@@ -1,6 +1,6 @@
 // On the table bill: ask the staff for something, add a tip for the waiter, and split the bill between friends.
 import React, { useState } from 'react';
-import { Text, TextInput, View } from 'react-native';
+import { Pressable, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../common/kit';
 import { Card, Button } from '../owners/ui';
@@ -87,33 +87,40 @@ export function TipCard({ bill }) {
 }
 
 export function SplitCard({ bill }) {
-    const { text, muted, ok, primary, border } = useBrand();
+    const { text, muted, ok, primary, border, surface } = useBrand();
     const user = useAuthStore((s) => s.user);
     const me = String(user?.id || user?._id || '');
     const shares = bill.shares || [];
     const base = bill.payable ?? bill.due;
-    const [n, setN] = useState(Math.max(2, shares.length));
+    const [n, setN] = useState(1);   // he is alone until he says otherwise: he sees his whole amount at once
     if (!(base > 0)) return null;
     const each = Math.ceil((base / n) * 100) / 100;
-    const step = (d) => setN((x) => Math.min(20, Math.max(2, x + d)));
+    const step = (d) => setN((x) => Math.min(20, Math.max(1, x + d)));
+    const dot = (icon, d, off) => (
+        <Pressable onPress={() => step(d)} disabled={off} hitSlop={6} style={{ width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: off ? alpha(muted, 0.12) : alpha(primary, 0.14) }}>
+            <Ionicons name={icon} size={20} color={off ? muted : primary} />
+        </Pressable>
+    );
     return (
         <Card>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-                <Ionicons name="people" size={20} color={primary} />
-                <Text style={{ color: text, fontWeight: '900', marginLeft: 8 }}>{tr('Split the bill')}</Text>
-            </View>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={{ flex: 1, color: muted, fontWeight: '700' }}>{tr('Equally between')}</Text>
-                <Button label="−" kind="ghost" onPress={() => step(-1)} style={{ width: 48 }} />
-                <Text style={{ color: text, fontWeight: '900', fontSize: 18, minWidth: 54, textAlign: 'center' }}>{tr('{n} people', { n })}</Text>
-                <Button label="+" kind="ghost" onPress={() => step(1)} style={{ width: 48 }} />
+                <Ionicons name="people" size={20} color={primary} />
+                <Text style={{ color: text, fontWeight: '900', marginLeft: 8, flex: 1 }}>{tr('Split the bill')}</Text>
             </View>
-            <View style={{ flexDirection: 'row', marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: alpha(border, 0.7) }}>
-                <Text style={{ flex: 1, color: text, fontWeight: '900' }}>{tr('Each pays')}</Text>
-                <Text style={{ color: ok, fontWeight: '900', fontSize: 18 }}>{rs(each)}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+                <Text style={{ flex: 1, color: muted, fontWeight: '700' }}>{tr('How many are eating?')}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', padding: 4, borderRadius: 24, borderWidth: 1, borderColor: border, backgroundColor: surface }}>
+                    {dot('remove', -1, n <= 1)}
+                    <Text style={{ color: text, fontWeight: '900', fontSize: 18, minWidth: 44, textAlign: 'center' }}>{n}</Text>
+                    {dot('add', 1, n >= 20)}
+                </View>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14, padding: 14, borderRadius: 14, backgroundColor: alpha(ok, 0.1) }}>
+                <Text style={{ flex: 1, color: text, fontWeight: '800' }}>{n === 1 ? tr('You pay') : tr('Each pays')}</Text>
+                <Text style={{ color: ok, fontWeight: '900', fontSize: 22 }}>{rs(each)}</Text>
             </View>
             {shares.length > 1 ? (
-                <View style={{ marginTop: 12 }}>
+                <View style={{ marginTop: 14 }}>
                     <Text style={{ color: muted, fontWeight: '800', fontSize: 12.5, marginBottom: 4 }}>{tr('OR BY WHO ORDERED')}</Text>
                     {shares.map((x) => (
                         <View key={x.userId} style={{ flexDirection: 'row', paddingVertical: 3 }}>
@@ -123,7 +130,7 @@ export function SplitCard({ bill }) {
                     ))}
                 </View>
             ) : null}
-            <Text style={{ color: muted, fontSize: 12, marginTop: 8 }}>{tr('This is only a guide. You still pay once, at the counter.')}</Text>
+            <Text style={{ color: muted, fontSize: 12, marginTop: 10 }}>{tr('This is only a guide. You still pay once, at the counter.')}</Text>
         </Card>
     );
 }

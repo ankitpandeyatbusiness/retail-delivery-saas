@@ -1,11 +1,10 @@
 // Pickup time windows for the cart screen.
-const { resolveConfig, openStatus } = require('./tenantConfigService');
+const { resolveConfig, openStatus, DEFAULTS } = require('./tenantConfigService');
 
 const IST_MS = 330 * 60000;
 const HOUR_MS = 3600000;
 const DAY_MS = 86400000;
 const STEP_MS = 5 * 60000;
-const MAX_PER_DAY = 12;
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -30,6 +29,7 @@ function pickupSlots(tenant, now = new Date()) {
             message: config.restaurant.closedReason === 'paused' ? 'The shop is not accepting orders right now' : config.hours.closedMessage,
         };
     }
+    const maxPerDay = ({ ...DEFAULTS.orders.limits, ...(config.orders.limits || {}) }).pickupSlotsPerDay;   // set by the super admin
     const nowMs = now.getTime();
     const readyMs = nowMs + (config.orders.prepTimeMin || 0) * 60000;
     const weekly = config.hours.weekly;
@@ -50,7 +50,7 @@ function pickupSlots(tenant, now = new Date()) {
         if (end - from < 30 * 60000 || end < readyMs) continue;
 
         const day = Math.min(1, Math.max(0, Math.round((istDayStart(s) - today0) / DAY_MS)));
-        if (perDay[day] >= MAX_PER_DAY) continue;
+        if (perDay[day] >= maxPerDay) continue;
         perDay[day] += 1;
         slots.push({
             from: new Date(s).toISOString(),

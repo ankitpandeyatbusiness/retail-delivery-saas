@@ -224,6 +224,7 @@ function AccountInner() {
     const favCount = useFavStore((st) => st.ids.length);
     const unread = useNotificationStore((st) => st.unread);
     const favOn = useHomeStore((st) => st.full.features.favourites);
+    const pointsOn = useHomeStore((st) => st.full.points?.customer !== false);
     const referOn = useHomeStore((st) => !!(st.full.orders.dineIn?.enabled && st.full.orders.dineIn?.referOn));
     const shop = useThemeStore((st) => st.theme.name);
     const shopPhone = useThemeStore((st) => st.theme.phone);
@@ -404,9 +405,11 @@ function AccountInner() {
                     ) : null}
                 </View>
 
-                <Group title={tr('REWARDS')} delay={100}>
-                    <Item icon="gift-outline" label={tr('My points')} sub={tr('Earn points and get money off')} onPress={() => nav.navigate('MyPoints')} last />
-                </Group>
+                {pointsOn ? (
+                    <Group title={tr('REWARDS')} delay={100}>
+                        <Item icon="gift-outline" label={tr('My points')} sub={tr('Earn points and get money off')} onPress={() => nav.navigate('MyPoints')} last />
+                    </Group>
+                ) : null}
 
                 <Group title={tr('PREFERENCES')} delay={110}>
                     <LanguageRow />

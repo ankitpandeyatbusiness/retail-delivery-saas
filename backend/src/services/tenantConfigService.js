@@ -145,7 +145,7 @@ function validateSettings(input) {
 
     // orders
     section('orders',
-        ['types', 'payments', 'minOrder', 'deliveryFee', 'packagingCharge', 'gst', 'tipOptions', 'prepTimeMin', 'acceptingOrders', 'pausedUntil', 'busy', 'codCap', 'pickupCod', 'pickupRules', 'dineIn'],
+        ['types', 'payments', 'minOrder', 'deliveryFee', 'packagingCharge', 'gst', 'tipOptions', 'prepTimeMin', 'acceptingOrders', 'pausedUntil', 'busy', 'codCap', 'pickupCod', 'pickupRules', 'mixRules', 'limits', 'dineIn'],
         (o, out, p) => {
             if (o.types !== undefined) { const v = listOf(p('types'), o.types, O.ORDER_TYPES, 1, 3); if (v) out.types = v; }
             if (o.payments !== undefined) { const v = listOf(p('payments'), o.payments, O.PAYMENT_METHODS, 1, 4); if (v) out.payments = v; }
@@ -218,6 +218,32 @@ function validateSettings(input) {
                     out.pickupRules = {};
                     if (c.openMax !== undefined && num(p('pickupRules.openMax'), c.openMax, 0, 10)) out.pickupRules.openMax = Math.floor(c.openMax);
                     if (c.canChange !== undefined && bool(p('pickupRules.canChange'), c.canChange)) out.pickupRules.canChange = c.canChange;
+                }
+            }
+            // platform rules for this shop, set from the super admin panel only (timings and counts that used to be fixed in the code)
+            if (o.limits !== undefined) {
+                const c = o.limits;
+                if (!isObj(c)) err(p('limits'), 'must be an object');
+                else {
+                    const RANGE = { pickupAsksMax: [1, 10], nudgeFirstMin: [0, 60], nudgeEveryMin: [1, 120], callGapMin: [0, 60], callClearHours: [1, 24], remindGapMin: [0, 1440], claimRetryMin: [0, 1440], scanGapMin: [0, 1440], strikesMax: [1, 10], pickupSlotsPerDay: [1, 24] };
+                    known(c, Object.keys(RANGE), p('limits'));
+                    out.limits = {};
+                    for (const [k, [lo, hi]] of Object.entries(RANGE)) if (c[k] !== undefined && num(p(`limits.${k}`), c[k], lo, hi)) out.limits[k] = Math.floor(c[k]);
+                }
+            }
+            // several kinds of order at once: the owner's protections
+            if (o.mixRules !== undefined) {
+                const c = o.mixRules;
+                if (!isObj(c)) err(p('mixRules'), 'must be an object');
+                else {
+                    known(c, ['dineBlocksOthers', 'deliveryOpenMax', 'exposureOn', 'exposureNew', 'exposureTrusted', 'regularAfter'], p('mixRules'));
+                    out.mixRules = {};
+                    if (c.dineBlocksOthers !== undefined && bool(p('mixRules.dineBlocksOthers'), c.dineBlocksOthers)) out.mixRules.dineBlocksOthers = c.dineBlocksOthers;
+                    if (c.exposureOn !== undefined && bool(p('mixRules.exposureOn'), c.exposureOn)) out.mixRules.exposureOn = c.exposureOn;
+                    if (c.deliveryOpenMax !== undefined && num(p('mixRules.deliveryOpenMax'), c.deliveryOpenMax, 0, 10)) out.mixRules.deliveryOpenMax = Math.floor(c.deliveryOpenMax);
+                    if (c.regularAfter !== undefined && num(p('mixRules.regularAfter'), c.regularAfter, 1, 50)) out.mixRules.regularAfter = Math.floor(c.regularAfter);
+                    if (c.exposureNew !== undefined && num(p('mixRules.exposureNew'), c.exposureNew, 0, 100000)) out.mixRules.exposureNew = c.exposureNew;
+                    if (c.exposureTrusted !== undefined && num(p('mixRules.exposureTrusted'), c.exposureTrusted, 0, 100000)) out.mixRules.exposureTrusted = c.exposureTrusted;
                 }
             }
             // dine in: the owner switches it on and says how many tables there are (more settings come with the table bill)
@@ -419,6 +445,8 @@ const DEFAULTS = {
         packagingCharge: 0, gst: { mode: 'none', percent: 0 },
         tipOptions: [], prepTimeMin: 20, acceptingOrders: true,
         dineIn: { enabled: false, tableCount: 10, autoCloseHours: 6, tabLimitNew: 500, tabLimitTrusted: 2000, trustedAfter: 3, atShopCheck: true, radiusM: 250, checkMinutes: 20, autoReady: false, readyMin: 15, autoServe: false, serveMin: 10, owedDaily: false, owedHour: 11, owedOnHome: true, referOn: false, referFriendPercent: 15, referFriendMax: 150, referPoints: 50, referLimit: 10, callOn: false, tipOn: false, tipChoices: [10, 20, 50], feedbackOn: false, welcomeOn: false, welcomePercent: 10, welcomeMax: 100, regularOn: false, regularAfter: 5, regularPercent: 5, regularMax: 50, happyOn: false, happyFrom: '15:00', happyTo: '18:00', happyPercent: 15, happyMax: 150, waitMin: 0, owedMax: 7, firstOnline: false, prefs: ['Make it spicy', 'Less spicy', 'Not spicy', 'Extra gravy', 'Less gravy', 'No coriander', 'No onion', 'No garlic', 'Less oil', 'Less salt'], busyAuto: true, busyPercent: 70, busyExtraMin: 10 },   // eating at the shop: on/off and how many tables
+        mixRules: { dineBlocksOthers: true, deliveryOpenMax: 3, exposureOn: true, exposureNew: 800, exposureTrusted: 3000, regularAfter: 3 },
+        limits: { pickupAsksMax: 3, nudgeFirstMin: 3, nudgeEveryMin: 10, callGapMin: 2, callClearHours: 2, remindGapMin: 30, claimRetryMin: 5, scanGapMin: 5, strikesMax: 2, pickupSlotsPerDay: 12 },   // timings and counts, set by the super admin   // several kinds of order at once (services/orderMix.js)
         pickupRules: { openMax: 2, canChange: true },   // pickup: orders one customer may have waiting (0 = no limit), and may he move his time
         pickupCod: { enabled: true, max: 0 },   // cash when the customer collects: allowed or not, and the highest order (0 = no limit)
         codCap: { amount: 1000, firstOrders: 3 },   // Cash on delivery is limited to this amount for a phone's first orders. amount 0 = off
@@ -589,6 +617,7 @@ function resolveConfig(tenant, now = new Date()) {
         },
         offers,
         labels,
+        points: { customer: tenant.settings?.loyalty?.customer?.enabled !== false, rider: tenant.settings?.loyalty?.rider?.enabled !== false },   // the shop's points system, on unless switched off
         app: { minVersion: clean.app?.minVersion || null },
         restaurant: {
             name: tenant.name,

@@ -44,6 +44,18 @@ router.put('/hero-order', wrap(async (req, res) => {
     res.json(await media.reorderHeroes({ tenant: req.tenant, ids: req.body?.ids }));
 }));
 
+// GET /hero -> the shop's login / home pictures in the order the app shows them: { items: [{ id, url }], max }
+router.get('/hero', wrap(async (req, res) => {
+    const [rows, t] = await Promise.all([
+        require('../models/Media').find({ tenantId: req.tenant._id, kind: 'hero' }).select('url').lean(),
+        require('../models/Tenant').findById(req.tenant._id).select('heroImages').lean(),
+    ]);
+    const order = t?.heroImages || [];
+    const at = (u) => { const i = order.indexOf(u); return i < 0 ? 999 : i; };
+    rows.sort((a, b) => at(a.url) - at(b.url));
+    res.json({ items: rows.map((m) => ({ id: String(m._id), url: m.url })), max: 5 });
+}));
+
 // a deleted hero image (or icon / splash) is removed from the bucket for good
 router.delete('/:id', wrap(async (req, res) => {
     res.json(await media.removeMedia({ tenant: req.tenant, id: req.params.id, allowed: allowedFor(req) }));

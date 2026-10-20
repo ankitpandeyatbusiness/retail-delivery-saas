@@ -120,7 +120,7 @@ core.get('/me', wrap(async (req, res) => {
     const r = await Rider.findOne({ tenantId: req.tenant._id, userId: req.riderId }).lean();
     if (!r) throw httpError(404, 'Rider not found');
     res.json({
-        userId: r.userId, name: r.name || null, phone: req.riderPhone, shop: req.tenant.name, shopPhone: req.tenant.phone || null,
+        userId: r.userId, name: r.name || null, phone: req.riderPhone, shop: req.tenant.name, shopPhone: req.tenant.phone || null, pointsOn: req.tenant.settings?.loyalty?.rider?.enabled !== false,
         isActive: r.isActive, isOnline: r.isOnline, vehicle: r.vehicle || null, photo: r.photo || null,
         activeOrderCount: r.activeOrderCount, ratingAvg: r.ratingAvg, ratingCount: r.ratingCount,
         avgDeliveryMin: deliveryPlan.avgMin(r), deliveryCount: r.deliveryCount || 0, lateCount: r.lateCount || 0,   // the record of his journeys

@@ -51,7 +51,7 @@ router.get('/menu', wrap(async (req, res) => {
     const [categories, products] = await Promise.all([
         Category.find({ tenantId }).sort({ sortOrder: 1, _id: 1 }).limit(200).lean(),
         Product.find({ tenantId, isActive: true }).sort({ sortOrder: 1, _id: 1 }).limit(600)
-            .select('categoryId name image price mrp isVeg isAvailable unavailableUntil optionGroups stock sellBy itemKind isBestseller isNewArrival isGiftPack isJain isEggless isSugarFree sortOrder').lean(),
+            .select('categoryId name image images price mrp isVeg isAvailable unavailableUntil optionGroups stock sellBy itemKind isBestseller isNewArrival isGiftPack isJain isEggless isSugarFree sortOrder').lean(),
     ]);
     const counts = {};
     for (const p of products) counts[String(p.categoryId)] = (counts[String(p.categoryId)] || 0) + 1;
@@ -196,7 +196,7 @@ router.patch('/products/:id/stock', wrap(async (req, res) => {
 
 router.use('/products', crud(Product, {
     fields: [
-        'categoryId', 'categoryName', 'name', 'description', 'image', 'price', 'mrp',
+        'categoryId', 'categoryName', 'name', 'description', 'image', 'images', 'price', 'mrp',
         'isVeg', 'isEggless', 'isSugarFree', 'isJain', 'spiceLevel',
         'isBestseller', 'isNewArrival', 'isGiftPack', 'serves', 'calories', 'prepTimeMin', 'maxPerOrder',
         'optionGroups', 'sizes', 'weightOptions', 'addOns',
@@ -207,6 +207,10 @@ router.use('/products', crud(Product, {
     searchField: 'name',
     softDelete: true,
     check: async (d, req) => {
+        if (d.images !== undefined) {   // up to 4 more pictures, links only, no repeats
+            if (!Array.isArray(d.images) || d.images.length > 4 || d.images.some((u) => typeof u !== 'string' || !/^https?:\/\//.test(u) || u.length > 500)) throw httpError(400, 'You can add up to 4 more pictures');
+            d.images = [...new Set(d.images)].filter((u) => u !== d.image);
+        }
         await applyItemRules(d, req.tenant);
         const ok = d.categoryId && isId(String(d.categoryId)) &&
             await Category.exists({ _id: d.categoryId, tenantId: req.tenant._id });

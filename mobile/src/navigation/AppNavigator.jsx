@@ -27,9 +27,11 @@ import TableLinkHost from '../components/customers/TableLinkHost';
 import OwedReminder from '../components/customers/OwedReminder';
 import TableFeedbackHost from '../components/customers/TableFeedbackHost';
 import OwedClaimHost from '../components/owners/OwedClaimHost';
+import PickupChangeHost from '../components/owners/PickupChangeHost';
 import ScanTableScreen from '../screens/customers/ScanTableScreen';
 import OwnerRewardsScreen from '../screens/owners/OwnerRewardsScreen';
 import OwnerDineInScreen from '../screens/owners/OwnerDineInScreen';
+import OwnerHeroScreen from '../screens/owners/OwnerHeroScreen';
 import OwnerDineInReportScreen from '../screens/owners/OwnerDineInReportScreen';
 import ReferFriendScreen from '../screens/customers/ReferFriendScreen';
 import OwnerMoneyRulesScreen from '../screens/owners/OwnerMoneyRulesScreen';
@@ -354,6 +356,7 @@ export default function AppNavigator() {
                     <Stack.Screen name="OwnerAutopilot" component={OwnerAutopilotScreen} />
                     <Stack.Screen name="OwnerRewards" component={OwnerRewardsScreen} />
                     <Stack.Screen name="OwnerDineIn" component={OwnerDineInScreen} />
+                    <Stack.Screen name="OwnerHero" component={OwnerHeroScreen} />
                     <Stack.Screen name="OwnerDineInReport" component={OwnerDineInReportScreen} />
                     <Stack.Screen name="OwnerMoneyRules" component={OwnerMoneyRulesScreen} />
                     <Stack.Screen name="OwnerSupport" component={OwnerSupportScreen} />
@@ -381,6 +384,7 @@ export default function AppNavigator() {
             <TableFeedbackHost navRef={navigationRef} />
             <NewOrderPopup navRef={navigationRef} />
             <OwedClaimHost />
+            <PickupChangeHost />
             <LegalGate />
             <FrozenOverlay onOrders={goOrders} />
             <OfflineBanner />

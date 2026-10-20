@@ -2,19 +2,21 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     View, Text, Pressable, FlatList, Share, KeyboardAvoidingView, Platform, StyleSheet,
-    Animated, Easing, LayoutAnimation } from 'react-native';
+    Animated, Easing, LayoutAnimation, ScrollView, Dimensions } from 'react-native';
+import { Image } from 'expo-image';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useBrand, BackHeader } from '../../components/common/kit';
 import { Skel } from '../../components/common/motion';
-import { Pic, VegDot, Heart, Tile, showToast, closedText, tint, soldOutText, useClosedStyle } from '../../components/customers/shop';
+import { Pic, VegDot, Heart, Tile, showToast, closedText, tint, soldOutText, useClosedStyle, GREY } from '../../components/customers/shop';
 import { Press, Appear, ease } from '../../components/customers/cartParts';
 import SlideNum from '../../components/common/SlideNum';
 import { useHomeStore } from '../../store/customers/useHomeStore';
-import { useMenuStore, useCartStore } from '../../store/customers/shopStores';
-import { fetchProduct } from '../../api/customers/shopApi';
+import { useAuthStore } from '../../store/common/useAuthStore';
+import { useMenuStore, useCartStore, useFavStore } from '../../store/customers/shopStores';
+import { fetchProduct, fetchFavourites } from '../../api/customers/shopApi';
 import { onMenuChanged } from '../../api/common/socket';
 import { isMeasured, perUnit, amountLabel, measureRules, packPrice, startAmount } from '../../utils/customers/measure';
 import { TextInput } from 'react-native';
@@ -39,6 +41,40 @@ function initSel(p) {
 
 // same options picked = same cart line
 const sigOf = (sels) => (sels || []).map((x) => `${x.groupId}:${[...(x.optionIds || [])].sort().join(',')}`).sort().join('|');
+
+// The dish pictures: swipe left and right, dots show which one it is. It also moves on by itself every few seconds,
+// and leaves the picture alone for a while after the customer has touched it.
+function Gallery({ item, width, height }) {
+    const { soft } = useBrand();
+    const list = useMemo(() => [item.image, ...(Array.isArray(item.images) ? item.images : [])].filter(Boolean), [item.image, item.images]);
+    const [at, setAt] = useState(0);
+    const ref = useRef(null);
+    const touched = useRef(0);
+    const off = item.isAvailable === false;   // sold out: every picture is grey
+    useEffect(() => {
+        if (list.length < 2) return undefined;
+        const id = setInterval(() => {
+            if (Date.now() - touched.current < 8000) return;
+            setAt((a) => { const n = (a + 1) % list.length; ref.current?.scrollTo({ x: n * width, animated: true }); return n; });
+        }, 4000);
+        return () => clearInterval(id);
+    }, [list.length, width]);
+    if (list.length < 2) return <Pic item={item} style={{ width, height }} />;
+    return (
+        <View style={{ width, height, backgroundColor: soft }}>
+            <ScrollView
+                ref={ref} horizontal pagingEnabled showsHorizontalScrollIndicator={false} scrollEventThrottle={16}
+                onScrollBeginDrag={() => { touched.current = Date.now(); }}
+                onMomentumScrollEnd={(e) => setAt(Math.max(0, Math.min(list.length - 1, Math.round(e.nativeEvent.contentOffset.x / width))))}
+            >
+                {list.map((u) => <Image key={u} source={{ uri: u }} style={[{ width, height, backgroundColor: soft }, off && GREY]} contentFit="cover" cachePolicy="memory-disk" />)}
+            </ScrollView>
+            <View pointerEvents="none" style={{ position: 'absolute', bottom: 34, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center' }}>
+                {list.map((u, i) => <View key={u} style={{ width: i === at ? 18 : 7, height: 7, borderRadius: 4, marginHorizontal: 3, backgroundColor: i === at ? '#FFFFFF' : 'rgba(255,255,255,0.55)' }} />)}
+            </View>
+        </View>
+    );
+}
 
 function Skeleton() {
     const { background, surface, border } = useBrand();
@@ -207,6 +243,28 @@ export default function ItemScreen() {
         return (cat?.items || []).filter((i) => i._id !== p._id && i.isAvailable !== false).slice(0, 8);
     }, [menuCats, p]);
 
+    // his favourite dishes, shown under "You might also like" (only when he has some)
+    const user = useAuthStore((st) => st.user);
+    const favIds = useFavStore((st) => st.ids);
+    const [favs, setFavs] = useState([]);
+    const needFavs = !!user && !!full.features.favourites && favIds.length > 0;
+    const [favsDone, setFavsDone] = useState(false);
+    useEffect(() => {
+        if (!needFavs) { setFavs([]); return undefined; }
+        let on = true;
+        fetchFavourites().then((r) => { if (on) setFavs(r.items || []); }).catch(() => { }).finally(() => { if (on) setFavsDone(true); });
+        return () => { on = false; };
+    }, [needFavs, favIds.length]);
+    const favShown = useMemo(() => favs.filter((i) => p && i._id !== p._id), [favs, p]);
+    // A short page on a big screen would leave an empty gap above the buttons: the picture grows to fill exactly that gap, so nothing needs
+    // scrolling. A long page keeps the normal picture and scrolls freely. Until the page has measured itself (and the favourites have
+    // arrived) the shimmer stays, so the picture never jumps from one size to another.
+    const [viewH, setViewH] = useState(0);    // the scrolling area: the screen above the buttons
+    const [belowH, setBelowH] = useState(0);  // everything under the picture
+    const [boxW, setBoxW] = useState(Dimensions.get('window').width);
+    const ready = viewH > 0 && belowH > 0 && (!needFavs || favsDone);
+    const heroH = ready ? Math.round(Math.min(Math.max(270, viewH - belowH), viewH * 0.62)) : 270;
+
     let blocked = null;
     if (p) {
         if (!full.restaurant.isOpen) blocked = closedText(full);
@@ -358,17 +416,19 @@ export default function ItemScreen() {
     const btnBg = btn.interpolate({ inputRange: [0, 1], outputRange: ['#BBBBBB', primary] });
 
     return (
-        <KeyboardAvoidingView style={[s.flex, { backgroundColor: background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={[s.flex, { backgroundColor: background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            onLayout={(e) => setBoxW(Math.round(e.nativeEvent.layout.width))}>
             <Animated.ScrollView
-                ref={scrollRef} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
+                ref={scrollRef} style={{ opacity: ready ? 1 : 0 }} onLayout={(e) => setViewH(Math.round(e.nativeEvent.layout.height))} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
                 scrollEventThrottle={16}
                 onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
             >
                 <Animated.View style={{ transform: [{ translateY: heroY }, { scale: heroS }] }}>
-                    <Pic item={p} style={s.hero} />
+                    <Gallery item={p} width={boxW} height={heroH} />
                     <LinearGradient pointerEvents="none" colors={['rgba(0,0,0,0.38)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0.22)']} locations={[0, 0.45, 1]} style={StyleSheet.absoluteFill} />
                 </Animated.View>
 
+                <View onLayout={(e) => setBelowH(Math.round(e.nativeEvent.layout.height))}>
                 <View style={[s.body, { backgroundColor: background }]}>
                     <Appear>
                         <View style={s.nameRow}>
@@ -467,8 +527,21 @@ export default function ItemScreen() {
                         />
                     </Appear>
                 ) : null}
+                {favShown.length ? (
+                    <Appear delay={200} style={{ marginTop: 8, backgroundColor: background }}>
+                        <Text style={[s.sec, { color: text }]}>{tr('Your favourites')}</Text>
+                        <FlatList style={closedStyle}
+                            horizontal data={favShown} showsHorizontalScrollIndicator={false}
+                            keyExtractor={(i) => i._id} contentContainerStyle={s.strip}
+                            ItemSeparatorComponent={() => <View style={{ width: 10 }} />}
+                            renderItem={({ item }) => <Tile item={item} push />}
+                        />
+                    </Appear>
+                ) : null}
                 <View style={{ height: 24, backgroundColor: background }} />
+                </View>
             </Animated.ScrollView>
+            {!ready ? <View pointerEvents="none" style={StyleSheet.absoluteFill}><Skeleton /></View> : null}
 
             {/* top bar fades in after scrolling */}
             <Animated.View pointerEvents="none" style={[s.bar, { height: insets.top + 56, paddingTop: insets.top, backgroundColor: background, borderBottomColor: border, opacity: barOp }]}>

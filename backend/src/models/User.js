@@ -14,6 +14,8 @@ const userSchema = new mongoose.Schema({
     },
     role: { type: String, enum: ['customer', 'rider', 'admin'], default: 'customer' },
     isBlocked: { type: Boolean, default: false },
+    // why, when and by whom he was blocked, and the order or table bill it was about (kept until he is unblocked)
+    blockInfo: { at: Date, byType: String, byLabel: String, reason: String, orderId: mongoose.Schema.Types.ObjectId, sessionId: mongoose.Schema.Types.ObjectId },
     referralCode: { type: String, trim: true, uppercase: true },   // the code he shares to refer a friend (made the first time he asks)
     language: { type: String, enum: ['en', 'hi', 'bho', 'mr', 'gu', 'bn'] },   // the language this person reads (notifications and emails come in it)
     lastLoginAt: { type: Date },
@@ -40,6 +42,7 @@ userSchema.set('toJSON', {
         delete ret.__v;
         delete ret.refreshTokens;
         delete ret.isBlocked;
+        delete ret.blockInfo;
         delete ret.phoneHash;
         delete ret.notes;
         return ret;

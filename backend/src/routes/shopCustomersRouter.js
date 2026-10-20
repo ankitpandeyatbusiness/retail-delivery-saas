@@ -2,12 +2,15 @@
 //   GET   /                       ?q=&page=&limit=    the customers of this shop (full phones: they are his own customers)
 //   GET   /:userId                one customer with order numbers and Cash on delivery strikes
 //   PATCH /:userId                { name?, email?, notes? }   never the phone, never an owner or a rider
-//   PATCH /:userId/block          { blocked: true|false }  stop (or allow again) this customer in this shop; logs them out at once
+//   PATCH /:userId/block          { blocked: true|false, reason?, orderId?, sessionId? }  stop (or allow again) this customer in this shop; logs them out at once
+//   GET   /blocked                the blocked customers: when, by whom, why, and the order or table bill it was about
 //   PATCH /:userId/cod-block      { blocked: false }  allow Cash on delivery again (his strikes go back to 0)
 const express = require('express');
 const mongoose = require('mongoose');
 const apiErrors = require('../middlewares/apiErrors');
 const User = require('../models/User');
+const Order = require('../models/Order');
+const TableSession = require('../models/TableSession');
 const CustomerRisk = require('../models/CustomerRisk');
 const Session = require('../models/Session');
 const edit = require('../services/userEditService');
@@ -20,6 +23,33 @@ const router = express.Router();
 const isId = (v) => typeof v === 'string' && mongoose.isValidObjectId(v);
 const clamp = (n, min, max) => Math.min(Math.max(n, min), max);
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// why a customer is blocked, with the order (or table bill) it was about
+async function blockViews(tenantId, users) {
+    const orderIds = users.map((u) => u.blockInfo?.orderId).filter(Boolean);
+    const sessionIds = users.map((u) => u.blockInfo?.sessionId).filter(Boolean);
+    const [orders, sessions] = await Promise.all([
+        orderIds.length ? Order.find({ tenantId, _id: { $in: orderIds } }).select('orderNo orderType status pricing.total payment.method payment.status createdAt cancelReason items.name items.quantity tableNo').lean() : [],
+        sessionIds.length ? TableSession.find({ tenantId, _id: { $in: sessionIds } }).select('table owedPaise walkoutAt closedAt owedClearedAt').lean() : [],
+    ]);
+    const o = new Map(orders.map((x) => [String(x._id), x]));
+    const t = new Map(sessions.map((x) => [String(x._id), x]));
+    return users.map((u) => {
+        const b = u.blockInfo || {};
+        const od = b.orderId ? o.get(String(b.orderId)) : null;
+        const ts = b.sessionId ? t.get(String(b.sessionId)) : null;
+        return {
+            id: String(u._id), name: u.name || null, phone: u.phone || null,
+            at: b.at || null, byType: b.byType || null, byLabel: b.byLabel || null, reason: b.reason || null,
+            order: od ? {
+                id: String(od._id), orderNo: od.orderNo, orderType: od.orderType, status: od.status, total: od.pricing?.total || 0,
+                pay: { method: od.payment?.method, status: od.payment?.status }, at: od.createdAt, cancelReason: od.cancelReason || null,
+                items: (od.items || []).map((l) => ({ name: l.name, quantity: l.quantity })),
+            } : null,
+            table: ts ? { table: ts.table, amount: (ts.owedPaise || 0) / 100, at: ts.walkoutAt || ts.closedAt || null, cleared: !!ts.owedClearedAt } : null,
+        };
+    });
+}
 
 // the owner works only with customers of his own shop
 async function findCustomer(req) {
@@ -66,9 +96,15 @@ router.post('/:userId/remind', wrap(async (req, res) => {
     res.json(await autopilot.remind({ tenant: req.tenant, userId: req.params.userId, title: b.title, body: b.body, withOffer: b.withOffer === true }));
 }));
 
+router.get('/blocked', wrap(async (req, res) => {
+    const users = await User.find({ tenantId: req.tenant._id, role: 'customer', isBlocked: true }).sort({ 'blockInfo.at': -1, updatedAt: -1 }).limit(100).lean();
+    res.json({ items: await blockViews(req.tenant._id, users) });
+}));
+
 router.get('/:userId', wrap(async (req, res) => {
     const user = await findCustomer(req);
-    res.json({ ...edit.profileView(user), isBlocked: !!user.isBlocked, ...(await edit.detail(req.tenant._id, user)) });
+    const block = user.isBlocked ? (await blockViews(req.tenant._id, [user]))[0] : null;
+    res.json({ ...edit.profileView(user), isBlocked: !!user.isBlocked, block, ...(await edit.detail(req.tenant._id, user)) });
 }));
 
 router.patch('/:userId', wrap(async (req, res) => {
@@ -85,8 +121,18 @@ router.patch('/:userId/block', wrap(async (req, res) => {
     if (typeof req.body?.blocked !== 'boolean') throw httpError(400, 'Send blocked: true or false');
     const user = await findCustomer(req);   // customers only: never an owner or a rider
     req.auditBefore = { isBlocked: !!user.isBlocked };
-    await User.updateOne({ _id: user._id, tenantId: req.tenant._id }, { $set: { isBlocked: req.body.blocked } });
-    if (req.body.blocked) await Session.deleteMany({ userId: user._id });
+    if (req.body.blocked) {
+        // why: the owner's words, and the order (or table bill) of this customer it was about
+        const reason = typeof req.body.reason === 'string' ? req.body.reason.trim().slice(0, 300) : '';
+        let orderId; let sessionId;
+        if (isId(req.body.orderId) && await Order.exists({ _id: req.body.orderId, tenantId: req.tenant._id, userId: user._id })) orderId = req.body.orderId;
+        if (isId(req.body.sessionId) && await TableSession.exists({ _id: req.body.sessionId, tenantId: req.tenant._id, customers: user._id })) sessionId = req.body.sessionId;
+        const by = req.actor || {};
+        await User.updateOne({ _id: user._id, tenantId: req.tenant._id }, { $set: { isBlocked: true, blockInfo: { at: new Date(), byType: by.type || 'owner', byLabel: by.label || undefined, reason: reason || undefined, orderId, sessionId } } });
+        await Session.deleteMany({ userId: user._id });
+    } else {
+        await User.updateOne({ _id: user._id, tenantId: req.tenant._id }, { $set: { isBlocked: false }, $unset: { blockInfo: 1 } });
+    }
     res.json({ ok: true, isBlocked: req.body.blocked });
 }));
 

@@ -47,6 +47,8 @@ export const decideLeave = (id, body) => d(api.put(`/shop/riders/leaves/${id}`, 
 export const fetchDineTables = () => d(api.get('/shop/dine-in/tables'));
 export const fetchDineBill = (id) => d(api.get(`/shop/dine-in/sessions/${id}`));
 export const fetchDineQrSheet = (size) => d(api.get('/shop/dine-in/qr/sheet', { params: { size } }));
+export const fetchPickupRequests = () => d(api.get('/shop/pickup-requests'));
+export const answerPickupRequest = (id, accept, message) => d(api.post(`/shop/pickup-requests/${id}/answer`, { accept, message }));
 export const fetchOwedClaims = () => d(api.get('/shop/dine-in/claims'));
 export const answerOwedClaim = (id, ok, message) => d(api.post(`/shop/dine-in/claims/${id}/answer`, { ok, message }));
 export const fetchDineQr = () => d(api.get('/shop/dine-in/qr'));
@@ -131,6 +133,7 @@ export const reorder = (kind, ids) => d(api.put(`/shop/${kind}/order`, { ids }))
 // kind: logo | product | category | banner | collection | rider | order | hero
 export const signUpload = (body) => d(api.post('/shop/uploads/sign', body));       // { kind, refId?, contentType, bytes }
 export const confirmUpload = (body) => d(api.post('/shop/uploads/confirm', body));  // { kind, refId?, key, replaces? }
+export const fetchHeroes = () => d(api.get('/shop/uploads/hero'));   // { items: [{ id, url }], max }
 export const reorderHeroes = (ids) => d(api.put('/shop/uploads/hero-order', { ids }));
 export const deleteUpload = (id) => d(api.delete(`/shop/uploads/${id}`));
 
@@ -138,7 +141,8 @@ export const deleteUpload = (id) => d(api.delete(`/shop/uploads/${id}`));
 export const fetchCustomers = (params) => d(api.get('/shop/customers', q(params)));
 export const fetchCustomer = (userId) => d(api.get(`/shop/customers/${userId}`));
 export const updateCustomer = (userId, body) => d(api.patch(`/shop/customers/${userId}`, body));   // { name?, email?, notes? }
-export const blockCustomer = (userId, blocked) => d(api.patch(`/shop/customers/${userId}/block`, { blocked }));
+export const blockCustomer = (userId, blocked, extra = {}) => d(api.patch(`/shop/customers/${userId}/block`, { blocked, ...extra }));   // extra: { reason, orderId, sessionId }
+export const fetchBlocked = () => d(api.get('/shop/customers/blocked'));
 export const allowCod = (userId) => d(api.patch(`/shop/customers/${userId}/cod-block`, { blocked: false }));
 
 // what customers say: { kind:'dish'|'delivery', items, page, hasMore, summary:{dish:{avg,count,stars},delivery:{...}} }; params { kind, rating, page }
@@ -215,7 +219,7 @@ export const clearShopNotifications = () => d(api.delete('/shop/notifications'))
 export const readShopNotification = (id) => d(api.post(`/shop/notifications/${id}/read`));
 
 // What a failed call says, in the server's own words (they are written for the owner).
-export const apiError = (e, fallback = 'Something went wrong. Please try again.') => e?.response?.data?.error || fallback;
+export const apiError = (e, fallback = 'Something went wrong. Please try again.') => { const d = e?.response?.data; return d?.error ? (d.error === 'Validation failed' && d.errors?.[0] ? String(d.errors[0]) : d.error) : fallback; };   // a failed check says which field
 // The server answers 403 { paused: true } (rent unpaid) or { blocked: true } (panel switched off by the platform).
 export const accessState = (e) => {
     const x = e?.response?.data;

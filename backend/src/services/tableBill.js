@@ -22,6 +22,8 @@ async function peopleOf(tenantId, ids) {
     return new Map(users.map((u) => [String(u._id), { id: String(u._id), name: u.name || null, phone: u.phone || null, photo: photo.get(String(u._id)) || null }]));
 }
 
+// the timings and counts the super admin sets for this shop (orders.limits)
+const limitsFor = async (tenantId) => ({ ...DEFAULTS.orders.limits, ...((await Tenant.findById(tenantId).select('settings.orders.limits').lean())?.settings?.orders?.limits || {}) });
 const cfgOf = (tenant) => ({ ...DEFAULTS.orders.dineIn, ...(tenant?.settings?.orders?.dineIn || {}) });
 
 const ACTIVE = ['placed', 'accepted', 'preparing', 'ready'];   // still in the kitchen or on its way to the table
@@ -164,12 +166,13 @@ async function walkout({ tenantId, sessionId }) {
 async function nudge({ tenantId, userId }) {
     const s = await openFor(tenantId, userId);
     if (!s) throw fail(404, 'You have no open table');
+    const lim = await limitsFor(tenantId);
     const waiting = await Order.find({ tenantId, tableSessionId: s._id, status: { $in: ACTIVE } }).sort({ createdAt: 1 }).lean();
     if (!waiting.length) throw fail(409, 'Nothing is waiting in the kitchen');
     const minutes = Math.floor((Date.now() - new Date(waiting[0].createdAt).getTime()) / 60000);
-    if (minutes < 3) throw fail(409, 'Your order was just placed. Please give the kitchen a few minutes.');
+    if (minutes < lim.nudgeFirstMin) throw fail(409, 'Your order was just placed. Please give the kitchen a few minutes.');
     const claimed = await TableSession.findOneAndUpdate(
-        { _id: s._id, $or: [{ lastNudgeAt: { $exists: false } }, { lastNudgeAt: { $lte: new Date(Date.now() - 10 * 60000) } }] },
+        { _id: s._id, $or: [{ lastNudgeAt: { $exists: false } }, { lastNudgeAt: { $lte: new Date(Date.now() - lim.nudgeEveryMin * 60000) } }] },
         { $set: { lastNudgeAt: new Date() } },
     );
     if (!claimed) throw fail(429, 'The kitchen already knows. Please wait a few minutes before asking again.');
@@ -223,7 +226,8 @@ async function recordScan({ tenantId, table, key, source }) {
     try {
         const TableScan = require('../models/TableScan');
         const k = String(key || '').slice(0, 60);
-        if (k && await TableScan.exists({ tenantId, table, key: k, createdAt: { $gte: new Date(Date.now() - 5 * 60000) } })) return;
+        const gap = (await limitsFor(tenantId)).scanGapMin;
+        if (gap > 0 && k && await TableScan.exists({ tenantId, table, key: k, createdAt: { $gte: new Date(Date.now() - gap * 60000) } })) return;
         await TableScan.create({ tenantId, table, key: k || undefined, source: source === 'link' ? 'link' : 'app' });
     } catch (e) { /* the report just misses one */ }
 }
@@ -233,7 +237,7 @@ async function claimPaid({ tenantId, userId }) {
     if (!rows.length) throw fail(404, 'You have nothing to pay');
     if (rows.every((r) => r.claimAt)) return { ok: true, already: true };
     const lastNo = rows.map((r) => r.claimReply?.at).filter(Boolean).sort((a, b) => new Date(b) - new Date(a))[0];
-    if (lastNo && Date.now() - new Date(lastNo).getTime() < 5 * 60000) throw fail(429, 'The shop just checked. Please call the shop to sort it out.');
+    if (lastNo && Date.now() - new Date(lastNo).getTime() < (await limitsFor(tenantId)).claimRetryMin * 60000) throw fail(429, 'The shop just checked. Please call the shop to sort it out.');
     const ids = rows.filter((r) => !r.claimAt).map((r) => r._id);
     await TableSession.updateMany({ _id: { $in: ids } }, { $set: { claimAt: new Date(), claimBy: userId }, $unset: { claimReply: 1 } });
     const u = await User.findById(userId).select('name').lean();
@@ -384,7 +388,8 @@ function startTableBillJob() {
 
 // The owner reminds a customer about a bill he left unpaid (push and inbox). Not again to the same bill for 30 minutes.
 async function remind({ tenantId, sessionId, auto }) {
-    const cut = new Date(Date.now() - 30 * 60000);
+    const gapMin = (await limitsFor(tenantId)).remindGapMin;
+    const cut = new Date(Date.now() - gapMin * 60000);
     const s = await TableSession.findOneAndUpdate(
         { _id: sessionId, tenantId, walkout: true, owedClearedAt: { $exists: false }, owedPaise: { $gt: 0 }, $or: [{ lastRemindAt: { $exists: false } }, { lastRemindAt: { $lte: cut } }] },
         { $set: { lastRemindAt: new Date() }, ...(auto ? { $inc: { autoRemindCount: 1 } } : {}) },
@@ -393,7 +398,7 @@ async function remind({ tenantId, sessionId, auto }) {
         const cur = await TableSession.findOne({ _id: sessionId, tenantId, walkout: true, owedClearedAt: { $exists: false } }).select('lastRemindAt').lean();
         if (!cur) throw fail(404, 'This bill is not owed any more');
         const ago = Math.max(1, Math.round((Date.now() - new Date(cur.lastRemindAt).getTime()) / 60000));
-        throw fail(429, `Already reminded ${ago} min ago. You can remind again in ${Math.max(1, 30 - ago)} min.`);
+        throw fail(429, `Already reminded ${ago} min ago. You can remind again in ${Math.max(1, gapMin - ago)} min.`);
     }
     for (const uid of s.customers) tell('owed_reminder', { tenantId, userId: uid, vars: { table: s.table, amount: s.owedPaise / 100 }, data: { kind: 'owed', sessionId: String(s._id) } });
     return { ok: true };
@@ -448,7 +453,8 @@ async function callWaiter({ tenant, userId, kind, text, table }) {
     const s = await openFor(tenant._id, userId);
     const t = s ? s.table : String(table || '').trim();
     if (!/^\d{1,3}$/.test(t) || Number(t) < 1 || Number(t) > cfg.tableCount) throw fail(400, 'Choose your table first');
-    const recent = await TableRequest.findOne({ tenantId: tenant._id, table: t, kind, status: 'open', createdAt: { $gte: new Date(Date.now() - 2 * 60000) } }).lean();
+    const callGap = (await limitsFor(tenant._id)).callGapMin;
+    const recent = callGap > 0 ? await TableRequest.findOne({ tenantId: tenant._id, table: t, kind, status: 'open', createdAt: { $gte: new Date(Date.now() - callGap * 60000) } }).lean() : null;
     if (recent) throw fail(429, 'The staff already know. Please wait a moment.');
     const note = String(text || '').trim().slice(0, 120);
     const r = await TableRequest.create({ tenantId: tenant._id, sessionId: s?._id, table: t, userId, kind, text: note || undefined });
@@ -472,9 +478,18 @@ async function doneRequest({ tenantId, id }) {
     if (!r) throw fail(404, 'Already done');
     return { ok: true };
 }
-// requests nobody closed for 2 hours are closed by themselves
+// requests nobody closed for a while (the shop's callClearHours, 2 by default) are closed by themselves
 async function clearOldRequests(now = new Date()) {
-    const r = await TableRequest.updateMany({ status: 'open', createdAt: { $lte: new Date(now.getTime() - 2 * 3600000) } }, { $set: { status: 'done', doneAt: now, doneBy: 'auto' } });
+    const old = await TableRequest.find({ status: 'open', createdAt: { $lte: new Date(now.getTime() - 3600000) } }).select('tenantId createdAt').limit(500).lean();
+    const hours = new Map();
+    const ids = [];
+    for (const q of old) {
+        const k = String(q.tenantId);
+        if (!hours.has(k)) hours.set(k, (await limitsFor(q.tenantId)).callClearHours);
+        if (now.getTime() - new Date(q.createdAt).getTime() >= hours.get(k) * 3600000) ids.push(q._id);
+    }
+    if (!ids.length) return 0;
+    const r = await TableRequest.updateMany({ _id: { $in: ids }, status: 'open' }, { $set: { status: 'done', doneAt: now, doneBy: 'auto' } });
     return r.modifiedCount || 0;
 }
 

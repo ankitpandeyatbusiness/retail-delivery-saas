@@ -13,7 +13,7 @@ import { FormShimmer } from '../../components/owners/shimmer';
 import { tr } from '../../i18n';
 
 // what we recommend for most shops (the platform's own defaults)
-const RECOMMENDED = { pickupCodOn: true, pickupCodMax: 0, pickupOpenMax: 2, pickupChange: true, assignMode: 'automatic', offerSeconds: 120, maxActiveOrders: 3, pay: { type: 'none' }, trackPayouts: false, payUndelivered: false, cashLimit: 0, deliveryPin: true, liveTracking: true, locationIntervalSec: 10, codAmount: 1000, codFirst: 3 };
+const RECOMMENDED = { pickupCodOn: true, pickupCodMax: 0, pickupOpenMax: 2, pickupChange: true, mixDine: true, mixDelivery: 3, mixCashOn: true, mixCashNew: 800, mixCashTrusted: 3000, assignMode: 'automatic', offerSeconds: 120, maxActiveOrders: 3, pay: { type: 'none' }, trackPayouts: false, payUndelivered: false, cashLimit: 0, deliveryPin: true, liveTracking: true, locationIntervalSec: 10, codAmount: 1000, codFirst: 3 };
 
 export default function OwnerRiderRulesScreen() {
     const nav = useNavigation();
@@ -25,7 +25,7 @@ export default function OwnerRiderRulesScreen() {
 
     useEffect(() => {
         let alive = true;
-        fetchSettings().then((s) => alive && setForm({ ...s.riders, codAmount: s.orders.codCap.amount, codFirst: s.orders.codCap.firstOrders, pickupCodOn: s.orders.pickupCod?.enabled !== false, pickupCodMax: s.orders.pickupCod?.max || 0, pickupOpenMax: s.orders.pickupRules?.openMax ?? 2, pickupChange: s.orders.pickupRules?.canChange !== false }))
+        fetchSettings().then((s) => alive && setForm({ ...s.riders, codAmount: s.orders.codCap.amount, codFirst: s.orders.codCap.firstOrders, pickupCodOn: s.orders.pickupCod?.enabled !== false, pickupCodMax: s.orders.pickupCod?.max || 0, pickupOpenMax: s.orders.pickupRules?.openMax ?? 2, pickupChange: s.orders.pickupRules?.canChange !== false, mixDine: s.orders.mixRules?.dineBlocksOthers !== false, mixDelivery: s.orders.mixRules?.deliveryOpenMax ?? 3, mixCashOn: s.orders.mixRules?.exposureOn !== false, mixCashNew: s.orders.mixRules?.exposureNew ?? 800, mixCashTrusted: s.orders.mixRules?.exposureTrusted ?? 3000 }))
             .catch((e) => { useOwnerStore.getState().noteError(e); if (alive) setErr(apiError(e, 'Could not load your delivery rules.')); });
         return () => { alive = false; };
     }, []);
@@ -61,7 +61,7 @@ export default function OwnerRiderRulesScreen() {
                     pay: v.pay, trackPayouts: v.pay.type === 'none' ? false : !!v.trackPayouts, payUndelivered: paysPerDelivery(v.pay) ? !!v.payUndelivered : false, cashLimit: v.cashLimit,
                     deliveryPin: v.deliveryPin, liveTracking: v.liveTracking, locationIntervalSec: v.locationIntervalSec,
                 },
-                orders: { codCap: { amount: v.codAmount, firstOrders: v.codFirst }, pickupCod: { enabled: v.pickupCodOn !== false, max: v.pickupCodMax || 0 }, pickupRules: { openMax: v.pickupOpenMax ?? 2, canChange: v.pickupChange !== false } },
+                orders: { codCap: { amount: v.codAmount, firstOrders: v.codFirst }, pickupCod: { enabled: v.pickupCodOn !== false, max: v.pickupCodMax || 0 }, pickupRules: { openMax: v.pickupOpenMax ?? 2, canChange: v.pickupChange !== false }, mixRules: { dineBlocksOthers: v.mixDine !== false, deliveryOpenMax: v.mixDelivery ?? 3, exposureOn: v.mixCashOn !== false, exposureNew: v.mixCashNew ?? 0, exposureTrusted: v.mixCashTrusted ?? 0 } },
             });
             showToast(tr('Delivery rules saved'));
             nav.goBack();
@@ -122,6 +122,13 @@ export default function OwnerRiderRulesScreen() {
                 {v.pickupCodOn !== false ? <NumberBox label={tr('Highest cash pickup order')} prefix="₹" value={v.pickupCodMax} onChange={(x) => set('pickupCodMax', x ?? 0)} error={errors.pickupCodMax} hint={tr('0 = no limit')} /> : null}
                 <NumberBox label={tr('Pickup orders one customer can have waiting')} integer value={v.pickupOpenMax} onChange={(x) => set('pickupOpenMax', x ?? 0)} hint={tr('A new one can be placed after one is collected. 0 = no limit')} />
                 <ToggleRow title={tr('Customer can change the pickup time')} subtitle={tr('To a later time only. You are told when it happens')} value={v.pickupChange !== false} onValueChange={(x) => set('pickupChange', x)} last />
+            </Group>
+            <Group title={tr('Orders at the same time')} hint={tr('What a customer can do while he already has an order or a table bill with you. These protect you from unpaid cash.')}>
+                <ToggleRow title={tr('Table bill blocks delivery and pickup')} subtitle={tr('While he is dining and has not paid, he cannot order delivery or pickup')} value={v.mixDine !== false} onValueChange={(x) => set('mixDine', x)} />
+                <NumberBox label={tr('Delivery orders one customer can have on the way')} integer value={v.mixDelivery} onChange={(x) => set('mixDelivery', x ?? 0)} hint={tr('0 = no limit')} />
+                <ToggleRow title={tr('Limit all the cash he owes together')} subtitle={tr('Open table bill + cash delivery and pickup orders not yet paid')} value={v.mixCashOn !== false} onValueChange={(x) => set('mixCashOn', x)} last={v.mixCashOn === false} />
+                {v.mixCashOn !== false ? <NumberBox label={tr('Limit for a new customer')} prefix="₹" value={v.mixCashNew} onChange={(x) => set('mixCashNew', x ?? 0)} hint={tr('0 = no limit')} /> : null}
+                {v.mixCashOn !== false ? <NumberBox label={tr('Limit for a regular customer')} prefix="₹" value={v.mixCashTrusted} onChange={(x) => set('mixCashTrusted', x ?? 0)} hint={tr('After a few completed orders. 0 = no limit')} last /> : null}
             </Group>
             <View style={{ paddingHorizontal: 16, marginTop: 4 }}><Button label={tr('Reset to recommended')} icon="refresh" kind="ghost" onPress={reset} /></View>
         </FormPage>

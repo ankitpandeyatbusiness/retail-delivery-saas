@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../common/kit';
 import { Button, Card, SectionTitle } from './ui';
 import WaitTimer from '../common/WaitTimer';
-import { BillSheet } from '../../screens/owners/OwnerDineInScreen';
+import BillSheet from './BillSheet';
 import { fetchTableRequests, doneTableRequest, fetchTableFeedback, seenTableFeedback, apiError } from '../../api/owners/shopApi';
 import { onNotification, onOrderUpdate } from '../../api/common/socket';
 import { useHomeStore } from '../../store/customers/useHomeStore';

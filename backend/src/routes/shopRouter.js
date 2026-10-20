@@ -355,6 +355,13 @@ router.post('/dine-in/claims/:id/answer', wrap(async (req, res) => {
     if (typeof req.body?.ok !== 'boolean') throw httpError(400, 'Send ok: true or false');
     try { res.json(await require('../services/tableBill').answerClaim({ tenantId: req.tenant._id, sessionId: req.params.id, ok: req.body.ok, message: req.body.message })); } catch (e) { throw httpError(e.status || 400, e.message); }
 }));
+// a customer asks to move his pickup time: the owner answers yes / no (with a message)
+router.get('/pickup-requests', wrap(async (req, res) => { res.json({ items: await svc.pickupRequests(req.tenant._id) }); }));
+router.post('/pickup-requests/:id/answer', wrap(async (req, res) => {
+    if (!isId(req.params.id)) throw httpError(404, 'Not found');
+    if (typeof req.body?.accept !== 'boolean') throw httpError(400, 'Send accept: true or false');
+    res.json(await svc.answerPickupRequest({ tenant: req.tenant, orderId: req.params.id, accept: req.body.accept, message: req.body.message }));
+}));
 // the Dine in report: ?days=7|30|90
 router.get('/dine-in/report', wrap(async (req, res) => { res.json(await require('../services/dineReport').build({ tenant: req.tenant, days: parseInt(req.query.days, 10) })); }));
 
@@ -422,6 +429,7 @@ router.get('/settings', wrap(async (req, res) => {
             codCap: { ...DEFAULTS.orders.codCap, ...(st.orders?.codCap || {}) },
             pickupCod: { ...DEFAULTS.orders.pickupCod, ...(cfg.orders.pickupCod || {}) },
             pickupRules: { ...DEFAULTS.orders.pickupRules, ...(cfg.orders.pickupRules || {}) },
+            mixRules: { ...DEFAULTS.orders.mixRules, ...(cfg.orders.mixRules || {}) },
             dineIn: { ...DEFAULTS.orders.dineIn, ...(cfg.orders.dineIn || {}) },
             deliveryFee: { ...DEFAULTS.orders.deliveryFee, ...(st.orders?.deliveryFee || {}) },
             packagingCharge: cfg.orders.packagingCharge || 0,
@@ -493,7 +501,7 @@ router.put('/settings', wrap(async (req, res) => {
     if (body.orders !== undefined) {
         // what the owner may change of the order settings: the cash limit and what a customer pays on top of the food.
         // GST, payment methods and order types stay with the platform.
-        const OWNER_ORDER_KEYS = ['codCap', 'pickupCod', 'pickupRules', 'dineIn', 'deliveryFee', 'packagingCharge', 'tipOptions', 'minOrder', 'prepTimeMin'];
+        const OWNER_ORDER_KEYS = ['codCap', 'pickupCod', 'pickupRules', 'mixRules', 'dineIn', 'deliveryFee', 'packagingCharge', 'tipOptions', 'minOrder', 'prepTimeMin'];
         if (!body.orders || typeof body.orders !== 'object' || Array.isArray(body.orders) || Object.keys(body.orders).some((k) => !OWNER_ORDER_KEYS.includes(k))) {
             throw httpError(400, 'You can change only the cash limit, delivery fee, packaging charge, tips, minimum order and preparation time');
         }

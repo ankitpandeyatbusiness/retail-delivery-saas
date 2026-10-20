@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand, alpha } from '../common/kit';
 import { PageHeader, Card, Pill, Chips, Button, Field, Sheet, Row, money } from './ui';
-import { showToast } from '../customers/shop';
+import { showToast, useSlideTick, seedOf } from '../customers/shop';
 import { pickImage, uploadImage } from '../../utils/owners/upload';
 import { amountLabel, stockUnit, itemState, MAX_GROUPS, MAX_OPTIONS, DAYS, maskTime } from '../../utils/owners/menuRules';
 import { clockTime } from '../../utils/owners/orderFlow';
@@ -202,6 +202,61 @@ export function ImageField({ label = 'Picture', value, onChange, kind, refId, sq
                     ) : <Text style={{ color: muted, fontSize: 12, marginTop: 4 }}>{tr('JPG, PNG or WebP, up to 5 MB')}</Text>}
                 </View>
             </View>
+        </View>
+    );
+}
+
+// Up to 4 more pictures of a dish. The customer app slides through the main picture and these, by itself.
+// Each one can be moved left or right, or made the main picture (the star). onMain(url) swaps it with the current main one.
+export function MorePictures({ value = [], onChange, onMain, refId, disabled }) {
+    const { surface, border, muted, primary, error } = useBrand();
+    const [busy, setBusy] = useState(false);
+    const add = async () => {
+        if (busy || value.length >= 4) return;
+        setBusy(true);
+        try {
+            const img = await pickImage({});
+            if (!img) return;
+            const m = await uploadImage({ kind: 'product', refId, ...img });
+            onChange([...value, m.url]);
+        } catch (e) { showToast(e.safe ? e.message : tr('Could not upload that picture')); } finally { setBusy(false); }
+    };
+    const move = (i, d) => {
+        const j = i + d;
+        if (j < 0 || j >= value.length) return;
+        const next = [...value];
+        [next[i], next[j]] = [next[j], next[i]];
+        onChange(next);
+    };
+    const chip = (name, onPress, off, key) => (
+        <Pressable key={key} onPress={onPress} disabled={off} hitSlop={4} style={{ width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.6)', opacity: off ? 0.3 : 1 }}>
+            <Ionicons name={name} size={13} color="#FFFFFF" />
+        </Pressable>
+    );
+    return (
+        <View style={{ marginTop: 16 }}>
+            <Label>{tr('More pictures (optional)')}</Label>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                {value.map((u, i) => (
+                    <View key={u} style={{ marginRight: 12, marginBottom: 14 }}>
+                        <Image source={{ uri: u }} style={{ width: 84, height: 84, borderRadius: 12 }} contentFit="cover" />
+                        <Pressable onPress={() => onChange(value.filter((x) => x !== u))} hitSlop={8} style={{ position: 'absolute', top: -6, right: -6, width: 22, height: 22, borderRadius: 11, backgroundColor: error, alignItems: 'center', justifyContent: 'center' }}>
+                            <Ionicons name="close" size={14} color="#FFFFFF" />
+                        </Pressable>
+                        {onMain ? <View style={{ position: 'absolute', top: 4, left: 4 }}>{chip('star', () => onMain(u), false, 's')}</View> : null}
+                        <View style={{ position: 'absolute', bottom: 4, left: 4, right: 4, flexDirection: 'row', justifyContent: 'space-between' }}>
+                            {chip('chevron-back', () => move(i, -1), i === 0, 'l')}
+                            {chip('chevron-forward', () => move(i, 1), i === value.length - 1, 'r')}
+                        </View>
+                    </View>
+                ))}
+                {value.length < 4 ? (
+                    <Pressable onPress={add} disabled={disabled || busy} style={{ width: 84, height: 84, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: border, backgroundColor: surface, alignItems: 'center', justifyContent: 'center', opacity: disabled ? 0.5 : 1 }}>
+                        {busy ? <LineShimmer width={84} height={84} /> : <Ionicons name="add" size={26} color={primary} />}
+                    </Pressable>
+                ) : null}
+            </View>
+            <Text style={{ color: muted, fontSize: 12 }}>{disabled ? tr('Add the main picture first.') : tr('They slide in this order. Use the arrows to move one, the star to make it the main picture.')}</Text>
         </View>
     );
 }
@@ -428,12 +483,16 @@ export function ItemRow({ item, onOpen, onSwitch, onStep, onPortion, last }) {
     const u = stockUnit(item.sellBy);
     const counted = !!item.stock?.enabled;
     const dim = state !== 'on';
+    // a dish with more pictures slides through them, like in the customer app
+    const pics = [item.image, ...(Array.isArray(item.images) ? item.images : [])].filter(Boolean);
+    const tick = useSlideTick(pics.length > 1);
+    const pic = pics.length > 1 ? pics[(tick + seedOf(item)) % pics.length] : item.image;
     // Half / Full style portions with their own prices: a quick switch for each one
     const portions = (item.optionGroups || []).find((g) => g.absolute && (g.options || []).length > 1) || null;
     return (
         <Pressable onPress={onOpen} style={({ pressed }) => [styles.itemRow, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: border }, pressed && { opacity: 0.75 }]}>
             {item.image ? (
-                <Image source={{ uri: item.image }} style={[styles.thumb, dim && { opacity: 0.5 }]} contentFit="cover" />
+                <Image source={{ uri: pic }} style={[styles.thumb, dim && { opacity: 0.5 }]} contentFit="cover" transition={pics.length > 1 ? 450 : 0} />
             ) : (
                 <View style={[styles.thumb, { backgroundColor: alpha(muted, 0.12), alignItems: 'center', justifyContent: 'center' }]}><Ionicons name="restaurant-outline" size={22} color={muted} /></View>
             )}

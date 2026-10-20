@@ -228,7 +228,14 @@ admin.put('/tenants/:tid', wrap(async (req, res) => {
     // --- REPLACEMENT ENDS HERE ---
 
     if (body.settings !== undefined) {
-        const v = validateSettings(body.settings);
+        // what only the owner sets is taken out before checking and put back after (keepOwnerPause), so a panel save never fails on it or wipes it
+        let incoming = body.settings;
+        if (incoming && typeof incoming === 'object' && !Array.isArray(incoming)) {
+            const { loyalty, ...rest } = incoming;
+            if (rest.riders && typeof rest.riders === 'object' && !Array.isArray(rest.riders)) { const { trackFrom, ...r } = rest.riders; rest.riders = r; }
+            incoming = rest;
+        }
+        const v = validateSettings(incoming);
         if (!v.ok) return res.status(400).json({ error: 'Invalid settings', errors: v.errors });
         tenant.set('settings', keepOwnerPause(tenant.settings, v.clean));
         tenant.markModified('settings');
@@ -466,6 +473,23 @@ admin.use('/tenants/:tid/banners', loadTenant, crud(Banner, {
     searchField: 'title',
     softDelete: false,
     check: dateCheck,
+}));
+
+// Points and rewards for one shop: the two switches (customer points, rider points and badges). The numbers stay with the owner's Rewards screen.
+admin.get('/tenants/:tid/loyalty', loadTenant, wrap(async (req, res) => {
+    const l = require('../services/loyaltyService');
+    const t = await Tenant.findById(req.tenantDoc._id).select('settings.loyalty').lean();
+    const s = l.settingsOf(t);
+    res.json({ customer: s.customer.enabled, rider: s.rider.enabled });
+}));
+admin.put('/tenants/:tid/loyalty', loadTenant, wrap(async (req, res) => {
+    const l = require('../services/loyaltyService');
+    if (typeof req.body?.customer !== 'boolean' || typeof req.body?.rider !== 'boolean') throw httpError(400, 'Send customer and rider as true or false');
+    const t = await Tenant.findById(req.tenantDoc._id).select('settings.loyalty').lean();
+    const value = l.clean({ customer: { enabled: req.body.customer }, rider: { enabled: req.body.rider } }, t?.settings?.loyalty);
+    await Tenant.updateOne({ _id: req.tenantDoc._id }, { $set: { 'settings.loyalty': value } });
+    invalidateTenant(req.tenantDoc.slug);
+    res.json({ customer: req.body.customer, rider: req.body.rider });
 }));
 
 admin.use('/tenants/:tid/coupons', loadTenant, crud(Coupon, {

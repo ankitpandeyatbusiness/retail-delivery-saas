@@ -10,6 +10,7 @@ import {
     StatusPill, PayBadge, Countdown, RiderSheet, useOrderActions, callPhone, whatsApp, openMap, addressLine, openInvoice,
 } from '../../components/owners/orderBits';
 import { fetchOrder, fetchDelivery, fetchRiders } from '../../api/owners/shopApi';
+import { BlockSheet } from '../../components/owners/BlockSheet';
 import { onOrderUpdate } from '../../api/common/socket';
 import { acknowledge } from '../../utils/owners/soundbox';
 import { useNow } from '../../hooks/owners/useNow';
@@ -56,6 +57,7 @@ export default function OwnerOrderScreen() {
     const [failed, setFailed] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [riderOpen, setRiderOpen] = useState(false);
+    const [blockOpen, setBlockOpen] = useState(false);
     const [dockH, setDockH] = useState(220);   // the height of the buttons fixed at the bottom
     const [invoiceBusy, setInvoiceBusy] = useState(false);
     const now = useNow(1000, true);
@@ -195,6 +197,10 @@ export default function OwnerOrderScreen() {
                             <Button label={tr('WhatsApp')} icon="logo-whatsapp" iconOnly kind="ghost" onPress={() => whatsApp(order.customer.phone)} style={{ flex: 1 }} />
                         </View>
                     ) : null}
+                    {order.userId && !order.customer?.deleted ? (
+                        <Button label={tr('Block this customer')} icon="ban" kind="ghost" onPress={() => setBlockOpen(true)} style={{ marginTop: 10 }} />
+                    ) : null}
+                    <BlockSheet visible={blockOpen} customer={{ id: String(order.userId) }} orderId={order.id} onClose={() => setBlockOpen(false)} />
                     {order.orderType === 'dine_in' && order.tableNo ? (
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
                             <Ionicons name="restaurant-outline" size={18} color={muted} style={{ marginRight: 8 }} />

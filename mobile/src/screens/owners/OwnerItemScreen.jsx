@@ -6,7 +6,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { useBrand } from '../../components/common/kit';
 import { Empty, Button } from '../../components/owners/ui';
 import {
-    FormPage, Group, TextBox, NumberBox, ChoiceBox, ToggleRow, Hint, Label, ImageField, OptionGroupsEditor, MeasureEditor,
+    FormPage, Group, TextBox, NumberBox, ChoiceBox, ToggleRow, Hint, Label, ImageField, MorePictures, OptionGroupsEditor, MeasureEditor,
 } from '../../components/owners/menuBits';
 import { products, setStock, apiError } from '../../api/owners/shopApi';
 import { useMenuStore } from '../../store/owners/useMenuStore';
@@ -163,6 +163,7 @@ export default function OwnerItemScreen() {
                 <TextBox label={tr('Item name')} value={v.name} onChangeText={(x) => set('name', x)} error={errors.name} maxLength={80} placeholder={tr('e.g. Paneer Tikka')} />
                 <TextBox label={tr('Description (optional)')} value={v.description} onChangeText={(x) => set('description', x)} multiline maxLength={300} />
                 <ImageField value={v.image} onChange={(x) => set('image', x)} kind="product" refId={refId} last />
+                <MorePictures value={v.images || []} onChange={(x) => set('images', x)} onMain={(u) => setForm((f) => ({ ...f, image: u, images: (f.images || []).map((x) => (x === u ? f.image : x)) }))} refId={refId} disabled={!v.image} />
             </Group>
 
             <Group title={tr('Price')} hint={tr('GST is added by the platform, only if your shop has a GST number.')}>

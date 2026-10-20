@@ -28,7 +28,9 @@ const EVENTS = {
     points_arrived: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },   // loyalty points reached the customer
     rider_badge: { to: 'rider', channels: INAPP_PUSH, alsoPush: true },        // the rider moved up a badge
     pickup_waiting: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },   // a pickup order is ready and waiting
-    pickup_time_changed: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // the customer moved his pickup time to a later one
+    pickup_time_request: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // the customer asks to move his pickup to a later time: the owner answers
+    pickup_time_ok: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },     // the shop agreed to the new pickup time
+    pickup_time_no: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },     // the shop could not change it: the old time stays
     pickup_no_show: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },     // the customer did not come after his pickup time
     table_bill_asked: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // a customer at a table asked for the bill
     table_paid_claim: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // a customer who left unpaid says he paid: the owner must confirm

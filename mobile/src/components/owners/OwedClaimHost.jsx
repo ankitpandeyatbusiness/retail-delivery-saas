@@ -62,7 +62,7 @@ export default function OwedClaimHost() {
         if (!yes) return;
         setBusy('block');
         try {
-            await blockCustomer(who.id, true);
+            await blockCustomer(who.id, true, { reason: `Left table ${cur.table} without paying, then said he had paid`, sessionId: cur.id });
             await answerOwedClaim(cur.id, false, msg.trim());
             showToast(tr('Customer blocked'));
             setItems((l) => l.filter((x) => x.id !== cur.id));

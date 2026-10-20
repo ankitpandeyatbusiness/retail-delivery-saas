@@ -6,6 +6,7 @@ import { useBrand } from '../../components/common/kit';
 import { Card, Button, Pill, SectionTitle, Stat, Empty, money } from '../../components/owners/ui';
 import { FormPage, Group, TextBox, Hint } from '../../components/owners/menuBits';
 import { callPhone, whatsApp } from '../../components/owners/orderBits';
+import { BlockSheet, BlockDetails } from '../../components/owners/BlockSheet';
 import { fetchCustomer, fetchCustomerInsight, updateCustomer, allowCod, blockCustomer, fetchDineDebts, apiError } from '../../api/owners/shopApi';
 import RemindSheet from '../../components/owners/RemindSheet';
 import { TAGS, usualLine, sinceLine } from '../../utils/owners/customerTags';
@@ -27,6 +28,7 @@ export default function OwnerCustomerScreen() {
     const [busy, setBusy] = useState(false);
     const [ins, setIns] = useState(null);
     const [remind, setRemind] = useState(false);
+    const [blockOpen, setBlockOpen] = useState(false);
 
     const apply = (r) => { setC(r); setForm({ name: r.name || '', email: r.email || '', notes: r.notes || '' }); };
     useEffect(() => {
@@ -53,6 +55,7 @@ export default function OwnerCustomerScreen() {
 
     const toggleBlock = async () => {
         const to = !c.isBlocked;
+        if (to) { setBlockOpen(true); return; }   // blocking asks for a reason first
         let owes = 0;
         if (!to) {   // unblocking: does he still owe an unpaid table bill?
             try { const r = await fetchDineDebts(); owes = (r.items || []).filter((x) => x.customers.some((u) => String(u.id) === String(id))).reduce((n, x) => n + x.amount, 0); } catch (e) { /* no warning, the dialog still asks */ }
@@ -129,6 +132,7 @@ export default function OwnerCustomerScreen() {
 
             <SectionTitle title={tr('Account')} />
             <Card tone={c.isBlocked ? error : undefined}>
+                {c.isBlocked && c.block ? <View style={{ marginBottom: 10 }}><BlockDetails b={c.block} /></View> : null}
                 <Text style={{ color: c.isBlocked ? error : muted, fontWeight: c.isBlocked ? '900' : '600', fontSize: 12.5 }}>{c.isBlocked ? tr('This customer is blocked and cannot use your shop app.') : tr('Block a customer who spams or never pays. You can undo it any time.')}</Text>
                 <View style={{ marginTop: 10 }}><Button label={c.isBlocked ? tr('Unblock this customer') : tr('Block this customer')} icon={c.isBlocked ? 'checkmark-circle' : 'ban'} kind={c.isBlocked ? 'primary' : 'danger'} busy={busy} onPress={toggleBlock} /></View>
             </Card>
@@ -140,6 +144,7 @@ export default function OwnerCustomerScreen() {
                 <Hint>{tr('Only the platform can change a phone number.')}</Hint>
             </Group>
             {ins ? <RemindSheet visible={remind} customer={{ id: ins.id, name: ins.name }} onClose={() => setRemind(false)} onSent={() => fetchCustomerInsight(id).then(setIns).catch(() => { })} /> : null}
+            <BlockSheet visible={blockOpen} customer={{ id }} onClose={() => setBlockOpen(false)} onBlocked={() => fetchCustomer(id).then(apply).catch(() => { })} />
         </FormPage>
     );
 }

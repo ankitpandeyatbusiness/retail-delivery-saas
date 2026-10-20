@@ -67,6 +67,8 @@ export const SCREEN_INDEX = [
     E('Menu and offers', 'Customer app', 'SettingsMenuOffers', 'ShopsTab', 'coupon', 'catalog', 'menu offers out of stock dim hide group by category coupons show offers home cart', 'shop'),
     E('Orders and fees', 'Customer app', 'SettingsOrders', 'ShopsTab', 'orders', 'orders', 'orders fees accepting orders pause delivery pickup dine in minimum order delivery fee free above distance packaging charge gst tax tips cash on delivery cod limit payments', 'shop'),
     E('Opening hours', 'Customer app', 'SettingsHours', 'ShopsTab', 'clock', 'orders', 'opening hours weekly slots holiday closed dates always open closing time midnight', 'shop'),
+    E('Dine in and pickup rules', 'Customer app', 'SettingsDineIn', 'ShopsTab', 'orders', 'orders', 'dine in tables walk out unpaid bill offers welcome regular happy hour refer a friend call waiter tip feedback pickup waiting change time orders at the same time cash limit strikes qr scan nudge remind limits', 'shop'),
+    E('Points and rewards', 'Customer app', 'SettingsPoints', 'ShopsTab', 'coupon', 'catalog', 'points rewards loyalty customer points rider points badges top riders switch off remove', 'shop'),
     E('Riders and delivery', 'Customer app', 'SettingsRiders', 'ShopsTab', 'rider', 'riders', 'riders delivery assigning automatic manual delivery pin live tracking location updates interval safety', 'shop'),
     E('App version and alerts', 'Customer app', 'SettingsApp', 'ShopsTab', 'bolt', 'platform', 'app version minimum update force sms alerts key event new order bill', 'shop'),
 ];

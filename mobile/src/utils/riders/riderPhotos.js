@@ -2,6 +2,7 @@
 //   1. ask the server for a short-lived storage address   2. PUT the file there   3. tell the server it is done
 // Every function throws an Error with `safe: true` and a sentence that can be shown to the rider as it is.
 import { pickPhoto } from '../common/photoUpload';
+import { fileSize, putFile as upBytes } from '../common/fileUpload';
 import { signMyPhoto, confirmMyPhoto, deleteMyPhoto, signProof, confirmProof } from '../../api/riders/riderApi';
 
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -9,21 +10,20 @@ const ALLOWED = ['image/jpeg', 'image/png', 'image/webp'];
 const fail = (m) => Object.assign(new Error(m), { safe: true });
 
 async function putFile({ uri, mimeType }, sign) {
-    let blob;
-    try { blob = await (await fetch(uri)).blob(); } catch (e) { throw fail('Could not read that photo'); }
-    if (!blob.size) throw fail('That photo is empty');
-    if (blob.size > MAX_BYTES) throw fail('That photo is too large (max 5 MB). Try again.');
+    const size = fileSize(uri);
+    if (!size) throw fail('Could not read that photo');
+    if (size > MAX_BYTES) throw fail('That photo is too large (max 5 MB). Try again.');
     const contentType = ALLOWED.includes(mimeType) ? mimeType : 'image/jpeg';
 
     let signed;
-    try { signed = await sign({ contentType, bytes: blob.size }); } catch (e) {
+    try { signed = await sign({ contentType, bytes: size }); } catch (e) {
         throw fail(e?.response?.data?.error || 'Photo upload is not available right now');
     }
-    let put;
+    let sent;
     try {
-        put = await fetch(signed.uploadUrl, { method: signed.method || 'PUT', headers: signed.headers || { 'Content-Type': contentType }, body: blob });
+        sent = await upBytes(uri, { url: signed.uploadUrl, method: signed.method, headers: signed.headers || { 'Content-Type': contentType } });
     } catch (e) { throw fail('Upload failed. Check your connection and try again.'); }
-    if (!put.ok) throw fail('Upload failed. Please try again.');
+    if (!sent) throw fail('Upload failed. Please try again.');
     return signed.key;
 }
 

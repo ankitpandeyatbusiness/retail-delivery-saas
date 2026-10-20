@@ -75,7 +75,8 @@ const orderSchema = new Schema({
     tableSessionId: { type: Schema.Types.ObjectId, ref: 'TableSession' },   // the table bill this round belongs to (dine in)
     scheduledFor: Date,
     pickupNotified: { waitingAt: Date, overAt: Date, noShowAt: Date },   // the reminders for a pickup order, each sent once (jobs/pickupReminders.js)
-    pickupChanges: { type: Number, default: 0 },            // how many times the customer moved his pickup time
+    pickupChanges: { type: Number, default: 0 },            // how many times the customer asked to move his pickup time
+    pickupRequest: { from: Date, to: Date, at: Date },     // a pickup time he asked for, waiting for the shop to say yes or no
     pickupUntil: Date,                                      // end of the pickup time window
     note: String,                                           // special instructions for the whole order
     etaMin: Number,

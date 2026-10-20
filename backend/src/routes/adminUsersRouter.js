@@ -65,6 +65,8 @@ router.patch('/tenants/:tid/users/:userId/block', loadTenant, wrap(async (req, r
     if (typeof req.body?.blocked !== 'boolean') throw httpError(400, 'Send blocked: true or false');
     const user = await findUser(req);
     user.isBlocked = req.body.blocked;
+    if (req.body.blocked) user.blockInfo = { at: new Date(), byType: 'platform', reason: typeof req.body.reason === 'string' ? req.body.reason.trim().slice(0, 300) || undefined : undefined };
+    else user.blockInfo = undefined;
     await user.save();
     if (user.isBlocked) await Session.deleteMany({ userId: user._id });
     res.json(view(user));

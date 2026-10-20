@@ -1,6 +1,6 @@
 // src/components/ui/shop.jsx
 import { isMeasured, priceSuffix } from '../../utils/customers/measure';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Animated } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -88,28 +88,65 @@ export function VegDot({ isVeg }) {
     );
 }
 
-// Dish photo. With no photo it shows a brand-tinted tile with the first letter.
-export function Pic({ item, style }) {
+// ONE slow clock for every sliding dish picture on screen (a timer per card would be a lot of timers)
+let slideTick = 0;
+const slideSubs = new Set();
+let slideTimer = null;
+export function useSlideTick(on) {
+    const [t, setT] = useState(slideTick);
+    useEffect(() => {
+        if (!on) return undefined;
+        slideSubs.add(setT);
+        if (!slideTimer) slideTimer = setInterval(() => { slideTick += 1; slideSubs.forEach((f) => f(slideTick)); }, 3500);
+        return () => { slideSubs.delete(setT); if (!slideSubs.size && slideTimer) { clearInterval(slideTimer); slideTimer = null; } };
+    }, [on]);
+    return t;
+}
+export const seedOf = (item) => { const k = String(item._id || item.name || ''); let h = 0; for (let i = 0; i < k.length; i += 1) h = (h * 31 + k.charCodeAt(i)) % 9973; return h; };
+
+// Dish photo. A dish with more than one picture slides through them by itself. With no photo it shows a brand-tinted tile with the first letter.
+// dots: little dots at the bottom (the dish page).
+export function Pic({ item, style, dots }) {
     const { primary, soft } = useBrand();
-    if (!item.image) {
+    const list = useMemo(() => [item.image, ...(Array.isArray(item.images) ? item.images : [])].filter(Boolean), [item.image, item.images]);
+    const slides = list.length > 1;   // a sold-out dish slides too (all its pictures are grey)
+    const off = item.isAvailable === false;
+    const tick = useSlideTick(slides);
+    const at = slides ? (tick + seedOf(item)) % list.length : 0;
+    const uri = list[at];
+    if (!list.length) {
         return (
             <View style={[{ backgroundColor: item.isAvailable === false ? '#D4D4D4' : soft, alignItems: 'center', justifyContent: 'center' }, style]}>
                 <Text style={{ color: item.isAvailable === false ? '#8A8A8A' : primary, fontSize: 30, fontWeight: '800', opacity: 0.7 }}>{(item.name || '?')[0].toUpperCase()}</Text>
             </View>
         );
     }
-    // sold out: the photo turns grey (a grey layer that takes the colour out of what is under it)
-    if (item.isAvailable === false) {
-        return (
-            <Image source={{ uri: item.image }} style={[{ backgroundColor: soft }, style, GREY]} contentFit="cover" transition={150} cachePolicy="memory-disk" />
-        );
-    }
-    return (
+    // sold out: every photo turns grey (a grey layer that takes the colour out of what is under it)
+    const img = (
         <Image
-            source={{ uri: item.image }}
-            style={[{ backgroundColor: soft }, style]}
-            contentFit="cover" transition={150} cachePolicy="memory-disk"
+            source={{ uri }}
+            style={dots && slides ? [StyleSheet.absoluteFill, off && GREY] : [{ backgroundColor: soft }, style, off && GREY]}
+            contentFit="cover" transition={slides ? 450 : 150} cachePolicy="memory-disk"
         />
+    );
+    if (!(dots && slides)) return img;
+    return (
+        <View style={[{ backgroundColor: soft, overflow: 'hidden' }, style]}>
+            {img}
+            <View pointerEvents="none" style={{ position: 'absolute', bottom: 12, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center' }}>
+                {list.map((_, i) => <View key={i} style={{ width: i === at ? 18 : 6, height: 6, borderRadius: 3, marginHorizontal: 3, backgroundColor: i === at ? '#FFFFFF' : 'rgba(255,255,255,0.55)' }} />)}
+            </View>
+        </View>
+    );
+}
+
+// "Sold out" on the bottom right corner of the dish photo (the card puts it inside the photo's box)
+export function SoldTag({ item }) {
+    if (item.isAvailable !== false) return null;
+    return (
+        <View pointerEvents="none" style={{ position: 'absolute', right: 8, bottom: 8, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 8, backgroundColor: 'rgba(0,0,0,0.72)' }}>
+            <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '800' }}>{soldOutText(item)}</Text>
+        </View>
     );
 }
 
@@ -388,6 +425,7 @@ function ItemCardBase({ item, variant }) {
                 <View>
                     <Pic item={item} style={s.gImg} />
                     <ImageRibbon item={item} />
+                    <SoldTag item={item} />
                     {heart}
                     {pct ? <View style={s.badge}><Text style={s.badgeTxt}>{tr('{pct}% OFF', { pct: pct })}</Text></View> : null}
                 </View>
@@ -409,6 +447,7 @@ function ItemCardBase({ item, variant }) {
                 <Pic item={item} style={s.bImg} />
                 <LinearGradient pointerEvents="none" colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.35)']} style={s.bShade} />
                 <ImageRibbon item={item} />
+                <SoldTag item={item} />
                 {heart}
                 {pct ? <View style={[s.badge, { backgroundColor: ribbon }]}><Text style={[s.badgeTxt, { color: onRibbon }]}>{tr('{pct}% OFF', { pct: pct })}</Text></View> : null}
             </View>

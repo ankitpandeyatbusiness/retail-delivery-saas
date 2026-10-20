@@ -4,6 +4,7 @@
 //   3. POST /me/uploads/confirm  -> { url, _id } of the stored photo
 // pickPhoto and the upload functions throw an Error with `safe: true` and a message that can be shown to the customer.
 import * as ImagePicker from 'expo-image-picker';
+import { fileSize, putFile } from './fileUpload';
 import { signUpload, confirmUpload, deleteUpload } from '../../api/customers/shopApi';
 
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -30,26 +31,25 @@ export async function pickPhoto(source, { square = false } = {}) {
 
 // kind 'complaint' needs refId (the order id). kind 'customer' (profile picture) needs none.
 async function upload({ kind, refId, uri, mimeType }) {
-    let blob;
-    try { blob = await (await fetch(uri)).blob(); } catch (e) { throw fail('Could not read that photo'); }
-    if (!blob.size) throw fail('That photo is empty');
-    if (blob.size > MAX_BYTES) throw fail('That photo is too large (max 5 MB). Try another one.');
+    const size = fileSize(uri);
+    if (!size) throw fail('Could not read that photo');
+    if (size > MAX_BYTES) throw fail('That photo is too large (max 5 MB). Try another one.');
 
     const contentType = ALLOWED.includes(mimeType) ? mimeType : 'image/jpeg';
     const ref = refId ? { refId: String(refId) } : {};
 
     let signed;
     try {
-        signed = await signUpload({ kind, ...ref, contentType, bytes: blob.size });
+        signed = await signUpload({ kind, ...ref, contentType, bytes: size });
     } catch (e) {
         throw fail(e?.response?.data?.error || 'Photo upload is not available right now');
     }
 
-    let put;
+    let sent;
     try {
-        put = await fetch(signed.uploadUrl, { method: signed.method || 'PUT', headers: signed.headers || { 'Content-Type': contentType }, body: blob });
+        sent = await putFile(uri, { url: signed.uploadUrl, method: signed.method, headers: signed.headers || { 'Content-Type': contentType } });
     } catch (e) { throw fail('Upload failed. Check your connection and try again.'); }
-    if (!put.ok) throw fail('Upload failed. Please try again.');
+    if (!sent) throw fail('Upload failed. Please try again.');
 
     try {
         const m = await confirmUpload({ kind, ...ref, key: signed.key });

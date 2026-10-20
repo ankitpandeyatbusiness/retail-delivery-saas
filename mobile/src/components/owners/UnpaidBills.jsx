@@ -80,7 +80,7 @@ export function DebtSheet({ debt, onClose, onChanged }) {
         if (!c) return;
         const yes = await ask({ title: tr('Block this customer?'), message: tr('He will not be able to use the app of your shop. You can unblock him later from the Customers screen.'), confirmText: tr('Block'), cancelText: tr('No') });
         if (!yes) return;
-        try { await blockCustomer(c.id, true); showToast(tr('Customer blocked')); } catch (e) { showToast(apiError(e)); }
+        try { await blockCustomer(c.id, true, { reason: `Left table ${debt.table} without paying`, sessionId: debt.id }); showToast(tr('Customer blocked')); } catch (e) { showToast(apiError(e)); }
     };
     return (
         <Sheet visible={!!debt} onClose={onClose} title={debt ? tr('Unpaid bill · Table {t}', { t: debt.table }) : ''}>
