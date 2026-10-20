@@ -2,6 +2,7 @@
 import { isMeasured, priceSuffix } from '../../utils/customers/measure';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Animated } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -102,17 +103,25 @@ export function useSlideTick(on) {
     }, [on]);
     return t;
 }
+let swipedAt = 0;   // when a picture was last swiped: the card under it must not take that as a tap
 export const seedOf = (item) => { const k = String(item._id || item.name || ''); let h = 0; for (let i = 0; i < k.length; i += 1) h = (h * 31 + k.charCodeAt(i)) % 9973; return h; };
 
 // Dish photo. A dish with more than one picture slides through them by itself. With no photo it shows a brand-tinted tile with the first letter.
 // dots: little dots at the bottom (the dish page).
-export function Pic({ item, style, dots }) {
+export function Pic({ item, style, dots, swipe }) {
     const { primary, soft } = useBrand();
+    const [shift, setShift] = useState(0);   // how many pictures he has swiped on top of the automatic slide
+    const nPics = useRef(1);
     const list = useMemo(() => [item.image, ...(Array.isArray(item.images) ? item.images : [])].filter(Boolean), [item.image, item.images]);
     const slides = list.length > 1;   // a sold-out dish slides too (all its pictures are grey)
     const off = item.isAvailable === false;
+    nPics.current = list.length;
     const tick = useSlideTick(slides);
-    const at = slides ? (tick + seedOf(item)) % list.length : 0;
+    const at = slides ? (((tick + seedOf(item) + shift) % list.length) + list.length) % list.length : 0;
+    // a sideways swipe on the picture changes it; an up-down move is left to the page scroll, a tap still opens the dish
+    const pan = useMemo(() => Gesture.Pan().enabled(!!swipe).activeOffsetX([-10, 10]).failOffsetY([-14, 14]).runOnJS(true)
+        .onStart(() => { swipedAt = Date.now(); })
+        .onEnd((e) => { swipedAt = Date.now(); if (Math.abs(e.translationX) > 30 && nPics.current > 1) setShift((v) => v + (e.translationX < 0 ? 1 : -1)); }), [swipe]);
     const uri = list[at];
     if (!list.length) {
         return (
@@ -132,7 +141,7 @@ export function Pic({ item, style, dots }) {
     if (!slides) return img;
     // more than one picture: little dots show which one it is
     const big = !!dots;
-    return (
+    const body = (
         <View style={[{ backgroundColor: soft, overflow: 'hidden' }, style]}>
             {img}
             <View pointerEvents="none" style={{ position: 'absolute', bottom: big ? 12 : 6, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center' }}>
@@ -140,6 +149,7 @@ export function Pic({ item, style, dots }) {
             </View>
         </View>
     );
+    return swipe ? <GestureDetector gesture={pan}>{body}</GestureDetector> : body;
 }
 
 // "Sold out" on the bottom right corner of the dish photo (the card puts it inside the photo's box)
@@ -175,7 +185,9 @@ export function ImageRibbon({ item }) {
 }
 
 // Small coloured tags under the name: spice and the diet marks. Most important first, never more than `max`.
+const TAG_DARK = { '#B91C1C': '#F28B82', '#C2410C': '#F4A261', '#7C3AED': '#B79CF2', '#475569': '#A9B6C8' };   // the same tags, a notch lighter so they stand out from a dark card
 export function Tags({ item, max = 2 }) {
+    const { dark } = useBrand();
     const list = [];
     if (item.spiceLevel === 'hot') list.push(['Spicy', 'flame', '#B91C1C']);
     else if (item.spiceLevel === 'medium') list.push(['Medium spicy', 'flame-outline', '#C2410C']);
@@ -186,12 +198,15 @@ export function Tags({ item, max = 2 }) {
     if (!list.length) return null;
     return (
         <View style={s.tags}>
-            {list.slice(0, max).map(([label, icon, c]) => (
-                <View key={label} style={[s.tag, { backgroundColor: `${c}1F` }]}>
+            {list.slice(0, max).map(([label, icon, c0]) => {
+                const c = dark ? (TAG_DARK[c0] || c0) : c0;
+                return (
+                <View key={label} style={[s.tag, { backgroundColor: dark ? `${c}26` : `${c}1F` }]}>
                     <Ionicons name={icon} size={11} color={c} />
                     <Text numberOfLines={1} style={[s.tagTxt, { color: c }]}>{tr(label)}</Text>
                 </View>
-            ))}
+                );
+            })}
         </View>
     );
 }
@@ -384,7 +399,7 @@ function ItemCardBase({ item, variant }) {
     const onRibbon = look === 'bold' ? onPrimary : onAccent;
     const off = item.isAvailable === false;
     const dim = off && full.menu.outOfStock === 'dim';
-    const open = () => nav.navigate('Item', { id: item._id });
+    const open = () => { if (Date.now() - swipedAt < 500) return; nav.navigate('Item', { id: item._id }); };
     const heart = full.features.favourites ? <Heart item={item} /> : null;
     const pct = offPct(item);
     const card = { backgroundColor: surface, shadowColor: dark ? '#000000' : primary, borderColor: border };
@@ -446,7 +461,7 @@ function ItemCardBase({ item, variant }) {
         <Pressable onPress={open} style={press2([s.big, card, dim && s.dim])}>
             <CardGlow radius={22} strength={0.26} />
             <View>
-                <Pic item={item} style={s.bImg} />
+                <Pic item={item} style={s.bImg} swipe />
                 <LinearGradient pointerEvents="none" colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.35)']} style={s.bShade} />
                 <ImageRibbon item={item} />
                 <SoldTag item={item} />
