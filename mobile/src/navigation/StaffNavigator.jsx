@@ -1,0 +1,51 @@
+// The kitchen and waiter app: two tabs, Home (the work screen) and Profile. One shell for both jobs, so the sign-in, the pause message,
+// light and dark mode and the tab bar are written once. The person's job decides what Home shows.
+import React, { useCallback, useEffect } from 'react';
+import { AppState, View } from 'react-native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useBrand } from '../components/common/kit';
+import { FloatingTabBar } from './tabKit';
+import StaffHomeScreen from '../screens/staff/StaffHomeScreen';
+import StaffProfileScreen from '../screens/staff/StaffProfileScreen';
+import StaffBlockedView from '../components/staff/StaffBlockedView';
+import { StaffSkeleton } from '../components/staff/staffBits';
+import { useStaffStore } from '../store/staff/useStaffStore';
+import { useAuthStore } from '../store/common/useAuthStore';
+
+const Tab = createBottomTabNavigator();
+
+const TABS = {
+    StaffHomeTab: { label: 'Home', icon: 'restaurant', component: StaffHomeScreen },
+    StaffProfileTab: { label: 'Profile', icon: 'person', component: StaffProfileScreen },
+};
+
+export default function StaffTabs() {
+    const { background } = useBrand();
+    const state = useStaffStore((s) => s.state);
+    const uid = useAuthStore((s) => s.user?.id);
+    const load = useStaffStore((s) => s.load);
+
+    // a new person on this phone starts clean; coming back to the app asks again (the owner may have paused them meanwhile)
+    useEffect(() => { useStaffStore.getState().reset(); load(); }, [uid, load]);
+    useEffect(() => {
+        const sub = AppState.addEventListener('change', (st) => { if (st === 'active') load(); });
+        return () => sub.remove();
+    }, [load]);
+    const retry = useCallback(() => { useStaffStore.setState({ state: 'loading' }); load(); }, [load]);
+
+    if (state === 'loading') return <StaffSkeleton />;
+    if (state === 'blocked' || state === 'error') return <StaffBlockedView onRetry={retry} />;
+    return (
+        <View style={{ flex: 1, backgroundColor: background }}>
+            <Tab.Navigator
+                initialRouteName="StaffHomeTab"
+                tabBar={(props) => <FloatingTabBar {...props} defs={TABS} />}
+                screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: background }, tabBarHideOnKeyboard: true }}
+            >
+                {Object.entries(TABS).map(([name, def]) => (
+                    <Tab.Screen key={name} name={name} component={def.component} options={{ title: def.label }} />
+                ))}
+            </Tab.Navigator>
+        </View>
+    );
+}

@@ -20,7 +20,7 @@ const WORDS = ['Very bad', 'Bad', 'Okay', 'Good', 'Excellent'];
 export default function TableFeedbackHost({ navRef }) {
     const { text, muted, border, surface, primary, ok } = useBrand();
     const user = useAuthStore((s) => s.user);
-    const enabled = !!user && user.role !== 'rider' && user.role !== 'admin';
+    const enabled = !!user && ['rider', 'admin', 'kitchen', 'waiter'].indexOf(user.role) < 0;
     const due = useTableBill((s) => s.bill?.feedbackDue);
     const [skipped, setSkipped] = useState(null);   // null = not read yet
     const [ready, setReady] = useState(false);

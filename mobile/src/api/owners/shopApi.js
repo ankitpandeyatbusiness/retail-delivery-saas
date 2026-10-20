@@ -86,6 +86,11 @@ export const fetchClosingReport = (params) => d(api.get('/shop/closing-report', 
 export const saveSettings = (body) => d(api.put('/shop/settings', body));
 
 /* ------------------------------ riders ------------------------------ */
+// kitchen and waiter people: { items, rules: { kitchenOn, waiterOn, max } }
+export const fetchStaff = () => d(api.get('/shop/staff'));
+export const addStaff = (body) => d(api.post('/shop/staff', body));   // { phone, name?, role: 'kitchen' | 'waiter' }
+export const updateStaff = (userId, body) => d(api.patch(`/shop/staff/${userId}`, body));   // { isActive?, name?, role? }
+export const removeStaff = (userId) => d(api.delete(`/shop/staff/${userId}`));
 export const fetchRiders = () => d(api.get('/shop/riders'));
 export const addRider = (phone, name) => d(api.post('/shop/riders', { phone, name }));
 // body: { isActive?, name?, email? }

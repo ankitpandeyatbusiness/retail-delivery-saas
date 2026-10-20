@@ -23,7 +23,7 @@ const AWAY_MS = 3 * 60 * 1000;
 export default function OwedReminder() {
     const { surface, text, muted, border, error } = useBrand();
     const user = useAuthStore((s) => s.user);
-    const enabled = !!user && user.role !== 'rider' && user.role !== 'admin';
+    const enabled = !!user && ['rider', 'admin', 'kitchen', 'waiter'].indexOf(user.role) < 0;
     const owed = useTableBill((s) => s.bill?.owed);
     const open = useOwedPrompt((s) => s.open);
     const [busy, setBusy] = useState(false);

@@ -113,7 +113,7 @@ function ThankYou({ stars, onClose }) {
 
 export default function ReviewPrompts() {
     const user = useAuthStore((s) => s.user);
-    const enabled = !!user && user.role !== 'rider' && user.role !== 'admin' && user.role !== 'superadmin';
+    const enabled = !!user && ['rider', 'admin', 'kitchen', 'waiter'].indexOf(user.role) < 0 && user.role !== 'superadmin';
     const [cur, setCur] = useState(null);       // { kind: 'delivery' | 'food', ... }
     const [thanks, setThanks] = useState(null); // stars
     const curRef = useRef(null);

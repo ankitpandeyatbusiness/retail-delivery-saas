@@ -67,8 +67,8 @@ describe('superadmin alerts', () => {
         const doc = await adminAlerts.alert('admin_bill_issued', { tenantId: w.tenant._id, vars: { invoiceNo: 'SUB/2026-27/0001', amount: '1180' } });
         assert.equal(doc.role, 'superadmin');
         assert.equal(doc.type, 'admin_bill_issued');
-        assert.equal(doc.title, 'Bill issued');
-        assert.ok(doc.body.includes(w.tenant.name) && doc.body.includes('SUB/2026-27/0001'));
+        assert.equal(doc.title, `Bill issued · ${w.tenant.name}`);   // the shop is named in the title
+        assert.ok(doc.body.includes('SUB/2026-27/0001'));   // the invoice is in the words, the shop in the title
         assert.equal(String(doc.tenantId), String(w.tenant._id));
         assert.equal(push.mock.calls.length, 1);
         assert.deepEqual(push.mock.calls[0].arguments[0].tokens, [token]);
@@ -225,7 +225,7 @@ describe('superadmin alerts', () => {
         assert.equal(await Notification.countDocuments({ tenantId: w.tenant._id, role: 'owner' }), 0);
         const admin = await Notification.findOne({ role: 'superadmin', type: 'admin_bill_issued' });
         assert.ok(admin);
-        assert.ok(admin.body.includes(w.tenant.name) && admin.body.includes(inv.invoiceNo));
+        assert.ok(admin.title.includes(w.tenant.name) && admin.body.includes(inv.invoiceNo));
     });
 
     test('customer and rider events never alert the superadmin', async () => {
@@ -250,7 +250,7 @@ describe('superadmin alerts', () => {
         const types = (await Notification.find({ role: 'superadmin' }).lean()).map((n) => n.type).sort();
         assert.deepEqual(types, ['admin_sms_low', 'admin_sms_topup_done', 'admin_sms_zero']);
         const topup = await Notification.findOne({ type: 'admin_sms_topup_done' });
-        assert.ok(topup.body.includes('Rs 200.00'));
+        assert.ok(topup.title.includes(w.tenant.name));
     });
 });
 

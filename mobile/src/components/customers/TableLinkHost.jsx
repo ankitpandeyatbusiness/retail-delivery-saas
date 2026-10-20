@@ -8,7 +8,7 @@ import { tr } from '../../i18n';
 
 export default function TableLinkHost({ onDone }) {
     const role = useAuthStore((s) => s.user?.role);
-    const skip = role === 'admin' || role === 'rider';   // only customers sit at a table
+    const skip = role === 'admin' || role === 'rider' || role === 'kitchen' || role === 'waiter';   // only customers sit at a table
     useEffect(() => {
         if (skip) return undefined;
         const handle = async (url) => {

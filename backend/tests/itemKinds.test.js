@@ -28,7 +28,7 @@ beforeEach(async () => {
 });
 
 async function shop() {
-    const tenant = await f.makeTenant(slug('kind'), { settings: { orders: { types: ['delivery', 'pickup', 'dine_in'], payments: ['cod'] } } });
+    const tenant = await f.makeTenant(slug('kind'), { settings: { orders: { types: ['delivery', 'pickup', 'dine_in'], payments: ['cod'], dineIn: { enabled: true, tabLimitNew: 0, tabLimitTrusted: 0 }, mixRules: { exposureOn: false } } } });
     const customer = await f.makeUser(tenant, 'customer', '9000000030');
     return { tenant, customer };
 }

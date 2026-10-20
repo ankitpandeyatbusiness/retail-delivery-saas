@@ -436,6 +436,7 @@ router.get('/settings', wrap(async (req, res) => {
             pickupCod: { ...DEFAULTS.orders.pickupCod, ...(cfg.orders.pickupCod || {}) },
             pickupRules: { ...DEFAULTS.orders.pickupRules, ...(cfg.orders.pickupRules || {}) },
             mixRules: { ...DEFAULTS.orders.mixRules, ...(cfg.orders.mixRules || {}) },
+            staff: { ...DEFAULTS.orders.staff, ...(cfg.orders.staff || {}) },   // shown only: the super admin decides
             dineIn: { ...DEFAULTS.orders.dineIn, ...(cfg.orders.dineIn || {}) },
             deliveryFee: { ...DEFAULTS.orders.deliveryFee, ...(st.orders?.deliveryFee || {}) },
             packagingCharge: cfg.orders.packagingCharge || 0,
@@ -594,6 +595,7 @@ router.put('/settings', wrap(async (req, res) => {
 
 router.use('/uploads', require('./uploadRouter'));   // direct-to-R2 uploads (owner and superadmin)
 router.get('/reviews', wrap(async (req, res) => { res.json(await require('../services/reviewsService').list({ tenantId: req.tenant._id, query: req.query })); }));   // what customers say: dishes and delivery
+router.use('/staff', require('./shopStaffRouter'));   // kitchen and waiter people: add, pause, remove
 router.use('/customers', require('./shopCustomersRouter'));   // customer tools: list, detail, edit, Cash on delivery block
 router.use('/autopilot', require('./shopAutopilotRouter'));   // automatic reminders to customers (push and inbox only)
 router.use('/messages', require('./shopMessagesRouter'));     // messages to his customers and riders

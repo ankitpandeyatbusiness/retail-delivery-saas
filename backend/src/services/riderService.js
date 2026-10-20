@@ -18,6 +18,7 @@ async function addByPhone({ tenantId, phone, name }) {
 
     const existing = await User.findOne({ tenantId, phone }).select('role isBlocked').lean();
     if (existing?.role === 'admin') throw httpError(409, 'This number belongs to the shop owner. Use another number.');
+    if (existing?.role === 'kitchen' || existing?.role === 'waiter') throw httpError(409, 'This number is shop staff. Remove them from Staff first, or use another number.');
     if (existing?.isBlocked) throw httpError(409, 'This number is blocked');
 
     let user;

@@ -15,7 +15,7 @@ const HIDE_ON = ['TableBill', 'Cart', 'Item', 'OrderPlaced'];
 
 export default function TableBillStrip({ routeName, onOpen }) {
     const user = useAuthStore((s) => s.user);
-    const enabled = !!user && user.role !== 'rider' && user.role !== 'admin';
+    const enabled = !!user && ['rider', 'admin', 'kitchen', 'waiter'].indexOf(user.role) < 0;
     const bill = useTableBill((s) => s.bill);
     const cartCount = useCartStore((s) => s.lines.length);   // the "View cart" bar sits in the same place, so this bar steps aside for it
     const insets = useSafeAreaInsets();

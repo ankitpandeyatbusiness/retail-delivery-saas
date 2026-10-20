@@ -60,7 +60,7 @@ describe('order not accepted: reminders and auto cancel', () => {
         assert.ok(await waitFor(async () => (await reminderCount(w)) === 1));
         const [r] = await reminders(w);
         assert.equal(r.title, 'Order is waiting');
-        assert.equal(r.body, `Order #${o.orderNo} is waiting for you. It will be cancelled in 7 minutes if you do not accept it.`);
+        assert.equal(r.body, `Order #${o.orderNo}. Accept within 7 min or it is cancelled.`);
         assert.equal(r.data.minutes, 3);
         assert.equal(r.data.orderNo, o.orderNo);
         assert.equal(String(r.data.orderId), String(o._id));
@@ -87,7 +87,7 @@ describe('order not accepted: reminders and auto cancel', () => {
         assert.ok(await waitFor(async () => (await reminderCount(w)) === 2));
         const [, second] = await reminders(w);
         assert.equal(second.title, 'Please accept the order');
-        assert.match(second.body, /cancelled in 4 minutes/);
+        assert.match(second.body, /Accept within 4 min/);
         assert.deepEqual([...(await Order.findById(o._id)).unacceptedReminders], [3, 6]);
         assert.equal((await Order.findById(o._id)).status, 'placed');
 
@@ -109,7 +109,7 @@ describe('order not accepted: reminders and auto cancel', () => {
         assert.ok(await waitFor(async () => (await reminderCount(w)) === 1));
         const [r] = await reminders(w);
         assert.equal(r.title, 'Please accept the order');
-        assert.match(r.body, /cancelled in 4 minutes/);
+        assert.match(r.body, /Accept within 4 min/);
         assert.deepEqual([...(await Order.findById(o._id)).unacceptedReminders].sort(), [3, 6]);
         assert.deepEqual(await runOrderTimeout(), { reminded: 0, cancelled: 0 });
     });
@@ -165,7 +165,7 @@ describe('order not accepted: reminders and auto cancel', () => {
         await sleep(200);
         assert.equal(calls.sms.length, 0);
         assert.equal(calls.push[0].data.type, 'order_unaccepted_reminder');
-        assert.match(calls.push[0].body, /is waiting for you/);
+        assert.match(calls.push[0].body, /Accept within/);
     });
 
     test('channels: an offline owner with no phone token gets an SMS, and the message is marked as texted', async () => {
@@ -226,7 +226,7 @@ describe('order not accepted: reminders and auto cancel', () => {
     test('the words of the reminder', () => {
         assert.deepEqual(texts.build('order_unaccepted_reminder', { orderNo: 9, minutes: 3, left: 7 }), {
             title: 'Order is waiting',
-            body: 'Order #9 is waiting for you. It will be cancelled in 7 minutes if you do not accept it.',
+            body: 'Order #9. Accept within 7 min or it is cancelled.',
         });
         assert.equal(texts.build('order_unaccepted_reminder', { orderNo: 9, minutes: 6, left: 4 }).title, 'Please accept the order');
     });

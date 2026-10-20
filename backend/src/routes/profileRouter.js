@@ -125,6 +125,7 @@ router.delete('/', wrap(async (req, res) => {
         await Address.deleteMany(scope, { session });
         await Favourite.deleteMany(scope, { session });
         if (user.role === 'rider') await Rider.deleteMany({ tenantId, userId }, { session });
+        if (user.role === 'kitchen' || user.role === 'waiter') await require('../models/Staff').deleteMany({ tenantId, userId }, { session });
         await User.deleteOne({ _id: userId, tenantId }, { session });
     });
 

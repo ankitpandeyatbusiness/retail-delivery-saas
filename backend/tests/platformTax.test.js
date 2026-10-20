@@ -31,7 +31,7 @@ beforeEach(async () => {
 async function shop({ gstin, settings = {}, gstRate } = {}) {
     const tenant = await f.makeTenant(slug(), {
         ...(gstin ? { business: { legalName: 'Shop', gstin } } : {}),
-        settings: { orders: { types: ['dine_in'], payments: ['cod'], ...settings.orders } },
+        settings: { orders: { types: ['dine_in'], payments: ['cod'], dineIn: { enabled: true, tabLimitNew: 0, tabLimitTrusted: 0 }, mixRules: { exposureOn: false }, ...settings.orders } },
     });
     const owner = await f.makeUser(tenant, 'admin', '9000000010');
     const customer = await f.makeUser(tenant, 'customer', '9000000030');
@@ -85,7 +85,7 @@ describe('one GST for every shop', () => {
         assert.equal(first.pricing.tax, 10.71);
 
         await setTax({ gstPercent: 18 });
-        const r2 = await place(w, '9', 2);
+        const r2 = await place(w, '4', 2);   // the same table: a guest has one open table at a time
         assert.equal(r2.status, 201, JSON.stringify(r2.body));
         const second = await Order.findById(idOf(r2)).lean();
         assert.equal(second.pricing.tax, 30.51);   // 2 x 100 with 18% included

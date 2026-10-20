@@ -11,7 +11,7 @@ const calc = (o) => calcRefund({ paidPaise: 52000, tipPaise: 2000, now: T0, ...o
 
 describe('refund maths (no database)', () => {
     test('R1, R2, R3, R6, R10: every full-refund reason gives everything back, at any step', () => {
-        assert.deepEqual([...FULL].sort(), ['duplicate', 'not_accepted', 'payment_timeout', 'platform', 'rider_fault', 'shop_fault', 'shop_reject']);
+        assert.deepEqual([...FULL].sort(), ['duplicate', 'late_delivery', 'not_accepted', 'payment_timeout', 'platform', 'rider_fault', 'shop_fault', 'shop_reject']);
         for (const reason of FULL) {
             for (const status of ['placed', 'accepted', 'preparing', 'ready', 'out_for_delivery']) {
                 const r = calc({ reason, status });
@@ -141,7 +141,7 @@ describe('what happens on a cancel or an undelivered order (no database)', () =>
         assert.deepEqual(pick(r), FREE);
         assert.equal(outcome(cod('placed'), { actorType: 'system', reasonCode: 'payment_timeout' }).reasonCode, 'payment_timeout');
         assert.throws(() => outcome(cod('placed'), { actorType: 'system', reasonCode: 'busy' }), /Unknown cancel reason/);
-        assert.throws(() => outcome(cod('placed'), { actorType: 'rider' }), /cannot cancel/);
+        assert.throws(() => outcome(cod('placed'), { actorType: 'rider' }), /Unknown cancel reason/);   // a rider can cancel only with one of his own reasons
     });
 
     test('COD, undelivered: customer fault is billable with a strike, shop or rider fault is free', () => {

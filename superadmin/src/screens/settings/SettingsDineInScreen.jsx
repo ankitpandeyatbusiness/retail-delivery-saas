@@ -15,6 +15,7 @@ export default function SettingsDineInScreen() {
     const pr = o?.pickupRules || {};
     const mx = o?.mixRules || {};
     const lm = o?.limits || {};
+    const sf = o?.staff || {};
     const D = (k) => (v) => ed.set('orders', 'dineIn', { ...dn, [k]: v });
     const num = (k, d = 0) => (v) => D(k)(v ?? d);
     const P = (sec, cur, k) => (v) => ed.set('orders', sec, { ...cur, [k]: v });
@@ -29,6 +30,12 @@ export default function SettingsDineInScreen() {
                         <NumberField label="Number of tables" integer value={dn.tableCount} onChange={num('tableCount', 10)} />
                         <NumberField label="Usual waiting time shown to customers" suffix="min" integer hint="0 = do not show" value={dn.waitMin} onChange={num('waitMin')} />
                         <NumberField label="A guest can cancel a round himself for" suffix="min" integer hint="0 = he can only ask the shop" value={dn.cancelGraceMin} onChange={num('cancelGraceMin', 3)} last />
+                    </Group>
+
+                    <Group title="Kitchen and waiter staff" section="orders" hint="Lets the owner add cooks and waiters by phone number. Each person signs in with an OTP and sees only their own screen. Off by default. Switching one off locks out the people with that job at once; their data stays and they come back when it is on again.">
+                        <Switch title="Kitchen screen" subtitle="The cook sees the orders to make" value={sf.kitchenOn === true} onValueChange={P('staff', sf, 'kitchenOn')} />
+                        <Switch title="Waiter screen" subtitle="The waiter sees dishes to serve and table requests" value={sf.waiterOn === true} onValueChange={P('staff', sf, 'waiterOn')} />
+                        <NumberField label="Most staff this shop can add" integer hint="Cooks and waiters together" value={sf.max} onChange={(v) => P('staff', sf, 'max')(v ?? 10)} last />
                     </Group>
 
                     <Group title="Walk-out protection" section="orders">

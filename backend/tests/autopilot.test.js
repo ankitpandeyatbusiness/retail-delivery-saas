@@ -100,7 +100,7 @@ describe('the message library', () => {
         const known = new Set(['name', 'food', 'shop', 'discount', 'code', 'festival']);
         for (const kind of msgs.KINDS) {
             for (const m of msgs.LIB[kind]) {
-                for (const lang of msgs.LANGUAGES) {
+                for (const lang of msgs.LANGUAGES.filter((l) => l !== 'mixed')) {   // 'mixed' picks one of the three by chance
                     assert.equal(m[lang].length, 2, `${kind} ${lang}`);
                     for (const text of m[lang]) for (const x of text.matchAll(/\{(\w+)\}/g)) assert.ok(known.has(x[1]), `${kind} ${lang}: {${x[1]}}`);
                 }
@@ -298,17 +298,17 @@ describe('Autopilot', () => {
         assert.equal(await NudgeLog.countDocuments({ userId: ok._id }), 1);   // the sequence ended with his order
     });
 
-    test('welcome after a first order, thanks after later ones, each once', async () => {
+    test('welcome after a first order only, once (a thank-you for later orders no longer exists)', async () => {
         const first = await customer('First');
         await order(first, new Date(NOW.getTime() - 2 * 3600000));
         const again = await customer('Again');
         await orders(again, [6, 2]);
         await order(again, new Date(NOW.getTime() - 2 * 3600000));
-        await cfgOn({ on: { welcome: true, thanks: true }, language: 'en' });
-        assert.equal((await run()).customers, 2);
+        await cfgOn({ on: { welcome: true }, language: 'en' });
+        assert.equal((await run()).customers, 1);
         assert.equal((await run()).customers, 0);
         assert.equal((await NudgeLog.findOne({ userId: first._id })).kind, 'welcome');
-        assert.equal((await NudgeLog.findOne({ userId: again._id })).kind, 'thanks');
+        assert.equal(await NudgeLog.countDocuments({ userId: again._id }), 0);
         assert.equal((await NudgeLog.findOne({ userId: first._id })).promo, false);
     });
 

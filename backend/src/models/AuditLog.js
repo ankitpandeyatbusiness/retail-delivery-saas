@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 // Append-only: there is deliberately no route that edits or deletes these.
 const auditSchema = new mongoose.Schema({
     at: { type: Date, default: Date.now },
-    actorType: { type: String, enum: ['superadmin', 'owner', 'rider', 'system'], required: true },
+    actorType: { type: String, enum: ['superadmin', 'owner', 'rider', 'staff', 'system'], required: true },
     actorId: { type: mongoose.Schema.Types.ObjectId },
     actorLabel: String,                                   // superadmin email, or owner user id
     tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant' },

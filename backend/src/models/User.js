@@ -12,7 +12,7 @@ const userSchema = new mongoose.Schema({
     prefs: {
         promotions: { type: Boolean, default: true },   // false = no promotional broadcasts (information messages still arrive)
     },
-    role: { type: String, enum: ['customer', 'rider', 'admin'], default: 'customer' },
+    role: { type: String, enum: ['customer', 'rider', 'admin', 'kitchen', 'waiter'], default: 'customer' },
     isBlocked: { type: Boolean, default: false },
     // why, when and by whom he was blocked, and the order or table bill it was about (kept until he is unblocked)
     blockInfo: { at: Date, byType: String, byLabel: String, reason: String, orderId: mongoose.Schema.Types.ObjectId, sessionId: mongoose.Schema.Types.ObjectId },

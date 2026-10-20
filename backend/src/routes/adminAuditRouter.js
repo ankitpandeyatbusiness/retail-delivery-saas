@@ -35,7 +35,7 @@ router.get('/audit-logs', wrap(async (req, res) => {
         if (!isId(req.query.actorId)) throw httpError(400, 'Invalid actorId');
         filter.actorId = req.query.actorId;
     }
-    if (['superadmin', 'owner', 'rider', 'system'].includes(req.query.actorType)) filter.actorType = req.query.actorType;
+    if (['superadmin', 'owner', 'rider', 'staff', 'system'].includes(req.query.actorType)) filter.actorType = req.query.actorType;
     if (typeof req.query.q === 'string' && req.query.q.trim()) {
         filter.action = new RegExp(esc(req.query.q.trim().slice(0, 40)), 'i');
     }

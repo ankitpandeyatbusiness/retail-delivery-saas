@@ -57,6 +57,7 @@ async function findCustomer(req) {
     if (!u) throw httpError(404, 'Customer not found');
     if (u.role === 'admin') throw httpError(403, 'Owner accounts cannot be edited here');
     if (u.role === 'rider') throw httpError(409, 'This is a rider. Use the riders screen.');
+    if (u.role === 'kitchen' || u.role === 'waiter') throw httpError(409, 'This is shop staff. Use the Staff screen.');
     return u;
 }
 

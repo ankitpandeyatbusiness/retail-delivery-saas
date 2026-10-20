@@ -17,6 +17,8 @@ import ActiveOrderBar from '../components/customers/ActiveOrderBar';
 import ReviewPrompts from '../components/customers/ReviewPrompts';
 import OrderPlacedScreen from '../screens/customers/OrderPlacedScreen';
 import RiderTabs from './RiderNavigator';
+import StaffTabs from './StaffNavigator';
+import OwnerStaffScreen from '../screens/owners/OwnerStaffScreen';
 import RiderTripScreen from '../screens/riders/RiderTripScreen';
 import RiderDutyScreen from '../screens/riders/RiderDutyScreen';
 import RiderPointsScreen from '../screens/riders/RiderPointsScreen';
@@ -200,12 +202,13 @@ function MainTabs() {
     );
 }
 
-// One app, three panels, chosen by the phone number's role: a rider gets the delivery screen, the shop owner
-// ("admin") gets the owner panel, everybody else gets the customer tabs.
+// One app, four panels, chosen by the phone number's role: a rider gets the delivery screen, the shop owner
+// ("admin") gets the owner panel, a cook or waiter ("kitchen" / "waiter") gets the staff screens, everybody else gets the customer tabs.
 function Landing() {
     const role = useAuthStore((s) => s.user?.role);
     if (role === 'rider') return <RiderTabs />;
     if (role === 'admin') return <OwnerTabs />;
+    if (role === 'kitchen' || role === 'waiter') return <StaffTabs />;
     return <MainTabs />;
 }
 
@@ -334,6 +337,7 @@ export default function AppNavigator() {
                     <Stack.Screen name="OwnerRiderMap" component={OwnerRiderMapScreen} />
                     <Stack.Screen name="OwnerPerformance" component={OwnerPerformanceScreen} />
                     <Stack.Screen name="OwnerRiderRules" component={OwnerRiderRulesScreen} />
+                    <Stack.Screen name="OwnerStaff" component={OwnerStaffScreen} />
                     <Stack.Screen name="OwnerPayments" component={OwnerPaymentsScreen} />
                     <Stack.Screen name="OwnerSms" component={OwnerSmsScreen} />
                     <Stack.Screen name="OwnerRent" component={OwnerRentScreen} />

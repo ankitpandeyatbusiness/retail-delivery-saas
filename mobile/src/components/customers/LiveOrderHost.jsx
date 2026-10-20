@@ -54,12 +54,12 @@ function eta(e, now) {
 
 export default function LiveOrderHost({ routeName, onOpenOrder }) {
     const user = useAuthStore((s) => s.user);
-    const enabled = !!user && user.role !== 'rider' && user.role !== 'admin';
+    const enabled = !!user && ['rider', 'admin', 'kitchen', 'waiter'].indexOf(user.role) < 0;
     useLiveTrip(enabled);
 
     // Without a live connection (a guest who skipped login, or the connection is down) the menu is still read again every 20 s
     // while the app is open, and the moment the app comes back to the front.
-    const shopper = !user || (user.role !== 'rider' && user.role !== 'admin');
+    const shopper = !user || (['rider', 'admin', 'kitchen', 'waiter'].indexOf(user.role) < 0);
     useEffect(() => {
         if (!shopper) return undefined;
         const load = () => { if (AppState.currentState === 'active') useMenuStore.getState().load(); };

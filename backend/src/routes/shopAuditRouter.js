@@ -23,7 +23,7 @@ router.get('/', wrap(async (req, res) => {
     const limit = clamp(parseInt(req.query.limit, 10) || 20, 1, 50);
     const filter = { tenantId: req.tenant._id };
 
-    if (['owner', 'rider', 'superadmin', 'system'].includes(req.query.actorType)) filter.actorType = req.query.actorType;
+    if (['owner', 'rider', 'staff', 'superadmin', 'system'].includes(req.query.actorType)) filter.actorType = req.query.actorType;
     if (typeof req.query.q === 'string' && req.query.q.trim()) {
         filter.action = new RegExp(esc(req.query.q.trim().slice(0, 40)), 'i');
     }

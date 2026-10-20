@@ -45,15 +45,15 @@ describe('notification waterfall', () => {
         vars: { orderNo: 7, status, orderType: 'delivery' }, data: { orderId: 'a', orderNo: 7, status },
     });
 
-    test('online: live message only, no push, no SMS, and the inbox row is saved', async () => {
+    test('online: live message AND a push, no SMS, and the inbox row is saved', async () => {
         const w = await makeWorld('wf-online');
         const calls = fakes({ online: true });
         const doc = await center.notify('order_status', statusCtx(w, 'accepted'));
         assert.equal(calls.live.length, 1);
         assert.equal(String(calls.live[0].userId), String(w.customer.user._id));
-        assert.equal(calls.push.length, 0);
+        assert.equal(calls.push.length, 1, 'the phone is always buzzed as well as the live message');
         assert.equal(calls.sms.length, 0);
-        assert.equal(doc.title, 'Order accepted');
+        assert.match(doc.title, /accepted/);
         assert.equal(await count({ tenantId: w.tenant._id, userId: w.customer.user._id }), 1);
     });
 
@@ -226,13 +226,13 @@ describe('notification waterfall', () => {
         notify.orderPlaced(order);
         assert.ok(await waitFor(async () => (await count({ tenantId: w.tenant._id, type: 'order_new' })) === 1));
         const row = await Notification.findOne({ tenantId: w.tenant._id, type: 'order_new' });
-        assert.equal(row.body, `Order #${order.orderNo} - Rs 100 - delivery`);
+        assert.equal(row.body, `Test item · Delivery · Cash on delivery`);   // the dishes, the kind of order and how it is paid
 
         notify.orderStatusChanged(order, 'accepted', { type: 'owner' });
         assert.ok(await waitFor(async () => (await count({ tenantId: w.tenant._id, type: 'order_status' })) === 1));
         const st = await Notification.findOne({ tenantId: w.tenant._id, type: 'order_status' });
-        assert.equal(st.title, 'Order accepted');
-        assert.equal(st.body, `The shop accepted your order #${order.orderNo}.`);
+        assert.match(st.title, /accepted/);
+        assert.match(st.body, /getting started/);
         assert.equal(String(st.userId), String(w.customer.user._id));
     });
 

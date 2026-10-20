@@ -65,7 +65,7 @@ describe('rent pause: what stays open and what closes', () => {
     test('the owner can still finish an order while the shop is paused', async () => {
         const w = await worldWith('pause-finish', { 'billing.state': 'paused' });
         const order = await makeOrder(w.tenant, w.customer.user, { status: 'ready', orderType: 'pickup' });
-        const res = await request(app).patch(`/api/shop/orders/${order._id}/status`).set(w.owner.headers).send({ status: 'delivered' });
+        const res = await request(app).patch(`/api/shop/orders/${order._id}/status`).set(w.owner.headers).send({ status: 'delivered', skipCode: true });   // a pickup is handed over with its code, or without it on purpose
         assert.equal(res.status, 200);
         assert.equal((await Order.findById(order._id)).status, 'delivered');
     });

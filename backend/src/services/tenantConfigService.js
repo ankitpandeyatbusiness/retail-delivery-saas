@@ -145,7 +145,7 @@ function validateSettings(input) {
 
     // orders
     section('orders',
-        ['types', 'payments', 'minOrder', 'deliveryFee', 'packagingCharge', 'gst', 'tipOptions', 'prepTimeMin', 'acceptingOrders', 'pausedUntil', 'busy', 'codCap', 'pickupCod', 'pickupRules', 'mixRules', 'limits', 'dineIn'],
+        ['types', 'payments', 'minOrder', 'deliveryFee', 'packagingCharge', 'gst', 'tipOptions', 'prepTimeMin', 'acceptingOrders', 'pausedUntil', 'busy', 'codCap', 'pickupCod', 'pickupRules', 'mixRules', 'limits', 'staff', 'dineIn'],
         (o, out, p) => {
             if (o.types !== undefined) { const v = listOf(p('types'), o.types, O.ORDER_TYPES, 1, 3); if (v) out.types = v; }
             if (o.payments !== undefined) { const v = listOf(p('payments'), o.payments, O.PAYMENT_METHODS, 1, 4); if (v) out.payments = v; }
@@ -221,6 +221,21 @@ function validateSettings(input) {
                 }
             }
             // platform rules for this shop, set from the super admin panel only (timings and counts that used to be fixed in the code)
+            // kitchen and waiter panels: which ones this shop has, and how many people (super admin only)
+            if (o.staff !== undefined) {
+                const c = o.staff;
+                if (!isObj(c)) err(p('staff'), 'must be an object');
+                else {
+                    known(c, ['kitchenOn', 'waiterOn', 'max'], p('staff'));
+                    out.staff = {};
+                    if (c.kitchenOn !== undefined && bool(p('staff.kitchenOn'), c.kitchenOn)) out.staff.kitchenOn = c.kitchenOn;
+                    if (c.waiterOn !== undefined && bool(p('staff.waiterOn'), c.waiterOn)) out.staff.waiterOn = c.waiterOn;
+                    if (c.max !== undefined) {
+                        if (!Number.isInteger(c.max)) err(p('staff.max'), 'must be a whole number');
+                        else if (num(p('staff.max'), c.max, 1, 50)) out.staff.max = c.max;
+                    }
+                }
+            }
             if (o.limits !== undefined) {
                 const c = o.limits;
                 if (!isObj(c)) err(p('limits'), 'must be an object');
@@ -446,6 +461,7 @@ const DEFAULTS = {
         packagingCharge: 0, gst: { mode: 'none', percent: 0 },
         tipOptions: [], prepTimeMin: 20, acceptingOrders: true,
         dineIn: { enabled: false, tableCount: 10, autoCloseHours: 6, tabLimitNew: 500, tabLimitTrusted: 2000, trustedAfter: 3, atShopCheck: true, radiusM: 250, checkMinutes: 20, autoReady: false, readyMin: 15, autoServe: false, serveMin: 10, owedDaily: false, owedHour: 11, owedOnHome: true, referOn: false, referFriendPercent: 15, referFriendMax: 150, referPoints: 50, referLimit: 10, callOn: false, tipOn: false, tipChoices: [10, 20, 50], feedbackOn: false, welcomeOn: false, welcomePercent: 10, welcomeMax: 100, regularOn: false, regularAfter: 5, regularPercent: 5, regularMax: 50, happyOn: false, happyFrom: '15:00', happyTo: '18:00', happyPercent: 15, happyMax: 150, waitMin: 0, owedMax: 7, firstOnline: false, prefs: ['Make it spicy', 'Less spicy', 'Not spicy', 'Extra gravy', 'Less gravy', 'No coriander', 'No onion', 'No garlic', 'Less oil', 'Less salt'], busyAuto: true, busyPercent: 70, busyExtraMin: 10, cancelGraceMin: 3 },   // eating at the shop: on/off and how many tables
+        staff: { kitchenOn: false, waiterOn: false, max: 10 },   // kitchen and waiter panels (services/staffService.js): off until the super admin switches them on
         mixRules: { dineBlocksOthers: true, deliveryOpenMax: 3, exposureOn: true, exposureNew: 800, exposureTrusted: 3000, regularAfter: 3 },
         limits: { pickupAsksMax: 3, nudgeFirstMin: 3, nudgeEveryMin: 10, callGapMin: 2, callClearHours: 2, remindGapMin: 30, claimRetryMin: 5, scanGapMin: 5, strikesMax: 2, pickupSlotsPerDay: 12 },   // timings and counts, set by the super admin   // several kinds of order at once (services/orderMix.js)
         pickupRules: { openMax: 2, canChange: true },   // pickup: orders one customer may have waiting (0 = no limit), and may he move his time

@@ -120,6 +120,7 @@ describe('J2: online order flow', () => {
         await paymentService.startForOrder({ order });
         assert.equal(spy.mock.callCount(), 0);
         await pay(order);
+        await new Promise((r) => setTimeout(r, 300));   // the owner is told a moment after the payment (afterPlaced reads the shop first)
         assert.equal(spy.mock.callCount(), 1);
         // the same payment confirmed again (the app check and the webhook both arrive)
         const row = await OnlinePayment.findOne({ orderId: order._id });
@@ -127,6 +128,7 @@ describe('J2: online order flow', () => {
             payment: row, source: 'webhook',
             rzp: { id: row.rzpPaymentId, orderId: row.rzpOrderId, status: 'captured', amountPaise: 10000, method: 'upi' },
         });
+        await new Promise((r) => setTimeout(r, 300));
         assert.equal(spy.mock.callCount(), 1);
     });
 

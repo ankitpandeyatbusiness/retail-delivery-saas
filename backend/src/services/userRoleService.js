@@ -48,6 +48,7 @@ async function changeRole({ tenantId, user, role }) {
     if (!updated) throw httpError(404, 'User not found');
 
     if (user.role === 'rider') await Rider.deleteOne({ tenantId, userId: user._id });   // no longer a rider
+    if (user.role === 'kitchen' || user.role === 'waiter') await require('../models/Staff').deleteOne({ tenantId, userId: user._id });   // no longer staff
     if (role === 'rider') {
         await Rider.findOneAndUpdate(
             { tenantId, userId: user._id },

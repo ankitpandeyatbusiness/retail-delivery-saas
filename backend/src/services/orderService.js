@@ -259,7 +259,10 @@ async function takeLock(key) {
 }
 async function placeOrder(args) {
     const key = `${args.tenant._id}:${args.userId}`;
-    if (!(await takeLock(key))) throw httpError(429, 'Your other order is still being placed. Please wait a moment and try again.');
+    // a second tap at the same moment waits for the first to finish (a few seconds): then the double-tap check answers it (the same order, or 'Duplicate order')
+    let got = await takeLock(key);
+    for (let i = 0; !got && i < 40; i += 1) { await sleep(100); got = await takeLock(key); }
+    if (!got) throw httpError(429, 'Your other order is still being placed. Please wait a moment and try again.');
     try { return await placeOrderLocked(args); } finally { await PlaceLock.deleteOne({ _id: key }).catch(() => { }); }
 }
 

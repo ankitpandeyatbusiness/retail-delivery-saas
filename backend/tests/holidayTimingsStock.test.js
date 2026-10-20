@@ -14,7 +14,7 @@ const { makeTenant, makeUser } = require('./helpers/factory');
 const { validateSettings, openStatus, resolveConfig } = require('../src/services/tenantConfigService');
 const { isOpenNow, timingsError } = require('../src/services/categoryTimings');
 
-const SETTINGS = { orders: { types: ['delivery', 'pickup', 'dine_in'], payments: ['cod'] } };
+const SETTINGS = { orders: { types: ['delivery', 'pickup', 'dine_in'], payments: ['cod'], dineIn: { enabled: true, tabLimitNew: 0, tabLimitTrusted: 0 }, mixRules: { exposureOn: false } } };
 
 // India date, plus N days
 const istDay = (plus = 0) => new Date(Date.now() + 330 * 60000 + plus * 86400000).toISOString().slice(0, 10);

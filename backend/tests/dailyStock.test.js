@@ -14,7 +14,7 @@ const Product = require('../src/models/Product');
 const { makeTenant, makeUser } = require('./helpers/factory');
 const { dayKey } = require('../src/services/stockService');
 
-const SETTINGS = { orders: { types: ['delivery', 'pickup', 'dine_in'], payments: ['cod'] } };
+const SETTINGS = { orders: { types: ['delivery', 'pickup', 'dine_in'], payments: ['cod'], dineIn: { enabled: true, tabLimitNew: 0, tabLimitTrusted: 0 }, mixRules: { exposureOn: false } } };
 let n = 0;
 
 async function shop(productExtra = {}) {

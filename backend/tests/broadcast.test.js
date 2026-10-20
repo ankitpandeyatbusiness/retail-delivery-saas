@@ -371,9 +371,9 @@ describe('rider broadcast', () => {
         assert.equal(DEFAULTS.riders.offerSeconds, 120);
         assert.equal(
             texts.build('rider_offer', { orderNo: 5, secs: 120, items: 3, collect: 480 }).body,
-            'Order #5 (3 items, collect Rs 480). Please accept within 120 seconds.',
+            'Order #5 · Collect ₹480 · accept in 120s',
         );
-        assert.equal(texts.build('rider_offer', { orderNo: 5, secs: 120, items: 1, collect: null }).body, 'Order #5 (1 item). Please accept within 120 seconds.');
-        assert.equal(texts.build('rider_offer', { orderNo: 5, secs: 90 }).body, 'Order #5. Please accept within 90 seconds.');   // the old one-rider offer is unchanged
+        assert.equal(texts.build('rider_offer', { orderNo: 5, secs: 120, items: 1, collect: null }).body, 'Order #5 · 1 item · accept in 120s');
+        assert.equal(texts.build('rider_offer', { orderNo: 5, secs: 90 }).body, 'Order #5 · accept in 90s');   // the old one-rider offer is unchanged
     });
 });

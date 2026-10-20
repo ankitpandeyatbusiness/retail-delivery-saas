@@ -30,7 +30,7 @@ const WORDS = {
 
 export default function ActiveOrderBar({ routeName, onOpen, onOpenAll }) {
     const user = useAuthStore((s) => s.user);
-    const enabled = !!user && user.role !== 'rider' && user.role !== 'admin';
+    const enabled = !!user && ['rider', 'admin', 'kitchen', 'waiter'].indexOf(user.role) < 0;
     const tracking = useLiveTripStore((s) => !!s.orderId && !!s.track);   // a delivery is being tracked: the tracking card (or its map) is the only thing shown
     const liveOffset = useLiveTripStore((s) => s.liveOffset);   // room taken above the tabs by the delivery bar: this bar sits above it
     const [orders, setOrders] = useState([]);

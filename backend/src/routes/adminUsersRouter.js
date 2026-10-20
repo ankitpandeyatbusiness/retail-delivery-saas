@@ -47,7 +47,7 @@ router.get('/tenants/:tid/users', loadTenant, wrap(async (req, res) => {
     const limit = clamp(parseInt(req.query.limit, 10) || 20, 1, 50);
     const filter = { tenantId: req.tenantDoc._id };
 
-    if (['customer', 'rider', 'admin'].includes(req.query.role)) filter.role = req.query.role;
+    if (['customer', 'rider', 'admin', 'kitchen', 'waiter'].includes(req.query.role)) filter.role = req.query.role;
     if (req.query.blocked === 'true') filter.isBlocked = true;
 
     const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';

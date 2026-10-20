@@ -455,6 +455,7 @@ admin.post('/tenants/:tid/owners', loadTenant, wrap(async (req, res) => {
                 throw httpError(409, 'This number is an active rider. Remove the rider first, then add the number as owner.');
             }
         }
+        if (existing.role === 'kitchen' || existing.role === 'waiter') throw httpError(409, 'This number is shop staff. Remove them from Staff first, then add the number as owner.');
         const busy = await Order.exists({ tenantId, userId: existing._id, status: { $in: ACTIVE_STATUSES } });
         if (busy) throw httpError(409, 'This person has an order in progress. Try again after it is delivered or cancelled.');
     }

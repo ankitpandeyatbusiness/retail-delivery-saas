@@ -16,7 +16,7 @@ const { makeTenant, makeUser, makeOrder, makeSuperAdmin } = require('./helpers/f
 const Counter = require('../src/models/Counter');
 
 // dine-in orders need no address and no pickup time, so they keep these tests short
-const SETTINGS = { orders: { types: ['delivery', 'pickup', 'dine_in'], payments: ['cod'] } };
+const SETTINGS = { orders: { types: ['delivery', 'pickup', 'dine_in'], payments: ['cod'], dineIn: { enabled: true, tabLimitNew: 0, tabLimitTrusted: 0 }, mixRules: { exposureOn: false } } };   // the cash-together limit is tested in its own file
 
 async function shop(slug, price = 100) {
     const tenant = await makeTenant(slug, { settings: SETTINGS });
@@ -204,7 +204,7 @@ describe('orders: price changed, double tap, Cash on delivery limit', () => {
         await CustomerRisk.create({ tenantId: w.tenant._id, phoneHash: hashPhone(w.tenant._id, '9000000030'), codBlocked: true, strikes: 2 });
         const res = await place(w);
         assert.equal(res.status, 400);
-        assert.equal(res.body.error, 'Cash on delivery is not available for this number');
+        assert.equal(res.body.error, 'Paying by cash is not available for this number because of earlier unpaid or missed orders. Please pay online, or call the shop to sort it out.');
     });
 
     test('N2: a blocked phone stays blocked after the customer deletes his account and comes back', async () => {
@@ -215,7 +215,7 @@ describe('orders: price changed, double tap, Cash on delivery limit', () => {
         const again = await makeUser(w.tenant, 'customer', '9000000030');              // registers again with the same phone
         const res = await request(app).post('/api/orders').set(again.headers).send(body(w));
         assert.equal(res.status, 400);
-        assert.equal(res.body.error, 'Cash on delivery is not available for this number');
+        assert.equal(res.body.error, 'Paying by cash is not available for this number because of earlier unpaid or missed orders. Please pay online, or call the shop to sort it out.');
     });
 
     test('N2: the owner can change the limit or switch it off, and not the tax or payment settings', async () => {
