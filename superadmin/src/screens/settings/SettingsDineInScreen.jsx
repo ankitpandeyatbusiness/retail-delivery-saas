@@ -27,7 +27,8 @@ export default function SettingsDineInScreen() {
                     <Group title="Dine in" section="orders" hint="Eating at the shop, with a bill for the table. The owner can change all of this from the shop app too.">
                         <Switch title="Dine in is on" value={dn.enabled === true} onValueChange={D('enabled')} />
                         <NumberField label="Number of tables" integer value={dn.tableCount} onChange={num('tableCount', 10)} />
-                        <NumberField label="Usual waiting time shown to customers" suffix="min" integer hint="0 = do not show" value={dn.waitMin} onChange={num('waitMin')} last />
+                        <NumberField label="Usual waiting time shown to customers" suffix="min" integer hint="0 = do not show" value={dn.waitMin} onChange={num('waitMin')} />
+                        <NumberField label="A guest can cancel a round himself for" suffix="min" integer hint="0 = he can only ask the shop" value={dn.cancelGraceMin} onChange={num('cancelGraceMin', 3)} last />
                     </Group>
 
                     <Group title="Walk-out protection" section="orders">

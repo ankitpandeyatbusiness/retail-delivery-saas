@@ -23,14 +23,14 @@ export default function TableRequests() {
     const [open, setOpen] = useState(null);
     const load = useCallback(() => { fetchTableRequests().then((r) => setItems(r.items || [])).catch(() => { }); }, []);
     useFocusEffect(useCallback(() => {
-        if (!enabled) return undefined;
         load();
+        if (!enabled) return undefined;
         const t = setInterval(load, 15000);
         const a = onNotification((n) => { if (n?.type === 'table_call' || n?.type === 'table_bill_asked') load(); });
         const b = onOrderUpdate(load);
         return () => { clearInterval(t); a(); b(); };
     }, [enabled, load]));
-    if (!enabled || !items.length) return null;
+    if (!items.length) return null;
     const done = async (id) => {
         setItems((l) => l.filter((x) => x.id !== id));
         try { await doneTableRequest(id); } catch (e) { showToast(apiError(e)); load(); }

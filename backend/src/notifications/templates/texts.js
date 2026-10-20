@@ -37,6 +37,9 @@ function statusText(v) {
     }
 }
 
+// where a bill is from: a table number, or an unpaid pickup (kept as 'Pickup #1234')
+const at = (t) => (/^\d+$/.test(String(t)) ? `Table ${t}` : String(t));
+
 const TEXTS = {
     order_new: (v) => ({
         title: `New order #${v.orderNo}${v.total ? ` · ₹${Math.round(v.total)}` : ''}`,
@@ -69,25 +72,31 @@ const TEXTS = {
     points_arrived: (v) => ({ title: `${v.points} points added`, body: `Your balance is ${v.balance} points. Use them to get money off your next order.` }),
     rider_badge: (v) => ({ title: `You are now ${String(v.badge).charAt(0).toUpperCase()}${String(v.badge).slice(1)}!`, body: 'Customers and the shop can see your new badge. Keep up the good work.' }),
     pickup_waiting: (v) => ({ title: v.over ? 'Your food is still waiting' : 'Your food is waiting', body: `${v.brief ? `${v.brief} (#${v.orderNo})` : `Order #${v.orderNo}`} ${v.over ? 'was ready for your pickup time, which is over. Please come soon, before it gets cold.' : `is ready. Please collect it by ${v.until}.`}${v.pickupCode ? ` Pickup code: ${v.pickupCode}.` : ''}` }),
-    pickup_time_request: (v) => ({ title: `Order #${v.orderNo}: change pickup time?`, body: `${v.name ? `${v.name} ` : 'A customer '}asks to move the pickup${v.brief ? ` of ${v.brief}` : ''} from ${v.was} to ${v.asked}. Please say yes or no.` }),
+    pickup_collect_claim: (v) => ({ title: `Order #${v.orderNo}: collected?`, body: `${v.name || 'A customer'} says they collected ${v.brief || 'their order'}.${v.cod ? ` It is a cash order of ₹${Math.round(v.total)}: please confirm and say if they paid.` : ' Please confirm.'}` }),
+    pickup_not_wanted_claim: (v) => ({ title: `Order #${v.orderNo}: not wanted`, body: `${v.name || 'A customer'} does not want ${v.brief || 'their order'} (₹${Math.round(v.total)}, ${v.cod ? 'cash' : 'paid online'}). Choose how much to refund.` }),
+    pickup_thanks: (v) => ({ title: 'Thank you!', body: `Thank you for collecting order #${v.orderNo}. We hope you enjoy it. Come again soon!${v.message ? ` ${v.message}` : ''}` }),
+    pickup_claim_no: (v) => ({ title: 'We could not find it as collected', body: `The shop could not confirm that order #${v.orderNo} was collected. Please come to the shop or call them.${v.message ? ` The shop says: “${v.message}”.` : ''} Thank you for understanding.` }),
+    order_cancel_request: (v) => ({ title: `${v.where || 'Table'}: cancel order #${v.orderNo}?`, body: `${v.name || 'A guest'} asks to cancel ${v.brief || 'their order'}${v.note ? `: “${v.note}”` : ''}. It is already being made. Please say yes or no.` }),
+    order_cancel_no: (v) => ({ title: 'We could not cancel it', body: `Sorry, order #${v.orderNo} is already being made, so the shop could not cancel it.${v.message ? ` The shop says: “${v.message}”.` : ''} Thank you for understanding.` }),
+    pickup_time_request: (v) => ({ title: `Order #${v.orderNo}: change pickup time?`, body: `${v.name ? `${v.name} ` : 'A customer '}asks to move the pickup${v.brief ? ` of ${v.brief}` : ''} from ${v.was} to ${v.asked}.${v.overdue ? ' Their pickup time is already over.' : ''} Please say yes or no.` }),
     pickup_time_ok: (v) => ({ title: 'Pickup time changed', body: `Good news. The shop has moved your order #${v.orderNo} to ${v.now}.${v.message ? ` The shop says: “${v.message}”.` : ''} See you then!` }),
     pickup_time_no: (v) => ({ title: 'Pickup time stays the same', body: `Sorry, the shop could not move your order #${v.orderNo} to ${v.asked}. Please collect it at ${v.was} as planned.${v.message ? ` The shop says: “${v.message}”.` : ''} Thank you for understanding.` }),
     pickup_no_show: (v) => ({ title: `Order #${v.orderNo} was not collected`, body: `${v.brief ? `${v.brief}. ` : ''}The pickup time ended at ${v.until} and the customer has not come. Call him, or mark it as not collected.` }),
     table_bill_asked: (v) => ({ title: `Table ${v.table} asked for the bill`, body: `${v.due > 0 ? `₹${Math.round(v.due)} to collect` : `₹${Math.round(v.total)} (already paid)`}. Please bring the bill or take the payment at the counter.` }),
-    table_paid_claim: (v) => ({ title: `${v.name || 'A customer'} says they paid ₹${Math.round(v.amount)}`, body: `Table ${v.table} bill that was left unpaid. Please check and confirm.` }),
+    table_paid_claim: (v) => ({ title: `${v.name || 'A customer'} says they paid ₹${Math.round(v.amount)}`, body: `${at(v.table)} bill that was left unpaid. Please check and confirm.` }),
     owed_cleared: (v) => (v.forgiven
-        ? { title: 'Your bill is cleared', body: `The shop has cleared your ₹${Math.round(v.amount)} bill from table ${v.table}. You can order again. Thank you!` }
+        ? { title: 'Your bill is cleared', body: `The shop has cleared your ₹${Math.round(v.amount)} bill from ${at(v.table).toLowerCase()}. You can order again. Thank you!` }
         : v.claimed
-        ? { title: 'Sorry for the reminder', body: `Thank you, your ₹${Math.round(v.amount)} bill from table ${v.table} is settled. We are sorry we reminded you by mistake.${v.message ? ` ${v.message}` : ''}` }
-        : { title: 'Your bill is settled', body: `Your ₹${Math.round(v.amount)} bill from table ${v.table} is paid. Thank you! You can order again.${v.message ? ` ${v.message}` : ''}` }),
-    owed_claim_rejected: (v) => ({ title: 'The shop could not find your payment', body: `${v.message ? `${v.message} ` : ''}Your ₹${Math.round(v.amount)} bill from table ${v.table} is still open. Please call the shop to sort it out.` }),
-    owed_reminder: (v) => ({ title: `Your ₹${Math.round(v.amount)} bill is still unpaid`, body: `Table ${v.table}. Tap to see the bill and pay it. Until it is paid you cannot place any order.` }),
+        ? { title: 'Sorry for the reminder', body: `Thank you, your ₹${Math.round(v.amount)} bill from ${at(v.table).toLowerCase()} is settled. We are sorry we reminded you by mistake.${v.message ? ` ${v.message}` : ''}` }
+        : { title: 'Your bill is settled', body: `Your ₹${Math.round(v.amount)} bill from ${at(v.table).toLowerCase()} is paid. Thank you! You can order again.${v.message ? ` ${v.message}` : ''}` }),
+    owed_claim_rejected: (v) => ({ title: 'The shop could not find your payment', body: `${v.message ? `${v.message} ` : ''}Your ₹${Math.round(v.amount)} bill from ${at(v.table).toLowerCase()} is still open. Please call the shop to sort it out.` }),
+    owed_reminder: (v) => ({ title: `Your ₹${Math.round(v.amount)} bill is still unpaid`, body: `${at(v.table)}. Tap to see the bill and pay it. Until it is paid you cannot place any order.` }),
     referral_reward: (v) => ({ title: `You earned ${v.points} points`, body: `${v.friend} enjoyed a first meal here because of you. Your points arrive in a day. Thank you for spreading the word!` }),
     table_call: (v) => ({ title: `Table ${v.table}: ${v.label}`, body: `${v.text ? `“${v.text}”. ` : ''}A guest is asking for you at table ${v.table}.` }),
     table_feedback_low: (v) => ({ title: `Table ${v.table} was not happy (${v.stars}/5)`, body: `${v.comment ? `“${v.comment}”. ` : ''}Their private feedback is in Dine in, Guest feedback.` }),
     table_nudge: (v) => ({ title: `Table ${v.table} is waiting`, body: `Please bring the food fast${v.minutes ? ` (ordered ${v.minutes} min ago)` : ''}.${v.what ? ` ${v.what}` : ''}` }),
     table_check: (v) => ({ title: `Table ${v.table}: ₹${Math.round(v.due)} to collect`, body: `They finished eating ${v.minutes} minutes ago and nobody asked for the bill. Please check the table and take the ₹${Math.round(v.due)}.` }),
-    table_walkout: (v) => ({ title: 'Your bill is still open', body: `Table ${v.table}: ₹${v.amount} was not paid before you left. Please pay it, or call the shop to sort it out. Until it is paid you cannot place any order.` }),
+    table_walkout: (v) => ({ title: 'Your bill is still open', body: `${at(v.table)}: ₹${v.amount} was not paid before you left. Please pay it, or call the shop to sort it out. Until it is paid you cannot place any order.` }),
     table_paid: (v) => ({ title: 'Thank you! Bill paid', body: `Table ${v.table} · ₹${Math.round(v.total)}. We hope you enjoyed it. Your points are on the way. Come again soon!` }),
     rider_leave_request: (v) => ({ title: `${v.riderName} asks for leave`, body: `${v.from === v.to ? v.from : `${v.from} to ${v.to}`} (${v.days} day${v.days > 1 ? 's' : ''}). ${v.reason ? `"${v.reason}" ` : ''}Open Riders to approve or reject.` }),
     rider_leave_decision: (v) => ({ title: v.approved ? 'Leave approved' : 'Leave not approved', body: `${v.from === v.to ? v.from : `${v.from} to ${v.to}`}${v.note ? `: ${v.note}` : v.approved ? '. Enjoy your break.' : '. Please talk to the shop if you need those days.'}` }),

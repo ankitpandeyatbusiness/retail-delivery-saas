@@ -12,6 +12,7 @@ import { claimPaid } from '../../api/customers/shopApi';
 import { payOwed } from '../../utils/customers/payOwed';
 import { onNotification } from '../../api/common/socket';
 import { showToast } from './shop';
+import { whereOf, WhereOf } from '../../utils/common/where';
 import { tr } from '../../i18n';
 
 export { useOwedPrompt };
@@ -75,7 +76,7 @@ export default function OwedReminder() {
                         </View>
                         <Text style={{ color: text, fontWeight: '900', fontSize: 19, marginTop: 12, textAlign: 'center' }}>{tr('Your bill is not paid')}</Text>
                         <Text style={{ color: text, fontWeight: '900', fontSize: 28, marginTop: 6 }}>₹{Math.round(owed.amount)}</Text>
-                        <Text style={{ color: muted, textAlign: 'center', marginTop: 4 }}>{tr('From table {t}. It was not paid when you left.', { t: owed.table })}</Text>
+                        <Text style={{ color: muted, textAlign: 'center', marginTop: 4 }}>{tr('From {where}. It was not paid.', { where: whereOf(owed.table) })}</Text>
                     </View>
                     <Text style={{ color: text, textAlign: 'center', marginTop: 12, fontSize: 13.5 }}>{tr('Until it is paid you cannot order anything: delivery, pickup or dine in.')}</Text>
                     {owed.visits?.length ? (
@@ -84,7 +85,7 @@ export default function OwedReminder() {
                             <ScrollView style={{ maxHeight: 220 }} nestedScrollEnabled>
                                 {owed.visits.map((v, vi) => (
                                     <View key={vi}>
-                                        {owed.visits.length > 1 ? <Text style={{ color: muted, fontWeight: '800', marginTop: 6 }}>{tr('Table {t}', { t: v.table })} · {hm(v.leftAt)}</Text> : null}
+                                        {owed.visits.length > 1 ? <Text style={{ color: muted, fontWeight: '800', marginTop: 6 }}>{WhereOf(v.table)} · {hm(v.leftAt)}</Text> : null}
                                         {v.rounds.map((r, i) => (
                                             <View key={r.id} style={{ paddingVertical: 6 }}>
                                                 <Text style={{ color: text, fontWeight: '800' }}>{tr('Round {n}', { n: i + 1 })} · {hm(r.at)} · {rs(r.total)}</Text>

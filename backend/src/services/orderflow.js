@@ -59,6 +59,12 @@ function nextStatuses(order, now = new Date()) {
 // Cash orders: only while placed or accepted. Online orders: any active status (the refund share depends on the step).
 // ESCAPE HATCH: if the shop is frozen the customer can always cancel an active order, free of cost.
 const customerCanCancel = (order, tenant) => {
+    // a guest at a table may cancel a round by himself for the first few minutes (the owner's setting): ordered by mistake
+    if (order.orderType === 'dine_in' && ['placed', 'accepted', 'preparing'].includes(order.status)) {
+        const { DEFAULTS } = require('./tenantConfigService');
+        const grace = tenant?.settings?.orders?.dineIn?.cancelGraceMin ?? DEFAULTS.orders.dineIn.cancelGraceMin;
+        if (grace > 0 && Date.now() - new Date(order.createdAt).getTime() <= grace * 60000) return true;
+    }
     const allowed = isCod(order) ? COD_CUSTOMER_CAN_CANCEL_FROM : ACTIVE_STATUSES;
     if (allowed.includes(order.status)) return true;
     return !!tenant && ACTIVE_STATUSES.includes(order.status) && shopFrozen(tenant);

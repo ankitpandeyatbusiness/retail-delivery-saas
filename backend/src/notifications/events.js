@@ -31,6 +31,12 @@ const EVENTS = {
     pickup_time_request: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // the customer asks to move his pickup to a later time: the owner answers
     pickup_time_ok: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },     // the shop agreed to the new pickup time
     pickup_time_no: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },     // the shop could not change it: the old time stays
+    pickup_collect_claim: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },       // at his pickup time the customer says he collected it: the owner confirms (and says if he paid)
+    pickup_not_wanted_claim: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // the customer does not want his pickup any more: the owner chooses the refund
+    pickup_thanks: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },          // thank you for collecting
+    pickup_claim_no: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },        // the shop could not find it collected yet
+    order_cancel_request: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },      // a table guest asks the shop to cancel a round
+    order_cancel_no: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },        // the shop could not cancel it
     pickup_no_show: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },     // the customer did not come after his pickup time
     table_bill_asked: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // a customer at a table asked for the bill
     table_paid_claim: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // a customer who left unpaid says he paid: the owner must confirm

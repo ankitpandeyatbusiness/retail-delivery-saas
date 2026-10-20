@@ -167,7 +167,7 @@ router.get('/tenants/:tid/readiness', loadTenant, wrap(async (req, res) => {
         { key: 'logo', label: 'Logo uploaded', ok: !!t.logo, fix: 'Upload the shop logo' },
         { key: 'hero', label: 'Banner pictures', ok: (t.heroImages || []).length > 0, fix: 'Add at least one home picture' },
         { key: 'contact', label: 'Phone and address', ok: !!(t.phone && t.address?.line && t.address?.city), fix: 'Fill phone, address and city' },
-        { key: 'location', label: 'Map location and delivery radius', ok: t.delivery?.latitude != null && t.delivery?.longitude != null && !!t.delivery?.radiusKm, fix: 'Set latitude, longitude and radius' },
+        { key: 'location', label: 'Map location and delivery radius', ok: t.delivery?.latitude != null && t.delivery?.longitude != null && !!t.delivery?.radiusKm, fix: 'Set latitude, longitude and radius. Without them anyone, anywhere can order delivery' },
         { key: 'menu', label: 'Menu has categories and items', ok: categories > 0 && products > 0, fix: `${categories} categories, ${products} items` },
         { key: 'hours', label: 'Opening hours set', ok: !!hours, fix: 'Without hours the shop is always open', optional: true },
         { key: 'owner', label: 'Owner account', ok: owner > 0, fix: 'Add the owner phone number' },

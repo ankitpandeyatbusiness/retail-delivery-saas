@@ -19,14 +19,14 @@ export default function OccupiedTables() {
     const [open, setOpen] = useState(null);
     const load = useCallback(() => { fetchDineTables().then((r) => setTables((r.items || []).filter((t) => t.state !== 'free'))).catch(() => { }); }, []);
     useFocusEffect(useCallback(() => {
+        load();   // even with Dine in switched off: guests who are still seated must stay visible
         if (!enabled) return undefined;
-        load();
         const t = setInterval(load, 20000);
         const a = onNotification(load);
         const b = onOrderUpdate(load);
         return () => { clearInterval(t); a(); b(); };
     }, [enabled, load]));
-    if (!enabled || !tables.length) return null;
+    if (!tables.length) return null;
     return (
         <View>
             <SectionTitle title={tr('Tables in use')} action={tr('All tables')} onAction={() => nav.navigate('OwnerDineIn')} />

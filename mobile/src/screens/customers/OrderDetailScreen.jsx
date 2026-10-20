@@ -14,7 +14,8 @@ import { Press, Appear } from '../../components/customers/cartParts';
 import { StatusPill, isActive, rs, errMsg, cancelFlow, reorder } from '../../components/customers/orders';
 import { viewInvoice, saveInvoice } from '../../components/customers/invoice';
 import { useHomeStore } from '../../store/customers/useHomeStore';
-import { fetchOrder, rateOrder, fetchRatings, fetchTracking, fetchPoints } from '../../api/customers/shopApi';
+import { fetchOrder, rateOrder, fetchRatings, fetchTracking, fetchPoints, askCancelOrder } from '../../api/customers/shopApi';
+import { themedAlert } from '../../components/common/dialog';
 import { arriveText } from './MyPointsScreen';
 import TrackingCard from '../../components/customers/tracking';
 import { StoreLocation, useStoreSpot } from '../../components/customers/storeLocation';
@@ -273,7 +274,11 @@ export default function OrderDetailScreen() {
             if (r.status !== 'paid') get();
         } finally { setBusy(false); }
     };
-    const dock = o.canCancel || reorderOn || payable;
+    const askShop = () => themedAlert(tr('Ask the shop to cancel?'), tr('It is already being made, so the shop decides. They will reply soon.'), [
+        { text: tr('No'), style: 'cancel' },
+        { text: tr('Ask'), onPress: async () => { setBusy(true); try { const u = await askCancelOrder(o.id); setO(u); showToast(tr('Asked. The shop will reply soon.')); } catch (e) { showToast(errMsg(e)); } finally { setBusy(false); } } },
+    ]);
+    const dock = o.canCancel || o.canAskCancel || reorderOn || payable;
     const timeLine = o.scheduledFor ? (o.pickupUntil ? `${fmt(o.scheduledFor)} – ${tm(o.pickupUntil)}` : fmt(o.scheduledFor)) : '';
     const showForm = !saved || editing;
 
@@ -323,6 +328,10 @@ export default function OrderDetailScreen() {
                         </Text>
                     </View>
                 ) : null}
+                {o.pickupClaim?.kind ? (
+                    <Text style={{ color: muted, marginHorizontal: 16, marginBottom: 12, fontSize: 13, textAlign: 'center' }}>{o.pickupClaim.kind === 'collected' ? tr('You told the shop you collected it. They will confirm.') : tr('You told the shop you do not want it. They will decide about the refund and let you know.')}</Text>
+                ) : null}
+                {o.cancelRequest?.at ? <Text style={{ color: muted, marginHorizontal: 16, marginBottom: 12, fontSize: 13, textAlign: 'center' }}>{tr('You asked the shop to cancel this. Waiting for their reply.')}</Text> : null}
                 {delivery && live && track && track.state !== 'cancelled' ? (
                     <TrackingCard tracking={track} destination={o.address} />
                 ) : null}
@@ -491,6 +500,12 @@ export default function OrderDetailScreen() {
                         <Press wrap={{ flex: 1, marginRight: reorderOn ? 10 : 0 }} disabled={busy} onPress={() => cancelFlow(o, { setBusy, onDone: setO })}
                             style={[s.dBtn, { borderColor: error, borderWidth: 1.5, borderRadius: radius }]}>
                             <Text style={[s.ghostTxt, { color: error }]}>{tr('Cancel order')}</Text>
+                        </Press>
+                    ) : null}
+                    {o.canAskCancel ? (
+                        <Press wrap={{ flex: 1, marginRight: reorderOn ? 10 : 0 }} disabled={busy} onPress={askShop}
+                            style={[s.dBtn, { borderColor: error, borderWidth: 1.5, borderRadius: radius }]}>
+                            <Text style={[s.ghostTxt, { color: error }]}>{tr('Ask the shop to cancel')}</Text>
                         </Press>
                     ) : null}
                     {payable ? (

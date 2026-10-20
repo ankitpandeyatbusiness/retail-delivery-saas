@@ -1,5 +1,5 @@
 import { isState } from '../../utils/states';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Text, Linking } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useTheme, spacing, font } from '../../theme';
@@ -30,6 +30,13 @@ export default function ShopEditScreen() {
     const [err, setErr] = useState({});
     const [busy, setBusy] = useState(false);
     const [confirmStatus, setConfirmStatus] = useState(false);
+    // fetch the shop again when the form opens, and fill the form from that: what the owner saved a minute ago (his phone, address) is what shows
+    const fresh = useRef(false);
+    useEffect(() => {
+        let on = true;
+        useShopStore.getState().load(shopId, { quiet: true }).then(() => { if (on && !fresh.current) { fresh.current = true; setF(null); } }).catch(() => { });
+        return () => { on = false; };
+    }, [shopId]);
 
     useEffect(() => {
         if (rec && !f) {

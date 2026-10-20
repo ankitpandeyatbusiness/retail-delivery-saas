@@ -1,6 +1,6 @@
 // The table bill: every round he ordered with what it cost, what is still to pay, and the two things to do: order more, or ask for the bill.
 import React, { useCallback, useState } from 'react';
-import { View, Text, ScrollView, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, RefreshControl, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useBrand, alpha } from '../../components/common/kit';
@@ -9,9 +9,10 @@ import { ListShimmer } from '../../components/owners/shimmer';
 import { useTableBill } from '../../store/customers/useTableBill';
 import WaitTimer, { ServedIn, useTick, clock as mmss } from '../../components/common/WaitTimer';
 import { CallCard, TipCard, SplitCard } from '../../components/customers/TableExtras';
-import { nudgeTable } from '../../api/customers/shopApi';
+import { nudgeTable, cancelOrder, askCancelOrder } from '../../api/customers/shopApi';
 import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
+import { whereOf } from '../../utils/common/where';
 import { tr } from '../../i18n';
 
 const STATE = { placed: 'Waiting for the shop', accepted: 'Accepted', preparing: 'Being prepared', ready: 'Coming to your table', delivered: 'Served' };
@@ -37,6 +38,22 @@ export default function TableBillScreen() {
         try { await useTableBill.getState().ask(); showToast(tr('The shop has been told')); } catch (e) { showToast(e?.response?.data?.error || tr('Could not ask for the bill. Please try again.')); }
     };
 
+    // ordered by mistake: cancel the round himself in the first minutes; later the shop decides
+    const roundCancel = async (r) => {
+        const self = !!r.canCancel;
+        const yes = await ask({
+            title: self ? tr('Cancel this round?') : tr('Ask the shop to cancel?'),
+            message: self ? tr('You will not be charged for it.') : tr('It is already being made, so the shop decides. They will reply soon.'),
+            confirmText: self ? tr('Cancel the round') : tr('Ask the shop'), cancelText: tr('No'),
+        });
+        if (!yes) return;
+        try {
+            if (self) await cancelOrder(r.id); else await askCancelOrder(r.id);
+            showToast(self ? tr('Round cancelled') : tr('Asked. The shop will reply soon.'));
+            await useTableBill.getState().load();
+        } catch (e) { showToast(e?.response?.data?.error || tr('Could not do that. Please try again.')); }
+    };
+
     if (!bill) return <View style={{ flex: 1, backgroundColor: background }}><PageHeader title={tr('Table bill')} /><ListShimmer count={3} /></View>;
     if (!bill.open) {
         return (
@@ -46,7 +63,7 @@ export default function TableBillScreen() {
                     <Ionicons name="checkmark-circle" size={64} color={ok} />
                     <Text style={{ color: text, fontWeight: '900', fontSize: 20, marginTop: 12 }}>{tr('Nothing to pay')}</Text>
                     <Text style={{ color: muted, textAlign: 'center', marginTop: 6 }}>{tr('You have no open table bill. Thank you for dining with us!')}</Text>
-                    {bill.owed ? <Text style={{ color: warn, fontWeight: '900', textAlign: 'center', marginTop: 16 }}>{tr('You still owe {n} from table {t}. Please pay it at the counter on your next visit.', { n: rs(bill.owed.amount), t: bill.owed.table })}</Text> : null}
+                    {bill.owed ? <Text style={{ color: warn, fontWeight: '900', textAlign: 'center', marginTop: 16 }}>{tr('You still owe {n} from {where}. Please pay it at the counter on your next visit.', { n: rs(bill.owed.amount), where: whereOf(bill.owed.table) })}</Text> : null}
                 </View>
             </View>
         );
@@ -110,6 +127,11 @@ export default function TableBillScreen() {
                                 <Text style={{ flex: 1, color: muted, fontWeight: '700' }}>{tr('Round total')}</Text>
                                 <Text style={{ color: text, fontWeight: '900' }}>{rs(r.total)}</Text>
                             </View>
+                            {r.canCancel || r.canAsk ? (
+                                <Pressable onPress={() => roundCancel(r)} hitSlop={8} style={{ marginTop: 10, alignSelf: 'flex-start' }}>
+                                    <Text style={{ color: warn, fontWeight: '800' }}>{r.canCancel ? tr('Ordered by mistake? Cancel this round') : tr('Ask the shop to cancel this round')}</Text>
+                                </Pressable>
+                            ) : r.asked ? <Text style={{ color: muted, fontSize: 12.5, marginTop: 10 }}>{tr('You asked the shop to cancel. Waiting for their reply.')}</Text> : null}
                         </Card>
                     </View>
                 ))}

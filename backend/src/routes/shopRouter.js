@@ -355,6 +355,12 @@ router.post('/dine-in/claims/:id/answer', wrap(async (req, res) => {
     if (typeof req.body?.ok !== 'boolean') throw httpError(400, 'Send ok: true or false');
     try { res.json(await require('../services/tableBill').answerClaim({ tenantId: req.tenant._id, sessionId: req.params.id, ok: req.body.ok, message: req.body.message })); } catch (e) { throw httpError(e.status || 400, e.message); }
 }));
+// what customers ask the shop to decide: "I collected it" / "I do not want it" (pickup), "please cancel it" (table). The owner answers each, with a message.
+router.get('/customer-asks', wrap(async (req, res) => { res.json({ items: await require('../services/customerAsks').claims(req.tenant._id) }); }));
+router.post('/customer-asks/:id/answer', wrap(async (req, res) => {
+    if (!isId(req.params.id)) throw httpError(404, 'Not found');
+    res.json(await require('../services/customerAsks').answerClaim({ tenant: req.tenant, actor: actorOf(req), orderId: req.params.id, body: req.body || {} }));
+}));
 // a customer asks to move his pickup time: the owner answers yes / no (with a message)
 router.get('/pickup-requests', wrap(async (req, res) => { res.json({ items: await svc.pickupRequests(req.tenant._id) }); }));
 router.post('/pickup-requests/:id/answer', wrap(async (req, res) => {

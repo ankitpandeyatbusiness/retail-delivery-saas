@@ -15,6 +15,7 @@ tenantRouter.get('/theme', tenantRecognizer, async (req, res) => {
     res.json({
         name: t.name,
         tagline: t.tagline,
+        phone: t.phone || null,   // the shop's own number (the owner sets it; the Account page has a Call the shop block)
         logo: t.logo,
         colors: c.brand.colors,
         fontStyle: c.brand.fontStyle,

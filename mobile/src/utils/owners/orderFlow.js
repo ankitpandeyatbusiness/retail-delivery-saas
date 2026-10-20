@@ -54,6 +54,16 @@ export const CANCEL_REASONS = [
     ['out_of_stock', 'Item is out of stock'],
     ['shop_fault', 'A problem at the shop'],
     ['customer_asked', 'The customer asked to cancel'],
+    ['mistake', 'Ordered by mistake (no charge)'],
+    ['other', 'Other: write the reason'],
+];
+// the same, for a dish round at a table
+export const DINE_CANCEL_REASONS = [
+    ['mistake', 'The guest ordered by mistake'],
+    ['customer_asked', 'The guest asked to cancel'],
+    ['out_of_stock', 'The dish is finished'],
+    ['busy', 'The kitchen is too busy'],
+    ['shop_fault', 'A problem in the kitchen'],
     ['other', 'Other: write the reason'],
 ];
 // Who was at fault when a delivery failed (UNDELIVERED_REASONS)

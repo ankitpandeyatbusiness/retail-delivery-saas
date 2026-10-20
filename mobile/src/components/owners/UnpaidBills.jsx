@@ -15,6 +15,7 @@ import { onNotification } from '../../api/common/socket';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { showToast } from '../customers/shop';
 import { ask } from '../common/dialog';
+import { WhereOf } from '../../utils/common/where';
 import { tr } from '../../i18n';
 
 const ago = (d) => { const m = Math.max(1, Math.round((Date.now() - new Date(d).getTime()) / 60000)); return m < 60 ? `${m} min` : m < 1440 ? `${Math.round(m / 60)} h` : `${Math.round(m / 1440)} d`; };
@@ -42,7 +43,7 @@ export function DebtCard({ d, onOpen }) {
                 <PersonAvatar photo={who.photo} size={44} />
                 <View style={{ flex: 1, marginLeft: 12 }}>
                     <Text style={{ color: text, fontWeight: '900' }} numberOfLines={1}>{d.customers.map((c) => c.name || c.phone || tr('Customer')).join(', ')}</Text>
-                    <Text style={{ color: muted, fontSize: 12.5, marginTop: 2 }}>{tr('Table {t}', { t: d.table })} · {tr('left {a} ago', { a: ago(d.at) })}</Text>
+                    <Text style={{ color: muted, fontSize: 12.5, marginTop: 2 }}>{WhereOf(d.table)} · {tr('left {a} ago', { a: ago(d.at) })}</Text>
                 </View>
                 <Text style={{ color: error, fontWeight: '900', fontSize: 18 }}>{rs(d.amount)}</Text>
             </View>
@@ -83,7 +84,7 @@ export function DebtSheet({ debt, onClose, onChanged }) {
         try { await blockCustomer(c.id, true, { reason: `Left table ${debt.table} without paying`, sessionId: debt.id }); showToast(tr('Customer blocked')); } catch (e) { showToast(apiError(e)); }
     };
     return (
-        <Sheet visible={!!debt} onClose={onClose} title={debt ? tr('Unpaid bill · Table {t}', { t: debt.table }) : ''}>
+        <Sheet visible={!!debt} onClose={onClose} title={debt ? `${tr('Unpaid bill')} · ${WhereOf(debt.table)}` : ''}>
             {debt ? (
                 <View>
                     <Text style={{ color: error, fontWeight: '900', fontSize: 26 }}>{rs(debt.amount)}</Text>

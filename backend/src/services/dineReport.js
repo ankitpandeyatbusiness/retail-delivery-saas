@@ -28,7 +28,7 @@ async function build({ tenant, days }) {
 
     const [orders, sessions, scans, owedNow, fb, refs] = await Promise.all([
         Order.find({ tenantId, orderType: 'dine_in', createdAt: { $gte: since }, status: { $nin: ['cancelled', 'undelivered'] } }).select('tableNo createdAt deliveredAt status pricing items').limit(20000).lean(),
-        TableSession.find({ tenantId, openedAt: { $gte: since } }).select('table status openedAt closedAt customers walkout owedPaise owedClearedAt owedVia paidPaise tipPaise').limit(20000).lean(),
+        TableSession.find({ tenantId, kind: { $ne: 'pickup' }, openedAt: { $gte: since } }).select('table status openedAt closedAt customers walkout owedPaise owedClearedAt owedVia paidPaise tipPaise').limit(20000).lean(),
         TableScan.aggregate([{ $match: { tenantId, createdAt: { $gte: since } } }, { $group: { _id: '$table', scans: { $sum: 1 } } }]),
         TableSession.aggregate([{ $match: { tenantId, walkout: true, owedClearedAt: { $exists: false }, owedPaise: { $gt: 0 } } }, { $group: { _id: null, paise: { $sum: '$owedPaise' }, n: { $sum: 1 } } }]),
         TableFeedback.aggregate([{ $match: { tenantId, createdAt: { $gte: since } } }, { $group: { _id: null, avg: { $avg: '$stars' }, n: { $sum: 1 } } }]),

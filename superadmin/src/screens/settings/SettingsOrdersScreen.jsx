@@ -18,6 +18,8 @@ export default function SettingsOrdersScreen() {
     const cod = o?.codCap || {};
     const tips = o?.tipOptions || [];
     const hasGstin = !!ed.rec?.tenant?.business?.gstin;
+    const dl = ed.rec?.tenant?.delivery || {};
+    const noArea = (o?.types || []).includes('delivery') && !([dl.latitude, dl.longitude, dl.radiusKm].every((n) => Number.isFinite(n)) && dl.radiusKm > 0);
 
     const setFee = (k, v) => ed.set('orders', 'deliveryFee', { ...fee, [k]: v });
     const setGst = (k, v) => ed.set('orders', 'gst', { ...gst, [k]: v });
@@ -49,6 +51,7 @@ export default function SettingsOrdersScreen() {
                             min={1}
                             onChange={(v) => ed.set('orders', 'payments', v)}
                         />
+                        {noArea ? <Hint tone="warn">Delivery is on but this shop has no delivery area (map pin and radius). Anyone, anywhere can order delivery. Set it in Edit shop.</Hint> : null}
                         <NumberField label="Minimum order" prefix="₹" value={o.minOrder} onChange={(v) => ed.set('orders', 'minOrder', v ?? 0)} />
                         <NumberField label="Preparation time" suffix="min" integer value={o.prepTimeMin} onChange={(v) => ed.set('orders', 'prepTimeMin', v ?? 0)} last />
                     </Group>

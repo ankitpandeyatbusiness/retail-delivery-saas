@@ -20,7 +20,7 @@ const rs = (n) => `₹${Math.round(n * 100) / 100}`;
 const PAY = { cod: 'Cash', upi: 'UPI', card: 'Card', wallet: 'Wallet' };
 
 export default function PickupChangeHost() {
-    const { text, muted, border, ok, primary } = useBrand();
+    const { text, muted, border, ok, primary, error } = useBrand();
     const role = useAuthStore((s) => s.user?.role);
     const customerView = useViewMode((s) => s.customerView);
     const access = useOwnerStore((s) => s.access);
@@ -65,6 +65,7 @@ export default function PickupChangeHost() {
                         <Text style={{ color: muted, fontWeight: '800', fontSize: 12 }}>{tr('ASKS FOR')}</Text>
                         <Text style={{ color: primary, fontWeight: '900', fontSize: 16 }}>{span(cur.asked)}</Text>
                     </View>
+                    {cur.overdue ? <Text style={{ color: error, fontWeight: '900', marginTop: 8 }}>{tr('His pickup time is already over.')}</Text> : null}
                     <ScrollView style={{ maxHeight: 150, marginTop: 10 }} nestedScrollEnabled>
                         {cur.items.map((it, i) => <Text key={i} style={{ color: text, paddingVertical: 2 }}>{it.quantity}× {it.name}</Text>)}
                     </ScrollView>

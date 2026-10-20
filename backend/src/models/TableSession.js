@@ -5,6 +5,8 @@ const mongoose = require('mongoose');
 const tableSessionSchema = new mongoose.Schema({
     tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true },
     table: { type: String, required: true },
+    kind: { type: String, enum: ['table', 'pickup'], default: 'table' },   // 'pickup': an unpaid pickup order, kept as a bill he owes (same reminders, same block)
+    orderId: { type: mongoose.Schema.Types.ObjectId, ref: 'Order' },
     status: { type: String, enum: ['open', 'bill_asked', 'closed'], default: 'open' },
     customers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],   // everyone who ordered at this table: all of them see the bill
     openedAt: { type: Date, default: Date.now },

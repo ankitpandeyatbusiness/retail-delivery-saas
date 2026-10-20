@@ -76,7 +76,9 @@ const orderSchema = new Schema({
     scheduledFor: Date,
     pickupNotified: { waitingAt: Date, overAt: Date, noShowAt: Date },   // the reminders for a pickup order, each sent once (jobs/pickupReminders.js)
     pickupChanges: { type: Number, default: 0 },            // how many times the customer asked to move his pickup time
-    pickupRequest: { from: Date, to: Date, at: Date },     // a pickup time he asked for, waiting for the shop to say yes or no
+    pickupRequest: { from: Date, to: Date, at: Date },
+    pickupClaim: { kind: String, at: Date, snoozeUntil: Date },   // at his pickup time the customer says: I collected it | I do not want it (the owner answers)
+    cancelRequest: { at: Date, note: String },                   // a table customer asks the shop to cancel a round that is already being made     // a pickup time he asked for, waiting for the shop to say yes or no
     pickupUntil: Date,                                      // end of the pickup time window
     note: String,                                           // special instructions for the whole order
     etaMin: Number,

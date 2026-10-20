@@ -11,6 +11,7 @@ const Media = require('../models/Media');
 const TableRequest = require('../models/TableRequest');
 const TableFeedback = require('../models/TableFeedback');
 const { DEFAULTS } = require('./tenantConfigService');
+const { HIDE_UNPAID } = require('./onlineOrder');   // an online round whose payment has not come in is not on the bill yet
 
 // who these people are, with their profile photo
 async function peopleOf(tenantId, ids) {
@@ -53,9 +54,13 @@ function timesOf(o) {
 
 // owner = true adds who ordered each round (the customer's own app never gets another person's number)
 async function billOf(session, { owner = false } = {}) {
-    const orders = await Order.find({ tenantId: session.tenantId, tableSessionId: session._id }).sort({ createdAt: 1 }).lean();
+    const orders = await Order.find({ tenantId: session.tenantId, tableSessionId: session._id, ...HIDE_UNPAID }).sort({ createdAt: 1 }).lean();
+    const lite = (await Tenant.findById(session.tenantId).select('settings.orders.dineIn.cancelGraceMin status maintenance ownerBlocked').lean()) || {};
+    const asks = require('./customerAsks');
+    const mine = require('./orderflow');
     const rounds = orders.filter((o) => !DEAD.includes(o.status)).map((o) => ({
         id: String(o._id), orderNo: o.orderNo, status: o.status, at: o.createdAt, total: o.pricing?.total || 0, paid: o.payment?.status === 'paid',
+        canCancel: mine.customerCanCancel(o, lite), canAsk: asks.canAskCancel(o, lite), asked: !!o.cancelRequest?.at,   // the guest may cancel it himself / ask the shop / has asked
         items: (o.items || []).map((l) => ({ name: l.name, quantity: l.quantity, total: l.lineTotal, addons: (l.selections || []).map((x) => x.name).filter(Boolean), note: l.note || null })), summary: brief(o, 3),
         note: o.note || null, times: timesOf(o),
         ...(owner ? { customer: { name: o.customer?.name || null, phone: o.customer?.phone || null } } : {}),
@@ -101,7 +106,7 @@ async function askForBill({ tenantId, userId }) {
 async function settle({ tenantId, sessionId, method }) {
     const s = await TableSession.findOne({ _id: sessionId, tenantId, status: { $in: ['open', 'bill_asked'] } });
     if (!s) throw fail(404, 'This bill is already closed');
-    const orders = await Order.find({ tenantId, tableSessionId: s._id, status: { $nin: DEAD } });
+    const orders = await Order.find({ tenantId, tableSessionId: s._id, status: { $nin: DEAD }, ...HIDE_UNPAID });
     if (orders.some((o) => ACTIVE.includes(o.status))) throw fail(409, 'Some dishes are still in the kitchen. Serve or cancel them first.');
     const now = new Date();
     const unpaid = orders.filter((o) => o.payment?.status !== 'paid');
@@ -274,20 +279,33 @@ async function board(tenant) {
     const sessions = await TableSession.find({ tenantId: tenant._id, status: { $in: ['open', 'bill_asked'] } }).lean();
     const byTable = new Map(sessions.map((s) => [s.table, s]));
     const sums = await Order.aggregate([
-        { $match: { tenantId: tenant._id, tableSessionId: { $in: sessions.map((s) => s._id) }, status: { $nin: DEAD } } },
+        { $match: { tenantId: tenant._id, tableSessionId: { $in: sessions.map((s) => s._id) }, status: { $nin: DEAD }, ...HIDE_UNPAID } },
         { $group: { _id: '$tableSessionId', total: { $sum: '$pricing.total' }, rounds: { $sum: 1 }, due: { $sum: { $cond: [{ $eq: ['$payment.status', 'paid'] }, 0, '$pricing.total'] } },
             waitFrom: { $min: { $cond: [{ $in: ['$status', ACTIVE] }, '$createdAt', null] } } } },   // the oldest dish still waiting
     ]);
     const sumOf = new Map(sums.map((x) => [String(x._id), x]));
     const people = await User.find({ _id: { $in: sessions.flatMap((s) => s.customers.slice(0, 1)) } }).select('name').lean();
     const nameOf = new Map(people.map((u) => [String(u._id), u.name]));
-    return Array.from({ length: count }, (_, i) => {
-        const table = String(i + 1);
+    const row = (table) => {
         const s = byTable.get(table);
         if (!s) return { table, state: 'free' };
         const x = sumOf.get(String(s._id)) || { total: 0, rounds: 0, due: 0 };
         return { table, state: s.status === 'bill_asked' ? 'bill_asked' : 'eating', sessionId: String(s._id), total: x.total, due: x.due, rounds: x.rounds, since: s.openedAt, waitingSince: x.waitFrom || null, nudgedAt: s.lastNudgeAt || null, billAskedAt: s.billAskedAt || null, check: !!s.checkNotifiedAt && s.status === 'open', who: nameOf.get(String(s.customers[0])) || null };
-    });
+    };
+    const rows = Array.from({ length: count }, (_, i) => row(String(i + 1)));
+    for (const s of sessions) if (!/^\d+$/.test(s.table) || Number(s.table) > count || Number(s.table) < 1) rows.push(row(s.table));   // never hide an open bill
+    return rows;
+}
+
+// A visit whose every round was cancelled has nothing left to pay or serve: it is closed, so the customer is not "still at the table"
+// (that would block his other orders and his choice of table for hours). minAgeMs guards a visit that has only just been opened.
+async function closeEmpty(tenantId, sessionId, minAgeMs = 0) {
+    if (!sessionId) return false;
+    const live = await Order.exists({ tenantId, tableSessionId: sessionId, status: { $nin: DEAD } });   // an unpaid online round counts: its payment may still arrive
+    if (live) return false;
+    const cut = new Date(Date.now() - minAgeMs);
+    const r = await TableSession.updateOne({ _id: sessionId, tenantId, status: { $in: ['open', 'bill_asked'] }, lastOrderAt: { $lte: cut } }, { $set: { status: 'closed', closedAt: new Date(), closedBy: 'auto' } });
+    return r.modifiedCount > 0;
 }
 
 // every few minutes: a visit nobody orders from any more, with nothing left to pay, is closed. (A visit with money still owed is NOT closed:
@@ -296,6 +314,7 @@ async function closeIdle(now = new Date()) {
     const open = await TableSession.find({ status: { $in: ['open', 'bill_asked'] } }).limit(200);
     let n = 0;
     for (const s of open) {
+        if (await closeEmpty(s.tenantId, s._id, 10 * 60000)) { n += 1; continue; }   // every round cancelled: over
         const t = await Tenant.findById(s.tenantId).select('settings.orders.dineIn').lean();
         const cfg = cfgOf(t);
         // finished eating, nobody asked for the bill: the owner is told once to look at the table (the walk-out alarm)
@@ -544,4 +563,4 @@ async function feedbackSeen(tenantId) {
     return { ok: true };
 }
 
-module.exports = { recordScan, callWaiter, requests, doneRequest, clearOldRequests, setTip, feedbackDue, submitFeedback, feedbackList, feedbackSeen, estimate, forgive, remind, remindAll, dailyOwed, claimPaid, pendingClaims, answerClaim, nudge, busyInfo, etaFor, autoReady, ACTIVE, placementInfo, walkout, debts, clearDebt, owedBy, joinOrOpen, billOf, openFor, askForBill, settle, board, closeIdle, startTableBillJob };
+module.exports = { closeEmpty, recordScan, callWaiter, requests, doneRequest, clearOldRequests, setTip, feedbackDue, submitFeedback, feedbackList, feedbackSeen, estimate, forgive, remind, remindAll, dailyOwed, claimPaid, pendingClaims, answerClaim, nudge, busyInfo, etaFor, autoReady, ACTIVE, placementInfo, walkout, debts, clearDebt, owedBy, joinOrOpen, billOf, openFor, askForBill, settle, board, closeIdle, startTableBillJob };

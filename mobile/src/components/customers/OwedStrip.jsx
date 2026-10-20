@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../common/kit';
 import { useTableBill } from '../../store/customers/useTableBill';
 import { useOwedPrompt } from '../../store/customers/useOwedPrompt';
+import { whereOf } from '../../utils/common/where';
 import { tr } from '../../i18n';
 
 export default function OwedStrip({ style }) {
@@ -16,7 +17,7 @@ export default function OwedStrip({ style }) {
             <Ionicons name="alert-circle" size={24} color={error} />
             <View style={{ flex: 1, marginLeft: 10 }}>
                 <Text style={{ color: text, fontWeight: '900' }}>{tr('Unpaid bill: ₹{n}', { n: Math.round(owed.amount) })}</Text>
-                <Text style={{ color: muted, fontSize: 12.5, marginTop: 2 }}>{tr('From table {t}. Tap to see it and pay.', { t: owed.table })}</Text>
+                <Text style={{ color: muted, fontSize: 12.5, marginTop: 2 }}>{tr('From {where}. Tap to see it and pay.', { where: whereOf(owed.table) })}</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={muted} />
         </Pressable>

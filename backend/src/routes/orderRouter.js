@@ -36,7 +36,7 @@ const { pinFor } = require('../services/deliveryPinService');
 const view = (order, tenant) => { const j = order.toJSON(); delete j.needsLook;
     // the 4-digit code he shows when he collects a pickup order (worked out from a secret, nothing is stored)
     if (order.orderType === 'pickup' && ['placed', 'accepted', 'preparing', 'ready'].includes(order.status)) { try { j.pickupCode = pinFor(order); } catch (e) { /* no secret set up: no code */ } }
-    return { ...j, canCancel: svc.customerCanCancel(order, tenant), canChangePickup: svc.canChangePickup(order, tenant) }; };   // needsLook is for the shop only
+    return { ...j, canCancel: svc.customerCanCancel(order, tenant), canChangePickup: svc.canChangePickup(order, tenant), canAskCancel: require('../services/customerAsks').canAskCancel(order, tenant) }; };   // needsLook is for the shop only
 
 const checkId = (req) => {
     if (!isId(req.params.id)) throw httpError(404, 'Order not found');
@@ -87,6 +87,9 @@ router.get('/pickup-slots', wrap(async (req, res) => {
     res.json(svc.pickupSlots(req.tenant));
 }));
 
+// At his pickup time the app asks: did you collect it? (the pickup orders waiting for an answer)
+router.get('/pickup-due', wrap(async (req, res) => { res.json({ items: await require('../services/customerAsks').pickupDue({ tenant: req.tenant, userId: req.auth.userId }) }); }));
+
 // Order history. ?active=true for the "ongoing" list. Pages: ?page=1&limit=20
 router.get('/', wrap(async (req, res) => {
 
@@ -126,6 +129,16 @@ router.get('/:id', wrap(async (req, res) => {
     res.json(view(order, req.tenant));
 }));
 
+router.post('/:id/pickup-answer', wrap(async (req, res) => {
+    checkId(req);
+    res.json(await require('../services/customerAsks').pickupAnswer({ tenant: req.tenant, userId: req.auth.userId, orderId: req.params.id, answer: req.body?.answer }));
+}));
+// a table guest asks the shop to cancel a round that is already being made
+router.post('/:id/cancel-request', wrap(async (req, res) => {
+    checkId(req);
+    const order = await require('../services/customerAsks').askCancel({ tenant: req.tenant, userId: req.auth.userId, orderId: req.params.id, note: req.body?.note });
+    res.json(view(order, req.tenant));
+}));
 // ask to move a pickup to a later time window (the shop says yes or no)
 router.post('/:id/pickup-time', wrap(async (req, res) => {
     checkId(req);

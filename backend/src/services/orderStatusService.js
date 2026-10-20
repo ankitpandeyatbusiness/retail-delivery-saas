@@ -170,7 +170,7 @@ const releaseCoupon = async (couponId) => {
     return Coupon.updateOne({ _id: couponId, usedCount: { $gt: 0 } }, { $inc: { usedCount: -1 } });
 };
 
-async function change({ order, status, actor, note, tenant, reasonCode }) {
+async function change({ order, status, actor, note, tenant, reasonCode, outcomeOverride }) {
     if (!order) throw httpError(404, 'Order not found');
     if (!actor || !ACTOR_TYPES.includes(actor.type)) throw httpError(500, 'Status change needs an actor');
 
@@ -180,12 +180,12 @@ async function change({ order, status, actor, note, tenant, reasonCode }) {
 
     // cancel and undelivered: who pays what, and what it means for billing, strikes and the coupon
     const rules = status === 'cancelled' || status === 'undelivered' ? await require('./moneyRules').forTenant(order.tenantId).catch(() => null) : null;   // who bears the cost: the platform's rules, or the shop's kinder ones
-    const outcome = status === 'cancelled' || status === 'undelivered'
+    const outcome = outcomeOverride || (status === 'cancelled' || status === 'undelivered'
         ? outcomeFor({ rules,
             order, kind: status === 'cancelled' ? 'cancel' : 'undelivered', actorType: actor.type, reasonCode,
             frozen: actor.type === 'customer' && shopFrozen(tenant), now,
         })
-        : null;
+        : null);
 
     // what this delivery pays the rider (shop setting, copied now so later changes never touch it)
     const earnPaise = status === 'delivered' && order.delivery?.riderId
@@ -257,6 +257,9 @@ async function change({ order, status, actor, note, tenant, reasonCode }) {
         { returnDocument: 'after' },
     );
     if (!updated) throw httpError(409, 'This order was just updated. Refresh and try again.');
+
+    // a table visit whose every round is cancelled is closed at once
+    if (updated.tableSessionId && (status === 'cancelled' || status === 'undelivered')) require('./tableBill').closeEmpty(updated.tenantId, updated.tableSessionId).catch(logError('Table close error'));
 
     if (outcome) {
         // The coupon use goes back ONLY when the customer got a full refund (the shop kept nothing)

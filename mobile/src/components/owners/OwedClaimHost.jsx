@@ -14,6 +14,7 @@ import { fetchOwedClaims, answerOwedClaim, blockCustomer, apiError } from '../..
 import { showToast } from '../customers/shop';
 import { ask } from '../common/dialog';
 import PersonAvatar from './PersonAvatar';
+import { WhereOf } from '../../utils/common/where';
 import { tr } from '../../i18n';
 
 // the Unpaid bills list can ask for the popup again
@@ -74,7 +75,7 @@ export default function OwedClaimHost() {
             {cur ? (
                 <View>
                     <Text style={{ color: text, fontWeight: '900', fontSize: 28 }}>{rs(cur.amount)}</Text>
-                    <Text style={{ color: muted, marginTop: 2 }}>{tr('Table {t} · left at {time}', { t: cur.table, time: hm(cur.leftAt) })} · {tr('says paid at {time}', { time: hm(cur.claimedAt) })}</Text>
+                    <Text style={{ color: muted, marginTop: 2 }}>{WhereOf(cur.table)} · {tr('left at {time}', { time: hm(cur.leftAt) })} · {tr('says paid at {time}', { time: hm(cur.claimedAt) })}</Text>
                     {cur.customers.map((c, i) => (
                         <View key={i} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
                             <PersonAvatar photo={c.photo} size={36} />

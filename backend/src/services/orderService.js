@@ -10,6 +10,7 @@ const User = require('../models/User');
 const Coupon = require('../models/Coupon');
 const CustomerRisk = require('../models/CustomerRisk');
 const OrderGuard = require('../models/OrderGuard');
+const PlaceLock = require('../models/PlaceLock');
 const { resolveConfig, openStatus, DEFAULTS } = require('./tenantConfigService');
 const { nextStatuses, customerCanCancel } = require('./orderflow'); // lowercase: matches the real file name
 const { serviceability, haversineKm } = require('../utils/geo');
@@ -245,7 +246,24 @@ async function takeGuard(key, now = new Date()) {
     }
 }
 
-async function placeOrder({ tenant, userId, body, idempotencyKey }) {
+// One order at a time per person: the limits (waiting pickups, deliveries on the way, cash owed together) are checked and the order is made
+// before the next one of the same person is looked at. A second one arriving at the same moment waits a moment and is told to try again.
+async function takeLock(key) {
+    const expireAt = () => new Date(Date.now() + 20000);
+    try { await PlaceLock.create({ _id: key, expireAt: expireAt() }); return true; } catch (e) {
+        if (e.code !== 11000) throw e;
+        const gone = await PlaceLock.deleteOne({ _id: key, expireAt: { $lt: new Date() } });   // an old row that MongoDB has not removed yet
+        if (!gone.deletedCount) return false;
+        try { await PlaceLock.create({ _id: key, expireAt: expireAt() }); return true; } catch (e2) { if (e2.code === 11000) return false; throw e2; }
+    }
+}
+async function placeOrder(args) {
+    const key = `${args.tenant._id}:${args.userId}`;
+    if (!(await takeLock(key))) throw httpError(429, 'Your other order is still being placed. Please wait a moment and try again.');
+    try { return await placeOrderLocked(args); } finally { await PlaceLock.deleteOne({ _id: key }).catch(() => { }); }
+}
+
+async function placeOrderLocked({ tenant, userId, body, idempotencyKey }) {
     // the shop owner (and a rider) logs in to the same app and can look at the customer side, but cannot order from it
     const who = await User.findOne({ _id: userId, tenantId: tenant._id }).select('role').lean();
     if (who && who.role !== 'customer') throw httpError(403, 'Shop owners and riders cannot place orders. Please use a customer number.');
@@ -456,7 +474,7 @@ async function requestPickupTime({ tenant, userId, orderId, pickupSlot }) {
         require('./orderLook').byId(tenant._id, order._id, 'pickup_time_request');
         require('../notifications/center').notify('pickup_time_request', {
             tenantId: tenant._id,
-            vars: { orderNo: order.orderNo, name: order.customer?.name, brief: require('../utils/orderBrief').brief(order), was: when(order.scheduledFor, order.pickupUntil), asked: when(slot.from, slot.to) },
+            vars: { orderNo: order.orderNo, name: order.customer?.name, brief: require('../utils/orderBrief').brief(order), was: when(order.scheduledFor, order.pickupUntil), asked: when(slot.from, slot.to), overdue: !!order.pickupUntil && new Date(order.pickupUntil).getTime() < Date.now() },
             data: { orderId: String(order._id), orderNo: order.orderNo },
         });
     } catch (e) { console.error('Pickup time notice error:', e.message); }
@@ -472,6 +490,7 @@ async function pickupRequests(tenantId) {
         customer: { name: o.customer?.name || null, phone: o.customer?.phone || null },
         items: (o.items || []).map((l) => ({ name: l.name, quantity: l.quantity })),
         total: o.pricing?.total || 0, pay: { method: o.payment?.method, status: o.payment?.status },
+        overdue: !!o.pickupUntil && new Date(o.pickupUntil).getTime() < Date.now(),   // his pickup time is already over
         was: { from: o.scheduledFor, to: o.pickupUntil }, asked: { from: o.pickupRequest.from, to: o.pickupRequest.to },
     }));
 }

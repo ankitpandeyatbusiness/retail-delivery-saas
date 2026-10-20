@@ -4,7 +4,7 @@ import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/nativ
 import { useTheme, spacing, font, radius } from '../../theme';
 import { Screen } from '../../components/layout';
 import { BroughtByCard, HandoverCard } from '../../components/settlementBits';
-import { Card, ListRow, SectionTitle, KeyValue, Avatar, Badge } from '../../components/ui';
+import { Card, ListRow, SectionTitle, KeyValue, Avatar, Badge, Button } from '../../components/ui';
 import { ShopStateBadge, stateTone } from '../../components/shopBits';
 import { Hero, QuickActions, SkeletonList } from '../../components/blocks';
 import { ErrorBox } from '../../components/feedback';
@@ -38,6 +38,9 @@ export default function ShopDetailScreen() {
     const tone = stateTone(shop);
     const section = { success: 'money', warn: 'catalog', danger: 'alerts' }[tone];
     const billing = tenant.billing?.state;
+    const takesDelivery = (rec.resolved?.orders?.types || tenant.settings?.orders?.types || ['delivery']).includes('delivery');
+    const d = tenant.delivery || {};
+    const noArea = takesDelivery && !([d.latitude, d.longitude, d.radiusKm].every((n) => Number.isFinite(n)) && d.radiusKm > 0);
 
     return (
         <Screen title={tenant.name} subtitle={tenant.slug} refreshing={refreshing} onRefresh={refresh}>
@@ -65,7 +68,15 @@ export default function ShopDetailScreen() {
             </Hero>
 
             <View style={{ marginTop: spacing.xl }}>
-                <QuickActions
+                {noArea ? (
+                <Card>
+                    <Text style={{ color: t.warn, fontWeight: '800', fontSize: font.md }}>Delivery is on, but no delivery area is set</Text>
+                    <Text style={{ color: t.muted, fontSize: font.sm, marginTop: 4, lineHeight: 19 }}>Without a map pin and a radius, a customer anywhere can order delivery from this shop. Set the shop pin and the distance it delivers within.</Text>
+                    <Button title="Set the delivery area" kind="soft" small icon="map" onPress={go('ShopEdit')} style={{ marginTop: spacing.md, alignSelf: 'flex-start' }} />
+                </Card>
+            ) : null}
+
+            <QuickActions
                     items={[
                         { label: 'Live activity', icon: 'live', section: 'orders', onPress: go('ShopLive') },
                         { label: 'Orders', icon: 'orders', section: 'catalog', onPress: go('ShopOrders') },

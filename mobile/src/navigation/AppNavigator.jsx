@@ -28,6 +28,8 @@ import OwedReminder from '../components/customers/OwedReminder';
 import TableFeedbackHost from '../components/customers/TableFeedbackHost';
 import OwedClaimHost from '../components/owners/OwedClaimHost';
 import PickupChangeHost from '../components/owners/PickupChangeHost';
+import CustomerAskHost from '../components/owners/CustomerAskHost';
+import PickupCollectHost from '../components/customers/PickupCollectHost';
 import ScanTableScreen from '../screens/customers/ScanTableScreen';
 import OwnerRewardsScreen from '../screens/owners/OwnerRewardsScreen';
 import OwnerDineInScreen from '../screens/owners/OwnerDineInScreen';
@@ -381,10 +383,12 @@ export default function AppNavigator() {
             <TableBillStrip routeName={routeName} onOpen={() => { if (navigationRef.isReady()) navigationRef.navigate('TableBill'); }} />
             <ReviewPrompts />
             <OwedReminder />
+            <PickupCollectHost />
             <TableFeedbackHost navRef={navigationRef} />
             <NewOrderPopup navRef={navigationRef} />
             <OwedClaimHost />
             <PickupChangeHost />
+            <CustomerAskHost />
             <LegalGate />
             <FrozenOverlay onOrders={goOrders} />
             <OfflineBanner />

@@ -227,7 +227,9 @@ function AccountInner() {
     const pointsOn = useHomeStore((st) => st.full.points?.customer !== false);
     const referOn = useHomeStore((st) => !!(st.full.orders.dineIn?.enabled && st.full.orders.dineIn?.referOn));
     const shop = useThemeStore((st) => st.theme.name);
-    const shopPhone = useThemeStore((st) => st.theme.phone);
+    const cfgPhone = useHomeStore((st) => st.full.restaurant?.phone);   // the number the owner saved
+    const themePhone = useThemeStore((st) => st.theme.phone);
+    const shopPhone = cfgPhone || themePhone;
     const [me, setMe] = useState(null);
     const [promoBusy, setPromoBusy] = useState(false);
     const [avatarBusy, setAvatarBusy] = useState(false);

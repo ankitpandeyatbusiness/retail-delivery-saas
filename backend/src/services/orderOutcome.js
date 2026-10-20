@@ -5,7 +5,7 @@
 //   couponReturn             the coupon use goes back (only when the customer got a FULL refund)
 const { calcRefund, toPaise } = require('./refundService');
 
-const OWNER_CANCEL_REASONS = ['busy', 'out_of_stock', 'shop_fault', 'customer_asked', 'other'];
+const OWNER_CANCEL_REASONS = ['busy', 'out_of_stock', 'shop_fault', 'customer_asked', 'mistake', 'other'];
 const ADMIN_CANCEL_REASONS = ['platform', 'shop_fault', 'customer_fault'];
 const SYSTEM_CANCEL_REASONS = ['not_accepted', 'payment_timeout', 'late_delivery'];   // late_delivery: over an hour past the delivery time, full refund
 const UNDELIVERED_REASONS = ['customer', 'shop', 'rider'];
@@ -34,7 +34,7 @@ function reasonsOf({ kind, actorType, reasonCode, frozen }) {
     }
     if (actorType === 'owner') {
         if (!OWNER_CANCEL_REASONS.includes(reasonCode)) throw new Error('Unknown cancel reason');
-        return { code: reasonCode, refundReason: reasonCode === 'customer_asked' ? 'customer_asked' : 'shop_fault' };
+        return { code: reasonCode, refundReason: ['customer_asked', 'mistake'].includes(reasonCode) ? 'customer_asked' : 'shop_fault' };
     }
     if (actorType === 'superadmin') {
         const code = reasonCode || 'platform';
@@ -56,7 +56,9 @@ function reasonsOf({ kind, actorType, reasonCode, frozen }) {
 
 // kind: 'cancel' | 'undelivered'.  order needs: status, payment, pricing, statusHistory
 function outcomeFor({ order, kind, actorType, reasonCode, frozen = false, now = new Date(), rules }) {
-    const { code, refundReason } = reasonsOf({ kind, actorType, reasonCode, frozen });
+    let { code, refundReason } = reasonsOf({ kind, actorType, reasonCode, frozen });
+    // a guest who ordered at his table by mistake (or asked the shop to cancel) pays nothing and gets no strike
+    if (order.orderType === 'dine_in' && ['customer_cancel', 'customer_asked'].includes(refundReason)) refundReason = 'platform';
     const cod = !order.payment?.method || order.payment.method === 'cod';
     const strikeByRule = kind === 'undelivered' && code === 'customer';
 

@@ -47,6 +47,8 @@ export const decideLeave = (id, body) => d(api.put(`/shop/riders/leaves/${id}`, 
 export const fetchDineTables = () => d(api.get('/shop/dine-in/tables'));
 export const fetchDineBill = (id) => d(api.get(`/shop/dine-in/sessions/${id}`));
 export const fetchDineQrSheet = (size) => d(api.get('/shop/dine-in/qr/sheet', { params: { size } }));
+export const fetchCustomerAsks = () => d(api.get('/shop/customer-asks'));
+export const answerCustomerAsk = (id, body) => d(api.post(`/shop/customer-asks/${id}/answer`, body));
 export const fetchPickupRequests = () => d(api.get('/shop/pickup-requests'));
 export const answerPickupRequest = (id, accept, message) => d(api.post(`/shop/pickup-requests/${id}/answer`, { accept, message }));
 export const fetchOwedClaims = () => d(api.get('/shop/dine-in/claims'));
