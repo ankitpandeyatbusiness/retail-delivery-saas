@@ -27,7 +27,7 @@ import PersonAvatar from '../../components/owners/PersonAvatar';
 import { useClaimPrompt } from '../../components/owners/OwedClaimHost';
 import { tr } from '../../i18n';
 
-const RECOMMENDED = { cancelGraceMin: 3, enabled: true, tableCount: 10, autoCloseHours: 6, tabLimitNew: 500, tabLimitTrusted: 2000, trustedAfter: 3, atShopCheck: true, radiusM: 250, checkMinutes: 20, autoReady: true, readyMin: 15, owedDaily: true, owedHour: 11, owedOnHome: true, referOn: true, referFriendPercent: 15, referFriendMax: 150, referPoints: 50, referLimit: 10, callOn: true, tipOn: true, tipChoices: [10, 20, 50], feedbackOn: true, waitMin: 15, welcomeOn: true, welcomePercent: 10, welcomeMax: 100, regularOn: true, regularAfter: 5, regularPercent: 5, regularMax: 50, happyOn: false, happyFrom: '15:00', happyTo: '18:00', happyPercent: 15, happyMax: 150, owedMax: 7, firstOnline: false, prefs: ['Make it spicy', 'Less spicy', 'Not spicy', 'Extra gravy', 'Less gravy', 'No coriander', 'No onion', 'No garlic', 'Less oil', 'Less salt'], autoServe: false, serveMin: 10, busyAuto: true, busyPercent: 70, busyExtraMin: 10 };
+const RECOMMENDED = { waiterSettles: true, cancelGraceMin: 3, enabled: true, tableCount: 10, autoCloseHours: 6, tabLimitNew: 500, tabLimitTrusted: 2000, trustedAfter: 3, atShopCheck: true, radiusM: 250, checkMinutes: 20, autoReady: true, readyMin: 15, owedDaily: true, owedHour: 11, owedOnHome: true, referOn: true, referFriendPercent: 15, referFriendMax: 150, referPoints: 50, referLimit: 10, callOn: true, tipOn: true, tipChoices: [10, 20, 50], feedbackOn: true, waitMin: 15, welcomeOn: true, welcomePercent: 10, welcomeMax: 100, regularOn: true, regularAfter: 5, regularPercent: 5, regularMax: 50, happyOn: false, happyFrom: '15:00', happyTo: '18:00', happyPercent: 15, happyMax: 150, owedMax: 7, firstOnline: false, prefs: ['Make it spicy', 'Less spicy', 'Not spicy', 'Extra gravy', 'Less gravy', 'No coriander', 'No onion', 'No garlic', 'Less oil', 'Less salt'], autoServe: false, serveMin: 10, busyAuto: true, busyPercent: 70, busyExtraMin: 10 };
 const KEYS = Object.keys(RECOMMENDED);
 const rs = (n) => `₹${Math.round(n * 100) / 100}`;
 // the table that has waited longest comes first; then tables with nothing waiting; free tables last, in number order
@@ -245,6 +245,11 @@ export default function OwnerDineInScreen() {
                     <ToggleRow title={tr('Guests can add a tip for the waiter')} subtitle={v.tipOn ? tr('Added to the bill, collected at the counter') : tr('Off')} value={v.tipOn} onValueChange={(x) => set('tipOn', x)} last={!v.tipOn} />
                     {v.tipOn ? <TextBox label={tr('Tip amounts (₹, up to 4, separated by commas)')} value={tipText} onChangeText={(x) => { setTipText(x); setDirty(true); }} maxLength={30} placeholder="10, 20, 50" /> : null}
                     <ToggleRow title={tr('Ask for private feedback after the meal')} subtitle={v.feedbackOn ? tr('Only you read it. Happy guests are then asked to rate the dishes.') : tr('Off')} value={v.feedbackOn} onValueChange={(x) => set('feedbackOn', x)} last />
+                </Group>
+            ) : null}
+            {v.enabled ? (
+                <Group title={tr('Waiters')} hint={tr('If you have waiters with their own screen (Shop > Kitchen and waiter staff).')}>
+                    <ToggleRow title={tr('Waiters can take the money for a bill')} subtitle={v.waiterSettles !== false ? tr('A waiter marks the bill paid by cash or UPI. You see who did it.') : tr('Only you can mark a bill paid. Waiters can still see the bill.')} value={v.waiterSettles !== false} onValueChange={(x) => set('waiterSettles', x)} last />
                 </Group>
             ) : null}
             {v.enabled ? (

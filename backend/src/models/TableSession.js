@@ -13,7 +13,8 @@ const tableSessionSchema = new mongoose.Schema({
     lastOrderAt: { type: Date, default: Date.now },
     billAskedAt: Date,
     closedAt: Date,
-    closedBy: { type: String, enum: ['owner', 'auto'] },
+    closedBy: { type: String, enum: ['owner', 'staff', 'auto'] },
+    closedByName: String,   // the waiter who took the money
     // "I already paid": the customer says he paid what he owed; the owner answers yes (cleared) or no (reply with a message)
     claimAt: Date, claimBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     claimReply: { _id: false, ok: Boolean, message: String, at: Date },

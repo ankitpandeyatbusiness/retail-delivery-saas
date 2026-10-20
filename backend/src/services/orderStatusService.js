@@ -142,6 +142,11 @@ function checkAllowed({ order, status, actor, note, tenant, reasonCode, now }) {
                 if (order.orderType === 'delivery' || order.status !== 'preparing') throw httpError(409, `This order is "${order.status}". It is not being cooked.`);
                 return;
             }
+            if (actor.role === 'waiter' && status === 'delivered') {   // the dish is at the table
+                if (order.orderType !== 'dine_in') throw httpError(403, 'A waiter serves dishes at tables only');
+                if (order.status !== 'ready') throw httpError(409, `This order is "${order.status}". It is not ready to serve.`);
+                return;
+            }
             throw httpError(403, 'You cannot make this change');
         case 'rider': {
             // only the rider who accepted this delivery, and only pickup and delivered

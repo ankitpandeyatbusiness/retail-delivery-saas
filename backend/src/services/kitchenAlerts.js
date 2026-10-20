@@ -19,6 +19,7 @@ async function cooks(tenantId) {
 }
 
 async function onStatus({ before, updated, status }) {
+    require('./waiterAlerts').onStatus({ before, updated, status }).catch((e) => console.error('Waiter alert error:', e.message));
     try {
         const touches = IN_KITCHEN.includes(status) || IN_KITCHEN.includes(before?.status);
         if (!touches) return;
@@ -47,4 +48,18 @@ async function onStatus({ before, updated, status }) {
     }
 }
 
-module.exports = { onStatus, tell };
+// a guest at a table pressed "please hurry": the cooks see it on their screen and on their phone
+async function hurry(tenantId, { table, minutes, what }) {
+    try {
+        tell(tenantId, { hurry: true, table });
+        const tenant = await Tenant.findById(tenantId).select('settings.orders').lean();
+        if (staffService.rulesOf(tenant).kitchenOn !== true) return;
+        const people = await cooks(tenantId);
+        await Promise.all(people.map((p) => pushChannel.send({
+            tenantId, userId: p.userId, title: `Table ${table} is waiting`, body: `${what || 'Their order'} · ${minutes} min. Please hurry.`,
+            data: { type: 'kitchen_hurry', table }, tag: `hurry:${table}`,
+        }).catch((e) => console.error('Kitchen push error:', e.message))));
+    } catch (e) { console.error('Kitchen alert error:', e.message); }
+}
+
+module.exports = { onStatus, tell, hurry };

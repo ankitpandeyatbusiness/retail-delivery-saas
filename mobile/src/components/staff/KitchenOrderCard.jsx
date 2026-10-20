@@ -1,48 +1,17 @@
 // One order on the kitchen screen: big number, where it goes, the dishes the way a cook reads them, and one big button for the next step.
 // It follows the light and dark look (every colour comes from the shop's theme), and a late order turns red.
-import React, { useEffect, useState } from 'react';
-import { View, Text, Pressable, ActivityIndicator } from 'react-native';
+import React from 'react';
+import { View, Text, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../common/kit';
-
 import { VegDot } from '../customers/shop';
+import { BigButton, useMinuteClock, clock, minsSince, minWord } from './staffBits';
 import { tr } from '../../i18n';
-
-// one slow clock for every card (a timer per card would be a lot of timers)
-let tick = 0;
-const subs = new Set();
-let timer = null;
-function useMinuteClock() {
-    const [, set] = useState(tick);
-    useEffect(() => {
-        subs.add(set);
-        if (!timer) timer = setInterval(() => { tick += 1; subs.forEach((f) => f(tick)); }, 20000);
-        return () => { subs.delete(set); if (!subs.size && timer) { clearInterval(timer); timer = null; } };
-    }, []);
-}
-
-const clock = (d) => new Date(d).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
-const minsSince = (d) => Math.max(0, Math.floor((Date.now() - new Date(d).getTime()) / 60000));
-export const minWord = (m) => (m < 1 ? tr('just now') : tr('{n} min', { n: m }));
 
 function where(o) {
     if (o.orderType === 'dine_in') return { icon: 'restaurant', text: o.tableNo ? tr('Table {n}', { n: o.tableNo }) : tr('Dine in') };
     if (o.orderType === 'pickup') return { icon: 'bag-handle', text: o.scheduledFor ? tr('Pickup {time}', { time: clock(o.scheduledFor) }) : tr('Pickup') };
     return { icon: 'bicycle', text: tr('Delivery') };
-}
-
-// a big button a cook can hit with a wet thumb: full width, tall, clear colours in both looks
-function BigButton({ label, icon, bg, ink, busy, onPress }) {
-    return (
-        <Pressable onPress={onPress} disabled={busy} accessibilityRole="button" style={({ pressed }) => ({ minHeight: 56, borderRadius: 16, backgroundColor: bg, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', opacity: busy ? 0.6 : pressed ? 0.8 : 1 })}>
-            {busy ? <ActivityIndicator color={ink} /> : (
-                <>
-                    <Ionicons name={icon} size={22} color={ink} style={{ marginRight: 8 }} />
-                    <Text style={{ color: ink, fontWeight: '900', fontSize: 17 }}>{label}</Text>
-                </>
-            )}
-        </Pressable>
-    );
 }
 
 export default function KitchenOrderCard({ o, lateMin, busy, onAct, onProblem }) {

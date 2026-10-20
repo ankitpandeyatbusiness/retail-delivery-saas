@@ -226,7 +226,7 @@ function validateSettings(input) {
                 const c = o.staff;
                 if (!isObj(c)) err(p('staff'), 'must be an object');
                 else {
-                    known(c, ['kitchenOn', 'waiterOn', 'max', 'kitchenSees', 'lateMin'], p('staff'));
+                    known(c, ['kitchenOn', 'waiterOn', 'max', 'kitchenSees', 'lateMin', 'serveLateMin'], p('staff'));
                     out.staff = {};
                     if (c.kitchenOn !== undefined && bool(p('staff.kitchenOn'), c.kitchenOn)) out.staff.kitchenOn = c.kitchenOn;
                     if (c.waiterOn !== undefined && bool(p('staff.waiterOn'), c.waiterOn)) out.staff.waiterOn = c.waiterOn;
@@ -238,6 +238,10 @@ function validateSettings(input) {
                     if (c.lateMin !== undefined) {   // minutes after an order is accepted (or its start time) before the kitchen shows it as late
                         if (!Number.isInteger(c.lateMin)) err(p('staff.lateMin'), 'must be a whole number');
                         else if (num(p('staff.lateMin'), c.lateMin, 5, 180)) out.staff.lateMin = c.lateMin;
+                    }
+                    if (c.serveLateMin !== undefined) {   // minutes a ready dish may wait for the waiter before it shows as late
+                        if (!Number.isInteger(c.serveLateMin)) err(p('staff.serveLateMin'), 'must be a whole number');
+                        else if (num(p('staff.serveLateMin'), c.serveLateMin, 1, 60)) out.staff.serveLateMin = c.serveLateMin;
                     }
                 }
             }
@@ -271,7 +275,7 @@ function validateSettings(input) {
                 const c = o.dineIn;
                 if (!isObj(c)) err(p('dineIn'), 'must be an object');
                 else {
-                    known(c, ['enabled', 'tableCount', 'autoCloseHours', 'tabLimitNew', 'tabLimitTrusted', 'trustedAfter', 'atShopCheck', 'radiusM', 'checkMinutes', 'autoReady', 'readyMin', 'autoServe', 'serveMin', 'owedDaily', 'owedHour', 'owedOnHome', 'owedMax', 'firstOnline', 'prefs', 'welcomeOn', 'welcomePercent', 'welcomeMax', 'regularOn', 'regularAfter', 'regularPercent', 'regularMax', 'happyOn', 'happyFrom', 'happyTo', 'happyPercent', 'happyMax', 'waitMin', 'callOn', 'tipOn', 'tipChoices', 'feedbackOn', 'referOn', 'referFriendPercent', 'referFriendMax', 'referPoints', 'referLimit', 'busyAuto', 'busyPercent', 'busyExtraMin', 'cancelGraceMin'], p('dineIn'));
+                    known(c, ['enabled', 'tableCount', 'autoCloseHours', 'tabLimitNew', 'tabLimitTrusted', 'trustedAfter', 'atShopCheck', 'radiusM', 'checkMinutes', 'autoReady', 'readyMin', 'autoServe', 'serveMin', 'owedDaily', 'owedHour', 'owedOnHome', 'owedMax', 'firstOnline', 'prefs', 'welcomeOn', 'welcomePercent', 'welcomeMax', 'regularOn', 'regularAfter', 'regularPercent', 'regularMax', 'happyOn', 'happyFrom', 'happyTo', 'happyPercent', 'happyMax', 'waitMin', 'callOn', 'tipOn', 'tipChoices', 'feedbackOn', 'referOn', 'referFriendPercent', 'referFriendMax', 'referPoints', 'referLimit', 'busyAuto', 'busyPercent', 'busyExtraMin', 'cancelGraceMin', 'waiterSettles'], p('dineIn'));
                     out.dineIn = {};
                     if (c.enabled !== undefined && bool(p('dineIn.enabled'), c.enabled)) out.dineIn.enabled = c.enabled;
                     if (c.tableCount !== undefined) {
@@ -319,6 +323,7 @@ function validateSettings(input) {
                         if (!Number.isInteger(c[k])) err(p('dineIn.' + k), 'must be a whole number');
                         else if (num(p('dineIn.' + k), c[k], lo, hi)) out.dineIn[k] = c[k];
                     }
+                    if (c.waiterSettles !== undefined && bool(p('dineIn.waiterSettles'), c.waiterSettles)) out.dineIn.waiterSettles = c.waiterSettles;   // a waiter may take the money of a table bill
                     for (const k of ['callOn', 'tipOn', 'feedbackOn']) { if (c[k] !== undefined && bool(p('dineIn.' + k), c[k])) out.dineIn[k] = c[k]; }
                     if (c.tipChoices !== undefined) {   // the tip amounts a guest can tap (rupees)
                         const list = Array.isArray(c.tipChoices) ? c.tipChoices : null;
@@ -465,8 +470,8 @@ const DEFAULTS = {
         deliveryFee: { type: 'free', amount: 0, freeAbove: 0 },
         packagingCharge: 0, gst: { mode: 'none', percent: 0 },
         tipOptions: [], prepTimeMin: 20, acceptingOrders: true,
-        dineIn: { enabled: false, tableCount: 10, autoCloseHours: 6, tabLimitNew: 500, tabLimitTrusted: 2000, trustedAfter: 3, atShopCheck: true, radiusM: 250, checkMinutes: 20, autoReady: false, readyMin: 15, autoServe: false, serveMin: 10, owedDaily: false, owedHour: 11, owedOnHome: true, referOn: false, referFriendPercent: 15, referFriendMax: 150, referPoints: 50, referLimit: 10, callOn: false, tipOn: false, tipChoices: [10, 20, 50], feedbackOn: false, welcomeOn: false, welcomePercent: 10, welcomeMax: 100, regularOn: false, regularAfter: 5, regularPercent: 5, regularMax: 50, happyOn: false, happyFrom: '15:00', happyTo: '18:00', happyPercent: 15, happyMax: 150, waitMin: 0, owedMax: 7, firstOnline: false, prefs: ['Make it spicy', 'Less spicy', 'Not spicy', 'Extra gravy', 'Less gravy', 'No coriander', 'No onion', 'No garlic', 'Less oil', 'Less salt'], busyAuto: true, busyPercent: 70, busyExtraMin: 10, cancelGraceMin: 3 },   // eating at the shop: on/off and how many tables
-        staff: { kitchenOn: false, waiterOn: false, max: 10, kitchenSees: ['delivery', 'pickup', 'dine_in'], lateMin: 20 },   // kitchen and waiter panels (services/staffService.js): off until the super admin switches them on
+        dineIn: { enabled: false, tableCount: 10, autoCloseHours: 6, tabLimitNew: 500, tabLimitTrusted: 2000, trustedAfter: 3, atShopCheck: true, radiusM: 250, checkMinutes: 20, autoReady: false, readyMin: 15, autoServe: false, serveMin: 10, owedDaily: false, owedHour: 11, owedOnHome: true, referOn: false, referFriendPercent: 15, referFriendMax: 150, referPoints: 50, referLimit: 10, callOn: false, tipOn: false, tipChoices: [10, 20, 50], feedbackOn: false, welcomeOn: false, welcomePercent: 10, welcomeMax: 100, regularOn: false, regularAfter: 5, regularPercent: 5, regularMax: 50, happyOn: false, happyFrom: '15:00', happyTo: '18:00', happyPercent: 15, happyMax: 150, waitMin: 0, owedMax: 7, firstOnline: false, prefs: ['Make it spicy', 'Less spicy', 'Not spicy', 'Extra gravy', 'Less gravy', 'No coriander', 'No onion', 'No garlic', 'Less oil', 'Less salt'], busyAuto: true, busyPercent: 70, busyExtraMin: 10, cancelGraceMin: 3, waiterSettles: true },   // eating at the shop: on/off and how many tables
+        staff: { kitchenOn: false, waiterOn: false, max: 10, kitchenSees: ['delivery', 'pickup', 'dine_in'], lateMin: 20, serveLateMin: 5 },   // kitchen and waiter panels (services/staffService.js): off until the super admin switches them on
         mixRules: { dineBlocksOthers: true, deliveryOpenMax: 3, exposureOn: true, exposureNew: 800, exposureTrusted: 3000, regularAfter: 3 },
         limits: { pickupAsksMax: 3, nudgeFirstMin: 3, nudgeEveryMin: 10, callGapMin: 2, callClearHours: 2, remindGapMin: 30, claimRetryMin: 5, scanGapMin: 5, strikesMax: 2, pickupSlotsPerDay: 12 },   // timings and counts, set by the super admin   // several kinds of order at once (services/orderMix.js)
         pickupRules: { openMax: 2, canChange: true },   // pickup: orders one customer may have waiting (0 = no limit), and may he move his time

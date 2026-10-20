@@ -12,7 +12,8 @@ const schema = new Schema({
     text: { type: String, maxlength: 120 },
     status: { type: String, enum: ['open', 'done'], default: 'open' },
     doneAt: Date,
-    doneBy: { type: String, enum: ['owner', 'auto'] },
+    doneBy: { type: String, enum: ['owner', 'staff', 'auto'] },
+    doneByName: String,
 }, { timestamps: true });
 
 schema.index({ tenantId: 1, status: 1, createdAt: 1 });

@@ -12,6 +12,8 @@ import { StaffSkeleton } from '../components/staff/staffBits';
 import { useStaffStore } from '../store/staff/useStaffStore';
 import { useKitchenStore } from '../store/staff/useKitchenStore';
 import useKitchenSync from '../components/staff/useKitchenSync';
+import { useWaiterStore } from '../store/staff/useWaiterStore';
+import useWaiterSync from '../components/staff/useWaiterSync';
 import { useAuthStore } from '../store/common/useAuthStore';
 
 const Tab = createBottomTabNavigator();
@@ -28,10 +30,12 @@ export default function StaffTabs() {
     const load = useStaffStore((s) => s.load);
     const role = useStaffStore((s) => s.me?.role);
     const waiting = useKitchenStore((s) => s.counts.new);   // orders waiting for Start cooking
+    const todo = useWaiterStore((s) => s.counts.serve + s.counts.requests);   // dishes to serve and tables asking
     useKitchenSync(state === 'ok' && role === 'kitchen');
+    useWaiterSync(state === 'ok' && role === 'waiter');
 
     // a new person on this phone starts clean; coming back to the app asks again (the owner may have paused them meanwhile)
-    useEffect(() => { useStaffStore.getState().reset(); useKitchenStore.getState().reset(); load(); }, [uid, load]);
+    useEffect(() => { useStaffStore.getState().reset(); useKitchenStore.getState().reset(); useWaiterStore.getState().reset(); load(); }, [uid, load]);
     useEffect(() => {
         const sub = AppState.addEventListener('change', (st) => { if (st === 'active') load(); });
         return () => sub.remove();
@@ -48,7 +52,7 @@ export default function StaffTabs() {
                 screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: background }, tabBarHideOnKeyboard: true }}
             >
                 {Object.entries(TABS).map(([name, def]) => (
-                    <Tab.Screen key={name} name={name} component={def.component} options={{ title: def.label, tabBarBadge: name === 'StaffHomeTab' && role === 'kitchen' && waiting > 0 ? waiting : undefined }} />
+                    <Tab.Screen key={name} name={name} component={def.component} options={{ title: def.label, tabBarBadge: name === 'StaffHomeTab' ? (role === 'kitchen' ? waiting : role === 'waiter' ? todo : 0) || undefined : undefined }} />
                 ))}
             </Tab.Navigator>
         </View>

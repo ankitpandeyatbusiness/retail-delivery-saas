@@ -55,7 +55,7 @@ export default function StaffProfileScreen() {
                         icon="log-out-outline" title={tr('Log out')} color={error} last
                         onPress={() => themedAlert(`${tr('Log out')}?`, tr('You will need your OTP to sign in again.'), [
                             { text: tr('Cancel'), style: 'cancel' },
-                            { text: tr('Log out'), style: 'destructive', onPress: () => { useStaffStore.getState().reset(); require('../../store/staff/useKitchenStore').useKitchenStore.getState().reset(); logout().catch(() => { }); } },
+                            { text: tr('Log out'), style: 'destructive', onPress: () => { useStaffStore.getState().reset(); require('../../store/staff/useKitchenStore').useKitchenStore.getState().reset(); require('../../store/staff/useWaiterStore').useWaiterStore.getState().reset(); logout().catch(() => { }); } },
                         ], { icon: 'log-out-outline' })}
                     />
                 </Card>

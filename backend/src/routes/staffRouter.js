@@ -9,6 +9,7 @@ const apiErrors = require('../middlewares/apiErrors');
 const auditTrail = require('../middlewares/auditTrail');
 const staff = require('../services/staffService');
 const kitchen = require('../services/kitchenService');
+const waiter = require('../services/waiterService');
 const Staff = require('../models/Staff');
 
 const { wrap, httpError } = apiErrors;
@@ -59,6 +60,27 @@ core.post('/kitchen/orders/:id/ready', onlyKitchen, wrap(async (req, res) => {
 core.post('/kitchen/orders/:id/problem', onlyKitchen, wrap(async (req, res) => {
     if (!isId(req.params.id)) throw httpError(404, 'Order not found');
     res.json(await kitchen.problem({ tenant: req.tenant, orderId: req.params.id, staff: who(req), kind: req.body?.kind, note: req.body?.note, productId: req.body?.productId }));
+}));
+
+// the waiter: dishes to serve, what the tables ask for, the tables and their bills
+const onlyWaiter = (req, res, next) => (req.staff.role === 'waiter' ? next() : res.status(403).json({ error: 'This is for the waiters', code: 'not_staff' }));
+core.get('/waiter/overview', onlyWaiter, wrap(async (req, res) => { res.json(await waiter.overview(req.tenant)); }));
+core.post('/waiter/orders/:id/serve', onlyWaiter, wrap(async (req, res) => {
+    if (!isId(req.params.id)) throw httpError(404, 'Order not found');
+    res.json(await waiter.serve({ tenant: req.tenant, orderId: req.params.id, staff: who(req) }));
+}));
+core.post('/waiter/requests/:id/done', onlyWaiter, wrap(async (req, res) => {
+    if (typeof req.params.id !== 'string' || !isId(req.params.id)) throw httpError(404, 'Not found');
+    res.json(await waiter.doneRequest({ tenant: req.tenant, id: req.params.id, staff: who(req) }));
+}));
+core.get('/waiter/tables/:sessionId', onlyWaiter, wrap(async (req, res) => {
+    if (!isId(req.params.sessionId)) throw httpError(404, 'Bill not found');
+    res.json(await waiter.bill({ tenant: req.tenant, sessionId: req.params.sessionId }));
+}));
+// { method: 'cash' | 'upi' }  the waiter took the money (only when the shop allows it)
+core.post('/waiter/tables/:sessionId/settle', onlyWaiter, wrap(async (req, res) => {
+    if (!isId(req.params.sessionId)) throw httpError(404, 'Bill not found');
+    res.json(await waiter.settle({ tenant: req.tenant, sessionId: req.params.sessionId, method: req.body?.method, staff: who(req) }));
 }));
 
 const router = express.Router();

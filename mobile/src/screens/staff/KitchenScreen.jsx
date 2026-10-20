@@ -8,7 +8,7 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useBrand, alpha } from '../../components/common/kit';
 import { Empty } from '../../components/owners/ui';
 import { ListShimmer } from '../../components/owners/shimmer';
-import { StaffHeader } from '../../components/staff/staffBits';
+import { StaffHeader, Segment } from '../../components/staff/staffBits';
 import KitchenOrderCard from '../../components/staff/KitchenOrderCard';
 import ProblemSheet from '../../components/staff/ProblemSheet';
 import { useKitchenStore } from '../../store/staff/useKitchenStore';
@@ -16,28 +16,6 @@ import { useStaffStore } from '../../store/staff/useStaffStore';
 import { apiError } from '../../api/owners/shopApi';
 import { showToast } from '../../components/customers/shop';
 import { tr } from '../../i18n';
-
-function Segment({ value, onChange, tabs }) {
-    const { primary, onPrimary, surface, border, muted } = useBrand();
-    return (
-        <View style={{ flexDirection: 'row', marginHorizontal: 16, marginBottom: 12, padding: 3, borderRadius: 14, backgroundColor: surface, borderWidth: 1, borderColor: border }}>
-            {tabs.map(([id, label, n, hot]) => {
-                const on = id === value;
-                return (
-                    <Pressable key={id} onPress={() => onChange(id)} accessibilityRole="button" accessibilityState={{ selected: on }}
-                        style={{ flex: 1, paddingVertical: 10, borderRadius: 11, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', backgroundColor: on ? primary : 'transparent' }}>
-                        <Text style={{ color: on ? onPrimary : muted, fontWeight: '900', fontSize: 14 }}>{label}</Text>
-                        {n > 0 ? (
-                            <View style={{ marginLeft: 6, minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? alpha(onPrimary, 0.22) : alpha(hot ? '#E5484D' : primary, 0.18) }}>
-                                <Text style={{ color: on ? onPrimary : (hot ? '#E5484D' : primary), fontWeight: '900', fontSize: 12 }}>{n}</Text>
-                            </View>
-                        ) : null}
-                    </Pressable>
-                );
-            })}
-        </View>
-    );
-}
 
 export default function KitchenScreen() {
     const { background, text, warn, primary } = useBrand();

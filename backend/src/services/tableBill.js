@@ -98,12 +98,13 @@ async function askForBill({ tenantId, userId }) {
     if (!s) throw fail(404, 'You have no open bill');
     const claimed = await TableSession.findOneAndUpdate({ _id: s._id, status: 'open' }, { $set: { status: 'bill_asked', billAskedAt: new Date() } }, { returnDocument: 'after' });
     const bill = await billOf(claimed || s);
+    if (claimed) require('./waiterAlerts').request(tenantId, { table: s.table, label: 'Wants the bill', bill: true });
     if (claimed) tell('table_bill_asked', { tenantId, vars: { table: s.table, due: bill.due, total: bill.total }, data: { kind: 'table', sessionId: String(s._id), table: s.table } });
     return bill;
 }
 
 // The owner took the money (cash, or UPI at the counter). Everything unpaid on the bill is paid and the visit is over.
-async function settle({ tenantId, sessionId, method }) {
+async function settle({ tenantId, sessionId, method, by }) {
     const s = await TableSession.findOne({ _id: sessionId, tenantId, status: { $in: ['open', 'bill_asked'] } });
     if (!s) throw fail(404, 'This bill is already closed');
     const orders = await Order.find({ tenantId, tableSessionId: s._id, status: { $nin: DEAD }, ...HIDE_UNPAID });
@@ -114,7 +115,7 @@ async function settle({ tenantId, sessionId, method }) {
     if (unpaid.length) {
         await Order.updateMany({ _id: { $in: unpaid.map((o) => o._id) } }, { $set: { 'payment.status': 'paid', 'payment.paidAt': now, 'payment.settledAt': now, 'payment.settledVia': method } });
     }
-    const closed = await TableSession.findOneAndUpdate({ _id: s._id, status: { $in: ['open', 'bill_asked'] } }, { $set: { status: 'closed', closedAt: now, closedBy: 'owner', paidVia: method, paidPaise } }, { returnDocument: 'after' });
+    const closed = await TableSession.findOneAndUpdate({ _id: s._id, status: { $in: ['open', 'bill_asked'] } }, { $set: { status: 'closed', closedAt: now, closedBy: by?.type === 'staff' ? 'staff' : 'owner', ...(by?.type === 'staff' ? { closedByName: by.name } : {}), paidVia: method, paidPaise } }, { returnDocument: 'after' });
     if (!closed) throw fail(409, 'This bill was just closed');
     // the points of the rounds that were on the tab start waiting now (they were held back until the money was in)
     const loyalty = require('./loyaltyService');
@@ -182,6 +183,7 @@ async function nudge({ tenantId, userId }) {
     );
     if (!claimed) throw fail(429, 'The kitchen already knows. Please wait a few minutes before asking again.');
     tell('table_nudge', { tenantId, vars: { table: s.table, minutes, what: brief(waiting[0], 3) }, data: { kind: 'table', sessionId: String(s._id), table: s.table } });
+    require('./kitchenAlerts').hurry(tenantId, { table: s.table, minutes, what: brief(waiting[0], 3) });
     return { ok: true };
 }
 
@@ -478,6 +480,7 @@ async function callWaiter({ tenant, userId, kind, text, table }) {
     const note = String(text || '').trim().slice(0, 120);
     const r = await TableRequest.create({ tenantId: tenant._id, sessionId: s?._id, table: t, userId, kind, text: note || undefined });
     tell('table_call', { tenantId: tenant._id, vars: { table: t, label: CALL_LABELS[kind], text: note }, data: { kind: 'table_call', table: t, requestId: String(r._id), what: kind } });
+    require('./waiterAlerts').request(tenant._id, { table: t, label: CALL_LABELS[kind], text: note });
     return { ok: true };
 }
 // what is waiting for the staff: open calls and tables asking for the bill, oldest first
@@ -492,8 +495,8 @@ async function requests(tenant) {
     ];
     return out.sort((a, b) => new Date(a.at) - new Date(b.at));
 }
-async function doneRequest({ tenantId, id }) {
-    const r = await TableRequest.findOneAndUpdate({ _id: id, tenantId, status: 'open' }, { $set: { status: 'done', doneAt: new Date(), doneBy: 'owner' } });
+async function doneRequest({ tenantId, id, by }) {
+    const r = await TableRequest.findOneAndUpdate({ _id: id, tenantId, status: 'open' }, { $set: { status: 'done', doneAt: new Date(), doneBy: by?.type === 'staff' ? 'staff' : 'owner', ...(by?.type === 'staff' ? { doneByName: by.name } : {}) } });
     if (!r) throw fail(404, 'Already done');
     return { ok: true };
 }
