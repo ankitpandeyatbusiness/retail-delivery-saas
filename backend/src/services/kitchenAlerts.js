@@ -4,7 +4,7 @@ const Staff = require('../models/Staff');
 const realtime = require('./realtime');
 const staffService = require('./staffService');
 const pushChannel = require('../notifications/channels/push');
-const { NEW_ORDER_CHANNEL } = require('../notifications/events');
+const { STAFF_CHANNEL, STAFF_INFO_CHANNEL, CANCEL_CHANNEL } = require('../notifications/events');
 const { brief } = require('../utils/orderBrief');
 const Tenant = require('../models/Tenant');
 
@@ -15,12 +15,31 @@ const IN_KITCHEN = ['accepted', 'preparing', 'ready'];
 const tell = (tenantId, p) => realtime.toKitchen(tenantId, 'kitchen:update', p);
 
 async function cooks(tenantId) {
-    return Staff.find({ tenantId, role: 'kitchen', isActive: true }).select('userId').lean();
+    return require('./staffDuty').peopleOnDuty(tenantId, 'kitchen');   // only the cooks on duty are told (nobody while the shop is closed)
+}
+
+// the order left the kitchen: handed to the customer, collected by the rider, or served at the table. A cook who switched this off is not told.
+async function leftKitchen({ before, updated, status }) {
+    const tenant = await Tenant.findById(updated.tenantId).select('settings.orders').lean();
+    const rules = staffService.rulesOf(tenant);
+    if (rules.kitchenOn !== true || !(rules.kitchenSees || []).includes(updated.orderType)) return;
+    const word = updated.orderType === 'delivery'
+        ? { title: `Order #${updated.orderNo} collected`, body: 'The delivery partner has it.' }
+        : updated.orderType === 'pickup'
+            ? { title: `Order #${updated.orderNo} handed over`, body: 'The customer has it.' }
+            : { title: `Order #${updated.orderNo} served`, body: updated.tableNo ? `Table ${updated.tableNo} has it.` : 'It is at the table.' };
+    tell(updated.tenantId, { orderId: String(updated._id), orderNo: updated.orderNo, status, alert: { kind: 'done', orderNo: updated.orderNo } });
+    const people = (await cooks(updated.tenantId)).filter((p) => p.prefs?.tellDone !== false);
+    await Promise.all(people.map((p) => pushChannel.send({
+        tenantId: updated.tenantId, userId: p.userId, ...word,
+        data: { type: 'kitchen_done', orderId: String(updated._id), orderNo: updated.orderNo }, tag: `done:${updated._id}`, channelId: STAFF_INFO_CHANNEL, sound: 'notify',
+    }).catch((e) => console.error('Kitchen push error:', e.message))));
 }
 
 async function onStatus({ before, updated, status }) {
     require('./waiterAlerts').onStatus({ before, updated, status }).catch((e) => console.error('Waiter alert error:', e.message));
     try {
+        if ((status === 'delivered' || status === 'out_for_delivery') && IN_KITCHEN.includes(before?.status)) { await leftKitchen({ before, updated, status }); return; }
         const touches = IN_KITCHEN.includes(status) || IN_KITCHEN.includes(before?.status);
         if (!touches) return;
         tell(updated.tenantId, { orderId: String(updated._id), orderNo: updated.orderNo, status });
@@ -32,6 +51,7 @@ async function onStatus({ before, updated, status }) {
         if (rules.kitchenOn !== true || !(rules.kitchenSees || []).includes(updated.orderType)) return;
         const people = await cooks(updated.tenantId);
         if (!people.length) return;
+        tell(updated.tenantId, { orderId: String(updated._id), orderNo: updated.orderNo, status, alert: { kind: status === 'accepted' ? 'new' : 'cancel', orderNo: updated.orderNo } });   // the open screens ring (sound and voice)
 
         const where = updated.orderType === 'dine_in' ? `Dine in${updated.tableNo ? ` · Table ${updated.tableNo}` : ''}` : TYPE_WORD[updated.orderType];
         const msg = status === 'accepted'
@@ -39,8 +59,13 @@ async function onStatus({ before, updated, status }) {
             : { title: `Order #${updated.orderNo} cancelled`, body: 'Stop making it.', loud: false };
         await Promise.all(people.map((p) => pushChannel.send({
             tenantId: updated.tenantId, userId: p.userId, title: msg.title, body: msg.body,
-            data: { type: status === 'accepted' ? 'kitchen_new' : 'kitchen_cancelled', orderId: String(updated._id), orderNo: updated.orderNo },
-            ...(msg.loud ? { channelId: NEW_ORDER_CHANNEL, sound: 'new_order' } : {}),
+            data: {
+                type: status === 'accepted' ? 'kitchen_new' : 'kitchen_cancelled', orderId: String(updated._id), orderNo: updated.orderNo,
+                kind: status === 'accepted' ? 'new' : 'cancel',
+                speech: status === 'accepted' ? `New order ${updated.orderNo}` : `Order ${updated.orderNo} cancelled`,
+                speechHi: status === 'accepted' ? `नया ऑर्डर ${updated.orderNo}` : `ऑर्डर ${updated.orderNo} रद्द हुआ`,
+            },
+            channelId: status === 'accepted' ? STAFF_CHANNEL : CANCEL_CHANNEL, sound: status === 'accepted' ? 'ting_tong' : 'cancel_alert',   // a cancelled order has its own alarm
             tag: `kitchen:${updated._id}`,
         }).catch((e) => console.error('Kitchen push error:', e.message))));
     } catch (e) {
@@ -51,13 +76,13 @@ async function onStatus({ before, updated, status }) {
 // a guest at a table pressed "please hurry": the cooks see it on their screen and on their phone
 async function hurry(tenantId, { table, minutes, what }) {
     try {
-        tell(tenantId, { hurry: true, table });
+        tell(tenantId, { hurry: true, table, alert: { kind: 'hurry', table } });
         const tenant = await Tenant.findById(tenantId).select('settings.orders').lean();
         if (staffService.rulesOf(tenant).kitchenOn !== true) return;
         const people = await cooks(tenantId);
         await Promise.all(people.map((p) => pushChannel.send({
             tenantId, userId: p.userId, title: `Table ${table} is waiting`, body: `${what || 'Their order'} · ${minutes} min. Please hurry.`,
-            data: { type: 'kitchen_hurry', table }, tag: `hurry:${table}`,
+            data: { type: 'kitchen_hurry', table: String(table), kind: 'hurry', speech: `Table ${table} is waiting`, speechHi: `टेबल ${table} इंतज़ार कर रही है` }, tag: `hurry:${table}`, channelId: STAFF_CHANNEL, sound: 'ting_tong',
         }).catch((e) => console.error('Kitchen push error:', e.message))));
     } catch (e) { console.error('Kitchen alert error:', e.message); }
 }

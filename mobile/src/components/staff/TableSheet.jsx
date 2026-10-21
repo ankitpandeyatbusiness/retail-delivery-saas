@@ -6,6 +6,7 @@ import { useBrand, alpha } from '../common/kit';
 import { Sheet, Pill, money } from '../owners/ui';
 import { ListShimmer } from '../owners/shimmer';
 import { BigButton } from './staffBits';
+import PayQrSheet from './PayQrSheet';
 import { fetchTableBill, waiterSettle } from '../../api/staff/staffApi';
 import { apiError } from '../../api/owners/shopApi';
 import { showToast } from '../customers/shop';
@@ -19,6 +20,7 @@ export default function TableSheet({ session, onClose, onPaid }) {
     const [bill, setBill] = useState(null);
     const [failed, setFailed] = useState('');
     const [busy, setBusy] = useState('');
+    const [qrOpen, setQrOpen] = useState(false);
     const load = useCallback(() => {
         fetchTableBill(session.sessionId).then((b) => { setBill(b); setFailed(''); }).catch((e) => setFailed(apiError(e, tr('Could not open the bill.'))));
     }, [session]);
@@ -34,6 +36,11 @@ export default function TableSheet({ session, onClose, onPaid }) {
         if (!yes) return;
         setBusy(method);
         try { await waiterSettle(session.sessionId, method); showToast(tr('Table {n} is paid.', { n: bill.table })); onPaid(); } catch (e) { showToast(apiError(e)); load(); } finally { setBusy(''); }
+    };
+
+    const paidByQr = async () => {
+        setBusy('upi');
+        try { await waiterSettle(session.sessionId, 'upi'); setQrOpen(false); showToast(tr('Table {n} is paid.', { n: bill.table })); onPaid(); } catch (e) { showToast(apiError(e)); load(); } finally { setBusy(''); }
     };
 
     const unserved = bill?.rounds?.some((r) => r.status !== 'delivered');
@@ -74,12 +81,15 @@ export default function TableSheet({ session, onClose, onPaid }) {
                                     <BigButton label={tr('Cash received')} icon="cash" bg={ok} ink="#FFFFFF" busy={busy === 'cash'} disabled={unserved || !!busy || bill.payable <= 0} onPress={() => pay('cash')} />
                                     <View style={{ height: 10 }} />
                                     <BigButton label={tr('UPI received')} icon="phone-portrait" bg={primary} ink="#FFFFFF" busy={busy === 'upi'} disabled={unserved || !!busy || bill.payable <= 0} onPress={() => pay('upi')} />
+                                    <View style={{ height: 10 }} />
+                                    <BigButton label={tr('Show QR to pay')} icon="qr-code" bg={alpha(primary, 0.14)} ink={primary} disabled={unserved || !!busy || bill.payable <= 0} onPress={() => setQrOpen(true)} />
                                 </View>
                             ) : <Text style={{ color: muted, fontWeight: '600', marginTop: 14 }}>{bill.status === 'closed' ? tr('This bill is paid.') : tr('The owner takes the money for this bill.')}</Text>}
                         </View>
                     ) : null}
                 </ScrollView>
             ) : null}
+            <PayQrSheet visible={qrOpen} sessionId={session?.sessionId} busy={busy === 'upi'} onClose={() => setQrOpen(false)} onPaid={paidByQr} />
         </Sheet>
     );
 }

@@ -15,6 +15,10 @@ const SOUNDS = {
     orderAccepted: { source: require('../../../assets/sounds/order_accepted.wav'), volume: 0.9 },   // warm rising pair
     outForDelivery: { source: require('../../../assets/sounds/out_for_delivery.wav'), volume: 0.9 },   // two scooter toots and a ding
     riderAccept: { source: require('../../../assets/sounds/rider_accept.wav'), volume: 0.9 },   // quick bright "yes"
+    tingTong: { source: require('../../../assets/sounds/ting_tong.wav'), volume: 1 },   // the cook's and the waiter's alert: a doorbell "ting-tong"
+    notify: { source: require('../../../assets/sounds/notify.wav'), volume: 0.8 },   // one soft ping for an ordinary message that has no sound of its own
+    cancelAlarm: { source: require('../../../assets/sounds/cancel_alert.wav'), volume: 1 },   // an order was cancelled: a short falling da-da-dum, twice
+    helpAlarm: { source: require('../../../assets/sounds/help_alarm.wav'), volume: 1 },   // a rider pressed the help button: a gentle pee-poo, three times
     riderReject: { source: require('../../../assets/sounds/rider_reject.wav'), volume: 0.9 },   // short low "no"
 };
 
@@ -24,7 +28,7 @@ let modeSet = false;
 // a short buzz (Android; iOS ignores the pattern). Best effort.
 export const buzz = (pattern = [0, 60, 70, 90]) => { try { Vibration.vibrate(pattern); } catch (e) { /* ignore */ } };
 
-export async function playSfx(name) {
+export async function playSfx(name, volume) {
     const def = SOUNDS[name];
     if (!def) return;
     try {
@@ -38,6 +42,7 @@ export async function playSfx(name) {
             p.volume = def.volume ?? 1;
             players[name] = p;
         }
+        p.volume = volume ?? def.volume ?? 1;
         await p.seekTo(0);
         p.play();
     } catch (e) { /* no sound is fine */ }

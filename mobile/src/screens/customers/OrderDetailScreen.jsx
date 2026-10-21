@@ -19,6 +19,7 @@ import { themedAlert } from '../../components/common/dialog';
 import QueueLine from '../../components/customers/QueueLine';
 import { arriveText } from './MyPointsScreen';
 import TrackingCard from '../../components/customers/tracking';
+import PickupActions from '../../components/customers/PickupActions';
 import { StoreLocation, useStoreSpot } from '../../components/customers/storeLocation';
 import { DeliveryRatingCard, ComplaintCard } from '../../components/common/feedback';
 import { useOrderLive } from '../../hooks/customers/useOrderLive';
@@ -319,7 +320,7 @@ export default function OrderDetailScreen() {
                     </LinearGradient>
                 </Appear>
 
-                {live && !cancelled ? <QueueLine q={o.queue} /> : null}
+                {live && !cancelled ? <QueueLine q={o.queue} style={{ marginHorizontal: 0 }} /> : null}   {/* as wide as the delivery card below: the page already has its own side space */}
 
                 {o.orderType === 'pickup' && o.pickupCode ? (
                     <View style={{ alignItems: 'center', marginHorizontal: 16, marginTop: 14, marginBottom: 12, padding: 16, borderRadius: 18, backgroundColor: tint(primary) }}>
@@ -331,6 +332,7 @@ export default function OrderDetailScreen() {
                         </Text>
                     </View>
                 ) : null}
+                <PickupActions order={o} onChanged={get} />
                 {o.pickupClaim?.kind ? (
                     <Text style={{ color: muted, marginHorizontal: 16, marginBottom: 12, fontSize: 13, textAlign: 'center' }}>{o.pickupClaim.kind === 'collected' ? tr('You told the shop you collected it. They will confirm.') : tr('You told the shop you do not want it. They will decide about the refund and let you know.')}</Text>
                 ) : null}

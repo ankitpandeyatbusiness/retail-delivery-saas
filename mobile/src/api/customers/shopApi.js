@@ -34,7 +34,7 @@ export const fetchPickupSlots = () => d(api.get('/orders/pickup-slots'));
 export const fetchOrder = (id) => d(api.get(`/orders/${id}`));
 export const changePickupTime = (id, pickupSlot) => d(api.post(`/orders/${id}/pickup-time`, { pickupSlot }));
 export const fetchPickupDue = () => d(api.get('/orders/pickup-due'));   // { items }: pickup orders waiting for "did you collect it?"
-export const answerPickup = (id, answer) => d(api.post(`/orders/${id}/pickup-answer`, { answer }));   // collected | not_wanted | later
+export const answerPickup = (id, answer) => d(api.post(`/orders/${id}/pickup-answer`, { answer }));   // collected | not_wanted | later | coming | arrived | on_time | late | more_time
 export const askCancelOrder = (id, note) => d(api.post(`/orders/${id}/cancel-request`, { note }));
 export const cancelOrder = (id, reason) => d(api.post(`/orders/${id}/cancel`, { reason }));
 export const reorderOrder = (id) => d(api.post(`/orders/${id}/reorder`));

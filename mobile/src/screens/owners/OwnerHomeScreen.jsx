@@ -145,7 +145,7 @@ export default function OwnerHomeScreen() {
     const blink = {
         placed: (active.placed || 0) > 0,                 // accept or reject
         accepted: (attn.accepted || 0) > 0,               // mark preparing
-        preparing: (attn.cookingNoRider || 0) > 0,        // nobody took it: assign a rider by hand
+        preparing: (attn.cookingNoRider || 0) > 0 || (attn.kitchenProblems || 0) > 0,   // nobody took it: assign a rider by hand, or the kitchen reported a problem
         ready: (attn.ready || 0) > 0,                     // no rider yet, or waiting to be handed over
         out_for_delivery: lateMin > 0,                    // a delivery is late
     };

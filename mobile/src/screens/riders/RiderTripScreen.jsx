@@ -24,7 +24,7 @@ import SwipeButton from '../../components/riders/SwipeButton';
 import DeliveredView from '../../components/riders/DeliveredView';
 import { useRiderStore } from '../../store/riders/useRiderStore';
 import {
-    fetchRiderOrder, fetchRoute, cancelDelivery, pickupOrder, markArrived, deliverOrder, reportProblem, releaseOrder, startDoorPay, checkDoorPay,
+    fetchRiderOrder, fetchRoute, cancelDelivery, pickupOrder, undoPickup, markArrived, deliverOrder, reportProblem, releaseOrder, startDoorPay, checkDoorPay,
 } from '../../api/riders/riderApi';
 import { takeAndUploadProof } from '../../utils/riders/riderPhotos';
 import { startRiderTracking } from '../../utils/riders/locationTask';
@@ -166,6 +166,7 @@ export default function RiderTripScreen() {
         sync(await retrying(() => pickupOrder(orderId)));
         startRiderTracking().catch(() => { });   // never in the way of the delivery
     });
+    const undoCollect = () => run('undo', async () => { sync(await undoPickup(orderId)); showToast(tr('Undone')); });
     const arrived = () => run('arrived', async () => sync(await retrying(() => markArrived(orderId))));
     const navigate = () => {
         const q = spot ? `${spot.latitude},${spot.longitude}` : encodeURIComponent(addressLine(o?.address));
@@ -350,7 +351,14 @@ export default function RiderTripScreen() {
                         {!ready ? <Text style={{ color: muted, textAlign: 'center', fontWeight: '700', marginTop: 8 }}>{T.waitForShop}</Text> : null}
                     </>
                 ) : step === 1 ? (
-                    <SwipeButton label={tr('Arrived')} icon="location" onConfirm={arrived} busy={busy === 'arrived'} />
+                    <>
+                        <SwipeButton label={tr('Arrived')} icon="location" onConfirm={arrived} busy={busy === 'arrived'} />
+                        {o?.undo && new Date(o.undo.until).getTime() > Date.now() ? (
+                            <Pressable onPress={undoCollect} disabled={busy === 'undo'} hitSlop={8} style={{ alignSelf: 'center', paddingTop: 12, opacity: busy === 'undo' ? 0.5 : 1 }}>
+                                <Text style={{ color: primary, fontWeight: '800' }}>{tr('Collected by mistake? Undo')}</Text>
+                            </Pressable>
+                        ) : null}
+                    </>
                 ) : (
                     <BigButton
                         label={cash ? T.deliverCash(rupeeAmount(o.payment.collectAmount)) : T.deliver}

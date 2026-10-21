@@ -62,7 +62,7 @@ async function billOf(session, { owner = false } = {}) {
     const rounds = orders.filter((o) => !DEAD.includes(o.status)).map((o) => ({
         id: String(o._id), orderNo: o.orderNo, status: o.status, at: o.createdAt, total: o.pricing?.total || 0, paid: o.payment?.status === 'paid',
         canCancel: mine.customerCanCancel(o, lite), canAsk: asks.canAskCancel(o, lite), asked: !!o.cancelRequest?.at,   // the guest may cancel it himself / ask the shop / has asked
-        items: (o.items || []).map((l) => ({ name: l.name, quantity: l.quantity, total: l.lineTotal, addons: (l.selections || []).map((x) => x.name).filter(Boolean), note: l.note || null })), summary: brief(o, 3),
+        items: (o.items || []).map((l) => ({ name: l.name, image: l.image || null, isVeg: l.isVeg ?? null, quantity: l.quantity, total: l.lineTotal, addons: (l.selections || []).map((x) => x.name).filter(Boolean), note: l.note || null })), summary: brief(o, 3),
         note: o.note || null, times: timesOf(o), queue: q.get(String(o._id)) || null,
         ...(owner ? { customer: { name: o.customer?.name || null, phone: o.customer?.phone || null } } : {}),
     }));

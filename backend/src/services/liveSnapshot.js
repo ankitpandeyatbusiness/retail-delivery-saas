@@ -28,7 +28,7 @@ const READY_WAIT_MS = 5 * 60 * 1000;
 async function attention(tenantId, now) {
     const rows = await Order.find({ tenantId, status: { $in: ['accepted', 'preparing', 'ready', 'out_for_delivery'] }, ...HIDE_UNPAID })
         .select('status orderType delivery.riderId delivery.status delivery.dueAt updatedAt').limit(300).lean();
-    const out = { accepted: 0, cookingNoRider: 0, ready: 0, roadDue: [] };
+    const out = { accepted: 0, cookingNoRider: 0, ready: 0, roadDue: [], kitchenProblems: 0 };
     for (const o of rows) {
         const noRider = o.orderType === 'delivery' && (!o.delivery?.riderId || o.delivery?.status === 'rejected');
         if (o.status === 'accepted') out.accepted += 1;
@@ -37,6 +37,8 @@ async function attention(tenantId, now) {
         else if (o.status === 'out_for_delivery' && o.delivery?.dueAt) out.roadDue.push(new Date(o.delivery.dueAt).toISOString());
     }
     out.roadDue = out.roadDue.slice(0, 30);
+    // a cook told him about a problem and he has not decided yet (the Cooking card blinks)
+    out.kitchenProblems = await Order.countDocuments({ tenantId, status: { $in: ['accepted', 'preparing', 'ready'] }, 'kitchen.problem.at': { $exists: true }, 'kitchen.problem.handledAt': { $exists: false } }).catch(() => 0);
     out.look = await require('./orderLook').summary(tenantId);   // orders that need a look once: { count, urgent, top }
     return out;
 }

@@ -6,6 +6,7 @@ import api, { data } from './adminClient';
 export const listOrders = (params) => data(api.get('/admin/orders', { params }));
 export const getOrder = (id) => data(api.get(`/admin/orders/${id}`));
 // body { status, note?, reasonCode? }   reasonCode for cancel: platform | shop_fault | customer_fault
+export const undoOrder = (id) => data(api.post(`/admin/orders/${id}/undo`));   // takes the last step back (24 hours)
 export const changeOrderStatus = (id, body) => data(api.patch(`/admin/orders/${id}/status`, body));
 export const fetchSalesReport = (params) => data(api.get('/admin/reports/sales', { params }));
 

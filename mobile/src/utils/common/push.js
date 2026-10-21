@@ -5,7 +5,7 @@
 // The server stores the phone's FCM token (POST /notifications/devices) and sends with firebase-admin.
 // Android only for now. All of it is best effort: a failure here must never get in the way of ordering.
 import { ownerRoute } from '../owners/notificationRoute';
-import { Platform } from 'react-native';
+import { Platform, AppState } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as SecureStore from 'expo-secure-store';
 import { CommonActions } from '@react-navigation/native';
@@ -17,6 +17,7 @@ import { showToast } from '../../components/customers/shop';
 import { speakOnOpen } from '../owners/soundbox';
 import { useSoundboxStore } from '../../store/owners/useSoundboxStore';
 import { useOwedPrompt } from '../../store/customers/useOwedPrompt';
+import { playSfx, buzz } from './sfx';
 
 const TOKEN_KEY = 'pushToken';
 const CHANNEL = 'orders';   // must match defaultChannel in app.config.js
@@ -24,6 +25,10 @@ const CHANNEL = 'orders';   // must match defaultChannel in app.config.js
 // The server names it in the push (backend notifications/events.js: pushChannel / pushSound). A channel's sound can not be
 // changed once it exists on a phone, so a new sound needs a new channel id.
 const NEW_ORDERS_CHANNEL = 'new_orders_v2';   // must match NEW_ORDER_CHANNEL in backend notifications/events.js
+const CANCEL_CHANNEL = 'cancel_alert_v1';   // the cancelled-order alarm (owner, cook, waiter). Must match the backend
+const HELP_CHANNEL = 'help_alarm_v1';       // the owner's: a rider pressed help
+const STAFF_INFO_CHANNEL = 'staff_info_v1';   // a quiet staff message ("order handed over"): the soft ping. Must match the backend
+const STAFF_CHANNEL = 'staff_alerts_v1';   // a cook's and a waiter's alerts: the "ting-tong" clip. Must match STAFF_CHANNEL in backend notifications/events.js
 const OLD_NEW_ORDERS_CHANNELS = ['new_orders'];   // earlier ids: they may be stuck without the sound, so they are removed
 
 // Every notification is shown twice on purpose, whether the app is open or not: the in-app toast and badge, AND the system banner
@@ -34,10 +39,24 @@ Notifications.setNotificationHandler({
         // the owner's test push has no live message behind it, so it is always shown, even with the app in front
         const isTest = notification?.request?.content?.data?.test === '1';
         const d = notification?.request?.content?.data || {};
-        const quiet = realtimeConnected() && !isTest;
+        // a cook or a waiter with the app open hears the app's own ting-tong and voice, so the push is silent for them. They are told by
+        // the app being open (not by the live connection, which can drop for a moment and let a second sound through).
+        const role = useAuthStore.getState().user?.role;
+        const staff = role === 'kitchen' || role === 'waiter';
+        const quiet = (staff ? AppState.currentState === 'active' : realtimeConnected()) && !isTest;
         return { shouldShowBanner: true, shouldShowList: true, shouldPlaySound: !quiet, shouldSetBadge: false };
     },
 });
+
+// Messages the app already makes a sound for (the owner's Soundbox, the customer's order steps). Every other message gets one soft ping,
+// because with the app open the system sound is muted on purpose: without this a pickup-time request or the shop's reply would be silent.
+const SOUNDBOX_TYPES = ['order_new', 'order_unaccepted_reminder', 'order_cancelled', 'table_bill_asked', 'table_call', 'kitchen_problem', 'pickup_intent', 'rider_sos'];
+function hasOwnSound(n) {
+    const role = useAuthStore.getState().user?.role;
+    if (role === 'admin' && SOUNDBOX_TYPES.includes(n?.type)) return true;
+    if (n?.type === 'order_status' && ['accepted', 'cancelled', 'out_for_delivery'].includes(n?.data?.status)) return true;
+    return false;
+}
 
 /* ------------------------------ opening an order from a notification ------------------------------ */
 let navRef = null;
@@ -132,6 +151,25 @@ async function getToken() {
         // clip) would keep a later, correct build silent. With no channel, the push lands on the app's default one.
     }
 
+    // the cancelled-order alarm: the owner, the cook and the waiter; and the owner's help alarm
+    const who = useAuthStore.getState().user?.role;
+    if (who === 'admin' || who === 'kitchen' || who === 'waiter') {
+        try { await Notifications.setNotificationChannelAsync(CANCEL_CHANNEL, { ...loud, name: 'Cancelled orders', description: 'A short alarm when an order is cancelled', sound: 'cancel_alert.wav' }); } catch (e) { /* the push then lands on the default channel */ }
+    }
+    if (who === 'admin') {
+        try { await Notifications.setNotificationChannelAsync(HELP_CHANNEL, { ...loud, name: 'Delivery partner needs help', description: 'A gentle alarm when a delivery partner presses the help button', sound: 'help_alarm.wav' }); } catch (e) { /* the push then lands on the default channel */ }
+    }
+    // the cook's and the waiter's channel: loud, with the ting-tong clip (created only on their phones)
+    const role = useAuthStore.getState().user?.role;
+    if (role === 'kitchen' || role === 'waiter') {
+        try {
+            await Notifications.setNotificationChannelAsync(STAFF_CHANNEL, { ...loud, name: 'Kitchen and waiter alerts', description: 'Rings when there is work to do', sound: 'ting_tong.wav' });
+        } catch (e) { /* the push then lands on the app's default channel */ }
+        try {
+            await Notifications.setNotificationChannelAsync(STAFF_INFO_CHANNEL, { name: 'Kitchen and waiter updates', description: 'A soft ping when an order has left the kitchen', importance: Notifications.AndroidImportance.HIGH, sound: 'notify.wav' });
+        } catch (e) { /* the push then lands on the app's default channel */ }
+    }
+
     let { status, canAskAgain } = await Notifications.getPermissionsAsync();
     if (status !== 'granted' && canAskAgain) status = (await Notifications.requestPermissionsAsync()).status;
     if (status !== 'granted') return null;
@@ -206,6 +244,7 @@ export function startNotifications() {
     // a new message arrived while the app is open
     onNotification((n) => {
         useNotificationStore.getState().bump();
+        if (AppState.currentState === 'active' && !hasOwnSound(n)) { playSfx('notify'); buzz([0, 40]); }
         if (n?.title) showToast(n.body ? `${n.title}: ${String(n.body).slice(0, 90)}` : n.title);
     });
 

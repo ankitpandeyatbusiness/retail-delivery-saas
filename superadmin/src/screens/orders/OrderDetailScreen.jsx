@@ -10,7 +10,7 @@ import { Choice } from '../../components/settingsForm';
 import { ErrorBox, Sheet, ConfirmSheet, toast } from '../../components/feedback';
 import { StatusBadge, STATUS, ACTIVE, nextOf, payLabel, TYPE_LABEL } from '../../components/orderBits';
 import Icon from '../../components/Icon';
-import { getOrder, changeOrderStatus, shareInvoice, getDelivery, assignRider, unassignRider } from '../../api/ordersApi';
+import { getOrder, undoOrder, changeOrderStatus, shareInvoice, getDelivery, assignRider, unassignRider } from '../../api/ordersApi';
 import { listRiders } from '../../api/opsApi';
 import { errMsg } from '../../api/adminClient';
 import { rupees, dateTime, titleCase } from '../../utils/format';
@@ -82,6 +82,11 @@ export default function OrderDetailScreen() {
         } catch (e) { toast(errMsg(e), 'error'); throw e; } finally { setBusy(''); }
     };
 
+    const undoLast = async () => {
+        setBusy('undo');
+        try { const r = await undoOrder(orderId); setO(r.order); toast(`Undone: ${r.undone}`); } catch (e) { toast(errMsg(e), 'error'); } finally { setBusy(''); }
+    };
+
     const assign = async (body) => {
         setBusy('assign');
         try {
@@ -110,6 +115,13 @@ export default function OrderDetailScreen() {
                     <Icon name="next" size={16} color={t.primary} style={{ marginLeft: 4 }} />
                 </Pressable>
             </Hero>
+
+            {o.undo ? (
+                <Card style={{ marginTop: spacing.lg }}>
+                    <Button title={`Undo: ${o.undo.label}`} icon="back" kind="soft" loading={busy === 'undo'} onPress={undoLast} />
+                    <Text style={{ color: t.muted, fontSize: font.xs, marginTop: spacing.sm }}>Takes the last step back, for up to 24 hours. The history keeps a note.</Text>
+                </Card>
+            ) : null}
 
             {active ? (
                 <>

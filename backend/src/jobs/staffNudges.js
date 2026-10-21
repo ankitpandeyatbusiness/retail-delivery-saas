@@ -11,15 +11,16 @@ const staffService = require('../services/staffService');
 const kitchen = require('../services/kitchenService');
 const pushChannel = require('../notifications/channels/push');
 const { brief } = require('../utils/orderBrief');
+const { STAFF_CHANNEL } = require('../notifications/events');
 
 const MIN = 60000;
 
 async function people(tenantId, role) {
-    return Staff.find({ tenantId, role, isActive: true }).select('userId').lean();
+    return require('../services/staffDuty').peopleOnDuty(tenantId, role);   // only people on duty are nudged (nobody while the shop is closed)
 }
 async function ring(tenantId, role, { title, body, data, tag }) {
     const list = await people(tenantId, role);
-    await Promise.all(list.map((p) => pushChannel.send({ tenantId, userId: p.userId, title, body, data, tag }).catch((e) => console.error('Nudge push error:', e.message))));
+    await Promise.all(list.map((p) => pushChannel.send({ tenantId, userId: p.userId, title, body, data, tag, channelId: STAFF_CHANNEL, sound: 'ting_tong' }).catch((e) => console.error('Nudge push error:', e.message))));
 }
 // true only for the one run that set the mark
 const claim = async (id, field) => (await Order.updateOne({ _id: id, [`kitchen.${field}`]: { $exists: false } }, { $set: { [`kitchen.${field}`]: new Date() } })).modifiedCount === 1;

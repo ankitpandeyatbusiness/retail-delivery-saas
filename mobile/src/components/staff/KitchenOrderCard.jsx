@@ -5,7 +5,7 @@ import { View, Text, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../common/kit';
 import { VegDot } from '../customers/shop';
-import { BigButton, useMinuteClock, clock, minsSince, minWord } from './staffBits';
+import { BigButton, UndoLink, useMinuteClock, clock, minsSince, minWord } from './staffBits';
 import { tr } from '../../i18n';
 
 function where(o) {
@@ -14,7 +14,7 @@ function where(o) {
     return { icon: 'bicycle', text: tr('Delivery') };
 }
 
-export default function KitchenOrderCard({ o, lateMin, busy, onAct, onProblem }) {
+export default function KitchenOrderCard({ o, lateMin, busy, onAct, onProblem, onUndo }) {
     const { surface, border, text, muted, primary, onPrimary, ok, error, warn } = useBrand();
     useMinuteClock();
     const w = where(o);
@@ -42,6 +42,12 @@ export default function KitchenOrderCard({ o, lateMin, busy, onAct, onProblem })
                 </View>
             </View>
             {o.who ? <Text style={{ color: muted, fontWeight: '700', marginTop: 4 }}>{o.who}</Text> : null}
+            {o.intent && o.intent !== 'on_time' ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', marginTop: 6, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 99, backgroundColor: alpha(o.intent === 'arrived' ? ok : primary, 0.16) }}>
+                    <Ionicons name={o.intent === 'arrived' ? 'location' : o.intent === 'coming' ? 'walk' : 'time'} size={13} color={o.intent === 'arrived' ? ok : primary} style={{ marginRight: 4 }} />
+                    <Text style={{ color: o.intent === 'arrived' ? ok : primary, fontWeight: '800', fontSize: 12.5 }}>{o.intent === 'arrived' ? tr('Customer is here') : o.intent === 'coming' ? tr('Customer is coming') : o.intent === 'late' ? tr('Customer is late') : tr('Needs more time')}</Text>
+                </View>
+            ) : null}
 
             <View style={{ marginTop: 10 }}>
                 {o.items.map((l, i) => (
@@ -93,6 +99,7 @@ export default function KitchenOrderCard({ o, lateMin, busy, onAct, onProblem })
                     </View>
                 </View>
             )}
+            <UndoLink undo={o.undo} busy={busy} onPress={onUndo} />
             {cooking && o.startedByName ? <Text style={{ color: muted, fontSize: 12, marginTop: 6 }}>{tr('Started by {name}', { name: o.startedByName })}</Text> : null}
         </View>
     );

@@ -2,6 +2,7 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, ScrollView, RefreshControl, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useBrand, alpha } from '../../components/common/kit';
 import { PageHeader, Card, SectionTitle, Button, Pill } from '../../components/owners/ui';
@@ -119,9 +120,19 @@ export default function TableBillScreen() {
                             </View>
                             {r.status === 'delivered' ? <ServedIn times={r.times} style={{ marginBottom: 6 }} /> : <><QueueLine q={r.queue} compact /><WaitTimer since={r.times?.placed || r.at} style={{ marginBottom: 6 }} /></>}
                             {r.items.map((it, k) => (
-                                <View key={k} style={{ flexDirection: 'row', paddingVertical: 4 }}>
-                                    <Text style={{ flex: 1, color: text, fontWeight: '600' }} numberOfLines={2}>{it.quantity}× {it.name}</Text>
-                                    <Text style={{ color: muted, fontWeight: '700' }}>{rs(it.total)}</Text>
+                                <View key={k} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6 }}>
+                                    {it.image ? (
+                                        <Image source={{ uri: it.image }} style={{ width: 52, height: 52, borderRadius: 12, marginRight: 12, backgroundColor: alpha(muted, 0.12) }} contentFit="cover" transition={150} />
+                                    ) : (
+                                        <View style={{ width: 52, height: 52, borderRadius: 12, marginRight: 12, backgroundColor: alpha(muted, 0.12), alignItems: 'center', justifyContent: 'center' }}>
+                                            <Ionicons name="restaurant-outline" size={22} color={muted} />
+                                        </View>
+                                    )}
+                                    <View style={{ flex: 1, minWidth: 0 }}>
+                                        <Text style={{ color: text, fontWeight: '700' }} numberOfLines={2}>{it.name}</Text>
+                                        <Text style={{ color: muted, fontWeight: '600', fontSize: 12.5, marginTop: 1 }} numberOfLines={1}>{it.quantity}×{it.addons?.length ? `  ·  ${it.addons.join(', ')}` : ''}</Text>
+                                    </View>
+                                    <Text style={{ color: muted, fontWeight: '700', marginLeft: 8 }}>{rs(it.total)}</Text>
                                 </View>
                             ))}
                             <View style={{ flexDirection: 'row', paddingTop: 8, marginTop: 6, borderTopWidth: 1, borderTopColor: alpha(border, 0.7) }}>

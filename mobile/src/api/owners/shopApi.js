@@ -25,6 +25,8 @@ export const fetchLiveMap = () => d(api.get('/shop/live-map'));
 export const fetchOrders = (params) => d(api.get('/shop/orders', q(params)));
 export const fetchOrder = (id) => d(api.get(`/shop/orders/${id}`));
 // body: { status, note?, reasonCode? }   (cancelling needs a note)
+export const resolveKitchenProblem = (id, action, message) => d(api.post(`/shop/orders/${id}/kitchen-problem`, { action, ...(message ? { message } : {}) }));   // action: 'tell' | 'cancel' | 'dismiss'
+export const undoOrderStep = (id) => d(api.post(`/shop/orders/${id}/undo`));   // takes the last step back: { ok, undone, order }
 export const setOrderStatus = (id, body) => d(api.patch(`/shop/orders/${id}/status`, body));
 export const fetchDelivery = (id) => d(api.get(`/shop/orders/${id}/delivery`));
 // body: { riderId } or { auto: true }; reason is needed when the order already has a rider
@@ -88,6 +90,8 @@ export const saveSettings = (body) => d(api.put('/shop/settings', body));
 /* ------------------------------ riders ------------------------------ */
 // kitchen and waiter people: { items, rules: { kitchenOn, waiterOn, max } }
 export const fetchStaff = () => d(api.get('/shop/staff'));
+export const fetchStaffLeaves = () => d(api.get('/shop/staff/leaves'));   // { pending, recent }
+export const decideStaffLeave = (id, approve, note) => d(api.post(`/shop/staff/leaves/${id}`, { approve, ...(note ? { note } : {}) }));
 export const addStaff = (body) => d(api.post('/shop/staff', body));   // { phone, name?, role: 'kitchen' | 'waiter' }
 export const updateStaff = (userId, body) => d(api.patch(`/shop/staff/${userId}`, body));   // { isActive?, name?, role? }
 export const removeStaff = (userId) => d(api.delete(`/shop/staff/${userId}`));

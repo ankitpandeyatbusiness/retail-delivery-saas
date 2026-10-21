@@ -8,9 +8,11 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useBrand, alpha } from '../../components/common/kit';
 import { Empty } from '../../components/owners/ui';
 import { ListShimmer } from '../../components/owners/shimmer';
-import { StaffHeader, Segment, useColumns, cellStyle } from '../../components/staff/staffBits';
-import { ServeCard, RequestCard, TableCell } from '../../components/staff/WaiterCards';
+import { StaffHeader, Segment, FadeIn, useColumns, cellStyle } from '../../components/staff/staffBits';
+import { ServeCard, RequestCard, TableCell, ServedStrip } from '../../components/staff/WaiterCards';
 import TableSheet from '../../components/staff/TableSheet';
+import TableBoard from '../../components/staff/TableBoard';
+import OffDutyBanner from '../../components/staff/OffDutyBanner';
 import { useWaiterStore } from '../../store/staff/useWaiterStore';
 import { useStaffStore } from '../../store/staff/useStaffStore';
 import { apiError } from '../../api/owners/shopApi';
@@ -39,6 +41,9 @@ export default function WaiterScreen() {
         } catch (e) { showToast(apiError(e)); }
     }, []);
     const refresh = async () => { setPulling(true); await useWaiterStore.getState().load(); setPulling(false); };
+    const undoServed = async (o) => {
+        try { await useWaiterStore.getState().undo(o.id); showToast(tr('Undone')); } catch (e) { showToast(apiError(e)); }
+    };
     const openBill = (table, sessionId) => { if (sessionId) setOpen({ table, sessionId }); };
 
     const sub = w.counts.late > 0 ? tr('{n} waiting too long', { n: w.counts.late }) : shop;
@@ -49,6 +54,7 @@ export default function WaiterScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <StaffHeader title={tr('Floor')} subtitle={sub} right={<Live live={w.state === 'ok'} />} />
+            <OffDutyBanner />
             <Segment value={tab} onChange={setTab} tabs={tabs} />
             {w.state === 'error' && w.loadedAt ? (
                 <View style={{ marginHorizontal: 16, marginBottom: 10, padding: 10, borderRadius: 12, backgroundColor: alpha(warn, 0.16), flexDirection: 'row', alignItems: 'center' }}>
@@ -66,50 +72,52 @@ export default function WaiterScreen() {
             ) : null}
 
             {!first && !failedFirst && tab === 'serve' ? (
-                <FlatList
-                    key={`serve${cols}`}
-                    numColumns={cols}
-                    data={w.serve}
-                    keyExtractor={(o) => o.id}
-                    renderItem={({ item }) => <View style={cellStyle(cols)}><ServeCard o={item} lateMin={w.rules.serveLateMin} busy={!!w.busy[`serve${item.id}`]} onServe={() => act('serve', item.id)} /></View>}
-                    contentContainerStyle={{ paddingBottom: 130, flexGrow: 1 }}
-                    showsVerticalScrollIndicator={false}
-                    refreshControl={<RefreshControl refreshing={pulling} onRefresh={refresh} tintColor={primary} colors={[primary]} />}
-                    ListEmptyComponent={<Empty icon="restaurant-outline" title={tr('Nothing to serve')} hint={tr('Dishes the kitchen finishes appear here, with a sound.')} />}
-                    initialNumToRender={6}
-                    windowSize={7}
-                />
+                <FadeIn k={tab}>
+                    <FlatList
+                        key={`serve${cols}`}
+                        numColumns={cols}
+                        data={w.serve}
+                        ListHeaderComponent={<ServedStrip list={w.served} busyOf={(o) => !!w.busy[`undo${o.id}`]} onUndo={(o) => undoServed(o)} />}
+                        keyExtractor={(o) => o.id}
+                        renderItem={({ item }) => <View style={cellStyle(cols)}><ServeCard o={item} lateMin={w.rules.serveLateMin} busy={!!w.busy[`serve${item.id}`]} onServe={() => act('serve', item.id)} /></View>}
+                        contentContainerStyle={{ paddingBottom: 130, flexGrow: 1 }}
+                        showsVerticalScrollIndicator={false}
+                        refreshControl={<RefreshControl refreshing={pulling} onRefresh={refresh} tintColor={primary} colors={[primary]} />}
+                        ListEmptyComponent={<Empty icon="restaurant-outline" title={tr('Nothing to serve')} hint={tr('Dishes the kitchen finishes appear here, with a sound.')} />}
+                        initialNumToRender={6}
+                        windowSize={7}
+                    />
+                </FadeIn>
             ) : null}
 
             {!first && !failedFirst && tab === 'requests' ? (
-                <FlatList
-                    key={`req${cols}`}
-                    numColumns={cols}
-                    data={w.requests}
-                    keyExtractor={(q) => q.id}
-                    renderItem={({ item }) => (
-                        <View style={cellStyle(cols)}><RequestCard q={item} lateMin={w.rules.serveLateMin} busy={!!w.busy[`done${item.id}`]} onDone={() => act('done', item.id)} onOpenBill={() => openBill(item.table, item.sessionId)} /></View>
-                    )}
-                    contentContainerStyle={{ paddingBottom: 130, flexGrow: 1 }}
-                    showsVerticalScrollIndicator={false}
-                    refreshControl={<RefreshControl refreshing={pulling} onRefresh={refresh} tintColor={primary} colors={[primary]} />}
-                    ListEmptyComponent={<Empty icon="hand-left-outline" title={tr('No requests')} hint={tr('When a table calls you or asks for the bill, it appears here.')} />}
-                />
+                <FadeIn k={tab}>
+                    <FlatList
+                        key={`req${cols}`}
+                        numColumns={cols}
+                        data={w.requests}
+                        keyExtractor={(q) => q.id}
+                        renderItem={({ item }) => (
+                            <View style={cellStyle(cols)}><RequestCard q={item} lateMin={w.rules.serveLateMin} busy={!!w.busy[`done${item.id}`]} onDone={() => act('done', item.id)} onOpenBill={() => openBill(item.table, item.sessionId)} /></View>
+                        )}
+                        contentContainerStyle={{ paddingBottom: 130, flexGrow: 1 }}
+                        showsVerticalScrollIndicator={false}
+                        refreshControl={<RefreshControl refreshing={pulling} onRefresh={refresh} tintColor={primary} colors={[primary]} />}
+                        ListEmptyComponent={<Empty icon="hand-left-outline" title={tr('No requests')} hint={tr('When a table calls you or asks for the bill, it appears here.')} />}
+                    />
+                </FadeIn>
             ) : null}
 
             {!first && !failedFirst && tab === 'tables' ? (
-                <ScrollView
-                    contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 130 }}
-                    showsVerticalScrollIndicator={false}
-                    refreshControl={<RefreshControl refreshing={pulling} onRefresh={refresh} tintColor={primary} colors={[primary]} />}
-                >
-                    {tableRows.length === 0 ? <Empty icon="grid-outline" title={tr('No tables')} hint={tr('Dine in is not set up yet.')} /> : null}
-                    <Text style={{ color: muted, fontSize: 12.5, marginBottom: 10 }}>{tr('Tap a table that is in use to see its bill.')}</Text>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-                        {tableRows.map((t) => <TableCell key={t.table} t={t} cols={tcols} onPress={() => openBill(t.table, t.sessionId)} />)}
-                        {Array.from({ length: pad }).map((_, i) => <View key={`pad${i}`} style={{ width: `${(100 - (tcols - 1) * 2) / tcols}%` }} />)}
-                    </View>
-                </ScrollView>
+                <FadeIn k={tab}>
+                    <ScrollView
+                        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 130 }}
+                        showsVerticalScrollIndicator={false}
+                        refreshControl={<RefreshControl refreshing={pulling} onRefresh={refresh} tintColor={primary} colors={[primary]} />}
+                    >
+                        {tableRows.length === 0 ? <Empty icon="grid-outline" title={tr('No tables')} hint={tr('Dine in is not set up yet.')} /> : <TableBoard tables={tableRows} rules={w.rules} onOpen={openBill} />}
+                    </ScrollView>
+                </FadeIn>
             ) : null}
 
             <TableSheet session={open} onClose={() => setOpen(null)} onPaid={() => { setOpen(null); useWaiterStore.getState().load(); }} />

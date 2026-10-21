@@ -11,6 +11,13 @@ const router = express.Router();
 
 router.get('/', wrap(async (req, res) => { res.json(await staff.list(req.tenant)); }));
 
+// leave requests: GET /leaves { pending, recent } · POST /leaves/:id { approve: true|false, note? }
+router.get('/leaves', wrap(async (req, res) => { res.json(await require('../services/staffLeave').forOwner(req.tenant._id)); }));
+router.post('/leaves/:id', wrap(async (req, res) => {
+    if (!isId(req.params.id)) throw httpError(404, 'Leave not found');
+    res.json(await require('../services/staffLeave').decide({ tenantId: req.tenant._id, id: req.params.id, approve: req.body?.approve, note: req.body?.note }));
+}));
+
 router.post('/', wrap(async (req, res) => {
     const r = await staff.add({ tenant: req.tenant, phone: req.body?.phone, name: req.body?.name, role: req.body?.role });
     res.status(r.added ? 201 : 200).json(r);

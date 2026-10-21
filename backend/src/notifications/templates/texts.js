@@ -71,12 +71,24 @@ const TEXTS = {
     rider_assigned: (v) => ({ title: 'Delivery partner assigned', body: `${v.riderName} will deliver your order #${v.orderNo}.` }),
     points_arrived: (v) => ({ title: `${v.points} points added`, body: `Your balance is ${v.balance} points. Use them to get money off your next order.` }),
     rider_badge: (v) => ({ title: `You are now ${String(v.badge).charAt(0).toUpperCase()}${String(v.badge).slice(1)}!`, body: 'Customers and the shop can see your new badge. Keep up the good work.' }),
+    staff_leave_request: (v) => ({ title: `${v.name || 'Your staff'} asks for leave`, body: `${v.job ? `${v.job}: ` : ''}${v.from === v.to ? v.from : `${v.from} to ${v.to}`} (${v.days} ${v.days === 1 ? 'day' : 'days'}). Reason: ${v.reason}` }),
+    staff_leave_decision: (v) => ({ title: v.approved ? 'Your leave is approved' : 'Your leave was not approved', body: `${v.from === v.to ? v.from : `${v.from} to ${v.to}`}.${v.note ? ` Shop: ${v.note}` : ''}` }),
+    staff_holiday: (v) => ({ title: `${v.name || 'Your staff'} will be off`, body: `${v.job ? `${v.job}: ` : ''}${v.from === v.to ? v.from : `${v.from} to ${v.to}`}${v.note ? ` (${v.note})` : ''}.` }),
+    pickup_intent: (v) => {
+        const who = v.name || 'The customer';
+        const what = v.brief || 'the order';
+        if (v.kind === 'arrived') return { title: `Order #${v.orderNo}: customer is here`, body: `${who} is at the shop for ${what}. Check the pickup code and hand it over.` };
+        if (v.kind === 'late') return { title: `Order #${v.orderNo}: customer is late`, body: `${who} says: on my way, sorry for the delay.` };
+        if (v.kind === 'more_time') return { title: `Order #${v.orderNo}: needs more time`, body: `${who} needs a little more time for ${what}. Please keep it warm if you can.` };
+        return { title: `Order #${v.orderNo}: customer is coming`, body: `${who} is on the way to collect ${what}.` };
+    },
     pickup_waiting: (v) => ({ title: v.over ? 'Your food is still waiting' : 'Your food is waiting', body: `${v.brief ? `${v.brief} (#${v.orderNo})` : `Order #${v.orderNo}`} ${v.over ? 'was ready for your pickup time, which is over. Please come soon, before it gets cold.' : `is ready. Please collect it by ${v.until}.`}${v.pickupCode ? ` Pickup code: ${v.pickupCode}.` : ''}` }),
     pickup_collect_claim: (v) => ({ title: `Order #${v.orderNo}: collected?`, body: `${v.name || 'A customer'} says they collected ${v.brief || 'their order'}.${v.cod ? ` It is a cash order of ₹${Math.round(v.total)}: please confirm and say if they paid.` : ' Please confirm.'}` }),
     pickup_not_wanted_claim: (v) => ({ title: `Order #${v.orderNo}: not wanted`, body: `${v.name || 'A customer'} does not want ${v.brief || 'their order'} (₹${Math.round(v.total)}, ${v.cod ? 'cash' : 'paid online'}). Choose how much to refund.` }),
     pickup_thanks: (v) => ({ title: 'Thank you!', body: `Thank you for collecting order #${v.orderNo}. We hope you enjoy it. Come again soon!${v.message ? ` ${v.message}` : ''}` }),
     pickup_claim_no: (v) => ({ title: 'We could not find it as collected', body: `The shop could not confirm that order #${v.orderNo} was collected. Please come to the shop or call them.${v.message ? ` The shop says: “${v.message}”.` : ''} Thank you for understanding.` }),
     food_packed_rider: (v) => ({ title: `Order #${v.orderNo} is packed`, body: `${v.brief ? `${v.brief}. ` : ''}It is ready for you to collect.` }),
+    order_shop_note: (v) => ({ title: `Your order #${v.orderNo}`, body: v.text }),
     kitchen_problem: (v) => ({ title: `Kitchen: order #${v.orderNo}`, body: `${v.name || 'The cook'} says: ${v.what}${v.note ? ` (${v.note})` : ''}. Please decide what to do.` }),
     order_cancel_request: (v) => ({ title: `${v.where || 'Table'}: cancel order #${v.orderNo}?`, body: `${v.name || 'A guest'} asks to cancel ${v.brief || 'their order'}${v.note ? `: “${v.note}”` : ''}. It is already being made. Please say yes or no.` }),
     order_cancel_no: (v) => ({ title: 'We could not cancel it', body: `Sorry, order #${v.orderNo} is already being made, so the shop could not cancel it.${v.message ? ` The shop says: “${v.message}”.` : ''} Thank you for understanding.` }),

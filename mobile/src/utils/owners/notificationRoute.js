@@ -3,7 +3,7 @@
 //   n: { type, data }   (data as the server sends it: ids are text)
 const ORDER = new Set([
     'order_new', 'order_cancelled', 'order_late', 'order_unaccepted_reminder',
-    'rider_accepted', 'rider_rejected', 'rider_none', 'rider_problem',
+    'rider_accepted', 'rider_rejected', 'rider_none', 'rider_problem', 'kitchen_problem', 'pickup_intent',
 ]);
 const BILL = new Set(['bill_issued', 'bill_reminder', 'payment_received', 'shop_paused', 'shop_unpaused', 'free_ending']);
 const SMS = new Set(['sms_low', 'sms_zero', 'sms_topup_done']);
@@ -12,6 +12,7 @@ export function ownerRoute(n) {
     const type = n?.type;
     const d = n?.data || {};
     if (d.kind === 'support' && d.ticketId) return { name: 'OwnerSupportTicket', params: { id: String(d.ticketId) } };
+    if (d.kind === 'staff_leave') return { name: 'OwnerStaff' };
     if (d.kind === 'fee_plan') return { name: 'OwnerRent' };
     if (d.kind === 'closing_report') return { name: 'OwnerClosing' };
     if (d.kind === 'business_report') return { name: 'OwnerBusiness', params: d.period ? { range: String(d.period) } : undefined };

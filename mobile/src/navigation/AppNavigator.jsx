@@ -90,6 +90,7 @@ import { useAppStatus } from '../store/common/useAppStatus';
 import { useViewMode } from '../store/owners/useViewMode';
 import OwnerViewPill from '../components/owners/OwnerViewPill';
 import NewOrderPopup from '../components/owners/NewOrderPopup';
+import KitchenProblemPopup from '../components/owners/KitchenProblemPopup';
 import LegalGate from '../components/common/LegalGate';
 import { LegalDocScreen, LegalListScreen } from '../screens/common/LegalScreens';
 import OwnerBusinessScreen from '../screens/owners/OwnerBusinessScreen';
@@ -390,6 +391,7 @@ export default function AppNavigator() {
             <PickupCollectHost />
             <TableFeedbackHost navRef={navigationRef} />
             <NewOrderPopup navRef={navigationRef} />
+            <KitchenProblemPopup />
             <OwedClaimHost />
             <PickupChangeHost />
             <CustomerAskHost />

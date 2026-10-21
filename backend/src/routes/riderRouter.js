@@ -67,7 +67,9 @@ function riderView(o, ctx = {}) {
     const distanceKm = spot && Number.isFinite(from.latitude) && Number.isFinite(from.longitude)
         ? Math.round(haversineKm(from.latitude, from.longitude, spot.latitude, spot.longitude) * 10) / 10 : null;
     const qr = d.doorQr;
+    const undo = o.orderType === 'delivery' && d.status === 'picked_up' ? require('../services/orderUndo').offer(o, 'rider') : null;   // a mistaken "picked up"
     return {
+        undo,
         id: o._id, orderNo: o.orderNo, status: o.status, createdAt: o.createdAt,
         items: (o.items || []).map((i) => ({ name: i.name, quantity: i.quantity })),
         note: o.note || null,
@@ -391,6 +393,14 @@ core.post('/orders/:id/reject', wrap(async (req, res) => {
     res.locals.auditAction = 'RIDER_REJECT';
     res.locals.auditParams = { orderId: req.params.id };
     res.json(out);
+}));
+
+// undo a mistaken "picked up" (within 5 minutes, before he has delivered)
+core.post('/orders/:id/undo-pickup', wrap(async (req, res) => {
+    const order = await findMine(req);
+    const r = await require('../services/orderUndo').undo({ order, actor: actorOf(req) });
+    res.locals.auditAction = `RIDER_UNDO_PICKUP (order #${r.order.orderNo})`;
+    res.json((await viewer(req))(r.order.toObject()));
 }));
 
 // food collected from the shop

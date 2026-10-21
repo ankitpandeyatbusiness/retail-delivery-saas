@@ -8,7 +8,7 @@ module.exports = {
     expo: {
         name: 'Retail Control',
         slug: 'retail-control',
-        version: '1.0.0',
+        version: '1.1.0',
         owner: 'retail-delivery-saass-team',
         extra: { eas: { projectId: 'a555451d-87ad-4029-996c-84f50a62fc17' } },
         // OTA updates (eas update): a build only receives updates made for the same app version

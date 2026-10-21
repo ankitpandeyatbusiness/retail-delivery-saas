@@ -94,12 +94,13 @@ export default function SettingsBrandScreen() {
     // one tap: read the logo, make its three colours this shop's colours, and drop the logo's separate copy so only one source is left.
     // The colours land in the form; Save keeps them.
     const logoUrl = ed.rec?.tenant?.logo;
-    const adoptLogo = async () => {
+    const iconUrl = ed.rec?.appIcon && ed.rec.appIcon !== logoUrl ? ed.rec.appIcon : '';   // the app icon, when it is a different picture from the logo
+    const adopt = async (url, what) => {
         if (reading) return;
         setReading(true);
         try {
-            const r = await logoColors(shopId, logoUrl);
-            if (!r.suggested) { toast(r.message || 'No usable colour in this logo', 'error'); return; }
+            const r = await logoColors(shopId, url);
+            if (!r.suggested) { toast(r.message || `No usable colour in this ${what}`, 'error'); return; }
             if (Object.keys(logo).length) {
                 await updateShop(shopId, { colors: { primary: '', primaryLight: '', primaryDark: '' } });
                 await useShopStore.getState().load(shopId, { quiet: true });
@@ -107,7 +108,7 @@ export default function SettingsBrandScreen() {
             const next = onlyHex(colors);
             SHADES.forEach((k) => { if (isHex(r.suggested[k])) next[k] = r.suggested[k]; });
             ed.set('brand', 'colors', next);
-            toast("The logo's colours are in. Tap Save to keep them.");
+            toast(`The ${what}'s colours are in. Tap Save to keep them.`);
         } catch (e) { toast(e.safe ? e.message : errMsg(e), 'error'); } finally { setReading(false); }
     };
 
@@ -169,13 +170,16 @@ export default function SettingsBrandScreen() {
                             <Button small kind="soft" title="Reset to best colours" onPress={resetBest} />
                         </View>
                     ) : null}
-                    {logoUrl ? (
+                    {logoUrl || iconUrl ? (
                         <View style={{ backgroundColor: t.surface, borderColor: t.border, borderWidth: 1, borderRadius: radius.lg, padding: spacing.lg, marginTop: spacing.md, marginBottom: spacing.md }}>
-                            <Text style={{ color: t.text, fontSize: font.md, fontWeight: '900' }}>Use the logo's colours</Text>
+                            <Text style={{ color: t.text, fontSize: font.md, fontWeight: '900' }}>Take the colours from a picture</Text>
                             <Text style={{ color: t.muted, fontSize: font.sm, marginTop: 2, marginBottom: spacing.md, lineHeight: 19 }}>
-                                Reads the main, light and dark colour from this shop's logo and uses them for the app. One tap, then Save.
+                                Reads the main, light and dark colour from the shop's logo or app icon and uses them for the app. One tap, then Save.
                             </Text>
-                            <Button small kind="soft" icon="palette" title="Use the logo's colours" loading={reading} onPress={adoptLogo} />
+                            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                                <Button style={{ flex: 1 }} small kind="soft" icon="palette" title="From the logo" loading={reading} onPress={() => adopt(logoUrl, 'logo')} disabled={!logoUrl} />
+                                {iconUrl ? <Button style={{ flex: 1 }} small kind="soft" icon="palette" title="From the app icon" loading={reading} onPress={() => adopt(iconUrl, 'app icon')} /> : null}
+                            </View>
                         </View>
                     ) : null}
                     <Group title="Colours" section="settings" hint="The customer app uses these everywhere. Colours from the logo and colours you pick here cannot both be used: clearing a colour here goes back to the logo's.">

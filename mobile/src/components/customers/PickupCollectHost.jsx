@@ -31,6 +31,15 @@ export default function PickupCollectHost() {
 
     const cur = on ? items.find((x) => !hidden.includes(x.id)) : null;
     const answer = async (a) => {
+        if (cur.mode === 'ready' && ['coming', 'on_time'].includes(a)) {
+            setBusy(a);
+            try {
+                await answerPickup(cur.id, a);
+                setItems((l) => l.filter((x) => x.id !== cur.id));
+                showToast(a === 'coming' ? tr('The shop knows you are coming.') : tr('Okay. The shop will keep it for your time.'));
+            } catch (e) { showToast(e?.response?.data?.error || tr('Could not send that. Try again.')); } finally { setBusy(''); }
+            return;
+        }
         if (a === 'not_wanted') {
             const yes = await ask({ title: tr('You do not want the food?'), message: tr('We will tell the shop. They will decide about the refund and let you know.'), confirmText: tr('Yes, I do not want it'), cancelText: tr('Go back') });
             if (!yes) return;
@@ -46,8 +55,17 @@ export default function PickupCollectHost() {
     };
 
     return (
-        <Sheet visible={!!cur} onClose={() => cur && answer('later')} title={cur ? tr('Order #{n}: did you collect it?', { n: cur.orderNo }) : ''}>
-            {cur ? (
+        <Sheet visible={!!cur} onClose={() => (cur?.mode === 'ready' ? setHidden((h) => [...h, cur.id]) : cur && answer('later'))} title={cur ? (cur.mode === 'ready' ? tr('Order #{n} is ready!', { n: cur.orderNo }) : tr('Order #{n}: did you collect it?', { n: cur.orderNo })) : ''}>
+            {cur?.mode === 'ready' ? (
+                <View>
+                    <Text style={{ color: muted, marginBottom: 8 }}>{cur.early ? tr('It is ready before your pickup time. Are you coming?') : tr('Come and collect it. Are you coming?')}</Text>
+                    {cur.items.map((it, i) => <Text key={i} style={{ color: text, paddingVertical: 2, fontWeight: '700' }}>{it.quantity}× {it.name}</Text>)}
+                    <Button label={tr('Coming now')} icon="walk" busy={busy === 'coming'} disabled={!!busy} onPress={() => answer('coming')} style={{ marginTop: 14 }} />
+                    {cur.early ? <Button label={tr('On my time')} icon="time" kind="ghost" busy={busy === 'on_time'} disabled={!!busy} onPress={() => answer('on_time')} style={{ marginTop: 8 }} /> : null}
+                    <Button label={tr("Can't come")} icon="close-circle" kind="ghost" busy={busy === 'not_wanted'} disabled={!!busy} onPress={() => answer('not_wanted')} style={{ marginTop: 8 }} />
+                    <Button label={tr('Ignore')} kind="ghost" disabled={!!busy} onPress={() => setHidden((h) => [...h, cur.id])} style={{ marginTop: 8 }} />
+                </View>
+            ) : cur ? (
                 <View>
                     <Text style={{ color: muted, marginBottom: 8 }}>{tr('Your pickup time has come.')}{cur.cash ? ` ${tr('It is a cash order of ₹{n}.', { n: Math.round(cur.total) })}` : ''}</Text>
                     {cur.items.map((it, i) => <Text key={i} style={{ color: text, paddingVertical: 2, fontWeight: '700' }}>{it.quantity}× {it.name}</Text>)}

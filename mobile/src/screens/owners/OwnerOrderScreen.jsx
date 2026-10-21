@@ -9,8 +9,10 @@ import { PageHeader, Card, SectionTitle, Button, Pill, Empty, money } from '../.
 import {
     StatusPill, PayBadge, Countdown, RiderSheet, useOrderActions, callPhone, whatsApp, openMap, addressLine, openInvoice,
 } from '../../components/owners/orderBits';
-import { fetchOrder, fetchDelivery, fetchRiders } from '../../api/owners/shopApi';
+import { fetchOrder, fetchDelivery, fetchRiders, undoOrderStep, apiError } from '../../api/owners/shopApi';
+import { showToast } from '../../components/customers/shop';
 import { BlockSheet } from '../../components/owners/BlockSheet';
+import KitchenProblemActions from '../../components/owners/KitchenProblemActions';
 import { onOrderUpdate } from '../../api/common/socket';
 import { acknowledge } from '../../utils/owners/soundbox';
 import { useNow } from '../../hooks/owners/useNow';
@@ -86,6 +88,12 @@ export default function OwnerOrderScreen() {
 
     const actions = useOrderActions({ onChanged: (o) => { setOrder(o); load(); }, onOptimistic: setOrder });
 
+    const [undoing, setUndoing] = useState(false);
+    const undoLast = async () => {
+        if (undoing) return;
+        setUndoing(true);
+        try { const r = await undoOrderStep(id); if (r?.order) setOrder(r.order); showToast(tr('Undone')); load(); } catch (e) { showToast(apiError(e)); load(); } finally { setUndoing(false); }
+    };
     const pull = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
     if (failed && !order) {
@@ -289,11 +297,27 @@ export default function OwnerOrderScreen() {
                     </>
                 ) : null}
 
+                {order.orderType === 'pickup' && order.pickupIntent?.kind ? (
+                    <Card>
+                        <Text style={{ color: text, fontWeight: '800' }}>{{ coming: tr('The customer is coming'), arrived: tr('The customer is here'), on_time: tr('The customer will come at his time'), late: tr('The customer is late, on his way'), more_time: tr('The customer needs more time') }[order.pickupIntent.kind]}</Text>
+                        <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{flow.dayTime(order.pickupIntent.at)}</Text>
+                    </Card>
+                ) : null}
+
+                {order.undo ? (
+                    <Card>
+                        <Button label={`${tr('Undo')}: ${tr(order.undo.label)}`} icon="arrow-undo" kind="ghost" busy={undoing} onPress={undoLast} />
+                        <Text style={{ color: muted, fontSize: 12, marginTop: 8 }}>{tr('Went wrong? Take the last step back. The history keeps a note.')}</Text>
+                    </Card>
+                ) : null}
+
                 {order.kitchen?.problem?.at || (order.orderType === 'delivery' && order.kitchen?.readyAt) ? (
                     <Card tone={order.kitchen?.problem?.at ? warn : undefined}>
                         {order.kitchen?.problem?.at ? (
                             <Text style={{ color: warn, fontWeight: '800' }}>{tr('The kitchen says')}: {order.kitchen.problem.kind === 'out_of_stock' ? tr('a dish is finished') : order.kitchen.problem.kind === 'cannot_make' ? tr('it cannot be made') : order.kitchen.problem.note}{order.kitchen.problem.byName ? ` · ${order.kitchen.problem.byName}` : ''}</Text>
                         ) : null}
+                        {order.kitchen?.problem?.at && !order.kitchen.problem.handledAt ? <View style={{ marginTop: 10 }}><KitchenProblemActions order={order} onDone={() => load()} /></View> : null}
+                        {order.kitchen?.problem?.handledAt ? <Text style={{ color: muted, fontSize: 12, marginTop: 6 }}>{tr('You dealt with this')}: {order.kitchen.problem.handledAction === 'tell' ? tr('customer told') : order.kitchen.problem.handledAction === 'cancel' ? tr('order cancelled') : tr('left as it is')}</Text> : null}
                         {order.orderType === 'delivery' && order.kitchen?.readyAt ? <Text style={{ color: ok, fontWeight: '800', marginTop: order.kitchen?.problem?.at ? 6 : 0 }}>{tr('Food is packed')} · {flow.dayTime(order.kitchen.readyAt)}{order.kitchen.readyByName ? ` · ${order.kitchen.readyByName}` : ''}</Text> : null}
                     </Card>
                 ) : null}

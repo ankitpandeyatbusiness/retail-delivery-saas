@@ -66,6 +66,7 @@ const view = (order) => ({
     riderAssigned: !!(order.delivery?.riderId && order.delivery?.status !== 'rejected'),   // a delivery order cannot go out without one
     speech: orderSpeech(order),
     speechHi: orderSpeechHi(order),
+    undo: require('../services/orderUndo').offer(order, 'owner'),   // { label, secondsLeft }: the last step can be undone
     ...(order.status === 'placed' ? { acceptBy: acceptDeadline(order) } : {}),
 });
 
@@ -154,6 +155,22 @@ router.patch('/orders/:id/status', wrap(async (req, res) => {
         skipCode: req.body?.skipCode === true,
     });
     res.json(view(order));
+}));
+
+// what to do about a problem the cook reported: { action: 'tell' | 'cancel' | 'dismiss', message? }
+router.post('/orders/:id/kitchen-problem', wrap(async (req, res) => {
+    if (!isId(req.params.id)) throw httpError(404, 'Order not found');
+    const order = await Order.findOne({ _id: req.params.id, tenantId: req.tenant._id });
+    if (!order) throw httpError(404, 'Order not found');
+    res.json(await require('../services/kitchenService').resolve({ tenant: req.tenant, order, action: req.body?.action, message: req.body?.message, actor: actorOf(req) }));
+}));
+
+// undo the last step of an order (Accepted-to-cooking, Ready, Served, Picked up): the owner has 30 minutes, the superadmin 24 hours
+router.post('/orders/:id/undo', wrap(async (req, res) => {
+    if (!isId(req.params.id)) throw httpError(404, 'Order not found');
+    const order = await Order.findOne({ _id: req.params.id, tenantId: req.tenant._id });
+    const r = await require('../services/orderUndo').undo({ order, actor: actorOf(req) });
+    res.json({ ok: true, undone: r.undone, order: view(r.order) });
 }));
 
 /* ---------- level 2: open while the shop is paused for unpaid rent ---------- */

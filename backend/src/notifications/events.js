@@ -12,6 +12,14 @@
 // The id of the owner app's loud new-order channel. Android freezes a channel's sound and vibration when it is first
 // created on a phone, so a changed sound needs a NEW id (and the app creates it under the same name: mobile push.js).
 const NEW_ORDER_CHANNEL = 'new_orders_v2';
+// every push to a cook or a waiter rings on this channel: the "ting-tong" clip, so their phones never fall back to a random device tone.
+// Built into the app (mobile/src/utils/common/push.js and app.config.js sounds).
+const STAFF_CHANNEL = 'staff_alerts_v1';
+// a quiet message for a cook or a waiter ("order handed over"): one soft ping instead of the ting-tong
+const STAFF_INFO_CHANNEL = 'staff_info_v1';
+// the two alarms: a cancelled order (a short falling "da-da-dum") and a rider's call for help (a gentle "pee-poo"). Built into the app like the others.
+const CANCEL_CHANNEL = 'cancel_alert_v1';   // the owner's, the cook's and the waiter's cancelled-order alarm
+const HELP_CHANNEL = 'help_alarm_v1';       // the owner's: a rider pressed the help button
 const INAPP_PUSH = ['inapp', 'push'];
 const ALL = ['inapp', 'push', 'sms'];
 const KEY_CUSTOMER_STATUSES = ['accepted', 'out_for_delivery', 'delivered', 'cancelled'];
@@ -22,11 +30,15 @@ const EVENTS = {
     order_new: { to: 'owner', channels: ALL, alsoPush: true, escalateSmsAfterSec: 180, key: true, pushChannel: NEW_ORDER_CHANNEL, pushSound: 'new_order' },
     order_unaccepted_reminder: { to: 'owner', channels: ALL, alsoPush: true, key: true, pushChannel: NEW_ORDER_CHANNEL, pushSound: 'new_order' },
     order_delivered_shop: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // the food reached the customer
-    order_cancelled: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },
+    order_cancelled: { to: 'owner', channels: INAPP_PUSH, alsoPush: true, pushChannel: CANCEL_CHANNEL, pushSound: 'cancel_alert' },
     order_late: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },
     rider_accepted: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },
     points_arrived: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },   // loyalty points reached the customer
     rider_badge: { to: 'rider', channels: INAPP_PUSH, alsoPush: true },        // the rider moved up a badge
+    staff_leave_request: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // a cook or a waiter asks for leave: the owner decides
+    staff_leave_decision: { to: 'rider', channels: INAPP_PUSH, alsoPush: true },  // the owner said yes or no to their leave
+    staff_holiday: { to: 'owner', channels: INAPP_PUSH, alsoPush: false },         // a cook or a waiter put days off in their calendar
+    pickup_intent: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },        // a pickup customer says he is coming, is here, is late or needs more time
     pickup_waiting: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },   // a pickup order is ready and waiting
     pickup_time_request: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // the customer asks to move his pickup to a later time: the owner answers
     pickup_time_ok: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },     // the shop agreed to the new pickup time
@@ -36,6 +48,7 @@ const EVENTS = {
     pickup_thanks: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },          // thank you for collecting
     pickup_claim_no: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },        // the shop could not find it collected yet
     food_packed_rider: { to: 'rider', channels: INAPP_PUSH, alsoPush: true },        // the kitchen packed the order the rider is coming for
+    order_shop_note: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },      // the shop writes to the customer about his order (a polite note)
     kitchen_problem: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },          // the cook cannot make something (a dish is finished, or another problem)
     order_cancel_request: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },      // a table guest asks the shop to cancel a round
     order_cancel_no: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },        // the shop could not cancel it
@@ -97,7 +110,7 @@ const EVENTS = {
     review_delivery_rider: { to: 'rider', channels: INAPP_PUSH, alsoPush: true },   // the customer reviewed HIS delivery. The food review never goes to the rider
     rider_removed: { to: 'rider', channels: INAPP_PUSH, alsoPush: true },
     rider_off_duty: { to: 'rider', channels: INAPP_PUSH },   // the app put him off duty (shop closed, or a very long duty)
-    rider_sos: { to: 'owner', channels: ALL, key: true, alsoPush: true },   // the rider pressed the help button: push AND, if the phone is unreachable, SMS
+    rider_sos: { to: 'owner', channels: ALL, key: true, alsoPush: true, pushChannel: HELP_CHANNEL, pushSound: 'help_alarm' },   // the rider pressed the help button: push AND, if the phone is unreachable, SMS
     // superadmin (his own keys, so an owner rule never changes them). SMS only if he switched it on.
     admin_bill_issued: { to: 'superadmin', channels: ALL },
     admin_bill_paid: { to: 'superadmin', channels: ALL },
@@ -122,4 +135,4 @@ const EVENTS = {
 // a type that is not listed above still works: inbox, live and push
 const DEFAULT_EVENT = { to: 'owner', channels: INAPP_PUSH };
 
-module.exports = { EVENTS, DEFAULT_EVENT, KEY_CUSTOMER_STATUSES, NEW_ORDER_CHANNEL };
+module.exports = { EVENTS, DEFAULT_EVENT, KEY_CUSTOMER_STATUSES, NEW_ORDER_CHANNEL, STAFF_CHANNEL, STAFF_INFO_CHANNEL, CANCEL_CHANNEL, HELP_CHANNEL };

@@ -28,11 +28,20 @@ async function pickupDue({ tenant, userId, now = new Date() }) {
         $or: [{ 'pickupClaim.snoozeUntil': { $exists: false } }, { 'pickupClaim.snoozeUntil': { $lte: now } }],
         ...HIDE_UNPAID,
     }).sort({ scheduledFor: 1 }).limit(5).lean();
-    return rows.map((o) => ({
-        id: String(o._id), orderNo: o.orderNo, summary: brief(o, 3), total: o.pricing?.total || 0,
-        cash: cashDue(o), paid: o.payment?.status === 'paid', until: o.pickupUntil || null,
+    const view = (o, mode) => ({
+        id: String(o._id), orderNo: o.orderNo, mode, summary: brief(o, 3), total: o.pricing?.total || 0,
+        cash: cashDue(o), paid: o.payment?.status === 'paid', until: o.pickupUntil || null, scheduledFor: o.scheduledFor || null,
+        early: !!o.scheduledFor && new Date(o.scheduledFor).getTime() - now.getTime() > 5 * 60000,   // the food is ready before the time he chose
         items: (o.items || []).map((l) => ({ name: l.name, quantity: l.quantity })),
-    }));
+    });
+    // the food is ready and he has not told the shop anything yet: "Ready! Are you coming?"
+    const ready = await Order.find({
+        tenantId: tenant._id, userId, orderType: 'pickup', status: 'ready',
+        'pickupClaim.kind': { $exists: false }, 'pickupIntent.kind': { $exists: false },
+        ...HIDE_UNPAID,
+    }).sort({ updatedAt: 1 }).limit(5).lean();
+    const dueIds = new Set(rows.map((o) => String(o._id)));
+    return [...rows.map((o) => view(o, 'due')), ...ready.filter((o) => !dueIds.has(String(o._id))).map((o) => view(o, 'ready'))];
 }
 
 async function pickupAnswer({ tenant, userId, orderId, answer }) {
@@ -44,7 +53,22 @@ async function pickupAnswer({ tenant, userId, orderId, answer }) {
         await Order.updateOne({ _id: order._id }, { $set: { 'pickupClaim.snoozeUntil': new Date(Date.now() + SNOOZE_MS) } });
         return { ok: true, later: true };
     }
-    if (!['collected', 'not_wanted'].includes(answer)) throw httpError(400, 'Choose collected, not wanted or later');
+    // what he tells the shop about coming (not a final answer: he can still say he collected it, or does not want it)
+    if (['coming', 'arrived', 'on_time', 'late', 'more_time'].includes(answer)) {
+        await Order.updateOne({ _id: order._id }, { $set: { pickupIntent: { kind: answer, at: new Date() } } });
+        if (answer !== 'on_time') {
+            const full = answer === 'arrived' ? `Order ${order.orderNo}. The customer is here.` : answer === 'coming' ? `Order ${order.orderNo}. The customer is coming.` : answer === 'late' ? `Order ${order.orderNo}. The customer is late, on the way.` : `Order ${order.orderNo}. The customer needs more time.`;
+            tell('pickup_intent', {
+                tenantId: tenant._id,
+                vars: { orderNo: order.orderNo, name: order.customer?.name, brief: brief(order, 3), kind: answer },
+                data: { orderId: String(order._id), orderNo: order.orderNo, kind: answer, speech: full, speechHi: `ऑर्डर ${order.orderNo}।` },
+            });
+            require('./kitchenAlerts').tell(tenant._id, { orderId: String(order._id), orderNo: order.orderNo, status: order.status, ...(answer === 'arrived' ? { alert: { kind: 'here', orderNo: order.orderNo } } : {}) });
+        }
+        if (answer === 'more_time') await Order.updateOne({ _id: order._id }, { $set: { 'pickupClaim.snoozeUntil': new Date(Date.now() + SNOOZE_MS) } });
+        return { ok: true, intent: answer };
+    }
+    if (!['collected', 'not_wanted'].includes(answer)) throw httpError(400, 'Choose collected, not wanted, later, coming, arrived, on time, late or more time');
     const r = await Order.updateOne({ _id: order._id, 'pickupClaim.kind': { $exists: false } }, { $set: { pickupClaim: { kind: answer, at: new Date() } } });
     if (!r.modifiedCount) return { ok: true, already: true };
     tell(answer === 'collected' ? 'pickup_collect_claim' : 'pickup_not_wanted_claim', {

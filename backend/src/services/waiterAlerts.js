@@ -6,18 +6,19 @@ const realtime = require('./realtime');
 const staffService = require('./staffService');
 const pushChannel = require('../notifications/channels/push');
 const { brief } = require('../utils/orderBrief');
+const { STAFF_CHANNEL, CANCEL_CHANNEL } = require('../notifications/events');
 
 const tell = (tenantId, p) => realtime.toWaiter(tenantId, 'waiter:update', p);
 
 async function waiters(tenantId) {
     const tenant = await Tenant.findById(tenantId).select('settings.orders').lean();
     if (staffService.rulesOf(tenant).waiterOn !== true) return [];
-    return Staff.find({ tenantId, role: 'waiter', isActive: true }).select('userId').lean();
+    return require('./staffDuty').peopleOnDuty(tenantId, 'waiter');   // only the waiters on duty are told (nobody while the shop is closed)
 }
 
-async function ring(tenantId, { title, body, data, tag }) {
+async function ring(tenantId, { title, body, data, tag, alarm }) {
     const people = await waiters(tenantId);
-    await Promise.all(people.map((p) => pushChannel.send({ tenantId, userId: p.userId, title, body, data, tag })
+    await Promise.all(people.map((p) => pushChannel.send({ tenantId, userId: p.userId, title, body, data, tag, channelId: alarm ? CANCEL_CHANNEL : STAFF_CHANNEL, sound: alarm ? 'cancel_alert' : 'ting_tong' })
         .catch((e) => console.error('Waiter push error:', e.message))));
 }
 
@@ -26,11 +27,19 @@ async function onStatus({ before, updated, status }) {
     try {
         if (updated.orderType !== 'dine_in') return;
         tell(updated.tenantId, { orderId: String(updated._id), orderNo: updated.orderNo, table: updated.tableNo, status });
+        if (status === 'cancelled' && ['accepted', 'preparing', 'ready'].includes(before?.status)) {
+            tell(updated.tenantId, { orderId: String(updated._id), orderNo: updated.orderNo, table: updated.tableNo, status, alert: { kind: 'cancel', table: updated.tableNo, orderNo: updated.orderNo } });
+            await ring(updated.tenantId, {
+                title: `Order #${updated.orderNo} cancelled`, body: `${updated.tableNo ? `Table ${updated.tableNo}. ` : ''}Do not serve it.`,
+                data: { type: 'waiter_cancelled', orderId: String(updated._id), orderNo: updated.orderNo, table: String(updated.tableNo || ''), kind: 'cancel', speech: `Order ${updated.orderNo} cancelled`, speechHi: `ऑर्डर ${updated.orderNo} रद्द हुआ` }, tag: `serve:${updated._id}`, alarm: true,
+            });
+        }
         if (status === 'ready' && before?.status !== 'ready') {
+            tell(updated.tenantId, { orderId: String(updated._id), orderNo: updated.orderNo, table: updated.tableNo, status, alert: { kind: 'ready', table: updated.tableNo, orderNo: updated.orderNo } });
             await ring(updated.tenantId, {
                 title: `Table ${updated.tableNo || ''}: ready to serve`.replace(/:\s*:/, ':'),
                 body: `${brief(updated, 3)} · order #${updated.orderNo}`,
-                data: { type: 'waiter_serve', orderId: String(updated._id), orderNo: updated.orderNo, table: updated.tableNo },
+                data: { type: 'waiter_serve', orderId: String(updated._id), orderNo: updated.orderNo, table: String(updated.tableNo || ''), kind: 'ready', speech: `Table ${updated.tableNo}, food is ready`, speechHi: `टेबल ${updated.tableNo}, खाना तैयार है` },
                 tag: `serve:${updated._id}`,
             });
         }
@@ -40,10 +49,10 @@ async function onStatus({ before, updated, status }) {
 // a guest asks for the waiter, water, cutlery, a clean table, or the bill
 async function request(tenantId, { table, label, text, bill }) {
     try {
-        tell(tenantId, { request: true, table });
+        tell(tenantId, { request: true, table, alert: { kind: bill ? 'bill' : 'call', table } });
         await ring(tenantId, {
             title: `Table ${table}`, body: `${label}${text ? `: ${text}` : ''}`,
-            data: { type: bill ? 'waiter_bill' : 'waiter_call', table },
+            data: { type: bill ? 'waiter_bill' : 'waiter_call', table: String(table), kind: bill ? 'bill' : 'call', speech: bill ? `Table ${table} wants the bill` : `Table ${table} is calling`, speechHi: bill ? `टेबल ${table} को बिल चाहिए` : `टेबल ${table} बुला रही है` },
             tag: `req:${table}:${bill ? 'bill' : label}`,
         });
     } catch (e) { console.error('Waiter alert error:', e.message); }

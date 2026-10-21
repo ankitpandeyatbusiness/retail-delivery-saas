@@ -285,7 +285,7 @@ function validateSettings(input) {
                 const c = o.dineIn;
                 if (!isObj(c)) err(p('dineIn'), 'must be an object');
                 else {
-                    known(c, ['enabled', 'tableCount', 'autoCloseHours', 'tabLimitNew', 'tabLimitTrusted', 'trustedAfter', 'atShopCheck', 'radiusM', 'checkMinutes', 'autoReady', 'readyMin', 'autoServe', 'serveMin', 'owedDaily', 'owedHour', 'owedOnHome', 'owedMax', 'firstOnline', 'prefs', 'welcomeOn', 'welcomePercent', 'welcomeMax', 'regularOn', 'regularAfter', 'regularPercent', 'regularMax', 'happyOn', 'happyFrom', 'happyTo', 'happyPercent', 'happyMax', 'waitMin', 'callOn', 'tipOn', 'tipChoices', 'feedbackOn', 'referOn', 'referFriendPercent', 'referFriendMax', 'referPoints', 'referLimit', 'busyAuto', 'busyPercent', 'busyExtraMin', 'cancelGraceMin', 'waiterSettles'], p('dineIn'));
+                    known(c, ['enabled', 'tableCount', 'autoCloseHours', 'tabLimitNew', 'tabLimitTrusted', 'trustedAfter', 'atShopCheck', 'radiusM', 'checkMinutes', 'autoReady', 'readyMin', 'autoServe', 'serveMin', 'owedDaily', 'owedHour', 'owedOnHome', 'owedMax', 'firstOnline', 'prefs', 'welcomeOn', 'welcomePercent', 'welcomeMax', 'regularOn', 'regularAfter', 'regularPercent', 'regularMax', 'happyOn', 'happyFrom', 'happyTo', 'happyPercent', 'happyMax', 'waitMin', 'callOn', 'tipOn', 'tipChoices', 'feedbackOn', 'referOn', 'referFriendPercent', 'referFriendMax', 'referPoints', 'referLimit', 'busyAuto', 'busyPercent', 'busyExtraMin', 'cancelGraceMin', 'waiterSettles', 'upiId'], p('dineIn'));
                     out.dineIn = {};
                     if (c.enabled !== undefined && bool(p('dineIn.enabled'), c.enabled)) out.dineIn.enabled = c.enabled;
                     if (c.tableCount !== undefined) {
@@ -332,6 +332,12 @@ function validateSettings(input) {
                         if (c[k] === undefined) continue;
                         if (!Number.isInteger(c[k])) err(p('dineIn.' + k), 'must be a whole number');
                         else if (num(p('dineIn.' + k), c[k], lo, hi)) out.dineIn[k] = c[k];
+                    }
+                    if (c.upiId !== undefined) {   // the shop's UPI id: the waiter shows a QR for it, so a guest can pay at the table. Empty = none.
+                        const u = typeof c.upiId === 'string' ? c.upiId.trim() : null;
+                        if (u === null) err(p('dineIn.upiId'), 'must be text');
+                        else if (u && !/^[a-zA-Z0-9._-]{2,64}@[a-zA-Z0-9.-]{2,30}$/.test(u)) err(p('dineIn.upiId'), 'must look like shopname@bank');
+                        else out.dineIn.upiId = u;
                     }
                     if (c.waiterSettles !== undefined && bool(p('dineIn.waiterSettles'), c.waiterSettles)) out.dineIn.waiterSettles = c.waiterSettles;   // a waiter may take the money of a table bill
                     for (const k of ['callOn', 'tipOn', 'feedbackOn']) { if (c[k] !== undefined && bool(p('dineIn.' + k), c[k])) out.dineIn[k] = c[k]; }

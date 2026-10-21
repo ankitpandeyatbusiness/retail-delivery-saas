@@ -210,7 +210,10 @@ async function riderSos({ tenantId, riderUserId, phone, orderNo, spot }) {
         liveFeed.emit(tenantId, 'riders', { type: 'rider.sos', orderNo: orderNo || null, riderId: String(riderUserId), riderName: name });
         center.notify('rider_sos', {
             tenantId, vars: { riderName: name, phone, orderNo },
-            data: { kind: 'sos', riderId: String(riderUserId), phone, orderNo: orderNo || null, ...(spot ? { lat: spot.lat, lng: spot.lng } : {}) },
+            data: {
+                kind: 'sos', riderId: String(riderUserId), phone, orderNo: orderNo || null, ...(spot ? { lat: spot.lat, lng: spot.lng } : {}),
+                speech: `${name} needs help${orderNo ? `. Order ${orderNo}` : ''}. Please call now.`, speechHi: `${name} को मदद चाहिए${orderNo ? `। ऑर्डर ${orderNo}` : ''}। अभी फ़ोन करें।`,   // read out by the owner's phone
+            },
         });
     } catch (e) {
         console.error('Notification error:', e.message);

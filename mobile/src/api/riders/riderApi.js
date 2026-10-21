@@ -24,6 +24,7 @@ export const fetchRiderOrders = (tab, page = 1, since) => d(api.get('/rider/orde
 export const fetchRoute = (id, lat, lng) => d(api.get(`/rider/orders/${id}/route`, { params: { lat, lng } }));
 export const acceptOrder =(id) => d(api.post(`/rider/orders/${id}/accept`));
 export const rejectOrder = (id) => d(api.post(`/rider/orders/${id}/reject`));
+export const undoPickup = (id) => d(api.post(`/rider/orders/${id}/undo-pickup`));   // a mistaken "collected", within 5 minutes
 export const pickupOrder = (id) => d(api.post(`/rider/orders/${id}/pickup`));
 // extra: { lat, lng } where he is now, and farOk: true when he chose "deliver anyway" after the server said he is far from the customer
 export const deliverOrder = (id, pin, extra = {}) => d(api.post(`/rider/orders/${id}/deliver`, { pin, ...extra }));

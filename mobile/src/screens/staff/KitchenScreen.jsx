@@ -8,8 +8,9 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useBrand, alpha } from '../../components/common/kit';
 import { Empty } from '../../components/owners/ui';
 import { ListShimmer } from '../../components/owners/shimmer';
-import { StaffHeader, Segment, useColumns, cellStyle } from '../../components/staff/staffBits';
+import { StaffHeader, Segment, FadeIn, useColumns, cellStyle } from '../../components/staff/staffBits';
 import DishTotals from '../../components/staff/DishTotals';
+import OffDutyBanner from '../../components/staff/OffDutyBanner';
 import KitchenOrderCard from '../../components/staff/KitchenOrderCard';
 import ProblemSheet from '../../components/staff/ProblemSheet';
 import { useKitchenStore } from '../../store/staff/useKitchenStore';
@@ -46,6 +47,10 @@ export default function KitchenScreen() {
         } catch (e) { showToast(apiError(e)); }
     }, []);
 
+    const undo = useCallback(async (o) => {
+        try { await useKitchenStore.getState().undo(o.id); showToast(tr('Undone')); } catch (e) { showToast(apiError(e)); }
+    }, []);
+
     const refresh = async () => { setPulling(true); await useKitchenStore.getState().load(); setPulling(false); };
     const first = state === 'loading' || (!loadedAt && state !== 'error');
 
@@ -53,6 +58,7 @@ export default function KitchenScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <StaffHeader title={tr('Kitchen')} subtitle={sub} right={<Live live={state === 'ok'} />} />
+            <OffDutyBanner />
             <Segment value={tab} onChange={setTab} tabs={[['make', tr('To make'), counts.new + counts.cooking, counts.late > 0], ['dish', tr('By dish'), 0, false], ['ready', tr('Ready'), counts.ready, false]]} />
             {state === 'error' && loadedAt ? (
                 <View style={{ marginHorizontal: 16, marginBottom: 10, padding: 10, borderRadius: 12, backgroundColor: alpha(warn, 0.16), flexDirection: 'row', alignItems: 'center' }}>
@@ -69,33 +75,37 @@ export default function KitchenScreen() {
                 </View>
             ) : null}
             {!first && !(state === 'error' && !loadedAt) && tab === 'dish' ? (
-                <ScrollView
-                    contentContainerStyle={{ paddingBottom: 130 }}
-                    showsVerticalScrollIndicator={false}
-                    refreshControl={<RefreshControl refreshing={pulling} onRefresh={refresh} tintColor={primary} colors={[primary]} />}
-                >
-                    <Text style={{ color: muted, fontSize: 12.5, marginHorizontal: 16, marginBottom: 10 }}>{tr('Everything still to make, added up. Cook the same dish together.')}</Text>
-                    <DishTotals orders={make} />
-                </ScrollView>
+                <FadeIn k={tab}>
+                    <ScrollView
+                        contentContainerStyle={{ paddingBottom: 130 }}
+                        showsVerticalScrollIndicator={false}
+                        refreshControl={<RefreshControl refreshing={pulling} onRefresh={refresh} tintColor={primary} colors={[primary]} />}
+                    >
+                        <Text style={{ color: muted, fontSize: 12.5, marginHorizontal: 16, marginBottom: 10 }}>{tr('Everything still to make, added up. Cook the same dish together.')}</Text>
+                        <DishTotals orders={make} />
+                    </ScrollView>
+                </FadeIn>
             ) : null}
             {!first && !(state === 'error' && !loadedAt) && tab !== 'dish' ? (
-                <FlatList
-                    key={cols}
-                    numColumns={cols}
-                    data={list}
-                    keyExtractor={(o) => o.id}
-                    renderItem={({ item }) => (
-                        <View style={cellStyle(cols)}><KitchenOrderCard o={item} lateMin={rules.lateMin || 20} busy={!!busy[item.id]} onAct={(k) => act(item, k)} onProblem={() => setProblem(item)} /></View>
-                    )}
-                    contentContainerStyle={{ paddingBottom: 130, flexGrow: 1 }}
-                    showsVerticalScrollIndicator={false}
-                    refreshControl={<RefreshControl refreshing={pulling} onRefresh={refresh} tintColor={primary} colors={[primary]} />}
-                    ListEmptyComponent={tab === 'make'
-                        ? <Empty icon="restaurant-outline" title={tr('Nothing to make')} hint={tr('New orders appear here by themselves, with a sound.')} />
-                        : <Empty icon="checkmark-done-outline" title={tr('Nothing waiting')} hint={tr('Orders you mark Ready stay here for an hour.')} />}
-                    initialNumToRender={6}
-                    windowSize={7}
-                />
+                <FadeIn k={tab}>
+                    <FlatList
+                        key={cols}
+                        numColumns={cols}
+                        data={list}
+                        keyExtractor={(o) => o.id}
+                        renderItem={({ item }) => (
+                            <View style={cellStyle(cols)}><KitchenOrderCard o={item} lateMin={rules.lateMin || 20} busy={!!busy[item.id]} onAct={(k) => act(item, k)} onProblem={() => setProblem(item)} onUndo={() => undo(item)} /></View>
+                        )}
+                        contentContainerStyle={{ paddingBottom: 130, flexGrow: 1 }}
+                        showsVerticalScrollIndicator={false}
+                        refreshControl={<RefreshControl refreshing={pulling} onRefresh={refresh} tintColor={primary} colors={[primary]} />}
+                        ListEmptyComponent={tab === 'make'
+                            ? <Empty icon="restaurant-outline" title={tr('Nothing to make')} hint={tr('New orders appear here by themselves, with a sound.')} />
+                            : <Empty icon="checkmark-done-outline" title={tr('Nothing waiting')} hint={tr('Orders you mark Ready stay here for an hour.')} />}
+                        initialNumToRender={6}
+                        windowSize={7}
+                    />
+                </FadeIn>
             ) : null}
             <ProblemSheet order={problem} onClose={() => setProblem(null)} onDone={() => { setProblem(null); useKitchenStore.getState().load(); }} />
         </View>

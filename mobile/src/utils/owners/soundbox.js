@@ -546,7 +546,7 @@ export async function speakForPush(data) {
     // The app is in front, or the running Soundbox is connected / already ringing / already talking: the live alert handles
     // this order, and a second voice from the push would mix with it.
     // The voice is ONLY for a new order (and its reminder) or a cancelled one. Any other push (no rider yet, late, ...) is never spoken.
-    if (!['order_new', 'order_unaccepted_reminder', 'order_cancelled'].includes(String(data?.type))) return;
+    if (!['order_new', 'order_unaccepted_reminder', 'order_cancelled', 'rider_sos'].includes(String(data?.type))) return;
     await useSoundboxStore.getState().hydrate();
     // A connected socket only counts when the running Soundbox really rings in the background ("always ready"). Otherwise
     // raise() ignores the order and the push is the ONLY thing that can read it out.
@@ -564,7 +564,8 @@ export async function speakForPush(data) {
     // the running app (Soundbox alive in the background) already rings and reads it, or the owner opened it: do not say it twice
     if ((id && data?.type !== 'order_cancelled' && (pending.has(id) || acked.has(id))) || liveHandles()) { note('already handled by the live alert'); return; }
 
-    const text = withGreeting(textOf({ orderNo: data?.orderNo, speech: data?.speech, speechHi: data?.speechHi }, language), language);
+    const said = textOf({ orderNo: data?.orderNo, speech: data?.speech, speechHi: data?.speechHi }, language);
+    const text = data?.type === 'rider_sos' ? said : withGreeting(said, language);   // a call for help is not greeted
     note('reading the order in the background');
     await speak(text, language);
 }
@@ -578,7 +579,7 @@ async function announceCancel(d) {
     if (!isOwner() || !settings().soundbox || speaking) return;
     if (!settings().alwaysReady && AppState.currentState !== 'active' && !wasWaiting) return;
     note('order ' + (d.orderNo || id) + ' cancelled');
-    playSfx('orderCancelled');
+    playSfx('cancelAlarm');   // a short falling alarm for every cancelled order (customer, shop, rider, system)
     try {
         const language = await languageToUse();
         const no = d.orderNo || '';
@@ -623,6 +624,34 @@ async function announceCall(d) {
         const what = d?.what in CALL_EN ? d.what : 'other';
         await speak(language === 'hi' ? 'टेबल ' + table + ' ' + CALL_HI[what] + '।' : 'Table ' + table + ' ' + CALL_EN[what] + '.', language);
     } catch (e) { /* the notification is enough */ }
+}
+
+// The kitchen told the owner about a problem: the ting-tong, then the voice says it once (same rules as announceCall).
+async function announceKitchen(d) {
+    if (!isOwner() || !settings().soundbox || speaking) return;
+    if (!settings().alwaysReady && AppState.currentState !== 'active') return;
+    note('kitchen problem on order ' + d?.orderNo);
+    playSfx('tingTong');
+    try {
+        const language = await languageToUse();
+        const text = language === 'hi' ? (d?.speechHi || 'किचन में समस्या।') : (d?.speech || 'Kitchen problem.');
+        await new Promise((r) => setTimeout(r, 1700));   // the tone first, then the voice
+        if (!speaking) await speak(text, language);
+    } catch (e) { /* the popup is enough */ }
+}
+
+// A delivery partner pressed the help button: a gentle two-tone alarm (not the cancelled-order one), then the voice says who and which order.
+async function announceHelp(d) {
+    if (!isOwner() || !settings().soundbox || speaking) return;
+    if (!settings().alwaysReady && AppState.currentState !== 'active') return;
+    note('rider asks for help');
+    playSfx('helpAlarm');
+    try {
+        const language = await languageToUse();
+        const text = language === 'hi' ? (d?.speechHi || 'डिलीवरी पार्टनर को मदद चाहिए।') : (d?.speech || 'A delivery partner needs help.');
+        await new Promise((r) => setTimeout(r, 2100));   // the alarm first, then the voice
+        if (!speaking) await speak(text, language);
+    } catch (e) { /* the alarm and the notification are enough */ }
 }
 
 /* ------------------------------ catching up ------------------------------ */
@@ -677,6 +706,8 @@ function begin() {
         if (n?.type === 'order_cancelled' && n.data?.orderId) { announceCancel(n.data); return; }
         if (n?.type === 'table_bill_asked') { announceBill(n.data); return; }
         if (n?.type === 'table_call') { announceCall(n.data); return; }
+        if (n?.type === 'kitchen_problem' || n?.type === 'pickup_intent') { announceKitchen(n.data); return; }
+        if (n?.type === 'rider_sos') { announceHelp(n.data); return; }
         if (!n || !ALERT_TYPES.includes(n.type)) return;
         const d = n.data || {};
         raise({ orderId: d.orderId, orderNo: d.orderNo, speech: d.speech, speechHi: d.speechHi, autoAccepted: !!d.autoAccepted });

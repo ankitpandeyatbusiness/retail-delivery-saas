@@ -77,6 +77,7 @@ const orderSchema = new Schema({
     pickupNotified: { waitingAt: Date, overAt: Date, noShowAt: Date },   // the reminders for a pickup order, each sent once (jobs/pickupReminders.js)
     pickupChanges: { type: Number, default: 0 },            // how many times the customer asked to move his pickup time
     pickupRequest: { from: Date, to: Date, at: Date },
+    pickupIntent: { _id: false, kind: String, at: Date },   // what the pickup customer told the shop about coming: coming | arrived | on_time | late | more_time
     pickupClaim: { kind: String, at: Date, snoozeUntil: Date },   // at his pickup time the customer says: I collected it | I do not want it (the owner answers)
     cancelRequest: { at: Date, note: String },                   // a table customer asks the shop to cancel a round that is already being made     // a pickup time he asked for, waiting for the shop to say yes or no
     pickupUntil: Date,                                      // end of the pickup time window
@@ -163,7 +164,7 @@ const orderSchema = new Schema({
         _id: false,
         startedAt: Date, startedBy: { type: Schema.Types.ObjectId }, startedByName: String,
         readyAt: Date, readyBy: { type: Schema.Types.ObjectId }, readyByName: String,
-        problem: { _id: false, kind: String, note: String, at: Date, byName: String },
+        problem: { _id: false, kind: String, note: String, at: Date, byName: String, dish: String, handledAt: Date, handledAction: String },   // what the cook told the owner, and what the owner did about it (tell | cancel | dismiss)
         nudgedAt: Date, lateNudgedAt: Date, serveNudgedAt: Date,   // the nudges already sent for this order, each once (jobs/staffNudges.js)
     },
     // something happened that the owner has to see once (services/orderLook.js); seenAt is set when he opens the order

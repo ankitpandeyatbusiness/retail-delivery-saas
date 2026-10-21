@@ -11,6 +11,7 @@
 import * as TaskManager from 'expo-task-manager';
 import * as Notifications from 'expo-notifications';
 import { speakForPush } from './soundbox';
+import { speakStaffForPush, STAFF_PUSH_TYPES } from '../staff/staffSound';
 
 export const SPEAK_ORDER_TASK = 'SOUNDBOX_SPEAK_ORDER';
 
@@ -29,7 +30,11 @@ TaskManager.defineTask(SPEAK_ORDER_TASK, async ({ data, error }) => {
     if (error) return;
     const fields = fieldsOf(data);
     if (String(fields.speakOnly) !== '1') return;   // only the Soundbox's own silent message
-    try { await speakForPush(fields); } catch (e) { /* best effort */ }
+    try {
+        // a cook's or a waiter's alert, or the owner's Soundbox: each has its own voice and its own settings
+        if (STAFF_PUSH_TYPES.includes(String(fields.type))) await speakStaffForPush(fields);
+        else await speakForPush(fields);
+    } catch (e) { /* best effort */ }
 });
 
 // Not in a development build. When a silent push arrives while the app is closed, Android starts the app's JavaScript

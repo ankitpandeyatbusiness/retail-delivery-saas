@@ -1,6 +1,6 @@
 // Small pieces the kitchen and waiter screens share: the page header, the job badge and the loading skeleton.
-import React, { useEffect, useState } from 'react';
-import { View, Text, Pressable, ActivityIndicator, useWindowDimensions } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, Pressable, ActivityIndicator, useWindowDimensions, Animated, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand, alpha } from '../common/kit';
@@ -84,14 +84,31 @@ export function BigButton({ label, icon, bg, ink, busy, disabled, onPress }) {
 // the two-way switch at the top of the kitchen and waiter lists. tabs: [[id, label, count, hot]]
 export function Segment({ value, onChange, tabs }) {
     const { primary, onPrimary, surface, border, muted, error } = useBrand();
+    // the highlight slides to the chosen tab (like the Delivery / Pickup / Dine in switch on the customer's Home), and the choice is handed on only after
+    // the slide has started, so the list underneath repainting never makes it stutter
+    const [shown, setShown] = useState(value);
+    const [w, setW] = useState(0);
+    const at = Math.max(0, tabs.findIndex((t) => t[0] === shown));
+    const slide = useRef(new Animated.Value(at)).current;
+    useEffect(() => { setShown(value); }, [value]);
+    useEffect(() => {
+        Animated.timing(slide, { toValue: Math.max(0, tabs.findIndex((t) => t[0] === shown)), duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+    }, [shown]);   // eslint-disable-line react-hooks/exhaustive-deps
+    const segW = w ? (w - 6) / tabs.length : 0;
+    const choose = (id) => {
+        if (id === shown) return;
+        setShown(id);
+        setTimeout(() => onChange(id), 60);
+    };
     return (
-        <View style={{ flexDirection: 'row', marginHorizontal: 16, marginBottom: 12, padding: 3, borderRadius: 14, backgroundColor: surface, borderWidth: 1, borderColor: border }}>
+        <View onLayout={(e) => setW(e.nativeEvent.layout.width)} style={{ flexDirection: 'row', marginHorizontal: 16, marginBottom: 12, padding: 3, borderRadius: 14, backgroundColor: surface, borderWidth: 1, borderColor: border }}>
+            {segW ? <Animated.View style={{ position: 'absolute', left: 3, top: 3, bottom: 3, width: segW, borderRadius: 11, backgroundColor: primary, transform: [{ translateX: slide.interpolate({ inputRange: [0, tabs.length - 1 || 1], outputRange: [0, segW * (tabs.length - 1)] }) }] }} /> : null}
             {tabs.map(([id, label, n, hot]) => {
-                const on = id === value;
+                const on = id === shown;
                 const dot = hot ? error : primary;
                 return (
-                    <Pressable key={id} onPress={() => onChange(id)} accessibilityRole="button" accessibilityState={{ selected: on }}
-                        style={{ flex: 1, paddingVertical: 10, borderRadius: 11, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', backgroundColor: on ? primary : 'transparent' }}>
+                    <Pressable key={id} onPress={() => choose(id)} accessibilityRole="button" accessibilityState={{ selected: on }}
+                        style={{ flex: 1, paddingVertical: 10, borderRadius: 11, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' }}>
                         <Text style={{ color: on ? onPrimary : muted, fontWeight: '900', fontSize: 14 }}>{label}</Text>
                         {n > 0 ? (
                             <View style={{ marginLeft: 6, minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? alpha(onPrimary, 0.22) : alpha(dot, 0.18) }}>
@@ -105,6 +122,17 @@ export function Segment({ value, onChange, tabs }) {
     );
 }
 
+// The list under the tabs eases in when a tab is chosen (a short fade and rise), so the change of tab is one smooth move, not a jump.
+// Give it a new `k` for each tab: it plays again whenever `k` changes.
+export function FadeIn({ k, children }) {
+    const v = useRef(new Animated.Value(0)).current;
+    useEffect(() => {
+        v.setValue(0);
+        Animated.timing(v, { toValue: 1, duration: 240, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+    }, [k]);   // eslint-disable-line react-hooks/exhaustive-deps
+    return <Animated.View style={{ flex: 1, opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] }}>{children}</Animated.View>;
+}
+
 // how many columns a list of cards gets: one on a phone, two on a small tablet, three on a big one (a kitchen screen on a tablet shows more at a glance)
 export function useColumns() {
     const { width } = useWindowDimensions();
@@ -112,3 +140,16 @@ export function useColumns() {
 }
 // every card in a multi-column list gets an equal share, and a lone card on the last row does not stretch across the screen
 export const cellStyle = (cols) => (cols > 1 ? { flex: 1, maxWidth: `${100 / cols}%` } : null);
+
+// "Undo: Start cooking" under a card, for as long as the server says it can be undone (undo = { label, until }). The server checks again on the tap.
+export function UndoLink({ undo, busy, onPress, style }) {
+    const { text, muted, primary } = useBrand();
+    useMinuteClock();
+    if (!undo || (undo.until && new Date(undo.until).getTime() <= Date.now())) return null;
+    return (
+        <Pressable onPress={onPress} disabled={busy} hitSlop={8} accessibilityRole="button" style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', paddingVertical: 8, opacity: pressed || busy ? 0.55 : 1 }, style]}>
+            <Ionicons name="arrow-undo" size={16} color={primary} />
+            <Text style={{ color: primary, fontWeight: '800', fontSize: 13.5, marginLeft: 6 }}>{tr('Undo: {what}', { what: tr(undo.label) })}</Text>
+        </Pressable>
+    );
+}

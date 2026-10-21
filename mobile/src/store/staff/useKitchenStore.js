@@ -1,8 +1,8 @@
 // What the kitchen screen shows: the orders to make and the ones that are ready. One load() asks the server; actions change the card at once
 // (so the cook sees it move) and the answer from the server replaces it. A failed action puts the card back.
 import { create } from 'zustand';
-import { fetchKitchenOrders, kitchenStart, kitchenReady } from '../../api/staff/staffApi';
-import { playSfx, buzz } from '../../utils/common/sfx';
+import { fetchKitchenOrders, kitchenStart, kitchenReady, kitchenUndo } from '../../api/staff/staffApi';
+import { staffAlert } from '../../utils/staff/staffSound';
 
 let seq = 0;   // the newest answer wins when two loads overlap
 let known = null;   // ids of the new orders already seen: a new one that was not here before rings the screen
@@ -23,8 +23,8 @@ export const useKitchenStore = create((set, get) => ({
             const r = await fetchKitchenOrders();
             if (mine !== seq) return;
             const fresh = new Set(r.items.filter((o) => o.stage === 'new').map((o) => o.id));
-            // a new order after the first load: a chime and a buzz (the loud push covers the phone in a pocket)
-            if (known && [...fresh].some((id) => !known.has(id))) { playSfx('orderPlaced'); buzz([0, 250, 120, 250]); }
+            // a new order after the first load rings (the live message normally did already: one alert sounds once; the push covers a pocket)
+            if (known) r.items.filter((o) => o.stage === 'new' && !known.has(o.id)).forEach((o) => staffAlert({ kind: 'new', orderNo: o.orderNo }));
             known = fresh;
             set({ items: r.items, counts: r.counts, rules: r.rules, state: 'ok', loadedAt: Date.now() });
         } catch (e) {
@@ -54,6 +54,16 @@ export const useKitchenStore = create((set, get) => ({
             throw e;
         } finally {
             set((st) => { const b = { ...st.busy }; delete b[id]; return { busy: b }; });
+        }
+    },
+
+    // takes the last tap back (Start cooking or Ready); the server decides if it is still allowed
+    undo: async (id) => {
+        if (get().busy[id]) return;
+        set((st) => ({ busy: { ...st.busy, [id]: true } }));
+        try { await kitchenUndo(id); } finally {
+            set((st) => { const b = { ...st.busy }; delete b[id]; return { busy: b }; });
+            get().load();
         }
     },
 

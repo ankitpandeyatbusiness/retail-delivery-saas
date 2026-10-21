@@ -5,6 +5,8 @@ import { useBrand, alpha } from '../../components/common/kit';
 import { Card, Row, Sheet, Field, Button } from '../../components/owners/ui';
 import { JobBadge, StaffHeader } from '../../components/staff/staffBits';
 import AppearanceSwitch from '../../components/owners/AppearanceSwitch';
+import SoundSettings from '../../components/staff/SoundSettings';
+import DutyCard from '../../components/staff/DutyCard';
 import LanguageSheet from '../../components/common/LanguageSheet';
 import { themedAlert } from '../../components/common/dialog';
 import { showToast } from '../../components/customers/shop';
@@ -59,6 +61,8 @@ export default function StaffProfileScreen() {
                         ], { icon: 'log-out-outline' })}
                     />
                 </Card>
+                <DutyCard />
+                {me?.role ? <SoundSettings role={me.role} /> : null}
             </ScrollView>
             <Sheet visible={nameOpen} onClose={() => setNameOpen(false)} title={tr('Your name')}>
                 <Text style={{ color: muted, marginBottom: 10 }}>{tr('The owner sees this name next to what you do.')}</Text>

@@ -13,7 +13,7 @@ const staffService = require('./staffService');
 const { HIDE_UNPAID } = require('./onlineOrder');
 const { httpError } = require('../middlewares/apiErrors');
 
-const FIELDS = 'orderNo orderType status tableNo items note scheduledFor pickupUntil customer.name createdAt statusHistory kitchen payment tableSessionId';
+const FIELDS = 'orderNo orderType status tableNo items note scheduledFor pickupUntil customer.name createdAt statusHistory kitchen payment tableSessionId pickupIntent';
 const KINDS = { out_of_stock: 'a dish is finished', cannot_make: 'it cannot be made', other: 'there is a problem' };
 const PROBLEM_GAP_MS = 2 * 60 * 1000;   // the same order: one message to the owner every two minutes at most
 
@@ -58,10 +58,12 @@ function viewOf(o, { lateMin, now = Date.now() }) {
         orderType: o.orderType,
         tableNo: o.tableNo || null,
         who: o.orderType === 'pickup' ? firstName(o.customer?.name) : '',
+        intent: o.orderType === 'pickup' ? (o.pickupIntent?.kind || null) : null,   // coming | arrived | on_time | late | more_time: what the pickup customer said
         status: o.status,
         stage,
         acceptedAt: accepted,
         startAt,
+        undo: require('./orderUndo').offer(o, 'staff', 'kitchen'),   // { label, secondsLeft }: the cook can take his last tap back
         startedAt: o.kitchen?.startedAt || null,
         readyAt: o.kitchen?.readyAt || null,
         startedByName: o.kitchen?.startedByName || null,
@@ -181,15 +183,51 @@ async function problem({ tenant, orderId, staff, kind, note, productId }) {
         dish = line.name;
         await Product.updateOne({ _id: line.productId, tenantId: tenant._id }, { $set: { isAvailable: false } });   // customers see "sold out" at once (the menu follows by itself)
     }
-    await Order.updateOne({ _id: o._id, tenantId: tenant._id }, { $set: { 'kitchen.problem': { kind, note: text, at: new Date(), byName: staff.name } } });
+    await Order.updateOne({ _id: o._id, tenantId: tenant._id }, { $set: { 'kitchen.problem': { kind, note: text, at: new Date(), byName: staff.name, ...(dish ? { dish } : {}) } } });
     const what = kind === 'out_of_stock' ? `${dish || 'a dish'} is finished` : kind === 'cannot_make' ? 'it cannot be made' : 'there is a problem';
     require('../notifications/center').notify('kitchen_problem', {
         tenantId: tenant._id,
-        data: { orderId: String(o._id), orderNo: o.orderNo },
+        data: { orderId: String(o._id), orderNo: o.orderNo, kind, what, byName: staff.name, speech: `Kitchen problem. Order ${o.orderNo}. ${what.charAt(0).toUpperCase()}${what.slice(1)}.`, speechHi: `किचन में समस्या। ऑर्डर ${o.orderNo}।` },
         vars: { orderNo: o.orderNo, name: staff.name, what, note: text },
     });
     realtime.toOwner(tenant._id, 'order:update', { orderId: String(o._id), orderNo: o.orderNo, status: o.status, kind: 'kitchen_problem' });
     return { ok: true, dishOff: !!dish };
 }
 
-module.exports = { queue, start, ready, problem, viewOf, stageOf };
+// The polite words for the customer. "tell" keeps the order going; "cancel" ends it (the money goes back by itself when it was paid online).
+const sorryText = (p, action, paidOnline) => {
+    const dish = p?.dish || 'one item in your order';
+    if (action === 'cancel') {
+        const base = p?.kind === 'out_of_stock' ? `Sorry, ${dish} is finished and we cannot make your order.` : 'Sorry, we cannot make your order right now.';
+        return `${base} We are very sorry for the trouble.${paidOnline ? ' Your full payment will be refunded.' : ''}`;
+    }
+    if (p?.kind === 'out_of_stock') return `Sorry, ${dish} just ran out at the shop. Your order may take a little longer, or we will call you. Thank you for your patience.`;
+    if (p?.kind === 'cannot_make') return 'Sorry, we are having trouble making one item in your order. We will update you shortly. Thank you for your patience.';
+    return 'Sorry for the wait. We hit a small problem with your order and are sorting it out. Thank you for your patience.';
+};
+
+// The owner decides what to do about a cook's problem: { action: 'tell' | 'cancel' | 'dismiss', message? }
+// tell: a polite note goes to the customer. cancel: the order is cancelled with the same politeness (refund by itself when paid online).
+async function resolve({ tenant, order, action, message, actor }) {
+    if (!['tell', 'cancel', 'dismiss'].includes(action)) throw httpError(400, 'Choose what to do');
+    const p = order.kitchen?.problem;
+    if (!p?.at) throw httpError(409, 'The kitchen has not reported a problem on this order.');
+    if (p.handledAt) throw httpError(409, 'You already dealt with this.');
+    const custom = typeof message === 'string' ? message.trim().slice(0, 200) : '';
+    const paidOnline = order.payment?.method && order.payment.method !== 'cod' && order.payment.status === 'paid';
+    const text = custom || sorryText(p, action, paidOnline);
+    let current = order;
+    if (action === 'cancel') {
+        if (!['accepted', 'preparing', 'ready'].includes(order.status)) throw httpError(409, `This order is "${order.status}" and cannot be cancelled.`);
+        current = await orderStatus.change({ order, status: 'cancelled', actor, reasonCode: 'out_of_stock', note: text, tenant });
+    } else if (action === 'tell') {
+        require('../notifications/center').notify('order_shop_note', {
+            tenantId: tenant._id, userId: order.userId, data: { orderId: String(order._id), orderNo: order.orderNo }, vars: { orderNo: order.orderNo, text },
+        });
+    }
+    await Order.updateOne({ _id: order._id, tenantId: tenant._id }, { $set: { 'kitchen.problem.handledAt': new Date(), 'kitchen.problem.handledAction': action } });
+    realtime.toOwner(tenant._id, 'order:update', { orderId: String(order._id), orderNo: order.orderNo, status: current.status, kind: 'kitchen_problem_done' });
+    return { ok: true, action, text };
+}
+
+module.exports = { queue, start, ready, problem, resolve, viewOf, stageOf };

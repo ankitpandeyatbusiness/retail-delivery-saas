@@ -4,12 +4,12 @@ import React, { useCallback, useState } from 'react';
 import { View, Text } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useBrand } from '../../components/common/kit';
-import { Card, Pill, Button, Empty, Sheet, Field, Chips } from '../../components/owners/ui';
+import { Card, Pill, Button, Empty, Sheet, Field, Chips, SectionTitle } from '../../components/owners/ui';
 import { FormPage, Toggle } from '../../components/owners/menuBits';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { callPhone } from '../../components/owners/orderBits';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
-import { fetchStaff, addStaff, updateStaff, removeStaff, apiError } from '../../api/owners/shopApi';
+import { fetchStaff, fetchStaffLeaves, decideStaffLeave, addStaff, updateStaff, removeStaff, apiError } from '../../api/owners/shopApi';
 import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
 import { tr } from '../../i18n';
@@ -83,6 +83,36 @@ function EditSheet({ person, rules, onClose, onDone }) {
     );
 }
 
+// Leave the cooks and waiters asked for: the owner says yes or no here. They are told.
+function LeaveRequests({ onChanged }) {
+    const { text, muted, ok } = useBrand();
+    const [data, setData] = useState(null);
+    const [busy, setBusy] = useState('');
+    const load = useCallback(() => fetchStaffLeaves().then(setData).catch(() => { }), []);
+    useFocusEffect(useCallback(() => { load(); }, [load]));
+    if (!data?.pending?.length) return null;
+    const decide = async (l, approve) => {
+        setBusy(l.id + approve);
+        try { await decideStaffLeave(l.id, approve); showToast(approve ? tr('Leave approved') : tr('Leave not approved')); await load(); onChanged?.(); } catch (e) { showToast(apiError(e)); } finally { setBusy(''); }
+    };
+    return (
+        <View>
+            <SectionTitle title={tr('Leave requests')} />
+            {data.pending.map((l) => (
+                <Card key={l.id}>
+                    <Text style={{ color: text, fontWeight: '900', fontSize: 15 }}>{l.name || tr('Staff')} · {l.role === 'kitchen' ? tr('Kitchen') : tr('Waiter')}</Text>
+                    <Text style={{ color: text, fontWeight: '700', marginTop: 4 }}>{l.from === l.to ? l.from : `${l.from} → ${l.to}`} · {l.days} {l.days === 1 ? tr('day') : tr('days')}</Text>
+                    {l.reason ? <Text style={{ color: muted, marginTop: 2 }}>{l.reason}</Text> : null}
+                    <View style={{ flexDirection: 'row', marginTop: 12 }}>
+                        <Button label={tr('Approve')} icon="checkmark" busy={busy === l.id + true} disabled={!!busy} onPress={() => decide(l, true)} style={{ flex: 1, marginRight: 8 }} />
+                        <Button label={tr('Not now')} kind="ghost" busy={busy === l.id + false} disabled={!!busy} onPress={() => decide(l, false)} style={{ flex: 1 }} />
+                    </View>
+                </Card>
+            ))}
+        </View>
+    );
+}
+
 export default function OwnerStaffScreen() {
     const { text, muted, ok, warn } = useBrand();
     const access = useOwnerStore((st) => st.access);
@@ -117,6 +147,7 @@ export default function OwnerStaffScreen() {
                     <Text style={{ color: muted, paddingHorizontal: 16, marginBottom: 12, lineHeight: 20 }}>
                         {tr('Add your cooks and waiters with their mobile numbers. They sign in with an OTP and see only their own screen: no money, no customers, no settings.')}
                     </Text>
+                    <LeaveRequests onChanged={load} />
                     {!items.length ? <Empty icon="people-outline" title={tr('No staff yet')} hint={tr('Add a cook or a waiter to start.')} /> : null}
                     {items.map((p) => (
                         <Card key={p.userId} onPress={() => setEdit(p)} style={{ opacity: p.isActive ? 1 : 0.6 }}>
@@ -129,6 +160,8 @@ export default function OwnerStaffScreen() {
                                         {!p.isActive ? <View style={{ marginLeft: 6 }}><Pill label={tr('Switched off')} color={muted} /></View> : null}
                                         {p.isActive && !p.panelOn ? <View style={{ marginLeft: 6 }}><Pill label={tr('Screen is off')} color={warn} /></View> : null}
                                         {p.isActive && p.panelOn ? <View style={{ marginLeft: 6 }}><Pill label={tr('Can sign in')} color={ok} /></View> : null}
+                                        {p.isActive && p.panelOn && p.duty === 'on' ? <View style={{ marginLeft: 6 }}><Pill label={tr('On duty')} color={ok} icon="radio-button-on" /></View> : null}
+                                        {p.isActive && p.panelOn && p.duty && p.duty !== 'on' ? <View style={{ marginLeft: 6 }}><Pill label={tr(p.duty === 'holiday' ? 'Day off' : p.duty === 'outside' ? 'Outside hours' : p.duty === 'shop_closed' ? 'Shop closed' : 'Off duty')} color={warn} icon="moon-outline" /></View> : null}
                                     </View>
                                 </View>
                                 <Toggle value={p.isActive} onValueChange={(on) => toggle(p, on)} disabled={access !== 'ok' && access !== 'paused'} />

@@ -27,7 +27,7 @@ import PersonAvatar from '../../components/owners/PersonAvatar';
 import { useClaimPrompt } from '../../components/owners/OwedClaimHost';
 import { tr } from '../../i18n';
 
-const RECOMMENDED = { waiterSettles: true, cancelGraceMin: 3, enabled: true, tableCount: 10, autoCloseHours: 6, tabLimitNew: 500, tabLimitTrusted: 2000, trustedAfter: 3, atShopCheck: true, radiusM: 250, checkMinutes: 20, autoReady: true, readyMin: 15, owedDaily: true, owedHour: 11, owedOnHome: true, referOn: true, referFriendPercent: 15, referFriendMax: 150, referPoints: 50, referLimit: 10, callOn: true, tipOn: true, tipChoices: [10, 20, 50], feedbackOn: true, waitMin: 15, welcomeOn: true, welcomePercent: 10, welcomeMax: 100, regularOn: true, regularAfter: 5, regularPercent: 5, regularMax: 50, happyOn: false, happyFrom: '15:00', happyTo: '18:00', happyPercent: 15, happyMax: 150, owedMax: 7, firstOnline: false, prefs: ['Make it spicy', 'Less spicy', 'Not spicy', 'Extra gravy', 'Less gravy', 'No coriander', 'No onion', 'No garlic', 'Less oil', 'Less salt'], autoServe: false, serveMin: 10, busyAuto: true, busyPercent: 70, busyExtraMin: 10 };
+const RECOMMENDED = { upiId: '', waiterSettles: true, cancelGraceMin: 3, enabled: true, tableCount: 10, autoCloseHours: 6, tabLimitNew: 500, tabLimitTrusted: 2000, trustedAfter: 3, atShopCheck: true, radiusM: 250, checkMinutes: 20, autoReady: true, readyMin: 15, owedDaily: true, owedHour: 11, owedOnHome: true, referOn: true, referFriendPercent: 15, referFriendMax: 150, referPoints: 50, referLimit: 10, callOn: true, tipOn: true, tipChoices: [10, 20, 50], feedbackOn: true, waitMin: 15, welcomeOn: true, welcomePercent: 10, welcomeMax: 100, regularOn: true, regularAfter: 5, regularPercent: 5, regularMax: 50, happyOn: false, happyFrom: '15:00', happyTo: '18:00', happyPercent: 15, happyMax: 150, owedMax: 7, firstOnline: false, prefs: ['Make it spicy', 'Less spicy', 'Not spicy', 'Extra gravy', 'Less gravy', 'No coriander', 'No onion', 'No garlic', 'Less oil', 'Less salt'], autoServe: false, serveMin: 10, busyAuto: true, busyPercent: 70, busyExtraMin: 10 };
 const KEYS = Object.keys(RECOMMENDED);
 const rs = (n) => `₹${Math.round(n * 100) / 100}`;
 // the table that has waited longest comes first; then tables with nothing waiting; free tables last, in number order
@@ -133,7 +133,8 @@ export default function OwnerDineInScreen() {
         setBusy(true);
         try { await saveSettings({ orders: { dineIn: Object.fromEntries(KEYS.map((k) => [k, k === 'prefs' ? parsePrefs(prefsText) : k === 'tipChoices' ? parseTips(tipText) : v[k]])) } }); setDirty(false); showToast(tr('Saved')); loadTables(); } catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); } finally { setBusy(false); }
     };
-    const recommended = () => { setV({ ...RECOMMENDED }); setPrefsText(RECOMMENDED.prefs.join(', ')); setTipText(RECOMMENDED.tipChoices.join(', ')); setDirty(true); showToast(tr('Recommended numbers are filled in. Press Save to keep them.')); };
+    const recommended = () => { setV((p) => ({ ...RECOMMENDED, upiId: p.upiId || '' }));   // the shop's UPI ID is not a "recommended" number: it stays
+        setPrefsText(RECOMMENDED.prefs.join(', ')); setTipText(RECOMMENDED.tipChoices.join(', ')); setDirty(true); showToast(tr('Recommended numbers are filled in. Press Save to keep them.')); };
 
     if (!v) return <FormPage title={tr('Dine in')}><ListShimmer count={2} /></FormPage>;
     const busyTables = (tables || []).filter((t) => t.state !== 'free');
@@ -249,6 +250,7 @@ export default function OwnerDineInScreen() {
             ) : null}
             {v.enabled ? (
                 <Group title={tr('Waiters')} hint={tr('If you have waiters with their own screen (Shop > Kitchen and waiter staff).')}>
+                    <TextBox label={tr('Shop UPI ID (for the QR a waiter shows at the table)')} value={v.upiId || ''} onChangeText={(x) => set('upiId', x.trim())} maxLength={64} placeholder="yourshop@bank" autoCapitalize="none" hint={tr('Guests pay at the table by scanning it. The money goes straight to this UPI ID.')} />
                     <ToggleRow title={tr('Waiters can take the money for a bill')} subtitle={v.waiterSettles !== false ? tr('A waiter marks the bill paid by cash or UPI. You see who did it.') : tr('Only you can mark a bill paid. Waiters can still see the bill.')} value={v.waiterSettles !== false} onValueChange={(x) => set('waiterSettles', x)} last />
                 </Group>
             ) : null}

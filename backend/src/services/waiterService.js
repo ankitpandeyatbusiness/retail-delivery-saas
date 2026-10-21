@@ -27,12 +27,15 @@ async function overview(tenant) {
     const serveLateMin = staffService.rulesOf(tenant).serveLateMin || 5;
     const dine = dineOf(tenant);
     const now = Date.now();
-    const [ready, cooking, board, requests] = await Promise.all([
+    const [ready, cooking, board, requests, servedRows] = await Promise.all([
         Order.find({ tenantId: tenant._id, orderType: 'dine_in', status: 'ready', ...HIDE_UNPAID }).select(FIELDS).sort({ createdAt: 1 }).limit(100).lean(),
         Order.find({ tenantId: tenant._id, orderType: 'dine_in', status: { $in: ['accepted', 'preparing'] }, ...HIDE_UNPAID }).select('tableNo').limit(200).lean(),
         tableBill.board(tenant),
         tableBill.requests(tenant),
+        Order.find({ tenantId: tenant._id, orderType: 'dine_in', status: 'delivered', deliveredAt: { $gte: new Date(now - 5 * 60000) } }).select('orderNo tableNo items deliveredAt orderType status tableSessionId statusHistory').sort({ deliveredAt: -1 }).limit(20).lean(),
     ]);
+    const orderUndo = require('./orderUndo');
+    const served = servedRows.map((o) => ({ id: String(o._id), orderNo: o.orderNo, table: o.tableNo || '', servedAt: o.deliveredAt, items: (o.items || []).map(lineOf), undo: orderUndo.offer(o, 'staff', 'waiter') })).filter((o) => o.undo);
     const serve = ready.map((o) => {
         const at = readyAt(o);
         const waitedMin = Math.max(0, Math.floor((now - new Date(at).getTime()) / 60000));
@@ -46,10 +49,20 @@ async function overview(tenant) {
     const readyBy = count(serve, 'table');
     const cookBy = count(cooking.map((o) => ({ table: o.tableNo || '' })), 'table');
     const reqBy = count(requests, 'table');
-    const tables = board.map((t) => ({ ...t, ready: readyBy.get(t.table) || 0, cooking: cookBy.get(t.table) || 0, requests: reqBy.get(t.table) || 0 }));
+    const first = (arr, key, at) => arr.reduce((m, x) => { const t = new Date(x[at]).getTime(); return !m.has(x[key]) || t < m.get(x[key]) ? m.set(x[key], t) : m; }, new Map());
+    const readySince = first(serve, 'table', 'readyAt');       // the longest a dish of this table has been waiting to be carried
+    const requestSince = first(requests, 'table', 'at');       // the longest a table has been calling
+    const requestWhat = new Map();
+    for (const r of [...requests].sort((a, b) => new Date(b.at) - new Date(a.at))) requestWhat.set(r.table, r.label);   // the oldest call's words win
+    const tables = board.map((t) => ({
+        ...t, ready: readyBy.get(t.table) || 0, cooking: cookBy.get(t.table) || 0, requests: reqBy.get(t.table) || 0,
+        readySince: readySince.has(t.table) ? new Date(readySince.get(t.table)) : null,
+        requestSince: requestSince.has(t.table) ? new Date(requestSince.get(t.table)) : null,
+        requestWhat: requestWhat.get(t.table) || null,
+    }));
     const reqs = requests.map((r) => ({ ...r, waitedMin: Math.max(0, Math.floor((now - new Date(r.at).getTime()) / 60000)) }));
     return {
-        serve, requests: reqs, tables,
+        serve, served, requests: reqs, tables,
         counts: { serve: serve.length, late: serve.filter((o) => o.late).length, requests: reqs.length, bills: reqs.filter((r) => r.type === 'bill').length },
         rules: { serveLateMin, canSettle: dine.waiterSettles !== false, tables: dine.tableCount },
         now: new Date(now),
@@ -99,4 +112,22 @@ async function settle({ tenant, sessionId, method, staff }) {
     } catch (e) { throw httpError(e.status || 400, e.message); }
 }
 
-module.exports = { overview, serve, doneRequest, bill, settle };
+// A QR the guest scans with any UPI app to pay the exact bill at the table. Today it is the shop's own UPI id (dineIn.upiId): the money goes straight to
+// the shop, and the waiter taps "UPI received" after the guest shows the success screen. When the shop has Razorpay keys this is where an online QR will go.
+async function payQr({ tenant, sessionId }) {
+    const dine = dineOf(tenant);
+    if (dine.waiterSettles === false) throw httpError(403, 'In this shop the owner takes the money for bills.');
+    const s = await TableSession.findOne({ _id: sessionId, tenantId: tenant._id, kind: { $ne: 'pickup' } });
+    if (!s) throw httpError(404, 'Bill not found');
+    if (!['open', 'bill_asked'].includes(s.status)) throw httpError(409, 'This bill is already closed.');
+    const b = await tableBill.billOf(s, { owner: false });
+    const payable = Math.round((b.payable || 0) * 100) / 100;
+    if (payable <= 0) throw httpError(409, 'There is nothing to pay.');
+    if (!dine.upiId) return { available: false, reason: 'no_upi', payable };
+    const name = String(tenant.name || 'Shop').replace(/[^\w .&-]/g, '').slice(0, 40);
+    const upiString = `upi://pay?pa=${encodeURIComponent(dine.upiId)}&pn=${encodeURIComponent(name)}&am=${payable.toFixed(2)}&cu=INR&tn=${encodeURIComponent(`Table ${s.table} bill`)}`;
+    const image = await require('qrcode').toDataURL(upiString, { margin: 1, width: 520, errorCorrectionLevel: 'M' });
+    return { available: true, mode: 'upi', payable, upiId: dine.upiId, table: s.table, upiString, image };
+}
+
+module.exports = { overview, serve, doneRequest, bill, settle, payQr };

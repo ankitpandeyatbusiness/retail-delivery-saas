@@ -9,6 +9,18 @@ const staffSchema = new mongoose.Schema({
     name: { type: String, trim: true, maxlength: 80 },
     isActive: { type: Boolean, default: true },   // the owner can pause a person without removing them
     lastSeenAt: Date,
+    // working time (services/staffDuty.js): Go live, weekly hours and days off. Alerts go only to people on duty.
+    duty: {
+        _id: false,
+        online: { type: Boolean, default: true },
+        mode: { type: String, enum: ['manual', 'auto'], default: 'manual' },
+        weekly: mongoose.Schema.Types.Mixed,   // { mon: { on, from: '09:00', to: '21:00' }, ... }
+    },
+    holidays: [{ from: String, to: String, note: { type: String, maxlength: 80 }, leaveId: mongoose.Schema.Types.ObjectId }],   // leaveId: this day off is an approved leave (services/staffLeave.js)   // days off (holiday or leave), India dates
+    prefs: {
+        _id: false,
+        tellDone: { type: Boolean, default: true },   // a cook: be told when an order was handed over, collected by the rider or served (off = never)
+    },
 }, { timestamps: true });
 
 staffSchema.index({ tenantId: 1, userId: 1 }, { unique: true });

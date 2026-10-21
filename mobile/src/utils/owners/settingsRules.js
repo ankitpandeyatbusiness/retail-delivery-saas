@@ -79,6 +79,8 @@ export const BUSY_FOR = [
 /* ------------------------------ activity log ------------------------------ */
 // the server stores "PUT /api/shop/settings" style actions; the owner reads plain words
 const ACTIVITY = [
+    [/orders\/:id\/undo/, 'Took the last step of an order back'], [/undo-pickup/, 'Took "collected" back'], [/orders\/:id\/kitchen-problem/, 'Answered a problem from the kitchen'],
+    [/staff\/duty\/holidays/, 'Changed their days off'], [/staff\/duty/, 'Changed their duty or hours'],
     [/staff\/kitchen\/orders\/:id\/start/, 'Started cooking an order'], [/staff\/kitchen\/orders\/:id\/ready/, 'Marked an order ready'], [/staff\/kitchen\/orders\/:id\/problem/, 'Told you about a problem in the kitchen'],
     [/staff\/waiter\/orders\/:id\/serve/, 'Served a dish'], [/staff\/waiter\/requests/, 'Finished a table request'], [/staff\/waiter\/tables\/:sessionId\/settle/, 'Took the money for a table bill'], [/staff\/me/, 'Changed their own name'],
     [/shop\/staff/, 'Changed the staff list'],

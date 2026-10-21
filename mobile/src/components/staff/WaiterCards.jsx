@@ -5,7 +5,7 @@ import { View, Text, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../common/kit';
 import { money } from '../owners/ui';
-import { BigButton, useMinuteClock, minsSince, minWord } from './staffBits';
+import { BigButton, UndoLink, useMinuteClock, minsSince, minWord } from './staffBits';
 import { tr } from '../../i18n';
 
 const Chip = ({ icon, text, color }) => (
@@ -115,3 +115,20 @@ const Badge = ({ color, text, icon }) => (
 );
 
 export { Chip };
+
+// "Just served": the dishes served in the last few minutes, each with Undo, for a tap on the wrong dish
+export function ServedStrip({ list, busyOf, onUndo }) {
+    const { surface, border, text, muted } = useBrand();
+    if (!list?.length) return null;
+    return (
+        <View style={{ marginHorizontal: 16, marginBottom: 12, padding: 12, borderRadius: 16, backgroundColor: surface, borderColor: border, borderWidth: 1 }}>
+            <Text style={{ color: muted, fontWeight: '800', fontSize: 12, marginBottom: 2 }}>{tr('JUST SERVED')}</Text>
+            {list.map((o) => (
+                <View key={o.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Text style={{ color: text, fontWeight: '700', flexShrink: 1 }} numberOfLines={1}>{o.table ? tr('Table {n}', { n: o.table }) : '#' + o.orderNo}  ·  #{o.orderNo}</Text>
+                    <UndoLink undo={o.undo} busy={busyOf(o)} onPress={() => onUndo(o)} />
+                </View>
+            ))}
+        </View>
+    );
+}

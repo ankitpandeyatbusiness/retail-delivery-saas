@@ -27,6 +27,7 @@ async function withShop(orders) {
     const byId = new Map(shops.map((s) => [String(s._id), s]));
     return orders.map((o) => ({
         ...o.toJSON(),
+        undo: require('../services/orderUndo').offer(o, 'superadmin'),
         shopName: byId.get(String(o.tenantId))?.name || 'Unknown shop',
         shopSlug: byId.get(String(o.tenantId))?.slug || null,
     }));
@@ -110,6 +111,14 @@ router.patch('/orders/:id/status', wrap(async (req, res) => {
         reasonCode: req.body?.reasonCode,
     });
     res.json((await withShop([updated]))[0]);
+}));
+
+// undo the last step of an order (24 hours)
+router.post('/orders/:id/undo', wrap(async (req, res) => {
+    const order = isId(req.params.id) ? await Order.findById(req.params.id) : null;
+    if (!order) throw httpError(404, 'Order not found');
+    const r = await require('../services/orderUndo').undo({ order, actor: { type: 'superadmin', id: req.admin._id, label: req.admin.email } });
+    res.json({ ok: true, undone: r.undone, order: (await withShop([r.order]))[0] });
 }));
 
 module.exports = router;

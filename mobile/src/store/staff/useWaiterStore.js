@@ -1,13 +1,13 @@
 // What the waiter's screen shows: dishes ready to serve, what the tables ask for, and the tables. One load() asks the server. "Served" and "Done"
 // take the card off the list at once; the answer from the server (or a failure, which puts the card back) follows.
 import { create } from 'zustand';
-import { fetchWaiterOverview, waiterServe, waiterDoneRequest } from '../../api/staff/staffApi';
-import { playSfx, buzz } from '../../utils/common/sfx';
+import { fetchWaiterOverview, waiterServe, waiterDoneRequest, waiterUndo } from '../../api/staff/staffApi';
+import { staffAlert } from '../../utils/staff/staffSound';
 
 let seq = 0;   // the newest answer wins when two loads overlap
 let known = null;   // ids of the dishes and requests already seen: a new one rings the screen
 
-const EMPTY = { serve: [], requests: [], tables: [], counts: { serve: 0, late: 0, requests: 0, bills: 0 }, rules: { serveLateMin: 5, canSettle: true, tables: 0 } };
+const EMPTY = { serve: [], served: [], requests: [], tables: [], counts: { serve: 0, late: 0, requests: 0, bills: 0 }, rules: { serveLateMin: 5, canSettle: true, tables: 0 } };
 
 export const useWaiterStore = create((set, get) => ({
     ...EMPTY,
@@ -23,11 +23,11 @@ export const useWaiterStore = create((set, get) => ({
             const ids = new Set([...r.serve.map((o) => `s${o.id}`), ...r.requests.map((q) => `r${q.id}`)]);
             // a dish that became ready, or a table that asked for something, after the first load: a sound and a buzz (the push covers a pocket)
             if (known) {
-                const fresh = [...ids].filter((id) => !known.has(id));
-                if (fresh.length) { playSfx(fresh.some((id) => id[0] === 's') ? 'orderAccepted' : 'orderPlaced'); buzz([0, 200, 100, 200]); }
+                r.serve.filter((o) => !known.has(`s${o.id}`)).forEach((o) => staffAlert({ kind: 'ready', table: o.table, orderNo: o.orderNo }));
+                r.requests.filter((q) => !known.has(`r${q.id}`)).forEach((q) => staffAlert({ kind: q.type === 'bill' ? 'bill' : 'call', table: q.table }));
             }
             known = ids;
-            set({ serve: r.serve, requests: r.requests, tables: r.tables, counts: r.counts, rules: r.rules, state: 'ok', loadedAt: Date.now() });
+            set({ serve: r.serve, served: r.served || [], requests: r.requests, tables: r.tables, counts: r.counts, rules: r.rules, state: 'ok', loadedAt: Date.now() });
         } catch (e) {
             if (mine !== seq) return;
             if (e?.response?.status === 403) { require('./useStaffStore').useStaffStore.getState().load(); return; }   // switched off meanwhile: the app shows why
@@ -56,6 +56,17 @@ export const useWaiterStore = create((set, get) => ({
             throw e;
         } finally {
             set((st) => { const b = { ...st.busy }; delete b[key]; return { busy: b }; });
+        }
+    },
+
+    // takes a mistaken Served back; the server decides if it is still allowed
+    undo: async (id) => {
+        const key = `undo${id}`;
+        if (get().busy[key]) return;
+        set((st) => ({ busy: { ...st.busy, [key]: true } }));
+        try { await waiterUndo(id); } finally {
+            set((st) => { const b = { ...st.busy }; delete b[key]; return { busy: b }; });
+            get().load();
         }
     },
 
