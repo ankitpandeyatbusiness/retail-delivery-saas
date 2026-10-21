@@ -67,7 +67,7 @@ export default function ShopDetailScreen() {
                 ) : null}
             </Hero>
 
-            <View style={{ marginTop: spacing.xl }}>
+            <View style={{ marginTop: spacing.xl, marginBottom: spacing.lg }}>
                 {noArea ? (
                 <Card>
                     <Text style={{ color: t.warn, fontWeight: '800', fontSize: font.md }}>Delivery is on, but no delivery area is set</Text>

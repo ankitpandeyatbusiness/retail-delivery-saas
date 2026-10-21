@@ -6,8 +6,8 @@ import { useTheme, spacing, font, radius } from '../../theme';
 import { Screen, HeaderButton } from '../../components/layout';
 import { Card, Chip, Badge, Button } from '../../components/ui';
 import { SearchBar, Segmented } from '../../components/inputs';
-import { Loading, Empty, ErrorBox, Sheet, toast } from '../../components/feedback';
-import { VegMark } from '../../components/catalogBits';
+import { Loading, Empty, ErrorBox, Sheet, SheetScroll, toast } from '../../components/feedback';
+import { VegMark, DishPic } from '../../components/catalogBits';
 import Icon from '../../components/Icon';
 import { listRecords, updateRecord, fetchAvailability } from '../../api/catalogApi';
 import { errMsg } from '../../api/adminClient';
@@ -22,10 +22,10 @@ const timingText = (timings) => {
     return timings.map((s) => `${s.open}–${s.close}${s.days?.length ? ` (${s.days.map((d) => DAYS[d]).join(', ')})` : ''}`).join(' · ');
 };
 
-function Thumb({ uri, size = 56 }) {
+function Thumb({ uri, item, size = 56 }) {
     const t = useTheme();
     return uri
-        ? <Image source={{ uri }} style={{ width: size, height: size, borderRadius: radius.md, backgroundColor: t.surfaceAlt }} />
+        ? (item ? <DishPic item={item} size={size} /> : <Image source={{ uri }} style={{ width: size, height: size, borderRadius: radius.md, backgroundColor: t.surfaceAlt }} />)
         : <View style={{ width: size, height: size, borderRadius: radius.md, backgroundColor: t.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}><Icon name="food" size={size * 0.45} color={t.muted} /></View>;
 }
 
@@ -96,7 +96,7 @@ export default function ShopMenuScreen() {
     const addCategory = () => nav.navigate('CategoryForm', { shopId, name });
 
     const header = (
-        <View style={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.sm }}>
+        <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.sm }}>
             <Segmented value={tab} onChange={setTab} options={[{ value: 'items', label: `Items${products.total != null ? ` (${products.total})` : ''}` }, { value: 'categories', label: `Categories (${cats.length})` }]} />
             {hidden.length ? (
                 <Card onPress={() => setShowHidden(true)} style={{ marginTop: spacing.md, backgroundColor: t.warnSoft, shadowOpacity: 0, elevation: 0 }}>
@@ -157,7 +157,7 @@ export default function ShopMenuScreen() {
                             renderItem={({ item: p }) => (
                                 <Card onPress={() => nav.navigate('ProductForm', { shopId, name, id: p._id })} style={{ marginBottom: spacing.sm, opacity: p.isActive === false ? 0.55 : 1 }}>
                                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                        <Thumb uri={p.image} />
+                                        <Thumb uri={p.image} item={p} />
                                         <View style={{ flex: 1, marginLeft: spacing.md }}>
                                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                                 <VegMark isVeg={p.isVeg} />
@@ -218,14 +218,14 @@ export default function ShopMenuScreen() {
                 <Text style={{ color: t.muted, marginBottom: spacing.md }}>
                     The app hides a filter or block that would be empty. It shows up on its own once the data exists.
                 </Text>
-                <ScrollView style={{ maxHeight: 360 }}>
+                <SheetScroll style={{ maxHeight: 360 }}>
                     {hidden.map((h, i) => (
                         <View key={`${h.type}-${h.id}-${i}`} style={{ paddingVertical: spacing.sm, borderBottomWidth: 0.5, borderBottomColor: t.border }}>
                             <Text style={{ color: t.text, fontWeight: '800' }}>{nameOf(h.type === 'block' ? 'block' : h.type === 'filter' ? 'filter' : h.type === 'sort' ? 'sort' : 'x', h.id)}  <Text style={{ color: t.muted, fontWeight: '600' }}>({h.type})</Text></Text>
                             <Text style={{ color: t.muted, fontSize: font.sm, marginTop: 2 }}>{h.reason}</Text>
                         </View>
                     ))}
-                </ScrollView>
+                </SheetScroll>
                 <Button title="Close" kind="outline" onPress={() => setShowHidden(false)} style={{ marginTop: spacing.md }} />
             </Sheet>
         </Screen>

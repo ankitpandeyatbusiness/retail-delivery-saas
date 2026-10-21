@@ -1,5 +1,6 @@
 // Table QR stickers. Each table's QR holds a link that is SIGNED by the server, so nobody can invent a table number or print a
 // sticker for another shop. The link opens a small page; the page opens the shop's app on that table, or the Play Store when the app is not installed.
+const publicBase = require('../utils/publicBase');
 const crypto = require('crypto');
 const QRCode = require('qrcode');
 const { DEFAULTS } = require('./tenantConfigService');
@@ -13,7 +14,7 @@ const check = (tenantId, what, k) => {
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const tableCount = (t) => ({ ...DEFAULTS.orders.dineIn, ...(t?.settings?.orders?.dineIn || {}) }).tableCount;
 
-const baseUrl = (req) => (process.env.PUBLIC_BASE_URL ? process.env.PUBLIC_BASE_URL.replace(/\/+$/, '') : `${req.protocol}://${req.get('host')}`);
+const baseUrl = publicBase;   // PUBLIC_BASE_URL locally, the real address in production (utils/publicBase.js)
 const tableUrl = (req, t, table) => `${baseUrl(req)}/api/dinein/t/${t.slug}/${table}?k=${sign(t._id, 'table:' + table)}`;
 const printUrl = (req, t) => `${baseUrl(req)}/api/dinein/print/${t.slug}?k=${sign(t._id, 'print')}`;
 

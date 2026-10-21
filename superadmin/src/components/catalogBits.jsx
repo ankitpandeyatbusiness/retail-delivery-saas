@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { View, Text, Image, Pressable, TextInput } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, Image, Pressable, TextInput, Animated } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme, spacing, radius, font, TAP } from '../theme';
 import { Button } from './ui';
 import { Label } from './settingsForm';
@@ -7,6 +8,8 @@ import { toast } from './feedback';
 import Icon from './Icon';
 import { pickImage, uploadImage } from '../utils/upload';
 import { errMsg } from '../api/adminClient';
+import { ActivityIndicator } from './Loading';
+import { useSlideTick, seedOf } from '../hooks/useSlideTick';
 
 /*
  * A picture for a record. Shows the current one, uploads a new one right away, and gives back its url.
@@ -48,6 +51,83 @@ export function ImageField({ label = 'Picture', value, onChange, shopId, kind, r
             </View>
         </View>
     );
+}
+
+/*
+ * Up to 4 more pictures of a dish (the same as "More pictures" in the shop owner's menu). The customer app slides through the main
+ * picture and these by itself. Each can be moved left or right, or made the main picture (the star); onMain(url) swaps it with the main one.
+ */
+export function MorePictures({ value = [], onChange, onMain, shopId, refId, disabled }) {
+    const t = useTheme();
+    const [busy, setBusy] = useState(false);
+    const add = async () => {
+        if (busy || value.length >= 4) return;
+        setBusy(true);
+        try {
+            const img = await pickImage({});
+            if (!img) return;
+            const m = await uploadImage(shopId, { kind: 'product', refId, ...img });
+            onChange([...value, m.url]);
+        } catch (e) { toast(e.safe ? e.message : errMsg(e), 'error'); } finally { setBusy(false); }
+    };
+    const move = (i, d) => {
+        const j = i + d;
+        if (j < 0 || j >= value.length) return;
+        const next = [...value];
+        [next[i], next[j]] = [next[j], next[i]];
+        onChange(next);
+    };
+    const chip = (name, onPress, off, key) => (
+        <Pressable key={key} onPress={onPress} disabled={off} hitSlop={4} style={{ width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.6)', opacity: off ? 0.3 : 1 }}>
+            <Ionicons name={name} size={13} color="#FFFFFF" />
+        </Pressable>
+    );
+    return (
+        <View style={{ marginTop: spacing.lg }}>
+            <Label>More pictures (optional)</Label>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                {value.map((u, i) => (
+                    <View key={u} style={{ marginRight: spacing.md, marginBottom: spacing.md }}>
+                        <Image source={{ uri: u }} style={{ width: 84, height: 84, borderRadius: radius.md, backgroundColor: t.surfaceAlt }} />
+                        <Pressable onPress={() => onChange(value.filter((x) => x !== u))} hitSlop={8} style={{ position: 'absolute', top: -6, right: -6, width: 22, height: 22, borderRadius: 11, backgroundColor: t.danger, alignItems: 'center', justifyContent: 'center' }}>
+                            <Ionicons name="close" size={14} color="#FFFFFF" />
+                        </Pressable>
+                        {onMain ? <View style={{ position: 'absolute', top: 4, left: 4 }}>{chip('star', () => onMain(u), false, 's')}</View> : null}
+                        <View style={{ position: 'absolute', bottom: 4, left: 4, right: 4, flexDirection: 'row', justifyContent: 'space-between' }}>
+                            {chip('chevron-back', () => move(i, -1), i === 0, 'l')}
+                            {chip('chevron-forward', () => move(i, 1), i === value.length - 1, 'r')}
+                        </View>
+                    </View>
+                ))}
+                {value.length < 4 ? (
+                    <Pressable onPress={add} disabled={disabled || busy} style={{ width: 84, height: 84, borderRadius: radius.md, borderWidth: 1, borderStyle: 'dashed', borderColor: t.border, backgroundColor: t.surfaceAlt, alignItems: 'center', justifyContent: 'center', opacity: disabled ? 0.5 : 1 }}>
+                        {busy ? <ActivityIndicator color={t.primary} /> : <Ionicons name="add" size={26} color={t.primary} />}
+                    </Pressable>
+                ) : null}
+            </View>
+            <Text style={{ color: t.muted, fontSize: font.sm }}>{disabled ? 'Add the main picture first.' : 'They slide in this order. Use the arrows to move one, the star to make it the main picture.'}</Text>
+        </View>
+    );
+}
+
+/*
+ * A dish's thumbnail in a list. A dish with more pictures slides through them by itself (all dishes on one clock, each starting at its own
+ * place), with a soft fade, like the menu in the shop owner's app.
+ */
+export function DishPic({ item, size = 56, fallback }) {
+    const t = useTheme();
+    const pics = [item?.image, ...(Array.isArray(item?.images) ? item.images : [])].filter(Boolean);
+    const slides = pics.length > 1;
+    const tick = useSlideTick(slides);
+    const uri = slides ? pics[(tick + seedOf(item)) % pics.length] : pics[0];
+    const fade = useRef(new Animated.Value(1)).current;
+    useEffect(() => {
+        if (!slides) return;
+        fade.setValue(0.25);
+        Animated.timing(fade, { toValue: 1, duration: 450, useNativeDriver: true }).start();
+    }, [uri]);   // eslint-disable-line react-hooks/exhaustive-deps
+    if (!uri) return fallback || null;
+    return <Animated.Image source={{ uri }} style={{ width: size, height: size, borderRadius: radius.md, backgroundColor: t.surfaceAlt, opacity: fade }} />;
 }
 
 // "20261101" -> "2026-11-01" while typing

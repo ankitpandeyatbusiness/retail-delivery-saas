@@ -79,7 +79,7 @@ export default function OrdersList({ tenantId, showShop = true, header }) {
     return (
         <View style={{ flex: 1 }}>
             {header}
-            <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.sm }}>
+            <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
                 <SearchBar value={q} onChangeText={setQ} placeholder="Order number or customer phone" />
             </View>
             <View style={{ height: 52, marginTop: spacing.sm }}>

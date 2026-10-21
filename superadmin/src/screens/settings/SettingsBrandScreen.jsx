@@ -5,7 +5,7 @@ import { useTheme, spacing, radius, font } from '../../theme';
 import { Button } from '../../components/ui';
 import Icon from '../../components/Icon';
 import { ConfirmSheet, toast } from '../../components/feedback';
-import { updateShop } from '../../api/shopsApi';
+import { updateShop, logoColors } from '../../api/shopsApi';
 import { errMsg } from '../../api/adminClient';
 import { useShopStore } from '../../store/useShopStore';
 import { SettingsPage } from '../../components/settingsPage';
@@ -15,6 +15,8 @@ import { choices, isHex, RECOMMENDED_LOOK } from '../../utils/settings';
 import { bestPalette, readableOnWhiteText, PALETTE_LABELS } from '../../utils/palette';
 
 const SHADES = ['primary', 'primaryLight', 'primaryDark'];   // the three colours a logo can supply
+// only real #RRGGBB colours are kept: an empty or half-typed one must never be sent (the server would say it "must look like #RRGGBB")
+const onlyHex = (o) => Object.fromEntries(Object.entries(o || {}).filter(([, v]) => isHex(v)));
 const pick = (o) => Object.fromEntries(SHADES.filter((k) => isHex(o?.[k])).map((k) => [k, o[k]]));
 
 function Swatches({ label, colours }) {
@@ -46,6 +48,7 @@ export default function SettingsBrandScreen() {
     const { shopId, name } = useRoute().params;
     const ed = useSettingsEditor(shopId, ['brand']);
     const colors = ed.draft?.brand?.colors || {};
+    const [reading, setReading] = useState(false);
     const [confirm, setConfirm] = useState(false);
 
     // Two sources of colour: the LOGO's (saved on the shop) and the colours typed in here (the panel's own).
@@ -60,7 +63,7 @@ export default function SettingsBrandScreen() {
     const mainNow = logoOnly ? logo.primary : (isHex(colors.primary) ? colors.primary : logo.primary);
     const best = bestPalette(mainNow);
     const resetBest = () => {
-        const next = { ...colors };
+        const next = onlyHex(colors);
         // with the logo as the source its own three colours are left alone; everything else is set
         const keys = logoOnly ? ['background', 'text', 'error', 'accent'] : ['primary', 'primaryLight', 'primaryDark', 'background', 'text', 'error', 'accent'];
         keys.forEach((k) => { next[k] = best[k]; });
@@ -70,7 +73,7 @@ export default function SettingsBrandScreen() {
 
     // keep the logo's colours: take the typed colours out of the form
     const useLogo = () => {
-        const next = { ...colors };
+        const next = onlyHex(colors);
         SHADES.forEach((k) => delete next[k]);
         ed.set('brand', 'colors', next);
     };
@@ -83,9 +86,29 @@ export default function SettingsBrandScreen() {
         } catch (e) { toast(errMsg(e), 'error'); throw e; }
     };
     const setColor = (k, v) => {
-        const next = { ...colors };
+        const next = onlyHex(colors);
         if (v) next[k] = v; else delete next[k];
         ed.set('brand', 'colors', next);
+    };
+
+    // one tap: read the logo, make its three colours this shop's colours, and drop the logo's separate copy so only one source is left.
+    // The colours land in the form; Save keeps them.
+    const logoUrl = ed.rec?.tenant?.logo;
+    const adoptLogo = async () => {
+        if (reading) return;
+        setReading(true);
+        try {
+            const r = await logoColors(shopId, logoUrl);
+            if (!r.suggested) { toast(r.message || 'No usable colour in this logo', 'error'); return; }
+            if (Object.keys(logo).length) {
+                await updateShop(shopId, { colors: { primary: '', primaryLight: '', primaryDark: '' } });
+                await useShopStore.getState().load(shopId, { quiet: true });
+            }
+            const next = onlyHex(colors);
+            SHADES.forEach((k) => { if (isHex(r.suggested[k])) next[k] = r.suggested[k]; });
+            ed.set('brand', 'colors', next);
+            toast("The logo's colours are in. Tap Save to keep them.");
+        } catch (e) { toast(e.safe ? e.message : errMsg(e), 'error'); } finally { setReading(false); }
     };
 
     return (
@@ -144,6 +167,15 @@ export default function SettingsBrandScreen() {
                                 </Text>
                             ) : null}
                             <Button small kind="soft" title="Reset to best colours" onPress={resetBest} />
+                        </View>
+                    ) : null}
+                    {logoUrl ? (
+                        <View style={{ backgroundColor: t.surface, borderColor: t.border, borderWidth: 1, borderRadius: radius.lg, padding: spacing.lg, marginTop: spacing.md, marginBottom: spacing.md }}>
+                            <Text style={{ color: t.text, fontSize: font.md, fontWeight: '900' }}>Use the logo's colours</Text>
+                            <Text style={{ color: t.muted, fontSize: font.sm, marginTop: 2, marginBottom: spacing.md, lineHeight: 19 }}>
+                                Reads the main, light and dark colour from this shop's logo and uses them for the app. One tap, then Save.
+                            </Text>
+                            <Button small kind="soft" icon="palette" title="Use the logo's colours" loading={reading} onPress={adoptLogo} />
                         </View>
                     ) : null}
                     <Group title="Colours" section="settings" hint="The customer app uses these everywhere. Colours from the logo and colours you pick here cannot both be used: clearing a colour here goes back to the logo's.">

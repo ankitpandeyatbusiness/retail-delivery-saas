@@ -51,7 +51,7 @@ export default function ShopUsersScreen() {
 
     return (
         <Screen title="Users" subtitle={name} scroll={false}>
-            <View style={{ paddingHorizontal: spacing.lg }}>
+            <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
                 <SearchBar value={q} onChangeText={setQ} placeholder="Search name or part of a number" />
             </View>
             <View style={{ height: 52, marginTop: spacing.md }}>

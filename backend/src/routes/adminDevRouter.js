@@ -2,6 +2,7 @@
 // in one answer. Read only (apart from the free-text notes), and never any secret: keys are masked, secrets are yes/no.
 //   GET /tenants/:tid/dev-details
 //   PUT /tenants/:tid/dev-notes   { notes }
+const publicBase = require('../utils/publicBase');
 const express = require('express');
 const Tenant = require('../models/Tenant');
 const User = require('../models/User');
@@ -24,9 +25,7 @@ const { shopState } = require('../utils/shopState');
 
 const router = express.Router();
 
-const base = (req) => (process.env.PUBLIC_BASE_URL
-    ? process.env.PUBLIC_BASE_URL.replace(/\/+$/, '')
-    : `${req.protocol}://${req.get('host')}`);
+const base = publicBase;   // PUBLIC_BASE_URL locally, the real address in production (utils/publicBase.js)
 const mask = (v) => {
     const s = String(v || '');
     if (!s) return null;

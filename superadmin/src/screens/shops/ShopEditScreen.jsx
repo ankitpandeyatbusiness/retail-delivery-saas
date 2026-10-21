@@ -19,44 +19,48 @@ const numOrUndef = (v) => (v === '' ? undefined : Number(v));
 const decimal = (v) => v.replace(/[^\d.\-]/g, '');
 const PACKAGE_RE = /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/;
 
+// the form's boxes, worked out from the shop record
+const formOf = (x) => ({
+    name: str(x.name), tagline: str(x.tagline), phone: str(x.phone),
+    line: str(x.address?.line), city: str(x.address?.city), state: str(x.address?.state), pincode: str(x.address?.pincode),
+    minOrder: str(x.delivery?.minOrder), radiusKm: str(x.delivery?.radiusKm),
+    latitude: str(x.delivery?.latitude), longitude: str(x.delivery?.longitude),
+    legalName: str(x.business?.legalName), gstin: str(x.business?.gstin), fssai: str(x.business?.fssai),
+    billingEmail: str(x.contact?.billingEmail),
+    androidPackage: str(x.androidPackage),
+    gstPercent: str(x.subscription?.gstPercent), startMonth: str(x.subscription?.startMonth),
+    status: x.status || 'active',
+});
+
 // Everything about the shop itself: contact, address, where it is on the map, delivery, tax numbers, rent GST, status.
 export default function ShopEditScreen() {
     const t = useTheme();
     const nav = useNavigation();
     const { shopId } = useRoute().params;
     const rec = useShopStore((s) => s.byId[shopId]);
-    const [f, setF] = useState(null);
+    const [f, setF] = useState(() => (rec ? formOf(rec.tenant) : null));   // filled on the first frame when the shop is already known: no skeleton flash
+    const touched = useRef(false);
     const [mapOpen, setMapOpen] = useState(false);
     const [err, setErr] = useState({});
     const [busy, setBusy] = useState(false);
     const [confirmStatus, setConfirmStatus] = useState(false);
-    // fetch the shop again when the form opens, and fill the form from that: what the owner saved a minute ago (his phone, address) is what shows
-    const fresh = useRef(false);
+    // fetch the shop again when the form opens: what the owner saved a minute ago (his phone, address) is what shows. The boxes are
+    // refreshed in place (never blanked), and only while nothing has been typed yet, so the form does not jump or lose an edit.
     useEffect(() => {
         let on = true;
-        useShopStore.getState().load(shopId, { quiet: true }).then(() => { if (on && !fresh.current) { fresh.current = true; setF(null); } }).catch(() => { });
+        useShopStore.getState().load(shopId, { quiet: true }).then(() => {
+            const fresh = useShopStore.getState().byId[shopId];
+            if (!on || !fresh) return;
+            const next = formOf(fresh.tenant);
+            setF((cur) => (!cur || (!touched.current && JSON.stringify(cur) !== JSON.stringify(next)) ? next : cur));
+        }).catch(() => { });
         return () => { on = false; };
     }, [shopId]);
 
-    useEffect(() => {
-        if (rec && !f) {
-            const x = rec.tenant;
-            setF({
-                name: str(x.name), tagline: str(x.tagline), phone: str(x.phone),
-                line: str(x.address?.line), city: str(x.address?.city), state: str(x.address?.state), pincode: str(x.address?.pincode),
-                minOrder: str(x.delivery?.minOrder), radiusKm: str(x.delivery?.radiusKm),
-                latitude: str(x.delivery?.latitude), longitude: str(x.delivery?.longitude),
-                legalName: str(x.business?.legalName), gstin: str(x.business?.gstin), fssai: str(x.business?.fssai),
-                billingEmail: str(x.contact?.billingEmail),
-                androidPackage: str(x.androidPackage),
-                gstPercent: str(x.subscription?.gstPercent), startMonth: str(x.subscription?.startMonth),
-                status: x.status || 'active',
-            });
-        }
-    }, [rec, f]);
+    useEffect(() => { if (rec && !f) setF(formOf(rec.tenant)); }, [rec, f]);
 
     if (!f) return <Screen title="Edit shop"><SkeletonList count={3} avatar={false} /></Screen>;
-    const set = (k) => (v) => { setF((p) => ({ ...p, [k]: v })); setErr((e) => ({ ...e, [k]: undefined })); };
+    const set = (k) => (v) => { touched.current = true; setF((p) => ({ ...p, [k]: v })); setErr((e) => ({ ...e, [k]: undefined })); };
     const orig = rec.tenant;
 
     const check = () => {
@@ -158,6 +162,7 @@ export default function ShopEditScreen() {
                     initial={hasPoint ? { latitude: f.latitude, longitude: f.longitude } : null}
                     onClose={() => setMapOpen(false)}
                     onPick={(p) => {
+                        touched.current = true;
                         setF((x) => ({
                             ...x, latitude: String(p.latitude), longitude: String(p.longitude),
                             line: x.line || p.line || '', city: x.city || p.city || '', pincode: x.pincode || p.pincode || '',

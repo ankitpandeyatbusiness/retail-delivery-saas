@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, Pressable } from 'react-native';
 import { ActivityIndicator } from './Loading';
 import { useTheme, spacing, font } from '../theme';
-import { Sheet } from './feedback';
+import { Sheet, SheetList } from './feedback';
 import { SearchBar } from './inputs';
 import { Button } from './ui';
 import { VegMark } from './catalogBits';
@@ -39,7 +39,7 @@ export default function ProductPicker({ visible, onClose, shopId, selected = [],
             <SearchBar value={q} onChangeText={setQ} placeholder="Search items" />
             <View style={{ height: 320, marginTop: spacing.md }}>
                 {list.state === 'loading' ? <ActivityIndicator color={t.primary} style={{ marginTop: 40 }} /> : (
-                    <FlatList
+                    <SheetList
                         data={list.items}
                         keyExtractor={(p) => String(p._id)}
                         onEndReached={list.loadMore}

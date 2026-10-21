@@ -6,7 +6,7 @@ import { Screen } from '../../components/layout';
 import { Button, Card, Badge, SectionTitle } from '../../components/ui';
 import { Field } from '../../components/inputs';
 import { Group, Choice, NumberField, Switch, Hint, TextField } from '../../components/settingsForm';
-import { ImageField } from '../../components/catalogBits';
+import { ImageField, MorePictures } from '../../components/catalogBits';
 import OptionGroupsEditor, { withIds } from '../../components/optionGroups';
 import { Loading, ErrorBox, ConfirmSheet, toast } from '../../components/feedback';
 import useRecordForm from '../../hooks/useRecordForm';
@@ -40,7 +40,7 @@ function v_unit(sellBy) {
 const SPICE = [['none', 'No spice'], ['mild', 'Mild'], ['medium', 'Medium'], ['hot', 'Hot']];
 
 const BLANK = {
-    categoryId: '', newCategory: '', name: '', description: '', image: '', price: undefined, mrp: undefined,
+    categoryId: '', newCategory: '', name: '', description: '', image: '', images: [], price: undefined, mrp: undefined,
     isVeg: undefined, isEggless: false, isSugarFree: false, isJain: false, spiceLevel: 'none',
     isBestseller: false, isNewArrival: false, isGiftPack: false, serves: undefined, calories: undefined, prepTimeMin: undefined,
     optionGroups: [], isAvailable: true, isActive: true, sortOrder: 0,
@@ -49,7 +49,7 @@ const BLANK = {
 
 const fromRecord = (r) => ({
     categoryId: r.categoryId ? String(r.categoryId) : '', newCategory: '',
-    name: r.name || '', description: r.description || '', image: r.image || '',
+    name: r.name || '', description: r.description || '', image: r.image || '', images: Array.isArray(r.images) ? r.images : [],
     price: r.price, mrp: r.mrp,
     isVeg: r.isVeg, isEggless: !!r.isEggless, isSugarFree: !!r.isSugarFree, isJain: !!r.isJain, spiceLevel: r.spiceLevel || 'none',
     isBestseller: !!r.isBestseller, isNewArrival: !!r.isNewArrival, isGiftPack: !!r.isGiftPack,
@@ -112,6 +112,7 @@ export default function ProductFormScreen() {
             name: v.name.trim(),
             description: v.description.trim(),
             image: v.image || '',
+            images: (v.images || []).filter((u) => u !== v.image).slice(0, 4),
             price: v.price,
             mrp: v.mrp ?? null,
             isVeg: v.isVeg,
@@ -231,7 +232,8 @@ export default function ProductFormScreen() {
                 <View style={{ height: spacing.md }} />
                 <Field label="Item name" value={v.name} onChangeText={(x) => f.set('name', x)} error={f.errors.name} maxLength={80} placeholder="e.g. Paneer Tikka" />
                 <Field label="Description (optional)" value={v.description} onChangeText={(x) => f.set('description', x)} multiline maxLength={300} />
-                <ImageField value={v.image} onChange={(x) => f.set('image', x)} shopId={shopId} kind="product" refId={refId} last />
+                <ImageField value={v.image} onChange={(x) => f.set('image', x)} shopId={shopId} kind="product" refId={refId} />
+                <MorePictures value={v.images || []} onChange={(x) => f.set('images', x)} onMain={(u) => { const old = v.image; f.set('image', u); f.set('images', (v.images || []).map((x) => (x === u ? old : x))); }} shopId={shopId} refId={refId} disabled={!v.image} />
             </Card>
 
             <Group title="Price" section="money">

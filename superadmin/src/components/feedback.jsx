@@ -1,11 +1,14 @@
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { View, Text, Modal, ScrollView, Pressable, Animated, Easing, PanResponder, Dimensions, Keyboard, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, Modal, ScrollView, FlatList, Pressable, Animated, Easing, PanResponder, Dimensions, Keyboard, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
 import { ActivityIndicator } from './Loading';
 import Icon from './Icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme, spacing, radius, font, tint } from '../theme';
 import { Button } from './ui';
 import { Field } from './inputs';
+import Reanimated, { cancelAnimation, interpolate, runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useSheetPan } from './sheetPan';
 
 export function Loading({ label }) {
     const t = useTheme();
@@ -35,49 +38,40 @@ export function ErrorBox({ message, onRetry }) {
     return <Empty icon="cloud-offline-outline" title="Could not load" hint={message} action="Try again" onAction={onRetry} />;
 }
 
-// the sheet itself rises from the bottom (the dim layer only fades, so no dark band slides across the screen)
-function SlideUp({ children }) {
-    const y = useRef(new Animated.Value(60)).current;
-    const o = useRef(new Animated.Value(0)).current;
-    useEffect(() => {
-        Animated.parallel([
-            Animated.timing(y, { toValue: 0, duration: 220, useNativeDriver: true }),
-            Animated.timing(o, { toValue: 1, duration: 180, useNativeDriver: true }),
-        ]).start();
-    }, [y, o]);
-    return <Animated.View style={{ transform: [{ translateY: y }], opacity: o }}>{children}</Animated.View>;
-}
-
 /*
  * Bottom sheet. Use it for secondary actions and short forms instead of a new screen.
- * Drag it down to dismiss. The drag is transform + opacity only with the native driver, so it follows
- * the finger on the UI thread (60fps); release past 110px (or with a quick flick) closes it, else it springs back.
+ * It follows the same rules as the customer and shop-owner sheets: touch it ANYWHERE (handle, title, empty space, a form) and drag down
+ * as far as you like; the position runs on the UI thread, so it tracks the finger at full frame rate. Past a third of its height (or a
+ * quick flick) it slides away, else it springs back. A list inside it (SheetScroll) scrolls first and gives way only at its top.
  * dismissible={false} (e.g. while a request is running) pins it.
  */
-const SCREEN_H = Dimensions.get('window').height;
+const SHEET_OFF = 2000;   // "not on screen yet"
 const SheetCtx = createContext(null);
 
-// a scrolling area inside a Sheet: while it is scrolled down the sheet leaves the gesture to it; at its top a downward drag closes the sheet
-export function SheetScroll({ onTouchStart, onScroll, scrollEventThrottle = 16, ...rest }) {
-    const ctx = useContext(SheetCtx);
+// a scrolling area inside a Sheet: it scrolls as usual, and hands a downward swipe to the sheet once it is at its top
+export function SheetScroll({ onScroll, ...rest }) {
+    const sp = useContext(SheetCtx);
     return (
         <ScrollView
             {...rest}
-            scrollEventThrottle={scrollEventThrottle}
-            onTouchStart={(e) => { if (ctx) { ctx.inScroll = true; ctx.y = ctx.y || 0; } onTouchStart?.(e); }}
-            onScroll={(e) => { if (ctx) ctx.y = e.nativeEvent.contentOffset.y; onScroll?.(e); }}
+            {...(sp || {})}
+            onScroll={(e) => { sp?.onScroll?.(e); onScroll?.(e); }}
         />
     );
+}
+// a FlatList inside a Sheet (it cannot use SheetScroll): scrolls first, hands a downward swipe to the sheet at its top
+export function SheetList({ onScroll, ...rest }) {
+    const sp = useContext(SheetCtx);
+    return <FlatList {...rest} {...(sp || {})} onScroll={(e) => { sp?.onScroll?.(e); onScroll?.(e); }} />;
 }
 export function Sheet({ visible, onClose, title, children, dismissible = true }) {
     const t = useTheme();
     const insets = useSafeAreaInsets();
-    const drag = useRef(new Animated.Value(0)).current;
-    const ctx = useRef({ inScroll: false, y: 0 }).current;
-    const live = useRef({ onClose, dismissible });
-    live.current = { onClose, dismissible };
-
-    useEffect(() => { if (visible) drag.setValue(0); }, [visible, drag]);
+    const [shown, setShown] = useState(visible);   // the Modal stays until the slide-out has finished
+    const ty = useSharedValue(SHEET_OFF);
+    const h = useSharedValue(400);
+    const stillOpen = useRef(visible);
+    stillOpen.current = visible;
 
     // Android: a transparent Modal ignores adjustResize, so lift the sheet by the keyboard height ourselves
     const [kb, setKb] = useState(0);
@@ -88,46 +82,42 @@ export function Sheet({ visible, onClose, title, children, dismissible = true })
         return () => { a.remove(); b.remove(); };
     }, []);
 
-    const pan = useRef(PanResponder.create({
-        // claim only a clearly vertical, downward drag (capture phase, so it also works when the finger starts on an input or button);
-        // a SheetScroll that is scrolled down keeps its own gesture
-        onMoveShouldSetPanResponderCapture: (_, g) => live.current.dismissible && g.dy > 6 && Math.abs(g.dy) > Math.abs(g.dx) * 1.5 && !(ctx.inScroll && ctx.y > 1),
-        // setValue pushes straight to the native node; Animated.event can't be native-driven from a PanResponder
-        onPanResponderMove: (_, g) => drag.setValue(Math.max(0, g.dy)),
-        onPanResponderTerminationRequest: () => false,
-        onPanResponderRelease: (_, g) => {
-            if (g.dy > 110 || g.vy > 0.9) {
-                Animated.timing(drag, { toValue: SCREEN_H, duration: 180, easing: Easing.out(Easing.quad), useNativeDriver: true })
-                    .start(() => live.current.onClose());
-            } else {
-                Animated.spring(drag, { toValue: 0, bounciness: 0, speed: 18, useNativeDriver: true }).start();
-            }
-        },
-        onPanResponderTerminate: () => Animated.spring(drag, { toValue: 0, bounciness: 0, speed: 18, useNativeDriver: true }).start(),
-    })).current;
+    // a pinned sheet (dismissible={false}) does not move: closing is refused, so the gesture is told it can never close
+    const live = useRef({ onClose, dismissible });
+    live.current = { onClose, dismissible };
+    const close = useCallback(() => { if (live.current.dismissible) live.current.onClose(); }, []);
+    const { gesture, scrollProps, scrollY } = useSheetPan({ ty, h, onClose: close, stillOpen });
+    const drag = useMemo(() => (dismissible ? gesture : Gesture.Pan().enabled(false)), [dismissible, gesture]);
 
-    // upward drags are ignored (the sheet never lifts off its edge)
-    const y = drag.interpolate({ inputRange: [0, 1], outputRange: [0, 1], extrapolateLeft: 'clamp' });
-    const dim = drag.interpolate({ inputRange: [0, 320], outputRange: [1, 0.15], extrapolate: 'clamp' });
+    useEffect(() => {
+        if (visible) { cancelAnimation(ty); ty.value = SHEET_OFF; scrollY.value = 0; setShown(true); }
+        else if (shown) {
+            cancelAnimation(ty);
+            ty.value = withTiming(Math.max(h.value, 300), { duration: 220 }, (done) => { if (done) runOnJS(setShown)(false); });
+        }
+    }, [visible]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+    const move = useAnimatedStyle(() => ({ transform: [{ translateY: ty.value }] }));
+    const fade = useAnimatedStyle(() => ({ opacity: interpolate(ty.value, [0, Math.max(h.value, 1)], [1, 0], 'clamp') }));
 
     return (
-        <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
-            <KeyboardAvoidingView style={{ flex: 1, justifyContent: 'flex-end', paddingBottom: kb }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-                <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: t.overlay, opacity: dim }]}>
-                    <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-                </Animated.View>
-                <SlideUp>
-                    <Animated.View
-                        {...pan.panHandlers}
-                        onTouchStartCapture={() => { ctx.inScroll = false; }}
-                        style={[s.sheet, { backgroundColor: t.surface, paddingBottom: kb ? spacing.lg : Math.max(insets.bottom, spacing.lg), transform: [{ translateY: y }] }]}
-                    >
-                        <View style={s.grabHit}><View style={[s.grab, { backgroundColor: t.border }]} /></View>
-                        {title ? <Text style={{ color: t.text, fontSize: font.lg, fontWeight: '700', marginBottom: spacing.lg }}>{title}</Text> : null}
-                        <SheetCtx.Provider value={ctx}>{children}</SheetCtx.Provider>
-                    </Animated.View>
-                </SlideUp>
-            </KeyboardAvoidingView>
+        <Modal visible={shown} transparent animationType="none" onRequestClose={close} statusBarTranslucent>
+            <GestureHandlerRootView style={{ flex: 1 }}>
+                <KeyboardAvoidingView style={{ flex: 1, justifyContent: 'flex-end', paddingBottom: kb }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                    <Reanimated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: t.overlay }, fade]} />
+                    <Pressable style={StyleSheet.absoluteFill} onPress={close} />
+                    <GestureDetector gesture={drag}>
+                        <Reanimated.View
+                            onLayout={(e) => { h.value = e.nativeEvent.layout.height; if (ty.value >= SHEET_OFF - 1 && visible) ty.value = withTiming(0, { duration: 260 }); }}
+                            style={[s.sheet, { backgroundColor: t.surface, paddingBottom: kb ? spacing.lg : Math.max(insets.bottom, spacing.lg) }, move]}
+                        >
+                            <View style={s.grabHit}><View style={[s.grab, { backgroundColor: t.border }]} /></View>
+                            {title ? <Text style={{ color: t.text, fontSize: font.lg, fontWeight: '700', marginBottom: spacing.lg }}>{title}</Text> : null}
+                            <SheetCtx.Provider value={scrollProps}>{children}</SheetCtx.Provider>
+                        </Reanimated.View>
+                    </GestureDetector>
+                </KeyboardAvoidingView>
+            </GestureHandlerRootView>
         </Modal>
     );
 }

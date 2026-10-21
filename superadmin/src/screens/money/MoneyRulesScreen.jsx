@@ -55,7 +55,7 @@ export default function MoneyRulesScreen() {
                     When the shop, the delivery partner or the platform is at fault, the shop did not accept in time, the payment timed out, or the delivery was more than an hour late.
                 </Text>
             </Card>
-            <Button title="Use recommended rules" icon="refresh" kind="ghost" onPress={reset} loading={busy} style={{ marginTop: spacing.lg }} />
+            <Button title="Use recommended rules" icon="refresh" kind="outline" onPress={reset} loading={busy} style={{ marginTop: spacing.lg }} />
             <Hint>Cash orders have nothing to refund. A customer who cancels a cash order late gets a strike instead.</Hint>
         </Screen>
     );

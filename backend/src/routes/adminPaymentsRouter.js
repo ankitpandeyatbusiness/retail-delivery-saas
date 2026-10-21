@@ -4,6 +4,7 @@
 //   POST /tenants/:tid/payments/webhook-secret   makes a new webhook secret, shown ONCE
 //   POST /tenants/:tid/payments/test             test connection with Razorpay
 //   PUT  /tenants/:tid/payments/enabled          { enabled: true|false }
+const publicBase = require('../utils/publicBase');
 const express = require('express');
 const crypto = require('crypto');
 const Tenant = require('../models/Tenant');
@@ -16,9 +17,7 @@ const paymentGuard = require('../services/paymentGuard');
 
 const router = express.Router();
 const KEY_ID_RE = /^rzp_(test|live)_[A-Za-z0-9]{6,40}$/;
-const baseUrl = (req) => (process.env.PUBLIC_BASE_URL
-    ? process.env.PUBLIC_BASE_URL.replace(/\/+$/, '')
-    : `${req.protocol}://${req.get('host')}`);
+const baseUrl = publicBase;   // PUBLIC_BASE_URL locally, the real address in production (utils/publicBase.js)
 const status = (req) => accounts.statusFor(req.tenantDoc._id, baseUrl(req));
 
 router.get('/tenants/:tid/payments', loadTenant, wrap(async (req, res) => {

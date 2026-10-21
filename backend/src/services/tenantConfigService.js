@@ -74,6 +74,7 @@ function validateSettings(input) {
                 out.colors = {};
                 for (const [k, v] of Object.entries(b.colors)) {
                     if (!O.COLOR_KEYS.includes(k)) err(p(`colors.${k}`), 'unknown color');
+                    else if (v === '' || v === null) continue;   // cleared = not set
                     else if (!HEX.test(v)) err(p(`colors.${k}`), 'must look like #RRGGBB');
                     else out.colors[k] = v;
                 }
@@ -145,7 +146,7 @@ function validateSettings(input) {
 
     // orders
     section('orders',
-        ['types', 'payments', 'minOrder', 'deliveryFee', 'packagingCharge', 'gst', 'tipOptions', 'prepTimeMin', 'acceptingOrders', 'pausedUntil', 'busy', 'codCap', 'pickupCod', 'pickupRules', 'mixRules', 'limits', 'staff', 'dineIn'],
+        ['types', 'payments', 'minOrder', 'deliveryFee', 'packagingCharge', 'gst', 'tipOptions', 'prepTimeMin', 'acceptingOrders', 'pausedUntil', 'busy', 'codCap', 'pickupCod', 'pickupRules', 'mixRules', 'limits', 'staff', 'dineIn', 'autoAccept'],   // autoAccept is the owner's own (services/autoAccept.js): known here so a panel save does not fail on it, never taken from the panel
         (o, out, p) => {
             if (o.types !== undefined) { const v = listOf(p('types'), o.types, O.ORDER_TYPES, 1, 3); if (v) out.types = v; }
             if (o.payments !== undefined) { const v = listOf(p('payments'), o.payments, O.PAYMENT_METHODS, 1, 4); if (v) out.payments = v; }
@@ -557,6 +558,7 @@ function openStatus(weekly, acceptingOrders, now = new Date(), closedDates = nul
 function brandColors(fromLogo, fromPanel) {
     const set = fromPanel || {};
     const colors = { ...(fromLogo || {}), ...set };
+    for (const k of Object.keys(colors)) if (!colors[k]) delete colors[k];   // an emptied colour is simply not set
     if (set.primary) {
         if (!set.primaryLight) delete colors.primaryLight;
         if (!set.primaryDark) delete colors.primaryDark;

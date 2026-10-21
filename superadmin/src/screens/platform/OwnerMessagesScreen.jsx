@@ -7,7 +7,7 @@ import { Card, Badge, Button, Chip } from '../../components/ui';
 import { Field } from '../../components/inputs';
 import { Switch, Hint, Label } from '../../components/settingsForm';
 import { SkeletonList } from '../../components/blocks';
-import { Empty, ErrorBox, Sheet, toast } from '../../components/feedback';
+import { Empty, ErrorBox, Sheet, SheetScroll, toast } from '../../components/feedback';
 import { listOwnerMessages, getOwnerMessage, sendOwnerMessage } from '../../api/platformApi';
 import { useShopsStore } from '../../store/useShopsStore';
 import { errMsg } from '../../api/adminClient';
@@ -79,7 +79,7 @@ export default function OwnerMessagesScreen() {
                 {!form.all ? (
                     <View style={{ marginVertical: spacing.sm }}>
                         <Label>Shops ({form.ids.length} chosen)</Label>
-                        <ScrollView style={{ maxHeight: 150 }}>
+                        <SheetScroll style={{ maxHeight: 150 }}>
                             <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                                 {shops.map((s) => (
                                     <View key={s._id} style={{ marginBottom: spacing.sm }}>
@@ -87,7 +87,7 @@ export default function OwnerMessagesScreen() {
                                     </View>
                                 ))}
                             </View>
-                        </ScrollView>
+                        </SheetScroll>
                     </View>
                 ) : null}
                 <Switch title="Also send by email" value={form.sendEmail} onValueChange={(v) => setForm({ ...form, sendEmail: v })} last />

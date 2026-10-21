@@ -6,7 +6,7 @@ import { Screen } from '../../components/layout';
 import { Card, Badge, Button, Chip, SectionTitle, ListRow } from '../../components/ui';
 import { Field } from '../../components/inputs';
 import { SkeletonList } from '../../components/blocks';
-import { ErrorBox, Sheet, toast } from '../../components/feedback';
+import { ErrorBox, Sheet, SheetScroll, toast } from '../../components/feedback';
 import LegalText from '../../components/LegalText';
 import { useSupreme } from '../../hooks/useSupreme';
 import { fetchAgreement, fetchAcceptances, fetchAgreementVersion, saveAgreementDraft, sendAgreement, setLegalRole } from '../../api/legalApi';
@@ -172,7 +172,7 @@ export default function AgreementDocScreen() {
                     </Sheet>
 
                     <Sheet visible={!!oldDoc} onClose={() => setOldDoc(null)} title={oldDoc ? `Version ${oldDoc.no}` : ''}>
-                        {oldDoc ? <ScrollView style={{ maxHeight: 460 }}><LegalText text={oldDoc.body} title={oldDoc.title} /></ScrollView> : null}
+                        {oldDoc ? <SheetScroll style={{ maxHeight: 460 }}><LegalText text={oldDoc.body} title={oldDoc.title} /></SheetScroll> : null}
                     </Sheet>
                 </>
             ) : null}

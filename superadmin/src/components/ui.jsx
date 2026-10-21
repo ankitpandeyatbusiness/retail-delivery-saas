@@ -58,7 +58,7 @@ export function Button({ title, onPress, kind = 'primary', loading, disabled, ic
         outline: { bg: 'transparent', fg: t.text, border: t.border },
         danger: { bg: t.danger, fg: '#FFFFFF', border: t.danger },
         dangerSoft: { bg: t.dangerSoft, fg: t.danger, border: 'transparent' },
-    }[kind];
+    }[kind] || { bg: 'transparent', fg: t.text, border: t.border };   // an unknown kind looks like outline instead of crashing the screen
     return (
         <Pressable
             onPress={off ? undefined : onPress}

@@ -45,7 +45,7 @@ export default function RecordList({ shopId, shopName, resource, title, subtitle
             scroll={false}
             right={<HeaderButton icon="add" onPress={add} />}
         >
-            <View style={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.md }}>
+            <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.md }}>
                 <SearchBar value={q} onChangeText={setQ} placeholder={searchPlaceholder} />
             </View>
             {list.state === 'loading' ? <Loading /> : list.state === 'error' ? <ErrorBox message={list.error} onRetry={list.reload} /> : (

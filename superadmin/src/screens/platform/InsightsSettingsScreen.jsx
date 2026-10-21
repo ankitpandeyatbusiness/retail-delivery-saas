@@ -40,7 +40,7 @@ export default function InsightsSettingsScreen() {
                 <ToggleRow title="Show the marketplace comparison" subtitle="'What the same orders would cost on a delivery marketplace'. Always labelled an estimate. Recommended: on." value={v.showMarketplaceCompare} onValueChange={(x) => setV({ ...v, showMarketplaceCompare: x })} />
                 <ToggleRow title="Autopilot reminders" subtitle="The kill switch: off stops every shop's automatic reminders to its customers (push and inbox). Recommended: on." value={v.autopilotEnabled !== false} onValueChange={(x) => setV({ ...v, autopilotEnabled: x })} last />
             </Card>
-            <Card>
+            <Card style={{ marginTop: spacing.md }}>
                 <Field label="Marketplace commission used for that estimate (%)" value={pct} onChangeText={(x) => setPct(x.replace(/[^\d.]/g, ''))} keyboardType="decimal-pad" maxLength={5} hint="Recommended: 25. Use a number you can defend; owners compare it with what they know." style={{ marginBottom: 0 }} />
             </Card>
             <Button title="Reset to recommended" kind="soft" icon="refresh" onPress={reset} />

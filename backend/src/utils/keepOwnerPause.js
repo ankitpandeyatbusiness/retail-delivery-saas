@@ -7,6 +7,7 @@ module.exports = function keepOwnerPause(oldSettings, newSettings) {
     if (typeof old.acceptingOrders === 'boolean') keep.acceptingOrders = old.acceptingOrders;
     if (old.pausedUntil) keep.pausedUntil = old.pausedUntil;
     if (old.busy) keep.busy = old.busy;   // busy mode is the owner's too
+    if (old.autoAccept) keep.autoAccept = old.autoAccept;   // so is auto accept
     const out = Object.keys(keep).length ? { ...newSettings, orders: { ...(newSettings.orders || {}), ...keep } } : { ...newSettings };
     // the owner's Rewards numbers (settings.loyalty) and the day he started tracking rider payouts are not part of the panel's form
     if (oldSettings?.loyalty) out.loyalty = oldSettings.loyalty;

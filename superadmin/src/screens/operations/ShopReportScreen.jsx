@@ -106,7 +106,7 @@ export default function ShopReportScreen() {
                         <>
                             <SectionTitle section="platform">What the owner is advised</SectionTitle>
                             {r.tips.map((x) => (
-                                <Card key={x.id}>
+                                <Card key={x.id} style={{ marginBottom: spacing.md }}>
                                     <Badge label={x.tone === 'good' ? 'Good' : x.tone === 'watch' ? 'Watch' : 'Idea'} tone={TONE[x.tone]} />
                                     <Text style={{ color: t.text, fontWeight: '800', marginTop: spacing.sm }}>{x.title}</Text>
                                     <Text style={{ color: t.muted, marginTop: 2 }}>{x.detail}</Text>
