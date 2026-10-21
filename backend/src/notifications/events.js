@@ -35,9 +35,15 @@ const EVENTS = {
     rider_accepted: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },
     points_arrived: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },   // loyalty points reached the customer
     rider_badge: { to: 'rider', channels: INAPP_PUSH, alsoPush: true },        // the rider moved up a badge
+    table_share_ask: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },        // a guest asks to pay his share and leave
+    table_share_paid: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },    // a friend at the same bill paid his share and left
+    table_share_left: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },    // a friend left without paying: what is left on your bill
+    table_guest_alert: { to: 'owner', channels: ['inapp'], alsoPush: false, noPush: true },       // QUIET: a guest who owes is not reachable, or has his location off (no push, no sound)
+    table_join_request: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },   // a guest at a shared table asks to join your bill
+    table_join_answer: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },    // the answer to that
     staff_leave_request: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // a cook or a waiter asks for leave: the owner decides
     staff_leave_decision: { to: 'rider', channels: INAPP_PUSH, alsoPush: true },  // the owner said yes or no to their leave
-    staff_holiday: { to: 'owner', channels: INAPP_PUSH, alsoPush: false },         // a cook or a waiter put days off in their calendar
+    staff_holiday: { to: 'owner', channels: INAPP_PUSH, alsoPush: false, noPush: true },         // a cook or a waiter put days off in their calendar
     pickup_intent: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },        // a pickup customer says he is coming, is here, is late or needs more time
     pickup_waiting: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },   // a pickup order is ready and waiting
     pickup_time_request: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // the customer asks to move his pickup to a later time: the owner answers

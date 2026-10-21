@@ -9,9 +9,12 @@ import { ShopStateBadge, stateTone } from '../../components/shopBits';
 import { Hero, QuickActions, SkeletonList } from '../../components/blocks';
 import { ErrorBox } from '../../components/feedback';
 import { useShopStore } from '../../store/useShopStore';
-import { dateOnly } from '../../utils/format';
+import { dateOnly, rupees } from '../../utils/format';
 
 // The hub of one shop. Big shortcuts on top for the common jobs, then focused groups: nothing is crowded.
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const monthName = (p) => { const [y, m] = String(p).split('-').map(Number); return `${MONTH_NAMES[m - 1]} ${y}`; };
+
 export default function ShopDetailScreen() {
     const t = useTheme();
     const nav = useNavigation();
@@ -137,6 +140,24 @@ export default function ShopDetailScreen() {
                 <ListRow section="alerts" icon="shield" title="Access and maintenance" subtitle="Block owner panel, pause the shop" onPress={go('ShopAccess')} />
                 <ListRow section="platform" icon="tool" title="Development details" subtitle="App id, versions, Razorpay, SMS and DLT, build commands" onPress={go('ShopDev')} last />
             </Card>
+
+            {rec.rent ? (
+                <>
+                    <SectionTitle section="money">Rent</SectionTitle>
+                    <Card style={{ paddingVertical: 0 }}>
+                        <KeyValue label="Now" value={{ not_live: 'Not live yet', free: 'Free period', paying: 'Paying', grace: 'Bill unpaid (grace)', paused: 'Paused: unpaid bill' }[rec.rent.stage]} />
+                        {rec.rent.stage === 'free' ? <KeyValue label="Free orders left" value={String(rec.rent.free.ordersLeft)} /> : null}
+                        {rec.rent.stage === 'free' ? <KeyValue label="Free period ends by" value={dateOnly(rec.rent.free.endsAt)} /> : null}
+                        {rec.rent.stage === 'free' && rec.rent.first ? <KeyValue label="First rent for" value={monthName(rec.rent.first.period)} /> : null}
+                        {rec.rent.next ? <KeyValue label="Month being counted" value={monthName(rec.rent.next.period)} /> : null}
+                        {rec.rent.next ? <KeyValue label="Orders so far" value={String(rec.rent.next.orders)} /> : null}
+                        {rec.rent.next ? <KeyValue label="Rent so far" value={rupees(rec.rent.next.total)} /> : null}
+                        {rec.rent.next ? <KeyValue label="Billed on" value={dateOnly(rec.rent.next.billedOn)} /> : null}
+                        <KeyValue label={rec.rent.custom ? 'This shop\'s own plan' : 'Platform plan'} value={rec.rent.plan} last />
+                    </Card>
+                    <Button title="Open rent and plan" kind="soft" icon="receipt" onPress={() => nav.navigate('ShopBilling', { shopId, name: tenant.name })} style={{ marginTop: spacing.sm }} />
+                </>
+            ) : null}
 
             <SectionTitle section="platform">Details</SectionTitle>
             <Card style={{ paddingVertical: 0 }}>

@@ -121,6 +121,8 @@ function checkPlacement({ tenant, config, body, priced, address, user, cod, onli
             if (!at || !Number.isFinite(at.lat) || !Number.isFinite(at.lng)) return { status: 400, message: 'Please allow your location, so we know you are at the shop.' };
             if (haversineKm(pin.latitude, pin.longitude, at.lat, at.lng) * 1000 > d.radiusM) return { status: 400, message: 'You seem to be away from the shop. Dine in orders can only be placed from the shop.' };
         }
+        // shared tables: a guest at an occupied table must first choose his own bill, or to join the people there (before anything is reserved or charged)
+        if (dine?.choose) return { status: 409, message: 'Someone is already at this table. Choose your own bill, or join them.', extra: { code: 'choose_party', parties: dine.choose.parties, canSeparate: dine.choose.canSeparate } };
         // he cannot move to another table while a bill of his is still open
         if (dine?.elsewhere) return { status: 409, message: `You still have an open bill at table ${dine.elsewhere}. Please pay it before ordering from another table.` };
         if (body.paymentMethod === 'cod' && dine) {
@@ -280,7 +282,7 @@ async function placeOrderLocked({ tenant, userId, body, idempotencyKey }) {
     }
 
     const { config, priced, address, problem } = await prepare({ tenant, userId, body });
-    if (problem) throw httpError(problem.status, problem.message);
+    if (problem) throw Object.assign(httpError(problem.status, problem.message), problem.extra ? { extra: problem.extra } : {});
     checkExpectedTotal(body, priced);
 
     // the same cart again within 10 seconds is refused
@@ -321,6 +323,7 @@ async function placeOrderLocked({ tenant, userId, body, idempotencyKey }) {
         const order = await Order.create({
             _id: newOrderId,
             tableSessionId: session?._id,
+            ...(session?.label && (session.party || 1) > 0 && require('./sharedTables').isShared(tenant) ? { tableParty: session.label } : {}),
             tenantId: tenant._id,
             userId,
             orderNo,

@@ -285,7 +285,7 @@ function validateSettings(input) {
                 const c = o.dineIn;
                 if (!isObj(c)) err(p('dineIn'), 'must be an object');
                 else {
-                    known(c, ['enabled', 'tableCount', 'autoCloseHours', 'tabLimitNew', 'tabLimitTrusted', 'trustedAfter', 'atShopCheck', 'radiusM', 'checkMinutes', 'autoReady', 'readyMin', 'autoServe', 'serveMin', 'owedDaily', 'owedHour', 'owedOnHome', 'owedMax', 'firstOnline', 'prefs', 'welcomeOn', 'welcomePercent', 'welcomeMax', 'regularOn', 'regularAfter', 'regularPercent', 'regularMax', 'happyOn', 'happyFrom', 'happyTo', 'happyPercent', 'happyMax', 'waitMin', 'callOn', 'tipOn', 'tipChoices', 'feedbackOn', 'referOn', 'referFriendPercent', 'referFriendMax', 'referPoints', 'referLimit', 'busyAuto', 'busyPercent', 'busyExtraMin', 'cancelGraceMin', 'waiterSettles', 'upiId'], p('dineIn'));
+                    known(c, ['enabled', 'tableCount', 'autoCloseHours', 'tabLimitNew', 'tabLimitTrusted', 'trustedAfter', 'atShopCheck', 'radiusM', 'checkMinutes', 'autoReady', 'readyMin', 'autoServe', 'serveMin', 'owedDaily', 'owedHour', 'owedOnHome', 'owedMax', 'firstOnline', 'prefs', 'welcomeOn', 'welcomePercent', 'welcomeMax', 'regularOn', 'regularAfter', 'regularPercent', 'regularMax', 'happyOn', 'happyFrom', 'happyTo', 'happyPercent', 'happyMax', 'waitMin', 'callOn', 'tipOn', 'tipChoices', 'feedbackOn', 'referOn', 'referFriendPercent', 'referFriendMax', 'referPoints', 'referLimit', 'busyAuto', 'busyPercent', 'busyExtraMin', 'cancelGraceMin', 'waiterSettles', 'upiId', 'sharedTables', 'maxParties', 'guestWatch', 'unreachableMin'], p('dineIn'));
                     out.dineIn = {};
                     if (c.enabled !== undefined && bool(p('dineIn.enabled'), c.enabled)) out.dineIn.enabled = c.enabled;
                     if (c.tableCount !== undefined) {
@@ -332,6 +332,16 @@ function validateSettings(input) {
                         if (c[k] === undefined) continue;
                         if (!Number.isInteger(c[k])) err(p('dineIn.' + k), 'must be a whole number');
                         else if (num(p('dineIn.' + k), c[k], lo, hi)) out.dineIn[k] = c[k];
+                    }
+                    if (c.sharedTables !== undefined && bool(p('dineIn.sharedTables'), c.sharedTables)) out.dineIn.sharedTables = c.sharedTables;   // different people may share one table, each with their own bill
+                    if (c.maxParties !== undefined) {   // the most bills one table may have
+                        if (!Number.isInteger(c.maxParties)) err(p('dineIn.maxParties'), 'must be a whole number');
+                        else if (num(p('dineIn.maxParties'), c.maxParties, 2, 8)) out.dineIn.maxParties = c.maxParties;
+                    }
+                    if (c.guestWatch !== undefined && bool(p('dineIn.guestWatch'), c.guestWatch)) out.dineIn.guestWatch = c.guestWatch;   // tell the owner (quietly) when a guest who owes cannot be reached
+                    if (c.unreachableMin !== undefined) {
+                        if (!Number.isInteger(c.unreachableMin)) err(p('dineIn.unreachableMin'), 'must be a whole number');
+                        else if (num(p('dineIn.unreachableMin'), c.unreachableMin, 3, 60)) out.dineIn.unreachableMin = c.unreachableMin;
                     }
                     if (c.upiId !== undefined) {   // the shop's UPI id: the waiter shows a QR for it, so a guest can pay at the table. Empty = none.
                         const u = typeof c.upiId === 'string' ? c.upiId.trim() : null;
@@ -486,7 +496,7 @@ const DEFAULTS = {
         deliveryFee: { type: 'free', amount: 0, freeAbove: 0 },
         packagingCharge: 0, gst: { mode: 'none', percent: 0 },
         tipOptions: [], prepTimeMin: 20, acceptingOrders: true,
-        dineIn: { enabled: false, tableCount: 10, autoCloseHours: 6, tabLimitNew: 500, tabLimitTrusted: 2000, trustedAfter: 3, atShopCheck: true, radiusM: 250, checkMinutes: 20, autoReady: false, readyMin: 15, autoServe: false, serveMin: 10, owedDaily: false, owedHour: 11, owedOnHome: true, referOn: false, referFriendPercent: 15, referFriendMax: 150, referPoints: 50, referLimit: 10, callOn: false, tipOn: false, tipChoices: [10, 20, 50], feedbackOn: false, welcomeOn: false, welcomePercent: 10, welcomeMax: 100, regularOn: false, regularAfter: 5, regularPercent: 5, regularMax: 50, happyOn: false, happyFrom: '15:00', happyTo: '18:00', happyPercent: 15, happyMax: 150, waitMin: 0, owedMax: 7, firstOnline: false, prefs: ['Make it spicy', 'Less spicy', 'Not spicy', 'Extra gravy', 'Less gravy', 'No coriander', 'No onion', 'No garlic', 'Less oil', 'Less salt'], busyAuto: true, busyPercent: 70, busyExtraMin: 10, cancelGraceMin: 3, waiterSettles: true },   // eating at the shop: on/off and how many tables
+        dineIn: { enabled: false, sharedTables: false, maxParties: 4, guestWatch: true, unreachableMin: 10, tableCount: 10, autoCloseHours: 6, tabLimitNew: 500, tabLimitTrusted: 2000, trustedAfter: 3, atShopCheck: true, radiusM: 250, checkMinutes: 20, autoReady: false, readyMin: 15, autoServe: false, serveMin: 10, owedDaily: false, owedHour: 11, owedOnHome: true, referOn: false, referFriendPercent: 15, referFriendMax: 150, referPoints: 50, referLimit: 10, callOn: false, tipOn: false, tipChoices: [10, 20, 50], feedbackOn: false, welcomeOn: false, welcomePercent: 10, welcomeMax: 100, regularOn: false, regularAfter: 5, regularPercent: 5, regularMax: 50, happyOn: false, happyFrom: '15:00', happyTo: '18:00', happyPercent: 15, happyMax: 150, waitMin: 0, owedMax: 7, firstOnline: false, prefs: ['Make it spicy', 'Less spicy', 'Not spicy', 'Extra gravy', 'Less gravy', 'No coriander', 'No onion', 'No garlic', 'Less oil', 'Less salt'], busyAuto: true, busyPercent: 70, busyExtraMin: 10, cancelGraceMin: 3, waiterSettles: true },   // eating at the shop: on/off and how many tables
         staff: { kitchenOn: false, waiterOn: false, max: 10, kitchenSees: ['delivery', 'pickup', 'dine_in'], lateMin: 20, serveLateMin: 5, queueShown: true, queueEta: true, kitchenLanes: 3, nudgeMin: 10 },   // kitchen and waiter panels (services/staffService.js): off until the super admin switches them on
         mixRules: { dineBlocksOthers: true, deliveryOpenMax: 3, exposureOn: true, exposureNew: 800, exposureTrusted: 3000, regularAfter: 3 },
         limits: { pickupAsksMax: 3, nudgeFirstMin: 3, nudgeEveryMin: 10, callGapMin: 2, callClearHours: 2, remindGapMin: 30, claimRetryMin: 5, scanGapMin: 5, strikesMax: 2, pickupSlotsPerDay: 12 },   // timings and counts, set by the super admin   // several kinds of order at once (services/orderMix.js)

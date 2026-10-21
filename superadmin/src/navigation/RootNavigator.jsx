@@ -10,6 +10,7 @@ import { useTheme, section } from '../theme';
 
 import LoginScreen from '../screens/auth/LoginScreen';
 import DashboardScreen from '../screens/home/DashboardScreen';
+import AppLockScreen from '../screens/platform/AppLockScreen';
 import MoreScreen from '../screens/platform/MoreScreen';
 import TeamScreen from '../screens/platform/TeamScreen';
 import InboxScreen from '../screens/platform/InboxScreen';
@@ -211,6 +212,7 @@ function MoreStack() {
         <More.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right', animationDuration: 180 }}>
             <More.Screen name="MoreHome" component={MoreScreen} />
             <More.Screen name="Team" component={TeamScreen} />
+            <More.Screen name="AppLock" component={AppLockScreen} />
             <More.Screen name="Maintenance" component={MaintenanceScreen} />
             <More.Screen name="LiveTracking" component={LiveTrackingScreen} />
             <More.Screen name="InsightsSettings" component={InsightsSettingsScreen} />

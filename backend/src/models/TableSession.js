@@ -7,6 +7,12 @@ const tableSessionSchema = new mongoose.Schema({
     table: { type: String, required: true },
     kind: { type: String, enum: ['table', 'pickup'], default: 'table' },   // 'pickup': an unpaid pickup order, kept as a bill he owes (same reminders, same block)
     orderId: { type: mongoose.Schema.Types.ObjectId, ref: 'Order' },
+    party: { type: Number, default: 1 },   // shared tables (services/sharedTables.js): the number of this bill at the table (1, 2, 3...); label A, B, C...
+    label: String,
+    left: [{ _id: false, userId: mongoose.Schema.Types.ObjectId, at: Date, paidPaise: Number, via: String, by: String }],   // guests who paid their share (or left unpaid) and are no longer on this bill
+    presence: mongoose.Schema.Types.Mixed,   // services/guestWatch.js: { <userId>: { at, loc, locAt } } what each guest's app last said
+    watch: mongoose.Schema.Types.Mixed,      // { <userId>: 'unreachable' | 'location_off' }: what the owner was last told about each guest
+    mergedInto: { type: mongoose.Schema.Types.ObjectId, ref: 'TableSession' },   // shared tables: this bill was merged into another one (the people were together after all)
     status: { type: String, enum: ['open', 'bill_asked', 'closed'], default: 'open' },
     customers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],   // everyone who ordered at this table: all of them see the bill
     openedAt: { type: Date, default: Date.now },
@@ -32,8 +38,8 @@ const tableSessionSchema = new mongoose.Schema({
     paidPaise: { type: Number, default: 0 },
 }, { timestamps: true });
 
-// one open visit per table
-tableSessionSchema.index({ tenantId: 1, table: 1 }, { unique: true, partialFilterExpression: { status: { $in: ['open', 'bill_asked'] } } });
+// one open bill per table and party (a table has bill number 1 only, unless the owner switched on shared tables)
+tableSessionSchema.index({ tenantId: 1, table: 1, party: 1 }, { unique: true, partialFilterExpression: { status: { $in: ['open', 'bill_asked'] } } });
 tableSessionSchema.index({ tenantId: 1, customers: 1, status: 1 });
 
 module.exports = mongoose.model('TableSession', tableSessionSchema);

@@ -50,8 +50,10 @@ Notifications.setNotificationHandler({
 
 // Messages the app already makes a sound for (the owner's Soundbox, the customer's order steps). Every other message gets one soft ping,
 // because with the app open the system sound is muted on purpose: without this a pickup-time request or the shop's reply would be silent.
+const QUIET_TYPES = ['table_guest_alert', 'staff_holiday'];   // meant to be silent: only in the list
 const SOUNDBOX_TYPES = ['order_new', 'order_unaccepted_reminder', 'order_cancelled', 'table_bill_asked', 'table_call', 'kitchen_problem', 'pickup_intent', 'rider_sos'];
 function hasOwnSound(n) {
+    if (QUIET_TYPES.includes(n?.type)) return true;   // no ping, no sound
     const role = useAuthStore.getState().user?.role;
     if (role === 'admin' && SOUNDBOX_TYPES.includes(n?.type)) return true;
     if (n?.type === 'order_status' && ['accepted', 'cancelled', 'out_for_delivery'].includes(n?.data?.status)) return true;

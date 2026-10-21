@@ -24,6 +24,7 @@ import { useCouponStore } from '../../store/customers/useCouponStore';
 import { useOrderMode } from '../../store/customers/useOrderMode';
 import { useTableBill } from '../../store/customers/useTableBill';
 import TableSheet from '../../components/customers/TableSheet';
+import ChoosePartySheet from '../../components/customers/ChoosePartySheet';
 import { useAddressStore } from '../../store/customers/useAddressStore';
 import { quoteOrder, placeOrder, fetchPickupSlots } from '../../api/customers/shopApi';
 import { payForOrder, prewarmPayments, abandonUnpaidOrder } from '../../utils/customers/payOnline';
@@ -77,6 +78,7 @@ export default function CartScreen() {
     const table = useOrderMode((st) => st.table);
     const dineOn = !!full.orders.dineIn?.enabled;
     const [tableOpen, setTableOpen] = useState(false);
+    const [partyOpen, setPartyOpen] = useState(false);   // shared table: he must choose his bill first
     const [pickedType, setPickedType] = useState(types.includes(mode) ? mode : types[0]);
     useEffect(() => { if (types.includes(mode)) setPickedType(mode); }, [mode]);   // eslint-disable-line react-hooks/exhaustive-deps
     const type = dineOn && mode === 'dine_in' ? 'dine_in' : (types.includes(pickedType) ? pickedType : types[0]);
@@ -199,7 +201,7 @@ export default function CartScreen() {
             } else if (r.q && applied && !r.q.pricing.couponCode) {
                 setApplied(''); setCouponErr('Coupon removed. Your order no longer qualifies.');
             }
-            if (r.q) { setQuote(r.q); setQErr(''); setQuoteKey(bodyKey); } else { setQuote(null); setQErr(errMsg(r.e)); }
+            if (r.q) { setQuote(r.q); setQErr(''); setQuoteKey(bodyKey); } else { setQuote(null); setQErr(errMsg(r.e)); if (r.e?.response?.data?.code === 'choose_party') setPartyOpen(true); }
             setBusy(false);
         }, 300);
         return () => clearTimeout(t);
@@ -300,6 +302,7 @@ export default function CartScreen() {
             showToast(m);
             if (/unpaid bill/i.test(m)) useOwedPrompt.getState().show();   // the reminder with the Call button
             if (/coupon/i.test(m)) { ease(); setApplied(''); setCouponErr(m); }
+            if (e?.response?.data?.code === 'choose_party') setPartyOpen(true);
             if (e?.response) setTick((x) => x + 1);
         } finally { setPlacing(false); }
     };
@@ -610,9 +613,9 @@ export default function CartScreen() {
                     </Pressable>
                     <Press onPress={btnOn ? onBtn : undefined} style={[s.dockBtn, { backgroundColor: btnOn ? primary : muted, borderRadius: radius }]}>
                         {placing ? <ActivityIndicator color="#FFFFFF" /> : (
-                            <View style={s.btnRow}>
-                                <View>
-                                    <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} style={s.btnTotal}>{quote && !closed ? rs(quote.pricing.total) : ' '}</Text>
+                            <View style={[s.btnRow, !(quote && !closed) && { justifyContent: 'center' }]}>
+                                <View style={!(quote && !closed) ? { alignItems: 'center' } : undefined}>
+                                    {quote && !closed ? <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} style={s.btnTotal}>{rs(quote.pricing.total)}</Text> : null}
                                     <Text style={s.btnLabel} numberOfLines={1}>{btnText}</Text>
                                 </View>
                                 <Ionicons name="caret-forward-outline" size={14} color="#FFFFFF" style={{ marginLeft: 8 }} />
@@ -633,6 +636,7 @@ export default function CartScreen() {
             {/* online order: our own screen appears the moment "Place order" is tapped, like Zomato / Blinkit,
                 instead of a dead pause before the payment app opens */}
             <TableSheet visible={tableOpen} onClose={() => setTableOpen(false)} />
+            <ChoosePartySheet visible={partyOpen} table={table} onClose={() => setPartyOpen(false)} onChosen={() => { setPartyOpen(false); setTick((x) => x + 1); }} />
             {placing && paymentMethodValue !== 'cod' ? <PayShimmer appName={upiApp?.label} /> : null}
         </View>
     );

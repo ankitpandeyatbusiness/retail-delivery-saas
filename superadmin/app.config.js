@@ -35,6 +35,7 @@ module.exports = {
         },
         plugins: [
             'expo-secure-store',
+            'expo-local-authentication',   // the app lock: fingerprint, face or the phone's own screen lock
             ['expo-location', { locationWhenInUsePermission: 'Allow Retail Control to use your location to point to a shop on the map.' }],
             // no coloured box on autofilled fields (phone number, OTP). Written into the Android theme on every prebuild.
             './plugins/withNoAutofillHighlight',

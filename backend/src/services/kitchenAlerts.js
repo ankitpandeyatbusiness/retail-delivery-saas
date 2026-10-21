@@ -53,7 +53,7 @@ async function onStatus({ before, updated, status }) {
         if (!people.length) return;
         tell(updated.tenantId, { orderId: String(updated._id), orderNo: updated.orderNo, status, alert: { kind: status === 'accepted' ? 'new' : 'cancel', orderNo: updated.orderNo } });   // the open screens ring (sound and voice)
 
-        const where = updated.orderType === 'dine_in' ? `Dine in${updated.tableNo ? ` · Table ${updated.tableNo}` : ''}` : TYPE_WORD[updated.orderType];
+        const where = updated.orderType === 'dine_in' ? `Dine in${updated.tableNo ? ` · Table ${updated.tableNo}${updated.tableParty ? ` · ${updated.tableParty}` : ''}` : ''}` : TYPE_WORD[updated.orderType];
         const msg = status === 'accepted'
             ? { title: `New order #${updated.orderNo}`, body: [brief(updated, 3), where].filter(Boolean).join(' · '), loud: true }
             : { title: `Order #${updated.orderNo} cancelled`, body: 'Stop making it.', loud: false };

@@ -9,7 +9,7 @@ import { BigButton, UndoLink, useMinuteClock, clock, minsSince, minWord } from '
 import { tr } from '../../i18n';
 
 function where(o) {
-    if (o.orderType === 'dine_in') return { icon: 'restaurant', text: o.tableNo ? tr('Table {n}', { n: o.tableNo }) : tr('Dine in') };
+    if (o.orderType === 'dine_in') return { icon: 'restaurant', text: o.tableNo ? (tr('Table {n}', { n: o.tableNo }) + (o.party ? ` · ${o.party}` : '')) : tr('Dine in') };
     if (o.orderType === 'pickup') return { icon: 'bag-handle', text: o.scheduledFor ? tr('Pickup {time}', { time: clock(o.scheduledFor) }) : tr('Pickup') };
     return { icon: 'bicycle', text: tr('Delivery') };
 }

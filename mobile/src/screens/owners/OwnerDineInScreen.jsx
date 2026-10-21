@@ -23,11 +23,12 @@ import TableRequests, { GuestFeedback } from '../../components/owners/TableReque
 import WaitTimer, { ServedIn } from '../../components/common/WaitTimer';
 import BillDetails from '../../components/owners/BillDetails';
 import BillSheet from '../../components/owners/BillSheet';
+import PartyPickSheet from '../../components/owners/PartyPickSheet';
 import PersonAvatar from '../../components/owners/PersonAvatar';
 import { useClaimPrompt } from '../../components/owners/OwedClaimHost';
 import { tr } from '../../i18n';
 
-const RECOMMENDED = { upiId: '', waiterSettles: true, cancelGraceMin: 3, enabled: true, tableCount: 10, autoCloseHours: 6, tabLimitNew: 500, tabLimitTrusted: 2000, trustedAfter: 3, atShopCheck: true, radiusM: 250, checkMinutes: 20, autoReady: true, readyMin: 15, owedDaily: true, owedHour: 11, owedOnHome: true, referOn: true, referFriendPercent: 15, referFriendMax: 150, referPoints: 50, referLimit: 10, callOn: true, tipOn: true, tipChoices: [10, 20, 50], feedbackOn: true, waitMin: 15, welcomeOn: true, welcomePercent: 10, welcomeMax: 100, regularOn: true, regularAfter: 5, regularPercent: 5, regularMax: 50, happyOn: false, happyFrom: '15:00', happyTo: '18:00', happyPercent: 15, happyMax: 150, owedMax: 7, firstOnline: false, prefs: ['Make it spicy', 'Less spicy', 'Not spicy', 'Extra gravy', 'Less gravy', 'No coriander', 'No onion', 'No garlic', 'Less oil', 'Less salt'], autoServe: false, serveMin: 10, busyAuto: true, busyPercent: 70, busyExtraMin: 10 };
+const RECOMMENDED = { upiId: '', sharedTables: false, maxParties: 4, guestWatch: true, unreachableMin: 10, waiterSettles: true, cancelGraceMin: 3, enabled: true, tableCount: 10, autoCloseHours: 6, tabLimitNew: 500, tabLimitTrusted: 2000, trustedAfter: 3, atShopCheck: true, radiusM: 250, checkMinutes: 20, autoReady: true, readyMin: 15, owedDaily: true, owedHour: 11, owedOnHome: true, referOn: true, referFriendPercent: 15, referFriendMax: 150, referPoints: 50, referLimit: 10, callOn: true, tipOn: true, tipChoices: [10, 20, 50], feedbackOn: true, waitMin: 15, welcomeOn: true, welcomePercent: 10, welcomeMax: 100, regularOn: true, regularAfter: 5, regularPercent: 5, regularMax: 50, happyOn: false, happyFrom: '15:00', happyTo: '18:00', happyPercent: 15, happyMax: 150, owedMax: 7, firstOnline: false, prefs: ['Make it spicy', 'Less spicy', 'Not spicy', 'Extra gravy', 'Less gravy', 'No coriander', 'No onion', 'No garlic', 'Less oil', 'Less salt'], autoServe: false, serveMin: 10, busyAuto: true, busyPercent: 70, busyExtraMin: 10 };
 const KEYS = Object.keys(RECOMMENDED);
 const rs = (n) => `₹${Math.round(n * 100) / 100}`;
 // the table that has waited longest comes first; then tables with nothing waiting; free tables last, in number order
@@ -62,6 +63,8 @@ export function TableCell({ t, onPress, blink }) {
             {t.state === 'free' ? <Text style={{ color: muted, fontSize: 11.5, marginTop: 2 }}>{tr('Free')}</Text> : (
                 <>
                     <Text style={{ color: asked ? warn : ok, fontWeight: '900', fontSize: 12.5, marginTop: 2 }}>{t.state === 'bill_asked' ? tr('Bill asked') : t.check ? tr('Check') : rs(t.total)}</Text>
+                    {(t.watch || []).length ? <Ionicons name="eye" size={13} color={warn} style={{ position: 'absolute', bottom: 5, right: 6 }} /> : null}
+                    {(t.parties || []).length > 1 ? <Text style={{ color: text, fontWeight: '900', fontSize: 11 }}>{t.parties.length} {tr('bills')} · {t.parties.map((p) => p.label).join(' ')}</Text> : null}
                     <Text style={{ color: muted, fontSize: 10.5 }}>{t.rounds} {t.rounds === 1 ? tr('round') : tr('rounds')} · {mins(t.since)} {tr('min')}</Text>
                     {t.who ? <Text numberOfLines={1} style={{ color: muted, fontSize: 10.5, maxWidth: 86 }}>{t.who}</Text> : null}
                     {t.waitingSince ? <WaitTimer since={t.waitingSince} compact style={{ marginTop: 3 }} /> : null}
@@ -83,6 +86,8 @@ export default function OwnerDineInScreen() {
     const [busy, setBusy] = useState(false);
     const [tables, setTables] = useState(null);
     const [open, setOpen] = useState(null);
+    const [pick, setPick] = useState(null);   // a table with several bills: which one to open
+    const openTable = (t) => { if ((t.parties || []).length > 1) setPick(t); else setOpen(t); };
     const [debts, setDebts] = useState([]);
     const loadDebts = useCallback(() => { fetchDineDebts().then((r) => setDebts(r.items)).catch(() => {}); }, []);
     const [qrSize, setQrSize] = useState('medium');
@@ -150,7 +155,7 @@ export default function OwnerDineInScreen() {
                                     {busyTables.length ? tr('{n} of {total} tables in use. Tap a table for its bill.', { n: busyTables.length, total: tables.length }) : tr('No table is in use right now.')}
                                 </Text>
                                 <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                                    {sortTables(tables).map((t) => <TableCell key={t.table} t={t} onPress={() => setOpen(t)} />)}
+                                    {sortTables(tables).map((t) => <TableCell key={t.table} t={t} onPress={() => openTable(t)} />)}
                                 </View>
                             </View>
                         )}
@@ -246,6 +251,18 @@ export default function OwnerDineInScreen() {
                     <ToggleRow title={tr('Guests can add a tip for the waiter')} subtitle={v.tipOn ? tr('Added to the bill, collected at the counter') : tr('Off')} value={v.tipOn} onValueChange={(x) => set('tipOn', x)} last={!v.tipOn} />
                     {v.tipOn ? <TextBox label={tr('Tip amounts (₹, up to 4, separated by commas)')} value={tipText} onChangeText={(x) => { setTipText(x); setDirty(true); }} maxLength={30} placeholder="10, 20, 50" /> : null}
                     <ToggleRow title={tr('Ask for private feedback after the meal')} subtitle={v.feedbackOn ? tr('Only you read it. Happy guests are then asked to rate the dishes.') : tr('Off')} value={v.feedbackOn} onValueChange={(x) => set('feedbackOn', x)} last />
+                </Group>
+            ) : null}
+            {v.enabled ? (
+                <Group title={tr('Shared tables')} hint={tr('For a small restaurant where people who do not know each other sit at the same table. Each group gets its own bill.')}>
+                    <ToggleRow title={tr('Different people can share a table')} subtitle={v.sharedTables ? tr('A guest at a table that is taken chooses: his own bill, or to join the people there (they say yes or no in their app).') : tr('Off: everyone at a table shares one bill.')} value={!!v.sharedTables} onValueChange={(x) => set('sharedTables', x)} />
+                    {v.sharedTables ? <NumberBox label={tr('Most bills at one table')} integer value={v.maxParties} hint={`${tr('Recommended')}: ${RECOMMENDED.maxParties}. ${tr('Between 2 and 8.')}`} onChange={(x) => set('maxParties', x)} last /> : null}
+                </Group>
+            ) : null}
+            {v.enabled ? (
+                <Group title={tr('Keep an eye on guests')} hint={tr('A quiet note in your notifications, and a small eye on the table, when a guest who has not paid cannot be reached. No sound, no alarm.')}>
+                    <ToggleRow title={tr('Tell me when a guest who owes cannot be reached')} subtitle={v.guestWatch !== false ? tr('Their phone has not been heard from for a while, or their location is switched off.') : tr('Off: nothing is watched.')} value={v.guestWatch !== false} onValueChange={(x) => set('guestWatch', x)} />
+                    {v.guestWatch !== false ? <NumberBox label={tr('Not reachable after')} suffix={tr('min')} integer value={v.unreachableMin} hint={`${tr('Recommended')}: ${RECOMMENDED.unreachableMin}. ${tr('Between 3 and 60.')}`} onChange={(x) => set('unreachableMin', x)} last /> : null}
                 </Group>
             ) : null}
             {v.enabled ? (
@@ -346,6 +363,7 @@ export default function OwnerDineInScreen() {
                 <Button label={tr('Use recommended settings')} icon="refresh" kind="ghost" disabled={busy} onPress={recommended} />
                 <Text style={{ color: muted, fontSize: 12, marginTop: 10 }}>{tr('Coming here next: offers, waiting time and table service.')}</Text>
             </View>
+            <PartyPickSheet visible={!!pick} title={pick ? tr('Table {t}: which bill?', { t: pick.table }) : ''} options={(pick?.parties || []).map((p) => ({ ...p, sub: `${p.state === 'bill_asked' ? tr('Wants the bill') : tr('Eating')} · ${rs(p.due)}` }))} onPick={(p) => { setOpen({ ...pick, ...p }); setPick(null); }} onClose={() => setPick(null)} />
             <BillSheet table={open} onClose={() => setOpen(null)} onDone={() => { loadTables(); loadDebts(); }} />
         </FormPage>
     );

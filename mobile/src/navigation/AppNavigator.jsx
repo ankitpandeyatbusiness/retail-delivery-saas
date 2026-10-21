@@ -19,6 +19,7 @@ import OrderPlacedScreen from '../screens/customers/OrderPlacedScreen';
 import RiderTabs from './RiderNavigator';
 import StaffTabs from './StaffNavigator';
 import OwnerStaffScreen from '../screens/owners/OwnerStaffScreen';
+import OwnerAppLockScreen from '../screens/owners/OwnerAppLockScreen';
 import RiderTripScreen from '../screens/riders/RiderTripScreen';
 import RiderDutyScreen from '../screens/riders/RiderDutyScreen';
 import RiderPointsScreen from '../screens/riders/RiderPointsScreen';
@@ -32,6 +33,9 @@ import OwedClaimHost from '../components/owners/OwedClaimHost';
 import PickupChangeHost from '../components/owners/PickupChangeHost';
 import CustomerAskHost from '../components/owners/CustomerAskHost';
 import PickupCollectHost from '../components/customers/PickupCollectHost';
+import JoinRequestHost from '../components/customers/JoinRequestHost';
+import useTablePresence from '../hooks/customers/useTablePresence';
+function PresenceBeat() { useTablePresence(); return null; }   // the guest's phone tells the shop it is here (see the hook)
 import ScanTableScreen from '../screens/customers/ScanTableScreen';
 import OwnerRewardsScreen from '../screens/owners/OwnerRewardsScreen';
 import OwnerDineInScreen from '../screens/owners/OwnerDineInScreen';
@@ -339,6 +343,7 @@ export default function AppNavigator() {
                     <Stack.Screen name="OwnerPerformance" component={OwnerPerformanceScreen} />
                     <Stack.Screen name="OwnerRiderRules" component={OwnerRiderRulesScreen} />
                     <Stack.Screen name="OwnerStaff" component={OwnerStaffScreen} />
+                    <Stack.Screen name="OwnerAppLock" component={OwnerAppLockScreen} />
                     <Stack.Screen name="OwnerPayments" component={OwnerPaymentsScreen} />
                     <Stack.Screen name="OwnerSms" component={OwnerSmsScreen} />
                     <Stack.Screen name="OwnerRent" component={OwnerRentScreen} />
@@ -389,6 +394,8 @@ export default function AppNavigator() {
             <ReviewPrompts />
             <OwedReminder />
             <PickupCollectHost />
+            <JoinRequestHost />
+            <PresenceBeat />
             <TableFeedbackHost navRef={navigationRef} />
             <NewOrderPopup navRef={navigationRef} />
             <KitchenProblemPopup />

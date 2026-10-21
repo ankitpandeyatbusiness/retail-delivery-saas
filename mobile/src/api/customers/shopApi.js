@@ -12,7 +12,15 @@ export const searchProducts = (params) => d(api.get('/catalog/products', { param
 // the customer's points at this shop: { enabled, balance, pending: { points, nextAt, items }, rules, history }
 export const fetchPoints = () => d(api.get('/loyalty/me'));
 // the table bill while dining in: { open, table, status, rounds, total, due } / ask for the bill
+export const reportPresence = (loc) => d(api.post('/dinein/presence', { loc }));   // 'on' | 'off' | 'unknown': the guest's app says where he stands (the owner is told quietly if a guest who owes cannot be reached)
+export const askLeaveShare = () => d(api.post('/dinein/leave-ask'));   // "pay my share and leave": { ok, amount, busy }
 export const fetchTableBill = () => d(api.get('/dinein/bill'));
+// shared tables: who sits at this table, his choice (separate bill, or join them), and the answers
+export const fetchTableState = (table) => d(api.get(`/dinein/table/${table}`));                                 // { shared, occupied, parties, canSeparate, max, mine, pending }
+export const enterTable = (table, choice, sessionId) => d(api.post(`/dinein/table/${table}/enter`, { choice, ...(sessionId ? { sessionId } : {}) }));   // choice: 'separate' | 'with'
+export const fetchJoin = (id) => d(api.get(`/dinein/join/${id}`));                                              // { status: pending | approved | denied | expired }
+export const fetchJoins = () => d(api.get('/dinein/joins'));                                                      // { items }: people asking to join my bill
+export const answerJoin = (id, approve) => d(api.post(`/dinein/join/${id}/answer`, { approve }));
 export const fetchDineOffers = () => d(api.get('/dinein/offers'));   // { items: [{ kind, text }] } the table offers he can get
 export const fetchDineUsual = () => d(api.get('/dinein/usual'));     // { usual: { id, brief, count } | null } what he had last time
 export const fetchDineStatus = () => d(api.get('/dinein/status'));   // { busy, extraMin }: the shop is full, food may take longer

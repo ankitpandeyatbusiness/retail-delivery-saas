@@ -193,6 +193,7 @@ export default {
           speechRecognitionPermission: 'Allow $(PRODUCT_NAME) to securely recognize your voice for search.'
         }
       ],
+      'expo-local-authentication',   // the app lock: fingerprint, face or the phone's own screen lock (adds the biometric permission)
       // Adds the Location plugin based on your package.json
       [
         'expo-location',

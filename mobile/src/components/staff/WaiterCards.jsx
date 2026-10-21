@@ -24,14 +24,14 @@ export function ServeCard({ o, lateMin, busy, onServe }) {
     return (
         <View style={{ backgroundColor: surface, borderColor: late ? alpha(error, 0.55) : border, borderWidth: late ? 1.5 : 1, borderLeftColor: late ? error : ok, borderLeftWidth: 5, borderRadius: 18, padding: 14, marginHorizontal: 16, marginBottom: 12 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={{ color: text, fontSize: 26, fontWeight: '900' }}>{o.table ? tr('Table {n}', { n: o.table }) : tr('Dine in')}</Text>
+                <Text style={{ color: text, fontSize: 26, fontWeight: '900' }}>{o.table ? tr('Table {n}', { n: o.table }) : tr('Dine in')}{o.party ? <Text style={{ color: primary }}> · {o.party}</Text> : null}</Text>
                 <View style={{ flex: 1 }} />
                 <View style={{ alignItems: 'flex-end' }}>
                     <Text style={{ color: late ? error : text, fontWeight: '900', fontSize: 16 }}>{minWord(mins)}</Text>
                     <Text style={{ color: late ? error : muted, fontSize: 11.5, fontWeight: '700' }}>{late ? tr('Waiting too long') : tr('Ready')}</Text>
                 </View>
             </View>
-            <Text style={{ color: muted, fontWeight: '700', marginTop: 2 }}>#{o.orderNo}</Text>
+            <Text style={{ color: muted, fontWeight: '700', marginTop: 2 }}>#{o.orderNo}{o.party && o.who ? ` · ${o.who}` : ''}</Text>
             <View style={{ marginTop: 8 }}>
                 {o.items.map((l, i) => (
                     <View key={i} style={{ flexDirection: 'row', paddingVertical: 5, borderTopWidth: i ? 0.5 : 0, borderTopColor: border }}>
@@ -68,14 +68,14 @@ export function RequestCard({ q, busy, lateMin, onDone, onOpenBill }) {
                     <Ionicons name={KIND_ICON[q.kind] || 'help-buoy'} size={24} color={c} />
                 </View>
                 <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={{ color: text, fontSize: 19, fontWeight: '900' }}>{tr('Table {n}', { n: q.table })}</Text>
+                    <Text style={{ color: text, fontSize: 19, fontWeight: '900' }}>{tr('Table {n}', { n: q.table })}{q.party ? <Text style={{ color: primary }}> · {q.party}</Text> : null}</Text>
                     <Text style={{ color: text, fontWeight: '700', fontSize: 15 }}>{tr(q.label)}{q.text ? `: ${q.text}` : ''}</Text>
                 </View>
                 <Text style={{ color: late ? error : muted, fontWeight: '900' }}>{minWord(mins)}</Text>
             </View>
             <View style={{ marginTop: 12 }}>
-                {q.type === 'bill'
-                    ? <BigButton label={tr('Open the bill')} icon="receipt" bg={warn} ink="#1A1A1A" onPress={onOpenBill} />
+                {q.type === 'bill' || q.kind === 'share'
+                    ? <BigButton label={q.kind === 'share' ? tr('Take the share') : tr('Open the bill')} icon="receipt" bg={warn} ink="#1A1A1A" onPress={onOpenBill} />
                     : <BigButton label={tr('Done')} icon="checkmark" bg={ok} ink="#FFFFFF" busy={busy} onPress={onDone} />}
             </View>
         </View>

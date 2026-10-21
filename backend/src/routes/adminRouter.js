@@ -151,13 +151,14 @@ admin.get('/tenants', wrap(async (req, res) => {
     const items = await Tenant.find(filter)
         .sort({ createdAt: -1 })
         .limit(200)
-        .select('_id slug name logo status androidPackage createdAt updatedAt ownerBlocked ownerBlockedReason maintenance settings.orders.acceptingOrders billing.state billing.graceEndsAt')
+        .select('_id slug name logo status androidPackage createdAt updatedAt ownerBlocked ownerBlockedReason maintenance settings.orders.acceptingOrders billing subscription.gstPercent')
         .lean();
-    const icons = await appIcons(items);
+    const [icons, rents] = await Promise.all([appIcons(items), require('../services/rentSummary').forShops(items)]);
     res.json({
         items: items.map((t) => {
-            const { settings, maintenance, ownerBlockedReason, ...rest } = t;
-            return { ...rest, appIcon: icons.get(String(t._id)) || null, state: shopState(t) };
+            const { settings, maintenance, ownerBlockedReason, billing, subscription, ...rest } = t;
+            // the list only needs the rent state and the one-line rent answer (what the shop pays next, for which month, or that it is still free)
+            return { ...rest, billing: { state: billing?.state, graceEndsAt: billing?.graceEndsAt }, rent: rents.get(String(t._id)) || null, appIcon: icons.get(String(t._id)) || null, state: shopState(t) };
         }),
     });
 }));
@@ -193,7 +194,8 @@ admin.get('/tenants/:tid', wrap(async (req, res) => {
     const tenant = await Tenant.findById(req.params.tid).lean();
     if (!tenant) throw httpError(404, 'Tenant not found');
     const icons = await appIcons([tenant]);
-    res.json({ tenant, appIcon: icons.get(String(tenant._id)) || null, resolved: resolveConfig(tenant), state: shopState(tenant) });
+    const rent = (await require('../services/rentSummary').forShops([tenant])).get(String(tenant._id)) || null;
+    res.json({ tenant, appIcon: icons.get(String(tenant._id)) || null, resolved: resolveConfig(tenant), state: shopState(tenant), rent });
 }));
 
 // heroImages is not a field here: hero images are uploaded (and deleted from the bucket) through

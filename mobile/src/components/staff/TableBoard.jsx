@@ -54,7 +54,29 @@ function Line({ icon, color, text, bold }) {
     );
 }
 
-function TableCard({ t, lateMin, level, onPress, width }) {
+// a table with several bills (shared tables): the table on top, then one line per bill with the first name, its state, the money and the wait
+function PartyRow({ p, lateMin, onPress }) {
+    const { text, muted, primary, ok, warn, error, border } = useBrand();
+    const bill = p.state === 'bill_asked';
+    const waitMin = p.waitingSince ? minsSince(p.waitingSince) : null;
+    const c = bill ? warn : waitMin != null && waitMin >= lateMin * 3 ? warn : primary;
+    return (
+        <Pressable onPress={onPress} accessibilityRole="button" style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderTopWidth: 1, borderTopColor: alpha(border, 0.8), opacity: pressed ? 0.7 : 1 })}>
+            <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: alpha(c, 0.16), alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
+                <Text style={{ color: c, fontWeight: '900' }}>{p.label}</Text>
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+                <Text numberOfLines={1} style={{ color: text, fontWeight: '800', fontSize: 14 }}>{p.who || tr('Guest')}{p.guests > 1 ? ` +${p.guests - 1}` : ''}</Text>
+                <Text numberOfLines={1} style={{ color: bill ? warn : muted, fontWeight: '700', fontSize: 12 }}>
+                    {bill ? tr('Wants the bill') : p.since ? tr('Seated {t}', { t: minWord(minsSince(p.since)) }) : tr('Eating')}{waitMin != null && !bill ? ` · ${tr('waited {t}', { t: minWord(waitMin) })}` : ''}
+                </Text>
+            </View>
+            <Text style={{ color: p.due > 0 ? text : ok, fontWeight: '900', fontSize: 14 }}>{p.due > 0 ? money(p.due) : tr('Paid') + ' ✓'}</Text>
+        </Pressable>
+    );
+}
+
+function TableCard({ t, lateMin, level, onPress, width, onOpen }) {
     const { surface, border, text, muted, primary, ok, warn, error } = useBrand();
     const edge = level === 3 ? error : level === 2 ? warn : primary;
     const bill = t.state === 'bill_asked';
@@ -63,7 +85,8 @@ function TableCard({ t, lateMin, level, onPress, width }) {
     const callMin = t.requestSince ? minsSince(t.requestSince) : null;
     const waitMin = t.waitingSince ? minsSince(t.waitingSince) : null;
     const hurryMin = t.nudgedAt ? minsSince(t.nudgedAt) : null;
-    const status = bill ? [tr('Wants the bill'), 'receipt', warn] : t.requests > 0 ? [tr('Calling'), 'hand-left', error] : t.ready > 0 ? [tr('Food is ready'), 'checkmark-done', ok] : t.check ? [tr('Check on the table'), 'eye', warn] : t.cooking > 0 ? [tr('Waiting for food'), 'flame', primary] : [tr('Eating'), 'restaurant', primary];
+    const many = (t.parties || []).length > 1;
+    const status = many ? [tr('{n} bills', { n: t.parties.length }), 'people', primary] : bill ? [tr('Wants the bill'), 'receipt', warn] : t.requests > 0 ? [tr('Calling'), 'hand-left', error] : t.ready > 0 ? [tr('Food is ready'), 'checkmark-done', ok] : t.check ? [tr('Check on the table'), 'eye', warn] : t.cooking > 0 ? [tr('Waiting for food'), 'flame', primary] : [tr('Eating'), 'restaurant', primary];
     return (
         <Pressable onPress={onPress} accessibilityRole="button" style={({ pressed }) => ({ width, marginBottom: 10, padding: 12, borderRadius: 18, backgroundColor: surface, borderWidth: level === 3 ? 1.5 : 1, borderColor: level >= 2 ? alpha(edge, 0.55) : border, borderLeftWidth: 5, borderLeftColor: edge, opacity: pressed ? 0.85 : 1 })}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -74,21 +97,30 @@ function TableCard({ t, lateMin, level, onPress, width }) {
                     <Text numberOfLines={1} style={{ color: status[2], fontWeight: '900', fontSize: 11.5, flexShrink: 1 }}>{status[0]}</Text>
                 </View>
             </View>
-            {t.who ? <Text numberOfLines={1} style={{ color: muted, fontWeight: '700', marginTop: 2 }}>{t.who}</Text> : null}
+            {!many && t.who ? <Text numberOfLines={1} style={{ color: muted, fontWeight: '700', marginTop: 2 }}>{t.who}</Text> : null}
 
-            {seated != null ? <Line icon="time-outline" color={muted} text={tr('Seated {t}', { t: minWord(seated) })} /> : null}
+            {(t.watch || []).length ? <Line icon="eye" color={warn} bold text={t.watch.map((x) => `${x.name || tr('Guest')}: ${x.state === 'location_off' ? tr('location off') : tr('not reachable')}`).join(' · ')} /> : null}
+            {many ? (
+                <View style={{ marginTop: 6 }}>
+                    {t.parties.map((p) => <PartyRow key={p.sessionId} p={p} lateMin={lateMin} onPress={() => onOpen(t.table, p.sessionId)} />)}
+                </View>
+            ) : null}
+            {!many && seated != null ? <Line icon="time-outline" color={muted} text={tr('Seated {t}', { t: minWord(seated) })} /> : null}
             {t.requests > 0 ? <Line icon="hand-left" color={error} bold text={`${t.requestWhat ? tr(t.requestWhat) : tr('Calling')}${callMin != null ? ` · ${minWord(callMin)}` : ''}`} /> : null}
             {t.ready > 0 ? <Line icon="checkmark-done" color={readyMin >= lateMin ? error : ok} bold text={tr(t.ready === 1 ? '1 dish ready · {t}' : '{n} dishes ready · {t}', { n: t.ready, t: minWord(readyMin || 0) })} /> : null}
             {t.cooking > 0 ? <Line icon="flame" color={waitMin >= lateMin * 3 ? warn : muted} text={tr(t.cooking === 1 ? '1 order cooking' : '{n} orders cooking', { n: t.cooking }) + (waitMin != null ? ` · ${tr('waited {t}', { t: minWord(waitMin) })}` : '')} /> : null}
             {hurryMin != null && hurryMin < 30 && t.cooking > 0 ? <Line icon="alarm-outline" color={warn} text={tr('Asked to hurry {t} ago', { t: minWord(hurryMin) })} /> : null}
 
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: alpha(border, 0.8) }}>
+            {!many ? <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: alpha(border, 0.8) }}>
                 <Text style={{ color: muted, fontWeight: '700', fontSize: 12, flex: 1 }}>{t.rounds === 1 ? tr('1 round') : tr('{n} rounds', { n: t.rounds })}</Text>
                 <Text style={{ color: t.due > 0 ? text : ok, fontWeight: '900', fontSize: 15 }}>{t.due > 0 ? money(t.due) : tr('Paid') + ' ✓'}</Text>
-            </View>
+            </View> : <Text style={{ color: muted, fontWeight: '700', fontSize: 12, marginTop: 6 }}>{tr('Total')} {money(t.total)} · {tr('To pay')} {money(t.due)}</Text>}
         </Pressable>
     );
 }
+
+// a table with several bills needs more room: a full row on a phone
+const many2 = (t, per) => ((t.parties || []).length > 1 && per <= 2 ? '100%' : null);
 
 export default function TableBoard({ tables, rules, onOpen }) {
     const { text, muted, ok, warn, error, primary } = useBrand();
@@ -132,7 +164,7 @@ export default function TableBoard({ tables, rules, onOpen }) {
                 </View>
             ) : null}
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-                {shown.map((t) => <TableCard key={t.table} t={t} lateMin={lateMin} level={t.level} width={width} onPress={() => onOpen(t.table, t.sessionId)} />)}
+                {shown.map((t) => <TableCard key={t.table} t={t} lateMin={lateMin} level={t.level} width={many2(t, per) || width} onOpen={onOpen} onPress={() => onOpen(t.table, t.sessionId)} />)}
                 {Array.from({ length: (per - (shown.length % per)) % per }).map((_, i) => <View key={`pad${i}`} style={{ width }} />)}
             </View>
             {used.length && !shown.length ? <Text style={{ color: muted, textAlign: 'center', marginVertical: 16 }}>{tr('No tables here right now.')}</Text> : null}

@@ -89,6 +89,10 @@ export const saveSettings = (body) => d(api.put('/shop/settings', body));
 
 /* ------------------------------ riders ------------------------------ */
 // kitchen and waiter people: { items, rules: { kitchenOn, waiterOn, max } }
+export const settleShare = (sessionId, userId, method) => d(api.post(`/shop/dine-in/sessions/${sessionId}/share/${userId}/settle`, { method }));   // one guest paid his share and leaves
+export const walkoutShare = (sessionId, userId) => d(api.post(`/shop/dine-in/sessions/${sessionId}/share/${userId}/walkout`));   // he left without paying: only his share is owed
+export const moveRound = (orderId, toSessionId) => d(api.post(`/shop/dine-in/orders/${orderId}/move`, { toSessionId }));   // shared tables: a round on the wrong bill
+export const mergeBills = (sessionId, intoSessionId) => d(api.post(`/shop/dine-in/sessions/${sessionId}/merge`, { intoSessionId }));   // two bills that are one group
 export const fetchStaff = () => d(api.get('/shop/staff'));
 export const fetchStaffLeaves = () => d(api.get('/shop/staff/leaves'));   // { pending, recent }
 export const decideStaffLeave = (id, approve, note) => d(api.post(`/shop/staff/leaves/${id}`, { approve, ...(note ? { note } : {}) }));

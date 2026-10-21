@@ -37,7 +37,7 @@ async function onStatus({ before, updated, status }) {
         if (status === 'ready' && before?.status !== 'ready') {
             tell(updated.tenantId, { orderId: String(updated._id), orderNo: updated.orderNo, table: updated.tableNo, status, alert: { kind: 'ready', table: updated.tableNo, orderNo: updated.orderNo } });
             await ring(updated.tenantId, {
-                title: `Table ${updated.tableNo || ''}: ready to serve`.replace(/:\s*:/, ':'),
+                title: `Table ${updated.tableNo || ''}${updated.tableParty ? ` · ${updated.tableParty}` : ''}: ready to serve`.replace(/:\s*:/, ':'),
                 body: `${brief(updated, 3)} · order #${updated.orderNo}`,
                 data: { type: 'waiter_serve', orderId: String(updated._id), orderNo: updated.orderNo, table: String(updated.tableNo || ''), kind: 'ready', speech: `Table ${updated.tableNo}, food is ready`, speechHi: `टेबल ${updated.tableNo}, खाना तैयार है` },
                 tag: `serve:${updated._id}`,
@@ -47,11 +47,11 @@ async function onStatus({ before, updated, status }) {
 }
 
 // a guest asks for the waiter, water, cutlery, a clean table, or the bill
-async function request(tenantId, { table, label, text, bill }) {
+async function request(tenantId, { table, label, text, bill, party }) {
     try {
         tell(tenantId, { request: true, table, alert: { kind: bill ? 'bill' : 'call', table } });
         await ring(tenantId, {
-            title: `Table ${table}`, body: `${label}${text ? `: ${text}` : ''}`,
+            title: `Table ${table}${party ? ` · ${party}` : ''}`, body: `${label}${text ? `: ${text}` : ''}`,
             data: { type: bill ? 'waiter_bill' : 'waiter_call', table: String(table), kind: bill ? 'bill' : 'call', speech: bill ? `Table ${table} wants the bill` : `Table ${table} is calling`, speechHi: bill ? `टेबल ${table} को बिल चाहिए` : `टेबल ${table} बुला रही है` },
             tag: `req:${table}:${bill ? 'bill' : label}`,
         });

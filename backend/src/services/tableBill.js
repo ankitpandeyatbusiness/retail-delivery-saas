@@ -29,11 +29,20 @@ const cfgOf = (tenant) => ({ ...DEFAULTS.orders.dineIn, ...(tenant?.settings?.or
 
 const ACTIVE = ['placed', 'accepted', 'preparing', 'ready'];   // still in the kitchen or on its way to the table
 const DEAD = ['cancelled', 'undelivered'];
-const fail = (status, message) => Object.assign(new Error(message), { status });
+const fail = (status, message, extra) => Object.assign(new Error(message), { status, ...(extra ? { extra } : {}) });
 const tell = (event, ctx) => Promise.resolve().then(() => require('../notifications/center').notify(event, ctx)).catch((e) => console.error('Notification error:', e.message));
 
 // An order is being placed at a table: join the visit that is open there, or start one. Several people at one table share one bill.
 async function joinOrOpen({ tenantId, table, userId, now = new Date() }) {
+    // shared tables: he keeps the bill he is on; a guest with none at an occupied table must have chosen first (services/sharedTables.js)
+    const tenantDoc = await Tenant.findById(tenantId).select('settings.orders.dineIn').lean();
+    if (cfgOf(tenantDoc).sharedTables === true) {
+        const shared = require('./sharedTables');
+        const mine = await TableSession.findOneAndUpdate({ tenantId, table, customers: userId, status: { $in: ['open', 'bill_asked'] } }, { $set: { status: 'open', lastOrderAt: now }, $unset: { billAskedAt: 1 } }, { returnDocument: 'after' });
+        if (mine) return mine;
+        if (await TableSession.exists({ tenantId, table, status: { $in: ['open', 'bill_asked'] }, kind: { $ne: 'pickup' } })) throw fail(409, 'Someone is already at this table. Choose your own bill, or join them.', { code: 'choose_party' });
+        return shared.openParty({ tenant: tenantDoc && { _id: tenantId, ...tenantDoc }, table, userId, now });
+    }
     const join = { $set: { status: 'open', lastOrderAt: now }, $unset: { billAskedAt: 1 }, $addToSet: { customers: userId } };
     let s = await TableSession.findOneAndUpdate({ tenantId, table, status: { $in: ['open', 'bill_asked'] } }, join, { returnDocument: 'after' });
     if (s) return s;
@@ -73,16 +82,17 @@ async function billOf(session, { owner = false } = {}) {
     const byPerson = new Map();
     for (const o of orders.filter((x) => !DEAD.includes(x.status))) {
         const k = String(o.userId);
-        const cur = byPerson.get(k) || { userId: k, name: o.customer?.name || null, total: 0 };
+        const cur = byPerson.get(k) || { userId: k, name: o.customer?.name || null, total: 0, due: 0 };
         cur.total += o.pricing?.total || 0;
+        if (o.payment?.status !== 'paid') cur.due += o.pricing?.total || 0;
         byPerson.set(k, cur);
     }
     return {
         tip, payable: Math.round((due + tip) * 100) / 100,
-        shares: [...byPerson.values()].map((x) => ({ ...x, total: Math.round(x.total * 100) / 100 })),   // for "split the bill": who ordered how much
+        shares: [...byPerson.values()].map((x) => ({ ...x, total: Math.round(x.total * 100) / 100, due: Math.round(x.due * 100) / 100 })),   // for "split the bill": who ordered how much
 
         ...(owner ? { guests: session.customers.map((c) => people.get(String(c))).filter(Boolean) } : {}),
-        id: String(session._id), table: session.table, status: session.status, openedAt: session.openedAt, billAskedAt: session.billAskedAt || null, closedAt: session.closedAt || null,
+        id: String(session._id), table: session.table, party: session.party || 1, label: session.label || null, status: session.status, openedAt: session.openedAt, billAskedAt: session.billAskedAt || null, closedAt: session.closedAt || null,
         rounds, total: Math.round(total * 100) / 100, due: Math.round(due * 100) / 100, kitchenBusy: rounds.some((r) => ACTIVE.includes(r.status)),
         paidVia: session.paidVia || null, nudgeAt: session.lastNudgeAt || null,   // when he last pressed "please hurry"
     };
@@ -135,14 +145,20 @@ async function settle({ tenantId, sessionId, method, by }) {
 // (enough earlier visits paid), and whether he left an earlier bill unpaid.
 async function placementInfo({ tenant, userId, table }) {
     const cfg = cfgOf(tenant);
-    const s = await TableSession.findOne({ tenantId: tenant._id, table, status: { $in: ['open', 'bill_asked'] } });
+    let choose = null;
+    let s = await TableSession.findOne({ tenantId: tenant._id, table, status: { $in: ['open', 'bill_asked'] }, ...(cfg.sharedTables === true ? { customers: userId } : {}) });
+    if (cfg.sharedTables === true && !s) {
+        // nobody of his is at this table; if others are, he must choose (separate bill, or join them) before he can order
+        const others = await require('./sharedTables').partiesAt(tenant._id, table, { forUser: userId });
+        if (others.length) choose = { parties: others, canSeparate: others.length < require('./sharedTables').maxParties(tenant) };
+    }
     const [elsewhere, bill, visits, owes] = await Promise.all([
         TableSession.findOne({ tenantId: tenant._id, customers: userId, status: { $in: ['open', 'bill_asked'] }, table: { $ne: table } }).select('table').lean(),
         s ? billOf(s) : Promise.resolve({ due: 0 }),
         TableSession.countDocuments({ tenantId: tenant._id, customers: userId, status: 'closed', walkout: { $ne: true }, paidPaise: { $gt: 0 } }),
         TableSession.exists({ tenantId: tenant._id, customers: userId, walkout: true, owedClearedAt: { $exists: false }, owedPaise: { $gt: 0 } }),
     ]);
-    return { due: bill.due, trusted: visits >= cfg.trustedAfter, visits, owes: !!owes, elsewhere: elsewhere?.table || null };
+    return { due: bill.due, trusted: visits >= cfg.trustedAfter, visits, owes: !!owes, elsewhere: elsewhere?.table || null, choose };
 }
 
 // The customer left without paying. The table is closed, the amount stays owed (nothing is thrown away), he gets a polite message, a strike
@@ -279,8 +295,8 @@ async function answerClaim({ tenantId, sessionId, ok, message }) {
 // every table of the shop with what is happening there (the owner's board)
 async function board(tenant) {
     const count = tenant.settings?.orders?.dineIn?.tableCount || 10;
-    const sessions = await TableSession.find({ tenantId: tenant._id, status: { $in: ['open', 'bill_asked'] } }).lean();
-    const byTable = new Map(sessions.map((s) => [s.table, s]));
+    const sessions = await TableSession.find({ tenantId: tenant._id, status: { $in: ['open', 'bill_asked'] }, kind: { $ne: 'pickup' } }).sort({ party: 1 }).lean();
+    const byTable = new Map(sessions.map((s) => [s.table, s]));   // the first bill of each table (a table with several bills adds them as `parties`)
     const sums = await Order.aggregate([
         { $match: { tenantId: tenant._id, tableSessionId: { $in: sessions.map((s) => s._id) }, status: { $nin: DEAD }, ...HIDE_UNPAID } },
         { $group: { _id: '$tableSessionId', total: { $sum: '$pricing.total' }, rounds: { $sum: 1 }, due: { $sum: { $cond: [{ $eq: ['$payment.status', 'paid'] }, 0, '$pricing.total'] } },
@@ -297,6 +313,39 @@ async function board(tenant) {
     };
     const rows = Array.from({ length: count }, (_, i) => row(String(i + 1)));
     for (const s of sessions) if (!/^\d+$/.test(s.table) || Number(s.table) > count || Number(s.table) < 1) rows.push(row(s.table));   // never hide an open bill
+    // shared tables: every bill of a table, each with its own state, money, timers and the first name of who sits there
+    const bySession = (s) => { const x = sumOf.get(String(s._id)) || { total: 0, rounds: 0, due: 0 }; return { sessionId: String(s._id), party: s.party || 1, label: s.label || String.fromCharCode(64 + (s.party || 1)), state: s.status === 'bill_asked' ? 'bill_asked' : 'eating', who: nameOf.get(String(s.customers[0])) || null, guests: s.customers.length, total: x.total, due: x.due, rounds: x.rounds, since: s.openedAt, waitingSince: x.waitFrom || null, billAskedAt: s.billAskedAt || null, nudgedAt: s.lastNudgeAt || null, check: !!s.checkNotifiedAt && s.status === 'open' }; };
+    const groups = new Map();
+    for (const s of sessions) groups.set(s.table, [...(groups.get(s.table) || []), s]);
+    for (const r of rows) {
+        const g = groups.get(r.table) || [];
+        if (g.length > 1) {
+            const parts = g.map(bySession);
+            r.parties = parts;
+            r.state = parts.some((p) => p.state === 'bill_asked') ? 'bill_asked' : 'eating';
+            r.total = parts.reduce((m, p) => m + p.total, 0); r.due = parts.reduce((m, p) => m + p.due, 0); r.rounds = parts.reduce((m, p) => m + p.rounds, 0);
+            const waits = parts.map((p) => p.waitingSince).filter(Boolean).map((d) => new Date(d).getTime());
+            r.waitingSince = waits.length ? new Date(Math.min(...waits)) : null;
+            r.check = parts.some((p) => p.check);
+        }
+    }
+    // guests who owe something and cannot be reached, or have their location off (services/guestWatch.js): a badge on the card, no sound
+    const gw = require('./guestWatch');
+    if (gw.cfgOf(tenant).guestWatch !== false) {
+        const now = new Date();
+        const minutes = gw.minutesOf(tenant);
+        const flagged = new Map(sessions.map((s) => [String(s._id), gw.watchOf(s, now, minutes)]).filter(([, w]) => w.length));
+        if (flagged.size) {
+            const names = new Map((await User.find({ _id: { $in: [...flagged.values()].flat().map((w) => w.userId) } }).select('name').lean()).map((u) => [String(u._id), String(u.name || '').trim().split(/\s+/)[0] || null]));
+            const named = (list) => list.map((w) => ({ userId: w.userId, name: names.get(w.userId) || null, state: w.state, since: w.since }));
+            for (const r of rows) {
+                const g = groups.get(r.table) || [];
+                const all = [];
+                for (const s of g) { const w = named(flagged.get(String(s._id)) || []); all.push(...w); const p = (r.parties || []).find((x) => x.sessionId === String(s._id)); if (p) p.watch = w; }
+                if (all.length) r.watch = all;
+            }
+        }
+    }
     return rows;
 }
 
@@ -403,6 +452,7 @@ function startTableBillJob() {
     setInterval(() => clearOldRequests().catch((e) => console.error('Requests clean-up error:', e.message)), 10 * 60 * 1000).unref?.();
     setInterval(() => dailyOwed().catch((e) => console.error('Daily reminder error:', e.message)), 10 * 60 * 1000).unref?.();
     setInterval(() => autoReady().catch((e) => console.error('Auto ready error:', e.message)), 60 * 1000).unref?.();
+    setInterval(() => require('./guestWatch').scan().catch((e) => console.error('Guest watch error:', e.message)), 60 * 1000).unref?.();   // a guest who owes cannot be reached: the owner is told, quietly
     const run = () => closeIdle().catch((e) => console.error('Table job error:', e.message));
     setTimeout(run, 60 * 1000).unref?.();
     setInterval(run, 3 * 60 * 1000).unref?.();
@@ -465,7 +515,7 @@ async function forgive({ tenantId, sessionId }) {
 }
 
 // ---- calls, tip, requests, feedback ----
-const CALL_LABELS = { waiter: 'Call the waiter', water: 'Water please', cutlery: 'Spoon, plate or tissue', clean: 'Clean the table', other: 'Needs help' };
+const CALL_LABELS = { share: 'Wants to pay and leave', waiter: 'Call the waiter', water: 'Water please', cutlery: 'Spoon, plate or tissue', clean: 'Clean the table', other: 'Needs help' };
 
 // A guest asks for something at his table. Not twice for the same thing within 2 minutes.
 async function callWaiter({ tenant, userId, kind, text, table }) {
@@ -488,11 +538,13 @@ async function callWaiter({ tenant, userId, kind, text, table }) {
 async function requests(tenant) {
     const [calls, bills] = await Promise.all([
         TableRequest.find({ tenantId: tenant._id, status: 'open' }).sort({ createdAt: 1 }).limit(60).lean(),
-        TableSession.find({ tenantId: tenant._id, status: 'bill_asked' }).select('table billAskedAt').lean(),
+        TableSession.find({ tenantId: tenant._id, status: 'bill_asked' }).select('table billAskedAt label party').lean(),
     ]);
+    const sess = await TableSession.find({ _id: { $in: calls.map((c) => c.sessionId).filter(Boolean) } }).select('label').lean();
+    const letter = new Map(sess.map((x) => [String(x._id), x.label || null]));
     const out = [
-        ...calls.map((c) => ({ id: String(c._id), type: 'call', kind: c.kind, label: CALL_LABELS[c.kind], text: c.text || null, table: c.table, at: c.createdAt, sessionId: c.sessionId ? String(c.sessionId) : null })),
-        ...bills.map((b) => ({ id: 'b' + b._id, type: 'bill', kind: 'bill', label: 'Wants the bill', table: b.table, at: b.billAskedAt, sessionId: String(b._id) })),
+        ...calls.map((c) => ({ id: String(c._id), type: 'call', kind: c.kind, label: CALL_LABELS[c.kind], text: c.text || null, table: c.table, userId: c.userId ? String(c.userId) : null, party: letter.get(String(c.sessionId)) || null, at: c.createdAt, sessionId: c.sessionId ? String(c.sessionId) : null })),
+        ...bills.map((b) => ({ id: 'b' + b._id, type: 'bill', kind: 'bill', label: 'Wants the bill', table: b.table, party: b.label || null, at: b.billAskedAt, sessionId: String(b._id) })),
     ];
     return out.sort((a, b) => new Date(a.at) - new Date(b.at));
 }

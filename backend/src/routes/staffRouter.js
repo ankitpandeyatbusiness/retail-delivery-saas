@@ -151,6 +151,20 @@ core.get('/waiter/tables/:sessionId', onlyWaiter, wrap(async (req, res) => {
     if (!isId(req.params.sessionId)) throw httpError(404, 'Bill not found');
     res.json(await waiter.bill({ tenant: req.tenant, sessionId: req.params.sessionId }));
 }));
+// one guest paid his share and leaves: { method: 'cash' | 'upi' }
+core.post('/waiter/tables/:sessionId/share/:userId/settle', onlyWaiter, wrap(async (req, res) => {
+    if (!isId(req.params.sessionId) || !isId(req.params.userId)) throw httpError(404, 'Not found');
+    res.json(await waiter.settleShare({ tenant: req.tenant, sessionId: req.params.sessionId, userId: req.params.userId, method: req.body?.method, staff: who(req) }));
+}));
+// shared tables: a round on the wrong bill, or two bills that are one group
+core.post('/waiter/orders/:id/move', onlyWaiter, wrap(async (req, res) => {
+    if (!isId(req.params.id) || !isId(String(req.body?.toSessionId || ''))) throw httpError(404, 'Not found');
+    res.json(await waiter.move({ tenant: req.tenant, orderId: req.params.id, toSessionId: req.body.toSessionId }));
+}));
+core.post('/waiter/tables/:sessionId/merge', onlyWaiter, wrap(async (req, res) => {
+    if (!isId(req.params.sessionId) || !isId(String(req.body?.intoSessionId || ''))) throw httpError(404, 'Not found');
+    res.json(await waiter.mergeBills({ tenant: req.tenant, fromId: req.params.sessionId, intoId: req.body.intoSessionId }));
+}));
 // the QR a guest scans to pay this bill at the table
 core.get('/waiter/tables/:sessionId/pay-qr', onlyWaiter, wrap(async (req, res) => {
     if (!isId(req.params.sessionId)) throw httpError(404, 'Bill not found');

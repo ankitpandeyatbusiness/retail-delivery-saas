@@ -61,7 +61,7 @@ async function deliver(eventKey, def, ctx, doc) {
         }
     }
 
-    {
+    if (def.noPush !== true) {   // a QUIET message (noPush in events.js) is only in the list: no phone alert at all
         try {
             const r = await pushChannel.send({
                 tenantId, userId, title: doc.title, body: doc.body, data: { ...(ctx.data || {}), type: doc.type },

@@ -72,6 +72,7 @@ const orderSchema = new Schema({
         landmark: String, city: String, pincode: String, latitude: Number, longitude: Number,
     },
     tableNo: String,
+    tableParty: String,   // shared tables: the letter of this round's bill at the table (A, B...). The cook and the waiter see it next to the table number.
     tableSessionId: { type: Schema.Types.ObjectId, ref: 'TableSession' },   // the table bill this round belongs to (dine in)
     scheduledFor: Date,
     pickupNotified: { waitingAt: Date, overAt: Date, noShowAt: Date },   // the reminders for a pickup order, each sent once (jobs/pickupReminders.js)

@@ -8,7 +8,8 @@ import { Chip } from './cartParts';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { useTableBill } from '../../store/customers/useTableBill';
-import { callTable, setTableTip } from '../../api/customers/shopApi';
+import { callTable, setTableTip, askLeaveShare } from '../../api/customers/shopApi';
+import { ask } from '../common/dialog';
 import { showToast } from './shop';
 import { tr } from '../../i18n';
 
@@ -93,7 +94,18 @@ export function SplitCard({ bill }) {
     const shares = bill.shares || [];
     const base = bill.payable ?? bill.due;
     const [n, setN] = useState(1);   // he is alone until he says otherwise: he sees his whole amount at once
+    const [asking, setAsking] = useState(false);
+    const [asked, setAsked] = useState(false);
     if (!(base > 0)) return null;
+    const mine = shares.find((x) => x.userId === me);
+    const myDue = Math.round((mine?.due || 0) * 100) / 100;
+    // someone else is on this bill and he is done: he pays his own share and goes (the waiter takes it)
+    const leave = async () => {
+        const yes = await ask({ title: tr('Pay your share and leave?'), message: tr('Your share is {amount}. The waiter comes to take it. Your friends stay on the bill with theirs.', { amount: rs(myDue) }), confirmText: tr('Yes, call the waiter'), cancelText: tr('Not yet') });
+        if (!yes) return;
+        setAsking(true);
+        try { const r = await askLeaveShare(); setAsked(true); showToast(r.busy ? tr('Your dishes are still being made. Pay after they are served.') : tr('The waiter is on the way')); } catch (e) { showToast(e?.response?.data?.error || tr('Could not ask. Try again.')); } finally { setAsking(false); }
+    };
     const each = Math.ceil((base / n) * 100) / 100;
     const step = (d) => setN((x) => Math.min(20, Math.max(1, x + d)));
     const dot = (icon, d, off) => (
@@ -130,7 +142,12 @@ export function SplitCard({ bill }) {
                     ))}
                 </View>
             ) : null}
-            <Text style={{ color: muted, fontSize: 12, marginTop: 10 }}>{tr('This is only a guide. You still pay once, at the counter.')}</Text>
+            {shares.length > 1 && mine && myDue > 0 ? (
+                <View style={{ marginTop: 14 }}>
+                    {asked ? <Text style={{ color: ok, fontWeight: '800', textAlign: 'center' }}>{tr('The waiter knows. Please wait at your table.')}</Text> : <Button label={tr('Pay my share and leave')} icon="walk" kind="ghost" busy={asking} onPress={leave} />}
+                </View>
+            ) : null}
+            <Text style={{ color: muted, fontSize: 12, marginTop: 10 }}>{shares.length > 1 ? tr('Pay your own share and leave, or pay together once, at the counter.') : tr('This is only a guide. You still pay once, at the counter.')}</Text>
         </Card>
     );
 }

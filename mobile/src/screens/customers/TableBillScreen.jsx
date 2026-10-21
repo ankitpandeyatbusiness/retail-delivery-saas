@@ -60,7 +60,7 @@ export default function TableBillScreen() {
     if (!bill.open) {
         return (
             <View style={{ flex: 1, backgroundColor: background }}>
-                <PageHeader title={tr('Table bill')} />
+                <PageHeader title={bill.label ? tr('Table {n} · Bill {l}', { n: bill.table, l: bill.label }) : tr('Table bill')} />
                 <View style={{ alignItems: 'center', padding: 40 }}>
                     <Ionicons name="checkmark-circle" size={64} color={ok} />
                     <Text style={{ color: text, fontWeight: '900', fontSize: 20, marginTop: 12 }}>{tr('Nothing to pay')}</Text>

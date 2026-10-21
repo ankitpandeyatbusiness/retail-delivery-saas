@@ -48,7 +48,14 @@ export function ShopRow({ shop, onPress, compact }) {
                     <ShopStateBadge shop={shop} />
                     {shop.state?.reasons?.length > 1 ? <Badge label={`+${shop.state.reasons.length - 1} more`} /> : null}
                     {billing === 'paused' || billing === 'grace' ? <Badge label={`Rent ${billing}`} tone={billing === 'paused' ? 'danger' : 'warn'} icon="receipt" /> : null}
+                    {shop.rent?.custom ? <Badge label="Own rent plan" tone="info" icon="tune" /> : null}
                 </View>
+                {shop.rent?.text ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: spacing.sm }}>
+                        <Icon name="receipt" size={14} color={shop.rent.stage === 'paying' ? t.primary : shop.rent.stage === 'free' || shop.rent.stage === 'not_live' ? t.success : t.danger} style={{ marginTop: 2 }} />
+                        <Text style={{ color: t.muted, fontSize: font.xs, marginLeft: 6, flex: 1, lineHeight: 17 }} numberOfLines={2}>{shop.rent.text}</Text>
+                    </View>
+                ) : null}
             </View>
         </Pressable>
     );

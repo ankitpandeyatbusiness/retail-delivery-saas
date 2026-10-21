@@ -335,7 +335,25 @@ router.get('/dine-in/sessions/:id', wrap(async (req, res) => {
     if (!isId(req.params.id)) throw httpError(404, 'Bill not found');
     const s = await require('../models/TableSession').findOne({ _id: req.params.id, tenantId: req.tenant._id });
     if (!s) throw httpError(404, 'Bill not found');
-    res.json(await require('../services/tableBill').billOf(s, { owner: true }));
+    res.json({ ...(await require('../services/tableBill').billOf(s, { owner: true })), siblings: await require('../services/sharedTables').siblingsOf(s) });
+}));
+// one guest's share: take his money (he leaves the bill), or he left without paying (only his share is owed)
+router.post('/dine-in/sessions/:id/share/:userId/settle', wrap(async (req, res) => {
+    if (!isId(req.params.id) || !isId(req.params.userId)) throw httpError(404, 'Not found');
+    try { res.json(await require('../services/tableShares').settleShare({ tenantId: req.tenant._id, sessionId: req.params.id, userId: req.params.userId, method: req.body?.method, by: { type: 'owner' } })); } catch (e) { throw httpError(e.status || 400, e.message); }
+}));
+router.post('/dine-in/sessions/:id/share/:userId/walkout', wrap(async (req, res) => {
+    if (!isId(req.params.id) || !isId(req.params.userId)) throw httpError(404, 'Not found');
+    try { res.json(await require('../services/tableShares').walkoutShare({ tenantId: req.tenant._id, sessionId: req.params.id, userId: req.params.userId })); } catch (e) { throw httpError(e.status || 400, e.message); }
+}));
+// shared tables: a round on the wrong bill, or two bills that are one group (the same table only)
+router.post('/dine-in/orders/:id/move', wrap(async (req, res) => {
+    if (!isId(req.params.id) || !isId(String(req.body?.toSessionId || ''))) throw httpError(404, 'Not found');
+    try { res.json(await require('../services/sharedTables').moveOrder({ tenant: req.tenant, orderId: req.params.id, toSessionId: req.body.toSessionId })); } catch (e) { throw httpError(e.status || 400, e.message); }
+}));
+router.post('/dine-in/sessions/:id/merge', wrap(async (req, res) => {
+    if (!isId(req.params.id) || !isId(String(req.body?.intoSessionId || ''))) throw httpError(404, 'Not found');
+    try { res.json(await require('../services/sharedTables').merge({ tenant: req.tenant, fromId: req.params.id, intoId: req.body.intoSessionId })); } catch (e) { throw httpError(e.status || 400, e.message); }
 }));
 router.post('/dine-in/sessions/:id/settle', wrap(async (req, res) => {
     if (!isId(req.params.id)) throw httpError(404, 'Bill not found');

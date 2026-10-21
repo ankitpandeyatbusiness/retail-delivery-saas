@@ -7,6 +7,8 @@ import * as SystemUI from 'expo-system-ui';
 import RootNavigator from './src/navigation/RootNavigator';
 import { ToastHost, toast } from './src/components/feedback';
 import LegalGate from './src/components/LegalGate';
+import LockGate from './src/lock/LockUI';
+import { useSupreme } from './src/hooks/useSupreme';
 import { useAuthStore } from './src/store/useAuthStore';
 import { useThemeStore } from './src/store/useThemeStore';
 import { useInboxStore } from './src/store/useInboxStore';
@@ -16,6 +18,13 @@ import { fetchMe } from './src/api/authApi';
 import { useTheme } from './src/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => { });
+
+// the panel's lock: every superadmin may switch it on; the supreme admin (money, settlements, agreements) must have it. Signing out is the way out of a forgotten PIN.
+function PanelLock() {
+    const id = useAuthStore((s) => (s.token ? (s.admin?._id || s.admin?.id || s.admin?.email || 'admin') : null));
+    const supreme = useSupreme();
+    return <LockGate uid={id} required={supreme} onSignOut={() => useAuthStore.getState().logout()} />;
+}
 
 function Shell() {
     const t = useTheme();
@@ -52,6 +61,7 @@ function Shell() {
         <NavigationContainer ref={navigationRef} onReady={flushPending} theme={{ ...base, colors: { ...base.colors, background: t.bg, card: t.surface, text: t.text, border: t.border, primary: t.primary } }}>
             <RootNavigator />
             <LegalGate />
+            <PanelLock />
             <ToastHost />
         </NavigationContainer>
     );

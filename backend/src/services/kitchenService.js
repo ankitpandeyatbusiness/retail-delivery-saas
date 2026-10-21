@@ -13,7 +13,7 @@ const staffService = require('./staffService');
 const { HIDE_UNPAID } = require('./onlineOrder');
 const { httpError } = require('../middlewares/apiErrors');
 
-const FIELDS = 'orderNo orderType status tableNo items note scheduledFor pickupUntil customer.name createdAt statusHistory kitchen payment tableSessionId pickupIntent';
+const FIELDS = 'orderNo orderType status tableNo items note scheduledFor pickupUntil customer.name createdAt statusHistory kitchen payment tableSessionId tableParty pickupIntent';
 const KINDS = { out_of_stock: 'a dish is finished', cannot_make: 'it cannot be made', other: 'there is a problem' };
 const PROBLEM_GAP_MS = 2 * 60 * 1000;   // the same order: one message to the owner every two minutes at most
 
@@ -57,6 +57,7 @@ function viewOf(o, { lateMin, now = Date.now() }) {
         orderNo: o.orderNo,
         orderType: o.orderType,
         tableNo: o.tableNo || null,
+        party: o.tableParty || null,   // shared tables: the bill's letter, shown next to the table number
         who: o.orderType === 'pickup' ? firstName(o.customer?.name) : '',
         intent: o.orderType === 'pickup' ? (o.pickupIntent?.kind || null) : null,   // coming | arrived | on_time | late | more_time: what the pickup customer said
         status: o.status,

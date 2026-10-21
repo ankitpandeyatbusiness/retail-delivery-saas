@@ -14,6 +14,7 @@ import { applyTypography } from './src/components/common/typography';
 import { useBrand } from './src/components/common/kit';
 import { useLang, syncLanguage } from './src/i18n';
 import { installTextTranslation } from './src/i18n/textPatch';
+import LockGate from './src/lock/LockUI';
 
 // The native splash screen (brand colour + logo) is the only loading screen. It stays up until the shop's look
 // and the saved login are ready, then fades out into the app: no black screen, no second spinner.
@@ -24,6 +25,13 @@ try { SplashScreen.setOptions({ duration: 350, fade: true }); } catch (e) { /* o
 
 const MAX_WAIT_MS = 3000;   // never keep the splash longer than this waiting for the network
 const withTimeout = (p, ms) => Promise.race([p, new Promise((r) => setTimeout(r, ms))]);
+
+// the app lock is for the shop owner only (customers, riders, cooks and waiters are not asked); signing out is the way out of a forgotten PIN
+function OwnerLock() {
+  const id = useAuthStore((s) => (s.user?.role === 'admin' ? s.user.id || s.user._id : null));
+  const logout = useAuthStore((s) => s.logout);
+  return <LockGate uid={id} required={false} onSignOut={() => logout().catch(() => { })} />;
+}
 
 export default function App() {
   const [isReady, setIsReady] = useState(false);
@@ -66,6 +74,7 @@ export default function App() {
       <SafeAreaProvider>
         <SheetHost key={lang}>
           <AppNavigator />
+          <OwnerLock />
         </SheetHost>
         {/* after the host so alerts (e.g. "Delete address?") draw above the sheet */}
         <DialogHost />

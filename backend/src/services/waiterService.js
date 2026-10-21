@@ -13,7 +13,7 @@ const { DEFAULTS } = require('./tenantConfigService');
 const { HIDE_UNPAID } = require('./onlineOrder');
 const { httpError } = require('../middlewares/apiErrors');
 
-const FIELDS = 'orderNo tableNo items note statusHistory tableSessionId createdAt';
+const FIELDS = 'orderNo tableNo tableParty customer.name items note statusHistory tableSessionId createdAt';
 const dineOf = (tenant) => ({ ...DEFAULTS.orders.dineIn, ...(tenant?.settings?.orders?.dineIn || {}) });
 const readyAt = (o) => {
     for (let i = (o.statusHistory || []).length - 1; i >= 0; i -= 1) if (o.statusHistory[i].status === 'ready') return o.statusHistory[i].at;
@@ -40,7 +40,7 @@ async function overview(tenant) {
         const at = readyAt(o);
         const waitedMin = Math.max(0, Math.floor((now - new Date(at).getTime()) / 60000));
         return {
-            id: String(o._id), orderNo: o.orderNo, table: o.tableNo || '', sessionId: o.tableSessionId ? String(o.tableSessionId) : null,
+            id: String(o._id), orderNo: o.orderNo, table: o.tableNo || '', party: o.tableParty || null, who: String(o.customer?.name || '').trim().split(/\s+/)[0] || null, sessionId: o.tableSessionId ? String(o.tableSessionId) : null,
             readyAt: at, waitedMin, late: waitedMin >= serveLateMin, note: o.note || '', items: (o.items || []).map(lineOf),
         };
     }).sort((a, b) => new Date(a.readyAt) - new Date(b.readyAt));
@@ -68,6 +68,16 @@ async function overview(tenant) {
         now: new Date(now),
     };
 }
+
+// one guest's share (only when the owner lets waiters take money)
+async function settleShare({ tenant, sessionId, userId, method, staff }) {
+    if (dineOf(tenant).waiterSettles === false) throw httpError(403, 'In this shop the owner takes the money for bills.');
+    try { return await require('./tableShares').settleShare({ tenantId: tenant._id, sessionId, userId, method, by: { type: 'staff', name: staff.name } }); } catch (e) { throw httpError(e.status || 400, e.message); }
+}
+
+// shared tables: one round to another bill of the table, or two bills into one
+async function move({ tenant, orderId, toSessionId }) { try { return await require('./sharedTables').moveOrder({ tenant, orderId, toSessionId }); } catch (e) { throw httpError(e.status || 400, e.message); } }
+async function mergeBills({ tenant, fromId, intoId }) { try { return await require('./sharedTables').merge({ tenant, fromId, intoId }); } catch (e) { throw httpError(e.status || 400, e.message); } }
 
 async function serve({ tenant, orderId, staff }) {
     const o = await Order.findOne({ _id: orderId, tenantId: tenant._id, orderType: 'dine_in' });
@@ -99,7 +109,7 @@ async function bill({ tenant, sessionId }) {
     const s = await TableSession.findOne({ _id: sessionId, tenantId: tenant._id, kind: { $ne: 'pickup' } });
     if (!s) throw httpError(404, 'Bill not found');
     const b = await tableBill.billOf(s, { owner: false });
-    return { ...b, canSettle: dineOf(tenant).waiterSettles !== false && ['open', 'bill_asked'].includes(s.status) };
+    return { ...b, canSettle: dineOf(tenant).waiterSettles !== false && ['open', 'bill_asked'].includes(s.status), siblings: await require('./sharedTables').siblingsOf(s) };
 }
 
 async function settle({ tenant, sessionId, method, staff }) {
@@ -130,4 +140,4 @@ async function payQr({ tenant, sessionId }) {
     return { available: true, mode: 'upi', payable, upiId: dine.upiId, table: s.table, upiString, image };
 }
 
-module.exports = { overview, serve, doneRequest, bill, settle, payQr };
+module.exports = { overview, serve, doneRequest, bill, settle, payQr, move, mergeBills, settleShare };

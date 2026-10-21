@@ -6,6 +6,7 @@ import { View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { SectionTitle } from './ui';
 import BillSheet from './BillSheet';
+import PartyPickSheet from './PartyPickSheet';
 import { TableCell, sortTables } from '../../screens/owners/OwnerDineInScreen';
 import { fetchDineTables } from '../../api/owners/shopApi';
 import { onNotification, onOrderUpdate } from '../../api/common/socket';
@@ -17,6 +18,8 @@ export default function OccupiedTables() {
     const enabled = !!useHomeStore((st) => st.full.orders.dineIn?.enabled);
     const [tables, setTables] = useState([]);
     const [open, setOpen] = useState(null);
+    const [pick, setPick] = useState(null);   // a table with several bills: which one to open
+    const openTable = (t) => { if ((t.parties || []).length > 1) setPick(t); else setOpen(t); };
     const load = useCallback(() => { fetchDineTables().then((r) => setTables((r.items || []).filter((t) => t.state !== 'free'))).catch(() => { }); }, []);
     useFocusEffect(useCallback(() => {
         load();   // even with Dine in switched off: guests who are still seated must stay visible
@@ -31,8 +34,9 @@ export default function OccupiedTables() {
         <View>
             <SectionTitle title={tr('Tables in use')} action={tr('All tables')} onAction={() => nav.navigate('OwnerDineIn')} />
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16 }}>
-                {sortTables(tables).map((t) => <TableCell key={t.table} t={t} blink onPress={() => setOpen(t)} />)}
+                {sortTables(tables).map((t) => <TableCell key={t.table} t={t} blink onPress={() => openTable(t)} />)}
             </View>
+            <PartyPickSheet visible={!!pick} title={pick ? tr('Table {t}: which bill?', { t: pick.table }) : ''} options={(pick?.parties || []).map((p) => ({ ...p, sub: p.state === 'bill_asked' ? tr('Wants the bill') : tr('Eating') }))} onPick={(p) => { setOpen({ ...pick, ...p }); setPick(null); }} onClose={() => setPick(null)} />
             <BillSheet table={open} onClose={() => setOpen(null)} onDone={load} />
         </View>
     );

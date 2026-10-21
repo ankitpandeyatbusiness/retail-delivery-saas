@@ -56,6 +56,23 @@ router.get('/usual', wrap(async (req, res) => {
     res.json({ usual: await require('../services/dineOffers').usual({ tenant: req.tenant, userId: req.auth.userId }) });
 }));
 
+// shared tables: who is at this table and what the guest can do · his choice (separate bill, or join them) · the answers
+const shared = require('../services/sharedTables');
+const sharedGuard = (e) => { throw httpError(e.status || 400, e.message); };
+router.get('/table/:table', wrap(async (req, res) => { res.json(await shared.stateAt({ tenant: req.tenant, userId: req.auth.userId, table: String(req.params.table) })); }));
+router.post('/table/:table/enter', wrap(async (req, res) => {
+    try { res.json(await shared.enter({ tenant: req.tenant, userId: req.auth.userId, table: String(req.params.table), choice: req.body?.choice, sessionId: req.body?.sessionId })); } catch (e) { if (e.extra) throw e; sharedGuard(e); }
+}));
+router.get('/joins', wrap(async (req, res) => { res.json({ items: await shared.pendingFor({ tenant: req.tenant, userId: req.auth.userId }) }); }));
+router.get('/join/:id', wrap(async (req, res) => { try { res.json(await shared.joinStatus({ tenant: req.tenant, userId: req.auth.userId, joinId: req.params.id })); } catch (e) { sharedGuard(e); } }));
+router.post('/join/:id/answer', wrap(async (req, res) => { try { res.json(await shared.answerJoin({ tenant: req.tenant, userId: req.auth.userId, joinId: req.params.id, approve: req.body?.approve })); } catch (e) { sharedGuard(e); } }));
+
+// the guest's app says where he stands, and he asks to pay his share and leave
+router.post('/presence', wrap(async (req, res) => { res.json(await require('../services/guestWatch').report({ tenantId: req.tenant._id, userId: req.auth.userId, loc: req.body?.loc })); }));
+router.post('/leave-ask', wrap(async (req, res) => {
+    try { res.json(await require('../services/tableShares').askLeave({ tenant: req.tenant, userId: req.auth.userId })); } catch (e) { throw httpError(e.status || 400, e.message); }
+}));
+
 router.get('/bill', wrap(async (req, res) => {
     const [s, owed] = await Promise.all([tableBill.openFor(req.tenant._id, req.auth.userId), tableBill.owedBy(req.tenant._id, req.auth.userId)]);
     if (s) return res.json({ open: true, ...(await tableBill.billOf(s)), owed });

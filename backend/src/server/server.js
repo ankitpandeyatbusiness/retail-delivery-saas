@@ -82,6 +82,8 @@ connectDB()
             startPaymentReconcileScheduler();
             startRiderDutyScheduler();   // a rider who forgot to end duty is put off duty
             startRiderScheduleTicker();  // riders on "auto" go on and off duty by their own timing
+            // the old "one open bill per table" index would refuse a second bill on a shared table: drop it once, make the new one
+            require('../models/TableSession').collection.dropIndex('tenantId_1_table_1').catch(() => { }).then(() => require('../models/TableSession').createIndexes()).catch((e) => console.error('Table index error:', e.message));
             startTableBillJob();         // a visit nobody orders from and nothing is owed on is closed
             startStaffNudges();          // the cooks and the waiters get one nudge for an order that waits too long
             startPickupReminders();      // pickup orders that are ready: reminders to the customer, and the owner is told when nobody came

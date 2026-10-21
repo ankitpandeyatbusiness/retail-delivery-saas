@@ -29,4 +29,7 @@ export const waiterUndo = (id) => d(api.post(`/staff/waiter/orders/${id}/undo`))
 export const waiterDoneRequest = (id) => d(api.post(`/staff/waiter/requests/${id}/done`));
 export const fetchTableBill = (sessionId) => d(api.get(`/staff/waiter/tables/${sessionId}`));   // the bill, with canSettle
 export const fetchPayQr = (sessionId) => d(api.get(`/staff/waiter/tables/${sessionId}/pay-qr`));   // { available, payable, image?, upiId?, reason? }
+export const waiterMoveRound = (orderId, toSessionId) => d(api.post(`/staff/waiter/orders/${orderId}/move`, { toSessionId }));   // a round on the wrong bill
+export const waiterMergeBills = (sessionId, intoSessionId) => d(api.post(`/staff/waiter/tables/${sessionId}/merge`, { intoSessionId }));   // two bills that are one group
+export const waiterSettleShare = (sessionId, userId, method) => d(api.post(`/staff/waiter/tables/${sessionId}/share/${userId}/settle`, { method }));   // one guest paid his share and leaves
 export const waiterSettle = (sessionId, method) => d(api.post(`/staff/waiter/tables/${sessionId}/settle`, { method }));   // 'cash' | 'upi'

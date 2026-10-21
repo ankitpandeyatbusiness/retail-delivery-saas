@@ -8,7 +8,7 @@ const schema = new Schema({
     sessionId: { type: Schema.Types.ObjectId, ref: 'TableSession' },
     table: { type: String, required: true },
     userId: { type: Schema.Types.ObjectId, ref: 'User' },
-    kind: { type: String, enum: ['waiter', 'water', 'cutlery', 'clean', 'other'], required: true },
+    kind: { type: String, enum: ['waiter', 'water', 'cutlery', 'clean', 'other', 'share'], required: true },
     text: { type: String, maxlength: 120 },
     status: { type: String, enum: ['open', 'done'], default: 'open' },
     doneAt: Date,
