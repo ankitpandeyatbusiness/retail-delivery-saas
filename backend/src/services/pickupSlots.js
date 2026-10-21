@@ -19,8 +19,8 @@ const istDate = (ms) => {
     return `${WEEKDAYS[d.getUTCDay()]}, ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
 };
 
-// 2-hour windows that always start at an odd hour (1 PM, 3 PM, 5 PM ... IST), for today and tomorrow.
-// Parts of a window when the shop is closed are cut off.
+// 2-hour windows that always start at an odd hour (1 PM, 3 PM, 5 PM ... IST), for today and tomorrow. Only windows that have not begun yet are offered.
+// Parts of a window when the shop is closed are cut off, so a window never runs past the closing time (and starts no earlier than the opening time).
 function pickupSlots(tenant, now = new Date()) {
     const config = resolveConfig(tenant, now);
     if (!config.restaurant.isOpen) {
@@ -41,6 +41,7 @@ function pickupSlots(tenant, now = new Date()) {
     const slots = [];
     const perDay = [0, 0];
     for (; s < today0 + 2 * DAY_MS; s += 2 * HOUR_MS) {
+        if (s < nowMs) continue;   // a window that has already begun is not offered: at 8 PM the 7-9 PM window is gone, the next one is 9 PM
         const cap = s + 2 * HOUR_MS;
         let from = Math.ceil(Math.max(s, nowMs) / STEP_MS) * STEP_MS;
         while (from < cap && !isOpenAt(from)) from += STEP_MS;

@@ -119,7 +119,8 @@ function ComplaintView({ c0 }) {
                 <>
                     <SectionTitle title={tr('Your answer')} />
                     <Card>
-                        <Text style={{ color: text, fontWeight: '800' }}>{RESOLUTION_TEXT[c.resolution]}{c.refundPaise ? ` · ${rupees(c.refundPaise)}` : ''}</Text>
+                        <Text style={{ color: text, fontWeight: '800' }}>{c.autoReason ? tr('Closed by itself') : RESOLUTION_TEXT[c.resolution]}{c.refundPaise ? ` · ${rupees(c.refundPaise)}` : ''}</Text>
+                        {c.autoReason ? <Text style={{ color: muted, fontSize: 12, marginTop: 4 }}>{tr('24 hours passed since you replied, so this was closed. No refund was given.')}</Text> : null}
                         {c.ownerReply ? <Text style={{ color: muted, marginTop: 6 }}>“{c.ownerReply}”</Text> : null}
                         {c.type === 'not_received' && c.riderFault != null ? <Text style={{ color: c.riderFault ? error : muted, fontSize: 12, marginTop: 6 }}>{c.riderFault ? tr('You marked the rider as at fault.') : tr('You marked the rider as not at fault.')}</Text> : null}
                         {c.refundStatus === 'pending' ? <Text style={{ color: muted, fontSize: 12, marginTop: 6 }}>{tr('The refund is on its way to the customer.')}</Text> : null}

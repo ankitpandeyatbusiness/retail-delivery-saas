@@ -19,15 +19,18 @@ const allowed = (rules, role) => (role === 'kitchen' ? rules.kitchenOn : rules.w
 
 const shape = (s, phone, closed = false) => ({ userId: String(s.userId), role: s.role, job: JOB[s.role], name: s.name || '', phone: phone || '', isActive: s.isActive, lastSeenAt: s.lastSeenAt || null, duty: require('./staffDuty').statusOf(s, new Date(), closed) });   // duty: on | off | outside | holiday
 
-async function list(tenant) {
+async function list(tenant, { stats = false } = {}) {
     const rows = await Staff.find({ tenantId: tenant._id }).sort({ role: 1, createdAt: 1 }).lean();
     const users = await User.find({ _id: { $in: rows.map((r) => r.userId) } }).select('phone').lean();
     const phone = new Map(users.map((u) => [String(u._id), u.phone]));
     const rules = rulesOf(tenant);
     const duty = require('./staffDuty');
     const closedBy = { kitchen: (await duty.closedFor(tenant, 'kitchen')).closed, waiter: (await duty.closedFor(tenant, 'waiter')).closed };
+    // the owner's Kitchen staff / Waiters pages also want what each person did today and this week
+    const done = new Map();
+    if (stats) for (const role of ROLES) { const ids = rows.filter((r) => r.role === role).map((r) => r.userId); if (ids.length) for (const [k, v] of await require('./staffStats').forRole(tenant._id, role, ids)) done.set(k, v); }
     return {
-        items: rows.map((r) => ({ ...shape(r, phone.get(String(r.userId)), closedBy[r.role]), panelOn: allowed(rules, r.role) })),
+        items: rows.map((r) => ({ ...shape(r, phone.get(String(r.userId)), closedBy[r.role]), panelOn: allowed(rules, r.role), ...(stats ? { stats: done.get(String(r.userId)) || null } : {}) })),
         rules: { kitchenOn: rules.kitchenOn === true, waiterOn: rules.waiterOn === true, max: rules.max },
     };
 }

@@ -288,7 +288,12 @@ router.put('/accepting-orders', wrap(async (req, res) => {
         : { $set: { 'settings.orders.acceptingOrders': b.acceptingOrders }, $unset: { 'settings.orders.pausedUntil': '' } };
     await Tenant.updateOne({ _id: req.tenant._id }, update);
     tenantRecognizer.invalidateTenant(req.tenant.slug);
-    try { require('../services/realtime').toShop(req.tenant._id, 'menu:changed', {}); } catch (e) { /* the apps also refresh on their own */ }   // customers see open / closed at once
+    try {
+        const rt = require('../services/realtime');
+        rt.toShop(req.tenant._id, 'menu:changed', {});   // customers see open / closed at once
+        rt.toKitchen(req.tenant._id, 'kitchen:update', { shop: true });   // cooks and waiters too: their screen goes grey / comes back at once, not at the next refresh
+        rt.toWaiter(req.tenant._id, 'waiter:update', { shop: true });
+    } catch (e) { /* the apps also refresh on their own */ }
     res.json({ ok: true, acceptingOrders: b.acceptingOrders, pausedUntil });
 }));
 

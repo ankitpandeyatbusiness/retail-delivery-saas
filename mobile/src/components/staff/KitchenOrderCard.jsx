@@ -77,9 +77,15 @@ export default function KitchenOrderCard({ o, lateMin, busy, onAct, onProblem, o
             ) : null}
 
             {o.problem ? (
-                <Text style={{ color: warn, fontWeight: '700', fontSize: 12.5, marginTop: 8 }}>
-                    {tr('You told the owner')}: {o.problem.kind === 'out_of_stock' ? tr('a dish is finished') : o.problem.kind === 'cannot_make' ? tr('cannot be made') : o.problem.note}
-                </Text>
+                o.problem.handledAt ? (
+                    <Text style={{ color: ok, fontWeight: '700', fontSize: 12.5, marginTop: 8 }}>
+                        {o.problem.handledAction === 'tell' ? tr('The owner has told the customer. Please carry on.') : tr('The owner says: please carry on.')}
+                    </Text>
+                ) : (
+                    <Text style={{ color: warn, fontWeight: '700', fontSize: 12.5, marginTop: 8 }}>
+                        {tr('You told the owner')}: {o.problem.dish ? `${o.problem.dish} · ` : ''}{o.problem.kind === 'out_of_stock' ? tr('a dish is finished') : o.problem.kind === 'cannot_make' ? tr('cannot be made') : o.problem.note}
+                    </Text>
+                )
             ) : null}
 
             {ready ? (

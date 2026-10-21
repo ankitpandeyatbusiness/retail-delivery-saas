@@ -37,13 +37,16 @@ export async function support() {
     try {
         const hardware = await LocalAuthentication.hasHardwareAsync();
         const level = await LocalAuthentication.getEnrolledLevelAsync();   // 0 none, 1 phone screen lock, 2/3 fingerprint or face
-        return { hardware, device: level >= LocalAuthentication.SecurityLevel.SECRET, biometric: level >= LocalAuthentication.SecurityLevel.BIOMETRIC_WEAK };
-    } catch (e) { return { hardware: false, device: false, biometric: false }; }
+        // a phone with face unlock hardware but no fingerprint: many phones keep their face unlock "low security" and Android then hides it from apps
+        let faceHw = false;
+        try { faceHw = (await LocalAuthentication.supportedAuthenticationTypesAsync()).includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION); } catch (e) { /* unknown */ }
+        return { hardware, device: level >= LocalAuthentication.SecurityLevel.SECRET, biometric: level >= LocalAuthentication.SecurityLevel.BIOMETRIC_WEAK, faceHw };
+    } catch (e) { return { hardware: false, device: false, biometric: false, faceHw: false }; }
 }
 // the phone's own prompt. biometricOnly: fingerprint or face only (the app's PIN is the way back); else the phone's screen lock is allowed too.
 export async function askPhone({ message, biometricOnly, cancelLabel }) {
     try {
-        const r = await LocalAuthentication.authenticateAsync({ promptMessage: message, cancelLabel: cancelLabel || 'Cancel', disableDeviceFallback: !!biometricOnly });
+        const r = await LocalAuthentication.authenticateAsync({ promptMessage: message, cancelLabel: cancelLabel || 'Cancel', disableDeviceFallback: !!biometricOnly, biometricsSecurityLevel: 'weak' });   // weak = a camera face unlock (Android class 2) counts too
         return !!r.success;
     } catch (e) { return false; }
 }

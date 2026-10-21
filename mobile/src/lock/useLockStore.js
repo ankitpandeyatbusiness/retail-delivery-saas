@@ -4,6 +4,9 @@ import * as ScreenCapture from 'expo-screen-capture';
 import { DEFAULTS, MAX_FAILS, WAIT_AFTER, WAIT_SEC, readSettings, writeSettings, clearSettings, newSalt, hashPin, askPhone } from './appLockCore';
 
 let busy = false;   // the phone's own prompt makes the app look "in the background" for a moment: that must not lock it again
+let busyTimer = null;
+// the prompt is over, but its "app is back" signal can arrive a moment late: keep ignoring it for a second
+const release = () => { clearTimeout(busyTimer); busyTimer = setTimeout(() => { busy = false; }, 1200); };
 const preview = (on) => { (on ? ScreenCapture.preventScreenCaptureAsync('applock') : ScreenCapture.allowScreenCaptureAsync('applock')).catch(() => { }); };
 const KEEP = ['enabled', 'method', 'biometric', 'autoLockMin', 'hidePreview', 'pinHash', 'salt', 'fails', 'lockedUntil'];
 const pick = (st) => Object.fromEntries(KEEP.map((k) => [k, st[k]]));
@@ -27,9 +30,9 @@ export const useLockStore = create((set, get) => ({
 
     // switching on, by the phone's own lock / fingerprint / face (it must work once now, so nobody locks himself out)
     enableDevice: async () => {
-        busy = true;
+        busy = true; clearTimeout(busyTimer);
         const ok = await askPhone({ message: 'Confirm it is you to switch the lock on' });
-        busy = false;
+        release();
         if (!ok) return false;
         await get().save({ enabled: true, method: 'device', pinHash: null, salt: null, fails: 0, lockedUntil: 0 });
         set({ needSetup: false });
@@ -47,17 +50,17 @@ export const useLockStore = create((set, get) => ({
 
     // unlocking
     tryPhone: async ({ biometricOnly } = {}) => {
-        busy = true;
+        busy = true; clearTimeout(busyTimer);
         const ok = await askPhone({ message: 'Unlock', biometricOnly, cancelLabel: biometricOnly ? 'Use PIN' : 'Cancel' });
-        busy = false;
-        if (ok) { await get().save({ fails: 0, lockedUntil: 0 }); set({ locked: false }); }
+        release();
+        if (ok) { set({ locked: false, bgAt: 0 }); await get().save({ fails: 0, lockedUntil: 0 }); }   // open first, save after: and forget when it went to the background, so it cannot lock again by itself
         return ok;
     },
     // { ok } | { wait: seconds } | { left: tries } | { out: true }  (out: too many wrong tries: he must sign in again)
     tryPin: async (pin) => {
         const st = get();
         if (st.lockedUntil > Date.now()) return { wait: Math.ceil((st.lockedUntil - Date.now()) / 1000) };
-        if ((await hashPin(pin, st.salt, st.uid)) === st.pinHash) { await get().save({ fails: 0, lockedUntil: 0 }); set({ locked: false }); return { ok: true }; }
+        if ((await hashPin(pin, st.salt, st.uid)) === st.pinHash) { set({ locked: false, bgAt: 0 }); await get().save({ fails: 0, lockedUntil: 0 }); return { ok: true }; }
         const fails = st.fails + 1;
         if (fails >= MAX_FAILS) return { out: true };
         const lockedUntil = fails >= WAIT_AFTER ? Date.now() + WAIT_SEC * 1000 : 0;
@@ -71,7 +74,9 @@ export const useLockStore = create((set, get) => ({
     foreground: () => {
         const st = get();
         if (busy || !st.enabled || st.locked || !st.bgAt) return;
-        if (st.autoLockMin === 0 || Date.now() - st.bgAt >= st.autoLockMin * 60000) set({ locked: true });
+        const away = Date.now() - st.bgAt;
+        set({ bgAt: 0 });   // one trip to the background is judged once
+        if (st.autoLockMin === 0 || away >= st.autoLockMin * 60000) set({ locked: true });
     },
     // he forgot the PIN: forget the lock on this phone; he signs in again (OTP / password) and sets a new one. Nothing on the server is touched.
     forgot: async () => { const uid = get().uid; if (uid) await clearSettings(uid); get().reset(); },

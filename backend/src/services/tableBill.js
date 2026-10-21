@@ -32,26 +32,14 @@ const DEAD = ['cancelled', 'undelivered'];
 const fail = (status, message, extra) => Object.assign(new Error(message), { status, ...(extra ? { extra } : {}) });
 const tell = (event, ctx) => Promise.resolve().then(() => require('../notifications/center').notify(event, ctx)).catch((e) => console.error('Notification error:', e.message));
 
-// An order is being placed at a table: join the visit that is open there, or start one. Several people at one table share one bill.
+// An order is being placed at a table: he keeps the bill he is on, or opens one. A guest who finds the table taken must first ask the people there
+// (or, when the shop allows several bills per table, take his own): see services/sharedTables.js
 async function joinOrOpen({ tenantId, table, userId, now = new Date() }) {
-    // shared tables: he keeps the bill he is on; a guest with none at an occupied table must have chosen first (services/sharedTables.js)
     const tenantDoc = await Tenant.findById(tenantId).select('settings.orders.dineIn').lean();
-    if (cfgOf(tenantDoc).sharedTables === true) {
-        const shared = require('./sharedTables');
-        const mine = await TableSession.findOneAndUpdate({ tenantId, table, customers: userId, status: { $in: ['open', 'bill_asked'] } }, { $set: { status: 'open', lastOrderAt: now }, $unset: { billAskedAt: 1 } }, { returnDocument: 'after' });
-        if (mine) return mine;
-        if (await TableSession.exists({ tenantId, table, status: { $in: ['open', 'bill_asked'] }, kind: { $ne: 'pickup' } })) throw fail(409, 'Someone is already at this table. Choose your own bill, or join them.', { code: 'choose_party' });
-        return shared.openParty({ tenant: tenantDoc && { _id: tenantId, ...tenantDoc }, table, userId, now });
-    }
-    const join = { $set: { status: 'open', lastOrderAt: now }, $unset: { billAskedAt: 1 }, $addToSet: { customers: userId } };
-    let s = await TableSession.findOneAndUpdate({ tenantId, table, status: { $in: ['open', 'bill_asked'] } }, join, { returnDocument: 'after' });
-    if (s) return s;
-    try {
-        return await TableSession.create({ tenantId, table, customers: [userId], openedAt: now, lastOrderAt: now });
-    } catch (e) {
-        if (e.code !== 11000) throw e;   // two people sat down at once: the other one's visit is the one
-        return TableSession.findOneAndUpdate({ tenantId, table, status: { $in: ['open', 'bill_asked'] } }, join, { returnDocument: 'after' });
-    }
+    const mine = await TableSession.findOneAndUpdate({ tenantId, table, customers: userId, status: { $in: ['open', 'bill_asked'] } }, { $set: { status: 'open', lastOrderAt: now }, $unset: { billAskedAt: 1 } }, { returnDocument: 'after' });
+    if (mine) return mine;
+    if (await TableSession.exists({ tenantId, table, status: { $in: ['open', 'bill_asked'] }, kind: { $ne: 'pickup' } })) throw fail(409, 'Someone is already at this table. Choose your own bill, or join them.', { code: 'choose_party' });
+    return require('./sharedTables').openParty({ tenant: tenantDoc && { _id: tenantId, ...tenantDoc }, table, userId, now });
 }
 
 // the bill of one visit
@@ -146,11 +134,11 @@ async function settle({ tenantId, sessionId, method, by }) {
 async function placementInfo({ tenant, userId, table }) {
     const cfg = cfgOf(tenant);
     let choose = null;
-    let s = await TableSession.findOne({ tenantId: tenant._id, table, status: { $in: ['open', 'bill_asked'] }, ...(cfg.sharedTables === true ? { customers: userId } : {}) });
-    if (cfg.sharedTables === true && !s) {
+    let s = await TableSession.findOne({ tenantId: tenant._id, table, status: { $in: ['open', 'bill_asked'] }, customers: userId });
+    if (!s) {
         // nobody of his is at this table; if others are, he must choose (separate bill, or join them) before he can order
         const others = await require('./sharedTables').partiesAt(tenant._id, table, { forUser: userId });
-        if (others.length) choose = { parties: others, canSeparate: others.length < require('./sharedTables').maxParties(tenant) };
+        if (others.length) choose = { parties: others, canSeparate: others.length < (cfg.sharedTables === true ? require('./sharedTables').maxParties(tenant) : 1) };
     }
     const [elsewhere, bill, visits, owes] = await Promise.all([
         TableSession.findOne({ tenantId: tenant._id, customers: userId, status: { $in: ['open', 'bill_asked'] }, table: { $ne: table } }).select('table').lean(),

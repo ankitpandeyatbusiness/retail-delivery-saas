@@ -86,6 +86,7 @@ const TEXTS = {
     pickup_intent: (v) => {
         const who = v.name || 'The customer';
         const what = v.brief || 'the order';
+        if (v.kind === 'on_time') return { title: `Order #${v.orderNo}: customer will be on time`, body: `${who} says they will be there on time for ${what}.` };
         if (v.kind === 'arrived') return { title: `Order #${v.orderNo}: customer is here`, body: `${who} is at the shop for ${what}. Check the pickup code and hand it over.` };
         if (v.kind === 'late') return { title: `Order #${v.orderNo}: customer is late`, body: `${who} says: on my way, sorry for the delay.` };
         if (v.kind === 'more_time') return { title: `Order #${v.orderNo}: needs more time`, body: `${who} needs a little more time for ${what}. Please keep it warm if you can.` };
@@ -98,6 +99,8 @@ const TEXTS = {
     pickup_claim_no: (v) => ({ title: 'We could not find it as collected', body: `The shop could not confirm that order #${v.orderNo} was collected. Please come to the shop or call them.${v.message ? ` The shop says: “${v.message}”.` : ''} Thank you for understanding.` }),
     food_packed_rider: (v) => ({ title: `Order #${v.orderNo} is packed`, body: `${v.brief ? `${v.brief}. ` : ''}It is ready for you to collect.` }),
     order_shop_note: (v) => ({ title: `Your order #${v.orderNo}`, body: v.text }),
+    staff_off_duty: (v) => ({ title: `${v.name || 'Staff'} is off duty`, body: `${v.name || 'Someone'} (${v.job || 'staff'}) switched off duty${v.on ? ' and is not taking alerts' : ''}.` }),
+    order_undone: (v) => ({ title: `Order #${v.orderNo}: step taken back`, body: `${v.by || 'Someone'} undid "${v.step}".` }),
     kitchen_problem: (v) => ({ title: `Kitchen: order #${v.orderNo}`, body: `${v.name || 'The cook'} says: ${v.what}${v.note ? ` (${v.note})` : ''}. Please decide what to do.` }),
     order_cancel_request: (v) => ({ title: `${v.where || 'Table'}: cancel order #${v.orderNo}?`, body: `${v.name || 'A guest'} asks to cancel ${v.brief || 'their order'}${v.note ? `: “${v.note}”` : ''}. It is already being made. Please say yes or no.` }),
     order_cancel_no: (v) => ({ title: 'We could not cancel it', body: `Sorry, order #${v.orderNo} is already being made, so the shop could not cancel it.${v.message ? ` The shop says: “${v.message}”.` : ''} Thank you for understanding.` }),

@@ -109,4 +109,54 @@ function cancelSpeechHi(order, who = '') {
     return parts.join(' ');
 }
 
-module.exports = { orderSpeech, orderSpeechHi, cancelSpeech, cancelSpeechHi, MAX_ITEMS };
+// ---- what the COOK hears: where the food is going, the dishes, and what the guest asked for. Never money, never a phone number.
+//   "New order for table 2, bill B. 1 Chicken Wings, 2 Paneer Butter Masala. Chicken Wings: less spicy. Note: no onion."
+const noteOf = (order) => clean(order.note).slice(0, 140);
+const lineNotes = (order) => (Array.isArray(order.items) ? order.items : []).filter((l) => clean(l.note)).slice(0, 3).map((l) => `${clean(l.name)}: ${clean(l.note).slice(0, 80)}`);
+
+function whereSpeech(order, hi) {
+    const bill = order.tableParty ? (hi ? `, बिल ${order.tableParty}` : `, bill ${order.tableParty}`) : '';
+    if (order.orderType === 'dine_in') return hi ? `टेबल ${order.tableNo || ''}${bill} के लिए नया ऑर्डर।` : `New order for table ${order.tableNo || ''}${bill}.`;
+    if (order.orderType === 'pickup') return hi ? 'नया पिकअप ऑर्डर।' : 'New pickup order.';
+    return hi ? 'नया डिलीवरी ऑर्डर।' : 'New delivery order.';
+}
+
+function kitchenSpeech(order, hi = false) {
+    const items = Array.isArray(order.items) ? order.items : [];
+    const shown = items.slice(0, MAX_ITEMS).map(lineSpeech);
+    const rest = items.length - shown.length;
+    if (rest > 0) shown.push(hi ? `और ${rest} आइटम` : `and ${rest} more ${rest === 1 ? 'item' : 'items'}`);
+    const parts = [whereSpeech(order, hi)];
+    if (shown.length) parts.push(`${shown.join(', ')}${hi ? '।' : '.'}`);
+    for (const n of lineNotes(order)) parts.push(`${n}${hi ? '।' : '.'}`);
+    const note = noteOf(order);
+    if (note) parts.push(hi ? `विशेष निर्देश: ${note}।` : `Note: ${note}.`);
+    return parts.join(' ');
+}
+
+// a cancelled order, for the cook: which one, where it was going and what it was, so he stops the right pan
+function kitchenCancelSpeech(order, hi = false) {
+    const items = Array.isArray(order.items) ? order.items : [];
+    const shown = items.slice(0, MAX_ITEMS).map(lineSpeech);
+    const rest = items.length - shown.length;
+    if (rest > 0) shown.push(hi ? `और ${rest} आइटम` : `and ${rest} more ${rest === 1 ? 'item' : 'items'}`);
+    const where = order.orderType === 'dine_in' ? (hi ? ` टेबल ${order.tableNo || ''}।` : ` Table ${order.tableNo || ''}.`) : order.orderType === 'pickup' ? (hi ? ' पिकअप।' : ' Pickup.') : (hi ? ' डिलीवरी।' : ' Delivery.');
+    const head = hi ? `ऑर्डर ${order.orderNo} रद्द हुआ। इसे मत बनाइए।` : `Order ${order.orderNo} is cancelled. Stop making it.`;
+    return `${head}${where}${shown.length ? ` ${shown.join(', ')}${hi ? '।' : '.'}` : ''}`;
+}
+
+// ---- a pickup customer told the shop something: who, what, the dishes and the time he chose. No money.
+const IST = (d) => new Date(new Date(d).getTime() + 330 * 60000);
+const clock = (d) => { const t = IST(d); const h = t.getUTCHours(); const m = String(t.getUTCMinutes()).padStart(2, '0'); return `${h % 12 || 12}:${m} ${h < 12 ? 'am' : 'pm'}`; };
+const INTENT_EN = { coming: 'is on the way', arrived: 'is here', on_time: 'will be there on time', late: 'is running late', more_time: 'needs more time' };
+const INTENT_HI = { coming: 'रास्ते में हैं', arrived: 'पहुँच गए हैं', on_time: 'समय पर पहुँचेंगे', late: 'देर से आ रहे हैं', more_time: 'को और समय चाहिए' };
+function pickupIntentSpeech(order, answer, hi = false) {
+    const items = (Array.isArray(order.items) ? order.items : []).slice(0, MAX_ITEMS).map(lineSpeech);
+    const who = clean(order.customer?.name).split(' ')[0] || (hi ? 'ग्राहक' : 'The customer');
+    const parts = [hi ? `पिकअप ऑर्डर ${order.orderNo}।` : `Pickup order ${order.orderNo}.`, hi ? `${who} ${INTENT_HI[answer] || ''}।` : `${who} ${INTENT_EN[answer] || 'sent a message'}.`];
+    if (items.length) parts.push(`${items.join(', ')}${hi ? '।' : '.'}`);
+    if (order.scheduledFor) parts.push(hi ? `पिकअप का समय ${clock(order.scheduledFor)}।` : `Pickup time ${clock(order.scheduledFor)}.`);
+    return parts.join(' ');
+}
+
+module.exports = { orderSpeech, orderSpeechHi, cancelSpeech, cancelSpeechHi, kitchenSpeech, kitchenCancelSpeech, pickupIntentSpeech, MAX_ITEMS };

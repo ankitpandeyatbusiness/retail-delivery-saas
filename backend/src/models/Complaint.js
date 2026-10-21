@@ -25,6 +25,8 @@ const schema = new mongoose.Schema({
     decidedAt: Date,
     decidedBy: String,
     remindedAt: Date,
+    repliedAt: Date,       // the owner wrote back without deciding: 24 hours later the complaint is closed by itself (jobs/complaintReminders.js)
+    autoReason: String,    // why it was closed by itself
 }, { timestamps: true });
 
 schema.index({ tenantId: 1, orderId: 1 }, { unique: true });          // one per order

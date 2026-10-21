@@ -126,7 +126,8 @@ describe('orders: price changed, double tap, Cash on delivery limit', () => {
         assert.equal((await place(w, { items: [{ productId: String(w.product._id), quantity: 2 }] })).status, 201);   // another cart
 
         const other = await makeUser(w.tenant, 'customer', '9000000031');
-        assert.equal((await place(w, {}, other)).status, 201);                                                          // another person
+        assert.equal((await place(w, {}, other)).status, 409, 'another person at the same table must first be let in');                // another person: asked first
+        assert.equal((await place(w, { tableNo: '6' }, other)).status, 201);                                                    // another person, another table
 
         await OrderGuard.updateMany({}, { $set: { at: new Date(Date.now() - 11000) } });                               // 11 seconds later
         assert.equal((await place(w)).status, 201);

@@ -210,7 +210,7 @@ export function LiveToggle({ on, busy, onPress }) {
     }, [on, v]);
     const W = 74; const H = 36; const K = 28;
     return (
-        <Pressable onPress={onPress} disabled={busy} hitSlop={8} accessibilityRole="switch" accessibilityState={{ checked: on }} accessibilityLabel={on ? tr('Shop is live. Tap to pause orders') : tr('Shop is off. Tap to go live')} style={{ marginRight: 4 }}>
+        <Pressable onPress={onPress} disabled={busy} hitSlop={8} accessibilityRole="switch" accessibilityState={{ checked: on }} accessibilityLabel={on ? tr('Shop is live. Tap to pause orders') : tr('Shop is off. Tap to go live')} style={{ marginRight: 4, flexShrink: 0 }}>
             <View style={{ width: W, height: H, borderRadius: H / 2, backgroundColor: alpha(error, 0.9), overflow: 'hidden', justifyContent: 'center', elevation: 3, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 5, shadowOffset: { width: 0, height: 2 } }}>
                 {/* the green track fades in over the red one */}
                 <Animated.View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: ok, opacity: v }} />
@@ -275,11 +275,11 @@ export function OwnerHeader({ title }) {
         <View style={[s.header, { paddingTop: insets.top + 8, backgroundColor: background }]}>
             <Pressable onPress={() => useDrawer.getState().show()} hitSlop={10} style={{ paddingRight: 12 }} accessibilityLabel={tr('Open the menu')}><Ionicons name="menu" size={26} color={text} /></Pressable>
             <ShopLogo />
-            <View style={{ flex: 1, marginLeft: 12 }}>
+            <View style={{ flex: 1, marginLeft: 12, marginRight: 10, minWidth: 0 }}>
                 <Text style={{ color: text, fontSize: 18, fontWeight: '900' }} numberOfLines={1}>{title || name}</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2, minWidth: 0 }}>
                     <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: open ? ok : error, marginRight: 6 }} />
-                    <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }} numberOfLines={1}>{label}</Text>
+                    <Text style={{ color: muted, fontSize: 12, fontWeight: '700', flexShrink: 1 }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{label}</Text>
                 </View>
             </View>
             <LiveToggle on={isOn} busy={switching} onPress={flip} />
@@ -315,14 +315,14 @@ export function AccessBanner() {
                     </Text>
                 </View>
             </View>
-            {!blocked ? <Button label={tr('Pay rent')} kind="primary" onPress={() => nav.navigate('MainTabs', { screen: 'MoneyTab' })} style={{ marginTop: 10 }} /> : null}
+            {!blocked ? <Button label={tr('Pay rent')} kind="primary" onPress={() => nav.navigate('OwnerMoney')} style={{ marginTop: 10 }} /> : null}
         </Card>
     );
 }
 
 /* ------------------------------ screen frame ------------------------------ */
 // Header + banner + pull to refresh, for the five tab screens.
-export function OwnerScreen({ title, children, onRefresh, refreshing, scroll = true }) {
+export function OwnerScreen({ title, children, onRefresh, refreshing, scroll = true, page = false }) {
     const { background, primary } = useBrand();
     const body = scroll ? (
         <ScrollView
@@ -336,7 +336,7 @@ export function OwnerScreen({ title, children, onRefresh, refreshing, scroll = t
     ) : (<><AccessBanner />{children}</>);
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
-            <OwnerHeader title={title} />
+            {page ? <PageHeader title={title} /> : <OwnerHeader title={title} />}
             {body}
         </View>
     );
@@ -428,7 +428,7 @@ export function Sheet({ visible, onClose, title, children }) {
 }
 
 // a text box: for a reason the owner types himself
-export function Field({ value, onChangeText, placeholder, multiline, maxLength = 200, autoFocus, style, keyboardType }) {
+export function Field({ value, onChangeText, placeholder, multiline, maxLength = 200, autoFocus, style, keyboardType, returnKeyType, onSubmitEditing }) {
     const { text, muted, border, surface } = useBrand();
     return (
         <TextInput
@@ -440,6 +440,8 @@ export function Field({ value, onChangeText, placeholder, multiline, maxLength =
             maxLength={maxLength}
             autoFocus={autoFocus}
             keyboardType={keyboardType}
+            returnKeyType={returnKeyType}
+            onSubmitEditing={onSubmitEditing}
             style={[{
                 borderWidth: 1, borderColor: border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, color: text, fontSize: 15,
                 backgroundColor: surface, minHeight: multiline ? 84 : 46, textAlignVertical: multiline ? 'top' : 'center',

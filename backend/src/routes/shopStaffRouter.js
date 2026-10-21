@@ -9,13 +9,21 @@ const { wrap, httpError } = apiErrors;
 const isId = (v) => typeof v === 'string' && mongoose.isValidObjectId(v);
 const router = express.Router();
 
-router.get('/', wrap(async (req, res) => { res.json(await staff.list(req.tenant)); }));
+router.get('/', wrap(async (req, res) => { res.json(await staff.list(req.tenant, { stats: req.query.stats === '1' })); }));
 
 // leave requests: GET /leaves { pending, recent } · POST /leaves/:id { approve: true|false, note? }
 router.get('/leaves', wrap(async (req, res) => { res.json(await require('../services/staffLeave').forOwner(req.tenant._id)); }));
 router.post('/leaves/:id', wrap(async (req, res) => {
     if (!isId(req.params.id)) throw httpError(404, 'Leave not found');
     res.json(await require('../services/staffLeave').decide({ tenantId: req.tenant._id, id: req.params.id, approve: req.body?.approve, note: req.body?.note }));
+}));
+
+// one person: what they did, what they are cooking now, their leaves and days off
+router.get('/:userId', wrap(async (req, res) => {
+    if (!isId(req.params.userId)) throw httpError(404, 'Staff member not found');
+    const d = await require('../services/staffStats').detail({ tenant: req.tenant, userId: req.params.userId });
+    if (!d) throw httpError(404, 'Staff member not found');
+    res.json(d);
 }));
 
 router.post('/', wrap(async (req, res) => {

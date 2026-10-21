@@ -19,7 +19,7 @@ import OwnerHomeScreen from '../screens/owners/OwnerHomeScreen';
 import OwnerOrdersScreen from '../screens/owners/OwnerOrdersScreen';
 import OwnerMenuScreen from '../screens/owners/OwnerMenuScreen';
 import OwnerRidersScreen from '../screens/owners/OwnerRidersScreen';
-import OwnerMoneyScreen from '../screens/owners/OwnerMoneyScreen';
+import OwnerTxTabScreen from '../screens/owners/OwnerTxTabScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -27,8 +27,8 @@ const TABS = {
     HomeTab: { label: 'Home', icon: 'home', component: OwnerHomeScreen },
     OrdersTab: { label: 'Orders', icon: 'receipt', component: OwnerOrdersScreen },
     MenuTab: { label: 'Menu', icon: 'restaurant', component: OwnerMenuScreen },
+    TxTab: { label: 'Transactions', icon: 'swap-vertical', component: OwnerTxTabScreen },
     RidersTab: { label: 'Riders', icon: 'bicycle', component: OwnerRidersScreen },
-    MoneyTab: { label: 'Money', icon: 'wallet', component: OwnerMoneyScreen },
 };
 
 export default function OwnerTabs() {

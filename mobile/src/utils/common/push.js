@@ -50,7 +50,7 @@ Notifications.setNotificationHandler({
 
 // Messages the app already makes a sound for (the owner's Soundbox, the customer's order steps). Every other message gets one soft ping,
 // because with the app open the system sound is muted on purpose: without this a pickup-time request or the shop's reply would be silent.
-const QUIET_TYPES = ['table_guest_alert', 'staff_holiday'];   // meant to be silent: only in the list
+const QUIET_TYPES = ['table_guest_alert'];   // meant to be silent: only in the list
 const SOUNDBOX_TYPES = ['order_new', 'order_unaccepted_reminder', 'order_cancelled', 'table_bill_asked', 'table_call', 'kitchen_problem', 'pickup_intent', 'rider_sos'];
 function hasOwnSound(n) {
     if (QUIET_TYPES.includes(n?.type)) return true;   // no ping, no sound
@@ -182,11 +182,11 @@ async function getToken() {
 
 // What this phone really holds for the owner's loud channel, for the Soundbox screen's "Phone check".
 // Android freezes a channel's sound when it is created, so this is the truth about what a push will do here.
-export async function newOrderChannelInfo() {
+export async function newOrderChannelInfo(channelId = NEW_ORDERS_CHANNEL) {
     if (Platform.OS !== 'android') return { supported: false };
     try {
         const perm = await Notifications.getPermissionsAsync();
-        const ch = await Notifications.getNotificationChannelAsync(NEW_ORDERS_CHANNEL);
+        const ch = await Notifications.getNotificationChannelAsync(channelId);
         return {
             supported: true,
             allowed: perm.status === 'granted',

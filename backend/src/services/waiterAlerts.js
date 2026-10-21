@@ -27,13 +27,7 @@ async function onStatus({ before, updated, status }) {
     try {
         if (updated.orderType !== 'dine_in') return;
         tell(updated.tenantId, { orderId: String(updated._id), orderNo: updated.orderNo, table: updated.tableNo, status });
-        if (status === 'cancelled' && ['accepted', 'preparing', 'ready'].includes(before?.status)) {
-            tell(updated.tenantId, { orderId: String(updated._id), orderNo: updated.orderNo, table: updated.tableNo, status, alert: { kind: 'cancel', table: updated.tableNo, orderNo: updated.orderNo } });
-            await ring(updated.tenantId, {
-                title: `Order #${updated.orderNo} cancelled`, body: `${updated.tableNo ? `Table ${updated.tableNo}. ` : ''}Do not serve it.`,
-                data: { type: 'waiter_cancelled', orderId: String(updated._id), orderNo: updated.orderNo, table: String(updated.tableNo || ''), kind: 'cancel', speech: `Order ${updated.orderNo} cancelled`, speechHi: `ऑर्डर ${updated.orderNo} रद्द हुआ` }, tag: `serve:${updated._id}`, alarm: true,
-            });
-        }
+        // a cancelled order is the cook's news, not the waiter's: no alert and no push for it (the floor list just loads again, above)
         if (status === 'ready' && before?.status !== 'ready') {
             tell(updated.tenantId, { orderId: String(updated._id), orderNo: updated.orderNo, table: updated.tableNo, status, alert: { kind: 'ready', table: updated.tableNo, orderNo: updated.orderNo } });
             await ring(updated.tenantId, {

@@ -10,6 +10,7 @@ import { useViewMode } from '../../store/owners/useViewMode';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { onNotification, onOrderUpdate } from '../../api/common/socket';
 import { fetchOrder } from '../../api/owners/shopApi';
+import { alertOn } from '../../store/common/useAlertPrefs';
 import { tr } from '../../i18n';
 
 export default function KitchenProblemPopup() {
@@ -25,7 +26,7 @@ export default function KitchenProblemPopup() {
         if (!on) { setQueue([]); return undefined; }
         const offN = onNotification((n) => {
             const id = n?.type === 'kitchen_problem' ? String(n?.data?.orderId || '') : '';
-            if (!id || seen.current.has(id)) return;
+            if (!id || seen.current.has(id) || !alertOn('kitchen_problem', 'p')) return;
             seen.current.add(id);
             fetchOrder(id).then((o) => { if (o?.kitchen?.problem?.at && !o.kitchen.problem.handledAt) setQueue((q) => (q.some((x) => String(x.id) === id) ? q : [...q, o])); }).catch(() => { });
         });

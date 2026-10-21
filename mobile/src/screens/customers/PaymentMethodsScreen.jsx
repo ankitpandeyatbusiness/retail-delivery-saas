@@ -132,6 +132,8 @@ export default function PaymentMethodsScreen() {
             key: `upi:${a.pkg}`, value: 'upi', app: { pkg: a.pkg, label: a.label }, label: a.label, cartLabel: `${a.label} (UPI)`,
             logo: a.logo, mark: a.mark || a.label.slice(0, 1).toUpperCase(), desc: `Pay with ${a.label}. It opens directly`,
         })),
+        // any other UPI app on the phone (or when the phone could not tell us which ones it has): Android shows its own list
+        ...(apps?.other ? [{ key: 'upi:any', value: 'upi', app: { chooser: true, label: 'UPI' }, label: 'Other UPI app', cartLabel: 'UPI', icon: 'phone-portrait-outline', desc: 'Choose any UPI app on this phone' }] : []),
     ];
 
     return (

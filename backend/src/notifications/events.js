@@ -43,7 +43,8 @@ const EVENTS = {
     table_join_answer: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },    // the answer to that
     staff_leave_request: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // a cook or a waiter asks for leave: the owner decides
     staff_leave_decision: { to: 'rider', channels: INAPP_PUSH, alsoPush: true },  // the owner said yes or no to their leave
-    staff_holiday: { to: 'owner', channels: INAPP_PUSH, alsoPush: false, noPush: true },         // a cook or a waiter put days off in their calendar
+    staff_holiday: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },         // a cook or a waiter put days off in their calendar
+    staff_off_duty: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },        // a cook or a waiter switched themselves off duty (no popup)
     pickup_intent: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },        // a pickup customer says he is coming, is here, is late or needs more time
     pickup_waiting: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },   // a pickup order is ready and waiting
     pickup_time_request: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // the customer asks to move his pickup to a later time: the owner answers
@@ -55,6 +56,7 @@ const EVENTS = {
     pickup_claim_no: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },        // the shop could not find it collected yet
     food_packed_rider: { to: 'rider', channels: INAPP_PUSH, alsoPush: true },        // the kitchen packed the order the rider is coming for
     order_shop_note: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },      // the shop writes to the customer about his order (a polite note)
+    order_undone: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },             // someone took their last step back (Ready, Served, Picked up...): the owner knows
     kitchen_problem: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },          // the cook cannot make something (a dish is finished, or another problem)
     order_cancel_request: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },      // a table guest asks the shop to cancel a round
     order_cancel_no: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },        // the shop could not cancel it

@@ -1,7 +1,8 @@
 // A cook's or a waiter's own working time, on the Profile page: Go live, hours (by hand or by the clock) and days off (a holiday or leave).
 // Alerts (the ting-tong and the push) reach only people on duty. Nothing here hides the orders: an off-duty person can still open the app.
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, Pressable, TextInput, Switch } from 'react-native';
+import { View, Text, Pressable, TextInput } from 'react-native';
+import SlideSwitch from '../common/SlideSwitch';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../common/kit';
 import { Card, SectionTitle, Sheet, Button, Chips, Pill } from '../owners/ui';
@@ -107,7 +108,7 @@ export default function DutyCard() {
                             <Text style={{ color: text, fontWeight: '900', fontSize: 17 }}>{d.status === 'shop_closed' ? tr('Shop is closed') : d.online ? tr('Live') : tr('Off duty')}</Text>
                             <Text style={{ color: colors[tone] || muted, fontSize: 12.5, marginTop: 2 }}>{tr(line)}</Text>
                         </View>
-                        <Switch disabled={d.status === 'shop_closed'} value={d.online && d.status !== 'shop_closed'} onValueChange={(v) => act(() => saveDuty({ online: v }), v ? tr('You are live') : tr('You are off duty'))} trackColor={{ true: alpha(primary, 0.5), false: border }} thumbColor={d.online ? primary : muted} />
+                        <SlideSwitch disabled={d.status === 'shop_closed'} value={d.online && d.status !== 'shop_closed'} onValueChange={(v) => act(() => saveDuty({ online: v }), v ? tr('You are live') : tr('You are off duty'))} accessibilityLabel={tr('Live or off duty')} />
                     </View>
                 ) : (
                     <View>
@@ -131,7 +132,7 @@ export default function DutyCard() {
                                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                         <Text style={{ flex: 1, color: day.on ? text : muted, fontWeight: '800', fontSize: 15 }}>{tr(name)}</Text>
                                         <Text style={{ color: muted, fontSize: 12, marginRight: 8 }}>{day.on ? tr('Working') : tr('Day off')}</Text>
-                                        <Switch value={day.on} onValueChange={(v) => setDay(k, { on: v })} trackColor={{ true: alpha(primary, 0.5), false: border }} thumbColor={day.on ? primary : muted} />
+                                        <SlideSwitch value={day.on} onValueChange={(v) => setDay(k, { on: v })} />
                                     </View>
                                     {day.on ? (
                                         <View style={{ flexDirection: 'row', marginTop: 8 }}>

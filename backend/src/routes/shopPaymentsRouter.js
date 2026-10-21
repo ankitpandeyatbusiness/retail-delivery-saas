@@ -122,6 +122,18 @@ router.get('/transactions', wrap(async (req, res) => {
     res.send(ledger.toCsv(items.slice(0, EXPORT_MAX), 'shop'));
 }));
 
+// Every rupee in and out, online AND offline, with who, what, how and when (services/shopMoney.js): the Transactions tab.
+//   ?from=&to=  a range · ?date= one day · ?month=2026-10 · ?category= · ?direction=in|out · ?how=online|cash|upi · ?q=1042 (an order number) · ?page= · ?format=csv
+router.get('/all', wrap(async (req, res) => {
+    const shopMoney = require('../services/shopMoney');
+    const filter = shopMoney.parseQuery(req.query);
+    if (req.query.format !== 'csv') return res.json(await shopMoney.list({ tenantId: req.tenant._id, filter }));
+    const all = await shopMoney.list({ tenantId: req.tenant._id, filter: { ...filter, page: 1, limit: 100000 } });
+    res.set('Content-Type', 'text/csv; charset=utf-8');
+    res.set('Content-Disposition', 'attachment; filename="transactions.csv"');
+    res.send(shopMoney.toCsv(all.items.slice(0, EXPORT_MAX)));
+}));
+
 // A year month by month (India time). The list of years runs from the year the shop joined to this year.
 router.get('/summary', wrap(async (req, res) => {
     const nowYear = new Date(Date.now() + IST_MS).getUTCFullYear();

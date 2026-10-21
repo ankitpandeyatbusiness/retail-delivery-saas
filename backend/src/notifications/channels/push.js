@@ -3,6 +3,7 @@
 const DeviceToken = require('../../models/DeviceToken');
 const User = require('../../models/User');
 const adapter = require('../../services/adapters/push');
+const alertGroups = require('../alertGroups');
 
 // channelId / sound: an Android notification channel the app created (the owner's loud "new_orders" channel).
 // A phone that switched Soundbox off (loudAlerts false) does not get it: its push goes to the app's normal channel,
@@ -15,22 +16,38 @@ async function send({ tenantId, userId, title, body, data, channelId, sound, tag
         : (await User.find({ tenantId, role: 'admin' }).select('_id').lean()).map((u) => u._id);
     if (!userIds.length) return { sent: 0, tokens: 0 };
 
-    const rows = await DeviceToken.find({ tenantId, userId: { $in: userIds } }).select('token loudAlerts').lean();
+    let rows = await DeviceToken.find({ tenantId, userId: { $in: userIds } }).select('token loudAlerts userId').lean();
+    // each person's own choices for this kind of alert (Alerts screen): off = nothing reaches the phone; sound off = a silent push, no voice
+    const quiet = new Set();
+    if (data?.type) {
+        const people = await User.find({ _id: { $in: userIds } }).select('role alertPrefs').lean();
+        const mute = new Set();
+        for (const u of people) {
+            const grp = alertGroups.groupOf(u.role, data.type);
+            if (!grp) continue;
+            const p = alertGroups.prefOf(u.alertPrefs, grp);
+            if (!p.n) mute.add(String(u._id)); else if (!p.s && grp.can.s) quiet.add(String(u._id));
+        }
+        if (mute.size) rows = rows.filter((r) => !mute.has(String(r.userId)));
+    }
     if (!rows.length) return { sent: 0, tokens: 0 };
 
     // [tokens, channel, sound]: loud phones get the loud channel, quiet phones get none (the app's default one)
+    const calm = rows.filter((r) => quiet.has(String(r.userId)));   // chose "no sound" for this alert
+    const heard = rows.filter((r) => !quiet.has(String(r.userId)));
     const groups = quietChannel
         ? [[rows.map((r) => r.token), quietChannel, undefined]]
         : channelId
         ? [
-            [rows.filter((r) => r.loudAlerts !== false).map((r) => r.token), channelId, sound],
-            [rows.filter((r) => r.loudAlerts === false).map((r) => r.token), undefined, undefined],
+            [heard.filter((r) => r.loudAlerts !== false).map((r) => r.token), channelId, sound],
+            [heard.filter((r) => r.loudAlerts === false).map((r) => r.token), undefined, undefined],
+            [calm.map((r) => r.token), 'live_trip', undefined, false],
         ]
-        : [[rows.map((r) => r.token), undefined, undefined]];
+        : [[heard.map((r) => r.token), undefined, undefined], [calm.map((r) => r.token), 'live_trip', undefined, false]];
 
     let sent = 0;
     const invalid = [];
-    for (const [tokens, ch, snd] of groups) {
+    for (const [tokens, ch, snd, voice] of groups) {
         if (!tokens.length) continue;
         const res = await adapter.send({ tokens, title, body, data, channelId: ch, sound: snd, tag });
         sent += res?.sent || 0;
@@ -43,7 +60,7 @@ async function send({ tenantId, userId, title, body, data, channelId, sound, tag
         // is done here, on the server, on purpose: the phone's own timers stop while its screen is off, so a wait on the phone
         // only finished when the owner woke it. SPEECH_DELAY_MS=0 sends it at once.
         // (and a cancelled order: its short sentence goes the same way, with no clip). Nothing else is ever read out.
-        if ((ch || data?.type === 'order_cancelled') && data?.speech) {   // the owner's new orders, and a cook's or a waiter's alerts (channel staff_alerts_v1)
+        if (voice !== false && (ch || data?.type === 'order_cancelled') && data?.speech) {   // the owner's new orders, and a cook's or a waiter's alerts (channel staff_alerts_v1)
             const silent = async () => {
                 try {
                     await adapter.send({ tokens, dataOnly: true, data: { ...data, speakOnly: '1' } });

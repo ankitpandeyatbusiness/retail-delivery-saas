@@ -71,13 +71,20 @@ function LockModal({ onSignOut }) {
     const [wait, setWait] = useState(0);
     const [sup, setSup] = useState({ biometric: false });
     const tried = useRef(false);
+    const asking = useRef(false);
+    const lastEnd = useRef(0);
+    const away = useRef(false);
 
     useEffect(() => { support().then(setSup); }, []);
     useEffect(() => { if (!locked) { tried.current = false; setError(''); } }, [locked]);
     // the phone's prompt comes up by itself the moment the lock appears (and again on "Unlock")
     const unlockWithPhone = useCallback(async (biometricOnly) => {
-        const ok = await useLockStore.getState().tryPhone({ biometricOnly });
-        if (!ok && !biometricOnly) setError(tr('Not unlocked. Try again.'));
+        if (asking.current) return;   // one prompt at a time
+        asking.current = true;
+        try {
+            const ok = await useLockStore.getState().tryPhone({ biometricOnly });
+            if (!ok && !biometricOnly) setError(tr('Not unlocked. Try again.'));
+        } finally { asking.current = false; lastEnd.current = Date.now(); }
     }, []);
     useEffect(() => {
         if (!locked || !ready || tried.current) return undefined;
@@ -85,6 +92,18 @@ function LockModal({ onSignOut }) {
         if (method === 'device') { const t = setTimeout(() => unlockWithPhone(false), 350); return () => clearTimeout(t); }
         if (method === 'pin' && biometric && sup.biometric) { const t = setTimeout(() => unlockWithPhone(true), 350); return () => clearTimeout(t); }
         return undefined;
+    }, [locked, ready, method, biometric, sup.biometric, unlockWithPhone]);
+    // the first prompt can be swallowed while the lock screen is still opening (a cold start): when the app is in front again, ask once more
+    useEffect(() => {
+        if (!locked || !ready) return undefined;
+        const auto = method === 'device' || (method === 'pin' && biometric && sup.biometric);
+        if (!auto) return undefined;
+        // only after a real trip to the background, and never right after a prompt that was just cancelled (that would ask forever)
+        const sub = AppState.addEventListener('change', (st) => {
+            if (st === 'background') away.current = true;
+            else if (st === 'active' && away.current) { away.current = false; if (Date.now() - lastEnd.current > 2500) setTimeout(() => unlockWithPhone(method === 'pin'), 400); }
+        });
+        return () => sub.remove();
     }, [locked, ready, method, biometric, sup.biometric, unlockWithPhone]);
     // the 30 second wait counts down
     useEffect(() => {
@@ -107,7 +126,7 @@ function LockModal({ onSignOut }) {
         setError(r.left === 1 ? tr('Wrong PIN. 1 try left.') : tr('Wrong PIN. {n} tries left.', { n: r.left }));
     };
     return (
-        <Modal visible={locked && ready} animationType="fade" transparent={false} statusBarTranslucent onRequestClose={() => { }}>
+        <Modal visible={locked && ready} animationType="fade" transparent={false} statusBarTranslucent onRequestClose={() => { }} onShow={() => { if (method === 'device') unlockWithPhone(false); else if (method === 'pin' && biometric && sup.biometric) unlockWithPhone(true); }}>
             <View style={{ flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
                 <View style={{ width: 76, height: 76, borderRadius: 38, backgroundColor: alpha(c.primary, 0.14), alignItems: 'center', justifyContent: 'center' }}>
                     <Ionicons name="lock-closed" size={36} color={c.primary} />
@@ -186,7 +205,7 @@ export function LockSetup({ onDone, onCancel }) {
     return (
         <View>
             <Text style={{ color: c.muted, marginBottom: 14 }}>{tr('Choose how you want to unlock the app.')}</Text>
-            {card('phone-portrait-outline', tr('Phone lock or fingerprint / face'), sup.device || sup.biometric ? tr('Uses the lock you already have on this phone: its PIN, pattern, password, fingerprint or face.') : tr('This phone has no screen lock yet. Set one in the phone settings, or use an app PIN.'), phone, !(sup.device || sup.biometric))}
+            {card('phone-portrait-outline', tr('Phone lock or fingerprint / face'), sup.device || sup.biometric ? tr('Uses the lock you already have on this phone: its PIN, pattern, password, fingerprint or face.') : tr('This phone has no screen lock yet. Set one in the phone settings, or use an app PIN.') + (sup.faceHw && !sup.biometric ? ' ' + tr('Note: this phone does not offer its face unlock to apps (many phones keep it low security). Fingerprint or the phone PIN will be used.') : ''), phone, !(sup.device || sup.biometric))}
             {card('keypad-outline', tr('App PIN (4 digits)'), tr('A PIN just for this app. Fingerprint or face can be added to it.'), () => { setError(''); setStep('pin1'); })}
             {error ? <Text style={{ color: c.danger, fontWeight: '700', textAlign: 'center', marginBottom: 8 }}>{error}</Text> : null}
             {onCancel ? <Btn label={tr('Not now')} kind="ghost" onPress={onCancel} /> : null}

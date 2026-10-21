@@ -218,7 +218,54 @@ describe('a problem', () => {
     });
 });
 
+describe('a problem, dish by dish', () => {
+    test('a second dish can be reported at once; the same dish waits; the owner telling the customer ends the cook\'s wait; the dish returns at 4 am', async () => {
+        const wings = await Product.create({ tenantId: w.tenant._id, categoryId: product.categoryId, name: 'Wings', price: 200, isVeg: false });
+        const o = await mk({ items: [
+            { productId: product._id, name: 'Dosa', quantity: 1, unitPrice: 100, lineTotal: 100 },
+            { productId: wings._id, name: 'Wings', quantity: 1, unitPrice: 200, lineTotal: 200 },
+        ] });
+        assert.equal((await post(o._id, 'problem', { kind: 'out_of_stock', productId: String(product._id) })).status, 200);
+        assert.equal((await post(o._id, 'problem', { kind: 'out_of_stock', productId: String(product._id) })).status, 429, 'the same dish again');
+        assert.equal((await post(o._id, 'problem', { kind: 'out_of_stock', productId: String(wings._id) })).status, 200, 'another dish is its own report');
+        const dosa = await Product.findById(product._id);
+        assert.equal(dosa.isAvailable, false);
+        assert.ok(dosa.unavailableUntil > new Date(), 'it is back by itself later');
+        assert.ok(dosa.unavailableUntil - Date.now() < 28 * 3600000);
+
+        const order = await Order.findById(o._id);
+        const res = await require('../src/services/kitchenService').resolve({ tenant: w.tenant, order, action: 'tell', actor: { type: 'owner', id: w.owner.user._id, label: 'owner' } });
+        assert.equal(res.ok, true);
+        const q = (await get()).body.items.find((x) => x.id === String(o._id));
+        assert.ok(q.problem.handledAt, 'the card shows the owner dealt with it');
+        assert.equal(q.problem.handledAction, 'tell');
+    });
+});
+
 describe('alerts', () => {
+    test('what the cook hears: the table, the dishes and the guest note; no money; the waiter is not told of a cancel', async () => {
+        const { kitchenSpeech, kitchenCancelSpeech } = require('../src/utils/orderSpeech');
+        const o = await mk({ tableParty: 'B', note: 'make it quick', pricing: { total: 777 }, items: [{ productId: product._id, name: 'Chicken Wings', quantity: 1, unitPrice: 100, lineTotal: 100, note: 'less spicy' }] });
+        const said = kitchenSpeech(await Order.findById(o._id).lean());
+        assert.match(said, /^New order for table 4, bill B./);
+        assert.match(said, /1 Chicken Wings/);
+        assert.match(said, /Chicken Wings: less spicy/);
+        assert.match(said, /Note: make it quick/);
+        assert.doesNotMatch(said, /777|rupees/);
+        assert.match(kitchenSpeech({ orderType: 'pickup', items: [] }), /^New pickup order/);
+        assert.match(kitchenSpeech({ orderType: 'delivery', items: [] }), /^New delivery order/);
+        assert.match(kitchenCancelSpeech({ orderNo: 1166, orderType: 'dine_in', tableNo: '2', items: [{ name: 'Chicken Wings', quantity: 1 }] }), /Order 1166 is cancelled. Stop making it. Table 2. 1 Chicken Wings/);
+
+        const spy = mock.method(pushChannel, 'send', async () => ({ sent: 1, tokens: 1 }));
+        const fresh = await mk({ status: 'placed', statusHistory: [{ status: 'placed' }], items: [{ productId: product._id, name: 'Dosa', quantity: 2, unitPrice: 100, lineTotal: 200, note: 'no onion' }] });
+        const order = await Order.findById(fresh._id);
+        await orderStatus.change({ order, status: 'accepted', actor: { type: 'owner', id: w.owner.user._id, label: 'owner' } });
+        await f.waitFor(() => spy.mock.calls.some((c) => c.arguments[0].data?.type === 'kitchen_new'));
+        const ring = spy.mock.calls.map((c) => c.arguments[0]).find((x) => x.data?.type === 'kitchen_new');
+        assert.match(ring.data.speech, /table 4/);
+        assert.match(ring.data.speech, /Dosa: no onion/);
+    });
+
     test('a new order (accepted) rings the cooks; a cancelled one tells them to stop; a waiter hears nothing', async () => {
         const spy = mock.method(pushChannel, 'send', async () => ({ sent: 1, tokens: 1 }));
         const o = await mk({ status: 'placed', statusHistory: [{ status: 'placed' }] });

@@ -93,7 +93,8 @@ export const settleShare = (sessionId, userId, method) => d(api.post(`/shop/dine
 export const walkoutShare = (sessionId, userId) => d(api.post(`/shop/dine-in/sessions/${sessionId}/share/${userId}/walkout`));   // he left without paying: only his share is owed
 export const moveRound = (orderId, toSessionId) => d(api.post(`/shop/dine-in/orders/${orderId}/move`, { toSessionId }));   // shared tables: a round on the wrong bill
 export const mergeBills = (sessionId, intoSessionId) => d(api.post(`/shop/dine-in/sessions/${sessionId}/merge`, { intoSessionId }));   // two bills that are one group
-export const fetchStaff = () => d(api.get('/shop/staff'));
+export const fetchStaff = (opts) => d(api.get('/shop/staff', opts?.stats ? { params: { stats: 1 } } : undefined));   // stats: also what each did today and this week
+export const fetchStaffPerson = (userId) => d(api.get(`/shop/staff/${userId}`));   // { person, stats, working, leaves, holidays, duty }
 export const fetchStaffLeaves = () => d(api.get('/shop/staff/leaves'));   // { pending, recent }
 export const decideStaffLeave = (id, approve, note) => d(api.post(`/shop/staff/leaves/${id}`, { approve, ...(note ? { note } : {}) }));
 export const addStaff = (body) => d(api.post('/shop/staff', body));   // { phone, name?, role: 'kitchen' | 'waiter' }
@@ -176,6 +177,9 @@ export const fetchPaymentsReport = (params) => d(api.get('/shop/payments/report'
 export const fetchRefunds = (params) => d(api.get('/shop/payments/refunds', q(params)));
 export const fetchDisputes = (params) => d(api.get('/shop/payments/disputes', q(params)));
 export const fetchTransactions = (params) => d(api.get('/shop/payments/transactions', q(params)));
+// every rupee in and out, online and offline (the Transactions tab): { items, page, total, truncated, totals: { inPaise, outPaise, netPaise, byCategory, byHow } }
+export const fetchMoneyAll = (params) => d(api.get('/shop/payments/all', q(params)));   // { from, to | date | month, direction, how, category, q, page }
+export const moneyAllPath = '/shop/payments/all';   // + the same params and format:'csv'
 // the year month by month: { year, years, months:[{month, inPaise, outPaise, netPaise, pendingPaise, count}], totals }
 export const fetchTransactionSummary = (year) => d(api.get('/shop/payments/summary', q({ year })));
 export const transactionsCsvPath = '/shop/payments/transactions';   // + params { from, to, category?, format:'csv' }

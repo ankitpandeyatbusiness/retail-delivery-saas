@@ -6,6 +6,7 @@ const staffService = require('./staffService');
 const pushChannel = require('../notifications/channels/push');
 const { STAFF_CHANNEL, STAFF_INFO_CHANNEL, CANCEL_CHANNEL } = require('../notifications/events');
 const { brief } = require('../utils/orderBrief');
+const { kitchenSpeech, kitchenCancelSpeech } = require('../utils/orderSpeech');
 const Tenant = require('../models/Tenant');
 
 const TYPE_WORD = { delivery: 'Delivery', pickup: 'Pickup', dine_in: 'Dine in' };
@@ -51,7 +52,8 @@ async function onStatus({ before, updated, status }) {
         if (rules.kitchenOn !== true || !(rules.kitchenSees || []).includes(updated.orderType)) return;
         const people = await cooks(updated.tenantId);
         if (!people.length) return;
-        tell(updated.tenantId, { orderId: String(updated._id), orderNo: updated.orderNo, status, alert: { kind: status === 'accepted' ? 'new' : 'cancel', orderNo: updated.orderNo } });   // the open screens ring (sound and voice)
+        const said = status === 'accepted' ? { speech: kitchenSpeech(updated), speechHi: kitchenSpeech(updated, true) } : { speech: kitchenCancelSpeech(updated), speechHi: kitchenCancelSpeech(updated, true) };
+        tell(updated.tenantId, { orderId: String(updated._id), orderNo: updated.orderNo, status, alert: { kind: status === 'accepted' ? 'new' : 'cancel', orderNo: updated.orderNo, orderId: String(updated._id), table: updated.tableNo || null, ...said } });   // the open screens ring (sound and voice)
 
         const where = updated.orderType === 'dine_in' ? `Dine in${updated.tableNo ? ` · Table ${updated.tableNo}${updated.tableParty ? ` · ${updated.tableParty}` : ''}` : ''}` : TYPE_WORD[updated.orderType];
         const msg = status === 'accepted'
@@ -62,8 +64,7 @@ async function onStatus({ before, updated, status }) {
             data: {
                 type: status === 'accepted' ? 'kitchen_new' : 'kitchen_cancelled', orderId: String(updated._id), orderNo: updated.orderNo,
                 kind: status === 'accepted' ? 'new' : 'cancel',
-                speech: status === 'accepted' ? `New order ${updated.orderNo}` : `Order ${updated.orderNo} cancelled`,
-                speechHi: status === 'accepted' ? `नया ऑर्डर ${updated.orderNo}` : `ऑर्डर ${updated.orderNo} रद्द हुआ`,
+                speech: said.speech, speechHi: said.speechHi,
             },
             channelId: status === 'accepted' ? STAFF_CHANNEL : CANCEL_CHANNEL, sound: status === 'accepted' ? 'ting_tong' : 'cancel_alert',   // a cancelled order has its own alarm
             tag: `kitchen:${updated._id}`,

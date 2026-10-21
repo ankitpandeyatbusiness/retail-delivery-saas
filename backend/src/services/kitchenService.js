@@ -10,12 +10,20 @@ const Product = require('../models/Product');
 const orderStatus = require('./orderStatusService');
 const realtime = require('./realtime');
 const staffService = require('./staffService');
+const { kitchenSpeech } = require('../utils/orderSpeech');
 const { HIDE_UNPAID } = require('./onlineOrder');
 const { httpError } = require('../middlewares/apiErrors');
 
 const FIELDS = 'orderNo orderType status tableNo items note scheduledFor pickupUntil customer.name createdAt statusHistory kitchen payment tableSessionId tableParty pickupIntent';
 const KINDS = { out_of_stock: 'a dish is finished', cannot_make: 'it cannot be made', other: 'there is a problem' };
 const PROBLEM_GAP_MS = 2 * 60 * 1000;   // the same order: one message to the owner every two minutes at most
+
+// the next 4 am in India (UTC+5:30): a finished dish is back on the menu then
+function soldOutUntil(now = Date.now()) {
+    const ist = new Date(now + 330 * 60000);
+    const day = ist.getUTCHours() < 4 ? 0 : 1;
+    return new Date(Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth(), ist.getUTCDate() + day, 4, 0) - 330 * 60000);
+}
 
 const rulesOf = (tenant) => staffService.rulesOf(tenant);
 const sees = (tenant) => rulesOf(tenant).kitchenSees || ['delivery', 'pickup', 'dine_in'];
@@ -74,8 +82,9 @@ function viewOf(o, { lateMin, now = Date.now() }) {
         late: stage !== 'ready' && waitedMin >= lateMin,
         early: startAt.getTime() - now > 5 * 60000,   // its start time is still some minutes away
         note: o.note || '',
+        ...(stage === 'new' ? { speech: kitchenSpeech(o), speechHi: kitchenSpeech(o, true) } : {}),   // the Soundbox reads it out while the order waits
         items: (o.items || []).map(lineOf),
-        problem: o.kitchen?.problem?.at ? { kind: o.kitchen.problem.kind, note: o.kitchen.problem.note || '', at: o.kitchen.problem.at } : null,
+        problem: o.kitchen?.problem?.at ? { kind: o.kitchen.problem.kind, note: o.kitchen.problem.note || '', at: o.kitchen.problem.at, dish: o.kitchen.problem.dish || null, handledAt: o.kitchen.problem.handledAt || null, handledAction: o.kitchen.problem.handledAction || null } : null,
     };
 }
 
@@ -175,14 +184,21 @@ async function problem({ tenant, orderId, staff, kind, note, productId }) {
     if (kind === 'other' && text.length < 3) throw httpError(400, 'Please write the problem');
     const o = await loadFor(tenant, orderId);
     const g = gone(o); if (g) throw g;
-    if (o.kitchen?.problem?.at && Date.now() - new Date(o.kitchen.problem.at).getTime() < PROBLEM_GAP_MS) throw httpError(429, 'The owner was just told about this order. Please wait a moment.');
-
     let dish = null;
     if (kind === 'out_of_stock' && productId) {
         const line = o.items.find((l) => String(l.productId) === String(productId));
         if (!line) throw httpError(400, 'That dish is not in this order');
         dish = line.name;
-        await Product.updateOne({ _id: line.productId, tenantId: tenant._id }, { $set: { isAvailable: false } });   // customers see "sold out" at once (the menu follows by itself)
+    }
+    // each dish counts on its own: telling the owner about one dish never blocks another. Only the same thing again within two minutes waits.
+    const last = o.kitchen?.problem;
+    if (last?.at && !last.handledAt && last.kind === kind && (last.dish || null) === dish && Date.now() - new Date(last.at).getTime() < PROBLEM_GAP_MS) {
+        throw httpError(429, dish ? `The owner was just told that ${dish} is finished. Please wait a moment.` : 'The owner was just told about this order. Please wait a moment.');
+    }
+    if (dish) {
+        const line = o.items.find((l) => String(l.productId) === String(productId));
+        // customers see "sold out" at once (the menu follows by itself). It switches on again by itself at 4 am (India time); the owner can bring it back sooner.
+        await Product.updateOne({ _id: line.productId, tenantId: tenant._id }, { $set: { isAvailable: false, unavailableUntil: soldOutUntil() } });
     }
     await Order.updateOne({ _id: o._id, tenantId: tenant._id }, { $set: { 'kitchen.problem': { kind, note: text, at: new Date(), byName: staff.name, ...(dish ? { dish } : {}) } } });
     const what = kind === 'out_of_stock' ? `${dish || 'a dish'} is finished` : kind === 'cannot_make' ? 'it cannot be made' : 'there is a problem';
@@ -228,6 +244,8 @@ async function resolve({ tenant, order, action, message, actor }) {
     }
     await Order.updateOne({ _id: order._id, tenantId: tenant._id }, { $set: { 'kitchen.problem.handledAt': new Date(), 'kitchen.problem.handledAction': action } });
     realtime.toOwner(tenant._id, 'order:update', { orderId: String(order._id), orderNo: order.orderNo, status: current.status, kind: 'kitchen_problem_done' });
+    // the cook's card stops waiting: it now says what the owner did
+    require('./kitchenAlerts').tell(tenant._id, { orderId: String(order._id), orderNo: order.orderNo, status: current.status });
     return { ok: true, action, text };
 }
 

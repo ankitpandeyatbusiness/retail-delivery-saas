@@ -69,6 +69,7 @@ async function decide({ tenantId, id, approve, note }) {
         tenantId, userId: l.userId, vars: { approved: approve, from: l.from, to: l.to, days: l.days, note: l.decidedNote },
         data: { kind: 'staff_leave', leaveId: String(l._id) },
     });
+    try { require('./realtime')[l.role === 'waiter' ? 'toWaiter' : 'toKitchen'](tenantId, l.role === 'waiter' ? 'waiter:update' : 'kitchen:update', { leave: true, userId: String(l.userId) }); } catch (e) { /* the screens refresh by themselves */ }   // their screen shows the answer now
     return shape(l);
 }
 

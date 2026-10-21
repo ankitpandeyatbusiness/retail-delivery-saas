@@ -3,7 +3,9 @@
 // staffAlert() is safe to call from anywhere and as often as you like: one alert (same kind and number) sounds once in two minutes.
 import { AppState } from 'react-native';
 import * as Speech from 'expo-speech';
-import { playSfx, buzz } from '../common/sfx';
+import { buzz } from '../common/sfx';
+import { staffSay, speakStaffPush } from '../owners/soundbox';
+import { alertOn } from '../../store/common/useAlertPrefs';
 import { useStaffSoundStore } from '../../store/staff/useStaffSoundStore';
 import { useLang } from '../../i18n';
 import { useStaffAlertStore } from '../../store/staff/useStaffAlertStore';
@@ -53,22 +55,13 @@ export function staffAlert(a, { force } = {}) {
             seen.set(key, now);
             for (const [k, t] of seen) if (t < now - WINDOW_MS) seen.delete(k);
         }
-        if (a.kind === 'cancel' && !force) useStaffAlertStore.getState().push({ id: key, kind: 'cancel', orderNo: a.orderNo, table: a.table });
-        if (!force && (!st.sound || st.kinds[a.kind] === false)) return;
-        // "handed over / collected / served" is only news: one soft ping, no ting-tong and no voice
-        if (a.kind === 'done') { playSfx('notify', st.volume); buzz([0, 40]); return; }
-        playSfx(a.kind === 'cancel' ? 'cancelAlarm' : 'tingTong', st.volume);   // a cancelled order has its own short alarm
-        buzz(BUZZ[a.kind]);
-        if (!st.voice) return;
+        if (a.kind === 'cancel' && !force && alertOn('cancel', 'p')) useStaffAlertStore.getState().push({ id: key, kind: 'cancel', orderNo: a.orderNo, table: a.table });
+        // the sound, the voice, the language and the volume are the Soundbox's (the same screen as the owner's)
+        if (a.kind !== 'done') buzz(BUZZ[a.kind]);
         const language = languageNow(st.language);
-        const text = LINES[language][a.kind]?.(a);
-        if (!text) return;
-        setTimeout(() => {
-            try {
-                Speech.stop();
-                Speech.speak(text, { language: language === 'hi' ? 'hi-IN' : 'en-IN', rate: 0.95, volume: st.volume });
-            } catch (e) { /* a missing voice is not worth an error */ }
-        }, 1700);   // after the ting-tong has finished
+        const text = LINES.en[a.kind]?.(a);
+        const textHi = LINES.hi[a.kind]?.(a);
+        staffSay({ ...a, speech: a.speech || text, speechHi: a.speechHi || textHi }, { force });
     } catch (e) { /* a sound problem must never get in the way of the work */ }
 }
 
@@ -81,13 +74,6 @@ export async function speakStaffForPush(data) {
     try {
         if (!STAFF_PUSH_TYPES.includes(String(data?.type))) return;
         if (AppState.currentState === 'active') return;
-        await useStaffSoundStore.getState().hydrate();
-        const st = useStaffSoundStore.getState();
-        if (!st.sound || !st.voice || st.kinds[data?.kind] === false) return;
-        const language = languageNow(st.language);
-        const text = language === 'hi' ? (data.speechHi || data.speech) : data.speech;
-        if (!text) return;
-        Speech.stop();
-        Speech.speak(String(text), { language: language === 'hi' ? 'hi-IN' : 'en-IN', rate: 0.95, volume: st.volume });
+        await speakStaffPush(data);   // the Soundbox's voice, language and volume
     } catch (e) { /* the ting-tong has already rung */ }
 }

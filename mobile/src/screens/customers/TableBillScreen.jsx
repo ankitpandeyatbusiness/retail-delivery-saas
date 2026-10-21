@@ -101,8 +101,8 @@ export default function TableBillScreen() {
                             </View>
                         </View>
                         {cool > 0 ? (
-                            <View style={{ marginTop: 10, paddingVertical: 14, borderRadius: 14, backgroundColor: alpha(muted, 0.14), alignItems: 'center' }}>
-                                <Text style={{ color: text, fontWeight: '800' }}>{tr('The kitchen knows. You can remind again in {t}', { t: mmss(cool) })}</Text>
+                            <View style={{ marginTop: 10, paddingVertical: 14, paddingHorizontal: 16, borderRadius: 14, backgroundColor: alpha(muted, 0.14), alignItems: 'center', justifyContent: 'center' }}>
+                                <Text style={{ color: text, fontWeight: '800', textAlign: 'center', lineHeight: 20 }}>{tr('The kitchen knows. You can remind again in {t}', { t: mmss(cool) })}</Text>
                             </View>
                         ) : <Button label={tr('Please bring it fast 🙏')} icon="notifications" kind="ghost" onPress={hurry} style={{ marginTop: 10 }} />}
                     </Card>

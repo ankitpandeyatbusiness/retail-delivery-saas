@@ -76,9 +76,14 @@ export function ToastHost() {
     );
 }
 
+// "until 9:18 PM" when the shop paused orders for a while
+export const pausedUntilText = (until) => {
+    if (!until || new Date(until).getTime() <= Date.now()) return '';
+    return ` until ${new Date(until).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' }).toUpperCase()}`;
+};
 export const closedText = (full) =>
     full.restaurant.closedReason === 'paused'
-        ? 'Not accepting orders right now'
+        ? `Not accepting orders right now${pausedUntilText(full.orders?.pausedUntil)}`
         : (full.hours?.closedMessage || full.labels.closedMessage);
 
 /* ---------------- small pieces ---------------- */

@@ -6,6 +6,8 @@ import { AppState } from 'react-native';
 import { onKitchenUpdate } from '../../api/common/socket';
 import { useKitchenStore } from '../../store/staff/useKitchenStore';
 import { staffAlert } from '../../utils/staff/staffSound';
+import { dismiss } from '../../utils/owners/soundbox';
+import { useStaffStore } from '../../store/staff/useStaffStore';
 
 export default function useKitchenSync(on) {
     useEffect(() => {
@@ -14,7 +16,8 @@ export default function useKitchenSync(on) {
         let timer = null;
         const soon = () => { clearTimeout(timer); timer = setTimeout(() => store.getState().load(), 250); };
         store.getState().load();
-        const off = onKitchenUpdate((p) => { if (p?.alert) staffAlert(p.alert); soon(); });
+        const off = onKitchenUpdate((p) => { if (p?.orderId && p.status && p.status !== 'accepted' && !p.alert) dismiss(p.orderId);   // started, ready or gone: the Soundbox stops ringing for it
+            if (p?.alert) staffAlert(p.alert); if (p?.shop || p?.leave) useStaffStore.getState().load(); soon(); });
         const app = AppState.addEventListener('change', (st) => { if (st === 'active') soon(); });
         const every = setInterval(() => { if (AppState.currentState === 'active') store.getState().load(); }, 20000);
         return () => { off(); app.remove(); clearInterval(every); clearTimeout(timer); };

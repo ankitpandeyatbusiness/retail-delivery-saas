@@ -7,6 +7,7 @@ import { useBrand } from '../components/common/kit';
 import { FloatingTabBar } from './tabKit';
 import StaffHomeScreen from '../screens/staff/StaffHomeScreen';
 import StaffProfileScreen from '../screens/staff/StaffProfileScreen';
+import StaffWorkScreen from '../screens/staff/StaffWorkScreen';
 import StaffBlockedView from '../components/staff/StaffBlockedView';
 import { StaffSkeleton } from '../components/staff/staffBits';
 import { useStaffStore } from '../store/staff/useStaffStore';
@@ -23,6 +24,7 @@ const Tab = createBottomTabNavigator();
 
 const TABS = {
     StaffHomeTab: { label: 'Home', icon: 'restaurant', component: StaffHomeScreen },
+    StaffWorkTab: { label: 'My work', icon: 'stats-chart', component: StaffWorkScreen },
     StaffProfileTab: { label: 'Profile', icon: 'person', component: StaffProfileScreen },
 };
 

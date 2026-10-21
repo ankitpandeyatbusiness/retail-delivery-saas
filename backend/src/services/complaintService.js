@@ -23,7 +23,7 @@ const text = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 const view = (c, { forOwner = false } = {}) => ({
     id: c._id, orderId: c.orderId, orderNo: c.orderNo, type: c.type, text: c.text, photos: c.photos || [],
     status: c.status, ownerReply: c.ownerReply || null, resolution: c.resolution, refundPaise: c.refundPaise || 0,
-    refundStatus: c.refundStatus, createdAt: c.createdAt, decidedAt: c.decidedAt || null,
+    refundStatus: c.refundStatus, createdAt: c.createdAt, decidedAt: c.decidedAt || null, repliedAt: c.repliedAt || null, autoReason: c.autoReason || null,
     ...(forOwner ? { customerName: c.customerName || null, evidence: c.evidence || null, riderFault: c.riderFault ?? null } : {}),
 });
 
@@ -211,6 +211,7 @@ async function decide({ tenant, id, actor, body }) {
                 status: resolution === 'none' ? 'in_progress' : 'resolved', resolution, refundPaise, refundStatus,
                 ...(resolution !== 'none' && c.type === 'not_received' && typeof b.riderFault === 'boolean' ? { riderFault: b.riderFault } : {}),
                 ...(reply ? { ownerReply: reply } : {}),
+                ...(resolution === 'none' && reply ? { repliedAt: now } : {}),
                 ...(resolution === 'none' ? {} : { decidedAt: now, decidedBy: actor?.label || actor?.type || 'owner' }),
             },
         },

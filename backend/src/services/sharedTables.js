@@ -22,6 +22,8 @@ const tell = (event, ctx) => Promise.resolve().then(() => require('../notificati
 const cfgOf = (tenant) => ({ ...DEFAULTS.orders.dineIn, ...(tenant?.settings?.orders?.dineIn || {}) });
 const isShared = (tenant) => cfgOf(tenant).sharedTables === true;
 const maxParties = (tenant) => Math.min(8, Math.max(2, Number(cfgOf(tenant).maxParties) || 4));
+// switched off, a table still has ONE bill, but a stranger must be let in by the person already seated (he is never added silently)
+const maxFor = (tenant) => (isShared(tenant) ? maxParties(tenant) : 1);
 const labelOf = (party) => LABELS[(party || 1) - 1] || String(party || 1);
 
 const firstName = (u) => String(u?.name || '').trim().split(/\s+/)[0] || null;
@@ -39,13 +41,12 @@ async function partiesAt(tenantId, table, { forUser } = {}) {
 
 // what the app needs when a table is scanned: is the table shared, who is there, what can this guest do
 async function stateAt({ tenant, userId, table }) {
-    if (!isShared(tenant)) return { shared: false, table };
     const parties = await partiesAt(tenant._id, table, { forUser: userId });
     const mine = parties.find((p) => p.mine) || null;
-    const max = maxParties(tenant);
+    const max = maxFor(tenant);
     const pending = await TableJoin.findOne({ tenantId: tenant._id, table, userId, status: 'pending', expiresAt: { $gt: new Date() } }).lean();
     return {
-        shared: true, table, max, parties, mine: mine ? { sessionId: mine.sessionId, label: mine.label } : null,
+        shared: isShared(tenant), table, max, parties, mine: mine ? { sessionId: mine.sessionId, label: mine.label } : null,
         occupied: parties.length > 0, canSeparate: parties.length < max, pending: pending ? { joinId: String(pending._id), expiresAt: pending.expiresAt, sessionId: String(pending.sessionId) } : null,
     };
 }
@@ -53,14 +54,14 @@ async function stateAt({ tenant, userId, table }) {
 // the next free bill number at this table (1, 2, 3...), or null when the table is full
 async function nextParty(tenant, table) {
     const taken = new Set((await TableSession.find({ tenantId: tenant._id, table, status: { $in: OPEN }, kind: { $ne: 'pickup' } }).select('party').lean()).map((r) => r.party || 1));
-    for (let p = 1; p <= maxParties(tenant); p += 1) if (!taken.has(p)) return p;
+    for (let p = 1; p <= maxFor(tenant); p += 1) if (!taken.has(p)) return p;
     return null;
 }
 
 async function openParty({ tenant, table, userId, now = new Date() }) {
     for (let tries = 0; tries < 4; tries += 1) {
         const party = await nextParty(tenant, table);
-        if (!party) throw fail(409, `This table already has ${maxParties(tenant)} bills. Please ask the waiter.`, { code: 'table_full' });
+        if (!party) throw fail(409, `This table already has ${maxFor(tenant)} bill${maxFor(tenant) === 1 ? '' : 's'}. Please ask the waiter.`, { code: 'table_full' });
         try {
             return await TableSession.create({ tenantId: tenant._id, table, party, label: labelOf(party), customers: [userId], openedAt: now, lastOrderAt: now });
         } catch (e) {
@@ -72,7 +73,6 @@ async function openParty({ tenant, table, userId, now = new Date() }) {
 
 // the guest's choice: { choice: 'separate' | 'with', sessionId? }
 async function enter({ tenant, userId, table, choice, sessionId }) {
-    if (!isShared(tenant)) throw fail(400, 'This shop has one bill per table.');
     const mine = await TableSession.findOne({ tenantId: tenant._id, table, customers: userId, status: { $in: OPEN } });
     if (mine) return { ok: true, session: { sessionId: String(mine._id), label: mine.label || labelOf(mine.party) } };
     // a bill of his at ANOTHER table must be paid first (the same rule as ordering)
@@ -80,6 +80,7 @@ async function enter({ tenant, userId, table, choice, sessionId }) {
     if (elsewhere) throw fail(409, `You still have an open bill at table ${elsewhere.table}. Please pay it before choosing another table.`, { code: 'bill_elsewhere' });
 
     if (choice === 'separate') {
+        if (!isShared(tenant)) throw fail(400, 'This shop has one bill per table. Please ask to join the people already here.');
         const s = await openParty({ tenant, table, userId });
         return { ok: true, session: { sessionId: String(s._id), label: s.label } };
     }

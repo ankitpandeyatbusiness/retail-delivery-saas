@@ -13,6 +13,7 @@ import { useViewMode } from '../../store/owners/useViewMode';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { useOrdersStore } from '../../store/owners/useOrdersStore';
 import { onNotification, onOrderUpdate } from '../../api/common/socket';
+import { alertOn } from '../../store/common/useAlertPrefs';
 import { fetchOrder, setOrderStatus, apiError } from '../../api/owners/shopApi';
 import { acknowledge } from '../../utils/owners/soundbox';
 import { showToast } from '../customers/shop';
@@ -38,7 +39,7 @@ export default function NewOrderPopup({ navRef }) {
         if (!on) { setQueue([]); return undefined; }
         const offNew = onNotification((n) => {
             const id = n?.type === 'order_new' ? String(n?.data?.orderId || '') : '';
-            if (!id || seen.current.has(id)) return;
+            if (!id || seen.current.has(id) || !alertOn('order_new', 'p')) return;   // Alerts screen: no popup for new orders
             seen.current.add(id);
             fetchOrder(id)
                 .then((o) => {

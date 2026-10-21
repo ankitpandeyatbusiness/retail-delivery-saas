@@ -1,0 +1,86 @@
+// The alerts a person can switch, grouped the way they think about them ("New orders", "A table calls"), and what each group may do.
+//   n  notification   the phone alert (the push). Off: nothing reaches the phone; the message is still in the inbox.
+//   p  popup          a box that opens over the app. Only where the app has one (can.p).
+//   s  sound          the ring and the voice. Off: the push is silent and the app says nothing (can.s).
+// Every group starts ON (the recommended settings). A person's own choices are stored as the difference from that (User.alertPrefs).
+// `types`: the notification types in the group. `kinds`: the live alerts of the cook's and the waiter's screens. `sample`: what "Listen" says.
+const g = (id, label, hint, types, o = {}) => ({
+    id, label, hint, types, kinds: o.kinds || [],
+    can: { n: true, p: !!o.p, s: o.s !== false },
+    critical: !!o.critical,   // switching it off asks "are you sure?": a missed one costs money or safety
+    defaults: { n: true, p: !!o.p, s: o.s !== false, ...(o.defaults || {}) },
+    sample: o.sample ? { en: o.sample[0], hi: o.sample[1] } : null,
+});
+
+const OWNER = [
+    g('new_orders', 'New orders', 'A new order is waiting for you to accept.', ['order_new', 'order_unaccepted_reminder'], { p: true, critical: true, sample: ['New order. 2 Butter Naan, 1 Paneer Butter Masala. Total 540 rupees. Cash on delivery.', 'नया ऑर्डर। 2 Butter Naan, 1 Paneer Butter Masala। कुल 540 रुपये। कैश ऑन डिलीवरी।'] }),
+    g('cancelled', 'Cancelled orders', 'An order was cancelled by the customer, the rider or the system.', ['order_cancelled'], { sample: ['Order 1166 was cancelled by the customer. 1 Chicken Wings. Total 240 rupees.', 'ग्राहक ने ऑर्डर 1166 रद्द कर दिया। 1 Chicken Wings। कुल 240 रुपये।'] }),
+    g('kitchen', 'Kitchen problems', 'The cook says a dish is finished or an order cannot be made.', ['kitchen_problem'], { p: true, sample: ['Kitchen problem. Order 1166. Chicken Wings is finished.', 'किचन में समस्या। ऑर्डर 1166।'] }),
+    g('pickup', 'Pickup customers', 'A pickup customer says he is coming, is here, is late, or needs more time. Also: no-show, a later time, collected.', ['pickup_intent', 'pickup_no_show', 'pickup_time_request', 'pickup_collect_claim', 'pickup_not_wanted_claim'], { p: true, sample: ['Pickup order 1173. Ankit is on the way. 2 Butter Naan, 1 Paneer Butter Masala.', 'पिकअप ऑर्डर 1173। Ankit रास्ते में हैं। 2 Butter Naan, 1 Paneer Butter Masala।'] }),
+    g('tables', 'Tables: calls and bills', 'A table calls, asks for the bill, says it paid, asks you to hurry or to cancel a round.', ['table_call', 'table_bill_asked', 'table_nudge', 'table_check', 'table_paid_claim', 'order_cancel_request', 'table_share_ask', 'table_feedback_low'], { sample: ['Table 4 asked for the bill.', 'टेबल 4 ने बिल मांगा है।'] }),
+    g('help', 'A rider asks for help', 'A delivery partner pressed the help button.', ['rider_sos'], { critical: true, sample: ['Ramesh needs help. Order 1173. Please call now.', 'Ramesh को मदद चाहिए। ऑर्डर 1173। अभी फ़ोन करें।'] }),
+    g('delivery', 'Delivery news', 'A rider accepted, rejected or has a problem; nobody took an order; a delivery is late.', ['rider_accepted', 'rider_rejected', 'rider_none', 'rider_problem', 'rider_quiet', 'rider_arrived_shop', 'delivery_late_warning', 'order_late', 'order_delivered_shop'], { s: false }),
+    g('leave', 'Leave requests', 'A cook, a waiter or a rider asks for leave.', ['staff_leave_request', 'rider_leave_request'], { s: false }),
+    g('holiday', 'Days off', 'A cook or a waiter put plain days off in their calendar.', ['staff_holiday'], { s: false }),
+    g('offduty', 'Staff goes off duty', 'A cook or a waiter switched themselves off duty.', ['staff_off_duty'], { s: false }),
+    g('undo', 'Steps taken back (undo)', 'Someone undid Ready, Served or Picked up.', ['order_undone'], { s: false }),
+    g('reviews', 'Reviews and complaints', 'A new complaint, a review, or a low rating.', ['complaint_new', 'complaint_reminder', 'review_food', 'review_delivery', 'delivery_low_rating', 'dish_low_rating'], { s: false }),
+    g('money', 'Rent, money and SMS', 'Your rent bill, payments, and your SMS balance.', ['bill_issued', 'bill_reminder', 'bill_overdue', 'shop_paused', 'shop_unpaused', 'payment_received', 'sms_topup_done', 'sms_low', 'sms_zero', 'free_ending', 'platform_message'], { s: false, critical: true }),
+    g('reports', 'Daily and weekly reports', 'How today and last week went.', ['owner_daily_summary', 'owner_weekly_digest', 'monthly_report'], { s: false }),
+];
+
+const RIDER = [
+    g('offers', 'New delivery offers', 'An order is offered to you. You have two minutes to take it.', ['rider_offer'], { critical: true }),
+    g('late', 'Late delivery warning', 'An order will be cancelled soon if it is not delivered.', ['delivery_late_warning_rider'], { critical: true, s: false }),
+    g('packed', 'Food is packed', 'The kitchen packed the order you are coming for.', ['food_packed_rider'], { s: false }),
+    g('thanks', 'Thanks, ratings and badges', 'A thank you, a review of your delivery, a new badge.', ['delivery_done_rider', 'review_delivery_rider', 'rider_badge'], { s: false }),
+    g('duty', 'Duty and leave', 'You were put on or off duty, or the shop answered your leave.', ['rider_off_duty', 'rider_duty_auto', 'rider_leave_decision', 'rider_removed'], { s: false }),
+    g('undo', 'Steps taken back (undo)', 'Someone undid a step of your order.', ['order_undone'], { s: false }),
+];
+
+const KITCHEN = [
+    g('new', 'New orders', 'An order to make: where it goes, the dishes and the guest\'s note.', ['kitchen_new'], { kinds: ['new'], critical: true, sample: ['New order for table 2. 1 Chicken Wings, 2 Paneer Butter Masala. Note: no onion.', 'टेबल 2 के लिए नया ऑर्डर। 1 Chicken Wings, 2 Paneer Butter Masala। विशेष निर्देश: प्याज़ नहीं।'] }),
+    g('cancel', 'Cancelled orders', 'Stop making this order.', ['kitchen_cancelled'], { kinds: ['cancel'], p: true, critical: true, sample: ['Order 1166 is cancelled. Stop making it. Table 2. 1 Chicken Wings.', 'ऑर्डर 1166 रद्द हुआ। इसे मत बनाइए। टेबल 2। 1 Chicken Wings।'] }),
+    g('hurry', 'A table is waiting', 'A guest pressed "please hurry".', ['kitchen_hurry'], { kinds: ['hurry'], sample: ['Table 4 is waiting.', 'टेबल 4 इंतज़ार कर रही है।'] }),
+    g('here', 'A pickup customer is here', 'The customer for a pickup order has arrived.', [], { kinds: ['here'], sample: ['Pickup 1173, the customer is here.', 'पिकअप 1173, ग्राहक आ गया है।'] }),
+    g('done', 'Handed over, collected or served', 'An order has left the kitchen. A soft ping only.', ['kitchen_done'], { kinds: ['done'], s: true }),
+    g('undo', 'Steps taken back (undo)', 'Someone undid Served or Picked up.', ['order_undone'], { s: false }),
+    g('leave', 'Answers to your leave', 'The owner approved or rejected your leave.', ['staff_leave_decision'], { s: false }),
+];
+
+const WAITER = [
+    g('ready', 'Food ready to serve', 'The kitchen says a dish is ready for a table.', ['waiter_serve'], { kinds: ['ready'], critical: true, sample: ['Table 2, food is ready.', 'टेबल 2, खाना तैयार है।'] }),
+    g('call', 'A table calls', 'A guest asks for the waiter, water, a spoon or a clean table.', ['waiter_call'], { kinds: ['call'], sample: ['Table 4 is calling.', 'टेबल 4 बुला रही है।'] }),
+    g('bill', 'A table wants the bill', 'A guest asked for the bill.', ['waiter_bill'], { kinds: ['bill'], sample: ['Table 4 wants the bill.', 'टेबल 4 को बिल चाहिए।'] }),
+    g('undo', 'Steps taken back (undo)', 'Someone undid Ready.', ['order_undone'], { s: false }),
+    g('leave', 'Answers to your leave', 'The owner approved or rejected your leave.', ['staff_leave_decision'], { s: false }),
+];
+
+const BY_ROLE = { admin: OWNER, rider: RIDER, kitchen: KITCHEN, waiter: WAITER };
+const groupsFor = (role) => BY_ROLE[role] || [];
+const groupOf = (role, type) => (type ? groupsFor(role).find((x) => x.types.includes(String(type))) || null : null);
+
+// the person's choice for one group, with the recommended value where he has not chosen
+const prefOf = (prefs, group) => {
+    const own = (prefs && prefs[group.id]) || {};
+    const out = {};
+    for (const k of ['n', 'p', 's']) out[k] = group.can[k] ? (typeof own[k] === 'boolean' ? own[k] : group.defaults[k]) : (k === 'n' ? true : group.defaults[k]);
+    return out;
+};
+
+// keep only real, different-from-recommended choices of real groups
+function cleanPrefs(role, body) {
+    const out = {};
+    for (const grp of groupsFor(role)) {
+        const b = body && body[grp.id];
+        if (!b || typeof b !== 'object') continue;
+        const row = {};
+        for (const k of ['n', 'p', 's']) if (grp.can[k] && typeof b[k] === 'boolean' && b[k] !== grp.defaults[k]) row[k] = b[k];
+        if (Object.keys(row).length) out[grp.id] = row;
+    }
+    return out;
+}
+
+const view = (role, prefs) => groupsFor(role).map((x) => ({ id: x.id, label: x.label, hint: x.hint, can: x.can, critical: x.critical, types: x.types, kinds: x.kinds, sample: x.sample, defaults: x.defaults, pref: prefOf(prefs, x) }));
+
+module.exports = { groupsFor, groupOf, prefOf, cleanPrefs, view };

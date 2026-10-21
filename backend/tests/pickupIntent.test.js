@@ -44,13 +44,18 @@ describe('the customer says he is coming', () => {
         assert.equal((await due()).body.items.length, 0, 'not asked again');
     });
 
-    test('"on my time" tells nobody; "I am here" and "late" and "more time" tell the owner each time', async () => {
+    test('every answer tells the owner ("on my time" too), and the same one again waits a few minutes', async () => {
         const a = await ready();
         const first = await answer(a._id, 'on_time'); assert.equal(first.status, 200, JSON.stringify(first.body));
-        assert.equal(await Notification.countDocuments({ tenantId: w.tenant._id, type: 'pickup_intent' }), 0);
+        await f.waitFor(async () => (await Notification.countDocuments({ tenantId: w.tenant._id, type: 'pickup_intent' })) === 1);
+        const again = await answer(a._id, 'on_time');
+        assert.equal(again.status, 429);
+        assert.match(again.body.error, /again in \d+ minute/);
+        await Order.updateOne({ _id: a._id }, { $set: { 'pickupIntent.at': new Date(Date.now() - 4 * 60000) } });
+        assert.equal((await answer(a._id, 'on_time')).status, 200, 'after the cool-down he can tell them again');
         const b = await ready();
         for (const k of ['arrived', 'late', 'more_time']) assert.equal((await answer(b._id, k)).status, 200, k);
-        await f.waitFor(async () => (await Notification.countDocuments({ tenantId: w.tenant._id, type: 'pickup_intent' })) === 3);
+        await f.waitFor(async () => (await Notification.countDocuments({ tenantId: w.tenant._id, type: 'pickup_intent' })) === 5);
         const titles = (await Notification.find({ tenantId: w.tenant._id, type: 'pickup_intent' })).map((n) => n.title).join(' | ');
         assert.match(titles, /customer is here/);
         assert.match(titles, /customer is late/);

@@ -34,6 +34,8 @@ core.get('/me', wrap(async (req, res) => {
     const { closed, winding } = await duty.closedFor(t, req.staff.role);
     res.json({
         prefs: { tellDone: row?.prefs?.tellDone !== false }, onDuty: duty.isOnDuty(row || {}, new Date(), closed), dutyStatus: duty.statusOf(row || {}, new Date(), closed), winding,
+        // the owner paused orders for a while: until when (the screens say "Paused until 9:18 PM")
+        pausedUntil: t.settings?.orders?.pausedUntil && new Date(t.settings.orders.pausedUntil).getTime() > Date.now() ? t.settings.orders.pausedUntil : null,
         userId: String(req.staff.id), role: req.staff.role, job: staff.JOB[req.staff.role], name: req.staff.name,
         phone: req.shopUser.phone, shop: t.name || '', shopPhone: t.phone || null,
     });
@@ -63,6 +65,8 @@ const dutyView = async (req) => {
     const { closed, winding } = await d.closedFor(req.tenant, req.staff.role);
     return { ...d.viewOf(await dutyRow(req), new Date(), closed, winding), leaves: await require('../services/staffLeave').mine(req.tenant._id, req.staff.id) };
 };
+// the person's own work: today and this week, what they are making now, their leaves and days off (the "My work" tab)
+core.get('/work', wrap(async (req, res) => { res.json(await require('../services/staffStats').detail({ tenant: req.tenant, userId: req.staff.id })); }));
 core.get('/duty', wrap(async (req, res) => { res.json(await dutyView(req)); }));
 core.put('/duty', wrap(async (req, res) => {
     const duty = require('../services/staffDuty');
@@ -75,6 +79,7 @@ core.put('/duty', wrap(async (req, res) => {
         else set[`duty.${k}`] = v;
     }
     await Staff.updateOne({ tenantId: req.tenant._id, userId: req.staff.id }, { $set: set });
+    if (c.online === false) require('../notifications/center').notify('staff_off_duty', { tenantId: req.tenant._id, vars: { name: req.staff.name || req.shopUser.phone, job: staff.JOB[req.staff.role] }, data: { kind: 'staff_off_duty', userId: String(req.staff.id) } });   // the owner is told (a notification, never a popup)
     res.json(await dutyView(req));
 }));
 // { from, to, note? }  days off (a holiday or leave). No approval: the owner is told.

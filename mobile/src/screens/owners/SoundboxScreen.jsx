@@ -8,6 +8,7 @@ import { useSoundboxStore, REPEAT_CHOICES } from '../../store/owners/useSoundbox
 import { labelledVoices, sampleVoice, previewGreeting } from '../../utils/owners/soundbox';
 import { FAITH_GREETINGS, ADDRESS_CHOICES } from '../../utils/owners/greetings';
 import { newOrderChannelInfo } from '../../utils/common/push';
+import { useAuthStore } from '../../store/common/useAuthStore';
 import { tr } from '../../i18n';
 import KeyboardScroll from '../../components/common/KeyboardScroll';
 
@@ -42,6 +43,8 @@ export default function SoundboxScreen() {
     const { background, text, muted, ok, border, error } = useBrand();
     const st = useSoundboxStore();
     const hindi = st.language === 'hi';
+    const role = useAuthStore((x) => x.user?.role);
+    const staff = role === 'kitchen' || role === 'waiter';
 
     const [voices, setVoices] = useState(null);   // [{ voice, name, sub, recommended }] for the chosen language
     useEffect(() => {
@@ -55,7 +58,7 @@ export default function SoundboxScreen() {
     const [chan, setChan] = useState(null);   // what the phone holds for the new-order channel (see push.js)
     useEffect(() => {
         // the channel is created when push registers; give that a moment on first open
-        const t = setTimeout(() => newOrderChannelInfo().then(setChan), 600);
+        const t = setTimeout(() => newOrderChannelInfo(staff ? 'staff_alerts_v1' : undefined).then(setChan), 600);
         return () => clearTimeout(t);
     }, []);
 
@@ -66,7 +69,7 @@ export default function SoundboxScreen() {
                 <Card style={{ marginTop: 8 }}>
                     <Switcher
                         title={tr('Soundbox mode')}
-                        subtitle={tr('Rings and reads every new order out loud, and keeps listening with the screen off. Keep the phone on charge. Off means no new-order sound at all on this phone.')}
+                        subtitle={role === 'kitchen' ? tr('Rings and reads every new order out loud (the table, the dishes and the guest\'s note), and keeps listening with the screen off. Keep the phone on charge. Off means no sound at all on this phone.') : role === 'waiter' ? tr('Rings and says it out loud when food is ready or a table calls, and keeps listening with the screen off. Keep the phone on charge. Off means no sound at all on this phone.') : tr('Rings and reads every new order out loud, and keeps listening with the screen off. Keep the phone on charge. Off means no new-order sound at all on this phone.')}
                         value={st.soundbox}
                         onChange={(v) => st.update({ soundbox: v })}
                     />
@@ -84,10 +87,10 @@ export default function SoundboxScreen() {
                         {chan?.supported && chan.error ? <Text style={{ color: error, fontSize: 13 }}>{tr('Could not read it: {error}', { error: chan.error })}</Text> : null}
                         {chan?.supported && !chan.error ? [
                             [chan.allowed, 'Notifications are allowed for this app', 'Phone settings → Apps → this app → Notifications → Allow.'],
-                            [chan.exists, 'The "New orders" channel exists', 'Open the app once while logged in as the owner, then press Check again.'],
+                            [chan.exists, staff ? 'The "Staff alerts" channel exists' : 'The "New orders" channel exists', staff ? 'Open the app once while signed in, then press Check again.' : 'Open the app once while logged in as the owner, then press Check again.'],
                             // Android only says "custom" (a sound the app set), "default" (the phone's normal ping, which is
                             // what it falls back to when the sound file is missing from the app) or nothing (silent).
-                            [chan.exists && chan.sound === 'custom', `It has the app's own sound, the "New order received" voice (now: ${chan.exists ? (chan.sound === 'default' ? "the phone's normal ping" : chan.sound === 'custom' ? 'custom' : 'silent') : '—'})`, chan.sound === 'default'
+                            [chan.exists && chan.sound === 'custom', `It has the app's own sound, ${staff ? 'the ting-tong' : 'the "New order received" voice'} (now: ${chan.exists ? (chan.sound === 'default' ? "the phone's normal ping" : chan.sound === 'custom' ? 'custom' : 'silent') : '—'})`, chan.sound === 'default'
                                 ? 'The app could not find its sound file, so Android used the normal ping. This app build does not contain the sound: install the latest build (uninstall first).'
                                 : 'The channel is silent. Uninstall and reinstall the app, or in Phone settings → Apps → this app → Notifications → New orders → Sound.'],
                             [chan.exists && chan.importance >= 4, `It may pop up and make sound (level ${chan.importance ?? '—'} of 5)`, 'Phone settings → Apps → this app → Notifications → New orders → set to "Urgent" or "High".'],
@@ -103,7 +106,7 @@ export default function SoundboxScreen() {
                         )) : null}
                     </View>
                     <View style={{ flexDirection: 'row' }}>
-                        <Button label={tr('Check again')} kind="ghost" onPress={() => newOrderChannelInfo().then(setChan)} style={{ flex: 1, marginRight: 8 }} />
+                        <Button label={tr('Check again')} kind="ghost" onPress={() => newOrderChannelInfo(staff ? 'staff_alerts_v1' : undefined).then(setChan)} style={{ flex: 1, marginRight: 8 }} />
                         <Button label={tr('Settings')} kind="ghost" onPress={() => Linking.openSettings()} style={{ flex: 1 }} />
                     </View>
                 </Card>

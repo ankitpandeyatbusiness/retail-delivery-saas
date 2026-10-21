@@ -41,17 +41,20 @@ export default function TableRequests() {
             {items.map((x) => (
                 <Card key={x.id}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: alpha(x.type === 'bill' ? warn : primary, 0.16), alignItems: 'center', justifyContent: 'center' }}>
-                            <Ionicons name={ICON[x.kind] || 'help-circle'} size={20} color={x.type === 'bill' ? warn : primary} />
+                        <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: alpha(x.type === 'bill' ? warn : primary, 0.16), alignItems: 'center', justifyContent: 'center' }}>
+                            <Ionicons name={ICON[x.kind] || 'help-circle'} size={21} color={x.type === 'bill' ? warn : primary} />
                         </View>
-                        <View style={{ flex: 1, marginLeft: 12 }}>
-                            <Text style={{ color: text, fontWeight: '900' }}>{tr('Table {t}', { t: x.table })} · {tr(x.label)}</Text>
-                            {x.text ? <Text style={{ color: text, fontWeight: '800', marginTop: 2 }}>“{x.text}”</Text> : null}
-                            <WaitTimer since={x.at} style={{ marginTop: 3 }} />
+                        <View style={{ flex: 1, minWidth: 0, marginLeft: 12 }}>
+                            <Text style={{ color: text, fontWeight: '900', fontSize: 15 }} numberOfLines={1}>{tr('Table {t}', { t: x.table })}{x.party ? ` · ${x.party}` : ''}</Text>
+                            <Text style={{ color: muted, fontWeight: '700', fontSize: 13, marginTop: 1 }} numberOfLines={2}>{tr(x.label)}</Text>
+                            {x.text ? <Text style={{ color: text, fontWeight: '800', marginTop: 3 }}>“{x.text}”</Text> : null}
                         </View>
+                        <WaitTimer since={x.at} />
+                    </View>
+                    <View style={{ marginTop: 12 }}>
                         {x.type === 'call'
-                            ? <Button label={tr('Done')} icon="checkmark" kind="ghost" onPress={() => done(x.id)} style={{ minWidth: 104 }} />
-                            : <Button label={tr('Open bill')} icon="receipt" kind="ghost" onPress={() => setOpen({ sessionId: x.sessionId, table: x.table })} style={{ minWidth: 118 }} />}
+                            ? <Button label={tr('Done')} icon="checkmark" kind="ghost" onPress={() => done(x.id)} />
+                            : <Button label={tr('Open bill')} icon="receipt" kind="ghost" onPress={() => setOpen({ sessionId: x.sessionId, table: x.table })} />}
                     </View>
                 </Card>
             ))}

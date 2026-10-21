@@ -12,7 +12,7 @@ const Order = require('../src/models/Order');
 const Notification = require('../src/models/Notification');
 const FeedEvent = require('../src/models/FeedEvent');
 const refundService = require('../src/services/refundService');
-const { runComplaintReminders } = require('../src/jobs/complaintReminders');
+const { runComplaintReminders, closeAnswered } = require('../src/jobs/complaintReminders');
 const center = require('../src/notifications/center');
 
 before(() => db.connect());
@@ -193,6 +193,23 @@ describe('reminder job and superadmin list', () => {
         await request(app).patch(`/api/shop/complaints/${c.id}`).set(w.owner.headers).send({ ownerReply: 'On it' });
         await Complaint.collection.updateOne({ _id: new mongoose.Types.ObjectId(String(c.id)) }, { $set: { createdAt: new Date(Date.now() - 30 * 3600 * 1000) } });
         assert.equal(await runComplaintReminders(), 0);
+    });
+
+    test('24 hours after the owner replied (decided nothing) the complaint is Decided by itself, with the reason; sooner, or with no reply, it stays', async () => {
+        const w = await f.makeWorld('cmp-14b');
+        const o = await delivered(w);
+        const c = (await send(w, o._id, body())).body;
+        assert.equal(await closeAnswered(), 0, 'no reply yet');
+        await request(app).patch(`/api/shop/complaints/${c.id}`).set(w.owner.headers).send({ ownerReply: 'We are checking' });
+        assert.equal((await Complaint.findById(c.id)).status, 'in_progress');
+        assert.equal(await closeAnswered(), 0, 'replied just now');
+        await Complaint.collection.updateOne({ _id: new mongoose.Types.ObjectId(String(c.id)) }, { $set: { repliedAt: new Date(Date.now() - 25 * 3600 * 1000) } });
+        assert.equal(await closeAnswered(), 1);
+        const done = await Complaint.findById(c.id);
+        assert.equal(done.status, 'resolved');
+        assert.equal(done.refundPaise, 0);
+        assert.match(done.autoReason, /24 hours/);
+        assert.equal(await closeAnswered(), 0, 'only once');
     });
 
     test('the superadmin sees complaints of all shops, can filter, and a login is needed', async () => {

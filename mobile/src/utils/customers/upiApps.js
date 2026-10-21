@@ -19,6 +19,7 @@ export const STANDARD_UPI_APPS = [
     { pkg: 'com.phonepe.app', label: 'PhonePe', mark: 'P' },
     { pkg: 'com.google.android.apps.nbu.paisa.user', label: 'Google Pay', mark: 'G' },
     { pkg: 'net.one97.paytm', label: 'Paytm', mark: 'P' },
+    { pkg: 'in.org.npci.upiapp', label: 'BHIM UPI', mark: 'B' },
     { pkg: 'com.naviapp', label: 'Navi', mark: 'N' },
 ];
 
@@ -44,14 +45,16 @@ export async function detectInstalledUpiApps() {
     }
 }
 
-// The standard apps that are installed on this phone (with their real logo), plus nothing else.
-// If the phone cannot tell us what is installed, all of them are listed.
+// The standard apps that are installed on this phone (with their real logo), and ONLY those: an app the customer does not have is never listed.
+// If the phone cannot tell us what is installed, none are listed by name and `other` is true: the screen then offers "Other UPI app", where Android
+// shows its own list of the apps that really are there. `other` is also true when the phone has UPI apps beyond these five (CRED, Amazon Pay...).
 export async function standardUpiApps() {
     const found = await detectInstalledUpiApps();
     const byPkg = new Map(found.map((a) => [a.pkg, a]));
     const list = STANDARD_UPI_APPS
-        .filter((a) => !found.length || byPkg.has(a.pkg))
+        .filter((a) => byPkg.has(a.pkg))
         .map((a) => ({ ...a, id: a.pkg, logo: byPkg.get(a.pkg)?.logo || null }));
+    list.other = !list.length || found.some((a) => !STANDARD_UPI_APPS.some((x) => x.pkg === a.pkg));
     return list;
 }
 

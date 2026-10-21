@@ -280,7 +280,8 @@ export default function OrderDetailScreen() {
         { text: tr('No'), style: 'cancel' },
         { text: tr('Ask'), onPress: async () => { setBusy(true); try { const u = await askCancelOrder(o.id); setO(u); showToast(tr('Asked. The shop will reply soon.')); } catch (e) { showToast(errMsg(e)); } finally { setBusy(false); } } },
     ]);
-    const dock = o.canCancel || o.canAskCancel || reorderOn || payable;
+    const canReorder = reorderOn && !isActive(o.status);   // only when this order is fully done
+    const dock = o.canCancel || o.canAskCancel || canReorder || payable;
     const timeLine = o.scheduledFor ? (o.pickupUntil ? `${fmt(o.scheduledFor)} – ${tm(o.pickupUntil)}` : fmt(o.scheduledFor)) : '';
     const showForm = !saved || editing;
 
@@ -502,13 +503,13 @@ export default function OrderDetailScreen() {
             {dock ? (
                 <Appear style={[s.dock, { backgroundColor: surface, borderTopColor: border, paddingBottom: (insets.bottom || 12) + 4 }]}>
                     {o.canCancel ? (
-                        <Press wrap={{ flex: 1, marginRight: reorderOn ? 10 : 0 }} disabled={busy} onPress={() => cancelFlow(o, { setBusy, onDone: setO })}
+                        <Press wrap={{ flex: 1, marginRight: canReorder ? 10 : 0 }} disabled={busy} onPress={() => cancelFlow(o, { setBusy, onDone: setO })}
                             style={[s.dBtn, { borderColor: error, borderWidth: 1.5, borderRadius: radius }]}>
                             <Text style={[s.ghostTxt, { color: error }]}>{tr('Cancel order')}</Text>
                         </Press>
                     ) : null}
                     {o.canAskCancel ? (
-                        <Press wrap={{ flex: 1, marginRight: reorderOn ? 10 : 0 }} disabled={busy} onPress={askShop}
+                        <Press wrap={{ flex: 1, marginRight: canReorder ? 10 : 0 }} disabled={busy} onPress={askShop}
                             style={[s.dBtn, { borderColor: error, borderWidth: 1.5, borderRadius: radius }]}>
                             <Text style={[s.ghostTxt, { color: error }]}>{tr('Ask the shop to cancel')}</Text>
                         </Press>
@@ -518,7 +519,7 @@ export default function OrderDetailScreen() {
                             style={[s.dBtn, { backgroundColor: primary, borderRadius: radius }]}>
                             {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.mainTxt}>{tr('Pay {rs}', { rs: rs(o.pricing?.total) })}</Text>}
                         </Press>
-                    ) : reorderOn ? (
+                    ) : canReorder ? (
                         <Press wrap={{ flex: 1.4 }} disabled={busy} onPress={() => reorder(o, nav, setBusy)}
                             style={[s.dBtn, { backgroundColor: primary, borderRadius: radius }]}>
                             {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.mainTxt}>{tr('Reorder')}</Text>}
@@ -575,10 +576,10 @@ const s = StyleSheet.create({
     count: { fontSize: 11, textAlign: 'right', marginTop: 4, marginBottom: 12 },
     saved: { fontSize: 14, lineHeight: 20, marginTop: 6 },
     ghost: { marginTop: 16, borderWidth: 1.5, paddingVertical: 12, alignItems: 'center', justifyContent: 'center' },
-    ghostTxt: { fontSize: 14, fontWeight: '800' },
+    ghostTxt: { fontSize: 14, fontWeight: '800', textAlign: 'center' },
     iconRow: { flexDirection: 'row', alignItems: 'center' },
     main: { paddingVertical: 14, alignItems: 'center', justifyContent: 'center' },
-    mainTxt: { color: '#FFFFFF', fontSize: 15, fontWeight: '900' },
+    mainTxt: { color: '#FFFFFF', fontSize: 15, fontWeight: '900', textAlign: 'center' },
     dock: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', paddingHorizontal: 16, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, elevation: 16, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, shadowOffset: { width: 0, height: -4 } },
-    dBtn: { paddingVertical: 14, alignItems: 'center', justifyContent: 'center', minHeight: 50 },
+    dBtn: { paddingVertical: 12, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center', minHeight: 50 },
 });

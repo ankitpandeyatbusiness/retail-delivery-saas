@@ -32,6 +32,8 @@ export default function PickupCollectHost() {
     const cur = on ? items.find((x) => !hidden.includes(x.id)) : null;
     const answer = async (a) => {
         if (cur.mode === 'ready' && ['coming', 'on_time'].includes(a)) {
+            const yes = await ask({ title: a === 'coming' ? tr('Tell the shop you are coming?') : tr('Keep it for your time?'), message: a === 'coming' ? tr('The shop will be told right away.') : tr('The shop will keep it for your pickup time.'), confirmText: tr('Yes'), cancelText: tr('Go back') });
+            if (!yes) return;
             setBusy(a);
             try {
                 await answerPickup(cur.id, a);
@@ -39,6 +41,10 @@ export default function PickupCollectHost() {
                 showToast(a === 'coming' ? tr('The shop knows you are coming.') : tr('Okay. The shop will keep it for your time.'));
             } catch (e) { showToast(e?.response?.data?.error || tr('Could not send that. Try again.')); } finally { setBusy(''); }
             return;
+        }
+        if (a === 'collected') {
+            const yes = await ask({ title: tr('Did you get your food?'), message: tr('We will tell the shop you took it.'), confirmText: tr('Yes, I got it'), cancelText: tr('Go back') });
+            if (!yes) return;
         }
         if (a === 'not_wanted') {
             const yes = await ask({ title: tr('You do not want the food?'), message: tr('We will tell the shop. They will decide about the refund and let you know.'), confirmText: tr('Yes, I do not want it'), cancelText: tr('Go back') });

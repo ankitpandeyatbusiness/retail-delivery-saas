@@ -17,14 +17,14 @@ import { tr } from '../../i18n';
 const JOB_LABEL = { kitchen: 'Kitchen', waiter: 'Waiter' };
 const jobOptions = (rules) => [['kitchen', tr('Kitchen')], ['waiter', tr('Waiter')]].filter(([k]) => (k === 'kitchen' ? rules.kitchenOn : rules.waiterOn));
 
-function AddSheet({ visible, rules, onClose, onDone }) {
+export function AddSheet({ visible, rules, onClose, onDone, fixedRole }) {
     const { muted } = useBrand();
     const jobs = jobOptions(rules);
     const [phone, setPhone] = useState('');
     const [name, setName] = useState('');
     const [role, setRole] = useState('');
     const [busy, setBusy] = useState(false);
-    const job = role || jobs[0]?.[0] || '';
+    const job = fixedRole || role || jobs[0]?.[0] || '';
     const ok = /^[6-9]\d{9}$/.test(phone) && !!job;
     const submit = async () => {
         setBusy(true);
@@ -37,9 +37,9 @@ function AddSheet({ visible, rules, onClose, onDone }) {
         } catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); } finally { setBusy(false); }
     };
     return (
-        <Sheet visible={visible} onClose={onClose} title={tr('Add staff')}>
+        <Sheet visible={visible} onClose={onClose} title={fixedRole === 'kitchen' ? tr('Add a cook') : fixedRole === 'waiter' ? tr('Add a waiter') : tr('Add staff')}>
             <Text style={{ color: muted, marginBottom: 10 }}>{tr('They sign in to this app with their mobile number and see only their own screen.')}</Text>
-            {jobs.length > 1 ? <Chips options={jobs} value={job} onChange={setRole} style={{ marginTop: 0, marginBottom: 8 }} /> : null}
+            {!fixedRole && jobs.length > 1 ? <Chips options={jobs} value={job} onChange={setRole} style={{ marginTop: 0, marginBottom: 8 }} /> : null}
             <Field value={phone} onChangeText={(x) => setPhone(x.replace(/\D/g, '').slice(0, 10))} placeholder={tr('Mobile number (10 digits)')} maxLength={10} keyboardType="number-pad" style={{ marginBottom: 10 }} />
             <Field value={name} onChangeText={setName} placeholder={tr('Name (optional)')} maxLength={40} style={{ marginBottom: 14 }} />
             <Button label={tr('Add')} icon="person-add" disabled={!ok} busy={busy} onPress={submit} />
@@ -84,13 +84,14 @@ function EditSheet({ person, rules, onClose, onDone }) {
 }
 
 // Leave the cooks and waiters asked for: the owner says yes or no here. They are told.
-function LeaveRequests({ onChanged }) {
+export function LeaveRequests({ onChanged, role }) {
     const { text, muted, ok } = useBrand();
     const [data, setData] = useState(null);
     const [busy, setBusy] = useState('');
     const load = useCallback(() => fetchStaffLeaves().then(setData).catch(() => { }), []);
     useFocusEffect(useCallback(() => { load(); }, [load]));
-    if (!data?.pending?.length) return null;
+    const pending = (data?.pending || []).filter((l) => !role || l.role === role);
+    if (!pending.length) return null;
     const decide = async (l, approve) => {
         setBusy(l.id + approve);
         try { await decideStaffLeave(l.id, approve); showToast(approve ? tr('Leave approved') : tr('Leave not approved')); await load(); onChanged?.(); } catch (e) { showToast(apiError(e)); } finally { setBusy(''); }
@@ -98,7 +99,7 @@ function LeaveRequests({ onChanged }) {
     return (
         <View>
             <SectionTitle title={tr('Leave requests')} />
-            {data.pending.map((l) => (
+            {pending.map((l) => (
                 <Card key={l.id}>
                     <Text style={{ color: text, fontWeight: '900', fontSize: 15 }}>{l.name || tr('Staff')} · {l.role === 'kitchen' ? tr('Kitchen') : tr('Waiter')}</Text>
                     <Text style={{ color: text, fontWeight: '700', marginTop: 4 }}>{l.from === l.to ? l.from : `${l.from} → ${l.to}`} · {l.days} {l.days === 1 ? tr('day') : tr('days')}</Text>

@@ -12,6 +12,8 @@ const userSchema = new mongoose.Schema({
     prefs: {
         promotions: { type: Boolean, default: true },   // false = no promotional broadcasts (information messages still arrive)
     },
+    // the alerts this person switched (notifications/alertGroups.js): { <group>: { n?, p?, s? } }, only what differs from the recommended settings
+    alertPrefs: { type: mongoose.Schema.Types.Mixed },
     role: { type: String, enum: ['customer', 'rider', 'admin', 'kitchen', 'waiter'], default: 'customer' },
     isBlocked: { type: Boolean, default: false },
     // why, when and by whom he was blocked, and the order or table bill it was about (kept until he is unblocked)

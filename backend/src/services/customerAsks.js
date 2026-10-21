@@ -44,6 +44,8 @@ async function pickupDue({ tenant, userId, now = new Date() }) {
     return [...rows.map((o) => view(o, 'due')), ...ready.filter((o) => !dueIds.has(String(o._id))).map((o) => view(o, 'ready'))];
 }
 
+const REPEAT_MS = 3 * 60000;   // he can tell the shop the same thing again after this long
+
 async function pickupAnswer({ tenant, userId, orderId, answer }) {
     const order = await Order.findOne({ _id: orderId, tenantId: tenant._id, userId, orderType: 'pickup' });
     if (!order) throw httpError(404, 'Order not found');
@@ -55,13 +57,18 @@ async function pickupAnswer({ tenant, userId, orderId, answer }) {
     }
     // what he tells the shop about coming (not a final answer: he can still say he collected it, or does not want it)
     if (['coming', 'arrived', 'on_time', 'late', 'more_time'].includes(answer)) {
+        const prev = order.pickupIntent;
+        if (prev?.kind === answer && prev.at && Date.now() - new Date(prev.at).getTime() < REPEAT_MS) {
+            const left = Math.max(1, Math.ceil((REPEAT_MS - (Date.now() - new Date(prev.at).getTime())) / 60000));
+            throw httpError(429, `The shop already knows. You can tell them again in ${left} minute${left === 1 ? '' : 's'}.`);
+        }
         await Order.updateOne({ _id: order._id }, { $set: { pickupIntent: { kind: answer, at: new Date() } } });
-        if (answer !== 'on_time') {
-            const full = answer === 'arrived' ? `Order ${order.orderNo}. The customer is here.` : answer === 'coming' ? `Order ${order.orderNo}. The customer is coming.` : answer === 'late' ? `Order ${order.orderNo}. The customer is late, on the way.` : `Order ${order.orderNo}. The customer needs more time.`;
+        {   // every answer reaches the owner now (on time too), with the details
+            const spoken = require('../utils/orderSpeech');
             tell('pickup_intent', {
                 tenantId: tenant._id,
                 vars: { orderNo: order.orderNo, name: order.customer?.name, brief: brief(order, 3), kind: answer },
-                data: { orderId: String(order._id), orderNo: order.orderNo, kind: answer, speech: full, speechHi: `ऑर्डर ${order.orderNo}।` },
+                data: { orderId: String(order._id), orderNo: order.orderNo, kind: answer, speech: spoken.pickupIntentSpeech(order, answer), speechHi: spoken.pickupIntentSpeech(order, answer, true), name: order.customer?.name || null, brief: brief(order, 3) },
             });
             require('./kitchenAlerts').tell(tenant._id, { orderId: String(order._id), orderNo: order.orderNo, status: order.status, ...(answer === 'arrived' ? { alert: { kind: 'here', orderNo: order.orderNo } } : {}) });
         }

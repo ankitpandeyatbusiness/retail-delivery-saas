@@ -91,6 +91,28 @@ function offer(o, type, role) {
     } catch (e) { return null; }
 }
 
+// Everyone who was told the work was done is now told it is NOT: Ready -> the waiters (and the rider of a delivery), Served and Picked up -> the cooks.
+// The owner is told every time. The person who pressed Undo is not told about his own tap.
+async function tellUndone({ order, step, by, actor }) {
+    const duty = require('./staffDuty');
+    const pushChannel = require('../notifications/channels/push');
+    const { STAFF_INFO_CHANNEL } = require('../notifications/events');
+    const where = order.orderType === 'dine_in' && order.tableNo ? ` · Table ${order.tableNo}` : '';
+    const title = `Order #${order.orderNo}${where}: ${step.label} was undone`;
+    const body = step.id === 'ready' ? 'It is not ready after all.' : step.id === 'served' ? 'It was not served.' : step.id === 'picked_up' ? 'It was not collected.' : 'It is back where it was.';
+    const data = { orderId: String(order._id), orderNo: order.orderNo, table: String(order.tableNo || ''), kind: 'undone' };
+    const people = [];
+    if (step.id === 'ready' && order.orderType === 'dine_in') people.push(...await duty.peopleOnDuty(order.tenantId, 'waiter'));
+    if (step.id === 'served' || step.id === 'picked_up') people.push(...await duty.peopleOnDuty(order.tenantId, 'kitchen'));
+    await Promise.all(people.filter((p) => String(p.userId) !== String(actor?.id)).map((p) => pushChannel.send({
+        tenantId: order.tenantId, userId: p.userId, title, body, data: { ...data, type: 'order_undone' }, tag: `undo:${order._id}`, channelId: STAFF_INFO_CHANNEL, sound: 'notify',
+    }).catch(() => null)));
+    if (step.id === 'ready' && order.orderType === 'delivery' && order.delivery?.riderId) {
+        await pushChannel.send({ tenantId: order.tenantId, userId: order.delivery.riderId, title, body, data: { ...data, type: 'order_undone' }, tag: `undo:${order._id}` }).catch(() => null);
+    }
+    if (actor?.type !== 'owner') require('../notifications/center').notify('order_undone', { tenantId: order.tenantId, data, vars: { orderNo: order.orderNo, by, step: step.label } });
+}
+
 async function undo({ order, actor }) {
     if (!order) throw httpError(404, 'Order not found');
     const step = stepFor(order);
@@ -134,6 +156,7 @@ async function undo({ order, actor }) {
     try { require('./kitchenAlerts').tell(updated.tenantId, { orderId: p.orderId, orderNo: p.orderNo, status: updated.status }); } catch (e) { /* the screens refresh by themselves */ }
     try { if (updated.orderType === 'dine_in') require('./waiterAlerts').tell(updated.tenantId, { orderId: p.orderId, orderNo: p.orderNo, table: updated.tableNo, status: updated.status }); } catch (e) { /* the screens refresh by themselves */ }
     if (step.id === 'picked_up') require('./liveTracking').orderChanged(updated.delivery.riderId);
+    tellUndone({ order: updated, step, by: label, actor }).catch((e) => console.error('Undo notice error:', e.message));
     return { order: updated, undone: step.label };
 }
 

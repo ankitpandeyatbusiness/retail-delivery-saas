@@ -16,7 +16,7 @@ import { downloadAndOpen, XLSX } from '../../utils/owners/files';
 import { showToast } from '../../components/customers/shop';
 import { tr } from '../../i18n';
 
-export default function OwnerMoneyScreen() {
+export default function OwnerMoneyScreen({ page = false } = {}) {
     const nav = useNavigation();
     const { muted, text, error, ok, primary } = useBrand();
     const access = useOwnerStore((s) => s.access);
@@ -63,7 +63,7 @@ export default function OwnerMoneyScreen() {
     const due = bill?.due?.amount || 0;
 
     return (
-        <OwnerScreen title={tr('Money')} onRefresh={refresh} refreshing={refreshing}>
+        <OwnerScreen title={tr('Money')} onRefresh={refresh} refreshing={refreshing} page={page === true}>
             {due > 0 ? (
                 <Card tone={error} onPress={() => nav.navigate('OwnerRent')}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -174,3 +174,6 @@ export default function OwnerMoneyScreen() {
         </OwnerScreen>
     );
 }
+
+// the Money page of the side menu (rent, SMS balance, top up): a normal page with a back arrow
+export const OwnerMoneyPage = () => <OwnerMoneyScreen page />;

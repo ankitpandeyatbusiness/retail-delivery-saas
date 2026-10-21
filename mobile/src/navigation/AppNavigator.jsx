@@ -19,6 +19,8 @@ import OrderPlacedScreen from '../screens/customers/OrderPlacedScreen';
 import RiderTabs from './RiderNavigator';
 import StaffTabs from './StaffNavigator';
 import OwnerStaffScreen from '../screens/owners/OwnerStaffScreen';
+import { OwnerCooksScreen, OwnerWaitersScreen } from '../screens/owners/OwnerStaffGroupScreen';
+import OwnerStaffPersonScreen from '../screens/owners/OwnerStaffPersonScreen';
 import OwnerAppLockScreen from '../screens/owners/OwnerAppLockScreen';
 import RiderTripScreen from '../screens/riders/RiderTripScreen';
 import RiderDutyScreen from '../screens/riders/RiderDutyScreen';
@@ -46,6 +48,9 @@ import OwnerMoneyRulesScreen from '../screens/owners/OwnerMoneyRulesScreen';
 import OwnerTabs from './OwnerNavigator';
 import ShopHubScreen from '../screens/owners/ShopHubScreen';
 import SoundboxScreen from '../screens/owners/SoundboxScreen';
+import AlertSettingsScreen from '../screens/common/AlertSettingsScreen';
+import { OwnerMoneyPage } from '../screens/owners/OwnerMoneyScreen';
+import OwnerInfoPopup from '../components/owners/OwnerInfoPopup';
 import { OwnerStubPage } from '../screens/owners/OwnerStubScreens';
 import OwnerOrderScreen from '../screens/owners/OwnerOrderScreen';
 import OwnerRiderScreen from '../screens/owners/OwnerRiderScreen';
@@ -336,6 +341,8 @@ export default function AppNavigator() {
                     {/* owner pages (role "admin"); the owner's tabs are MainTabs -> Landing -> OwnerTabs */}
                     <Stack.Screen name="ShopHub" component={ShopHubScreen} />
                     <Stack.Screen name="Soundbox" component={SoundboxScreen} />
+                    <Stack.Screen name="AlertSettings" component={AlertSettingsScreen} />
+                    <Stack.Screen name="OwnerMoney" component={OwnerMoneyPage} />
                     <Stack.Screen name="OwnerStub" component={OwnerStubPage} />
                     <Stack.Screen name="OwnerOrder" component={OwnerOrderScreen} />
                     <Stack.Screen name="OwnerRider" component={OwnerRiderScreen} />
@@ -343,6 +350,9 @@ export default function AppNavigator() {
                     <Stack.Screen name="OwnerPerformance" component={OwnerPerformanceScreen} />
                     <Stack.Screen name="OwnerRiderRules" component={OwnerRiderRulesScreen} />
                     <Stack.Screen name="OwnerStaff" component={OwnerStaffScreen} />
+                    <Stack.Screen name="OwnerCooks" component={OwnerCooksScreen} />
+                    <Stack.Screen name="OwnerWaiters" component={OwnerWaitersScreen} />
+                    <Stack.Screen name="OwnerStaffPerson" component={OwnerStaffPersonScreen} />
                     <Stack.Screen name="OwnerAppLock" component={OwnerAppLockScreen} />
                     <Stack.Screen name="OwnerPayments" component={OwnerPaymentsScreen} />
                     <Stack.Screen name="OwnerSms" component={OwnerSmsScreen} />
@@ -399,6 +409,7 @@ export default function AppNavigator() {
             <TableFeedbackHost navRef={navigationRef} />
             <NewOrderPopup navRef={navigationRef} />
             <KitchenProblemPopup />
+            <OwnerInfoPopup navRef={navigationRef} />
             <OwedClaimHost />
             <PickupChangeHost />
             <CustomerAskHost />

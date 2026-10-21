@@ -7,6 +7,7 @@ const d = (p) => p.then((r) => r.data);
 export const fetchStaffMe = () => d(api.get('/staff/me'));
 export const saveTellDone = (tellDone) => d(api.patch('/staff/me', { tellDone }));   // a cook: be told when an order left the kitchen
 // working time: { status, onDuty, online, mode, weekly, holidays, today }
+export const fetchMyWork = () => d(api.get('/staff/work'));   // my numbers, what I am making, my leaves and days off (the My work tab)
 export const fetchDuty = () => d(api.get('/staff/duty'));
 export const saveDuty = (body) => d(api.put('/staff/duty', body));   // { online?, mode?, weekly? }
 export const askLeave = (body) => d(api.post('/staff/duty/leave', body));   // { from, to, reason }: the owner approves or rejects

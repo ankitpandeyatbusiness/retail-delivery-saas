@@ -16,6 +16,11 @@ module.exports = function withUpiAppQueries(config) {
                 data: [{ $: { 'android:scheme': 'upi', 'android:host': 'pay' } }],
             });
         }
+        // and the well-known UPI apps by name, so Android lets us see whether each one is really installed (the list shows only those)
+        q.package = q.package || [];
+        for (const pkg of ['com.google.android.apps.nbu.paisa.user', 'com.phonepe.app', 'net.one97.paytm', 'in.org.npci.upiapp', 'com.naviapp', 'com.dreamplug.androidapp', 'in.amazon.mShop.android.shopping']) {
+            if (!q.package.some((p) => p.$['android:name'] === pkg)) q.package.push({ $: { 'android:name': pkg } });
+        }
         return config;
     });
 };

@@ -25,7 +25,9 @@ import { onNotification, onOrderUpdate, realtimeConnected } from '../../api/comm
 import { playSfx } from '../common/sfx';
 import api from '../../api/common/client';
 import { fetchOrders, fetchOrder } from '../../api/owners/shopApi';
+import { fetchKitchenOrders } from '../../api/staff/staffApi';
 import { buildGreeting } from './greetings';
+import { useAlertPrefs, alertOn } from '../../store/common/useAlertPrefs';
 
 const SPEECH_TIMEOUT_MS = 20000;
 const WAKE_TAG = 'soundbox';
@@ -82,7 +84,10 @@ let started = false;
 let audioReady = false;
 
 const settings = () => useSoundboxStore.getState();
-const isOwner = () => useAuthStore.getState().user?.role === 'admin';
+// Soundbox is the owner's, the cook's and the waiter's. (The name stays: it means "this person has a Soundbox".)
+const roleNow = () => useAuthStore.getState().user?.role;
+const isOwner = () => ['admin', 'kitchen', 'waiter'].includes(roleNow());
+const isCook = () => roleNow() === 'kitchen';
 
 /* ------------------------------ audio ------------------------------ */
 async function setMode(mode) {
@@ -290,7 +295,7 @@ export async function sampleVoice(voice, language = 'en') {
     try {
         Speech.stop();
         speaking = true;   // let the voice finish, then the keep-alive plays again (voiceDone)
-        Speech.speak(SAMPLE[language] || SAMPLE.en, {
+        Speech.speak(sampleFor(language), {
             language: voice?.language || (language === 'hi' ? 'hi-IN' : 'en-IN'),
             ...(voice ? { voice: voice.identifier } : {}),
             rate: 0.92,
@@ -304,7 +309,7 @@ export async function sampleVoice(voice, language = 'en') {
 export async function previewGreeting() {
     const language = await languageToUse();
     const g = sampleGreeting(language);
-    return speak(g + ' ' + SAMPLE[language], language);
+    return speak(g + ' ' + sampleFor(language), language);
 }
 
 async function speak(text, language) {
@@ -343,7 +348,7 @@ const nameToSay = () => (settings().ownerName || '').trim() || useAuthStore.getS
 // His account's name, filled in once so "My name" works without typing it again. The account may have no name at all
 // (a shop owner is added by phone number only); then he types it on the Soundbox screen.
 async function fillOwnerName() {
-    if ((settings().ownerName || '').trim()) return;
+    if ((settings().ownerName || '').trim() || roleNow() !== 'admin') return;
     try {
         const { data } = await api.get('/me');
         const name = String(data?.name || '').trim();
@@ -433,7 +438,11 @@ async function speakRound() {
     const firstId = pending.keys().next().value;
     if (firstId && firstId !== 'test-push') {
         try {
-            const o = await Promise.race([fetchOrder(firstId), new Promise((r) => setTimeout(() => r(null), 3000))]);   // a slow network must not hold the voice back
+            const slow = new Promise((r) => setTimeout(() => r(null), 3000));   // a slow network must not hold the voice back
+            // the owner's order is waiting while it is "placed"; the cook's while it is "new" in his queue (accepted, not started)
+            const o = isCook()
+                ? await Promise.race([fetchKitchenOrders().then((q) => { const row = (q.items || []).find((x) => String(x.id) === firstId); return row ? { orderNo: row.orderNo, status: row.stage === 'new' ? 'placed' : row.stage } : { status: 'gone' }; }), slow])
+                : await Promise.race([fetchOrder(firstId), slow]);
             if (o && o.status !== 'placed') { note('order ' + (o.orderNo || firstId) + ' is no longer waiting: dropped'); speaking = false; dismiss(firstId); endVoice(); return; }
         } catch (e) { /* offline: read it as before */ }
     }
@@ -482,6 +491,7 @@ function stopLoop() {
 export function raise({ orderId, orderNo, speech, speechHi, autoAccepted }) {
     // Soundbox off = the owner wants no new-order sound at all: no chime, no voice, no greeting
     note('new-order message received' + (orderNo ? ' (' + orderNo + ')' : ''));
+    if (orderId && !alertOn(isCook() ? 'new' : 'order_new', 's')) return;   // the Alerts screen: no sound for new orders
     if (!orderId || !isOwner() || !settings().soundbox) { note('ignored: ' + (!isOwner() ? 'not an owner' : !settings().soundbox ? 'Soundbox is off' : 'no order id')); return; }
     // Not "always ready" and the app is in the background: the PUSH rings and reads this order (clip, then the order once).
     // Starting a repeating alert from the background would need the permanent notification this mode exists to avoid.
@@ -548,6 +558,8 @@ export async function speakForPush(data) {
     // The voice is ONLY for a new order (and its reminder) or a cancelled one. Any other push (no rider yet, late, ...) is never spoken.
     if (!['order_new', 'order_unaccepted_reminder', 'order_cancelled', 'rider_sos'].includes(String(data?.type))) return;
     await useSoundboxStore.getState().hydrate();
+    await useAlertPrefs.getState().hydrate();
+    if (!alertOn(String(data.type), 's')) return;   // the Alerts screen: no sound for this one
     // A connected socket only counts when the running Soundbox really rings in the background ("always ready"). Otherwise
     // raise() ignores the order and the push is the ONLY thing that can read it out.
     const liveHandles = () => AppState.currentState === 'active' || looping || speaking || (started && settings().alwaysReady && realtimeConnected());
@@ -576,7 +588,7 @@ async function announceCancel(d) {
     const id = String(d.orderId);
     const wasWaiting = pending.has(id);
     dismiss(id);
-    if (!isOwner() || !settings().soundbox || speaking) return;
+    if (!isOwner() || !settings().soundbox || speaking || !alertOn('order_cancelled', 's')) return;
     if (!settings().alwaysReady && AppState.currentState !== 'active' && !wasWaiting) return;
     note('order ' + (d.orderNo || id) + ' cancelled');
     playSfx('cancelAlarm');   // a short falling alarm for every cancelled order (customer, shop, rider, system)
@@ -596,7 +608,7 @@ async function announceCancel(d) {
 // A customer at a table asked for the bill: a short tone, then the voice says it two times ("Table 7 asked for the bill"). Only while
 // the app runs (in front, or Soundbox "always ready"); a closed app gets the normal notification.
 async function announceBill(d) {
-    if (!isOwner() || !settings().soundbox || speaking) return;
+    if (!isOwner() || !settings().soundbox || speaking || !alertOn('table_bill_asked', 's')) return;
     if (!settings().alwaysReady && AppState.currentState !== 'active') return;
     const table = String(d?.table || '');
     if (!table) return;
@@ -614,7 +626,7 @@ async function announceBill(d) {
 const CALL_EN = { waiter: 'is calling the waiter', water: 'needs water', cutlery: 'needs a spoon or a plate', clean: 'needs the table cleaned', other: 'needs help' };
 const CALL_HI = { waiter: 'वेटर को बुला रहा है', water: 'को पानी चाहिए', cutlery: 'को चम्मच या प्लेट चाहिए', clean: 'की सफाई चाहिए', other: 'को मदद चाहिए' };
 async function announceCall(d) {
-    if (!isOwner() || !settings().soundbox || speaking) return;
+    if (!isOwner() || !settings().soundbox || speaking || !alertOn('table_call', 's')) return;
     if (!settings().alwaysReady && AppState.currentState !== 'active') return;
     const table = String(d?.table || '');
     if (!table) return;
@@ -627,8 +639,8 @@ async function announceCall(d) {
 }
 
 // The kitchen told the owner about a problem: the ting-tong, then the voice says it once (same rules as announceCall).
-async function announceKitchen(d) {
-    if (!isOwner() || !settings().soundbox || speaking) return;
+async function announceKitchen(d, type = 'kitchen_problem') {
+    if (!isOwner() || !settings().soundbox || speaking || !alertOn(type, 's')) return;
     if (!settings().alwaysReady && AppState.currentState !== 'active') return;
     note('kitchen problem on order ' + d?.orderNo);
     playSfx('tingTong');
@@ -642,7 +654,7 @@ async function announceKitchen(d) {
 
 // A delivery partner pressed the help button: a gentle two-tone alarm (not the cancelled-order one), then the voice says who and which order.
 async function announceHelp(d) {
-    if (!isOwner() || !settings().soundbox || speaking) return;
+    if (!isOwner() || !settings().soundbox || speaking || !alertOn('rider_sos', 's')) return;
     if (!settings().alwaysReady && AppState.currentState !== 'active') return;
     note('rider asks for help');
     playSfx('helpAlarm');
@@ -654,11 +666,89 @@ async function announceHelp(d) {
     } catch (e) { /* the alarm and the notification are enough */ }
 }
 
+/* ------------------------------ the cook and the waiter ------------------------------ */
+// A live alert for a cook or a waiter (utils/staff/staffSound.js calls this): a = { kind, orderId?, orderNo?, table?, speech, speechHi }.
+//   new     (cook)  rings and reads the order until he starts it (or, with "Keep Soundbox always ready" off, while the app is open)
+//   cancel  (cook)  the cancel alarm, then the order is read out again so he stops the right one. The waiter never gets this.
+//   others  once: the ting-tong, then the voice.   done: only a soft ping.
+// The same rules as the owner: Soundbox off = silent; the app in the background without "always ready" = the push rings instead.
+export async function staffSay(a, { force } = {}) {
+    try {
+        if (!a?.kind || !isOwner()) return;
+        if (!force && !alertOn(a.kind, 's')) return;   // the Alerts screen
+        const s = settings();
+        if (!s.soundbox && !force) return;
+        if (!force && !s.alwaysReady && AppState.currentState !== 'active') return;
+        if (a.kind === 'done') { playSfx('notify'); return; }
+        if (a.kind === 'new' && isCook() && a.orderId && !force) { raise({ orderId: a.orderId, orderNo: a.orderNo, speech: a.speech, speechHi: a.speechHi }); return; }
+        if (a.kind === 'cancel' && a.orderId) dismiss(a.orderId);
+        for (let i = 0; i < 16 && speaking; i += 1) await new Promise((r) => setTimeout(r, 500));   // one voice at a time; a cancel waits its turn
+        if (speaking) return;
+        note('staff alert: ' + a.kind);
+        await ensureAudio();
+        playSfx(a.kind === 'cancel' ? 'cancelAlarm' : 'tingTong');
+        const language = await languageToUse();
+        const said = language === 'hi' ? (a.speechHi || a.speech) : (a.speech || a.speechHi);
+        if (!said) return;
+        await new Promise((r) => setTimeout(r, a.kind === 'cancel' ? 1300 : 1700));   // the tone first, then the voice
+        if (!speaking) await speak(a.kind === 'new' ? withGreeting(said, language) : said, language);
+    } catch (e) { /* the tone and the push are enough */ }
+}
+
+// The cook's or the waiter's push arrived while the screen is off or the app is closed: the push has rung; this says it (background task).
+export async function speakStaffPush(data) {
+    try {
+        await useSoundboxStore.getState().hydrate();
+        await useAlertPrefs.getState().hydrate();
+        if (!settings().soundbox || !alertOn(String(data?.kind || data?.type), 's')) return;
+        if (AppState.currentState === 'active' || looping || speaking || (started && settings().alwaysReady && realtimeConnected())) return;   // the live Soundbox handles it
+        const language = await languageToUse();
+        await pickVoice(language);
+        const said = language === 'hi' ? (data?.speechHi || data?.speech) : (data?.speech || data?.speechHi);
+        if (!said) return;
+        note('staff push read in the background');
+        await speak(data?.kind === 'new' ? withGreeting(String(said), language) : String(said), language);
+    } catch (e) { /* the push has rung */ }
+}
+
+// "Listen" on the Alerts screen: the alert's own tone, then its example sentence in the voice and language chosen on the Soundbox screen.
+export async function sayExample(id, sample) {
+    try {
+        if (!sample) return;
+        if (!settings().loaded) await useSoundboxStore.getState().hydrate();
+        for (let i = 0; i < 16 && speaking; i += 1) await new Promise((r) => setTimeout(r, 300));
+        await ensureAudio();
+        const tone = id === 'cancelled' || id === 'cancel' ? 'cancelAlarm' : id === 'help' ? 'helpAlarm' : 'tingTong';
+        playSfx(tone);
+        const language = await languageToUse();
+        await new Promise((r) => setTimeout(r, tone === 'cancelAlarm' ? 1300 : tone === 'helpAlarm' ? 2100 : 1700));
+        if (!speaking) await speak(language === 'hi' ? sample.hi : sample.en, language);
+    } catch (e) { /* the tone is enough */ }
+}
+
+// What the voice list on the Soundbox screen says as a sample, for this person's job.
+export const sampleFor = (language) => {
+    const r = roleNow();
+    if (r === 'kitchen') return language === 'hi' ? 'टेबल 2 के लिए नया ऑर्डर। 1 Chicken Wings, 2 Paneer Butter Masala। विशेष निर्देश: प्याज़ नहीं।' : 'New order for table 2. 1 Chicken Wings, 2 Paneer Butter Masala. Note: no onion.';
+    if (r === 'waiter') return language === 'hi' ? 'टेबल 2, खाना तैयार है।' : 'Table 2, food is ready.';
+    return SAMPLE[language] || SAMPLE.en;
+};
+
 /* ------------------------------ catching up ------------------------------ */
 // Orders that are still waiting for the owner. Runs when the app opens or the socket comes back, so an order that
 // arrived while nothing was listening is not missed.
 async function syncWaiting() {
     if (!isOwner()) return;
+    if (isCook()) {
+        try {
+            const q = await fetchKitchenOrders();
+            const ids = new Set();
+            for (const o of q.items || []) if (o.stage === 'new') { ids.add(String(o.id)); raise({ orderId: o.id, orderNo: o.orderNo, speech: o.speech, speechHi: o.speechHi }); }
+            for (const id of [...pending.keys()]) if (!ids.has(id)) dismiss(id);
+        } catch (e) { /* offline: the socket and the push still work */ }
+        return;
+    }
+    if (roleNow() === 'waiter') return;   // the waiter has no waiting list to ring for: each call or ready dish is said once
     try {
         const r = await fetchOrders({ status: 'placed', limit: 20 });
         const ids = new Set();
@@ -696,6 +786,7 @@ async function holdAlive(on) {
 function begin() {
     if (started) return;
     started = true;
+    useAlertPrefs.getState().hydrate().then(() => useAlertPrefs.getState().load());
     useSoundboxStore.getState().hydrate().then(() => {
         holdAlive(keepAliveWanted());
         syncWaiting();
@@ -706,7 +797,7 @@ function begin() {
         if (n?.type === 'order_cancelled' && n.data?.orderId) { announceCancel(n.data); return; }
         if (n?.type === 'table_bill_asked') { announceBill(n.data); return; }
         if (n?.type === 'table_call') { announceCall(n.data); return; }
-        if (n?.type === 'kitchen_problem' || n?.type === 'pickup_intent') { announceKitchen(n.data); return; }
+        if (n?.type === 'kitchen_problem' || n?.type === 'pickup_intent') { announceKitchen(n.data, n.type); return; }
         if (n?.type === 'rider_sos') { announceHelp(n.data); return; }
         if (!n || !ALERT_TYPES.includes(n.type)) return;
         const d = n.data || {};
@@ -720,7 +811,7 @@ function begin() {
         else if (p?.orderId && p.status === 'placed') syncWaiting();
     }));
 
-    const sub = AppState.addEventListener('change', (s) => { note('app is ' + s); if (s === 'active') syncWaiting(); });
+    const sub = AppState.addEventListener('change', (s) => { note('app is ' + s); if (s === 'active') { syncWaiting(); useAlertPrefs.getState().load(); } });
     unsubs.push(() => sub.remove());
 
     // the settings changed on the Soundbox screen
@@ -749,6 +840,7 @@ function end() {
     unsubs = [];
     clearAll();
     holdAlive(false);
+    useAlertPrefs.getState().clear();
 }
 
 // Call once at start-up (App.js). Follows login and logout: only an owner (role "admin") has a Soundbox.

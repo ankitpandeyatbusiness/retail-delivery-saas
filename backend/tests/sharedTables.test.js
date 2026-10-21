@@ -142,15 +142,21 @@ describe('the board and the switch', () => {
         assert.equal((await tableBill.board(await tenantDoc())).find((t) => t.table === '4').state, 'free');
     });
 
-    test('with the switch OFF a table has one bill and everyone shares it, exactly as before', async () => {
+    test('with the switch OFF a table has one bill, but a stranger is never added silently: the person seated must say yes', async () => {
         await setDine({ enabled: true, tableCount: 10, sharedTables: false });
         const a = await guest('9000000041'); const b = await guest('9000000042');
         const sa = await sit(a);
-        const sb = await sit(b);
-        assert.equal(String(sa._id), String(sb._id));
-        assert.equal((await TableSession.findById(sa._id)).customers.length, 2);
+        await assert.rejects(() => sit(b), (e) => e.status === 409 && e.extra?.code === 'choose_party', 'he is asked first');
+        const st = (await api(b, 'get', '/table/4')).body;
+        assert.equal(st.shared, false);
+        assert.equal(st.canSeparate, false, 'no second bill when the shop has one bill per table');
         assert.equal((await api(b, 'post', '/table/4/enter', { choice: 'separate' })).status, 400);
-        assert.equal((await api(b, 'get', '/table/4')).body.shared, false);
+        const asked = await api(b, 'post', '/table/4/enter', { choice: 'with', sessionId: String(sa._id) });
+        assert.equal(asked.status, 200, JSON.stringify(asked.body));
+        assert.ok(asked.body.pending.joinId);
+        assert.equal((await api(a, 'post', `/join/${asked.body.pending.joinId}/answer`, { approve: true })).status, 200);
+        assert.equal(String((await sit(b))._id), String(sa._id), 'once let in he is on the same bill');
+        assert.equal((await TableSession.findById(sa._id)).customers.length, 2);
     });
 
     test('the owner can set the switch and the limit; bad limits are refused', async () => {
