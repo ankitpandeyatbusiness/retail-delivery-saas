@@ -11,7 +11,7 @@ import { callPhone, whatsApp } from '../../components/owners/orderBits';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { PersonAvatar, DutyPills } from './OwnerStaffGroupScreen';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
-import { fetchStaffPerson, updateStaff, removeStaff, removeStaffLeave, removeStaffHoliday, apiError } from '../../api/owners/shopApi';
+import { fetchStaffPerson, updateStaff, removeStaff, removeStaffLeave, removeStaffHoliday, decideStaffLeave, apiError } from '../../api/owners/shopApi';
 import { istToday } from '../../utils/owners/txRules';
 import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
@@ -68,13 +68,15 @@ export default function OwnerStaffPersonScreen() {
     const s = d.stats;
     // taking a leave or a day off away: a sheet with an optional message, then the person is told (with a sound) and their screen changes
     const takeLeaveBack = (l) => { setMsg(''); setTaking({ kind: 'leave', item: l }); };
+    const answerLeave = (l, approve) => { setMsg(''); setTaking({ kind: approve ? 'approve' : 'reject', item: l }); };
     const takeDayOffBack = (h) => { setMsg(''); setTaking({ kind: 'day', item: h }); };
     const confirmTake = async () => {
         setRemoving(true);
         try {
-            if (taking.kind === 'leave') await removeStaffLeave(taking.item.id, msg.trim() || undefined);
+            if (taking.kind === 'approve' || taking.kind === 'reject') await decideStaffLeave(taking.item.id, taking.kind === 'approve', msg.trim() || undefined);
+            else if (taking.kind === 'leave') await removeStaffLeave(taking.item.id, msg.trim() || undefined);
             else await removeStaffHoliday(userId, taking.item.id, msg.trim() || undefined);
-            showToast(tr('Removed. They are told.'));
+            showToast(taking.kind === 'approve' ? tr('Leave approved. They are told.') : taking.kind === 'reject' ? tr('Leave not approved. They are told.') : tr('Removed. They are told.'));
             setTaking(null);
             load();
         } catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); } finally { setRemoving(false); }
@@ -138,7 +140,13 @@ export default function OwnerStaffPersonScreen() {
                             </View>
                             {l.reason ? <Text style={{ color: muted, marginTop: 2 }}>{l.reason}</Text> : null}
                             {l.note ? <Text style={{ color: muted, marginTop: 2, fontStyle: 'italic' }}>{tr('You said')}: {l.note}</Text> : null}
-                            {['pending', 'approved'].includes(l.status) && l.to >= today ? <View style={{ marginTop: 8 }}><Button label={tr('Take this leave away')} icon="close-circle" kind="danger" onPress={() => takeLeaveBack(l)} /></View> : null}
+                            {l.status === 'pending' && l.to >= today ? (
+                                <View style={{ flexDirection: 'row', marginTop: 8 }}>
+                                    <Button label={tr('Approve')} icon="checkmark-circle" onPress={() => answerLeave(l, true)} style={{ flex: 1, marginRight: 8 }} />
+                                    <Button label={tr('Not approve')} icon="close-circle" kind="danger" onPress={() => answerLeave(l, false)} style={{ flex: 1 }} />
+                                </View>
+                            ) : null}
+                            {l.status === 'approved' && l.to >= today ? <View style={{ marginTop: 8 }}><Button label={tr('Take this leave away')} icon="close-circle" kind="danger" onPress={() => takeLeaveBack(l)} /></View> : null}
                         </View>
                     ))}
                     {d.holidays.filter((h) => !h.leave).map((h) => (
@@ -163,10 +171,10 @@ export default function OwnerStaffPersonScreen() {
                     <View style={{ marginTop: 10 }}><Button label={tr('Remove from staff')} icon="trash" kind="danger" onPress={remove} /></View>
                 </Card>
             </ScrollView>
-            <Sheet visible={!!taking} onClose={() => setTaking(null)} title={taking?.kind === 'leave' ? tr('Take this leave away?') : tr('Remove this day off?')}>
-                {taking ? <Text style={{ color: muted, marginBottom: 10 }}>{range(taking.item.from, taking.item.to)}. {tr('{name} is on duty on those days again and is told with a notification and a sound.', { name: p.name || p.phone })}</Text> : null}
+            <Sheet visible={!!taking} onClose={() => setTaking(null)} title={taking?.kind === 'approve' ? tr('Approve this leave?') : taking?.kind === 'reject' ? tr('Do not approve this leave?') : taking?.kind === 'leave' ? tr('Take this leave away?') : tr('Remove this day off?')}>
+                {taking ? <Text style={{ color: muted, marginBottom: 10 }}>{range(taking.item.from, taking.item.to)}. {['approve', 'reject'].includes(taking.kind) ? tr('{name} is told with a notification and a sound.', { name: p.name || p.phone }) : tr('{name} is on duty on those days again and is told with a notification and a sound.', { name: p.name || p.phone })}</Text> : null}
                 <Field value={msg} onChangeText={setMsg} placeholder={tr('Message (optional), for example: we need you that day')} maxLength={200} multiline style={{ marginBottom: 14 }} />
-                <Button label={tr('Take it away')} icon="close-circle" kind="danger" busy={removing} onPress={confirmTake} />
+                <Button label={taking?.kind === 'approve' ? tr('Approve') : taking?.kind === 'reject' ? tr('Not approve') : tr('Take it away')} icon={taking?.kind === 'approve' ? 'checkmark-circle' : 'close-circle'} kind={taking?.kind === 'approve' ? 'primary' : 'danger'} busy={removing} onPress={confirmTake} />
             </Sheet>
             <Sheet visible={nameOpen} onClose={() => setNameOpen(false)} title={tr('Name')}>
                 <Field value={name} onChangeText={setName} placeholder={tr('Name')} maxLength={40} style={{ marginBottom: 14 }} />
