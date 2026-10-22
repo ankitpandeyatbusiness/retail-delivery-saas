@@ -129,7 +129,9 @@ core.post('/duty/leave/:id/cancel', wrap(async (req, res) => {
 }));
 core.delete('/duty/holidays/:id', wrap(async (req, res) => {
     if (!mongoose.isValidObjectId(req.params.id)) throw httpError(404, 'Not found');
+    const gone = ((await dutyRow(req))?.holidays || []).find((h) => String(h._id) === req.params.id && !h.leaveId);
     await Staff.updateOne({ tenantId: req.tenant._id, userId: req.staff.id }, { $pull: { holidays: { _id: req.params.id, leaveId: { $exists: false } } } });
+    if (gone) require('../notifications/center').notify('staff_leave_withdrawn', { tenantId: req.tenant._id, vars: { name: req.staff.name || req.shopUser.phone, job: staff.JOB[req.staff.role], what: 'a day off', from: gone.from, to: gone.to, days: 1, wasApproved: true }, data: { kind: 'staff_holiday', userId: String(req.staff.id) } });
     res.json(await dutyView(req));
 }));
 

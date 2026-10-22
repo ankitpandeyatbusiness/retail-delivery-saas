@@ -42,13 +42,14 @@ async function request({ tenantId, staff, from, to, reason, now = new Date() }) 
 
 // the person takes their leave back: one that is waiting, or an approved one that has not ended. The days off it made go with it.
 async function cancel({ tenantId, userId, id }) {
+    const was = await StaffLeave.findOne({ _id: id, tenantId, userId }).select('status').lean();
     const l = await StaffLeave.findOneAndUpdate(
         { _id: id, tenantId, userId, status: { $in: ['pending', 'approved'] }, to: { $gte: today() } },
         { $set: { status: 'cancelled', decidedNote: 'Taken back by ' + 'the person' } }, { new: true },
     );
     if (!l) throw httpError(404, 'Only a leave that is waiting, or has not ended yet, can be cancelled');
     await Staff.updateOne({ tenantId, userId }, { $pull: { holidays: { leaveId: l._id } } });
-    tell('staff_leave_request', { tenantId, vars: { name: l.name || 'Your staff', job: l.role === 'kitchen' ? 'Kitchen' : 'Waiter', from: l.from, to: l.to, days: l.days, reason: 'Took the leave back' }, data: { kind: 'staff_leave', leaveId: String(l._id), userId: String(userId) } });
+    tell('staff_leave_withdrawn', { tenantId, vars: { name: l.name || 'Your staff', job: l.role === 'kitchen' ? 'Kitchen' : 'Waiter', from: l.from, to: l.to, days: l.days, wasApproved: was?.status === 'approved' }, data: { kind: 'staff_leave', leaveId: String(l._id), userId: String(userId) } });
     return l;
 }
 

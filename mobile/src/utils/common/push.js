@@ -15,7 +15,7 @@ import { useNotificationStore } from '../../store/common/useNotificationStore';
 import { registerDevice, removeDevice } from '../../api/common/notificationApi';
 import { onNotification, realtimeConnected } from '../../api/common/socket';
 import { showToast } from '../../components/customers/shop';
-import { speakOnOpen } from '../owners/soundbox';
+import { speakOnOpen, isNewsType } from '../owners/soundbox';
 import { useSoundboxStore } from '../../store/owners/useSoundboxStore';
 import { useOwedPrompt } from '../../store/customers/useOwedPrompt';
 import { playSfx, buzz } from './sfx';
@@ -57,6 +57,7 @@ function hasOwnSound(n) {
     if (QUIET_TYPES.includes(n?.type)) return true;   // no ping, no sound
     const role = useAuthStore.getState().user?.role;
     if (role === 'admin' && SOUNDBOX_TYPES.includes(n?.type)) return true;
+    if (['admin', 'kitchen', 'waiter'].includes(role) && isNewsType(n?.type) && useSoundboxStore.getState().soundbox && alertOn(n.type, 's')) return true;   // the Soundbox ping + voice come instead
     if (n?.type === 'order_status' && ['accepted', 'cancelled', 'out_for_delivery'].includes(n?.data?.status)) return true;
     return false;
 }

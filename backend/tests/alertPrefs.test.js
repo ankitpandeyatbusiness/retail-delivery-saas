@@ -30,7 +30,8 @@ describe('the alerts screen', () => {
         const g = Object.fromEntries(r.body.groups.map((x) => [x.id, x]));
         assert.deepEqual(g.new_orders.pref, { n: true, p: true, s: true });
         assert.ok(g.new_orders.sample.en && g.new_orders.sample.hi);
-        assert.equal(g.offduty.can.p, false, 'staff going off duty never opens a popup');
+        assert.equal(g.offduty.can.p, true); assert.equal(g.offduty.pref.p, false, 'staff going off duty: a popup is possible but off by default');
+        assert.ok(r.body.groups.every((x) => x.can.p), 'every alert of the owner can have a popup');
         assert.equal(g.holiday.can.s, true, 'every alert has a sound switch');
         assert.ok(r.body.groups.every((x) => x.can.s && x.sample), 'and an example to listen to');
         assert.ok(g.pickup.types.includes('pickup_intent'));
@@ -49,8 +50,8 @@ describe('the alerts screen', () => {
         await put({ prefs: { kitchen: { s: true } } });
         assert.deepEqual((await User.findById(w.owner.user._id).lean()).alertPrefs, { tables: { n: false } });
         // a switch that does not exist for a group is ignored
-        await put({ prefs: { offduty: { p: true } } });
-        assert.equal((await User.findById(w.owner.user._id).lean()).alertPrefs.offduty, undefined);
+        assert.deepEqual(groups.cleanPrefs('rider', { offers: { p: true } }), {}, 'a switch a group does not have is ignored');
+
         assert.equal((await put({ reset: true })).status, 200);
         assert.ok(!Object.keys((await User.findById(w.owner.user._id).lean()).alertPrefs || {}).length, 'nothing is stored: everything is recommended again');
         assert.equal((await put({})).status, 400);

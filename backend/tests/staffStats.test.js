@@ -170,3 +170,26 @@ describe('the owner\'s message when he takes a leave away', () => {
         assert.match(n.body, /on duty/);
     });
 });
+
+describe('what the owner hears when a leave is asked for or taken back', () => {
+    test('the push carries the words to say (who, which days, why); taking it back is its own message', async () => {
+        const pushChannel = require('../src/notifications/channels/push');
+        const spy = mock.method(pushChannel, 'send', async () => ({ sent: 1, tokens: 1 }));
+        const day = new Date(Date.now() + 6 * 86400000).toISOString().slice(0, 10);
+        await request(app).post('/api/staff/duty/leave').set(cook.headers).send({ from: day, to: day, reason: 'Sister wedding' });
+        await f.waitFor(() => spy.mock.calls.some((c) => c.arguments[0].data?.type === 'staff_leave_request'));
+        const ask = spy.mock.calls.map((c) => c.arguments[0]).find((x) => x.data?.type === 'staff_leave_request');
+        assert.equal(ask.data.voice, '1');
+        assert.match(ask.data.speech, /Ramesh asks for leave/);
+        assert.match(ask.data.speech, /Sister wedding/);
+
+        const id = (await request(app).get('/api/staff/work').set(cook.headers)).body.leaves[0].id;
+        await request(app).post(`/api/shop/staff/leaves/${id}`).set(w.owner.headers).send({ approve: true });
+        await request(app).post(`/api/staff/duty/leave/${id}/cancel`).set(cook.headers);
+        await f.waitFor(() => spy.mock.calls.some((c) => c.arguments[0].data?.type === 'staff_leave_withdrawn'));
+        const back = spy.mock.calls.map((c) => c.arguments[0]).find((x) => x.data?.type === 'staff_leave_withdrawn');
+        assert.match(back.title, /Ramesh took their leave back/);
+        assert.match(back.body, /was approved/);
+        assert.equal(back.data.voice, '1');
+    });
+});

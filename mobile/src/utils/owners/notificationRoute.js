@@ -12,7 +12,8 @@ export function ownerRoute(n) {
     const type = n?.type;
     const d = n?.data || {};
     if (d.kind === 'support' && d.ticketId) return { name: 'OwnerSupportTicket', params: { id: String(d.ticketId) } };
-    if (d.kind === 'staff_leave') return { name: 'OwnerStaff' };
+    // a leave, a day off, or going off duty: the person's own page (their leaves and days off, with the buttons to take them away)
+    if (['staff_leave', 'staff_holiday', 'staff_off_duty'].includes(d.kind)) return d.userId ? { name: 'OwnerStaffPerson', params: { userId: String(d.userId) } } : { name: 'OwnerStaff' };
     if (d.kind === 'fee_plan') return { name: 'OwnerRent' };
     if (d.kind === 'closing_report') return { name: 'OwnerClosing' };
     if (d.kind === 'business_report') return { name: 'OwnerBusiness', params: d.period ? { range: String(d.period) } : undefined };

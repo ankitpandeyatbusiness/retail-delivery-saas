@@ -22,6 +22,7 @@ const pushChannel = require('./channels/push');
 const smsChannel = require('./channels/sms');
 const emailChannel = require('./channels/email');
 const adminAlerts = require('../services/adminAlerts');
+const alertGroups = require('./alertGroups');
 const liveFeed = require('../services/liveFeed');
 
 // Owner-side events that also show in the superadmin live feed: eventKey -> [category, line type].
@@ -47,6 +48,9 @@ const isKey = (def, ctx) => (typeof def.key === 'function' ? !!def.key(ctx) : !!
 // riders never get an SMS, whatever the rules say
 const wantsSms = (def, ctx) => (def.channels || []).includes('sms') && def.to !== 'rider' && isKey(def, ctx);
 
+// these already carry their own sentence and have their own way of being read out (utils/orderSpeech.js)
+const ALREADY_SPOKEN = ['order_new', 'order_unaccepted_reminder', 'order_cancelled', 'rider_sos', 'kitchen_problem', 'pickup_intent'];
+
 async function deliver(eventKey, def, ctx, doc) {
     const { tenantId, userId } = ctx;
     const online = userId ? presence.isOnline(tenantId, userId) : presence.ownerOnline(tenantId);
@@ -61,10 +65,15 @@ async function deliver(eventKey, def, ctx, doc) {
         }
     }
 
+    // News for the owner (a leave, a day off, a review, a rent bill...) is read out too, with its details, when his phone is closed or the screen is off:
+    // the push carries the words, and a second silent message wakes the app to say them (notifications/channels/push.js)
+    const news = ctx.userId ? def.voice === true : (!!alertGroups.groupOf('admin', eventKey) && !ALREADY_SPOKEN.includes(eventKey));
+    const pushData = { ...(ctx.data || {}), type: doc.type, ...(news && def.noPush !== true ? { voice: '1', speech: ctx.data?.speech || `${doc.title}. ${doc.body}` } : {}) };
+
     if (def.noPush !== true) {   // a QUIET message (noPush in events.js) is only in the list: no phone alert at all
         try {
             const r = await pushChannel.send({
-                tenantId, userId, title: doc.title, body: doc.body, data: { ...(ctx.data || {}), type: doc.type },
+                tenantId, userId, title: doc.title, body: doc.body, data: pushData,
                 channelId: def.pushChannel, sound: def.pushSound,   // e.g. the owner's loud new-order channel
                 tag: ctx.tag,                                        // the same tag replaces the earlier push (live delivery)
             });
