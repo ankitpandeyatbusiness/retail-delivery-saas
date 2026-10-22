@@ -10,7 +10,8 @@ import { callPhone, whatsApp } from '../../components/owners/orderBits';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { PersonAvatar, DutyPills } from './OwnerStaffGroupScreen';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
-import { fetchStaffPerson, updateStaff, removeStaff, apiError } from '../../api/owners/shopApi';
+import { fetchStaffPerson, updateStaff, removeStaff, removeStaffLeave, removeStaffHoliday, apiError } from '../../api/owners/shopApi';
+import { istToday } from '../../utils/owners/txRules';
 import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
 import { ago } from '../../utils/owners/riderRules';
@@ -57,6 +58,15 @@ export default function OwnerStaffPersonScreen() {
         try { await removeStaff(userId); showToast(tr('Removed')); nav.goBack(); } catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); }
     };
     const s = d.stats;
+    const takeLeaveBack = async (l) => {
+        if (!(await ask({ title: tr('Take this leave away?'), message: tr('{from} is on duty on those days again. {name} is told.', { from: range(l.from, l.to), name: p.name || p.phone }), confirmText: tr('Take it away'), destructive: true }))) return;
+        try { await removeStaffLeave(l.id); showToast(tr('Leave removed. They are told.')); load(); } catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); }
+    };
+    const takeDayOffBack = async (h) => {
+        if (!(await ask({ title: tr('Remove this day off?'), message: tr('{name} is on duty on those days again and is told.', { name: p.name || p.phone }), confirmText: tr('Remove'), destructive: true }))) return;
+        try { await removeStaffHoliday(userId, h.id); showToast(tr('Day off removed. They are told.')); load(); } catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); }
+    };
+    const today = istToday();
 
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
@@ -115,12 +125,14 @@ export default function OwnerStaffPersonScreen() {
                             </View>
                             {l.reason ? <Text style={{ color: muted, marginTop: 2 }}>{l.reason}</Text> : null}
                             {l.note ? <Text style={{ color: muted, marginTop: 2, fontStyle: 'italic' }}>{tr('You said')}: {l.note}</Text> : null}
+                            {['pending', 'approved'].includes(l.status) && l.to >= today ? <View style={{ marginTop: 8 }}><Button label={tr('Take this leave away')} icon="close-circle" kind="danger" onPress={() => takeLeaveBack(l)} /></View> : null}
                         </View>
                     ))}
                     {d.holidays.filter((h) => !h.leave).map((h) => (
                         <View key={h.id} style={{ paddingVertical: 8, borderTopWidth: 0.5, borderTopColor: muted + '55' }}>
                             <Text style={{ color: text, fontWeight: '800' }}>{range(h.from, h.to)} · {h.days} {h.days === 1 ? tr('day') : tr('days')} <Text style={{ color: muted, fontWeight: '600' }}>({tr('day off they set')})</Text></Text>
                             {h.note ? <Text style={{ color: muted, marginTop: 2 }}>{h.note}</Text> : null}
+                            <View style={{ marginTop: 8 }}><Button label={tr('Remove this day off')} icon="close-circle" kind="danger" onPress={() => takeDayOffBack(h)} /></View>
                         </View>
                     ))}
                 </Card>

@@ -26,6 +26,16 @@ router.get('/:userId', wrap(async (req, res) => {
     res.json(d);
 }));
 
+// take a leave away (pending or approved) / take one of the person's own days off away
+router.delete('/leaves/:id', wrap(async (req, res) => {
+    if (!isId(req.params.id)) throw httpError(404, 'Leave not found');
+    res.json(await require('../services/staffLeave').ownerRemove({ tenantId: req.tenant._id, id: req.params.id, note: req.body?.note }));
+}));
+router.delete('/:userId/holidays/:holidayId', wrap(async (req, res) => {
+    if (!isId(req.params.userId) || !isId(req.params.holidayId)) throw httpError(404, 'Not found');
+    res.json(await require('../services/staffLeave').ownerRemoveHoliday({ tenantId: req.tenant._id, userId: req.params.userId, holidayId: req.params.holidayId }));
+}));
+
 router.post('/', wrap(async (req, res) => {
     const r = await staff.add({ tenant: req.tenant, phone: req.body?.phone, name: req.body?.name, role: req.body?.role });
     res.status(r.added ? 201 : 200).json(r);

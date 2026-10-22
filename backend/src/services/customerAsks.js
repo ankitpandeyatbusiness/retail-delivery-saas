@@ -67,7 +67,7 @@ async function pickupAnswer({ tenant, userId, orderId, answer }) {
             const spoken = require('../utils/orderSpeech');
             tell('pickup_intent', {
                 tenantId: tenant._id,
-                vars: { orderNo: order.orderNo, name: order.customer?.name, brief: brief(order, 3), kind: answer },
+                vars: { orderNo: order.orderNo, name: order.customer?.name, brief: brief(order, 3), kind: answer, time: spoken.pickupWindow(order) },
                 data: { orderId: String(order._id), orderNo: order.orderNo, kind: answer, speech: spoken.pickupIntentSpeech(order, answer), speechHi: spoken.pickupIntentSpeech(order, answer, true), name: order.customer?.name || null, brief: brief(order, 3) },
             });
             require('./kitchenAlerts').tell(tenant._id, { orderId: String(order._id), orderNo: order.orderNo, status: order.status, ...(answer === 'arrived' ? { alert: { kind: 'here', orderNo: order.orderNo } } : {}) });

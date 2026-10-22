@@ -86,11 +86,12 @@ const TEXTS = {
     pickup_intent: (v) => {
         const who = v.name || 'The customer';
         const what = v.brief || 'the order';
-        if (v.kind === 'on_time') return { title: `Order #${v.orderNo}: customer will be on time`, body: `${who} says they will be there on time for ${what}.` };
-        if (v.kind === 'arrived') return { title: `Order #${v.orderNo}: customer is here`, body: `${who} is at the shop for ${what}. Check the pickup code and hand it over.` };
-        if (v.kind === 'late') return { title: `Order #${v.orderNo}: customer is late`, body: `${who} says: on my way, sorry for the delay.` };
-        if (v.kind === 'more_time') return { title: `Order #${v.orderNo}: needs more time`, body: `${who} needs a little more time for ${what}. Please keep it warm if you can.` };
-        return { title: `Order #${v.orderNo}: customer is coming`, body: `${who} is on the way to collect ${what}.` };
+        const at = v.time ? ` Pickup time: ${v.time}.` : '';
+        if (v.kind === 'on_time') return { title: `Order #${v.orderNo}: customer will be on time`, body: `${who} says they will be there on time for ${what}.${at}` };
+        if (v.kind === 'arrived') return { title: `Order #${v.orderNo}: customer is here`, body: `${who} is at the shop for ${what}. Check the pickup code and hand it over.${at}` };
+        if (v.kind === 'late') return { title: `Order #${v.orderNo}: customer is late`, body: `${who} says: on my way, sorry for the delay.${at}` };
+        if (v.kind === 'more_time') return { title: `Order #${v.orderNo}: needs more time`, body: `${who} needs a little more time for ${what}. Please keep it warm if you can.${at}` };
+        return { title: `Order #${v.orderNo}: customer is coming`, body: `${who} is on the way to collect ${what}.${at}` };
     },
     pickup_waiting: (v) => ({ title: v.over ? 'Your food is still waiting' : 'Your food is waiting', body: `${v.brief ? `${v.brief} (#${v.orderNo})` : `Order #${v.orderNo}`} ${v.over ? 'was ready for your pickup time, which is over. Please come soon, before it gets cold.' : `is ready. Please collect it by ${v.until}.`}${v.pickupCode ? ` Pickup code: ${v.pickupCode}.` : ''}` }),
     pickup_collect_claim: (v) => ({ title: `Order #${v.orderNo}: collected?`, body: `${v.name || 'A customer'} says they collected ${v.brief || 'their order'}.${v.cod ? ` It is a cash order of ₹${Math.round(v.total)}: please confirm and say if they paid.` : ' Please confirm.'}` }),
@@ -99,6 +100,7 @@ const TEXTS = {
     pickup_claim_no: (v) => ({ title: 'We could not find it as collected', body: `The shop could not confirm that order #${v.orderNo} was collected. Please come to the shop or call them.${v.message ? ` The shop says: “${v.message}”.` : ''} Thank you for understanding.` }),
     food_packed_rider: (v) => ({ title: `Order #${v.orderNo} is packed`, body: `${v.brief ? `${v.brief}. ` : ''}It is ready for you to collect.` }),
     order_shop_note: (v) => ({ title: `Your order #${v.orderNo}`, body: v.text }),
+    staff_leave_removed: (v) => ({ title: 'Your days off were changed', body: `The owner removed your ${v.from === v.to ? v.from : `${v.from} to ${v.to}`} day${v.days === 1 ? '' : 's'} off. You are on duty on ${v.days === 1 ? 'that day' : 'those days'}.` }),
     staff_off_duty: (v) => ({ title: `${v.name || 'Staff'} is off duty`, body: `${v.name || 'Someone'} (${v.job || 'staff'}) switched off duty${v.on ? ' and is not taking alerts' : ''}.` }),
     order_undone: (v) => ({ title: `Order #${v.orderNo}: step taken back`, body: `${v.by || 'Someone'} undid "${v.step}".` }),
     kitchen_problem: (v) => ({ title: `Kitchen: order #${v.orderNo}`, body: `${v.name || 'The cook'} says: ${v.what}${v.note ? ` (${v.note})` : ''}. Please decide what to do.` }),

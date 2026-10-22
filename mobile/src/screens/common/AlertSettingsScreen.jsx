@@ -1,11 +1,12 @@
-// Alerts: for every kind of alert, three switches: a notification on the phone, a popup in the app, a sound (with a "Listen" to hear it).
-// The same screen for the shop owner, the rider, the cook and the waiter; the groups come from the server for the person's job.
-// "Recommended settings" puts everything back as it was given.
+// Alerts: for every kind of alert, three switches side by side: Notification, Popup, Sound (and a small "Listen"). The same screen for the shop owner, the
+// rider, the cook and the waiter; the groups come from the server for the person's job. "Recommended settings" puts everything back as it was given.
 import React, { useEffect } from 'react';
-import { View, Text, Switch, ScrollView } from 'react-native';
+import { View, Text, ScrollView, Pressable } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { useBrand, alpha } from '../../components/common/kit';
-import { PageHeader, Card, SectionTitle, Button, Pill } from '../../components/owners/ui';
+import { Ionicons } from '@expo/vector-icons';
+import { useBrand } from '../../components/common/kit';
+import { PageHeader, Card, Button, Pill } from '../../components/owners/ui';
+import SlideSwitch from '../../components/common/SlideSwitch';
 import { themedAlert } from '../../components/common/dialog';
 import { showToast } from '../../components/customers/shop';
 import { useAlertPrefs } from '../../store/common/useAlertPrefs';
@@ -13,22 +14,19 @@ import { useSoundboxStore } from '../../store/owners/useSoundboxStore';
 import { sayExample } from '../../utils/owners/soundbox';
 import { tr } from '../../i18n';
 
-function SwitchRow({ title, subtitle, value, onChange, extra }) {
-    const { text, muted, primary, border } = useBrand();
+// one small column: its name, and the switch under it
+function Col({ label, value, onChange }) {
+    const { muted } = useBrand();
     return (
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8 }}>
-            <View style={{ flex: 1, paddingRight: 10 }}>
-                <Text style={{ color: text, fontWeight: '800', fontSize: 15 }}>{title}</Text>
-                <Text style={{ color: muted, fontSize: 12, marginTop: 1 }}>{subtitle}</Text>
-                {extra}
-            </View>
-            <Switch value={value} onValueChange={onChange} trackColor={{ true: alpha(primary, 0.5), false: border }} thumbColor={value ? primary : muted} />
+        <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={{ color: muted, fontSize: 11.5, fontWeight: '800', marginBottom: 6 }}>{label}</Text>
+            <SlideSwitch value={value} onValueChange={onChange} accessibilityLabel={label} />
         </View>
     );
 }
 
 export default function AlertSettingsScreen() {
-    const { background, text, muted, ok, warn, primary } = useBrand();
+    const { background, text, muted, warn, primary, border } = useBrand();
     const nav = useNavigation();
     const { groups, loaded, load, change, reset } = useAlertPrefs();
     const language = useSoundboxStore((s) => s.language);
@@ -38,7 +36,7 @@ export default function AlertSettingsScreen() {
         const save = async () => { if (!(await change(g.id, { [k]: v }))) showToast(tr('Could not save. Try again.')); };
         // a missed one costs money or safety: ask once before switching it off
         if (!v && g.critical && k !== 'p') {
-            themedAlert(tr('Switch off {name}?', { name: g.label }), tr('You may miss it. This alert is important for your work.'), [
+            themedAlert(tr('Switch off {name}?', { name: tr(g.label) }), tr('You may miss it. This alert is important for your work.'), [
                 { text: tr('Keep it on'), style: 'cancel' },
                 { text: tr('Switch off'), style: 'destructive', onPress: save },
             ], { icon: 'alert-circle-outline' });
@@ -54,36 +52,35 @@ export default function AlertSettingsScreen() {
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Alerts')} />
             <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-                <Card style={{ marginTop: 8 }}>
-                    <Text style={{ color: muted, fontSize: 13 }}>{tr('Choose how each alert reaches you. Notification: shows on the phone, even when the app is closed. Popup: opens over the app. Sound: rings and speaks.')}</Text>
-                    <Button label={changed ? tr('Use recommended settings') : tr('You are on the recommended settings')} icon="sparkles" kind={changed ? 'primary' : 'ghost'} disabled={!changed} onPress={recommended} style={{ marginTop: 12 }} />
-                </Card>
+                <View style={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: 6 }}>
+                    <Text style={{ color: muted, fontSize: 12.5, lineHeight: 18 }}>{tr('Notification shows on the phone, even when the app is closed. Popup opens over the app. Sound rings and speaks.')}</Text>
+                    <Button label={changed ? tr('Use recommended settings') : tr('You are on the recommended settings')} icon="sparkles" kind={changed ? 'primary' : 'ghost'} disabled={!changed} onPress={recommended} style={{ marginTop: 10 }} />
+                </View>
                 {!loaded ? <Text style={{ color: muted, textAlign: 'center', marginTop: 24 }}>{tr('Loading…')}</Text> : null}
                 {groups.map((g) => (
-                    <View key={g.id}>
-                        <Card style={{ marginTop: 12 }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <Text style={{ color: text, fontWeight: '900', fontSize: 16, flex: 1 }}>{tr(g.label)}</Text>
-                                {g.critical ? <Pill label={tr('Important')} color={warn} icon="alert-circle" /> : null}
+                    <Card key={g.id} style={{ marginTop: 8, paddingVertical: 12 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Text style={{ color: text, fontWeight: '900', fontSize: 15, flex: 1 }} numberOfLines={1}>{tr(g.label)}</Text>
+                            {g.critical ? <Pill label={tr('Important')} color={warn} icon="alert-circle" /> : null}
+                        </View>
+                        <Text style={{ color: muted, fontSize: 12, marginTop: 2 }} numberOfLines={2}>{tr(g.hint)}</Text>
+                        <View style={{ flexDirection: 'row', marginTop: 12 }}>
+                            <Col label={tr('Notification')} value={g.pref.n} onChange={(v) => flip(g, 'n', v)} />
+                            {g.can.p ? <Col label={tr('Popup')} value={g.pref.p} onChange={(v) => flip(g, 'p', v)} /> : null}
+                            {g.can.s ? <Col label={tr('Sound')} value={g.pref.s} onChange={(v) => flip(g, 's', v)} /> : null}
+                        </View>
+                        {g.can.s && g.sample ? (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, paddingTop: 10, borderTopWidth: 0.5, borderTopColor: border }}>
+                                <Pressable onPress={() => sayExample(g.id, g.sample, g.soft)} hitSlop={8} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                    <Ionicons name="volume-high" size={18} color={primary} />
+                                    <Text style={{ color: primary, fontWeight: '800', marginLeft: 6 }}>{tr('Listen')}</Text>
+                                </Pressable>
+                                <Pressable onPress={() => nav.navigate('Soundbox')} hitSlop={8} style={{ marginLeft: 'auto' }}>
+                                    <Text style={{ color: muted, fontSize: 12 }}>{language === 'hi' ? 'हिन्दी' : 'English'} · {tr('Change voice')}</Text>
+                                </Pressable>
                             </View>
-                            <Text style={{ color: muted, fontSize: 12.5, marginTop: 2, marginBottom: 4 }}>{tr(g.hint)}</Text>
-                            <SwitchRow title={tr('Notification')} subtitle={tr('Shows on the phone')} value={g.pref.n} onChange={(v) => flip(g, 'n', v)} />
-                            {g.can.p ? <SwitchRow title={tr('Popup')} subtitle={tr('Opens over the app')} value={g.pref.p} onChange={(v) => flip(g, 'p', v)} /> : null}
-                            {g.can.s ? (
-                                <SwitchRow
-                                    title={tr('Sound')} subtitle={tr('Rings and speaks')} value={g.pref.s} onChange={(v) => flip(g, 's', v)}
-                                    extra={g.sample ? (
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
-                                            <Button label={tr('Listen')} icon="volume-high" kind="ghost" onPress={() => sayExample(g.id, g.sample)} />
-                                            <Text style={{ color: muted, fontSize: 12, marginLeft: 10, flex: 1 }} onPress={() => nav.navigate('Soundbox')}>
-                                                {language === 'hi' ? 'हिन्दी' : 'English'} · {tr('Change voice')}
-                                            </Text>
-                                        </View>
-                                    ) : null}
-                                />
-                            ) : null}
-                        </Card>
-                    </View>
+                        ) : null}
+                    </Card>
                 ))}
             </ScrollView>
         </View>

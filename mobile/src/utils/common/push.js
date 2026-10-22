@@ -7,6 +7,7 @@
 import { ownerRoute } from '../owners/notificationRoute';
 import { Platform, AppState } from 'react-native';
 import * as Notifications from 'expo-notifications';
+import { alertOn } from '../../store/common/useAlertPrefs';
 import * as SecureStore from 'expo-secure-store';
 import { CommonActions } from '@react-navigation/native';
 import { useAuthStore } from '../../store/common/useAuthStore';
@@ -246,7 +247,7 @@ export function startNotifications() {
     // a new message arrived while the app is open
     onNotification((n) => {
         useNotificationStore.getState().bump();
-        if (AppState.currentState === 'active' && !hasOwnSound(n)) { playSfx('notify'); buzz([0, 40]); }
+        if (AppState.currentState === 'active' && !hasOwnSound(n) && alertOn(n?.type, 's')) { playSfx('notify'); buzz([0, 40]); }   // the Alerts screen can switch this ping off
         if (n?.title) showToast(n.body ? `${n.title}: ${String(n.body).slice(0, 90)}` : n.title);
     });
 

@@ -27,8 +27,8 @@ const TABS = {
     HomeTab: { label: 'Home', icon: 'home', component: OwnerHomeScreen },
     OrdersTab: { label: 'Orders', icon: 'receipt', component: OwnerOrdersScreen },
     MenuTab: { label: 'Menu', icon: 'restaurant', component: OwnerMenuScreen },
-    TxTab: { label: 'Transactions', icon: 'swap-vertical', component: OwnerTxTabScreen },
     RidersTab: { label: 'Riders', icon: 'bicycle', component: OwnerRidersScreen },
+    TxTab: { label: 'Transactions', icon: 'swap-vertical', component: OwnerTxTabScreen },
 };
 
 export default function OwnerTabs() {

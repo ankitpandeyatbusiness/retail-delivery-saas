@@ -234,9 +234,15 @@ export default function LoginScreen({ navigation }) {
         const sub = Keyboard.addListener('keyboardDidHide', () => { keyboardGone.value = true; });
         return () => sub.remove();
     }, [keyboardGone]);
-    const keyboardHeight = useDerivedValue(() => (keyboardGone.value ? 0 : keyboard.height.value));
-
     const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+    // The hook can also report a height when NO keyboard is open (the first start, a system dialog taking the focus). The panel was then lifted
+    // out of the screen and the form and the picture below it went black. The height only counts while the keyboard is really opening, open or closing
+    // (state 1, 2, 3), and never more than 60% of the screen.
+    const keyboardHeight = useDerivedValue(() => {
+        const st = keyboard.state.value;
+        if (keyboardGone.value || !(st === 1 || st === 2 || st === 3)) return 0;
+        return Math.min(keyboard.height.value, windowHeight * 0.6);
+    });
     const panelIn = useSharedValue(1);
     const stepProgress = useSharedValue(0);
 
@@ -538,9 +544,12 @@ export default function LoginScreen({ navigation }) {
             <View
                 style={styles.hero}
                 onLayout={(e) => {
-                    if (heroMeasured.current) return;
+                    // measured again whenever the screen really changes size (a first measure taken while the window was still settling left the pictures
+                    // 0 or a few pixels high: only their black backing showed). A tiny or zero height is never trusted.
+                    const h = Math.round(e.nativeEvent.layout.height);
+                    if (!(h >= 200)) return;
                     heroMeasured.current = true;
-                    setHeroHeight(Math.round(e.nativeEvent.layout.height));
+                    setHeroHeight((cur) => (Math.abs(cur - h) > 2 ? h : cur));
                 }}
             >
                 {heroData.length === 0 ? (

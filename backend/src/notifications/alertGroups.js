@@ -6,9 +6,10 @@
 // `types`: the notification types in the group. `kinds`: the live alerts of the cook's and the waiter's screens. `sample`: what "Listen" says.
 const g = (id, label, hint, types, o = {}) => ({
     id, label, hint, types, kinds: o.kinds || [],
-    can: { n: true, p: !!o.p, s: o.s !== false },
+    can: { n: true, p: !!o.p, s: true },   // every alert can have its sound switched
+    soft: !!o.soft,   // news only: a soft ping, not the ting-tong
     critical: !!o.critical,   // switching it off asks "are you sure?": a missed one costs money or safety
-    defaults: { n: true, p: !!o.p, s: o.s !== false, ...(o.defaults || {}) },
+    defaults: { n: true, p: !!o.p, s: true, ...(o.defaults || {}) },
     sample: o.sample ? { en: o.sample[0], hi: o.sample[1] } : null,
 });
 
@@ -19,23 +20,23 @@ const OWNER = [
     g('pickup', 'Pickup customers', 'A pickup customer says he is coming, is here, is late, or needs more time. Also: no-show, a later time, collected.', ['pickup_intent', 'pickup_no_show', 'pickup_time_request', 'pickup_collect_claim', 'pickup_not_wanted_claim'], { p: true, sample: ['Pickup order 1173. Ankit is on the way. 2 Butter Naan, 1 Paneer Butter Masala.', 'पिकअप ऑर्डर 1173। Ankit रास्ते में हैं। 2 Butter Naan, 1 Paneer Butter Masala।'] }),
     g('tables', 'Tables: calls and bills', 'A table calls, asks for the bill, says it paid, asks you to hurry or to cancel a round.', ['table_call', 'table_bill_asked', 'table_nudge', 'table_check', 'table_paid_claim', 'order_cancel_request', 'table_share_ask', 'table_feedback_low'], { sample: ['Table 4 asked for the bill.', 'टेबल 4 ने बिल मांगा है।'] }),
     g('help', 'A rider asks for help', 'A delivery partner pressed the help button.', ['rider_sos'], { critical: true, sample: ['Ramesh needs help. Order 1173. Please call now.', 'Ramesh को मदद चाहिए। ऑर्डर 1173। अभी फ़ोन करें।'] }),
-    g('delivery', 'Delivery news', 'A rider accepted, rejected or has a problem; nobody took an order; a delivery is late.', ['rider_accepted', 'rider_rejected', 'rider_none', 'rider_problem', 'rider_quiet', 'rider_arrived_shop', 'delivery_late_warning', 'order_late', 'order_delivered_shop'], { s: false }),
-    g('leave', 'Leave requests', 'A cook, a waiter or a rider asks for leave.', ['staff_leave_request', 'rider_leave_request'], { s: false }),
-    g('holiday', 'Days off', 'A cook or a waiter put plain days off in their calendar.', ['staff_holiday'], { s: false }),
-    g('offduty', 'Staff goes off duty', 'A cook or a waiter switched themselves off duty.', ['staff_off_duty'], { s: false }),
-    g('undo', 'Steps taken back (undo)', 'Someone undid Ready, Served or Picked up.', ['order_undone'], { s: false }),
-    g('reviews', 'Reviews and complaints', 'A new complaint, a review, or a low rating.', ['complaint_new', 'complaint_reminder', 'review_food', 'review_delivery', 'delivery_low_rating', 'dish_low_rating'], { s: false }),
+    g('delivery', 'Delivery news', 'A rider accepted, rejected or has a problem; nobody took an order; a delivery is late.', ['rider_accepted', 'rider_rejected', 'rider_none', 'rider_problem', 'rider_quiet', 'rider_arrived_shop', 'delivery_late_warning', 'order_late', 'order_delivered_shop'], { soft: true }),
+    g('leave', 'Leave requests', 'A cook, a waiter or a rider asks for leave.', ['staff_leave_request', 'rider_leave_request'], { soft: true }),
+    g('holiday', 'Days off', 'A cook or a waiter put plain days off in their calendar.', ['staff_holiday'], { soft: true }),
+    g('offduty', 'Staff goes off duty', 'A cook or a waiter switched themselves off duty.', ['staff_off_duty'], { soft: true }),
+    g('undo', 'Steps taken back (undo)', 'Someone undid Ready, Served or Picked up.', ['order_undone'], { soft: true }),
+    g('reviews', 'Reviews and complaints', 'A new complaint, a review, or a low rating.', ['complaint_new', 'complaint_reminder', 'review_food', 'review_delivery', 'delivery_low_rating', 'dish_low_rating'], { soft: true }),
     g('money', 'Rent, money and SMS', 'Your rent bill, payments, and your SMS balance.', ['bill_issued', 'bill_reminder', 'bill_overdue', 'shop_paused', 'shop_unpaused', 'payment_received', 'sms_topup_done', 'sms_low', 'sms_zero', 'free_ending', 'platform_message'], { s: false, critical: true }),
-    g('reports', 'Daily and weekly reports', 'How today and last week went.', ['owner_daily_summary', 'owner_weekly_digest', 'monthly_report'], { s: false }),
+    g('reports', 'Daily and weekly reports', 'How today and last week went.', ['owner_daily_summary', 'owner_weekly_digest', 'monthly_report'], { soft: true }),
 ];
 
 const RIDER = [
     g('offers', 'New delivery offers', 'An order is offered to you. You have two minutes to take it.', ['rider_offer'], { critical: true }),
-    g('late', 'Late delivery warning', 'An order will be cancelled soon if it is not delivered.', ['delivery_late_warning_rider'], { critical: true, s: false }),
-    g('packed', 'Food is packed', 'The kitchen packed the order you are coming for.', ['food_packed_rider'], { s: false }),
-    g('thanks', 'Thanks, ratings and badges', 'A thank you, a review of your delivery, a new badge.', ['delivery_done_rider', 'review_delivery_rider', 'rider_badge'], { s: false }),
-    g('duty', 'Duty and leave', 'You were put on or off duty, or the shop answered your leave.', ['rider_off_duty', 'rider_duty_auto', 'rider_leave_decision', 'rider_removed'], { s: false }),
-    g('undo', 'Steps taken back (undo)', 'Someone undid a step of your order.', ['order_undone'], { s: false }),
+    g('late', 'Late delivery warning', 'An order will be cancelled soon if it is not delivered.', ['delivery_late_warning_rider'], { critical: true, soft: true }),
+    g('packed', 'Food is packed', 'The kitchen packed the order you are coming for.', ['food_packed_rider'], { soft: true }),
+    g('thanks', 'Thanks, ratings and badges', 'A thank you, a review of your delivery, a new badge.', ['delivery_done_rider', 'review_delivery_rider', 'rider_badge'], { soft: true }),
+    g('duty', 'Duty and leave', 'You were put on or off duty, or the shop answered your leave.', ['rider_off_duty', 'rider_duty_auto', 'rider_leave_decision', 'rider_removed'], { soft: true }),
+    g('undo', 'Steps taken back (undo)', 'Someone undid a step of your order.', ['order_undone'], { soft: true }),
 ];
 
 const KITCHEN = [
@@ -44,19 +45,41 @@ const KITCHEN = [
     g('hurry', 'A table is waiting', 'A guest pressed "please hurry".', ['kitchen_hurry'], { kinds: ['hurry'], sample: ['Table 4 is waiting.', 'टेबल 4 इंतज़ार कर रही है।'] }),
     g('here', 'A pickup customer is here', 'The customer for a pickup order has arrived.', [], { kinds: ['here'], sample: ['Pickup 1173, the customer is here.', 'पिकअप 1173, ग्राहक आ गया है।'] }),
     g('done', 'Handed over, collected or served', 'An order has left the kitchen. A soft ping only.', ['kitchen_done'], { kinds: ['done'], s: true }),
-    g('undo', 'Steps taken back (undo)', 'Someone undid Served or Picked up.', ['order_undone'], { s: false }),
-    g('leave', 'Answers to your leave', 'The owner approved or rejected your leave.', ['staff_leave_decision'], { s: false }),
+    g('undo', 'Steps taken back (undo)', 'Someone undid Served or Picked up.', ['order_undone'], { soft: true }),
+    g('leave', 'Answers to your leave', 'The owner approved or rejected your leave.', ['staff_leave_decision', 'staff_leave_removed'], { soft: true }),
 ];
 
 const WAITER = [
     g('ready', 'Food ready to serve', 'The kitchen says a dish is ready for a table.', ['waiter_serve'], { kinds: ['ready'], critical: true, sample: ['Table 2, food is ready.', 'टेबल 2, खाना तैयार है।'] }),
     g('call', 'A table calls', 'A guest asks for the waiter, water, a spoon or a clean table.', ['waiter_call'], { kinds: ['call'], sample: ['Table 4 is calling.', 'टेबल 4 बुला रही है।'] }),
     g('bill', 'A table wants the bill', 'A guest asked for the bill.', ['waiter_bill'], { kinds: ['bill'], sample: ['Table 4 wants the bill.', 'टेबल 4 को बिल चाहिए।'] }),
-    g('undo', 'Steps taken back (undo)', 'Someone undid Ready.', ['order_undone'], { s: false }),
-    g('leave', 'Answers to your leave', 'The owner approved or rejected your leave.', ['staff_leave_decision'], { s: false }),
+    g('undo', 'Steps taken back (undo)', 'Someone undid Ready.', ['order_undone'], { soft: true }),
+    g('leave', 'Answers to your leave', 'The owner approved or rejected your leave.', ['staff_leave_decision', 'staff_leave_removed'], { soft: true }),
 ];
 
+// examples for "Listen" (and what the voice says) for the groups that had none
+const SAMPLES = {
+    'admin.delivery': ['Rider Ramesh accepted order 1173.', 'Rider Ramesh ने ऑर्डर 1173 स्वीकार किया।'],
+    'admin.leave': ['Suresh, a waiter, asked for leave on 25 October.', 'वेटर Suresh ने 25 अक्टूबर की छुट्टी मांगी है।'],
+    'admin.holiday': ['Ramesh, a cook, added a day off.', 'कुक Ramesh ने एक दिन की छुट्टी जोड़ी है।'],
+    'admin.offduty': ['Suresh, a waiter, is off duty.', 'वेटर Suresh ड्यूटी से बाहर हैं।'],
+    'admin.undo': ['Order 1173: Ready was undone.', 'ऑर्डर 1173: Ready वापस लिया गया।'],
+    'admin.reviews': ['A new review for order 1173.', 'ऑर्डर 1173 का नया रिव्यू।'],
+    'admin.money': ['Your monthly bill is ready.', 'आपका मासिक बिल तैयार है।'],
+    'admin.reports': ['Your daily summary is ready.', 'आपका दैनिक सारांश तैयार है।'],
+    'rider.late': ['Order 1173 will be cancelled soon if it is not delivered.', 'ऑर्डर 1173 जल्द रद्द हो जाएगा अगर डिलीवर नहीं हुआ।'],
+    'rider.packed': ['Order 1173 is packed. Come and collect it.', 'ऑर्डर 1173 पैक हो गया है। आकर ले जाइए।'],
+    'rider.thanks': ['Thank you for delivering order 1173.', 'ऑर्डर 1173 डिलीवर करने के लिए धन्यवाद।'],
+    'rider.duty': ['You were put off duty.', 'आपको ड्यूटी से हटाया गया है।'],
+    'rider.undo': ['Order 1173: Picked up was undone.', 'ऑर्डर 1173: Picked up वापस लिया गया।'],
+    'kitchen.done': ['Order 1173 was served.', 'ऑर्डर 1173 परोस दिया गया।'],
+    'kitchen.undo': ['Order 1173: Served was undone.', 'ऑर्डर 1173: Served वापस लिया गया।'],
+    'kitchen.leave': ['Your leave was approved.', 'आपकी छुट्टी मंज़ूर हुई।'],
+    'waiter.undo': ['Order 1173: Ready was undone.', 'ऑर्डर 1173: Ready वापस लिया गया।'],
+    'waiter.leave': ['Your leave was approved.', 'आपकी छुट्टी मंज़ूर हुई।'],
+};
 const BY_ROLE = { admin: OWNER, rider: RIDER, kitchen: KITCHEN, waiter: WAITER };
+for (const [role, list] of Object.entries(BY_ROLE)) for (const x of list) { const e = !x.sample && SAMPLES[`${role}.${x.id}`]; if (e) x.sample = { en: e[0], hi: e[1] }; }
 const groupsFor = (role) => BY_ROLE[role] || [];
 const groupOf = (role, type) => (type ? groupsFor(role).find((x) => x.types.includes(String(type))) || null : null);
 
@@ -81,6 +104,6 @@ function cleanPrefs(role, body) {
     return out;
 }
 
-const view = (role, prefs) => groupsFor(role).map((x) => ({ id: x.id, label: x.label, hint: x.hint, can: x.can, critical: x.critical, types: x.types, kinds: x.kinds, sample: x.sample, defaults: x.defaults, pref: prefOf(prefs, x) }));
+const view = (role, prefs) => groupsFor(role).map((x) => ({ id: x.id, label: x.label, hint: x.hint, can: x.can, soft: x.soft, critical: x.critical, types: x.types, kinds: x.kinds, sample: x.sample, defaults: x.defaults, pref: prefOf(prefs, x) }));
 
 module.exports = { groupsFor, groupOf, prefOf, cleanPrefs, view };

@@ -8,6 +8,7 @@ const staffSchema = new mongoose.Schema({
     role: { type: String, enum: ['kitchen', 'waiter'], required: true },
     name: { type: String, trim: true, maxlength: 80 },
     isActive: { type: Boolean, default: true },   // the owner can pause a person without removing them
+    photo: String,   // their own picture (set from their Profile)
     lastSeenAt: Date,
     // working time (services/staffDuty.js): Go live, weekly hours and days off. Alerts go only to people on duty.
     duty: {

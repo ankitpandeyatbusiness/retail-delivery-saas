@@ -4,10 +4,13 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView, RefreshControl } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useBrand } from '../../components/common/kit';
-import { Card, Pill, Row, SectionTitle, Stat, Empty } from '../../components/owners/ui';
+import { Card, Pill, Row, SectionTitle, Stat, Empty, Button } from '../../components/owners/ui';
 import { StaffHeader, JobBadge, StaffSkeleton } from '../../components/staff/staffBits';
 import { useStaffStore } from '../../store/staff/useStaffStore';
-import { fetchMyWork } from '../../api/staff/staffApi';
+import { fetchMyWork, cancelLeave, removeDayOff } from '../../api/staff/staffApi';
+import { ask } from '../../components/common/dialog';
+import { showToast } from '../../components/customers/shop';
+import { istToday } from '../../utils/owners/txRules';
 import { onKitchenUpdate, onWaiterUpdate } from '../../api/common/socket';
 import { LEAVE_PILL, range } from '../owners/OwnerStaffPersonScreen';
 import { ago } from '../../utils/owners/riderRules';
@@ -26,6 +29,14 @@ export default function StaffWorkScreen() {
         return sub((p) => { if (p?.leave) load(); });   // the owner answered a leave: it shows here now
     }, [role, load]);
     const pull = async () => { setBusy(true); await load(); setBusy(false); };
+    const today = istToday();
+    const takeBack = async (l) => {
+        if (!(await ask({ title: tr('Cancel this leave?'), message: tr('You will be on duty on those days again. The owner is told.'), confirmText: tr('Cancel leave'), cancelText: tr('Keep it'), destructive: true }))) return;
+        try { await cancelLeave(l.id); showToast(tr('Leave cancelled')); load(); } catch (e) { showToast(e?.response?.data?.error || tr('Could not cancel. Try again.')); }
+    };
+    const dropDay = async (h) => {
+        try { await removeDayOff(h.id); showToast(tr('Day off removed')); load(); } catch (e) { showToast(e?.response?.data?.error || tr('Could not remove it. Try again.')); }
+    };
 
     const cook = role === 'kitchen';
     const tone = { warn, ok, error, muted };
@@ -71,12 +82,14 @@ export default function StaffWorkScreen() {
                                 </View>
                                 {l.reason ? <Text style={{ color: muted, marginTop: 2 }}>{l.reason}</Text> : null}
                                 {l.note ? <Text style={{ color: muted, marginTop: 2, fontStyle: 'italic' }}>{tr('The owner said')}: {l.note}</Text> : null}
+                                {['pending', 'approved'].includes(l.status) && l.to >= today ? <View style={{ marginTop: 8 }}><Button label={tr('Cancel this leave')} icon="close-circle" kind="ghost" onPress={() => takeBack(l)} /></View> : null}
                             </View>
                         ))}
                         {d.holidays.filter((h) => !h.leave).map((h) => (
                             <View key={h.id} style={{ paddingVertical: 8, borderTopWidth: 0.5, borderTopColor: muted + '55' }}>
                                 <Text style={{ color: text, fontWeight: '800' }}>{range(h.from, h.to)} · {h.days} {h.days === 1 ? tr('day') : tr('days')} <Text style={{ color: muted, fontWeight: '600' }}>({tr('day off I set')})</Text></Text>
                                 {h.note ? <Text style={{ color: muted, marginTop: 2 }}>{h.note}</Text> : null}
+                                <View style={{ marginTop: 8 }}><Button label={tr('Remove this day off')} icon="close-circle" kind="ghost" onPress={() => dropDay(h)} /></View>
                             </View>
                         ))}
                     </Card>

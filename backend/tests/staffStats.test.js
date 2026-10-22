@@ -113,3 +113,44 @@ describe('what each person did', () => {
         assert.equal(seen.body.holidays[0].leave, true);
     });
 });
+
+describe('taking leaves and days off back', () => {
+    const dayIn = (n) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+
+    test('the person can cancel an approved leave that has not ended; the days off go with it', async () => {
+        const ask = await request(app).post('/api/staff/duty/leave').set(cook.headers).send({ from: dayIn(3), to: dayIn(4), reason: 'Wedding' });
+        assert.equal(ask.status, 201);
+        const id = (await request(app).get('/api/staff/work').set(cook.headers)).body.leaves[0].id;
+        assert.equal((await request(app).post(`/api/shop/staff/leaves/${id}`).set(w.owner.headers).send({ approve: true })).status, 200);
+        assert.equal((await request(app).get('/api/staff/work').set(cook.headers)).body.holidays.length, 1);
+        const back = await request(app).post(`/api/staff/duty/leave/${id}/cancel`).set(cook.headers);
+        assert.equal(back.status, 200, JSON.stringify(back.body));
+        const now = (await request(app).get('/api/staff/work').set(cook.headers)).body;
+        assert.equal(now.leaves[0].status, 'cancelled');
+        assert.equal(now.holidays.length, 0);
+    });
+
+    test('the owner can remove a pending leave, an approved leave and a day off the person set; the person is told and their screen changes', async () => {
+        const realtime = require('../src/services/realtime');
+        const tell = mock.method(realtime, 'toKitchen', () => {});
+        await request(app).post('/api/staff/duty/leave').set(cook.headers).send({ from: dayIn(2), to: dayIn(2), reason: 'Doctor' });
+        await request(app).post('/api/staff/duty/leave').set(cook.headers).send({ from: dayIn(8), to: dayIn(9), reason: 'Trip' });
+        const mine = (await request(app).get('/api/staff/work').set(cook.headers)).body.leaves;
+        const trip = mine.find((l) => l.reason === 'Trip'); const doctor = mine.find((l) => l.reason === 'Doctor');
+        await request(app).post(`/api/shop/staff/leaves/${trip.id}`).set(w.owner.headers).send({ approve: true });
+        await request(app).post('/api/staff/duty/holidays').set(cook.headers).send({ from: dayIn(12), to: dayIn(12), note: 'Eid' });
+
+        let seen = (await ownerGet(`/${cook.id}`)).body;
+        assert.equal(seen.holidays.length, 2, 'the approved leave and the plain day off');
+        assert.equal((await request(app).delete(`/api/shop/staff/leaves/${doctor.id}`).set(w.owner.headers)).status, 200, 'a pending leave');
+        assert.equal((await request(app).delete(`/api/shop/staff/leaves/${trip.id}`).set(w.owner.headers)).status, 200, 'an approved leave');
+        const plain = seen.holidays.find((h) => !h.leave);
+        assert.equal((await request(app).delete(`/api/shop/staff/${cook.id}/holidays/${plain.id}`).set(w.owner.headers)).status, 200, 'a plain day off');
+        seen = (await ownerGet(`/${cook.id}`)).body;
+        assert.equal(seen.holidays.length, 0);
+        assert.ok(seen.leaves.every((l) => l.status === 'cancelled'));
+        assert.ok(tell.mock.calls.filter((c) => c.arguments[2]?.leave === true).length >= 3, 'their screen is told each time');
+        await f.waitFor(async () => (await require('../src/models/Notification').countDocuments({ tenantId: w.tenant._id, type: 'staff_leave_removed' })) === 3);
+        assert.equal((await request(app).delete(`/api/shop/staff/leaves/${trip.id}`).set(w.owner.headers)).status, 404, 'already gone');
+    });
+});

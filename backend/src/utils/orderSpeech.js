@@ -150,13 +150,19 @@ const IST = (d) => new Date(new Date(d).getTime() + 330 * 60000);
 const clock = (d) => { const t = IST(d); const h = t.getUTCHours(); const m = String(t.getUTCMinutes()).padStart(2, '0'); return `${h % 12 || 12}:${m} ${h < 12 ? 'am' : 'pm'}`; };
 const INTENT_EN = { coming: 'is on the way', arrived: 'is here', on_time: 'will be there on time', late: 'is running late', more_time: 'needs more time' };
 const INTENT_HI = { coming: 'रास्ते में हैं', arrived: 'पहुँच गए हैं', on_time: 'समय पर पहुँचेंगे', late: 'देर से आ रहे हैं', more_time: 'को और समय चाहिए' };
+// "8:30 pm to 9 pm" (or "8:30 pm" when there is no end): the time this pickup was ordered for
+function pickupWindow(order) {
+    if (!order.scheduledFor) return '';
+    return order.pickupUntil ? `${clock(order.scheduledFor)} to ${clock(order.pickupUntil)}` : clock(order.scheduledFor);
+}
 function pickupIntentSpeech(order, answer, hi = false) {
     const items = (Array.isArray(order.items) ? order.items : []).slice(0, MAX_ITEMS).map(lineSpeech);
     const who = clean(order.customer?.name).split(' ')[0] || (hi ? 'ग्राहक' : 'The customer');
     const parts = [hi ? `पिकअप ऑर्डर ${order.orderNo}।` : `Pickup order ${order.orderNo}.`, hi ? `${who} ${INTENT_HI[answer] || ''}।` : `${who} ${INTENT_EN[answer] || 'sent a message'}.`];
     if (items.length) parts.push(`${items.join(', ')}${hi ? '।' : '.'}`);
-    if (order.scheduledFor) parts.push(hi ? `पिकअप का समय ${clock(order.scheduledFor)}।` : `Pickup time ${clock(order.scheduledFor)}.`);
+    const when = pickupWindow(order);
+    if (when) parts.push(hi ? `पिकअप का समय ${when.replace(' to ', ' से ')}।` : `Pickup time ${when}.`);
     return parts.join(' ');
 }
 
-module.exports = { orderSpeech, orderSpeechHi, cancelSpeech, cancelSpeechHi, kitchenSpeech, kitchenCancelSpeech, pickupIntentSpeech, MAX_ITEMS };
+module.exports = { orderSpeech, orderSpeechHi, cancelSpeech, cancelSpeechHi, kitchenSpeech, kitchenCancelSpeech, pickupIntentSpeech, pickupWindow, MAX_ITEMS };

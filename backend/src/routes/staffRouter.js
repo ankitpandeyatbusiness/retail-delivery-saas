@@ -29,16 +29,41 @@ const core = express.Router();
 // who am I, which shop, which panel
 core.get('/me', wrap(async (req, res) => {
     const t = req.tenant;
-    const row = await Staff.findOneAndUpdate({ tenantId: t._id, userId: req.staff.id }, { $set: { lastSeenAt: new Date() } }, { projection: 'prefs duty holidays' }).lean().catch(() => null);
+    const row = await Staff.findOneAndUpdate({ tenantId: t._id, userId: req.staff.id }, { $set: { lastSeenAt: new Date() } }, { projection: 'prefs duty holidays photo' }).lean().catch(() => null);
     const duty = require('../services/staffDuty');
     const { closed, winding } = await duty.closedFor(t, req.staff.role);
     res.json({
         prefs: { tellDone: row?.prefs?.tellDone !== false }, onDuty: duty.isOnDuty(row || {}, new Date(), closed), dutyStatus: duty.statusOf(row || {}, new Date(), closed), winding,
         // the owner paused orders for a while: until when (the screens say "Paused until 9:18 PM")
+        photo: row?.photo || null,
         pausedUntil: t.settings?.orders?.pausedUntil && new Date(t.settings.orders.pausedUntil).getTime() > Date.now() ? t.settings.orders.pausedUntil : null,
         userId: String(req.staff.id), role: req.staff.role, job: staff.JOB[req.staff.role], name: req.staff.name,
         phone: req.shopUser.phone, shop: t.name || '', shopPhone: t.phone || null,
     });
+}));
+
+// their own picture: sign -> PUT the file to the address -> confirm (the same three steps as a rider's)
+const media = require('../services/mediaService');
+const Media = require('../models/Media');
+const { takeSignSlot } = require('../middlewares/uploadLimit');
+core.post('/me/photo/sign', wrap(async (req, res) => {
+    await takeSignSlot('rl_upload_r', `upload:s:${req.tenant._id}:${req.staff.id}`, 40).catch((e) => { if (e.retryAfter) res.set('Retry-After', String(e.retryAfter)); throw e; });
+    const { contentType, bytes } = req.body || {};
+    res.json(await media.sign({ tenant: req.tenant, actorId: String(req.staff.id), kind: 'rider', refId: String(req.staff.id), contentType, bytes, allowed: media.RIDER_KINDS }));
+}));
+core.post('/me/photo', wrap(async (req, res) => {
+    const doc = await media.confirm({
+        tenant: req.tenant, actorId: String(req.staff.id), kind: 'rider', refId: String(req.staff.id), key: req.body?.key,
+        allowed: media.RIDER_KINDS, uploadedBy: { type: 'staff', id: String(req.staff.id), label: req.shopUser.phone },
+    });
+    await Staff.updateOne({ tenantId: req.tenant._id, userId: req.staff.id }, { $set: { photo: doc.url } });
+    res.status(201).json({ ok: true, photo: doc.url });
+}));
+core.delete('/me/photo', wrap(async (req, res) => {
+    const m = await Media.findOne({ tenantId: req.tenant._id, kind: 'rider', refId: String(req.staff.id) }).select('_id').lean();
+    if (m) await media.removeMedia({ tenant: req.tenant, id: String(m._id), allowed: media.RIDER_KINDS });
+    await Staff.updateOne({ tenantId: req.tenant._id, userId: req.staff.id }, { $unset: { photo: 1 } });
+    res.json({ ok: true });
 }));
 
 // { name? , tellDone? }  the person's own details and choices

@@ -97,6 +97,8 @@ export const fetchStaff = (opts) => d(api.get('/shop/staff', opts?.stats ? { par
 export const fetchStaffPerson = (userId) => d(api.get(`/shop/staff/${userId}`));   // { person, stats, working, leaves, holidays, duty }
 export const fetchStaffLeaves = () => d(api.get('/shop/staff/leaves'));   // { pending, recent }
 export const decideStaffLeave = (id, approve, note) => d(api.post(`/shop/staff/leaves/${id}`, { approve, ...(note ? { note } : {}) }));
+export const removeStaffLeave = (id) => d(api.delete(`/shop/staff/leaves/${id}`));   // a waiting or approved leave: the days off go too, the person is told
+export const removeStaffHoliday = (userId, holidayId) => d(api.delete(`/shop/staff/${userId}/holidays/${holidayId}`));   // a day off the person set for themselves
 export const addStaff = (body) => d(api.post('/shop/staff', body));   // { phone, name?, role: 'kitchen' | 'waiter' }
 export const updateStaff = (userId, body) => d(api.patch(`/shop/staff/${userId}`, body));   // { isActive?, name?, role? }
 export const removeStaff = (userId) => d(api.delete(`/shop/staff/${userId}`));

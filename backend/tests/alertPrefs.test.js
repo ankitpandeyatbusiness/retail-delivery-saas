@@ -31,7 +31,8 @@ describe('the alerts screen', () => {
         assert.deepEqual(g.new_orders.pref, { n: true, p: true, s: true });
         assert.ok(g.new_orders.sample.en && g.new_orders.sample.hi);
         assert.equal(g.offduty.can.p, false, 'staff going off duty never opens a popup');
-        assert.equal(g.holiday.can.s, false);
+        assert.equal(g.holiday.can.s, true, 'every alert has a sound switch');
+        assert.ok(r.body.groups.every((x) => x.can.s && x.sample), 'and an example to listen to');
         assert.ok(g.pickup.types.includes('pickup_intent'));
         assert.ok(g.pickup.can.p && g.pickup.can.s, 'pickup answers: notification, popup and sound');
     });

@@ -3,6 +3,7 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { Image } from 'expo-image';
 import { useBrand, alpha } from '../../components/common/kit';
 import { Card, Pill, Button, Empty, SectionTitle, Stat } from '../../components/owners/ui';
 import { FormPage, Toggle } from '../../components/owners/menuBits';
@@ -22,6 +23,7 @@ export const dutyWords = (p) => (p.duty === 'holiday' ? 'Day off' : p.duty === '
 
 export function PersonAvatar({ person, size = 44 }) {
     const { primary } = useBrand();
+    if (person?.photo) return <Image source={{ uri: person.photo }} style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: alpha(primary, 0.16) }} contentFit="cover" />;
     return (
         <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: alpha(primary, 0.16), alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ color: primary, fontWeight: '900', fontSize: size * 0.42 }}>{(person?.name || person?.phone || '?').charAt(0).toUpperCase()}</Text>

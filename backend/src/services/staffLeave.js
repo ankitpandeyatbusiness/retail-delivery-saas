@@ -40,10 +40,43 @@ async function request({ tenantId, staff, from, to, reason, now = new Date() }) 
     return l;
 }
 
+// the person takes their leave back: one that is waiting, or an approved one that has not ended. The days off it made go with it.
 async function cancel({ tenantId, userId, id }) {
-    const l = await StaffLeave.findOneAndUpdate({ _id: id, tenantId, userId, status: 'pending' }, { $set: { status: 'cancelled' } }, { new: true });
-    if (!l) throw httpError(404, 'Only a leave that is still waiting can be cancelled');
+    const l = await StaffLeave.findOneAndUpdate(
+        { _id: id, tenantId, userId, status: { $in: ['pending', 'approved'] }, to: { $gte: today() } },
+        { $set: { status: 'cancelled', decidedNote: 'Taken back by ' + 'the person' } }, { new: true },
+    );
+    if (!l) throw httpError(404, 'Only a leave that is waiting, or has not ended yet, can be cancelled');
+    await Staff.updateOne({ tenantId, userId }, { $pull: { holidays: { leaveId: l._id } } });
+    tell('staff_leave_request', { tenantId, vars: { name: l.name || 'Your staff', job: l.role === 'kitchen' ? 'Kitchen' : 'Waiter', from: l.from, to: l.to, days: l.days, reason: 'Took the leave back' }, data: { kind: 'staff_leave', leaveId: String(l._id), userId: String(userId) } });
     return l;
+}
+
+const screens = (tenantId, role, userId) => { try { require('./realtime')[role === 'waiter' ? 'toWaiter' : 'toKitchen'](tenantId, role === 'waiter' ? 'waiter:update' : 'kitchen:update', { leave: true, userId: String(userId) }); } catch (e) { /* the screens refresh by themselves */ } };
+
+// the owner takes any leave away (it was a mistake, or the person is needed): the days off go, the person is told and their screen changes at once
+async function ownerRemove({ tenantId, id, note }) {
+    const l = await StaffLeave.findOneAndUpdate(
+        { _id: id, tenantId, status: { $in: ['pending', 'approved'] } },
+        { $set: { status: 'cancelled', decidedAt: new Date(), decidedNote: String(note || 'Removed by the owner').trim().slice(0, 200) } }, { new: true },
+    );
+    if (!l) throw httpError(404, 'That leave is already over or cancelled');
+    await Staff.updateOne({ tenantId, userId: l.userId }, { $pull: { holidays: { leaveId: l._id } } });
+    tell('staff_leave_removed', { tenantId, userId: l.userId, vars: { from: l.from, to: l.to, days: l.days }, data: { kind: 'staff_leave', leaveId: String(l._id) } });
+    screens(tenantId, l.role, l.userId);
+    return shape(l);
+}
+
+// the owner removes one of the days off the person set for themselves
+async function ownerRemoveHoliday({ tenantId, userId, holidayId }) {
+    const row = await Staff.findOne({ tenantId, userId }).select('holidays role').lean();
+    const h = (row?.holidays || []).find((x) => String(x._id) === String(holidayId));
+    if (!h) throw httpError(404, 'That day off is already gone');
+    if (h.leaveId) return ownerRemove({ tenantId, id: h.leaveId });   // a day off made by a leave: remove the leave
+    await Staff.updateOne({ tenantId, userId }, { $pull: { holidays: { _id: holidayId } } });
+    tell('staff_leave_removed', { tenantId, userId, vars: { from: h.from, to: h.to, days: 1 }, data: { kind: 'staff_holiday' } });
+    screens(tenantId, row.role, userId);
+    return { ok: true };
 }
 
 // the owner's list: waiting first, then the latest decided
@@ -73,4 +106,4 @@ async function decide({ tenantId, id, approve, note }) {
     return shape(l);
 }
 
-module.exports = { mine, request, cancel, forOwner, decide, shape };
+module.exports = { mine, request, cancel, ownerRemove, ownerRemoveHoliday, forOwner, decide, shape };

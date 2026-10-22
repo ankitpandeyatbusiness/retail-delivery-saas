@@ -4,6 +4,7 @@
 import { pickPhoto } from '../common/photoUpload';
 import { fileSize, putFile as upBytes } from '../common/fileUpload';
 import { signMyPhoto, confirmMyPhoto, deleteMyPhoto, signProof, confirmProof } from '../../api/riders/riderApi';
+import { signMyStaffPhoto, confirmMyStaffPhoto, deleteMyStaffPhoto } from '../../api/staff/staffApi';
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const ALLOWED = ['image/jpeg', 'image/png', 'image/webp'];
@@ -39,6 +40,18 @@ export async function takeAndUploadMyPhoto(source) {
 }
 
 export const removeMyPhoto = () => deleteMyPhoto();
+
+// a cook's or a waiter's own picture: the same steps
+export async function takeAndUploadStaffPhoto(source) {
+    const picked = await pickPhoto(source, { square: true });
+    if (!picked) return null;
+    const key = await putFile(picked, signMyStaffPhoto);
+    try {
+        const r = await confirmMyStaffPhoto(key);
+        return { photo: r.photo };
+    } catch (e) { throw fail(e?.response?.data?.error || 'Could not save that photo'); }
+}
+export const removeStaffPhoto = () => deleteMyStaffPhoto();
 
 // the camera only: a proof must be taken at the door. -> { proof: { url, at } } or null
 export async function takeAndUploadProof(orderId) {

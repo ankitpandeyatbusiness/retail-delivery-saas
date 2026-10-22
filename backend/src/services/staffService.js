@@ -17,7 +17,7 @@ const JOB = { kitchen: 'Kitchen', waiter: 'Waiter' };
 const rulesOf = (tenant) => ({ ...DEFAULTS.orders.staff, ...(resolveConfig(tenant).orders.staff || {}) });
 const allowed = (rules, role) => (role === 'kitchen' ? rules.kitchenOn : rules.waiterOn) === true;
 
-const shape = (s, phone, closed = false) => ({ userId: String(s.userId), role: s.role, job: JOB[s.role], name: s.name || '', phone: phone || '', isActive: s.isActive, lastSeenAt: s.lastSeenAt || null, duty: require('./staffDuty').statusOf(s, new Date(), closed) });   // duty: on | off | outside | holiday
+const shape = (s, phone, closed = false) => ({ userId: String(s.userId), role: s.role, job: JOB[s.role], name: s.name || '', phone: phone || '', isActive: s.isActive, photo: s.photo || null, lastSeenAt: s.lastSeenAt || null, duty: require('./staffDuty').statusOf(s, new Date(), closed) });   // duty: on | off | outside | holiday
 
 async function list(tenant, { stats = false } = {}) {
     const rows = await Staff.find({ tenantId: tenant._id }).sort({ role: 1, createdAt: 1 }).lean();

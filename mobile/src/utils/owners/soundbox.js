@@ -712,16 +712,16 @@ export async function speakStaffPush(data) {
 }
 
 // "Listen" on the Alerts screen: the alert's own tone, then its example sentence in the voice and language chosen on the Soundbox screen.
-export async function sayExample(id, sample) {
+export async function sayExample(id, sample, soft) {
     try {
         if (!sample) return;
         if (!settings().loaded) await useSoundboxStore.getState().hydrate();
         for (let i = 0; i < 16 && speaking; i += 1) await new Promise((r) => setTimeout(r, 300));
         await ensureAudio();
-        const tone = id === 'cancelled' || id === 'cancel' ? 'cancelAlarm' : id === 'help' ? 'helpAlarm' : 'tingTong';
+        const tone = id === 'cancelled' || id === 'cancel' ? 'cancelAlarm' : id === 'help' ? 'helpAlarm' : soft ? 'notify' : 'tingTong';   // news-only alerts get the soft ping
         playSfx(tone);
         const language = await languageToUse();
-        await new Promise((r) => setTimeout(r, tone === 'cancelAlarm' ? 1300 : tone === 'helpAlarm' ? 2100 : 1700));
+        await new Promise((r) => setTimeout(r, tone === 'cancelAlarm' ? 1300 : tone === 'helpAlarm' ? 2100 : tone === 'notify' ? 700 : 1700));
         if (!speaking) await speak(language === 'hi' ? sample.hi : sample.en, language);
     } catch (e) { /* the tone is enough */ }
 }
