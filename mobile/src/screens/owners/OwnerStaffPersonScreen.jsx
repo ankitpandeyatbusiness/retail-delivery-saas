@@ -1,6 +1,7 @@
 // One cook or waiter, like a rider's page: who they are, how to reach them, what they did, what they are making now, their leaves and days off,
 // and pausing or removing them. Opened with params { userId }.
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { onNotification } from '../../api/common/socket';
 import { View, Text, ScrollView } from 'react-native';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useBrand } from '../../components/common/kit';
@@ -30,8 +31,15 @@ export default function OwnerStaffPersonScreen() {
     const [nameOpen, setNameOpen] = useState(false);
     const [name, setName] = useState('');
     const [busy, setBusy] = useState(false);
+    // taking a leave or a day off away (an optional message first). These hooks stay ABOVE the early return below: React needs the same hooks on every render.
+    const [taking, setTaking] = useState(null);   // { kind: 'leave' | 'day', item }
+    const [msg, setMsg] = useState('');
+    const [removing, setRemoving] = useState(false);
     const load = useCallback(() => fetchStaffPerson(userId).then((r) => { setD(r); setGone(false); }).catch((e) => { if (e?.response?.status === 404) setGone(true); else useOwnerStore.getState().noteError(e); }), [userId]);
     useFocusEffect(useCallback(() => { load(); }, [load]));
+    useEffect(() => onNotification((n) => {
+        if (['staff_leave_request', 'staff_leave_withdrawn', 'staff_holiday', 'staff_off_duty'].includes(String(n?.type))) load();
+    }), [load]);
 
     const p = d?.person;
     if (!p) {
@@ -59,9 +67,6 @@ export default function OwnerStaffPersonScreen() {
     };
     const s = d.stats;
     // taking a leave or a day off away: a sheet with an optional message, then the person is told (with a sound) and their screen changes
-    const [taking, setTaking] = useState(null);   // { kind: 'leave' | 'day', item }
-    const [msg, setMsg] = useState('');
-    const [removing, setRemoving] = useState(false);
     const takeLeaveBack = (l) => { setMsg(''); setTaking({ kind: 'leave', item: l }); };
     const takeDayOffBack = (h) => { setMsg(''); setTaking({ kind: 'day', item: h }); };
     const confirmTake = async () => {

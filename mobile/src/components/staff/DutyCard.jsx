@@ -12,6 +12,7 @@ import { showToast } from '../customers/shop';
 import { apiError } from '../../api/owners/shopApi';
 import { fetchDuty, saveDuty, addDayOff, removeDayOff, askLeave, cancelLeave } from '../../api/staff/staffApi';
 import { useStaffStore } from '../../store/staff/useStaffStore';
+import { onNotification } from '../../api/common/socket';
 import { tr } from '../../i18n';
 
 const DAYS = [['mon', 'Monday'], ['tue', 'Tuesday'], ['wed', 'Wednesday'], ['thu', 'Thursday'], ['fri', 'Friday'], ['sat', 'Saturday'], ['sun', 'Sunday']];
@@ -89,6 +90,10 @@ export default function DutyCard() {
         useStaffStore.getState().patchMe({ onDuty: r.onDuty, dutyStatus: r.status });
     }, []);
     useEffect(() => { fetchDuty().then((r) => take(r, false)).catch(() => { }); }, [take]);
+    // the owner answered a leave or took it away: read it again (what the person is typing is kept)
+    useEffect(() => onNotification((n) => {
+        if (['staff_leave_decision', 'staff_leave_removed', 'staff_holiday'].includes(String(n?.type))) fetchDuty().then((r) => take(r, true)).catch(() => { });
+    }), [take]);
 
     const act = async (fn, msg, keep = true) => { try { take(await fn(), keep); if (msg) showToast(msg); } catch (e) { showToast(apiError(e)); } };
     const setDay = (k, patch) => { setWeekly((w) => ({ ...w, [k]: { ...w[k], ...patch } })); setDirty(true); };

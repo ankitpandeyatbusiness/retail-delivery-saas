@@ -189,7 +189,7 @@ async function sweep(now = Date.now()) {
             try {
                 require('../notifications/center').notify('rider_quiet', {
                     tenantId: trip.tenantId, title: `Rider not reporting: order #${trip.orderNo}`,
-                    body: `${trip.riderName || 'The rider'} has not sent a location for ${Math.round(quiet / 60000)} minutes. You may want to call him.`, data: { orderId: id, orderNo: trip.orderNo },
+                    body: `${trip.riderName || 'The rider'} has not sent a location for ${Math.round(quiet / 60000)} minutes. You may want to call him.`, data: { orderId: id, orderNo: trip.orderNo, speechHi: `राइडर की लोकेशन नहीं आ रही। ऑर्डर ${trip.orderNo}। ${Math.round(quiet / 60000)} मिनट से कोई जानकारी नहीं। कृपया फ़ोन कीजिए।` },
                 });
             } catch (e) { /* ignore */ }
         }

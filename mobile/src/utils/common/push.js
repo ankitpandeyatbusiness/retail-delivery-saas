@@ -53,11 +53,15 @@ Notifications.setNotificationHandler({
 // because with the app open the system sound is muted on purpose: without this a pickup-time request or the shop's reply would be silent.
 const QUIET_TYPES = ['table_guest_alert'];   // meant to be silent: only in the list
 const SOUNDBOX_TYPES = ['order_new', 'order_unaccepted_reminder', 'order_cancelled', 'table_bill_asked', 'table_call', 'kitchen_problem', 'pickup_intent', 'rider_sos'];
+// the tone for a message the Soundbox is not saying: a new order or a call for help is clearly louder than an ordinary ping
+const toneFor = (n) => (['order_new', 'order_unaccepted_reminder', 'table_bill_asked', 'table_call', 'kitchen_problem', 'pickup_intent'].includes(n?.type) ? 'tingTong'
+    : n?.type === 'order_cancelled' ? 'cancelAlarm' : n?.type === 'rider_sos' ? 'helpAlarm' : 'notify');
 function hasOwnSound(n) {
     if (QUIET_TYPES.includes(n?.type)) return true;   // no ping, no sound
     const role = useAuthStore.getState().user?.role;
-    if (role === 'admin' && SOUNDBOX_TYPES.includes(n?.type)) return true;
-    if (['admin', 'kitchen', 'waiter'].includes(role) && isNewsType(n?.type) && useSoundboxStore.getState().soundbox && alertOn(n.type, 's')) return true;   // the Soundbox ping + voice come instead
+    const soundboxOn = useSoundboxStore.getState().soundbox;   // switched off, the Soundbox says nothing: the plain tone below rings instead
+    if (role === 'admin' && soundboxOn && SOUNDBOX_TYPES.includes(n?.type)) return true;
+    if (['admin', 'kitchen', 'waiter'].includes(role) && soundboxOn && isNewsType(n?.type) && alertOn(n.type, 's')) return true;   // the Soundbox ping + voice come instead
     if (n?.type === 'order_status' && ['accepted', 'cancelled', 'out_for_delivery'].includes(n?.data?.status)) return true;
     return false;
 }
@@ -248,7 +252,7 @@ export function startNotifications() {
     // a new message arrived while the app is open
     onNotification((n) => {
         useNotificationStore.getState().bump();
-        if (AppState.currentState === 'active' && !hasOwnSound(n) && alertOn(n?.type, 's')) { playSfx('notify'); buzz([0, 40]); }   // the Alerts screen can switch this ping off
+        if (AppState.currentState === 'active' && !hasOwnSound(n) && alertOn(n?.type, 's')) { playSfx(toneFor(n)); buzz([0, 40]); }   // the Alerts screen can switch this off
         if (n?.title) showToast(n.body ? `${n.title}: ${String(n.body).slice(0, 90)}` : n.title);
     });
 

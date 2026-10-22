@@ -23,6 +23,7 @@ const smsChannel = require('./channels/sms');
 const emailChannel = require('./channels/email');
 const adminAlerts = require('../services/adminAlerts');
 const alertGroups = require('./alertGroups');
+const textsHi = require('./templates/textsHi');
 const liveFeed = require('../services/liveFeed');
 
 // Owner-side events that also show in the superadmin live feed: eventKey -> [category, line type].
@@ -116,6 +117,10 @@ async function notify(eventKey, ctx = {}) {
         const text = ctx.title ? { title: ctx.title, body: ctx.body } : texts.build(eventKey, vars);
         if (!text) return null;
 
+        // the Hindi sentence for the Soundbox, made from the same values (an alert with none is read in English)
+        const hi = textsHi.build(eventKey, vars);
+        const data = hi && !ctx.data?.speechHi ? { ...(ctx.data || {}), speechHi: hi } : ctx.data;
+
         const escalate = def.escalateSmsAfterSec > 0 && wantsSms(def, ctx);
         const doc = await inapp.save({
             tenantId,
@@ -124,12 +129,12 @@ async function notify(eventKey, ctx = {}) {
             type: ctx.type || eventKey,
             title: text.title,
             body: text.body,
-            data: ctx.data,
+            data,
             escalateAt: escalate ? new Date(Date.now() + def.escalateSmsAfterSec * 1000) : undefined,
         });
         if (toAdmin) return doc;   // platform inbox only (admin alerts go through services/adminAlerts.js)
 
-        await deliver(eventKey, def, { ...ctx, vars }, doc);
+        await deliver(eventKey, def, { ...ctx, data, vars }, doc);
         if (def.email && !ctx.noEmail) await emailChannel.queue({ eventKey, def, ctx: { ...ctx, vars } });   // a mail, whatever happened above
         return doc;
     } catch (e) {

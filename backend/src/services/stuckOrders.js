@@ -19,6 +19,13 @@ const MIN = 60000;
 const ACTIVE = ['accepted', 'preparing', 'ready', 'out_for_delivery'];
 const LOOKBACK_MS = 8 * 86400000;   // scheduled orders can be made up to 7 days ahead
 
+const HI = {
+    not_started: (no, m) => `ऑर्डर ${no} को स्वीकार हुए ${m} मिनट हो गए, पर शुरू नहीं हुआ।`,
+    slow_prep: (no, m) => `ऑर्डर ${no} को बनते हुए ${m} मिनट हो गए।`,
+    no_rider: (no, m) => `ऑर्डर ${no} के लिए ${m} मिनट बाद भी कोई राइडर नहीं है। कृपया राइडर चुनिए।`,
+    on_the_way_long: (no, m) => `ऑर्डर ${no} को रास्ते में ${m} मिनट हो गए।`,
+};
+
 const TEXT = {
     not_started: { title: 'Order is waiting', line: (no, m) => `Order #${no} was accepted ${m} min ago but not started.` },
     slow_prep: { title: 'Order is taking long', line: (no, m) => `Order #${no} has been preparing for ${m} min.` },
@@ -77,7 +84,7 @@ async function checkBatch(orders, now) {
         alerts += 1;
         notify.toOwner(o.tenantId, {
             type: 'order_late', title: TEXT[st.stage].title, body: TEXT[st.stage].line(o.orderNo, st.min),
-            data: { orderId: String(o._id), orderNo: o.orderNo, stage: st.stage },
+            data: { orderId: String(o._id), orderNo: o.orderNo, stage: st.stage, speechHi: HI[st.stage](o.orderNo, st.min) },
         });
     }
     return alerts;

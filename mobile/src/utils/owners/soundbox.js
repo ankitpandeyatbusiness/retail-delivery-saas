@@ -577,10 +577,14 @@ export async function speakForPush(data) {
     // the running app (Soundbox alive in the background) already rings and reads it, or the owner opened it: do not say it twice
     if ((id && data?.type !== 'order_cancelled' && (pending.has(id) || acked.has(id))) || liveHandles()) { note('already handled by the live alert'); return; }
 
-    const said = textOf({ orderNo: data?.orderNo, speech: data?.speech, speechHi: data?.speechHi }, language);
+    // news is read in Hindi only when it has a Hindi sentence (else the English voice reads the English one)
+    const newsHindi = news && language === 'hi' && !!data?.speechHi;
+    const spoken = news ? (newsHindi ? 'hi' : 'en') : language;
+    const said = news ? (newsHindi ? data.speechHi : data?.speech) : textOf({ orderNo: data?.orderNo, speech: data?.speech, speechHi: data?.speechHi }, language);
+    if (!said) return;
     const text = data?.type === 'rider_sos' || news ? said : withGreeting(said, language);   // a call for help, or news, is not greeted
     note('reading the order in the background');
-    await speak(text, language);
+    await speak(text, spoken);
 }
 
 // An order was cancelled (by the customer, the system or the rider): stop ringing for it, then a falling tone and, in
@@ -679,9 +683,11 @@ async function announceNews(n) {
     note('news: ' + n.type);
     playSfx('notify');
     try {
-        const language = await languageToUse();
+        const wanted = await languageToUse();
         const plain = [n.title, n.body].filter(Boolean).join('. ');
-        const text = language === 'hi' ? (d.speechHi || d.speech || plain) : (d.speech || plain);
+        // Hindi only when there is a Hindi sentence: English words are never given to a Hindi voice
+        const language = wanted === 'hi' && d.speechHi ? 'hi' : 'en';
+        const text = language === 'hi' ? d.speechHi : (d.speech || plain);
         if (!text) return;
         await new Promise((r) => setTimeout(r, 700));   // the ping first, then the words
         if (!speaking) await speak(text, language);
@@ -699,7 +705,10 @@ export async function staffSay(a, { force } = {}) {
         if (!a?.kind || !isOwner()) return;
         if (!force && !alertOn(a.kind, 's')) return;   // the Alerts screen
         const s = settings();
-        if (!s.soundbox && !force) return;
+        if (!s.soundbox && !force) {   // Soundbox off: no voice, but the tone still rings (with the app open) so a new order or a call is not missed
+            if (AppState.currentState === 'active' && a.kind !== 'done') { await ensureAudio(); playSfx(a.kind === 'cancel' ? 'cancelAlarm' : 'tingTong'); }
+            return;
+        }
         if (!force && !s.alwaysReady && AppState.currentState !== 'active') return;
         if (a.kind === 'done') { playSfx('notify'); return; }
         if (a.kind === 'new' && isCook() && a.orderId && !force) { raise({ orderId: a.orderId, orderNo: a.orderNo, speech: a.speech, speechHi: a.speechHi }); return; }

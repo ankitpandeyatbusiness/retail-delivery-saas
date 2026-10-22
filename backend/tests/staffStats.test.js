@@ -182,6 +182,8 @@ describe('what the owner hears when a leave is asked for or taken back', () => {
         assert.equal(ask.data.voice, '1');
         assert.match(ask.data.speech, /Ramesh asks for leave/);
         assert.match(ask.data.speech, /Sister wedding/);
+        assert.match(ask.data.speechHi, /ने छुट्टी मांगी है/, 'and the Hindi sentence, for a Hindi Soundbox');
+        assert.match(ask.data.speechHi, /Sister wedding/);
 
         const id = (await request(app).get('/api/staff/work').set(cook.headers)).body.leaves[0].id;
         await request(app).post(`/api/shop/staff/leaves/${id}`).set(w.owner.headers).send({ approve: true });
