@@ -50,7 +50,7 @@ import ShopHubScreen from '../screens/owners/ShopHubScreen';
 import SoundboxScreen from '../screens/owners/SoundboxScreen';
 import AlertSettingsScreen from '../screens/common/AlertSettingsScreen';
 import { OwnerMoneyPage } from '../screens/owners/OwnerMoneyScreen';
-import OwnerInfoPopup from '../components/owners/OwnerInfoPopup';
+import AlertSliderHost from '../components/common/AlertSliderHost';
 import { OwnerStubPage } from '../screens/owners/OwnerStubScreens';
 import OwnerOrderScreen from '../screens/owners/OwnerOrderScreen';
 import OwnerRiderScreen from '../screens/owners/OwnerRiderScreen';
@@ -409,7 +409,7 @@ export default function AppNavigator() {
             <TableFeedbackHost navRef={navigationRef} />
             <NewOrderPopup navRef={navigationRef} />
             <KitchenProblemPopup />
-            <OwnerInfoPopup navRef={navigationRef} />
+            <AlertSliderHost navRef={navigationRef} />
             <OwedClaimHost />
             <PickupChangeHost />
             <CustomerAskHost />

@@ -17,7 +17,6 @@ import { useWaiterStore } from '../store/staff/useWaiterStore';
 import useWaiterSync from '../components/staff/useWaiterSync';
 import { useAuthStore } from '../store/common/useAuthStore';
 import { useStaffSoundStore } from '../store/staff/useStaffSoundStore';
-import StaffAlertPopup from '../components/staff/StaffAlertPopup';
 import { GREY } from '../components/customers/shop';
 
 const Tab = createBottomTabNavigator();
@@ -67,7 +66,6 @@ export default function StaffTabs() {
                     <Tab.Screen key={name} name={name} component={def.component} options={{ title: def.label, tabBarBadge: name === 'StaffHomeTab' ? (role === 'kitchen' ? waiting : role === 'waiter' ? todo : 0) || undefined : undefined }} />
                 ))}
             </Tab.Navigator>
-            <StaffAlertPopup />
         </View>
     );
 }

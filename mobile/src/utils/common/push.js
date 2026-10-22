@@ -16,7 +16,7 @@ import { useNotificationStore } from '../../store/common/useNotificationStore';
 import { registerDevice, removeDevice } from '../../api/common/notificationApi';
 import { onNotification, realtimeConnected } from '../../api/common/socket';
 import { showToast } from '../../components/customers/shop';
-import { speakOnOpen, isNewsType } from '../owners/soundbox';
+import { speakOnOpen, isNewsType, sayAlert, markSaid } from '../owners/soundbox';
 import { useSoundboxStore } from '../../store/owners/useSoundboxStore';
 import { useOwedPrompt } from '../../store/customers/useOwedPrompt';
 import { playSfx, buzz } from './sfx';
@@ -101,6 +101,10 @@ const dataOf = (resp) => {
 // A notification was tapped: open its order. For the owner's new-order push, Soundbox mode also reads it out.
 function handleTap(resp) {
     const data = dataOf(resp);
+    // the voice on a tap is the same one as with the app open, unless it was already read when the alert arrived (the new-order one is read below)
+    const who = useAuthStore.getState().user?.role;
+    const tapType = String(data.type || '');
+    if (['admin', 'kitchen', 'waiter', 'rider'].includes(who) && tapType && data.test !== '1' && !['order_new', 'order_unaccepted_reminder'].includes(tapType)) sayAlert(tapType, data).catch(() => { });
     // the owner's test push (Soundbox screen): there is no order to open, but Soundbox reads it out like a real one
     if (data.test === '1' && useAuthStore.getState().user?.role === 'admin') {
         speakOnOpen({ ...data, orderId: 'test-push' }).catch(() => { });
@@ -172,6 +176,23 @@ async function getToken() {
     }
     if (who === 'admin') {
         try { await Notifications.setNotificationChannelAsync(HELP_CHANNEL, { ...loud, name: 'Delivery partner needs help', description: 'A gentle alarm when a delivery partner presses the help button', sound: 'help_alarm.wav' }); } catch (e) { /* the push then lands on the default channel */ }
+    }
+    // the ting-tong: the owner's pickup, kitchen and table alerts, and the rider's new offers (the cook's and waiter's own is made below)
+    if (who === 'admin' || who === 'rider') {
+        try { await Notifications.setNotificationChannelAsync(STAFF_CHANNEL, { ...loud, name: 'Work alerts', description: 'Rings when there is work to do', sound: 'ting_tong.wav' }); } catch (e) { /* the push then lands on the default channel */ }
+    }
+    // the customer's own tones: accepted, cancelled, a delivery partner on the way, an offer from the shop, and this app's signature tone for the rest
+    if (who === 'customer') {
+        const mine = { importance: Notifications.AndroidImportance.HIGH, lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC };
+        for (const [id, name, file] of [['cust_brand_v1', 'Order updates', 'cust_brand.wav'], ['cust_accepted_v1', 'Order accepted', 'cust_accepted.wav'], ['cust_cancelled_v1', 'Order cancelled', 'cust_cancelled.wav'], ['cust_rider_v1', 'Delivery partner', 'cust_rider.wav'], ['cust_offer_v1', 'Offers from the shop', 'cust_offer.wav']]) {
+            try { await Notifications.setNotificationChannelAsync(id, { ...mine, name, sound: file }); } catch (e) { /* the push then lands on the default channel */ }
+        }
+    }
+    // the soft ping for news: the owner's too (leave, reviews, rent, rider answers...)
+    if (who === 'admin') {
+        try {
+            await Notifications.setNotificationChannelAsync(STAFF_INFO_CHANNEL, { name: 'News and updates', description: 'A soft ping for news', importance: Notifications.AndroidImportance.HIGH, sound: 'notify.wav' });
+        } catch (e) { /* the push then lands on the app's default channel */ }
     }
     // the cook's and the waiter's channel: loud, with the ting-tong clip (created only on their phones)
     const role = useAuthStore.getState().user?.role;
@@ -258,6 +279,11 @@ export function startNotifications() {
     // a new message arrived while the app is open
     onNotification((n) => {
         useNotificationStore.getState().bump();
+        // the app is open: the live alert says it, so a tap on this notification later must not say it again (a rider has no live voice: it is said here)
+        if (AppState.currentState === 'active' && n?.type) {
+            if (useAuthStore.getState().user?.role === 'rider') sayAlert(n.type, { ...(n.data || {}), speech: n.data?.speech || [n.title, n.body].filter(Boolean).join('. ') }).catch(() => { });
+            else markSaid(n.type, n.data);
+        }
         if (AppState.currentState === 'active' && !hasOwnSound(n) && alertOn(n?.type, 's')) { playSfx(toneFor(n)); buzz([0, 40]); }   // the Alerts screen can switch this off
         if (n?.title) showToast(n.body ? `${n.title}: ${String(n.body).slice(0, 90)}` : n.title);
     });

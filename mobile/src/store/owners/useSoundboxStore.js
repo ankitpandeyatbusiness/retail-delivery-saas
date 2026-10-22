@@ -32,7 +32,7 @@ const clean = (v = {}) => ({
     language: v.language === 'hi' ? 'hi' : 'en',
     voiceId: typeof v.voiceId === 'string' ? v.voiceId : null,
     voiceIdHi: typeof v.voiceIdHi === 'string' ? v.voiceIdHi : null,
-    alwaysReady: typeof v.alwaysReady === 'boolean' ? v.alwaysReady : DEFAULTS.alwaysReady,
+    alwaysReady: false,   // the background "always ready" mode is gone: a phone that had it switched on is turned off here
     greetFaith: typeof v.greetFaith === 'string' ? v.greetFaith : null,
     callMe: typeof v.callMe === 'boolean' ? v.callMe : DEFAULTS.callMe,
     addressAs: ['sir', 'madam', 'name'].includes(v.addressAs) ? v.addressAs : DEFAULTS.addressAs,

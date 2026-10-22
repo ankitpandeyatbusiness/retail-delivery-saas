@@ -71,7 +71,7 @@ export default function OwnerOrdersScreen() {
     // another screen may ask for a chip: navigate('OrdersTab', { filter: 'placed' })
     useEffect(() => {
         const f = route.params?.filter;
-        if (f && (f === 'look' || BOARD_FILTERS.some((x) => x[0] === f))) useOrdersStore.getState().setFilter(f);
+        if (f && (BOARD_FILTERS.some((x) => x[0] === f))) useOrdersStore.getState().setFilter(f);
     }, [route.params?.filter, route.params?.stamp]);
 
     useFocusEffect(useCallback(() => { useOrdersStore.getState().load({ quiet: true }); useOwnerStore.getState().refresh(); }, []));
@@ -97,21 +97,6 @@ export default function OwnerOrdersScreen() {
     const countOf = (id) => (id === 'active' ? activeTotal : (id === 'delivered' || id === 'cancelled') ? 0 : active[id] || 0);
 
     const data = useMemo(() => arrange(s.items, s.filter), [s.items, s.filter]);
-    // nothing is left to look at: the chip slides away and the board goes back to the usual chips
-    const heldCount = s.hold?.items.length || 0;
-    useEffect(() => {
-        if (s.filter === 'look' && heldCount === 0) {
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-            useOrdersStore.getState().setFilter('active');
-        }
-    }, [s.filter, heldCount]);
-    useEffect(() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); }, [heldCount > 0]);   // the chip slides in and out
-    // Opening this tab counts everything under "Needs a look" as seen (the tab stops blinking, like the notification panel);
-    // the chip stays for this visit and is gone when he leaves the tab.
-    const focused = useIsFocused();
-    useEffect(() => {
-        if (focused) { if (s.look.count > 0) useOrdersStore.getState().openLook({ jump: true }); } else useOrdersStore.getState().closeLook();
-    }, [focused, s.look.count]);
     const searching = /^\d{1,9}$/.test(s.query.trim());
 
     const header = (
@@ -120,9 +105,6 @@ export default function OwnerOrdersScreen() {
                 <Field value={typed} onChangeText={onType} placeholder={tr('Find by order number')} maxLength={9} style={{ minHeight: 44 }} />
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 12 }}>
-                {heldCount > 0 ? (
-                    <Chip label={tr('Needs a look')} count={heldCount} on={s.filter === 'look'} urgent onPress={() => useOrdersStore.getState().setFilter('look')} />
-                ) : null}
                 {debts?.length || unpaid ? <Chip label={tr('Unpaid bills')} count={debts?.length || 0} on={unpaid} urgent onPress={() => setUnpaid(true)} /> : null}
                 {BOARD_FILTERS.map(([id, label]) => (
                     <Chip key={id} label={label} count={countOf(id)} on={!unpaid && s.filter === id} urgent={id === 'placed'} onPress={() => { setUnpaid(false); useOrdersStore.getState().setFilter(id); }} />

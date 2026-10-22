@@ -1,0 +1,66 @@
+// Shows the sliders (components/common/AlertSlider.jsx) for the owner, the cook, the waiter and the rider: one at a time, for any alert whose Slider
+// switch is on (Alerts screen). The cook's and the waiter's live alerts (utils/staff/staffSound.js) and every notification that arrives while the app
+// is open come here. New orders, the kitchen's problems and the customer's asks have their own bigger sheets and are not shown here.
+import React, { useEffect } from 'react';
+import { useAuthStore } from '../../store/common/useAuthStore';
+import { useViewMode } from '../../store/owners/useViewMode';
+import { useOwnerStore } from '../../store/owners/useOwnerStore';
+import { useAlertPrefs, alertOn, alertGroup, alertSeconds } from '../../store/common/useAlertPrefs';
+import { useSliderStore } from '../../store/common/useSliderStore';
+import { onNotification } from '../../api/common/socket';
+import { ownerRoute } from '../../utils/owners/notificationRoute';
+import { themedAlert } from './dialog';
+import { showToast } from '../customers/shop';
+import AlertSlider from './AlertSlider';
+import { tr } from '../../i18n';
+
+const OWN_SHEET = ['order_new', 'order_unaccepted_reminder', 'order_cancelled', 'kitchen_problem', 'pickup_time_request', 'order_cancel_request'];
+
+// Turns this alert's slider off for good; if its voice is on, asks whether that should go too.
+export async function turnOffSlider(type) {
+    const g = alertGroup(type);
+    if (!g) return;
+    const prefs = useAlertPrefs.getState();
+    if (!(await prefs.change(g.id, { p: false }))) { showToast(tr('Could not save. Try again.')); return; }
+    if (alertOn(type, 'v')) {
+        themedAlert(tr('Also turn off the voice?'), tr('{name} will no longer be read out.', { name: tr(g.label) }), [
+            { text: tr('Keep the voice'), style: 'cancel', onPress: () => showToast(tr('Slider turned off for good. You can turn it on again in Alerts.')) },
+            { text: tr('Turn off the voice'), onPress: async () => { await prefs.change(g.id, { v: false }); showToast(tr('Slider and voice turned off for good. You can turn them on again in Alerts.')); } },
+        ], { icon: 'volume-mute-outline' });
+    } else showToast(tr('Slider turned off for good. You can turn it on again in Alerts.'));
+}
+
+// a slider for one alert, if its Slider switch is on
+export function showSlider({ key, type, title, body, data }) {
+    if (!type || !alertOn(type, 'p')) return;
+    const sec = alertSeconds(type);
+    useSliderStore.getState().push({ key: String(key || `${type}:${Date.now()}`), type, title, body, data: data || {}, sticky: sec === 0 });
+}
+
+export default function AlertSliderHost({ navRef }) {
+    const role = useAuthStore((s) => s.user?.role);
+    const customerView = useViewMode((s) => s.customerView);
+    const access = useOwnerStore((s) => s.access);
+    const item = useSliderStore((s) => s.queue[0]);
+    const mine = ['admin', 'rider', 'kitchen', 'waiter'].includes(role);
+    const on = mine && !(role === 'admin' && (customerView || access === 'blocked'));
+
+    useEffect(() => {
+        if (!on) { useSliderStore.getState().clear(); return undefined; }
+        return onNotification((n) => {
+            const t = String(n?.type || '');
+            if (!t || (OWN_SHEET.includes(t) && role === 'admin')) return;
+            if (!alertGroup(t)) return;
+            showSlider({ key: n.id || n._id, type: t, title: n.title, body: n.body, data: n.data });
+        });
+    }, [on, role]);
+
+    if (!on || !item) return null;
+    const next = () => useSliderStore.getState().next();
+    // where "Open" goes: the owner's pages as before; a rider's order; the cook and the waiter stay on their work screen
+    const to = role === 'admin' ? ownerRoute({ type: item.type, data: item.data })
+        : role === 'rider' && item.data?.orderId ? { name: 'OrderDetail', params: { id: String(item.data.orderId) } } : null;
+    const open = to ? () => { next(); if (navRef?.isReady?.()) navRef.navigate(to.name, to.params); } : undefined;
+    // the key makes a new slider start fresh (its bar and its slide) when the one before it has gone
+    return <AlertSlider key={item.key} item={item} sec={alertSeconds(item.type)} onClose={next} onOpen={open} onTurnOff={() => { next(); turnOffSlider(item.type); }} />;
+}

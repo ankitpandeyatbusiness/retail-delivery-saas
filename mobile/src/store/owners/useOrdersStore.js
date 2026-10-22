@@ -112,6 +112,14 @@ export const useOrdersStore = create((set, get) => ({
         recent.set(String(order.id), { order, at: Date.now() });
         if (recent.size > 40) recent.delete(recent.keys().next().value);
         const { filter } = get();
+        // the chip numbers and the tab badge move with the order at once, not after the server's next count
+        const was = get().items.find((o) => o.id === order.id) || get().hold?.items.find((o) => o.id === order.id);
+        if (was && was.status !== order.status) {
+            const move = (a) => { const n = { ...(a || {}) }; if (n[was.status] > 0) n[was.status] -= 1; if (!isFinal(order.status)) n[order.status] = (n[order.status] || 0) + 1; return n; };
+            set({ counts: move(get().counts) });
+            const live = useOwnerStore.getState().live;
+            if (live?.orders?.active) useOwnerStore.setState({ live: { ...live, orders: { ...live.orders, active: move(live.orders.active) } } });
+        }
         const stays = filter === 'look' ? !!get().hold?.items.some((o) => String(o.id) === String(order.id))
             : filter === 'active' ? !isFinal(order.status)
             : filter === 'cancelled' ? ['cancelled', 'undelivered'].includes(order.status)

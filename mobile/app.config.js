@@ -180,11 +180,10 @@ export default {
       ['expo-notifications', {
         defaultChannel: 'orders',
         color: currentConfig.backgroundColor,
-        sounds: ['./assets/sounds/new_order.wav', './assets/sounds/ting_tong.wav', './assets/sounds/notify.wav', './assets/sounds/cancel_alert.wav', './assets/sounds/help_alarm.wav'],
+        sounds: ['./assets/sounds/new_order.wav', './assets/sounds/ting_tong.wav', './assets/sounds/notify.wav', './assets/sounds/cancel_alert.wav', './assets/sounds/help_alarm.wav', './assets/sounds/cust_brand.wav', './assets/sounds/cust_accepted.wav', './assets/sounds/cust_cancelled.wav', './assets/sounds/cust_rider.wav', './assets/sounds/cust_offer.wav'],
       }],
-      // Soundbox mode: the owner's phone keeps repeating the new-order sound and speaks the order with the screen off.
-      // Background playback adds Android's media-playback foreground service, which keeps the app alive while it plays.
-      ['expo-audio', { enableBackgroundPlayback: true }],
+      // the Soundbox only plays while the app is open: no background playback service
+      ['expo-audio', { enableBackgroundPlayback: false }],
       // Adds the Speech Recognition plugin with standard OS prompts
       [
         'expo-speech-recognition',

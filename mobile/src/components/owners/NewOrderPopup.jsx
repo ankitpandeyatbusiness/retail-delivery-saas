@@ -20,6 +20,7 @@ import { onShowOrderPopup } from '../../utils/owners/orderPopupBus';
 import { showToast } from '../customers/shop';
 import { tr } from '../../i18n';
 import { DragDown, Grip } from '../common/DragDown';
+import { turnOffSlider } from '../common/AlertSliderHost';
 
 const TYPE = { delivery: 'Delivery', pickup: 'Pickup', dine_in: 'Dine in' };
 
@@ -135,6 +136,10 @@ export default function NewOrderPopup({ navRef }) {
                             ? <Button label={tr('Got it')} icon="checkmark" onPress={() => { acknowledge(order.id); drop(order.id); }} style={{ flex: 1, marginLeft: 8 }} />
                             : <Button label={tr('Accept')} icon="checkmark" busy={busy} onPress={accept} style={{ flex: 1, marginLeft: 8 }} />}
                     </View>
+                    <Pressable onPress={() => { drop(order.id); turnOffSlider(order.cancelled ? 'order_cancelled' : 'order_new'); }} hitSlop={8} style={{ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', marginTop: 14 }} accessibilityRole="button">
+                        <Ionicons name="notifications-off-outline" size={15} color={muted} />
+                        <Text style={{ color: muted, fontSize: 12.5, fontWeight: '700', marginLeft: 6 }}>{tr('Turn off this slider')}</Text>
+                    </Pressable>
                 </View>
                 )}</DragDown>
             </View>

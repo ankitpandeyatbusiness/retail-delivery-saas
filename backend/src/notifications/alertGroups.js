@@ -67,6 +67,7 @@ const SAMPLES = {
     'admin.reviews': ['A new review for order 1173.', 'ऑर्डर 1173 का नया रिव्यू।'],
     'admin.money': ['Your monthly bill is ready.', 'आपका मासिक बिल तैयार है।'],
     'admin.reports': ['Your daily summary is ready.', 'आपका दैनिक सारांश तैयार है।'],
+    'rider.offers': ['New delivery request. 2 Butter Naan. Collect 540 rupees. Accept within 2 minutes.', 'नई डिलीवरी रिक्वेस्ट। 2 Butter Naan। 540 रुपये लेने हैं। 2 मिनट में स्वीकार करें।'],
     'rider.late': ['Order 1173 will be cancelled soon if it is not delivered.', 'ऑर्डर 1173 जल्द रद्द हो जाएगा अगर डिलीवर नहीं हुआ।'],
     'rider.packed': ['Order 1173 is packed. Come and collect it.', 'ऑर्डर 1173 पैक हो गया है। आकर ले जाइए।'],
     'rider.thanks': ['Thank you for delivering order 1173.', 'ऑर्डर 1173 डिलीवर करने के लिए धन्यवाद।'],
@@ -79,7 +80,18 @@ const SAMPLES = {
     'waiter.leave': ['Your leave was approved.', 'आपकी छुट्टी मंज़ूर हुई।'],
 };
 const BY_ROLE = { admin: OWNER, rider: RIDER, kitchen: KITCHEN, waiter: WAITER };
-for (const [role, list] of Object.entries(BY_ROLE)) for (const x of list) { const e = !x.sample && SAMPLES[`${role}.${x.id}`]; if (e) x.sample = { en: e[0], hi: e[1] }; }
+// Every alert has four switches: n notification, s tone, v voice, p slider (the box that slides up over the app). The ones that need an answer
+// keep their slider open until the person acts (sec 0); the rest close by themselves after `sec` seconds (the person can change it).
+const SEC_CHOICES = [0, 3, 5, 7, 10, 15];
+const STICKY = new Set(['admin.new_orders', 'admin.cancelled', 'admin.kitchen', 'admin.pickup', 'admin.help', 'admin.leave', 'rider.offers', 'kitchen.new', 'kitchen.cancel']);
+for (const [role, list] of Object.entries(BY_ROLE)) {
+    for (const x of list) {
+        const e = !x.sample && SAMPLES[`${role}.${x.id}`]; if (e) x.sample = { en: e[0], hi: e[1] };
+        x.can.p = true; x.can.v = true;
+        x.defaults.p = true; x.defaults.v = true;
+        x.defaults.sec = STICKY.has(`${role}.${x.id}`) ? 0 : 5;
+    }
+}
 const groupsFor = (role) => BY_ROLE[role] || [];
 const groupOf = (role, type) => (type ? groupsFor(role).find((x) => x.types.includes(String(type))) || null : null);
 
@@ -87,7 +99,8 @@ const groupOf = (role, type) => (type ? groupsFor(role).find((x) => x.types.incl
 const prefOf = (prefs, group) => {
     const own = (prefs && prefs[group.id]) || {};
     const out = {};
-    for (const k of ['n', 'p', 's']) out[k] = group.can[k] ? (typeof own[k] === 'boolean' ? own[k] : group.defaults[k]) : (k === 'n' ? true : group.defaults[k]);
+    for (const k of ['n', 'p', 's', 'v']) out[k] = group.can[k] ? (typeof own[k] === 'boolean' ? own[k] : group.defaults[k]) : (k === 'n' ? true : group.defaults[k]);
+    out.sec = SEC_CHOICES.includes(own.sec) ? own.sec : group.defaults.sec;
     return out;
 };
 
@@ -98,7 +111,8 @@ function cleanPrefs(role, body) {
         const b = body && body[grp.id];
         if (!b || typeof b !== 'object') continue;
         const row = {};
-        for (const k of ['n', 'p', 's']) if (grp.can[k] && typeof b[k] === 'boolean' && b[k] !== grp.defaults[k]) row[k] = b[k];
+        for (const k of ['n', 'p', 's', 'v']) if (grp.can[k] && typeof b[k] === 'boolean' && b[k] !== grp.defaults[k]) row[k] = b[k];
+        if (SEC_CHOICES.includes(b.sec) && b.sec !== grp.defaults.sec) row.sec = b.sec;
         if (Object.keys(row).length) out[grp.id] = row;
     }
     return out;

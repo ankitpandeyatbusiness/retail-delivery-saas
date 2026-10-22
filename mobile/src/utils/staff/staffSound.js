@@ -4,11 +4,11 @@
 import { AppState } from 'react-native';
 import * as Speech from 'expo-speech';
 import { buzz } from '../common/sfx';
-import { staffSay, speakStaffPush } from '../owners/soundbox';
+import { staffSay, markSaid } from '../owners/soundbox';
+import { showSlider } from '../../components/common/AlertSliderHost';
 import { alertOn } from '../../store/common/useAlertPrefs';
 import { useStaffSoundStore } from '../../store/staff/useStaffSoundStore';
 import { useLang } from '../../i18n';
-import { useStaffAlertStore } from '../../store/staff/useStaffAlertStore';
 import { useStaffStore } from '../../store/staff/useStaffStore';
 
 const LINES = {
@@ -55,25 +55,18 @@ export function staffAlert(a, { force } = {}) {
             seen.set(key, now);
             for (const [k, t] of seen) if (t < now - WINDOW_MS) seen.delete(k);
         }
-        if (a.kind === 'cancel' && !force && alertOn('cancel', 'p')) useStaffAlertStore.getState().push({ id: key, kind: 'cancel', orderNo: a.orderNo, table: a.table });
         // the sound, the voice, the language and the volume are the Soundbox's (the same screen as the owner's)
         if (a.kind !== 'done') buzz(BUZZ[a.kind]);
         const language = languageNow(st.language);
         const text = LINES.en[a.kind]?.(a);
         const textHi = LINES.hi[a.kind]?.(a);
+        if (!force) {
+            // the slider (if its switch is on); the new order's slider carries the whole order
+            const title = (language === 'hi' ? textHi : text) || text;
+            const more = a.kind === 'new' ? (language === 'hi' ? a.speechHi || a.speech : a.speech) : '';
+            showSlider({ key: `${key}:${Math.floor(now / WINDOW_MS)}`, type: a.kind, title, body: more && more !== title ? more : '', data: { orderId: a.orderId, orderNo: a.orderNo, table: a.table } });
+            markSaid(a.kind, a);   // read out now (the Voice switch decides): a tap on its notification later does not read it again
+        }
         staffSay({ ...a, speech: a.speech || text, speechHi: a.speechHi || textHi }, { force });
     } catch (e) { /* a sound problem must never get in the way of the work */ }
-}
-
-// ---- a cook or a waiter with the screen off or the app closed
-// The push has already played the ting-tong (channel staff_alerts_v1). A moment later the server sends a silent data message with the line to say; the
-// background task (utils/owners/backgroundTask.js) hands it here and the phone says it with its own voice, in the person's language. The same choices apply
-// (sound, voice, the kind of alert). With the app open nothing is said here: the live alert already did.
-export const STAFF_PUSH_TYPES = ['kitchen_new', 'kitchen_cancelled', 'kitchen_hurry', 'waiter_serve', 'waiter_cancelled', 'waiter_call', 'waiter_bill'];
-export async function speakStaffForPush(data) {
-    try {
-        if (!STAFF_PUSH_TYPES.includes(String(data?.type))) return;
-        if (AppState.currentState === 'active') return;
-        await speakStaffPush(data);   // the Soundbox's voice, language and volume
-    } catch (e) { /* the ting-tong has already rung */ }
 }

@@ -52,24 +52,6 @@ async function send({ tenantId, userId, title, body, data, channelId, sound, tag
         const res = await adapter.send({ tokens, title, body, data, channelId: ch, sound: snd, tag });
         sent += res?.sent || 0;
         if (res?.invalidTokens?.length) invalid.push(...res.invalidTokens);
-
-        // A new order (loud phones only): besides the notification with the bundled clip, a second SILENT data message.
-        // With the screen off it wakes the owner's app for a few seconds, which reads the order out with the phone's own
-        // voice. It is an extra: if the phone does not allow it, the clip has already rung.
-        // It is sent a moment AFTER the notification, so the voice follows the clip (3.5 s) and does not talk over it. The wait
-        // is done here, on the server, on purpose: the phone's own timers stop while its screen is off, so a wait on the phone
-        // only finished when the owner woke it. SPEECH_DELAY_MS=0 sends it at once.
-        // (and a cancelled order: its short sentence goes the same way, with no clip). Nothing else is ever read out.
-        if (voice !== false && (ch || data?.type === 'order_cancelled' || data?.voice === '1') && data?.speech) {   // the owner's new orders, and a cook's or a waiter's alerts (channel staff_alerts_v1)
-            const silent = async () => {
-                try {
-                    await adapter.send({ tokens, dataOnly: true, data: { ...data, speakOnly: '1' } });
-                } catch (e) { /* never let the extra message get in the way of the notification */ }
-            };
-            const wait = Number(process.env.SPEECH_DELAY_MS ?? 3600);
-            if (wait > 0) setTimeout(silent, wait).unref?.();
-            else await silent();
-        }
     }
     if (invalid.length) await DeviceToken.deleteMany({ token: { $in: invalid } });
     return { sent, tokens: rows.length };

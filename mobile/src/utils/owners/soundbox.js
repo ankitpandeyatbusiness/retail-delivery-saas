@@ -312,7 +312,8 @@ export async function previewGreeting() {
     return speak(g + ' ' + sampleFor(language), language);
 }
 
-async function speak(text, language) {
+async function speak(text, language, type) {
+    if (type && !alertOn(type, 'v')) return;   // the Voice switch of this alert (Alerts screen)
     const voice = await pickVoice(language);
     return new Promise((resolve) => {
         let done = false;
@@ -454,7 +455,8 @@ async function speakRound() {
         : more + ' more ' + (more === 1 ? 'order is' : 'orders are') + ' waiting.';
     let text = more > 0 ? textOf(next, language) + ' ' + tail : textOf(next, language);
     if (!next.greeted) { next.greeted = true; text = withGreeting(text, language); }   // the greeting is said once per order, not on every repeat
-    await speak(text, language);
+    if (alertOn(isCook() ? 'new' : 'order_new', 'v')) await speak(text, language, isCook() ? 'new' : 'order_new');
+    else speaking = false;   // the Voice switch of this alert is off: the bell rings, nothing is said
     endVoice();   // the voice has finished: the next bell comes after the gap
 }
 
@@ -491,7 +493,7 @@ function stopLoop() {
 export function raise({ orderId, orderNo, speech, speechHi, autoAccepted }) {
     // Soundbox off = the owner wants no new-order sound at all: no chime, no voice, no greeting
     note('new-order message received' + (orderNo ? ' (' + orderNo + ')' : ''));
-    if (orderId && !alertOn(isCook() ? 'new' : 'order_new', 's')) return;   // the Alerts screen: no sound for new orders
+    if (orderId && !alertOn(isCook() ? 'new' : 'order_new', 's') && !alertOn(isCook() ? 'new' : 'order_new', 'v')) return;   // the Alerts screen: no tone and no voice for new orders
     if (!orderId || !isOwner() || !settings().soundbox) { note('ignored: ' + (!isOwner() ? 'not an owner' : !settings().soundbox ? 'Soundbox is off' : 'no order id')); return; }
     // Not "always ready" and the app is in the background: the PUSH rings and reads this order (clip, then the order once).
     // Starting a repeating alert from the background would need the permanent notification this mode exists to avoid.
@@ -514,7 +516,7 @@ async function announceAuto({ orderNo, speech, speechHi }) {
     try {
         const language = await languageToUse();
         await new Promise((r) => setTimeout(r, 1300));   // the chime first, then the voice
-        if (!speaking) await speak(withGreeting(textOf({ orderNo, speech, speechHi }, language), language), language);
+        if (!speaking) await speak(withGreeting(textOf({ orderNo, speech, speechHi }, language), language), language, 'order_new');
     } catch (e) { /* the chime is enough */ }
 }
 
@@ -538,53 +540,54 @@ export function clearAll() {
     stopLoop();
 }
 
+/* ------------------------------ what was already said ------------------------------ */
+// An alert read out while the app was open is not read again when its notification is tapped (the tap only opens the screen).
+// An alert is known by its kind and any of its order id, order number or table.
+const saidAt = new Map();
+const SAID_MS = 15 * 60 * 1000;
+const KIND_NORM = { cancel: 'cancelled', ready: 'serve' };
+const normType = (t) => KIND_NORM[String(t)] || String(t).replace(/^(kitchen|waiter)_/, '');
+const idsOf = (d) => [d?.orderId, d?.orderNo, d?.table].filter((x) => x !== undefined && x !== null && x !== '').map(String);
+export function markSaid(type, data) {
+    if (!type) return;
+    const now = Date.now();
+    for (const id of idsOf(data)) saidAt.set(normType(type) + '|' + id, now);
+    for (const [k, t] of saidAt) if (t < now - SAID_MS) saidAt.delete(k);
+}
+export function wasSaid(type, data) {
+    const limit = Date.now() - SAID_MS;
+    return !!type && idsOf(data).some((id) => (saidAt.get(normType(type) + '|' + id) || 0) > limit);
+}
+
+// Say what a notification carries, in the voice and language chosen on the Soundbox screen (a tap on it, or a rider's alert). Once only:
+// if it was already read (the app was open when it arrived) nothing is said.
+export async function sayAlert(type, data) {
+    try {
+        if (!type || wasSaid(type, data)) return;
+        if (!settings().loaded) await useSoundboxStore.getState().hydrate();
+        await useAlertPrefs.getState().hydrate();
+        if (!settings().soundbox || !alertOn(type, 'v')) return;
+        const wanted = await languageToUse();
+        const language = wanted === 'hi' && data?.speechHi ? 'hi' : 'en';
+        const said = language === 'hi' ? data.speechHi : data?.speech;
+        if (!said) return;
+        markSaid(type, data);
+        await ensureAudio();
+        const greet = ['order_new', 'order_unaccepted_reminder', 'kitchen_new'].includes(String(type));
+        await speak(greet ? withGreeting(String(said), language) : String(said), language, type);
+    } catch (e) { /* the notification is enough */ }
+}
+
 // Tapped a "New order received" push (app was closed, in the background, or the screen was off). Soundbox mode ON:
 // say the order once as the app opens. The order counts as seen, so the chime does not start again for it.
 export async function speakOnOpen(data) {
     if (!isOwner() || !data?.orderId) return;
     acknowledge(data.orderId);
-    if (!settings().soundbox) return;
+    if (!settings().soundbox || wasSaid(data.type || 'order_new', data)) return;   // it was already read when it arrived
     await ensureAudio();
     const language = await languageToUse();
-    await speak(withGreeting(textOf({ orderNo: data.orderNo, speech: data.speech, speechHi: data.speechHi }, language), language), language);
-}
-
-/* ------------------------------ reading the order with the screen off ------------------------------ */
-// Called by the background task (backgroundTask.js) for the server's silent data message. Nothing here is on screen: the
-// app may not even be running, so the stores start empty and are read back from the phone first.
-export async function speakForPush(data) {
-    // The app is in front, or the running Soundbox is connected / already ringing / already talking: the live alert handles
-    // this order, and a second voice from the push would mix with it.
-    // The voice is ONLY for a new order (and its reminder) or a cancelled one. Any other push (no rider yet, late, ...) is never spoken.
-    const news = String(data?.voice) === '1';   // a leave, a day off, a review...: the push carries the words to say
-    if (!news && !['order_new', 'order_unaccepted_reminder', 'order_cancelled', 'rider_sos'].includes(String(data?.type))) return;
-    await useSoundboxStore.getState().hydrate();
-    await useAlertPrefs.getState().hydrate();
-    if (!alertOn(String(data.type), 's')) return;   // the Alerts screen: no sound for this one
-    // A connected socket only counts when the running Soundbox really rings in the background ("always ready"). Otherwise
-    // raise() ignores the order and the push is the ONLY thing that can read it out.
-    const liveHandles = () => AppState.currentState === 'active' || looping || speaking || (started && settings().alwaysReady && realtimeConnected());
-    if (liveHandles()) return;
-    if (!settings().soundbox) return;                 // Soundbox off: no voice at all
-
-    const id = String(data?.orderId || data?.orderNo || '');
-    note('order arrived with the screen off');
-    // No waiting for the clip here: the server sends this message a few seconds after the notification, so the clip is over.
-    // (A wait on the phone would not work: JavaScript timers stop while the screen is off, so it would only end when the
-    // owner woke the phone.) Everything below is native calls and promises, which do run with the screen off.
-    const language = await languageToUse();
-    await pickVoice(language);   // finds the voice; wakes the speech engine if it has gone to sleep
-    // the running app (Soundbox alive in the background) already rings and reads it, or the owner opened it: do not say it twice
-    if ((id && data?.type !== 'order_cancelled' && (pending.has(id) || acked.has(id))) || liveHandles()) { note('already handled by the live alert'); return; }
-
-    // news is read in Hindi only when it has a Hindi sentence (else the English voice reads the English one)
-    const newsHindi = news && language === 'hi' && !!data?.speechHi;
-    const spoken = news ? (newsHindi ? 'hi' : 'en') : language;
-    const said = news ? (newsHindi ? data.speechHi : data?.speech) : textOf({ orderNo: data?.orderNo, speech: data?.speech, speechHi: data?.speechHi }, language);
-    if (!said) return;
-    const text = data?.type === 'rider_sos' || news ? said : withGreeting(said, language);   // a call for help, or news, is not greeted
-    note('reading the order in the background');
-    await speak(text, spoken);
+    await speak(withGreeting(textOf({ orderNo: data.orderNo, speech: data.speech, speechHi: data.speechHi }, language), language), language, 'order_new');
+    markSaid(data.type || 'order_new', data);
 }
 
 // An order was cancelled (by the customer, the system or the rider): stop ringing for it, then a falling tone and, in
@@ -593,10 +596,10 @@ async function announceCancel(d) {
     const id = String(d.orderId);
     const wasWaiting = pending.has(id);
     dismiss(id);
-    if (!isOwner() || !settings().soundbox || speaking || !alertOn('order_cancelled', 's')) return;
+    if (!isOwner() || !settings().soundbox || speaking || (!alertOn('order_cancelled', 's') && !alertOn('order_cancelled', 'v'))) return;
     if (!settings().alwaysReady && AppState.currentState !== 'active' && !wasWaiting) return;
     note('order ' + (d.orderNo || id) + ' cancelled');
-    playSfx('cancelAlarm');   // a short falling alarm for every cancelled order (customer, shop, rider, system)
+    if (alertOn('order_cancelled', 's')) playSfx('cancelAlarm');   // a short falling alarm for every cancelled order (customer, shop, rider, system)
     try {
         const language = await languageToUse();
         const no = d.orderNo || '';
@@ -606,14 +609,14 @@ async function announceCancel(d) {
             ? 'ऑर्डर ' + no + ' रद्द हो गया।'
             : 'Order ' + no + ' was cancelled' + (d.byRider ? ' by the delivery partner.' : '.'));
         await new Promise((r) => setTimeout(r, 1300));   // the tone first, then the voice
-        if (!speaking) await speak(text, language);
+        if (!speaking) await speak(text, language, 'order_cancelled');
     } catch (e) { /* the tone is enough */ }
 }
 
 // A customer at a table asked for the bill: a short tone, then the voice says it two times ("Table 7 asked for the bill"). Only while
 // the app runs (in front, or Soundbox "always ready"); a closed app gets the normal notification.
 async function announceBill(d) {
-    if (!isOwner() || !settings().soundbox || speaking || !alertOn('table_bill_asked', 's')) return;
+    if (!isOwner() || !settings().soundbox || speaking || !alertOn('table_bill_asked', 'v')) return;
     if (!settings().alwaysReady && AppState.currentState !== 'active') return;
     const table = String(d?.table || '');
     if (!table) return;
@@ -621,9 +624,9 @@ async function announceBill(d) {
     try {
         const language = await languageToUse();
         const text = language === 'hi' ? 'टेबल ' + table + ' ने बिल मांगा है।' : 'Table ' + table + ' asked for the bill.';
-        await speak(text, language);
+        await speak(text, language, 'table_bill_asked');
         await new Promise((res) => setTimeout(res, 700));
-        await speak(text, language);
+        await speak(text, language, 'table_bill_asked');
     } catch (e) { /* the notification is enough */ }
 }
 
@@ -631,7 +634,7 @@ async function announceBill(d) {
 const CALL_EN = { waiter: 'is calling the waiter', water: 'needs water', cutlery: 'needs a spoon or a plate', clean: 'needs the table cleaned', other: 'needs help' };
 const CALL_HI = { waiter: 'वेटर को बुला रहा है', water: 'को पानी चाहिए', cutlery: 'को चम्मच या प्लेट चाहिए', clean: 'की सफाई चाहिए', other: 'को मदद चाहिए' };
 async function announceCall(d) {
-    if (!isOwner() || !settings().soundbox || speaking || !alertOn('table_call', 's')) return;
+    if (!isOwner() || !settings().soundbox || speaking || !alertOn('table_call', 'v')) return;
     if (!settings().alwaysReady && AppState.currentState !== 'active') return;
     const table = String(d?.table || '');
     if (!table) return;
@@ -639,35 +642,35 @@ async function announceCall(d) {
     try {
         const language = await languageToUse();
         const what = d?.what in CALL_EN ? d.what : 'other';
-        await speak(language === 'hi' ? 'टेबल ' + table + ' ' + CALL_HI[what] + '।' : 'Table ' + table + ' ' + CALL_EN[what] + '.', language);
+        await speak(language === 'hi' ? 'टेबल ' + table + ' ' + CALL_HI[what] + '।' : 'Table ' + table + ' ' + CALL_EN[what] + '.', language, 'table_call');
     } catch (e) { /* the notification is enough */ }
 }
 
 // The kitchen told the owner about a problem: the ting-tong, then the voice says it once (same rules as announceCall).
 async function announceKitchen(d, type = 'kitchen_problem') {
-    if (!isOwner() || !settings().soundbox || speaking || !alertOn(type, 's')) return;
+    if (!isOwner() || !settings().soundbox || speaking || (!alertOn(type, 's') && !alertOn(type, 'v'))) return;
     if (!settings().alwaysReady && AppState.currentState !== 'active') return;
     note('kitchen problem on order ' + d?.orderNo);
-    playSfx('tingTong');
+    if (alertOn(type, 's')) playSfx('tingTong');
     try {
         const language = await languageToUse();
         const text = language === 'hi' ? (d?.speechHi || 'किचन में समस्या।') : (d?.speech || 'Kitchen problem.');
         await new Promise((r) => setTimeout(r, 1700));   // the tone first, then the voice
-        if (!speaking) await speak(text, language);
+        if (!speaking) await speak(text, language, type);
     } catch (e) { /* the popup is enough */ }
 }
 
 // A delivery partner pressed the help button: a gentle two-tone alarm (not the cancelled-order one), then the voice says who and which order.
 async function announceHelp(d) {
-    if (!isOwner() || !settings().soundbox || speaking || !alertOn('rider_sos', 's')) return;
+    if (!isOwner() || !settings().soundbox || speaking || (!alertOn('rider_sos', 's') && !alertOn('rider_sos', 'v'))) return;
     if (!settings().alwaysReady && AppState.currentState !== 'active') return;
     note('rider asks for help');
-    playSfx('helpAlarm');
+    if (alertOn('rider_sos', 's')) playSfx('helpAlarm');
     try {
         const language = await languageToUse();
         const text = language === 'hi' ? (d?.speechHi || 'डिलीवरी पार्टनर को मदद चाहिए।') : (d?.speech || 'A delivery partner needs help.');
         await new Promise((r) => setTimeout(r, 2100));   // the alarm first, then the voice
-        if (!speaking) await speak(text, language);
+        if (!speaking) await speak(text, language, 'rider_sos');
     } catch (e) { /* the alarm and the notification are enough */ }
 }
 
@@ -677,11 +680,11 @@ const OWN_WAY = ['order_new', 'order_unaccepted_reminder', 'order_cancelled', 't
 export const isNewsType = (type) => !!type && !OWN_WAY.includes(String(type)) && useAlertPrefs.getState().groups.some((g) => g.types.includes(String(type)));
 
 async function announceNews(n) {
-    if (!isOwner() || !settings().soundbox || speaking || !alertOn(n.type, 's')) return;
+    if (!isOwner() || !settings().soundbox || speaking || (!alertOn(n.type, 's') && !alertOn(n.type, 'v'))) return;
     if (!settings().alwaysReady && AppState.currentState !== 'active') return;
     const d = n.data || {};
     note('news: ' + n.type);
-    playSfx('notify');
+    if (alertOn(n.type, 's')) playSfx('notify');
     try {
         const wanted = await languageToUse();
         const plain = [n.title, n.body].filter(Boolean).join('. ');
@@ -690,7 +693,7 @@ async function announceNews(n) {
         const text = language === 'hi' ? d.speechHi : (d.speech || plain);
         if (!text) return;
         await new Promise((r) => setTimeout(r, 700));   // the ping first, then the words
-        if (!speaking) await speak(text, language);
+        if (!speaking) await speak(text, language, n.type);
     } catch (e) { /* the ping and the notification are enough */ }
 }
 
@@ -703,7 +706,7 @@ async function announceNews(n) {
 export async function staffSay(a, { force } = {}) {
     try {
         if (!a?.kind || !isOwner()) return;
-        if (!force && !alertOn(a.kind, 's')) return;   // the Alerts screen
+        if (!force && !alertOn(a.kind, 's') && !alertOn(a.kind, 'v')) return;   // the Alerts screen
         const s = settings();
         if (!s.soundbox && !force) {   // Soundbox off: no voice, but the tone still rings (with the app open) so a new order or a call is not missed
             if (AppState.currentState === 'active' && a.kind !== 'done') { await ensureAudio(); playSfx(a.kind === 'cancel' ? 'cancelAlarm' : 'tingTong'); }
@@ -717,12 +720,12 @@ export async function staffSay(a, { force } = {}) {
         if (speaking) return;
         note('staff alert: ' + a.kind);
         await ensureAudio();
-        playSfx(a.kind === 'cancel' ? 'cancelAlarm' : 'tingTong');
+        if (force || alertOn(a.kind, 's')) playSfx(a.kind === 'cancel' ? 'cancelAlarm' : 'tingTong');
         const language = await languageToUse();
         const said = language === 'hi' ? (a.speechHi || a.speech) : (a.speech || a.speechHi);
         if (!said) return;
         await new Promise((r) => setTimeout(r, a.kind === 'cancel' ? 1300 : 1700));   // the tone first, then the voice
-        if (!speaking) await speak(a.kind === 'new' ? withGreeting(said, language) : said, language);
+        if (!speaking) await speak(a.kind === 'new' ? withGreeting(said, language) : said, language, force ? undefined : a.kind);
     } catch (e) { /* the tone and the push are enough */ }
 }
 
@@ -753,7 +756,8 @@ export async function sayExample(id, sample, soft) {
         playSfx(tone);
         const language = await languageToUse();
         await new Promise((r) => setTimeout(r, tone === 'cancelAlarm' ? 1300 : tone === 'helpAlarm' ? 2100 : tone === 'notify' ? 700 : 1700));
-        if (!speaking) await speak(language === 'hi' ? sample.hi : sample.en, language);
+        const line = language === 'hi' ? sample.hi : sample.en;
+        if (!speaking) await speak(id === 'new_orders' || id === 'new' ? withGreeting(line, language) : line, language);
     } catch (e) { /* the tone is enough */ }
 }
 

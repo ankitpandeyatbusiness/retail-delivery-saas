@@ -170,7 +170,7 @@ export default function OwnerHomeScreen() {
             {loadError && !d ? <Card tone={error}><Text style={{ color: error, fontWeight: '700' }}>{loadError}</Text></Card> : null}
 
             {/* something needs him now (the delivery partner cancelled or asked for help, nobody took an order, a very late delivery) */}
-            {attn.look?.urgent > 0 ? (
+            {false ? (
                 <GlowBorder active radius={18} style={{ marginHorizontal: 16, marginTop: 14, marginBottom: 16 }}>
                     <Card onPress={() => toOrders('look')} style={{ marginHorizontal: 0, marginBottom: 0 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>

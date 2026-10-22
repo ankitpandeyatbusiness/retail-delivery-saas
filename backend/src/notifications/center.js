@@ -52,6 +52,17 @@ const wantsSms = (def, ctx) => (def.channels || []).includes('sms') && def.to !=
 // these already carry their own sentence and have their own way of being read out (utils/orderSpeech.js)
 const ALREADY_SPOKEN = ['order_new', 'order_unaccepted_reminder', 'order_cancelled', 'rider_sos', 'kitchen_problem', 'pickup_intent'];
 
+// the customer's own tones (built into the app: mobile push.js and app.config.js sounds): one for an accepted order, a cancelled order, a delivery
+// partner on the way, an offer from the shop (Remind / broadcast), and one "brand" tone for everything else from this app
+function customerTone(eventKey, ctx) {
+    const st = ctx.data?.status;
+    if (eventKey === 'order_status' && st === 'accepted') return ['cust_accepted_v1', 'cust_accepted'];
+    if (eventKey === 'order_status' && st === 'cancelled') return ['cust_cancelled_v1', 'cust_cancelled'];
+    if (eventKey === 'rider_assigned') return ['cust_rider_v1', 'cust_rider'];
+    if (eventKey === 'shop_nudge' || eventKey === 'broadcast') return ['cust_offer_v1', 'cust_offer'];
+    return ['cust_brand_v1', 'cust_brand'];
+}
+
 async function deliver(eventKey, def, ctx, doc) {
     const { tenantId, userId } = ctx;
     const online = userId ? presence.isOnline(tenantId, userId) : presence.ownerOnline(tenantId);
@@ -69,13 +80,19 @@ async function deliver(eventKey, def, ctx, doc) {
     // News for the owner (a leave, a day off, a review, a rent bill...) is read out too, with its details, when his phone is closed or the screen is off:
     // the push carries the words, and a second silent message wakes the app to say them (notifications/channels/push.js)
     const news = ctx.userId ? def.voice === true : (!!alertGroups.groupOf('admin', eventKey) && !ALREADY_SPOKEN.includes(eventKey));
-    const pushData = { ...(ctx.data || {}), type: doc.type, ...(news && def.noPush !== true ? { voice: '1', speech: ctx.data?.speech || `${doc.title}. ${doc.body}` } : {}) };
+    // the push always carries the words to say (a tap on it reads them, unless the app already said them) and its own id
+    const pushData = { ...(ctx.data || {}), type: doc.type, nid: String(doc._id), speech: ctx.data?.speech || `${doc.title}. ${doc.body}`, ...(news && def.noPush !== true ? { voice: '1' } : {}) };
 
+    // the owner's news (a leave, a review, rent, a rider's answer...) gets the soft ping, not the phone's random default sound
+    const softOwner = !def.pushChannel && !ctx.userId && !!alertGroups.groupOf('admin', eventKey)?.soft;
+    // work that cannot wait gets the ting-tong: an owner's pickup customer, kitchen problem or table call, and a rider's new offer
+    const loudTier = !def.pushChannel && ((def.to === 'owner' && ['pickup', 'kitchen', 'tables'].includes(alertGroups.groupOf('admin', eventKey)?.id)) || (def.to === 'rider' && alertGroups.groupOf('rider', eventKey)?.id === 'offers'));
+    const custTone = !def.pushChannel && !ctx.tag && def.to === 'customer' ? customerTone(eventKey, ctx) : null;
     if (def.noPush !== true) {   // a QUIET message (noPush in events.js) is only in the list: no phone alert at all
         try {
             const r = await pushChannel.send({
                 tenantId, userId, title: doc.title, body: doc.body, data: pushData,
-                channelId: def.pushChannel, sound: def.pushSound,   // e.g. the owner's loud new-order channel
+                channelId: def.pushChannel || custTone?.[0] || (loudTier ? 'staff_alerts_v1' : softOwner ? 'staff_info_v1' : undefined), sound: def.pushSound || custTone?.[1] || (loudTier ? 'ting_tong' : softOwner ? 'notify' : undefined),   // e.g. the owner's loud new-order channel
                 tag: ctx.tag,                                        // the same tag replaces the earlier push (live delivery)
             });
             if (r && r.sent > 0) delivered = true;

@@ -115,22 +115,6 @@ export default function SoundboxScreen() {
                 <View pointerEvents={st.soundbox ? 'auto' : 'none'} style={{ opacity: st.soundbox ? 1 : 0.4 }}>
                 <Card>
                     <Switcher
-                        title={tr('Keep Soundbox always ready')}
-                        subtitle={st.alwaysReady
-                            ? tr('ON: the app stays awake in the background and shows "Soundbox is on" in your notification panel. A new order keeps repeating, even with the screen off, until you open it.')
-                            : tr('OFF: no permanent notification. A new order plays the "New order received" sound and is read out once, and repeats only while the app is open. Best for a phone you also use for other things.')}
-                        value={st.alwaysReady}
-                        onChange={(v) => st.update({ alwaysReady: v })}
-                    />
-                    {st.alwaysReady ? (
-                        <Text style={{ color: muted, fontSize: 12, marginTop: 6 }}>
-                            {tr('Recommended for a counter phone that stays on charge. Other apps (music, videos) still play normally.')}
-                        </Text>
-                    ) : null}
-                </Card>
-
-                <Card>
-                    <Switcher
                         title={tr('Repeating chime')}
                         subtitle={tr('Rings again and again until you open the order.')}
                         value={st.ring}
@@ -237,30 +221,12 @@ export default function SoundboxScreen() {
                     ))}
                     <Button label={tr('Hear the greeting')} icon="volume-high" kind="ghost" onPress={previewGreeting} style={{ marginTop: 14 }} />
                     <Text style={{ color: muted, fontSize: 12, marginTop: 10 }}>
-                        {tr('The greeting is said once, in front of the order. The short "New order received" voice that plays with the screen off is a fixed sound and has no greeting.')}
+                        {tr('The greeting is said once, in front of the order.')}
                     </Text>
                 </Card>
 
                 </View>
 
-                <SectionTitle title={tr('If orders are missed')} />
-                <Card>
-                    <Label title={tr('Make the phone keep the app alive')} />
-                    <View style={{ marginTop: 10 }}>
-                        {[
-                            'Do not force stop the app. Swiping it away from recent apps is fine.',
-                            'Phone settings → Apps → this app → Battery → choose "Unrestricted".',
-                            'Allow "Autostart" for this app (Xiaomi, Oppo, Vivo, Realme, OnePlus).',
-                            'Keep notifications ON, and the phone out of silent and Do Not Disturb.',
-                        ].map((t) => (
-                            <View key={t} style={{ flexDirection: 'row', marginBottom: 8 }}>
-                                <Ionicons name="checkmark-circle" size={18} color={ok} style={{ marginTop: 1, marginRight: 10 }} />
-                                <Text style={{ color: muted, flex: 1, fontSize: 13 }}>{t}</Text>
-                            </View>
-                        ))}
-                    </View>
-                    <Button label={tr('Open phone settings')} kind="ghost" onPress={() => Linking.openSettings()} style={{ marginTop: 4 }} />
-                </Card>
             </KeyboardScroll>
         </View>
     );

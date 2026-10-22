@@ -1,4 +1,4 @@
-// Which alerts this person wants (Alerts screen): n = notification, p = popup, s = sound. The server keeps them (it also obeys them when it sends a push);
+// Which alerts this person wants (Alerts screen): n = notification, p = slider, s = tone, v = voice (and sec = how long the slider stays). The server keeps them (it also obeys them when it sends a push);
 // the phone keeps a copy so the popup and the sound can be decided at once, and while the app is closed.
 import { create } from 'zustand';
 import { readCache, writeCache } from '../../utils/common/cache';
@@ -45,8 +45,13 @@ export const useAlertPrefs = create((set, get) => ({
 
 // Is this alert wanted? key = a notification type ('order_new') or a live alert kind ('cancel'); what = 'n' | 'p' | 's'.
 // Unknown alerts and switches the group does not have are allowed: only a person's own "off" ever silences something.
+// (n notification, s tone, v voice, p slider)
 export function alertOn(key, what) {
     const g = useAlertPrefs.getState().groups.find((x) => x.types.includes(String(key)) || x.kinds.includes(String(key)));
     if (!g || !g.can[what]) return true;
     return g.pref[what] !== false;
 }
+
+// the group an alert belongs to, and how long its slider stays (0 = until the person closes it)
+export const alertGroup = (key) => useAlertPrefs.getState().groups.find((x) => x.types.includes(String(key)) || x.kinds.includes(String(key))) || null;
+export const alertSeconds = (key) => { const g = alertGroup(key); return typeof g?.pref?.sec === 'number' ? g.pref.sec : 5; };

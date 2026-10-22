@@ -1,7 +1,7 @@
 // "Kitchen: order #1042, a dish is finished": slides over whatever the owner is doing, with the answers (tell the customer, cancel and refund).
 // Nothing is decided for him. "Later" keeps it blinking on the Home card and shows it again on the order page.
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Modal } from 'react-native';
+import { View, Text, Modal, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../common/kit';
 import KitchenProblemActions, { problemWords } from './KitchenProblemActions';
@@ -12,6 +12,7 @@ import { onNotification, onOrderUpdate } from '../../api/common/socket';
 import { fetchOrder } from '../../api/owners/shopApi';
 import { alertOn } from '../../store/common/useAlertPrefs';
 import { tr } from '../../i18n';
+import { turnOffSlider } from '../common/AlertSliderHost';
 
 export default function KitchenProblemPopup() {
     const { surface, text, muted, warn } = useBrand();
@@ -57,6 +58,10 @@ export default function KitchenProblemPopup() {
                     <Text style={{ color: text, fontSize: 17, fontWeight: '800', marginVertical: 14 }}>{p.dish ? p.dish + ': ' : ''}{problemWords(p)}</Text>
                     {p.kind === 'out_of_stock' ? <Text style={{ color: muted, fontSize: 12.5, marginTop: -8, marginBottom: 12 }}>{tr('The dish is switched off, so no one else can order it.')}</Text> : null}
                     <KitchenProblemActions order={o} onDone={next} onLater={next} />
+                    <Pressable onPress={() => { next(); turnOffSlider('kitchen_problem'); }} hitSlop={8} style={{ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', marginTop: 14 }} accessibilityRole="button">
+                        <Ionicons name="notifications-off-outline" size={15} color={muted} />
+                        <Text style={{ color: muted, fontSize: 12.5, fontWeight: '700', marginLeft: 6 }}>{tr('Turn off this slider')}</Text>
+                    </Pressable>
                 </View>
             </View>
         </Modal>
