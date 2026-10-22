@@ -277,5 +277,12 @@ export function startNotifications() {
     Notifications.addNotificationResponseReceivedListener((resp) => handleTap(resp));
 
     // tapped while the app was closed
-    Notifications.getLastNotificationResponseAsync().then((resp) => { if (resp) handleTap(resp); }).catch(() => { });
+    // (the login is still being restored then, so wait for it and for the screens to mount before acting)
+    Notifications.getLastNotificationResponseAsync().then((resp) => {
+        if (!resp) return;
+        const go = () => setTimeout(() => handleTap(resp), 1200);
+        if (useAuthStore.getState().user) { go(); return; }
+        const off = useAuthStore.subscribe((st) => { if (st.user) { off(); go(); } });
+        setTimeout(off, 15000);
+    }).catch(() => { });
 }

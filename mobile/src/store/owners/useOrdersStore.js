@@ -119,7 +119,9 @@ export const useOrdersStore = create((set, get) => ({
         const items = get().items;
         const i = items.findIndex((o) => o.id === order.id);
         if (!stays) { if (i >= 0) set({ items: items.filter((o) => o.id !== order.id) }); return; }
-        if (i >= 0) set({ items: items.map((o) => (o.id === order.id ? order : o)) });
+        const hold = get().hold;
+        if (hold?.items.some((o) => String(o.id) === String(order.id))) set({ hold: { items: hold.items.map((o) => (String(o.id) === String(order.id) ? { ...o, ...order, needsLook: order.needsLook ?? o.needsLook } : o)) } });
+        if (i >= 0) set({ items: items.map((o) => (o.id === order.id ? (filter === 'look' ? { ...o, ...order, needsLook: order.needsLook ?? o.needsLook } : order) : o)) });
         else set({ items: [order, ...items] });
     },
 }));
