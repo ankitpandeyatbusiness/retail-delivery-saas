@@ -62,19 +62,19 @@ async function ownerRemove({ tenantId, id, note }) {
     );
     if (!l) throw httpError(404, 'That leave is already over or cancelled');
     await Staff.updateOne({ tenantId, userId: l.userId }, { $pull: { holidays: { leaveId: l._id } } });
-    tell('staff_leave_removed', { tenantId, userId: l.userId, vars: { from: l.from, to: l.to, days: l.days }, data: { kind: 'staff_leave', leaveId: String(l._id) } });
+    tell('staff_leave_removed', { tenantId, userId: l.userId, vars: { from: l.from, to: l.to, days: l.days, note: String(note || '').trim().slice(0, 200) }, data: { kind: 'staff_leave', leaveId: String(l._id) } });
     screens(tenantId, l.role, l.userId);
     return shape(l);
 }
 
 // the owner removes one of the days off the person set for themselves
-async function ownerRemoveHoliday({ tenantId, userId, holidayId }) {
+async function ownerRemoveHoliday({ tenantId, userId, holidayId, note }) {
     const row = await Staff.findOne({ tenantId, userId }).select('holidays role').lean();
     const h = (row?.holidays || []).find((x) => String(x._id) === String(holidayId));
     if (!h) throw httpError(404, 'That day off is already gone');
-    if (h.leaveId) return ownerRemove({ tenantId, id: h.leaveId });   // a day off made by a leave: remove the leave
+    if (h.leaveId) return ownerRemove({ tenantId, id: h.leaveId, note });   // a day off made by a leave: remove the leave
     await Staff.updateOne({ tenantId, userId }, { $pull: { holidays: { _id: holidayId } } });
-    tell('staff_leave_removed', { tenantId, userId, vars: { from: h.from, to: h.to, days: 1 }, data: { kind: 'staff_holiday' } });
+    tell('staff_leave_removed', { tenantId, userId, vars: { from: h.from, to: h.to, days: 1, note: String(note || '').trim().slice(0, 200) }, data: { kind: 'staff_holiday' } });
     screens(tenantId, row.role, userId);
     return { ok: true };
 }

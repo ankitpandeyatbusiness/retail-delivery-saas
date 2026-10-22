@@ -58,13 +58,21 @@ export default function OwnerStaffPersonScreen() {
         try { await removeStaff(userId); showToast(tr('Removed')); nav.goBack(); } catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); }
     };
     const s = d.stats;
-    const takeLeaveBack = async (l) => {
-        if (!(await ask({ title: tr('Take this leave away?'), message: tr('{from} is on duty on those days again. {name} is told.', { from: range(l.from, l.to), name: p.name || p.phone }), confirmText: tr('Take it away'), destructive: true }))) return;
-        try { await removeStaffLeave(l.id); showToast(tr('Leave removed. They are told.')); load(); } catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); }
-    };
-    const takeDayOffBack = async (h) => {
-        if (!(await ask({ title: tr('Remove this day off?'), message: tr('{name} is on duty on those days again and is told.', { name: p.name || p.phone }), confirmText: tr('Remove'), destructive: true }))) return;
-        try { await removeStaffHoliday(userId, h.id); showToast(tr('Day off removed. They are told.')); load(); } catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); }
+    // taking a leave or a day off away: a sheet with an optional message, then the person is told (with a sound) and their screen changes
+    const [taking, setTaking] = useState(null);   // { kind: 'leave' | 'day', item }
+    const [msg, setMsg] = useState('');
+    const [removing, setRemoving] = useState(false);
+    const takeLeaveBack = (l) => { setMsg(''); setTaking({ kind: 'leave', item: l }); };
+    const takeDayOffBack = (h) => { setMsg(''); setTaking({ kind: 'day', item: h }); };
+    const confirmTake = async () => {
+        setRemoving(true);
+        try {
+            if (taking.kind === 'leave') await removeStaffLeave(taking.item.id, msg.trim() || undefined);
+            else await removeStaffHoliday(userId, taking.item.id, msg.trim() || undefined);
+            showToast(tr('Removed. They are told.'));
+            setTaking(null);
+            load();
+        } catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); } finally { setRemoving(false); }
     };
     const today = istToday();
 
@@ -150,6 +158,11 @@ export default function OwnerStaffPersonScreen() {
                     <View style={{ marginTop: 10 }}><Button label={tr('Remove from staff')} icon="trash" kind="danger" onPress={remove} /></View>
                 </Card>
             </ScrollView>
+            <Sheet visible={!!taking} onClose={() => setTaking(null)} title={taking?.kind === 'leave' ? tr('Take this leave away?') : tr('Remove this day off?')}>
+                {taking ? <Text style={{ color: muted, marginBottom: 10 }}>{range(taking.item.from, taking.item.to)}. {tr('{name} is on duty on those days again and is told with a notification and a sound.', { name: p.name || p.phone })}</Text> : null}
+                <Field value={msg} onChangeText={setMsg} placeholder={tr('Message (optional), for example: we need you that day')} maxLength={200} multiline style={{ marginBottom: 14 }} />
+                <Button label={tr('Take it away')} icon="close-circle" kind="danger" busy={removing} onPress={confirmTake} />
+            </Sheet>
             <Sheet visible={nameOpen} onClose={() => setNameOpen(false)} title={tr('Name')}>
                 <Field value={name} onChangeText={setName} placeholder={tr('Name')} maxLength={40} style={{ marginBottom: 14 }} />
                 <Button label={tr('Save')} icon="checkmark" disabled={name.trim().length < 1} busy={busy} onPress={saveName} />

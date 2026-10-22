@@ -154,3 +154,19 @@ describe('taking leaves and days off back', () => {
         assert.equal((await request(app).delete(`/api/shop/staff/leaves/${trip.id}`).set(w.owner.headers)).status, 404, 'already gone');
     });
 });
+
+describe('the owner\'s message when he takes a leave away', () => {
+    test('the message reaches the person in the notification', async () => {
+        const day = new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10);
+        await request(app).post('/api/staff/duty/leave').set(cook.headers).send({ from: day, to: day, reason: 'Trip' });
+        const id = (await request(app).get('/api/staff/work').set(cook.headers)).body.leaves[0].id;
+        await request(app).post(`/api/shop/staff/leaves/${id}`).set(w.owner.headers).send({ approve: true });
+        const r = await request(app).delete(`/api/shop/staff/leaves/${id}`).set(w.owner.headers).send({ note: 'We need you that day' });
+        assert.equal(r.status, 200, JSON.stringify(r.body));
+        const Notification = require('../src/models/Notification');
+        await f.waitFor(async () => !!(await Notification.findOne({ tenantId: w.tenant._id, type: 'staff_leave_removed' })));
+        const n = await Notification.findOne({ tenantId: w.tenant._id, type: 'staff_leave_removed' });
+        assert.match(n.body, /We need you that day/);
+        assert.match(n.body, /on duty/);
+    });
+});

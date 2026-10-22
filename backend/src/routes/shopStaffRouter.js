@@ -33,7 +33,7 @@ router.delete('/leaves/:id', wrap(async (req, res) => {
 }));
 router.delete('/:userId/holidays/:holidayId', wrap(async (req, res) => {
     if (!isId(req.params.userId) || !isId(req.params.holidayId)) throw httpError(404, 'Not found');
-    res.json(await require('../services/staffLeave').ownerRemoveHoliday({ tenantId: req.tenant._id, userId: req.params.userId, holidayId: req.params.holidayId }));
+    res.json(await require('../services/staffLeave').ownerRemoveHoliday({ tenantId: req.tenant._id, userId: req.params.userId, holidayId: req.params.holidayId, note: req.body?.note }));
 }));
 
 router.post('/', wrap(async (req, res) => {

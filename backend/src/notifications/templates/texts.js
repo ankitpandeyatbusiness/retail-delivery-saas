@@ -100,7 +100,7 @@ const TEXTS = {
     pickup_claim_no: (v) => ({ title: 'We could not find it as collected', body: `The shop could not confirm that order #${v.orderNo} was collected. Please come to the shop or call them.${v.message ? ` The shop says: “${v.message}”.` : ''} Thank you for understanding.` }),
     food_packed_rider: (v) => ({ title: `Order #${v.orderNo} is packed`, body: `${v.brief ? `${v.brief}. ` : ''}It is ready for you to collect.` }),
     order_shop_note: (v) => ({ title: `Your order #${v.orderNo}`, body: v.text }),
-    staff_leave_removed: (v) => ({ title: 'Your days off were changed', body: `The owner removed your ${v.from === v.to ? v.from : `${v.from} to ${v.to}`} day${v.days === 1 ? '' : 's'} off. You are on duty on ${v.days === 1 ? 'that day' : 'those days'}.` }),
+    staff_leave_removed: (v) => ({ title: 'Your days off were changed', body: `The owner removed your ${v.from === v.to ? v.from : `${v.from} to ${v.to}`} day${v.days === 1 ? '' : 's'} off. You are on duty on ${v.days === 1 ? 'that day' : 'those days'}.${v.note ? ` The owner says: “${v.note}”.` : ''}` }),
     staff_off_duty: (v) => ({ title: `${v.name || 'Staff'} is off duty`, body: `${v.name || 'Someone'} (${v.job || 'staff'}) switched off duty${v.on ? ' and is not taking alerts' : ''}.` }),
     order_undone: (v) => ({ title: `Order #${v.orderNo}: step taken back`, body: `${v.by || 'Someone'} undid "${v.step}".` }),
     kitchen_problem: (v) => ({ title: `Kitchen: order #${v.orderNo}`, body: `${v.name || 'The cook'} says: ${v.what}${v.note ? ` (${v.note})` : ''}. Please decide what to do.` }),

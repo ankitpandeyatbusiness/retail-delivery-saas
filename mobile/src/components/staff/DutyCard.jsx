@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, Pressable, TextInput } from 'react-native';
 import SlideSwitch from '../common/SlideSwitch';
+import { istToday } from '../../utils/owners/txRules';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../common/kit';
 import { Card, SectionTitle, Sheet, Button, Chips, Pill } from '../owners/ui';
@@ -176,9 +177,9 @@ export default function DutyCard() {
                             </View>
                             <Text style={{ color: muted, fontSize: 12.5, marginTop: 3 }}>{l.days} {l.days === 1 ? tr('day') : tr('days')}{l.reason ? ` · ${l.reason}` : ''}</Text>
                             {l.note ? <Text style={{ color: muted, fontSize: 12.5, marginTop: 2 }}>{tr('Shop: {note}', { note: l.note })}</Text> : null}
-                            {l.status === 'pending' ? (
-                                <Pressable onPress={() => act(() => cancelLeave(l.id), tr('Request cancelled'))} hitSlop={8} style={{ alignSelf: 'flex-start', marginTop: 6 }}>
-                                    <Text style={{ color: error, fontWeight: '800', fontSize: 13 }}>{tr('Cancel request')}</Text>
+                            {['pending', 'approved'].includes(l.status) && l.to >= istToday() ? (
+                                <Pressable onPress={() => act(() => cancelLeave(l.id), tr(l.status === 'pending' ? 'Request cancelled' : 'Leave cancelled'))} hitSlop={8} style={{ alignSelf: 'flex-start', marginTop: 6 }}>
+                                    <Text style={{ color: error, fontWeight: '800', fontSize: 13 }}>{tr(l.status === 'pending' ? 'Cancel request' : 'Cancel this leave')}</Text>
                                 </Pressable>
                             ) : null}
                         </View>
