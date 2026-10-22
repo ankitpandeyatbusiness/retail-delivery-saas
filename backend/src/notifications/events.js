@@ -18,8 +18,8 @@ const STAFF_CHANNEL = 'staff_alerts_v1';
 // a quiet message for a cook or a waiter ("order handed over"): one soft ping instead of the ting-tong
 const STAFF_INFO_CHANNEL = 'staff_info_v1';
 // the two alarms: a cancelled order (a short falling "da-da-dum") and a rider's call for help (a gentle "pee-poo"). Built into the app like the others.
-const CANCEL_CHANNEL = 'cancel_alert_v1';   // the owner's, the cook's and the waiter's cancelled-order alarm
-const HELP_CHANNEL = 'help_alarm_v1';       // the owner's: a rider pressed the help button
+const CANCEL_CHANNEL = 'cancel_alert_v2';   // the owner's, the cook's and the waiter's cancelled-order alarm
+const HELP_CHANNEL = 'help_alarm_v2';       // the owner's: a rider pressed the help button
 const INAPP_PUSH = ['inapp', 'push'];
 const ALL = ['inapp', 'push', 'sms'];
 const KEY_CUSTOMER_STATUSES = ['accepted', 'out_for_delivery', 'delivered', 'cancelled'];

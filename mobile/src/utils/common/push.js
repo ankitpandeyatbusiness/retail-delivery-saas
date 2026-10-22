@@ -8,6 +8,7 @@ import { ownerRoute } from '../owners/notificationRoute';
 import { Platform, AppState } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { alertOn } from '../../store/common/useAlertPrefs';
+import { showOrderPopup } from '../owners/orderPopupBus';
 import * as SecureStore from 'expo-secure-store';
 import { CommonActions } from '@react-navigation/native';
 import { useAuthStore } from '../../store/common/useAuthStore';
@@ -26,8 +27,8 @@ const CHANNEL = 'orders';   // must match defaultChannel in app.config.js
 // The server names it in the push (backend notifications/events.js: pushChannel / pushSound). A channel's sound can not be
 // changed once it exists on a phone, so a new sound needs a new channel id.
 const NEW_ORDERS_CHANNEL = 'new_orders_v2';   // must match NEW_ORDER_CHANNEL in backend notifications/events.js
-const CANCEL_CHANNEL = 'cancel_alert_v1';   // the cancelled-order alarm (owner, cook, waiter). Must match the backend
-const HELP_CHANNEL = 'help_alarm_v1';       // the owner's: a rider pressed help
+const CANCEL_CHANNEL = 'cancel_alert_v2';   // the cancelled-order alarm (owner, cook, waiter). Must match the backend
+const HELP_CHANNEL = 'help_alarm_v2';       // the owner's: a rider pressed help
 const STAFF_INFO_CHANNEL = 'staff_info_v1';   // a quiet staff message ("order handed over"): the soft ping. Must match the backend
 const STAFF_CHANNEL = 'staff_alerts_v1';   // a cook's and a waiter's alerts: the "ting-tong" clip. Must match STAFF_CHANNEL in backend notifications/events.js
 const OLD_NEW_ORDERS_CHANNELS = ['new_orders'];   // earlier ids: they may be stuck without the sound, so they are removed
@@ -107,6 +108,11 @@ function handleTap(resp) {
     }
     // the owner: every push that has somewhere to go opens it (an order, a complaint, the bill, the SMS balance, a help request...)
     if (useAuthStore.getState().user?.role === 'admin') {
+        if (['order_new', 'order_unaccepted_reminder', 'order_cancelled'].includes(String(data.type)) && data.orderId) {
+            if (data.type !== 'order_cancelled') speakOnOpen(data).catch(() => { });
+            showOrderPopup(data.orderId, data.type === 'order_cancelled' ? 'cancelled' : 'new');
+            return;
+        }
         if (data.type === 'order_new' || data.type === 'order_unaccepted_reminder') speakOnOpen(data).catch(() => { });
         const to = ownerRoute({ type: data.type, data });
         if (to) { openScreen(to.name, to.params); return; }

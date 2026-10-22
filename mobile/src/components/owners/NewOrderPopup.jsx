@@ -16,6 +16,7 @@ import { onNotification, onOrderUpdate } from '../../api/common/socket';
 import { alertOn } from '../../store/common/useAlertPrefs';
 import { fetchOrder, setOrderStatus, apiError } from '../../api/owners/shopApi';
 import { acknowledge } from '../../utils/owners/soundbox';
+import { onShowOrderPopup } from '../../utils/owners/orderPopupBus';
 import { showToast } from '../customers/shop';
 import { tr } from '../../i18n';
 import { DragDown, Grip } from '../common/DragDown';
@@ -35,24 +36,36 @@ export default function NewOrderPopup({ navRef }) {
 
     const drop = useCallback((id) => setQueue((q) => q.filter((o) => String(o.id) !== String(id))), []);
 
+    // show one order: the new-order notification, a cancelled order, or a tap on either notification
+    const showOne = useCallback((id, kind, force) => fetchOrder(id)
+        .then((o) => {
+            if (!o) return;
+            const cancelled = kind === 'cancelled' || o.status === 'cancelled';
+            const entry = cancelled ? { ...o, info: true, cancelled: true } : (o.status === 'placed' ? o : (force ? { ...o, info: true } : null));
+            if (entry) setQueue((q) => [...q.filter((x) => String(x.id) !== String(id)), entry]);
+        })
+        .catch(() => { }), []);
+
     useEffect(() => {
         if (!on) { setQueue([]); return undefined; }
+        const offTap = onShowOrderPopup((id, kind) => { seen.current.add(String(id)); showOne(id, kind, true); });
         const offNew = onNotification((n) => {
+            if (n?.type === 'order_cancelled' && n?.data?.orderId && alertOn('order_cancelled', 'p')) { showOne(String(n.data.orderId), 'cancelled'); return; }
             const id = n?.type === 'order_new' ? String(n?.data?.orderId || '') : '';
             if (!id || seen.current.has(id) || !alertOn('order_new', 'p')) return;   // Alerts screen: no popup for new orders
             seen.current.add(id);
             fetchOrder(id)
                 .then((o) => {
                     // a table order the shop accepted by itself (auto accept) still shows, so the kitchen sees the table and what he asked for
-                    const info = !!o && o.status !== 'placed' && o.orderType === 'dine_in' && !!n?.data?.autoAccepted && ['accepted', 'preparing'].includes(o.status);
+                    const info = !!o && o.status !== 'placed' && !!n?.data?.autoAccepted && ['accepted', 'preparing'].includes(o.status);
                     if (o && (o.status === 'placed' || info)) setQueue((q) => (q.some((x) => String(x.id) === id) ? q : [...q, info ? { ...o, info: true } : o]));
                 })
                 .catch(() => { });
         });
         // accepted by someone else, cancelled by the customer, timed out: nothing left to decide
-        const offUpd = onOrderUpdate((p) => { if (p?.status && p.status !== 'placed') setQueue((q) => q.filter((o) => String(o.id) !== String(p.orderId) || (o.info && p.status !== 'cancelled'))); });
-        return () => { offNew(); offUpd(); };
-    }, [on, drop]);
+        const offUpd = onOrderUpdate((p) => { if (p?.status && p.status !== 'placed') setQueue((q) => q.filter((o) => String(o.id) !== String(p.orderId) || o.cancelled || (o.info && p.status !== 'cancelled'))); });
+        return () => { offTap(); offNew(); offUpd(); };
+    }, [on, drop, showOne]);
 
     const order = queue[0];
     if (!on || !order) return null;
@@ -89,12 +102,12 @@ export default function NewOrderPopup({ navRef }) {
                 <View style={[s.sheet, { backgroundColor: surface, borderColor: border, paddingBottom: Math.max(insets.bottom, 12) + 10 }]}>
                     <Grip style={{ paddingBottom: 12 }}><View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: border }} /></Grip>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: alpha(warn || primary, 0.16), alignItems: 'center', justifyContent: 'center' }}>
-                            <Ionicons name="flash" size={22} color={warn || primary} />
+                        <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: alpha(order.cancelled ? error : (warn || primary), 0.16), alignItems: 'center', justifyContent: 'center' }}>
+                            <Ionicons name={order.cancelled ? 'close-circle' : 'flash'} size={22} color={order.cancelled ? error : (warn || primary)} />
                         </View>
                         <View style={{ flex: 1, marginLeft: 12 }}>
-                            <Text style={{ color: text, fontSize: 20, fontWeight: '900' }}>{tr('New order #{orderNo}', { orderNo: order.orderNo })}</Text>
-                            <Text style={{ color: muted, fontSize: 12, marginTop: 1 }}>{[TYPE[order.orderType], order.orderType === 'dine_in' && order.tableNo ? `Table ${order.tableNo}` : null, order.customer?.name, order.info ? 'Auto accepted' : null].filter(Boolean).join(' · ')}</Text>
+                            <Text style={{ color: text, fontSize: 20, fontWeight: '900' }}>{order.cancelled ? tr('Order #{orderNo} cancelled', { orderNo: order.orderNo }) : tr('New order #{orderNo}', { orderNo: order.orderNo })}</Text>
+                            <Text style={{ color: muted, fontSize: 12, marginTop: 1 }}>{[TYPE[order.orderType], order.orderType === 'dine_in' && order.tableNo ? `Table ${order.tableNo}` : null, order.customer?.name, order.cancelled ? (order.cancelledBy ? `Cancelled by ${order.cancelledBy}` : null) : order.info ? 'Auto accepted' : null].filter(Boolean).join(' · ')}</Text>
                         </View>
                         <Pressable onPress={() => drop(order.id)} hitSlop={12}><Ionicons name="close" size={24} color={muted} /></Pressable>
                     </View>
