@@ -118,7 +118,7 @@ export default function OwnerTxTabScreen() {
     const picked = (kind, v) => { setPick(v); setPeriod(kind); };
     const csv = async () => {
         setBusy(true);
-        try { await downloadAndOpen({ path: moneyAllPath, params: { ...params(), format: 'csv' }, filename: 'transactions.csv', mime: 'text/csv', title: tr('Transactions') }); }
+        try { await downloadAndOpen({ path: moneyAllPath, params: { ...params(), format: 'xlsx' }, filename: 'transactions.xlsx', mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', title: tr('Transactions') }); }
         catch (e) { showToast(e.safe ? e.message : tr('Could not download')); } finally { setBusy(false); }
     };
     const refresh = async () => { setRefreshing(true); await load(1, true); setRefreshing(false); };
@@ -143,6 +143,11 @@ export default function OwnerTxTabScreen() {
                     <Field value={qText} onChangeText={(v) => setQText(v.replace(/[^0-9#]/g, ''))} placeholder={tr('Search by order number')} keyboardType="number-pad" returnKeyType="search" onSubmitEditing={() => setQApplied(qText.replace('#', ''))} />
                 </View>
                 {qApplied ? <Pressable onPress={() => { setQText(''); setQApplied(''); }} hitSlop={8} style={{ marginLeft: 8 }}><Ionicons name="close-circle" size={24} color={muted} /></Pressable> : null}
+                {/* the Excel sheet is at the top: nobody has to scroll down the whole list to find it */}
+                <Pressable onPress={csv} disabled={busy || !items.length} hitSlop={8} accessibilityRole="button" accessibilityLabel={tr('Excel Sheet')} style={{ marginLeft: 8, height: 46, minWidth: 46, paddingHorizontal: 12, borderRadius: 14, borderWidth: 1, borderColor: border, backgroundColor: surface, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', opacity: busy || !items.length ? 0.5 : 1 }}>
+                    <Ionicons name={busy ? 'hourglass-outline' : 'download-outline'} size={20} color={primary} />
+                    <Text style={{ color: primary, fontWeight: '800', marginLeft: 6 }}>Excel</Text>
+                </Pressable>
             </View>
 
             {!data && !err ? <StatShimmer /> : null}
@@ -199,7 +204,6 @@ export default function OwnerTxTabScreen() {
                         );
                     })}
                     {more ? <View style={{ paddingHorizontal: 16, marginTop: 8 }}><Button label={tr('Show more')} kind="ghost" onPress={() => load(page + 1, true)} /></View> : null}
-                    {items.length ? <View style={{ paddingHorizontal: 16, marginTop: 8 }}><Button label={tr('Excel Sheet')} icon="download" kind="ghost" working={busy} disabled={busy} onPress={csv} /></View> : null}
                 </>
             ) : null}
 

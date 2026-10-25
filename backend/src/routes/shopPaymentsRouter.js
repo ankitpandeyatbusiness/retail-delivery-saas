@@ -129,6 +129,32 @@ router.get('/all', wrap(async (req, res) => {
     const filter = shopMoney.parseQuery(req.query);
     if (req.query.format !== 'csv') return res.json(await shopMoney.list({ tenantId: req.tenant._id, filter }));
     const all = await shopMoney.list({ tenantId: req.tenant._id, filter: { ...filter, page: 1, limit: 100000 } });
+    if (req.query.format === 'xlsx') {
+        // a proper Excel file: coloured headings, widths that fit, money as numbers (services/xlsxExport.js)
+        const { buildSheet, XLSX_TYPE } = require('../services/xlsxExport');
+        const rows = all.items.slice(0, EXPORT_MAX).map((i) => ({
+            at: i.at, type: i.label, dir: i.direction === 'in' ? 'in' : 'out', amount: (i.amountPaise || 0) / 100, how: i.howLabel || '', status: i.status === 'pending' ? 'pending' : 'done',
+            orderNo: i.orderNo ?? '', table: i.table ? `${i.table}${i.party ? ` ${i.party}` : ''}` : '', customer: i.customer || '', phone: i.phone || '', by: i.by || '', ref: i.ref || '', note: i.note || '',
+        }));
+        const columns = [
+            { header: 'Date and time (India)', key: 'at', kind: 'date' },
+            { header: 'Type', key: 'type' },
+            { header: 'In or out', key: 'dir', kind: 'status' },
+            { header: 'Amount (Rs)', key: 'amount', kind: 'money' },
+            { header: 'How', key: 'how', kind: 'center' },
+            { header: 'Status', key: 'status', kind: 'status' },
+            { header: 'Order no', key: 'orderNo', kind: 'center' },
+            { header: 'Table', key: 'table', kind: 'center' },
+            { header: 'Customer', key: 'customer' },
+            { header: 'Phone', key: 'phone', kind: 'center' },
+            { header: 'Received or sent by', key: 'by' },
+            { header: 'Reference', key: 'ref' },
+            { header: 'Note', key: 'note', kind: 'wide' },
+        ];
+        res.set('Content-Type', XLSX_TYPE);
+        res.set('Content-Disposition', 'attachment; filename="transactions.xlsx"');
+        return res.send(await buildSheet({ title: 'Transactions', columns, rows }));
+    }
     res.set('Content-Type', 'text/csv; charset=utf-8');
     res.set('Content-Disposition', 'attachment; filename="transactions.csv"');
     res.send(shopMoney.toCsv(all.items.slice(0, EXPORT_MAX)));
