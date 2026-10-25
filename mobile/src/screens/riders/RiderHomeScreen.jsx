@@ -14,6 +14,7 @@ import { ask } from '../../components/common/dialog';
 import { Card, Stat } from '../../components/owners/ui';
 import { BigButton, SmallLink, Banner, Avatar } from '../../components/riders/riderBits';
 import KeepRunningSheet from '../../components/riders/KeepRunningSheet';
+import BellButton from '../../components/common/BellButton';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRiderStore } from '../../store/riders/useRiderStore';
 import RatingNews from '../../components/riders/RatingNews';
@@ -201,6 +202,7 @@ export default function RiderHomeScreen() {
                         <Text style={{ color: text, fontSize: 20, fontWeight: '900' }}>{T.hello(me?.name?.split(' ')[0])}</Text>
                         <Text style={{ color: muted, fontSize: 13, fontWeight: '600' }}>{me?.shop || ''}</Text>
                     </View>
+                    <BellButton />
                 </View>
 
                 {!ready && !error ? <ListShimmer count={3} /> : null}

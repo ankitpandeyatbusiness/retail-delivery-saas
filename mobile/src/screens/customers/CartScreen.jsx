@@ -33,6 +33,7 @@ import { usePayChoice } from '../../store/customers/usePayChoice';
 import DineBusyNote from '../../components/customers/DineBusyNote';
 import { useOwedPrompt } from '../../store/customers/useOwedPrompt';
 import { tr } from '../../i18n';
+import { onMenuChanged } from '../../api/common/socket';
 import KeyboardScroll from '../../components/common/KeyboardScroll';
 
 const errMsg = (e) => e?.response?.data?.error
@@ -161,6 +162,9 @@ export default function CartScreen() {
         const i = setInterval(() => setTick((x) => x + 1), 60000);
         return () => clearInterval(i);
     }, []);
+
+    // the shop changed something that decides if this order can be placed (cash allowed again, the cash limit, a fee): price it again now
+    useEffect(() => onMenuChanged(() => setTick((x) => x + 1)), []);
 
     // validate the stored selection against the server (handles deleted or edited addresses)
     useEffect(() => {

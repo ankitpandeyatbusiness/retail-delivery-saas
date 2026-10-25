@@ -5,6 +5,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useBrand } from '../../components/common/kit';
 import { PageHeader, Card, Chips, Pill, Empty } from '../../components/owners/ui';
 import { fetchComplaints, apiError } from '../../api/owners/shopApi';
+import { onNotification } from '../../api/common/socket';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { COMPLAINT_TYPES, COMPLAINT_STATUS, RESOLUTION_TEXT } from '../../utils/owners/hubRules';
 import { ago } from '../../utils/owners/riderRules';
@@ -29,7 +30,10 @@ export default function OwnerComplaintsScreen() {
         } catch (e) { useOwnerStore.getState().noteError(e); setErr(apiError(e, 'Could not load complaints.')); setItems((x) => x || []); }
     }, [status]);
 
-    useFocusEffect(useCallback(() => { load(1); }, [load]));
+    useFocusEffect(useCallback(() => {
+        load(1);
+        return onNotification((n) => { if (['complaint_new', 'complaint_reminder'].includes(String(n?.type))) load(1); });   // a new complaint shows at once
+    }, [load]));
     const pick = (s) => { setStatus(s); setItems(null); };
 
     return (

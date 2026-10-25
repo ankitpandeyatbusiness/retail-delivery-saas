@@ -15,6 +15,7 @@ import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { tr } from '../../i18n';
+import { onNotification } from '../../api/common/socket';
 
 export default function OwnerNotificationsScreen() {
     const nav = useNavigation();
@@ -25,10 +26,11 @@ export default function OwnerNotificationsScreen() {
     const [err, setErr] = useState('');
     const fresh = useRef(new Set());   // ids that were unread when this screen opened
 
-    const load = useCallback(async (p = 1) => {
+    const load = useCallback(async (p = 1, live = false) => {
         try {
             const r = await fetchShopNotifications({ page: p, limit: 20 });
-            if (p === 1) fresh.current = new Set(r.items.filter((n) => !n.read).map((n) => n.id));
+            if (p === 1 && live) r.items.filter((n) => !n.read).forEach((n) => fresh.current.add(n.id));   // a message that arrived while this screen is open: it is marked new, the ones above stay marked
+            else if (p === 1) fresh.current = new Set(r.items.filter((n) => !n.read).map((n) => n.id));
             else r.items.filter((n) => !n.read).forEach((n) => fresh.current.add(n.id));
             setItems((old) => (p === 1 ? r.items : [...(old || []), ...r.items]));
             setMore(!!r.hasMore); setPage(p); setErr('');
@@ -38,7 +40,10 @@ export default function OwnerNotificationsScreen() {
             useOwnerStore.setState({ unread: 0 });
         } catch (e) { useOwnerStore.getState().noteError(e); setErr(apiError(e, 'Could not load your messages.')); setItems((x) => x || []); }
     }, []);
-    useFocusEffect(useCallback(() => { load(1); }, [load]));
+    useFocusEffect(useCallback(() => {
+        load(1);
+        return onNotification(() => load(1, true));   // a new message while this screen is open: it shows at the top at once
+    }, [load]));
 
     const clearAll = async () => {
         const yes = await ask({ title: tr('Clear all messages?'), message: tr('They disappear from this list.'), confirmText: tr('Clear all'), destructive: true });

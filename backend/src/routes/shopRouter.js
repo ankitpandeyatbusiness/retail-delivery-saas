@@ -559,6 +559,7 @@ router.put('/settings', wrap(async (req, res) => {
                 for (const [k2, val2] of Object.entries(val)) updates[`settings.orders.${k}.${k2}`] = val2;
             } else updates[`settings.orders.${k}`] = val;
         }
+        menuSwitched = true;   // customers' carts and the shop's settings reload at once (cash limit, fees, minimum order...)
     }
 
     if (body.notifications !== undefined) {

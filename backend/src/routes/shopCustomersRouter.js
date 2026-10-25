@@ -151,6 +151,8 @@ router.patch('/:userId/cod-block', wrap(async (req, res) => {
         { tenantId, phoneHash },
         { $set: { codBlocked: false, strikes: 0 }, $unset: { codBlockedAt: 1 } },
     );
+    // the customer's open cart works out its price again at once (it would otherwise keep saying "cash is not available" until he switched tabs)
+    try { require('../services/realtime').toUser(tenantId, req.params.userId, 'menu:changed', {}); } catch (e) { /* the cart also checks again every minute */ }
     res.json({ ok: true, codBlocked: false, strikes: 0 });
 }));
 

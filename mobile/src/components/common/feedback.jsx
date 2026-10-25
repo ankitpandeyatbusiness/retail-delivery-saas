@@ -11,6 +11,7 @@ import { Image } from 'expo-image';
 import { useBrand } from './kit';
 import { showToast, tint, useClosedStyle } from '../customers/shop';
 import { rateDelivery, fetchComplaints, sendComplaint } from '../../api/customers/shopApi';
+import { onNotification } from '../../api/common/socket';
 import { pickPhoto, uploadComplaintPhoto, discardPhoto } from '../../utils/common/photoUpload';
 import { ask } from './dialog';
 import { tr } from '../../i18n';
@@ -178,6 +179,8 @@ export function ComplaintCard({ orderId }) {
         try { setData(await fetchComplaints(orderId)); } catch (e) { /* the card just stays hidden */ }
     }, [orderId]);
     useEffect(() => { load(); }, [load]);
+    // the shop answered or decided: the status and the reply show here at once
+    useEffect(() => onNotification((n) => { if (n?.type === 'complaint_decision' && String(n.data?.orderId) === String(orderId)) load(); }), [orderId, load]);
 
     if (!data) return null;
     const c = data.items?.[0];

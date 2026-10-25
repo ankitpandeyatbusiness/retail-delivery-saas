@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand, alpha } from '../common/kit';
 import { Skel } from '../common/motion';
+import BellButton from '../common/BellButton';
 import { tr } from '../../i18n';
 
 export const JOBS = {
@@ -33,6 +34,7 @@ export function StaffHeader({ title, subtitle, right }) {
                 {subtitle ? <Text style={{ color: muted, fontSize: 13, fontWeight: '600', marginTop: 2 }} numberOfLines={1}>{subtitle}</Text> : null}
             </View>
             {right}
+            <BellButton />
         </View>
     );
 }

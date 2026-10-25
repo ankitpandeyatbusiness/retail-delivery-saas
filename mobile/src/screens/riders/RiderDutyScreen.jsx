@@ -6,6 +6,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView, Pressable, TextInput, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import { onNotification } from '../../api/common/socket';
 import { useBrand, alpha } from '../../components/common/kit';
 import { PageHeader, Card, SectionTitle, Sheet, Button, Chips, Pill } from '../../components/owners/ui';
 import { TimeStep } from '../../components/owners/AutoAccept';
@@ -90,7 +91,11 @@ export default function RiderDutyScreen() {
         if (!keepEdits) { setWeekly(r.weekly); setMode(r.mode); setDirty(false); }
     }, []);
     const load = useCallback(async () => { try { take(await fetchDuty(), dirty); } catch (e) { showToast(errText(e)); } }, [take, dirty]);
-    useFocusEffect(useCallback(() => { load(); }, [])); // eslint-disable-line react-hooks/exhaustive-deps
+    useFocusEffect(useCallback(() => {
+        load();
+        // the shop answered a leave, or put him on or off duty: the page changes at once
+        return onNotification((n) => { if (['rider_leave_decision', 'rider_duty_auto', 'rider_off_duty', 'rider_removed'].includes(String(n?.type))) load(); });
+    }, [])); // eslint-disable-line react-hooks/exhaustive-deps
 
     const setDay = (k, patch) => { setWeekly((w) => ({ ...w, [k]: { ...w[k], ...patch } })); setDirty(true); };
     const save = async () => {
