@@ -2,7 +2,7 @@
 // total, how it is paid, and the time left to accept. Accept it right there, or open it. Orders queue: the next one shows
 // after this one is dealt with. The bell / voice (soundbox.js) keeps going until the order is accepted or opened.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, Modal, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, Modal, Pressable, ScrollView, StyleSheet, AppState } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand, alpha } from '../common/kit';
@@ -14,7 +14,8 @@ import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { useOrdersStore } from '../../store/owners/useOrdersStore';
 import { onNotification, onOrderUpdate } from '../../api/common/socket';
 import { alertOn } from '../../store/common/useAlertPrefs';
-import { fetchOrder, setOrderStatus, apiError } from '../../api/owners/shopApi';
+import { fetchOrder, fetchOrders, setOrderStatus, apiError } from '../../api/owners/shopApi';
+import * as flow from '../../utils/owners/orderFlow';
 import { acknowledge } from '../../utils/owners/soundbox';
 import { onShowOrderPopup } from '../../utils/owners/orderPopupBus';
 import { showToast } from '../customers/shop';
@@ -42,7 +43,7 @@ export default function NewOrderPopup({ navRef }) {
         .then((o) => {
             if (!o) return;
             const cancelled = kind === 'cancelled' || o.status === 'cancelled';
-            const entry = cancelled ? { ...o, info: true, cancelled: true } : (o.status === 'placed' ? o : (force ? { ...o, info: true } : null));
+            const entry = cancelled ? { ...o, info: true, cancelled: true } : (o.status === 'placed' ? o : (force ? { ...o, info: true, done: true } : null));   // done: it was dealt with already; the sheet only says so
             if (entry) setQueue((q) => [...q.filter((x) => String(x.id) !== String(id)), entry]);
         })
         .catch(() => { }), []);
@@ -65,7 +66,21 @@ export default function NewOrderPopup({ navRef }) {
         });
         // accepted by someone else, cancelled by the customer, timed out: nothing left to decide
         const offUpd = onOrderUpdate((p) => { if (p?.status && p.status !== 'placed') setQueue((q) => q.filter((o) => String(o.id) !== String(p.orderId) || o.cancelled || (o.info && p.status !== 'cancelled'))); });
-        return () => { offTap(); offNew(); offUpd(); };
+        // orders that came in while the app was closed or in the background: the voice already catches up (soundbox.js), so the sheet does too
+        const catchUp = () => {
+            if (!alertOn('order_new', 'p')) return;
+            fetchOrders({ status: 'placed', limit: 20 }).then((r) => {
+                for (const row of r?.items || []) {
+                    const id = String(row._id || row.id);
+                    if (seen.current.has(id)) continue;
+                    seen.current.add(id);
+                    fetchOrder(id).then((o) => { if (o?.status === 'placed') setQueue((q) => (q.some((x) => String(x.id) === id) ? q : [...q, o])); }).catch(() => { });
+                }
+            }).catch(() => { });
+        };
+        catchUp();
+        const sub = AppState.addEventListener('change', (st) => { if (st === 'active') catchUp(); });
+        return () => { offTap(); offNew(); offUpd(); sub.remove(); };
     }, [on, drop, showOne]);
 
     const order = queue[0];
@@ -107,8 +122,8 @@ export default function NewOrderPopup({ navRef }) {
                             <Ionicons name={order.cancelled ? 'close-circle' : 'flash'} size={22} color={order.cancelled ? error : (warn || primary)} />
                         </View>
                         <View style={{ flex: 1, marginLeft: 12 }}>
-                            <Text style={{ color: text, fontSize: 20, fontWeight: '900' }}>{order.cancelled ? tr('Order #{orderNo} cancelled', { orderNo: order.orderNo }) : tr('New order #{orderNo}', { orderNo: order.orderNo })}</Text>
-                            <Text style={{ color: muted, fontSize: 12, marginTop: 1 }}>{[TYPE[order.orderType], order.orderType === 'dine_in' && order.tableNo ? `Table ${order.tableNo}` : null, order.customer?.name, order.cancelled ? (order.cancelledBy ? `Cancelled by ${order.cancelledBy}` : null) : order.info ? 'Auto accepted' : null].filter(Boolean).join(' · ')}</Text>
+                            <Text style={{ color: text, fontSize: 20, fontWeight: '900' }}>{order.cancelled ? tr('Order #{orderNo} cancelled', { orderNo: order.orderNo }) : order.done ? tr('Order #{orderNo} is already {status}', { orderNo: order.orderNo, status: String(flow.statusLabel(order.status) || order.status).toLowerCase() }) : tr('New order #{orderNo}', { orderNo: order.orderNo })}</Text>
+                            <Text style={{ color: muted, fontSize: 12, marginTop: 1 }}>{[TYPE[order.orderType], order.orderType === 'dine_in' && order.tableNo ? `Table ${order.tableNo}` : null, order.customer?.name, order.cancelled ? (order.cancelledBy ? `Cancelled by ${order.cancelledBy}` : null) : order.done ? null : order.info ? 'Auto accepted' : null].filter(Boolean).join(' · ')}</Text>
                         </View>
                         <Pressable onPress={() => drop(order.id)} hitSlop={12}><Ionicons name="close" size={24} color={muted} /></Pressable>
                     </View>

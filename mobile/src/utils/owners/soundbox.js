@@ -28,6 +28,7 @@ import { fetchOrders, fetchOrder } from '../../api/owners/shopApi';
 import { fetchKitchenOrders } from '../../api/staff/staffApi';
 import { buildGreeting } from './greetings';
 import { useAlertPrefs, alertOn } from '../../store/common/useAlertPrefs';
+import { showSlider } from '../../components/common/AlertSliderHost';
 
 const SPEECH_TIMEOUT_MS = 20000;
 const WAKE_TAG = 'soundbox';
@@ -559,6 +560,20 @@ export function wasSaid(type, data) {
     return !!type && idsOf(data).some((id) => (saidAt.get(normType(type) + '|' + id) || 0) > limit);
 }
 
+// An alert whose notification was just tapped: the same alert arriving live a moment later (the app was closed) is not rung or read again.
+const tappedAt = new Map();
+const TAPPED_MS = 2 * 60 * 1000;
+export function markTapped(type, data) {
+    if (!type) return;
+    const now = Date.now();
+    for (const id of idsOf(data)) tappedAt.set(normType(type) + '|' + id, now);
+    for (const [k, t] of tappedAt) if (t < now - TAPPED_MS) tappedAt.delete(k);
+}
+export function wasTapped(type, data) {
+    const limit = Date.now() - TAPPED_MS;
+    return !!type && idsOf(data).some((id) => (tappedAt.get(normType(type) + '|' + id) || 0) > limit);
+}
+
 // Say what a notification carries, in the voice and language chosen on the Soundbox screen (a tap on it, or a rider's alert). Once only:
 // if it was already read (the app was open when it arrived) nothing is said.
 export async function sayAlert(type, data) {
@@ -778,7 +793,13 @@ async function syncWaiting() {
         try {
             const q = await fetchKitchenOrders();
             const ids = new Set();
-            for (const o of q.items || []) if (o.stage === 'new') { ids.add(String(o.id)); raise({ orderId: o.id, orderNo: o.orderNo, speech: o.speech, speechHi: o.speechHi }); }
+            for (const o of q.items || []) {
+                if (o.stage !== 'new') continue;
+                ids.add(String(o.id));
+                // an order that came in while the app was closed: the slider catches up too (once), unless the live alert already showed it
+                if (!wasSaid('new', { orderNo: o.orderNo, orderId: o.id })) showSlider({ key: 'new:' + o.orderNo, type: 'new', title: 'New order ' + o.orderNo, body: o.speech || '', data: { orderNo: o.orderNo, orderId: String(o.id) }, once: true });
+                raise({ orderId: o.id, orderNo: o.orderNo, speech: o.speech, speechHi: o.speechHi });
+            }
             for (const id of [...pending.keys()]) if (!ids.has(id)) dismiss(id);
         } catch (e) { /* offline: the socket and the push still work */ }
         return;

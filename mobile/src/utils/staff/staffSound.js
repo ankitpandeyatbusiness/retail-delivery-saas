@@ -4,7 +4,7 @@
 import { AppState } from 'react-native';
 import * as Speech from 'expo-speech';
 import { buzz } from '../common/sfx';
-import { staffSay, markSaid } from '../owners/soundbox';
+import { staffSay, markSaid, wasTapped } from '../owners/soundbox';
 import { showSlider } from '../../components/common/AlertSliderHost';
 import { alertOn } from '../../store/common/useAlertPrefs';
 import { useStaffSoundStore } from '../../store/staff/useStaffSoundStore';
@@ -47,6 +47,7 @@ export function staffAlert(a, { force } = {}) {
         if (!a?.kind) return;
         if (!force && AppState.currentState !== 'active') return;   // the push rings for a phone in a pocket
         if (!force && useStaffStore.getState().me?.onDuty === false) return;   // off duty: no sound and no popup
+        if (!force && wasTapped(a.kind, a)) return;   // its notification was just tapped: that already showed and said it
         const st = useStaffSoundStore.getState();
         const key = `${a.kind}:${a.orderNo ?? a.table ?? ''}`;
         const now = Date.now();

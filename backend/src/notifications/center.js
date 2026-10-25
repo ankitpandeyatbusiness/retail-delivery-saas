@@ -56,8 +56,9 @@ const ALREADY_SPOKEN = ['order_new', 'order_unaccepted_reminder', 'order_cancell
 // partner on the way, an offer from the shop (Remind / broadcast), and one "brand" tone for everything else from this app
 function customerTone(eventKey, ctx) {
     const st = ctx.data?.status;
-    if (eventKey === 'order_status' && st === 'accepted') return ['cust_accepted_v1', 'cust_accepted'];
-    if (eventKey === 'order_status' && st === 'cancelled') return ['cust_cancelled_v1', 'cust_cancelled'];
+    // the same sounds the customer already hears inside the app (assets/sounds/order_accepted.wav and order_cancelled.wav)
+    if (eventKey === 'order_status' && st === 'accepted') return ['cust_accepted_v2', 'order_accepted'];
+    if (eventKey === 'order_status' && st === 'cancelled') return ['cust_cancelled_v2', 'order_cancelled'];
     if (eventKey === 'rider_assigned') return ['cust_rider_v1', 'cust_rider'];
     if (eventKey === 'shop_nudge' || eventKey === 'broadcast') return ['cust_offer_v1', 'cust_offer'];
     return ['cust_brand_v1', 'cust_brand'];

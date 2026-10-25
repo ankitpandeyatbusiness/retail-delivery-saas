@@ -1,11 +1,13 @@
-// One slider: a card that slides up from the bottom over the app with an alert's title and words.
+// One slider: the same sheet as the new-order one (components/owners/NewOrderPopup.jsx) - full width, rounded top, a grip bar, an icon, a big title.
 //   - an alert that only informs closes by itself after `sec` seconds; a bar across the top counts it down (like a WhatsApp status)
-//   - touch and hold it anywhere: the bar waits, so it can be read.  Double-tap: it stays until the next double-tap.
+//   - touch and hold it anywhere: the bar waits, so it can be read.  Double-tap: the bar stops where it is and stays until the next double-tap.
 //   - swipe it down: it goes away at once
 //   - "Turn off this slider" switches this alert's slider off for good (Alerts screen turns it on again)
-// sec 0 = it needs an answer: no bar, no timer, it stays until the person closes it.
+// sec 0 = it needs an answer: no bar, no timer, it stays until the person acts or closes it.
+// `actions` = [{ label, onPress, kind }] answers shown as text buttons (Approve / Reject). Everything is drawn without a shadow and without
+// dimming the screen, so the app behind stays usable.
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Animated, PanResponder, Easing, Pressable } from 'react-native';
+import { View, Text, Animated, PanResponder, Easing, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand, alpha } from './kit';
@@ -14,8 +16,8 @@ import { tr } from '../../i18n';
 const DOUBLE_TAP_MS = 320;
 const TAP_MS = 250;
 
-export default function AlertSlider({ item, sec, onClose, onOpen, onTurnOff }) {
-    const { surface, text, muted, primary, border, onPrimary } = useBrand();
+export default function AlertSlider({ item, sec, onClose, onOpen, onTurnOff, actions }) {
+    const { surface, text, muted, primary, border, onPrimary, error } = useBrand();
     const insets = useSafeAreaInsets();
     const timed = sec > 0;
     const total = sec * 1000;
@@ -54,7 +56,7 @@ export default function AlertSlider({ item, sec, onClose, onOpen, onTurnOff }) {
     }, []);
 
     const pan = useRef(PanResponder.create({
-        // a button inside takes its own touch first; anywhere else on the card, this one holds, taps and drags
+        // a button inside takes its own touch first; anywhere else on the sheet, this one holds, taps and drags
         onStartShouldSetPanResponder: () => true,
         onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 6,
         onPanResponderGrant: () => { touchAt.current = Date.now(); holding.current = true; if (timed) pause(); },
@@ -74,48 +76,60 @@ export default function AlertSlider({ item, sec, onClose, onOpen, onTurnOff }) {
         onPanResponderTerminate: () => { holding.current = false; Animated.spring(drag, { toValue: 0, useNativeDriver: true }).start(); if (timed && !pinnedRef.current) run(); },
     })).current;
 
-    const translateY = Animated.add(slide.interpolate({ inputRange: [0, 1], outputRange: [320, 0] }), drag);
+    const translateY = Animated.add(slide.interpolate({ inputRange: [0, 1], outputRange: [360, 0] }), drag);
+    const pad = Math.max(insets.bottom, 12) + 10;
     return (
-        <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 12, paddingBottom: insets.bottom + 10 }}>
+        <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 1000, elevation: 1000 }}>
             <Animated.View
                 {...pan.panHandlers}
-                style={{
-                    transform: [{ translateY }], backgroundColor: surface, borderRadius: 22, overflow: 'hidden',
-                    borderWidth: 1, borderColor: alpha(primary, 0.35), elevation: 24, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 14, shadowOffset: { width: 0, height: 6 },
-                }}
+                style={[s.sheet, { transform: [{ translateY }], backgroundColor: surface, borderColor: border, paddingBottom: pad }]}
             >
                 {timed ? (
-                    <View style={{ height: 4, backgroundColor: alpha(primary, 0.15) }}>
-                        {pinned
-                            ? <View style={{ height: 4, backgroundColor: primary }} />
-                            : <Animated.View style={{ height: 4, backgroundColor: primary, width: bar.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }} />}
+                    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, backgroundColor: alpha(primary, 0.15) }}>
+                        {/* the bar is never swapped or restarted: pinned or held, it simply stays where it is */}
+                        <Animated.View style={{ height: 3, backgroundColor: primary, width: bar.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }} />
                     </View>
                 ) : null}
-                <View style={{ padding: 16 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: alpha(primary, 0.15), alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
-                            <Ionicons name="notifications" size={19} color={primary} />
-                        </View>
-                        <Text style={{ color: text, fontSize: 16, fontWeight: '900', flex: 1 }} numberOfLines={2}>{item.title}</Text>
-                        {pinned ? <Ionicons name="pin" size={16} color={primary} style={{ marginLeft: 8 }} /> : null}
+                <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: border, marginBottom: 12 }} />
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: alpha(primary, 0.16), alignItems: 'center', justifyContent: 'center' }}>
+                        <Ionicons name="notifications" size={22} color={primary} />
                     </View>
-                    {item.body ? <Text style={{ color: muted, fontSize: 14, marginTop: 10, lineHeight: 20 }} numberOfLines={4}>{item.body}</Text> : null}
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14 }}>
-                        <Pressable onPress={onTurnOff} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }} accessibilityRole="button">
-                            <Ionicons name="notifications-off-outline" size={15} color={muted} />
-                            <Text style={{ color: muted, fontSize: 12.5, fontWeight: '700', marginLeft: 6 }}>{tr('Turn off this slider')}</Text>
-                        </Pressable>
-                        {onOpen ? (
-                            <Pressable onPress={onOpen} style={{ backgroundColor: primary, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 12, marginLeft: 10 }} accessibilityRole="button">
-                                <Text style={{ color: onPrimary, fontWeight: '800' }}>{tr('Open')}</Text>
-                            </Pressable>
-                        ) : null}
-                        <Pressable onPress={close} style={{ borderWidth: 1, borderColor: border, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 12, marginLeft: 10 }} accessibilityRole="button">
-                            <Text style={{ color: text, fontWeight: '800' }}>{tr('OK')}</Text>
-                        </Pressable>
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={{ color: text, fontSize: 20, fontWeight: '900' }} numberOfLines={2}>{item.title}</Text>
                     </View>
+                    {pinned ? <Ionicons name="pin" size={18} color={primary} style={{ marginRight: 10 }} /> : null}
+                    <Pressable onPress={close} hitSlop={12} accessibilityRole="button" accessibilityLabel={tr('Close')}><Ionicons name="close" size={24} color={muted} /></Pressable>
                 </View>
+                {item.body ? <Text style={{ color: muted, fontSize: 14.5, marginTop: 12, lineHeight: 21 }} numberOfLines={5}>{item.body}</Text> : null}
+
+                <View style={{ flexDirection: 'row', marginTop: 16 }}>
+                    {(actions || []).map((a, i) => (
+                        <Pressable
+                            key={a.label}
+                            onPress={a.onPress}
+                            accessibilityRole="button"
+                            style={{ flex: 1, minHeight: 46, alignItems: 'center', justifyContent: 'center', borderRadius: 14, marginRight: i < actions.length - 1 || onOpen ? 8 : 0, backgroundColor: a.kind === 'danger' ? alpha(error, 0.14) : primary, borderWidth: a.kind === 'danger' ? 1 : 0, borderColor: alpha(error, 0.5) }}
+                        >
+                            <Text style={{ color: a.kind === 'danger' ? error : onPrimary, fontWeight: '900', fontSize: 15 }}>{a.label}</Text>
+                        </Pressable>
+                    ))}
+                    {onOpen ? (
+                        <Pressable onPress={onOpen} accessibilityRole="button" style={{ flex: 1, minHeight: 46, alignItems: 'center', justifyContent: 'center', borderRadius: 14, borderWidth: 1, borderColor: border }}>
+                            <Text style={{ color: text, fontWeight: '800', fontSize: 15 }}>{tr('View')}</Text>
+                        </Pressable>
+                    ) : null}
+                </View>
+                <Pressable onPress={onTurnOff} hitSlop={8} style={{ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', marginTop: 14 }} accessibilityRole="button">
+                    <Ionicons name="notifications-off-outline" size={15} color={muted} />
+                    <Text style={{ color: muted, fontSize: 12.5, fontWeight: '700', marginLeft: 6 }}>{tr('Turn off this slider')}</Text>
+                </Pressable>
             </Animated.View>
         </View>
     );
 }
+
+const s = StyleSheet.create({
+    // the same shape as the new-order sheet, but flat: no shadow
+    sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, borderTopWidth: StyleSheet.hairlineWidth, padding: 18, overflow: 'hidden' },
+});

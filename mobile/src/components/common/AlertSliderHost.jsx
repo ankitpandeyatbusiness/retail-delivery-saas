@@ -11,8 +11,11 @@ import { onNotification } from '../../api/common/socket';
 import { ownerRoute } from '../../utils/owners/notificationRoute';
 import { themedAlert } from './dialog';
 import { showToast } from '../customers/shop';
+import { decideStaffLeave, decideLeave, apiError } from '../../api/owners/shopApi';
 import AlertSlider from './AlertSlider';
 import { tr } from '../../i18n';
+
+const shownOnce = new Set();   // catch-up sliders (an alert that arrived while the app was closed) are shown once, not on every return to the app
 
 const OWN_SHEET = ['order_new', 'order_unaccepted_reminder', 'order_cancelled', 'kitchen_problem', 'pickup_time_request', 'order_cancel_request'];
 
@@ -31,8 +34,13 @@ export async function turnOffSlider(type) {
 }
 
 // a slider for one alert, if its Slider switch is on
-export function showSlider({ key, type, title, body, data }) {
+export function showSlider({ key, type, title, body, data, once }) {
     if (!type || !alertOn(type, 'p')) return;
+    if (once) {
+        if (shownOnce.has(String(key))) return;
+        shownOnce.add(String(key));
+        if (shownOnce.size > 200) shownOnce.delete(shownOnce.values().next().value);
+    }
     const sec = alertSeconds(type);
     useSliderStore.getState().push({ key: String(key || `${type}:${Date.now()}`), type, title, body, data: data || {}, sticky: sec === 0 });
 }
@@ -61,6 +69,15 @@ export default function AlertSliderHost({ navRef }) {
     const to = role === 'admin' ? ownerRoute({ type: item.type, data: item.data })
         : role === 'rider' && item.data?.orderId ? { name: 'OrderDetail', params: { id: String(item.data.orderId) } } : null;
     const open = to ? () => { next(); if (navRef?.isReady?.()) navRef.navigate(to.name, to.params); } : undefined;
+    // a leave request asks a question: the answers are right on the slider
+    const d = item.data || {};
+    const answer = (call, approve) => async () => {
+        try { await call(approve); next(); showToast(approve ? tr('Leave approved') : tr('Leave not approved')); } catch (e) { showToast(apiError(e)); }
+    };
+    const decide = role === 'admin' && d.leaveId && (item.type === 'staff_leave_request' || item.type === 'rider_leave_request')
+        ? (item.type === 'staff_leave_request' ? (approve) => decideStaffLeave(d.leaveId, approve) : (approve) => decideLeave(d.leaveId, { approve }))
+        : null;
+    const actions = decide ? [{ label: tr('Approve'), onPress: answer(decide, true) }, { label: tr('Reject'), kind: 'danger', onPress: answer(decide, false) }] : undefined;
     // the key makes a new slider start fresh (its bar and its slide) when the one before it has gone
-    return <AlertSlider key={item.key} item={item} sec={alertSeconds(item.type)} onClose={next} onOpen={open} onTurnOff={() => { next(); turnOffSlider(item.type); }} />;
+    return <AlertSlider key={item.key} item={item} sec={alertSeconds(item.type)} onClose={next} onOpen={open} actions={actions} onTurnOff={() => { next(); turnOffSlider(item.type); }} />;
 }

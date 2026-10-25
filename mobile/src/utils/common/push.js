@@ -16,7 +16,9 @@ import { useNotificationStore } from '../../store/common/useNotificationStore';
 import { registerDevice, removeDevice } from '../../api/common/notificationApi';
 import { onNotification, realtimeConnected } from '../../api/common/socket';
 import { showToast } from '../../components/customers/shop';
-import { speakOnOpen, isNewsType, sayAlert, markSaid } from '../owners/soundbox';
+import { speakOnOpen, isNewsType, sayAlert, markSaid, markTapped, acknowledge } from '../owners/soundbox';
+import { showSlider } from '../../components/common/AlertSliderHost';
+import { fetchOrder } from '../../api/owners/shopApi';
 import { useSoundboxStore } from '../../store/owners/useSoundboxStore';
 import { useOwedPrompt } from '../../store/customers/useOwedPrompt';
 import { playSfx, buzz } from './sfx';
@@ -98,9 +100,18 @@ const dataOf = (resp) => {
     return c?.data || resp?.notification?.request?.trigger?.remoteMessage?.data || {};
 };
 
+// the notification's own words as a slider (for the ones that have no screen of their own to open)
+function showTapSlider(resp, data) {
+    const c = resp?.notification?.request?.content || {};
+    const type = String(data.type || '');
+    if (!type) return;
+    showSlider({ key: `tap:${data.nid || type}:${data.orderId || data.table || ''}`, type, title: c.title, body: c.body, data });
+}
+
 // A notification was tapped: open its order. For the owner's new-order push, Soundbox mode also reads it out.
 function handleTap(resp) {
     const data = dataOf(resp);
+    markTapped(String(data.type || ''), data);   // the same alert arriving live a moment later (the app was closed) must not ring and speak again
     // the voice on a tap is the same one as with the app open, unless it was already read when the alert arrived (the new-order one is read below)
     const who = useAuthStore.getState().user?.role;
     const tapType = String(data.type || '');
@@ -113,22 +124,25 @@ function handleTap(resp) {
     // the owner: every push that has somewhere to go opens it (an order, a complaint, the bill, the SMS balance, a help request...)
     if (useAuthStore.getState().user?.role === 'admin') {
         if (['order_new', 'order_unaccepted_reminder', 'order_cancelled'].includes(String(data.type)) && data.orderId) {
-            if (data.type !== 'order_cancelled') speakOnOpen(data).catch(() => { });
+            if (data.type !== 'order_cancelled') {
+                // look at the order first: if it was dealt with meanwhile, nothing rings or speaks, and the sheet says what happened instead
+                fetchOrder(String(data.orderId))
+                    .then((o) => { if (o && o.status !== 'placed') acknowledge(data.orderId); else speakOnOpen(data).catch(() => { }); })
+                    .catch(() => speakOnOpen(data).catch(() => { }));
+            }
             showOrderPopup(data.orderId, data.type === 'order_cancelled' ? 'cancelled' : 'new');
             return;
         }
-        if (data.type === 'order_new' || data.type === 'order_unaccepted_reminder') speakOnOpen(data).catch(() => { });
         const to = ownerRoute({ type: data.type, data });
         if (to) { openScreen(to.name, to.params); return; }
+        showTapSlider(resp, data);   // nothing to open: its words show as a slider
+        return;
     }
-    // a cook's or waiter's push: the work screen is their home, there is no order page for them
-    if (['kitchen', 'waiter'].includes(useAuthStore.getState().user?.role)) return;
+    // a cook's or waiter's push: the work screen is their home, there is no order page for them; the alert shows as a slider
+    if (['kitchen', 'waiter'].includes(useAuthStore.getState().user?.role)) { showTapSlider(resp, data); return; }
     // a customer's reminder about the bill he left unpaid: open the bill with the Pay button
     if (/^owed_/.test(String(data.type || '')) || data.type === 'table_walkout') { useOwedPrompt.getState().show(); return; }
     if (!data.orderId) return;
-    if (useAuthStore.getState().user?.role === 'admin' && (data.type === 'order_new' || data.type === 'order_unaccepted_reminder')) {
-        speakOnOpen(data).catch(() => { });
-    }
     openOrder(data.orderId);
 }
 
@@ -184,7 +198,7 @@ async function getToken() {
     // the customer's own tones: accepted, cancelled, a delivery partner on the way, an offer from the shop, and this app's signature tone for the rest
     if (who === 'customer') {
         const mine = { importance: Notifications.AndroidImportance.HIGH, lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC };
-        for (const [id, name, file] of [['cust_brand_v1', 'Order updates', 'cust_brand.wav'], ['cust_accepted_v1', 'Order accepted', 'cust_accepted.wav'], ['cust_cancelled_v1', 'Order cancelled', 'cust_cancelled.wav'], ['cust_rider_v1', 'Delivery partner', 'cust_rider.wav'], ['cust_offer_v1', 'Offers from the shop', 'cust_offer.wav']]) {
+        for (const [id, name, file] of [['cust_brand_v1', 'Order updates', 'cust_brand.wav'], ['cust_accepted_v2', 'Order accepted', 'order_accepted.wav'], ['cust_cancelled_v2', 'Order cancelled', 'order_cancelled.wav'], ['cust_rider_v1', 'Delivery partner', 'cust_rider.wav'], ['cust_offer_v1', 'Offers from the shop', 'cust_offer.wav']]) {
             try { await Notifications.setNotificationChannelAsync(id, { ...mine, name, sound: file }); } catch (e) { /* the push then lands on the default channel */ }
         }
     }

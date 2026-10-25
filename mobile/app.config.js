@@ -180,7 +180,7 @@ export default {
       ['expo-notifications', {
         defaultChannel: 'orders',
         color: currentConfig.backgroundColor,
-        sounds: ['./assets/sounds/new_order.wav', './assets/sounds/ting_tong.wav', './assets/sounds/notify.wav', './assets/sounds/cancel_alert.wav', './assets/sounds/help_alarm.wav', './assets/sounds/cust_brand.wav', './assets/sounds/cust_accepted.wav', './assets/sounds/cust_cancelled.wav', './assets/sounds/cust_rider.wav', './assets/sounds/cust_offer.wav'],
+        sounds: ['./assets/sounds/new_order.wav', './assets/sounds/ting_tong.wav', './assets/sounds/notify.wav', './assets/sounds/cancel_alert.wav', './assets/sounds/help_alarm.wav', './assets/sounds/cust_brand.wav', './assets/sounds/order_accepted.wav', './assets/sounds/order_cancelled.wav', './assets/sounds/cust_rider.wav', './assets/sounds/cust_offer.wav'],
       }],
       // the Soundbox only plays while the app is open: no background playback service
       ['expo-audio', { enableBackgroundPlayback: false }],
