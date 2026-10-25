@@ -34,6 +34,7 @@ export const fetchSummary = () => d(api.get('/rider/summary'));   // { earnings,
 export const fetchMoney = () => d(api.get('/rider/money'));
 // the help button: the shop is told at once (name, phone, order, last position)
 export const sendSos = (orderId) => d(api.post('/rider/sos', orderId ? { orderId } : {}));
+export const sendPinSms = (id) => d(api.post(`/rider/orders/${id}/send-pin`));   // the customer gets the delivery PIN by SMS
 export const markArrived = (id) => d(api.post(`/rider/orders/${id}/arrived`));
 // he cannot finish a delivery he is carrying (after pickup): cancel it. reasonCode is from the list; the note is optional.
 export const cancelDelivery = (id, reasonCode, note) => d(api.post(`/rider/orders/${id}/cancel`, { reasonCode, note }));

@@ -130,6 +130,7 @@ export default function OwnerOrdersScreen() {
                                 setTimeout(() => useOwnerStore.getState().refresh?.(), 1200);   // the Orders tab stops blinking once nothing is left
                             }}
                             onAdvance={actions.advance}
+                            onFoodReady={actions.foodReady}
                             onReject={actions.requestReject}
                         />
                     </View>

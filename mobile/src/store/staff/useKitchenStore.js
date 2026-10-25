@@ -1,7 +1,8 @@
 // What the kitchen screen shows: the orders to make and the ones that are ready. One load() asks the server; actions change the card at once
 // (so the cook sees it move) and the answer from the server replaces it. A failed action puts the card back.
 import { create } from 'zustand';
-import { fetchKitchenOrders, kitchenStart, kitchenReady, kitchenUndo } from '../../api/staff/staffApi';
+import { fetchKitchenOrders, kitchenStart, kitchenReady, kitchenQueue, kitchenUndo } from '../../api/staff/staffApi';
+import { dismiss } from '../../utils/owners/soundbox';
 import { staffAlert } from '../../utils/staff/staffSound';
 import { readCache, writeCache } from '../../utils/common/cache';
 import { useAuthStore } from '../common/useAuthStore';
@@ -28,7 +29,8 @@ export const useKitchenStore = create((set, get) => ({
             if (mine !== seq) return;
             const fresh = new Set(r.items.filter((o) => o.stage === 'new').map((o) => o.id));
             // a new order after the first load rings (the live message normally did already: one alert sounds once; the push covers a pocket)
-            if (known) r.items.filter((o) => o.stage === 'new' && !known.has(o.id)).forEach((o) => staffAlert({ kind: 'new', orderNo: o.orderNo }));
+            r.items.filter((o) => o.queued).forEach((o) => dismiss(o.id));   // in the queue: it does not ring any more
+            if (known) r.items.filter((o) => o.stage === 'new' && !o.queued && !known.has(o.id)).forEach((o) => staffAlert({ kind: 'new', orderNo: o.orderNo }));
             known = fresh;
             set({ items: r.items, counts: r.counts, rules: r.rules, state: 'ok', loadedAt: Date.now() });
             writeCache(KEY(), { items: r.items, counts: r.counts, rules: r.rules });
@@ -46,10 +48,11 @@ export const useKitchenStore = create((set, get) => ({
         const before = get().items;
         set((st) => ({
             busy: { ...st.busy, [id]: true },
-            items: st.items.map((o) => (o.id === id ? { ...o, stage: STAGE_AFTER[kind], ...(kind === 'ready' ? { readyAt: new Date().toISOString() } : { startedAt: new Date().toISOString() }) } : o)),
+            items: st.items.map((o) => (o.id === id ? (kind === 'queue' ? { ...o, queued: true } : { ...o, stage: STAGE_AFTER[kind], ...(kind === 'ready' ? { readyAt: new Date().toISOString() } : { startedAt: new Date().toISOString() }) }) : o)),
         }));
         try {
-            const r = await (kind === 'start' ? kitchenStart(id) : kitchenReady(id));
+            if (kind === 'queue') dismiss(id);   // it stops ringing at once
+            const r = await (kind === 'start' ? kitchenStart(id) : kind === 'queue' ? kitchenQueue(id) : kitchenReady(id));
             set((st) => ({ items: st.items.map((o) => (o.id === id ? r.order : o)) }));
             get().load();   // the counts and the order of the list come from the server
             return r;

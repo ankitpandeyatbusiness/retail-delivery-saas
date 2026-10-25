@@ -23,6 +23,7 @@ export const saveStaffName = (name) => d(api.patch('/staff/me', { name }));
 // The kitchen (role "kitchen"): { items, counts, rules, now }
 export const fetchKitchenOrders = () => d(api.get('/staff/kitchen/orders'));
 export const kitchenStart = (id) => d(api.post(`/staff/kitchen/orders/${id}/start`));   // { already, by?, ago?, order }
+export const kitchenQueue = (id) => d(api.post(`/staff/kitchen/orders/${id}/queue`));   // "Add to queue": it stops ringing
 export const kitchenReady = (id) => d(api.post(`/staff/kitchen/orders/${id}/ready`));
 export const kitchenUndo = (id) => d(api.post(`/staff/kitchen/orders/${id}/undo`));   // takes the last Start cooking / Ready back
 export const kitchenProblem = (id, body) => d(api.post(`/staff/kitchen/orders/${id}/problem`, body));   // { kind: 'out_of_stock' | 'cannot_make' | 'other', note?, productId? }

@@ -24,7 +24,7 @@ import SwipeButton from '../../components/riders/SwipeButton';
 import DeliveredView from '../../components/riders/DeliveredView';
 import { useRiderStore } from '../../store/riders/useRiderStore';
 import {
-    fetchRiderOrder, fetchRoute, cancelDelivery, pickupOrder, undoPickup, markArrived, deliverOrder, reportProblem, releaseOrder, startDoorPay, checkDoorPay,
+    fetchRiderOrder, fetchRoute, cancelDelivery, pickupOrder, undoPickup, markArrived, deliverOrder, reportProblem, releaseOrder, startDoorPay, checkDoorPay, sendPinSms,
 } from '../../api/riders/riderApi';
 import { takeAndUploadProof } from '../../utils/riders/riderPhotos';
 import { startRiderTracking } from '../../utils/riders/locationTask';
@@ -34,6 +34,15 @@ import { tr } from '../../i18n';
 import KeyboardScroll from '../../components/common/KeyboardScroll';
 
 const POLL_MS = 5000;
+// why the PIN could not be used (the owner reads it, and it is kept in the log)
+const SKIP_REASONS = [
+    ['customer_no_phone', 'The customer has no phone with them'],
+    ['app_not_opening', 'The customer app is not opening'],
+    ['pin_not_showing', 'The PIN is not showing for the customer'],
+    ['customer_cannot_find', 'The customer cannot find the PIN'],
+    ['handed_to_family', 'Handed to a family member or a guard'],
+    ['other', 'Another reason'],
+];
 const STEP_LABELS = [T.stepCollect, T.stepGo, T.stepDeliver];
 
 // where he is right now (the server uses it to check he is near the customer). null when the phone cannot say.
@@ -60,6 +69,8 @@ export default function RiderTripScreen() {
     const [busy, setBusy] = useState('');
     const [sheet, setSheet] = useState(null);   // 'pin' | 'problem'
     const [pin, setPin] = useState('');
+    const [skipReason, setSkipReason] = useState('');   // delivering without the PIN: why
+    const [skipNote, setSkipNote] = useState('');
     const [qr, setQr] = useState(null);
     const [offline, setOffline] = useState(false);   // the last ask for this order got no answer at all
     const [sosOpen, setSosOpen] = useState(false);
@@ -202,11 +213,11 @@ export default function RiderTripScreen() {
     };
 
     // the delivery itself: photo (when the shop has no PIN), PIN, where he is, and "deliver anyway" when he is far
-    const doDeliver = async (pinValue, farOk) => {
+    const doDeliver = async (pinValue, farOk, skip) => {
         setBusy('deliver');
         try {
             const here = await currentSpot();
-            const r = await deliverOrder(orderId, pinValue, { ...here, ...(farOk ? { farOk: true } : {}) });
+            const r = await deliverOrder(orderId, pinValue, { ...here, ...(farOk ? { farOk: true } : {}), ...(skip ? { skipPin: true, skipReason: skip.reason, skipNote: skip.note } : {}) });
             setSheet(null);
             sync(r);
         } catch (e) {
@@ -214,7 +225,7 @@ export default function RiderTripScreen() {
             if (body?.code === 'TOO_FAR') {
                 setSheet(null);
                 setBusy('');
-                if (await ask({ title: T.farTitle, message: body.error, confirmText: T.farDeliver })) await doDeliver(pinValue, true);
+                if (await ask({ title: T.farTitle, message: body.error, confirmText: T.farDeliver })) await doDeliver(pinValue, true, skip);
                 return;
             }
             // the delivery may have gone through and only the answer got lost: look before saying it failed
@@ -233,6 +244,23 @@ export default function RiderTripScreen() {
         }
         if (d.pinRequired) { setPin(''); setSheet('pin'); return; }
         await doDeliver(undefined, false);
+    };
+    // the customer's app is not opening: the PIN goes to him by SMS (from the shop's SMS balance, at most twice)
+    const sendPin = async () => {
+        const done = await run('smspin', async () => { await sendPinSms(orderId); return true; });
+        if (done) showToast(tr('The PIN was sent to the customer by SMS'));
+    };
+    // the PIN cannot be used: a reason from the list and the photo of the handover, then he delivers
+    const skipNow = async () => {
+        if (!skipReason) { showToast(tr('Choose why')); return; }
+        if (skipReason === 'other' && !skipNote.trim()) { showToast(tr('Please write a short note')); return; }
+        if (!d.proof) {
+            const take = await ask({ title: T.photoNeeded, message: tr('Take a photo of the food handed over. It is the proof when the PIN is not used.'), confirmText: T.takePhoto });
+            if (!take) return;
+            const got = await run('photo', async () => { const r = await takeAndUploadProof(orderId); if (r) await refresh(); return !!r; });
+            if (!got) return;
+        }
+        await doDeliver(undefined, false, { reason: skipReason, note: skipNote.trim() });
     };
     const addPhoto = () => run('photo', async () => { const r = await takeAndUploadProof(orderId); if (r) { showToast(T.photoSaved); await refresh(); } });
 
@@ -269,7 +297,7 @@ export default function RiderTripScreen() {
         );
     }
 
-    const ready = o.status === 'preparing' || o.status === 'ready';
+    const ready = (o.status === 'preparing' || o.status === 'ready') && o.foodReady !== false;   // the food must be ready: the cook (or the owner) marks it
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Order #{orderNo}', { orderNo: o.orderNo })} />
@@ -385,7 +413,26 @@ export default function RiderTripScreen() {
                 <View style={{ marginTop: 14 }}>
                     <BigButton label={T.confirmDelivery} onPress={() => doDeliver(pin, false)} busy={busy === 'deliver'} disabled={pin.length < 4} />
                 </View>
+                <SmallLink label={tr('Send the PIN to the customer by SMS')} icon="chatbubble-ellipses" onPress={sendPin} />
+                <SmallLink label={tr('The PIN does not work: deliver without it')} icon="alert-circle" danger onPress={() => { setSkipReason(''); setSkipNote(''); setSheet('skip'); }} />
                 {shopPhone ? <SmallLink label={T.callShop} icon="call" iconOnly onPress={callShop} /> : null}
+            </Sheet>
+
+            {/* delivering without the PIN: why (the owner reads it) */}
+            <Sheet visible={sheet === 'skip'} onClose={() => setSheet(null)} title={tr('Deliver without the PIN')}>
+                <Text style={{ color: muted, fontWeight: '600', marginBottom: 8 }}>{tr('Why can you not use the PIN? The owner will read this.')}</Text>
+                {SKIP_REASONS.map(([code, label]) => (
+                    <Pressable key={code} onPress={() => setSkipReason(code)} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 13, borderBottomWidth: 0.5, borderBottomColor: border }}>
+                        <Ionicons name={skipReason === code ? 'radio-button-on' : 'radio-button-off'} size={22} color={skipReason === code ? primary : muted} />
+                        <Text style={{ color: text, fontWeight: '700', fontSize: 15, marginLeft: 12, flex: 1 }}>{tr(label)}</Text>
+                    </Pressable>
+                ))}
+                {skipReason === 'other' ? (
+                    <TextInput value={skipNote} onChangeText={setSkipNote} maxLength={120} placeholder={tr('Write the reason')} placeholderTextColor={muted} style={{ marginTop: 10, borderWidth: 1, borderColor: border, backgroundColor: surface, color: text, borderRadius: 12, padding: 12 }} />
+                ) : null}
+                <View style={{ marginTop: 14 }}>
+                    <BigButton label={tr('Deliver without PIN')} onPress={skipNow} busy={busy === 'deliver' || busy === 'photo'} disabled={!skipReason} />
+                </View>
             </Sheet>
 
             {/* cancel the delivery he carries: a reason from the list (required), a note (optional) */}

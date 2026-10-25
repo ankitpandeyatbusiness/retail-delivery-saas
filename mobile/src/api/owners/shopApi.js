@@ -43,6 +43,7 @@ export const setAcceptingOrders = (acceptingOrders, extra = {}) => d(api.put('/s
 // the Orders tab was opened: everything under "Needs a look" counts as seen
 export const markLooksSeen = () => d(api.post('/shop/orders/look-seen'));
 // riders' leave: status 'pending' (default) | 'all'; decide with { approve: true | false, note? }
+export const markFoodReady = (id) => d(api.post(`/shop/orders/${id}/food-ready`));   // a delivery order's food is ready: it can now go out
 export const fetchLeaves = (status = 'pending') => d(api.get('/shop/riders/leaves', { params: { status } }));
 export const decideLeave = (id, body) => d(api.put(`/shop/riders/leaves/${id}`, body));
 // dine in: the tables board, one table's bill, and taking the payment (method: 'cash' | 'upi')

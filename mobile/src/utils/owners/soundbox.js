@@ -733,12 +733,12 @@ export async function staffSay(a, { force } = {}) {
         if (!force && !s.alwaysReady && AppState.currentState !== 'active') return;
         if (a.kind === 'done') { playSfx('notify'); return; }
         if (a.kind === 'new' && isCook() && a.orderId && !force) { raise({ orderId: a.orderId, orderNo: a.orderNo, speech: a.speech, speechHi: a.speechHi }); return; }
-        if (a.kind === 'cancel' && a.orderId) dismiss(a.orderId);
+        if ((a.kind === 'cancel' || a.kind === 'queued') && a.orderId) dismiss(a.orderId);   // a cancelled order, or one that went to the queue, stops ringing
         for (let i = 0; i < 16 && speaking; i += 1) await new Promise((r) => setTimeout(r, 500));   // one voice at a time; a cancel waits its turn
         if (speaking) return;
         note('staff alert: ' + a.kind);
         await ensureAudio();
-        if (force || alertOn(a.kind, 's')) playSfx(a.kind === 'cancel' ? 'cancelAlarm' : 'tingTong');
+        if (force || alertOn(a.kind, 's')) playSfx(a.kind === 'cancel' ? 'cancelAlarm' : a.kind === 'queued' ? 'notify' : 'tingTong');
         const language = await languageToUse();
         const said = language === 'hi' ? (a.speechHi || a.speech) : (a.speech || a.speechHi);
         if (!said) return;
@@ -800,6 +800,7 @@ async function syncWaiting() {
             for (const o of q.items || []) {
                 if (o.stage !== 'new') continue;
                 ids.add(String(o.id));
+                if (o.queued) continue;   // in the cook's queue: no slider and no ringing
                 // an order that came in while the app was closed: the slider catches up too (once), unless the live alert already showed it
                 if (!wasSaid('new', { orderNo: o.orderNo, orderId: o.id })) showSlider({ key: 'new:' + o.orderNo, type: 'new', title: 'New order ' + o.orderNo, body: o.speech || '', data: { orderNo: o.orderNo, orderId: String(o.id) }, once: true });
                 raise({ orderId: o.id, orderNo: o.orderNo, speech: o.speech, speechHi: o.speechHi });

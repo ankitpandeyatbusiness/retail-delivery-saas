@@ -41,7 +41,7 @@ async function snapshot(tenant) {
 
 // one order's place in the queue (or null when there is nothing to say)
 function infoFor(snap, order) {
-    if (!snap || !snap.types.includes(order.orderType)) return null;
+    if (!snap || order.orderType !== 'dine_in' || !snap.types.includes(order.orderType)) return null;   // only a table order shows its place in the kitchen queue
     if (order.kitchen?.readyAt || order.status === 'ready') return { stage: 'ready' };
     if (!WAITING.includes(order.status)) return null;
     const idx = snap.make.findIndex((o) => o.id === String(order._id));

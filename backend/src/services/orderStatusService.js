@@ -64,6 +64,12 @@ function needsRider(order, status) {
     if (!d.riderId || d.status === 'rejected') throw httpError(409, 'Assign a delivery partner first. The order can go out for delivery once someone is assigned.');
 }
 
+// A delivery order cannot be collected or sent out until the food is ready: the cook marked it, or the owner did ("Food is ready")
+function needsFood(order, status) {
+    if (status !== 'out_for_delivery' || order.orderType !== 'delivery') return;
+    if (!order.kitchen?.readyAt) throw httpError(409, 'The food is not ready yet. It can go out once the cook, or you, marks it ready.');
+}
+
 // Throws a clear error if this actor may not make this move
 function checkAllowed({ order, status, actor, note, tenant, reasonCode, now }) {
     switch (actor.type) {
@@ -79,6 +85,7 @@ function checkAllowed({ order, status, actor, note, tenant, reasonCode, now }) {
                 throw httpError(409, `This order is "${order.status}". It cannot move to "${status}".`);
             }
             needsRider(order, status);
+            needsFood(order, status);
             if (status === 'cancelled') {
                 if (!OWNER_CANCEL_REASONS.includes(reasonCode)) {
                     throw httpError(400, `Choose a reason for cancelling: ${OWNER_CANCEL_REASONS.join(', ')}`);
@@ -101,6 +108,7 @@ function checkAllowed({ order, status, actor, note, tenant, reasonCode, now }) {
                 throw httpError(409, `This order is already "${order.status}" and cannot be changed`);
             }
             needsRider(order, status);
+            needsFood(order, status);
             // the owner's normal next step, or a force to cancelled / delivered ("undelivered" is the owner's decision)
             if (!nextStatuses(order, now).filter((s) => s !== 'undelivered').includes(status) && !['cancelled', 'delivered'].includes(status)) {
                 throw httpError(400, 'Superadmin can move an order one step forward, or force it to cancelled or delivered');
@@ -159,6 +167,7 @@ function checkAllowed({ order, status, actor, note, tenant, reasonCode, now }) {
                 if (d.status !== 'accepted' || !['preparing', 'ready'].includes(order.status)) {
                     throw httpError(409, 'The order is not ready for pickup yet');
                 }
+                needsFood(order, status);
                 return;
             }
             if (status === 'delivered') {

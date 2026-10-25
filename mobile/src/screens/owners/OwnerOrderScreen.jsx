@@ -254,6 +254,12 @@ export default function OwnerOrderScreen() {
                                     <Text style={{ color: error, flex: 1, fontSize: 13 }}>{tr('Rider reported: {v1}{v2} · {v3}', { v1: String(pr.reason || '').replace(/_/g, ' '), v2: pr.note ? ` (${pr.note})` : '', v3: flow.clockTime(pr.at) })}</Text>
                                 </View>
                             ))}
+                            {order.delivery?.pinSkipped?.reason ? (
+                                <View style={{ flexDirection: 'row', marginTop: 8 }}>
+                                    <Ionicons name="alert-circle" size={16} color={warn} style={{ marginRight: 6, marginTop: 1 }} />
+                                    <Text style={{ color: warn, flex: 1, fontSize: 13, fontWeight: '700' }}>{tr('Delivered without the PIN: {reason}', { reason: tr(({ customer_no_phone: 'The customer has no phone with them', app_not_opening: 'The customer app is not opening', pin_not_showing: 'The PIN is not showing for the customer', customer_cannot_find: 'The customer cannot find the PIN', handed_to_family: 'Handed to a family member or a guard', other: 'Another reason' })[order.delivery.pinSkipped.reason] || 'Another reason') })}{order.delivery.pinSkipped.note ? ` (${order.delivery.pinSkipped.note})` : ''}</Text>
+                                </View>
+                            ) : null}
                             {rider?.phone ? (
                                 <Button label={tr('Call the rider')} icon="call" iconOnly kind="ghost" onPress={() => callPhone(rider.phone)} style={{ marginTop: 10 }} />
                             ) : null}
@@ -362,6 +368,12 @@ export default function OwnerOrderScreen() {
             {/* the buttons that move the order on: always in reach */}
             {next ? (
                 <View onLayout={(e) => setDockH(Math.ceil(e.nativeEvent.layout.height))} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, paddingBottom: 24, backgroundColor: background, borderTopWidth: 1, borderTopColor: alpha(muted, 0.25) }}>
+                    {order.orderType === 'delivery' && order.status === 'preparing' && order.foodReady === false ? (
+                        <>
+                            <Text style={{ color: warn, fontWeight: '800', fontSize: 13, marginBottom: 8, textAlign: 'center' }}>{tr('The food is not ready yet. It cannot go out until it is.')}</Text>
+                            <Button label={tr('Food is ready')} icon="checkmark-done" busy={busy} onPress={() => actions.foodReady(order)} style={{ marginBottom: 8 }} />
+                        </>
+                    ) : null}
                     {flow.needsRider(order, next) ? (
                         <Text style={{ color: warn, fontWeight: '800', fontSize: 13, marginBottom: 8, textAlign: 'center' }}>{tr('Assign a delivery partner first. Then you can send it out.')}</Text>
                     ) : null}
@@ -372,7 +384,7 @@ export default function OwnerOrderScreen() {
                         {isNew && flow.canCancel(order) ? (
                             <Button label={tr('Reject')} icon="close" iconOnly kind="ghost" disabled={busy} onPress={() => actions.requestReject(order)} style={{ width: 54 }} />
                         ) : null}
-                        <Button label={flow.riderHandles(order, next) ? (next === 'out_for_delivery' ? tr('I handed it over myself') : tr('Mark delivered myself')) : flow.stepLabel(order, next)} icon="checkmark" kind={flow.riderHandles(order, next) ? 'ghost' : 'primary'} busy={busy} disabled={flow.needsRider(order, next)} onPress={() => actions.advance(order)} style={{ flex: 1, marginLeft: isNew && flow.canCancel(order) ? 8 : 0 }} />
+                        <Button label={flow.riderHandles(order, next) ? (next === 'out_for_delivery' ? tr('I handed it over myself') : tr('Mark delivered myself')) : flow.stepLabel(order, next)} icon="checkmark" kind={flow.riderHandles(order, next) ? 'ghost' : 'primary'} busy={busy} disabled={flow.needsRider(order, next) || (order.orderType === 'delivery' && order.status === 'preparing' && order.foodReady === false && next === 'out_for_delivery')} onPress={() => actions.advance(order)} style={{ flex: 1, marginLeft: isNew && flow.canCancel(order) ? 8 : 0 }} />
                         {!isNew && flow.canCancel(order) ? (
                             <Button label={tr('Cancel this order')} icon="close" iconOnly kind="ghost" disabled={busy} onPress={() => actions.requestReject(order)} style={{ width: 54, marginLeft: 8 }} />
                         ) : null}

@@ -30,6 +30,10 @@ const TEMPLATES = {
         purpose: 'alert', vars: ['invoiceNo', 'amount', 'shop', 'date'],
         text: 'New bill {#var#} of Rs {#var#} for {#var#}. Please pay by {#var#} to keep taking orders.',
     },
+    delivery_pin: {
+        purpose: 'order', vars: ['orderNo', 'pin', 'shop'],
+        text: 'Your delivery PIN for order #{#var#} is {#var#}. Tell it to the delivery partner at your door. {#var#}',
+    },
     rider_sos: {
         purpose: 'alert', vars: ['riderName', 'phone'],
         text: 'Rider {#var#} pressed the help button. Call him now on {#var#}.',

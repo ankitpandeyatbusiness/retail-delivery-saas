@@ -97,6 +97,9 @@ const orderSchema = new Schema({
         offerExpiresAt: Date,
         pinRequired: { type: Boolean, default: false },   // shop setting copied when the rider is assigned
         pinAttempts: { type: Number, default: 0 },
+        pinSmsCount: { type: Number, default: 0 },   // how many times the rider had the PIN sent to the customer by SMS (at most twice)
+        pinSmsAt: Date,
+        pinSkipped: { _id: false, reason: String, note: String, at: Date },   // delivered without the PIN: why (the rider chose from a list)
         arrivedAt: Date,   // the rider tapped "I have arrived" at the customer
         plannedSec: Number,   // the time allowed for the journey, saved when the food is collected (services/deliveryPlan.js)
         dueAt: Date,          // collected + the time allowed
@@ -166,6 +169,7 @@ const orderSchema = new Schema({
         _id: false,
         startedAt: Date, startedBy: { type: Schema.Types.ObjectId }, startedByName: String,
         readyAt: Date, readyBy: { type: Schema.Types.ObjectId }, readyByName: String,
+        queuedAt: Date, queuedBy: String,   // the cook put it in his queue ("Add to queue"), or it went there by itself when nobody touched it (queuedBy 'auto')
         problem: { _id: false, kind: String, note: String, at: Date, byName: String, dish: String, handledAt: Date, handledAction: String },   // what the cook told the owner, and what the owner did about it (tell | cancel | dismiss)
         nudgedAt: Date, lateNudgedAt: Date, serveNudgedAt: Date,   // the nudges already sent for this order, each once (jobs/staffNudges.js)
     },

@@ -64,6 +64,7 @@ const view = (order) => ({
     ...order.toJSON(),
     allowedNext: svc.nextStatuses(order),
     riderAssigned: !!(order.delivery?.riderId && order.delivery?.status !== 'rejected'),   // a delivery order cannot go out without one
+    foodReady: order.orderType !== 'delivery' || !!order.kitchen?.readyAt,   // a delivery order cannot go out before its food is ready
     speech: orderSpeech(order),
     speechHi: orderSpeechHi(order),
     undo: require('../services/orderUndo').offer(order, 'owner'),   // { label, secondsLeft }: the last step can be undone
@@ -163,6 +164,13 @@ router.post('/orders/:id/kitchen-problem', wrap(async (req, res) => {
     const order = await Order.findOne({ _id: req.params.id, tenantId: req.tenant._id });
     if (!order) throw httpError(404, 'Order not found');
     res.json(await require('../services/kitchenService').resolve({ tenant: req.tenant, order, action: req.body?.action, message: req.body?.message, actor: actorOf(req) }));
+}));
+
+// the owner says the food of a delivery order is ready
+router.post('/orders/:id/food-ready', wrap(async (req, res) => {
+    if (!isId(req.params.id)) throw httpError(404, 'Order not found');
+    const r = await require('../services/kitchenService').ownerReady({ tenant: req.tenant, orderId: req.params.id, actor: actorOf(req) });
+    res.json(view(r.order));
 }));
 
 // undo the last step of an order (Accepted-to-cooking, Ready, Served, Picked up): the owner has 30 minutes, the superadmin 24 hours
@@ -483,6 +491,7 @@ router.get('/settings', wrap(async (req, res) => {
             tipOptions: cfg.orders.tipOptions || [],
             minOrder: cfg.orders.minOrder || 0,
             prepTimeMin: st.orders?.prepTimeMin ?? DEFAULTS.orders.prepTimeMin,
+            kitchenQueueSec: st.orders?.kitchenQueueSec ?? DEFAULTS.orders.kitchenQueueSec,
             gst: cfg.orders.gst,   // set by the platform, shown only
             busy: cfg.orders.busy || null,
         },
@@ -548,7 +557,7 @@ router.put('/settings', wrap(async (req, res) => {
     if (body.orders !== undefined) {
         // what the owner may change of the order settings: the cash limit and what a customer pays on top of the food.
         // GST, payment methods and order types stay with the platform.
-        const OWNER_ORDER_KEYS = ['codCap', 'pickupCod', 'pickupRules', 'mixRules', 'dineIn', 'deliveryFee', 'packagingCharge', 'tipOptions', 'minOrder', 'prepTimeMin'];
+        const OWNER_ORDER_KEYS = ['codCap', 'pickupCod', 'pickupRules', 'mixRules', 'dineIn', 'deliveryFee', 'packagingCharge', 'tipOptions', 'minOrder', 'prepTimeMin', 'kitchenQueueSec'];
         if (!body.orders || typeof body.orders !== 'object' || Array.isArray(body.orders) || Object.keys(body.orders).some((k) => !OWNER_ORDER_KEYS.includes(k))) {
             throw httpError(400, 'You can change only the cash limit, delivery fee, packaging charge, tips, minimum order and preparation time');
         }

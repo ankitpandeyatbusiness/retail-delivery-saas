@@ -145,6 +145,10 @@ core.post('/kitchen/orders/:id/start', onlyKitchen, wrap(async (req, res) => {
     if (!isId(req.params.id)) throw httpError(404, 'Order not found');
     res.json(await kitchen.start({ tenant: req.tenant, orderId: req.params.id, staff: who(req) }));
 }));
+core.post('/kitchen/orders/:id/queue', onlyKitchen, wrap(async (req, res) => {
+    if (!isId(req.params.id)) throw httpError(404, 'Order not found');
+    res.json(await kitchen.addToQueue({ tenant: req.tenant, orderId: req.params.id, staff: who(req) }));
+}));
 core.post('/kitchen/orders/:id/ready', onlyKitchen, wrap(async (req, res) => {
     if (!isId(req.params.id)) throw httpError(404, 'Order not found');
     res.json(await kitchen.ready({ tenant: req.tenant, orderId: req.params.id, staff: who(req) }));

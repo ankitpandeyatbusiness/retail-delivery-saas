@@ -20,7 +20,7 @@ const OWNER = [
     g('pickup', 'Pickup customers', 'A pickup customer says he is coming, is here, is late, or needs more time. Also: no-show, a later time, collected.', ['pickup_intent', 'pickup_no_show', 'pickup_time_request', 'pickup_collect_claim', 'pickup_not_wanted_claim'], { p: true, sample: ['Pickup order 1173. Ankit is on the way. 2 Butter Naan, 1 Paneer Butter Masala.', 'पिकअप ऑर्डर 1173। Ankit रास्ते में हैं। 2 Butter Naan, 1 Paneer Butter Masala।'] }),
     g('tables', 'Tables: calls and bills', 'A table calls, asks for the bill, says it paid, asks you to hurry or to cancel a round.', ['table_call', 'table_bill_asked', 'table_nudge', 'table_check', 'table_paid_claim', 'order_cancel_request', 'table_share_ask', 'table_feedback_low'], { p: 'off', sample: ['Table 4 asked for the bill.', 'टेबल 4 ने बिल मांगा है।'] }),
     g('help', 'A rider asks for help', 'A delivery partner pressed the help button.', ['rider_sos'], { p: true, critical: true, sample: ['Ramesh needs help. Order 1173. Please call now.', 'Ramesh को मदद चाहिए। ऑर्डर 1173। अभी फ़ोन करें।'] }),
-    g('delivery', 'Delivery news', 'A rider accepted, rejected or has a problem; nobody took an order; a delivery is late.', ['rider_accepted', 'rider_rejected', 'rider_none', 'rider_problem', 'rider_quiet', 'rider_arrived_shop', 'delivery_late_warning', 'order_late', 'order_delivered_shop'], { p: 'off', soft: true }),
+    g('delivery', 'Delivery news', 'A rider accepted, rejected or has a problem; nobody took an order; a delivery is late.', ['rider_accepted', 'rider_rejected', 'rider_none', 'delivery_pin_skipped', 'rider_problem', 'rider_quiet', 'rider_arrived_shop', 'delivery_late_warning', 'order_late', 'order_delivered_shop'], { p: 'off', soft: true }),
     g('leave', 'Leave requests', 'A cook, a waiter or a rider asks for leave.', ['staff_leave_request', 'staff_leave_withdrawn', 'rider_leave_request'], { p: true, soft: true }),
     g('holiday', 'Days off', 'A cook or a waiter put plain days off in their calendar.', ['staff_holiday'], { p: 'off', soft: true }),
     g('offduty', 'Staff goes off duty', 'A cook or a waiter switched themselves off duty.', ['staff_off_duty'], { p: 'off', soft: true }),
@@ -31,7 +31,7 @@ const OWNER = [
 ];
 
 const RIDER = [
-    g('offers', 'New delivery offers', 'An order is offered to you. You have two minutes to take it.', ['rider_offer'], { critical: true }),
+    g('offers', 'New delivery offers', 'An order is offered to you. You have two minutes to take it.', ['rider_offer', 'rider_assigned_owner'], { critical: true }),
     g('late', 'Late delivery warning', 'An order will be cancelled soon if it is not delivered.', ['delivery_late_warning_rider'], { p: true, critical: true, soft: true }),
     g('packed', 'Food is packed', 'The kitchen packed the order you are coming for.', ['food_packed_rider'], { p: 'off', soft: true }),
     g('thanks', 'Thanks, ratings and badges', 'A thank you, a review of your delivery, a new badge.', ['delivery_done_rider', 'review_delivery_rider', 'rider_badge'], { p: 'off', soft: true }),
@@ -40,12 +40,13 @@ const RIDER = [
 ];
 
 const KITCHEN = [
-    g('new', 'New orders', 'An order to make: where it goes, the dishes and the guest\'s note.', ['kitchen_new'], { kinds: ['new'], critical: true, sample: ['New order for table 2. 1 Chicken Wings, 2 Paneer Butter Masala. Note: no onion.', 'टेबल 2 के लिए नया ऑर्डर। 1 Chicken Wings, 2 Paneer Butter Masala। विशेष निर्देश: प्याज़ नहीं।'] }),
+    g('new', 'New orders', 'An order to make: where it goes, the dishes and the guest\'s note.', ['kitchen_new'], { kinds: ['new', 'queued'], critical: true, sample: ['New order for table 2. 1 Chicken Wings, 2 Paneer Butter Masala. Note: no onion.', 'टेबल 2 के लिए नया ऑर्डर। 1 Chicken Wings, 2 Paneer Butter Masala। विशेष निर्देश: प्याज़ नहीं।'] }),
     g('cancel', 'Cancelled orders', 'Stop making this order.', ['kitchen_cancelled'], { kinds: ['cancel'], p: true, critical: true, sample: ['Order 1166 is cancelled. Stop making it. Table 2. 1 Chicken Wings.', 'ऑर्डर 1166 रद्द हुआ। इसे मत बनाइए। टेबल 2। 1 Chicken Wings।'] }),
     g('hurry', 'A table is waiting', 'A guest pressed "please hurry".', ['kitchen_hurry'], { kinds: ['hurry'], sample: ['Table 4 is waiting.', 'टेबल 4 इंतज़ार कर रही है।'] }),
     g('here', 'A pickup customer is here', 'The customer for a pickup order has arrived.', [], { kinds: ['here'], sample: ['Pickup 1173, the customer is here.', 'पिकअप 1173, ग्राहक आ गया है।'] }),
     g('done', 'Handed over, collected or served', 'An order has left the kitchen. A soft ping only.', ['kitchen_done'], { kinds: ['done'], s: true }),
     g('undo', 'Steps taken back (undo)', 'Someone undid Served or Picked up.', ['order_undone'], { soft: true }),
+    g('rating', 'Ratings for your food', 'A customer rated a dish you cooked.', ['food_rating_cook'], { soft: true }),
     g('leave', 'Answers to your leave', 'The owner approved or rejected your leave.', ['staff_leave_decision', 'staff_leave_removed'], { p: true, soft: true }),
 ];
 
@@ -75,6 +76,7 @@ const SAMPLES = {
     'rider.undo': ['Order 1173: Picked up was undone.', 'ऑर्डर 1173: Picked up वापस लिया गया।'],
     'kitchen.done': ['Order 1173 was served.', 'ऑर्डर 1173 परोस दिया गया।'],
     'kitchen.undo': ['Order 1173: Served was undone.', 'ऑर्डर 1173: Served वापस लिया गया।'],
+    'kitchen.rating': ['Order 1173: a customer rated your food. Butter Naan, 5 stars.', 'ऑर्डर 1173: ग्राहक ने आपके खाने को रेटिंग दी। Butter Naan, 5 स्टार।'],
     'kitchen.leave': ['Your leave was approved.', 'आपकी छुट्टी मंज़ूर हुई।'],
     'waiter.undo': ['Order 1173: Ready was undone.', 'ऑर्डर 1173: Ready वापस लिया गया।'],
     'waiter.leave': ['Your leave was approved.', 'आपकी छुट्टी मंज़ूर हुई।'],

@@ -5,12 +5,12 @@ import { View, Text } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Image } from 'expo-image';
 import { useBrand, alpha } from '../../components/common/kit';
-import { Card, Pill, Button, Empty, SectionTitle, Stat } from '../../components/owners/ui';
+import { Card, Pill, Button, Empty, SectionTitle, Stat, Chips } from '../../components/owners/ui';
 import { FormPage, Toggle } from '../../components/owners/menuBits';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { AddSheet, LeaveRequests } from './OwnerStaffScreen';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
-import { fetchStaff, updateStaff, apiError } from '../../api/owners/shopApi';
+import { fetchStaff, updateStaff, saveSettings, apiError } from '../../api/owners/shopApi';
 import { showToast } from '../../components/customers/shop';
 import { tr } from '../../i18n';
 
@@ -84,6 +84,14 @@ function Group({ role }) {
                     </Card>
 
                     <LeaveRequests role={role} onChanged={load} />
+
+                    {role === 'kitchen' ? (
+                        <Card>
+                            <Text style={{ color: text, fontWeight: '900', fontSize: 15 }}>{tr('A new order the cook does not touch goes to his queue after')}</Text>
+                            <Text style={{ color: muted, fontSize: 12.5, marginTop: 2 }}>{tr('It stops ringing, and the cook is told it is in the queue. He can also tap Add to queue himself.')}</Text>
+                            <Chips options={[[30, '30 s'], [60, '60 s'], [90, '90 s'], [120, '2 min'], [180, '3 min']]} value={rules.queueSec || 60} onChange={async (v) => { try { await saveSettings({ orders: { kitchenQueueSec: v } }); setData((d) => ({ ...d, rules: { ...d.rules, queueSec: v } })); showToast(tr('Saved')); } catch (e) { showToast(apiError(e)); } }} />
+                        </Card>
+                    ) : null}
 
                     <SectionTitle title={tr('Your {many} ({n})', { many: tr(j.many), n: people.length })} />
                     {!people.length ? <Empty icon="people-outline" title={tr('No {many} yet', { many: tr(j.many) })} hint={tr(j.none)} /> : null}

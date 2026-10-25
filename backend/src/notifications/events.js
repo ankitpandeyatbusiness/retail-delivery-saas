@@ -115,6 +115,9 @@ const EVENTS = {
     complaint_decision: { to: 'customer', channels: INAPP_PUSH, email: 'complaint_decision' },
     // rider (offers last 2 minutes, so never an SMS)
     rider_offer: { to: 'rider', channels: INAPP_PUSH, alsoPush: true },
+    food_rating_cook: { to: 'rider', channels: INAPP_PUSH, alsoPush: true, voice: true, pushChannel: STAFF_INFO_CHANNEL, pushSound: 'notify' },   // the cook who started an order hears the customer's rating of the food
+    delivery_pin_skipped: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // a rider delivered without the PIN: the owner reads why
+    rider_assigned_owner: { to: 'rider', channels: INAPP_PUSH, alsoPush: true },   // the owner picked this rider by hand: an order, not an offer
     delivery_late_warning_rider: { to: 'rider', channels: INAPP_PUSH, alsoPush: true },   // the order will be cancelled in ~10 minutes (services/lateDelivery.js)
     delivery_done_rider: { to: 'rider', channels: INAPP_PUSH, alsoPush: true },   // thank you to the rider who delivered
     review_delivery_rider: { to: 'rider', channels: INAPP_PUSH, alsoPush: true },   // the customer reviewed HIS delivery. The food review never goes to the rider

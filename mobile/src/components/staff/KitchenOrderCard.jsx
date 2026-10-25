@@ -101,7 +101,23 @@ export default function KitchenOrderCard({ o, lateMin, busy, onAct, onProblem, o
                     <View style={{ flex: 1 }}>
                         {cooking
                             ? <BigButton label={tr('Ready')} icon="checkmark-done" busy={busy} bg={ok} ink="#FFFFFF" onPress={() => onAct('ready')} />
-                            : <BigButton label={tr('Start cooking')} icon="flame" busy={busy} bg={primary} ink={onPrimary} onPress={() => onAct('start')} />}
+                            : o.queued
+                                ? (
+                                    <View>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', marginBottom: 8, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 99, backgroundColor: alpha(primary, 0.14) }}>
+                                            <Ionicons name="time" size={13} color={primary} style={{ marginRight: 4 }} />
+                                            <Text style={{ color: primary, fontWeight: '800', fontSize: 12.5 }}>{tr('In your queue')}</Text>
+                                        </View>
+                                        <BigButton label={tr('Start cooking')} icon="flame" busy={busy} bg={primary} ink={onPrimary} onPress={() => onAct('start')} />
+                                    </View>
+                                )
+                                : (
+                                    <View style={{ flexDirection: 'row' }}>
+                                        <View style={{ flex: 1 }}><BigButton label={tr('Start cooking')} icon="flame" busy={busy} bg={primary} ink={onPrimary} onPress={() => onAct('start')} /></View>
+                                        <View style={{ width: 8 }} />
+                                        <View style={{ flex: 1 }}><BigButton label={tr('Add to queue')} icon="time" busy={busy} bg={alpha(primary, 0.14)} ink={primary} onPress={() => onAct('queue')} /></View>
+                                    </View>
+                                )}
                     </View>
                 </View>
             )}

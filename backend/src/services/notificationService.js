@@ -132,6 +132,20 @@ function riderOffered(order) {
     }
 }
 
+// the owner picked this rider by hand: he is told at once what he has to deliver and where (no offer, no countdown)
+function riderAssignedByOwner(order) {
+    try {
+        const a = order.address || {};
+        center.notify('rider_assigned_owner', {
+            tenantId: order.tenantId, userId: order.delivery.riderId,
+            vars: { orderNo: order.orderNo, brief: brief(order, 2), address: [a.line, a.landmark, a.city].filter(Boolean).join(', ').slice(0, 90), note: String(order.note || '').slice(0, 80) },
+            data: { orderId: String(order._id), orderNo: order.orderNo },
+        });
+    } catch (e) {
+        console.error('Notification error:', e.message);
+    }
+}
+
 async function riderAccepted(order) {
     try {
         const name = await riderName(order.tenantId, order.delivery.riderId);
@@ -251,6 +265,21 @@ function foodReviewed({ tenantId, orderId, orderNo, ratings, nameOf }) {
     }
 }
 
+// The cook who started the order is told what the customer thought of the food (a soft ping, no money)
+function foodRatedCook({ tenantId, cookUserId, orderId, orderNo, ratings, nameOf }) {
+    try {
+        const first = ratings.find((r) => typeof r.comment === 'string' && r.comment.trim());
+        const parts = ratings.slice(0, 3).map((r) => `${nameOf[r.productId] || 'a dish'}: ${r.rating} star${r.rating === 1 ? '' : 's'}`);
+        center.notify('food_rating_cook', {
+            tenantId, userId: cookUserId, title: `Order #${orderNo}: a customer rated your food`,
+            body: `${parts.join(', ')}.${first ? ` "${first.comment.trim().slice(0, 100)}"` : ''}`,
+            data: { orderId: String(orderId), orderNo },
+        });
+    } catch (e) {
+        console.error('Notification error:', e.message);
+    }
+}
+
 // A customer reviewed the DELIVERY: the rider who delivered it and the shop are both told.
 function deliveryReviewed({ tenantId, orderId, orderNo, rating, riderUserId, comment, toOwner = true }) {
     try {
@@ -342,6 +371,6 @@ async function riderArrived(order) {
 module.exports = {
     send, toOwner, toUser, riderArrived,
     orderPlaced, orderStatusChanged,
-    riderOffered, riderAccepted, riderRejected, noRiderFree, riderRemoved, riderProblem, riderSos, lowDeliveryRating, foodReviewed, deliveryReviewed,
+    foodRatedCook, riderOffered, riderAssignedByOwner, riderAccepted, riderRejected, noRiderFree, riderRemoved, riderProblem, riderSos, lowDeliveryRating, foodReviewed, deliveryReviewed,
     riderBroadcast, offersClosed,
 };

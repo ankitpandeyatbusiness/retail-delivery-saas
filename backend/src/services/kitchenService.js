@@ -73,6 +73,7 @@ function viewOf(o, { lateMin, now = Date.now() }) {
         acceptedAt: accepted,
         startAt,
         undo: require('./orderUndo').offer(o, 'staff', 'kitchen'),   // { label, secondsLeft }: the cook can take his last tap back
+        queued: stage === 'new' && !!o.kitchen?.queuedAt,   // waiting in the cook's queue: it does not ring any more
         startedAt: o.kitchen?.startedAt || null,
         readyAt: o.kitchen?.readyAt || null,
         startedByName: o.kitchen?.startedByName || null,
@@ -146,6 +147,19 @@ async function start({ tenant, orderId, staff }) {
     return { already: false, order: view(tenant, updated) };
 }
 
+// "Add to queue": the cook saw the new order and will start it later, so it stops ringing. The job (jobs/kitchenQueue.js) does the same when nobody touches it.
+async function addToQueue({ tenant, orderId, staff, by = 'cook' }) {
+    const o = await loadFor(tenant, orderId);
+    if (o.status !== 'accepted' || o.kitchen?.queuedAt) return { already: true, order: view(tenant, o) };
+    const updated = await Order.findOneAndUpdate({ _id: o._id, tenantId: tenant._id, status: 'accepted', 'kitchen.queuedAt': { $exists: false } }, { $set: { 'kitchen.queuedAt': new Date(), 'kitchen.queuedBy': by === 'auto' ? 'auto' : (staff?.name || 'cook') } }, { returnDocument: 'after' });
+    const row = updated || o;
+    require('./kitchenAlerts').tell(tenant._id, {
+        orderId: String(o._id), orderNo: o.orderNo, status: 'accepted', queued: true,
+        ...(by === 'auto' ? { alert: { kind: 'queued', orderNo: o.orderNo, orderId: String(o._id), speech: `Order ${o.orderNo} was added to your queue.`, speechHi: `ऑर्डर ${o.orderNo} आपकी कतार में जोड़ दिया गया।` } } : {}),
+    });
+    return { already: !updated, order: view(tenant, row) };
+}
+
 async function ready({ tenant, orderId, staff }) {
     const o = await loadFor(tenant, orderId);
     if (o.kitchen?.readyAt || o.status === 'ready') {
@@ -175,6 +189,25 @@ async function ready({ tenant, orderId, staff }) {
         require('../notifications/center').notify('food_packed_rider', { tenantId: tenant._id, userId: updated.delivery.riderId, data: { orderId: String(o._id), orderNo: o.orderNo }, vars: { orderNo: o.orderNo, brief: require('../utils/orderBrief').brief(updated, 2) } });
     }
     return { already: false, order: view(tenant, updated) };
+}
+
+// The OWNER says the food of a delivery order is ready (a shop without a cook on the app, or a cook who forgot). Same effect as the cook's "Ready" on a delivery.
+async function ownerReady({ tenant, orderId, actor }) {
+    const o = await Order.findOne({ _id: orderId, tenantId: tenant._id });
+    if (!o) throw httpError(404, 'Order not found');
+    if (o.orderType !== 'delivery') throw httpError(409, 'Only a delivery order needs this. Use Mark ready.');
+    if (o.kitchen?.readyAt) return { already: true, order: o };
+    const g = gone(o); if (g) throw g;
+    if (o.status !== 'preparing') throw httpError(409, 'Start preparing the order first.');
+    const updated = await Order.findOneAndUpdate({ _id: o._id, tenantId: tenant._id, status: 'preparing', 'kitchen.readyAt': { $exists: false } }, { $set: { 'kitchen.readyAt': new Date(), 'kitchen.readyByName': actor?.label || 'Owner' } }, { returnDocument: 'after' });
+    if (!updated) throw httpError(409, 'This order just changed. Refresh and try again.');
+    realtime.toOwner(tenant._id, 'order:update', { orderId: String(o._id), orderNo: o.orderNo, status: o.status, kind: 'kitchen_ready' });
+    if (updated.delivery?.riderId) realtime.toUser(tenant._id, updated.delivery.riderId, 'order:update', { orderId: String(o._id), orderNo: o.orderNo, status: o.status, kind: 'kitchen_ready' });
+    require('./kitchenAlerts').tell(tenant._id, { orderId: String(o._id), orderNo: o.orderNo, status: updated.status });
+    if (updated.delivery?.riderId && ['assigned', 'accepted'].includes(updated.delivery.status)) {
+        require('../notifications/center').notify('food_packed_rider', { tenantId: tenant._id, userId: updated.delivery.riderId, data: { orderId: String(o._id), orderNo: o.orderNo }, vars: { orderNo: o.orderNo, brief: require('../utils/orderBrief').brief(updated, 2) } });
+    }
+    return { already: false, order: updated };
 }
 
 // Tells the owner. The order is left as it is: the owner decides (cancel it, wait, change it). A dish that is finished is switched off on the menu.
@@ -249,4 +282,4 @@ async function resolve({ tenant, order, action, message, actor }) {
     return { ok: true, action, text };
 }
 
-module.exports = { queue, start, ready, problem, resolve, viewOf, stageOf };
+module.exports = { queue, start, ready, ownerReady, addToQueue, problem, resolve, viewOf, stageOf };

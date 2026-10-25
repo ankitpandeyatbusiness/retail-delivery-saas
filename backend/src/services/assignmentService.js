@@ -411,10 +411,35 @@ async function assign({ orderId, tenantId, riderUserId, auto = false, reason, ac
         await releaseSlot(tenantId, riderUserId);
         throw e;
     }
-    return offerTo({
-        orderId, tenantId, riderUserId, settings, slotReserved: true,
+    return assignDirect({
+        orderId, tenantId, riderUserId, settings, status: order.status,
         by: actor.type === 'superadmin' ? 'superadmin' : 'owner',
     });
+}
+
+// The owner picks the rider by hand: that is an order, not an offer. No countdown and nothing to accept: the rider is TOLD (what, where), and the
+// customer and the owner hear that a delivery partner is on the way. (The slot was reserved by the caller.)
+async function assignDirect({ orderId, tenantId, riderUserId, settings, status, by }) {
+    const now = new Date();
+    const pickedUp = status === 'out_for_delivery';   // the food already left: he takes over from there
+    const order = await Order.findOneAndUpdate(
+        { _id: orderId, tenantId, orderType: 'delivery', status: { $in: OPEN }, 'delivery.riderId': { $exists: false } },
+        {
+            $set: {
+                'delivery.riderId': riderUserId, 'delivery.status': pickedUp ? 'picked_up' : 'accepted', 'delivery.assignedAt': now, 'delivery.acceptedAt': now,
+                ...(pickedUp && { 'delivery.pickedUpAt': now }), 'delivery.pinRequired': settings.deliveryPin,
+            },
+            $push: { 'delivery.offers': { riderId: riderUserId, offeredAt: now, at: now, result: 'accepted', by } },
+        },
+        { returnDocument: 'after' },
+    );
+    if (!order) {
+        await releaseSlot(tenantId, riderUserId);
+        throw httpError(409, 'This order cannot be assigned now (it already has a rider, or it is not in a delivery step)');
+    }
+    notify.riderAssignedByOwner(order);   // the rider: "the owner gave you this order, deliver it to ..."
+    notify.riderAccepted(order);          // the customer and the owner: a delivery partner is on the way
+    return order;
 }
 
 async function unassign({ orderId, tenantId, reason, actor }) {

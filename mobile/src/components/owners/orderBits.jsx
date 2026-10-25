@@ -13,7 +13,7 @@ import { Card, Pill, Button, Sheet, Field, Option, money } from './ui';
 import { useNow } from '../../hooks/owners/useNow';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { useOrdersStore } from '../../store/owners/useOrdersStore';
-import { setOrderStatus, fetchRiders, assignRider, unassignRider, apiError } from '../../api/owners/shopApi';
+import { setOrderStatus, markFoodReady, fetchRiders, assignRider, unassignRider, apiError } from '../../api/owners/shopApi';
 import { acknowledge } from '../../utils/owners/soundbox';
 import { showToast } from '../customers/shop';
 import * as flow from '../../utils/owners/orderFlow';
@@ -63,7 +63,7 @@ const LOOK_TEXT = {
     customer_cancelled: 'The customer cancelled it', not_accepted: 'Cancelled: it was not accepted in time', undelivered: 'It could not be delivered',
 };
 
-export function OrderCard({ order, onOpen, onAdvance, onReject, busy }) {
+export function OrderCard({ order, onOpen, onAdvance, onReject, onFoodReady, busy }) {
     const { text, muted, accent, error } = useBrand();
     const now = useNow(30000, true);
     const isNew = order.status === 'placed';
@@ -109,13 +109,19 @@ export function OrderCard({ order, onOpen, onAdvance, onReject, busy }) {
                     <Button label={tr('Accept')} icon="checkmark" busy={busy} onPress={() => onAdvance(order)} style={{ flex: 1, marginLeft: flow.canCancel(order) ? 8 : 0 }} />
                 </View>
             ) : null}
-            {!isNew && next && flow.riderHandles(order, next) ? (
+            {!isNew && order.orderType === 'delivery' && order.status === 'preparing' && order.foodReady === false && onFoodReady ? (
+                <View style={{ marginTop: 12 }}>
+                    <Text style={{ color: muted, fontWeight: '700', fontSize: 13, marginBottom: 8 }}>{tr('The food is not ready yet. It cannot go out until it is.')}</Text>
+                    <Button label={tr('Food is ready')} icon="checkmark-done" busy={busy} onPress={() => onFoodReady(order)} />
+                </View>
+            ) : null}
+            {!isNew && next && order.foodReady !== false && flow.riderHandles(order, next) ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
                     <Ionicons name="bicycle" size={18} color={muted} />
                     <Text style={{ flex: 1, marginLeft: 8, color: muted, fontWeight: '700', fontSize: 13 }}>{next === 'out_for_delivery' ? tr('The delivery partner will collect it. Nothing to do.') : tr('On the way. The delivery partner will finish it.')}</Text>
                 </View>
             ) : null}
-            {!isNew && next && !flow.riderHandles(order, next) ? (
+            {!isNew && next && !flow.riderHandles(order, next) && !(order.foodReady === false && next === 'out_for_delivery') ? (
                 <Button label={flow.stepLabel(order, next)} busy={busy} onPress={() => onAdvance(order)} style={{ marginTop: 12 }} />
             ) : null}
         </Card>
@@ -139,6 +145,12 @@ export function useOrderActions({ onChanged, onOptimistic } = {}) {
         if (onChanged) onChanged(updated);
     };
     const fail = (e) => { useOwnerStore.getState().noteError(e); showToast(apiError(e)); };
+
+    // the food of a delivery order is ready (the cook, or the owner): only then can it go out
+    const foodReady = async (order) => {
+        setBusyId(order.id);
+        try { const updated = await markFoodReady(order.id); done(updated); showToast(tr('Food is ready')); } catch (e) { fail(e); } finally { setBusyId(null); }
+    };
 
     const advance = async (order) => {
         const next = flow.forwardStep(order);
@@ -217,7 +229,7 @@ export function useOrderActions({ onChanged, onOptimistic } = {}) {
         </>
     );
 
-    return { busyId, advance, requestReject: setRejecting, requestUndeliver: setUndelivering, sheets };
+    return { busyId, advance, foodReady, requestReject: setRejecting, requestUndeliver: setUndelivering, sheets };
 }
 
 // Pick one reason; for the reason named in `needsText` (or any, optionally) he types his own words.

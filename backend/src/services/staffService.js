@@ -31,7 +31,7 @@ async function list(tenant, { stats = false } = {}) {
     if (stats) for (const role of ROLES) { const ids = rows.filter((r) => r.role === role).map((r) => r.userId); if (ids.length) for (const [k, v] of await require('./staffStats').forRole(tenant._id, role, ids)) done.set(k, v); }
     return {
         items: rows.map((r) => ({ ...shape(r, phone.get(String(r.userId)), closedBy[r.role]), panelOn: allowed(rules, r.role), ...(stats ? { stats: done.get(String(r.userId)) || null } : {}) })),
-        rules: { kitchenOn: rules.kitchenOn === true, waiterOn: rules.waiterOn === true, max: rules.max },
+        rules: { kitchenOn: rules.kitchenOn === true, waiterOn: rules.waiterOn === true, max: rules.max, queueSec: resolveConfig(tenant).orders.kitchenQueueSec || 60 },
     };
 }
 
