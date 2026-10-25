@@ -92,6 +92,7 @@ export default function CartScreen() {
     const [tip, setTip] = useState(0);
     const [delNotes, setDelNotes] = useState([]);
     const [customNote, setCustomNote] = useState('');
+    const [foodNote, setFoodNote] = useState('');   // for the cook (delivery and pickup); a table order has its own "How should we make it?"
     const [prefs, setPrefs] = useState([]);       // "Make it spicy"... (dine in)
     const [prefNote, setPrefNote] = useState('');  // what he writes himself
     const addr = useAddressStore((st) => st.selected);
@@ -259,7 +260,7 @@ export default function CartScreen() {
                 }
                 at = w.at;
             }
-            const order = await placeOrder({ ...(notes.length ? { ...body, note: notes.join(' | ') } : body), ...(at ? { at } : {}) }, idemKey);
+            const order = await placeOrder({ ...(notes.length ? { ...body, note: notes.join(' | ') } : body), ...(foodNote.trim() && type !== 'dine_in' ? { foodNote: foodNote.trim() } : {}), ...(at ? { at } : {}) }, idemKey);
             if (type === 'dine_in') useTableBill.getState().load();   // the new round is on his table bill
             if (__DEV__) console.log(`[pay] place order took ${Date.now() - t0} ms, paymentStart: ${order?.paymentStart ? 'yes' : 'no'}`);
             const tabs = { name: 'MainTabs', state: { routes: [{ name: 'Orders' }] } };
@@ -405,6 +406,15 @@ export default function CartScreen() {
                     </Appear>
 
                     <FavouriteDishes mode="strip" />
+
+                    {user && type !== 'dine_in' ? (
+                        <Appear delay={50} style={{ marginTop: 20 }}>
+                            <Text style={[s.cap, { color: text, marginBottom: 8 }]}>{tr('Instructions for the kitchen')}</Text>
+                            <TextInput value={foodNote} onChangeText={setFoodNote} maxLength={200} placeholder={tr('E.g., less spicy, no onion, extra crispy...')}
+                                placeholderTextColor={muted} style={[s.customNoteInput, { color: text, borderColor: border, backgroundColor: surface, marginTop: 0 }]} />
+                            <Text style={{ color: muted, fontSize: 12, marginTop: 6 }}>{tr('The cook hears this before your food is made.')}</Text>
+                        </Appear>
+                    ) : null}
 
                     {user && type === 'delivery' ? (
                         <Appear delay={60} style={{ marginTop: 20 }}>

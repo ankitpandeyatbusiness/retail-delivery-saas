@@ -46,7 +46,7 @@ async function request(tenantId, { table, label, text, bill, party }) {
         tell(tenantId, { request: true, table, alert: { kind: bill ? 'bill' : 'call', table } });
         await ring(tenantId, {
             title: `Table ${table}${party ? ` · ${party}` : ''}`, body: `${label}${text ? `: ${text}` : ''}`,
-            data: { type: bill ? 'waiter_bill' : 'waiter_call', table: String(table), kind: bill ? 'bill' : 'call', speech: bill ? `Table ${table} wants the bill` : `Table ${table} is calling`, speechHi: bill ? `टेबल ${table} को बिल चाहिए` : `टेबल ${table} बुला रही है` },
+            data: { type: bill ? 'waiter_bill' : 'waiter_call', table: String(table), kind: bill ? 'bill' : 'call', speech: bill ? `Table ${table} is asking for the bill` : `Table ${table} is calling you`, speechHi: bill ? `टेबल ${table} बिल मांग रही है` : `टेबल ${table} आपको बुला रही है` },
             tag: `req:${table}:${bill ? 'bill' : label}`,
         });
     } catch (e) { console.error('Waiter alert error:', e.message); }

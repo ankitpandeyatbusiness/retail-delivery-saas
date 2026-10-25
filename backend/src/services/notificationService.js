@@ -122,6 +122,7 @@ function riderOffered(order) {
                 orderNo: order.orderNo, secs, brief: brief(order, 2), items: order.items?.length || 0,
                 area: [order.address?.landmark, order.address?.city].filter(Boolean).join(', ').slice(0, 40),
                 collect: order.payment?.method === 'cod' ? Math.round(Number(order.pricing?.total) || 0) : 0,
+                note: String(order.note || '').slice(0, 80),
             },
             data: { orderId: String(order._id), orderNo: order.orderNo },
         });

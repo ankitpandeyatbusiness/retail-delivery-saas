@@ -66,7 +66,7 @@ const TEXTS = {
     delivery_done_rider: (v) => ({ title: 'Delivery complete', body: `Order #${v.orderNo}${v.brief ? ` (${v.brief})` : ''} is done. Great work, thank you!` }),
     rider_offer: (v) => ({
         title: 'New delivery request',
-        body: [v.brief || `Order #${v.orderNo}`, v.area, v.collect ? `Collect ₹${v.collect}` : v.items ? `${v.items} item${v.items > 1 ? 's' : ''}` : '', `accept in ${v.secs}s`].filter(Boolean).join(' · '),
+        body: [v.brief || `Order #${v.orderNo}`, v.area, v.collect ? `Collect ₹${v.collect}` : v.items ? `${v.items} item${v.items > 1 ? 's' : ''}` : '', `accept in ${v.secs}s`, v.note ? `Customer says: ${v.note}` : ''].filter(Boolean).join(' · '),
     }),
     rider_assigned: (v) => ({ title: 'Delivery partner assigned', body: `${v.riderName} will deliver your order #${v.orderNo}.` }),
     points_arrived: (v) => ({ title: `${v.points} points added`, body: `Your balance is ${v.balance} points. Use them to get money off your next order.` }),

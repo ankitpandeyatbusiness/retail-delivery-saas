@@ -7,7 +7,7 @@
 import { ownerRoute } from '../owners/notificationRoute';
 import { Platform, AppState } from 'react-native';
 import * as Notifications from 'expo-notifications';
-import { alertOn } from '../../store/common/useAlertPrefs';
+import { alertOn, useAlertPrefs } from '../../store/common/useAlertPrefs';
 import { showOrderPopup } from '../owners/orderPopupBus';
 import * as SecureStore from 'expo-secure-store';
 import { CommonActions } from '@react-navigation/native';
@@ -285,7 +285,10 @@ export function startNotifications() {
 
     // logged in: register this phone and load the unread number. logged out: clear it.
     const onUser = (user) => {
-        if (user) { registerPush(); useNotificationStore.getState().refresh(); } else useNotificationStore.getState().reset();
+        if (user) {
+            registerPush(); useNotificationStore.getState().refresh();
+            if (user.role === 'rider') useAlertPrefs.getState().hydrate().then(() => useAlertPrefs.getState().load());   // the rider has no always-open Soundbox: his alert settings are read here
+        } else useNotificationStore.getState().reset();
     };
     useAuthStore.subscribe((st, prev) => { if (st.user !== prev.user) onUser(st.user); });
     if (useAuthStore.getState().user) onUser(useAuthStore.getState().user);

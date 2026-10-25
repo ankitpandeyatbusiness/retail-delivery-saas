@@ -45,6 +45,7 @@ export default function SoundboxScreen() {
     const hindi = st.language === 'hi';
     const role = useAuthStore((x) => x.user?.role);
     const staff = role === 'kitchen' || role === 'waiter';
+    const rider = role === 'rider';   // a rider only chooses the voice, the language and the volume
 
     const [voices, setVoices] = useState(null);   // [{ voice, name, sub, recommended }] for the chosen language
     useEffect(() => {
@@ -69,7 +70,7 @@ export default function SoundboxScreen() {
                 <Card style={{ marginTop: 8 }}>
                     <Switcher
                         title={tr('Soundbox mode')}
-                        subtitle={role === 'kitchen' ? tr('Rings and reads every new order out loud (the table, the dishes and the guest\'s note), and keeps listening with the screen off. Keep the phone on charge. Off means no sound at all on this phone.') : role === 'waiter' ? tr('Rings and says it out loud when food is ready or a table calls, and keeps listening with the screen off. Keep the phone on charge. Off means no sound at all on this phone.') : tr('Rings and reads every new order out loud, and keeps listening with the screen off. Keep the phone on charge. Off means no new-order sound at all on this phone.')}
+                        subtitle={role === 'kitchen' ? tr('Rings and reads every new order out loud (the table, the dishes and the guest\'s note) while the app is open. Off means no sound at all on this phone.') : role === 'waiter' ? tr('Rings and says it out loud when food is ready or a table calls, while the app is open. Off means no sound at all on this phone.') : rider ? tr('Says your alerts out loud while the app is open. Off means no voice on this phone.') : tr('Rings and reads every new order out loud while the app is open. With the screen off you get the tone and the notification: tap it to hear the order. Off means no new-order sound at all on this phone.')}
                         value={st.soundbox}
                         onChange={(v) => st.update({ soundbox: v })}
                     />
@@ -78,7 +79,8 @@ export default function SoundboxScreen() {
                     ) : null}
                 </Card>
 
-                <SectionTitle title={tr('Phone check')} />
+                {!rider ? <SectionTitle title={tr('Phone check')} /> : null}
+                {!rider ? (
                 <Card>
                     <Label title={tr('Is this phone ready for new orders?')} hint={tr('Every line should have a green tick. Fix any red line, then press Check again.')} />
                     <View style={{ marginTop: 10 }}>
@@ -110,9 +112,11 @@ export default function SoundboxScreen() {
                         <Button label={tr('Settings')} kind="ghost" onPress={() => Linking.openSettings()} style={{ flex: 1 }} />
                     </View>
                 </Card>
+                ) : null}
 
                 {/* everything below belongs to Soundbox mode: dimmed and untouchable while it is off */}
                 <View pointerEvents={st.soundbox ? 'auto' : 'none'} style={{ opacity: st.soundbox ? 1 : 0.4 }}>
+                {!rider ? (
                 <Card>
                     <Switcher
                         title={tr('Repeating chime')}
@@ -121,14 +125,19 @@ export default function SoundboxScreen() {
                         onChange={(v) => st.update({ ring: v })}
                     />
                 </Card>
+                ) : null}
 
                 <SectionTitle title={tr('Volume and repeat')} />
                 <Card>
                     <Label title={tr('Volume')} />
                     <Chips options={VOLUMES} value={st.volume} onChange={(v) => st.update({ volume: v })} />
-                    <View style={{ height: 8 }} />
-                    <Label title={tr('Repeat every')} hint={tr('Quiet time after the bell and the voice have finished, before it rings again.')} />
-                    <Chips options={REPEAT_CHOICES.map((n) => [n, `${n} sec`])} value={st.repeatSec} onChange={(v) => st.update({ repeatSec: v })} />
+                    {!rider ? <View style={{ height: 8 }} /> : null}
+                    {!rider ? (
+                        <>
+                            <Label title={tr('Repeat every')} hint={tr('Quiet time after the bell and the voice have finished, before it rings again.')} />
+                            <Chips options={REPEAT_CHOICES.map((n) => [n, `${n} sec`])} value={st.repeatSec} onChange={(v) => st.update({ repeatSec: v })} />
+                        </>
+                    ) : null}
                 </Card>
 
                 <SectionTitle title={tr('Voice')} />
@@ -167,7 +176,9 @@ export default function SoundboxScreen() {
                     </View>
                 </Card>
 
-                <SectionTitle title={tr('Greeting before the order')} />
+                {!rider ? <SectionTitle title={tr('Greeting before the order')} /> : null}
+                {!rider ? (
+                <>
                 <Card>
                     <Switcher
                         title={tr('Call me')}
@@ -224,6 +235,8 @@ export default function SoundboxScreen() {
                         {tr('The greeting is said once, in front of the order.')}
                     </Text>
                 </Card>
+                </>
+                ) : null}
 
                 </View>
 

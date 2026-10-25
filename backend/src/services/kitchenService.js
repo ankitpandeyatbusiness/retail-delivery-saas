@@ -14,7 +14,7 @@ const { kitchenSpeech } = require('../utils/orderSpeech');
 const { HIDE_UNPAID } = require('./onlineOrder');
 const { httpError } = require('../middlewares/apiErrors');
 
-const FIELDS = 'orderNo orderType status tableNo items note scheduledFor pickupUntil customer.name createdAt statusHistory kitchen payment tableSessionId tableParty pickupIntent';
+const FIELDS = 'orderNo orderType status tableNo items note foodNote scheduledFor pickupUntil customer.name createdAt statusHistory kitchen payment tableSessionId tableParty pickupIntent';
 const KINDS = { out_of_stock: 'a dish is finished', cannot_make: 'it cannot be made', other: 'there is a problem' };
 const PROBLEM_GAP_MS = 2 * 60 * 1000;   // the same order: one message to the owner every two minutes at most
 
@@ -81,7 +81,7 @@ function viewOf(o, { lateMin, now = Date.now() }) {
         waitedMin,
         late: stage !== 'ready' && waitedMin >= lateMin,
         early: startAt.getTime() - now > 5 * 60000,   // its start time is still some minutes away
-        note: o.note || '',
+        note: (o.orderType === 'dine_in' ? o.note : o.foodNote) || '',   // the cook sees what is for the kitchen: never the delivery instruction
         ...(stage === 'new' ? { speech: kitchenSpeech(o), speechHi: kitchenSpeech(o, true) } : {}),   // the Soundbox reads it out while the order waits
         items: (o.items || []).map(lineOf),
         problem: o.kitchen?.problem?.at ? { kind: o.kitchen.problem.kind, note: o.kitchen.problem.note || '', at: o.kitchen.problem.at, dish: o.kitchen.problem.dish || null, handledAt: o.kitchen.problem.handledAt || null, handledAction: o.kitchen.problem.handledAction || null } : null,

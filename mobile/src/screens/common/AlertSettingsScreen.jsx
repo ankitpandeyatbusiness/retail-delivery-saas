@@ -11,7 +11,6 @@ import { themedAlert } from '../../components/common/dialog';
 import { showToast } from '../../components/customers/shop';
 import { useAlertPrefs } from '../../store/common/useAlertPrefs';
 import { useSoundboxStore } from '../../store/owners/useSoundboxStore';
-import { useAuthStore } from '../../store/common/useAuthStore';
 import { sayExample } from '../../utils/owners/soundbox';
 import { tr } from '../../i18n';
 
@@ -48,7 +47,6 @@ export default function AlertSettingsScreen() {
         { text: tr('Use recommended'), onPress: async () => { showToast((await reset()) ? tr('Recommended settings are on') : tr('Could not save. Try again.')); } },
     ], { icon: 'sparkles-outline' });
     const changed = groups.some((g) => ['n', 'p', 's', 'v'].some((k) => g.can[k] && g.pref[k] !== g.defaults[k]) || g.pref.sec !== g.defaults.sec);
-    const role = useAuthStore((st) => st.user?.role);
 
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
@@ -84,9 +82,9 @@ export default function AlertSettingsScreen() {
                                     <Ionicons name="volume-high" size={18} color={primary} />
                                     <Text style={{ color: primary, fontWeight: '800', marginLeft: 6 }}>{tr('Listen')}</Text>
                                 </Pressable>
-                                {role !== 'rider' ? <Pressable onPress={() => nav.navigate('Soundbox')} hitSlop={8} style={{ marginLeft: 'auto' }}>
+                                <Pressable onPress={() => nav.navigate('Soundbox')} hitSlop={8} style={{ marginLeft: 'auto' }}>
                                     <Text style={{ color: muted, fontSize: 12 }}>{language === 'hi' ? 'हिन्दी' : 'English'} · {tr('Change voice')}</Text>
-                                </Pressable> : null}
+                                </Pressable>
                             </View>
                         ) : null}
                     </Card>

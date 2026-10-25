@@ -35,11 +35,13 @@ function orderSpeech(order) {
     if (rest > 0) shown.push(`and ${rest} more ${rest === 1 ? 'item' : 'items'}`);
 
     const total = Math.round(Number(order.pricing?.total) || 0);
-    const parts = [order.orderType === 'dine_in' && order.tableNo ? `New dine in order for table ${order.tableNo}.` : TYPE_WORDS[order.orderType] ? `New ${TYPE_WORDS[order.orderType].toLowerCase()}.` : 'New order.'];
+    const parts = [order.orderType === 'dine_in' && order.tableNo ? `New dine in order for table ${order.tableNo}.` : TYPE_WORDS[order.orderType] ? `New ${TYPE_WORDS[order.orderType].toLowerCase()}.` : 'New delivery order.'];
     if (shown.length) parts.push(`${shown.join(', ')}.`);
     if (total > 0) parts.push(`Total ${total} rupees.`);
     const pay = paymentSpeech(order);
     if (pay) parts.push(`${pay}.`);
+    if (foodOf(order)) parts.push(`Cooking instruction: ${foodOf(order)}.`);
+    if (deliveryOf(order)) parts.push(`Delivery instruction: ${deliveryOf(order)}.`);
     return parts.join(' ');
 }
 
@@ -61,11 +63,13 @@ function orderSpeechHi(order) {
     if (rest > 0) shown.push(`और ${rest} आइटम`);
 
     const total = Math.round(Number(order.pricing?.total) || 0);
-    const parts = [order.orderType === 'dine_in' && order.tableNo ? `टेबल ${order.tableNo} के लिए नया डाइन इन ऑर्डर।` : HI_TYPE[order.orderType] || 'नया ऑर्डर।'];
+    const parts = [order.orderType === 'dine_in' && order.tableNo ? `टेबल ${order.tableNo} के लिए नया डाइन इन ऑर्डर।` : HI_TYPE[order.orderType] || 'नया डिलीवरी ऑर्डर।'];
     if (shown.length) parts.push(`${shown.join(', ')}।`);
     if (total > 0) parts.push(`कुल ${total} रुपये।`);
     const pay = paymentSpeechHi(order);
     if (pay) parts.push(pay);
+    if (foodOf(order)) parts.push(`खाने का निर्देश: ${foodOf(order)}।`);
+    if (deliveryOf(order)) parts.push(`डिलीवरी का निर्देश: ${deliveryOf(order)}।`);
     return parts.join(' ');
 }
 
@@ -111,7 +115,9 @@ function cancelSpeechHi(order, who = '') {
 
 // ---- what the COOK hears: where the food is going, the dishes, and what the guest asked for. Never money, never a phone number.
 //   "New order for table 2, bill B. 1 Chicken Wings, 2 Paneer Butter Masala. Chicken Wings: less spicy. Note: no onion."
-const noteOf = (order) => clean(order.note).slice(0, 140);
+// what is for the kitchen (a table guest's own request, or the cooking instruction of a delivery or pickup) and what is for the rider (delivery only)
+const foodOf = (order) => clean(order.orderType === 'dine_in' ? order.note : order.foodNote).slice(0, 140);
+const deliveryOf = (order) => (order.orderType === 'delivery' ? clean(order.note).slice(0, 140) : '');
 const lineNotes = (order) => (Array.isArray(order.items) ? order.items : []).filter((l) => clean(l.note)).slice(0, 3).map((l) => `${clean(l.name)}: ${clean(l.note).slice(0, 80)}`);
 
 function whereSpeech(order, hi) {
@@ -129,7 +135,7 @@ function kitchenSpeech(order, hi = false) {
     const parts = [whereSpeech(order, hi)];
     if (shown.length) parts.push(`${shown.join(', ')}${hi ? '।' : '.'}`);
     for (const n of lineNotes(order)) parts.push(`${n}${hi ? '।' : '.'}`);
-    const note = noteOf(order);
+    const note = foodOf(order);
     if (note) parts.push(hi ? `विशेष निर्देश: ${note}।` : `Note: ${note}.`);
     return parts.join(' ');
 }

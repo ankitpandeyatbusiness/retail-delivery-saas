@@ -83,7 +83,7 @@ async function hurry(tenantId, { table, minutes, what }) {
         const people = await cooks(tenantId);
         await Promise.all(people.map((p) => pushChannel.send({
             tenantId, userId: p.userId, title: `Table ${table} is waiting`, body: `${what || 'Their order'} · ${minutes} min. Please hurry.`,
-            data: { type: 'kitchen_hurry', table: String(table), kind: 'hurry', speech: `Table ${table} is waiting`, speechHi: `टेबल ${table} इंतज़ार कर रही है` }, tag: `hurry:${table}`, channelId: STAFF_CHANNEL, sound: 'ting_tong',
+            data: { type: 'kitchen_hurry', table: String(table), kind: 'hurry', speech: `Table ${table} is asking you to please make the food fast. They are hungry!`, speechHi: `टेबल ${table} जल्दी खाना बनाने को कह रही है। उन्हें भूख लगी है!` }, tag: `hurry:${table}`, channelId: STAFF_CHANNEL, sound: 'ting_tong',
         }).catch((e) => console.error('Kitchen push error:', e.message))));
     } catch (e) { console.error('Kitchen alert error:', e.message); }
 }

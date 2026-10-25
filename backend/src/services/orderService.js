@@ -351,8 +351,8 @@ async function placeOrderLocked({ tenant, userId, body, idempotencyKey }) {
             tableNo: priced.orderType === 'dine_in' ? String(body.tableNo).trim() : undefined,
             scheduledFor: slot ? new Date(slot.from) : (body.scheduledFor && priced.orderType !== 'pickup' ? new Date(body.scheduledFor) : undefined),
             pickupUntil: slot ? new Date(slot.to) : undefined,
-            note: (config.features.specialInstructions || priced.orderType === 'dine_in') && typeof body.note === 'string' && body.note.trim()
-                ? body.note.trim().slice(0, 300) : undefined,
+            note: typeof body.note === 'string' && body.note.trim() ? body.note.trim().slice(0, 300) : undefined,
+            foodNote: priced.orderType !== 'dine_in' && typeof body.foodNote === 'string' && body.foodNote.trim() ? body.foodNote.trim().slice(0, 200) : undefined,
             etaMin,
             statusHistory: [{ status: 'placed', by: userId }],
         });

@@ -82,7 +82,8 @@ const orderSchema = new Schema({
     pickupClaim: { kind: String, at: Date, snoozeUntil: Date },   // at his pickup time the customer says: I collected it | I do not want it (the owner answers)
     cancelRequest: { at: Date, note: String },                   // a table customer asks the shop to cancel a round that is already being made     // a pickup time he asked for, waiting for the shop to say yes or no
     pickupUntil: Date,                                      // end of the pickup time window
-    note: String,                                           // special instructions for the whole order
+    note: String,                                           // special instructions for the whole order: for a delivery, what the rider should know (the landmark, ring the bell); for a table, how the guest wants it made
+    foodNote: String,                                       // for a delivery or a pickup: what the cook should know (less spicy, no onion)
     etaMin: Number,
 
     // Phase 6: delivery by a rider. riderId is the rider's User id. Money here is integer paise.

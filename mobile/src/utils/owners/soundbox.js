@@ -590,6 +590,7 @@ export async function sayAlert(type, data) {
         await ensureAudio();
         const greet = ['order_new', 'order_unaccepted_reminder', 'kitchen_new'].includes(String(type));
         await speak(greet ? withGreeting(String(said), language) : String(said), language, type);
+        if (String(type) === 'rider_sos') { await new Promise((r) => setTimeout(r, 700)); await speak(String(said), language, type); }   // a call for help is said twice
     } catch (e) { /* the notification is enough */ }
 }
 
@@ -686,6 +687,8 @@ async function announceHelp(d) {
         const text = language === 'hi' ? (d?.speechHi || 'डिलीवरी पार्टनर को मदद चाहिए।') : (d?.speech || 'A delivery partner needs help.');
         await new Promise((r) => setTimeout(r, 2100));   // the alarm first, then the voice
         if (!speaking) await speak(text, language, 'rider_sos');
+        await new Promise((r) => setTimeout(r, 700));   // a call for help is said twice
+        if (!speaking) await speak(text, language, 'rider_sos');
     } catch (e) { /* the alarm and the notification are enough */ }
 }
 
@@ -780,6 +783,7 @@ export async function sayExample(id, sample, soft) {
 export const sampleFor = (language) => {
     const r = roleNow();
     if (r === 'kitchen') return language === 'hi' ? 'टेबल 2 के लिए नया ऑर्डर। 1 Chicken Wings, 2 Paneer Butter Masala। विशेष निर्देश: प्याज़ नहीं।' : 'New order for table 2. 1 Chicken Wings, 2 Paneer Butter Masala. Note: no onion.';
+    if (r === 'rider') return language === 'hi' ? 'नई डिलीवरी रिक्वेस्ट। 540 रुपये लेने हैं। 2 मिनट में स्वीकार करें।' : 'New delivery request. Collect 540 rupees. Accept within 2 minutes.';
     if (r === 'waiter') return language === 'hi' ? 'टेबल 2, खाना तैयार है।' : 'Table 2, food is ready.';
     return SAMPLE[language] || SAMPLE.en;
 };
