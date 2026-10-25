@@ -12,7 +12,7 @@ import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { useSoundboxStore } from '../../store/owners/useSoundboxStore';
 import { useAlertStore } from '../../store/owners/useAlertStore';
 import { useHomeStore } from '../../store/customers/useHomeStore';
-import { setAcceptingOrders, apiError } from '../../api/owners/shopApi';
+import { setAcceptingOrders, fetchStaff, apiError } from '../../api/owners/shopApi';
 import { showToast } from '../../components/customers/shop';
 import { onOrderUpdate } from '../../api/common/socket';
 import { clearAll } from '../../utils/owners/soundbox';
@@ -118,6 +118,9 @@ export default function OwnerHomeScreen() {
     const warn = accent || '#F59E0B';
 
     useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
+    // the cooks and waiters (only the jobs the platform switched on for this shop are shown)
+    const [staff, setStaff] = useState(null);
+    useFocusEffect(useCallback(() => { fetchStaff().then(setStaff).catch(() => { }); }, []));
     // an order changed anywhere: update the numbers (a moment later, so a burst of events is one refresh)
     useEffect(() => {
         let t = null;
@@ -150,6 +153,12 @@ export default function OwnerHomeScreen() {
         out_for_delivery: lateMin > 0,                    // a delivery is late
     };
     const riders = d?.riders;
+    const staffLine = (role, none) => {
+        const people = (staff?.items || []).filter((p) => p.role === role);
+        if (!staff) return '…';
+        if (!people.length) return tr(none);
+        return tr('{on} on duty · {total} in all', { on: people.filter((p) => p.isActive && p.duty === 'on').length, total: people.length });
+    };
     const waiting = d?.waiting || [];
     const change = d ? flow.percentChange(d.today.revenue, d.yesterday.revenue) : null;
     const nowHour = new Date(now).getHours();
@@ -317,6 +326,32 @@ export default function OwnerHomeScreen() {
                     last
                 />
             </Card>
+
+            {staff?.rules?.kitchenOn || staff?.rules?.waiterOn ? (
+                <>
+                    <SectionTitle title={tr('Staff')} />
+                    <Card>
+                {staff?.rules?.kitchenOn ? (
+                    <Row
+                        icon="flame"
+                        title={tr('Kitchen staff')}
+                        subtitle={staffLine('kitchen', 'You have not added a cook yet')}
+                        onPress={() => nav.navigate('OwnerCooks')}
+                        last={!staff?.rules?.waiterOn}
+                    />
+                ) : null}
+                {staff?.rules?.waiterOn ? (
+                    <Row
+                        icon="restaurant"
+                        title={tr('Waiters')}
+                        subtitle={staffLine('waiter', 'You have not added a waiter yet')}
+                        onPress={() => nav.navigate('OwnerWaiters')}
+                        last={true}
+                    />
+                ) : null}
+                    </Card>
+                </>
+            ) : null}
 
             <SectionTitle title={tr('Needs your attention')} />
             <Card>

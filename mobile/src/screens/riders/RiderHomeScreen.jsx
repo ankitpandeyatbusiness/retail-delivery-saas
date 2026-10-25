@@ -11,7 +11,7 @@ import GlowBorder from '../../components/common/GlowBorder';
 import { useBrand, alpha } from '../../components/common/kit';
 import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
-import { Card, Stat } from '../../components/owners/ui';
+import { Card, Stat, LiveToggle } from '../../components/owners/ui';
 import { BigButton, SmallLink, Banner, Avatar } from '../../components/riders/riderBits';
 import KeepRunningSheet from '../../components/riders/KeepRunningSheet';
 import BellButton from '../../components/common/BellButton';
@@ -19,7 +19,7 @@ import OffDutySheet from '../../components/common/OffDutySheet';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRiderStore } from '../../store/riders/useRiderStore';
 import RatingNews from '../../components/riders/RatingNews';
-import { fetchRiderNews, markNewsSeen } from '../../api/riders/riderApi';
+import { fetchRiderNews, markNewsSeen, fetchRiderOrders } from '../../api/riders/riderApi';
 import { useRiderLocation } from '../../hooks/common/useRiderLocation';
 import { playSfx } from '../../utils/common/sfx';
 import { acceptOrder, rejectOrder } from '../../api/riders/riderApi';
@@ -27,6 +27,7 @@ import { T, rupee, rupeeAmount, errText } from '../../utils/riders/riderText';
 import { tr } from '../../i18n';
 
 const POLL_MS = 6000;
+const when = (d) => new Date(d).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true });
 
 const secondsLeft = (o) => {
     const t = o.delivery?.offerExpiresAt;
@@ -119,7 +120,7 @@ function ActiveCard({ o, onPress }) {
 export default function RiderHomeScreen() {
     const insets = useSafeAreaInsets();
     const nav = useNavigation();
-    const { background, text, muted, ok, border, surface } = useBrand();
+    const { background, text, muted, ok, error: bad, border, surface } = useBrand();
     const { me, offers, active, summary, ready, error, load, setDuty } = useRiderStore();
     const [refreshing, setRefreshing] = useState(false);
     const [busyId, setBusyId] = useState(null);
@@ -135,6 +136,14 @@ export default function RiderHomeScreen() {
         return () => { dead = true; };
     }, [active.length, summary]);   // eslint-disable-line react-hooks/exhaustive-deps
     const closeNews = () => { setNews(null); markNewsSeen().catch(() => { }); };
+
+    // his last five deliveries, shown at the bottom so the page is never empty
+    const [recent, setRecent] = useState([]);
+    useEffect(() => {
+        let dead = false;
+        fetchRiderOrders('history', 1).then((r) => { if (!dead) setRecent((r.items || []).slice(0, 5)); }).catch(() => { });
+        return () => { dead = true; };
+    }, [active.length, summary]);
 
     useEffect(() => { useRiderStore.getState().hydrate(); }, []);   // the page opens at once with what it showed last time
 
@@ -210,6 +219,7 @@ export default function RiderHomeScreen() {
                         <Text style={{ color: text, fontSize: 20, fontWeight: '900' }}>{T.hello(me?.name?.split(' ')[0])}</Text>
                         <Text style={{ color: muted, fontSize: 13, fontWeight: '600' }}>{me?.shop || ''}</Text>
                     </View>
+                    <LiveToggle on={onDuty} busy={dutyBusy} onPress={() => changeDuty(!onDuty)} />
                     <BellButton />
                 </View>
 
@@ -236,15 +246,13 @@ export default function RiderHomeScreen() {
 
                         {/* duty */}
                         <View style={{ marginHorizontal: 16, marginBottom: 14, borderRadius: 22, padding: 16, backgroundColor: onDuty ? alpha(ok, 0.14) : surface, borderWidth: 1, borderColor: onDuty ? alpha(ok, 0.5) : border }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: onDuty ? 0 : 14 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 0 }}>
                                 <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: onDuty ? ok : muted, marginRight: 10 }} />
                                 <View style={{ flex: 1 }}>
                                     <Text style={{ color: text, fontSize: 18, fontWeight: '900' }}>{onDuty ? T.onDuty : T.offDuty}</Text>
                                     <Text style={{ color: muted, fontSize: 13, fontWeight: '600' }}>{onDuty ? T.onDutyHint(me?.shop) : T.offDutyHint}</Text>
                                 </View>
-                                {onDuty ? <SmallLink label={T.endDuty} onPress={() => changeDuty(false)} danger /> : null}
-                            </View>
-                            {!onDuty ? <BigButton label={T.startDuty} icon="power" onPress={() => changeDuty(true)} busy={dutyBusy} /> : null}
+                                                            </View>
                         </View>
 
                         {summary ? (
@@ -264,6 +272,26 @@ export default function RiderHomeScreen() {
                                 <Text style={{ color: text, fontWeight: '900', fontSize: 17, marginTop: 10 }}>{T.waiting}</Text>
                                 <Text style={{ color: muted, fontWeight: '600', marginTop: 4, textAlign: 'center' }}>{T.waitingHint}</Text>
                             </View>
+                        ) : null}
+                        {recent.length ? (
+                            <>
+                                <Text style={{ color: text, fontWeight: '900', fontSize: 16, paddingHorizontal: 16, marginTop: 6, marginBottom: 8 }}>{tr('Recent activity')}</Text>
+                                {recent.map((o) => {
+                                    const done = o.status === 'delivered';
+                                    return (
+                                        <View key={String(o.id)} style={{ marginHorizontal: 16, marginBottom: 10, borderRadius: 16, padding: 14, backgroundColor: surface, borderWidth: 1, borderColor: border, flexDirection: 'row', alignItems: 'center' }}>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={{ color: text, fontWeight: '900', fontSize: 15 }}>{tr('Order #{orderNo}', { orderNo: o.orderNo })}</Text>
+                                                <Text style={{ color: muted, fontWeight: '600', fontSize: 12.5, marginTop: 2 }}>{when(o.delivery?.deliveredAt || o.createdAt)}</Text>
+                                            </View>
+                                            <View style={{ alignItems: 'flex-end' }}>
+                                                <Text style={{ color: done ? ok : bad, fontWeight: '900', fontSize: 14 }}>{done ? tr('Delivered') : o.status === 'cancelled' ? tr('Cancelled') : tr('Not delivered')}</Text>
+                                                {done && o.earnPaise > 0 ? <Text style={{ color: text, fontWeight: '800', fontSize: 13, marginTop: 2 }}>{rupee(o.earnPaise)}</Text> : null}
+                                            </View>
+                                        </View>
+                                    );
+                                })}
+                            </>
                         ) : null}
                     </>
                 ) : null}

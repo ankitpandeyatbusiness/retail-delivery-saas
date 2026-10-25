@@ -53,7 +53,7 @@ export default function WaiterScreen() {
 
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
-            <StaffHeader title={tr('Floor')} subtitle={sub} right={<Live live={w.state === 'ok'} />} />
+            <StaffHeader title={tr('Waiter')} subtitle={sub} />
             <OffDutyBanner />
             <Segment value={tab} onChange={setTab} tabs={tabs} />
             {w.state === 'error' && w.loadedAt ? (
@@ -125,14 +125,3 @@ export default function WaiterScreen() {
     );
 }
 
-// a small dot: live (green) or no connection (grey)
-function Live({ live }) {
-    const { muted, ok } = useBrand();
-    const c = live ? ok : muted;
-    return (
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: c, marginRight: 6 }} />
-            <Text style={{ color: c, fontWeight: '800', fontSize: 12.5 }}>{live ? tr('Live') : tr('Offline')}</Text>
-        </View>
-    );
-}

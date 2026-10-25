@@ -2,6 +2,7 @@
 // how the app looks and speaks -> Log out, always last.
 import React, { useState } from 'react';
 import { View, Text, ScrollView, Linking } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useBrand } from '../../components/common/kit';
 import { Card, Row, Sheet, Field, Button, SectionTitle } from '../../components/owners/ui';
 import { JobBadge, StaffHeader } from '../../components/staff/staffBits';
@@ -20,6 +21,7 @@ import { LANGS, useLang, tr } from '../../i18n';
 
 export default function StaffProfileScreen() {
     const { background, text, muted, error } = useBrand();
+    const nav = useNavigation();
     const me = useStaffStore((s) => s.me);
     const logout = useAuthStore((s) => s.logout);
     const lang = useLang((st) => st.lang);
@@ -86,8 +88,11 @@ export default function StaffProfileScreen() {
                     {me?.shopPhone ? <Row icon="call-outline" title={tr('Call the shop')} subtitle={me.shopPhone} onPress={() => Linking.openURL(`tel:${me.shopPhone}`).catch(() => { })} last /> : null}
                 </Card>
 
-                {/* 3. working time (live or off duty, weekly hours, leave) */}
+                {/* 3. working time (live or off duty, weekly hours) and the page for days off and leave */}
                 <DutyCard />
+                <Card>
+                    <Row icon="calendar-outline" title={tr('Days off and leave')} subtitle={tr('Take a holiday or ask the owner for leave')} onPress={() => nav.navigate('StaffLeave')} last />
+                </Card>
 
                 {/* 4. alerts and sound */}
                 {me?.role ? <SoundSettings role={me.role} /> : null}

@@ -23,6 +23,7 @@ import { OwnerCooksScreen, OwnerWaitersScreen } from '../screens/owners/OwnerSta
 import OwnerStaffPersonScreen from '../screens/owners/OwnerStaffPersonScreen';
 import OwnerAppLockScreen from '../screens/owners/OwnerAppLockScreen';
 import RiderTripScreen from '../screens/riders/RiderTripScreen';
+import StaffLeaveScreen from '../screens/staff/StaffLeaveScreen';
 import RiderDutyScreen from '../screens/riders/RiderDutyScreen';
 import RiderPointsScreen from '../screens/riders/RiderPointsScreen';
 import MyPointsScreen from '../screens/customers/MyPointsScreen';
@@ -331,6 +332,7 @@ export default function AppNavigator() {
                     {/* RiderTrip: a rider's delivery, one step at a time */}
                     <Stack.Screen name="RiderTrip" component={RiderTripScreen} />
                     <Stack.Screen name="RiderDuty" component={RiderDutyScreen} />
+                    <Stack.Screen name="StaffLeave" component={StaffLeaveScreen} />
                     <Stack.Screen name="RiderPoints" component={RiderPointsScreen} />
                     <Stack.Screen name="MyPoints" component={MyPointsScreen} />
                     <Stack.Screen name="TableBill" component={TableBillScreen} />
