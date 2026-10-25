@@ -76,6 +76,9 @@ const EVENTS = {
     table_walkout: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },   // he left without paying
     table_paid: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },      // the table bill was paid
     rider_leave_request: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // a rider asked for leave
+    rider_leave_withdrawn: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // a rider took his own leave back
+    rider_leave_removed: { to: 'rider', channels: INAPP_PUSH, alsoPush: true },     // the owner took a rider's leave away
+    rider_ended_duty: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },        // a rider ended his duty by hand
     rider_leave_decision: { to: 'rider', channels: INAPP_PUSH, alsoPush: true },  // the owner approved or rejected it
     rider_duty_auto: { to: 'rider', channels: ['inapp'] },                        // his schedule put him on or off duty
     rider_arrived_shop: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // the rider tapped "I have arrived" at the customer

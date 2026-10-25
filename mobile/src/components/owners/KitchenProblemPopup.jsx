@@ -44,7 +44,7 @@ export default function KitchenProblemPopup() {
     const next = () => setQueue((q) => q.slice(1));
     return (
         <Modal visible transparent animationType="fade" onRequestClose={next} statusBarTranslucent>
-            <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+            <View style={{ flex: 1, backgroundColor: 'transparent', justifyContent: 'flex-end' }}>
                 <View style={{ backgroundColor: surface, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20, paddingBottom: 28, borderColor: alpha(warn, 0.5), borderWidth: 1.5 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: alpha(warn, 0.16), alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>

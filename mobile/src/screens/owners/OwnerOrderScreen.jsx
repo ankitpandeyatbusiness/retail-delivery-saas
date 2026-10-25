@@ -1,7 +1,9 @@
 // One order, everything about it: the items, the bill, the customer, the address, the rider, the timeline, and the
 // buttons to move it on. Opening it silences the new-order alert for it.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, ScrollView, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, RefreshControl, Pressable, AppState } from 'react-native';
+import { Image } from 'expo-image';
+import PhotoViewer from '../../components/common/PhotoViewer';
 import { useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../../components/common/kit';
@@ -13,7 +15,7 @@ import { fetchOrder, fetchDelivery, fetchRiders, undoOrderStep, apiError } from 
 import { showToast } from '../../components/customers/shop';
 import { BlockSheet } from '../../components/owners/BlockSheet';
 import KitchenProblemActions from '../../components/owners/KitchenProblemActions';
-import { onOrderUpdate } from '../../api/common/socket';
+import { onOrderUpdate, onNotification } from '../../api/common/socket';
 import { acknowledge } from '../../utils/owners/soundbox';
 import { useNow } from '../../hooks/owners/useNow';
 import * as flow from '../../utils/owners/orderFlow';
@@ -22,6 +24,21 @@ import RiderLiveMap from '../../components/owners/RiderLiveMap';
 import TripClock from '../../components/riders/TripClock';
 import { Avatar } from './OwnerRidersScreen';
 import { tr } from '../../i18n';
+
+// Everything that happened to the order, newest first: every step, and the kitchen's and the delivery partner's own moments
+function timeline(o) {
+    const k = o.kitchen || {};
+    const d = o.delivery || {};
+    const by = (h) => (h.byType ? (h.byType === 'owner' ? 'you' : h.byType === 'staff' ? (h.byLabel || 'kitchen') : h.byType) : '');
+    const rows = (o.statusHistory || []).map((h) => ({ label: flow.statusLabel(h.status), at: h.at, by: by(h), note: h.note }));
+    if (k.queuedAt) rows.push({ label: 'Added to the cook\'s queue', at: k.queuedAt, by: k.queuedBy === 'auto' ? 'itself' : k.queuedBy });
+    if (k.startedAt) rows.push({ label: 'Cooking started', at: k.startedAt, by: k.startedByName });
+    if (k.readyAt) rows.push({ label: 'Food is ready', at: k.readyAt, by: k.readyByName });
+    if (d.assignedAt) rows.push({ label: 'Delivery partner assigned', at: d.assignedAt });
+    if (d.arrivedAt) rows.push({ label: 'Delivery partner arrived', at: d.arrivedAt });
+    if (d.pinSkipped?.at) rows.push({ label: 'Delivered without the PIN', at: d.pinSkipped.at });
+    return rows.filter((r) => r.at).sort((a, b) => new Date(b.at) - new Date(a.at));
+}
 
 const UNDELIVERED_WAIT_MS = 15 * 60 * 1000;   // the server allows "not delivered" 15 minutes after the rider's first problem
 
@@ -64,6 +81,7 @@ export default function OwnerOrderScreen() {
     const [invoiceBusy, setInvoiceBusy] = useState(false);
     const now = useNow(1000, true);
     const alive = useRef(true);
+    const [viewing, setViewing] = useState(null);   // the delivery photo, full screen
 
     const load = useCallback(async () => {
         try {
@@ -83,7 +101,9 @@ export default function OwnerOrderScreen() {
         load();
         // this order changed somewhere else (a rider answered, another phone accepted it): show the new state
         const off = onOrderUpdate((p) => { if (String(p?.orderId) === String(id)) load(); });
-        return () => { alive.current = false; off(); };
+        const offN = onNotification((n) => { if (String(n?.data?.orderId) === String(id)) load(); });   // anything said about this order
+        const every = setInterval(() => { if (AppState.currentState === 'active') load(); }, 6000);   // and a look every few seconds, so the page never waits for a message
+        return () => { alive.current = false; off(); offN(); clearInterval(every); };
     }, [id, load]);
 
     const actions = useOrderActions({ onChanged: (o) => { setOrder(o); load(); }, onOptimistic: setOrder });
@@ -330,22 +350,33 @@ export default function OwnerOrderScreen() {
 
                 <SectionTitle title={tr('What happened')} />
                 <Card>
-                    {(order.statusHistory || []).slice().reverse().map((h, i, arr) => (
+                    {timeline(order).map((h, i, arr) => (
                         <View key={i} style={{ flexDirection: 'row', paddingBottom: i === arr.length - 1 ? 0 : 12 }}>
                             <View style={{ alignItems: 'center', marginRight: 10 }}>
                                 <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: i === 0 ? ok : muted, marginTop: 4 }} />
                                 {i !== arr.length - 1 ? <View style={{ flex: 1, width: 2, backgroundColor: alpha(muted, 0.3), marginTop: 2 }} /> : null}
                             </View>
                             <View style={{ flex: 1 }}>
-                                <Text style={{ color: text, fontWeight: '800' }}>{flow.statusLabel(h.status)}</Text>
-                                <Text style={{ color: muted, fontSize: 12 }}>
-                                    {flow.dayTime(h.at)}{h.byType ? tr(' · by {v1}', { v1: h.byType === 'owner' ? 'you' : h.byType === 'staff' ? (h.byLabel || 'kitchen') : h.byType }) : ''}
-                                </Text>
+                                <Text style={{ color: text, fontWeight: '800' }}>{tr(h.label)}</Text>
+                                <Text style={{ color: muted, fontSize: 12 }}>{flow.dayTime(h.at)}{h.by ? tr(' · by {v1}', { v1: h.by }) : ''}</Text>
                                 {h.note ? <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{h.note}</Text> : null}
                             </View>
                         </View>
                     ))}
                 </Card>
+
+                {order.delivery?.proof?.url ? (
+                    <>
+                        <SectionTitle title={tr('Photo of the delivery')} />
+                        <Card>
+                            <Pressable onPress={() => setViewing(order.delivery.proof.url)} accessibilityRole="button" accessibilityLabel={tr('Open the photo')}>
+                                <Image source={{ uri: order.delivery.proof.url }} style={{ width: '100%', height: 200, borderRadius: 14 }} contentFit="cover" />
+                            </Pressable>
+                            <Text style={{ color: muted, fontSize: 12, marginTop: 8 }}>{tr('Taken by the delivery partner at the door')}{order.delivery.proof.at ? ' · ' + flow.dayTime(order.delivery.proof.at) : ''}. {tr('Tap the photo to see it big.')}</Text>
+                        </Card>
+                    </>
+                ) : null}
+                <PhotoViewer uri={viewing} onClose={() => setViewing(null)} />
 
                 {order.status === 'delivered' ? (
                     <Card>

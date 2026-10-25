@@ -155,12 +155,12 @@ export default function OwnerRidersScreen() {
                                 <View style={{ flex: 1, minWidth: 0, marginLeft: 12 }}>
                                     <Text style={{ color: text, fontWeight: '900', fontSize: 16 }} numberOfLines={1}>{riderName(r)}</Text>
                                     <Text style={{ color: muted, fontSize: 12, marginTop: 1 }}>{r.phone || ''}{r.ratingCount ? `  ·  ★ ${Number(r.ratingAvg).toFixed(1)} (${r.ratingCount})` : ''}{r.avgDeliveryMin ? `  ·  ${r.avgDeliveryMin} min avg` : ''}</Text>
-                                    <View style={{ flexDirection: 'row', marginTop: 6, flexWrap: 'wrap' }}>
+                                    <View style={{ flexDirection: 'row', marginTop: 6, flexWrap: 'wrap', gap: 6 }}>
                                         {!r.isActive ? <Pill label={tr('Switched off')} color={muted} /> : r.isOnline ? <Pill label={tr('Online')} color={ok} icon="radio-button-on" /> : <Pill label={tr('Offline')} color={muted} />}
-                                        {r.standing ? <View style={{ marginLeft: 6 }}><RiderBadge badge={r.standing.badge} /></View> : null}
-                                        {r.leave?.onLeaveToday ? <View style={{ marginLeft: 6 }}><Pill label={tr('On leave today')} color={warn} /></View> : null}
-                                        {r.leave?.pending > 0 ? <View style={{ marginLeft: 6 }}><Pill label={tr('Leave request')} color={warn} /></View> : null}
-                                        {r.activeOrderCount > 0 ? <View style={{ marginLeft: 6 }}><Pill label={tr('{activeOrderCount} on delivery', { activeOrderCount: r.activeOrderCount })} color={primary} icon="bicycle" /></View> : null}
+                                        {r.standing ? <RiderBadge badge={r.standing.badge} /> : null}
+                                        {r.leave?.onLeaveToday ? <Pill label={tr('On leave today')} color={warn} /> : null}
+                                        {r.leave?.pending > 0 ? <Pill label={tr('Leave request')} color={warn} /> : null}
+                                        {r.activeOrderCount > 0 ? <Pill label={tr('{activeOrderCount} on delivery', { activeOrderCount: r.activeOrderCount })} color={primary} icon="bicycle" /> : null}
                                     </View>
                                 </View>
                                 <Toggle value={r.isActive} onValueChange={(on) => toggle(r, on)} disabled={access !== 'ok' && access !== 'paused'} />

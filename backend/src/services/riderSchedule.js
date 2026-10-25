@@ -134,9 +134,21 @@ async function requestLeave({ tenantId, userId, from, to, reason, now = new Date
     return leave;
 }
 
+// he takes his leave back: one that is waiting, or an approved one that has not ended. The owner is told.
 async function cancelLeave({ tenantId, userId, id }) {
-    const l = await RiderLeave.findOneAndUpdate({ _id: id, tenantId, riderUserId: userId, status: 'pending' }, { $set: { status: 'cancelled' } }, { new: true });
-    if (!l) throw fail(404, 'Only a leave that is still waiting can be cancelled');
+    const { date } = istNow();
+    const was = await RiderLeave.findOne({ _id: id, tenantId, riderUserId: userId }).select('status').lean();
+    const l = await RiderLeave.findOneAndUpdate({ _id: id, tenantId, riderUserId: userId, status: { $in: ['pending', 'approved'] }, to: { $gte: date } }, { $set: { status: 'cancelled', decidedNote: 'Taken back by the delivery partner' } }, { new: true });
+    if (!l) throw fail(404, 'Only a leave that is waiting, or has not ended yet, can be cancelled');
+    tell('rider_leave_withdrawn', { tenantId, vars: { riderName: l.riderName || 'A delivery partner', from: l.from, to: l.to, days: l.days, wasApproved: was?.status === 'approved' }, data: { kind: 'rider_leave', leaveId: String(l._id), riderId: String(userId) } });
+    return l;
+}
+
+// the owner takes a leave away (it was a mistake, or the rider is needed): the rider is told, and his screen changes at once
+async function ownerRemove({ tenantId, id, note }) {
+    const l = await RiderLeave.findOneAndUpdate({ _id: id, tenantId, status: { $in: ['pending', 'approved'] } }, { $set: { status: 'cancelled', decidedAt: new Date(), decidedNote: String(note || 'Removed by the owner').trim().slice(0, 200) } }, { new: true });
+    if (!l) throw fail(404, 'Only a waiting or approved leave can be taken away');
+    tell('rider_leave_removed', { tenantId, userId: l.riderUserId, vars: { from: l.from, to: l.to, days: l.days, note: String(note || '').trim().slice(0, 200) }, data: { kind: 'rider_leave', leaveId: String(l._id) } });
     return l;
 }
 
@@ -268,5 +280,5 @@ function startRiderScheduleTicker() {
 
 module.exports = {
     DAYS, MAX_HOLIDAYS, istNow, weeklyOf, cleanDuty, validDate, addDays, daysBetween, blockedOn, monthDays, summaries,
-    requestLeave, cancelLeave, decide, windowNow, tick, startRiderScheduleTicker, fail, resumeTime, resumeTimed,
+    requestLeave, cancelLeave, ownerRemove, decide, windowNow, tick, startRiderScheduleTicker, fail, resumeTime, resumeTimed,
 };

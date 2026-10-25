@@ -10,6 +10,7 @@ import { alertOn } from '../../store/common/useAlertPrefs';
 import { useStaffSoundStore } from '../../store/staff/useStaffSoundStore';
 import { useLang } from '../../i18n';
 import { useStaffStore } from '../../store/staff/useStaffStore';
+import { useNotificationStore } from '../../store/common/useNotificationStore';
 
 const LINES = {
     en: {
@@ -21,6 +22,7 @@ const LINES = {
         bill: (a) => `Table ${a.table} is asking for the bill`,
         here: (a) => `Pickup ${a.orderNo}, the customer is here`,
         queued: (a) => `Order ${a.orderNo} was added to your queue`,
+        done: (a) => `Order ${a.orderNo} was collected`,
     },
     hi: {
         new: (a) => `नया ऑर्डर ${a.orderNo}`,
@@ -31,6 +33,7 @@ const LINES = {
         bill: (a) => `टेबल ${a.table} बिल मांग रही है`,
         here: (a) => `पिकअप ${a.orderNo}, ग्राहक आ गया है`,
         queued: (a) => `ऑर्डर ${a.orderNo} आपकी कतार में जोड़ दिया गया`,
+        done: (a) => `ऑर्डर ${a.orderNo} ले लिया गया`,
     },
 };
 const BUZZ = { new: [0, 250, 120, 250], cancel: [0, 400, 150, 400], hurry: [0, 200, 100, 200], ready: [0, 200, 100, 200], call: [0, 150, 80, 150], bill: [0, 150, 80, 150], here: [0, 200, 100, 200], queued: [0, 120] };
@@ -63,6 +66,7 @@ export function staffAlert(a, { force } = {}) {
         const language = languageNow(st.language);
         const text = LINES.en[a.kind]?.(a);
         const textHi = LINES.hi[a.kind]?.(a);
+        if (!force && a.kind !== 'done') useNotificationStore.getState().setDot(true);   // the bell shows its dot
         if (!force) {
             // the slider (if its switch is on); the new order's slider carries the whole order
             const title = (language === 'hi' ? textHi : text) || text;

@@ -731,18 +731,17 @@ export async function staffSay(a, { force } = {}) {
             return;
         }
         if (!force && !s.alwaysReady && AppState.currentState !== 'active') return;
-        if (a.kind === 'done') { playSfx('notify'); return; }
         if (a.kind === 'new' && isCook() && a.orderId && !force) { raise({ orderId: a.orderId, orderNo: a.orderNo, speech: a.speech, speechHi: a.speechHi }); return; }
         if ((a.kind === 'cancel' || a.kind === 'queued') && a.orderId) dismiss(a.orderId);   // a cancelled order, or one that went to the queue, stops ringing
         for (let i = 0; i < 16 && speaking; i += 1) await new Promise((r) => setTimeout(r, 500));   // one voice at a time; a cancel waits its turn
         if (speaking) return;
         note('staff alert: ' + a.kind);
         await ensureAudio();
-        if (force || alertOn(a.kind, 's')) playSfx(a.kind === 'cancel' ? 'cancelAlarm' : a.kind === 'queued' ? 'notify' : 'tingTong');
+        if (force || alertOn(a.kind, 's')) playSfx(a.kind === 'cancel' ? 'cancelAlarm' : (a.kind === 'queued' || a.kind === 'done') ? 'notify' : 'tingTong');
         const language = await languageToUse();
         const said = language === 'hi' ? (a.speechHi || a.speech) : (a.speech || a.speechHi);
         if (!said) return;
-        await new Promise((r) => setTimeout(r, a.kind === 'cancel' ? 1300 : 1700));   // the tone first, then the voice
+        await new Promise((r) => setTimeout(r, a.kind === 'cancel' ? 1300 : (a.kind === 'queued' || a.kind === 'done') ? 700 : 1700));   // the tone first, then the voice
         if (!speaking) await speak(a.kind === 'new' ? withGreeting(said, language) : said, language, force ? undefined : a.kind);
     } catch (e) { /* the tone and the push are enough */ }
 }
@@ -783,7 +782,7 @@ export async function sayExample(id, sample, soft) {
 export const sampleFor = (language) => {
     const r = roleNow();
     if (r === 'kitchen') return language === 'hi' ? 'टेबल 2 के लिए नया ऑर्डर। 1 Chicken Wings, 2 Paneer Butter Masala। विशेष निर्देश: प्याज़ नहीं।' : 'New order for table 2. 1 Chicken Wings, 2 Paneer Butter Masala. Note: no onion.';
-    if (r === 'rider') return language === 'hi' ? 'नई डिलीवरी रिक्वेस्ट। 540 रुपये लेने हैं। 2 मिनट में स्वीकार करें।' : 'New delivery request. Collect 540 rupees. Accept within 2 minutes.';
+    if (r === 'rider') return language === 'hi' ? 'नई डिलीवरी रिक्वेस्ट। 540 रुपये लेने हैं। जल्दी स्वीकार करें।' : 'New delivery request. Collect 540 rupees. Accept it soon.';
     if (r === 'waiter') return language === 'hi' ? 'टेबल 2, खाना तैयार है।' : 'Table 2, food is ready.';
     return SAMPLE[language] || SAMPLE.en;
 };

@@ -1,6 +1,6 @@
 // Small pieces the kitchen and waiter screens share: the page header, the job badge and the loading skeleton.
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, ActivityIndicator, useWindowDimensions, Animated, Easing } from 'react-native';
+import { View, Text, Pressable, TouchableOpacity, ActivityIndicator, useWindowDimensions, Animated, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand, alpha } from '../common/kit';
@@ -72,6 +72,20 @@ export const minsSince = (d) => Math.max(0, Math.floor((Date.now() - new Date(d)
 export const minWord = (m) => (m < 1 ? tr('just now') : tr('{n} min', { n: m }));
 
 // a big button a cook or waiter can hit with a wet thumb: full width, tall, clear colours in both looks
+// The button of the cook's card (Start cooking, Ready, Add to queue): a plain touchable that fills the width it is given, so a tap anywhere on it counts.
+export function ActionButton({ label, icon, bg, ink, busy, disabled, onPress, height = 56 }) {
+    return (
+        <TouchableOpacity activeOpacity={0.75} onPress={onPress} disabled={busy || disabled} accessibilityRole="button" style={{ height, borderRadius: 16, backgroundColor: bg, opacity: disabled ? 0.4 : 1, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', paddingHorizontal: 12 }}>
+            {busy ? <ActivityIndicator color={ink} /> : (
+                <>
+                    <Ionicons name={icon} size={22} color={ink} style={{ marginRight: 8 }} />
+                    <Text numberOfLines={1} style={{ color: ink, fontWeight: '900', fontSize: 17, flexShrink: 1 }}>{label}</Text>
+                </>
+            )}
+        </TouchableOpacity>
+    );
+}
+
 export function BigButton({ label, icon, bg, ink, busy, disabled, onPress }) {
     return (
         // the whole coloured button is the touch area (not only the words in the middle): it has its own full width and height, and the icon and words let touches through
@@ -135,7 +149,8 @@ export function FadeIn({ k, children }) {
         v.setValue(0);
         Animated.timing(v, { toValue: 1, duration: 240, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
     }, [k]);   // eslint-disable-line react-hooks/exhaustive-deps
-    return <Animated.View style={{ flex: 1, opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] }}>{children}</Animated.View>;
+    // opacity only: a list that is moved by an animation can have touches that land a little off on Android
+    return <Animated.View style={{ flex: 1, opacity: v }}>{children}</Animated.View>;
 }
 
 // how many columns a list of cards gets: one on a phone, two on a small tablet, three on a big one (a kitchen screen on a tablet shows more at a glance)

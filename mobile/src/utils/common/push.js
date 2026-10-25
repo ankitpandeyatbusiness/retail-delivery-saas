@@ -19,6 +19,9 @@ import { showToast } from '../../components/customers/shop';
 import { speakOnOpen, isNewsType, sayAlert, markSaid, markTapped, acknowledge } from '../owners/soundbox';
 import { showSlider } from '../../components/common/AlertSliderHost';
 import { fetchOrder } from '../../api/owners/shopApi';
+import { fetchRiderOrder } from '../../api/riders/riderApi';
+import { fetchKitchenOrders } from '../../api/staff/staffApi';
+import { statusLabel, isFinal } from '../owners/orderFlow';
 import { useCouponStore } from '../../store/customers/useCouponStore';
 import { useSoundboxStore } from '../../store/owners/useSoundboxStore';
 import { useOwedPrompt } from '../../store/customers/useOwedPrompt';
@@ -84,7 +87,8 @@ function openOrder(orderId) {
     if (!orderId) return;
     const user = useAuthStore.getState().user;
     if (!user) return;
-    // the owner has his own order page; customers and riders keep theirs
+    // the owner and the rider have their own order pages (the customer's page says "order not found" to them)
+    if (user.role === 'rider') { openScreen('RiderTrip', { orderId: String(orderId) }); return; }
     openScreen(user.role === 'admin' ? 'OwnerOrder' : 'OrderDetail', { id: String(orderId) });
 }
 
@@ -109,9 +113,55 @@ function showTapSlider(resp, data) {
     showSlider({ key: `tap:${data.nid || type}:${data.orderId || data.table || ''}`, type, title: c.title, body: c.body, data });
 }
 
-// A notification was tapped: open its order. For the owner's new-order push, Soundbox mode also reads it out.
-function handleTap(resp) {
+// What is true NOW about the order a tapped notification talks about. null = the notification is still the latest word.
+// Otherwise { title, body }: the order has moved on, and that is what the person is shown (no old slider, no old voice).
+async function movedOn(role, type, data) {
+    const id = String(data.orderId || '');
+    if (!id) return null;
+    try {
+        if (role === 'kitchen' && ['kitchen_new', 'kitchen_nudge', 'kitchen_late'].includes(type)) {
+            const q = await fetchKitchenOrders();
+            const row = (q.items || []).find((o) => String(o.id) === id);
+            if (!row) return { title: `Order #${data.orderNo || ''}`, body: 'It is not in your list any more: it was cancelled or is finished.' };
+            if (type === 'kitchen_new' && row.stage !== 'new') return { title: `Order #${row.orderNo} is already ${row.stage === 'cooking' ? 'being cooked' : 'ready'}`, body: 'Nothing to do for this one.' };
+            return null;
+        }
+        if (role === 'rider' && ['rider_offer', 'rider_assigned_owner'].includes(type)) {
+            let o = null;
+            try { o = await fetchRiderOrder(id); } catch (e) { o = null; }
+            if (!o) return { title: `Order #${data.orderNo || ''}`, body: 'This order is no longer yours. It was taken by another delivery partner, or the offer ran out.' };
+            if (type === 'rider_offer' && o.delivery?.status && o.delivery.status !== 'assigned') return { title: `Order #${o.orderNo}`, body: o.delivery.status === 'accepted' || o.delivery.status === 'picked_up' ? 'You already took this order.' : 'This offer is over.' };
+            if (['delivered', 'cancelled', 'undelivered'].includes(o.status)) return { title: `Order #${o.orderNo} is ${statusLabel(o.status).toLowerCase()}`, body: 'This delivery is finished.' };
+            return null;
+        }
+        if (role === 'admin' && ['rider_none', 'rider_accepted', 'rider_rejected', 'rider_problem', 'order_late', 'delivery_late_warning'].includes(type)) {
+            const o = await fetchOrder(id);
+            if (o && isFinal(o.status)) return { title: `Order #${o.orderNo} is ${statusLabel(o.status).toLowerCase()}`, body: 'This is already over. Nothing to do.' };
+            return null;
+        }
+    } catch (e) { /* if we cannot look, the notification is shown as it is */ }
+    return null;
+}
+
+// A notification was tapped: look at the order first. If it has moved on, show where it is now (no old slider, no old voice); otherwise do the normal thing.
+async function handleTap(resp) {
     const data = dataOf(resp);
+    const role = useAuthStore.getState().user?.role;
+    const tapType = String(data.type || '');
+    if (['kitchen', 'rider', 'admin'].includes(role) && data.orderId && tapType && data.test !== '1') {
+        const m = await movedOn(role, tapType, data);
+        if (m) {
+            markTapped(tapType, data);
+            showSlider({ key: `moved:${data.orderId}:${tapType}:${Date.now()}`, type: tapType, title: m.title, body: m.body, data });
+            if (role === 'rider') openOrder(data.orderId);
+            return;
+        }
+    }
+    handleTapNow(resp, data);
+}
+
+// A notification was tapped: open its order. For the owner's new-order push, Soundbox mode also reads it out.
+function handleTapNow(resp, data) {
     markTapped(String(data.type || ''), data);   // the same alert arriving live a moment later (the app was closed) must not ring and speak again
     // the voice on a tap is the same one as with the app open, unless it was already read when the alert arrived (the new-order one is read below)
     const who = useAuthStore.getState().user?.role;
@@ -144,7 +194,7 @@ function handleTap(resp) {
     // a customer's reminder about the bill he left unpaid: open the bill with the Pay button
     if (/^owed_/.test(String(data.type || '')) || data.type === 'table_walkout') { useOwedPrompt.getState().show(); return; }
     if (data.offerCode) {   // the shop offers a discount to stay: the code is ready at checkout and the menu opens
-        useCouponStore.getState().set(String(data.offerCode));
+        useCouponStore.getState().set(String(data.offerCode), data.offerUntil ? new Date(data.offerUntil).getTime() : 0);
         openScreen('MainTabs', { screen: 'Home' });
         return;
     }

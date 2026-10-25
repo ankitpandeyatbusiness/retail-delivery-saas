@@ -119,6 +119,10 @@ export default function CartScreen() {
     const [busy, setBusy] = useState(false);
     const [placing, setPlacing] = useState(false);
     const [tick, setTick] = useState(0);
+    const offerUntil = useCouponStore((st) => st.until);
+    const [nowMs, setNowMs] = useState(Date.now());
+    useEffect(() => { if (!offerUntil) return undefined; const i = setInterval(() => setNowMs(Date.now()), 1000); return () => clearInterval(i); }, [offerUntil]);
+    const offerLeft = offerUntil ? Math.max(0, Math.round((offerUntil - nowMs) / 1000)) : 0;
     const [idemKey, setIdemKey] = useState(() => Crypto.randomUUID());   // a new one after a withdrawn payment, so the next try is a new order
     const reqId = useRef(0);
 
@@ -218,7 +222,7 @@ export default function CartScreen() {
         if (pending && user && couponOn && lines.length) {
             setCouponIn(pending);
             setTryCode(String(pending).trim().toUpperCase());
-            useCouponStore.getState().clear();
+            useCouponStore.setState({ code: '' });   // (the offer's clock keeps running)
         }
     }, [pending, user, couponOn, lines.length]);
 
@@ -365,6 +369,16 @@ export default function CartScreen() {
                 {closed ? <ClosedBanner message={quote?.problem || closedMsg} /> : null}
 
                 {type === 'delivery' && freeAbove > 0 ? <FreeDeliveryBar preview={preview} freeAbove={freeAbove} /> : null}
+
+                {offerLeft > 0 ? (
+                    <View style={{ marginHorizontal: 16, marginTop: 12, borderRadius: 16, paddingVertical: 12, paddingHorizontal: 16, backgroundColor: tint(primary), borderWidth: 1.5, borderColor: primary, flexDirection: 'row', alignItems: 'center' }}>
+                        <Ionicons name="time" size={26} color={primary} />
+                        <View style={{ marginLeft: 12, flex: 1 }}>
+                            <Text style={{ color: primary, fontWeight: '900', fontSize: 16 }}>{tr('The shop\'s offer ends in {t}', { t: `${Math.floor(offerLeft / 60)}:${String(offerLeft % 60).padStart(2, '0')}` })}</Text>
+                            <Text style={{ color: muted, fontSize: 12.5, marginTop: 2 }}>{tr('Order now and the code is applied for you.')}</Text>
+                        </View>
+                    </View>
+                ) : null}
 
                 {/* what kind of order this is, so nobody orders the wrong one */}
                 <View style={{ marginHorizontal: 16, marginTop: 12, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: tint(primary), borderWidth: 1.5, borderColor: primary }}>

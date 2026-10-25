@@ -4,6 +4,7 @@
 // "Clear all" deletes every message.
 import { useOwedPrompt } from '../../store/customers/useOwedPrompt';
 import { useCouponStore } from '../../store/customers/useCouponStore';
+import { useAuthStore } from '../../store/common/useAuthStore';
 import React, { useCallback, useRef, useState } from 'react';
 import { View, Text, FlatList, Pressable, RefreshControl, StyleSheet } from 'react-native';
 import { ListShimmer } from '../../components/owners/shimmer';
@@ -53,6 +54,7 @@ export default function NotificationsScreen() {
     const busyMore = useRef(false);
 
     const load = useCallback(async () => {
+        useNotificationStore.getState().setDot(false);
         try {
             const r = await fetchInbox({ page: 1, limit: 20 });
             setItems(r.items); setPage(1); setMore(!!r.hasMore); setState('ok');
@@ -89,12 +91,16 @@ export default function NotificationsScreen() {
         const orderId = n.data?.orderId;
         if (/^owed_/.test(String(n.type || n.data?.type || '')) || n.data?.type === 'table_walkout') { useOwedPrompt.getState().show(); return; }
         if (n.data?.offerCode) {   // the shop offers a discount to stay: the code is ready at checkout and the menu opens
-            useCouponStore.getState().set(String(n.data.offerCode));
+            useCouponStore.getState().set(String(n.data.offerCode), n.data.offerUntil ? new Date(n.data.offerUntil).getTime() : 0);
             showToast(tr('Code {code} is ready at checkout', { code: String(n.data.offerCode) }));
             nav.navigate('MainTabs', { screen: 'Home' });
             return;
         }
-        if (orderId) nav.navigate('OrderDetail', { id: String(orderId) });
+        if (orderId) {
+            // a delivery partner opens his own trip page: the customer's order page says "order not found" to him
+            if (useAuthStore.getState().user?.role === 'rider') nav.navigate('RiderTrip', { orderId: String(orderId) });
+            else nav.navigate('OrderDetail', { id: String(orderId) });
+        }
     };
 
     const clear = async () => {

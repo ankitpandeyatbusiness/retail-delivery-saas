@@ -24,16 +24,17 @@ async function leftKitchen({ before, updated, status }) {
     const tenant = await Tenant.findById(updated.tenantId).select('settings.orders').lean();
     const rules = staffService.rulesOf(tenant);
     if (rules.kitchenOn !== true || !(rules.kitchenSees || []).includes(updated.orderType)) return;
+    if (updated.orderType === 'dine_in') { tell(updated.tenantId, { orderId: String(updated._id), orderNo: updated.orderNo, status }); return; }   // the cook's job ends when food leaves the kitchen: a table's "served" is for the waiter
     const word = updated.orderType === 'delivery'
         ? { title: `Order #${updated.orderNo} collected`, body: 'The delivery partner has it.' }
         : updated.orderType === 'pickup'
             ? { title: `Order #${updated.orderNo} handed over`, body: 'The customer has it.' }
             : { title: `Order #${updated.orderNo} served`, body: updated.tableNo ? `Table ${updated.tableNo} has it.` : 'It is at the table.' };
-    tell(updated.tenantId, { orderId: String(updated._id), orderNo: updated.orderNo, status, alert: { kind: 'done', orderNo: updated.orderNo } });
+    tell(updated.tenantId, { orderId: String(updated._id), orderNo: updated.orderNo, status, alert: { kind: 'done', orderNo: updated.orderNo, speech: word.title, speechHi: `ऑर्डर ${updated.orderNo} ले लिया गया` } });
     const people = (await cooks(updated.tenantId)).filter((p) => p.prefs?.tellDone !== false);
     await Promise.all(people.map((p) => pushChannel.send({
         tenantId: updated.tenantId, userId: p.userId, ...word,
-        data: { type: 'kitchen_done', orderId: String(updated._id), orderNo: updated.orderNo }, tag: `done:${updated._id}`, channelId: STAFF_INFO_CHANNEL, sound: 'notify',
+        data: { type: 'kitchen_done', orderId: String(updated._id), orderNo: updated.orderNo, speech: word.title, speechHi: `ऑर्डर ${updated.orderNo} ले लिया गया` }, tag: `done:${updated._id}`, channelId: STAFF_INFO_CHANNEL, sound: 'notify',
     }).catch((e) => console.error('Kitchen push error:', e.message))));
 }
 

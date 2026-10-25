@@ -11,10 +11,11 @@ export default function BellButton({ style }) {
     const nav = useNavigation();
     const { text, error } = useBrand();
     const unread = useNotificationStore((s) => s.unread);
+    const alertDot = useNotificationStore((s) => s.alertDot);
     return (
-        <Pressable onPress={() => nav.navigate('Notifications')} hitSlop={10} style={[{ padding: 6, marginLeft: 6 }, style]} accessibilityRole="button" accessibilityLabel={tr('Notifications')}>
+        <Pressable onPress={() => { useNotificationStore.getState().setDot(false); nav.navigate('Notifications'); }} hitSlop={10} style={[{ padding: 6, marginLeft: 6 }, style]} accessibilityRole="button" accessibilityLabel={tr('Notifications')}>
             <Ionicons name="notifications-outline" size={24} color={text} />
-            {unread > 0 ? <View style={{ position: 'absolute', top: 5, right: 5, width: 10, height: 10, borderRadius: 5, backgroundColor: error, borderWidth: 1.5, borderColor: '#FFFFFF' }} /> : null}
+            {unread > 0 || alertDot ? <View style={{ position: 'absolute', top: 5, right: 5, width: 10, height: 10, borderRadius: 5, backgroundColor: error, borderWidth: 1.5, borderColor: '#FFFFFF' }} /> : null}
         </Pressable>
     );
 }

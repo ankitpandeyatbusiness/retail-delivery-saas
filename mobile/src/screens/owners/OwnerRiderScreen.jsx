@@ -173,11 +173,11 @@ export default function OwnerRiderScreen() {
                         <View style={{ flex: 1, marginLeft: 14 }}>
                             <Text style={{ color: text, fontWeight: '900', fontSize: 18 }} numberOfLines={1}>{riderName(rider)}</Text>
                             <Text style={{ color: muted, marginTop: 2 }}>{rider.phone || ''}</Text>
-                            <View style={{ flexDirection: 'row', marginTop: 6, flexWrap: 'wrap' }}>
+                            <View style={{ flexDirection: 'row', marginTop: 6, flexWrap: 'wrap', gap: 6 }}>
                                 {!rider.isActive ? <Pill label={tr('Switched off')} color={muted} /> : rider.isOnline ? <Pill label={tr('Online')} color={ok} icon="radio-button-on" /> : <Pill label={tr('Offline')} color={muted} />}
-                                {rider.ratingCount ? <View style={{ marginLeft: 6 }}><Pill label={`★ ${Number(rider.ratingAvg).toFixed(1)} · ${rider.ratingCount}`} color="#D97706" /></View> : null}
-                                {rider.avgDeliveryMin ? <View style={{ marginLeft: 6 }}><Pill label={tr('Avg {min} min', { min: rider.avgDeliveryMin })} color={muted} icon="time-outline" /></View> : null}
-                                {rider.lateCount > 0 ? <View style={{ marginLeft: 6 }}><Pill label={tr('{n} late of {total}', { n: rider.lateCount, total: rider.deliveryCount })} color={muted} /></View> : null}
+                                {rider.ratingCount ? <Pill label={`★ ${Number(rider.ratingAvg).toFixed(1)} · ${rider.ratingCount}`} color="#D97706" /> : null}
+                                {rider.avgDeliveryMin ? <Pill label={tr('Avg {min} min', { min: rider.avgDeliveryMin })} color={muted} icon="time-outline" /> : null}
+                                {rider.lateCount > 0 ? <Pill label={tr('{n} late of {total}', { n: rider.lateCount, total: rider.deliveryCount })} color={muted} /> : null}
                             </View>
                         </View>
                     </View>

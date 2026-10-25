@@ -1,11 +1,11 @@
 // One order on the kitchen screen: big number, where it goes, the dishes the way a cook reads them, and one big button for the next step.
 // It follows the light and dark look (every colour comes from the shop's theme), and a late order turns red.
 import React from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text, Pressable, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../common/kit';
 import { VegDot } from '../customers/shop';
-import { BigButton, UndoLink, useMinuteClock, clock, minsSince, minWord } from './staffBits';
+import { ActionButton, UndoLink, useMinuteClock, clock, minsSince, minWord } from './staffBits';
 import { tr } from '../../i18n';
 
 function where(o) {
@@ -94,31 +94,25 @@ export default function KitchenOrderCard({ o, lateMin, busy, onAct, onProblem, o
                     {o.readyByName ? `  ·  ${o.readyByName}` : ''}
                 </Text>
             ) : (
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
-                    <Pressable onPress={onProblem} hitSlop={8} style={({ pressed }) => ({ paddingVertical: 12, paddingRight: 14, opacity: pressed ? 0.6 : 1 })} accessibilityRole="button" accessibilityLabel={tr('Tell the owner about a problem')}>
-                        <Ionicons name="alert-circle-outline" size={26} color={warn} />
-                    </Pressable>
-                    <View style={{ flex: 1 }}>
-                        {cooking
-                            ? <BigButton label={tr('Ready')} icon="checkmark-done" busy={busy} bg={ok} ink="#FFFFFF" onPress={() => onAct('ready')} />
-                            : o.queued
-                                ? (
-                                    <View>
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', marginBottom: 8, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 99, backgroundColor: alpha(primary, 0.14) }}>
-                                            <Ionicons name="time" size={13} color={primary} style={{ marginRight: 4 }} />
-                                            <Text style={{ color: primary, fontWeight: '800', fontSize: 12.5 }}>{tr('In your queue')}</Text>
-                                        </View>
-                                        <BigButton label={tr('Start cooking')} icon="flame" busy={busy} bg={primary} ink={onPrimary} onPress={() => onAct('start')} />
-                                    </View>
-                                )
-                                : (
-                                    <View style={{ flexDirection: 'row' }}>
-                                        <View style={{ flex: 1 }}><BigButton label={tr('Start cooking')} icon="flame" busy={busy} bg={primary} ink={onPrimary} onPress={() => onAct('start')} /></View>
-                                        <View style={{ width: 8 }} />
-                                        <View style={{ flex: 1 }}><BigButton label={tr('Add to queue')} icon="time" busy={busy} bg={alpha(primary, 0.14)} ink={primary} onPress={() => onAct('queue')} /></View>
-                                    </View>
-                                )}
-                    </View>
+                <View style={{ marginTop: 12 }}>
+                    {cooking ? (
+                        <ActionButton label={tr('Ready')} icon="checkmark-done" busy={busy} bg={ok} ink="#FFFFFF" onPress={() => onAct('ready')} />
+                    ) : (
+                        <View>
+                            {o.queued ? (
+                                <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', marginBottom: 8, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 99, backgroundColor: alpha(primary, 0.14) }}>
+                                    <Ionicons name="time" size={13} color={primary} style={{ marginRight: 4 }} />
+                                    <Text style={{ color: primary, fontWeight: '800', fontSize: 12.5 }}>{tr('In your queue')}</Text>
+                                </View>
+                            ) : null}
+                            <ActionButton label={tr('Start cooking')} icon="flame" busy={busy} bg={primary} ink={onPrimary} onPress={() => onAct('start')} />
+                            {!o.queued ? <View style={{ marginTop: 8 }}><ActionButton label={tr('Add to queue')} icon="time" busy={busy} bg={alpha(primary, 0.14)} ink={primary} onPress={() => onAct('queue')} height={48} /></View> : null}
+                        </View>
+                    )}
+                    <TouchableOpacity onPress={onProblem} activeOpacity={0.7} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', paddingVertical: 10, marginTop: 4 }}>
+                        <Ionicons name="alert-circle-outline" size={20} color={warn} />
+                        <Text style={{ color: warn, fontWeight: '800', fontSize: 13.5, marginLeft: 6 }}>{tr('Tell the owner about a problem')}</Text>
+                    </TouchableOpacity>
                 </View>
             )}
             <UndoLink undo={o.undo} busy={busy} onPress={onUndo} />

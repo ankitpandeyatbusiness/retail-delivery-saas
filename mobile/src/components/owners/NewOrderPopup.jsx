@@ -113,7 +113,7 @@ export default function NewOrderPopup({ navRef }) {
 
     return (
         <Modal visible transparent animationType="slide" onRequestClose={() => drop(order.id)} statusBarTranslucent>
-            <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.35)' }}>
+            <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'transparent' }}>
                 <DragDown onClose={() => drop(order.id)}>{(scroll) => (
                 <View style={[s.sheet, { backgroundColor: surface, borderColor: border, paddingBottom: Math.max(insets.bottom, 12) + 10 }]}>
                     <Grip style={{ paddingBottom: 12 }}><View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: border }} /></Grip>
@@ -163,5 +163,5 @@ export default function NewOrderPopup({ navRef }) {
 }
 
 const s = StyleSheet.create({
-    sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, borderTopWidth: StyleSheet.hairlineWidth, padding: 18, elevation: 24 },
+    sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, borderTopWidth: StyleSheet.hairlineWidth, padding: 18, elevation: 0 },
 });

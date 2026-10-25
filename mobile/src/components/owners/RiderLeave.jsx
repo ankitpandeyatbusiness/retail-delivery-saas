@@ -2,12 +2,12 @@
 //   <LeavePanel />                 all riders: the requests waiting, with Approve / Reject (Riders tab)
 //   <LeavePanel riderId="..." />   one rider: his requests and the days he has taken this month (his page)
 import React, { useCallback, useState } from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, Alert, Pressable } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useBrand, alpha } from '../common/kit';
 import { Card, SectionTitle, Button, Pill } from './ui';
 import { LineShimmer } from './shimmer';
-import { fetchLeaves, decideLeave, apiError } from '../../api/owners/shopApi';
+import { fetchLeaves, decideLeave, removeRiderLeave, apiError } from '../../api/owners/shopApi';
 import { useRidersStore } from '../../store/owners/useRidersStore';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { showToast } from '../customers/shop';
@@ -30,6 +30,16 @@ export function LeavePanel({ riderId, monthDays }) {
         } catch (e) { setItems((x) => x || []); }
     }, [riderId]);
     useFocusEffect(useCallback(() => { load(); }, [load]));
+
+    const today = new Date(Date.now() + 330 * 60000).toISOString().slice(0, 10);
+    const takeAway = (l) => Alert.alert(tr('Take this leave away?'), tr('{name} will be told and will be on duty on those days.', { name: l.riderName || tr('The delivery partner') }), [
+        { text: tr('No'), style: 'cancel' },
+        { text: tr('Take it away'), style: 'destructive', onPress: async () => {
+            setBusy(l.id);
+            try { await removeRiderLeave(l.id); showToast(tr('Leave taken away')); await load(); useRidersStore.getState().load?.(); }
+            catch (e) { showToast(apiError(e)); load(); } finally { setBusy(''); }
+        } },
+    ]);
 
     const decide = async (l, approve) => {
         setBusy(l.id + approve);
@@ -80,6 +90,11 @@ export function LeavePanel({ riderId, monthDays }) {
                                 {!riderId ? <Text style={{ color: text, fontWeight: '800' }} numberOfLines={1}>{l.riderName || tr('Delivery partner')}</Text> : null}
                                 <Text style={{ color: muted, fontSize: 12.5 }}>{range(l.from, l.to)} · {l.days} {l.days === 1 ? tr('day') : tr('days')}</Text>
                             </View>
+                            {l.status === 'approved' && l.to >= today ? (
+                                <Pressable onPress={() => takeAway(l)} disabled={!!busy} hitSlop={8} style={{ marginRight: 10 }}>
+                                    <Text style={{ color: error, fontWeight: '800', fontSize: 12.5 }}>{tr('Take away')}</Text>
+                                </Pressable>
+                            ) : null}
                             <Pill label={label} color={color} />
                         </View>
                     );

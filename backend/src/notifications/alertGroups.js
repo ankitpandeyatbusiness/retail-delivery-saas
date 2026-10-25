@@ -20,8 +20,8 @@ const OWNER = [
     g('pickup', 'Pickup customers', 'A pickup customer says he is coming, is here, is late, or needs more time. Also: no-show, a later time, collected.', ['pickup_intent', 'pickup_no_show', 'pickup_time_request', 'pickup_collect_claim', 'pickup_not_wanted_claim'], { p: true, sample: ['Pickup order 1173. Ankit is on the way. 2 Butter Naan, 1 Paneer Butter Masala.', 'पिकअप ऑर्डर 1173। Ankit रास्ते में हैं। 2 Butter Naan, 1 Paneer Butter Masala।'] }),
     g('tables', 'Tables: calls and bills', 'A table calls, asks for the bill, says it paid, asks you to hurry or to cancel a round.', ['table_call', 'table_bill_asked', 'table_bill_waiting', 'table_ready_unserved', 'table_paid_owner', 'table_nudge', 'table_check', 'table_paid_claim', 'order_cancel_request', 'table_share_ask', 'table_feedback_low'], { p: 'off', sample: ['Table 4 asked for the bill.', 'टेबल 4 ने बिल मांगा है।'] }),
     g('help', 'A rider asks for help', 'A delivery partner pressed the help button.', ['rider_sos'], { p: true, critical: true, sample: ['Ramesh needs help. Order 1173. Please call now.', 'Ramesh को मदद चाहिए। ऑर्डर 1173। अभी फ़ोन करें।'] }),
-    g('delivery', 'Delivery news', 'A rider accepted, rejected or has a problem; nobody took an order; a delivery is late.', ['rider_accepted', 'rider_rejected', 'rider_none', 'delivery_pin_skipped', 'rider_problem', 'rider_quiet', 'rider_arrived_shop', 'delivery_late_warning', 'order_late', 'order_delivered_shop'], { p: 'off', soft: true }),
-    g('leave', 'Leave requests', 'A cook, a waiter or a rider asks for leave.', ['staff_leave_request', 'staff_leave_withdrawn', 'rider_leave_request'], { p: true, soft: true }),
+    g('delivery', 'Delivery news', 'A rider accepted, rejected or has a problem; nobody took an order; a delivery is late.', ['rider_accepted', 'rider_rejected', 'rider_none', 'rider_ended_duty', 'delivery_pin_skipped', 'rider_problem', 'rider_quiet', 'rider_arrived_shop', 'delivery_late_warning', 'order_late', 'order_delivered_shop'], { p: 'off', soft: true }),
+    g('leave', 'Leave requests', 'A cook, a waiter or a rider asks for leave.', ['staff_leave_request', 'staff_leave_withdrawn', 'rider_leave_request', 'rider_leave_withdrawn'], { p: true, soft: true }),
     g('holiday', 'Days off', 'A cook or a waiter put plain days off in their calendar.', ['staff_holiday'], { p: 'off', soft: true }),
     g('offduty', 'Staff goes off duty', 'A cook or a waiter switched themselves off duty.', ['staff_off_duty'], { p: 'off', soft: true }),
     g('undo', 'Steps taken back (undo)', 'Someone undid Ready, Served or Picked up.', ['order_undone'], { p: 'off', soft: true }),
@@ -31,11 +31,11 @@ const OWNER = [
 ];
 
 const RIDER = [
-    g('offers', 'New delivery offers', 'An order is offered to you. You have two minutes to take it.', ['rider_offer', 'rider_assigned_owner'], { critical: true }),
+    g('offers', 'New delivery offers', 'An order is offered to you. You have {offer} to take it.', ['rider_offer', 'rider_assigned_owner'], { critical: true }),
     g('late', 'Late delivery warning', 'An order will be cancelled soon if it is not delivered.', ['delivery_late_warning_rider'], { p: true, critical: true, soft: true }),
     g('packed', 'Food is packed', 'The kitchen packed the order you are coming for.', ['food_packed_rider'], { p: 'off', soft: true }),
     g('thanks', 'Thanks, ratings and badges', 'A thank you, a review of your delivery, a new badge.', ['delivery_done_rider', 'review_delivery_rider', 'rider_badge'], { p: 'off', soft: true }),
-    g('duty', 'Duty and leave', 'You were put on or off duty, or the shop answered your leave.', ['rider_off_duty', 'rider_duty_auto', 'rider_leave_decision', 'rider_removed'], { p: 'off', soft: true }),
+    g('duty', 'Duty and leave', 'You were put on or off duty, or the shop answered your leave.', ['rider_off_duty', 'rider_duty_auto', 'rider_leave_decision', 'rider_leave_removed', 'rider_removed'], { p: 'off', soft: true }),
     g('undo', 'Steps taken back (undo)', 'Someone undid a step of your order.', ['order_undone'], { soft: true }),
 ];
 
@@ -68,7 +68,7 @@ const SAMPLES = {
     'admin.reviews': ['A new review for order 1173.', 'ऑर्डर 1173 का नया रिव्यू।'],
     'admin.money': ['Your monthly bill is ready.', 'आपका मासिक बिल तैयार है।'],
     'admin.reports': ['Your daily summary is ready.', 'आपका दैनिक सारांश तैयार है।'],
-    'rider.offers': ['New delivery request. 2 Butter Naan. Collect 540 rupees. Accept within 2 minutes.', 'नई डिलीवरी रिक्वेस्ट। 2 Butter Naan। 540 रुपये लेने हैं। 2 मिनट में स्वीकार करें।'],
+    'rider.offers': ['New delivery request. 2 Butter Naan. Collect 540 rupees. Accept within {offer}.', 'नई डिलीवरी रिक्वेस्ट। 2 Butter Naan। 540 रुपये लेने हैं। {offerHi} में स्वीकार करें।'],
     'rider.late': ['Order 1173 will be cancelled soon if it is not delivered.', 'ऑर्डर 1173 जल्द रद्द हो जाएगा अगर डिलीवर नहीं हुआ।'],
     'rider.packed': ['Order 1173 is packed. Come and collect it.', 'ऑर्डर 1173 पैक हो गया है। आकर ले जाइए।'],
     'rider.thanks': ['Thank you for delivering order 1173.', 'ऑर्डर 1173 डिलीवर करने के लिए धन्यवाद।'],
@@ -85,13 +85,14 @@ const BY_ROLE = { admin: OWNER, rider: RIDER, kitchen: KITCHEN, waiter: WAITER }
 // Every alert has four switches: n notification, s tone, v voice, p slider (the box that slides up over the app). The ones that need an answer
 // keep their slider open until the person acts (sec 0); the rest close by themselves after `sec` seconds (the person can change it).
 const SEC_CHOICES = [0, 3, 5, 7, 10, 15];
-const STICKY = new Set(['admin.new_orders', 'admin.cancelled', 'admin.kitchen', 'admin.pickup', 'admin.help', 'admin.leave', 'rider.offers', 'kitchen.new', 'kitchen.cancel']);
+const STICKY = new Set(['admin.new_orders', 'admin.cancelled', 'admin.kitchen', 'admin.pickup', 'admin.help', 'admin.leave', 'rider.offers', 'kitchen.new']);
+const TIMED = { 'kitchen.cancel': 8 };   // an alert that is only news: its slider closes by itself after this many seconds
 for (const [role, list] of Object.entries(BY_ROLE)) {
     for (const x of list) {
         const e = !x.sample && SAMPLES[`${role}.${x.id}`]; if (e) x.sample = { en: e[0], hi: e[1] };
         x.can.p = true; x.can.v = true;
         x.defaults.p = true; x.defaults.v = true;
-        x.defaults.sec = STICKY.has(`${role}.${x.id}`) ? 0 : 5;
+        x.defaults.sec = STICKY.has(`${role}.${x.id}`) ? 0 : (TIMED[`${role}.${x.id}`] || 5);
     }
 }
 const groupsFor = (role) => BY_ROLE[role] || [];
@@ -120,6 +121,13 @@ function cleanPrefs(role, body) {
     return out;
 }
 
-const view = (role, prefs) => groupsFor(role).map((x) => ({ id: x.id, label: x.label, hint: x.hint, can: x.can, soft: x.soft, critical: x.critical, types: x.types, kinds: x.kinds, sample: x.sample, defaults: x.defaults, pref: prefOf(prefs, x) }));
+// {offer} is the time the owner gave riders to take an offer (his Riders setting), said in words
+const words = (secs) => { const n = Math.max(5, Math.round(Number(secs) || 120)); return n % 60 === 0 ? { en: `${n / 60} minute${n === 60 ? '' : 's'}`, hi: `${n / 60} मिनट` } : { en: `${n} seconds`, hi: `${n} सेकंड` }; };
+const view = (role, prefs, ctx = {}) => groupsFor(role).map((g0) => {
+    const w = words(ctx.offerSeconds);
+    const x = { ...g0, hint: String(g0.hint).replace('{offer}', w.en), sample: g0.sample ? { en: String(g0.sample.en).replace('{offer}', w.en), hi: String(g0.sample.hi).replace('{offerHi}', w.hi) } : g0.sample };
+    return viewRow(x, prefs);
+});
+const viewRow = (x, prefs) => ({ id: x.id, label: x.label, hint: x.hint, can: x.can, soft: x.soft, critical: x.critical, types: x.types, kinds: x.kinds, sample: x.sample, defaults: x.defaults, pref: prefOf(prefs, x) });
 
 module.exports = { groupsFor, groupOf, prefOf, cleanPrefs, view };

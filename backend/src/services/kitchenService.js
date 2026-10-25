@@ -268,17 +268,19 @@ async function resolve({ tenant, order, action, message, offerPercent, actor }) 
     let text = custom || sorryText(p, action, paidOnline);
     let offer = null;
     // "stay with us": a private code for a new order worth at least what this one is worth, valid for 2 hours (only when the owner chose to offer)
-    if (action === 'tell' && [5, 10, 15, 20, 25].includes(Number(offerPercent))) {
+    if ((action === 'tell' || action === 'cancel') && [5, 10, 15, 20, 25].includes(Number(offerPercent))) {
         const pct = Number(offerPercent);
         const min = Math.max(1, Math.ceil(Number(order.pricing?.total) || 0));
         const code = `STAY${order.orderNo}`;
         try {
             await require('../models/Coupon').create({
                 tenantId: tenant._id, code, description: `${pct}% off, a thank-you for waiting (order #${order.orderNo})`, discountType: 'percent', discountValue: pct,
-                minOrder: min, usageLimitPerUser: 1, totalUsageLimit: 1, isPublic: false, endsAt: new Date(Date.now() + 2 * 3600000), isActive: true,
+                minOrder: min, usageLimitPerUser: 1, totalUsageLimit: 1, isPublic: false, endsAt: new Date(Date.now() + 30 * 60000), isActive: true,
             });
             offer = { code, percent: pct, minOrder: min };
-            text = `${text} As a thank-you for waiting: keep your order, and if you order more food now worth at least ₹${min}, you get ${pct}% off that new order. Use the code ${code} within 2 hours.`;
+            // the cancelled order's apology stays as it is; the offer is its own message (below) with a code that works for 30 minutes
+            offer.text = `Sorry about order #${order.orderNo}. To make up for it: order something else within the next 30 minutes, worth at least ₹${min}, and you get ${pct}% off. Use the code ${code}.`;
+            offer.until = new Date(Date.now() + 30 * 60000);
         } catch (e) { console.error('Offer coupon error:', e.message); }
     }
     let current = order;
@@ -287,7 +289,14 @@ async function resolve({ tenant, order, action, message, offerPercent, actor }) 
         current = await orderStatus.change({ order, status: 'cancelled', actor, reasonCode: 'out_of_stock', note: text, tenant });
     } else if (action === 'tell') {
         require('../notifications/center').notify('order_shop_note', {
-            tenantId: tenant._id, userId: order.userId, data: { orderId: String(order._id), orderNo: order.orderNo, ...(offer ? { offerCode: offer.code, offerPercent: offer.percent, offerMin: offer.minOrder } : {}) }, vars: { orderNo: order.orderNo, text },
+            tenantId: tenant._id, userId: order.userId, data: { orderId: String(order._id), orderNo: order.orderNo, ...(offer ? { offerCode: offer.code, offerPercent: offer.percent, offerMin: offer.minOrder, offerUntil: offer.until.toISOString() } : {}) }, vars: { orderNo: order.orderNo, text: offer?.text ? `${text} ${offer.text}` : text },
+        });
+    }
+    if (action === 'cancel' && offer?.text) {   // after the cancellation: the offer, with a code that opens at checkout and a 30-minute clock
+        require('../notifications/center').notify('order_shop_note', {
+            tenantId: tenant._id, userId: order.userId,
+            data: { orderId: String(order._id), orderNo: order.orderNo, offerCode: offer.code, offerPercent: offer.percent, offerMin: offer.minOrder, offerUntil: offer.until.toISOString() },
+            vars: { orderNo: order.orderNo, text: offer.text },
         });
     }
     await Order.updateOne({ _id: order._id, tenantId: tenant._id }, { $set: { 'kitchen.problem.handledAt': new Date(), 'kitchen.problem.handledAction': action } });

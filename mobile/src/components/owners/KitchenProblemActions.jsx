@@ -30,12 +30,12 @@ export default function KitchenProblemActions({ order, onDone, onLater }) {
     };
     // "Tell the customer": first, the question "offer a discount to stay?" (unless the owner said always or never before)
     const tellFirst = async () => {
-        setBusy('tell');
+        setBusy('cancel');
         let mode = 'ask'; let percent = 10;
         try { const st = await fetchSettings(); mode = st.orders?.kitchenOfferMode || 'ask'; percent = st.orders?.kitchenOfferPercent || 10; } catch (e) { /* ask */ }
         setBusy('');
-        if (mode === 'always') { go('tell', percent); return; }
-        if (mode === 'never') { go('tell'); return; }
+        if (mode === 'always') { go('cancel', percent); return; }
+        if (mode === 'never') { go('cancel'); return; }
         setPct(percent); setRemember(false); setOfferOpen(true);
     };
     const sendTell = async () => {
@@ -43,7 +43,7 @@ export default function KitchenProblemActions({ order, onDone, onLater }) {
         if (remember) {
             try { await saveSettings({ orders: { kitchenOfferMode: pct ? 'always' : 'never', ...(pct ? { kitchenOfferPercent: pct } : {}) } }); showToast(tr('Remembered. You can change this on the Kitchen staff page.')); } catch (e) { showToast(apiError(e)); }
         }
-        go('tell', pct || undefined);
+        go('cancel', pct || undefined);
     };
     const confirmCancel = () => themedAlert(tr('Cancel this order?'), paid ? tr('The customer is told sorry, and the full payment is refunded.') : tr('The customer is told sorry.'), [
         { text: tr('Keep it'), style: 'cancel' },
@@ -51,19 +51,18 @@ export default function KitchenProblemActions({ order, onDone, onLater }) {
     ], { icon: 'close-circle-outline' });
     return (
         <View>
-            <Button label={tr('Tell the customer')} icon="chatbubble-ellipses-outline" busy={busy === 'tell'} disabled={!!busy} onPress={tellFirst} />
-            <Text style={{ color: muted, fontSize: 12, margin: 6, marginBottom: 10 }}>{tr('Sends a polite note: sorry, it may take longer. You can also offer a discount to keep the customer.')}</Text>
-            {can ? <Button label={paid ? tr('Cancel and refund') : tr('Cancel order')} icon="close-circle-outline" kind="ghost" busy={busy === 'cancel'} disabled={!!busy} onPress={confirmCancel} style={{ marginBottom: 8 }} /> : null}
+            {can ? <Button label={tr('Cancel and tell the customer')} icon="chatbubble-ellipses-outline" busy={busy === 'cancel'} disabled={!!busy} onPress={tellFirst} /> : null}
+            <Text style={{ color: muted, fontSize: 12, margin: 6, marginBottom: 10 }}>{paid ? tr('The order is cancelled, the customer is told sorry and the full payment is refunded. You can offer a discount for 30 minutes.') : tr('The order is cancelled and the customer is told sorry. You can offer a discount for 30 minutes.')}</Text>
             <Button label={onLater ? tr('Later') : tr('I will handle it')} kind="ghost" disabled={!!busy} onPress={() => (onLater ? onLater() : go('dismiss'))} />
 
-            <Sheet visible={offerOpen} onClose={() => setOfferOpen(false)} title={tr('Offer something to keep the customer?')}>
-                <Text style={{ color: muted, marginBottom: 6 }}>{tr('If the customer keeps this order and orders more food now (worth at least this order), they get a discount on the new order. They can add the food in one tap.')}</Text>
+            <Sheet visible={offerOpen} onClose={() => setOfferOpen(false)} title={tr('Say sorry with an offer?')}>
+                <Text style={{ color: muted, marginBottom: 6 }}>{tr('The order is cancelled. If the customer orders something else within 30 minutes (worth at least this order), they get a discount. The code opens at checkout in one tap.')}</Text>
                 <Chips options={[[0, tr('No offer')], [10, '10% off'], [15, '15% off'], [20, '20% off']]} value={pct} onChange={setPct} />
                 <Pressable onPress={() => setRemember((v) => !v)} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, marginBottom: 14 }} accessibilityRole="checkbox">
                     <Ionicons name={remember ? 'checkbox' : 'square-outline'} size={24} color={remember ? primary : muted} />
                     <Text style={{ color: muted, marginLeft: 10, flex: 1 }}>{tr('Remember my choice (do not ask me again)')}</Text>
                 </Pressable>
-                <Button label={pct ? tr('Tell the customer and offer {n}%', { n: pct }) : tr('Tell the customer')} icon="chatbubble-ellipses-outline" onPress={sendTell} />
+                <Button label={pct ? tr('Cancel, say sorry and offer {n}%', { n: pct }) : tr('Cancel and say sorry')} icon="chatbubble-ellipses-outline" onPress={sendTell} />
             </Sheet>
         </View>
     );

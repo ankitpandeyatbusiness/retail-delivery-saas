@@ -17,7 +17,7 @@ router.use(authenticate);
 router.get('/', wrap(async (req, res) => {
     const u = await User.findOne({ _id: req.auth.userId, tenantId: req.tenant._id }).select('role alertPrefs').lean();
     if (!u) throw httpError(404, 'Not found');
-    res.json({ role: u.role, groups: groups.view(u.role, u.alertPrefs) });
+    res.json({ role: u.role, groups: groups.view(u.role, u.alertPrefs, { offerSeconds: req.tenant?.settings?.riders?.offerSeconds }) });
 }));
 
 router.put('/', wrap(async (req, res) => {
@@ -36,7 +36,7 @@ router.put('/', wrap(async (req, res) => {
     u.alertPrefs = next;
     u.markModified('alertPrefs');
     await u.save();
-    res.json({ role: u.role, groups: groups.view(u.role, u.alertPrefs) });
+    res.json({ role: u.role, groups: groups.view(u.role, u.alertPrefs, { offerSeconds: req.tenant?.settings?.riders?.offerSeconds }) });
 }));
 
 router.use(apiErrors);

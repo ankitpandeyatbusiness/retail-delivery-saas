@@ -94,7 +94,7 @@ export default function RiderDutyScreen() {
     useFocusEffect(useCallback(() => {
         load();
         // the shop answered a leave, or put him on or off duty: the page changes at once
-        return onNotification((n) => { if (['rider_leave_decision', 'rider_duty_auto', 'rider_off_duty', 'rider_removed'].includes(String(n?.type))) load(); });
+        return onNotification((n) => { if (['rider_leave_decision', 'rider_leave_removed', 'rider_duty_auto', 'rider_off_duty', 'rider_removed'].includes(String(n?.type))) load(); });
     }, [])); // eslint-disable-line react-hooks/exhaustive-deps
 
     const setDay = (k, patch) => { setWeekly((w) => ({ ...w, [k]: { ...w[k], ...patch } })); setDirty(true); };
@@ -174,9 +174,9 @@ export default function RiderDutyScreen() {
                                 </View>
                                 <Text style={{ color: muted, fontSize: 12.5, marginTop: 3 }}>{l.days} {l.days === 1 ? tr('day') : tr('days')}{l.reason ? ` · ${l.reason}` : ''}</Text>
                                 {l.note ? <Text style={{ color: muted, fontSize: 12.5, marginTop: 2 }}>{tr('Shop: {note}', { note: l.note })}</Text> : null}
-                                {l.status === 'pending' ? (
-                                    <Pressable onPress={() => act(() => cancelLeave(l.id), tr('Request cancelled'))} hitSlop={8} style={{ alignSelf: 'flex-start', marginTop: 6 }}>
-                                        <Text style={{ color: error, fontWeight: '800', fontSize: 13 }}>{tr('Cancel request')}</Text>
+                                {l.status === 'pending' || (l.status === 'approved' && l.to >= todayKey()) ? (
+                                    <Pressable onPress={() => act(() => cancelLeave(l.id), l.status === 'pending' ? tr('Request cancelled') : tr('Leave cancelled'))} hitSlop={8} style={{ alignSelf: 'flex-start', marginTop: 6 }}>
+                                        <Text style={{ color: error, fontWeight: '800', fontSize: 13 }}>{l.status === 'pending' ? tr('Cancel request') : tr('Cancel this leave')}</Text>
                                     </Pressable>
                                 ) : null}
                             </View>

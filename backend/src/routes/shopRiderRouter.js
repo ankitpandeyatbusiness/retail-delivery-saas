@@ -47,6 +47,13 @@ manage.put('/leaves/:id', wrap(async (req, res) => {
     res.json({ ok: true });
 }));
 
+// the owner takes a leave away (waiting or approved): the rider is told. DELETE /leaves/:id { note? }
+manage.delete('/leaves/:id', wrap(async (req, res) => {
+    if (!isId(req.params.id)) throw httpError(404, 'Leave not found');
+    try { await schedule.ownerRemove({ tenantId: req.tenant._id, id: req.params.id, note: req.body?.note }); } catch (e) { throw httpError(e.status || 400, e.message); }
+    res.json({ ok: true });
+}));
+
 // { "phone": "9876543210", "name": "Ravi" }
 manage.post('/', wrap(async (req, res) => {
     const r = await riders.addByPhone({ tenantId: req.tenant._id, phone: req.body?.phone, name: req.body?.name });

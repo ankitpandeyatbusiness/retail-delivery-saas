@@ -36,6 +36,7 @@ export async function turnOffSlider(type) {
 // a slider for one alert, if its Slider switch is on
 export function showSlider({ key, type, title, body, data, once }) {
     if (!type || !alertOn(type, 'p')) return;
+    if (!String(title || '').trim() && !String(body || '').trim()) return;   // a slider with nothing to say is never shown
     if (once) {
         if (shownOnce.has(String(key))) return;
         shownOnce.add(String(key));

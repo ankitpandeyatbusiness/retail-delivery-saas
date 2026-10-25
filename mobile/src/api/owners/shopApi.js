@@ -46,6 +46,7 @@ export const markLooksSeen = () => d(api.post('/shop/orders/look-seen'));
 export const markFoodReady = (id) => d(api.post(`/shop/orders/${id}/food-ready`));   // a delivery order's food is ready: it can now go out
 export const fetchLeaves = (status = 'pending') => d(api.get('/shop/riders/leaves', { params: { status } }));
 export const decideLeave = (id, body) => d(api.put(`/shop/riders/leaves/${id}`, body));
+export const removeRiderLeave = (id, note) => d(api.delete(`/shop/riders/leaves/${id}`, { data: { note } }));   // a waiting or approved leave: the rider is told
 // dine in: the tables board, one table's bill, and taking the payment (method: 'cash' | 'upi')
 export const fetchDineTables = () => d(api.get('/shop/dine-in/tables'));
 export const fetchDineBill = (id) => d(api.get(`/shop/dine-in/sessions/${id}`));

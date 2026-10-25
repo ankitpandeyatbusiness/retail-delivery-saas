@@ -57,7 +57,7 @@ export default function KitchenScreen() {
     const sub = counts.late > 0 ? tr('{n} late', { n: counts.late }) : shop;
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
-            <StaffHeader title={tr('Kitchen')} subtitle={sub} right={<Live live={state === 'ok'} />} />
+            <StaffHeader title={tr('Kitchen')} subtitle={sub} />
             <OffDutyBanner />
             <Segment value={tab} onChange={setTab} tabs={[['make', tr('To make'), counts.new + counts.cooking, counts.late > 0], ['dish', tr('By dish'), 0, false], ['ready', tr('Ready'), counts.ready, false]]} />
             {state === 'error' && loadedAt ? (
