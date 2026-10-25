@@ -58,7 +58,7 @@ function Detail({ x, onClose, onOpenOrder }) {
             </View>
             <Line label={tr('Date and time')} value={fullStamp(x.at)} strong />
             <Line label={tr('How')} value={x.howLabel ? tr(x.howLabel) : null} />
-            <Line label={tr(x.direction === 'in' ? 'Taken by' : 'Sent by')} value={x.by} />
+            <Line label={tr(x.direction === 'in' ? 'Received by' : 'Sent by')} value={x.by} />
             <Line label={tr('Customer')} value={x.customer} />
             <Line label={tr('Phone')} value={x.phone} onPress={x.phone ? () => callPhone(x.phone) : undefined} />
             <Line label={tr('Order')} value={x.orderNo ? `#${x.orderNo}${x.orderType ? ' · ' + tr(x.orderType === 'dine_in' ? 'Dine in' : x.orderType === 'pickup' ? 'Pickup' : 'Delivery') : ''}` : null} onPress={x.orderId ? () => onOpenOrder(x.orderId) : undefined} />

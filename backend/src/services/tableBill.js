@@ -126,6 +126,8 @@ async function settle({ tenantId, sessionId, method, by }) {
     }
     const bill = await billOf(closed);
     for (const uid of s.customers) tell('table_paid', { tenantId, userId: uid, vars: { table: s.table, total: bill.total }, data: { kind: 'table_paid', sessionId: String(s._id) } });
+    // a waiter took the money: the owner hears which table, how much and who (when the owner took it himself he knows)
+    if (by?.type === 'staff') tell('table_paid_owner', { tenantId, vars: { table: s.table, total: bill.total, paid: paidPaise / 100, via: method === 'upi' ? 'UPI' : 'cash', by: by.name || 'a waiter' }, data: { kind: 'table_paid_owner', sessionId: String(s._id), table: s.table } });
     return bill;
 }
 

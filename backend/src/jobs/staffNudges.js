@@ -46,7 +46,7 @@ async function runShop(tenant, now) {
             }
         }
     }
-    if (rules.waiterOn === true) {
+    if (rules.waiterOn === true || rules.kitchenOn === true) {
         const serveLate = rules.serveLateMin || 5;
         const rows = await Order.find({ tenantId: tenant._id, orderType: 'dine_in', status: 'ready', updatedAt: { $lte: new Date(now.getTime() - serveLate * MIN) } })
             .select('orderNo tableNo items statusHistory createdAt kitchen').limit(100).lean();
@@ -55,7 +55,9 @@ async function runShop(tenant, now) {
             const since = h?.at || o.createdAt;
             if (now.getTime() - new Date(since).getTime() < serveLate * MIN) continue;
             if (await claim(o._id, 'serveNudgedAt')) {
-                await ring(tenant._id, 'waiter', { title: `Table ${o.tableNo || ''}: waiting to be served`.replace(/:\s*:/, ':'), body: `${brief(o, 2)} · ready ${Math.round((now.getTime() - new Date(since).getTime()) / MIN)} min ago`, data: { type: 'waiter_nudge', orderId: String(o._id), orderNo: o.orderNo, table: o.tableNo }, tag: `servenudge:${o._id}` });
+                const minutes = Math.round((now.getTime() - new Date(since).getTime()) / MIN);
+                require('../notifications/center').notify('table_ready_unserved', { tenantId: tenant._id, vars: { table: o.tableNo || '', minutes, brief: brief(o, 2) }, data: { kind: 'table', table: o.tableNo, orderId: String(o._id), orderNo: o.orderNo } });
+                if (rules.waiterOn === true) await ring(tenant._id, 'waiter', { title: `Table ${o.tableNo || ''}: waiting to be served`.replace(/:\s*:/, ':'), body: `${brief(o, 2)} · ready ${Math.round((now.getTime() - new Date(since).getTime()) / MIN)} min ago`, data: { type: 'waiter_nudge', orderId: String(o._id), orderNo: o.orderNo, table: o.tableNo }, tag: `servenudge:${o._id}` });
                 sent += 1;
             }
         }

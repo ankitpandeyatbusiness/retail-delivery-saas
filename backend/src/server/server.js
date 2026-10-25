@@ -29,6 +29,7 @@ const { startPickupReminders } = require('../jobs/pickupReminders');
 const { startTableBillJob } = require('../services/tableBill');
 const { startStaffNudges } = require('../jobs/staffNudges');
 const { startKitchenQueue } = require('../jobs/kitchenQueue');
+const { startBillReminders } = require('../jobs/billReminders');
 
 // A crash is logged and the host restarts the server. A stray rejected promise is only logged.
 process.on('unhandledRejection', (reason) => { console.error('Unhandled rejection:', reason); sentry.capture(reason); });
@@ -86,6 +87,7 @@ connectDB()
             // the old "one open bill per table" index would refuse a second bill on a shared table: drop it once, make the new one
             require('../models/TableSession').collection.dropIndex('tenantId_1_table_1').catch(() => { }).then(() => require('../models/TableSession').createIndexes()).catch((e) => console.error('Table index error:', e.message));
             startTableBillJob();         // a visit nobody orders from and nothing is owed on is closed
+            startBillReminders();        // a table that asked for the bill and was not served is reminded to the owner and the waiters every 5 minutes
             startKitchenQueue();         // an order the cook did not touch goes to his queue by itself
             startStaffNudges();          // the cooks and the waiters get one nudge for an order that waits too long
             startPickupReminders();      // pickup orders that are ready: reminders to the customer, and the owner is told when nobody came

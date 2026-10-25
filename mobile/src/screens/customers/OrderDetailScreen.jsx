@@ -14,6 +14,7 @@ import { Press, Appear } from '../../components/customers/cartParts';
 import { StatusPill, isActive, rs, errMsg, cancelFlow, reorder } from '../../components/customers/orders';
 import { viewInvoice, saveInvoice } from '../../components/customers/invoice';
 import { useHomeStore } from '../../store/customers/useHomeStore';
+import { CallCard } from '../../components/customers/TableExtras';
 import { fetchOrder, rateOrder, fetchRatings, fetchTracking, fetchPoints, askCancelOrder } from '../../api/customers/shopApi';
 import { themedAlert } from '../../components/common/dialog';
 import QueueLine from '../../components/customers/QueueLine';
@@ -341,6 +342,8 @@ export default function OrderDetailScreen() {
                 {delivery && live && track && track.state !== 'cancelled' ? (
                     <TrackingCard tracking={track} destination={o.address} />
                 ) : null}
+
+                {dineIn && !cancelled && live ? <CallCard /> : null}
 
                 {!cancelled ? (
                     <Card title={tr('Order status')} icon="time-outline" delay={60}>
