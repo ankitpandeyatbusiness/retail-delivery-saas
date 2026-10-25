@@ -8,6 +8,7 @@
 //                separate bill. (The waiter takes no part in it.)
 //   A guest who already has a bill at the table keeps it. Nobody is ever on two bills of one table.
 // With the switch OFF nothing here is used: a table has one bill, as before.
+const crypto = require('crypto');
 const TableSession = require('../models/TableSession');
 const TableJoin = require('../models/TableJoin');
 const User = require('../models/User');
@@ -16,6 +17,8 @@ const { DEFAULTS } = require('./tenantConfigService');
 const OPEN = ['open', 'bill_asked'];
 const LABELS = 'ABCDEFGH';
 const JOIN_WAIT_MS = 2 * 60000;
+const PIN_MS = 10 * 60000;   // after "yes" the newcomer has 10 minutes to enter the PIN
+const PIN_TRIES = 5;
 const fail = (status, message, extra) => Object.assign(new Error(message), { status, ...(extra ? { extra } : {}) });   // extra is sent to the app with the message
 const tell = (event, ctx) => Promise.resolve().then(() => require('../notifications/center').notify(event, ctx)).catch((e) => console.error('Notification error:', e.message));
 
@@ -44,10 +47,11 @@ async function stateAt({ tenant, userId, table }) {
     const parties = await partiesAt(tenant._id, table, { forUser: userId });
     const mine = parties.find((p) => p.mine) || null;
     const max = maxFor(tenant);
-    const pending = await TableJoin.findOne({ tenantId: tenant._id, table, userId, status: 'pending', expiresAt: { $gt: new Date() } }).lean();
+    const nowD = new Date();
+    const pending = await TableJoin.findOne({ tenantId: tenant._id, table, userId, $or: [{ status: 'pending', expiresAt: { $gt: nowD } }, { status: 'approved', pinExpiresAt: { $gt: nowD } }] }).lean();
     return {
         shared: isShared(tenant), table, max, parties, mine: mine ? { sessionId: mine.sessionId, label: mine.label } : null,
-        occupied: parties.length > 0, canSeparate: parties.length < max, pending: pending ? { joinId: String(pending._id), expiresAt: pending.expiresAt, sessionId: String(pending.sessionId) } : null,
+        occupied: parties.length > 0, canSeparate: parties.length < max, pending: pending ? { joinId: String(pending._id), expiresAt: pending.status === 'approved' ? pending.pinExpiresAt : pending.expiresAt, sessionId: String(pending.sessionId), needsPin: pending.status === 'approved' } : null,
     };
 }
 
@@ -87,8 +91,11 @@ async function enter({ tenant, userId, table, choice, sessionId }) {
     if (choice !== 'with') throw fail(400, 'Choose a separate bill, or to join the people already here');
     const target = await TableSession.findOne({ _id: sessionId, tenantId: tenant._id, table, status: { $in: OPEN }, kind: { $ne: 'pickup' } });
     if (!target) throw fail(404, 'That bill is no longer open. Choose again.', { code: 'gone' });
-    const old = await TableJoin.findOne({ tenantId: tenant._id, table, userId, status: 'pending', expiresAt: { $gt: new Date() } });
-    if (old) return { ok: true, pending: { joinId: String(old._id), expiresAt: old.expiresAt } };
+    // that bill said "No, and block" to him: he is not told so, only that he can take his own bill
+    if ((target.blockedGuests || []).some((id) => String(id) === String(userId))) throw fail(403, 'They said no. You can take your own bill.', { code: 'denied' });
+    const nowD = new Date();
+    const old = await TableJoin.findOne({ tenantId: tenant._id, table, userId, $or: [{ status: 'pending', expiresAt: { $gt: nowD } }, { status: 'approved', pinExpiresAt: { $gt: nowD } }] });
+    if (old) return { ok: true, pending: { joinId: String(old._id), expiresAt: old.status === 'approved' ? old.pinExpiresAt : old.expiresAt, needsPin: old.status === 'approved' } };
     const j = await TableJoin.create({ tenantId: tenant._id, table, sessionId: target._id, userId, expiresAt: new Date(Date.now() + JOIN_WAIT_MS) });
     const me = await User.findById(userId).select('name').lean();
     for (const uid of target.customers) {
@@ -109,25 +116,54 @@ async function joinStatus({ tenant, userId, joinId }) {
         j.status = 'expired';
     }
     const out = { status: j.status };
-    if (j.status === 'approved') {
+    if (j.status === 'approved') {   // they said yes: the newcomer now enters the PIN that is on their screen
+        out.needsPin = true;
+        out.pinUntil = j.pinExpiresAt;
+        if (j.pinExpiresAt && j.pinExpiresAt.getTime() <= Date.now()) { out.status = 'expired'; out.needsPin = false; }
+    }
+    if (j.status === 'joined') {
         const s = await TableSession.findOne({ _id: j.sessionId, tenantId: tenant._id, customers: userId, status: { $in: OPEN } });
         if (s) out.session = { sessionId: String(s._id), label: s.label || labelOf(s.party) };
     }
     return out;
 }
 
+// the newcomer types the 4-digit PIN that is on the screen of the person on the bill: only then is he put on that bill
+async function enterPin({ tenant, userId, joinId, pin }) {
+    const j = await TableJoin.findOne({ _id: joinId, tenantId: tenant._id, userId });
+    if (!j) throw fail(404, 'Not found');
+    if (j.status === 'joined') {
+        const s0 = await TableSession.findOne({ _id: j.sessionId, tenantId: tenant._id, customers: userId, status: { $in: OPEN } });
+        if (s0) return { ok: true, session: { sessionId: String(s0._id), label: s0.label || labelOf(s0.party) } };
+    }
+    if (j.status !== 'approved' || !j.pin) throw fail(409, 'This request is not waiting for a PIN.');
+    if (!j.pinExpiresAt || j.pinExpiresAt.getTime() <= Date.now()) throw fail(409, 'The PIN has run out. Ask to join again.', { code: 'pin_expired' });
+    const tried = await TableJoin.findOneAndUpdate({ _id: j._id, status: 'approved', pinTries: { $lt: PIN_TRIES } }, { $inc: { pinTries: 1 } }, { returnDocument: 'after' });
+    if (!tried) throw fail(429, 'Too many wrong PINs. Ask to join again, or take your own bill.', { code: 'pin_locked' });
+    if (String(pin || '').trim() !== j.pin) throw fail(400, 'That PIN is not right. Check it with the person on the bill.', { code: 'pin_wrong', left: PIN_TRIES - tried.pinTries });
+    const s = await TableSession.findOne({ _id: j.sessionId, tenantId: tenant._id, status: { $in: OPEN } });
+    if (!s) throw fail(404, 'That bill is no longer open. Choose again.', { code: 'gone' });
+    // he cannot be on two bills of one table: if he took a bill of his own meanwhile, nothing is added
+    const other = await TableSession.exists({ tenantId: tenant._id, table: s.table, customers: userId, status: { $in: OPEN }, _id: { $ne: s._id } });
+    if (!other) await TableSession.updateOne({ _id: s._id }, { $addToSet: { customers: userId } });
+    await TableJoin.updateOne({ _id: j._id }, { $set: { status: 'joined', joinedAt: new Date() } });
+    return { ok: true, session: { sessionId: String(s._id), label: s.label || labelOf(s.party) } };
+}
+
 // the pending requests for the bills this guest belongs to (his app shows "Asha wants to join your table")
 async function pendingFor({ tenant, userId }) {
     const sessions = await TableSession.find({ tenantId: tenant._id, customers: userId, status: { $in: OPEN } }).select('_id table').lean();
     if (!sessions.length) return [];
-    const rows = await TableJoin.find({ tenantId: tenant._id, sessionId: { $in: sessions.map((s) => s._id) }, status: 'pending', expiresAt: { $gt: new Date() } }).sort({ createdAt: 1 }).lean();
+    const nowD = new Date();
+    const rows = await TableJoin.find({ tenantId: tenant._id, sessionId: { $in: sessions.map((s) => s._id) }, $or: [{ status: 'pending', expiresAt: { $gt: nowD } }, { status: 'approved', pinExpiresAt: { $gt: nowD } }] }).sort({ createdAt: 1 }).lean();
     const people = await User.find({ _id: { $in: rows.map((r) => r.userId) } }).select('name').lean();
     const nameOf = new Map(people.map((u) => [String(u._id), firstName(u)]));
-    return rows.map((r) => ({ joinId: String(r._id), table: r.table, who: nameOf.get(String(r.userId)) || null, expiresAt: r.expiresAt }));
+    // a request waiting for yes or no; and one they said yes to: the PIN is shown to the people on the bill to tell the newcomer
+    return rows.map((r) => ({ joinId: String(r._id), table: r.table, who: nameOf.get(String(r.userId)) || null, expiresAt: r.status === 'approved' ? r.pinExpiresAt : r.expiresAt, ...(r.status === 'approved' ? { pin: r.pin } : {}) }));
 }
 
 // a member of the bill says yes or no
-async function answerJoin({ tenant, userId, joinId, approve }) {
+async function answerJoin({ tenant, userId, joinId, approve, block = false }) {
     if (typeof approve !== 'boolean') throw fail(400, 'Send approve: true or false');
     const j = await TableJoin.findOne({ _id: joinId, tenantId: tenant._id });
     if (!j) throw fail(404, 'Not found');
@@ -136,13 +172,16 @@ async function answerJoin({ tenant, userId, joinId, approve }) {
     if (j.status !== 'pending' || j.expiresAt.getTime() <= Date.now()) throw fail(409, 'This request is already answered or has run out.');
     const claimed = await TableJoin.findOneAndUpdate({ _id: j._id, status: 'pending' }, { $set: { status: approve ? 'approved' : 'denied', answeredBy: userId, answeredAt: new Date() } }, { returnDocument: 'after' });
     if (!claimed) throw fail(409, 'This request is already answered.');
+    let pin = null;
     if (approve) {
-        // he cannot be on two bills of one table: if he took a bill of his own meanwhile, nothing is added
-        const other = await TableSession.exists({ tenantId: tenant._id, table: s.table, customers: j.userId, status: { $in: OPEN }, _id: { $ne: s._id } });
-        if (!other) await TableSession.updateOne({ _id: s._id }, { $addToSet: { customers: j.userId } });
+        // yes: a 4-digit PIN goes on the screen of the person on the bill; the newcomer is added only when he types it
+        pin = String(crypto.randomInt(0, 10000)).padStart(4, '0');
+        await TableJoin.updateOne({ _id: j._id }, { $set: { pin, pinExpiresAt: new Date(Date.now() + PIN_MS), pinTries: 0 } });
+    } else if (block === true) {
+        await TableSession.updateOne({ _id: s._id }, { $addToSet: { blockedGuests: j.userId } });   // "No, and block": he can not ask this bill again
     }
     tell('table_join_answer', { tenantId: tenant._id, userId: j.userId, vars: { approved: approve, table: s.table }, data: { kind: 'table_join', joinId: String(j._id), approved: approve, table: s.table } });
-    return { ok: true, approved: approve };
+    return { ok: true, approved: approve, ...(pin ? { pin } : {}), ...(block && !approve ? { blocked: true } : {}) };
 }
 
 // the other open bills at the same table (for the waiter's and the owner's bill screens): { sessionId, label, who }
@@ -206,4 +245,4 @@ function realtimeTell(tenant, o, session) {
     } catch (e) { /* the screens refresh by themselves */ }
 }
 
-module.exports = { siblingsOf, moveOrder, merge, isShared, maxParties, labelOf, partiesAt, stateAt, nextParty, openParty, enter, joinStatus, pendingFor, answerJoin, OPEN };
+module.exports = { siblingsOf, moveOrder, merge, isShared, maxParties, labelOf, partiesAt, stateAt, nextParty, openParty, enter, joinStatus, enterPin, pendingFor, answerJoin, OPEN };

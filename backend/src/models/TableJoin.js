@@ -7,7 +7,8 @@ const schema = new mongoose.Schema({
     table: { type: String, required: true },
     sessionId: { type: mongoose.Schema.Types.ObjectId, ref: 'TableSession', required: true },
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },   // the newcomer
-    status: { type: String, enum: ['pending', 'approved', 'denied', 'expired'], default: 'pending' },
+    status: { type: String, enum: ['pending', 'approved', 'joined', 'denied', 'expired'], default: 'pending' },   // approved = they said yes, a 4-digit PIN is on their screen; joined = the newcomer entered it
+    pin: String, pinExpiresAt: Date, pinTries: { type: Number, default: 0 }, joinedAt: Date,
     answeredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     answeredAt: Date,
     expiresAt: { type: Date, required: true },

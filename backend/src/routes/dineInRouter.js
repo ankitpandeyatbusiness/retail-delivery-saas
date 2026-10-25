@@ -65,7 +65,8 @@ router.post('/table/:table/enter', wrap(async (req, res) => {
 }));
 router.get('/joins', wrap(async (req, res) => { res.json({ items: await shared.pendingFor({ tenant: req.tenant, userId: req.auth.userId }) }); }));
 router.get('/join/:id', wrap(async (req, res) => { try { res.json(await shared.joinStatus({ tenant: req.tenant, userId: req.auth.userId, joinId: req.params.id })); } catch (e) { sharedGuard(e); } }));
-router.post('/join/:id/answer', wrap(async (req, res) => { try { res.json(await shared.answerJoin({ tenant: req.tenant, userId: req.auth.userId, joinId: req.params.id, approve: req.body?.approve })); } catch (e) { sharedGuard(e); } }));
+router.post('/join/:id/answer', wrap(async (req, res) => { try { res.json(await shared.answerJoin({ tenant: req.tenant, userId: req.auth.userId, joinId: req.params.id, approve: req.body?.approve, block: req.body?.block === true })); } catch (e) { sharedGuard(e); } }));
+router.post('/join/:id/pin', wrap(async (req, res) => { try { res.json(await shared.enterPin({ tenant: req.tenant, userId: req.auth.userId, joinId: req.params.id, pin: req.body?.pin })); } catch (e) { sharedGuard(e); } }));
 
 // the guest's app says where he stands, and he asks to pay his share and leave
 router.post('/presence', wrap(async (req, res) => { res.json(await require('../services/guestWatch').report({ tenantId: req.tenant._id, userId: req.auth.userId, loc: req.body?.loc })); }));

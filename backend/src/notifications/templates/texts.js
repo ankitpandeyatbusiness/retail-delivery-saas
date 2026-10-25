@@ -80,7 +80,7 @@ const TEXTS = {
         body: `Table ${v.table}${v.label ? ` · ${v.label}` : ''}. Their share is ₹${v.amount}. Keep an eye on the table.`,
     }),
     table_join_request: (v) => ({ title: `${v.name} wants to join your table`, body: `At table ${v.table}. Are you together? Say yes to put them on your bill.` }),
-    table_join_answer: (v) => (v.approved ? { title: 'You joined the table', body: `You are on the bill at table ${v.table}.` } : { title: 'They said no', body: `Choose your own bill at table ${v.table}.` }),
+    table_join_answer: (v) => (v.approved ? { title: 'They said yes', body: `Ask them for the 4-digit PIN on their screen and enter it to join the bill at table ${v.table}.` } : { title: 'They said no', body: `Choose your own bill at table ${v.table}.` }),
     staff_leave_request: (v) => ({ title: `${v.name || 'Your staff'} asks for leave`, body: `${v.job ? `${v.job}: ` : ''}${v.from === v.to ? v.from : `${v.from} to ${v.to}`} (${v.days} ${v.days === 1 ? 'day' : 'days'}). Reason: ${v.reason}` }),
     staff_leave_decision: (v) => ({ title: v.approved ? 'Your leave is approved' : 'Your leave was not approved', body: `${v.from === v.to ? v.from : `${v.from} to ${v.to}`}.${v.note ? ` Shop: ${v.note}` : ''}` }),
     staff_leave_withdrawn: (v) => ({ title: `${v.name || 'Your staff'} took ${v.what || 'their leave'} back`, body: `${v.job ? `${v.job}: ` : ''}${v.from === v.to ? v.from : `${v.from} to ${v.to}`}${v.days ? ` (${v.days} ${v.days === 1 ? 'day' : 'days'})` : ''} ${v.wasApproved ? 'was approved' : 'was not decided yet'}. They are on duty on ${v.days === 1 ? 'that day' : 'those days'}.` }),

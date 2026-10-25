@@ -20,7 +20,8 @@ export const fetchTableState = (table) => d(api.get(`/dinein/table/${table}`)); 
 export const enterTable = (table, choice, sessionId) => d(api.post(`/dinein/table/${table}/enter`, { choice, ...(sessionId ? { sessionId } : {}) }));   // choice: 'separate' | 'with'
 export const fetchJoin = (id) => d(api.get(`/dinein/join/${id}`));                                              // { status: pending | approved | denied | expired }
 export const fetchJoins = () => d(api.get('/dinein/joins'));                                                      // { items }: people asking to join my bill
-export const answerJoin = (id, approve) => d(api.post(`/dinein/join/${id}/answer`, { approve }));
+export const answerJoin = (id, approve, block) => d(api.post(`/dinein/join/${id}/answer`, { approve, ...(block ? { block: true } : {}) }));   // yes gives a PIN; no with block stops them asking again
+export const joinPin = (id, pin) => d(api.post(`/dinein/join/${id}/pin`, { pin }));   // the newcomer types the PIN that is on the other person's screen
 export const fetchDineOffers = () => d(api.get('/dinein/offers'));   // { items: [{ kind, text }] } the table offers he can get
 export const fetchDineUsual = () => d(api.get('/dinein/usual'));     // { usual: { id, brief, count } | null } what he had last time
 export const fetchDineStatus = () => d(api.get('/dinein/status'));   // { busy, extraMin }: the shop is full, food may take longer
