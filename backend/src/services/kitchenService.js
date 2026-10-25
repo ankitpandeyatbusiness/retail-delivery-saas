@@ -258,28 +258,43 @@ const sorryText = (p, action, paidOnline) => {
 
 // The owner decides what to do about a cook's problem: { action: 'tell' | 'cancel' | 'dismiss', message? }
 // tell: a polite note goes to the customer. cancel: the order is cancelled with the same politeness (refund by itself when paid online).
-async function resolve({ tenant, order, action, message, actor }) {
+async function resolve({ tenant, order, action, message, offerPercent, actor }) {
     if (!['tell', 'cancel', 'dismiss'].includes(action)) throw httpError(400, 'Choose what to do');
     const p = order.kitchen?.problem;
     if (!p?.at) throw httpError(409, 'The kitchen has not reported a problem on this order.');
     if (p.handledAt) throw httpError(409, 'You already dealt with this.');
     const custom = typeof message === 'string' ? message.trim().slice(0, 200) : '';
     const paidOnline = order.payment?.method && order.payment.method !== 'cod' && order.payment.status === 'paid';
-    const text = custom || sorryText(p, action, paidOnline);
+    let text = custom || sorryText(p, action, paidOnline);
+    let offer = null;
+    // "stay with us": a private code for a new order worth at least what this one is worth, valid for 2 hours (only when the owner chose to offer)
+    if (action === 'tell' && [5, 10, 15, 20, 25].includes(Number(offerPercent))) {
+        const pct = Number(offerPercent);
+        const min = Math.max(1, Math.ceil(Number(order.pricing?.total) || 0));
+        const code = `STAY${order.orderNo}`;
+        try {
+            await require('../models/Coupon').create({
+                tenantId: tenant._id, code, description: `${pct}% off, a thank-you for waiting (order #${order.orderNo})`, discountType: 'percent', discountValue: pct,
+                minOrder: min, usageLimitPerUser: 1, totalUsageLimit: 1, isPublic: false, endsAt: new Date(Date.now() + 2 * 3600000), isActive: true,
+            });
+            offer = { code, percent: pct, minOrder: min };
+            text = `${text} As a thank-you for waiting: keep your order, and if you order more food now worth at least ₹${min}, you get ${pct}% off that new order. Use the code ${code} within 2 hours.`;
+        } catch (e) { console.error('Offer coupon error:', e.message); }
+    }
     let current = order;
     if (action === 'cancel') {
         if (!['accepted', 'preparing', 'ready'].includes(order.status)) throw httpError(409, `This order is "${order.status}" and cannot be cancelled.`);
         current = await orderStatus.change({ order, status: 'cancelled', actor, reasonCode: 'out_of_stock', note: text, tenant });
     } else if (action === 'tell') {
         require('../notifications/center').notify('order_shop_note', {
-            tenantId: tenant._id, userId: order.userId, data: { orderId: String(order._id), orderNo: order.orderNo }, vars: { orderNo: order.orderNo, text },
+            tenantId: tenant._id, userId: order.userId, data: { orderId: String(order._id), orderNo: order.orderNo, ...(offer ? { offerCode: offer.code, offerPercent: offer.percent, offerMin: offer.minOrder } : {}) }, vars: { orderNo: order.orderNo, text },
         });
     }
     await Order.updateOne({ _id: order._id, tenantId: tenant._id }, { $set: { 'kitchen.problem.handledAt': new Date(), 'kitchen.problem.handledAction': action } });
     realtime.toOwner(tenant._id, 'order:update', { orderId: String(order._id), orderNo: order.orderNo, status: current.status, kind: 'kitchen_problem_done' });
     // the cook's card stops waiting: it now says what the owner did
     require('./kitchenAlerts').tell(tenant._id, { orderId: String(order._id), orderNo: order.orderNo, status: current.status });
-    return { ok: true, action, text };
+    return { ok: true, action, text, offer };
 }
 
 module.exports = { queue, start, ready, ownerReady, addToQueue, problem, resolve, viewOf, stageOf };

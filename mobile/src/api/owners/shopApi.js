@@ -25,7 +25,7 @@ export const fetchLiveMap = () => d(api.get('/shop/live-map'));
 export const fetchOrders = (params) => d(api.get('/shop/orders', q(params)));
 export const fetchOrder = (id) => d(api.get(`/shop/orders/${id}`));
 // body: { status, note?, reasonCode? }   (cancelling needs a note)
-export const resolveKitchenProblem = (id, action, message) => d(api.post(`/shop/orders/${id}/kitchen-problem`, { action, ...(message ? { message } : {}) }));   // action: 'tell' | 'cancel' | 'dismiss'
+export const resolveKitchenProblem = (id, action, message, offerPercent) => d(api.post(`/shop/orders/${id}/kitchen-problem`, { action, ...(message ? { message } : {}), ...(offerPercent ? { offerPercent } : {}) }));   // action: 'tell' | 'cancel' | 'dismiss'
 export const undoOrderStep = (id) => d(api.post(`/shop/orders/${id}/undo`));   // takes the last step back: { ok, undone, order }
 export const setOrderStatus = (id, body) => d(api.patch(`/shop/orders/${id}/status`, body));
 export const fetchDelivery = (id) => d(api.get(`/shop/orders/${id}/delivery`));

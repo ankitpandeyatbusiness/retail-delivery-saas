@@ -163,7 +163,7 @@ router.post('/orders/:id/kitchen-problem', wrap(async (req, res) => {
     if (!isId(req.params.id)) throw httpError(404, 'Order not found');
     const order = await Order.findOne({ _id: req.params.id, tenantId: req.tenant._id });
     if (!order) throw httpError(404, 'Order not found');
-    res.json(await require('../services/kitchenService').resolve({ tenant: req.tenant, order, action: req.body?.action, message: req.body?.message, actor: actorOf(req) }));
+    res.json(await require('../services/kitchenService').resolve({ tenant: req.tenant, order, action: req.body?.action, message: req.body?.message, offerPercent: req.body?.offerPercent, actor: actorOf(req) }));
 }));
 
 // the owner says the food of a delivery order is ready
@@ -492,6 +492,8 @@ router.get('/settings', wrap(async (req, res) => {
             minOrder: cfg.orders.minOrder || 0,
             prepTimeMin: st.orders?.prepTimeMin ?? DEFAULTS.orders.prepTimeMin,
             kitchenQueueSec: st.orders?.kitchenQueueSec ?? DEFAULTS.orders.kitchenQueueSec,
+            kitchenOfferMode: st.orders?.kitchenOfferMode ?? DEFAULTS.orders.kitchenOfferMode,
+            kitchenOfferPercent: st.orders?.kitchenOfferPercent ?? DEFAULTS.orders.kitchenOfferPercent,
             gst: cfg.orders.gst,   // set by the platform, shown only
             busy: cfg.orders.busy || null,
         },
@@ -557,7 +559,7 @@ router.put('/settings', wrap(async (req, res) => {
     if (body.orders !== undefined) {
         // what the owner may change of the order settings: the cash limit and what a customer pays on top of the food.
         // GST, payment methods and order types stay with the platform.
-        const OWNER_ORDER_KEYS = ['codCap', 'pickupCod', 'pickupRules', 'mixRules', 'dineIn', 'deliveryFee', 'packagingCharge', 'tipOptions', 'minOrder', 'prepTimeMin', 'kitchenQueueSec'];
+        const OWNER_ORDER_KEYS = ['codCap', 'pickupCod', 'pickupRules', 'mixRules', 'dineIn', 'deliveryFee', 'packagingCharge', 'tipOptions', 'minOrder', 'prepTimeMin', 'kitchenQueueSec', 'kitchenOfferMode', 'kitchenOfferPercent'];
         if (!body.orders || typeof body.orders !== 'object' || Array.isArray(body.orders) || Object.keys(body.orders).some((k) => !OWNER_ORDER_KEYS.includes(k))) {
             throw httpError(400, 'You can change only the cash limit, delivery fee, packaging charge, tips, minimum order and preparation time');
         }

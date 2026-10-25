@@ -146,7 +146,7 @@ function validateSettings(input) {
 
     // orders
     section('orders',
-        ['types', 'payments', 'minOrder', 'deliveryFee', 'packagingCharge', 'gst', 'tipOptions', 'prepTimeMin', 'kitchenQueueSec', 'acceptingOrders', 'pausedUntil', 'busy', 'codCap', 'pickupCod', 'pickupRules', 'mixRules', 'limits', 'staff', 'dineIn', 'autoAccept'],   // autoAccept is the owner's own (services/autoAccept.js): known here so a panel save does not fail on it, never taken from the panel
+        ['types', 'payments', 'minOrder', 'deliveryFee', 'packagingCharge', 'gst', 'tipOptions', 'prepTimeMin', 'kitchenQueueSec', 'kitchenOfferMode', 'kitchenOfferPercent', 'acceptingOrders', 'pausedUntil', 'busy', 'codCap', 'pickupCod', 'pickupRules', 'mixRules', 'limits', 'staff', 'dineIn', 'autoAccept'],   // autoAccept is the owner's own (services/autoAccept.js): known here so a panel save does not fail on it, never taken from the panel
         (o, out, p) => {
             if (o.types !== undefined) { const v = listOf(p('types'), o.types, O.ORDER_TYPES, 1, 3); if (v) out.types = v; }
             if (o.payments !== undefined) { const v = listOf(p('payments'), o.payments, O.PAYMENT_METHODS, 1, 4); if (v) out.payments = v; }
@@ -154,6 +154,9 @@ function validateSettings(input) {
             if (o.packagingCharge !== undefined && num(p('packagingCharge'), o.packagingCharge, 0, 500)) out.packagingCharge = o.packagingCharge;
             if (o.prepTimeMin !== undefined && num(p('prepTimeMin'), o.prepTimeMin, 0, 240)) out.prepTimeMin = o.prepTimeMin;
             if (o.kitchenQueueSec !== undefined && num(p('kitchenQueueSec'), o.kitchenQueueSec, 15, 600)) out.kitchenQueueSec = o.kitchenQueueSec;   // seconds before an order the cook did not touch goes to his queue by itself
+            // when the owner tells a customer about a problem in the kitchen: offer a discount to stay? ask each time | always | never (and how many percent)
+            if (o.kitchenOfferMode !== undefined && oneOf(p('kitchenOfferMode'), o.kitchenOfferMode, ['ask', 'always', 'never'])) out.kitchenOfferMode = o.kitchenOfferMode;
+            if (o.kitchenOfferPercent !== undefined && oneOf(p('kitchenOfferPercent'), o.kitchenOfferPercent, [5, 10, 15, 20, 25])) out.kitchenOfferPercent = o.kitchenOfferPercent;
             if (o.acceptingOrders !== undefined && bool(p('acceptingOrders'), o.acceptingOrders)) out.acceptingOrders = o.acceptingOrders;
             // a timed pause set by the owner ("pause for 30 minutes"): taking orders resumes by itself at this moment. null = none.
             // It is saved as a Date, and read back as a Date or an ISO text.
@@ -496,7 +499,7 @@ const DEFAULTS = {
         types: ['delivery'], payments: ['cod'], minOrder: 0,
         deliveryFee: { type: 'free', amount: 0, freeAbove: 0 },
         packagingCharge: 0, gst: { mode: 'none', percent: 0 },
-        tipOptions: [], prepTimeMin: 20, kitchenQueueSec: 60, acceptingOrders: true,
+        tipOptions: [], prepTimeMin: 20, kitchenQueueSec: 60, kitchenOfferMode: 'ask', kitchenOfferPercent: 10, acceptingOrders: true,
         dineIn: { enabled: false, sharedTables: false, maxParties: 4, guestWatch: true, unreachableMin: 10, tableCount: 10, autoCloseHours: 6, tabLimitNew: 500, tabLimitTrusted: 2000, trustedAfter: 3, atShopCheck: true, radiusM: 250, checkMinutes: 20, autoReady: false, readyMin: 15, autoServe: false, serveMin: 10, owedDaily: false, owedHour: 11, owedOnHome: true, referOn: false, referFriendPercent: 15, referFriendMax: 150, referPoints: 50, referLimit: 10, callOn: false, tipOn: false, tipChoices: [10, 20, 50], feedbackOn: false, welcomeOn: false, welcomePercent: 10, welcomeMax: 100, regularOn: false, regularAfter: 5, regularPercent: 5, regularMax: 50, happyOn: false, happyFrom: '15:00', happyTo: '18:00', happyPercent: 15, happyMax: 150, waitMin: 0, owedMax: 7, firstOnline: false, prefs: ['Make it spicy', 'Less spicy', 'Not spicy', 'Extra gravy', 'Less gravy', 'No coriander', 'No onion', 'No garlic', 'Less oil', 'Less salt'], busyAuto: true, busyPercent: 70, busyExtraMin: 10, cancelGraceMin: 3, waiterSettles: true },   // eating at the shop: on/off and how many tables
         staff: { kitchenOn: false, waiterOn: false, max: 10, kitchenSees: ['delivery', 'pickup', 'dine_in'], lateMin: 20, serveLateMin: 5, queueShown: true, queueEta: true, kitchenLanes: 3, nudgeMin: 10 },   // kitchen and waiter panels (services/staffService.js): off until the super admin switches them on
         mixRules: { dineBlocksOthers: true, deliveryOpenMax: 3, exposureOn: true, exposureNew: 800, exposureTrusted: 3000, regularAfter: 3 },

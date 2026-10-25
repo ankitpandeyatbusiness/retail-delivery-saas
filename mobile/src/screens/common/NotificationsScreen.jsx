@@ -3,6 +3,7 @@
 // Opening this screen marks everything as read (the rows that were new stay highlighted until you leave).
 // "Clear all" deletes every message.
 import { useOwedPrompt } from '../../store/customers/useOwedPrompt';
+import { useCouponStore } from '../../store/customers/useCouponStore';
 import React, { useCallback, useRef, useState } from 'react';
 import { View, Text, FlatList, Pressable, RefreshControl, StyleSheet } from 'react-native';
 import { ListShimmer } from '../../components/owners/shimmer';
@@ -87,6 +88,12 @@ export default function NotificationsScreen() {
     const open = (n) => {
         const orderId = n.data?.orderId;
         if (/^owed_/.test(String(n.type || n.data?.type || '')) || n.data?.type === 'table_walkout') { useOwedPrompt.getState().show(); return; }
+        if (n.data?.offerCode) {   // the shop offers a discount to stay: the code is ready at checkout and the menu opens
+            useCouponStore.getState().set(String(n.data.offerCode));
+            showToast(tr('Code {code} is ready at checkout', { code: String(n.data.offerCode) }));
+            nav.navigate('MainTabs', { screen: 'Home' });
+            return;
+        }
         if (orderId) nav.navigate('OrderDetail', { id: String(orderId) });
     };
 

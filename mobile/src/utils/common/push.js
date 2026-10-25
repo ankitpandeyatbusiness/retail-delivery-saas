@@ -19,6 +19,7 @@ import { showToast } from '../../components/customers/shop';
 import { speakOnOpen, isNewsType, sayAlert, markSaid, markTapped, acknowledge } from '../owners/soundbox';
 import { showSlider } from '../../components/common/AlertSliderHost';
 import { fetchOrder } from '../../api/owners/shopApi';
+import { useCouponStore } from '../../store/customers/useCouponStore';
 import { useSoundboxStore } from '../../store/owners/useSoundboxStore';
 import { useOwedPrompt } from '../../store/customers/useOwedPrompt';
 import { playSfx, buzz } from './sfx';
@@ -142,6 +143,11 @@ function handleTap(resp) {
     if (['kitchen', 'waiter'].includes(useAuthStore.getState().user?.role)) { showTapSlider(resp, data); return; }
     // a customer's reminder about the bill he left unpaid: open the bill with the Pay button
     if (/^owed_/.test(String(data.type || '')) || data.type === 'table_walkout') { useOwedPrompt.getState().show(); return; }
+    if (data.offerCode) {   // the shop offers a discount to stay: the code is ready at checkout and the menu opens
+        useCouponStore.getState().set(String(data.offerCode));
+        openScreen('MainTabs', { screen: 'Home' });
+        return;
+    }
     if (!data.orderId) return;
     openOrder(data.orderId);
 }

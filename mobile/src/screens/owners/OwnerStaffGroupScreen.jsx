@@ -10,7 +10,7 @@ import { FormPage, Toggle } from '../../components/owners/menuBits';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { AddSheet, LeaveRequests } from './OwnerStaffScreen';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
-import { fetchStaff, updateStaff, saveSettings, apiError } from '../../api/owners/shopApi';
+import { fetchStaff, updateStaff, saveSettings, fetchSettings, apiError } from '../../api/owners/shopApi';
 import { showToast } from '../../components/customers/shop';
 import { tr } from '../../i18n';
 
@@ -50,6 +50,9 @@ function Group({ role }) {
     useFocusEffect(useCallback(() => { load(); }, [load]));
 
     const rules = data?.rules || {};
+    const [offer, setOffer] = useState({ mode: 'ask', percent: 10 });   // what he chose about offering a discount when he tells a customer about a problem
+    useFocusEffect(useCallback(() => { if (role === 'kitchen') fetchSettings().then((st) => setOffer({ mode: st.orders?.kitchenOfferMode || 'ask', percent: st.orders?.kitchenOfferPercent || 10 })).catch(() => { }); }, [role]));
+    const offerKey = offer.mode === 'always' ? String(offer.percent) : offer.mode;
     const on = role === 'kitchen' ? rules.kitchenOn : rules.waiterOn;
     const people = (data?.items || []).filter((p) => p.role === role);
     const active = people.filter((p) => p.isActive);
@@ -86,11 +89,18 @@ function Group({ role }) {
                     <LeaveRequests role={role} onChanged={load} />
 
                     {role === 'kitchen' ? (
+                        <>
                         <Card>
                             <Text style={{ color: text, fontWeight: '900', fontSize: 15 }}>{tr('A new order the cook does not touch goes to his queue after')}</Text>
                             <Text style={{ color: muted, fontSize: 12.5, marginTop: 2 }}>{tr('It stops ringing, and the cook is told it is in the queue. He can also tap Add to queue himself.')}</Text>
                             <Chips options={[[30, '30 s'], [60, '60 s'], [90, '90 s'], [120, '2 min'], [180, '3 min']]} value={rules.queueSec || 60} onChange={async (v) => { try { await saveSettings({ orders: { kitchenQueueSec: v } }); setData((d) => ({ ...d, rules: { ...d.rules, queueSec: v } })); showToast(tr('Saved')); } catch (e) { showToast(apiError(e)); } }} />
                         </Card>
+                        <Card>
+                            <Text style={{ color: text, fontWeight: '900', fontSize: 15 }}>{tr('When you tell a customer about a kitchen problem')}</Text>
+                            <Text style={{ color: muted, fontSize: 12.5, marginTop: 2 }}>{tr('Offer a discount on a new order to keep the customer? This is the choice you remembered.')}</Text>
+                            <Chips options={[['ask', tr('Ask me')], ['10', '10% off'], ['15', '15% off'], ['20', '20% off'], ['never', tr('No offer')]]} value={offerKey} onChange={async (v) => { try { await saveSettings({ orders: v === 'ask' || v === 'never' ? { kitchenOfferMode: v } : { kitchenOfferMode: 'always', kitchenOfferPercent: Number(v) } }); setOffer(v === 'ask' || v === 'never' ? { mode: v, percent: offer.percent } : { mode: 'always', percent: Number(v) }); showToast(tr('Saved')); } catch (e) { showToast(apiError(e)); } }} />
+                        </Card>
+                                            </>
                     ) : null}
 
                     <SectionTitle title={tr('Your {many} ({n})', { many: tr(j.many), n: people.length })} />
