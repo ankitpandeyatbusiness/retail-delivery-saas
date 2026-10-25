@@ -3,6 +3,10 @@
 import { create } from 'zustand';
 import { fetchKitchenOrders, kitchenStart, kitchenReady, kitchenUndo } from '../../api/staff/staffApi';
 import { staffAlert } from '../../utils/staff/staffSound';
+import { readCache, writeCache } from '../../utils/common/cache';
+import { useAuthStore } from '../common/useAuthStore';
+
+const KEY = () => 'kitchenList:' + (useAuthStore.getState().user?.id || '');
 
 let seq = 0;   // the newest answer wins when two loads overlap
 let known = null;   // ids of the new orders already seen: a new one that was not here before rings the screen
@@ -27,6 +31,7 @@ export const useKitchenStore = create((set, get) => ({
             if (known) r.items.filter((o) => o.stage === 'new' && !known.has(o.id)).forEach((o) => staffAlert({ kind: 'new', orderNo: o.orderNo }));
             known = fresh;
             set({ items: r.items, counts: r.counts, rules: r.rules, state: 'ok', loadedAt: Date.now() });
+            writeCache(KEY(), { items: r.items, counts: r.counts, rules: r.rules });
         } catch (e) {
             if (mine !== seq) return;
             const status = e?.response?.status;
@@ -67,5 +72,10 @@ export const useKitchenStore = create((set, get) => ({
         }
     },
 
+    // the list shows at once with what was on it last time; the server's answer replaces it a moment later
+    hydrate: async () => {
+        const c = await readCache(KEY());
+        if (c?.items && get().state === 'loading') set({ items: c.items, counts: c.counts || get().counts, rules: c.rules || get().rules, state: 'ok' });
+    },
     reset: () => { seq += 1; known = null; set({ items: [], counts: { new: 0, cooking: 0, ready: 0, late: 0 }, state: 'loading', busy: {}, loadedAt: 0 }); },
 }));

@@ -103,7 +103,8 @@ core.put('/duty', wrap(async (req, res) => {
         if (k === 'weekly') for (const [d, day] of Object.entries(v)) set[`duty.weekly.${d}`] = day;
         else set[`duty.${k}`] = v;
     }
-    await Staff.updateOne({ tenantId: req.tenant._id, userId: req.staff.id }, { $set: set });
+    // going live again (or off for good) forgets an earlier "off until" time
+    await Staff.updateOne({ tenantId: req.tenant._id, userId: req.staff.id }, { $set: set, ...(c.online !== undefined && !c.offUntil ? { $unset: { 'duty.offUntil': 1 } } : {}) });
     if (c.online === false) require('../notifications/center').notify('staff_off_duty', { tenantId: req.tenant._id, vars: { name: req.staff.name || req.shopUser.phone, job: staff.JOB[req.staff.role] }, data: { kind: 'staff_off_duty', userId: String(req.staff.id) } });   // the owner is told (a notification, never a popup)
     res.json(await dutyView(req));
 }));

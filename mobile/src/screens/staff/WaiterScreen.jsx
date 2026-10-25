@@ -80,7 +80,7 @@ export default function WaiterScreen() {
                         ListHeaderComponent={<ServedStrip list={w.served} busyOf={(o) => !!w.busy[`undo${o.id}`]} onUndo={(o) => undoServed(o)} />}
                         keyExtractor={(o) => o.id}
                         renderItem={({ item }) => <View style={cellStyle(cols)}><ServeCard o={item} lateMin={w.rules.serveLateMin} busy={!!w.busy[`serve${item.id}`]} onServe={() => act('serve', item.id)} /></View>}
-                        contentContainerStyle={{ paddingBottom: 130, flexGrow: 1 }}
+                        contentContainerStyle={{ paddingBottom: 24, flexGrow: 1 }}
                         showsVerticalScrollIndicator={false}
                         refreshControl={<RefreshControl refreshing={pulling} onRefresh={refresh} tintColor={primary} colors={[primary]} />}
                         ListEmptyComponent={<Empty icon="restaurant-outline" title={tr('Nothing to serve')} hint={tr('Dishes the kitchen finishes appear here, with a sound.')} />}
@@ -100,7 +100,7 @@ export default function WaiterScreen() {
                         renderItem={({ item }) => (
                             <View style={cellStyle(cols)}><RequestCard q={item} lateMin={w.rules.serveLateMin} busy={!!w.busy[`done${item.id}`]} onDone={() => act('done', item.id)} onOpenBill={() => openBill(item.table, item.sessionId)} /></View>
                         )}
-                        contentContainerStyle={{ paddingBottom: 130, flexGrow: 1 }}
+                        contentContainerStyle={{ paddingBottom: 24, flexGrow: 1 }}
                         showsVerticalScrollIndicator={false}
                         refreshControl={<RefreshControl refreshing={pulling} onRefresh={refresh} tintColor={primary} colors={[primary]} />}
                         ListEmptyComponent={<Empty icon="hand-left-outline" title={tr('No requests')} hint={tr('When a table calls you or asks for the bill, it appears here.')} />}
@@ -111,7 +111,7 @@ export default function WaiterScreen() {
             {!first && !failedFirst && tab === 'tables' ? (
                 <FadeIn k={tab}>
                     <ScrollView
-                        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 130 }}
+                        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
                         showsVerticalScrollIndicator={false}
                         refreshControl={<RefreshControl refreshing={pulling} onRefresh={refresh} tintColor={primary} colors={[primary]} />}
                     >

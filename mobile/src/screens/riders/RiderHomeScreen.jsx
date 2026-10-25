@@ -15,6 +15,7 @@ import { Card, Stat } from '../../components/owners/ui';
 import { BigButton, SmallLink, Banner, Avatar } from '../../components/riders/riderBits';
 import KeepRunningSheet from '../../components/riders/KeepRunningSheet';
 import BellButton from '../../components/common/BellButton';
+import OffDutySheet from '../../components/common/OffDutySheet';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRiderStore } from '../../store/riders/useRiderStore';
 import RatingNews from '../../components/riders/RatingNews';
@@ -123,6 +124,7 @@ export default function RiderHomeScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [busyId, setBusyId] = useState(null);
     const [dutyBusy, setDutyBusy] = useState(false);
+    const [askOff, setAskOff] = useState(false);   // "for how long?" when he ends duty
     const [guide, setGuide] = useState(false);   // "keep the app working", shown once
     // ratings customers gave him: read when he is free (after a delivery), shown on top until he closes it
     const [news, setNews] = useState(null);
@@ -133,6 +135,8 @@ export default function RiderHomeScreen() {
         return () => { dead = true; };
     }, [active.length, summary]);   // eslint-disable-line react-hooks/exhaustive-deps
     const closeNews = () => { setNews(null); markNewsSeen().catch(() => { }); };
+
+    useEffect(() => { useRiderStore.getState().hydrate(); }, []);   // the page opens at once with what it showed last time
 
     // new offers arrive while the page is open
     useFocusEffect(useCallback(() => {
@@ -146,14 +150,18 @@ export default function RiderHomeScreen() {
     useRiderLocation(active.length > 0);
 
     const onDuty = !!me?.isOnline;
-    const changeDuty = async (v) => {
-        if (!v && (active.length > 0 || offers.length > 0)) {
-            const yes = await ask({ title: T.endDuty + '?', message: active.length ? tr('You still have a delivery to finish. You will get no new orders.') : tr('You will get no new orders.'), confirmText: T.endDuty });
-            if (!yes) return;
+    const changeDuty = async (v, extra) => {
+        if (!v && !extra) {
+            if (active.length > 0 || offers.length > 0) {
+                const yes = await ask({ title: T.endDuty + '?', message: active.length ? tr('You still have a delivery to finish. You will get no new orders.') : tr('You will get no new orders.'), confirmText: T.endDuty });
+                if (!yes) return;
+            }
+            setAskOff(true);   // then: for how long?
+            return;
         }
         setDutyBusy(true);
         try {
-            await setDuty(v);
+            await setDuty(v, extra);
             if (v) {   // the first time he starts duty: how to stop the phone from killing the app
                 const seen = await AsyncStorage.getItem('rider_keep_running_seen').catch(() => '1');
                 if (!seen) { setGuide(true); AsyncStorage.setItem('rider_keep_running_seen', '1').catch(() => { }); }
@@ -261,6 +269,7 @@ export default function RiderHomeScreen() {
                 ) : null}
             </ScrollView>
             <KeepRunningSheet visible={guide} onClose={() => setGuide(false)} />
+            <OffDutySheet visible={askOff} onClose={() => setAskOff(false)} onPick={(extra) => changeDuty(false, extra)} />
         </View>
     );
 }

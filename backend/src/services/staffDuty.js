@@ -81,7 +81,13 @@ function statusOf(row, now = new Date(), closed = false) {
     if (closed) return 'shop_closed';
     if (onHoliday(row, istNow(now).date)) return 'holiday';
     if ((row?.duty?.mode || 'manual') === 'auto') return inHours(row, now) ? 'on' : 'outside';
-    return row?.duty?.online === false ? 'off' : 'on';
+    return manualOff(row, now) ? 'off' : 'on';
+}
+// switched off by hand: for good, or until a time (duty.offUntil) after which he is back on by himself
+function manualOff(row, now = new Date()) {
+    if (row?.duty?.online !== false) return false;
+    const until = row?.duty?.offUntil ? new Date(row.duty.offUntil).getTime() : 0;
+    return !until || until > now.getTime();
 }
 const isOnDuty = (row, now = new Date(), closed = false) => row?.isActive !== false && statusOf(row, now, closed) === 'on';
 
@@ -91,6 +97,16 @@ function cleanDuty(body) {
     if (b.online !== undefined) {
         if (typeof b.online !== 'boolean') throw httpError(400, 'online must be true or false');
         out.online = b.online;
+        // going off duty can be for a while: pauseMinutes, or untilMorning (6 am, India time). Without either it lasts until he starts again.
+        if (b.online === false) {
+            const min = Number(b.pauseMinutes);
+            if (Number.isFinite(min) && min > 0 && min <= 720) out.offUntil = new Date(Date.now() + Math.round(min) * 60000);
+            else if (b.untilMorning === true) {
+                const ist = new Date(Date.now() + 330 * 60000);
+                const morning = Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth(), ist.getUTCDate() + (ist.getUTCHours() >= 6 ? 1 : 0), 6, 0, 0) - 330 * 60000;
+                out.offUntil = new Date(morning);
+            }
+        }
     }
     if (b.mode !== undefined) {
         if (!['manual', 'auto'].includes(b.mode)) throw httpError(400, 'mode must be manual or auto');
@@ -118,7 +134,7 @@ function viewOf(row, now = new Date(), closed = false, winding = false) {
         .map((h) => ({ id: String(h._id), from: h.from, to: h.to, note: h.note || '', days: daysBetween(h.from, h.to), leave: !!h.leaveId }));
     return {
         status: statusOf(row, now, closed), onDuty: isOnDuty(row, now, closed), shopClosed: closed, winding,
-        online: row?.duty?.online !== false, mode: row?.duty?.mode || 'manual', weekly: weeklyOf(row),
+        online: !manualOff(row, now), offUntil: manualOff(row, now) && row?.duty?.offUntil ? row.duty.offUntil : null, mode: row?.duty?.mode || 'manual', weekly: weeklyOf(row),
         holidays, today: { holiday: onHoliday(row, date), date },
     };
 }

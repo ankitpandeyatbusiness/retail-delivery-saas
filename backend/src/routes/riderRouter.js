@@ -221,9 +221,11 @@ core.delete('/orders/:id/proof', wrap(async (req, res) => {
 // { "isOnline": true }
 core.put('/online', wrap(async (req, res) => {
     if (typeof req.body?.isOnline !== 'boolean') throw httpError(400, 'Send isOnline: true or false');
+    // going off duty can be for a while: pauseMinutes, or untilMorning (6 am, India time); the clock then puts him back on duty by itself
+    const resumeAt = req.body.isOnline ? null : schedule.resumeTime(req.body);
     const r = await Rider.updateOne(
         { tenantId: req.tenant._id, userId: req.riderId, ...(req.body.isOnline && { isActive: true }) },
-        req.body.isOnline ? { $set: { isOnline: true, onlineSince: new Date(), 'duty.autoSession': false } } : { $set: { isOnline: false, 'duty.autoSession': false }, $unset: { onlineSince: 1 } },
+        req.body.isOnline ? { $set: { isOnline: true, onlineSince: new Date(), 'duty.autoSession': false }, $unset: { 'duty.resumeAt': 1 } } : { $set: { isOnline: false, 'duty.autoSession': false, ...(resumeAt ? { 'duty.resumeAt': resumeAt } : {}) }, $unset: { onlineSince: 1, ...(resumeAt ? {} : { 'duty.resumeAt': 1 }) } },
     );
     if (!r.matchedCount) throw httpError(403, 'Your rider account is switched off');
     // just came on duty: the open orders nobody has taken are shown to him at once

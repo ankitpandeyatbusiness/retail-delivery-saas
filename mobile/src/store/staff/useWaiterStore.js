@@ -3,6 +3,10 @@
 import { create } from 'zustand';
 import { fetchWaiterOverview, waiterServe, waiterDoneRequest, waiterUndo } from '../../api/staff/staffApi';
 import { staffAlert } from '../../utils/staff/staffSound';
+import { readCache, writeCache } from '../../utils/common/cache';
+import { useAuthStore } from '../common/useAuthStore';
+
+const KEY = () => 'waiterList:' + (useAuthStore.getState().user?.id || '');
 
 let seq = 0;   // the newest answer wins when two loads overlap
 let known = null;   // ids of the dishes and requests already seen: a new one rings the screen
@@ -28,11 +32,18 @@ export const useWaiterStore = create((set, get) => ({
             }
             known = ids;
             set({ serve: r.serve, served: r.served || [], requests: r.requests, tables: r.tables, counts: r.counts, rules: r.rules, state: 'ok', loadedAt: Date.now() });
+            writeCache(KEY(), { serve: r.serve, served: r.served || [], requests: r.requests, tables: r.tables, counts: r.counts, rules: r.rules });
         } catch (e) {
             if (mine !== seq) return;
             if (e?.response?.status === 403) { require('./useStaffStore').useStaffStore.getState().load(); return; }   // switched off meanwhile: the app shows why
             set({ state: 'error' });   // the last list stays on screen
         }
+    },
+
+    // the screen shows at once with what was on it last time; the server's answer replaces it a moment later
+    hydrate: async () => {
+        const c = await readCache(KEY());
+        if (c?.serve && get().state === 'loading') set({ ...c, state: 'ok' });
     },
 
     // kind: 'serve' | 'done'. Returns the server's answer ({ already }) or throws its message.

@@ -41,7 +41,7 @@ export default function StaffTabs() {
     useWaiterSync(state === 'ok' && role === 'waiter');
 
     // a new person on this phone starts clean; coming back to the app asks again (the owner may have paused them meanwhile)
-    useEffect(() => { useStaffStore.getState().reset(); require('../store/staff/useStaffAlertStore').useStaffAlertStore.getState().clear(); useKitchenStore.getState().reset(); useWaiterStore.getState().reset(); load(); }, [uid, load]);
+    useEffect(() => { useStaffStore.getState().reset(); require('../store/staff/useStaffAlertStore').useStaffAlertStore.getState().clear(); useKitchenStore.getState().reset(); useWaiterStore.getState().reset(); useStaffStore.getState().hydrate(); useKitchenStore.getState().hydrate(); useWaiterStore.getState().hydrate(); load(); }, [uid, load]);
     useEffect(() => {
         const sub = AppState.addEventListener('change', (st) => { if (st === 'active') load(); });
         return () => sub.remove();

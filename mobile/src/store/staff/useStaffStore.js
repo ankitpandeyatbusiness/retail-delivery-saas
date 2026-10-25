@@ -2,6 +2,10 @@
 // state: 'loading' (first load) | 'ok' | 'blocked' (paused, panel switched off, not staff: `block` says why) | 'error' (no network)
 import { create } from 'zustand';
 import { fetchStaffMe } from '../../api/staff/staffApi';
+import { readCache, writeCache } from '../../utils/common/cache';
+import { useAuthStore } from '../common/useAuthStore';
+
+const KEY = () => 'staffMe:' + (useAuthStore.getState().user?.id || '');
 
 let seq = 0;   // the newest answer wins when two loads overlap
 
@@ -14,13 +18,19 @@ export const useStaffStore = create((set, get) => ({
         const mine = ++seq;
         try {
             const me = await fetchStaffMe();
-            if (mine === seq) set({ me, state: 'ok', block: null });
+            if (mine === seq) { set({ me, state: 'ok', block: null }); writeCache(KEY(), me); }
         } catch (e) {
             if (mine !== seq) return;
             const r = e?.response;
             if (r?.status === 403 && r.data?.code) set({ state: 'blocked', block: { code: r.data.code, message: r.data.error || '' } });
             else set((st) => ({ state: st.me ? st.state : 'error' }));   // a screen that already has data keeps it
         }
+    },
+
+    // open at once with who this person was last time; load() then confirms it (a paused person is shown the reason a moment later)
+    hydrate: async () => {
+        const c = await readCache(KEY());
+        if (c && get().state === 'loading') set({ me: c, state: 'ok' });
     },
 
     patchMe: (patch) => set((s) => ({ me: { ...s.me, ...patch } })),

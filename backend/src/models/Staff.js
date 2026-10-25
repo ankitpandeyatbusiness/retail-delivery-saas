@@ -14,6 +14,7 @@ const staffSchema = new mongoose.Schema({
     duty: {
         _id: false,
         online: { type: Boolean, default: true },
+        offUntil: Date,   // switched off by hand until this time; then he is on duty again by himself (no time = until he starts again)
         mode: { type: String, enum: ['manual', 'auto'], default: 'manual' },
         weekly: mongoose.Schema.Types.Mixed,   // { mon: { on, from: '09:00', to: '21:00' }, ... }
     },

@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand, alpha } from '../common/kit';
 import { Skel } from '../common/motion';
 import BellButton from '../common/BellButton';
+import DutyToggle from './DutyToggle';
 import { tr } from '../../i18n';
 
 export const JOBS = {
@@ -34,6 +35,7 @@ export function StaffHeader({ title, subtitle, right }) {
                 {subtitle ? <Text style={{ color: muted, fontSize: 13, fontWeight: '600', marginTop: 2 }} numberOfLines={1}>{subtitle}</Text> : null}
             </View>
             {right}
+            <View style={{ marginLeft: 8 }}><DutyToggle /></View>
             <BellButton />
         </View>
     );
@@ -72,12 +74,13 @@ export const minWord = (m) => (m < 1 ? tr('just now') : tr('{n} min', { n: m }))
 // a big button a cook or waiter can hit with a wet thumb: full width, tall, clear colours in both looks
 export function BigButton({ label, icon, bg, ink, busy, disabled, onPress }) {
     return (
-        <Pressable onPress={onPress} disabled={busy || disabled} accessibilityRole="button" style={({ pressed }) => ({ minHeight: 56, borderRadius: 16, backgroundColor: bg, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', opacity: disabled ? 0.4 : busy ? 0.6 : pressed ? 0.8 : 1 })}>
+        // the whole coloured button is the touch area (not only the words in the middle): it has its own full width and height, and the icon and words let touches through
+        <Pressable onPress={onPress} disabled={busy || disabled} hitSlop={{ top: 6, bottom: 6, left: 0, right: 0 }} accessibilityRole="button" style={({ pressed }) => ({ alignSelf: 'stretch', width: '100%', minHeight: 56, paddingHorizontal: 16, borderRadius: 16, backgroundColor: bg, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', opacity: disabled ? 0.4 : busy ? 0.6 : pressed ? 0.8 : 1 })}>
             {busy ? <ActivityIndicator color={ink} /> : (
-                <>
+                <View pointerEvents="none" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
                     <Ionicons name={icon} size={22} color={ink} style={{ marginRight: 8 }} />
                     <Text style={{ color: ink, fontWeight: '900', fontSize: 17 }}>{label}</Text>
-                </>
+                </View>
             )}
         </Pressable>
     );

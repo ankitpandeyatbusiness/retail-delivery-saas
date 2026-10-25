@@ -16,6 +16,7 @@ const riderSchema = new mongoose.Schema({
         mode: { type: String, enum: ['manual', 'auto'], default: 'manual' },
         weekly: mongoose.Schema.Types.Mixed,    // { mon: { on, from: '09:00', to: '21:00' }, ... }
         lastAutoOn: Date,
+        resumeAt: Date,   // he went off duty by hand for a while: the clock puts him back on duty at this time (services/riderSchedule.js)
         autoSession: { type: Boolean, default: false },   // the duty he is on now was started by the schedule
     },
     loyalty: { points30: Number, badge: String, faults30: Number, at: Date },   // his points of the last 30 days and his badge (services/loyaltyService.js)

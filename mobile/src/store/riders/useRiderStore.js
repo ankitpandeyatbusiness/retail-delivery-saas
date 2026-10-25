@@ -3,6 +3,10 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { fetchRiderMe, fetchRiderOrders, fetchSummary, setOnline } from '../../api/riders/riderApi';
+import { readCache, writeCache } from '../../utils/common/cache';
+import { useAuthStore } from '../common/useAuthStore';
+
+const KEY = () => 'riderHome:' + (useAuthStore.getState().user?.id || '');
 
 let seq = 0;   // the newest answer wins when two loads overlap
 const SEEN_KEY = 'rider_missed_seen_at';   // when he last opened History (offers missed after that make the red dot)
@@ -32,16 +36,23 @@ export const useRiderStore = create((set, get) => ({
             ]);
             if (mine !== seq) return;
             set({ me, offers: offers.items || [], active: active.items || [], summary, ready: true, error: false, missedNew: offers.counts?.missed || 0 });
+            writeCache(KEY(), { me, active: active.items || [], summary });   // (offers are not kept: they run out in minutes)
         } catch (e) {
             if (mine === seq) set((s) => ({ error: !s.ready }));   // a screen that already has data keeps it
         }
     },
 
+    // the Home page opens at once with what it showed last time (his name, deliveries, numbers); load() replaces it a moment later
+    hydrate: async () => {
+        const c = await readCache(KEY());
+        if (c?.me && !get().ready) set({ me: c.me, active: c.active || [], summary: c.summary || null, ready: true, error: false });
+    },
+
     // on duty / off duty. Throws when the server says no (the screen shows why); the switch goes back by itself.
-    setDuty: async (isOnline) => {
+    setDuty: async (isOnline, extra) => {
         const old = get().me;
         set({ me: { ...old, isOnline } });
-        try { await setOnline(isOnline); } catch (e) { set({ me: old }); throw e; }
+        try { await setOnline(isOnline, extra); } catch (e) { set({ me: old }); throw e; }
     },
 
     // he opened History: the red dot goes until the next offer is missed

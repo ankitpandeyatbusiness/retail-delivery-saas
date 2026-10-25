@@ -182,8 +182,34 @@ function windowNow(rider, now = new Date()) {
     return { inWindow: false, date, startAt: null };
 }
 
+// when a rider goes off duty by hand for a while: the time he comes back (pauseMinutes, or untilMorning = 6 am India time), or null for "until I start again"
+function resumeTime(body) {
+    const min = Number(body?.pauseMinutes);
+    if (Number.isFinite(min) && min > 0 && min <= 720) return new Date(Date.now() + Math.round(min) * 60000);
+    if (body?.untilMorning === true) {
+        const ist = new Date(Date.now() + 330 * 60000);
+        return new Date(Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth(), ist.getUTCDate() + (ist.getUTCHours() >= 6 ? 1 : 0), 6, 0, 0) - 330 * 60000);
+    }
+    return null;
+}
+
+// riders who went off duty "for a while": back on duty when the time is up
+async function resumeTimed(now = new Date()) {
+    const due = await Rider.find({ isActive: true, isOnline: false, 'duty.resumeAt': { $lte: now } }).select('tenantId userId').lean();
+    for (const r of due) {
+        try {
+            const res = await Rider.updateOne({ _id: r._id, isOnline: false, 'duty.resumeAt': { $lte: now } }, { $set: { isOnline: true, onlineSince: now, 'duty.autoSession': false }, $unset: { 'duty.resumeAt': 1 } });
+            if (!res.modifiedCount) continue;
+            require('./assignmentService').offerOpenToRider({ tenantId: r.tenantId, riderUserId: r.userId }).catch((e) => console.error('Show open orders error:', e.message));
+            tell('rider_duty_auto', { tenantId: r.tenantId, userId: r.userId, vars: { on: true }, data: { kind: 'duty_auto' } });
+        } catch (e) { console.error('Rider resume error:', e.message); }
+    }
+    return due.length;
+}
+
 // every minute: riders on "auto" go on and off duty by their timing
 async function tick(now = new Date()) {
+    await resumeTimed(now).catch((e) => console.error('Rider resume error:', e.message));
     const riders = await Rider.find({ isActive: true, 'duty.mode': 'auto' }).select('tenantId userId isOnline activeOrderCount duty holidays').lean();
     if (!riders.length) return { on: 0, off: 0 };
     const { date } = istNow(now);
@@ -242,5 +268,5 @@ function startRiderScheduleTicker() {
 
 module.exports = {
     DAYS, MAX_HOLIDAYS, istNow, weeklyOf, cleanDuty, validDate, addDays, daysBetween, blockedOn, monthDays, summaries,
-    requestLeave, cancelLeave, decide, windowNow, tick, startRiderScheduleTicker, fail,
+    requestLeave, cancelLeave, decide, windowNow, tick, startRiderScheduleTicker, fail, resumeTime, resumeTimed,
 };

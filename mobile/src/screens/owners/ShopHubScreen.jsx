@@ -51,11 +51,14 @@ const WORDS = {
     LegalList: 'terms privacy policy agreement legal',
 };
 
-// [icon, title, subtitle, route]
+// [icon, title, subtitle, route]   ('@busy' opens the Busy mode sheet). The order is the order of a working day.
 const GROUPS = [
-    ['Menu', [
-        ['list', 'Categories', 'Order, pictures and opening hours of each section', 'OwnerCategories'],
-        ['albums', 'Collections', 'Festival and combo strips on the home screen', 'OwnerCollections'],
+    ['Daily work', [
+        ['flame', 'Busy mode', 'Show a longer wait when you are rushed', '@busy'],
+        ['document-text', 'Closing report', 'The day in one page: sales, cash, orders', 'OwnerClosing'],
+        ['restaurant', 'Dine in', 'Customers eating at your tables: switch on, tables', 'OwnerDineIn'],
+        ['flame', 'Kitchen staff', 'Your cooks: what they made, leave, add or remove', 'OwnerCooks'],
+        ['restaurant', 'Waiters', 'Your waiters: what they served, leave, add or remove', 'OwnerWaiters'],
     ]],
     ['Customers and care', [
         ['people', 'Customers', 'Your customers, their orders, allow cash on delivery', 'OwnerCustomers'],
@@ -65,30 +68,31 @@ const GROUPS = [
         ['rocket', 'Autopilot', 'Reminders that bring customers back, by themselves', 'OwnerAutopilot'],
         ['gift', 'Rewards and points', 'Customer points, rider points and badges', 'OwnerRewards'],
     ]],
-    ['Offers', [
+    ['Menu and offers', [
+        ['list', 'Categories', 'Order, pictures and opening hours of each section', 'OwnerCategories'],
+        ['albums', 'Collections', 'Festival and combo strips on the home screen', 'OwnerCollections'],
         ['pricetag', 'Coupons', 'Discount codes', 'OwnerCoupons'],
         ['images', 'Banners', 'Pictures on the home screen', 'OwnerBanners'],
         ['image', 'Login and home pictures', 'The big pictures that slide at the top', 'OwnerHero'],
     ]],
     ['Money', [
         ['wallet', 'Money', 'Your rent, SMS balance and top up', 'OwnerMoney'],
+        ['swap-vertical', 'Transactions and bills', 'Every payment, year by year and month by month', 'OwnerTransactions'],
         ['trending-up', 'Business report', 'Progress charts, what customers like, tips', 'OwnerBusiness'],
         ['trophy', 'Popular items', 'What sells most: last 7 days, 30 days, 3 months', 'OwnerPopular'],
-        ['swap-vertical', 'Transactions and bills', 'Every payment, year by year and month by month', 'OwnerTransactions'],
     ]],
-    ['Shop', [
-        ['restaurant', 'Dine in', 'Customers eating at your tables: switch on, tables', 'OwnerDineIn'],
+    ['Shop settings', [
         ['time', 'Opening hours', 'Weekly hours and holidays', 'OwnerHours'],
         ['navigate', 'Delivery area and fees', 'Pin, distance, delivery fee, packaging, tips', 'OwnerDelivery'],
         ['bicycle', 'Delivery and cash rules', 'Riders, cash limits, cash for pickup orders', 'OwnerRiderRules'],
-        ['flame', 'Kitchen staff', 'Your cooks: what they made, leave, add or remove', 'OwnerCooks'],
-        ['restaurant', 'Waiters', 'Your waiters: what they served, leave, add or remove', 'OwnerWaiters'],
         ['cash', 'Cancel and refund rules', 'Who bears the cost of a cancelled order', 'OwnerMoneyRules'],
-        ['notifications', 'Alerts', 'Choose the notification, popup and sound for each alert', 'AlertSettings'],
-        ['lock-closed', 'App lock', 'Ask for a PIN, fingerprint or face when the app opens', 'OwnerAppLock'],
         ['settings', 'Shop settings', 'Phone, address, SMS alerts', 'OwnerShopSettings'],
         ['list-circle', 'Activity log', 'Who changed what', 'OwnerActivity'],
-        ['document-text', 'Terms and privacy', 'Your agreement, the terms and the privacy policy', 'LegalList'],
+    ]],
+    ['Alerts and security', [
+        ['notifications', 'Alerts', 'Choose the notification, sound, voice and slider for each alert', 'AlertSettings'],
+        ['volume-high', 'Soundbox', 'New-order sound, voice and volume', 'Soundbox'],
+        ['lock-closed', 'App lock', 'Ask for a PIN, fingerprint or face when the app opens', 'OwnerAppLock'],
     ]],
 ];
 
@@ -128,9 +132,14 @@ export function ShopMenu({ onGo }) {
     const [busy, setBusyState] = useState(null);
     const [busyOpen, setBusyOpen] = useState(false);
     const [langOpen, setLangOpen] = useState(false);
+    // what the platform switched on for this shop: Kitchen staff and Waiters are only listed when it did (hidden until it is known)
+    const [staffOn, setStaffOn] = useState({ kitchenOn: false, waiterOn: false });
     const lang = useLang((st) => st.lang);
     useFocusEffect(useCallback(() => {
-        fetchSettings().then((x) => setBusyState(x.orders.busy || null)).catch(() => { });
+        fetchSettings().then((x) => {
+            setBusyState(x.orders.busy || null);
+            if (x.orders.staff) setStaffOn({ kitchenOn: x.orders.staff.kitchenOn === true, waiterOn: x.orders.staff.waiterOn === true });
+        }).catch(() => { });
     }, []));
 
     const go = (route) => { if (onGo) onGo(); nav.navigate(route); };
@@ -146,20 +155,25 @@ export function ShopMenu({ onGo }) {
     };
 
     const [q, setQ] = useState('');
-    const { primary, border, muted, text, surface } = useBrand();
-    // every row of the menu as one list for the search (the ones with a screen of their own, and the ones that open a sheet)
-    const entries = useMemo(() => [
-        { icon: 'volume-high', title: 'Soundbox', subtitle: 'New-order sound, voice and volume', group: 'Alerts', words: 'sound voice volume alert new order ring announce speaker', act: () => go('Soundbox') },
-        { icon: 'flame', title: 'Busy mode', subtitle: 'Show a longer wait when you are rushed', group: 'Kitchen', words: 'busy rushed longer wait kitchen crowd', act: () => setBusyOpen(true) },
-        { icon: 'document-text', title: 'Closing report', subtitle: 'The day in one page: sales, cash, orders', group: 'Kitchen', words: 'closing report day sales cash end of day summary', act: () => go('OwnerClosing') },
-        ...GROUPS.flatMap(([group, rows]) => rows.map(([icon, title, subtitle, route]) => ({ icon, title, subtitle, group, words: WORDS[route] || '', act: () => go(route) }))),
-        { icon: 'help-buoy', title: 'Help and support', subtitle: 'Ask the platform team for help', group: 'Your app', words: 'help support ask platform team contact problem', act: () => go('OwnerSupport') },
-        { icon: 'person-circle', title: 'My profile', subtitle: 'Your name, picture and email', group: 'Your app', words: 'profile name picture email account', act: () => go('OwnerProfile') },
-        { icon: 'language', title: 'Language', subtitle: 'Choose the language of the app', group: 'Your app', words: 'language hindi tamil telugu marathi translate', act: () => setLangOpen(true) },
-        { icon: 'eye', title: 'See the customer app', subtitle: 'Look at your shop the way customers do', group: 'Your app', words: 'customer view preview app', act: customerView },
-        { icon: 'log-out', title: 'Log out', subtitle: 'Sign out of this phone', group: 'Your app', words: 'logout log out sign out exit', act: out },
+    const { border, muted, text, surface } = useBrand();
+    const hidden = (route) => (route === 'OwnerCooks' && !staffOn.kitchenOn) || (route === 'OwnerWaiters' && !staffOn.waiterOn);
+    // every row of the menu as one list (what is shown, and what the search looks through)
+    const sections = useMemo(() => [
+        ...GROUPS.map(([group, rows]) => [group, rows.filter((r) => !hidden(r[3])).map(([icon, title, subtitle, route]) => (route === '@busy'
+            ? { icon, title, subtitle: busy ? tr('On: +{extraMin} min until {clockTime}', { extraMin: busy.extraMin, clockTime: clockTime(busy.until) }) : tr(subtitle), group, words: 'busy rushed longer wait kitchen crowd', color: busy ? error : undefined, act: () => setBusyOpen(true) }
+            : { icon, title, subtitle: tr(subtitle), group, words: WORDS[route] || '', act: () => go(route) }))]),
+        ['Your app', [
+            { icon: 'help-buoy', title: 'Help and support', subtitle: tr('Ask the platform team for help'), group: 'Your app', words: 'help support ask platform team contact problem', right: supportUnread > 0 ? <Pill label={String(supportUnread)} color={error} /> : undefined, act: () => go('OwnerSupport') },
+            { icon: 'person-circle', title: 'My profile', subtitle: user?.name || user?.phone || tr('Your name, picture and email'), group: 'Your app', words: 'profile name picture email account', act: () => go('OwnerProfile') },
+            { custom: 'appearance', title: 'Appearance', group: 'Your app', words: 'appearance dark light theme mode' },
+            { icon: 'language', title: 'Language', subtitle: LANGS.find((l) => l.code === lang)?.native, group: 'Your app', words: 'language hindi tamil telugu marathi translate', act: () => setLangOpen(true) },
+            { icon: 'eye', title: 'See the customer app', subtitle: tr('Look at your shop the way customers do. You cannot order from your own number.'), group: 'Your app', words: 'customer view preview app', act: customerView },
+            { icon: 'document-text', title: 'Terms and privacy', subtitle: tr('Your agreement, the terms and the privacy policy'), group: 'Your app', words: WORDS.LegalList, act: () => go('LegalList') },
+            { icon: 'log-out', title: 'Log out', subtitle: tr('Sign out of this phone'), group: 'Your app', words: 'logout log out sign out exit', color: error, act: out },
+        ]],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    ], []);
+    ], [busy, staffOn, supportUnread, user, lang]);
+    const entries = useMemo(() => sections.flatMap(([, rows]) => rows).filter((e) => !e.custom), [sections]);
     const found = q.trim() ? searchMenu(entries, q, (e) => `${e.title} ${tr(e.title)}`) : null;
 
     return (
@@ -178,45 +192,21 @@ export function ShopMenu({ onGo }) {
                     <SectionTitle title={found.length ? tr('{n} found', { n: found.length }) : tr('Nothing found')} />
                     {found.length ? (
                         <Card>
-                            {found.map((e, i) => <Row key={e.title} icon={e.icon} title={e.title} subtitle={`${tr(e.group)} · ${e.subtitle}`} last={i === found.length - 1} onPress={() => { setQ(''); e.act(); }} />)}
+                            {found.map((e, i) => <Row key={e.title} icon={e.icon} title={tr(e.title)} subtitle={`${tr(e.group)} · ${e.subtitle}`} last={i === found.length - 1} onPress={() => { setQ(''); e.act(); }} />)}
                         </Card>
                     ) : <Text style={{ color: muted, paddingHorizontal: 20, paddingVertical: 8 }}>{tr('Try another word, like cash, tip, table or picture.')}</Text>}
                 </View>
             ) : (
-        <View>
-            <SectionTitle title={tr('Alerts')} />
-            <Card>
-                <Row icon="volume-high" title={tr('Soundbox')} subtitle={tr('New-order sound, voice and volume')} onPress={() => go('Soundbox')} last />
-            </Card>
-
-            <SectionTitle title={tr('Kitchen')} />
-            <Card>
-                <Row icon="flame" title={tr('Busy mode')} subtitle={busy ? tr('On: +{extraMin} min until {clockTime}', { extraMin: busy.extraMin, clockTime: clockTime(busy.until) }) : tr('Show a longer wait when you are rushed')} color={busy ? error : undefined} onPress={() => setBusyOpen(true)} />
-                <Row icon="document-text" title={tr('Closing report')} subtitle={tr('The day in one page: sales, cash, orders')} onPress={() => go('OwnerClosing')} last />
-            </Card>
-
-            {GROUPS.map(([group, rows]) => (
-                <View key={group}>
-                    <SectionTitle title={group} />
-                    <Card>
-                        {rows.map(([icon, title, subtitle, route], i) => (
-                            <Row key={title} icon={icon} title={title} subtitle={subtitle} last={i === rows.length - 1} onPress={() => go(route)} />
-                        ))}
-                    </Card>
+                <View>
+                    {sections.map(([group, rows]) => (rows.length ? (
+                        <View key={group}>
+                            <SectionTitle title={tr(group)} />
+                            <Card>
+                                {rows.map((e, i) => (e.custom ? <AppearanceSwitch key={e.title} /> : <Row key={e.title} icon={e.icon} title={tr(e.title)} subtitle={e.subtitle} color={e.color} right={e.right} last={i === rows.length - 1} onPress={e.act} />))}
+                            </Card>
+                        </View>
+                    ) : null))}
                 </View>
-            ))}
-
-            <SectionTitle title={tr('Your app')} />
-            <Card>
-                <Row icon="help-buoy" title={tr('Help and support')} subtitle={tr('Ask the platform team for help')} onPress={() => go('OwnerSupport')} right={supportUnread > 0 ? <Pill label={String(supportUnread)} color={error} /> : undefined} />
-                <Row icon="person-circle" title={tr('My profile')} subtitle={user?.name || user?.phone || tr('Your name, picture and email')} onPress={() => go('OwnerProfile')} />
-                <AppearanceSwitch />
-                <Row icon="language" title={tr('Language')} subtitle={LANGS.find((l) => l.code === lang)?.native} onPress={() => setLangOpen(true)} />
-                <Row icon="eye" title={tr('See the customer app')} subtitle={tr('Look at your shop the way customers do. You cannot order from your own number.')} onPress={customerView} />
-                <Row icon="log-out" title={tr('Log out')} color={error} onPress={out} last />
-            </Card>
-
-        </View>
             )}
 
             <LanguageSheet visible={langOpen} onClose={() => setLangOpen(false)} />

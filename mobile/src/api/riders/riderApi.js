@@ -9,7 +9,7 @@ export const fetchRiderNews = () => d(api.get('/rider/news'));
 export const markNewsSeen = () => d(api.post('/rider/news/seen'));
 // his points and badge: { enabled, badge, points, rating, next, rules, history }
 export const fetchRiderPoints = () => d(api.get('/rider/points'));
-export const setOnline = (isOnline) => d(api.put('/rider/online', { isOnline }));
+export const setOnline = (isOnline, extra) => d(api.put('/rider/online', { isOnline, ...(extra || {}) }));   // extra when going off: { pauseMinutes } | { untilMorning: true }
 // duty timing, holidays and leave (services/riderSchedule.js)
 export const fetchDuty = () => d(api.get('/rider/duty'));
 export const saveDuty = (body) => d(api.put('/rider/duty', body));   // { mode?, weekly? }

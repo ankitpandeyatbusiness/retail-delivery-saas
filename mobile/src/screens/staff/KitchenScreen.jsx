@@ -77,7 +77,7 @@ export default function KitchenScreen() {
             {!first && !(state === 'error' && !loadedAt) && tab === 'dish' ? (
                 <FadeIn k={tab}>
                     <ScrollView
-                        contentContainerStyle={{ paddingBottom: 130 }}
+                        contentContainerStyle={{ paddingBottom: 24 }}
                         showsVerticalScrollIndicator={false}
                         refreshControl={<RefreshControl refreshing={pulling} onRefresh={refresh} tintColor={primary} colors={[primary]} />}
                     >
@@ -96,7 +96,7 @@ export default function KitchenScreen() {
                         renderItem={({ item }) => (
                             <View style={cellStyle(cols)}><KitchenOrderCard o={item} lateMin={rules.lateMin || 20} busy={!!busy[item.id]} onAct={(k) => act(item, k)} onProblem={() => setProblem(item)} onUndo={() => undo(item)} /></View>
                         )}
-                        contentContainerStyle={{ paddingBottom: 130, flexGrow: 1 }}
+                        contentContainerStyle={{ paddingBottom: 24, flexGrow: 1 }}
                         showsVerticalScrollIndicator={false}
                         refreshControl={<RefreshControl refreshing={pulling} onRefresh={refresh} tintColor={primary} colors={[primary]} />}
                         ListEmptyComponent={tab === 'make'

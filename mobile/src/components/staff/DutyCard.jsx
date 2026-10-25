@@ -13,6 +13,7 @@ import { apiError } from '../../api/owners/shopApi';
 import { fetchDuty, saveDuty, addDayOff, removeDayOff, askLeave, cancelLeave } from '../../api/staff/staffApi';
 import { useStaffStore } from '../../store/staff/useStaffStore';
 import { onNotification } from '../../api/common/socket';
+import OffDutySheet from '../common/OffDutySheet';
 import { tr } from '../../i18n';
 
 const DAYS = [['mon', 'Monday'], ['tue', 'Tuesday'], ['wed', 'Wednesday'], ['thu', 'Thursday'], ['fri', 'Friday'], ['sat', 'Saturday'], ['sun', 'Sunday']];
@@ -82,6 +83,7 @@ export default function DutyCard() {
     const [dirty, setDirty] = useState(false);
     const [saving, setSaving] = useState(false);
     const [offOpen, setOffOpen] = useState(false);
+    const [askOff, setAskOff] = useState(false);   // "for how long?" when going off duty
     const [leaveOpen, setLeaveOpen] = useState(false);
 
     const take = useCallback((r, keepEdits) => {
@@ -114,7 +116,7 @@ export default function DutyCard() {
                             <Text style={{ color: text, fontWeight: '900', fontSize: 17 }}>{d.status === 'shop_closed' ? tr('Shop is closed') : d.online ? tr('Live') : tr('Off duty')}</Text>
                             <Text style={{ color: colors[tone] || muted, fontSize: 12.5, marginTop: 2 }}>{tr(line)}</Text>
                         </View>
-                        <SlideSwitch disabled={d.status === 'shop_closed'} value={d.online && d.status !== 'shop_closed'} onValueChange={(v) => act(() => saveDuty({ online: v }), v ? tr('You are live') : tr('You are off duty'))} accessibilityLabel={tr('Live or off duty')} />
+                        <SlideSwitch disabled={d.status === 'shop_closed'} value={d.online && d.status !== 'shop_closed'} onValueChange={(v) => (v ? act(() => saveDuty({ online: true }), tr('You are live')) : setAskOff(true))} accessibilityLabel={tr('Live or off duty')} />
                     </View>
                 ) : (
                     <View>
@@ -193,6 +195,7 @@ export default function DutyCard() {
                 <Button label={tr('Ask for leave')} icon="calendar-outline" kind="ghost" onPress={() => setLeaveOpen(true)} style={{ marginTop: 12 }} />
             </Card>
             <DaysOffSheet leave visible={leaveOpen} onClose={() => setLeaveOpen(false)} onSubmit={async ({ from, to, note }) => { take(await askLeave({ from, to, reason: note }), true); showToast(tr('Request sent to the owner')); }} />
+            <OffDutySheet visible={askOff} onClose={() => setAskOff(false)} onPick={(extra) => act(() => saveDuty({ online: false, ...extra }), tr('You are off duty'))} />
             <DaysOffSheet visible={offOpen} onClose={() => setOffOpen(false)} onSubmit={async (b) => { take(await addDayOff(b), true); showToast(tr('Saved. The owner is told.')); }} />
         </View>
     );
