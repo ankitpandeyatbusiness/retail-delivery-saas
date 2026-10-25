@@ -124,7 +124,9 @@ router.get('/', wrap(async (req, res) => {
     const hasMore = items.length > limit;
     if (hasMore) items.pop();
     const q = await queueInfo.forOrders(req.tenant, items);
-    res.json({ items: items.map((o) => view(o, req.tenant, q.get(String(o._id)))), page, hasMore });
+    const complaints = await require('../models/Complaint').find({ tenantId: req.tenant._id, userId: req.auth.userId, orderId: { $in: items.map((o) => o._id) } }).select('orderId status resolution').lean();
+    const complaintOf = new Map(complaints.map((c) => [String(c.orderId), { status: c.status, resolution: c.resolution }]));
+    res.json({ items: items.map((o) => ({ ...view(o, req.tenant, q.get(String(o._id))), ...(complaintOf.has(String(o._id)) ? { complaint: complaintOf.get(String(o._id)) } : {}) })), page, hasMore });
 }));
 
 router.get('/:id', wrap(async (req, res) => {

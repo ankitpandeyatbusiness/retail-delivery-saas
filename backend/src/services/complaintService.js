@@ -187,7 +187,8 @@ async function decide({ tenant, id, actor, body }) {
     } else if (resolution === 'no_refund') {
         if (!reply) throw httpError(400, 'Tell the customer why there is no refund');
     } else {
-        const order = await Order.findOne({ _id: c.orderId, tenantId: tenant._id }).select('pricing payment').lean();
+        const order = await Order.findOne({ _id: c.orderId, tenantId: tenant._id }).select('pricing payment orderType').lean();
+        if (order?.orderType === 'pickup') throw httpError(409, 'A pickup order is not returned or refunded. Choose "No refund" and tell the customer why, or just reply.');
         const total = Math.round((Number(order?.pricing?.total) || 0) * 100);
         const tip = Math.min(Math.round((Number(order?.pricing?.tip) || 0) * 100), total);
         const cap = total - tip;                       // the tip is not refunded on a delivered order
@@ -203,6 +204,7 @@ async function decide({ tenant, id, actor, body }) {
         refundStatus = online ? 'pending' : 'noted';
     }
 
+    if (refundPaise > 0) require('./loyaltyService').voidPendingForOrder(tenant._id, c.orderId);   // a refund (cash too): the points of this order do not stay with the customer
     const now = new Date();
     const done = await Complaint.findOneAndUpdate(
         { _id: id, tenantId: tenant._id, status: { $ne: 'resolved' } },

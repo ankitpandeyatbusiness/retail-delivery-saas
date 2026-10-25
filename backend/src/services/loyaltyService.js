@@ -202,6 +202,22 @@ async function onDeliveryRated(order, rating) {
 // money was given back for an order whose points are still waiting: they never arrive
 async function voidPendingForOrder(tenantId, orderId) {
     try { await LoyaltyEntry.updateMany({ tenantId, orderId, kind: 'customer', status: 'pending' }, { $set: { status: 'void', note: 'Refunded before the points arrived' } }); } catch (e) { /* the job still checks */ }
+    await takeBackEarned(tenantId, orderId).catch((e) => console.error('Points take-back error:', e.message));
+}
+
+// The points of this order had already arrived (the refund came after the 24 hours): what is still unspent is taken back, once.
+async function takeBackEarned(tenantId, orderId) {
+    const rows = await LoyaltyEntry.find({ tenantId, orderId, kind: 'customer', status: 'done', points: { $gt: 0 }, reason: { $in: ['order', 'first', 'review_food', 'review_delivery'] } }).lean();
+    for (const e of rows) {
+        const claimed = await LoyaltyEntry.findOneAndUpdate({ _id: e._id, expired: false, status: 'done' }, { $set: { expired: true } });   // (this also stops it from expiring later)
+        if (!claimed) continue;
+        const acc = await LoyaltyAccount.findOne({ tenantId, userId: e.userId }).select('balance').lean();
+        const take = Math.min(e.points, acc?.balance || 0);
+        if (take > 0) {
+            await LoyaltyAccount.updateOne({ tenantId, userId: e.userId, balance: { $gte: take } }, { $inc: { balance: -take } });
+            await writeOnce({ tenantId, userId: e.userId, kind: 'customer', reason: `refund_${e.reason}`.slice(0, 30), points: -take, status: 'done', orderId, orderNo: e.orderNo, note: 'Order refunded: points taken back' });
+        }
+    }
 }
 
 // every 5 minutes: points whose waiting time is over become spendable; points that lasted their months expire

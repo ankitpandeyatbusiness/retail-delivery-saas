@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Modal, View, Text, Pressable, StyleSheet, Linking, Platform, TextInput, Keyboard, ScrollView, useWindowDimensions } from 'react-native';
 import { ActivityIndicator } from '../common/Loading';
+import { Skel } from '../common/motion';
 import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
@@ -367,7 +368,7 @@ export default function MapPicker({ visible, initial, onClose, onPick, startAtSh
                 ) : null}
 
                 <Pressable onPress={locate} disabled={locating} style={[s.gps, { backgroundColor: surface, bottom: 170 + insets.bottom }]}>
-                    {locating ? <ActivityIndicator color={primary} /> : <Ionicons name="locate" size={24} color={primary} />}
+                    {locating ? <Skel width={24} height={24} radius={12} /> : <Ionicons name="locate" size={24} color={primary} />}
                 </Pressable>
 
                 <View style={[s.bar, { backgroundColor: surface, borderTopColor: border, paddingBottom: (insets.bottom || 0) + 14 }]}>

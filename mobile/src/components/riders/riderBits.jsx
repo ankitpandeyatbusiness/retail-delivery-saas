@@ -2,6 +2,7 @@
 import React from 'react';
 import { View, Text, Pressable, Image, StyleSheet } from 'react-native';
 import { ActivityIndicator } from '../common/Loading';
+import { Skel } from '../common/motion';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../common/kit';
 
@@ -75,7 +76,7 @@ export function Avatar({ uri, size = 46, onPress, busy }) {
     const { border, surface, muted, primary, onPrimary } = useBrand();
     const body = (
         <View style={{ width: size, height: size, borderRadius: size / 2, borderWidth: 1, borderColor: border, backgroundColor: surface, alignItems: 'center', justifyContent: 'center' }}>
-            {busy ? <ActivityIndicator color={primary} /> : uri
+            {busy ? <Skel width={size - 2} height={size - 2} radius={(size - 2) / 2} /> : uri
                 ? <Image source={{ uri }} style={{ width: size - 2, height: size - 2, borderRadius: (size - 2) / 2 }} />
                 : <Ionicons name="person" size={size * 0.5} color={muted} />}
             {onPress ? <View style={[s.badge, { backgroundColor: primary }]}><Ionicons name="camera" size={11} color={onPrimary} /></View> : null}

@@ -223,6 +223,12 @@ function OrderCard({ o, index, animate, onOpen, onCancel, onReorder, onInvoice, 
                         </View>
                         <StatusPill status={o.status} type={o.orderType} />
                     </View>
+                    {o.complaint ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', marginTop: 8, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99, backgroundColor: tint(o.complaint.status === 'resolved' ? ok : error) }}>
+                            <Ionicons name="alert-circle" size={13} color={o.complaint.status === 'resolved' ? ok : error} style={{ marginRight: 5 }} />
+                            <Text style={{ color: o.complaint.status === 'resolved' ? ok : error, fontWeight: '800', fontSize: 12 }}>{tr('Complaint')}: {o.complaint.status === 'resolved' ? tr('Resolved') : o.complaint.status === 'in_progress' ? tr('The shop replied') : tr('Open')}</Text>
+                        </View>
+                    ) : null}
 
                     <View style={s.thumbRow}>
                         {thumbs.map((l, i) => (

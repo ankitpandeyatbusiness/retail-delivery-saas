@@ -3,8 +3,9 @@
 //   ComplaintCard       GET/POST /orders/:id/complaints     { type, text }                    (once, within 24 h of delivery)
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    View, Text, Pressable, TextInput, Modal, Animated, Easing, KeyboardAvoidingView, Platform, ScrollView, StyleSheet,
+    View, Text, Pressable, TextInput, Modal, Animated, Easing, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, useWindowDimensions,
 } from 'react-native';
+import PhotoViewer from './PhotoViewer';
 import { ActivityIndicator } from './Loading';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -158,6 +159,8 @@ export function ComplaintCard({ orderId }) {
     const [data, setData] = useState(null);       // { items, canComplain, until }
     const closedStyle = useClosedStyle();   // the shop is closed: this popup turns grey
     const [open, setOpen] = useState(false);
+    const [viewing, setViewing] = useState(null);   // a complaint photo open full screen
+    const { height: winH } = useWindowDimensions();   // the sheet is as tall as its words, but never taller than the screen (it used to run off the top and look half open)
     // The dim background fades while only the sheet slides. (With the Modal's own "slide" the dim layer slid up too: a black block.)
     const [shown, setShown] = useState(false);
     const anim = useRef(new Animated.Value(0)).current;   // 0 = closed, 1 = open
@@ -260,9 +263,10 @@ export function ComplaintCard({ orderId }) {
                 <Text style={[s.body, { color: muted }]}>{c.text}</Text>
                 {c.photos?.length ? (
                     <View style={s.thumbs}>
-                        {c.photos.map((u) => <Image key={u} source={{ uri: u }} style={[s.thumb, { borderColor: border }]} contentFit="cover" />)}
+                        {c.photos.map((u) => <Pressable key={u} onPress={() => setViewing(u)}><Image source={{ uri: u }} style={[s.thumb, { borderColor: border }]} contentFit="cover" /></Pressable>)}
                     </View>
                 ) : null}
+                <PhotoViewer uri={viewing} onClose={() => setViewing(null)} />
                 {c.ownerReply ? (
                     <View style={[s.reply, { backgroundColor: tint(primary) }]}>
                         <Text style={[s.replyLabel, { color: muted }]}>{tr('Reply from the shop')}</Text>
@@ -293,7 +297,7 @@ export function ComplaintCard({ orderId }) {
                     <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.45)', opacity: anim }]} />
                     <Pressable style={StyleSheet.absoluteFill} onPress={closeSheet} />
                     <DragDown visible={open} onClose={closeSheet}>{(scroll) => (
-                    <Animated.View style={[s.sheet, { backgroundColor: surface, transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [640, 0] }) }] }]}>
+                    <Animated.View style={[s.sheet, { backgroundColor: surface, maxHeight: Math.round(winH * 0.88), transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [640, 0] }) }] }]}>
                         <Grip><View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: border, marginBottom: 12 }} /></Grip>
                         <KeyboardScroll {...scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
                             <Text style={[s.sheetTitle, { color: text }]}>{tr('Report a problem')}</Text>
@@ -379,7 +383,7 @@ const s = StyleSheet.create({
     reply: { marginTop: 12, borderRadius: 12, padding: 12 },
     replyLabel: { fontSize: 11.5, fontWeight: '700' },
     modalWrap: { flex: 1, justifyContent: 'flex-end' },
-    sheet: { borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 18, paddingBottom: 26, maxHeight: '88%' },
+    sheet: { borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 18, paddingBottom: 26 },
     sheetTitle: { fontSize: 18, fontWeight: '900', marginBottom: 14 },
     label: { fontSize: 11.5, fontWeight: '800', letterSpacing: 1, marginTop: 8 },
     rowBtns: { flexDirection: 'row', marginTop: 14 },

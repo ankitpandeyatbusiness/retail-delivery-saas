@@ -1,7 +1,8 @@
 // One complaint: what the customer wrote (and photos), then your answer: just a reply, a full or part refund, or no refund.
 // The customer is told by notification. Opened with params { complaint }.
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView } from 'react-native';
+import { View, Text, ScrollView, Pressable } from 'react-native';
+import PhotoViewer from '../../components/common/PhotoViewer';
 import { Image } from 'expo-image';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useBrand } from '../../components/common/kit';
@@ -62,6 +63,7 @@ export default function OwnerComplaintScreen() {
 }
 
 function ComplaintView({ c0 }) {
+    const [viewing, setViewing] = useState(null);   // a photo open full screen
     const nav = useNavigation();
     const { text, muted, error, ok } = useBrand();
     const [c, setC] = useState(c0);
@@ -107,9 +109,10 @@ function ComplaintView({ c0 }) {
                 <Text style={{ color: text, marginTop: 10, lineHeight: 21 }}>{c.text}</Text>
                 {c.photos?.length ? (
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }}>
-                        {c.photos.map((u) => <Image key={u} source={{ uri: u }} style={{ width: 120, height: 120, borderRadius: 12, marginRight: 8 }} contentFit="cover" />)}
+                        {c.photos.map((u) => <Pressable key={u} onPress={() => setViewing(u)}><Image source={{ uri: u }} style={{ width: 120, height: 120, borderRadius: 12, marginRight: 8 }} contentFit="cover" /></Pressable>)}
                     </ScrollView>
                 ) : null}
+                <PhotoViewer uri={viewing} onClose={() => setViewing(null)} />
                 <View style={{ marginTop: 12 }}><Button label={tr('Open order #{orderNo}', { orderNo: c.orderNo })} icon="receipt" kind="ghost" onPress={() => nav.navigate('OwnerOrder', { id: String(c.orderId) })} /></View>
             </Card>
 

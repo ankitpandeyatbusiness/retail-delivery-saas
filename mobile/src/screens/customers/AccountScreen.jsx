@@ -24,6 +24,7 @@ import { useThemeStore } from '../../store/common/useThemeStore';
 import { useFavStore } from '../../store/customers/shopStores';
 import { fetchMe, updateMe, deleteMe, updatePrefs, deleteUpload } from '../../api/customers/shopApi';
 import { pickPhoto, uploadAvatar } from '../../utils/common/photoUpload';
+import { Skel } from '../../components/common/motion';
 import OwedStrip from '../../components/customers/OwedStrip';
 import { tr, LANGS, useLang } from '../../i18n';
 import LanguageSheet from '../../components/common/LanguageSheet';
@@ -355,7 +356,7 @@ function AccountInner() {
                                         {p.avatarUrl
                                             ? <Image source={{ uri: p.avatarUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
                                             : <Text style={[s.avatarTxt, { color: onPrimary }]}>{initial}</Text>}
-                                        {avatarBusy ? <View style={s.avatarBusy}><ActivityIndicator color="#FFFFFF" /></View> : null}
+                                        {avatarBusy ? <View style={StyleSheet.absoluteFill}><Skel width="100%" height="100%" radius={999} /></View> : null}
                                     </View>
                                 </View>
                                 <View style={[s.camBadge, { backgroundColor: surface, borderColor: border }]}>

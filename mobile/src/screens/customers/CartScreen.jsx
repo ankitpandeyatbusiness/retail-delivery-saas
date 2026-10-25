@@ -362,6 +362,18 @@ export default function CartScreen() {
 
                 {type === 'delivery' && freeAbove > 0 ? <FreeDeliveryBar preview={preview} freeAbove={freeAbove} /> : null}
 
+                {/* what kind of order this is, so nobody orders the wrong one */}
+                <View style={{ marginHorizontal: 16, marginTop: 12, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: tint(primary), borderWidth: 1.5, borderColor: primary }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Ionicons name={type === 'delivery' ? 'bicycle' : type === 'pickup' ? 'bag-handle' : 'restaurant'} size={32} color={primary} />
+                        <View style={{ marginLeft: 12, flex: 1 }}>
+                            <Text style={{ color: primary, fontWeight: '900', fontSize: 22 }}>{type === 'delivery' ? tr('DELIVERY order') : type === 'pickup' ? tr('PICKUP order') : tr('DINE IN order')}</Text>
+                            <Text style={{ color: muted, fontSize: 13, fontWeight: '600', marginTop: 2 }}>{type === 'delivery' ? tr('We bring it to your address') : type === 'pickup' ? tr('You collect it from the shop') : tr('Served at your table')}</Text>
+                        </View>
+                    </View>
+                    {type === 'pickup' ? <Text style={{ color: text, fontSize: 12.5, fontWeight: '700', marginTop: 10 }}>{tr('A pickup order cannot be returned or refunded once you have collected it. Please check it at the shop.')}</Text> : null}
+                </View>
+
                 <View style={s.pad}>
                     <Appear style={[s.card, { backgroundColor: surface, borderColor: border, marginTop: 12 }]}>
                         <CardGlow radius={16} />
