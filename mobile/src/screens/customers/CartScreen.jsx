@@ -39,6 +39,7 @@ import KeyboardScroll from '../../components/common/KeyboardScroll';
 const errMsg = (e) => e?.response?.data?.error
     || (e?.response ? 'Something went wrong. Try again.' : 'Network problem. Check your connection.');
 const hr = (d) => `${d.getHours() % 12 || 12} ${d.getHours() >= 12 ? 'PM' : 'AM'}`;
+const FOOD_TAGS = ['Less spicy', 'Extra spicy', 'No onion', 'No garlic', 'Less oil', 'Extra crispy', 'Less sugar'];   // used when the owner has not set their own list
 const QUICK_NOTES = ['Leave at door', 'Avoid calling', "Don't ring bell"];
 
 function makeSlots(prepMin) {
@@ -93,6 +94,7 @@ export default function CartScreen() {
     const [delNotes, setDelNotes] = useState([]);
     const [customNote, setCustomNote] = useState('');
     const [foodNote, setFoodNote] = useState('');   // for the cook (delivery and pickup); a table order has its own "How should we make it?"
+    const [foodTags, setFoodTags] = useState([]);   // tapped cooking tags for a delivery or pickup order
     const [prefs, setPrefs] = useState([]);       // "Make it spicy"... (dine in)
     const [prefNote, setPrefNote] = useState('');  // what he writes himself
     const addr = useAddressStore((st) => st.selected);
@@ -227,6 +229,8 @@ export default function CartScreen() {
     };
     const pickOffer = (code) => { setCouponIn(code); ease(); setCouponErr(''); setTryCode(code); };
     const prefList = full.orders.dineIn?.prefs || [];
+    const foodTagList = prefList.length ? prefList : FOOD_TAGS;
+    const toggleFoodTag = (n) => { ease(); setFoodTags((p) => (p.includes(n) ? p.filter((x) => x !== n) : [...p, n])); };
     const togglePref = (n) => setPrefs((p) => (p.includes(n) ? p.filter((x) => x !== n) : [...p, n]));
     const toggleNote = (n) => { ease(); setDelNotes((p) => (p.includes(n) ? p.filter((x) => x !== n) : [...p, n])); };
     const setQty = (key, q) => { ease(); useCartStore.getState().setQty(key, q); };
@@ -260,7 +264,7 @@ export default function CartScreen() {
                 }
                 at = w.at;
             }
-            const order = await placeOrder({ ...(notes.length ? { ...body, note: notes.join(' | ') } : body), ...(foodNote.trim() && type !== 'dine_in' ? { foodNote: foodNote.trim() } : {}), ...(at ? { at } : {}) }, idemKey);
+            const order = await placeOrder({ ...(notes.length ? { ...body, note: notes.join(' | ') } : body), ...(type !== 'dine_in' && [...foodTags, foodNote.trim()].filter(Boolean).length ? { foodNote: [...foodTags, foodNote.trim()].filter(Boolean).join(', ').slice(0, 200) } : {}), ...(at ? { at } : {}) }, idemKey);
             if (type === 'dine_in') useTableBill.getState().load();   // the new round is on his table bill
             if (__DEV__) console.log(`[pay] place order took ${Date.now() - t0} ms, paymentStart: ${order?.paymentStart ? 'yes' : 'no'}`);
             const tabs = { name: 'MainTabs', state: { routes: [{ name: 'Orders' }] } };
@@ -422,8 +426,11 @@ export default function CartScreen() {
                     {user && type !== 'dine_in' ? (
                         <Appear delay={50} style={{ marginTop: 20 }}>
                             <Text style={[s.cap, { color: text, marginBottom: 8 }]}>{tr('Instructions for the kitchen')}</Text>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                                {foodTagList.map((n) => <Chip key={n} label={tr(n)} on={foodTags.includes(n)} onPress={() => toggleFoodTag(n)} />)}
+                            </View>
                             <TextInput value={foodNote} onChangeText={setFoodNote} maxLength={200} placeholder={tr('E.g., less spicy, no onion, extra crispy...')}
-                                placeholderTextColor={muted} style={[s.customNoteInput, { color: text, borderColor: border, backgroundColor: surface, marginTop: 0 }]} />
+                                placeholderTextColor={muted} style={[s.customNoteInput, { color: text, borderColor: border, backgroundColor: surface, marginTop: 4 }]} />
                             <Text style={{ color: muted, fontSize: 12, marginTop: 6 }}>{tr('The cook hears this before your food is made.')}</Text>
                         </Appear>
                     ) : null}
