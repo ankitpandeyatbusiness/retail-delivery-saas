@@ -20,6 +20,7 @@ const schema = new Schema({
     lockedUntil: Date,
     lastError: String,
     processedAt: Date,
+    customerNotifiedAt: Date,   // the customer was told the money is on its way back (once per refund)
     external: { type: Boolean, default: false },   // made from the Razorpay dashboard, not by us
     checkedAt: Date,   // reconcile: last time Razorpay was asked about it
 }, { timestamps: true });

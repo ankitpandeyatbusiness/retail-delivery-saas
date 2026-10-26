@@ -121,6 +121,7 @@ async function send(refundId) {
 async function afterProcessed(r) {
     const pay = await OnlinePayment.findById(r.paymentId).select('capturedPaise orderId tenantId').lean();
     if (!pay) return;
+    tellCustomer(r, pay).catch((e) => console.error('Refund notice error:', e.message));
     const [agg] = await OnlineRefund.aggregate([
         { $match: { paymentId: r.paymentId, status: 'processed' } },
         { $group: { _id: null, total: { $sum: '$amountPaise' } } },
@@ -128,6 +129,18 @@ async function afterProcessed(r) {
     if ((agg?.total || 0) >= pay.capturedPaise) {
         await Order.updateOne({ _id: pay.orderId, tenantId: pay.tenantId, 'payment.status': 'paid' }, { $set: { 'payment.status': 'refunded' } });
     }
+}
+
+// The customer hears once per refund that the money is on its way back. The claim makes it safe to call from the sender and the webhook.
+async function tellCustomer(r, pay) {
+    const claimed = await OnlineRefund.updateOne({ _id: r._id, customerNotifiedAt: { $exists: false } }, { $set: { customerNotifiedAt: new Date() } });
+    if (!claimed.modifiedCount) return;
+    const order = await Order.findOne({ _id: pay.orderId, tenantId: pay.tenantId }).select('userId orderNo').lean();
+    if (!order?.userId) return;
+    require('../notifications/center').notify('refund_processed', {
+        tenantId: pay.tenantId, userId: order.userId,
+        vars: { orderNo: order.orderNo, amount: r.amountPaise / 100 }, data: { orderId: String(pay.orderId), orderNo: order.orderNo },
+    });
 }
 
 // refund.processed / refund.failed from the webhook

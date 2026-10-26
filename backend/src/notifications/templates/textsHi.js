@@ -51,6 +51,7 @@ const HI = {
     table_feedback_low: (v) => `टेबल ${v.table} खुश नहीं थे।`,
     table_paid_online: (v) => `टेबल ${v.table} ने ${Math.round(v.amount || 0)} रुपये ऑनलाइन दे दिए।`,
     table_paid_owner: (v) => `टेबल ${v.table}: ${Math.round(v.paid || v.total || 0)} रुपये ${v.via === 'UPI' ? 'UPI से' : 'नकद'} मिले। ${v.by || 'वेटर'} ने लिए।`,
+    refund_processed: (v) => `ऑर्डर ${v.orderNo} के ${Number(v.amount || 0).toFixed(2).replace(/.00$/, '')} रुपये आपके भुगतान माध्यम में वापस भेज दिए गए हैं। बैंक में दिखने में 5 से 7 कार्य दिवस लग सकते हैं।`,
     table_nudge: (v) => `टेबल ${v.table} इंतज़ार कर रही है। कृपया खाना जल्दी लाइए।`,
     table_ready_unserved: (v) => `टेबल ${v.table}: खाना ${v.minutes} मिनट से तैयार रखा है, किसी ने परोसा नहीं।`,
     table_bill_waiting: (v) => `टेबल ${v.table} बिल का इंतज़ार कर रही है। उन्होंने ${v.minutes} मिनट पहले मांगा था।`,

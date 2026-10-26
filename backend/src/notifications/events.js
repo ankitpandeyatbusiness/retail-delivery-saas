@@ -74,6 +74,7 @@ const EVENTS = {
     table_nudge: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },        // a customer at a table asks the kitchen to hurry
     table_check: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },        // people finished eating and nobody asked for the bill
     table_walkout: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },   // he left without paying
+    refund_processed: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },   // the refund of an online payment went through
     table_paid: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },      // the table bill was paid
     rider_leave_request: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // a rider asked for leave
     rider_leave_withdrawn: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // a rider took his own leave back
