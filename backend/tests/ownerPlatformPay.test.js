@@ -182,12 +182,11 @@ describe('transactions year by year and as a file', () => {
         assert.equal((await call('get', `/payments/summary?year=${year + 1}`)).status, 400);
     });
 
-    test('the transactions can be downloaded as CSV', async () => {
+    test('the transactions can be downloaded as an Excel file (there is no CSV any more)', async () => {
         await SubscriptionInvoice.create({ tenantId: w.tenant._id, kind: 'custom', invoiceNo: 'SUB/PP/CSV', issueDate: new Date(), dueDate: new Date(), paidAt: new Date(), baseAmount: 500, total: 500, status: 'paid' });
-        const r = await request(app).get('/api/shop/payments/transactions?format=csv').set(w.owner.headers);
+        const r = await request(app).get('/api/shop/payments/transactions?format=xlsx').set(w.owner.headers).buffer(true).parse((res, cb) => { const c = []; res.on('data', (d) => c.push(d)); res.on('end', () => cb(null, Buffer.concat(c))); });
         assert.equal(r.status, 200);
-        assert.match(r.headers['content-type'], /text\/csv/);
-        assert.match(r.text, /Monthly bill/);
-        assert.match(r.text, /SUB\/PP\/CSV/);
+        assert.match(r.headers['content-type'], /spreadsheetml/);
+        assert.equal(r.body.slice(0, 2).toString(), 'PK');   // an .xlsx is a zip file
     });
 });

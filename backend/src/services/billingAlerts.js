@@ -92,15 +92,20 @@ async function paymentsReceived(now) {
         status: 'paid', paidAt: { $gte: new Date(now.getTime() - RECENT_MS) }, paidNotifiedAt: null,
     }).select('tenantId invoiceNo total').limit(100).lean();
 
-    for (const inv of list) {
-        const claimed = await SubscriptionInvoice.updateOne({ _id: inv._id, status: 'paid', paidNotifiedAt: null }, { $set: { paidNotifiedAt: now } });
-        if (!claimed.modifiedCount) continue;
-        notify.toOwner(inv.tenantId, {
-            type: 'payment_received', title: 'Payment received',
-            body: `Thank you. Invoice ${inv.invoiceNo} (${rs(inv.total)}) is paid.`,
-            data: { invoiceId: String(inv._id) },
-        });
-    }
+    for (const inv of list) await tellPaid(inv, now);
+}
+
+// "Payment received" to the owner, once per bill: right when the money is recorded (rentPaymentService.settle), and by the job above for a bill marked paid by hand.
+// The claim makes it safe to call from both.
+async function tellPaid(inv, now = new Date()) {
+    const claimed = await SubscriptionInvoice.updateOne({ _id: inv._id, status: 'paid', paidNotifiedAt: null }, { $set: { paidNotifiedAt: now } });
+    if (!claimed.modifiedCount) return false;
+    notify.toOwner(inv.tenantId, {
+        type: 'payment_received', title: 'Payment received',
+        body: `Thank you. Invoice ${inv.invoiceNo} (${rs(inv.total)}) is paid.`,
+        data: { invoiceId: String(inv._id) },
+    });
+    return true;
 }
 
 // the late fees that have come due (one invoice per bill per overdue month)
@@ -201,4 +206,4 @@ function startBillingAlertsScheduler() {
     setInterval(run, 10 * 60 * 1000).unref?.();
 }
 
-module.exports = { runAlerts, startBillingAlertsScheduler };
+module.exports = { runAlerts, startBillingAlertsScheduler, tellPaid };

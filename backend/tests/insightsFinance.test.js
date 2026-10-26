@@ -56,14 +56,12 @@ describe('search and exports', () => {
         assert.equal(byInv.body.invoices.length, 1);
     });
 
-    test('CSV exports are formula-safe and need a superadmin', async () => {
+    test('exports are Excel only (no CSV) and need a superadmin', async () => {
         const w = await f.makeWorld(`exp-${Date.now().toString(36)}`);
         await f.makeOrder(w.tenant, w.customer.user, { customer: { name: '=HYPERLINK("x")', phone: w.customer.user.phone } });
         const r = await get('/api/admin/export/orders?format=csv');
         assert.equal(r.status, 200);
-        assert.ok(String(r.headers['content-type']).includes('text/csv'));
-        assert.ok(r.text.includes("\"'=HYPERLINK"));
-        assert.equal((await get('/api/admin/export/customers?format=csv')).status, 200);
+        assert.ok(String(r.headers['content-type']).includes('spreadsheetml'));   // asking for csv gives the Excel file
         assert.equal((await request(app).get('/api/admin/export/orders')).status, 401);
     });
 
