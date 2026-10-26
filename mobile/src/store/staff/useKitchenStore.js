@@ -12,6 +12,8 @@ const KEY = () => 'kitchenList:' + (useAuthStore.getState().user?.id || '');
 let seq = 0;   // the newest answer wins when two loads overlap
 let known = null;   // ids of the new orders already seen: a new one that was not here before rings the screen
 
+const inflight = {};   // orderId -> the tap being sent
+
 const STAGE_AFTER = { start: 'cooking', ready: 'ready' };
 
 export const useKitchenStore = create((set, get) => ({
@@ -44,7 +46,18 @@ export const useKitchenStore = create((set, get) => ({
 
     // kind: 'start' | 'ready'. Returns { already, by, ago } when another cook was first, or throws the server's message.
     act: async (id, kind) => {
-        if (get().busy[id]) return null;
+        if (get().busy[id]) {
+            // Ready tapped while Start cooking is still on its way (a slow server): wait for it, then send Ready, so the button never feels dead
+            if (kind !== 'ready' || !inflight[id]) return null;
+            await inflight[id].catch(() => { });
+            if (get().items.find((o) => o.id === id)?.stage !== 'cooking' || get().busy[id]) return null;
+        }
+        const p = get()._act(id, kind);
+        inflight[id] = p;
+        try { return await p; } finally { if (inflight[id] === p) delete inflight[id]; }
+    },
+
+    _act: async (id, kind) => {
         const before = get().items;
         set((st) => ({
             busy: { ...st.busy, [id]: true },

@@ -96,7 +96,7 @@ export default function KitchenOrderCard({ o, lateMin, busy, onAct, onProblem, o
             ) : (
                 <View style={{ marginTop: 12 }}>
                     {cooking ? (
-                        <ActionButton label={tr('Ready')} icon="checkmark-done" busy={busy} bg={ok} ink="#FFFFFF" onPress={() => onAct('ready')} />
+                        <ActionButton label={tr('Ready')} icon="checkmark-done" busy={false} bg={ok} ink="#FFFFFF" onPress={() => onAct('ready')} />
                     ) : (
                         <View>
                             {o.queued ? (

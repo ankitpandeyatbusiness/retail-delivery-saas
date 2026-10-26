@@ -2,7 +2,7 @@
 // Used by the inbox list AND by a tapped push, so both always agree.
 //   n: { type, data }   (data as the server sends it: ids are text)
 const ORDER = new Set([
-    'order_new', 'order_cancelled', 'order_late', 'order_unaccepted_reminder',
+    'order_new', 'order_cancelled', 'order_late', 'order_unaccepted_reminder', 'order_delivered_shop',
     'rider_accepted', 'rider_rejected', 'rider_none', 'rider_problem', 'kitchen_problem', 'pickup_intent',
 ]);
 const BILL = new Set(['bill_issued', 'bill_reminder', 'payment_received', 'shop_paused', 'shop_unpaused', 'free_ending']);

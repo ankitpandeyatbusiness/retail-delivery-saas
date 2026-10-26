@@ -71,6 +71,17 @@ export default function DeliveredView({ o, onDone }) {
                     {o.distanceKm != null ? <Stat icon="navigate" value={`${o.distanceKm} km`} label={tr('Distance')} delay={350} /> : null}
                 </View>
 
+                {o.rating ? (
+                    <View style={{ alignSelf: 'stretch', marginTop: 18, borderRadius: 18, borderWidth: 1, borderColor: border, backgroundColor: surface, padding: 14 }}>
+                        <Text style={{ color: muted, fontSize: 12.5, fontWeight: '800' }}>{tr('The customer rated this delivery')}</Text>
+                        <View style={{ flexDirection: 'row', marginTop: 6 }}>
+                            {[1, 2, 3, 4, 5].map((n) => <Ionicons key={n} name={n <= o.rating.stars ? 'star' : 'star-outline'} size={26} color={warn} style={{ marginRight: 2 }} />)}
+                        </View>
+                        {o.rating.tags?.length ? <Text style={{ color: text, fontWeight: '700', marginTop: 6 }}>{o.rating.tags.join(' · ')}</Text> : null}
+                        {o.rating.comment ? <Text style={{ color: text, marginTop: 6, fontStyle: 'italic' }}>{`“${o.rating.comment}”`}</Text> : null}
+                    </View>
+                ) : null}
+
                 {onTime === true ? (
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 99, backgroundColor: alpha(ok, 0.14) }}>
                         <Ionicons name="flash" size={16} color={ok} />

@@ -79,6 +79,7 @@ function riderView(o, ctx = {}) {
     const undo = o.orderType === 'delivery' && d.status === 'picked_up' ? require('../services/orderUndo').offer(o, 'rider') : null;   // a mistaken "picked up"
     return {
         undo,
+        rating: o.status === 'delivered' && o.deliveryRating?.rating ? { stars: o.deliveryRating.rating, tags: o.deliveryRating.tags || [], comment: o.deliveryRating.comment || null } : null,   // what the customer said about this trip
         id: o._id, orderNo: o.orderNo, status: o.status, createdAt: o.createdAt,
         items: (o.items || []).map((i) => ({ name: i.name, quantity: i.quantity })),
         note: o.note || null,

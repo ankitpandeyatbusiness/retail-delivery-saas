@@ -20,6 +20,7 @@ export default function KitchenProblemActions({ order, onDone, onLater }) {
     const [offerOpen, setOfferOpen] = useState(false);
     const [pct, setPct] = useState(10);          // 0 = no offer
     const [remember, setRemember] = useState(false);
+    const [savedMode, setSavedMode] = useState('ask');   // what was remembered when the sheet opened
     const go = async (action, offerPercent) => {
         setBusy(action);
         try {
@@ -34,14 +35,15 @@ export default function KitchenProblemActions({ order, onDone, onLater }) {
         let mode = 'ask'; let percent = 10;
         try { const st = await fetchSettings(); mode = st.orders?.kitchenOfferMode || 'ask'; percent = st.orders?.kitchenOfferPercent || 10; } catch (e) { /* ask */ }
         setBusy('');
-        if (mode === 'always') { go('cancel', percent); return; }
-        if (mode === 'never') { go('cancel'); return; }
-        setPct(percent); setRemember(false); setOfferOpen(true);
+        // a remembered choice is filled in for the owner, who can still change it on the spot (and untick "remember" to be asked fresh each time)
+        setPct(mode === 'never' ? 0 : percent); setRemember(mode !== 'ask'); setSavedMode(mode); setOfferOpen(true);
     };
     const sendTell = async () => {
         setOfferOpen(false);
         if (remember) {
-            try { await saveSettings({ orders: { kitchenOfferMode: pct ? 'always' : 'never', ...(pct ? { kitchenOfferPercent: pct } : {}) } }); showToast(tr('Remembered. You can change this on the Kitchen staff page.')); } catch (e) { showToast(apiError(e)); }
+            try { await saveSettings({ orders: { kitchenOfferMode: pct ? 'always' : 'never', ...(pct ? { kitchenOfferPercent: pct } : {}) } }); if (savedMode === 'ask') showToast(tr('Remembered. You can change this on the Kitchen staff page.')); } catch (e) { showToast(apiError(e)); }
+        } else if (savedMode !== 'ask') {
+            try { await saveSettings({ orders: { kitchenOfferMode: 'ask' } }); } catch (e) { /* the order still goes ahead */ }
         }
         go('cancel', pct || undefined);
     };

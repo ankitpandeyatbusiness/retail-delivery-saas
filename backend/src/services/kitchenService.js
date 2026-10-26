@@ -286,7 +286,8 @@ async function resolve({ tenant, order, action, message, offerPercent, actor }) 
     let current = order;
     if (action === 'cancel') {
         if (!['accepted', 'preparing', 'ready'].includes(order.status)) throw httpError(409, `This order is "${order.status}" and cannot be cancelled.`);
-        current = await orderStatus.change({ order, status: 'cancelled', actor, reasonCode: 'out_of_stock', note: text, tenant });
+        // the offer rides in the same message as the cancellation, so the customer reads both at once
+        current = await orderStatus.change({ order, status: 'cancelled', actor, reasonCode: 'out_of_stock', note: offer?.text ? `${text} ${offer.text}` : text, tenant });
     } else if (action === 'tell') {
         require('../notifications/center').notify('order_shop_note', {
             tenantId: tenant._id, userId: order.userId, data: { orderId: String(order._id), orderNo: order.orderNo, ...(offer ? { offerCode: offer.code, offerPercent: offer.percent, offerMin: offer.minOrder, offerUntil: offer.until.toISOString() } : {}) }, vars: { orderNo: order.orderNo, text: offer?.text ? `${text} ${offer.text}` : text },
