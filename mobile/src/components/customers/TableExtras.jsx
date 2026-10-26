@@ -29,13 +29,14 @@ export function CallCard() {
         try { await callTable(kind, words); showToast(kind === 'waiter' ? tr('The waiter has been called') : tr('The staff have been told')); setOther(false); setNote(''); } catch (e) { showToast(errOf(e)); } finally { setBusy(false); }
     };
     return (
+        <View style={{ marginBottom: 14 }}>
         <Card>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
                 <Ionicons name="hand-left" size={20} color={primary} />
                 <Text style={{ color: text, fontWeight: '900', marginLeft: 8 }}>{tr('Need something?')}</Text>
             </View>
             {/* always there, as often as the guest needs: only the waiters are told */}
-            <Button label={tr('Call the waiter')} icon="hand-left" busy={busy} onPress={() => send('waiter')} style={{ marginBottom: on ? 10 : 0 }} />
+            <Button label={tr('Call the waiter')} icon="hand-left" busy={busy} onPress={() => send('waiter')} style={{ marginBottom: on ? 10 : 0, marginHorizontal: -6, minHeight: 54 }} />
             {on ? (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                 {KINDS.map(([k, label]) => <Chip key={k} label={tr(label)} on={k === 'other' && other} onPress={() => (k === 'other' ? setOther((x) => !x) : send(k))} />)}
@@ -49,6 +50,7 @@ export function CallCard() {
                 </View>
             ) : null}
         </Card>
+        </View>
     );
 }
 

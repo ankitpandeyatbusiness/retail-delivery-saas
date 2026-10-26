@@ -24,23 +24,8 @@ async function settled() {
     return false;
 }
 
-export async function payTableBill({ user }) {
-    let start;
-    try { start = await startTablePayment(); } catch (e) { return { status: 'failed', message: text(e, 'Could not start the payment') }; }
-    Razorpay.initRazorpay(start.keyId);   // the promise it returns never settles, so it is not awaited
-    const options = {
-        key_id: start.keyId, order_id: start.rzpOrderId, amount: String(start.amountPaise), currency: start.currency || 'INR',
-        description: 'Table bill', email: user?.email || FALLBACK_EMAIL, contact: tenDigits(user?.phone),
-        method: 'upi', '_[flow]': 'intent',
-    };
-    let proof;
-    try {
-        proof = await Razorpay.open(options);
-    } catch (e) {
-        if (await clearedNow()) return { status: 'paid' };   // some apps report "cancelled" after the money was taken
-        if (isCancel(e)) return { status: 'cancelled', message: 'Payment cancelled' };
-        return { status: 'failed', message: text(e, 'Payment failed') };
-    }
+// the proof from Razorpay: ask the server to check it (and Razorpay) before anything is marked paid
+async function finish(proof) {
     const hasProof = proof?.razorpay_order_id && proof?.razorpay_payment_id && proof?.razorpay_signature;
     if (!hasProof) return (await settled()) ? { status: 'paid' } : { status: 'cancelled', message: 'Payment not completed' };
     for (let i = 0; i < 3; i += 1) {
@@ -55,4 +40,29 @@ export async function payTableBill({ user }) {
     }
     if (await clearedNow()) return { status: 'paid' };
     return { status: 'pending', message: 'We are confirming your payment. Your bill will update shortly.' };
+}
+
+// upiApp: { pkg, label } opens that app directly; { chooser: true } or nothing lets Android show its own list
+export async function payTableBill({ user, upiApp }) {
+    let start;
+    try { start = await startTablePayment(); } catch (e) { return { status: 'failed', message: text(e, 'Could not start the payment') }; }
+    Razorpay.initRazorpay(start.keyId);   // the promise it returns never settles, so it is not awaited
+    const options = {
+        key_id: start.keyId, order_id: start.rzpOrderId, amount: String(start.amountPaise), currency: start.currency || 'INR',
+        description: 'Table bill', email: user?.email || FALLBACK_EMAIL, contact: tenDigits(user?.phone),
+        method: 'upi', ...(upiApp?.pkg ? { upi_app_package_name: upiApp.pkg } : {}), '_[flow]': 'intent',
+    };
+    let proof;
+    try {
+        proof = await Razorpay.open(options);
+    } catch (e) {
+        if (!isCancel(e) && upiApp?.pkg && !(await clearedNow())) {   // that app refused a direct start: let Android show its own list
+            try { const { upi_app_package_name: _drop, ...open } = options; proof = await Razorpay.open(open); } catch (e2) { e = e2; }
+        }
+        if (proof) return finish(proof);
+        if (await clearedNow()) return { status: 'paid' };   // some apps report "cancelled" after the money was taken
+        if (isCancel(e)) return { status: 'cancelled', message: 'Payment cancelled' };
+        return { status: 'failed', message: text(e, 'Payment failed') };
+    }
+    return finish(proof);
 }

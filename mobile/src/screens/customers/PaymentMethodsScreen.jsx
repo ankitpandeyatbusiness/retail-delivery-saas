@@ -7,7 +7,10 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, BackHeader } from '../../components/common/kit';
 import { Skel } from '../../components/common/motion';
-import { tint } from '../../components/customers/shop';
+import { tint, showToast } from '../../components/customers/shop';
+import { useAuthStore } from '../../store/common/useAuthStore';
+import { useTableBill } from '../../store/customers/useTableBill';
+import { payTableBill } from '../../utils/customers/payTableBill';
 import { fetchPaymentConfig } from '../../api/customers/shopApi';
 import { standardUpiApps } from '../../utils/customers/upiApps';
 import { prewarmPayments } from '../../utils/customers/payOnline';
@@ -96,6 +99,8 @@ export default function PaymentMethodsScreen() {
     const [cfg, setCfg] = useState({ loading: true, online: false, upi: false, card: false });
     const [apps, setApps] = useState(null);   // null while we ask the phone which UPI apps it has
     const timer = useRef(null);
+    const payBill = !!route.params?.payBill;   // paying the table bill from the table: online methods only, and the payment starts when one is picked
+    const user = useAuthStore((st) => st.user);
     const head = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
@@ -114,10 +119,20 @@ export default function PaymentMethodsScreen() {
 
     const selectMethod = (m) => {
         if (timer.current) return;
+        if (m.value === 'card' && payBill) return;
         if (m.value === 'card') { nav.navigate('CardDetails', { depth: 2 }); return; }   // the card is entered on its own screen
         setPicked(m.key);
         // short pause so the user sees the tick animation, then go back to the cart
         timer.current = setTimeout(() => {
+            if (payBill) {
+                nav.goBack();
+                payTableBill({ user, upiApp: m.app }).then(async (r) => {
+                    await useTableBill.getState().load();
+                    if (r.status === 'paid') showToast(tr('Paid. Thank you! You can order more any time.'));
+                    else if (r.message) showToast(tr(r.message));
+                });
+                return;
+            }
             usePayChoice.getState().choose({ label: m.cartLabel, value: m.value, upiApp: m.app });
             nav.goBack();   // back to the SAME cart screen (navigate('Cart') would stack a second one)
         }, 260);
@@ -158,16 +173,16 @@ export default function PaymentMethodsScreen() {
                         {cfg.upi ? upiRows.map((m, i) => (
                             <MethodCard key={m.key} m={m} index={i} selected={picked === m.key} onPick={selectMethod} />
                         )) : null}
-                        {cfg.card ? (
+                        {cfg.card && !payBill ? (
                             <MethodCard m={cardRow} index={upiRows.length} selected={picked === 'card'} onPick={selectMethod} />
                         ) : null}
                     </>
                 )}
 
-                <Text style={[s.title, { color: muted }]}>{tr('PAY ON DELIVERY')}</Text>
-                <View style={{ opacity: codBlocked ? 0.45 : 1 }}>
+                {payBill ? null : <Text style={[s.title, { color: muted }]}>{tr('PAY ON DELIVERY')}</Text>}
+                {payBill ? null : <View style={{ opacity: codBlocked ? 0.45 : 1 }}>
                     <MethodCard m={cash} index={upiRows.length + 1} selected={picked === 'cod' && !codBlocked} onPick={codBlocked ? () => { } : selectMethod} />
-                </View>
+                </View>}
             </ScrollView>
         </View>
     );
