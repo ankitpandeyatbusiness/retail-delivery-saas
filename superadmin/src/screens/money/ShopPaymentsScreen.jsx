@@ -114,7 +114,7 @@ export default function ShopPaymentsScreen() {
                         <View style={{ height: spacing.md }} />
                         <Button title={st.keyId ? 'Change Razorpay keys' : 'Save Razorpay keys'} icon="key" kind="soft" onPress={() => { setKeys({ keyId: '', keySecret: '', ack: false }); setNeedAck(false); setSheet('keys'); }} />
                         <Button title="Create webhook secret" icon="lock" kind="outline" style={{ marginTop: spacing.sm }} onPress={() => setConfirm('secret')} />
-                        <Button title="Test the connection" icon="bolt" kind="outline" style={{ marginTop: spacing.sm }} loading={busy === 'test'} disabled={!st.hasKeySecret} onPress={() => act('test', testPayments, 'Connection works').catch(() => { })} />
+                        <Button title="Test the connection" icon="bolt" kind="outline" style={{ marginTop: spacing.sm }} loading={busy === 'test'} disabled={!st.hasKeySecret} onPress={() => act('test', () => testPayments(shopId), 'Connection works').catch(() => { })} />
                     </Card>
 
                     <SectionTitle section="alerts">Switch</SectionTitle>
