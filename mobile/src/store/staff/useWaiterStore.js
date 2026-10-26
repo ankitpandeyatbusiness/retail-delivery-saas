@@ -11,7 +11,7 @@ const KEY = () => 'waiterList:' + (useAuthStore.getState().user?.id || '');
 let seq = 0;   // the newest answer wins when two loads overlap
 let known = null;   // ids of the dishes and requests already seen: a new one rings the screen
 
-const EMPTY = { serve: [], served: [], requests: [], tables: [], counts: { serve: 0, late: 0, requests: 0, bills: 0 }, rules: { serveLateMin: 5, canSettle: true, tables: 0 } };
+const EMPTY = { serve: [], served: [], requests: [], tables: [], counts: { serve: 0, late: 0, requests: 0, bills: 0 }, rules: { serveLateMin: 3, canSettle: true, tables: 0 } };
 
 export const useWaiterStore = create((set, get) => ({
     ...EMPTY,

@@ -507,20 +507,25 @@ async function forgive({ tenantId, sessionId }) {
 // ---- calls, tip, requests, feedback ----
 const CALL_LABELS = { share: 'Wants to pay and leave', waiter: 'Call the waiter', water: 'Water please', cutlery: 'Spoon, plate or tissue', clean: 'Clean the table', other: 'Needs help' };
 
-// A guest asks for something at his table. Not twice for the same thing within 2 minutes.
+// A guest asks for something at his table. Not twice for the same thing within 2 minutes, except "Call the waiter": always open, no limit,
+// and only the waiters hear it (the owner is told only when the shop has no waiters on the app).
 async function callWaiter({ tenant, userId, kind, text, table }) {
     const cfg = cfgOf(tenant);
-    if (!cfg.callOn) throw fail(400, 'This shop has not switched on calling the waiter');
+    const plainCall = kind === 'waiter';
+    if (!cfg.callOn && !plainCall) throw fail(400, 'This shop has not switched on calling the waiter');
     if (!CALL_LABELS[kind]) throw fail(400, 'Choose what you need');
     const s = await openFor(tenant._id, userId);
     const t = s ? s.table : String(table || '').trim();
     if (!/^\d{1,3}$/.test(t) || Number(t) < 1 || Number(t) > cfg.tableCount) throw fail(400, 'Choose your table first');
-    const callGap = (await limitsFor(tenant._id)).callGapMin;
+    const callGap = plainCall ? 0 : (await limitsFor(tenant._id)).callGapMin;
     const recent = callGap > 0 ? await TableRequest.findOne({ tenantId: tenant._id, table: t, kind, status: 'open', createdAt: { $gte: new Date(Date.now() - callGap * 60000) } }).lean() : null;
     if (recent) throw fail(429, 'The staff already know. Please wait a moment.');
     const note = String(text || '').trim().slice(0, 120);
-    const r = await TableRequest.create({ tenantId: tenant._id, sessionId: s?._id, table: t, userId, kind, text: note || undefined });
-    tell('table_call', { tenantId: tenant._id, vars: { table: t, label: CALL_LABELS[kind], text: note }, data: { kind: 'table_call', table: t, requestId: String(r._id), what: kind } });
+    // calling again while the first call is still open rings the waiters again, without piling up a second row
+    const open = plainCall ? await TableRequest.findOne({ tenantId: tenant._id, table: t, kind, status: 'open' }).lean() : null;
+    const r = open || await TableRequest.create({ tenantId: tenant._id, sessionId: s?._id, table: t, userId, kind, text: note || undefined });
+    const waiterApp = require('./staffService').rulesOf(tenant).waiterOn === true;
+    if (!plainCall || !waiterApp) tell('table_call', { tenantId: tenant._id, vars: { table: t, label: CALL_LABELS[kind], text: note }, data: { kind: 'table_call', table: t, requestId: String(r._id), what: kind } });
     require('./waiterAlerts').request(tenant._id, { table: t, label: CALL_LABELS[kind], text: note });
     return { ok: true };
 }

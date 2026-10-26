@@ -355,7 +355,10 @@ export function startNotifications() {
         // the app is open: the live alert says it, so a tap on this notification later must not say it again (a rider has no live voice: it is said here)
         if (AppState.currentState === 'active' && n?.type) {
             if (useAuthStore.getState().user?.role === 'rider') sayAlert(n.type, { ...(n.data || {}), speech: n.data?.speech || [n.title, n.body].filter(Boolean).join('. ') }).catch(() => { });
-            else markSaid(n.type, n.data);
+            else if (useAuthStore.getState().user?.role === 'waiter' && String(n.type).startsWith('waiter_') && n.data?.speech) {
+                // the live alert normally reads it (and marks it said). If it did not (a bill asked while another voice was talking), say it here a moment later
+                setTimeout(() => sayAlert(n.type, n.data).catch(() => { }), 2500);
+            } else markSaid(n.type, n.data);
         }
         if (AppState.currentState === 'active' && !hasOwnSound(n) && alertOn(n?.type, 's')) { playSfx(toneFor(n)); buzz([0, 40]); }   // the Alerts screen can switch this off
         if (n?.title) showToast(n.body ? `${n.title}: ${String(n.body).slice(0, 90)}` : n.title);

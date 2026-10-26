@@ -24,7 +24,7 @@ const ago = (d) => { const m = Math.max(0, Math.round((Date.now() - new Date(d).
 const lineOf = (l) => ({ name: l.name, quantity: l.quantity, options: (l.selections || []).map((s) => s.name).filter(Boolean), measure: l.measure?.label || null, note: l.note || '' });
 
 async function overview(tenant) {
-    const serveLateMin = staffService.rulesOf(tenant).serveLateMin || 5;
+    const serveLateMin = staffService.rulesOf(tenant).serveLateMin || 3;
     const dine = dineOf(tenant);
     const now = Date.now();
     const [ready, cooking, board, requests, servedRows] = await Promise.all([

@@ -47,7 +47,7 @@ async function runShop(tenant, now) {
         }
     }
     if (rules.waiterOn === true || rules.kitchenOn === true) {
-        const serveLate = rules.serveLateMin || 5;
+        const serveLate = rules.serveLateMin || 3;
         const rows = await Order.find({ tenantId: tenant._id, orderType: 'dine_in', status: 'ready', updatedAt: { $lte: new Date(now.getTime() - serveLate * MIN) } })
             .select('orderNo tableNo items statusHistory createdAt kitchen').limit(100).lean();
         for (const o of rows) {

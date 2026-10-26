@@ -127,7 +127,7 @@ export default function TableBoard({ tables, rules, onOpen }) {
     useMinuteClock();
     const cols = useColumns();
     const [filter, setFilter] = useState('all');
-    const lateMin = rules?.serveLateMin || 5;
+    const lateMin = rules?.serveLateMin || 3;
     const per = cols === 1 ? 2 : cols === 2 ? 3 : 4;
     const gap = 10;
     const width = `${(100 - ((per - 1) * 2.4)) / per}%`;

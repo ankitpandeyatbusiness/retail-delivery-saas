@@ -14,7 +14,7 @@ import { showToast } from './shop';
 import { tr } from '../../i18n';
 
 const rs = (n) => `₹${Math.round(n * 100) / 100}`;
-const KINDS = [['waiter', 'Call the waiter'], ['water', 'Water'], ['cutlery', 'Spoon / plate / tissue'], ['clean', 'Clean the table'], ['other', 'Something else']];
+const KINDS = [['water', 'Water'], ['cutlery', 'Spoon / plate / tissue'], ['clean', 'Clean the table'], ['other', 'Something else']];
 const errOf = (e) => e?.response?.data?.error || tr('Could not send. Please try again.');
 
 export function CallCard() {
@@ -23,11 +23,10 @@ export function CallCard() {
     const [other, setOther] = useState(false);
     const [note, setNote] = useState('');
     const [busy, setBusy] = useState(false);
-    if (!on) return null;
     const send = async (kind, words) => {
         if (busy) return;
         setBusy(true);
-        try { await callTable(kind, words); showToast(tr('The staff have been told')); setOther(false); setNote(''); } catch (e) { showToast(errOf(e)); } finally { setBusy(false); }
+        try { await callTable(kind, words); showToast(kind === 'waiter' ? tr('The waiter has been called') : tr('The staff have been told')); setOther(false); setNote(''); } catch (e) { showToast(errOf(e)); } finally { setBusy(false); }
     };
     return (
         <Card>
@@ -35,10 +34,14 @@ export function CallCard() {
                 <Ionicons name="hand-left" size={20} color={primary} />
                 <Text style={{ color: text, fontWeight: '900', marginLeft: 8 }}>{tr('Need something?')}</Text>
             </View>
+            {/* always there, as often as the guest needs: only the waiters are told */}
+            <Button label={tr('Call the waiter')} icon="hand-left" busy={busy} onPress={() => send('waiter')} style={{ marginBottom: on ? 10 : 0 }} />
+            {on ? (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                 {KINDS.map(([k, label]) => <Chip key={k} label={tr(label)} on={k === 'other' && other} onPress={() => (k === 'other' ? setOther((x) => !x) : send(k))} />)}
             </View>
-            {other ? (
+            ) : null}
+            {on && other ? (
                 <View style={{ marginTop: 4 }}>
                     <TextInput value={note} onChangeText={setNote} maxLength={120} placeholder={tr('Tell us what you need')} placeholderTextColor={muted}
                         style={{ borderWidth: 1, borderColor: border, backgroundColor: surface, color: text, borderRadius: 10, padding: 12 }} />
