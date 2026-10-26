@@ -1,11 +1,11 @@
-// Superadmin: search, shop health, readiness, system and backups, CSV exports. Mounted under /api/admin.
+// Superadmin: search, shop health, readiness, system and backups, Excel exports. Mounted under /api/admin.
 //   GET  /search?q=                 shops, orders (number or customer phone), people (masked), invoices
 //   GET  /insights/health?days=     platform numbers + a health score for every shop
 //   GET  /tenants/:tid/readiness    "is this shop ready to go live" checklist with reasons
 //   GET  /ops/system                database, SMS, jobs, flags
 //   GET  /ops/backups               backup list and last run
 //   POST /ops/backup                run a backup now
-//   GET  /export/orders|customers|invoices   Excel sheet (colours, widths), up to 5000 rows; ?format=csv for a plain CSV
+//   GET  /export/orders|customers|invoices   Excel sheet (colours, widths), up to 5000 rows
 const express = require('express');
 const mongoose = require('mongoose');
 const Tenant = require('../models/Tenant');
@@ -29,18 +29,6 @@ const EXPORT_MAX = 5000;
 const DAY = 86400000;
 const esc = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const ist = (d) => (d ? new Date(new Date(d).getTime() + IST_MS).toISOString().replace('T', ' ').slice(0, 19) : '');
-
-// CSV cell: quoted, and a leading = + - @ is neutralised so Excel cannot run it as a formula
-const cell = (v) => {
-    let s = v === null || v === undefined ? '' : String(v);
-    if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
-    return `"${s.replace(/"/g, '""')}"`;
-};
-const sendCsv = (res, name, head, rows) => {
-    res.set('Content-Type', 'text/csv; charset=utf-8');
-    res.set('Content-Disposition', `attachment; filename="${name}.csv"`);
-    res.send(`${[head, ...rows].map((r) => r.map(cell).join(',')).join('\r\n')}\r\n`);
-};
 
 // ---------- search ----------
 router.get('/search', wrap(async (req, res) => {
@@ -246,7 +234,7 @@ router.post('/ops/backup', wrap(async (req, res) => {
 }));
 
 // ---------- exports ----------
-// Excel by default (colours, widths, status colours, totals). ?format=csv gives the plain file.
+// Excel files (colours, widths, status colours, totals).
 const range = (q) => {
     const f = {};
     if (/^\d{4}-\d{2}-\d{2}$/.test(q.from || '')) f.$gte = new Date(`${q.from}T00:00:00+05:30`);
@@ -257,10 +245,6 @@ const tenantNames = async () => new Map((await Tenant.find({}).select('name').le
 
 // columns: [{ header, key, kind }]; rows: [{ key: value }]. Dates are JS Dates, money is in rupees.
 async function sendExport(req, res, { file, title, columns, rows, total }) {
-    if (req.query.format === 'csv') {
-        const cellCsv = (c, v) => (v instanceof Date ? ist(v) : c.kind === 'money' && v !== '' && v !== null && v !== undefined ? Number(v).toFixed(2) : v);
-        return sendCsv(res, file, columns.map((c) => c.header), rows.map((r) => columns.map((c) => cellCsv(c, r[c.key]))));
-    }
     const buf = await buildSheet({ title, columns, rows, total });
     res.set('Content-Type', XLSX_TYPE);
     res.set('Content-Disposition', `attachment; filename="${file}.xlsx"`);

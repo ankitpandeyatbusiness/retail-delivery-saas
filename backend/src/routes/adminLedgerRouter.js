@@ -1,6 +1,6 @@
 // Superadmin: every money movement in one place. Mounted under /api/admin.
 //   GET /ledger                 what the platform received from all shops (SMS top-ups, monthly bills incl. pending)
-//   GET /ledger/export          the same as a CSV file (up to 5000 rows)
+//   GET /ledger/export          the same as an Excel file (up to 5000 rows)
 //   GET /tenants/:tid/ledger    everything of ONE shop: what it got from customers, refunds, top-ups, bills
 //   GET /tenants/:tid/ledger/export
 // Filters: from, to (2026-10-31, Indian days), category, status (done|pending), tenantId (platform view), page, limit
@@ -24,11 +24,6 @@ const handle = (view, csv) => wrap(async (req, res) => {
         const next = await ledger.list({ view, tenantId, filter: { ...filter, page: p, limit: 100 } });
         if (!next.items.length) break;
         items = items.concat(next.items);
-    }
-    if (req.query.format === 'csv') {
-        res.set('Content-Type', 'text/csv; charset=utf-8');
-        res.set('Content-Disposition', 'attachment; filename="transactions.csv"');
-        return res.send(ledger.toCsv(items.slice(0, EXPORT_MAX), view));
     }
     const rows = items.slice(0, EXPORT_MAX).map((i) => {
         const m = i.meta || {};

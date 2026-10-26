@@ -231,20 +231,4 @@ async function list({ tenantId, filter }) {
     };
 }
 
-// spreadsheet-safe text: a cell must never start like a formula
-const cell = (v) => {
-    let s = v === undefined || v === null ? '' : String(v);
-    if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
-    return `"${s.replace(/"/g, '""')}"`;
-};
-function toCsv(items) {
-    const head = ['Date and time (IST)', 'Type', 'In or out', 'Amount (Rs)', 'How', 'Status', 'Order no', 'Table', 'Customer', 'Phone', 'Taken or sent by', 'Reference', 'Note'];
-    const lines = [head.map(cell).join(',')];
-    for (const i of items) {
-        const ist = i.at ? new Date(new Date(i.at).getTime() + IST_MS).toISOString().replace('T', ' ').slice(0, 19) : '';
-        lines.push([ist, i.label, i.direction === 'in' ? 'In' : 'Out', (i.amountPaise / 100).toFixed(2), i.howLabel || '', i.status === 'pending' ? 'Pending' : 'Done', i.orderNo ?? '', i.table ? `${i.table}${i.party ? ` ${i.party}` : ''}` : '', i.customer || '', i.phone || '', i.by || '', i.ref || '', i.note || ''].map(cell).join(','));
-    }
-    return `${lines.join('\r\n')}\r\n`;
-}
-
-module.exports = { list, parseQuery, toCsv, LABELS, CATEGORIES, HOWS };
+module.exports = { list, parseQuery, LABELS, CATEGORIES, HOWS };

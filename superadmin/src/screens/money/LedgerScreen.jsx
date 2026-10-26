@@ -8,7 +8,7 @@ import { Card, Chip, Badge } from '../../components/ui';
 import { SkeletonList } from '../../components/blocks';
 import { Empty, ErrorBox, toast } from '../../components/feedback';
 import usePagedList from '../../hooks/usePagedList';
-import { platformLedger, shopLedger, shareLedgerCsv } from '../../api/moneyApi';
+import { platformLedger, shopLedger, shareLedgerExcel } from '../../api/moneyApi';
 import { errMsg } from '../../api/adminClient';
 import { rupeesFromPaise, dateTime } from '../../utils/format';
 
@@ -51,9 +51,9 @@ export default function LedgerScreen() {
         return { items: r.items, total: r.total, limit: r.limit, page: r.page };
     }, [query, shopId]);
 
-    const exportCsv = async () => {
+    const exportExcel = async () => {
         setBusy(true);
-        try { await shareLedgerCsv(shopId, query); } catch (e) { toast(e.safe ? e.message : errMsg(e, 'Could not export'), 'error'); } finally { setBusy(false); }
+        try { await shareLedgerExcel(shopId, query); } catch (e) { toast(e.safe ? e.message : errMsg(e, 'Could not export'), 'error'); } finally { setBusy(false); }
     };
 
     const header = (
@@ -97,7 +97,7 @@ export default function LedgerScreen() {
             title="Transactions"
             subtitle={name || 'All shops'}
             scroll={false}
-            right={<HeaderButton icon="receipt" onPress={busy ? undefined : exportCsv} />}
+            right={<HeaderButton icon="receipt" onPress={busy ? undefined : exportExcel} />}
         >
             {list.state === 'loading' ? <View>{header}<SkeletonList avatar={false} /></View> : list.state === 'error' ? <View>{header}<ErrorBox message={list.error} onRetry={list.reload} /></View> : (
                 <FlatList

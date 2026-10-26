@@ -72,7 +72,7 @@ export const platformLedger = (params) => data(api.get('/admin/ledger', { params
 export const shopLedger = (shopId, params) => data(api.get(`${T(shopId)}/ledger`, { params }));
 
 // The Excel sheet is behind the login: fetch it with the token, save to cache, open the share sheet.
-export async function shareLedgerCsv(shopId, params) {
+export async function shareLedgerExcel(shopId, params) {
     const url = shopId ? `${T(shopId)}/ledger/export` : '/admin/ledger/export';
     const res = await api.get(url, { params: { ...params, page: undefined, limit: undefined }, responseType: 'arraybuffer' });
     const file = new File(Paths.cache, `transactions-${Date.now()}.xlsx`);

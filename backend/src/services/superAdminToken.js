@@ -7,12 +7,15 @@ if (!SECRET || SECRET.length < 32) {
 }
 
 const ISSUER = 'platform-admin';
+// A login lasts this many days and renews itself while the admin uses the app (a token with less than one day of its time used up is replaced on the next call),
+// so a working admin is never thrown out; one who has not opened the app for the whole period logs in again.
+const DAYS = Math.min(30, Math.max(1, Number(process.env.SUPERADMIN_TOKEN_DAYS) || 7));
 
 const signAdminToken = (admin) =>
     jwt.sign({ sub: String(admin._id), role: 'superadmin' }, SECRET, {
         algorithm: 'HS256',
         issuer: ISSUER,
-        expiresIn: '8h',
+        expiresIn: `${DAYS}d`,
     });
 
 const verifyAdminToken = (token) => {
@@ -21,4 +24,7 @@ const verifyAdminToken = (token) => {
     return decoded;
 };
 
-module.exports = { signAdminToken, verifyAdminToken };
+// true when the token has used up more than a day of its time: the caller hands back a fresh one
+const needsRenewal = (decoded) => (decoded.exp * 1000 - Date.now()) < (DAYS - 1) * 86400000;
+
+module.exports = { signAdminToken, verifyAdminToken, needsRenewal };

@@ -15,9 +15,14 @@ api.interceptors.request.use((config) => {
     return config;
 });
 
-// The admin token lives 8 hours and cannot be refreshed: a 401 on a logged-in call ends the session.
+// The admin token lasts days and the server hands back a fresh one while the app is used (header x-renewed-token).
+// A 401 on a logged-in call means it really ended (or the account was switched off): that ends the session.
 api.interceptors.response.use(
-    (r) => r,
+    (r) => {
+        const fresh = r.headers?.['x-renewed-token'];
+        if (fresh) useAuthStore.getState().renew(fresh);
+        return r;
+    },
     async (error) => {
         const url = error.config?.url || '';
         if (error.response?.status === 401 && !url.startsWith('/admin/auth/')) {

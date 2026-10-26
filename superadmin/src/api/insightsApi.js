@@ -35,6 +35,6 @@ async function saveAndShare(res, name) {
     });
 }
 
-export const shareOrdersCsv = async (params) => saveAndShare(await api.get('/admin/export/orders', sheetOpts(params)), 'orders');
-export const shareInvoicesCsv = async (params) => saveAndShare(await api.get('/admin/export/invoices', sheetOpts(params)), 'invoices');
-export const shareCustomersCsv = async (params) => saveAndShare(await api.get('/admin/export/customers', sheetOpts(params)), 'customers');
+export const shareOrdersExcel = async (params) => saveAndShare(await api.get('/admin/export/orders', sheetOpts(params)), 'orders');
+export const shareInvoicesExcel = async (params) => saveAndShare(await api.get('/admin/export/invoices', sheetOpts(params)), 'invoices');
+export const shareCustomersExcel = async (params) => saveAndShare(await api.get('/admin/export/customers', sheetOpts(params)), 'customers');

@@ -5,7 +5,7 @@ import { Screen } from '../../components/layout';
 import { Card, Chip, ListRow, SectionTitle } from '../../components/ui';
 import { Hint } from '../../components/settingsForm';
 import { toast } from '../../components/feedback';
-import { shareOrdersCsv, shareInvoicesCsv, shareCustomersCsv } from '../../api/insightsApi';
+import { shareOrdersExcel, shareInvoicesExcel, shareCustomersExcel } from '../../api/insightsApi';
 import { errMsg } from '../../api/adminClient';
 import { ymdOf } from '../../utils/format';
 
@@ -21,7 +21,7 @@ export default function ExportsScreen() {
         try {
             const params = {};
             if (withRange && days) params.from = ymdOf(new Date(Date.now() - days * 86400000).toISOString());
-            await ({ orders: shareOrdersCsv, invoices: shareInvoicesCsv, customers: shareCustomersCsv })[kind](params);
+            await ({ orders: shareOrdersExcel, invoices: shareInvoicesExcel, customers: shareCustomersExcel })[kind](params);
         } catch (e) { toast(errMsg(e), 'error'); } finally { setBusy(''); }
     };
 

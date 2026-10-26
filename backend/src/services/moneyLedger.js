@@ -188,26 +188,4 @@ async function list({ view, tenantId, filter, maxLimit }) {
     };
 }
 
-// spreadsheet-safe text: a cell must never start like a formula
-const cell = (v) => {
-    let s = v === undefined || v === null ? '' : String(v);
-    if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
-    return `"${s.replace(/"/g, '""')}"`;
-};
-
-function toCsv(items, view) {
-    const head = ['Date (IST)', ...(view === 'platform' ? ['Shop'] : []), 'Type', 'Direction', 'Amount (Rs)', 'Status', 'Order no', 'Reference', 'Details'];
-    const lines = [head.map(cell).join(',')];
-    for (const i of items) {
-        const ist = i.at ? new Date(new Date(i.at).getTime() + IST_MS).toISOString().replace('T', ' ').slice(0, 19) : '';
-        const m = i.meta || {};
-        const details = [m.period && `period ${m.period}`, m.paymentMode, m.paymentRef, m.reason, m.method, m.note].filter(Boolean).join(' / ');
-        lines.push([
-            ist, ...(view === 'platform' ? [i.shop?.name || ''] : []), i.label, i.direction === 'in' ? 'In' : 'Out',
-            (i.amountPaise / 100).toFixed(2), i.status === 'pending' ? 'Pending' : 'Done', i.orderNo ?? '', i.ref ?? '', details,
-        ].map(cell).join(','));
-    }
-    return `${lines.join('\r\n')}\r\n`;
-}
-
-module.exports = { list, parseQuery, toCsv, CATEGORIES, LABELS };
+module.exports = { list, parseQuery, CATEGORIES, LABELS };

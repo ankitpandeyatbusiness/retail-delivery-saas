@@ -38,6 +38,13 @@ export const useAuthStore = create((set) => ({
         set({ token, admin, notice: null });
     },
 
+    // the server sent a fresh token for the same admin: keep it, so the login does not run out while the app is in use
+    renew: async (token) => {
+        const { admin } = useAuthStore.getState();
+        try { await SecureStore.setItemAsync(KEY, JSON.stringify({ token, admin })); } catch (e) { }
+        set({ token });
+    },
+
     logout: async (notice = null) => {
         // forget this phone's push address while the login still works (best effort)
         try { await require('../utils/push').disablePush(); } catch (e) { /* ignore */ }
