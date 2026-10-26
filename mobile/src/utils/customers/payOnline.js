@@ -72,8 +72,9 @@ export async function prewarmPayments(known) {   // known: a payment-config answ
 
 // Asks the server, which asks RAZORPAY itself, a few times whether the money arrived. It does not wait for a
 // webhook, so a payment that was really taken is never mistaken for a cancelled one.
-async function settled(id) {
-    for (let i = 0; i < 5; i += 1) {
+// tries x gap: the default waits about 7 seconds; a clear "not paid" answer uses a short wait so the result shows quickly
+async function settled(id, tries = 5, gap = 1500) {
+    for (let i = 0; i < tries; i += 1) {
         try {
             const r = await checkOrderPayment(id);
             if (r?.paid && r.order) return r.order;
@@ -81,7 +82,7 @@ async function settled(id) {
             const o = await paidNow(id);   // the check itself failed: at least look at our own record
             if (o) return o;
         }
-        await wait(1500);
+        await wait(gap);
     }
     return null;
 }
@@ -178,7 +179,7 @@ export async function payForOrder({ order, user, upiApp, card }) {
     // Only a real payment id + signature counts; otherwise ask the server, and if it was not paid it was cancelled.
     const hasProof = proof?.razorpay_order_id && proof?.razorpay_payment_id && proof?.razorpay_signature;
     if (!hasProof) {
-        const o = await settled(id);
+        const o = await settled(id, 2, 1000);   // backed out, or an app that reports success without a proof: a short check is enough
         return o ? { status: 'paid', order: o } : { status: 'cancelled', message: 'Payment not completed' };
     }
 
@@ -191,11 +192,12 @@ export async function payForOrder({ order, user, upiApp, card }) {
         if (r.paid) return { status: 'paid', order: r.order };
         // the server asked Razorpay and the money is NOT captured (CRED "try again", a declined payment...).
         // Give a late capture a few seconds, then it is a failed payment: back to the cart, never "placed".
-        const late = await settled(id);
+        if (r.status === 'failed') return { status: 'failed', message: 'Payment failed' };   // Razorpay itself says it failed: no waiting
+        const late = await settled(id, 3, 1000);
         return late ? { status: 'paid', order: late } : { status: 'failed', message: 'Payment was not completed' };
     } catch (e) {
         if (e?.response && e.response.status < 500) {   // the server looked and said "not paid / bad proof"
-            const o = await settled(id);
+            const o = await settled(id, 3, 1000);
             return o ? { status: 'paid', order: o } : { status: 'failed', message: 'The payment could not be confirmed' };
         }
         /* network or server trouble: fall through, the money may have been taken */

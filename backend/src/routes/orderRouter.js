@@ -199,7 +199,7 @@ router.post('/:id/pay/verify', wrap(async (req, res) => {
     if (!order) throw httpError(404, 'Order not found');
     const r = await paymentService.verifyFromApp({ order, rzpOrderId, rzpPaymentId, signature });
     const fresh = await Order.findById(order._id);
-    res.json({ paid: !!r.paid, order: view(fresh, req.tenant) });
+    res.json({ paid: !!r.paid, status: r.status || null, order: view(fresh, req.tenant) });   // status: what Razorpay says when it is not captured (failed...)
 }));
 
 // Returns cart lines to refill the cart. Call /quote next to get today's prices.
