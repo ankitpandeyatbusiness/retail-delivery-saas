@@ -4,6 +4,7 @@ import { create } from 'zustand';
 export const useCouponStore = create((set) => ({
     code: '',
     until: 0,   // an offer from the shop that runs out (a time in ms): the cart shows the clock
-    set: (code, until = 0) => set({ code, until }),
-    clear: () => set({ code: '', until: 0 }),
+    offer: null,   // the shop's sorry-offer: { code, percent, min }, kept while its clock runs so the cart can show it first, with a timer
+    set: (code, until = 0, extra = {}) => set({ code, until, offer: until ? { code, percent: extra.percent || 0, min: extra.min || 0 } : null }),
+    clear: () => set({ code: '', until: 0, offer: null }),
 }));

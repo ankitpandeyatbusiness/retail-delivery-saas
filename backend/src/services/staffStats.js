@@ -74,6 +74,17 @@ async function working(tenantId, userId) {
     return rows.map((o) => ({ id: String(o._id), orderNo: o.orderNo, orderType: o.orderType, table: o.tableNo || null, party: o.tableParty || null, since: o.kitchen.startedAt, dishes: dishes(o) }));
 }
 
+// the orders a cook marked ready in the last 7 days, newest first (the screen filters Today / Last 7 days)
+async function made(tenantId, userId, now = Date.now()) {
+    const rows = await Order.find({ tenantId, 'kitchen.readyBy': userId, 'kitchen.readyAt': { $gte: new Date(now - 7 * 86400000) } })
+        .select('orderNo orderType tableNo kitchen.readyAt kitchen.startedAt items').sort({ 'kitchen.readyAt': -1 }).limit(150).lean();
+    return rows.map((o) => ({
+        id: String(o._id), orderNo: o.orderNo, orderType: o.orderType, table: o.tableNo || null, at: o.kitchen.readyAt,
+        mins: o.kitchen.startedAt ? Math.max(0, Math.round((new Date(o.kitchen.readyAt) - new Date(o.kitchen.startedAt)) / 60000)) : null,
+        items: (o.items || []).map((i) => ({ name: i.name, quantity: i.quantity })),
+    }));
+}
+
 // everything about one person (the owner's detail page, and the person's own "My work" tab)
 async function detail({ tenant, userId, now = Date.now() }) {
     const row = await Staff.findOne({ tenantId: tenant._id, userId }).lean();
@@ -91,6 +102,7 @@ async function detail({ tenant, userId, now = Date.now() }) {
         person: person ? { ...person, phone: user?.phone || person.phone } : null,
         stats,
         working: row.role === 'kitchen' ? await working(tenant._id, userId) : [],
+        made: row.role === 'kitchen' ? await made(tenant._id, userId, now) : [],
         leaves,
         holidays: duty.holidays,
         duty: { status: duty.status, onDuty: duty.onDuty, online: duty.online, mode: duty.mode },

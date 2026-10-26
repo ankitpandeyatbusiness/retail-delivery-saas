@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView, RefreshControl } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useBrand } from '../../components/common/kit';
-import { Card, Pill, Row, SectionTitle, Stat, Empty, Button } from '../../components/owners/ui';
+import { Card, Pill, Row, SectionTitle, Stat, Empty, Button, Chips } from '../../components/owners/ui';
 import { StaffHeader, JobBadge, StaffSkeleton } from '../../components/staff/staffBits';
 import { useStaffStore } from '../../store/staff/useStaffStore';
 import { fetchMyWork, cancelLeave, removeDayOff } from '../../api/staff/staffApi';
@@ -22,6 +22,7 @@ export default function StaffWorkScreen() {
     const [d, setD] = useState(null);
     const [failed, setFailed] = useState(false);
     const [busy, setBusy] = useState(false);
+    const [span, setSpan] = useState('today');   // the foods I made: 'today' | 'week'
     const load = useCallback(() => fetchMyWork().then((r) => { setD(r); setFailed(false); }).catch(() => setFailed(true)), []);
     useFocusEffect(useCallback(() => { load(); }, [load]));
     useEffect(() => {
@@ -68,6 +69,30 @@ export default function StaffWorkScreen() {
                                     ))}
                                 </Card>
                             ) : <Card><Text style={{ color: muted }}>{tr('Nothing on the stove right now.')}</Text></Card>}
+                        </>
+                    ) : null}
+
+                    {cook ? (
+                        <>
+                            <SectionTitle title={tr('Foods I made')} />
+                            <Card>
+                                <Chips options={[['today', tr('Today')], ['week', tr('Last 7 days')]]} value={span} onChange={setSpan} />
+                                {(() => {
+                                    const now = new Date();
+                                    const rows = (d.made || []).filter((o) => span === 'week' || new Date(o.at).toDateString() === now.toDateString());
+                                    if (!rows.length) return <Text style={{ color: muted, marginTop: 6 }}>{tr('Nothing marked ready in this time yet.')}</Text>;
+                                    return rows.map((o, i) => (
+                                        <View key={o.id} style={{ paddingVertical: 10, borderTopWidth: i ? 0.5 : 0, borderTopColor: muted + '55' }}>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                                <Text style={{ color: text, fontWeight: '900', flex: 1 }}>{tr('Order #{orderNo}', { orderNo: o.orderNo })}{o.orderType === 'dine_in' ? ` · ${tr('Table {n}', { n: o.table || '' })}` : o.orderType === 'pickup' ? ` · ${tr('Pickup')}` : ` · ${tr('Delivery')}`}</Text>
+                                                <Text style={{ color: muted, fontSize: 12 }}>{new Date(o.at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</Text>
+                                            </View>
+                                            <Text style={{ color: text, marginTop: 3 }}>{o.items.map((x) => `${x.quantity}× ${x.name}`).join(', ')}</Text>
+                                            {o.mins != null ? <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{tr('Cooked in {n} min', { n: o.mins })}</Text> : null}
+                                        </View>
+                                    ));
+                                })()}
+                            </Card>
                         </>
                     ) : null}
 

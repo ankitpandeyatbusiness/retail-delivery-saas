@@ -58,15 +58,8 @@ export default function DutyCard() {
         <View>
             <SectionTitle title={tr('Duty')} />
             <Card>
-                {d.mode === 'manual' ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <View style={{ flex: 1, paddingRight: 10 }}>
-                            <Text style={{ color: text, fontWeight: '900', fontSize: 17 }}>{d.status === 'shop_closed' ? tr('Shop is closed') : d.online ? tr('Live') : tr('Off duty')}</Text>
-                            <Text style={{ color: colors[tone] || muted, fontSize: 12.5, marginTop: 2 }}>{tr(line)}</Text>
-                        </View>
-                        <SlideSwitch disabled={d.status === 'shop_closed'} value={d.online && d.status !== 'shop_closed'} onValueChange={(v) => (v ? act(() => saveDuty({ online: true }), tr('You are live')) : setAskOff(true))} accessibilityLabel={tr('Live or off duty')} />
-                    </View>
-                ) : (
+                {/* by hand: the Live switch is in the header at the top, so it is not repeated here */}
+                {d.mode === 'manual' ? null : (
                     <View>
                         <Text style={{ color: text, fontWeight: '900', fontSize: 17 }}>{d.status === 'on' ? tr('On duty now') : tr('Not on duty now')}</Text>
                         <Text style={{ color: colors[tone] || muted, fontSize: 12.5, marginTop: 2 }}>{tr(line)}</Text>

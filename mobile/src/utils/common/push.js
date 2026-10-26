@@ -194,7 +194,7 @@ function handleTapNow(resp, data) {
     // a customer's reminder about the bill he left unpaid: open the bill with the Pay button
     if (/^owed_/.test(String(data.type || '')) || data.type === 'table_walkout') { useOwedPrompt.getState().show(); return; }
     if (data.offerCode) {   // the shop offers a discount to stay: the code is ready at checkout and the menu opens
-        useCouponStore.getState().set(String(data.offerCode), data.offerUntil ? new Date(data.offerUntil).getTime() : 0);
+        useCouponStore.getState().set(String(data.offerCode), data.offerUntil ? new Date(data.offerUntil).getTime() : 0, { percent: Number(data.offerPercent), min: Number(data.offerMin) });
         openScreen('MainTabs', { screen: 'Home' });
         return;
     }

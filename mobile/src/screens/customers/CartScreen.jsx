@@ -120,6 +120,7 @@ export default function CartScreen() {
     const [placing, setPlacing] = useState(false);
     const [tick, setTick] = useState(0);
     const offerUntil = useCouponStore((st) => st.until);
+    const offerInfo = useCouponStore((st) => st.offer);
     const [nowMs, setNowMs] = useState(Date.now());
     useEffect(() => { if (!offerUntil) return undefined; const i = setInterval(() => setNowMs(Date.now()), 1000); return () => clearInterval(i); }, [offerUntil]);
     const offerLeft = offerUntil ? Math.max(0, Math.round((offerUntil - nowMs) / 1000)) : 0;
@@ -474,6 +475,18 @@ export default function CartScreen() {
 
                     {user && couponOn ? (
                         <Appear delay={100} style={{ marginTop: 20 }}>
+                            {/* the shop's sorry-offer comes first, with its clock, so one tap applies it */}
+                            {offerInfo && offerLeft > 0 && !applied ? (
+                                <Pressable onPress={() => pickOffer(offerInfo.code)} style={{ marginBottom: 12, borderRadius: 16, borderWidth: 1.5, borderColor: primary, backgroundColor: tint(primary), padding: 14, flexDirection: 'row', alignItems: 'center' }} accessibilityRole="button">
+                                    <Ionicons name="gift" size={28} color={primary} />
+                                    <View style={{ flex: 1, marginLeft: 12 }}>
+                                        <Text style={{ color: primary, fontWeight: '900', fontSize: 16 }}>{offerInfo.percent ? tr('{n}% off from the shop', { n: offerInfo.percent }) : tr('A special offer from the shop')}</Text>
+                                        <Text style={{ color: text, fontWeight: '800', marginTop: 2 }}>{offerInfo.code}{offerInfo.min ? ` · ${tr('order above ₹{n}', { n: offerInfo.min })}` : ''}</Text>
+                                        <Text style={{ color: muted, fontSize: 12.5, marginTop: 2 }}>{tr('Ends in {t}', { t: `${Math.floor(offerLeft / 60)}:${String(offerLeft % 60).padStart(2, '0')}` })}</Text>
+                                    </View>
+                                    <View style={{ backgroundColor: primary, borderRadius: 99, paddingHorizontal: 14, paddingVertical: 8 }}><Text style={{ color: onPrimary, fontWeight: '900' }}>{tr('Apply')}</Text></View>
+                                </Pressable>
+                            ) : null}
                             {shownOffers.length > 0 && !applied ? (
                                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
                                     {shownOffers.map((o) => (

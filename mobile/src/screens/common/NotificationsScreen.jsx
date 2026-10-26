@@ -91,7 +91,7 @@ export default function NotificationsScreen() {
         const orderId = n.data?.orderId;
         if (/^owed_/.test(String(n.type || n.data?.type || '')) || n.data?.type === 'table_walkout') { useOwedPrompt.getState().show(); return; }
         if (n.data?.offerCode) {   // the shop offers a discount to stay: the code is ready at checkout and the menu opens
-            useCouponStore.getState().set(String(n.data.offerCode), n.data.offerUntil ? new Date(n.data.offerUntil).getTime() : 0);
+            useCouponStore.getState().set(String(n.data.offerCode), n.data.offerUntil ? new Date(n.data.offerUntil).getTime() : 0, { percent: Number(n.data.offerPercent), min: Number(n.data.offerMin) });
             showToast(tr('Code {code} is ready at checkout', { code: String(n.data.offerCode) }));
             nav.navigate('MainTabs', { screen: 'Home' });
             return;
