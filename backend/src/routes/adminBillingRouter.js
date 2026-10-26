@@ -287,12 +287,33 @@ router.post('/tenants/:tid/billing/go-live', loadTenant, wrap(async (req, res) =
             $set: {
                 'billing.goLiveAt': new Date(), 'billing.billableCount': 0, 'billing.isLive': true, 'billing.state': 'free',
             },
-            $unset: { 'billing.freeEndedAt': 1, 'billing.graceEndsAt': 1 },
+            $unset: { 'billing.freeEndedAt': 1, 'billing.graceEndsAt': 1, 'billing.freeForceEndedAt': 1 },
         },
     );
     if (!r.matchedCount) throw httpError(409, 'This shop is already live. Send force: true to start its free period again.');
 
     await enforceTenant(id);   // keeps an unpaid bill in force, otherwise sets the free state right
+    invalidateTenant(req.tenantDoc.slug);
+    const after = await Tenant.findById(id).select('billing').lean();
+    res.json({ ok: true, billing: after.billing });
+}));
+
+/* ------------------------------ end the free period now ------------------------------ */
+// POST /api/admin/tenants/:tid/billing/end-free
+// The free service ends at this moment, whatever is left of the free orders and months. Same result as the limits running out by themselves:
+// the shop becomes "active", the month it ended in is not billed (it was partly free), billing starts with the next full month.
+// It is stored as billing.freeForceEndedAt and read by freeStatus(), so the 5-minute check cannot undo it. Raising the limits later does not reopen it;
+// "Start the free period again" (go live with force) does. Refused when the free service is already over.
+router.post('/tenants/:tid/billing/end-free', loadTenant, wrap(async (req, res) => {
+    const id = req.tenantDoc._id;
+    const platform = await PlatformSettings.findById('main').select('billing business').lean();
+    const now = new Date();
+    if (!freeStatus(req.tenantDoc, platform, now).free) throw httpError(409, 'The free service of this shop is already over.');
+    req.auditBefore = { billing: (await Tenant.findById(id).select('billing').lean())?.billing };
+    // only the first press sets it; two presses never move the moment
+    const r = await Tenant.updateOne({ _id: id, 'billing.freeForceEndedAt': { $exists: false } }, { $set: { 'billing.freeForceEndedAt': now } });
+    if (!r.modifiedCount) throw httpError(409, 'The free service of this shop is already being ended.');
+    await enforceTenant(id);   // keeps an unpaid bill in force, otherwise sets the state (free -> active) and freeEndedAt right now
     invalidateTenant(req.tenantDoc.slug);
     const after = await Tenant.findById(id).select('billing').lean();
     res.json({ ok: true, billing: after.billing });

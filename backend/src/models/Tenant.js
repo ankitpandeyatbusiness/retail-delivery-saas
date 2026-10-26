@@ -114,6 +114,7 @@ const tenantSchema = new mongoose.Schema({
         state: { type: String, enum: ['free', 'active', 'grace', 'paused'], default: 'free' },
         graceEndsAt: Date,
         freeEndedAt: Date,
+        freeForceEndedAt: Date,                                 // the superadmin ended the free service by hand at this moment (the End free period button); go live again clears it
     },
 
     // NEW: every superadmin choice (brand, tabs, home, features, menu, orders, hours, offers, labels).

@@ -29,6 +29,7 @@ export const resendInvoiceNotice = (id) => data(api.post(`/admin/subscriptions/i
 export const billingStatus = (shopId) => data(api.get(`${S(shopId)}/billing/status`));
 export const billingPreview = (shopId, period) => data(api.get(`${T(shopId)}/billing/preview`, { params: period ? { period } : undefined }));
 export const saveShopBilling = (shopId, body) => data(api.put(`${T(shopId)}/billing`, body));
+export const endFreePeriod = (shopId) => data(api.post(`${T(shopId)}/billing/end-free`, {}));
 export const goLive = (shopId, force) => data(api.post(`${T(shopId)}/billing/go-live`, force ? { force: true } : {}));
 export const unpauseShop = (shopId, days) => data(api.post(`${T(shopId)}/billing/unpause`, days ? { days } : {}));
 export const createCustomInvoice = (shopId, body) => data(api.post(`${T(shopId)}/invoices/custom`, body));

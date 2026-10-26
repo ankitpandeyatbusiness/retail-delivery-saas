@@ -10,7 +10,7 @@ import { NumberField, Switch, Hint } from '../../components/settingsForm';
 import { DateField } from '../../components/catalogBits';
 import TiersEditor, { tiersProblem } from '../../components/tiersEditor';
 import { ErrorBox, Sheet, SheetScroll, ConfirmSheet, toast } from '../../components/feedback';
-import { billingStatus, billingPreview, saveShopBilling, goLive, unpauseShop, waiveAllLateFees } from '../../api/moneyApi';
+import { billingStatus, billingPreview, saveShopBilling, goLive, endFreePeriod, unpauseShop, waiveAllLateFees } from '../../api/moneyApi';
 import { useShopStore } from '../../store/useShopStore';
 import { errMsg } from '../../api/adminClient';
 import { rupees, dateOnly, ymdOf, isoOfYmd, titleCase } from '../../utils/format';
@@ -127,6 +127,13 @@ export default function ShopBillingScreen() {
                     </>
                 )}
             </Card>
+            {st.free?.active ? (
+                <Card>
+                    <Text style={{ color: t.text, fontWeight: '700' }}>Free period is running</Text>
+                    <Text style={{ color: t.muted, marginTop: 4 }}>End it now to start billing. The month it ends in is not billed; rent starts with the next full month.</Text>
+                    <Button title="End the free period now" icon="bolt" kind="dangerSoft" style={{ marginTop: spacing.lg }} onPress={() => setConfirm('endfree')} />
+                </Card>
+            ) : null}
 
             <SectionTitle section="money">This month</SectionTitle>
             <View style={{ flexDirection: 'row', gap: spacing.md }}>
@@ -195,6 +202,15 @@ export default function ShopBillingScreen() {
                 message="The free period (free orders and free months) starts NOW and the order counter starts at 0. Do this when the shop opens for real business."
                 confirmLabel="Go live"
                 onConfirm={() => run('live', () => goLive(shopId, false), 'The shop is live')}
+            />
+            <ConfirmSheet
+                visible={confirm === 'endfree'}
+                onClose={() => setConfirm(null)}
+                title="End the free period now?"
+                message="Free orders and free months stop counting at this moment, whatever is left. Raising the limits later does not bring it back; use Start the free period again for that."
+                confirmLabel="End it"
+                danger
+                onConfirm={() => run('endfree', () => endFreePeriod(shopId), 'The free period has ended')}
             />
             <ConfirmSheet
                 visible={confirm === 'restart'}

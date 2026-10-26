@@ -58,6 +58,14 @@ function feeForCount(tiers, count) {
 // Free service is worked out live. Free while delivered orders < limit AND now is before go-live + months.
 // Raising a limit later reopens free service.
 function freeStatus(tenant, platform, now = new Date()) {
+    const s = naturalFreeStatus(tenant, platform, now);
+    // ended by hand: whichever came first counts. If the orders or months already ran out, that earlier end stays; otherwise the free service ends at that moment.
+    const forced = tenant?.billing?.freeForceEndedAt;
+    if (forced && s.free && now >= new Date(forced)) return { ...s, free: false, endsAt: new Date(forced), forced: true };
+    return s;
+}
+
+function naturalFreeStatus(tenant, platform, now) {
     const b = tenant?.billing || {};
     const pb = platform?.billing || {};
     const freeOrders = b.freeOrdersOverride ?? pb.freeOrders ?? 100;
