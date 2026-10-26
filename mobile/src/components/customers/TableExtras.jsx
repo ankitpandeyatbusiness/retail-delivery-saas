@@ -1,5 +1,5 @@
 // On the table bill: ask the staff for something, add a tip for the waiter, and split the bill between friends.
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../common/kit';
@@ -17,9 +17,12 @@ const rs = (n) => `₹${Math.round(n * 100) / 100}`;
 const KINDS = [['water', 'Water'], ['cutlery', 'Spoon / plate / tissue'], ['clean', 'Clean the table'], ['other', 'Something else']];
 const errOf = (e) => e?.response?.data?.error || tr('Could not send. Please try again.');
 
+// the shop's switch for the call options may have been turned on after this phone loaded the shop's settings: read them again (at most once a minute)
+let configAt = 0;
 export function CallCard() {
     const { text, muted, border, surface, primary } = useBrand();
     const on = !!useHomeStore((s) => s.full.orders.dineIn?.callOn);
+    useEffect(() => { if (Date.now() - configAt > 60000) { configAt = Date.now(); useHomeStore.getState().load(); } }, []);
     const [other, setOther] = useState(false);
     const [note, setNote] = useState('');
     const [busy, setBusy] = useState(false);

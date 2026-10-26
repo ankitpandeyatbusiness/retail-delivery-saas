@@ -43,7 +43,7 @@ const at = (t) => (/^\d+$/.test(String(t)) ? `Table ${t}` : String(t));
 const TEXTS = {
     order_new: (v) => ({
         title: `New order #${v.orderNo}${v.total ? ` · ₹${Math.round(v.total)}` : ''}`,
-        body: [v.brief, v.orderType === 'pickup' ? 'Pickup' : v.orderType === 'dine_in' ? `Dine-in${v.tableNo ? ` · Table ${v.tableNo}` : ''}` : 'Delivery', v.pay, v.auto ? 'Auto accepted' : ''].filter(Boolean).join(' · '),
+        body: [v.brief, v.orderType === 'pickup' ? 'Pickup' : v.orderType === 'dine_in' ? `Dine-in${v.tableNo ? ` · Table ${v.tableNo}` : ''}` : 'Delivery', v.pay, v.auto ? 'Auto accepted' : '', v.food ? `Food: ${v.food}` : '', v.delivery ? `Delivery: ${v.delivery}` : ''].filter(Boolean).join(' · '),
     }),
     order_status: statusText,
     order_unaccepted_reminder: (v) => ({

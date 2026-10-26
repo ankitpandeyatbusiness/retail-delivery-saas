@@ -171,4 +171,7 @@ function pickupIntentSpeech(order, answer, hi = false) {
     return parts.join(' ');
 }
 
-module.exports = { orderSpeech, orderSpeechHi, cancelSpeech, cancelSpeechHi, kitchenSpeech, kitchenCancelSpeech, pickupIntentSpeech, pickupWindow, MAX_ITEMS };
+// the two instructions of an order, as plain text, for the owner's alert and order page: { food, delivery }
+const instructionsOf = (order) => ({ food: foodOf(order), delivery: deliveryOf(order) });
+
+module.exports = { instructionsOf, orderSpeech, orderSpeechHi, cancelSpeech, cancelSpeechHi, kitchenSpeech, kitchenCancelSpeech, pickupIntentSpeech, pickupWindow, MAX_ITEMS };

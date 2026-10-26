@@ -35,7 +35,7 @@ function orderPlaced(order, opts = {}) {
         const auto = !!opts.autoAccepted;   // the shop accepts it by itself: the owner is told, with that on it
         center.notify('order_new', {
             tenantId: order.tenantId,
-            vars: { orderNo: order.orderNo, total: order.pricing?.total, orderType: order.orderType, brief: brief(order, 3), pay: payWord(order), auto, tableNo: order.tableNo },
+            vars: { orderNo: order.orderNo, total: order.pricing?.total, orderType: order.orderType, brief: brief(order, 3), pay: payWord(order), auto, tableNo: order.tableNo, ...require('../utils/orderSpeech').instructionsOf(order) },
             // speech: the sentence the owner's phone reads out loud in Soundbox mode (see utils/orderSpeech.js)
             data: {
                 orderId: String(order._id), orderNo: order.orderNo, total: order.pricing?.total,

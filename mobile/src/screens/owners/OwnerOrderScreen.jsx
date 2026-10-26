@@ -195,12 +195,16 @@ export default function OwnerOrderScreen() {
                             <Text style={{ color: text, fontWeight: '700', marginLeft: 8 }}>{money(l.lineTotal)}</Text>
                         </View>
                     ))}
-                    {order.note ? (
-                        <View style={{ marginTop: 10, padding: 10, borderRadius: 10, backgroundColor: alpha(warn, 0.14) }}>
-                            <Text style={{ color: text, fontWeight: '800', fontSize: 12 }}>{tr('CUSTOMER\'S INSTRUCTIONS')}</Text>
-                            <Text style={{ color: text, marginTop: 2, fontWeight: '900', fontSize: 15 }}>{order.note}</Text>
+                    {/* two different instructions: what the cook should know, and what the rider should know (a table guest has only the first) */}
+                    {[
+                        [order.orderType === 'dine_in' ? order.note : order.foodNote, 'FOOD INSTRUCTIONS'],
+                        [order.orderType === 'dine_in' ? '' : order.note, order.orderType === 'delivery' ? 'DELIVERY INSTRUCTIONS' : 'NOTE FROM THE CUSTOMER'],
+                    ].filter(([v]) => v).map(([v, label]) => (
+                        <View key={label} style={{ marginTop: 10, padding: 10, borderRadius: 10, backgroundColor: alpha(warn, 0.14) }}>
+                            <Text style={{ color: text, fontWeight: '800', fontSize: 12 }}>{tr(label)}</Text>
+                            <Text style={{ color: text, marginTop: 2, fontWeight: '900', fontSize: 15 }}>{v}</Text>
                         </View>
-                    ) : null}
+                    ))}
                 </Card>
 
                 <SectionTitle title={tr('Bill')} />

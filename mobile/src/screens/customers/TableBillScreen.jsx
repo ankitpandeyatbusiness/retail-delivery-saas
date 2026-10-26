@@ -81,7 +81,7 @@ export default function TableBillScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Table {t} bill', { t: bill.table })} />
-            <ScrollView contentContainerStyle={{ paddingBottom: bill.payOnline && bill.due > 0 ? 210 : 150 }} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={busy} onRefresh={refresh} />}>
+            <ScrollView contentContainerStyle={{ paddingBottom: bill.payOnline && bill.due > 0 ? 260 : 200 }} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={busy} onRefresh={refresh} />}>
                 {asked ? (
                     <Card tone={warn}>
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -114,7 +114,7 @@ export default function TableBillScreen() {
                 <CallCard />
 
                 {bill.rounds.map((r, i) => (
-                    <View key={r.id} style={r.paid ? { opacity: 0.5 } : null}>
+                    <View key={r.id} style={[{ marginBottom: 14 }, r.paid ? { opacity: 0.5 } : null]}>
                         <SectionTitle title={tr('Round {n} · {time}', { n: i + 1, time: clock(r.at) })} />
                         <Card>
                             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
@@ -182,9 +182,9 @@ export default function TableBillScreen() {
 
             <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, paddingBottom: 24, backgroundColor: background, borderTopWidth: 1, borderTopColor: alpha(border, 0.7) }}>
                 {bill.payOnline && bill.due > 0 ? <Button label={tr('Pay {n} online', { n: rs(bill.due) })} icon="card" onPress={payNow} style={{ marginBottom: 8 }} /> : null}
-                <View style={{ flexDirection: 'row' }}>
-                    <Button label={tr('Order more')} icon="add" kind="ghost" onPress={() => nav.navigate('MainTabs', { screen: 'Home' })} style={{ flex: 1, marginRight: asked ? 0 : 8 }} />
-                    {asked ? null : <Button label={tr('Ask for the bill')} icon="receipt" kind={bill.payOnline && bill.due > 0 ? 'ghost' : undefined} busy={loading} onPress={askBill} style={{ flex: 1.3 }} />}
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -4 }}>
+                    <Button label={tr('Order more')} icon="add" kind="ghost" onPress={() => nav.navigate('MainTabs', { screen: 'Home' })} style={{ flexGrow: 1, flexBasis: 140, margin: 4 }} />
+                    {asked ? null : <Button label={tr('Ask for the bill')} icon="receipt" kind={bill.payOnline && bill.due > 0 ? 'ghost' : undefined} busy={loading} onPress={askBill} style={{ flexGrow: 1.3, flexBasis: 160, margin: 4 }} />}
                 </View>
             </View>
         </View>
