@@ -26,9 +26,11 @@ export function useToneColors() {
     return { warn: accent || '#F59E0B', info: primary, ok, bad: error };
 }
 
-export function StatusPill({ status }) {
+// pass `order` to show a delivery order the cook has marked ready as "Ready" (the server keeps it "preparing" until the rider collects it)
+export function StatusPill({ status, order }) {
     const tones = useToneColors();
-    return <Pill label={flow.statusLabel(status)} color={tones[flow.statusTone(status)]} />;
+    const shown = order && order.orderType === 'delivery' && status === 'preparing' && order.foodReady === true ? 'ready' : status;
+    return <Pill label={flow.statusLabel(shown)} color={tones[flow.statusTone(shown)]} />;
 }
 
 export function PayBadge({ order }) {
@@ -76,7 +78,7 @@ export function OrderCard({ order, onOpen, onAdvance, onReject, onFoodReady, bus
                 <View style={{ marginRight: 6 }}><Pill label={flow.typeLabel(order.orderType)} color={muted} /></View>
                 <PayBadge order={order} />
                 <View style={{ flex: 1 }} />
-                <StatusPill status={order.status} />
+                <StatusPill status={order.status} order={order} />
             </View>
 
             <Text style={{ color: text, marginTop: 8, fontSize: 14 }} numberOfLines={2}>{flow.itemsSummary(order)}</Text>

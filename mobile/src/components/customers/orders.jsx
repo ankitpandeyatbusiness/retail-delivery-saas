@@ -24,6 +24,9 @@ export const errMsg = (e) => e?.response?.data?.error
     || (e?.response ? 'Something went wrong. Try again.' : 'Network problem. Check your connection.');
 export const itemsText = (o) => (o.items || []).map((l) => `${l.quantity} × ${l.name}`).join(', ');
 
+// a delivery order the cook has marked ready is still "preparing" on the server; the customer sees it as packed
+export const shownStatus = (o) => (o.orderType === 'delivery' && o.status === 'preparing' && o.kitchen?.readyAt ? 'ready' : o.status);
+
 export function StatusPill({ status, type }) {
     const { primary, ok, okSoft, neutralSoft, muted } = useBrand();
     const done = status === 'delivered';
@@ -31,7 +34,7 @@ export function StatusPill({ status, type }) {
     return (
         <View style={[s.pill, { backgroundColor: done ? okSoft : gone ? neutralSoft : tint(primary) }]}>
             <Text numberOfLines={1} style={[s.pillTxt, { color: done ? ok : gone ? muted : primary }]}>
-                {(type === 'dine_in' && DINE_LABEL[status]) || STATUS_LABEL[status] || status}
+                {(type === 'dine_in' && DINE_LABEL[status]) || (type === 'delivery' && status === 'ready' && 'Packed') || STATUS_LABEL[status] || status}
             </Text>
         </View>
     );

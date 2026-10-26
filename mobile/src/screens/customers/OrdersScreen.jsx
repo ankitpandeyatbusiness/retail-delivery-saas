@@ -12,7 +12,7 @@ import { useBrand, GuestGate, CardGlow } from '../../components/common/kit';
 import { Skel, FadeIn } from '../../components/common/motion';
 import { tint } from '../../components/customers/shop';
 import { Press, Appear } from '../../components/customers/cartParts';
-import { StatusPill, itemsText, rs, isActive, cancelFlow, reorder } from '../../components/customers/orders';
+import { StatusPill, shownStatus, itemsText, rs, isActive, cancelFlow, reorder } from '../../components/customers/orders';
 import { useClosedStyle } from '../../components/customers/shop';
 import DateRangeSheet, { rangeLabel } from '../../components/customers/DateRangeSheet';
 
@@ -221,7 +221,7 @@ function OrderCard({ o, index, animate, onOpen, onCancel, onReorder, onInvoice, 
                             <Text style={[s.no, { color: text }]}>{tr('Order #{orderNo}', { orderNo: o.orderNo })}</Text>
                             <Text style={[s.date, { color: muted }]}>{fmtDate(o.createdAt)} · {o.orderType === 'delivery' ? tr('Delivery') : o.orderType === 'dine_in' ? tr('Dine in') : tr('Pickup')}</Text>
                         </View>
-                        <StatusPill status={o.status} type={o.orderType} />
+                        <StatusPill status={shownStatus(o)} type={o.orderType} />
                     </View>
                     {o.complaint ? (
                         <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', marginTop: 8, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99, backgroundColor: tint(o.complaint.status === 'resolved' ? ok : error) }}>

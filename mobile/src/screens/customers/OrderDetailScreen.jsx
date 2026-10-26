@@ -32,12 +32,13 @@ import KeyboardScroll from '../../components/common/KeyboardScroll';
 import PickupTimeSheet from '../../components/customers/PickupTimeSheet';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const FLOW_DELIVERY = ['placed', 'accepted', 'preparing', 'out_for_delivery', 'delivered'];
+const FLOW_DELIVERY = ['placed', 'accepted', 'preparing', 'ready', 'out_for_delivery', 'delivered'];
 const FLOW_OTHER = ['placed', 'accepted', 'preparing', 'ready', 'delivered'];
 const STEP = {
     placed: 'Order placed', accepted: 'Accepted', preparing: 'Preparing', ready: 'Ready for pickup',
     out_for_delivery: 'Out for delivery', delivered: 'Delivered',
 };
+const PACK_STEP = { ready: 'Packed, waiting for the delivery partner' };   // a delivery order the cook has marked ready
 const DINE_STEP = { ready: 'Coming to your table', delivered: 'Served' };   // eating at the shop
 const ICON = {
     placed: 'receipt-outline', accepted: 'checkmark-done-outline', preparing: 'restaurant-outline', ready: 'bag-check-outline',
@@ -78,7 +79,7 @@ function Row({ k, v, green, bold }) {
     );
 }
 
-function Step({ st, k, idx, last, hist, live, dine }) {
+function Step({ st, k, idx, last, hist, live, dine, pack }) {
     const { text, muted, surface, border, ok } = useBrand();
     const done = k <= idx;
     const cur = k === idx && live;
@@ -106,7 +107,7 @@ function Step({ st, k, idx, last, hist, live, dine }) {
                 {!last ? <Animated.View style={[s.bar, { backgroundColor: barC }]} /> : null}
             </View>
             <Animated.View style={{ flex: 1, paddingBottom: 16, opacity: a.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) }}>
-                <Text style={[s.stepTxt, { color: text, fontWeight: cur ? '900' : '700' }]}>{(dine && DINE_STEP[st]) || STEP[st]}</Text>
+                <Text style={[s.stepTxt, { color: text, fontWeight: cur ? '900' : '700' }]}>{(dine && DINE_STEP[st]) || (pack && PACK_STEP[st]) || STEP[st]}</Text>
                 {done && hist?.at ? <Text style={[s.stepTime, { color: muted }]}>{fmt(hist.at)}</Text> : null}
             </Animated.View>
         </View>
@@ -258,10 +259,12 @@ export default function OrderDetailScreen() {
     const delivery = o.orderType === 'delivery';
     const live = isActive(o.status);
     const flow = delivery ? FLOW_DELIVERY : FLOW_OTHER;
-    const idx = flow.indexOf(o.status);
+    // a delivery order stays "preparing" on the server until the rider collects it; the cook's Ready shows as its own step
+    const packed = delivery && o.status === 'preparing' && !!o.kitchen?.readyAt;
+    const idx = flow.indexOf(packed ? 'ready' : o.status);
     const accent = cancelled ? error : delivered ? ok : primary;
     const dineIn = o.orderType === 'dine_in';
-    const headline = cancelled ? 'Order cancelled' : ((dineIn && DINE_STEP[o.status]) || STEP[o.status] || 'Order');
+    const headline = cancelled ? 'Order cancelled' : ((dineIn && DINE_STEP[o.status]) || (packed && PACK_STEP.ready) || STEP[o.status] || 'Order');
     const sub = cancelled ? `Cancelled by ${WHO[o.cancelledBy] || 'the shop'}${o.cancelReason ? `: ${o.cancelReason}` : ''}`
         : live ? (o.etaMin ? `Usually ready in about ${o.etaMin} min` : 'We will keep this updated')
             : delivered && o.deliveredAt ? `${dineIn ? 'Served' : 'Delivered'} on ${fmt(o.deliveredAt)}` : '';
@@ -348,8 +351,8 @@ export default function OrderDetailScreen() {
                 {!cancelled ? (
                     <Card title={tr('Order status')} icon="time-outline" delay={60}>
                         {flow.map((st, k) => (
-                            <Step key={st} st={st} dine={o.orderType === 'dine_in'} k={k} idx={idx} live={live} last={k === flow.length - 1}
-                                hist={(o.statusHistory || []).find((x) => x.status === st)} />
+                            <Step key={st} st={st} dine={o.orderType === 'dine_in'} pack={delivery} k={k} idx={idx} live={live} last={k === flow.length - 1}
+                                hist={(o.statusHistory || []).find((x) => x.status === st) || (st === 'ready' && delivery && o.kitchen?.readyAt ? { status: 'ready', at: o.kitchen.readyAt } : undefined)} />
                         ))}
                     </Card>
                 ) : null}

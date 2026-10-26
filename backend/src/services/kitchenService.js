@@ -160,6 +160,16 @@ async function addToQueue({ tenant, orderId, staff, by = 'cook' }) {
     return { already: !updated, order: view(tenant, row) };
 }
 
+// a delivery order stays "preparing" for the rider, so the customer gets the "Order is ready" message from here
+function tellCustomerPacked(tenant, o) {
+    try {
+        require('../notifications/center').notify('order_status', {
+            tenantId: tenant._id, userId: o.userId, data: { orderId: String(o._id), orderNo: o.orderNo, status: 'ready' },
+            vars: { orderNo: o.orderNo, status: 'ready', orderType: o.orderType, brief: require('../utils/orderBrief').brief(o) },
+        });
+    } catch (e) { console.error('Packed message error:', e.message); }
+}
+
 async function ready({ tenant, orderId, staff }) {
     const o = await loadFor(tenant, orderId);
     if (o.kitchen?.readyAt || o.status === 'ready') {
@@ -185,6 +195,7 @@ async function ready({ tenant, orderId, staff }) {
     realtime.toOwner(tenant._id, 'order:update', { orderId: String(o._id), orderNo: o.orderNo, status: o.status, kind: 'kitchen_ready' });
     if (updated.delivery?.riderId) realtime.toUser(tenant._id, updated.delivery.riderId, 'order:update', { orderId: String(o._id), orderNo: o.orderNo, status: o.status, kind: 'kitchen_ready' });
     require('./kitchenAlerts').tell(tenant._id, { orderId: String(o._id), orderNo: o.orderNo, status: updated.status });
+    tellCustomerPacked(tenant, updated);
     if (updated.delivery?.riderId && ['assigned', 'accepted'].includes(updated.delivery.status)) {   // the rider who is coming for it knows it is packed
         require('../notifications/center').notify('food_packed_rider', { tenantId: tenant._id, userId: updated.delivery.riderId, data: { orderId: String(o._id), orderNo: o.orderNo }, vars: { orderNo: o.orderNo, brief: require('../utils/orderBrief').brief(updated, 2) } });
     }
@@ -204,6 +215,7 @@ async function ownerReady({ tenant, orderId, actor }) {
     realtime.toOwner(tenant._id, 'order:update', { orderId: String(o._id), orderNo: o.orderNo, status: o.status, kind: 'kitchen_ready' });
     if (updated.delivery?.riderId) realtime.toUser(tenant._id, updated.delivery.riderId, 'order:update', { orderId: String(o._id), orderNo: o.orderNo, status: o.status, kind: 'kitchen_ready' });
     require('./kitchenAlerts').tell(tenant._id, { orderId: String(o._id), orderNo: o.orderNo, status: updated.status });
+    tellCustomerPacked(tenant, updated);
     if (updated.delivery?.riderId && ['assigned', 'accepted'].includes(updated.delivery.status)) {
         require('../notifications/center').notify('food_packed_rider', { tenantId: tenant._id, userId: updated.delivery.riderId, data: { orderId: String(o._id), orderNo: o.orderNo }, vars: { orderNo: o.orderNo, brief: require('../utils/orderBrief').brief(updated, 2) } });
     }
