@@ -20,6 +20,7 @@ const LINES = {
         ready: (a) => `Table ${a.table}, food is ready`,
         call: (a) => `Table ${a.table} is calling you`,
         bill: (a) => `Table ${a.table} is asking for the bill`,
+        paid: (a) => `Table ${a.table} paid online`,
         here: (a) => `Pickup ${a.orderNo}, the customer is here`,
         queued: (a) => `Order ${a.orderNo} was added to your queue`,
         done: (a) => `Order ${a.orderNo} was collected`,
@@ -31,12 +32,13 @@ const LINES = {
         ready: (a) => `टेबल ${a.table}, खाना तैयार है`,
         call: (a) => `टेबल ${a.table} आपको बुला रही है`,
         bill: (a) => `टेबल ${a.table} बिल मांग रही है`,
+        paid: (a) => `टेबल ${a.table} ने ऑनलाइन दे दिया`,
         here: (a) => `पिकअप ${a.orderNo}, ग्राहक आ गया है`,
         queued: (a) => `ऑर्डर ${a.orderNo} आपकी कतार में जोड़ दिया गया`,
         done: (a) => `ऑर्डर ${a.orderNo} ले लिया गया`,
     },
 };
-const BUZZ = { new: [0, 250, 120, 250], cancel: [0, 400, 150, 400], hurry: [0, 200, 100, 200], ready: [0, 200, 100, 200], call: [0, 150, 80, 150], bill: [0, 150, 80, 150], here: [0, 200, 100, 200], queued: [0, 120] };
+const BUZZ = { new: [0, 250, 120, 250], cancel: [0, 400, 150, 400], hurry: [0, 200, 100, 200], ready: [0, 200, 100, 200], call: [0, 150, 80, 150], bill: [0, 150, 80, 150], paid: [0, 150, 80, 150], here: [0, 200, 100, 200], queued: [0, 120] };
 
 const seen = new Map();
 const WINDOW_MS = 120000;

@@ -15,6 +15,8 @@ import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
 import { whereOf } from '../../utils/common/where';
 import QueueLine from '../../components/customers/QueueLine';
+import { useAuthStore } from '../../store/common/useAuthStore';
+import { payTableBill } from '../../utils/customers/payTableBill';
 import { tr } from '../../i18n';
 
 const STATE = { placed: 'Waiting for the shop', accepted: 'Accepted', preparing: 'Being prepared', ready: 'Coming to your table', delivered: 'Served' };
@@ -27,6 +29,8 @@ export default function TableBillScreen() {
     const bill = useTableBill((s) => s.bill);
     const loading = useTableBill((s) => s.loading);
     const [busy, setBusy] = useState(false);
+    const [paying, setPaying] = useState(false);
+    const user = useAuthStore((s) => s.user);
     useFocusEffect(useCallback(() => { useTableBill.getState().load(); }, []));
 
     const tick = useTick(!!bill?.open);
@@ -38,6 +42,17 @@ export default function TableBillScreen() {
         const yes = await ask({ title: tr('Ask for the bill?'), message: tr('The shop will bring your bill or take your payment at the counter.'), confirmText: tr('Ask for the bill'), cancelText: tr('Not yet') });
         if (!yes) return;
         try { await useTableBill.getState().ask(); showToast(tr('The shop has been told')); } catch (e) { showToast(e?.response?.data?.error || tr('Could not ask for the bill. Please try again.')); }
+    };
+
+    // pay what is unpaid so far, online: the paid rounds fade, and whatever he orders next shows below them as new
+    const payNow = async () => {
+        if (paying) return;
+        setPaying(true);
+        const r = await payTableBill({ user });
+        await useTableBill.getState().load();
+        setPaying(false);
+        if (r.status === 'paid') showToast(tr('Paid. Thank you! You can order more any time.'));
+        else if (r.message) showToast(tr(r.message));
     };
 
     // ordered by mistake: cancel the round himself in the first minutes; later the shop decides
@@ -78,7 +93,7 @@ export default function TableBillScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Table {t} bill', { t: bill.table })} />
-            <ScrollView contentContainerStyle={{ paddingBottom: 150 }} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={busy} onRefresh={refresh} />}>
+            <ScrollView contentContainerStyle={{ paddingBottom: bill.payOnline && bill.due > 0 ? 210 : 150 }} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={busy} onRefresh={refresh} />}>
                 {asked ? (
                     <Card tone={warn}>
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -111,12 +126,12 @@ export default function TableBillScreen() {
                 <CallCard />
 
                 {bill.rounds.map((r, i) => (
-                    <View key={r.id}>
+                    <View key={r.id} style={r.paid ? { opacity: 0.5 } : null}>
                         <SectionTitle title={tr('Round {n} · {time}', { n: i + 1, time: clock(r.at) })} />
                         <Card>
                             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
                                 <Pill label={tr(STATE[r.status] || r.status)} color={r.status === 'delivered' ? ok : warn} />
-                                {r.paid ? <View style={{ marginLeft: 6 }}><Pill label={tr('Paid')} color={ok} /></View> : null}
+                                {r.paid ? <View style={{ marginLeft: 6 }}><Pill label={tr('Paid')} color={ok} /></View> : <View style={{ marginLeft: 6 }}><Pill label={tr('Not paid')} color={warn} /></View>}
                             </View>
                             {r.status === 'delivered' ? <ServedIn times={r.times} style={{ marginBottom: 6 }} /> : <><QueueLine q={r.queue} compact /><WaitTimer since={r.times?.placed || r.at} style={{ marginBottom: 6 }} /></>}
                             {r.items.map((it, k) => (
@@ -171,16 +186,17 @@ export default function TableBillScreen() {
                         <Text style={{ flex: 1, color: text, fontWeight: '900', fontSize: 17 }}>{tr('To pay')}</Text>
                         <Text style={{ color: text, fontWeight: '900', fontSize: 20 }}>{rs(bill.payable ?? bill.due)}</Text>
                     </View>
-                    <Text style={{ color: muted, fontSize: 12.5, marginTop: 8 }}>{tr('You pay once, at the end. Cash or UPI at the counter.')}</Text>
+                    <Text style={{ color: muted, fontSize: 12.5, marginTop: 8 }}>{bill.payOnline && bill.due > 0 ? tr('Pay online from here, or in cash or UPI at the counter.') : tr('You pay once, at the end. Cash or UPI at the counter.')}</Text>
                 </Card>
 
                 <SplitCard bill={bill} />
             </ScrollView>
 
             <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, paddingBottom: 24, backgroundColor: background, borderTopWidth: 1, borderTopColor: alpha(border, 0.7) }}>
+                {bill.payOnline && bill.due > 0 ? <Button label={tr('Pay {n} online', { n: rs(bill.due) })} icon="card" busy={paying} onPress={payNow} style={{ marginBottom: 8 }} /> : null}
                 <View style={{ flexDirection: 'row' }}>
-                    <Button label={tr('Order more')} icon="add" kind="ghost" onPress={() => nav.navigate('MainTabs', { screen: 'Home' })} style={{ flex: 1, marginRight: 8 }} />
-                    {asked ? null : <Button label={tr('Ask for the bill')} icon="receipt" busy={loading} onPress={askBill} style={{ flex: 1.3 }} />}
+                    <Button label={tr('Order more')} icon="add" kind="ghost" onPress={() => nav.navigate('MainTabs', { screen: 'Home' })} style={{ flex: 1, marginRight: asked ? 0 : 8 }} />
+                    {asked ? null : <Button label={tr('Ask for the bill')} icon="receipt" kind={bill.payOnline && bill.due > 0 ? 'ghost' : undefined} busy={loading} onPress={askBill} style={{ flex: 1.3 }} />}
                 </View>
             </View>
         </View>

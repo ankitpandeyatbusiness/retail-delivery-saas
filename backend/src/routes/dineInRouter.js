@@ -76,7 +76,7 @@ router.post('/leave-ask', wrap(async (req, res) => {
 
 router.get('/bill', wrap(async (req, res) => {
     const [s, owed] = await Promise.all([tableBill.openFor(req.tenant._id, req.auth.userId), tableBill.owedBy(req.tenant._id, req.auth.userId)]);
-    if (s) return res.json({ open: true, ...(await tableBill.billOf(s)), owed });
+    if (s) return res.json({ open: true, ...(await tableBill.billOf(s)), owed, payOnline: await require('../services/tablePayment').available(req.tenant._id) });
     res.json({ open: false, owed, feedbackDue: await tableBill.feedbackDue(req.tenant, req.auth.userId).catch(() => null) });
 }));
 
@@ -110,6 +110,21 @@ router.post('/owed/pay/verify', wrap(async (req, res) => {
     const [rzpOrderId, rzpPaymentId, signature] = [b.razorpay_order_id, b.razorpay_payment_id, b.razorpay_signature];
     if (![rzpOrderId, rzpPaymentId, signature].every((v) => typeof v === 'string' && v && v.length <= 100)) throw httpError(400, 'Payment details are missing');
     const r = await require('../services/owedPayment').verify({ tenantId: req.tenant._id, userId: req.auth.userId, rzpOrderId, rzpPaymentId, signature });
+    res.json({ paid: !!r.paid });
+}));
+
+// Pay what he has ordered so far, online, from the table (the shop's own Razorpay keys). The visit stays open.
+router.post('/pay-bill', wrap(async (req, res) => { res.json(await require('../services/tablePayment').start({ tenantId: req.tenant._id, userId: req.auth.userId })); }));
+router.post('/pay-bill/check', wrap(async (req, res) => {
+    let r;
+    try { r = await require('../services/tablePayment').check({ tenantId: req.tenant._id, userId: req.auth.userId }); } catch (e) { r = { paid: false, status: 'unknown' }; }
+    res.json(r);
+}));
+router.post('/pay-bill/verify', wrap(async (req, res) => {
+    const b = req.body || {};
+    const [rzpOrderId, rzpPaymentId, signature] = [b.razorpay_order_id, b.razorpay_payment_id, b.razorpay_signature];
+    if (![rzpOrderId, rzpPaymentId, signature].every((v) => typeof v === 'string' && v && v.length <= 100)) throw httpError(400, 'Payment details are missing');
+    const r = await require('../services/tablePayment').verify({ tenantId: req.tenant._id, userId: req.auth.userId, rzpOrderId, rzpPaymentId, signature });
     res.json({ paid: !!r.paid });
 }));
 

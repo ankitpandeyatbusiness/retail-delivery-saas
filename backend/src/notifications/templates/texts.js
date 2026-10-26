@@ -125,6 +125,7 @@ const TEXTS = {
     table_call: (v) => ({ title: `Table ${v.table}: ${v.label}`, body: `${v.text ? `“${v.text}”. ` : ''}A guest is asking for you at table ${v.table}.` }),
     table_feedback_low: (v) => ({ title: `Table ${v.table} was not happy (${v.stars}/5)`, body: `${v.comment ? `“${v.comment}”. ` : ''}Their private feedback is in Dine in, Guest feedback.` }),
     table_nudge: (v) => ({ title: `Table ${v.table} is waiting`, body: `Please bring the food fast${v.minutes ? ` (ordered ${v.minutes} min ago)` : ''}.${v.what ? ` ${v.what}` : ''}` }),
+    table_paid_online: (v) => ({ title: `Table ${v.table}: paid online`, body: `₹${Math.round(v.amount || 0)} was paid from the guest's phone.` }),
     table_paid_owner: (v) => ({ title: `Table ${v.table}: bill paid`, body: `₹${Math.round(v.paid || v.total || 0)} by ${v.via || 'cash'}. Received by ${v.by || 'a waiter'}.` }),
     table_bill_waiting: (v) => ({ title: `Table ${v.table} is still waiting for the bill`, body: `They asked ${v.minutes} minutes ago. Please bring the bill or take the payment.` }),
     table_ready_unserved: (v) => ({ title: `Table ${v.table}: food ready, not served`, body: `${v.brief ? `${v.brief} has` : 'An order has'} been ready for ${v.minutes} minutes and nobody has served it.` }),

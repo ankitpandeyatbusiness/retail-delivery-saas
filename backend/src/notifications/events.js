@@ -119,6 +119,7 @@ const EVENTS = {
     // rider (offers last 2 minutes, so never an SMS)
     rider_offer: { to: 'rider', channels: INAPP_PUSH, alsoPush: true },
     food_rating_cook: { to: 'rider', channels: INAPP_PUSH, alsoPush: true, voice: true, pushChannel: STAFF_INFO_CHANNEL, pushSound: 'notify' },   // the cook who started an order hears the customer's rating of the food
+    table_paid_online: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },       // a guest paid his table bill from his phone: which table and how much
     table_paid_owner: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },        // a waiter took a table's money: which table, how much, who
     table_bill_waiting: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },      // the guests asked for the bill 5 minutes ago and nobody came
     table_ready_unserved: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },    // a dish has been ready for 5 minutes and nobody served it

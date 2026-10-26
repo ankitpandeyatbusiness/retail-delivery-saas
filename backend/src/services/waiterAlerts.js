@@ -52,4 +52,16 @@ async function request(tenantId, { table, label, text, bill, party }) {
     } catch (e) { console.error('Waiter alert error:', e.message); }
 }
 
-module.exports = { onStatus, request, tell };
+// a guest paid his bill online: the waiters hear it (screen and phone), so nobody walks over with a machine
+async function paidOnline(tenantId, { table, amount }) {
+    try {
+        tell(tenantId, { request: true, table, paid: true, alert: { kind: 'paid', table, amount } });
+        await ring(tenantId, {
+            title: `Table ${table}: paid online`, body: `₹${Math.round(amount)} was paid from the guest's phone.`,
+            data: { type: 'waiter_paid', table: String(table), kind: 'paid', speech: `Table ${table} paid ${Math.round(amount)} rupees online`, speechHi: `टेबल ${table} ने ${Math.round(amount)} रुपये ऑनलाइन दे दिए` },
+            tag: `paid:${table}`,
+        });
+    } catch (e) { console.error('Waiter alert error:', e.message); }
+}
+
+module.exports = { onStatus, request, tell, paidOnline };

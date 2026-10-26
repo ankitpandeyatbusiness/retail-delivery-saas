@@ -57,7 +57,8 @@ async function runShop(tenant, now) {
             if (await claim(o._id, 'serveNudgedAt')) {
                 const minutes = Math.round((now.getTime() - new Date(since).getTime()) / MIN);
                 require('../notifications/center').notify('table_ready_unserved', { tenantId: tenant._id, vars: { table: o.tableNo || '', minutes, brief: brief(o, 2) }, data: { kind: 'table', table: o.tableNo, orderId: String(o._id), orderNo: o.orderNo } });
-                if (rules.waiterOn === true) await ring(tenant._id, 'waiter', { title: `Table ${o.tableNo || ''}: waiting to be served`.replace(/:\s*:/, ':'), body: `${brief(o, 2)} · ready ${Math.round((now.getTime() - new Date(since).getTime()) / MIN)} min ago`, data: { type: 'waiter_nudge', orderId: String(o._id), orderNo: o.orderNo, table: o.tableNo }, tag: `servenudge:${o._id}` });
+                if (rules.waiterOn === true) require('../services/waiterAlerts').tell(tenant._id, { orderId: String(o._id), orderNo: o.orderNo, table: o.tableNo, alert: { kind: 'ready', table: o.tableNo, orderNo: o.orderNo } });
+                if (rules.waiterOn === true) await ring(tenant._id, 'waiter', { title: `Table ${o.tableNo || ''}: waiting to be served`.replace(/:\s*:/, ':'), body: `${brief(o, 2)} · ready ${Math.round((now.getTime() - new Date(since).getTime()) / MIN)} min ago`, data: { type: 'waiter_serve', kind: 'ready', orderId: String(o._id), orderNo: o.orderNo, table: String(o.tableNo || ''), speech: `Table ${o.tableNo}, food is waiting to be served`, speechHi: `टेबल ${o.tableNo}, खाना परोसने के लिए रखा है` }, tag: `servenudge:${o._id}` });
                 sent += 1;
             }
         }

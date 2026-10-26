@@ -30,6 +30,9 @@ export const claimPaid = () => d(api.post('/dinein/paid-claim'));   // "I alread
 export const startOwedPayment = () => d(api.post('/dinein/owed/pay'));   // pay the bill I left unpaid, online
 export const checkOwedPayment = () => d(api.post('/dinein/owed/pay/check'));
 export const verifyOwedPayment = (proof) => d(api.post('/dinein/owed/pay/verify', proof));
+export const startTablePayment = () => d(api.post('/dinein/pay-bill'));   // pay what I have ordered so far, online, from the table
+export const checkTablePayment = () => d(api.post('/dinein/pay-bill/check'));
+export const verifyTablePayment = (proof) => d(api.post('/dinein/pay-bill/verify', proof));
 export const callTable = (kind, text) => d(api.post('/dinein/call', { kind, text }));   // call the waiter / water / cutlery / clean the table
 export const setTableTip = (amount) => d(api.post('/dinein/tip', { amount }));          // the tip for the waiter, paid with the bill
 export const sendTableFeedback = (body) => d(api.post('/dinein/feedback', body));      // private feedback after the meal
