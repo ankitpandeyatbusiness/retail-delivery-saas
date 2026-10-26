@@ -86,6 +86,9 @@ export const BOARD_FILTERS = [
     ['cancelled', 'Cancelled'],
 ];
 // what to ask the server for each chip (cancelled also covers "not delivered")
+// the column an order sits in on the board: a delivery order the cook has marked ready is Ready (the server keeps it "preparing" until the rider collects it)
+export const boardStatus = (o) => (o && o.orderType === 'delivery' && o.status === 'preparing' && o.foodReady === true ? 'ready' : o?.status);
+
 export const serverStatusFor = (filter) => (filter === 'cancelled' ? 'cancelled,undelivered' : filter);
 
 export const TYPE_LABEL = { delivery: 'Delivery', pickup: 'Pickup', dine_in: 'Dine in' };

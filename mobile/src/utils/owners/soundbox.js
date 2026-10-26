@@ -555,8 +555,8 @@ export function markSaid(type, data) {
     for (const id of idsOf(data)) saidAt.set(normType(type) + '|' + id, now);
     for (const [k, t] of saidAt) if (t < now - SAID_MS) saidAt.delete(k);
 }
-export function wasSaid(type, data) {
-    const limit = Date.now() - SAID_MS;
+export function wasSaid(type, data, within = SAID_MS) {
+    const limit = Date.now() - within;
     return !!type && idsOf(data).some((id) => (saidAt.get(normType(type) + '|' + id) || 0) > limit);
 }
 
@@ -599,7 +599,10 @@ export async function sayAlert(type, data) {
 export async function speakOnOpen(data) {
     if (!isOwner() || !data?.orderId) return;
     acknowledge(data.orderId);
-    if (!settings().soundbox || wasSaid(data.type || 'order_new', data)) return;   // it was already read when it arrived
+    // the app was closed when the notification was tapped: the Soundbox and Alerts settings are not read yet, and an unread Soundbox counts as off
+    try { if (!settings().loaded) await useSoundboxStore.getState().hydrate(); await useAlertPrefs.getState().hydrate(); } catch (e) { /* the defaults are used */ }
+    // a tap on the new-order notification reads the order out, unless it was read a moment ago (the live voice, seconds before the tap)
+    if (!settings().soundbox || wasSaid(data.type || 'order_new', data, 15000)) return;
     await ensureAudio();
     const language = await languageToUse();
     await speak(withGreeting(textOf({ orderNo: data.orderNo, speech: data.speech, speechHi: data.speechHi }, language), language), language, 'order_new');

@@ -1,4 +1,5 @@
 const express = require('express');
+const { statusExpr, boardFilter } = require('../utils/boardStatus');
 const mongoose = require('mongoose');
 const tenantRecognizer = require('../middlewares/tenantRecognizer');
 const requireShopAdmin = require('../middlewares/requireShopAdmin');
@@ -90,7 +91,7 @@ router.get('/orders', wrap(async (req, res) => {
     } else if (typeof req.query.status === 'string' && req.query.status) {
         const list = req.query.status.split(',').filter((s) => STATUSES.includes(s));
         if (!list.length) throw httpError(400, 'Unknown status');
-        filter.status = { $in: list };
+        filter.$and = [...(filter.$and || []), boardFilter(list)];   // a delivery order the cook has marked ready is in Ready, not Preparing
     }
 
     if (req.query.look === 'true') Object.assign(filter, orderLook.waiting(req.tenant._id));   // the "Needs a look" chip: any status
@@ -108,7 +109,7 @@ router.get('/orders', wrap(async (req, res) => {
         Order.find(filter).sort(req.query.look === 'true' ? { 'needsLook.at': -1 } : { createdAt: -1 }).skip((page - 1) * limit).limit(limit + 1),
         Order.aggregate([
             { $match: { tenantId: req.tenant._id, status: { $in: ACTIVE_STATUSES }, ...HIDE_UNPAID } },
-            { $group: { _id: '$status', n: { $sum: 1 } } },
+            { $group: { _id: statusExpr, n: { $sum: 1 } } },
         ]),
         orderLook.summary(req.tenant._id),
     ]);

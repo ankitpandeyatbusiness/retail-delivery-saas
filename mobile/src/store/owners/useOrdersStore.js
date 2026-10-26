@@ -5,7 +5,7 @@
 //   counts  how many ACTIVE orders per status, for the chip badges (always for active orders, whatever the filter)
 import { create } from 'zustand';
 import { fetchOrders, markLooksSeen, apiError } from '../../api/owners/shopApi';
-import { serverStatusFor, isFinal } from '../../utils/owners/orderFlow';
+import { serverStatusFor, isFinal, boardStatus } from '../../utils/owners/orderFlow';
 import { useOwnerStore } from './useOwnerStore';
 
 const PAGE = 20;
@@ -114,8 +114,10 @@ export const useOrdersStore = create((set, get) => ({
         const { filter } = get();
         // the chip numbers and the tab badge move with the order at once, not after the server's next count
         const was = get().items.find((o) => o.id === order.id) || get().hold?.items.find((o) => o.id === order.id);
-        if (was && was.status !== order.status) {
-            const move = (a) => { const n = { ...(a || {}) }; if (n[was.status] > 0) n[was.status] -= 1; if (!isFinal(order.status)) n[order.status] = (n[order.status] || 0) + 1; return n; };
+        const nowAt = boardStatus(order);
+        if (was && boardStatus(was) !== nowAt) {
+            const wasAt = boardStatus(was);
+            const move = (a) => { const n = { ...(a || {}) }; if (n[wasAt] > 0) n[wasAt] -= 1; if (!isFinal(order.status)) n[nowAt] = (n[nowAt] || 0) + 1; return n; };
             set({ counts: move(get().counts) });
             const live = useOwnerStore.getState().live;
             if (live?.orders?.active) useOwnerStore.setState({ live: { ...live, orders: { ...live.orders, active: move(live.orders.active) } } });
@@ -123,7 +125,7 @@ export const useOrdersStore = create((set, get) => ({
         const stays = filter === 'look' ? !!get().hold?.items.some((o) => String(o.id) === String(order.id))
             : filter === 'active' ? !isFinal(order.status)
             : filter === 'cancelled' ? ['cancelled', 'undelivered'].includes(order.status)
-                : order.status === filter;
+                : nowAt === filter;
         const items = get().items;
         const i = items.findIndex((o) => o.id === order.id);
         if (!stays) { if (i >= 0) set({ items: items.filter((o) => o.id !== order.id) }); return; }

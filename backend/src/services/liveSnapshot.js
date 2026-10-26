@@ -1,5 +1,6 @@
 // The "live" picture of one shop, used by the superadmin panel and the owner panel.
 const mongoose = require('mongoose');
+const { statusExpr, boardStatusOf } = require('../utils/boardStatus');
 const liveTracking = require('./liveTracking');
 const Order = require('../models/Order');
 const Rider = require('../models/Rider');
@@ -27,9 +28,10 @@ function startOf(now, unit) {
 const READY_WAIT_MS = 5 * 60 * 1000;
 async function attention(tenantId, now) {
     const rows = await Order.find({ tenantId, status: { $in: ['accepted', 'preparing', 'ready', 'out_for_delivery'] }, ...HIDE_UNPAID })
-        .select('status orderType delivery.riderId delivery.status delivery.dueAt updatedAt').limit(300).lean();
+        .select('status orderType kitchen.readyAt delivery.riderId delivery.status delivery.dueAt updatedAt').limit(300).lean();
     const out = { accepted: 0, cookingNoRider: 0, ready: 0, roadDue: [], kitchenProblems: 0 };
-    for (const o of rows) {
+    for (const raw of rows) {
+        const o = { ...raw, status: boardStatusOf(raw) };   // a packed delivery order counts as ready
         const noRider = o.orderType === 'delivery' && (!o.delivery?.riderId || o.delivery?.status === 'rejected');
         if (o.status === 'accepted') out.accepted += 1;
         else if (o.status === 'preparing' && noRider) out.cookingNoRider += 1;
@@ -51,7 +53,7 @@ async function build(tenantId, { owner = false } = {}) {
     const [counts, riders, billableToday, billableMonth, revenue, customers, wallet, tenant, feed] = await Promise.all([
         Order.aggregate([
             { $match: { tenantId, status: { $in: ACTIVE_STATUSES }, ...HIDE_UNPAID } },
-            { $group: { _id: '$status', n: { $sum: 1 } } },
+            { $group: { _id: statusExpr, n: { $sum: 1 } } },
         ]),
         Rider.find({ tenantId, isActive: true, $or: [{ isOnline: true }, { activeOrderCount: { $gt: 0 } }] })
             .select('userId name isOnline activeOrderCount lastLocation').lean(),
