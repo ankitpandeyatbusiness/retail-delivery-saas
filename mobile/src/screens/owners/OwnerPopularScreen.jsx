@@ -1,5 +1,6 @@
 // Popular items: what customers order most, for the last 7 days, 30 days or 3 months (delivered orders only).
 import React, { useCallback, useEffect, useState } from 'react';
+import { FilterBar } from '../../components/owners/FilterPopup';
 import { View, Text, ScrollView } from 'react-native';
 import { useBrand, alpha } from '../../components/common/kit';
 import { PageHeader, Card, Chips, Empty, money } from '../../components/owners/ui';
@@ -36,7 +37,7 @@ export default function OwnerPopularScreen() {
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Popular items')} />
             <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 32 }}>
-                <View style={{ paddingHorizontal: 16 }}><Chips options={RANGES} value={range} onChange={setRange} style={{ marginTop: 0 }} /></View>
+                <FilterBar title={tr('Filter popular items')} summary={tr(RANGES.find((r) => r[0] === range)?.[1] || '')} activeCount={0} sections={[{ key: 'when', title: 'Time', options: RANGES, value: range, onChange: setRange }]} />
                 {items === null ? <ListShimmer rows count={6} /> : null}
                 {err ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={err} /> : null}
                 {items && !err && !items.length ? <Empty icon="trophy-outline" title={tr('No sales in this period')} hint={tr('Delivered orders are counted here.')} /> : null}

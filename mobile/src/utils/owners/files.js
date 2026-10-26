@@ -26,5 +26,5 @@ export async function downloadAndOpen({ path, params, filename, mime, title }) {
         catch (e) { /* no viewer: share it instead */ }
     }
     if (!(await Sharing.isAvailableAsync())) throw fail('No app on this phone can open this file');
-    await Sharing.shareAsync(file.uri, { mimeType: mime, dialogTitle: title || filename });
+    await Sharing.shareAsync(file.uri, { mimeType: mime, dialogTitle: title || filename, ...(mime === XLSX ? { UTI: 'org.openxmlformats.spreadsheetml.sheet' } : {}) });
 }

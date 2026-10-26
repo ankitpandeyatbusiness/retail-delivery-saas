@@ -6,11 +6,11 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../../components/common/kit';
 import { PageHeader, Card, Chips, Stat, Empty, Button } from '../../components/owners/ui';
-import { fetchTransactionSummary, transactionsCsvPath, apiError } from '../../api/owners/shopApi';
+import { fetchTransactionSummary, transactionsFilePath, apiError } from '../../api/owners/shopApi';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { rupees } from '../../utils/owners/riderRules';
 import { monthName } from '../../utils/owners/moneyRules';
-import { downloadAndOpen } from '../../utils/owners/files';
+import { downloadAndOpen, XLSX } from '../../utils/owners/files';
 import { showToast } from '../../components/customers/shop';
 import { StatShimmer } from '../../components/owners/shimmer';
 import { tr } from '../../i18n';
@@ -33,7 +33,7 @@ export default function OwnerTransactionsScreen() {
     const csv = async () => {
         if (!data) return;
         setBusy(true);
-        try { await downloadAndOpen({ path: transactionsCsvPath, params: { from: `${data.year}-01-01`, to: `${data.year}-12-31`, format: 'csv' }, filename: `transactions-${data.year}.csv`, mime: 'text/csv', title: `Transactions ${data.year}` }); }
+        try { await downloadAndOpen({ path: transactionsFilePath, params: { from: `${data.year}-01-01`, to: `${data.year}-12-31`, format: 'xlsx' }, filename: `transactions-${data.year}.xlsx`, mime: XLSX, title: `Transactions ${data.year}` }); }
         catch (e) { showToast(e.safe ? e.message : tr('Could not download')); } finally { setBusy(false); }
     };
 

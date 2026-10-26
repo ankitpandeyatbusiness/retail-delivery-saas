@@ -158,6 +158,7 @@ export const reorderHeroes = (ids) => d(api.put('/shop/uploads/hero-order', { id
 export const deleteUpload = (id) => d(api.delete(`/shop/uploads/${id}`));
 
 /* ------------------------------ customers, complaints, messages ------------------------------ */
+export const customersExportPath = '/shop/customers/export';   // + { kind: all | repeat | valuable | recent | lapsed }: an Excel file
 export const fetchCustomers = (params) => d(api.get('/shop/customers', q(params)));
 export const fetchCustomer = (userId) => d(api.get(`/shop/customers/${userId}`));
 export const updateCustomer = (userId, body) => d(api.patch(`/shop/customers/${userId}`, body));   // { name?, email?, notes? }
@@ -183,10 +184,10 @@ export const fetchDisputes = (params) => d(api.get('/shop/payments/disputes', q(
 export const fetchTransactions = (params) => d(api.get('/shop/payments/transactions', q(params)));
 // every rupee in and out, online and offline (the Transactions tab): { items, page, total, truncated, totals: { inPaise, outPaise, netPaise, byCategory, byHow } }
 export const fetchMoneyAll = (params) => d(api.get('/shop/payments/all', q(params)));   // { from, to | date | month, direction, how, category, q, page }
-export const moneyAllPath = '/shop/payments/all';   // + the same params and format:'csv'
+export const moneyAllPath = '/shop/payments/all';   // + the same params and format:'xlsx'
 // the year month by month: { year, years, months:[{month, inPaise, outPaise, netPaise, pendingPaise, count}], totals }
 export const fetchTransactionSummary = (year) => d(api.get('/shop/payments/summary', q({ year })));
-export const transactionsCsvPath = '/shop/payments/transactions';   // + params { from, to, category?, format:'csv' }
+export const transactionsFilePath = '/shop/payments/transactions';   // + params { from, to, category?, format:'xlsx' }
 
 export const fetchSmsWallet = () => d(api.get('/shop/sms/wallet'));
 export const fetchSmsTransactions = (params) => d(api.get('/shop/sms/transactions', q(params)));

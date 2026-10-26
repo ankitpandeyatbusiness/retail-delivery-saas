@@ -1,5 +1,6 @@
 // What customers say: ratings of the food (per dish) and of the delivery. Average, how many of each star, and the comments.
 import React, { useCallback, useEffect, useState } from 'react';
+import { FilterBar } from '../../components/owners/FilterPopup';
 import { View, Text, FlatList, Pressable } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useBrand, alpha } from '../../components/common/kit';
@@ -74,9 +75,8 @@ export default function OwnerReviewsScreen() {
                             <Chips options={[['dish', tr('Food')], ['delivery', tr('Delivery')]]} value={kind} onChange={(k) => { setKind(k); setRating(''); setData(null); }} style={{ marginTop: 0 }} />
                         </View>
                         {sum ? <Summary s={sum} /> : null}
-                        <View style={{ paddingHorizontal: 16 }}>
-                            <Chips options={[['', tr('All')], ['5', '5 ★'], ['4', '4 ★'], ['3', '3 ★'], ['2', '2 ★'], ['1', '1 ★']]} value={rating} onChange={setRating} style={{ marginTop: 0 }} />
-                        </View>
+                        <FilterBar title={tr('Filter reviews')} summary={rating ? `${rating} ★` : tr('All ratings')} activeCount={rating ? 1 : 0} onClear={() => setRating('')}
+                            sections={[{ key: 'stars', title: 'Stars', options: [['', 'All'], ['5', '5 ★'], ['4', '4 ★'], ['3', '3 ★'], ['2', '2 ★'], ['1', '1 ★']], value: rating, onChange: setRating }]} />
                     </View>
                 )}
                 renderItem={({ item: r }) => (

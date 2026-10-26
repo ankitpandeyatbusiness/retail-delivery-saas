@@ -1,5 +1,6 @@
 // Activity log: who changed what in the shop, and when. Helps when something looks different and nobody knows why.
 import React, { useCallback, useEffect, useState } from 'react';
+import { FilterBar } from '../../components/owners/FilterPopup';
 import { View, Text, FlatList, Pressable } from 'react-native';
 import { useBrand } from '../../components/common/kit';
 import { PageHeader, Chips, Empty, Pill } from '../../components/owners/ui';
@@ -34,7 +35,7 @@ export default function OwnerActivityScreen() {
                 data={items || []}
                 keyExtractor={(a, i) => String(a._id || i)}
                 contentContainerStyle={{ paddingBottom: 32 }}
-                ListHeaderComponent={<View style={{ paddingHorizontal: 16 }}><Chips options={ACTOR_FILTERS} value={actor} onChange={setActor} style={{ marginTop: 0 }} /></View>}
+                ListHeaderComponent={<FilterBar title={tr('Filter activity')} summary={tr(ACTOR_FILTERS.find((a) => a[0] === actor)?.[1] || 'Everyone')} activeCount={actor ? 1 : 0} onClear={() => setActor('')} sections={[{ key: 'who', title: 'Done by', options: ACTOR_FILTERS, value: actor, onChange: setActor }]} />}
                 renderItem={({ item: a }) => (
                     <View style={{ paddingHorizontal: 16, paddingVertical: 11, flexDirection: 'row', alignItems: 'center' }}>
                         <View style={{ flex: 1, minWidth: 0 }}>

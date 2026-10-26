@@ -5,12 +5,13 @@ import { View, Text, FlatList, Pressable } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
-import { PageHeader, Card, Chips, Stat, Empty, Button, Pill } from '../../components/owners/ui';
-import { fetchTransactions, transactionsCsvPath, rentInvoicePdfPath, apiError } from '../../api/owners/shopApi';
+import { FunnelButton, FilterPopup } from '../../components/owners/FilterPopup';
+import { PageHeader, Card, Stat, Empty, Button, Pill } from '../../components/owners/ui';
+import { fetchTransactions, transactionsFilePath, rentInvoicePdfPath, apiError } from '../../api/owners/shopApi';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { rupees } from '../../utils/owners/riderRules';
 import { MOVES, monthName, monthRange } from '../../utils/owners/moneyRules';
-import { downloadAndOpen } from '../../utils/owners/files';
+import { downloadAndOpen, XLSX } from '../../utils/owners/files';
 import { dayTime } from '../../utils/owners/orderFlow';
 import { showToast } from '../../components/customers/shop';
 import { LineShimmer, ListShimmer } from '../../components/owners/shimmer';
@@ -21,6 +22,7 @@ export default function OwnerMonthScreen() {
     const { month } = useRoute().params || {};
     const { background, text, muted, ok, error, primary, border } = useBrand();
     const [cat, setCat] = useState('');
+    const [filtering, setFiltering] = useState(false);
     const [data, setData] = useState(null);
     const [items, setItems] = useState(null);
     const [more, setMore] = useState(false);
@@ -41,7 +43,7 @@ export default function OwnerMonthScreen() {
 
     const csv = async () => {
         setBusy('csv');
-        try { await downloadAndOpen({ path: transactionsCsvPath, params: { ...range, ...(cat ? { category: cat } : {}), format: 'csv' }, filename: `transactions-${month}.csv`, mime: 'text/csv', title: monthName(month) }); }
+        try { await downloadAndOpen({ path: transactionsFilePath, params: { ...range, ...(cat ? { category: cat } : {}), format: 'xlsx' }, filename: `transactions-${month}.xlsx`, mime: XLSX, title: monthName(month) }); }
         catch (e) { showToast(e.safe ? e.message : tr('Could not download')); } finally { setBusy(null); }
     };
     const bill = async (t) => {
@@ -58,6 +60,8 @@ export default function OwnerMonthScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={monthName(month)} />
+            <FilterPopup visible={filtering} onClose={() => setFiltering(false)} title={tr('Filter entries')} activeCount={cat ? 1 : 0} onClear={() => setCat('')}
+                sections={[{ key: 'move', title: 'Show', options: MOVES, value: cat, onChange: setCat }]} />
             <FlatList
                 data={items || []}
                 keyExtractor={(t) => `${t.category}-${t.id}`}
@@ -74,7 +78,10 @@ export default function OwnerMonthScreen() {
                                 {tot.pending.paise ? <Text style={{ color: error, fontSize: 12, marginTop: 8 }}>{tr('{rupees} of bills still to pay', { rupees: rupees(tot.pending.paise) })}</Text> : null}
                             </Card>
                         ) : null}
-                        <View style={{ paddingHorizontal: 16 }}><Chips options={MOVES} value={cat} onChange={setCat} style={{ marginTop: 0 }} /></View>
+                        <View style={{ paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center' }}>
+                            <Text style={{ flex: 1, color: cat ? primary : muted, fontWeight: '800' }}>{cat ? tr(MOVES.find((m) => m[0] === cat)?.[1] || '') : tr('All entries')}</Text>
+                            <FunnelButton count={cat ? 1 : 0} onPress={() => setFiltering(true)} />
+                        </View>
                     </View>
                 )}
                 renderItem={({ item: t }) => {

@@ -5,9 +5,11 @@ import { View, Text, FlatList, Pressable, ScrollView } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../../components/common/kit';
-import { PageHeader, Field, Empty } from '../../components/owners/ui';
+import { PageHeader, Field, Empty, Sheet } from '../../components/owners/ui';
+import { FunnelButton, FilterPopup } from '../../components/owners/FilterPopup';
+import { downloadAndOpen, XLSX } from '../../utils/owners/files';
 import RemindSheet from '../../components/owners/RemindSheet';
-import { fetchCustomers, fetchCustomerInsights, fetchBlocked, fetchDineDebts, blockCustomer, apiError } from '../../api/owners/shopApi';
+import { fetchCustomers, customersExportPath, fetchCustomerInsights, fetchBlocked, fetchDineDebts, blockCustomer, apiError } from '../../api/owners/shopApi';
 import { BlockedCard } from '../../components/owners/BlockSheet';
 import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
@@ -21,6 +23,9 @@ import { tr } from '../../i18n';
 export default function OwnerCustomersScreen() {
     const nav = useNavigation();
     const { background, text, muted, primary, border, onPrimary } = useBrand();
+    const [sheetOpen, setSheetOpen] = useState(false);
+    const [filtering, setFiltering] = useState(false);
+    const [fileBusy, setFileBusy] = useState('');
     const [typed, setTyped] = useState('');
     const [q, setQ] = useState('');
     const [tag, setTag] = useState('all');
@@ -70,23 +75,13 @@ export default function OwnerCustomersScreen() {
     useFocusEffect(useCallback(() => { fetchCustomerInsights({ limit: 1 }).then((r) => setCounts(r.counts)).catch(() => { }); }, []));
     const onType = (v) => { setTyped(v); clearTimeout(t.current); t.current = setTimeout(() => setQ(v.trim()), 400); };
 
-    const chip = (key, label, n) => {
-        const on = tag === key;
-        return (
-            <Pressable key={key} onPress={() => setTag(key)} style={{ marginRight: 8, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: on ? primary : border, backgroundColor: on ? primary : 'transparent' }}>
-                <Text style={{ color: on ? onPrimary : text, fontWeight: '800', fontSize: 13 }}>{label}{n !== undefined && n !== null ? ` ${n}` : ''}</Text>
-            </Pressable>
-        );
-    };
-
     const header = (
         <View style={{ paddingBottom: 6 }}>
-            <View style={{ paddingHorizontal: 16, paddingBottom: 10 }}><Field value={typed} onChangeText={onType} placeholder={tr('Search by name or phone')} maxLength={40} style={{ minHeight: 44 }} /></View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }} style={{ flexGrow: 0 }}>
-                {chip('all', 'Everyone')}
-                {TAG_ORDER.map((k) => chip(k, TAGS[k].label, counts ? counts[k] : null))}
-                {chip('blocked', 'Blocked', blocked ? blocked.length : null)}
-            </ScrollView>
+            <View style={{ paddingHorizontal: 16, paddingBottom: 10, flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{ flex: 1 }}><Field value={typed} onChangeText={onType} placeholder={tr('Search by name or phone')} maxLength={40} style={{ minHeight: 44 }} /></View>
+                <FunnelButton count={tag === 'all' ? 0 : 1} onPress={() => setFiltering(true)} style={{ marginLeft: 8 }} />
+            </View>
+            {tag !== 'all' ? <Text style={{ color: primary, fontWeight: '800', paddingHorizontal: 16, marginBottom: 4 }}>{tag === 'blocked' ? tr('Blocked') : tr(TAGS[tag]?.label || tag)}</Text> : null}
             {tag === 'blocked' ? <Text style={{ color: muted, fontSize: 12, paddingHorizontal: 16, marginTop: 8 }}>{tr('Customers you blocked: when, why, and the order it was about. You can unblock them here.')}</Text> : tag !== 'all' ? <Text style={{ color: muted, fontSize: 12, paddingHorizontal: 16, marginTop: 8 }}>{TAGS[tag].hint}</Text> : null}
             <Pressable onPress={() => nav.navigate('OwnerAutopilot')} style={{ marginHorizontal: 16, marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: alpha(primary, 0.1), flexDirection: 'row', alignItems: 'center' }}>
                 <Ionicons name="rocket" size={20} color={primary} />
@@ -98,7 +93,24 @@ export default function OwnerCustomersScreen() {
 
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
-            <PageHeader title={tr('Customers')} />
+            <PageHeader title={tr('Customers')} right={<Pressable onPress={() => setSheetOpen(true)} hitSlop={10} accessibilityRole="button" accessibilityLabel={tr('Download Excel')} style={{ padding: 6 }}><Ionicons name="download-outline" size={24} color={primary} /></Pressable>} />
+            <FilterPopup visible={filtering} onClose={() => setFiltering(false)} title={tr('Filter customers')} activeCount={tag === 'all' ? 0 : 1} onClear={() => setTag('all')}
+                sections={[{ key: 'tag', title: 'Show', value: tag, onChange: setTag, options: [['all', 'Everyone'], ...TAG_ORDER.map((k) => [k, `${tr(TAGS[k].label)}${counts && counts[k] != null ? ` ${counts[k]}` : ''}`]), ['blocked', `${tr('Blocked')}${blocked ? ` ${blocked.length}` : ''}`]] }]} />
+            <Sheet visible={sheetOpen} onClose={() => !fileBusy && setSheetOpen(false)} title={tr('Download customers as Excel')}>
+                <Text style={{ color: muted, marginBottom: 10 }}>{tr('Choose a list. The sheet has orders, spend, most ordered food, the time they usually order and more.')}</Text>
+                {[['all', 'All customers', 'Everyone who ordered, newest first'], ['repeat', 'Most repeating customers', 'Ordered 2 or more times, most orders first'], ['valuable', 'Most valuable customers', 'Highest spend first'], ['recent', 'Recent customers', 'Ordered in the last 30 days'], ['lapsed', 'Lapsed customers', 'No order for 30 days or more, biggest spenders first']].map(([k, label, hint]) => (
+                    <Pressable key={k} disabled={!!fileBusy} onPress={async () => {
+                        setFileBusy(k);
+                        try { await downloadAndOpen({ path: customersExportPath, params: { kind: k }, filename: `customers-${k}.xlsx`, mime: XLSX, title: tr(label) }); setSheetOpen(false); } catch (e) { showToast(e?.safe ? e.message : apiError(e)); } finally { setFileBusy(''); }
+                    }} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderTopWidth: 0.5, borderTopColor: border, opacity: fileBusy && fileBusy !== k ? 0.4 : 1 }}>
+                        <View style={{ flex: 1 }}>
+                            <Text style={{ color: text, fontWeight: '800', fontSize: 15 }}>{tr(label)}</Text>
+                            <Text style={{ color: muted, fontSize: 12.5, marginTop: 2 }}>{tr(hint)}</Text>
+                        </View>
+                        <Ionicons name={fileBusy === k ? 'hourglass-outline' : 'download-outline'} size={22} color={primary} />
+                    </Pressable>
+                ))}
+            </Sheet>
             <FlatList
                 data={tag === 'blocked' ? blockedShown : (items || [])}
                 keyExtractor={(u) => String(u.id)}

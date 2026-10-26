@@ -1,5 +1,6 @@
 // Owner (and superadmin) customer tools. Mounted at /api/shop/customers (also through the superadmin shop mount).
 //   GET   /                       ?q=&page=&limit=    the customers of this shop (full phones: they are his own customers)
+//   GET   /export                 ?kind=all|repeat|valuable|recent|lapsed   the customers as an Excel file
 //   GET   /:userId                one customer with order numbers and Cash on delivery strikes
 //   PATCH /:userId                { name?, email?, notes? }   never the phone, never an owner or a rider
 //   PATCH /:userId/block          { blocked: true|false, reason?, orderId?, sessionId? }  stop (or allow again) this customer in this shop; logs them out at once
@@ -76,6 +77,15 @@ router.get('/', wrap(async (req, res) => {
 }));
 
 // who the customers are: tags (new, regular, loyal, vip, slipping, lost), usual time, favourite food
+// the customer sheet (Excel): ?kind=all|repeat|valuable|recent|lapsed
+router.get('/export', wrap(async (req, res) => {
+    const { build } = require('../services/customerExport');
+    const kind = String(req.query.kind || 'all');
+    res.set('Content-Type', require('../services/xlsxExport').XLSX_TYPE);
+    res.set('Content-Disposition', `attachment; filename="customers-${kind}.xlsx"`);
+    res.send(await build({ tenantId: req.tenant._id, kind }));
+}));
+
 router.get('/insights', wrap(async (req, res) => {
     const page = clamp(parseInt(req.query.page, 10) || 1, 1, 1000);
     const limit = clamp(parseInt(req.query.limit, 10) || 20, 1, 50);

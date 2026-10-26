@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../../components/common/kit';
 import { OwnerScreen, Card, Stat, Button, Empty, Sheet, Field } from '../../components/owners/ui';
 import { CalendarSheet, MonthSheet } from '../../components/owners/CalendarSheet';
+import { FunnelButton, FilterPopup } from '../../components/owners/FilterPopup';
 import { StatShimmer, ListShimmer } from '../../components/owners/shimmer';
 import { callPhone } from '../../components/owners/orderBits';
 import { fetchMoneyAll, moneyAllPath, apiError } from '../../api/owners/shopApi';
@@ -16,22 +17,6 @@ import { downloadAndOpen } from '../../utils/owners/files';
 import { showToast } from '../../components/customers/shop';
 import { PERIODS, KIND, KIND_CHIPS, HOW_CHIPS, DIRECTION_CHIPS, periodParams, periodTitle, dayKey, dayLabel, timeOf, fullStamp, subtitle } from '../../utils/owners/txRules';
 import { tr } from '../../i18n';
-
-function Pills({ options, value, onChange }) {
-    const { primary, onPrimary, text, border } = useBrand();
-    return (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }} style={{ marginBottom: 8 }}>
-            {options.map(([v, label]) => {
-                const on = v === value;
-                return (
-                    <Pressable key={String(v)} onPress={() => onChange(v)} style={{ marginRight: 8, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, borderWidth: 1, borderColor: on ? primary : border, backgroundColor: on ? primary : 'transparent' }}>
-                        <Text style={{ color: on ? onPrimary : text, fontWeight: '800', fontSize: 13 }}>{tr(label)}</Text>
-                    </Pressable>
-                );
-            })}
-        </ScrollView>
-    );
-}
 
 function Line({ label, value, onPress, strong }) {
     const { text, muted, primary, border } = useBrand();
@@ -93,6 +78,7 @@ export default function OwnerTxTabScreen() {
     const [more, setMore] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [sheet, setSheet] = useState('');   // 'day' | 'range' | 'month'
+    const [filtering, setFiltering] = useState(false);
     const [open, setOpen] = useState(null);
     const [busy, setBusy] = useState(false);
     const seq = useRef(0);
@@ -131,13 +117,19 @@ export default function OwnerTxTabScreen() {
         if (g && g.day === k) g.rows.push(x); else groups.push({ day: k, rows: [x] });
     }
     const t = data?.totals;
+    const filterCount = (direction ? 1 : 0) + (how ? 1 : 0) + (category ? 1 : 0);
+    const clearFilters = () => { setDirection(''); setHow(''); setCategory(''); };
 
     return (
         <OwnerScreen title={tr('Transactions')} onRefresh={refresh} refreshing={refreshing}>
-            <Pills options={PERIODS} value={period} onChange={choose} />
-            <Pills options={DIRECTION_CHIPS} value={direction} onChange={setDirection} />
-            <Pills options={HOW_CHIPS} value={how} onChange={setHow} />
-            <Pills options={KIND_CHIPS} value={category} onChange={setCategory} />
+            {/* one funnel button: the period and the other filters are in its popup, not in rows down the page */}
+            <View style={{ paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+                <View style={{ flex: 1, paddingRight: 10 }}>
+                    <Text style={{ color: text, fontWeight: '900', fontSize: 16 }} numberOfLines={1}>{tr(periodTitle(period, pick))}</Text>
+                    <Text style={{ color: muted, fontSize: 12.5, marginTop: 1 }} numberOfLines={1}>{filterCount ? [direction && DIRECTION_CHIPS.find((c) => c[0] === direction)?.[1], how && HOW_CHIPS.find((c) => c[0] === how)?.[1], category && KIND_CHIPS.find((c) => c[0] === category)?.[1]].filter(Boolean).map((x) => tr(x)).join(' · ') || tr('Filters on') : tr('No filters')}</Text>
+                </View>
+                <FunnelButton count={filterCount} onPress={() => setFiltering(true)} />
+            </View>
             <View style={{ paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
                 <View style={{ flex: 1 }}>
                     <Field value={qText} onChangeText={(v) => setQText(v.replace(/[^0-9#]/g, ''))} placeholder={tr('Search by order number')} keyboardType="number-pad" returnKeyType="search" onSubmitEditing={() => setQApplied(qText.replace('#', ''))} />
@@ -207,6 +199,13 @@ export default function OwnerTxTabScreen() {
                 </>
             ) : null}
 
+            <FilterPopup visible={filtering} onClose={() => setFiltering(false)} title={tr('Filter transactions')} activeCount={filterCount} onClear={clearFilters}
+                sections={[
+                    { key: 'period', title: 'When', options: PERIODS, value: period, onChange: (v) => { if (v === 'day' || v === 'range' || v === 'monthpick') setFiltering(false); choose(v); } },
+                    { key: 'dir', title: 'Money in or out', options: DIRECTION_CHIPS, value: direction, onChange: setDirection },
+                    { key: 'how', title: 'How it was paid', options: HOW_CHIPS, value: how, onChange: setHow },
+                    { key: 'kind', title: 'Type', options: KIND_CHIPS, value: category, onChange: setCategory },
+                ]} />
             <CalendarSheet visible={sheet === 'day'} mode="day" onClose={() => setSheet('')} onPick={(v) => picked('day', v)} />
             <CalendarSheet visible={sheet === 'range'} mode="range" onClose={() => setSheet('')} onPick={(v) => picked('range', v)} />
             <MonthSheet visible={sheet === 'month'} onClose={() => setSheet('')} onPick={(v) => picked('monthpick', v)} />

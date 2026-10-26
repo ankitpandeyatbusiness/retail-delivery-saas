@@ -4,7 +4,7 @@
 //   GET /refunds?status=pending|processing|processed|failed&page=1
 //   GET /disputes                                  chargebacks of this shop
 //   GET /transactions?from&to&category&status&page  every money movement of this shop: received, refunds, SMS top-ups, monthly bills
-//        add &format=csv to download the same list (at most 5000 rows) as a spreadsheet file
+//        add &format=xlsx to download the same list (at most 5000 rows) as an Excel file (coloured headings, widths that fit)
 //   GET /summary?year=2026                         the year month by month: money in, money out, kept, still to pay
 // All money is whole paise.
 const express = require('express');
@@ -105,10 +105,11 @@ router.get('/disputes', wrap(async (req, res) => {
 }));
 
 const EXPORT_MAX = 5000;
+const FILE_FORMATS = ['xlsx', 'csv'];   // an older app still asks for csv: it gets the Excel file too (there is no CSV any more)
 router.get('/transactions', wrap(async (req, res) => {
     const filter = ledger.parseQuery(req.query, { view: 'shop' });
     const tenantId = req.tenant._id;
-    if (req.query.format !== 'csv') return res.json(await ledger.list({ view: 'shop', tenantId, filter }));
+    if (!FILE_FORMATS.includes(req.query.format)) return res.json(await ledger.list({ view: 'shop', tenantId, filter }));
     // the download walks the pages, so one request never loads everything at once
     const first = await ledger.list({ view: 'shop', tenantId, filter: { ...filter, page: 1, limit: 100 } });
     let items = first.items;
@@ -117,19 +118,37 @@ router.get('/transactions', wrap(async (req, res) => {
         if (!next.items.length) break;
         items = items.concat(next.items);
     }
-    res.set('Content-Type', 'text/csv; charset=utf-8');
-    res.set('Content-Disposition', 'attachment; filename="transactions.csv"');
-    res.send(ledger.toCsv(items.slice(0, EXPORT_MAX), 'shop'));
+    const { buildSheet, XLSX_TYPE } = require('../services/xlsxExport');
+    const rows = items.slice(0, EXPORT_MAX).map((i) => {
+        const m = i.meta || {};
+        return {
+            at: i.at, type: i.label, dir: i.direction === 'in' ? 'in' : 'out', amount: (i.amountPaise || 0) / 100, status: i.status === 'pending' ? 'pending' : 'done',
+            orderNo: i.orderNo ?? '', ref: i.ref ?? '', details: [m.period && `period ${m.period}`, m.paymentMode, m.paymentRef, m.reason, m.method, m.note].filter(Boolean).join(' / '),
+        };
+    });
+    const columns = [
+        { header: 'Date and time (India)', key: 'at', kind: 'date' },
+        { header: 'Type', key: 'type' },
+        { header: 'In or out', key: 'dir', kind: 'status' },
+        { header: 'Amount (Rs)', key: 'amount', kind: 'money' },
+        { header: 'Status', key: 'status', kind: 'status' },
+        { header: 'Order no', key: 'orderNo', kind: 'center' },
+        { header: 'Reference', key: 'ref' },
+        { header: 'Details', key: 'details', kind: 'wide' },
+    ];
+    res.set('Content-Type', XLSX_TYPE);
+    res.set('Content-Disposition', 'attachment; filename="transactions.xlsx"');
+    res.send(await buildSheet({ title: 'Transactions', columns, rows }));
 }));
 
 // Every rupee in and out, online AND offline, with who, what, how and when (services/shopMoney.js): the Transactions tab.
-//   ?from=&to=  a range · ?date= one day · ?month=2026-10 · ?category= · ?direction=in|out · ?how=online|cash|upi · ?q=1042 (an order number) · ?page= · ?format=csv
+//   ?from=&to=  a range · ?date= one day · ?month=2026-10 · ?category= · ?direction=in|out · ?how=online|cash|upi · ?q=1042 (an order number) · ?page= · ?format=xlsx
 router.get('/all', wrap(async (req, res) => {
     const shopMoney = require('../services/shopMoney');
     const filter = shopMoney.parseQuery(req.query);
-    if (req.query.format !== 'csv') return res.json(await shopMoney.list({ tenantId: req.tenant._id, filter }));
+    if (!FILE_FORMATS.includes(req.query.format)) return res.json(await shopMoney.list({ tenantId: req.tenant._id, filter }));
     const all = await shopMoney.list({ tenantId: req.tenant._id, filter: { ...filter, page: 1, limit: 100000 } });
-    if (req.query.format === 'xlsx') {
+    {
         // a proper Excel file: coloured headings, widths that fit, money as numbers (services/xlsxExport.js)
         const { buildSheet, XLSX_TYPE } = require('../services/xlsxExport');
         const rows = all.items.slice(0, EXPORT_MAX).map((i) => ({
@@ -155,9 +174,6 @@ router.get('/all', wrap(async (req, res) => {
         res.set('Content-Disposition', 'attachment; filename="transactions.xlsx"');
         return res.send(await buildSheet({ title: 'Transactions', columns, rows }));
     }
-    res.set('Content-Type', 'text/csv; charset=utf-8');
-    res.set('Content-Disposition', 'attachment; filename="transactions.csv"');
-    res.send(shopMoney.toCsv(all.items.slice(0, EXPORT_MAX)));
 }));
 
 // A year month by month (India time). The list of years runs from the year the shop joined to this year.

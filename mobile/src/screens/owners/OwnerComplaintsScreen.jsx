@@ -1,5 +1,6 @@
 // Complaints from customers: New / In progress / Decided. Tap one to read it and answer.
 import React, { useCallback, useState } from 'react';
+import { FilterBar } from '../../components/owners/FilterPopup';
 import { View, Text, FlatList, Pressable } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useBrand } from '../../components/common/kit';
@@ -43,7 +44,7 @@ export default function OwnerComplaintsScreen() {
                 data={items || []}
                 keyExtractor={(c) => String(c.id)}
                 contentContainerStyle={{ paddingBottom: 32 }}
-                ListHeaderComponent={<View style={{ paddingHorizontal: 16, paddingBottom: 16 }}><Chips options={Object.entries(COMPLAINT_STATUS)} value={status} onChange={pick} style={{ marginTop: 0 }} /></View>}
+                ListHeaderComponent={<FilterBar title={tr('Filter complaints')} summary={tr(COMPLAINT_STATUS[status] || 'All')} activeCount={0} style={{ paddingBottom: 16 }} sections={[{ key: 'status', title: 'Status', options: Object.entries(COMPLAINT_STATUS), value: status, onChange: pick }]} />}
                 renderItem={({ item: c }) => (
                     <GlowBorder active={c.status !== 'resolved'} radius={18} style={{ marginHorizontal: 16, marginBottom: 12 }}>
                     <Card onPress={() => nav.navigate('OwnerComplaint', { complaint: c })} style={{ marginHorizontal: 0, marginBottom: 0 }}>
