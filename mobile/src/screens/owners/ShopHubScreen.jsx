@@ -8,9 +8,10 @@ import { useBrand } from '../../components/common/kit';
 import { searchMenu } from '../../utils/owners/menuSearch';
 import AppearanceSwitch from '../../components/owners/AppearanceSwitch';
 import { PageHeader, Card, Row, SectionTitle, Sheet, Button, Pill, Chips } from '../../components/owners/ui';
-import { Label } from '../../components/owners/menuBits';
+import { Label, Toggle } from '../../components/owners/menuBits';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
-import { fetchSettings, setBusy, apiError } from '../../api/owners/shopApi';
+import { setBusy, apiError } from '../../api/owners/shopApi';
+import { useMenuFlags } from '../../utils/owners/menuFlags';
 import { BUSY_EXTRA, BUSY_FOR } from '../../utils/owners/settingsRules';
 import { clockTime } from '../../utils/owners/orderFlow';
 import { showToast } from '../../components/customers/shop';
@@ -51,6 +52,10 @@ const WORDS = {
     LegalList: 'terms privacy policy agreement legal',
 };
 
+// Easy mode shows only these (the things a shop uses every day); everything else is one switch away.
+const EASY = new Set(['@busy', 'OwnerClosing', 'OwnerDineIn', 'OwnerCooks', 'OwnerWaiters', 'OwnerCustomers', 'OwnerComplaints', 'OwnerMessages', 'OwnerCategories', 'OwnerCoupons', 'OwnerMoney', 'OwnerMoneyHub', 'OwnerBillsHub', 'OwnerReportsHub', 'OwnerHours', 'OwnerShopSettings', 'AlertSettings', 'Soundbox', 'OwnerAppLock']);
+const EASY_APP = new Set(['My profile', 'Appearance', 'Language', 'See the customer app', 'Log out']);
+
 // [icon, title, subtitle, route]   ('@busy' opens the Busy mode sheet). The order is the order of a working day.
 const GROUPS = [
     ['Daily work', [
@@ -70,24 +75,21 @@ const GROUPS = [
     ]],
     ['Menu and offers', [
         ['list', 'Categories', 'Order, pictures and opening hours of each section', 'OwnerCategories'],
-        ['albums', 'Collections', 'Festival and combo strips on the home screen', 'OwnerCollections'],
         ['pricetag', 'Coupons', 'Discount codes', 'OwnerCoupons'],
-        ['images', 'Banners', 'Pictures on the home screen', 'OwnerBanners'],
-        ['image', 'Login and home pictures', 'The big pictures that slide at the top', 'OwnerHero'],
+        ['images', 'Home screen', 'Banners, festival strips and the big pictures at the top', 'OwnerShopFrontHub'],
     ]],
     ['Money', [
         ['wallet', 'Money', 'Your rent, SMS balance and top up', 'OwnerMoney'],
-        ['swap-vertical', 'Transactions and bills', 'Every payment, year by year and month by month', 'OwnerTransactions'],
-        ['trending-up', 'Business report', 'Progress charts, what customers like, tips', 'OwnerBusiness'],
-        ['trophy', 'Popular items', 'What sells most: last 7 days, 30 days, 3 months', 'OwnerPopular'],
+        ['swap-vertical', 'Transactions', 'Every rupee in and out, by month, refunds and chargebacks', 'OwnerMoneyHub'],
+        ['receipt', 'Bills and SMS', 'Your monthly bill and SMS balance', 'OwnerBillsHub'],
+        ['trending-up', 'Business report', 'Progress charts, popular items, tips', 'OwnerReportsHub'],
     ]],
     ['Shop settings', [
         ['time', 'Opening hours', 'Weekly hours and holidays', 'OwnerHours'],
-        ['navigate', 'Delivery area and fees', 'Pin, distance, delivery fee, packaging, tips', 'OwnerDelivery'],
-        ['bicycle', 'Delivery and cash rules', 'Riders, cash limits, cash for pickup orders', 'OwnerRiderRules'],
+        ['navigate', 'Delivery', 'Area, fees, riders, cash limits and pickup rules', 'OwnerDeliveryHub'],
         ['cash', 'Cancel and refund rules', 'Who bears the cost of a cancelled order', 'OwnerMoneyRules'],
         ['settings', 'Shop settings', 'Phone, address, SMS alerts', 'OwnerShopSettings'],
-        ['list-circle', 'Activity log', 'Who changed what', 'OwnerActivity'],
+        ['list-circle', 'Inbox and activity', 'Your messages, and who changed what', 'OwnerInboxHub'],
     ]],
     ['Alerts and security', [
         ['notifications', 'Alerts', 'Choose the notification, sound, voice and slider for each alert', 'AlertSettings'],
@@ -129,18 +131,16 @@ export function ShopMenu({ onGo }) {
     const logout = useAuthStore((s) => s.logout);
     const supportUnread = useOwnerStore((st) => st.supportUnread);
     const user = useAuthStore((st) => st.user);
-    const [busy, setBusyState] = useState(null);
+    const busy = useMenuFlags((s) => s.busy);
+    const setBusyState = useMenuFlags.getState().setBusy;
     const [busyOpen, setBusyOpen] = useState(false);
     const [langOpen, setLangOpen] = useState(false);
-    // what the platform switched on for this shop: Kitchen staff and Waiters are only listed when it did (hidden until it is known)
-    const [staffOn, setStaffOn] = useState({ kitchenOn: false, waiterOn: false });
+    // what the platform switched on for this shop: Kitchen staff and Waiters are only listed when it did. Kept between openings, so all rows are there at once
+    const kitchenOn = useMenuFlags((s) => s.kitchenOn);
+    const waiterOn = useMenuFlags((s) => s.waiterOn);
+    const staffOn = { kitchenOn, waiterOn };
     const lang = useLang((st) => st.lang);
-    useFocusEffect(useCallback(() => {
-        fetchSettings().then((x) => {
-            setBusyState(x.orders.busy || null);
-            if (x.orders.staff) setStaffOn({ kitchenOn: x.orders.staff.kitchenOn === true, waiterOn: x.orders.staff.waiterOn === true });
-        }).catch(() => { });
-    }, []));
+    useFocusEffect(useCallback(() => { useMenuFlags.getState().refresh(); }, []));
 
     const go = (route) => { if (onGo) onGo(); nav.navigate(route); };
     const customerView = () => {
@@ -155,8 +155,9 @@ export function ShopMenu({ onGo }) {
     };
 
     const [q, setQ] = useState('');
-    const { border, muted, text, surface } = useBrand();
-    const hidden = (route) => (route === 'OwnerCooks' && !staffOn.kitchenOn) || (route === 'OwnerWaiters' && !staffOn.waiterOn);
+    const { border, muted, text, surface, primary } = useBrand();
+    const easy = useMenuFlags((s) => s.easy);
+    const hidden = (route) => (route === 'OwnerCooks' && !staffOn.kitchenOn) || (route === 'OwnerWaiters' && !staffOn.waiterOn) || (easy && !EASY.has(route));
     // every row of the menu as one list (what is shown, and what the search looks through)
     const sections = useMemo(() => [
         ...GROUPS.map(([group, rows]) => [group, rows.filter((r) => !hidden(r[3])).map(([icon, title, subtitle, route]) => (route === '@busy'
@@ -172,12 +173,23 @@ export function ShopMenu({ onGo }) {
             { icon: 'log-out', title: 'Log out', subtitle: tr('Sign out of this phone'), group: 'Your app', words: 'logout log out sign out exit', color: error, act: out },
         ]],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    ], [busy, staffOn, supportUnread, user, lang]);
+    ], [busy, staffOn, supportUnread, user, lang, easy]);
     const entries = useMemo(() => sections.flatMap(([, rows]) => rows).filter((e) => !e.custom), [sections]);
     const found = q.trim() ? searchMenu(entries, q, (e) => `${e.title} ${tr(e.title)}`) : null;
 
     return (
         <View>
+            {/* Easy mode: only the things used every day */}
+            <Card>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Ionicons name="leaf" size={22} color={easy ? primary : muted} />
+                    <View style={{ flex: 1, marginHorizontal: 12 }}>
+                        <Text style={{ color: text, fontWeight: '900', fontSize: 15 }}>{tr('Easy mode')}</Text>
+                        <Text style={{ color: muted, fontSize: 12.5, marginTop: 1 }}>{easy ? tr('Showing only what you use every day') : tr('Show only what you use every day')}</Text>
+                    </View>
+                    <Toggle value={easy} onValueChange={(v) => useMenuFlags.getState().setEasy(v)} />
+                </View>
+            </Card>
             <View style={{ marginHorizontal: 16, marginTop: 6, marginBottom: 4, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: border, backgroundColor: surface, borderRadius: 14, paddingHorizontal: 12 }}>
                 <Ionicons name="search" size={18} color={muted} />
                 <TextInput
@@ -198,14 +210,14 @@ export function ShopMenu({ onGo }) {
                 </View>
             ) : (
                 <View>
-                    {sections.map(([group, rows]) => (rows.length ? (
+                    {sections.map(([group, rowsAll]) => { const rows = easy && group === 'Your app' ? rowsAll.filter((e) => EASY_APP.has(e.title)) : rowsAll; return (rows.length ? (
                         <View key={group}>
                             <SectionTitle title={tr(group)} />
                             <Card>
                                 {rows.map((e, i) => (e.custom ? <AppearanceSwitch key={e.title} /> : <Row key={e.title} icon={e.icon} title={tr(e.title)} subtitle={e.subtitle} color={e.color} right={e.right} last={i === rows.length - 1} onPress={e.act} />))}
                             </Card>
                         </View>
-                    ) : null))}
+                    ) : null); })}
                 </View>
             )}
 

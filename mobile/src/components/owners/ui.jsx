@@ -230,7 +230,14 @@ export function LiveToggle({ on, busy, onPress }) {
 }
 
 // The shop's logo opens the Shop hub; the switch pauses / resumes taking orders.
-export function OwnerHeader({ title }) {
+// A screen shown as a tab inside another (see TabsHost) leaves its own title bar out: the host has one.
+export const EmbeddedCtx = React.createContext(false);
+
+export function OwnerHeader(props) {
+    return React.useContext(EmbeddedCtx) ? null : <OwnerHeaderBase {...props} />;
+}
+
+function OwnerHeaderBase({ title }) {
     const nav = useNavigation();
     const insets = useSafeAreaInsets();
     const { text, muted, background, ok, error } = useBrand();
@@ -343,7 +350,11 @@ export function OwnerScreen({ title, children, onRefresh, refreshing, scroll = t
 }
 
 // A page that is opened from a tab (back arrow + title), for detail screens.
-export function PageHeader({ title, right }) {
+export function PageHeader(props) {
+    return React.useContext(EmbeddedCtx) ? null : <PageHeaderBase {...props} />;
+}
+
+function PageHeaderBase({ title, right }) {
     const nav = useNavigation();
     const insets = useSafeAreaInsets();
     const { text, background } = useBrand();

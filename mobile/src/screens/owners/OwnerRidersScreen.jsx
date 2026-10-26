@@ -16,6 +16,7 @@ import { ListShimmer } from '../../components/owners/shimmer';
 import { Image } from 'expo-image';
 import { LeavePanel } from '../../components/owners/RiderLeave';
 import { RiderBadge, BADGES } from '../../components/common/RiderBadge';
+import { useMenuFlags } from '../../utils/owners/menuFlags';
 import { tr } from '../../i18n';
 
 export function Avatar({ rider, size = 44 }) {
@@ -70,6 +71,7 @@ export default function OwnerRidersScreen() {
     const nav = useNavigation();
     const { primary, muted, text, ok, error, warn } = useBrand();
     const s = useRidersStore();
+    const easy = useMenuFlags((st) => st.easy);
     const access = useOwnerStore((st) => st.access);
     const [adding, setAdding] = useState(false);
 
@@ -108,8 +110,8 @@ export default function OwnerRidersScreen() {
 
                     <View style={{ flexDirection: 'row', paddingHorizontal: 12, marginBottom: 14 }}>
                         <Quick icon="map" label={tr('Live map')} onPress={() => nav.navigate('OwnerRiderMap')} />
-                        <Quick icon="stats-chart" label={tr('Performance')} onPress={() => nav.navigate('OwnerPerformance')} />
-                        <Quick icon="options" label={tr('Rules')} onPress={() => nav.navigate('OwnerRiderRules')} />
+                        {!easy ? <Quick icon="stats-chart" label={tr('Performance')} onPress={() => nav.navigate('OwnerPerformance')} /> : null}
+                        {!easy ? <Quick icon="options" label={tr('Rules')} onPress={() => nav.navigate('OwnerRiderRules')} /> : null}
                     </View>
 
                     {owing.length ? (
@@ -128,7 +130,7 @@ export default function OwnerRidersScreen() {
                         </>
                     ) : null}
 
-                    {s.riders.filter((r) => r.standing && r.standing.points > 0).length ? (
+                    {!easy && s.riders.filter((r) => r.standing && r.standing.points > 0).length ? (
                         <View>
                             <SectionTitle title={tr('Top riders (last 30 days)')} />
                             <Card>
@@ -154,10 +156,10 @@ export default function OwnerRidersScreen() {
                                 <Avatar rider={r} />
                                 <View style={{ flex: 1, minWidth: 0, marginLeft: 12 }}>
                                     <Text style={{ color: text, fontWeight: '900', fontSize: 16 }} numberOfLines={1}>{riderName(r)}</Text>
-                                    <Text style={{ color: muted, fontSize: 12, marginTop: 1 }}>{r.phone || ''}{r.ratingCount ? `  ·  ★ ${Number(r.ratingAvg).toFixed(1)} (${r.ratingCount})` : ''}{r.avgDeliveryMin ? `  ·  ${r.avgDeliveryMin} min avg` : ''}</Text>
+                                    <Text style={{ color: muted, fontSize: 12, marginTop: 1 }}>{r.phone || ''}{!easy && r.ratingCount ? `  ·  ★ ${Number(r.ratingAvg).toFixed(1)} (${r.ratingCount})` : ''}{!easy && r.avgDeliveryMin ? `  ·  ${r.avgDeliveryMin} min avg` : ''}</Text>
                                     <View style={{ flexDirection: 'row', marginTop: 6, flexWrap: 'wrap', gap: 6 }}>
                                         {!r.isActive ? <Pill label={tr('Switched off')} color={muted} /> : r.isOnline ? <Pill label={tr('Online')} color={ok} icon="radio-button-on" /> : <Pill label={tr('Offline')} color={muted} />}
-                                        {r.standing ? <RiderBadge badge={r.standing.badge} /> : null}
+                                        {r.standing && !easy ? <RiderBadge badge={r.standing.badge} /> : null}
                                         {r.leave?.onLeaveToday ? <Pill label={tr('On leave today')} color={warn} /> : null}
                                         {r.leave?.pending > 0 ? <Pill label={tr('Leave request')} color={warn} /> : null}
                                         {r.activeOrderCount > 0 ? <Pill label={tr('{activeOrderCount} on delivery', { activeOrderCount: r.activeOrderCount })} color={primary} icon="bicycle" /> : null}

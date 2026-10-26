@@ -16,6 +16,7 @@ import { istToday } from '../../utils/owners/txRules';
 import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
 import { ago } from '../../utils/owners/riderRules';
+import { useMenuFlags } from '../../utils/owners/menuFlags';
 import { tr } from '../../i18n';
 
 export const LEAVE_PILL = { pending: ['Waiting', 'warn'], approved: ['Approved', 'ok'], rejected: ['Not approved', 'error'], cancelled: ['Cancelled', 'muted'] };
@@ -26,6 +27,7 @@ export default function OwnerStaffPersonScreen() {
     const { userId } = useRoute().params || {};
     const { background, text, muted, ok, warn, error } = useBrand();
     const access = useOwnerStore((st) => st.access);
+    const easy = useMenuFlags((st) => st.easy);
     const [d, setD] = useState(null);
     const [gone, setGone] = useState(false);
     const [nameOpen, setNameOpen] = useState(false);
@@ -102,7 +104,7 @@ export default function OwnerStaffPersonScreen() {
                     {p.lastSeenAt ? <Text style={{ color: muted, fontSize: 12, marginTop: 10 }}>{tr('Last seen {ago}', { ago: ago(p.lastSeenAt) })}</Text> : null}
                     <View style={{ flexDirection: 'row', marginTop: 12 }}>
                         <View style={{ flex: 1, marginRight: 6 }}><Button label={tr('Call')} icon="call" iconOnly kind="ghost" onPress={() => callPhone(p.phone)} /></View>
-                        <View style={{ flex: 1, marginLeft: 6 }}><Button label={tr('WhatsApp')} icon="logo-whatsapp" iconOnly kind="ghost" onPress={() => whatsApp(p.phone)} /></View>
+                        {!easy ? <View style={{ flex: 1, marginLeft: 6 }}><Button label={tr('WhatsApp')} icon="logo-whatsapp" iconOnly kind="ghost" onPress={() => whatsApp(p.phone)} /></View> : null}
                     </View>
                 </Card>
 
@@ -110,7 +112,7 @@ export default function OwnerStaffPersonScreen() {
                 <Card>
                     <View style={{ flexDirection: 'row' }}>
                         <Stat label={tr('Today')} value={String(s.today.orders)} hint={`${s.today.dishes} ${tr('dishes')}`} />
-                        <Stat label={tr('This week')} value={String(s.week.orders)} hint={`${s.week.dishes} ${tr('dishes')}`} />
+                        {!easy ? <Stat label={tr('This week')} value={String(s.week.orders)} hint={`${s.week.dishes} ${tr('dishes')}`} /> : null}
                         <Stat label={tr(cook ? 'Avg cooking' : 'Avg wait')} value={s.avgMin != null ? `${s.avgMin} ${tr('min')}` : '—'} hint={tr(cook ? 'start to ready' : 'ready to served')} />
                     </View>
                     {!cook ? <Text style={{ color: muted, fontSize: 12.5, marginTop: 10 }}>{tr('Tables served today: {n}', { n: s.tables })}</Text> : null}
@@ -146,14 +148,14 @@ export default function OwnerStaffPersonScreen() {
                                     <Button label={tr('Not approve')} icon="close-circle" kind="danger" onPress={() => answerLeave(l, false)} style={{ flex: 1 }} />
                                 </View>
                             ) : null}
-                            {l.status === 'approved' && l.to >= today ? <View style={{ marginTop: 8 }}><Button label={tr('Take this leave away')} icon="close-circle" kind="danger" onPress={() => takeLeaveBack(l)} /></View> : null}
+                            {!easy && l.status === 'approved' && l.to >= today ? <View style={{ marginTop: 8 }}><Button label={tr('Take this leave away')} icon="close-circle" kind="danger" onPress={() => takeLeaveBack(l)} /></View> : null}
                         </View>
                     ))}
                     {d.holidays.filter((h) => !h.leave).map((h) => (
                         <View key={h.id} style={{ paddingVertical: 8, borderTopWidth: 0.5, borderTopColor: muted + '55' }}>
                             <Text style={{ color: text, fontWeight: '800' }}>{range(h.from, h.to)} · {h.days} {h.days === 1 ? tr('day') : tr('days')} <Text style={{ color: muted, fontWeight: '600' }}>({tr('day off they set')})</Text></Text>
                             {h.note ? <Text style={{ color: muted, marginTop: 2 }}>{h.note}</Text> : null}
-                            <View style={{ marginTop: 8 }}><Button label={tr('Remove this day off')} icon="close-circle" kind="danger" onPress={() => takeDayOffBack(h)} /></View>
+                            {!easy ? <View style={{ marginTop: 8 }}><Button label={tr('Remove this day off')} icon="close-circle" kind="danger" onPress={() => takeDayOffBack(h)} /></View> : null}
                         </View>
                     ))}
                 </Card>
@@ -167,7 +169,7 @@ export default function OwnerStaffPersonScreen() {
                         </View>
                         <Toggle value={p.isActive} onValueChange={setActive} disabled={access !== 'ok' && access !== 'paused'} />
                     </View>
-                    <View style={{ marginTop: 12 }}><Button label={tr('Change name')} icon="create" kind="ghost" onPress={() => { setName(p.name || ''); setNameOpen(true); }} /></View>
+                    {!easy ? <View style={{ marginTop: 12 }}><Button label={tr('Change name')} icon="create" kind="ghost" onPress={() => { setName(p.name || ''); setNameOpen(true); }} /></View> : null}
                     <View style={{ marginTop: 10 }}><Button label={tr('Remove from staff')} icon="trash" kind="danger" onPress={remove} /></View>
                 </Card>
             </ScrollView>

@@ -1,6 +1,7 @@
 // Home: the owner's control room. What needs him now comes first, then how the day is going, then the small things.
 // One call (GET /shop/dashboard) fills it; it refreshes whenever an order changes anywhere.
 import React, { useCallback, useEffect, useState } from 'react';
+import { useMenuFlags } from '../../utils/owners/menuFlags';
 import { View, Text } from 'react-native';
 import GlowBorder from '../../components/common/GlowBorder';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -120,7 +121,8 @@ export default function OwnerHomeScreen() {
     useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
     // the cooks and waiters (only the jobs the platform switched on for this shop are shown)
     const [staff, setStaff] = useState(null);
-    useFocusEffect(useCallback(() => { fetchStaff().then(setStaff).catch(() => { }); }, []));
+    const easy = useMenuFlags((s) => s.easy);
+    useFocusEffect(useCallback(() => { fetchStaff().then(setStaff).catch(() => { }); useMenuFlags.getState().refresh(); }, []));   // (the side menu's rows are ready before it opens)
     // an order changed anywhere: update the numbers (a moment later, so a burst of events is one refresh)
     useEffect(() => {
         let t = null;
@@ -285,6 +287,8 @@ export default function OwnerHomeScreen() {
                     <Stat label={tr('Delivered')} value={String(d?.today.orders ?? '–')} />
                     <Stat label={tr('Average order')} value={money(d?.today.averageOrderValue)} />
                 </View>
+                {/* Easy mode keeps the three numbers; the comparison, the hour chart and the extra counts are one switch away */}
+                {!easy ? (<>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
                     {change === null ? (
                         <Text style={{ color: muted, fontSize: 12 }}>{d ? tr('No sales yesterday at this time to compare with') : ''}</Text>
@@ -300,10 +304,11 @@ export default function OwnerHomeScreen() {
                         <Stat label={tr('Time to accept')} value={flow.spanText(d.today.averageAcceptSeconds)} />
                     </View>
                 ) : null}
+                </>) : null}
             </Card>
 
             {/* the week in one line, and the way to the full report */}
-            {d ? (
+            {d && !easy ? (
                 <Card onPress={() => nav.navigate('OwnerBusiness', { range: '7' })}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Ionicons name="trending-up" size={24} color={primary} />
@@ -379,7 +384,7 @@ export default function OwnerHomeScreen() {
                 />
             </Card>
 
-            {live?.feed?.length ? (
+            {!easy && live?.feed?.length ? (
                 <>
                     <SectionTitle title={tr('Latest')} />
                     <Card>

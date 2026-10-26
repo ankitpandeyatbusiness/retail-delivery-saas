@@ -12,6 +12,7 @@ import { AddSheet, LeaveRequests } from './OwnerStaffScreen';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { fetchStaff, updateStaff, saveSettings, fetchSettings, apiError } from '../../api/owners/shopApi';
 import { showToast } from '../../components/customers/shop';
+import { useMenuFlags } from '../../utils/owners/menuFlags';
 import { tr } from '../../i18n';
 
 const JOB = {
@@ -63,6 +64,7 @@ function Group({ role }) {
     const avgMin = mins.length ? Math.round(mins.reduce((a, b) => a + b, 0) / mins.length) : null;
     const total = (data?.items || []).length;
     const full = total >= (rules.max || 0);
+    const easy = useMenuFlags((st) => st.easy);
 
     const toggle = async (p, v) => {
         const set = (x) => setData((d) => ({ ...d, items: d.items.map((i) => (i.userId === p.userId ? { ...i, isActive: x } : i)) }));
@@ -81,20 +83,20 @@ function Group({ role }) {
                         <View style={{ flexDirection: 'row' }}>
                             <Stat label={tr('On duty now')} value={`${onDuty} ${tr('of')} ${active.length}`} color={onDuty ? ok : text} />
                             <Stat label={tr(j.did)} value={String(today)} hint={tr(j.unit)} />
-                            <Stat label={tr(j.didWeek)} value={String(week)} hint={tr(j.unit)} />
+                            {!easy ? <Stat label={tr(j.didWeek)} value={String(week)} hint={tr(j.unit)} /> : null}
                         </View>
-                        {avgMin != null ? <Text style={{ color: muted, fontSize: 12.5, marginTop: 10 }}>{tr(j.avg)}: {avgMin} {tr('min')}</Text> : null}
+                        {!easy && avgMin != null ? <Text style={{ color: muted, fontSize: 12.5, marginTop: 10 }}>{tr(j.avg)}: {avgMin} {tr('min')}</Text> : null}
                     </Card>
 
                     <LeaveRequests role={role} onChanged={load} />
 
                     {role === 'kitchen' ? (
                         <>
-                        <Card>
+                        {!easy ? <Card>
                             <Text style={{ color: text, fontWeight: '900', fontSize: 15 }}>{tr('A new order the cook does not touch goes to his queue after')}</Text>
                             <Text style={{ color: muted, fontSize: 12.5, marginTop: 2 }}>{tr('It stops ringing, and the cook is told it is in the queue. He can also tap Add to queue himself.')}</Text>
                             <Chips options={[[30, '30 s'], [60, '60 s'], [90, '90 s'], [120, '2 min'], [180, '3 min']]} value={rules.queueSec || 60} onChange={async (v) => { try { await saveSettings({ orders: { kitchenQueueSec: v } }); setData((d) => ({ ...d, rules: { ...d.rules, queueSec: v } })); showToast(tr('Saved')); } catch (e) { showToast(apiError(e)); } }} />
-                        </Card>
+                        </Card> : null}
                         <Card>
                             <Text style={{ color: text, fontWeight: '900', fontSize: 15 }}>{tr('When you tell a customer about a kitchen problem')}</Text>
                             <Text style={{ color: muted, fontSize: 12.5, marginTop: 2 }}>{tr('Offer a discount on a new order to keep the customer? This is the choice you remembered.')}</Text>
@@ -111,7 +113,7 @@ function Group({ role }) {
                                 <PersonAvatar person={p} />
                                 <View style={{ flex: 1, minWidth: 0, marginLeft: 12 }}>
                                     <Text style={{ color: text, fontWeight: '900', fontSize: 16 }} numberOfLines={1}>{p.name || p.phone}</Text>
-                                    <Text style={{ color: muted, fontSize: 12, marginTop: 1 }} numberOfLines={1}>{p.phone}{p.stats ? `  ·  ${tr(j.did).toLowerCase()} ${p.stats.today.orders}` : ''}{p.stats?.avgMin != null ? `  ·  ${p.stats.avgMin} ${tr('min avg')}` : ''}</Text>
+                                    <Text style={{ color: muted, fontSize: 12, marginTop: 1 }} numberOfLines={1}>{p.phone}{p.stats ? `  ·  ${tr(j.did).toLowerCase()} ${p.stats.today.orders}` : ''}{!easy && p.stats?.avgMin != null ? `  ·  ${p.stats.avgMin} ${tr('min avg')}` : ''}</Text>
                                     <View style={{ flexDirection: 'row', marginTop: 6, flexWrap: 'wrap' }}>
                                         <DutyPills p={p} />
                                         {p.isActive && !p.panelOn ? <View style={{ marginLeft: 6 }}><Pill label={tr('Screen is off')} color={muted} /></View> : null}
@@ -123,7 +125,7 @@ function Group({ role }) {
                     ))}
                     <View style={{ paddingHorizontal: 16, marginTop: 4 }}>
                         <Button label={full ? tr('Staff limit reached ({n})', { n: rules.max }) : tr(role === 'kitchen' ? 'Add a cook' : 'Add a waiter')} icon="person-add" disabled={full} onPress={() => setAdding(true)} />
-                        <Text style={{ color: muted, fontSize: 12.5, textAlign: 'center', marginTop: 8 }}>{tr('{n} of {max} used', { n: total, max: rules.max })}</Text>
+                        {!easy ? <Text style={{ color: muted, fontSize: 12.5, textAlign: 'center', marginTop: 8 }}>{tr('{n} of {max} used', { n: total, max: rules.max })}</Text> : null}
                     </View>
                 </>
             ) : null}

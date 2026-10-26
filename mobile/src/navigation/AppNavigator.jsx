@@ -112,6 +112,7 @@ import OwnerProfileScreen from '../screens/owners/OwnerProfileScreen';
 import OwnerPopularScreen from '../screens/owners/OwnerPopularScreen';
 import OwnerPayScreen from '../screens/owners/OwnerPayScreen';
 import OwnerTransactionsScreen from '../screens/owners/OwnerTransactionsScreen';
+import { OwnerMoneyHub, OwnerShopFrontHub, OwnerBillsHub, OwnerDeliveryHub, OwnerReportsHub, OwnerInboxHub } from '../screens/owners/OwnerHubs';
 import OwnerMonthScreen from '../screens/owners/OwnerMonthScreen';
 import { FloatingTabBar, slideScenes, TabGlyph, gate, holdGate, releaseGate, bindGateNavigation } from './tabKit';
 
@@ -395,6 +396,12 @@ export default function AppNavigator() {
                     <Stack.Screen name="OwnerCategories" component={OwnerCategoriesScreen} />
                     <Stack.Screen name="OwnerCategory" component={OwnerCategoryScreen} />
                     <Stack.Screen name="OwnerCollections" component={OwnerCollectionsScreen} />
+                    <Stack.Screen name="OwnerMoneyHub" component={OwnerMoneyHub} />
+                    <Stack.Screen name="OwnerShopFrontHub" component={OwnerShopFrontHub} />
+                    <Stack.Screen name="OwnerBillsHub" component={OwnerBillsHub} />
+                    <Stack.Screen name="OwnerDeliveryHub" component={OwnerDeliveryHub} />
+                    <Stack.Screen name="OwnerReportsHub" component={OwnerReportsHub} />
+                    <Stack.Screen name="OwnerInboxHub" component={OwnerInboxHub} />
                     <Stack.Screen name="OwnerCollection" component={OwnerCollectionScreen} />
                 </Stack.Navigator>
             </NavigationContainer>
