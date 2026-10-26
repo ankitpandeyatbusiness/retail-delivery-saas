@@ -32,7 +32,7 @@ const FILTERS = {
     cancelled: (o) => o.status === 'cancelled',
 };
 const PAY = { cod: 'Cash on delivery', upi: 'UPI', card: 'Card', wallet: 'Wallet' };
-const FLOW_DELIVERY = ['placed', 'accepted', 'preparing', 'out_for_delivery', 'delivered'];
+const FLOW_DELIVERY = ['placed', 'accepted', 'preparing', 'ready', 'out_for_delivery', 'delivered'];
 const FLOW_OTHER = ['placed', 'accepted', 'preparing', 'ready', 'delivered'];
 const STEP = {
     placed: 'Order placed', accepted: 'Accepted', preparing: 'Preparing', ready: 'Ready for pickup',
@@ -146,8 +146,9 @@ function LiveOrderCard({ o, onOpen }) {
     const { primaryLight, primaryDark, onPrimary, primary } = useBrand();
     const delivery = o.orderType === 'delivery';
     const flow = delivery ? FLOW_DELIVERY : FLOW_OTHER;
-    const idx = Math.max(0, flow.indexOf(o.status));
-    const lab = (st) => (o.orderType === 'dine_in' && { ready: 'Coming to your table', delivered: 'Served' }[st]) || STEP[st];
+    const shown = shownStatus(o);
+    const idx = Math.max(0, flow.indexOf(shown));
+    const lab = (st) => (o.orderType === 'dine_in' && { ready: 'Coming to your table', delivered: 'Served' }[st]) || (delivery && st === 'ready' && 'Packed, waiting for the delivery partner') || STEP[st];
     const pct = (idx + 1) / flow.length;
     const fill = useRef(new Animated.Value(pct)).current;
     const beat = useRef(new Animated.Value(0)).current;
@@ -172,9 +173,9 @@ function LiveOrderCard({ o, onOpen }) {
                                 <Animated.View style={[s.beat, { opacity: beat.interpolate({ inputRange: [0, 1], outputRange: [0.7, 0] }), transform: [{ scale: beat.interpolate({ inputRange: [0, 1], outputRange: [1, 2.6] }) }] }]} />
                                 <View style={s.beatDot} />
                             </View>
-                            <Text style={[s.liveTagTxt, { color: onPrimary }]}>{tr('LIVE · ORDER #{orderNo}', { orderNo: o.orderNo })}</Text>
+                            <Text style={[s.liveTagTxt, { color: onPrimary }]}>{tr('LIVE · ORDER #{orderNo}', { orderNo: o.orderNo })} · {(o.orderType === 'delivery' ? tr('Delivery') : o.orderType === 'dine_in' ? tr('Dine in') : tr('Pickup')).toUpperCase()}</Text>
                         </View>
-                        <Text style={[s.liveStep, { color: onPrimary }]} numberOfLines={1}>{lab(o.status) || tr('In progress')}</Text>
+                        <Text style={[s.liveStep, { color: onPrimary }]} numberOfLines={1}>{lab(shown) || tr('In progress')}</Text>
                         <Text style={[s.liveEta, { color: onPrimary }]} numberOfLines={1}>{eta}</Text>
                     </View>
                     <View style={s.liveIc}>
@@ -219,7 +220,12 @@ function OrderCard({ o, index, animate, onOpen, onCancel, onReorder, onInvoice, 
                     <View style={s.row}>
                         <View style={{ flex: 1, paddingRight: 8 }}>
                             <Text style={[s.no, { color: text }]}>{tr('Order #{orderNo}', { orderNo: o.orderNo })}</Text>
-                            <Text style={[s.date, { color: muted }]}>{fmtDate(o.createdAt)} · {o.orderType === 'delivery' ? tr('Delivery') : o.orderType === 'dine_in' ? tr('Dine in') : tr('Pickup')}</Text>
+                            <Text style={[s.date, { color: muted }]}>{fmtDate(o.createdAt)}</Text>
+                            {/* which kind of order this was, in words and an icon, so the list is clear at a glance */}
+                            <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', marginTop: 5, paddingHorizontal: 9, paddingVertical: 3, borderRadius: 99, backgroundColor: tint(primary) }}>
+                                <Ionicons name={o.orderType === 'delivery' ? 'bicycle' : o.orderType === 'dine_in' ? 'restaurant' : 'bag-handle'} size={13} color={primary} style={{ marginRight: 4 }} />
+                                <Text style={{ color: primary, fontWeight: '800', fontSize: 12 }}>{o.orderType === 'delivery' ? tr('Delivery') : o.orderType === 'dine_in' ? tr('Dine in') : tr('Pickup')}</Text>
+                            </View>
                         </View>
                         <StatusPill status={shownStatus(o)} type={o.orderType} />
                     </View>

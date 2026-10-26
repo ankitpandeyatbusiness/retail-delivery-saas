@@ -80,7 +80,7 @@ function Row({ k, v, green, bold }) {
 }
 
 function Step({ st, k, idx, last, hist, live, dine, pack }) {
-    const { text, muted, surface, border, ok } = useBrand();
+    const { text, muted, surface, border, ok, primary } = useBrand();
     const done = k <= idx;
     const cur = k === idx && live;
     const a = useRef(new Animated.Value(done ? 1 : 0)).current;
@@ -95,8 +95,8 @@ function Step({ st, k, idx, last, hist, live, dine, pack }) {
         return () => loop.stop();
     }, [cur]);
     const dotBg = a.interpolate({ inputRange: [0, 1], outputRange: [surface, ok] });
-    const dotBd = a.interpolate({ inputRange: [0, 1], outputRange: [muted, ok] });
-    const barC = l.interpolate({ inputRange: [0, 1], outputRange: [border, ok] });
+    const dotBd = a.interpolate({ inputRange: [0, 1], outputRange: [primary, ok] });   // steps still to come are outlined in the brand colour, not grey
+    const barC = l.interpolate({ inputRange: [0, 1], outputRange: [tint(primary), ok] });
     return (
         <View style={s.step}>
             <View style={s.rail}>
@@ -106,7 +106,7 @@ function Step({ st, k, idx, last, hist, live, dine, pack }) {
                 </View>
                 {!last ? <Animated.View style={[s.bar, { backgroundColor: barC }]} /> : null}
             </View>
-            <Animated.View style={{ flex: 1, paddingBottom: 16, opacity: a.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) }}>
+            <Animated.View style={{ flex: 1, paddingBottom: 16, opacity: a.interpolate({ inputRange: [0, 1], outputRange: [0.65, 1] }) }}>
                 <Text style={[s.stepTxt, { color: text, fontWeight: cur ? '900' : '700' }]}>{(dine && DINE_STEP[st]) || (pack && PACK_STEP[st]) || STEP[st]}</Text>
                 {done && hist?.at ? <Text style={[s.stepTime, { color: muted }]}>{fmt(hist.at)}</Text> : null}
             </Animated.View>

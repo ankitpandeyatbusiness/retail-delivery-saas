@@ -28,12 +28,12 @@ export const itemsText = (o) => (o.items || []).map((l) => `${l.quantity} × ${l
 export const shownStatus = (o) => (o.orderType === 'delivery' && o.status === 'preparing' && o.kitchen?.readyAt ? 'ready' : o.status);
 
 export function StatusPill({ status, type }) {
-    const { primary, ok, okSoft, neutralSoft, muted } = useBrand();
+    const { primary, ok, okSoft, error, errorSoft } = useBrand();
     const done = status === 'delivered';
     const gone = status === 'cancelled';
     return (
-        <View style={[s.pill, { backgroundColor: done ? okSoft : gone ? neutralSoft : tint(primary) }]}>
-            <Text numberOfLines={1} style={[s.pillTxt, { color: done ? ok : gone ? muted : primary }]}>
+        <View style={[s.pill, { backgroundColor: done ? okSoft : gone ? errorSoft : tint(primary) }]}>
+            <Text numberOfLines={1} style={[s.pillTxt, { color: done ? ok : gone ? error : primary }]}>
                 {(type === 'dine_in' && DINE_LABEL[status]) || (type === 'delivery' && status === 'ready' && 'Packed') || STATUS_LABEL[status] || status}
             </Text>
         </View>

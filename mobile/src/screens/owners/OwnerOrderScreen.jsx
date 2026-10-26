@@ -9,7 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../../components/common/kit';
 import { PageHeader, Card, SectionTitle, Button, Pill, Empty, money } from '../../components/owners/ui';
 import {
-    StatusPill, PayBadge, Countdown, RiderSheet, useOrderActions, callPhone, whatsApp, openMap, addressLine, openInvoice,
+    StatusPill, useToneColors, PayBadge, Countdown, RiderSheet, useOrderActions, callPhone, whatsApp, openMap, addressLine, openInvoice,
 } from '../../components/owners/orderBits';
 import { fetchOrder, fetchDelivery, fetchRiders, undoOrderStep, apiError } from '../../api/owners/shopApi';
 import { showToast } from '../../components/customers/shop';
@@ -30,13 +30,13 @@ function timeline(o) {
     const k = o.kitchen || {};
     const d = o.delivery || {};
     const by = (h) => (h.byType ? (h.byType === 'owner' ? 'you' : h.byType === 'staff' ? (h.byLabel || 'kitchen') : h.byType) : '');
-    const rows = (o.statusHistory || []).map((h) => ({ label: flow.statusLabel(h.status), at: h.at, by: by(h), note: h.note }));
+    const rows = (o.statusHistory || []).map((h) => ({ label: flow.statusLabel(h.status), at: h.at, by: by(h), note: h.note, tone: flow.statusTone(h.status) }));
     if (k.queuedAt) rows.push({ label: 'Added to the cook\'s queue', at: k.queuedAt, by: k.queuedBy === 'auto' ? 'itself' : k.queuedBy });
     if (k.startedAt) rows.push({ label: 'Cooking started', at: k.startedAt, by: k.startedByName });
     if (k.readyAt) rows.push({ label: 'Food is ready', at: k.readyAt, by: k.readyByName });
     if (d.assignedAt) rows.push({ label: 'Delivery partner assigned', at: d.assignedAt });
     if (d.arrivedAt) rows.push({ label: 'Delivery partner arrived', at: d.arrivedAt });
-    if (d.pinSkipped?.at) rows.push({ label: 'Delivered without the PIN', at: d.pinSkipped.at });
+    if (d.pinSkipped?.at) rows.push({ label: 'Delivered without the PIN', at: d.pinSkipped.at, tone: 'warn' });
     return rows.filter((r) => r.at).sort((a, b) => new Date(b.at) - new Date(a.at));
 }
 
@@ -70,6 +70,7 @@ function riderStatusText(delivery, rider) {
 export default function OwnerOrderScreen() {
     const { id } = useRoute().params || {};
     const { background, text, muted, error, ok, accent } = useBrand();
+    const tones = useToneColors();
     const [order, setOrder] = useState(null);
     const [delivery, setDelivery] = useState(null);
     const [riders, setRiders] = useState([]);
@@ -350,11 +351,12 @@ export default function OwnerOrderScreen() {
 
                 <SectionTitle title={tr('What happened')} />
                 <Card>
+                    {/* every step has its colour (green for good news, amber for a wait, red for a problem), never grey */}
                     {timeline(order).map((h, i, arr) => (
                         <View key={i} style={{ flexDirection: 'row', paddingBottom: i === arr.length - 1 ? 0 : 12 }}>
                             <View style={{ alignItems: 'center', marginRight: 10 }}>
-                                <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: i === 0 ? ok : muted, marginTop: 4 }} />
-                                {i !== arr.length - 1 ? <View style={{ flex: 1, width: 2, backgroundColor: alpha(muted, 0.3), marginTop: 2 }} /> : null}
+                                <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: tones[h.tone] || ok, marginTop: 4 }} />
+                                {i !== arr.length - 1 ? <View style={{ flex: 1, width: 2, backgroundColor: alpha(tones[h.tone] || ok, 0.35), marginTop: 2 }} /> : null}
                             </View>
                             <View style={{ flex: 1 }}>
                                 <Text style={{ color: text, fontWeight: '800' }}>{tr(h.label)}</Text>
