@@ -8,6 +8,7 @@ import { useBrand, alpha } from '../../components/common/kit';
 import { PageHeader, Card, SectionTitle, Button, Pill } from '../../components/owners/ui';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { useTableBill } from '../../store/customers/useTableBill';
+import { useAuthStore } from '../../store/common/useAuthStore';
 import WaitTimer, { ServedIn, useTick, clock as mmss } from '../../components/common/WaitTimer';
 import { CallCard, TipCard, SplitCard } from '../../components/customers/TableExtras';
 import { nudgeTable, cancelOrder, askCancelOrder, freeMyTable } from '../../api/customers/shopApi';
@@ -26,6 +27,8 @@ export default function TableBillScreen() {
     const { background, text, muted, ok, warn, border } = useBrand();
     const bill = useTableBill((s) => s.bill);
     const loading = useTableBill((s) => s.loading);
+    const user = useAuthStore((s) => s.user);
+    const me = String(user?.id || user?._id || '');
     const [busy, setBusy] = useState(false);
     const [barH, setBarH] = useState(0);   // the real height of the buttons at the bottom: the list stops just above them, with no empty gap
     // read again every 15 seconds while he looks at it, so a served round stops showing "taking too long" and its cancel link by itself
@@ -82,6 +85,7 @@ export default function TableBillScreen() {
         );
     }
     const asked = bill.status === 'bill_asked';
+    const shared = (bill.shares || []).length > 1;   // more than one guest on this bill: the rounds say whose they are
     // he may remind the kitchen 3 minutes after ordering, then once every 10 minutes (the server enforces the same)
     const live = bill.rounds.filter((r) => ['placed', 'accepted', 'preparing', 'ready'].includes(r.status));
     const oldest = live.length ? Math.min(...live.map((r) => new Date(r.times?.placed || r.at).getTime())) : 0;
@@ -123,11 +127,11 @@ export default function TableBillScreen() {
 
                 {bill.rounds.map((r, i) => (
                     <View key={r.id} style={[{ marginBottom: 14 }, r.paid ? { opacity: 0.5 } : null]}>
-                        <SectionTitle title={tr('Round {n} · {time}', { n: i + 1, time: clock(r.at) })} />
+                        <SectionTitle title={tr('Round {n} · {time}', { n: i + 1, time: clock(r.at) }) + (shared && r.by?.name ? ` · ${r.by.id === me ? tr('You') : r.by.name}` : '')} />
                         <Card>
                             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
                                 <Pill label={tr(STATE[r.status] || r.status)} color={r.status === 'delivered' ? ok : warn} />
-                                {r.paid ? <View style={{ marginLeft: 6 }}><Pill label={tr('Paid')} color={ok} /></View> : <View style={{ marginLeft: 6 }}><Pill label={tr('Not paid')} color={warn} /></View>}
+                                {r.paid ? <View style={{ marginLeft: 6 }}><Pill label={shared && r.paidBy?.name ? `${tr('Paid')} · ${r.paidBy.id === me ? tr('You') : r.paidBy.name}` : tr('Paid')} color={ok} /></View> : <View style={{ marginLeft: 6 }}><Pill label={tr('Not paid')} color={warn} /></View>}
                             </View>
                             {r.status === 'delivered' ? <ServedIn times={r.times} style={{ marginBottom: 6 }} /> : <><QueueLine q={r.queue} compact /><WaitTimer since={r.times?.placed || r.at} style={{ marginBottom: 6 }} /></>}
                             {r.items.map((it, k) => (

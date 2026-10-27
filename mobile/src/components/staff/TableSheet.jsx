@@ -87,10 +87,11 @@ export default function TableSheet({ session, onClose, onPaid }) {
                                 return (
                                     <View key={r.id} style={{ paddingVertical: 10, borderBottomWidth: 0.5, borderBottomColor: border }}>
                                         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                                            <Text style={{ color: text, fontWeight: '900', flex: 1 }}>#{r.orderNo}</Text>
+                                            <Text style={{ color: text, fontWeight: '900', flex: 1 }} numberOfLines={1}>#{r.orderNo}{r.by?.name ? ` · ${r.by.name}` : ''}</Text>
                                             <Pill label={tr(label)} color={c} />
                                             <Text style={{ color: text, fontWeight: '900', marginLeft: 10, minWidth: 64, textAlign: 'right' }}>{money(r.total)}{r.paid ? ' ✓' : ''}</Text>
                                         </View>
+                                        {r.paid ? <Text style={{ color: ok, fontWeight: '800', fontSize: 12.5, marginBottom: 2 }}>{tr('Paid')}{r.paidBy?.name ? ` · ${r.paidBy.name}` : ''}{r.paidVia ? ` · ${tr(r.paidVia === 'online' ? 'Online' : r.paidVia === 'upi' ? 'UPI' : 'Cash')}` : ''}</Text> : null}
                                         {sib.length ? <Pressable onPress={() => setMoving({ kind: 'move', round: r })} hitSlop={8} style={{ alignSelf: 'flex-start', paddingVertical: 4 }}><Text style={{ color: primary, fontWeight: '800', fontSize: 12.5 }}>{tr('Wrong bill? Move this round')}</Text></Pressable> : null}
                                         {r.items.map((l, i) => (
                                             <Text key={i} style={{ color: muted, fontWeight: '600' }}>{l.quantity}× {l.name}{l.addons?.length ? ` (${l.addons.join(', ')})` : ''}</Text>

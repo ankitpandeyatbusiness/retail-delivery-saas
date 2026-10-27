@@ -25,6 +25,12 @@ export default function BillSheet({ table, onClose, onDone }) {
     const [shareOf, setShareOf] = useState(null);   // one guest: { userId, name, due }
     const [moving, setMoving] = useState(null);   // shared tables: { kind: 'move', round } | { kind: 'merge' }
     useEffect(() => { setBill(null); if (table?.sessionId) fetchDineBill(table.sessionId).then(setBill).catch((e) => showToast(apiError(e))); }, [table?.sessionId]);
+    // while the box is open it keeps itself up to date: a guest paying from his phone shows here within seconds
+    useEffect(() => {
+        if (!table?.sessionId) return undefined;
+        const t = setInterval(() => { fetchDineBill(table.sessionId).then(setBill).catch(() => { }); }, 5000);
+        return () => clearInterval(t);
+    }, [table?.sessionId]);
     // cancel one round that is still in the kitchen: the guest is told why (the reason, and anything the owner writes)
     const drop = async (code, note) => {
         setDropBusy(true);
@@ -121,11 +127,12 @@ export default function BillSheet({ table, onClose, onDone }) {
                     </View>
                     {bill.tip > 0 ? <Text style={{ color: muted, fontSize: 12.5, marginTop: 4 }}>{tr('Includes a tip of {t} for the waiter', { t: rs(bill.tip) })}</Text> : null}
                     {bill.kitchenBusy ? <Text style={{ color: warn, fontSize: 12.5, marginTop: 8 }}>{tr('Some dishes are still in the kitchen. Serve them before you take the payment.')}</Text> : null}
-                    <View style={{ flexDirection: 'row', marginTop: 14 }}>
+                    {bill.status === 'closed' ? <Text style={{ color: ok, fontWeight: '900', marginTop: 12 }}>{tr('This table is fully paid and free.')}</Text> : null}
+                    <View style={{ flexDirection: 'row', marginTop: 14, ...(bill.status === 'closed' ? { display: 'none' } : {}) }}>
                         <Button label={tr('Cash Paid')} icon="cash" busy={busy === 'cash'} disabled={!!busy} onPress={() => settle('cash')} style={{ flex: 1, marginRight: 8 }} />
                         <Button label={tr('Online Paid')} icon="card" busy={busy === 'upi'} disabled={!!busy} onPress={() => settle('upi')} style={{ flex: 1 }} />
                     </View>
-                    <Button label={tr('He left without paying')} icon="walk" kind="ghost" disabled={!!busy} onPress={leave} style={{ marginTop: 10 }} />
+                    {bill.status === 'closed' ? null : <Button label={tr('He left without paying')} icon="walk" kind="ghost" disabled={!!busy} onPress={leave} style={{ marginTop: 10 }} />}
                 </View>
             )}
             <Sheet visible={!!shareOf} onClose={() => setShareOf(null)} title={shareOf ? `${shareOf.name || tr('Guest')}: ${rs(shareOf.due)}` : ''}>
