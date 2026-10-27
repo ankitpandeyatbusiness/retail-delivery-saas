@@ -13,6 +13,7 @@ const lineSchema = new Schema({
     unitPrice: { type: Number, required: true, min: 0 },   // base + chosen options
     lineTotal: { type: Number, required: true, min: 0 },
     gstRate: Number,
+    gstInclusive: Boolean,   // this line's GST was inside its price (true) or added on top (false); saved with the order
     tax: { type: Number, default: 0 },
     selections: [{
         _id: false,
@@ -47,7 +48,9 @@ const orderSchema = new Schema({
         pointsDiscount: { type: Number, default: 0 },
         deliveryFee: { type: Number, default: 0 },
         packagingCharge: { type: Number, default: 0 },
-        taxMode: String,          // none / inclusive / exclusive
+        taxMode: String,          // none / inclusive / exclusive / mixed (some dishes include GST, some add it on top)
+        taxOnTop: { type: Number, default: 0 },     // the part of `tax` that was added to the total
+        taxIncluded: { type: Number, default: 0 },  // the part of `tax` that was already inside the prices
         taxPercent: Number,
         tax: { type: Number, default: 0 },
         tip: { type: Number, default: 0 },

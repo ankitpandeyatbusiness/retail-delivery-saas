@@ -116,3 +116,60 @@ describe('one GST for every shop', () => {
         assert.equal(o.pricing.tax, 5);
     });
 });
+
+describe('GST inclusive switch on each dish', () => {
+    const dish = (w, extra) => Product.create({ tenantId: w.tenant._id, categoryId: w.product.categoryId, name: 'Dish', price: 100, isVeg: true, ...extra });
+    const order = (w, products, table = '4') => request(app).post('/api/orders').set(w.customer.headers)
+        .send({ orderType: 'dine_in', tableNo: table, paymentMethod: 'cod', items: products.map((p) => ({ productId: String(p._id), quantity: 1 })) });
+
+    test('switch ON (or never set) keeps GST inside the price; switch OFF adds it on top, for that dish only', async () => {
+        await setTax({ gstPercent: 18, gstMode: 'inclusive' });
+        const w = await shop({ gstin: GSTIN });
+        const on = await dish(w, { gstInclusive: true });
+        const off = await dish(w, { gstInclusive: false });
+
+        const a = await order(w, [on]);
+        assert.equal(a.status, 201, JSON.stringify(a.body));
+        const oa = await Order.findById(idOf(a)).lean();
+        assert.equal(oa.pricing.total, 100);
+        assert.equal(oa.pricing.taxIncluded, 15.25);
+        assert.equal(oa.pricing.taxOnTop, 0);
+        assert.equal(oa.pricing.taxMode, 'inclusive');
+
+        const b = await order(w, [off]);
+        const ob = await Order.findById(idOf(b)).lean();
+        assert.equal(ob.pricing.total, 118);
+        assert.equal(ob.pricing.taxOnTop, 18);
+        assert.equal(ob.pricing.taxMode, 'exclusive');
+        assert.equal(ob.items[0].gstInclusive, false);
+    });
+
+    test('a cart with both: only the switched-off dish adds GST, the total is exact', async () => {
+        await setTax({ gstPercent: 18, gstMode: 'inclusive' });
+        const w = await shop({ gstin: GSTIN });
+        const on = await dish(w, { gstInclusive: true });
+        const off = await dish(w, { gstInclusive: false });
+        const r = await order(w, [on, off]);
+        assert.equal(r.status, 201, JSON.stringify(r.body));
+        const o = await Order.findById(idOf(r)).lean();
+        assert.equal(o.pricing.taxMode, 'mixed');
+        assert.equal(o.pricing.taxOnTop, 18);
+        assert.equal(o.pricing.taxIncluded, 15.25);
+        assert.equal(o.pricing.tax, 33.25);
+        assert.equal(o.pricing.total, 218);   // 100 + 100 + 18 on top
+    });
+
+    test('a dish with no switch (older dishes) follows the platform setting; a shop with no GST number charges nothing', async () => {
+        await setTax({ gstPercent: 18, gstMode: 'exclusive' });
+        const w = await shop({ gstin: GSTIN });
+        const old = await dish(w, {});
+        const o1 = await Order.findById(idOf(await order(w, [old]))).lean();
+        assert.equal(o1.pricing.total, 118);
+
+        const plain = await shop({});
+        const off = await dish(plain, { gstInclusive: false });
+        const o2 = await Order.findById(idOf(await order(plain, [off]))).lean();
+        assert.equal(o2.pricing.total, 100);
+        assert.equal(o2.pricing.tax, 0);
+    });
+});

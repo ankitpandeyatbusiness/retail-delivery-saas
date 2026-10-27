@@ -103,6 +103,7 @@ async function buildLines(tenant, config, rawItems, at = new Date()) {
             unitPrice: round2(unitPrice),
             lineTotal,
             gstRate: gstMode === 'none' ? 0 : shopGst,
+            ...(gstMode === 'none' ? {} : { gstInclusive: typeof p.gstInclusive === 'boolean' ? p.gstInclusive : gstMode !== 'exclusive' }),   // the dish's own switch; older dishes follow the platform setting
             selections: chosen,
             ...(measure ? { measure } : {}),
             note: notesOn && typeof it.note === 'string' && it.note.trim() ? it.note.trim().slice(0, 200) : undefined,
@@ -167,6 +168,9 @@ function distanceFee(f, km) {
     if (f.maxFee > 0) fee = Math.min(fee, f.maxFee);
     return round2(fee);
 }
+// is this line's GST inside its price or on top? The line's own switch decides; a line without one follows the order's mode
+const lineMode = (l, mode) => (mode === 'none' ? 'none' : l.gstInclusive === true ? 'inclusive' : l.gstInclusive === false ? 'exclusive' : mode);
+
 // Works out GST for each line, after sharing the coupon discount across the lines.
 // Writes the result into each line (line.tax) and returns the order's total GST.
 function applyTax(lines, { mode, discount, subtotal }) {
@@ -177,15 +181,24 @@ function applyTax(lines, { mode, discount, subtotal }) {
         const taxable = Math.max(l.lineTotal - share, 0);
         const r = l.gstRate || 0;
         let t = 0;
-        if (mode === 'exclusive') t = (taxable * r) / 100;
-        else if (mode === 'inclusive') t = (taxable * r) / (100 + r);
+        const m = lineMode(l, mode);
+        if (m === 'exclusive') t = (taxable * r) / 100;
+        else if (m === 'inclusive') t = (taxable * r) / (100 + r);
         l.tax = round2(t);
     });
     return round2(lines.reduce((s, l) => s + l.tax, 0));
 }
 
+// the GST of an order in two parts: added on top of the prices, and already inside them
+function splitTax(lines, mode) {
+    let onTop = 0;
+    let included = 0;
+    for (const l of lines) { if (lineMode(l, mode) === 'exclusive') onTop += l.tax || 0; else included += l.tax || 0; }
+    return { taxOnTop: round2(onTop), taxIncluded: round2(included) };
+}
+
 // Delivery and packaging are not taxed here: if your CA says they must be, add them in applyTax.
-function computeTotals(orders, { orderType, subtotal, discount, tip, tax, distanceKm = null }) {
+function computeTotals(orders, { orderType, subtotal, discount, tip, tax, taxOnTop, taxIncluded, distanceKm = null }) {
     let deliveryFee = 0;
     if (orderType === 'delivery') {
         const f = orders.deliveryFee || {};
@@ -194,12 +207,17 @@ function computeTotals(orders, { orderType, subtotal, discount, tip, tax, distan
         else if (f.type === 'distance') deliveryFee = f.freeAbove > 0 && subtotal >= f.freeAbove ? 0 : distanceFee(f, distanceKm);
     }
     const packagingCharge = orderType === 'dine_in' ? 0 : (orders.packagingCharge || 0);
-    const mode = orders.gst?.mode || 'none';
+    let mode = orders.gst?.mode || 'none';
+    const top = taxOnTop === undefined ? (mode === 'exclusive' ? tax : 0) : taxOnTop;
+    const inside = taxIncluded === undefined ? tax - top : taxIncluded;
+    if (mode !== 'none') mode = top > 0 && inside > 0 ? 'mixed' : top > 0 ? 'exclusive' : inside > 0 ? 'inclusive' : mode;   // what this order really did
 
-    const total = round2(subtotal - discount + deliveryFee + packagingCharge + (mode === 'exclusive' ? tax : 0) + tip);
+    const total = round2(subtotal - discount + deliveryFee + packagingCharge + top + tip);
     return {
         deliveryFee: round2(deliveryFee),
         packagingCharge: round2(packagingCharge),
+        taxOnTop: round2(top),
+        taxIncluded: round2(inside),
         taxMode: mode,
         taxPercent: orders.gst?.percent || 0,
         tax,
@@ -237,7 +255,8 @@ async function priceCart({ tenant, config, userId, body, distanceKm = null }) {
     if (tip > 0 && (!config.features.tips || orderType !== 'delivery')) throw httpError(400, 'Tips are not available');
 
     const tax = applyTax(lines, { mode: config.orders.gst?.mode || 'none', discount: discountAll, subtotal });
-    const totals = computeTotals(config.orders, { orderType, subtotal, discount: discountAll, tip: round2(tip), tax, distanceKm });
+    const split = splitTax(lines, config.orders.gst?.mode || 'none');
+    const totals = computeTotals(config.orders, { orderType, subtotal, discount: discountAll, tip: round2(tip), tax, ...split, distanceKm });
     return {
         orderType, lines, coupon, prepMin, stockNeeds, distanceKm, pointsInfo,
         pricing: { subtotal, discount: discountAll, couponCode: coupon?.code, ...(offer ? { offerKind: offer.kind, offerLabel: offer.label, offerDiscount: offer.amount } : {}), pointsUsed: pts ? pts.points : 0, pointsDiscount, ...totals },

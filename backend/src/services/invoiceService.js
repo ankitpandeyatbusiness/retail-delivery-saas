@@ -74,6 +74,10 @@ function taxBreakup(order) {
     if (mode === 'none') return { mode, rows: [], tax: 0 };
 
     const lines = order.items || [];
+    // each line says whether its GST was inside its price; an older line follows the order's mode
+    const lineMode = (l) => (l.gstInclusive === true ? 'inclusive' : l.gstInclusive === false ? 'exclusive' : mode === 'exclusive' ? 'exclusive' : 'inclusive');
+    let onTop = 0;
+    let included = 0;
     const subtotal = lines.reduce((s, l) => s + (l.lineTotal || 0), 0);
     const discount = p.discount || 0;
     const groups = new Map();
@@ -84,7 +88,9 @@ function taxBreakup(order) {
         left = round2(left - share);
         const afterDiscount = Math.max((l.lineTotal || 0) - share, 0);
         const tax = l.tax || 0;
-        const taxable = mode === 'inclusive' ? afterDiscount - tax : afterDiscount;
+        const inside = lineMode(l) === 'inclusive';
+        if (inside) included += tax; else onTop += tax;
+        const taxable = inside ? afterDiscount - tax : afterDiscount;
         const rate = l.gstRate || 0;
         const g = groups.get(rate) || { rate, taxable: 0, tax: 0 };
         g.taxable += taxable;
@@ -95,7 +101,7 @@ function taxBreakup(order) {
     const rows = [...groups.values()]
         .sort((a, b) => a.rate - b.rate)
         .map((g) => ({ rate: g.rate, taxable: round2(g.taxable), tax: round2(g.tax) }));
-    return { mode, rows, tax: round2(rows.reduce((s, r) => s + r.tax, 0)) };
+    return { mode, rows, tax: round2(rows.reduce((s, r) => s + r.tax, 0)), onTop: round2(onTop), included: round2(included) };
 }
 
 /* ------------------------------ drawing ------------------------------ */
@@ -263,9 +269,9 @@ function drawTotals(doc, order, tax, y) {
     if (p.discount) rows.push([p.couponCode ? `Discount (${p.couponCode})` : 'Discount', `- ${rs(p.discount)}`]);
     if (p.deliveryFee) rows.push(['Delivery fee', rs(p.deliveryFee)]);
     if (p.packagingCharge) rows.push(['Packaging charge', rs(p.packagingCharge)]);
-    if (tax.mode === 'exclusive' && tax.tax) {
-        const cgst = round2(tax.tax / 2);
-        rows.push(['CGST', rs(cgst)], ['SGST', rs(round2(tax.tax - cgst))]);
+    if (tax.onTop) {   // GST that was added on top of the prices
+        const cgst = round2(tax.onTop / 2);
+        rows.push(['CGST', rs(cgst)], ['SGST', rs(round2(tax.onTop - cgst))]);
     }
     if (p.tip) rows.push(['Tip', rs(p.tip)]);
 
@@ -287,9 +293,9 @@ function drawTotals(doc, order, tax, y) {
         .text(rs(p.total), boxX + boxW - 150, y + 9, { width: 140, align: 'right' });
     y += 28;
 
-    if (tax.mode === 'inclusive' && tax.tax) {
+    if (tax.included) {   // GST that was already inside the prices
         doc.font('Helvetica').fontSize(8).fillColor(MUTED)
-            .text(`Total includes GST of ${rs(tax.tax)}`, boxX, y + 5, { width: boxW, align: 'right' });
+            .text(`Total includes GST of ${rs(tax.included)}`, boxX, y + 5, { width: boxW, align: 'right' });
         y += 16;
     }
     return y + 10;

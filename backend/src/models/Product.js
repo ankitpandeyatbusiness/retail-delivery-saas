@@ -46,6 +46,7 @@ const productSchema = new mongoose.Schema({
     // Food type flags
     isVeg: { type: Boolean, required: [true, 'Choose veg or non-veg'] },   // no default on purpose
     gstRate: { type: Number, enum: [0, 0.25, 3, 5, 12, 18, 28] },        // empty = use the shop's rate
+    gstInclusive: Boolean,   // true: the price already contains GST; false: GST is added on top of the price. Empty (older items) = what the platform's GST setting says
     isEggless: { type: Boolean, default: false },
     isSugarFree: { type: Boolean, default: false },
     isJain: { type: Boolean, default: false },
