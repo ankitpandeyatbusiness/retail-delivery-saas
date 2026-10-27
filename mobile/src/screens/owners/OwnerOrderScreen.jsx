@@ -213,7 +213,9 @@ export default function OwnerOrderScreen() {
                     {p.packagingCharge ? <Line label={tr('Packaging')} value={money(p.packagingCharge)} /> : null}
                     {p.deliveryFee ? <Line label={tr('Delivery fee')} value={money(p.deliveryFee)} /> : null}
                     {p.discount ? <Line label={p.couponCode ? tr('Discount ({couponCode})', { couponCode: p.couponCode }) : tr('Discount')} value={`− ${money(p.discount)}`} color={ok} /> : null}
-                    {p.tax ? <Line label={tr('Tax{v1}', { v1: p.taxMode === 'inclusive' ? ' (included)' : '' })} value={money(p.tax)} /> : null}
+                    {p.taxOnTop > 0 ? <Line label={tr('GST')} value={money(p.taxOnTop)} /> : null}
+                    {p.taxIncluded > 0 ? <Line label={tr('GST (included)')} value={money(p.taxIncluded)} /> : null}
+                    {p.tax && p.taxOnTop === undefined ? <Line label={tr('Tax{v1}', { v1: p.taxMode === 'inclusive' ? ' (included)' : '' })} value={money(p.tax)} /> : null}
                     {p.tip ? <Line label={tr('Tip for the rider')} value={money(p.tip)} /> : null}
                     <View style={{ height: 1, backgroundColor: alpha(muted, 0.3), marginVertical: 6 }} />
                     <Line label={tr('Total')} value={money(p.total)} bold />

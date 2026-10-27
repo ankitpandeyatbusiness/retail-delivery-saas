@@ -377,6 +377,7 @@ admin.post('/tenants/:tid/products/import', loadTenant, wrap(async (req, res) =>
         const item = {
             name, category, price, isVeg,
             isEggless: YES.includes(String(r.eggless || '').trim().toLowerCase()),
+            gstInclusive: !['no', 'n', 'false', '0'].includes(String(r.gstInclusive ?? '').trim().toLowerCase()),   // blank or yes: the price includes GST
             description: r.description ? String(r.description).trim() : undefined,
             mrp: r.mrp !== undefined && r.mrp !== '' ? Number(r.mrp) : undefined,
             gstRate: r.gstRate !== undefined && r.gstRate !== '' ? Number(r.gstRate) : undefined,
@@ -411,7 +412,7 @@ admin.post('/tenants/:tid/products/import', loadTenant, wrap(async (req, res) =>
 admin.use('/tenants/:tid/products', loadTenant, crud(Product, {
     fields: [
         'categoryId', 'categoryName', 'name', 'description', 'image', 'price', 'mrp',
-        'isVeg', 'isEggless', 'isSugarFree', 'isJain', 'spiceLevel',
+        'isVeg', 'isEggless', 'isSugarFree', 'isJain', 'spiceLevel', 'gstInclusive',
         'isBestseller', 'isNewArrival', 'isGiftPack', 'serves', 'calories', 'prepTimeMin', 'maxPerOrder',
         'optionGroups', 'sizes', 'weightOptions', 'addOns',
         'itemKind', 'sellBy', 'measure',

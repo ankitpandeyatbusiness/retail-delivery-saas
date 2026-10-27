@@ -11,8 +11,8 @@ import { importPreview, importSave } from '../../api/catalogApi';
 import { errMsg } from '../../api/adminClient';
 
 const MAX_ROWS = 300;
-const COLUMNS = ['name', 'category', 'price', 'type', 'mrp', 'eggless', 'gstRate', 'description'];
-const SAMPLE = 'name,category,price,type,mrp,eggless,gstRate,description\nPaneer Tikka,Starters,220,veg,250,no,5,Smoky and soft\nChicken Biryani,Mains,260,nonveg,,no,5,';
+const COLUMNS = ['name', 'category', 'price', 'type', 'mrp', 'eggless', 'gstRate', 'description', 'gstInclusive'];
+const SAMPLE = 'name,category,price,type,mrp,eggless,gstRate,description,gstInclusive\nPaneer Tikka,Starters,220,veg,250,no,5,Smoky and soft,yes\nChicken Biryani,Mains,260,nonveg,,no,5,,yes';
 
 // a CSV with quoted fields ("a, b") and "" for a quote inside
 function parseCsv(text) {
@@ -162,7 +162,7 @@ export default function ProductImportScreen() {
                 <Text style={{ color: t.muted, lineHeight: 20 }}>
                     <Text style={{ color: t.text, fontWeight: '700' }}>name</Text>, <Text style={{ color: t.text, fontWeight: '700' }}>category</Text>,{' '}
                     <Text style={{ color: t.text, fontWeight: '700' }}>price</Text>, <Text style={{ color: t.text, fontWeight: '700' }}>type</Text> (veg / nonveg / egg) are needed.{'\n'}
-                    Optional: mrp, eggless (yes / no), gstRate (0, 0.25, 3, 5, 12, 18, 28), description.
+                    Optional: mrp, eggless (yes / no), gstRate (0, 0.25, 3, 5, 12, 18, 28), description, gstInclusive (yes = GST is inside the price, the default; no = GST is added on top).
                 </Text>
                 <Hint>Up to {MAX_ROWS} items at a time. A category that does not exist yet is created. An item that is already in the category is refused.</Hint>
             </Group>

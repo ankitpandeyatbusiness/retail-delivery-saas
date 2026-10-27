@@ -253,11 +253,21 @@ export function shownPrice(item) {
     return `${live.length > 1 ? tr('From') + ' ' : ''}₹${price}`;
 }
 
+// a dish whose price does NOT include GST says so: "+ GST" (only for a shop that charges GST)
+function GstTag({ item }) {
+    const { muted } = useBrand();
+    const gst = useHomeStore((st) => st.full.orders?.gst);
+    if (!gst || gst.mode === 'none' || !(gst.percent > 0)) return null;
+    const onTop = item.gstInclusive === false || (item.gstInclusive === undefined && gst.mode === 'exclusive');
+    return onTop ? <Text style={{ color: muted, fontSize: 11, fontWeight: '700', marginLeft: 4 }}>{tr('+ GST')}</Text> : null;
+}
+
 function Price({ item, big }) {
     const { text, muted } = useBrand();
     return (
         <View style={s.priceRow}>
             <Text style={[big ? s.priceBig : s.price, { color: text }]}>{shownPrice(item)}{priceSuffix(item)}</Text>
+            <GstTag item={item} />
             {item.mrp > item.price ? <Text style={[s.mrp, { color: muted }]}>₹{item.mrp}</Text> : null}
         </View>
     );
@@ -512,6 +522,7 @@ export function Tile({ item, push }) {
                 </View>
                 <View style={s.priceRow}>
                     <Text style={[s.price, { color: text }]}>{shownPrice(item)}{priceSuffix(item)}</Text>
+                    <GstTag item={item} />
                     {item.mrp > item.price ? <Text style={[s.mrp, { color: muted }]}>₹{item.mrp}</Text> : null}
                 </View>
             </View>

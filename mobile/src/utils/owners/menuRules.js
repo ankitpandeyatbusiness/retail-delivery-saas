@@ -82,7 +82,7 @@ export const SPICE = [['none', 'No spice'], ['mild', 'Mild'], ['medium', 'Medium
 
 export const BLANK_ITEM = {
     categoryId: '', newCategory: '', name: '', description: '', image: '', images: [], price: undefined, mrp: undefined,
-    isVeg: undefined, isEggless: false, isSugarFree: false, isJain: false, spiceLevel: 'none',
+    isVeg: undefined, isEggless: false, isSugarFree: false, isJain: false, spiceLevel: 'none', gstInclusive: true,
     isBestseller: false, isNewArrival: false, isGiftPack: false, serves: undefined, calories: undefined, prepTimeMin: undefined, maxPerOrder: undefined,
     optionGroups: [], isActive: true,
     itemKind: '', sellBy: 'piece', measure: { options: [], min: undefined, allowManual: true },
@@ -92,7 +92,7 @@ export const itemFromRecord = (r) => ({
     categoryId: r.categoryId ? String(r.categoryId) : '', newCategory: '',
     name: r.name || '', description: r.description || '', image: r.image || '', images: Array.isArray(r.images) ? r.images : [],
     price: r.price, mrp: r.mrp,
-    isVeg: r.isVeg, isEggless: !!r.isEggless, isSugarFree: !!r.isSugarFree, isJain: !!r.isJain, spiceLevel: r.spiceLevel || 'none',
+    isVeg: r.isVeg, isEggless: !!r.isEggless, isSugarFree: !!r.isSugarFree, isJain: !!r.isJain, spiceLevel: r.spiceLevel || 'none', gstInclusive: r.gstInclusive !== false,
     isBestseller: !!r.isBestseller, isNewArrival: !!r.isNewArrival, isGiftPack: !!r.isGiftPack,
     serves: r.serves, calories: r.calories, prepTimeMin: r.prepTimeMin, maxPerOrder: r.maxPerOrder ?? undefined,
     optionGroups: (r.optionGroups || []).map((g) => ({ ...g, options: (g.options || []).map((o) => ({ ...o })) })),
@@ -137,6 +137,7 @@ export const itemBody = (v) => ({
     isSugarFree: v.isSugarFree,
     isJain: v.isJain,
     spiceLevel: v.spiceLevel,
+    gstInclusive: v.gstInclusive !== false,
     isBestseller: v.isBestseller,
     isNewArrival: v.isNewArrival,
     isGiftPack: v.isGiftPack,

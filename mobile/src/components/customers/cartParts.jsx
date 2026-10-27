@@ -71,11 +71,11 @@ export function Bill({ q, type, busy, baseDeliveryFee }) {
             {p.discount - (p.offerDiscount || 0) > 0 ? <Row k={tr('Coupon{v1}', { v1: p.couponCode ? ` (${p.couponCode})` : '' })} v={`− ${rs(p.discount - (p.offerDiscount || 0))}`} green /> : null}
             {type === 'delivery' ? <Row k={tr('Delivery Partner Fee')} v={isFreeDel ? 'FREE' : rs(p.deliveryFee)} strike={isFreeDel ? rs(baseDeliveryFee) : null} green={isFreeDel} /> : null}
             {p.packagingCharge > 0 ? <Row k={tr('Restaurant Packaging')} v={rs(p.packagingCharge)} /> : null}
-            {p.taxMode === 'exclusive' && p.tax > 0 ? <Row k={tr('Taxes & Charges')} v={rs(p.tax)} /> : null}
+            {(p.taxOnTop ?? (p.taxMode === 'exclusive' ? p.tax : 0)) > 0 ? <Row k={tr('Taxes & Charges')} v={rs(p.taxOnTop ?? p.tax)} /> : null}
             {p.tip > 0 ? <Row k={tr('Delivery Tip')} v={rs(p.tip)} /> : null}
             <View style={[s.line, { backgroundColor: border }]} />
             <Row k={tr('Grand Total')} v={rs(p.total)} bold />
-            {p.taxMode === 'inclusive' && p.tax > 0 ? <Text style={[s.incl, { color: muted }]}>{tr('Includes {rs} taxes', { rs: rs(p.tax) })}</Text> : null}
+            {(p.taxIncluded ?? (p.taxMode === 'inclusive' ? p.tax : 0)) > 0 ? <Text style={[s.incl, { color: muted }]}>{tr('Includes {rs} taxes', { rs: rs(p.taxIncluded ?? p.tax) })}</Text> : null}
             {p.discount > 0 || isFreeDel ? (
                 <Appear style={[s.savings, { backgroundColor: okSoft }]}>
                     <Text style={[s.savingsTxt, { color: ok }]}>{tr('🎉 You saved {rs} on this order!', { rs: rs(p.discount + (isFreeDel ? baseDeliveryFee : 0)) })}</Text>

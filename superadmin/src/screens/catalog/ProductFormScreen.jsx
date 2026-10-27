@@ -41,7 +41,7 @@ const SPICE = [['none', 'No spice'], ['mild', 'Mild'], ['medium', 'Medium'], ['h
 
 const BLANK = {
     categoryId: '', newCategory: '', name: '', description: '', image: '', images: [], price: undefined, mrp: undefined,
-    isVeg: undefined, isEggless: false, isSugarFree: false, isJain: false, spiceLevel: 'none',
+    isVeg: undefined, isEggless: false, isSugarFree: false, isJain: false, spiceLevel: 'none', gstInclusive: true,
     isBestseller: false, isNewArrival: false, isGiftPack: false, serves: undefined, calories: undefined, prepTimeMin: undefined,
     optionGroups: [], isAvailable: true, isActive: true, sortOrder: 0,
     itemKind: '', sellBy: 'piece', measure: { options: [], min: undefined, allowManual: true },
@@ -51,7 +51,7 @@ const fromRecord = (r) => ({
     categoryId: r.categoryId ? String(r.categoryId) : '', newCategory: '',
     name: r.name || '', description: r.description || '', image: r.image || '', images: Array.isArray(r.images) ? r.images : [],
     price: r.price, mrp: r.mrp,
-    isVeg: r.isVeg, isEggless: !!r.isEggless, isSugarFree: !!r.isSugarFree, isJain: !!r.isJain, spiceLevel: r.spiceLevel || 'none',
+    isVeg: r.isVeg, isEggless: !!r.isEggless, isSugarFree: !!r.isSugarFree, isJain: !!r.isJain, spiceLevel: r.spiceLevel || 'none', gstInclusive: r.gstInclusive !== false,
     isBestseller: !!r.isBestseller, isNewArrival: !!r.isNewArrival, isGiftPack: !!r.isGiftPack,
     serves: r.serves, calories: r.calories, prepTimeMin: r.prepTimeMin,
     optionGroups: (r.optionGroups || []).map((g) => ({ ...g, options: (g.options || []).map((o) => ({ ...o })) })),
@@ -120,6 +120,7 @@ export default function ProductFormScreen() {
             isSugarFree: v.isSugarFree,
             isJain: v.isJain,
             spiceLevel: v.spiceLevel,
+            gstInclusive: v.gstInclusive !== false,
             isBestseller: v.isBestseller,
             isNewArrival: v.isNewArrival,
             isGiftPack: v.isGiftPack,
@@ -256,6 +257,8 @@ export default function ProductFormScreen() {
                 <Switch title="Sugar free" value={v.isSugarFree} onValueChange={(x) => f.set('isSugarFree', x)} />
                 <Switch title="Jain" subtitle="Must be veg" value={v.isJain} onValueChange={(x) => f.set('isJain', x)} last />
                 {f.errors.isJain ? <Hint tone="warn">{f.errors.isJain}</Hint> : null}
+                <View style={{ height: spacing.md }} />
+                <Switch title="GST included in the price" subtitle="Off: GST is added on top of the price for this dish. Used only for a shop with a GST number." value={v.gstInclusive} onValueChange={(x) => f.set('gstInclusive', x)} last />
                 <View style={{ height: spacing.lg }} />
                 <Choice label="Spice level" options={SPICE.map(([value, label]) => ({ value, label }))} value={v.spiceLevel} onChange={(x) => f.set('spiceLevel', x)} last />
             </Group>

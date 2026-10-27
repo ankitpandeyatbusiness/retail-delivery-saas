@@ -76,3 +76,15 @@ test('customers and riders cannot change the menu', async () => {
         assert.ok([401, 403].includes(r.status), `got ${r.status}`);
     }
 });
+test('an owner can save a dish with GST on top (the switch off) and switch it back', async () => {
+    const tenant = await factory.makeTenant('menu-gst');
+    const owner = await factory.makeUser(tenant, 'admin', '9000000602');
+    const h = as('menu-gst', owner);
+    const cat = await request(app).post('/api/shop/categories').set(h).send({ name: 'Mains' });
+    const prod = await request(app).post('/api/shop/products').set(h).send({ categoryId: cat.body._id, name: 'Thali', price: 100, isVeg: true, gstInclusive: false });
+    assert.strictEqual(prod.status, 201, JSON.stringify(prod.body));
+    assert.strictEqual(prod.body.gstInclusive, false);
+    const back = await request(app).patch(`/api/shop/products/${prod.body._id}`).set(h).send({ categoryId: cat.body._id, name: 'Thali', price: 100, isVeg: true, gstInclusive: true });
+    assert.strictEqual(back.status, 200, JSON.stringify(back.body));
+    assert.strictEqual(back.body.gstInclusive, true);
+});

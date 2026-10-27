@@ -179,7 +179,9 @@ export default function OrderDetailScreen() {
                 {o.pricing?.discount ? <Money label={`Discount${o.pricing.couponCode ? ` (${o.pricing.couponCode})` : ''}`} value={`− ${rupees(o.pricing.discount)}`} /> : null}
                 {o.pricing?.deliveryFee ? <Money label="Delivery fee" value={rupees(o.pricing.deliveryFee)} /> : null}
                 {o.pricing?.packagingCharge ? <Money label="Packaging" value={rupees(o.pricing.packagingCharge)} /> : null}
-                {o.pricing?.tax ? <Money label={`GST${o.pricing.taxMode === 'inclusive' ? ' (included)' : ''}`} value={rupees(o.pricing.tax)} /> : null}
+                {o.pricing?.taxOnTop > 0 ? <Money label="GST" value={rupees(o.pricing.taxOnTop)} /> : null}
+                {o.pricing?.taxIncluded > 0 ? <Money label="GST (included)" value={rupees(o.pricing.taxIncluded)} /> : null}
+                {o.pricing?.tax && o.pricing.taxOnTop === undefined ? <Money label={`GST${o.pricing.taxMode === 'inclusive' ? ' (included)' : ''}`} value={rupees(o.pricing.tax)} /> : null}
                 {o.pricing?.tip ? <Money label="Tip" value={rupees(o.pricing.tip)} /> : null}
                 <View style={{ height: 1, backgroundColor: t.border, marginVertical: spacing.sm }} />
                 <Money label="Total" value={rupees(o.pricing?.total)} strong />

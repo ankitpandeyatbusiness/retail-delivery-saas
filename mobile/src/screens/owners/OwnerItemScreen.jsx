@@ -176,6 +176,10 @@ export default function OwnerItemScreen() {
                 <NumberBox label={tr('MRP (price before discount, optional)')} prefix="₹" value={v.mrp} onChange={(x) => set('mrp', x)} error={errors.mrp} last />
             </Group>
 
+            <Group title={tr('GST')}>
+                <ToggleRow title={tr('GST included in the price')} subtitle={tr('On: the customer pays exactly this price. Off: GST is added on top for this dish. Used only if your shop has a GST number.')} value={v.gstInclusive} onValueChange={(x) => set('gstInclusive', x)} last />
+            </Group>
+
             <Group title={tr('Food type')}>
                 <ChoiceBox label={tr('Veg or non-veg')} options={[[true, tr('Veg')], [false, tr('Non-veg')]]} value={v.isVeg} onChange={(x) => set('isVeg', x)} error={errors.isVeg} />
                 {foodHint ? <Hint>{foodHint}</Hint> : null}

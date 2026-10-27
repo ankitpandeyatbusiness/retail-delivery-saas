@@ -377,11 +377,11 @@ export default function OrderDetailScreen() {
                     {p.discount > 0 ? <Row k={tr('Coupon{v1}', { v1: p.couponCode ? ` (${p.couponCode})` : '' })} v={`− ${rs(p.discount)}`} green /> : null}
                     {delivery ? <Row k={tr('Delivery fee')} v={p.deliveryFee > 0 ? rs(p.deliveryFee) : 'Free'} green={!p.deliveryFee} /> : null}
                     {p.packagingCharge > 0 ? <Row k={tr('Packaging')} v={rs(p.packagingCharge)} /> : null}
-                    {p.taxMode === 'exclusive' && p.tax > 0 ? <Row k={tr('GST')} v={rs(p.tax)} /> : null}
+                    {(p.taxOnTop ?? (p.taxMode === 'exclusive' ? p.tax : 0)) > 0 ? <Row k={tr('GST')} v={rs(p.taxOnTop ?? p.tax)} /> : null}
                     {p.tip > 0 ? <Row k={tr('Tip')} v={rs(p.tip)} /> : null}
                     <View style={[s.line, { backgroundColor: border }]} />
                     <Row k={tr('Total')} v={rs(p.total)} bold />
-                    {p.taxMode === 'inclusive' && p.tax > 0 ? <Text style={[s.muted, { color: muted }]}>{tr('Includes {rs} GST', { rs: rs(p.tax) })}</Text> : null}
+                    {(p.taxIncluded ?? (p.taxMode === 'inclusive' ? p.tax : 0)) > 0 ? <Text style={[s.muted, { color: muted }]}>{tr('Includes {rs} GST', { rs: rs(p.taxIncluded ?? p.tax) })}</Text> : null}
                 </Card>
 
                 {delivered ? (
