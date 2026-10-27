@@ -197,6 +197,7 @@ async function quote({ tenant, userId, body }) {
         shopOpen: config.restaurant.isOpen,
         canPlace: !problem,
         problem: problem ? problem.message : null,
+        problemCode: problem?.extra?.code || null,   // the cart opens the "choose your bill" sheet for choose_party
     };
 }
 

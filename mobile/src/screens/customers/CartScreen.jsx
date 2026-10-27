@@ -213,7 +213,7 @@ export default function CartScreen() {
             } else if (r.q && applied && !r.q.pricing.couponCode) {
                 setApplied(''); setCouponErr('Coupon removed. Your order no longer qualifies.');
             }
-            if (r.q) { setQuote(r.q); setQErr(''); setQuoteKey(bodyKey); } else { setQuote(null); setQErr(errMsg(r.e)); if (r.e?.response?.data?.code === 'choose_party') setPartyOpen(true); }
+            if (r.q) { setQuote(r.q); setQErr(''); setQuoteKey(bodyKey); if (r.q.problemCode === 'choose_party') setPartyOpen(true); } else { setQuote(null); setQErr(errMsg(r.e)); if (r.e?.response?.data?.code === 'choose_party') setPartyOpen(true); }
             setBusy(false);
         }, 300);
         return () => clearTimeout(t);
@@ -246,6 +246,7 @@ export default function CartScreen() {
 
     const place = async () => {
         if (type === 'dine_in' && !table) { setTableOpen(true); return; }   // he has not chosen his table yet
+        if (quote?.problemCode === 'choose_party') { setPartyOpen(true); return; }
         if (placing || !fresh || !quote.canPlace || closed) return;
         if (useAuthStore.getState().user?.role === 'admin') { showToast(tr('Shop owners cannot order from their own number. Log in with a customer number to try an order.')); return; }
         if (paymentMethodValue === 'card' && !card) { nav.navigate('CardDetails', { depth: 1 }); return; }   // card details are asked every time
@@ -356,6 +357,7 @@ export default function CartScreen() {
     else if (!user) { btnText = 'Login to Pay'; btnOn = true; }
     else if (qErr) { btnText = 'Unavailable'; note = qErr; }
     else if (!quote || !fresh) btnText = 'Calculating...';
+    else if (quote.problemCode === 'choose_party') { btnText = 'Choose your bill'; btnOn = true; note = quote.problem; }
     else if (!quote.canPlace) { btnText = "Can't place"; note = quote.problem || 'Cannot place order'; }
     else btnOn = !placing;
 
