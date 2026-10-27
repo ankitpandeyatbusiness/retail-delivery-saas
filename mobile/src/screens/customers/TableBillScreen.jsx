@@ -27,6 +27,7 @@ export default function TableBillScreen() {
     const bill = useTableBill((s) => s.bill);
     const loading = useTableBill((s) => s.loading);
     const [busy, setBusy] = useState(false);
+    const [barH, setBarH] = useState(0);   // the real height of the buttons at the bottom: the list stops just above them, with no empty gap
     // read again every 15 seconds while he looks at it, so a served round stops showing "taking too long" and its cancel link by itself
     useFocusEffect(useCallback(() => { useTableBill.getState().load(); const t = setInterval(() => useTableBill.getState().load(), 15000); return () => clearInterval(t); }, []));
 
@@ -88,7 +89,7 @@ export default function TableBillScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Table {t} bill', { t: bill.table })} />
-            <ScrollView contentContainerStyle={{ paddingBottom: bill.payOnline && bill.due > 0 ? 260 : 200 }} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={busy} onRefresh={refresh} />}>
+            <ScrollView contentContainerStyle={{ paddingBottom: (barH || 200) + 8 }} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={busy} onRefresh={refresh} />}>
                 {asked ? (
                     <Card tone={warn}>
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -187,7 +188,7 @@ export default function TableBillScreen() {
                 <SplitCard bill={bill} />
             </ScrollView>
 
-            <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, paddingBottom: 24, backgroundColor: background, borderTopWidth: 1, borderTopColor: alpha(border, 0.7) }}>
+            <View onLayout={(e) => setBarH(Math.round(e.nativeEvent.layout.height))} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, paddingBottom: 24, backgroundColor: background, borderTopWidth: 1, borderTopColor: alpha(border, 0.7) }}>
                 {bill.payOnline && bill.due > 0 ? <Button label={tr('Pay {n} online', { n: rs(bill.due) })} icon="card" onPress={payNow} style={{ marginBottom: 8 }} /> : null}
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -4 }}>
                     <Button label={tr('Order more')} icon="add" kind="ghost" onPress={() => nav.navigate('MainTabs', { screen: 'Home' })} style={{ flexGrow: 1, flexBasis: 140, margin: 4 }} />
