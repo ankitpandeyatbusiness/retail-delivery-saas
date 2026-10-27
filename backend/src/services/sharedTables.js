@@ -67,7 +67,7 @@ async function openParty({ tenant, table, userId, now = new Date() }) {
         const party = await nextParty(tenant, table);
         if (!party) throw fail(409, `This table already has ${maxFor(tenant)} bill${maxFor(tenant) === 1 ? '' : 's'}. Please ask the waiter.`, { code: 'table_full' });
         try {
-            return await TableSession.create({ tenantId: tenant._id, table, party, label: labelOf(party), customers: [userId], openedAt: now, lastOrderAt: now });
+            return await TableSession.create({ tenantId: tenant._id, table, party, label: labelOf(party), customers: [userId], startedBy: userId, openedAt: now, lastOrderAt: now });
         } catch (e) {
             if (e.code !== 11000) throw e;   // somebody took that number a moment ago: try the next one
         }

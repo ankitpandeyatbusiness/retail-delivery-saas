@@ -126,6 +126,7 @@ const TEXTS = {
     table_feedback_low: (v) => ({ title: `Table ${v.table} was not happy (${v.stars}/5)`, body: `${v.comment ? `“${v.comment}”. ` : ''}Their private feedback is in Dine in, Guest feedback.` }),
     table_nudge: (v) => ({ title: `Table ${v.table} is waiting`, body: `Please bring the food fast${v.minutes ? ` (ordered ${v.minutes} min ago)` : ''}.${v.what ? ` ${v.what}` : ''}` }),
     table_paid_online: (v) => ({ title: v.name && v.name !== 'A guest' ? `${v.name} paid online` : `Table ${v.table}: paid online`, body: `Table ${v.table} · ₹${Math.round(v.amount || 0)} was paid from the guest's phone.` }),
+    table_bill_ready: (v) => ({ title: `Your bill for table ${v.table} is ready`, body: 'Open Table bill and tap Download the bill (PDF) to see who ordered and paid what, and share it.' }),
     table_closed_owner: (v) => ({ title: `Table ${v.table}${v.label ? ` · ${v.label}` : ''} is paid and free`, body: 'Everything is paid. The table is free for the next guests.' }),
     table_paid_owner: (v) => ({ title: `Table ${v.table}: bill paid`, body: `₹${Math.round(v.paid || v.total || 0)} by ${v.via || 'cash'}. Received by ${v.by || 'a waiter'}.` }),
     table_bill_waiting: (v) => ({ title: `Table ${v.table} is still waiting for the bill`, body: `They asked ${v.minutes} minutes ago. Please bring the bill or take the payment.` }),

@@ -9,6 +9,7 @@ import { PageHeader, Card, SectionTitle, Button, Pill } from '../../components/o
 import { ListShimmer } from '../../components/owners/shimmer';
 import { useTableBill } from '../../store/customers/useTableBill';
 import { useAuthStore } from '../../store/common/useAuthStore';
+import { shareTableBill } from '../../utils/customers/shareTableBill';
 import WaitTimer, { ServedIn, useTick, clock as mmss } from '../../components/common/WaitTimer';
 import { CallCard, TipCard, SplitCard } from '../../components/customers/TableExtras';
 import { nudgeTable, cancelOrder, askCancelOrder, freeMyTable } from '../../api/customers/shopApi';
@@ -30,6 +31,7 @@ export default function TableBillScreen() {
     const user = useAuthStore((s) => s.user);
     const me = String(user?.id || user?._id || '');
     const [busy, setBusy] = useState(false);
+    const [pdfBusy, setPdfBusy] = useState(false);
     const [barH, setBarH] = useState(0);   // the real height of the buttons at the bottom: the list stops just above them, with no empty gap
     // read again every 15 seconds while he looks at it, so a served round stops showing "taking too long" and its cancel link by itself
     useFocusEffect(useCallback(() => { useTableBill.getState().load(); const t = setInterval(() => useTableBill.getState().load(), 15000); return () => clearInterval(t); }, []));
@@ -79,6 +81,7 @@ export default function TableBillScreen() {
                     <Text style={{ color: text, fontWeight: '900', fontSize: 20, marginTop: 12 }}>{tr('Nothing to pay')}</Text>
                     <Text style={{ color: muted, textAlign: 'center', marginTop: 6 }}>{tr('You have no open table bill. Thank you for dining with us!')}</Text>
                     <Text style={{ color: muted, textAlign: 'center', marginTop: 10, fontSize: 12.5 }}>{tr('A paid table is freed after 15 minutes, or when you tap "I am done". To order more, scan the QR code on the table, pick your table and order as before.')}</Text>
+                    {bill.lastBill ? <Button label={tr('Download the bill (PDF)')} icon="document-text-outline" kind="ghost" busy={pdfBusy} onPress={() => shareTableBill(bill.lastBill.sessionId, bill.lastBill.table, setPdfBusy)} style={{ marginTop: 16, alignSelf: 'stretch' }} /> : null}
                     {bill.owed ? <Text style={{ color: warn, fontWeight: '900', textAlign: 'center', marginTop: 16 }}>{tr('You still owe {n} from {where}. Please pay it at the counter on your next visit.', { n: rs(bill.owed.amount), where: whereOf(bill.owed.table) })}</Text> : null}
                 </View>
             </View>
@@ -190,6 +193,13 @@ export default function TableBillScreen() {
                 </Card>
 
                 <SplitCard bill={bill} />
+
+                {bill.isStarter && bill.rounds.length ? (
+                    <Card>
+                        <Text style={{ color: muted, fontSize: 12.5, marginBottom: 10 }}>{tr('You started this bill. Download it as a PDF to see who ordered and paid what, and share it.')}</Text>
+                        <Button label={tr('Download the bill (PDF)')} icon="document-text-outline" kind="ghost" busy={pdfBusy} onPress={() => shareTableBill(bill.id, bill.table, setPdfBusy)} />
+                    </Card>
+                ) : null}
             </ScrollView>
 
             <View onLayout={(e) => setBarH(Math.round(e.nativeEvent.layout.height))} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: 16, paddingBottom: 24, backgroundColor: background, borderTopWidth: 1, borderTopColor: alpha(border, 0.7) }}>

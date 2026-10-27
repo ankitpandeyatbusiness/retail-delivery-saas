@@ -37,6 +37,7 @@ async function afterLeave(session, tenantId, now) {
     const busy = rest.some((o) => ACTIVE.includes(o.status));
     if (!due && !busy) {
         await TableSession.updateOne({ _id: session._id, status: { $in: OPEN } }, { $set: { status: 'closed', closedAt: now, closedBy: 'owner' } });
+        require('./tableBillPdf').notifyReady(session);
         return { closed: true };
     }
     return { closed: false };

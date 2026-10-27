@@ -14,6 +14,7 @@ const tableSessionSchema = new mongoose.Schema({
     watch: mongoose.Schema.Types.Mixed,      // { <userId>: 'unreachable' | 'location_off' }: what the owner was last told about each guest
     mergedInto: { type: mongoose.Schema.Types.ObjectId, ref: 'TableSession' },   // shared tables: this bill was merged into another one (the people were together after all)
     status: { type: String, enum: ['open', 'bill_asked', 'closed'], default: 'open' },
+    startedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },   // the guest who opened this bill: he answers joiners and gets the detailed bill (older bills: the first guest on it)
     customers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],   // everyone who ordered at this table: all of them see the bill
     openedAt: { type: Date, default: Date.now },
     lastOrderAt: { type: Date, default: Date.now },

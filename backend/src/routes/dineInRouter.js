@@ -7,6 +7,7 @@ const apiErrors = require('../middlewares/apiErrors');
 const tableBill = require('../services/tableBill');
 const tableQr = require('../services/tableQr');
 const Tenant = require('../models/Tenant');
+const TableSession = require('../models/TableSession');
 
 const { wrap, httpError } = apiErrors;
 const router = express.Router();
@@ -74,10 +75,22 @@ router.post('/leave-ask', wrap(async (req, res) => {
     try { res.json(await require('../services/tableShares').askLeave({ tenant: req.tenant, userId: req.auth.userId })); } catch (e) { throw httpError(e.status || 400, e.message); }
 }));
 
+// the detailed bill of the visit as a PDF: only for the guest who started the bill
+router.get('/bill/pdf', wrap(async (req, res) => {
+    const pdf = require('../services/tableBillPdf');
+    const id = String(req.query.sessionId || '');
+    const s = /^[0-9a-f]{24}$/i.test(id) ? await TableSession.findOne({ _id: id, tenantId: req.tenant._id }) : ((await tableBill.openFor(req.tenant._id, req.auth.userId)) || (await pdf.lastFor(req.tenant._id, req.auth.userId)));
+    if (!s) throw httpError(404, 'No bill found');
+    if (pdf.startedBy(s) !== String(req.auth.userId)) throw httpError(403, 'Only the guest who started this bill can download it');
+    await pdf.stream(res, s, req.tenant);
+}));
+
 router.get('/bill', wrap(async (req, res) => {
     const [s, owed] = await Promise.all([tableBill.openFor(req.tenant._id, req.auth.userId), tableBill.owedBy(req.tenant._id, req.auth.userId)]);
-    if (s) return res.json({ open: true, ...(await tableBill.billOf(s)), owed, payOnline: await require('../services/tablePayment').available(req.tenant._id) });
-    res.json({ open: false, owed, feedbackDue: await tableBill.feedbackDue(req.tenant, req.auth.userId).catch(() => null) });
+    const pdf = require('../services/tableBillPdf');
+    if (s) return res.json({ open: true, ...(await tableBill.billOf(s)), owed, payOnline: await require('../services/tablePayment').available(req.tenant._id), isStarter: pdf.startedBy(s) === String(req.auth.userId) });
+    const last = await pdf.lastFor(req.tenant._id, req.auth.userId).catch(() => null);
+    res.json({ open: false, owed, feedbackDue: await tableBill.feedbackDue(req.tenant, req.auth.userId).catch(() => null), lastBill: last ? { sessionId: String(last._id), table: last.table } : null });
 }));
 
 // refer a friend: my code, and typing a friend's code

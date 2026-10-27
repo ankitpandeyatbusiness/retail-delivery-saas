@@ -272,3 +272,46 @@ describe('the guest who started the bill', () => {
         assert.deepEqual(bill.shares.map((s) => [s.name, s.paid, s.due]), [['Ankit', 0, 100], ['Guest ·42', 100, 0]]);
     });
 });
+
+describe('the detailed table bill (PDF)', () => {
+    const User = require('../src/models/User');
+    const tableShares = require('../src/services/tableShares');
+    const pdf = require('../src/services/tableBillPdf');
+    const join = async (a, sa, g) => {
+        const asked = await api(g, 'post', '/table/4/enter', { choice: 'with', sessionId: String(sa._id) });
+        const yes = await api(a, 'post', `/join/${asked.body.pending.joinId}/answer`, { approve: true });
+        await api(g, 'post', `/join/${asked.body.pending.joinId}/pin`, { pin: yes.body.pin });
+    };
+    const setup = async () => {
+        const a = await guest('9000000041'); const b = await guest('9000000042');
+        await User.updateOne({ _id: a.user._id }, { $set: { name: 'Ankit' } });
+        await User.updateOne({ _id: b.user._id }, { $set: { name: 'Rishi' } });
+        const sa = await sit(a);
+        await join(a, sa, b);
+        const mk = (g, name, extra = {}) => f.makeOrder(w.tenant, g.user, { orderType: 'dine_in', tableNo: '4', tableSessionId: sa._id, tableParty: 'A', status: 'delivered', pricing: { subtotal: 100, total: 100 }, customer: { name, phone: g.user.phone }, ...extra });
+        await mk(a, 'Ankit'); await mk(b, 'Rishi');
+        await tableShares.settleShare({ tenantId: w.tenant._id, sessionId: sa._id, userId: b.user._id, method: 'cash', by: { type: 'owner' } });
+        return { a, b, sa };
+    };
+
+    test('the data lists each round with the guest, who paid it and how, and the totals', async () => {
+        const { sa } = await setup();
+        const d = await pdf.dataFor(await TableSession.findById(sa._id), await tenantDoc());
+        assert.equal(d.startedBy, 'Ankit');
+        assert.deepEqual(d.rounds.map((r) => [r.by, r.paid, r.paidBy, r.paidVia]), [['Ankit', false, null, null], ['Rishi', true, 'Rishi', 'cash']]);
+        assert.deepEqual(d.people.map((p) => [p.name, p.ordered, p.paid, p.due]), [['Ankit', 100, 0, 100], ['Rishi', 100, 100, 0]]);
+        assert.equal(d.total, 200);
+        assert.equal(d.paid, 100);
+        assert.equal(d.due, 100);
+    });
+
+    test('only the guest who started the bill downloads it; it is a real PDF', async () => {
+        const { a, b, sa } = await setup();
+        assert.equal((await request(app).get('/api/dinein/bill/pdf').set(b.headers).query({ sessionId: String(sa._id) })).status, 403);
+        const ok = await request(app).get('/api/dinein/bill/pdf').set(a.headers).query({ sessionId: String(sa._id) }).buffer(true).parse((res, cb) => { const c = []; res.on('data', (d) => c.push(d)); res.on('end', () => cb(null, Buffer.concat(c))); });
+        assert.equal(ok.status, 200);
+        assert.equal(ok.headers['content-type'], 'application/pdf');
+        assert.equal(ok.body.slice(0, 4).toString(), '%PDF');
+        assert.equal(await TableSession.countDocuments({ _id: sa._id, startedBy: a.user._id }), 1);
+    });
+});

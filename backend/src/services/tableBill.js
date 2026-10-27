@@ -131,6 +131,7 @@ async function settle({ tenantId, sessionId, method, by }) {
     }
     const closed = await TableSession.findOneAndUpdate({ _id: s._id, status: { $in: ['open', 'bill_asked'] } }, { $set: { status: 'closed', closedAt: now, closedBy: by?.type === 'staff' ? 'staff' : 'owner', ...(by?.type === 'staff' ? { closedByName: by.name } : {}), paidVia: method, paidPaise } }, { returnDocument: 'after' });
     if (!closed) throw fail(409, 'This bill was just closed');
+    require('./tableBillPdf').notifyReady(closed);
     // the points of the rounds that were on the tab start waiting now (they were held back until the money was in)
     const loyalty = require('./loyaltyService');
     for (const o of unpaid) loyalty.onDelivered({ ...o.toObject(), payment: { ...(o.payment?.toObject ? o.payment.toObject() : o.payment), status: 'paid' }, deliveredAt: now }).catch((e) => console.error('Points error:', e.message));
@@ -377,6 +378,7 @@ async function freeTable(s, by = 'auto', { minAgeMs = 0, now = new Date() } = {}
     if (now.getTime() - last < minAgeMs) return { ok: false, reason: 'recent' };
     const done = await TableSession.findOneAndUpdate({ _id: s._id, status: { $in: ['open', 'bill_asked'] } }, { $set: { status: 'closed', closedAt: now, closedBy: by } });
     if (!done) return { ok: false, reason: 'closed' };
+    require('./tableBillPdf').notifyReady(s);
     tell('table_closed_owner', { tenantId: s.tenantId, vars: { table: s.table, label: s.label || '' }, data: { kind: 'table', sessionId: String(s._id), table: s.table } });
     for (const uid of s.customers) tell('table_freed', { tenantId: s.tenantId, userId: uid, vars: { table: s.table, by, minutes: Math.round(FREE_AFTER_MS / 60000) }, data: { kind: 'table_freed', table: s.table } });
     return { ok: true };
