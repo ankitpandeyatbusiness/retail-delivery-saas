@@ -72,7 +72,7 @@ async function settleShare({ tenantId, sessionId, userId, method, by }) {
     if (busy) throw fail(409, 'Some of his dishes are still in the kitchen. Serve or cancel them first.');
     const now = new Date();
     const paidPaise = paise(unpaid.reduce((n, o) => n + (o.pricing?.total || 0), 0));
-    if (unpaid.length) await Order.updateMany({ _id: { $in: unpaid.map((o) => o._id) } }, { $set: { 'payment.status': 'paid', 'payment.paidAt': now, 'payment.settledAt': now, 'payment.settledVia': method } });
+    if (unpaid.length) await Order.updateMany({ _id: { $in: unpaid.map((o) => o._id) } }, { $set: { 'payment.status': 'paid', 'payment.paidAt': now, 'payment.settledAt': now, 'payment.settledVia': method, 'payment.paidBy': userId } });
     const loyalty = require('./loyaltyService');
     for (const o of unpaid) loyalty.onDelivered({ ...o.toObject(), payment: { ...(o.payment?.toObject ? o.payment.toObject() : o.payment), status: 'paid' }, deliveredAt: now }).catch((e) => console.error('Points error:', e.message));
     return finishLeave({ s, tenantId, userId, paidPaise, via: method, by: by?.type === 'staff' ? 'staff' : 'owner', byName: by?.name, now });
@@ -83,6 +83,7 @@ async function finishLeave({ s, tenantId, userId, paidPaise, via, by, byName, no
     await TableSession.updateOne({ _id: s._id }, { $pull: { customers: userId }, $inc: { paidPaise }, $push: { left: { userId, at: now, paidPaise, via, by } } });
     await TableRequest.updateMany({ tenantId, sessionId: s._id, userId, kind: 'share', status: 'open' }, { $set: { status: 'done', doneAt: now, doneBy: by === 'online' ? 'auto' : by, ...(byName ? { doneByName: byName } : {}) } });
     const end = await afterLeave(s, tenantId, now);
+    if (end.closed) tell('table_closed_owner', { tenantId, vars: { table: s.table, label: s.label || '' }, data: { kind: 'table', sessionId: String(s._id), table: s.table } });
     const me = await User.findById(userId).select('name').lean();
     const left = end.closed ? 0 : await remaining(tenantId, s._id);
     tell('table_paid', { tenantId, userId, vars: { table: s.table, total: paidPaise / 100 }, data: { kind: 'table_paid', sessionId: String(s._id) } });

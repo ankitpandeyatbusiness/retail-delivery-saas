@@ -99,9 +99,11 @@ describe('"I am with them"', () => {
         assert.equal((await api(b, 'get', `/join/${joinId}`)).body.status, 'pending');
         assert.equal((await api(b, 'post', `/join/${joinId}/answer`, { approve: true })).status, 403, 'only someone on the bill may answer');
 
-        assert.equal((await api(a, 'post', `/join/${joinId}/answer`, { approve: true })).status, 200);
+        const yes = await api(a, 'post', `/join/${joinId}/answer`, { approve: true });
+        assert.equal(yes.status, 200);
+        assert.equal((await api(b, 'post', `/join/${joinId}/pin`, { pin: yes.body.pin })).status, 200, 'he types the PIN that is on their screen');
         const st = (await api(b, 'get', `/join/${joinId}`)).body;
-        assert.equal(st.status, 'approved');
+        assert.equal(st.status, 'joined');
         assert.equal(st.session.label, 'A');
         assert.equal((await TableSession.findById(sa._id)).customers.length, 2);
         const again = await sit(b);   // his order goes on bill A
@@ -154,7 +156,9 @@ describe('the board and the switch', () => {
         const asked = await api(b, 'post', '/table/4/enter', { choice: 'with', sessionId: String(sa._id) });
         assert.equal(asked.status, 200, JSON.stringify(asked.body));
         assert.ok(asked.body.pending.joinId);
-        assert.equal((await api(a, 'post', `/join/${asked.body.pending.joinId}/answer`, { approve: true })).status, 200);
+        const yes = await api(a, 'post', `/join/${asked.body.pending.joinId}/answer`, { approve: true });
+        assert.equal(yes.status, 200);
+        assert.equal((await api(b, 'post', `/join/${asked.body.pending.joinId}/pin`, { pin: yes.body.pin })).status, 200);
         assert.equal(String((await sit(b))._id), String(sa._id), 'once let in he is on the same bill');
         assert.equal((await TableSession.findById(sa._id)).customers.length, 2);
     });
@@ -223,5 +227,48 @@ describe('the owner puts things right', () => {
         assert.equal(String((await TableRequest.findById(req._id)).sessionId), String(sa._id));
         assert.equal((await owner('post', `/dine-in/sessions/${sb._id}/merge`, { intoSessionId: String(sa._id) })).status, 409, 'B is already closed');
         assert.equal((await owner('post', `/dine-in/sessions/${sa._id}/merge`, { intoSessionId: String(sa._id) })).status, 400);
+    });
+});
+
+describe('the guest who started the bill', () => {
+    const User = require('../src/models/User');
+    const tableShares = require('../src/services/tableShares');
+    const join = async (a, sa, g) => {   // g asks to join a's bill, a says yes, g types the PIN
+        const asked = await api(g, 'post', '/table/4/enter', { choice: 'with', sessionId: String(sa._id) });
+        const yes = await api(a, 'post', `/join/${asked.body.pending.joinId}/answer`, { approve: true });
+        assert.equal((await api(g, 'post', `/join/${asked.body.pending.joinId}/pin`, { pin: yes.body.pin })).status, 200);
+    };
+
+    test('only he answers newcomers: a friend who joined later cannot, and does not see the request', async () => {
+        const a = await guest('9000000041'); const b = await guest('9000000042'); const c = await guest('9000000043');
+        const sa = await sit(a);
+        await join(a, sa, b);
+        const asked = await api(c, 'post', '/table/4/enter', { choice: 'with', sessionId: String(sa._id) });
+        const joinId = asked.body.pending.joinId;
+        assert.equal((await api(b, 'get', '/joins')).body.items.length, 0, 'the friend is not asked');
+        assert.equal((await api(a, 'get', '/joins')).body.items.length, 1);
+        assert.equal((await api(b, 'post', `/join/${joinId}/answer`, { approve: true })).status, 403);
+        assert.equal((await api(a, 'post', `/join/${joinId}/answer`, { approve: true })).status, 200);
+    });
+
+    test('the bill names who ordered each round and who paid it, and how', async () => {
+        const a = await guest('9000000041'); const b = await guest('9000000042');
+        await User.updateOne({ _id: a.user._id }, { $set: { name: 'Ankit' } });
+        await User.updateOne({ _id: b.user._id }, { $set: { name: '' } });
+        const sa = await sit(a);
+        await join(a, sa, b);
+        const mk = (g, name) => f.makeOrder(w.tenant, g.user, { orderType: 'dine_in', tableNo: '4', tableSessionId: sa._id, tableParty: 'A', status: 'delivered', pricing: { subtotal: 100, total: 100 }, customer: { name, phone: g.user.phone } });
+        await mk(a, 'Ankit'); await mk(b, '');
+        await tableShares.settleShare({ tenantId: w.tenant._id, sessionId: sa._id, userId: b.user._id, method: 'cash', by: { type: 'owner' } });
+        const bill = await tableBill.billOf(await TableSession.findById(sa._id), { owner: true });
+        const rounds = bill.rounds;
+        assert.deepEqual(rounds.map((r) => r.by.name), ['Ankit', 'Guest ·42'], 'a missing name falls back to the last two digits of his number (42)');
+        assert.equal(rounds[0].paid, false);
+        assert.equal(rounds[1].paid, true);
+        assert.equal(rounds[1].paidVia, 'cash');
+        assert.equal(rounds[1].paidBy.name, 'Guest ·42');
+        const mine = (await tableBill.billOf(await TableSession.findById(sa._id))).rounds[1].by.name;
+        assert.equal(mine, 'Guest', "the customer's own app never shows part of another person's number");
+        assert.deepEqual(bill.shares.map((s) => [s.name, s.paid, s.due]), [['Ankit', 0, 100], ['Guest ·42', 100, 0]]);
     });
 });

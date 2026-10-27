@@ -53,12 +53,13 @@ async function request(tenantId, { table, label, text, bill, party }) {
 }
 
 // a guest paid his bill online: the waiters hear it (screen and phone), so nobody walks over with a machine
-async function paidOnline(tenantId, { table, amount }) {
+async function paidOnline(tenantId, { table, amount, name }) {
+    const who = name && name !== 'A guest' ? `${name} paid` : 'Paid';
     try {
-        tell(tenantId, { request: true, table, paid: true, alert: { kind: 'paid', table, amount } });
+        tell(tenantId, { request: true, table, paid: true, alert: { kind: 'paid', table, amount, name: name || null } });
         await ring(tenantId, {
-            title: `Table ${table}: paid online`, body: `₹${Math.round(amount)} was paid from the guest's phone.`,
-            data: { type: 'waiter_paid', table: String(table), kind: 'paid', speech: `Table ${table} paid ${Math.round(amount)} rupees online`, speechHi: `टेबल ${table} ने ${Math.round(amount)} रुपये ऑनलाइन दे दिए` },
+            title: `Table ${table}: ${who} online`, body: `₹${Math.round(amount)} was paid from the guest's phone.`,
+            data: { type: 'waiter_paid', table: String(table), kind: 'paid', speech: `${name || `Table ${table}`} paid ${Math.round(amount)} rupees online${name ? ` for table ${table}` : ''}`, speechHi: `टेबल ${table} ने ${Math.round(amount)} रुपये ऑनलाइन दे दिए` },
             tag: `paid:${table}`,
         });
     } catch (e) { console.error('Waiter alert error:', e.message); }

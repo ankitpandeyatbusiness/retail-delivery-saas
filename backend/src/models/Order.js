@@ -66,7 +66,8 @@ const orderSchema = new Schema({
         paymentId: String,   // the Razorpay payment id
         paidAtDoor: Boolean, // a Cash on delivery order that was paid by QR at the door
         settledAt: Date,     // a dine in round paid when the owner settled the table bill
-        settledVia: String,  // cash | upi (at the counter)
+        settledVia: String,  // cash | upi (at the counter) | online (paid from the guest's phone at the table)
+        paidBy: { type: Schema.Types.ObjectId, ref: 'User' },   // a table round: the guest whose payment settled it (not set when the waiter took the whole bill)
     },
 
     customer: { name: String, phone: String, phoneHash: String, deleted: Boolean },   // deleted = he deleted his account

@@ -61,7 +61,7 @@ async function confirm(p, rzp) {
 
     const now = new Date();
     const orders = await Order.find({ _id: { $in: p.orderIds }, 'payment.status': { $ne: 'paid' } }).lean();
-    if (orders.length) await Order.updateMany({ _id: { $in: orders.map((o) => o._id) } }, { $set: { 'payment.status': 'paid', 'payment.paidAt': now, 'payment.settledAt': now, 'payment.settledVia': 'online' } });
+    if (orders.length) await Order.updateMany({ _id: { $in: orders.map((o) => o._id) } }, { $set: { 'payment.status': 'paid', 'payment.paidAt': now, 'payment.settledAt': now, 'payment.settledVia': 'online', 'payment.paidBy': p.userId } });
     if (orders.length < p.orderIds.length) {
         await alert('admin_refund_failed', { tenantId: p.tenantId, vars: { orderId: `table ${p.table} bill`, amount: (p.amountPaise / 100).toFixed(2), reason: 'Some rounds were already paid at the counter when this online payment came in. Refund the extra from Razorpay.' } });
     }
@@ -71,6 +71,8 @@ async function confirm(p, rzp) {
     const s = await TableSession.findById(p.sessionId).select('table customers').lean();
     const table = s?.table || p.table;
     const amount = p.amountPaise / 100;
+    const payer = await require('../models/User').findById(p.userId).select('name').lean();
+    const payerName = String(payer?.name || '').trim() || 'A guest';
     // his share is paid online: he leaves the bill (the rest of the table carries on), exactly as when the waiter takes his share
     if (p.scope === 'mine') {
         const sess = await TableSession.findOne({ _id: p.sessionId, status: { $in: ['open', 'bill_asked'] } });
@@ -78,8 +80,8 @@ async function confirm(p, rzp) {
             await require('./tableShares').finishLeave({ s: sess, tenantId: p.tenantId, userId: p.userId, paidPaise: p.amountPaise, via: 'online', by: 'online', now });
         }
     }
-    Promise.resolve().then(() => require('../notifications/center').notify('table_paid_online', { tenantId: p.tenantId, vars: { table, amount }, data: { kind: 'table_paid_online', sessionId: String(p.sessionId), table } })).catch((e) => console.error('Notification error:', e.message));
-    require('./waiterAlerts').paidOnline(p.tenantId, { table, amount });
+    Promise.resolve().then(() => require('../notifications/center').notify('table_paid_online', { tenantId: p.tenantId, vars: { table, amount, name: payerName }, data: { kind: 'table_paid_online', sessionId: String(p.sessionId), table } })).catch((e) => console.error('Notification error:', e.message));
+    require('./waiterAlerts').paidOnline(p.tenantId, { table, amount, name: payerName });
     return { ok: true, paid: true };
 }
 

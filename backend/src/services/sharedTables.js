@@ -98,7 +98,7 @@ async function enter({ tenant, userId, table, choice, sessionId }) {
     if (old) return { ok: true, pending: { joinId: String(old._id), expiresAt: old.status === 'approved' ? old.pinExpiresAt : old.expiresAt, needsPin: old.status === 'approved' } };
     const j = await TableJoin.create({ tenantId: tenant._id, table, sessionId: target._id, userId, expiresAt: new Date(Date.now() + JOIN_WAIT_MS) });
     const me = await User.findById(userId).select('name').lean();
-    for (const uid of target.customers) {
+    for (const uid of target.customers.slice(0, 1)) {   // only the guest who started this bill is asked
         tell('table_join_request', {
             tenantId: tenant._id, userId: uid, vars: { name: firstName(me) || 'Someone', table },
             data: { kind: 'table_join', joinId: String(j._id), table, sessionId: String(target._id) },
@@ -152,7 +152,8 @@ async function enterPin({ tenant, userId, joinId, pin }) {
 
 // the pending requests for the bills this guest belongs to (his app shows "Asha wants to join your table")
 async function pendingFor({ tenant, userId }) {
-    const sessions = await TableSession.find({ tenantId: tenant._id, customers: userId, status: { $in: OPEN } }).select('_id table').lean();
+    const all = await TableSession.find({ tenantId: tenant._id, customers: userId, status: { $in: OPEN } }).select('_id table customers').lean();
+    const sessions = all.filter((s) => String(s.customers[0]) === String(userId));   // only the guest who started a bill sees its requests
     if (!sessions.length) return [];
     const nowD = new Date();
     const rows = await TableJoin.find({ tenantId: tenant._id, sessionId: { $in: sessions.map((s) => s._id) }, $or: [{ status: 'pending', expiresAt: { $gt: nowD } }, { status: 'approved', pinExpiresAt: { $gt: nowD } }] }).sort({ createdAt: 1 }).lean();
@@ -169,6 +170,7 @@ async function answerJoin({ tenant, userId, joinId, approve, block = false }) {
     if (!j) throw fail(404, 'Not found');
     const s = await TableSession.findOne({ _id: j.sessionId, tenantId: tenant._id, status: { $in: OPEN }, customers: userId });
     if (!s) throw fail(403, 'This is not your table');
+    if (String(s.customers[0]) !== String(userId)) throw fail(403, 'Only the guest who started this bill can answer.');
     if (j.status !== 'pending' || j.expiresAt.getTime() <= Date.now()) throw fail(409, 'This request is already answered or has run out.');
     const claimed = await TableJoin.findOneAndUpdate({ _id: j._id, status: 'pending' }, { $set: { status: approve ? 'approved' : 'denied', answeredBy: userId, answeredAt: new Date() } }, { returnDocument: 'after' });
     if (!claimed) throw fail(409, 'This request is already answered.');

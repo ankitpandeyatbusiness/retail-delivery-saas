@@ -49,6 +49,14 @@ function timesOf(o) {
     return { placed: o.createdAt, accepted: at('accepted'), ready: at('ready'), served: o.deliveredAt || at('delivered') };
 }
 
+// a guest's name on a bill: his own name; else "Guest ·42" (the last two digits of his number, owner's screens only); else "Guest"
+const guestName = (o, owner) => {
+    const n = String(o?.customer?.name || '').trim().slice(0, 40);
+    if (n) return n;
+    const ph = String(o?.customer?.phone || '').replace(/\D/g, '');
+    return owner && ph.length >= 2 ? `Guest ·${ph.slice(-2)}` : 'Guest';
+};
+
 // owner = true adds who ordered each round (the customer's own app never gets another person's number)
 async function billOf(session, { owner = false } = {}) {
     const orders = await Order.find({ tenantId: session.tenantId, tableSessionId: session._id, ...HIDE_UNPAID }).sort({ createdAt: 1 }).lean();
@@ -56,8 +64,15 @@ async function billOf(session, { owner = false } = {}) {
     const asks = require('./customerAsks');
     const mine = require('./orderflow');
     const q = owner ? new Map() : await require('./queueInfo').forOrders(lite, orders.filter((o) => ['accepted', 'preparing', 'ready'].includes(o.status)));
+    const names = new Map();
+    for (const o of orders) names.set(String(o.userId), guestName(o, owner));
+    const strangers = [...new Set(orders.map((o) => o.payment?.paidBy).filter(Boolean).map(String))].filter((id) => !names.has(id));   // paid by somebody who ordered nothing himself
+    if (strangers.length) for (const u of await User.find({ _id: { $in: strangers } }).select('name').lean()) names.set(String(u._id), String(u.name || '').trim().slice(0, 40) || 'Guest');
     const rounds = orders.filter((o) => !DEAD.includes(o.status)).map((o) => ({
         id: String(o._id), orderNo: o.orderNo, status: o.status, at: o.createdAt, total: o.pricing?.total || 0, paid: o.payment?.status === 'paid',
+        by: { id: String(o.userId), name: names.get(String(o.userId)) },   // who ordered this round
+        paidAt: o.payment?.status === 'paid' ? (o.payment?.paidAt || null) : null, paidVia: o.payment?.status === 'paid' ? (o.payment?.settledVia || null) : null,
+        paidBy: o.payment?.status === 'paid' && o.payment?.paidBy ? { id: String(o.payment.paidBy), name: names.get(String(o.payment.paidBy)) || 'Guest' } : null,   // who paid it (empty: the waiter took the whole bill)
         canCancel: o.payment?.status !== 'paid' && mine.customerCanCancel(o, lite), canAsk: o.payment?.status !== 'paid' && asks.canAskCancel(o, lite), asked: !!o.cancelRequest?.at,   // the guest may cancel it himself / ask the shop / has asked
         items: (o.items || []).map((l) => ({ name: l.name, image: l.image || null, isVeg: l.isVeg ?? null, quantity: l.quantity, total: l.lineTotal, addons: (l.selections || []).map((x) => x.name).filter(Boolean), note: l.note || null })), summary: brief(o, 3),
         note: o.note || null, times: timesOf(o), queue: q.get(String(o._id)) || null,
@@ -70,14 +85,14 @@ async function billOf(session, { owner = false } = {}) {
     const byPerson = new Map();
     for (const o of orders.filter((x) => !DEAD.includes(x.status))) {
         const k = String(o.userId);
-        const cur = byPerson.get(k) || { userId: k, name: o.customer?.name || null, total: 0, due: 0 };
+        const cur = byPerson.get(k) || { userId: k, name: names.get(k), total: 0, due: 0 };
         cur.total += o.pricing?.total || 0;
         if (o.payment?.status !== 'paid') cur.due += o.pricing?.total || 0;
         byPerson.set(k, cur);
     }
     return {
         tip, payable: Math.round((due + tip) * 100) / 100,
-        shares: [...byPerson.values()].map((x) => ({ ...x, total: Math.round(x.total * 100) / 100, due: Math.round(x.due * 100) / 100 })),   // for "split the bill": who ordered how much
+        shares: [...byPerson.values()].map((x) => ({ ...x, total: Math.round(x.total * 100) / 100, due: Math.round(x.due * 100) / 100, paid: Math.round((x.total - x.due) * 100) / 100 })),   // for "split the bill": who ordered how much
 
         ...(owner ? { guests: session.customers.map((c) => people.get(String(c))).filter(Boolean) } : {}),
         id: String(session._id), table: session.table, party: session.party || 1, label: session.label || null, status: session.status, openedAt: session.openedAt, billAskedAt: session.billAskedAt || null, closedAt: session.closedAt || null,
@@ -362,6 +377,7 @@ async function freeTable(s, by = 'auto', { minAgeMs = 0, now = new Date() } = {}
     if (now.getTime() - last < minAgeMs) return { ok: false, reason: 'recent' };
     const done = await TableSession.findOneAndUpdate({ _id: s._id, status: { $in: ['open', 'bill_asked'] } }, { $set: { status: 'closed', closedAt: now, closedBy: by } });
     if (!done) return { ok: false, reason: 'closed' };
+    tell('table_closed_owner', { tenantId: s.tenantId, vars: { table: s.table, label: s.label || '' }, data: { kind: 'table', sessionId: String(s._id), table: s.table } });
     for (const uid of s.customers) tell('table_freed', { tenantId: s.tenantId, userId: uid, vars: { table: s.table, by, minutes: Math.round(FREE_AFTER_MS / 60000) }, data: { kind: 'table_freed', table: s.table } });
     return { ok: true };
 }
