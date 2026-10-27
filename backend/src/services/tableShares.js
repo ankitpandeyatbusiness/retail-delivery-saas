@@ -75,8 +75,13 @@ async function settleShare({ tenantId, sessionId, userId, method, by }) {
     if (unpaid.length) await Order.updateMany({ _id: { $in: unpaid.map((o) => o._id) } }, { $set: { 'payment.status': 'paid', 'payment.paidAt': now, 'payment.settledAt': now, 'payment.settledVia': method } });
     const loyalty = require('./loyaltyService');
     for (const o of unpaid) loyalty.onDelivered({ ...o.toObject(), payment: { ...(o.payment?.toObject ? o.payment.toObject() : o.payment), status: 'paid' }, deliveredAt: now }).catch((e) => console.error('Points error:', e.message));
-    await TableSession.updateOne({ _id: s._id }, { $pull: { customers: userId }, $inc: { paidPaise }, $push: { left: { userId, at: now, paidPaise, via: method, by: by?.type === 'staff' ? 'staff' : 'owner' } } });
-    await TableRequest.updateMany({ tenantId, sessionId: s._id, userId, kind: 'share', status: 'open' }, { $set: { status: 'done', doneAt: now, doneBy: by?.type === 'staff' ? 'staff' : 'owner', ...(by?.name ? { doneByName: by.name } : {}) } });
+    return finishLeave({ s, tenantId, userId, paidPaise, via: method, by: by?.type === 'staff' ? 'staff' : 'owner', byName: by?.name, now });
+}
+
+// his rounds are paid (by the waiter, or online by himself): he leaves the bill, the others are told what remains
+async function finishLeave({ s, tenantId, userId, paidPaise, via, by, byName, now }) {
+    await TableSession.updateOne({ _id: s._id }, { $pull: { customers: userId }, $inc: { paidPaise }, $push: { left: { userId, at: now, paidPaise, via, by } } });
+    await TableRequest.updateMany({ tenantId, sessionId: s._id, userId, kind: 'share', status: 'open' }, { $set: { status: 'done', doneAt: now, doneBy: by === 'online' ? 'auto' : by, ...(byName ? { doneByName: byName } : {}) } });
     const end = await afterLeave(s, tenantId, now);
     const me = await User.findById(userId).select('name').lean();
     const left = end.closed ? 0 : await remaining(tenantId, s._id);
@@ -114,4 +119,4 @@ async function walkoutShare({ tenantId, sessionId, userId }) {
     return { ok: true, owedPaise: owed, closed: end.closed, left };
 }
 
-module.exports = { askLeave, settleShare, walkoutShare };
+module.exports = { askLeave, settleShare, walkoutShare, finishLeave, mine };

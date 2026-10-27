@@ -13,6 +13,7 @@ export const searchProducts = (params) => d(api.get('/catalog/products', { param
 export const fetchPoints = () => d(api.get('/loyalty/me'));
 // the table bill while dining in: { open, table, status, rounds, total, due } / ask for the bill
 export const reportPresence = (loc) => d(api.post('/dinein/presence', { loc }));   // 'on' | 'off' | 'unknown': the guest's app says where he stands (the owner is told quietly if a guest who owes cannot be reached)
+export const freeMyTable = () => d(api.post('/dinein/free'));   // everything is paid: release the table (everyone on this bill is told)
 export const askLeaveShare = () => d(api.post('/dinein/leave-ask'));   // "pay my share and leave": { ok, amount, busy }
 export const fetchTableBill = () => d(api.get('/dinein/bill'));
 // shared tables: who sits at this table, his choice (separate bill, or join them), and the answers
@@ -30,7 +31,7 @@ export const claimPaid = () => d(api.post('/dinein/paid-claim'));   // "I alread
 export const startOwedPayment = () => d(api.post('/dinein/owed/pay'));   // pay the bill I left unpaid, online
 export const checkOwedPayment = () => d(api.post('/dinein/owed/pay/check'));
 export const verifyOwedPayment = (proof) => d(api.post('/dinein/owed/pay/verify', proof));
-export const startTablePayment = () => d(api.post('/dinein/pay-bill'));   // pay what I have ordered so far, online, from the table
+export const startTablePayment = (scope) => d(api.post('/dinein/pay-bill', scope ? { scope } : {}));   // pay what I have ordered so far, online, from the table
 export const checkTablePayment = () => d(api.post('/dinein/pay-bill/check'));
 export const verifyTablePayment = (proof) => d(api.post('/dinein/pay-bill/verify', proof));
 export const callTable = (kind, text) => d(api.post('/dinein/call', { kind, text }));   // call the waiter / water / cutlery / clean the table

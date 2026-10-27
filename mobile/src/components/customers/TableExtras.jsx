@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { useBrand, alpha } from '../common/kit';
 import { Card, Button } from '../owners/ui';
 import { Chip } from './cartParts';
@@ -97,6 +98,7 @@ export function TipCard({ bill }) {
 
 export function SplitCard({ bill }) {
     const { text, muted, ok, primary, border, surface } = useBrand();
+    const nav = useNavigation();
     const user = useAuthStore((s) => s.user);
     const me = String(user?.id || user?._id || '');
     const shares = bill.shares || [];
@@ -152,7 +154,10 @@ export function SplitCard({ bill }) {
             ) : null}
             {shares.length > 1 && mine && myDue > 0 ? (
                 <View style={{ marginTop: 14 }}>
-                    {asked ? <Text style={{ color: ok, fontWeight: '800', textAlign: 'center' }}>{tr('The waiter knows. Please wait at your table.')}</Text> : <Button label={tr('Pay my share and leave')} icon="walk" kind="ghost" busy={asking} onPress={leave} />}
+                    {asked ? <Text style={{ color: ok, fontWeight: '800', textAlign: 'center' }}>{tr('The waiter knows. Please wait at your table.')}</Text> : <>
+                        {bill.payOnline ? <Button label={tr('Pay my share {amount} online', { amount: rs(myDue) })} icon="card" onPress={() => nav.navigate('PaymentMethods', { payBill: true, payShare: true, current: 'upi' })} style={{ marginBottom: 8 }} /> : null}
+                        <Button label={tr('Pay my share at the counter')} icon="walk" kind="ghost" busy={asking} onPress={leave} />
+                    </>}
                 </View>
             ) : null}
             <Text style={{ color: muted, fontSize: 12, marginTop: 10 }}>{shares.length > 1 ? tr('Pay your own share and leave, or pay together once, at the counter.') : tr('This is only a guide. You still pay once, at the counter.')}</Text>

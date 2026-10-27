@@ -31,7 +31,7 @@ async function runBillReminders(now = new Date()) {
             const minutes = Math.round((now.getTime() - new Date(s.billAskedAt).getTime()) / MIN);
             require('../notifications/center').notify('table_bill_waiting', { tenantId: s.tenantId, vars: { table: s.table, minutes }, data: { kind: 'table', table: s.table, sessionId: String(s._id) } });
             if (tenant.settings?.orders?.staff?.waiterOn === true) {
-                const people = await require('../services/staffDuty').peopleOnDuty(s.tenantId, 'waiter');
+                const { people } = await require('../services/tableWaiter').forTable(s.tenantId, s._id);   // the waiter who served them (everyone on duty if he is away)
                 const speech = `Table ${s.table} is still waiting for the bill. They asked ${minutes} minutes ago.`;
                 await Promise.all(people.map((p) => pushChannel.send({
                     tenantId: s.tenantId, userId: p.userId, title: `Table ${s.table} is still waiting for the bill`, body: `They asked ${minutes} minutes ago.`,

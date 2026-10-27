@@ -141,7 +141,7 @@ async function fromTables(tenantId, r) {
     const withShares = await TableSession.find({ tenantId, kind: 'table', 'left.paidPaise': { $gt: 0 }, ...withRange('left.at', r) }).sort({ updatedAt: -1 }).limit(PER_SOURCE).lean();
     const out = sessions.map((s) => ({
         key: `ts${s._id}`, at: s.closedAt, category: 'table_bill', amountPaise: s.paidPaise, how: upiWord(s.paidVia), ref: null, orderId: null,
-        by: s.closedBy === 'staff' ? `Waiter ${s.closedByName || ''}`.trim() : s.closedBy === 'auto' ? 'Closed by itself' : 'You',
+        by: s.closedBy === 'staff' ? `Waiter ${s.closedByName || ''}`.trim() : s.closedBy === 'auto' ? 'Closed by itself' : s.closedBy === 'customer' ? 'Guest freed the table' : 'You',
         meta: { table: s.table, party: s.label || null, tipPaise: s.tipPaise || 0, sessionId: String(s._id) },
     }));
     const people = new Set();

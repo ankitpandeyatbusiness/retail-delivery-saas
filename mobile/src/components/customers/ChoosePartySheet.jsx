@@ -1,7 +1,7 @@
 // Shared tables: somebody else is already at this table. The guest chooses: a bill of his own, or "I'm with them" (the person there says yes or no, and no
 // answer in 2 minutes offers him his own bill). Nobody is ever stuck: every state has a way forward.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, ActivityIndicator, TextInput } from 'react-native';
+import { View, Text, ActivityIndicator, TextInput, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../common/kit';
 import { Sheet, Button } from '../owners/ui';
@@ -114,7 +114,9 @@ export default function ChoosePartySheet({ visible, table, onClose, onChosen }) 
                                 <Text numberOfLines={1} style={{ color: text, fontWeight: '800' }}>{p.who || tr('A guest')}</Text>
                                 <Text style={{ color: muted, fontSize: 12.5 }}>{p.guests === 1 ? tr('1 guest') : tr('{n} guests', { n: p.guests })}</Text>
                             </View>
-                            <Button label={tr("I'm with them")} kind="ghost" busy={busy === p.sessionId} disabled={!!busy} onPress={() => withThem(p)} style={{ minWidth: 118 }} />
+                            <Pressable onPress={() => withThem(p)} disabled={!!busy} style={{ alignSelf: 'center', flexShrink: 0, marginLeft: 8, paddingHorizontal: 14, height: 40, borderRadius: 20, borderWidth: 1, borderColor: border, alignItems: 'center', justifyContent: 'center', opacity: busy && busy !== p.sessionId ? 0.45 : 1 }}>
+                                {busy === p.sessionId ? <ActivityIndicator size="small" color={primary} /> : <Text numberOfLines={1} style={{ color: text, fontWeight: '800', fontSize: 14 }}>{tr("I'm with them")}</Text>}
+                            </Pressable>
                         </View>
                     ))}
                     {st.canSeparate ? (

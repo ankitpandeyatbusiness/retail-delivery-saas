@@ -10,7 +10,7 @@ import { ListShimmer } from '../../components/owners/shimmer';
 import { useTableBill } from '../../store/customers/useTableBill';
 import WaitTimer, { ServedIn, useTick, clock as mmss } from '../../components/common/WaitTimer';
 import { CallCard, TipCard, SplitCard } from '../../components/customers/TableExtras';
-import { nudgeTable, cancelOrder, askCancelOrder } from '../../api/customers/shopApi';
+import { nudgeTable, cancelOrder, askCancelOrder, freeMyTable } from '../../api/customers/shopApi';
 import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
 import { whereOf } from '../../utils/common/where';
@@ -27,7 +27,8 @@ export default function TableBillScreen() {
     const bill = useTableBill((s) => s.bill);
     const loading = useTableBill((s) => s.loading);
     const [busy, setBusy] = useState(false);
-    useFocusEffect(useCallback(() => { useTableBill.getState().load(); }, []));
+    // read again every 15 seconds while he looks at it, so a served round stops showing "taking too long" and its cancel link by itself
+    useFocusEffect(useCallback(() => { useTableBill.getState().load(); const t = setInterval(() => useTableBill.getState().load(), 15000); return () => clearInterval(t); }, []));
 
     const tick = useTick(!!bill?.open);
     const hurry = async () => {
@@ -41,6 +42,11 @@ export default function TableBillScreen() {
     };
 
     // pay what is unpaid so far, online: the same payment-method screen as the cart; the paid rounds then fade, and what he orders next shows below as new
+    const freeIt = async () => {
+        const yes = await ask({ title: tr('Free the table?'), message: tr('Everyone on this bill is done and the table is given to other guests. To order again, scan the QR code on the table and order as before.'), confirmText: tr('Yes, free the table'), cancelText: tr('Not yet') });
+        if (!yes) return;
+        try { await freeMyTable(); await useTableBill.getState().load(); showToast(tr('The table is free. Thank you!')); } catch (e) { showToast(e?.response?.data?.error || tr('Could not do that. Please try again.')); }
+    };
     const payNow = () => nav.navigate('PaymentMethods', { payBill: true, current: 'upi' });
 
     // ordered by mistake: cancel the round himself in the first minutes; later the shop decides
@@ -68,6 +74,7 @@ export default function TableBillScreen() {
                     <Ionicons name="checkmark-circle" size={64} color={ok} />
                     <Text style={{ color: text, fontWeight: '900', fontSize: 20, marginTop: 12 }}>{tr('Nothing to pay')}</Text>
                     <Text style={{ color: muted, textAlign: 'center', marginTop: 6 }}>{tr('You have no open table bill. Thank you for dining with us!')}</Text>
+                    <Text style={{ color: muted, textAlign: 'center', marginTop: 10, fontSize: 12.5 }}>{tr('A paid table is freed after 15 minutes, or when you tap "I am done". To order more, scan the QR code on the table, pick your table and order as before.')}</Text>
                     {bill.owed ? <Text style={{ color: warn, fontWeight: '900', textAlign: 'center', marginTop: 16 }}>{tr('You still owe {n} from {where}. Please pay it at the counter on your next visit.', { n: rs(bill.owed.amount), where: whereOf(bill.owed.table) })}</Text> : null}
                 </View>
             </View>
@@ -94,7 +101,7 @@ export default function TableBillScreen() {
                     </Card>
                 ) : null}
 
-                {bill.rounds.some((r) => ['placed', 'accepted', 'preparing', 'ready'].includes(r.status)) && !asked ? (
+                {live.length > 0 && !asked ? (
                     <Card>
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                             <Ionicons name="hourglass" size={22} color={warn} />
@@ -142,11 +149,11 @@ export default function TableBillScreen() {
                                 <Text style={{ flex: 1, color: muted, fontWeight: '700' }}>{tr('Round total')}</Text>
                                 <Text style={{ color: text, fontWeight: '900' }}>{rs(r.total)}</Text>
                             </View>
-                            {r.canCancel || r.canAsk ? (
+                            {!r.paid && (r.canCancel || r.canAsk) ? (
                                 <Pressable onPress={() => roundCancel(r)} hitSlop={8} style={{ marginTop: 10, alignSelf: 'flex-start' }}>
                                     <Text style={{ color: warn, fontWeight: '800' }}>{r.canCancel ? tr('Ordered by mistake? Cancel this round') : tr('Ask the shop to cancel this round')}</Text>
                                 </Pressable>
-                            ) : r.asked ? <Text style={{ color: muted, fontSize: 12.5, marginTop: 10 }}>{tr('You asked the shop to cancel. Waiting for their reply.')}</Text> : null}
+                            ) : r.asked && !r.paid ? <Text style={{ color: muted, fontSize: 12.5, marginTop: 10 }}>{tr('You asked the shop to cancel. Waiting for their reply.')}</Text> : null}
                         </Card>
                     </View>
                 ))}
@@ -184,7 +191,8 @@ export default function TableBillScreen() {
                 {bill.payOnline && bill.due > 0 ? <Button label={tr('Pay {n} online', { n: rs(bill.due) })} icon="card" onPress={payNow} style={{ marginBottom: 8 }} /> : null}
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -4 }}>
                     <Button label={tr('Order more')} icon="add" kind="ghost" onPress={() => nav.navigate('MainTabs', { screen: 'Home' })} style={{ flexGrow: 1, flexBasis: 140, margin: 4 }} />
-                    {asked ? null : <Button label={tr('Ask for the bill')} icon="receipt" kind={bill.payOnline && bill.due > 0 ? 'ghost' : undefined} busy={loading} onPress={askBill} style={{ flexGrow: 1.3, flexBasis: 160, margin: 4 }} />}
+                    {!(bill.due > 0) && live.length === 0 && bill.rounds.length > 0 ? <Button label={tr('I am done · Free the table')} icon="exit-outline" onPress={freeIt} style={{ flexGrow: 1.3, flexBasis: 160, margin: 4 }} /> : null}
+                    {asked || !(bill.due > 0) ? null : <Button label={tr('Ask for the bill')} icon="receipt" kind={bill.payOnline && bill.due > 0 ? 'ghost' : undefined} busy={loading} onPress={askBill} style={{ flexGrow: 1.3, flexBasis: 160, margin: 4 }} />}
                 </View>
             </View>
         </View>

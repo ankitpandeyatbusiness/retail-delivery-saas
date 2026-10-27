@@ -99,6 +99,7 @@ export default function PaymentMethodsScreen() {
     const [cfg, setCfg] = useState({ loading: true, online: false, upi: false, card: false });
     const [apps, setApps] = useState(null);   // null while we ask the phone which UPI apps it has
     const timer = useRef(null);
+    const payShare = !!route.params?.payShare;   // only his own share, then he leaves the bill
     const payBill = !!route.params?.payBill;   // paying the table bill from the table: online methods only, and the payment starts when one is picked
     const user = useAuthStore((st) => st.user);
     const head = useRef(new Animated.Value(0)).current;
@@ -126,9 +127,9 @@ export default function PaymentMethodsScreen() {
         timer.current = setTimeout(() => {
             if (payBill) {
                 nav.goBack();
-                payTableBill({ user, upiApp: m.app }).then(async (r) => {
+                payTableBill({ user, upiApp: m.app, scope: payShare ? 'mine' : undefined }).then(async (r) => {
                     await useTableBill.getState().load();
-                    if (r.status === 'paid') showToast(tr('Paid. Thank you! You can order more any time.'));
+                    if (r.status === 'paid') showToast(payShare ? tr('Paid. Thank you! Have a good day.') : tr('Paid. Thank you! You can order more any time.'));
                     else if (r.message) showToast(tr(r.message));
                 });
                 return;

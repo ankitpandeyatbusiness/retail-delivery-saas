@@ -18,13 +18,16 @@ async function available(tenantId) {
 }
 
 // the rounds of this visit that nobody has paid yet
-const unpaidOf = (tenantId, sessionId) => Order.find({ tenantId, tableSessionId: sessionId, status: { $nin: DEAD }, 'payment.status': { $ne: 'paid' }, ...HIDE_UNPAID }).select('pricing.total orderNo').lean();
+const unpaidOf = (tenantId, sessionId, userId) => Order.find({ tenantId, tableSessionId: sessionId, ...(userId ? { userId } : {}), status: { $nin: DEAD }, 'payment.status': { $ne: 'paid' }, ...HIDE_UNPAID }).select('pricing.total orderNo').lean();
 
 // The guest wants to pay: make (or reuse) the Razorpay order for exactly what is unpaid on his bill. Safe to call again.
-async function start({ tenantId, userId }) {
+// scope 'mine': only the rounds he ordered himself (his share); he leaves the bill when it is paid
+async function start({ tenantId, userId, scope }) {
+    const mineOnly = scope === 'mine';
     const s = await require('./tableBill').openFor(tenantId, userId);
     if (!s) throw httpError(404, 'You have no open bill');
-    const rows = await unpaidOf(tenantId, s._id);
+    const rows = await unpaidOf(tenantId, s._id, mineOnly ? userId : null);
+    if (mineOnly && (await require('./tableShares').mine(s, userId)).busy) throw httpError(409, 'Your dishes are still being made. Pay after they are served.');
     const amountPaise = Math.round(rows.reduce((n, o) => n + (o.pricing?.total || 0), 0) * 100);
     if (!rows.length || amountPaise <= 0) throw httpError(409, 'Everything on your bill is already paid');
     if (amountPaise < 100) throw httpError(400, 'The amount is too small for an online payment');
@@ -34,13 +37,13 @@ async function start({ tenantId, userId }) {
     if (!creds.keyId || !creds.keySecret) throw httpError(503, 'Online payment is not available right now. Please ask the waiter.');
 
     const orderKey = rows.map((o) => String(o._id)).sort().join(',');
-    let p = await TablePayment.findOne({ tenantId, userId, sessionId: s._id, orderKey, amountPaise, status: 'created' });
+    let p = await TablePayment.findOne({ tenantId, userId, sessionId: s._id, orderKey, amountPaise, status: 'created', scope: mineOnly ? 'mine' : 'all' });
     if (!p) {
         const ro = await payments.createOrder({
             amountPaise, receipt: `tbl-${String(userId).slice(-8)}-${Date.now().toString(36)}`.slice(0, 40),
             notes: { kind: 'table_bill', tenantId: String(tenantId), userId: String(userId), table: String(s.table) }, credentials: creds,
         });
-        p = await TablePayment.create({ tenantId, userId, sessionId: s._id, orderIds: rows.map((o) => o._id), orderKey, table: s.table, mode: creds.mode || 'test', rzpOrderId: ro.id, amountPaise });
+        p = await TablePayment.create({ tenantId, userId, sessionId: s._id, orderIds: rows.map((o) => o._id), orderKey, scope: mineOnly ? 'mine' : 'all', table: s.table, mode: creds.mode || 'test', rzpOrderId: ro.id, amountPaise });
     }
     return { keyId: creds.keyId, rzpOrderId: p.rzpOrderId, amountPaise: p.amountPaise, currency: 'INR' };
 }
@@ -68,6 +71,13 @@ async function confirm(p, rzp) {
     const s = await TableSession.findById(p.sessionId).select('table customers').lean();
     const table = s?.table || p.table;
     const amount = p.amountPaise / 100;
+    // his share is paid online: he leaves the bill (the rest of the table carries on), exactly as when the waiter takes his share
+    if (p.scope === 'mine') {
+        const sess = await TableSession.findOne({ _id: p.sessionId, status: { $in: ['open', 'bill_asked'] } });
+        if (sess && sess.customers.some((c) => String(c) === String(p.userId))) {
+            await require('./tableShares').finishLeave({ s: sess, tenantId: p.tenantId, userId: p.userId, paidPaise: p.amountPaise, via: 'online', by: 'online', now });
+        }
+    }
     Promise.resolve().then(() => require('../notifications/center').notify('table_paid_online', { tenantId: p.tenantId, vars: { table, amount }, data: { kind: 'table_paid_online', sessionId: String(p.sessionId), table } })).catch((e) => console.error('Notification error:', e.message));
     require('./waiterAlerts').paidOnline(p.tenantId, { table, amount });
     return { ok: true, paid: true };

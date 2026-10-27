@@ -99,7 +99,7 @@ router.post('/feedback', wrap(async (req, res) => {
 }));
 
 // Pay the bill he left unpaid, online (the shop's own Razorpay keys)
-router.post('/owed/pay', wrap(async (req, res) => { res.json(await require('../services/owedPayment').start({ tenantId: req.tenant._id, userId: req.auth.userId })); }));
+router.post('/owed/pay', wrap(async (req, res) => { res.json(await require('../services/owedPayment').start({ tenantId: req.tenant._id, userId: req.auth.userId, scope: req.body?.scope === 'mine' ? 'mine' : 'all' })); }));
 router.post('/owed/pay/check', wrap(async (req, res) => {
     let r;
     try { r = await require('../services/owedPayment').check({ tenantId: req.tenant._id, userId: req.auth.userId }); } catch (e) { r = { paid: false, status: 'unknown' }; }
@@ -135,6 +135,15 @@ router.post('/paid-claim', wrap(async (req, res) => {
 
 router.post('/nudge', wrap(async (req, res) => {
     try { res.json(await tableBill.nudge({ tenantId: req.tenant._id, userId: req.auth.userId })); } catch (e) { throw httpError(e.status || 400, e.message); }
+}));
+
+// "I am done": the guest frees the table once everything is paid (everyone on his bill is told)
+router.post('/free', wrap(async (req, res) => {
+    const s = await tableBill.openFor(req.tenant._id, req.auth.userId);
+    if (!s) throw httpError(404, 'You have no open table');
+    const r = await tableBill.freeTable(s, 'customer');
+    if (!r.ok) throw httpError(409, r.reason === 'unpaid' ? 'Please pay your bill first.' : r.reason === 'busy' ? 'Your food is still being made or served.' : r.reason === 'nothing' ? 'You have not ordered anything.' : 'This table is already free.');
+    res.json({ ok: true });
 }));
 
 router.post('/ask-bill', wrap(async (req, res) => {

@@ -58,7 +58,7 @@ async function billOf(session, { owner = false } = {}) {
     const q = owner ? new Map() : await require('./queueInfo').forOrders(lite, orders.filter((o) => ['accepted', 'preparing', 'ready'].includes(o.status)));
     const rounds = orders.filter((o) => !DEAD.includes(o.status)).map((o) => ({
         id: String(o._id), orderNo: o.orderNo, status: o.status, at: o.createdAt, total: o.pricing?.total || 0, paid: o.payment?.status === 'paid',
-        canCancel: mine.customerCanCancel(o, lite), canAsk: asks.canAskCancel(o, lite), asked: !!o.cancelRequest?.at,   // the guest may cancel it himself / ask the shop / has asked
+        canCancel: o.payment?.status !== 'paid' && mine.customerCanCancel(o, lite), canAsk: o.payment?.status !== 'paid' && asks.canAskCancel(o, lite), asked: !!o.cancelRequest?.at,   // the guest may cancel it himself / ask the shop / has asked
         items: (o.items || []).map((l) => ({ name: l.name, image: l.image || null, isVeg: l.isVeg ?? null, quantity: l.quantity, total: l.lineTotal, addons: (l.selections || []).map((x) => x.name).filter(Boolean), note: l.note || null })), summary: brief(o, 3),
         note: o.note || null, times: timesOf(o), queue: q.get(String(o._id)) || null,
         ...(owner ? { customer: { name: o.customer?.name || null, phone: o.customer?.phone || null } } : {}),
@@ -350,6 +350,22 @@ async function closeEmpty(tenantId, sessionId, minAgeMs = 0) {
     return r.modifiedCount > 0;
 }
 
+// A paid visit ends: the table is free again and EVERYONE on that bill is told why, and how to order more. A guest can do it himself, and it happens by itself
+// after 15 minutes of sitting with everything paid. Nothing is freed while a dish is still coming or anything is unpaid.
+const FREE_AFTER_MS = 15 * 60000;
+async function freeTable(s, by = 'auto', { minAgeMs = 0, now = new Date() } = {}) {
+    const orders = await Order.find({ tenantId: s.tenantId, tableSessionId: s._id, status: { $nin: DEAD } }).select('status payment.status payment.paidAt deliveredAt').lean();
+    if (!orders.length) return { ok: false, reason: 'nothing' };
+    if (orders.some((o) => ACTIVE.includes(o.status))) return { ok: false, reason: 'busy' };
+    if (orders.some((o) => o.payment?.status !== 'paid')) return { ok: false, reason: 'unpaid' };
+    const last = Math.max(...orders.map((o) => Math.max(new Date(o.payment?.paidAt || 0).getTime(), new Date(o.deliveredAt || 0).getTime())));
+    if (now.getTime() - last < minAgeMs) return { ok: false, reason: 'recent' };
+    const done = await TableSession.findOneAndUpdate({ _id: s._id, status: { $in: ['open', 'bill_asked'] } }, { $set: { status: 'closed', closedAt: now, closedBy: by } });
+    if (!done) return { ok: false, reason: 'closed' };
+    for (const uid of s.customers) tell('table_freed', { tenantId: s.tenantId, userId: uid, vars: { table: s.table, by, minutes: Math.round(FREE_AFTER_MS / 60000) }, data: { kind: 'table_freed', table: s.table } });
+    return { ok: true };
+}
+
 // every few minutes: a visit nobody orders from any more, with nothing left to pay, is closed. (A visit with money still owed is NOT closed:
 // that is for the owner to settle, or to mark as left unpaid.)
 async function closeIdle(now = new Date()) {
@@ -357,7 +373,8 @@ async function closeIdle(now = new Date()) {
     let n = 0;
     for (const s of open) {
         if (await closeEmpty(s.tenantId, s._id, 10 * 60000)) { n += 1; continue; }   // every round cancelled: over
-        const t = await Tenant.findById(s.tenantId).select('settings.orders.dineIn').lean();
+        if ((await freeTable(s, 'auto', { minAgeMs: FREE_AFTER_MS, now })).ok) { n += 1; continue; }   // all paid and sitting for 15 minutes: the table is released
+        const t = await Tenant.findById(s.tenantId).select('settings.orders.dineIn settings.orders.staff').lean();
         const cfg = cfgOf(t);
         // finished eating, nobody asked for the bill: the owner is told once to look at the table (the walk-out alarm)
         if (s.status === 'open' && !s.checkNotifiedAt) {
@@ -367,7 +384,19 @@ async function closeIdle(now = new Date()) {
                 const claimed = await TableSession.findOneAndUpdate({ _id: s._id, status: 'open', checkNotifiedAt: { $exists: false } }, { $set: { checkNotifiedAt: now } });
                 if (claimed) {
                     const b = await billOf(s);
-                    if (b.due > 0) tell('table_check', { tenantId: s.tenantId, vars: { table: s.table, due: b.due, minutes: cfg.checkMinutes }, data: { kind: 'table', sessionId: String(s._id), table: s.table } });
+                    if (b.due > 0) {
+                        tell('table_check', { tenantId: s.tenantId, vars: { table: s.table, due: b.due, minutes: cfg.checkMinutes }, data: { kind: 'table', sessionId: String(s._id), table: s.table } });
+                        // and the waiter who served them (their bill is his): everyone on duty only if he is away
+                        if (t?.settings?.orders?.staff?.waiterOn === true) {
+                            const { people } = await require('./tableWaiter').forTable(s.tenantId, s._id);
+                            const speech = `Table ${s.table} has finished eating. Please check if they want the bill.`;
+                            const push = require('../notifications/channels/push');
+                            await Promise.all(people.map((p) => push.send({
+                                tenantId: s.tenantId, userId: p.userId, title: `Table ${s.table} has finished eating`, body: 'Please check if they want the bill.',
+                                data: { type: 'waiter_bill', kind: 'bill', table: String(s.table), speech }, tag: `check:${s._id}`, channelId: require('../notifications/events').STAFF_CHANNEL, sound: 'ting_tong',
+                            }).catch((e) => console.error('Table check push error:', e.message))));
+                        }
+                    }
                 }
             }
         }
@@ -614,4 +643,4 @@ async function feedbackSeen(tenantId) {
     return { ok: true };
 }
 
-module.exports = { closeEmpty, recordScan, callWaiter, requests, doneRequest, clearOldRequests, setTip, feedbackDue, submitFeedback, feedbackList, feedbackSeen, estimate, forgive, remind, remindAll, dailyOwed, claimPaid, pendingClaims, answerClaim, nudge, busyInfo, etaFor, autoReady, ACTIVE, placementInfo, walkout, debts, clearDebt, owedBy, joinOrOpen, billOf, openFor, askForBill, settle, board, closeIdle, startTableBillJob };
+module.exports = { closeEmpty, recordScan, callWaiter, requests, doneRequest, clearOldRequests, setTip, feedbackDue, submitFeedback, feedbackList, feedbackSeen, estimate, forgive, remind, remindAll, dailyOwed, claimPaid, pendingClaims, answerClaim, nudge, busyInfo, etaFor, autoReady, ACTIVE, placementInfo, walkout, debts, clearDebt, owedBy, joinOrOpen, billOf, openFor, askForBill, settle, board, closeIdle, freeTable, startTableBillJob };

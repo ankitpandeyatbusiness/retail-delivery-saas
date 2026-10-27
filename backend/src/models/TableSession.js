@@ -21,7 +21,7 @@ const tableSessionSchema = new mongoose.Schema({
     billAskedAt: Date,
     billRemindedAt: Date, billReminds: { type: Number, default: 0 },   // the shop and the waiters are reminded every 5 minutes while the bill waits (jobs/billReminders.js)
     closedAt: Date,
-    closedBy: { type: String, enum: ['owner', 'staff', 'auto'] },
+    closedBy: { type: String, enum: ['owner', 'staff', 'auto', 'customer'] },   // customer: a guest freed the table himself once everything was paid
     closedByName: String,   // the waiter who took the money
     // "I already paid": the customer says he paid what he owed; the owner answers yes (cleared) or no (reply with a message)
     claimAt: Date, claimBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

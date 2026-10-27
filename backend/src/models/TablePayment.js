@@ -9,6 +9,7 @@ const schema = new Schema({
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     sessionId: { type: Schema.Types.ObjectId, ref: 'TableSession', required: true },
     orderIds: [{ type: Schema.Types.ObjectId, ref: 'Order' }],
+    scope: { type: String, enum: ['all', 'mine'], default: 'all' },   // all = the whole unpaid bill; mine = only his own rounds (he pays his share and leaves)
     orderKey: { type: String, required: true },       // the rounds, sorted: the same unpaid rounds reuse the same Razorpay order
     table: String,
     mode: { type: String, enum: ['test', 'live', 'mock'], default: 'mock' },

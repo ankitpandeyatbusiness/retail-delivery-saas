@@ -43,9 +43,10 @@ async function finish(proof) {
 }
 
 // upiApp: { pkg, label } opens that app directly; { chooser: true } or nothing lets Android show its own list
-export async function payTableBill({ user, upiApp }) {
+// scope 'mine': only his own share (he leaves the bill when it is paid)
+export async function payTableBill({ user, upiApp, scope }) {
     let start;
-    try { start = await startTablePayment(); } catch (e) { return { status: 'failed', message: text(e, 'Could not start the payment') }; }
+    try { start = await startTablePayment(scope); } catch (e) { return { status: 'failed', message: text(e, 'Could not start the payment') }; }
     Razorpay.initRazorpay(start.keyId);   // the promise it returns never settles, so it is not awaited
     const options = {
         key_id: start.keyId, order_id: start.rzpOrderId, amount: String(start.amountPaise), currency: start.currency || 'INR',
