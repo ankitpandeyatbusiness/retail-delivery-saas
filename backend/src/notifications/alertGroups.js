@@ -9,6 +9,7 @@ const g = (id, label, hint, types, o = {}) => ({
     can: { n: true, p: !!o.p, s: true },   // every alert can have its sound switched
     soft: !!o.soft,   // news only: a soft ping, not the ting-tong
     critical: !!o.critical,   // switching it off asks "are you sure?": a missed one costs money or safety
+    noVoice: !!o.noVoice,   // starts without the voice (the slider and the notification still come): the guests at the table must not hear it
     defaults: { n: true, p: o.p === true, s: true, ...(o.defaults || {}) },
     sample: o.sample ? { en: o.sample[0], hi: o.sample[1] } : null,
 });
@@ -17,8 +18,9 @@ const OWNER = [
     g('new_orders', 'New orders', 'A new order is waiting for you to accept.', ['order_new', 'order_unaccepted_reminder'], { p: true, critical: true, sample: ['New order. 2 Butter Naan, 1 Paneer Butter Masala. Total 540 rupees. Cash on delivery.', 'नया ऑर्डर। 2 Butter Naan, 1 Paneer Butter Masala। कुल 540 रुपये। कैश ऑन डिलीवरी।'] }),
     g('cancelled', 'Cancelled orders', 'An order was cancelled by the customer, the rider or the system.', ['order_cancelled'], { p: true, sample: ['Order 1166 was cancelled by the customer. 1 Chicken Wings. Total 240 rupees.', 'ग्राहक ने ऑर्डर 1166 रद्द कर दिया। 1 Chicken Wings। कुल 240 रुपये।'] }),
     g('kitchen', 'Kitchen problems', 'The cook says a dish is finished or an order cannot be made.', ['kitchen_problem'], { p: true, sample: ['Kitchen problem. Order 1166. Chicken Wings is finished.', 'किचन में समस्या। ऑर्डर 1166।'] }),
+    g('bill_reminders', 'Reminders to take a bill', 'A table finished eating, or asked for the bill and nobody came yet. No voice by default, so the guests at the table do not hear it.', ['table_check', 'table_bill_waiting'], { noVoice: true, sample: ['Table 4 is waiting for the bill.', 'टेबल 4 बिल का इंतज़ार कर रही है।'] }),
     g('pickup', 'Pickup customers', 'A pickup customer says he is coming, is here, is late, or needs more time. Also: no-show, a later time, collected.', ['pickup_intent', 'pickup_no_show', 'pickup_time_request', 'pickup_collect_claim', 'pickup_not_wanted_claim'], { p: true, sample: ['Pickup order 1173. Ankit is on the way. 2 Butter Naan, 1 Paneer Butter Masala.', 'पिकअप ऑर्डर 1173। Ankit रास्ते में हैं। 2 Butter Naan, 1 Paneer Butter Masala।'] }),
-    g('tables', 'Tables: calls and bills', 'A table calls, asks for the bill, says it paid, asks you to hurry or to cancel a round.', ['table_call', 'table_bill_asked', 'table_bill_waiting', 'table_ready_unserved', 'table_paid_owner', 'table_paid_online', 'table_closed_owner', 'table_nudge', 'table_check', 'table_paid_claim', 'order_cancel_request', 'table_share_ask', 'table_feedback_low'], { p: 'off', sample: ['Table 4 asked for the bill.', 'टेबल 4 ने बिल मांगा है।'] }),
+    g('tables', 'Tables: calls and bills', 'A table calls, asks for the bill, says it paid, asks you to hurry or to cancel a round.', ['table_call', 'table_bill_asked', 'table_ready_unserved', 'table_paid_owner', 'table_paid_online', 'table_closed_owner', 'table_nudge', 'table_paid_claim', 'order_cancel_request', 'table_share_ask', 'table_feedback_low'], { p: 'off', sample: ['Table 4 asked for the bill.', 'टेबल 4 ने बिल मांगा है।'] }),
     g('help', 'A rider asks for help', 'A delivery partner pressed the help button.', ['rider_sos'], { p: true, critical: true, sample: ['Ramesh needs help. Order 1173. Please call now.', 'Ramesh को मदद चाहिए। ऑर्डर 1173। अभी फ़ोन करें।'] }),
     g('delivery', 'Delivery news', 'A rider accepted, rejected or has a problem; nobody took an order; a delivery is late.', ['rider_accepted', 'rider_rejected', 'rider_none', 'rider_ended_duty', 'delivery_pin_skipped', 'rider_problem', 'rider_quiet', 'rider_arrived_shop', 'delivery_late_warning', 'order_late', 'order_delivered_shop'], { p: 'off', soft: true }),
     g('leave', 'Leave requests', 'A cook, a waiter or a rider asks for leave.', ['staff_leave_request', 'staff_leave_withdrawn', 'rider_leave_request', 'rider_leave_withdrawn'], { p: true, soft: true }),
@@ -52,6 +54,7 @@ const KITCHEN = [
 
 const WAITER = [
     g('ready', 'Food ready to serve', 'The kitchen says a dish is ready for a table.', ['waiter_serve'], { kinds: ['ready'], critical: true, sample: ['Table 2, food is ready.', 'टेबल 2, खाना तैयार है।'] }),
+    g('bill_reminder', 'Reminders about a bill', 'A table of yours finished eating, or is still waiting for the bill. No voice by default, so the guests at the table do not hear it.', ['waiter_bill_reminder'], { kinds: ['bill_reminder'], noVoice: true, sample: ['Table 4 is waiting for the bill.', 'टेबल 4 बिल का इंतज़ार कर रही है।'] }),
     g('call', 'A table calls', 'A guest asks for the waiter, water, a spoon or a clean table.', ['waiter_call'], { kinds: ['call'], sample: ['Table 4 is calling.', 'टेबल 4 बुला रही है।'] }),
     g('bill', 'A table wants the bill', 'A guest asked for the bill.', ['waiter_bill'], { kinds: ['bill'], sample: ['Table 4 wants the bill.', 'टेबल 4 को बिल चाहिए।'] }),
     g('undo', 'Steps taken back (undo)', 'Someone undid Ready.', ['order_undone'], { soft: true }),
@@ -91,7 +94,7 @@ for (const [role, list] of Object.entries(BY_ROLE)) {
     for (const x of list) {
         const e = !x.sample && SAMPLES[`${role}.${x.id}`]; if (e) x.sample = { en: e[0], hi: e[1] };
         x.can.p = true; x.can.v = true;
-        x.defaults.p = true; x.defaults.v = true;
+        x.defaults.p = true; x.defaults.v = !x.noVoice;
         x.defaults.sec = STICKY.has(`${role}.${x.id}`) ? 0 : (TIMED[`${role}.${x.id}`] || 5);
     }
 }

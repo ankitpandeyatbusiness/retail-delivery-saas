@@ -35,7 +35,7 @@ async function runBillReminders(now = new Date()) {
                 const speech = `Table ${s.table} is still waiting for the bill. They asked ${minutes} minutes ago.`;
                 await Promise.all(people.map((p) => pushChannel.send({
                     tenantId: s.tenantId, userId: p.userId, title: `Table ${s.table} is still waiting for the bill`, body: `They asked ${minutes} minutes ago.`,
-                    data: { type: 'waiter_bill', kind: 'bill', table: String(s.table), speech }, tag: `billwait:${s._id}`, channelId: STAFF_CHANNEL, sound: 'ting_tong',
+                    data: { type: 'waiter_bill_reminder', kind: 'bill_reminder', table: String(s.table), speech }, tag: `billwait:${s._id}`, channelId: STAFF_CHANNEL, sound: 'ting_tong',
                 }).catch((e) => console.error('Bill reminder push error:', e.message))));
             }
             sent += 1;

@@ -411,7 +411,7 @@ async function closeIdle(now = new Date()) {
                             const push = require('../notifications/channels/push');
                             await Promise.all(people.map((p) => push.send({
                                 tenantId: s.tenantId, userId: p.userId, title: `Table ${s.table} has finished eating`, body: 'Please check if they want the bill.',
-                                data: { type: 'waiter_bill', kind: 'bill', table: String(s.table), speech }, tag: `check:${s._id}`, channelId: require('../notifications/events').STAFF_CHANNEL, sound: 'ting_tong',
+                                data: { type: 'waiter_bill_reminder', kind: 'bill_reminder', table: String(s.table), speech }, tag: `check:${s._id}`, channelId: require('../notifications/events').STAFF_CHANNEL, sound: 'ting_tong',
                             }).catch((e) => console.error('Table check push error:', e.message))));
                         }
                     }
