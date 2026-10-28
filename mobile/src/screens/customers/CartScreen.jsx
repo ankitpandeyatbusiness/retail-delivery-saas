@@ -21,6 +21,7 @@ import { useCartStore, useFavStore } from '../../store/customers/shopStores';
 import { CouponTicket } from '../../components/customers/coupon';
 import { FavouriteDishes } from '../../components/customers/favourites';
 import { useCouponStore } from '../../store/customers/useCouponStore';
+import { useStayOffer } from '../../components/customers/StayOfferCard';
 import { useOrderMode } from '../../store/customers/useOrderMode';
 import { useTableBill } from '../../store/customers/useTableBill';
 import TableSheet from '../../components/customers/TableSheet';
@@ -119,6 +120,7 @@ export default function CartScreen() {
     const [busy, setBusy] = useState(false);
     const [placing, setPlacing] = useState(false);
     const [tick, setTick] = useState(0);
+    useStayOffer();   // the shop's sorry-offer is found even when the guest never tapped its notification
     const offerUntil = useCouponStore((st) => st.until);
     const offerInfo = useCouponStore((st) => st.offer);
     const [nowMs, setNowMs] = useState(Date.now());

@@ -240,6 +240,24 @@ describe('a problem, dish by dish', () => {
         assert.ok(q.problem.handledAt, 'the card shows the owner dealt with it');
         assert.equal(q.problem.handledAction, 'tell');
     });
+
+    test('cancel with an offer: the note is the whole apology, the offer is kept whole on the order, and the guest finds it until it is used', async () => {
+        const kitchen = require('../src/services/kitchenService');
+        const o = await mk({ items: [{ productId: product._id, name: 'Dosa', quantity: 1, unitPrice: 100, lineTotal: 100 }] });
+        assert.equal((await post(o._id, 'problem', { kind: 'out_of_stock', productId: String(product._id) })).status, 200);
+        const order = await Order.findById(o._id);
+        const res = await kitchen.resolve({ tenant: w.tenant, order, action: 'cancel', offerPercent: 10, actor: { type: 'owner', id: w.owner.user._id, label: 'owner' } });
+        assert.match(res.offer.text, /within the next 30 minutes and get 10% off\. Use the code STAY\d+\.$/, 'a full sentence');
+        const after = await Order.findById(o._id);
+        assert.equal(after.status, 'cancelled');
+        assert.ok(!/30 minutes/.test(after.statusHistory.at(-1).note || ''), 'the offer is not squeezed into the 200-character note');
+        assert.equal(after.kitchen.offer.text, res.offer.text);
+        const mine = await kitchen.offerFor({ tenantId: w.tenant._id, userId: after.userId });
+        assert.equal(mine.code, res.offer.code);
+        assert.equal(await kitchen.offerFor({ tenantId: w.tenant._id, userId: w.owner.user._id }), null, 'nobody else gets it');
+        await require('../src/models/Coupon').updateOne({ tenantId: w.tenant._id, code: res.offer.code }, { $set: { usedCount: 1 } });
+        assert.equal(await kitchen.offerFor({ tenantId: w.tenant._id, userId: after.userId }), null, 'used: gone');
+    });
 });
 
 describe('alerts', () => {

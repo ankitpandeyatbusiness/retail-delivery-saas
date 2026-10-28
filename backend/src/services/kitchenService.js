@@ -291,15 +291,15 @@ async function resolve({ tenant, order, action, message, offerPercent, actor }) 
             });
             offer = { code, percent: pct, minOrder: min };
             // the cancelled order's apology stays as it is; the offer is its own message (below) with a code that works for 30 minutes
-            offer.text = `Sorry about order #${order.orderNo}. To make up for it: order something else within the next 30 minutes, worth at least ₹${min}, and you get ${pct}% off. Use the code ${code}.`;
+            offer.text = `Sorry about order #${order.orderNo}. To make up for it, order anything worth at least ₹${min} within the next 30 minutes and get ${pct}% off. Use the code ${code}.`;
             offer.until = new Date(Date.now() + 30 * 60000);
         } catch (e) { console.error('Offer coupon error:', e.message); }
     }
     let current = order;
     if (action === 'cancel') {
         if (!['accepted', 'preparing', 'ready'].includes(order.status)) throw httpError(409, `This order is "${order.status}" and cannot be cancelled.`);
-        // the offer rides in the same message as the cancellation, so the customer reads both at once
-        current = await orderStatus.change({ order, status: 'cancelled', actor, reasonCode: 'out_of_stock', note: offer?.text ? `${text} ${offer.text}` : text, tenant });
+        // the cancellation carries only the apology (an order note holds 200 characters); the offer is its own message and card, with its own clock
+        current = await orderStatus.change({ order, status: 'cancelled', actor, reasonCode: 'out_of_stock', note: text, tenant });
     } else if (action === 'tell') {
         require('../notifications/center').notify('order_shop_note', {
             tenantId: tenant._id, userId: order.userId, data: { orderId: String(order._id), orderNo: order.orderNo, ...(offer ? { offerCode: offer.code, offerPercent: offer.percent, offerMin: offer.minOrder, offerUntil: offer.until.toISOString() } : {}) }, vars: { orderNo: order.orderNo, text: offer?.text ? `${text} ${offer.text}` : text },
@@ -312,11 +312,21 @@ async function resolve({ tenant, order, action, message, offerPercent, actor }) 
             vars: { orderNo: order.orderNo, text: offer.text },
         });
     }
-    await Order.updateOne({ _id: order._id, tenantId: tenant._id }, { $set: { 'kitchen.problem.handledAt': new Date(), 'kitchen.problem.handledAction': action } });
+    await Order.updateOne({ _id: order._id, tenantId: tenant._id }, { $set: { 'kitchen.problem.handledAt': new Date(), 'kitchen.problem.handledAction': action, ...(offer ? { 'kitchen.offer': { code: offer.code, percent: offer.percent, minOrder: offer.minOrder, until: offer.until, text: offer.text } } : {}) } });
     realtime.toOwner(tenant._id, 'order:update', { orderId: String(order._id), orderNo: order.orderNo, status: current.status, kind: 'kitchen_problem_done' });
     // the cook's card stops waiting: it now says what the owner did
     require('./kitchenAlerts').tell(tenant._id, { orderId: String(order._id), orderNo: order.orderNo, status: current.status });
     return { ok: true, action, text, offer };
 }
 
-module.exports = { queue, start, ready, ownerReady, addToQueue, problem, resolve, viewOf, stageOf };
+// the guest's "stay with us" offer that is still alive (its code unused, its 30 minutes not over), or null
+async function offerFor({ tenantId, userId }) {
+    const o = await Order.findOne({ tenantId, userId, 'kitchen.offer.until': { $gt: new Date() } }).sort({ 'kitchen.offer.until': -1 }).select('orderNo kitchen.offer').lean();
+    const offer = o?.kitchen?.offer;
+    if (!offer?.code) return null;
+    const c = await require('../models/Coupon').findOne({ tenantId, code: offer.code, isActive: true }).select('usedCount totalUsageLimit').lean();
+    if (!c || (c.totalUsageLimit > 0 && c.usedCount >= c.totalUsageLimit)) return null;
+    return { code: offer.code, percent: offer.percent, minOrder: offer.minOrder, until: offer.until, text: offer.text, orderNo: o.orderNo };
+}
+
+module.exports = { offerFor, queue, start, ready, ownerReady, addToQueue, problem, resolve, viewOf, stageOf };

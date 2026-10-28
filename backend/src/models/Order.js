@@ -175,6 +175,7 @@ const orderSchema = new Schema({
         readyAt: Date, readyBy: { type: Schema.Types.ObjectId }, readyByName: String,
         queuedAt: Date, queuedBy: String,   // the cook put it in his queue ("Add to queue"), or it went there by itself when nobody touched it (queuedBy 'auto')
         problem: { _id: false, kind: String, note: String, at: Date, byName: String, dish: String, handledAt: Date, handledAction: String },   // what the cook told the owner, and what the owner did about it (tell | cancel | dismiss)
+        offer: { _id: false, code: String, percent: Number, minOrder: Number, until: Date, text: String },   // the "stay with us" discount the owner sent with a cancel or a note (30 minutes)
         nudgedAt: Date, lateNudgedAt: Date, serveNudgedAt: Date,   // the nudges already sent for this order, each once (jobs/staffNudges.js)
     },
     // something happened that the owner has to see once (services/orderLook.js); seenAt is set when he opens the order

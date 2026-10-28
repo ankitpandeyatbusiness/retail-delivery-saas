@@ -17,6 +17,7 @@ import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
 import { whereOf } from '../../utils/common/where';
 import QueueLine from '../../components/customers/QueueLine';
+import StayOfferCard from '../../components/customers/StayOfferCard';
 import { tr } from '../../i18n';
 
 const STATE = { placed: 'Waiting for the shop', accepted: 'Accepted', preparing: 'Being prepared', ready: 'Coming to your table', delivered: 'Served' };
@@ -127,6 +128,7 @@ export default function TableBillScreen() {
                     </Card>
                 ) : null}
 
+                <StayOfferCard style={{ marginHorizontal: 0, marginBottom: 14 }} />
                 <CallCard />
 
                 {bill.rounds.map((r, i) => (
@@ -137,7 +139,7 @@ export default function TableBillScreen() {
                                 <Pill label={tr(STATE[r.status] || r.status)} color={r.status === 'delivered' ? ok : warn} />
                                 {r.paid ? <View style={{ marginLeft: 6 }}><Pill label={shared && r.paidBy?.name ? `${tr('Paid')} · ${r.paidBy.id === me ? tr('You') : r.paidBy.name}` : tr('Paid')} color={ok} /></View> : <View style={{ marginLeft: 6 }}><Pill label={tr('Not paid')} color={warn} /></View>}
                             </View>
-                            {r.status === 'delivered' ? <ServedIn times={r.times} style={{ marginBottom: 6 }} /> : <><QueueLine q={r.queue} compact /><WaitTimer since={r.times?.placed || r.at} style={{ marginBottom: 6 }} /></>}
+                            {r.status === 'delivered' ? <ServedIn times={r.times} style={{ marginBottom: 6 }} /> : r.status === 'cancelled' ? null : <><QueueLine q={r.queue} compact /><WaitTimer since={r.times?.placed || r.at} style={{ marginBottom: 6 }} /></>}
                             {r.items.map((it, k) => (
                                 <View key={k} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6 }}>
                                     {it.image ? (

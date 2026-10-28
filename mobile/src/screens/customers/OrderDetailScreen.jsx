@@ -18,6 +18,7 @@ import { CallCard } from '../../components/customers/TableExtras';
 import { fetchOrder, rateOrder, fetchRatings, fetchTracking, fetchPoints, askCancelOrder } from '../../api/customers/shopApi';
 import { themedAlert } from '../../components/common/dialog';
 import QueueLine from '../../components/customers/QueueLine';
+import StayOfferCard from '../../components/customers/StayOfferCard';
 import { arriveText } from './MyPointsScreen';
 import TrackingCard from '../../components/customers/tracking';
 import PickupActions from '../../components/customers/PickupActions';
@@ -325,6 +326,7 @@ export default function OrderDetailScreen() {
                     </LinearGradient>
                 </Appear>
 
+                {cancelled ? <StayOfferCard style={{ marginHorizontal: 0 }} /> : null}
                 {live && !cancelled ? <QueueLine q={o.queue} style={{ marginHorizontal: 0 }} /> : null}   {/* as wide as the delivery card below: the page already has its own side space */}
 
                 {o.orderType === 'pickup' && o.pickupCode ? (

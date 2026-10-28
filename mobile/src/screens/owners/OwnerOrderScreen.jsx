@@ -350,6 +350,7 @@ export default function OwnerOrderScreen() {
                             <Text style={{ color: warn, fontWeight: '800' }}>{tr('The kitchen says')}: {order.kitchen.problem.kind === 'out_of_stock' ? tr('a dish is finished') : order.kitchen.problem.kind === 'cannot_make' ? tr('it cannot be made') : order.kitchen.problem.note}{order.kitchen.problem.byName ? ` · ${order.kitchen.problem.byName}` : ''}</Text>
                         ) : null}
                         {order.kitchen?.problem?.at && !order.kitchen.problem.handledAt ? <View style={{ marginTop: 10 }}><KitchenProblemActions order={order} onDone={() => load()} /></View> : null}
+                        {order.kitchen?.offer?.code ? <Text style={{ color: text, marginTop: 6, lineHeight: 19 }}>{tr('Offer sent to the customer')}: {order.kitchen.offer.text}</Text> : null}
                         {order.kitchen?.problem?.handledAt ? <Text style={{ color: muted, fontSize: 12, marginTop: 6 }}>{tr('You dealt with this')}: {order.kitchen.problem.handledAction === 'tell' ? tr('customer told') : order.kitchen.problem.handledAction === 'cancel' ? tr('order cancelled') : tr('left as it is')}</Text> : null}
                         {order.orderType === 'delivery' && order.kitchen?.readyAt ? <Text style={{ color: ok, fontWeight: '800', marginTop: order.kitchen?.problem?.at ? 6 : 0 }}>{tr('Food is packed')} · {flow.dayTime(order.kitchen.readyAt)}{order.kitchen.readyByName ? ` · ${order.kitchen.readyByName}` : ''}</Text> : null}
                     </Card>

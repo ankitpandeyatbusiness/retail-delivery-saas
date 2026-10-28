@@ -150,6 +150,9 @@ router.post('/nudge', wrap(async (req, res) => {
     try { res.json(await tableBill.nudge({ tenantId: req.tenant._id, userId: req.auth.userId })); } catch (e) { throw httpError(e.status || 400, e.message); }
 }));
 
+// the shop's "stay with us" discount for this guest, while its code is unused and its 30 minutes run (the cart and the bill show it with a clock)
+router.get('/offer', wrap(async (req, res) => { res.json({ offer: await require('../services/kitchenService').offerFor({ tenantId: req.tenant._id, userId: req.auth.userId }) }); }));
+
 // "I am done": the guest frees the table once everything is paid (everyone on his bill is told)
 router.post('/free', wrap(async (req, res) => {
     const s = await tableBill.openFor(req.tenant._id, req.auth.userId);

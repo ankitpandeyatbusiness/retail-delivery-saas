@@ -26,6 +26,7 @@ export const joinPin = (id, pin) => d(api.post(`/dinein/join/${id}/pin`, { pin }
 export const fetchDineOffers = () => d(api.get('/dinein/offers'));   // { items: [{ kind, text }] } the table offers he can get
 export const fetchDineUsual = () => d(api.get('/dinein/usual'));     // { usual: { id, brief, count } | null } what he had last time
 export const fetchDineStatus = () => d(api.get('/dinein/status'));   // { busy, extraMin }: the shop is full, food may take longer
+export const fetchStayOffer = () => d(api.get('/dinein/offer'));   // the shop's "stay with us" discount, while its code is unused and its clock runs
 export const nudgeTable = () => d(api.post('/dinein/nudge'));   // "please bring it fast"
 export const claimPaid = () => d(api.post('/dinein/paid-claim'));   // "I already paid" the bill I left unpaid
 export const startOwedPayment = () => d(api.post('/dinein/owed/pay'));   // pay the bill I left unpaid, online
