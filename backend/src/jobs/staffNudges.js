@@ -37,11 +37,11 @@ async function runShop(tenant, now) {
             const v = kitchen.viewOf(o, { lateMin, now: now.getTime() });
             if (v.stage === 'ready' || v.early) continue;
             if (o.status === 'accepted' && rules.nudgeMin > 0 && v.waitedMin >= rules.nudgeMin && await claim(o._id, 'nudgedAt')) {
-                await ring(tenant._id, 'kitchen', { title: `Order #${o.orderNo} is waiting`, body: `${brief(o, 2)} · ${v.waitedMin} min. Please start it.`, data: { type: 'kitchen_nudge', orderId: String(o._id), orderNo: o.orderNo }, tag: `nudge:${o._id}` });
+                await ring(tenant._id, 'kitchen', { title: `Order #${o.orderNo} is waiting`, body: `${brief(o, 2)} · ${v.waitedMin} min. Please start it.`, data: { type: 'kitchen_nudge', orderId: String(o._id), orderNo: o.orderNo, speech: `Order ${o.orderNo} is waiting. Please start it.`, speechHi: `ऑर्डर ${o.orderNo} इंतज़ार कर रहा है। कृपया शुरू कीजिए।` }, tag: `nudge:${o._id}` });
                 sent += 1;
             }
             if (o.status === 'preparing' && v.late && await claim(o._id, 'lateNudgedAt')) {
-                await ring(tenant._id, 'kitchen', { title: `Order #${o.orderNo} is late`, body: `${brief(o, 2)} · ${v.waitedMin} min.`, data: { type: 'kitchen_late', orderId: String(o._id), orderNo: o.orderNo }, tag: `late:${o._id}` });
+                await ring(tenant._id, 'kitchen', { title: `Order #${o.orderNo} is late`, body: `${brief(o, 2)} · ${v.waitedMin} min.`, data: { type: 'kitchen_late', orderId: String(o._id), orderNo: o.orderNo, speech: `Order ${o.orderNo} is late.`, speechHi: `ऑर्डर ${o.orderNo} देर हो रही है।` }, tag: `late:${o._id}` });
                 sent += 1;
             }
         }
