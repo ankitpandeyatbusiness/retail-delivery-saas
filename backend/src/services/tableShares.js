@@ -61,7 +61,7 @@ async function askLeave({ tenant, userId }) {
     const me = await User.findById(userId).select('name').lean();
     await TableRequest.create({ tenantId: tenant._id, sessionId: s._id, table: s.table, userId, kind: 'share', text: `₹${amount}` });
     tell('table_share_ask', { tenantId: tenant._id, vars: { name: first(me?.name) || 'A guest', table: s.table, label: s.label || '', amount }, data: { kind: 'table', sessionId: String(s._id), table: s.table, userId: String(userId) } });
-    require('./waiterAlerts').request(tenant._id, { table: s.table, label: 'Wants to pay and leave', text: `${first(me?.name) || ''} ₹${amount}`.trim(), party: s.label });
+    require('./waiterAlerts').request(tenant._id, { table: s.table, label: 'Wants to pay and leave', text: `₹${amount}`, party: s.label, what: 'share', name: first(me?.name) || '' });
     return { ok: true, amount, busy };
 }
 

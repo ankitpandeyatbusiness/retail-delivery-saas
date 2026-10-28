@@ -25,7 +25,7 @@ const OWNER = [
     g('delivery', 'Delivery news', 'A rider accepted, rejected or has a problem; nobody took an order; a delivery is late.', ['rider_accepted', 'rider_rejected', 'rider_none', 'rider_ended_duty', 'delivery_pin_skipped', 'rider_problem', 'rider_quiet', 'rider_arrived_shop', 'delivery_late_warning', 'order_late', 'order_delivered_shop'], { p: 'off', soft: true }),
     g('leave', 'Leave requests', 'A cook, a waiter or a rider asks for leave.', ['staff_leave_request', 'staff_leave_withdrawn', 'rider_leave_request', 'rider_leave_withdrawn'], { p: true, soft: true }),
     g('holiday', 'Days off', 'A cook or a waiter put plain days off in their calendar.', ['staff_holiday'], { p: 'off', soft: true }),
-    g('offduty', 'Staff goes off duty', 'A cook or a waiter switched themselves off duty.', ['staff_off_duty'], { p: 'off', soft: true }),
+    g('offduty', 'Staff comes on or goes off duty', 'A cook, a waiter or a rider came on duty, or switched themselves off duty.', ['staff_on_duty', 'staff_off_duty'], { p: true, soft: true }),
     g('undo', 'Steps taken back (undo)', 'Someone undid Ready, Served or Picked up.', ['order_undone'], { p: 'off', soft: true }),
     g('reviews', 'Reviews and complaints', 'A new complaint, a review, or a low rating.', ['complaint_new', 'complaint_reminder', 'review_food', 'review_delivery', 'delivery_low_rating', 'dish_low_rating'], { p: 'off', soft: true }),
     g('money', 'Rent, money and SMS', 'Your rent bill, payments, and your SMS balance.', ['bill_issued', 'bill_reminder', 'bill_overdue', 'shop_paused', 'shop_unpaused', 'payment_received', 'sms_topup_done', 'sms_low', 'sms_zero', 'free_ending', 'platform_message'], { p: 'off', soft: true, critical: true }),

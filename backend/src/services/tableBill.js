@@ -572,8 +572,11 @@ async function callWaiter({ tenant, userId, kind, text, table }) {
     const open = plainCall ? await TableRequest.findOne({ tenantId: tenant._id, table: t, kind, status: 'open' }).lean() : null;
     const r = open || await TableRequest.create({ tenantId: tenant._id, sessionId: s?._id, table: t, userId, kind, text: note || undefined });
     const waiterApp = require('./staffService').rulesOf(tenant).waiterOn === true;
-    if (!plainCall || !waiterApp) tell('table_call', { tenantId: tenant._id, vars: { table: t, label: CALL_LABELS[kind], text: note }, data: { kind: 'table_call', table: t, requestId: String(r._id), what: kind } });
-    require('./waiterAlerts').request(tenant._id, { table: t, label: CALL_LABELS[kind], text: note });
+    const me = await User.findById(userId).select('name').lean();
+    const name = String(me?.name || '').trim().split(/\s+/)[0] || '';   // the guest's first name, when he gave one
+    // the owner hears every call (the waiter app off) or all but "Call the waiter"; he gets the guest's name too
+    if (!plainCall || !waiterApp) tell('table_call', { tenantId: tenant._id, vars: { table: t, label: CALL_LABELS[kind], text: note, name }, data: { kind: 'table_call', table: t, requestId: String(r._id), what: kind, name } });
+    require('./waiterAlerts').request(tenant._id, { table: t, label: CALL_LABELS[kind], text: note, what: kind, name });
     return { ok: true };
 }
 // what is waiting for the staff: open calls and tables asking for the bill, oldest first
@@ -584,8 +587,10 @@ async function requests(tenant) {
     ]);
     const sess = await TableSession.find({ _id: { $in: calls.map((c) => c.sessionId).filter(Boolean) } }).select('label').lean();
     const letter = new Map(sess.map((x) => [String(x._id), x.label || null]));
+    const askers = await User.find({ _id: { $in: calls.map((c) => c.userId).filter(Boolean) } }).select('name').lean();
+    const nameOf = new Map(askers.map((u) => [String(u._id), String(u.name || '').trim().split(/\s+/)[0] || null]));
     const out = [
-        ...calls.map((c) => ({ id: String(c._id), type: 'call', kind: c.kind, label: CALL_LABELS[c.kind], text: c.text || null, table: c.table, userId: c.userId ? String(c.userId) : null, party: letter.get(String(c.sessionId)) || null, at: c.createdAt, sessionId: c.sessionId ? String(c.sessionId) : null })),
+        ...calls.map((c) => ({ id: String(c._id), type: 'call', kind: c.kind, label: CALL_LABELS[c.kind], text: c.text || null, table: c.table, userId: c.userId ? String(c.userId) : null, name: nameOf.get(String(c.userId)) || null, party: letter.get(String(c.sessionId)) || null, at: c.createdAt, sessionId: c.sessionId ? String(c.sessionId) : null })),
         ...bills.map((b) => ({ id: 'b' + b._id, type: 'bill', kind: 'bill', label: 'Wants the bill', table: b.table, party: b.label || null, at: b.billAskedAt, sessionId: String(b._id) })),
     ];
     return out.sort((a, b) => new Date(a.at) - new Date(b.at));

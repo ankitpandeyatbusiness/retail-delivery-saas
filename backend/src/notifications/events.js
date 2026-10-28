@@ -46,6 +46,7 @@ const EVENTS = {
     staff_holiday: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },         // a cook or a waiter put days off in their calendar
     staff_leave_withdrawn: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // a cook or a waiter took their own leave or day off back
     staff_leave_removed: { to: 'rider', channels: INAPP_PUSH, alsoPush: true, voice: true, pushChannel: STAFF_INFO_CHANNEL, pushSound: 'notify' },   // the owner took a leave or a day off away from a cook or a waiter: they are told
+    staff_on_duty: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },         // a cook, a waiter or a rider came on duty (the slider and the voice, like going off duty)
     staff_off_duty: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },        // a cook or a waiter switched themselves off duty (no popup)
     pickup_intent: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },        // a pickup customer says he is coming, is here, is late or needs more time
     pickup_waiting: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },   // a pickup order is ready and waiting

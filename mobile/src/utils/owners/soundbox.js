@@ -653,7 +653,9 @@ async function announceBill(d) {
 const CALL_EN = { waiter: 'is calling the waiter', water: 'needs water', cutlery: 'needs a spoon or a plate', clean: 'needs the table cleaned', other: 'needs help' };
 const CALL_HI = { waiter: 'वेटर को बुला रहा है', water: 'को पानी चाहिए', cutlery: 'को चम्मच या प्लेट चाहिए', clean: 'की सफाई चाहिए', other: 'को मदद चाहिए' };
 async function announceCall(d) {
-    if (!isOwner() || !settings().soundbox || speaking || !alertOn('table_call', 'v')) return;
+    if (!isOwner() || !settings().soundbox || !alertOn('table_call', 'v')) return;
+    for (let i = 0; i < 16 && speaking; i += 1) await new Promise((r) => setTimeout(r, 500));   // another voice is speaking: wait for it, do not lose this one
+    if (speaking) return;
     if (!settings().alwaysReady && AppState.currentState !== 'active') return;
     const table = String(d?.table || '');
     if (!table) return;
@@ -661,7 +663,8 @@ async function announceCall(d) {
     try {
         const language = await languageToUse();
         const what = d?.what in CALL_EN ? d.what : 'other';
-        await speak(language === 'hi' ? 'टेबल ' + table + ' ' + CALL_HI[what] + '।' : 'Table ' + table + ' ' + CALL_EN[what] + '.', language, 'table_call');
+        const who = String(d?.name || '').trim();
+        await speak(language === 'hi' ? 'टेबल ' + table + (who ? ', ' + who : '') + ' ' + CALL_HI[what] + '।' : 'Table ' + table + (who ? ', ' + who : '') + ' ' + CALL_EN[what] + '.', language, 'table_call');
     } catch (e) { /* the notification is enough */ }
 }
 
@@ -701,7 +704,9 @@ const OWN_WAY = ['order_new', 'order_unaccepted_reminder', 'order_cancelled', 't
 export const isNewsType = (type) => !!type && !OWN_WAY.includes(String(type)) && useAlertPrefs.getState().groups.some((g) => g.types.includes(String(type)));
 
 async function announceNews(n) {
-    if (!isOwner() || !settings().soundbox || speaking || (!alertOn(n.type, 's') && !alertOn(n.type, 'v'))) return;
+    if (!isOwner() || !settings().soundbox || (!alertOn(n.type, 's') && !alertOn(n.type, 'v'))) return;
+    for (let i = 0; i < 16 && speaking; i += 1) await new Promise((r) => setTimeout(r, 500));   // another voice is speaking: wait for it, do not lose this one
+    if (speaking) return;
     if (!settings().alwaysReady && AppState.currentState !== 'active') return;
     const d = n.data || {};
     note('news: ' + n.type);

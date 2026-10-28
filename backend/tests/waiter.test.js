@@ -228,7 +228,9 @@ describe('alerts', () => {
         await f.waitFor(() => spy.mock.calls.some((c) => c.arguments[0].data?.type === 'waiter_call'));
         const call = spy.mock.calls.map((c) => c.arguments[0]).find((a) => a.data?.type === 'waiter_call');
         assert.equal(String(call.userId), String(waiter.id));
-        assert.match(call.body, /Water/);
+        assert.match(call.body, /asked for water/);
+        assert.match(call.data.speech, /^Table 4, .+ asked for water$/);   // who asked and for what, spoken
+        assert.match(call.data.speechHi, /^टेबल 4, .+ ने पानी मांगा$/);
 
         const s = await visit('6');
         await tableBill.askForBill({ tenantId: w.tenant._id, userId: w.customer.user._id });

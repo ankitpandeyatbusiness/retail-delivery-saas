@@ -69,7 +69,7 @@ export function RequestCard({ q, busy, lateMin, onDone, onOpenBill }) {
                 </View>
                 <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={{ color: text, fontSize: 19, fontWeight: '900' }}>{tr('Table {n}', { n: q.table })}{q.party ? <Text style={{ color: primary }}> · {q.party}</Text> : null}</Text>
-                    <Text style={{ color: text, fontWeight: '700', fontSize: 15 }}>{tr(q.label)}{q.text ? `: ${q.text}` : ''}</Text>
+                    <Text style={{ color: text, fontWeight: '700', fontSize: 15 }}>{q.name ? `${q.name} · ` : ''}{tr(q.label)}{q.text ? `: ${q.text}` : ''}</Text>
                 </View>
                 <Text style={{ color: late ? error : muted, fontWeight: '900' }}>{minWord(mins)}</Text>
             </View>

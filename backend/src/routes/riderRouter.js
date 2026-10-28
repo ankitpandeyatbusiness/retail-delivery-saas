@@ -246,6 +246,10 @@ core.put('/online', wrap(async (req, res) => {
         require('../notifications/center').notify('rider_ended_duty', { tenantId: req.tenant._id, vars: { riderName: me?.name || 'A delivery partner', until }, data: { kind: 'rider_duty', riderId: String(req.riderId) } });
     }
     // just came on duty: the open orders nobody has taken are shown to him at once
+    if (req.body.isOnline) {
+        const me = await Rider.findOne({ tenantId: req.tenant._id, userId: req.riderId }).select('name').lean();
+        require('../notifications/center').notify('staff_on_duty', { tenantId: req.tenant._id, vars: { name: me?.name || 'A delivery partner', job: 'Rider' }, data: { kind: 'staff_on_duty', riderId: String(req.riderId) } });
+    }
     if (req.body.isOnline) assignment.offerOpenToRider({ tenantId: req.tenant._id, riderUserId: req.riderId }).catch((e) => console.error('Show open orders error:', e.message));
     res.json({ ok: true, isOnline: req.body.isOnline });
 }));

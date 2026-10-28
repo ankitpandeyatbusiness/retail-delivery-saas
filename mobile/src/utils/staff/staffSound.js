@@ -12,13 +12,17 @@ import { useLang } from '../../i18n';
 import { useStaffStore } from '../../store/staff/useStaffStore';
 import { useNotificationStore } from '../../store/common/useNotificationStore';
 
+// what a guest asked for (the live alert carries the same sentence; this is for the list that loads afterwards)
+const ASKED = { waiter: 'called the waiter', water: 'asked for water', cutlery: 'asked for a spoon, plate or tissue', clean: 'asked you to clean the table', other: 'needs help', share: 'wants to pay and leave' };
+const ASKED_HI = { waiter: 'ने वेटर को बुलाया', water: 'ने पानी मांगा', cutlery: 'ने चम्मच, प्लेट या टिशू मांगा', clean: 'ने टेबल साफ़ करने को कहा', other: 'को मदद चाहिए', share: 'अपना हिस्सा देकर जाना चाहते हैं' };
+
 const LINES = {
     en: {
         new: (a) => `New order ${a.orderNo}`,
         cancel: (a) => `Order ${a.orderNo} cancelled`,
         hurry: (a) => `Table ${a.table} is asking you to please make the food fast. They are hungry!`,
         ready: (a) => `Table ${a.table}, food is ready`,
-        call: (a) => `Table ${a.table} is calling you`,
+        call: (a) => (ASKED[a.what] ? `Table ${a.table}, ${a.name || 'a guest'} ${ASKED[a.what]}` : `Table ${a.table} is calling you`),
         bill: (a) => `Table ${a.table} is asking for the bill`,
         paid: (a) => `Table ${a.table} paid online`,
         here: (a) => `Pickup ${a.orderNo}, the customer is here`,
@@ -30,7 +34,7 @@ const LINES = {
         cancel: (a) => `ऑर्डर ${a.orderNo} रद्द हुआ`,
         hurry: (a) => `टेबल ${a.table} जल्दी खाना बनाने को कह रही है। उन्हें भूख लगी है!`,
         ready: (a) => `टेबल ${a.table}, खाना तैयार है`,
-        call: (a) => `टेबल ${a.table} आपको बुला रही है`,
+        call: (a) => (ASKED_HI[a.what] ? `टेबल ${a.table}, ${a.name || 'एक मेहमान'} ${ASKED_HI[a.what]}` : `टेबल ${a.table} आपको बुला रही है`),
         bill: (a) => `टेबल ${a.table} बिल मांग रही है`,
         paid: (a) => `टेबल ${a.table} ने ऑनलाइन दे दिया`,
         here: (a) => `पिकअप ${a.orderNo}, ग्राहक आ गया है`,
@@ -56,7 +60,7 @@ export function staffAlert(a, { force } = {}) {
         if (!force && useStaffStore.getState().me?.onDuty === false) return;   // off duty: no sound and no popup
         if (!force && wasTapped(a.kind, a)) return;   // its notification was just tapped: that already showed and said it
         const st = useStaffSoundStore.getState();
-        const key = `${a.kind}:${a.orderNo ?? a.table ?? ''}`;
+        const key = `${a.kind}:${a.orderNo ?? a.table ?? ''}${a.what ? `:${a.what}` : ''}`;   // water and a spoon at the same table are two different alerts
         const now = Date.now();
         if (!force) {
             if ((seen.get(key) || 0) > now - WINDOW_MS) return;
@@ -71,7 +75,7 @@ export function staffAlert(a, { force } = {}) {
         if (!force && a.kind !== 'done') useNotificationStore.getState().setDot(true);   // the bell shows its dot
         if (!force) {
             // the slider (if its switch is on); the new order's slider carries the whole order
-            const title = (language === 'hi' ? textHi : text) || text;
+            const title = (language === 'hi' ? a.speechHi || textHi : a.speech || text) || text;
             const more = a.kind === 'new' ? (language === 'hi' ? a.speechHi || a.speech : a.speech) : '';
             showSlider({ key: `${key}:${Math.floor(now / WINDOW_MS)}`, type: a.kind, title, body: more && more !== title ? more : '', data: { orderId: a.orderId, orderNo: a.orderNo, table: a.table } });
             markSaid(a.kind, a);   // read out now (the Voice switch decides): a tap on its notification later does not read it again

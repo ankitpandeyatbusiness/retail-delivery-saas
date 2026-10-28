@@ -40,14 +40,27 @@ async function onStatus({ before, updated, status }) {
     } catch (e) { console.error('Waiter alert error:', e.message); }
 }
 
-// a guest asks for the waiter, water, cutlery, a clean table, or the bill
-async function request(tenantId, { table, label, text, bill, party }) {
+// what a guest asked for, said the way the waiter hears it: "Table 5, Anil asked for water"
+const ASKED = { waiter: 'called the waiter', water: 'asked for water', cutlery: 'asked for a spoon, plate or tissue', clean: 'asked you to clean the table', other: 'needs help', share: 'wants to pay and leave' };
+const ASKED_HI = { waiter: 'ने वेटर को बुलाया', water: 'ने पानी मांगा', cutlery: 'ने चम्मच, प्लेट या टिशू मांगा', clean: 'ने टेबल साफ़ करने को कहा', other: 'को मदद चाहिए', share: 'अपना हिस्सा देकर जाना चाहते हैं' };
+function askedLine(table, what, name, party) {
+    const who = name || 'A guest';
+    const bill = party ? `, bill ${party}` : '';
+    return { en: `Table ${table}${bill}, ${who} ${ASKED[what]}`, hi: `टेबल ${table}${party ? `, बिल ${party}` : ''}, ${name || 'एक मेहमान'} ${ASKED_HI[what]}` };
+}
+
+// a guest asks for the waiter, water, cutlery, a clean table, or the bill. `what` is the kind of call and `name` the guest's first name
+// (nothing when he gave none): the screen, the push and the voice all say who asked for what.
+async function request(tenantId, { table, label, text, bill, party, what, name }) {
     try {
-        tell(tenantId, { request: true, table, alert: { kind: bill ? 'bill' : 'call', table } });
+        const line = !bill && ASKED[what] ? askedLine(table, what, name, party) : null;
+        const speech = bill ? `Table ${table} is asking for the bill` : line ? line.en : `Table ${table} is calling you`;
+        const speechHi = bill ? `टेबल ${table} बिल मांग रही है` : line ? line.hi : `टेबल ${table} आपको बुला रही है`;
+        tell(tenantId, { request: true, table, alert: { kind: bill ? 'bill' : 'call', table, what: what || null, name: name || null, speech, speechHi } });
         await ring(tenantId, {
-            title: `Table ${table}${party ? ` · ${party}` : ''}`, body: `${label}${text ? `: ${text}` : ''}`,
-            data: { type: bill ? 'waiter_bill' : 'waiter_call', table: String(table), kind: bill ? 'bill' : 'call', speech: bill ? `Table ${table} is asking for the bill` : `Table ${table} is calling you`, speechHi: bill ? `टेबल ${table} बिल मांग रही है` : `टेबल ${table} आपको बुला रही है` },
-            tag: `req:${table}:${bill ? 'bill' : label}`,
+            title: `Table ${table}${party ? ` · ${party}` : ''}`, body: line ? `${name || 'A guest'} ${ASKED[what]}${text ? `: ${text}` : ''}` : `${label}${text ? `: ${text}` : ''}`,
+            data: { type: bill ? 'waiter_bill' : 'waiter_call', table: String(table), kind: bill ? 'bill' : 'call', speech, speechHi },
+            tag: `req:${table}:${bill ? 'bill' : what || label}`,
         });
     } catch (e) { console.error('Waiter alert error:', e.message); }
 }
