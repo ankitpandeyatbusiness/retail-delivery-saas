@@ -73,7 +73,7 @@ async function settleShare({ tenantId, sessionId, userId, method, by }) {
     if (busy) throw fail(409, 'Some of his dishes are still in the kitchen. Serve or cancel them first.');
     const now = new Date();
     const paidPaise = paise(unpaid.reduce((n, o) => n + (o.pricing?.total || 0), 0));
-    if (unpaid.length) await Order.updateMany({ _id: { $in: unpaid.map((o) => o._id) } }, { $set: { 'payment.status': 'paid', 'payment.paidAt': now, 'payment.settledAt': now, 'payment.settledVia': method, 'payment.paidBy': userId } });
+    if (unpaid.length) await Order.updateMany({ _id: { $in: unpaid.map((o) => o._id) } }, { $set: { 'payment.status': 'paid', 'payment.paidAt': now, 'payment.settledAt': now, 'payment.settledVia': method, 'payment.paidBy': userId } }); require('./realtime').toOwner(tenantId, 'order:update', { kind: 'table_paid' });   // the owner's "On the table" list drops what was paid
     const loyalty = require('./loyaltyService');
     for (const o of unpaid) loyalty.onDelivered({ ...o.toObject(), payment: { ...(o.payment?.toObject ? o.payment.toObject() : o.payment), status: 'paid' }, deliveredAt: now }).catch((e) => console.error('Points error:', e.message));
     return finishLeave({ s, tenantId, userId, paidPaise, via: method, by: by?.type === 'staff' ? 'staff' : 'owner', byName: by?.name, now });

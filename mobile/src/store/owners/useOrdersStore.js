@@ -5,7 +5,7 @@
 //   counts  how many ACTIVE orders per status, for the chip badges (always for active orders, whatever the filter)
 import { create } from 'zustand';
 import { fetchOrders, markLooksSeen, apiError } from '../../api/owners/shopApi';
-import { serverStatusFor, isFinal, boardStatus } from '../../utils/owners/orderFlow';
+import { boardParams, onTableNow, isFinal, boardStatus } from '../../utils/owners/orderFlow';
 import { useOwnerStore } from './useOwnerStore';
 
 const PAGE = 20;
@@ -42,13 +42,13 @@ export const useOrdersStore = create((set, get) => ({
         if (filter === 'look') { set({ items: get().hold?.items || [], hasMore: false, loading: false, refreshing: false, error: null, loadedAt: Date.now() }); return; }   // already in hand
         if (!quiet) set({ loading: get().items.length === 0, error: null });
         try {
-            const params = filter === 'look' ? { look: 'true', page: 1, limit: PAGE } : { status: serverStatusFor(filter), page: 1, limit: PAGE };
+            const params = boardParams(filter, 1, PAGE);
             if (/^\d{1,9}$/.test(query.trim())) params.q = query.trim();
             const r = await fetchOrders(params);
             if (mine !== seq) return;
             // an order changed on this phone while this list was on its way: keep the newer version, never the old one
             const fresh = (r.items || []).map((o) => { const p = recent.get(String(o.id)); return p && p.at > startedAt ? p.order : o; });
-            set({ items: fresh, counts: r.counts || {}, look: r.look || { count: 0, urgent: 0, top: null }, page: 1, hasMore: !!r.hasMore, loading: false, refreshing: false, loadedAt: Date.now(), error: null });
+            set({ items: fresh, counts: { ...(r.counts || {}), table: r.tableCount || 0 }, look: r.look || { count: 0, urgent: 0, top: null }, page: 1, hasMore: !!r.hasMore, loading: false, refreshing: false, loadedAt: Date.now(), error: null });
         } catch (e) {
             if (mine !== seq) return;
             useOwnerStore.getState().noteError(e);
@@ -97,7 +97,7 @@ export const useOrdersStore = create((set, get) => ({
         const mine = seq;
         set({ loadingMore: true });
         try {
-            const params = filter === 'look' ? { look: 'true', page: page + 1, limit: PAGE } : { status: serverStatusFor(filter), page: page + 1, limit: PAGE };
+            const params = boardParams(filter, page + 1, PAGE);
             if (/^\d{1,9}$/.test(query.trim())) params.q = query.trim();
             const r = await fetchOrders(params);
             if (mine !== seq) return;
@@ -125,6 +125,8 @@ export const useOrdersStore = create((set, get) => ({
         const stays = filter === 'look' ? !!get().hold?.items.some((o) => String(o.id) === String(order.id))
             : filter === 'active' ? !isFinal(order.status)
             : filter === 'cancelled' ? ['cancelled', 'undelivered'].includes(order.status)
+            : filter === 'table' ? onTableNow(order)
+            : filter === 'history' ? true
                 : nowAt === filter;
         const items = get().items;
         const i = items.findIndex((o) => o.id === order.id);

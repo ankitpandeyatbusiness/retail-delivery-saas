@@ -96,6 +96,12 @@ router.get('/orders', wrap(async (req, res) => {
 
     if (req.query.look === 'true') Object.assign(filter, orderLook.waiting(req.tenant._id));   // the "Needs a look" chip: any status
 
+    // "On the table": dishes already served at a table that is still open, not paid yet. "History": every order of the last 24 hours, whatever its status.
+    const TableSession = require('../models/TableSession');
+    const onTable = async () => ({ orderType: 'dine_in', status: 'delivered', 'payment.status': { $ne: 'paid' }, tableSessionId: { $in: await TableSession.find({ tenantId: req.tenant._id, status: { $in: ['open', 'bill_asked'] } }).distinct('_id') } });
+    if (req.query.view === 'table') Object.assign(filter, await onTable());
+    else if (req.query.view === 'history') filter.createdAt = { $gte: new Date(Date.now() - 24 * 3600000) };
+
     if (typeof req.query.q === 'string' && /^\d{1,9}$/.test(req.query.q.trim())) {
         filter.orderNo = Number(req.query.q.trim());
     }
@@ -105,13 +111,14 @@ router.get('/orders', wrap(async (req, res) => {
     if ((from && Number.isNaN(from.getTime())) || (to && Number.isNaN(to.getTime()))) throw httpError(400, 'Invalid date');
     if (from || to) filter.createdAt = { ...(from && { $gte: from }), ...(to && { $lte: to }) };
 
-    const [items, counts, lookSummary] = await Promise.all([
+    const [items, counts, lookSummary, tableCount] = await Promise.all([
         Order.find(filter).sort(req.query.look === 'true' ? { 'needsLook.at': -1 } : { createdAt: -1 }).skip((page - 1) * limit).limit(limit + 1),
         Order.aggregate([
             { $match: { tenantId: req.tenant._id, status: { $in: ACTIVE_STATUSES }, ...HIDE_UNPAID } },
             { $group: { _id: statusExpr, n: { $sum: 1 } } },
         ]),
         orderLook.summary(req.tenant._id),
+        Order.countDocuments({ tenantId: req.tenant._id, ...HIDE_UNPAID, ...(await onTable()) }),
     ]);
     const hasMore = items.length > limit;
     if (hasMore) items.pop();
@@ -120,6 +127,7 @@ router.get('/orders', wrap(async (req, res) => {
         items: items.map(view),
         counts: Object.fromEntries(counts.map((c) => [c._id, c.n])),
         look: lookSummary,
+        tableCount,   // the dishes on the tables, for the "On the table" chip
         page,
         hasMore,
     });

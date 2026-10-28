@@ -76,11 +76,13 @@ export const MIN_REASON_LENGTH = 3;
 
 // the filter chips on the Orders board: [id, label]
 export const BOARD_FILTERS = [
+    ['history', 'History'],
     ['active', 'Active'],
     ['placed', 'New'],
     ['accepted', 'Accepted'],
     ['preparing', 'Preparing'],
     ['ready', 'Ready'],
+    ['table', 'On the table'],
     ['out_for_delivery', 'On the road'],
     ['delivered', 'Delivered'],
     ['cancelled', 'Cancelled'],
@@ -90,6 +92,10 @@ export const BOARD_FILTERS = [
 export const boardStatus = (o) => (o && o.orderType === 'delivery' && o.status === 'preparing' && o.foodReady === true ? 'ready' : o?.status);
 
 export const serverStatusFor = (filter) => (filter === 'cancelled' ? 'cancelled,undelivered' : filter);
+// what the board asks the server for, for each chip ("On the table" and "History" are views, not statuses)
+export const boardParams = (filter, page, limit) => (filter === 'look' ? { look: 'true', page, limit } : filter === 'table' || filter === 'history' ? { view: filter, page, limit } : { status: serverStatusFor(filter), page, limit });
+// does this order belong on the chip (after it changed on a phone)?
+export const onTableNow = (o) => !!o && o.orderType === 'dine_in' && o.status === 'delivered' && o.payment?.status !== 'paid';
 
 export const TYPE_LABEL = { delivery: 'Delivery', pickup: 'Pickup', dine_in: 'Dine in' };
 export const typeLabel = (t) => TYPE_LABEL[t] || String(t || '');

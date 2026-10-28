@@ -61,7 +61,7 @@ async function confirm(p, rzp) {
 
     const now = new Date();
     const orders = await Order.find({ _id: { $in: p.orderIds }, 'payment.status': { $ne: 'paid' } }).lean();
-    if (orders.length) await Order.updateMany({ _id: { $in: orders.map((o) => o._id) } }, { $set: { 'payment.status': 'paid', 'payment.paidAt': now, 'payment.settledAt': now, 'payment.settledVia': 'online', 'payment.paidBy': p.userId } });
+    if (orders.length) await Order.updateMany({ _id: { $in: orders.map((o) => o._id) } }, { $set: { 'payment.status': 'paid', 'payment.paidAt': now, 'payment.settledAt': now, 'payment.settledVia': 'online', 'payment.paidBy': p.userId } }); require('./realtime').toOwner(p.tenantId, 'order:update', { kind: 'table_paid' });   // the owner's "On the table" list drops what was paid
     if (orders.length < p.orderIds.length) {
         await alert('admin_refund_failed', { tenantId: p.tenantId, vars: { orderId: `table ${p.table} bill`, amount: (p.amountPaise / 100).toFixed(2), reason: 'Some rounds were already paid at the counter when this online payment came in. Refund the extra from Razorpay.' } });
     }

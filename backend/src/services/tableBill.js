@@ -136,7 +136,7 @@ async function settle({ tenantId, sessionId, method, by }) {
     const unpaid = orders.filter((o) => o.payment?.status !== 'paid');
     const paidPaise = Math.round(unpaid.reduce((n, o) => n + (o.pricing?.total || 0), 0) * 100);
     if (unpaid.length) {
-        await Order.updateMany({ _id: { $in: unpaid.map((o) => o._id) } }, { $set: { 'payment.status': 'paid', 'payment.paidAt': now, 'payment.settledAt': now, 'payment.settledVia': method } });
+        await Order.updateMany({ _id: { $in: unpaid.map((o) => o._id) } }, { $set: { 'payment.status': 'paid', 'payment.paidAt': now, 'payment.settledAt': now, 'payment.settledVia': method } }); require('./realtime').toOwner(tenantId, 'order:update', { kind: 'table_paid' });   // the owner's "On the table" list drops what was paid
     }
     const closed = await TableSession.findOneAndUpdate({ _id: s._id, status: { $in: ['open', 'bill_asked'] } }, { $set: { status: 'closed', closedAt: now, closedBy: by?.type === 'staff' ? 'staff' : 'owner', ...(by?.type === 'staff' ? { closedByName: by.name } : {}), paidVia: method, paidPaise } }, { returnDocument: 'after' });
     if (!closed) throw fail(409, 'This bill was just closed');
@@ -235,7 +235,7 @@ async function clearDebt({ tenantId, sessionId, method, message }) {
         { $set: { owedClearedAt: new Date(), owedVia: method } }, { returnDocument: 'after' },
     );
     if (!s) throw fail(404, 'This bill is not owed any more');
-    await Order.updateMany({ tenantId, tableSessionId: s._id, status: { $nin: DEAD }, 'payment.status': { $ne: 'paid' } }, { $set: { 'payment.status': 'paid', 'payment.paidAt': new Date(), 'payment.settledVia': method } });
+    await Order.updateMany({ tenantId, tableSessionId: s._id, status: { $nin: DEAD }, 'payment.status': { $ne: 'paid' } }, { $set: { 'payment.status': 'paid', 'payment.paidAt': new Date(), 'payment.settledVia': method } }); require('./realtime').toOwner(tenantId, 'order:update', { kind: 'table_paid' });   // the owner's "On the table" list drops what was paid
     const claimed = !!s.claimAt;
     await TableSession.updateOne({ _id: s._id }, { $unset: { claimAt: 1, claimReply: 1 } });
     for (const uid of s.customers) tell('owed_cleared', { tenantId, userId: uid, vars: { table: s.table, amount: s.owedPaise / 100, claimed, message: message || '' }, data: { kind: 'table_paid', sessionId: String(s._id) } });

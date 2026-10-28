@@ -94,7 +94,7 @@ export default function OwnerOrdersScreen() {
 
     const active = live?.orders?.active || s.counts || {};
     const activeTotal = ACTIVE_STAGES.reduce((n, k) => n + (active[k] || 0), 0);
-    const countOf = (id) => (id === 'active' ? activeTotal : (id === 'delivered' || id === 'cancelled') ? 0 : active[id] || 0);
+    const countOf = (id) => (id === 'active' ? activeTotal : id === 'table' ? s.counts?.table || 0 : (id === 'delivered' || id === 'cancelled' || id === 'history') ? 0 : active[id] || 0);
 
     const data = useMemo(() => arrange(s.items, s.filter), [s.items, s.filter]);
     const searching = /^\d{1,9}$/.test(s.query.trim());
