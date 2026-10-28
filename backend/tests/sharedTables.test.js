@@ -317,4 +317,18 @@ describe('the detailed table bill (PDF)', () => {
         assert.equal(ok.body.slice(0, 4).toString(), '%PDF');
         assert.equal(await TableSession.countDocuments({ _id: sa._id, startedBy: a.user._id }), 1);
     });
+
+    test('the order screen View and Download: the starter gets the table bill for his table order, the other guest his own invoice', async () => {
+        const { a, b, sa } = await setup();
+        const Order = require('../src/models/Order');
+        const get = (g, o) => request(app).get('/api/orders/' + o._id + '/invoice').set(g.headers).buffer(true).parse((res, cb) => { const c = []; res.on('data', (d) => c.push(d)); res.on('end', () => cb(null, Buffer.concat(c))); });
+        const ao = await Order.findOne({ tableSessionId: sa._id, userId: a.user._id });
+        const bo = await Order.findOne({ tableSessionId: sa._id, userId: b.user._id });
+        const ra = await get(a, ao);
+        assert.equal(ra.status, 200);
+        assert.match(ra.headers['content-disposition'], /Table-4-bill.pdf/, 'the whole table bill');
+        const rb = await get(b, bo);
+        assert.equal(rb.status, 200);
+        assert.doesNotMatch(rb.headers['content-disposition'] || '', /Table-4-bill/, 'his own invoice, not the table bill');
+    });
 });

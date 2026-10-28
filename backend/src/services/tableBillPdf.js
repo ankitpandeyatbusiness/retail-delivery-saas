@@ -160,7 +160,7 @@ function render(doc, d) {
     y += 20;
     if (d.tax.included) { doc.font('Helvetica').fontSize(8).fillColor(MUTED).text(`Total includes GST of ${rs(d.tax.included)}`, bx, y, { width: bw, align: 'right' }); y += 14; }
     y = ensure(doc, y + 10, 40);
-    doc.font('Helvetica').fontSize(8).fillColor(MUTED).text('This is the summary of the whole table visit. Each round that was served also has its own tax invoice in the app. This document is computer generated.', LEFT, y, { width: RIGHT - LEFT });
+    doc.font('Helvetica').fontSize(8).fillColor(MUTED).text('This is the summary of the whole table visit, with the tax of every round. This document is computer generated.', LEFT, y, { width: RIGHT - LEFT });
 }
 
 // sends the PDF straight to the response

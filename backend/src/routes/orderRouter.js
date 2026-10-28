@@ -257,6 +257,12 @@ router.get('/:id/invoice', wrap(async (req, res) => {
     const order = await Order.findOne({ _id: req.params.id, tenantId: req.tenant._id, userId: req.auth.userId });
     if (!order) throw httpError(404, 'Order not found');
     if (order.status !== 'delivered') throw httpError(409, 'The invoice is only available after delivery');
+    // a table order: the guest who started the bill gets the detailed table bill (rounds, who paid, GST by rate); the others get their own invoice
+    if (order.orderType === 'dine_in' && order.tableSessionId) {
+        const pdf = require('../services/tableBillPdf');
+        const s = await require('../models/TableSession').findOne({ _id: order.tableSessionId, tenantId: req.tenant._id });
+        if (s && pdf.startedBy(s) === String(req.auth.userId)) return pdf.stream(res, s, req.tenant, { inline: req.query.view === '1' });
+    }
     streamInvoice(res, order, req.tenant, { inline: req.query.view === '1' });
 }));
 
