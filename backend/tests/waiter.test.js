@@ -245,6 +245,24 @@ describe('alerts', () => {
         await f.waitFor(() => spy.mock.calls.filter((c) => c.arguments[0].data?.type === 'waiter_bill').length > before);
     });
 
+    test('the first "asked for the bill" goes to the waiter who served the table only; a reminder goes to every waiter on duty', async () => {
+        const other = await hire('waiter', '9333333333', 'Mahesh');
+        const spy = mock.method(pushChannel, 'send', async () => ({ sent: 1, tokens: 1 }));
+        const s = await visit('8');
+        const o = await mk(s, { status: 'delivered', statusHistory: [{ status: 'placed' }, { status: 'delivered', by: waiter.id }] });
+        await tableBill.askForBill({ tenantId: w.tenant._id, userId: w.customer.user._id });
+        await f.waitFor(() => spy.mock.calls.some((c) => c.arguments[0].data?.type === 'waiter_bill'));
+        const to = () => spy.mock.calls.map((c) => c.arguments[0]).filter((a) => a.data?.type === 'waiter_bill').map((a) => String(a.userId));
+        assert.deepEqual(to(), [String(waiter.id)], 'only the waiter who served the table');
+        const q = (await overview(other)).body.requests.find((r) => r.type === 'bill');
+        assert.deepEqual(q.only, [String(waiter.id)], 'the other waiter phone knows it is not meant for him');
+
+        await TableSession.updateOne({ _id: s._id }, { $set: { billAskedAt: new Date(Date.now() - 120000) } });
+        await tableBill.askForBill({ tenantId: w.tenant._id, userId: w.customer.user._id });
+        await f.waitFor(() => to().length >= 3);
+        assert.ok(to().includes(String(other.id)), 'the reminder reaches every waiter on duty');
+    });
+
     test('a guest pressing "please hurry" rings the cooks', async () => {
         const spy = mock.method(pushChannel, 'send', async () => ({ sent: 1, tokens: 1 }));
         const s = await visit('7');

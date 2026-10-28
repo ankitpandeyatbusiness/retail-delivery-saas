@@ -11,6 +11,7 @@ import { useStaffSoundStore } from '../../store/staff/useStaffSoundStore';
 import { useLang } from '../../i18n';
 import { useStaffStore } from '../../store/staff/useStaffStore';
 import { useNotificationStore } from '../../store/common/useNotificationStore';
+import { useAuthStore } from '../../store/common/useAuthStore';
 
 // what a guest asked for (the live alert carries the same sentence; this is for the list that loads afterwards)
 const ASKED = { waiter: 'called the waiter', water: 'asked for water', cutlery: 'asked for a spoon, plate or tissue', clean: 'asked you to clean the table', other: 'needs help', share: 'wants to pay and leave' };
@@ -58,6 +59,7 @@ export function staffAlert(a, { force } = {}) {
         if (!a?.kind) return;
         if (!force && AppState.currentState !== 'active') return;   // the push rings for a phone in a pocket
         if (!force && useStaffStore.getState().me?.onDuty === false) return;   // off duty: no sound and no popup
+        if (!force && a.only?.length) { const u = useAuthStore.getState().user; if (!a.only.includes(String(u?.id || u?._id || ''))) return; }   // meant for the waiter who served the table, not for me
         if (!force && wasTapped(a.kind, a)) return;   // its notification was just tapped: that already showed and said it
         const st = useStaffSoundStore.getState();
         const key = `${a.kind}:${a.orderNo ?? a.table ?? ''}${a.what ? `:${a.what}` : ''}${a.nonce ? `:${a.nonce}` : ''}`;   // water and a spoon at the same table are two different alerts

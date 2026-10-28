@@ -118,10 +118,17 @@ async function askForBill({ tenantId, userId }) {
         if (last && Date.now() - new Date(last).getTime() < REMIND_MS) throw fail(429, 'The shop already knows. You can remind them again in a minute.');
         const ok = await TableSession.updateOne({ _id: s._id, $or: [{ billPingAt: { $exists: false } }, { billPingAt: { $lt: new Date(Date.now() - REMIND_MS) } }] }, { $set: { billPingAt: new Date() } });
         if (!ok.modifiedCount) throw fail(429, 'The shop already knows. You can remind them again in a minute.');
+        await TableSession.updateOne({ _id: s._id }, { $set: { billFor: [] } });   // a reminder means the first alert was not answered: every waiter on duty is told now
         again = true;
     }
+    // the first ask goes to the waiter who served them (every waiter on duty if he is away or nobody is on record)
+    let only;
+    if (claimed) {
+        const { people, server } = await require('./tableWaiter').forTable(tenantId, s._id);
+        if (server) { only = people.map((p) => String(p.userId)); await TableSession.updateOne({ _id: s._id }, { $set: { billFor: only } }); }
+    }
     const bill = await billOf(claimed || s);
-    if (claimed || again) require('./waiterAlerts').request(tenantId, { table: s.table, label: 'Wants the bill', bill: true, again });
+    if (claimed || again) require('./waiterAlerts').request(tenantId, { table: s.table, label: 'Wants the bill', bill: true, again, only });
     if (claimed || again) tell('table_bill_asked', { tenantId, vars: { table: s.table, due: bill.due, total: bill.total }, data: { kind: 'table', sessionId: String(s._id), table: s.table } });
     return bill;
 }
@@ -592,7 +599,7 @@ async function callWaiter({ tenant, userId, kind, text, table }) {
 async function requests(tenant) {
     const [calls, bills] = await Promise.all([
         TableRequest.find({ tenantId: tenant._id, status: 'open' }).sort({ createdAt: 1 }).limit(60).lean(),
-        TableSession.find({ tenantId: tenant._id, status: 'bill_asked' }).select('table billAskedAt label party').lean(),
+        TableSession.find({ tenantId: tenant._id, status: 'bill_asked' }).select('table billAskedAt label party billFor').lean(),
     ]);
     const sess = await TableSession.find({ _id: { $in: calls.map((c) => c.sessionId).filter(Boolean) } }).select('label').lean();
     const letter = new Map(sess.map((x) => [String(x._id), x.label || null]));
@@ -600,7 +607,7 @@ async function requests(tenant) {
     const nameOf = new Map(askers.map((u) => [String(u._id), String(u.name || '').trim().split(/\s+/)[0] || null]));
     const out = [
         ...calls.map((c) => ({ id: String(c._id), type: 'call', kind: c.kind, label: CALL_LABELS[c.kind], text: c.text || null, table: c.table, userId: c.userId ? String(c.userId) : null, name: nameOf.get(String(c.userId)) || null, party: letter.get(String(c.sessionId)) || null, at: c.createdAt, sessionId: c.sessionId ? String(c.sessionId) : null })),
-        ...bills.map((b) => ({ id: 'b' + b._id, type: 'bill', kind: 'bill', label: 'Wants the bill', table: b.table, party: b.label || null, at: b.billAskedAt, sessionId: String(b._id) })),
+        ...bills.map((b) => ({ id: 'b' + b._id, type: 'bill', kind: 'bill', label: 'Wants the bill', table: b.table, party: b.label || null, at: b.billAskedAt, sessionId: String(b._id), only: (b.billFor || []).map(String) })),
     ];
     return out.sort((a, b) => new Date(a.at) - new Date(b.at));
 }

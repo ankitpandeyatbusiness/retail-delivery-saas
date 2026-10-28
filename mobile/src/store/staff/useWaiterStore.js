@@ -28,7 +28,7 @@ export const useWaiterStore = create((set, get) => ({
             // a dish that became ready, or a table that asked for something, after the first load: a sound and a buzz (the push covers a pocket)
             if (known) {
                 r.serve.filter((o) => !known.has(`s${o.id}`)).forEach((o) => staffAlert({ kind: 'ready', table: o.table, orderNo: o.orderNo }));
-                r.requests.filter((q) => !known.has(`r${q.id}`)).forEach((q) => staffAlert({ kind: q.type === 'bill' ? 'bill' : 'call', table: q.table, what: q.type === 'bill' ? undefined : q.kind, name: q.name }));
+                r.requests.filter((q) => !known.has(`r${q.id}`)).forEach((q) => staffAlert({ kind: q.type === 'bill' ? 'bill' : 'call', table: q.table, what: q.type === 'bill' ? undefined : q.kind, name: q.name, only: q.only }));
             }
             known = ids;
             set({ serve: r.serve, served: r.served || [], requests: r.requests, tables: r.tables, counts: r.counts, rules: r.rules, state: 'ok', loadedAt: Date.now() });
