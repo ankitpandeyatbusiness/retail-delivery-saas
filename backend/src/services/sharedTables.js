@@ -147,6 +147,11 @@ async function enterPin({ tenant, userId, joinId, pin }) {
     const other = await TableSession.exists({ tenantId: tenant._id, table: s.table, customers: userId, status: { $in: OPEN }, _id: { $ne: s._id } });
     if (!other) await TableSession.updateOne({ _id: s._id }, { $addToSet: { customers: userId } });
     await TableJoin.updateOne({ _id: j._id }, { $set: { status: 'joined', joinedAt: new Date() } });
+    if (!other) {
+        // the guests already on the bill hear who joined (the starter's PIN sheet closes by itself)
+        const me = await User.findById(userId).select('name').lean();
+        for (const uid of s.customers.filter((c) => String(c) !== String(userId))) tell('table_joined', { tenantId: tenant._id, userId: uid, vars: { name: firstName(me) || '', table: s.table }, data: { kind: 'table_join', joinId: String(j._id), table: s.table, sessionId: String(s._id) } });
+    }
     return { ok: true, session: { sessionId: String(s._id), label: s.label || labelOf(s.party) } };
 }
 

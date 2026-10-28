@@ -42,9 +42,10 @@ export default function TableBillScreen() {
     };
     const refresh = async () => { setBusy(true); await useTableBill.getState().load(); setBusy(false); };
     const askBill = async () => {
-        const yes = await ask({ title: tr('Ask for the bill?'), message: tr('The shop will bring your bill or take your payment at the counter.'), confirmText: tr('Ask for the bill'), cancelText: tr('Not yet') });
+        const again = bill.status === 'bill_asked';   // already asked: this is a reminder, no question first
+        const yes = again || await ask({ title: tr('Ask for the bill?'), message: tr('The shop will bring your bill or take your payment at the counter.'), confirmText: tr('Ask for the bill'), cancelText: tr('Not yet') });
         if (!yes) return;
-        try { await useTableBill.getState().ask(); showToast(tr('The shop has been told')); } catch (e) { showToast(e?.response?.data?.error || tr('Could not ask for the bill. Please try again.')); }
+        try { await useTableBill.getState().ask(); showToast(again ? tr('The shop has been reminded') : tr('The shop has been told')); } catch (e) { showToast(e?.response?.data?.error || tr('Could not ask for the bill. Please try again.')); }
     };
 
     // pay what is unpaid so far, online: the same payment-method screen as the cart; the paid rounds then fade, and what he orders next shows below as new
@@ -207,7 +208,7 @@ export default function TableBillScreen() {
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -4 }}>
                     <Button label={tr('Order more')} icon="add" kind="ghost" onPress={() => nav.navigate('MainTabs', { screen: 'Home' })} style={{ flexGrow: 1, flexBasis: 140, margin: 4 }} />
                     {!(bill.due > 0) && live.length === 0 && bill.rounds.length > 0 ? <Button label={tr('I am done · Free the table')} icon="exit-outline" onPress={freeIt} style={{ flexGrow: 1.3, flexBasis: 160, margin: 4 }} /> : null}
-                    {asked || !(bill.due > 0) ? null : <Button label={tr('Ask for the bill')} icon="receipt" kind={bill.payOnline && bill.due > 0 ? 'ghost' : undefined} busy={loading} onPress={askBill} style={{ flexGrow: 1.3, flexBasis: 160, margin: 4 }} />}
+                    {!(bill.due > 0) ? null : <Button label={asked ? tr('Remind the shop about the bill') : tr('Ask for the bill')} icon={asked ? 'notifications' : 'receipt'} kind={bill.payOnline && bill.due > 0 ? 'ghost' : undefined} busy={loading} onPress={askBill} style={{ flexGrow: 1.3, flexBasis: 160, margin: 4 }} />}
                 </View>
             </View>
         </View>

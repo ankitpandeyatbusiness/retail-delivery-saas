@@ -110,6 +110,9 @@ describe('"I am with them"', () => {
         assert.equal(String(again._id), String(sa._id));
         assert.equal((await api(a, 'post', `/join/${joinId}/answer`, { approve: false })).status, 409, 'answered once');
         await f.waitFor(async () => (await Notification.countDocuments({ tenantId: w.tenant._id, userId: b.user._id, type: 'table_join_answer' })) === 1);
+        // the starter is told who joined (his PIN sheet closes on it); the newcomer is not
+        await f.waitFor(async () => (await Notification.countDocuments({ tenantId: w.tenant._id, userId: a.user._id, type: 'table_joined' })) === 1);
+        assert.equal(await Notification.countDocuments({ tenantId: w.tenant._id, userId: b.user._id, type: 'table_joined' }), 0);
     });
 
     test('a "no" leaves him free to take his own bill; a request nobody answers runs out after 2 minutes', async () => {

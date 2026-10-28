@@ -18,14 +18,18 @@ export default function JoinRequestHost() {
     const [items, setItems] = useState([]);
     const [hidden, setHidden] = useState([]);
     const [busy, setBusy] = useState('');
-    const [pinFor, setPinFor] = useState(null);   // { who, pin }: they said yes, this PIN is told to the newcomer
+    const [pinFor, setPinFor] = useState(null);   // { joinId, who, pin }: they said yes, this PIN is told to the newcomer
     const load = useCallback(() => { fetchJoins().then((r) => setItems(r.items || [])).catch(() => { }); }, []);
 
     useEffect(() => {
         if (!on) { setItems([]); return undefined; }
         load();
         const a = AppState.addEventListener('change', (st) => { if (st === 'active') load(); });
-        const b = onNotification((n) => { if (n && n.type === 'table_join_request') { setHidden([]); load(); } });
+        const b = onNotification((n) => {
+            if (n && n.type === 'table_join_request') { setHidden([]); load(); }
+            // the newcomer typed the right PIN: the PIN sheet closes by itself (the push says who joined)
+            if (n && n.type === 'table_joined') { setPinFor(null); setItems((l) => l.filter((x) => x.joinId !== n.data?.joinId)); load(); }
+        });
         const t = setInterval(() => { if (AppState.currentState === 'active') load(); }, 15000);
         return () => { a.remove(); b(); clearInterval(t); };
     }, [on, load]);
@@ -38,7 +42,7 @@ export default function JoinRequestHost() {
         try {
             const r = await answerJoin(cur.joinId, approve, block);
             setItems((l) => l.filter((x) => x.joinId !== cur.joinId));
-            if (approve && r.pin) setPinFor({ who: cur.who, pin: r.pin });
+            if (approve && r.pin) setPinFor({ joinId: cur.joinId, who: cur.who, pin: r.pin });
             else showToast(block ? tr('Blocked. They cannot ask again.') : tr('We told them'));
         } catch (e) { showToast(e?.response?.data?.error || tr('Could not send that. Try again.')); load(); } finally { setBusy(''); }
     };

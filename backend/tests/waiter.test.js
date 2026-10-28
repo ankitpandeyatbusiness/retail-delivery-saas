@@ -236,6 +236,13 @@ describe('alerts', () => {
         await tableBill.askForBill({ tenantId: w.tenant._id, userId: w.customer.user._id });
         await f.waitFor(() => spy.mock.calls.some((c) => c.arguments[0].data?.type === 'waiter_bill'));
         assert.ok(spy.mock.calls.some((c) => c.arguments[0].data?.type === 'waiter_bill' && c.arguments[0].data.table === s.table));
+
+        // asking again is a reminder: refused inside a minute, rings again after it
+        await assert.rejects(() => tableBill.askForBill({ tenantId: w.tenant._id, userId: w.customer.user._id }), (e) => e.status === 429);
+        await TableSession.updateOne({ _id: s._id }, { $set: { billAskedAt: new Date(Date.now() - 120000) } });
+        const before = spy.mock.calls.filter((c) => c.arguments[0].data?.type === 'waiter_bill').length;
+        await tableBill.askForBill({ tenantId: w.tenant._id, userId: w.customer.user._id });
+        await f.waitFor(() => spy.mock.calls.filter((c) => c.arguments[0].data?.type === 'waiter_bill').length > before);
     });
 
     test('a guest pressing "please hurry" rings the cooks', async () => {

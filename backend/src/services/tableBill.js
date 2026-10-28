@@ -106,14 +106,23 @@ async function openFor(tenantId, userId) {
     return TableSession.findOne({ tenantId, customers: userId, status: { $in: ['open', 'bill_asked'] } }).sort({ lastOrderAt: -1 });
 }
 
-// "Ask for the bill": the owner is told. Asking again changes nothing.
+// "Ask for the bill": the owner and the waiters are told. Asking again is a reminder: they are told again, but not twice within a minute.
+const REMIND_MS = 60000;
 async function askForBill({ tenantId, userId }) {
     const s = await openFor(tenantId, userId);
     if (!s) throw fail(404, 'You have no open bill');
     const claimed = await TableSession.findOneAndUpdate({ _id: s._id, status: 'open' }, { $set: { status: 'bill_asked', billAskedAt: new Date() } }, { returnDocument: 'after' });
+    let again = false;
+    if (!claimed && s.status === 'bill_asked') {
+        const last = s.billPingAt || s.billAskedAt;
+        if (last && Date.now() - new Date(last).getTime() < REMIND_MS) throw fail(429, 'The shop already knows. You can remind them again in a minute.');
+        const ok = await TableSession.updateOne({ _id: s._id, $or: [{ billPingAt: { $exists: false } }, { billPingAt: { $lt: new Date(Date.now() - REMIND_MS) } }] }, { $set: { billPingAt: new Date() } });
+        if (!ok.modifiedCount) throw fail(429, 'The shop already knows. You can remind them again in a minute.');
+        again = true;
+    }
     const bill = await billOf(claimed || s);
-    if (claimed) require('./waiterAlerts').request(tenantId, { table: s.table, label: 'Wants the bill', bill: true });
-    if (claimed) tell('table_bill_asked', { tenantId, vars: { table: s.table, due: bill.due, total: bill.total }, data: { kind: 'table', sessionId: String(s._id), table: s.table } });
+    if (claimed || again) require('./waiterAlerts').request(tenantId, { table: s.table, label: 'Wants the bill', bill: true, again });
+    if (claimed || again) tell('table_bill_asked', { tenantId, vars: { table: s.table, due: bill.due, total: bill.total }, data: { kind: 'table', sessionId: String(s._id), table: s.table } });
     return bill;
 }
 

@@ -60,7 +60,7 @@ export function staffAlert(a, { force } = {}) {
         if (!force && useStaffStore.getState().me?.onDuty === false) return;   // off duty: no sound and no popup
         if (!force && wasTapped(a.kind, a)) return;   // its notification was just tapped: that already showed and said it
         const st = useStaffSoundStore.getState();
-        const key = `${a.kind}:${a.orderNo ?? a.table ?? ''}${a.what ? `:${a.what}` : ''}`;   // water and a spoon at the same table are two different alerts
+        const key = `${a.kind}:${a.orderNo ?? a.table ?? ''}${a.what ? `:${a.what}` : ''}${a.nonce ? `:${a.nonce}` : ''}`;   // water and a spoon at the same table are two different alerts
         const now = Date.now();
         if (!force) {
             if ((seen.get(key) || 0) > now - WINDOW_MS) return;

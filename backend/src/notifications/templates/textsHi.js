@@ -66,6 +66,7 @@ const HI = {
     pickup_time_request: (v) => `ऑर्डर ${v.orderNo}: ग्राहक पिकअप का समय बदलना चाहते हैं।`,
     pickup_collect_claim: (v) => `ऑर्डर ${v.orderNo}: ग्राहक कहते हैं कि उन्होंने ले लिया। कृपया पक्का करें।`,
     pickup_not_wanted_claim: (v) => `ऑर्डर ${v.orderNo}: ग्राहक को अब खाना नहीं चाहिए। रिफंड तय कीजिए।`,
+    table_joined: (v) => `${v.name || 'कोई'} आपकी टेबल ${v.table} के बिल में जुड़ गए हैं। उनके ऑर्डर अब इसी बिल में आएँगे।`,
     table_bill_asked: (v) => `टेबल ${v.table} ने बिल मांगा है।`,
     table_call: (v) => `टेबल ${v.table}: ${v.name || 'एक मेहमान'} बुला रहे हैं।`,
     bill_issued: () => 'आपका मासिक बिल तैयार है।',

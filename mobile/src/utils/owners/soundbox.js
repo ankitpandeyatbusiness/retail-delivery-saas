@@ -635,7 +635,9 @@ async function announceCancel(d) {
 // A customer at a table asked for the bill: a short tone, then the voice says it two times ("Table 7 asked for the bill"). Only while
 // the app runs (in front, or Soundbox "always ready"); a closed app gets the normal notification.
 async function announceBill(d) {
-    if (!isOwner() || !settings().soundbox || speaking || !alertOn('table_bill_asked', 'v')) return;
+    if (!isOwner() || !settings().soundbox || !alertOn('table_bill_asked', 'v')) return;
+    for (let i = 0; i < 16 && speaking; i += 1) await new Promise((r) => setTimeout(r, 500));   // another voice is speaking: wait for it
+    if (speaking) return;
     if (!settings().alwaysReady && AppState.currentState !== 'active') return;
     const table = String(d?.table || '');
     if (!table) return;

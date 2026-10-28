@@ -20,6 +20,7 @@ const tableSessionSchema = new mongoose.Schema({
     lastOrderAt: { type: Date, default: Date.now },
     blockedGuests: [{ type: mongoose.Schema.Types.ObjectId }],   // guests this bill said "No, and block" to: they can not ask to join it again
     billAskedAt: Date,
+    billPingAt: Date,   // the guest reminded the shop again (once a minute at most)
     billRemindedAt: Date, billReminds: { type: Number, default: 0 },   // the shop and the waiters are reminded every 5 minutes while the bill waits (jobs/billReminders.js)
     closedAt: Date,
     closedBy: { type: String, enum: ['owner', 'staff', 'auto', 'customer'] },   // customer: a guest freed the table himself once everything was paid

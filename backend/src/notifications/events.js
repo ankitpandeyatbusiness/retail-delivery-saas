@@ -40,6 +40,7 @@ const EVENTS = {
     table_share_left: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },    // a friend left without paying: what is left on your bill
     table_guest_alert: { to: 'owner', channels: ['inapp'], alsoPush: false, noPush: true },       // QUIET: a guest who owes is not reachable, or has his location off (no push, no sound)
     table_join_request: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },   // a guest at a shared table asks to join your bill
+    table_joined: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },        // the newcomer typed the right PIN: the guests on the bill are told who joined
     table_join_answer: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },    // the answer to that
     staff_leave_request: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // a cook or a waiter asks for leave: the owner decides
     staff_leave_decision: { to: 'rider', channels: INAPP_PUSH, alsoPush: true, voice: true, pushChannel: STAFF_INFO_CHANNEL, pushSound: 'notify' },  // the owner said yes or no to their leave
