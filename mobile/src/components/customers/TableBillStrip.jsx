@@ -1,4 +1,5 @@
 // While he is dining in: a bar above the tabs, "Table 7 · 3 rounds · ₹640 so far". Tap it for the whole bill. It keeps itself up to date.
+// With dishes in the cart the same card grows a second row, "2 items in your cart · ₹240 · View cart": the cart bar steps aside (shop.jsx) so the two never overlap.
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, AppState, Animated, Easing, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,11 +14,12 @@ import { tr } from '../../i18n';
 const TAB_H = 62;
 const HIDE_ON = ['TableBill', 'Cart', 'Item', 'OrderPlaced'];
 
-export default function TableBillStrip({ routeName, onOpen }) {
+export default function TableBillStrip({ routeName, onOpen, onOpenCart }) {
     const user = useAuthStore((s) => s.user);
     const enabled = !!user && ['rider', 'admin', 'kitchen', 'waiter'].indexOf(user.role) < 0;
     const bill = useTableBill((s) => s.bill);
-    const cartCount = useCartStore((s) => s.lines.length);   // the "View cart" bar sits in the same place, so this bar steps aside for it
+    const cartCount = useCartStore((s) => s.lines.reduce((a, l) => a + l.quantity, 0));   // dishes in the cart: shown as a row of this card
+    const cartTotal = useCartStore((s) => s.lines.reduce((a, l) => a + l.quantity * l.price, 0));
     const insets = useSafeAreaInsets();
     const { primary, onPrimary, error } = useBrand();
     const [hidden, setHidden] = useState(false);   // he hid the bar: a small chip stays to bring it back
@@ -37,17 +39,18 @@ export default function TableBillStrip({ routeName, onOpen }) {
         return () => { clearInterval(t); a(); b.remove(); };
     }, [enabled, bill?.open]);
 
-    if (!enabled || !bill?.open || HIDE_ON.includes(routeName) || (cartCount > 0 && routeName === 'Home')) return null;
+    if (!enabled || !bill?.open || HIDE_ON.includes(routeName)) return null;
     const asked = bill.status === 'bill_asked';
     const rounds = bill.rounds.length;
     const bottom = insets.bottom + TAB_H + 18;
     return (
         <>
         <Animated.View pointerEvents={hidden ? 'none' : 'auto'} style={{ position: 'absolute', left: 12, right: 12, bottom, opacity: away.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }), transform: [{ translateX: away.interpolate({ inputRange: [0, 1], outputRange: [0, Dimensions.get('window').width] }) }] }}>
+        <View style={{ borderRadius: 18, backgroundColor: asked ? error : primary, elevation: 8 }}>
         <Pressable
             onPress={onOpen}
             onLayout={(e) => { const h = Math.round(e.nativeEvent.layout.height); if (h > 0 && h !== barH) setBarH(h); }}
-            style={{ borderRadius: 18, backgroundColor: asked ? error : primary, paddingVertical: 12, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', elevation: 8 }}
+            style={{ paddingVertical: 12, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center' }}
         >
             <Ionicons name={asked ? 'receipt' : 'restaurant'} size={20} color={onPrimary} />
             <View style={{ flex: 1, marginLeft: 10 }}>
@@ -64,11 +67,26 @@ export default function TableBillStrip({ routeName, onOpen }) {
                 <Ionicons name="chevron-down" size={18} color={onPrimary} />
             </Pressable>
         </Pressable>
+        {cartCount > 0 ? (
+            <Pressable onPress={onOpenCart} accessibilityRole="button" accessibilityLabel={tr('View cart')}
+                style={{ marginHorizontal: 8, marginBottom: 8, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.22)', flexDirection: 'row', alignItems: 'center' }}>
+                <Ionicons name="bag-handle" size={18} color={onPrimary} />
+                <Text style={{ color: onPrimary, fontWeight: '800', flex: 1, marginLeft: 10 }} numberOfLines={1}>{tr('{n} in your cart · {t}', { n: cartCount, t: `₹${Math.round(cartTotal * 100) / 100}` })}</Text>
+                <Text style={{ color: onPrimary, fontWeight: '900' }}>{tr('View cart')}</Text>
+                <Ionicons name="chevron-forward" size={18} color={onPrimary} />
+            </Pressable>
+        ) : null}
+        </View>
         </Animated.View>
         <Animated.View pointerEvents={hidden ? 'auto' : 'none'} style={{ position: 'absolute', right: 12, bottom, opacity: away, transform: [{ translateX: away.interpolate({ inputRange: [0, 1], outputRange: [70, 0] }) }, { rotate: away.interpolate({ inputRange: [0, 1], outputRange: ['180deg', '0deg'] }) }] }}>
             <Pressable onPress={() => setHidden(false)} hitSlop={8} accessibilityRole="button" accessibilityLabel={tr('Show')}
                 style={{ width: barH, height: barH, borderRadius: barH / 2, backgroundColor: asked ? error : primary, alignItems: 'center', justifyContent: 'center', elevation: 8 }}>
                 <Ionicons name={asked ? 'receipt' : 'restaurant'} size={Math.round(barH * 0.42)} color={onPrimary} />
+                {cartCount > 0 ? (
+                    <View style={{ position: 'absolute', top: -2, right: -2, minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: asked ? error : primary }}>
+                        <Text style={{ color: asked ? error : primary, fontWeight: '900', fontSize: 11 }}>{cartCount}</Text>
+                    </View>
+                ) : null}
             </Pressable>
         </Animated.View>
         </>

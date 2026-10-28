@@ -13,6 +13,7 @@ import { useBrand, CardGlow } from '../common/kit';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { useCartStore, useFavStore, cartHooks } from '../../store/customers/shopStores';
+import { useTableBill } from '../../store/customers/useTableBill';
 import SlideNum from '../common/SlideNum';
 import { tr } from '../../i18n';
 
@@ -540,6 +541,7 @@ export function CartBar() {
     const count = useCartStore((st) => st.lines.reduce((a, l) => a + l.quantity, 0));
     const total = useCartStore((st) => st.lines.reduce((a, l) => a + l.quantity * l.price, 0));
     const hidden = useCartBarHidden((st) => st.hidden);
+    const dining = useTableBill((st) => !!st.bill?.open);   // dining in: the table bill bar carries the cart as its second row
     const [barH, setBarH] = useState(52);   // the round chip is as tall as the bar
     const away = useRef(new Animated.Value(hidden ? 1 : 0)).current;   // 0 = bar shown, 1 = hidden
     useEffect(() => { Animated.timing(away, { toValue: hidden ? 1 : 0, duration: 380, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start(); }, [hidden, away]);
@@ -548,7 +550,7 @@ export function CartBar() {
         if (count > lastCount.current || count === 0) useCartBarHidden.setState({ hidden: false });
         lastCount.current = count;
     }, [count]);
-    if (!count) return null;
+    if (!count || dining) return null;
     const r = Math.max(radius, 14);
     return (
         <>
