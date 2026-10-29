@@ -243,7 +243,7 @@ core.put('/online', wrap(async (req, res) => {
     if (!req.body.isOnline) {
         const me = await Rider.findOne({ tenantId: req.tenant._id, userId: req.riderId }).select('name').lean();
         const until = resumeAt ? new Date(resumeAt.getTime() + 330 * 60000).toISOString().slice(11, 16) : '';
-        require('../notifications/center').notify('rider_ended_duty', { tenantId: req.tenant._id, vars: { riderName: me?.name || 'A delivery partner', until }, data: { kind: 'rider_duty', riderId: String(req.riderId) } });
+        require('../notifications/center').notify('rider_ended_duty', { tenantId: req.tenant._id, vars: { riderName: me?.name || 'A delivery partner', until, back: require('../utils/backAt')(resumeAt), backHi: require('../utils/backAt')(resumeAt, 'hi') }, data: { kind: 'rider_duty', riderId: String(req.riderId) } });
     }
     // just came on duty: the open orders nobody has taken are shown to him at once
     if (req.body.isOnline) {

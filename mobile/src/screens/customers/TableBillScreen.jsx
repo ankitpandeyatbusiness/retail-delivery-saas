@@ -122,7 +122,7 @@ export default function TableBillScreen() {
                         </View>
                         {cool > 0 ? (
                             <View style={{ marginTop: 10, paddingVertical: 14, paddingHorizontal: 16, borderRadius: 14, backgroundColor: alpha(muted, 0.14), alignItems: 'center', justifyContent: 'center' }}>
-                                <Text style={{ color: text, fontWeight: '800', textAlign: 'center', lineHeight: 20 }}>{tr('The kitchen knows. You can remind again in {t}', { t: mmss(cool) })}</Text>
+                                <Text style={{ color: text, fontWeight: '800', textAlign: 'center', lineHeight: 20 }}>{tr('You can remind again in {t}', { t: mmss(cool) })}</Text>
                             </View>
                         ) : <Button label={tr('Please bring it fast 🙏')} icon="notifications" kind="ghost" onPress={hurry} style={{ marginTop: 10 }} />}
                     </Card>
@@ -210,7 +210,7 @@ export default function TableBillScreen() {
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -4 }}>
                     <Button label={tr('Order more')} icon="add" kind="ghost" onPress={() => nav.navigate('MainTabs', { screen: 'Home' })} style={{ flexGrow: 1, flexBasis: 140, margin: 4 }} />
                     {!(bill.due > 0) && live.length === 0 && bill.rounds.length > 0 ? <Button label={tr('I am done · Free the table')} icon="exit-outline" onPress={freeIt} style={{ flexGrow: 1.3, flexBasis: 160, margin: 4 }} /> : null}
-                    {!(bill.due > 0) ? null : <Button label={asked ? tr('Remind the shop about the bill') : tr('Ask for the bill')} icon={asked ? 'notifications' : 'receipt'} kind={bill.payOnline && bill.due > 0 ? 'ghost' : undefined} busy={loading} onPress={askBill} style={{ flexGrow: 1.3, flexBasis: 160, margin: 4 }} />}
+                    {!(bill.due > 0) ? null : <Button label={asked ? tr('Remind for Bill') : tr('Ask for the bill')} icon={asked ? 'notifications' : 'receipt'} kind={bill.payOnline && bill.due > 0 ? 'ghost' : undefined} busy={loading} onPress={askBill} style={{ flexGrow: 1.3, flexBasis: 160, margin: 4 }} />}
                 </View>
             </View>
         </View>

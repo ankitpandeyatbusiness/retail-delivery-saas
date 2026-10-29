@@ -105,7 +105,7 @@ core.put('/duty', wrap(async (req, res) => {
     }
     // going live again (or off for good) forgets an earlier "off until" time
     await Staff.updateOne({ tenantId: req.tenant._id, userId: req.staff.id }, { $set: set, ...(c.online !== undefined && !c.offUntil ? { $unset: { 'duty.offUntil': 1 } } : {}) });
-    if (c.online === false) require('../notifications/center').notify('staff_off_duty', { tenantId: req.tenant._id, vars: { name: req.staff.name || req.shopUser.phone, job: staff.JOB[req.staff.role] }, data: { kind: 'staff_off_duty', userId: String(req.staff.id) } });   // the owner is told (a notification, never a popup)
+    if (c.online === false) require('../notifications/center').notify('staff_off_duty', { tenantId: req.tenant._id, vars: { name: req.staff.name || req.shopUser.phone, job: staff.JOB[req.staff.role], back: require('../utils/backAt')(c.offUntil), backHi: require('../utils/backAt')(c.offUntil, 'hi') }, data: { kind: 'staff_off_duty', userId: String(req.staff.id) } });   // the owner is told, with the time they are back
     if (c.online === true) require('../notifications/center').notify('staff_on_duty', { tenantId: req.tenant._id, vars: { name: req.staff.name || req.shopUser.phone, job: staff.JOB[req.staff.role] }, data: { kind: 'staff_on_duty', userId: String(req.staff.id) } });   // the owner is told, with the slider and the voice
     res.json(await dutyView(req));
 }));

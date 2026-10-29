@@ -2211,4 +2211,6 @@ export default {
     "“Came back” means the customer ordered within 3 days of a message.": "\"वापस आया\" का मतलब है कि ग्राहक ने संदेश के 3 दिन के भीतर ऑर्डर किया।",
     "★ {v1} · {ratingCount} ratings": "★ {v1} · {ratingCount} रेटिंग",
     "🎉 You saved {rs} on this order!": "🎉 आपने इस ऑर्डर पर {rs} बचाए!",
+    "You can remind again in {t}": "{t} बाद फिर याद दिला सकते हैं",
+    "Remind for Bill": "बिल के लिए याद दिलाएँ",
 };
