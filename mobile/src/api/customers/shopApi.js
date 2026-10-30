@@ -101,3 +101,10 @@ export const sendInquiry = (id, body) => d(api.post(`/services/${id}/inquiries`,
 export const fetchInquiry = (id) => d(api.get(`/services/inquiries/${id}`));                       // with the whole conversation
 export const sendInquiryMessage = (id, text) => d(api.post(`/services/inquiries/${id}/messages`, { text }));
 export const fetchMyInquiries = () => d(api.get('/services/inquiries/mine'));
+
+// table booking (backend/src/routes/bookingsRouter.js)
+export const fetchBookingConfig = () => d(api.get('/bookings/config'));                                   // { enabled, minParty, maxParty, advanceDays, today, deposit, me }
+export const fetchBookingSlots = (date, party) => d(api.get('/bookings/slots', { params: { date, party } })); // { slots:[{ time, left, ok }], deposit }
+export const createBooking = (body) => d(api.post('/bookings', body));                                  // { date, time, party, name, phone, note? }
+export const fetchMyBookings = () => d(api.get('/bookings/mine'));
+export const cancelBooking = (id) => d(api.post(`/bookings/${id}/cancel`));

@@ -22,7 +22,7 @@ import { useAddressStore } from '../../store/customers/useAddressStore';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useThemeStore } from '../../store/common/useThemeStore';
 import { useFavStore } from '../../store/customers/shopStores';
-import { fetchMe, updateMe, deleteMe, updatePrefs, deleteUpload, fetchServices } from '../../api/customers/shopApi';
+import { fetchMe, updateMe, deleteMe, updatePrefs, deleteUpload, fetchServices, fetchBookingConfig } from '../../api/customers/shopApi';
 import { pickPhoto, uploadAvatar } from '../../utils/common/photoUpload';
 import { Skel } from '../../components/common/motion';
 import OwedStrip from '../../components/customers/OwedStrip';
@@ -227,6 +227,8 @@ function AccountInner() {
     const favOn = useHomeStore((st) => st.full.features.favourites);
     const pointsOn = useHomeStore((st) => st.full.points?.customer !== false);
     const [serviceCount, setServiceCount] = useState(0);   // the Services section shows only when the shop offers something
+    const [bookingOn, setBookingOn] = useState(false);
+    useEffect(() => { fetchBookingConfig().then((r) => setBookingOn(!!r.enabled)).catch(() => { }); }, []);
     useEffect(() => { fetchServices().then((r) => setServiceCount((r.items || []).length)).catch(() => { }); }, []);
     const referOn = useHomeStore((st) => !!(st.full.orders.dineIn?.enabled && st.full.orders.dineIn?.referOn));
     const shop = useThemeStore((st) => st.theme.name);
@@ -410,10 +412,12 @@ function AccountInner() {
                     ) : null}
                 </View>
 
-                {serviceCount ? (
+                {serviceCount || bookingOn ? (
                     <Group title={tr('SERVICES')} delay={90}>
-                        <Item icon="briefcase-outline" label={tr('Services')} sub={tr('Bulk orders, tiffin, party booking and more')} onPress={() => nav.navigate('Services')} />
-                        <Item icon="chatbubbles-outline" label={tr('My inquiries')} sub={tr('Replies from the shop')} onPress={() => nav.navigate('MyInquiries')} last />
+                        {bookingOn ? <Item icon="calendar-outline" label={tr('Book a table')} sub={tr('Pick a day, a time and your group')} onPress={() => nav.navigate('BookTable')} /> : null}
+                        {bookingOn ? <Item icon="calendar-number-outline" label={tr('My bookings')} sub={tr('Your tables and the code to show')} onPress={() => nav.navigate('MyBookings')} last={!serviceCount} /> : null}
+                        {serviceCount ? <Item icon="briefcase-outline" label={tr('Services')} sub={tr('Bulk orders, tiffin, party booking and more')} onPress={() => nav.navigate('Services')} /> : null}
+                        {serviceCount ? <Item icon="chatbubbles-outline" label={tr('My inquiries')} sub={tr('Replies from the shop')} onPress={() => nav.navigate('MyInquiries')} last /> : null}
                     </Group>
                 ) : null}
 

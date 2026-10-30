@@ -35,6 +35,9 @@ const EVENTS = {
     rider_accepted: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },
     points_arrived: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },   // loyalty points reached the customer
     rider_badge: { to: 'rider', channels: INAPP_PUSH, alsoPush: true },        // the rider moved up a badge
+    booking_new: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },             // a guest booked a table
+    booking_cancelled: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },       // a guest cancelled a booking
+    booking_owner_cancelled: { to: 'customer', channels: INAPP_PUSH, alsoPush: true }, // the shop cancelled a guest's booking
     inquiry_new: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },             // a customer sent an inquiry from a service form
     inquiry_customer_reply: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },  // a customer wrote again on an inquiry
     inquiry_reply: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },        // the shop answered an inquiry

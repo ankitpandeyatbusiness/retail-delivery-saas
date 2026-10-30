@@ -72,6 +72,10 @@ import OwnerReviewsScreen from '../screens/owners/OwnerReviewsScreen';
 import OwnerMessagesScreen from '../screens/owners/OwnerMessagesScreen';
 import OwnerCouponsScreen from '../screens/owners/OwnerCouponsScreen';
 import OwnerCouponScreen from '../screens/owners/OwnerCouponScreen';
+import OwnerBookingsScreen from '../screens/owners/OwnerBookingsScreen';
+import OwnerBookingSettingsScreen from '../screens/owners/OwnerBookingSettingsScreen';
+import BookTableScreen from '../screens/customers/BookTableScreen';
+import MyBookingsScreen from '../screens/customers/MyBookingsScreen';
 import OwnerInquiriesScreen from '../screens/owners/OwnerInquiriesScreen';
 import OwnerInquiryScreen from '../screens/owners/OwnerInquiryScreen';
 import InquiryScreen from '../screens/customers/InquiryScreen';
@@ -344,6 +348,8 @@ export default function AppNavigator() {
                     <Stack.Screen name="StaffLeave" component={StaffLeaveScreen} />
                     <Stack.Screen name="RiderPoints" component={RiderPointsScreen} />
                     <Stack.Screen name="MyPoints" component={MyPointsScreen} />
+                    <Stack.Screen name="BookTable" component={BookTableScreen} />
+                    <Stack.Screen name="MyBookings" component={MyBookingsScreen} />
                     <Stack.Screen name="Services" component={ServicesScreen} />
                     <Stack.Screen name="ServiceForm" component={ServiceFormScreen} />
                     <Stack.Screen name="Inquiry" component={InquiryScreen} />
@@ -380,6 +386,8 @@ export default function AppNavigator() {
                     <Stack.Screen name="OwnerMessages" component={OwnerMessagesScreen} />
                     <Stack.Screen name="OwnerCoupons" component={OwnerCouponsScreen} />
                     <Stack.Screen name="OwnerCoupon" component={OwnerCouponScreen} />
+                    <Stack.Screen name="OwnerBookings" component={OwnerBookingsScreen} />
+                    <Stack.Screen name="OwnerBookingSettings" component={OwnerBookingSettingsScreen} />
                     <Stack.Screen name="OwnerInquiries" component={OwnerInquiriesScreen} />
                     <Stack.Screen name="OwnerInquiry" component={OwnerInquiryScreen} />
                     <Stack.Screen name="OwnerServices" component={OwnerServicesScreen} />

@@ -136,6 +136,15 @@ export const products = crud('products');
 export const banners = crud('banners');
 export const coupons = crud('coupons');
 export const collections = crud('collections');
+// table booking: the rules, the day's bookings, and what the owner does with one (backend/src/routes/shopBookingRouter.js)
+export const booking = {
+    settings: () => d(api.get('/shop/booking/settings')),
+    saveSettings: (body) => d(api.put('/shop/booking/settings', body)),     // the slider sends only { enabled }
+    day: (date) => d(api.get('/shop/booking', q({ date }))),                // { date, items, seats, upcoming }
+    seat: (id) => d(api.post(`/shop/booking/${id}/seat`)),
+    noShow: (id) => d(api.post(`/shop/booking/${id}/no-show`)),
+    cancel: (id) => d(api.post(`/shop/booking/${id}/cancel`)),
+};
 // the inquiries customers sent from the service forms (backend/src/routes/shopInquiriesRouter.js)
 export const inquiries = {
     list: (params) => d(api.get('/shop/inquiries', q(params))),                       // { items, counts, unread }

@@ -30,6 +30,7 @@ const WORDS = {
     OwnerMessages: 'message notify announcement broadcast sms push send',
     OwnerAutopilot: 'autopilot reminder win back coupon inactive customers automatic',
     OwnerRewards: 'points rewards badge loyalty levels expiry top riders gift bronze silver gold platinum',
+    OwnerBookings: 'bookings table booking reservation reserve deposit seats slots timings',
     OwnerInquiries: 'inquiries inquiry enquiry reply bulk tiffin party booking customer asked',
     OwnerServices: 'services bulk order tiffin party booking catering inquiry inquiries custom',
     OwnerCoupons: 'coupon discount code offer promo voucher only for dine in first order percent flat',
@@ -78,6 +79,7 @@ const GROUPS = [
     ['Menu and offers', [
         ['list', 'Categories', 'Order, pictures and opening hours of each section', 'OwnerCategories'],
         ['pricetag', 'Coupons', 'Discount codes', 'OwnerCoupons'],
+        ['calendar', 'Bookings', 'Tables guests booked, seat them, and your booking rules', 'OwnerBookings'],
         ['chatbubbles', 'Inquiries', 'What customers asked about your services, and your replies', 'OwnerInquiries'],
         ['briefcase', 'Services', 'Bulk orders, tiffin, party booking and your own services', 'OwnerServices'],
         ['images', 'Home screen', 'Banners, festival strips and the big pictures at the top', 'OwnerShopFrontHub'],

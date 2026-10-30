@@ -15,6 +15,7 @@ export function ownerRoute(n) {
     // a leave, a day off, or going off duty: the person's own page (their leaves and days off, with the buttons to take them away)
     if (['staff_leave', 'staff_holiday', 'staff_off_duty'].includes(d.kind)) return d.userId ? { name: 'OwnerStaffPerson', params: { userId: String(d.userId) } } : { name: 'OwnerStaff' };
     if (d.kind === 'rider_leave' && d.riderId) return { name: 'OwnerRider', params: { userId: String(d.riderId) } };
+    if (d.kind === 'booking') return { name: 'OwnerBookings' };
     if (d.kind === 'inquiry' && d.inquiryId) return { name: 'OwnerInquiry', params: { id: String(d.inquiryId) } };
     if (d.kind === 'fee_plan') return { name: 'OwnerRent' };
     if (d.kind === 'closing_report') return { name: 'OwnerClosing' };
