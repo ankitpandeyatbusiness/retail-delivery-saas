@@ -115,6 +115,7 @@ export default function BookTableScreen() {
 
     return (
         <FormPage title={tr('Book a table')} footer={<Button label={table ? tr('Pay ₹{n} deposit · Table {t}', { n: deposit, t: table }) : tr('Tap a table to book')} icon="calendar" busy={busy} disabled={!table} onPress={send} />}>
+            <View style={{ paddingHorizontal: 16 }}>
             <Label>{tr('Day')}</Label>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
                 {days.map((x) => {
@@ -188,6 +189,7 @@ export default function BookTableScreen() {
                     {d.type === 'per_person' ? tr('₹{a} per person. ', { a: d.amount }) : ''}{d.mode === 'adjust' ? tr('It is taken off your bill.') : tr('The restaurant keeps it.')}
                 </Text>
                 <Text style={{ color: muted, fontSize: 13, marginTop: 2 }}>{tr('Full refund if you cancel at least {h} hours before.', { h: d.refundHours })}</Text>
+            </View>
             </View>
             <Group title={tr('Your details')}>
                 <TextBox label={tr('Your name')} value={name} onChangeText={setName} maxLength={80} />

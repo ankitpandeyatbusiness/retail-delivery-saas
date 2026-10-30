@@ -1,5 +1,5 @@
 // The guest's booked table: a card above the tabs from the moment the owner allowed the booking until its slot is over.
-// "Your table · Today 8:00 PM", "4 guests · Code ABCDE". Tap it for My bookings. It steps aside while he is dining in (the table bill bar takes its place)
+// "Your table · Today 8:00 PM", "4 guests · Code ABCDE". Tap it to show the ticket QR (it opens without internet). It steps aside while he is dining in (the table bill bar takes its place)
 // and sits above the active order bar when both are on screen.
 import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable, AppState } from 'react-native';
@@ -14,7 +14,7 @@ import { tr } from '../../i18n';
 
 const TAB_H = 62;
 const ORDER_BAR_H = 76;
-const HIDE_ON = ['Login', 'Cart', 'Item', 'OrderPlaced', 'TableBill', 'BookTable', 'MyBookings'];
+const HIDE_ON = ['Login', 'Cart', 'Item', 'OrderPlaced', 'TableBill', 'BookTable', 'MyBookings', 'MyTicket'];
 
 const todayIst = (now) => new Date(now + 330 * 60000).toISOString().slice(0, 10);
 const dayWord = (date, now) => {
@@ -59,7 +59,7 @@ export default function BookingStrip({ routeName, onOpen }) {
                         {on ? tr('Your slot has started · Code {c}', { c: card.code }) : soon ? tr('In {n} min · {g} guests · Code {c}', { n: left, g: card.party, c: card.code }) : tr('{g} guests · Code {c}', { g: card.party, c: card.code })}
                     </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={20} color={onPrimary} />
+                <Ionicons name="qr-code" size={24} color={onPrimary} />
             </Pressable>
         </View>
     );

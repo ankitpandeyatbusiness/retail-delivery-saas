@@ -122,6 +122,7 @@ export default function OwnerHomeScreen() {
     // the cooks and waiters (only the jobs the platform switched on for this shop are shown)
     const [staff, setStaff] = useState(null);
     const easy = useMenuFlags((s) => s.easy);
+    const bookingOn = useMenuFlags((s) => s.bookingOn);   // the super admin switched Table booking on for this shop
     useFocusEffect(useCallback(() => { fetchStaff().then(setStaff).catch(() => { }); useMenuFlags.getState().refresh(); }, []));   // (the side menu's rows are ready before it opens)
     // an order changed anywhere: update the numbers (a moment later, so a burst of events is one refresh)
     useEffect(() => {
@@ -179,6 +180,20 @@ export default function OwnerHomeScreen() {
     return (
         <OwnerScreen onRefresh={pull} refreshing={refreshing}>
             {loadError && !d ? <Card tone={error}><Text style={{ color: error, fontWeight: '700' }}>{loadError}</Text></Card> : null}
+
+            {/* the door scanner: a guest shows the booking QR, one tap from here */}
+            {bookingOn ? (
+                <Card onPress={() => nav.navigate('BookingScan', { who: 'owner' })}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Ionicons name="qr-code-outline" size={28} color={primary} />
+                        <View style={{ flex: 1, marginHorizontal: 12 }}>
+                            <Text style={{ color: text, fontWeight: '900', fontSize: 15 }}>{tr('Scan booking')}</Text>
+                            <Text style={{ color: muted, fontSize: 12.5, marginTop: 1 }}>{tr("Scan the guest's QR and mark them arrived")}</Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={18} color={muted} />
+                    </View>
+                </Card>
+            ) : null}
 
             {/* something needs him now (the delivery partner cancelled or asked for help, nobody took an order, a very late delivery) */}
             {false ? (

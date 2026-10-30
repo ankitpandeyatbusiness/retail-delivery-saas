@@ -5,6 +5,7 @@
 // Resolves { status: 'paid' | 'cancelled' | 'failed' | 'pending', message? }. Never throws.
 import Razorpay from 'react-native-customui';
 import { verifyBooking, checkBooking } from '../../api/customers/shopApi';
+import { warmRazorpay } from './payOnline';
 
 const PAYMENT_CANCELED = 2;   // Razorpay error code
 const FALLBACK_EMAIL = 'orders@retailsaas.app';
@@ -41,7 +42,7 @@ async function finish(id, proof) {
 // booking: the held booking; pay: { keyId, rzpOrderId, amountPaise, currency } from the server; user: { email, phone }
 // upiApp: { pkg } opens that app, { chooser: true } or nothing shows Android's list.   card: { number, month, year, cvv, name } pays by card.
 export async function payBooking({ booking, pay, user, upiApp, card }) {
-    Razorpay.initRazorpay(pay.keyId);   // the promise it returns never settles, so it is not awaited
+    warmRazorpay(pay.keyId);   // started once and kept ready, like for an order: opening it cold can fail and look like a cancel
     const options = {
         key_id: pay.keyId, order_id: pay.rzpOrderId, amount: String(pay.amountPaise), currency: pay.currency || 'INR',
         description: 'Table booking deposit', email: user?.email || FALLBACK_EMAIL, contact: tenDigits(user?.phone || booking?.phone),

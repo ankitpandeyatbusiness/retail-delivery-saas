@@ -12,6 +12,7 @@ import { useAuthStore } from '../../store/common/useAuthStore';
 import { useTableBill } from '../../store/customers/useTableBill';
 import { payTableBill } from '../../utils/customers/payTableBill';
 import { payBooking } from '../../utils/customers/payBooking';
+import { warmRazorpay } from '../../utils/customers/payOnline';
 import { fetchPaymentConfig } from '../../api/customers/shopApi';
 import { standardUpiApps } from '../../utils/customers/upiApps';
 import { prewarmPayments } from '../../utils/customers/payOnline';
@@ -102,7 +103,8 @@ export default function PaymentMethodsScreen() {
     const timer = useRef(null);
     const payShare = !!route.params?.payShare;   // only his own share, then he leaves the bill
     const deposit = route.params?.deposit || null;   // { booking, pay }: the deposit of a held table booking
-    const payBill = !!route.params?.payBill || !!deposit;   // paying the table bill from the table: online methods only, and the payment starts when one is picked
+    const payBill = !!route.params?.payBill || !!deposit;
+    useEffect(() => { if (deposit?.pay?.keyId) warmRazorpay(deposit.pay.keyId); }, []);   // eslint-disable-line react-hooks/exhaustive-deps   // paying the table bill from the table: online methods only, and the payment starts when one is picked
     const user = useAuthStore((st) => st.user);
     const head = useRef(new Animated.Value(0)).current;
 

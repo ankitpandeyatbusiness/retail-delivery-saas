@@ -57,6 +57,14 @@ export async function abandonUnpaidOrder(id) {
 // Safe to call many times; never throws.
 let warmKey = null;
 let warmAt = 0;
+// start the payment SDK for this key once (any other payment, like a table booking deposit, shares it)
+export function warmRazorpay(keyId) {
+    if (!keyId || (warmKey === keyId && Date.now() - warmAt < 10 * 60 * 1000)) return;
+    Razorpay.initRazorpay(keyId);   // the promise it returns never settles, so it is not awaited
+    warmKey = keyId;
+    warmAt = Date.now();
+}
+
 export async function prewarmPayments(known) {   // known: a payment-config answer the caller already has
     try {
         detectInstalledUpiApps().catch(() => { });

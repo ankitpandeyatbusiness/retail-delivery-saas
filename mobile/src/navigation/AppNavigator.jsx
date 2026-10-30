@@ -79,6 +79,7 @@ import BookingScanScreen from '../screens/common/BookingScanScreen';
 import OwnerBookingSettingsScreen from '../screens/owners/OwnerBookingSettingsScreen';
 import BookTableScreen from '../screens/customers/BookTableScreen';
 import MyBookingsScreen from '../screens/customers/MyBookingsScreen';
+import MyTicketScreen from '../screens/customers/MyTicketScreen';
 import OwnerInquiriesScreen from '../screens/owners/OwnerInquiriesScreen';
 import OwnerInquiryScreen from '../screens/owners/OwnerInquiryScreen';
 import InquiryScreen from '../screens/customers/InquiryScreen';
@@ -353,6 +354,7 @@ export default function AppNavigator() {
                     <Stack.Screen name="MyPoints" component={MyPointsScreen} />
                     <Stack.Screen name="BookTable" component={BookTableScreen} />
                     <Stack.Screen name="MyBookings" component={MyBookingsScreen} />
+                    <Stack.Screen name="MyTicket" component={MyTicketScreen} />
                     <Stack.Screen name="Services" component={ServicesScreen} />
                     <Stack.Screen name="ServiceForm" component={ServiceFormScreen} />
                     <Stack.Screen name="Inquiry" component={InquiryScreen} />
@@ -439,7 +441,7 @@ export default function AppNavigator() {
             <ActiveOrderBar routeName={routeName} onOpen={(id) => { if (navigationRef.isReady()) navigationRef.navigate('OrderDetail', { id }); }} onOpenAll={goOrders} />
             <TableLinkHost onDone={() => { if (navigationRef.isReady()) navigationRef.navigate('MainTabs'); }} />
             <TableBillStrip routeName={routeName} onOpen={() => { if (navigationRef.isReady()) navigationRef.navigate('TableBill'); }} onOpenCart={() => { if (navigationRef.isReady()) navigationRef.navigate('Cart'); }} />
-            <BookingStrip routeName={routeName} onOpen={() => { if (navigationRef.isReady()) navigationRef.navigate('MyBookings'); }} />
+            <BookingStrip routeName={routeName} onOpen={() => { if (navigationRef.isReady()) navigationRef.navigate('MyTicket'); }} />
             <ReviewPrompts />
             <OwedReminder />
             <PickupCollectHost />

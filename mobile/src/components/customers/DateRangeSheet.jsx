@@ -65,12 +65,13 @@ function Chip({ label, on, onPress }) {
 
 // value: { from: 'YYYY-MM-DD' | null, to: 'YYYY-MM-DD' | null, sort: 'newest' | 'oldest' } or null
 // single: picks ONE day for a form (value 'YYYY-MM-DD', onApply('YYYY-MM-DD' | null)), from today up to `ahead` days later; no sort row.
-export default function DateRangeSheet({ visible, value, onClose, onApply, single, ahead = 0, title }) {
+// ahead (also for a range): days after today that can be picked, for future bookings. noun: what the button shows ("Show bookings").
+export default function DateRangeSheet({ visible, value, onClose, onApply, single, ahead = 0, title, noun }) {
     const closedStyle = useClosedStyle();   // the shop is closed: this popup turns grey
     const { primary, text, muted, background, surface, border, radius } = useBrand();
     const today = useMemo(() => sod(new Date()), [visible]);
     const earliest = useMemo(() => (single ? today : new Date(today.getFullYear(), today.getMonth() - MAX_BACK, 1)), [today, single]);
-    const latest = useMemo(() => (single ? addDays(today, ahead || 365) : today), [today, single, ahead]);
+    const latest = useMemo(() => (single || ahead ? addDays(today, ahead || 365) : today), [today, single, ahead]);
 
     const [start, setStart] = useState(null);
     const [end, setEnd] = useState(null);
@@ -135,7 +136,7 @@ export default function DateRangeSheet({ visible, value, onClose, onApply, singl
     }, [view.y, view.m]);
 
     const t = today;
-    const PRESETS = single ? [['Today', t, t], ['Tomorrow', addDays(t, 1), addDays(t, 1)], ['In 3 days', addDays(t, 3), addDays(t, 3)], ['In a week', addDays(t, 7), addDays(t, 7)]] : [
+    const PRESETS = ahead && !single ? [['Today', t, t], ['Tomorrow', addDays(t, 1), addDays(t, 1)], ['Next 7 days', t, addDays(t, 6)], ['Next 30 days', t, addDays(t, 29)], ['This month', new Date(t.getFullYear(), t.getMonth(), 1), new Date(t.getFullYear(), t.getMonth() + 1, 0)]] : single ? [['Today', t, t], ['Tomorrow', addDays(t, 1), addDays(t, 1)], ['In 3 days', addDays(t, 3), addDays(t, 3)], ['In a week', addDays(t, 7), addDays(t, 7)]] : [
         ['Today', t, t], ['Yesterday', addDays(t, -1), addDays(t, -1)], ['Last 7 days', addDays(t, -6), t],
         ['Last 30 days', addDays(t, -29), t], ['This month', new Date(t.getFullYear(), t.getMonth(), 1), t],
     ];
@@ -206,7 +207,7 @@ export default function DateRangeSheet({ visible, value, onClose, onApply, singl
                             <Text style={[s.fTxt, { color: text }]}>{tr('Clear')}</Text>
                         </Press>
                         <Press wrap={{ flex: 2 }} onPress={apply} style={[s.fBtn, { backgroundColor: primary, borderRadius: radius }]}>
-                            <Text style={[s.fTxt, { color: '#FFFFFF' }]}>{single ? tr('Done') : start ? tr('Show orders') : sort === 'oldest' ? tr('Apply') : tr('Show all orders')}</Text>
+                            <Text style={[s.fTxt, { color: '#FFFFFF' }]}>{single ? tr('Done') : start ? tr(noun ? 'Show bookings' : 'Show orders') : sort === 'oldest' ? tr('Apply') : tr(noun ? 'Show all bookings' : 'Show all orders')}</Text>
                         </Press>
                     </View>
                 </Animated.View>

@@ -34,6 +34,19 @@ router.put('/settings', wrap(async (req, res) => {
 // The door scanner: the QR (or the typed code) of a guest. /scan only looks; /scan/arrive marks him arrived (seated).
 router.post('/scan', wrap(async (req, res) => { res.json(await ticket.check(req.tenant, req.body?.token || req.body?.code)); }));
 router.post('/scan/arrive', wrap(async (req, res) => { res.json(await ticket.arrive(req.tenant, req.body?.token || req.body?.code, { type: 'owner', name: 'Owner' })); }));
+// every booking, newest day first, for a range of days: ?all=1&from=YYYY-MM-DD&to=YYYY-MM-DD&status=confirmed (all optional, at most 300)
+router.get('/', wrap(async (req, res, next) => {
+    if (!req.query.all) return next();
+    const day = (v) => (/^d{4}-d{2}-d{2}$/.test(v || '') ? v : null);
+    const from = day(req.query.from); const to = day(req.query.to);
+    const q = { tenantId: req.tenant._id, status: { $nin: ['held', 'expired'] } };
+    if (from || to) q.date = { ...(from ? { $gte: from } : {}), ...(to ? { $lte: to } : {}) };
+    if (req.query.status && ['confirmed', 'seated', 'no_show', 'cancelled'].includes(req.query.status)) q.status = req.query.status;
+    const dir = req.query.sort === 'oldest' ? 1 : -1;
+    const items = await TableBooking.find(q).sort({ date: dir, time: 1, createdAt: 1 }).limit(300).lean();
+    res.json({ all: true, items, truncated: items.length === 300 });
+}));
+
 router.get('/', wrap(async (req, res) => {
     const date = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date || '') ? req.query.date : tb.todayYmd();
     const tenantId = req.tenant._id;
