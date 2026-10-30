@@ -30,6 +30,8 @@ export default function OwnerServiceScreen() {
     const [err, setErr] = useState('');
     const [saving, setSaving] = useState(false);
     const [open, setOpen] = useState(-1);   // the question being edited
+    const [copyIdx, setCopyIdx] = useState(-1);   // the question whose "copy to" list is showing
+    const [others, setOthers] = useState([]);
 
     const fill = (r) => setForm({
         kind: r.kind, name: r.name || '', description: r.description || '', photos: r.photos || [], priceType: r.priceType, price: r.price || undefined,
@@ -78,6 +80,21 @@ export default function OwnerServiceScreen() {
         try { await api.remove(id); showToast(tr('Service removed')); nav.goBack(); } catch (e) { showToast(apiError(e)); }
     };
 
+    // copy one question into another service (the server needs the question saved, so a new unsaved one is refused here)
+    const openCopy = async (i, q) => {
+        if (!q.id) return showToast(tr('Save the service first, then copy this question'));
+        if (copyIdx === i) return setCopyIdx(-1);
+        try {
+            const r = await api.list();
+            setOthers((Array.isArray(r) ? r : r.items || []).filter((o) => String(o._id || o.id) !== String(id)));
+            setCopyIdx(i);
+        } catch (e) { showToast(apiError(e)); }
+    };
+    const copyTo = async (q, o) => {
+        try { await api.copyQuestion(id, { questionId: q.id, toServiceId: o._id || o.id }); setCopyIdx(-1); showToast(tr('Copied to {n}', { n: o.name })); }
+        catch (e) { showToast(apiError(e)); }
+    };
+
     const choices = (q) => q.type === 'choice' || q.type === 'multichoice';
 
     return (
@@ -121,10 +138,19 @@ export default function OwnerServiceScreen() {
                                     </View>
                                 ) : null}
                                 <ToggleRow title={tr('Customer must answer')} value={q.required} onValueChange={(x) => setQ(i, { required: x })} last />
+                                {copyIdx === i ? (
+                                    <View style={{ marginTop: 10 }}>
+                                        <Text style={{ color: muted, fontSize: 12, marginBottom: 6 }}>{tr('Copy this question to:')}</Text>
+                                        {others.length ? others.map((o) => (
+                                            <Button key={o._id || o.id} label={o.name} icon="arrow-forward" kind="ghost" onPress={() => copyTo(q, o)} style={{ marginBottom: 6 }} />
+                                        )) : <Text style={{ color: muted }}>{tr('You have no other service yet')}</Text>}
+                                    </View>
+                                ) : null}
                                 <View style={{ flexDirection: 'row', marginTop: 10 }}>
                                     <Button label="" icon="arrow-up" kind="ghost" iconOnly onPress={() => move(i, -1)} disabled={i === 0} style={{ marginRight: 8 }} />
                                     <Button label="" icon="arrow-down" kind="ghost" iconOnly onPress={() => move(i, 1)} disabled={i === v.questions.length - 1} style={{ marginRight: 8 }} />
                                     <Button label="" icon="copy-outline" kind="ghost" iconOnly onPress={() => { set('questions', [...v.questions.slice(0, i + 1), { ...q, id: '', recommended: false }, ...v.questions.slice(i + 1)]); setOpen(i + 1); }} style={{ marginRight: 8 }} />
+                                    <Button label="" icon="share-outline" kind="ghost" iconOnly onPress={() => openCopy(i, q)} style={{ marginRight: 8 }} />
                                     <Button label={tr('Delete')} icon="trash" kind="danger" onPress={() => { set('questions', v.questions.filter((_, j) => j !== i)); setOpen(-1); }} style={{ flex: 1 }} />
                                 </View>
                             </View>

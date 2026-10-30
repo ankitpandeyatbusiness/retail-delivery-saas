@@ -1,6 +1,6 @@
 // One service: photos, price and points on top, then the inquiry form (the shop owner chose the questions).
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Pressable } from 'react-native';
+import { View, Text, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,6 +12,8 @@ import { FormShimmer } from '../../components/owners/shimmer';
 import { showToast } from '../../components/customers/shop';
 import { maskTime } from '../../utils/owners/menuRules';
 import { priceLine } from '../owners/OwnerServicesScreen';
+import { AddressSheet, addrLine } from '../../components/customers/addresses';
+import { pickPhoto, uploadInquiryPhoto } from '../../utils/common/photoUpload';
 import { tr } from '../../i18n';
 
 export default function ServiceFormScreen() {
@@ -25,6 +27,8 @@ export default function ServiceFormScreen() {
     const [message, setMessage] = useState('');
     const [answers, setAnswers] = useState({});
     const [busy, setBusy] = useState(false);
+    const [up, setUp] = useState('');           // id of the photo question being uploaded
+    const [addrFor, setAddrFor] = useState('');  // id of the address question the saved-address sheet is open for
 
     useEffect(() => {
         fetchService(id).then((r) => { setS(r); setName(r.me?.name || ''); setPhone(r.me?.phone || ''); })
@@ -33,7 +37,16 @@ export default function ServiceFormScreen() {
 
     if (!s) return <FormPage title={tr('Service')}>{err ? <Empty icon="alert-circle-outline" title={tr('Not available')} hint={err} /> : <FormShimmer />}</FormPage>;
     const set = (k, x) => setAnswers((a) => ({ ...a, [k]: x }));
-    const asked = (s.questions || []).filter((q) => q.type !== 'photo');   // photo answers come in a later version
+    const asked = s.questions || [];
+    const pickFor = async (q, source) => {
+        setUp(q.id);
+        try {
+            const p = await pickPhoto(source);
+            if (!p) return;
+            const m = await uploadInquiryPhoto(p);
+            set(q.id, [...(Array.isArray(answers[q.id]) ? answers[q.id] : []), m.url].slice(0, 3));
+        } catch (e) { showToast(e?.safe ? e.message : tr('Could not add the photo')); } finally { setUp(''); }
+    };
     const guests = Number(answers.guests ?? answers.plates ?? 0);
     const estimate = s.priceType === 'per_plate' && s.price > 0 && guests > 0 ? s.price * guests : 0;
 
@@ -80,7 +93,43 @@ export default function ServiceFormScreen() {
                 );
             }
             case 'phone': return <TextBox key={q.id} {...common} value={v || ''} onChangeText={(x) => set(q.id, x)} keyboardType="phone-pad" maxLength={20} />;
-            case 'longtext': case 'address': return <TextBox key={q.id} {...common} value={v || ''} onChangeText={(x) => set(q.id, x)} multiline maxLength={q.type === 'address' ? 300 : 1000} />;
+            case 'photo': {
+                const pics = Array.isArray(v) ? v : [];
+                return (
+                    <View key={q.id} style={{ marginBottom: 12 }}>
+                        <Label hint={common.hint}>{common.label}</Label>
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 }}>
+                            {pics.map((u) => (
+                                <Pressable key={u} onPress={() => set(q.id, pics.filter((x) => x !== u))} style={{ marginRight: 8, marginBottom: 8 }}>
+                                    <Image source={{ uri: u }} contentFit="cover" style={{ width: 76, height: 76, borderRadius: 10 }} />
+                                    <Ionicons name="close-circle" size={20} color={text} style={{ position: 'absolute', top: -6, right: -6 }} />
+                                </Pressable>
+                            ))}
+                            {pics.length < 3 ? (
+                                <>
+                                    {up === q.id ? <ActivityIndicator color={primary} style={{ marginRight: 12 }} /> : null}
+                                    <Pressable disabled={!!up} onPress={() => pickFor(q, 'camera')} style={{ width: 76, height: 76, borderRadius: 10, borderWidth: 1, borderColor: border, alignItems: 'center', justifyContent: 'center', marginRight: 8 }}>
+                                        <Ionicons name="camera-outline" size={26} color={muted} />
+                                    </Pressable>
+                                    <Pressable disabled={!!up} onPress={() => pickFor(q, 'gallery')} style={{ width: 76, height: 76, borderRadius: 10, borderWidth: 1, borderColor: border, alignItems: 'center', justifyContent: 'center' }}>
+                                        <Ionicons name="images-outline" size={26} color={muted} />
+                                    </Pressable>
+                                </>
+                            ) : null}
+                        </View>
+                    </View>
+                );
+            }
+            case 'address': return (
+                <View key={q.id}>
+                    <TextBox {...common} value={v || ''} onChangeText={(x) => set(q.id, x)} multiline maxLength={300} />
+                    <Pressable onPress={() => setAddrFor(q.id)} style={{ flexDirection: 'row', alignItems: 'center', marginTop: -4, marginBottom: 12 }}>
+                        <Ionicons name="location-outline" size={16} color={primary} style={{ marginRight: 6 }} />
+                        <Text style={{ color: primary, fontWeight: '800' }}>{tr('Use a saved address')}</Text>
+                    </Pressable>
+                </View>
+            );
+            case 'longtext': return <TextBox key={q.id} {...common} value={v || ''} onChangeText={(x) => set(q.id, x)} multiline maxLength={1000} />;
             default: return <TextBox key={q.id} {...common} value={v || ''} onChangeText={(x) => set(q.id, x)} maxLength={200} />;
         }
     };
@@ -120,6 +169,7 @@ export default function ServiceFormScreen() {
                 ) : null}
                 <TextBox label={tr('Message')} value={message} onChangeText={setMessage} multiline maxLength={1000} placeholder={tr('Tap a text above or write your own')} last />
             </Group>
+            <AddressSheet visible={!!addrFor} onClose={() => setAddrFor('')} onSelect={(a) => { set(addrFor, addrLine(a).slice(0, 300)); setAddrFor(''); }} />
         </FormPage>
     );
 }

@@ -21,7 +21,7 @@ const HERO_KINDS = new Set(['hero']);
 const BUILD_KINDS = new Set(['icon', 'splash', 'adaptive']);
 const OWNER_KINDS = new Set(['logo', 'product', 'category', 'banner', 'collection', 'service', 'rider', 'order', 'support', ...HERO_KINDS]);
 const SUPER_KINDS = new Set([...OWNER_KINDS, ...BUILD_KINDS]);
-const CUSTOMER_KINDS = new Set(['customer', 'complaint']);
+const CUSTOMER_KINDS = new Set(['customer', 'complaint', 'inquiry']);
 const RIDER_KINDS = new Set(['rider', 'proof']);   // his own photo, and the photo of food handed over on his own delivery
 const MAX_PROOF_PHOTOS = 3;
 const PROOF_WINDOW_MS = 24 * 60 * 60 * 1000;     // a proof can be added up to a day after the delivery
@@ -45,8 +45,9 @@ const KINDS = {
     support: { ref: true, max: 1600 },   // a picture on a help request
     customer: { fixed: true, max: 512 },
     complaint: { ref: true, max: 1600 },
+    inquiry: { max: 1600 },   // a picture a customer attaches to an inquiry answer (cake design, hall)
 };
-const FOLDER = { logo: 'logo', category: 'categories', banner: 'banners', collection: 'collections', service: 'services' };
+const FOLDER = { logo: 'logo', category: 'categories', banner: 'banners', collection: 'collections', service: 'services', inquiry: 'inquiries' };
 
 const ist = () => new Date(Date.now() + 330 * 60 * 1000);
 const ymd = () => ist().toISOString().slice(0, 10).replace(/-/g, '');
@@ -113,7 +114,7 @@ async function finalKey(tenant, kind, refId) {
         case 'icon': return `${base}branding/icon.png`;
         case 'adaptive': return `${base}branding/adaptive-foreground.png`;
         case 'splash': return `${base}branding/splash.png`;
-        case 'logo': case 'category': case 'banner': case 'collection': case 'service':
+        case 'logo': case 'category': case 'banner': case 'collection': case 'service': case 'inquiry':
             return `${base}${FOLDER[kind]}/${stamp}`;
         case 'product': {
             let name = '';

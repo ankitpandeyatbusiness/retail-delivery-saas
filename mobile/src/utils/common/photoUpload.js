@@ -62,6 +62,9 @@ async function upload({ kind, refId, uri, mimeType }) {
 // -> { id, url }
 export const uploadComplaintPhoto = ({ orderId, uri, mimeType }) => upload({ kind: 'complaint', refId: orderId, uri, mimeType });
 
+// a picture for an inquiry answer. -> { id, url }
+export const uploadInquiryPhoto = ({ uri, mimeType }) => upload({ kind: 'inquiry', uri, mimeType });
+
 // Replaces the previous profile picture (the server keeps one file per customer). -> { id, url }
 export const uploadAvatar = ({ uri, mimeType }) => upload({ kind: 'customer', uri, mimeType });
 
