@@ -7,7 +7,8 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { create } from 'zustand';
-import { useNavigation, StackActions } from '@react-navigation/native';
+import { useNavigation, useIsFocused, StackActions } from '@react-navigation/native';
+import { useDock, useCrowded } from '../../store/customers/useDock';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand, CardGlow } from '../common/kit';
 import { useHomeStore } from '../../store/customers/useHomeStore';
@@ -550,7 +551,12 @@ export function CartBar() {
         if (count > lastCount.current || count === 0) useCartBarHidden.setState({ hidden: false });
         lastCount.current = count;
     }, [count]);
-    if (!count || dining) return null;
+    const focused = useIsFocused();   // the tabs stay mounted: only the screen in front counts
+    const presentCart = count > 0 && !dining && focused;
+    useEffect(() => { useDock.getState().put('cart', presentCart ? { icon: 'bag-handle', label: 'Cart', sub: tr('{count} item{v2}', { count, v2: count > 1 ? 's' : '' }), route: 'Cart' } : null); }, [presentCart, count]);
+    useEffect(() => () => useDock.getState().put('cart', null), []);
+    const crowded = useCrowded('cart');   // two or more cards: the round dock shows the cart
+    if (!count || dining || crowded) return null;
     const r = Math.max(radius, 14);
     return (
         <>

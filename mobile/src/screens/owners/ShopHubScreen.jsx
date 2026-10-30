@@ -79,7 +79,7 @@ const GROUPS = [
     ['Menu and offers', [
         ['list', 'Categories', 'Order, pictures and opening hours of each section', 'OwnerCategories'],
         ['pricetag', 'Coupons', 'Discount codes', 'OwnerCoupons'],
-        ['calendar', 'Bookings', 'Tables guests booked, seat them, and your booking rules', 'OwnerBookings'],
+        ['calendar', 'Reservations', 'Tables guests reserved, seat them, and your reservation rules', 'OwnerBookings'],
         ['chatbubbles', 'Inquiries', 'What customers asked about your services, and your replies', 'OwnerInquiries'],
         ['briefcase', 'Services', 'Bulk orders, tiffin, party booking and your own services', 'OwnerServices'],
         ['images', 'Home screen', 'Banners, festival strips and the big pictures at the top', 'OwnerShopFrontHub'],

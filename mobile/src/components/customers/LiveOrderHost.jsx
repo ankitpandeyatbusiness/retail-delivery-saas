@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand } from '../common/kit';
 import { tint } from './shop';
 import { useAuthStore } from '../../store/common/useAuthStore';
+import { useDock, useCrowded } from '../../store/customers/useDock';
 import { useLiveTripStore } from '../../store/customers/useLiveTripStore';
 import { useLiveTrip } from '../../hooks/customers/useLiveTrip';
 import { decodePolyline } from '../../utils/common/polyline';
@@ -109,10 +110,14 @@ export default function LiveOrderHost({ routeName, onOpenOrder }) {
     useEffect(() => { setHidden(false); }, [orderId]);
     // tell the active-order bar how much room this bar takes (the bar, or the small chip when it is hidden)
     const setLiveOffset = useLiveTripStore((s) => s.setLiveOffset);
+    const barOn = enabled && !!orderId && !!track && !HIDE_ON.includes(routeName) && sheet === 'bar';
+    useEffect(() => { useDock.getState().put('track', barOn ? { icon: 'bicycle', label: 'Track your order', sub: `#${orderNo || ''}`.replace('#', tr('Order #')), route: 'OrderDetail', params: { id: String(orderId) } } : null); }, [barOn, orderId, orderNo]);   // eslint-disable-line react-hooks/exhaustive-deps
+    useEffect(() => () => useDock.getState().put('track', null), []);
+    const crowded = useCrowded('track');   // two or more cards: the round dock shows the tracking instead of this bar
     useEffect(() => {
-        const visible = enabled && !!orderId && !!track && !HIDE_ON.includes(routeName) && sheet === 'bar';
+        const visible = enabled && !!orderId && !!track && !HIDE_ON.includes(routeName) && sheet === 'bar' && !crowded;
         setLiveOffset(visible ? (hidden ? 54 : 126) : 0);
-    }, [enabled, orderId, track, routeName, sheet, hidden, setLiveOffset]);
+    }, [enabled, orderId, track, routeName, sheet, hidden, crowded, setLiveOffset]);
 
     const SHEET_H = Math.round(H * 0.93);
     const VISIBLE = useMemo(() => ({ bar: 0, half: Math.round(H * 0.58), full: SHEET_H }), [H, SHEET_H]);
@@ -186,7 +191,7 @@ export default function LiveOrderHost({ routeName, onOpenOrder }) {
     const far = dist(e?.remainingM);
     const estimate = e?.source && e.source !== 'google' && e.source !== 'route';
     const sub = [name, far && `${estimate ? 'about ' : ''}${far} away`].filter(Boolean).join(' · ') || `Order #${orderNo}`;
-    const showBar = !HIDE_ON.includes(routeName) && sheet === 'bar';
+    const showBar = !HIDE_ON.includes(routeName) && sheet === 'bar' && !crowded;
     const barBottom = insets.bottom + TAB_H + 18;
 
     return (

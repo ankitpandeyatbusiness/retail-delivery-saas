@@ -1,4 +1,4 @@
-// Book a table, cinema style: pick the day, the group, the time, then tap a TABLE on the map. A table someone else has is greyed out. The deposit is
+// Reserve a table, cinema style: pick the day, the group, the time, then tap a TABLE on the map. A table someone else has is greyed out. The deposit is
 // shown before you pay. When every table of a time is taken you can join the waitlist and are told if one comes free.
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, Pressable, ScrollView } from 'react-native';
@@ -58,8 +58,9 @@ export default function BookTableScreen() {
         return () => clearInterval(t);
     }, [time, loadTables]);
 
-    if (!cfg) return <FormPage title={tr('Book a table')}>{err ? <Empty icon="alert-circle-outline" title={tr('Not available')} hint={err} /> : <FormShimmer />}</FormPage>;
-    if (!cfg.enabled) return <FormPage title={tr('Book a table')}><Empty icon="calendar-outline" title={tr('Booking is closed')} hint={tr('This shop is not taking table bookings right now.')} /></FormPage>;
+    if (!cfg) return <FormPage title={tr('Reserve a table')}>{err ? <Empty icon="alert-circle-outline" title={tr('Not available')} hint={err} /> : <FormShimmer />}</FormPage>;
+    if (cfg.blocked) return <FormPage title={tr('Reserve a table')}><Empty icon="ban-outline" title={tr('Not available')} hint={tr('Reservations are not available for you at this restaurant. Please call the restaurant.')} /></FormPage>;
+    if (!cfg.enabled) return <FormPage title={tr('Reserve a table')}><Empty icon="calendar-outline" title={tr('Booking is closed')} hint={tr('This shop is not taking table bookings right now.')} /></FormPage>;
 
     const days = Array.from({ length: Math.min(cfg.advanceDays, 30) + 1 }, (_, i) => plus(cfg.today, i));
     const d = cfg.deposit;
@@ -114,7 +115,7 @@ export default function BookTableScreen() {
     );
 
     return (
-        <FormPage title={tr('Book a table')} footer={<Button label={table ? tr('Pay ₹{n} deposit · Table {t}', { n: deposit, t: table }) : tr('Tap a table to book')} icon="calendar" busy={busy} disabled={!table} onPress={send} />}>
+        <FormPage title={tr('Reserve a table')} footer={<Button label={table ? tr('Pay ₹{n} deposit · Table {t}', { n: deposit, t: table }) : tr('Tap a table to book')} icon="calendar" busy={busy} disabled={!table} onPress={send} />}>
             <View style={{ paddingHorizontal: 16 }}>
             <Label>{tr('Day')}</Label>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>

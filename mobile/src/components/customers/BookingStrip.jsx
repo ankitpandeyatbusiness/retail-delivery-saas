@@ -1,5 +1,5 @@
 // The guest's booked table: a card above the tabs from the moment the owner allowed the booking until its slot is over.
-// "Your table · Today 8:00 PM", "4 guests · Code ABCDE". Tap it for My bookings (the ticket QR is there and works without internet). A small arrow hides it; a round chip brings it back. It steps aside while he is dining in (the table bill bar takes its place)
+// "Your table · Today 8:00 PM", "4 guests · Code ABCDE". Tap it for My reservations (the ticket QR is there and works without internet). A small arrow hides it; a round chip brings it back. It steps aside while he is dining in (the table bill bar takes its place)
 // and sits above the active order bar when both are on screen.
 import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable, AppState } from 'react-native';
@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand } from '../common/kit';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { useTableBill } from '../../store/customers/useTableBill';
+import { useDock, useCrowded } from '../../store/customers/useDock';
 import { useBookingCard } from '../../store/customers/useBookingCard';
 import { useCartStore } from '../../store/customers/shopStores';
 import { onNotification } from '../../api/common/socket';
@@ -49,7 +50,11 @@ export default function BookingStrip({ routeName, onOpen }) {
         return () => { clearInterval(t); a(); b.remove(); };
     }, [enabled]);
 
-    if (!enabled || !card || dining || HIDE_ON.includes(routeName) || new Date(card.endsAt).getTime() <= now) return null;
+    const presentBooking = enabled && !!card && !dining && !HIDE_ON.includes(routeName) && new Date(card.endsAt).getTime() > now;
+    useEffect(() => { useDock.getState().put('booking', presentBooking ? { icon: 'calendar', label: 'Reservation', sub: `${dayWord(card.date, now)} ${card.time}`, route: 'MyBookings' } : null); }, [presentBooking, card?.id, card?.time]);   // eslint-disable-line react-hooks/exhaustive-deps
+    useEffect(() => () => useDock.getState().put('booking', null), []);
+    const crowded = useCrowded('booking');
+    if (!enabled || !card || dining || HIDE_ON.includes(routeName) || new Date(card.endsAt).getTime() <= now || crowded) return null;
     const left = Math.round((new Date(card.startsAt).getTime() - now) / 60000);
     const soon = left <= 30 && left > 0;
     const on = left <= 0;

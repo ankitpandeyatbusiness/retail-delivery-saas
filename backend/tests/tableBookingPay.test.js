@@ -164,6 +164,29 @@ describe('table booking with a paid deposit', () => {
         assert.equal((await request(app).post(`/api/shop/booking/${k}/undo`).set(w.owner.headers)).status, 400);   // nothing left to undo
     });
 
+    test('auto allow, the limit of reservations per guest, and a blocked guest', async () => {
+        await fresh('21:00');
+        await settings({ autoAllow: true, maxActive: 1 });
+        const g = await guest('9200000090');
+        const r = await book('21:00', 1, g.headers, '1'); assert.equal(r.status, 201, JSON.stringify(r.body));
+        await payIt(r, g.headers);
+        assert.ok((await row(r.body.booking._id)).approvedAt, 'a paid booking is allowed by itself');
+        const second = await book('21:00', 1, g.headers, '2');
+        assert.equal(second.status, 400);
+        assert.match(second.body.error, /active reservation/);
+        await settings({ maxActive: 0 });
+        const blocked = await request(app).post(`/api/shop/booking/${r.body.booking._id}/block`).set(w.owner.headers);
+        assert.equal(blocked.status, 200);
+        assert.equal(blocked.body.blocked.length, 1);
+        const again = await book('21:00', 1, g.headers, '2');
+        assert.equal(again.status, 403);
+        const cfg = await request(app).get('/api/bookings/config').set(g.headers);
+        assert.equal(cfg.body.blocked, true);
+        await request(app).delete(`/api/shop/booking/block/${blocked.body.blocked[0].userId}`).set(w.owner.headers);
+        assert.notEqual((await book('21:00', 1, g.headers, '2')).status, 403);
+        await settings({ autoAllow: false, maxActive: 3 });
+    });
+
     test('a refund that failed is tried again by the sweeper, and sent only once', async () => {
         await fresh('21:00');
         const g = await guest('9200000011');

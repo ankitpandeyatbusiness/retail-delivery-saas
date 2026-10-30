@@ -23,7 +23,7 @@ const RUNNING_MIN = 30;                 // a slot that already started can still
 const DEFAULTS = {
     enabled: false, windows: [{ days: [], open: '12:00', close: '22:00' }], slotMinutes: 60, tables: [], minParty: 1, maxParty: 12,
     advanceDays: 14, minNoticeMinutes: 60, closedDates: [], closedSlots: [], depositType: 'per_person', depositAmount: 0,
-    depositMode: 'adjust', refundHours: 2, holdMinutes: 10,
+    depositMode: 'adjust', refundHours: 2, holdMinutes: 10, autoAllow: false, maxActive: 3, blocked: [],
 };
 
 const istNow = (now = Date.now()) => new Date(now + IST_MS);
@@ -46,6 +46,15 @@ async function getConfig(tenantId) {
         c.shopHours = { weekly: h.weekly || {}, closedDates: h.closedDates || [] };
     } catch (e) { c.shopHours = null; }
     return c;
+}
+
+// who may reserve: not a blocked guest, and not above the number of upcoming reservations the owner allows one guest
+async function guard(config, userId, now = Date.now()) {
+    if ((config.blocked || []).some((x) => String(x.userId) === String(userId))) throw httpError(403, 'Reservations are not available for you at this restaurant. Please call the restaurant.');
+    const max = Number(config.maxActive) || 0;
+    if (!max) return;
+    const n = await TableBooking.countDocuments({ tenantId: config.tenantId, userId, status: { $in: ['confirmed', 'seated'] }, endsAt: { $gt: new Date(now) } });
+    if (n >= max) throw httpError(400, 'You already have ' + n + ' active reservation' + (n === 1 ? '' : 's') + ', the most this restaurant allows. Cancel one, or wait until it is over.');
 }
 
 const int = (v, lo, hi, what) => {
@@ -99,6 +108,8 @@ function cleanConfig(body, current) {
     if (has('depositAmount')) out.depositAmount = int(b.depositAmount, 0, 100000, 'Deposit');
     if (has('depositMode')) { if (!['adjust', 'keep'].includes(b.depositMode)) throw httpError(400, 'Unknown deposit rule'); out.depositMode = b.depositMode; }
     if (has('refundHours')) out.refundHours = int(b.refundHours, 0, 168, 'Refund hours');
+    if (has('autoAllow')) out.autoAllow = !!b.autoAllow;
+    if (has('maxActive')) out.maxActive = int(b.maxActive, 0, 10, 'Reservations per guest');
     if (has('holdMinutes')) out.holdMinutes = int(b.holdMinutes, 5, 30, 'Hold minutes');
     if (has('enabled')) out.enabled = !!b.enabled;
 
@@ -257,6 +268,6 @@ async function freeFinished(now = new Date()) {
 }
 
 module.exports = {
-    DEFAULTS, LIVE, getConfig, cleanConfig, depositFor, bookable, biggestTable, maxPartyOf, slotTimes, slotsFor, tablesFor, availability,
+    DEFAULTS, LIVE, guard, getConfig, cleanConfig, depositFor, bookable, biggestTable, maxPartyOf, slotTimes, slotsFor, tablesFor, availability,
     lock, unlock, relock, release, book, cancel, freeTable, freeFinished, todayYmd, addDays, startsAtOf,
 };

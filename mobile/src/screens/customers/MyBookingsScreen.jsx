@@ -1,7 +1,9 @@
-// Account, My bookings: my tables, with the code to show at the door, the state of my deposit, and a way to cancel.
+// Account, My reservations: my tables, with the code to show at the door, the state of my deposit, and a way to cancel.
 // A booking waiting for its deposit keeps the seats for a few minutes; "Pay deposit" finishes it.
-import React, { useCallback, useState } from 'react';
-import { View, Text, ScrollView } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { View, Text, ScrollView, Pressable } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { onNotification } from '../../api/common/socket';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useBrand } from '../../components/common/kit';
 import { PageHeader, Card, Pill, Button, Empty } from '../../components/owners/ui';
@@ -18,20 +20,31 @@ const clock = (d) => new Date(d).toLocaleTimeString([], { hour: '2-digit', minut
 
 export default function MyBookingsScreen() {
     const nav = useNavigation();
-    const { background, text, muted, primary, ok, error } = useBrand();
+    const { background, text, muted, primary, onPrimary, ok, error, border, surface } = useBrand();
+    const [filter, setFilter] = useState('upcoming');   // upcoming | confirmed | cancelled | past
     const [items, setItems] = useState(null);
     const [waits, setWaits] = useState([]);
     const [busyId, setBusyId] = useState('');
     const [receiptId, setReceiptId] = useState('');
     const [shut, setShut] = useState({});   // tickets the guest closed by hand (the nearest booking's ticket opens by itself)
     const load = useCallback(() => {
-        fetchMyBookings().then((r) => setItems(r.items || [])).catch(() => setItems((x) => x || [])).finally(() => {});
+        fetchMyBookings().then((r) => {
+            setItems(r.items || []);
+            // a booking that is not on any more must not keep its QR on the phone
+            (r.items || []).filter((b) => ['cancelled', 'expired', 'no_show'].includes(b.status)).forEach((b) => AsyncStorage.removeItem(`ticket:${b._id}`).catch(() => { }));
+        }).catch(() => setItems((x) => x || [])).finally(() => {});
         fetchMyWaitlist().then((r) => setWaits(r.items || [])).catch(() => { });
     }, []);
     useFocusEffect(useCallback(() => { load(); }, [load]));
+    // the restaurant allowed, cancelled or took back something: the list (and the QR) change at once
+    useEffect(() => onNotification((n) => { if (String(n?.type || '').startsWith('booking_')) load(); }), [load]);
 
     const waiting = (b) => b.status === 'held' && new Date(b.holdUntil) > new Date();
-    const shown = (items || []).filter((b) => b.status !== 'held' || waiting(b));
+    const endOf = (b) => new Date(b.endsAt || new Date(b.startsAt).getTime() + 3600000).getTime();
+    const gone = (b) => ['cancelled', 'expired'].includes(b.status);
+    const past = (b) => !gone(b) && b.status !== 'held' && (endOf(b) <= Date.now() || b.status === 'no_show');
+    const inFilter = (b) => (filter === 'cancelled' ? gone(b) : filter === 'past' ? past(b) : filter === 'confirmed' ? ['confirmed', 'seated'].includes(b.status) : !gone(b) && !past(b) && (b.status !== 'held' || waiting(b)));
+    const shown = (items || []).filter((b) => (b.status !== 'held' || waiting(b) || gone(b)) && inFilter(b));
 
     const cancel = async (b) => {
         const refund = b.deposit?.status === 'paid'
@@ -56,10 +69,17 @@ export default function MyBookingsScreen() {
 
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
-            <PageHeader title={tr('My bookings')} />
+            <PageHeader title={tr('My reservations')} />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0, height: 38, marginTop: 4, marginBottom: 6 }} contentContainerStyle={{ paddingHorizontal: 16, alignItems: 'center' }}>
+                {[['upcoming', 'Upcoming'], ['confirmed', 'Confirmed'], ['cancelled', 'Cancelled'], ['past', 'Past']].map(([k, l]) => (
+                    <Pressable key={k} onPress={() => setFilter(k)} style={{ marginRight: 8, paddingHorizontal: 16, height: 38, justifyContent: 'center', borderRadius: 19, borderWidth: 1, borderColor: filter === k ? primary : border, backgroundColor: filter === k ? primary : surface }}>
+                        <Text style={{ color: filter === k ? onPrimary : text, fontWeight: '800', fontSize: 13 }}>{tr(l)}</Text>
+                    </Pressable>
+                ))}
+            </ScrollView>
             <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 32 }}>
                 {items === null ? <ListShimmer /> : null}
-                {items && !shown.length ? <Empty icon="calendar-outline" title={tr('No bookings yet')} hint={tr('Book a table from your account.')} /> : null}
+                {items && !shown.length ? <Empty icon="calendar-outline" title={filter === 'upcoming' ? tr('No upcoming reservations') : tr('Nothing here')} hint={filter === 'upcoming' ? tr('Reserve a table from your account.') : tr('Pick another tab above.')} /> : null}
                 {shown.map((b) => (
                     <Card key={b._id} style={{ opacity: b.status === 'cancelled' ? 0.6 : 1 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -80,15 +100,15 @@ export default function MyBookingsScreen() {
                         {(b.status === 'confirmed' || waiting(b)) && new Date(b.startsAt) > new Date() ? <Button label={tr('Cancel booking')} kind="ghost" busy={busyId === b._id} onPress={() => cancel(b)} style={{ marginTop: 10 }} /> : null}
                     </Card>
                 ))}
-                {waits.map((w) => (
+                {filter === 'upcoming' ? waits.map((w) => (
                     <Card key={w._id}>
                         <Text style={{ color: text, fontWeight: '900', fontSize: 16 }}>{tr('Waiting for a table')}</Text>
                         <Text style={{ color: muted, marginTop: 2 }}>{w.date} · {w.time} · {tr('{n} guests', { n: w.party })}</Text>
                         <Text style={{ color: muted, fontSize: 12, marginTop: 6 }}>{tr('We will tell you if a table comes free.')}</Text>
                         <Button label={tr('Leave the waitlist')} kind="ghost" onPress={async () => { try { await leaveWaitlist(w._id); await load(); } catch (e) { showToast(tr('Could not leave the waitlist')); } }} style={{ marginTop: 10 }} />
                     </Card>
-                ))}
-                <View style={{ paddingHorizontal: 16, marginTop: 4 }}><Button label={tr('Book a table')} icon="add" onPress={() => nav.navigate('BookTable')} /></View>
+                )) : null}
+                <View style={{ paddingHorizontal: 16, marginTop: 4 }}><Button label={tr('Reserve a table')} icon="add" onPress={() => nav.navigate('BookTable')} /></View>
             </ScrollView>
         </View>
     );

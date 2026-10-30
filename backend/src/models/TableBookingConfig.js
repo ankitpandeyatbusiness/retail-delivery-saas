@@ -19,6 +19,9 @@ const configSchema = new mongoose.Schema({
     depositMode: { type: String, enum: ['adjust', 'keep'], default: 'adjust' },   // taken off the bill, or kept by the shop
     refundHours: { type: Number, default: 2 },             // full refund when cancelled at least this many hours before
     holdMinutes: { type: Number, default: 10 },            // an unpaid booking is let go after this
+    autoAllow: { type: Boolean, default: false },          // a paid booking is allowed at once, the owner need not tap Allow
+    maxActive: { type: Number, default: 3 },               // reservations one guest may hold at a time (upcoming, paid). 0 = no limit
+    blocked: [{ _id: false, userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, name: String, phone: String, at: Date }],   // guests the owner stopped from reserving
 }, { timestamps: true });
 
 module.exports = mongoose.model('TableBookingConfig', configSchema);

@@ -414,8 +414,8 @@ function AccountInner() {
 
                 {serviceCount || bookingOn ? (
                     <Group title={tr('SERVICES')} delay={90}>
-                        {bookingOn ? <Item icon="calendar-outline" label={tr('Book a table')} sub={tr('Pick a day, a time and your group')} onPress={() => nav.navigate('BookTable')} /> : null}
-                        {bookingOn ? <Item icon="calendar-number-outline" label={tr('My bookings')} sub={tr('Your tables and the code to show')} onPress={() => nav.navigate('MyBookings')} last={!serviceCount} /> : null}
+                        {bookingOn ? <Item icon="calendar-outline" label={tr('Reserve a table')} sub={tr('Pick a day, a time and your group')} onPress={() => nav.navigate('BookTable')} /> : null}
+                        {bookingOn ? <Item icon="calendar-number-outline" label={tr('My reservations')} sub={tr('Your tables and the code to show')} onPress={() => nav.navigate('MyBookings')} last={!serviceCount} /> : null}
                         {serviceCount ? <Item icon="briefcase-outline" label={tr('Services')} sub={tr('Bulk orders, tiffin, party booking and more')} onPress={() => nav.navigate('Services')} /> : null}
                         {serviceCount ? <Item icon="chatbubbles-outline" label={tr('My inquiries')} sub={tr('Replies from the shop')} onPress={() => nav.navigate('MyInquiries')} last /> : null}
                     </Group>

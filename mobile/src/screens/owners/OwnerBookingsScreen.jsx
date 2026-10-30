@@ -43,6 +43,12 @@ export default function OwnerBookingsScreen() {
         setBusyId(b._id);
         try { await api.undo(b._id); showToast(tr('Done. The booking is back as it was.')); await load(); } catch (e) { showToast(apiError(e)); } finally { setBusyId(''); }
     };
+    const blockGuest = async (b) => {
+        const yes = await ask({ title: tr('Block {n} from reserving?', { n: b.name }), message: tr('They can still order food, but cannot reserve a table. Reservations they already have stay. You can unblock them in Booking settings.'), confirmText: tr('Block'), destructive: true });
+        if (!yes) return;
+        setBusyId(b._id);
+        try { await api.block(b._id); showToast(tr('Blocked from reserving')); } catch (e) { showToast(apiError(e)); } finally { setBusyId(''); }
+    };
     const started = (b) => new Date(b.startsAt).getTime() <= Date.now();
     const allow = async (b) => {
         setBusyId(b._id);
@@ -78,7 +84,7 @@ export default function OwnerBookingsScreen() {
 
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
-            <PageHeader title={tr('Bookings')} />
+            <PageHeader title={tr('Reservations')} />
             <View style={{ flexDirection: 'row', paddingHorizontal: 16, marginBottom: 10 }}>
                 {[['day', 'By day'], ['all', 'All bookings']].map(([k, l]) => (
                     <Pressable key={k} onPress={() => { if (mode !== k) { setData(null); setMode(k); } }} style={{ flex: 1, paddingVertical: 10, alignItems: 'center', borderBottomWidth: 3, borderBottomColor: mode === k ? primary : border }}>
@@ -164,6 +170,12 @@ export default function OwnerBookingsScreen() {
                                     <Button label={tr('Deny')} icon="close" kind="danger" busy={busyId === b._id} onPress={() => nav.navigate('OwnerBookingDeny', { id: String(b._id) })} style={{ flex: 1 }} />
                                 </View>
                             </View>
+                        ) : null}
+                        {b.userId ? (
+                            <Pressable onPress={() => blockGuest(b)} hitSlop={8} style={{ alignSelf: 'flex-start', marginTop: 12, flexDirection: 'row', alignItems: 'center' }}>
+                                <Ionicons name="ban-outline" size={16} color={error} style={{ marginRight: 6 }} />
+                                <Text style={{ color: error, fontWeight: '800', fontSize: 13 }}>{tr('Block this guest from reserving')}</Text>
+                            </Pressable>
                         ) : null}
                     </Card>
                 ))}

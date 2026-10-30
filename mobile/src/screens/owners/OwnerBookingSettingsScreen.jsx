@@ -4,7 +4,7 @@ import { View, Text, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
 import { Button, Card, Empty, LiveToggle } from '../../components/owners/ui';
-import { FormPage, Group, TextBox, NumberBox, ChoiceBox, Label, TimingEditor, Toggle } from '../../components/owners/menuBits';
+import { FormPage, Group, TextBox, NumberBox, ChoiceBox, Label, TimingEditor, Toggle, ToggleRow } from '../../components/owners/menuBits';
 import DateRangeSheet from '../../components/customers/DateRangeSheet';
 import { booking as api, apiError } from '../../api/owners/shopApi';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
@@ -107,6 +107,19 @@ export default function OwnerBookingSettingsScreen() {
                 <NumberBox label={v.depositType === 'per_person' ? tr('Amount per person') : tr('Amount')} prefix="₹" integer value={v.depositAmount || undefined} onChange={(x) => set('depositAmount', x ?? 0)} />
                 <ChoiceBox label={tr('What happens to it')} options={[['adjust', tr('Taken off the bill')], ['keep', tr('You keep it')]]} value={v.depositMode} onChange={(x) => set('depositMode', x)} />
                 <NumberBox label={tr('Full refund if cancelled this many hours before')} integer value={v.refundHours} onChange={(x) => set('refundHours', x)} last />
+            </Group>
+            <Group title={tr('Who can reserve')} hint={tr('A guest who is blocked can still order food, but cannot reserve a table.')}>
+                <ToggleRow title={tr('Allow reservations by themselves')} subtitle={tr('A paid reservation is confirmed at once. You do not have to tap Allow.')} value={!!v.autoAllow} onValueChange={(x) => set('autoAllow', x)} />
+                <NumberBox label={tr('Active reservations per guest')} integer value={v.maxActive ?? 3} onChange={(x) => set('maxActive', x ?? 0)} hint={tr('How many upcoming reservations one guest can hold. 0 means no limit.')} last={!(v.blocked || []).length} />
+                {(v.blocked || []).map((g) => (
+                    <View key={String(g.userId)} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: border, marginTop: 8 }}>
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                            <Text numberOfLines={1} style={{ color: text, fontWeight: '800' }}>{g.name || tr('Guest')}</Text>
+                            <Text style={{ color: muted, fontSize: 12 }}>{g.phone} · {tr('Blocked')}</Text>
+                        </View>
+                        <Button label={tr('Unblock')} kind="ghost" onPress={async () => { try { const r = await api.unblock(g.userId); set('blocked', r.blocked); } catch (e) { showToast(apiError(e)); } }} style={{ width: 110 }} />
+                    </View>
+                ))}
             </Group>
             <Group title={tr('Close a day or a time')} hint={tr('Leave the time empty to close the whole day. Guests can also never book when your shop is closed: your opening hours and holidays count here too.')}>
                 <View style={{ marginBottom: 16 }}>

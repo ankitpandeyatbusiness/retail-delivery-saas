@@ -16,6 +16,7 @@ import { fetchOrders } from '../../api/customers/shopApi';
 import { onOrderUpdate, onNotification } from '../../api/common/socket';
 import { isActive } from './orders';
 import { queueText } from './QueueLine';
+import { useDock, useCrowded } from '../../store/customers/useDock';
 import { useBookingCard } from '../../store/customers/useBookingCard';
 import { tr } from '../../i18n';
 
@@ -71,6 +72,10 @@ export default function ActiveOrderBar({ routeName, onOpen, onOpenAll }) {
     const tableOpen = useTableBill((s) => !!s.bill?.open);   // dining in: the table bill bar is shown instead
     const show = enabled && !!first && !HIDE_ON.includes(routeName) && !tracking && liveOffset === 0 && !tableOpen;
     useEffect(() => { useBookingCard.getState().setOrderBar(!!show); return () => useBookingCard.getState().setOrderBar(false); }, [show]);   // the table card sits above this bar
+    const orderId = first ? String(first.id || first._id) : '';
+    useEffect(() => { useDock.getState().put('order', show ? { icon: 'bicycle', label: 'Your order', sub: tr((WORDS[first?.status] || [])[1] || 'In progress'), route: orders.length > 1 ? 'Orders' : 'OrderDetail', params: orders.length > 1 ? undefined : { id: orderId } } : null); }, [show, orders.length, orderId, first?.status]);   // eslint-disable-line react-hooks/exhaustive-deps
+    useEffect(() => () => useDock.getState().put('order', null), []);
+    const crowded = useCrowded('order');   // two or more cards: the round dock shows this one
     const orderKey = orders.map((o) => String(o.id || o._id)).join(',');
     useEffect(() => { setHidden(false); }, [orderKey]);   // a different set of orders: show the bar again
     useEffect(() => {
@@ -84,7 +89,7 @@ export default function ActiveOrderBar({ routeName, onOpen, onOpenAll }) {
         Animated.timing(slide, { toValue: show ? 1 : 0, duration: 260, useNativeDriver: true }).start();
     }, [show, slide]);
     const setBarH = useLiveTripStore((s) => s.setBarH);
-    useEffect(() => { setBarH(show && !hidden ? 76 : 0); return () => setBarH(0); }, [show, hidden, setBarH]);
+    useEffect(() => { setBarH(show && !hidden && !crowded ? 76 : 0); return () => setBarH(0); }, [show, hidden, crowded, setBarH]);
     useEffect(() => {
         const loop = Animated.loop(Animated.sequence([
             Animated.timing(pulse, { toValue: 0.25, duration: 700, useNativeDriver: true }),
@@ -94,7 +99,7 @@ export default function ActiveOrderBar({ routeName, onOpen, onOpenAll }) {
         return () => loop.stop();
     }, [pulse]);
 
-    if (!enabled || !first) return null;
+    if (!enabled || !first || crowded) return null;
     const many = orders.length > 1;
     const [icon, words] = WORDS[first.status] || ['receipt-outline', 'In progress'];
     const bottom = insets.bottom + TAB_H + 18;

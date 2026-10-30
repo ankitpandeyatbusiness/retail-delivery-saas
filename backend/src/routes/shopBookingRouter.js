@@ -85,6 +85,19 @@ router.get('/:id/receipt', wrap(async (req, res) => {
 }));
 router.get('/:id', wrap(async (req, res) => { res.json((await mine(req)).toObject()); }));
 
+// Stop a guest from reserving (from his booking), and let him back in
+router.post('/:id/block', wrap(async (req, res) => {
+    const b = await mine(req);
+    if (!b.userId) throw httpError(400, 'This guest cannot be blocked');
+    await TableBookingConfig.updateOne({ tenantId: req.tenant._id, 'blocked.userId': { $ne: b.userId } }, { $push: { blocked: { userId: b.userId, name: b.name, phone: b.phone, at: new Date() } } }, { upsert: false });
+    res.json({ blocked: (await tb.getConfig(req.tenant._id)).blocked });
+}));
+router.delete('/block/:userId', wrap(async (req, res) => {
+    if (!isId(req.params.userId)) throw httpError(404, 'Not found');
+    await TableBookingConfig.updateOne({ tenantId: req.tenant._id }, { $pull: { blocked: { userId: req.params.userId } } });
+    res.json({ blocked: (await tb.getConfig(req.tenant._id)).blocked });
+}));
+
 // Take back the last change of a booking: Allow, Seated or No-show. (Deny and Cancel cannot be taken back: the guest already has the refund.)
 router.post('/:id/undo', wrap(async (req, res) => {
     const b = await mine(req);
@@ -102,6 +115,7 @@ router.post('/:id/undo', wrap(async (req, res) => {
     } else if (b.status === 'confirmed' && b.approvedAt) {
         await TableBooking.updateOne({ _id: id, status: 'confirmed' }, { $unset: { approvedAt: 1 } });   // the guest's ticket goes until it is allowed again
     } else throw httpError(400, 'There is nothing to undo for this booking');
+    if (b.userId) require('../services/realtime').toUser(b.tenantId, b.userId, 'notification', { id: 'undo' + Date.now(), type: 'booking_changed', title: null, body: null, data: { kind: 'booking', bookingId: String(id) } });   // the guest's screens load again (the ticket may have to go)
     res.json((await TableBooking.findById(id)).toObject());
 }));
 

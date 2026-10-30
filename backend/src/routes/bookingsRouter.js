@@ -44,7 +44,7 @@ const on = async (req) => {
 router.get('/config', wrap(async (req, res) => {
     const c = await tb.getConfig(req.tenant._id);
     const me = c.enabled ? await User.findById(req.auth.userId).select('name phone').lean() : null;
-    res.json({ enabled: !!c.enabled && featureGate.isOn(req.tenant, 'tableBooking') && (await bp.available(c.tenantId)), holdMinutes: c.holdMinutes, minParty: c.minParty, maxParty: tb.maxPartyOf(c), tables: tb.bookable(c).map((t) => ({ no: t.no, seats: t.seats })), advanceDays: c.advanceDays, today: tb.todayYmd(), deposit: rules(c), me: { name: me?.name || '', phone: me?.phone || '' } });
+    res.json({ enabled: !!c.enabled && featureGate.isOn(req.tenant, 'tableBooking') && (await bp.available(c.tenantId)), holdMinutes: c.holdMinutes, minParty: c.minParty, maxParty: tb.maxPartyOf(c), tables: tb.bookable(c).map((t) => ({ no: t.no, seats: t.seats })), advanceDays: c.advanceDays, blocked: (c.blocked || []).some((x) => String(x.userId) === String(req.auth.userId)), today: tb.todayYmd(), deposit: rules(c), me: { name: me?.name || '', phone: me?.phone || '' } });
 }));
 
 router.get('/slots', wrap(async (req, res) => {
@@ -66,6 +66,7 @@ router.post('/waitlist', wrap(async (req, res) => {
     const phone = String(b.phone || '').trim().slice(0, 20);
     if (!name) throw httpError(400, 'Please enter your name');
     if (!/^[0-9+\-\s]{6,20}$/.test(phone)) throw httpError(400, 'Please enter your phone number');
+    await tb.guard(c, req.auth.userId);
     res.status(201).json(await wl.join({ config: c, userId: req.auth.userId, name, phone, date: b.date, time: b.time, party: b.party }));
 }));
 router.get('/waitlist/mine', wrap(async (req, res) => { res.json({ items: await wl.mine(req.tenant._id, req.auth.userId) }); }));
@@ -83,6 +84,7 @@ router.post('/', wrap(async (req, res) => {
     if (!name) throw httpError(400, 'Please enter your name');
     if (!/^[0-9+\-\s]{6,20}$/.test(phone)) throw httpError(400, 'Please enter your phone number');
     if (!(await bp.available(c.tenantId))) throw httpError(503, 'Online payment is not available right now. Please try later.');
+    await tb.guard(c, req.auth.userId);
     // the same guest asking again for the very same table, time and group (a second tap, a second phone): he gets his own held booking back, not a second one
     const mineHeld = await TableBooking.findOne({ tenantId: c.tenantId, userId: req.auth.userId, status: 'held', date: b.date, time: b.time, table: String(b.table), party: Math.round(Number(b.party)), holdUntil: { $gt: new Date() } });
     if (mineHeld) return res.json({ booking: mineHeld.toObject(), pay: await bp.start(mineHeld) });

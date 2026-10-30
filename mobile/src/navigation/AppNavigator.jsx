@@ -33,6 +33,7 @@ import MyInquiriesScreen from '../screens/customers/MyInquiriesScreen';
 import TableBillScreen from '../screens/customers/TableBillScreen';
 import TableBillStrip from '../components/customers/TableBillStrip';
 import BookingStrip from '../components/customers/BookingStrip';
+import BottomDock from '../components/customers/BottomDock';
 import TableLinkHost from '../components/customers/TableLinkHost';
 import OwedReminder from '../components/customers/OwedReminder';
 import TableFeedbackHost from '../components/customers/TableFeedbackHost';
@@ -440,6 +441,7 @@ export default function AppNavigator() {
             <TableLinkHost onDone={() => { if (navigationRef.isReady()) navigationRef.navigate('MainTabs'); }} />
             <TableBillStrip routeName={routeName} onOpen={() => { if (navigationRef.isReady()) navigationRef.navigate('TableBill'); }} onOpenCart={() => { if (navigationRef.isReady()) navigationRef.navigate('Cart'); }} />
             <BookingStrip routeName={routeName} onOpen={() => { if (navigationRef.isReady()) navigationRef.navigate('MyBookings'); }} />
+            <BottomDock navRef={navigationRef} />
             <ReviewPrompts />
             <OwedReminder />
             <PickupCollectHost />

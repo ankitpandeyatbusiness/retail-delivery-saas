@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand } from '../common/kit';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { useCartStore } from '../../store/customers/shopStores';
+import { useDock, useCrowded } from '../../store/customers/useDock';
 import { useTableBill } from '../../store/customers/useTableBill';
 import { onNotification } from '../../api/common/socket';
 import { tr } from '../../i18n';
@@ -39,7 +40,13 @@ export default function TableBillStrip({ routeName, onOpen, onOpenCart }) {
         return () => { clearInterval(t); a(); b.remove(); };
     }, [enabled, bill?.open]);
 
-    if (!enabled || !bill?.open || HIDE_ON.includes(routeName)) return null;
+    // with two or more cards the round dock takes over (components/customers/BottomDock.jsx)
+    const presentTable = enabled && !!bill?.open && !HIDE_ON.includes(routeName);
+    const askedNow = bill?.status === 'bill_asked';
+    useEffect(() => { useDock.getState().put('table', presentTable ? { icon: askedNow ? 'receipt' : 'restaurant', label: askedNow ? 'Bill asked' : 'Dine in', sub: tr('Table {t}', { t: bill.table }), route: 'TableBill' } : null); }, [presentTable, askedNow, bill?.table]);   // eslint-disable-line react-hooks/exhaustive-deps
+    useEffect(() => () => useDock.getState().put('table', null), []);
+    const crowded = useCrowded('table');
+    if (!enabled || !bill?.open || HIDE_ON.includes(routeName) || crowded) return null;
     const asked = bill.status === 'bill_asked';
     const rounds = bill.rounds.length;
     const bottom = insets.bottom + TAB_H + 18;
