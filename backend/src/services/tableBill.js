@@ -34,7 +34,7 @@ const tell = (event, ctx) => Promise.resolve().then(() => require('../notificati
 
 // An order is being placed at a table: he keeps the bill he is on, or opens one. A guest who finds the table taken must first ask the people there
 // (or, when the shop allows several bills per table, take his own): see services/sharedTables.js
-async function joinOrOpen({ tenantId, table, userId, now = new Date() }) {
+async function joinOrOpenBase({ tenantId, table, userId, now = new Date() }) {
     const tenantDoc = await Tenant.findById(tenantId).select('settings.orders.dineIn').lean();
     const mine = await TableSession.findOneAndUpdate({ tenantId, table, customers: userId, status: { $in: ['open', 'bill_asked'] } }, { $set: { status: 'open', lastOrderAt: now }, $unset: { billAskedAt: 1 } }, { returnDocument: 'after' });
     if (mine) return mine;
@@ -90,8 +90,13 @@ async function billOf(session, { owner = false } = {}) {
         if (o.payment?.status !== 'paid') cur.due += o.pricing?.total || 0;
         byPerson.set(k, cur);
     }
+    // the table booking amount paid earlier takes this much off what is still to pay (after the settle, appliedAmount is what it took)
+    const cr = session.credit?.bookingId ? session.credit : null;
+    const creditApplied = cr ? (cr.used ? (cr.appliedAmount || 0) : Math.min(cr.amount || 0, due)) : 0;
+    const toPay = cr && !cr.used ? due - creditApplied : due;
     return {
-        tip, payable: Math.round((due + tip) * 100) / 100,
+        credit: cr ? { amount: cr.amount, applied: Math.round(creditApplied * 100) / 100, code: cr.code, used: !!cr.used } : null,
+        tip, payable: Math.round((toPay + tip) * 100) / 100,
         shares: [...byPerson.values()].map((x) => ({ ...x, total: Math.round(x.total * 100) / 100, due: Math.round(x.due * 100) / 100, paid: Math.round((x.total - x.due) * 100) / 100 })),   // for "split the bill": who ordered how much
 
         ...(owner ? { guests: session.customers.map((c) => people.get(String(c))).filter(Boolean) } : {}),
@@ -142,6 +147,7 @@ async function settle({ tenantId, sessionId, method, by }) {
     const now = new Date();
     const unpaid = orders.filter((o) => o.payment?.status !== 'paid');
     const paidPaise = Math.round(unpaid.reduce((n, o) => n + (o.pricing?.total || 0), 0) * 100);
+    if (unpaid.length && s.credit?.bookingId && !s.credit.used) await require('./bookingCredit').consume(s._id, Math.min(s.credit.amount || 0, paidPaise / 100));   // the booking amount paid earlier is used up by this bill
     if (unpaid.length) {
         await Order.updateMany({ _id: { $in: unpaid.map((o) => o._id) } }, { $set: { 'payment.status': 'paid', 'payment.paidAt': now, 'payment.settledAt': now, 'payment.settledVia': method } }); require('./realtime').toOwner(tenantId, 'order:update', { kind: 'table_paid' });   // the owner's "On the table" list drops what was paid
     }
@@ -680,6 +686,12 @@ async function feedbackList(tenantId) {
 async function feedbackSeen(tenantId) {
     await TableFeedback.updateMany({ tenantId, seenAt: { $exists: false } }, { $set: { seenAt: new Date() } });
     return { ok: true };
+}
+
+// every way a guest gets onto a table bill ends here: a booking whose deposit is "taken off the bill" is attached to the visit
+async function joinOrOpen(args) {
+    const s = await joinOrOpenBase(args);
+    try { return await require('./bookingCredit').attach(s, args.userId); } catch (e) { console.error('Booking credit error:', e.message); return s; }
 }
 
 module.exports = { closeEmpty, recordScan, callWaiter, requests, doneRequest, clearOldRequests, setTip, feedbackDue, submitFeedback, feedbackList, feedbackSeen, estimate, forgive, remind, remindAll, dailyOwed, claimPaid, pendingClaims, answerClaim, nudge, busyInfo, etaFor, autoReady, ACTIVE, placementInfo, walkout, debts, clearDebt, owedBy, joinOrOpen, billOf, openFor, askForBill, settle, board, closeIdle, freeTable, startTableBillJob };

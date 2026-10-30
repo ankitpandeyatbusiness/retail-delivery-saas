@@ -32,6 +32,7 @@ import ServiceFormScreen from '../screens/customers/ServiceFormScreen';
 import MyInquiriesScreen from '../screens/customers/MyInquiriesScreen';
 import TableBillScreen from '../screens/customers/TableBillScreen';
 import TableBillStrip from '../components/customers/TableBillStrip';
+import BookingStrip from '../components/customers/BookingStrip';
 import TableLinkHost from '../components/customers/TableLinkHost';
 import OwedReminder from '../components/customers/OwedReminder';
 import TableFeedbackHost from '../components/customers/TableFeedbackHost';
@@ -73,6 +74,7 @@ import OwnerMessagesScreen from '../screens/owners/OwnerMessagesScreen';
 import OwnerCouponsScreen from '../screens/owners/OwnerCouponsScreen';
 import OwnerCouponScreen from '../screens/owners/OwnerCouponScreen';
 import OwnerBookingsScreen from '../screens/owners/OwnerBookingsScreen';
+import OwnerBookingDenyScreen from '../screens/owners/OwnerBookingDenyScreen';
 import OwnerBookingSettingsScreen from '../screens/owners/OwnerBookingSettingsScreen';
 import BookTableScreen from '../screens/customers/BookTableScreen';
 import MyBookingsScreen from '../screens/customers/MyBookingsScreen';
@@ -387,6 +389,7 @@ export default function AppNavigator() {
                     <Stack.Screen name="OwnerCoupons" component={OwnerCouponsScreen} />
                     <Stack.Screen name="OwnerCoupon" component={OwnerCouponScreen} />
                     <Stack.Screen name="OwnerBookings" component={OwnerBookingsScreen} />
+                    <Stack.Screen name="OwnerBookingDeny" component={OwnerBookingDenyScreen} />
                     <Stack.Screen name="OwnerBookingSettings" component={OwnerBookingSettingsScreen} />
                     <Stack.Screen name="OwnerInquiries" component={OwnerInquiriesScreen} />
                     <Stack.Screen name="OwnerInquiry" component={OwnerInquiryScreen} />
@@ -434,6 +437,7 @@ export default function AppNavigator() {
             <ActiveOrderBar routeName={routeName} onOpen={(id) => { if (navigationRef.isReady()) navigationRef.navigate('OrderDetail', { id }); }} onOpenAll={goOrders} />
             <TableLinkHost onDone={() => { if (navigationRef.isReady()) navigationRef.navigate('MainTabs'); }} />
             <TableBillStrip routeName={routeName} onOpen={() => { if (navigationRef.isReady()) navigationRef.navigate('TableBill'); }} onOpenCart={() => { if (navigationRef.isReady()) navigationRef.navigate('Cart'); }} />
+            <BookingStrip routeName={routeName} onOpen={() => { if (navigationRef.isReady()) navigationRef.navigate('MyBookings'); }} />
             <ReviewPrompts />
             <OwedReminder />
             <PickupCollectHost />

@@ -161,9 +161,9 @@ const realProvider = {
         if (!Buffer.isBuffer(rawBody) || !signature || !secret) return false;
         return safeEqual(hmac(secret, rawBody), signature);
     },
-    async refund({ paymentId, amountPaise, notes, receipt, credentials }) {
+    async refund({ paymentId, amountPaise, notes, receipt, credentials, instant }) {
         const r = await call(credentials || platformCredentials(), 'POST', `/payments/${encodeURIComponent(paymentId)}/refund`, {
-            amount: amountPaise, speed: 'normal', notes: notes || {}, receipt,
+            amount: amountPaise, speed: instant ? 'optimum' : 'normal', notes: notes || {}, receipt,
         });
         return { refundId: r.id, status: r.status, amountPaise: r.amount };
     },

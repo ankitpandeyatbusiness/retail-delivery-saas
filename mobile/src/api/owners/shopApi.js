@@ -142,6 +142,10 @@ export const booking = {
     saveSettings: (body) => d(api.put('/shop/booking/settings', body)),     // the slider sends only { enabled }
     day: (date) => d(api.get('/shop/booking', q({ date }))),                // { date, items, seats, upcoming }
     seat: (id) => d(api.post(`/shop/booking/${id}/seat`)),
+    get: (id) => d(api.get(`/shop/booking/${id}`)),
+    allow: (id) => d(api.post(`/shop/booking/${id}/allow`)),                      // the guest is told the table is confirmed
+    deny: (id, message) => d(api.post(`/shop/booking/${id}/cancel`, { message })), // cancels, sends the whole deposit back at once, tells the guest (message is optional)
+    adjusted: (id) => d(api.post(`/shop/booking/${id}/adjusted`)),                 // the deposit was taken off the guest's table bill
     noShow: (id) => d(api.post(`/shop/booking/${id}/no-show`)),
     cancel: (id) => d(api.post(`/shop/booking/${id}/cancel`)),
 };

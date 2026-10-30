@@ -130,8 +130,9 @@ async function book({ config, userId, name, phone, date, time, party, note, now 
     if (!(await reserve(config.tenantId, date, time, party, config.seatsPerSlot))) throw httpError(409, 'Sorry, that time just filled up. Please pick another.');
     try {
         return await TableBooking.create({
-            tenantId: config.tenantId, userId, code: newCode(), name, phone, date, time, startsAt: startsAtOf(date, time), party,
+            tenantId: config.tenantId, userId, code: newCode(), name, phone, date, time, startsAt: startsAtOf(date, time), endsAt: new Date(startsAtOf(date, time).getTime() + config.slotMinutes * 60000), party,
             note: String(note || '').trim().slice(0, 300), deposit: { amount: depositFor(config, party), status: 'unpaid' },
+            status: 'held', holdUntil: new Date(now + config.holdMinutes * 60000), rules: { refundHours: config.refundHours, depositMode: config.depositMode },
         });
     } catch (e) {
         await BookingSlotUse.updateOne({ tenantId: config.tenantId, date, time }, { $inc: { seats: -party } });   // give the seats back
@@ -139,11 +140,12 @@ async function book({ config, userId, name, phone, date, time, party, note, now 
     }
 }
 
-// Cancels a booking that still holds seats and gives them back. Returns the booking, or null when it was not cancellable.
+// Cancels a booking that still holds seats (waiting for its deposit, or confirmed) and gives them back. Returns the booking, or null when it was not cancellable.
+// The money side (refund or keep) is bookingPayment.cancelBooking.
 async function cancel(booking, by) {
-    const done = await TableBooking.findOneAndUpdate({ _id: booking._id, status: 'confirmed' }, { $set: { status: 'cancelled', cancelledBy: by, cancelledAt: new Date() } }, { returnDocument: 'after' });
+    const done = await TableBooking.findOneAndUpdate({ _id: booking._id, status: { $in: ['held', 'confirmed'] } }, { $set: { status: 'cancelled', cancelledBy: by, cancelledAt: new Date() } }, { returnDocument: 'after' });
     if (done) await release(done);
     return done;
 }
 
-module.exports = { DEFAULTS, LIVE, getConfig, cleanConfig, depositFor, slotsFor, availability, book, cancel, todayYmd, addDays, startsAtOf };
+module.exports = { DEFAULTS, LIVE, reserve, release, getConfig, cleanConfig, depositFor, slotsFor, availability, book, cancel, todayYmd, addDays, startsAtOf };

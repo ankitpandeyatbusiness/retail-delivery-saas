@@ -37,6 +37,10 @@ const EVENTS = {
     rider_badge: { to: 'rider', channels: INAPP_PUSH, alsoPush: true },        // the rider moved up a badge
     booking_new: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },             // a guest booked a table
     booking_cancelled: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },       // a guest cancelled a booking
+    booking_reminder: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },          // half an hour before a booked table
+    booking_reminder_customer: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },
+    booking_paid: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },         // the guest's deposit arrived: his table is booked, his receipt is ready
+    booking_allowed: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },      // the shop confirmed a guest's table
     booking_owner_cancelled: { to: 'customer', channels: INAPP_PUSH, alsoPush: true }, // the shop cancelled a guest's booking
     inquiry_new: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },             // a customer sent an inquiry from a service form
     inquiry_customer_reply: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },  // a customer wrote again on an inquiry

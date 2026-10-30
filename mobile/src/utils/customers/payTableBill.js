@@ -47,6 +47,7 @@ async function finish(proof) {
 export async function payTableBill({ user, upiApp, scope }) {
     let start;
     try { start = await startTablePayment(scope); } catch (e) { return { status: 'failed', message: text(e, 'Could not start the payment') }; }
+    if (start.settled) return { status: 'paid' };   // the booking amount he paid earlier covers the whole bill: nothing to pay
     Razorpay.initRazorpay(start.keyId);   // the promise it returns never settles, so it is not awaited
     const options = {
         key_id: start.keyId, order_id: start.rzpOrderId, amount: String(start.amountPaise), currency: start.currency || 'INR',

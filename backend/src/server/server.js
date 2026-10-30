@@ -28,6 +28,7 @@ const { startRiderScheduleTicker } = require('../services/riderSchedule');
 const { startPickupReminders } = require('../jobs/pickupReminders');
 const { startTableBillJob } = require('../services/tableBill');
 const { startStaffNudges } = require('../jobs/staffNudges');
+const { startBookingHolds } = require('../services/bookingPayment');
 const { startKitchenQueue } = require('../jobs/kitchenQueue');
 const { startBillReminders } = require('../jobs/billReminders');
 
@@ -89,6 +90,7 @@ connectDB()
             startTableBillJob();         // a visit nobody orders from and nothing is owed on is closed
             startBillReminders();        // a table that asked for the bill and was not served is reminded to the owner and the waiters every 5 minutes
             startKitchenQueue();         // an order the cook did not touch goes to his queue by itself
+            startBookingHolds();         // an unpaid table booking is let go after its hold, and refunds that did not go out are tried again
             startStaffNudges();          // the cooks and the waiters get one nudge for an order that waits too long
             startPickupReminders();      // pickup orders that are ready: reminders to the customer, and the owner is told when nobody came
             setInterval(() => require('../services/loyaltyService').releaseDue().catch((e) => console.error('Points job error:', e.message)), 5 * 60 * 1000).unref?.();   // points whose 24 hours are over become spendable

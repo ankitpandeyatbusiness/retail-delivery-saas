@@ -101,6 +101,7 @@ export default function TableSheet({ session, onClose, onPaid }) {
                             })}
                             <View style={{ marginTop: 12, padding: 12, borderRadius: 14, backgroundColor: alpha(primary, 0.1) }}>
                                 <Row label={tr('Total')} value={money(bill.total)} />
+                                {bill.credit?.applied > 0 ? <Row label={tr('Booking amount paid earlier ({c})', { c: bill.credit.code })} value={`- ${money(bill.credit.applied)}`} /> : null}
                                 {bill.tip > 0 ? <Row label={tr('Tip')} value={money(bill.tip)} /> : null}
                                 <Row label={tr('To pay')} value={money(bill.payable)} big />
                             </View>

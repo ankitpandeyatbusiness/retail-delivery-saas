@@ -11,9 +11,12 @@ import { onNotification } from '../../api/common/socket';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
+import { shareBookingReceipt, hasReceipt } from '../../utils/customers/shareBookingReceipt';
 import { tr } from '../../i18n';
 
-export const BOOKING_STATUS = { confirmed: 'Booked', seated: 'Seated', no_show: 'No-show', cancelled: 'Cancelled' };
+export const BOOKING_STATUS = { held: 'Waiting for payment', confirmed: 'Booked', seated: 'Seated', no_show: 'No-show', cancelled: 'Cancelled', expired: 'Expired' };
+// what became of the deposit, in words (guest and owner screens)
+export const DEPOSIT_STATUS = { unpaid: 'Deposit not paid', paid: 'Deposit paid', refunding: 'Refund on its way', refund_failed: 'Refund on its way', refunded: 'Deposit refunded', kept: 'Deposit kept by the restaurant', adjusted: 'Deposit taken off the bill' };
 const shift = (ymd, n) => new Date(new Date(`${ymd}T12:00:00Z`).getTime() + n * 86400000).toISOString().slice(0, 10);
 const todayIst = () => new Date(Date.now() + 330 * 60000).toISOString().slice(0, 10);
 const nice = (ymd) => new Date(`${ymd}T12:00:00Z`).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
@@ -24,11 +27,20 @@ export default function OwnerBookingsScreen() {
     const [date, setDate] = useState(todayIst());
     const [data, setData] = useState(null);
     const [busyId, setBusyId] = useState('');
+    const [receiptId, setReceiptId] = useState('');
 
     const load = useCallback(() => api.day(date).then((r) => setData(r)).catch((e) => { useOwnerStore.getState().noteError(e); showToast(apiError(e)); setData((x) => x || { items: [], seats: 0, upcoming: 0 }); }), [date]);
     useFocusEffect(useCallback(() => { load(); }, [load]));
     useEffect(() => onNotification((n) => { if (['booking_new', 'booking_cancelled'].includes(String(n?.type))) load(); }), [load]);
 
+    const allow = async (b) => {
+        setBusyId(b._id);
+        try { await api.allow(b._id); showToast(tr('The guest is told the table is confirmed')); await load(); } catch (e) { showToast(apiError(e)); } finally { setBusyId(''); }
+    };
+    const adjust = async (b) => {
+        setBusyId(b._id);
+        try { await api.adjusted(b._id); await load(); } catch (e) { showToast(apiError(e)); } finally { setBusyId(''); }
+    };
     const act = async (b, kind) => {
         if (kind === 'cancel') {
             const yes = await ask({ title: tr('Cancel this booking?'), message: tr('{n} will be told. The seats are free again.', { n: b.name }), confirmText: tr('Cancel booking'), destructive: true });
@@ -66,13 +78,23 @@ export default function OwnerBookingsScreen() {
                             <Pill label={tr(BOOKING_STATUS[b.status])} color={tone(b.status)} />
                         </View>
                         {b.note ? <Text style={{ color: text, marginTop: 8 }}>{b.note}</Text> : null}
-                        <Text style={{ color: muted, fontSize: 12, marginTop: 6 }}>{tr('Deposit ₹{n}', { n: b.deposit?.amount || 0 })}</Text>
+                        <Text style={{ color: muted, fontSize: 12, marginTop: 6 }}>{tr('₹{n}', { n: b.deposit?.amount || 0 })} · {tr(DEPOSIT_STATUS[b.deposit?.status] || 'Deposit paid')}</Text>
+                        {hasReceipt(b) ? <Button label={tr('Receipt')} icon="document-text-outline" kind="ghost" busy={receiptId === b._id} onPress={() => shareBookingReceipt(`/shop/booking/${b._id}/receipt`, b.code, (on) => setReceiptId(on ? b._id : ''))} style={{ marginTop: 10 }} /> : null}
+                        {b.status === 'seated' && b.deposit?.credit === 'pending' ? (
+                            <View style={{ marginTop: 10, padding: 10, borderRadius: 12, borderWidth: 1, borderColor: primary }}>
+                                <Text style={{ color: text, fontWeight: '800' }}>{tr('Take ₹{n} off the table bill of this guest', { n: b.deposit.amount })}</Text>
+                                <Button label={tr('Done, taken off the bill')} icon="checkmark" busy={busyId === b._id} onPress={() => adjust(b)} style={{ marginTop: 8 }} />
+                            </View>
+                        ) : null}
+                        {b.status === 'confirmed' && !b.approvedAt ? <Button label={tr('Allow this booking')} icon="checkmark-done" kind="ghost" busy={busyId === b._id} onPress={() => allow(b)} style={{ marginTop: 10 }} /> : null}
+                        {b.status === 'confirmed' && b.approvedAt ? <Text style={{ color: ok, fontWeight: '800', marginTop: 8 }}>{tr('You allowed this booking')}</Text> : null}
+                        {b.status === 'cancelled' && b.cancelNote ? <Text style={{ color: muted, marginTop: 8 }}>{tr('Your message: {m}', { m: b.cancelNote })}</Text> : null}
                         {b.status === 'confirmed' ? (
                             <View style={{ flexDirection: 'row', marginTop: 10 }}>
                                 <Button label={tr('Seated')} icon="checkmark" busy={busyId === b._id} onPress={() => act(b, 'seat')} style={{ flex: 1, marginRight: 8 }} />
                                 <Button label={tr('No-show')} kind="ghost" busy={busyId === b._id} onPress={() => act(b, 'noshow')} style={{ flex: 1, marginRight: 8 }} />
                                 <Button label="" icon="call" kind="ghost" iconOnly onPress={() => Linking.openURL(`tel:${String(b.phone).replace(/\D/g, '')}`)} style={{ marginRight: 8 }} />
-                                <Button label="" icon="close" kind="danger" iconOnly busy={busyId === b._id} onPress={() => act(b, 'cancel')} />
+                                <Button label={tr('Deny')} icon="close" kind="danger" busy={busyId === b._id} onPress={() => nav.navigate('OwnerBookingDeny', { id: String(b._id) })} />
                             </View>
                         ) : null}
                     </Card>

@@ -64,7 +64,10 @@ async function dataFor(session, tenant) {
         people: (bill.shares || []).map((x) => ({ name: safe(x.name), ordered: x.total, paid: x.paid, due: x.due })),
         rounds,
         tax: { rows: [...rates.values()].sort((a, b) => a.rate - b.rate).map((g) => ({ rate: g.rate, taxable: round2(g.taxable), tax: round2(g.tax) })), onTop: round2(onTop), included: round2(included) },
-        subtotal: round2(subtotal), discount: round2(discount), tip: bill.tip || 0, total: bill.total, paid: round2(bill.total - bill.due), due: bill.due,
+        subtotal: round2(subtotal), discount: round2(discount), tip: bill.tip || 0, total: bill.total,
+        // the table booking amount paid when he booked is shown on its own; "paid" and "still to pay" are what is left after it
+        credit: bill.credit ? { applied: bill.credit.applied, code: bill.credit.code } : null,
+        paid: round2(bill.total - bill.due - (bill.credit?.used ? bill.credit.applied : 0)), due: round2(Math.max(0, bill.due - (bill.credit && !bill.credit.used ? bill.credit.applied : 0))),
     };
 }
 
@@ -154,6 +157,13 @@ function render(doc, d) {
     doc.save().rect(bx, y, bw, 28).fill(BRAND).restore();
     doc.font('Helvetica-Bold').fontSize(11).fillColor('#ffffff').text('TOTAL', bx + 10, y + 9, { width: 80 }).text(rs(d.total + d.tip), bx + bw - 150, y + 9, { width: 140, align: 'right' });
     y += 34;
+    if (d.credit?.applied) {
+        doc.font('Helvetica').fontSize(10).fillColor(MUTED).text('Table booking amount, paid earlier', bx, y, { width: bw - 100 });
+        doc.fillColor(INK).text(`- ${rs(d.credit.applied)}`, bx + bw - 100, y, { width: 100, align: 'right' });
+        y += 13;
+        doc.font('Helvetica').fontSize(8).fillColor(MUTED).text(`Paid online when the table was booked. Booking code ${d.credit.code}.`, bx, y, { width: bw });
+        y += 16;
+    }
     doc.font('Helvetica-Bold').fontSize(10).fillColor(OK).text('Paid', bx, y, { width: bw - 100 }).text(rs(d.paid), bx + bw - 100, y, { width: 100, align: 'right' });
     y += 16;
     doc.fillColor(d.due > 0 ? WARN : MUTED).text('Still to pay', bx, y, { width: bw - 100 }).text(rs(d.due), bx + bw - 100, y, { width: 100, align: 'right' });

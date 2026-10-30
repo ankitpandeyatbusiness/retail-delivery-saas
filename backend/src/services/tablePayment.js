@@ -28,8 +28,12 @@ async function start({ tenantId, userId, scope }) {
     if (!s) throw httpError(404, 'You have no open bill');
     const rows = await unpaidOf(tenantId, s._id, mineOnly ? userId : null);
     if (mineOnly && (await require('./tableShares').mine(s, userId)).busy) throw httpError(409, 'Your dishes are still being made. Pay after they are served.');
-    const amountPaise = Math.round(rows.reduce((n, o) => n + (o.pricing?.total || 0), 0) * 100);
-    if (!rows.length || amountPaise <= 0) throw httpError(409, 'Everything on your bill is already paid');
+    const grossPaise = Math.round(rows.reduce((n, o) => n + (o.pricing?.total || 0), 0) * 100);
+    if (!rows.length || grossPaise <= 0) throw httpError(409, 'Everything on your bill is already paid');
+    // the table booking amount he paid earlier comes off the whole bill (not off a single share)
+    const creditPaise = !mineOnly && s.credit?.bookingId && !s.credit.used ? Math.min(Math.round((s.credit.amount || 0) * 100), grossPaise) : 0;
+    const amountPaise = grossPaise - creditPaise;
+    if (amountPaise === 0) return settleByCredit({ tenantId, userId, s, rows, creditPaise });
     if (amountPaise < 100) throw httpError(400, 'The amount is too small for an online payment');
     const can = await accounts.canTakePayments(tenantId);
     if (!can.ok) throw httpError(503, 'Online payment is not available right now. Please ask the waiter.');
@@ -43,9 +47,21 @@ async function start({ tenantId, userId, scope }) {
             amountPaise, receipt: `tbl-${String(userId).slice(-8)}-${Date.now().toString(36)}`.slice(0, 40),
             notes: { kind: 'table_bill', tenantId: String(tenantId), userId: String(userId), table: String(s.table) }, credentials: creds,
         });
-        p = await TablePayment.create({ tenantId, userId, sessionId: s._id, orderIds: rows.map((o) => o._id), orderKey, scope: mineOnly ? 'mine' : 'all', table: s.table, mode: creds.mode || 'test', rzpOrderId: ro.id, amountPaise });
+        p = await TablePayment.create({ tenantId, userId, sessionId: s._id, orderIds: rows.map((o) => o._id), orderKey, scope: mineOnly ? 'mine' : 'all', table: s.table, mode: creds.mode || 'test', rzpOrderId: ro.id, amountPaise, grossPaise, creditPaise });
     }
     return { keyId: creds.keyId, rzpOrderId: p.rzpOrderId, amountPaise: p.amountPaise, currency: 'INR' };
+}
+
+// The deposit paid when he booked covers the whole bill: nothing to pay online, the rounds are settled by it.
+async function settleByCredit({ tenantId, userId, s, rows, creditPaise }) {
+    const now = new Date();
+    const orders = await Order.find({ _id: { $in: rows.map((o) => o._id) }, 'payment.status': { $ne: 'paid' } }).lean();
+    await Order.updateMany({ _id: { $in: orders.map((o) => o._id) } }, { $set: { 'payment.status': 'paid', 'payment.paidAt': now, 'payment.settledAt': now, 'payment.settledVia': 'deposit', 'payment.paidBy': userId } });
+    await require('./bookingCredit').consume(s._id, creditPaise / 100);
+    const loyalty = require('./loyaltyService');
+    for (const o of orders) loyalty.onDelivered({ ...o, payment: { ...(o.payment || {}), status: 'paid' }, deliveredAt: now }).catch((e) => console.error('Points error:', e.message));
+    try { require('./realtime').toOwner(tenantId, 'order:update', { kind: 'table_paid' }); } catch (e) { /* the screens refresh on their own */ }
+    return { settled: true };
 }
 
 // THE one place where the money is recorded. Safe to repeat: only the run that flips created -> captured marks the rounds and tells people.
@@ -60,6 +76,7 @@ async function confirm(p, rzp) {
     if (!first) return { ok: true, paid: true, repeat: true };
 
     const now = new Date();
+    if (p.creditPaise > 0) await require('./bookingCredit').consume(p.sessionId, p.creditPaise / 100);   // the booking amount paid earlier is used up by this bill
     const orders = await Order.find({ _id: { $in: p.orderIds }, 'payment.status': { $ne: 'paid' } }).lean();
     if (orders.length) await Order.updateMany({ _id: { $in: orders.map((o) => o._id) } }, { $set: { 'payment.status': 'paid', 'payment.paidAt': now, 'payment.settledAt': now, 'payment.settledVia': 'online', 'payment.paidBy': p.userId } }); require('./realtime').toOwner(p.tenantId, 'order:update', { kind: 'table_paid' });   // the owner's "On the table" list drops what was paid
     if (orders.length < p.orderIds.length) {

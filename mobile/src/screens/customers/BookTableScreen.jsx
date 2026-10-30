@@ -7,6 +7,7 @@ import { useBrand } from '../../components/common/kit';
 import { Button, Empty } from '../../components/owners/ui';
 import { FormPage, Group, TextBox, Label } from '../../components/owners/menuBits';
 import { fetchBookingConfig, fetchBookingSlots, createBooking } from '../../api/customers/shopApi';
+import { payBooking } from '../../utils/customers/payBooking';
 import { FormShimmer } from '../../components/owners/shimmer';
 import { showToast } from '../../components/customers/shop';
 import { tr } from '../../i18n';
@@ -52,8 +53,11 @@ export default function BookTableScreen() {
         if (phone.replace(/\D/g, '').length < 6) return showToast(tr('Please enter your phone number'));
         setBusy(true);
         try {
-            await createBooking({ date, time, party, name: name.trim(), phone: phone.trim(), note: note.trim() });
-            showToast(tr('Table booked'));
+            // the seats are held while he pays the deposit; if he does not pay they are let go after a few minutes
+            const { booking, pay } = await createBooking({ date, time, party, name: name.trim(), phone: phone.trim(), note: note.trim() });
+            const r = await payBooking({ booking, pay, user: { phone: phone.trim() } });
+            if (r.status === 'paid') showToast(tr('Table booked'));
+            else showToast(r.status === 'pending' ? tr(r.message) : tr('Not paid yet. Your table is held for a few minutes: open My bookings to pay.'));
             nav.replace('MyBookings');
         } catch (e) { showToast(e?.response?.data?.error || tr('Could not book. Try again.')); } finally { setBusy(false); }
     };
@@ -65,7 +69,7 @@ export default function BookTableScreen() {
     );
 
     return (
-        <FormPage title={tr('Book a table')} footer={<Button label={deposit ? tr('Book table · deposit ₹{n}', { n: deposit }) : tr('Book table')} icon="calendar" busy={busy} disabled={!time} onPress={send} />}>
+        <FormPage title={tr('Book a table')} footer={<Button label={deposit ? tr('Pay ₹{n} deposit and book', { n: deposit }) : tr('Book table')} icon="calendar" busy={busy} disabled={!time} onPress={send} />}>
             <Label>{tr('Day')}</Label>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
                 {days.map((x) => {

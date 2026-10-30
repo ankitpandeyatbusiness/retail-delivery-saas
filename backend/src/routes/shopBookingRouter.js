@@ -8,6 +8,7 @@ const apiErrors = require('../middlewares/apiErrors');
 const TableBookingConfig = require('../models/TableBookingConfig');
 const TableBooking = require('../models/TableBooking');
 const tb = require('../services/tableBooking');
+const bp = require('../services/bookingPayment');
 
 const { wrap, httpError } = apiErrors;
 const router = express.Router();
@@ -19,6 +20,7 @@ router.get('/settings', wrap(async (req, res) => { res.json(await tb.getConfig(r
 router.put('/settings', wrap(async (req, res) => {
     const current = await tb.getConfig(req.tenant._id);
     const changes = tb.cleanConfig(req.body, current);
+    if (changes.enabled && !(await bp.available(req.tenant._id))) throw httpError(400, 'Table booking needs online payments. Ask us to connect your Razorpay account first.');
     await TableBookingConfig.updateOne({ tenantId: req.tenant._id }, { $set: changes, $setOnInsert: { tenantId: req.tenant._id } }, { upsert: true });
     res.json(await tb.getConfig(req.tenant._id));
 }));
@@ -27,7 +29,7 @@ router.get('/', wrap(async (req, res) => {
     const date = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date || '') ? req.query.date : tb.todayYmd();
     const tenantId = req.tenant._id;
     const [items, upcoming] = await Promise.all([
-        TableBooking.find({ tenantId, date }).sort({ time: 1, createdAt: 1 }).lean(),
+        TableBooking.find({ tenantId, date, status: { $nin: ['held', 'expired'] } }).sort({ time: 1, createdAt: 1 }).lean(),
         TableBooking.countDocuments({ tenantId, status: 'confirmed', date: { $gte: tb.todayYmd() } }),
     ]);
     const seats = items.filter((b) => tb.LIVE.includes(b.status)).reduce((n, b) => n + b.party, 0);
@@ -41,22 +43,47 @@ const mine = async (req) => {
     return b;
 };
 
-const move = (to) => wrap(async (req, res) => {
+const move = (to, then) => wrap(async (req, res) => {
     const b = await mine(req);
     if (b.status !== 'confirmed') throw httpError(400, 'This booking is already ' + b.status.replace('_', ' '));
     b.status = to;
     await b.save();
-    res.json(b.toObject());
+    await then(b);   // what happens to the deposit
+    res.json((await TableBooking.findById(b._id)).toObject());
 });
-router.post('/:id/seat', move('seated'));
-router.post('/:id/no-show', move('no_show'));
+router.post('/:id/seat', move('seated', bp.seated));
+router.post('/:id/no-show', move('no_show', bp.noShow));
+
+router.get('/:id/receipt', wrap(async (req, res) => {
+    const b = await mine(req);
+    require('../services/bookingReceipt').stream(res, b.toObject(), await require('../models/Tenant').findById(b.tenantId).lean());
+}));
+router.get('/:id', wrap(async (req, res) => { res.json((await mine(req)).toObject()); }));
+
+// The owner allows a booking: the guest is told it is confirmed
+router.post('/:id/allow', wrap(async (req, res) => {
+    const b = await mine(req);
+    const done = await bp.allow({ _id: b._id, shopName: req.tenant.name });
+    if (!done) throw httpError(400, 'This booking cannot be allowed (it is already allowed, cancelled or past)');
+    res.json(done.toObject());
+}));
+
+// "I took the deposit off this table's bill"
+router.post('/:id/adjusted', wrap(async (req, res) => {
+    const b = await mine(req);
+    const r = await bp.adjusted(b);
+    if (!r.modifiedCount) throw httpError(400, 'There is no deposit waiting to be taken off a bill for this booking');
+    res.json((await TableBooking.findById(b._id)).toObject());
+}));
 
 router.post('/:id/cancel', wrap(async (req, res) => {
     const b = await mine(req);
-    const done = await tb.cancel(b, 'owner');
+    const message = String(req.body?.message || '').trim().slice(0, 300);
+    const done = await bp.cancelBooking(b, 'owner', { message });
     if (!done) throw httpError(400, 'This booking is already ' + b.status.replace('_', ' '));
-    tell('booking_owner_cancelled', { tenantId: done.tenantId, userId: done.userId, vars: { shop: req.tenant.name, date: done.date, time: done.time }, data: { kind: 'booking', bookingId: String(done._id) } });
-    res.json(done.toObject());
+    const refund = ['refunding', 'refunded', 'refund_failed'].includes(done.deposit.status);
+    tell('booking_owner_cancelled', { tenantId: done.tenantId, userId: done.userId, vars: { shop: req.tenant.name, date: done.date, time: done.time, message, refund, amount: done.deposit.amount }, data: { kind: 'booking', bookingId: String(done._id) } });
+    res.json(done);
 }));
 
 module.exports = router;

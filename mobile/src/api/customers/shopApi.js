@@ -106,5 +106,9 @@ export const fetchMyInquiries = () => d(api.get('/services/inquiries/mine'));
 export const fetchBookingConfig = () => d(api.get('/bookings/config'));                                   // { enabled, minParty, maxParty, advanceDays, today, deposit, me }
 export const fetchBookingSlots = (date, party) => d(api.get('/bookings/slots', { params: { date, party } })); // { slots:[{ time, left, ok }], deposit }
 export const createBooking = (body) => d(api.post('/bookings', body));                                  // { date, time, party, name, phone, note? }
+export const fetchBookingCard = () => d(api.get('/bookings/card'));                                       // { card: { id, code, date, time, party, startsAt, endsAt } | null }: the allowed booking, until its slot is over
 export const fetchMyBookings = () => d(api.get('/bookings/mine'));
 export const cancelBooking = (id) => d(api.post(`/bookings/${id}/cancel`));
+export const payBookingAgain = (id) => d(api.post(`/bookings/${id}/pay`));                        // { booking, pay }: to pay a booking that is still held
+export const verifyBooking = (id, proof) => d(api.post(`/bookings/${id}/verify`, proof));          // { paid, booking }
+export const checkBooking = (id) => d(api.post(`/bookings/${id}/check`));                          // { paid, booking }

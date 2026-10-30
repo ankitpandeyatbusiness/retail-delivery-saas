@@ -16,6 +16,7 @@ import { fetchOrders } from '../../api/customers/shopApi';
 import { onOrderUpdate, onNotification } from '../../api/common/socket';
 import { isActive } from './orders';
 import { queueText } from './QueueLine';
+import { useBookingCard } from '../../store/customers/useBookingCard';
 import { tr } from '../../i18n';
 
 const HIDE_ON = ['Login', 'Cart', 'Item', 'OrderPlaced', 'OrderDetail', 'CardDetails', 'PaymentMethods', 'Orders'];
@@ -69,6 +70,7 @@ export default function ActiveOrderBar({ routeName, onOpen, onOpenAll }) {
     // One card only: when the live track bar is available (rider on the way), IT is the card (it has Track and Hide), so this one stays away
     const tableOpen = useTableBill((s) => !!s.bill?.open);   // dining in: the table bill bar is shown instead
     const show = enabled && !!first && !HIDE_ON.includes(routeName) && !tracking && liveOffset === 0 && !tableOpen;
+    useEffect(() => { useBookingCard.getState().setOrderBar(!!show); return () => useBookingCard.getState().setOrderBar(false); }, [show]);   // the table card sits above this bar
     const orderKey = orders.map((o) => String(o.id || o._id)).join(',');
     useEffect(() => { setHidden(false); }, [orderKey]);   // a different set of orders: show the bar again
     useEffect(() => {

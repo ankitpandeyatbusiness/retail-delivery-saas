@@ -11,7 +11,7 @@ import { onNotification } from '../../api/common/socket';
 import { ownerRoute } from '../../utils/owners/notificationRoute';
 import { themedAlert } from './dialog';
 import { showToast } from '../customers/shop';
-import { decideStaffLeave, decideLeave, apiError } from '../../api/owners/shopApi';
+import { decideStaffLeave, decideLeave, apiError, booking as bookingApi } from '../../api/owners/shopApi';
 import AlertSlider from './AlertSlider';
 import { tr } from '../../i18n';
 
@@ -78,7 +78,12 @@ export default function AlertSliderHost({ navRef }) {
     const decide = role === 'admin' && d.leaveId && (item.type === 'staff_leave_request' || item.type === 'rider_leave_request')
         ? (item.type === 'staff_leave_request' ? (approve) => decideStaffLeave(d.leaveId, approve) : (approve) => decideLeave(d.leaveId, { approve }))
         : null;
-    const actions = decide ? [{ label: tr('Approve'), onPress: answer(decide, true) }, { label: tr('Reject'), kind: 'danger', onPress: answer(decide, false) }] : undefined;
+    // a new table booking asks a question too: Allow tells the guest it is confirmed; Deny opens the page where the owner may write a reason
+    const bookingActions = role === 'admin' && item.type === 'booking_new' && d.bookingId ? [
+        { label: tr('Allow'), onPress: async () => { try { await bookingApi.allow(d.bookingId); next(); showToast(tr('Table confirmed')); } catch (e) { showToast(apiError(e)); } } },
+        { label: tr('Deny'), kind: 'danger', onPress: () => { next(); if (navRef?.isReady?.()) navRef.navigate('OwnerBookingDeny', { id: String(d.bookingId) }); } },
+    ] : undefined;
+    const actions = decide ? [{ label: tr('Approve'), onPress: answer(decide, true) }, { label: tr('Reject'), kind: 'danger', onPress: answer(decide, false) }] : bookingActions;
     // the key makes a new slider start fresh (its bar and its slide) when the one before it has gone
     return <AlertSlider key={item.key} item={item} sec={alertSeconds(item.type)} onClose={next} onOpen={open} actions={actions} onTurnOff={() => { next(); turnOffSlider(item.type); }} />;
 }

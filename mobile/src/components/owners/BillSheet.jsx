@@ -121,6 +121,12 @@ export default function BillSheet({ table, onClose, onDone }) {
                             ))}
                         </View>
                     ) : null}
+                    {bill.credit?.applied > 0 ? (
+                        <View style={{ flexDirection: 'row', paddingBottom: 6 }}>
+                            <Text style={{ flex: 1, color: muted, fontWeight: '700' }}>{tr('Table booking amount paid earlier ({c})', { c: bill.credit.code })}</Text>
+                            <Text style={{ color: text, fontWeight: '900' }}>- {rs(bill.credit.applied)}</Text>
+                        </View>
+                    ) : null}
                     <View style={{ flexDirection: 'row', paddingTop: 8, borderTopWidth: 1, borderTopColor: alpha(muted, 0.3) }}>
                         <Text style={{ flex: 1, color: text, fontWeight: '900', fontSize: 17 }}>{tr('To collect')}</Text>
                         <Text style={{ color: text, fontWeight: '900', fontSize: 20 }}>{rs(bill.payable ?? bill.due)}</Text>

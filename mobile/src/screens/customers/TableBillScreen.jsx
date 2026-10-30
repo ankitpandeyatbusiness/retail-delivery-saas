@@ -188,6 +188,12 @@ export default function TableBillScreen() {
                             <Text style={{ color: text, fontWeight: '900' }}>+ {rs(bill.tip)}</Text>
                         </View>
                     ) : null}
+                    {bill.credit?.applied > 0 ? (
+                        <View style={{ flexDirection: 'row', marginTop: 6 }}>
+                            <Text style={{ flex: 1, color: muted, fontWeight: '700' }}>{tr('Table booking amount paid earlier ({c})', { c: bill.credit.code })}</Text>
+                            <Text style={{ color: text, fontWeight: '900' }}>- {rs(bill.credit.applied)}</Text>
+                        </View>
+                    ) : null}
                     <View style={{ flexDirection: 'row', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: alpha(border, 0.7) }}>
                         <Text style={{ flex: 1, color: text, fontWeight: '900', fontSize: 17 }}>{tr('To pay')}</Text>
                         <Text style={{ color: text, fontWeight: '900', fontSize: 20 }}>{rs(bill.payable ?? bill.due)}</Text>

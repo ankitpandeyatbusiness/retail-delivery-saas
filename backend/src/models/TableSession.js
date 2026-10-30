@@ -41,6 +41,9 @@ const tableSessionSchema = new mongoose.Schema({
     owedVia: String,
     paidVia: String,        // cash | upi (at the counter)
     paidPaise: { type: Number, default: 0 },
+    // A table booking whose deposit is "taken off the bill": the guest's deposit counts toward this visit (services/bookingCredit.js).
+    // amount = what he paid when he booked; used = the bill was settled with it; appliedAmount = how much of it the bill really took (a small bill takes less).
+    credit: { amount: Number, bookingId: mongoose.Schema.Types.ObjectId, code: String, used: Boolean, appliedAmount: Number },
 }, { timestamps: true });
 
 // one open bill per table and party (a table has bill number 1 only, unless the owner switched on shared tables)

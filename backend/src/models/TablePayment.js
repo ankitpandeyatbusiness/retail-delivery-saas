@@ -15,7 +15,9 @@ const schema = new Schema({
     mode: { type: String, enum: ['test', 'live', 'mock'], default: 'mock' },
     rzpOrderId: { type: String, required: true },
     rzpPaymentId: String,
-    amountPaise: { type: Number, required: true, min: 100 },
+    amountPaise: { type: Number, required: true, min: 100 },   // what he pays online
+    grossPaise: Number,                                        // the unpaid rounds, before a table booking amount is taken off
+    creditPaise: { type: Number, default: 0 },                 // the table booking amount taken off (services/bookingCredit.js)
     status: { type: String, enum: ['created', 'captured'], default: 'created' },
     capturedAt: Date,
 }, { timestamps: true });
