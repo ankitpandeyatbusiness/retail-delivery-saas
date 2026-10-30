@@ -136,6 +136,13 @@ export const products = crud('products');
 export const banners = crud('banners');
 export const coupons = crud('coupons');
 export const collections = crud('collections');
+// the inquiries customers sent from the service forms (backend/src/routes/shopInquiriesRouter.js)
+export const inquiries = {
+    list: (params) => d(api.get('/shop/inquiries', q(params))),                       // { items, counts, unread }
+    get: (id) => d(api.get(`/shop/inquiries/${id}`)),                                 // the inquiry with its conversation and the service's quick replies
+    reply: (id, body) => d(api.post(`/shop/inquiries/${id}/reply`, body)),            // { text, status? }
+    update: (id, body) => d(api.patch(`/shop/inquiries/${id}`, body)),                // { status?, note? }
+};
 // the owner's services (bulk order, tiffin, party booking and his own): crud plus the extras (backend/src/routes/shopServicesRouter.js)
 export const services = {
     ...crud('services'),

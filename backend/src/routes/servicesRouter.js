@@ -1,6 +1,8 @@
 // What a customer sees and sends. Mounted at /api/services.
 //   GET /                the shop's services that are switched on
 //   GET /inquiries/mine  what this customer has sent
+//   GET /inquiries/:id   one inquiry with its conversation
+//   POST /inquiries/:id/messages  { text }   write again to the shop
 //   GET /:id             one service with its questions
 //   POST /:id/inquiries  { name, phone, message?, answers? }
 const express = require('express');
@@ -31,6 +33,32 @@ router.get('/inquiries/mine', wrap(async (req, res) => {
     res.json({ items });
 }));
 
+const tell = (event, ctx) => Promise.resolve().then(() => require('../notifications/center').notify(event, ctx)).catch((e) => console.error('Notification error:', e.message));
+const mineInquiry = async (req) => {
+    if (!isId(req.params.id)) throw httpError(404, 'Inquiry not found');
+    const doc = await ServiceInquiry.findOne({ _id: req.params.id, tenantId: req.tenant._id, userId: req.auth.userId });
+    if (!doc) throw httpError(404, 'Inquiry not found');
+    return doc;
+};
+router.get('/inquiries/:id', wrap(async (req, res) => {
+    const doc = await mineInquiry(req);
+    if (doc.customerUnread) { doc.customerUnread = 0; await doc.save(); }
+    const o = doc.toObject(); delete o.note; delete o.ownerUnread;
+    res.json(o);
+}));
+router.post('/inquiries/:id/messages', wrap(async (req, res) => {
+    const doc = await mineInquiry(req);
+    if (doc.status === 'closed') throw httpError(400, 'This inquiry is closed');
+    const text = String(req.body?.text || '').trim().slice(0, 1000);
+    if (!text) throw httpError(400, 'Write a message first');
+    doc.messages.push({ from: 'customer', text });
+    doc.ownerUnread += 1;
+    doc.lastMessageAt = new Date();
+    await doc.save();
+    tell('inquiry_customer_reply', { tenantId: doc.tenantId, vars: { name: doc.name, service: doc.serviceName }, data: { kind: 'inquiry', inquiryId: String(doc._id) } });
+    res.json({ ok: true });
+}));
+
 const live = async (req) => {
     if (!isId(req.params.id)) throw httpError(404, 'This service is not available');
     const s = await ShopService.findOne({ _id: req.params.id, tenantId: req.tenant._id, isActive: true }).lean();
@@ -59,6 +87,10 @@ router.post('/:id/inquiries', wrap(async (req, res) => {
         tenantId: req.tenant._id, serviceId: s._id, serviceName: s.name, userId: req.auth.userId, name, phone,
         message: String(body.message || '').trim().slice(0, 1000), answers, estimate: svc.estimateFor(s, guests),
     });
+    if (doc.message) doc.messages.push({ from: 'customer', text: doc.message });
+    doc.ownerUnread = 1;
+    await doc.save();
+    tell('inquiry_new', { tenantId: req.tenant._id, vars: { service: s.name, name, guests: guests || 0 }, data: { kind: 'inquiry', inquiryId: String(doc._id) } });
     res.status(201).json({ ok: true, id: doc._id });
 }));
 

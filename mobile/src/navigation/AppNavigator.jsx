@@ -72,6 +72,9 @@ import OwnerReviewsScreen from '../screens/owners/OwnerReviewsScreen';
 import OwnerMessagesScreen from '../screens/owners/OwnerMessagesScreen';
 import OwnerCouponsScreen from '../screens/owners/OwnerCouponsScreen';
 import OwnerCouponScreen from '../screens/owners/OwnerCouponScreen';
+import OwnerInquiriesScreen from '../screens/owners/OwnerInquiriesScreen';
+import OwnerInquiryScreen from '../screens/owners/OwnerInquiryScreen';
+import InquiryScreen from '../screens/customers/InquiryScreen';
 import OwnerServicesScreen from '../screens/owners/OwnerServicesScreen';
 import OwnerServiceScreen from '../screens/owners/OwnerServiceScreen';
 import OwnerBannersScreen from '../screens/owners/OwnerBannersScreen';
@@ -343,6 +346,7 @@ export default function AppNavigator() {
                     <Stack.Screen name="MyPoints" component={MyPointsScreen} />
                     <Stack.Screen name="Services" component={ServicesScreen} />
                     <Stack.Screen name="ServiceForm" component={ServiceFormScreen} />
+                    <Stack.Screen name="Inquiry" component={InquiryScreen} />
                     <Stack.Screen name="MyInquiries" component={MyInquiriesScreen} />
                     <Stack.Screen name="TableBill" component={TableBillScreen} />
                     <Stack.Screen name="ReferFriend" component={ReferFriendScreen} />
@@ -376,6 +380,8 @@ export default function AppNavigator() {
                     <Stack.Screen name="OwnerMessages" component={OwnerMessagesScreen} />
                     <Stack.Screen name="OwnerCoupons" component={OwnerCouponsScreen} />
                     <Stack.Screen name="OwnerCoupon" component={OwnerCouponScreen} />
+                    <Stack.Screen name="OwnerInquiries" component={OwnerInquiriesScreen} />
+                    <Stack.Screen name="OwnerInquiry" component={OwnerInquiryScreen} />
                     <Stack.Screen name="OwnerServices" component={OwnerServicesScreen} />
                     <Stack.Screen name="OwnerService" component={OwnerServiceScreen} />
                     <Stack.Screen name="OwnerBanners" component={OwnerBannersScreen} />
