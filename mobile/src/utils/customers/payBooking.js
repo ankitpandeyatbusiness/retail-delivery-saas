@@ -39,12 +39,16 @@ async function finish(id, proof) {
 }
 
 // booking: the held booking; pay: { keyId, rzpOrderId, amountPaise, currency } from the server; user: { email, phone }
-export async function payBooking({ booking, pay, user }) {
+// upiApp: { pkg } opens that app, { chooser: true } or nothing shows Android's list.   card: { number, month, year, cvv, name } pays by card.
+export async function payBooking({ booking, pay, user, upiApp, card }) {
     Razorpay.initRazorpay(pay.keyId);   // the promise it returns never settles, so it is not awaited
     const options = {
         key_id: pay.keyId, order_id: pay.rzpOrderId, amount: String(pay.amountPaise), currency: pay.currency || 'INR',
         description: 'Table booking deposit', email: user?.email || FALLBACK_EMAIL, contact: tenDigits(user?.phone || booking?.phone),
-        method: 'upi', '_[flow]': 'intent',
+        ...(card ? {
+            method: 'card', 'card[name]': card.name || 'Customer', 'card[number]': String(card.number).replace(/\s/g, ''),
+            'card[expiry_month]': String(card.month).padStart(2, '0'), 'card[expiry_year]': String(card.year).slice(-2), 'card[cvv]': String(card.cvv),
+        } : { method: 'upi', ...(upiApp?.pkg ? { upi_app_package_name: upiApp.pkg } : {}), '_[flow]': 'intent' }),
     };
     let proof;
     try { proof = await Razorpay.open(options); }

@@ -8,7 +8,6 @@ import { PageHeader, Card, Pill, Button, Empty } from '../../components/owners/u
 import { ListShimmer } from '../../components/owners/shimmer';
 import { BOOKING_STATUS, DEPOSIT_STATUS } from '../owners/OwnerBookingsScreen';
 import { fetchMyBookings, cancelBooking, payBookingAgain, fetchMyWaitlist, leaveWaitlist } from '../../api/customers/shopApi';
-import { payBooking } from '../../utils/customers/payBooking';
 import BookingTicket from '../../components/customers/BookingTicket';
 import { shareBookingReceipt, hasReceipt } from '../../utils/customers/shareBookingReceipt';
 import { showToast } from '../../components/customers/shop';
@@ -46,8 +45,7 @@ export default function MyBookingsScreen() {
         setBusyId(b._id);
         try {
             const { booking, pay } = await payBookingAgain(b._id);
-            const r = await payBooking({ booking, pay });
-            showToast(r.status === 'paid' ? tr('Table booked') : tr(r.message || 'Not paid yet'));
+            nav.navigate('PaymentMethods', { deposit: { booking, pay }, current: 'upi' });
         } catch (e) { showToast(e?.response?.data?.error || tr('Could not start the payment')); } finally { setBusyId(''); await load(); }
     };
     const hasTicket = (b) => ((b.status === 'confirmed' && !!b.approvedAt) || b.status === 'seated') && new Date(b.endsAt || new Date(b.startsAt).getTime() + 3600000) > new Date();

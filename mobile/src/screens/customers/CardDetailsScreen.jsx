@@ -5,9 +5,10 @@ import React, { useRef, useState } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { usePayChoice } from '../../store/customers/usePayChoice';
+import { payBooking } from '../../utils/customers/payBooking';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, BackHeader } from '../../components/common/kit';
-import { tint } from '../../components/customers/shop';
+import { tint, showToast } from '../../components/customers/shop';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { tr } from '../../i18n';
 import KeyboardScroll from '../../components/common/KeyboardScroll';
@@ -80,6 +81,15 @@ export default function CardDetailsScreen() {
         setErrs(e);
         if (Object.keys(e).length) return;
 
+        const deposit = route.params?.deposit;
+        if (deposit) {   // the deposit of a held table booking: pay now, the card is not kept
+            nav.pop(depth);
+            payBooking({ booking: deposit.booking, pay: deposit.pay, user: useAuthStore.getState().user, card: { number: raw, month: mm, year: String(y), cvv: digits(cvv), name: name.trim() } }).then((r) => {
+                showToast(r.status === 'paid' ? tr('Table booked') : tr(r.message || 'Not paid yet'));
+                nav.navigate('MyBookings');
+            });
+            return;
+        }
         usePayChoice.getState().choose({
             label: `${kind || 'Card'} •••• ${raw.slice(-4)}`,
             value: 'card',

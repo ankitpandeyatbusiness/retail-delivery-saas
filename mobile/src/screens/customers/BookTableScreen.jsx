@@ -8,7 +8,6 @@ import { useBrand, alpha } from '../../components/common/kit';
 import { Button, Empty } from '../../components/owners/ui';
 import { FormPage, Group, TextBox, Label } from '../../components/owners/menuBits';
 import { fetchBookingConfig, fetchBookingSlots, fetchBookingTables, createBooking, joinWaitlist, leaveWaitlist, fetchMyWaitlist } from '../../api/customers/shopApi';
-import { payBooking } from '../../utils/customers/payBooking';
 import { FormShimmer } from '../../components/owners/shimmer';
 import { showToast } from '../../components/customers/shop';
 import { tr } from '../../i18n';
@@ -80,10 +79,7 @@ export default function BookTableScreen() {
         try {
             // the table is held while he pays the deposit; if he does not pay it is let go after a few minutes
             const { booking, pay } = await createBooking({ date, time, party, table, name: name.trim(), phone: phone.trim(), note: note.trim() });
-            const r = await payBooking({ booking, pay, user: { phone: phone.trim() } });
-            if (r.status === 'paid') showToast(tr('Table booked'));
-            else showToast(r.status === 'pending' ? tr(r.message) : tr('Not paid yet. Your table is held for a few minutes: open My bookings to pay.'));
-            nav.replace('MyBookings');
+            nav.navigate('PaymentMethods', { deposit: { booking, pay }, current: 'upi' });   // he picks a UPI app or card; the table stays held meanwhile
         } catch (e) {
             showToast(e?.response?.data?.error || tr('Could not book. Try again.'));
             if (e?.response?.status === 409) { setTable(''); loadTables(); loadSlots(); }   // someone was faster: show the map as it is now

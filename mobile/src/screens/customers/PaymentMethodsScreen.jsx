@@ -11,6 +11,7 @@ import { tint, showToast } from '../../components/customers/shop';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { useTableBill } from '../../store/customers/useTableBill';
 import { payTableBill } from '../../utils/customers/payTableBill';
+import { payBooking } from '../../utils/customers/payBooking';
 import { fetchPaymentConfig } from '../../api/customers/shopApi';
 import { standardUpiApps } from '../../utils/customers/upiApps';
 import { prewarmPayments } from '../../utils/customers/payOnline';
@@ -100,7 +101,8 @@ export default function PaymentMethodsScreen() {
     const [apps, setApps] = useState(null);   // null while we ask the phone which UPI apps it has
     const timer = useRef(null);
     const payShare = !!route.params?.payShare;   // only his own share, then he leaves the bill
-    const payBill = !!route.params?.payBill;   // paying the table bill from the table: online methods only, and the payment starts when one is picked
+    const deposit = route.params?.deposit || null;   // { booking, pay }: the deposit of a held table booking
+    const payBill = !!route.params?.payBill || !!deposit;   // paying the table bill from the table: online methods only, and the payment starts when one is picked
     const user = useAuthStore((st) => st.user);
     const head = useRef(new Animated.Value(0)).current;
 
@@ -120,11 +122,19 @@ export default function PaymentMethodsScreen() {
 
     const selectMethod = (m) => {
         if (timer.current) return;
-        if (m.value === 'card' && payBill) return;
-        if (m.value === 'card') { nav.navigate('CardDetails', { depth: 2 }); return; }   // the card is entered on its own screen
+        if (m.value === 'card' && payBill && !deposit) return;
+        if (m.value === 'card') { nav.navigate('CardDetails', { depth: 2, deposit }); return; }   // the card is entered on its own screen
         setPicked(m.key);
         // short pause so the user sees the tick animation, then go back to the cart
         timer.current = setTimeout(() => {
+            if (deposit) {
+                nav.goBack();
+                payBooking({ booking: deposit.booking, pay: deposit.pay, user, upiApp: m.app }).then((r) => {
+                    showToast(r.status === 'paid' ? tr('Table booked') : tr(r.message || 'Not paid yet'));
+                    nav.navigate('MyBookings');
+                });
+                return;
+            }
             if (payBill) {
                 nav.goBack();
                 payTableBill({ user, upiApp: m.app, scope: payShare ? 'mine' : undefined }).then(async (r) => {
@@ -174,7 +184,7 @@ export default function PaymentMethodsScreen() {
                         {cfg.upi ? upiRows.map((m, i) => (
                             <MethodCard key={m.key} m={m} index={i} selected={picked === m.key} onPick={selectMethod} />
                         )) : null}
-                        {cfg.card && !payBill ? (
+                        {cfg.card && (!payBill || deposit) ? (
                             <MethodCard m={cardRow} index={upiRows.length} selected={picked === 'card'} onPick={selectMethod} />
                         ) : null}
                     </>
