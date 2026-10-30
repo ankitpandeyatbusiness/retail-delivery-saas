@@ -7,7 +7,7 @@ import { useBrand } from '../../components/common/kit';
 import { PageHeader, Card, Pill, Button, Empty } from '../../components/owners/ui';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { BOOKING_STATUS, DEPOSIT_STATUS } from '../owners/OwnerBookingsScreen';
-import { fetchMyBookings, cancelBooking, payBookingAgain } from '../../api/customers/shopApi';
+import { fetchMyBookings, cancelBooking, payBookingAgain, fetchMyWaitlist, leaveWaitlist } from '../../api/customers/shopApi';
 import { payBooking } from '../../utils/customers/payBooking';
 import { shareBookingReceipt, hasReceipt } from '../../utils/customers/shareBookingReceipt';
 import { showToast } from '../../components/customers/shop';
@@ -20,9 +20,13 @@ export default function MyBookingsScreen() {
     const nav = useNavigation();
     const { background, text, muted, primary, ok, error } = useBrand();
     const [items, setItems] = useState(null);
+    const [waits, setWaits] = useState([]);
     const [busyId, setBusyId] = useState('');
     const [receiptId, setReceiptId] = useState('');
-    const load = useCallback(() => { fetchMyBookings().then((r) => setItems(r.items || [])).catch(() => setItems((x) => x || [])); }, []);
+    const load = useCallback(() => {
+        fetchMyBookings().then((r) => setItems(r.items || [])).catch(() => setItems((x) => x || [])).finally(() => {});
+        fetchMyWaitlist().then((r) => setWaits(r.items || [])).catch(() => { });
+    }, []);
     useFocusEffect(useCallback(() => { load(); }, [load]));
 
     const waiting = (b) => b.status === 'held' && new Date(b.holdUntil) > new Date();
@@ -57,7 +61,7 @@ export default function MyBookingsScreen() {
                     <Card key={b._id} style={{ opacity: b.status === 'cancelled' ? 0.6 : 1 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                             <View style={{ flex: 1 }}>
-                                <Text style={{ color: text, fontWeight: '900', fontSize: 17 }}>{b.date} · {b.time}</Text>
+                                <Text style={{ color: text, fontWeight: '900', fontSize: 17 }}>{b.date} · {b.time}{b.table ? ` · ${tr('Table {t}', { t: b.table })}` : ''}</Text>
                                 <Text style={{ color: muted, marginTop: 2 }}>{tr('{n} guests', { n: b.party })} · {tr('₹{n}', { n: b.deposit?.amount || 0 })} {tr(DEPOSIT_STATUS[b.deposit?.status] || '')}</Text>
                             </View>
                             <Pill label={tr(BOOKING_STATUS[b.status])} color={tone(b.status)} />
@@ -69,6 +73,14 @@ export default function MyBookingsScreen() {
                         {hasReceipt(b) ? <Button label={tr('Download receipt')} icon="document-text-outline" kind="ghost" busy={receiptId === b._id} onPress={() => shareBookingReceipt(`/bookings/${b._id}/receipt`, b.code, (on) => setReceiptId(on ? b._id : ''))} style={{ marginTop: 10 }} /> : null}
                         {waiting(b) ? <Button label={tr('Pay ₹{n} deposit', { n: b.deposit?.amount || 0 })} icon="card" busy={busyId === b._id} onPress={() => payNow(b)} style={{ marginTop: 10 }} /> : null}
                         {(b.status === 'confirmed' || waiting(b)) && new Date(b.startsAt) > new Date() ? <Button label={tr('Cancel booking')} kind="ghost" busy={busyId === b._id} onPress={() => cancel(b)} style={{ marginTop: 10 }} /> : null}
+                    </Card>
+                ))}
+                {waits.map((w) => (
+                    <Card key={w._id}>
+                        <Text style={{ color: text, fontWeight: '900', fontSize: 16 }}>{tr('Waiting for a table')}</Text>
+                        <Text style={{ color: muted, marginTop: 2 }}>{w.date} · {w.time} · {tr('{n} guests', { n: w.party })}</Text>
+                        <Text style={{ color: muted, fontSize: 12, marginTop: 6 }}>{tr('We will tell you if a table comes free.')}</Text>
+                        <Button label={tr('Leave the waitlist')} kind="ghost" onPress={async () => { try { await leaveWaitlist(w._id); await load(); } catch (e) { showToast(tr('Could not leave the waitlist')); } }} style={{ marginTop: 10 }} />
                     </Card>
                 ))}
                 <View style={{ paddingHorizontal: 16, marginTop: 4 }}><Button label={tr('Book a table')} icon="add" onPress={() => nav.navigate('BookTable')} /></View>

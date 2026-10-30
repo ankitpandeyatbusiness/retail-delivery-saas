@@ -77,8 +77,7 @@ async function confirm(booking, rzp) {
         if (cur.deposit.status !== 'unpaid') return { ok: true, paid: true, repeat: true };   // already recorded
         // The money arrived after the hold ran out (or after a cancel). Honour the booking if the seats are still free, else send it back.
         if (cur.status === 'expired' && cur.startsAt.getTime() > Date.now()) {
-            const cfg = await tb.getConfig(cur.tenantId);
-            if (await tb.reserve(cur.tenantId, cur.date, cur.time, cur.party, cfg.seatsPerSlot)) {
+            if ((await tb.relock(cur)) === 'ok') {
                 done = await TableBooking.findOneAndUpdate({ _id: cur._id, status: 'expired' }, { $set: { ...paid, status: 'confirmed' } }, { returnDocument: 'after' });
                 if (!done) await tb.release(cur);
             }
@@ -89,8 +88,8 @@ async function confirm(booking, rzp) {
             return { ok: true, paid: false, refunded: true };
         }
     }
-    tell('booking_new', { tenantId: done.tenantId, vars: { name: done.name, party: done.party, date: done.date, time: done.time }, data: { kind: 'booking', bookingId: String(done._id) } });
-    tell('booking_paid', { tenantId: done.tenantId, userId: done.userId, vars: { shop: shop?.name || '', date: done.date, time: done.time, amount: done.deposit.amount, code: done.code }, data: { kind: 'booking', bookingId: String(done._id) } });
+    tell('booking_new', { tenantId: done.tenantId, vars: { name: done.name, party: done.party, date: done.date, time: done.time, table: done.table }, data: { kind: 'booking', bookingId: String(done._id) } });
+    tell('booking_paid', { tenantId: done.tenantId, userId: done.userId, vars: { shop: shop?.name || '', date: done.date, time: done.time, amount: done.deposit.amount, code: done.code, table: done.table }, data: { kind: 'booking', bookingId: String(done._id) } });
     return { ok: true, paid: true };
 }
 
@@ -136,7 +135,7 @@ async function cancelBooking(booking, by, { message } = {}) {
 // The owner taps Allow: the guest is told the restaurant confirmed his table.
 async function allow(booking) {
     const done = await TableBooking.findOneAndUpdate({ _id: booking._id, status: 'confirmed', approvedAt: { $exists: false } }, { $set: { approvedAt: new Date() } }, { returnDocument: 'after' });
-    if (done) tell('booking_allowed', { tenantId: done.tenantId, userId: done.userId, vars: { shop: booking.shopName || '', date: done.date, time: done.time, code: done.code }, data: { kind: 'booking', bookingId: String(done._id) } });
+    if (done) tell('booking_allowed', { tenantId: done.tenantId, userId: done.userId, vars: { shop: booking.shopName || '', date: done.date, time: done.time, code: done.code, table: done.table }, data: { kind: 'booking', bookingId: String(done._id) } });
     return done;
 }
 
@@ -161,8 +160,8 @@ async function remind(now = Date.now()) {
         if (!claimed) continue;
         const data = { kind: 'booking', bookingId: String(b._id) };
         const shop = (await require('../models/Tenant').findById(b.tenantId).select('name').lean())?.name || '';
-        tell('booking_reminder', { tenantId: b.tenantId, vars: { name: b.name, party: b.party, time: b.time, code: b.code }, data });
-        tell('booking_reminder_customer', { tenantId: b.tenantId, userId: b.userId, vars: { shop, party: b.party, time: b.time, code: b.code }, data });
+        tell('booking_reminder', { tenantId: b.tenantId, vars: { name: b.name, party: b.party, time: b.time, code: b.code, table: b.table }, data });
+        tell('booking_reminder_customer', { tenantId: b.tenantId, userId: b.userId, vars: { shop, party: b.party, time: b.time, code: b.code, table: b.table }, data });
         sent += 1;
     }
     return sent;
@@ -178,6 +177,8 @@ async function sweep(now = Date.now()) {
         const gone = await TableBooking.findOneAndUpdate({ _id: b._id, status: 'held' }, { $set: { status: 'expired' } }, { returnDocument: 'after' });
         if (gone) await tb.release(gone);
     }
+    await tb.freeFinished(new Date(now));   // seated guests whose table visit is over give their table back for the rest of the slot
+    await require('./bookingWaitlist').expireOld(now);
     const stuck = await TableBooking.find({ $or: [{ 'deposit.status': 'refund_failed' }, { 'deposit.status': 'refunding', updatedAt: { $lte: new Date(now - 15 * 60000) } }] }).limit(20);
     for (const b of stuck) {
         if (b.deposit.status === 'refunding') {

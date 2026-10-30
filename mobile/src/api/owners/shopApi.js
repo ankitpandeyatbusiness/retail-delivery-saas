@@ -145,6 +145,7 @@ export const booking = {
     get: (id) => d(api.get(`/shop/booking/${id}`)),
     allow: (id) => d(api.post(`/shop/booking/${id}/allow`)),                      // the guest is told the table is confirmed
     deny: (id, message) => d(api.post(`/shop/booking/${id}/cancel`, { message })), // cancels, sends the whole deposit back at once, tells the guest (message is optional)
+    free: (id) => d(api.post(`/shop/booking/${id}/free`)),                         // the guest left: the table is free for the rest of the slot
     adjusted: (id) => d(api.post(`/shop/booking/${id}/adjusted`)),                 // the deposit was taken off the guest's table bill
     noShow: (id) => d(api.post(`/shop/booking/${id}/no-show`)),
     cancel: (id) => d(api.post(`/shop/booking/${id}/cancel`)),

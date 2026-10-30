@@ -5,7 +5,8 @@ const configSchema = new mongoose.Schema({
     tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true, unique: true },
     enabled: { type: Boolean, default: false },            // the owner's on/off slider
     windows: [{ _id: false, days: [String], open: String, close: String }],   // days empty = every day; times "HH:MM"
-    slotMinutes: { type: Number, default: 60 },
+    slotMinutes: { type: Number, default: 60 },                // how long a booking lasts
+    tables: [{ _id: false, no: String, seats: Number, bookable: { type: Boolean, default: true } }],   // the tables a guest can pick (the dine-in table numbers)
     seatsPerSlot: { type: Number, default: 20 },           // guests the shop can seat for one slot
     minParty: { type: Number, default: 1 },
     maxParty: { type: Number, default: 12 },

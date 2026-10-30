@@ -40,6 +40,7 @@ const EVENTS = {
     booking_reminder: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },          // half an hour before a booked table
     booking_reminder_customer: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },
     booking_paid: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },         // the guest's deposit arrived: his table is booked, his receipt is ready
+    booking_waitlist_free: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },   // a table came free in a slot the guest was waiting for
     booking_allowed: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },      // the shop confirmed a guest's table
     booking_owner_cancelled: { to: 'customer', channels: INAPP_PUSH, alsoPush: true }, // the shop cancelled a guest's booking
     inquiry_new: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },             // a customer sent an inquiry from a service form

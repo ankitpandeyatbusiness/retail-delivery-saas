@@ -94,4 +94,5 @@ router.post('/:id/inquiries', wrap(async (req, res) => {
     res.status(201).json({ ok: true, id: doc._id });
 }));
 
+router.use(apiErrors);   // the real message for an expected error ("that table was just taken"), not "Something went wrong"
 module.exports = router;

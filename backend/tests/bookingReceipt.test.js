@@ -84,9 +84,9 @@ describe('the receipt follows a real payment', () => {
 
     test('paying saves the shop\'s details, tells the guest, and the receipt is ready', async () => {
         const date = tb.addDays(tb.todayYmd(), 2);
-        const s = await request(app).put('/api/shop/booking/settings').set(w.owner.headers).send({ windows: [{ days: [], open: '19:00', close: '21:00' }], seatsPerSlot: 20, depositAmount: 200, enabled: true });
+        const s = await request(app).put('/api/shop/booking/settings').set(w.owner.headers).send({ windows: [{ days: [], open: '19:00', close: '21:00' }], tables: [{ no: '1', seats: 6 }], depositAmount: 200, enabled: true });
         assert.equal(s.status, 200, JSON.stringify(s.body));
-        const r = await request(app).post('/api/bookings').set(w.customer.headers).send({ date, time: '19:00', party: 2, name: 'Anil', phone: '9000000030' });
+        const r = await request(app).post('/api/bookings').set(w.customer.headers).send({ date, time: '19:00', party: 2, table: '1', name: 'Anil', phone: '9000000030' });
         assert.equal(r.status, 201, JSON.stringify(r.body));
         assert.equal((await pdf(w.customer.headers, `/api/bookings/${r.body.booking._id}/receipt`)).status, 404);   // nothing paid yet
         payments._mock.setPayment({ id: 'pay_r1', orderId: r.body.pay.rzpOrderId, status: 'captured', amountPaise: r.body.pay.amountPaise });

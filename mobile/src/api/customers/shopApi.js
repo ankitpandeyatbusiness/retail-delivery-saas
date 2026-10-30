@@ -112,3 +112,7 @@ export const cancelBooking = (id) => d(api.post(`/bookings/${id}/cancel`));
 export const payBookingAgain = (id) => d(api.post(`/bookings/${id}/pay`));                        // { booking, pay }: to pay a booking that is still held
 export const verifyBooking = (id, proof) => d(api.post(`/bookings/${id}/verify`, proof));          // { paid, booking }
 export const checkBooking = (id) => d(api.post(`/bookings/${id}/check`));                          // { paid, booking }
+export const fetchBookingTables = (date, time, party) => d(api.get('/bookings/tables', { params: { date, time, party } }));   // { tables:[{ no, seats, state: free | taken | small }], deposit }
+export const joinWaitlist = (body) => d(api.post('/bookings/waitlist', body));                      // { date, time, party, name, phone }: for a slot with no free table
+export const fetchMyWaitlist = () => d(api.get('/bookings/waitlist/mine'));                          // { items }
+export const leaveWaitlist = (id) => d(api.delete(`/bookings/waitlist/${id}`));

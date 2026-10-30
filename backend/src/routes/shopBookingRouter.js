@@ -15,25 +15,27 @@ const router = express.Router();
 const isId = (v) => typeof v === 'string' && mongoose.isValidObjectId(v);
 const tell = (event, ctx) => Promise.resolve().then(() => require('../notifications/center').notify(event, ctx)).catch((e) => console.error('Notification error:', e.message));
 
-router.get('/settings', wrap(async (req, res) => { res.json(await tb.getConfig(req.tenant._id)); }));
+// dineTableCount: how many tables the shop has for dine in (the settings screen offers to fill the table list from it)
+router.get('/settings', wrap(async (req, res) => { res.json({ ...(await tb.getConfig(req.tenant._id)), dineTableCount: require('../services/tableQr').tableCount(req.tenant) || 0 }); }));
 
 router.put('/settings', wrap(async (req, res) => {
     const current = await tb.getConfig(req.tenant._id);
     const changes = tb.cleanConfig(req.body, current);
     if (changes.enabled && !(await bp.available(req.tenant._id))) throw httpError(400, 'Table booking needs online payments. Ask us to connect your Razorpay account first.');
     await TableBookingConfig.updateOne({ tenantId: req.tenant._id }, { $set: changes, $setOnInsert: { tenantId: req.tenant._id } }, { upsert: true });
-    res.json(await tb.getConfig(req.tenant._id));
+    res.json({ ...(await tb.getConfig(req.tenant._id)), dineTableCount: require('../services/tableQr').tableCount(req.tenant) || 0 });
 }));
 
 router.get('/', wrap(async (req, res) => {
     const date = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date || '') ? req.query.date : tb.todayYmd();
     const tenantId = req.tenant._id;
-    const [items, upcoming] = await Promise.all([
+    const [items, upcoming, waiting] = await Promise.all([
         TableBooking.find({ tenantId, date, status: { $nin: ['held', 'expired'] } }).sort({ time: 1, createdAt: 1 }).lean(),
         TableBooking.countDocuments({ tenantId, status: 'confirmed', date: { $gte: tb.todayYmd() } }),
+        require('../models/WaitlistEntry').countDocuments({ tenantId, date, status: 'waiting' }),   // guests waiting for a table that day
     ]);
     const seats = items.filter((b) => tb.LIVE.includes(b.status)).reduce((n, b) => n + b.party, 0);
-    res.json({ date, items, seats, upcoming });
+    res.json({ date, items, seats, upcoming, waiting });
 }));
 
 const mine = async (req) => {
@@ -59,6 +61,14 @@ router.get('/:id/receipt', wrap(async (req, res) => {
     require('../services/bookingReceipt').stream(res, b.toObject(), await require('../models/Tenant').findById(b.tenantId).lean());
 }));
 router.get('/:id', wrap(async (req, res) => { res.json((await mine(req)).toObject()); }));
+
+// The guest has left (or the table is free for another reason): the rest of the slot can be booked by others
+router.post('/:id/free', wrap(async (req, res) => {
+    const b = await mine(req);
+    const done = await tb.freeTable(b);
+    if (!done) throw httpError(400, 'This table is not held by a seated guest');
+    res.json(done.toObject());
+}));
 
 // The owner allows a booking: the guest is told it is confirmed
 router.post('/:id/allow', wrap(async (req, res) => {

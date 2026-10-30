@@ -1,18 +1,27 @@
-// Table booking: the shop's rules, the slots a guest can pick, and taking seats without ever overbooking.
-// All dates and times are India time ("YYYY-MM-DD", "HH:MM"). A booking holds its seats in the slot it starts in.
+// Table booking, cinema style: the guest picks a day, a time and a TABLE. This file holds the shop's rules, the slots, which tables are free, and
+// the locks that make double booking impossible. All dates and times are India time ("YYYY-MM-DD", "HH:MM").
+//   - A booking takes ONE table for ONE slot (the slot length is how long a booking lasts).
+//   - The database enforces it: one row per table and slot, and one row per guest and time (BookingTableLock, BookingUserLock). Of two guests who
+//     ask for the same table at the same moment, exactly one gets it. The same guest cannot hold two tables for the same time either.
+//   - A guest who finishes early (his table bill is paid and the visit is closed) frees the table for the rest of the slot (freeFinished).
+const mongoose = require('mongoose');
 const { httpError } = require('../middlewares/apiErrors');
 const TableBookingConfig = require('../models/TableBookingConfig');
 const TableBooking = require('../models/TableBooking');
-const BookingSlotUse = require('../models/BookingSlotUse');
+const BookingTableLock = require('../models/BookingTableLock');
+const BookingUserLock = require('../models/BookingUserLock');
+const TableSession = require('../models/TableSession');
 
 const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const IST_MS = 330 * 60 * 1000;
-const LIVE = ['confirmed', 'seated'];   // bookings that hold seats
+const LIVE = ['confirmed', 'seated'];   // bookings that hold a table
+const OPEN = ['open', 'bill_asked'];    // a table visit in progress
+const RUNNING_MIN = 30;                 // a slot that already started can still be booked when at least this many minutes are left
 
 const DEFAULTS = {
-    enabled: false, windows: [{ days: [], open: '12:00', close: '22:00' }], slotMinutes: 60, seatsPerSlot: 20, minParty: 1, maxParty: 12,
+    enabled: false, windows: [{ days: [], open: '12:00', close: '22:00' }], slotMinutes: 60, tables: [], minParty: 1, maxParty: 12,
     advanceDays: 14, minNoticeMinutes: 60, closedDates: [], closedSlots: [], depositType: 'per_person', depositAmount: 0,
     depositMode: 'adjust', refundHours: 2, holdMinutes: 10,
 };
@@ -24,10 +33,13 @@ const dayKey = (ymd) => DAY_KEYS[new Date(`${ymd}T12:00:00Z`).getUTCDay()];
 const startsAtOf = (date, time) => new Date(`${date}T${time}:00+05:30`);
 const toMin = (t) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3));
 const toTime = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+const byNo = (a, b) => String(a.no).localeCompare(String(b.no), undefined, { numeric: true });
 
 async function getConfig(tenantId) {
     const doc = await TableBookingConfig.findOne({ tenantId }).lean();
-    return { ...DEFAULTS, ...(doc || {}), tenantId };
+    const c = { ...DEFAULTS, ...(doc || {}), tenantId };
+    c.tables = [...(c.tables || [])].sort(byNo);
+    return c;
 }
 
 const int = (v, lo, hi, what) => {
@@ -50,8 +62,19 @@ function cleanConfig(body, current) {
             return { days, open: w.open, close: w.close };
         });
     }
-    if (has('slotMinutes')) out.slotMinutes = int(b.slotMinutes, 15, 240, 'Slot length');
-    if (has('seatsPerSlot')) out.seatsPerSlot = int(b.seatsPerSlot, 1, 2000, 'Seats per slot');
+    if (has('tables')) {
+        const list = Array.isArray(b.tables) ? b.tables : [];
+        if (list.length > 80) throw httpError(400, 'Up to 80 tables');
+        const seen = new Set();
+        out.tables = list.map((t) => {
+            const no = String(t?.no ?? '').trim().slice(0, 10);
+            if (!no) throw httpError(400, 'Every table needs a number or a name');
+            if (seen.has(no)) throw httpError(400, `Table ${no} is listed twice`);
+            seen.add(no);
+            return { no, seats: int(t.seats, 1, 50, `Seats of table ${no}`), bookable: t.bookable !== false };
+        });
+    }
+    if (has('slotMinutes')) out.slotMinutes = int(b.slotMinutes, 15, 240, 'Booking length');
     if (has('minParty')) out.minParty = int(b.minParty, 1, 200, 'Smallest group');
     if (has('maxParty')) out.maxParty = int(b.maxParty, 1, 200, 'Largest group');
     if (has('advanceDays')) out.advanceDays = int(b.advanceDays, 1, 90, 'Days ahead');
@@ -75,16 +98,20 @@ function cleanConfig(body, current) {
 
     const next = { ...current, ...out };
     if (next.minParty > next.maxParty) throw httpError(400, 'The smallest group cannot be bigger than the largest');
-    if (next.maxParty > next.seatsPerSlot) throw httpError(400, 'The largest group cannot be bigger than the seats per slot');
     if (next.enabled && !(next.depositAmount > 0)) throw httpError(400, 'Set the deposit guests must pay before you switch booking on');
     if (next.enabled && !next.windows.length) throw httpError(400, 'Add the times guests can book before you switch booking on');
+    if (next.enabled && !(next.tables || []).some((t) => t.bookable)) throw httpError(400, 'Add at least one table guests can book before you switch booking on');
     return out;
 }
 
 const depositFor = (config, party) => (config.depositType === 'per_person' ? config.depositAmount * party : config.depositAmount);
+const bookable = (config) => (config.tables || []).filter((t) => t.bookable);
+// the largest group any table can take (the customer screens use it to cap the group size)
+const biggestTable = (config) => bookable(config).reduce((m, t) => Math.max(m, t.seats), 0);
+const maxPartyOf = (config) => Math.min(config.maxParty, biggestTable(config) || config.maxParty);
 
-// The start times a guest could pick on this day, before any seat is counted. Empty when the day is closed or out of range.
-function slotsFor(config, date, now = Date.now()) {
+// Every start time of a day by the shop's rules (before looking at what is taken). Empty when the day is closed or out of range.
+function slotTimes(config, date, now = Date.now()) {
     if (!DATE_RE.test(date || '')) throw httpError(400, 'Pick a date');
     const today = todayYmd(now);
     if (date < today || date > addDays(today, config.advanceDays)) return [];
@@ -96,51 +123,102 @@ function slotsFor(config, date, now = Date.now()) {
         for (let m = toMin(w.open); m + config.slotMinutes <= toMin(w.close); m += config.slotMinutes) times.add(toTime(m));
     }
     const closed = new Set((config.closedSlots || []).filter((s) => s.date === date).map((s) => s.time));
-    const earliest = now + config.minNoticeMinutes * 60000;
-    return [...times].sort().filter((t) => !closed.has(t) && startsAtOf(date, t).getTime() >= earliest);
+    return [...times].sort().filter((t) => !closed.has(t));
 }
 
-// The slots of a day with how many seats are left in each; ok = the group of `party` fits.
-async function availability(config, date, party, now) {
+// The slots a guest may pick: far enough ahead, or a slot that already started and still has time left (then the table must be empty right now).
+const isRunning = (date, time, now) => startsAtOf(date, time).getTime() <= now;
+function slotsFor(config, date, now = Date.now()) {
+    const earliest = now + config.minNoticeMinutes * 60000;
+    return slotTimes(config, date, now).filter((t) => {
+        const s = startsAtOf(date, t).getTime();
+        return s >= earliest || (s <= now && s + config.slotMinutes * 60000 - now >= RUNNING_MIN * 60000);
+    });
+}
+
+// the table numbers with a visit in progress right now (a slot that already started cannot give those out)
+async function inUseNow(tenantId) {
+    return new Set((await TableSession.find({ tenantId, status: { $in: OPEN }, kind: { $ne: 'pickup' } }).select('table').lean()).map((s) => String(s.table)));
+}
+
+// The tables of one slot as the guest sees them: free, taken (booked, or in use right now), or too small for his group.
+async function tablesFor(config, date, time, party, now = Date.now()) {
+    if (!slotsFor(config, date, now).includes(time)) return [];
+    const taken = new Set((await BookingTableLock.find({ tenantId: config.tenantId, date, time }).select('table').lean()).map((l) => l.table));
+    const busy = isRunning(date, time, now) ? await inUseNow(config.tenantId) : new Set();
+    return bookable(config).map((t) => ({
+        no: t.no, seats: t.seats,
+        state: taken.has(String(t.no)) || busy.has(String(t.no)) ? 'taken' : t.seats < party ? 'small' : 'free',
+    }));
+}
+
+// The slots of a day: how many tables fit the group and are free. full = no table is free (the guest may join the waitlist); noFit = no table is big enough.
+async function availability(config, date, party, now = Date.now()) {
     const times = slotsFor(config, date, now);
     if (!times.length) return [];
-    const used = await BookingSlotUse.find({ tenantId: config.tenantId, date, time: { $in: times } }).lean();
-    const taken = new Map(used.map((u) => [u.time, u.seats]));
-    return times.map((time) => { const left = Math.max(0, config.seatsPerSlot - (taken.get(time) || 0)); return { time, left, ok: party > 0 && left >= party }; });
+    const fit = bookable(config).filter((t) => t.seats >= party);
+    const locks = await BookingTableLock.find({ tenantId: config.tenantId, date, time: { $in: times } }).select('time table').lean();
+    const taken = new Map();
+    for (const l of locks) { if (!taken.has(l.time)) taken.set(l.time, new Set()); taken.get(l.time).add(l.table); }
+    const busy = times.some((t) => isRunning(date, t, now)) ? await inUseNow(config.tenantId) : new Set();
+    return times.map((time) => {
+        const gone = taken.get(time) || new Set();
+        const free = fit.filter((t) => !gone.has(String(t.no)) && !(isRunning(date, time, now) && busy.has(String(t.no)))).length;
+        return { time, free, ok: free > 0, full: fit.length > 0 && free === 0, noFit: fit.length === 0 };
+    });
 }
 
-// Takes `party` seats in a slot only if they are still free. Safe when two guests ask at the same moment.
-async function reserve(tenantId, date, time, party, cap) {
-    if (party > cap) return false;
-    try {
-        return !!(await BookingSlotUse.findOneAndUpdate({ tenantId, date, time, seats: { $lte: cap - party } }, { $inc: { seats: party } }, { upsert: true, returnDocument: 'after' }));
-    } catch (e) {
-        if (e.code === 11000) return false;   // the counter exists and is too full
+// Takes the table and the guest's time, or says why not. Two rows, two unique indexes: of any two callers for the same table (or the same guest
+// at the same time) the database lets exactly one in.
+async function lock({ tenantId, userId, date, time, table, bookingId }) {
+    await Promise.all([BookingUserLock.init(), BookingTableLock.init()]);   // the unique indexes must exist before the first insert
+    try { await BookingUserLock.create({ tenantId, userId, date, time, bookingId }); } catch (e) { if (e.code === 11000) return 'user'; throw e; }
+    try { await BookingTableLock.create({ tenantId, date, time, table: String(table), bookingId }); } catch (e) {
+        await BookingUserLock.deleteOne({ bookingId });
+        if (e.code === 11000) return 'table';
         throw e;
     }
+    return 'ok';
 }
-const release = (b) => BookingSlotUse.updateOne({ tenantId: b.tenantId, date: b.date, time: b.time }, { $inc: { seats: -b.party } });
+const unlock = (bookingId) => Promise.all([BookingTableLock.deleteOne({ bookingId }), BookingUserLock.deleteOne({ bookingId })]);
+
+// A booking gives its table back (cancelled, let go, or the guest left early). Guests waiting for this slot are told.
+async function release(b) {
+    await unlock(b._id);
+    require('./bookingWaitlist').notifyFreed(b.tenantId, b.date, b.time).catch((e) => console.error('Waitlist error:', e.message));
+}
+// takes the same table again for a booking that was let go and then paid (services/bookingPayment.js confirm)
+const relock = (b) => lock({ tenantId: b.tenantId, userId: b.userId, date: b.date, time: b.time, table: b.table, bookingId: b._id });
 
 const newCode = () => Array.from({ length: 5 }, () => 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 31)]).join('');
 
-async function book({ config, userId, name, phone, date, time, party, note, now = Date.now() }) {
+async function book({ config, userId, name, phone, date, time, party, table, note, now = Date.now() }) {
     party = Math.round(Number(party));
-    if (!Number.isFinite(party) || party < config.minParty || party > config.maxParty) throw httpError(400, `We take groups of ${config.minParty} to ${config.maxParty}`);
+    if (!Number.isFinite(party) || party < config.minParty || party > maxPartyOf(config)) throw httpError(400, `We take groups of ${config.minParty} to ${maxPartyOf(config)}`);
+    const t = bookable(config).find((x) => String(x.no) === String(table));
+    if (!t) throw httpError(400, 'Pick a table');
+    if (party > t.seats) throw httpError(400, `Table ${t.no} seats ${t.seats}. Pick a bigger table.`);
     if (!slotsFor(config, date, now).includes(time)) throw httpError(400, 'That time cannot be booked. Please pick another.');
-    if (!(await reserve(config.tenantId, date, time, party, config.seatsPerSlot))) throw httpError(409, 'Sorry, that time just filled up. Please pick another.');
+    if (isRunning(date, time, now) && (await inUseNow(config.tenantId)).has(String(t.no))) throw httpError(409, `Table ${t.no} is in use right now. Please pick another.`);
+
+    const _id = new mongoose.Types.ObjectId();
+    const got = await lock({ tenantId: config.tenantId, userId, date, time, table: t.no, bookingId: _id });
+    if (got === 'user') throw httpError(409, 'You already have a booking at this time. Cancel it first, or pick another time.');
+    if (got === 'table') throw httpError(409, `Sorry, table ${t.no} was just taken. Please pick another table.`);
+    const startsAt = startsAtOf(date, time);
     try {
         return await TableBooking.create({
-            tenantId: config.tenantId, userId, code: newCode(), name, phone, date, time, startsAt: startsAtOf(date, time), endsAt: new Date(startsAtOf(date, time).getTime() + config.slotMinutes * 60000), party,
+            _id, tenantId: config.tenantId, userId, code: newCode(), name, phone, date, time, table: String(t.no), startsAt, endsAt: new Date(startsAt.getTime() + config.slotMinutes * 60000), party,
             note: String(note || '').trim().slice(0, 300), deposit: { amount: depositFor(config, party), status: 'unpaid' },
             status: 'held', holdUntil: new Date(now + config.holdMinutes * 60000), rules: { refundHours: config.refundHours, depositMode: config.depositMode },
         });
     } catch (e) {
-        await BookingSlotUse.updateOne({ tenantId: config.tenantId, date, time }, { $inc: { seats: -party } });   // give the seats back
+        await unlock(_id);   // give the table back
         throw e;
     }
 }
 
-// Cancels a booking that still holds seats (waiting for its deposit, or confirmed) and gives them back. Returns the booking, or null when it was not cancellable.
+// Cancels a booking that still holds a table (waiting for its deposit, or confirmed) and gives the table back. Returns the booking, or null when it was not cancellable.
 // The money side (refund or keep) is bookingPayment.cancelBooking.
 async function cancel(booking, by) {
     const done = await TableBooking.findOneAndUpdate({ _id: booking._id, status: { $in: ['held', 'confirmed'] } }, { $set: { status: 'cancelled', cancelledBy: by, cancelledAt: new Date() } }, { returnDocument: 'after' });
@@ -148,4 +226,23 @@ async function cancel(booking, by) {
     return done;
 }
 
-module.exports = { DEFAULTS, LIVE, reserve, release, getConfig, cleanConfig, depositFor, slotsFor, availability, book, cancel, todayYmd, addDays, startsAtOf };
+// The guest left early: his table bill is paid and the visit is closed (or the owner says the table is free), so the rest of the slot is free for others.
+async function freeTable(booking, now = new Date()) {
+    const done = await TableBooking.findOneAndUpdate({ _id: booking._id, status: 'seated', freedAt: { $exists: false } }, { $set: { freedAt: now } }, { returnDocument: 'after' });
+    if (done && done.endsAt.getTime() > now.getTime()) await release(done);
+    return done;
+}
+// Run every minute: seated guests whose table visit has closed give their table back for the rest of the slot.
+async function freeFinished(now = new Date()) {
+    const seated = await TableBooking.find({ status: 'seated', sessionId: { $exists: true }, freedAt: { $exists: false }, endsAt: { $gt: now } }).limit(100);
+    if (!seated.length) return 0;
+    const closed = new Set((await TableSession.find({ _id: { $in: seated.map((b) => b.sessionId) }, status: 'closed' }).select('_id').lean()).map((s) => String(s._id)));
+    let n = 0;
+    for (const b of seated) if (closed.has(String(b.sessionId)) && (await freeTable(b, now))) n += 1;
+    return n;
+}
+
+module.exports = {
+    DEFAULTS, LIVE, getConfig, cleanConfig, depositFor, bookable, biggestTable, maxPartyOf, slotTimes, slotsFor, tablesFor, availability,
+    lock, unlock, relock, release, book, cancel, freeTable, freeFinished, todayYmd, addDays, startsAtOf,
+};

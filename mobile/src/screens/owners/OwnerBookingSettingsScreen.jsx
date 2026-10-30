@@ -4,7 +4,7 @@ import { View, Text, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
 import { Button, Card, Empty, LiveToggle } from '../../components/owners/ui';
-import { FormPage, Group, TextBox, NumberBox, ChoiceBox, DateBox, TimingEditor } from '../../components/owners/menuBits';
+import { FormPage, Group, TextBox, NumberBox, ChoiceBox, DateBox, TimingEditor, Toggle } from '../../components/owners/menuBits';
 import { booking as api, apiError } from '../../api/owners/shopApi';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { showToast } from '../../components/customers/shop';
@@ -41,6 +41,10 @@ export default function OwnerBookingSettingsScreen() {
         } catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); } finally { setSaving(false); }
     };
 
+    const setTable = (i, patch) => set('tables', v.tables.map((t, j) => (j === i ? { ...t, ...patch } : t)));
+    const nextNo = () => String(v.tables.reduce((m, t) => Math.max(m, Number(t.no) || 0), 0) + 1);
+    const fillFromDineIn = () => set('tables', Array.from({ length: v.dineTableCount }, (_, i) => ({ no: String(i + 1), seats: 4, bookable: true })));
+
     const addClosed = () => {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(closeDate)) return showToast(tr('Type the date as 2026-11-01'));
         if (closeTime && !/^([01]\d|2[0-3]):[0-5]\d$/.test(closeTime)) return showToast(tr('Type the time like 19:30'));
@@ -68,9 +72,21 @@ export default function OwnerBookingSettingsScreen() {
             <Group title={tr('When guests can book')} hint={tr('Add a time for lunch and another for dinner. Days left empty means every day.')}>
                 <TimingEditor value={v.windows} onChange={(x) => set('windows', x)} />
             </Group>
-            <Group title={tr('Seats and groups')}>
-                <ChoiceBox label={tr('Slot length')} options={[30, 45, 60, 90, 120].map((m) => [m, tr('{m} min', { m })])} value={v.slotMinutes} onChange={(x) => set('slotMinutes', x)} />
-                <NumberBox label={tr('Guests you can seat in one slot')} integer value={v.seatsPerSlot} onChange={(x) => set('seatsPerSlot', x)} />
+            <Group title={tr('Your tables')} hint={tr('Guests pick one of these, like seats in a cinema. Use the same numbers as your table QR codes.')}>
+                {!v.tables.length && v.dineTableCount > 0 ? <Button label={tr('Add my {n} dine in tables', { n: v.dineTableCount })} icon="grid-outline" kind="ghost" onPress={fillFromDineIn} style={{ marginBottom: 10 }} /> : null}
+                {v.tables.map((t, i) => (
+                    <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-end', marginBottom: 6, opacity: t.bookable ? 1 : 0.6 }}>
+                        <View style={{ flex: 1, marginRight: 8 }}><TextBox label={i === 0 ? tr('Table') : undefined} value={t.no} onChangeText={(x) => setTable(i, { no: x })} maxLength={10} last /></View>
+                        <View style={{ flex: 1, marginRight: 8 }}><NumberBox label={i === 0 ? tr('Seats') : undefined} integer value={t.seats} onChange={(x) => setTable(i, { seats: x ?? 1 })} last /></View>
+                        <View style={{ height: 46, justifyContent: 'center', marginRight: 6 }}><Toggle value={t.bookable} onValueChange={(x) => setTable(i, { bookable: x })} /></View>
+                        <Pressable onPress={() => set('tables', v.tables.filter((_, j) => j !== i))} hitSlop={8} style={{ height: 46, justifyContent: 'center' }}><Ionicons name="trash-outline" size={20} color={error} /></Pressable>
+                    </View>
+                ))}
+                <Button label={tr('Add a table')} icon="add" kind="ghost" onPress={() => set('tables', [...v.tables, { no: nextNo(), seats: 4, bookable: true }])} />
+                <Text style={{ color: muted, fontSize: 12, marginTop: 8 }}>{tr('The switch decides if guests can book that table.')}</Text>
+            </Group>
+            <Group title={tr('Groups and times')}>
+                <ChoiceBox label={tr('How long a booking lasts')} options={[30, 45, 60, 90, 120].map((m) => [m, tr('{m} min', { m })])} value={v.slotMinutes} onChange={(x) => set('slotMinutes', x)} />
                 <NumberBox label={tr('Smallest group')} integer value={v.minParty} onChange={(x) => set('minParty', x)} />
                 <NumberBox label={tr('Largest group')} integer value={v.maxParty} onChange={(x) => set('maxParty', x)} />
                 <NumberBox label={tr('How many days ahead can they book')} integer value={v.advanceDays} onChange={(x) => set('advanceDays', x)} />

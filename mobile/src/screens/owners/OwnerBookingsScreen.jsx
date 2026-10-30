@@ -37,6 +37,10 @@ export default function OwnerBookingsScreen() {
         setBusyId(b._id);
         try { await api.allow(b._id); showToast(tr('The guest is told the table is confirmed')); await load(); } catch (e) { showToast(apiError(e)); } finally { setBusyId(''); }
     };
+    const freeIt = async (b) => {
+        setBusyId(b._id);
+        try { await api.free(b._id); showToast(tr('The table is free for other guests')); await load(); } catch (e) { showToast(apiError(e)); } finally { setBusyId(''); }
+    };
     const adjust = async (b) => {
         setBusyId(b._id);
         try { await api.adjusted(b._id); await load(); } catch (e) { showToast(apiError(e)); } finally { setBusyId(''); }
@@ -60,7 +64,7 @@ export default function OwnerBookingsScreen() {
                 {arrow(-1, 'chevron-back')}
                 <Pressable onPress={() => { setData(null); setDate(todayIst()); }} style={{ alignItems: 'center' }}>
                     <Text style={{ color: text, fontWeight: '900', fontSize: 17 }}>{date === todayIst() ? tr('Today') : nice(date)}</Text>
-                    <Text style={{ color: muted, fontSize: 12 }}>{data ? tr('{n} guests booked', { n: data.seats }) : ' '}</Text>
+                    <Text style={{ color: muted, fontSize: 12 }}>{data ? tr('{n} guests booked', { n: data.seats }) + (data.waiting ? ` · ${tr('{n} waiting for a table', { n: data.waiting })}` : '') : ' '}</Text>
                 </Pressable>
                 {arrow(1, 'chevron-forward')}
             </View>
@@ -73,13 +77,14 @@ export default function OwnerBookingsScreen() {
                             <Text style={{ color: text, fontWeight: '900', fontSize: 20, width: 70 }}>{b.time}</Text>
                             <View style={{ flex: 1, minWidth: 0 }}>
                                 <Text numberOfLines={1} style={{ color: text, fontWeight: '900', fontSize: 16 }}>{b.name} · {tr('{n} guests', { n: b.party })}</Text>
-                                <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{b.phone} · {tr('Code')} {b.code}</Text>
+                                <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{b.table ? `${tr('Table {t}', { t: b.table })} · ` : ''}{b.phone} · {tr('Code')} {b.code}</Text>
                             </View>
                             <Pill label={tr(BOOKING_STATUS[b.status])} color={tone(b.status)} />
                         </View>
                         {b.note ? <Text style={{ color: text, marginTop: 8 }}>{b.note}</Text> : null}
                         <Text style={{ color: muted, fontSize: 12, marginTop: 6 }}>{tr('₹{n}', { n: b.deposit?.amount || 0 })} · {tr(DEPOSIT_STATUS[b.deposit?.status] || 'Deposit paid')}</Text>
                         {hasReceipt(b) ? <Button label={tr('Receipt')} icon="document-text-outline" kind="ghost" busy={receiptId === b._id} onPress={() => shareBookingReceipt(`/shop/booking/${b._id}/receipt`, b.code, (on) => setReceiptId(on ? b._id : ''))} style={{ marginTop: 10 }} /> : null}
+                        {b.status === 'seated' && !b.freedAt && new Date(b.endsAt) > new Date() ? <Button label={tr('Guest left: table is free now')} icon="log-out-outline" kind="ghost" busy={busyId === b._id} onPress={() => freeIt(b)} style={{ marginTop: 10 }} /> : null}
                         {b.status === 'seated' && b.deposit?.credit === 'pending' ? (
                             <View style={{ marginTop: 10, padding: 10, borderRadius: 12, borderWidth: 1, borderColor: primary }}>
                                 <Text style={{ color: text, fontWeight: '800' }}>{tr('Take ₹{n} off the table bill of this guest', { n: b.deposit.amount })}</Text>

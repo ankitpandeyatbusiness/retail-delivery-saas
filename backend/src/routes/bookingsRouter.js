@@ -1,7 +1,9 @@
 // What a customer sees and does for table booking. Mounted at /api/bookings.
 //   GET /config                       { enabled, minParty, maxParty, advanceDays, today, deposit: { type, amount, mode, refundHours } }
 //   GET /slots?date=YYYY-MM-DD&party=4  { date, slots: [{ time, left, ok }], deposit }
-//   POST /                            { date, time, party, name, phone, note? }  ->  { booking, pay }  the seats are held for holdMinutes until the deposit is paid
+//   GET /tables?date&time&party       the tables of a slot: [{ no, seats, state: free | taken | small }]
+//   POST /waitlist { date, time, party, name, phone }   GET /waitlist/mine   DELETE /waitlist/:id   (for a slot with no free table)
+//   POST /                            { date, time, party, table, name, phone, note? }  ->  { booking, pay }  the seats are held for holdMinutes until the deposit is paid
 //   POST /:id/pay     again, to pay a booking that is still held        ->  { booking, pay }
 //   POST /:id/verify  { razorpay_order_id, razorpay_payment_id, razorpay_signature }   POST /:id/check
 //   GET /mine      POST /:id/cancel  (the deposit goes back by the rule the guest saw)
@@ -14,6 +16,7 @@ const TableBooking = require('../models/TableBooking');
 const User = require('../models/User');
 const tb = require('../services/tableBooking');
 const bp = require('../services/bookingPayment');
+const wl = require('../services/bookingWaitlist');
 
 const { wrap, httpError } = apiErrors;
 const router = express.Router();
@@ -39,13 +42,35 @@ const on = async (req) => {
 router.get('/config', wrap(async (req, res) => {
     const c = await tb.getConfig(req.tenant._id);
     const me = c.enabled ? await User.findById(req.auth.userId).select('name phone').lean() : null;
-    res.json({ enabled: !!c.enabled && (await bp.available(c.tenantId)), holdMinutes: c.holdMinutes, minParty: c.minParty, maxParty: c.maxParty, advanceDays: c.advanceDays, today: tb.todayYmd(), deposit: rules(c), me: { name: me?.name || '', phone: me?.phone || '' } });
+    res.json({ enabled: !!c.enabled && (await bp.available(c.tenantId)), holdMinutes: c.holdMinutes, minParty: c.minParty, maxParty: tb.maxPartyOf(c), tables: tb.bookable(c).map((t) => ({ no: t.no, seats: t.seats })), advanceDays: c.advanceDays, today: tb.todayYmd(), deposit: rules(c), me: { name: me?.name || '', phone: me?.phone || '' } });
 }));
 
 router.get('/slots', wrap(async (req, res) => {
     const c = await on(req);
     const party = Math.round(Number(req.query.party)) || c.minParty;
-    res.json({ date: req.query.date, slots: await tb.availability(c, req.query.date, party), deposit: tb.depositFor(c, party) });
+    res.json({ date: req.query.date, slots: await tb.availability(c, req.query.date, party), deposit: tb.depositFor(c, party), waiting: await require('../models/WaitlistEntry').find({ tenantId: c.tenantId, userId: req.auth.userId, date: req.query.date, status: 'waiting' }).select('time party').lean() });
+}));
+
+router.get('/tables', wrap(async (req, res) => {
+    const c = await on(req);
+    const party = Math.round(Number(req.query.party)) || c.minParty;
+    res.json({ date: req.query.date, time: req.query.time, tables: await tb.tablesFor(c, req.query.date, req.query.time, party), deposit: tb.depositFor(c, party) });
+}));
+
+router.post('/waitlist', wrap(async (req, res) => {
+    const c = await on(req);
+    const b = req.body || {};
+    const name = String(b.name || '').trim().slice(0, 80);
+    const phone = String(b.phone || '').trim().slice(0, 20);
+    if (!name) throw httpError(400, 'Please enter your name');
+    if (!/^[0-9+\-\s]{6,20}$/.test(phone)) throw httpError(400, 'Please enter your phone number');
+    res.status(201).json(await wl.join({ config: c, userId: req.auth.userId, name, phone, date: b.date, time: b.time, party: b.party }));
+}));
+router.get('/waitlist/mine', wrap(async (req, res) => { res.json({ items: await wl.mine(req.tenant._id, req.auth.userId) }); }));
+router.delete('/waitlist/:id', wrap(async (req, res) => {
+    if (!isId(req.params.id)) throw httpError(404, 'Not found');
+    await wl.leave(req.tenant._id, req.auth.userId, req.params.id);
+    res.json({ ok: true });
 }));
 
 router.post('/', wrap(async (req, res) => {
@@ -56,9 +81,13 @@ router.post('/', wrap(async (req, res) => {
     if (!name) throw httpError(400, 'Please enter your name');
     if (!/^[0-9+\-\s]{6,20}$/.test(phone)) throw httpError(400, 'Please enter your phone number');
     if (!(await bp.available(c.tenantId))) throw httpError(503, 'Online payment is not available right now. Please try later.');
-    // a guest holds seats for one unpaid booking at a time: starting a new one lets the older unpaid one go (no blocking a slot without paying)
+    // the same guest asking again for the very same table, time and group (a second tap, a second phone): he gets his own held booking back, not a second one
+    const mineHeld = await TableBooking.findOne({ tenantId: c.tenantId, userId: req.auth.userId, status: 'held', date: b.date, time: b.time, table: String(b.table), party: Math.round(Number(b.party)), holdUntil: { $gt: new Date() } });
+    if (mineHeld) return res.json({ booking: mineHeld.toObject(), pay: await bp.start(mineHeld) });
+    // a guest holds a table for one unpaid booking at a time: starting a new one lets the older unpaid one go (no blocking a slot without paying)
     for (const old of await TableBooking.find({ tenantId: c.tenantId, userId: req.auth.userId, status: 'held' })) await bp.cancelBooking(old, 'customer');
-    const booking = await tb.book({ config: c, userId: req.auth.userId, name, phone, date: b.date, time: b.time, party: b.party, note: b.note });
+    const booking = await tb.book({ config: c, userId: req.auth.userId, name, phone, date: b.date, time: b.time, party: b.party, table: b.table, note: b.note });
+    wl.markBooked(c.tenantId, req.auth.userId, b.date, b.time).catch(() => { });   // he is no longer waiting for this slot
     try {
         const pay = await bp.start(booking);
         res.status(201).json({ booking: (await TableBooking.findById(booking._id)).toObject(), pay });
@@ -94,7 +123,7 @@ router.get('/card', wrap(async (req, res) => {
         tenantId: req.tenant._id, userId: req.auth.userId, status: 'confirmed', approvedAt: { $exists: true },
         $or: [{ endsAt: { $gt: now } }, { endsAt: { $exists: false }, startsAt: { $gt: new Date(now.getTime() - 60 * 60000) } }],
     }).sort({ startsAt: 1 }).lean();
-    res.json({ card: b ? { id: String(b._id), code: b.code, date: b.date, time: b.time, party: b.party, startsAt: b.startsAt, endsAt: b.endsAt || new Date(b.startsAt.getTime() + 60 * 60000) } : null });
+    res.json({ card: b ? { id: String(b._id), code: b.code, table: b.table || null, date: b.date, time: b.time, party: b.party, startsAt: b.startsAt, endsAt: b.endsAt || new Date(b.startsAt.getTime() + 60 * 60000) } : null });
 }));
 
 // The receipt of the deposit (PDF)
@@ -117,4 +146,5 @@ router.post('/:id/cancel', wrap(async (req, res) => {
     res.json(done);
 }));
 
+router.use(apiErrors);   // the real message for an expected error ("that table was just taken"), not "Something went wrong"
 module.exports = router;

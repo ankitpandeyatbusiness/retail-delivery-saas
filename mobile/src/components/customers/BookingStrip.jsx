@@ -54,7 +54,7 @@ export default function BookingStrip({ routeName, onOpen }) {
             <Pressable onPress={onOpen} accessibilityRole="button" style={{ borderRadius: 18, backgroundColor: primary, elevation: 8, paddingVertical: 12, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center' }}>
                 <Ionicons name="calendar" size={20} color={onPrimary} />
                 <View style={{ flex: 1, marginLeft: 10 }}>
-                    <Text style={{ color: onPrimary, fontWeight: '900' }} numberOfLines={1}>{tr('Your table · {d} {t}', { d: dayWord(card.date, now), t: card.time })}</Text>
+                    <Text style={{ color: onPrimary, fontWeight: '900' }} numberOfLines={1}>{card.table ? tr('Table {n} · {d} {t}', { n: card.table, d: dayWord(card.date, now), t: card.time }) : tr('Your table · {d} {t}', { d: dayWord(card.date, now), t: card.time })}</Text>
                     <Text style={{ color: onPrimary, opacity: 0.85, fontSize: 12 }} numberOfLines={1}>
                         {on ? tr('Your slot has started · Code {c}', { c: card.code }) : soon ? tr('In {n} min · {g} guests · Code {c}', { n: left, g: card.party, c: card.code }) : tr('{g} guests · Code {c}', { g: card.party, c: card.code })}
                     </Text>

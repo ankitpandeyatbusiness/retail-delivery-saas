@@ -3,6 +3,8 @@ const mongoose = require('mongoose');
 const bookingSchema = new mongoose.Schema({
     tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true },
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    table: String,                                         // the table the guest picked
+    freedAt: Date,                                         // the guest left early: the table was given back for the rest of the slot
     code: { type: String, required: true },                // short code the guest shows at the door
     name: { type: String, required: true, maxlength: 80 },
     phone: { type: String, required: true, maxlength: 20 },

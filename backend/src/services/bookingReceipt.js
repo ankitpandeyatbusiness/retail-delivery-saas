@@ -38,7 +38,7 @@ function dataFor(b, tenant) {
     return {
         shop: { name: safe(seller.name || tenant?.business?.legalName || tenant?.name || 'Shop'), gstin: seller.gstin || tenant?.business?.gstin || '', fssai: seller.fssai || tenant?.business?.fssai || '', phone: tenant?.phone || '', address: [tenant?.address?.line, tenant?.address?.city, tenant?.address?.pincode].filter(Boolean).join(', ') },
         receiptNo: `BK-${b.code}`,
-        code: b.code, name: safe(b.name) || 'Guest', phone: b.phone, date: b.date, time: b.time, party: b.party, note: safe(b.note),
+        table: b.table || '', code: b.code, name: safe(b.name) || 'Guest', phone: b.phone, date: b.date, time: b.time, party: b.party, note: safe(b.note),
         amount: b.deposit?.amount || 0, paidAt: b.payment.paidAt || null, paymentId: b.payment.rzpPaymentId,
         status: b.status, outcome: outcome(b), refundId: b.deposit?.refundId || '', refundHours: b.rules?.refundHours,
         cancelNote: safe(b.cancelNote),
@@ -60,7 +60,7 @@ function render(doc, d) {
 
     doc.font('Helvetica-Bold').fontSize(9).fillColor(MUTED).text('YOUR TABLE', LEFT, y);
     y += 14;
-    const rows = [['Guest', d.name], ['Phone', d.phone], ['Date', day(d.date)], ['Time', d.time], ['Guests', String(d.party)], ['Booking code', d.code]];
+    const rows = [['Guest', d.name], ['Phone', d.phone], ['Date', day(d.date)], ['Time', d.time], ['Guests', String(d.party)], ...(d.table ? [['Table', d.table]] : []), ['Booking code', d.code]];
     if (d.note) rows.push(['Note', d.note]);
     for (const [k, v] of rows) {
         doc.font('Helvetica').fontSize(10).fillColor(MUTED).text(k, LEFT, y, { width: 120 });
