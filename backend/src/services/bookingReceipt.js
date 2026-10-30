@@ -43,7 +43,7 @@ function dataFor(b, tenant) {
         amount: b.deposit?.amount || 0, paidAt: b.payment.paidAt || null, paymentId: b.payment.rzpPaymentId,
         status: b.status, outcome: outcome(b), refundId: b.deposit?.refundId || '', refundHours: b.rules?.refundHours,
         cancelNote: safe(b.cancelNote),
-        qr: b.status === 'confirmed' && ticket.ticketable(b) ? ticket.matrixOf(ticket.tokenOf(b)) : null,   // the door ticket, only while the booking is still to come
+        qr: b.status === 'confirmed' && ticket.ticketable(b) && !ticket.over(b) ? ticket.matrixOf(ticket.tokenOf(b)) : null,   // the door ticket, only while the booking is still to come
     };
 }
 

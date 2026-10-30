@@ -2327,6 +2327,7 @@ export default {
     "This booking is for another day": "ही बुकिंग दुसऱ्या दिवसाची आहे",
     "Too early. Guests can come in from 15 minutes before their time": "खूप लवकर आहे. पाहुणे त्यांच्या वेळेच्या 15 मिनिटे आधीपासून येऊ शकतात",
     "This booking time is over": "या बुकिंगची वेळ संपली आहे",
+    "This booking time is over. The ticket is no longer valid.": "या बुकिंगची वेळ संपली आहे. तिकीट आता वैध नाही.",
     "Use a saved address": "सेव्ह केलेला पत्ता वापरा",
     "Copy this question to:": "हा प्रश्न येथे कॉपी करा:",
     "Copied to {n}": "{n} मध्ये कॉपी झाले",

@@ -12,20 +12,26 @@ import { tr } from '../../i18n';
 const KEY = (id) => `ticket:${id}`;
 const nice = (ymd) => new Date(`${ymd}T12:00:00Z`).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 
+const ended = (t) => Date.now() > new Date(t.endsAt || new Date(t.startsAt).getTime() + 3600000).getTime();
+
 export default function BookingTicket({ id }) {
     const { text, muted, primary, ok, surface, border } = useBrand();
     const [t, setT] = useState(null);
     const [failed, setFailed] = useState(false);
+    const [over, setOver] = useState(false);   // the slot is finished: no QR any more
 
     useEffect(() => {
         let live = true;
-        AsyncStorage.getItem(KEY(id)).then((x) => { if (live && x) setT((c) => c || JSON.parse(x)); }).catch(() => { });
+        const gone = () => { AsyncStorage.removeItem(KEY(id)).catch(() => { }); if (live) { setT(null); setOver(true); } };
+        AsyncStorage.getItem(KEY(id)).then((x) => { if (!x) return; const c = JSON.parse(x); if (ended(c)) gone(); else if (live) setT((cur) => cur || c); }).catch(() => { });
         fetchBookingTicket(id)
-            .then((r) => { if (live) { setT(r); setFailed(false); } AsyncStorage.setItem(KEY(id), JSON.stringify(r)).catch(() => { }); })
-            .catch(() => { if (live) setFailed(true); });
-        return () => { live = false; };
+            .then((r) => { if (ended(r)) return gone(); if (live) { setT(r); setFailed(false); } AsyncStorage.setItem(KEY(id), JSON.stringify(r)).catch(() => { }); })
+            .catch((e) => { if (e?.response?.status === 410) gone(); else if (live) setFailed(true); });
+        const timer = setInterval(() => setT((cur) => { if (cur && ended(cur)) { AsyncStorage.removeItem(KEY(id)).catch(() => { }); setOver(true); return null; } return cur; }), 30000);   // the slot ends while the screen is open
+        return () => { live = false; clearInterval(timer); };
     }, [id]);
 
+    if (over) return <Text style={{ color: muted, marginTop: 8 }}>{tr('This booking time is over. The ticket is no longer valid.')}</Text>;
     if (!t) return failed ? <Text style={{ color: muted, marginTop: 8 }}>{tr('The ticket could not be loaded. Check your internet.')}</Text> : <ActivityIndicator color={primary} style={{ marginTop: 12 }} />;
     const arrived = t.status === 'seated';
     return (

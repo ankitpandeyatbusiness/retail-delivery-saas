@@ -49,3 +49,11 @@ test('the scanner says what is wrong, and accepts 15 minutes early', async () =>
     stub(null); assert.equal((await ticket.check(tenant, tok, at(0))).state, 'not_found');
     assert.equal((await ticket.check(tenant, 'TB1.64b7f0c2a1b2c3d4e5f60718.00000000000000000000', at(0))).state, 'not_found');
 });
+
+test('the ticket is gone when the slot is over', () => {
+    const b = mk();
+    assert.equal(ticket.over(b, at(59)), false);
+    assert.equal(ticket.over(b, at(61)), true);
+    assert.throws(() => ticket.ticketFor(b, { name: 'S' }, at(61)), /time is over/);
+    assert.equal(ticket.ticketFor(b, { name: 'S' }, at(30)).table, '4');
+});

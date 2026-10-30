@@ -38,7 +38,11 @@ function matrixOf(text) {
 // a guest holds a ticket only for a booking that is paid and that the owner allowed
 const ticketable = (b) => ['confirmed', 'seated'].includes(b.status) && !!b.approvedAt && b.deposit?.status !== 'unpaid';
 
-function ticketFor(b, tenant) {
+// the slot is over: the ticket is no longer shown or issued
+const over = (b, now = Date.now()) => now > (b.endsAt ? new Date(b.endsAt).getTime() : new Date(b.startsAt).getTime() + 60 * 60000);
+
+function ticketFor(b, tenant, now = Date.now()) {
+    if (over(b, now)) throw httpError(410, 'This booking time is over');
     if (!ticketable(b)) throw httpError(404, 'There is no ticket for this booking yet');
     const token = tokenOf(b);
     return {
@@ -88,4 +92,4 @@ async function arrive(tenant, input, actor, now = Date.now()) {
     return { state: 'arrived_now', message: 'Marked as arrived', booking: { ...c.booking, status: 'seated', arrivedAt: done.arrivedAt } };
 }
 
-module.exports = { EARLY_MIN, tokenOf, idFromToken, matrixOf, ticketable, ticketFor, check, arrive };
+module.exports = { EARLY_MIN, over, tokenOf, idFromToken, matrixOf, ticketable, ticketFor, check, arrive };

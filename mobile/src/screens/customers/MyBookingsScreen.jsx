@@ -50,7 +50,7 @@ export default function MyBookingsScreen() {
             showToast(r.status === 'paid' ? tr('Table booked') : tr(r.message || 'Not paid yet'));
         } catch (e) { showToast(e?.response?.data?.error || tr('Could not start the payment')); } finally { setBusyId(''); await load(); }
     };
-    const hasTicket = (b) => (b.status === 'confirmed' && !!b.approvedAt) || b.status === 'seated';
+    const hasTicket = (b) => ((b.status === 'confirmed' && !!b.approvedAt) || b.status === 'seated') && new Date(b.endsAt || new Date(b.startsAt).getTime() + 3600000) > new Date();
     const nearest = shown.filter((b) => b.status === 'confirmed' && b.approvedAt && new Date(b.endsAt || b.startsAt) > new Date()).sort((a, c) => new Date(a.startsAt) - new Date(c.startsAt))[0];
     const open = (b) => (shut[b._id] === undefined ? nearest?._id === b._id : !shut[b._id]);
     const tone = (s) => (s === 'seated' ? ok : s === 'confirmed' ? primary : s === 'no_show' || s === 'cancelled' ? error : muted);

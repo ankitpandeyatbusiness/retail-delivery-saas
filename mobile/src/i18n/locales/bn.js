@@ -2327,6 +2327,7 @@ export default {
     "This booking is for another day": "এই বুকিং অন্য দিনের",
     "Too early. Guests can come in from 15 minutes before their time": "এখনও আগে। অতিথি নিজের সময়ের ১৫ মিনিট আগে থেকে আসতে পারেন",
     "This booking time is over": "এই বুকিংয়ের সময় শেষ হয়ে গেছে",
+    "This booking time is over. The ticket is no longer valid.": "এই বুকিংয়ের সময় শেষ হয়ে গেছে। টিকিট আর বৈধ নয়।",
     "Use a saved address": "সংরক্ষিত ঠিকানা ব্যবহার করুন",
     "Copy this question to:": "এই প্রশ্ন এখানে কপি করুন:",
     "Copied to {n}": "{n}-এ কপি হয়েছে",
