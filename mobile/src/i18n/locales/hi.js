@@ -2293,6 +2293,7 @@ export default {
     "Use our recommended questions?": "हमारे सुझाए सवाल इस्तेमाल करें?",
     "Use recommended": "सुझाए इस्तेमाल करें",
     "Use recommended settings": "सुझाई सेटिंग इस्तेमाल करें",
+    "See all {n} photos": "सभी {n} फोटो देखें",
     "The ticket could not be loaded. Check your internet.": "टिकट लोड नहीं हो सका। इंटरनेट जांचें।",
     "Your table": "आपकी टेबल",
     "TABLE": "टेबल",

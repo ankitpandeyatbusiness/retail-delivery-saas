@@ -1,6 +1,6 @@
 // One service: photos, price and points on top, then the inquiry form (the shop owner chose the questions).
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,6 +12,7 @@ import { FormShimmer } from '../../components/owners/shimmer';
 import { showToast } from '../../components/customers/shop';
 import { maskTime } from '../../utils/owners/menuRules';
 import { priceLine } from '../owners/OwnerServicesScreen';
+import PhotoCarousel from '../../components/customers/PhotoCarousel';
 import { AddressSheet, addrLine } from '../../components/customers/addresses';
 import { pickPhoto, uploadInquiryPhoto } from '../../utils/common/photoUpload';
 import { tr } from '../../i18n';
@@ -136,12 +137,8 @@ export default function ServiceFormScreen() {
 
     return (
         <FormPage title={s.name} footer={<Button label={tr('Inquire')} icon="send" busy={busy} onPress={send} />}>
-            {s.photos?.length ? (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
-                    {s.photos.map((u) => <Image key={u} source={{ uri: u }} contentFit="cover" style={{ width: 260, height: 170, borderRadius: 14, marginRight: 10 }} />)}
-                </ScrollView>
-            ) : null}
-            <View style={{ backgroundColor: surface, borderRadius: 14, borderWidth: 1, borderColor: border, padding: 14, marginBottom: 14 }}>
+            <PhotoCarousel photos={s.photos} />
+            <View style={{ backgroundColor: surface, borderRadius: 14, borderWidth: 1, borderColor: border, padding: 14, marginHorizontal: 16, marginBottom: 14 }}>
                 <Text style={{ color: primary, fontWeight: '900', fontSize: 20 }}>{priceLine(s)}</Text>
                 {s.description ? <Text style={{ color: text, marginTop: 8, lineHeight: 20 }}>{s.description}</Text> : null}
                 {(s.bullets || []).map((b) => (
