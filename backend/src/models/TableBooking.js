@@ -5,6 +5,8 @@ const bookingSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     table: String,                                         // the table the guest picked
     freedAt: Date,                                         // the guest left early: the table was given back for the rest of the slot
+    arrivedAt: Date,                                       // the guest's ticket was scanned (or the owner marked him seated)
+    arrivedBy: { type: { type: String }, role: String, name: String },   // who scanned: owner or a staff member
     code: { type: String, required: true },                // short code the guest shows at the door
     name: { type: String, required: true, maxlength: 80 },
     phone: { type: String, required: true, maxlength: 20 },

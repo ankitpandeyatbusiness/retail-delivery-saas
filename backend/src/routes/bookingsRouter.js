@@ -16,6 +16,7 @@ const TableBooking = require('../models/TableBooking');
 const User = require('../models/User');
 const tb = require('../services/tableBooking');
 const bp = require('../services/bookingPayment');
+const ticket = require('../services/bookingTicket');
 const wl = require('../services/bookingWaitlist');
 const featureGate = require('../services/featureGate');
 
@@ -125,6 +126,12 @@ router.get('/card', wrap(async (req, res) => {
         $or: [{ endsAt: { $gt: now } }, { endsAt: { $exists: false }, startsAt: { $gt: new Date(now.getTime() - 60 * 60000) } }],
     }).sort({ startsAt: 1 }).lean();
     res.json({ card: b ? { id: String(b._id), code: b.code, table: b.table || null, date: b.date, time: b.time, party: b.party, startsAt: b.startsAt, endsAt: b.endsAt || new Date(b.startsAt.getTime() + 60 * 60000) } : null });
+}));
+
+// The ticket: the QR the guest shows at the door (only for a paid booking the owner allowed)
+router.get('/:id/ticket', wrap(async (req, res) => {
+    const b = await mineBooking(req);
+    res.json(ticket.ticketFor(b.toObject(), req.tenant));
 }));
 
 // The receipt of the deposit (PDF)

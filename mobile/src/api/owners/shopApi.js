@@ -149,6 +149,8 @@ export const booking = {
     adjusted: (id) => d(api.post(`/shop/booking/${id}/adjusted`)),                 // the deposit was taken off the guest's table bill
     noShow: (id) => d(api.post(`/shop/booking/${id}/no-show`)),
     cancel: (id) => d(api.post(`/shop/booking/${id}/cancel`)),
+    scan: (token) => d(api.post('/shop/booking/scan', { token })),                   // look at a guest's QR or typed code: { state, message, booking }
+    arrive: (token) => d(api.post('/shop/booking/scan/arrive', { token })),           // mark him arrived (seated)
 };
 // the inquiries customers sent from the service forms (backend/src/routes/shopInquiriesRouter.js)
 export const inquiries = {

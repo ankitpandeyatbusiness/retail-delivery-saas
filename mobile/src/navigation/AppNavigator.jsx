@@ -75,6 +75,7 @@ import OwnerCouponsScreen from '../screens/owners/OwnerCouponsScreen';
 import OwnerCouponScreen from '../screens/owners/OwnerCouponScreen';
 import OwnerBookingsScreen from '../screens/owners/OwnerBookingsScreen';
 import OwnerBookingDenyScreen from '../screens/owners/OwnerBookingDenyScreen';
+import BookingScanScreen from '../screens/common/BookingScanScreen';
 import OwnerBookingSettingsScreen from '../screens/owners/OwnerBookingSettingsScreen';
 import BookTableScreen from '../screens/customers/BookTableScreen';
 import MyBookingsScreen from '../screens/customers/MyBookingsScreen';
@@ -390,6 +391,7 @@ export default function AppNavigator() {
                     <Stack.Screen name="OwnerCoupon" component={OwnerCouponScreen} />
                     <Stack.Screen name="OwnerBookings" component={OwnerBookingsScreen} />
                     <Stack.Screen name="OwnerBookingDeny" component={OwnerBookingDenyScreen} />
+                    <Stack.Screen name="BookingScan" component={BookingScanScreen} />
                     <Stack.Screen name="OwnerBookingSettings" component={OwnerBookingSettingsScreen} />
                     <Stack.Screen name="OwnerInquiries" component={OwnerInquiriesScreen} />
                     <Stack.Screen name="OwnerInquiry" component={OwnerInquiryScreen} />

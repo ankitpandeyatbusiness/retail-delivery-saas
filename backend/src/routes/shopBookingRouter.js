@@ -9,6 +9,7 @@ const TableBookingConfig = require('../models/TableBookingConfig');
 const TableBooking = require('../models/TableBooking');
 const tb = require('../services/tableBooking');
 const bp = require('../services/bookingPayment');
+const ticket = require('../services/bookingTicket');
 const featureGate = require('../services/featureGate');
 
 const { wrap, httpError } = apiErrors;
@@ -29,6 +30,10 @@ router.put('/settings', wrap(async (req, res) => {
     res.json({ ...(await tb.getConfig(req.tenant._id)), dineTableCount: require('../services/tableQr').tableCount(req.tenant) || 0, featureOn: featureGate.isOn(req.tenant, 'tableBooking') });
 }));
 
+
+// The door scanner: the QR (or the typed code) of a guest. /scan only looks; /scan/arrive marks him arrived (seated).
+router.post('/scan', wrap(async (req, res) => { res.json(await ticket.check(req.tenant, req.body?.token || req.body?.code)); }));
+router.post('/scan/arrive', wrap(async (req, res) => { res.json(await ticket.arrive(req.tenant, req.body?.token || req.body?.code, { type: 'owner', name: 'Owner' })); }));
 router.get('/', wrap(async (req, res) => {
     const date = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date || '') ? req.query.date : tb.todayYmd();
     const tenantId = req.tenant._id;

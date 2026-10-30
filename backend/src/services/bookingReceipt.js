@@ -3,6 +3,7 @@
 // deposit needs its own tax invoice, this is the place to add it.) The shop's name and GSTIN are the ones saved when the guest paid.
 const PDFDocument = require('pdfkit');
 const { httpError } = require('../middlewares/apiErrors');
+const ticket = require('./bookingTicket');
 
 const INK = '#1f2933';
 const MUTED = '#6b7280';
@@ -42,6 +43,7 @@ function dataFor(b, tenant) {
         amount: b.deposit?.amount || 0, paidAt: b.payment.paidAt || null, paymentId: b.payment.rzpPaymentId,
         status: b.status, outcome: outcome(b), refundId: b.deposit?.refundId || '', refundHours: b.rules?.refundHours,
         cancelNote: safe(b.cancelNote),
+        qr: b.status === 'confirmed' && ticket.ticketable(b) ? ticket.matrixOf(ticket.tokenOf(b)) : null,   // the door ticket, only while the booking is still to come
     };
 }
 
@@ -95,6 +97,18 @@ function render(doc, d) {
         `${d.refundHours !== undefined ? `Full refund if you cancel at least ${d.refundHours} hour${d.refundHours === 1 ? '' : 's'} before the booking, and always if the restaurant cancels. ` : ''}This is a receipt for a booking amount paid online, not a tax invoice. GST, if any, is charged on your final dine-in bill. This document is computer generated.`,
         LEFT + 10, y + 8, { width: RIGHT - LEFT - 20 },
     );
+    if (d.qr) {   // the same QR as in the app: the shop scans it at the door
+        y += 60;
+        const cell = 3;
+        const size = d.qr.size * cell;
+        doc.save().rect(LEFT, y, size + 16, size + 16).fill('#ffffff').restore();
+        doc.save().fillColor('#000000');
+        d.qr.rows.forEach((row, r) => { for (let c = 0; c < row.length; c++) if (row[c] === '1') doc.rect(LEFT + 8 + c * cell, y + 8 + r * cell, cell, cell).fill(); });
+        doc.restore();
+        doc.font('Helvetica-Bold').fontSize(12).fillColor(INK).text('Show this QR at the door', LEFT + size + 32, y + 12, { width: 300 });
+        doc.font('Helvetica').fontSize(10).fillColor(MUTED).text(`${d.table ? `Table ${d.table} · ` : ''}${day(d.date)} · ${d.time}
+Booking code ${d.code}`, LEFT + size + 32, doc.y + 4, { width: 300 });
+    }
 }
 
 // sends the PDF straight to the response

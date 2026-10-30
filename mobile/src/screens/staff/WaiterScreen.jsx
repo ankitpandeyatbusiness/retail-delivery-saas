@@ -2,11 +2,11 @@
 // "Tables" (who is eating, who owes what; tap a table for its bill). Things arrive by themselves with a sound, and the screen stays awake.
 import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, FlatList, ScrollView, Pressable, RefreshControl } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useBrand, alpha } from '../../components/common/kit';
-import { Empty } from '../../components/owners/ui';
+import { Empty, Button } from '../../components/owners/ui';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { StaffHeader, Segment, FadeIn, useColumns, cellStyle } from '../../components/staff/staffBits';
 import { ServeCard, RequestCard, TableCell, ServedStrip } from '../../components/staff/WaiterCards';
@@ -21,6 +21,7 @@ import { tr } from '../../i18n';
 
 export default function WaiterScreen() {
     const { background, text, warn, primary, muted } = useBrand();
+    const nav = useNavigation();
     const shop = useStaffStore((s) => s.me?.shop);
     const w = useWaiterStore();
     const [tab, setTab] = useState('serve');
@@ -55,6 +56,7 @@ export default function WaiterScreen() {
         <View style={{ flex: 1, backgroundColor: background }}>
             <StaffHeader title={tr('Waiter')} subtitle={sub} />
             <OffDutyBanner />
+            <View style={{ paddingHorizontal: 16, marginBottom: 8 }}><Button label={tr('Scan booking')} icon="qr-code-outline" kind="ghost" onPress={() => nav.navigate('BookingScan', { who: 'waiter' })} /></View>
             <Segment value={tab} onChange={setTab} tabs={tabs} />
             {w.state === 'error' && w.loadedAt ? (
                 <View style={{ marginHorizontal: 16, marginBottom: 10, padding: 10, borderRadius: 12, backgroundColor: alpha(warn, 0.16), flexDirection: 'row', alignItems: 'center' }}>

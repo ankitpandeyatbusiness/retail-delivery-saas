@@ -169,6 +169,11 @@ core.post('/kitchen/orders/:id/problem', onlyKitchen, wrap(async (req, res) => {
 
 // the waiter: dishes to serve, what the tables ask for, the tables and their bills
 const onlyWaiter = (req, res, next) => (req.staff.role === 'waiter' ? next() : res.status(403).json({ error: 'This is for the waiters', code: 'not_staff' }));
+// the door scanner for booked tables: a waiter looks at a guest's QR (or typed code) and marks him arrived
+core.post('/waiter/booking/scan', onlyWaiter, wrap(async (req, res) => { res.json(await require('../services/bookingTicket').check(req.tenant, req.body?.token || req.body?.code)); }));
+core.post('/waiter/booking/scan/arrive', onlyWaiter, wrap(async (req, res) => {
+    res.json(await require('../services/bookingTicket').arrive(req.tenant, req.body?.token || req.body?.code, { type: 'staff', role: 'waiter', name: req.staff.name || req.shopUser.phone }));
+}));
 core.get('/waiter/overview', onlyWaiter, wrap(async (req, res) => { res.json(await waiter.overview(req.tenant)); }));
 core.post('/waiter/orders/:id/serve', onlyWaiter, wrap(async (req, res) => {
     if (!isId(req.params.id)) throw httpError(404, 'Order not found');

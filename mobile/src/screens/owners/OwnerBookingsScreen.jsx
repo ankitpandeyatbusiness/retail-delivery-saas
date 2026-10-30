@@ -60,6 +60,7 @@ export default function OwnerBookingsScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Bookings')} />
+            <View style={{ paddingHorizontal: 16, marginBottom: 8 }}><Button label={tr('Scan booking')} icon="qr-code-outline" onPress={() => nav.navigate('BookingScan', { who: 'owner' })} /></View>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12 }}>
                 {arrow(-1, 'chevron-back')}
                 <Pressable onPress={() => { setData(null); setDate(todayIst()); }} style={{ alignItems: 'center' }}>

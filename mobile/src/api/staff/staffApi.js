@@ -31,6 +31,8 @@ export const kitchenProblem = (id, body) => d(api.post(`/staff/kitchen/orders/${
 // The waiter (role "waiter"): { serve, requests, tables, counts, rules, now }
 export const fetchWaiterOverview = () => d(api.get('/staff/waiter/overview'));
 export const waiterServe = (id) => d(api.post(`/staff/waiter/orders/${id}/serve`));   // { already, ago? }
+export const waiterScan = (token) => d(api.post('/staff/waiter/booking/scan', { token }));            // look at a booked guest's QR or typed code
+export const waiterArrive = (token) => d(api.post('/staff/waiter/booking/scan/arrive', { token }));   // mark him arrived
 export const waiterUndo = (id) => d(api.post(`/staff/waiter/orders/${id}/undo`));   // takes a mistaken Served back
 export const waiterDoneRequest = (id) => d(api.post(`/staff/waiter/requests/${id}/done`));
 export const fetchTableBill = (sessionId) => d(api.get(`/staff/waiter/tables/${sessionId}`));   // the bill, with canSettle

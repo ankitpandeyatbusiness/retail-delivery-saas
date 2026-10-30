@@ -9,6 +9,7 @@ import { ListShimmer } from '../../components/owners/shimmer';
 import { BOOKING_STATUS, DEPOSIT_STATUS } from '../owners/OwnerBookingsScreen';
 import { fetchMyBookings, cancelBooking, payBookingAgain, fetchMyWaitlist, leaveWaitlist } from '../../api/customers/shopApi';
 import { payBooking } from '../../utils/customers/payBooking';
+import BookingTicket from '../../components/customers/BookingTicket';
 import { shareBookingReceipt, hasReceipt } from '../../utils/customers/shareBookingReceipt';
 import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
@@ -49,6 +50,9 @@ export default function MyBookingsScreen() {
             showToast(r.status === 'paid' ? tr('Table booked') : tr(r.message || 'Not paid yet'));
         } catch (e) { showToast(e?.response?.data?.error || tr('Could not start the payment')); } finally { setBusyId(''); await load(); }
     };
+    const hasTicket = (b) => (b.status === 'confirmed' && !!b.approvedAt) || b.status === 'seated';
+    const nearest = shown.filter((b) => b.status === 'confirmed' && b.approvedAt && new Date(b.endsAt || b.startsAt) > new Date()).sort((a, c) => new Date(a.startsAt) - new Date(c.startsAt))[0];
+    const open = (b) => (shut[b._id] === undefined ? nearest?._id === b._id : !shut[b._id]);
     const tone = (s) => (s === 'seated' ? ok : s === 'confirmed' ? primary : s === 'no_show' || s === 'cancelled' ? error : muted);
 
     return (
@@ -69,7 +73,9 @@ export default function MyBookingsScreen() {
                         {b.status === 'confirmed' && b.approvedAt ? <Text style={{ color: ok, fontWeight: '800', marginTop: 8 }}>{tr('The restaurant confirmed your table')}</Text> : null}
                         {b.status === 'cancelled' && b.cancelledBy === 'owner' ? <Text style={{ color: text, marginTop: 8 }}>{tr('The restaurant cancelled this booking.')}{b.deposit?.status === 'refunded' || b.deposit?.status === 'refunding' ? ' ' + tr('Your full deposit is being refunded.') : ''}{b.cancelNote ? ' ' + b.cancelNote : ''}</Text> : null}
                         {waiting(b) ? <Text style={{ color: text, marginTop: 8 }}>{tr('Pay the deposit before {t} or the table is let go.', { t: clock(b.holdUntil) })}</Text> : null}
-                        {b.status === 'confirmed' ? <Text style={{ color: text, marginTop: 8, fontWeight: '800' }}>{tr('Show this code: {c}', { c: b.code })}</Text> : null}
+                        {b.status === 'confirmed' && !b.approvedAt ? <Text style={{ color: text, marginTop: 8, fontWeight: '800' }}>{tr('Show this code: {c}', { c: b.code })}</Text> : null}
+                        {hasTicket(b) ? <Button label={open(b) ? tr('Hide ticket') : tr('Show ticket')} icon={open(b) ? 'chevron-up' : 'qr-code-outline'} kind={open(b) ? 'ghost' : 'primary'} onPress={() => setShut((x) => ({ ...x, [b._id]: open(b) }))} style={{ marginTop: 10 }} /> : null}
+                        {hasTicket(b) && open(b) ? <BookingTicket id={b._id} /> : null}
                         {hasReceipt(b) ? <Button label={tr('Download receipt')} icon="document-text-outline" kind="ghost" busy={receiptId === b._id} onPress={() => shareBookingReceipt(`/bookings/${b._id}/receipt`, b.code, (on) => setReceiptId(on ? b._id : ''))} style={{ marginTop: 10 }} /> : null}
                         {waiting(b) ? <Button label={tr('Pay ₹{n} deposit', { n: b.deposit?.amount || 0 })} icon="card" busy={busyId === b._id} onPress={() => payNow(b)} style={{ marginTop: 10 }} /> : null}
                         {(b.status === 'confirmed' || waiting(b)) && new Date(b.startsAt) > new Date() ? <Button label={tr('Cancel booking')} kind="ghost" busy={busyId === b._id} onPress={() => cancel(b)} style={{ marginTop: 10 }} /> : null}

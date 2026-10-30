@@ -72,3 +72,14 @@ Change the app language (Hindi, Marathi, Gujarati, Bengali; Bhojpuri shows Hindi
 - "Instant" refunds depend on the guest's bank; Razorpay may take a few days.
 - The booking receipt is a receipt, not a GST tax invoice. Ask your CA whether the deposit needs its own invoice.
 - About 1,500 older texts in the apps still have no translation and show in English. Nine old tests (queue timing and Transactions) fail on the committed code too and are not related to this feature.
+
+## Booking ticket and door scanner
+
+1. Book a table, pay the deposit, and Allow it as the owner. The guest sees a ticket (QR, table, date, time, 5 letter code) in Account > My bookings. The nearest booking opens by itself; Show ticket / Hide ticket works.
+2. Switch the guest phone to flight mode and reopen My bookings: the ticket still shows (it is kept on the phone).
+3. A booking that is not allowed yet, or cancelled or refunded, shows no ticket. The PDF receipt of an upcoming booking has the same QR.
+4. Owner: Bookings > Scan booking. Scan the guest QR 20 minutes before the slot: red "Too early". From 15 minutes before: green card with table, name, guests. Tap Mark arrived: the booking turns Seated and the deposit follows the shop's rule (taken off the bill, or kept).
+5. Scan the same QR again: "This guest has already arrived" with the time. The guest ticket now says "You have arrived".
+6. Wrong day, a cancelled booking and a QR from another shop each give a red card with the reason.
+7. Type the 5 letter code instead of using the camera (also with camera permission refused).
+8. Log in as a waiter: Scan booking at the top of the waiter screen works the same way. A kitchen login has no scanner.
