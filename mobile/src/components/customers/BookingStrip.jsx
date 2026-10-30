@@ -1,5 +1,5 @@
 // The guest's booked table: a card above the tabs from the moment the owner allowed the booking until its slot is over.
-// "Your table · Today 8:00 PM", "4 guests · Code ABCDE". Tap it to show the ticket QR (it opens without internet). It steps aside while he is dining in (the table bill bar takes its place)
+// "Your table · Today 8:00 PM", "4 guests · Code ABCDE". Tap it for My bookings (the ticket QR is there and works without internet). A small arrow hides it; a round chip brings it back. It steps aside while he is dining in (the table bill bar takes its place)
 // and sits above the active order bar when both are on screen.
 import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable, AppState } from 'react-native';
@@ -9,12 +9,15 @@ import { useBrand } from '../common/kit';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { useTableBill } from '../../store/customers/useTableBill';
 import { useBookingCard } from '../../store/customers/useBookingCard';
+import { useCartStore } from '../../store/customers/shopStores';
 import { onNotification } from '../../api/common/socket';
 import { tr } from '../../i18n';
 
 const TAB_H = 62;
 const ORDER_BAR_H = 76;
-const HIDE_ON = ['Login', 'Cart', 'Item', 'OrderPlaced', 'TableBill', 'BookTable', 'MyBookings', 'MyTicket'];
+const CART_BAR_H = 66;   // the cart bar (or its round chip) sits at the bottom of these screens: the table card goes above it
+const CART_SCREENS = ['Home', 'Search', 'Offers'];
+const HIDE_ON = ['Login', 'Cart', 'Item', 'OrderPlaced', 'TableBill', 'BookTable', 'MyBookings'];
 
 const todayIst = (now) => new Date(now + 330 * 60000).toISOString().slice(0, 10);
 const dayWord = (date, now) => {
@@ -30,6 +33,8 @@ export default function BookingStrip({ routeName, onOpen }) {
     const card = useBookingCard((s) => s.card);
     const orderBar = useBookingCard((s) => s.orderBar);
     const dining = useTableBill((s) => !!s.bill?.open);
+    const hidden = useBookingCard((s) => s.hidden);
+    const cartItems = useCartStore((s) => s.lines.length);
     const insets = useSafeAreaInsets();
     const { primary, onPrimary } = useBrand();
     const [now, setNow] = useState(Date.now());
@@ -48,7 +53,17 @@ export default function BookingStrip({ routeName, onOpen }) {
     const left = Math.round((new Date(card.startsAt).getTime() - now) / 60000);
     const soon = left <= 30 && left > 0;
     const on = left <= 0;
-    const bottom = insets.bottom + TAB_H + 18 + (orderBar ? ORDER_BAR_H : 0);
+    const bottom = insets.bottom + TAB_H + 18 + (orderBar ? ORDER_BAR_H : 0) + (cartItems > 0 && !dining && CART_SCREENS.includes(routeName) ? CART_BAR_H : 0);
+    if (hidden) {   // hidden by the guest: a small round chip is left to bring it back
+        return (
+            <View pointerEvents="box-none" style={{ position: 'absolute', right: 12, bottom }}>
+                <Pressable onPress={() => useBookingCard.getState().setHidden(false)} hitSlop={8} accessibilityRole="button" accessibilityLabel={tr('Show table card')}
+                    style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: primary, elevation: 8, alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name="calendar" size={22} color={onPrimary} />
+                </Pressable>
+            </View>
+        );
+    }
     return (
         <View pointerEvents="box-none" style={{ position: 'absolute', left: 12, right: 12, bottom }}>
             <Pressable onPress={onOpen} accessibilityRole="button" style={{ borderRadius: 18, backgroundColor: primary, elevation: 8, paddingVertical: 12, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center' }}>
@@ -59,7 +74,11 @@ export default function BookingStrip({ routeName, onOpen }) {
                         {on ? tr('Your slot has started · Code {c}', { c: card.code }) : soon ? tr('In {n} min · {g} guests · Code {c}', { n: left, g: card.party, c: card.code }) : tr('{g} guests · Code {c}', { g: card.party, c: card.code })}
                     </Text>
                 </View>
-                <Ionicons name="qr-code" size={24} color={onPrimary} />
+                <Ionicons name="chevron-forward" size={20} color={onPrimary} />
+                <Pressable onPress={() => useBookingCard.getState().setHidden(true)} hitSlop={8} accessibilityRole="button" accessibilityLabel={tr('Hide')}
+                    style={{ width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginLeft: 8, backgroundColor: 'rgba(255,255,255,0.22)' }}>
+                    <Ionicons name="chevron-down" size={18} color={onPrimary} />
+                </Pressable>
             </Pressable>
         </View>
     );

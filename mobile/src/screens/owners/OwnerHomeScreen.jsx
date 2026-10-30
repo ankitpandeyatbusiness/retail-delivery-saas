@@ -2,7 +2,7 @@
 // One call (GET /shop/dashboard) fills it; it refreshes whenever an order changes anywhere.
 import React, { useCallback, useEffect, useState } from 'react';
 import { useMenuFlags } from '../../utils/owners/menuFlags';
-import { View, Text } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import GlowBorder from '../../components/common/GlowBorder';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -103,7 +103,7 @@ function FreePeriod({ free, now }) {
 
 export default function OwnerHomeScreen() {
     const nav = useNavigation();
-    const { muted, primary, error, ok, text, accent } = useBrand();
+    const { muted, primary, onPrimary, error, ok, text, accent } = useBrand();
     const live = useOwnerStore((st) => st.live);
     const d = useOwnerStore((st) => st.dashboard);
     const billing = useOwnerStore((st) => st.billing);
@@ -178,22 +178,10 @@ export default function OwnerHomeScreen() {
     }
 
     return (
+        <View style={{ flex: 1 }}>
         <OwnerScreen onRefresh={pull} refreshing={refreshing}>
             {loadError && !d ? <Card tone={error}><Text style={{ color: error, fontWeight: '700' }}>{loadError}</Text></Card> : null}
 
-            {/* the door scanner: a guest shows the booking QR, one tap from here */}
-            {bookingOn ? (
-                <Card onPress={() => nav.navigate('BookingScan', { who: 'owner' })}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Ionicons name="qr-code-outline" size={28} color={primary} />
-                        <View style={{ flex: 1, marginHorizontal: 12 }}>
-                            <Text style={{ color: text, fontWeight: '900', fontSize: 15 }}>{tr('Scan booking')}</Text>
-                            <Text style={{ color: muted, fontSize: 12.5, marginTop: 1 }}>{tr("Scan the guest's QR and mark them arrived")}</Text>
-                        </View>
-                        <Ionicons name="chevron-forward" size={18} color={muted} />
-                    </View>
-                </Card>
-            ) : null}
 
             {/* something needs him now (the delivery partner cancelled or asked for help, nobody took an order, a very late delivery) */}
             {false ? (
@@ -413,5 +401,13 @@ export default function OwnerHomeScreen() {
                 </>
             ) : null}
         </OwnerScreen>
+        {/* the door scanner: a round button that stays on screen, so a guest's booking QR is one tap away */}
+        {bookingOn ? (
+            <Pressable onPress={() => nav.navigate('BookingScan', { who: 'owner' })} accessibilityRole="button" accessibilityLabel={tr('Scan booking')}
+                style={{ position: 'absolute', right: 18, bottom: 22, width: 64, height: 64, borderRadius: 32, backgroundColor: primary, alignItems: 'center', justifyContent: 'center', elevation: 8, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 4 } }}>
+                <Ionicons name="qr-code" size={30} color={onPrimary} />
+            </Pressable>
+        ) : null}
+        </View>
     );
 }

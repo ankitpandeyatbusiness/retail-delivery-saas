@@ -23,6 +23,7 @@ export default function MyBookingsScreen() {
     const [waits, setWaits] = useState([]);
     const [busyId, setBusyId] = useState('');
     const [receiptId, setReceiptId] = useState('');
+    const [shut, setShut] = useState({});   // tickets the guest closed by hand (the nearest booking's ticket opens by itself)
     const load = useCallback(() => {
         fetchMyBookings().then((r) => setItems(r.items || [])).catch(() => setItems((x) => x || [])).finally(() => {});
         fetchMyWaitlist().then((r) => setWaits(r.items || [])).catch(() => { });

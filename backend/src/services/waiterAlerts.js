@@ -85,7 +85,7 @@ async function bookingSoon(tenantId, { table, party, time, name }) {
         const t = table ? 'Table ' + table : 'A table';
         await ring(tenantId, {
             title: t + ' is booked at ' + time, body: party + (party === 1 ? ' guest.' : ' guests.') + who,
-            data: { type: 'waiter_booking', table: String(table || ''), kind: 'booking', speech: t + ' is booked for ' + party + ' guests at ' + time + '.' + who, speechHi: (table ? 'टेबल ' + table : 'एक टेबल') + ', ' + party + ' मेहमान, ' + time + ' बजे के लिए बुक है।' + who },
+            data: { type: 'waiter_booking', table: String(table || ''), kind: 'booking', speech: t + ' is booked for ' + party + ' guests at ' + time + '.' + who, speechHi: (table ? 'टेबल ' + table : 'एक टेबल') + ', ' + party + ' मेहमान, ' + require('../notifications/templates/textsHi').hiClock(time) + ' के लिए बुक है।' + who },
             tag: 'booked:' + table + ':' + time,
         });
     } catch (e) { console.error('Waiter alert error:', e.message); }

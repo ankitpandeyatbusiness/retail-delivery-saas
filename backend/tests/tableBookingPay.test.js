@@ -140,6 +140,12 @@ describe('table booking with a paid deposit', () => {
         await fresh('19:00');
         const mk = async (phone, time, table) => { const g = await guest(phone); const r = await book(time, 1, g.headers, table); await payIt(r, g.headers); return r.body.booking._id; };
         const [a, b] = [await mk('9200000008', '19:00', '1'), await mk('9200000009', '19:00', '2')];
+        // not allowed yet, or not started yet: seated and no-show are refused
+        assert.equal((await request(app).post(`/api/shop/booking/${a}/no-show`).set(w.owner.headers)).status, 400);
+        await TableBooking.updateMany({ _id: { $in: [a, b] } }, { $set: { approvedAt: new Date() } });
+        assert.equal((await request(app).post(`/api/shop/booking/${a}/seat`).set(w.owner.headers)).status, 400);
+        const started = () => TableBooking.updateMany({ _id: { $in: [a, b] } }, { $set: { startsAt: new Date(Date.now() - 60000) } });
+        await started();
         assert.equal((await request(app).post(`/api/shop/booking/${a}/no-show`).set(w.owner.headers)).body.deposit.status, 'kept');
         const seat = await request(app).post(`/api/shop/booking/${b}/seat`).set(w.owner.headers);
         assert.deepEqual([seat.body.status, seat.body.deposit.status, seat.body.deposit.credit], ['seated', 'paid', 'pending']);
@@ -149,7 +155,13 @@ describe('table booking with a paid deposit', () => {
         await settings({ depositMode: 'keep' });
         await fresh('20:00');
         const k = await mk('9200000010', '20:00', '1');
+        await TableBooking.updateOne({ _id: k }, { $set: { approvedAt: new Date(), startsAt: new Date(Date.now() - 60000) } });
         assert.equal((await request(app).post(`/api/shop/booking/${k}/seat`).set(w.owner.headers)).body.deposit.status, 'kept');
+        // undo: seated in keep mode goes back to booked with the deposit paid again; an allowed booking can be un-allowed
+        const back = await request(app).post(`/api/shop/booking/${k}/undo`).set(w.owner.headers);
+        assert.deepEqual([back.status, back.body.status, back.body.deposit.status], [200, 'confirmed', 'paid']);
+        assert.equal((await request(app).post(`/api/shop/booking/${k}/undo`).set(w.owner.headers)).body.approvedAt, undefined);
+        assert.equal((await request(app).post(`/api/shop/booking/${k}/undo`).set(w.owner.headers)).status, 400);   // nothing left to undo
     });
 
     test('a refund that failed is tried again by the sweeper, and sent only once', async () => {

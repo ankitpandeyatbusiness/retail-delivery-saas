@@ -10,7 +10,6 @@ import { warmRazorpay } from './payOnline';
 const PAYMENT_CANCELED = 2;   // Razorpay error code
 const FALLBACK_EMAIL = 'orders@retailsaas.app';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-const text = (e, fallback) => e?.response?.data?.error || e?.description || e?.message || fallback;
 const tenDigits = (p) => String(p || '').replace(/\D/g, '').slice(-10);
 const isCancel = (e) => e?.code === PAYMENT_CANCELED || /cancel/i.test(e?.description || '');
 
@@ -56,7 +55,8 @@ export async function payBooking({ booking, pay, user, upiApp, card }) {
     catch (e) {
         if (await settled(booking._id)) return { status: 'paid' };   // some apps report "cancelled" after the money was taken
         if (isCancel(e)) return { status: 'cancelled', message: 'Payment cancelled' };
-        return { status: 'failed', message: text(e, 'Payment failed') };
+        if (__DEV__) console.warn('[pay] booking payment failed', JSON.stringify(e));   // the bank's or Razorpay's own words are not shown to the guest
+        return { status: 'failed', message: 'Payment failed. Try another card or UPI. Your table is held for a few minutes.' };
     }
     return finish(booking._id, proof);
 }

@@ -83,7 +83,7 @@ export default function DateRangeSheet({ visible, value, onClose, onApply, singl
 
     useEffect(() => {
         if (visible) {
-            const s0 = single ? (/^d{4}-d{2}-d{2}$/.test(value || '') ? fromKey(value) : null) : value?.from ? fromKey(value.from) : null;
+            const s0 = single ? (/^\d{4}-\d{2}-\d{2}$/.test(value || '') ? fromKey(value) : null) : value?.from ? fromKey(value.from) : null;
             const e0 = single ? null : value?.to && value.to !== value.from ? fromKey(value.to) : null;
             setStart(s0); setEnd(e0); setSort(value?.sort || 'newest');
             const base = e0 || s0 || today;

@@ -39,6 +39,11 @@ export default function OwnerBookingsScreen() {
     useFocusEffect(useCallback(() => { load(); }, [load]));
     useEffect(() => onNotification((n) => { if (['booking_new', 'booking_cancelled'].includes(String(n?.type))) load(); }), [load]);
 
+    const undo = async (b) => {
+        setBusyId(b._id);
+        try { await api.undo(b._id); showToast(tr('Done. The booking is back as it was.')); await load(); } catch (e) { showToast(apiError(e)); } finally { setBusyId(''); }
+    };
+    const started = (b) => new Date(b.startsAt).getTime() <= Date.now();
     const allow = async (b) => {
         setBusyId(b._id);
         try { await api.allow(b._id); showToast(tr('The guest is told the table is confirmed')); await load(); } catch (e) { showToast(apiError(e)); } finally { setBusyId(''); }
@@ -64,7 +69,7 @@ export default function OwnerBookingsScreen() {
     const inSlot = (b) => slot === 'any' || (slot === 'morning' ? hour(b) < 12 : slot === 'afternoon' ? hour(b) >= 12 && hour(b) < 17 : hour(b) >= 17);
     const shown = (data?.items || []).filter((b) => inSlot(b) && (state === 'all' || b.status === state));
     const chip = (label, on, onPress, key) => (
-        <Pressable key={key || label} onPress={onPress} style={{ marginRight: 8, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18, borderWidth: 1, borderColor: on ? primary : border, backgroundColor: on ? primary : surface }}>
+        <Pressable key={key || label} onPress={onPress} style={{ marginRight: 8, paddingHorizontal: 16, height: 38, justifyContent: 'center', borderRadius: 19, borderWidth: 1, borderColor: on ? primary : border, backgroundColor: on ? primary : surface }}>
             <Text style={{ color: on ? onPrimary : text, fontWeight: '800', fontSize: 13 }}>{label}</Text>
         </Pressable>
     );
@@ -99,10 +104,10 @@ export default function OwnerBookingsScreen() {
                     </Pressable>
                 </View>
             )}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginTop: 10 }} contentContainerStyle={{ paddingHorizontal: 16 }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0, height: 38, marginTop: 12 }} contentContainerStyle={{ paddingHorizontal: 16, alignItems: 'center' }}>
                 {[['any', 'Any time'], ['morning', 'Morning'], ['afternoon', 'Afternoon'], ['evening', 'Evening']].map(([k, l]) => chip(tr(l), slot === k, () => setSlot(k), `t${k}`))}
             </ScrollView>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginTop: 8, marginBottom: 4 }} contentContainerStyle={{ paddingHorizontal: 16 }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0, height: 38, marginTop: 10, marginBottom: 8 }} contentContainerStyle={{ paddingHorizontal: 16, alignItems: 'center' }}>
                 {[['all', 'All'], ['confirmed', 'Booked'], ['seated', 'Seated'], ['no_show', 'No-show'], ['cancelled', 'Cancelled']].map(([k, l]) => chip(tr(l), state === k, () => setState(k), `s${k}`))}
             </ScrollView>
             <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 32 }}>
@@ -136,14 +141,24 @@ export default function OwnerBookingsScreen() {
                             </View>
                         ) : null}
                         {b.status === 'confirmed' && !b.approvedAt ? <Button label={tr('Allow this booking')} icon="checkmark-done" kind="ghost" busy={busyId === b._id} onPress={() => allow(b)} style={{ marginTop: 10 }} /> : null}
-                        {b.status === 'confirmed' && b.approvedAt ? <Text style={{ color: ok, fontWeight: '800', marginTop: 8 }}>{tr('You allowed this booking')}</Text> : null}
+                        {b.status === 'confirmed' && b.approvedAt ? (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+                                <Text style={{ color: ok, fontWeight: '800', flex: 1 }}>{tr('You allowed this booking')}</Text>
+                                <Pressable onPress={() => undo(b)} disabled={busyId === b._id} hitSlop={8}><Text style={{ color: primary, fontWeight: '800' }}>{tr('Undo')}</Text></Pressable>
+                            </View>
+                        ) : null}
+                        {(b.status === 'seated' && !b.freedAt && b.deposit?.status !== 'adjusted') || b.status === 'no_show' ? (
+                            <Button label={b.status === 'seated' ? tr('Undo seated') : tr('Undo no-show')} icon="arrow-undo" kind="ghost" busy={busyId === b._id} onPress={() => undo(b)} style={{ marginTop: 10 }} />
+                        ) : null}
                         {b.status === 'cancelled' && b.cancelNote ? <Text style={{ color: muted, marginTop: 8 }}>{tr('Your message: {m}', { m: b.cancelNote })}</Text> : null}
                         {b.status === 'confirmed' ? (
                             <View style={{ marginTop: 10 }}>
-                                <View style={{ flexDirection: 'row' }}>
-                                    <Button label={tr('Seated')} icon="checkmark" busy={busyId === b._id} onPress={() => act(b, 'seat')} style={{ flex: 1, marginRight: 8 }} />
-                                    <Button label={tr('No-show')} kind="ghost" busy={busyId === b._id} onPress={() => act(b, 'noshow')} style={{ flex: 1 }} />
-                                </View>
+                                {b.approvedAt && started(b) ? (
+                                    <View style={{ flexDirection: 'row' }}>
+                                        <Button label={tr('Seated')} icon="checkmark" busy={busyId === b._id} onPress={() => act(b, 'seat')} style={{ flex: 1, marginRight: 8 }} />
+                                        <Button label={tr('No-show')} kind="ghost" busy={busyId === b._id} onPress={() => act(b, 'noshow')} style={{ flex: 1 }} />
+                                    </View>
+                                ) : b.approvedAt ? <Text style={{ color: muted, fontSize: 12.5 }}>{tr('Seated and No-show are available from {t}.', { t: b.time })}</Text> : null}
                                 <View style={{ flexDirection: 'row', marginTop: 8 }}>
                                     <Button label={tr('Call')} icon="call" iconOnly kind="ghost" onPress={() => Linking.openURL(`tel:${String(b.phone).replace(/\D/g, '')}`)} style={{ width: 56, marginRight: 8 }} />
                                     <Button label={tr('Deny')} icon="close" kind="danger" busy={busyId === b._id} onPress={() => nav.navigate('OwnerBookingDeny', { id: String(b._id) })} style={{ flex: 1 }} />

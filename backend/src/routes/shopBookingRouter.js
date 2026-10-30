@@ -37,7 +37,7 @@ router.post('/scan/arrive', wrap(async (req, res) => { res.json(await ticket.arr
 // every booking, newest day first, for a range of days: ?all=1&from=YYYY-MM-DD&to=YYYY-MM-DD&status=confirmed (all optional, at most 300)
 router.get('/', wrap(async (req, res, next) => {
     if (!req.query.all) return next();
-    const day = (v) => (/^d{4}-d{2}-d{2}$/.test(v || '') ? v : null);
+    const day = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(v || '') ? v : null);
     const from = day(req.query.from); const to = day(req.query.to);
     const q = { tenantId: req.tenant._id, status: { $nin: ['held', 'expired'] } };
     if (from || to) q.date = { ...(from ? { $gte: from } : {}), ...(to ? { $lte: to } : {}) };
@@ -69,6 +69,8 @@ const mine = async (req) => {
 const move = (to, then) => wrap(async (req, res) => {
     const b = await mine(req);
     if (b.status !== 'confirmed') throw httpError(400, 'This booking is already ' + b.status.replace('_', ' '));
+    if (!b.approvedAt) throw httpError(400, 'Allow this booking first');
+    if (Date.now() < new Date(b.startsAt).getTime()) throw httpError(400, 'Too early. You can mark a guest seated or no-show once the booking time has started');
     b.status = to;
     await b.save();
     await then(b);   // what happens to the deposit
@@ -82,6 +84,26 @@ router.get('/:id/receipt', wrap(async (req, res) => {
     require('../services/bookingReceipt').stream(res, b.toObject(), await require('../models/Tenant').findById(b.tenantId).lean());
 }));
 router.get('/:id', wrap(async (req, res) => { res.json((await mine(req)).toObject()); }));
+
+// Take back the last change of a booking: Allow, Seated or No-show. (Deny and Cancel cannot be taken back: the guest already has the refund.)
+router.post('/:id/undo', wrap(async (req, res) => {
+    const b = await mine(req);
+    const id = b._id;
+    if (b.status === 'seated') {
+        if (b.freedAt) throw httpError(400, 'The table was already freed for other guests, so this cannot be undone');
+        if (b.deposit?.status === 'adjusted') throw httpError(400, 'The deposit was already taken off the bill, so this cannot be undone');
+        await TableBooking.updateOne({ _id: id, status: 'seated' }, { $set: { status: 'confirmed' }, $unset: { arrivedAt: 1, arrivedBy: 1, 'deposit.credit': 1 } });
+        await TableBooking.updateOne({ _id: id, 'deposit.status': 'kept' }, { $set: { 'deposit.status': 'paid' } });   // keep mode: the shop had kept it when the guest sat
+    } else if (b.status === 'no_show') {
+        const clash = await TableBooking.findOne({ _id: { $ne: id }, tenantId: b.tenantId, date: b.date, table: b.table, status: { $in: tb.LIVE }, startsAt: { $lt: b.endsAt }, endsAt: { $gt: b.startsAt } }).select('_id').lean();
+        if (b.table && clash) throw httpError(400, 'Another guest has booked this table for that time since, so this cannot be undone');
+        await TableBooking.updateOne({ _id: id, status: 'no_show' }, { $set: { status: 'confirmed' } });
+        await TableBooking.updateOne({ _id: id, 'deposit.status': 'kept' }, { $set: { 'deposit.status': 'paid' } });
+    } else if (b.status === 'confirmed' && b.approvedAt) {
+        await TableBooking.updateOne({ _id: id, status: 'confirmed' }, { $unset: { approvedAt: 1 } });   // the guest's ticket goes until it is allowed again
+    } else throw httpError(400, 'There is nothing to undo for this booking');
+    res.json((await TableBooking.findById(id)).toObject());
+}));
 
 // The guest has left (or the table is free for another reason): the rest of the slot can be booked by others
 router.post('/:id/free', wrap(async (req, res) => {

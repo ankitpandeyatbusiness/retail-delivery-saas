@@ -3,7 +3,6 @@
 // is open come here. New orders, the kitchen's problems and the customer's asks have their own bigger sheets and are not shown here.
 import React, { useEffect } from 'react';
 import { useAuthStore } from '../../store/common/useAuthStore';
-import { useViewMode } from '../../store/owners/useViewMode';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { useAlertPrefs, alertOn, alertGroup, alertSeconds } from '../../store/common/useAlertPrefs';
 import { useSliderStore } from '../../store/common/useSliderStore';
@@ -48,11 +47,10 @@ export function showSlider({ key, type, title, body, data, once }) {
 
 export default function AlertSliderHost({ navRef }) {
     const role = useAuthStore((s) => s.user?.role);
-    const customerView = useViewMode((s) => s.customerView);
     const access = useOwnerStore((s) => s.access);
     const item = useSliderStore((s) => s.queue[0]);
     const mine = ['admin', 'rider', 'kitchen', 'waiter'].includes(role);
-    const on = mine && !(role === 'admin' && (customerView || access === 'blocked'));
+    const on = mine && !(role === 'admin' && access === 'blocked');   // also while the owner looks at the customer app (the Soundbox voice speaks then too)
 
     useEffect(() => {
         if (!on) { useSliderStore.getState().clear(); return undefined; }

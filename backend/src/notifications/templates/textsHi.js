@@ -3,6 +3,16 @@
 const range = (v) => (v.from === v.to ? v.from : `${v.from} से ${v.to}`);
 const days = (v) => (v.days ? `, ${v.days} ${v.days === 1 ? 'दिन' : 'दिन'}` : '');
 const job = (v) => (v.job === 'Kitchen' ? 'कुक' : v.job === 'Waiter' ? 'वेटर' : v.job || 'स्टाफ');
+// "20:00" -> "रात 8 बजे", "13:30" -> "दोपहर 1 बजकर 30 मिनट": said in words, so the voice never reads a clock time and adds its own "बजे" on top of ours
+const hiClock = (t) => {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(String(t || ''));
+    if (!m) return String(t || '');
+    const h = Number(m[1]); const min = Number(m[2]);
+    const part = h >= 4 && h < 12 ? 'सुबह' : h >= 12 && h < 16 ? 'दोपहर' : h >= 16 && h < 20 ? 'शाम' : 'रात';
+    return `${part} ${h % 12 || 12}${min ? ` बजकर ${min} मिनट` : ' बजे'}`;
+};
+const HI_MONTHS = ['जनवरी', 'फ़रवरी', 'मार्च', 'अप्रैल', 'मई', 'जून', 'जुलाई', 'अगस्त', 'सितंबर', 'अक्टूबर', 'नवंबर', 'दिसंबर'];
+const hiDay = (d) => { const m = /^\d{4}-(\d{2})-(\d{2})$/.exec(String(d || '')); return m ? `${Number(m[2])} ${HI_MONTHS[Number(m[1]) - 1]}` : String(d || ''); };
 const rs = (n) => `${Math.round(Number(n) || 0)} रुपये`;
 
 const PROBLEM = { cannot_reach: 'ग्राहक तक पहुँच नहीं पा रहे', customer_not_answering: 'ग्राहक फ़ोन नहीं उठा रहे', wrong_address: 'कहते हैं कि पता गलत लग रहा है' };
@@ -46,9 +56,9 @@ const HI = {
     review_delivery: (v) => `ऑर्डर ${v.orderNo ?? ''} की डिलीवरी पर नया रिव्यू आया है।`,
     dish_low_rating: () => 'एक डिश को कम रेटिंग मिली है।',
     delivery_low_rating: () => 'एक डिलीवरी को कम रेटिंग मिली है।',
-    booking_new: (v) => `नई टेबल बुकिंग${v.table ? `, टेबल ${v.table}` : ''}, ${v.party} मेहमान, ${v.date} को ${v.time} बजे।${v.name ? ` ${v.name} ने की है।` : ''}`,
-    booking_reminder: (v) => `आधे घंटे में टेबल बुकिंग है। ${v.name || 'ग्राहक'}${v.table ? `, टेबल ${v.table}` : ''}, ${v.party} मेहमान, ${v.time} बजे।`,
-    booking_cancelled: (v) => `${v.name || 'एक ग्राहक'} ने ${v.date} को ${v.time} बजे की टेबल बुकिंग रद्द कर दी है।`,
+    booking_new: (v) => `नई टेबल बुकिंग${v.table ? `, टेबल ${v.table}` : ''}, ${v.party} मेहमान, ${hiDay(v.date)} को ${hiClock(v.time)}।${v.name ? ` ${v.name} ने की है।` : ''}`,
+    booking_reminder: (v) => `आधे घंटे में टेबल बुकिंग है। ${v.name || 'ग्राहक'}${v.table ? `, टेबल ${v.table}` : ''}, ${v.party} मेहमान, ${hiClock(v.time)}।`,
+    booking_cancelled: (v) => `${v.name || 'एक ग्राहक'} ने ${hiDay(v.date)} को ${hiClock(v.time)} की टेबल बुकिंग रद्द कर दी है।`,
     inquiry_unanswered: (v) => `${v.name || 'ग्राहक'} की ${v.service} की पूछताछ का ${v.hours} घंटे से जवाब नहीं गया। कृपया जवाब दीजिए।`,
     inquiry_new: (v) => `${v.service} के लिए नई पूछताछ आई है।${v.name ? ` ${v.name} ने भेजी है।` : ''}${v.guests ? ` ${v.guests} मेहमान।` : ''}`,
     inquiry_customer_reply: (v) => `${v.name || 'ग्राहक'} ने ${v.service} की पूछताछ पर जवाब दिया है।`,
@@ -100,4 +110,4 @@ function build(eventKey, vars = {}) {
     } catch (e) { return null; }
 }
 
-module.exports = { build, HI };
+module.exports = { build, HI, hiClock };

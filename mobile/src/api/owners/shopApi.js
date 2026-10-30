@@ -144,6 +144,7 @@ export const booking = {
     all: (p) => d(api.get('/shop/booking', q({ all: 1, ...p }))),             // { items } every booking of a range of days: { from, to, status, sort }                // { date, items, seats, upcoming }
     seat: (id) => d(api.post(`/shop/booking/${id}/seat`)),
     get: (id) => d(api.get(`/shop/booking/${id}`)),
+    undo: (id) => d(api.post(`/shop/booking/${id}/undo`)),                         // takes back Allow, Seated or No-show
     allow: (id) => d(api.post(`/shop/booking/${id}/allow`)),                      // the guest is told the table is confirmed
     deny: (id, message) => d(api.post(`/shop/booking/${id}/cancel`, { message })), // cancels, sends the whole deposit back at once, tells the guest (message is optional)
     free: (id) => d(api.post(`/shop/booking/${id}/free`)),                         // the guest left: the table is free for the rest of the slot
