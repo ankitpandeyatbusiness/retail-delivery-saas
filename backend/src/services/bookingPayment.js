@@ -197,7 +197,7 @@ async function sweep(now = Date.now()) {
 let timer = null;
 function startBookingHolds() {
     if (timer) return;
-    timer = setInterval(() => { sweep().catch((e) => console.error('Booking holds error:', e.message)); remind().catch((e) => console.error('Booking reminder error:', e.message)); }, 60000);
+    timer = setInterval(() => { sweep().catch((e) => console.error('Booking holds error:', e.message)); remind().catch((e) => console.error('Booking reminder error:', e.message)); require('./inquiryReminders').sweep().catch((e) => console.error('Inquiry reminder error:', e.message)); }, 60000);
     timer.unref?.();
 }
 

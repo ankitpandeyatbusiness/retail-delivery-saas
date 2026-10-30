@@ -49,6 +49,7 @@ const HI = {
     booking_new: (v) => `नई टेबल बुकिंग${v.table ? `, टेबल ${v.table}` : ''}, ${v.party} मेहमान, ${v.date} को ${v.time} बजे।${v.name ? ` ${v.name} ने की है।` : ''}`,
     booking_reminder: (v) => `आधे घंटे में टेबल बुकिंग है। ${v.name || 'ग्राहक'}${v.table ? `, टेबल ${v.table}` : ''}, ${v.party} मेहमान, ${v.time} बजे।`,
     booking_cancelled: (v) => `${v.name || 'एक ग्राहक'} ने ${v.date} को ${v.time} बजे की टेबल बुकिंग रद्द कर दी है।`,
+    inquiry_unanswered: (v) => `${v.name || 'ग्राहक'} की ${v.service} की पूछताछ का ${v.hours} घंटे से जवाब नहीं गया। कृपया जवाब दीजिए।`,
     inquiry_new: (v) => `${v.service} के लिए नई पूछताछ आई है।${v.name ? ` ${v.name} ने भेजी है।` : ''}${v.guests ? ` ${v.guests} मेहमान।` : ''}`,
     inquiry_customer_reply: (v) => `${v.name || 'ग्राहक'} ने ${v.service} की पूछताछ पर जवाब दिया है।`,
     table_share_ask: (v) => `${v.name || 'एक मेहमान'} अपना हिस्सा देकर जाना चाहते हैं। टेबल ${v.table}।`,

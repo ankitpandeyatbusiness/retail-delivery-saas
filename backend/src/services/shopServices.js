@@ -43,9 +43,20 @@ const TEMPLATES = {
         quickTexts: ['I have a question about this', 'Please share the price', 'Please call me back'] },
 };
 
-const recommendedFor = (kind) => (RECOMMENDED[kind] || RECOMMENDED.other)();
-const templateList = () => Object.keys(TEMPLATES).map((kind) => ({ kind, ...TEMPLATES[kind] }));
-const newDoc = (kind) => ({ kind: TEMPLATES[kind] ? kind : 'custom', ...(TEMPLATES[kind] || {}), questions: recommendedFor(kind) });
+const STARTER_KINDS = Object.keys(TEMPLATES);
+const DEFAULT_REMINDER_HOURS = 24;
+
+// What the super admin changed for the starter kinds (PlatformSettings.servicesDefaults): { reminderHours?, kinds: { bulk: { quickTexts?, quickReplies?, questions? } } }.
+// Anything he did not change is the built-in set above.
+const loadDefaults = async () => (await require('../models/PlatformSettings').findById('main').select('servicesDefaults').lean())?.servicesDefaults || {};
+
+const recommendedFor = (kind, defaults = {}) => {
+    const mine = defaults.kinds?.[kind]?.questions;
+    return Array.isArray(mine) && mine.length ? mine.map((q) => ({ ...q, hint: q.hint || '', options: q.options || [], recommended: true, enabled: q.enabled !== false })) : (RECOMMENDED[kind] || RECOMMENDED.other)();
+};
+const withDefaults = (kind, defaults) => ({ ...(TEMPLATES[kind] || {}), ...(defaults.kinds?.[kind]?.quickTexts ? { quickTexts: defaults.kinds[kind].quickTexts } : {}), ...(defaults.kinds?.[kind]?.quickReplies ? { quickReplies: defaults.kinds[kind].quickReplies } : {}) });
+const templateList = (defaults = {}) => STARTER_KINDS.map((kind) => ({ kind, ...withDefaults(kind, defaults) }));
+const newDoc = (kind, defaults = {}) => ({ kind: TEMPLATES[kind] ? kind : 'custom', ...withDefaults(kind, defaults), questions: recommendedFor(kind, defaults) });
 
 const str = (v, max) => String(v ?? '').trim().slice(0, max);
 const strings = (v, max, each) => (Array.isArray(v) ? v.map((x) => str(x, each)).filter(Boolean).slice(0, max) : []);
@@ -141,4 +152,28 @@ function checkAnswers(service, given) {
 // The price the customer is shown while filling the form: only for a per-plate service once the guests are known.
 const estimateFor = (service, guests) => (service.priceType === 'per_plate' && service.price > 0 && guests > 0 ? service.price * guests : 0);
 
-module.exports = { TYPES, PRICE_TYPES, recommendedFor, templateList, newDoc, cleanService, cleanQuestions, checkAnswers, estimateFor };
+// What the super admin may save as defaults.
+function cleanDefaults(body) {
+    const out = {};
+    if (body.reminderHours !== undefined) {
+        const n = Math.round(Number(body.reminderHours));
+        if (!(n >= 1 && n <= 168)) throw httpError(400, 'Reminder delay: from 1 to 168 hours');
+        out.reminderHours = n;
+    }
+    if (body.kinds !== undefined) {
+        if (!body.kinds || typeof body.kinds !== 'object') throw httpError(400, 'Kinds must be an object');
+        out.kinds = {};
+        for (const k of Object.keys(body.kinds)) {
+            if (!STARTER_KINDS.includes(k)) throw httpError(400, 'Unknown starter service');
+            const v = body.kinds[k] || {};
+            const o = {};
+            if (v.quickTexts !== undefined) o.quickTexts = strings(v.quickTexts, 12, 160);
+            if (v.quickReplies !== undefined) o.quickReplies = strings(v.quickReplies, 12, 240);
+            if (v.questions !== undefined) o.questions = cleanQuestions(v.questions).map((q) => ({ ...q, recommended: true }));
+            out.kinds[k] = o;
+        }
+    }
+    return out;
+}
+
+module.exports = { TYPES, PRICE_TYPES, STARTER_KINDS, DEFAULT_REMINDER_HOURS, loadDefaults, cleanDefaults, recommendedFor, templateList, newDoc, cleanService, cleanQuestions, checkAnswers, estimateFor };

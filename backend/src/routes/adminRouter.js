@@ -90,6 +90,7 @@ admin.use(require('./adminTrackingRouter'));   // live tracking: server health a
 admin.use(require('./adminOperatorsRouter'));   // the companies that run the platform + Switch operator (everyone looks, the supreme admin changes)
 admin.use(require('./adminLegalRouter'));   // terms, agreements and privacy (everyone reads, the supreme admin writes and sends)
 admin.use(require('./adminSettlementRouter'));   // the common settlement sheet (everyone reads, the supreme admin changes)
+admin.use(require('./adminServicesRouter'));     // services, inquiries and table booking: totals, lists and threads to read, and the defaults
 admin.use(require('./adminGstRouter'));   // GST register (all superadmins read it) and credit notes
 admin.use(require('./adminAuditRouter'));
 admin.use(require('./adminSmsRouter'));

@@ -17,6 +17,7 @@ const User = require('../models/User');
 const tb = require('../services/tableBooking');
 const bp = require('../services/bookingPayment');
 const wl = require('../services/bookingWaitlist');
+const featureGate = require('../services/featureGate');
 
 const { wrap, httpError } = apiErrors;
 const router = express.Router();
@@ -35,14 +36,14 @@ const rules = (c) => ({ type: c.depositType, amount: c.depositAmount, mode: c.de
 
 const on = async (req) => {
     const c = await tb.getConfig(req.tenant._id);
-    if (!c.enabled) throw httpError(404, 'Table booking is not available at this shop');
+    if (!c.enabled || !featureGate.isOn(req.tenant, 'tableBooking')) throw httpError(404, 'Table booking is not available at this shop');
     return c;
 };
 
 router.get('/config', wrap(async (req, res) => {
     const c = await tb.getConfig(req.tenant._id);
     const me = c.enabled ? await User.findById(req.auth.userId).select('name phone').lean() : null;
-    res.json({ enabled: !!c.enabled && (await bp.available(c.tenantId)), holdMinutes: c.holdMinutes, minParty: c.minParty, maxParty: tb.maxPartyOf(c), tables: tb.bookable(c).map((t) => ({ no: t.no, seats: t.seats })), advanceDays: c.advanceDays, today: tb.todayYmd(), deposit: rules(c), me: { name: me?.name || '', phone: me?.phone || '' } });
+    res.json({ enabled: !!c.enabled && featureGate.isOn(req.tenant, 'tableBooking') && (await bp.available(c.tenantId)), holdMinutes: c.holdMinutes, minParty: c.minParty, maxParty: tb.maxPartyOf(c), tables: tb.bookable(c).map((t) => ({ no: t.no, seats: t.seats })), advanceDays: c.advanceDays, today: tb.todayYmd(), deposit: rules(c), me: { name: me?.name || '', phone: me?.phone || '' } });
 }));
 
 router.get('/slots', wrap(async (req, res) => {

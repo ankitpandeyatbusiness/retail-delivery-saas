@@ -15,6 +15,9 @@ const platformSchema = new mongoose.Schema({
         autopilotEnabled: { type: Boolean, default: true },                            // false = no shop's Autopilot sends anything (a kill switch)                          // the platform sends every shop its monthly report by email
     },
 
+    // Services: what the super admin changed for the starter services and the unanswered-inquiry reminder delay (services/shopServices.js loadDefaults)
+    servicesDefaults: { type: mongoose.Schema.Types.Mixed, default: {} },
+
     // The contact card shop owners see under Help & support
     support: {
         phone: { type: String, trim: true, maxlength: 20 },

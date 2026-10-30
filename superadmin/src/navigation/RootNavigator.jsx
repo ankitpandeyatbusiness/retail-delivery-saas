@@ -64,6 +64,10 @@ import OperatorEditScreen from '../screens/operators/OperatorEditScreen';
 import AgreementsScreen from '../screens/agreements/AgreementsScreen';
 import AgreementDocScreen from '../screens/agreements/AgreementDocScreen';
 import SettlementScreen from '../screens/settlement/SettlementScreen';
+import ServicesOverviewScreen from '../screens/services/ServicesOverviewScreen';
+import ServicesShopScreen from '../screens/services/ServicesShopScreen';
+import ServicesInquiryScreen from '../screens/services/ServicesInquiryScreen';
+import ServicesDefaultsScreen from '../screens/services/ServicesDefaultsScreen';
 import SettlementEntryScreen from '../screens/settlement/SettlementEntryScreen';
 import SettlementSettingsScreen from '../screens/settlement/SettlementSettingsScreen';
 import ShopBillingScreen from '../screens/money/ShopBillingScreen';
@@ -218,6 +222,10 @@ function MoreStack() {
             <More.Screen name="InsightsSettings" component={InsightsSettingsScreen} />
             <More.Screen name="GstRegister" component={GstRegisterScreen} />
             <More.Screen name="Settlement" component={SettlementScreen} />
+            <More.Screen name="ServicesOverview" component={ServicesOverviewScreen} />
+            <More.Screen name="ServicesShop" component={ServicesShopScreen} />
+            <More.Screen name="ServicesInquiry" component={ServicesInquiryScreen} />
+            <More.Screen name="ServicesDefaults" component={ServicesDefaultsScreen} />
             <More.Screen name="Agreements" component={AgreementsScreen} />
             <More.Screen name="Operators" component={OperatorsScreen} />
             <More.Screen name="OperatorEdit" component={OperatorEditScreen} />

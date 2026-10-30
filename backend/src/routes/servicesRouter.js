@@ -14,11 +14,18 @@ const ShopService = require('../models/ShopService');
 const ServiceInquiry = require('../models/ServiceInquiry');
 const User = require('../models/User');
 const svc = require('../services/shopServices');
+const featureGate = require('../services/featureGate');
 
 const { wrap, httpError } = apiErrors;
 const router = express.Router();
 router.use(tenantRecognizer);
 router.use(authenticate);
+// a shop without the Services switch shows no services; a customer's existing inquiries stay readable
+router.use((req, res, next) => {
+    if (featureGate.isOn(req.tenant, 'services') || req.path.startsWith('/inquiries')) return next();
+    if (req.method === 'GET' && req.path === '/') return res.json({ items: [] });
+    return next(httpError(404, 'Services are not available at this shop'));
+});
 
 const isId = (v) => typeof v === 'string' && mongoose.isValidObjectId(v);
 const publicView = (s) => ({ ...s, questions: (s.questions || []).filter((q) => q.enabled), quickReplies: undefined });

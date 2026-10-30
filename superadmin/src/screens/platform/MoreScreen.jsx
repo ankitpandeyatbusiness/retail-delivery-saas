@@ -48,6 +48,7 @@ export default function MoreScreen() {
                 <ListRow section="platform" icon="bank" title="Companies and Switch" subtitle="Who runs the platform now, and the Switch button" onPress={() => nav.navigate('Operators')} />
                 <ListRow section="platform" icon="notes" title="Agreements and terms" subtitle="Read them; the supreme admin writes and sends them" onPress={() => nav.navigate('Agreements')} />
                 <ListRow section="money" icon="rupee" title="Settlement sheet" subtitle="Who owes whom between the two of you, row by row" onPress={() => nav.navigate('Settlement')} />
+                <ListRow section="orders" icon="message" title="Services and booking" subtitle="Inquiries, table bookings and the booking money of every shop, to read" onPress={() => nav.navigate('ServicesOverview')} />
                 <ListRow section="money" icon="receipt" title="GST register" subtitle="Every bill and credit note of a month, with CGST, SGST and IGST" onPress={() => nav.navigate('GstRegister')} />
                 <ListRow section="shops" icon="chart" title="Shops growth" subtitle="Top shops, who is growing, who is slowing down" onPress={() => nav.navigate('ShopsGrowth')} />
                 <ListRow section="money" icon="chart" title="Owner report settings" subtitle="Monthly report email and the comparison shown to owners" onPress={() => nav.navigate('InsightsSettings')} />

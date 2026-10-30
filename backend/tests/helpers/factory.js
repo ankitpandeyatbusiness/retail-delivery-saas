@@ -28,7 +28,7 @@ async function waitFor(fn, ms = 4000) {
 const makeTenant = (slug = 'shop-a', extra = {}) => Tenant.create({
     slug,
     name: `Shop ${slug}`,
-    settings: { orders: { types: ['delivery', 'pickup'], payments: ['cod'] } },
+    settings: { orders: { types: ['delivery', 'pickup'], payments: ['cod'] }, features: { services: true, tableBooking: true } },
     billing: { state: 'active' },
     ...extra,
 });

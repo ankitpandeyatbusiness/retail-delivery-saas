@@ -100,6 +100,7 @@ export default function ShopDetailScreen() {
                 <ListRow section="riders" icon="rider" title="Riders and cash" subtitle="Riders, cash they hold, performance" onPress={go('ShopRiders')} />
                 <ListRow section="alerts" icon="message" title="Complaints" subtitle="Answer and refund customer complaints" onPress={go('ShopComplaints')} />
                 <ListRow section="platform" icon="megaphone" title="Messages to customers" subtitle="Tell customers and riders something" onPress={go('ShopMessages')} />
+                <ListRow section="orders" icon="message" title="Services and booking" subtitle="Inquiries and table bookings of this shop, to read (the switches are in App features)" onPress={() => nav.navigate('ServicesShop', { tenantId: shopId, name })} />
                 <ListRow section="settings" icon="notes" title="Activity log" subtitle="Who changed what in this shop" onPress={go('ShopActivity')} />
                 <ListRow section="money" icon="chart" title="Sales report" subtitle="Sales per day, items, payments" onPress={() => nav.navigate('SalesReport', { shopId, name: tenant.name })} last />
             </Card>

@@ -69,6 +69,7 @@ export default function OwnerBookingSettingsScreen() {
                     <LiveToggle on={!!v.enabled} busy={flipping} onPress={flip} />
                 </View>
             </Card>
+            {v.featureOn === false ? <Text style={{ color: error, fontWeight: '800', marginTop: 10 }}>{tr('Table booking is not switched on for your shop yet. Ask us to switch it on.')}</Text> : null}
             <Group title={tr('When guests can book')} hint={tr('Add a time for lunch and another for dinner. Days left empty means every day.')}>
                 <TimingEditor value={v.windows} onChange={(x) => set('windows', x)} />
             </Group>

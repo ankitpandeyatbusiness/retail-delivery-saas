@@ -19,7 +19,7 @@ const mine = async (req) => {
     return doc;
 };
 
-router.get('/templates', wrap(async (req, res) => { res.json({ items: svc.templateList(), types: svc.TYPES }); }));
+router.get('/templates', wrap(async (req, res) => { res.json({ items: svc.templateList(await svc.loadDefaults()), types: svc.TYPES }); }));
 
 router.get('/', wrap(async (req, res) => {
     const items = await ShopService.find({ tenantId: req.tenant._id }).sort({ sortOrder: 1, createdAt: 1 }).lean();
@@ -28,7 +28,7 @@ router.get('/', wrap(async (req, res) => {
 
 router.post('/', wrap(async (req, res) => {
     const body = req.body || {};
-    const base = svc.newDoc(body.kind);
+    const base = svc.newDoc(body.kind, await svc.loadDefaults());
     const edits = svc.cleanService({ ...body, name: body.name || base.name || 'My service' }, { partial: true });
     const last = await ShopService.findOne({ tenantId: req.tenant._id }).sort({ sortOrder: -1 }).select('sortOrder').lean();
     const doc = await ShopService.create({ ...base, ...edits, tenantId: req.tenant._id, sortOrder: (last?.sortOrder ?? -1) + 1 });
@@ -59,7 +59,7 @@ router.post('/reorder', wrap(async (req, res) => {
 // "Use recommended settings": our questions for this kind come back and the owner's own questions stay where they are.
 router.post('/:id/recommended', wrap(async (req, res) => {
     const doc = await mine(req);
-    const ours = svc.recommendedFor(doc.kind);
+    const ours = svc.recommendedFor(doc.kind, await svc.loadDefaults());
     const own = doc.questions.filter((q) => !q.recommended).map((q) => q.toObject());
     doc.questions = svc.cleanQuestions([...ours, ...own]);
     await doc.save();

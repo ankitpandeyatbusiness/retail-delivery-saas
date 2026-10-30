@@ -496,7 +496,7 @@ const DEFAULTS = {
         ratingBadge: true, prepTime: true, serves: false, calories: false,
         specialInstructions: true, scheduleOrder: false, reorder: true, favourites: false,
         guestBrowsing: true, couponField: true, tips: false,
-        directions: true,
+        directions: true, services: false, tableBooking: false,
     },
     menu: { outOfStock: 'dim', groupByCategory: true },
     orders: {

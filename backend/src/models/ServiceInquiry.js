@@ -23,6 +23,7 @@ const inquirySchema = new mongoose.Schema({
     customerUnread: { type: Number, default: 0 },   // owner replies the customer has not opened
     note: { type: String, maxlength: 1000, default: '' },   // private, the owner only
     lastMessageAt: { type: Date, default: Date.now },
+    unansweredNotifiedAt: Date,                     // the owner was reminded that the customer's last message is unanswered (once per message)
     status: { type: String, enum: ['new', 'replied', 'quoted', 'confirmed', 'rejected', 'closed'], default: 'new' },
 }, { timestamps: true });
 

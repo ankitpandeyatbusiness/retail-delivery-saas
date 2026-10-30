@@ -37,6 +37,7 @@ module.exports = {
         'guestBrowsing',        // "Skip" on login
         'directions',           // the shop's address and a Directions button (Google Maps) when the shop is pinned on the map
         'couponField', 'tips',
+        'services', 'tableBooking',   // add-ons: off until the super admin switches them on for a shop (services/featureGate.js)
     ],
 
     OUT_OF_STOCK: ['dim', 'hide'],

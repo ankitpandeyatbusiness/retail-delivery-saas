@@ -9,6 +9,7 @@ const TableBookingConfig = require('../models/TableBookingConfig');
 const TableBooking = require('../models/TableBooking');
 const tb = require('../services/tableBooking');
 const bp = require('../services/bookingPayment');
+const featureGate = require('../services/featureGate');
 
 const { wrap, httpError } = apiErrors;
 const router = express.Router();
@@ -16,14 +17,16 @@ const isId = (v) => typeof v === 'string' && mongoose.isValidObjectId(v);
 const tell = (event, ctx) => Promise.resolve().then(() => require('../notifications/center').notify(event, ctx)).catch((e) => console.error('Notification error:', e.message));
 
 // dineTableCount: how many tables the shop has for dine in (the settings screen offers to fill the table list from it)
-router.get('/settings', wrap(async (req, res) => { res.json({ ...(await tb.getConfig(req.tenant._id)), dineTableCount: require('../services/tableQr').tableCount(req.tenant) || 0 }); }));
+router.get('/settings', wrap(async (req, res) => { res.json({ ...(await tb.getConfig(req.tenant._id)), dineTableCount: require('../services/tableQr').tableCount(req.tenant) || 0, featureOn: featureGate.isOn(req.tenant, 'tableBooking') }); }));
 
 router.put('/settings', wrap(async (req, res) => {
+    // the switch comes first: a shop without it cannot even try to turn booking on
+    if (req.body?.enabled === true && req.actor?.type !== 'superadmin' && !featureGate.isOn(req.tenant, 'tableBooking')) throw httpError(403, 'Table booking is not switched on for your shop. Ask us to switch it on.');
     const current = await tb.getConfig(req.tenant._id);
     const changes = tb.cleanConfig(req.body, current);
     if (changes.enabled && !(await bp.available(req.tenant._id))) throw httpError(400, 'Table booking needs online payments. Ask us to connect your Razorpay account first.');
     await TableBookingConfig.updateOne({ tenantId: req.tenant._id }, { $set: changes, $setOnInsert: { tenantId: req.tenant._id } }, { upsert: true });
-    res.json({ ...(await tb.getConfig(req.tenant._id)), dineTableCount: require('../services/tableQr').tableCount(req.tenant) || 0 });
+    res.json({ ...(await tb.getConfig(req.tenant._id)), dineTableCount: require('../services/tableQr').tableCount(req.tenant) || 0, featureOn: featureGate.isOn(req.tenant, 'tableBooking') });
 }));
 
 router.get('/', wrap(async (req, res) => {

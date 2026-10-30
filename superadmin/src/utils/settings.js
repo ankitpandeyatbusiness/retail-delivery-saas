@@ -78,12 +78,15 @@ export const FEATURES = {
     directions: ['Directions to the shop', 'Shows the shop address and, if the shop is pinned on the map, a Directions button that opens Google Maps'],
     couponField: ['Coupon box', 'A coupon code field in the cart'],
     tips: ['Tips', 'Customers can tip the rider'],
+    services: ['Services and inquiries', 'The owner offers bulk orders, tiffin, party booking or his own services, and customers send inquiries'],
+    tableBooking: ['Table booking', 'Guests book and pay for a table, and the owner manages the bookings'],
 };
 export const FEATURE_GROUPS = [
     { title: 'Food labels', keys: ['vegToggle', 'vegDot'] },
     { title: 'Dish information', keys: ['ratingBadge', 'prepTime', 'serves', 'calories'] },
     { title: 'Ordering', keys: ['specialInstructions', 'scheduleOrder', 'reorder', 'tips', 'couponField'] },
     { title: 'Customers', keys: ['favourites', 'guestBrowsing', 'directions'] },
+    { title: 'Add-ons (off until you switch them on)', keys: ['services', 'tableBooking'] },
 ];
 
 /* ------------------------------ effective values ------------------------------ */

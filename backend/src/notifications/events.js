@@ -43,6 +43,7 @@ const EVENTS = {
     booking_waitlist_free: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },   // a table came free in a slot the guest was waiting for
     booking_allowed: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },      // the shop confirmed a guest's table
     booking_owner_cancelled: { to: 'customer', channels: INAPP_PUSH, alsoPush: true }, // the shop cancelled a guest's booking
+    inquiry_unanswered: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },      // a customer's message has waited a day for an answer
     inquiry_new: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },             // a customer sent an inquiry from a service form
     inquiry_customer_reply: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },  // a customer wrote again on an inquiry
     inquiry_reply: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },        // the shop answered an inquiry
