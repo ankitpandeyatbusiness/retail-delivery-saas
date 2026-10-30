@@ -8,7 +8,7 @@ import { useBrand, alpha } from '../../components/common/kit';
 import { Button, Empty } from '../../components/owners/ui';
 import { FormPage, Group, TextBox, Label } from '../../components/owners/menuBits';
 import { fetchBookingConfig, fetchBookingSlots, fetchBookingTables, createBooking, joinWaitlist, leaveWaitlist, fetchMyWaitlist } from '../../api/customers/shopApi';
-import { FormShimmer } from '../../components/owners/shimmer';
+import { FormShimmer, LineShimmer } from '../../components/owners/shimmer';
 import { showToast } from '../../components/customers/shop';
 import { tr } from '../../i18n';
 
@@ -135,7 +135,11 @@ export default function BookTableScreen() {
                 {stepBtn(1, 'add')}
             </View>
             <Label>{tr('Time')}</Label>
-            {slots === null ? <Text style={{ color: muted, marginBottom: 14 }}>{tr('Looking for free tables...')}</Text> : null}
+            {slots === null ? (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 6 }}>
+                    {[0, 1, 2, 3, 4, 5].map((i) => <View key={i} style={{ marginRight: 8, marginBottom: 8 }}><LineShimmer width={84} height={48} /></View>)}
+                </View>
+            ) : null}
             {slots && !slots.length ? <Text style={{ color: muted, marginBottom: 14 }}>{tr('No times on this day. Try another day.')}</Text> : null}
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 6 }}>
                 {(slots || []).map((s) => {
@@ -149,7 +153,14 @@ export default function BookTableScreen() {
                     );
                 })}
             </View>
-            {time && tables === null ? <Text style={{ color: muted, marginVertical: 8 }}>{tr('Loading the tables...')}</Text> : null}
+            {time && tables === null ? (
+                <View style={{ marginTop: 6 }}>
+                    <View style={{ marginBottom: 10 }}><LineShimmer width={140} height={16} /></View>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                        {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => <View key={i} style={{ marginRight: 10, marginBottom: 10 }}><LineShimmer width={74} height={74} /></View>)}
+                    </View>
+                </View>
+            ) : null}
             {time && tables ? (
                 <View style={{ marginTop: 6 }}>
                     <Label hint={tr('Tap a free table')}>{tr('Choose your table')}</Label>
