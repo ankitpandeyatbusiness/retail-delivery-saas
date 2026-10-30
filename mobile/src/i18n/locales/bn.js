@@ -2293,6 +2293,7 @@ export default {
     "Use our recommended questions?": "আমাদের প্রস্তাবিত প্রশ্ন ব্যবহার করবেন?",
     "Use recommended": "প্রস্তাবিত ব্যবহার করুন",
     "Use recommended settings": "প্রস্তাবিত সেটিং ব্যবহার করুন",
+    "Leave the time empty to close the whole day. Guests can also never book when your shop is closed: your opening hours and holidays count here too.": "পুরো দিন বন্ধ করতে সময় ফাঁকা রাখুন। দোকান বন্ধ থাকলে অতিথিরা বুকিং করতে পারেন না: আপনার খোলার সময় ও ছুটি এখানেও গণ্য হয়।",
     "Up": "উপরে",
     "Down": "নিচে",
     "Duplicate": "নকল করুন",

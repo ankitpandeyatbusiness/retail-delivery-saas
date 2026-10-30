@@ -2293,6 +2293,7 @@ export default {
     "Use our recommended questions?": "आमचे सुचवलेले प्रश्न वापरायचे?",
     "Use recommended": "सुचवलेले वापरा",
     "Use recommended settings": "सुचवलेली सेटिंग वापरा",
+    "Leave the time empty to close the whole day. Guests can also never book when your shop is closed: your opening hours and holidays count here too.": "पूर्ण दिवस बंद करण्यासाठी वेळ रिकामी ठेवा. दुकान बंद असताना पाहुणे बुकिंग करू शकत नाहीत: तुमचे उघडण्याचे वेळ आणि सुट्ट्या येथेही मोजल्या जातात.",
     "Up": "वर",
     "Down": "खाली",
     "Duplicate": "पुन्हा करा",

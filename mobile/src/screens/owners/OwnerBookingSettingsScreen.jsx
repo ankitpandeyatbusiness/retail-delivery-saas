@@ -4,7 +4,8 @@ import { View, Text, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
 import { Button, Card, Empty, LiveToggle } from '../../components/owners/ui';
-import { FormPage, Group, TextBox, NumberBox, ChoiceBox, DateBox, TimingEditor, Toggle } from '../../components/owners/menuBits';
+import { FormPage, Group, TextBox, NumberBox, ChoiceBox, Label, TimingEditor, Toggle } from '../../components/owners/menuBits';
+import DateRangeSheet from '../../components/customers/DateRangeSheet';
 import { booking as api, apiError } from '../../api/owners/shopApi';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { showToast } from '../../components/customers/shop';
@@ -12,13 +13,16 @@ import { maskTime } from '../../utils/owners/menuRules';
 import { FormShimmer } from '../../components/owners/shimmer';
 import { tr } from '../../i18n';
 
+const dayText = (k) => { const [y, m, d] = String(k).split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }); };
+
 export default function OwnerBookingSettingsScreen() {
-    const { text, muted, border, error } = useBrand();
+    const { text, muted, border, error, surface } = useBrand();
     const [v, setV] = useState(null);
     const [err, setErr] = useState('');
     const [saving, setSaving] = useState(false);
     const [flipping, setFlipping] = useState(false);
     const [closeDate, setCloseDate] = useState('');
+    const [picking, setPicking] = useState(false);
     const [closeTime, setCloseTime] = useState('');
 
     useEffect(() => { api.settings().then(setV).catch((e) => { useOwnerStore.getState().noteError(e); setErr(apiError(e, 'Could not open the booking settings.')); }); }, []);
@@ -104,8 +108,15 @@ export default function OwnerBookingSettingsScreen() {
                 <ChoiceBox label={tr('What happens to it')} options={[['adjust', tr('Taken off the bill')], ['keep', tr('You keep it')]]} value={v.depositMode} onChange={(x) => set('depositMode', x)} />
                 <NumberBox label={tr('Full refund if cancelled this many hours before')} integer value={v.refundHours} onChange={(x) => set('refundHours', x)} last />
             </Group>
-            <Group title={tr('Close a day or a time')} hint={tr('Leave the time empty to close the whole day.')}>
-                <DateBox label={tr('Date')} value={closeDate} onChange={setCloseDate} />
+            <Group title={tr('Close a day or a time')} hint={tr('Leave the time empty to close the whole day. Guests can also never book when your shop is closed: your opening hours and holidays count here too.')}>
+                <View style={{ marginBottom: 16 }}>
+                    <Label>{tr('Date')}</Label>
+                    <Pressable onPress={() => setPicking(true)} style={{ minHeight: 46, borderRadius: 12, borderWidth: 1, borderColor: border, backgroundColor: surface, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center' }}>
+                        <Text style={{ flex: 1, color: closeDate ? text : muted, fontSize: 15, fontWeight: '600' }}>{closeDate ? dayText(closeDate) : tr('Tap to pick a day')}</Text>
+                        <Ionicons name="calendar-outline" size={18} color={muted} />
+                    </Pressable>
+                </View>
+                <DateRangeSheet single ahead={365} visible={picking} value={closeDate} title={tr('Pick a day')} onClose={() => setPicking(false)} onApply={(d) => { setCloseDate(d || ''); setPicking(false); }} />
                 <TextBox label={tr('Time (optional)')} value={closeTime} onChangeText={(x) => setCloseTime(maskTime(x))} keyboardType="number-pad" placeholder="19:00" maxLength={5} />
                 <Button label={tr('Close it')} icon="close-circle-outline" kind="ghost" onPress={addClosed} />
                 {closedItems.map((c) => (

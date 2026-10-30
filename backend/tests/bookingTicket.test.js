@@ -57,3 +57,14 @@ test('the ticket is gone when the slot is over', () => {
     assert.throws(() => ticket.ticketFor(b, { name: 'S' }, at(61)), /time is over/);
     assert.equal(ticket.ticketFor(b, { name: 'S' }, at(30)).table, '4');
 });
+
+test('no slot when the shop is shut: holiday, a closed weekday, or outside the shop hours', () => {
+    const tb = require('../src/services/tableBooking');
+    const now = new Date('2026-11-01T06:00:00Z').getTime();   // Sunday 1 Nov 2026, 11:30 India
+    const base = { ...tb.DEFAULTS, windows: [{ days: [], open: '12:00', close: '16:00' }], slotMinutes: 60, advanceDays: 14 };
+    const day = (d) => tb.slotTimes({ ...base, shopHours: d }, '2026-11-03', now);   // Tuesday
+    assert.deepEqual(day({ weekly: {}, closedDates: [] }), ['12:00', '13:00', '14:00', '15:00']);
+    assert.deepEqual(day({ weekly: {}, closedDates: [{ from: '2026-11-02', to: '2026-11-04' }] }), []);
+    assert.deepEqual(day({ weekly: { tue: [] }, closedDates: [] }), []);
+    assert.deepEqual(day({ weekly: { tue: [{ open: '13:00', close: '15:00' }] }, closedDates: [] }), ['13:00', '14:00']);
+});

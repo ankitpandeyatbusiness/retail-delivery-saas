@@ -39,6 +39,12 @@ async function getConfig(tenantId) {
     const doc = await TableBookingConfig.findOne({ tenantId }).lean();
     const c = { ...DEFAULTS, ...(doc || {}), tenantId };
     c.tables = [...(c.tables || [])].sort(byNo);
+    // the shop's own opening hours and holidays also limit booking: nobody can book a table when the shop is shut
+    try {
+        const tenant = await require('../models/Tenant').findById(tenantId).select('settings').lean();
+        const h = require('./tenantConfigService').resolveConfig(tenant || {}).hours || {};
+        c.shopHours = { weekly: h.weekly || {}, closedDates: h.closedDates || [] };
+    } catch (e) { c.shopHours = null; }
     return c;
 }
 
@@ -117,10 +123,18 @@ function slotTimes(config, date, now = Date.now()) {
     if (date < today || date > addDays(today, config.advanceDays)) return [];
     if ((config.closedDates || []).includes(date)) return [];
     const key = dayKey(date);
+    const sh = config.shopHours;
+    if (sh && (sh.closedDates || []).some((r) => date >= r.from && date <= r.to)) return [];   // a holiday of the shop
+    const shopDay = sh?.weekly?.[key];   // undefined: no hours set for that day, so no limit. Empty: the shop is closed that day
+    if (Array.isArray(shopDay) && !shopDay.length) return [];
+    const inShopHours = (m) => !Array.isArray(shopDay) || shopDay.some((x) => {
+        const o = toMin(x.open); const c = toMin(x.close);
+        return m >= o && m + config.slotMinutes <= (c <= o ? c + 1440 : c);
+    });
     const times = new Set();
     for (const w of config.windows || []) {
         if (w.days?.length && !w.days.includes(key)) continue;
-        for (let m = toMin(w.open); m + config.slotMinutes <= toMin(w.close); m += config.slotMinutes) times.add(toTime(m));
+        for (let m = toMin(w.open); m + config.slotMinutes <= toMin(w.close); m += config.slotMinutes) if (inShopHours(m)) times.add(toTime(m));
     }
     const closed = new Set((config.closedSlots || []).filter((s) => s.date === date).map((s) => s.time));
     return [...times].sort().filter((t) => !closed.has(t));
