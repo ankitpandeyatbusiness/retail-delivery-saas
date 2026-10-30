@@ -30,6 +30,7 @@ const WORDS = {
     OwnerMessages: 'message notify announcement broadcast sms push send',
     OwnerAutopilot: 'autopilot reminder win back coupon inactive customers automatic',
     OwnerRewards: 'points rewards badge loyalty levels expiry top riders gift bronze silver gold platinum',
+    OwnerServices: 'services bulk order tiffin party booking catering inquiry inquiries custom',
     OwnerCoupons: 'coupon discount code offer promo voucher only for dine in first order percent flat',
     OwnerBanners: 'banner offer picture home slider image',
     OwnerHero: 'hero login picture photo image slider home screen background',
@@ -76,6 +77,7 @@ const GROUPS = [
     ['Menu and offers', [
         ['list', 'Categories', 'Order, pictures and opening hours of each section', 'OwnerCategories'],
         ['pricetag', 'Coupons', 'Discount codes', 'OwnerCoupons'],
+        ['briefcase', 'Services', 'Bulk orders, tiffin, party booking and your own services', 'OwnerServices'],
         ['images', 'Home screen', 'Banners, festival strips and the big pictures at the top', 'OwnerShopFrontHub'],
     ]],
     ['Money', [

@@ -93,3 +93,9 @@ export const deleteUpload = (id) => d(api.delete(`/me/uploads/${id}`));
 // preferences: promotional messages on/off (order updates always arrive)
 export const fetchPrefs = () => d(api.get("/me/prefs"));
 export const updatePrefs = (body) => d(api.put("/me/prefs", body));
+
+// services the shop offers (bulk order, tiffin, party booking, its own) and the inquiries sent for them (backend/src/routes/servicesRouter.js)
+export const fetchServices = () => d(api.get('/services'));                                          // { items }
+export const fetchService = (id) => d(api.get(`/services/${id}`));                                   // the service + me:{ name, phone }
+export const sendInquiry = (id, body) => d(api.post(`/services/${id}/inquiries`, body));            // { name, phone, message, answers:{ questionId: value } }
+export const fetchMyInquiries = () => d(api.get('/services/inquiries/mine'));

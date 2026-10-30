@@ -22,7 +22,7 @@ import { useAddressStore } from '../../store/customers/useAddressStore';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useThemeStore } from '../../store/common/useThemeStore';
 import { useFavStore } from '../../store/customers/shopStores';
-import { fetchMe, updateMe, deleteMe, updatePrefs, deleteUpload } from '../../api/customers/shopApi';
+import { fetchMe, updateMe, deleteMe, updatePrefs, deleteUpload, fetchServices } from '../../api/customers/shopApi';
 import { pickPhoto, uploadAvatar } from '../../utils/common/photoUpload';
 import { Skel } from '../../components/common/motion';
 import OwedStrip from '../../components/customers/OwedStrip';
@@ -226,6 +226,8 @@ function AccountInner() {
     const unread = useNotificationStore((st) => st.unread);
     const favOn = useHomeStore((st) => st.full.features.favourites);
     const pointsOn = useHomeStore((st) => st.full.points?.customer !== false);
+    const [serviceCount, setServiceCount] = useState(0);   // the Services section shows only when the shop offers something
+    useEffect(() => { fetchServices().then((r) => setServiceCount((r.items || []).length)).catch(() => { }); }, []);
     const referOn = useHomeStore((st) => !!(st.full.orders.dineIn?.enabled && st.full.orders.dineIn?.referOn));
     const shop = useThemeStore((st) => st.theme.name);
     const cfgPhone = useHomeStore((st) => st.full.restaurant?.phone);   // the number the owner saved
@@ -407,6 +409,13 @@ function AccountInner() {
                         </Appear>
                     ) : null}
                 </View>
+
+                {serviceCount ? (
+                    <Group title={tr('SERVICES')} delay={90}>
+                        <Item icon="briefcase-outline" label={tr('Services')} sub={tr('Bulk orders, tiffin, party booking and more')} onPress={() => nav.navigate('Services')} />
+                        <Item icon="chatbubbles-outline" label={tr('My inquiries')} sub={tr('Replies from the shop')} onPress={() => nav.navigate('MyInquiries')} last />
+                    </Group>
+                ) : null}
 
                 {pointsOn ? (
                     <Group title={tr('REWARDS')} delay={100}>

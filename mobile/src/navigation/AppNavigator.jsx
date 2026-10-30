@@ -27,6 +27,9 @@ import StaffLeaveScreen from '../screens/staff/StaffLeaveScreen';
 import RiderDutyScreen from '../screens/riders/RiderDutyScreen';
 import RiderPointsScreen from '../screens/riders/RiderPointsScreen';
 import MyPointsScreen from '../screens/customers/MyPointsScreen';
+import ServicesScreen from '../screens/customers/ServicesScreen';
+import ServiceFormScreen from '../screens/customers/ServiceFormScreen';
+import MyInquiriesScreen from '../screens/customers/MyInquiriesScreen';
 import TableBillScreen from '../screens/customers/TableBillScreen';
 import TableBillStrip from '../components/customers/TableBillStrip';
 import TableLinkHost from '../components/customers/TableLinkHost';
@@ -69,6 +72,8 @@ import OwnerReviewsScreen from '../screens/owners/OwnerReviewsScreen';
 import OwnerMessagesScreen from '../screens/owners/OwnerMessagesScreen';
 import OwnerCouponsScreen from '../screens/owners/OwnerCouponsScreen';
 import OwnerCouponScreen from '../screens/owners/OwnerCouponScreen';
+import OwnerServicesScreen from '../screens/owners/OwnerServicesScreen';
+import OwnerServiceScreen from '../screens/owners/OwnerServiceScreen';
 import OwnerBannersScreen from '../screens/owners/OwnerBannersScreen';
 import OwnerBannerScreen from '../screens/owners/OwnerBannerScreen';
 import OwnerHoursScreen from '../screens/owners/OwnerHoursScreen';
@@ -336,6 +341,9 @@ export default function AppNavigator() {
                     <Stack.Screen name="StaffLeave" component={StaffLeaveScreen} />
                     <Stack.Screen name="RiderPoints" component={RiderPointsScreen} />
                     <Stack.Screen name="MyPoints" component={MyPointsScreen} />
+                    <Stack.Screen name="Services" component={ServicesScreen} />
+                    <Stack.Screen name="ServiceForm" component={ServiceFormScreen} />
+                    <Stack.Screen name="MyInquiries" component={MyInquiriesScreen} />
                     <Stack.Screen name="TableBill" component={TableBillScreen} />
                     <Stack.Screen name="ReferFriend" component={ReferFriendScreen} />
                     <Stack.Screen name="ScanTable" component={ScanTableScreen} />
@@ -368,6 +376,8 @@ export default function AppNavigator() {
                     <Stack.Screen name="OwnerMessages" component={OwnerMessagesScreen} />
                     <Stack.Screen name="OwnerCoupons" component={OwnerCouponsScreen} />
                     <Stack.Screen name="OwnerCoupon" component={OwnerCouponScreen} />
+                    <Stack.Screen name="OwnerServices" component={OwnerServicesScreen} />
+                    <Stack.Screen name="OwnerService" component={OwnerServiceScreen} />
                     <Stack.Screen name="OwnerBanners" component={OwnerBannersScreen} />
                     <Stack.Screen name="OwnerBanner" component={OwnerBannerScreen} />
                     <Stack.Screen name="OwnerHours" component={OwnerHoursScreen} />

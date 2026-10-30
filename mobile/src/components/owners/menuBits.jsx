@@ -208,16 +208,16 @@ export function ImageField({ label = 'Picture', value, onChange, kind, refId, sq
 
 // Up to 4 more pictures of a dish. The customer app slides through the main picture and these, by itself.
 // Each one can be moved left or right, or made the main picture (the star). onMain(url) swaps it with the current main one.
-export function MorePictures({ value = [], onChange, onMain, refId, disabled }) {
+export function MorePictures({ value = [], onChange, onMain, refId, disabled, kind = 'product', max = 4, label }) {
     const { surface, border, muted, primary, error } = useBrand();
     const [busy, setBusy] = useState(false);
     const add = async () => {
-        if (busy || value.length >= 4) return;
+        if (busy || value.length >= max) return;
         setBusy(true);
         try {
             const img = await pickImage({});
             if (!img) return;
-            const m = await uploadImage({ kind: 'product', refId, ...img });
+            const m = await uploadImage({ kind, refId, ...img });
             onChange([...value, m.url]);
         } catch (e) { showToast(e.safe ? e.message : tr('Could not upload that picture')); } finally { setBusy(false); }
     };
@@ -235,7 +235,7 @@ export function MorePictures({ value = [], onChange, onMain, refId, disabled }) 
     );
     return (
         <View style={{ marginTop: 16 }}>
-            <Label>{tr('More pictures (optional)')}</Label>
+            <Label>{label || tr('More pictures (optional)')}</Label>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                 {value.map((u, i) => (
                     <View key={u} style={{ marginRight: 12, marginBottom: 14 }}>
@@ -250,7 +250,7 @@ export function MorePictures({ value = [], onChange, onMain, refId, disabled }) 
                         </View>
                     </View>
                 ))}
-                {value.length < 4 ? (
+                {value.length < max ? (
                     <Pressable onPress={add} disabled={disabled || busy} style={{ width: 84, height: 84, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: border, backgroundColor: surface, alignItems: 'center', justifyContent: 'center', opacity: disabled ? 0.5 : 1 }}>
                         {busy ? <LineShimmer width={84} height={84} /> : <Ionicons name="add" size={26} color={primary} />}
                     </Pressable>

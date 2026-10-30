@@ -19,7 +19,7 @@ const MAX_HERO_IMAGES = 5;
 // hero images: the shop owner and the superadmin. icon / splash / adaptive: the superadmin only (they are built into the app).
 const HERO_KINDS = new Set(['hero']);
 const BUILD_KINDS = new Set(['icon', 'splash', 'adaptive']);
-const OWNER_KINDS = new Set(['logo', 'product', 'category', 'banner', 'collection', 'rider', 'order', 'support', ...HERO_KINDS]);
+const OWNER_KINDS = new Set(['logo', 'product', 'category', 'banner', 'collection', 'service', 'rider', 'order', 'support', ...HERO_KINDS]);
 const SUPER_KINDS = new Set([...OWNER_KINDS, ...BUILD_KINDS]);
 const CUSTOMER_KINDS = new Set(['customer', 'complaint']);
 const RIDER_KINDS = new Set(['rider', 'proof']);   // his own photo, and the photo of food handed over on his own delivery
@@ -38,6 +38,7 @@ const KINDS = {
     category: { max: 1600 },
     banner: { max: 1600 },
     collection: { max: 1600 },
+    service: { max: 1600 },   // a photo of a service (hall, thali, tiffin box)
     rider: { ref: true, fixed: true, max: 512 },
     proof: { ref: true, max: 1600 },
     order: { ref: true, max: 1600 },
@@ -45,7 +46,7 @@ const KINDS = {
     customer: { fixed: true, max: 512 },
     complaint: { ref: true, max: 1600 },
 };
-const FOLDER = { logo: 'logo', category: 'categories', banner: 'banners', collection: 'collections' };
+const FOLDER = { logo: 'logo', category: 'categories', banner: 'banners', collection: 'collections', service: 'services' };
 
 const ist = () => new Date(Date.now() + 330 * 60 * 1000);
 const ymd = () => ist().toISOString().slice(0, 10).replace(/-/g, '');
@@ -112,7 +113,7 @@ async function finalKey(tenant, kind, refId) {
         case 'icon': return `${base}branding/icon.png`;
         case 'adaptive': return `${base}branding/adaptive-foreground.png`;
         case 'splash': return `${base}branding/splash.png`;
-        case 'logo': case 'category': case 'banner': case 'collection':
+        case 'logo': case 'category': case 'banner': case 'collection': case 'service':
             return `${base}${FOLDER[kind]}/${stamp}`;
         case 'product': {
             let name = '';

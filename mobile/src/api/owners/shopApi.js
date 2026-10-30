@@ -136,6 +136,14 @@ export const products = crud('products');
 export const banners = crud('banners');
 export const coupons = crud('coupons');
 export const collections = crud('collections');
+// the owner's services (bulk order, tiffin, party booking and his own): crud plus the extras (backend/src/routes/shopServicesRouter.js)
+export const services = {
+    ...crud('services'),
+    templates: () => d(api.get('/shop/services/templates')),                                     // { items:[{kind,name,...}], types }
+    reorder: (ids) => d(api.post('/shop/services/reorder', { ids })),
+    useRecommended: (id) => d(api.post(`/shop/services/${id}/recommended`)),                      // our questions come back; his own stay
+    copyQuestion: (id, body) => d(api.post(`/shop/services/${id}/copy-question`, body)),          // { questionId, toServiceId }
+};
 // body: { enabled?, qty?, dailyQty? }
 export const setStock = (id, body) => d(api.patch(`/shop/products/${id}/stock`, body));
 // the whole menu in one call: { categories (hidden too, with itemCount), products (light), truncated }

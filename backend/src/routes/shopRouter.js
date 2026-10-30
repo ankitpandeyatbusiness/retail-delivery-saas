@@ -658,6 +658,7 @@ router.use('/uploads', require('./uploadRouter'));   // direct-to-R2 uploads (ow
 router.get('/reviews', wrap(async (req, res) => { res.json(await require('../services/reviewsService').list({ tenantId: req.tenant._id, query: req.query })); }));   // what customers say: dishes and delivery
 router.use('/staff', require('./shopStaffRouter'));   // kitchen and waiter people: add, pause, remove
 router.use('/customers', require('./shopCustomersRouter'));   // customer tools: list, detail, edit, Cash on delivery block
+router.use('/services', require('./shopServicesRouter'));   // bulk order, tiffin, party booking and the owner's own services
 router.use('/autopilot', require('./shopAutopilotRouter'));   // automatic reminders to customers (push and inbox only)
 router.use('/messages', require('./shopMessagesRouter'));     // messages to his customers and riders
 router.use('/complaints', require('./shopComplaintsRouter')); // complaints of his customers
