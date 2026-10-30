@@ -98,7 +98,7 @@ function cleanConfig(body, current) {
 
     const next = { ...current, ...out };
     if (next.minParty > next.maxParty) throw httpError(400, 'The smallest group cannot be bigger than the largest');
-    if (next.enabled && !(next.depositAmount > 0)) throw httpError(400, 'Set the deposit guests must pay before you switch booking on');
+    if (next.enabled && !(next.depositAmount > 0)) throw httpError(400, 'Table booking works with a deposit, so a booking counts only once it is paid. Set the deposit amount first, then switch booking on');
     if (next.enabled && !next.windows.length) throw httpError(400, 'Add the times guests can book before you switch booking on');
     if (next.enabled && !(next.tables || []).some((t) => t.bookable)) throw httpError(400, 'Add at least one table guests can book before you switch booking on');
     return out;

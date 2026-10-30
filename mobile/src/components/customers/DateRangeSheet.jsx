@@ -64,11 +64,13 @@ function Chip({ label, on, onPress }) {
 }
 
 // value: { from: 'YYYY-MM-DD' | null, to: 'YYYY-MM-DD' | null, sort: 'newest' | 'oldest' } or null
-export default function DateRangeSheet({ visible, value, onClose, onApply }) {
+// single: picks ONE day for a form (value 'YYYY-MM-DD', onApply('YYYY-MM-DD' | null)), from today up to `ahead` days later; no sort row.
+export default function DateRangeSheet({ visible, value, onClose, onApply, single, ahead = 0, title }) {
     const closedStyle = useClosedStyle();   // the shop is closed: this popup turns grey
     const { primary, text, muted, background, surface, border, radius } = useBrand();
     const today = useMemo(() => sod(new Date()), [visible]);
-    const earliest = useMemo(() => new Date(today.getFullYear(), today.getMonth() - MAX_BACK, 1), [today]);
+    const earliest = useMemo(() => (single ? today : new Date(today.getFullYear(), today.getMonth() - MAX_BACK, 1)), [today, single]);
+    const latest = useMemo(() => (single ? addDays(today, ahead || 365) : today), [today, single, ahead]);
 
     const [start, setStart] = useState(null);
     const [end, setEnd] = useState(null);
@@ -80,8 +82,8 @@ export default function DateRangeSheet({ visible, value, onClose, onApply }) {
 
     useEffect(() => {
         if (visible) {
-            const s0 = value?.from ? fromKey(value.from) : null;
-            const e0 = value?.to && value.to !== value.from ? fromKey(value.to) : null;
+            const s0 = single ? (/^d{4}-d{2}-d{2}$/.test(value || '') ? fromKey(value) : null) : value?.from ? fromKey(value.from) : null;
+            const e0 = single ? null : value?.to && value.to !== value.from ? fromKey(value.to) : null;
             setStart(s0); setEnd(e0); setSort(value?.sort || 'newest');
             const base = e0 || s0 || today;
             setView({ y: base.getFullYear(), m: base.getMonth() });
@@ -102,9 +104,10 @@ export default function DateRangeSheet({ visible, value, onClose, onApply }) {
     };
     const step = (n) => { const d = new Date(view.y, view.m + n, 1); goto(d.getFullYear(), d.getMonth()); };
     const canPrev = new Date(view.y, view.m, 1) > earliest;
-    const canNext = new Date(view.y, view.m + 1, 1) <= today;
+    const canNext = new Date(view.y, view.m + 1, 1) <= latest;
 
     const pick = (d) => {
+        if (single) { setStart(d); setEnd(null); return; }
         if (!start || end) { setStart(d); setEnd(null); return; }
         if (same(d, start)) return;                 // one day only: just press Apply
         if (d < start) { setEnd(start); setStart(d); } else setEnd(d);
@@ -115,6 +118,7 @@ export default function DateRangeSheet({ visible, value, onClose, onApply }) {
     const onDay = useCallback((d) => pickRef.current(d), []);
     const clear = () => { setStart(null); setEnd(null); setSort('newest'); };
     const apply = () => {
+        if (single) { onApply(start ? keyOf(start) : null); return; }
         if (!start && sort === 'newest') { onApply(null); return; }
         onApply({ from: start ? keyOf(start) : null, to: start ? keyOf(end || start) : null, sort });
     };
@@ -131,11 +135,11 @@ export default function DateRangeSheet({ visible, value, onClose, onApply }) {
     }, [view.y, view.m]);
 
     const t = today;
-    const PRESETS = [
+    const PRESETS = single ? [['Today', t, t], ['Tomorrow', addDays(t, 1), addDays(t, 1)], ['In 3 days', addDays(t, 3), addDays(t, 3)], ['In a week', addDays(t, 7), addDays(t, 7)]] : [
         ['Today', t, t], ['Yesterday', addDays(t, -1), addDays(t, -1)], ['Last 7 days', addDays(t, -6), t],
         ['Last 30 days', addDays(t, -29), t], ['This month', new Date(t.getFullYear(), t.getMonth(), 1), t],
     ];
-    const summary = start ? (end ? `${fmt(keyOf(start))} – ${fmt(keyOf(end))}` : fmt(keyOf(start))) : 'Tap a day, or tap two days for a range';
+    const summary = start ? (end ? `${fmt(keyOf(start))} – ${fmt(keyOf(end))}` : fmt(keyOf(start))) : single ? 'Tap a day' : 'Tap a day, or tap two days for a range';
 
     return (
         <Modal visible={show} transparent animationType="none" onShow={play} onRequestClose={onClose} statusBarTranslucent>
@@ -147,7 +151,7 @@ export default function DateRangeSheet({ visible, value, onClose, onApply }) {
                     <Grip>
                     <View style={[s.handle, { backgroundColor: border }]} />
                     <View style={s.top}>
-                        <Text style={[s.title, { color: text }]}>{tr('Filter by date')}</Text>
+                        <Text style={[s.title, { color: text }]}>{title || tr('Filter by date')}</Text>
                         <Pressable onPress={onClose} hitSlop={10} style={[s.x, { backgroundColor: surface, borderColor: border }]}>
                             <Ionicons name="close" size={16} color={text} />
                         </Pressable>
@@ -156,7 +160,7 @@ export default function DateRangeSheet({ visible, value, onClose, onApply }) {
 
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={s.presets}>
                         {PRESETS.map(([label, a, b]) => (
-                            <Chip key={label} label={label} on={same(start, a) && (same(end, b) || (!end && same(a, b)))} onPress={() => preset(a, b)} />
+                            <Chip key={label} label={tr(label)} on={same(start, a) && (same(end, b) || (!end && same(a, b)))} onPress={() => preset(a, b)} />
                         ))}
                     </ScrollView>
 
@@ -181,18 +185,20 @@ export default function DateRangeSheet({ visible, value, onClose, onApply }) {
                                     const mid = !!start && !!end && d > start && d < end;
                                     return (
                                         <Day key={i} d={d} sel={isS || isE} mid={mid} today={same(d, today)}
-                                            off={d > today || d < earliest} onPick={onDay} />
+                                            off={d > latest || d < earliest} onPick={onDay} />
                                     );
                                 })}
                             </View>
                         ))}
                     </Animated.View>
 
-                    <View style={s.sortRow}>
-                        <Text style={[s.sortLbl, { color: muted }]}>{tr('SORT')}</Text>
-                        <Chip label={tr('Newest first')} on={sort === 'newest'} onPress={() => setSort('newest')} />
-                        <Chip label={tr('Oldest first')} on={sort === 'oldest'} onPress={() => setSort('oldest')} />
-                    </View>
+                    {single ? null : (
+                        <View style={s.sortRow}>
+                            <Text style={[s.sortLbl, { color: muted }]}>{tr('SORT')}</Text>
+                            <Chip label={tr('Newest first')} on={sort === 'newest'} onPress={() => setSort('newest')} />
+                            <Chip label={tr('Oldest first')} on={sort === 'oldest'} onPress={() => setSort('oldest')} />
+                        </View>
+                    )}
 
                     <Text style={[s.summary, { color: start ? primary : muted }]}>{summary}</Text>
                     <View style={s.foot}>
@@ -200,7 +206,7 @@ export default function DateRangeSheet({ visible, value, onClose, onApply }) {
                             <Text style={[s.fTxt, { color: text }]}>{tr('Clear')}</Text>
                         </Press>
                         <Press wrap={{ flex: 2 }} onPress={apply} style={[s.fBtn, { backgroundColor: primary, borderRadius: radius }]}>
-                            <Text style={[s.fTxt, { color: '#FFFFFF' }]}>{start ? tr('Show orders') : sort === 'oldest' ? tr('Apply') : tr('Show all orders')}</Text>
+                            <Text style={[s.fTxt, { color: '#FFFFFF' }]}>{single ? tr('Done') : start ? tr('Show orders') : sort === 'oldest' ? tr('Apply') : tr('Show all orders')}</Text>
                         </Press>
                     </View>
                 </Animated.View>

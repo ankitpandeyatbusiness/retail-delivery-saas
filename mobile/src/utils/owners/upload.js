@@ -19,6 +19,15 @@ export async function pickImage({ square = false } = {}) {
     return { uri: a.uri, mimeType: ALLOWED.includes(a.mimeType) ? a.mimeType : 'image/jpeg' };
 }
 
+// several pictures at once -> [{ uri, mimeType }] (empty when the owner backs out). limit: how many he may still add.
+export async function pickImages({ limit = 5 } = {}) {
+    const r = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'], quality: 0.8, exif: false, allowsEditing: false, allowsMultipleSelection: true, selectionLimit: Math.max(1, limit),
+    });
+    if (r.canceled || !r.assets?.length) return [];
+    return r.assets.slice(0, Math.max(1, limit)).map((a) => ({ uri: a.uri, mimeType: ALLOWED.includes(a.mimeType) ? a.mimeType : 'image/jpeg' }));
+}
+
 // kind: product | category | collection | banner. 'product' needs refId (the item's id, or a temporary one for a new item).
 // -> the saved Media { url, ... }
 export async function uploadImage({ kind, uri, mimeType, refId, via }) {

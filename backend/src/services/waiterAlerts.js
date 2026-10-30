@@ -78,4 +78,17 @@ async function paidOnline(tenantId, { table, amount, name }) {
     } catch (e) { console.error('Waiter alert error:', e.message); }
 }
 
-module.exports = { onStatus, request, tell, paidOnline };
+// half an hour before a booked table: the waiters on duty hear which table, for how many, and for whom
+async function bookingSoon(tenantId, { table, party, time, name }) {
+    try {
+        const who = name ? ' ' + name + '.' : '';
+        const t = table ? 'Table ' + table : 'A table';
+        await ring(tenantId, {
+            title: t + ' is booked at ' + time, body: party + (party === 1 ? ' guest.' : ' guests.') + who,
+            data: { type: 'waiter_booking', table: String(table || ''), kind: 'booking', speech: t + ' is booked for ' + party + ' guests at ' + time + '.' + who, speechHi: (table ? 'टेबल ' + table : 'एक टेबल') + ', ' + party + ' मेहमान, ' + time + ' बजे के लिए बुक है।' + who },
+            tag: 'booked:' + table + ':' + time,
+        });
+    } catch (e) { console.error('Waiter alert error:', e.message); }
+}
+
+module.exports = { onStatus, request, tell, paidOnline, bookingSoon };

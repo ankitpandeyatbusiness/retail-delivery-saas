@@ -485,6 +485,7 @@ router.get('/settings', wrap(async (req, res) => {
         phone: req.tenant.phone || null,
         address: req.tenant.address || {},
         delivery: req.tenant.delivery || {},
+        addons: { services: !!cfg.features?.services, tableBooking: !!cfg.features?.tableBooking },   // the super admin's switches: a shop without them sees no Services, Inquiries or Bookings
         hours: { weekly: cfg.hours.weekly || {}, closedMessage: st.hours?.closedMessage || '', closedDates: cfg.hours.closedDates || [] },
         riders: { payPerDelivery: 0, ...DEFAULTS.riders, ...(st.riders || {}), pay: riderPay.effectivePlan(st.riders) },
         notifications: { ...DEFAULTS.notifications, ...(st.notifications || {}) },

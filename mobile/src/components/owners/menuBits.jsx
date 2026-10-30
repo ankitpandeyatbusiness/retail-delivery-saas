@@ -1,14 +1,14 @@
 // The menu screens' building blocks: form fields, the picture box, choice groups, quick sizes, category hours,
 // the "sold out for how long" sheet, and the item row. All of it wears the shop's brand through useBrand().
-import React, { useEffect, useState } from 'react';
-import { View, Text, Pressable, ScrollView, Switch, TextInput, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, Pressable, ScrollView, Switch, TextInput, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand, alpha } from '../common/kit';
 import { PageHeader, Card, Pill, Chips, Button, Field, Sheet, Row, money } from './ui';
 import { showToast, useSlideTick, seedOf } from '../customers/shop';
-import { pickImage, uploadImage } from '../../utils/owners/upload';
+import { pickImage, pickImages, uploadImage } from '../../utils/owners/upload';
 import { amountLabel, stockUnit, itemState, MAX_GROUPS, MAX_OPTIONS, DAYS, maskTime } from '../../utils/owners/menuRules';
 import { clockTime } from '../../utils/owners/orderFlow';
 import { LineShimmer } from './shimmer';
@@ -208,19 +208,29 @@ export function ImageField({ label = 'Picture', value, onChange, kind, refId, sq
 
 // Up to 4 more pictures of a dish. The customer app slides through the main picture and these, by itself.
 // Each one can be moved left or right, or made the main picture (the star). onMain(url) swaps it with the current main one.
+// Several pictures can be picked at once. Each one being sent shows on its own thumbnail with a round loader and a cross to stop it (like WhatsApp).
 export function MorePictures({ value = [], onChange, onMain, refId, disabled, kind = 'product', max = 4, label }) {
     const { surface, border, muted, primary, error } = useBrand();
-    const [busy, setBusy] = useState(false);
+    const [sending, setSending] = useState([]);   // [{ key, uri }] still being sent
+    const latest = useRef(value);                 // pictures that finish together must not overwrite each other
+    latest.current = value;
+    const stopped = useRef(new Set());
     const add = async () => {
-        if (busy || value.length >= max) return;
-        setBusy(true);
-        try {
-            const img = await pickImage({});
-            if (!img) return;
-            const m = await uploadImage({ kind, refId, ...img });
-            onChange([...value, m.url]);
-        } catch (e) { showToast(e.safe ? e.message : tr('Could not upload that picture')); } finally { setBusy(false); }
+        const room = max - value.length - sending.length;
+        if (disabled || room <= 0) return;
+        const picked = await pickImages({ limit: room });
+        const batch = picked.map((img, n) => ({ ...img, key: `${Date.now()}-${n}` }));
+        if (!batch.length) return;
+        setSending((s) => [...s, ...batch]);
+        batch.forEach(async (img) => {
+            try {
+                const m = await uploadImage({ kind, refId, uri: img.uri, mimeType: img.mimeType });
+                if (!stopped.current.has(img.key)) { latest.current = [...latest.current, m.url]; onChange(latest.current); }
+            } catch (e) { if (!stopped.current.has(img.key)) showToast(e.safe ? e.message : tr('Could not upload that picture')); }
+            finally { stopped.current.delete(img.key); setSending((s) => s.filter((x) => x.key !== img.key)); }
+        });
     };
+    const stop = (key) => { stopped.current.add(key); setSending((s) => s.filter((x) => x.key !== key)); };
     const move = (i, d) => {
         const j = i + d;
         if (j < 0 || j >= value.length) return;
@@ -250,9 +260,19 @@ export function MorePictures({ value = [], onChange, onMain, refId, disabled, ki
                         </View>
                     </View>
                 ))}
-                {value.length < max ? (
-                    <Pressable onPress={add} disabled={disabled || busy} style={{ width: 84, height: 84, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: border, backgroundColor: surface, alignItems: 'center', justifyContent: 'center', opacity: disabled ? 0.5 : 1 }}>
-                        {busy ? <LineShimmer width={84} height={84} /> : <Ionicons name="add" size={26} color={primary} />}
+                {sending.map((x) => (
+                    <View key={x.key} style={{ marginRight: 12, marginBottom: 14, width: 84, height: 84, borderRadius: 12, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
+                        <Image source={{ uri: x.uri }} style={{ position: 'absolute', width: 84, height: 84 }} contentFit="cover" />
+                        <View style={{ position: 'absolute', width: 84, height: 84, backgroundColor: 'rgba(0,0,0,0.45)' }} />
+                        <ActivityIndicator size="large" color="#FFFFFF" />
+                        <Pressable onPress={() => stop(x.key)} hitSlop={10} style={{ position: 'absolute', alignItems: 'center', justifyContent: 'center', width: 36, height: 36 }}>
+                            <Ionicons name="close" size={16} color="#FFFFFF" />
+                        </Pressable>
+                    </View>
+                ))}
+                {value.length + sending.length < max ? (
+                    <Pressable onPress={add} disabled={disabled} style={{ width: 84, height: 84, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: border, backgroundColor: surface, alignItems: 'center', justifyContent: 'center', opacity: disabled ? 0.5 : 1 }}>
+                        <Ionicons name="add" size={26} color={primary} />
                     </Pressable>
                 ) : null}
             </View>

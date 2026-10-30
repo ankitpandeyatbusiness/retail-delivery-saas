@@ -64,6 +64,7 @@ const WAITER = [
     g('bill_reminder', 'A table finished eating', 'A table of yours finished eating and nobody has asked for the bill yet. No voice by default, so the guests at the table do not hear it.', ['waiter_bill_reminder'], { kinds: ['bill_reminder'], noVoice: true, sample: ['Table 4 has finished eating.', 'टेबल 4 ने खाना खा लिया है।'] }),
     g('call', 'A table calls', 'A guest asks for the waiter, water, a spoon or a clean table.', ['waiter_call'], { kinds: ['call'], sample: ['Table 4 is calling.', 'टेबल 4 बुला रही है।'] }),
     g('bill', 'A table wants the bill', 'A guest asked for the bill.', ['waiter_bill'], { kinds: ['bill'], sample: ['Table 4 wants the bill.', 'टेबल 4 को बिल चाहिए।'] }),
+    g('booking', 'A booked table is coming', 'A table a guest booked is due in half an hour, so you can get it ready.', ['waiter_booking'], { sample: ['Table 4 is booked for 4 guests at 20:00. Anil.', 'टेबल 4, 4 मेहमान, 20:00 बजे के लिए बुक है। Anil।'] }),
     g('undo', 'Steps taken back (undo)', 'Someone undid Ready.', ['order_undone'], { soft: true }),
     g('leave', 'Answers to your leave', 'The owner approved or rejected your leave.', ['staff_leave_decision', 'staff_leave_removed'], { p: true, soft: true }),
 ];

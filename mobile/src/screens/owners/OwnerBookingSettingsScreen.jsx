@@ -28,7 +28,12 @@ export default function OwnerBookingSettingsScreen() {
     // the slider saves by itself, so a guest sees the change at once (the server refuses it until the deposit and times are set)
     const flip = async () => {
         setFlipping(true);
-        try { const r = await api.saveSettings({ enabled: !v.enabled }); set('enabled', r.enabled); }
+        try {
+            // switching ON sends what is on the screen too, so a deposit or times he just typed count
+            const { tenantId, _id, createdAt, updatedAt, __v, ...rules } = v;   // eslint-disable-line no-unused-vars
+            const r = await api.saveSettings(v.enabled ? { enabled: false } : { ...rules, enabled: true });
+            setV(r);
+        }
         catch (e) { showToast(apiError(e)); } finally { setFlipping(false); }
     };
 

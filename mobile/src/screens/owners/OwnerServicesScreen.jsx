@@ -48,9 +48,7 @@ export default function OwnerServicesScreen() {
 
     const add = async (kind) => {
         if (adding) return;
-        setAdding(true);
-        try { const s = await api.create({ kind }); nav.navigate('OwnerService', { id: String(s._id) }); }
-        catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); } finally { setAdding(false); }
+        nav.navigate('OwnerService', { kind });   // made only when he taps Save
     };
 
     return (

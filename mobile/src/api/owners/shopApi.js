@@ -162,6 +162,7 @@ export const inquiries = {
 // the owner's services (bulk order, tiffin, party booking and his own): crud plus the extras (backend/src/routes/shopServicesRouter.js)
 export const services = {
     ...crud('services'),
+    blank: (kind) => d(api.get(`/shop/services/new/${kind}`)),                                  // a starter service, not saved yet
     templates: () => d(api.get('/shop/services/templates')),                                     // { items:[{kind,name,...}], types }
     reorder: (ids) => d(api.post('/shop/services/reorder', { ids })),
     useRecommended: (id) => d(api.post(`/shop/services/${id}/recommended`)),                      // our questions come back; his own stay

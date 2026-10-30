@@ -6,7 +6,8 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
 import { Button, Empty } from '../../components/owners/ui';
-import { FormPage, Group, TextBox, NumberBox, ChoiceBox, ToggleRow, DateBox, Label } from '../../components/owners/menuBits';
+import { FormPage, Group, TextBox, NumberBox, ChoiceBox, ToggleRow, Label } from '../../components/owners/menuBits';
+import DateRangeSheet from '../../components/customers/DateRangeSheet';
 import { fetchService, sendInquiry } from '../../api/customers/shopApi';
 import { FormShimmer } from '../../components/owners/shimmer';
 import { showToast } from '../../components/customers/shop';
@@ -16,6 +17,8 @@ import PhotoCarousel from '../../components/customers/PhotoCarousel';
 import { AddressSheet, addrLine } from '../../components/customers/addresses';
 import { pickPhoto, uploadInquiryPhoto } from '../../utils/common/photoUpload';
 import { tr } from '../../i18n';
+
+const dayText = (k) => { const [y, m, d] = String(k).split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }); };
 
 export default function ServiceFormScreen() {
     const nav = useNavigation();
@@ -30,6 +33,7 @@ export default function ServiceFormScreen() {
     const [busy, setBusy] = useState(false);
     const [up, setUp] = useState('');           // id of the photo question being uploaded
     const [addrFor, setAddrFor] = useState('');  // id of the address question the saved-address sheet is open for
+    const [dateFor, setDateFor] = useState('');  // id of the date question the day picker is open for
 
     useEffect(() => {
         fetchService(id).then((r) => { setS(r); setName(r.me?.name || ''); setPhone(r.me?.phone || ''); })
@@ -71,7 +75,15 @@ export default function ServiceFormScreen() {
         const common = { label: q.label + (q.required ? ' *' : ''), hint: q.hint || undefined };
         switch (q.type) {
             case 'number': return <NumberBox key={q.id} {...common} value={v} onChange={(x) => set(q.id, x)} />;
-            case 'date': return <DateBox key={q.id} {...common} value={v} onChange={(x) => set(q.id, x)} />;
+            case 'date': return (
+                <View key={q.id} style={{ marginBottom: 16 }}>
+                    <Label hint={common.hint}>{common.label}</Label>
+                    <Pressable onPress={() => setDateFor(q.id)} style={{ minHeight: 46, borderRadius: 12, borderWidth: 1, borderColor: border, backgroundColor: surface, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center' }}>
+                        <Text style={{ flex: 1, color: v ? text : muted, fontSize: 15, fontWeight: '600' }}>{v ? dayText(v) : tr('Tap to pick a day')}</Text>
+                        <Ionicons name="calendar-outline" size={18} color={muted} />
+                    </Pressable>
+                </View>
+            );
             case 'time': return <TextBox key={q.id} {...common} value={v || ''} onChangeText={(x) => set(q.id, maskTime(x))} keyboardType="number-pad" placeholder="19:30" maxLength={5} />;
             case 'yesno': return <ToggleRow key={q.id} title={q.label} subtitle={q.hint || undefined} value={!!v} onValueChange={(x) => set(q.id, x)} />;
             case 'choice': return <ChoiceBox key={q.id} {...common} options={q.options.map((o) => [o, o])} value={v} onChange={(x) => set(q.id, x)} />;
@@ -166,6 +178,7 @@ export default function ServiceFormScreen() {
                 ) : null}
                 <TextBox label={tr('Message')} value={message} onChangeText={setMessage} multiline maxLength={1000} placeholder={tr('Tap a text above or write your own')} last />
             </Group>
+            <DateRangeSheet single ahead={365} visible={!!dateFor} value={answers[dateFor]} title={tr('Pick a day')} onClose={() => setDateFor('')} onApply={(d) => { set(dateFor, d || ''); setDateFor(''); }} />
             <AddressSheet visible={!!addrFor} onClose={() => setAddrFor('')} onSelect={(a) => { set(addrFor, addrLine(a).slice(0, 300)); setAddrFor(''); }} />
         </FormPage>
     );

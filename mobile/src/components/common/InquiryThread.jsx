@@ -59,7 +59,7 @@ export function ReplyBox({ onSend, placeholder }) {
     return (
         <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
             <View style={{ flex: 1, marginRight: 8 }}><Field value={v} onChangeText={setV} placeholder={placeholder || tr('Write a message')} multiline maxLength={1000} style={{ minHeight: 46, maxHeight: 110 }} /></View>
-            <Button label={tr('Send')} icon="send" busy={busy} disabled={!v.trim()} onPress={go} style={{ width: 92 }} />
+            <Button label={tr('Send')} icon="send" iconOnly busy={busy} disabled={!v.trim()} onPress={go} style={{ width: 46, height: 46, minHeight: 46 }} />
         </View>
     );
 }

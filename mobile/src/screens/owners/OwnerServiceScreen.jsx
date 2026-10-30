@@ -22,9 +22,21 @@ const lines = (v) => String(v || '').split('\n').map((x) => x.trim()).filter(Boo
 const toText = (a) => (a || []).join('\n');
 const BLANK_Q = { id: '', type: 'text', label: '', hint: '', required: false, enabled: true, recommended: false, options: [] };
 
+// one small labelled action under a question (move up, move down, duplicate, copy to another service)
+function Act({ icon, label, onPress, disabled }) {
+    const { text, muted, border, surface } = useBrand();
+    return (
+        <Pressable onPress={onPress} disabled={disabled} style={{ flex: 1, marginHorizontal: 4, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: border, backgroundColor: surface, alignItems: 'center', opacity: disabled ? 0.35 : 1 }}>
+            <Ionicons name={icon} size={20} color={text} />
+            <Text numberOfLines={1} style={{ color: muted, fontSize: 11, fontWeight: '700', marginTop: 3 }}>{label}</Text>
+        </Pressable>
+    );
+}
+
 export default function OwnerServiceScreen() {
     const nav = useNavigation();
-    const { id } = useRoute().params || {};
+    const { id: openId, kind } = useRoute().params || {};
+    const [id, setId] = useState(openId || '');   // empty until a new service is saved for the first time
     const { text, muted, primary, border } = useBrand();
     const [form, setForm] = useState(null);
     const [err, setErr] = useState('');
@@ -39,8 +51,8 @@ export default function OwnerServiceScreen() {
         quickReplies: toText(r.quickReplies), questions: (r.questions || []).map((q) => ({ ...q, options: q.options || [] })), isActive: r.isActive !== false,
     });
     useEffect(() => {
-        api.get(id).then(fill).catch((e) => { useOwnerStore.getState().noteError(e); setErr(apiError(e, 'Could not open this service.')); });
-    }, [id]);
+        (openId ? api.get(openId) : api.blank(kind)).then(fill).catch((e) => { useOwnerStore.getState().noteError(e); setErr(apiError(e, 'Could not open this service.')); });
+    }, [openId, kind]);
 
     if (!form) return <FormPage title={tr('Service')}>{err ? <Empty icon="cloud-offline-outline" title={tr('Could not open')} hint={err} /> : <FormShimmer />}</FormPage>;
     const v = form;
@@ -62,12 +74,15 @@ export default function OwnerServiceScreen() {
                 quickReplies: lines(v.quickReplies), isActive: v.isActive,
                 questions: v.questions.map((q) => ({ ...q, options: q.type === 'choice' || q.type === 'multichoice' ? q.options : [] })),
             };
-            fill(await api.update(id, body)); setOpen(-1);
+            if (id) fill(await api.update(id, body));
+            else { const made = await api.create({ ...body, kind: v.kind }); setId(String(made._id)); fill(made); }
+            setOpen(-1);
             showToast(tr('Service saved'));
         } catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); } finally { setSaving(false); }
     };
 
     const recommended = async () => {
+        if (!id) return showToast(tr('Save the service first, then use the recommended questions'));
         const yes = await ask({ title: tr('Use our recommended questions?'), message: tr('Our questions come back switched on. Your own questions stay. Changes you made to our questions are undone.'), confirmText: tr('Use recommended') });
         if (!yes) return;
         try { fill(await api.useRecommended(id)); setOpen(-1); showToast(tr('Recommended questions are back')); }
@@ -82,7 +97,7 @@ export default function OwnerServiceScreen() {
 
     // copy one question into another service (the server needs the question saved, so a new unsaved one is refused here)
     const openCopy = async (i, q) => {
-        if (!q.id) return showToast(tr('Save the service first, then copy this question'));
+        if (!id || !q.id) return showToast(tr('Save the service first, then copy this question'));
         if (copyIdx === i) return setCopyIdx(-1);
         try {
             const r = await api.list();
@@ -146,12 +161,14 @@ export default function OwnerServiceScreen() {
                                         )) : <Text style={{ color: muted }}>{tr('You have no other service yet')}</Text>}
                                     </View>
                                 ) : null}
-                                <View style={{ flexDirection: 'row', marginTop: 10 }}>
-                                    <Button label="" icon="arrow-up" kind="ghost" iconOnly onPress={() => move(i, -1)} disabled={i === 0} style={{ marginRight: 8 }} />
-                                    <Button label="" icon="arrow-down" kind="ghost" iconOnly onPress={() => move(i, 1)} disabled={i === v.questions.length - 1} style={{ marginRight: 8 }} />
-                                    <Button label="" icon="copy-outline" kind="ghost" iconOnly onPress={() => { set('questions', [...v.questions.slice(0, i + 1), { ...q, id: '', recommended: false }, ...v.questions.slice(i + 1)]); setOpen(i + 1); }} style={{ marginRight: 8 }} />
-                                    <Button label="" icon="share-outline" kind="ghost" iconOnly onPress={() => openCopy(i, q)} style={{ marginRight: 8 }} />
-                                    <Button label={tr('Delete')} icon="trash" kind="danger" onPress={() => { set('questions', v.questions.filter((_, j) => j !== i)); setOpen(-1); }} style={{ flex: 1 }} />
+                                <View style={{ flexDirection: 'row', marginTop: 14, marginHorizontal: -4 }}>
+                                    <Act icon="arrow-up" label={tr('Up')} onPress={() => move(i, -1)} disabled={i === 0} />
+                                    <Act icon="arrow-down" label={tr('Down')} onPress={() => move(i, 1)} disabled={i === v.questions.length - 1} />
+                                    <Act icon="copy-outline" label={tr('Duplicate')} onPress={() => { set('questions', [...v.questions.slice(0, i + 1), { ...q, id: '', recommended: false }, ...v.questions.slice(i + 1)]); setOpen(i + 1); }} />
+                                    <Act icon="share-outline" label={tr('Copy to')} onPress={() => openCopy(i, q)} />
+                                </View>
+                                <View style={{ marginTop: 10 }}>
+                                    <Button label={tr('Delete this question')} icon="trash" kind="danger" onPress={() => { set('questions', v.questions.filter((_, j) => j !== i)); setOpen(-1); }} />
                                 </View>
                             </View>
                         ) : null}
@@ -166,7 +183,7 @@ export default function OwnerServiceScreen() {
             <Group title={tr('Show it')}>
                 <ToggleRow title={tr('Service is on')} subtitle={tr('Off: customers do not see it')} value={v.isActive} onValueChange={(x) => set('isActive', x)} last />
             </Group>
-            <View style={{ paddingHorizontal: 16, marginTop: 8 }}><Button label={tr('Remove this service')} kind="danger" icon="trash" onPress={remove} /></View>
+            {id ? <View style={{ paddingHorizontal: 16, marginTop: 8 }}><Button label={tr('Remove this service')} kind="danger" icon="trash" onPress={remove} /></View> : null}
         </FormPage>
     );
 }

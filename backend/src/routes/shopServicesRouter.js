@@ -21,6 +21,9 @@ const mine = async (req) => {
 
 router.get('/templates', wrap(async (req, res) => { res.json({ items: svc.templateList(await svc.loadDefaults()), types: svc.TYPES }); }));
 
+// a starter service as it would be made, without saving it: the owner saves it from the editor
+router.get('/new/:kind', wrap(async (req, res) => { res.json(svc.newDoc(req.params.kind, await svc.loadDefaults())); }));
+
 router.get('/', wrap(async (req, res) => {
     const items = await ShopService.find({ tenantId: req.tenant._id }).sort({ sortOrder: 1, createdAt: 1 }).lean();
     res.json({ items });

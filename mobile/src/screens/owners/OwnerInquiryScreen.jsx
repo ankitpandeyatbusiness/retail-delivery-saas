@@ -45,8 +45,8 @@ export default function OwnerInquiryScreen() {
                 <Text style={{ color: text, fontWeight: '900', fontSize: 17 }}>{i.serviceName}</Text>
                 <Text style={{ color: muted, marginTop: 2 }}>{i.name} · {i.phone}</Text>
                 <View style={{ flexDirection: 'row', marginTop: 12 }}>
-                    <Button label={tr('Call')} icon="call" onPress={() => Linking.openURL(`tel:${digits(i.phone)}`)} style={{ flex: 1, marginRight: 8 }} />
-                    <Button label="WhatsApp" icon="logo-whatsapp" kind="ghost" onPress={() => Linking.openURL(`https://wa.me/${intl(i.phone)}`)} style={{ flex: 1 }} />
+                    <Button label={tr('Call')} icon="call" iconOnly onPress={() => Linking.openURL(`tel:${digits(i.phone)}`)} style={{ flex: 1, marginRight: 8 }} />
+                    <Button label="WhatsApp" icon="logo-whatsapp" iconOnly kind="ghost" onPress={() => Linking.openURL(`https://wa.me/${intl(i.phone)}`)} style={{ flex: 1 }} />
                 </View>
             </Card>
             {i.answers?.length || i.estimate ? <Group title={tr('Their answers')}><Answers answers={i.answers} estimate={i.estimate} /></Group> : null}

@@ -22,7 +22,8 @@ import { useAddressStore } from '../../store/customers/useAddressStore';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useThemeStore } from '../../store/common/useThemeStore';
 import { useFavStore } from '../../store/customers/shopStores';
-import { fetchMe, updateMe, deleteMe, updatePrefs, deleteUpload, fetchServices, fetchBookingConfig } from '../../api/customers/shopApi';
+import { fetchMe, updateMe, deleteMe, updatePrefs, deleteUpload } from '../../api/customers/shopApi';
+import { useServiceFlags } from '../../utils/customers/serviceFlags';
 import { pickPhoto, uploadAvatar } from '../../utils/common/photoUpload';
 import { Skel } from '../../components/common/motion';
 import OwedStrip from '../../components/customers/OwedStrip';
@@ -226,10 +227,9 @@ function AccountInner() {
     const unread = useNotificationStore((st) => st.unread);
     const favOn = useHomeStore((st) => st.full.features.favourites);
     const pointsOn = useHomeStore((st) => st.full.points?.customer !== false);
-    const [serviceCount, setServiceCount] = useState(0);   // the Services section shows only when the shop offers something
-    const [bookingOn, setBookingOn] = useState(false);
-    useEffect(() => { fetchBookingConfig().then((r) => setBookingOn(!!r.enabled)).catch(() => { }); }, []);
-    useEffect(() => { fetchServices().then((r) => setServiceCount((r.items || []).length)).catch(() => { }); }, []);
+    const serviceCount = useServiceFlags((st) => st.serviceCount);   // the Services section shows only when the shop offers something; kept between openings so it is there at once
+    const bookingOn = useServiceFlags((st) => st.bookingOn);
+    useEffect(() => { useServiceFlags.getState().refresh(); }, []);
     const referOn = useHomeStore((st) => !!(st.full.orders.dineIn?.enabled && st.full.orders.dineIn?.referOn));
     const shop = useThemeStore((st) => st.theme.name);
     const cfgPhone = useHomeStore((st) => st.full.restaurant?.phone);   // the number the owner saved

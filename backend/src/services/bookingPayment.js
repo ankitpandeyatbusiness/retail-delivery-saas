@@ -161,6 +161,7 @@ async function remind(now = Date.now()) {
         const data = { kind: 'booking', bookingId: String(b._id) };
         const shop = (await require('../models/Tenant').findById(b.tenantId).select('name').lean())?.name || '';
         tell('booking_reminder', { tenantId: b.tenantId, vars: { name: b.name, party: b.party, time: b.time, code: b.code, table: b.table }, data });
+        require('./waiterAlerts').bookingSoon(b.tenantId, { table: b.table, party: b.party, time: b.time, name: b.name });
         tell('booking_reminder_customer', { tenantId: b.tenantId, userId: b.userId, vars: { shop, party: b.party, time: b.time, code: b.code, table: b.table }, data });
         sent += 1;
     }
