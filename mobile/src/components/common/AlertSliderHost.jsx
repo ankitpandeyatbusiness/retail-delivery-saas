@@ -58,7 +58,7 @@ export default function AlertSliderHost({ navRef }) {
             const t = String(n?.type || '');
             if (!t || (OWN_SHEET.includes(t) && role === 'admin')) return;
             if (!alertGroup(t)) return;
-            showSlider({ key: n.id || n._id, type: t, title: n.title, body: n.body, data: n.data });
+            showSlider({ key: n.id || n._id, once: true, type: t, title: n.title, body: n.body, data: n.data });
         });
     }, [on, role]);
 

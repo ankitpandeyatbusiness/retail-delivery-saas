@@ -52,6 +52,13 @@ Notifications.setNotificationHandler({
         const role = useAuthStore.getState().user?.role;
         const staff = role === 'kitchen' || role === 'waiter';
         const quiet = (staff ? AppState.currentState === 'active' : realtimeConnected()) && !isTest;
+        // the app is open and the phone got the push: the slider shows from here too, so it never depends on the live connection alone
+        // (the same alert coming by the live connection has the same key and is shown once)
+        const c = notification?.request?.content || {};
+        const ownSheet = ['order_new', 'order_unaccepted_reminder', 'order_cancelled', 'kitchen_problem', 'pickup_time_request', 'order_cancel_request'];
+        if (!isTest && d.type && d.nid && AppState.currentState === 'active' && ['admin', 'kitchen', 'waiter', 'rider'].includes(role) && !(role === 'admin' && ownSheet.includes(String(d.type)))) {
+            showSlider({ key: String(d.nid), once: true, type: String(d.type), title: c.title, body: c.body, data: d });
+        }
         return { shouldShowBanner: true, shouldShowList: true, shouldPlaySound: !quiet, shouldSetBadge: false };
     },
 });
