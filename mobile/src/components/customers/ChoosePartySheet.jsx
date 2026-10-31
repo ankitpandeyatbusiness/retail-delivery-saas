@@ -7,6 +7,7 @@ import { useBrand, alpha } from '../common/kit';
 import { Sheet, Button } from '../owners/ui';
 import { fetchTableState, enterTable, fetchJoin, joinPin } from '../../api/customers/shopApi';
 import { showToast } from './shop';
+import { ListShimmer, LineShimmer } from '../owners/shimmer';
 import { tr } from '../../i18n';
 
 export default function ChoosePartySheet({ visible, table, onClose, onChosen }) {
@@ -74,7 +75,7 @@ export default function ChoosePartySheet({ visible, table, onClose, onChosen }) 
     const mm = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
     return (
         <Sheet visible={visible} onClose={onClose} title={tr('Table {n} is shared', { n: table })}>
-            {!st ? <View style={{ padding: 30 }}><ActivityIndicator /></View> : null}
+            {!st ? <ListShimmer count={2} /> : null}
             {st && pinJoin ? (
                 <View style={{ alignItems: 'center', paddingVertical: 8 }}>
                     <Ionicons name="checkmark-circle" size={44} color={ok} />
@@ -91,7 +92,7 @@ export default function ChoosePartySheet({ visible, table, onClose, onChosen }) 
             ) : null}
             {st && wait && !pinJoin ? (
                 <View style={{ alignItems: 'center', paddingVertical: 8 }}>
-                    <ActivityIndicator color={primary} />
+                    <LineShimmer width={120} height={14} />
                     <Text style={{ color: text, fontWeight: '900', fontSize: 17, marginTop: 14, textAlign: 'center' }}>{wait.who ? tr('Waiting for {name} to say yes', { name: wait.who }) : tr('Waiting for them to say yes')}</Text>
                     <Text style={{ color: muted, marginTop: 6, textAlign: 'center' }}>{tr('If they do not answer in {t}, you can take your own bill.', { t: mm })}</Text>
                     {st.canSeparate ? <Button label={tr('Take my own bill instead')} kind="ghost" busy={busy === 'separate'} onPress={separate} style={{ alignSelf: 'stretch', marginTop: 16 }} /> : null}

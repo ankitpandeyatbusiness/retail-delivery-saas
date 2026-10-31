@@ -9,7 +9,7 @@ import { Button, Empty } from '../../components/owners/ui';
 import { FormPage, Group, TextBox, NumberBox, ChoiceBox, ToggleRow, Label } from '../../components/owners/menuBits';
 import DateRangeSheet from '../../components/customers/DateRangeSheet';
 import { fetchService, sendInquiry } from '../../api/customers/shopApi';
-import { FormShimmer } from '../../components/owners/shimmer';
+import { FormShimmer, LineShimmer } from '../../components/owners/shimmer';
 import { showToast } from '../../components/customers/shop';
 import { maskTime } from '../../utils/owners/menuRules';
 import { priceLine } from '../owners/OwnerServicesScreen';
@@ -120,7 +120,7 @@ export default function ServiceFormScreen() {
                             ))}
                             {pics.length < 3 ? (
                                 <>
-                                    {up === q.id ? <ActivityIndicator color={primary} style={{ marginRight: 12 }} /> : null}
+                                    {up === q.id ? <View style={{ marginRight: 8 }}><LineShimmer width={76} height={76} /></View> : null}
                                     <Pressable disabled={!!up} onPress={() => pickFor(q, 'camera')} style={{ width: 76, height: 76, borderRadius: 10, borderWidth: 1, borderColor: border, alignItems: 'center', justifyContent: 'center', marginRight: 8 }}>
                                         <Ionicons name="camera-outline" size={26} color={muted} />
                                     </Pressable>

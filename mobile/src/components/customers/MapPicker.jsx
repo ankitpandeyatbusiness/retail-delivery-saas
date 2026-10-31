@@ -314,7 +314,7 @@ export default function MapPicker({ visible, initial, onClose, onPick, startAtSh
                     />
                 ) : (
                     <View style={[StyleSheet.absoluteFill, s.loading]}>
-                        <ActivityIndicator color={primary} />
+                        <LineShimmer width={260} height={260} />
                     </View>
                 )}
 
@@ -347,7 +347,7 @@ export default function MapPicker({ visible, initial, onClose, onPick, startAtSh
                             {term.length >= 2 ? (
                                 <>
                                     {suggesting && !(results && results.length) ? (
-                                        <View style={s.rowPad}><ActivityIndicator color={primary} /></View>
+                                        <View style={s.rowPad}><LineShimmer width={240} height={16} /></View>
                                     ) : null}
                                     {results && !results.length && !suggesting ? (
                                         <Text style={[s.empty, { color: muted }]}>{tr('No match. Try the area or city name too.')}</Text>

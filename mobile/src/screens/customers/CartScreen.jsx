@@ -3,7 +3,7 @@ import { amountLabel } from '../../utils/customers/measure';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, ScrollView, TextInput, StyleSheet, LayoutAnimation, Switch } from 'react-native';
 import { ActivityIndicator } from '../../components/common/Loading';
-import { ListShimmer } from '../../components/owners/shimmer';
+import { ListShimmer, LineShimmer } from '../../components/owners/shimmer';
 import { CommonActions, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -670,7 +670,7 @@ export default function CartScreen() {
                                 <Ionicons name="receipt-outline" size={18} color={text} />
                                 <Text style={[s.lName, { color: text, marginLeft: 8 }]}>{tr('Bill details')}</Text>
                             </View>
-                            {busy ? <ActivityIndicator size="small" color={primary} /> : null}
+                            {busy ? <LineShimmer width={56} height={12} /> : null}
                         </View>
                         {user && quote ? <Bill q={quote} type={type} busy={busy} baseDeliveryFee={feeConfig.amount} />
                             : user && qErr ? (

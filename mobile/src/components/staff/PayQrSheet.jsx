@@ -7,6 +7,7 @@ import { Sheet, Button, money } from '../owners/ui';
 import { BigButton } from './staffBits';
 import { fetchPayQr } from '../../api/staff/staffApi';
 import { apiError } from '../../api/owners/shopApi';
+import { LineShimmer } from '../owners/shimmer';
 import { tr } from '../../i18n';
 
 export default function PayQrSheet({ visible, sessionId, busy, onClose, onPaid }) {
@@ -23,7 +24,7 @@ export default function PayQrSheet({ visible, sessionId, busy, onClose, onPaid }
     }, [visible, sessionId]);
     return (
         <Sheet visible={visible} onClose={onClose} title={tr('Pay by QR')}>
-            {state === 'loading' ? <View style={{ padding: 40 }}><ActivityIndicator /></View> : null}
+            {state === 'loading' ? <View style={{ alignItems: 'center', padding: 20 }}><LineShimmer width={220} height={220} /></View> : null}
             {state === 'ok' ? (
                 <View style={{ alignItems: 'center' }}>
                     <Text style={{ color: text, fontSize: 32, fontWeight: '900' }}>{money(q.payable)}</Text>

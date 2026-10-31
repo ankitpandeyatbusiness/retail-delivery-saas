@@ -28,6 +28,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { useThemeStore } from '../../store/common/useThemeStore';
 import { Ionicons } from '@expo/vector-icons';
+import { LineShimmer } from '../../components/owners/shimmer';
 import { tr, LANGS, useLang } from '../../i18n';
 import LanguageSheet from '../../components/common/LanguageSheet';
 
@@ -781,8 +782,7 @@ export default function LoginScreen({ navigation }) {
                                     <Text style={[styles.errorText, { color: errorColor }]}>{error}</Text>
                                 ) : loading ? (
                                     <View style={styles.verifyingRow}>
-                                        <ActivityIndicator size="small" color={primaryColor} />
-                                        <Text style={[styles.verifyingText, { color: brand.muted }]}>{tr('Verifying...')}</Text>
+                                        <LineShimmer width={160} height={16} />
                                     </View>
                                 ) : (
                                     <View style={styles.otpFooter}>

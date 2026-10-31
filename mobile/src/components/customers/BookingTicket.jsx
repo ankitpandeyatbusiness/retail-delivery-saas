@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useBrand } from '../common/kit';
 import QrCode from '../common/QrCode';
 import { fetchBookingTicket } from '../../api/customers/shopApi';
+import { LineShimmer } from '../owners/shimmer';
 import { tr } from '../../i18n';
 
 const KEY = (id) => `ticket:${id}`;
@@ -32,7 +33,7 @@ export default function BookingTicket({ id }) {
     }, [id]);
 
     if (over) return <Text style={{ color: muted, marginTop: 8 }}>{tr('This booking time is over. The ticket is no longer valid.')}</Text>;
-    if (!t) return failed ? <Text style={{ color: muted, marginTop: 8 }}>{tr('The ticket could not be loaded. Check your internet.')}</Text> : <ActivityIndicator color={primary} style={{ marginTop: 12 }} />;
+    if (!t) return failed ? <Text style={{ color: muted, marginTop: 8 }}>{tr('The ticket could not be loaded. Check your internet.')}</Text> : <View style={{ alignItems: 'center', marginTop: 12 }}><LineShimmer width={240} height={300} /></View>;
     const arrived = t.status === 'seated';
     return (
         <View style={{ marginTop: 12, borderRadius: 18, borderWidth: 1, borderColor: border, backgroundColor: surface, padding: 16, alignItems: 'center' }}>
