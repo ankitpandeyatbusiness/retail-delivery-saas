@@ -1,7 +1,7 @@
 // Collects the fixed messages the server sends to the customer, owner and rider apps (httpError(status, 'text') and
 // error: 'text'), into mobile/scripts/i18n-server.json, so they can be translated. The apps show a server message as it comes and
-// the translation net (mobile/src/i18n/textPatch.js) translates the ones that match exactly. Messages with a value inside
-// (made with ${...}) stay English. Superadmin-only files are left out.
+// the translation net (mobile/src/i18n/textPatch.js) translates the ones that match exactly or match a pattern.
+// Messages with a value inside (made with ${...}) are saved as patterns with {v1}, {v2}... Superadmin-only files are left out.
 //
 //   node scripts/i18nServerMessages.js
 const fs = require('fs');
@@ -28,6 +28,8 @@ const PATTERNS = [
     /httpError\(\s*\d{3}\s*,\s*`([^`$]*)`/g,
     /\berror:\s*'((?:[^'\\]|\\.)*)'/g,
     /\bmessage:\s*'((?:[^'\\]|\\.)*)'/g,
+    // the first sentence of an either/or message: httpError(409, n === 1 ? 'One sentence' : `Other ${n} sentence`)
+    /(?:httpError\(\s*\d{3}\s*,|\b(?:error|message):)\s*[^,'"`?]+\?\s*'((?:[^'\\]|\\.)*)'/g,
 ];
 for (const f of files) {
     const src = fs.readFileSync(f, 'utf8');
@@ -40,6 +42,47 @@ for (const f of files) {
         }
     }
 }
-const list = [...found].sort();
+// Messages with values inside: each ${...} becomes {v1}, {v2}... The app matches a message against these patterns
+// (mobile/src/i18n/index.js) and puts the values back into the translated sentence.
+const toPattern = (raw) => {
+    let out = '';
+    let n = 0;
+    for (let i = 0; i < raw.length; i += 1) {
+        if (raw[i] === '\\' && i + 1 < raw.length) { out += raw[i + 1] === 'n' ? ' ' : raw[i + 1]; i += 1; continue; }
+        if (raw[i] === '$' && raw[i + 1] === '{') {
+            let depth = 1;
+            let j = i + 2;
+            for (; j < raw.length && depth; j += 1) { if (raw[j] === '{') depth += 1; else if (raw[j] === '}') depth -= 1; }
+            if (depth) return null;
+            n += 1;
+            out += `{v${n}}`;
+            i = j - 1;
+            continue;
+        }
+        out += raw[i];
+    }
+    return out.trim();
+};
+const literal = (p) => p.replace(/\{v\d+\}/g, '').replace(/[^A-Za-z]/g, '');
+const TEMPLATE = [
+    /httpError\(\s*\d{3}\s*,\s*`((?:[^`\\]|\\.)*)`/g,
+    /\b(?:error|message):\s*`((?:[^`\\]|\\.)*)`/g,
+    // the second sentence of an either/or message (see PATTERNS)
+    /(?:httpError\(\s*\d{3}\s*,|\b(?:error|message):)\s*[^,'"`?]+\?\s*'(?:[^'\\]|\\.)*'\s*:\s*`((?:[^`\\]|\\.)*)`/g,
+];
+const patterns = new Set();
+for (const f of files) {
+    const src = fs.readFileSync(f, 'utf8');
+    for (const re of TEMPLATE) {
+        for (const m of src.matchAll(re)) {
+            if (!m[1].includes('${')) continue;
+            const p = toPattern(m[1]);
+            if (!p || p.length > 220 || !/^[A-Z"'₹{]/.test(p) || literal(p).length < 8 || /\{v\d+\}\{v\d+\}/.test(p) || /Razorpay/.test(p)) continue;   // a sentence with enough fixed words to be matched safely
+            patterns.add(p);
+        }
+    }
+}
+
+const list = [...found, ...patterns].sort();
 fs.writeFileSync(OUT, JSON.stringify(list, null, 1));
-console.log(`${list.length} server messages -> ${path.relative(process.cwd(), OUT)}`);
+console.log(`${found.size} fixed + ${patterns.size} with values = ${list.length} server messages -> ${path.relative(process.cwd(), OUT)}`);

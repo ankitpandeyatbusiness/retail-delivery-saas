@@ -32,9 +32,47 @@ let current = 'en';
 let book = {};
 const bookFor = (code) => (code === 'en' ? {} : { ...(BOOKS[FALLBACK[code]] || {}), ...(BOOKS[code] || {}) });
 
+// Server messages with values inside ("Minimum order is ₹200") are kept as patterns with {v1}, {v2}...
+// ("Minimum order is ₹{v1}"). A text with no exact translation is matched against them: the sentence is translated and the
+// values are put back. Patterns are grouped by their first word, and answers are remembered, so a screen stays fast.
+let patterns = new Map();   // first word -> [{ re, names, to }]
+let seen = new Map();       // text -> translated text, or null when nothing matched
+const SLOT = /\{(v\d+)\}/g;
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const firstWord = (s) => (String(s).match(/^\S+/) || [''])[0];
+// a pattern is found by its first word when that word is fixed text; one that starts with a value is tried for every text
+const patternKey = (en) => (en.split('{v')[0].match(/^(\S+)\s/) || ['', ''])[1];
+function buildPatterns(b) {
+    const map = new Map();
+    for (const [en, to] of Object.entries(b)) {
+        if (!en.includes('{v') || typeof to !== 'string' || !to) continue;
+        const names = [...en.matchAll(SLOT)].map((m) => m[1]);
+        if (!names.length || en.replace(SLOT, '').replace(/[^A-Za-z]/g, '').length < 8) continue;   // enough fixed words to be matched safely
+        const re = new RegExp(`^${en.split(SLOT).map((part, i) => (i % 2 ? '(.+?)' : escapeRe(part))).join('')}$`);
+        const key = patternKey(en);
+        if (!map.has(key)) map.set(key, []);
+        map.get(key).push({ re, names, to });
+    }
+    patterns = map;
+    seen = new Map();
+}
+function fromPattern(text) {
+    if (seen.has(text)) return seen.get(text);
+    let out = null;
+    for (const p of [...(patterns.get(firstWord(text)) || []), ...(patterns.get('') || [])]) {
+        const m = p.re.exec(text);
+        if (m) { out = p.to.replace(SLOT, (all, name) => { const i = p.names.indexOf(name); return i >= 0 ? m[i + 1] : all; }); break; }
+    }
+    if (seen.size > 500) seen.clear();
+    seen.set(text, out);
+    return out;
+}
+const useBook = (b) => { book = b; buildPatterns(b); };
+
 export function tr(text, vars) {
     if (typeof text !== 'string') return text;
     let s = book[text];
+    if ((typeof s !== 'string' || s === '') && patterns.size && /[A-Za-z]/.test(text)) s = fromPattern(text);
     if (typeof s !== 'string' || s === '') s = text;
     if (vars) s = s.replace(/\{(\w+)\}/g, (m, k) => (vars[k] !== undefined && vars[k] !== null ? String(vars[k]) : m));
     return s;
@@ -71,14 +109,14 @@ export const useLang = create((set) => ({
         try { saved = await AsyncStorage.getItem(STORE_KEY); } catch (e) { /* use the phone's language */ }
         const code = LANGS.some((l) => l.code === saved) ? saved : detect();
         current = code;
-        book = bookFor(code);
+        useBook(bookFor(code));
         set({ lang: code, ready: true });
     },
 
     setLanguage: async (code) => {
         if (!LANGS.some((l) => l.code === code)) return;
         current = code;
-        book = bookFor(code);
+        useBook(bookFor(code));
         try { await AsyncStorage.setItem(STORE_KEY, code); } catch (e) { /* kept for this run only */ }
         set({ lang: code });
         syncLanguage();

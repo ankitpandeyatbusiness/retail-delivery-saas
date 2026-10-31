@@ -26,7 +26,7 @@ async function check({ tenant, config, userId, priced, body }) {
     // 2. too many deliveries on the way
     if (type === 'delivery' && rules.deliveryOpenMax > 0) {
         const n = await Order.countDocuments({ tenantId, userId, orderType: 'delivery', status: { $in: OPEN }, ...HIDE_UNPAID });
-        if (n >= rules.deliveryOpenMax) return { status: 409, message: `You already have ${n} delivery order${n === 1 ? '' : 's'} on the way. You can order again after one is delivered.` };
+        if (n >= rules.deliveryOpenMax) return { status: 409, message: n === 1 ? 'You already have 1 delivery order on the way. You can order again after it is delivered.' : `You already have ${n} delivery orders on the way. You can order again after one is delivered.` };   // whole sentences, so the app can translate them
     }
 
     // 3. all the cash he owes at the same time

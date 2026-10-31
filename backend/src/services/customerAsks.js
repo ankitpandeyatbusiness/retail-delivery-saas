@@ -60,7 +60,7 @@ async function pickupAnswer({ tenant, userId, orderId, answer }) {
         const prev = order.pickupIntent;
         if (prev?.kind === answer && prev.at && Date.now() - new Date(prev.at).getTime() < REPEAT_MS) {
             const left = Math.max(1, Math.ceil((REPEAT_MS - (Date.now() - new Date(prev.at).getTime())) / 60000));
-            throw httpError(429, `The shop already knows. You can tell them again in ${left} minute${left === 1 ? '' : 's'}.`);
+            throw httpError(429, left === 1 ? 'The shop already knows. You can tell them again in 1 minute.' : `The shop already knows. You can tell them again in ${left} minutes.`);   // whole sentences, so the app can translate them
         }
         await Order.updateOne({ _id: order._id }, { $set: { pickupIntent: { kind: answer, at: new Date() } } });
         {   // every answer reaches the owner now (on time too), with the details
