@@ -79,6 +79,7 @@ export default function CartScreen() {
     // the way he orders is chosen on the Home screen; the choice here moves it too
     const mode = useOrderMode((st) => st.mode);
     const table = useOrderMode((st) => st.table);
+    const tableKey = useOrderMode((st) => st.tableKey);
     const dineOn = !!full.orders.dineIn?.enabled;
     const [tableOpen, setTableOpen] = useState(false);
     const [partyOpen, setPartyOpen] = useState(false);   // shared table: he must choose his bill first
@@ -161,9 +162,9 @@ export default function CartScreen() {
             if (f.scheduleOrder && when !== 'now' && slots[when]) b.scheduledFor = slots[when].iso;
         }
         if (type === 'pickup' && pickedSlot) b.pickupSlot = pickedSlot;
-        if (type === 'dine_in') b.tableNo = table;
+        if (type === 'dine_in') { b.tableNo = table; if (tableKey) b.tableKey = tableKey; }
         return b;
-    }, [table, lines, type, applied, tryCode, addr, tip, when, couponOn, paymentMethodValue, pickedSlot, usePts]);
+    }, [table, tableKey, lines, type, applied, tryCode, addr, tip, when, couponOn, paymentMethodValue, pickedSlot, usePts]);
     const bodyKey = JSON.stringify(body);
     // cash for a pickup order may be switched off or capped by the shop: say so, and point to the payment choice
     const pcod = full.orders?.pickupCod;
@@ -285,6 +286,7 @@ export default function CartScreen() {
     const place = async () => {
         if (type === 'dine_in' && !table) { setTableOpen(true); return; }   // he has not chosen his table yet
         if (quote?.problemCode === 'choose_party') { setPartyOpen(true); return; }
+        if (quote?.problemCode === 'scan_table') { setTableOpen(true); return; }   // the shop takes table orders only from the table's QR
         if (placing || !fresh || !quote.canPlace || closed) return;
         if (useAuthStore.getState().user?.role === 'admin') { showToast(tr('Shop owners cannot order from their own number. Log in with a customer number to try an order.')); return; }
         if (paymentMethodValue === 'card' && !card) { nav.navigate('CardDetails', { depth: 1 }); return; }   // card details are asked every time
@@ -308,7 +310,7 @@ export default function CartScreen() {
                 }
                 at = w.at;
             }
-            const order = await placeOrder({ ...(notes.length ? { ...body, note: notes.join(' | ') } : body), ...(type !== 'dine_in' && [...foodTags, foodNote.trim()].filter(Boolean).length ? { foodNote: [...foodTags, foodNote.trim()].filter(Boolean).join(', ').slice(0, 200) } : {}), ...(at ? { at } : {}) }, idemKey);
+            const order = await placeOrder({ ...(notes.length ? { ...body, note: notes.join(' | ') } : body), ...(type !== 'dine_in' && [...foodTags, foodNote.trim()].filter(Boolean).length ? { foodNote: [...foodTags, foodNote.trim()].filter(Boolean).join(', ').slice(0, 200) } : {}), ...(at ? { at } : {}), expectedTotal: quote.pricing.total }, idemKey);   // the server refuses the order if today's total differs from what he saw
             if (type === 'dine_in') useTableBill.getState().load();   // the new round is on his table bill
             if (__DEV__) console.log(`[pay] place order took ${Date.now() - t0} ms, paymentStart: ${order?.paymentStart ? 'yes' : 'no'}`);
             const tabs = { name: 'MainTabs', state: { routes: [{ name: 'Orders' }] } };
@@ -356,6 +358,7 @@ export default function CartScreen() {
             if (/unpaid bill/i.test(m)) useOwedPrompt.getState().show();   // the reminder with the Call button
             if (/coupon/i.test(m)) { ease(); setApplied(''); setCouponErr(m); }
             if (e?.response?.data?.code === 'choose_party') setPartyOpen(true);
+            if (e?.response?.data?.code === 'scan_table') setTableOpen(true);
             if (e?.response) setTick((x) => x + 1);
         } finally { setPlacing(false); }
     };
@@ -396,6 +399,7 @@ export default function CartScreen() {
     else if (qErr) { btnText = 'Unavailable'; note = qErr; }
     else if (!quote || !fresh) btnText = 'Calculating...';
     else if (quote.problemCode === 'choose_party') { btnText = 'Choose your bill'; btnOn = true; note = quote.problem; }
+    else if (quote.problemCode === 'scan_table') { btnText = 'Scan the QR on your table'; btnOn = true; note = quote.problem; }
     else if (!quote.canPlace) { btnText = "Can't place"; note = quote.problem || 'Cannot place order'; }
     else btnOn = !placing;
 

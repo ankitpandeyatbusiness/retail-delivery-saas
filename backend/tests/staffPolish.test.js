@@ -88,7 +88,7 @@ describe('nudges', () => {
         const s = await mongoose.model('TableSession').create({ tenantId: w.tenant._id, table: '4', customers: [w.customer.user._id], status: 'open' });
         await mk({ status: 'ready', orderType: 'dine_in', tableNo: '4', tableSessionId: s._id, statusHistory: [{ status: 'ready', at: minsAgo(9) }], updatedAt: minsAgo(9) });
         assert.equal(await runStaffNudges(), 1);
-        const call = spy.mock.calls.map((c) => c.arguments[0]).find((a) => a.data?.type === 'waiter_nudge');
+        const call = spy.mock.calls.map((c) => c.arguments[0]).find((a) => a.data?.type === 'waiter_serve');
         assert.equal(String(call.userId), String(waiter.id));
         assert.match(call.title, /Table 4/);
         assert.equal(await runStaffNudges(), 0);

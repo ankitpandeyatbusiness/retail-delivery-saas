@@ -1,4 +1,5 @@
 require('./helpers/env');
+const { readSheet } = require('./helpers/sheet');
 const { describe, test, before, after, beforeEach, afterEach, mock } = require('node:test');
 const assert = require('node:assert/strict');
 const crypto = require('crypto');
@@ -162,18 +163,19 @@ describe('J4: money ledger (owner and superadmin)', () => {
         assert.equal(r.body.totals.inPaise, 10000);
         assert.ok(r.body.items.some((i) => i.category === 'customer_payment'));
 
-        const csv = await request(app).get(`/api/admin/tenants/${w.tenant._id}/ledger/export?format=csv`).set(auth);
-        assert.equal(csv.status, 200);
-        assert.match(csv.headers['content-type'], /text\/csv/);
-        const lines = csv.text.trim().split('\r\n');
-        assert.equal(lines.length, 3);   // header + 2 rows
-        assert.match(lines[0], /Amount \(Rs\)/);
-        assert.ok(csv.text.includes('100.00'));
-        assert.ok(!csv.text.includes('"=HYPERLINK'));   // a formula never starts a cell
+        // the export is an Excel file now
+        const sheet = await readSheet(request(app).get(`/api/admin/tenants/${w.tenant._id}/ledger/export`).set(auth));
+        assert.equal(sheet.res.status, 200);
+        assert.match(sheet.res.headers['content-type'], /spreadsheetml/);
+        assert.equal(sheet.rows.filter((r) => !/^total/i.test(r[0])).length, 2);   // 2 rows (a total row may follow)
+        assert.match(sheet.header.join(','), /Amount/);
+        assert.ok(sheet.text.includes('100.00'));
+        assert.ok(sheet.text.includes('=HYPERLINK'), 'the odd value is kept, as text');
+        assert.ok(!sheet.rows.some((r) => r.some((c) => c.startsWith('FORMULA:'))));   // stored as text, never as a formula
 
-        const plat = await request(app).get('/api/admin/ledger/export?format=csv').set(auth);
-        assert.equal(plat.status, 200);
-        assert.match(plat.text.split('\r\n')[0], /Shop/);
+        const plat = await readSheet(request(app).get('/api/admin/ledger/export').set(auth));
+        assert.equal(plat.res.status, 200);
+        assert.match(plat.header.join(','), /Shop/);
         assert.equal((await request(app).get(`/api/admin/tenants/${w.tenant._id}/ledger/export`).set(w.owner.headers)).status === 200, false);
     });
 })

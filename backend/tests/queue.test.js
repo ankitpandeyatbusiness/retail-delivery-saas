@@ -30,12 +30,12 @@ async function setShop(staff = {}, extra = {}) {
     tenantRecognizer.invalidateTenant('queue-shop');
 }
 const minsAgo = (m) => new Date(Date.now() - m * 60000);
-// an order the kitchen has accepted m minutes ago, by another guest unless `who` is given
+// a table order the kitchen has accepted m minutes ago, by another guest unless `who` is given (only table orders show their place in the queue)
 let phone = 9100000000;
 const others = async () => f.makeUser(w.tenant, 'customer', String(++phone));
 const mk = async (m, o = {}, who) => {
     const u = who || (await others()).user;
-    return f.makeOrder(w.tenant, u, { status: 'accepted', orderType: 'pickup', statusHistory: [{ status: 'placed' }, { status: 'accepted', at: minsAgo(m) }], createdAt: minsAgo(m), ...o });
+    return f.makeOrder(w.tenant, u, { status: 'accepted', orderType: 'dine_in', tableNo: '1', statusHistory: [{ status: 'placed' }, { status: 'accepted', at: minsAgo(m) }], createdAt: minsAgo(m), ...o });
 };
 const mine = (o) => request(app).get(`/api/orders/${o._id}`).set(w.customer.headers);
 
@@ -121,12 +121,12 @@ describe('when nothing is said', () => {
         assert.equal(q.etaMin, null);
     });
 
-    test('a kind of order the cook does not see has no queue; a pickup for much later is not in the queue yet', async () => {
-        await setShop({ kitchenSees: ['dine_in'] });
-        const pickup = await mk(5, {}, w.customer.user);
-        assert.equal((await mine(pickup)).body.queue, undefined);
+    test('a kind of order the cook does not see has no queue; a pickup (for much later or not) has no queue line', async () => {
+        await setShop({ kitchenSees: ['pickup'] });
+        const table = await mk(5, {}, w.customer.user);   // the cook does not see table orders here
+        assert.equal((await mine(table)).body.queue, undefined);
         await setShop({});
-        const later = await mk(5, { scheduledFor: new Date(Date.now() + 3 * 3600000) }, w.customer.user);
+        const later = await mk(5, { orderType: 'pickup', scheduledFor: new Date(Date.now() + 3 * 3600000) }, w.customer.user);
         assert.equal((await mine(later)).body.queue, undefined);
     });
 

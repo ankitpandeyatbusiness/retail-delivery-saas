@@ -28,9 +28,9 @@ describe('the alerts screen', () => {
         assert.equal(r.status, 200);
         assert.equal(r.body.role, 'admin');
         const g = Object.fromEntries(r.body.groups.map((x) => [x.id, x]));
-        assert.deepEqual(g.new_orders.pref, { n: true, p: true, s: true });
+        assert.deepEqual(g.new_orders.pref, { n: true, p: true, s: true, v: true, sec: 0 });
         assert.ok(g.new_orders.sample.en && g.new_orders.sample.hi);
-        assert.equal(g.offduty.can.p, true); assert.equal(g.offduty.pref.p, false, 'staff going off duty: a popup is possible but off by default');
+        assert.equal(g.offduty.can.p, true); assert.equal(g.offduty.pref.p, true, 'staff coming on or going off duty: the owner sees a popup by default');
         assert.ok(r.body.groups.every((x) => x.can.p), 'every alert of the owner can have a popup');
         assert.equal(g.holiday.can.s, true, 'every alert has a sound switch');
         assert.ok(r.body.groups.every((x) => x.can.s && x.sample), 'and an example to listen to');
@@ -42,7 +42,7 @@ describe('the alerts screen', () => {
         const r = await put({ prefs: { kitchen: { s: false }, tables: { n: false } } });
         assert.equal(r.status, 200);
         const g = Object.fromEntries(r.body.groups.map((x) => [x.id, x]));
-        assert.deepEqual(g.kitchen.pref, { n: true, p: true, s: false });
+        assert.deepEqual(g.kitchen.pref, { n: true, p: true, s: false, v: true, sec: 0 });
         assert.equal(g.tables.pref.n, false);
         const saved = (await User.findById(w.owner.user._id).lean()).alertPrefs;
         assert.deepEqual(saved, { kitchen: { s: false }, tables: { n: false } });
@@ -73,17 +73,17 @@ describe('the push obeys the choices', () => {
         return mock.method(adapter, 'send', async ({ tokens }) => ({ sent: tokens.length, invalidTokens: [] }));
     };
 
-    test('notification off: nothing is sent; sound off: a silent channel and no voice; otherwise as before', async () => {
+    test('notification off: nothing is sent; sound off: a silent channel; otherwise as before', async () => {
         const spy = await setup();
         process.env.SPEECH_DELAY_MS = '0';
         await ring('order_new');
-        assert.equal(spy.mock.calls.length, 2, 'the loud push, then the voice message');
+        assert.equal(spy.mock.calls.length, 1, 'the loud push only (the voice plays when the owner taps it)');
         assert.equal(spy.mock.calls[0].arguments[0].channelId, 'new_orders_v2');
         spy.mock.resetCalls();
 
         await put({ prefs: { new_orders: { s: false } } });
         await ring('order_new');
-        assert.equal(spy.mock.calls.length, 1, 'silent: no voice message');
+        assert.equal(spy.mock.calls.length, 1, 'one silent push');
         assert.equal(spy.mock.calls[0].arguments[0].channelId, 'live_trip');
         spy.mock.resetCalls();
 

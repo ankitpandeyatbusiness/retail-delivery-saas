@@ -15,6 +15,7 @@ import { tr } from '../../i18n';
 export default function TableSheet({ visible, onClose }) {
     const { primary, onPrimary, text, border, muted } = useBrand();
     const count = useHomeStore((s) => s.full?.orders?.dineIn?.tableCount) || 10;
+    const qrOnly = useHomeStore((s) => s.full?.orders?.dineIn?.qrRequired) === true;   // the shop takes table orders only from the table's QR
     const table = useOrderMode((s) => s.table);
     const setTable = useOrderMode((s) => s.setTable);
     const nav = useNavigation();
@@ -24,8 +25,8 @@ export default function TableSheet({ visible, onClose }) {
                 <Ionicons name="qr-code-outline" size={18} color={onPrimary} />
                 <Text style={{ color: onPrimary, fontWeight: '900', marginLeft: 8 }}>{tr('Scan the QR on your table')}</Text>
             </Pressable>
-            <Text style={{ color: muted, fontSize: 13, marginBottom: 12 }}>{tr('The number is on the sticker on your table.')}</Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginRight: -8 }}>
+            <Text style={{ color: muted, fontSize: 13, marginBottom: 12 }}>{qrOnly ? tr('This shop takes table orders only from the QR on your table.') : tr('The number is on the sticker on your table.')}</Text>
+            {qrOnly ? null : <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginRight: -8 }}>
                 {Array.from({ length: count }, (_, i) => String(i + 1)).map((n) => {
                     const on = table === n;
                     return (
@@ -37,7 +38,7 @@ export default function TableSheet({ visible, onClose }) {
                         </Pressable>
                     );
                 })}
-            </View>
+            </View>}
         </Sheet>
     );
 }

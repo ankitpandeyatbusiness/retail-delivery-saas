@@ -72,41 +72,6 @@ describe('Soundbox off means no loud sound from that phone', () => {
         assert.equal(quiet.sound, undefined);
     });
 
-    test('a new order also sends loud phones a silent data message that carries the order, and nobody else', async () => {
-        const base = { tenantId: world.tenant._id, userId: world.owner.user._id };
-        await DeviceToken.create({ ...base, token: T_LOUD, loudAlerts: true });
-        await DeviceToken.create({ ...base, token: T_QUIET, loudAlerts: false });
-
-        await pushChannel.send({
-            tenantId: world.tenant._id, title: 'New order', body: '#3',
-            data: { orderId: 'o1', speech: 'New order. 2 Butter Naan.', speechHi: 'x' },
-            channelId: NEW_ORDER_CHANNEL, sound: 'new_order',
-        });
-        const silent = calls.filter((c) => c.dataOnly);
-        assert.equal(silent.length, 1);
-        assert.deepEqual(silent[0].tokens, [T_LOUD]);        // not the phone that switched Soundbox off
-        assert.equal(silent[0].data.speakOnly, '1');
-        assert.equal(silent[0].data.speech, 'New order. 2 Butter Naan.');
-        assert.equal(silent[0].title, undefined);           // no notification inside: nothing shows, nothing plays
-        assert.equal(silent[0].channelId, undefined);
-    });
-
-    test('the silent message is sent AFTER the notification, so the voice follows the clip', async () => {
-        const base = { tenantId: world.tenant._id, userId: world.owner.user._id };
-        await DeviceToken.create({ ...base, token: T_LOUD, loudAlerts: true });
-        process.env.SPEECH_DELAY_MS = '150';
-        try {
-            await pushChannel.send({
-                tenantId: world.tenant._id, title: 'New order', body: '#5',
-                data: { orderId: 'o3', speech: 'New order.' }, channelId: NEW_ORDER_CHANNEL, sound: 'new_order',
-            });
-            assert.equal(calls.filter((c) => c.dataOnly).length, 0, 'not yet');
-            assert.equal(calls.filter((c) => !c.dataOnly).length, 1, 'the notification itself goes first');
-            await f.sleep(400);
-            assert.equal(calls.filter((c) => c.dataOnly).length, 1, 'and the silent message follows');
-        } finally { process.env.SPEECH_DELAY_MS = '0'; }
-    });
-
     test('no silent message when there is nothing to read out (a plain reminder)', async () => {
         const base = { tenantId: world.tenant._id, userId: world.owner.user._id };
         await DeviceToken.create({ ...base, token: T_LOUD, loudAlerts: true });
@@ -151,15 +116,13 @@ describe('the owner can send himself a test of the real alert', () => {
         assert.equal(loud.sound, 'new_order');
         assert.equal(loud.data.type, 'order_new');
         assert.equal(loud.data.test, '1');
-        assert.match(loud.data.speech, /^New order\. 2 Butter Naan/);
-        assert.match(loud.data.speechHi, /^नया ऑर्डर/);
+        assert.match(loud.data.speech, /^New delivery order\. 2 Butter Naan/);
+        assert.match(loud.data.speechHi, /^नया डिलीवरी ऑर्डर/);
         // the quiet phone still gets the message, just not on the loud channel; nobody else's phone is touched
         const quiet = calls.find((c) => !c.channelId && !c.dataOnly);
         assert.deepEqual(quiet.tokens, [T_QUIET]);
-        // the silent data message that lets the app read the order goes to the loud phone only
-        const silent = calls.find((c) => c.dataOnly);
-        assert.deepEqual(silent.tokens, [T_LOUD]);
-        assert.equal(silent.data.speakOnly, '1');
+        // no silent voice message any more (the background Soundbox was removed; the voice plays on tap)
+        assert.ok(!calls.some((c) => c.dataOnly));
         assert.ok(!calls.some((c) => c.tokens.includes(T_OLD)));
     });
 

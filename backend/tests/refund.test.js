@@ -114,7 +114,7 @@ describe('what happens on a cancel or an undelivered order (no database)', () =>
         for (const status of ['placed', 'accepted']) assert.deepEqual(pick(outcome(cod(status), { actorType: 'owner', reasonCode: 'customer_asked' })), FREE, status);
         for (const status of ['preparing', 'ready', 'out_for_delivery']) {
             assert.deepEqual(pick(outcome(cod(status), { actorType: 'owner', reasonCode: 'customer_asked' })), PENALTY, status);
-            for (const reasonCode of ['busy', 'out_of_stock', 'shop_fault', 'other']) {
+            for (const reasonCode of ['busy', 'out_of_stock', 'shop_fault', 'mistake', 'other']) {
                 const r = outcome(cod(status), { actorType: 'owner', reasonCode });
                 assert.deepEqual(pick(r), FREE, `${reasonCode} at ${status}`);
                 assert.equal(r.reasonCode, reasonCode);
@@ -166,7 +166,7 @@ describe('what happens on a cancel or an undelivered order (no database)', () =>
     });
 
     test('online, owner and superadmin: shop reasons give everything back; customer asked follows the share', () => {
-        for (const reasonCode of ['busy', 'out_of_stock', 'shop_fault', 'other']) {
+        for (const reasonCode of ['busy', 'out_of_stock', 'shop_fault', 'mistake', 'other']) {
             assert.deepEqual(pick(outcome(online('preparing'), { actorType: 'owner', reasonCode })), { ...FREE, refund: 52000 }, reasonCode);
         }
         const asked = outcome(online('preparing'), { actorType: 'owner', reasonCode: 'customer_asked' });

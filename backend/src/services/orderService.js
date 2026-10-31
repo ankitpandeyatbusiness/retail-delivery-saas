@@ -115,6 +115,8 @@ function checkPlacement({ tenant, config, body, priced, address, user, cod, onli
         if (!/^\d{1,3}$/.test(t) || Number(t) < 1 || Number(t) > count) return { status: 400, message: `Please choose a table from 1 to ${count}` };
         // protection for the shop: he must be at the shop, and a table's unpaid bill has a limit
         const d = { ...DEFAULTS_DINE, ...(o.dineIn || {}) };
+        // the owner's choice: a table order only from the table's own QR (the signed key the scan gave the app)
+        if (d.qrRequired && !require('./tableQr').check(tenant._id, 'table:' + t, body.tableKey)) return { status: 400, message: 'Please scan the QR code on your table to order.', extra: { code: 'scan_table' } };
         const pin = tenant.delivery || {};
         if (!quoting && d.atShopCheck && Number.isFinite(pin.latitude) && Number.isFinite(pin.longitude)) {
             const at = body.at;

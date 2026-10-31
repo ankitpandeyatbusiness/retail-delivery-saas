@@ -312,9 +312,9 @@ describe('ledger', () => {
         const shopView = await get(`/api/admin/tenants/${shop._id}/ledger?category=rent&status=pending`);
         assert.equal(shopView.body.items.length, 1);
 
-        const csv = await get(`/api/admin/tenants/${shop._id}/ledger/export?format=csv`);
-        assert.equal(csv.status, 200);
-        assert.match(String(csv.headers['content-type']), /csv/);
-        assert.match(csv.text, /Monthly bill/);
+        const sheet = await require('./helpers/sheet').readSheet(get(`/api/admin/tenants/${shop._id}/ledger/export`));   // an Excel file now
+        assert.equal(sheet.res.status, 200);
+        assert.match(String(sheet.res.headers['content-type']), /spreadsheetml/);
+        assert.match(sheet.text, /Monthly bill/);
     });
 });

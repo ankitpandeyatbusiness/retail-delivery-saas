@@ -128,7 +128,7 @@ describe('riders, assignment and cash', () => {
 
         const d = await get(shopUrl(w.tenant, `orders/${o._id}/delivery`));
         assert.equal(d.status, 200);
-        assert.equal(d.body.delivery.status, 'assigned');
+        assert.equal(d.body.delivery.status, 'accepted');
 
         // changing needs a reason
         const noReason = await post(shopUrl(w.tenant, `orders/${o._id}/assign`), { riderId: String(second.body.userId) });
@@ -173,7 +173,7 @@ describe('riders, assignment and cash', () => {
 describe('complaints, messages, activity, cod block', () => {
     test('all-shop and shop complaint lists; reply, then refund decision', async () => {
         const w = await f.makeWorld(`ops-${++n}`);
-        const o = await f.makeOrder(w.tenant, w.customer.user, { status: 'delivered', orderType: 'pickup', pricing: { subtotal: 300, total: 300 } });
+        const o = await f.makeOrder(w.tenant, w.customer.user, { status: 'delivered', pricing: { subtotal: 300, total: 300 } });
         const c = await Complaint.create({
             tenantId: w.tenant._id, orderId: o._id, orderNo: o.orderNo, userId: w.customer.user._id, customerName: 'Asha', type: 'quality', text: 'Food was cold',
         });

@@ -315,3 +315,32 @@ describe('orders: price changed, double tap, Cash on delivery limit', () => {
         });
     });
 });
+describe('orders: the owner can require the table QR for dine in', () => {
+    before(() => db.connect());
+    after(() => db.disconnect());
+    beforeEach(() => {
+        mock.method(smsChannel, 'send', async () => ({ sent: false }));
+        mock.method(pushChannel, 'send', async () => ({ sent: 0, tokens: 0 }));
+    });
+    afterEach(() => mock.restoreAll());
+
+    test('switch off: a table number is enough; switch on: only the signed key of that table works', async () => {
+        const tableQr = require('../src/services/tableQr');
+        const Tenant = require('../src/models/Tenant');
+        const tenantRecognizer = require('../src/middlewares/tenantRecognizer');
+        const w = await shop('od-qr');
+        assert.equal((await place(w)).status, 201);   // off by default
+
+        await Tenant.updateOne({ _id: w.tenant._id }, { $set: { 'settings.orders.dineIn.qrRequired': true } });
+        tenantRecognizer.invalidateTenant(w.tenant.slug);
+        const none = await place(w, { tableNo: '5' });
+        assert.equal(none.status, 400);
+        assert.equal(none.body.code, 'scan_table');
+        const q = await request(app).post('/api/orders/quote').set(w.customer.headers).send(body(w, { tableNo: '5' }));
+        assert.equal(q.body.canPlace, false);   // the cart says so before he taps
+        const wrong = await place(w, { tableNo: '5', tableKey: tableQr.sign(w.tenant._id, 'table:8') });   // another table's sticker
+        assert.equal(wrong.status, 400);
+        const ok = await place(w, { tableNo: '5', tableKey: tableQr.sign(w.tenant._id, 'table:5'), items: [{ productId: String(w.product._id), quantity: 2 }] });   // not the same cart as the first order (double-tap guard)
+        assert.equal(ok.status, 201);
+    });
+});

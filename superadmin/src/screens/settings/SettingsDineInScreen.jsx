@@ -59,6 +59,7 @@ export default function SettingsDineInScreen() {
                         <Switch title="Customer must be at the shop to order" value={dn.atShopCheck !== false} onValueChange={D('atShopCheck')} />
                         <NumberField label="Distance counted as at the shop" suffix="metres" integer value={dn.radiusM} onChange={num('radiusM', 250)} />
                         <NumberField label="Alert the owner when nobody asked for the bill after" suffix="min" integer value={dn.checkMinutes} onChange={num('checkMinutes', 20)} />
+                        <Switch title="Order only by scanning the table QR" value={dn.qrRequired === true} onValueChange={D('qrRequired')} />
                         <Switch title="A first visit must be paid online" value={dn.firstOnline === true} onValueChange={D('firstOnline')} last />
                     </Group>
 

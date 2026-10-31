@@ -285,7 +285,7 @@ describe('rider broadcast', () => {
         assert.equal(by.status, 201);
         const after = (await fresh(o)).delivery;
         assert.equal(String(after.riderId), String(s.team[0].user._id));
-        assert.equal(after.status, 'assigned');
+        assert.equal(after.status, 'accepted');
         assert.equal(await slots(s.team[0]), 1);
     });
 
@@ -306,14 +306,13 @@ describe('rider broadcast', () => {
         assert.equal(d.broadcast.active, false);
         assert.equal(d.broadcast.endReason, 'cancelled');
         assert.equal(String(d.riderId), String(r2.user._id));
-        assert.equal(d.status, 'assigned');
+        assert.equal(d.status, 'accepted');
         assert.equal(d.offers.filter((x) => x.result === 'cancelled').length, 3);
-        assert.equal(d.offers.filter((x) => x.result === 'offered').length, 1);   // the new offer to the chosen rider
+        assert.equal(d.offers.filter((x) => x.result === 'offered').length, 0);   // the owner's pick is an order, not an offer
         assert.equal(await slots(r2), 1);
         assert.ok(await waitFor(() => closedFor().length === 3));
         assert.equal((await riderCall(r1, o, 'accept')).status, 409);
         assert.equal(await slots(r1), 0);
-        assert.equal((await riderCall(r2, o, 'accept')).status, 200);         // the chosen rider accepts the normal way
         await sleep(200);
         assert.equal(await noteCount(s, { type: 'rider_none' }), 0);
     });

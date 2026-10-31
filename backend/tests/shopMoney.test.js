@@ -97,11 +97,11 @@ describe('the Transactions tab', () => {
         assert.equal(p1.body.items.length, 4); assert.equal(p1.body.total, 6);
         const p2 = await get('?limit=4&page=2');
         assert.equal(p2.body.items.length, 2);
-        const csv = await get('?format=csv');
-        assert.equal(csv.status, 200);
-        assert.match(csv.headers['content-type'], /text\/csv/);
-        assert.equal(csv.text.trim().split('\r\n').length, 7, 'a header and six rows');
-        assert.match(csv.text, /Waiter Suresh/);
+        const sheet = await require('./helpers/sheet').readSheet(get('?format=csv'));   // an Excel file now
+        assert.equal(sheet.res.status, 200);
+        assert.match(sheet.res.headers['content-type'], /spreadsheetml/);
+        assert.equal(sheet.rows.filter((r) => !/^total/i.test(r[0])).length, 6, 'six rows');
+        assert.match(sheet.text, /Waiter Suresh/);
 
         const other = await f.makeWorld('money-other-' + (++seq));
         await f.makeOrder(other.tenant, other.customer.user, { status: 'delivered', pricing: { total: 999 }, deliveredAt: at('2026-10-21T10:00:00Z'), payment: { method: 'cod', status: 'paid' } });

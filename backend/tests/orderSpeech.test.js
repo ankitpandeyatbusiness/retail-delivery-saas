@@ -18,7 +18,7 @@ describe('orderSpeech', () => {
         });
         assert.equal(
             s,
-            'New order. 2 Butter Naan, 1 Laccha Paratha, 1 Paneer Butter Masala, Full. Total 540 rupees. Cash on delivery.',
+            'New delivery order. 2 Butter Naan, 1 Laccha Paratha, 1 Paneer Butter Masala, Full. Total 540 rupees. Cash on delivery.',
         );
     });
 
@@ -51,7 +51,7 @@ describe('orderSpeech', () => {
             pricing: { total: 540 },
             payment: { method: 'cod' },
         });
-        assert.equal(s, 'नया ऑर्डर। 2 Butter Naan, 1 Paneer Butter Masala, Full। कुल 540 रुपये। कैश ऑन डिलीवरी।');
+        assert.equal(s, 'नया डिलीवरी ऑर्डर। 2 Butter Naan, 1 Paneer Butter Masala, Full। कुल 540 रुपये। कैश ऑन डिलीवरी।');
     });
 
     test('a long order is shortened in Hindi too, and pickup / online are said', () => {
@@ -63,7 +63,7 @@ describe('orderSpeech', () => {
     });
 
     test('never throws on a half-empty order', () => {
-        assert.equal(orderSpeech({}), 'New order.');
-        assert.equal(orderSpeechHi({}), 'नया ऑर्डर।');
+        assert.equal(orderSpeech({}), 'New delivery order.');
+        assert.equal(orderSpeechHi({}), 'नया डिलीवरी ऑर्डर।');
     });
 });

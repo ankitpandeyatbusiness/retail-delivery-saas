@@ -232,8 +232,10 @@ describe('working time: go live, hours and days off', () => {
 
     test('auto hours decide: inside the hours the cook is on duty, outside he is not; a holiday today switches him off; the owner sees it', async () => {
         const day = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][ist().getUTCDay()];
-        const inside = { [day]: { on: true, from: hhmm(nowMins() - 60), to: hhmm(nowMins() + 60) } };
-        const outside = { [day]: { on: true, from: hhmm(nowMins() + 120), to: hhmm(nowMins() + 180) } };
+        // windows that stay inside today (a window across midnight belongs to the day it starts on)
+        const now = nowMins();
+        const inside = { [day]: { on: true, from: hhmm(Math.max(0, now - 60)), to: hhmm(Math.min(1439, now + 60)) } };
+        const outside = { [day]: { on: true, ...(now < 720 ? { from: hhmm(now + 120), to: hhmm(now + 180) } : { from: hhmm(now - 180), to: hhmm(now - 120) }) } };
         assert.equal((await duty(cook, 'put', '', { mode: 'auto', weekly: inside })).body.status, 'on');
         assert.equal((await duty(cook, 'put', '', { mode: 'auto', weekly: outside })).body.status, 'outside');
         assert.equal((await duty(cook, 'put', '', { mode: 'auto', weekly: inside })).body.status, 'on');

@@ -198,7 +198,8 @@ describe('the monthly report', () => {
     const EmailJob = require('../src/models/EmailJob');
     const Tenant = require('../src/models/Tenant');
 
-    const lastMonthDay = () => { const d = new Date(); d.setUTCDate(1); d.setUTCDate(0); d.setUTCHours(9, 0, 0, 0); return d; };   // the last day of last month
+    // the last day of last month, counted in India time like the app (just after midnight on the 1st it is still last month in UTC)
+    const lastMonthDay = () => { const ist = new Date(Date.now() + 330 * 60000); return new Date(Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth(), 0, 9, 0, 0)); };
 
     test('every shop with orders gets one report: in the app, and by email with the PDF; never twice', async () => {
         await db.clear();

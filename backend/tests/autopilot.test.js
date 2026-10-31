@@ -74,9 +74,11 @@ describe('customer profiles', () => {
 
     test('the list API: counts, filter, search, and who can be reached', async () => {
         const a = await customer('Asha Rao');
-        await orders(a, [47, 40, 33]);
+        // the API counts from today, so these dates are relative to now (not the fixed NOW of the other tests)
+        const ago = (d) => new Date(Date.now() - d * DAY);
+        for (const d of [47, 40, 33]) await order(a, ago(d));
         const b = await customer('Bela Das', { prefs: { promotions: false } });
-        await order(b, at(2));
+        await order(b, ago(2));
         const r = await get('/api/shop/customers/insights');
         assert.equal(r.status, 200, JSON.stringify(r.body));
         assert.equal(r.body.total, 2);

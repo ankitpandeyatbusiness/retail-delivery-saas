@@ -4,22 +4,23 @@ import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const KEY = 'order.mode.v1';
-const save = (s) => AsyncStorage.setItem(KEY, JSON.stringify({ mode: s.mode, table: s.table })).catch(() => { });
+const save = (s) => AsyncStorage.setItem(KEY, JSON.stringify({ mode: s.mode, table: s.table, tableKey: s.tableKey })).catch(() => { });
 
 export const useOrderMode = create((set, get) => ({
     mode: 'delivery',   // delivery | pickup | dine_in
     table: '',          // the table number while dining in
+    tableKey: '',       // the signed key from the table's QR (a shop may require it); empty when the number was picked by hand
     ready: false,
     load: async () => {
         if (get().ready) return;
         try {
             const j = JSON.parse((await AsyncStorage.getItem(KEY)) || '{}');
-            set({ mode: j.mode || 'delivery', table: j.table || '', ready: true });
+            set({ mode: j.mode || 'delivery', table: j.table || '', tableKey: j.tableKey || '', ready: true });
         } catch (e) { set({ ready: true }); }
     },
     setMode: (mode) => { set({ mode }); save(get()); },
     // choosing a table also means he is dining in
-    setTable: (table) => { set({ table: String(table || ''), mode: table ? 'dine_in' : get().mode }); save(get()); },
+    setTable: (table, key) => { set({ table: String(table || ''), tableKey: table && key ? String(key) : '', mode: table ? 'dine_in' : get().mode }); save(get()); },
 }));
 
 // the ways this shop can be ordered from, in the order they are shown

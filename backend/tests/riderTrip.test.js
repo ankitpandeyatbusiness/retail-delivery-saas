@@ -96,7 +96,7 @@ describe('the time allowed', () => {
 
     test('collected: the due time is saved from the estimate; the first real route replaces it once; delivered: the journey goes on his record', async () => {
         routes.resetForTests();
-        const o = await trip({ status: 'preparing', delivery: { riderId: w.rider.user._id, status: 'accepted' } });
+        const o = await trip({ status: 'preparing', kitchen: { readyAt: new Date() }, delivery: { riderId: w.rider.user._id, status: 'accepted' } });   // the food is ready: he may collect it
         assert.equal((await rider('post', `/orders/${o._id}/pickup`)).status, 200);
         let fresh = null;
         for (let i = 0; i < 40 && !fresh?.delivery?.dueAt; i += 1) { await new Promise((r) => setTimeout(r, 100)); fresh = await Order.findById(o._id); }

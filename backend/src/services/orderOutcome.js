@@ -34,7 +34,8 @@ function reasonsOf({ kind, actorType, reasonCode, frozen }) {
     }
     if (actorType === 'owner') {
         if (!OWNER_CANCEL_REASONS.includes(reasonCode)) throw new Error('Unknown cancel reason');
-        return { code: reasonCode, refundReason: ['customer_asked', 'mistake'].includes(reasonCode) ? 'customer_asked' : 'shop_fault' };
+        // "mistake" is shown to the owner as "Ordered by mistake (no charge)": a full refund, no strike, the coupon goes back
+        return { code: reasonCode, refundReason: reasonCode === 'customer_asked' ? 'customer_asked' : 'shop_fault' };
     }
     if (actorType === 'superadmin') {
         const code = reasonCode || 'platform';

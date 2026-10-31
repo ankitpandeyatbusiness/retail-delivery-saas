@@ -24,7 +24,7 @@ export async function applyTableLink(url) {
         const lock = tableLock(p.table);
         if (lock) return { ok: false, message: lock };
         const r = await api.post('/dinein/scan', p);
-        useOrderMode.getState().setTable(r.data.table);   // choosing a table also switches to dine in
+        useOrderMode.getState().setTable(r.data.table, p.k);   // choosing a table also switches to dine in
         return { ok: true, table: r.data.table };
     } catch (e) {
         return { ok: false, message: e?.response?.data?.error || 'Could not check this QR code. Please try again.' };
