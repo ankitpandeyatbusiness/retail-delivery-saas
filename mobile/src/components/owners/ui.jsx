@@ -104,12 +104,13 @@ export function Option({ selected, title, subtitle, badge, onPress, last }) {
 }
 
 // a number with a label: Today's sales, Orders, ...
-export function Stat({ label, value, hint, color }) {
+// wrap: for a row that may hold big figures: the boxes share the width, and one drops to the next line rather than squeeze the figure
+export function Stat({ label, value, hint, color, wrap }) {
     const { text, muted } = useBrand();
     return (
-        <View style={{ flex: 1 }}>
-            <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }}>{label}</Text>
-            <Text style={{ color: color || text, fontSize: 22, fontWeight: '900', marginTop: 2 }} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
+        <View style={wrap ? { flexGrow: 1, flexBasis: '30%', minWidth: 100, marginBottom: 4, paddingRight: 8 } : { flex: 1, minWidth: 0 }}>
+            <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }} numberOfLines={1}>{label}</Text>
+            <Text style={{ color: color || text, fontSize: 22, fontWeight: '900', marginTop: 2 }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{value}</Text>
             {hint ? <Text style={{ color: muted, fontSize: 11, marginTop: 1 }}>{hint}</Text> : null}
         </View>
     );

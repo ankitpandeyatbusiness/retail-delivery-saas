@@ -38,7 +38,7 @@ function Detail({ x, onClose, onOpenOrder }) {
     return (
         <Sheet visible onClose={onClose} title={tr(x.label)}>
             <View style={{ alignItems: 'center', marginBottom: 10 }}>
-                <Text style={{ color: x.direction === 'in' ? ok : text, fontWeight: '900', fontSize: 30 }}>{x.direction === 'in' ? '+' : '−'}{rupees(x.amountPaise)}</Text>
+                <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} style={{ color: x.direction === 'in' ? ok : text, fontWeight: '900', fontSize: 30, maxWidth: '100%' }}>{x.direction === 'in' ? '+' : '−'}{rupees(x.amountPaise)}</Text>
                 <Text style={{ color: x.status === 'pending' ? error : muted, fontWeight: '800', marginTop: 2 }}>{x.status === 'pending' ? tr('Not paid yet') : x.direction === 'in' ? tr('Received') : tr('Paid out')}</Text>
             </View>
             <Line label={tr('Date and time')} value={fullStamp(x.at)} strong />
@@ -148,10 +148,10 @@ export default function OwnerTxTabScreen() {
                 <>
                     <Card>
                         <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }}>{tr(periodTitle(period, pick))}</Text>
-                        <View style={{ flexDirection: 'row', marginTop: 8 }}>
-                            <Stat label={tr('Money in')} value={rupees(t.inPaise)} color={ok} />
-                            <Stat label={tr('Money out')} value={rupees(t.outPaise)} />
-                            <Stat label={tr('Kept')} value={rupees(t.netPaise)} />
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 }}>
+                            <Stat wrap label={tr('Money in')} value={rupees(t.inPaise)} color={ok} />
+                            <Stat wrap label={tr('Money out')} value={rupees(t.outPaise)} />
+                            <Stat wrap label={tr('Kept')} value={rupees(t.netPaise)} />
                         </View>
                         {t.byHow.length ? (
                             <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 10 }}>
@@ -169,7 +169,7 @@ export default function OwnerTxTabScreen() {
                             <View key={g.day}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 6 }}>
                                     <Text style={{ flex: 1, color: muted, fontWeight: '800', fontSize: 12.5 }}>{dayLabel(g.day).toUpperCase()}</Text>
-                                    <Text style={{ color: muted, fontWeight: '700', fontSize: 12.5 }}>{net >= 0 ? '+' : '−'}{rupees(Math.abs(net))}</Text>
+                                    <Text numberOfLines={1} style={{ color: muted, fontWeight: '700', fontSize: 12.5, marginLeft: 8, flexShrink: 0 }}>{net >= 0 ? '+' : '−'}{rupees(Math.abs(net))}</Text>
                                 </View>
                                 <Card style={{ paddingVertical: 2 }}>
                                     {g.rows.map((x, i) => {
@@ -184,9 +184,9 @@ export default function OwnerTxTabScreen() {
                                                     <Text style={{ color: text, fontWeight: '800', fontSize: 14.5 }} numberOfLines={1}>{tr(x.label)}</Text>
                                                     <Text style={{ color: muted, fontSize: 12, marginTop: 1 }} numberOfLines={1}>{subtitle(x)}</Text>
                                                 </View>
-                                                <View style={{ alignItems: 'flex-end', marginLeft: 8 }}>
-                                                    <Text style={{ color: x.status === 'pending' ? muted : inn ? ok : text, fontWeight: '900', fontSize: 15 }}>{inn ? '+' : '−'}{rupees(x.amountPaise)}</Text>
-                                                    <Text style={{ color: muted, fontSize: 11.5, marginTop: 1 }}>{timeOf(x.at)}{x.howLabel ? ` · ${tr(x.howLabel)}` : ''}{x.status === 'pending' ? ` · ${tr('to pay')}` : ''}</Text>
+                                                <View style={{ alignItems: 'flex-end', marginLeft: 8, flexShrink: 0, maxWidth: '46%' }}>
+                                                    <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65} style={{ color: x.status === 'pending' ? muted : inn ? ok : text, fontWeight: '900', fontSize: 15 }}>{inn ? '+' : '−'}{rupees(x.amountPaise)}</Text>
+                                                    <Text numberOfLines={1} style={{ color: muted, fontSize: 11.5, marginTop: 1 }}>{timeOf(x.at)}{x.howLabel ? ` · ${tr(x.howLabel)}` : ''}{x.status === 'pending' ? ` · ${tr('to pay')}` : ''}</Text>
                                                 </View>
                                             </Pressable>
                                         );
