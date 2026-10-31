@@ -234,7 +234,7 @@ export function ShopMenu({ onGo }) {
                                 <Text style={{ color: text, fontWeight: '900', fontSize: 14 }}>{tr('Sort A to Z')}</Text>
                                 <Text style={{ color: muted, fontSize: 11.5 }} numberOfLines={1}>{sortAZ ? tr('One list by name. Slide on the letters on the right.') : tr('Show every screen in one list by name')}</Text>
                             </View>
-                            <Toggle value={sortAZ} onValueChange={(v) => { ease(); useMenuFlags.getState().setSortAZ(v); }} />
+                            <Toggle value={sortAZ} onValueChange={(v) => useMenuFlags.getState().setSortAZ(v)} />
                         </View>
                     ) : null}
                 </Card>

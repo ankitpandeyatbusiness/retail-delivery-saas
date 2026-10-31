@@ -2,7 +2,7 @@
 // first screen starting with the letter under the finger, that letter is highlighted and a big bubble names it. The menu fills the store (letters and their
 // positions); the page that holds the menu draws this strip over its scroll area and gives it the scroll view.
 import React, { useRef, useState } from 'react';
-import { View, Text, PanResponder } from 'react-native';
+import { View, Text, PanResponder, Animated, Easing } from 'react-native';
 import { create } from 'zustand';
 import { useBrand } from '../common/kit';
 
@@ -59,9 +59,12 @@ export default function MenuIndexStrip({ scrollRef, top = 90, bottom = 24, pad =
         onPanResponderTerminate: () => setTouch(''),
     })).current;
 
-    if (!on || !Object.keys(ys).length) return null;
+    const shown = on && Object.keys(ys).length > 0;
+    const fade = useRef(new Animated.Value(0)).current;   // the letters fade in with the list instead of popping up
+    React.useEffect(() => { if (shown) Animated.timing(fade, { toValue: 1, duration: 280, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start(); else fade.setValue(0); }, [shown, fade]);
+    if (!shown) return null;
     return (
-        <View pointerEvents="box-none" style={{ position: 'absolute', right: 0, top: Math.max(top, top + base + pad - scrollY), bottom, width: 120 }}>
+        <Animated.View pointerEvents="box-none" style={{ opacity: fade, position: 'absolute', right: 0, top: Math.max(top, top + base + pad - scrollY), bottom, width: 120 }}>
             {touch ? (
                 <View pointerEvents="none" style={{ position: 'absolute', right: 34, top: '40%', width: 64, height: 64, borderRadius: 32, backgroundColor: primary, alignItems: 'center', justifyContent: 'center', elevation: 8 }}>
                     <Text style={{ color: onPrimary, fontSize: 34, fontWeight: '900' }}>{touch}</Text>
@@ -80,6 +83,6 @@ export default function MenuIndexStrip({ scrollRef, top = 90, bottom = 24, pad =
                     );
                 })}
             </View>
-        </View>
+        </Animated.View>
     );
 }

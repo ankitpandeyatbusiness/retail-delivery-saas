@@ -4,6 +4,7 @@
 import { create } from 'zustand';
 import { readCache, writeCache } from '../common/cache';
 import { fetchSettings } from '../../api/owners/shopApi';
+import { ease } from '../common/ease';
 
 const KEY = 'menuFlags';
 
@@ -30,9 +31,11 @@ export const useMenuFlags = create((set, get) => ({
         } catch (e) { return null; }
     },
     setBusy: (busy) => set({ busy }),
-    setEasy: (easy) => { set({ easy }); const s = get(); writeCache(KEY, { kitchenOn: s.kitchenOn, waiterOn: s.waiterOn, servicesOn: s.servicesOn, bookingOn: s.bookingOn, easy, sortAZ: s.sortAZ }); },
+    // both switches glide: every screen that shows less or more eases to its new shape instead of jumping
+
+    setEasy: (easy) => { ease(); set({ easy }); const s = get(); writeCache(KEY, { kitchenOn: s.kitchenOn, waiterOn: s.waiterOn, servicesOn: s.servicesOn, bookingOn: s.bookingOn, easy, sortAZ: s.sortAZ }); },
     // the menu as one list by name, with the A to Z strip (English only)
-    setSortAZ: (sortAZ) => { set({ sortAZ }); const s = get(); writeCache(KEY, { kitchenOn: s.kitchenOn, waiterOn: s.waiterOn, servicesOn: s.servicesOn, bookingOn: s.bookingOn, easy: s.easy, sortAZ }); },
+    setSortAZ: (sortAZ) => { ease(); set({ sortAZ }); const s = get(); writeCache(KEY, { kitchenOn: s.kitchenOn, waiterOn: s.waiterOn, servicesOn: s.servicesOn, bookingOn: s.bookingOn, easy: s.easy, sortAZ }); },
 }));
 
 useMenuFlags.getState().hydrate();   // starts reading as soon as the app loads
