@@ -37,6 +37,8 @@ const EVENTS = {
     rider_accepted: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },
     points_arrived: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },   // loyalty points reached the customer
     rider_badge: { to: 'rider', channels: INAPP_PUSH, alsoPush: true },        // the rider moved up a badge
+    automation_done: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },        // the system did something for the owner (services/automations.js)
+    automation_remind: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },      // the system reminds the owner of something that waits for him
     booking_new: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },             // a guest booked a table
     booking_cancelled: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },       // a guest cancelled a booking
     booking_reminder: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },          // half an hour before a booked table

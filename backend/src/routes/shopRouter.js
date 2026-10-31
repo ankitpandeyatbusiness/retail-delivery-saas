@@ -152,6 +152,11 @@ router.get('/order-history/export', wrap(async (req, res) => {
     res.send(await require('../services/orderHistory').exportBuffer({ tenantId: req.tenant._id, query: req.query, shopName: req.tenant.name }));
 }));
 
+// The Automations screen: what the system does by itself for this shop (the recommended values when he never changed them)
+router.get('/automations', wrap(async (req, res) => { res.json(await require('../services/automations').get(req.tenant._id)); }));
+router.put('/automations', wrap(async (req, res) => { res.json(await require('../services/automations').save(req.tenant._id, req.body)); }));
+router.delete('/automations', wrap(async (req, res) => { res.json(await require('../services/automations').reset(req.tenant._id)); }));
+
 // the owner opened the Orders tab: every order waiting under "Needs a look" counts as seen
 router.post('/orders/look-seen', wrap(async (req, res) => {
     res.json({ ok: true, seen: await orderLook.markAllSeen(req.tenant._id) });
