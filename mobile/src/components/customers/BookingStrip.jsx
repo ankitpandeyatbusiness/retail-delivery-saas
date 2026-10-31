@@ -1,8 +1,8 @@
 // The guest's booked table: a card above the tabs from the moment the owner allowed the booking until its slot is over.
 // "Your table · Today 8:00 PM", "4 guests · Code ABCDE". Tap it for My reservations (the ticket QR is there and works without internet). A small arrow hides it; a round chip brings it back. It steps aside while he is dining in (the table bill bar takes its place)
 // and sits above the active order bar when both are on screen.
-import React, { useEffect, useState } from 'react';
-import { View, Text, Pressable, AppState } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, Pressable, AppState, Animated, Easing, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand } from '../common/kit';
@@ -35,6 +35,8 @@ export default function BookingStrip({ routeName, onOpen }) {
     const orderBar = useBookingCard((s) => s.orderBar);
     const dining = useTableBill((s) => !!s.bill?.open);
     const hidden = useBookingCard((s) => s.hidden);
+    const away = useRef(new Animated.Value(hidden ? 1 : 0)).current;   // 0 = card shown, 1 = hidden: the card slides off to the right and the round chip slides in, like the other cards
+    useEffect(() => { Animated.timing(away, { toValue: hidden ? 1 : 0, duration: 380, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start(); }, [hidden, away]);
     const cartItems = useCartStore((s) => s.lines.length);
     const insets = useSafeAreaInsets();
     const { primary, onPrimary } = useBrand();
@@ -59,18 +61,9 @@ export default function BookingStrip({ routeName, onOpen }) {
     const soon = left <= 30 && left > 0;
     const on = left <= 0;
     const bottom = insets.bottom + TAB_H + 18 + (orderBar ? ORDER_BAR_H : 0) + (cartItems > 0 && !dining && CART_SCREENS.includes(routeName) ? CART_BAR_H : 0);
-    if (hidden) {   // hidden by the guest: a small round chip is left to bring it back
-        return (
-            <View pointerEvents="box-none" style={{ position: 'absolute', right: 12, bottom }}>
-                <Pressable onPress={() => useBookingCard.getState().setHidden(false)} hitSlop={8} accessibilityRole="button" accessibilityLabel={tr('Show table card')}
-                    style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: primary, elevation: 8, alignItems: 'center', justifyContent: 'center' }}>
-                    <Ionicons name="calendar" size={22} color={onPrimary} />
-                </Pressable>
-            </View>
-        );
-    }
     return (
-        <View pointerEvents="box-none" style={{ position: 'absolute', left: 12, right: 12, bottom }}>
+        <>
+        <Animated.View pointerEvents={hidden ? 'none' : 'box-none'} style={{ position: 'absolute', left: 12, right: 12, bottom, opacity: away.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }), transform: [{ translateX: away.interpolate({ inputRange: [0, 1], outputRange: [0, Dimensions.get('window').width] }) }] }}>
             <Pressable onPress={onOpen} accessibilityRole="button" style={{ borderRadius: 18, backgroundColor: primary, elevation: 8, paddingVertical: 12, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center' }}>
                 <Ionicons name="calendar" size={20} color={onPrimary} />
                 <View style={{ flex: 1, marginLeft: 10 }}>
@@ -85,6 +78,13 @@ export default function BookingStrip({ routeName, onOpen }) {
                     <Ionicons name="chevron-down" size={18} color={onPrimary} />
                 </Pressable>
             </Pressable>
-        </View>
+        </Animated.View>
+        <Animated.View pointerEvents={hidden ? 'box-none' : 'none'} style={{ position: 'absolute', right: 12, bottom, opacity: away, transform: [{ translateX: away.interpolate({ inputRange: [0, 1], outputRange: [70, 0] }) }, { rotate: away.interpolate({ inputRange: [0, 1], outputRange: ['180deg', '0deg'] }) }] }}>
+            <Pressable onPress={() => useBookingCard.getState().setHidden(false)} hitSlop={8} accessibilityRole="button" accessibilityLabel={tr('Show table card')}
+                style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: primary, elevation: 8, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="calendar" size={22} color={onPrimary} />
+            </Pressable>
+        </Animated.View>
+        </>
     );
 }
