@@ -2293,6 +2293,7 @@ export default {
     "Use our recommended questions?": "અમારા સૂચવેલા પ્રશ્નો વાપરવા છે?",
     "Use recommended": "સૂચવેલા વાપરો",
     "Use recommended settings": "સૂચવેલી સેટિંગ વાપરો",
+    "Table QR": "ટેબલ QR",
     "Applying…": "લાગુ થઈ રહ્યું છે…",
     "This coupon does not apply to your order.": "આ કૂપન તમારા ઑર્ડર પર લાગુ પડતું નથી.",
     "Chat": "ચેટ",

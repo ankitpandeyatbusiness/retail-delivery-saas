@@ -83,3 +83,34 @@ Change the app language (Hindi, Marathi, Gujarati, Bengali; Bhojpuri shows Hindi
 6. Wrong day, a cancelled booking and a QR from another shop each give a red card with the reason.
 7. Type the 5 letter code instead of using the camera (also with camera permission refused).
 8. Log in as a waiter: Scan booking at the top of the waiter screen works the same way. A kitchen login has no scanner.
+
+## Round 3 checks (reservations, inquiry chat, speed, radial menu)
+
+Reservations and owner
+1. Owner: Reservations > Booking settings > touch the switch with no deposit, times or tables: it stays off, the page slides to the first missing group and frames it in red. Fill them, then the switch turns on.
+2. Booking times start empty on a new shop.
+3. Easy mode on: Reservations, Services and Inquiries are still listed.
+4. A paid reservation waiting for Allow: the owner Home shows "N reservations need your answer" on top; tapping it opens Reservations on "To allow". It disappears when answered.
+5. A new reservation slider stays until Allow or Deny is pressed (no timer). A cancellation slider still closes by itself.
+6. Booking settings > Who can reserve: auto-allow on, limit per guest, block a guest from a reservation card, unblock from the settings.
+7. Customer My reservations: Upcoming by default, tabs Confirmed, Cancelled, Past. When the owner cancels, the card and the QR go at once.
+8. Owner Home: the round Scan booking button stays at the bottom right.
+
+Services and inquiries
+9. New starter services: Bulk Order Booking asks about the function (no delivery or pickup); Tiffin asks plan, meals, tiffins, address, delivery time; Restaurant Booking asks seating. An older service gets them with "Use recommended settings".
+10. The question on/off switch slides.
+11. Inquiry chat (both phones): Chat and Details tabs, newest message at the bottom, new messages rise in, no scrollbar.
+12. Attach up to 3 photos: each thumbnail shows a round loader that fills; the cross stops it. Same loader on service photos.
+13. Owner: Details > End conversation. The guest sees it ended and cannot write. Owner: Open it again.
+14. Owner on that inquiry's screen: a customer reply gives no voice, ping or slider, only the toast. A new inquiry has its own tone.
+15. Customer My inquiries updates by itself when the owner replies or changes the status.
+
+Speed
+16. No "Loading..." text left: Alerts, owner Home, Soundbox, map address show shimmer.
+17. Cart with coupons: wait a second, tap a coupon: a short "Applying..." and it is on at once.
+18. Open the app, go to Account at once: no jump; the photo shows shimmer only if still loading.
+
+Radial menu
+19. Have two of: cart, dine in table, reserved table, order on its way. The cards go; one round button shows the icons of what is there.
+20. Touch and hold it: a quarter circle with four wedges (Dine in, Track, Table QR, Cart) opens to the left and up. Slide onto one: it lights up. Let go: it opens. A wedge with nothing behind it is dimmed with a lock and does nothing.
+21. A quick tap opens the dine in table if there is one, else the cart.
