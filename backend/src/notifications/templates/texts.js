@@ -140,6 +140,8 @@ const TEXTS = {
     inquiry_unanswered: (v) => ({ title: 'An inquiry is waiting for your reply', body: `${v.name} asked about ${v.service}. No reply for ${v.hours} hours.` }),
     inquiry_new: (v) => ({ title: `New inquiry for ${v.service}`, body: `${v.name} sent an inquiry${v.guests ? ` for ${v.guests} guests` : ''}. Open Inquiries to reply.` }),
     inquiry_customer_reply: (v) => ({ title: `${v.name} replied on an inquiry`, body: `About ${v.service}. Open Inquiries to answer.` }),
+    inquiry_ended: (v) => ({ title: `${v.shop || 'The shop'} ended the conversation`, body: `About ${v.service}. You can read it any time in My inquiries.` }),
+    inquiry_reopened: (v) => ({ title: `${v.shop || 'The shop'} opened the conversation again`, body: `About ${v.service}. You can write to them now.` }),
     inquiry_reply: (v) => ({ title: `${v.shop || 'The shop'} replied about ${v.service}`, body: v.text || 'Open My inquiries to read the reply.' }),
     table_paid_online: (v) => ({ title: v.name && v.name !== 'A guest' ? `${v.name} paid online` : `Table ${v.table}: paid online`, body: `Table ${v.table} · ₹${Math.round(v.amount || 0)} was paid from the guest's phone.` }),
     table_bill_ready: (v) => ({ title: `Your bill for table ${v.table} is ready`, body: 'Open Table bill and tap Download the bill (PDF) to see who ordered and paid what, and share it.' }),

@@ -5,6 +5,7 @@ const request = require('supertest');
 const db = require('./helpers/db');
 const app = require('../src/server/app');
 const { makeWorld } = require('./helpers/factory');
+const Notification = require('../src/models/Notification');
 
 // The whole conversation: the owner makes a service, the customer sends an inquiry, they write back and forth.
 describe('service inquiries', () => {
@@ -91,6 +92,20 @@ describe('service inquiries', () => {
         assert.equal((await request(app).post(`/api/services/inquiries/${inquiryId}/messages`).set(w.customer.headers).send({ text: 'hi again' })).status, 200);
     });
 
+    test('the customer is told when the shop ends the conversation and when it opens it again', async () => {
+        const wait = () => new Promise((r) => setTimeout(r, 400));
+        const count = (type) => Notification.countDocuments({ tenantId: w.tenant._id, type, 'data.inquiryId': inquiryId });
+        const ended0 = await count('inquiry_ended'); const reopened0 = await count('inquiry_reopened');   // the test before this one ended it once already
+        await request(app).patch('/api/shop/inquiries/' + inquiryId).set(w.owner.headers).send({ status: 'closed' });
+        await wait();
+        assert.equal(await count('inquiry_ended'), ended0 + 1);
+        await request(app).patch('/api/shop/inquiries/' + inquiryId).set(w.owner.headers).send({ status: 'replied' });
+        await wait();
+        assert.equal(await count('inquiry_reopened'), reopened0 + 1);
+        await request(app).patch('/api/shop/inquiries/' + inquiryId).set(w.owner.headers).send({ status: 'quoted' });   // another change that is not an end or a reopening: nothing more
+        await wait();
+        assert.equal(await count('inquiry_ended') + await count('inquiry_reopened'), ended0 + reopened0 + 2);
+    });
     test('another customer cannot open this inquiry', async () => {
         const { makeUser } = require('./helpers/factory');
         const other = await makeUser(w.tenant, 'customer', '9000000099');

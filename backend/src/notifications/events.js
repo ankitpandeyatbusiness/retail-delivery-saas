@@ -51,6 +51,8 @@ const EVENTS = {
     inquiry_new: { to: 'owner', channels: INAPP_PUSH, alsoPush: true, pushChannel: INQUIRY_CHANNEL, pushSound: 'cust_offer' },             // a customer sent an inquiry from a service form
     inquiry_customer_reply: { to: 'owner', channels: INAPP_PUSH, alsoPush: true, pushChannel: INQUIRY_CHANNEL, pushSound: 'cust_offer' },  // a customer wrote again on an inquiry
     inquiry_reply: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },        // the shop answered an inquiry
+    inquiry_ended: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },        // the shop ended the conversation
+    inquiry_reopened: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },     // the shop opened the conversation again
     table_share_ask: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },        // a guest asks to pay his share and leave
     table_share_paid: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },    // a friend at the same bill paid his share and left
     table_share_left: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },    // a friend left without paying: what is left on your bill

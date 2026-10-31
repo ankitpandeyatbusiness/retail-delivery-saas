@@ -18,7 +18,7 @@ import { useAuthStore } from '../../store/common/useAuthStore';
 import { useNotificationStore } from '../../store/common/useNotificationStore';
 import { registerDevice, removeDevice } from '../../api/common/notificationApi';
 import { onNotification, realtimeConnected } from '../../api/common/socket';
-import { showToast } from '../../components/customers/shop';
+import { showToast, showTapToast } from '../../components/customers/shop';
 import { speakOnOpen, isNewsType, sayAlert, markSaid, markTapped, acknowledge } from '../owners/soundbox';
 import { showSlider } from '../../components/common/AlertSliderHost';
 import { fetchOrder } from '../../api/owners/shopApi';
@@ -170,6 +170,16 @@ async function handleTap(resp) {
     handleTapNow(resp, data);
 }
 
+// Where a message on an inquiry leads: the owner's conversation, or the customer's. Null for anything else.
+export function inquiryTarget(n) {
+    const d = n?.data || {};
+    if (d.kind !== 'inquiry' || !d.inquiryId || !String(n?.type || d.type || '').startsWith('inquiry_')) return null;
+    const role = useAuthStore.getState().user?.role;
+    if (role === 'admin') return { name: 'OwnerInquiry', params: { id: String(d.inquiryId) } };
+    if (['rider', 'kitchen', 'waiter'].includes(role)) return null;
+    return { name: 'Inquiry', params: { id: String(d.inquiryId) } };
+}
+
 // A notification was tapped: open its order. For the owner's new-order push, Soundbox mode also reads it out.
 function handleTapNow(resp, data) {
     markTapped(String(data.type || ''), data);   // the same alert arriving live a moment later (the app was closed) must not ring and speak again
@@ -203,6 +213,9 @@ function handleTapNow(resp, data) {
     }
     // a cook's or waiter's push: the work screen is their home, there is no order page for them; the alert shows as a slider
     if (['kitchen', 'waiter'].includes(useAuthStore.getState().user?.role)) { showTapSlider(resp, data); return; }
+    // a message on an inquiry (the shop wrote, or ended the conversation): its conversation opens
+    const inq = inquiryTarget({ type: data.type, data });
+    if (inq) { openScreen(inq.name, inq.params); return; }
     // a customer's reminder about the bill he left unpaid: open the bill with the Pay button
     if (/^owed_/.test(String(data.type || '')) || data.type === 'table_walkout') { useOwedPrompt.getState().show(); return; }
     if (data.offerCode) {   // the shop offers a discount to stay: the code is ready at checkout and the menu opens
@@ -376,7 +389,11 @@ export function startNotifications() {
             } else markSaid(n.type, n.data);
         }
         if (AppState.currentState === 'active' && !hasOwnSound(n) && alertOn(n?.type, 's') && !isOpenInquiry(n?.type, n?.data)) { playSfx(toneFor(n)); buzz([0, 40]); }   // the Alerts screen can switch this off
-        if (n?.title) showToast(n.body ? `${n.title}: ${String(n.body).slice(0, 90)}` : n.title);
+        if (n?.title) {
+            const text = n.body ? `${n.title}: ${String(n.body).slice(0, 90)}` : n.title;
+            const to = inquiryTarget(n);
+            if (to) showTapToast(text, () => openScreen(to.name, to.params)); else showToast(text);
+        }
     });
 
     // the phone got a new token: tell the server

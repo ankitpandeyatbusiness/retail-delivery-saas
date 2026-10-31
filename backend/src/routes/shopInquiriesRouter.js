@@ -66,6 +66,10 @@ router.patch('/:id', wrap(async (req, res) => {
     if (b.status !== undefined) { if (!STATUSES.includes(b.status)) throw httpError(400, 'Unknown status'); doc.status = b.status; }
     if (b.note !== undefined) doc.note = String(b.note).trim().slice(0, 1000);
     await doc.save();
+    // the guest is told when the conversation is ended or opened again (a push and the inbox; the app also shows it as a toast he can tap)
+    if (doc.status !== before && (doc.status === 'closed' || before === 'closed')) {
+        tell(doc.status === 'closed' ? 'inquiry_ended' : 'inquiry_reopened', { tenantId: doc.tenantId, userId: doc.userId, vars: { shop: req.tenant.name, service: doc.serviceName }, data: { kind: 'inquiry', inquiryId: String(doc._id) } });
+    }
     // the guest's screens load again (the conversation may have been ended or opened again)
     if (doc.status !== before) require('../services/realtime').toUser(doc.tenantId, doc.userId, 'notification', { id: 'ic' + Date.now(), type: 'inquiry_changed', title: null, body: null, data: { kind: 'inquiry', inquiryId: String(doc._id) } });
     res.json(doc.toObject());

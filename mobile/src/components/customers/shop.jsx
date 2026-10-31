@@ -34,13 +34,19 @@ export function soldOutText(item) {
 export const tint = (c) => (/^#[0-9a-fA-F]{6}$/.test(c || '') ? `${c}1F` : '#F5F5F5');
 
 /* ---------------- toast ---------------- */
-const useToast = create((set) => ({ msg: '', n: 0, show: (msg) => set((st) => ({ msg, n: st.n + 1 })) }));
+const useToast = create((set) => ({ msg: '', n: 0, onPress: null, show: (msg, onPress = null) => set((st) => ({ msg, onPress, n: st.n + 1 })) }));
 export const showToast = (msg) => useToast.getState().show(msg);
+// a toast he can tap: it takes him there (a message on an inquiry opens the conversation)
+export const showTapToast = (msg, onPress) => useToast.getState().show(msg, onPress);
 cartHooks.onCap = (msg) => showToast(msg);   // the cart tells the customer when stock stops them
 
 export function ToastHost() {
     const msg = useToast((st) => st.msg);
     const n = useToast((st) => st.n);
+    const onPress = useToast((st) => st.onPress);
+    const tapRef = useRef(null);
+    tapRef.current = onPress;
+    const downAt = useRef(0);
     const [on, setOn] = useState(false);
     const insets = useSafeAreaInsets();
     const slide = useRef(new Animated.Value(0)).current;   // 0 = off screen (to the right), 1 = in place
@@ -65,9 +71,17 @@ export function ToastHost() {
         onStartShouldSetPanResponder: () => true,
         onMoveShouldSetPanResponder: () => true,
         onPanResponderTerminationRequest: () => false,
-        onPanResponderGrant: () => { clearTimeout(timer.current); slide.stopAnimation(); slide.setValue(1); },
+        onPanResponderGrant: () => { downAt.current = Date.now(); clearTimeout(timer.current); slide.stopAnimation(); slide.setValue(1); },
         onPanResponderMove: (_, g) => drag.setValue(Math.max(0, g.dx)),
         onPanResponderRelease: (_, g) => {
+            // a quick tap on a toast that leads somewhere: it goes there and the toast leaves
+            if (tapRef.current && Math.abs(g.dx) < 10 && Math.abs(g.dy) < 10 && Date.now() - downAt.current < 350) {
+                clearTimeout(timer.current);
+                const go = tapRef.current;
+                Animated.timing(slide, { toValue: 0, duration: 160, useNativeDriver: true }).start(() => setOn(false));
+                go();
+                return;
+            }
             if (g.dx > 60 || g.vx > 0.6) {
                 clearTimeout(timer.current);
                 Animated.timing(drag, { toValue: 420, duration: 200, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(() => { setOn(false); drag.setValue(0); });
@@ -94,6 +108,7 @@ export function ToastHost() {
                     <Ionicons name={bad ? 'alert' : 'checkmark'} size={16} color={accent} />
                 </View>
                 <Text numberOfLines={3} style={[s.toastMsg, { color: dark ? text : '#1B1B1F' }]}>{msg}</Text>
+                {onPress ? <Ionicons name="chevron-forward" size={18} color={accent} style={{ marginLeft: 6 }} /> : null}
             </View>
         </Animated.View>
     );

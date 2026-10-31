@@ -96,6 +96,7 @@ export default function NotificationsScreen() {
             nav.navigate('MainTabs', { screen: 'Home' });
             return;
         }
+        if (n.data?.kind === 'inquiry' && n.data?.inquiryId && useAuthStore.getState().user?.role !== 'admin') { nav.navigate('Inquiry', { id: String(n.data.inquiryId) }); return; }   // the conversation
         if (orderId) {
             // a delivery partner opens his own trip page: the customer's order page says "order not found" to him
             if (useAuthStore.getState().user?.role === 'rider') nav.navigate('RiderTrip', { orderId: String(orderId) });
