@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { useBrand } from '../../components/common/kit';
 import { Button, Card, Empty, LiveToggle } from '../../components/owners/ui';
 import { FormPage, Group, TextBox, NumberBox, ChoiceBox, Label, TimingEditor, Toggle, ToggleRow } from '../../components/owners/menuBits';
@@ -17,7 +18,8 @@ import { tr } from '../../i18n';
 const dayText = (k) => { const [y, m, d] = String(k).split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }); };
 
 export default function OwnerBookingSettingsScreen() {
-    const { text, muted, border, error, surface } = useBrand();
+    const nav = useNavigation();
+    const { text, muted, border, error, surface, primary } = useBrand();
     const [v, setV] = useState(null);
     const [err, setErr] = useState('');
     const [saving, setSaving] = useState(false);
@@ -126,7 +128,11 @@ export default function OwnerBookingSettingsScreen() {
                 <NumberBox label={tr('Full refund if cancelled this many hours before')} integer value={v.refundHours} onChange={(x) => set('refundHours', x)} last />
             </Group>
             <Group title={tr('Who can reserve')} hint={tr('A guest who is blocked can still order food, but cannot reserve a table.')}>
-                <ToggleRow title={tr('Allow reservations by themselves')} subtitle={tr('A paid reservation is confirmed at once. You do not have to tap Allow.')} value={!!v.autoAllow} onValueChange={(x) => set('autoAllow', x)} />
+                <Pressable onPress={() => nav.navigate('OwnerAutomations')} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 4, marginBottom: 14 }}>
+                    <Ionicons name="flash" size={20} color={primary} />
+                    <Text style={{ flex: 1, color: text, fontWeight: '800', marginHorizontal: 10 }}>{tr('Allowing, no-shows and the deposit on the bill are in Automations')}</Text>
+                    <Ionicons name="chevron-forward" size={18} color={muted} />
+                </Pressable>
                 <NumberBox label={tr('Active reservations per guest')} integer value={v.maxActive ?? 3} onChange={(x) => set('maxActive', x ?? 0)} hint={tr('How many upcoming reservations one guest can hold. 0 means no limit.')} last={!(v.blocked || []).length} />
                 {(v.blocked || []).map((g) => (
                     <View key={String(g.userId)} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: border, marginTop: 8 }}>

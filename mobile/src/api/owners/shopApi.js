@@ -23,6 +23,11 @@ export const fetchLiveMap = () => d(api.get('/shop/live-map'));
 /* ------------------------------ orders ------------------------------ */
 // params: { status: 'active' | 'placed,accepted', q: '1042', from, to, page, limit }  ->  { items, counts, page, hasMore }
 export const fetchOrders = (params) => d(api.get('/shop/orders', q(params)));
+export const automations = {   // what the system does by itself for this shop (services/automations.js)
+    get: () => d(api.get('/shop/automations')),
+    save: (patch) => d(api.put('/shop/automations', patch)),
+    reset: () => d(api.delete('/shop/automations')),
+};
 export const orderHistory = (params) => d(api.get('/shop/order-history', q(params)));   // the History tab: { items, hasMore, page, summary, byDay }
 export const orderHistoryExportPath = '/shop/order-history/export';   // + the same params: an Excel file
 export const fetchOrder = (id) => d(api.get(`/shop/orders/${id}`));

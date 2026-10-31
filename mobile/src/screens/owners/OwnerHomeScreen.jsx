@@ -20,7 +20,6 @@ import { onOrderUpdate } from '../../api/common/socket';
 import { clearAll } from '../../utils/owners/soundbox';
 import { useNow } from '../../hooks/owners/useNow';
 import * as flow from '../../utils/owners/orderFlow';
-import { AutoAcceptCard } from '../../components/owners/AutoAccept';
 import OccupiedTables from '../../components/owners/OccupiedTables';
 import TableRequests from '../../components/owners/TableRequests';
 import { UnpaidHomeCard } from '../../components/owners/UnpaidBills';
@@ -248,7 +247,6 @@ export default function OwnerHomeScreen() {
                 </GlowBorder>
             ) : null}
 
-            <AutoAcceptCard />
 
             {/* paused */}
             {accepting === false ? (

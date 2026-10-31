@@ -1,7 +1,9 @@
 // Delivery rules: how riders are picked, how many orders at once, what a delivery pays, the PIN check, live tracking, and the
 // cash-on-delivery limit for a customer's first orders. Closed while rent is unpaid (the server says so).
 import React, { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useBrand } from '../../components/common/kit';
 import { useNavigation } from '@react-navigation/native';
 import { Button, Empty } from '../../components/owners/ui';
 import { FormPage, Group, NumberBox, ChoiceBox, ToggleRow, Hint } from '../../components/owners/menuBits';
@@ -17,6 +19,7 @@ const RECOMMENDED = { pickupCodOn: true, pickupCodMax: 0, pickupOpenMax: 2, pick
 
 export default function OwnerRiderRulesScreen() {
     const nav = useNavigation();
+    const { primary, text, muted } = useBrand();
     const access = useOwnerStore((s) => s.access);
     const [form, setForm] = useState(null);
     const [err, setErr] = useState('');
@@ -71,17 +74,11 @@ export default function OwnerRiderRulesScreen() {
     return (
         <FormPage title={tr('Delivery rules')} footer={<Button label={tr('Save rules')} icon="checkmark" busy={saving} onPress={save} />}>
             <Group title={tr('Giving orders to riders')}>
-                <ChoiceBox
-                    label={tr('How is a rider picked')}
-                    options={[['automatic', tr('Automatic')], ['manual', tr('I choose')]]}
-                    value={v.assignMode}
-                    onChange={(x) => set('assignMode', x)}
-                />
-                <Hint>{v.assignMode === 'automatic' ? tr('The next free rider is asked by himself. If he does not answer, the next one is asked.') : tr('Orders wait until you pick a rider on the order page.')}</Hint>
-                <View style={{ height: 14 }} />
-                {v.assignMode === 'automatic' ? (
-                    <NumberBox label={tr('Time a rider has to answer')} suffix="seconds" integer value={v.offerSeconds} onChange={(x) => set('offerSeconds', x)} error={errors.offerSeconds} />
-                ) : null}
+                <Pressable onPress={() => nav.navigate('OwnerAutomations')} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 4, marginBottom: 14 }}>
+                    <Ionicons name="flash" size={20} color={primary} />
+                    <Text style={{ flex: 1, color: text, fontWeight: '800', marginHorizontal: 10 }}>{tr('Picking a rider by himself, and the time he has to answer, are in Automations')}</Text>
+                    <Ionicons name="chevron-forward" size={18} color={muted} />
+                </Pressable>
                 <NumberBox label={tr('Orders one rider can carry at once')} integer value={v.maxActiveOrders} onChange={(x) => set('maxActiveOrders', x)} error={errors.maxActiveOrders} />
             </Group>
 

@@ -34,6 +34,7 @@ const WORDS = {
     OwnerAutopilot: 'autopilot reminder win back coupon inactive customers automatic',
     OwnerRewards: 'points rewards badge loyalty levels expiry top riders gift bronze silver gold platinum',
     OwnerRiders: 'riders delivery partners cash map online team',
+    OwnerAutomations: 'automations automatic auto accept by themselves no show reminders pickup not collected allow ready served busy',
     OwnerBookings: 'bookings table booking reservation reserve deposit seats slots timings',
     OwnerInquiries: 'inquiries inquiry enquiry reply bulk tiffin party booking customer asked',
     OwnerServices: 'services bulk order tiffin party booking catering inquiry inquiries custom',
@@ -60,12 +61,13 @@ const WORDS = {
 };
 
 // Easy mode shows only these (the things a shop uses every day); everything else is one switch away.
-const EASY = new Set(['@busy', 'OwnerRiders', 'OwnerBookings', 'OwnerServices', 'OwnerInquiries', 'OwnerClosing', 'OwnerDineIn', 'OwnerCooks', 'OwnerWaiters', 'OwnerCustomers', 'OwnerComplaints', 'OwnerMessages', 'OwnerCategories', 'OwnerCoupons', 'OwnerMoney', 'OwnerMoneyHub', 'OwnerBillsHub', 'OwnerReportsHub', 'OwnerHours', 'OwnerShopSettings', 'AlertSettings', 'Soundbox', 'OwnerAppLock']);
+const EASY = new Set(['@busy', 'OwnerAutomations', 'OwnerRiders', 'OwnerBookings', 'OwnerServices', 'OwnerInquiries', 'OwnerClosing', 'OwnerDineIn', 'OwnerCooks', 'OwnerWaiters', 'OwnerCustomers', 'OwnerComplaints', 'OwnerMessages', 'OwnerCategories', 'OwnerCoupons', 'OwnerMoney', 'OwnerMoneyHub', 'OwnerBillsHub', 'OwnerReportsHub', 'OwnerHours', 'OwnerShopSettings', 'AlertSettings', 'Soundbox', 'OwnerAppLock']);
 const EASY_APP = new Set(['My profile', 'Appearance', 'Language', 'See the customer app', 'Log out']);
 
 // [icon, title, subtitle, route]   ('@busy' opens the Busy mode sheet). The order is the order of a working day.
 const GROUPS = [
     ['Daily work', [
+        ['flash', 'Automations', 'What the shop does by itself: accepting, no-shows, reminders and more', 'OwnerAutomations'],
         ['flame', 'Busy mode', 'Show a longer wait when you are rushed', '@busy'],
         ['document-text', 'Closing report', 'The day in one page: sales, cash, orders', 'OwnerClosing'],
         ['restaurant', 'Dine in', 'Customers eating at your tables: switch on, tables', 'OwnerDineIn'],

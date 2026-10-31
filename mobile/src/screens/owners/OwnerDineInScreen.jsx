@@ -205,22 +205,15 @@ export default function OwnerDineInScreen() {
             ) : null}
 
             {v.enabled ? (
-                <Group title={tr('How do you want to run it?')} hint={tr('Automatic: dishes are marked ready and served by themselves, Busy mode tells guests when it is full, and unpaid bills are reminded every day. Manual: you press everything yourself. You can still change any single switch below.')}>
-                    <View style={{ padding: 14 }}>
-                        <View style={{ flexDirection: 'row' }}>
-                            <Button label={tr('Automatic')} icon="flash" kind={mode === 'auto' ? 'primary' : 'ghost'} onPress={() => applyMode('auto')} style={{ flex: 1, marginRight: 8 }} />
-                            <Button label={tr('Manual')} icon="hand-left" kind={mode === 'manual' ? 'primary' : 'ghost'} onPress={() => applyMode('manual')} style={{ flex: 1 }} />
-                        </View>
-                        <Text style={{ color: muted, fontSize: 12.5, marginTop: 10 }}>{mode === 'auto' ? tr('Now: Automatic') : mode === 'manual' ? tr('Now: Manual') : tr('Now: Custom (a mix of both)')}</Text>
-                    </View>
+                <Group title={tr('Automatic things')} hint={tr('Marking dishes ready and served, Busy mode, closing quiet tables and the daily reminders for unpaid bills are in Automations.')}>
+                    <View style={{ padding: 14 }}><Button label={tr('Open Automations')} icon="flash" kind="ghost" onPress={() => nav.navigate('OwnerAutomations')} /></View>
                 </Group>
             ) : null}
             <Group title={tr('Eating at your shop')} hint={tr('Customers at a table order from their phone, as many times as they like, and pay once at the end. Each order comes to you with the table number.')}>
                 <ToggleRow title={tr('Take dine in orders')} subtitle={v.enabled ? tr('Customers see a Dine in choice on the Home screen') : tr('Switched off')} value={v.enabled} onValueChange={(x) => set('enabled', x)} last={!v.enabled} />
                 {v.enabled ? (
                     <View>
-                        <NumberBox label={tr('Number of tables')} integer value={v.tableCount} hint={`${tr('Recommended')}: ${RECOMMENDED.tableCount}. ${tr('Tables are numbered 1 to this number.')}`} onChange={(x) => set('tableCount', x ?? 1)} />
-                        <NumberBox label={tr('A table with nothing owed closes after')} suffix={tr('hours')} integer value={v.autoCloseHours} hint={`${tr('Recommended')}: ${RECOMMENDED.autoCloseHours}. ${tr('A table that still owes money never closes by itself.')}`} onChange={(x) => set('autoCloseHours', x ?? 1)} last />
+                        <NumberBox label={tr('Number of tables')} integer value={v.tableCount} hint={`${tr('Recommended')}: ${RECOMMENDED.tableCount}. ${tr('Tables are numbered 1 to this number.')}`} onChange={(x) => set('tableCount', x ?? 1)} last />
                     </View>
                 ) : null}
             </Group>
@@ -237,15 +230,7 @@ export default function OwnerDineInScreen() {
                     </View>
                 ) : null}
             </Group>
-            {v.enabled ? (
-                <Group title={tr('Kitchen automation')} hint={tr('Less work for you. You can always press the buttons yourself: whatever you do first wins.')}>
-                    <ToggleRow title={tr('Mark dishes ready by themselves')} subtitle={v.autoReady ? tr('Ready after the average cooking time below') : tr('Off: you press Ready each time')} value={v.autoReady} onValueChange={(x) => set('autoReady', x)} last={!v.autoReady} />
-                    {v.autoReady ? <NumberBox label={tr('Average cooking time')} suffix={tr('min')} integer value={v.readyMin} hint={`${tr('Recommended')}: ${RECOMMENDED.readyMin}. ${tr('Customers are told this as the waiting time.')}`} onChange={(x) => set('readyMin', x ?? 15)} /> : null}
-                    <ToggleRow title={tr('Mark dishes served by themselves')} subtitle={v.autoServe ? tr('Served some minutes after ready') : tr('Off: you press Served each time')} value={v.autoServe} onValueChange={(x) => set('autoServe', x)} last={!v.autoServe} />
-                    {v.autoServe ? <NumberBox label={tr('Serve after')} suffix={tr('min')} integer value={v.serveMin} hint={`${tr('Recommended')}: ${RECOMMENDED.serveMin}. ${tr('Counted from Ready. The table bill can be settled only after dishes are served.')}`} onChange={(x) => set('serveMin', x ?? 10)} last /> : null}
-                </Group>
-            ) : null}
-            {v.enabled ? (
+                        {v.enabled ? (
                 <Group title={tr('Guests at the table')} hint={tr('What guests can do from their phone while they eat.')}>
                     <ToggleRow title={tr('Guests can call the waiter')} subtitle={v.callOn ? tr('Water, spoon, clean the table... you see a list on Home') : tr('Off')} value={v.callOn} onValueChange={(x) => set('callOn', x)} />
                     <ToggleRow title={tr('Guests can add a tip for the waiter')} subtitle={v.tipOn ? tr('Added to the bill, collected at the counter') : tr('Off')} value={v.tipOn} onValueChange={(x) => set('tipOn', x)} last={!v.tipOn} />
@@ -326,20 +311,6 @@ export default function OwnerDineInScreen() {
             {v.enabled ? (
                 <Group title={tr('Unpaid bills')} hint={tr('Customers who leave without paying. They are blocked from ordering until they pay.')}>
                     <ToggleRow title={tr('Show them on my Home screen')} subtitle={v.owedOnHome ? tr('A card on Home until every bill is paid') : tr('Hidden. They are still in Orders, Unpaid bills')} value={v.owedOnHome} onValueChange={(x) => set('owedOnHome', x)} />
-                    <ToggleRow title={tr('Remind them every day')} subtitle={v.owedDaily ? tr('Everyone who owes gets a reminder once a day') : tr('Off: you remind them yourself')} value={v.owedDaily} onValueChange={(x) => set('owedDaily', x)} last={!v.owedDaily} />
-                    {v.owedDaily ? <NumberBox label={tr('Remind at this hour (0 to 23)')} integer value={v.owedHour} hint={`${tr('Recommended')}: ${RECOMMENDED.owedHour}. ${tr('11 means 11 AM. 18 means 6 PM.')}`} onChange={(x) => set('owedHour', x ?? 11)} /> : null}
-                    {v.owedDaily ? <NumberBox label={tr('Stop the daily reminders after')} suffix={tr('reminders')} integer value={v.owedMax} hint={`${tr('Recommended')}: ${RECOMMENDED.owedMax}. ${tr('You can still remind by hand.')}`} onChange={(x) => set('owedMax', x ?? 7)} last /> : null}
-                </Group>
-            ) : null}
-            {v.enabled ? (
-                <Group title={tr('Busy mode')} hint={tr('When many tables are taken, new customers are told the food may take longer, and their waiting time grows. It stops by itself when tables free up.')}>
-                    <ToggleRow title={tr('Tell customers when we are busy')} subtitle={v.busyAuto ? tr('Automatic') : tr('Off')} value={v.busyAuto} onValueChange={(x) => set('busyAuto', x)} last={!v.busyAuto} />
-                    {v.busyAuto ? (
-                        <View>
-                            <NumberBox label={tr('Busy when this many tables are taken')} suffix="%" integer value={v.busyPercent} hint={`${tr('Recommended')}: ${RECOMMENDED.busyPercent}`} onChange={(x) => set('busyPercent', x ?? 70)} />
-                            <NumberBox label={tr('Extra waiting time then')} suffix={tr('min')} integer value={v.busyExtraMin} hint={`${tr('Recommended')}: ${RECOMMENDED.busyExtraMin}`} onChange={(x) => set('busyExtraMin', x ?? 10)} last />
-                        </View>
-                    ) : null}
                 </Group>
             ) : null}
             {v.enabled ? (
