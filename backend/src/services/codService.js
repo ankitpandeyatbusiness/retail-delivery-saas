@@ -39,13 +39,14 @@ async function balances(tenantId) {
     });
     for (const [id, b] of byId) {
         items.push({
-            riderId: id, name: 'Removed rider', isActive: false, removed: true,
+            riderId: id, name: 'Removed rider', isActive: false, removed: true, writtenOff: true,   // he left the job: this cash cannot be asked of him, so it is not counted as owed
             collectedPaise: b.collectedPaise, handedPaise: b.handedPaise,
             adjustedPaise: b.adjustedPaise, balancePaise: b.balancePaise, lastAt: b.lastAt,
         });
     }
     items.sort((a, b) => b.balancePaise - a.balancePaise);
-    return { items, totalOwedPaise: items.reduce((s, i) => s + i.balancePaise, 0) };
+    // what riders still on the team hold: the number on the Home and the closing report. A removed rider's cash stays on the books (the list shows it) but is not counted.
+    return { items, totalOwedPaise: items.filter((i) => !i.removed).reduce((s, i) => s + i.balancePaise, 0), writtenOffPaise: items.filter((i) => i.removed).reduce((s, i) => s + i.balancePaise, 0) };
 }
 
 // the riders whose cash on hand has reached the limit (an empty set when there is no limit)
