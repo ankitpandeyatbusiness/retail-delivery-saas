@@ -99,7 +99,7 @@ export default function MyBookingsScreen() {
                         {hasTicket(b) && open(b) ? <BookingTicket id={b._id} /> : null}
                         {hasReceipt(b) ? <Button label={tr('Download receipt')} icon="document-text-outline" kind="ghost" busy={receiptId === b._id} onPress={() => shareBookingReceipt(`/bookings/${b._id}/receipt`, b.code, (on) => setReceiptId(on ? b._id : ''))} style={{ marginTop: 10 }} /> : null}
                         {waiting(b) ? <Button label={tr('Pay ₹{n} deposit', { n: b.deposit?.amount || 0 })} icon="card" busy={busyId === b._id} onPress={() => payNow(b)} style={{ marginTop: 10 }} /> : null}
-                        {(b.status === 'confirmed' || waiting(b)) && new Date(b.startsAt) > new Date() ? <Button label={tr('Cancel booking')} kind="ghost" busy={busyId === b._id} onPress={() => cancel(b)} style={{ marginTop: 10 }} /> : null}
+                        {(b.status === 'confirmed' ? new Date(b.startsAt).getTime() - Date.now() >= 3600000 : waiting(b)) && new Date(b.startsAt) > new Date() ? <Button label={tr('Cancel booking')} kind="ghost" busy={busyId === b._id} onPress={() => cancel(b)} style={{ marginTop: 10 }} /> : null}
                     </Card>
                 ))}
                 {filter === 'upcoming' ? waits.map((w) => (

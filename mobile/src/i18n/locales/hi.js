@@ -2293,6 +2293,7 @@ export default {
     "Use our recommended questions?": "हमारे सुझाए सवाल इस्तेमाल करें?",
     "Use recommended": "सुझाए इस्तेमाल करें",
     "Use recommended settings": "सुझाई सेटिंग इस्तेमाल करें",
+    "You cannot cancel in the last hour before the booking time.": "बुकिंग के समय से पहले आखिरी घंटे में रद्द नहीं कर सकते।",
     "Touch and hold, then slide": "छुएं और दबाए रखें, फिर स्लाइड करें",
     "Table QR": "टेबल QR",
     "Applying…": "लग रहा है…",

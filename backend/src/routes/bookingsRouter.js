@@ -150,6 +150,8 @@ router.get('/mine', wrap(async (req, res) => {
 router.post('/:id/cancel', wrap(async (req, res) => {
     const b = await mineBooking(req);
     if (b.startsAt.getTime() < Date.now()) throw httpError(400, 'This booking time has passed');
+    // a paid reservation cannot be cancelled by the guest in the last hour (the table is already being kept for him); an unpaid hold can always be let go
+    if (b.status === 'confirmed' && b.startsAt.getTime() - Date.now() < 60 * 60000) throw httpError(400, 'You cannot cancel in the last hour before the booking time.');
     const done = await bp.cancelBooking(b, 'customer');
     if (!done) throw httpError(400, 'This booking is already ' + b.status.replace('_', ' '));
     if (b.status === 'confirmed') tell('booking_cancelled', { tenantId: done.tenantId, vars: { name: done.name, party: done.party, date: done.date, time: done.time }, data: { kind: 'booking', bookingId: String(done._id) } });

@@ -187,6 +187,21 @@ describe('table booking with a paid deposit', () => {
         await settings({ autoAllow: false, maxActive: 3 });
     });
 
+    test('a guest cannot cancel a paid reservation in the last hour, but can before that', async () => {
+        await fresh('21:00');
+        const g = await guest('9200000091');
+        const r = await book('21:00', 1, g.headers, '3');
+        assert.equal(r.status, 201, JSON.stringify(r.body));
+        await payIt(r, g.headers);
+        const id = r.body.booking._id;
+        await TableBooking.updateOne({ _id: id }, { $set: { startsAt: new Date(Date.now() + 30 * 60000) } });   // 30 minutes to go
+        const late = await request(app).post(`/api/bookings/${id}/cancel`).set(g.headers);
+        assert.equal(late.status, 400);
+        assert.match(late.body.error, /last hour/);
+        await TableBooking.updateOne({ _id: id }, { $set: { startsAt: new Date(Date.now() + 3 * 3600000) } });   // 3 hours to go
+        assert.equal((await request(app).post(`/api/bookings/${id}/cancel`).set(g.headers)).status, 200);
+    });
+
     test('a refund that failed is tried again by the sweeper, and sent only once', async () => {
         await fresh('21:00');
         const g = await guest('9200000011');
