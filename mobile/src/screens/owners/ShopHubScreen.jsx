@@ -1,7 +1,7 @@
 // The shop menu: everything that is not one of the five tabs. It is the side menu opened by the hamburger at the top
 // left of every tab (components/owners/OwnerDrawer.jsx); the same list is also available as a full page (ShopHub).
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, ScrollView, TextInput, Pressable, Text } from 'react-native';
+import { View, ScrollView, TextInput, Pressable, Text, Animated, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useBrand } from '../../components/common/kit';
@@ -209,6 +209,15 @@ export function ShopMenu({ onGo }) {
         return by;
     }, [az, sections]);
     useEffect(() => { useMenuIndex.getState().setOn(az); return () => useMenuIndex.getState().setOn(false); }, [az]);
+    // Easy mode or Sort A to Z changes what the list holds: the new list fades and rises into place, so the change is soft (in the side menu too, where the
+    // layout glide alone is not always seen)
+    const swap = useRef(new Animated.Value(1)).current;
+    const firstSwap = useRef(true);
+    useEffect(() => {
+        if (firstSwap.current) { firstSwap.current = false; return; }
+        swap.setValue(0);
+        Animated.timing(swap, { toValue: 1, duration: 340, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+    }, [easy, az]);   // eslint-disable-line react-hooks/exhaustive-deps
     useEffect(() => {   // a letter that no screen starts with any more (Easy mode, a switched-off job) leaves the strip
         const keep = new Set(azGroups.map((g) => g.letter));
         useMenuIndex.setState((s) => ({ ys: Object.fromEntries(Object.entries(s.ys).filter(([k]) => keep.has(k))) }));
@@ -248,6 +257,7 @@ export function ShopMenu({ onGo }) {
                 </View>
             </View>
 
+            <Animated.View style={{ opacity: swap, transform: [{ translateY: swap.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }] }}>
             {found ? (
                 <View>
                     <SectionTitle title={found.length ? tr('{n} found', { n: found.length }) : tr('Nothing found')} />
@@ -281,6 +291,7 @@ export function ShopMenu({ onGo }) {
                     ) : null); })}
                 </View>
             )}
+            </Animated.View>
 
             <LanguageSheet visible={langOpen} onClose={() => setLangOpen(false)} />
             <BusySheet visible={busyOpen} busy={busy} onClose={() => setBusyOpen(false)} onChanged={setBusyState} />
