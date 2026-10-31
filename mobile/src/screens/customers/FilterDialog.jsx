@@ -2,6 +2,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, View, Text, Pressable, ScrollView, StyleSheet, Animated, Easing, PanResponder, Dimensions, InteractionManager } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Reanimated, { cancelAnimation, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useSheetPan } from '../../components/common/DragDown';
 import { FadeIn } from '../../components/common/motion';
 import { useThemeStore } from '../../store/common/useThemeStore';
 import { Ionicons } from '@expo/vector-icons';
@@ -264,23 +267,14 @@ export default function FilterDialog({ visible, onClose, items }) {
     const openKey = secs.some((x) => x.key === tab) ? tab : (secs[0]?.key || '');
     const openSec = secs.find((x) => x.key === openKey);
 
-    // sheet: drag the handle down to close
-    const drag = useRef(new Animated.Value(0)).current;
-    useEffect(() => { if (visible) drag.setValue(0); }, [visible]);
-    const live = useRef(onClose);
-    live.current = onClose;
-    const pan = useRef(PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: () => true,
-        onPanResponderMove: (_, g) => drag.setValue(Math.max(0, g.dy)),
-        onPanResponderRelease: (_, g) => {
-            if (g.dy > 90 || g.vy > 0.8) {
-                Animated.timing(drag, { toValue: 600, duration: 180, easing: Easing.out(Easing.quad), useNativeDriver: true }).start(() => live.current());
-            } else {
-                Animated.spring(drag, { toValue: 0, bounciness: 0, speed: 18, useNativeDriver: true }).start();
-            }
-        },
-    })).current;
+    // sheet: pull it down from anywhere to close (the list scrolls as usual; only when it is at its top does a swipe down pull the sheet)
+    const ty = useSharedValue(0);
+    const sheetH = useSharedValue(400);
+    const stillOpen = useRef(visible);
+    stillOpen.current = visible;
+    const { gesture, scrollProps, scrollY } = useSheetPan({ ty, h: sheetH, onClose, stillOpen });
+    useEffect(() => { if (visible) { cancelAnimation(ty); ty.value = 0; scrollY.value = 0; } }, [visible]);   // eslint-disable-line react-hooks/exhaustive-deps
+    const move = useAnimatedStyle(() => ({ transform: [{ translateY: ty.value }] }));
 
     const showBg = count ? primary : border;
     const showTxt = [s.btnTxt, !count && { color: text }];
@@ -375,8 +369,11 @@ export default function FilterDialog({ visible, onClose, items }) {
             <View style={[s.sheetWrap, closedStyle]}>
                 <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, s.backdrop, { opacity: prog }]} />
                 <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-                <Animated.View style={[s.sheet, { height: H, backgroundColor: background, transform: [{ translateY: Animated.add(slideY, drag) }] }]}>
-                    <View {...pan.panHandlers} style={s.grabHit}>
+                <Animated.View style={{ transform: [{ translateY: slideY }] }}>
+                  <GestureHandlerRootView style={{ height: H }}>
+                    <GestureDetector gesture={gesture}>
+                    <Reanimated.View style={[s.sheet, { height: H, backgroundColor: background }, move]} onLayout={(e) => { sheetH.value = e.nativeEvent.layout.height; }}>
+                    <View style={s.grabHit}>
                         <View style={[s.grab, { backgroundColor: border }]} />
                     </View>
                     <View style={{ paddingHorizontal: 18 }}>{header}</View>
@@ -397,7 +394,7 @@ export default function FilterDialog({ visible, onClose, items }) {
                                     })}
                                 </ScrollView>
                             </View>
-                            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+                            <ScrollView {...scrollProps} style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
                                 {openSec ? (
                                     <FadeIn key={openKey} distance={8}>
                                         <Text style={[s.h, { color: text, marginTop: 0 }]}>{openSec.title}</Text>
@@ -407,12 +404,15 @@ export default function FilterDialog({ visible, onClose, items }) {
                             </ScrollView>
                         </View>
                     ) : (
-                        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 18 }} showsVerticalScrollIndicator={false}>
+                        <ScrollView {...scrollProps} style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 18 }} showsVerticalScrollIndicator={false}>
                             {secs.map((x, i) => <Section key={x.key} title={x.title} index={i} sect={sect}>{x.body}</Section>)}
                         </ScrollView>
                     )}
 
                     <View style={[s.sheetFoot, { borderTopColor: border, backgroundColor: surface, paddingBottom: Math.max(insets.bottom, 12) }]}>{footer}</View>
+                    </Reanimated.View>
+                    </GestureDetector>
+                  </GestureHandlerRootView>
                 </Animated.View>
             </View>
         </Modal>
