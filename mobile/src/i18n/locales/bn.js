@@ -2293,6 +2293,8 @@ export default {
     "Use our recommended questions?": "আমাদের প্রস্তাবিত প্রশ্ন ব্যবহার করবেন?",
     "Use recommended": "প্রস্তাবিত ব্যবহার করুন",
     "Use recommended settings": "প্রস্তাবিত সেটিং ব্যবহার করুন",
+    "The shop is closed by its opening hours. It goes live by itself when it opens.": "দোকান খোলার সময় অনুযায়ী বন্ধ আছে। খুললেই নিজে থেকে লাইভ হবে।",
+    "The shop is closed. You can start duty when it opens.": "দোকান বন্ধ। খুললে আপনি ডিউটি শুরু করতে পারবেন।",
     "Picture customers see": "গ্রাহক যে ছবি দেখেন",
     "My own picture": "আমার নিজের ছবি",
     "A dish picture": "একটি ডিশের ছবি",

@@ -158,8 +158,11 @@ export default function RiderHomeScreen() {
     // the phone shares its position while he carries an order (the customer sees the bike)
     useRiderLocation(active.length > 0);
 
-    const onDuty = !!me?.isOnline;
+    // the shop's closing time came and he has no delivery left: the switch shows OFF (the server also puts him off duty after 30 minutes)
+    const shopClosed = !!me?.shopClosed && !(me?.activeOrderCount > 0);
+    const onDuty = !!me?.isOnline && !shopClosed;
     const changeDuty = async (v, extra) => {
+        if (v && shopClosed) { showToast(tr('The shop is closed. You can start duty when it opens.')); return; }
         if (!v && !extra) {
             if (active.length > 0 || offers.length > 0) {
                 const yes = await ask({ title: T.endDuty + '?', message: active.length ? tr('You still have a delivery to finish. You will get no new orders.') : tr('You will get no new orders.'), confirmText: T.endDuty });

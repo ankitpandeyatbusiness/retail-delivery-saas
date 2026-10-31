@@ -2293,6 +2293,8 @@ export default {
     "Use our recommended questions?": "आमचे सुचवलेले प्रश्न वापरायचे?",
     "Use recommended": "सुचवलेले वापरा",
     "Use recommended settings": "सुचवलेली सेटिंग वापरा",
+    "The shop is closed by its opening hours. It goes live by itself when it opens.": "दुकान उघडण्याच्या वेळेनुसार बंद आहे. उघडताच आपोआप लाइव्ह होईल.",
+    "The shop is closed. You can start duty when it opens.": "दुकान बंद आहे. उघडल्यावर तुम्ही ड्युटी सुरू करू शकता.",
     "Picture customers see": "ग्राहकाला दिसणारे चित्र",
     "My own picture": "माझे स्वतःचे चित्र",
     "A dish picture": "एखाद्या डिशचे चित्र",

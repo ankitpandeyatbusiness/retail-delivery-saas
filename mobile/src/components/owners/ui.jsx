@@ -1,7 +1,7 @@
 // The owner panel's building blocks. Everything draws from useBrand(), so the panel wears the shop's own logo,
 // colours, font and light/dark look: the owner feels he is on his own app.
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet, RefreshControl, Modal, TextInput, KeyboardAvoidingView, Platform, Animated, Easing } from 'react-native';
+import { View, Text, Pressable, ScrollView, StyleSheet, RefreshControl, Modal, TextInput, KeyboardAvoidingView, Platform, Animated, Easing, AppState } from 'react-native';
 import { ActivityIndicator } from '../common/Loading';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -239,6 +239,7 @@ export function OwnerHeader(props) {
     return React.useContext(EmbeddedCtx) ? null : <OwnerHeaderBase {...props} />;
 }
 
+let lastLook = 0;   // the last time any header looked at the shop's hours again
 function OwnerHeaderBase({ title }) {
     const nav = useNavigation();
     const insets = useSafeAreaInsets();
@@ -263,13 +264,23 @@ function OwnerHeaderBase({ title }) {
         : accepting === false ? 'Orders paused'
             : restaurant?.isOpen === false ? 'Closed now' : 'Open';
     const canToggle = access === 'ok';
-    const storeOn = accepting !== false;
+    // closed by the opening hours or a holiday (not paused by hand): the switch goes OFF by itself, and slides back to LIVE when the shop opens
+    const hoursClosed = restaurant?.isOpen === false && accepting !== false;
+    const storeOn = accepting !== false && !hoursClosed;
     useEffect(() => { setPending(null); }, [storeOn]);   // the server's answer has arrived
     const isOn = pending ?? storeOn;
+    // the opening and closing times pass while the screen stays open: look again every minute (and when the app comes back)
+    useEffect(() => {
+        const look = () => { const t = Date.now(); if (t - lastLook < 45000) return; lastLook = t; useHomeStore.getState().load(); };
+        const id = setInterval(look, 60000);
+        const sub = AppState.addEventListener('change', (st) => { if (st === 'active') look(); });
+        return () => { clearInterval(id); sub.remove(); };
+    }, []);
 
     // ON -> ask for how long (30 min ... until I start again). OFF -> go live at once.
     const flip = async () => {
         if (!canToggle) { showToast(access === 'blocked' ? tr('Your shop panel is paused by the platform') : tr('Locked while the monthly bill is unpaid')); return; }
+        if (hoursClosed) { showToast(tr('The shop is closed by its opening hours. It goes live by itself when it opens.')); return; }
         if (isOn) { setPauseOpen(true); return; }
         setPending(true);
         setSwitching(true);
