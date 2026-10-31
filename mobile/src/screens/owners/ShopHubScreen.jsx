@@ -260,7 +260,7 @@ export function ShopMenu({ onGo }) {
             ) : (
                 <View>
                     {az ? (
-                        <View onLayout={(e) => useMenuIndex.getState().setBase(e.nativeEvent.layout.y)}>
+                        <View style={{ paddingRight: 26 }} onLayout={(e) => useMenuIndex.getState().setBase(e.nativeEvent.layout.y)}>
                             {azGroups.map(({ letter, rows }) => (
                                 <View key={letter} onLayout={(e) => { if (letter !== '#') useMenuIndex.getState().setY(letter, e.nativeEvent.layout.y); }}>
                                     <SectionTitle title={letter} />

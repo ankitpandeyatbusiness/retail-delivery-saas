@@ -64,13 +64,13 @@ export default function MenuIndexStrip({ scrollRef, top = 90, bottom = 24 }) {
                     <Text style={{ color: onPrimary, fontSize: 34, fontWeight: '900' }}>{touch}</Text>
                 </View>
             ) : null}
-            <View ref={ref} collapsable={false} {...pan.panHandlers} accessibilityLabel="A to Z" style={{ position: 'absolute', right: 2, top: 0, bottom: 0, width: 26, paddingVertical: 4, borderRadius: 13, backgroundColor: touch ? surface : 'transparent', borderWidth: touch ? 1 : 0, borderColor: border }}>
+            <View ref={ref} collapsable={false} {...pan.panHandlers} accessibilityLabel="A to Z" style={{ position: 'absolute', right: 2, top: 0, bottom: 0, width: 26, paddingVertical: 4, borderRadius: 13, overflow: 'hidden', backgroundColor: touch ? surface : 'transparent', borderWidth: touch ? 1 : 0, borderColor: border }}>
                 {LETTERS.map((l) => {
                     const has = ys[l] !== undefined;
                     const lit = touch === l;
                     return (
                         <View key={l} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                            <View style={{ minWidth: 17, height: 17, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: lit ? primary : 'transparent' }}>
+                            <View style={{ width: 20, height: 20, borderRadius: 10, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: lit ? primary : 'transparent' }}>
                                 <Text style={{ color: lit ? onPrimary : has ? text : muted, opacity: has ? 1 : 0.35, fontSize: 10.5, fontWeight: '900' }}>{l}</Text>
                             </View>
                         </View>
