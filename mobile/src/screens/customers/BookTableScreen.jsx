@@ -10,6 +10,7 @@ import { FormPage, Group, TextBox, Label } from '../../components/owners/menuBit
 import { fetchBookingConfig, fetchBookingSlots, fetchBookingTables, createBooking, joinWaitlist, leaveWaitlist, fetchMyWaitlist } from '../../api/customers/shopApi';
 import { FormShimmer, LineShimmer } from '../../components/owners/shimmer';
 import { showToast } from '../../components/customers/shop';
+import { ease } from '../../utils/common/ease';
 import { tr } from '../../i18n';
 
 const plus = (ymd, n) => new Date(new Date(`${ymd}T12:00:00Z`).getTime() + n * 86400000).toISOString().slice(0, 10);
@@ -41,11 +42,11 @@ export default function BookTableScreen() {
 
     const loadSlots = useCallback(() => {
         if (!cfg?.enabled || !date) return Promise.resolve();
-        return fetchBookingSlots(date, party).then((r) => { setSlots(r.slots); setDeposit(r.deposit); }).catch(() => setSlots([]));
+        return fetchBookingSlots(date, party).then((r) => { ease(); setSlots(r.slots); setDeposit(r.deposit); }).catch(() => setSlots([]));
     }, [cfg, date, party]);
     const loadTables = useCallback(() => {
         if (!cfg?.enabled || !date || !time) return Promise.resolve();
-        return fetchBookingTables(date, time, party).then((r) => { setTables(r.tables); setDeposit(r.deposit); setTable((cur) => (r.tables.some((t) => t.no === cur && t.state === 'free') ? cur : ''));   // a table taken meanwhile is dropped
+        return fetchBookingTables(date, time, party).then((r) => { ease(); setTables(r.tables); setDeposit(r.deposit); setTable((cur) => (r.tables.some((t) => t.no === cur && t.state === 'free') ? cur : ''));   // a table taken meanwhile is dropped
         }).catch(() => setTables([]));
     }, [cfg, date, time, party]);
 
@@ -147,7 +148,7 @@ export default function BookTableScreen() {
                     const on = s.time === time;
                     const waiting = waits.some((w) => w.date === date && w.time === s.time);
                     return (
-                        <Pressable key={s.time} disabled={s.noFit} onPress={() => setTime(s.time)} style={{ minWidth: 84, marginRight: 8, marginBottom: 8, paddingVertical: 11, paddingHorizontal: 12, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: on ? primary : border, backgroundColor: on ? primary : surface, opacity: s.noFit ? 0.4 : 1 }}>
+                        <Pressable key={s.time} disabled={s.noFit} onPress={() => { ease(); setTime(s.time); }} style={{ minWidth: 84, marginRight: 8, marginBottom: 8, paddingVertical: 11, paddingHorizontal: 12, borderRadius: 12, alignItems: 'center', borderWidth: 1, borderColor: on ? primary : border, backgroundColor: on ? primary : surface, opacity: s.noFit ? 0.4 : 1 }}>
                             <Text style={{ color: on ? onPrimary : text, fontWeight: '900', fontSize: 15 }}>{s.time}</Text>
                             <Text style={{ color: on ? onPrimary : s.full ? error : muted, fontSize: 10 }}>{waiting ? tr('Waiting') : s.noFit ? tr('Too big') : s.full ? tr('Full') : tr('{n} free', { n: s.free })}</Text>
                         </Pressable>

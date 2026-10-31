@@ -11,6 +11,7 @@ import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { showToast } from '../../components/customers/shop';
 import { maskTime } from '../../utils/owners/menuRules';
 import { FormShimmer } from '../../components/owners/shimmer';
+import { ease } from '../../utils/common/ease';
 import { tr } from '../../i18n';
 
 const dayText = (k) => { const [y, m, d] = String(k).split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }); };
@@ -30,7 +31,7 @@ export default function OwnerBookingSettingsScreen() {
 
     useEffect(() => { api.settings().then(setV).catch((e) => { useOwnerStore.getState().noteError(e); setErr(apiError(e, 'Could not open the booking settings.')); }); }, []);
     if (!v) return <FormPage title={tr('Table booking')}>{err ? <Empty icon="cloud-offline-outline" title={tr('Could not open')} hint={err} /> : <FormShimmer />}</FormPage>;
-    const set = (k, x) => setV((f) => ({ ...f, [k]: x }));
+    const set = (k, x) => { if (Array.isArray(x) && Array.isArray(v?.[k]) && x.length !== v[k].length) ease(); setV((f) => ({ ...f, [k]: x })); };   // a table or a closed day coming or going glides
 
     // the slider saves by itself, so a guest sees the change at once (the server refuses it until the deposit and times are set)
     // what has to be filled in before booking can be switched on (the same rules as the server)

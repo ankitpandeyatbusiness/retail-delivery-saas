@@ -12,6 +12,7 @@ import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
 import { FormShimmer } from '../../components/owners/shimmer';
+import { ease } from '../../utils/common/ease';
 import { tr } from '../../i18n';
 
 const TYPE_LABEL = {
@@ -57,7 +58,7 @@ export default function OwnerServiceScreen() {
 
     if (!form) return <FormPage title={tr('Service')}>{err ? <Empty icon="cloud-offline-outline" title={tr('Could not open')} hint={err} /> : <FormShimmer />}</FormPage>;
     const v = form;
-    const set = (k, x) => setForm((f) => ({ ...f, [k]: x }));
+    const set = (k, x) => { if (k === 'questions') ease(); setForm((f) => ({ ...f, [k]: x })); };
     const setQ = (i, patch) => set('questions', v.questions.map((q, j) => (j === i ? { ...q, ...patch } : q)));
     const move = (i, d) => {
         const j = i + d;
@@ -99,6 +100,7 @@ export default function OwnerServiceScreen() {
     // copy one question into another service (the server needs the question saved, so a new unsaved one is refused here)
     const openCopy = async (i, q) => {
         if (!id || !q.id) return showToast(tr('Save the service first, then copy this question'));
+        ease();
         if (copyIdx === i) return setCopyIdx(-1);
         try {
             const r = await api.list();
@@ -131,7 +133,7 @@ export default function OwnerServiceScreen() {
                 <Button label={tr('Use recommended settings')} icon="sparkles" kind="ghost" onPress={recommended} style={{ marginBottom: 10 }} />
                 {v.questions.map((q, i) => (
                     <Card key={q.id || `n${i}`} style={{ marginHorizontal: 0, opacity: q.enabled ? 1 : 0.6 }}>
-                        <Pressable onPress={() => setOpen(open === i ? -1 : i)} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Pressable onPress={() => { ease(); setOpen(open === i ? -1 : i); }} style={{ flexDirection: 'row', alignItems: 'center' }}>
                             <View style={{ flex: 1, minWidth: 0, paddingRight: 8 }}>
                                 <Text numberOfLines={1} style={{ color: text, fontWeight: '800', fontSize: 15 }}>{q.label || tr('New question')}</Text>
                                 <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{tr(TYPE_LABEL[q.type])}{q.required ? ` · ${tr('required')}` : ''}{q.recommended ? '' : ` · ${tr('yours')}`}</Text>

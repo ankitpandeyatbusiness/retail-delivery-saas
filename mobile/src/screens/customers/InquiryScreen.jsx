@@ -13,6 +13,7 @@ import { FormShimmer } from '../../components/owners/shimmer';
 import { showToast } from '../../components/customers/shop';
 import { pickImages } from '../../utils/owners/upload';
 import { uploadInquiryPhoto } from '../../utils/common/photoUpload';
+import { ease } from '../../utils/common/ease';
 import { tr } from '../../i18n';
 
 export default function InquiryScreen() {
@@ -38,7 +39,7 @@ export default function InquiryScreen() {
                 : <ReplyBox onSend={send} pickMany={(n) => pickImages({ limit: n })} upload={async (p) => (await uploadInquiryPhoto(p)).url} />}>
             <View style={{ flexDirection: 'row', paddingHorizontal: 16 }}>
                 {[['chat', 'Chat'], ['details', 'Details']].map(([k, l]) => (
-                    <Pressable key={k} onPress={() => setTab(k)} style={{ flex: 1, paddingVertical: 10, alignItems: 'center', borderBottomWidth: 3, borderBottomColor: tab === k ? primary : border }}>
+                    <Pressable key={k} onPress={() => { ease(); setTab(k); }} style={{ flex: 1, paddingVertical: 10, alignItems: 'center', borderBottomWidth: 3, borderBottomColor: tab === k ? primary : border }}>
                         <Text style={{ color: tab === k ? primary : muted, fontWeight: '900' }}>{tr(l)}</Text>
                     </Pressable>
                 ))}

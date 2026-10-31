@@ -21,6 +21,7 @@ import { fetchOrders } from '../../api/customers/shopApi';
 import { useAnyOrderLive } from '../../hooks/customers/useOrderLive';
 import { viewInvoice } from '../../components/customers/invoice';
 import OwedStrip from '../../components/customers/OwedStrip';
+import { ease } from '../../utils/common/ease';
 import { tr } from '../../i18n';
 import { useBottomSpace } from '../../store/customers/useLiveTripStore';
 
@@ -418,7 +419,7 @@ function OrdersList() {
             <View style={{ height: 54 }}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.pills}>
                     <DateChip label={dateText} on={!!range} onPress={() => setSheet(true)} onClear={() => applyRange(null)} />
-                    {PILLS.map(([k, label]) => <FilterChip key={k} label={label} on={filter === k} onPress={() => setFilter(k)} />)}
+                    {PILLS.map(([k, label]) => <FilterChip key={k} label={label} on={filter === k} onPress={() => { ease(); setFilter(k); }} />)}
                 </ScrollView>
             </View>
             {state === 'loading' ? <Skeleton />

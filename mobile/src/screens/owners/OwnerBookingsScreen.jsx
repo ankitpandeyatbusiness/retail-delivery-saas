@@ -13,6 +13,7 @@ import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
 import { shareBookingReceipt, hasReceipt } from '../../utils/customers/shareBookingReceipt';
+import { ease } from '../../utils/common/ease';
 import { tr } from '../../i18n';
 
 export const BOOKING_STATUS = { held: 'Waiting for payment', confirmed: 'Booked', seated: 'Seated', no_show: 'No-show', cancelled: 'Cancelled', expired: 'Expired' };
@@ -37,7 +38,7 @@ export default function OwnerBookingsScreen() {
     const [busyId, setBusyId] = useState('');
     const [receiptId, setReceiptId] = useState('');
 
-    const load = useCallback(() => (mode === 'all' ? api.all({ from: range?.from, to: range?.to, sort: range?.sort }) : api.day(date)).then((r) => setData(r)).catch((e) => { useOwnerStore.getState().noteError(e); showToast(apiError(e)); setData((x) => x || { items: [], seats: 0, upcoming: 0 }); }), [date, mode, range]);
+    const load = useCallback(() => (mode === 'all' ? api.all({ from: range?.from, to: range?.to, sort: range?.sort }) : api.day(date)).then((r) => { ease(); setData(r); }).catch((e) => { useOwnerStore.getState().noteError(e); showToast(apiError(e)); setData((x) => x || { items: [], seats: 0, upcoming: 0 }); }), [date, mode, range]);
     useFocusEffect(useCallback(() => { load(); }, [load]));
     useEffect(() => onNotification((n) => { if (['booking_new', 'booking_cancelled'].includes(String(n?.type))) load(); }), [load]);
 
@@ -89,7 +90,7 @@ export default function OwnerBookingsScreen() {
             <PageHeader title={tr('Reservations')} />
             <View style={{ flexDirection: 'row', paddingHorizontal: 16, marginBottom: 10 }}>
                 {[['day', 'By day'], ['all', 'All bookings']].map(([k, l]) => (
-                    <Pressable key={k} onPress={() => { if (mode !== k) { setData(null); setMode(k); } }} style={{ flex: 1, paddingVertical: 10, alignItems: 'center', borderBottomWidth: 3, borderBottomColor: mode === k ? primary : border }}>
+                    <Pressable key={k} onPress={() => { if (mode !== k) { ease(); setData(null); setMode(k); } }} style={{ flex: 1, paddingVertical: 10, alignItems: 'center', borderBottomWidth: 3, borderBottomColor: mode === k ? primary : border }}>
                         <Text style={{ color: mode === k ? primary : muted, fontWeight: '900' }}>{tr(l)}</Text>
                     </Pressable>
                 ))}
@@ -113,10 +114,10 @@ export default function OwnerBookingsScreen() {
                 </View>
             )}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0, height: 38, marginTop: 12 }} contentContainerStyle={{ paddingHorizontal: 16, alignItems: 'center' }}>
-                {[['any', 'Any time'], ['morning', 'Morning'], ['afternoon', 'Afternoon'], ['evening', 'Evening']].map(([k, l]) => chip(tr(l), slot === k, () => setSlot(k), `t${k}`))}
+                {[['any', 'Any time'], ['morning', 'Morning'], ['afternoon', 'Afternoon'], ['evening', 'Evening']].map(([k, l]) => chip(tr(l), slot === k, () => { ease(); setSlot(k); }, `t${k}`))}
             </ScrollView>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0, height: 38, marginTop: 10, marginBottom: 8 }} contentContainerStyle={{ paddingHorizontal: 16, alignItems: 'center' }}>
-                {[['all', 'All'], ['pending', 'To allow'], ['confirmed', 'Booked'], ['seated', 'Seated'], ['no_show', 'No-show'], ['cancelled', 'Cancelled']].map(([k, l]) => chip(tr(l), state === k, () => setState(k), `s${k}`))}
+                {[['all', 'All'], ['pending', 'To allow'], ['confirmed', 'Booked'], ['seated', 'Seated'], ['no_show', 'No-show'], ['cancelled', 'Cancelled']].map(([k, l]) => chip(tr(l), state === k, () => { ease(); setState(k); }, `s${k}`))}
             </ScrollView>
             <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 32 }}>
                 {data === null ? <ListShimmer /> : null}

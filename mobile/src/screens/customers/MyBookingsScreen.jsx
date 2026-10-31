@@ -14,6 +14,7 @@ import BookingTicket from '../../components/customers/BookingTicket';
 import { shareBookingReceipt, hasReceipt } from '../../utils/customers/shareBookingReceipt';
 import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
+import { ease } from '../../utils/common/ease';
 import { tr } from '../../i18n';
 
 const clock = (d) => new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -29,6 +30,7 @@ export default function MyBookingsScreen() {
     const [shut, setShut] = useState({});   // tickets the guest closed by hand (the nearest booking's ticket opens by itself)
     const load = useCallback(() => {
         fetchMyBookings().then((r) => {
+            ease();   // a card that goes (cancelled by the restaurant) or comes glides, it does not jump
             setItems(r.items || []);
             // a booking that is not on any more must not keep its QR on the phone
             (r.items || []).filter((b) => ['cancelled', 'expired', 'no_show'].includes(b.status)).forEach((b) => AsyncStorage.removeItem(`ticket:${b._id}`).catch(() => { }));
@@ -72,7 +74,7 @@ export default function MyBookingsScreen() {
             <PageHeader title={tr('My reservations')} />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0, height: 38, marginTop: 4, marginBottom: 6 }} contentContainerStyle={{ paddingHorizontal: 16, alignItems: 'center' }}>
                 {[['upcoming', 'Upcoming'], ['confirmed', 'Confirmed'], ['cancelled', 'Cancelled'], ['past', 'Past']].map(([k, l]) => (
-                    <Pressable key={k} onPress={() => setFilter(k)} style={{ marginRight: 8, paddingHorizontal: 16, height: 38, justifyContent: 'center', borderRadius: 19, borderWidth: 1, borderColor: filter === k ? primary : border, backgroundColor: filter === k ? primary : surface }}>
+                    <Pressable key={k} onPress={() => { ease(); setFilter(k); }} style={{ marginRight: 8, paddingHorizontal: 16, height: 38, justifyContent: 'center', borderRadius: 19, borderWidth: 1, borderColor: filter === k ? primary : border, backgroundColor: filter === k ? primary : surface }}>
                         <Text style={{ color: filter === k ? onPrimary : text, fontWeight: '800', fontSize: 13 }}>{tr(l)}</Text>
                     </Pressable>
                 ))}
@@ -93,7 +95,7 @@ export default function MyBookingsScreen() {
                         {b.status === 'cancelled' && b.cancelledBy === 'owner' ? <Text style={{ color: text, marginTop: 8 }}>{tr('The restaurant cancelled this booking.')}{b.deposit?.status === 'refunded' || b.deposit?.status === 'refunding' ? ' ' + tr('Your full deposit is being refunded.') : ''}{b.cancelNote ? ' ' + b.cancelNote : ''}</Text> : null}
                         {waiting(b) ? <Text style={{ color: text, marginTop: 8 }}>{tr('Pay the deposit before {t} or the table is let go.', { t: clock(b.holdUntil) })}</Text> : null}
                         {b.status === 'confirmed' && !b.approvedAt ? <Text style={{ color: text, marginTop: 8, fontWeight: '800' }}>{tr('Show this code: {c}', { c: b.code })}</Text> : null}
-                        {hasTicket(b) ? <Button label={open(b) ? tr('Hide ticket') : tr('Show ticket')} icon={open(b) ? 'chevron-up' : 'qr-code-outline'} kind={open(b) ? 'ghost' : 'primary'} onPress={() => setShut((x) => ({ ...x, [b._id]: open(b) }))} style={{ marginTop: 10 }} /> : null}
+                        {hasTicket(b) ? <Button label={open(b) ? tr('Hide ticket') : tr('Show ticket')} icon={open(b) ? 'chevron-up' : 'qr-code-outline'} kind={open(b) ? 'ghost' : 'primary'} onPress={() => { ease(); setShut((x) => ({ ...x, [b._id]: open(b) })); }} style={{ marginTop: 10 }} /> : null}
                         {hasTicket(b) && open(b) ? <BookingTicket id={b._id} /> : null}
                         {hasReceipt(b) ? <Button label={tr('Download receipt')} icon="document-text-outline" kind="ghost" busy={receiptId === b._id} onPress={() => shareBookingReceipt(`/bookings/${b._id}/receipt`, b.code, (on) => setReceiptId(on ? b._id : ''))} style={{ marginTop: 10 }} /> : null}
                         {waiting(b) ? <Button label={tr('Pay ₹{n} deposit', { n: b.deposit?.amount || 0 })} icon="card" busy={busyId === b._id} onPress={() => payNow(b)} style={{ marginTop: 10 }} /> : null}

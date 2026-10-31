@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../common/kit';
 import { money } from '../owners/ui';
 import { useMinuteClock, minsSince, minWord, useColumns } from './staffBits';
+import { ease } from '../../utils/common/ease';
 import { tr } from '../../i18n';
 
 // how urgent a table is: 3 needs the waiter now, 2 should be looked at, 1 eating quietly, 0 free
@@ -157,10 +158,10 @@ export default function TableBoard({ tables, rules, onOpen }) {
             </View>
             {used.length ? (
                 <View style={{ flexDirection: 'row', marginBottom: 12 }}>
-                    <Chip on={filter === 'all'} label={tr('All')} n={used.length} onPress={() => setFilter('all')} />
-                    <Chip on={filter === 'need'} label={tr('Need you')} n={need.length} onPress={() => setFilter('need')} />
-                    <Chip on={filter === 'eating'} label={tr('Eating')} n={eating.length} onPress={() => setFilter('eating')} />
-                    <Chip on={filter === 'bill'} label={tr('Bill')} n={bills.length} onPress={() => setFilter('bill')} />
+                    <Chip on={filter === 'all'} label={tr('All')} n={used.length} onPress={() => { ease(); setFilter('all'); }} />
+                    <Chip on={filter === 'need'} label={tr('Need you')} n={need.length} onPress={() => { ease(); setFilter('need'); }} />
+                    <Chip on={filter === 'eating'} label={tr('Eating')} n={eating.length} onPress={() => { ease(); setFilter('eating'); }} />
+                    <Chip on={filter === 'bill'} label={tr('Bill')} n={bills.length} onPress={() => { ease(); setFilter('bill'); }} />
                 </View>
             ) : null}
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>

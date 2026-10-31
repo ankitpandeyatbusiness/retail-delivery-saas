@@ -16,6 +16,7 @@ import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
 import { FormShimmer } from '../../components/owners/shimmer';
 import { pickImages, uploadImage } from '../../utils/owners/upload';
+import { ease } from '../../utils/common/ease';
 import { tr } from '../../i18n';
 
 const digits = (p) => String(p || '').replace(/\D/g, '');
@@ -73,7 +74,7 @@ export default function OwnerInquiryScreen() {
             </View>
             <View style={{ flexDirection: 'row', paddingHorizontal: 16 }}>
                 {[['chat', 'Chat'], ['details', 'Details']].map(([k, l]) => (
-                    <Pressable key={k} onPress={() => setTab(k)} style={{ flex: 1, paddingVertical: 10, alignItems: 'center', borderBottomWidth: 3, borderBottomColor: tab === k ? primary : border }}>
+                    <Pressable key={k} onPress={() => { ease(); setTab(k); }} style={{ flex: 1, paddingVertical: 10, alignItems: 'center', borderBottomWidth: 3, borderBottomColor: tab === k ? primary : border }}>
                         <Text style={{ color: tab === k ? primary : muted, fontWeight: '900' }}>{tr(l)}</Text>
                     </Pressable>
                 ))}
