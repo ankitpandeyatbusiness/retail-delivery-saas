@@ -12,6 +12,7 @@ import { showToast } from '../../components/customers/shop';
 import { useAlertPrefs } from '../../store/common/useAlertPrefs';
 import { useSoundboxStore } from '../../store/owners/useSoundboxStore';
 import { sayExample } from '../../utils/owners/soundbox';
+import { ListShimmer } from '../../components/owners/shimmer';
 import { tr } from '../../i18n';
 
 // one small column: its name, and the switch under it
@@ -56,7 +57,7 @@ export default function AlertSettingsScreen() {
                     <Text style={{ color: muted, fontSize: 12.5, lineHeight: 18 }}>{tr('Notification shows on the phone, even when the app is closed. Tone is its sound. Voice reads it out while the app is open. Slider is the box that slides up over the app.')}</Text>
                     <Button label={changed ? tr('Use recommended settings') : tr('You are on the recommended settings')} icon="sparkles" kind={changed ? 'primary' : 'ghost'} disabled={!changed} onPress={recommended} style={{ marginTop: 10 }} />
                 </View>
-                {!loaded ? <Text style={{ color: muted, textAlign: 'center', marginTop: 24 }}>{tr('Loading…')}</Text> : null}
+                {!loaded ? <ListShimmer count={5} /> : null}
                 {groups.map((g) => (
                     <Card key={g.id} style={{ marginTop: 8, paddingVertical: 12 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>

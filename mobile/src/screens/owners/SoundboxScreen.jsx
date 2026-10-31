@@ -9,6 +9,7 @@ import { labelledVoices, sampleVoice, previewGreeting } from '../../utils/owners
 import { FAITH_GREETINGS, ADDRESS_CHOICES } from '../../utils/owners/greetings';
 import { newOrderChannelInfo } from '../../utils/common/push';
 import { useAuthStore } from '../../store/common/useAuthStore';
+import { LineShimmer } from '../../components/owners/shimmer';
 import { tr } from '../../i18n';
 import KeyboardScroll from '../../components/common/KeyboardScroll';
 
@@ -84,7 +85,7 @@ export default function SoundboxScreen() {
                 <Card>
                     <Label title={tr('Is this phone ready for new orders?')} hint={tr('Every line should have a green tick. Fix any red line, then press Check again.')} />
                     <View style={{ marginTop: 10 }}>
-                        {!chan ? <Text style={{ color: muted, fontSize: 13 }}>{tr('Checking…')}</Text> : null}
+                        {!chan ? <LineShimmer width={140} height={14} /> : null}
                         {chan && !chan.supported ? <Text style={{ color: muted, fontSize: 13 }}>{tr('This check is for Android phones.')}</Text> : null}
                         {chan?.supported && chan.error ? <Text style={{ color: error, fontSize: 13 }}>{tr('Could not read it: {error}', { error: chan.error })}</Text> : null}
                         {chan?.supported && !chan.error ? [
@@ -153,7 +154,7 @@ export default function SoundboxScreen() {
 
                 <Card>
                     <Label title={hindi ? tr('Hindi voice') : tr('English voice')} hint={tr('Tap a name to hear it.')} />
-                    {voices === null ? <Text style={{ color: muted, marginTop: 10 }}>{tr('Looking for voices…')}</Text> : null}
+                    {voices === null ? <View style={{ marginTop: 10 }}><LineShimmer width={200} height={16} /></View> : null}
                     {voices && !voices.length ? (
                         <Text style={{ color: muted, fontSize: 13, marginTop: 10 }}>
                             {hindi

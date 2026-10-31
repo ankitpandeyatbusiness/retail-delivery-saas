@@ -24,6 +24,7 @@ import { useThemeStore } from '../../store/common/useThemeStore';
 import { useFavStore } from '../../store/customers/shopStores';
 import { fetchMe, updateMe, deleteMe, updatePrefs, deleteUpload } from '../../api/customers/shopApi';
 import { useServiceFlags } from '../../utils/customers/serviceFlags';
+import { useMeStore } from '../../store/customers/useMeStore';
 import { pickPhoto, uploadAvatar } from '../../utils/common/photoUpload';
 import { Skel } from '../../components/common/motion';
 import OwedStrip from '../../components/customers/OwedStrip';
@@ -235,7 +236,8 @@ function AccountInner() {
     const cfgPhone = useHomeStore((st) => st.full.restaurant?.phone);   // the number the owner saved
     const themePhone = useThemeStore((st) => st.theme.phone);
     const shopPhone = cfgPhone || themePhone;
-    const [me, setMe] = useState(null);
+    const me = useMeStore((st) => st.me);   // loaded in the background since the app opened (store/customers/useMeStore.js)
+    const setMe = useMeStore.getState().setMe;
     const [promoBusy, setPromoBusy] = useState(false);
     const [avatarBusy, setAvatarBusy] = useState(false);
     const promos = me ? me.promotions !== false : true;   // GET /me includes it; on until the server says otherwise
@@ -256,7 +258,7 @@ function AccountInner() {
 
     useFocusEffect(useCallback(() => {
         let on = true;
-        fetchMe().then((u) => { if (on) setMe(u); }).catch(() => { });
+        useMeStore.getState().refresh();
         return () => { on = false; };
     }, []));
 
@@ -360,7 +362,7 @@ function AccountInner() {
                                         {p.avatarUrl
                                             ? <Image source={{ uri: p.avatarUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
                                             : <Text style={[s.avatarTxt, { color: onPrimary }]}>{initial}</Text>}
-                                        {avatarBusy ? <View style={StyleSheet.absoluteFill}><Skel width="100%" height="100%" radius={999} /></View> : null}
+                                        {avatarBusy || !me ? <View style={StyleSheet.absoluteFill}><Skel width="100%" height="100%" radius={999} /></View> : null}
                                     </View>
                                 </View>
                                 <View style={[s.camBadge, { backgroundColor: surface, borderColor: border }]}>

@@ -4,6 +4,8 @@
 //   - tapping a notification opens its order
 // The server stores the phone's FCM token (POST /notifications/devices) and sends with firebase-admin.
 // Android only for now. All of it is best effort: a failure here must never get in the way of ordering.
+import { useMeStore } from '../../store/customers/useMeStore';
+import { useServiceFlags } from '../../utils/customers/serviceFlags';
 import { isOpenInquiry } from '../../store/owners/useOpenInquiry';
 import { ownerRoute } from '../owners/notificationRoute';
 import { Platform, AppState } from 'react-native';
@@ -352,8 +354,10 @@ export function startNotifications() {
     const onUser = (user) => {
         if (user) {
             registerPush(); useNotificationStore.getState().refresh();
+            // a customer: the account details and the services flags load now, in the background, so those screens open ready
+            if (!['rider', 'admin', 'kitchen', 'waiter'].includes(user.role)) { useMeStore.getState().refresh(); useServiceFlags.getState().refresh(); }
             if (user.role === 'rider') useAlertPrefs.getState().hydrate().then(() => useAlertPrefs.getState().load());   // the rider has no always-open Soundbox: his alert settings are read here
-        } else useNotificationStore.getState().reset();
+        } else { useNotificationStore.getState().reset(); useMeStore.getState().clear(); }
     };
     useAuthStore.subscribe((st, prev) => { if (st.user !== prev.user) onUser(st.user); });
     if (useAuthStore.getState().user) onUser(useAuthStore.getState().user);

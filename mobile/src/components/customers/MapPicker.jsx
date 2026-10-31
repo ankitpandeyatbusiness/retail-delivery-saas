@@ -14,6 +14,7 @@ import { useAuthStore } from '../../store/common/useAuthStore';
 import { suggestPlaces, placeById } from '../../api/customers/geoApi';
 import { fetchAddresses } from '../../api/customers/shopApi';
 import { readCache, writeCache } from '../../utils/common/cache';
+import { LineShimmer } from '../owners/shimmer';
 import { tr } from '../../i18n';
 
 const FALLBACK = { latitude: 26.4499, longitude: 80.3319 };
@@ -373,9 +374,9 @@ export default function MapPicker({ visible, initial, onClose, onPick, startAtSh
 
                 <View style={[s.bar, { backgroundColor: surface, borderTopColor: border, paddingBottom: (insets.bottom || 0) + 14 }]}>
                     <Text style={[s.hint, { color: muted }]}>{tr('Move the map to place the pin')}</Text>
-                    <Text style={[s.addr, { color: text }]} numberOfLines={2}>
-                        {resolving ? tr('Finding address...') : (label || tr('Pinned location'))}
-                    </Text>
+                    {resolving ? <View style={{ marginVertical: 6 }}><LineShimmer width={220} height={16} /></View> : (
+                        <Text style={[s.addr, { color: text }]} numberOfLines={2}>{label || tr('Pinned location')}</Text>
+                    )}
                     <Pressable
                         onPress={confirm}
                         disabled={!canConfirm}

@@ -24,6 +24,7 @@ import { AutoAcceptCard } from '../../components/owners/AutoAccept';
 import OccupiedTables from '../../components/owners/OccupiedTables';
 import TableRequests from '../../components/owners/TableRequests';
 import { UnpaidHomeCard } from '../../components/owners/UnpaidBills';
+import { ListShimmer } from '../../components/owners/shimmer';
 import { tr } from '../../i18n';
 
 const PIPELINE = [
@@ -384,7 +385,7 @@ export default function OwnerHomeScreen() {
 
             <SectionTitle title={tr('Needs your attention')} />
             <Card>
-                {!d ? <Text style={{ color: muted }}>{tr('Loading…')}</Text> : null}
+                {!d ? <ListShimmer count={3} /> : null}
                 {d && !attention.length ? (
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Ionicons name="checkmark-circle" size={22} color={ok} style={{ marginRight: 10 }} />

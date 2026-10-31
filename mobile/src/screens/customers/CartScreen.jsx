@@ -128,10 +128,15 @@ export default function CartScreen() {
     const offerLeft = offerUntil ? Math.max(0, Math.round((offerUntil - nowMs) / 1000)) : 0;
     const [idemKey, setIdemKey] = useState(() => Crypto.randomUUID());   // a new one after a withdrawn payment, so the next try is a new order
     const reqId = useRef(0);
+    const trials = useRef({});          // coupon code -> { key, q | e }: the cart priced with that coupon, worked out in the background
+    const offerCodes = useRef([]);      // the codes on show (the shop's offer first)
+    const skipNext = useRef(false);     // a coupon was applied from a worked-out price: that quote is already on screen
+    const [couponBusy, setCouponBusy] = useState('');   // the coupon being switched on (a split second, so the tap feels answered)
 
     const slots = useMemo(() => makeSlots(full.orders.prepTimeMin || 20), []);
     const couponOn = f.couponField && full.offers.couponsEnabled;
     const shownOffers = offers.filter((o) => !o.dineInOnly || type === 'dine_in');
+    offerCodes.current = [...new Set([offerInfo?.code, ...shownOffers.map((o) => o.code)].filter(Boolean))].slice(0, 6);
     const preview = lines.reduce((a, l) => a + l.price * l.quantity, 0);
     const priceKey = lines.map((l) => l.price).join(',');
     const pending = useCouponStore((st) => st.code);
@@ -196,6 +201,7 @@ export default function CartScreen() {
 
     useEffect(() => {
         if (!user || !body) { setQuote(null); setQErr(''); setBusy(false); return undefined; }
+        if (skipNext.current) { skipNext.current = false; return undefined; }
         setBusy(true);
         const id = ++reqId.current;
         const t = setTimeout(async () => {
@@ -214,6 +220,18 @@ export default function CartScreen() {
                 setApplied(body.couponCode); setTryCode(''); setCouponIn(''); setCouponErr('');
             } else if (r.q && applied && !r.q.pricing.couponCode) {
                 setApplied(''); setCouponErr('Coupon removed. Your order no longer qualifies.');
+            }
+            // the cart is priced: now price it with each coupon too, one by one, so a tap on a coupon is answered at once
+            if (r.q && !body.couponCode && couponOn) {
+                const base = bodyKey;
+                if (Object.values(trials.current).some((x) => x.key !== base)) trials.current = {};
+                (async () => {
+                    for (const code of offerCodes.current) {
+                        if (id !== reqId.current || trials.current[code]) continue;
+                        try { const q = await quoteOrder({ ...body, couponCode: code }); if (id === reqId.current) trials.current[code] = { key: base, q }; }
+                        catch (e) { if (id === reqId.current) trials.current[code] = { key: base, e }; }
+                    }
+                })();
             }
             if (r.q) { setQuote(r.q); setQErr(''); setQuoteKey(bodyKey); if (r.q.problemCode === 'choose_party') setPartyOpen(true); } else { setQuote(null); setQErr(errMsg(r.e)); if (r.e?.response?.data?.code === 'choose_party') setPartyOpen(true); }
             setBusy(false);
@@ -234,7 +252,25 @@ export default function CartScreen() {
         if (!c) return;
         ease(); setCouponErr(''); setTryCode(c);
     };
-    const pickOffer = (code) => { setCouponIn(code); ease(); setCouponErr(''); setTryCode(code); };
+    const pickOffer = (code) => {
+        if (couponBusy) return;
+        setCouponIn(code); ease(); setCouponErr('');
+        const t = trials.current[code];
+        if (t && t.key === bodyKey && !applied && !tryCode) {
+            setCouponBusy(code);
+            setTimeout(() => {   // a short flash, then it is on (the price was worked out already)
+                setCouponBusy('');
+                ease();
+                if (t.q && t.q.pricing.couponCode) {
+                    skipNext.current = true;
+                    setQuote(t.q); setQErr(''); setQuoteKey(JSON.stringify({ ...body, couponCode: code }));
+                    setApplied(code); setTryCode(''); setCouponIn(''); setCouponErr('');
+                } else { setCouponErr(t.e ? errMsg(t.e) : tr('This coupon does not apply to your order.')); setCouponIn(''); }
+            }, 260);
+            return;
+        }
+        setTryCode(code);   // not worked out yet: the normal check
+    };
     const prefList = full.orders.dineIn?.prefs || [];
     const foodTagList = prefList.length ? prefList : FOOD_TAGS;
     const toggleFoodTag = (n) => { ease(); setFoodTags((p) => (p.includes(n) ? p.filter((x) => x !== n) : [...p, n])); };
@@ -494,7 +530,7 @@ export default function CartScreen() {
                             {shownOffers.length > 0 && !applied ? (
                                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
                                     {shownOffers.map((o) => (
-                                        <CouponTicket key={o._id} o={o} size="mini" onPress={() => pickOffer(o.code)} style={{ marginRight: 10 }} />
+                                        <CouponTicket key={o._id} o={o} size="mini" hint={couponBusy === o.code ? tr('Applying…') : undefined} onPress={() => pickOffer(o.code)} style={{ marginRight: 10, opacity: couponBusy && couponBusy !== o.code ? 0.5 : 1 }} />
                                     ))}
                                 </ScrollView>
                             ) : null}
