@@ -13,6 +13,7 @@ import { useNotificationStore } from '../../store/common/useNotificationStore';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { useDrawer } from '../../store/owners/useDrawer';
+import { useAlertStore } from '../../store/owners/useAlertStore';
 import { setAcceptingOrders, apiError } from '../../api/owners/shopApi';
 import { clockTime } from '../../utils/owners/orderFlow';
 import { showToast } from '../customers/shop';
@@ -241,6 +242,7 @@ function OwnerHeaderBase({ title }) {
     const nav = useNavigation();
     const insets = useSafeAreaInsets();
     const { text, muted, background, ok, error } = useBrand();
+    const riderAttention = useAlertStore((st) => st.riderAttention);   // a rider cancelled, reported a problem or pressed help: a dot on the menu button
     const shopName = useHomeStore((st) => st.full.restaurant?.name);
     const themeName = useThemeStore((st) => st.theme.name);
     const name = shopName || themeName;
@@ -280,7 +282,7 @@ function OwnerHeaderBase({ title }) {
 
     return (
         <View style={[s.header, { paddingTop: insets.top + 8, backgroundColor: background }]}>
-            <Pressable onPress={() => useDrawer.getState().show()} hitSlop={10} style={{ paddingRight: 12 }} accessibilityLabel={tr('Open the menu')}><Ionicons name="menu" size={26} color={text} /></Pressable>
+            <Pressable onPress={() => useDrawer.getState().show()} hitSlop={10} style={{ paddingRight: 12 }} accessibilityLabel={tr('Open the menu')}><Ionicons name="menu" size={26} color={text} />{riderAttention ? <View style={{ position: 'absolute', top: -2, right: 6, width: 10, height: 10, borderRadius: 5, backgroundColor: error, borderWidth: 1.5, borderColor: background }} /> : null}</Pressable>
             <ShopLogo />
             <View style={{ flex: 1, marginLeft: 12, marginRight: 10, minWidth: 0 }}>
                 <Text style={{ color: text, fontSize: 18, fontWeight: '900' }} numberOfLines={1}>{title || name}</Text>

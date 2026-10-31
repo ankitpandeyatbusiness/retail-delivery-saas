@@ -180,7 +180,7 @@ export default function OwnerHomeScreen() {
         if (d.sms.zero) attention.push({ key: 'sms0', icon: 'mail-unread', color: error, title: 'SMS balance is finished', sub: 'Order alerts by SMS have stopped. Top up.', go: () => nav.navigate('OwnerMoney') });
         else if (d.sms.low) attention.push({ key: 'sms', icon: 'mail-unread', color: warn, title: 'SMS balance is low', sub: `${money(d.sms.balancePaise / 100)} left`, go: () => nav.navigate('OwnerMoney') });
         if (d.rent.dueAmount) attention.push({ key: 'rent', icon: 'card', color: error, title: `Rent due: ${money(d.rent.dueAmount)}`, sub: d.rent.graceEndsAt ? `Pay before ${flow.dayTime(d.rent.graceEndsAt)}` : 'Please pay it', go: () => nav.navigate('OwnerMoney') });
-        if (riders?.cashOwedPaise > 0) attention.push({ key: 'cash', icon: 'cash', color: warn, title: `${money(riders.cashOwedPaise / 100)} cash with riders`, sub: 'Collect it from them', go: () => nav.navigate('RidersTab') });
+        if (riders?.cashOwedPaise > 0) attention.push({ key: 'cash', icon: 'cash', color: warn, title: `${money(riders.cashOwedPaise / 100)} cash with riders`, sub: 'Collect it from them', go: () => nav.navigate('OwnerRiders') });
     }
 
     return (
@@ -352,7 +352,7 @@ export default function OwnerHomeScreen() {
                     icon="bicycle"
                     title={tr('Riders')}
                     subtitle={riders ? (riders.total ? tr('{online} online · {free} free · {total} in all', { online: riders.online, free: riders.free, total: riders.total }) : tr('You have not added a rider yet')) : '…'}
-                    onPress={() => nav.navigate('RidersTab')}
+                    onPress={() => nav.navigate('OwnerRiders')}
                     last
                 />
             </Card>

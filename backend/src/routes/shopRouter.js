@@ -134,6 +134,24 @@ router.get('/orders', wrap(async (req, res) => {
     });
 }));
 
+/*
+  GET /api/shop/order-history   the History tab: every order, searched and filtered
+    ?range=24h|week|month|custom (&from=YYYY-MM-DD&to=YYYY-MM-DD)   ?q=anything   ?status=delivered|cancelled|progress   ?type=delivery|pickup|dine_in   ?pay=cash|online|unpaid
+    ?page=1&limit=20   -> { items, hasMore, page, summary, byDay, range }  (summary and byDay come with page 1: they cover the whole filter)
+  GET /api/shop/order-history/export   the same filter as an Excel file (up to 5000 orders)
+*/
+router.get('/order-history', wrap(async (req, res) => {
+    const page = clamp(parseInt(req.query.page, 10) || 1, 1, 10000);
+    const limit = clamp(parseInt(req.query.limit, 10) || 20, 1, 40);
+    res.json(await require('../services/orderHistory').list({ tenantId: req.tenant._id, query: req.query, page, limit }));
+}));
+router.get('/order-history/export', wrap(async (req, res) => {
+    const x = require('../services/xlsxExport');
+    res.set('Content-Type', x.XLSX_TYPE);
+    res.set('Content-Disposition', 'attachment; filename="order-history.xlsx"');
+    res.send(await require('../services/orderHistory').exportBuffer({ tenantId: req.tenant._id, query: req.query, shopName: req.tenant.name }));
+}));
+
 // the owner opened the Orders tab: every order waiting under "Needs a look" counts as seen
 router.post('/orders/look-seen', wrap(async (req, res) => {
     res.json({ ok: true, seen: await orderLook.markAllSeen(req.tenant._id) });

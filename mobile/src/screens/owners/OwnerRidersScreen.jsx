@@ -2,7 +2,8 @@
 // performance and delivery rules. Tap a rider for his page (cash history, handover, orders, switch off).
 import React, { useCallback, useState } from 'react';
 import { View, Text, ScrollView, Pressable, RefreshControl } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import { setRiderAttention } from '../../store/owners/useAlertStore';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../../components/common/kit';
 import { OwnerScreen, Card, Pill, Button, Empty, Sheet, Field, SectionTitle, Stat } from '../../components/owners/ui';
@@ -69,6 +70,7 @@ function AddSheet({ visible, onClose }) {
 
 export default function OwnerRidersScreen() {
     const nav = useNavigation();
+    useFocusEffect(useCallback(() => { setRiderAttention(false); }, []));   // he is looking at the riders now: the dot on the menu goes
     const { primary, muted, text, ok, error, warn } = useBrand();
     const s = useRidersStore();
     const easy = useMenuFlags((st) => st.easy);
@@ -92,6 +94,7 @@ export default function OwnerRidersScreen() {
 
     return (
         <OwnerScreen
+            page
             title={tr('Riders')}
             onRefresh={() => useRidersStore.getState().load({ quiet: true })}
             refreshing={s.refreshing}

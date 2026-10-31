@@ -23,6 +23,8 @@ export const fetchLiveMap = () => d(api.get('/shop/live-map'));
 /* ------------------------------ orders ------------------------------ */
 // params: { status: 'active' | 'placed,accepted', q: '1042', from, to, page, limit }  ->  { items, counts, page, hasMore }
 export const fetchOrders = (params) => d(api.get('/shop/orders', q(params)));
+export const orderHistory = (params) => d(api.get('/shop/order-history', q(params)));   // the History tab: { items, hasMore, page, summary, byDay }
+export const orderHistoryExportPath = '/shop/order-history/export';   // + the same params: an Excel file
 export const fetchOrder = (id) => d(api.get(`/shop/orders/${id}`));
 // body: { status, note?, reasonCode? }   (cancelling needs a note)
 export const resolveKitchenProblem = (id, action, message, offerPercent) => d(api.post(`/shop/orders/${id}/kitchen-problem`, { action, ...(message ? { message } : {}), ...(offerPercent ? { offerPercent } : {}) }));   // action: 'tell' | 'cancel' | 'dismiss'

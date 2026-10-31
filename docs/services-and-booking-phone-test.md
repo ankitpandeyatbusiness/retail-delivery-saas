@@ -114,3 +114,11 @@ Radial menu
 19. Have two of: cart, dine in table, reserved table, order on its way. The cards go; one round button shows the icons of what is there.
 20. Touch and hold it: a quarter circle with four wedges (Dine in, Track, Table QR, Cart) opens to the left and up. Slide onto one: it lights up. Let go: it opens. A wedge with nothing behind it is dimmed with a lock and does nothing.
 21. A quick tap opens the dine in table if there is one, else the cart.
+
+## History tab and the owner tabs
+22. Owner bottom tabs are Home, Orders, Menu, Transactions, History. Riders is in the side menu (under Daily work) and the Riders link on the Home opens it. A rider problem or help call puts a dot on the menu button and on the Riders row until the Riders page is opened.
+23. History: the list shows the last 24 hours by default with a day heading and total for each day. The summary card shows orders, sales, average, cash, online and cancelled.
+24. Search box: type a customer name, an order number, a dish, part of a phone number or part of an address: it finds the order a moment after you stop typing.
+25. Funnel icon: Last 24 hours, Last week, Last month, Pick a date (calendar), Pick dates (range); status, type and payment. The chips under the search show what is on and clear it with a cross.
+26. A card shows the number, time, status, customer, repeat tag, dishes, type, cash or online, flags (cancelled, refunded, late, kitchen or rider problem, complaint), and Call, WhatsApp and Invoice buttons. Tapping the card opens the full order. Tapping the customer name searches all of that customer's orders.
+27. Excel button: downloads the orders of the current filter and search with a coloured header and fitted columns; it opens in the share sheet.

@@ -61,6 +61,7 @@ import { OwnerStubPage } from '../screens/owners/OwnerStubScreens';
 import OwnerOrderScreen from '../screens/owners/OwnerOrderScreen';
 import OwnerRiderScreen from '../screens/owners/OwnerRiderScreen';
 import OwnerRiderMapScreen from '../screens/owners/OwnerRiderMapScreen';
+import OwnerRidersScreen from '../screens/owners/OwnerRidersScreen';
 import OwnerPerformanceScreen from '../screens/owners/OwnerPerformanceScreen';
 import OwnerRiderRulesScreen from '../screens/owners/OwnerRiderRulesScreen';
 import OwnerPaymentsScreen from '../screens/owners/OwnerPaymentsScreen';
@@ -372,6 +373,7 @@ export default function AppNavigator() {
                     <Stack.Screen name="OwnerOrder" component={OwnerOrderScreen} />
                     <Stack.Screen name="OwnerRider" component={OwnerRiderScreen} />
                     <Stack.Screen name="OwnerRiderMap" component={OwnerRiderMapScreen} />
+                    <Stack.Screen name="OwnerRiders" component={OwnerRidersScreen} />
                     <Stack.Screen name="OwnerPerformance" component={OwnerPerformanceScreen} />
                     <Stack.Screen name="OwnerRiderRules" component={OwnerRiderRulesScreen} />
                     <Stack.Screen name="OwnerStaff" component={OwnerStaffScreen} />

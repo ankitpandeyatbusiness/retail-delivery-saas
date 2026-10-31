@@ -11,6 +11,7 @@ import { PageHeader, Card, Row, SectionTitle, Sheet, Button, Pill, Chips } from 
 import { Label, Toggle } from '../../components/owners/menuBits';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { setBusy, apiError } from '../../api/owners/shopApi';
+import { useAlertStore } from '../../store/owners/useAlertStore';
 import { useMenuFlags } from '../../utils/owners/menuFlags';
 import { BUSY_EXTRA, BUSY_FOR } from '../../utils/owners/settingsRules';
 import { clockTime } from '../../utils/owners/orderFlow';
@@ -32,6 +33,7 @@ const WORDS = {
     OwnerMessages: 'message notify announcement broadcast sms push send',
     OwnerAutopilot: 'autopilot reminder win back coupon inactive customers automatic',
     OwnerRewards: 'points rewards badge loyalty levels expiry top riders gift bronze silver gold platinum',
+    OwnerRiders: 'riders delivery partners cash map online team',
     OwnerBookings: 'bookings table booking reservation reserve deposit seats slots timings',
     OwnerInquiries: 'inquiries inquiry enquiry reply bulk tiffin party booking customer asked',
     OwnerServices: 'services bulk order tiffin party booking catering inquiry inquiries custom',
@@ -58,7 +60,7 @@ const WORDS = {
 };
 
 // Easy mode shows only these (the things a shop uses every day); everything else is one switch away.
-const EASY = new Set(['@busy', 'OwnerBookings', 'OwnerServices', 'OwnerInquiries', 'OwnerClosing', 'OwnerDineIn', 'OwnerCooks', 'OwnerWaiters', 'OwnerCustomers', 'OwnerComplaints', 'OwnerMessages', 'OwnerCategories', 'OwnerCoupons', 'OwnerMoney', 'OwnerMoneyHub', 'OwnerBillsHub', 'OwnerReportsHub', 'OwnerHours', 'OwnerShopSettings', 'AlertSettings', 'Soundbox', 'OwnerAppLock']);
+const EASY = new Set(['@busy', 'OwnerRiders', 'OwnerBookings', 'OwnerServices', 'OwnerInquiries', 'OwnerClosing', 'OwnerDineIn', 'OwnerCooks', 'OwnerWaiters', 'OwnerCustomers', 'OwnerComplaints', 'OwnerMessages', 'OwnerCategories', 'OwnerCoupons', 'OwnerMoney', 'OwnerMoneyHub', 'OwnerBillsHub', 'OwnerReportsHub', 'OwnerHours', 'OwnerShopSettings', 'AlertSettings', 'Soundbox', 'OwnerAppLock']);
 const EASY_APP = new Set(['My profile', 'Appearance', 'Language', 'See the customer app', 'Log out']);
 
 // [icon, title, subtitle, route]   ('@busy' opens the Busy mode sheet). The order is the order of a working day.
@@ -69,6 +71,7 @@ const GROUPS = [
         ['restaurant', 'Dine in', 'Customers eating at your tables: switch on, tables', 'OwnerDineIn'],
         ['flame', 'Kitchen staff', 'Your cooks: what they made, leave, add or remove', 'OwnerCooks'],
         ['restaurant', 'Waiters', 'Your waiters: what they served, leave, add or remove', 'OwnerWaiters'],
+        ['bicycle', 'Riders', 'Your delivery team: who is online, the cash they hold, the live map', 'OwnerRiders'],
     ]],
     ['Customers and care', [
         ['people', 'Customers', 'Your customers, their orders, allow cash on delivery', 'OwnerCustomers'],
@@ -147,6 +150,7 @@ export function ShopMenu({ onGo }) {
     const kitchenOn = useMenuFlags((s) => s.kitchenOn);
     const waiterOn = useMenuFlags((s) => s.waiterOn);
     const staffOn = { kitchenOn, waiterOn };
+    const riderAttention = useAlertStore((s) => s.riderAttention);   // a rider cancelled, reported a problem or pressed help
     const servicesOn = useMenuFlags((s) => s.servicesOn);   // the super admin's switches for Services (with Inquiries) and Table booking
     const bookingOn = useMenuFlags((s) => s.bookingOn);
     const lang = useLang((st) => st.lang);
@@ -172,7 +176,7 @@ export function ShopMenu({ onGo }) {
     const sections = useMemo(() => [
         ...GROUPS.map(([group, rows]) => [group, rows.filter((r) => !hidden(r[3])).map(([icon, title, subtitle, route]) => (route === '@busy'
             ? { icon, title, subtitle: busy ? tr('On: +{extraMin} min until {clockTime}', { extraMin: busy.extraMin, clockTime: clockTime(busy.until) }) : tr(subtitle), group, words: 'busy rushed longer wait kitchen crowd', color: busy ? error : undefined, act: () => setBusyOpen(true) }
-            : { icon, title, subtitle: tr(subtitle), group, words: WORDS[route] || '', act: () => go(route) }))]),
+            : { icon, title, subtitle: tr(subtitle), group, words: WORDS[route] || '', right: route === 'OwnerRiders' && riderAttention ? <Pill label="!" color={error} /> : undefined, act: () => go(route) }))]),
         ['Your app', [
             { icon: 'help-buoy', title: 'Help and support', subtitle: tr('Ask the platform team for help'), group: 'Your app', words: 'help support ask platform team contact problem', right: supportUnread > 0 ? <Pill label={String(supportUnread)} color={error} /> : undefined, act: () => go('OwnerSupport') },
             { icon: 'person-circle', title: 'My profile', subtitle: user?.name || user?.phone || tr('Your name, picture and email'), group: 'Your app', words: 'profile name picture email account', act: () => go('OwnerProfile') },
@@ -183,7 +187,7 @@ export function ShopMenu({ onGo }) {
             { icon: 'log-out', title: 'Log out', subtitle: tr('Sign out of this phone'), group: 'Your app', words: 'logout log out sign out exit', color: error, act: out },
         ]],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    ], [busy, staffOn, servicesOn, bookingOn, supportUnread, user, lang, easy]);
+    ], [busy, staffOn, servicesOn, bookingOn, riderAttention, supportUnread, user, lang, easy]);
     const entries = useMemo(() => sections.flatMap(([, rows]) => rows).filter((e) => !e.custom), [sections]);
     const found = q.trim() ? searchMenu(entries, q, (e) => `${e.title} ${tr(e.title)}`) : null;
 
