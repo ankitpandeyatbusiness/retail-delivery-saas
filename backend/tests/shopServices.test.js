@@ -29,16 +29,16 @@ describe('shop services', () => {
 
     test('answers are checked against the questions', () => {
         const s = { priceType: 'per_plate', price: 1000, questions: svc.newDoc('bulk').questions };
-        const ok = svc.checkAnswers(s, { date: '2026-11-01', plates: 30, diet: 'Veg' });
+        const ok = svc.checkAnswers(s, { function: 'Wedding', date: '2026-11-01', guests: 30, diet: 'Veg' });
         assert.equal(ok.guests, 30);
         assert.equal(svc.estimateFor(s, ok.guests), 30000);
-        assert.throws(() => svc.checkAnswers(s, { plates: 30 }), /Which date/);
-        assert.throws(() => svc.checkAnswers(s, { date: '2026-11-01', plates: 30, diet: 'Jain' }), /pick one/);
-        assert.throws(() => svc.checkAnswers(s, { date: '1 Nov', plates: 30 }), /pick a date/);
+        assert.throws(() => svc.checkAnswers(s, { function: 'Wedding', guests: 30 }), /Date of the function/);
+        assert.throws(() => svc.checkAnswers(s, { function: 'Wedding', date: '2026-11-01', guests: 30, diet: 'Jain' }), /pick one/);
+        assert.throws(() => svc.checkAnswers(s, { function: 'Wedding', date: '1 Nov', guests: 30 }), /pick a date/);
     });
 
     test('a switched-off question is never asked', () => {
-        const qs = svc.newDoc('bulk').questions.map((q) => (q.id === 'date' ? { ...q, enabled: false } : q));
-        assert.equal(svc.checkAnswers({ questions: qs }, { plates: 20 }).guests, 20);
+        const qs = svc.newDoc('bulk').questions.map((q) => (['date', 'function'].includes(q.id) ? { ...q, enabled: false } : q));
+        assert.equal(svc.checkAnswers({ questions: qs }, { guests: 20 }).guests, 20);
     });
 });

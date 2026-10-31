@@ -21,24 +21,35 @@ const QUESTIONS = {
 
 // The recommended set for each starter kind. A custom service starts from "other".
 const RECOMMENDED = {
-    bulk: () => [QUESTIONS.date(), QUESTIONS.time(), QUESTIONS.plates(), QUESTIONS.diet(),
-        Q('delivery', 'choice', 'Delivery or pickup?', { options: ['Delivery', 'Pickup'] }), QUESTIONS.address('Delivery address'), QUESTIONS.budget()],
-    tiffin: () => [QUESTIONS.date('Start date'), Q('days', 'choice', 'Days per week', { options: ['5 days', '6 days', '7 days'] }),
-        Q('meals', 'multichoice', 'Which meals?', { options: ['Lunch', 'Dinner'] }), QUESTIONS.diet(),
-        Q('plan', 'choice', 'Plan', { options: ['Weekly', 'Monthly'] }), QUESTIONS.address('Delivery address')],
+    // the restaurant (or its hall) is booked for a wedding or a function: no delivery or pickup, it is an event
+    bulk: () => [Q('function', 'choice', 'What is the function?', { required: true, options: ['Wedding', 'Engagement', 'Birthday', 'Anniversary', 'Corporate event', 'Other'] }),
+        QUESTIONS.date('Date of the function'), Q('time', 'time', 'Start time'), Q('hours', 'number', 'For how many hours?', { min: 1, max: 24 }),
+        QUESTIONS.guests('How many guests are expected?'), QUESTIONS.diet(),
+        Q('menu', 'longtext', 'Dishes or menu you have in mind', { hint: 'Starters, main course, sweets, drinks' }),
+        Q('extras', 'multichoice', 'What else do you need?', { options: ['Whole restaurant or hall for us', 'Decoration', 'Cake', 'Music or DJ', 'Photographer'] }),
+        Q('budget', 'number', 'Budget per plate (₹)', { min: 0 }), QUESTIONS.note()],
+    // a meal subscription: it is delivered, so the address and the delivery time matter
+    tiffin: () => [QUESTIONS.date('When should it start?'), Q('plan', 'choice', 'Plan', { required: true, options: ['Trial (1 day)', 'Weekly', 'Monthly'] }),
+        Q('days', 'choice', 'Days per week', { options: ['5 days', '6 days', '7 days'] }),
+        Q('meals', 'multichoice', 'Which meals?', { required: true, options: ['Breakfast', 'Lunch', 'Dinner'] }),
+        Q('tiffins', 'number', 'How many tiffins for each meal?', { min: 1, max: 50 }), QUESTIONS.diet(),
+        QUESTIONS.address('Delivery address'), Q('slot', 'time', 'Preferred delivery time'),
+        Q('likes', 'longtext', 'Allergies, dislikes or spice level')],
+    // a table for a bigger group on an ordinary day
     party: () => [QUESTIONS.date(), QUESTIONS.time(), QUESTIONS.guests(),
-        Q('occasion', 'choice', 'Occasion', { options: ['Birthday', 'Anniversary', 'Family get-together', 'Other'] }), QUESTIONS.diet(),
-        Q('decor', 'yesno', 'Need cake or decoration?')],
+        Q('occasion', 'choice', 'Occasion', { options: ['Birthday', 'Anniversary', 'Family get-together', 'Friends', 'Other'] }),
+        Q('seating', 'choice', 'Where would you like to sit?', { options: ['Indoor', 'Outdoor', 'Private room', 'No preference'] }), QUESTIONS.diet(),
+        Q('decor', 'yesno', 'Need cake or decoration?'), QUESTIONS.note()],
     other: () => [QUESTIONS.date(), QUESTIONS.guests('How many people?'), QUESTIONS.note()],
 };
 
 const TEMPLATES = {
     bulk: { name: 'Bulk Order Booking', icon: 'cube-outline', priceType: 'per_plate', minGuests: 20, noticeHours: 48,
-        quickTexts: ['I need a bulk order for an event', 'Please share the price per plate', 'Is my date available?', 'Veg only, please'] },
+        quickTexts: ['I want to book for a wedding', 'Please share the menu and price per plate', 'Is my date available?', 'Veg only, please'] },
     tiffin: { name: 'Tiffin Service', icon: 'restaurant-outline', priceType: 'per_month',
-        quickTexts: ['I want a monthly tiffin', 'Please share the menu and price', 'Do you deliver to my area?', 'Veg only, please'] },
+        quickTexts: ['I want a monthly tiffin', 'Please share the menu and price', 'Do you deliver to my area?', 'Can I try it for one day first?'] },
     party: { name: 'Restaurant Booking', icon: 'balloon-outline', priceType: 'per_plate', minGuests: 10, noticeHours: 24,
-        quickTexts: ['Birthday party, please share the price', 'Is the hall free on my date?', 'Do you have a party package?', 'We need decoration and a cake'] },
+        quickTexts: ['Birthday party, please share the price', 'Is a big table free on my date?', 'Do you have a party package?', 'We need decoration and a cake'] },
     other: { name: 'Other', icon: 'sparkles-outline', priceType: 'quote',
         quickTexts: ['I have a question about this', 'Please share the price', 'Please call me back'] },
 };

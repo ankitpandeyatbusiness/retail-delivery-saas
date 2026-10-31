@@ -39,10 +39,10 @@ describe('service inquiries', () => {
     });
 
     test('the customer sends an inquiry; a missing required answer is refused', async () => {
-        const bad = await request(app).post(`/api/services/${service._id}/inquiries`).set(w.customer.headers).send({ name: 'Anil', phone: '9000000030', answers: { plates: 30 } });
+        const bad = await request(app).post(`/api/services/${service._id}/inquiries`).set(w.customer.headers).send({ name: 'Anil', phone: '9000000030', answers: { function: 'Wedding', guests: 30 } });
         assert.equal(bad.status, 400);
         const ok = await request(app).post(`/api/services/${service._id}/inquiries`).set(w.customer.headers)
-            .send({ name: 'Anil', phone: '9000000030', message: 'Need a quote', answers: { date: '2026-11-20', plates: 30, diet: 'Veg' } });
+            .send({ name: 'Anil', phone: '9000000030', message: 'Need a quote', answers: { function: 'Wedding', date: '2026-11-20', guests: 30, diet: 'Veg' } });
         assert.equal(ok.status, 201, JSON.stringify(ok.body));
         inquiryId = ok.body.id;
     });
