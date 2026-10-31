@@ -32,6 +32,7 @@ export default function OwnerDrawer() {
     const user = useAuthStore((s) => s.user);
     const x = useRef(new Animated.Value(-WIDTH)).current;
     const [mounted, setMounted] = useState(false);
+    const menuScroll = useRef(null);   // the menu's scroll view: the A to Z strip scrolls it (a hook: it must come before the return below)
 
     useEffect(() => {
         if (open) {
@@ -49,7 +50,6 @@ export default function OwnerDrawer() {
     }, [open]);
 
     if (!mounted && !open) return null;
-    const menuScroll = useRef(null);   // the menu's scroll view: the A to Z strip scrolls it
     const close = () => useDrawer.getState().hide();
 
     return (
