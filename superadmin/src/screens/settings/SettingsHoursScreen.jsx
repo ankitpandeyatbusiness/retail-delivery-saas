@@ -4,6 +4,7 @@ import { useRoute } from '@react-navigation/native';
 import { SettingsPage } from '../../components/settingsPage';
 import { Group, TextField, Switch, Hint } from '../../components/settingsForm';
 import { Button, Badge } from '../../components/ui';
+import { TimeField } from '../../components/TimePicker';
 import Icon from '../../components/Icon';
 import useSettingsEditor from '../../hooks/useSettingsEditor';
 import { nameOf } from '../../utils/settings';
@@ -31,16 +32,7 @@ function TimeBox({ value, onChange, label }) {
     const ok = !value || TIME.test(value);
     return (
         <View style={{ flex: 1 }}>
-            <TextField
-                label={label}
-                value={value}
-                onChange={(v) => onChange(maskTime(v))}
-                placeholder="HH:MM"
-                keyboardType="number-pad"
-                maxLength={5}
-                last
-                autoCapitalize="none"
-            />
+            <TimeField label={label} value={value} onChange={onChange} last />
             {!ok ? <Text style={{ color: t.danger, fontSize: font.xs, marginTop: 2 }}>Use 24-hour time, like 09:30</Text> : null}
         </View>
     );

@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useBrand } from '../../components/common/kit';
 import { Button, Card, Empty, LiveToggle } from '../../components/owners/ui';
-import { FormPage, Group, TextBox, NumberBox, ChoiceBox, Label, TimingEditor, Toggle, ToggleRow } from '../../components/owners/menuBits';
+import { FormPage, Group, TextBox, TimeBox, NumberBox, ChoiceBox, Label, TimingEditor, Toggle, ToggleRow } from '../../components/owners/menuBits';
 import DateRangeSheet from '../../components/customers/DateRangeSheet';
 import { booking as api, apiError } from '../../api/owners/shopApi';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
@@ -153,7 +153,7 @@ export default function OwnerBookingSettingsScreen() {
                     </Pressable>
                 </View>
                 <DateRangeSheet single ahead={365} visible={picking} value={closeDate} title={tr('Pick a day')} onClose={() => setPicking(false)} onApply={(d) => { setCloseDate(d || ''); setPicking(false); }} />
-                <TextBox label={tr('Time (optional)')} value={closeTime} onChangeText={(x) => setCloseTime(maskTime(x))} keyboardType="number-pad" placeholder="19:00" maxLength={5} />
+                <TimeBox label={tr('Time (optional)')} value={closeTime} onChange={setCloseTime} placeholder="19:00" optional />
                 <Button label={tr('Close it')} icon="close-circle-outline" kind="ghost" onPress={addClosed} />
                 {closedItems.map((c) => (
                     <View key={c.key} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: border, marginTop: 8 }}>

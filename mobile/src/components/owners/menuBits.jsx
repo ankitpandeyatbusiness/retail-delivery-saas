@@ -10,6 +10,7 @@ import { PageHeader, Card, Pill, Chips, Button, Field, Sheet, Row, money } from 
 import { showToast, useSlideTick, seedOf } from '../customers/shop';
 import { pickImage, pickImages, uploadImage } from '../../utils/owners/upload';
 import UploadThumb from '../common/UploadThumb';
+import { TimeInput } from '../common/TimePicker';
 import { amountLabel, stockUnit, itemState, MAX_GROUPS, MAX_OPTIONS, DAYS, maskTime } from '../../utils/owners/menuRules';
 import { clockTime } from '../../utils/owners/orderFlow';
 import { LineShimmer } from './shimmer';
@@ -82,6 +83,10 @@ export function FormField({ label, hint, error, children, last }) {
 
 export function TextBox({ label, hint, error, last, ...rest }) {
     return <FormField label={label} hint={hint} error={error} last={last}><Field {...rest} /></FormField>;
+}
+// A time of day: touch it and a digital clock opens (he can still type it). value and onChange use 'HH:MM', 24-hour.
+export function TimeBox({ label, hint, error, last, ...rest }) {
+    return <FormField label={label} hint={hint} error={error} last={last}><TimeInput {...rest} /></FormField>;
 }
 
 // A number the owner types. Keeps what is typed ("1." stays "1.") and reports a number, or undefined when empty.
@@ -444,9 +449,9 @@ export function TimingEditor({ value = [], onChange }) {
             {value.map((s, i) => (
                 <View key={i} style={{ borderTopWidth: i ? StyleSheet.hairlineWidth : 0, borderTopColor: border, paddingTop: i ? 12 : 0, marginBottom: 12 }}>
                     <View style={{ flexDirection: 'row' }}>
-                        <View style={{ flex: 1 }}><TextBox label={tr('From')} value={s.open} placeholder={tr('HH:MM')} keyboardType="number-pad" maxLength={5} last onChangeText={(x) => setSlot(i, { open: maskTime(x) })} /></View>
+                        <View style={{ flex: 1 }}><TimeBox label={tr('From')} value={s.open} placeholder={tr('HH:MM')} last onChange={(x) => setSlot(i, { open: x })} /></View>
                         <View style={{ width: 10 }} />
-                        <View style={{ flex: 1 }}><TextBox label={tr('To')} value={s.close} placeholder={tr('HH:MM')} keyboardType="number-pad" maxLength={5} last onChangeText={(x) => setSlot(i, { close: maskTime(x) })} /></View>
+                        <View style={{ flex: 1 }}><TimeBox label={tr('To')} value={s.close} placeholder={tr('HH:MM')} last onChange={(x) => setSlot(i, { close: x })} /></View>
                     </View>
                     <View style={{ height: 12 }} />
                     <Label hint={tr('Leave all unselected for every day')}>{tr('Days')}</Label>

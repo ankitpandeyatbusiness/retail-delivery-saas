@@ -10,7 +10,7 @@ import { FormPage, Group, TextBox, ToggleRow, DateBox, Hint, Label } from '../..
 import { fetchSettings, saveSettings, apiError } from '../../api/owners/shopApi';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { useHomeStore } from '../../store/customers/useHomeStore';
-import { maskTime } from '../../utils/owners/menuRules';
+import { TimeInput } from '../../components/common/TimePicker';
 import { DAY_KEYS, DAY_NAMES, MAX_SLOTS, MAX_HOLIDAYS, weeklyToForm, formToWeekly, hoursProblem, holidaysProblem } from '../../utils/owners/settingsRules';
 import { showToast } from '../../components/customers/shop';
 import { FormShimmer } from '../../components/owners/shimmer';
@@ -31,9 +31,9 @@ function DayRow({ day, slots, onChange }) {
             </View>
             {slots.map((s, i) => (
                 <View key={i} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
-                    <View style={{ flex: 1 }}><Field value={s.open} onChangeText={(x) => set(i, { open: maskTime(x) })} placeholder="09:00" keyboardType="number-pad" maxLength={5} style={{ minHeight: 42, textAlign: 'center' }} /></View>
+                    <View style={{ flex: 1 }}><TimeInput value={s.open} onChange={(x) => set(i, { open: x })} placeholder="09:00" center boxStyle={{ minHeight: 42 }} /></View>
                     <Text style={{ color: muted, marginHorizontal: 10 }}>{tr('to')}</Text>
-                    <View style={{ flex: 1 }}><Field value={s.close} onChangeText={(x) => set(i, { close: maskTime(x) })} placeholder="22:00" keyboardType="number-pad" maxLength={5} style={{ minHeight: 42, textAlign: 'center' }} /></View>
+                    <View style={{ flex: 1 }}><TimeInput value={s.close} onChange={(x) => set(i, { close: x })} placeholder="22:00" center boxStyle={{ minHeight: 42 }} /></View>
                     <Pressable onPress={() => onChange(slots.filter((_, n) => n !== i))} hitSlop={8} style={{ marginLeft: 10 }}><Ionicons name="close-circle" size={22} color={muted} /></Pressable>
                 </View>
             ))}

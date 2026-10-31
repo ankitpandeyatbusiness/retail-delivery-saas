@@ -6,7 +6,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
 import { Button, Empty } from '../../components/owners/ui';
-import { FormPage, Group, TextBox, NumberBox, ChoiceBox, ToggleRow, Label } from '../../components/owners/menuBits';
+import { FormPage, Group, TextBox, TimeBox, NumberBox, ChoiceBox, ToggleRow, Label } from '../../components/owners/menuBits';
 import DateRangeSheet from '../../components/customers/DateRangeSheet';
 import { fetchService, sendInquiry } from '../../api/customers/shopApi';
 import { FormShimmer, LineShimmer } from '../../components/owners/shimmer';
@@ -84,7 +84,7 @@ export default function ServiceFormScreen() {
                     </Pressable>
                 </View>
             );
-            case 'time': return <TextBox key={q.id} {...common} value={v || ''} onChangeText={(x) => set(q.id, maskTime(x))} keyboardType="number-pad" placeholder="19:30" maxLength={5} />;
+            case 'time': return <TimeBox key={q.id} {...common} value={v || ''} onChange={(x) => set(q.id, x)} placeholder="19:30" optional={!q.required} />;
             case 'yesno': return <ToggleRow key={q.id} title={q.label} subtitle={q.hint || undefined} value={!!v} onValueChange={(x) => set(q.id, x)} />;
             case 'choice': return <ChoiceBox key={q.id} {...common} options={q.options.map((o) => [o, o])} value={v} onChange={(x) => set(q.id, x)} />;
             case 'multichoice': {

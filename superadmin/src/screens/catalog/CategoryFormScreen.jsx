@@ -8,6 +8,7 @@ import { Button, Chip, Card } from '../../components/ui';
 import { Field } from '../../components/inputs';
 import { Group, NumberField, Switch, Hint, Label, TextField } from '../../components/settingsForm';
 import { ImageField } from '../../components/catalogBits';
+import { TimeField } from '../../components/TimePicker';
 import { Loading, ErrorBox, ConfirmSheet } from '../../components/feedback';
 import useRecordForm from '../../hooks/useRecordForm';
 import Icon from '../../components/Icon';
@@ -123,10 +124,10 @@ export default function CategoryFormScreen() {
                     <View key={i} style={{ borderTopWidth: i ? 0.5 : 0, borderTopColor: t.border, paddingTop: i ? spacing.md : 0, marginBottom: spacing.md }}>
                         <View style={{ flexDirection: 'row', gap: spacing.md }}>
                             <View style={{ flex: 1 }}>
-                                <TextField label="From" value={s.open} placeholder="HH:MM" keyboardType="number-pad" maxLength={5} last onChange={(x) => setTiming(i, { open: maskTime(x) })} />
+                                <TimeField label="From" value={s.open} last onChange={(x) => setTiming(i, { open: x })} />
                             </View>
                             <View style={{ flex: 1 }}>
-                                <TextField label="To" value={s.close} placeholder="HH:MM" keyboardType="number-pad" maxLength={5} last onChange={(x) => setTiming(i, { close: maskTime(x) })} />
+                                <TimeField label="To" value={s.close} last onChange={(x) => setTiming(i, { close: x })} />
                             </View>
                         </View>
                         <Label hint="Leave all unselected for every day">Days</Label>

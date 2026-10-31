@@ -8,6 +8,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useBrand, alpha } from '../common/kit';
 import { Card, Sheet, Button, Chips, Pill } from './ui';
 import { ToggleRow } from './menuBits';
+import { TimeText } from '../common/TimePicker';
 import { LineShimmer } from './shimmer';
 import { fetchAutoAccept, saveAutoAccept, apiError } from '../../api/owners/shopApi';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
@@ -16,10 +17,10 @@ import { tr } from '../../i18n';
 
 const pad = (n) => String(n).padStart(2, '0');
 const toMin = (t) => { const [h, m] = String(t).split(':'); return Number(h) * 60 + Number(m); };
-const clock = (t) => { const m = toMin(t); const h = Math.floor(m / 60); return `${h % 12 || 12}:${pad(m % 60)} ${h < 12 ? 'AM' : 'PM'}`; };
+const clock = (t) => `${pad(Math.floor(toMin(t) / 60))}:${pad(toMin(t) % 60)}`;   // 24-hour, like every time in the app
 const shift = (t, d) => { const m = (toMin(t) + d + 1440) % 1440; return `${pad(Math.floor(m / 60))}:${pad(m % 60)}`; };
 
-// "1:00 PM"  with  -  +  to move it by half an hour
+// "13:00"  with  -  +  to move it by half an hour; touch the time and a clock opens
 export function TimeStep({ label, value, onChange }) {
     const { text, muted, border, primary } = useBrand();
     return (
@@ -27,7 +28,7 @@ export function TimeStep({ label, value, onChange }) {
             <Text style={{ color: muted, fontSize: 12, fontWeight: '700', marginBottom: 6 }}>{label}</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: border, borderRadius: 14, paddingVertical: 6, paddingHorizontal: 6 }}>
                 <Pressable onPress={() => onChange(shift(value, -30))} hitSlop={8} style={{ padding: 6 }}><Ionicons name="remove-circle-outline" size={24} color={primary} /></Pressable>
-                <Text style={{ flex: 1, color: text, fontWeight: '900', fontSize: 15, textAlign: 'center' }}>{clock(value)}</Text>
+                <TimeText value={value} onChange={onChange} title={label} style={{ flex: 1 }} />
                 <Pressable onPress={() => onChange(shift(value, 30))} hitSlop={8} style={{ padding: 6 }}><Ionicons name="add-circle-outline" size={24} color={primary} /></Pressable>
             </View>
         </View>

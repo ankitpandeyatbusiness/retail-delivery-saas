@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useBrand, alpha } from '../../components/common/kit';
 import { Button, Sheet, SectionTitle, Card, Pill } from '../../components/owners/ui';
-import { FormPage, Group, NumberBox, TextBox, ToggleRow } from '../../components/owners/menuBits';
+import { FormPage, Group, NumberBox, TextBox, TimeBox, ToggleRow } from '../../components/owners/menuBits';
 import { ListShimmer } from '../../components/owners/shimmer';
 import GlowBorder from '../../components/common/GlowBorder';
 import { fetchSettings, saveSettings, fetchDineTables, fetchDineBill, settleDineBill, walkoutDineBill, fetchDineDebts, payDineDebt, fetchDineQr, fetchDineQrSheet, blockCustomer, apiError } from '../../api/owners/shopApi';
@@ -274,8 +274,8 @@ export default function OwnerDineInScreen() {
                     <ToggleRow title={tr('Happy hour')} subtitle={v.happyOn ? tr('{a}% off from {b} to {c} every day', { a: v.happyPercent, b: v.happyFrom, c: v.happyTo }) : tr('Off. A quiet time of day is a good time for it.')} value={v.happyOn} onValueChange={(x) => set('happyOn', x)} last={!v.happyOn} />
                     {v.happyOn ? (
                         <View>
-                            <TextBox label={tr('From (24-hour, like 15:00)')} value={v.happyFrom} onChangeText={(x) => set('happyFrom', x)} maxLength={5} placeholder="15:00" />
-                            <TextBox label={tr('To (24-hour, like 18:00)')} value={v.happyTo} onChangeText={(x) => set('happyTo', x)} maxLength={5} placeholder="18:00" />
+                            <TimeBox label={tr('From (24-hour, like 15:00)')} value={v.happyFrom} onChange={(x) => set('happyFrom', x)} placeholder="15:00" />
+                            <TimeBox label={tr('To (24-hour, like 18:00)')} value={v.happyTo} onChange={(x) => set('happyTo', x)} placeholder="18:00" />
                             <NumberBox label={tr('Happy hour: percent off')} suffix="%" integer value={v.happyPercent} hint={`${tr('Recommended')}: ${RECOMMENDED.happyPercent}`} onChange={(x) => set('happyPercent', x ?? 15)} />
                             <NumberBox label={tr('Happy hour: most he can save')} suffix="₹" integer value={v.happyMax} hint={`${tr('Recommended')}: ${RECOMMENDED.happyMax}. ${tr('0 means no limit.')}`} onChange={(x) => set('happyMax', x ?? 0)} last />
                         </View>
