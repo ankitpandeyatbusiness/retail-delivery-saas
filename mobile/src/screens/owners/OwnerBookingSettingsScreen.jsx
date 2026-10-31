@@ -8,6 +8,7 @@ import { Button, Card, Empty, LiveToggle } from '../../components/owners/ui';
 import { FormPage, Group, TextBox, TimeBox, NumberBox, ChoiceBox, Label, TimingEditor, Toggle, ToggleRow } from '../../components/owners/menuBits';
 import DateRangeSheet from '../../components/customers/DateRangeSheet';
 import { booking as api, apiError } from '../../api/owners/shopApi';
+import { offerCancelClosed } from '../../components/owners/ClosedBookingsBanner';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { showToast } from '../../components/customers/shop';
 import { maskTime } from '../../utils/owners/menuRules';
@@ -64,8 +65,10 @@ export default function OwnerBookingSettingsScreen() {
         setSaving(true);
         try {
             const { tenantId, _id, createdAt, updatedAt, __v, ...rules } = v;   // eslint-disable-line no-unused-vars
-            setV(await api.saveSettings(rules));
+            const { closedBookings, ...saved } = await api.saveSettings(rules);
+            setV(saved);
             showToast(tr('Booking settings saved'));
+            await offerCancelClosed(closedBookings);   // a closed day or slot was added that hits reservations: cancel and refund them, or keep them
         } catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); } finally { setSaving(false); }
     };
 

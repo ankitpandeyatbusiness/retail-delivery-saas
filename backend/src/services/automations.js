@@ -24,13 +24,13 @@ const DAY = 86400000;
 // the recommended values: on where a missed task would stall the shop for no good reason, off where it is the owner's decision
 const DEFAULTS = {
     reservationAutoAllowMin: 30, reservationNoShowMin: 30, depositAutoAdjust: true, pickupNotCollectedMin: 60, cancelRequestDeclineMin: 5, inquiryCloseDays: 7,
-    stageAlerts: true, cashLimitReminders: true, leaveReminders: true, kitchenProblemReminders: true, complaintReminders: true, autoApproveLeave: false,
+    stageAlerts: true, cashLimitReminders: true, leaveReminders: true, kitchenProblemReminders: true, complaintReminders: true, closedDayReminders: true, autoApproveLeave: false,
 };
 const CHOICES = {
     reservationAutoAllowMin: [0, 15, 30, 60], reservationNoShowMin: [0, 15, 30, 45, 60], pickupNotCollectedMin: [0, 30, 60, 120],
     cancelRequestDeclineMin: [0, 3, 5, 10], inquiryCloseDays: [0, 3, 7, 14],
 };
-const FLAGS = ['depositAutoAdjust', 'stageAlerts', 'cashLimitReminders', 'leaveReminders', 'kitchenProblemReminders', 'complaintReminders', 'autoApproveLeave'];
+const FLAGS = ['depositAutoAdjust', 'stageAlerts', 'cashLimitReminders', 'leaveReminders', 'kitchenProblemReminders', 'complaintReminders', 'closedDayReminders', 'autoApproveLeave'];
 
 async function get(tenantId) {
     const row = await ShopAutomation.findOne({ tenantId }).lean();
@@ -246,6 +246,24 @@ async function kitchenProblems(now, cfgOf) {
     return n;
 }
 
+// reservations that fall on a day the shop is closed (a holiday added later...): the owner is reminded once a day, and cancels and refunds them from Reservations
+async function closedDayBookings(now, cfgOf) {
+    const rows = await TableBooking.find({ status: 'confirmed', startsAt: { $gt: new Date(now) } }).select('tenantId date time').limit(1000).lean();
+    const byShop = new Map();
+    for (const b of rows) { const k = String(b.tenantId); if (!byShop.has(k)) byShop.set(k, []); byShop.get(k).push(b); }
+    const tb = require('./tableBooking');
+    let n = 0;
+    for (const [tid, list] of byShop) {
+        if (!(await cfgOf(tid)).closedDayReminders) continue;
+        const config = await tb.getConfig(tid);
+        const bad = list.filter((b) => tb.closedFor(config, b.date, b.time)).length;
+        if (!bad) continue;
+        if (!(await claim(tid, `closedday:${tid}`, 24 * HOUR, 5, now))) continue;
+        n += 1; await tell(tid, 'automation_remind', `${bad} reservation${bad > 1 ? 's' : ''} fall${bad > 1 ? '' : 's'} on a day the shop is closed. Open Reservations to cancel and refund ${bad > 1 ? 'them' : 'it'}.`, `${bad} रिज़र्वेशन ऐसे दिन पर हैं जब दुकान बंद है। रिज़र्वेशन खोलकर रद्द करें और पैसे लौटाएँ।`, { kind: 'booking' });
+    }
+    return n;
+}
+
 async function complaints(now, cfgOf) {
     const rows = await Complaint.find({ status: 'open', remindedAt: { $ne: null, $lte: new Date(now - 24 * HOUR) } }).select('_id tenantId orderNo').limit(200).lean();
     let n = 0;
@@ -257,7 +275,7 @@ async function complaints(now, cfgOf) {
     return n;
 }
 
-const RULES = { pickupNotCollected, reservationAutoAllow, reservationNoShow, depositAdjust, declineCancelRequests, closeQuietInquiries, stageAlerts, cashLimitReminders, leaves, kitchenProblems, complaints };
+const RULES = { pickupNotCollected, reservationAutoAllow, reservationNoShow, depositAdjust, declineCancelRequests, closeQuietInquiries, stageAlerts, cashLimitReminders, leaves, kitchenProblems, complaints, closedDayBookings };
 
 async function runAll(now = Date.now()) {
     const cfgOf = makeCfgOf();

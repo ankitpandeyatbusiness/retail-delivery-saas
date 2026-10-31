@@ -121,7 +121,7 @@ describe('automations', () => {
 
     test('every rule runs and a rule that fails does not stop the others', async () => {
         const r = await auto.runAll(NOW);
-        assert.equal(Object.keys(r).length, 11);
+        assert.equal(Object.keys(r).length, 12);
         assert.ok(await ShopAutomation.countDocuments() >= 0);
     });
 });

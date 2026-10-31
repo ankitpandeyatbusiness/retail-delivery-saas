@@ -8,6 +8,7 @@ import { useBrand, alpha } from '../../components/common/kit';
 import { Button, Empty, Field } from '../../components/owners/ui';
 import { FormPage, Group, TextBox, ToggleRow, DateBox, Hint, Label } from '../../components/owners/menuBits';
 import { fetchSettings, saveSettings, apiError } from '../../api/owners/shopApi';
+import { offerCancelClosed } from '../../components/owners/ClosedBookingsBanner';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { TimeInput } from '../../components/common/TimePicker';
@@ -74,7 +75,7 @@ export default function OwnerHoursScreen() {
         if (problem) { showToast(problem); return; }
         setSaving(true);
         try {
-            await saveSettings({
+            const saved = await saveSettings({
                 hours: {
                     weekly: formToWeekly(week), closedMessage: message.trim(),
                     closedDates: holidays.map((h) => ({ from: h.from, to: h.to, ...(h.message.trim() ? { message: h.message.trim() } : {}) })),
@@ -82,6 +83,7 @@ export default function OwnerHoursScreen() {
             });
             useHomeStore.getState().load && useHomeStore.getState().load({ quiet: true });
             showToast(tr('Opening hours saved'));
+            await offerCancelClosed(saved?.closedBookings);   // a holiday or day off that hits reservations: cancel and refund them, or keep them
             nav.goBack();
         } catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); } finally { setSaving(false); }
     };

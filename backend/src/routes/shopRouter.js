@@ -683,8 +683,11 @@ router.put('/settings', wrap(async (req, res) => {
 
     tenantRecognizer.invalidateTenant(req.tenant.slug);
     if (menuSwitched || updates['settings.hours'] || updates['delivery.latitude'] !== undefined) { try { require('../services/realtime').toShop(req.tenant._id, 'menu:changed', {}); } catch (e) { /* the apps also refresh on their own */ } }   // customers see it at once
+    // the hours changed (a holiday, a day off): how many reservations now fall on a closed time (the app asks whether to cancel and refund them)
+    let closedBookings = 0;
+    if (body.hours !== undefined) { try { closedBookings = (await require('../services/bookingClosures').closed(req.tenant._id)).length; } catch (e) { /* the screen simply shows no warning */ } }
     res.json({
-        ok: true, phone: t.phone, address: t.address, delivery: t.delivery,
+        ok: true, closedBookings, phone: t.phone, address: t.address, delivery: t.delivery,
         hours: t.settings?.hours || null, riders: t.settings?.riders || null, notifications: t.settings?.notifications || null,
         codCap: t.settings?.orders?.codCap || null, orders: t.settings?.orders || null,
     });

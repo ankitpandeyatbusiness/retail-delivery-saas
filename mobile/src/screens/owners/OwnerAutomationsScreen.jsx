@@ -81,7 +81,7 @@ export default function OwnerAutomationsScreen() {
         const yes = await ask({ title: tr('Do everything by hand?'), message: tr('The automatic things on this screen go off. Nothing is done for you, and you will not get automatic reminders. Picking a rider stays as it is.'), confirmText: tr('Everything by hand') });
         if (!yes) return;
         try {
-            setA(await autoApi.save({ reservationAutoAllowMin: 0, reservationNoShowMin: 0, depositAutoAdjust: false, pickupNotCollectedMin: 0, cancelRequestDeclineMin: 0, inquiryCloseDays: 0, stageAlerts: false, cashLimitReminders: false, leaveReminders: false, kitchenProblemReminders: false, complaintReminders: false, autoApproveLeave: false }));
+            setA(await autoApi.save({ reservationAutoAllowMin: 0, reservationNoShowMin: 0, depositAutoAdjust: false, pickupNotCollectedMin: 0, cancelRequestDeclineMin: 0, inquiryCloseDays: 0, stageAlerts: false, cashLimitReminders: false, leaveReminders: false, kitchenProblemReminders: false, complaintReminders: false, closedDayReminders: false, autoApproveLeave: false }));
             await saveSettings({ orders: { dineIn: { autoReady: false, autoServe: false, busyAuto: false, owedDaily: false, guestWatch: false } } });
             if (bookingOn) await bookingApi.saveSettings({ autoAllow: false });
             if (ap) await saveAutopilot({ on: Object.fromEntries(Object.keys(ap.on || {}).map((k) => [k, false])) });
@@ -141,6 +141,7 @@ export default function OwnerAutomationsScreen() {
             C('noshow', 'reservations', tr('A guest who did not come is marked no-show after'), opts([0, 15, 30, 45, 60]), a.reservationNoShowMin, (x) => saveA({ reservationNoShowMin: x }), 'reservation no show did not come deposit kept', tr('Counted from the start time. A guest who is already eating at his table is marked seated instead, so his deposit is safe.'));
             T('adjust', 'reservations', tr('Mark the deposit taken off the bill'), a.depositAutoAdjust ? tr("When the guest's table bill is closed") : tr('Off: you mark it yourself'), !!a.depositAutoAdjust, (x) => saveA({ depositAutoAdjust: x }), 'reservation deposit bill adjust');
             C('hold', 'reservations', tr('An unpaid reservation is let go after'), minList([5, 10, 15, 20, 30], bk.holdMinutes || 10), bk.holdMinutes || 10, (x) => saveBk({ holdMinutes: x }), 'reservation hold unpaid release table');
+            T('closedday', 'reservations', tr('Remind me about reservations on a closed day'), a.closedDayReminders ? tr('Once a day, until you cancel or keep them') : tr('Off'), !!a.closedDayReminders, (x) => saveA({ closedDayReminders: x }), 'reservation closed day holiday day off cancel refund reminder');
             I('resrem', 'reservations', tr('Reminders and refunds'), tr('You and the guest are reminded 30 minutes before. A guest on the waitlist is told when a table frees up. A refund that failed is tried again.'), 'reservation reminder waitlist refund retry');
         }
         // inquiries and complaints

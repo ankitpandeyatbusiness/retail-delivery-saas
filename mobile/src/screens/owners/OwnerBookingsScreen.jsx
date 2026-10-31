@@ -7,6 +7,7 @@ import { useBrand } from '../../components/common/kit';
 import { PageHeader, Card, Pill, Button, Empty } from '../../components/owners/ui';
 import DateRangeSheet, { rangeLabel } from '../../components/customers/DateRangeSheet';
 import { ListShimmer } from '../../components/owners/shimmer';
+import ClosedBookingsBanner from '../../components/owners/ClosedBookingsBanner';
 import { booking as api, apiError } from '../../api/owners/shopApi';
 import { onNotification } from '../../api/common/socket';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
@@ -88,6 +89,7 @@ export default function OwnerBookingsScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Reservations')} />
+            <ClosedBookingsBanner onDone={() => load()} />
             <View style={{ flexDirection: 'row', paddingHorizontal: 16, marginBottom: 10 }}>
                 {[['day', 'By day'], ['all', 'All bookings']].map(([k, l]) => (
                     <Pressable key={k} onPress={() => { if (mode !== k) { ease(); setData(null); setMode(k); } }} style={{ flex: 1, paddingVertical: 10, alignItems: 'center', borderBottomWidth: 3, borderBottomColor: mode === k ? primary : border }}>

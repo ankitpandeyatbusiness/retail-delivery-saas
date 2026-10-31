@@ -154,6 +154,21 @@ function slotTimes(config, date, now = Date.now()) {
     if (date > (dates[dates.length - 1] || today)) return [];
     return daySlots(config, date);
 }
+// Is this booked time on a day or at an hour the shop is now closed? The owner's closed days and slots, the shop's holidays, a weekly day off, or a time outside
+// the hours of that weekday. (A change of the booking windows or of the length of a slot is not a closure.)
+function closedFor(config, date, time) {
+    if ((config.closedDates || []).includes(date)) return true;
+    if ((config.closedSlots || []).some((s) => s.date === date && s.time === time)) return true;
+    const sh = config.shopHours;
+    if (!sh) return false;
+    if ((sh.closedDates || []).some((r) => date >= r.from && date <= r.to)) return true;
+    const shopDay = sh.weekly?.[dayKey(date)];
+    if (!Array.isArray(shopDay)) return false;   // no hours set for that day: no limit
+    if (!shopDay.length) return true;            // the shop is closed that day
+    const m = toMin(time);
+    return !shopDay.some((x) => { const o = toMin(x.open); const c = toMin(x.close); return m >= o && m + (config.slotMinutes || 60) <= (c <= o ? c + 1440 : c); });
+}
+
 // The times of one day by the shop's hours and the owner's windows, with no look at how far ahead the day is.
 function daySlots(config, date) {
     if ((config.closedDates || []).includes(date)) return [];
@@ -292,6 +307,6 @@ async function freeFinished(now = new Date()) {
 }
 
 module.exports = {
-    DEFAULTS, LIVE, guard, getConfig, cleanConfig, depositFor, bookable, biggestTable, maxPartyOf, slotTimes, bookableDates, MAX_WORKING_DAYS_AHEAD, slotsFor, tablesFor, availability,
+    DEFAULTS, LIVE, guard, getConfig, cleanConfig, depositFor, bookable, biggestTable, maxPartyOf, slotTimes, closedFor, bookableDates, MAX_WORKING_DAYS_AHEAD, slotsFor, tablesFor, availability,
     lock, unlock, relock, release, book, cancel, freeTable, freeFinished, todayYmd, addDays, startsAtOf,
 };

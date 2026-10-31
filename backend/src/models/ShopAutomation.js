@@ -15,6 +15,7 @@ const schema = new mongoose.Schema({
     leaveReminders: Boolean,            // reminders for a leave request nobody answered
     kitchenProblemReminders: Boolean,   // reminders for a kitchen problem nobody answered
     complaintReminders: Boolean,        // repeat reminders for a complaint nobody answered
+    closedDayReminders: Boolean,        // a reminder when reservations fall on a day the shop is closed
     autoApproveLeave: Boolean,          // a leave request nobody answered for 2 hours is approved
 }, { timestamps: true });
 

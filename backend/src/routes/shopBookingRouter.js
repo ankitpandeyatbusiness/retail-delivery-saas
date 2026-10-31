@@ -20,6 +20,15 @@ const tell = (event, ctx) => Promise.resolve().then(() => require('../notificati
 // dineTableCount: how many tables the shop has for dine in (the settings screen offers to fill the table list from it)
 router.get('/settings', wrap(async (req, res) => { res.json({ ...(await tb.getConfig(req.tenant._id)), dineTableCount: require('../services/tableQr').tableCount(req.tenant) || 0, featureOn: featureGate.isOn(req.tenant, 'tableBooking') }); }));
 
+// Reservations that now fall on a closed day or hour (a holiday added later...): how many, and the button that cancels and refunds them all.
+router.get('/closed', wrap(async (req, res) => {
+    const rows = await require('../services/bookingClosures').closed(req.tenant._id);
+    res.json({ count: rows.length, items: rows.slice(0, 50).map((b) => ({ id: String(b._id), name: b.name, date: b.date, time: b.time, party: b.party, table: b.table || null })) });
+}));
+router.post('/closed/cancel', wrap(async (req, res) => {
+    res.json(await require('../services/bookingClosures').cancelAll(req.tenant, req.body?.message));
+}));
+
 router.put('/settings', wrap(async (req, res) => {
     // the switch comes first: a shop without it cannot even try to turn booking on
     if (req.body?.enabled === true && req.actor?.type !== 'superadmin' && !featureGate.isOn(req.tenant, 'tableBooking')) throw httpError(403, 'Table booking is not switched on for your shop. Ask us to switch it on.');
@@ -27,7 +36,9 @@ router.put('/settings', wrap(async (req, res) => {
     const changes = tb.cleanConfig(req.body, current);
     if (changes.enabled && !(await bp.available(req.tenant._id))) throw httpError(400, 'Table booking needs online payments. Ask us to connect your Razorpay account first.');
     await TableBookingConfig.updateOne({ tenantId: req.tenant._id }, { $set: changes, $setOnInsert: { tenantId: req.tenant._id } }, { upsert: true });
-    res.json({ ...(await tb.getConfig(req.tenant._id)), dineTableCount: require('../services/tableQr').tableCount(req.tenant) || 0, featureOn: featureGate.isOn(req.tenant, 'tableBooking') });
+    // closed days or slots were added: how many reservations now fall on them (the app asks whether to cancel and refund them)
+    const closedBookings = changes.closedDates !== undefined || changes.closedSlots !== undefined ? (await require('../services/bookingClosures').closed(req.tenant._id)).length : 0;
+    res.json({ closedBookings, ...(await tb.getConfig(req.tenant._id)), dineTableCount: require('../services/tableQr').tableCount(req.tenant) || 0, featureOn: featureGate.isOn(req.tenant, 'tableBooking') });
 }));
 
 
