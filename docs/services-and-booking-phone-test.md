@@ -132,3 +132,6 @@ Radial menu
 33. An answered inquiry with no new message is ended after 7 days.
 34. Reminders (only a nudge): an order cooking over an hour or ready with no rider, a kitchen problem, a rider over the cash limit, a leave request, a complaint. Each can be switched off.
 35. Alerts screen has a new group "Automatic actions" with the four switches.
+36. Automations has a search box at the top: type refund, reminder, no-show, rider, cash, pickup... only the matching rows stay, and a section with nothing left is hidden. A word that matches nothing says "Nothing found".
+37. Every automatic thing is a row: a switch or choice, "Always on" (fixed timing, with what happens), "Set by the platform" (read only), or "Done for you". The Recommended settings button (top) puts every setting here back to the recommended values after asking; All by hand switches the automatic things off.
+38. The check-a-table, unreachable-guest and guest-cancel timings are in Automations now; the Dine in screen links to it.

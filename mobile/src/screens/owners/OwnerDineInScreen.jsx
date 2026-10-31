@@ -226,7 +226,6 @@ export default function OwnerDineInScreen() {
                         <NumberBox label={tr('Unpaid limit, new customers')} suffix="₹" integer value={v.tabLimitNew} hint={`${tr('Recommended')}: ${RECOMMENDED.tabLimitNew}. ${tr('Above this he must pay online or pay first.')}`} onChange={(x) => set('tabLimitNew', x ?? 0)} />
                         <NumberBox label={tr('Unpaid limit, regular customers')} suffix="₹" integer value={v.tabLimitTrusted} hint={`${tr('Recommended')}: ${RECOMMENDED.tabLimitTrusted}`} onChange={(x) => set('tabLimitTrusted', x ?? 0)} />
                         <NumberBox label={tr('Regular after paid visits')} integer value={v.trustedAfter} hint={`${tr('Recommended')}: ${RECOMMENDED.trustedAfter}`} onChange={(x) => set('trustedAfter', x ?? 1)} />
-                        <NumberBox label={tr('Tell me to check a table after')} suffix={tr('min')} integer value={v.checkMinutes} hint={`${tr('Recommended')}: ${RECOMMENDED.checkMinutes}. ${tr('Served, nobody asked for the bill.')}`} onChange={(x) => set('checkMinutes', x ?? 20)} last />
                     </View>
                 ) : null}
             </Group>
@@ -244,13 +243,7 @@ export default function OwnerDineInScreen() {
                     {v.sharedTables ? <NumberBox label={tr('Most bills at one table')} integer value={v.maxParties} hint={`${tr('Recommended')}: ${RECOMMENDED.maxParties}. ${tr('Between 2 and 8.')}`} onChange={(x) => set('maxParties', x)} last /> : null}
                 </Group>
             ) : null}
-            {v.enabled ? (
-                <Group title={tr('Keep an eye on guests')} hint={tr('A quiet note in your notifications, and a small eye on the table, when a guest who has not paid cannot be reached. No sound, no alarm.')}>
-                    <ToggleRow title={tr('Tell me when a guest who owes cannot be reached')} subtitle={v.guestWatch !== false ? tr('Their phone has not been heard from for a while, or their location is switched off.') : tr('Off: nothing is watched.')} value={v.guestWatch !== false} onValueChange={(x) => set('guestWatch', x)} />
-                    {v.guestWatch !== false ? <NumberBox label={tr('Not reachable after')} suffix={tr('min')} integer value={v.unreachableMin} hint={`${tr('Recommended')}: ${RECOMMENDED.unreachableMin}. ${tr('Between 3 and 60.')}`} onChange={(x) => set('unreachableMin', x)} last /> : null}
-                </Group>
-            ) : null}
-            {v.enabled ? (
+                        {v.enabled ? (
                 <Group title={tr('Waiters')} hint={tr('If you have waiters with their own screen (Shop > Kitchen and waiter staff).')}>
                     <TextBox label={tr('Shop UPI ID (for the QR a waiter shows at the table)')} value={v.upiId || ''} onChangeText={(x) => set('upiId', x.trim())} maxLength={64} placeholder="yourshop@bank" autoCapitalize="none" hint={tr('Guests pay at the table by scanning it. The money goes straight to this UPI ID.')} />
                     <ToggleRow title={tr('Waiters can take the money for a bill')} subtitle={v.waiterSettles !== false ? tr('A waiter marks the bill paid by cash or UPI. You see who did it.') : tr('Only you can mark a bill paid. Waiters can still see the bill.')} value={v.waiterSettles !== false} onValueChange={(x) => set('waiterSettles', x)} last />
@@ -259,7 +252,6 @@ export default function OwnerDineInScreen() {
             {v.enabled ? (
                 <Group title={tr('Waiting time')} hint={tr('Customers see "Usually ready in about N min" before they order. When many tables are taken, Busy mode adds time on top.')}>
                     <NumberBox label={tr('Usual waiting time')} suffix={tr('min')} integer value={v.waitMin} hint={`${tr('Recommended')}: ${RECOMMENDED.waitMin}. ${tr('0 means do not show a waiting time.')}`} onChange={(x) => set('waitMin', x ?? 0)} />
-                    <NumberBox label={tr('Guest can cancel a round himself for')} suffix={tr('min')} integer value={v.cancelGraceMin} hint={`${tr('Recommended')}: ${RECOMMENDED.cancelGraceMin}. ${tr('For an order made by mistake. After that he can only ask you. 0 means he can only ask.')}`} onChange={(x) => set('cancelGraceMin', x ?? 0)} last />
                 </Group>
             ) : null}
             {v.enabled ? (
