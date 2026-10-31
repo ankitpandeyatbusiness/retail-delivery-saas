@@ -146,7 +146,7 @@ function validateSettings(input) {
 
     // orders
     section('orders',
-        ['types', 'payments', 'minOrder', 'deliveryFee', 'packagingCharge', 'gst', 'tipOptions', 'prepTimeMin', 'kitchenQueueSec', 'kitchenOfferMode', 'kitchenOfferPercent', 'acceptingOrders', 'pausedUntil', 'busy', 'codCap', 'pickupCod', 'pickupRules', 'mixRules', 'limits', 'staff', 'dineIn', 'autoAccept'],   // autoAccept is the owner's own (services/autoAccept.js): known here so a panel save does not fail on it, never taken from the panel
+        ['types', 'payments', 'minOrder', 'deliveryFee', 'packagingCharge', 'gst', 'tipOptions', 'prepTimeMin', 'kitchenQueueSec', 'kitchenOfferMode', 'kitchenOfferPercent', 'acceptingOrders', 'pausedUntil', 'busy', 'codCap', 'pickupCod', 'pickupRules', 'mixRules', 'limits', 'staff', 'dineIn', 'autoAccept', 'hoursOverride'],   // hoursOverride (the owner opened the shop against its hours, until the hours change next) and autoAccept is the owner's own (services/autoAccept.js): known here so a panel save does not fail on it, never taken from the panel
         (o, out, p) => {
             if (o.types !== undefined) { const v = listOf(p('types'), o.types, O.ORDER_TYPES, 1, 3); if (v) out.types = v; }
             if (o.payments !== undefined) { const v = listOf(p('payments'), o.payments, O.PAYMENT_METHODS, 1, 4); if (v) out.payments = v; }
@@ -552,8 +552,11 @@ function holidayOn(closedDates, now) {
     return { message: hit.message || null, reopensOn: addDay(last) };
 }
 
-function openStatus(weekly, acceptingOrders, now = new Date(), closedDates = null) {
+// override: { from, until } (dates) when the owner opened a shop that the hours say is closed (see forceOpenUntil). It holds only between those two
+// moments, so after the next change of the hours they rule again.
+function openStatus(weekly, acceptingOrders, now = new Date(), closedDates = null, override = null) {
     if (acceptingOrders === false) return { isOpen: false, reason: 'paused' };
+    if (override?.until && now.getTime() >= new Date(override.from).getTime() && now.getTime() < new Date(override.until).getTime()) return { isOpen: true, reason: null, forced: true };
     const holiday = holidayOn(closedDates, now);
     if (holiday) return { isOpen: false, reason: 'holiday', message: holiday.message, reopensOn: holiday.reopensOn };
     if (!weekly || !Object.keys(weekly).length) return { isOpen: true, reason: null };
@@ -571,6 +574,21 @@ function openStatus(weekly, acceptingOrders, now = new Date(), closedDates = nul
         return c <= o && mins < c;                                  // yesterday's late-night slot still running
     });
     return today || spill ? { isOpen: true, reason: null } : { isOpen: false, reason: 'outside_hours' };
+}
+
+// The next moment the shop's HOURS change from open to closed or the other way (looked at every minute, up to 9 days ahead). Null when they never change.
+function nextHoursChange(weekly, closedDates, from = new Date()) {
+    const now = new Date(from);
+    const base = openStatus(weekly, true, now, closedDates).isOpen;
+    for (let i = 1; i <= 9 * 1440; i += 1) {
+        const at = new Date(now.getTime() + i * 60000);
+        if (openStatus(weekly, true, at, closedDates).isOpen !== base) return at;
+    }
+    return null;
+}
+// The owner opens a shop that the hours say is closed: it stays open until the hours change next, then the hours rule again.
+function forceOpenUntil(weekly, closedDates, from = new Date()) {
+    return nextHoursChange(weekly, closedDates, from) || new Date(from.getTime() + 9 * 86400000);
 }
 
 /* ------------------------------ RESOLVER ------------------------------ */
@@ -663,7 +681,12 @@ function resolveConfig(tenant, now = new Date()) {
     const labels = merge(DEFAULTS.labels, clean.labels);
     const weekly = clean.hours?.weekly || null;
     const closedDates = clean.hours?.closedDates || [];
-    const status = openStatus(weekly, orders.acceptingOrders, now, closedDates);
+    // an opening by hand holds until the hours change next; the config shows it only while it is in force
+    const ho = tenant.settings?.orders?.hoursOverride;
+    const override = ho?.until && new Date(ho.until).getTime() > now.getTime() && new Date(ho.from).getTime() <= now.getTime() ? { from: new Date(ho.from).toISOString(), until: new Date(ho.until).toISOString() } : null;
+    if (override) orders.hoursOverride = override; else delete orders.hoursOverride;
+    const hoursOnly = openStatus(weekly, true, now, closedDates);   // what the hours alone say (not the pause, not the opening by hand)
+    const status = openStatus(weekly, orders.acceptingOrders, now, closedDates, override);
 
     return {
         brand,
@@ -691,6 +714,8 @@ function resolveConfig(tenant, now = new Date()) {
             longitude: Number.isFinite(tenant.delivery?.longitude) ? tenant.delivery.longitude : null,
             phone: tenant.phone || null,
             isOpen: status.isOpen,
+            hoursOpen: hoursOnly.isOpen,                       // the hours alone: the owner's switch asks before it goes against them
+            forcedOpenUntil: status.forced ? override.until : null,   // opened by hand while the hours say closed: until when
             closedReason: status.reason,
             closedMessage: status.message || clean.hours?.closedMessage || labels.closedMessage,   // what to show when closed
             reopensOn: status.reopensOn || null,
@@ -702,4 +727,4 @@ function resolveConfig(tenant, now = new Date()) {
     };
 }
 
-module.exports = { validateSettings, resolveConfig, openStatus, DEFAULTS, MIN_SHOP_RATINGS };
+module.exports = { validateSettings, resolveConfig, openStatus, nextHoursChange, forceOpenUntil, DEFAULTS, MIN_SHOP_RATINGS };

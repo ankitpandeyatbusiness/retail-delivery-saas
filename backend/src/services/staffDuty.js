@@ -53,7 +53,7 @@ function shopClosed(tenant, now = new Date()) {
     try {
         const { resolveConfig, openStatus } = require('./tenantConfigService');
         const cfg = resolveConfig(tenant);
-        if (!openStatus(cfg.hours.weekly, cfg.orders.acceptingOrders, now, cfg.hours.closedDates).isOpen) return true;
+        if (!openStatus(cfg.hours.weekly, cfg.orders.acceptingOrders, now, cfg.hours.closedDates, cfg.orders.hoursOverride).isOpen) return true;
         return !require('../utils/shopState').shopState(tenant).acceptingOrders;
     } catch (e) { return false; }   // never lock a crew out because of a bug: an unreadable shop counts as open
 }

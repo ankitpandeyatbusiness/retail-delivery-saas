@@ -89,7 +89,7 @@ function checkPlacement({ tenant, config, body, priced, address, user, cod, onli
         if (Number.isNaN(when.getTime())) return { status: 400, message: 'Invalid time' };
         if (when.getTime() < Date.now() + (o.prepTimeMin || 0) * 60000) return { status: 400, message: 'Please pick a later time' };
         if (when.getTime() > Date.now() + MAX_SCHEDULE_DAYS * 86400000) return { status: 400, message: `You can schedule up to ${MAX_SCHEDULE_DAYS} days ahead` };
-        const st = openStatus(config.hours.weekly, o.acceptingOrders, when, config.hours.closedDates);
+        const st = openStatus(config.hours.weekly, o.acceptingOrders, when, config.hours.closedDates, o.hoursOverride);
         if (!st.isOpen) return { status: 409, message: st.reason === 'paused' ? 'The shop is not accepting orders right now' : (st.message || 'The shop is closed at that time') };
     } else if (!config.restaurant.isOpen) {
         return {

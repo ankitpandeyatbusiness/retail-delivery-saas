@@ -28,7 +28,7 @@ async function runRiderDuty(now = new Date()) {
         if (!shop) continue;
         const cfg = resolveConfig(shop);
         const closedAt = (at) => {
-            const s = openStatus(cfg.hours.weekly, cfg.orders.acceptingOrders, at, cfg.hours.closedDates);
+            const s = openStatus(cfg.hours.weekly, cfg.orders.acceptingOrders, at, cfg.hours.closedDates, cfg.orders.hoursOverride);
             return !s.isOpen && s.reason !== 'paused';
         };
         let why = null;

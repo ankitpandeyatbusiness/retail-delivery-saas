@@ -309,6 +309,7 @@ router.use(ownerChain(requireShopAdmin));
 //   { acceptingOrders: false }                       pause until he starts again
 //   { acceptingOrders: false, pauseMinutes: 30 }     pause for 30 minutes (1 to 1440): the shop reopens BY ITSELF
 //   { acceptingOrders: false, untilMorning: true }   pause until 4 AM (India time): tomorrow's 4 AM, or today's if it is earlier
+//   { acceptingOrders: true, forceOpen: true }       open now although the hours say closed: it holds until the hours change next, then the hours rule again
 router.put('/accepting-orders', wrap(async (req, res) => {
     const b = req.body || {};
     if (typeof b.acceptingOrders !== 'boolean') throw httpError(400, 'Send acceptingOrders: true or false');
@@ -322,11 +323,21 @@ router.put('/accepting-orders', wrap(async (req, res) => {
         pausedUntil = nextMorning();
     }
 
-    req.auditBefore = { acceptingOrders: req.tenant.settings?.orders?.acceptingOrders, pausedUntil: req.tenant.settings?.orders?.pausedUntil || null };
-    const update = pausedUntil
+    req.auditBefore = { acceptingOrders: req.tenant.settings?.orders?.acceptingOrders, pausedUntil: req.tenant.settings?.orders?.pausedUntil || null, hoursOverride: req.tenant.settings?.orders?.hoursOverride || null };
+    let forcedUntil = null;
+    let update = pausedUntil
         // a timed pause leaves the on/off switch ON: when the time is over the shop simply reopens, nothing has to run
-        ? { $set: { 'settings.orders.acceptingOrders': true, 'settings.orders.pausedUntil': pausedUntil } }
-        : { $set: { 'settings.orders.acceptingOrders': b.acceptingOrders }, $unset: { 'settings.orders.pausedUntil': '' } };
+        ? { $set: { 'settings.orders.acceptingOrders': true, 'settings.orders.pausedUntil': pausedUntil }, $unset: { 'settings.orders.hoursOverride': '' } }
+        : { $set: { 'settings.orders.acceptingOrders': b.acceptingOrders }, $unset: { 'settings.orders.pausedUntil': '', 'settings.orders.hoursOverride': '' } };
+    if (b.acceptingOrders && b.forceOpen === true) {
+        // the owner opens the shop against its hours (the app asked him first): it stays open until the hours change next
+        const cfg = resolveConfig(req.tenant);
+        const tcs = require('../services/tenantConfigService');
+        if (!tcs.openStatus(cfg.hours.weekly, true, new Date(), cfg.hours.closedDates).isOpen) {
+            forcedUntil = tcs.forceOpenUntil(cfg.hours.weekly, cfg.hours.closedDates);
+            update = { $set: { 'settings.orders.acceptingOrders': true, 'settings.orders.hoursOverride': { from: new Date(), until: forcedUntil } }, $unset: { 'settings.orders.pausedUntil': '' } };
+        }
+    }
     await Tenant.updateOne({ _id: req.tenant._id }, update);
     tenantRecognizer.invalidateTenant(req.tenant.slug);
     try {
@@ -335,7 +346,7 @@ router.put('/accepting-orders', wrap(async (req, res) => {
         rt.toKitchen(req.tenant._id, 'kitchen:update', { shop: true });   // cooks and waiters too: their screen goes grey / comes back at once, not at the next refresh
         rt.toWaiter(req.tenant._id, 'waiter:update', { shop: true });
     } catch (e) { /* the apps also refresh on their own */ }
-    res.json({ ok: true, acceptingOrders: b.acceptingOrders, pausedUntil });
+    res.json({ ok: true, acceptingOrders: b.acceptingOrders, pausedUntil, forcedOpenUntil: forcedUntil });
 }));
 
 

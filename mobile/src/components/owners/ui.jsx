@@ -16,6 +16,7 @@ import { useDrawer } from '../../store/owners/useDrawer';
 import { useAlertStore } from '../../store/owners/useAlertStore';
 import { setAcceptingOrders, apiError } from '../../api/owners/shopApi';
 import { clockTime } from '../../utils/owners/orderFlow';
+import { ask } from '../common/dialog';
 import { showToast } from '../customers/shop';
 import { LineShimmer } from './shimmer';
 import { tr } from '../../i18n';
@@ -260,12 +261,16 @@ function OwnerHeaderBase({ title }) {
 
     const timedPause = !!pausedUntil && new Date(pausedUntil).getTime() > Date.now();
     const open = restaurant?.isOpen !== false && accepting !== false;
+    const forcedUntil = restaurant?.forcedOpenUntil || null;   // opened by hand while the hours say closed: until when
     const label = timedPause ? `Paused until ${clockTime(pausedUntil)}`
         : accepting === false ? 'Orders paused'
-            : restaurant?.isOpen === false ? 'Closed now' : 'Open';
+            : forcedUntil ? `Open by hand until ${clockTime(forcedUntil)}`
+                : restaurant?.isOpen === false ? 'Closed now' : 'Open';
     const canToggle = access === 'ok';
     // closed by the opening hours or a holiday (not paused by hand): the switch goes OFF by itself, and slides back to LIVE when the shop opens
-    const hoursClosed = restaurant?.isOpen === false && accepting !== false;
+    const hoursKnown = restaurant?.hoursOpen !== undefined;   // a server that tells what the hours alone say
+    const hoursClosed = hoursKnown ? restaurant.hoursOpen === false && !forcedUntil : restaurant?.isOpen === false && accepting !== false;
+    const hoursOpenNow = hoursKnown ? restaurant.hoursOpen === true : restaurant?.isOpen !== false;
     const storeOn = accepting !== false && !hoursClosed;
     useEffect(() => { setPending(null); }, [storeOn]);   // the server's answer has arrived
     const isOn = pending ?? storeOn;
@@ -280,12 +285,22 @@ function OwnerHeaderBase({ title }) {
     // ON -> ask for how long (30 min ... until I start again). OFF -> go live at once.
     const flip = async () => {
         if (!canToggle) { showToast(access === 'blocked' ? tr('Your shop panel is paused by the platform') : tr('Locked while the monthly bill is unpaid')); return; }
-        if (hoursClosed) { showToast(tr('The shop is closed by its opening hours. It goes live by itself when it opens.')); return; }
-        if (isOn) { setPauseOpen(true); return; }
+        // against the hours: closed by the hours and he opens it, or open by the hours and he stops it. A warning first; he changes it or cancels.
+        if (hoursClosed) {
+            const yes = await ask({ title: tr('The shop is closed by its hours'), message: tr('Your opening hours say the shop is closed now. Open it anyway? It stays open until the hours change next, then your hours rule again.'), confirmText: tr('Open anyway'), cancelText: tr('Cancel'), icon: 'time-outline' });
+            if (!yes) return;
+        } else if (isOn) {
+            if (hoursOpenNow) {
+                const yes = await ask({ title: tr('The shop is open by its hours'), message: tr('Your opening hours say the shop is open now. Stop taking orders anyway? You choose for how long next.'), confirmText: tr('Stop orders'), cancelText: tr('Cancel'), destructive: true, icon: 'time-outline' });
+                if (!yes) return;
+            }
+            setPauseOpen(true);
+            return;
+        }
         setPending(true);
         setSwitching(true);
         try {
-            await setAcceptingOrders(true);
+            await setAcceptingOrders(true, hoursClosed ? { forceOpen: true } : {});
             await useHomeStore.getState().load();
             useOwnerStore.getState().refresh();
             showToast(tr('You are live. Customers can order.'));

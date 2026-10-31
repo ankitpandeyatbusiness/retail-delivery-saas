@@ -245,7 +245,7 @@ async function tick(now = new Date()) {
                 const shop = shopOf.get(String(r.tenantId));
                 if (shop) {
                     const cfg = resolveConfig(shop);
-                    if (!openStatus(cfg.hours.weekly, cfg.orders.acceptingOrders, now, cfg.hours.closedDates).isOpen) continue;   // wait until the shop opens
+                    if (!openStatus(cfg.hours.weekly, cfg.orders.acceptingOrders, now, cfg.hours.closedDates, cfg.orders.hoursOverride).isOpen) continue;   // wait until the shop opens
                 }
                 const res = await Rider.updateOne({ _id: r._id, isOnline: false, isActive: true }, { $set: { isOnline: true, onlineSince: now, 'duty.lastAutoOn': now, 'duty.autoSession': true } });
                 if (res.modifiedCount) {

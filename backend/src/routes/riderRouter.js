@@ -133,7 +133,7 @@ core.get('/me', wrap(async (req, res) => {
     const r = await Rider.findOne({ tenantId: req.tenant._id, userId: req.riderId }).lean();
     if (!r) throw httpError(404, 'Rider not found');
     const cfg = require('../services/tenantConfigService').resolveConfig(req.tenant);
-    const st = require('../services/tenantConfigService').openStatus(cfg.hours.weekly, cfg.orders.acceptingOrders, new Date(), cfg.hours.closedDates);
+    const st = require('../services/tenantConfigService').openStatus(cfg.hours.weekly, cfg.orders.acceptingOrders, new Date(), cfg.hours.closedDates, cfg.orders.hoursOverride);
     res.json({
         shopClosed: !st.isOpen && st.reason !== 'paused',   // closed by its hours or a holiday (a pause by hand does not count)
         userId: r.userId, name: r.name || null, phone: req.riderPhone, shop: req.tenant.name, shopPhone: req.tenant.phone || null, pointsOn: req.tenant.settings?.loyalty?.rider?.enabled !== false,
