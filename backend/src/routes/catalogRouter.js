@@ -55,12 +55,13 @@ catalogRouter.get('/categories', async (req, res) => {
     try {
         const rows = await Category.find({ tenantId: req.tenant._id, isActive: true })
             .sort({ sortOrder: 1, _id: 1 })
-            .select('name image sortOrder timings')
+            .select('name image imageSource sortOrder timings')
             .lean();
         const open = rows.filter((c) => isOpenNow(c.timings));
 
-        // a category with no picture of its own shows the first picture uploaded to one of its dishes
-        const bare = open.filter((c) => !c.image).map((c) => c._id);
+        // the picture of a category follows the owner's choice (services/categoryImage.js): its own, a dish's (the first dish with a picture, then the next), or the letter
+        const pic = require('../services/categoryImage');
+        const bare = open.filter(pic.needsDish).map((c) => c._id);
         if (bare.length) {
             const firsts = await Product.aggregate([
                 { $match: { tenantId: req.tenant._id, isActive: true, categoryId: { $in: bare }, image: { $type: 'string', $ne: '' } } },
@@ -68,8 +69,9 @@ catalogRouter.get('/categories', async (req, res) => {
                 { $group: { _id: '$categoryId', image: { $first: '$image' } } },
             ]);
             const byCat = new Map(firsts.map((x) => [String(x._id), x.image]));
-            open.forEach((c) => { if (!c.image && byCat.has(String(c._id))) c.image = byCat.get(String(c._id)); });
+            open.forEach((c) => { if (pic.needsDish(c)) c.image = pic.effective(c, byCat.get(String(c._id))) || undefined; });
         }
+        open.forEach((c) => { if (!pic.needsDish(c)) c.image = pic.effective(c, null) || undefined; });
         res.json({ items: open });
     } catch (e) { fail(res, e); }
 });
@@ -133,7 +135,7 @@ catalogRouter.get('/menu', async (req, res) => {
         const [cats, products] = await Promise.all([
             Category.find({ tenantId: req.tenant._id, isActive: true })
                 .sort({ sortOrder: 1, _id: 1 })
-                .select('name image sortOrder')
+                .select('name image imageSource sortOrder')
                 .lean(),
             Product.find(filter).sort(sort).limit(MENU_LIMIT + 1).select(PRODUCT_SELECT).lean(),
         ]);
@@ -144,11 +146,11 @@ catalogRouter.get('/menu', async (req, res) => {
 
         const byCategory = new Map(cats.map((c) => [String(c._id), { ...c, items: [] }]));
         products.forEach((p) => byCategory.get(String(p.categoryId))?.items.push(p));
-        // no picture of its own: the picture of the dish uploaded first to this category
+        // the picture of a category follows the owner's choice: its own, a dish's (the earliest dish with a picture, then the next), or the letter
+        const pic = require('../services/categoryImage');
         byCategory.forEach((c) => {
-            if (c.image) return;
             const first = c.items.filter((p) => p.image).sort((a, b) => String(a._id).localeCompare(String(b._id)))[0];
-            if (first) c.image = first.image;
+            c.image = pic.effective(c, first?.image) || undefined;
         });
         const categories = [...byCategory.values()].filter((c) => c.items.length);
 

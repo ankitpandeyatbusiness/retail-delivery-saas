@@ -556,17 +556,29 @@ export function CartBar() {
     useEffect(() => { useDock.getState().put('cart', presentCart ? { icon: 'bag-handle', label: 'Cart', sub: tr('{count} item{v2}', { count, v2: count > 1 ? 's' : '' }), route: 'Cart' } : null); }, [presentCart, count]);
     useEffect(() => () => useDock.getState().put('cart', null), []);
     const crowded = useCrowded('cart');   // two or more cards: the round dock shows the cart
-    if (!count || dining || crowded) return null;
+    // the first dish added: the bar rises in; the last one removed: it sinks away (it stays drawn while it goes, with the numbers it had)
+    const want = count > 0 && !dining;
+    const appear = useRef(new Animated.Value(0)).current;
+    const [kept, setKept] = useState(false);
+    const last = useRef({ count, total });
+    if (count > 0) last.current = { count, total };
+    useEffect(() => {
+        if (want) { setKept(true); Animated.timing(appear, { toValue: 1, duration: 340, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start(); }
+        else Animated.timing(appear, { toValue: 0, duration: 240, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(({ finished }) => { if (finished) setKept(false); });
+    }, [want, appear]);
+    if (!(want || kept) || crowded) return null;
+    const shownCount = count || last.current.count;
+    const shownTotal = count ? total : last.current.total;
     const r = Math.max(radius, 14);
     return (
-        <>
+        <Animated.View pointerEvents="box-none" style={[StyleSheet.absoluteFill, { opacity: appear, transform: [{ translateY: appear.interpolate({ inputRange: [0, 1], outputRange: [56, 0] }) }] }]}>
             <Animated.View pointerEvents={hidden ? 'none' : 'box-none'} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, opacity: away.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }), transform: [{ translateX: away.interpolate({ inputRange: [0, 1], outputRange: [0, 120] }) }] }}>
                 <Pressable onPress={() => nav.navigate('Cart')} onLayout={(e) => { const h = Math.round(e.nativeEvent.layout.height); if (h > 0 && h !== barH) setBarH(h); }} style={[s.bar, { borderRadius: r }]}>
                     <LinearGradient colors={[primaryLight, primaryDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[s.barIn, { borderRadius: r }]}>
                         <View style={s.barIcon}><Ionicons name="bag-handle" size={18} color={onPrimary} /></View>
                         <View style={{ flex: 1, marginLeft: 10 }}>
-                            <Text style={[s.barText, { color: onPrimary }]}>{tr('{count} item{v2}', { count: count, v2: count > 1 ? 's' : '' })}</Text>
-                            <Text style={[s.barSub, { color: onPrimary }]}>₹{+total.toFixed(2)}</Text>
+                            <Text style={[s.barText, { color: onPrimary }]}>{tr('{count} item{v2}', { count: shownCount, v2: shownCount > 1 ? 's' : '' })}</Text>
+                            <Text style={[s.barSub, { color: onPrimary }]}>₹{+shownTotal.toFixed(2)}</Text>
                         </View>
                         <Text style={[s.barText, { color: onPrimary }]}>{tr('View cart')}</Text>
                         <Ionicons name="chevron-forward" size={18} color={onPrimary} />
@@ -582,11 +594,11 @@ export function CartBar() {
                     style={{ width: barH, height: barH, borderRadius: barH / 2, backgroundColor: primary, alignItems: 'center', justifyContent: 'center', elevation: 8, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } }}>
                     <Ionicons name="bag-handle" size={Math.round(barH * 0.42)} color={onPrimary} />
                     <View style={{ position: 'absolute', top: -2, right: -2, minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: primary }}>
-                        <Text style={{ color: primary, fontWeight: '900', fontSize: 11 }}>{count}</Text>
+                        <Text style={{ color: primary, fontWeight: '900', fontSize: 11 }}>{shownCount}</Text>
                     </View>
                 </Pressable>
             </Animated.View>
-        </>
+        </Animated.View>
     );
 }
 

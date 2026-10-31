@@ -148,11 +148,12 @@ reorder('/collections', Collection);
 reorder('/banners', Banner);
 
 router.use('/categories', crud(Category, {
-    fields: ['name', 'image', 'sortOrder', 'isActive', 'timings'],
+    fields: ['name', 'image', 'imageSource', 'sortOrder', 'isActive', 'timings'],
     sort: { sortOrder: 1, _id: 1 },
     searchField: 'name',
     softDelete: true,
     check: (d) => {
+        if (d.imageSource !== undefined && !require('../services/categoryImage').SOURCES.includes(d.imageSource)) throw httpError(400, 'Choose automatic, my own picture or a dish picture');
         if (d.timings !== undefined) {
             const problem = timingsError(d.timings);
             if (problem) throw httpError(400, problem);

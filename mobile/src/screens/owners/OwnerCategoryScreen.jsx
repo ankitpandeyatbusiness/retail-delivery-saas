@@ -6,7 +6,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
 import { Button, Empty } from '../../components/owners/ui';
-import { FormPage, Group, TextBox, ToggleRow, Hint, Label, ImageField, TimingEditor } from '../../components/owners/menuBits';
+import { FormPage, Group, TextBox, ToggleRow, ChoiceBox, Hint, Label, ImageField, TimingEditor } from '../../components/owners/menuBits';
 import { categories as categoriesApi, apiError } from '../../api/owners/shopApi';
 import { useMenuStore } from '../../store/owners/useMenuStore';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
@@ -15,8 +15,8 @@ import { showToast } from '../../components/customers/shop';
 import { FormShimmer } from '../../components/owners/shimmer';
 import { tr } from '../../i18n';
 
-const BLANK = { name: '', image: '', isActive: true, timings: [] };
-const fromRecord = (r) => ({ name: r.name || '', image: r.image || '', isActive: r.isActive !== false, timings: (r.timings || []).map((s) => ({ days: s.days || [], open: s.open, close: s.close })) });
+const BLANK = { name: '', image: '', imageSource: 'auto', isActive: true, timings: [] };
+const fromRecord = (r) => ({ name: r.name || '', image: r.image || '', imageSource: r.imageSource || 'auto', isActive: r.isActive !== false, timings: (r.timings || []).map((s) => ({ days: s.days || [], open: s.open, close: s.close })) });
 
 // "Or pick a picture from this category's dishes"
 function DishPictures({ pics, value, onPick }) {
@@ -73,7 +73,7 @@ export default function OwnerCategoryScreen() {
         if (Object.keys(e).length) { setErrors(e); showToast(Object.values(e)[0]); return; }
         setSaving(true);
         const body = {
-            name: v.name.trim(), image: v.image || '', isActive: v.isActive,
+            name: v.name.trim(), image: v.image || '', imageSource: v.imageSource || 'auto', isActive: v.isActive,
             timings: v.timings.map((s) => ({ open: s.open, close: s.close, ...(s.days?.length ? { days: s.days } : {}) })),
         };
         try {
@@ -90,7 +90,8 @@ export default function OwnerCategoryScreen() {
                 <TextBox label={tr('Name')} value={v.name} onChangeText={(x) => set('name', x)} error={errors.name} placeholder={tr('e.g. Starters')} maxLength={60} />
                 <ImageField label={tr('Picture (optional)')} value={v.image} onChange={(x) => set('image', x)} kind="category" last />
                 {id ? <DishPictures pics={pics} value={v.image} onPick={(x) => set('image', x)} /> : null}
-                <Hint>{tr('No picture: customers see the picture of the first item in this category.')}</Hint>
+                <ChoiceBox label={tr('Picture customers see')} options={[['auto', tr('Automatic')], ['own', tr('My own picture')], ['dish', tr('A dish picture')]]} value={v.imageSource || 'auto'} onChange={(x) => set('imageSource', x)} last />
+                <Hint>{v.imageSource === 'own' ? tr('Only your own picture. With none, customers see the big first letter of the name.') : v.imageSource === 'dish' ? tr('A picture of one of the items: the first item with a picture, and the next one if that item has none. With none at all, the big first letter.') : tr('Your own picture; with none, a picture of one of the items, and with none at all, the big first letter.')}</Hint>
             </Group>
             <Group title={tr('Show it')}>
                 <ToggleRow title={tr('Visible to customers')} subtitle={tr('Switch off to hide the whole category')} value={v.isActive} onValueChange={(x) => set('isActive', x)} last />
