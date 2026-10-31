@@ -156,24 +156,45 @@ export function ToastHost() {
     const insets = useSafeAreaInsets();
     const [msg, setMsg] = useState(null);
     const opacity = useRef(new Animated.Value(0)).current;
+    const drag = useRef(new Animated.Value(0)).current;   // how far a finger has pulled it to the right
     const timer = useRef(null);
+    // the hiding clock stops while a finger is on the message (he is reading it) and starts again, in full, when the finger lets go
+    const startClock = () => {
+        clearTimeout(timer.current);
+        timer.current = setTimeout(() => {
+            Animated.timing(opacity, { toValue: 0, duration: 250, useNativeDriver: true }).start(({ finished }) => { if (finished) setMsg(null); });
+        }, 2400);
+    };
 
     useEffect(() => {
         show = (message, tone) => {
             setMsg({ message, tone });
-            clearTimeout(timer.current);
+            drag.setValue(0);
             Animated.timing(opacity, { toValue: 1, duration: 150, useNativeDriver: true }).start();
-            timer.current = setTimeout(() => {
-                Animated.timing(opacity, { toValue: 0, duration: 250, useNativeDriver: true }).start(() => setMsg(null));
-            }, 2400);
+            startClock();
         };
         return () => { show = null; clearTimeout(timer.current); };
-    }, [opacity]);
+    }, [opacity]);   // eslint-disable-line react-hooks/exhaustive-deps
+    // hold = keep it; let go = the normal clock again; swipe it to the right = slide it away at once
+    const pan = useRef(PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderTerminationRequest: () => false,
+        onPanResponderGrant: () => { clearTimeout(timer.current); opacity.stopAnimation(); opacity.setValue(1); },
+        onPanResponderMove: (_, g) => drag.setValue(Math.max(0, g.dx)),
+        onPanResponderRelease: (_, g) => {
+            if (g.dx > 60 || g.vx > 0.6) {
+                clearTimeout(timer.current);
+                Animated.timing(drag, { toValue: 520, duration: 200, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(() => { setMsg(null); drag.setValue(0); });
+            } else { Animated.spring(drag, { toValue: 0, useNativeDriver: true, bounciness: 6 }).start(); startClock(); }
+        },
+        onPanResponderTerminate: () => { Animated.spring(drag, { toValue: 0, useNativeDriver: true }).start(); startClock(); },
+    })).current;
 
     if (!msg) return null;
     const bad = msg.tone === 'error';
     return (
-        <Animated.View pointerEvents="none" style={[s.toast, { opacity, bottom: insets.bottom + 90, backgroundColor: bad ? t.danger : t.text }]}>
+        <Animated.View {...pan.panHandlers} style={[s.toast, { opacity: Animated.multiply(opacity, drag.interpolate({ inputRange: [0, 300], outputRange: [1, 0], extrapolate: 'clamp' })), transform: [{ translateX: drag }], bottom: insets.bottom + 90, backgroundColor: bad ? t.danger : t.text }]}>
             <Text style={{ color: bad ? '#FFFFFF' : t.bg, fontWeight: '600' }}>{msg.message}</Text>
         </Animated.View>
     );

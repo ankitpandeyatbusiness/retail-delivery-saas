@@ -1,7 +1,7 @@
 // src/components/ui/shop.jsx
 import { isMeasured, priceSuffix } from '../../utils/customers/measure';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Animated, Easing } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Animated, Easing, PanResponder } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -44,16 +44,37 @@ export function ToastHost() {
     const [on, setOn] = useState(false);
     const insets = useSafeAreaInsets();
     const slide = useRef(new Animated.Value(0)).current;   // 0 = off screen (to the right), 1 = in place
+    const drag = useRef(new Animated.Value(0)).current;    // how far a finger has pulled it to the right
+    const timer = useRef(null);
+    // the hiding clock: it runs on its own, stops while a finger is on the card (he is reading it) and starts again, in full, when the finger lets go
+    const startClock = () => {
+        clearTimeout(timer.current);
+        timer.current = setTimeout(() => { Animated.timing(slide, { toValue: 0, duration: 220, useNativeDriver: true }).start(({ finished }) => { if (finished) setOn(false); }); }, 2400);
+    };
     useEffect(() => {
         if (!n) return undefined;
         setOn(true);
+        drag.setValue(0);
         slide.setValue(0);
         Animated.spring(slide, { toValue: 1, useNativeDriver: true, bounciness: 6, speed: 16 }).start();
-        const t = setTimeout(() => {
-            Animated.timing(slide, { toValue: 0, duration: 220, useNativeDriver: true }).start(() => setOn(false));
-        }, 2400);
-        return () => clearTimeout(t);
-    }, [n, slide]);
+        startClock();
+        return () => clearTimeout(timer.current);
+    }, [n, slide]);   // eslint-disable-line react-hooks/exhaustive-deps
+    // hold = keep it; let go = the normal clock again; swipe it to the right = slide it away at once
+    const pan = useRef(PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderTerminationRequest: () => false,
+        onPanResponderGrant: () => { clearTimeout(timer.current); slide.stopAnimation(); slide.setValue(1); },
+        onPanResponderMove: (_, g) => drag.setValue(Math.max(0, g.dx)),
+        onPanResponderRelease: (_, g) => {
+            if (g.dx > 60 || g.vx > 0.6) {
+                clearTimeout(timer.current);
+                Animated.timing(drag, { toValue: 420, duration: 200, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(() => { setOn(false); drag.setValue(0); });
+            } else { Animated.spring(drag, { toValue: 0, useNativeDriver: true, bounciness: 6 }).start(); startClock(); }
+        },
+        onPanResponderTerminate: () => { Animated.spring(drag, { toValue: 0, useNativeDriver: true }).start(); startClock(); },
+    })).current;
     const { dark, primary, surface, text, border } = useBrand();
     if (!on) return null;
     const bad = /could not|can ?not|fail|cancel|error|not |max |only /i.test(String(msg));
@@ -61,13 +82,13 @@ export function ToastHost() {
     // a card in the top right corner: coloured edge, round icon, slides in from the right and back out
     return (
         <Animated.View
-            pointerEvents="none"
+            pointerEvents="box-none"
             style={[s.toastWrap, {
-                top: insets.top + 12, left: undefined, right: 12, alignItems: 'flex-end', opacity: slide,
-                transform: [{ translateX: slide.interpolate({ inputRange: [0, 1], outputRange: [120, 0] }) }],
+                top: insets.top + 12, left: undefined, right: 12, alignItems: 'flex-end', opacity: Animated.multiply(slide, drag.interpolate({ inputRange: [0, 260], outputRange: [1, 0], extrapolate: 'clamp' })),
+                transform: [{ translateX: Animated.add(slide.interpolate({ inputRange: [0, 1], outputRange: [120, 0] }), drag) }],
             }]}
         >
-            <View style={[s.toastCard, { backgroundColor: dark ? surface : '#FFFFFF', borderColor: border }]}>
+            <View {...pan.panHandlers} style={[s.toastCard, { backgroundColor: dark ? surface : '#FFFFFF', borderColor: border }]}>
                 <View style={[s.toastEdge, { backgroundColor: accent }]} />
                 <View style={[s.toastIcon, { backgroundColor: accent + '22' }]}>
                     <Ionicons name={bad ? 'alert' : 'checkmark'} size={16} color={accent} />
