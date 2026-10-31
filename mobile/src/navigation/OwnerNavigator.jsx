@@ -27,7 +27,7 @@ const TABS = {
     HomeTab: { label: 'Home', icon: 'home', component: OwnerHomeScreen },
     OrdersTab: { label: 'Orders', icon: 'receipt', component: OwnerOrdersScreen },
     MenuTab: { label: 'Menu', icon: 'restaurant', component: OwnerMenuScreen },
-    TxTab: { label: 'Transactions', icon: 'swap-vertical', component: OwnerTxTabScreen },
+    TxTab: { label: 'Transactions', icon: 'wallet', component: OwnerTxTabScreen },
     HistoryTab: { label: 'History', icon: 'time', component: OwnerHistoryScreen },
 };
 
