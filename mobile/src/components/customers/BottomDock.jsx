@@ -75,6 +75,7 @@ export default function BottomDock({ navRef }) {
     // what each wedge opens now (null = nothing behind it: locked)
     const target = (k) => (k === 'track' ? (items.track || items.order) : items[k]) || null;
     const live = useRef({});
+    const isOpen = useRef(false);   // its own ref: "live" is made again on every draw, which wiped the open flag and stopped the sliding
     live.current = { list, target, items };
 
     const go = (it) => { if (it && navRef?.isReady?.()) navRef.navigate(it.route, it.params); };
@@ -88,7 +89,7 @@ export default function BottomDock({ navRef }) {
         const i = Math.max(0, Math.min(3, Math.floor(t)));
         return live.current.target(WEDGES[i].key) ? i : -1;   // a locked wedge cannot be chosen
     };
-    const close = () => { clearTimeout(timer.current); live.current.open = false; setOpen(false); setHover(-1); };
+    const close = () => { clearTimeout(timer.current); isOpen.current = false; setOpen(false); setHover(-1); };
 
     const pan = useRef(PanResponder.create({
         onStartShouldSetPanResponder: () => true,
@@ -96,13 +97,13 @@ export default function BottomDock({ navRef }) {
         onPanResponderGrant: () => {
             Animated.spring(press, { toValue: 0.92, friction: 7, tension: 200, useNativeDriver: true }).start();
             anchor.current?.measureInWindow?.((x, y, w, h) => { centre.current = { x: x + w / 2, y: y + h / 2 }; });
-            timer.current = setTimeout(() => { live.current.open = true; setOpen(true); }, 180);
+            timer.current = setTimeout(() => { isOpen.current = true; setOpen(true); }, 180);
         },
-        onPanResponderMove: (_, g) => { if (live.current.open) setHover(wedgeAt(g.moveX, g.moveY)); },
+        onPanResponderMove: (_, g) => { if (isOpen.current) setHover(wedgeAt(g.moveX, g.moveY)); },
         onPanResponderRelease: (_, g) => {
             const l = live.current;
             Animated.spring(press, { toValue: 1, friction: 6, tension: 200, useNativeDriver: true }).start();
-            if (l.open) { const i = wedgeAt(g.moveX, g.moveY); close(); if (i >= 0) go(l.target(WEDGES[i].key)); return; }   // let go on a lit wedge opens it; anywhere else, nothing
+            if (isOpen.current) { const i = wedgeAt(g.moveX, g.moveY); close(); if (i >= 0) go(l.target(WEDGES[i].key)); return; }   // let go on a lit wedge opens it; anywhere else, nothing
             close();
             liveHint.current?.();   // a quick tap opens nothing: it says how it works
         },
