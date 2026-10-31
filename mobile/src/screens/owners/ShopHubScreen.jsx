@@ -1,6 +1,6 @@
 // The shop menu: everything that is not one of the five tabs. It is the side menu opened by the hamburger at the top
 // left of every tab (components/owners/OwnerDrawer.jsx); the same list is also available as a full page (ShopHub).
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, ScrollView, TextInput, Pressable, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -17,6 +17,8 @@ import { clockTime } from '../../utils/owners/orderFlow';
 import { showToast } from '../../components/customers/shop';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { ask } from '../../components/common/dialog';
+import MenuIndexStrip, { useMenuIndex } from '../../components/owners/MenuIndexStrip';
+import { ease } from '../../utils/common/ease';
 import { tr, LANGS, useLang } from '../../i18n';
 import LanguageSheet from '../../components/common/LanguageSheet';
 
@@ -185,6 +187,27 @@ export function ShopMenu({ onGo }) {
     const entries = useMemo(() => sections.flatMap(([, rows]) => rows).filter((e) => !e.custom), [sections]);
     const found = q.trim() ? searchMenu(entries, q, (e) => `${e.title} ${tr(e.title)}`) : null;
 
+    // A to Z: every screen in one list by name, grouped under its letter (English only: the other languages keep the sections)
+    const sortAZ = useMenuFlags((s) => s.sortAZ);
+    const english = lang === 'en';
+    const az = english && sortAZ && !found;
+    const azGroups = useMemo(() => {
+        if (!az) return [];
+        const rows = sections.filter(([g]) => g !== 'Your app').flatMap(([g, rs]) => rs.filter((e) => !e.custom).map((e) => ({ ...e, group: g }))).sort((a, b) => a.title.localeCompare(b.title, 'en'));
+        const by = [];
+        for (const e of rows) {
+            const letter = /^[A-Za-z]/.test(e.title) ? e.title[0].toUpperCase() : '#';
+            const last = by[by.length - 1];
+            if (last && last.letter === letter) last.rows.push(e); else by.push({ letter, rows: [e] });
+        }
+        return by;
+    }, [az, sections]);
+    useEffect(() => { useMenuIndex.getState().setOn(az); return () => useMenuIndex.getState().setOn(false); }, [az]);
+    useEffect(() => {   // a letter that no screen starts with any more (Easy mode, a switched-off job) leaves the strip
+        const keep = new Set(azGroups.map((g) => g.letter));
+        useMenuIndex.setState((s) => ({ ys: Object.fromEntries(Object.entries(s.ys).filter(([k]) => keep.has(k))) }));
+    }, [azGroups]);
+
     return (
         <View>
             {/* Easy mode: only the things used every day */}
@@ -198,6 +221,18 @@ export function ShopMenu({ onGo }) {
                     <Toggle value={easy} onValueChange={(v) => useMenuFlags.getState().setEasy(v)} />
                 </View>
             </Card>
+            {english ? (
+                <Card>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Ionicons name="text" size={22} color={sortAZ ? primary : muted} />
+                        <View style={{ flex: 1, marginHorizontal: 12 }}>
+                            <Text style={{ color: text, fontWeight: '900', fontSize: 15 }}>{tr('Sort A to Z')}</Text>
+                            <Text style={{ color: muted, fontSize: 12.5, marginTop: 1 }}>{sortAZ ? tr('One list by name. Slide on the letters on the right.') : tr('Show every screen in one list by name')}</Text>
+                        </View>
+                        <Toggle value={sortAZ} onValueChange={(v) => { ease(); useMenuFlags.getState().setSortAZ(v); }} />
+                    </View>
+                </Card>
+            ) : null}
             <View style={{ marginHorizontal: 16, marginTop: 6, marginBottom: 4, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: border, backgroundColor: surface, borderRadius: 14, paddingHorizontal: 12 }}>
                 <Ionicons name="search" size={18} color={muted} />
                 <TextInput
@@ -218,7 +253,19 @@ export function ShopMenu({ onGo }) {
                 </View>
             ) : (
                 <View>
-                    {sections.map(([group, rowsAll]) => { const rows = easy && group === 'Your app' ? rowsAll.filter((e) => EASY_APP.has(e.title)) : rowsAll; return (rows.length ? (
+                    {az ? (
+                        <View onLayout={(e) => useMenuIndex.getState().setBase(e.nativeEvent.layout.y)}>
+                            {azGroups.map(({ letter, rows }) => (
+                                <View key={letter} onLayout={(e) => { if (letter !== '#') useMenuIndex.getState().setY(letter, e.nativeEvent.layout.y); }}>
+                                    <SectionTitle title={letter} />
+                                    <Card>
+                                        {rows.map((e, i) => <Row key={e.title} icon={e.icon} title={tr(e.title)} subtitle={`${tr(e.group)} · ${e.subtitle}`} color={e.color} right={e.right} last={i === rows.length - 1} onPress={e.act} />)}
+                                    </Card>
+                                </View>
+                            ))}
+                        </View>
+                    ) : null}
+                    {sections.filter(([g]) => !az || g === 'Your app').map(([group, rowsAll]) => { const rows = easy && group === 'Your app' ? rowsAll.filter((e) => EASY_APP.has(e.title)) : rowsAll; return (rows.length ? (
                         <View key={group}>
                             <SectionTitle title={tr(group)} />
                             <Card>
@@ -237,10 +284,12 @@ export function ShopMenu({ onGo }) {
 
 export default function ShopHubScreen() {
     const { background } = useBrand();
+    const sc = useRef(null);
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Shop menu')} />
-            <ScrollView contentContainerStyle={{ paddingBottom: 32 }}><ShopMenu /></ScrollView>
+            <ScrollView ref={sc} contentContainerStyle={{ paddingBottom: 32 }}><ShopMenu /></ScrollView>
+            <MenuIndexStrip scrollRef={sc} top={110} bottom={24} />
         </View>
     );
 }

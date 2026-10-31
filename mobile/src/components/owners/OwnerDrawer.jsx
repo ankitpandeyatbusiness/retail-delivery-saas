@@ -12,6 +12,7 @@ import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useThemeStore } from '../../store/common/useThemeStore';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { ShopMenu } from '../../screens/owners/ShopHubScreen';
+import MenuIndexStrip from './MenuIndexStrip';
 import { ShopLogo } from './ui';
 import { tr } from '../../i18n';
 
@@ -48,6 +49,7 @@ export default function OwnerDrawer() {
     }, [open]);
 
     if (!mounted && !open) return null;
+    const menuScroll = useRef(null);   // the menu's scroll view: the A to Z strip scrolls it
     const close = () => useDrawer.getState().hide();
 
     return (
@@ -67,9 +69,10 @@ export default function OwnerDrawer() {
                     </View>
                     <Pressable onPress={close} hitSlop={10}><Ionicons name="close" size={24} color={muted} /></Pressable>
                 </View>
-                <ScrollView contentContainerStyle={{ paddingTop: 8, paddingBottom: 30 }} showsVerticalScrollIndicator={false}>
+                <ScrollView ref={menuScroll} contentContainerStyle={{ paddingTop: 8, paddingBottom: 30 }} showsVerticalScrollIndicator={false}>
                     <ShopMenu onGo={close} />
                 </ScrollView>
+                <MenuIndexStrip scrollRef={menuScroll} top={84} bottom={24} />
             </Animated.View>
         </View>
     );
