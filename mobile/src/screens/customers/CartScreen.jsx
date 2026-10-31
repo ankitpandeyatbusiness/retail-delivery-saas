@@ -572,26 +572,6 @@ export default function CartScreen() {
                         </Appear>
                     ) : null}
 
-                    {user && type !== 'dine_in' && (types.length > 1 || showSchedule) ? (
-                        <Appear delay={140} style={{ marginTop: 20 }}>
-                            <Text style={[s.cap, { color: text, marginBottom: 8 }]}>{tr('Order Settings')}</Text>
-                            {types.length > 1 ? (
-                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-                                    <Ionicons name={type === 'delivery' ? 'bicycle-outline' : 'basket-outline'} size={18} color={primary} />
-                                    <Text style={{ flex: 1, color: text, fontWeight: '800', marginLeft: 8 }}>{type === 'delivery' ? tr('This is a delivery order') : tr('This is a pickup order')}</Text>
-                                    <Text style={{ color: muted, fontSize: 12 }}>{tr('Change it on the Home screen')}</Text>
-                                </View>
-                            ) : null}
-                            {showSchedule ? (
-                                <View style={s.chipsRow}>
-                                    <Chip icon="flash-outline" label={tr('Now')} on={when === 'now'} onPress={() => setWhen('now')} />
-                                    {slots.today ? <Chip icon="time-outline" label={slots.today.label} on={when === 'today'} onPress={() => setWhen('today')} /> : null}
-                                    <Chip icon="calendar-outline" label={slots.tomorrow.label} on={when === 'tomorrow'} onPress={() => setWhen('tomorrow')} />
-                                </View>
-                            ) : null}
-                        </Appear>
-                    ) : null}
-
                     {user && type === 'pickup' ? (
                         <Appear style={{ marginTop: 20 }}>
                             <Text style={[s.cap, { color: text }]}>{tr('Pickup time')}</Text>
