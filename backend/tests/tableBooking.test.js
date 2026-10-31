@@ -30,8 +30,8 @@ describe('table booking rules', () => {
         assert.equal(tb.depositFor({ depositType: 'flat', depositAmount: 500 }, 20), 500);
     });
     test('the settings are checked', () => {
-        const cur = { ...tb.DEFAULTS, depositAmount: 100, tables: [{ no: '1', seats: 4, bookable: true }] };
-        assert.throws(() => tb.cleanConfig({ enabled: true }, { ...tb.DEFAULTS, tables: cur.tables }), /deposit/);
+        const cur = { ...tb.DEFAULTS, windows: [{ days: [], open: '12:00', close: '22:00' }], depositAmount: 100, tables: [{ no: '1', seats: 4, bookable: true }] };
+        assert.throws(() => tb.cleanConfig({ enabled: true }, { ...tb.DEFAULTS, windows: cur.windows, tables: cur.tables }), /deposit/);
         assert.throws(() => tb.cleanConfig({ enabled: true }, { ...cur, tables: [] }), /at least one table/);
         assert.throws(() => tb.cleanConfig({ enabled: true }, { ...cur, tables: [{ no: '1', seats: 4, bookable: false }] }), /at least one table/);
         assert.throws(() => tb.cleanConfig({ windows: [{ open: '22:00', close: '20:00' }] }, cur), /end after/);

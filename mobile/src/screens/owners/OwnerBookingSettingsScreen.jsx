@@ -1,5 +1,5 @@
 // Table booking rules: the on/off slider, when guests can book, seats, group sizes, the deposit, and days or times that are closed.
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
@@ -23,6 +23,9 @@ export default function OwnerBookingSettingsScreen() {
     const [flipping, setFlipping] = useState(false);
     const [closeDate, setCloseDate] = useState('');
     const [picking, setPicking] = useState(false);
+    const [asked, setAsked] = useState(false);   // he touched the switch while something was missing: show him what
+    const scroll = useRef(null);
+    const ys = useRef({});
     const [closeTime, setCloseTime] = useState('');
 
     useEffect(() => { api.settings().then(setV).catch((e) => { useOwnerStore.getState().noteError(e); setErr(apiError(e, 'Could not open the booking settings.')); }); }, []);
@@ -30,7 +33,20 @@ export default function OwnerBookingSettingsScreen() {
     const set = (k, x) => setV((f) => ({ ...f, [k]: x }));
 
     // the slider saves by itself, so a guest sees the change at once (the server refuses it until the deposit and times are set)
+    // what has to be filled in before booking can be switched on (the same rules as the server)
+    const missing = [
+        ...((v.depositAmount || 0) > 0 ? [] : [['deposit', 'Set the deposit amount guests pay']]),
+        ...(v.windows?.length ? [] : [['windows', 'Add the times guests can reserve']]),
+        ...((v.tables || []).some((t) => t.bookable) ? [] : [['tables', 'Add at least one table guests can reserve']]),
+    ];
+    const flash = (k) => asked && missing.some((m) => m[0] === k);
     const flip = async () => {
+        if (!v.enabled && missing.length) {
+            setAsked(true);
+            const y = ys.current[['windows', 'tables', 'deposit'].find((k) => missing.some((m) => m[0] === k))];   // the first one on the page
+            if (y !== undefined) scroll.current?.scrollTo({ y: Math.max(0, y - 12), animated: true });
+            return;
+        }
         setFlipping(true);
         try {
             // switching ON sends what is on the screen too, so a deposit or times he just typed count
@@ -68,7 +84,7 @@ export default function OwnerBookingSettingsScreen() {
     ];
 
     return (
-        <FormPage title={tr('Table booking')} footer={<Button label={tr('Save changes')} icon="checkmark" busy={saving} onPress={save} />}>
+        <FormPage title={tr('Table booking')} scrollRef={scroll} footer={<Button label={tr('Save changes')} icon="checkmark" busy={saving} onPress={save} />}>
             <Card style={{ marginHorizontal: 0 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <View style={{ flex: 1, paddingRight: 8 }}>
@@ -79,10 +95,10 @@ export default function OwnerBookingSettingsScreen() {
                 </View>
             </Card>
             {v.featureOn === false ? <Text style={{ color: error, fontWeight: '800', marginTop: 10 }}>{tr('Table booking is not switched on for your shop yet. Ask us to switch it on.')}</Text> : null}
-            <Group title={tr('When guests can book')} hint={tr('Add a time for lunch and another for dinner. Days left empty means every day.')}>
+            <Group title={tr('When guests can book')} hint={tr('Add a time for lunch and another for dinner. Days left empty means every day.')} flash={flash('windows')} flashText={tr('Add the times guests can reserve')} onLayout={(e) => { ys.current.windows = e.nativeEvent.layout.y; }}>
                 <TimingEditor value={v.windows} onChange={(x) => set('windows', x)} />
             </Group>
-            <Group title={tr('Your tables')} hint={tr('Guests pick one of these, like seats in a cinema. Use the same numbers as your table QR codes.')}>
+            <Group title={tr('Your tables')} hint={tr('Guests pick one of these, like seats in a cinema. Use the same numbers as your table QR codes.')} flash={flash('tables')} flashText={tr('Add at least one table guests can reserve')} onLayout={(e) => { ys.current.tables = e.nativeEvent.layout.y; }}>
                 {!v.tables.length && v.dineTableCount > 0 ? <Button label={tr('Add my {n} dine in tables', { n: v.dineTableCount })} icon="grid-outline" kind="ghost" onPress={fillFromDineIn} style={{ marginBottom: 10 }} /> : null}
                 {v.tables.map((t, i) => (
                     <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-end', marginBottom: 6, opacity: t.bookable ? 1 : 0.6 }}>
@@ -102,7 +118,7 @@ export default function OwnerBookingSettingsScreen() {
                 <NumberBox label={tr('How many days ahead can they book')} integer value={v.advanceDays} onChange={(x) => set('advanceDays', x)} />
                 <NumberBox label={tr('Notice needed, in minutes')} integer value={v.minNoticeMinutes} onChange={(x) => set('minNoticeMinutes', x)} last />
             </Group>
-            <Group title={tr('Deposit guests must pay')} hint={tr('A booking counts only once the deposit is paid.')}>
+            <Group title={tr('Deposit guests must pay')} hint={tr('A booking counts only once the deposit is paid.')} flash={flash('deposit')} flashText={tr('Set the deposit amount guests pay')} onLayout={(e) => { ys.current.deposit = e.nativeEvent.layout.y; }}>
                 <ChoiceBox label={tr('How it is worked out')} options={[['per_person', tr('Per person')], ['flat', tr('One amount')]]} value={v.depositType} onChange={(x) => set('depositType', x)} />
                 <NumberBox label={v.depositType === 'per_person' ? tr('Amount per person') : tr('Amount')} prefix="₹" integer value={v.depositAmount || undefined} onChange={(x) => set('depositAmount', x ?? 0)} />
                 <ChoiceBox label={tr('What happens to it')} options={[['adjust', tr('Taken off the bill')], ['keep', tr('You keep it')]]} value={v.depositMode} onChange={(x) => set('depositMode', x)} />

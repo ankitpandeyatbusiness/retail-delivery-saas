@@ -42,7 +42,8 @@ export function showSlider({ key, type, title, body, data, once }) {
         if (shownOnce.size > 200) shownOnce.delete(shownOnce.values().next().value);
     }
     const sec = alertSeconds(type);
-    useSliderStore.getState().push({ key: String(key || `${type}:${Date.now()}`), type, title, body, data: data || {}, sticky: sec === 0 });
+    // a new table reservation needs an answer (Allow or Deny): it stays until the owner gives it, whatever the timer says
+    useSliderStore.getState().push({ key: String(key || `${type}:${Date.now()}`), type, title, body, data: data || {}, sticky: sec === 0 || type === 'booking_new' });
 }
 
 export default function AlertSliderHost({ navRef }) {
@@ -83,5 +84,5 @@ export default function AlertSliderHost({ navRef }) {
     ] : undefined;
     const actions = decide ? [{ label: tr('Approve'), onPress: answer(decide, true) }, { label: tr('Reject'), kind: 'danger', onPress: answer(decide, false) }] : bookingActions;
     // the key makes a new slider start fresh (its bar and its slide) when the one before it has gone
-    return <AlertSlider key={item.key} item={item} sec={alertSeconds(item.type)} onClose={next} onOpen={open} actions={actions} onTurnOff={() => { next(); turnOffSlider(item.type); }} />;
+    return <AlertSlider key={item.key} item={item} sec={item.sticky ? 0 : alertSeconds(item.type)} onClose={next} onOpen={open} actions={actions} onTurnOff={() => { next(); turnOffSlider(item.type); }} />;
 }

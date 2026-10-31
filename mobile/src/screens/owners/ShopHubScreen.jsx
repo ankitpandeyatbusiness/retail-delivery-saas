@@ -56,7 +56,7 @@ const WORDS = {
 };
 
 // Easy mode shows only these (the things a shop uses every day); everything else is one switch away.
-const EASY = new Set(['@busy', 'OwnerClosing', 'OwnerDineIn', 'OwnerCooks', 'OwnerWaiters', 'OwnerCustomers', 'OwnerComplaints', 'OwnerMessages', 'OwnerCategories', 'OwnerCoupons', 'OwnerMoney', 'OwnerMoneyHub', 'OwnerBillsHub', 'OwnerReportsHub', 'OwnerHours', 'OwnerShopSettings', 'AlertSettings', 'Soundbox', 'OwnerAppLock']);
+const EASY = new Set(['@busy', 'OwnerBookings', 'OwnerServices', 'OwnerInquiries', 'OwnerClosing', 'OwnerDineIn', 'OwnerCooks', 'OwnerWaiters', 'OwnerCustomers', 'OwnerComplaints', 'OwnerMessages', 'OwnerCategories', 'OwnerCoupons', 'OwnerMoney', 'OwnerMoneyHub', 'OwnerBillsHub', 'OwnerReportsHub', 'OwnerHours', 'OwnerShopSettings', 'AlertSettings', 'Soundbox', 'OwnerAppLock']);
 const EASY_APP = new Set(['My profile', 'Appearance', 'Language', 'See the customer app', 'Log out']);
 
 // [icon, title, subtitle, route]   ('@busy' opens the Busy mode sheet). The order is the order of a working day.

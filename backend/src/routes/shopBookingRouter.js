@@ -34,6 +34,13 @@ router.put('/settings', wrap(async (req, res) => {
 // The door scanner: the QR (or the typed code) of a guest. /scan only looks; /scan/arrive marks him arrived (seated).
 router.post('/scan', wrap(async (req, res) => { res.json(await ticket.check(req.tenant, req.body?.token || req.body?.code)); }));
 router.post('/scan/arrive', wrap(async (req, res) => { res.json(await ticket.arrive(req.tenant, req.body?.token || req.body?.code, { type: 'owner', name: 'Owner' })); }));
+// paid reservations still waiting for the owner's Allow (none when he allows them automatically): for the bar on his Home
+router.get('/pending', wrap(async (req, res) => {
+    const q = { tenantId: req.tenant._id, status: 'confirmed', approvedAt: { $exists: false }, 'deposit.status': { $ne: 'unpaid' }, endsAt: { $gt: new Date() } };
+    const [count, first] = await Promise.all([TableBooking.countDocuments(q), TableBooking.findOne(q).sort({ startsAt: 1 }).select('name party date time table').lean()]);
+    res.json({ count, first });
+}));
+
 // every booking, newest day first, for a range of days: ?all=1&from=YYYY-MM-DD&to=YYYY-MM-DD&status=confirmed (all optional, at most 300)
 router.get('/', wrap(async (req, res, next) => {
     if (!req.query.all) return next();

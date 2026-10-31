@@ -1,11 +1,12 @@
 // The conversation on an inquiry, shared by the owner's and the customer's screens: the answers the customer gave, the message bubbles, and the reply box.
 import React, { useState } from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, Pressable, ActivityIndicator } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from './kit';
 import { Field, Button } from '../owners/ui';
 import { tr } from '../../i18n';
 
-export const STATUS_LABEL = { new: 'New', replied: 'Replied', quoted: 'Quoted', confirmed: 'Confirmed', rejected: 'Not possible', closed: 'Closed' };
+export const STATUS_LABEL = { new: 'New', replied: 'Replied', quoted: 'Price sent', confirmed: 'Confirmed', rejected: 'Not possible', closed: 'Closed' };
 
 export const answerText = (a) => (Array.isArray(a.value) ? a.value.join(', ') : typeof a.value === 'boolean' ? (a.value ? tr('Yes') : tr('No')) : String(a.value));
 
@@ -48,6 +49,7 @@ export function Bubbles({ messages = [], side }) {
 
 // the box at the bottom. onSend(text) returns a promise; the box clears when it works.
 export function ReplyBox({ onSend, placeholder }) {
+    const { primary, onPrimary } = useBrand();
     const [v, setV] = useState('');
     const [busy, setBusy] = useState(false);
     const go = async () => {
@@ -59,7 +61,10 @@ export function ReplyBox({ onSend, placeholder }) {
     return (
         <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
             <View style={{ flex: 1, marginRight: 8 }}><Field value={v} onChangeText={setV} placeholder={placeholder || tr('Write a message')} multiline maxLength={1000} style={{ minHeight: 46, maxHeight: 110 }} /></View>
-            <Button label={tr('Send')} icon="send" iconOnly busy={busy} disabled={!v.trim()} onPress={go} style={{ width: 46, height: 46, minHeight: 46 }} />
+            <Pressable onPress={go} disabled={busy || !v.trim()} accessibilityRole="button" accessibilityLabel={tr('Send')}
+                style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: primary, alignItems: 'center', justifyContent: 'center', opacity: !v.trim() ? 0.45 : 1 }}>
+                {busy ? <ActivityIndicator color={onPrimary} size="small" /> : <Ionicons name="send" size={20} color={onPrimary} style={{ marginLeft: 2 }} />}
+            </Pressable>
         </View>
     );
 }

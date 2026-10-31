@@ -131,19 +131,21 @@ export function ChoiceBox({ label, hint, error, options, value, onChange, last }
 }
 
 // a titled group of fields on one card
-export function Group({ title, hint, children, flush }) {
-    const { text, muted } = useBrand();
+// flash: this group is what the person still has to fill in: a red frame and a line saying so. onLayout: lets the page slide to it.
+export function Group({ title, hint, children, flush, flash, flashText, onLayout }) {
+    const { text, muted, error } = useBrand();
     return (
-        <View style={{ marginBottom: 4 }}>
-            <Text style={{ color: text, fontSize: 16, fontWeight: '900', paddingHorizontal: 16, marginTop: 6, marginBottom: hint ? 2 : 10 }}>{title}</Text>
+        <View style={{ marginBottom: 4 }} onLayout={onLayout}>
+            <Text style={{ color: flash ? error : text, fontSize: 16, fontWeight: '900', paddingHorizontal: 16, marginTop: 6, marginBottom: hint || flash ? 2 : 10 }}>{title}</Text>
+            {flash ? <Text style={{ color: error, fontSize: 12.5, fontWeight: '800', paddingHorizontal: 16, marginBottom: 10 }}>{flashText || title}</Text> : null}
             {hint ? <Text style={{ color: muted, fontSize: 12, paddingHorizontal: 16, marginBottom: 10 }}>{hint}</Text> : null}
-            <Card style={flush ? { paddingVertical: 2 } : undefined}>{children}</Card>
+            <Card style={[flush ? { paddingVertical: 2 } : null, flash ? { borderWidth: 2, borderColor: error } : null]}>{children}</Card>
         </View>
     );
 }
 
 // The frame of a form page: back arrow + title, the fields scrolling, and the main button pinned to the bottom.
-export function FormPage({ title, children, footer, right }) {
+export function FormPage({ title, children, footer, right, scrollRef }) {
     const { background, border } = useBrand();
     const insets = useSafeAreaInsets();
     const [boxRef, lift] = useKeyboardLift();   // Android: the page, with its bar, is lifted above the keyboard
@@ -152,7 +154,7 @@ export function FormPage({ title, children, footer, right }) {
             <PageHeader title={title} right={right} />
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
                 <View ref={boxRef} collapsable={false} style={{ flex: 1, paddingBottom: lift }}>
-                <KeyboardScroll contentContainerStyle={{ paddingTop: 6, paddingBottom: 40 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                <KeyboardScroll ref={scrollRef} contentContainerStyle={{ paddingTop: 6, paddingBottom: 40 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
                     {children}
                 </KeyboardScroll>
                 {footer ? (

@@ -18,7 +18,7 @@ export const priceLine = (s) => {
         case 'per_month': return p ? tr('{p} per month', { p }) : tr('Price per month not set');
         case 'from': return p ? tr('From {p}', { p }) : tr('Price not set');
         case 'fixed': return p || tr('Price not set');
-        default: return tr('On quote');
+        default: return tr('Price on request');
     }
 };
 

@@ -1,7 +1,7 @@
 // Bookings: one day at a time, or all of them with a date filter. Filter by time of day and by status. Mark a guest seated or a no-show, or cancel a booking.
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, Pressable, ScrollView, Linking } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
 import { PageHeader, Card, Pill, Button, Empty } from '../../components/owners/ui';
@@ -24,12 +24,14 @@ const nice = (ymd) => new Date(`${ymd}T12:00:00Z`).toLocaleDateString([], { week
 
 export default function OwnerBookingsScreen() {
     const nav = useNavigation();
+    const params = useRoute().params || {};
     const { background, text, muted, primary, onPrimary, ok, error, border, surface } = useBrand();
     const [mode, setMode] = useState('day');          // 'day' one day at a time, 'all' every booking of the chosen dates
     const [range, setRange] = useState(null);         // { from, to, sort } for 'all'
     const [pickRange, setPickRange] = useState(false);
     const [slot, setSlot] = useState('any');          // time of day
-    const [state, setState] = useState('all');        // status
+    const [state, setState] = useState('all');        // status (or 'pending': paid, waiting for Allow)
+    useEffect(() => { if (params.filter === 'pending') { setData(null); setMode('all'); setRange(null); setState('pending'); } }, [params.filter, params.stamp]);   // from the bar on the Home
     const [date, setDate] = useState(todayIst());
     const [data, setData] = useState(null);
     const [busyId, setBusyId] = useState('');
@@ -73,7 +75,7 @@ export default function OwnerBookingsScreen() {
     };
     const hour = (b) => Number(String(b.time || '0').slice(0, 2));
     const inSlot = (b) => slot === 'any' || (slot === 'morning' ? hour(b) < 12 : slot === 'afternoon' ? hour(b) >= 12 && hour(b) < 17 : hour(b) >= 17);
-    const shown = (data?.items || []).filter((b) => inSlot(b) && (state === 'all' || b.status === state));
+    const shown = (data?.items || []).filter((b) => inSlot(b) && (state === 'all' || (state === 'pending' ? b.status === 'confirmed' && !b.approvedAt : b.status === state)));
     const chip = (label, on, onPress, key) => (
         <Pressable key={key || label} onPress={onPress} style={{ marginRight: 8, paddingHorizontal: 16, height: 38, justifyContent: 'center', borderRadius: 19, borderWidth: 1, borderColor: on ? primary : border, backgroundColor: on ? primary : surface }}>
             <Text style={{ color: on ? onPrimary : text, fontWeight: '800', fontSize: 13 }}>{label}</Text>
@@ -114,7 +116,7 @@ export default function OwnerBookingsScreen() {
                 {[['any', 'Any time'], ['morning', 'Morning'], ['afternoon', 'Afternoon'], ['evening', 'Evening']].map(([k, l]) => chip(tr(l), slot === k, () => setSlot(k), `t${k}`))}
             </ScrollView>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0, height: 38, marginTop: 10, marginBottom: 8 }} contentContainerStyle={{ paddingHorizontal: 16, alignItems: 'center' }}>
-                {[['all', 'All'], ['confirmed', 'Booked'], ['seated', 'Seated'], ['no_show', 'No-show'], ['cancelled', 'Cancelled']].map(([k, l]) => chip(tr(l), state === k, () => setState(k), `s${k}`))}
+                {[['all', 'All'], ['pending', 'To allow'], ['confirmed', 'Booked'], ['seated', 'Seated'], ['no_show', 'No-show'], ['cancelled', 'Cancelled']].map(([k, l]) => chip(tr(l), state === k, () => setState(k), `s${k}`))}
             </ScrollView>
             <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 32 }}>
                 {data === null ? <ListShimmer /> : null}

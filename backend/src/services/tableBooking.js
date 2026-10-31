@@ -21,7 +21,7 @@ const OPEN = ['open', 'bill_asked'];    // a table visit in progress
 const RUNNING_MIN = 30;                 // a slot that already started can still be booked when at least this many minutes are left
 
 const DEFAULTS = {
-    enabled: false, windows: [{ days: [], open: '12:00', close: '22:00' }], slotMinutes: 60, tables: [], minParty: 1, maxParty: 12,
+    enabled: false, windows: [], slotMinutes: 60, tables: [], minParty: 1, maxParty: 12,
     advanceDays: 14, minNoticeMinutes: 60, closedDates: [], closedSlots: [], depositType: 'per_person', depositAmount: 0,
     depositMode: 'adjust', refundHours: 2, holdMinutes: 10, autoAllow: false, maxActive: 3, blocked: [],
 };

@@ -13,7 +13,8 @@ import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { useSoundboxStore } from '../../store/owners/useSoundboxStore';
 import { useAlertStore } from '../../store/owners/useAlertStore';
 import { useHomeStore } from '../../store/customers/useHomeStore';
-import { setAcceptingOrders, fetchStaff, apiError } from '../../api/owners/shopApi';
+import { setAcceptingOrders, fetchStaff, apiError, booking as bookingApi } from '../../api/owners/shopApi';
+import { onNotification } from '../../api/common/socket';
 import { showToast } from '../../components/customers/shop';
 import { onOrderUpdate } from '../../api/common/socket';
 import { clearAll } from '../../utils/owners/soundbox';
@@ -123,6 +124,10 @@ export default function OwnerHomeScreen() {
     const [staff, setStaff] = useState(null);
     const easy = useMenuFlags((s) => s.easy);
     const bookingOn = useMenuFlags((s) => s.bookingOn);   // the super admin switched Table booking on for this shop
+    const [pendingRes, setPendingRes] = useState({ count: 0, first: null });   // reservations waiting for Allow
+    const loadPending = useCallback(() => { if (bookingOn) bookingApi.pending().then(setPendingRes).catch(() => { }); else setPendingRes({ count: 0, first: null }); }, [bookingOn]);
+    useFocusEffect(useCallback(() => { loadPending(); }, [loadPending]));
+    useEffect(() => onNotification((n) => { if (String(n?.type || '').startsWith('booking_')) loadPending(); }), [loadPending]);
     useFocusEffect(useCallback(() => { fetchStaff().then(setStaff).catch(() => { }); useMenuFlags.getState().refresh(); }, []));   // (the side menu's rows are ready before it opens)
     // an order changed anywhere: update the numbers (a moment later, so a burst of events is one refresh)
     useEffect(() => {
@@ -208,6 +213,22 @@ export default function OwnerHomeScreen() {
                     </View>
                     <Button label={tr('Silence')} icon="volume-mute" kind="danger" onPress={clearAll} style={{ marginTop: 10 }} />
                 </Card>
+            ) : null}
+
+            {/* reservations paid and waiting for Allow: on top, like the complaints, until they are answered */}
+            {bookingOn && pendingRes.count > 0 ? (
+                <GlowBorder active radius={18} style={{ marginHorizontal: 16, marginTop: 14, marginBottom: 16 }}>
+                    <Card onPress={() => nav.navigate('OwnerBookings', { filter: 'pending', stamp: Date.now() })} style={{ marginHorizontal: 0, marginBottom: 0 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Ionicons name="calendar" size={22} color={error} />
+                            <View style={{ flex: 1, marginLeft: 10 }}>
+                                <Text style={{ color: error, fontWeight: '900' }}>{pendingRes.count === 1 ? tr('1 reservation needs your answer') : tr('{n} reservations need your answer', { n: pendingRes.count })}</Text>
+                                {pendingRes.first ? <Text style={{ color: muted, fontSize: 12, marginTop: 2 }} numberOfLines={1}>{`${pendingRes.first.name} · ${tr('{n} guests', { n: pendingRes.first.party })} · ${pendingRes.first.date} ${pendingRes.first.time}`}</Text> : null}
+                            </View>
+                            <Ionicons name="chevron-forward" size={18} color={muted} />
+                        </View>
+                    </Card>
+                </GlowBorder>
             ) : null}
 
             {/* complaints nobody has answered: always on top, blinking, until they are decided */}

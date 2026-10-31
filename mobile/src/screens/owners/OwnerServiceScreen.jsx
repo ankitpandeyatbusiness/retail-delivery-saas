@@ -4,6 +4,7 @@ import { View, Text, Pressable } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
+import SlideSwitch from '../../components/common/SlideSwitch';
 import { Button, Empty, Card } from '../../components/owners/ui';
 import { FormPage, Group, TextBox, NumberBox, ChoiceBox, ToggleRow, Hint, MorePictures } from '../../components/owners/menuBits';
 import { services as api, apiError } from '../../api/owners/shopApi';
@@ -17,7 +18,7 @@ const TYPE_LABEL = {
     text: 'Short text', longtext: 'Long text', number: 'Number', date: 'Date', time: 'Time', yesno: 'Yes / No',
     choice: 'Pick one', multichoice: 'Pick many', phone: 'Phone', address: 'Address', photo: 'Photo',
 };
-const PRICE_TYPES = [['per_plate', 'Per plate'], ['fixed', 'Fixed'], ['from', 'Starting from'], ['per_month', 'Per month'], ['quote', 'On quote']];
+const PRICE_TYPES = [['per_plate', 'Per plate'], ['fixed', 'Fixed'], ['from', 'Starting from'], ['per_month', 'Per month'], ['quote', 'Price on request']];
 const lines = (v) => String(v || '').split('\n').map((x) => x.trim()).filter(Boolean);
 const toText = (a) => (a || []).join('\n');
 const BLANK_Q = { id: '', type: 'text', label: '', hint: '', required: false, enabled: true, recommended: false, options: [] };
@@ -136,9 +137,7 @@ export default function OwnerServiceScreen() {
                                 <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{tr(TYPE_LABEL[q.type])}{q.required ? ` · ${tr('required')}` : ''}{q.recommended ? '' : ` · ${tr('yours')}`}</Text>
                             </View>
                             <Ionicons name={open === i ? 'chevron-up' : 'chevron-down'} size={18} color={muted} style={{ marginRight: 10 }} />
-                            <Pressable onPress={() => setQ(i, { enabled: !q.enabled })} hitSlop={8}>
-                                <Ionicons name={q.enabled ? 'toggle' : 'toggle-outline'} size={38} color={q.enabled ? primary : muted} />
-                            </Pressable>
+                            <SlideSwitch value={q.enabled} onValueChange={(x) => setQ(i, { enabled: x })} accessibilityLabel={q.label || tr('New question')} />
                         </Pressable>
                         {open === i ? (
                             <View style={{ marginTop: 12, borderTopWidth: 1, borderTopColor: border, paddingTop: 12 }}>

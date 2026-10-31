@@ -146,6 +146,7 @@ export const booking = {
     get: (id) => d(api.get(`/shop/booking/${id}`)),
     block: (id) => d(api.post(`/shop/booking/${id}/block`)),                       // stop this guest from reserving: { blocked }
     unblock: (userId) => d(api.delete(`/shop/booking/block/${userId}`)),
+    pending: () => d(api.get('/shop/booking/pending')),                          // { count, first }: paid and waiting for Allow
     undo: (id) => d(api.post(`/shop/booking/${id}/undo`)),                         // takes back Allow, Seated or No-show
     allow: (id) => d(api.post(`/shop/booking/${id}/allow`)),                      // the guest is told the table is confirmed
     deny: (id, message) => d(api.post(`/shop/booking/${id}/cancel`, { message })), // cancels, sends the whole deposit back at once, tells the guest (message is optional)
