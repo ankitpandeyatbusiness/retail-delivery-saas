@@ -30,7 +30,7 @@ export async function pickPhoto(source, { square = false } = {}) {
 }
 
 // kind 'complaint' needs refId (the order id). kind 'customer' (profile picture) needs none.
-async function upload({ kind, refId, uri, mimeType }) {
+async function upload({ kind, refId, uri, mimeType, onProgress, handle }) {
     const size = fileSize(uri);
     if (!size) throw fail('Could not read that photo');
     if (size > MAX_BYTES) throw fail('That photo is too large (max 5 MB). Try another one.');
@@ -47,9 +47,9 @@ async function upload({ kind, refId, uri, mimeType }) {
 
     let sent;
     try {
-        sent = await putFile(uri, { url: signed.uploadUrl, method: signed.method, headers: signed.headers || { 'Content-Type': contentType } });
+        sent = await putFile(uri, { url: signed.uploadUrl, method: signed.method, headers: signed.headers || { 'Content-Type': contentType } }, { onProgress, handle });
     } catch (e) { throw fail('Upload failed. Check your connection and try again.'); }
-    if (!sent) throw fail('Upload failed. Please try again.');
+    if (!sent) throw Object.assign(fail('Upload stopped'), { stopped: !!handle?.stopped });
 
     try {
         const m = await confirmUpload({ kind, ...ref, key: signed.key });
@@ -63,7 +63,7 @@ async function upload({ kind, refId, uri, mimeType }) {
 export const uploadComplaintPhoto = ({ orderId, uri, mimeType }) => upload({ kind: 'complaint', refId: orderId, uri, mimeType });
 
 // a picture for an inquiry answer. -> { id, url }
-export const uploadInquiryPhoto = ({ uri, mimeType }) => upload({ kind: 'inquiry', uri, mimeType });
+export const uploadInquiryPhoto = ({ uri, mimeType, onProgress, handle }) => upload({ kind: 'inquiry', uri, mimeType, onProgress, handle });
 
 // Replaces the previous profile picture (the server keeps one file per customer). -> { id, url }
 export const uploadAvatar = ({ uri, mimeType }) => upload({ kind: 'customer', uri, mimeType });

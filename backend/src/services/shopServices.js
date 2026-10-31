@@ -69,6 +69,9 @@ const withDefaults = (kind, defaults) => ({ ...(TEMPLATES[kind] || {}), ...(defa
 const templateList = (defaults = {}) => STARTER_KINDS.map((kind) => ({ kind, ...withDefaults(kind, defaults) }));
 const newDoc = (kind, defaults = {}) => ({ kind: TEMPLATES[kind] ? kind : 'custom', ...withDefaults(kind, defaults), questions: recommendedFor(kind, defaults) });
 
+// up to 3 pictures sent in a chat: https links only
+const cleanImages = (v) => (Array.isArray(v) ? v.map((x) => String(x || '').trim()).filter((x) => /^https:\/\/\S{8,500}$/.test(x)).slice(0, 3) : []);
+
 const str = (v, max) => String(v ?? '').trim().slice(0, max);
 const strings = (v, max, each) => (Array.isArray(v) ? v.map((x) => str(x, each)).filter(Boolean).slice(0, max) : []);
 const num = (v) => (v === '' || v === null || v === undefined || Number.isNaN(Number(v)) ? undefined : Number(v));
@@ -187,4 +190,4 @@ function cleanDefaults(body) {
     return out;
 }
 
-module.exports = { TYPES, PRICE_TYPES, STARTER_KINDS, DEFAULT_REMINDER_HOURS, loadDefaults, cleanDefaults, recommendedFor, templateList, newDoc, cleanService, cleanQuestions, checkAnswers, estimateFor };
+module.exports = { cleanImages, TYPES, PRICE_TYPES, STARTER_KINDS, DEFAULT_REMINDER_HOURS, loadDefaults, cleanDefaults, recommendedFor, templateList, newDoc, cleanService, cleanQuestions, checkAnswers, estimateFor };

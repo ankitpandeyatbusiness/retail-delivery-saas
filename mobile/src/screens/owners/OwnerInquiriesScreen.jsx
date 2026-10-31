@@ -48,7 +48,7 @@ export default function OwnerInquiriesScreen() {
                                 <Pill label={tr(STATUS_LABEL[i.status] || 'New')} color={tone(i.status)} />
                             </View>
                             <Text numberOfLines={1} style={{ color: muted, fontSize: 12, marginTop: 2 }}>{i.serviceName} · {new Date(i.lastMessageAt || i.createdAt).toLocaleDateString()}</Text>
-                            {last ? <Text numberOfLines={2} style={{ color: text, marginTop: 6 }}>{last.from === 'owner' ? `${tr('You')}: ` : ''}{last.text}</Text> : null}
+                            {last ? <Text numberOfLines={2} style={{ color: text, marginTop: 6 }}>{last.from === 'owner' ? `${tr('You')}: ` : ''}{last.text || tr('Photo')}</Text> : null}
                         </Card>
                     );
                 })}

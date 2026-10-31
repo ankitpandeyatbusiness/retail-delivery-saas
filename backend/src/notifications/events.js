@@ -17,6 +17,8 @@ const NEW_ORDER_CHANNEL = 'new_orders_v2';
 const STAFF_CHANNEL = 'staff_alerts_v1';
 // a quiet message for a cook or a waiter ("order handed over"): one soft ping instead of the ting-tong
 const STAFF_INFO_CHANNEL = 'staff_info_v1';
+// an inquiry from a customer rings with its own tone (the "cust_offer" clip built into the app), so the owner knows it without looking
+const INQUIRY_CHANNEL = 'inquiry_v1';
 // the two alarms: a cancelled order (a short falling "da-da-dum") and a rider's call for help (a gentle "pee-poo"). Built into the app like the others.
 const CANCEL_CHANNEL = 'cancel_alert_v2';   // the owner's, the cook's and the waiter's cancelled-order alarm
 const HELP_CHANNEL = 'help_alarm_v2';       // the owner's: a rider pressed the help button
@@ -44,8 +46,8 @@ const EVENTS = {
     booking_allowed: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },      // the shop confirmed a guest's table
     booking_owner_cancelled: { to: 'customer', channels: INAPP_PUSH, alsoPush: true }, // the shop cancelled a guest's booking
     inquiry_unanswered: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },      // a customer's message has waited a day for an answer
-    inquiry_new: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },             // a customer sent an inquiry from a service form
-    inquiry_customer_reply: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },  // a customer wrote again on an inquiry
+    inquiry_new: { to: 'owner', channels: INAPP_PUSH, alsoPush: true, pushChannel: INQUIRY_CHANNEL, pushSound: 'cust_offer' },             // a customer sent an inquiry from a service form
+    inquiry_customer_reply: { to: 'owner', channels: INAPP_PUSH, alsoPush: true, pushChannel: INQUIRY_CHANNEL, pushSound: 'cust_offer' },  // a customer wrote again on an inquiry
     inquiry_reply: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },        // the shop answered an inquiry
     table_share_ask: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },        // a guest asks to pay his share and leave
     table_share_paid: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },    // a friend at the same bill paid his share and left

@@ -1,6 +1,7 @@
 // Shows the sliders (components/common/AlertSlider.jsx) for the owner, the cook, the waiter and the rider: one at a time, for any alert whose Slider
 // switch is on (Alerts screen). The cook's and the waiter's live alerts (utils/staff/staffSound.js) and every notification that arrives while the app
 // is open come here. New orders, the kitchen's problems and the customer's asks have their own bigger sheets and are not shown here.
+import { isOpenInquiry } from '../../store/owners/useOpenInquiry';
 import React, { useEffect } from 'react';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
@@ -34,7 +35,7 @@ export async function turnOffSlider(type) {
 
 // a slider for one alert, if its Slider switch is on
 export function showSlider({ key, type, title, body, data, once }) {
-    if (!type || !alertOn(type, 'p')) return;
+    if (!type || !alertOn(type, 'p') || isOpenInquiry(type, data)) return;   // not for a reply on the inquiry he is looking at
     if (!String(title || '').trim() && !String(body || '').trim()) return;   // a slider with nothing to say is never shown
     if (once) {
         if (shownOnce.has(String(key))) return;

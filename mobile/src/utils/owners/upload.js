@@ -30,7 +30,8 @@ export async function pickImages({ limit = 5 } = {}) {
 
 // kind: product | category | collection | banner. 'product' needs refId (the item's id, or a temporary one for a new item).
 // -> the saved Media { url, ... }
-export async function uploadImage({ kind, uri, mimeType, refId, via }) {
+// onProgress(0..1) and handle (gets .cancel()): the round loader on the picture while it goes
+export async function uploadImage({ kind, uri, mimeType, refId, via, onProgress, handle }) {
     // via 'support': the picture of a help request (its own route, which stays open while the shop is paused)
     const sign = via === 'support' ? signSupportPhoto : signUpload;
     const confirm = via === 'support' ? confirmSupportPhoto : confirmUpload;
@@ -45,9 +46,9 @@ export async function uploadImage({ kind, uri, mimeType, refId, via }) {
     catch (e) { throw fail(e?.response?.data?.error || 'Uploads are not available right now'); }
 
     let sent;
-    try { sent = await putFile(uri, { url: signed.uploadUrl, method: signed.method, headers: signed.headers || { 'Content-Type': contentType } }); }
+    try { sent = await putFile(uri, { url: signed.uploadUrl, method: signed.method, headers: signed.headers || { 'Content-Type': contentType } }, { onProgress, handle }); }
     catch (e) { throw fail('Upload failed. Check the connection and try again.'); }
-    if (!sent) throw fail('Upload failed. Please try again.');
+    if (!sent) throw Object.assign(fail('Upload stopped'), { stopped: !!handle?.stopped });
 
     try { return await confirm({ kind, key: signed.key, ...ref }); }
     catch (e) { throw fail(e?.response?.data?.error || 'Could not save that picture'); }

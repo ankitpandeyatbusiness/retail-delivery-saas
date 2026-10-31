@@ -4,6 +4,7 @@
 //   - tapping a notification opens its order
 // The server stores the phone's FCM token (POST /notifications/devices) and sends with firebase-admin.
 // Android only for now. All of it is best effort: a failure here must never get in the way of ordering.
+import { isOpenInquiry } from '../../store/owners/useOpenInquiry';
 import { ownerRoute } from '../owners/notificationRoute';
 import { Platform, AppState } from 'react-native';
 import * as Notifications from 'expo-notifications';
@@ -68,7 +69,7 @@ Notifications.setNotificationHandler({
 const QUIET_TYPES = ['table_guest_alert'];   // meant to be silent: only in the list
 const SOUNDBOX_TYPES = ['order_new', 'order_unaccepted_reminder', 'order_cancelled', 'table_bill_asked', 'table_call', 'kitchen_problem', 'pickup_intent', 'rider_sos'];
 // the tone for a message the Soundbox is not saying: a new order or a call for help is clearly louder than an ordinary ping
-const toneFor = (n) => (['order_new', 'order_unaccepted_reminder', 'table_bill_asked', 'table_call', 'kitchen_problem', 'pickup_intent'].includes(n?.type) ? 'tingTong'
+const toneFor = (n) => (String(n?.type || '').startsWith('inquiry_') ? 'inquiry' : ['order_new', 'order_unaccepted_reminder', 'table_bill_asked', 'table_call', 'kitchen_problem', 'pickup_intent'].includes(n?.type) ? 'tingTong'
     : n?.type === 'order_cancelled' ? 'cancelAlarm' : n?.type === 'rider_sos' ? 'helpAlarm' : 'notify');
 function hasOwnSound(n) {
     if (QUIET_TYPES.includes(n?.type)) return true;   // no ping, no sound
@@ -267,6 +268,7 @@ async function getToken() {
     }
     // the soft ping for news: the owner's too (leave, reviews, rent, rider answers...)
     if (who === 'admin') {
+        try { await Notifications.setNotificationChannelAsync('inquiry_v1', { name: 'Customer inquiries', description: 'Its own tone for an inquiry or a reply', importance: Notifications.AndroidImportance.HIGH, sound: 'cust_offer.wav' }); } catch (e) { /* the push then lands on the default channel */ }
         try {
             await Notifications.setNotificationChannelAsync(STAFF_INFO_CHANNEL, { name: 'News and updates', description: 'A soft ping for news', importance: Notifications.AndroidImportance.HIGH, sound: 'notify.wav' });
         } catch (e) { /* the push then lands on the app's default channel */ }
@@ -367,7 +369,7 @@ export function startNotifications() {
                 setTimeout(() => sayAlert(n.type, n.data).catch(() => { }), 2500);
             } else markSaid(n.type, n.data);
         }
-        if (AppState.currentState === 'active' && !hasOwnSound(n) && alertOn(n?.type, 's')) { playSfx(toneFor(n)); buzz([0, 40]); }   // the Alerts screen can switch this off
+        if (AppState.currentState === 'active' && !hasOwnSound(n) && alertOn(n?.type, 's') && !isOpenInquiry(n?.type, n?.data)) { playSfx(toneFor(n)); buzz([0, 40]); }   // the Alerts screen can switch this off
         if (n?.title) showToast(n.body ? `${n.title}: ${String(n.body).slice(0, 90)}` : n.title);
     });
 

@@ -18,7 +18,7 @@ const inquirySchema = new mongoose.Schema({
     }, { _id: false })],
     estimate: { type: Number, default: 0 },    // rupees, only when the service is priced per plate and the guests are known
     // the conversation: the customer's first message, then replies from both sides
-    messages: [{ _id: false, from: { type: String, enum: ['customer', 'owner'] }, text: { type: String, maxlength: 1000 }, at: { type: Date, default: Date.now } }],
+    messages: [{ _id: false, from: { type: String, enum: ['customer', 'owner'] }, text: { type: String, maxlength: 1000 }, images: { type: [String], default: undefined }, at: { type: Date, default: Date.now } }],
     ownerUnread: { type: Number, default: 0 },      // customer messages the owner has not opened
     customerUnread: { type: Number, default: 0 },   // owner replies the customer has not opened
     note: { type: String, maxlength: 1000, default: '' },   // private, the owner only

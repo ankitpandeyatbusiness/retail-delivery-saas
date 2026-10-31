@@ -9,6 +9,7 @@ import { useBrand, alpha } from '../common/kit';
 import { PageHeader, Card, Pill, Chips, Button, Field, Sheet, Row, money } from './ui';
 import { showToast, useSlideTick, seedOf } from '../customers/shop';
 import { pickImage, pickImages, uploadImage } from '../../utils/owners/upload';
+import UploadThumb from '../common/UploadThumb';
 import { amountLabel, stockUnit, itemState, MAX_GROUPS, MAX_OPTIONS, DAYS, maskTime } from '../../utils/owners/menuRules';
 import { clockTime } from '../../utils/owners/orderFlow';
 import { LineShimmer } from './shimmer';
@@ -145,7 +146,8 @@ export function Group({ title, hint, children, flush, flash, flashText, onLayout
 }
 
 // The frame of a form page: back arrow + title, the fields scrolling, and the main button pinned to the bottom.
-export function FormPage({ title, children, footer, right, scrollRef }) {
+// fixed: the children fill the space and manage their own scrolling (a chat); the page itself does not scroll
+export function FormPage({ title, children, footer, right, scrollRef, fixed }) {
     const { background, border } = useBrand();
     const insets = useSafeAreaInsets();
     const [boxRef, lift] = useKeyboardLift();   // Android: the page, with its bar, is lifted above the keyboard
@@ -154,9 +156,10 @@ export function FormPage({ title, children, footer, right, scrollRef }) {
             <PageHeader title={title} right={right} />
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
                 <View ref={boxRef} collapsable={false} style={{ flex: 1, paddingBottom: lift }}>
+                {fixed ? <View style={{ flex: 1, paddingTop: 6 }}>{children}</View> : (
                 <KeyboardScroll ref={scrollRef} contentContainerStyle={{ paddingTop: 6, paddingBottom: 40 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
                     {children}
-                </KeyboardScroll>
+                </KeyboardScroll>)}
                 {footer ? (
                     <View style={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: Math.max(insets.bottom, 10), borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: border, backgroundColor: background }}>
                         {footer}
@@ -221,18 +224,18 @@ export function MorePictures({ value = [], onChange, onMain, refId, disabled, ki
         const room = max - value.length - sending.length;
         if (disabled || room <= 0) return;
         const picked = await pickImages({ limit: room });
-        const batch = picked.map((img, n) => ({ ...img, key: `${Date.now()}-${n}` }));
+        const batch = picked.map((img, n) => ({ ...img, key: `${Date.now()}-${n}`, progress: null, handle: {} }));
         if (!batch.length) return;
         setSending((s) => [...s, ...batch]);
         batch.forEach(async (img) => {
             try {
-                const m = await uploadImage({ kind, refId, uri: img.uri, mimeType: img.mimeType });
+                const m = await uploadImage({ kind, refId, uri: img.uri, mimeType: img.mimeType, handle: img.handle, onProgress: (p) => setSending((s) => s.map((x) => (x.key === img.key ? { ...x, progress: p } : x))) });
                 if (!stopped.current.has(img.key)) { latest.current = [...latest.current, m.url]; onChange(latest.current); }
-            } catch (e) { if (!stopped.current.has(img.key)) showToast(e.safe ? e.message : tr('Could not upload that picture')); }
+            } catch (e) { if (!stopped.current.has(img.key) && !e?.stopped) showToast(e.safe ? e.message : tr('Could not upload that picture')); }
             finally { stopped.current.delete(img.key); setSending((s) => s.filter((x) => x.key !== img.key)); }
         });
     };
-    const stop = (key) => { stopped.current.add(key); setSending((s) => s.filter((x) => x.key !== key)); };
+    const stop = (key) => { stopped.current.add(key); sending.find((x) => x.key === key)?.handle?.cancel?.(); setSending((s) => s.filter((x) => x.key !== key)); };
     const move = (i, d) => {
         const j = i + d;
         if (j < 0 || j >= value.length) return;
@@ -263,14 +266,7 @@ export function MorePictures({ value = [], onChange, onMain, refId, disabled, ki
                     </View>
                 ))}
                 {sending.map((x) => (
-                    <View key={x.key} style={{ marginRight: 12, marginBottom: 14, width: 84, height: 84, borderRadius: 12, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
-                        <Image source={{ uri: x.uri }} style={{ position: 'absolute', width: 84, height: 84 }} contentFit="cover" />
-                        <View style={{ position: 'absolute', width: 84, height: 84, backgroundColor: 'rgba(0,0,0,0.45)' }} />
-                        <ActivityIndicator size="large" color="#FFFFFF" />
-                        <Pressable onPress={() => stop(x.key)} hitSlop={10} style={{ position: 'absolute', alignItems: 'center', justifyContent: 'center', width: 36, height: 36 }}>
-                            <Ionicons name="close" size={16} color="#FFFFFF" />
-                        </Pressable>
-                    </View>
+                    <View key={x.key} style={{ marginRight: 12, marginBottom: 14 }}><UploadThumb uri={x.uri} progress={x.progress} onCancel={() => stop(x.key)} /></View>
                 ))}
                 {value.length + sending.length < max ? (
                     <Pressable onPress={add} disabled={disabled} style={{ width: 84, height: 84, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: border, backgroundColor: surface, alignItems: 'center', justifyContent: 'center', opacity: disabled ? 0.5 : 1 }}>

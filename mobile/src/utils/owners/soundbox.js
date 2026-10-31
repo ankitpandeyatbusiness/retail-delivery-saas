@@ -13,6 +13,7 @@
 //   media-playback foreground service, and the screen is kept awake while the app is in front.
 //
 // Everything is best effort: an audio problem must never get in the way of taking an order.
+import { isOpenInquiry } from '../../store/owners/useOpenInquiry';
 import { AppState } from 'react-native';
 import * as Speech from 'expo-speech';
 import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
@@ -578,7 +579,7 @@ export function wasTapped(type, data) {
 // if it was already read (the app was open when it arrived) nothing is said.
 export async function sayAlert(type, data) {
     try {
-        if (!type || wasSaid(type, data)) return;
+        if (!type || wasSaid(type, data) || isOpenInquiry(type, data)) return;
         if (!settings().loaded) await useSoundboxStore.getState().hydrate();
         await useAlertPrefs.getState().hydrate();
         if (!settings().soundbox || !alertOn(type, 'v')) return;
@@ -712,7 +713,8 @@ async function announceNews(n) {
     if (!settings().alwaysReady && AppState.currentState !== 'active') return;
     const d = n.data || {};
     note('news: ' + n.type);
-    if (alertOn(n.type, 's')) playSfx('notify');
+    if (isOpenInquiry(n.type, d)) return;   // he is on that inquiry's screen and can see the reply: no ping, no voice (the toast still shows)
+    if (alertOn(n.type, 's')) playSfx(String(n.type).startsWith('inquiry_') ? 'inquiry' : 'notify');
     try {
         const wanted = await languageToUse();
         const plain = [n.title, n.body].filter(Boolean).join('. ');

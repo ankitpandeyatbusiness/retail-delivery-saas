@@ -77,6 +77,20 @@ describe('service inquiries', () => {
         assert.equal(owner.body.unread, 1);
     });
 
+    test('pictures go both ways (https only, at most 3), and the owner can end the conversation and open it again', async () => {
+        const pic = (n) => `https://cdn.example.com/inquiries/${n}.jpg`;
+        const rep = await request(app).post(`/api/shop/inquiries/${inquiryId}/reply`).set(w.owner.headers).send({ images: [pic(1), 'http://insecure/x.jpg', pic(2), pic(3), pic(4)] });
+        assert.equal(rep.status, 200);
+        assert.deepEqual(rep.body.messages[rep.body.messages.length - 1].images, [pic(1), pic(2), pic(3)]);
+        const more = await request(app).post(`/api/services/inquiries/${inquiryId}/messages`).set(w.customer.headers).send({ images: [pic(5)] });
+        assert.equal(more.status, 200);
+        assert.equal((await request(app).post(`/api/services/inquiries/${inquiryId}/messages`).set(w.customer.headers).send({ images: ['ftp://nope'] })).status, 400);   // nothing valid to send
+        await request(app).patch(`/api/shop/inquiries/${inquiryId}`).set(w.owner.headers).send({ status: 'closed' });
+        assert.equal((await request(app).post(`/api/services/inquiries/${inquiryId}/messages`).set(w.customer.headers).send({ text: 'hi' })).status, 400);
+        await request(app).patch(`/api/shop/inquiries/${inquiryId}`).set(w.owner.headers).send({ status: 'replied' });
+        assert.equal((await request(app).post(`/api/services/inquiries/${inquiryId}/messages`).set(w.customer.headers).send({ text: 'hi again' })).status, 200);
+    });
+
     test('another customer cannot open this inquiry', async () => {
         const { makeUser } = require('./helpers/factory');
         const other = await makeUser(w.tenant, 'customer', '9000000099');

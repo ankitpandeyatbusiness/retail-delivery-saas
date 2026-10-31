@@ -19,6 +19,7 @@ const SOUNDS = {
     notify: { source: require('../../../assets/sounds/notify.wav'), volume: 0.8 },   // one soft ping for an ordinary message that has no sound of its own
     cancelAlarm: { source: require('../../../assets/sounds/cancel_alert.wav'), volume: 1 },   // an order was cancelled: a short falling da-da-dum, twice
     helpAlarm: { source: require('../../../assets/sounds/help_alarm.wav'), volume: 1 },   // a rider pressed the help button: a gentle pee-poo, three times
+    inquiry: { source: require('../../../assets/sounds/cust_offer.wav'), volume: 0.9 },   // a customer's inquiry: its own bright tone, so the owner knows it without looking
     riderReject: { source: require('../../../assets/sounds/rider_reject.wav'), volume: 0.9 },   // short low "no"
 };
 

@@ -99,7 +99,7 @@ export const fetchServices = () => d(api.get('/services'));                     
 export const fetchService = (id) => d(api.get(`/services/${id}`));                                   // the service + me:{ name, phone }
 export const sendInquiry = (id, body) => d(api.post(`/services/${id}/inquiries`, body));            // { name, phone, message, answers:{ questionId: value } }
 export const fetchInquiry = (id) => d(api.get(`/services/inquiries/${id}`));                       // with the whole conversation
-export const sendInquiryMessage = (id, text) => d(api.post(`/services/inquiries/${id}/messages`, { text }));
+export const sendInquiryMessage = (id, body) => d(api.post(`/services/inquiries/${id}/messages`, typeof body === 'string' ? { text: body } : body));   // { text?, images? }
 export const fetchMyInquiries = () => d(api.get('/services/inquiries/mine'));
 
 // table booking (backend/src/routes/bookingsRouter.js)

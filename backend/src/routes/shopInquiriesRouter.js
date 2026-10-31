@@ -46,24 +46,28 @@ router.get('/:id', wrap(async (req, res) => {
 router.post('/:id/reply', wrap(async (req, res) => {
     const doc = await mine(req);
     const text = String(req.body?.text || '').trim().slice(0, 1000);
-    if (!text) throw httpError(400, 'Write a reply first');
+    const images = require('../services/shopServices').cleanImages(req.body?.images);
+    if (!text && !images.length) throw httpError(400, 'Write a reply first');
     const status = req.body?.status;
     if (status !== undefined && !STATUSES.includes(status)) throw httpError(400, 'Unknown status');
-    doc.messages.push({ from: 'owner', text });
+    doc.messages.push({ from: 'owner', text, ...(images.length ? { images } : {}) });
     doc.customerUnread += 1;
     doc.lastMessageAt = new Date();
     doc.status = status || (doc.status === 'new' ? 'replied' : doc.status);
     await doc.save();
-    tell('inquiry_reply', { tenantId: doc.tenantId, userId: doc.userId, vars: { shop: req.tenant.name, service: doc.serviceName, text: text.slice(0, 140) }, data: { kind: 'inquiry', inquiryId: String(doc._id) } });
+    tell('inquiry_reply', { tenantId: doc.tenantId, userId: doc.userId, vars: { shop: req.tenant.name, service: doc.serviceName, text: (text || 'Sent a photo').slice(0, 140) }, data: { kind: 'inquiry', inquiryId: String(doc._id) } });
     res.json(doc.toObject());
 }));
 
 router.patch('/:id', wrap(async (req, res) => {
     const doc = await mine(req);
     const b = req.body || {};
+    const before = doc.status;
     if (b.status !== undefined) { if (!STATUSES.includes(b.status)) throw httpError(400, 'Unknown status'); doc.status = b.status; }
     if (b.note !== undefined) doc.note = String(b.note).trim().slice(0, 1000);
     await doc.save();
+    // the guest's screens load again (the conversation may have been ended or opened again)
+    if (doc.status !== before) require('../services/realtime').toUser(doc.tenantId, doc.userId, 'notification', { id: 'ic' + Date.now(), type: 'inquiry_changed', title: null, body: null, data: { kind: 'inquiry', inquiryId: String(doc._id) } });
     res.json(doc.toObject());
 }));
 

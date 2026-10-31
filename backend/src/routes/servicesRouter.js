@@ -57,8 +57,9 @@ router.post('/inquiries/:id/messages', wrap(async (req, res) => {
     const doc = await mineInquiry(req);
     if (doc.status === 'closed') throw httpError(400, 'This inquiry is closed');
     const text = String(req.body?.text || '').trim().slice(0, 1000);
-    if (!text) throw httpError(400, 'Write a message first');
-    doc.messages.push({ from: 'customer', text });
+    const images = require('../services/shopServices').cleanImages(req.body?.images);
+    if (!text && !images.length) throw httpError(400, 'Write a message first');
+    doc.messages.push({ from: 'customer', text, ...(images.length ? { images } : {}) });
     doc.ownerUnread += 1;
     doc.lastMessageAt = new Date();
     await doc.save();

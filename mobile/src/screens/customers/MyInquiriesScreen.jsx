@@ -1,5 +1,6 @@
 // Account, My inquiries: what I sent to the shop and where it stands. Tap one to read the replies and write back.
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { onNotification } from '../../api/common/socket';
 import { View, Text, ScrollView } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useBrand } from '../../components/common/kit';
@@ -15,6 +16,7 @@ export default function MyInquiriesScreen() {
     const [items, setItems] = useState(null);
     const load = useCallback(() => { fetchMyInquiries().then((r) => setItems(r.items || [])).catch(() => setItems((x) => x || [])); }, []);
     useFocusEffect(useCallback(() => { load(); }, [load]));
+    useEffect(() => onNotification((n) => { if (String(n?.type || '').startsWith('inquiry_')) load(); }), [load]);   // the shop replied, changed the status or ended it: the cards change at once
     const tone = (st) => (st === 'confirmed' ? ok : st === 'rejected' ? error : muted);
 
     return (
@@ -33,7 +35,7 @@ export default function MyInquiriesScreen() {
                                 <Pill label={tr(STATUS_LABEL[i.status] || 'New')} color={tone(i.status)} />
                             </View>
                             <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{new Date(i.createdAt).toLocaleDateString()}</Text>
-                            {last ? <Text numberOfLines={2} style={{ color: text, marginTop: 6 }}>{last.from === 'owner' ? `${tr('Shop')}: ` : ''}{last.text}</Text> : null}
+                            {last ? <Text numberOfLines={2} style={{ color: text, marginTop: 6 }}>{last.from === 'owner' ? `${tr('Shop')}: ` : ''}{last.text || tr('Photo')}</Text> : null}
                         </Card>
                     );
                 })}
