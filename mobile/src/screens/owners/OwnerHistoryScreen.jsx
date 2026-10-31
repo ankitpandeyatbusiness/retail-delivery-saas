@@ -196,7 +196,7 @@ export default function OwnerHistoryScreen() {
                 <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', height: 46, borderRadius: 14, borderWidth: 1, borderColor: border, backgroundColor: surface, paddingHorizontal: 12 }}>
                     <Ionicons name="search" size={18} color={muted} />
                     <TextInput value={input} onChangeText={setInput} placeholder={tr('Name, order no, dish, phone, address')} placeholderTextColor={muted} autoCorrect={false}
-                        style={{ flex: 1, color: text, fontSize: 14.5, paddingHorizontal: 8, paddingVertical: 0 }} returnKeyType="search" />
+                        style={{ flex: 1, height: 46, color: text, fontSize: 14.5, paddingHorizontal: 8, paddingVertical: 0, textAlignVertical: 'center', includeFontPadding: false }} returnKeyType="search" />
                     {input ? <Pressable onPress={() => setInput('')} hitSlop={8}><Ionicons name="close-circle" size={18} color={muted} /></Pressable> : null}
                 </View>
                 <View style={{ width: 10 }} />

@@ -205,7 +205,7 @@ export default function OwnerAutomationsScreen() {
             <Text style={{ color: muted, fontSize: 13, paddingHorizontal: 18, marginBottom: 8, lineHeight: 19 }}>{tr('What is switched on is done for you after the time you choose, and you are told afterwards. What is off, you do by hand. Whatever you do first always wins.')}</Text>
             <View style={{ marginHorizontal: 16, marginBottom: 10, flexDirection: 'row', alignItems: 'center', height: 46, borderWidth: 1, borderColor: border, backgroundColor: surface, borderRadius: 14, paddingHorizontal: 12 }}>
                 <Ionicons name="search" size={18} color={muted} />
-                <TextInput value={q} onChangeText={(x) => { ease(); setQ(x); }} placeholder={tr('Search automations')} placeholderTextColor={muted} autoCorrect={false} autoCapitalize="none" style={{ flex: 1, color: text, fontSize: 15, paddingHorizontal: 8, paddingVertical: 0 }} />
+                <TextInput value={q} onChangeText={(x) => { ease(); setQ(x); }} placeholder={tr('Search automations')} placeholderTextColor={muted} autoCorrect={false} autoCapitalize="none" style={{ flex: 1, height: 46, color: text, fontSize: 15, paddingHorizontal: 8, paddingVertical: 0, textAlignVertical: 'center', includeFontPadding: false }} />
                 {q ? <Pressable onPress={() => { ease(); setQ(''); }} hitSlop={8}><Ionicons name="close-circle" size={18} color={muted} /></Pressable> : null}
             </View>
             {!needle ? (
