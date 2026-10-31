@@ -160,7 +160,6 @@ export default function OwnerAutomationsScreen() {
         I('p1', 'platform', tr('Backups of your shop data'), tr('Taken every day, and kept for a week. A weekly copy is kept for a month.'), 'backup data safe', 'Done for you');
         I('p2', 'platform', tr('Monthly reports'), tr('Made at the start of each month.'), 'monthly report', 'Done for you');
         I('p3', 'platform', tr('Loyalty points'), tr('Points a customer earned are released by themselves after the order is safe.'), 'loyalty points release rewards', 'Done for you');
-        I('p4', 'platform', tr('A shop that goes quiet'), tr('The platform checks in on shops that stop taking orders.'), 'inactive shop check', 'Done for you');
         return R;
     }, [a, dine, rid, staff, bk, ap, bookingOn, servicesOn]);   // eslint-disable-line react-hooks/exhaustive-deps
 

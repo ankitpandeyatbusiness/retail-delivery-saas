@@ -216,36 +216,36 @@ export function ShopMenu({ onGo }) {
 
     return (
         <View>
-            {/* Easy mode: only the things used every day */}
-            <Card>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Ionicons name="leaf" size={22} color={easy ? primary : muted} />
-                    <View style={{ flex: 1, marginHorizontal: 12 }}>
-                        <Text style={{ color: text, fontWeight: '900', fontSize: 15 }}>{tr('Easy mode')}</Text>
-                        <Text style={{ color: muted, fontSize: 12.5, marginTop: 1 }}>{easy ? tr('Showing only what you use every day') : tr('Show only what you use every day')}</Text>
-                    </View>
-                    <Toggle value={easy} onValueChange={(v) => useMenuFlags.getState().setEasy(v)} />
-                </View>
-            </Card>
-            {english ? (
+            {/* the two switches and the search box in one slim block; its height is where the list (and the A to Z strip) starts */}
+            <View onLayout={(e) => useMenuIndex.getState().setBase(e.nativeEvent.layout.height)}>
                 <Card>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Ionicons name="text" size={22} color={sortAZ ? primary : muted} />
-                        <View style={{ flex: 1, marginHorizontal: 12 }}>
-                            <Text style={{ color: text, fontWeight: '900', fontSize: 15 }}>{tr('Sort A to Z')}</Text>
-                            <Text style={{ color: muted, fontSize: 12.5, marginTop: 1 }}>{sortAZ ? tr('One list by name. Slide on the letters on the right.') : tr('Show every screen in one list by name')}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 2 }}>
+                        <Ionicons name="leaf" size={20} color={easy ? primary : muted} />
+                        <View style={{ flex: 1, marginHorizontal: 10 }}>
+                            <Text style={{ color: text, fontWeight: '900', fontSize: 14 }}>{tr('Easy mode')}</Text>
+                            <Text style={{ color: muted, fontSize: 11.5 }} numberOfLines={1}>{easy ? tr('Showing only what you use every day') : tr('Show only what you use every day')}</Text>
                         </View>
-                        <Toggle value={sortAZ} onValueChange={(v) => { ease(); useMenuFlags.getState().setSortAZ(v); }} />
+                        <Toggle value={easy} onValueChange={(v) => useMenuFlags.getState().setEasy(v)} />
                     </View>
+                    {english ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 2, marginTop: 6, paddingTop: 8, borderTopWidth: 0.5, borderTopColor: border }}>
+                            <Ionicons name="text" size={20} color={sortAZ ? primary : muted} />
+                            <View style={{ flex: 1, marginHorizontal: 10 }}>
+                                <Text style={{ color: text, fontWeight: '900', fontSize: 14 }}>{tr('Sort A to Z')}</Text>
+                                <Text style={{ color: muted, fontSize: 11.5 }} numberOfLines={1}>{sortAZ ? tr('One list by name. Slide on the letters on the right.') : tr('Show every screen in one list by name')}</Text>
+                            </View>
+                            <Toggle value={sortAZ} onValueChange={(v) => { ease(); useMenuFlags.getState().setSortAZ(v); }} />
+                        </View>
+                    ) : null}
                 </Card>
-            ) : null}
-            <View style={{ marginHorizontal: 16, marginTop: 6, marginBottom: 4, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: border, backgroundColor: surface, borderRadius: 14, paddingHorizontal: 12 }}>
-                <Ionicons name="search" size={18} color={muted} />
-                <TextInput
-                    value={q} onChangeText={setQ} placeholder={tr('Search the menu')} placeholderTextColor={muted} autoCorrect={false} autoCapitalize="none"
-                    style={{ flex: 1, paddingVertical: 11, paddingHorizontal: 8, color: text, fontSize: 15 }}
-                />
-                {q ? <Pressable onPress={() => setQ('')} hitSlop={8}><Ionicons name="close-circle" size={18} color={muted} /></Pressable> : null}
+                <View style={{ marginHorizontal: 16, marginTop: 4, marginBottom: 2, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: border, backgroundColor: surface, borderRadius: 12, paddingHorizontal: 12 }}>
+                    <Ionicons name="search" size={17} color={muted} />
+                    <TextInput
+                        value={q} onChangeText={setQ} placeholder={tr('Search the menu')} placeholderTextColor={muted} autoCorrect={false} autoCapitalize="none"
+                        style={{ flex: 1, paddingVertical: 7, paddingHorizontal: 8, color: text, fontSize: 14.5 }}
+                    />
+                    {q ? <Pressable onPress={() => setQ('')} hitSlop={8}><Ionicons name="close-circle" size={18} color={muted} /></Pressable> : null}
+                </View>
             </View>
 
             {found ? (
@@ -260,7 +260,7 @@ export function ShopMenu({ onGo }) {
             ) : (
                 <View>
                     {az ? (
-                        <View style={{ paddingRight: 26 }} onLayout={(e) => useMenuIndex.getState().setBase(e.nativeEvent.layout.y)}>
+                        <View style={{ paddingRight: 26 }}>
                             {azGroups.map(({ letter, rows }) => (
                                 <View key={letter} onLayout={(e) => { if (letter !== '#') useMenuIndex.getState().setY(letter, e.nativeEvent.layout.y); }}>
                                     <SectionTitle title={letter} />
@@ -272,7 +272,7 @@ export function ShopMenu({ onGo }) {
                         </View>
                     ) : null}
                     {sections.filter(([g]) => !az || g === 'Your app').map(([group, rowsAll]) => { const rows = easy && group === 'Your app' ? rowsAll.filter((e) => EASY_APP.has(e.title)) : rowsAll; return (rows.length ? (
-                        <View key={group}>
+                        <View key={group} style={az ? { paddingRight: 26 } : null}>
                             <SectionTitle title={tr(group)} />
                             <Card>
                                 {rows.map((e, i) => (e.custom ? <AppearanceSwitch key={e.title} /> : <Row key={e.title} icon={e.icon} title={tr(e.title)} subtitle={e.subtitle} color={e.color} right={e.right} last={i === rows.length - 1} onPress={e.act} />))}
