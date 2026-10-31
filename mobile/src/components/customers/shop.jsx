@@ -84,7 +84,7 @@ export function ToastHost() {
             }
             if (g.dx > 60 || g.vx > 0.6) {
                 clearTimeout(timer.current);
-                Animated.timing(drag, { toValue: 420, duration: 200, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(() => { setOn(false); drag.setValue(0); });
+                Animated.timing(drag, { toValue: 420, duration: 200, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(() => { slide.setValue(0); setOn(false); });   // it is invisible first; the drag is put back when the next toast comes (putting it back now showed the toast again for a moment)
             } else { Animated.spring(drag, { toValue: 0, useNativeDriver: true, bounciness: 6 }).start(); startClock(); }
         },
         onPanResponderTerminate: () => { Animated.spring(drag, { toValue: 0, useNativeDriver: true }).start(); startClock(); },

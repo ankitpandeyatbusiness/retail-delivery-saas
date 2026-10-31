@@ -185,7 +185,7 @@ export function ToastHost() {
         onPanResponderRelease: (_, g) => {
             if (g.dx > 60 || g.vx > 0.6) {
                 clearTimeout(timer.current);
-                Animated.timing(drag, { toValue: 520, duration: 200, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(() => { setMsg(null); drag.setValue(0); });
+                Animated.timing(drag, { toValue: 520, duration: 200, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(() => { opacity.setValue(0); setMsg(null); });   // it is invisible first; the drag is put back when the next message comes (putting it back now showed the message again for a moment)
             } else { Animated.spring(drag, { toValue: 0, useNativeDriver: true, bounciness: 6 }).start(); startClock(); }
         },
         onPanResponderTerminate: () => { Animated.spring(drag, { toValue: 0, useNativeDriver: true }).start(); startClock(); },
