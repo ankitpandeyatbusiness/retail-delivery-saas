@@ -2,7 +2,7 @@
 // tracking), their cards step aside and this round button stays, with the icons of what is there on it. Touch and hold it: a quarter circle opens to the
 // to the left and up, a ring split into four wedges with only their icons (Dine in, Track, Table QR, Cart). Slide onto a wedge that has a screen behind it:
 // it lights up. Let go on it and that screen opens; let go anywhere else and nothing opens. A wedge with nothing behind it is dimmed with a lock.
-// A quick tap opens nothing: it only shows a hint. The button itself is one glossy general icon (the four dots), whatever cards there are.
+// A quick tap opens nothing: it only shows a hint. The button itself is one glossy icon, a tiny copy of the fan (a quarter circle of four wedges), whatever cards there are.
 // Drawn from plain views (many thin rotated bars), so it needs no extra package.
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, PanResponder, Animated } from 'react-native';
@@ -46,6 +46,25 @@ function Wedge({ index, fill, line }) {
         );
     }
     return <>{bars}</>;
+}
+
+// The icon on the button: the fan in miniature, a quarter circle of four wedges with its corner at the bottom right (drawn the same way as the real fan)
+function MiniFan({ color }) {
+    const SIZE = 25; const IN = 7; const OUT = 25; const MSTEP = 4; const MGAP = 4;
+    const bars = [];
+    for (let i = 0; i < 4; i += 1) {
+        const a0 = -90 - i * SPAN - MGAP / 2;
+        const a1 = -90 - (i + 1) * SPAN + MGAP / 2;
+        const n = Math.floor((a0 - a1) / MSTEP);
+        for (let j = 0; j <= n; j += 1) {
+            bars.push(
+                <View key={`${i}-${j}`} style={{ position: 'absolute', left: SIZE, top: SIZE, width: 0, height: 0, transform: [{ rotate: `${a0 - j * MSTEP}deg` }] }}>
+                    <View style={{ position: 'absolute', left: IN, top: -1.9, width: OUT - IN, height: 3.8, backgroundColor: color, opacity: i % 2 ? 0.7 : 1 }} />
+                </View>,
+            );
+        }
+    }
+    return <View style={{ width: SIZE, height: SIZE }}>{bars}</View>;
 }
 
 export default function BottomDock({ navRef }) {
@@ -153,7 +172,7 @@ export default function BottomDock({ navRef }) {
                 <LinearGradient colors={[primaryLight || primary, primary, primaryDark || primary]} start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }} style={{ flex: 1, borderRadius: DISC / 2, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.55)', overflow: 'hidden' }}>
                     <LinearGradient pointerEvents="none" colors={['rgba(255,255,255,0.65)', 'rgba(255,255,255,0.06)']} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }}
                         style={{ position: 'absolute', top: 2, left: 7, right: 7, height: DISC * 0.46, borderRadius: DISC / 2 }} />
-                    <Ionicons name="apps" size={28} color={onPrimary} style={{ textShadowColor: 'rgba(0,0,0,0.25)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 }} />
+                    <MiniFan color={onPrimary} />
                 </LinearGradient>
             </Animated.View>
         </View>
