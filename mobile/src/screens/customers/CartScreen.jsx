@@ -572,6 +572,16 @@ export default function CartScreen() {
                         </Appear>
                     ) : null}
 
+                    {user && type !== 'dine_in' && showSchedule ? (
+                        <Appear delay={140} style={{ marginTop: 20 }}>
+                            <View style={s.chipsRow}>
+                                <Chip icon="flash-outline" label={tr('Now')} on={when === 'now'} onPress={() => setWhen('now')} />
+                                {slots.today ? <Chip icon="time-outline" label={slots.today.label} on={when === 'today'} onPress={() => setWhen('today')} /> : null}
+                                <Chip icon="calendar-outline" label={slots.tomorrow.label} on={when === 'tomorrow'} onPress={() => setWhen('tomorrow')} />
+                            </View>
+                        </Appear>
+                    ) : null}
+
                     {user && type === 'pickup' ? (
                         <Appear style={{ marginTop: 20 }}>
                             <Text style={[s.cap, { color: text }]}>{tr('Pickup time')}</Text>
