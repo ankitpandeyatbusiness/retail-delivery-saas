@@ -195,6 +195,8 @@ function handleTapNow(resp, data) {
             return;
         }
         const to = ownerRoute({ type: data.type, data });
+        // a reservation or its cancellation: the slider (Allow and Deny for a new one) shows over the screen it opens, not only the screen
+        if (to && ['booking_new', 'booking_cancelled', 'booking_reminder'].includes(String(data.type))) showTapSlider(resp, data);
         if (to) { openScreen(to.name, to.params); return; }
         showTapSlider(resp, data);   // nothing to open: its words show as a slider
         return;
