@@ -350,7 +350,7 @@ export function RiderSheet({ order, visible, onClose, onChanged }) {
                             <View style={{ flex: 1, minWidth: 0, marginLeft: 12 }}>
                                 <Text style={{ color: text, fontWeight: '800', fontSize: 15 }} numberOfLines={1}>{r.name || r.phone || tr('Rider')}</Text>
                                 <Text style={{ color: muted, fontSize: 12, marginTop: 1 }} numberOfLines={1}>
-                                    {r.isOnline ? tr('Online') : tr('Offline')} · {r.activeOrderCount ? tr('{activeOrderCount} order{v3} now', { activeOrderCount: r.activeOrderCount, v3: r.activeOrderCount === 1 ? '' : 's' }) : tr('Free')}
+                                    {r.isOnline ? tr('Online') : tr('Offline')} · {r.activeOrderCount ? tr(r.activeOrderCount === 1 ? '{activeOrderCount} order now' : '{activeOrderCount} orders now', { activeOrderCount: r.activeOrderCount }) : tr('Free')}
                                 </Text>
                             </View>
                             {current ? (

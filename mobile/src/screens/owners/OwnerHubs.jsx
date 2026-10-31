@@ -15,22 +15,23 @@ import OwnerBusinessScreen from './OwnerBusinessScreen';
 import OwnerPopularScreen from './OwnerPopularScreen';
 import OwnerNotificationsScreen from './OwnerNotificationsScreen';
 import OwnerActivityScreen from './OwnerActivityScreen';
+import { tr } from '../../i18n';
 
 export const OwnerMoneyHub = () => (
-    <TabsHost title="Transactions" tabs={[['all', 'All money', OwnerTxTabScreen], ['months', 'By month', OwnerTransactionsScreen], ['refunds', 'Refunds and chargebacks', OwnerPaymentsScreen]]} />
+    <TabsHost title={tr('Transactions')} tabs={[['all', 'All money', OwnerTxTabScreen], ['months', 'By month', OwnerTransactionsScreen], ['refunds', 'Refunds and chargebacks', OwnerPaymentsScreen]]} />
 );
 export const OwnerShopFrontHub = () => (
-    <TabsHost title="Home screen" tabs={[['banners', 'Banners', OwnerBannersScreen], ['collections', 'Collections', OwnerCollectionsScreen], ['pictures', 'Login pictures', OwnerHeroScreen]]} />
+    <TabsHost title={tr('Home screen')} tabs={[['banners', 'Banners', OwnerBannersScreen], ['collections', 'Collections', OwnerCollectionsScreen], ['pictures', 'Login pictures', OwnerHeroScreen]]} />
 );
 export const OwnerBillsHub = () => (
-    <TabsHost title="Bills and SMS" tabs={[['bill', 'Monthly bill', OwnerRentScreen], ['sms', 'SMS', OwnerSmsScreen]]} />
+    <TabsHost title={tr('Bills and SMS')} tabs={[['bill', 'Monthly bill', OwnerRentScreen], ['sms', 'SMS', OwnerSmsScreen]]} />
 );
 export const OwnerDeliveryHub = () => (
-    <TabsHost title="Delivery" tabs={[['area', 'Area and fees', OwnerDeliveryScreen], ['rules', 'Rules and cash', OwnerRiderRulesScreen]]} />
+    <TabsHost title={tr('Delivery')} tabs={[['area', 'Area and fees', OwnerDeliveryScreen], ['rules', 'Rules and cash', OwnerRiderRulesScreen]]} />
 );
 export const OwnerReportsHub = () => (
-    <TabsHost title="Business report" tabs={[['report', 'Report', OwnerBusinessScreen], ['popular', 'Popular items', OwnerPopularScreen]]} />
+    <TabsHost title={tr('Business report')} tabs={[['report', 'Report', OwnerBusinessScreen], ['popular', 'Popular items', OwnerPopularScreen]]} />
 );
 export const OwnerInboxHub = () => (
-    <TabsHost title="Inbox and activity" tabs={[['inbox', 'Inbox', OwnerNotificationsScreen], ['activity', 'Activity log', OwnerActivityScreen]]} />
+    <TabsHost title={tr('Inbox and activity')} tabs={[['inbox', 'Inbox', OwnerNotificationsScreen], ['activity', 'Activity log', OwnerActivityScreen]]} />
 );

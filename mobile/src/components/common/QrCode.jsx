@@ -1,6 +1,7 @@
 // Draws a QR from the cells the server sends ({ size, rows: ['0110..'] }): plain views, so it needs no extra package and works offline.
 import React, { useMemo } from 'react';
 import { View } from 'react-native';
+import { tr } from '../../i18n';
 
 export default function QrCode({ qr, width = 220 }) {
     const cell = qr ? Math.max(1, Math.floor(width / qr.size)) : 1;
@@ -15,7 +16,7 @@ export default function QrCode({ qr, width = 220 }) {
     if (!qr) return null;
     const side = cell * qr.size;
     return (
-        <View accessibilityLabel="QR code" style={{ backgroundColor: '#fff', padding: 12, borderRadius: 14, alignSelf: 'center' }}>
+        <View accessibilityLabel={tr('QR code')} style={{ backgroundColor: '#fff', padding: 12, borderRadius: 14, alignSelf: 'center' }}>
             <View style={{ width: side, height: side }}>
                 {lines.map((runs, y) => (
                     <View key={y} style={{ flexDirection: 'row', height: cell }}>

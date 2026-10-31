@@ -39,9 +39,15 @@ for (const f of files) {
         CallExpression(p) {
             const c = p.node.callee;
             if (c.type !== 'Identifier' || (c.name !== 'tr' && c.name !== 'tl')) return;
-            const a = p.node.arguments[0];
-            if (a && a.type === 'StringLiteral') addKey(a.value);
-            else if (a && a.type === 'TemplateLiteral' && !a.expressions.length) addKey(a.quasis[0].value.cooked);
+            // tr('text'), and each text of tr(a ? 'one' : 'other') or tr(x || 'text')
+            const take = (a) => {
+                if (!a) return;
+                if (a.type === 'StringLiteral') addKey(a.value);
+                else if (a.type === 'TemplateLiteral' && !a.expressions.length) addKey(a.quasis[0].value.cooked);
+                else if (a.type === 'ConditionalExpression') { take(a.consequent); take(a.alternate); }
+                else if (a.type === 'LogicalExpression') { take(a.left); take(a.right); }
+            };
+            take(p.node.arguments[0]);
         },
         StringLiteral(p) {
             // texts in module-level lists (outside functions), which the net in textPatch.js translates when drawn

@@ -59,7 +59,7 @@ export default function KitchenProblemActions({ order, onDone, onLater }) {
 
             <Sheet visible={offerOpen} onClose={() => setOfferOpen(false)} title={tr('Say sorry with an offer?')}>
                 <Text style={{ color: muted, marginBottom: 6 }}>{tr('The order is cancelled. If the customer orders something else within 30 minutes (worth at least this order), they get a discount. The code opens at checkout in one tap.')}</Text>
-                <Chips options={[[0, tr('No offer')], [10, '10% off'], [15, '15% off'], [20, '20% off']]} value={pct} onChange={setPct} />
+                <Chips options={[[0, tr('No offer')], [10, tr('10% off')], [15, tr('15% off')], [20, tr('20% off')]]} value={pct} onChange={setPct} />
                 <Pressable onPress={() => setRemember((v) => !v)} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, marginBottom: 14 }} accessibilityRole="checkbox">
                     <Ionicons name={remember ? 'checkbox' : 'square-outline'} size={24} color={remember ? primary : muted} />
                     <Text style={{ color: muted, marginLeft: 10, flex: 1 }}>{tr('Remember my choice (do not ask me again)')}</Text>

@@ -94,7 +94,7 @@ export default function BookingScanScreen() {
                             </View>
                         ) : null}
                         <Text style={{ color: muted, fontWeight: '800', marginBottom: 6 }}>{tr('Booking code (5 letters)')}</Text>
-                        <TextInput value={typed} onChangeText={(x) => setTyped(x.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 5))} autoCapitalize="characters" autoCorrect={false} maxLength={5} placeholder="ABCDE"
+                        <TextInput value={typed} onChangeText={(x) => setTyped(x.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 5))} autoCapitalize="characters" autoCorrect={false} maxLength={5} placeholder={tr('ABCDE')}
                             placeholderTextColor={muted} style={{ borderWidth: 1, borderColor: border, borderRadius: 14, padding: 14, fontSize: 24, fontWeight: '900', letterSpacing: 6, color: text, textAlign: 'center', backgroundColor: surface }} />
                         <Button label={tr('Check code')} icon="search" busy={busy} disabled={typed.length !== 5} onPress={() => look(typed)} style={{ marginTop: 14 }} />
                         {perm.granted ? <Button label={tr('Use the camera')} icon="camera-outline" kind="ghost" onPress={() => setTyping(false)} style={{ marginTop: 8 }} /> : null}

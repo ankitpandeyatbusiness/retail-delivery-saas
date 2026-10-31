@@ -68,7 +68,7 @@ export default function OwnerInquiryScreen() {
                 <Pressable onPress={() => Linking.openURL(`tel:${digits(i.phone)}`)} accessibilityLabel={tr('Call')} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: primary, alignItems: 'center', justifyContent: 'center', marginLeft: 8 }}>
                     <Ionicons name="call" size={20} color="#fff" />
                 </Pressable>
-                <Pressable onPress={() => Linking.openURL(`https://wa.me/${intl(i.phone)}`)} accessibilityLabel="WhatsApp" style={{ width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: border, backgroundColor: surface, alignItems: 'center', justifyContent: 'center', marginLeft: 8 }}>
+                <Pressable onPress={() => Linking.openURL(`https://wa.me/${intl(i.phone)}`)} accessibilityLabel={tr('WhatsApp')} style={{ width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: border, backgroundColor: surface, alignItems: 'center', justifyContent: 'center', marginLeft: 8 }}>
                     <Ionicons name="logo-whatsapp" size={22} color={text} />
                 </Pressable>
             </View>

@@ -59,6 +59,8 @@ const WORDS = {
     OwnerActivity: 'activity log history changes audit who changed',
     LegalList: 'terms privacy policy agreement legal',
 };
+// the search finds a screen by its English words and by the same words in the owner's language
+const wordsOf = (w) => (w ? `${w} ${tr(w)}` : '');
 
 // Easy mode shows only these (the things a shop uses every day); everything else is one switch away.
 const EASY = new Set(['@busy', 'OwnerAutomations', 'OwnerRiders', 'OwnerBookings', 'OwnerServices', 'OwnerInquiries', 'OwnerClosing', 'OwnerDineIn', 'OwnerCooks', 'OwnerWaiters', 'OwnerCustomers', 'OwnerComplaints', 'OwnerMessages', 'OwnerCategories', 'OwnerCoupons', 'OwnerMoney', 'OwnerMoneyHub', 'OwnerBillsHub', 'OwnerReportsHub', 'OwnerHours', 'OwnerShopSettings', 'AlertSettings', 'Soundbox', 'OwnerAppLock']);
@@ -178,14 +180,14 @@ export function ShopMenu({ onGo }) {
     const sections = useMemo(() => [
         ...GROUPS.map(([group, rows]) => [group, rows.filter((r) => !hidden(r[3])).map(([icon, title, subtitle, route]) => (route === '@busy'
             ? { icon, title, subtitle: busy ? tr('On: +{extraMin} min until {clockTime}', { extraMin: busy.extraMin, clockTime: clockTime(busy.until) }) : tr(subtitle), group, words: 'busy rushed longer wait kitchen crowd', color: busy ? error : undefined, act: () => setBusyOpen(true) }
-            : { icon, title, subtitle: tr(subtitle), group, words: WORDS[route] || '', right: route === 'OwnerRiders' && riderAttention ? <Pill label="!" color={error} /> : undefined, act: () => go(route) }))]),
+            : { icon, title, subtitle: tr(subtitle), group, words: wordsOf(WORDS[route]), right: route === 'OwnerRiders' && riderAttention ? <Pill label="!" color={error} /> : undefined, act: () => go(route) }))]),
         ['Your app', [
             { icon: 'help-buoy', title: 'Help and support', subtitle: tr('Ask the platform team for help'), group: 'Your app', words: 'help support ask platform team contact problem', right: supportUnread > 0 ? <Pill label={String(supportUnread)} color={error} /> : undefined, act: () => go('OwnerSupport') },
             { icon: 'person-circle', title: 'My profile', subtitle: user?.name || user?.phone || tr('Your name, picture and email'), group: 'Your app', words: 'profile name picture email account', act: () => go('OwnerProfile') },
             { custom: 'appearance', title: 'Appearance', group: 'Your app', words: 'appearance dark light theme mode' },
             { icon: 'language', title: 'Language', subtitle: LANGS.find((l) => l.code === lang)?.native, group: 'Your app', words: 'language hindi tamil telugu marathi translate', act: () => setLangOpen(true) },
             { icon: 'eye', title: 'See the customer app', subtitle: tr('Look at your shop the way customers do. You cannot order from your own number.'), group: 'Your app', words: 'customer view preview app', act: customerView },
-            { icon: 'document-text', title: 'Terms and privacy', subtitle: tr('Your agreement, the terms and the privacy policy'), group: 'Your app', words: WORDS.LegalList, act: () => go('LegalList') },
+            { icon: 'document-text', title: 'Terms and privacy', subtitle: tr('Your agreement, the terms and the privacy policy'), group: 'Your app', words: wordsOf(WORDS.LegalList), act: () => go('LegalList') },
             { icon: 'log-out', title: 'Log out', subtitle: tr('Sign out of this phone'), group: 'Your app', words: 'logout log out sign out exit', color: error, act: out },
         ]],
     // eslint-disable-next-line react-hooks/exhaustive-deps

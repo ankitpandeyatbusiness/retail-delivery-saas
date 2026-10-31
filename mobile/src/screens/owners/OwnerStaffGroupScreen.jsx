@@ -95,12 +95,12 @@ function Group({ role }) {
                         {!easy ? <Card>
                             <Text style={{ color: text, fontWeight: '900', fontSize: 15 }}>{tr('A new order the cook does not touch goes to his queue after')}</Text>
                             <Text style={{ color: muted, fontSize: 12.5, marginTop: 2 }}>{tr('It stops ringing, and the cook is told it is in the queue. He can also tap Add to queue himself.')}</Text>
-                            <Chips options={[[30, '30 s'], [60, '60 s'], [90, '90 s'], [120, '2 min'], [180, '3 min']]} value={rules.queueSec || 60} onChange={async (v) => { try { await saveSettings({ orders: { kitchenQueueSec: v } }); setData((d) => ({ ...d, rules: { ...d.rules, queueSec: v } })); showToast(tr('Saved')); } catch (e) { showToast(apiError(e)); } }} />
+                            <Chips options={[[30, tr('30 s')], [60, tr('60 s')], [90, tr('90 s')], [120, tr('2 min')], [180, tr('3 min')]]} value={rules.queueSec || 60} onChange={async (v) => { try { await saveSettings({ orders: { kitchenQueueSec: v } }); setData((d) => ({ ...d, rules: { ...d.rules, queueSec: v } })); showToast(tr('Saved')); } catch (e) { showToast(apiError(e)); } }} />
                         </Card> : null}
                         <Card>
                             <Text style={{ color: text, fontWeight: '900', fontSize: 15 }}>{tr('When you tell a customer about a kitchen problem')}</Text>
                             <Text style={{ color: muted, fontSize: 12.5, marginTop: 2 }}>{tr('Offer a discount on a new order to keep the customer? This is the choice you remembered.')}</Text>
-                            <Chips options={[['ask', tr('Ask me')], ['10', '10% off'], ['15', '15% off'], ['20', '20% off'], ['never', tr('No offer')]]} value={offerKey} onChange={async (v) => { try { await saveSettings({ orders: v === 'ask' || v === 'never' ? { kitchenOfferMode: v } : { kitchenOfferMode: 'always', kitchenOfferPercent: Number(v) } }); setOffer(v === 'ask' || v === 'never' ? { mode: v, percent: offer.percent } : { mode: 'always', percent: Number(v) }); showToast(tr('Saved')); } catch (e) { showToast(apiError(e)); } }} />
+                            <Chips options={[['ask', tr('Ask me')], ['10', tr('10% off')], ['15', tr('15% off')], ['20', tr('20% off')], ['never', tr('No offer')]]} value={offerKey} onChange={async (v) => { try { await saveSettings({ orders: v === 'ask' || v === 'never' ? { kitchenOfferMode: v } : { kitchenOfferMode: 'always', kitchenOfferPercent: Number(v) } }); setOffer(v === 'ask' || v === 'never' ? { mode: v, percent: offer.percent } : { mode: 'always', percent: Number(v) }); showToast(tr('Saved')); } catch (e) { showToast(apiError(e)); } }} />
                         </Card>
                                             </>
                     ) : null}

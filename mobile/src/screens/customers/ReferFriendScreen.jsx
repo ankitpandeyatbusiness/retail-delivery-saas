@@ -53,7 +53,7 @@ export default function ReferFriendScreen() {
                     <Card>
                         <Text style={{ color: text, fontWeight: '900' }}>{tr("Have a friend's code?")}</Text>
                         <Text style={{ color: muted, fontSize: 12.5, marginTop: 2 }}>{tr('Enter it before your first order to get the friend offer.')}</Text>
-                        <TextInput value={code} onChangeText={(v) => setCode(v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))} autoCapitalize="characters" placeholder="ABC123" placeholderTextColor={muted} maxLength={6}
+                        <TextInput value={code} onChangeText={(v) => setCode(v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))} autoCapitalize="characters" placeholder={tr('ABC123')} placeholderTextColor={muted} maxLength={6}
                             style={{ marginTop: 10, borderWidth: 1, borderColor: border, backgroundColor: surface, color: text, borderRadius: 12, padding: 12, fontWeight: '900', letterSpacing: 3, fontSize: 16 }} />
                         <Button label={tr('Use this code')} icon="checkmark" busy={busy} disabled={code.length !== 6} onPress={apply} style={{ marginTop: 10 }} />
                     </Card>

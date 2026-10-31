@@ -6,12 +6,13 @@
 import { useEffect } from 'react';
 import { Alert, Linking } from 'react-native';
 import { startRiderTracking, stopRiderTracking, restartRiderTracking, getLocationStatus } from '../../utils/riders/locationTask';
+import { tr } from '../../i18n';
 
 let explained = false;   // the explanation is shown once per app start, not on every order
 
 const ask = (title, message, yes) => new Promise((resolve) => {
     Alert.alert(title, message, [
-        { text: 'Not now', style: 'cancel', onPress: () => resolve(false) },
+        { text: tr('Not now'), style: 'cancel', onPress: () => resolve(false) },
         { text: yes, onPress: () => resolve(true) },
     ], { cancelable: false });
 });

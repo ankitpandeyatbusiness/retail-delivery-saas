@@ -5,6 +5,7 @@ import React, { useRef, useState } from 'react';
 import { View, Text, PanResponder, Animated, Easing } from 'react-native';
 import { create } from 'zustand';
 import { useBrand } from '../common/kit';
+import { tr } from '../../i18n';
 
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
@@ -70,7 +71,7 @@ export default function MenuIndexStrip({ scrollRef, top = 90, bottom = 24, pad =
                     <Text style={{ color: onPrimary, fontSize: 34, fontWeight: '900' }}>{touch}</Text>
                 </View>
             ) : null}
-            <View ref={ref} collapsable={false} {...pan.panHandlers} accessibilityLabel="A to Z" style={{ position: 'absolute', right: 2, top: 0, bottom: 0, width: 26, paddingVertical: 4, borderRadius: 13, overflow: 'hidden', backgroundColor: touch ? surface : 'transparent', borderWidth: touch ? 1 : 0, borderColor: border }}>
+            <View ref={ref} collapsable={false} {...pan.panHandlers} accessibilityLabel={tr('A to Z')} style={{ position: 'absolute', right: 2, top: 0, bottom: 0, width: 26, paddingVertical: 4, borderRadius: 13, overflow: 'hidden', backgroundColor: touch ? surface : 'transparent', borderWidth: touch ? 1 : 0, borderColor: border }}>
                 {LETTERS.map((l) => {
                     const has = ys[l] !== undefined;
                     const lit = touch === l;

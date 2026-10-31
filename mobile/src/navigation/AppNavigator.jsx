@@ -133,6 +133,7 @@ import OwnerTransactionsScreen from '../screens/owners/OwnerTransactionsScreen';
 import { OwnerMoneyHub, OwnerShopFrontHub, OwnerBillsHub, OwnerDeliveryHub, OwnerReportsHub, OwnerInboxHub } from '../screens/owners/OwnerHubs';
 import OwnerMonthScreen from '../screens/owners/OwnerMonthScreen';
 import { FloatingTabBar, slideScenes, TabGlyph, gate, holdGate, releaseGate, bindGateNavigation } from './tabKit';
+import { tr } from '../i18n';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -277,7 +278,7 @@ function useDoubleBackExit() {
             const now = Date.now();
             if (now - last.current < 2000) { BackHandler.exitApp(); return true; }
             last.current = now;
-            showToast('Press back again to exit');
+            showToast(tr('Press back again to exit'));
             return true;
         });
         return () => sub.remove();

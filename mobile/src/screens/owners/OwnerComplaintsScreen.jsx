@@ -53,7 +53,7 @@ export default function OwnerComplaintsScreen() {
                             {c.status === 'resolved' ? <Pill label={RESOLUTION_TEXT[c.resolution] || tr('Decided')} color={ok} /> : c.status === 'in_progress' ? <Pill label={tr('In progress')} color={primary} /> : <Pill label={tr('New')} color={error} />}
                         </View>
                         <Text style={{ color: text, marginTop: 6 }} numberOfLines={2}>{c.text}</Text>
-                        <Text style={{ color: muted, fontSize: 12, marginTop: 6 }}>{c.customerName || tr('Customer')} · {ago(c.createdAt)}{c.photos?.length ? tr(' · {length} photo{v2}', { length: c.photos.length, v2: c.photos.length > 1 ? 's' : '' }) : ''}</Text>
+                        <Text style={{ color: muted, fontSize: 12, marginTop: 6 }}>{c.customerName || tr('Customer')} · {ago(c.createdAt)}{c.photos?.length ? tr(c.photos.length > 1 ? ' · {length} photos' : ' · {length} photo', { length: c.photos.length }) : ''}</Text>
                     </Card>
                     </GlowBorder>
                 )}

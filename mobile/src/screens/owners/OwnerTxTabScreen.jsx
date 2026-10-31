@@ -138,7 +138,7 @@ export default function OwnerTxTabScreen() {
                 {/* the Excel sheet is at the top: nobody has to scroll down the whole list to find it */}
                 <Pressable onPress={csv} disabled={busy || !items.length} hitSlop={8} accessibilityRole="button" accessibilityLabel={tr('Excel Sheet')} style={{ marginLeft: 8, height: 46, minWidth: 46, paddingHorizontal: 12, borderRadius: 14, borderWidth: 1, borderColor: border, backgroundColor: surface, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', opacity: busy || !items.length ? 0.5 : 1 }}>
                     <Ionicons name={busy ? 'hourglass-outline' : 'download-outline'} size={20} color={primary} />
-                    <Text style={{ color: primary, fontWeight: '800', marginLeft: 6 }}>Excel</Text>
+                    <Text style={{ color: primary, fontWeight: '800', marginLeft: 6 }}>{tr('Excel')}</Text>
                 </Pressable>
             </View>
 

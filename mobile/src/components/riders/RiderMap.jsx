@@ -221,7 +221,7 @@ function MapPane({ line, start, end, destination, estimate, live, label, startLa
             {metres != null ? (
                 <View style={[s.chip, { backgroundColor: surface, borderColor: border, top: 10 + topInset }]}>
                     <Text style={{ color: text, fontWeight: '900', fontSize: 15 }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
-                        {nice(metres)}{live ? ` ${tr('left')}` : ''}{live && etaMin ? ` · ~${etaMin} min` : ''}
+                        {nice(metres)}{live ? ` ${tr('left')}` : ''}{live && etaMin ? tr(' · ~{etaMin} min', { etaMin: etaMin }) : ''}
                     </Text>
                     {!live ? <Text style={{ color: muted, fontWeight: '700', fontSize: 11 }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{tr('total distance')}</Text> : null}
                 </View>

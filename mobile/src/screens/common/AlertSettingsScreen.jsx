@@ -74,7 +74,7 @@ export default function AlertSettingsScreen() {
                         {g.can.p && g.pref.p ? (
                             <View style={{ marginTop: 8 }}>
                                 <Text style={{ color: muted, fontSize: 11.5, fontWeight: '800' }}>{tr('Slider stays for')}</Text>
-                                <Chips options={[[0, tr('Until I close it')], [3, '3 s'], [5, '5 s'], [7, '7 s'], [10, '10 s'], [15, '15 s']]} value={g.pref.sec} onChange={(v) => flip(g, 'sec', v)} style={{ marginTop: 6, marginBottom: -4 }} />
+                                <Chips options={[[0, tr('Until I close it')], [3, tr('3 s')], [5, tr('5 s')], [7, tr('7 s')], [10, tr('10 s')], [15, tr('15 s')]]} value={g.pref.sec} onChange={(v) => flip(g, 'sec', v)} style={{ marginTop: 6, marginBottom: -4 }} />
                             </View>
                         ) : null}
                         {g.sample ? (
@@ -84,7 +84,7 @@ export default function AlertSettingsScreen() {
                                     <Text style={{ color: primary, fontWeight: '800', marginLeft: 6 }}>{tr('Listen')}</Text>
                                 </Pressable>
                                 <Pressable onPress={() => nav.navigate('Soundbox')} hitSlop={8} style={{ marginLeft: 'auto' }}>
-                                    <Text style={{ color: muted, fontSize: 12 }}>{language === 'hi' ? 'हिन्दी' : 'English'} · {tr('Change voice')}</Text>
+                                    <Text style={{ color: muted, fontSize: 12 }}>{language === 'hi' ? 'हिन्दी' : tr('English')} · {tr('Change voice')}</Text>
                                 </Pressable>
                             </View>
                         ) : null}

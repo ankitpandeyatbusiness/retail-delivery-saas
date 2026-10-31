@@ -84,7 +84,7 @@ function OrderCard({ o, onOpen, onCustomer }) {
             {o.rider ? <Text style={{ color: muted, fontSize: 12.5, marginTop: 2 }}>{tr('Rider')}: {o.rider}</Text> : null}
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8 }}>
                 {o.customer.phone ? <Round icon="call" label={tr('Call')} onPress={() => callPhone(o.customer.phone)} /> : null}
-                {o.customer.phone ? <Round icon="logo-whatsapp" label="WhatsApp" onPress={() => whatsApp(o.customer.phone)} /> : null}
+                {o.customer.phone ? <Round icon="logo-whatsapp" label={tr('WhatsApp')} onPress={() => whatsApp(o.customer.phone)} /> : null}
                 {o.status === 'delivered' ? <Round icon="document-text-outline" label={tr('Invoice (PDF)')} busy={inv} onPress={() => openInvoice({ id: o._id, orderNo: o.orderNo }, setInv)} /> : null}
             </View>
         </Card>

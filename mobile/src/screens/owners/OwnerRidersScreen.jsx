@@ -159,7 +159,7 @@ export default function OwnerRidersScreen() {
                                 <Avatar rider={r} />
                                 <View style={{ flex: 1, minWidth: 0, marginLeft: 12 }}>
                                     <Text style={{ color: text, fontWeight: '900', fontSize: 16 }} numberOfLines={1}>{riderName(r)}</Text>
-                                    <Text style={{ color: muted, fontSize: 12, marginTop: 1 }}>{r.phone || ''}{!easy && r.ratingCount ? `  ·  ★ ${Number(r.ratingAvg).toFixed(1)} (${r.ratingCount})` : ''}{!easy && r.avgDeliveryMin ? `  ·  ${r.avgDeliveryMin} min avg` : ''}</Text>
+                                    <Text style={{ color: muted, fontSize: 12, marginTop: 1 }}>{r.phone || ''}{!easy && r.ratingCount ? `  ·  ★ ${Number(r.ratingAvg).toFixed(1)} (${r.ratingCount})` : ''}{!easy && r.avgDeliveryMin ? tr('  ·  {avgDeliveryMin} min avg', { avgDeliveryMin: r.avgDeliveryMin }) : ''}</Text>
                                     <View style={{ flexDirection: 'row', marginTop: 6, flexWrap: 'wrap', gap: 6 }}>
                                         {!r.isActive ? <Pill label={tr('Switched off')} color={muted} /> : r.isOnline ? <Pill label={tr('Online')} color={ok} icon="radio-button-on" /> : <Pill label={tr('Offline')} color={muted} />}
                                         {r.standing && !easy ? <RiderBadge badge={r.standing.badge} /> : null}
