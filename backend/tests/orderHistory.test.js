@@ -86,4 +86,18 @@ describe('order history', () => {
         assert.equal(buf.slice(0, 2).toString(), 'PK');   // an .xlsx is a zip file
         assert.ok(buf.length > 4000);
     });
+
+    test('a long cancel reason or dish list makes its row taller so nothing is cut', async () => {
+        const reason = 'The customer said that he had changed his mind about the whole order because his family decided to eat out tonight instead of at home, so please cancel it and do not charge anything';
+        await mk({ status: 'cancelled', cancelReason: reason, items: [item('A very long dish name that goes on and on', 2), item('Another dish with a long name too', 1), item('Third dish for the list', 3)] });
+        await mk({ status: 'delivered' });
+        const buf = await history.exportBuffer({ tenantId: w.tenant._id, query: {}, shopName: 'Test Shop' });
+        const ExcelJS = require('exceljs');
+        const wb = new ExcelJS.Workbook();
+        await wb.xlsx.load(buf);
+        const ws = wb.worksheets[0];
+        const heights = [5, 6].map((r) => ws.getRow(r).height);
+        assert.ok(Math.max(...heights) > 40, 'the row with the long text is tall: ' + heights.join(','));
+        assert.equal(Math.min(...heights), 22);   // a short row stays the normal height
+    });
 });

@@ -84,6 +84,7 @@ async function buildSheet({ title, subtitle, columns, rows, total = false }) {
     // data
     rows.forEach((r, ri) => {
         const row = ws.getRow(5 + ri);
+        let lines = 1;   // the most lines any cell of this row needs: the row grows so no text is cut
         columns.forEach((c, i) => {
             const cell = row.getCell(i + 1);
             const v = r[c.key];
@@ -113,10 +114,12 @@ async function buildSheet({ title, subtitle, columns, rows, total = false }) {
                 cell.alignment = { vertical: 'middle', horizontal: 'center' };
             } else {
                 cell.value = v === null || v === undefined ? '' : String(v);   // text only: never a formula
-                cell.alignment = { vertical: 'middle', horizontal: c.kind === 'center' ? 'center' : 'left', indent: c.kind === 'center' ? 0 : 1, wrapText: c.kind === 'wide' };
+                cell.alignment = { vertical: 'middle', horizontal: c.kind === 'center' ? 'center' : 'left', indent: c.kind === 'center' ? 0 : 1, wrapText: c.kind !== 'center' };
+                const room = Math.max(6, widths[i] - 3);
+                lines = Math.max(lines, String(cell.value).split('\n').reduce((n, part) => n + Math.max(1, Math.ceil(part.length / room)), 0));
             }
         });
-        row.height = 22;
+        row.height = Math.max(22, lines * 15 + 7);
     });
 
     // totals of the money columns
