@@ -122,3 +122,13 @@ Radial menu
 25. Funnel icon: Last 24 hours, Last week, Last month, Pick a date (calendar), Pick dates (range); status, type and payment. The chips under the search show what is on and clear it with a cross.
 26. A card shows the number, time, status, customer, repeat tag, dishes, type, cash or online, flags (cancelled, refunded, late, kitchen or rider problem, complaint), and Call, WhatsApp and Invoice buttons. Tapping the card opens the full order. Tapping the customer name searches all of that customer's orders.
 27. Excel button: downloads the orders of the current filter and search with a coloured header and fitted columns; it opens in the share sheet.
+
+## Automations
+28. Owner side menu > Automations: one screen with every automatic thing (new orders auto accept, picking a rider, ready and served by themselves, busy mode, closing quiet tables, unpaid bill reminders, pickups, reservations, inquiries and complaints, reminders, staff leave, and a link to Autopilot). The auto accept card is gone from the Home.
+29. Each switch or choice saves the moment it changes (if it cannot save it goes back). "Recommended" and "All by hand" ask first. The old places (Dine in, Delivery rules, Booking settings) show a link to Automations instead of the switches.
+30. Pickup: an order ready and not collected is marked not collected after the time chosen (default: 1 hour after the pickup time ends). The owner gets "Done automatically".
+31. Reservations: a paid one nobody answered is allowed after 30 minutes. A guest who did not come is marked no-show 30 minutes after the start; one who is eating at his table is marked seated instead. The deposit is marked taken off the bill when the table bill closes.
+32. Table guest asks to cancel a dish that is already being made: declined after 5 minutes with a clear reason.
+33. An answered inquiry with no new message is ended after 7 days.
+34. Reminders (only a nudge): an order cooking over an hour or ready with no rider, a kitchen problem, a rider over the cash limit, a leave request, a complaint. Each can be switched off.
+35. Alerts screen has a new group "Automatic actions" with the four switches.

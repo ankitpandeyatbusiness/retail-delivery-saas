@@ -77,9 +77,11 @@ export default function OwnerAutomationsScreen() {
                 <Button label={tr('All by hand')} icon="hand-left" kind="ghost" onPress={() => everything(true)} style={{ flex: 1 }} />
             </View>
 
-            <Group title={tr('New orders')} hint={tr('An order nobody accepts in 10 minutes is cancelled by the system with a full refund. That is always on.')}>
+            <View style={{ marginBottom: 4 }}>
+                <Text style={{ color: text, fontSize: 16, fontWeight: '900', paddingHorizontal: 16, marginTop: 6, marginBottom: 2 }}>{tr('New orders')}</Text>
+                <Text style={{ color: muted, fontSize: 12, paddingHorizontal: 16, marginBottom: 10 }}>{tr('An order nobody accepts in 10 minutes is cancelled by the system with a full refund. That is always on.')}</Text>
                 <AutoAcceptCard />
-            </Group>
+            </View>
 
             <Group title={tr('Delivery')}>
                 <ChoiceBox label={tr('How is a rider picked')} options={[['automatic', tr('Automatic')], ['manual', tr('I choose')]]} value={rid.assignMode || 'automatic'} onChange={(x) => saveRid({ assignMode: x })} last={rid.assignMode === 'manual'} />
