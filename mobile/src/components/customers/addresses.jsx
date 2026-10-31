@@ -247,8 +247,21 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
             const { latitude, longitude } = pos.coords;
             const res = await checkServiceable(latitude, longitude);
             setGeo(res);
-            if (res.serviceable) setForm((p) => ({ ...p, lat: latitude, lng: longitude }));
-            else setForm((p) => ({ ...p, lat: null, lng: null }));   // never save a far-away pin
+            if (res.serviceable) {
+                // the address of where he stands, filled in the same way as when he pins it on the map (the phone's geocoder: Google's on Android)
+                let a = null;
+                try { [a] = await Location.reverseGeocodeAsync({ latitude, longitude }); } catch (e) { /* he can still type it */ }
+                const label = [...new Set([a?.name, a?.street, a?.district, a?.city, a?.postalCode].filter(Boolean))].join(', ');
+                const line1 = [...new Set([a?.name, a?.street].filter(Boolean))].join(', ') || label;
+                setForm((p) => ({
+                    ...p, lat: latitude, lng: longitude,
+                    line1: line1 || p.line1,
+                    line2: a?.district || a?.street || p.line2,
+                    city: a?.city || a?.subregion || p.city,
+                    pincode: /^\d{6}$/.test(a?.postalCode || '') ? a.postalCode : p.pincode,
+                }));
+                if (!line1) showToast(tr('Location captured. Please type the house and street.'));
+            } else setForm((p) => ({ ...p, lat: null, lng: null }));   // never save a far-away pin
         } catch (e) {
             showToast(tr('Could not get your location. Ensure GPS is turned on.'));
         } finally { setLocating(false); }

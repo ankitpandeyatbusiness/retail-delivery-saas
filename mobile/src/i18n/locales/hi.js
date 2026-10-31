@@ -2293,6 +2293,7 @@ export default {
     "Use our recommended questions?": "हमारे सुझाए सवाल इस्तेमाल करें?",
     "Use recommended": "सुझाए इस्तेमाल करें",
     "Use recommended settings": "सुझाई सेटिंग इस्तेमाल करें",
+    "Location captured. Please type the house and street.": "लोकेशन मिल गई। कृपया मकान और सड़क लिखें।",
     "This is a delivery order": "यह डिलीवरी ऑर्डर है",
     "This is a pickup order": "यह पिकअप ऑर्डर है",
     "Change it on the Home screen": "होम स्क्रीन पर बदलें",
