@@ -53,6 +53,7 @@ export default function BottomDock({ navRef }) {
     const list = dockList(items);
     const insets = useSafeAreaInsets();
     const { primary, primaryLight, primaryDark, onPrimary, surface, text, muted, border } = useBrand();
+    const liveHint = useRef(null);   // declared before it is used below (it was after: the screen crashed as it drew)
     const [hint, setHint] = useState(false);
     const hintFade = useRef(new Animated.Value(0)).current;
     const press = useRef(new Animated.Value(1)).current;   // the button sinks a little while it is held
@@ -74,7 +75,6 @@ export default function BottomDock({ navRef }) {
     // what each wedge opens now (null = nothing behind it: locked)
     const target = (k) => (k === 'track' ? (items.track || items.order) : items[k]) || null;
     const live = useRef({});
-    const liveHint = useRef(null);
     live.current = { list, target, items };
 
     const go = (it) => { if (it && navRef?.isReady?.()) navRef.navigate(it.route, it.params); };
