@@ -63,8 +63,9 @@ function Header({ onAddress, onTable, scrollY }) {
     const picked = useOrderMode((st) => st.mode);
     const setMode = useOrderMode((st) => st.setMode);
     const table = useOrderMode((st) => st.table);
-    const withDine = modes.includes('dine_in') && modes.length > 1;   // no dine in: Home is as it was, delivery or pickup is chosen in the cart
-    const mode = withDine ? (modes.includes(picked) ? picked : modes[0]) : 'delivery';
+    const multi = modes.length > 1;   // two or more ways to order: the switch is shown, and it decides what kind of order it is (the cart follows it)
+    const withDine = modes.includes('dine_in') && multi;
+    const mode = multi ? (modes.includes(picked) ? picked : modes[0]) : (modes[0] || 'delivery');
     const MODE = { delivery: ['bicycle-outline', 'Delivery'], pickup: ['basket-outline', 'Pickup'], dine_in: ['restaurant-outline', 'Dine in'] };
     const user = useAuthStore((st) => st.user);
     const unread = useNotificationStore((st) => st.unread);
@@ -150,7 +151,7 @@ function Header({ onAddress, onTable, scrollY }) {
                 ) : null}
             </View>
 
-            {withDine ? (
+            {multi ? (
                 <ModeSlider
                     modes={modes} value={mode} trackBg={glassBg} trackLine={glassLine} pillBg={light ? primary : '#FFFFFF'} onPill={light ? onPrimary : primaryDark} idle={fg}
                     onChange={(m) => { setMode(m); if (m === 'dine_in' && !table) onTable(); }}

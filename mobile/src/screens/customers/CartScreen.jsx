@@ -576,8 +576,10 @@ export default function CartScreen() {
                         <Appear delay={140} style={{ marginTop: 20 }}>
                             <Text style={[s.cap, { color: text, marginBottom: 8 }]}>{tr('Order Settings')}</Text>
                             {types.length > 1 ? (
-                                <View style={s.chipsRow}>
-                                    {types.map((t) => <Chip key={t} on={type === t} icon={t === 'delivery' ? 'bicycle-outline' : 'basket-outline'} label={t === 'delivery' ? tr('Delivery') : tr('Pickup')} onPress={() => { setPickedType(t); useOrderMode.getState().setMode(t); }} />)}
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+                                    <Ionicons name={type === 'delivery' ? 'bicycle-outline' : 'basket-outline'} size={18} color={primary} />
+                                    <Text style={{ flex: 1, color: text, fontWeight: '800', marginLeft: 8 }}>{type === 'delivery' ? tr('This is a delivery order') : tr('This is a pickup order')}</Text>
+                                    <Text style={{ color: muted, fontSize: 12 }}>{tr('Change it on the Home screen')}</Text>
                                 </View>
                             ) : null}
                             {showSchedule ? (
