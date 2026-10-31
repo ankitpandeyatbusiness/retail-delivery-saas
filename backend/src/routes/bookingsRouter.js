@@ -44,7 +44,7 @@ const on = async (req) => {
 router.get('/config', wrap(async (req, res) => {
     const c = await tb.getConfig(req.tenant._id);
     const me = c.enabled ? await User.findById(req.auth.userId).select('name phone').lean() : null;
-    res.json({ enabled: !!c.enabled && featureGate.isOn(req.tenant, 'tableBooking') && (await bp.available(c.tenantId)), holdMinutes: c.holdMinutes, minParty: c.minParty, maxParty: tb.maxPartyOf(c), tables: tb.bookable(c).map((t) => ({ no: t.no, seats: t.seats })), advanceDays: c.advanceDays, blocked: (c.blocked || []).some((x) => String(x.userId) === String(req.auth.userId)), today: tb.todayYmd(), deposit: rules(c), me: { name: me?.name || '', phone: me?.phone || '' } });
+    res.json({ enabled: !!c.enabled && featureGate.isOn(req.tenant, 'tableBooking') && (await bp.available(c.tenantId)), holdMinutes: c.holdMinutes, minParty: c.minParty, maxParty: tb.maxPartyOf(c), tables: tb.bookable(c).map((t) => ({ no: t.no, seats: t.seats })), advanceDays: c.advanceDays, dates: tb.bookableDates(c), blocked: (c.blocked || []).some((x) => String(x.userId) === String(req.auth.userId)), today: tb.todayYmd(), deposit: rules(c), me: { name: me?.name || '', phone: me?.phone || '' } });
 }));
 
 router.get('/slots', wrap(async (req, res) => {

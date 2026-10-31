@@ -2293,6 +2293,7 @@ export default {
     "Use our recommended questions?": "અમારા સૂચવેલા પ્રશ્નો વાપરવા છે?",
     "Use recommended": "સૂચવેલા વાપરો",
     "Use recommended settings": "સૂચવેલી સેટિંગ વાપરો",
+    "How many working days ahead can they book (4 at most)": "કેટલા કામકાજના દિવસ આગળ સુધી બુક કરી શકે (વધુમાં વધુ 4)",
     "The shop is closed by its opening hours. It goes live by itself when it opens.": "દુકાન ખુલવાના સમય મુજબ બંધ છે. ખુલતાં જ આપોઆપ લાઇવ થશે.",
     "The shop is closed. You can start duty when it opens.": "દુકાન બંધ છે. ખુલે ત્યારે તમે ડ્યુટી શરૂ કરી શકો છો.",
     "Picture customers see": "ગ્રાહકને દેખાતું ચિત્ર",

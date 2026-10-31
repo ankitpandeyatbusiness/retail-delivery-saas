@@ -8,13 +8,22 @@ describe('table booking rules', () => {
     const NOW = new Date('2026-11-02T06:00:00Z').getTime();   // 11:30 in India, a Monday
     test('slots follow the windows and the day of the week', () => {
         assert.deepEqual(tb.slotsFor(base, '2026-11-03', NOW), ['19:00', '20:00', '21:00']);
-        assert.deepEqual(tb.slotsFor(base, '2026-11-07', NOW), ['12:00', '13:00', '19:00', '20:00', '21:00']);   // a Saturday has lunch too
+        const THU = new Date('2026-11-05T06:00:00Z').getTime();
+        assert.deepEqual(tb.slotsFor(base, '2026-11-07', THU), ['12:00', '13:00', '19:00', '20:00', '21:00']);   // a Saturday has lunch too
     });
     test('closed days, closed slots, past days and too far ahead give nothing', () => {
         assert.deepEqual(tb.slotsFor({ ...base, closedDates: ['2026-11-03'] }, '2026-11-03', NOW), []);
         assert.deepEqual(tb.slotsFor({ ...base, closedSlots: [{ date: '2026-11-03', time: '20:00' }] }, '2026-11-03', NOW), ['19:00', '21:00']);
         assert.deepEqual(tb.slotsFor(base, '2026-11-01', NOW), []);
         assert.deepEqual(tb.slotsFor(base, '2026-12-25', NOW), []);
+    });
+    test('a guest books at most 4 working days ahead, and a closed day does not count', () => {
+        assert.deepEqual(tb.bookableDates(base, NOW), ['2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06']);   // today and 4 more
+        assert.deepEqual(tb.slotsFor(base, '2026-11-07', NOW), []);                                                              // the fifth working day
+        assert.deepEqual(tb.bookableDates({ ...base, advanceDays: 2 }, NOW), ['2026-11-02', '2026-11-03', '2026-11-04']);        // the owner may lower it
+        assert.equal(tb.bookableDates({ ...base, advanceDays: 30 }, NOW).length, 5);                                              // never raise it
+        const shut = { ...base, closedDates: ['2026-11-03', '2026-11-04'] };
+        assert.deepEqual(tb.bookableDates(shut, NOW), ['2026-11-02', '2026-11-05', '2026-11-06', '2026-11-07', '2026-11-08']);   // two closed days are skipped
     });
     test('a slot that starts too soon is hidden', () => {
         const soon = new Date('2026-11-03T13:00:00Z').getTime();   // 18:30 in India

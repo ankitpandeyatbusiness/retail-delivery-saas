@@ -118,7 +118,7 @@ export default function OwnerBookingSettingsScreen() {
                 <ChoiceBox label={tr('How long a booking lasts')} options={[30, 45, 60, 90, 120].map((m) => [m, tr('{m} min', { m })])} value={v.slotMinutes} onChange={(x) => set('slotMinutes', x)} />
                 <NumberBox label={tr('Smallest group')} integer value={v.minParty} onChange={(x) => set('minParty', x)} />
                 <NumberBox label={tr('Largest group')} integer value={v.maxParty} onChange={(x) => set('maxParty', x)} />
-                <NumberBox label={tr('How many days ahead can they book')} integer value={v.advanceDays} onChange={(x) => set('advanceDays', x)} />
+                <NumberBox label={tr('How many working days ahead can they book (4 at most)')} integer value={v.advanceDays} onChange={(x) => set('advanceDays', x)} />
                 <NumberBox label={tr('Notice needed, in minutes')} integer value={v.minNoticeMinutes} onChange={(x) => set('minNoticeMinutes', x)} last />
             </Group>
             <Group title={tr('Deposit guests must pay')} hint={tr('A booking counts only once the deposit is paid.')} flash={flash('deposit')} flashText={tr('Set the deposit amount guests pay')} onLayout={(e) => { ys.current.deposit = e.nativeEvent.layout.y; }}>

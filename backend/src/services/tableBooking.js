@@ -22,7 +22,7 @@ const RUNNING_MIN = 30;                 // a slot that already started can still
 
 const DEFAULTS = {
     enabled: false, windows: [], slotMinutes: 60, tables: [], minParty: 1, maxParty: 12,
-    advanceDays: 14, minNoticeMinutes: 60, closedDates: [], closedSlots: [], depositType: 'per_person', depositAmount: 0,
+    advanceDays: 4, minNoticeMinutes: 60, closedDates: [], closedSlots: [], depositType: 'per_person', depositAmount: 0,
     depositMode: 'adjust', refundHours: 2, holdMinutes: 10, autoAllow: false, maxActive: 3, blocked: [],
 };
 
@@ -92,7 +92,7 @@ function cleanConfig(body, current) {
     if (has('slotMinutes')) out.slotMinutes = int(b.slotMinutes, 15, 240, 'Booking length');
     if (has('minParty')) out.minParty = int(b.minParty, 1, 200, 'Smallest group');
     if (has('maxParty')) out.maxParty = int(b.maxParty, 1, 200, 'Largest group');
-    if (has('advanceDays')) out.advanceDays = int(b.advanceDays, 1, 90, 'Days ahead');
+    if (has('advanceDays')) out.advanceDays = int(b.advanceDays, 1, MAX_WORKING_DAYS_AHEAD, 'Working days ahead');
     if (has('minNoticeMinutes')) out.minNoticeMinutes = int(b.minNoticeMinutes, 0, 1440, 'Notice');
     if (has('closedDates')) {
         const list = Array.isArray(b.closedDates) ? b.closedDates : [];
@@ -127,11 +127,35 @@ const bookable = (config) => (config.tables || []).filter((t) => t.bookable);
 const biggestTable = (config) => bookable(config).reduce((m, t) => Math.max(m, t.seats), 0);
 const maxPartyOf = (config) => Math.min(config.maxParty, biggestTable(config) || config.maxParty);
 
+// A guest books today or at most this many WORKING days ahead (days the shop is open and has booking times; a closed day or a holiday is not counted).
+// The owner may lower it, never raise it.
+const MAX_WORKING_DAYS_AHEAD = 4;
+const workingDaysAhead = (config) => Math.max(1, Math.min(MAX_WORKING_DAYS_AHEAD, Number(config.advanceDays) || MAX_WORKING_DAYS_AHEAD));
+// The dates a guest can pick: today (if it still has times) and the next working days.
+function bookableDates(config, now = Date.now()) {
+    const today = todayYmd(now);
+    const out = [];
+    let counted = 0;
+    for (let i = 0; i <= 60 && counted < workingDaysAhead(config); i += 1) {
+        const date = addDays(today, i);
+        if (!daySlots(config, date).length) continue;
+        out.push(date);
+        if (i > 0) counted += 1;
+    }
+    return out;
+}
+
 // Every start time of a day by the shop's rules (before looking at what is taken). Empty when the day is closed or out of range.
 function slotTimes(config, date, now = Date.now()) {
     if (!DATE_RE.test(date || '')) throw httpError(400, 'Pick a date');
     const today = todayYmd(now);
-    if (date < today || date > addDays(today, config.advanceDays)) return [];
+    if (date < today) return [];
+    const dates = bookableDates(config, now);
+    if (date > (dates[dates.length - 1] || today)) return [];
+    return daySlots(config, date);
+}
+// The times of one day by the shop's hours and the owner's windows, with no look at how far ahead the day is.
+function daySlots(config, date) {
     if ((config.closedDates || []).includes(date)) return [];
     const key = dayKey(date);
     const sh = config.shopHours;
@@ -268,6 +292,6 @@ async function freeFinished(now = new Date()) {
 }
 
 module.exports = {
-    DEFAULTS, LIVE, guard, getConfig, cleanConfig, depositFor, bookable, biggestTable, maxPartyOf, slotTimes, slotsFor, tablesFor, availability,
+    DEFAULTS, LIVE, guard, getConfig, cleanConfig, depositFor, bookable, biggestTable, maxPartyOf, slotTimes, bookableDates, MAX_WORKING_DAYS_AHEAD, slotsFor, tablesFor, availability,
     lock, unlock, relock, release, book, cancel, freeTable, freeFinished, todayYmd, addDays, startsAtOf,
 };

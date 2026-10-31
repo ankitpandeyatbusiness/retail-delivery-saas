@@ -63,7 +63,7 @@ export default function BookTableScreen() {
     if (cfg.blocked) return <FormPage title={tr('Reserve a table')}><Empty icon="ban-outline" title={tr('Not available')} hint={tr('Reservations are not available for you at this restaurant. Please call the restaurant.')} /></FormPage>;
     if (!cfg.enabled) return <FormPage title={tr('Reserve a table')}><Empty icon="calendar-outline" title={tr('Booking is closed')} hint={tr('This shop is not taking table bookings right now.')} /></FormPage>;
 
-    const days = Array.from({ length: Math.min(cfg.advanceDays, 30) + 1 }, (_, i) => plus(cfg.today, i));
+    const days = cfg.dates?.length ? cfg.dates : Array.from({ length: Math.min(cfg.advanceDays, 30) + 1 }, (_, i) => plus(cfg.today, i));   // today and the next working days (the server counts them)
     const d = cfg.deposit;
     const slot = (slots || []).find((s) => s.time === time);
     const full = !!slot && slot.full;
