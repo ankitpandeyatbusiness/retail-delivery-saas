@@ -294,7 +294,7 @@ export default function ShopHubScreen() {
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Shop menu')} />
-            <ScrollView ref={sc} contentContainerStyle={{ paddingBottom: 32 }}><ShopMenu /></ScrollView>
+            <ScrollView ref={sc} scrollEventThrottle={16} onScroll={(e) => useMenuIndex.getState().setScroll(e.nativeEvent.contentOffset.y)} contentContainerStyle={{ paddingBottom: 32 }}><ShopMenu /></ScrollView>
             <MenuIndexStrip scrollRef={sc} top={110} bottom={24} />
         </View>
     );

@@ -13,16 +13,19 @@ export const useMenuIndex = create((set) => ({
     on: false,
     ys: {},
     base: 0,   // where the sorted list starts inside the scrolled content
+    scrollY: 0,   // how far the menu is scrolled: the strip starts where the list starts, never over the switches and the search box above it
+    setScroll: (scrollY) => set((s) => (s.scrollY === scrollY ? s : { scrollY })),
     setOn: (on) => set(on ? { on } : { on, ys: {} }),
     setBase: (base) => set((s) => (s.base === base ? s : { base })),
     setY: (letter, y) => set((s) => (s.ys[letter] === y ? s : { ys: { ...s.ys, [letter]: y } })),
 }));
 
-export default function MenuIndexStrip({ scrollRef, top = 90, bottom = 24 }) {
+export default function MenuIndexStrip({ scrollRef, top = 90, bottom = 24, pad = 0 }) {
     const { primary, onPrimary, muted, text, surface, border } = useBrand();
     const on = useMenuIndex((s) => s.on);
     const ys = useMenuIndex((s) => s.ys);
     const base = useMenuIndex((s) => s.base);
+    const scrollY = useMenuIndex((s) => s.scrollY);
     const [touch, setTouch] = useState('');   // the letter under the finger ('' = not touching)
     const box = useRef({ y: 0, h: 1 });
     const ref = useRef(null);
@@ -58,7 +61,7 @@ export default function MenuIndexStrip({ scrollRef, top = 90, bottom = 24 }) {
 
     if (!on || !Object.keys(ys).length) return null;
     return (
-        <View pointerEvents="box-none" style={{ position: 'absolute', right: 0, top, bottom, width: 120 }}>
+        <View pointerEvents="box-none" style={{ position: 'absolute', right: 0, top: Math.max(top, top + base + pad - scrollY), bottom, width: 120 }}>
             {touch ? (
                 <View pointerEvents="none" style={{ position: 'absolute', right: 34, top: '40%', width: 64, height: 64, borderRadius: 32, backgroundColor: primary, alignItems: 'center', justifyContent: 'center', elevation: 8 }}>
                     <Text style={{ color: onPrimary, fontSize: 34, fontWeight: '900' }}>{touch}</Text>

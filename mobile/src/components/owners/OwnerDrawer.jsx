@@ -12,7 +12,7 @@ import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useThemeStore } from '../../store/common/useThemeStore';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { ShopMenu } from '../../screens/owners/ShopHubScreen';
-import MenuIndexStrip from './MenuIndexStrip';
+import MenuIndexStrip, { useMenuIndex } from './MenuIndexStrip';
 import { ShopLogo } from './ui';
 import { tr } from '../../i18n';
 
@@ -69,10 +69,10 @@ export default function OwnerDrawer() {
                     </View>
                     <Pressable onPress={close} hitSlop={10}><Ionicons name="close" size={24} color={muted} /></Pressable>
                 </View>
-                <ScrollView ref={menuScroll} contentContainerStyle={{ paddingTop: 8, paddingBottom: 30 }} showsVerticalScrollIndicator={false}>
+                <ScrollView ref={menuScroll} scrollEventThrottle={16} onScroll={(e) => useMenuIndex.getState().setScroll(e.nativeEvent.contentOffset.y)} contentContainerStyle={{ paddingTop: 8, paddingBottom: 30 }} showsVerticalScrollIndicator={false}>
                     <ShopMenu onGo={close} />
                 </ScrollView>
-                <MenuIndexStrip scrollRef={menuScroll} top={84} bottom={24} />
+                <MenuIndexStrip scrollRef={menuScroll} top={84} bottom={24} pad={8} />
             </Animated.View>
         </View>
     );
