@@ -11,9 +11,10 @@ export const DEFAULTS = {
     ring: true,        // the repeating chime while an order waits
     volume: 1,         // 0..1
     repeatSec: 20,     // pause between two rounds
-    language: 'en',    // the language orders are read in: 'en' or 'hi' (Hindi)
+    language: 'en',    // the language orders are read in: 'en', 'hi' (Hindi), 'mr' (Marathi), 'gu' (Gujarati), 'bn' (Bengali)
     voiceId: null,     // the phone's voice for English (null = the best Indian English voice it has)
     voiceIdHi: null,   // the phone's voice for Hindi
+    voiceIds: {},      // the phone's voice for Marathi, Gujarati and Bengali: { mr: 'mr-in-x-...' }
     alwaysReady: false, // keep the app awake in the background (a permanent notification) so a new order keeps repeating with the screen off.
                         // OFF: no permanent notification; the push plays the clip and reads the order once, and the app repeats it only while it is open.
     greetFaith: null,  // a greeting of the owner's faith, e.g. 'krishna', 'salaam', 'satsriakal', 'masih' (null = none)
@@ -29,9 +30,10 @@ const clean = (v = {}) => ({
     ring: typeof v.ring === 'boolean' ? v.ring : DEFAULTS.ring,
     volume: Number.isFinite(v.volume) ? Math.min(1, Math.max(0.2, v.volume)) : DEFAULTS.volume,
     repeatSec: REPEAT_CHOICES.includes(v.repeatSec) ? v.repeatSec : DEFAULTS.repeatSec,
-    language: v.language === 'hi' ? 'hi' : 'en',
+    language: ['hi', 'mr', 'gu', 'bn'].includes(v.language) ? v.language : 'en',
     voiceId: typeof v.voiceId === 'string' ? v.voiceId : null,
     voiceIdHi: typeof v.voiceIdHi === 'string' ? v.voiceIdHi : null,
+    voiceIds: Object.fromEntries(Object.entries(v.voiceIds || {}).filter(([k, id]) => ['mr', 'gu', 'bn'].includes(k) && typeof id === 'string')),
     alwaysReady: false,   // the background "always ready" mode is gone: a phone that had it switched on is turned off here
     greetFaith: typeof v.greetFaith === 'string' ? v.greetFaith : null,
     callMe: typeof v.callMe === 'boolean' ? v.callMe : DEFAULTS.callMe,

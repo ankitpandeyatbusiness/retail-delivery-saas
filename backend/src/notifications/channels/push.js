@@ -4,6 +4,7 @@ const DeviceToken = require('../../models/DeviceToken');
 const User = require('../../models/User');
 const adapter = require('../../services/adapters/push');
 const alertGroups = require('../alertGroups');
+const i18n = require('../i18n');
 
 // channelId / sound: an Android notification channel the app created (the owner's loud "new_orders" channel).
 // A phone that switched Soundbox off (loudAlerts false) does not get it: its push goes to the app's normal channel,
@@ -45,13 +46,22 @@ async function send({ tenantId, userId, title, body, data, channelId, sound, tag
         ]
         : [[heard.map((r) => r.token), undefined, undefined], [calm.map((r) => r.token), 'live_trip', undefined, false]];
 
+    // each phone gets the push in its person's language (User.language, set from the app); English when not set
+    const langOf = new Map((await User.find({ _id: { $in: [...new Set(rows.map((r) => String(r.userId)))] } }).select('language').lean())
+        .map((u) => [String(u._id), u.language || 'en']));
+    const tokenLang = new Map(rows.map((r) => [r.token, langOf.get(String(r.userId)) || 'en']));
+
     let sent = 0;
     const invalid = [];
-    for (const [tokens, ch, snd, voice] of groups) {
+    for (const [tokens, ch, snd] of groups) {
         if (!tokens.length) continue;
-        const res = await adapter.send({ tokens, title, body, data, channelId: ch, sound: snd, tag });
-        sent += res?.sent || 0;
-        if (res?.invalidTokens?.length) invalid.push(...res.invalidTokens);
+        const byLang = new Map();
+        for (const t of tokens) { const l = tokenLang.get(t) || 'en'; if (!byLang.has(l)) byLang.set(l, []); byLang.get(l).push(t); }
+        for (const [lang, list] of byLang) {
+            const res = await adapter.send({ tokens: list, title: i18n.translate(title, lang), body: i18n.translate(body, lang), data, channelId: ch, sound: snd, tag });
+            sent += res?.sent || 0;
+            if (res?.invalidTokens?.length) invalid.push(...res.invalidTokens);
+        }
     }
     if (invalid.length) await DeviceToken.deleteMany({ token: { $in: invalid } });
     return { sent, tokens: rows.length };

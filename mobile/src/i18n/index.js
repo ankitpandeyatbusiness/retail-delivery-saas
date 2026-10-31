@@ -48,26 +48,40 @@ function buildPatterns(b) {
         if (!en.includes('{v') || typeof to !== 'string' || !to) continue;
         const names = [...en.matchAll(SLOT)].map((m) => m[1]);
         if (!names.length || en.replace(SLOT, '').replace(/[^A-Za-z]/g, '').length < 8) continue;   // enough fixed words to be matched safely
-        const re = new RegExp(`^${en.split(SLOT).map((part, i) => (i % 2 ? '(.+?)' : escapeRe(part))).join('')}$`);
+        // a value may be empty: an optional part at the start ("Spice: a table is free") then simply is not there
+        const re = new RegExp(`^${en.split(SLOT).map((part, i) => (i % 2 ? '(.*?)' : escapeRe(part))).join('')}$`);
         const key = patternKey(en);
         if (!map.has(key)) map.set(key, []);
-        map.get(key).push({ re, names, to });
+        map.get(key).push({ re, names, to, fixed: en.replace(SLOT, '').length });
     }
-    patterns = map;
-    seen = new Map();
+    for (const list of map.values()) list.sort((a, b) => b.fixed - a.fixed);   // the pattern with the most fixed words is tried first
+    return map;
+}
+function matchPattern(map, text) {
+    for (const p of [...(map.get(firstWord(text)) || []), ...(map.get('') || [])]) {
+        const m = p.re.exec(text);
+        if (m) return p.to.replace(SLOT, (all, name) => { const i = p.names.indexOf(name); return i >= 0 ? m[i + 1] : all; });
+    }
+    return null;
 }
 function fromPattern(text) {
     if (seen.has(text)) return seen.get(text);
-    let out = null;
-    for (const p of [...(patterns.get(firstWord(text)) || []), ...(patterns.get('') || [])]) {
-        const m = p.re.exec(text);
-        if (m) { out = p.to.replace(SLOT, (all, name) => { const i = p.names.indexOf(name); return i >= 0 ? m[i + 1] : all; }); break; }
-    }
+    const out = matchPattern(patterns, text);
     if (seen.size > 500) seen.clear();
     seen.set(text, out);
     return out;
 }
-const useBook = (b) => { book = b; buildPatterns(b); };
+const useBook = (b) => { book = b; patterns = buildPatterns(b); seen = new Map(); };
+
+// A text in one chosen language, whatever language the app shows (the Soundbox voice can speak another language).
+// null when there is no translation.
+const otherBooks = {};
+export function trIn(text, code) {
+    if (typeof text !== 'string' || !text || !BOOKS[code]) return null;
+    if (!otherBooks[code]) { const b = bookFor(code); otherBooks[code] = { b, p: buildPatterns(b) }; }
+    const { b, p } = otherBooks[code];
+    return (typeof b[text] === 'string' && b[text]) || matchPattern(p, text);
+}
 
 export function tr(text, vars) {
     if (typeof text !== 'string') return text;

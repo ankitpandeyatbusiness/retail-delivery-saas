@@ -83,6 +83,32 @@ for (const f of files) {
     }
 }
 
+// Push and inbox texts: the patterns of templates/texts.js, and the title/body of the notifications that services and jobs
+// write themselves (ring(..., { title: `Table ${t}: ...` })). Speech lines (speech:, speechHi:) are not collected here.
+for (const p of require('../src/notifications/templates/textPatterns')) patterns.add(p);
+const pushFiles = [];
+const walkAll = (d) => {
+    for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+        const p = path.join(d, e.name);
+        if (e.isDirectory()) walkAll(p); else if (/\.js$/.test(e.name) && !SKIP.test(p) && !/templates/.test(p)) pushFiles.push(p);
+    }
+};
+['services', 'jobs', 'notifications'].forEach((d) => walkAll(path.join(SRC, d)));
+const NOTE_FIXED = /\b(?:title|body):\s*'((?:[^'\\]|\\.)*)'/g;
+const NOTE_TEMPLATE = /\b(?:title|body):\s*`((?:[^`\\]|\\.)*)`/g;
+for (const f of pushFiles) {
+    const src = fs.readFileSync(f, 'utf8');
+    for (const m of src.matchAll(NOTE_FIXED)) {
+        const text = unquote("'", m[1]).trim();
+        if (text.length >= 8 && /\s/.test(text) && /^[A-Z"'₹]/.test(text)) found.add(text);
+    }
+    for (const m of src.matchAll(NOTE_TEMPLATE)) {
+        const p = m[1].includes('${') ? toPattern(m[1]) : m[1].trim();
+        if (!p || p.length > 220 || /\{v\d+\}\{v\d+\}/.test(p) || literal(p).length < 8) continue;
+        (p.includes('{v') ? patterns : found).add(p);
+    }
+}
+
 const list = [...found, ...patterns].sort();
 fs.writeFileSync(OUT, JSON.stringify(list, null, 1));
 console.log(`${found.size} fixed + ${patterns.size} with values = ${list.length} server messages -> ${path.relative(process.cwd(), OUT)}`);

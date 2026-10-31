@@ -16,6 +16,7 @@
 import { isOpenInquiry } from '../../store/owners/useOpenInquiry';
 import { AppState } from 'react-native';
 import * as Speech from 'expo-speech';
+import { LOCAL_VOICES, localizeSpeech } from '../common/speechLang';
 import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useAuthStore } from '../../store/common/useAuthStore';
@@ -204,8 +205,8 @@ export async function listVoices(language = settings().language) {
     if (!voicesCache) {
         try { voicesCache = await Speech.getAvailableVoicesAsync(); } catch (e) { voicesCache = []; }
     }
-    const want = language === 'hi' ? 'hi' : 'en';
-    const home = want === 'hi' ? 'hi-in' : 'en-in';
+    const want = ['hi', ...LOCAL_VOICES].includes(language) ? language : 'en';
+    const home = want + '-in';   // en-in, hi-in, mr-in, gu-in, bn-in
     const score = (v) => (lang(v) === home ? 0 : 2)
         + (String(v.quality).toLowerCase() === 'enhanced' ? -0.5 : 0)
         + (/network|online/i.test(String(v.identifier)) ? 0.3 : 0);   // offline works without internet
@@ -242,7 +243,7 @@ export function voiceLabel(v) {
         for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) % 997;
         name = OTHER_NAMES[h % OTHER_NAMES.length];
     }
-    const kind = l === 'en-in' ? 'Indian English' : hindi ? 'Hindi' : l.startsWith('en') ? 'English (' + (l.split('-')[1] || '').toUpperCase() + ')' : l;
+    const kind = l === 'en-in' ? 'Indian English' : hindi ? 'Hindi' : l.startsWith('mr') ? 'Marathi' : l.startsWith('gu') ? 'Gujarati' : l.startsWith('bn') ? 'Bengali' : l.startsWith('en') ? 'English (' + (l.split('-')[1] || '').toUpperCase() + ')' : l;
     const quality = String(v.quality).toLowerCase() === 'enhanced' ? ' · high quality' : '';
     const recommended = variant !== null && variant === RECOMMENDED[hindi ? 'hi' : 'en'] && (l === 'en-in' || l === 'hi-in');
     return { name, sub: kind + quality, recommended };
@@ -261,15 +262,20 @@ export async function labelledVoices(language = settings().language) {
     return [...rows.filter((r) => r.recommended), ...rows.filter((r) => !r.recommended)];
 }
 
-// Hindi is only used when this phone really has a Hindi voice; otherwise the order is read in English.
+// Hindi, Marathi, Gujarati or Bengali only when this phone really has that voice; otherwise the order is read in English.
 async function languageToUse() {
-    if (settings().language !== 'hi') return 'en';
-    return (await listVoices('hi')).length ? 'hi' : 'en';
+    const want = settings().language;
+    if (want !== 'hi' && !LOCAL_VOICES.includes(want)) return 'en';
+    return (await listVoices(want)).length ? want : 'en';
+}
+// is this phone missing the voice of the chosen language (the Soundbox screen says how to get it)
+export async function voiceMissing(language = settings().language) {
+    return language !== 'en' && !(await listVoices(language)).length;
 }
 
 async function pickVoice(language) {
     const all = (await labelledVoices(language)).map((r) => r.voice);   // the recommended voice first
-    const chosen = language === 'hi' ? settings().voiceIdHi : settings().voiceId;
+    const chosen = language === 'hi' ? settings().voiceIdHi : language === 'en' ? settings().voiceId : settings().voiceIds?.[language];
     const voice = all.find((v) => v.identifier === chosen) || all[0] || null;
     return voice && (await engineHasVoices()) ? voice : null;
 }
@@ -297,8 +303,8 @@ export async function sampleVoice(voice, language = 'en') {
     try {
         Speech.stop();
         speaking = true;   // let the voice finish, then the keep-alive plays again (voiceDone)
-        Speech.speak(sampleFor(language), {
-            language: voice?.language || (language === 'hi' ? 'hi-IN' : 'en-IN'),
+        Speech.speak(LOCAL_VOICES.includes(language) ? localizeSpeech(sampleFor('en'), language) : sampleFor(language), {
+            language: voice?.language || `${language}-IN`,
             ...(voice ? { voice: voice.identifier } : {}),
             rate: 0.92,
             volume: settings().volume,
@@ -314,8 +320,9 @@ export async function previewGreeting() {
     return speak(g + ' ' + sampleFor(language), language);
 }
 
-async function speak(text, language, type) {
+async function speak(said, language, type) {
     if (type && !alertOn(type, 'v')) return;   // the Voice switch of this alert (Alerts screen)
+    const text = LOCAL_VOICES.includes(language) ? localizeSpeech(said, language) : said;   // Marathi, Gujarati, Bengali: the English line, translated
     const voice = await pickVoice(language);
     return new Promise((resolve) => {
         let done = false;
@@ -331,7 +338,7 @@ async function speak(text, language, type) {
         try {
             Speech.stop();
             Speech.speak(text, {
-                language: voice?.language || (language === 'hi' ? 'hi-IN' : 'en-IN'),
+                language: voice?.language || `${language === 'en' ? 'en' : language}-IN`,
                 ...(voice ? { voice: voice.identifier } : {}),
                 rate: 0.92,
                 volume: settings().volume,

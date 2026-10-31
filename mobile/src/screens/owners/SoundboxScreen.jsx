@@ -14,7 +14,9 @@ import { tr } from '../../i18n';
 import KeyboardScroll from '../../components/common/KeyboardScroll';
 
 const VOLUMES = [[0.4, 'Low'], [0.7, 'Medium'], [1, 'Loud']];
-const LANGUAGES = [['en', 'English'], ['hi', 'हिन्दी']];
+const LANGUAGES = [['en', 'English'], ['hi', 'हिन्दी'], ['mr', 'मराठी'], ['gu', 'ગુજરાતી'], ['bn', 'বাংলা']];
+const VOICE_TITLE = { en: 'English voice', hi: 'Hindi voice', mr: 'Marathi voice', gu: 'Gujarati voice', bn: 'Bengali voice' };
+const NATIVE = { mr: 'मराठी', gu: 'ગુજરાતી', bn: 'বাংলা' };
 
 function Switcher({ title, subtitle, value, onChange }) {
     const { text, muted, primary } = useBrand();
@@ -55,7 +57,7 @@ export default function SoundboxScreen() {
         labelledVoices(st.language).then((v) => alive && setVoices(v)).catch(() => alive && setVoices([]));
         return () => { alive = false; };
     }, [st.language]);
-    const chosenId = (hindi ? st.voiceIdHi : st.voiceId) || voices?.[0]?.voice.identifier;
+    const chosenId = (hindi ? st.voiceIdHi : st.language === 'en' ? st.voiceId : st.voiceIds?.[st.language]) || voices?.[0]?.voice.identifier;
 
     const [chan, setChan] = useState(null);   // what the phone holds for the new-order channel (see push.js)
     useEffect(() => {
@@ -153,11 +155,13 @@ export default function SoundboxScreen() {
                 </Card>
 
                 <Card>
-                    <Label title={hindi ? tr('Hindi voice') : tr('English voice')} hint={tr('Tap a name to hear it.')} />
+                    <Label title={tr(VOICE_TITLE[st.language] || 'English voice')} hint={tr('Tap a name to hear it.')} />
                     {voices === null ? <View style={{ marginTop: 10 }}><LineShimmer width={200} height={16} /></View> : null}
                     {voices && !voices.length ? (
                         <Text style={{ color: muted, fontSize: 13, marginTop: 10 }}>
-                            {hindi
+                            {NATIVE[st.language]
+                                ? tr('This phone has no voice for this language yet, so orders are read in English. To add one: Settings → Language → Text-to-speech → Google Text-to-speech → Install voice data → {lang}.', { lang: NATIVE[st.language] })
+                                : hindi
                                 ? tr('This phone has no Hindi voice, so orders are read in English. To add one: Settings → Language → Text-to-speech → Google Text-to-speech → Install voice data → हिन्दी.')
                                 : tr('No English voice found on this phone. Add one: Settings → Language → Text-to-speech → Google Text-to-speech → Install voice data → English (India).')}
                         </Text>
@@ -171,7 +175,7 @@ export default function SoundboxScreen() {
                                 subtitle={sub}
                                 badge={recommended ? <Pill label={tr('Recommended')} color={ok} icon="star" /> : null}
                                 last={i === arr.length - 1}
-                                onPress={() => { st.update(hindi ? { voiceIdHi: voice.identifier } : { voiceId: voice.identifier }); sampleVoice(voice, st.language); }}
+                                onPress={() => { st.update(hindi ? { voiceIdHi: voice.identifier } : st.language === 'en' ? { voiceId: voice.identifier } : { voiceIds: { ...(st.voiceIds || {}), [st.language]: voice.identifier } }); sampleVoice(voice, st.language); }}
                             />
                         ))}
                     </View>

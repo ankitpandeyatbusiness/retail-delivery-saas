@@ -32,3 +32,16 @@ for (const c of CODES) {
     console.log(`${c}: ${Object.keys(books[c]).length} texts`);
 }
 console.log(`${rows} rows, ${unknown} not used`);
+
+// The server's own copy, only for what the server sends (scripts/i18n-server.json: messages and push texts), so a push can be
+// written in the person's language before it leaves (backend/src/notifications/i18n.js).
+const serverKeys = new Set(JSON.parse(fs.readFileSync(path.join(__dirname, 'i18n-server.json'), 'utf8')));
+const serverDir = path.join(__dirname, '../../backend/src/notifications/locales');
+if (fs.existsSync(path.join(serverDir, '..'))) {
+    if (!fs.existsSync(serverDir)) fs.mkdirSync(serverDir);
+    for (const c of CODES) {
+        const book = Object.fromEntries(Object.keys(books[c]).filter((k) => serverKeys.has(k)).sort().map((k) => [k, books[c][k]]));
+        fs.writeFileSync(path.join(serverDir, `${c}.json`), `${JSON.stringify(book, null, 1)}\n`);
+    }
+    console.log(`server copy: ${Object.keys(books.hi).filter((k) => serverKeys.has(k)).length} texts per language -> backend/src/notifications/locales`);
+}
