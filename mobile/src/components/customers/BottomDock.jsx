@@ -1,11 +1,13 @@
 // A radial (pie) menu at the bottom right instead of a pile of cards. With two or more of the cards on screen (cart, dine in table, reserved table, order or
 // tracking), their cards step aside and this round button stays, with the icons of what is there on it. Touch and hold it: a quarter circle opens to the
-// left and up, a ring split into four wedges (Dine in, Track, Table QR, Cart). Slide onto a wedge to light it, let go to open it. A wedge with nothing
-// behind it is dimmed with a lock and cannot be chosen. A quick tap opens the dine in table if there is one, else the cart, else the first card.
+// to the left and up, a ring split into four wedges with only their icons (Dine in, Track, Table QR, Cart). Slide onto a wedge that has a screen behind it:
+// it lights up. Let go on it and that screen opens; let go anywhere else and nothing opens. A wedge with nothing behind it is dimmed with a lock.
+// A quick tap opens nothing: it only shows a hint. The button itself is one glossy general icon (the four dots), whatever cards there are.
 // Drawn from plain views (many thin rotated bars), so it needs no extra package.
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, PanResponder, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand, alpha } from '../common/kit';
 import { useDock, dockList } from '../../store/customers/useDock';
@@ -50,7 +52,18 @@ export default function BottomDock({ navRef }) {
     const items = useDock((s) => s.items);
     const list = dockList(items);
     const insets = useSafeAreaInsets();
-    const { primary, onPrimary, surface, text, muted, border } = useBrand();
+    const { primary, primaryLight, primaryDark, onPrimary, surface, text, muted, border } = useBrand();
+    const [hint, setHint] = useState(false);
+    const hintFade = useRef(new Animated.Value(0)).current;
+    const press = useRef(new Animated.Value(1)).current;   // the button sinks a little while it is held
+    const hintTimer = useRef(null);
+    const showHint = () => {
+        clearTimeout(hintTimer.current);
+        setHint(true);
+        Animated.timing(hintFade, { toValue: 1, duration: 140, useNativeDriver: true }).start();
+        hintTimer.current = setTimeout(() => Animated.timing(hintFade, { toValue: 0, duration: 220, useNativeDriver: true }).start(() => setHint(false)), 1700);
+    };
+    liveHint.current = showHint;
     const [open, setOpen] = useState(false);
     const [hover, setHover] = useState(-1);
     const anchor = useRef(null);
@@ -61,6 +74,7 @@ export default function BottomDock({ navRef }) {
     // what each wedge opens now (null = nothing behind it: locked)
     const target = (k) => (k === 'track' ? (items.track || items.order) : items[k]) || null;
     const live = useRef({});
+    const liveHint = useRef(null);
     live.current = { list, target, items };
 
     const go = (it) => { if (it && navRef?.isReady?.()) navRef.navigate(it.route, it.params); };
@@ -80,17 +94,19 @@ export default function BottomDock({ navRef }) {
         onStartShouldSetPanResponder: () => true,
         onMoveShouldSetPanResponder: () => true,
         onPanResponderGrant: () => {
+            Animated.spring(press, { toValue: 0.92, friction: 7, tension: 200, useNativeDriver: true }).start();
             anchor.current?.measureInWindow?.((x, y, w, h) => { centre.current = { x: x + w / 2, y: y + h / 2 }; });
             timer.current = setTimeout(() => { live.current.open = true; setOpen(true); }, 180);
         },
         onPanResponderMove: (_, g) => { if (live.current.open) setHover(wedgeAt(g.moveX, g.moveY)); },
         onPanResponderRelease: (_, g) => {
             const l = live.current;
-            if (l.open) { const i = wedgeAt(g.moveX, g.moveY); close(); if (i >= 0) go(l.target(WEDGES[i].key)); return; }
+            Animated.spring(press, { toValue: 1, friction: 6, tension: 200, useNativeDriver: true }).start();
+            if (l.open) { const i = wedgeAt(g.moveX, g.moveY); close(); if (i >= 0) go(l.target(WEDGES[i].key)); return; }   // let go on a lit wedge opens it; anywhere else, nothing
             close();
-            go(l.items.table || l.items.cart || l.list[0]);   // a quick tap
+            liveHint.current?.();   // a quick tap opens nothing: it says how it works
         },
-        onPanResponderTerminate: close,
+        onPanResponderTerminate: () => { Animated.spring(press, { toValue: 1, friction: 6, tension: 200, useNativeDriver: true }).start(); close(); },
     })).current;
 
     useEffect(() => { Animated.timing(fade, { toValue: open ? 1 : 0, duration: 170, useNativeDriver: true }).start(); }, [open, fade]);
@@ -115,23 +131,30 @@ export default function BottomDock({ navRef }) {
                         const phi = ((-90 - (i + 0.5) * SPAN) * Math.PI) / 180;
                         const ink = lit ? onPrimary : there ? text : muted;
                         return (
-                            <View key={w.key} style={{ position: 'absolute', left: RM * Math.cos(phi) - 34, top: RM * Math.sin(phi) - 24, width: 68, height: 48, alignItems: 'center', justifyContent: 'center', opacity: there ? 1 : 0.7 }}>
+                            <View key={w.key} style={{ position: 'absolute', left: RM * Math.cos(phi) - 24, top: RM * Math.sin(phi) - 24, width: 48, height: 48, alignItems: 'center', justifyContent: 'center', opacity: there ? 1 : 0.7, transform: [{ scale: lit ? 1.18 : 1 }] }}>
                                 <View>
-                                    <Ionicons name={w.icon} size={22} color={ink} />
-                                    {!there ? <Ionicons name="lock-closed" size={11} color={muted} style={{ position: 'absolute', right: -8, bottom: -3 }} /> : null}
+                                    <Ionicons name={w.icon} size={28} color={ink} />
+                                    {!there ? <Ionicons name="lock-closed" size={12} color={muted} style={{ position: 'absolute', right: -8, bottom: -4 }} /> : null}
                                 </View>
-                                <Text numberOfLines={1} style={{ color: ink, fontSize: 10.5, fontWeight: '800', marginTop: 2 }}>{tr(w.label)}</Text>
                             </View>
                         );
                     })}
                 </Animated.View>
             ) : null}
-            <View ref={anchor} collapsable={false} {...pan.panHandlers} accessibilityRole="button" accessibilityLabel={tr('Open one of your cards. Touch and hold, then slide to choose.')}
-                style={{ position: 'absolute', right: 14, bottom, width: DISC, height: DISC, borderRadius: DISC / 2, backgroundColor: primary, alignItems: 'center', justifyContent: 'center', elevation: 10, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 4 } }}>
-                <View style={{ width: 40, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center' }}>
-                    {list.slice(0, 4).map((it) => <Ionicons key={it.key} name={it.icon} size={list.length > 2 ? 17 : 20} color={onPrimary} style={{ margin: 1.5 }} />)}
-                </View>
-            </View>
+            {hint ? (
+                <Animated.View pointerEvents="none" style={{ position: 'absolute', right: 14 + DISC + 10, bottom: bottom + 10, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 16, backgroundColor: surface, borderWidth: 1, borderColor: border, opacity: hintFade, elevation: 6 }}>
+                    <Text style={{ color: text, fontWeight: '800', fontSize: 13 }}>{tr('Touch and hold, then slide')}</Text>
+                </Animated.View>
+            ) : null}
+            <Animated.View ref={anchor} collapsable={false} {...pan.panHandlers} accessibilityRole="button" accessibilityLabel={tr('Open one of your cards. Touch and hold, then slide to choose.')}
+                style={{ position: 'absolute', right: 14, bottom, width: DISC, height: DISC, borderRadius: DISC / 2, elevation: 10, shadowColor: '#000', shadowOpacity: 0.32, shadowRadius: 9, shadowOffset: { width: 0, height: 5 }, transform: [{ scale: press }] }}>
+                {/* the glossy button: a gradient body, a glass highlight on the upper half, a light edge */}
+                <LinearGradient colors={[primaryLight || primary, primary, primaryDark || primary]} start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }} style={{ flex: 1, borderRadius: DISC / 2, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.55)', overflow: 'hidden' }}>
+                    <LinearGradient pointerEvents="none" colors={['rgba(255,255,255,0.65)', 'rgba(255,255,255,0.06)']} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }}
+                        style={{ position: 'absolute', top: 2, left: 7, right: 7, height: DISC * 0.46, borderRadius: DISC / 2 }} />
+                    <Ionicons name="apps" size={28} color={onPrimary} style={{ textShadowColor: 'rgba(0,0,0,0.25)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 }} />
+                </LinearGradient>
+            </Animated.View>
         </View>
     );
 }
