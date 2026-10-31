@@ -426,8 +426,8 @@ export default function OwnerHomeScreen() {
         {/* the door scanner: a round button that stays on screen, so a guest's booking QR is one tap away */}
         {bookingOn ? (
             <Pressable onPress={() => nav.navigate('BookingScan', { who: 'owner' })} accessibilityRole="button" accessibilityLabel={tr('Scan booking')}
-                style={{ position: 'absolute', right: 18, bottom: 22, width: 64, height: 64, borderRadius: 32, backgroundColor: primary, alignItems: 'center', justifyContent: 'center', elevation: 8, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 4 } }}>
-                <Ionicons name="qr-code" size={30} color={onPrimary} />
+                style={{ position: 'absolute', right: 18, bottom: 22, width: 52, height: 52, borderRadius: 26, backgroundColor: alpha(primary, 0.72), borderWidth: 1, borderColor: 'rgba(255,255,255,0.45)', alignItems: 'center', justifyContent: 'center', elevation: 4, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 6, shadowOffset: { width: 0, height: 3 } }}>
+                <Ionicons name="qr-code" size={23} color={onPrimary} />
             </Pressable>
         ) : null}
         </View>

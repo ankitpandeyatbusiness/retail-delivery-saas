@@ -1,7 +1,7 @@
 // The door scanner for booked tables, for the owner and for waiters. Scan a guest's QR (or type the 5 letter code),
 // see who it is and which table, then "Mark arrived". A bad ticket says why: too early, wrong day, already used, cancelled.
 import React, { useRef, useState } from 'react';
-import { View, Text, TextInput, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, Pressable, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { useRoute } from '@react-navigation/native';
@@ -75,7 +75,10 @@ export default function BookingScanScreen() {
                         <Text style={{ color: '#fff', fontWeight: '800', marginTop: 16 }}>{tr("Point at the guest's booking QR")}</Text>
                     </View>
                     <View style={{ position: 'absolute', left: 16, right: 16, bottom: 28 }}>
-                        <Button label={tr('Type the code instead')} icon="keypad-outline" kind="ghost" onPress={() => setTyping(true)} style={{ backgroundColor: '#fff' }} />
+                        <Pressable onPress={() => setTyping(true)} accessibilityRole="button" style={{ height: 50, borderRadius: 14, backgroundColor: '#FFFFFF', flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                            <Ionicons name="keypad-outline" size={20} color="#111111" style={{ marginRight: 8 }} />
+                            <Text style={{ color: '#111111', fontWeight: '800', fontSize: 15 }}>{tr('Type the code instead')}</Text>
+                        </Pressable>
                     </View>
                 </>
             ) : (
