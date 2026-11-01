@@ -394,7 +394,7 @@ export const addressLine = (a = {}) => [a.line1, a.line2, a.landmark, a.city, a.
 export async function openInvoice(order, setBusy) {
     if (setBusy) setBusy(true);
     try {
-        const res = await api.get(`/shop/orders/${order.id}/invoice`, { responseType: 'arraybuffer' });
+        const res = await api.get(order.invoicePath || `/shop/orders/${order.id}/invoice`, { responseType: 'arraybuffer' });   // a bulk order brings its own path
         const file = new File(Paths.cache, `invoice-${order.orderNo}.pdf`);
         if (file.exists) file.delete();
         file.create();

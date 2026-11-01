@@ -169,6 +169,7 @@ function drawParties(doc, order, y) {
     let ly = doc.y;
     doc.font('Helvetica').fontSize(9).fillColor(INK);
     if (c.phone) { doc.text(`Phone: ${c.phone}`, PAGE_LEFT, ly, { width: half - 10 }); ly = doc.y; }
+    if (c.gstin) { doc.text(`GSTIN: ${c.gstin}`, PAGE_LEFT, ly, { width: half - 10 }); ly = doc.y; }   // a company's GST number (bulk orders)
     if (order.orderType === 'delivery' && ad.line1) {
         const addr = [ad.line1, ad.line2, ad.landmark, ad.city, ad.pincode].filter(Boolean).join(', ');
         doc.fillColor(MUTED).text(addr, PAGE_LEFT, ly, { width: half - 10 });
@@ -184,7 +185,7 @@ function drawParties(doc, order, y) {
     doc.font('Helvetica-Bold').fontSize(8.5).fillColor(MUTED).text('ORDER DETAILS', rx, y);
     doc.font('Helvetica').fontSize(9).fillColor(INK);
     doc.text(`Type: ${TYPE_LABEL[order.orderType] || order.orderType}`, rx, y + 13, { width: half - 10 });
-    doc.text(`Payment: ${PAY_LABEL[order.payment?.method] || order.payment?.method || '-'}`, rx, doc.y, { width: half - 10 });
+    doc.text(`Payment: ${order.payment?.label || PAY_LABEL[order.payment?.method] || order.payment?.method || '-'}`, rx, doc.y, { width: half - 10 });
     doc.font('Helvetica-Bold').fillColor(paid ? '#047857' : '#b45309')
         .text(`Status: ${paid ? 'PAID' : 'PAYMENT PENDING'}`, rx, doc.y, { width: half - 10 });
 
@@ -293,6 +294,16 @@ function drawTotals(doc, order, tax, y) {
         .text(rs(p.total), boxX + boxW - 150, y + 9, { width: 140, align: 'right' });
     y += 28;
 
+    if (order.paidParts?.length) {   // how it was paid: the advance and the balance (bulk orders)
+        doc.font('Helvetica').fontSize(9).fillColor(MUTED);
+        order.paidParts.forEach(([label, value]) => {
+            y = ensureSpace(doc, y + 6, 16, false);
+            doc.fillColor(MUTED).text(label, boxX, y, { width: boxW - 100 });
+            doc.fillColor(INK).text(value, boxX + boxW - 100, y, { width: 100, align: 'right' });
+            y += 14;
+        });
+        y += 6;
+    }
     if (tax.included) {   // GST that was already inside the prices
         doc.font('Helvetica').fontSize(8).fillColor(MUTED)
             .text(`Total includes GST of ${rs(tax.included)}`, boxX, y + 5, { width: boxW, align: 'right' });

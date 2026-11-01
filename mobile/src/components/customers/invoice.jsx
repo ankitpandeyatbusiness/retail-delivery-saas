@@ -23,7 +23,7 @@ const pathOf = (o) => {
 };
 
 async function fetchPdf(order) {
-    const res = await api.get(`/orders/${order.id}/invoice`, { responseType: 'arraybuffer' });
+    const res = await api.get(order.invoicePath || `/orders/${order.id}/invoice`, { responseType: 'arraybuffer' });   // a bulk order brings its own path
     const bytes = new Uint8Array(res.data);
     const file = new File(Paths.cache, nameOf(order));
     if (file.exists) file.delete();

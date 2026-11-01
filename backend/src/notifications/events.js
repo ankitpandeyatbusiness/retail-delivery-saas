@@ -54,6 +54,9 @@ const EVENTS = {
     bulk_confirmed: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },       // the advance arrived: the order is confirmed
     bulk_refund: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },          // the advance is on its way back
     bulk_shop_cancelled: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },  // the shop cancelled a confirmed bulk order
+    bulk_balance_paid: { to: 'owner', channels: INAPP_PUSH, alsoPush: true, pushChannel: INQUIRY_CHANNEL, pushSound: 'cust_offer' },   // the customer paid the balance online
+    bulk_stage: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },          // the shop started making, packed, sent or handed over the order
+    bulk_completed: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },      // delivered and paid: the invoice is ready
     bulk_quoted: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },         // the shop sent its quote for a bulk order
     bulk_declined: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },       // the shop cannot take the bulk order
     inquiry_unanswered: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },      // a customer's message has waited a day for an answer

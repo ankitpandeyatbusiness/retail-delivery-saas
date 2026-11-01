@@ -85,7 +85,7 @@ export default function CardDetailsScreen() {
         const bulk = route.params?.bulk;
         if (bulk) {   // the advance of an accepted bulk order quote: pay now, the card is not kept
             nav.pop(depth);
-            payBulk({ order: bulk.order, pay: bulk.pay, user: useAuthStore.getState().user, card: { number: raw, month: mm, year: String(y), cvv: digits(cvv), name: name.trim() } }).then((r) => {
+            payBulk({ order: bulk.order, pay: bulk.pay, user: useAuthStore.getState().user, kind: bulk.kind, card: { number: raw, month: mm, year: String(y), cvv: digits(cvv), name: name.trim() } }).then((r) => {
                 showToast(r.status === 'paid' ? tr('Paid. Your bulk order is confirmed.') : tr(r.message || 'Not paid yet'));
                 nav.navigate('BulkOrderDetail', { id: bulk.order.id, refresh: Date.now() });
             });

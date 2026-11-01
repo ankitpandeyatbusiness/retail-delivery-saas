@@ -11,7 +11,8 @@ import { ask } from '../../components/common/dialog';
 import { showToast } from '../../components/customers/shop';
 import { rs } from '../../components/customers/orders';
 import { addrLine } from '../../components/customers/addresses';
-import { fetchBulk, cancelBulk, changeBulk, startBulkPay, previewCancelBulk } from '../../api/customers/shopApi';
+import { fetchBulk, cancelBulk, changeBulk, startBulkPay, startBulkBalance, previewCancelBulk } from '../../api/customers/shopApi';
+import { viewInvoice, saveInvoice } from '../../components/customers/invoice';
 import { onNotification } from '../../api/common/socket';
 import { tr } from '../../i18n';
 
@@ -19,7 +20,16 @@ export const BULK_STATUS = {
     requested: 'Waiting for the shop\'s quote', quoted: 'Quote received', confirmed: 'Confirmed', preparing: 'Being made', ready: 'Ready', out_for_delivery: 'On the way',
     delivered: 'Delivered', completed: 'Completed', declined: 'Declined by the shop', cancelled: 'Cancelled', expired: 'Quote expired',
 };
-export const bulkTone = (st, b) => (['declined', 'cancelled', 'expired'].includes(st) ? b.error : ['confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'completed'].includes(st) ? b.ok : b.primary);
+// what the customer is told at each step of a paid order (the argument is "is it a delivery")
+const STAGE_TEXT = {
+    confirmed: () => 'Your order is confirmed. The shop will start making it.',
+    preparing: () => 'The shop is making your order.',
+    ready: (d) => (d ? 'Your order is packed and will go out soon.' : 'Your order is ready. Collect it at the time you chose.'),
+    out_for_delivery: () => 'Your order is on the way.',
+    delivered: (d) => (d ? 'Delivered.' : 'Handed over.'),
+    completed: () => 'Completed. Thank you!',
+};
+export const bulkTone =(st, b) => (['declined', 'cancelled', 'expired'].includes(st) ? b.error : ['confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'completed'].includes(st) ? b.ok : b.primary);
 export const whenText = (d) => new Date(d).toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
 
 function Line({ l, text, muted, ok }) {
@@ -64,6 +74,15 @@ export default function BulkOrderDetailScreen() {
         try { nav.navigate('PaymentMethods', { bulk: { order: o, pay: await startBulkPay(id) }, current: 'upi' }); }
         catch (e) { showToast(e?.response?.data?.error || tr('Could not start the payment')); load(); } finally { setBusy(false); }
     };
+
+    // The balance, at the handover: the same payment screen, for the amount that is left
+    const payBalance = async () => {
+        setBusy(true);
+        try { nav.navigate('PaymentMethods', { bulk: { order: o, pay: await startBulkBalance(id), kind: 'balance' }, current: 'upi' }); }
+        catch (e) { showToast(e?.response?.data?.error || tr('Could not start the payment')); load(); } finally { setBusy(false); }
+    };
+    const invoiceOf = (x) => ({ id: x.id, orderNo: `B${x.code}`, createdAt: x.completedAt || x.updatedAt, invoicePath: `/bulk/${x.id}/invoice` });
+    const [inv, setInv] = useState('');
 
     // The popup says the exact amount: it comes from the server, from the same rule the real cancel uses
     const cancel = async () => {
@@ -143,7 +162,24 @@ export default function BulkOrderDetailScreen() {
                         {pd.refundStatus === 'refunded' ? <Text style={{ color: ok, marginTop: 4, fontWeight: '700' }}>{tr('{a} has been sent back to you. Your bank may take 5 to 7 working days to show it.', { a: rs(pd.refundPaise / 100) })}</Text> : null}
                         {pd.refundStatus === 'pending' ? <Text style={{ color: muted, marginTop: 4 }}>{tr('Your refund of {a} is being sent. It can take a little while.', { a: rs(pd.refundPaise / 100) })}</Text> : null}
                         {pd.kept ? <Text style={{ color: muted, marginTop: 4 }}>{tr('The shop keeps the advance.')}</Text> : null}
-                        {o.status === 'confirmed' ? <Text style={{ color: muted, marginTop: 4 }}>{tr('Your order is confirmed. The balance is paid on {w}.', { w: o.fulfilment === 'delivery' ? tr('delivery') : tr('pickup') })}</Text> : null}
+                        {STAGE_TEXT[o.status] ? <Text style={{ color: text, marginTop: 6, fontWeight: '700' }}>{tr(STAGE_TEXT[o.status](o.fulfilment === 'delivery'))}</Text> : null}
+                        {pd.balancePaid ? <Text style={{ color: ok, marginTop: 4, fontWeight: '700' }}>{tr('Balance paid: {a} ({how})', { a: rs(pd.balancePaise / 100), how: pd.balanceVia === 'cash' ? tr('cash') : tr('online') })}</Text> : null}
+                        {!pd.balancePaid && o.quote?.balancePaise > 0 && ['confirmed', 'preparing'].includes(o.status) ? <Text style={{ color: muted, marginTop: 4 }}>{tr('The balance of {a} is paid at the handover, in the app or in cash to the shop.', { a: rs(o.quote.balancePaise / 100) })}</Text> : null}
+                        {!pd.balancePaid && o.quote?.balancePaise > 0 && ['ready', 'out_for_delivery', 'delivered'].includes(o.status) ? <Text style={{ color: text, marginTop: 4, fontWeight: '800' }}>{tr('Balance to pay: {a}. Pay it in the app, or in cash to the shop.', { a: rs(o.quote.balancePaise / 100) })}</Text> : null}
+                    </Card>
+                ) : null}
+                {o.balance?.ok ? (
+                    <View style={{ paddingHorizontal: 16, marginTop: 12 }}>
+                        <Button label={tr('Pay the balance {a} now', { a: rs(o.balance.paise / 100) })} icon="lock-closed" busy={busy} onPress={payBalance} />
+                    </View>
+                ) : null}
+                {o.invoiceReady ? (
+                    <Card>
+                        <Text style={{ color: text, fontWeight: '900', marginBottom: 8 }}>{tr('Invoice')}</Text>
+                        <View style={{ flexDirection: 'row' }}>
+                            <Button label={tr('View')} icon="document-text-outline" kind="ghost" busy={inv === 'view'} onPress={() => viewInvoice(invoiceOf(o), (v) => setInv(v ? 'view' : ''))} style={{ flex: 1, marginRight: 10 }} />
+                            <Button label={tr('Save')} icon="download-outline" kind="ghost" busy={inv === 'save'} onPress={() => saveInvoice(invoiceOf(o), (v) => setInv(v ? 'save' : ''))} style={{ flex: 1 }} />
+                        </View>
                     </Card>
                 ) : null}
                 {o.canPay && q ? (

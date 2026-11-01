@@ -13,6 +13,8 @@ import { rs } from '../../components/customers/orders';
 import { addrLine } from '../../components/customers/addresses';
 import { bulk as api, apiError } from '../../api/owners/shopApi';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
+import { openInvoice } from '../../components/owners/orderBits';
+import { ask } from '../../components/common/dialog';
 import { BULK_STATUS, bulkTone, whenText } from '../customers/BulkOrderDetailScreen';
 import { tr } from '../../i18n';
 
@@ -34,6 +36,7 @@ export default function OwnerBulkOrderScreen() {
     const [busy, setBusy] = useState(false);
     const [declineOpen, setDeclineOpen] = useState(false);
     const [reason, setReason] = useState('');
+    const [invBusy, setInvBusy] = useState(false);
 
     const fill = useCallback((r, rules) => {
         setO(r);
@@ -80,13 +83,32 @@ export default function OwnerBulkOrderScreen() {
         if (!reason.trim()) return showToast(tr('Tell the customer why'));
         setBusy(true);
         try {
-            const confirmedNow = o.status === 'confirmed';   // a paid order is cancelled and the whole advance goes back
+            const confirmedNow = ['confirmed', 'preparing', 'ready', 'out_for_delivery'].includes(o.status);   // a paid order is cancelled and everything paid online goes back
             setO(confirmedNow ? await api.cancel(id, reason.trim()) : await api.decline(id, reason.trim()));
-            setDeclineOpen(false); showToast(confirmedNow ? tr('Cancelled. The advance is being sent back.') : tr('Declined'));
+            setDeclineOpen(false); showToast(confirmedNow ? tr('Cancelled. What the customer paid online is being sent back.') : tr('Declined'));
         } catch (e) { showToast(apiError(e)); } finally { setBusy(false); }
     };
 
     const q = o.quote;
+    // the next step of a paid order, the cash button, the cancel button
+    const NEXT = {
+        confirmed: { to: 'preparing', label: tr('Start making it'), icon: 'flame-outline' },
+        preparing: { to: 'ready', label: delivered ? tr('Mark packed') : tr('Mark ready for pickup'), icon: 'checkmark-circle-outline' },
+        ready: delivered ? { to: 'out_for_delivery', label: tr('Out for delivery'), icon: 'bicycle-outline' } : { to: 'delivered', label: tr('Handed over to the customer'), icon: 'hand-left-outline' },
+        out_for_delivery: { to: 'delivered', label: tr('Mark delivered'), icon: 'home-outline' },
+    };
+    const next = NEXT[o.status];
+    const cashDue = !!o.payment && !o.payment.balancePaid && (q?.balancePaise || 0) > 0 && ['ready', 'out_for_delivery', 'delivered'].includes(o.status);
+    const cancelable = ['confirmed', 'preparing', 'ready', 'out_for_delivery'].includes(o.status);
+    const move = async (step) => {
+        setBusy(true);
+        try { setO(await api.stage(id, step.to)); } catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); load(); } finally { setBusy(false); }
+    };
+    const cash = async () => {
+        if (!(await ask({ title: tr('Cash received?'), message: tr('Did you receive {a} in cash from the customer? This cannot be undone.', { a: rs(q.balancePaise / 100) }), confirmText: tr('Yes, received'), cancelText: tr('Go back') }))) return;
+        setBusy(true);
+        try { setO(await api.cashReceived(id)); showToast(tr('Marked as received')); } catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); load(); } finally { setBusy(false); }
+    };
     const sent = q?.pricing && (['quoted', 'expired', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'completed'].includes(o.status) || (o.status === 'cancelled' && !!o.payment));
 
     return (
@@ -169,7 +191,9 @@ export default function OwnerBulkOrderScreen() {
                         {o.payment ? (
                             <Card>
                                 <Text style={{ color: text, fontWeight: '900' }}>{tr('Advance received: {a}', { a: rs(o.payment.advancePaise / 100) })}</Text>
-                                {o.status === 'confirmed' ? <Text style={{ color: muted, marginTop: 4 }}>{tr('The balance of {b} is paid on {w}. If you cancel, the customer gets the whole advance back.', { b: rs(q.balancePaise / 100), w: delivered ? tr('delivery') : tr('pickup') })}</Text> : null}
+                                {o.payment.balancePaid ? <Text style={{ color: ok, marginTop: 4, fontWeight: '700' }}>{tr('Balance received: {a} ({how})', { a: rs(o.payment.balancePaise / 100), how: o.payment.balanceVia === 'cash' ? tr('cash') : tr('online') })}</Text> : null}
+                                {!o.payment.balancePaid && q.balancePaise > 0 && ['confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered'].includes(o.status) ? <Text style={{ color: muted, marginTop: 4 }}>{tr('Still to collect: {b}, at the handover. The customer can pay in the app, or you take cash and tap "Cash received".', { b: rs(q.balancePaise / 100) })}</Text> : null}
+                                {['confirmed', 'preparing', 'ready', 'out_for_delivery'].includes(o.status) ? <Text style={{ color: muted, marginTop: 4 }}>{tr('If you cancel, the customer gets back everything he paid online.')}</Text> : null}
                                 {o.status === 'cancelled' && o.cancelledBy === 'customer' ? <Text style={{ color: muted, marginTop: 4 }}>{o.payment.kept ? tr('The customer cancelled late: you keep the advance.') : tr('The customer cancelled in time: the advance goes back to him.')}</Text> : null}
                                 {o.status === 'cancelled' && o.cancelledBy === 'owner' ? <Text style={{ color: muted, marginTop: 4 }}>{tr('You cancelled: the whole advance goes back to the customer.')}</Text> : null}
                                 {o.payment.refundStatus === 'refunded' ? <Text style={{ color: ok, marginTop: 4, fontWeight: '700' }}>{tr('Refund of {a} sent.', { a: rs(o.payment.refundPaise / 100) })}</Text> : null}
@@ -177,7 +201,14 @@ export default function OwnerBulkOrderScreen() {
                             </Card>
                         ) : null}
                         {o.status === 'quoted' ? <View style={{ paddingHorizontal: 16, marginTop: 12 }}><Button label={tr('Decline this order')} icon="close-circle-outline" kind="ghost" onPress={() => setDeclineOpen(true)} /></View> : null}
-                        {o.status === 'confirmed' ? <View style={{ paddingHorizontal: 16, marginTop: 12 }}><Button label={tr('Cancel and refund the advance')} icon="close-circle-outline" kind="ghost" onPress={() => setDeclineOpen(true)} /></View> : null}
+                        {(next || cashDue || cancelable || o.invoiceReady) ? (
+                            <View style={{ paddingHorizontal: 16, marginTop: 12 }}>
+                                {next ? <Button label={next.label} icon={next.icon} busy={busy} onPress={() => move(next)} style={{ marginBottom: 10 }} /> : null}
+                                {cashDue ? <Button label={tr('Cash received {a}', { a: rs(q.balancePaise / 100) })} icon="cash-outline" kind="ghost" busy={busy} onPress={cash} style={{ marginBottom: 10 }} /> : null}
+                                {o.invoiceReady ? <Button label={tr('Invoice (PDF)')} icon="document-text" kind="ghost" busy={invBusy} onPress={() => openInvoice({ id: o.id, orderNo: `B${o.code}`, invoicePath: `/shop/bulk/${o.id}/invoice` }, setInvBusy)} style={{ marginBottom: 10 }} /> : null}
+                                {cancelable ? <Button label={tr('Cancel and refund')} icon="close-circle-outline" kind="ghost" onPress={() => setDeclineOpen(true)} /> : null}
+                            </View>
+                        ) : null}
                     </>
                 )}
             </ScrollView>

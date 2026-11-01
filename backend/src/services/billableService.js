@@ -5,6 +5,7 @@
 //   - the buyer is a shop owner (an owner test order)
 // An order becomes billable ONCE. The order flag and the shop counter change in ONE transaction.
 const Order = require('../models/Order');
+const BulkOrder = require('../models/BulkOrder');
 const Tenant = require('../models/Tenant');
 const User = require('../models/User');
 const withTransaction = require('./withTransaction');
@@ -23,11 +24,14 @@ function monthRange(period) {
 // how many orders became billable inside this Indian calendar month
 async function countInPeriod(tenantId, period) {
     const { from, to } = monthRange(period);
-    return Order.countDocuments({ tenantId, 'billing.billable': true, 'billing.at': { $gte: from, $lt: to } });
+    const where = { tenantId, 'billing.billable': true, 'billing.at': { $gte: from, $lt: to } };
+    // a bulk order that earned money counts as one order, like a delivered one
+    return (await Order.countDocuments(where)) + (await BulkOrder.countDocuments(where));
 }
 
 // Safe to call twice, or from two servers at once: only one call can win.
-async function markBillable(order, reason, at = new Date()) {
+// Model: Order (the default) or BulkOrder. Both carry the same `billing` block and both raise the shop's one counter.
+async function markBillable(order, reason, at = new Date(), Model = Order) {
     const tenant = await Tenant.findById(order.tenantId).select('billing.isLive billing.goLiveAt').lean();
     if (!tenant?.billing?.isLive) return { marked: false, why: 'shop_not_live' };
     const goLiveAt = tenant.billing.goLiveAt;
@@ -36,7 +40,7 @@ async function markBillable(order, reason, at = new Date()) {
     if (buyer?.role === 'admin') return { marked: false, why: 'owner_order' };
 
     const done = await withTransaction(async (session) => {
-        const o = await Order.findOneAndUpdate(
+        const o = await Model.findOneAndUpdate(
             { _id: order._id, tenantId: order.tenantId, 'billing.billable': { $ne: true } },
             { $set: { 'billing.billable': true, 'billing.at': at, 'billing.reason': reason } },
             { returnDocument: 'after', session, timestamps: false },
@@ -53,5 +57,6 @@ async function markBillable(order, reason, at = new Date()) {
 }
 
 const markDelivered = (order) => markBillable(order, 'delivered');
+const markBulk = (order, reason) => markBillable(order, reason, new Date(), BulkOrder);   // a completed bulk order, or one cancelled late with the advance kept
 
-module.exports = { monthRange, countInPeriod, markBillable, markDelivered };
+module.exports = { monthRange, countInPeriod, markBillable, markDelivered, markBulk };

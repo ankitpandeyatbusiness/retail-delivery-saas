@@ -133,7 +133,7 @@ export default function PaymentMethodsScreen() {
         timer.current = setTimeout(() => {
             if (bulk) {
                 nav.goBack();
-                payBulk({ order: bulk.order, pay: bulk.pay, user, upiApp: m.app }).then((r) => {
+                payBulk({ order: bulk.order, pay: bulk.pay, user, upiApp: m.app, kind: bulk.kind }).then((r) => {
                     showToast(r.status === 'paid' ? tr('Paid. Your bulk order is confirmed.') : tr(r.message || 'Not paid yet'));
                     nav.navigate('BulkOrderDetail', { id: bulk.order.id, refresh: Date.now() });
                 });

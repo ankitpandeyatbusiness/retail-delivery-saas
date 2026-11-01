@@ -145,6 +145,18 @@ const TEXTS = {
     bulk_confirmed: (v) => ({ title: `Bulk order ${v.code} is confirmed`, body: `Your advance of ₹${v.amount} arrived. The shop will make your order.` }),
     bulk_refund: (v) => ({ title: `Refund for bulk order ${v.code}`, body: `₹${v.amount} has been sent back to your payment method. Your bank may take 5 to 7 working days to show it.` }),
     bulk_shop_cancelled: (v) => ({ title: `Bulk order ${v.code} was cancelled by the shop`, body: `${v.reason ? `The shop said: ${v.reason}. ` : ''}Your advance of ₹${v.amount} is being sent back.` }),
+    bulk_balance_paid: (v) => ({ title: `Balance received for bulk order ${v.code}`, body: `${v.name || 'The customer'} paid ₹${v.amount} online.` }),
+    bulk_stage: (v) => {
+        const due = v.balance > 0 ? ` The balance of ₹${v.balance} is paid at the handover, in the app or in cash to the shop.` : '';
+        const pickup = v.fulfilment !== 'delivery';
+        switch (v.stage) {
+            case 'preparing': return { title: `Bulk order ${v.code} is being made`, body: 'The shop has started making your order.' };
+            case 'ready': return { title: pickup ? `Bulk order ${v.code} is ready for pickup` : `Bulk order ${v.code} is packed`, body: `${pickup ? 'Please collect it at the time you chose.' : 'It will go out to you soon.'}${due}` };
+            case 'out_for_delivery': return { title: `Bulk order ${v.code} is on the way`, body: `The shop is bringing your order.${due}` };
+            default: return { title: pickup ? `Bulk order ${v.code} handed over` : `Bulk order ${v.code} delivered`, body: v.balance > 0 ? `Please pay the balance of ₹${v.balance} in the app, or in cash to the shop.` : 'Thank you!' };
+        }
+    },
+    bulk_completed: (v) => ({ title: `Bulk order ${v.code} is complete`, body: 'Thank you! Your invoice is ready: open My bulk orders.' }),
     bulk_declined: (v) => ({ title: `Bulk order ${v.code} was declined`, body: v.reason ? `The shop said: ${v.reason}` : 'The shop cannot take this order.' }),
     inquiry_unanswered: (v) => ({ title: 'An inquiry is waiting for your reply', body: `${v.name} asked about ${v.service}. No reply for ${v.hours} hours.` }),
     inquiry_new: (v) => ({ title: `New inquiry for ${v.service}`, body: `${v.name} sent an inquiry${v.guests ? ` for ${v.guests} guests` : ''}. Open Inquiries to reply.` }),

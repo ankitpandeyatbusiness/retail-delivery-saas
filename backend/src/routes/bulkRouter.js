@@ -50,6 +50,17 @@ router.post('/:id/check', wrap(async (req, res) => {
     try { r = await pay.checkAdvance({ tenant: req.tenant, userId: req.auth.userId, id: req.params.id }); } catch (e) { if (e.status === 404) throw e; r = { paid: false, status: 'unknown' }; }   // Razorpay not reachable: "not known yet"
     res.json({ paid: !!r.paid, status: r.status || null, order: bulk.customerView(await bulk.mine({ tenant: req.tenant, userId: req.auth.userId, id: req.params.id })) });
 }));
+// the balance, at the handover: start, then the same verify as the advance, or ask Razorpay (cash is marked by the owner)
+router.post('/:id/pay-balance', wrap(async (req, res) => { res.json(await pay.startBalance({ tenant: req.tenant, userId: req.auth.userId, id: req.params.id })); }));
+router.post('/:id/check-balance', wrap(async (req, res) => {
+    let r;
+    try { r = await pay.checkBalance({ tenant: req.tenant, userId: req.auth.userId, id: req.params.id }); } catch (e) { if (e.status === 404) throw e; r = { paid: false, status: 'unknown' }; }
+    res.json({ paid: !!r.paid, status: r.status || null, order: bulk.customerView(await bulk.mine({ tenant: req.tenant, userId: req.auth.userId, id: req.params.id })) });
+}));
+router.get('/:id/invoice', wrap(async (req, res) => {
+    const { order, tenant } = await bulk.invoiceFor({ tenant: req.tenant, id: req.params.id, userId: req.auth.userId });
+    require('../services/invoiceService').streamInvoice(res, order, tenant, { inline: req.query.view === '1' });
+}));
 router.post('/:id/cancel', wrap(async (req, res) => { res.json(await bulk.cancelByCustomer({ tenant: req.tenant, userId: req.auth.userId, id: req.params.id })); }));
 router.post('/:id/change', wrap(async (req, res) => { res.json(await bulk.askChange({ tenant: req.tenant, userId: req.auth.userId, id: req.params.id, note: req.body?.note })); }));
 

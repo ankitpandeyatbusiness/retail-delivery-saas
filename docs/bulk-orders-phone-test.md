@@ -46,3 +46,25 @@ Needs the shop's online payments switched on (Razorpay keys saved, tested, webho
 - [ ] Owner sends a new quote while the customer pays the old one: the old payment is refunded, the new quote stays open.
 - [ ] A shop with no Razorpay balance: the refund waits as "not sent yet" on the owner screen; the owner gets one message to add balance; after adding, it goes out within a few minutes.
 - [ ] Razorpay dashboard: the webhook has `payment.captured` ticked (also `refund.processed`, `refund.failed`).
+
+# Step 3: making it, the handover, the balance, the invoice
+
+## Owner phone, a confirmed order (advance paid)
+- [ ] The order screen shows one big button for the next step: **Start making it** -> **Mark ready for pickup** (or **Mark packed** for a delivery) -> **Handed over to the customer** (or **Out for delivery** -> **Mark delivered**). A step cannot be skipped or undone.
+- [ ] The customer gets a push at every step. After "ready" / "handed over" the push says the balance amount.
+- [ ] **Cancel and refund** stays available until the order is delivered. It sends back everything the customer paid online.
+
+## The balance (at the handover)
+- [ ] Customer, order ready: **Pay the balance Rs X now** appears (not before ready). It opens the same payment screen; pay with UPI and with a card.
+- [ ] After paying: "Balance paid: Rs X (online)". The owner gets "Balance received".
+- [ ] Owner, order ready or delivered, customer pays cash: **Cash received Rs X** (asks "Did you receive...?"). Then the customer's pay button is gone.
+- [ ] Try both at once: the customer starts paying online and the owner taps Cash received first. The online payment must be refunded by itself.
+- [ ] When delivered/handed over AND the balance is settled, the order turns **Completed** (customer gets "Bulk order is complete").
+- [ ] With a 100 % advance there is no balance: it completes at the handover.
+
+## The invoice
+- [ ] Completed order: customer sees **Invoice -> View / Save**; the owner sees **Invoice (PDF)**. Before completion there is none.
+- [ ] The PDF shows the company name and GST number, every dish, GST, the advance and how the balance was paid.
+
+## Rent
+- [ ] A completed bulk order counts as one order in the shop's monthly rent and free period (and so does an order cancelled late where the shop kept the advance). Check Rent for the month.

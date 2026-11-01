@@ -232,10 +232,29 @@ function customerView(o) {
             version: o.quote.version, lines: (o.quote.lines || []).map(lineView), pricing: o.quote.pricing, advancePercent: o.quote.advancePercent, fullRefundHours: o.quote.fullRefundHours,
             advancePaise: o.quote.advancePaise, balancePaise: o.quote.balancePaise, validUntil: o.quote.validUntil, note: o.quote.note, quotedAt: o.quote.quotedAt,
         } : null,
-        payment: o.payment?.advancePaymentId ? { advancePaise: o.payment.advancePaise, paidAt: o.payment.paidAt, kept: !!o.payment.advanceKept, refundPaise: o.payment.refundPaise, refundStatus: o.payment.refundStatus } : null,
+        payment: o.payment?.advancePaymentId ? {
+            advancePaise: o.payment.advancePaise, paidAt: o.payment.paidAt, kept: !!o.payment.advanceKept, refundPaise: o.payment.refundPaise, refundStatus: o.payment.refundStatus,
+            balancePaid: !!o.payment.balancePaid, balancePaise: o.payment.balancePaid ? o.payment.balancePaise : undefined, balanceVia: o.payment.balanceVia, balancePaidAt: o.payment.balancePaidAt,
+        } : null,
         canPay: status === 'quoted', cancel: cancelOutcome(o), cancelledBy: o.cancelledBy, cancelReason: o.cancelReason,
+        balance: balanceDue(o), stageAt: o.stageAt, completedAt: o.completedAt, invoiceReady: o.status === 'completed',
         createdAt: o.createdAt, updatedAt: o.updatedAt,
     };
+}
+
+/* ------------------------------ the balance ------------------------------ */
+const HANDOVER = ['ready', 'out_for_delivery', 'delivered'];   // the balance is paid when the order is ready for pickup, at the door, or just handed over
+
+// Can the customer pay the balance online right now, and how much? ({ ok, paise, message })
+function balanceDue(o) {
+    const paise = o.quote?.balancePaise || 0;
+    const no = (message) => ({ ok: false, paise, message });
+    if (!o.payment?.advancePaymentId) return no('The advance has not been paid yet');
+    if (!HANDOVER.includes(o.status)) return no('The balance is paid when the order is ready or delivered');
+    if (o.payment.balancePaid) return no('The balance is already paid');
+    if (paise <= 0) return no('Nothing is left to pay');
+    if (paise < 100) return no('The balance is too small to pay online. Please pay the shop in cash.');
+    return { ok: true, paise };
 }
 
 async function mine({ tenant, userId, id }) {
@@ -284,6 +303,7 @@ async function cancelByCustomer({ tenant, userId, id }) {
     ).lean();
     if (!done) throw httpError(409, 'This order was just changed. Open it again.');
     await refundDue(done);   // if this fails or the server stops here, the repair job sends it
+    if (out.keptPaise > 0) require('./billableService').markBulk(done, 'cancel_kept').catch((e) => console.error('Billable count error:', e.message));   // the shop kept money: it counts for the rent
     tell('bulk_cancelled', { tenantId: tenant._id, vars: { name: done.contact?.name, code: done.code, kept: out.keptPaise > 0 }, data: { kind: 'bulk', bulkId: String(done._id) } });
     return customerView(await BulkOrder.findById(done._id).lean());
 }
@@ -292,25 +312,129 @@ async function cancelByCustomer({ tenant, userId, id }) {
 async function refundDue(o) {
     const due = o.payment?.refundDuePaise;
     if (!(due > 0)) return null;
-    const pay = await require('./bulkPayment').advanceOf(o._id);
-    return pay ? require('./bulkPayment').refund(pay._id, { reason: o.cancelledBy === 'owner' ? 'shop_cancel' : 'customer_cancel', amountPaise: due }) : null;
+    const bp = require('./bulkPayment');
+    let out;
+    if (o.cancelledBy === 'owner') out = await bp.refundAllOf(o._id, 'shop_cancel');   // the shop cancelled: everything paid online goes back
+    else { const pay = await bp.advanceOf(o._id); out = pay ? await bp.refund(pay._id, { reason: 'customer_cancel', amountPaise: due }) : null; }
+    if (out?.ok) await BulkOrder.updateOne({ _id: o._id }, { $set: { 'payment.refundDueDone': true } });
+    else if (out?.skipped) {   // somebody else already started or finished it: done when every refund of this order has gone out
+        const left = await require('../models/BulkPayment').countDocuments({ bulkId: o._id, 'refund.status': { $exists: true, $ne: 'refunded' } });
+        if (!left) await BulkOrder.updateOne({ _id: o._id }, { $set: { 'payment.refundDueDone': true } });
+    }
+    return out;
 }
 
-// the shop cancels an order whose advance is paid: the customer always gets everything back
+// the shop cancels an order whose advance is paid (any time before it is delivered): the customer always gets everything back
 async function ownerCancel({ tenant, id, reason }) {
     const o = await ownerOne({ tenant, id });
     const text = String(reason || '').trim().slice(0, 300);
     if (!text) throw httpError(400, 'Tell the customer why');
-    if (o.status !== 'confirmed') throw httpError(409, 'Only a confirmed order can be cancelled here');
+    if (!['confirmed', 'preparing', 'ready', 'out_for_delivery'].includes(o.status)) throw httpError(409, 'This order can no longer be cancelled here');
     const done = await BulkOrder.findOneAndUpdate(
-        { _id: o._id, status: 'confirmed' },
-        { $set: { status: 'cancelled', cancelledBy: 'owner', cancelReason: text, 'payment.refundDuePaise': o.payment?.advancePaise || 0 }, $push: { history: { status: 'cancelled', by: 'owner', note: text } } },
+        { _id: o._id, status: o.status },
+        { $set: { status: 'cancelled', cancelledBy: 'owner', cancelReason: text, 'payment.refundDuePaise': (o.payment?.advancePaise || 0) + (o.payment?.balanceVia === 'online' ? o.payment.balancePaise || 0 : 0) }, $push: { history: { status: 'cancelled', by: 'owner', note: text } } },
         { returnDocument: 'after' },
     ).lean();
     if (!done) throw httpError(409, 'This order was just changed. Open it again.');
     await refundDue(done);
     tell('bulk_shop_cancelled', { tenantId: tenant._id, userId: done.userId, vars: { code: done.code, reason: text, amount: (done.payment?.advancePaise || 0) / 100 }, data: { kind: 'bulk', bulkId: String(done._id) } });
     return ownerView(await BulkOrder.findById(done._id).lean());
+}
+
+/* ------------------------------ making it, handing it over, getting the balance ------------------------------ */
+// The owner moves a paid order on: confirmed -> preparing -> ready -> (delivery: out for delivery) -> delivered.
+// A pickup is "handed over" from ready; a delivery goes out first. The customer hears about every step.
+const NEXT = { confirmed: ['preparing'], preparing: ['ready'], ready: ['out_for_delivery', 'delivered'], out_for_delivery: ['delivered'] };
+
+async function setStage({ tenant, id, to }) {
+    const o = await ownerOne({ tenant, id });
+    const allowed = (NEXT[o.status] || []).includes(to)
+        && !(to === 'out_for_delivery' && o.fulfilment !== 'delivery')                       // a pickup does not go out
+        && !(to === 'delivered' && o.fulfilment === 'delivery' && o.status === 'ready');     // a delivery goes out first
+    if (!allowed) throw httpError(409, `This order is "${o.status.replace(/_/g, ' ')}": it cannot go to "${String(to).replace(/_/g, ' ')}" now`);
+    const now = new Date();
+    const done = await BulkOrder.findOneAndUpdate(
+        { _id: o._id, status: o.status },
+        { $set: { status: to, [`stageAt.${to}`]: now }, $push: { history: { status: to, by: 'owner' } } }, { returnDocument: 'after' },
+    ).lean();
+    if (!done) throw httpError(409, 'This order was just changed. Open it again.');
+    tell('bulk_stage', {
+        tenantId: tenant._id, userId: done.userId,
+        vars: { code: done.code, stage: to, fulfilment: done.fulfilment, balance: done.payment?.balancePaid ? 0 : (done.quote?.balancePaise || 0) / 100 },
+        data: { kind: 'bulk', bulkId: String(done._id) },
+    });
+    if (to === 'delivered') await tryComplete(done._id);
+    return ownerView(await BulkOrder.findById(done._id).lean());
+}
+
+// The customer paid the balance in cash: the owner marks it received. If the customer already paid it online the answer is "already paid";
+// if he is paying online at this very moment, that payment is refunded by itself when it lands (bulkPayment.settleBalance).
+async function markCash({ tenant, id }) {
+    const o = await ownerOne({ tenant, id });
+    if (!o.payment?.advancePaymentId) throw httpError(409, 'The advance has not been paid');
+    if (!HANDOVER.includes(o.status)) throw httpError(409, 'The balance is collected when the order is ready or delivered');
+    if (o.payment.balancePaid) throw httpError(409, o.payment.balanceVia === 'online' ? 'The customer already paid the balance online' : 'The balance is already marked as received');
+    const paise = o.quote?.balancePaise || 0;
+    if (paise <= 0) throw httpError(409, 'Nothing is left to collect');
+    const done = await BulkOrder.findOneAndUpdate(
+        { _id: o._id, status: { $in: HANDOVER }, 'payment.balancePaid': { $ne: true } },
+        { $set: { 'payment.balancePaid': true, 'payment.balancePaise': paise, 'payment.balanceVia': 'cash', 'payment.balancePaidAt': new Date() }, $push: { history: { status: 'balance_paid', by: 'owner', note: 'cash received' } } },
+        { returnDocument: 'after' },
+    ).lean();
+    if (!done) throw httpError(409, 'This order was just changed. Open it again.');
+    await tryComplete(done._id);
+    return ownerView(await BulkOrder.findById(done._id).lean());
+}
+
+// Delivered and the balance settled (online, cash, or nothing left): the order is completed, and it counts for the rent. Safe to repeat.
+async function tryComplete(id) {
+    const o = await BulkOrder.findById(id).lean();
+    if (!o || o.status !== 'delivered') return null;
+    if (!(o.payment?.balancePaid || (o.quote?.balancePaise || 0) <= 0)) return null;
+    const done = await BulkOrder.findOneAndUpdate(
+        { _id: o._id, status: 'delivered' },
+        { $set: { status: 'completed', completedAt: new Date() }, $push: { history: { status: 'completed', by: 'system' } } }, { returnDocument: 'after' },
+    ).lean();
+    if (!done) return null;
+    await require('./billableService').markBulk(done, 'completed').catch((e) => console.error('Billable count error:', e.message));
+    tell('bulk_completed', { tenantId: done.tenantId, userId: done.userId, vars: { code: done.code }, data: { kind: 'bulk', bulkId: String(done._id) } });
+    return done;
+}
+
+// repair: orders that are delivered and paid but were not completed (a crash), and completed ones that were not counted for the rent
+async function repairCompleted(now = new Date()) {
+    let n = 0;
+    const stuck = await BulkOrder.find({ status: 'delivered', updatedAt: { $lte: new Date(now.getTime() - 2 * 60000) } }).select('_id').limit(50).lean();
+    for (const s of stuck) { if (await tryComplete(s._id).catch(() => null)) n += 1; }
+    const uncounted = await BulkOrder.find({ status: 'completed', 'billing.billable': { $ne: true }, completedAt: { $gte: new Date(now.getTime() - 2 * 86400000), $lte: new Date(now.getTime() - 2 * 60000) } }).limit(50).lean();
+    for (const u of uncounted) { const r = await require('./billableService').markBulk(u, 'completed').catch(() => null); if (r?.marked) n += 1; }
+    return n;
+}
+
+/* ------------------------------ the invoice ------------------------------ */
+// A completed order as the "order" the invoice drawing (services/invoiceService.js) already knows: the quote's prices and tax, the shop's details
+// as they are now (the shop's own saved copy is not kept for bulk orders yet), the company and its GST number as the buyer.
+async function invoiceFor({ tenant, id, userId }) {
+    const o = userId ? await mine({ tenant, userId, id }) : await ownerOne({ tenant, id });
+    if (o.status !== 'completed') throw httpError(409, 'The invoice is ready once the order is completed');
+    const t = await require('../models/Tenant').findById(o.tenantId).select('name phone address business').lean();
+    const q = o.quote;
+    const rs2 = (paise) => `Rs. ${(paise / 100).toFixed(2)}`;
+    const adv = o.payment?.advancePaise || 0;
+    const bal = o.payment?.balancePaid ? (o.payment.balancePaise || 0) : 0;
+    return {
+        tenant: t,
+        order: {
+            orderNo: `B${o.code}`, createdAt: o.completedAt || o.updatedAt, orderType: o.fulfilment,
+            items: q.lines.map((l) => ({ name: l.name, quantity: l.quantity, unitPrice: l.unitPrice, lineTotal: l.lineTotal, gstRate: l.gstRate, gstInclusive: l.gstInclusive, tax: l.tax, selections: (l.selections || []).map((s) => ({ name: s.name })), note: l.note })),
+            pricing: { ...q.pricing },
+            seller: { name: t?.business?.legalName || t?.name, gstin: t?.business?.gstin, fssai: t?.business?.fssai },
+            customer: { name: o.contact?.company || o.contact?.name, phone: o.contact?.phone, gstin: o.contact?.gstin },
+            address: o.address,
+            payment: { method: 'bulk', label: `Advance online${bal ? `, balance ${o.payment.balanceVia === 'cash' ? 'in cash' : 'online'}` : ''}`, status: 'paid' },
+            paidParts: [['Advance paid (online)', rs2(adv)], ...(bal ? [[`Balance paid (${o.payment.balanceVia === 'cash' ? 'cash' : 'online'})`, rs2(bal)]] : [])],
+        },
+    };
 }
 
 // "please change the quote": it goes back to the owner with a note
@@ -427,6 +551,6 @@ async function expireOld(now = new Date()) {
 }
 
 module.exports = {
-    settingsOf, saveSettings, publicConfig, menuFor, priceRequest, estimate, create, customerView, mine, listMine, cancelByCustomer, previewCancel, cancelOutcome, refundDue, ownerCancel, askChange,
+    settingsOf, saveSettings, publicConfig, menuFor, priceRequest, estimate, create, customerView, mine, listMine, cancelByCustomer, previewCancel, cancelOutcome, refundDue, ownerCancel, balanceDue, setStage, markCash, tryComplete, repairCompleted, invoiceFor, askChange,
     ownerView, ownerList, ownerOne, quote, decline, setOwnerNote, expireOld, effectiveStatus,
 };

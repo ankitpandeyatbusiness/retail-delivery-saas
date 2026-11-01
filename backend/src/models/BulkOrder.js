@@ -66,7 +66,15 @@ const schema = new Schema({
     cancelledBy: { type: String, enum: ['customer', 'owner'] },
     cancelReason: { type: String, maxlength: 300 },
     // money, copied here from BulkPayment so a screen can show it: the advance paid, and what happened to it when the order ended
-    payment: { _id: false, advancePaise: Number, advancePaymentId: Schema.Types.ObjectId, paidAt: Date, advanceKept: Boolean, refundDuePaise: Number, refundPaise: Number, refundStatus: String },
+    payment: {
+        _id: false,
+        advancePaise: Number, advancePaymentId: Schema.Types.ObjectId, paidAt: Date, advanceKept: Boolean, refundDuePaise: Number, refundDueDone: Boolean, refundPaise: Number, refundStatus: String,
+        // the balance, paid at the handover: online (balancePaymentId) or in cash that the owner marks as received (balanceCash). Never both.
+        balancePaid: Boolean, balancePaise: Number, balanceVia: { type: String, enum: ['online', 'cash'] }, balancePaymentId: Schema.Types.ObjectId, balancePaidAt: Date,
+    },
+    stageAt: { _id: false, preparing: Date, ready: Date, out_for_delivery: Date, delivered: Date },   // when the shop moved the order on
+    completedAt: Date,
+    billing: { _id: false, billable: Boolean, at: Date, reason: String },   // the order earned money for the shop: it counts for the free period and the monthly rent (services/billableService.js)
     changeNote: { type: String, maxlength: 500 },           // what the customer asked to be changed in the last quote
     declineReason: { type: String, maxlength: 300 },
     ownerNote: { type: String, maxlength: 1000, default: '' },   // private, the owner only
@@ -76,5 +84,6 @@ const schema = new Schema({
 schema.index({ tenantId: 1, status: 1, createdAt: -1 });
 schema.index({ tenantId: 1, userId: 1, createdAt: -1 });
 schema.index({ code: 1, tenantId: 1 }, { unique: true });
+schema.index({ tenantId: 1, 'billing.at': 1 }, { partialFilterExpression: { 'billing.billable': true } });   // monthly billing count
 
 module.exports = mongoose.model('BulkOrder', schema);

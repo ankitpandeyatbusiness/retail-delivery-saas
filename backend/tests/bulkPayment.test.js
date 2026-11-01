@@ -328,7 +328,7 @@ describe('bulk order advance: paying, refunds, safety', () => {
         await cust('post', `/${id}/cancel`);
         // make the state of a server that stopped right after the cancel: the order owes a refund that was never started
         await BulkPayment.updateOne({ bulkId: id }, { $unset: { refund: 1 } });
-        await BulkOrder.updateOne({ _id: id }, { $unset: { 'payment.refundStatus': 1 }, $set: { updatedAt: new Date(Date.now() - 10 * 60000) } }, { timestamps: false });
+        await BulkOrder.updateOne({ _id: id }, { $unset: { 'payment.refundStatus': 1, 'payment.refundDueDone': 1 }, $set: { updatedAt: new Date(Date.now() - 10 * 60000) } }, { timestamps: false });
         send.mock.resetCalls();
         await reconcile.runPaymentReconcile();
         assert.equal(send.mock.callCount(), 1);

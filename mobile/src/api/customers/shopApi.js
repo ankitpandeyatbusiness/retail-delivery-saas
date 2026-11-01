@@ -132,4 +132,6 @@ export const changeBulk = (id, note) => d(api.post(`/bulk/${id}/change`, { note 
 export const startBulkPay = (id) => d(api.post(`/bulk/${id}/pay`));                          // { keyId, rzpOrderId, amountPaise, currency }: pay the advance of an accepted quote
 export const verifyBulk = (id, proof) => d(api.post(`/bulk/${id}/verify`, proof));          // { paid, order }
 export const checkBulk = (id) => d(api.post(`/bulk/${id}/check`));                          // { paid, order }
+export const startBulkBalance = (id) => d(api.post(`/bulk/${id}/pay-balance`));             // the balance at the handover: { keyId, rzpOrderId, amountPaise, currency }
+export const checkBulkBalance = (id) => d(api.post(`/bulk/${id}/check-balance`));           // { paid, order }
 export const previewCancelBulk = (id) => d(api.get(`/bulk/${id}/cancel-preview`));         // { paid, refundPaise, keptPaise, refundHours, canCancel }

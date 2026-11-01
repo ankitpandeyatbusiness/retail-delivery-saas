@@ -20,26 +20,38 @@ const tell = (event, ctx) => Promise.resolve().then(() => require('../notificati
 
 /* ------------------------------ paying ------------------------------ */
 // The customer taps "Accept and pay": make (or reuse) the Razorpay order for exactly the quote's advance. Safe to call again.
-async function startAdvance({ tenant, userId, id }) {
-    const o = await require('./bulkOrders').mine({ tenant, userId, id });
-    if (o.status !== 'quoted') throw httpError(409, o.status === 'confirmed' ? 'This order is already confirmed' : 'There is no open quote to pay');
-    if (!o.quote?.validUntil || new Date(o.quote.validUntil) < new Date()) throw httpError(409, 'This quote has run out. Ask the shop for a new one.');
+const startAdvance = (args) => startPayment({ ...args, kind: 'advance' });
+// At the handover he pays what is left of the quote, in the app. (Cash is marked by the owner instead: bulkOrders.markCash.)
+const startBalance = (args) => startPayment({ ...args, kind: 'balance' });
+
+async function startPayment({ tenant, userId, id, kind }) {
+    const bulk = require('./bulkOrders');
+    const o = await bulk.mine({ tenant, userId, id });
+    let amountPaise;
+    if (kind === 'advance') {
+        if (o.status !== 'quoted') throw httpError(409, o.status === 'confirmed' ? 'This order is already confirmed' : 'There is no open quote to pay');
+        if (!o.quote?.validUntil || new Date(o.quote.validUntil) < new Date()) throw httpError(409, 'This quote has run out. Ask the shop for a new one.');
+        amountPaise = o.quote.advancePaise;
+    } else {
+        const due = bulk.balanceDue(o);
+        if (!due.ok) throw httpError(409, due.message);
+        amountPaise = due.paise;
+    }
     const can = await accounts.canTakePayments(tenant._id);
     if (!can.ok) throw httpError(503, 'Online payment is not available at this shop right now. Please try later.');
     const creds = await credsFor(tenant._id);
     if (!creds.keyId || !creds.keySecret) throw httpError(503, 'Online payment is not available at this shop right now. Please try later.');
-    const amountPaise = o.quote.advancePaise;
-    if (!Number.isInteger(amountPaise) || amountPaise < 100) throw httpError(400, 'The advance is too small for an online payment');
+    if (!Number.isInteger(amountPaise) || amountPaise < 100) throw httpError(400, 'This amount is too small for an online payment');
 
-    const find = () => BulkPayment.findOne({ bulkId: o._id, kind: 'advance', quoteVersion: o.quote.version, status: 'created', amountPaise });
+    const find = () => BulkPayment.findOne({ bulkId: o._id, kind, quoteVersion: o.quote.version, status: 'created', amountPaise });
     let p = await find();
     if (!p) {
         const ro = await payments.createOrder({
-            amountPaise, receipt: `bk${o.code}-${o.quote.version}`.slice(0, 40),
-            notes: { kind: 'bulk_advance', tenantId: String(tenant._id), bulkId: String(o._id), version: String(o.quote.version) }, credentials: creds,
+            amountPaise, receipt: `bk${o.code}-${kind[0]}${o.quote.version}`.slice(0, 40),
+            notes: { kind: `bulk_${kind}`, tenantId: String(tenant._id), bulkId: String(o._id), version: String(o.quote.version) }, credentials: creds,
         });
         try {
-            p = await BulkPayment.create({ tenantId: tenant._id, userId, bulkId: o._id, kind: 'advance', quoteVersion: o.quote.version, mode: creds.mode || 'test', rzpOrderId: ro.id, amountPaise });
+            p = await BulkPayment.create({ tenantId: tenant._id, userId, bulkId: o._id, kind, quoteVersion: o.quote.version, mode: creds.mode || 'test', rzpOrderId: ro.id, amountPaise });
         } catch (e) {
             if (e.code !== 11000) throw e;
             p = await find();   // two taps at once: use the first one
@@ -58,10 +70,12 @@ async function verifyAdvance({ tenant, userId, id, rzpOrderId, rzpPaymentId, sig
 }
 
 // "Did it get paid?" answered by Razorpay itself (no webhook needed)
-async function checkAdvance({ tenant, userId, id }) {
+const checkAdvance = (args) => checkPayment({ ...args, kind: 'advance' });
+const checkBalance = (args) => checkPayment({ ...args, kind: 'balance' });
+async function checkPayment({ tenant, userId, id, kind }) {
     const o = await require('./bulkOrders').mine({ tenant, userId, id });
-    if (o.payment?.advancePaymentId) return { paid: true };
-    const p = await BulkPayment.findOne({ bulkId: o._id, tenantId: tenant._id, kind: 'advance' }).sort({ createdAt: -1 });
+    if (kind === 'advance' ? o.payment?.advancePaymentId : o.payment?.balancePaid) return { paid: true };
+    const p = await BulkPayment.findOne({ bulkId: o._id, tenantId: tenant._id, kind }).sort({ createdAt: -1 });
     if (!p) return { paid: false, status: 'none' };
     const list = await payments.listOrderPayments({ orderId: p.rzpOrderId, credentials: await credsFor(tenant._id) });
     const captured = list.find((x) => x.status === 'captured');
@@ -80,7 +94,7 @@ async function confirm(p, rzp, source) {
     if (rzp.orderId !== p.rzpOrderId) return { ok: false, ignored: 'wrong_order' };
     if (rzp.status !== 'captured') return { ok: true, paid: false, status: rzp.status };
     if (rzp.amountPaise !== p.amountPaise) {
-        await mismatchRefund.refundWrongAmount({ Model: BulkPayment, row: p, rzp, creds: await credsFor(p.tenantId), label: 'bulk order advance' });
+        await mismatchRefund.refundWrongAmount({ Model: BulkPayment, row: p, rzp, creds: await credsFor(p.tenantId), label: `bulk order ${p.kind}` });
         return { ok: true, paid: false, mismatch: true };
     }
     const first = (await BulkPayment.updateOne({ _id: p._id, status: 'created' }, { $set: { status: 'captured', rzpPaymentId: rzp.id, capturedAt: new Date(), settleStartedAt: new Date() } })).modifiedCount === 1;
@@ -92,8 +106,34 @@ async function confirm(p, rzp, source) {
     return { ok: true, paid: done.honoured, ...(done.honoured ? {} : { refunded: true }) };
 }
 
+// The balance is recorded on the order, if it can still take it (the shop has not cancelled, the owner has not marked cash meanwhile).
+// If not, the whole payment goes back. A completed order is made here when the goods are already handed over. Safe to repeat.
+async function settleBalance(p, source) {
+    const now = new Date();
+    const taken = await BulkOrder.findOneAndUpdate(
+        { _id: p.bulkId, tenantId: p.tenantId, status: { $in: ['ready', 'out_for_delivery', 'delivered'] }, 'quote.version': p.quoteVersion, 'payment.balancePaid': { $ne: true } },
+        {
+            $set: { 'payment.balancePaid': true, 'payment.balancePaise': p.amountPaise, 'payment.balanceVia': 'online', 'payment.balancePaymentId': p._id, 'payment.balancePaidAt': now },
+            $push: { history: { status: 'balance_paid', by: 'customer', note: `balance paid online (${source || 'repair'})` } },
+        },
+        { returnDocument: 'after' },
+    ).lean();
+    let honoured = !!taken;
+    if (!taken) {
+        const cur = await BulkOrder.findById(p.bulkId).select('payment').lean();
+        honoured = String(cur?.payment?.balancePaymentId) === String(p._id);   // an earlier run of this very payment already recorded it
+        if (!honoured) await refund(p._id, { reason: 'late_payment' });        // cancelled, or the owner took cash for it
+    } else {
+        tell('bulk_balance_paid', { tenantId: taken.tenantId, vars: { code: taken.code, name: taken.contact?.name, amount: rupees(p.amountPaise) }, data: { kind: 'bulk', bulkId: String(taken._id) } });
+    }
+    if (honoured) await require('./bulkOrders').tryComplete(p.bulkId);
+    await BulkPayment.updateOne({ _id: p._id }, { $set: { settledAt: new Date() } });
+    return { honoured };
+}
+
 // The order becomes confirmed, if it can still take this payment. If not, the whole advance goes back. Safe to repeat.
 async function settle(p, source) {
+    if (p.kind === 'balance') return settleBalance(p, source);
     const now = new Date();
     const taken = await BulkOrder.findOneAndUpdate(
         { _id: p.bulkId, tenantId: p.tenantId, status: { $in: ['quoted', 'expired'] }, 'quote.version': p.quoteVersion },
@@ -152,13 +192,13 @@ async function refund(paymentId, { reason, amountPaise } = {}) {
             ? { refundId: old.id || old.refundId }
             : await payments.refund({ paymentId: claimed.rzpPaymentId, amountPaise: amount, credentials: creds, notes: { refundKey: key, bulkId: String(claimed.bulkId) }, receipt: `bkr-${order?.code || claimed._id}`.slice(0, 40) });
         await BulkPayment.updateOne({ _id: claimed._id }, { $set: { 'refund.status': 'refunded', 'refund.refundId': out.refundId, 'refund.at': new Date() }, $unset: { 'refund.lastError': 1 } });
-        await BulkOrder.updateOne({ _id: claimed.bulkId }, { $set: { 'payment.refundPaise': amount, 'payment.refundStatus': 'refunded' } });
+        await syncRefunds(claimed.bulkId);
         tell('bulk_refund', { tenantId: claimed.tenantId, userId: claimed.userId, vars: { code: order?.code, amount: rupees(amount) }, data: { kind: 'bulk', bulkId: String(claimed.bulkId) } });
         return { ok: true, refundId: out.refundId };
     } catch (e) {
         const attempts = claimed.refund.attempts;
         await BulkPayment.updateOne({ _id: claimed._id }, { $set: { 'refund.status': 'failed', 'refund.lastError': String(e.message).slice(0, 200), 'refund.at': new Date() } });
-        await BulkOrder.updateOne({ _id: claimed.bulkId }, { $set: { 'payment.refundPaise': amount, 'payment.refundStatus': 'pending' } });
+        await syncRefunds(claimed.bulkId);
         const shortBalance = e.razorpay && /balance/i.test(e.message || '');
         if (attempts === 1 || attempts === MAX_REFUND_TRIES) {
             await alert('admin_refund_failed', { tenantId: claimed.tenantId, vars: { orderId: `bulk order ${order?.code || ''}`, amount: rupees(amount).toFixed(2), reason: attempts === 1 ? `The refund could not be sent (${String(e.message).slice(0, 100)}). It will be tried again by itself.` : 'Still not sent after many tries' } });
@@ -178,6 +218,22 @@ async function refund(paymentId, { reason, amountPaise } = {}) {
 
 // the advance payment of an order (for cancel: what to refund)
 const advanceOf = (bulkId) => BulkPayment.findOne({ bulkId, kind: 'advance', status: 'captured' }).sort({ capturedAt: -1 });
+
+// What the screens show about the money going back: the total of all refunds of the order, and whether every one has been sent
+async function syncRefunds(bulkId) {
+    const rows = await BulkPayment.find({ bulkId, 'refund.status': { $exists: true } }).select('refund').lean();
+    if (!rows.length) return;
+    const total = rows.reduce((n, r) => n + (r.refund.amountPaise || 0), 0);
+    await BulkOrder.updateOne({ _id: bulkId }, { $set: { 'payment.refundPaise': total, 'payment.refundStatus': rows.every((r) => r.refund.status === 'refunded') ? 'refunded' : 'pending' } });
+}
+
+// The shop cancels: EVERYTHING the customer paid on this order goes back (the advance and, if he already paid it, the balance)
+async function refundAllOf(bulkId, reason) {
+    const paid = await BulkPayment.find({ bulkId, status: 'captured' }).select('_id amountPaise').lean();
+    const out = [];
+    for (const p of paid) out.push(await refund(p._id, { reason, amountPaise: p.amountPaise }));
+    return out.find((r) => r.ok) || out[0] || null;
+}
 
 /* ------------------------------ the repair job (every 2 minutes, from paymentReconcile) ------------------------------ */
 async function reconcile(now = new Date()) {
@@ -205,11 +261,13 @@ async function reconcile(now = new Date()) {
     }).select('_id').limit(50).lean();
     for (const r of waiting) { try { const out = await refund(r._id); if (out.ok) n += 1; } catch (e) { console.error('Bulk reconcile refund:', String(r._id), e.message); } }
     // 4. a cancelled order owes a refund that was never started (the server stopped right after the cancel)
-    const owed = await BulkOrder.find({ status: 'cancelled', 'payment.refundDuePaise': { $gt: 0 }, 'payment.refundStatus': { $exists: false }, updatedAt: { $gte: new Date(now.getTime() - 14 * 86400000), $lte: new Date(now.getTime() - STALE_MS) } }).limit(50).lean();
+    const owed = await BulkOrder.find({ status: 'cancelled', 'payment.refundDuePaise': { $gt: 0 }, 'payment.refundDueDone': { $ne: true }, updatedAt: { $gte: new Date(now.getTime() - 14 * 86400000), $lte: new Date(now.getTime() - STALE_MS) } }).limit(50).lean();
     for (const o of owed) { try { const out = await require('./bulkOrders').refundDue(o); if (out?.ok) n += 1; } catch (e) { console.error('Bulk reconcile owed refund:', String(o._id), e.message); } }
-    // 5. a quote that ran out is marked
+    // 5. delivered and paid but never completed, or completed but never counted for the rent
+    n += await require('./bulkOrders').repairCompleted(now);
+    // 6. a quote that ran out is marked
     n += await require('./bulkOrders').expireOld(now);
     return n;
 }
 
-module.exports = { startAdvance, verifyAdvance, checkAdvance, onWebhook, confirm, settle, resume, refund, advanceOf, reconcile };
+module.exports = { startAdvance, startBalance, verifyAdvance, checkAdvance, checkBalance, onWebhook, confirm, settle, resume, refund, refundAllOf, advanceOf, reconcile };
