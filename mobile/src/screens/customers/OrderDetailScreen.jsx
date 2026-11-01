@@ -49,8 +49,8 @@ const WHO = { customer: 'you', shop: 'the shop', rider: 'the delivery partner', 
 const PAY = { cod: 'Cash on delivery', upi: 'UPI', card: 'Card', wallet: 'Wallet' };
 const WORDS = ['Poor', 'Fair', 'Good', 'Very good', 'Excellent'];
 
-const tm = (v) => { const d = new Date(v); const h = d.getHours(); return `${h % 12 || 12}:${String(d.getMinutes()).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`; };
-const fmt = (v) => { const d = new Date(v); return `${d.getDate()} ${MONTHS[d.getMonth()]}, ${tm(v)}`; };
+const tm = (v) => { const d = new Date(v); const h = d.getHours(); return `${h % 12 || 12}:${String(d.getMinutes()).padStart(2, '0')} ${tr(h >= 12 ? 'PM' : 'AM')}`; };
+const fmt = (v) => { const d = new Date(v); return `${d.getDate()} ${tr(MONTHS[d.getMonth()])}, ${tm(v)}`; };
 const addr = (a) => [a.line1, a.line2, a.landmark, a.city, a.pincode].filter(Boolean).join(', ');
 
 function Card({ title, icon, delay = 0, children }) {
@@ -108,7 +108,7 @@ function Step({ st, k, idx, last, hist, live, dine, pack }) {
                 {!last ? <Animated.View style={[s.bar, { backgroundColor: barC }]} /> : null}
             </View>
             <Animated.View style={{ flex: 1, paddingBottom: 16, opacity: a.interpolate({ inputRange: [0, 1], outputRange: [0.65, 1] }) }}>
-                <Text style={[s.stepTxt, { color: text, fontWeight: cur ? '900' : '700' }]}>{(dine && DINE_STEP[st]) || (pack && PACK_STEP[st]) || STEP[st]}</Text>
+                <Text style={[s.stepTxt, { color: text, fontWeight: cur ? '900' : '700' }]}>{tr((dine && DINE_STEP[st]) || (pack && PACK_STEP[st]) || STEP[st])}</Text>
                 {done && hist?.at ? <Text style={[s.stepTime, { color: muted }]}>{fmt(hist.at)}</Text> : null}
             </Animated.View>
         </View>
@@ -265,10 +265,10 @@ export default function OrderDetailScreen() {
     const idx = flow.indexOf(packed ? 'ready' : o.status);
     const accent = cancelled ? error : delivered ? ok : primary;
     const dineIn = o.orderType === 'dine_in';
-    const headline = cancelled ? 'Order cancelled' : ((dineIn && DINE_STEP[o.status]) || (packed && PACK_STEP.ready) || STEP[o.status] || 'Order');
-    const sub = cancelled ? `Cancelled by ${WHO[o.cancelledBy] || 'the shop'}${o.cancelReason ? `: ${o.cancelReason}` : ''}`
-        : live ? (o.etaMin ? `Usually ready in about ${o.etaMin} min` : 'We will keep this updated')
-            : delivered && o.deliveredAt ? `${dineIn ? 'Served' : 'Delivered'} on ${fmt(o.deliveredAt)}` : '';
+    const headline = tr(cancelled ? 'Order cancelled' : ((dineIn && DINE_STEP[o.status]) || (packed && PACK_STEP.ready) || STEP[o.status] || 'Order'));
+    const sub = cancelled ? `${tr('Cancelled by {who}', { who: tr(WHO[o.cancelledBy] || 'the shop') })}${o.cancelReason ? `: ${tr(o.cancelReason)}` : ''}`
+        : live ? (o.etaMin ? tr('Usually ready in about {n} min', { n: o.etaMin }) : tr('We will keep this updated'))
+            : delivered && o.deliveredAt ? tr(dineIn ? 'Served on {t}' : 'Delivered on {t}', { t: fmt(o.deliveredAt) }) : '';
     // an online order that was placed but not paid yet (payment cancelled or failed): let the customer pay again
     const payable = !!o.payment && o.payment.method !== 'cod' && o.payment.status !== 'paid' && o.status === 'placed';
     const payNow = async () => {
@@ -320,7 +320,7 @@ export default function OrderDetailScreen() {
                             <View style={s.fact}><Text style={s.factK}>{tr('ITEMS')}</Text><Text style={s.factV}>{o.items.reduce((n, l) => n + (l.measure ? 1 : l.quantity), 0)}</Text></View>
                             <View style={s.fact}>
                                 <Text style={s.factK}>{tr('PAYMENT')}</Text>
-                                <Text style={s.factV} numberOfLines={1}>{PAY[o.payment?.method] || tr('Cash')}{o.payment?.status === 'paid' ? tr(' · Paid') : ''}</Text>
+                                <Text style={s.factV} numberOfLines={1}>{tr(PAY[o.payment?.method] || 'Cash')}{o.payment?.status === 'paid' ? tr(' · Paid') : ''}</Text>
                             </View>
                         </View>
                     </LinearGradient>
@@ -446,7 +446,7 @@ export default function OrderDetailScreen() {
                                 <View style={s.stars}>
                                     {[1, 2, 3, 4, 5].map((k) => <StarBtn key={k} on={stars >= k} onPress={() => setStars(k)} />)}
                                 </View>
-                                <Text style={[s.word, { color: stars ? '#F5A623' : muted }]}>{stars ? WORDS[stars - 1] : tr('Tap a star to rate')}</Text>
+                                <Text style={[s.word, { color: stars ? '#F5A623' : muted }]}>{stars ? tr(WORDS[stars - 1]) : tr('Tap a star to rate')}</Text>
                                 <TextInput
                                     value={comment} onChangeText={setComment} multiline maxLength={300}
                                     placeholder={tr('Tell us how it was (optional)')} placeholderTextColor={muted}
