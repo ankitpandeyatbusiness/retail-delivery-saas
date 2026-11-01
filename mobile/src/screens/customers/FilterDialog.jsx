@@ -282,7 +282,7 @@ export default function FilterDialog({ visible, onClose, items }) {
         <View style={s.btnRow}>
             <Text style={showTxt}>{count ? tr('Show ') : tr('No ')}</Text>
             <SlideNum value={count} minWidth={12} style={showTxt} />
-            <Text style={showTxt}>{tr('dish{v1}', { v1: count === 1 ? '' : 'es' })}</Text>
+            <Text style={showTxt}>{tr(count === 1 ? 'dish' : 'dishes')}</Text>
         </View>
     );
 
