@@ -1,7 +1,7 @@
 // The owner's side menu: slides in from the left when the hamburger is tapped. No dark layer over the page; a tap on the
-// page beside it, or the Android back button, closes it.
+// page beside it, the Android back button, or a swipe towards the left (on the menu or on the page beside it) closes it.
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, Animated, Easing, BackHandler, ScrollView, StyleSheet, Dimensions, StatusBar } from 'react-native';
+import { View, Text, Pressable, Animated, Easing, BackHandler, ScrollView, StyleSheet, Dimensions, StatusBar, PanResponder } from 'react-native';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -43,6 +43,22 @@ export default function OwnerDrawer() {
         }
     }, [open]);   // eslint-disable-line react-hooks/exhaustive-deps
 
+    // a swipe towards the left: the menu follows the finger, and goes away when it has been pulled far enough (or flicked); else it springs back
+    const pan = useRef(PanResponder.create({
+        // only a mostly sideways move to the left (a vertical move still scrolls the menu)
+        onMoveShouldSetPanResponderCapture: (_, g) => g.dx < -8 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
+        onPanResponderGrant: () => { x.stopAnimation(); },
+        onPanResponderMove: (_, g) => { x.setValue(Math.min(0, g.dx)); },
+        onPanResponderRelease: (_, g) => {
+            if (g.dx < -WIDTH * 0.3 || g.vx < -0.6) {
+                Animated.timing(x, { toValue: -WIDTH, duration: 160, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start(() => useDrawer.getState().hide());
+            } else {
+                Animated.spring(x, { toValue: 0, friction: 9, tension: 120, useNativeDriver: true }).start();
+            }
+        },
+        onPanResponderTerminate: () => { Animated.spring(x, { toValue: 0, friction: 9, tension: 120, useNativeDriver: true }).start(); },
+    })).current;
+
     useEffect(() => {
         if (!open) return undefined;
         const sub = BackHandler.addEventListener('hardwareBackPress', () => { useDrawer.getState().hide(); return true; });
@@ -54,8 +70,9 @@ export default function OwnerDrawer() {
 
     return (
         <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-            {open ? <Pressable style={StyleSheet.absoluteFill} onPress={close} /> : null}
+            {open ? <View style={StyleSheet.absoluteFill} {...pan.panHandlers}><Pressable style={{ flex: 1 }} onPress={close} /></View> : null}
             <Animated.View
+                {...pan.panHandlers}
                 style={{
                     position: 'absolute', top, bottom, left: 0, width: WIDTH, backgroundColor: background, borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: border,
                     borderTopRightRadius: 24, borderBottomRightRadius: 24, overflow: 'hidden', transform: [{ translateX: x }], elevation: 18, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 14, shadowOffset: { width: 4, height: 0 },
