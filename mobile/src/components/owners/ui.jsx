@@ -537,7 +537,7 @@ export function PauseSheet({ visible, onClose, onPending }) {
                 <View>
                     <Text style={{ color: muted, marginBottom: 8 }}>{tr('Customers will see that the shop is not taking orders. Orders already placed are not affected.')}</Text>
                     {PAUSE_CHOICES.map(([label, extra, icon], i) => (
-                        <Row key={label} icon={icon} title={label} color={i === PAUSE_CHOICES.length - 1 ? error : undefined} onPress={busy ? undefined : () => apply(false, extra)} last={i === PAUSE_CHOICES.length - 1} />
+                        <Row key={label} icon={icon} title={tr(label)} color={i === PAUSE_CHOICES.length - 1 ? error : undefined} onPress={busy ? undefined : () => apply(false, extra)} last={i === PAUSE_CHOICES.length - 1} />
                     ))}
                     {busy ? <LineShimmer width={120} height={14} /> : null}
                 </View>
