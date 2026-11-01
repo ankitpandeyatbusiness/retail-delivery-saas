@@ -498,6 +498,8 @@ const PAUSE_CHOICES = [
     ['Until tomorrow morning', { untilMorning: true }, 'moon-outline'],
     ['Until I start again', {}, 'hand-left-outline'],
 ];
+// the shop has opening hours: "until I start again" ends by itself when the shop next opens by its hours (the server does the same)
+const SCHEDULED_LABEL = 'Until my next opening time';
 
 // Stop taking orders for a while, or start again. A timed pause reopens the shop BY ITSELF, so a forgotten pause cannot
 // lose a day of sales.
@@ -507,6 +509,7 @@ export function PauseSheet({ visible, onClose, onPending }) {
     const pausedUntil = useHomeStore((st) => st.full.orders.pausedUntil);
     const [busy, setBusy] = useState(false);
     const paused = accepting === false;
+    const hasHours = useHomeStore((st) => !!st.full.hours?.weekly && Object.keys(st.full.hours.weekly).length > 0);
 
     const apply = async (acceptingOrders, extra) => {
         setBusy(true);
@@ -537,7 +540,7 @@ export function PauseSheet({ visible, onClose, onPending }) {
                 <View>
                     <Text style={{ color: muted, marginBottom: 8 }}>{tr('Customers will see that the shop is not taking orders. Orders already placed are not affected.')}</Text>
                     {PAUSE_CHOICES.map(([label, extra, icon], i) => (
-                        <Row key={label} icon={icon} title={tr(label)} color={i === PAUSE_CHOICES.length - 1 ? error : undefined} onPress={busy ? undefined : () => apply(false, extra)} last={i === PAUSE_CHOICES.length - 1} />
+                        <Row key={label} icon={icon} title={tr(i === PAUSE_CHOICES.length - 1 && hasHours ? SCHEDULED_LABEL : label)} color={i === PAUSE_CHOICES.length - 1 ? error : undefined} onPress={busy ? undefined : () => apply(false, extra)} last={i === PAUSE_CHOICES.length - 1} />
                     ))}
                     {busy ? <LineShimmer width={120} height={14} /> : null}
                 </View>

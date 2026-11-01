@@ -4193,6 +4193,7 @@ export default {
     "Until I start again": "હું ફરી શરૂ ન કરું ત્યાં સુધી",
     "Until I switch it on": "હું ચાલુ ન કરું ત્યાં સુધી",
     "Until it is paid you cannot order anything: delivery, pickup or dine in.": "આ ચૂકવાય ત્યાં સુધી તમે કંઈ ઓર્ડર કરી શકશો નહીં: ડિલિવરી, પિકઅપ કે ટેબલ.",
+    "Until my next opening time": "મારા આગલા ખુલવાના સમય સુધી",
     "Until tomorrow morning": "કાલે સવાર સુધી",
     "Up": "ઉપર",
     "Up to 5 messages a day. They arrive as notifications in the app.": "દિવસમાં વધુમાં વધુ 5 સંદેશા. તે ઍપમાં નોટિફિકેશન તરીકે આવે છે.",
