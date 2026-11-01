@@ -187,6 +187,7 @@ export function ShopMenu({ onGo }) {
             { custom: 'appearance', title: 'Appearance', group: 'Your app', words: 'appearance dark light theme mode' },
             { icon: 'language', title: 'Language', subtitle: LANGS.find((l) => l.code === lang)?.native, group: 'Your app', words: 'language hindi tamil telugu marathi translate', act: () => setLangOpen(true) },
             { icon: 'eye', title: 'See the customer app', subtitle: tr('Look at your shop the way customers do. You cannot order from your own number.'), group: 'Your app', words: 'customer view preview app', act: customerView },
+            { icon: 'information-circle', title: 'About Us', subtitle: tr('About the platform, terms and privacy'), group: 'Your app', words: 'about us platform company vivyaan terms privacy', act: () => go('AboutUs') },
             { icon: 'document-text', title: 'Terms and privacy', subtitle: tr('Your agreement, the terms and the privacy policy'), group: 'Your app', words: wordsOf(WORDS.LegalList), act: () => go('LegalList') },
             { icon: 'log-out', title: 'Log out', subtitle: tr('Sign out of this phone'), group: 'Your app', words: 'logout log out sign out exit', color: error, act: out },
         ]],

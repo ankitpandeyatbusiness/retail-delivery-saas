@@ -44,7 +44,7 @@ describe('the documents', () => {
     test('six documents start as drafts; everybody can read, only the supreme admin writes and sends', async () => {
         const list = await api('get', '/agreements', vivek);
         assert.equal(list.status, 200, JSON.stringify(list.body));
-        assert.deepEqual(list.body.items.map((d) => d.key).sort(), ['customer_terms', 'operator_agreement', 'owner_terms', 'privacy', 'rider_terms', 'team_terms']);
+        assert.deepEqual(list.body.items.map((d) => d.key).sort(), ['about_us', 'customer_terms', 'operator_agreement', 'owner_privacy', 'owner_terms', 'privacy', 'rider_terms', 'team_terms']);
         assert.ok(list.body.items.every((d) => d.currentVersion === 0));
         assert.equal((await api('put', '/agreements/owner_terms/draft', vivek, { title: 'x', body: 'y'.repeat(40) })).status, 403);
         assert.equal((await send('owner_terms').then(() => api('post', '/agreements/owner_terms/send', vivek, {}))).status, 403);
@@ -134,7 +134,7 @@ describe('the second visit', () => {
         assert.equal((await get(w.customer, '/doc/owner_terms')).status, 404);          // and cannot read an owner's terms
         assert.equal((await get(w.owner, '/doc/rider_terms')).status, 404);
         const mine = await get(w.owner, '/mine');
-        assert.deepEqual(mine.body.items.map((d) => d.key).sort(), ['customer_terms', 'owner_terms', 'privacy']);
+        assert.deepEqual(mine.body.items.map((d) => d.key).sort(), ['customer_terms', 'owner_privacy', 'owner_terms', 'privacy']);
         assert.equal(mine.body.items.find((d) => d.key === 'owner_terms').mustAgree, true);
         assert.equal((await request(app).post('/api/legal/accept').set(w.owner.headers).send({ key: 'owner_terms', version: 9 })).status, 409);
         const ok = await request(app).post('/api/legal/accept').set(w.owner.headers).send({ key: 'owner_terms', version: 1 });
@@ -156,6 +156,21 @@ describe('the second visit', () => {
         t = await reload();
         const third = await legal.status({ ...asUser(w.owner), tenant: t, now: new Date(t0.getTime() + 120 * MIN) });
         assert.equal(third.required, true);
+    });
+
+    test('an owner is asked for the terms and the privacy policy together', async () => {
+        await send('owner_terms');
+        await send('owner_privacy');
+        const t = await reload();
+        const t0 = new Date(Date.now() + MIN);
+        await legal.status({ ...asUser(w.owner), tenant: t, now: t0 });
+        const second = await legal.status({ ...asUser(w.owner), tenant: t, now: new Date(t0.getTime() + 40 * MIN) });
+        assert.equal(second.required, true);
+        assert.deepEqual(second.docs.map((d) => d.key), ['owner_terms', 'owner_privacy']);
+        await legal.accept({ ...asUser(w.owner), tenant: t, key: 'owner_terms', version: 1 });
+        await legal.accept({ ...asUser(w.owner), tenant: t, key: 'owner_privacy', version: 1 });
+        const after = await legal.status({ ...asUser(w.owner), tenant: t, now: new Date(t0.getTime() + 90 * MIN) });
+        assert.equal(after.required, false);
     });
 
     test('a rider only reads the rider terms: never asked to agree', async () => {

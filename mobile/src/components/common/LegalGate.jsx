@@ -17,7 +17,9 @@ export default function LegalGate() {
     const insets = useSafeAreaInsets();
     const role = useAuthStore((s) => s.user?.role);
     const userId = useAuthStore((s) => s.user?.id || s.user?._id);
-    const [doc, setDoc] = useState(null);
+    const [queue, setQueue] = useState([]);   // the documents waiting to be agreed (owners: terms, then privacy policy)
+    const doc = queue[0] || null;
+    const setDoc = (d) => setQueue(d ? (Array.isArray(d.docs) && d.docs.length ? d.docs : [d]) : []);
     const [ticked, setTicked] = useState(false);
     const [busy, setBusy] = useState(false);
     const [err, setErr] = useState('');
@@ -52,7 +54,7 @@ export default function LegalGate() {
 
     const agree = async () => {
         setBusy(true); setErr('');
-        try { await acceptLegal(doc.key, doc.version); setDoc(null); }
+        try { await acceptLegal(doc.key, doc.version); setTicked(false); setQueue((q) => q.slice(1)); }
         catch (e) { setErr(e?.response?.data?.error || tr('Could not save. Please try again.')); } finally { setBusy(false); }
     };
     const logout = () => { useAuthStore.getState().logout?.().catch?.(() => { }); setDoc(null); };

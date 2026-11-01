@@ -58,8 +58,8 @@ router.get('/mine', wrap(async (req, res) => {
 
 router.get('/doc/:key', wrap(async (req, res) => {
     const u = await me(req);
-    const own = legal.gateKeyFor({ who: 'user', role: u.role });
-    if (!legal.PUBLIC_KEYS.includes(req.params.key) && req.params.key !== own && req.params.key !== legal.READ_ONLY_DOC[u.role]) throw httpError(404, 'Not found');
+    const own = legal.gateKeysFor({ who: 'user', role: u.role });
+    if (!legal.PUBLIC_KEYS.includes(req.params.key) && !own.includes(req.params.key) && req.params.key !== legal.READ_ONLY_DOC[u.role]) throw httpError(404, 'Not found');
     const d = await legal.readCurrent(req.params.key, { shopName: req.tenant?.name });
     if (!d) throw httpError(404, 'This document has not been published yet');
     res.json(d);

@@ -24,9 +24,9 @@ const { httpError } = require('../middlewares/apiErrors');
 
 const VISIT_GAP_MS = 30 * 60000;
 const KEYS = Object.keys(DOCS);
-const GATE_DOC = { partner: 'operator_agreement', team: 'team_terms', owner: 'owner_terms' };
+const GATE_DOC = { partner: 'operator_agreement', team: 'team_terms', owner: ['owner_terms', 'owner_privacy'] };
 const READ_ONLY_DOC = { rider: 'rider_terms' };   // riders only read their terms, nothing to agree to
-const PUBLIC_KEYS = ['customer_terms', 'privacy'];
+const PUBLIC_KEYS = ['customer_terms', 'privacy', 'about_us'];
 
 /* ------------------------------ the text ------------------------------ */
 async function variables() {
@@ -170,29 +170,36 @@ async function readRaw(key) {
 /* ------------------------------ who gets which document ------------------------------ */
 const isSupremeAdmin = (admin) => Array.isArray(admin?.phones) && admin.phones.includes(SUPREME_PHONE);
 
-// the document a person must agree to, or null
-function gateKeyFor({ who, role, admin }) {
-    if (who === 'admin') return isSupremeAdmin(admin) ? null : (admin?.legalRole === 'partner' ? GATE_DOC.partner : GATE_DOC.team);
+// the documents a person must agree to (owners: the terms and the privacy policy), or []
+function gateKeysFor({ who, role, admin }) {
+    if (who === 'admin') return isSupremeAdmin(admin) ? [] : [admin?.legalRole === 'partner' ? GATE_DOC.partner : GATE_DOC.team];
     if (role === 'admin') return GATE_DOC.owner;
-    return null;   // customers and riders only read
+    return [];   // customers and riders only read
 }
+const gateKeyFor = (x) => gateKeysFor(x)[0] || null;
 
 // Called when the app opens. Counts the visit and says whether the agree screen must show now.
+// When several documents wait (owners), they are asked together: `docs` lists them, the first one is also at the top level.
 async function status({ who, userId, role, admin, tenant, now = new Date() }) {
-    const key = gateKeyFor({ who, role, admin });
-    if (!key) return { required: false };
-    const doc = await loadDoc(key);
-    const cur = current(doc);
-    if (!cur) return { required: false };
-    const accepted = await LegalAcceptance.exists({ who, userId, docKey: key, version: cur.no });
-    if (accepted) return { required: false, key, version: cur.no, agreed: true };
-
-    // owners and riders: counting starts when the version was sent (no handover step)
-    const from = new Date(cur.publishedAt);
-    if (who === 'user') {
+    const keys = gateKeysFor({ who, role, admin });
+    if (!keys.length) return { required: false };
+    const pending = [];
+    let lastSeen = null;
+    for (const key of keys) {
+        const doc = await loadDoc(key);
+        const cur = current(doc);
+        if (!cur) continue;
+        lastSeen = { key, version: cur.no };
+        const accepted = await LegalAcceptance.exists({ who, userId, docKey: key, version: cur.no });
+        if (!accepted) pending.push({ key, cur });
     }
+    if (!pending.length) return lastSeen ? { required: false, ...lastSeen, agreed: true } : { required: false };
+
+    const { key, cur } = pending[0];
+    // counting starts when the version was sent (no handover step)
+    const from = new Date(Math.max(...pending.map((x) => new Date(x.cur.publishedAt).getTime())));
     let visit = await LegalVisit.findOne({ who, userId, docKey: key });
-    if (!visit || visit.version !== cur.no || !visit.lastVisitAt || new Date(visit.lastVisitAt) < from) {
+    if (!visit || visit.version !== cur.no || !visit.lastVisitAt || new Date(visit.lastVisitAt) < new Date(cur.publishedAt)) {
         visit = await LegalVisit.findOneAndUpdate({ who, userId, docKey: key }, { $set: { version: cur.no, visits: 0, lastVisitAt: null } }, { upsert: true, returnDocument: 'after' });
     }
     if (!visit.lastVisitAt || now.getTime() - new Date(visit.lastVisitAt).getTime() >= VISIT_GAP_MS) {
@@ -202,15 +209,16 @@ async function status({ who, userId, role, admin, tenant, now = new Date() }) {
     if (cur.askWhen === 'free_ends' && who === 'user' && role === 'admin' && (tenant?.billing?.state || 'free') === 'free') {
         return { required: false, key, version: cur.no, waiting: 'free_period' };
     }
-    const required = visit.visits >= 2;
-    return required
-        ? { required: true, key, version: cur.no, title: cur.title, body: cur.body, summary: cur.summary, publishedAt: cur.publishedAt, visits: visit.visits }
+    void from;
+    const view = (x) => ({ key: x.key, version: x.cur.no, title: x.cur.title, body: x.cur.body, summary: x.cur.summary, publishedAt: x.cur.publishedAt });
+    return visit.visits >= 2
+        ? { required: true, ...view(pending[0]), visits: visit.visits, docs: pending.map(view) }
         : { required: false, key, version: cur.no, visits: visit.visits };
 }
 
 async function accept({ who, userId, role, admin, tenant, key, version, name, phone }) {
-    const need = gateKeyFor({ who, role, admin });
-    if (!need || need !== key) throw httpError(400, 'This is not a document for you');
+    const need = gateKeysFor({ who, role, admin });
+    if (!need.includes(key)) throw httpError(400, 'This is not a document for you');
     const doc = await loadDoc(key);
     if (Number(version) !== doc.currentVersion || !doc.currentVersion) throw httpError(409, 'There is a newer version. Please read it first.');
     const cur = current(doc);
@@ -223,8 +231,8 @@ async function accept({ who, userId, role, admin, tenant, key, version, name, ph
 // every document a person may read, with the version he agreed to
 async function mine({ who, userId, role, admin }) {
     await ensureDocs();
-    const own = gateKeyFor({ who, role, admin });
-    const keys = [...new Set([own, who === 'user' ? READ_ONLY_DOC[role] : null, 'customer_terms', 'privacy'].filter(Boolean))];
+    const own = gateKeysFor({ who, role, admin });
+    const keys = [...new Set([...own, who === 'user' ? READ_ONLY_DOC[role] : null, 'customer_terms', 'privacy'].filter(Boolean))];
     const docs = await LegalDocument.find({ key: { $in: keys } }).lean();
     const acc = await LegalAcceptance.find({ who, userId, docKey: { $in: keys } }).sort({ version: -1 }).lean();
     return keys.map((key) => {
@@ -232,7 +240,7 @@ async function mine({ who, userId, role, admin }) {
         const cur = d?.versions.find((v) => v.no === d.currentVersion);
         const a = acc.find((x) => x.docKey === key);
         return {
-            key, title: cur?.title || DOCS[key].title, version: d?.currentVersion || 0, publishedAt: cur?.publishedAt || null, mustAgree: key === own,
+            key, title: cur?.title || DOCS[key].title, version: d?.currentVersion || 0, publishedAt: cur?.publishedAt || null, mustAgree: own.includes(key),
             agreedVersion: a?.version || null, agreedAt: a?.acceptedAt || null, upToDate: !!a && a.version === d?.currentVersion,
         };
     });
@@ -283,6 +291,6 @@ async function markHandover(tenantId, on, by) {
 }
 
 module.exports = {
-    KEYS, PUBLIC_KEYS, GATE_DOC, READ_ONLY_DOC, ensureDocs, list, getFull, saveDraft, publish, readCurrent, status, accept, mine, acceptances, markHandover,
+    KEYS, PUBLIC_KEYS, GATE_DOC, READ_ONLY_DOC, gateKeysFor, ensureDocs, list, getFull, saveDraft, publish, readCurrent, status, accept, mine, acceptances, markHandover,
     variables, fill, blanksIn, shopNameFor, gateKeyFor, isSupremeAdmin, VISIT_GAP_MS,
 };

@@ -71,3 +71,35 @@ export function LegalListScreen() {
         </View>
     );
 }
+
+// About Us: a short write-up about the platform, then the documents. Shop owners (also when they look at the customer app) see the shop owner
+// documents and the customer documents; customers see the customer ones only.
+export function AboutUsScreen() {
+    const nav = useNavigation();
+    const { background, text, muted, border, primary } = useBrand();
+    const role = useAuthStore((s) => s.user?.role);
+    const [doc, setDoc] = useState(null);
+    useEffect(() => { fetchPublicLegal('about_us').then(setDoc).catch(() => setDoc({ title: 'About Us', body: '' })); }, []);
+    const links = [
+        ...(role === 'admin' ? [{ key: 'owner_terms', title: 'Terms of Service for Shop Owners' }, { key: 'owner_privacy', title: 'Privacy Policy for Shop Owners' }] : []),
+        { key: 'customer_terms', title: 'Terms of Service for Customers', pub: true },
+        { key: 'privacy', title: 'Privacy Policy for Customers', pub: true },
+    ];
+    return (
+        <View style={{ flex: 1, backgroundColor: background }}>
+            <PageHeader title={tr('About Us')} />
+            <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
+                <View style={{ padding: 18 }}>
+                    {doc === null ? <ListShimmer count={2} /> : <LegalText text={doc.body} title={doc.title} />}
+                </View>
+                {links.map((d) => (
+                    <Pressable key={d.key} onPress={() => nav.navigate('LegalDoc', { key: d.key, pub: d.pub })} style={{ flexDirection: 'row', alignItems: 'center', padding: 16, borderTopWidth: 0.5, borderTopColor: border }}>
+                        <Ionicons name="document-text-outline" size={24} color={primary} />
+                        <Text style={{ flex: 1, marginLeft: 14, color: text, fontWeight: '800', fontSize: 15 }}>{tr(d.title)}</Text>
+                        <Ionicons name="chevron-forward" size={18} color={muted} />
+                    </Pressable>
+                ))}
+            </ScrollView>
+        </View>
+    );
+}

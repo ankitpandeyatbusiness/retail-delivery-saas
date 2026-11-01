@@ -127,17 +127,17 @@ Effective {{effectiveDate}}. These terms are between you (the shop) and the oper
 - If the Operator's details change, you will get a notice in the app and by email, and you will be asked to agree to the updated terms.
 
 # 2. What you get
-A customer ordering app for your shop, an owner panel (orders, menu, riders, money, reports), a rider app, and notifications by app, SMS and email.
+A customer ordering app for your shop, an owner panel (orders, menu, riders, money, reports), a rider app, and notifications by app, SMS and email. If you want, you can also give your kitchen staff and waiters their own panels.
 
 # 3. Free period, rent and bills
 - Your shop may start with a free period. When it ends, a monthly rent applies, worked out from your delivered orders as shown in the app (Money, Monthly bill).
 - Bills are sent to the email you saved and are shown in the app. A bill must be paid by its due date. If it stays unpaid after the grace period, your shop can be paused until it is paid. Orders in progress can still be finished.
 - GST is added when the Operator has a GST registration. A shop with a GST number can use the bill for input credit.
-- Setup fees and other charges are shown before you pay them.
+- A one-time setup fee applies when your shop joins. It is non-refundable and is charged outside the app.
 
 # 4. SMS balance
 - SMS messages (such as login codes and order alerts) are paid from your SMS balance. You top it up in the app. GST is added on top of the amount you choose, when it applies.
-- A top-up is used up as SMS are sent. A balance that you have not used is not refunded except where the law says so or the Operator agrees.
+- An SMS balance is non-refundable and cannot be withdrawn. It can only be used to send SMS.
 
 # 5. Your shop and your customers
 - You are responsible for your menu, prices, taxes, food safety (including your FSSAI licence), delivery and refunds to your customers.
@@ -145,8 +145,8 @@ A customer ordering app for your shop, an owner panel (orders, menu, riders, mon
 - Customers' details are given to you only to deliver their orders. Do not use them for anything else and do not share them.
 - Be honest about prices and availability, and treat customers and riders with respect.
 
-# 6. Riders
-You are responsible for the riders you add to your shop and for what you agree with them. Riders are not employees of the platform.
+# 6. Riders, kitchen staff and waiters
+You are responsible for the riders, kitchen staff and waiters you add to your shop and for what you agree with them. They are not employees of the platform.
 
 # 7. Your data
 Your shop's data stays on the platform's servers. You can see your orders, customers and reports in the app. We use it to run and improve the service and to send you bills and reports. We do not sell it.
@@ -276,6 +276,78 @@ The app is not meant for children under 18 without a parent.
 {{supportLine}}
 
 We may change this policy at any time without informing you. The latest version is always here.`,
+    },
+
+    /* --------------------------------------------------------------------------------------------------------------- */
+    owner_privacy: {
+        audience: 'owner',
+        title: 'Privacy Policy for Shop Owners',
+        body: `# Privacy Policy for Shop Owners
+Effective {{effectiveDate}}. This explains what we collect about you and your shop, and why.
+
+# Who we are
+{{platformName}} is a product of {{operatorName}}, which looks after your data. The technology is provided by an independent developer who works on the servers only to run and repair the service.
+
+# What we collect
+- Your name, phone number and email.
+- Your shop's details: name, address, GST and FSSAI numbers, menu, prices, pictures and settings.
+- Your orders, customers' order details, payments, bills, SMS balance and reports.
+- The people you add: riders, kitchen staff and waiters (name, phone, work records).
+- Your phone's notification address and basic details such as the app version.
+
+# Why we use it
+To run your shop on the app: take and deliver orders, send OTPs and alerts, raise bills and receipts, show you reports, give you support and prevent misuse. We do not sell your data and we do not show ads from other companies.
+
+# Your customers' data
+Customers' names, phones and addresses are shown to you only so you can serve their orders. Do not use them for anything else and do not share them.
+
+# Who can see it
+- Your customers see your shop's name, menu and prices.
+- Your riders, kitchen staff and waiters see what they need for their work.
+- Companies that send SMS and notifications, take payments and host our servers, only to do that work.
+- Authorities, if the law requires.
+
+# How long we keep it
+Bills, payments and records are kept as long as the law requires. Other data is kept while your shop is on the platform.
+
+# Your choices
+You can change your details in the app. To ask about your data, contact us below.
+
+# Safety
+Your data is kept on secured servers and sent over encrypted connections. If we find a leak that affects you, we will tell you.
+
+# Contact
+{{supportLine}}
+
+We may change this policy at any time. When we do, we will tell you in the app and by email, and you will be asked to agree to the new version.
+
+By pressing "Agree" you confirm that you have read this policy and agree to it. Your agreement is saved with the date, the time and the version.`,
+    },
+
+    /* --------------------------------------------------------------------------------------------------------------- */
+    about_us: {
+        audience: 'customer',
+        title: 'About Us',
+        body: `# About {{platformName}}
+{{platformName}} helps restaurants and shops take orders and deliver them, all in one place.
+
+# For customers
+- Order from your favourite shop in a few taps.
+- Pay cash on delivery or online.
+- Follow your order and your rider on the map.
+- Tell the shop if something is wrong, right in the app.
+
+# For shops
+- Your own ordering app for your customers.
+- An owner panel for orders, menu, riders, money and reports.
+- A rider app, and panels for your kitchen staff and waiters if you want them.
+- Alerts by app, SMS and email.
+
+# Who runs it
+{{platformName}} is a product of {{operatorName}}, which runs the business and looks after billing and compliance. The technology is provided by an independent developer.
+
+# Contact
+{{supportLine}}`,
     },
 };
 

@@ -120,7 +120,7 @@ import OwnerViewPill from '../components/owners/OwnerViewPill';
 import NewOrderPopup from '../components/owners/NewOrderPopup';
 import KitchenProblemPopup from '../components/owners/KitchenProblemPopup';
 import LegalGate from '../components/common/LegalGate';
-import { LegalDocScreen, LegalListScreen } from '../screens/common/LegalScreens';
+import { LegalDocScreen, LegalListScreen, AboutUsScreen } from '../screens/common/LegalScreens';
 import OwnerBusinessScreen from '../screens/owners/OwnerBusinessScreen';
 import OwnerAutopilotScreen from '../screens/owners/OwnerAutopilotScreen';
 import OwnerSupportScreen from '../screens/owners/OwnerSupportScreen';
@@ -349,6 +349,7 @@ export default function AppNavigator() {
                     <Stack.Screen name="OrderPlaced" component={OrderPlacedScreen} options={{ gestureEnabled: false, animation: motion === 'off' ? 'none' : 'fade', animationDuration: 300 }} />
                     <Stack.Screen name="Notifications" component={NotificationsScreen} />
                     <Stack.Screen name="LegalList" component={LegalListScreen} />
+                    <Stack.Screen name="AboutUs" component={AboutUsScreen} />
                     {/* RiderTrip: a rider's delivery, one step at a time */}
                     <Stack.Screen name="RiderTrip" component={RiderTripScreen} />
                     <Stack.Screen name="RiderDuty" component={RiderDutyScreen} />
