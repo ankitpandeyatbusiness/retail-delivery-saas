@@ -19,7 +19,9 @@ const mine = async (req) => {
     return doc;
 };
 
-router.get('/templates', wrap(async (req, res) => { res.json({ items: svc.templateList(await svc.loadDefaults()), types: svc.TYPES }); }));
+// The old "Bulk Order Booking" starter is not offered any more: bulk orders have their own flow now (Bulk orders in the shop hub).
+// A shop that already has the service keeps it, and a service of kind "bulk" can still be made by the API.
+router.get('/templates', wrap(async (req, res) => { res.json({ items: svc.templateList(await svc.loadDefaults()).filter((t) => t.kind !== 'bulk'), types: svc.TYPES }); }));
 
 // a starter service as it would be made, without saving it: the owner saves it from the editor
 router.get('/new/:kind', wrap(async (req, res) => { res.json(svc.newDoc(req.params.kind, await svc.loadDefaults())); }));

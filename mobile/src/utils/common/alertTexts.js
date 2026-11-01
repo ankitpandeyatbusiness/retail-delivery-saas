@@ -25,6 +25,8 @@ export const ALERT_TEXTS = [
     tl("Something the system did for you by itself (marked a pickup not collected, allowed a reservation...) or a reminder of what waits for you."),
     tl("Service inquiries"),
     tl("A customer sends an inquiry for bulk order, tiffin, party booking or your own service, or writes again on one."),
+    tl("Bulk orders"),
+    tl("A customer sends a bulk order request, asks you to change your quote, pays the advance, or cancels."),
     tl("A rider asks for help"),
     tl("A delivery partner pressed the help button."),
     tl("Delivery news"),

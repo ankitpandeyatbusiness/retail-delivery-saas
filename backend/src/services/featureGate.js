@@ -1,9 +1,9 @@
-// The super admin's per-shop switches for the two add-on features: Services (with inquiries) and Table booking. Both are OFF until the super admin
-// switches them on for a shop (settings.features.services / settings.features.tableBooking, the same "App features" screen as the other switches).
+// The super admin's per-shop switches for the add-on features: Services (with inquiries), Table booking and Bulk orders. All are OFF until the super admin
+// switches them on for a shop (settings.features.services / tableBooking / bulkOrders, the same "App features" screen as the other switches).
 const { resolveConfig } = require('./tenantConfigService');
 const { httpError } = require('../middlewares/apiErrors');
 
-const NAMES = { services: 'Services and inquiries', tableBooking: 'Table booking' };
+const NAMES = { services: 'Services and inquiries', tableBooking: 'Table booking', bulkOrders: 'Bulk orders' };
 
 const isOn = (tenant, key) => !!resolveConfig(tenant).features?.[key];
 

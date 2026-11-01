@@ -9,11 +9,11 @@ import { ease } from '../common/ease';
 const KEY = 'menuFlags';
 
 export const useMenuFlags = create((set, get) => ({
-    kitchenOn: false, waiterOn: false, servicesOn: false, bookingOn: false, busy: null, easy: false, sortAZ: false, ready: false,
+    kitchenOn: false, waiterOn: false, servicesOn: false, bookingOn: false, bulkOn: false, busy: null, easy: false, sortAZ: false, ready: false,
     hydrate: async () => {
         if (get().ready) return;
         const c = await readCache(KEY);
-        set({ kitchenOn: c?.kitchenOn === true, waiterOn: c?.waiterOn === true, servicesOn: c?.servicesOn === true, bookingOn: c?.bookingOn === true, easy: c?.easy === true, sortAZ: c?.sortAZ === true, ready: true });
+        set({ kitchenOn: c?.kitchenOn === true, waiterOn: c?.waiterOn === true, servicesOn: c?.servicesOn === true, bookingOn: c?.bookingOn === true, bulkOn: c?.bulkOn === true, easy: c?.easy === true, sortAZ: c?.sortAZ === true, ready: true });
     },
     // asks the server; the rows only change when the answer is different from what was kept
     refresh: async () => {
@@ -22,20 +22,20 @@ export const useMenuFlags = create((set, get) => ({
             const st = x.orders?.staff;
             const next = {
                 busy: x.orders?.busy || null, ...(st ? { kitchenOn: st.kitchenOn === true, waiterOn: st.waiterOn === true } : {}),
-                ...(x.addons ? { servicesOn: x.addons.services === true, bookingOn: x.addons.tableBooking === true } : {}),
+                ...(x.addons ? { servicesOn: x.addons.services === true, bookingOn: x.addons.tableBooking === true, bulkOn: x.addons.bulkOrders === true } : {}),
             };
             set(next);
             const s = get();
-            writeCache(KEY, { kitchenOn: s.kitchenOn, waiterOn: s.waiterOn, servicesOn: s.servicesOn, bookingOn: s.bookingOn, easy: s.easy, sortAZ: s.sortAZ });
+            writeCache(KEY, { kitchenOn: s.kitchenOn, waiterOn: s.waiterOn, servicesOn: s.servicesOn, bookingOn: s.bookingOn, bulkOn: s.bulkOn, easy: s.easy, sortAZ: s.sortAZ });
             return x;
         } catch (e) { return null; }
     },
     setBusy: (busy) => set({ busy }),
     // both switches glide: every screen that shows less or more eases to its new shape instead of jumping
 
-    setEasy: (easy) => { ease(); set({ easy }); const s = get(); writeCache(KEY, { kitchenOn: s.kitchenOn, waiterOn: s.waiterOn, servicesOn: s.servicesOn, bookingOn: s.bookingOn, easy, sortAZ: s.sortAZ }); },
+    setEasy: (easy) => { ease(); set({ easy }); const s = get(); writeCache(KEY, { kitchenOn: s.kitchenOn, waiterOn: s.waiterOn, servicesOn: s.servicesOn, bookingOn: s.bookingOn, bulkOn: s.bulkOn, easy, sortAZ: s.sortAZ }); },
     // the menu as one list by name, with the A to Z strip (English only)
-    setSortAZ: (sortAZ) => { ease(); set({ sortAZ }); const s = get(); writeCache(KEY, { kitchenOn: s.kitchenOn, waiterOn: s.waiterOn, servicesOn: s.servicesOn, bookingOn: s.bookingOn, easy: s.easy, sortAZ }); },
+    setSortAZ: (sortAZ) => { ease(); set({ sortAZ }); const s = get(); writeCache(KEY, { kitchenOn: s.kitchenOn, waiterOn: s.waiterOn, servicesOn: s.servicesOn, bookingOn: s.bookingOn, bulkOn: s.bulkOn, easy: s.easy, sortAZ }); },
 }));
 
 useMenuFlags.getState().hydrate();   // starts reading as soon as the app loads

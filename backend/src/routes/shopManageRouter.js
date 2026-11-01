@@ -213,6 +213,8 @@ router.use('/products', crud(Product, {
             d.images = [...new Set(d.images)].filter((u) => u !== d.image);
         }
         if (d.bulk !== undefined && d.bulk !== null) {   // a bulk price needs both numbers; null clears it
+            // only a shop the super admin switched Bulk orders on for can SET a bulk price (clearing one is always allowed)
+            if (req.actor?.type !== 'superadmin' && !require('../services/featureGate').isOn(req.tenant, 'bulkOrders')) throw httpError(403, 'Bulk orders are not switched on for your shop. Ask us to switch it on.');
             const b = d.bulk;
             if (typeof b !== 'object' || !Number.isInteger(b.minQty) || b.minQty < 2 || b.minQty > 10000) throw httpError(400, 'Bulk price: the minimum quantity must be a whole number from 2 to 10000');
             if (typeof b.percentOff !== 'number' || !(b.percentOff > 0) || b.percentOff > 90) throw httpError(400, 'Bulk price: the discount must be more than 0 and at most 90 percent');

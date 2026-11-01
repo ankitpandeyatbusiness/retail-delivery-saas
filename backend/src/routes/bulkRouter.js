@@ -19,11 +19,13 @@ const { wrap, httpError } = apiErrors;
 const router = express.Router();
 router.use(tenantRecognizer);
 router.use(authenticate);
-// a shop without the Services switch has no bulk orders; a customer's existing orders stay readable
+// A shop the super admin has not switched Bulk orders on for takes no new request: no menu, no price, no request, and the config says "off".
+// An order the customer already has carries on to the end (view, pay, cancel, change, invoice), because money may be in it.
 router.use((req, res, next) => {
-    if (featureGate.isOn(req.tenant, 'services') || (req.method === 'GET' && req.path !== '/menu' && req.path !== '/config')) return next();
+    if (featureGate.isOn(req.tenant, 'bulkOrders')) return next();
     if (req.method === 'GET' && req.path === '/config') return res.json({ enabled: false });
-    return next(httpError(404, 'Bulk orders are not available at this shop'));
+    const newBusiness = (req.method === 'GET' && req.path === '/menu') || (req.method === 'POST' && (req.path === '/estimate' || req.path === '/'));
+    return newBusiness ? next(httpError(404, 'Bulk orders are not available at this shop')) : next();
 });
 
 router.get('/config', wrap(async (req, res) => { res.json(bulk.publicConfig(await bulk.settingsOf(req.tenant._id))); }));

@@ -10,6 +10,7 @@ import {
 } from '../../components/owners/menuBits';
 import { products, setStock, apiError } from '../../api/owners/shopApi';
 import { useMenuStore } from '../../store/owners/useMenuStore';
+import { useMenuFlags } from '../../utils/owners/menuFlags';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { BLANK_ITEM, itemFromRecord, itemProblems, itemBody, stockUnit, titleCase, amountLabel, SPICE } from '../../utils/owners/menuRules';
 import { showToast } from '../../components/customers/shop';
@@ -28,6 +29,7 @@ export default function OwnerItemScreen() {
     const { muted } = useBrand();
     const cats = useMenuStore((s) => s.categories);
     const options = useMenuStore((s) => s.options);
+    const bulkOn = useMenuFlags((s) => s.bulkOn);   // only a shop the super admin switched Bulk orders on for can set bulk prices
     const [form, setForm] = useState(id ? null : { ...BLANK_ITEM, categoryId: categoryId || '' });
     const [record, setRecord] = useState(null);
     const [loadError, setLoadError] = useState('');
@@ -75,7 +77,9 @@ export default function OwnerItemScreen() {
         if (Object.keys(problems).length) { setErrors(problems); showToast(Object.values(problems)[0]); return; }
         setSaving(true);
         try {
-            if (id) await products.update(id, itemBody(v)); else await products.create(itemBody(v));
+            const body = itemBody(v);
+            if (!bulkOn) delete body.bulk;   // the shop has no Bulk orders switch: the dish keeps whatever it has, and the server would refuse a bulk price
+            if (id) await products.update(id, body); else await products.create(body);
             showToast(id ? tr('Item saved') : tr('Item added'));
             useMenuStore.getState().load({ quiet: true });
             nav.goBack();
@@ -198,7 +202,7 @@ export default function OwnerItemScreen() {
                     <NumberBox style={{ flex: 1 }} label={tr('Calories')} integer value={v.calories} onChange={(x) => set('calories', x)} />
                 </View>
                 <NumberBox label={tr('Preparation time')} suffix="min" integer value={v.prepTimeMin} onChange={(x) => set('prepTimeMin', x)} />
-                {v.sellBy === 'piece' ? (
+                {v.sellBy === 'piece' && bulkOn ? (
                     <>
                         <Label hint={tr('For bulk orders. Example: from 30 pieces, 10 percent off. Leave both empty for no bulk price. You can still change every price when you send a quote.')}>{tr('Bulk price')}</Label>
                         <View style={{ flexDirection: 'row', marginBottom: 4 }}>

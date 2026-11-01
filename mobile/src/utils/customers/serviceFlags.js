@@ -2,24 +2,24 @@
 // SERVICES section is there on the first frame instead of popping in (and moving everything below it) after two requests.
 import { create } from 'zustand';
 import { readCache, writeCache } from '../common/cache';
-import { fetchServices, fetchBookingConfig } from '../../api/customers/shopApi';
+import { fetchServices, fetchBookingConfig, fetchBulkConfig } from '../../api/customers/shopApi';
 
 const KEY = 'serviceFlags';
 
 export const useServiceFlags = create((set, get) => ({
-    serviceCount: 0, bookingOn: false, ready: false,
+    serviceCount: 0, bookingOn: false, bulkOn: false, ready: false,
     hydrate: async () => {
         if (get().ready) return;
         const c = await readCache(KEY);
-        set({ serviceCount: Number(c?.serviceCount) || 0, bookingOn: c?.bookingOn === true, ready: true });
+        set({ serviceCount: Number(c?.serviceCount) || 0, bookingOn: c?.bookingOn === true, bulkOn: c?.bulkOn === true, ready: true });
     },
     // asks the server; only a different answer changes the screen
     refresh: async () => {
-        const [s, b] = await Promise.all([fetchServices().catch(() => null), fetchBookingConfig().catch(() => null)]);
-        const next = { ...(s ? { serviceCount: (s.items || []).length } : {}), ...(b ? { bookingOn: !!b.enabled } : {}) };
+        const [s, b, k] = await Promise.all([fetchServices().catch(() => null), fetchBookingConfig().catch(() => null), fetchBulkConfig().catch(() => null)]);
+        const next = { ...(s ? { serviceCount: (s.items || []).length } : {}), ...(b ? { bookingOn: !!b.enabled } : {}), ...(k ? { bulkOn: !!k.enabled } : {}) };
         set(next);
         const x = get();
-        writeCache(KEY, { serviceCount: x.serviceCount, bookingOn: x.bookingOn });
+        writeCache(KEY, { serviceCount: x.serviceCount, bookingOn: x.bookingOn, bulkOn: x.bulkOn });
     },
 }));
 

@@ -475,6 +475,7 @@
  "Tenant not resolved": "दुकान के पहचान ना भइल",
  "Thank you for collecting order #{v1}. We hope you enjoy it. Come again soon!": "ऑर्डर #{v1} लेवे खातिर धन्यवाद। उम्मीद बा रउआ के पसंद आई। फेर जल्दी आईं!",
  "Thank you for collecting order #{v1}. We hope you enjoy it. Come again soon! {v2}": "ऑर्डर #{v1} लेवे खातिर धन्यवाद। उम्मीद बा रउआ के पसंद आई। फेर जल्दी आईं! {v2}",
+ "Thank you!": "धन्यवाद!",
  "Thank you! Bill paid": "धन्यवाद! बिल भर दिहल गइल",
  "Thank you, your ₹{v1} bill from {v2} is settled. We are sorry we reminded you by mistake.": "धन्यवाद, {v2} के रउआ ₹{v1} के बिल चुकता बा। गलती से याद दिलावे खातिर हमनी के अफसोस बा।",
  "Thank you. Invoice {v1} ({v2}) is paid.": "धन्यवाद। इनवॉइस {v1} ({v2}) भर दिहल गइल।",

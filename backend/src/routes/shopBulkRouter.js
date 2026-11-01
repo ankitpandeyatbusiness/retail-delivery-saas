@@ -9,14 +9,29 @@
 //   POST /:id/cash-received            the customer paid the balance in cash
 //   GET  /:id/invoice                  the PDF of a completed order
 //   PUT  /:id/note                     { note }  private
+//
+// The super admin's Bulk orders switch for the shop (featureGate 'bulkOrders'):
+//   off -> the owner cannot change the rules or switch bulk on (he can still switch it OFF), and no new request can come in (routes/bulkRouter.js);
+//          orders already taken are still listed and finished (quote, stages, cash, cancel, invoice), because customers have paid money for them.
+//   on  -> the owner sets the rules and the bulk prices of his dishes, and can switch bulk ordering off and on himself ("enabled").
+// The super admin himself can always change the rules of any shop.
 const express = require('express');
-const { wrap } = require('../middlewares/apiErrors');
+const { wrap, httpError } = require('../middlewares/apiErrors');
+const featureGate = require('../services/featureGate');
 const bulk = require('../services/bulkOrders');
 
 const router = express.Router();
 
-router.get('/settings', wrap(async (req, res) => { res.json(await bulk.settingsOf(req.tenant._id)); }));
-router.put('/settings', wrap(async (req, res) => { res.json(await bulk.saveSettings(req.tenant._id, req.body || {})); }));
+const isSuper = (req) => req.actor?.type === 'superadmin';
+const featureOn = (req) => featureGate.isOn(req.tenant, 'bulkOrders');
+
+router.get('/settings', wrap(async (req, res) => { res.json({ ...(await bulk.settingsOf(req.tenant._id)), featureOn: featureOn(req) }); }));
+router.put('/settings', wrap(async (req, res) => {
+    const body = req.body || {};
+    const onlySwitchOff = Object.keys(body).length === 1 && body.enabled === false;
+    if (!featureOn(req) && !isSuper(req) && !onlySwitchOff) throw httpError(403, 'Bulk orders are not switched on for your shop. Ask us to switch it on.');
+    res.json({ ...(await bulk.saveSettings(req.tenant._id, body)), featureOn: featureOn(req) });
+}));
 router.get('/', wrap(async (req, res) => { res.json(await bulk.ownerList({ tenant: req.tenant, status: req.query.status, page: req.query.page })); }));
 router.get('/:id', wrap(async (req, res) => { res.json(bulk.ownerView(await bulk.ownerOne({ tenant: req.tenant, id: req.params.id }))); }));
 router.post('/:id/quote', wrap(async (req, res) => { res.json(await bulk.quote({ tenant: req.tenant, id: req.params.id, body: req.body || {} })); }));

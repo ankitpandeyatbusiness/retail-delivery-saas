@@ -71,6 +71,7 @@ const publicConfig = (s) => ({
 });
 
 async function needSettings(tenant) {
+    if (!require('./featureGate').isOn(tenant, 'bulkOrders')) throw httpError(404, 'Bulk orders are not available at this shop');   // the super admin's switch
     const s = await settingsOf(tenant._id);
     if (!s.enabled) throw httpError(404, 'Bulk orders are not available at this shop');
     return s;

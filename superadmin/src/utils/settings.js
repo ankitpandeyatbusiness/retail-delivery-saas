@@ -80,13 +80,14 @@ export const FEATURES = {
     tips: ['Tips', 'Customers can tip the rider'],
     services: ['Services and inquiries', 'The owner offers bulk orders, tiffin, party booking or his own services, and customers send inquiries'],
     tableBooking: ['Table booking', 'Guests book and pay for a table, and the owner manages the bookings'],
+    bulkOrders: ['Bulk orders', 'Customers ask for large orders (offices, functions) and the owner sends a quote. Only a shop with this switched on can set bulk prices and the bulk rules'],
 };
 export const FEATURE_GROUPS = [
     { title: 'Food labels', keys: ['vegToggle', 'vegDot'] },
     { title: 'Dish information', keys: ['ratingBadge', 'prepTime', 'serves', 'calories'] },
     { title: 'Ordering', keys: ['specialInstructions', 'scheduleOrder', 'reorder', 'tips', 'couponField'] },
     { title: 'Customers', keys: ['favourites', 'guestBrowsing', 'directions'] },
-    { title: 'Add-ons (off until you switch them on)', keys: ['services', 'tableBooking'] },
+    { title: 'Add-ons (off until you switch them on)', keys: ['services', 'tableBooking', 'bulkOrders'] },
 ];
 
 /* ------------------------------ effective values ------------------------------ */

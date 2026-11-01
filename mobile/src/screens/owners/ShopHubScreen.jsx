@@ -159,6 +159,7 @@ export function ShopMenu({ onGo }) {
     const riderAttention = useAlertStore((s) => s.riderAttention);   // a rider cancelled, reported a problem or pressed help
     const servicesOn = useMenuFlags((s) => s.servicesOn);   // the super admin's switches for Services (with Inquiries) and Table booking
     const bookingOn = useMenuFlags((s) => s.bookingOn);
+    const bulkOn = useMenuFlags((s) => s.bulkOn);   // the super admin's switch for Bulk orders
     const lang = useLang((st) => st.lang);
     useFocusEffect(useCallback(() => { useMenuFlags.getState().refresh(); }, []));
 
@@ -177,7 +178,7 @@ export function ShopMenu({ onGo }) {
     const [q, setQ] = useState('');
     const { border, muted, text, surface, primary } = useBrand();
     const easy = useMenuFlags((s) => s.easy);
-    const hidden = (route) => ((route === 'OwnerServices' || route === 'OwnerInquiries' || route === 'OwnerBulk') && !servicesOn) || (route === 'OwnerBookings' && !bookingOn) || (route === 'OwnerCooks' && !staffOn.kitchenOn) || (route === 'OwnerWaiters' && !staffOn.waiterOn) || (easy && !EASY.has(route));
+    const hidden = (route) => ((route === 'OwnerServices' || route === 'OwnerInquiries') && !servicesOn) || (route === 'OwnerBulk' && !bulkOn) || (route === 'OwnerBookings' && !bookingOn) || (route === 'OwnerCooks' && !staffOn.kitchenOn) || (route === 'OwnerWaiters' && !staffOn.waiterOn) || (easy && !EASY.has(route));
     // every row of the menu as one list (what is shown, and what the search looks through)
     const sections = useMemo(() => [
         ...GROUPS.map(([group, rows]) => [group, rows.filter((r) => !hidden(r[3])).map(([icon, title, subtitle, route]) => (route === '@busy'
@@ -193,7 +194,7 @@ export function ShopMenu({ onGo }) {
             { icon: 'log-out', title: 'Log out', subtitle: tr('Sign out of this phone'), group: 'Your app', words: 'logout log out sign out exit', color: error, act: out },
         ]],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    ], [busy, staffOn, servicesOn, bookingOn, riderAttention, supportUnread, user, lang, easy]);
+    ], [busy, staffOn, servicesOn, bookingOn, bulkOn, riderAttention, supportUnread, user, lang, easy]);
     const entries = useMemo(() => sections.flatMap(([, rows]) => rows).filter((e) => !e.custom), [sections]);
     const found = q.trim() ? searchMenu(entries, q, (e) => `${e.title} ${tr(e.title)}`) : null;
 

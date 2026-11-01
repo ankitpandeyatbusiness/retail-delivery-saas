@@ -524,7 +524,7 @@ router.get('/settings', wrap(async (req, res) => {
         phone: req.tenant.phone || null,
         address: req.tenant.address || {},
         delivery: req.tenant.delivery || {},
-        addons: { services: !!cfg.features?.services, tableBooking: !!cfg.features?.tableBooking },   // the super admin's switches: a shop without them sees no Services, Inquiries or Bookings
+        addons: { services: !!cfg.features?.services, tableBooking: !!cfg.features?.tableBooking, bulkOrders: !!cfg.features?.bulkOrders },   // the super admin's switches: a shop without them sees no Services, Inquiries or Bookings
         hours: { weekly: cfg.hours.weekly || {}, closedMessage: st.hours?.closedMessage || '', closedDates: cfg.hours.closedDates || [] },
         riders: { payPerDelivery: 0, ...DEFAULTS.riders, ...(st.riders || {}), pay: riderPay.effectivePlan(st.riders) },
         notifications: { ...DEFAULTS.notifications, ...(st.notifications || {}) },
@@ -704,7 +704,7 @@ router.use('/staff', require('./shopStaffRouter'));   // kitchen and waiter peop
 router.use('/customers', require('./shopCustomersRouter'));   // customer tools: list, detail, edit, Cash on delivery block
 router.use('/booking', require('./shopBookingRouter'));   // table booking: rules, the day's bookings, seat, no-show, cancel
 router.use('/inquiries', ownerOnly(featureGate.gate('services')), require('./shopInquiriesRouter'));   // what customers sent from the service forms, and the replies
-router.use('/bulk', ownerOnly(featureGate.gate('services')), require('./shopBulkRouter'));   // bulk orders: the rules, the requests, the quotes
+router.use('/bulk', require('./shopBulkRouter'));   // bulk orders: the rules, the requests, the quotes. The super admin's Bulk orders switch is checked inside: orders already taken are always finished
 router.use('/services', ownerOnly(featureGate.gate('services')), require('./shopServicesRouter'));   // bulk order, tiffin, party booking and the owner's own services
 router.use('/autopilot', require('./shopAutopilotRouter'));   // automatic reminders to customers (push and inbox only)
 router.use('/messages', require('./shopMessagesRouter'));     // messages to his customers and riders

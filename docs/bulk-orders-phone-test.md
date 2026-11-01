@@ -68,3 +68,17 @@ Needs the shop's online payments switched on (Razorpay keys saved, tested, webho
 
 ## Rent
 - [ ] A completed bulk order counts as one order in the shop's monthly rent and free period (and so does an order cancelled late where the shop kept the advance). Check Rent for the month.
+
+# Step 4: languages
+
+Texts are translated into Hindi, Marathi, Gujarati and Bengali (Bhojpuri shows the Hindi). The words are the same everywhere:
+quote = कोटेशन, advance = एडवांस (Marathi आगाऊ रक्कम, Bengali অগ্রিম), the rest = बाकी रकम, refund = रिफंड (Marathi परतावा).
+- [ ] For each language: customer Services -> Bulk order (counters, the estimate, the questions, sending), the order page (quote, advance, balance, cancel popup with the exact amount, invoice buttons).
+- [ ] Owner: Bulk orders list, the quote screen, the rules screen, the Bulk price fields on a dish, the next-step buttons.
+- [ ] Push: with the app closed, send a request / send a quote / mark ready: each notification is in the receiver's language, with the order code and amounts intact (for example "बल्क ऑर्डर B7K2QX पिकअप के लिए तैयार है").
+- [ ] Look for text cut off in Marathi and Bengali (the longest), and for any English left on these screens (screenshot the screen name and the text).
+- [ ] The old "Bulk Order Booking" starter is no longer offered when adding a service (a shop that already has it keeps it; switch it off there to avoid two bulk entries).
+
+To add or change a translation later: edit `mobile/scripts/i18n-chunks/c62.js` / `c63.js`, then in this order
+`node backend/scripts/i18nServerMessages.js`, `node scripts/i18nKeys.js`, `node scripts/i18nBuild.js`, `node scripts/i18nKeys.js --check` (from `mobile/`).
+Never edit `src/i18n/locales/*.js` by hand: the build rewrites them. (`backend/tests/bulkTranslations.test.js` checks every bulk push text in every language.)
