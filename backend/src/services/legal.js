@@ -238,7 +238,7 @@ async function accept({ who, userId, role, admin, tenant, key, version, name, ph
 async function mine({ who, userId, role, admin }) {
     await ensureDocs();
     const own = gateKeysFor({ who, role, admin });
-    const keys = [...new Set([...own, ...(who === 'user' ? READ_ONLY_DOCS[role] || [] : []), 'customer_terms', 'privacy'].filter(Boolean))];
+    const keys = [...new Set([...own, ...(who === 'user' ? READ_ONLY_DOCS[role] || [] : []), ...(who === 'user' && READ_ONLY_DOCS[role] ? [] : ['customer_terms', 'privacy'])].filter(Boolean))];
     const docs = await LegalDocument.find({ key: { $in: keys } }).lean();
     const acc = await LegalAcceptance.find({ who, userId, docKey: { $in: keys } }).sort({ version: -1 }).lean();
     return keys.map((key) => {

@@ -210,7 +210,7 @@ describe('the second visit', () => {
         assert.equal((await get(w.rider, '/doc/staff_terms')).status, 404);
         assert.equal((await get(w.customer, '/doc/rider_terms')).status, 404);
         const mine = await legal.mine({ ...asUser(w.rider) });
-        assert.deepEqual(mine.map((d) => d.key).sort(), ['customer_terms', 'privacy', 'rider_privacy', 'rider_terms']);
+        assert.deepEqual(mine.map((d) => d.key).sort(), ['rider_privacy', 'rider_terms']);
         assert.ok(mine.every((d) => !d.mustAgree));
     });
 

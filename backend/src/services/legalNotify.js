@@ -7,7 +7,7 @@ const adapter = require('./adapters/push');
 const i18n = require('../notifications/i18n');
 
 const EVERYONE = ['customer', 'rider', 'kitchen', 'waiter', 'admin'];
-const WHO = { customer_terms: EVERYONE, privacy: EVERYONE, about_us: EVERYONE, owner_terms: ['admin'], owner_privacy: ['admin'], rider_terms: ['rider'], rider_privacy: ['rider'], staff_terms: ['kitchen', 'waiter'], staff_privacy: ['kitchen', 'waiter'] };
+const WHO = { customer_terms: ['customer', 'admin'], privacy: ['customer', 'admin'], about_us: EVERYONE, owner_terms: ['admin'], owner_privacy: ['admin'], rider_terms: ['rider'], rider_privacy: ['rider'], staff_terms: ['kitchen', 'waiter'], staff_privacy: ['kitchen', 'waiter'] };
 
 const TEXT = {
     customer_terms: { title: 'Terms of Service updated', body: 'We have updated our Terms of Service. You can read them in About Us.' },
