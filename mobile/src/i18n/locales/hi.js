@@ -5445,4 +5445,11 @@ export default {
     "★ {v1} · {ratingCount} ratings": "★ {v1} · {ratingCount} रेटिंग",
     "🎉 You saved {rs} on this order!": "🎉 आपने इस ऑर्डर पर {rs} बचाए!",
     "📈 Last week: {v1} from {v2} orders": "📈 पिछला हफ़्ता: {v2} ऑर्डर से {v1}",
+    "You will get {amount} back as a refund.": "आपको {amount} रिफंड के रूप में वापस मिलेंगे।",
+    "It reaches your account in 5 to 7 working days.": "यह 5 से 7 कार्यदिवसों में आपके खाते में पहुँच जाएगा।",
+    "The shop keeps {amount} because it has already started your order.": "दुकान {amount} रखेगी क्योंकि उसने आपका ऑर्डर शुरू कर दिया है।",
+    "You will not get a refund.": "आपको रिफंड नहीं मिलेगा।",
+    "The food is already being made, so you may be charged for it.": "खाना बन रहा है, इसलिए आपसे इसका शुल्क लिया जा सकता है।",
+    "Order cancelled. {amount} will be refunded.": "ऑर्डर रद्द हुआ। {amount} रिफंड किए जाएँगे।",
+    "Too late for a refund: the restaurant keeps your deposit of {amount}.": "रिफंड के लिए बहुत देर हो चुकी है: रेस्तरां आपकी {amount} की जमा राशि रखेगा।",
 };

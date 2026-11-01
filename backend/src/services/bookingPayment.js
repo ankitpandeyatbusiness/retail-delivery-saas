@@ -131,13 +131,23 @@ async function onWebhook({ account, rzp }) {
 // enough (the rule the guest saw when he booked), otherwise the shop keeps it.
 // message: what the owner wrote when he denied the booking (optional). A denial sends the whole deposit back at once (the instant refund
 // where the bank allows it, else the normal way).
+// Does the deposit go back if `by` cancels now? One rule, used by the real cancel and by the preview the guest sees first.
+const depositGoesBack = (booking, by, now = Date.now()) => by === 'owner' || booking.startsAt.getTime() - now >= (booking.rules?.refundHours ?? 0) * HOUR;
+
+// "If I cancel now": { paid, refundPaise, keptPaise } for the guest
+function previewCancel(booking) {
+    const paid = booking.deposit?.status === 'paid';
+    const paise = paid ? (booking.payment?.amountPaise || 0) : 0;
+    const back = paid && depositGoesBack(booking, 'customer');
+    return { paid, refundPaise: back ? paise : 0, keptPaise: paid && !back ? paise : 0, refundHours: booking.rules?.refundHours ?? 0 };
+}
+
 async function cancelBooking(booking, by, { message } = {}) {
     const done = await tb.cancel(booking, by);
     if (!done) return null;
     if (message) await TableBooking.updateOne({ _id: done._id }, { $set: { cancelNote: String(message).trim().slice(0, 300) } });
     if (done.deposit.status === 'paid') {
-        const early = by === 'owner' || done.startsAt.getTime() - Date.now() >= (done.rules?.refundHours ?? 0) * HOUR;
-        if (early) await refundDeposit(done._id, `${by} cancelled`, { instant: by === 'owner' });
+        if (depositGoesBack(done, by)) await refundDeposit(done._id, `${by} cancelled`, { instant: by === 'owner' });
         else await TableBooking.updateOne({ _id: done._id }, { $set: { 'deposit.status': 'kept' } });
     }
     return TableBooking.findById(done._id).lean();
@@ -213,4 +223,4 @@ function startBookingHolds() {
     timer.unref?.();
 }
 
-module.exports = { available, start, confirm, verify, check, onWebhook, refundDeposit, cancelBooking, allow, seated, adjusted, noShow, sweep, remind, startBookingHolds };
+module.exports = { available, start, confirm, verify, check, onWebhook, refundDeposit, cancelBooking, previewCancel, allow, seated, adjusted, noShow, sweep, remind, startBookingHolds };

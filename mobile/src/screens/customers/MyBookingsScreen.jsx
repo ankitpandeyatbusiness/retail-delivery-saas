@@ -9,7 +9,7 @@ import { useBrand } from '../../components/common/kit';
 import { PageHeader, Card, Pill, Button, Empty } from '../../components/owners/ui';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { BOOKING_STATUS, DEPOSIT_STATUS } from '../owners/OwnerBookingsScreen';
-import { fetchMyBookings, cancelBooking, payBookingAgain, fetchMyWaitlist, leaveWaitlist } from '../../api/customers/shopApi';
+import { fetchMyBookings, cancelBooking, previewCancelBooking, payBookingAgain, fetchMyWaitlist, leaveWaitlist } from '../../api/customers/shopApi';
 import BookingTicket from '../../components/customers/BookingTicket';
 import { shareBookingReceipt, hasReceipt } from '../../utils/customers/shareBookingReceipt';
 import { showToast } from '../../components/customers/shop';
@@ -50,10 +50,14 @@ export default function MyBookingsScreen() {
     const shown = (items || []).filter((b) => (b.status !== 'held' || waiting(b) || gone(b)) && inFilter(b));
 
     const cancel = async (b) => {
-        const refund = b.deposit?.status === 'paid'
-            ? (new Date(b.startsAt).getTime() - Date.now() >= (b.rules?.refundHours ?? 0) * 3600000 ? tr('Your deposit goes back to you.') : tr('Too late for a refund: the restaurant keeps the deposit.'))
-            : '';
-        const yes = await ask({ title: tr('Cancel this booking?'), message: `${tr('{d} at {t}, {n} guests.', { d: b.date, t: b.time, n: b.party })} ${refund}`.trim(), confirmText: tr('Cancel booking'), destructive: true });
+        // the server says what happens to the deposit (the same rule the real cancel uses); the amount is shown in rupees
+        let p = null;
+        if (b.deposit?.status === 'paid') { try { p = await previewCancelBooking(b._id); } catch (e) { p = null; } }
+        const rup = (paise) => `₹${+(paise / 100).toFixed(2)}`;
+        const refund = !p ? ''
+            : p.refundPaise > 0 ? `\n\n${tr('You will get {amount} back as a refund.', { amount: rup(p.refundPaise) })} ${tr('It reaches your account in 5 to 7 working days.')}`
+                : p.keptPaise > 0 ? `\n\n${tr('Too late for a refund: the restaurant keeps your deposit of {amount}.', { amount: rup(p.keptPaise) })}` : '';
+        const yes = await ask({ title: tr('Cancel this booking?'), message: `${tr('{d} at {t}, {n} guests.', { d: b.date, t: b.time, n: b.party })}${refund}`.trim(), confirmText: tr('Cancel booking'), cancelText: tr('Go back'), destructive: true });
         if (!yes) return;
         setBusyId(b._id);
         try { await cancelBooking(b._id); await load(); } catch (e) { showToast(e?.response?.data?.error || tr('Could not cancel')); } finally { setBusyId(''); }

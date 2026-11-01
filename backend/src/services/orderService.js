@@ -406,6 +406,13 @@ async function placeOrderLocked({ tenant, userId, body, idempotencyKey }) {
     }
 }
 
+// what the customer would get back if he cancelled right now (shown in the app before he confirms)
+async function previewCancelByCustomer({ tenant, userId, orderId }) {
+    const order = await Order.findOne({ _id: orderId, tenantId: tenant._id, userId });
+    if (!order) throw httpError(404, 'Order not found');
+    return orderStatus.previewCancel({ order, tenant });
+}
+
 async function cancelByCustomer({ tenant, userId, orderId, reason }) {
     const order = await Order.findOne({ _id: orderId, tenantId: tenant._id, userId });
     if (!order) throw httpError(404, 'Order not found');
@@ -550,6 +557,6 @@ async function updateStatusByShop({ tenantId, actor, orderId, status, note, reas
 }
 
 module.exports = {
-    quote, placeOrder, pickupSlots, requestPickupTime, pickupRequests, answerPickupRequest, canChangePickup, cancelByCustomer, reorderCart, updateStatusByShop,
+    quote, placeOrder, pickupSlots, requestPickupTime, pickupRequests, answerPickupRequest, canChangePickup, cancelByCustomer, previewCancelByCustomer, reorderCart, updateStatusByShop,
     customerCanCancel, nextStatuses,
 };

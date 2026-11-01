@@ -383,4 +383,12 @@ async function change({ order, status, actor, note, tenant, reasonCode, outcomeO
     return updated;
 }
 
-module.exports = { change };
+// "If I cancel now, what do I get back?" The SAME maths as the real cancel (outcomeFor), so the number the customer is shown is the
+// number he gets. Nothing is saved. Amounts are whole paise.
+async function previewCancel({ order, tenant }) {
+    const rules = await require('./moneyRules').forTenant(order.tenantId).catch(() => null);
+    const o = outcomeFor({ rules, order, kind: 'cancel', actorType: 'customer', frozen: shopFrozen(tenant), now: new Date() });
+    return { online: !o.cod, cod: o.cod, refundPaise: o.refundPaise, keptPaise: o.keptPaise, paidPaise: o.refundPaise + o.keptPaise, charged: o.cod && o.pct > 0 };
+}
+
+module.exports = { change, previewCancel };

@@ -51,6 +51,7 @@ export const fetchPickupDue = () => d(api.get('/orders/pickup-due'));   // { ite
 export const answerPickup = (id, answer) => d(api.post(`/orders/${id}/pickup-answer`, { answer }));   // collected | not_wanted | later | coming | arrived | on_time | late | more_time
 export const askCancelOrder = (id, note) => d(api.post(`/orders/${id}/cancel-request`, { note }));
 export const cancelOrder = (id, reason) => d(api.post(`/orders/${id}/cancel`, { reason }));
+export const previewCancelOrder = (id) => d(api.get(`/orders/${id}/cancel-preview`));   // what he gets back if he cancels now
 export const reorderOrder = (id) => d(api.post(`/orders/${id}/reorder`));
 export const rateOrder = (id, ratings) => d(api.post(`/orders/${id}/rating`, { ratings }));
 export const fetchRatings = (id) => d(api.get(`/orders/${id}/rating`));
@@ -110,6 +111,7 @@ export const fetchBookingCard = () => d(api.get('/bookings/card'));             
 export const fetchMyBookings = () => d(api.get('/bookings/mine'));
 export const fetchBookingTicket = (id) => d(api.get(`/bookings/${id}/ticket`));   // { token, code, table, date, time, qr: { size, rows } }
 export const cancelBooking = (id) => d(api.post(`/bookings/${id}/cancel`));
+export const previewCancelBooking = (id) => d(api.get(`/bookings/${id}/cancel-preview`));   // what happens to his deposit if he cancels now
 export const payBookingAgain = (id) => d(api.post(`/bookings/${id}/pay`));                        // { booking, pay }: to pay a booking that is still held
 export const verifyBooking = (id, proof) => d(api.post(`/bookings/${id}/verify`, proof));          // { paid, booking }
 export const checkBooking = (id) => d(api.post(`/bookings/${id}/check`));                          // { paid, booking }

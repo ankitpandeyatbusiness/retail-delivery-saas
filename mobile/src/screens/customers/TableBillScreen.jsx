@@ -12,7 +12,7 @@ import { useAuthStore } from '../../store/common/useAuthStore';
 import { shareTableBill } from '../../utils/customers/shareTableBill';
 import WaitTimer, { ServedIn, useTick, clock as mmss } from '../../components/common/WaitTimer';
 import { CallCard, TipCard, SplitCard } from '../../components/customers/TableExtras';
-import { nudgeTable, cancelOrder, askCancelOrder, freeMyTable } from '../../api/customers/shopApi';
+import { nudgeTable, cancelOrder, previewCancelOrder, askCancelOrder, freeMyTable } from '../../api/customers/shopApi';
 import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
 import { whereOf } from '../../utils/common/where';
@@ -60,10 +60,14 @@ export default function TableBillScreen() {
     // ordered by mistake: cancel the round himself in the first minutes; later the shop decides
     const roundCancel = async (r) => {
         const self = !!r.canCancel;
+        // a round that was already paid online: say the exact amount that comes back
+        let p = null;
+        if (self) { try { p = await previewCancelOrder(r.id); } catch (e) { p = null; } }
+        const back = p?.online && p.refundPaise > 0 ? ` ${tr('You will get {amount} back as a refund.', { amount: `₹${+(p.refundPaise / 100).toFixed(2)}` })}` : '';
         const yes = await ask({
             title: self ? tr('Cancel this round?') : tr('Ask the shop to cancel?'),
-            message: self ? tr('You will not be charged for it.') : tr('It is already being made, so the shop decides. They will reply soon.'),
-            confirmText: self ? tr('Cancel the round') : tr('Ask the shop'), cancelText: tr('No'),
+            message: self ? `${tr('You will not be charged for it.')}${back}` : tr('It is already being made, so the shop decides. They will reply soon.'),
+            confirmText: self ? tr('Cancel the round') : tr('Ask the shop'), cancelText: tr('Go back'),
         });
         if (!yes) return;
         try {

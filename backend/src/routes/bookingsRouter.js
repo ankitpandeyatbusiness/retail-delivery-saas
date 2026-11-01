@@ -147,6 +147,11 @@ router.get('/mine', wrap(async (req, res) => {
     res.json({ items });
 }));
 
+// What he gets back if he cancels right now (the app shows it before he confirms)
+router.get('/:id/cancel-preview', wrap(async (req, res) => {
+    res.json(bp.previewCancel(await mineBooking(req)));
+}));
+
 router.post('/:id/cancel', wrap(async (req, res) => {
     const b = await mineBooking(req);
     if (b.startsAt.getTime() < Date.now()) throw httpError(400, 'This booking time has passed');

@@ -7,7 +7,7 @@ import { useBrand } from '../common/kit';
 import { showToast, tint, closedText } from './shop';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useCartStore } from '../../store/customers/shopStores';
-import { cancelOrder, reorderOrder, fetchProduct } from '../../api/customers/shopApi';
+import { cancelOrder, previewCancelOrder, reorderOrder, fetchProduct } from '../../api/customers/shopApi';
 import { playSfx } from '../../utils/common/sfx';
 import { tr } from '../../i18n';
 
@@ -40,10 +40,27 @@ export function StatusPill({ status, type }) {
     );
 }
 
+// The words of the cancel popup. `p` is the server's answer to "what do I get back if I cancel now" (null when it could not be asked).
+// The amounts come from the server, never worked out here, so the number shown is the number he gets.
+export function cancelWords(order, p) {
+    const base = tr('Order #{orderNo} will be cancelled.', { orderNo: order.orderNo });
+    if (!p) return base;
+    if (p.online && p.paidPaise > 0) {
+        const kept = p.keptPaise > 0 ? tr('The shop keeps {amount} because it has already started your order.', { amount: rs(p.keptPaise / 100) }) : '';
+        if (p.refundPaise > 0) {
+            return [base, tr('You will get {amount} back as a refund.', { amount: rs(p.refundPaise / 100) }), kept, tr('It reaches your account in 5 to 7 working days.')].filter(Boolean).join('\n\n');
+        }
+        return [base, tr('You will not get a refund.'), kept].filter(Boolean).join('\n\n');
+    }
+    if (p.charged) return [base, tr('The food is already being made, so you may be charged for it.')].join('\n\n');
+    return base;
+}
+
 // Asks first, then cancels. The server decides if cancel is allowed (canCancel).
+// Before asking, the server is asked what he would get back, and the popup says the exact amount.
 export function cancelFlow(order, { onDone, setBusy } = {}) {
-    themedAlert(tr('Cancel this order?'), tr('Order #{orderNo} will be cancelled.', { orderNo: order.orderNo }), [
-        { text: tr('Keep order'), style: 'cancel' },
+    const ask = (p) => themedAlert(tr('Cancel this order?'), cancelWords(order, p), [
+        { text: tr('Go back'), style: 'cancel' },
         {
             text: tr('Cancel order'),
             style: 'destructive',
@@ -51,7 +68,7 @@ export function cancelFlow(order, { onDone, setBusy } = {}) {
                 if (setBusy) setBusy(true);
                 try {
                     const u = await cancelOrder(order.id);
-                    showToast(tr('Order cancelled'));
+                    showToast(p?.refundPaise > 0 ? tr('Order cancelled. {amount} will be refunded.', { amount: rs(p.refundPaise / 100) }) : tr('Order cancelled'));
                     playSfx('orderCancelled');
                     if (onDone) onDone(u);
                 } catch (e) {
@@ -60,6 +77,8 @@ export function cancelFlow(order, { onDone, setBusy } = {}) {
             },
         },
     ]);
+    if (setBusy) setBusy(true);
+    previewCancelOrder(order.id).then(ask, () => ask(null)).finally(() => { if (setBusy) setBusy(false); });
 }
 
 // product + what was ordered -> a cart line (price is only a preview, the quote is the truth)

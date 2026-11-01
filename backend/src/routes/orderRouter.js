@@ -153,6 +153,12 @@ router.post('/:id/pickup-time', wrap(async (req, res) => {
     res.json(view(order, req.tenant));
 }));
 
+// What he gets back if he cancels right now. Nothing changes; the app shows it before he confirms.
+router.get('/:id/cancel-preview', wrap(async (req, res) => {
+    checkId(req);
+    res.json(await svc.previewCancelByCustomer({ tenant: req.tenant, userId: req.auth.userId, orderId: req.params.id }));
+}));
+
 router.post('/:id/cancel', wrap(async (req, res) => {
     checkId(req);
     const order = await svc.cancelByCustomer({
