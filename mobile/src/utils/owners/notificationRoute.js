@@ -17,7 +17,7 @@ export function ownerRoute(n) {
     if (d.kind === 'rider_leave' && d.riderId) return { name: 'OwnerRider', params: { userId: String(d.riderId) } };
     if (d.kind === 'booking') return { name: 'OwnerBookings' };
     if (d.kind === 'inquiry' && d.inquiryId) return { name: 'OwnerInquiry', params: { id: String(d.inquiryId) } };
-    if (d.kind === 'fee_plan') return { name: 'OwnerRent' };
+    if (d.kind === 'fee_plan' || d.kind === 'rent') return { name: 'OwnerRent' };
     if (d.kind === 'closing_report') return { name: 'OwnerClosing' };
     if (d.kind === 'business_report') return { name: 'OwnerBusiness', params: d.period ? { range: String(d.period) } : undefined };
     if (ORDER.has(type) && d.orderId) return { name: 'OwnerOrder', params: { id: String(d.orderId) } };

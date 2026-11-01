@@ -117,6 +117,11 @@ router.put('/tenants/:tid/billing', loadTenant, wrap(async (req, res) => {
     const fresh = await Tenant.findById(id).select('slug createdAt billing').lean();
     await syncFreeState(fresh, platform);
     invalidateTenant(fresh.slug);
+    // free limits or the go-live date changed and the state did not flip (a flip is announced by syncFreeState itself)
+    const limitsTouched = ['freeOrdersOverride', 'freeMonthsOverride', 'goLiveAt'].some((k) => set[`billing.${k}`] !== undefined || unset[`billing.${k}`]) || body.reset === true;
+    if (limitsTouched && (await Tenant.findById(id).select('billing.state').lean())?.billing?.state === req.auditBefore.billing?.state) {
+        require('../services/shopSettingsNotice').freeChanged(id);
+    }
 
     const after = await Tenant.findById(id).select('createdAt billing').lean();
     res.json({ billing: after.billing, free: freeStatus(after, platform) });
@@ -228,6 +233,7 @@ router.post('/tenants/:tid/invoices/late-fees/waive-all', loadTenant, wrap(async
     if (!reason) throw httpError(400, 'Write a reason');
     const r = await require('../services/lateFees').waiveAllFor(req.tenantDoc._id, { reason, by: req.admin.email });
     req.auditBefore = { waived: r.waived, amount: r.amount };
+    if (r.waived) require('../services/shopSettingsNotice').lateFeesWaived(req.tenantDoc._id);
     res.json(r);
 }));
 
@@ -248,6 +254,7 @@ async function cancelInvoice(req, res, defaultReason) {
     await creditNotes.issueFor(inv, { reason, by: req.admin.email });   // a bill that was issued is cancelled by a credit note, not just a stamp
     if (inv.kind !== 'custom') await require('../services/lateFees').voidFor(inv, { reason, by: req.admin.email });   // its unpaid late fees go with it
     await enforceTenant(inv.tenantId);
+    require('../services/shopSettingsNotice').billCancelled(inv.tenantId, { waived: /^Waived/.test(defaultReason), period: inv.period });
     res.json(withOverdue((await SubscriptionInvoice.findById(inv._id).lean()) || inv));
 }
 
@@ -268,6 +275,7 @@ router.patch('/subscriptions/invoices/:id/extend-grace', wrap(async (req, res) =
         req.params.id, { $set: { graceEndsAt: new Date(base + days * DAY_MS) } }, { returnDocument: 'after' },
     ).lean();
     await enforceTenant(inv.tenantId);
+    require('../services/shopSettingsNotice').graceExtended(inv.tenantId, inv.graceEndsAt);
     res.json(withOverdue(inv));
 }));
 
@@ -294,6 +302,7 @@ router.post('/tenants/:tid/billing/go-live', loadTenant, wrap(async (req, res) =
 
     await enforceTenant(id);   // keeps an unpaid bill in force, otherwise sets the free state right
     invalidateTenant(req.tenantDoc.slug);
+    require('../services/shopSettingsNotice').freeStarted(id);
     const after = await Tenant.findById(id).select('billing').lean();
     res.json({ ok: true, billing: after.billing });
 }));

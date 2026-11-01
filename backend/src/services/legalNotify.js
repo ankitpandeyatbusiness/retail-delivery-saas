@@ -7,7 +7,7 @@ const adapter = require('./adapters/push');
 const i18n = require('../notifications/i18n');
 
 const EVERYONE = ['customer', 'rider', 'kitchen', 'waiter', 'admin'];
-const WHO = { customer_terms: EVERYONE, privacy: EVERYONE, about_us: EVERYONE, owner_terms: ['admin'], owner_privacy: ['admin'] };
+const WHO = { customer_terms: EVERYONE, privacy: EVERYONE, about_us: EVERYONE, owner_terms: ['admin'], owner_privacy: ['admin'], rider_terms: ['rider'], rider_privacy: ['rider'], staff_terms: ['kitchen', 'waiter'], staff_privacy: ['kitchen', 'waiter'] };
 
 const TEXT = {
     customer_terms: { title: 'Terms of Service updated', body: 'We have updated our Terms of Service. You can read them in About Us.' },
@@ -15,6 +15,10 @@ const TEXT = {
     about_us: { title: 'About Us updated', body: 'Our About Us page has new information. Take a look.' },
     owner_terms: { title: 'Terms of Service for shop owners updated', body: 'Please open About Us to read the new terms and agree to them.' },
     owner_privacy: { title: 'Privacy Policy for shop owners updated', body: 'Please open About Us to read the new policy and agree to it.' },
+    rider_terms: { title: 'Terms of Service for riders updated', body: 'We have updated the terms for riders. You can read them in About Us.' },
+    rider_privacy: { title: 'Privacy Policy for riders updated', body: 'We have updated the privacy policy for riders. You can read it in About Us.' },
+    staff_terms: { title: 'Terms of Service for kitchen staff and waiters updated', body: 'We have updated your terms. You can read them in About Us.' },
+    staff_privacy: { title: 'Privacy Policy for kitchen staff and waiters updated', body: 'We have updated your privacy policy. You can read it in About Us.' },
 };
 
 const BATCH = 500;

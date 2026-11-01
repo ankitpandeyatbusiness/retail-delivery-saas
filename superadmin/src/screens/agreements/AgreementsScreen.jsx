@@ -13,7 +13,7 @@ import { DOC_NAME } from './names';
 
 const GROUPS = [
     ['Asked to agree in the apps', ['team_terms', 'owner_terms', 'owner_privacy'], 'people'],
-    ['People only read these', ['customer_terms', 'privacy', 'about_us'], 'catalog'],
+    ['People only read these', ['rider_terms', 'rider_privacy', 'staff_terms', 'staff_privacy', 'customer_terms', 'privacy', 'about_us'], 'catalog'],
 ];
 const day = (d) => (d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' }) : '');
 

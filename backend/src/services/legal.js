@@ -4,7 +4,8 @@
 //   (names filled in) and asks everybody in that audience to agree:
 //     team      every other superadmin (not the supreme one) -> team_terms
 //     owner     shop owners (role admin)                     -> owner_terms
-//     customer  customers, riders, kitchen staff and waiters: they only READ customer_terms, privacy and about_us; nothing to agree to
+//     customer  customers: they only READ customer_terms, privacy and about_us; nothing to agree to
+//     rider / kitchen / waiter: they READ their own terms and privacy policy (rider_*, staff_*) as well; nothing to agree to
 //
 //   WHEN the agree screen shows: on the person's SECOND visit after the version was sent (a visit = opening the app after at least
 //   30 minutes away), never at the first. A document sent as askWhen "free_ends" waits for the shop's free period to end.
@@ -24,6 +25,8 @@ const VISIT_GAP_MS = 30 * 60000;
 const KEYS = Object.keys(DOCS);
 const GATE_DOC = { team: 'team_terms', owner: ['owner_terms', 'owner_privacy'] };
 const PUBLIC_KEYS = ['customer_terms', 'privacy', 'about_us'];
+// riders, kitchen staff and waiters have their own terms and privacy policy: they read them, nothing to agree to
+const READ_ONLY_DOCS = { rider: ['rider_terms', 'rider_privacy'], kitchen: ['staff_terms', 'staff_privacy'], waiter: ['staff_terms', 'staff_privacy'] };
 
 /* ------------------------------ the text ------------------------------ */
 async function variables() {
@@ -235,7 +238,7 @@ async function accept({ who, userId, role, admin, tenant, key, version, name, ph
 async function mine({ who, userId, role, admin }) {
     await ensureDocs();
     const own = gateKeysFor({ who, role, admin });
-    const keys = [...new Set([...own, 'customer_terms', 'privacy'].filter(Boolean))];
+    const keys = [...new Set([...own, ...(who === 'user' ? READ_ONLY_DOCS[role] || [] : []), 'customer_terms', 'privacy'].filter(Boolean))];
     const docs = await LegalDocument.find({ key: { $in: keys } }).lean();
     const acc = await LegalAcceptance.find({ who, userId, docKey: { $in: keys } }).sort({ version: -1 }).lean();
     return keys.map((key) => {
@@ -294,6 +297,6 @@ async function markHandover(tenantId, on, by) {
 }
 
 module.exports = {
-    KEYS, PUBLIC_KEYS, GATE_DOC, gateKeysFor, ensureDocs, list, getFull, saveDraft, publish, readCurrent, status, accept, mine, acceptances, markHandover,
+    KEYS, PUBLIC_KEYS, GATE_DOC, READ_ONLY_DOCS, gateKeysFor, ensureDocs, list, getFull, saveDraft, publish, readCurrent, status, accept, mine, acceptances, markHandover,
     variables, fill, blanksIn, shopNameFor, gateKeyFor, isSupremeAdmin, VISIT_GAP_MS,
 };

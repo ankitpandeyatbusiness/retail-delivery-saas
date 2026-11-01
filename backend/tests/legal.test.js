@@ -44,7 +44,7 @@ describe('the documents', () => {
     test('six documents start as drafts; everybody can read, only the supreme admin writes and sends', async () => {
         const list = await api('get', '/agreements', vivek);
         assert.equal(list.status, 200, JSON.stringify(list.body));
-        assert.deepEqual(list.body.items.map((d) => d.key).sort(), ['about_us', 'customer_terms', 'owner_privacy', 'owner_terms', 'privacy', 'team_terms']);
+        assert.deepEqual(list.body.items.map((d) => d.key).sort(), ['about_us', 'customer_terms', 'owner_privacy', 'owner_terms', 'privacy', 'rider_privacy', 'rider_terms', 'staff_privacy', 'staff_terms', 'team_terms']);
         assert.ok(list.body.items.every((d) => d.currentVersion === 0));
         assert.equal((await api('put', '/agreements/owner_terms/draft', vivek, { title: 'x', body: 'y'.repeat(40) })).status, 403);
         assert.equal((await send('owner_terms').then(() => api('post', '/agreements/owner_terms/send', vivek, {}))).status, 403);
@@ -200,6 +200,18 @@ describe('the second visit', () => {
             await notify.notifyNewVersion('owner_terms');
             assert.deepEqual(calls.map((c) => c.tokens).flat(), ['ExponentPushToken[own]']);   // owner documents reach shop owners only
         } finally { pushAdapter.send = real; }
+    });
+
+    test('riders, kitchen staff and waiters read their own terms and privacy policy and nobody else documents', async () => {
+        await send('rider_terms'); await send('rider_privacy'); await send('staff_terms'); await send('staff_privacy');
+        const get = (u, url) => request(app).get('/api/legal' + url).set(u.headers);
+        assert.equal((await get(w.rider, '/doc/rider_terms')).status, 200);
+        assert.equal((await get(w.rider, '/doc/rider_privacy')).status, 200);
+        assert.equal((await get(w.rider, '/doc/staff_terms')).status, 404);
+        assert.equal((await get(w.customer, '/doc/rider_terms')).status, 404);
+        const mine = await legal.mine({ ...asUser(w.rider) });
+        assert.deepEqual(mine.map((d) => d.key).sort(), ['customer_terms', 'privacy', 'rider_privacy', 'rider_terms']);
+        assert.ok(mine.every((d) => !d.mustAgree));
     });
 
     test('a rider only reads the customer documents: never asked to agree', async () => {

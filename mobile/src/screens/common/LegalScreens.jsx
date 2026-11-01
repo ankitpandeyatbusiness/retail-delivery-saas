@@ -84,6 +84,8 @@ export function AboutUsScreen() {
     useEffect(() => { fetchPublicLegal('about_us').then(setDoc).catch(() => setDoc({ title: 'About Us', body: '' })); }, []);
     const links = [
         ...(role === 'admin' ? [{ key: 'owner_terms', title: tl('Terms of Service for Shop Owners') }, { key: 'owner_privacy', title: tl('Privacy Policy for Shop Owners') }] : []),
+        ...(role === 'rider' ? [{ key: 'rider_terms', title: tl('Terms of Service for Riders') }, { key: 'rider_privacy', title: tl('Privacy Policy for Riders') }] : []),
+        ...(role === 'kitchen' || role === 'waiter' ? [{ key: 'staff_terms', title: tl('Terms of Service for Kitchen Staff and Waiters') }, { key: 'staff_privacy', title: tl('Privacy Policy for Kitchen Staff and Waiters') }] : []),
         { key: 'customer_terms', title: tl('Terms of Service for Customers'), pub: true },
         { key: 'privacy', title: tl('Privacy Policy for Customers'), pub: true },
     ];

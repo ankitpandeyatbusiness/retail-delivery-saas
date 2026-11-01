@@ -90,6 +90,9 @@ async function syncFreeState(tenant, platform, now = new Date()) {
     const r = await Tenant.updateOne({ _id: tenant._id, 'billing.state': { $nin: ['grace', 'paused'] } }, update);
     if (r.modifiedCount && set['billing.freeEndedAt']) {   // free service just ended: tell the superadmin, once
         adminAlerts.alert('admin_free_ended', { tenantId: tenant._id }).catch(() => {});
+        require('./shopSettingsNotice').freeEnded(tenant._id);   // and the owner: rent starts now
+    } else if (r.modifiedCount && set['billing.state'] === 'free' && b.state && b.state !== 'free') {
+        require('./shopSettingsNotice').freeExtended(tenant._id);   // a raised limit put the shop back in its free period
     }
     return want;
 }
