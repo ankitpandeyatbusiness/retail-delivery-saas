@@ -16,13 +16,14 @@ import { ask } from '../../components/common/dialog';
 import { shareBookingReceipt, hasReceipt } from '../../utils/customers/shareBookingReceipt';
 import { ease } from '../../utils/common/ease';
 import { tr } from '../../i18n';
+import { niceDate } from '../../utils/common/dayNames';
 
 export const BOOKING_STATUS = { held: 'Waiting for payment', confirmed: 'Booked', seated: 'Seated', no_show: 'No-show', cancelled: 'Cancelled', expired: 'Expired' };
 // what became of the deposit, in words (guest and owner screens)
 export const DEPOSIT_STATUS = { unpaid: 'Deposit not paid', paid: 'Deposit paid', refunding: 'Refund on its way', refund_failed: 'Refund on its way', refunded: 'Deposit refunded', kept: 'Deposit kept by the restaurant', adjusted: 'Deposit taken off the bill' };
 const shift = (ymd, n) => new Date(new Date(`${ymd}T12:00:00Z`).getTime() + n * 86400000).toISOString().slice(0, 10);
 const todayIst = () => new Date(Date.now() + 330 * 60000).toISOString().slice(0, 10);
-const nice = (ymd) => new Date(`${ymd}T12:00:00Z`).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+const nice = (ymd) => niceDate(ymd);
 
 export default function OwnerBookingsScreen() {
     const nav = useNavigation();
@@ -91,7 +92,7 @@ export default function OwnerBookingsScreen() {
             <PageHeader title={tr('Reservations')} />
             <ClosedBookingsBanner onDone={() => load()} />
             <View style={{ flexDirection: 'row', paddingHorizontal: 16, marginBottom: 10 }}>
-                {[['day', 'By day'], ['all', 'All bookings']].map(([k, l]) => (
+                {[['day', tr('By day')], ['all', tr('All bookings')]].map(([k, l]) => (
                     <Pressable key={k} onPress={() => { if (mode !== k) { ease(); setData(null); setMode(k); } }} style={{ flex: 1, paddingVertical: 10, alignItems: 'center', borderBottomWidth: 3, borderBottomColor: mode === k ? primary : border }}>
                         <Text style={{ color: mode === k ? primary : muted, fontWeight: '900' }}>{tr(l)}</Text>
                     </Pressable>
@@ -116,10 +117,10 @@ export default function OwnerBookingsScreen() {
                 </View>
             )}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0, height: 38, marginTop: 12 }} contentContainerStyle={{ paddingHorizontal: 16, alignItems: 'center' }}>
-                {[['any', 'Any time'], ['morning', 'Morning'], ['afternoon', 'Afternoon'], ['evening', 'Evening']].map(([k, l]) => chip(tr(l), slot === k, () => { ease(); setSlot(k); }, `t${k}`))}
+                {[['any', tr('Any time')], ['morning', tr('Morning')], ['afternoon', tr('Afternoon')], ['evening', tr('Evening')]].map(([k, l]) => chip(tr(l), slot === k, () => { ease(); setSlot(k); }, `t${k}`))}
             </ScrollView>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0, height: 38, marginTop: 10, marginBottom: 8 }} contentContainerStyle={{ paddingHorizontal: 16, alignItems: 'center' }}>
-                {[['all', 'All'], ['pending', 'To allow'], ['confirmed', 'Booked'], ['seated', 'Seated'], ['no_show', 'No-show'], ['cancelled', 'Cancelled']].map(([k, l]) => chip(tr(l), state === k, () => { ease(); setState(k); }, `s${k}`))}
+                {[['all', 'All'], ['pending', tr('To allow')], ['confirmed', 'Booked'], ['seated', 'Seated'], ['no_show', 'No-show'], ['cancelled', 'Cancelled']].map(([k, l]) => chip(tr(l), state === k, () => { ease(); setState(k); }, `s${k}`))}
             </ScrollView>
             <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 32 }}>
                 {data === null ? <ListShimmer /> : null}
