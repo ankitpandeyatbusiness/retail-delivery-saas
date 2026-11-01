@@ -135,7 +135,7 @@ export default function OwnerServiceScreen() {
                     <Card key={q.id || `n${i}`} style={{ marginHorizontal: 0, opacity: q.enabled ? 1 : 0.6 }}>
                         <Pressable onPress={() => { ease(); setOpen(open === i ? -1 : i); }} style={{ flexDirection: 'row', alignItems: 'center' }}>
                             <View style={{ flex: 1, minWidth: 0, paddingRight: 8 }}>
-                                <Text numberOfLines={1} style={{ color: text, fontWeight: '800', fontSize: 15 }}>{q.label || tr('New question')}</Text>
+                                <Text numberOfLines={1} style={{ color: text, fontWeight: '800', fontSize: 15 }}>{q.label ? tr(q.label) : tr('New question')}</Text>
                                 <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{tr(TYPE_LABEL[q.type])}{q.required ? ` · ${tr('required')}` : ''}{q.recommended ? '' : ` · ${tr('yours')}`}</Text>
                             </View>
                             <Ionicons name={open === i ? 'chevron-up' : 'chevron-down'} size={18} color={muted} style={{ marginRight: 10 }} />

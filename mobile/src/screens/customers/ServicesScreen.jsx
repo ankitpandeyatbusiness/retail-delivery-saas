@@ -32,7 +32,7 @@ export default function ServicesScreen() {
                                 <Ionicons name={s.icon || 'sparkles-outline'} size={23} color={primary} />
                             </View>
                             <View style={{ flex: 1, minWidth: 0 }}>
-                                <Text numberOfLines={1} style={{ color: text, fontWeight: '900', fontSize: 16 }}>{s.name}</Text>
+                                <Text numberOfLines={1} style={{ color: text, fontWeight: '900', fontSize: 16 }}>{tr(s.name)}</Text>
                                 <Text style={{ color: muted, fontSize: 13, marginTop: 2 }}>{priceLine(s)}</Text>
                             </View>
                             <Ionicons name="chevron-forward" size={18} color={muted} />

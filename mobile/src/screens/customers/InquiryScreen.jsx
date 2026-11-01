@@ -34,11 +34,11 @@ export default function InquiryScreen() {
     const closed = i.status === 'closed';
 
     return (
-        <FormPage fixed title={i.serviceName}
+        <FormPage fixed title={tr(i.serviceName)}
             footer={closed ? <Text style={{ color: muted, textAlign: 'center' }}>{tr('The shop ended this conversation.')}</Text>
                 : <ReplyBox onSend={send} pickMany={(n) => pickImages({ limit: n })} upload={async (p) => (await uploadInquiryPhoto(p)).url} />}>
             <View style={{ flexDirection: 'row', paddingHorizontal: 16 }}>
-                {[['chat', 'Chat'], ['details', 'Details']].map(([k, l]) => (
+                {[['chat', tr('Chat')], ['details', tr('Details')]].map(([k, l]) => (
                     <Pressable key={k} onPress={() => { ease(); setTab(k); }} style={{ flex: 1, paddingVertical: 10, alignItems: 'center', borderBottomWidth: 3, borderBottomColor: tab === k ? primary : border }}>
                         <Text style={{ color: tab === k ? primary : muted, fontWeight: '900' }}>{tr(l)}</Text>
                     </Pressable>
@@ -48,7 +48,7 @@ export default function InquiryScreen() {
                 <ScrollView contentContainerStyle={{ paddingTop: 8, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
                     <Card>
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <Text style={{ color: text, fontWeight: '900', fontSize: 17, flex: 1 }}>{i.serviceName}</Text>
+                            <Text style={{ color: text, fontWeight: '900', fontSize: 17, flex: 1 }}>{tr(i.serviceName)}</Text>
                             <Pill label={tr(STATUS_LABEL[i.status] || 'New')} color={muted} />
                         </View>
                         <Text style={{ color: muted, marginTop: 2 }}>{new Date(i.createdAt).toLocaleDateString()}</Text>

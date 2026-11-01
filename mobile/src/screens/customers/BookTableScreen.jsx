@@ -12,9 +12,10 @@ import { FormShimmer, LineShimmer } from '../../components/owners/shimmer';
 import { showToast } from '../../components/customers/shop';
 import { ease } from '../../utils/common/ease';
 import { tr } from '../../i18n';
+import { weekdayShort } from '../../utils/common/dayNames';
 
 const plus = (ymd, n) => new Date(new Date(`${ymd}T12:00:00Z`).getTime() + n * 86400000).toISOString().slice(0, 10);
-const dayLabel = (ymd) => new Date(`${ymd}T12:00:00Z`).toLocaleDateString([], { weekday: 'short', timeZone: 'UTC' });
+const dayLabel = (ymd) => weekdayShort(ymd);
 
 export default function BookTableScreen() {
     const nav = useNavigation();

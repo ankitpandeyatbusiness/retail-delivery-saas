@@ -3,6 +3,7 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import { useBrand } from './kit';
+import { tr } from '../../i18n';
 
 const norm = (x) => String(x || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
@@ -18,12 +19,12 @@ export default function LegalText({ text, title }) {
                 const line = raw.trim();
                 if (!line) return <View key={i} style={{ height: 6 }} />;
                 let m = line.match(/^#\s+(.*)$/);
-                if (m) return <Text key={i} style={{ color: ink, fontSize: 16, fontWeight: '900', marginTop: i === 0 ? 0 : 18, marginBottom: 4 }}>{m[1]}</Text>;
+                if (m) return <Text key={i} style={{ color: ink, fontSize: 16, fontWeight: '900', marginTop: i === 0 ? 0 : 18, marginBottom: 4 }}>{tr(m[1])}</Text>;
                 m = line.match(/^-\s+(.*)$/);
-                if (m) return <Text key={i} style={{ color: ink, fontSize: 14.5, lineHeight: 21, marginTop: 3, paddingLeft: 14 }}>{'•  '}{m[1]}</Text>;
+                if (m) return <Text key={i} style={{ color: ink, fontSize: 14.5, lineHeight: 21, marginTop: 3, paddingLeft: 14 }}>{'•  '}{tr(m[1])}</Text>;
                 m = line.match(/^(\d+)\.\s+(.*)$/);
-                if (m) return <Text key={i} style={{ color: ink, fontSize: 14.5, lineHeight: 21, marginTop: 3, paddingLeft: 14 }}>{`${m[1]}.  `}{m[2]}</Text>;
-                return <Text key={i} style={{ color: muted, fontSize: 14.5, lineHeight: 21, marginTop: 3 }}>{line}</Text>;
+                if (m) return <Text key={i} style={{ color: ink, fontSize: 14.5, lineHeight: 21, marginTop: 3, paddingLeft: 14 }}>{`${m[1]}.  `}{tr(m[2])}</Text>;
+                return <Text key={i} style={{ color: muted, fontSize: 14.5, lineHeight: 21, marginTop: 3 }}>{tr(line)}</Text>;
             })}
         </View>
     );

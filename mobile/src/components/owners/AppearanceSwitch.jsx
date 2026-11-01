@@ -46,7 +46,7 @@ export default function AppearanceSwitch({ last }) {
                     return (
                         <Pressable key={id} onPress={() => choose(id)} style={styles.item} accessibilityRole="button" accessibilityState={{ selected: on }}>
                             <Ionicons name={icon} size={15} color={on ? onPrimary : muted} />
-                            <Text style={{ color: on ? onPrimary : muted, fontSize: 12.5, fontWeight: '800', marginLeft: 5 }}>{label}</Text>
+                            <Text style={{ color: on ? onPrimary : muted, fontSize: 12.5, fontWeight: '800', marginLeft: 5 }}>{tr(label)}</Text>
                         </Pressable>
                     );
                 })}

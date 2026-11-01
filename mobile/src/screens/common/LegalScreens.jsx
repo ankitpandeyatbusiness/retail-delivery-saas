@@ -24,7 +24,7 @@ export function LegalDocScreen() {
     }, [key, pub]);
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
-            <PageHeader title={doc?.title || tr('Terms')} />
+            <PageHeader title={doc?.title ? tr(doc.title) : tr('Terms')} />
             <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 32 }}>
                 {!doc && !err ? <ListShimmer count={2} /> : null}
                 {err ? <Text style={{ color: error }}>{err}</Text> : null}
@@ -57,7 +57,7 @@ export function LegalListScreen() {
                     <Pressable key={d.key} onPress={() => nav.navigate('LegalDoc', { key: d.key, pub: d.pub })} style={{ flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 0.5, borderBottomColor: border }}>
                         <Ionicons name="document-text-outline" size={24} color={primary} />
                         <View style={{ flex: 1, marginLeft: 14 }}>
-                            <Text style={{ color: text, fontWeight: '800', fontSize: 15 }}>{d.title}</Text>
+                            <Text style={{ color: text, fontWeight: '800', fontSize: 15 }}>{tr(d.title)}</Text>
                             {d.mustAgree ? (
                                 <Text style={{ color: d.upToDate ? ok : muted, fontSize: 12, marginTop: 2 }}>
                                     {d.upToDate ? tr('You agreed to version {agreedVersion} on {day}', { agreedVersion: d.agreedVersion, day: day(d.agreedAt) }) : d.version ? tr('A new version is waiting for you') : tr('Not sent yet')}

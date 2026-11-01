@@ -12,7 +12,7 @@ import { tr } from '../../i18n';
 
 export const STATUS_LABEL = { new: 'New', replied: 'Replied', quoted: 'Price sent', confirmed: 'Confirmed', rejected: 'Not possible', closed: 'Closed' };
 
-export const answerText = (a) => (Array.isArray(a.value) ? a.value.join(', ') : typeof a.value === 'boolean' ? (a.value ? tr('Yes') : tr('No')) : String(a.value));
+export const answerText = (a) => (Array.isArray(a.value) ? a.value.map(tr).join(', ') : typeof a.value === 'boolean' ? (a.value ? tr('Yes') : tr('No')) : tr(String(a.value)));
 
 // a picture opened full screen
 export function PictureViewer({ uri, onClose }) {
@@ -37,7 +37,7 @@ export function Answers({ answers = [], estimate }) {
         <View>
             {answers.map((a) => (
                 <View key={a.id} style={{ flexDirection: 'row', marginTop: 4 }}>
-                    <Text style={{ color: muted, fontSize: 13, flex: 2 }}>{a.label}</Text>
+                    <Text style={{ color: muted, fontSize: 13, flex: 2 }}>{tr(a.label)}</Text>
                     {a.type === 'photo' && Array.isArray(a.value) ? (
                         <View style={{ flex: 3, flexDirection: 'row', flexWrap: 'wrap' }}>
                             {a.value.map((u) => <Pressable key={u} onPress={() => setPic(u)} style={{ marginRight: 6, marginBottom: 6 }}><Image source={{ uri: u }} style={{ width: 56, height: 56, borderRadius: 8 }} contentFit="cover" /></Pressable>)}

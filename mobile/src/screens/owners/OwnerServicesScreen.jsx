@@ -65,7 +65,7 @@ export default function OwnerServicesScreen() {
                                 <Ionicons name={s.icon || 'sparkles-outline'} size={21} color={primary} />
                             </View>
                             <View style={{ flex: 1, minWidth: 0, paddingRight: 8 }}>
-                                <Text numberOfLines={1} style={{ color: text, fontWeight: '900', fontSize: 16 }}>{s.name}</Text>
+                                <Text numberOfLines={1} style={{ color: text, fontWeight: '900', fontSize: 16 }}>{tr(s.name)}</Text>
                                 <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{priceLine(s)}{s.minGuests ? ` · ${tr('min {n} guests', { n: s.minGuests })}` : ''}</Text>
                                 <View style={{ flexDirection: 'row', marginTop: 6 }}>
                                     <Pill label={tr('{n} questions', { n: (s.questions || []).filter((q) => q.enabled).length })} color={muted} />
@@ -78,7 +78,7 @@ export default function OwnerServicesScreen() {
                 <SectionTitle title={tr('Add a service')} />
                 <Card>
                     {templates.map((t) => (
-                        <Row key={t.kind} icon={t.icon} title={t.name} subtitle={tr('Starts with our recommended questions')} onPress={() => add(t.kind)} />
+                        <Row key={t.kind} icon={t.icon} title={tr(t.name)} subtitle={tr('Starts with our recommended questions')} onPress={() => add(t.kind)} />
                     ))}
                     <Row icon="add-circle-outline" title={tr('My own service')} subtitle={tr('Name it and ask your own questions')} onPress={() => add('custom')} last />
                 </Card>

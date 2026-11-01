@@ -9,9 +9,10 @@ import QrCode from '../common/QrCode';
 import { fetchBookingTicket } from '../../api/customers/shopApi';
 import { LineShimmer } from '../owners/shimmer';
 import { tr } from '../../i18n';
+import { niceDate } from '../../utils/common/dayNames';
 
 const KEY = (id) => `ticket:${id}`;
-const nice = (ymd) => new Date(`${ymd}T12:00:00Z`).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+const nice = (ymd) => niceDate(ymd);
 
 const ended = (t) => Date.now() > new Date(t.endsAt || new Date(t.startsAt).getTime() + 3600000).getTime();
 

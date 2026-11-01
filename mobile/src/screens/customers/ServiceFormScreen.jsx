@@ -60,7 +60,7 @@ export default function ServiceFormScreen() {
         if (phone.replace(/\D/g, '').length < 6) return showToast(tr('Please enter your phone number'));
         for (const q of asked) {
             const v = answers[q.id];
-            if (q.required && q.type !== 'yesno' && (v === undefined || v === '' || (Array.isArray(v) && !v.length))) return showToast(tr('Please answer: {q}', { q: q.label }));
+            if (q.required && q.type !== 'yesno' && (v === undefined || v === '' || (Array.isArray(v) && !v.length))) return showToast(tr('Please answer: {q}', { q: tr(q.label) }));
         }
         setBusy(true);
         try {
@@ -72,7 +72,7 @@ export default function ServiceFormScreen() {
 
     const field = (q) => {
         const v = answers[q.id];
-        const common = { label: q.label + (q.required ? ' *' : ''), hint: q.hint || undefined };
+        const common = { label: tr(q.label) + (q.required ? ' *' : ''), hint: q.hint ? tr(q.hint) : undefined };
         switch (q.type) {
             case 'number': return <NumberBox key={q.id} {...common} value={v} onChange={(x) => set(q.id, x)} />;
             case 'date': return (
@@ -85,8 +85,8 @@ export default function ServiceFormScreen() {
                 </View>
             );
             case 'time': return <TimeBox key={q.id} {...common} value={v || ''} onChange={(x) => set(q.id, x)} placeholder="19:30" optional={!q.required} />;
-            case 'yesno': return <ToggleRow key={q.id} title={q.label} subtitle={q.hint || undefined} value={!!v} onValueChange={(x) => set(q.id, x)} />;
-            case 'choice': return <ChoiceBox key={q.id} {...common} options={q.options.map((o) => [o, o])} value={v} onChange={(x) => set(q.id, x)} />;
+            case 'yesno': return <ToggleRow key={q.id} title={tr(q.label)} subtitle={q.hint ? tr(q.hint) : undefined} value={!!v} onValueChange={(x) => set(q.id, x)} />;
+            case 'choice': return <ChoiceBox key={q.id} {...common} options={q.options.map((o) => [o, tr(o)])} value={v} onChange={(x) => set(q.id, x)} />;
             case 'multichoice': {
                 const picked = Array.isArray(v) ? v : [];
                 return (
@@ -97,7 +97,7 @@ export default function ServiceFormScreen() {
                                 const on = picked.includes(o);
                                 return (
                                     <Pressable key={o} onPress={() => set(q.id, on ? picked.filter((x) => x !== o) : [...picked, o])} style={{ marginRight: 8, marginBottom: 8, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: on ? primary : border, backgroundColor: on ? primary : 'transparent' }}>
-                                        <Text style={{ color: on ? onPrimary : text, fontWeight: '800' }}>{o}</Text>
+                                        <Text style={{ color: on ? onPrimary : text, fontWeight: '800' }}>{tr(o)}</Text>
                                     </Pressable>
                                 );
                             })}
@@ -148,15 +148,15 @@ export default function ServiceFormScreen() {
     };
 
     return (
-        <FormPage title={s.name} footer={<Button label={tr('Inquire')} icon="send" busy={busy} onPress={send} />}>
+        <FormPage title={tr(s.name)} footer={<Button label={tr('Inquire')} icon="send" busy={busy} onPress={send} />}>
             <PhotoCarousel photos={s.photos} />
             <View style={{ backgroundColor: surface, borderRadius: 14, borderWidth: 1, borderColor: border, padding: 14, marginHorizontal: 16, marginBottom: 14 }}>
                 <Text style={{ color: primary, fontWeight: '900', fontSize: 20 }}>{priceLine(s)}</Text>
-                {s.description ? <Text style={{ color: text, marginTop: 8, lineHeight: 20 }}>{s.description}</Text> : null}
+                {s.description ? <Text style={{ color: text, marginTop: 8, lineHeight: 20 }}>{tr(s.description)}</Text> : null}
                 {(s.bullets || []).map((b) => (
                     <View key={b} style={{ flexDirection: 'row', marginTop: 6 }}>
                         <Ionicons name="checkmark-circle" size={17} color={primary} style={{ marginRight: 8, marginTop: 1 }} />
-                        <Text style={{ color: text, flex: 1 }}>{b}</Text>
+                        <Text style={{ color: text, flex: 1 }}>{tr(b)}</Text>
                     </View>
                 ))}
                 {s.minGuests ? <Text style={{ color: muted, marginTop: 8, fontSize: 12 }}>{tr('At least {n} guests', { n: s.minGuests })}</Text> : null}
@@ -170,8 +170,8 @@ export default function ServiceFormScreen() {
                 {s.quickTexts?.length ? (
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}>
                         {s.quickTexts.map((t) => (
-                            <Pressable key={t} onPress={() => setMessage(t)} style={{ marginRight: 8, marginBottom: 8, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16, borderWidth: 1, borderColor: border, backgroundColor: surface }}>
-                                <Text style={{ color: text, fontSize: 13 }}>{t}</Text>
+                            <Pressable key={t} onPress={() => setMessage(tr(t))} style={{ marginRight: 8, marginBottom: 8, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16, borderWidth: 1, borderColor: border, backgroundColor: surface }}>
+                                <Text style={{ color: text, fontSize: 13 }}>{tr(t)}</Text>
                             </Pressable>
                         ))}
                     </View>

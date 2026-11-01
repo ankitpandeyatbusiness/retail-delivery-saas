@@ -13,6 +13,7 @@ import { useBookingCard } from '../../store/customers/useBookingCard';
 import { useCartStore } from '../../store/customers/shopStores';
 import { onNotification } from '../../api/common/socket';
 import { tr } from '../../i18n';
+import { dayMonthShort } from '../../utils/common/dayNames';
 
 const TAB_H = 62;
 const ORDER_BAR_H = 76;
@@ -25,7 +26,7 @@ const dayWord = (date, now) => {
     const t = todayIst(now);
     if (date === t) return tr('Today');
     if (date === new Date(new Date(`${t}T12:00:00Z`).getTime() + 86400000).toISOString().slice(0, 10)) return tr('Tomorrow');
-    return new Date(`${date}T12:00:00Z`).toLocaleDateString([], { day: 'numeric', month: 'short', timeZone: 'UTC' });
+    return dayMonthShort(date);
 };
 
 export default function BookingStrip({ routeName, onOpen }) {

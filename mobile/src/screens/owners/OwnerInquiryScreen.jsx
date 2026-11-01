@@ -62,7 +62,7 @@ export default function OwnerInquiryScreen() {
             ) : <ReplyBox onSend={send} placeholder={tr('Reply to {n}', { n: i.name })} pickMany={(n) => pickImages({ limit: n })} upload={async (p) => (await uploadImage({ kind: 'service', ...p })).url} />}>
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 8 }}>
                 <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text numberOfLines={1} style={{ color: text, fontWeight: '900', fontSize: 15 }}>{i.serviceName}</Text>
+                    <Text numberOfLines={1} style={{ color: text, fontWeight: '900', fontSize: 15 }}>{tr(i.serviceName)}</Text>
                     <Text numberOfLines={1} style={{ color: muted, fontSize: 12 }}>{i.phone} · {tr(STATUS_LABEL[i.status] || 'New')}</Text>
                 </View>
                 <Pressable onPress={() => Linking.openURL(`tel:${digits(i.phone)}`)} accessibilityLabel={tr('Call')} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: primary, alignItems: 'center', justifyContent: 'center', marginLeft: 8 }}>
@@ -86,7 +86,7 @@ export default function OwnerInquiryScreen() {
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0, maxHeight: 44 }} contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 4 }}>
                             {i.quickReplies.map((q) => (
                                 <Pressable key={q} onPress={() => send({ text: q, images: [] }).catch(() => { })} style={{ marginRight: 8, paddingHorizontal: 14, height: 34, justifyContent: 'center', borderRadius: 17, borderWidth: 1, borderColor: border, backgroundColor: surface }}>
-                                    <Text numberOfLines={1} style={{ color: text, fontSize: 13 }}>{q}</Text>
+                                    <Text numberOfLines={1} style={{ color: text, fontSize: 13 }}>{tr(q)}</Text>
                                 </Pressable>
                             ))}
                         </ScrollView>

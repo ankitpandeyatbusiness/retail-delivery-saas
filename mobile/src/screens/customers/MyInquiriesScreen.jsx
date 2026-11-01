@@ -31,7 +31,7 @@ export default function MyInquiriesScreen() {
                         <Card key={i._id} onPress={() => nav.navigate('Inquiry', { id: String(i._id) })}>
                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                 {i.customerUnread ? <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: error, marginRight: 8 }} /> : null}
-                                <Text numberOfLines={1} style={{ color: text, fontWeight: '900', fontSize: 16, flex: 1 }}>{i.serviceName}</Text>
+                                <Text numberOfLines={1} style={{ color: text, fontWeight: '900', fontSize: 16, flex: 1 }}>{tr(i.serviceName)}</Text>
                                 <Pill label={tr(STATUS_LABEL[i.status] || 'New')} color={tone(i.status)} />
                             </View>
                             <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{new Date(i.createdAt).toLocaleDateString()}</Text>

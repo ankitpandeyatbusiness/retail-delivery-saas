@@ -16,6 +16,7 @@ import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
 import { ease } from '../../utils/common/ease';
 import { tr } from '../../i18n';
+import { niceDate } from '../../utils/common/dayNames';
 
 const clock = (d) => new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -73,7 +74,7 @@ export default function MyBookingsScreen() {
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('My reservations')} />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0, height: 38, marginTop: 4, marginBottom: 6 }} contentContainerStyle={{ paddingHorizontal: 16, alignItems: 'center' }}>
-                {[['upcoming', 'Upcoming'], ['confirmed', 'Confirmed'], ['cancelled', 'Cancelled'], ['past', 'Past']].map(([k, l]) => (
+                {[['upcoming', tr('Upcoming')], ['confirmed', tr('Confirmed')], ['cancelled', tr('Cancelled')], ['past', tr('Past')]].map(([k, l]) => (
                     <Pressable key={k} onPress={() => { ease(); setFilter(k); }} style={{ marginRight: 8, paddingHorizontal: 16, height: 38, justifyContent: 'center', borderRadius: 19, borderWidth: 1, borderColor: filter === k ? primary : border, backgroundColor: filter === k ? primary : surface }}>
                         <Text style={{ color: filter === k ? onPrimary : text, fontWeight: '800', fontSize: 13 }}>{tr(l)}</Text>
                     </Pressable>
@@ -86,7 +87,7 @@ export default function MyBookingsScreen() {
                     <Card key={b._id} style={{ opacity: b.status === 'cancelled' ? 0.6 : 1 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                             <View style={{ flex: 1 }}>
-                                <Text style={{ color: text, fontWeight: '900', fontSize: 17 }}>{b.date} · {b.time}{b.table ? ` · ${tr('Table {t}', { t: b.table })}` : ''}</Text>
+                                <Text style={{ color: text, fontWeight: '900', fontSize: 17 }}>{niceDate(b.date)} · {b.time}{b.table ? ` · ${tr('Table {t}', { t: b.table })}` : ''}</Text>
                                 <Text style={{ color: muted, marginTop: 2 }}>{tr('{n} guests', { n: b.party })} · {tr('₹{n}', { n: b.deposit?.amount || 0 })} {tr(DEPOSIT_STATUS[b.deposit?.status] || '')}</Text>
                             </View>
                             <Pill label={tr(BOOKING_STATUS[b.status])} color={tone(b.status)} />
@@ -105,7 +106,7 @@ export default function MyBookingsScreen() {
                 {filter === 'upcoming' ? waits.map((w) => (
                     <Card key={w._id}>
                         <Text style={{ color: text, fontWeight: '900', fontSize: 16 }}>{tr('Waiting for a table')}</Text>
-                        <Text style={{ color: muted, marginTop: 2 }}>{w.date} · {w.time} · {tr('{n} guests', { n: w.party })}</Text>
+                        <Text style={{ color: muted, marginTop: 2 }}>{niceDate(w.date)} · {w.time} · {tr('{n} guests', { n: w.party })}</Text>
                         <Text style={{ color: muted, fontSize: 12, marginTop: 6 }}>{tr('We will tell you if a table comes free.')}</Text>
                         <Button label={tr('Leave the waitlist')} kind="ghost" onPress={async () => { try { await leaveWaitlist(w._id); await load(); } catch (e) { showToast(tr('Could not leave the waitlist')); } }} style={{ marginTop: 10 }} />
                     </Card>
