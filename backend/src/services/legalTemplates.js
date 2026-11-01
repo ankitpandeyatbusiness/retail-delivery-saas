@@ -160,10 +160,7 @@ We work to keep the service running, but cannot promise it will never be down. W
 # 10. Changes
 We may change these terms or the fees. We will tell you in the app and by email, and you will be asked to agree to the new version the next time you open the app.
 
-# 11. Governing law and disputes
-These terms are governed by the laws of India. We first try to settle any dispute by talking. If that fails, the courts at [city], India, have jurisdiction.
-
-# 12. Contact
+# 11. Contact
 {{supportLine}}
 
 By pressing "Agree" you confirm that you are the owner (or authorised by the owner) of the shop and agree to these terms. Your agreement is saved with the date, the time and the version.`,
@@ -207,38 +204,31 @@ These terms may change. The current version is always in the app, under Terms an
         audience: 'customer',
         title: 'Terms of Service',
         body: `# Terms of Service
-Effective {{effectiveDate}}. These terms apply when you use this app to order from a shop.
+Effective {{effectiveDate}}. These simple terms apply when you use this app to order from a shop.
 
-# 1. Who is who
-- {{platformName}} is a product of {{operatorName}}, which runs the business and is responsible for billing, tax and compliance. The technology is provided by an independent developer.
-- The food and the delivery are provided by the shop you order from. The shop is responsible for the food, its price, its taxes and its delivery.
+# 1. Who we are
+{{platformName}} is a product of {{operatorName}}, which runs the business and looks after billing and compliance. The technology is provided by an independent developer.
 
-# 2. Your account
-You sign in with your mobile number and an OTP. Keep the OTP private. You can change your name and email in your profile and delete your account any time from the profile screen.
+# 2. The shop and your order
+The food, its price, its taxes and its delivery are the shop's responsibility. We only provide the app that connects you with the shop. The total is shown before you place an order.
 
-# 3. Orders and payment
-- Prices and availability are set by the shop. The total, including taxes and charges, is shown before you place an order.
-- You can pay by the methods the shop offers: cash on delivery or online. Online payments are processed by a payment gateway.
-- A shop can cancel an order that it cannot deliver. If you paid online, the shop refunds you.
-- Cash on delivery can be limited or stopped for a number if earlier cash orders were not accepted.
+# 3. Your account
+You sign in with your mobile number and an OTP. Keep the OTP to yourself. You can change your details or delete your account any time in your profile.
 
-# 4. Delivery
-Give a correct address and phone number and be reachable. A delivery PIN may be asked at the door.
+# 4. Payment
+You can pay cash on delivery or online, depending on what the shop offers. If an order is cancelled after you paid online, the shop refunds you.
 
-# 5. Complaints and refunds
-If something is wrong with an order, use the complaint option in the app. The shop decides on the refund and replies in the app.
+# 5. Delivery
+Please give a correct address and phone number and be available to receive the order. A delivery PIN may be asked at the door.
 
-# 6. Messages and offers
-We send you messages about your orders. The shop may also send you offers by notification. You can turn offers off in your profile.
+# 6. Problems with an order
+Use the complaint option in the app. The shop decides on any refund and replies in the app.
 
-# 7. Using the app properly
-Do not misuse the app, give false information or try to break it.
+# 7. Fair use
+Please do not misuse the app or give false information.
 
-# 8. Governing law
-These terms are governed by the laws of India. The courts at [city], India, have jurisdiction, except where the law gives you the right to go to another court.
-
-# 9. Changes and contact
-We may change these terms. The current version is always in the app. {{supportLine}}`,
+# 8. Changes and contact
+We may change these terms. The latest version is always in the app. {{supportLine}}`,
     },
 
     /* --------------------------------------------------------------------------------------------------------------- */
@@ -246,48 +236,42 @@ We may change these terms. The current version is always in the app. {{supportLi
         audience: 'customer',
         title: 'Privacy Policy',
         body: `# Privacy Policy
-Effective {{effectiveDate}}. This explains what we collect and how we use it.
+Effective {{effectiveDate}}. This explains in simple words what we collect and why.
 
 # Who we are
-{{platformName}} is a product of {{operatorName}}, which holds your data and is responsible for it. The technology is provided by an independent developer who works on the servers only to run and repair the service. The shop you order from also receives the details needed to serve you.
+{{platformName}} is a product of {{operatorName}}, which looks after your data. The technology is provided by an independent developer who works on the servers only to run and repair the service.
 
 # What we collect
 - Your mobile number, and your name and email if you give them.
 - Your delivery addresses and, if you allow it, your location to find your address.
-- Your orders, payments status, ratings, complaints and messages.
-- Your phone's push address to send notifications, and basic technical details such as the app version.
-- Riders: your name, phone, deliveries and, while you have an order, your location.
-- Shop owners: your business details and billing records.
+- Your orders, payment status, ratings, complaints and messages.
+- Your phone's notification address and basic details such as the app version.
+- Riders: name, phone, deliveries and, while you have an order, your location.
+- Shop owners: business details and billing records.
 
 # Why we use it
-To run the service: sign you in, take and deliver orders, take payments, send OTPs, order updates and bills, prevent misuse, and give the shop its reports. We do not sell your data and we do not show advertising from other companies.
+To run the service: sign you in, take and deliver orders, take payments, send OTPs and order updates, and give shops their reports. We do not sell your data and we do not show ads from other companies.
 
-# Who sees it
+# Who can see it
 - The shop you order from sees your name, phone, address and orders.
-- The rider sees your name, phone, address and the order.
-- Our service providers who send SMS, email and notifications, take payments and host the servers, only for those purposes.
+- The rider delivering your order sees your name, phone, address and the order.
+- Companies that send SMS and notifications, take payments and host our servers, only to do that work.
 - Authorities, if the law requires.
 
 # How long we keep it
-Orders and bills are kept as long as the law requires for accounts and tax. Other data is kept while your account is open. When you delete your account, your profile, addresses, favourites and logins are deleted. The shop keeps its past orders (with your name and phone hidden) because it needs them for its accounts.
+Bills and orders are kept as long as the law requires. Other data is kept while your account is open. If you delete your account, your profile, addresses and logins are deleted.
 
 # Your choices
-You can change your details, turn offers off, and delete your account in the profile screen. To ask us anything about your data, contact us below.
+You can change your details, turn offers off and delete your account in your profile. For any question about your data, contact us below.
 
 # Safety
-Data is kept on secured servers and sent over encrypted connections. No system is perfectly safe, and if we find a leak that affects you we will tell you.
+Your data is kept on secured servers and sent over encrypted connections. If we find a leak that affects you, we will tell you.
 
 # Children
-The app is not meant for children under 18 to use without a parent.
-
-# Withdrawing consent and asking for your data
-You can withdraw your consent, ask to see, correct or delete your data, or ask us to stop using it, by deleting your account in the profile screen or by writing to us using the contact below. We reply within 15 days. If we must keep some records by law (for example bills), we tell you which.
-
-# Governing law
-This policy is governed by the laws of India. The courts at [city], India, have jurisdiction, except where the law gives you the right to go to another court.
+The app is not meant for children under 18 without a parent.
 
 # Changes and contact
-We may update this policy; the current one is always here. {{supportLine}}`,
+We may update this policy. The latest version is always here. {{supportLine}}`,
     },
 };
 
