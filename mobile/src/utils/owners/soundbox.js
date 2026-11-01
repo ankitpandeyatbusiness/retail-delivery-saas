@@ -244,8 +244,18 @@ const nameList = (l) => {
     const pool = NAMES[code];
     if (!pool) return null;
     const app = getLang();
-    return (app === code || (code === 'hi' && app === 'bho')) ? pool.native : pool.latin;
+    return pool.native;   // a voice of that language always gets its own language's name, in its own script
 };
+// the English and spare names, written in the script of the language the app is shown in
+const SCRIPT_OF = { hi: 'dev', bho: 'dev', mr: 'dev', gu: 'gu', bn: 'bn' };
+const IN_SCRIPT = {
+    Kiran: { dev: 'किरण', gu: 'કિરણ', bn: 'কিরণ' }, Arya: { dev: 'आर्या', gu: 'આર્યા', bn: 'আর্যা' }, Tara: { dev: 'तारा', gu: 'તારા', bn: 'তারা' },
+    Neel: { dev: 'नील', gu: 'નીલ', bn: 'নীল' }, Sunny: { dev: 'सनी', gu: 'સની', bn: 'সানি' },
+    Mohan: { dev: 'मोहन', gu: 'મોહન', bn: 'মোহন' }, Sita: { dev: 'सीता', gu: 'સીતા', bn: 'সীতা' }, Gopal: { dev: 'गोपाल', gu: 'ગોપાલ', bn: 'গোপাল' },
+    Radha: { dev: 'राधा', gu: 'રાધા', bn: 'রাধা' }, Vikram: { dev: 'विक्रम', gu: 'વિક્રમ', bn: 'বিক্রম' }, Anita: { dev: 'अनीता', gu: 'અનીતા', bn: 'অনিতা' },
+    Karan: { dev: 'करण', gu: 'કરણ', bn: 'করণ' }, Pooja: { dev: 'पूजा', gu: 'પૂજા', bn: 'পূজা' },
+};
+const inAppScript = (name) => IN_SCRIPT[name]?.[SCRIPT_OF[getLang()]] || name;
 export function voiceLabel(v) {
     const id = String(v.identifier || v.name || '').toLowerCase();
     const l = lang(v);
@@ -255,7 +265,7 @@ export function voiceLabel(v) {
     let name;
     const own = nameList(l);
     if (own && idx >= 0 && idx < 5) name = own[idx];
-    else if (idx >= 0 && idx < 5) name = EN_NAMES[idx];
+    else if (idx >= 0 && idx < 5) name = inAppScript(EN_NAMES[idx]);
     else if (own) {
         let h = 0;
         for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) % 997;
@@ -263,7 +273,7 @@ export function voiceLabel(v) {
     } else {
         let h = 0;
         for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) % 997;
-        name = OTHER_NAMES[h % OTHER_NAMES.length];
+        name = inAppScript(OTHER_NAMES[h % OTHER_NAMES.length]);
     }
     const kind = l === 'en-in' ? tr('Indian English') : hindi ? tr('Hindi') : l.startsWith('mr') ? tr('Marathi') : l.startsWith('gu') ? tr('Gujarati') : l.startsWith('bn') ? tr('Bengali') : l.startsWith('en') ? tr('English') + ' (' + (l.split('-')[1] || '').toUpperCase() + ')' : l;
     const quality = String(v.quality).toLowerCase() === 'enhanced' ? ' · ' + tr('high quality') : '';
