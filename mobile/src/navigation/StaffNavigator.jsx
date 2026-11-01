@@ -1,10 +1,11 @@
 // The kitchen and waiter app: two tabs, Home (the work screen) and Profile. One shell for both jobs, so the sign-in, the pause message,
 // light and dark mode and the tab bar are written once. The person's job decides what Home shows.
 import React, { useCallback, useEffect } from 'react';
-import { AppState, View } from 'react-native';
+import { AppState, View, Easing } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useBrand } from '../components/common/kit';
-import { FloatingTabBar } from './tabKit';
+import { FloatingTabBar, slideScenes, gate } from './tabKit';
+import { useMotion } from '../components/common/motion';
 import StaffHomeScreen from '../screens/staff/StaffHomeScreen';
 import StaffProfileScreen from '../screens/staff/StaffProfileScreen';
 import StaffWorkScreen from '../screens/staff/StaffWorkScreen';
@@ -29,6 +30,7 @@ const TABS = {
 
 export default function StaffTabs() {
     const { background } = useBrand();
+    const motion = useMotion();
     const state = useStaffStore((s) => s.state);
     const uid = useAuthStore((s) => s.user?.id);
     const load = useStaffStore((s) => s.load);
@@ -59,8 +61,21 @@ export default function StaffTabs() {
         <View style={[{ flex: 1, backgroundColor: background }, closed ? GREY : null]}>
             <Tab.Navigator
                 initialRouteName="StaffHomeTab"
+                backBehavior="initialRoute"
+                screenListeners={({ route }) => ({
+                    // do not start a tab switch on top of a page that is still sliding (see tabKit)
+                    tabPress: (e) => { if (gate.busy) { e.preventDefault(); gate.pending = route.name; } },
+                })}
                 tabBar={(props) => <FloatingTabBar {...props} defs={TABS} />}
-                screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: background }, tabBarHideOnKeyboard: true }}
+                screenOptions={{
+                    headerShown: false,
+                    sceneStyle: { backgroundColor: background },
+                    tabBarHideOnKeyboard: true,
+                    lazy: false,   // every tab is ready, so a tab never shows an empty page while it slides in
+                    animation: motion === 'off' ? 'none' : 'shift',   // the pages slide with the tabs, like the owner panel
+                    sceneStyleInterpolator: motion === 'off' ? undefined : slideScenes,
+                    transitionSpec: { animation: 'timing', config: { duration: 300, easing: Easing.out(Easing.cubic) } },
+                }}
             >
                 {Object.entries(TABS).map(([name, def]) => (
                     <Tab.Screen key={name} name={name} component={def.component} options={{ title: def.label, tabBarBadge: name === 'StaffHomeTab' ? (role === 'kitchen' ? waiting : role === 'waiter' ? todo : 0) || undefined : undefined }} />
