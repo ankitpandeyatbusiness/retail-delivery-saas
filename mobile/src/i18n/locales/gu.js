@@ -1184,6 +1184,7 @@ export default {
     "Earlier reply: “{ownerReply}”": "અગાઉનો જવાબ: “{ownerReply}”",
     "Earlier unpaid bill cleared": "જૂનું બાકી બિલ ચૂકતે",
     "Earn points and get money off": "પોઇન્ટ કમાઓ અને પૈસા બચાવો",
+    "Earned": "કમાણી",
     "Earned today": "આજની કમાણી",
     "Easy mode": "સરળ મોડ",
     "Eat at {shop} and get {p}% off your first table order. Open the {shop} app, go to Account, Refer a friend and enter my code: {code}": "{shop} માં જમો અને પહેલા ટેબલ ઓર્ડર પર {p}% છૂટ મેળવો. {shop} એપ ખોલો, એકાઉન્ટમાં \"મિત્રને બોલાવો\" પર જાઓ અને મારો કોડ નાખો: {code}",

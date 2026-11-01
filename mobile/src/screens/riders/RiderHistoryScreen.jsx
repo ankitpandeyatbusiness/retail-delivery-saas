@@ -5,7 +5,7 @@ import { ListShimmer } from '../../components/owners/shimmer';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { useBrand } from '../../components/common/kit';
+import { useBrand, alpha } from '../../components/common/kit';
 import { BigButton } from '../../components/riders/riderBits';
 import { fetchRiderOrders, acceptOrder } from '../../api/riders/riderApi';
 import { useRiderStore } from '../../store/riders/useRiderStore';
@@ -17,7 +17,7 @@ const when = (d) => new Date(d).toLocaleString('en-IN', { day: 'numeric', month:
 
 export default function RiderHistoryScreen() {
     const insets = useSafeAreaInsets();
-    const { background, text, muted, surface, border, ok, error } = useBrand();
+    const { background, text, muted, surface, border, ok, error, primary, warn } = useBrand();
     const [items, setItems] = useState(null);
     const [page, setPage] = useState(1);
     const [more, setMore] = useState(false);
@@ -59,51 +59,105 @@ export default function RiderHistoryScreen() {
         setBusyId(null);
     };
 
+    // what is on screen: how many deliveries and what they earned
+    const doneList = (items || []).filter((o) => o.status === 'delivered');
+    const earned = doneList.reduce((n, o) => n + (o.earnPaise || 0), 0);
+
+    const summary = (
+        <View style={{ marginHorizontal: 16, marginBottom: 14, flexDirection: 'row' }}>
+            <View style={{ flex: 1, marginRight: 8, borderRadius: 18, padding: 14, backgroundColor: alpha(primary, 0.1), borderWidth: 1, borderColor: alpha(primary, 0.16) }}>
+                <Ionicons name="bicycle" size={20} color={primary} />
+                <Text style={{ color: text, fontWeight: '900', fontSize: 24, marginTop: 6 }}>{doneList.length}</Text>
+                <Text style={{ color: muted, fontWeight: '700', fontSize: 12.5 }}>{tr('Deliveries')}</Text>
+            </View>
+            <View style={{ flex: 1, borderRadius: 18, padding: 14, backgroundColor: alpha(ok, 0.1), borderWidth: 1, borderColor: alpha(ok, 0.16) }}>
+                <Ionicons name="wallet" size={20} color={ok} />
+                <Text numberOfLines={1} adjustsFontSizeToFit style={{ color: text, fontWeight: '900', fontSize: 24, marginTop: 6 }}>{rupee(earned)}</Text>
+                <Text style={{ color: muted, fontWeight: '700', fontSize: 12.5 }}>{tr('Earned')}</Text>
+            </View>
+        </View>
+    );
+
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
-            <Text style={{ color: text, fontSize: 22, fontWeight: '900', paddingHorizontal: 16, paddingTop: insets.top + 14, paddingBottom: 10 }}>{T.history}</Text>
+            <Text style={{ color: text, fontSize: 24, fontWeight: '900', paddingHorizontal: 16, paddingTop: insets.top + 14, paddingBottom: 12 }}>{T.history}</Text>
             {items === null ? <ListShimmer count={3} /> : (
                 <FlatList
                     data={items}
                     keyExtractor={(o) => String(o.id)}
                     contentContainerStyle={{ paddingBottom: 24, flexGrow: 1 }}
+                    showsVerticalScrollIndicator={false}
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(1); setRefreshing(false); }} />}
                     ListEmptyComponent={(
                         <View style={{ alignItems: 'center', padding: 40 }}>
-                            <Ionicons name={failed ? 'cloud-offline-outline' : 'time-outline'} size={48} color={muted} />
-                            <Text style={{ color: text, fontWeight: '800', fontSize: 16, marginTop: 10 }}>{failed || T.noHistory}</Text>
+                            <View style={{ width: 84, height: 84, borderRadius: 42, backgroundColor: alpha(muted, 0.12), alignItems: 'center', justifyContent: 'center' }}>
+                                <Ionicons name={failed ? 'cloud-offline-outline' : 'time-outline'} size={42} color={muted} />
+                            </View>
+                            <Text style={{ color: text, fontWeight: '800', fontSize: 16, marginTop: 14, textAlign: 'center' }}>{failed || T.noHistory}</Text>
                         </View>
                     )}
-                    ListHeaderComponent={missed.length ? (
-                        <View style={{ marginBottom: 6 }}>
-                            <Text style={{ color: error, fontWeight: '900', fontSize: 14, paddingHorizontal: 16, marginBottom: 8 }}>{tr('Missed orders')}</Text>
-                            {missed.map((o) => (
-                                <View key={String(o.id)} style={{ marginHorizontal: 16, marginBottom: 10, borderRadius: 16, padding: 14, backgroundColor: surface, borderWidth: 1, borderColor: error }}>
-                                    <Text style={{ color: text, fontWeight: '900', fontSize: 16 }}>{tr('Order #{orderNo}', { orderNo: o.orderNo })}</Text>
-                                    <Text style={{ color: muted, fontWeight: '600', fontSize: 12.5, marginTop: 2 }}>{tr('You did not answer in time')} · {o.missed?.at ? when(o.missed.at) : ''}</Text>
-                                    {o.missed?.canTake ? (
-                                        <View style={{ marginTop: 10 }}><BigButton label={tr('Still open: take it now')} busy={busyId === o.id} onPress={() => take(o)} /></View>
-                                    ) : (
-                                        <Text style={{ color: muted, fontWeight: '800', marginTop: 8 }}>{o.status === 'cancelled' ? tr('Cancelled') : tr('Taken by someone else')}</Text>
-                                    )}
+                    ListHeaderComponent={(
+                        <View>
+                            {items.length ? summary : null}
+                            {missed.length ? (
+                                <View style={{ marginBottom: 6 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, marginBottom: 8 }}>
+                                        <Ionicons name="alert-circle" size={17} color={error} />
+                                        <Text style={{ color: error, fontWeight: '900', fontSize: 14, marginLeft: 6 }}>{tr('Missed orders')}</Text>
+                                    </View>
+                                    {missed.map((o) => (
+                                        <View key={String(o.id)} style={{ marginHorizontal: 16, marginBottom: 10, borderRadius: 18, padding: 14, paddingLeft: 20, backgroundColor: alpha(error, 0.07), borderWidth: 1, borderColor: alpha(error, 0.35), overflow: 'hidden' }}>
+                                            <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 5, backgroundColor: error }} />
+                                            <Text style={{ color: text, fontWeight: '900', fontSize: 16 }}>{tr('Order #{orderNo}', { orderNo: o.orderNo })}</Text>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 3 }}>
+                                                <Ionicons name="time-outline" size={13} color={muted} />
+                                                <Text style={{ color: muted, fontWeight: '600', fontSize: 12.5, marginLeft: 4 }}>{tr('You did not answer in time')} · {o.missed?.at ? when(o.missed.at) : ''}</Text>
+                                            </View>
+                                            {o.missed?.canTake ? (
+                                                <View style={{ marginTop: 10 }}><BigButton label={tr('Still open: take it now')} busy={busyId === o.id} onPress={() => take(o)} /></View>
+                                            ) : (
+                                                <View style={{ alignSelf: 'flex-start', marginTop: 8, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 11, backgroundColor: alpha(muted, 0.15) }}>
+                                                    <Text style={{ color: muted, fontWeight: '800', fontSize: 12 }}>{o.status === 'cancelled' ? tr('Cancelled') : tr('Taken by someone else')}</Text>
+                                                </View>
+                                            )}
+                                        </View>
+                                    ))}
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, marginTop: 6, marginBottom: 8 }}>
+                                        <Text style={{ color: text, fontWeight: '900', fontSize: 14 }}>{tr('Deliveries')}</Text>
+                                        <View style={{ flex: 1, height: 1, backgroundColor: alpha(muted, 0.25), marginLeft: 10 }} />
+                                    </View>
                                 </View>
-                            ))}
-                            <Text style={{ color: text, fontWeight: '900', fontSize: 14, paddingHorizontal: 16, marginTop: 4, marginBottom: 8 }}>{tr('Deliveries')}</Text>
+                            ) : null}
                         </View>
-                    ) : null}
+                    )}
                     ListFooterComponent={more ? <View style={{ padding: 16 }}><BigButton label={tr('Show more')} kind="outline" onPress={() => load(page + 1)} /></View> : null}
                     renderItem={({ item: o }) => {
                         const done = o.status === 'delivered';
+                        const tone = done ? ok : error;
                         return (
-                            <View style={{ marginHorizontal: 16, marginBottom: 10, borderRadius: 16, padding: 14, backgroundColor: surface, borderWidth: 1, borderColor: border, flexDirection: 'row', alignItems: 'center' }}>
+                            <View style={{ marginHorizontal: 16, marginBottom: 10, borderRadius: 18, padding: 14, paddingLeft: 20, backgroundColor: surface, borderWidth: 1, borderColor: border, flexDirection: 'row', alignItems: 'center', overflow: 'hidden' }}>
+                                <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 5, backgroundColor: tone }} />
+                                <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: alpha(tone, 0.13), alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                                    <Ionicons name={done ? 'checkmark-circle' : 'close-circle'} size={24} color={tone} />
+                                </View>
                                 <View style={{ flex: 1 }}>
                                     <Text style={{ color: text, fontWeight: '900', fontSize: 16 }}>{tr('Order #{orderNo}', { orderNo: o.orderNo })}</Text>
-                                    <Text style={{ color: muted, fontWeight: '600', fontSize: 12.5, marginTop: 2 }}>{when(o.delivery?.deliveredAt || o.createdAt)}</Text>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 3 }}>
+                                        <Ionicons name="time-outline" size={13} color={muted} />
+                                        <Text style={{ color: muted, fontWeight: '600', fontSize: 12.5, marginLeft: 4 }}>{when(o.delivery?.deliveredAt || o.createdAt)}</Text>
+                                    </View>
+                                    {done && o.payment?.collectAmount > 0 ? (
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 5 }}>
+                                            <Ionicons name="cash-outline" size={13} color={warn} />
+                                            <Text style={{ color: muted, fontWeight: '700', fontSize: 12, marginLeft: 4 }}>{tr('{rupeeAmount} cash', { rupeeAmount: rupeeAmount(o.payment.collectAmount) })}</Text>
+                                        </View>
+                                    ) : null}
                                 </View>
                                 <View style={{ alignItems: 'flex-end' }}>
-                                    <Text style={{ color: done ? ok : error, fontWeight: '900', fontSize: 14 }}>{done ? tr('Delivered') : o.status === 'cancelled' ? tr('Cancelled') : tr('Not delivered')}</Text>
-                                    {done && o.earnPaise > 0 ? <Text style={{ color: text, fontWeight: '800', fontSize: 13, marginTop: 2 }}>{rupee(o.earnPaise)}</Text> : null}
-                                    {done && o.payment?.collectAmount > 0 ? <Text style={{ color: muted, fontWeight: '700', fontSize: 12, marginTop: 2 }}>{tr('{rupeeAmount} cash', { rupeeAmount: rupeeAmount(o.payment.collectAmount) })}</Text> : null}
+                                    <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, backgroundColor: alpha(tone, 0.13) }}>
+                                        <Text style={{ color: tone, fontWeight: '900', fontSize: 12.5 }}>{done ? tr('Delivered') : o.status === 'cancelled' ? tr('Cancelled') : tr('Not delivered')}</Text>
+                                    </View>
+                                    {done && o.earnPaise > 0 ? <Text style={{ color: text, fontWeight: '900', fontSize: 17, marginTop: 6 }}>{rupee(o.earnPaise)}</Text> : null}
                                 </View>
                             </View>
                         );
