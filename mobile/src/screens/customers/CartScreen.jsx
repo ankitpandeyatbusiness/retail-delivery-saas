@@ -377,7 +377,7 @@ export default function CartScreen() {
                     <View style={[s.iconCircle, { backgroundColor: surface, borderColor: border }]}>
                         <Ionicons name="cart-outline" size={48} color={muted} />
                     </View>
-                    <Text style={[s.big, { color: text }]}>{full.labels.emptyCart}</Text>
+                    <Text style={[s.big, { color: text }]}>{tr(full.labels.emptyCart)}</Text>
                     <Text style={[s.lSub, { color: muted, marginTop: 6 }]}>{tr('Good food is always cooking.')}</Text>
                     <Press onPress={() => nav.goBack()} style={[s.cta, { backgroundColor: primary, borderRadius: radius }]}>
                         <Text numberOfLines={1} style={s.ctaTxt}>{tr('Browse Menu')}</Text>

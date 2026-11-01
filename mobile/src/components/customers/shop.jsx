@@ -107,7 +107,7 @@ export function ToastHost() {
                 <View style={[s.toastIcon, { backgroundColor: accent + '22' }]}>
                     <Ionicons name={bad ? 'alert' : 'checkmark'} size={16} color={accent} />
                 </View>
-                <Text numberOfLines={3} style={[s.toastMsg, { color: dark ? text : '#1B1B1F' }]}>{msg}</Text>
+                <Text numberOfLines={3} style={[s.toastMsg, { color: dark ? text : '#1B1B1F' }]}>{tr(msg)}</Text>
                 {onPress ? <Ionicons name="chevron-forward" size={18} color={accent} style={{ marginLeft: 6 }} /> : null}
             </View>
         </Animated.View>
@@ -217,7 +217,7 @@ export function useClosedStyle() {
 // Bestseller / New: a solid label on the corner of the photo (hidden when the dish is sold out)
 export function ImageRibbon({ item }) {
     if (item.isAvailable === false) return null;
-    const r = item.isBestseller ? ['Bestseller', 'flame', '#E8590C'] : item.isNewArrival ? ['New', 'sparkles', '#059669'] : null;
+    const r = item.isBestseller ? [tr('Bestseller'), 'flame', '#E8590C'] : item.isNewArrival ? [tr('New'), 'sparkles', '#059669'] : null;
     if (!r) return null;
     return (
         <View pointerEvents="none" style={[s.ribbon, { backgroundColor: r[2] }]}>
@@ -232,12 +232,12 @@ const TAG_DARK = { '#B91C1C': '#F28B82', '#C2410C': '#F4A261', '#7C3AED': '#B79C
 export function Tags({ item, max = 2 }) {
     const { dark } = useBrand();
     const list = [];
-    if (item.spiceLevel === 'hot') list.push(['Spicy', 'flame', '#B91C1C']);
-    else if (item.spiceLevel === 'medium') list.push(['Medium spicy', 'flame-outline', '#C2410C']);
-    if (item.isGiftPack) list.push(['Gift pack', 'gift-outline', '#7C3AED']);
-    if (item.isJain) list.push(['Jain', 'leaf-outline', '#475569']);
-    if (item.isEggless) list.push(['Eggless', 'egg-outline', '#475569']);
-    if (item.isSugarFree) list.push(['Sugar free', 'nutrition-outline', '#475569']);
+    if (item.spiceLevel === 'hot') list.push([tr('Spicy'), 'flame', '#B91C1C']);
+    else if (item.spiceLevel === 'medium') list.push([tr('Medium spicy'), 'flame-outline', '#C2410C']);
+    if (item.isGiftPack) list.push([tr('Gift pack'), 'gift-outline', '#7C3AED']);
+    if (item.isJain) list.push([tr('Jain'), 'leaf-outline', '#475569']);
+    if (item.isEggless) list.push([tr('Eggless'), 'egg-outline', '#475569']);
+    if (item.isSugarFree) list.push([tr('Sugar free'), 'nutrition-outline', '#475569']);
     if (!list.length) return null;
     return (
         <View style={s.tags}>
@@ -381,7 +381,7 @@ function Pop({ mode, style, children }) {
 // Once the dish is in the cart, the button turns into  −  1  +
 export function AddButton({ item, onPress, kind = 'pill', style }) {
     const { primary, onPrimary, radius, neutralSoft, muted } = useBrand();
-    const label = useHomeStore((st) => st.full.labels.addButton);
+    const label = tr(useHomeStore((st) => st.full.labels.addButton));
     const qty = useCartStore((st) => st.lines.reduce((a, l) => (l.productId === item._id ? a + l.quantity : a), 0));
     if (item.isAvailable === false) {
         return <View style={[s.so, { borderRadius: radius, backgroundColor: neutralSoft }, style]}><Text numberOfLines={2} style={[s.soText, { color: muted, textAlign: 'center' }]}>{soldOutText(item)}</Text></View>;
@@ -399,7 +399,7 @@ export function AddButton({ item, onPress, kind = 'pill', style }) {
     } else if (kind === 'overlap') {
         inner = (
             <Pressable onPress={onPress} style={[s.overlap, { borderColor: primary, borderRadius: radius }]}>
-                <Text numberOfLines={1} style={[s.overlapTxt, { color: primary }]}>{String(label).toUpperCase()}</Text>
+                <Text numberOfLines={1} style={[s.overlapTxt, { color: primary }]}>{String(tr(label)).toUpperCase()}</Text>
                 <Ionicons name="add" size={14} color={primary} style={{ marginLeft: 2 }} />
             </Pressable>
         );
@@ -409,7 +409,7 @@ export function AddButton({ item, onPress, kind = 'pill', style }) {
                 onPress={onPress}
                 style={({ pressed }) => [s.pill, { backgroundColor: primary, borderRadius: radius }, pressed && { opacity: 0.85, transform: [{ scale: 0.96 }] }]}
             >
-                <Text numberOfLines={1} style={[s.pillTxt, { color: onPrimary }]}>{String(label).toUpperCase()}</Text>
+                <Text numberOfLines={1} style={[s.pillTxt, { color: onPrimary }]}>{String(tr(label)).toUpperCase()}</Text>
                 <Ionicons name="add" size={15} color={onPrimary} style={{ marginLeft: 2 }} />
             </Pressable>
         );

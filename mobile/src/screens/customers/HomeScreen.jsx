@@ -440,8 +440,8 @@ function SecHead({ title, sub, see, onSee }) {
             <View style={s.secLeft}>
                 <View style={[s.secBar, { backgroundColor: primary }]} />
                 <View style={{ flex: 1 }}>
-                    <Text style={[s.secTitle, { color: text }]} numberOfLines={1}>{title}</Text>
-                    {sub ? <Text style={[s.secSub, { color: muted }]}>{sub}</Text> : null}
+                    <Text style={[s.secTitle, { color: text }]} numberOfLines={1}>{tr(title)}</Text>
+                    {sub ? <Text style={[s.secSub, { color: muted }]}>{tr(sub)}</Text> : null}
                 </View>
             </View>
             {see ? (
@@ -595,12 +595,12 @@ export default function HomeScreen() {
             else if (b === 'filters') R.push({ t: 'filters' });
             else if (b === 'offers' && showStrips && offers.length && full.offers.couponsEnabled && full.offers.showOnHome) R.push({ t: 'offers' });
             else if (!showStrips && ['bestsellers', 'festival', 'combos', 'new_arrivals'].includes(b)) continue;
-            else if (b === 'bestsellers' && keep(recommended).length) R.push({ t: 'strip', id: 'best', title: 'Bestsellers', sub: 'Most ordered', items: keep(recommended), see: 'Bestsellers' });
+            else if (b === 'bestsellers' && keep(recommended).length) R.push({ t: 'strip', id: 'best', title: tr('Bestsellers'), sub: tr('Most ordered'), items: keep(recommended), see: 'Bestsellers' });
             else if (b === 'festival') festival.forEach((c) => { const items = keep(c.products); if (items.length) R.push({ t: 'strip', id: `f${c.id}`, title: c.title, sub: c.subtitle || '', items }); });
             else if (b === 'combos') combo.forEach((c) => { const items = keep(c.products); if (items.length) R.push({ t: 'strip', id: `c${c.id}`, title: c.title, sub: c.subtitle || '', items }); });
             else if (b === 'new_arrivals') {
                 const news = keep(all.filter((i) => i.isNewArrival)).slice(0, 10);
-                if (news.length) R.push({ t: 'strip', id: 'new', title: 'New arrivals', sub: 'Just added', items: news });
+                if (news.length) R.push({ t: 'strip', id: 'new', title: tr('New arrivals'), sub: tr('Just added'), items: news });
             } else if (b === 'items') {
                 if (!loaded) R.push({ t: 'loading' });
                 else if (!all.length && errorStatus) R.push({ t: 'error' });
@@ -722,7 +722,7 @@ export default function HomeScreen() {
             case 'empty': return (
                 <View style={s.empty}>
                     <Ionicons name="restaurant-outline" size={34} color={brand.muted} />
-                    <Text style={[s.emptyTxt, { color: brand.muted }]}>{full.labels.emptySearch}</Text>
+                    <Text style={[s.emptyTxt, { color: brand.muted }]}>{tr(full.labels.emptySearch)}</Text>
                 </View>
             );
             default: return null;

@@ -61,7 +61,7 @@ export default function SearchScreen() {
     const { primary, text, background, surface, border, muted } = useBrand();
     const full = useHomeStore((st) => st.full);
     const foodMode = useHomeStore((st) => st.config.foodMode);
-    const emptyText = full.labels.emptySearch;
+    const emptyText = tr(full.labels.emptySearch);
     const minCount = full.ratings.minCount;
     const closedStyle = useClosedStyle();   // the shop is closed: this whole screen turns grey
     const { categories, recommended, loaded, load: loadMenu } = useMenuStore();

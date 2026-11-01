@@ -455,11 +455,11 @@ export default function ItemScreen() {
     const f = full.features;
     const rated = f.ratingBadge && p.rating > 0 && (p.ratingCount || 0) >= full.ratings.minCount;
     const chips = [];
-    if (f.prepTime && p.prepTimeMin) chips.push({ i: 'time-outline', t: `${p.prepTimeMin} min` });
-    if (f.serves && p.serves) chips.push({ i: 'people-outline', t: `Serves ${p.serves}` });
-    if (f.calories && p.calories) chips.push({ i: 'flame-outline', t: `${p.calories} kcal` });
-    if (p.isBestseller) chips.push({ i: 'ribbon-outline', t: 'Bestseller' });
-    if (p.isNewArrival) chips.push({ i: 'sparkles-outline', t: 'New' });
+    if (f.prepTime && p.prepTimeMin) chips.push({ i: 'time-outline', t: tr('{n} min', { n: p.prepTimeMin }) });
+    if (f.serves && p.serves) chips.push({ i: 'people-outline', t: tr('Serves {n}', { n: p.serves }) });
+    if (f.calories && p.calories) chips.push({ i: 'flame-outline', t: tr('{n} kcal', { n: p.calories }) });
+    if (p.isBestseller) chips.push({ i: 'ribbon-outline', t: tr('Bestseller') });
+    if (p.isNewArrival) chips.push({ i: 'sparkles-outline', t: tr('New') });
     const off = p.mrp > p.price ? Math.round(100 - (p.price * 100) / p.mrp) : 0;
     const longDesc = (p.description || '').length > 110;
 
@@ -646,7 +646,7 @@ export default function ItemScreen() {
                                 <View style={s.addRow}><Ionicons name="checkmark-circle" size={18} color="#FFFFFF" /><Text style={[s.addTxt, { marginLeft: 6 }]}>{tr('Added')}</Text></View>
                             ) : blocked ? <Text style={s.addTxt} numberOfLines={1}>{blocked}</Text> : (
                                 <View style={s.addRow}>
-                                    <Text style={s.addTxt} numberOfLines={1}>{existing ? tr('Update') : full.labels.addButton}</Text>
+                                    <Text style={s.addTxt} numberOfLines={1}>{existing ? tr('Update') : tr(full.labels.addButton)}</Text>
                                     <Animated.Text style={[s.addTxt, { marginLeft: 8, transform: [{ scale: bump }] }]}>· ₹{total}</Animated.Text>
                                 </View>
                             )}
