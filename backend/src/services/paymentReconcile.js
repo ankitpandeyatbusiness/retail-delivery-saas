@@ -7,6 +7,7 @@
 //   5. refunds waiting to be sent (network was down)                               -> send them
 //   6. refunds Razorpay accepted but never confirmed                               -> ask Razorpay, close them
 //   7. a table bill paid online whose rounds were not marked paid (crash)          -> finish it
+//   8. bulk order advances (services/bulkPayment.js)                               -> confirm, finish, refund
 const Order = require('../models/Order');
 const OnlinePayment = require('../models/OnlinePayment');
 const OnlineRefund = require('../models/OnlineRefund');
@@ -130,7 +131,8 @@ async function runPaymentReconcile(now = new Date()) {
     const retried = (await refundIssuer.retryPending()).length;
     const closed = await closeOpenRefunds(now);
     const tableRepaired = await require('./tablePayment').repairUnsettled(now);   // 7. a table bill paid online whose rounds were never marked paid
-    return { missed, repaired, orderRefunds, retried, closed, tableRepaired };
+    const bulkRepaired = await require('./bulkPayment').reconcile(now);   // 8. bulk order advances: missed payments, half done work, refunds that did not go out, quotes that ran out
+    return { missed, repaired, orderRefunds, retried, closed, tableRepaired, bulkRepaired };
 }
 
 // Starts half a minute after boot, then every 2 minutes. Safe on several servers: every step is repeatable.

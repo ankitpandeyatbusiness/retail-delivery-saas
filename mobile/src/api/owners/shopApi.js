@@ -181,6 +181,7 @@ export const bulk = {
     get: (id) => d(api.get(`/shop/bulk/${id}`)),
     quote: (id, body) => d(api.post(`/shop/bulk/${id}/quote`, body)),          // { lines:[{id,unitPrice}], discount?, deliveryFee?, packagingCharge?, advancePercent?, validHours?, note? }
     decline: (id, reason) => d(api.post(`/shop/bulk/${id}/decline`, { reason })),
+    cancel: (id, reason) => d(api.post(`/shop/bulk/${id}/cancel`, { reason })),      // a confirmed order: the customer gets the whole advance back
 };
 // the owner's services (bulk order, tiffin, party booking and his own): crud plus the extras (backend/src/routes/shopServicesRouter.js)
 export const services = {

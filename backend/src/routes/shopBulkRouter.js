@@ -4,6 +4,7 @@
 //   GET  /:id                          one order with the customer's details
 //   POST /:id/quote                    { lines: [{ id, unitPrice }], discount?, deliveryFee?, packagingCharge?, advancePercent?, validHours?, note? }
 //   POST /:id/decline                  { reason }
+//   POST /:id/cancel                   { reason }  a confirmed order: everything goes back to the customer
 //   PUT  /:id/note                     { note }  private
 const express = require('express');
 const { wrap } = require('../middlewares/apiErrors');
@@ -17,6 +18,7 @@ router.get('/', wrap(async (req, res) => { res.json(await bulk.ownerList({ tenan
 router.get('/:id', wrap(async (req, res) => { res.json(bulk.ownerView(await bulk.ownerOne({ tenant: req.tenant, id: req.params.id }))); }));
 router.post('/:id/quote', wrap(async (req, res) => { res.json(await bulk.quote({ tenant: req.tenant, id: req.params.id, body: req.body || {} })); }));
 router.post('/:id/decline', wrap(async (req, res) => { res.json(await bulk.decline({ tenant: req.tenant, id: req.params.id, reason: req.body?.reason })); }));
+router.post('/:id/cancel', wrap(async (req, res) => { res.json(await bulk.ownerCancel({ tenant: req.tenant, id: req.params.id, reason: req.body?.reason })); }));   // a paid order: the customer gets the whole advance back
 router.put('/:id/note', wrap(async (req, res) => { res.json(await bulk.setOwnerNote({ tenant: req.tenant, id: req.params.id, note: req.body?.note })); }));
 
 module.exports = router;

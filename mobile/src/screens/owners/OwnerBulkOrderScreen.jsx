@@ -79,11 +79,15 @@ export default function OwnerBulkOrderScreen() {
     const decline = async () => {
         if (!reason.trim()) return showToast(tr('Tell the customer why'));
         setBusy(true);
-        try { setO(await api.decline(id, reason.trim())); setDeclineOpen(false); showToast(tr('Declined')); } catch (e) { showToast(apiError(e)); } finally { setBusy(false); }
+        try {
+            const confirmedNow = o.status === 'confirmed';   // a paid order is cancelled and the whole advance goes back
+            setO(confirmedNow ? await api.cancel(id, reason.trim()) : await api.decline(id, reason.trim()));
+            setDeclineOpen(false); showToast(confirmedNow ? tr('Cancelled. The advance is being sent back.') : tr('Declined'));
+        } catch (e) { showToast(apiError(e)); } finally { setBusy(false); }
     };
 
     const q = o.quote;
-    const sent = q?.pricing && ['quoted', 'expired', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'completed'].includes(o.status);
+    const sent = q?.pricing && (['quoted', 'expired', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'completed'].includes(o.status) || (o.status === 'cancelled' && !!o.payment));
 
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
@@ -162,7 +166,18 @@ export default function OwnerBulkOrderScreen() {
                             {o.status === 'quoted' ? <Text style={{ color: muted, marginTop: 6 }}>{tr('Waiting for the customer. Valid until {t}.', { t: whenText(q.validUntil) })}</Text> : null}
                             {o.status === 'expired' ? <Text style={{ color: muted, marginTop: 6 }}>{tr('This quote ran out. The customer can ask again.')}</Text> : null}
                         </Card>
+                        {o.payment ? (
+                            <Card>
+                                <Text style={{ color: text, fontWeight: '900' }}>{tr('Advance received: {a}', { a: rs(o.payment.advancePaise / 100) })}</Text>
+                                {o.status === 'confirmed' ? <Text style={{ color: muted, marginTop: 4 }}>{tr('The balance of {b} is paid on {w}. If you cancel, the customer gets the whole advance back.', { b: rs(q.balancePaise / 100), w: delivered ? tr('delivery') : tr('pickup') })}</Text> : null}
+                                {o.status === 'cancelled' && o.cancelledBy === 'customer' ? <Text style={{ color: muted, marginTop: 4 }}>{o.payment.kept ? tr('The customer cancelled late: you keep the advance.') : tr('The customer cancelled in time: the advance goes back to him.')}</Text> : null}
+                                {o.status === 'cancelled' && o.cancelledBy === 'owner' ? <Text style={{ color: muted, marginTop: 4 }}>{tr('You cancelled: the whole advance goes back to the customer.')}</Text> : null}
+                                {o.payment.refundStatus === 'refunded' ? <Text style={{ color: ok, marginTop: 4, fontWeight: '700' }}>{tr('Refund of {a} sent.', { a: rs(o.payment.refundPaise / 100) })}</Text> : null}
+                                {o.payment.refundStatus === 'pending' ? <Text style={{ color: error, marginTop: 4, fontWeight: '700' }}>{tr('Refund of {a} not sent yet. It will be tried again by itself. If your Razorpay balance is low, add some.', { a: rs(o.payment.refundPaise / 100) })}</Text> : null}
+                            </Card>
+                        ) : null}
                         {o.status === 'quoted' ? <View style={{ paddingHorizontal: 16, marginTop: 12 }}><Button label={tr('Decline this order')} icon="close-circle-outline" kind="ghost" onPress={() => setDeclineOpen(true)} /></View> : null}
+                        {o.status === 'confirmed' ? <View style={{ paddingHorizontal: 16, marginTop: 12 }}><Button label={tr('Cancel and refund the advance')} icon="close-circle-outline" kind="ghost" onPress={() => setDeclineOpen(true)} /></View> : null}
                     </>
                 )}
             </ScrollView>

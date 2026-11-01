@@ -13,6 +13,7 @@ const authenticate = require('../middlewares/authMiddleware');
 const apiErrors = require('../middlewares/apiErrors');
 const featureGate = require('../services/featureGate');
 const bulk = require('../services/bulkOrders');
+const pay = require('../services/bulkPayment');
 
 const { wrap, httpError } = apiErrors;
 const router = express.Router();
@@ -34,6 +35,21 @@ router.post('/', wrap(async (req, res) => {
 }));
 router.get('/mine', wrap(async (req, res) => { res.json({ items: await bulk.listMine({ tenant: req.tenant, userId: req.auth.userId }) }); }));
 router.get('/:id', wrap(async (req, res) => { res.json(bulk.customerView(await bulk.mine({ tenant: req.tenant, userId: req.auth.userId, id: req.params.id }))); }));
+router.get('/:id/cancel-preview', wrap(async (req, res) => { res.json(await bulk.previewCancel({ tenant: req.tenant, userId: req.auth.userId, id: req.params.id })); }));
+// paying the advance of an accepted quote (the shop's own Razorpay keys): start, then the proof, or ask Razorpay
+router.post('/:id/pay', wrap(async (req, res) => { res.json(await pay.startAdvance({ tenant: req.tenant, userId: req.auth.userId, id: req.params.id })); }));
+router.post('/:id/verify', wrap(async (req, res) => {
+    const b = req.body || {};
+    const [rzpOrderId, rzpPaymentId, signature] = [b.razorpay_order_id, b.razorpay_payment_id, b.razorpay_signature];
+    if (![rzpOrderId, rzpPaymentId, signature].every((v) => typeof v === 'string' && v && v.length <= 100)) throw httpError(400, 'Payment details are missing');
+    const r = await pay.verifyAdvance({ tenant: req.tenant, userId: req.auth.userId, id: req.params.id, rzpOrderId, rzpPaymentId, signature });
+    res.json({ paid: !!r.paid, status: r.status || null, order: bulk.customerView(await bulk.mine({ tenant: req.tenant, userId: req.auth.userId, id: req.params.id })) });
+}));
+router.post('/:id/check', wrap(async (req, res) => {
+    let r;
+    try { r = await pay.checkAdvance({ tenant: req.tenant, userId: req.auth.userId, id: req.params.id }); } catch (e) { if (e.status === 404) throw e; r = { paid: false, status: 'unknown' }; }   // Razorpay not reachable: "not known yet"
+    res.json({ paid: !!r.paid, status: r.status || null, order: bulk.customerView(await bulk.mine({ tenant: req.tenant, userId: req.auth.userId, id: req.params.id })) });
+}));
 router.post('/:id/cancel', wrap(async (req, res) => { res.json(await bulk.cancelByCustomer({ tenant: req.tenant, userId: req.auth.userId, id: req.params.id })); }));
 router.post('/:id/change', wrap(async (req, res) => { res.json(await bulk.askChange({ tenant: req.tenant, userId: req.auth.userId, id: req.params.id, note: req.body?.note })); }));
 

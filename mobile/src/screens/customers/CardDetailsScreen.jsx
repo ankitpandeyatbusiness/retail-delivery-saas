@@ -5,6 +5,7 @@ import React, { useRef, useState } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { usePayChoice } from '../../store/customers/usePayChoice';
+import { payBulk } from '../../utils/customers/payBulk';
 import { payBooking } from '../../utils/customers/payBooking';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, BackHeader } from '../../components/common/kit';
@@ -81,6 +82,15 @@ export default function CardDetailsScreen() {
         setErrs(e);
         if (Object.keys(e).length) return;
 
+        const bulk = route.params?.bulk;
+        if (bulk) {   // the advance of an accepted bulk order quote: pay now, the card is not kept
+            nav.pop(depth);
+            payBulk({ order: bulk.order, pay: bulk.pay, user: useAuthStore.getState().user, card: { number: raw, month: mm, year: String(y), cvv: digits(cvv), name: name.trim() } }).then((r) => {
+                showToast(r.status === 'paid' ? tr('Paid. Your bulk order is confirmed.') : tr(r.message || 'Not paid yet'));
+                nav.navigate('BulkOrderDetail', { id: bulk.order.id, refresh: Date.now() });
+            });
+            return;
+        }
         const deposit = route.params?.deposit;
         if (deposit) {   // the deposit of a held table booking: pay now, the card is not kept
             nav.pop(depth);

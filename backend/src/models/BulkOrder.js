@@ -54,6 +54,7 @@ const schema = new Schema({
         lines: [lineSchema],
         pricing: pricingSchema,
         advancePercent: Number,
+        fullRefundHours: Number,   // the rule the customer saw: cancel at least this long before the time and the whole advance goes back
         advancePaise: Number,
         balancePaise: Number,
         validUntil: Date,
@@ -61,6 +62,11 @@ const schema = new Schema({
         quotedAt: Date,
     },
     quoteCount: { type: Number, default: 0 },
+    confirmedAt: Date,
+    cancelledBy: { type: String, enum: ['customer', 'owner'] },
+    cancelReason: { type: String, maxlength: 300 },
+    // money, copied here from BulkPayment so a screen can show it: the advance paid, and what happened to it when the order ended
+    payment: { _id: false, advancePaise: Number, advancePaymentId: Schema.Types.ObjectId, paidAt: Date, advanceKept: Boolean, refundDuePaise: Number, refundPaise: Number, refundStatus: String },
     changeNote: { type: String, maxlength: 500 },           // what the customer asked to be changed in the last quote
     declineReason: { type: String, maxlength: 300 },
     ownerNote: { type: String, maxlength: 1000, default: '' },   // private, the owner only

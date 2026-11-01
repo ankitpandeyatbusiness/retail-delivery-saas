@@ -129,3 +129,7 @@ export const fetchMyBulk = () => d(api.get('/bulk/mine'));
 export const fetchBulk = (id) => d(api.get(`/bulk/${id}`));
 export const cancelBulk = (id) => d(api.post(`/bulk/${id}/cancel`));
 export const changeBulk = (id, note) => d(api.post(`/bulk/${id}/change`, { note }));   // ask the shop to change its quote
+export const startBulkPay = (id) => d(api.post(`/bulk/${id}/pay`));                          // { keyId, rzpOrderId, amountPaise, currency }: pay the advance of an accepted quote
+export const verifyBulk = (id, proof) => d(api.post(`/bulk/${id}/verify`, proof));          // { paid, order }
+export const checkBulk = (id) => d(api.post(`/bulk/${id}/check`));                          // { paid, order }
+export const previewCancelBulk = (id) => d(api.get(`/bulk/${id}/cancel-preview`));         // { paid, refundPaise, keptPaise, refundHours, canCancel }

@@ -49,6 +49,11 @@ const EVENTS = {
     booking_owner_cancelled: { to: 'customer', channels: INAPP_PUSH, alsoPush: true }, // the shop cancelled a guest's booking
     bulk_new: { to: 'owner', channels: INAPP_PUSH, alsoPush: true, pushChannel: INQUIRY_CHANNEL, pushSound: 'cust_offer' },     // a customer sent a bulk order request
     bulk_change: { to: 'owner', channels: INAPP_PUSH, alsoPush: true, pushChannel: INQUIRY_CHANNEL, pushSound: 'cust_offer' },  // a customer asked to change the quote
+    bulk_paid: { to: 'owner', channels: INAPP_PUSH, alsoPush: true, pushChannel: INQUIRY_CHANNEL, pushSound: 'cust_offer' },       // the customer paid the advance: the order is confirmed
+    bulk_cancelled: { to: 'owner', channels: INAPP_PUSH, alsoPush: true, pushChannel: INQUIRY_CHANNEL, pushSound: 'cust_offer' },  // the customer cancelled a confirmed bulk order
+    bulk_confirmed: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },       // the advance arrived: the order is confirmed
+    bulk_refund: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },          // the advance is on its way back
+    bulk_shop_cancelled: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },  // the shop cancelled a confirmed bulk order
     bulk_quoted: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },         // the shop sent its quote for a bulk order
     bulk_declined: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },       // the shop cannot take the bulk order
     inquiry_unanswered: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },      // a customer's message has waited a day for an answer

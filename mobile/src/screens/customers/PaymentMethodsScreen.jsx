@@ -12,6 +12,7 @@ import { useAuthStore } from '../../store/common/useAuthStore';
 import { useTableBill } from '../../store/customers/useTableBill';
 import { payTableBill } from '../../utils/customers/payTableBill';
 import { payBooking } from '../../utils/customers/payBooking';
+import { payBulk } from '../../utils/customers/payBulk';
 import { warmRazorpay } from '../../utils/customers/payOnline';
 import { fetchPaymentConfig } from '../../api/customers/shopApi';
 import { standardUpiApps } from '../../utils/customers/upiApps';
@@ -103,8 +104,9 @@ export default function PaymentMethodsScreen() {
     const timer = useRef(null);
     const payShare = !!route.params?.payShare;   // only his own share, then he leaves the bill
     const deposit = route.params?.deposit || null;   // { booking, pay }: the deposit of a held table booking
-    const payBill = !!route.params?.payBill || !!deposit;
-    useEffect(() => { if (deposit?.pay?.keyId) warmRazorpay(deposit.pay.keyId); }, []);   // eslint-disable-line react-hooks/exhaustive-deps   // paying the table bill from the table: online methods only, and the payment starts when one is picked
+    const bulk = route.params?.bulk || null;   // { order, pay }: the advance of an accepted bulk order quote
+    const payBill = !!route.params?.payBill || !!deposit || !!bulk;
+    useEffect(() => { const k = deposit?.pay?.keyId || bulk?.pay?.keyId; if (k) warmRazorpay(k); }, []);   // eslint-disable-line react-hooks/exhaustive-deps   // paying the table bill from the table: online methods only, and the payment starts when one is picked
     const user = useAuthStore((st) => st.user);
     const head = useRef(new Animated.Value(0)).current;
 
@@ -124,11 +126,19 @@ export default function PaymentMethodsScreen() {
 
     const selectMethod = (m) => {
         if (timer.current) return;
-        if (m.value === 'card' && payBill && !deposit) return;
-        if (m.value === 'card') { nav.navigate('CardDetails', { depth: 2, deposit }); return; }   // the card is entered on its own screen
+        if (m.value === 'card' && payBill && !deposit && !bulk) return;
+        if (m.value === 'card') { nav.navigate('CardDetails', { depth: 2, deposit, bulk }); return; }   // the card is entered on its own screen
         setPicked(m.key);
         // short pause so the user sees the tick animation, then go back to the cart
         timer.current = setTimeout(() => {
+            if (bulk) {
+                nav.goBack();
+                payBulk({ order: bulk.order, pay: bulk.pay, user, upiApp: m.app }).then((r) => {
+                    showToast(r.status === 'paid' ? tr('Paid. Your bulk order is confirmed.') : tr(r.message || 'Not paid yet'));
+                    nav.navigate('BulkOrderDetail', { id: bulk.order.id, refresh: Date.now() });
+                });
+                return;
+            }
             if (deposit) {
                 nav.goBack();
                 payBooking({ booking: deposit.booking, pay: deposit.pay, user, upiApp: m.app }).then((r) => {
@@ -186,7 +196,7 @@ export default function PaymentMethodsScreen() {
                         {cfg.upi ? upiRows.map((m, i) => (
                             <MethodCard key={m.key} m={m} index={i} selected={picked === m.key} onPick={selectMethod} />
                         )) : null}
-                        {cfg.card && (!payBill || deposit) ? (
+                        {cfg.card && (!payBill || deposit || bulk) ? (
                             <MethodCard m={cardRow} index={upiRows.length} selected={picked === 'card'} onPick={selectMethod} />
                         ) : null}
                     </>

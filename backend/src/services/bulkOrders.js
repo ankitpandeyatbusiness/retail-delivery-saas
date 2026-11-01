@@ -20,7 +20,7 @@ const { httpError } = require('../middlewares/apiErrors');
 const isId = (v) => typeof v === 'string' && mongoose.isValidObjectId(v);
 const DAY = 86400000;
 const MAX_LINES = 60;
-const OPEN = ['requested', 'quoted'];   // the customer can still cancel
+const OPEN = ['requested', 'quoted', 'expired'];   // nothing paid yet: the customer can still cancel
 const tell = (event, ctx) => Promise.resolve().then(() => require('../notifications/center').notify(event, ctx)).catch((e) => console.error('Notification error:', e.message));
 const rupees = (n) => `₹${+Number(n || 0).toFixed(2)}`;
 
@@ -229,9 +229,11 @@ function customerView(o) {
         id: String(o._id), code: o.code, status, fulfilment: o.fulfilment, when: o.when, address: o.address, contact: o.contact, cutlery: o.cutlery, packaging: o.packaging, note: o.note,
         lines: (o.lines || []).map(lineView), pricing: o.pricing, changeNote: o.changeNote, declineReason: o.declineReason,
         quote: o.quote?.pricing ? {
-            version: o.quote.version, lines: (o.quote.lines || []).map(lineView), pricing: o.quote.pricing, advancePercent: o.quote.advancePercent,
+            version: o.quote.version, lines: (o.quote.lines || []).map(lineView), pricing: o.quote.pricing, advancePercent: o.quote.advancePercent, fullRefundHours: o.quote.fullRefundHours,
             advancePaise: o.quote.advancePaise, balancePaise: o.quote.balancePaise, validUntil: o.quote.validUntil, note: o.quote.note, quotedAt: o.quote.quotedAt,
         } : null,
+        payment: o.payment?.advancePaymentId ? { advancePaise: o.payment.advancePaise, paidAt: o.payment.paidAt, kept: !!o.payment.advanceKept, refundPaise: o.payment.refundPaise, refundStatus: o.payment.refundStatus } : null,
+        canPay: status === 'quoted', cancel: cancelOutcome(o), cancelledBy: o.cancelledBy, cancelReason: o.cancelReason,
         createdAt: o.createdAt, updatedAt: o.updatedAt,
     };
 }
@@ -248,15 +250,67 @@ async function listMine({ tenant, userId }) {
     return rows.map(customerView);
 }
 
-// the customer cancels before anything is paid
+// What a cancel means for the money, by the rule the customer saw in the quote: cancel at least `fullRefundHours` before the time and the whole
+// advance goes back; later the shop keeps it. Nothing paid = nothing to refund. One function, used by the real cancel and by the preview.
+function cancelOutcome(o, now = new Date()) {
+    const paid = o.status === 'confirmed' && !!o.payment?.advancePaymentId;
+    const paise = paid ? (o.payment.advancePaise || 0) : 0;
+    const hours = o.quote?.fullRefundHours ?? 0;
+    const early = new Date(o.when).getTime() - now.getTime() >= hours * 3600000;
+    return { paid, refundPaise: paid && early ? paise : 0, keptPaise: paid && !early ? paise : 0, refundHours: hours, canCancel: OPEN.includes(o.status) || paid };
+}
+
+async function previewCancel({ tenant, userId, id }) {
+    return cancelOutcome(await mine({ tenant, userId, id }));
+}
+
+// the customer cancels: before he pays nothing is owed; after the advance the rule above decides
 async function cancelByCustomer({ tenant, userId, id }) {
     const o = await mine({ tenant, userId, id });
+    if (OPEN.includes(o.status)) {
+        const done = await BulkOrder.findOneAndUpdate(
+            { _id: o._id, status: { $in: OPEN } },
+            { $set: { status: 'cancelled', cancelledBy: 'customer' }, $push: { history: { status: 'cancelled', by: 'customer' } } }, { returnDocument: 'after' },
+        ).lean();
+        if (!done) throw httpError(409, 'This order can no longer be cancelled here');   // a payment landed a moment ago: open it again
+        return customerView(done);
+    }
+    if (o.status !== 'confirmed') throw httpError(409, 'This order can no longer be cancelled here. Please talk to the shop.');
+    const out = cancelOutcome(o);
     const done = await BulkOrder.findOneAndUpdate(
-        { _id: o._id, status: { $in: OPEN } },
-        { $set: { status: 'cancelled' }, $push: { history: { status: 'cancelled', by: 'customer' } } }, { returnDocument: 'after' },
+        { _id: o._id, status: 'confirmed' },
+        { $set: { status: 'cancelled', cancelledBy: 'customer', 'payment.advanceKept': out.keptPaise > 0, 'payment.refundDuePaise': out.refundPaise }, $push: { history: { status: 'cancelled', by: 'customer', note: out.refundPaise ? 'refund due' : 'advance kept' } } },
+        { returnDocument: 'after' },
     ).lean();
-    if (!done) throw httpError(409, 'This order can no longer be cancelled here');
-    return customerView(done);
+    if (!done) throw httpError(409, 'This order was just changed. Open it again.');
+    await refundDue(done);   // if this fails or the server stops here, the repair job sends it
+    tell('bulk_cancelled', { tenantId: tenant._id, vars: { name: done.contact?.name, code: done.code, kept: out.keptPaise > 0 }, data: { kind: 'bulk', bulkId: String(done._id) } });
+    return customerView(await BulkOrder.findById(done._id).lean());
+}
+
+// sends the refund an ended order is owed (cancelled orders carry the amount in payment.refundDuePaise)
+async function refundDue(o) {
+    const due = o.payment?.refundDuePaise;
+    if (!(due > 0)) return null;
+    const pay = await require('./bulkPayment').advanceOf(o._id);
+    return pay ? require('./bulkPayment').refund(pay._id, { reason: o.cancelledBy === 'owner' ? 'shop_cancel' : 'customer_cancel', amountPaise: due }) : null;
+}
+
+// the shop cancels an order whose advance is paid: the customer always gets everything back
+async function ownerCancel({ tenant, id, reason }) {
+    const o = await ownerOne({ tenant, id });
+    const text = String(reason || '').trim().slice(0, 300);
+    if (!text) throw httpError(400, 'Tell the customer why');
+    if (o.status !== 'confirmed') throw httpError(409, 'Only a confirmed order can be cancelled here');
+    const done = await BulkOrder.findOneAndUpdate(
+        { _id: o._id, status: 'confirmed' },
+        { $set: { status: 'cancelled', cancelledBy: 'owner', cancelReason: text, 'payment.refundDuePaise': o.payment?.advancePaise || 0 }, $push: { history: { status: 'cancelled', by: 'owner', note: text } } },
+        { returnDocument: 'after' },
+    ).lean();
+    if (!done) throw httpError(409, 'This order was just changed. Open it again.');
+    await refundDue(done);
+    tell('bulk_shop_cancelled', { tenantId: tenant._id, userId: done.userId, vars: { code: done.code, reason: text, amount: (done.payment?.advancePaise || 0) / 100 }, data: { kind: 'bulk', bulkId: String(done._id) } });
+    return ownerView(await BulkOrder.findById(done._id).lean());
 }
 
 // "please change the quote": it goes back to the owner with a note
@@ -334,7 +388,7 @@ async function quote({ tenant, id, body = {} }) {
     const quoted = {
         version: (o.quoteCount || 0) + 1, lines,
         pricing: { subtotal, discount, deliveryFee: delivery, packagingCharge: packaging, tax, taxOnTop: onTop, taxIncluded: inside, taxMode: o.pricing.taxMode, taxPercent: o.pricing.taxPercent, total },
-        advancePercent, advancePaise, balancePaise: totalPaise - advancePaise,
+        advancePercent, fullRefundHours: s.fullRefundHours, advancePaise, balancePaise: totalPaise - advancePaise,
         validUntil: new Date(Date.now() + validHours * 3600000), note: typeof body.note === 'string' ? body.note.trim().slice(0, 500) : undefined, quotedAt: new Date(),
     };
     const done = await BulkOrder.findOneAndUpdate(
@@ -373,6 +427,6 @@ async function expireOld(now = new Date()) {
 }
 
 module.exports = {
-    settingsOf, saveSettings, publicConfig, menuFor, priceRequest, estimate, create, customerView, mine, listMine, cancelByCustomer, askChange,
+    settingsOf, saveSettings, publicConfig, menuFor, priceRequest, estimate, create, customerView, mine, listMine, cancelByCustomer, previewCancel, cancelOutcome, refundDue, ownerCancel, askChange,
     ownerView, ownerList, ownerOne, quote, decline, setOwnerNote, expireOld, effectiveStatus,
 };

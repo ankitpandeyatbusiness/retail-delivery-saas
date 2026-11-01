@@ -24,3 +24,25 @@ Payments are NOT part of this step: after the quote the customer can ask for a c
 - [ ] A notification "Your quote ... is ready". The order page shows the whole bill, the advance to pay now and the balance.
 - [ ] **Ask for a change** sends a note; the owner sees it in red and quotes again.
 - [ ] **Cancel this request** works; after the owner declines, the reason shows.
+
+# Step 2: the advance payment and refunds
+
+Needs the shop's online payments switched on (Razorpay keys saved, tested, webhook secret made, "enabled"), same as for a table deposit. Test with TEST keys first.
+
+## Paying
+- [ ] On a quote: **Accept and pay Rs X now**. The text under it says the cancel rule ("cancel at least N hours before..."). The payment screen opens; pay with a UPI app and with a card.
+- [ ] After paying the order shows **Confirmed**, "Advance paid", and the balance line. The owner gets "Bulk order confirmed".
+- [ ] Close the app right after paying: reopen. The order is confirmed (the server asked Razorpay by itself).
+- [ ] Pressing Back out of the UPI app: the order stays "Quote received" and you can pay again.
+
+## Cancelling
+- [ ] Customer, far ahead of the time: **Cancel this order** says "You will get Rs X back as a refund". After yes: cancelled, a push "Refund for bulk order", the Razorpay dashboard shows the refund.
+- [ ] Customer, inside the cutoff (change the time on the order so it is less than N hours away): the popup says "Too late for a refund ... the shop keeps your advance". No refund appears in Razorpay.
+- [ ] Owner on a confirmed order: **Cancel and refund the advance** with a reason: always the whole amount back, even inside the cutoff. The customer gets a push.
+- [ ] Owner changes the "full refund" hours afterwards: an order already quoted keeps the hours it was quoted with.
+
+## Odd cases
+- [ ] Customer cancels a quote while a payment is open, then pays: the money is refunded by itself and the order stays cancelled.
+- [ ] Owner sends a new quote while the customer pays the old one: the old payment is refunded, the new quote stays open.
+- [ ] A shop with no Razorpay balance: the refund waits as "not sent yet" on the owner screen; the owner gets one message to add balance; after adding, it goes out within a few minutes.
+- [ ] Razorpay dashboard: the webhook has `payment.captured` ticked (also `refund.processed`, `refund.failed`).
