@@ -74,7 +74,7 @@ export function Chips({ options, value, onChange, style }) {
                             borderColor: on ? primary : border, backgroundColor: on ? primary : 'transparent',
                         }}
                     >
-                        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={{ color: on ? onPrimary : text, fontWeight: '800', fontSize: 14, flexShrink: 1 }}>{label}</Text>
+                        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={{ color: on ? onPrimary : text, fontWeight: '800', fontSize: 14, flexShrink: 1 }}>{tr(label)}</Text>
                     </Pressable>
                 );
             })}
@@ -262,10 +262,10 @@ function OwnerHeaderBase({ title }) {
     const timedPause = !!pausedUntil && new Date(pausedUntil).getTime() > Date.now();
     const open = restaurant?.isOpen !== false && accepting !== false;
     const forcedUntil = restaurant?.forcedOpenUntil || null;   // opened by hand while the hours say closed: until when
-    const label = timedPause ? `Paused until ${clockTime(pausedUntil)}`
-        : accepting === false ? 'Orders paused'
-            : forcedUntil ? `Open by hand until ${clockTime(forcedUntil)}`
-                : restaurant?.isOpen === false ? 'Closed now' : 'Open';
+    const label = timedPause ? tr('Paused until {t}', { t: clockTime(pausedUntil) })
+        : accepting === false ? tr('Orders paused')
+            : forcedUntil ? tr('Open by hand until {t}', { t: clockTime(forcedUntil) })
+                : restaurant?.isOpen === false ? tr('Closed now') : tr('Open');
     const canToggle = access === 'ok';
     // closed by the opening hours or a holiday (not paused by hand): the switch goes OFF by itself, and slides back to LIVE when the shop opens
     const hoursKnown = restaurant?.hoursOpen !== undefined;   // a server that tells what the hours alone say

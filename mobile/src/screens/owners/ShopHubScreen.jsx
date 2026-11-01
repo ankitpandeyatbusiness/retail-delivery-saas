@@ -129,10 +129,10 @@ export function BusySheet({ visible, busy, onClose, onChanged }) {
     return (
         <Sheet visible={visible} onClose={onClose} title={tr('Busy mode')}>
             <Label hint={tr('Customers see a longer waiting time, so nobody expects food too soon. It ends by itself.')}>{tr('How much longer')}</Label>
-            <Chips options={BUSY_EXTRA} value={extra} onChange={setExtra} style={{ marginTop: 0 }} />
+            <Chips options={BUSY_EXTRA.map(([v]) => [v, v === 60 ? tr('+1 hour') : tr('+{n} min', { n: v })])} value={extra} onChange={setExtra} style={{ marginTop: 0 }} />
             <Label>{tr('For how long')}</Label>
             {BUSY_FOR.map(([id, label, when]) => (
-                <View key={id} style={{ marginBottom: 8 }}><Button label={label} kind="ghost" disabled={work} onPress={() => go({ extraMin: extra, ...when })} /></View>
+                <View key={id} style={{ marginBottom: 8 }}><Button label={tr(label)} kind="ghost" disabled={work} onPress={() => go({ extraMin: extra, ...when })} /></View>
             ))}
             {busy ? <View style={{ marginTop: 6 }}><Button label={tr('Switch busy mode off')} kind="danger" disabled={work} onPress={() => go({ off: true })} /></View> : null}
         </Sheet>
@@ -287,7 +287,7 @@ export function ShopMenu({ onGo }) {
                         <View key={group} style={az ? { paddingRight: 26 } : null}>
                             <SectionTitle title={tr(group)} />
                             <Card>
-                                {rows.map((e, i) => (e.custom ? <AppearanceSwitch key={e.title} /> : <Row key={e.title} icon={e.icon} title={tr(e.title)} subtitle={e.subtitle} color={e.color} right={e.right} last={i === rows.length - 1} onPress={e.act} />))}
+                                {rows.map((e, i) => (e.custom ? <AppearanceSwitch key={e.title} /> : <Row key={e.title} icon={e.icon} title={tr(e.title)} subtitle={tr(e.subtitle)} color={e.color} right={e.right} last={i === rows.length - 1} onPress={e.act} />))}
                             </Card>
                         </View>
                     ) : null); })}

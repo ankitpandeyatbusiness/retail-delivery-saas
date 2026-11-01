@@ -97,7 +97,7 @@ export default function OwnerAutomationsScreen() {
         const R = [];
         const T = (id, section, title, sub, value, onChange, words = '', show = true) => { if (show) R.push({ id, section, kind: 'toggle', title, sub, value, onChange, words }); };
         const C = (id, section, label, options, value, onChange, words = '', note = '', show = true) => { if (show) R.push({ id, section, kind: 'choice', title: label, options, value, onChange, words, note }); };
-        const I = (id, section, title, sub, words = '', tag = 'Always on', show = true) => { if (show) R.push({ id, section, kind: 'info', title, sub, words, tag }); };
+        const I = (id, section, title, sub, words = '', tag = tr('Always on'), show = true) => { if (show) R.push({ id, section, kind: 'info', title, sub, words, tag }); };
 
         // new orders
         R.push({ id: 'autoaccept', section: 'orders', kind: 'custom', title: tr('Accept new orders by themselves'), words: 'auto accept busy hours schedule', node: <AutoAcceptCard /> });
@@ -116,7 +116,7 @@ export default function OwnerAutomationsScreen() {
         T('serve', 'kitchen', tr('Mark dishes served by themselves'), dine.autoServe ? tr('Served some minutes after ready') : tr('Off: you press Served each time'), !!dine.autoServe, (x) => saveDine({ autoServe: x }), 'waiter served automatic', dineOn);
         C('servemin', 'kitchen', tr('Serve after'), withValue(opts([5, 10, 15]), dine.serveMin), dine.serveMin ?? 10, (x) => saveDine({ serveMin: x }), 'served after ready', '', dineOn && !!dine.autoServe);
         T('kp', 'kitchen', tr('The kitchen reported a problem'), a.kitchenProblemReminders ? tr('Every 10 minutes until you answer') : tr('Off'), !!a.kitchenProblemReminders, (x) => saveA({ kitchenProblemReminders: x }), 'kitchen problem finished dish reminder');
-        if (staff) I('nudge', 'kitchen', tr('Nudges to the cooks'), tr('An accepted order nobody started after {a} minutes, and one still cooking {b} minutes late. Set by the platform.', { a: staff.nudgeMin ?? '-', b: staff.lateMin ?? '-' }), 'kitchen cook nudge late start', 'Set by the platform');
+        if (staff) I('nudge', 'kitchen', tr('Nudges to the cooks'), tr('An accepted order nobody started after {a} minutes, and one still cooking {b} minutes late. Set by the platform.', { a: staff.nudgeMin ?? '-', b: staff.lateMin ?? '-' }), 'kitchen cook nudge late start', tr('Set by the platform'));
         // tables and dine in
         T('busy', 'tables', tr('Tell customers when we are busy'), dine.busyAuto ? tr('Automatic, when many tables are taken') : tr('Off'), !!dine.busyAuto, (x) => saveDine({ busyAuto: x }), 'busy mode waiting time crowded', dineOn);
         C('close', 'tables', tr('A table with nothing owed closes after'), hoursOf(dine.autoCloseHours), dine.autoCloseHours || 6, (x) => saveDine({ autoCloseHours: x }), 'table close quiet open hours', '', dineOn);
@@ -125,8 +125,8 @@ export default function OwnerAutomationsScreen() {
         C('check', 'tables', tr('Tell me to check a table after'), minList([10, 20, 30, 45], dine.checkMinutes), dine.checkMinutes ?? 20, (x) => saveDine({ checkMinutes: x }), 'check table finished eating bill nobody asked', tr('Served, and nobody asked for the bill.'), dineOn);
         T('watch', 'tables', tr('Tell me when a guest who owes cannot be reached'), dine.guestWatch !== false ? tr('Their phone has not been heard from for a while, or their location is switched off.') : tr('Off: nothing is watched.'), dine.guestWatch !== false, (x) => saveDine({ guestWatch: x }), 'guest owes unreachable walk out phone location', dineOn);
         C('unreach', 'tables', tr('Not reachable after'), minList([5, 10, 20, 30], dine.unreachableMin), dine.unreachableMin ?? 10, (x) => saveDine({ unreachableMin: x }), 'guest unreachable minutes', '', dineOn && dine.guestWatch !== false);
-        I('join2', 'tables', tr('A guest who asked to join a shared table'), tr('If nobody answers in 2 minutes, he is offered his own bill.'), 'shared table join request', 'Always on', dineOn);
-        I('billask', 'tables', tr('A table that asked for the bill'), tr('You and the waiters are reminded every few minutes, up to 6 times, until it is settled.'), 'bill asked reminder waiter', 'Always on', dineOn);
+        I('join2', 'tables', tr('A guest who asked to join a shared table'), tr('If nobody answers in 2 minutes, he is offered his own bill.'), 'shared table join request', tr('Always on'), dineOn);
+        I('billask', 'tables', tr('A table that asked for the bill'), tr('You and the waiters are reminded every few minutes, up to 6 times, until it is settled.'), 'bill asked reminder waiter', tr('Always on'), dineOn);
         // unpaid bills
         T('owed', 'bills', tr('Remind them every day'), dine.owedDaily ? tr('Everyone who owes gets a reminder once a day') : tr('Off: you remind them yourself'), !!dine.owedDaily, (x) => saveDine({ owedDaily: x }), 'unpaid bill owe reminder daily walk out', dineOn);
         C('owedhour', 'bills', tr('Remind at'), [[9, '9 AM'], [11, '11 AM'], [14, '2 PM'], [17, '5 PM'], [19, '7 PM']].concat([9, 11, 14, 17, 19].includes(dine.owedHour) || dine.owedHour === undefined ? [] : [[dine.owedHour, `${dine.owedHour}:00`]]), dine.owedHour ?? 11, (x) => saveDine({ owedHour: x }), 'unpaid reminder hour', '', dineOn && !!dine.owedDaily);
@@ -146,7 +146,7 @@ export default function OwnerAutomationsScreen() {
         }
         // inquiries and complaints
         C('inqclose', 'inquiries', tr('An answered inquiry with no new message is ended after'), days(), a.inquiryCloseDays, (x) => saveA({ inquiryCloseDays: x }), 'inquiry quiet end close services', '', servicesOn);
-        I('inqrem', 'inquiries', tr('An inquiry nobody answered'), tr('You are reminded after a day. It stays open until you reply.'), 'inquiry reminder unanswered', 'Always on', servicesOn);
+        I('inqrem', 'inquiries', tr('An inquiry nobody answered'), tr('You are reminded after a day. It stays open until you reply.'), 'inquiry reminder unanswered', tr('Always on'), servicesOn);
         T('compl', 'inquiries', tr('Remind me about a complaint nobody answered'), a.complaintReminders ? tr('Every day, up to 3 times') : tr('Off'), !!a.complaintReminders, (x) => saveA({ complaintReminders: x }), 'complaint reminder unanswered');
         // messages to customers (Autopilot)
         if (ap?.on) {
@@ -158,9 +158,9 @@ export default function OwnerAutomationsScreen() {
         T('leaverem', 'staff', tr('A leave request nobody answered'), a.leaveReminders ? tr('After 2 hours, and again later') : tr('Off'), !!a.leaveReminders, (x) => saveA({ leaveReminders: x }), 'staff rider leave request reminder');
         T('leaveauto', 'staff', tr('Approve a staff leave request nobody answered'), a.autoApproveLeave ? tr('Approved after 2 hours') : tr('Off: you decide'), !!a.autoApproveLeave, (x) => saveA({ autoApproveLeave: x }), 'staff leave approve automatic');
         // done by the platform
-        I('p1', 'platform', tr('Backups of your shop data'), tr('Taken every day, and kept for a week. A weekly copy is kept for a month.'), 'backup data safe', 'Done for you');
-        I('p2', 'platform', tr('Monthly reports'), tr('Made at the start of each month.'), 'monthly report', 'Done for you');
-        I('p3', 'platform', tr('Loyalty points'), tr('Points a customer earned are released by themselves after the order is safe.'), 'loyalty points release rewards', 'Done for you');
+        I('p1', 'platform', tr('Backups of your shop data'), tr('Taken every day, and kept for a week. A weekly copy is kept for a month.'), 'backup data safe', tr('Done for you'));
+        I('p2', 'platform', tr('Monthly reports'), tr('Made at the start of each month.'), 'monthly report', tr('Done for you'));
+        I('p3', 'platform', tr('Loyalty points'), tr('Points a customer earned are released by themselves after the order is safe.'), 'loyalty points release rewards', tr('Done for you'));
         return R;
     }, [a, dine, rid, staff, bk, ap, bookingOn, servicesOn]);   // eslint-disable-line react-hooks/exhaustive-deps
 
