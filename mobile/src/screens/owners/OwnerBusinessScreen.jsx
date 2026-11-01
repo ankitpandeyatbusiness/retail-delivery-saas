@@ -27,8 +27,12 @@ const TONE = { good: ['checkmark-circle', 'ok'], watch: ['alert-circle', 'warn']
 function Change({ value, suffix = 'vs before' }) {
     const { ok, error, muted } = useBrand();
     if (value === null || value === undefined) return <Text style={{ color: muted, fontSize: 12 }}>{suffix === 'vs before' ? tr('nothing to compare with yet') : ''}</Text>;
-    return <Pill label={`${value >= 0 ? '▲' : '▼'} ${Math.abs(value)}% ${suffix}`} color={value >= 0 ? ok : error} />;
+    return <Pill label={`${value >= 0 ? '▲' : '▼'} ${Math.abs(value)}% ${suffix === 'vs before' ? tr('vs before') : suffix}`} color={value >= 0 ? ok : error} />;
 }
+
+const MONTHS_FULL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+// "Last 7 days" or "November 2026" (the server writes it in English)
+const rangeText = (label) => { const m = String(label || '').match(/^([A-Za-z]+) (d{4})$/); return m && MONTHS_FULL.includes(m[1]) ? `${tr(m[1])} ${m[2]}` : tr(label); };
 
 function Tip({ tip, onAction }) {
     const { text, muted, ok, error, primary, accent } = useBrand();
@@ -38,9 +42,9 @@ function Tip({ tip, onAction }) {
         <View style={{ flexDirection: 'row', paddingVertical: 12 }}>
             <Ionicons name={icon} size={24} color={color} style={{ marginRight: 12, marginTop: 1 }} />
             <View style={{ flex: 1 }}>
-                <Text style={{ color: text, fontWeight: '900' }}>{tip.title}</Text>
-                <Text style={{ color: muted, marginTop: 3, lineHeight: 20 }}>{tip.detail}</Text>
-                {tip.action ? <View style={{ marginTop: 8, alignSelf: 'flex-start' }}><Button label={tip.action.label} kind="ghost" onPress={() => onAction(tip.action.screen)} style={{ minHeight: 38, paddingHorizontal: 14 }} /></View> : null}
+                <Text style={{ color: text, fontWeight: '900' }}>{tr(tip.title)}</Text>
+                <Text style={{ color: muted, marginTop: 3, lineHeight: 20 }}>{tr(tip.detail)}</Text>
+                {tip.action ? <View style={{ marginTop: 8, alignSelf: 'flex-start' }}><Button label={tr(tip.action.label)} kind="ghost" onPress={() => onAction(tip.action.screen)} style={{ minHeight: 38, paddingHorizontal: 14 }} /></View> : null}
             </View>
         </View>
     );
@@ -56,8 +60,8 @@ export default function OwnerBusinessScreen() {
     const [busyOpen, setBusyOpen] = useState(false);
     const [busy, setBusy] = useState(null);
     const prev = lastMonthSpec();
-    const options = [['7', '7 days'], ['30', '30 days'], ['90', '3 months'], [prev, 'Last month']];
-    if (given && !options.some(([v]) => v === String(given))) options.push([String(given), 'That month']);
+    const options = [['7', tr('7 days')], ['30', tr('30 days')], ['90', tr('3 months')], [prev, tr('Last month')]];
+    if (given && !options.some(([v]) => v === String(given))) options.push([String(given), tr('That month')]);
 
     const load = useCallback(async () => {
         setR(null); setErr('');
@@ -92,7 +96,7 @@ export default function OwnerBusinessScreen() {
                 {r ? (
                     <>
                         <Card tone={primary}>
-                            <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }}>{r.range.label}</Text>
+                            <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }}>{rangeText(r.range.label)}</Text>
                             <Text style={{ color: text, fontSize: 32, fontWeight: '900', marginTop: 2 }}>{money(t.revenue)}</Text>
                             <Text style={{ color: muted, marginTop: 2 }}>{tr('from {orders} delivered {v2}', { orders: t.orders, v2: t.orders === 1 ? 'order' : 'orders' })}</Text>
                             <View style={{ marginTop: 10, flexDirection: 'row', flexWrap: 'wrap' }}><Change value={r.change.revenue} /></View>
@@ -140,15 +144,15 @@ export default function OwnerBusinessScreen() {
 
                         <SectionTitle title={tr('When you are busy')} />
                         <Card>
-                            <Text style={{ color: muted, marginBottom: 8 }}>{r.busiest.hourLabel ? tr('Most orders arrive on {weekday}, around {hourLabel}.', { weekday: r.busiest.weekday, hourLabel: r.busiest.hourLabel }) : tr('Not enough orders yet to tell.')}</Text>
+                            <Text style={{ color: muted, marginBottom: 8 }}>{r.busiest.hourLabel ? tr('Most orders arrive on {weekday}, around {hourLabel}.', { weekday: tr(r.busiest.weekday), hourLabel: r.busiest.hourLabel.replace(/AM|PM/, (x) => tr(x)) }) : tr('Not enough orders yet to tell.')}</Text>
                             <HourStrip byHour={r.busiest.byHour} peak={r.busiest.hour} />
                             <View style={{ height: 12 }} />
-                            {days.map((d, i) => <HBar key={d} label={d} value={r.busiest.byWeekday[i]} max={maxDay} right={String(r.busiest.byWeekday[i])} />)}
+                            {days.map((d, i) => <HBar key={d} label={tr(d)} value={r.busiest.byWeekday[i]} max={maxDay} right={String(r.busiest.byWeekday[i])} />)}
                         </Card>
 
                         <SectionTitle title={tr('What customers like')} />
                         <Card>
-                            {r.food.top.length ? r.food.top.slice(0, 6).map((x) => <HBar key={x.name} label={x.name} value={x.quantity} max={maxFood} right={`${x.quantity} sold · ${money(x.revenue)}`} />) : <Text style={{ color: muted }}>{tr('No sales yet.')}</Text>}
+                            {r.food.top.length ? r.food.top.slice(0, 6).map((x) => <HBar key={x.name} label={x.name} value={x.quantity} max={maxFood} right={`${tr('{n} sold', { n: x.quantity })} · ${money(x.revenue)}`} />) : <Text style={{ color: muted }}>{tr('No sales yet.')}</Text>}
                             {r.food.loved.length ? <Text style={{ color: ok, fontWeight: '800', marginTop: 10 }}>{tr('Best rated: {v1}', { v1: r.food.loved.slice(0, 3).map((x) => `${x.name} (${x.avg}★)`).join(', ') })}</Text> : null}
                             {r.food.attention.length ? <Text style={{ color: error, fontWeight: '800', marginTop: 6 }}>{tr('Needs a look: {v1}', { v1: r.food.attention.slice(0, 3).map((x) => `${x.name} (${x.avg}★)`).join(', ') })}</Text> : null}
                             {r.food.slow.length ? <Text style={{ color: muted, marginTop: 6 }}>{tr('Did not sell: {v1}', { v1: r.food.slow.map((x) => x.name).join(', ') })}</Text> : null}
@@ -162,7 +166,7 @@ export default function OwnerBusinessScreen() {
                                 <Stat label={tr('Returning')} value={String(r.customers.returning)} />
                             </View>
                             {r.customers.top.length ? <Text style={{ color: muted, fontWeight: '700', marginTop: 12, marginBottom: 2 }}>{tr('Best customers')}</Text> : null}
-                            {r.customers.top.map((c, i) => <MoneyRow key={String(c.userId)} title={c.name} note={`${c.orders} ${c.orders === 1 ? 'order' : 'orders'}`} value={money(c.spent)} last={i === r.customers.top.length - 1} />)}
+                            {r.customers.top.map((c, i) => <MoneyRow key={String(c.userId)} title={c.name} note={tr(c.orders === 1 ? '{n} order' : '{n} orders', { n: c.orders })} value={money(c.spent)} last={i === r.customers.top.length - 1} />)}
                             <View style={{ marginTop: 10 }}><Button label={tr('Open customers')} kind="ghost" icon="people" onPress={() => nav.navigate('OwnerCustomers')} /></View>
                         </Card>
 
