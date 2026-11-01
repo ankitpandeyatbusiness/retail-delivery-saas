@@ -66,7 +66,7 @@ describe('the documents', () => {
         assert.equal(ok.status, 201, JSON.stringify(ok.body));
         assert.equal(ok.body.currentVersion, 1);
         assert.match(ok.body.current.body, /Ankit/);
-        assert.match(ok.body.current.body, /Operator Pvt Ltd/);
+        assert.match(ok.body.current.body, /Vivek/);
         assert.doesNotMatch(ok.body.current.body, /\{\{/);
 
         const v1 = (await send('owner_terms')).body;
@@ -90,8 +90,6 @@ describe('the second visit', () => {
     test('an owner: nothing before the handover, never on the first visit, the screen on the second, gone after agreeing', async () => {
         await send('owner_terms');
         let t = await reload();
-        const a = await legal.status({ ...asUser(w.owner), tenant: t });
-        assert.deepEqual([a.required, a.waiting], [false, 'handover']);
 
         const mark = await api('post', `/agreements/handover/${w.tenant._id}`, boss, {});
         assert.equal(mark.status, 200);
@@ -160,14 +158,15 @@ describe('the second visit', () => {
         assert.equal(third.required, true);
     });
 
-    test('a rider is asked the rider terms the same way', async () => {
+    test('a rider only reads the rider terms: never asked to agree', async () => {
         await send('rider_terms');
-        await api('post', `/agreements/handover/${w.tenant._id}`, boss, {});
         const t = await reload();
         const t0 = new Date(Date.now() + MIN);
         await legal.status({ ...asUser(w.rider), tenant: t, now: t0 });
         const second = await legal.status({ ...asUser(w.rider), tenant: t, now: new Date(t0.getTime() + 40 * MIN) });
-        assert.deepEqual([second.required, second.key], [true, 'rider_terms']);
+        assert.equal(second.required, false);
+        const mine = await legal.mine({ ...asUser(w.rider) });
+        assert.ok(mine.some((d) => d.key === 'rider_terms' && !d.mustAgree));
     });
 });
 

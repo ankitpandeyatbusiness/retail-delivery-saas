@@ -5,12 +5,11 @@
 //     partner   the operator partner's superadmin account   -> operator_agreement
 //     team      every other superadmin (not the supreme one) -> team_terms
 //     owner     shop owners (role admin)                     -> owner_terms
-//     rider     riders                                       -> rider_terms
+//     rider     riders: they only READ rider_terms, customer_terms and privacy; nothing to agree to
 //     customer  customers: they only READ customer_terms and privacy; nothing to agree to
 //
 //   WHEN the agree screen shows: on the person's SECOND visit after the version was sent (a visit = opening the app after at least
-//   30 minutes away), never at the first. For owners and riders it also waits until the supreme admin has pressed
-//   "Mark as handed over" on their shop. A document sent as askWhen "free_ends" waits for the shop's free period to end.
+//   30 minutes away), never at the first. A document sent as askWhen "free_ends" waits for the shop's free period to end.
 const LegalDocument = require('../models/LegalDocument');
 const LegalAcceptance = require('../models/LegalAcceptance');
 const LegalVisit = require('../models/LegalVisit');
@@ -25,7 +24,8 @@ const { httpError } = require('../middlewares/apiErrors');
 
 const VISIT_GAP_MS = 30 * 60000;
 const KEYS = Object.keys(DOCS);
-const GATE_DOC = { partner: 'operator_agreement', team: 'team_terms', owner: 'owner_terms', rider: 'rider_terms' };
+const GATE_DOC = { partner: 'operator_agreement', team: 'team_terms', owner: 'owner_terms' };
+const READ_ONLY_DOC = { rider: 'rider_terms' };   // riders only read their terms, nothing to agree to
 const PUBLIC_KEYS = ['customer_terms', 'privacy'];
 
 /* ------------------------------ the text ------------------------------ */
@@ -40,7 +40,7 @@ async function variables() {
         operatorName: b.legalName || '[operator name]',
         operatorAddress: b.address || '[operator address]',
         operatorGstin: b.gstin ? ` (GSTIN ${b.gstin})` : '',
-        ownerName: cfg.ownerName, partnerName: cfg.partnerName, payDays: cfg.payDays,
+        ownerName: cfg.ownerName, partnerName: cfg.partnerName, payDays: cfg.payDays, royaltyPct: cfg.royaltyPct,
         ownerPctPartnerBrought: cfg.ownerPctPartnerBrought, partnerPctPartnerBrought: 100 - cfg.ownerPctPartnerBrought,
         ownerPctOwnerBrought: cfg.ownerPctOwnerBrought, partnerPctOwnerBrought: 100 - cfg.ownerPctOwnerBrought,
         costOwnerPct: cfg.costOwnerPct, costPartnerPct: 100 - cfg.costOwnerPct,
@@ -91,7 +91,7 @@ async function list() {
     }
     return out;
 }
-const GATE_DOC_AUDIENCES = ['partner', 'team', 'owner', 'rider'];
+const GATE_DOC_AUDIENCES = ['partner', 'team', 'owner'];
 
 async function getFull(key) {
     const doc = await loadDoc(key);
@@ -160,8 +160,7 @@ const isSupremeAdmin = (admin) => Array.isArray(admin?.phones) && admin.phones.i
 function gateKeyFor({ who, role, admin }) {
     if (who === 'admin') return isSupremeAdmin(admin) ? null : (admin?.legalRole === 'partner' ? GATE_DOC.partner : GATE_DOC.team);
     if (role === 'admin') return GATE_DOC.owner;
-    if (role === 'rider') return GATE_DOC.rider;
-    return null;   // customers only read
+    return null;   // customers and riders only read
 }
 
 // Called when the app opens. Counts the visit and says whether the agree screen must show now.
@@ -174,11 +173,9 @@ async function status({ who, userId, role, admin, tenant, now = new Date() }) {
     const accepted = await LegalAcceptance.exists({ who, userId, docKey: key, version: cur.no });
     if (accepted) return { required: false, key, version: cur.no, agreed: true };
 
-    // owners and riders: only after the shop was handed over; counting starts then (or when the version was sent, if later)
-    let from = new Date(cur.publishedAt);
+    // owners and riders: counting starts when the version was sent (no handover step)
+    const from = new Date(cur.publishedAt);
     if (who === 'user') {
-        if (!tenant?.handedOverAt) return { required: false, key, version: cur.no, waiting: 'handover' };
-        if (new Date(tenant.handedOverAt) > from) from = new Date(tenant.handedOverAt);
     }
     let visit = await LegalVisit.findOne({ who, userId, docKey: key });
     if (!visit || visit.version !== cur.no || !visit.lastVisitAt || new Date(visit.lastVisitAt) < from) {
@@ -213,7 +210,7 @@ async function accept({ who, userId, role, admin, tenant, key, version, name, ph
 async function mine({ who, userId, role, admin }) {
     await ensureDocs();
     const own = gateKeyFor({ who, role, admin });
-    const keys = [...new Set([own, 'customer_terms', 'privacy'].filter(Boolean))];
+    const keys = [...new Set([own, who === 'user' ? READ_ONLY_DOC[role] : null, 'customer_terms', 'privacy'].filter(Boolean))];
     const docs = await LegalDocument.find({ key: { $in: keys } }).lean();
     const acc = await LegalAcceptance.find({ who, userId, docKey: { $in: keys } }).sort({ version: -1 }).lean();
     return keys.map((key) => {
@@ -229,8 +226,8 @@ async function mine({ who, userId, role, admin }) {
 
 /* ------------------------------ reports for the supreme admin ------------------------------ */
 async function audienceCount(audience) {
-    if (audience === 'owner') return User.countDocuments({ role: 'admin', tenantId: { $in: await Tenant.find({ handedOverAt: { $exists: true } }).distinct('_id') } });
-    if (audience === 'rider') return User.countDocuments({ role: 'rider', tenantId: { $in: await Tenant.find({ handedOverAt: { $exists: true } }).distinct('_id') } });
+    if (audience === 'owner') return User.countDocuments({ role: 'admin', tenantId: { $exists: true, $ne: null } });
+    if (audience === 'rider') return User.countDocuments({ role: 'rider', tenantId: { $exists: true, $ne: null } });
     if (audience === 'partner') return SuperAdmin.countDocuments({ isActive: true, legalRole: 'partner', phones: { $ne: SUPREME_PHONE } });
     return SuperAdmin.countDocuments({ isActive: true, legalRole: { $ne: 'partner' }, phones: { $ne: SUPREME_PHONE } });
 }
@@ -249,7 +246,7 @@ async function acceptances(key) {
     const done = new Set(agreedRows.map((r) => String(r.userId)));
     let people = [];
     if (doc.audience === 'owner' || doc.audience === 'rider') {
-        const shops = await Tenant.find({ handedOverAt: { $exists: true } }).select('name').lean();
+        const shops = await Tenant.find({}).select('name').lean();
         const names = new Map(shops.map((s) => [String(s._id), s.name]));
         const users = await User.find({ role: doc.audience === 'owner' ? 'admin' : 'rider', tenantId: { $in: shops.map((s) => s._id) } }).select('name phone tenantId').limit(1000).lean();
         people = users.map((u) => ({ id: String(u._id), name: u.name || '', phone: u.phone, shop: names.get(String(u.tenantId)) }));
@@ -272,6 +269,6 @@ async function markHandover(tenantId, on, by) {
 }
 
 module.exports = {
-    KEYS, PUBLIC_KEYS, GATE_DOC, ensureDocs, list, getFull, saveDraft, publish, readCurrent, status, accept, mine, acceptances, markHandover,
+    KEYS, PUBLIC_KEYS, GATE_DOC, READ_ONLY_DOC, ensureDocs, list, getFull, saveDraft, publish, readCurrent, status, accept, mine, acceptances, markHandover,
     variables, fill, blanksIn, gateKeyFor, isSupremeAdmin, VISIT_GAP_MS,
 };

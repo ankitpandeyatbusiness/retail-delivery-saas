@@ -18,7 +18,12 @@ const DAY_MS = 86400000;
 const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 const other = (side) => (side === 'owner' ? 'partner' : 'owner');
 const COST_CATEGORIES = ['sms_recharge', 'server', 'database', 'api', 'misc'];
-const DEFAULTS = { ownerName: 'Owner', partnerName: 'Partner', mode: 'split', payDays: 15, ownerPctPartnerBrought: 50, ownerPctOwnerBrought: 70, costOwnerPct: 50 };
+const DEFAULTS = { ownerName: 'Ankit Mani Pandey', partnerName: 'Vivyaan Business Systems', mode: 'split', payDays: 15, ownerPctPartnerBrought: 50, ownerPctOwnerBrought: 70, costOwnerPct: 50, royaltyPct: 20 };
+
+// the developer's share of one payment: everything (owner_only), the flat royalty (after exit) or the split by who brought the shop
+const pctFor = (cfg, broughtBy) => (cfg.mode === 'owner_only' ? 100 : cfg.mode === 'royalty' ? cfg.royaltyPct : (broughtBy === 'owner' ? cfg.ownerPctOwnerBrought : cfg.ownerPctPartnerBrought));
+// the developer's share of a shared cost (after exit the royalty is on net profit, so costs come off first at the same rate)
+const costPctFor = (cfg) => (cfg.mode === 'royalty' ? cfg.royaltyPct : cfg.costOwnerPct);
 
 async function getConfig() {
     const p = await PlatformSettings.findById('main').select('settlement').lean();
@@ -59,7 +64,7 @@ async function recordReceipt({ key, category, tenantId, invoiceId, topupId, invo
     const tenant = tenantId ? await Tenant.findById(tenantId).select('name broughtBy').lean() : null;
     const ownerOnly = cfg.mode === 'owner_only';
     const broughtBy = tenant?.broughtBy || null;
-    const ownerPct = ownerOnly ? 100 : (broughtBy === 'owner' ? cfg.ownerPctOwnerBrought : cfg.ownerPctPartnerBrought);
+    const ownerPct = pctFor(cfg, broughtBy);
     const got = ownerOnly ? 'owner' : (receivedBy === 'owner' ? 'owner' : 'partner');
     const s = shares(baseAmount, ownerPct);
     // the one who got the money owes the other one his share
@@ -98,7 +103,7 @@ async function notifyReceipt(doc, cfg) {
     if (!doc.owes) body = 'Everything is yours: nothing to settle.';
     else if (doc.owes === 'partner') body = `${names.partner} owes you ${rs(doc.dueAmount)} (${doc.ratio.ownerPct}% of ${rs(doc.baseAmount)}, before GST). Due by ${dayOf(doc.dueAt)}.`;
     else body = `You owe ${names.partner} ${rs(doc.dueAmount)} (${doc.ratio.partnerPct}% of ${rs(doc.baseAmount)}, before GST), because you received the money.`;
-    if (!doc.broughtBy && cfg.mode !== 'owner_only') body += ' This shop is not marked as "brought by" yet, so the ratio used is the partner-brought one.';
+    if (!doc.broughtBy && cfg.mode === 'split') body += ' This shop is not marked as "brought by" yet, so the ratio used is the partner-brought one.';
     await require('./adminAlerts').alert('admin_settlement_due', { tenantId: doc.tenantId, supremeOnly: true, vars: { title, body }, data: { kind: 'settlement', entryId: String(doc._id), amount: doc.dueAmount } });
 }
 
@@ -138,14 +143,15 @@ async function addCost({ category, title, amount, date, paidBy, note }, admin) {
     const when = date ? new Date(date) : new Date();
     if (Number.isNaN(when.getTime())) throw httpError(400, 'date is not a date');
     const cfg = await getConfig();
-    const s = shares(round2(amount), cfg.costOwnerPct);
+    const costPct = costPctFor(cfg);
+    const s = shares(round2(amount), costPct);
     // the one who paid it all gets back the other one's share
     const owes = other(paidBy);
     const dueAmount = owes === 'owner' ? s.ownerShare : s.partnerShare;
     const no = await nextNo();
     const entry = {
         no, kind: 'cost', category, title: String(title || '').trim().slice(0, 120) || category.replace('_', ' '), date: when, amount: round2(amount), paidBy,
-        ratio: { ownerPct: cfg.costOwnerPct, partnerPct: 100 - cfg.costOwnerPct }, ...s, owes, dueAmount, paidAmount: 0,
+        ratio: { ownerPct: costPct, partnerPct: 100 - costPct }, ...s, owes, dueAmount, paidAmount: 0,
         dueAt: new Date(when.getTime() + cfg.payDays * DAY_MS), note: String(note || '').slice(0, 300) || undefined,
         events: [{ action: 'created', by: who(admin), date: when, amount: dueAmount, status: 'pending' }],
     };
@@ -262,7 +268,7 @@ async function setBroughtBy(tenantId, broughtBy, admin) {
     for (const e of rows) {
         if (e.broughtBy === broughtBy) continue;
         if (e.paidAmount > 0 || e.claim?.state === 'open') { locked += 1; continue; }   // settled rows are never rewritten
-        const ownerPct = cfg.mode === 'owner_only' ? 100 : (broughtBy === 'owner' ? cfg.ownerPctOwnerBrought : cfg.ownerPctPartnerBrought);
+        const ownerPct = pctFor(cfg, broughtBy);
         Object.assign(e, { broughtBy, ratio: { ownerPct, partnerPct: 100 - ownerPct }, ...shares(e.baseAmount, ownerPct) });
         e.dueAmount = e.receivedBy === 'partner' ? e.ownerShare : e.partnerShare;
         e.owes = e.dueAmount > 0 ? e.receivedBy : null;
@@ -335,13 +341,13 @@ async function saveConfig(body = {}) {
         if (!v || v.length > 40) throw httpError(400, `${k} is needed (up to 40 letters)`);
         set[`settlement.${k}`] = v;
     }
-    for (const [k, lo, hi] of [['payDays', 0, 90], ['ownerPctPartnerBrought', 0, 100], ['ownerPctOwnerBrought', 0, 100], ['costOwnerPct', 0, 100]]) {
+    for (const [k, lo, hi] of [['payDays', 0, 90], ['ownerPctPartnerBrought', 0, 100], ['ownerPctOwnerBrought', 0, 100], ['costOwnerPct', 0, 100], ['royaltyPct', 0, 100]]) {
         if (body[k] === undefined) continue;
         if (!Number.isInteger(body[k]) || body[k] < lo || body[k] > hi) throw httpError(400, `${k} must be a whole number from ${lo} to ${hi}`);
         set[`settlement.${k}`] = body[k];
     }
     if (body.mode !== undefined) {
-        if (!['split', 'owner_only'].includes(body.mode)) throw httpError(400, 'mode must be "split" or "owner_only"');
+        if (!['split', 'owner_only', 'royalty'].includes(body.mode)) throw httpError(400, 'mode must be "split", "owner_only" or "royalty"');
         set['settlement.mode'] = body.mode;
     }
     if (!Object.keys(set).length) throw httpError(400, 'Nothing to change');

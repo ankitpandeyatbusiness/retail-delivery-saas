@@ -7,104 +7,74 @@ const DOCS = {
     /* --------------------------------------------------------------------------------------------------------------- */
     operator_agreement: {
         audience: 'partner',
-        title: 'Our arrangement for running the platform',
-        body: `# Our arrangement for running the platform
-Between {{ownerName}} (the platform owner) and {{partnerName}}, for {{operatorName}} (the operator).
-Date: [DD Month YYYY]. Length: 12 months, until [DD Month YYYY].
+        title: 'Software licence and revenue-sharing agreement',
+        body: `# Software licence and revenue-sharing agreement
+Between {{ownerName}} (the "Developer") and {{partnerName}} (the "Agency"), for the {{platformName}} platform.
+Date: [DD Month YYYY].
 
-This note is written so that both of us know exactly how this works. The signed paper agreement is made separately and follows these points.
+This note sets out how we work together. The signed paper agreement follows these points. It is not legal advice; both sides should have it checked.
 
-# 1. What this is
-- {{ownerName}} owns a software platform for restaurants and shops: a customer app, a shop owner panel, a rider app and an admin app.
-- {{ownerName}} does not yet have a registered business, a GST number or a payment-gateway account of his own for it.
-- For 12 months, {{operatorName}} is the operator: its name and GST number appear on the invoices and its payment-gateway account receives the shops' payments.
-- We share the money as described below. At the end, {{ownerName}} moves the platform to his own business.
+# 1. Brand, business and ownership
+1. The Agency owns the {{platformName}} domain, the client relationships, the customer database and the business. To the public the platform is a product of the Agency.
+2. The Developer wrote the software and keeps the copyright in the core code and its architecture.
+3. The Developer gives the Agency a permanent licence to deploy, run and earn from the software under the {{platformName}} name. [Exclusive or non-exclusive; may the Agency let others use it? State here.]
+4. The Developer may reuse the base code for other projects, including ones outside {{platformName}}. The Developer may not use the Agency's customer database or client list for them.
 
-# 2. Who owns what
-1. {{ownerName}} owns the platform: the app, the source code, the servers, the database, the storage, the backups, the domain and the brand name. All of these stay in his accounts.
-2. {{partnerName}} may act as the operator for these 12 months only. He does not get the source code or ownership of anything.
-3. The platform's name is {{platformName}}. {{ownerName}} can change it.
+# 2. Who does what
+1. Developer: builds and updates the software, fixes faults, keeps the servers and database running.
+2. Agency: collects all rent and SMS top-up payments through its own payment-gateway account, issues the invoices, pays the GST and income tax, and meets every legal duty of the business.
 
-# 3. What the operator does
-1. Keeps the GST registration, business registration and payment-gateway account valid.
-2. Lets the platform issue invoices in the operator's name and collect the shops' payments into his account.
-3. Pays the GST and files the GST returns on every invoice issued in his name.
-4. Registers the SMS (DLT) account in his business name and pays its registration fee.
-5. Does not change keys, fees, invoice settings or any other money setting in the platform. Only {{ownerName}} does that.
-6. Shows {{ownerName}} the payment-gateway settlement statement once a month.
-7. Does not keep back or divert any money that belongs to {{ownerName}}.
+# 3. Net profit and costs
+1. Net profit is the money received minus GST and other taxes, minus the shared running costs.
+2. Shared running costs: servers, database, DLT registration, SMS credits and other costs both sides agree in writing. They come off the money received before any profit is shared.
+3. If the money received does not cover the costs, the Agency pays the shortfall from its own pocket. The Developer carries no upfront cost. The Agency may take back what it paid out of later money received, before profit is shared.
 
-# 4. What the platform owner does
-1. Builds, hosts, maintains and supports the platform, including servers, database and backups.
-2. Keeps the Common Sheet (section 7) correct and open for {{partnerName}} to see at all times.
-3. Keeps the shops' data safe and uses it only to run the platform.
+# 4. Sharing net profit
+- A shop the Agency brought: {{partnerPctPartnerBrought}}% to the Agency and {{ownerPctPartnerBrought}}% to the Developer.
+- A shop the Developer brought: {{ownerPctOwnerBrought}}% to the Developer and {{partnerPctOwnerBrought}}% to the Agency (this pays the Agency for payment handling and compliance).
+- Who brought a shop is recorded in the platform when the shop is created. It stays that way unless both sides agree to change it.
+- The share is worked out on the amount before GST. Refunded or cancelled payments are taken back from both shares.
 
-# 5. How the money is shared
-The share is worked out on the amount before GST. GST is not income for either of us.
-- A shop that {{partnerName}} brought: {{ownerName}} gets {{ownerPctPartnerBrought}}% and {{partnerName}} gets {{partnerPctPartnerBrought}}%.
-- A shop that {{ownerName}} brought: {{ownerName}} gets {{ownerPctOwnerBrought}}% and {{partnerName}} gets {{partnerPctOwnerBrought}}%.
-- This is the same for the monthly rent, the one-time setup fee and the SMS balance the shop buys.
-- Who brought the shop is recorded in the platform when the shop is created. That record is final unless both of us agree to change it.
-- A payment counts on the day the payment gateway captures it.
-- If a payment is refunded or cancelled, both shares for it are reversed. A fee that is waived or reduced is shared only on what is received. {{ownerName}} approves every waiver.
-- Payment-gateway and bank charges: [who bears them].
+# 5. The Common Sheet and payment
+1. The platform keeps a sheet that adds a row each time a shop pays and shows who owes whom. It holds numbers only; the real money moves outside the platform.
+2. The Agency can see and download the sheet at any time. Every change is saved with date, time and name. Nothing is deleted.
+3. The Agency pays the Developer his share within {{payDays}} days of each payment, by bank transfer or UPI.
+4. The Agency shares its payment-gateway statement every month. The Developer may check the figures. [Audit right, once a year / on notice.]
+5. If the Agency thinks a row is wrong it says so within [15] days; after that the row is accepted.
+6. Taxes: the Agency pays GST and its own income tax. The Developer pays tax on his own earnings. Both will ask their tax adviser whether GST or TDS applies to the share and royalty payments, and whether an invoice is needed.
 
-# 6. Shared costs: always {{costOwnerPct}} / {{costPartnerPct}}
-These costs are split equally, whoever brought the shop: the SMS provider recharge, server, database, storage and backup charges, API and software-service charges, and other running costs we both agree on in writing.
-One of us pays the whole cost and gets the other's share back later. Every cost is entered on the Common Sheet with the date, who paid and the bill. A single cost above Rs. [amount] needs the other's approval first, except the SMS recharge. DLT registration fees and our own taxes are not shared costs.
+# 6. Terms of Service
+The public Terms of Service on {{platformName}} will state openly that the Agency is the business and compliance owner and that the technology is provided by an independent developer.
 
-# 7. The Common Sheet
-- The platform keeps a sheet that adds a row by itself every time a shop pays, and shows who owes whom, the due date and whether it is pending, partly paid or paid.
-- The sheet only holds numbers. The real money moves between us outside the platform.
-- Only {{ownerName}} can change the sheet. {{partnerName}} can see it and download it at any time, and can add an "I have paid" note, which {{ownerName}} confirms.
-- Every change is saved with the date, the time and who made it. Nothing is deleted. A mistake is fixed by a new, visible entry.
-- If {{partnerName}} thinks a row is wrong, he tells {{ownerName}} within [15] days. After that the row is taken as accepted.
+# 7. Duration and ending
+1. This agreement has no end date. It continues until either side ends it. [Notice period, e.g. 60 days written notice; reasons that allow ending at once.]
+2. The licence in section 1 and the Developer's copyright are not affected by ending.
 
-# 8. When the operator pays
-1. {{partnerName}} pays {{ownerName}} his share of each payment within {{payDays}} days of the day it counts. After that it shows as late on the sheet.
-2. Payment is by bank transfer or UPI to the account {{ownerName}} gives, with the sheet reference in the note.
-3. What one owes can be set against what the other owes. {{ownerName}} records it on the sheet with the amount and a reason.
-4. If a shop pays rent in cash or by bank transfer, the platform records who received it. If {{ownerName}} receives it, he settles {{partnerName}}'s share with him in the same way.
-5. If a payment is more than [30] days late, {{ownerName}} can end the arrangement early and move the platform.
+# 8. Exit
+1. A 60-day transition starts on the day of notice. The Developer keeps the platform working during it, then hands over full access to the servers and the code running on them.
+2. The Agency keeps the domain, the clients and the right to keep running the software.
+3. The Agency pays the Developer a royalty of {{royaltyPct}}% of net profit on all shops, with no end date. Costs are deducted first, as in section 3.
+4. After the 60 days the Developer has no duty to maintain, fix or host anything. The Agency looks after its own copy.
+5. Within [15] days of the end of the transition both sides confirm a final statement; what is owed is paid within [30] days.
+6. The Developer stays free to use the core code for any project, competing or not.
 
-# 9. Taxes
-- {{partnerName}} pays and files the GST on invoices in his name.
-- Each of us pays income tax on his own earnings.
-- We will each ask our own tax adviser whether TDS applies to the payments between us, and whether an invoice is needed for a share, and do what they advise.
+# 9. Data
+All data of shops, customers, riders and orders belongs to the Agency. The Developer uses it only to run and fix the platform, does not copy, sell or share it, and tells the Agency within 48 hours of finding a leak. [Data-processing terms to be added.]
 
-# 10. At the end of the 12 months
-1. {{ownerName}} moves the platform to his own business by changing the business details, the gateway keys and the invoice series in the admin app.
-2. From that day the shops pay {{ownerName}}'s business and {{partnerName}} has no share of those payments, unless we sign an extension.
-3. Invoices issued before that day stay in the operator's name. If a shop pays one of them later, it is shared as in section 5.
-4. Within [15] days we close the sheet and both confirm the final statement by email. What is owed is paid within [30] days after that.
-5. The unused SMS balances that shops still have are honoured by {{ownerName}}'s business. {{partnerName}} pays the part of those balances that has not yet been shared.
-6. {{partnerName}} helps with the move (notices to shops, closing his gateway links to the platform, statements).
-7. After the move, {{partnerName}} may still call these shops his past clients, but not say he currently serves them.
-8. Extending beyond 12 months needs a written agreement signed by both of us. Nothing is extended automatically.
+# 10. Accounts
+Domain, payment-gateway account, SMS (DLT) registration, Google Play and Apple developer accounts: [state who owns each; suggested: all with the Agency except the cloud and code accounts that the Developer runs until the exit].
 
-# 11. Data
-All data (shops, customers, riders, orders, payments) stays on {{ownerName}}'s servers. {{partnerName}} may see it only through the admin app, only to run the service. He does not copy, sell or share it, during or after. If either of us finds a leak or misuse, we tell the other within 48 hours.
+# 11. Keeping it private
+Both sides keep this note, the sheet and each other's business details private for [3] years after the end.
 
-# 12. Not taking the shops away
-During the 12 months and for [12] months after, neither of us will encourage a shop to leave the platform for a competing product.
+# 12. Each of us is separate
+We are two separate parties. This is not a partnership, and neither can bind the other to a contract or a debt.
 
-# 13. Ending early
-- Either of us can end it with [30] days' notice.
-- {{ownerName}} can end it at once and move the platform if {{partnerName}} is more than [30] days late with a payment, changes money settings without permission, loses his GST or gateway account, or breaks sections 11 or 12.
-- {{partnerName}} can end it if {{ownerName}} has not paid a shared cost for more than [30] days after a written reminder.
-- When it ends early, section 10 applies from that day. Money already earned stays due.
+# 13. If we disagree
+We first talk and try to settle it within [15] days. If we cannot, we settle it as the signed paper agreement says.
 
-# 14. Keeping it private
-We keep each other's business details, this note and the sheet private for [3] years after the end.
-
-# 15. Each of us is separate
-We are two separate businesses. This is not a partnership, and neither of us can bind the other to a contract or a debt. Each of us is responsible for his own taxes and actions.
-
-# 16. If we disagree
-We first talk to each other and try to settle it within [15] days. If we cannot, we settle it as the signed paper agreement says.
-
-# 17. Changing this note
-Any change must be in writing and confirmed by both of us. An email from each is enough.
+# 14. Changing this note
+Any change must be in writing and confirmed by both sides. An email from each is enough.
 
 When you press "Agree" you confirm that you have read this note and agree to it. The platform saves who agreed, the version and the time as an extra record. The signed paper agreement is the main document.`,
     },
@@ -117,7 +87,7 @@ When you press "Agree" you confirm that you have read this note and agree to it.
 These terms apply to everyone who has an administrator login for the platform.
 
 # 1. Who runs the platform
-The platform is owned by {{ownerName}}. For the time being it is operated by {{operatorName}}. The operator can change; you will be told.
+{{platformName}} is a product of {{operatorName}}, which runs the business and handles billing, tax and compliance. The technology is provided by an independent developer.
 
 # 2. What you may do
 - Use the admin app only for the work you were given.
@@ -152,9 +122,9 @@ By pressing "Agree" you confirm that you have read these terms and agree to them
 Effective {{effectiveDate}}. These terms are between you (the shop) and the operator of {{platformName}}.
 
 # 1. Who provides the service
-- The platform {{platformName}} is owned by {{ownerName}}.
-- The service is provided to you by {{operatorName}}, {{operatorAddress}}{{operatorGstin}}. This is the "Operator". Bills and receipts come in the Operator's name.
-- The Operator can change. If it does, you will get a notice in the app and by email, and you will be asked to agree to the updated terms. The platform owner can make this change on the Operator's behalf.
+- {{platformName}} is a product of {{operatorName}}, {{operatorAddress}}{{operatorGstin}}. This is the "Operator". It runs the business and is responsible for billing, tax and compliance. Bills and receipts come in the Operator's name and your rent and SMS payments go to the Operator.
+- The technology behind the app is provided to the Operator by an independent developer.
+- If the Operator's details change, you will get a notice in the app and by email, and you will be asked to agree to the updated terms.
 
 # 2. What you get
 A customer ordering app for your shop, an owner panel (orders, menu, riders, money, reports), a rider app, and notifications by app, SMS and email.
@@ -198,7 +168,7 @@ By pressing "Agree" you confirm that you are the owner (or authorised by the own
 
     /* --------------------------------------------------------------------------------------------------------------- */
     rider_terms: {
-        audience: 'rider',
+        audience: 'customer',
         title: 'Terms for delivery riders',
         body: `# Terms for delivery riders
 Effective {{effectiveDate}}. These terms are for riders who deliver orders through {{platformName}}.
@@ -226,9 +196,7 @@ Your name, phone and delivery record are used to run the service and are shown t
 The shop or the platform can remove you from the app. You can stop at any time after finishing the orders you accepted and handing over any cash you hold.
 
 # 7. Changes
-These terms may change. You will be asked to agree to a new version the next time you open the app.
-
-By pressing "Agree" you confirm that you have read these terms and agree to them. Your agreement is saved with the date, the time and the version.`,
+These terms may change. The current version is always in the app, under Terms and privacy. By working as a rider you accept them.`,
     },
 
     /* --------------------------------------------------------------------------------------------------------------- */
@@ -239,7 +207,7 @@ By pressing "Agree" you confirm that you have read these terms and agree to them
 Effective {{effectiveDate}}. These terms apply when you use this app to order from a shop.
 
 # 1. Who is who
-- The app is built by {{ownerName}} on the {{platformName}} platform and operated by {{operatorName}}.
+- {{platformName}} is a product of {{operatorName}}, which runs the business and is responsible for billing, tax and compliance. The technology is provided by an independent developer.
 - The food and the delivery are provided by the shop you order from. The shop is responsible for the food, its price, its taxes and its delivery.
 
 # 2. Your account
@@ -275,7 +243,7 @@ We may change these terms. The current version is always in the app. {{supportLi
 Effective {{effectiveDate}}. This explains what we collect and how we use it.
 
 # Who we are
-The {{platformName}} platform is owned by {{ownerName}} and operated by {{operatorName}}. The shop you order from also receives the details needed to serve you.
+{{platformName}} is a product of {{operatorName}}, which holds your data and is responsible for it. The technology is provided by an independent developer who works on the servers only to run and repair the service. The shop you order from also receives the details needed to serve you.
 
 # What we collect
 - Your mobile number, and your name and email if you give them.

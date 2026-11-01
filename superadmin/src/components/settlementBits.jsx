@@ -199,7 +199,7 @@ export function BroughtByCard({ shopId, current, onChanged }) {
         <View style={{ marginBottom: spacing.md, padding: spacing.lg, borderRadius: 16, backgroundColor: t.surface }}>
             <Text style={{ color: t.text, fontWeight: '800' }}>Who brought this shop</Text>
             <Text style={{ color: t.muted, fontSize: font.sm, marginTop: 2 }}>
-                {current ? `${current === 'owner' ? cfg.ownerName : cfg.partnerName} brought it: ${cfg.ownerName} gets ${pct(current)}% and ${cfg.partnerName} ${100 - pct(current)}% of what it pays (before GST).` : 'Not marked yet. Until it is marked, the partner-brought ratio is used and the sheet says so.'}
+                {current ? `${current === 'owner' ? cfg.ownerName : cfg.partnerName} brought it: ${cfg.ownerName} gets ${pct(current)}% and ${cfg.partnerName} ${100 - pct(current)}% of what it pays (before GST).` : 'Not marked yet. Until it is marked, the agency-brought ratio is used and the sheet says so.'}
             </Text>
             {supreme ? (
                 <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
