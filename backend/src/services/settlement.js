@@ -18,7 +18,7 @@ const DAY_MS = 86400000;
 const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 const other = (side) => (side === 'owner' ? 'partner' : 'owner');
 const COST_CATEGORIES = ['sms_recharge', 'server', 'database', 'api', 'misc'];
-const DEFAULTS = { ownerName: 'Ankit Mani Pandey', partnerName: 'Vivyaan Business Systems', mode: 'split', payDays: 15, ownerPctPartnerBrought: 50, ownerPctOwnerBrought: 70, costOwnerPct: 50, royaltyPct: 20 };
+const DEFAULTS = { ownerName: 'Developer', partnerName: 'Vivyaan', mode: 'split', payDays: 15, ownerPctPartnerBrought: 50, ownerPctOwnerBrought: 70, costOwnerPct: 50, royaltyPct: 20 };
 
 // the developer's share of one payment: everything (owner_only), the flat royalty (after exit) or the split by who brought the shop
 const pctFor = (cfg, broughtBy) => (cfg.mode === 'owner_only' ? 100 : cfg.mode === 'royalty' ? cfg.royaltyPct : (broughtBy === 'owner' ? cfg.ownerPctOwnerBrought : cfg.ownerPctPartnerBrought));

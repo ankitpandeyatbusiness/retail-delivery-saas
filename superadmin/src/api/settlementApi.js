@@ -6,7 +6,8 @@ import api, { data } from './adminClient';
 export const fetchSettlementSummary = (month) => data(api.get('/admin/settlement/summary', { params: { month } }));
 export const fetchSettlementEntries = (params) => data(api.get('/admin/settlement/entries', { params }));   // { status: open|late|paid, kind, month, tenantId, page }
 export const fetchSettlementEntry = (id) => data(api.get(`/admin/settlement/entries/${id}`));
-export const fetchSettlementConfig = () => data(api.get('/admin/settlement/config'));
+// the two sides are always shown as the Developer and Vivyaan, whatever names were saved earlier
+export const fetchSettlementConfig = () => data(api.get('/admin/settlement/config')).then((c) => ({ ...c, ownerName: 'Developer', partnerName: 'Vivyaan' }));
 
 // the supreme admin only (the server refuses everybody else)
 export const saveSettlementConfig = (body) => data(api.put('/admin/settlement/config', body));
