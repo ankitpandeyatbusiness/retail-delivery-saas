@@ -24,7 +24,7 @@ const api = (m, url, who, body) => request(app)[m](`/api/admin${url}`).set(AUTH(
 const MIN = 60000;
 const reload = async () => { tenantRecognizer.invalidateTenant('legal-shop'); return Tenant.findById(w.tenant._id).lean(); };
 const asUser = (who) => ({ who: 'user', userId: who.user._id, role: who.user.role });
-const send = (key, body = {}) => api('post', `/agreements/${key}/send`, boss, { summary: 'First version', ...body });
+const send = (key, body = {}) => api('post', `/agreements/${key}/send`, boss, { summary: 'First version', ...(key === 'operator_agreement' ? {} : { allowBlanks: true }), ...body });
 
 beforeEach(async () => {
     await db.clear();
@@ -81,7 +81,7 @@ describe('the documents', () => {
         assert.equal((await api('get', '/agreements/owner_terms/versions/9', vivek)).status, 404);
 
         await PlatformSettings.updateOne({ _id: 'main' }, { $unset: { 'business.legalName': '' } });
-        const noName = await send('team_terms');
+        const noName = await send('team_terms', { allowBlanks: false });
         assert.equal(noName.status, 400);   // "[operator name]" would be a blank
     });
 });

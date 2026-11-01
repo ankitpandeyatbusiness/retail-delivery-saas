@@ -160,8 +160,11 @@ We work to keep the service running, but cannot promise it will never be down. W
 # 10. Changes
 We may change these terms or the fees. We will tell you in the app and by email, and you will be asked to agree to the new version the next time you open the app.
 
-# 11. Contact
-{{supportLine}}
+# 11. Governing law and disputes
+These terms are governed by the laws of India. We first try to settle any dispute by talking. If that fails, the courts at [city], India, have jurisdiction.
+
+# 12. Contact and complaints
+{{supportLine}} Complaints go to our Grievance Officer: [Grievance Officer name], email [grievance email].
 
 By pressing "Agree" you confirm that you are the owner (or authorised by the owner) of the shop and agree to these terms. Your agreement is saved with the date, the time and the version.`,
     },
@@ -231,7 +234,13 @@ We send you messages about your orders. The shop may also send you offers by not
 # 7. Using the app properly
 Do not misuse the app, give false information or try to break it.
 
-# 8. Changes and contact
+# 8. Complaints about us and the Grievance Officer
+If you have a complaint about the app or how we handle your data, write to our Grievance Officer: [Grievance Officer name], {{operatorName}}, {{operatorAddress}}, email [grievance email]. We acknowledge a complaint within 48 hours and aim to resolve it within 15 days.
+
+# 9. Governing law
+These terms are governed by the laws of India. The courts at [city], India, have jurisdiction, except where the law gives you the right to go to another court.
+
+# 10. Changes and contact
 We may change these terms. The current version is always in the app. {{supportLine}}`,
     },
 
@@ -273,6 +282,15 @@ Data is kept on secured servers and sent over encrypted connections. No system i
 
 # Children
 The app is not meant for children under 18 to use without a parent.
+
+# Withdrawing consent and asking for your data
+You can withdraw your consent, ask to see, correct or delete your data, or ask us to stop using it, by deleting your account in the profile screen or by writing to the Grievance Officer below. We reply within 15 days. If we must keep some records by law (for example bills), we tell you which.
+
+# Grievance Officer
+[Grievance Officer name], {{operatorName}}, {{operatorAddress}}, email [grievance email]. We acknowledge a complaint within 48 hours and aim to resolve it within 15 days.
+
+# Governing law
+This policy is governed by the laws of India. The courts at [city], India, have jurisdiction, except where the law gives you the right to go to another court.
 
 # Changes and contact
 We may update this policy; the current one is always here. {{supportLine}}`,
