@@ -76,7 +76,7 @@ export default function RiderProfileScreen() {
                     <Row icon="language-outline" title={tr('Language')} subtitle={LANGS.find((l) => l.code === lang)?.native} onPress={() => setLangOpen(true)} />
                     <Row icon="alert-circle-outline" title={T.sos} color={error} onPress={() => setSosOpen(true)} />
                     <Row icon="battery-charging-outline" title={T.keepRunning} subtitle={T.keepRunningTitle} onPress={() => setGuideOpen(true)} />
-                    <Row icon="document-text-outline" title={T.terms} onPress={() => nav.navigate('LegalList')} />
+                    <Row icon="information-circle-outline" title={tr('About Us')} subtitle={tr('About the platform, terms and privacy')} onPress={() => nav.navigate('AboutUs')} />
                     <Row
                         icon="log-out-outline" title={T.logout} color={error} last
                         onPress={() => themedAlert(`${T.logout}?`, T.logoutText, [

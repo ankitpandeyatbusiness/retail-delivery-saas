@@ -76,12 +76,15 @@ export function LegalListScreen() {
 // documents and the customer documents; customers see the customer ones only.
 export function AboutUsScreen() {
     const nav = useNavigation();
-    const { background, text, muted, border, primary } = useBrand();
+    const { background, text, muted, border, primary, ok } = useBrand();
     const role = useAuthStore((s) => s.user?.role);
     const [doc, setDoc] = useState(null);
+    const [mine, setMine] = useState([]);
+    useEffect(() => { if (role && role !== 'customer') fetchLegalMine().then((r) => setMine(r.items || [])).catch(() => { }); }, [role]);
     useEffect(() => { fetchPublicLegal('about_us').then(setDoc).catch(() => setDoc({ title: 'About Us', body: '' })); }, []);
     const links = [
         ...(role === 'admin' ? [{ key: 'owner_terms', title: 'Terms of Service for Shop Owners' }, { key: 'owner_privacy', title: 'Privacy Policy for Shop Owners' }] : []),
+        ...(role === 'rider' ? [{ key: 'rider_terms', title: 'Terms for Delivery Riders' }] : []),
         { key: 'customer_terms', title: 'Terms of Service for Customers', pub: true },
         { key: 'privacy', title: 'Privacy Policy for Customers', pub: true },
     ];
@@ -95,7 +98,10 @@ export function AboutUsScreen() {
                 {links.map((d) => (
                     <Pressable key={d.key} onPress={() => nav.navigate('LegalDoc', { key: d.key, pub: d.pub })} style={{ flexDirection: 'row', alignItems: 'center', padding: 16, borderTopWidth: 0.5, borderTopColor: border }}>
                         <Ionicons name="document-text-outline" size={24} color={primary} />
-                        <Text style={{ flex: 1, marginLeft: 14, color: text, fontWeight: '800', fontSize: 15 }}>{tr(d.title)}</Text>
+                        <View style={{ flex: 1, marginLeft: 14 }}>
+                            <Text style={{ color: text, fontWeight: '800', fontSize: 15 }}>{tr(d.title)}</Text>
+                            {(() => { const m = mine.find((x) => x.key === d.key); return m?.mustAgree ? <Text style={{ color: m.upToDate ? ok : muted, fontSize: 12, marginTop: 2 }}>{m.upToDate ? tr('You agreed to version {agreedVersion} on {day}', { agreedVersion: m.agreedVersion, day: day(m.agreedAt) }) : m.version ? tr('A new version is waiting for you') : tr('Not sent yet')}</Text> : null; })()}
+                        </View>
                         <Ionicons name="chevron-forward" size={18} color={muted} />
                     </Pressable>
                 ))}

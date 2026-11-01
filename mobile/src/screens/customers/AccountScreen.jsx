@@ -447,7 +447,6 @@ function AccountInner() {
 
                 <Group title={tr('MANAGE')} delay={200}>
                     <Item icon="information-circle-outline" label={tr('About Us')} onPress={() => nav.navigate('AboutUs')} />
-                    <Item icon="document-text-outline" label={tr('Terms and privacy')} onPress={() => nav.navigate('LegalList')} />
                     <Item icon="log-out-outline" label={tr('Log out')} onPress={doLogout} />
                     <Item icon="trash-outline" label={tr('Delete account')} onPress={doDelete} danger last />
                 </Group>

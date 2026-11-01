@@ -101,7 +101,8 @@ export default function StaffProfileScreen() {
                 <SectionTitle title={tr('App')} />
                 <Card>
                     <AppearanceSwitch />
-                    <Row icon="language-outline" title={tr('Language')} subtitle={LANGS.find((l) => l.code === lang)?.native} onPress={() => setLangOpen(true)} last />
+                    <Row icon="language-outline" title={tr('Language')} subtitle={LANGS.find((l) => l.code === lang)?.native} onPress={() => setLangOpen(true)} />
+                    <Row icon="information-circle-outline" title={tr('About Us')} subtitle={tr('About the platform, terms and privacy')} onPress={() => nav.navigate('AboutUs')} last />
                 </Card>
 
                 {/* 6. log out: always the last thing */}
