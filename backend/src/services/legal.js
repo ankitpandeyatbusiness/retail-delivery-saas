@@ -142,6 +142,7 @@ async function publish(key, { summary, askWhen, allowBlanks }, by) {
     });
     doc.currentVersion = no;
     await doc.save();
+    require('./legalNotify').afterSend(key);   // a push to the people who read it
     return getFull(key);
 }
 

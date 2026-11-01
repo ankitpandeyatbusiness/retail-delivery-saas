@@ -184,6 +184,24 @@ describe('the second visit', () => {
         assert.equal((await LegalDocument.findOne({ key: 'about_us' })).draft.body, 'MY OWN TEXT');
     });
 
+    test('a new version sends a push to the people who read it, in their language', async () => {
+        const DeviceToken = require('../src/models/DeviceToken');
+        const pushAdapter = require('../src/services/adapters/push');
+        const notify = require('../src/services/legalNotify');
+        await DeviceToken.create({ tenantId: w.tenant._id, userId: w.customer.user._id, token: 'ExponentPushToken[cust]' });
+        await DeviceToken.create({ tenantId: w.tenant._id, userId: w.owner.user._id, token: 'ExponentPushToken[own]' });
+        const calls = [];
+        const real = pushAdapter.send;
+        pushAdapter.send = async (a) => { calls.push(a); return { sent: a.tokens.length }; };
+        try {
+            await notify.notifyNewVersion('privacy');
+            assert.deepEqual(calls.map((c) => c.tokens).flat().sort(), ['ExponentPushToken[cust]', 'ExponentPushToken[own]']);
+            calls.length = 0;
+            await notify.notifyNewVersion('owner_terms');
+            assert.deepEqual(calls.map((c) => c.tokens).flat(), ['ExponentPushToken[own]']);   // owner documents reach shop owners only
+        } finally { pushAdapter.send = real; }
+    });
+
     test('a rider only reads the customer documents: never asked to agree', async () => {
         await send('customer_terms');
         const t = await reload();
