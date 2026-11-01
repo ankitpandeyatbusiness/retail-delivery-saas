@@ -21,7 +21,7 @@ import { useAuthStore } from '../../store/common/useAuthStore';
 import { tr } from '../../i18n';
 
 export const addrLine = (a) => [a.line1, a.line2, a.landmark, a.city, a.pincode].filter(Boolean).join(', ');
-const errMsg = (e) => e?.response?.data?.error || 'Something went wrong. Try again.';
+const errMsg = (e) => e?.response?.data?.error || tr('Something went wrong. Try again.');
 
 const EMPTY = { label: 'Home', name: '', phone: '', line1: '', line2: '', landmark: '', city: '', pincode: '', isDefault: false, lat: null, lng: null };
 const FIELDS = [
@@ -33,6 +33,7 @@ const FIELDS = [
     ['city', 'City', 'default', 60],
     ['pincode', 'Pincode', 'number-pad', 6],
 ];
+const LABELS = ['Home', 'Work', 'Other'];   // the three names (translated when drawn)
 const ICON = { Home: 'home-outline', Work: 'briefcase-outline', Other: 'location-outline' };
 
 // ---------- small animated helpers ----------
@@ -99,11 +100,11 @@ function GpsCard({ locating, geo, hasPin, onPress }) {
     const bad = geo && !geo.serviceable;
     const good = (geo && geo.serviceable) || (!geo && hasPin);
     const accent = bad ? error : good ? ok : primary;
-    const title = locating ? 'Finding your location...' : good ? 'Location captured' : bad ? 'Outside delivery area' : 'Use my current location';
-    const sub = locating ? 'Keep GPS on for best accuracy'
-        : bad ? geo.message
-            : good ? (geo?.distanceKm != null ? `${geo.distanceKm} km from the shop · tap to refresh` : 'Tap to refresh')
-                : 'Fastest way to set a precise delivery spot';
+    const title = tr(locating ? 'Finding your location...' : good ? 'Location captured' : bad ? 'Outside delivery area' : 'Use my current location');
+    const sub = locating ? tr('Keep GPS on for best accuracy')
+        : bad ? tr(geo.message)
+            : good ? (geo?.distanceKm != null ? tr('{n} km from the shop · tap to refresh', { n: geo.distanceKm }) : tr('Tap to refresh'))
+                : tr('Fastest way to set a precise delivery spot');
 
     return (
         <Press onPress={onPress} disabled={locating} style={[s.gps, { borderColor: accent, backgroundColor: tint(accent), borderRadius: radius }]}>
@@ -285,11 +286,11 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
             showToast(tr('This spot is outside our delivery area. Pin the receiver’s location on the map.'));
             return;
         }
-        const msg = !form.line1.trim() ? 'Enter the address line'
-            : forOther && !form.name.trim() ? 'Enter the receiver’s name'
-                : forOther && !/^[6-9]\d{9}$/.test(form.phone) ? 'Enter the receiver’s 10-digit phone so the rider can call them'
-                    : form.phone && !/^[6-9]\d{9}$/.test(form.phone) ? 'Enter a valid 10-digit phone'
-                        : form.pincode && !/^\d{6}$/.test(form.pincode) ? 'Enter a valid 6-digit pincode' : '';
+        const msg = !form.line1.trim() ? tr('Enter the address line')
+            : forOther && !form.name.trim() ? tr('Enter the receiver’s name')
+                : forOther && !/^[6-9]\d{9}$/.test(form.phone) ? tr('Enter the receiver’s 10-digit phone so the rider can call them')
+                    : form.phone && !/^[6-9]\d{9}$/.test(form.phone) ? tr('Enter a valid 10-digit phone')
+                        : form.pincode && !/^\d{6}$/.test(form.pincode) ? tr('Enter a valid 6-digit pincode') : '';
         if (msg) { showToast(msg); return; }
 
         const body = { label: form.label, isDefault: form.isDefault };
@@ -331,7 +332,7 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
         const row = FIELDS.find((f) => f[0] === k);
         if (!row) return null;
         const [, ph, kbType, max] = row;
-        const label = forOther && k === 'name' ? 'Receiver name' : forOther && k === 'phone' ? 'Receiver phone (rider will call this)' : ph;
+        const label = forOther && k === 'name' ? tr('Receiver name') : forOther && k === 'phone' ? tr('Receiver phone (rider will call this)') : tr(ph);
         return <Field key={k} label={label} value={form[k]} onChangeText={(v) => set(k, v)} keyboardType={kbType} maxLength={max} style={style} />;
     };
     const canBack = inForm && list.length > 0;
@@ -406,7 +407,7 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
                                                         </View>
                                                         <View style={{ flex: 1, marginLeft: 12 }}>
                                                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                                                <Text style={[s.rowTitle, { color: text }]}>{a.label}</Text>
+                                                                <Text style={[s.rowTitle, { color: text }]}>{tr(a.label)}</Text>
                                                                 {a.isDefault ? <View style={[s.badge, { backgroundColor: tint(primary) }]}><Text style={[s.badgeTxt, { color: primary }]}>{tr('DEFAULT')}</Text></View> : null}
                                                             </View>
                                                             {a.name || a.phone ? <Text style={[s.rowSub, { color: text, opacity: 0.8 }]}>{[a.name, a.phone].filter(Boolean).join(' · ')}</Text> : null}
@@ -457,13 +458,13 @@ export function AddressSheet({ visible, onClose, selectedId, onSelect, onChanged
                                                 <Text style={[s.rowSub, { color: geo.serviceable ? ok : error, marginTop: 8 }]}>
                                                     {geo.serviceable
                                                         ? tr('Within delivery area{v1}', { v1: geo.distanceKm != null ? ` · ${geo.distanceKm} km from the shop` : '' })
-                                                        : geo.message}
+                                                        : tr(geo.message)}
                                                 </Text>
                                             ) : null}
 
                                             <Text style={[s.sec, { color: muted }]}>{tr('SAVE AS')}</Text>
                                             <View style={s.pills}>
-                                                {['Home', 'Work', 'Other'].map((l) => <Pill key={l} label={l} on={form.label === l} onPress={() => set('label', l)} />)}
+                                                {LABELS.map((l) => <Pill key={l} label={tr(l)} on={form.label === l} onPress={() => set('label', l)} />)}
                                             </View>
 
                                             <Text style={[s.sec, { color: muted }]}>{forOther ? tr('RECEIVER') : tr('CONTACT')}</Text>

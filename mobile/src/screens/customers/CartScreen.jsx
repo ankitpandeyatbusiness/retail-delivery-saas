@@ -220,7 +220,7 @@ export default function CartScreen() {
             else if (r.q && body.couponCode && !applied && r.q.pricing.couponCode) {
                 setApplied(body.couponCode); setTryCode(''); setCouponIn(''); setCouponErr('');
             } else if (r.q && applied && !r.q.pricing.couponCode) {
-                setApplied(''); setCouponErr('Coupon removed. Your order no longer qualifies.');
+                setApplied(''); setCouponErr(tr('Coupon removed. Your order no longer qualifies.'));
             }
             // the cart is priced: now price it with each coupon too, one by one, so a tap on a coupon is answered at once
             if (r.q && !body.couponCode && couponOn) {
@@ -560,7 +560,7 @@ export default function CartScreen() {
                                     </Press>
                                 </View>
                             )}
-                            {couponErr ? <Appear><Text style={[s.err, { color: error }]}>{couponErr}</Text></Appear> : null}
+                            {couponErr ? <Appear><Text style={[s.err, { color: error }]}>{tr(couponErr)}</Text></Appear> : null}
                         </Appear>
                     ) : null}
 
@@ -613,7 +613,7 @@ export default function CartScreen() {
                             </View>
                             {addr ? (
                                 <View style={{ marginTop: 8 }}>
-                                    <Text style={[s.lName, { color: text }]}>{addr.label}{addr.name ? ` · ${addr.name}` : ''}{addr.phone ? ` · ${addr.phone}` : ''}</Text>
+                                    <Text style={[s.lName, { color: text }]}>{tr(addr.label)}{addr.name ? ` · ${addr.name}` : ''}{addr.phone ? ` · ${addr.phone}` : ''}</Text>
                                     <Text style={[s.lSub, { color: muted }]}>{addrLine(addr)}</Text>
                                 </View>
                             ) : <Text style={[s.lSub, { color: muted, marginTop: 8 }]}>{tr('No address selected')}</Text>}

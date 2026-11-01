@@ -351,9 +351,9 @@ export function FiltersRow({ onOpen }) {
     const n = countActive(f);
     const quick = [];
     if (config.sortOptions.includes('price_low')) {
-        quick.push(['Price: low', f.sort === 'price_low', () => f.setSort(f.sort === 'price_low' ? null : 'price_low')]);
+        quick.push([tr('Price: low'), f.sort === 'price_low', () => f.setSort(f.sort === 'price_low' ? null : 'price_low')]);
     }
-    [['bestseller', 'Bestseller'], ['rating_4', 'Rating 4+'], ['offers', 'Offers']].forEach(([id, label]) => {
+    [['bestseller', tr('Bestseller')], ['rating_4', tr('Rating 4+')], ['offers', tr('Offers')]].forEach(([id, label]) => {
         if (config.filters.includes(id)) quick.push([label, f.active.includes(id), () => f.toggleFilter(id)]);
     });
     const canOpen = config.filters.length > 0 || config.sortOptions.length > 1;
@@ -361,7 +361,7 @@ export function FiltersRow({ onOpen }) {
     return (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.fl} keyboardShouldPersistTaps="handled">
             {canOpen ? <Chip icon="options-outline" label={tr('Filters')} on={false} badge={n} onPress={onOpen} /> : null}
-            {quick.map((q) => <Chip key={q[0]} label={q[0]} on={q[1]} onPress={q[2]} />)}
+            {quick.map((q) => <Chip key={q[0]} label={tr(q[0])} on={q[1]} onPress={q[2]} />)}
         </ScrollView>
     );
 }

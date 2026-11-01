@@ -73,13 +73,13 @@ function Header({ onAddress, onTable, scrollY }) {
     const short = addr ? [addr.line1, addr.line2 || addr.city].filter(Boolean).join(', ') : '';
 
     const chips = [];
-    if (full.features.prepTime && mins) chips.push({ icon: 'time-outline', text: `${mins} min` });
+    if (full.features.prepTime && mins) chips.push({ icon: 'time-outline', text: tr('{n} min', { n: mins }) });
     if (delivers && mode === 'delivery') {
-        if (fee.type === 'free' || !fee.amount) chips.push({ icon: 'bicycle-outline', text: 'Free delivery' });
-        else if (fee.freeAbove > 0) chips.push({ icon: 'bicycle-outline', text: `Free above ₹${fee.freeAbove}` });
-        else chips.push({ icon: 'bicycle-outline', text: `₹${fee.amount} delivery` });
+        if (fee.type === 'free' || !fee.amount) chips.push({ icon: 'bicycle-outline', text: tr('Free delivery') });
+        else if (fee.freeAbove > 0) chips.push({ icon: 'bicycle-outline', text: tr('Free above ₹{n}', { n: fee.freeAbove }) });
+        else chips.push({ icon: 'bicycle-outline', text: tr('₹{n} delivery', { n: fee.amount }) });
     }
-    if (full.orders.minOrder > 0) chips.push({ icon: 'bag-check-outline', text: `Min ₹${full.orders.minOrder}` });
+    if (full.orders.minOrder > 0) chips.push({ icon: 'bag-check-outline', text: tr('Min ₹{n}', { n: full.orders.minOrder }) });
     const shownChips = compact ? chips.slice(0, 1) : chips;
 
     const drift = motion === 'full' && scrollY ? {
@@ -120,7 +120,7 @@ function Header({ onAddress, onTable, scrollY }) {
                         <View style={s.locRow}>
                             <Ionicons name="location-sharp" size={16} color={light ? primary : fg} />
                             <Text style={[s.locTxt, { color: fg }]} numberOfLines={1}>
-                                {addr ? <Text style={s.locLabel}>{addr.label}  </Text> : null}
+                                {addr ? <Text style={s.locLabel}>{tr(addr.label)}  </Text> : null}
                                 {addr ? short : tr('Select delivery address')}
                             </Text>
                             <Ionicons name="chevron-down" size={15} color={fg} />
@@ -162,7 +162,7 @@ function Header({ onAddress, onTable, scrollY }) {
             {/* the shop is the hero */}
             <Animated.View style={drift}>
                 <Text style={[s.hdTitle, compact && s.hdTitleCompact, { color: fg }]} numberOfLines={1}>{theme.name}</Text>
-                {theme.tagline && !compact ? <Text style={[s.hdTagline, { color: fg }]} numberOfLines={1}>{theme.tagline}</Text> : null}
+                {theme.tagline && !compact ? <Text style={[s.hdTagline, { color: fg }]} numberOfLines={1}>{tr(theme.tagline)}</Text> : null}
 
                 <View style={[s.chipRow, compact && { marginTop: 10 }]}>
                     <View style={[s.hChip, { backgroundColor: glassBg, borderColor: glassLine }]}>
@@ -388,7 +388,7 @@ function Chip({ label, on, onPress, badge, icon }) {
                             </Animated.View>
                         </View>
                     ) : null}
-                    <Animated.Text style={[s.chipTxt, { color: fg }]}>{label}</Animated.Text>
+                    <Animated.Text style={[s.chipTxt, { color: fg }]}>{tr(label)}</Animated.Text>
                     {/* active chips can be switched off right here: a small x opens up beside the label */}
                     <Animated.View style={{ width: a.interpolate({ inputRange: [0, 1], outputRange: [0, 18] }), marginLeft: a.interpolate({ inputRange: [0, 1], outputRange: [0, 4] }), opacity: a, overflow: 'hidden' }}>
                         <Ionicons name="close" size={14} color={onPrimary} />
@@ -416,9 +416,9 @@ function FiltersRow({ onOpen }) {
     const n = countActive(f);
     const quick = [];
     if (config.sortOptions.includes('price_low')) {
-        quick.push(['Price: low', f.sort === 'price_low', () => f.setSort(f.sort === 'price_low' ? null : 'price_low')]);
+        quick.push([tr('Price: low'), f.sort === 'price_low', () => f.setSort(f.sort === 'price_low' ? null : 'price_low')]);
     }
-    [['bestseller', 'Bestseller'], ['rating_4', 'Rating 4+'], ['offers', 'Offers']].forEach(([id, label]) => {
+    [['bestseller', tr('Bestseller')], ['rating_4', tr('Rating 4+')], ['offers', tr('Offers')]].forEach(([id, label]) => {
         if (config.filters.includes(id)) quick.push([label, f.active.includes(id), () => f.toggleFilter(id)]);
     });
     const canOpen = config.filters.length > 0 || config.sortOptions.length > 1;
@@ -426,7 +426,7 @@ function FiltersRow({ onOpen }) {
     return (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.fl}>
             {canOpen ? <Chip icon="options-outline" label={tr('Filters')} on={false} badge={n} onPress={onOpen} /> : null}
-            {quick.map((q) => <Chip key={q[0]} label={q[0]} on={q[1]} onPress={q[2]} />)}
+            {quick.map((q) => <Chip key={q[0]} label={tr(q[0])} on={q[1]} onPress={q[2]} />)}
         </ScrollView>
     );
 }

@@ -274,7 +274,7 @@ export default function OwnerHomeScreen() {
                         <Card onPress={() => toOrders(key)} style={{ flex: 1, marginHorizontal: 0, marginBottom: 0, paddingHorizontal: 2, alignItems: 'center', paddingVertical: 12 }}>
                             <Ionicons name={icon} size={20} color={active[key] ? primary : muted} />
                             <Text style={{ fontSize: 22, fontWeight: '900', color: active[key] ? primary : muted, marginTop: 2 }}>{active[key] || 0}</Text>
-                            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={{ fontSize: 11, color: muted, fontWeight: '700', maxWidth: '100%' }}>{label}</Text>
+                            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={{ fontSize: 11, color: muted, fontWeight: '700', maxWidth: '100%' }}>{tr(label)}</Text>
                             {key === 'out_for_delivery' && lateMin > 0 ? (
                                 <View style={{ marginTop: 4, backgroundColor: error, borderRadius: 99, paddingHorizontal: 6, paddingVertical: 1 }}>
                                     <Text numberOfLines={1} style={{ color: '#FFFFFF', fontSize: 9.5, fontWeight: '900' }}>{tr('Late {min}m', { min: lateMin })}</Text>

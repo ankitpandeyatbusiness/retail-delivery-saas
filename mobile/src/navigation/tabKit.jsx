@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../components/common/kit';
 import { useMotion } from '../components/common/motion';
 import { useClosedStyle } from '../components/customers/shop';
+import { tr, useLang } from '../i18n';
 
 const tb = StyleSheet.create({
     badge: { minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 5, alignItems: 'center', justifyContent: 'center' },
@@ -126,6 +127,7 @@ function useBlink(on) {
 // One tab: the icon (springs up when active), its label, and the cart count when there is one.
 function TabItem({ focused, icon, label, badge, onPress, onLongPress, greyWhenClosed }) {
     const { primary, muted, error } = useBrand();
+    useLang((st) => st.lang);   // re-draw the label when the language changes
     const alert = badge === 'alert' || !!(badge && typeof badge === 'object' && badge.alert);
     const count = typeof badge === 'number' ? badge : (badge && typeof badge === 'object' ? badge.n : 0);
     const tone = focused ? primary : muted;
@@ -138,7 +140,7 @@ function TabItem({ focused, icon, label, badge, onPress, onLongPress, greyWhenCl
                     {count > 0 ? <View style={tb.floatBadge}><CountBadge n={count} /></View> : null}
                     {badge === 'dot' || alert ? <View style={[tb.floatDot, count > 0 && { right: undefined, left: -6 }]}><BlinkDot /></View> : null}
                 </View>
-                <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={[tb.floatLabel, { color: tone }]}>{label}</Text>
+                <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={[tb.floatLabel, { color: tone }]}>{tr(label)}</Text>
             </View>
         </Pressable>
     );

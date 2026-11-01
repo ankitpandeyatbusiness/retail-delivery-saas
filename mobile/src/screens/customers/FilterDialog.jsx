@@ -82,7 +82,7 @@ function Opt({ on, label, onPress, radio }) {
             <View style={s.opt}>
                 <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: 10, backgroundColor: tint(primary), opacity: a }]} />
                 <Mark on={on} radio={radio} />
-                <Text style={[s.optTxt, { color: text }]}>{label}</Text>
+                <Text style={[s.optTxt, { color: text }]}>{tr(label)}</Text>
             </View>
         </Press>
     );
@@ -95,7 +95,7 @@ function Pill({ on, label, onPress }) {
         <Press onPress={onPress} style={{ marginRight: 8, marginBottom: 8 }}>
             <View style={[s.pill, { borderColor: border }]}>
                 <Animated.View pointerEvents="none" style={[s.pillOn, { backgroundColor: tint(primary), borderColor: primary, opacity: a }]} />
-                <Text style={[s.pillTxt, { color: on ? primary : text }]}>{label}</Text>
+                <Text style={[s.pillTxt, { color: on ? primary : text }]}>{tr(label)}</Text>
             </View>
         </Press>
     );
@@ -108,7 +108,7 @@ function Section({ title, index, sect, children }) {
     const t = sect.interpolate({ inputRange: [lo, lo + 0.5], outputRange: [0, 1], extrapolate: 'clamp' });
     return (
         <Animated.View style={{ opacity: t, transform: [{ translateY: t.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }] }}>
-            <Text style={[s.h, { color: text }]}>{title}</Text>
+            <Text style={[s.h, { color: text }]}>{tr(title)}</Text>
             {children}
         </Animated.View>
     );
@@ -239,27 +239,27 @@ export default function FilterDialog({ visible, onClose, items }) {
     const secs = [];
     if (showSort) {
         secs.push({
-            key: 'sort', title: 'Sort by', n: f.sort ? 1 : 0,
+            key: 'sort', title: tr('Sort by'), n: f.sort ? 1 : 0,
             body: sorts.map((id) => <Opt key={id} radio on={curSort === id} label={SORT_LABELS[id]} onPress={() => f.setSort(id === 'popularity' ? null : id)} />),
         });
     }
     if (types.length) {
         secs.push({
-            key: 'type', title: 'Dish type', n: types.filter(([id]) => f.active.includes(id)).length,
+            key: 'type', title: tr('Dish type'), n: types.filter(([id]) => f.active.includes(id)).length,
             body: types.map(([id, label]) => <Opt key={id} on={f.active.includes(id)} label={label} onPress={() => f.toggleFilter(id)} />),
         });
     }
     if (filters.includes('price_range')) {
-        secs.push({ key: 'price', title: 'Price', n: f.price ? 1 : 0, body: <View style={s.wrapRow}>{PRICES.map(([id, label]) => <Pill key={id} on={f.price === id} label={label} onPress={() => f.setPrice(id)} />)}</View> });
+        secs.push({ key: 'price', title: tr('Price'), n: f.price ? 1 : 0, body: <View style={s.wrapRow}>{PRICES.map(([id, label]) => <Pill key={id} on={f.price === id} label={label} onPress={() => f.setPrice(id)} />)}</View> });
     }
     if (filters.includes('spice_level')) {
-        secs.push({ key: 'spice', title: 'Spice', n: f.spice ? 1 : 0, body: <View style={s.wrapRow}>{SPICES.map(([id, label]) => <Pill key={id} on={f.spice === id} label={label} onPress={() => f.setSpice(id)} />)}</View> });
+        secs.push({ key: 'spice', title: tr('Spice'), n: f.spice ? 1 : 0, body: <View style={s.wrapRow}>{SPICES.map(([id, label]) => <Pill key={id} on={f.spice === id} label={label} onPress={() => f.setSpice(id)} />)}</View> });
     }
     if (weights.length) {
-        secs.push({ key: 'weight', title: 'Weight', n: f.weight ? 1 : 0, body: <View style={s.wrapRow}>{weights.map(([id, name]) => <Pill key={id} on={f.weight === id} label={name} onPress={() => f.setWeight(id)} />)}</View> });
+        secs.push({ key: 'weight', title: tr('Weight'), n: f.weight ? 1 : 0, body: <View style={s.wrapRow}>{weights.map(([id, name]) => <Pill key={id} on={f.weight === id} label={name} onPress={() => f.setWeight(id)} />)}</View> });
     }
     if (filters.includes('serves')) {
-        secs.push({ key: 'serves', title: 'Serves', n: f.serves ? 1 : 0, body: <View style={s.wrapRow}>{SERVES.map((n) => <Pill key={n} on={f.serves === n} label={`${n}+`} onPress={() => f.setServes(n)} />)}</View> });
+        secs.push({ key: 'serves', title: tr('Serves'), n: f.serves ? 1 : 0, body: <View style={s.wrapRow}>{SERVES.map((n) => <Pill key={n} on={f.serves === n} label={`${n}+`} onPress={() => f.setServes(n)} />)}</View> });
     }
 
     // rail: which section is open on the right
@@ -387,7 +387,7 @@ export default function FilterDialog({ visible, onClose, items }) {
                                         return (
                                             <Pressable key={x.key} onPress={() => setTab(x.key)} style={[s.railItem, on && { backgroundColor: background }]}>
                                                 <View style={[s.railBar, { backgroundColor: on ? primary : 'transparent' }]} />
-                                                <Text style={[s.railTxt, { color: on ? text : muted, fontWeight: on ? '900' : '700' }]} numberOfLines={1}>{x.title}</Text>
+                                                <Text style={[s.railTxt, { color: on ? text : muted, fontWeight: on ? '900' : '700' }]} numberOfLines={1}>{tr(x.title)}</Text>
                                                 {x.n ? <View style={[s.railN, { backgroundColor: primary }]}><Text style={s.railNTxt}>{x.n}</Text></View> : null}
                                             </Pressable>
                                         );
@@ -397,7 +397,7 @@ export default function FilterDialog({ visible, onClose, items }) {
                             <ScrollView {...scrollProps} style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
                                 {openSec ? (
                                     <FadeIn key={openKey} distance={8}>
-                                        <Text style={[s.h, { color: text, marginTop: 0 }]}>{openSec.title}</Text>
+                                        <Text style={[s.h, { color: text, marginTop: 0 }]}>{tr(openSec.title)}</Text>
                                         {openSec.body}
                                     </FadeIn>
                                 ) : null}

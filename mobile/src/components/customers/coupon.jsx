@@ -14,18 +14,18 @@ import { tr } from '../../i18n';
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export function offerText(o) {
-    if (o.description) return o.description;
-    if (o.discountType === 'percent') return `${o.discountValue}% off${o.maxDiscount ? ` up to ₹${o.maxDiscount}` : ''}`;
-    return `₹${o.discountValue} off`;
+    if (o.description) return tr(o.description);
+    if (o.discountType === 'percent') return o.maxDiscount ? tr('{n}% off up to ₹{max}', { n: o.discountValue, max: o.maxDiscount }) : tr('{n}% off', { n: o.discountValue });
+    return tr('₹{n} off', { n: o.discountValue });
 }
 
 export function offerMeta(o) {
     const end = o.endsAt ? new Date(o.endsAt) : null;
     return [
-        o.minOrder ? `Min order ₹${o.minOrder}` : '',
-        o.firstOrderOnly ? 'First order only' : '',
-        o.dineInOnly ? 'Dine in only' : '',
-        end ? `Ends ${end.getDate()} ${MONTHS[end.getMonth()]}` : '',
+        o.minOrder ? tr('Min order ₹{n}', { n: o.minOrder }) : '',
+        o.firstOrderOnly ? tr('First order only') : '',
+        o.dineInOnly ? tr('Dine in only') : '',
+        end ? tr('Ends {d} {m}', { d: end.getDate(), m: tr(MONTHS[end.getMonth()]) }) : '',
     ].filter(Boolean).join(' · ');
 }
 
