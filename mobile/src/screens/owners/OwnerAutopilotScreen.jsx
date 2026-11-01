@@ -60,7 +60,7 @@ function MessagesSheet({ visible, onClose, onChanged }) {
 
     if (edit) {
         return (
-            <Sheet visible={visible} onClose={() => setEdit(null)} title={edit.name}>
+            <Sheet visible={visible} onClose={() => setEdit(null)} title={tr(edit.name)}>
                 <Hint>{tr('Write it your way. Words in curly brackets are filled in for each customer: {name} {food} {shop} {discount} {code}')}</Hint>
                 <View style={{ height: 8 }} />
                 <Label>{tr('Title')}</Label>
@@ -83,8 +83,8 @@ function MessagesSheet({ visible, onClose, onChanged }) {
                         <Text style={{ flex: 1, color: text, fontWeight: '800' }}>{m.name}</Text>
                         <Text style={{ color: m.custom ? primary : muted, fontSize: 11, fontWeight: '800' }}>{m.custom ? tr('YOUR WORDING') : tr('{variants} ready-made', { variants: m.variants })}</Text>
                     </View>
-                    <Text style={{ color: text, marginTop: 4, fontSize: 13 }} numberOfLines={1}>{m.sample.title}</Text>
-                    <Text style={{ color: muted, fontSize: 12 }} numberOfLines={2}>{m.sample.body}</Text>
+                    <Text style={{ color: text, marginTop: 4, fontSize: 13 }} numberOfLines={1}>{tr(m.sample.title)}</Text>
+                    <Text style={{ color: muted, fontSize: 12 }} numberOfLines={2}>{tr(m.sample.body)}</Text>
                 </Pressable>
             ))}
         </Sheet>
@@ -158,18 +158,18 @@ export default function OwnerAutopilotScreen() {
             ) : null}
 
             <Group title={tr('Messages to your customers')} hint={tr('Switch on what you want.')}>
-                {CUSTOMER_ROWS.map(([k, title, sub], i) => <ToggleRow key={k} title={title} subtitle={sub} value={cfg.on[k]} onValueChange={(v) => toggle(k, v)} last={i === CUSTOMER_ROWS.length - 1} />)}
+                {CUSTOMER_ROWS.map(([k, title, sub], i) => <ToggleRow key={k} title={tr(title)} subtitle={tr(sub)} value={cfg.on[k]} onValueChange={(v) => toggle(k, v)} last={i === CUSTOMER_ROWS.length - 1} />)}
             </Group>
             <Group title={tr('Messages to you')}>
-                {OWNER_ROWS.map(([k, title, sub], i) => <ToggleRow key={k} title={title} subtitle={sub} value={cfg.on[k]} onValueChange={(v) => toggle(k, v)} last={i === OWNER_ROWS.length - 1} />)}
-                {cfg.on.dailySummary ? <View style={{ marginTop: 12 }}><ChoiceBox label={tr('Daily summary time')} options={SUMMARY} value={cfg.summaryHour} onChange={(v) => change({ summaryHour: v }, { summaryHour: v })} last /></View> : null}
+                {OWNER_ROWS.map(([k, title, sub], i) => <ToggleRow key={k} title={tr(title)} subtitle={tr(sub)} value={cfg.on[k]} onValueChange={(v) => toggle(k, v)} last={i === OWNER_ROWS.length - 1} />)}
+                {cfg.on.dailySummary ? <View style={{ marginTop: 12 }}><ChoiceBox label={tr('Daily summary time')} options={SUMMARY.map(([v, l]) => [v, tr(l)])} value={cfg.summaryHour} onChange={(v) => change({ summaryHour: v }, { summaryHour: v })} last /></View> : null}
             </Group>
 
             <Group title={tr('How it speaks')} hint={tr('Recommended: Hinglish, Gentle, 10% offer, quiet at night.')}>
-                <ChoiceBox label={tr('Language of the messages')} options={LANGS} value={cfg.language} onChange={(v) => change({ language: v }, { language: v })} />
-                <ChoiceBox label={tr('How often')} hint={FREQ_NOTE[cfg.frequency]} options={FREQ} value={cfg.frequency} onChange={(v) => change({ frequency: v }, { frequency: v, limits: { ...cfg.limits, weeklyCap: v === 'gentle' ? 2 : v === 'normal' ? 3 : 4 } })} />
-                <ChoiceBox label={tr('Offer in the win-back (a one-time code)')} hint={tr('The second win-back message can carry a discount code, valid for 5 days.')} options={DISCOUNT} value={cfg.maxDiscount} onChange={(v) => change({ maxDiscount: v }, { maxDiscount: v })} />
-                <ChoiceBox label={tr('Quiet hours (no reminders to customers)')} options={QUIET} value={QUIET.some((q) => q[0] === quiet) ? quiet : null} onChange={(v) => { const [a, b] = v.split('-').map(Number); change({ quietFrom: a, quietTo: b }, { quietFrom: a, quietTo: b }); }} last />
+                <ChoiceBox label={tr('Language of the messages')} options={LANGS.map(([v, l]) => [v, tr(l)])} value={cfg.language} onChange={(v) => change({ language: v }, { language: v })} />
+                <ChoiceBox label={tr('How often')} hint={tr(FREQ_NOTE[cfg.frequency])} options={FREQ.map(([v, l]) => [v, tr(l)])} value={cfg.frequency} onChange={(v) => change({ frequency: v }, { frequency: v, limits: { ...cfg.limits, weeklyCap: v === 'gentle' ? 2 : v === 'normal' ? 3 : 4 } })} />
+                <ChoiceBox label={tr('Offer in the win-back (a one-time code)')} hint={tr('The second win-back message can carry a discount code, valid for 5 days.')} options={DISCOUNT.map(([v, l]) => [v, tr(l)])} value={cfg.maxDiscount} onChange={(v) => change({ maxDiscount: v }, { maxDiscount: v })} />
+                <ChoiceBox label={tr('Quiet hours (no reminders to customers)')} options={QUIET.map(([v, l]) => [v, tr(l)])} value={QUIET.some((q) => q[0] === quiet) ? quiet : null} onChange={(v) => { const [a, b] = v.split('-').map(Number); change({ quietFrom: a, quietTo: b }, { quietFrom: a, quietTo: b }); }} last />
                 <View style={{ marginTop: 12 }}><Button label={tr('See and edit the messages')} icon="create" kind="ghost" onPress={() => setLibrary(true)} /></View>
             </Group>
 
@@ -183,8 +183,8 @@ export default function OwnerAutopilotScreen() {
                     <Card>
                         {stats.recent.slice(0, 8).map((r, i) => (
                             <View key={`${r.at}-${i}`} style={{ paddingVertical: 8, borderTopWidth: i ? 1 : 0, borderTopColor: alpha(muted, 0.2) }}>
-                                <Text style={{ color: text, fontWeight: '700', fontSize: 13 }} numberOfLines={1}>{r.title}</Text>
-                                <Text style={{ color: muted, fontSize: 12 }}>{r.customer || tr('Customer')} · {KIND_LABEL[r.kind.replace(/_\d$/, '')] || r.kind}{r.by === 'owner' ? tr(' (by you)') : ''} · {ago(r.at)}</Text>
+                                <Text style={{ color: text, fontWeight: '700', fontSize: 13 }} numberOfLines={1}>{tr(r.title)}</Text>
+                                <Text style={{ color: muted, fontSize: 12 }}>{r.customer || tr('Customer')} · {tr(KIND_LABEL[r.kind.replace(/_\d$/, '')] || r.kind)}{r.by === 'owner' ? tr(' (by you)') : ''} · {ago(r.at)}</Text>
                             </View>
                         ))}
                     </Card>
