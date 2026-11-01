@@ -2,6 +2,8 @@
 // The SERVER decides which steps are allowed (order.allowedNext, from backend services/orderflow.js); this file only
 // names them. An order the server would refuse a step for never shows that button.
 
+import { tr } from '../../i18n';
+
 export const STATUS = {
     placed: { label: 'New', tone: 'warn' },
     accepted: { label: 'Accepted', tone: 'info' },
@@ -12,20 +14,20 @@ export const STATUS = {
     cancelled: { label: 'Cancelled', tone: 'bad' },
     undelivered: { label: 'Not delivered', tone: 'bad' },
 };
-export const statusLabel = (s) => STATUS[s]?.label || String(s || '').replace(/_/g, ' ');
+export const statusLabel = (s) => tr(STATUS[s]?.label || String(s || '').replace(/_/g, ' '));
 export const statusTone = (s) => STATUS[s]?.tone || 'info';
 export const isFinal = (s) => ['delivered', 'cancelled', 'undelivered'].includes(s);
 
 // the button for moving an order one step forward
 export function stepLabel(order, next) {
-    if (next === 'accepted') return 'Accept';
-    if (next === 'preparing') return 'Start preparing';
-    if (next === 'ready') return 'Mark ready';
-    if (next === 'out_for_delivery') return 'Out for delivery';
+    if (next === 'accepted') return tr('Accept');
+    if (next === 'preparing') return tr('Start preparing');
+    if (next === 'ready') return tr('Mark ready');
+    if (next === 'out_for_delivery') return tr('Out for delivery');
     if (next === 'delivered') {
-        if (order?.orderType === 'pickup') return 'Handed over';
-        if (order?.orderType === 'dine_in') return 'Served';
-        return 'Mark delivered';
+        if (order?.orderType === 'pickup') return tr('Handed over');
+        if (order?.orderType === 'dine_in') return tr('Served');
+        return tr('Mark delivered');
     }
     return statusLabel(next);
 }
@@ -98,16 +100,16 @@ export const boardParams = (filter, page, limit) => (filter === 'look' ? { look:
 export const onTableNow = (o) => !!o && o.orderType === 'dine_in' && o.status === 'delivered' && o.payment?.status !== 'paid';
 
 export const TYPE_LABEL = { delivery: 'Delivery', pickup: 'Pickup', dine_in: 'Dine in' };
-export const typeLabel = (t) => TYPE_LABEL[t] || String(t || '');
+export const typeLabel = (t) => tr(TYPE_LABEL[t] || String(t || ''));
 
 // "COD", "Paid online", "Online, not paid yet"
 export function paymentLabel(order) {
     const p = order?.payment || {};
-    if (p.method === 'cod') return 'Cash on delivery';
-    if (p.status === 'paid') return 'Paid online';
-    if (p.status === 'refunded') return 'Refunded';
-    if (p.status === 'failed') return 'Payment failed';
-    return 'Online, not paid yet';
+    if (p.method === 'cod') return tr('Cash on delivery');
+    if (p.status === 'paid') return tr('Paid online');
+    if (p.status === 'refunded') return tr('Refunded');
+    if (p.status === 'failed') return tr('Payment failed');
+    return tr('Online, not paid yet');
 }
 export const isPaid = (order) => order?.payment?.status === 'paid';
 export const isCod = (order) => order?.payment?.method === 'cod';
@@ -118,16 +120,16 @@ export const isCod = (order) => order?.payment?.method === 'cod';
 export function itemsSummary(order, max = 3) {
     const lines = (order?.items || []).map((l) => (l.measure?.label ? `${l.measure.label} ${l.name}` : `${l.quantity} ${l.name}`));
     if (lines.length <= max) return lines.join(', ');
-    return `${lines.slice(0, max).join(', ')} +${lines.length - max} more`;
+    return `${lines.slice(0, max).join(', ')} ${tr('+{n} more', { n: lines.length - max })}`;
 }
 export const itemCount = (order) => (order?.items || []).reduce((n, l) => n + (l.quantity || 1), 0);
 
 export function ago(date, now = Date.now()) {
     const m = Math.max(0, Math.floor((now - new Date(date).getTime()) / 60000));
-    if (m < 1) return 'just now';
-    if (m < 60) return `${m} min ago`;
+    if (m < 1) return tr('just now');
+    if (m < 60) return tr('{n} min ago', { n: m });
     const h = Math.floor(m / 60);
-    if (h < 24) return `${h} h ${m % 60 ? `${m % 60} min ` : ''}ago`;
+    if (h < 24) return m % 60 ? tr('{h} h {m} min ago', { h, m: m % 60 }) : tr('{h} h ago', { h });
     return new Date(date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 }
 
@@ -137,7 +139,7 @@ export function mmss(ms) {
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
-export const clockTime = (date) => new Date(date).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
+export const clockTime = (date) => new Date(date).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true }).replace(/am|pm/i, (x) => tr(x.toUpperCase()));
 export const dayTime = (date) => {
     const d = new Date(date);
     const same = d.toDateString() === new Date().toDateString();
@@ -153,10 +155,10 @@ export function percentChange(now, before) {
 // "6 min" or "1 h 5 min": a span in seconds
 export function spanText(seconds) {
     if (seconds === null || seconds === undefined) return '–';
-    if (seconds < 60) return `${seconds} sec`;
+    if (seconds < 60) return tr('{n} sec', { n: seconds });
     const m = Math.round(seconds / 60);
-    if (m < 60) return `${m} min`;
-    return `${Math.floor(m / 60)} h ${m % 60} min`;
+    if (m < 60) return tr('{n} min', { n: m });
+    return tr('{h} h {m} min', { h: Math.floor(m / 60), m: m % 60 });
 }
 
 // A short sentence for a line of the live feed. Unknown kinds fall back to the plain event name.
