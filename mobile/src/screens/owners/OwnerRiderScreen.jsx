@@ -202,7 +202,7 @@ export default function OwnerRiderScreen() {
 
                 <SectionTitle title={tr('Pay')} />
                 <Card>
-                    <Row icon="wallet" title={tr('How he is paid')} subtitle={`${payInfo?.label || rider.payLabel || ''}${(payInfo?.own || rider.ownPay) ? '  ·  his own plan' : ''}`} onPress={openPlan} last={!payInfo || payInfo.money?.hidden} />
+                    <Row icon="wallet" title={tr('How he is paid')} subtitle={`${tr(payInfo?.label || rider.payLabel || '')}${(payInfo?.own || rider.ownPay) ? `  ·  ${tr('his own plan')}` : ''}`} onPress={openPlan} last={!payInfo || payInfo.money?.hidden} />
                     {payInfo && !payInfo.money?.hidden && payInfo.money?.earned ? (
                         <View style={{ flexDirection: 'row', marginTop: 8 }}>
                             <Stat label={tr('Today')} value={rupees(payInfo.money.earned.todayPaise)} />

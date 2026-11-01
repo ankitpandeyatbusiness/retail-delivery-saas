@@ -32,12 +32,12 @@ export const paysPerDelivery = (plan) => ['per_delivery', 'percent', 'distance',
 export function planProblem(plan) {
     if (!plan || plan.type === 'same' || plan.type === 'none') return '';
     const bad = (v, min, max) => !(typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max);
-    if ((plan.type === 'salary' || plan.type === 'salary_plus') && bad(plan.salary, 1, 1000000)) return 'Enter the salary';
-    if ((plan.type === 'per_delivery' || plan.type === 'salary_plus') && bad(plan.perDelivery, 1, 10000)) return 'Enter the amount for each delivery';
-    if (plan.type === 'percent' && bad(plan.percent, 0.5, 100)) return 'Enter a percent from 0.5 to 100';
+    if ((plan.type === 'salary' || plan.type === 'salary_plus') && bad(plan.salary, 1, 1000000)) return tr('Enter the salary');
+    if ((plan.type === 'per_delivery' || plan.type === 'salary_plus') && bad(plan.perDelivery, 1, 10000)) return tr('Enter the amount for each delivery');
+    if (plan.type === 'percent' && bad(plan.percent, 0.5, 100)) return tr('Enter a percent from 0.5 to 100');
     if (plan.type === 'distance') {
-        if (bad(plan.base, 0, 10000) || bad(plan.freeKm, 0, 50) || bad(plan.perKm, 0, 1000)) return 'Fill the base amount, the free distance and the amount per km';
-        if (!(plan.base > 0 || plan.perKm > 0)) return 'Give a base amount or an amount per km';
+        if (bad(plan.base, 0, 10000) || bad(plan.freeKm, 0, 50) || bad(plan.perKm, 0, 1000)) return tr('Fill the base amount, the free distance and the amount per km');
+        if (!(plan.base > 0 || plan.perKm > 0)) return tr('Give a base amount or an amount per km');
     }
     return '';
 }
@@ -52,7 +52,7 @@ export default function PayPlanForm({ value, onChange, allowSame, sameText }) {
         <View>
             {allowSame ? <Option selected={v.type === 'same'} title={tr('Same as the shop')} subtitle={sameText} onPress={() => pick('same')} /> : null}
             {PAY_TYPES.map(([type, title, sub], i) => (
-                <Option key={type} selected={v.type === type} title={title} subtitle={sub || undefined} onPress={() => pick(type)} last={i === PAY_TYPES.length - 1 && v.type === 'same'} />
+                <Option key={type} selected={v.type === type} title={tr(title)} subtitle={sub ? tr(sub) : undefined} onPress={() => pick(type)} last={i === PAY_TYPES.length - 1 && v.type === 'same'} />
             ))}
             {v.type !== 'none' && v.type !== 'same' ? (
                 <View style={{ marginTop: 10 }}>

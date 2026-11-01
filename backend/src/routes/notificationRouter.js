@@ -12,6 +12,8 @@ const tenantRecognizer = require('../middlewares/tenantRecognizer');
 const authenticate = require('../middlewares/authMiddleware');
 const apiErrors = require('../middlewares/apiErrors');
 const Notification = require('../models/Notification');
+const User = require('../models/User');
+const i18n = require('../notifications/i18n');
 const DeviceToken = require('../models/DeviceToken');
 
 const { wrap, httpError } = apiErrors;
@@ -36,9 +38,11 @@ function inbox(rawFilterOf, { allowClear = false, softClear = false } = {}) {
         ]);
         const hasMore = items.length > limit;
         if (hasMore) items.pop();
+        // the inbox reads in the person's own language, like the push that told him (the texts are saved in English)
+        const lang = (await User.findById(req.auth?.userId).select('language').lean().catch(() => null))?.language || 'en';
         res.json({
             items: items.map((n) => ({
-                id: n._id, type: n.type, title: n.title, body: n.body || null,
+                id: n._id, type: n.type, title: i18n.translate(n.title, lang), body: n.body ? i18n.translate(n.body, lang) : null,
                 data: n.data || null, read: !!n.readAt, createdAt: n.createdAt,
             })),
             unreadCount, page, hasMore,
