@@ -73,6 +73,7 @@ import SettlementSettingsScreen from '../screens/settlement/SettlementSettingsSc
 import ShopBillingScreen from '../screens/money/ShopBillingScreen';
 import CustomInvoiceScreen from '../screens/money/CustomInvoiceScreen';
 import ShopPaymentsScreen from '../screens/money/ShopPaymentsScreen';
+import ShopBulkScreen from '../screens/services/ShopBulkScreen';
 import ShopSmsScreen from '../screens/money/ShopSmsScreen';
 import SmsProviderScreen from '../screens/money/SmsProviderScreen';
 import ShopsListScreen from '../screens/shops/ShopsListScreen';
@@ -162,6 +163,7 @@ function ShopsStack() {
             <Shops.Screen name="ShopBilling" component={ShopBillingScreen} />
             <Shops.Screen name="CustomInvoice" component={CustomInvoiceScreen} />
             <Shops.Screen name="ShopPayments" component={ShopPaymentsScreen} />
+            <Shops.Screen name="ShopBulk" component={ShopBulkScreen} />
             <Shops.Screen name="ShopSms" component={ShopSmsScreen} />
             <Shops.Screen name="SmsProvider" component={SmsProviderScreen} />
             <Shops.Screen name="Invoices" component={InvoicesScreen} />

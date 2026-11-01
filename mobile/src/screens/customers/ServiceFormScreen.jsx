@@ -14,6 +14,7 @@ import { showToast } from '../../components/customers/shop';
 import { maskTime } from '../../utils/owners/menuRules';
 import { priceLine } from '../owners/OwnerServicesScreen';
 import PhotoCarousel from '../../components/customers/PhotoCarousel';
+import ServiceHero from '../../components/customers/ServiceHero';
 import { AddressSheet, addrLine } from '../../components/customers/addresses';
 import { pickPhoto, uploadInquiryPhoto } from '../../utils/common/photoUpload';
 import { tr } from '../../i18n';
@@ -147,26 +148,70 @@ export default function ServiceFormScreen() {
         }
     };
 
+    const facts = [
+        s.minGuests ? ['people-outline', tr('From {n} guests', { n: s.minGuests })] : null,
+        s.noticeHours ? ['time-outline', tr('Ask {n} hours ahead', { n: s.noticeHours })] : null,
+    ].filter(Boolean);
+    const rest = (s.photos || []).filter(Boolean).slice(1);   // the first photo is the header; the others slide below
+
     return (
-        <FormPage title={tr(s.name)} footer={<Button label={tr('Inquire')} icon="send" busy={busy} onPress={send} />}>
-            <PhotoCarousel photos={s.photos} />
-            <View style={{ backgroundColor: surface, borderRadius: 14, borderWidth: 1, borderColor: border, padding: 14, marginHorizontal: 16, marginBottom: 14 }}>
-                <Text style={{ color: primary, fontWeight: '900', fontSize: 20 }}>{priceLine(s)}</Text>
-                {s.description ? <Text style={{ color: text, marginTop: 8, lineHeight: 20 }}>{tr(s.description)}</Text> : null}
-                {(s.bullets || []).map((b) => (
-                    <View key={b} style={{ flexDirection: 'row', marginTop: 6 }}>
-                        <Ionicons name="checkmark-circle" size={17} color={primary} style={{ marginRight: 8, marginTop: 1 }} />
-                        <Text style={{ color: text, flex: 1 }}>{tr(b)}</Text>
+        <FormPage
+            bare title={tr(s.name)}
+            footer={(
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View style={{ flex: 1, paddingRight: 12 }}>
+                        <Text style={{ color: muted, fontSize: 11.5, fontWeight: '700' }}>{tr('Price')}</Text>
+                        <Text numberOfLines={1} style={{ color: text, fontWeight: '900', fontSize: 16 }}>{priceLine(s)}</Text>
                     </View>
-                ))}
-                {s.minGuests ? <Text style={{ color: muted, marginTop: 8, fontSize: 12 }}>{tr('At least {n} guests', { n: s.minGuests })}</Text> : null}
-                {s.noticeHours ? <Text style={{ color: muted, marginTop: 2, fontSize: 12 }}>{tr('Please inquire {n} hours ahead', { n: s.noticeHours })}</Text> : null}
-            </View>
-            <Group title={tr('Your inquiry')}>
+                    <View style={{ width: 150 }}><Button label={tr('Inquire')} icon="send" busy={busy} onPress={send} /></View>
+                </View>
+            )}
+        >
+            <ServiceHero service={s} priceText={priceLine(s)} />
+
+            {facts.length ? (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, marginTop: 16 }}>
+                    {facts.map(([icon, label]) => (
+                        <View key={label} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, backgroundColor: primary + '1F', marginRight: 8, marginBottom: 8 }}>
+                            <Ionicons name={icon} size={14} color={primary} style={{ marginRight: 6 }} />
+                            <Text style={{ color: text, fontWeight: '700', fontSize: 12.5 }}>{label}</Text>
+                        </View>
+                    ))}
+                </View>
+            ) : null}
+
+            {s.description || (s.bullets || []).length ? (
+                <View style={{ backgroundColor: surface, borderRadius: 20, borderWidth: 1, borderColor: border, padding: 16, marginHorizontal: 16, marginTop: facts.length ? 4 : 16, marginBottom: 6 }}>
+                    {s.description ? <Text style={{ color: text, lineHeight: 21, fontSize: 14.5 }}>{tr(s.description)}</Text> : null}
+                    {(s.bullets || []).length ? <Text style={{ color: text, fontWeight: '900', fontSize: 15, marginTop: s.description ? 14 : 0, marginBottom: 2 }}>{tr('What you get')}</Text> : null}
+                    {(s.bullets || []).map((b) => (
+                        <View key={b} style={{ flexDirection: 'row', marginTop: 8 }}>
+                            <Ionicons name="checkmark-circle" size={18} color={primary} style={{ marginRight: 10, marginTop: 1 }} />
+                            <Text style={{ color: text, flex: 1, lineHeight: 20 }}>{tr(b)}</Text>
+                        </View>
+                    ))}
+                </View>
+            ) : null}
+
+            {rest.length ? (
+                <View style={{ marginTop: 12 }}>
+                    <Text style={{ color: text, fontWeight: '900', fontSize: 16, paddingHorizontal: 16, marginBottom: 2 }}>{tr('More photos')}</Text>
+                    <PhotoCarousel photos={rest} />
+                </View>
+            ) : null}
+
+            <View style={{ height: 8 }} />
+            <Group title={tr('Your details')}>
                 <TextBox label={tr('Your name')} value={name} onChangeText={setName} maxLength={80} />
-                <TextBox label={tr('Phone number')} value={phone} onChangeText={setPhone} keyboardType="phone-pad" maxLength={20} />
-                {asked.map(field)}
-                {estimate ? <Text style={{ color: text, fontWeight: '800', marginBottom: 12 }}>{tr('About ₹{n} (estimate, the shop will confirm)', { n: estimate })}</Text> : null}
+                <TextBox label={tr('Phone number')} value={phone} onChangeText={setPhone} keyboardType="phone-pad" maxLength={20} last />
+            </Group>
+            {asked.length ? (
+                <Group title={tr('Tell us more')}>
+                    {asked.map(field)}
+                    {estimate ? <Text style={{ color: text, fontWeight: '800', marginBottom: 4 }}>{tr('About ₹{n} (estimate, the shop will confirm)', { n: estimate })}</Text> : null}
+                </Group>
+            ) : null}
+            <Group title={tr('Your message')}>
                 {s.quickTexts?.length ? (
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}>
                         {s.quickTexts.map((t) => (

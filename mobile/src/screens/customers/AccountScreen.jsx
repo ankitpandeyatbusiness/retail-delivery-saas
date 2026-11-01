@@ -228,6 +228,7 @@ function AccountInner() {
     const unread = useNotificationStore((st) => st.unread);
     const favOn = useHomeStore((st) => st.full.features.favourites);
     const pointsOn = useHomeStore((st) => st.full.points?.customer !== false);
+    const onlyService = useServiceFlags((st) => st.only);   // the shop's one live service, shown by its own name
     const bulkOn = useServiceFlags((st) => st.bulkOn);   // the shop takes bulk orders (the super admin's switch and the owner's own)
     const serviceCount = useServiceFlags((st) => st.serviceCount);   // the Services section shows only when the shop offers something; kept between openings so it is there at once
     const bookingOn = useServiceFlags((st) => st.bookingOn);
@@ -421,7 +422,9 @@ function AccountInner() {
                         {bookingOn ? <Item icon="calendar-number-outline" label={tr('My reservations')} sub={tr('Your tables and the code to show')} onPress={() => nav.navigate('MyBookings')} last={!serviceCount && !bulkOn} /> : null}
                         {bulkOn ? <Item icon="cube-outline" label={tr('Bulk order')} sub={tr('Pick dishes and quantities for an office, a function or a party. The shop sends you a quote.')} onPress={() => nav.navigate('BulkOrder')} /> : null}
                         {bulkOn ? <Item icon="receipt-outline" label={tr('My bulk orders')} sub={tr('Your requests, quotes and invoices')} onPress={() => nav.navigate('MyBulkOrders')} last={!serviceCount} /> : null}
-                        {serviceCount ? <Item icon="briefcase-outline" label={tr('Services')} sub={tr('Tiffin, party booking and more')} onPress={() => nav.navigate('Services')} /> : null}
+                        {serviceCount === 1 && onlyService
+                            ? <Item icon={onlyService.icon} label={tr(onlyService.name)} sub={tr('Ask the shop. Replies come in My inquiries')} onPress={() => nav.navigate('ServiceForm', { id: onlyService.id })} />
+                            : serviceCount ? <Item icon="briefcase-outline" label={tr('Services')} sub={tr('Tiffin, party booking and more')} onPress={() => nav.navigate('Services')} /> : null}
                         {serviceCount ? <Item icon="chatbubbles-outline" label={tr('My inquiries')} sub={tr('Replies from the shop')} onPress={() => nav.navigate('MyInquiries')} last /> : null}
                     </Group>
                 ) : null}

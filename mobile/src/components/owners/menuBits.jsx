@@ -152,17 +152,18 @@ export function Group({ title, hint, children, flush, flash, flashText, onLayout
 
 // The frame of a form page: back arrow + title, the fields scrolling, and the main button pinned to the bottom.
 // fixed: the children fill the space and manage their own scrolling (a chat); the page itself does not scroll
-export function FormPage({ title, children, footer, right, scrollRef, fixed }) {
+// bare: no bar at the top and no gap: the first child is a picture header that has its own back button (the service pages)
+export function FormPage({ title, children, footer, right, scrollRef, fixed, bare }) {
     const { background, border } = useBrand();
     const insets = useSafeAreaInsets();
     const [boxRef, lift] = useKeyboardLift();   // Android: the page, with its bar, is lifted above the keyboard
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
-            <PageHeader title={title} right={right} />
+            {bare ? null : <PageHeader title={title} right={right} />}
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
                 <View ref={boxRef} collapsable={false} style={{ flex: 1, paddingBottom: lift }}>
                 {fixed ? <View style={{ flex: 1, paddingTop: 6 }}>{children}</View> : (
-                <KeyboardScroll ref={scrollRef} contentContainerStyle={{ paddingTop: 6, paddingBottom: 40 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                <KeyboardScroll ref={scrollRef} contentContainerStyle={{ paddingTop: bare ? 0 : 6, paddingBottom: 40 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
                     {children}
                 </KeyboardScroll>)}
                 {footer ? (

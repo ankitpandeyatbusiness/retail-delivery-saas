@@ -24,7 +24,9 @@ const mine = async (req) => {
 router.get('/templates', wrap(async (req, res) => { res.json({ items: svc.templateList(await svc.loadDefaults()).filter((t) => t.kind !== 'bulk'), types: svc.TYPES }); }));
 
 // a starter service as it would be made, without saving it: the owner saves it from the editor
-router.get('/new/:kind', wrap(async (req, res) => { res.json(svc.newDoc(req.params.kind, await svc.loadDefaults())); }));
+// A new service starts SWITCHED OFF: the owner finishes the price and the questions, then switches it on when customers should see it.
+// (Made by the API with POST, without this editor, it is on as before.)
+router.get('/new/:kind', wrap(async (req, res) => { res.json({ ...svc.newDoc(req.params.kind, await svc.loadDefaults()), isActive: false }); }));
 
 router.get('/', wrap(async (req, res) => {
     const items = await ShopService.find({ tenantId: req.tenant._id }).sort({ sortOrder: 1, createdAt: 1 }).lean();

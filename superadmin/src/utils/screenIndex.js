@@ -43,6 +43,7 @@ export const SCREEN_INDEX = [
     E('Billing and rent', 'Shop', 'ShopBilling', 'ShopsTab', 'bank', 'money', 'billing rent go live free limit unpause pause grace bill preview fixed fee override custom invoice', 'shop'),
     E('Custom invoice', 'Shop', 'CustomInvoice', 'ShopsTab', 'receipt', 'money', 'custom invoice setup fee training extra charge bill gst line items', 'shop'),
     E('Online payments (Razorpay)', 'Shop', 'ShopPayments', 'ShopsTab', 'wallet', 'orders', 'online payments razorpay keys webhook secret test refunds disputes chargebacks upi card', 'shop'),
+    E('Bulk orders', 'Shop', 'ShopBulk', 'ShopsTab', 'receipt', 'orders', 'bulk orders large quantity catering office party function quote advance balance refund minimum notice delivery fee rules', 'shop'),
     E('SMS wallet', 'Shop', 'ShopSms', 'ShopsTab', 'message', 'catalog', 'sms wallet balance top up prices rate cost warn block zero history', 'shop'),
     E("Shop's own SMS sender", 'Shop', 'SmsProvider', 'ShopsTab', 'phone', 'platform', 'own sms sender dlt template sender id provider keys msg91', 'shop'),
     E('Owners', 'Shop', 'ShopOwners', 'ShopsTab', 'key', 'money', 'owners add owner who can run shop phone number remove', 'shop'),

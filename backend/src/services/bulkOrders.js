@@ -77,6 +77,15 @@ async function needSettings(tenant) {
     return s;
 }
 
+// A dish's bulk price as the editor sends it: null clears it, otherwise both numbers are checked. Returns what is stored.
+// (Used by the owner's menu route and the super admin's, so both refuse the same nonsense.)
+function cleanBulkPrice(b) {
+    if (b === undefined || b === null) return b;
+    if (typeof b !== 'object' || !Number.isInteger(b.minQty) || b.minQty < 2 || b.minQty > 10000) throw httpError(400, 'Bulk price: the minimum quantity must be a whole number from 2 to 10000');
+    if (typeof b.percentOff !== 'number' || !(b.percentOff > 0) || b.percentOff > 90) throw httpError(400, 'Bulk price: the discount must be more than 0 and at most 90 percent');
+    return { minQty: b.minQty, percentOff: Math.round(b.percentOff * 100) / 100 };
+}
+
 /* ------------------------------ the menu for the bulk screen ------------------------------ */
 // The whole menu with every option and the bulk price of each dish. Dishes sold by weight are not here: bulk counts pieces.
 async function menuFor(tenant) {
@@ -552,6 +561,6 @@ async function expireOld(now = new Date()) {
 }
 
 module.exports = {
-    settingsOf, saveSettings, publicConfig, menuFor, priceRequest, estimate, create, customerView, mine, listMine, cancelByCustomer, previewCancel, cancelOutcome, refundDue, ownerCancel, balanceDue, setStage, markCash, tryComplete, repairCompleted, invoiceFor, askChange,
+    settingsOf, saveSettings, cleanBulkPrice, publicConfig, menuFor, priceRequest, estimate, create, customerView, mine, listMine, cancelByCustomer, previewCancel, cancelOutcome, refundDue, ownerCancel, balanceDue, setStage, markCash, tryComplete, repairCompleted, invoiceFor, askChange,
     ownerView, ownerList, ownerOne, quote, decline, setOwnerNote, expireOld, effectiveStatus,
 };

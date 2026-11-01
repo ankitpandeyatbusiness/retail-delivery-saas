@@ -5,7 +5,7 @@ import { useTheme, spacing, font } from '../../theme';
 import { Screen } from '../../components/layout';
 import { Button, Card, Badge, SectionTitle } from '../../components/ui';
 import { Field } from '../../components/inputs';
-import { Group, Choice, NumberField, Switch, Hint, TextField } from '../../components/settingsForm';
+import { Group, Choice, NumberField, Switch, Hint, TextField, Label } from '../../components/settingsForm';
 import { ImageField, MorePictures } from '../../components/catalogBits';
 import OptionGroupsEditor, { withIds } from '../../components/optionGroups';
 import { Loading, ErrorBox, ConfirmSheet, toast } from '../../components/feedback';
@@ -42,7 +42,7 @@ const SPICE = [['none', 'No spice'], ['mild', 'Mild'], ['medium', 'Medium'], ['h
 const BLANK = {
     categoryId: '', newCategory: '', name: '', description: '', image: '', images: [], price: undefined, mrp: undefined,
     isVeg: undefined, isEggless: false, isSugarFree: false, isJain: false, spiceLevel: 'none', gstInclusive: true,
-    isBestseller: false, isNewArrival: false, isGiftPack: false, serves: undefined, calories: undefined, prepTimeMin: undefined,
+    isBestseller: false, isNewArrival: false, isGiftPack: false, serves: undefined, calories: undefined, prepTimeMin: undefined, bulkMinQty: undefined, bulkPercentOff: undefined,
     optionGroups: [], isAvailable: true, isActive: true, sortOrder: 0,
     itemKind: '', sellBy: 'piece', measure: { options: [], min: undefined, allowManual: true },
 };
@@ -53,7 +53,7 @@ const fromRecord = (r) => ({
     price: r.price, mrp: r.mrp,
     isVeg: r.isVeg, isEggless: !!r.isEggless, isSugarFree: !!r.isSugarFree, isJain: !!r.isJain, spiceLevel: r.spiceLevel || 'none', gstInclusive: r.gstInclusive !== false,
     isBestseller: !!r.isBestseller, isNewArrival: !!r.isNewArrival, isGiftPack: !!r.isGiftPack,
-    serves: r.serves, calories: r.calories, prepTimeMin: r.prepTimeMin,
+    serves: r.serves, calories: r.calories, prepTimeMin: r.prepTimeMin, bulkMinQty: r.bulk?.minQty, bulkPercentOff: r.bulk?.percentOff,
     optionGroups: (r.optionGroups || []).map((g) => ({ ...g, options: (g.options || []).map((o) => ({ ...o })) })),
     isAvailable: r.isAvailable !== false, isActive: r.isActive !== false, sortOrder: r.sortOrder || 0,
     itemKind: r.itemKind || '', sellBy: r.sellBy || 'piece',
@@ -97,6 +97,9 @@ export default function ProductFormScreen() {
             if (typeof v.isVeg !== 'boolean') e.isVeg = 'Choose veg or non-veg';
             if (v.mrp !== undefined && v.price !== undefined && v.mrp < v.price) e.mrp = 'MRP cannot be lower than the price';
             if (v.isJain && v.isVeg === false) e.isJain = 'A Jain item must be veg';
+            if ((v.bulkMinQty !== undefined) !== (v.bulkPercentOff !== undefined)) e.bulkMinQty = 'Fill both bulk fields (from how many pieces, and how many percent off), or leave both empty';
+            else if (v.bulkMinQty !== undefined && (!Number.isInteger(v.bulkMinQty) || v.bulkMinQty < 2 || v.bulkMinQty > 10000)) e.bulkMinQty = 'The bulk quantity is a whole number from 2 to 10000';
+            else if (v.bulkPercentOff !== undefined && !(v.bulkPercentOff > 0 && v.bulkPercentOff <= 90)) e.bulkPercentOff = 'The bulk discount is more than 0 and at most 90 percent';
             v.optionGroups.forEach((g, i) => {
                 if (!g.name.trim()) e.optionGroups = `Choice group ${i + 1} needs a question`;
                 else if (!g.options.length || g.options.some((o) => !o.name.trim())) e.optionGroups = `Choice group ${i + 1}: every option needs a name`;
@@ -127,6 +130,7 @@ export default function ProductFormScreen() {
             serves: v.serves ?? null,
             calories: v.calories ?? null,
             prepTimeMin: v.prepTimeMin ?? null,
+            bulk: v.bulkMinQty !== undefined && v.bulkPercentOff !== undefined ? { minQty: v.bulkMinQty, percentOff: v.bulkPercentOff } : null,
             optionGroups: withIds(v.optionGroups),
             isAvailable: v.isAvailable,
             isActive: v.isActive,
@@ -269,6 +273,15 @@ export default function ProductFormScreen() {
                     <NumberField style={{ flex: 1 }} label="Calories" integer value={v.calories} onChange={(x) => f.set('calories', x)} />
                 </View>
                 <NumberField label="Preparation time" suffix="min" integer value={v.prepTimeMin} onChange={(x) => f.set('prepTimeMin', x)} />
+                {v.sellBy === 'piece' ? (
+                    <>
+                        <Label hint="For bulk orders. Example: from 30 pieces, 10 percent off. Leave both empty for no bulk price. You can set it for any shop; the owner can only when Bulk orders is switched on for his shop.">Bulk price</Label>
+                        <View style={{ flexDirection: 'row', gap: spacing.md }}>
+                            <NumberField style={{ flex: 1 }} integer placeholder="30" suffix="pieces or more" value={v.bulkMinQty} onChange={(x) => f.set('bulkMinQty', x)} hint={f.errors.bulkMinQty} />
+                            <NumberField style={{ flex: 1 }} placeholder="10" suffix="% off" value={v.bulkPercentOff} onChange={(x) => f.set('bulkPercentOff', x)} hint={f.errors.bulkPercentOff} />
+                        </View>
+                    </>
+                ) : null}
                 <Switch title="Bestseller" value={v.isBestseller} onValueChange={(x) => f.set('isBestseller', x)} />
                 <Switch title="New arrival" value={v.isNewArrival} onValueChange={(x) => f.set('isNewArrival', x)} />
                 <Switch title="Gift pack" value={v.isGiftPack} onValueChange={(x) => f.set('isGiftPack', x)} last />

@@ -424,6 +424,7 @@ admin.use('/tenants/:tid/products', loadTenant, crud(Product, {
     softDelete: true,
     check: async (d, req) => {
         const tenant = await Tenant.findById(req.tenantDoc._id).lean();
+        if (d.bulk !== undefined) d.bulk = require('../services/bulkOrders').cleanBulkPrice(d.bulk);   // the super admin may set a bulk price for any shop; the numbers are still checked
         await applyItemRules(d, tenant);
         const ok = d.categoryId && isId(String(d.categoryId)) &&
             await Category.exists({ _id: d.categoryId, tenantId: req.tenantDoc._id });
