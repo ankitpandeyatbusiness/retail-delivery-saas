@@ -21,6 +21,7 @@ import { ListShimmer } from '../../components/owners/shimmer';
 import { LeavePanel } from '../../components/owners/RiderLeave';
 import RiderPointsCard from '../../components/owners/RiderPointsCard';
 import { tr } from '../../i18n';
+import { statusLabel } from '../../utils/owners/orderFlow';
 
 function AmountSheet({ mode, visible, balancePaise, onClose, onSubmit, busy }) {
     const { muted } = useBrand();
@@ -165,7 +166,7 @@ export default function OwnerRiderScreen() {
 
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
-            <PageHeader title={riderName(rider)} />
+            <PageHeader title={String(riderName(rider)).replace(/^Rider /, `${tr('Rider')} `)} />
             <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 32 }}>
                 <Card>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -194,7 +195,7 @@ export default function OwnerRiderScreen() {
                         <SectionTitle title={tr('Delivering now')} />
                         <Card>
                             {rider.activeOrders.map((o, i) => (
-                                <Row key={o.id} icon="receipt" title={tr('Order #{orderNo}', { orderNo: o.orderNo })} subtitle={String(o.deliveryStatus || o.status).replace(/_/g, ' ')} last={i === rider.activeOrders.length - 1} onPress={() => nav.navigate('OwnerOrder', { id: String(o.id) })} />
+                                <Row key={o.id} icon="receipt" title={tr('Order #{orderNo}', { orderNo: o.orderNo })} subtitle={statusLabel(o.deliveryStatus || o.status)} last={i === rider.activeOrders.length - 1} onPress={() => nav.navigate('OwnerOrder', { id: String(o.id) })} />
                             ))}
                         </Card>
                     </>

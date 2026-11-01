@@ -15,7 +15,7 @@ import { tr } from '../../i18n';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const nice = (ymd) => { const d = new Date(`${ymd}T00:00:00Z`); return `${WEEK[d.getUTCDay()]}, ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`; };
+const nice = (ymd) => { const d = new Date(`${ymd}T00:00:00Z`); return `${tr(WEEK[d.getUTCDay()])}, ${d.getUTCDate()} ${tr(MONTHS[d.getUTCMonth()])}`; };
 const range = (a, b) => (a === b ? nice(a) : `${nice(a)} to ${nice(b)}`);
 
 export function LeavePanel({ riderId, monthDays }) {

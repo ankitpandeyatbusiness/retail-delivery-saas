@@ -1,6 +1,8 @@
 // Small pure helpers for the rider screens (kept free of React so they are easy to check).
 
 // 12550 paise -> "₹125.50"; whole rupees have no decimals: 12500 -> "₹125"
+import { tr } from '../../i18n';
+
 export function rupees(paise) {
     const r = (Number(paise) || 0) / 100;
     const whole = Math.abs(r - Math.round(r)) < 0.005;
@@ -31,9 +33,9 @@ export const riderName = (r) => r?.name || (r?.phone ? `Rider ${String(r.phone).
 
 // ledger line -> [title, sign] ; sign +1 rider owes more, -1 owes less
 export function ledgerLine(row) {
-    if (row.type === 'collect') return [row.orderNo ? `Cash collected, order #${row.orderNo}` : 'Cash collected', 1];
-    if (row.type === 'handover') return ['Cash given to the shop', -1];
-    return ['Correction', row.amountPaise >= 0 ? 1 : -1];
+    if (row.type === 'collect') return [row.orderNo ? tr('Cash collected, order #{n}', { n: row.orderNo }) : tr('Cash collected'), 1];
+    if (row.type === 'handover') return [tr('Cash given to the shop'), -1];
+    return [tr('Correction'), row.amountPaise >= 0 ? 1 : -1];
 }
 
 // date range for the performance screen: last N days, or this month
