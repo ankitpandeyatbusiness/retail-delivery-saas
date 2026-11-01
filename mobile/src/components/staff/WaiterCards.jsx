@@ -7,6 +7,7 @@ import { useBrand, alpha } from '../common/kit';
 import { money } from '../owners/ui';
 import { BigButton, UndoLink, useMinuteClock, minsSince, minWord } from './staffBits';
 import { tr } from '../../i18n';
+import { trNote } from '../../utils/common/noteText';
 
 const Chip = ({ icon, text, color }) => (
     <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99, backgroundColor: alpha(color, 0.14) }}>
@@ -39,12 +40,12 @@ export function ServeCard({ o, lateMin, busy, onServe }) {
                         <View style={{ flex: 1, minWidth: 0 }}>
                             <Text style={{ color: text, fontWeight: '800', fontSize: 16.5 }}>{l.measure ? `${l.measure} ` : ''}{l.name}</Text>
                             {l.options.length ? <Text style={{ color: muted, fontWeight: '600', fontSize: 13.5 }}>{l.options.join(' · ')}</Text> : null}
-                            {l.note ? <Text style={{ color: warn, fontWeight: '800', fontSize: 13.5, marginTop: 2 }}>{l.note}</Text> : null}
+                            {l.note ? <Text style={{ color: warn, fontWeight: '800', fontSize: 13.5, marginTop: 2 }}>{trNote(l.note)}</Text> : null}
                         </View>
                     </View>
                 ))}
             </View>
-            {o.note ? <Text style={{ color: warn, fontWeight: '700', marginTop: 6 }}>{o.note}</Text> : null}
+            {o.note ? <Text style={{ color: warn, fontWeight: '700', marginTop: 6 }}>{trNote(o.note)}</Text> : null}
             <View style={{ marginTop: 12 }}>
                 <BigButton label={tr('Served')} icon="checkmark-done" bg={ok} ink="#FFFFFF" busy={busy} onPress={onServe} />
             </View>

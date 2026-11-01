@@ -7,6 +7,7 @@ import { useBrand, alpha } from '../common/kit';
 import { VegDot } from '../customers/shop';
 import { ActionButton, UndoLink, useMinuteClock, clock, minsSince, minWord } from './staffBits';
 import { tr } from '../../i18n';
+import { trNote } from '../../utils/common/noteText';
 
 function where(o) {
     if (o.orderType === 'dine_in') return { icon: 'restaurant', text: o.tableNo ? (tr('Table {n}', { n: o.tableNo }) + (o.party ? ` · ${o.party}` : '')) : tr('Dine in') };
@@ -61,7 +62,7 @@ export default function KitchenOrderCard({ o, lateMin, busy, onAct, onProblem, o
                             {l.options.length ? <Text style={{ color: muted, fontWeight: '600', fontSize: 14, marginTop: 1 }}>{l.options.join(' · ')}</Text> : null}
                             {l.note ? (
                                 <View style={{ alignSelf: 'flex-start', marginTop: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, backgroundColor: alpha(warn, 0.18) }}>
-                                    <Text style={{ color: warn, fontWeight: '800', fontSize: 13.5 }}>{l.note}</Text>
+                                    <Text style={{ color: warn, fontWeight: '800', fontSize: 13.5 }}>{trNote(l.note)}</Text>
                                 </View>
                             ) : null}
                         </View>
@@ -72,7 +73,7 @@ export default function KitchenOrderCard({ o, lateMin, busy, onAct, onProblem, o
             {o.note ? (
                 <View style={{ flexDirection: 'row', marginTop: 8, padding: 10, borderRadius: 12, backgroundColor: alpha(warn, 0.14) }}>
                     <Ionicons name="chatbubble-ellipses-outline" size={16} color={warn} style={{ marginRight: 8, marginTop: 1 }} />
-                    <Text style={{ color: text, fontWeight: '700', flex: 1, fontSize: 14.5 }}>{o.note}</Text>
+                    <Text style={{ color: text, fontWeight: '700', flex: 1, fontSize: 14.5 }}>{trNote(o.note)}</Text>
                 </View>
             ) : null}
 

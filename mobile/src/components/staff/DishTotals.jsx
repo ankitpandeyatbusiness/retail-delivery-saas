@@ -6,6 +6,7 @@ import { useBrand, alpha } from '../common/kit';
 import { Empty } from '../owners/ui';
 import { VegDot } from '../customers/shop';
 import { tr } from '../../i18n';
+import { trNote } from '../../utils/common/noteText';
 
 export function totalsOf(orders) {
     const map = new Map();
@@ -44,7 +45,7 @@ export default function DishTotals({ orders }) {
                             {r.orders.size === 1 ? tr('in 1 order') : tr('in {n} orders', { n: r.orders.size })}
                             {r.cooking > 0 ? ` · ${tr('{n} already cooking', { n: r.cooking })}` : ''}
                         </Text>
-                        {[...r.notes.keys()].slice(0, 3).map((n) => <Text key={n} style={{ color: warn, fontWeight: '800', fontSize: 12.5 }}>{n}</Text>)}
+                        {[...r.notes.keys()].slice(0, 3).map((n) => <Text key={n} style={{ color: warn, fontWeight: '800', fontSize: 12.5 }}>{trNote(n)}</Text>)}
                     </View>
                 </View>
             ))}

@@ -8,6 +8,7 @@ import { Pill } from './ui';
 import PersonAvatar from './PersonAvatar';
 import WaitTimer, { ServedIn } from '../common/WaitTimer';
 import { tr } from '../../i18n';
+import { trNote } from '../../utils/common/noteText';
 
 export const rs = (n) => `₹${Math.round(n * 100) / 100}`;
 export const hm = (d) => { if (!d) return ''; const x = new Date(d); const h = x.getHours(); return `${h % 12 || 12}:${String(x.getMinutes()).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`; };
@@ -52,11 +53,11 @@ export default function BillDetails({ bill }) {
                                 <View key={k} style={{ marginTop: 3 }}>
                                     <Text style={{ color: text }}>{it.quantity}× {it.name}  ·  {rs(it.total)}</Text>
                                     {it.addons?.length ? <Text style={{ color: muted, fontSize: 12.5 }}>+ {it.addons.join(', ')}</Text> : null}
-                                    {it.note ? <Text style={{ color: muted, fontSize: 12.5 }}>“{it.note}”</Text> : null}
+                                    {it.note ? <Text style={{ color: muted, fontSize: 12.5 }}>“{trNote(it.note)}”</Text> : null}
                                 </View>
                             ))}
                             {r.paid ? <Text style={{ color: ok, fontWeight: '800', fontSize: 12.5, marginTop: 4 }}>{tr('Paid')}{r.paidBy?.name ? ` · ${r.paidBy.name}` : ''}{` · ${tr(VIA[r.paidVia] || 'At the counter')}`}{r.paidAt ? ` · ${hm(r.paidAt)}` : ''}</Text> : null}
-                            {r.note ? <View style={{ marginTop: 6, padding: 8, borderRadius: 10, backgroundColor: alpha(warn, 0.16) }}><Text style={{ color: text, fontWeight: '900', fontSize: 14.5 }}>{r.note}</Text></View> : null}
+                            {r.note ? <View style={{ marginTop: 6, padding: 8, borderRadius: 10, backgroundColor: alpha(warn, 0.16) }}><Text style={{ color: text, fontWeight: '900', fontSize: 14.5 }}>{trNote(r.note)}</Text></View> : null}
                             <Text style={{ color: muted, fontSize: 12, marginTop: 4 }}>
                                 {[`${tr('Ordered')} ${hm(r.times?.placed)}`, r.times?.accepted ? `${tr('Accepted')} ${hm(r.times.accepted)}` : '', r.times?.ready ? `${tr('Ready')} ${hm(r.times.ready)}` : '', r.times?.served ? `${tr('Served')} ${hm(r.times.served)}` : ''].filter(Boolean).join('  ·  ')}
                             </Text>

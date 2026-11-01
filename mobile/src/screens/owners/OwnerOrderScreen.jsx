@@ -24,6 +24,7 @@ import RiderLiveMap from '../../components/owners/RiderLiveMap';
 import TripClock from '../../components/riders/TripClock';
 import { Avatar } from './OwnerRidersScreen';
 import { tr } from '../../i18n';
+import { trNote } from '../../utils/common/noteText';
 
 // Everything that happened to the order, newest first: every step, and the kitchen's and the delivery partner's own moments
 function timeline(o) {
@@ -202,7 +203,7 @@ export default function OwnerOrderScreen() {
                     ].filter(([v]) => v).map(([v, label]) => (
                         <View key={label} style={{ marginTop: 10, padding: 10, borderRadius: 10, backgroundColor: alpha(warn, 0.14) }}>
                             <Text style={{ color: text, fontWeight: '800', fontSize: 12 }}>{tr(label)}</Text>
-                            <Text style={{ color: text, marginTop: 2, fontWeight: '900', fontSize: 15 }}>{v}</Text>
+                            <Text style={{ color: text, marginTop: 2, fontWeight: '900', fontSize: 15 }}>{trNote(v)}</Text>
                         </View>
                     ))}
                 </Card>

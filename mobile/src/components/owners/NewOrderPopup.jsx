@@ -20,6 +20,7 @@ import { acknowledge } from '../../utils/owners/soundbox';
 import { onShowOrderPopup } from '../../utils/owners/orderPopupBus';
 import { showToast } from '../customers/shop';
 import { tr } from '../../i18n';
+import { trNote } from '../../utils/common/noteText';
 import { DragDown, Grip } from '../common/DragDown';
 import { turnOffSlider } from '../common/AlertSliderHost';
 
@@ -136,7 +137,7 @@ export default function NewOrderPopup({ navRef }) {
                             </View>
                         ))}
                     </ScrollView>
-                    {order.note ? <View style={{ marginTop: 8, padding: 10, borderRadius: 10, backgroundColor: alpha(warn, 0.16) }}><Text style={{ color: text, fontWeight: '900', fontSize: 15 }}>{order.note}</Text></View> : null}
+                    {order.note ? <View style={{ marginTop: 8, padding: 10, borderRadius: 10, backgroundColor: alpha(warn, 0.16) }}><Text style={{ color: text, fontWeight: '900', fontSize: 15 }}>{trNote(order.note)}</Text></View> : null}
 
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: border }}>
                         <Text style={{ color: text, fontSize: 24, fontWeight: '900', flex: 1 }}>{money(order.pricing?.total)}</Text>
