@@ -49,16 +49,16 @@ const dayLabel = (v) => {
     const d = new Date(v);
     const sod = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
     const diff = Math.round((sod(new Date()) - sod(d)) / 86400000);
-    if (diff <= 0) return 'Today';
-    if (diff === 1) return 'Yesterday';
-    if (diff < 7) return 'This week';
-    return `${MONTHS_FULL[d.getMonth()]} ${d.getFullYear()}`;
+    if (diff <= 0) return tr('Today');
+    if (diff === 1) return tr('Yesterday');
+    if (diff < 7) return tr('This week');
+    return `${tr(MONTHS_FULL[d.getMonth()])} ${d.getFullYear()}`;
 };
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const fmtDate = (v) => {
     const d = new Date(v);
     const h = d.getHours();
-    return `${d.getDate()} ${MONTHS[d.getMonth()]}, ${h % 12 || 12}:${String(d.getMinutes()).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
+    return `${d.getDate()} ${tr(MONTHS[d.getMonth()])}, ${h % 12 || 12}:${String(d.getMinutes()).padStart(2, '0')} ${tr(h >= 12 ? 'PM' : 'AM')}`;
 };
 
 function useChipAnim(on) {
@@ -161,7 +161,7 @@ function LiveOrderCard({ o, onOpen }) {
         loop.start();
         return () => loop.stop();
     }, []);
-    const eta = o.etaMin ? `Ready in about ${o.etaMin} min` : (delivery ? 'Arriving soon' : 'We will let you know when it is ready');
+    const eta = o.etaMin ? tr('Ready in about {n} min', { n: o.etaMin }) : tr(delivery ? 'Arriving soon' : 'We will let you know when it is ready');
     return (
         <Press onPress={onOpen} style={s.live}>
             <LinearGradient colors={[primaryLight, primaryDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.liveIn}>
@@ -176,7 +176,7 @@ function LiveOrderCard({ o, onOpen }) {
                             </View>
                             <Text style={[s.liveTagTxt, { color: onPrimary }]}>{tr('LIVE · ORDER #{orderNo}', { orderNo: o.orderNo })} · {(o.orderType === 'delivery' ? tr('Delivery') : o.orderType === 'dine_in' ? tr('Dine in') : tr('Pickup')).toUpperCase()}</Text>
                         </View>
-                        <Text style={[s.liveStep, { color: onPrimary }]} numberOfLines={1}>{lab(shown) || tr('In progress')}</Text>
+                        <Text style={[s.liveStep, { color: onPrimary }]} numberOfLines={1}>{tr(lab(shown) || 'In progress')}</Text>
                         <Text style={[s.liveEta, { color: onPrimary }]} numberOfLines={1}>{eta}</Text>
                     </View>
                     <View style={s.liveIc}>
@@ -188,8 +188,8 @@ function LiveOrderCard({ o, onOpen }) {
                     <Animated.View style={[s.trackFill, { width: fill.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} />
                 </View>
                 <View style={[s.row, { marginTop: 6 }]}>
-                    <Text style={[s.trackTxt, { color: onPrimary }]}>{lab(flow[0])}</Text>
-                    <Text style={[s.trackTxt, { color: onPrimary }]}>{lab(flow[flow.length - 1])}</Text>
+                    <Text style={[s.trackTxt, { color: onPrimary }]}>{tr(lab(flow[0]))}</Text>
+                    <Text style={[s.trackTxt, { color: onPrimary }]}>{tr(lab(flow[flow.length - 1]))}</Text>
                 </View>
 
                 <View style={[s.row, { marginTop: 14 }]}>
@@ -251,7 +251,7 @@ function OrderCard({ o, index, animate, onOpen, onCancel, onReorder, onInvoice, 
                     <View style={s.row}>
                         <View>
                             <Text style={[s.total, { color: text }]}>{rs(o.pricing?.total)}</Text>
-                            <Text style={[s.date, { color: muted }]}>{PAY[o.payment?.method] || tr('Cash on delivery')}</Text>
+                            <Text style={[s.date, { color: muted }]}>{tr(PAY[o.payment?.method] || 'Cash on delivery')}</Text>
                         </View>
                         <View style={s.btns}>
                             {o.canCancel ? (
@@ -287,8 +287,8 @@ function OrderCard({ o, index, animate, onOpen, onCancel, onReorder, onInvoice, 
 function Empty({ filter, ranged }) {
     const nav = useNavigation();
     const { text, muted, surface, border, primary } = useBrand();
-    const msg = ranged ? 'No orders in this period'
-        : { all: 'No orders yet', active: 'No active orders', delivered: 'No delivered orders', cancelled: 'No cancelled orders' }[filter];
+    const msg = ranged ? tr('No orders in this period')
+        : { all: tr('No orders yet'), active: tr('No active orders'), delivered: tr('No delivered orders'), cancelled: tr('No cancelled orders') }[filter];
     return (
         <Appear style={s.center}>
             <View style={[s.emptyIc, { backgroundColor: surface, borderColor: border }]}>
@@ -377,7 +377,7 @@ function OrdersList() {
         // active orders first (the rest keep their newest-first order)
         const sorted = [...filtered].sort((a, b) => (isActive(b.status) ? 1 : 0) - (isActive(a.status) ? 1 : 0));
         sorted.forEach((o) => {
-            const label = isActive(o.status) ? 'Live now' : dayLabel(o.createdAt);
+            const label = isActive(o.status) ? tr('Live now') : dayLabel(o.createdAt);
             if (label !== last) { out.push({ h: label }); last = label; }
             out.push({ o });
         });
@@ -405,7 +405,7 @@ function OrdersList() {
 
     const refresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
     const activeCount = orders.filter((o) => isActive(o.status)).length;
-    const dateText = [rangeLabel(range), range?.sort === 'oldest' ? 'Oldest first' : ''].filter(Boolean).join(' · ');
+    const dateText = [rangeLabel(range), range?.sort === 'oldest' ? tr('Oldest first') : ''].filter(Boolean).join(' · ');
 
     return (
         <View style={[{ flex: 1, paddingTop: insets.top, backgroundColor: background }, closedStyle]}>
@@ -419,7 +419,7 @@ function OrdersList() {
             <View style={{ height: 54 }}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.pills}>
                     <DateChip label={dateText} on={!!range} onPress={() => setSheet(true)} onClear={() => applyRange(null)} />
-                    {PILLS.map(([k, label]) => <FilterChip key={k} label={label} on={filter === k} onPress={() => { ease(); setFilter(k); }} />)}
+                    {PILLS.map(([k, label]) => <FilterChip key={k} label={tr(label)} on={filter === k} onPress={() => { ease(); setFilter(k); }} />)}
                 </ScrollView>
             </View>
             {state === 'loading' ? <Skeleton />
@@ -442,7 +442,7 @@ function OrdersList() {
                             contentContainerStyle={{ paddingTop: 4, paddingBottom: space }}
                             showsVerticalScrollIndicator={false}
                                 renderItem={({ item: r, index }) => {
-                                    if (r.h) return <Text style={[s.group, { color: r.h === 'Live now' ? primary : muted }]}>{r.h.toUpperCase()}</Text>;
+                                    if (r.h) return <Text style={[s.group, { color: r.h === tr('Live now') ? primary : muted }]}>{r.h.toUpperCase()}</Text>;
                                     const o = r.o;
                                     if (isActive(o.status)) {
                                         return (

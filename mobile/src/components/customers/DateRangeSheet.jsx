@@ -22,7 +22,7 @@ const same = (a, b) => !!a && !!b && a.getTime() === b.getTime();
 const fmt = (k) => {
     const d = fromKey(k);
     const y = d.getFullYear() !== new Date().getFullYear() ? ` ${d.getFullYear()}` : '';
-    return `${d.getDate()} ${SHORT[d.getMonth()]}${y}`;
+    return `${d.getDate()} ${tr(SHORT[d.getMonth()])}${y}`;
 };
 export const rangeLabel = (v) => {
     if (!v || !v.from) return '';
@@ -140,7 +140,7 @@ export default function DateRangeSheet({ visible, value, onClose, onApply, singl
         ['Today', t, t], ['Yesterday', addDays(t, -1), addDays(t, -1)], ['Last 7 days', addDays(t, -6), t],
         ['Last 30 days', addDays(t, -29), t], ['This month', new Date(t.getFullYear(), t.getMonth(), 1), t],
     ];
-    const summary = start ? (end ? `${fmt(keyOf(start))} – ${fmt(keyOf(end))}` : fmt(keyOf(start))) : single ? 'Tap a day' : 'Tap a day, or tap two days for a range';
+    const summary = start ? (end ? `${fmt(keyOf(start))} – ${fmt(keyOf(end))}` : fmt(keyOf(start))) : single ? tr('Tap a day') : tr('Tap a day, or tap two days for a range');
 
     return (
         <Modal visible={show} transparent animationType="none" onShow={play} onRequestClose={onClose} statusBarTranslucent>
@@ -169,7 +169,7 @@ export default function DateRangeSheet({ visible, value, onClose, onApply, singl
                         <Pressable disabled={!canPrev} onPress={() => step(-1)} hitSlop={10} style={{ opacity: canPrev ? 1 : 0.3 }}>
                             <Ionicons name="chevron-back" size={22} color={text} />
                         </Pressable>
-                        <Text style={[s.month, { color: text }]}>{MONTHS[view.m]} {view.y}</Text>
+                        <Text style={[s.month, { color: text }]}>{tr(MONTHS[view.m])} {view.y}</Text>
                         <Pressable disabled={!canNext} onPress={() => step(1)} hitSlop={10} style={{ opacity: canNext ? 1 : 0.3 }}>
                             <Ionicons name="chevron-forward" size={22} color={text} />
                         </Pressable>
