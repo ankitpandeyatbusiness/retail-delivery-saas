@@ -31,6 +31,7 @@ import { startRiderTracking } from '../../utils/riders/locationTask';
 import LocationStatus from '../../components/riders/LocationStatus';
 import { T, rupee, rupeeAmount, addressLine, errText } from '../../utils/riders/riderText';
 import { tr } from '../../i18n';
+import { trNote } from '../../utils/common/noteText';
 import KeyboardScroll from '../../components/common/KeyboardScroll';
 
 const POLL_MS = 5000;
@@ -334,14 +335,14 @@ export default function RiderTripScreen() {
                                 <Text key={k} style={{ color: text, fontSize: 16, fontWeight: '700', marginBottom: 4 }}>{i.quantity} × {i.name}</Text>
                             ))}
                         </View>
-                        {o.note ? <Text style={{ color: muted, marginTop: 8, fontWeight: '600' }}>{tr('Note: {note}', { note: o.note })}</Text> : null}
+                        {o.note ? <Text style={{ color: muted, marginTop: 8, fontWeight: '600' }}>{tr('Note: {note}', { note: trNote(o.note) })}</Text> : null}
                         {cash ? <View style={{ marginTop: 12 }}><Banner style={{ marginHorizontal: 0, marginBottom: 0 }} text={T.collectCash(rupeeAmount(o.payment.collectAmount))} /></View> : null}
                     </Card>
                 ) : (
                     <Card>
                         <Text style={{ color: text, fontWeight: '900', fontSize: 18 }}>{o.customer?.name || tr('Customer')}</Text>
                         <Text style={{ color: text, fontSize: 16, fontWeight: '600', marginTop: 6, lineHeight: 23 }}>{addressLine(o.address)}</Text>
-                        {o.note ? <Text style={{ color: muted, marginTop: 8, fontWeight: '600' }}>{tr('Note: {note}', { note: o.note })}</Text> : null}
+                        {o.note ? <Text style={{ color: muted, marginTop: 8, fontWeight: '600' }}>{tr('Note: {note}', { note: trNote(o.note) })}</Text> : null}
                         <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
                             <View style={{ flex: 1 }}><Button label={tr('Cancel order')} icon="close-circle" iconOnly kind="ghost" onPress={() => { setCancelReason(''); setCancelNote(''); setSheet('cancel'); }} /></View>
                             {o.customer?.phone ? <View style={{ flex: 1 }}><Button label={T.call} icon="call" iconOnly kind="ghost" onPress={callCustomer} /></View> : null}

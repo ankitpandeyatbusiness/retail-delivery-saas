@@ -15,6 +15,7 @@ import { showToast } from '../../components/customers/shop';
 import { fetchDuty, saveDuty, addHoliday, removeHoliday, requestLeave, cancelLeave } from '../../api/riders/riderApi';
 import { errText } from '../../utils/riders/riderText';
 import { tr } from '../../i18n';
+import { trNote } from '../../utils/common/noteText';
 
 const DAYS = [['mon', 'Monday'], ['tue', 'Tuesday'], ['wed', 'Wednesday'], ['thu', 'Thursday'], ['fri', 'Friday'], ['sat', 'Saturday'], ['sun', 'Sunday']];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -173,7 +174,7 @@ export default function RiderDutyScreen() {
                                     <Pill label={tr(label)} color={colors[tone]} />
                                 </View>
                                 <Text style={{ color: muted, fontSize: 12.5, marginTop: 3 }}>{l.days} {l.days === 1 ? tr('day') : tr('days')}{l.reason ? ` · ${l.reason}` : ''}</Text>
-                                {l.note ? <Text style={{ color: muted, fontSize: 12.5, marginTop: 2 }}>{tr('Shop: {note}', { note: l.note })}</Text> : null}
+                                {l.note ? <Text style={{ color: muted, fontSize: 12.5, marginTop: 2 }}>{tr('Shop: {note}', { note: trNote(l.note) })}</Text> : null}
                                 {l.status === 'pending' || (l.status === 'approved' && l.to >= todayKey()) ? (
                                     <Pressable onPress={() => act(() => cancelLeave(l.id), l.status === 'pending' ? tr('Request cancelled') : tr('Leave cancelled'))} hitSlop={8} style={{ alignSelf: 'flex-start', marginTop: 6 }}>
                                         <Text style={{ color: error, fontWeight: '800', fontSize: 13 }}>{l.status === 'pending' ? tr('Cancel request') : tr('Cancel this leave')}</Text>

@@ -498,7 +498,7 @@ export default function CartScreen() {
                         <Appear delay={60} style={{ marginTop: 20 }}>
                             <Text style={[s.cap, { color: text, marginBottom: 8 }]}>{tr('Delivery Instructions')}</Text>
                             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                                {QUICK_NOTES.map((n) => <Chip key={n} label={n} on={delNotes.includes(n)} onPress={() => toggleNote(n)} />)}
+                                {QUICK_NOTES.map((n) => <Chip key={n} label={tr(n)} on={delNotes.includes(n)} onPress={() => toggleNote(n)} />)}
                             </ScrollView>
                             <TextInput value={customNote} onChangeText={setCustomNote} placeholder={tr('E.g., Any specific landmark or instructions...')}
                                 placeholderTextColor={muted} style={[s.customNoteInput, { color: text, borderColor: border, backgroundColor: surface }]} />
