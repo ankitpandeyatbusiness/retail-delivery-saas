@@ -204,7 +204,7 @@ These terms may change. The current version is always in the app, under Terms an
         audience: 'customer',
         title: 'Terms of Service',
         body: `# Terms of Service
-Effective {{effectiveDate}}. These simple terms apply when you use this app to order from a shop.
+Effective {{effectiveDate}}. These terms apply when you use this app to order from a shop.
 
 # 1. Who we are
 {{platformName}} is a product of {{operatorName}}, which runs the business and looks after billing and compliance. The technology is provided by an independent developer.
@@ -227,8 +227,10 @@ Use the complaint option in the app. The shop decides on any refund and replies 
 # 7. Fair use
 Please do not misuse the app or give false information.
 
-# 8. Changes and contact
-We may change these terms. The latest version is always in the app. {{supportLine}}`,
+# 8. Contact
+{{supportLine}}
+
+We may change these terms at any time without informing you. The latest version is always in the app.`,
     },
 
     /* --------------------------------------------------------------------------------------------------------------- */
@@ -236,7 +238,7 @@ We may change these terms. The latest version is always in the app. {{supportLin
         audience: 'customer',
         title: 'Privacy Policy',
         body: `# Privacy Policy
-Effective {{effectiveDate}}. This explains in simple words what we collect and why.
+Effective {{effectiveDate}}. This explains what we collect and why.
 
 # Who we are
 {{platformName}} is a product of {{operatorName}}, which looks after your data. The technology is provided by an independent developer who works on the servers only to run and repair the service.
@@ -270,8 +272,10 @@ Your data is kept on secured servers and sent over encrypted connections. If we 
 # Children
 The app is not meant for children under 18 without a parent.
 
-# Changes and contact
-We may update this policy. The latest version is always here. {{supportLine}}`,
+# Contact
+{{supportLine}}
+
+We may change this policy at any time without informing you. The latest version is always here.`,
     },
 };
 
