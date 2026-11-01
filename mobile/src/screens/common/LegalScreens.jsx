@@ -9,7 +9,7 @@ import { PageHeader } from '../../components/owners/ui';
 import LegalText from '../../components/common/LegalText';
 import { fetchPublicLegal, fetchLegalDoc, fetchLegalMine } from '../../api/common/legalApi';
 import { useAuthStore } from '../../store/common/useAuthStore';
-import { tr } from '../../i18n';
+import { tr, tl } from '../../i18n';
 
 const day = (d) => (d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
 
@@ -83,10 +83,10 @@ export function AboutUsScreen() {
     useEffect(() => { if (role && role !== 'customer') fetchLegalMine().then((r) => setMine(r.items || [])).catch(() => { }); }, [role]);
     useEffect(() => { fetchPublicLegal('about_us').then(setDoc).catch(() => setDoc({ title: 'About Us', body: '' })); }, []);
     const links = [
-        ...(role === 'admin' ? [{ key: 'owner_terms', title: 'Terms of Service for Shop Owners' }, { key: 'owner_privacy', title: 'Privacy Policy for Shop Owners' }] : []),
-        ...(role === 'rider' ? [{ key: 'rider_terms', title: 'Terms for Delivery Riders' }] : []),
-        { key: 'customer_terms', title: 'Terms of Service for Customers', pub: true },
-        { key: 'privacy', title: 'Privacy Policy for Customers', pub: true },
+        ...(role === 'admin' ? [{ key: 'owner_terms', title: tl('Terms of Service for Shop Owners') }, { key: 'owner_privacy', title: tl('Privacy Policy for Shop Owners') }] : []),
+        ...(role === 'rider' ? [{ key: 'rider_terms', title: tl('Terms for Delivery Riders') }] : []),
+        { key: 'customer_terms', title: tl('Terms of Service for Customers'), pub: true },
+        { key: 'privacy', title: tl('Privacy Policy for Customers'), pub: true },
     ];
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
