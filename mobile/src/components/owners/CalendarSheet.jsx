@@ -8,7 +8,7 @@ import { Sheet, Button, Chips } from './ui';
 import { istToday, dateStr, monthLabel, shortDay } from '../../utils/owners/txRules';
 import { tr } from '../../i18n';
 
-const WEEK = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const WEEK_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];   // the calendar shows the first letter of each day, in the app language
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 export function CalendarSheet({ visible, onClose, mode = 'day', title, onPick }) {
@@ -41,7 +41,7 @@ export function CalendarSheet({ visible, onClose, mode = 'day', title, onPick })
                 <Text style={{ flex: 1, textAlign: 'center', color: text, fontWeight: '900', fontSize: 16 }}>{MONTHS[view.m]} {view.y}</Text>
                 <Pressable onPress={() => move(1)} hitSlop={10} disabled={atNow} style={{ padding: 8, opacity: atNow ? 0.3 : 1 }}><Ionicons name="chevron-forward" size={22} color={text} /></Pressable>
             </View>
-            <View style={{ flexDirection: 'row' }}>{WEEK.map((w, i) => <Text key={i} style={{ flex: 1, textAlign: 'center', color: muted, fontWeight: '700', fontSize: 12, paddingBottom: 6 }}>{w}</Text>)}</View>
+            <View style={{ flexDirection: 'row' }}>{WEEK_NAMES.map((w, i) => <Text key={i} style={{ flex: 1, textAlign: 'center', color: muted, fontWeight: '700', fontSize: 12, paddingBottom: 6 }}>{Array.from(tr(w))[0]}</Text>)}</View>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                 {cells.map((d, i) => {
                     if (!d) return <View key={'e' + i} style={{ width: '14.285%', height: 42 }} />;

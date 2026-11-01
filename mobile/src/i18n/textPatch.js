@@ -5,16 +5,22 @@
 import React from 'react';
 import * as RN from 'react-native';
 import { tr, getLang } from './index';
+import { localizeDatesInText, localizeDateOutput } from './dates';
 
 let installed = false;
 
-const tx = (c) => (typeof c === 'string' ? tr(c) : Array.isArray(c) ? c.map(tx) : c);
+const tx = (c) => (typeof c === 'string' ? localizeDatesInText(tr(c)) : Array.isArray(c) ? c.map(tx) : c);
 const put = (obj, prop, value) => Object.defineProperty(obj, prop, { configurable: true, enumerable: true, get: () => value });
 
 export function installTextTranslation() {
     if (installed) return;
     installed = true;
     try {
+        // every date the app prints (Date.toLocale...) has its month, day and AM/PM words in the person's language
+        for (const fn of ['toLocaleDateString', 'toLocaleString', 'toLocaleTimeString']) {
+            const original = Date.prototype[fn];
+            Date.prototype[fn] = function localized(...args) { return localizeDateOutput(original.apply(this, args)); };   // eslint-disable-line no-extend-native
+        }
         const BaseText = RN.Text;
         const BaseInput = RN.TextInput;
         const TText = React.forwardRef(function TText({ children, ...rest }, ref) {

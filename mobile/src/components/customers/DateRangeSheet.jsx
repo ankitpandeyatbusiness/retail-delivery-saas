@@ -10,7 +10,7 @@ import { DragDown, Grip } from '../common/DragDown';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const DOW = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];   // the calendar shows the first letter of each day, in the app language
 const MAX_BACK = 24;   // months you can go back
 
 const pad = (n) => String(n).padStart(2, '0');
@@ -174,7 +174,7 @@ export default function DateRangeSheet({ visible, value, onClose, onApply, singl
                             <Ionicons name="chevron-forward" size={22} color={text} />
                         </Pressable>
                     </View>
-                    <View style={s.week}>{DOW.map((x, i) => <Text key={i} style={[s.dow, { color: muted }]}>{x}</Text>)}</View>
+                    <View style={s.week}>{DOW.map((x, i) => <Text key={i} style={[s.dow, { color: muted }]}>{Array.from(tr(x))[0]}</Text>)}</View>
 
                     <Animated.View style={{ opacity: gridOp, minHeight: 6 * 42 }}>
                         {weeks.map((w, wi) => (
