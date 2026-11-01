@@ -294,8 +294,14 @@ export function AppLockSettings() {
 // Put once, near the root. uid = the signed-in person this lock belongs to (null when nobody is signed in or he needs no lock).
 // required = the lock cannot be switched off for him. onSignOut = how to sign out (the "Forgot PIN" way out).
 export default function LockGate({ uid, required, onSignOut }) {
+    // a session restored at app start is covered until its lock is read; a sign-in made later is not (no blank screen, no lock right after the OTP)
+    const mounted = useRef(false);
+    const hadUid = useRef(false);
     useEffect(() => {
-        if (uid) useLockStore.getState().init({ uid: String(uid), required: !!required }); else useLockStore.getState().reset();
+        if (uid) useLockStore.getState().init({ uid: String(uid), required: !!required, fresh: mounted.current && !hadUid.current });
+        else useLockStore.getState().reset();
+        mounted.current = true;
+        hadUid.current = !!uid;
     }, [uid, required]);
     useEffect(() => {
         const sub = AppState.addEventListener('change', (s) => { if (s === 'background') useLockStore.getState().background(); else if (s === 'active') useLockStore.getState().foreground(); });

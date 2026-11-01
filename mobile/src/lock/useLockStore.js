@@ -19,12 +19,16 @@ export const useLockStore = create((set, get) => ({
     bgAt: 0,
 
     // a person is signed in: read his settings. required = the lock cannot be switched off for him (the supreme admin).
-    init: async ({ uid, required }) => {
+    // fresh = he has just signed in with his OTP in this very session: that already proved who he is, so the lock does not close on him at once
+    // (and the app is not covered with a blank screen while his settings are read)
+    init: async ({ uid, required, fresh }) => {
+        if (fresh) set({ uid, ready: true, locked: false });
         const s = await readSettings(uid);
-        set({ ...s, uid, required: !!required, ready: true, locked: !!s.enabled, needSetup: !!required && !s.enabled });
+        set({ ...s, uid, required: !!required, ready: true, locked: fresh ? false : !!s.enabled, needSetup: !!required && !s.enabled });
         preview(!!s.enabled && !!s.hidePreview);
     },
-    reset: () => { preview(false); set({ ...DEFAULTS, uid: null, required: false, ready: false, locked: false, needSetup: false }); },
+    // signed out: nothing to cover (the next sign-in shows the app at once; a restored session is covered until its lock is read, see init)
+    reset: () => { preview(false); set({ ...DEFAULTS, uid: null, required: false, ready: true, locked: false, needSetup: false }); },
 
     save: async (patch) => { set(patch); const st = get(); if (st.uid) await writeSettings(st.uid, pick(st)); if ('hidePreview' in patch || 'enabled' in patch) preview(get().enabled && get().hidePreview); },
 

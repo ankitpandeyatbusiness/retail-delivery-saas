@@ -3262,7 +3262,7 @@ export default {
     "Silence": "নীরবতা",
     "Silver": "সিলভার",
     "Since you joined: {v1} orders, {money} in sales and {v3} customers who are now YOUR customers, in your own list.": "আপনি যোগ দেওয়ার পর থেকে: {v1}টি অর্ডার, {money} বিক্রি এবং {v3} জন গ্রাহক যারা এখন আপনার নিজের গ্রাহক, আপনার নিজের তালিকায়।",
-    "Skip": "বাদ দিন",
+    "Skip": "এখন নয়",
     "Slider": "স্লাইডার",
     "Slider and voice turned off for good. You can turn them on again in Alerts.": "স্লাইডার ও কণ্ঠস্বর চিরতরে বন্ধ হয়েছে। সতর্কতা-তে গিয়ে আবার চালু করতে পারেন।",
     "Slider stays for": "স্লাইডার কতক্ষণ থাকবে",

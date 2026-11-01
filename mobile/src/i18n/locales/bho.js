@@ -3262,7 +3262,7 @@ export default {
     "Silence": "शांति",
     "Silver": "सिल्वर",
     "Since you joined: {v1} orders, {money} in sales and {v3} customers who are now YOUR customers, in your own list.": "जब से रउआ जुड़नी: {v1} ऑर्डर, {money} के बिक्री आ {v3} ग्राहक जे अब रउआ के आपन ग्राहक बाड़ें, रउआ के आपन सूची में।",
-    "Skip": "छोड़ीं",
+    "Skip": "अभी ना",
     "Slider": "स्लाइडर",
     "Slider and voice turned off for good. You can turn them on again in Alerts.": "स्लाइडर आ आवाज हमेसा खातिर बंद हो गइल। रउआ एकरा अलर्ट में फेर चालू कर सकेनी।",
     "Slider stays for": "स्लाइडर केतना देर रहे",
