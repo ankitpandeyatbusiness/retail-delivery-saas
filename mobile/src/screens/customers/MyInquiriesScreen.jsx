@@ -35,7 +35,7 @@ export default function MyInquiriesScreen() {
                                 <Pill label={tr(STATUS_LABEL[i.status] || 'New')} color={tone(i.status)} />
                             </View>
                             <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{new Date(i.createdAt).toLocaleDateString()}</Text>
-                            {last ? <Text numberOfLines={2} style={{ color: text, marginTop: 6 }}>{last.from === 'owner' ? `${tr('Shop')}: ` : ''}{last.text || tr('Photo')}</Text> : null}
+                            {last ? <Text numberOfLines={2} style={{ color: text, marginTop: 6 }}>{last.from === 'owner' ? `${tr('Shop')}: ` : ''}{last.text ? tr(last.text) : tr('Photo')}</Text> : null}
                         </Card>
                     );
                 })}

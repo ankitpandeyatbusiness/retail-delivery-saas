@@ -68,7 +68,7 @@ function Bubble({ m, mine, fresh, onPicture }) {
                         ))}
                     </View>
                 ) : null}
-                {m.text ? <Text style={{ color: mine ? onPrimary : text, fontSize: 15, paddingHorizontal: 6, paddingVertical: 4 }}>{m.text}</Text> : null}
+                {m.text ? <Text style={{ color: mine ? onPrimary : text, fontSize: 15, paddingHorizontal: 6, paddingVertical: 4 }}>{tr(m.text)}</Text> : null}
             </View>
             <Text style={{ color: muted, fontSize: 10, marginTop: 2, alignSelf: mine ? 'flex-end' : 'flex-start' }}>{new Date(m.at).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</Text>
         </Animated.View>

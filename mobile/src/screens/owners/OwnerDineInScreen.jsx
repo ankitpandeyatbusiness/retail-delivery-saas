@@ -311,7 +311,7 @@ export default function OwnerDineInScreen() {
                     <View style={{ padding: 14 }}>
                         <Text style={{ color: text, fontWeight: '900', marginBottom: 8 }}>{tr('Sticker size')}</Text>
                         <View style={{ flexDirection: 'row', marginBottom: 12 }}>
-                            {[['small', 'Small (many on a page)'], ['medium', 'Medium (6 per page)'], ['large', 'Large (one per page)']].map(([k, l]) => (
+                            {[['small', tr('Small (many on a page)')], ['medium', tr('Medium (6 per page)')], ['large', tr('Large (one per page)')]].map(([k, l]) => (
                                 <Pressable key={k} onPress={() => setQrSize(k)} style={{ flex: 1, marginRight: k === 'large' ? 0 : 8, paddingVertical: 10, paddingHorizontal: 6, borderRadius: 12, borderWidth: 1.5, borderColor: qrSize === k ? primary : alpha(muted, 0.4), backgroundColor: qrSize === k ? alpha(primary, 0.12) : 'transparent' }}>
                                     <Text style={{ color: qrSize === k ? primary : text, fontWeight: '800', fontSize: 12, textAlign: 'center' }}>{tr(l)}</Text>
                                 </Pressable>

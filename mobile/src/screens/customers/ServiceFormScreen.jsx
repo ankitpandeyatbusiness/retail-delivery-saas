@@ -64,7 +64,7 @@ export default function ServiceFormScreen() {
         }
         setBusy(true);
         try {
-            await sendInquiry(id, { name: name.trim(), phone: phone.trim(), message: message.trim(), answers });
+            await sendInquiry(id, { name: name.trim(), phone: phone.trim(), message: ((s.quickTexts || []).find((t) => tr(t) === message.trim()) || message.trim()), answers });
             showToast(tr('Inquiry sent. The shop will reply here.'));
             nav.replace('MyInquiries');
         } catch (e) { showToast(e?.response?.data?.error || tr('Could not send. Try again.')); } finally { setBusy(false); }

@@ -281,7 +281,7 @@ export default function CartScreen() {
 
     const fresh = !!quote && quoteKey === bodyKey;
     const closed = quote ? quote.shopOpen === false : full.restaurant?.isOpen === false;
-    const closedMsg = full.hours?.closedMessage || full.labels?.closedMessage || 'We are closed right now';
+    const closedMsg = full.hours?.closedMessage || full.labels?.closedMessage || tr('We are closed right now');
 
     const place = async () => {
         if (type === 'dine_in' && !table) { setTableOpen(true); return; }   // he has not chosen his table yet
@@ -391,16 +391,16 @@ export default function CartScreen() {
     const freeAbove = feeConfig.freeAbove || 0;
     const unlocked = freeAbove > 0 && preview >= freeAbove;
 
-    let btnText = type === 'dine_in' && paymentMethodValue === 'cod' ? 'Send to kitchen' : 'Place Order';
+    let btnText = type === 'dine_in' && paymentMethodValue === 'cod' ? tr('Send to kitchen') : tr('Place Order');
     let btnOn = false;
     let note = '';
-    if (closed) btnText = 'Shop closed';
-    else if (!user) { btnText = 'Login to Pay'; btnOn = true; }
-    else if (qErr) { btnText = 'Unavailable'; note = qErr; }
-    else if (!quote || !fresh) btnText = 'Calculating...';
-    else if (quote.problemCode === 'choose_party') { btnText = 'Choose your bill'; btnOn = true; note = quote.problem; }
-    else if (quote.problemCode === 'scan_table') { btnText = 'Scan the QR on your table'; btnOn = true; note = quote.problem; }
-    else if (!quote.canPlace) { btnText = "Can't place"; note = quote.problem || 'Cannot place order'; }
+    if (closed) btnText = tr('Shop closed');
+    else if (!user) { btnText = tr('Login to Pay'); btnOn = true; }
+    else if (qErr) { btnText = tr('Unavailable'); note = qErr; }
+    else if (!quote || !fresh) btnText = tr('Calculating...');
+    else if (quote.problemCode === 'choose_party') { btnText = tr('Choose your bill'); btnOn = true; note = quote.problem; }
+    else if (quote.problemCode === 'scan_table') { btnText = tr('Scan the QR on your table'); btnOn = true; note = quote.problem; }
+    else if (!quote.canPlace) { btnText = tr("Can't place"); note = quote.problem || tr('Cannot place order'); }
     else btnOn = !placing;
 
     const onBtn = !user ? () => nav.navigate('Login') : place;
@@ -688,7 +688,7 @@ export default function CartScreen() {
                 {note ? (
                     <Appear key={note} style={[s.note, { backgroundColor: tint(error) }]}>
                         <Ionicons name="information-circle-outline" size={16} color={error} />
-                        <Text style={[s.noteTxt, { color: error }]} numberOfLines={3}>{note}</Text>
+                        <Text style={[s.noteTxt, { color: error }]} numberOfLines={3}>{tr(note)}</Text>
                     </Appear>
                 ) : null}
                 {/unpaid bill/i.test(note) ? (

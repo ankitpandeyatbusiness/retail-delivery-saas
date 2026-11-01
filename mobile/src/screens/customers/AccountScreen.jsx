@@ -178,7 +178,7 @@ function AppearanceRow({ last }) {
                     return (
                         <Pressable key={id} onPress={() => choose(id)} style={s.segItem} accessibilityRole="button" accessibilityState={{ selected: on }}>
                             <Ionicons name={icon} size={15} color={on ? onPrimary : muted} />
-                            <Text style={[s.segTxt, { color: on ? onPrimary : muted }]}>{label}</Text>
+                            <Text style={[s.segTxt, { color: on ? onPrimary : muted }]}>{tr(label)}</Text>
                         </Pressable>
                     );
                 })}
