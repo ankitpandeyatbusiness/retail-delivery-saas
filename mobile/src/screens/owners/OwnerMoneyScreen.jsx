@@ -143,34 +143,6 @@ export default function OwnerMoneyScreen({ page = false } = {}) {
                     <Ionicons name="chevron-forward" size={18} color={muted} />
                 </View>
             </Card>
-
-            <Card tone={sms?.zero ? error : undefined}>
-                <Row
-                    icon="mail"
-                    title={tr('SMS balance')}
-                    subtitle={sms ? (sms.zero ? tr('Finished. Order SMS alerts have stopped.') : sms.low ? tr('Running low') : tr('About {v1} messages', { v1: Math.floor(sms.balancePaise / Math.max(1, sms.ratePerSmsPaise)) })) : ''}
-                    right={<Text style={{ color: sms?.low ? error : text, fontWeight: '900', fontSize: 16 }}>{sms ? rupees(sms.balancePaise) : '—'}</Text>}
-                    color={sms?.low ? error : primary}
-                    onPress={() => nav.navigate('OwnerSms')}
-                    last
-                />
-            </Card>
-
-            <Card>
-                <Row icon="trending-up" title={tr('Business report')} subtitle={tr('Progress, customers, best food and tips')} onPress={() => nav.navigate('OwnerBusiness')} />
-                <Row icon="swap-vertical" title={tr('Transactions and bills')} subtitle={tr('Every payment, year by year and month by month')} onPress={() => nav.navigate('OwnerTransactions')} last />
-            </Card>
-
-            <Card>
-                <Row
-                    icon="receipt"
-                    title={tr('Monthly bill')}
-                    subtitle={bill ? (bill.free?.active ? tr('Free for now{v1}', { v1: bill.free.ordersLeft != null ? ` · ${bill.free.ordersLeft} free orders left` : '' }) : tr('{billableOrders} orders this month · {v2}', { billableOrders: bill.thisMonth.billableOrders, v2: bill.thisMonth.tierLabel || '' })) : ''}
-                    right={due > 0 ? <Pill label={tr('Due {money}', { money: money(due) })} color={error} /> : null}
-                    onPress={() => nav.navigate('OwnerRent')}
-                    last
-                />
-            </Card>
         </OwnerScreen>
     );
 }
