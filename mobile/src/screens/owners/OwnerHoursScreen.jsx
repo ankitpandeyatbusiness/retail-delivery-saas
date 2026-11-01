@@ -24,7 +24,7 @@ function DayRow({ day, slots, onChange }) {
     return (
         <View style={{ paddingVertical: 10, borderBottomWidth: 0.5, borderBottomColor: border }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={{ flex: 1, color: text, fontWeight: '800', fontSize: 15 }}>{DAY_NAMES[day]}</Text>
+                <Text style={{ flex: 1, color: text, fontWeight: '800', fontSize: 15 }}>{tr(DAY_NAMES[day])}</Text>
                 <Text style={{ color: open ? muted : error, fontWeight: '700', marginRight: 10 }}>{open ? tr('Open') : tr('Closed')}</Text>
                 <Pressable onPress={() => onChange(open ? [] : [{ open: '09:00', close: '22:00' }])} hitSlop={8}>
                     <Ionicons name={open ? 'toggle' : 'toggle-outline'} size={38} color={open ? primary : muted} />

@@ -84,7 +84,7 @@ export default function AlertSettingsScreen() {
                                     <Text style={{ color: primary, fontWeight: '800', marginLeft: 6 }}>{tr('Listen')}</Text>
                                 </Pressable>
                                 <Pressable onPress={() => nav.navigate('Soundbox')} hitSlop={8} style={{ marginLeft: 'auto' }}>
-                                    <Text style={{ color: muted, fontSize: 12 }}>{language === 'hi' ? 'हिन्दी' : tr('English')} · {tr('Change voice')}</Text>
+                                    <Text style={{ color: muted, fontSize: 12 }}>{({ hi: 'हिन्दी', mr: 'मराठी', gu: 'ગુજરાતી', bn: 'বাংলা' })[language] || tr('English')} · {tr('Change voice')}</Text>
                                 </Pressable>
                             </View>
                         ) : null}

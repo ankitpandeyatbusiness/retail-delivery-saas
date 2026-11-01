@@ -1,5 +1,6 @@
 // Pure helpers for the shop settings screens: weekly hours, holidays, delivery fee, the activity log wording, and the
 // closing report as a message to share.
+import { tr } from '../../i18n';
 import { rupees } from './riderRules';
 
 /* ------------------------------ opening hours ------------------------------ */
@@ -27,32 +28,32 @@ export function formToWeekly(form) {
 export function hoursProblem(form) {
     if (!form.hasHours) return null;
     for (const d of DAY_KEYS) {
-        for (const s of form.days[d]) if (!TIME.test(s.open) || !TIME.test(s.close)) return `${DAY_NAMES[d]}: use 24-hour time like 09:30`;
+        for (const s of form.days[d]) if (!TIME.test(s.open) || !TIME.test(s.close)) return tr('{day}: use 24-hour time like 09:30', { day: tr(DAY_NAMES[d]) });
     }
-    if (DAY_KEYS.every((d) => !form.days[d].length)) return 'Every day is closed. Switch hours off, or open at least one day.';
+    if (DAY_KEYS.every((d) => !form.days[d].length)) return tr('Every day is closed. Switch hours off, or open at least one day.');
     return null;
 }
 
 export function holidaysProblem(list) {
     for (const [i, h] of list.entries()) {
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(h.from) || !/^\d{4}-\d{2}-\d{2}$/.test(h.to)) return `Holiday ${i + 1}: type dates as 2026-11-01`;
-        if (h.to < h.from) return `Holiday ${i + 1}: the last day is before the first day`;
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(h.from) || !/^\d{4}-\d{2}-\d{2}$/.test(h.to)) return tr('Holiday {n}: type dates as 2026-11-01', { n: i + 1 });
+        if (h.to < h.from) return tr('Holiday {n}: the last day is before the first day', { n: i + 1 });
     }
     return null;
 }
 
 // "09:00–22:00, 18:00–02:00"
-export const slotsText = (slots) => (slots.length ? slots.map((s) => `${s.open}–${s.close}`).join(', ') : 'Closed');
+export const slotsText = (slots) => (slots.length ? slots.map((s) => `${s.open}–${s.close}`).join(', ') : tr('Closed'));
 
 /* ------------------------------ delivery fee ------------------------------ */
 export const FEE_TYPES = [['free', 'Free'], ['flat', 'Same for all'], ['distance', 'By distance']];
 
 export function feeText(fee = {}, packaging = 0) {
     let t;
-    if (fee.type === 'flat') t = `₹${fee.amount || 0} delivery${fee.freeAbove ? `, free above ₹${fee.freeAbove}` : ''}`;
-    else if (fee.type === 'distance') t = `₹${fee.baseFee || 0} for the first ${fee.baseKm || 0} km, then ₹${fee.perKmFee || 0} per km${fee.maxFee ? ` (up to ₹${fee.maxFee})` : ''}`;
-    else t = 'Free delivery';
-    return packaging ? `${t} · ₹${packaging} packaging` : t;
+    if (fee.type === 'flat') t = fee.freeAbove ? tr('₹{n} delivery, free above ₹{f}', { n: fee.amount || 0, f: fee.freeAbove }) : tr('₹{n} delivery', { n: fee.amount || 0 });
+    else if (fee.type === 'distance') t = tr('₹{a} for the first {k} km, then ₹{p} per km', { a: fee.baseFee || 0, k: fee.baseKm || 0, p: fee.perKmFee || 0 }) + (fee.maxFee ? ` (${tr('up to ₹{m}', { m: fee.maxFee })})` : '');
+    else t = tr('Free delivery');
+    return packaging ? `${t} · ${tr('₹{n} packaging', { n: packaging })}` : t;
 }
 
 export function feeProblem(v) {

@@ -91,15 +91,15 @@ export default function SoundboxScreen() {
                         {chan && !chan.supported ? <Text style={{ color: muted, fontSize: 13 }}>{tr('This check is for Android phones.')}</Text> : null}
                         {chan?.supported && chan.error ? <Text style={{ color: error, fontSize: 13 }}>{tr('Could not read it: {error}', { error: chan.error })}</Text> : null}
                         {chan?.supported && !chan.error ? [
-                            [chan.allowed, 'Notifications are allowed for this app', 'Phone settings → Apps → this app → Notifications → Allow.'],
-                            [chan.exists, staff ? 'The "Staff alerts" channel exists' : 'The "New orders" channel exists', staff ? 'Open the app once while signed in, then press Check again.' : 'Open the app once while logged in as the owner, then press Check again.'],
+                            [chan.allowed, tr('Notifications are allowed for this app'), tr('Phone settings → Apps → this app → Notifications → Allow.')],
+                            [chan.exists, staff ? tr('The "Staff alerts" channel exists') : tr('The "New orders" channel exists'), staff ? tr('Open the app once while signed in, then press Check again.') : tr('Open the app once while logged in as the owner, then press Check again.')],
                             // Android only says "custom" (a sound the app set), "default" (the phone's normal ping, which is
                             // what it falls back to when the sound file is missing from the app) or nothing (silent).
-                            [chan.exists && chan.sound === 'custom', `It has the app's own sound, ${staff ? 'the ting-tong' : 'the "New order received" voice'} (now: ${chan.exists ? (chan.sound === 'default' ? "the phone's normal ping" : chan.sound === 'custom' ? 'custom' : 'silent') : '—'})`, chan.sound === 'default'
-                                ? 'The app could not find its sound file, so Android used the normal ping. This app build does not contain the sound: install the latest build (uninstall first).'
-                                : 'The channel is silent. Uninstall and reinstall the app, or in Phone settings → Apps → this app → Notifications → New orders → Sound.'],
-                            [chan.exists && chan.importance >= 4, `It may pop up and make sound (level ${chan.importance ?? '—'} of 5)`, 'Phone settings → Apps → this app → Notifications → New orders → set to "Urgent" or "High".'],
-                            [chan.exists && chan.vibration, 'It vibrates', 'Phone settings → Apps → this app → Notifications → New orders → Vibration on.'],
+                            [chan.exists && chan.sound === 'custom', tr("It has the app's own sound, {what} (now: {now})", { what: staff ? tr('the ting-tong') : tr('the "New order received" voice'), now: chan.exists ? (chan.sound === 'default' ? tr("the phone's normal ping") : chan.sound === 'custom' ? tr('custom') : tr('silent')) : '—' }), chan.sound === 'default'
+                                ? tr('The app could not find its sound file, so Android used the normal ping. This app build does not contain the sound: install the latest build (uninstall first).')
+                                : tr('The channel is silent. Uninstall and reinstall the app, or in Phone settings → Apps → this app → Notifications → New orders → Sound.')],
+                            [chan.exists && chan.importance >= 4, tr('It may pop up and make sound (level {n} of 5)', { n: chan.importance ?? '—' }), tr('Phone settings → Apps → this app → Notifications → New orders → set to "Urgent" or "High".')],
+                            [chan.exists && chan.vibration, tr('It vibrates'), tr('Phone settings → Apps → this app → Notifications → New orders → Vibration on.')],
                         ].map(([good, line, fix]) => (
                             <View key={line} style={{ flexDirection: 'row', marginBottom: 10 }}>
                                 <Ionicons name={good ? 'checkmark-circle' : 'close-circle'} size={20} color={good ? ok : error} style={{ marginTop: 1, marginRight: 10 }} />
@@ -138,7 +138,7 @@ export default function SoundboxScreen() {
                     {!rider ? (
                         <>
                             <Label title={tr('Repeat every')} hint={tr('Quiet time after the bell and the voice have finished, before it rings again.')} />
-                            <Chips options={REPEAT_CHOICES.map((n) => [n, `${n} sec`])} value={st.repeatSec} onChange={(v) => st.update({ repeatSec: v })} />
+                            <Chips options={REPEAT_CHOICES.map((n) => [n, tr('{n} sec', { n })])} value={st.repeatSec} onChange={(v) => st.update({ repeatSec: v })} />
                         </>
                     ) : null}
                 </Card>

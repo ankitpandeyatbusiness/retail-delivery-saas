@@ -31,6 +31,7 @@ import { fetchKitchenOrders } from '../../api/staff/staffApi';
 import { buildGreeting } from './greetings';
 import { useAlertPrefs, alertOn } from '../../store/common/useAlertPrefs';
 import { showSlider } from '../../components/common/AlertSliderHost';
+import { tr, getLang } from '../../i18n';
 
 const SPEECH_TIMEOUT_MS = 20000;
 const WAKE_TAG = 'soundbox';
@@ -230,6 +231,21 @@ const HI_NAMES = ['Jyoti', 'Dev', 'Ishan', 'Ravi', 'Raj'];
 // the voices we suggest first: Neel for English (variant 'end'), Ravi for Hindi (variant 'hid')
 const RECOMMENDED = { en: 'end', hi: 'hid' };
 const OTHER_NAMES = ['Mohan', 'Sita', 'Gopal', 'Radha', 'Vikram', 'Anita', 'Karan', 'Pooja'];
+// a person's name from the voice's own language (a Bengali voice gets a Bengali name, not a north Indian one); written in that
+// language's script when the app is shown in the same language, else in English letters
+const NAMES = {
+    hi: { latin: HI_NAMES, native: ['ज्योति', 'देव', 'ईशान', 'रवि', 'राज'] },
+    mr: { latin: ['Sayali', 'Omkar', 'Mugdha', 'Prathamesh', 'Gauri', 'Atharv', 'Swapnil', 'Manasi'], native: ['सायली', 'ओंकार', 'मुग्धा', 'प्रथमेश', 'गौरी', 'अथर्व', 'स्वप्नील', 'मानसी'] },
+    gu: { latin: ['Meera', 'Jigar', 'Hetal', 'Dhruv', 'Kinjal', 'Bhavin', 'Nita', 'Parth'], native: ['મીરા', 'જીગર', 'હેતલ', 'ધ્રુવ', 'કિંજલ', 'ભાવિન', 'નીતા', 'પાર્થ'] },
+    bn: { latin: ['Ananya', 'Sourav', 'Moumita', 'Debashis', 'Riya', 'Arghya', 'Ritupurna', 'Suman'], native: ['অনন্যা', 'সৌরভ', 'মৌমিতা', 'দেবাশীষ', 'রিয়া', 'অর্ঘ্য', 'ঋতুপর্ণা', 'সুমন'] },
+};
+const nameList = (l) => {
+    const code = l.slice(0, 2);
+    const pool = NAMES[code];
+    if (!pool) return null;
+    const app = getLang();
+    return (app === code || (code === 'hi' && app === 'bho')) ? pool.native : pool.latin;
+};
 export function voiceLabel(v) {
     const id = String(v.identifier || v.name || '').toLowerCase();
     const l = lang(v);
@@ -237,14 +253,20 @@ export function voiceLabel(v) {
     const variant = variantOf(v);
     const idx = variant ? variant.charCodeAt(2) - 97 : -1;
     let name;
-    if (idx >= 0 && idx < 5) name = (hindi ? HI_NAMES : EN_NAMES)[idx];
-    else {
+    const own = nameList(l);
+    if (own && idx >= 0 && idx < 5) name = own[idx];
+    else if (idx >= 0 && idx < 5) name = EN_NAMES[idx];
+    else if (own) {
+        let h = 0;
+        for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) % 997;
+        name = own[h % own.length];
+    } else {
         let h = 0;
         for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) % 997;
         name = OTHER_NAMES[h % OTHER_NAMES.length];
     }
-    const kind = l === 'en-in' ? 'Indian English' : hindi ? 'Hindi' : l.startsWith('mr') ? 'Marathi' : l.startsWith('gu') ? 'Gujarati' : l.startsWith('bn') ? 'Bengali' : l.startsWith('en') ? 'English (' + (l.split('-')[1] || '').toUpperCase() + ')' : l;
-    const quality = String(v.quality).toLowerCase() === 'enhanced' ? ' · high quality' : '';
+    const kind = l === 'en-in' ? tr('Indian English') : hindi ? tr('Hindi') : l.startsWith('mr') ? tr('Marathi') : l.startsWith('gu') ? tr('Gujarati') : l.startsWith('bn') ? tr('Bengali') : l.startsWith('en') ? tr('English') + ' (' + (l.split('-')[1] || '').toUpperCase() + ')' : l;
+    const quality = String(v.quality).toLowerCase() === 'enhanced' ? ' · ' + tr('high quality') : '';
     const recommended = variant !== null && variant === RECOMMENDED[hindi ? 'hi' : 'en'] && (l === 'en-in' || l === 'hi-in');
     return { name, sub: kind + quality, recommended };
 }
