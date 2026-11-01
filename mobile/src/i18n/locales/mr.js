@@ -4203,6 +4203,7 @@ export default {
     "Unlock faster. The PIN always works too.": "लवकर अनलॉक करा. पिनही नेहमी चालतो.",
     "Unlock faster?": "लवकर अनलॉक करायचे?",
     "Unlock with": "याने अनलॉक करा",
+    "Unpaid": "न भरलेले",
     "Unpaid bill": "थकीत बिल",
     "Unpaid bill: ₹{n}": "थकीत बिल: ₹{n}",
     "Unpaid bills": "न भरलेली बिले",

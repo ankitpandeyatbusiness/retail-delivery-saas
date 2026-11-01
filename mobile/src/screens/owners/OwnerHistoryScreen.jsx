@@ -252,7 +252,7 @@ export default function OwnerHistoryScreen() {
                         onChange: (v) => { if (v === 'day' || v === 'range') { setSheet(v); return; } setRange(v); setDates(null); } },
                     { key: 'status', title: tr('Status'), options: [['', 'All'], ['delivered', 'Delivered'], ['cancelled', 'Cancelled'], ['progress', 'In progress']], value: status, onChange: setStatus },
                     { key: 'type', title: tr('Type'), options: [['', 'All'], ['delivery', 'Delivery'], ['pickup', 'Pickup'], ['dine_in', 'Dine in']], value: type, onChange: setType },
-                    { key: 'pay', title: tr('Payment'), options: [['', 'All'], ['cash', 'Cash'], ['online', 'Online'], ['unpaid', 'Unpaid']], value: pay, onChange: setPay },
+                    { key: 'pay', title: tr('Payment'), options: [['', 'All'], ['cash', 'Cash'], ['online', 'Online'], ['unpaid', tr('Unpaid')]], value: pay, onChange: setPay },
                 ]}
             />
             <CalendarSheet visible={sheet === 'day'} mode="day" title={tr('Pick a date')} onClose={() => setSheet('')} onPick={(v) => { setRange('custom'); setDates({ from: v.date, to: v.date }); }} />

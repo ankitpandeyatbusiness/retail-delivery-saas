@@ -56,7 +56,7 @@ export function FilterPopup({ visible, onClose, title, sections, onClear, active
                             <View key={x.key}>
                                 <Text style={{ color: text, fontSize: 14, fontWeight: '900', marginTop: 16, marginBottom: 4 }}>{tr(x.title)}</Text>
                                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 }}>
-                                    {x.options.map(([v, label]) => <Chip key={String(v)} on={v === x.value} label={label} onPress={() => x.onChange(v)} />)}
+                                    {x.options.map(([v, label]) => <Chip key={String(v)} on={v === x.value} label={tr(label)} onPress={() => x.onChange(v)} />)}
                                 </View>
                             </View>
                         ))}
