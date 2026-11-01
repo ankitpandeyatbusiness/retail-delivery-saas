@@ -704,6 +704,7 @@ router.use('/staff', require('./shopStaffRouter'));   // kitchen and waiter peop
 router.use('/customers', require('./shopCustomersRouter'));   // customer tools: list, detail, edit, Cash on delivery block
 router.use('/booking', require('./shopBookingRouter'));   // table booking: rules, the day's bookings, seat, no-show, cancel
 router.use('/inquiries', ownerOnly(featureGate.gate('services')), require('./shopInquiriesRouter'));   // what customers sent from the service forms, and the replies
+router.use('/bulk', ownerOnly(featureGate.gate('services')), require('./shopBulkRouter'));   // bulk orders: the rules, the requests, the quotes
 router.use('/services', ownerOnly(featureGate.gate('services')), require('./shopServicesRouter'));   // bulk order, tiffin, party booking and the owner's own services
 router.use('/autopilot', require('./shopAutopilotRouter'));   // automatic reminders to customers (push and inbox only)
 router.use('/messages', require('./shopMessagesRouter'));     // messages to his customers and riders

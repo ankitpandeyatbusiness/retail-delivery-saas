@@ -37,6 +37,7 @@ const WORDS = {
     OwnerAutomations: 'automations automatic auto accept by themselves no show reminders pickup not collected allow ready served busy',
     OwnerBookings: 'bookings table booking reservation reserve deposit seats slots timings',
     OwnerInquiries: 'inquiries inquiry enquiry reply bulk tiffin party booking customer asked',
+    OwnerBulk: 'bulk order large quantity catering office party function quote wholesale',
     OwnerServices: 'services bulk order tiffin party booking catering inquiry inquiries custom',
     OwnerCoupons: 'coupon discount code offer promo voucher only for dine in first order percent flat',
     OwnerBanners: 'banner offer picture home slider image',
@@ -63,7 +64,7 @@ const WORDS = {
 const wordsOf = (w) => (w ? `${w} ${tr(w)}` : '');
 
 // Easy mode shows only these (the things a shop uses every day); everything else is one switch away.
-const EASY = new Set(['@busy', 'OwnerAutomations', 'OwnerRiders', 'OwnerBookings', 'OwnerServices', 'OwnerInquiries', 'OwnerClosing', 'OwnerDineIn', 'OwnerCooks', 'OwnerWaiters', 'OwnerCustomers', 'OwnerComplaints', 'OwnerMessages', 'OwnerCategories', 'OwnerCoupons', 'OwnerMoney', 'OwnerMoneyHub', 'OwnerBillsHub', 'OwnerReportsHub', 'OwnerHours', 'OwnerShopSettings', 'AlertSettings', 'Soundbox', 'OwnerAppLock']);
+const EASY = new Set(['@busy', 'OwnerAutomations', 'OwnerRiders', 'OwnerBookings', 'OwnerServices', 'OwnerBulk', 'OwnerInquiries', 'OwnerClosing', 'OwnerDineIn', 'OwnerCooks', 'OwnerWaiters', 'OwnerCustomers', 'OwnerComplaints', 'OwnerMessages', 'OwnerCategories', 'OwnerCoupons', 'OwnerMoney', 'OwnerMoneyHub', 'OwnerBillsHub', 'OwnerReportsHub', 'OwnerHours', 'OwnerShopSettings', 'AlertSettings', 'Soundbox', 'OwnerAppLock']);
 const EASY_APP = new Set(['My profile', 'Appearance', 'Language', 'See the customer app', 'Log out']);
 
 // [icon, title, subtitle, route]   ('@busy' opens the Busy mode sheet). The order is the order of a working day.
@@ -90,7 +91,8 @@ const GROUPS = [
         ['pricetag', 'Coupons', 'Discount codes', 'OwnerCoupons'],
         ['calendar', 'Reservations', 'Tables guests reserved, seat them, and your reservation rules', 'OwnerBookings'],
         ['chatbubbles', 'Inquiries', 'What customers asked about your services, and your replies', 'OwnerInquiries'],
-        ['briefcase', 'Services', 'Bulk orders, tiffin, party booking and your own services', 'OwnerServices'],
+        ['cube', 'Bulk orders', 'Large orders: quotes, bulk prices and the delivery fee for them', 'OwnerBulk'],
+        ['briefcase', 'Services', 'Tiffin, party booking and your own services', 'OwnerServices'],
         ['images', 'Home screen', 'Banners, festival strips and the big pictures at the top', 'OwnerShopFrontHub'],
     ]],
     ['Money', [
@@ -175,7 +177,7 @@ export function ShopMenu({ onGo }) {
     const [q, setQ] = useState('');
     const { border, muted, text, surface, primary } = useBrand();
     const easy = useMenuFlags((s) => s.easy);
-    const hidden = (route) => ((route === 'OwnerServices' || route === 'OwnerInquiries') && !servicesOn) || (route === 'OwnerBookings' && !bookingOn) || (route === 'OwnerCooks' && !staffOn.kitchenOn) || (route === 'OwnerWaiters' && !staffOn.waiterOn) || (easy && !EASY.has(route));
+    const hidden = (route) => ((route === 'OwnerServices' || route === 'OwnerInquiries' || route === 'OwnerBulk') && !servicesOn) || (route === 'OwnerBookings' && !bookingOn) || (route === 'OwnerCooks' && !staffOn.kitchenOn) || (route === 'OwnerWaiters' && !staffOn.waiterOn) || (easy && !EASY.has(route));
     // every row of the menu as one list (what is shown, and what the search looks through)
     const sections = useMemo(() => [
         ...GROUPS.map(([group, rows]) => [group, rows.filter((r) => !hidden(r[3])).map(([icon, title, subtitle, route]) => (route === '@busy'

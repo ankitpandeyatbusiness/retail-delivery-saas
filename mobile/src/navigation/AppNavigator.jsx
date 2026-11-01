@@ -30,6 +30,9 @@ import MyPointsScreen from '../screens/customers/MyPointsScreen';
 import ServicesScreen from '../screens/customers/ServicesScreen';
 import ServiceFormScreen from '../screens/customers/ServiceFormScreen';
 import MyInquiriesScreen from '../screens/customers/MyInquiriesScreen';
+import BulkOrderScreen from '../screens/customers/BulkOrderScreen';
+import BulkOrderDetailScreen from '../screens/customers/BulkOrderDetailScreen';
+import MyBulkOrdersScreen from '../screens/customers/MyBulkOrdersScreen';
 import TableBillScreen from '../screens/customers/TableBillScreen';
 import TableBillStrip from '../components/customers/TableBillStrip';
 import BookingStrip from '../components/customers/BookingStrip';
@@ -87,6 +90,9 @@ import OwnerInquiryScreen from '../screens/owners/OwnerInquiryScreen';
 import InquiryScreen from '../screens/customers/InquiryScreen';
 import OwnerServicesScreen from '../screens/owners/OwnerServicesScreen';
 import OwnerServiceScreen from '../screens/owners/OwnerServiceScreen';
+import OwnerBulkScreen from '../screens/owners/OwnerBulkScreen';
+import OwnerBulkOrderScreen from '../screens/owners/OwnerBulkOrderScreen';
+import OwnerBulkSettingsScreen from '../screens/owners/OwnerBulkSettingsScreen';
 import OwnerBannersScreen from '../screens/owners/OwnerBannersScreen';
 import OwnerBannerScreen from '../screens/owners/OwnerBannerScreen';
 import OwnerHoursScreen from '../screens/owners/OwnerHoursScreen';
@@ -362,6 +368,9 @@ export default function AppNavigator() {
                     <Stack.Screen name="ServiceForm" component={ServiceFormScreen} />
                     <Stack.Screen name="Inquiry" component={InquiryScreen} />
                     <Stack.Screen name="MyInquiries" component={MyInquiriesScreen} />
+                    <Stack.Screen name="BulkOrder" component={BulkOrderScreen} />
+                    <Stack.Screen name="BulkOrderDetail" component={BulkOrderDetailScreen} />
+                    <Stack.Screen name="MyBulkOrders" component={MyBulkOrdersScreen} />
                     <Stack.Screen name="TableBill" component={TableBillScreen} />
                     <Stack.Screen name="ReferFriend" component={ReferFriendScreen} />
                     <Stack.Screen name="ScanTable" component={ScanTableScreen} />
@@ -404,6 +413,9 @@ export default function AppNavigator() {
                     <Stack.Screen name="OwnerInquiry" component={OwnerInquiryScreen} />
                     <Stack.Screen name="OwnerServices" component={OwnerServicesScreen} />
                     <Stack.Screen name="OwnerService" component={OwnerServiceScreen} />
+                    <Stack.Screen name="OwnerBulk" component={OwnerBulkScreen} />
+                    <Stack.Screen name="OwnerBulkOrder" component={OwnerBulkOrderScreen} />
+                    <Stack.Screen name="OwnerBulkSettings" component={OwnerBulkSettingsScreen} />
                     <Stack.Screen name="OwnerBanners" component={OwnerBannersScreen} />
                     <Stack.Screen name="OwnerBanner" component={OwnerBannerScreen} />
                     <Stack.Screen name="OwnerHours" component={OwnerHoursScreen} />

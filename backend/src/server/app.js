@@ -83,6 +83,7 @@ app.use('/api/orders', orderRouter);
 app.use('/api/shop', shopRouter);
 app.use('/api/rider', riderRouter);
 app.use('/api/bookings', require('../routes/bookingsRouter'));   // customers: book a table
+app.use('/api/bulk', require('../routes/bulkRouter'));   // customers: bulk orders (request, quote)
 app.use('/api/services', require('../routes/servicesRouter'));   // customers: services and inquiries
 app.use('/api/staff', require('../routes/staffRouter'));   // kitchen and waiter logins
 app.use('/api/notifications', notificationRouter.mine);

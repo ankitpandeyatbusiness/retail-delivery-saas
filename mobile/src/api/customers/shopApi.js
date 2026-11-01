@@ -119,3 +119,13 @@ export const fetchBookingTables = (date, time, party) => d(api.get('/bookings/ta
 export const joinWaitlist = (body) => d(api.post('/bookings/waitlist', body));                      // { date, time, party, name, phone }: for a slot with no free table
 export const fetchMyWaitlist = () => d(api.get('/bookings/waitlist/mine'));                          // { items }
 export const leaveWaitlist = (id) => d(api.delete(`/bookings/waitlist/${id}`));
+
+// bulk orders (backend/src/routes/bulkRouter.js): the shop's rules, the whole menu, a live price, the request, and the quote the shop sends back
+export const fetchBulkConfig = () => d(api.get('/bulk/config'));
+export const fetchBulkMenu = () => d(api.get('/bulk/menu'));
+export const estimateBulk = (body) => d(api.post('/bulk/estimate', body));            // { fulfilment, when, addressId?, items } -> { lines, pricing, problems, bulkSaved, canSend }
+export const sendBulk = (body) => d(api.post('/bulk', body));
+export const fetchMyBulk = () => d(api.get('/bulk/mine'));
+export const fetchBulk = (id) => d(api.get(`/bulk/${id}`));
+export const cancelBulk = (id) => d(api.post(`/bulk/${id}/cancel`));
+export const changeBulk = (id, note) => d(api.post(`/bulk/${id}/change`, { note }));   // ask the shop to change its quote

@@ -173,6 +173,15 @@ export const inquiries = {
     reply: (id, body) => d(api.post(`/shop/inquiries/${id}/reply`, body)),            // { text, status? }
     update: (id, body) => d(api.patch(`/shop/inquiries/${id}`, body)),                // { status?, note? }
 };
+// bulk orders (backend/src/routes/shopBulkRouter.js): the rules, the requests, the quotes
+export const bulk = {
+    settings: () => d(api.get('/shop/bulk/settings')),
+    saveSettings: (body) => d(api.put('/shop/bulk/settings', body)),
+    list: (params) => d(api.get('/shop/bulk', q(params))),                      // { items, hasMore, page }
+    get: (id) => d(api.get(`/shop/bulk/${id}`)),
+    quote: (id, body) => d(api.post(`/shop/bulk/${id}/quote`, body)),          // { lines:[{id,unitPrice}], discount?, deliveryFee?, packagingCharge?, advancePercent?, validHours?, note? }
+    decline: (id, reason) => d(api.post(`/shop/bulk/${id}/decline`, { reason })),
+};
 // the owner's services (bulk order, tiffin, party booking and his own): crud plus the extras (backend/src/routes/shopServicesRouter.js)
 export const services = {
     ...crud('services'),

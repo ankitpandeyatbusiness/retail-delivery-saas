@@ -57,6 +57,8 @@ const productSchema = new mongoose.Schema({
     isNewArrival: { type: Boolean, default: false },   // not "isNew": Mongoose reserves that name
     isGiftPack: { type: Boolean, default: false },
     maxPerOrder: { type: Number, min: 1, max: 20, validate: { validator: (v) => v == null || Number.isInteger(v), message: 'maxPerOrder must be a whole number' } },   // the most one order may have of this item (empty = no limit)
+    // Bulk orders (services/bulkPricing.js): from minQty pieces of this dish in one bulk order, percentOff comes off its price (every option). Empty = no bulk price.
+    bulk: { _id: false, minQty: { type: Number, min: 2, max: 10000 }, percentOff: { type: Number, min: 0, max: 90 } },
     serves: Number,
     calories: { type: Number, min: 0 },
     prepTimeMin: Number,

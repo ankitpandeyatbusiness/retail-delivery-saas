@@ -84,7 +84,7 @@ export const SPICE = [['none', 'No spice'], ['mild', 'Mild'], ['medium', 'Medium
 export const BLANK_ITEM = {
     categoryId: '', newCategory: '', name: '', description: '', image: '', images: [], price: undefined, mrp: undefined,
     isVeg: undefined, isEggless: false, isSugarFree: false, isJain: false, spiceLevel: 'none', gstInclusive: true,
-    isBestseller: false, isNewArrival: false, isGiftPack: false, serves: undefined, calories: undefined, prepTimeMin: undefined, maxPerOrder: undefined,
+    isBestseller: false, isNewArrival: false, isGiftPack: false, serves: undefined, calories: undefined, prepTimeMin: undefined, maxPerOrder: undefined, bulkMinQty: undefined, bulkPercentOff: undefined,
     optionGroups: [], isActive: true,
     itemKind: '', sellBy: 'piece', measure: { options: [], min: undefined, allowManual: true },
 };
@@ -95,7 +95,7 @@ export const itemFromRecord = (r) => ({
     price: r.price, mrp: r.mrp,
     isVeg: r.isVeg, isEggless: !!r.isEggless, isSugarFree: !!r.isSugarFree, isJain: !!r.isJain, spiceLevel: r.spiceLevel || 'none', gstInclusive: r.gstInclusive !== false,
     isBestseller: !!r.isBestseller, isNewArrival: !!r.isNewArrival, isGiftPack: !!r.isGiftPack,
-    serves: r.serves, calories: r.calories, prepTimeMin: r.prepTimeMin, maxPerOrder: r.maxPerOrder ?? undefined,
+    serves: r.serves, calories: r.calories, prepTimeMin: r.prepTimeMin, maxPerOrder: r.maxPerOrder ?? undefined, bulkMinQty: r.bulk?.minQty, bulkPercentOff: r.bulk?.percentOff,
     optionGroups: (r.optionGroups || []).map((g) => ({ ...g, options: (g.options || []).map((o) => ({ ...o })) })),
     isActive: r.isActive !== false,
     itemKind: r.itemKind || '', sellBy: r.sellBy || 'piece',
@@ -114,6 +114,9 @@ export function itemProblems(v) {
     if (v.mrp !== undefined && v.price !== undefined && v.mrp < v.price) e.mrp = tr('MRP cannot be lower than the price');
     if (v.isJain && v.isVeg === false) e.isJain = tr('A Jain item must be veg');
     if (v.maxPerOrder !== undefined && (!Number.isInteger(v.maxPerOrder) || v.maxPerOrder < 1 || v.maxPerOrder > 20)) e.maxPerOrder = tr('The most per order is a whole number from 1 to 20');
+    if ((v.bulkMinQty !== undefined) !== (v.bulkPercentOff !== undefined)) e.bulkMinQty = tr("Fill both bulk fields (from how many pieces, and how many percent off), or leave both empty");
+    else if (v.bulkMinQty !== undefined && (!Number.isInteger(v.bulkMinQty) || v.bulkMinQty < 2 || v.bulkMinQty > 10000)) e.bulkMinQty = tr("The bulk quantity is a whole number from 2 to 10000");
+    else if (v.bulkPercentOff !== undefined && !(v.bulkPercentOff > 0 && v.bulkPercentOff <= 90)) e.bulkPercentOff = tr("The bulk discount is more than 0 and at most 90 percent");
     v.optionGroups.forEach((g, i) => {
         if (!g.name.trim()) e.optionGroups = tr('Choice group {n} needs a question', { n: i + 1 });
         else if (!g.options.length || g.options.some((o) => !o.name.trim())) e.optionGroups = tr('Choice group {n}: every option needs a name', { n: i + 1 });
@@ -146,6 +149,7 @@ export const itemBody = (v) => ({
     calories: v.calories ?? null,
     prepTimeMin: v.prepTimeMin ?? null,
     maxPerOrder: v.maxPerOrder ?? null,
+    bulk: v.bulkMinQty !== undefined && v.bulkPercentOff !== undefined ? { minQty: v.bulkMinQty, percentOff: v.bulkPercentOff } : null,
     optionGroups: withIds(v.optionGroups),
     isActive: v.isActive,
 });

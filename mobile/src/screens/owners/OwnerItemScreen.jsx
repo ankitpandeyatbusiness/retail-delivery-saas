@@ -198,6 +198,15 @@ export default function OwnerItemScreen() {
                     <NumberBox style={{ flex: 1 }} label={tr('Calories')} integer value={v.calories} onChange={(x) => set('calories', x)} />
                 </View>
                 <NumberBox label={tr('Preparation time')} suffix="min" integer value={v.prepTimeMin} onChange={(x) => set('prepTimeMin', x)} />
+                {v.sellBy === 'piece' ? (
+                    <>
+                        <Label hint={tr('For bulk orders. Example: from 30 pieces, 10 percent off. Leave both empty for no bulk price. You can still change every price when you send a quote.')}>{tr('Bulk price')}</Label>
+                        <View style={{ flexDirection: 'row', marginBottom: 4 }}>
+                            <NumberBox style={{ flex: 1, marginRight: 8 }} integer placeholder="30" suffix={tr('pieces or more')} value={v.bulkMinQty} onChange={(x) => set('bulkMinQty', x)} error={errors.bulkMinQty} />
+                            <NumberBox style={{ flex: 1 }} placeholder="10" suffix={tr('% off')} value={v.bulkPercentOff} onChange={(x) => set('bulkPercentOff', x)} error={errors.bulkPercentOff} />
+                        </View>
+                    </>
+                ) : null}
                 {v.sellBy === 'piece' ? <NumberBox label={tr('Most per order')} hint={tr('Leave empty for no limit. For example 5: a customer can order at most 5 of this in one order.')} integer value={v.maxPerOrder} onChange={(x) => set('maxPerOrder', x)} error={errors.maxPerOrder} /> : null}
                 <ToggleRow title={tr('Bestseller')} value={v.isBestseller} onValueChange={(x) => set('isBestseller', x)} />
                 <ToggleRow title={tr('New arrival')} value={v.isNewArrival} onValueChange={(x) => set('isNewArrival', x)} />

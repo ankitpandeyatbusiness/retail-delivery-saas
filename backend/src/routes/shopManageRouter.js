@@ -199,7 +199,7 @@ router.use('/products', crud(Product, {
     fields: [
         'categoryId', 'categoryName', 'name', 'description', 'image', 'images', 'price', 'mrp',
         'isVeg', 'isEggless', 'isSugarFree', 'isJain', 'spiceLevel', 'gstInclusive',
-        'isBestseller', 'isNewArrival', 'isGiftPack', 'serves', 'calories', 'prepTimeMin', 'maxPerOrder',
+        'isBestseller', 'isNewArrival', 'isGiftPack', 'serves', 'calories', 'prepTimeMin', 'maxPerOrder', 'bulk',
         'optionGroups', 'sizes', 'weightOptions', 'addOns',
         'itemKind', 'sellBy', 'measure',
         'isAvailable', 'isActive', 'sortOrder',
@@ -211,6 +211,12 @@ router.use('/products', crud(Product, {
         if (d.images !== undefined) {   // up to 4 more pictures, links only, no repeats
             if (!Array.isArray(d.images) || d.images.length > 4 || d.images.some((u) => typeof u !== 'string' || !/^https?:\/\//.test(u) || u.length > 500)) throw httpError(400, 'You can add up to 4 more pictures');
             d.images = [...new Set(d.images)].filter((u) => u !== d.image);
+        }
+        if (d.bulk !== undefined && d.bulk !== null) {   // a bulk price needs both numbers; null clears it
+            const b = d.bulk;
+            if (typeof b !== 'object' || !Number.isInteger(b.minQty) || b.minQty < 2 || b.minQty > 10000) throw httpError(400, 'Bulk price: the minimum quantity must be a whole number from 2 to 10000');
+            if (typeof b.percentOff !== 'number' || !(b.percentOff > 0) || b.percentOff > 90) throw httpError(400, 'Bulk price: the discount must be more than 0 and at most 90 percent');
+            d.bulk = { minQty: b.minQty, percentOff: Math.round(b.percentOff * 100) / 100 };
         }
         await applyItemRules(d, req.tenant);
         const ok = d.categoryId && isId(String(d.categoryId)) &&

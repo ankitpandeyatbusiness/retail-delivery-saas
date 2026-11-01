@@ -23,14 +23,18 @@ const isId = (v) => typeof v === 'string' && mongoose.isValidObjectId(v);
 const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
 
 /* ------------------------------ 1. cart -> priced lines ------------------------------ */
-async function buildLines(tenant, config, rawItems, at = new Date()) {
-    if (!Array.isArray(rawItems) || rawItems.length < 1 || rawItems.length > MAX_LINES) {
-        throw httpError(400, `Your cart needs 1 to ${MAX_LINES} items`);
+// opts.bulk is a bulk order (services/bulkPricing.js): bigger quantities (opts.maxQty) and more lines (opts.maxLines). The dish limit
+// "most per order" and the daily stock count do not apply, because the owner decides in his quote what he can make.
+async function buildLines(tenant, config, rawItems, at = new Date(), opts = {}) {
+    const maxQty = opts.maxQty || MAX_QTY;
+    const maxLines = opts.maxLines || MAX_LINES;
+    if (!Array.isArray(rawItems) || rawItems.length < 1 || rawItems.length > maxLines) {
+        throw httpError(400, `Your cart needs 1 to ${maxLines} items`);
     }
     for (const it of rawItems) {
         if (!it || !isId(it.productId)) throw httpError(400, 'Invalid item in cart');
-        if (!Number.isInteger(it.quantity) || it.quantity < 1 || it.quantity > MAX_QTY) {
-            throw httpError(400, `Quantity must be between 1 and ${MAX_QTY}`);
+        if (!Number.isInteger(it.quantity) || it.quantity < 1 || it.quantity > maxQty) {
+            throw httpError(400, `Quantity must be between 1 and ${maxQty}`);
         }
         if (it.measureQty !== undefined && !Number.isInteger(it.measureQty)) throw httpError(400, 'Invalid amount in cart');
     }
@@ -76,12 +80,12 @@ async function buildLines(tenant, config, rawItems, at = new Date()) {
             unitPrice = m.unitPrice + (unitPrice - p.price);
             measure = { qty: m.qty, unit: m.unit, label: m.label };
         }
-        if (p.maxPerOrder > 0 && !sold) {   // the shop limits how many of this one item an order may have (all its lines together)
+        if (p.maxPerOrder > 0 && !sold && !opts.bulk) {   // the shop limits how many of this one item an order may have (all its lines together)
             const got = (perOrder.get(String(p._id)) || 0) + it.quantity;
             if (got > p.maxPerOrder) throw httpError(409, `You can order at most ${p.maxPerOrder} of "${p.name}" in one order`);
             perOrder.set(String(p._id), got);
         }
-        if (p.stock?.enabled) {
+        if (p.stock?.enabled && !opts.bulk) {
             // pieces for a normal item; grams / ml for an item sold by weight / volume (the amount IS the quantity)
             const key = String(p._id);
             const amount = measure ? measure.qty * it.quantity : it.quantity;
