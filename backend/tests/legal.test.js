@@ -214,15 +214,15 @@ describe('the second visit', () => {
         assert.ok(mine.every((d) => !d.mustAgree));
     });
 
-    test('a rider only reads the customer documents: never asked to agree', async () => {
-        await send('customer_terms');
+    test('a rider is never asked to agree to anything', async () => {
+        await send('rider_terms');
         const t = await reload();
         const t0 = new Date(Date.now() + MIN);
         await legal.status({ ...asUser(w.rider), tenant: t, now: t0 });
         const second = await legal.status({ ...asUser(w.rider), tenant: t, now: new Date(t0.getTime() + 40 * MIN) });
         assert.equal(second.required, false);
         const mine = await legal.mine({ ...asUser(w.rider) });
-        assert.ok(mine.some((d) => d.key === 'customer_terms' && !d.mustAgree));
+        assert.ok(mine.some((d) => d.key === 'rider_terms' && !d.mustAgree));
     });
 });
 
