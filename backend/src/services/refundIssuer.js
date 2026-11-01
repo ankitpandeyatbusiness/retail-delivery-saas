@@ -108,6 +108,14 @@ async function send(refundId) {
         // network, timeout or Razorpay problem: keep it pending, the retry job tries again
         await OnlineRefund.updateOne({ _id: r._id }, { $set: { lastError: String(e.message).slice(0, 200) }, $unset: { lockedUntil: 1 } });
         if (shortBalance && r.attempts === 1) {
+            // the owner must hear it too: only he can add balance in his Razorpay account
+            try {
+                require('./notificationService').toOwner(r.tenantId, {
+                    type: 'platform_message', title: 'Add balance to send a refund',
+                    body: `A customer refund of Rs ${money(r.amountPaise)} could not be sent because your Razorpay account has too little balance. Add balance and it goes out by itself.`,
+                    data: { orderId: String(r.orderId), refundId: String(r._id) },
+                });
+            } catch (err) { console.error('Short balance notice error:', err.message); }
             await alert('admin_refund_failed', { tenantId: r.tenantId, vars: { orderId: String(r.orderId), amount: money(r.amountPaise), reason: 'Not enough balance in the shop Razorpay account. It will be sent again once balance is added.' } });
         }
         if (r.attempts === MAX_ATTEMPTS) {

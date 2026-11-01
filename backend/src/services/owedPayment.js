@@ -46,7 +46,7 @@ async function confirm(p, rzp, source) {
     if (rzp.orderId !== p.rzpOrderId) return { ok: false, ignored: 'wrong_order' };
     if (rzp.status !== 'captured') return { ok: true, paid: false, status: rzp.status };
     if (rzp.amountPaise !== p.amountPaise) {
-        await alert('admin_refund_failed', { tenantId: p.tenantId, vars: { orderId: 'unpaid table bill', amount: ((rzp.amountPaise || 0) / 100).toFixed(2), reason: 'Amount did not match what the customer owed. Check it in Razorpay and refund or credit by hand.' } });
+        await require('./mismatchRefund').refundWrongAmount({ Model: OwedPayment, row: p, rzp, creds: await credsFor(p.tenantId), label: 'unpaid table bill' });   // the whole payment goes back; the debt stays
         return { ok: true, paid: false, mismatch: true };
     }
     await OwedPayment.updateOne({ _id: p._id, status: 'created' }, { $set: { status: 'captured', rzpPaymentId: rzp.id, capturedAt: new Date() } });

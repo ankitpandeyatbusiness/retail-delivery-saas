@@ -71,7 +71,8 @@ async function confirm(booking, rzp) {
     if (rzp.orderId !== booking.payment?.rzpOrderId) return { ok: false, ignored: 'wrong_order' };
     if (rzp.status !== 'captured') return { ok: true, paid: false, status: rzp.status };
     if (rzp.amountPaise !== booking.payment.amountPaise) {
-        await alert('admin_refund_failed', { tenantId: booking.tenantId, vars: { orderId: `table booking ${booking.code}`, amount: ((rzp.amountPaise || 0) / 100).toFixed(2), reason: 'The deposit paid did not match what was asked. Check it in Razorpay and refund by hand if needed.' } });
+        // the whole payment goes back; the booking stays unpaid (and is let go when its hold runs out)
+        await require('./mismatchRefund').refundWrongAmount({ Model: TableBooking, row: booking, rzp, creds: await credsFor(booking.tenantId), label: `table booking ${booking.code}` });
         return { ok: true, paid: false, mismatch: true };
     }
     const shop = await require('../models/Tenant').findById(booking.tenantId).select('name business.legalName business.gstin business.fssai').lean();

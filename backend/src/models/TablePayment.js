@@ -20,6 +20,7 @@ const schema = new Schema({
     creditPaise: { type: Number, default: 0 },                 // the table booking amount taken off (services/bookingCredit.js)
     status: { type: String, enum: ['created', 'captured'], default: 'created' },
     capturedAt: Date,
+    mismatchRefund: { status: { type: String, enum: ['sending', 'refunded', 'failed'] }, refundId: String, at: Date },   // a payment of the wrong amount goes back (services/mismatchRefund.js)
     settleStartedAt: Date,   // the follow-up work (rounds paid, people told) was started; moved forward by every repair try
     settledAt: Date,         // ...and finished. A captured row with settleStartedAt but no settledAt is picked up by the reconcile job
 }, { timestamps: true });

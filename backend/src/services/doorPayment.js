@@ -63,9 +63,11 @@ async function closeOpen({ order, tenantId }) {
 }
 
 async function ensureRow({ order, qrId, pay }) {
+    // test keys make a test payment, not a live one (the key-change guard counts only live money)
+    const mode = (await paymentService.credsFor(order.tenantId).catch(() => null))?.mode || 'live';
     try {
         return await OnlinePayment.create({
-            tenantId: order.tenantId, orderId: order._id, mode: payments.isMock() ? 'mock' : 'live',
+            tenantId: order.tenantId, orderId: order._id, mode,
             rzpOrderId: `qr:${qrId}`, rzpPaymentId: pay.id, amountPaise: pay.amountPaise, status: 'captured',
             capturedPaise: pay.amountPaise, capturedAt: new Date(), method: pay.method || 'upi', source: 'door_qr',
         });

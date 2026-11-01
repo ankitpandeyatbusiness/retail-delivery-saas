@@ -84,6 +84,7 @@ connectDB()
             startInactiveShopsScheduler();
             startAutopilotScheduler();
             startPaymentReconcileScheduler();
+            require('../services/paymentAccounts').checkKeysReadable().catch((e) => console.error('Payment keys check error:', e.message));
             startRiderDutyScheduler();   // a rider who forgot to end duty is put off duty
             startRiderScheduleTicker();  // riders on "auto" go on and off duty by their own timing
             // the old "one open bill per table" index would refuse a second bill on a shared table: drop it once, make the new one

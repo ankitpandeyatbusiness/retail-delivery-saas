@@ -15,6 +15,7 @@ const schema = new Schema({
     amountPaise: { type: Number, required: true, min: 100 },
     status: { type: String, enum: ['created', 'captured'], default: 'created' },
     capturedAt: Date,
+    mismatchRefund: { status: { type: String, enum: ['sending', 'refunded', 'failed'] }, refundId: String, at: Date },   // a payment of the wrong amount goes back (services/mismatchRefund.js)
 }, { timestamps: true });
 
 schema.index({ rzpOrderId: 1 }, { unique: true });

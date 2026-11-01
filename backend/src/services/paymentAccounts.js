@@ -34,6 +34,26 @@ async function forTenant(tenantId) {
     };
 }
 
+const readable = (box) => { try { secretBox.decrypt(box); return true; } catch (e) { return false; } };
+
+// Shops whose saved key secret cannot be decrypted (SECRETS_KEY lost or changed). Their payments would silently stop.
+async function unreadableKeys() {
+    const rows = await Tenant.collection.find({ 'payments.keySecretEnc': { $exists: true } }, { projection: { name: 1, 'payments.keySecretEnc': 1, 'payments.webhookSecretEnc': 1 } }).toArray();
+    return rows.filter((t) => !readable(t.payments.keySecretEnc) || (t.payments.webhookSecretEnc && !readable(t.payments.webhookSecretEnc))).map((t) => ({ id: String(t._id), name: t.name }));
+}
+
+// Run once at startup: tell the superadmin loudly instead of finding out from a customer
+async function checkKeysReadable() {
+    if (payments.isMock()) return [];
+    const bad = await unreadableKeys();
+    if (bad.length) {
+        const names = bad.slice(0, 5).map((b) => b.name || b.id).join(', ');
+        console.error(`PAYMENTS: the saved Razorpay keys of ${bad.length} shop(s) cannot be read. Is SECRETS_KEY the same as before? (${names})`);
+        await require('./paymentAlerts')('admin_webhook_failed', { vars: { event: 'startup check', error: `The saved Razorpay keys of ${bad.length} shop(s) cannot be read (${names}). SECRETS_KEY is probably missing or changed. Put the old SECRETS_KEY back, or save the keys again.` } });
+    }
+    return bad;
+}
+
 // account = 'platform' or a shop id
 async function credentialsFor(account) {
     if (account === 'platform') return payments.platformCredentials();
@@ -60,6 +80,8 @@ async function statusFor(tenantId, base) {
     if (mock) warnings.push('Mock payments are on for the whole server: no real money moves.');
     if (mode === 'test') warnings.push('These are TEST keys: no real money moves.');
     if (p.enabled && !p.lastWebhookAt) warnings.push('No webhook event has been received yet.');
+    if (p.keySecretEnc && !readable(p.keySecretEnc)) warnings.push('The saved key secret cannot be read (SECRETS_KEY changed?). Payments will fail until the old SECRETS_KEY is back or the keys are saved again.');
+    if (p.webhookSecretEnc && !readable(p.webhookSecretEnc)) warnings.push('The saved webhook secret cannot be read (SECRETS_KEY changed?). Webhooks will be refused.');
     return {
         mockMode: mock,
         enabled: !!p.enabled,
@@ -81,4 +103,4 @@ async function statusFor(tenantId, base) {
     };
 }
 
-module.exports = { keyMode, rawPayments, forTenant, credentialsFor, canTakePayments, statusFor };
+module.exports = { keyMode, rawPayments, forTenant, credentialsFor, canTakePayments, statusFor, unreadableKeys, checkKeysReadable };

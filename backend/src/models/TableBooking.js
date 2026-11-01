@@ -26,6 +26,7 @@ const bookingSchema = new mongoose.Schema({
     rules: { refundHours: Number, depositMode: { type: String, enum: ['adjust', 'keep'] } },   // the shop's rules as they were when the guest booked
     seller: { name: String, gstin: String, fssai: String },   // the shop's details copied when the deposit was paid, so the receipt never changes
     payment: { rzpOrderId: String, rzpPaymentId: String, amountPaise: Number, paidAt: Date },
+    mismatchRefund: { status: { type: String, enum: ['sending', 'refunded', 'failed'] }, refundId: String, at: Date },   // a deposit of the wrong amount goes back (services/mismatchRefund.js)
     deposit: {
         amount: { type: Number, default: 0 },              // rupees, worked out when the guest booked
         // paid -> refunding -> refunded, or kept (the shop keeps it), or adjusted (taken off the table bill)
