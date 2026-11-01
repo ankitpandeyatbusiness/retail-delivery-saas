@@ -3,6 +3,7 @@
 // last word, these only tell the owner early and in plain words.
 
 // "south  indian" -> "South Indian"; short all-capital words (BBQ) stay. Same as the server.
+import { tr } from '../../i18n';
 export const titleCase = (s) =>
     String(s).trim().replace(/\s+/g, ' ').split(' ')
         .map((w) => (w.length <= 3 && /[A-Z]/.test(w) && w === w.toUpperCase() ? w : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()))
@@ -19,14 +20,14 @@ export function amountLabel(sellBy, qty) {
 export function stockUnit(sellBy) {
     if (sellBy === 'weight' || sellBy === 'volume') {
         return {
-            suffix: sellBy === 'volume' ? 'L' : 'kg',
+            suffix: sellBy === 'volume' ? 'L' : tr('kg'),
             integer: false,
             show: (n) => (n === undefined || n === null ? undefined : Math.round(n) / 1000),
             fromUi: (x) => Math.round(x * 1000),
             say: (n) => amountLabel(sellBy, n),
         };
     }
-    return { suffix: 'pcs', integer: true, show: (n) => (n === undefined || n === null ? undefined : n), fromUi: (x) => Math.round(x), say: (n) => `${n}` };
+    return { suffix: tr('pcs'), integer: true, show: (n) => (n === undefined || n === null ? undefined : n), fromUi: (x) => Math.round(x), say: (n) => `${n}` };
 }
 
 /* ------------------------------ choices (sizes, add-ons) ------------------------------ */
@@ -104,18 +105,18 @@ export const itemFromRecord = (r) => ({
 // -> { field: 'message' }; empty = fine
 export function itemProblems(v) {
     const e = {};
-    if (!v.categoryId && !v.newCategory.trim() && !v.itemKind) e.categoryId = 'Pick a category (or what kind of item it is)';
-    if (v.newCategory.trim() && (v.newCategory.trim().length < 2 || v.newCategory.trim().length > 40)) e.newCategory = 'A category name is 2 to 40 letters';
-    if (v.sellBy !== 'piece' && v.measure.min !== undefined && v.measure.min < 10) e.measure = 'The smallest amount is at least 10';
-    if (!v.name.trim()) e.name = 'Enter the item name';
-    if (v.price === undefined || v.price < 0) e.price = 'Enter the price';
-    if (typeof v.isVeg !== 'boolean') e.isVeg = 'Choose veg or non-veg';
-    if (v.mrp !== undefined && v.price !== undefined && v.mrp < v.price) e.mrp = 'MRP cannot be lower than the price';
-    if (v.isJain && v.isVeg === false) e.isJain = 'A Jain item must be veg';
-    if (v.maxPerOrder !== undefined && (!Number.isInteger(v.maxPerOrder) || v.maxPerOrder < 1 || v.maxPerOrder > 20)) e.maxPerOrder = 'The most per order is a whole number from 1 to 20';
+    if (!v.categoryId && !v.newCategory.trim() && !v.itemKind) e.categoryId = tr('Pick a category (or what kind of item it is)');
+    if (v.newCategory.trim() && (v.newCategory.trim().length < 2 || v.newCategory.trim().length > 40)) e.newCategory = tr('A category name is 2 to 40 letters');
+    if (v.sellBy !== 'piece' && v.measure.min !== undefined && v.measure.min < 10) e.measure = tr('The smallest amount is at least 10');
+    if (!v.name.trim()) e.name = tr('Enter the item name');
+    if (v.price === undefined || v.price < 0) e.price = tr('Enter the price');
+    if (typeof v.isVeg !== 'boolean') e.isVeg = tr('Choose veg or non-veg');
+    if (v.mrp !== undefined && v.price !== undefined && v.mrp < v.price) e.mrp = tr('MRP cannot be lower than the price');
+    if (v.isJain && v.isVeg === false) e.isJain = tr('A Jain item must be veg');
+    if (v.maxPerOrder !== undefined && (!Number.isInteger(v.maxPerOrder) || v.maxPerOrder < 1 || v.maxPerOrder > 20)) e.maxPerOrder = tr('The most per order is a whole number from 1 to 20');
     v.optionGroups.forEach((g, i) => {
-        if (!g.name.trim()) e.optionGroups = `Choice group ${i + 1} needs a question`;
-        else if (!g.options.length || g.options.some((o) => !o.name.trim())) e.optionGroups = `Choice group ${i + 1}: every option needs a name`;
+        if (!g.name.trim()) e.optionGroups = tr('Choice group {n} needs a question', { n: i + 1 });
+        else if (!g.options.length || g.options.some((o) => !o.name.trim())) e.optionGroups = tr('Choice group {n}: every option needs a name', { n: i + 1 });
     });
     return e;
 }

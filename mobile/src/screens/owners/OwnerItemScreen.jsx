@@ -68,7 +68,7 @@ export default function OwnerItemScreen() {
     const kinds = options?.itemKinds || [];
     const presets = options?.measures?.[v.sellBy]?.presets || [250, 500, 1000];
     const unit = stockUnit(v.sellBy);
-    const foodHint = FOOD_MODES[options?.foodMode];
+    const foodHint = FOOD_MODES[options?.foodMode] ? tr(FOOD_MODES[options?.foodMode]) : undefined;
 
     const save = async () => {
         const problems = itemProblems(v);
@@ -189,7 +189,7 @@ export default function OwnerItemScreen() {
                 <ToggleRow title={tr('Jain')} subtitle={tr('Must be veg')} value={v.isJain} onValueChange={(x) => set('isJain', x)} last />
                 {errors.isJain ? <Hint tone="warn">{errors.isJain}</Hint> : null}
                 <View style={{ height: 14 }} />
-                <ChoiceBox label={tr('Spice level')} options={SPICE} value={v.spiceLevel} onChange={(x) => set('spiceLevel', x)} last />
+                <ChoiceBox label={tr('Spice level')} options={SPICE.map(([k, l]) => [k, tr(l)])} value={v.spiceLevel} onChange={(x) => set('spiceLevel', x)} last />
             </Group>
 
             <Group title={tr('Details and labels')}>

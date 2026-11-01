@@ -194,7 +194,7 @@ export function ImageField({ label = 'Picture', value, onChange, kind, refId, sq
     };
     return (
         <View style={{ marginBottom: last ? 0 : 16 }}>
-            <Label>{label}</Label>
+            <Label>{tr(label)}</Label>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Pressable onPress={pick} style={{ width: 88, height: 88, borderRadius: 14, backgroundColor: surface, borderWidth: 1, borderColor: border, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                     {value ? <Image source={{ uri: value }} style={{ width: 88, height: 88 }} contentFit="cover" /> : <Ionicons name="image-outline" size={30} color={muted} />}
@@ -491,7 +491,7 @@ export function SoldOutSheet({ item, onClose, onPick }) {
     return (
         <Sheet visible={!!item} onClose={onClose} title={item ? tr('{name} is sold out', { name: item.name }) : ''}>
             {SOLD_OUT.map(([title, sub, body, icon], i) => (
-                <Row key={title} icon={icon} title={title} subtitle={sub} last={i === SOLD_OUT.length - 1} onPress={() => onPick(item, { available: false, ...body })} />
+                <Row key={title} icon={icon} title={tr(title)} subtitle={tr(sub)} last={i === SOLD_OUT.length - 1} onPress={() => onPick(item, { available: false, ...body })} />
             ))}
         </Sheet>
     );
