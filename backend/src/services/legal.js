@@ -45,13 +45,14 @@ async function variables() {
         ownerPctOwnerBrought: cfg.ownerPctOwnerBrought, partnerPctOwnerBrought: 100 - cfg.ownerPctOwnerBrought,
         costOwnerPct: cfg.costOwnerPct, costPartnerPct: 100 - cfg.costOwnerPct,
         effectiveDate: day,
+        shopName: '{{shopName}}',   // kept as it is when a version is sent; filled with the shop's name each time a customer reads it
         supportLine: contact ? `For any question call ${contact}${b.email ? ` or write to ${b.email}` : ''}.` : (b.email ? `For any question write to ${b.email}.` : 'For any question, contact the support given in the app.'),
     };
 }
 
 const fill = (text, vars) => String(text || '').replace(/\{\{(\w+)\}\}/g, (m, k) => (vars[k] === undefined ? m : String(vars[k])));
 const blanksIn = (text) => [...new Set(String(text).match(/\[[^\]\n]{2,}\]/g) || [])];
-const unfilled = (text) => [...new Set(String(text).match(/\{\{\w+\}\}/g) || [])];
+const unfilled = (text) => [...new Set(String(text).match(/\{\{\w+\}\}/g) || [])].filter((x) => x !== '{{shopName}}');
 
 /* ------------------------------ the documents ------------------------------ */
 async function ensureDocs() {
@@ -142,7 +143,20 @@ async function publish(key, { summary, askWhen, allowBlanks }, by) {
     return getFull(key);
 }
 
-async function readCurrent(key) {
+// the name of the shop whose app is open (from the x-tenant-slug header), for the {{shopName}} in the customer pages
+async function shopNameFor(slug) {
+    const s = String(slug || '').trim().toLowerCase();
+    if (!/^[a-z0-9-]{1,60}$/.test(s)) return null;
+    const t = await Tenant.findOne({ slug: s }).select('name').lean();
+    return t?.name || null;
+}
+
+async function readCurrent(key, { shopName } = {}) {
+    const d = await readRaw(key);
+    return d && typeof d.body === 'string' ? { ...d, body: fill(d.body, { shopName: shopName || 'the shop' }) } : d;
+}
+
+async function readRaw(key) {
     const doc = await loadDoc(key);
     const cur = current(doc);
     if (!cur) {
@@ -270,5 +284,5 @@ async function markHandover(tenantId, on, by) {
 
 module.exports = {
     KEYS, PUBLIC_KEYS, GATE_DOC, READ_ONLY_DOC, ensureDocs, list, getFull, saveDraft, publish, readCurrent, status, accept, mine, acceptances, markHandover,
-    variables, fill, blanksIn, gateKeyFor, isSupremeAdmin, VISIT_GAP_MS,
+    variables, fill, blanksIn, shopNameFor, gateKeyFor, isSupremeAdmin, VISIT_GAP_MS,
 };

@@ -18,7 +18,7 @@ const router = express.Router();
 
 router.get('/public/:key', wrap(async (req, res) => {
     if (!legal.PUBLIC_KEYS.includes(req.params.key)) throw httpError(404, 'Not found');
-    res.json(await legal.readCurrent(req.params.key));
+    res.json(await legal.readCurrent(req.params.key, { shopName: await legal.shopNameFor(req.headers['x-tenant-slug']) }));
 }));
 
 let infoCache = { at: 0, value: null };
@@ -60,7 +60,7 @@ router.get('/doc/:key', wrap(async (req, res) => {
     const u = await me(req);
     const own = legal.gateKeyFor({ who: 'user', role: u.role });
     if (!legal.PUBLIC_KEYS.includes(req.params.key) && req.params.key !== own && req.params.key !== legal.READ_ONLY_DOC[u.role]) throw httpError(404, 'Not found');
-    const d = await legal.readCurrent(req.params.key);
+    const d = await legal.readCurrent(req.params.key, { shopName: req.tenant?.name });
     if (!d) throw httpError(404, 'This document has not been published yet');
     res.json(d);
 }));

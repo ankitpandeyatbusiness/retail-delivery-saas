@@ -210,7 +210,7 @@ Effective {{effectiveDate}}. These terms apply when you use this app to order fr
 {{platformName}} is a product of {{operatorName}}, which runs the business and looks after billing and compliance. The technology is provided by an independent developer.
 
 # 2. The shop and your order
-The food, its price, its taxes and its delivery are the shop's responsibility. We only provide the app that connects you with the shop. The total is shown before you place an order.
+This app lets you order from {{shopName}}. The food, its price, its taxes and its delivery are the responsibility of {{shopName}}. We only provide the app that connects you with the shop. The total is shown before you place an order.
 
 # 3. Your account
 You sign in with your mobile number and an OTP. Keep the OTP to yourself. You can change your details or delete your account any time in your profile.
@@ -241,7 +241,7 @@ We may change these terms at any time without informing you. The latest version 
 Effective {{effectiveDate}}. This explains what we collect and why.
 
 # Who we are
-{{platformName}} is a product of {{operatorName}}, which looks after your data. The technology is provided by an independent developer who works on the servers only to run and repair the service.
+{{platformName}} is a product of {{operatorName}}, which looks after your data. The technology is provided by an independent developer who works on the servers only to run and repair the service. This app lets you order from {{shopName}}.
 
 # What we collect
 - Your mobile number, and your name and email if you give them.
@@ -255,7 +255,7 @@ Effective {{effectiveDate}}. This explains what we collect and why.
 To run the service: sign you in, take and deliver orders, take payments, send OTPs and order updates, and give shops their reports. We do not sell your data and we do not show ads from other companies.
 
 # Who can see it
-- The shop you order from sees your name, phone, address and orders.
+- When you order from {{shopName}}, that shop sees your name, phone, address and orders.
 - The rider delivering your order sees your name, phone, address and the order.
 - Companies that send SMS and notifications, take payments and host our servers, only to do that work.
 - Authorities, if the law requires.

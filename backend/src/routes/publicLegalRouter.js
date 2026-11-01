@@ -34,8 +34,8 @@ function html(text) {
 router.get('/:page', wrap(async (req, res) => {
     const key = PAGES[req.params.page];
     if (!key) return res.status(404).type('text/plain').send('Not found');
-    const d = await legal.readCurrent(key);
-    res.set('Cache-Control', 'public, max-age=300');
+    const d = await legal.readCurrent(key, { shopName: await legal.shopNameFor(req.query.shop) });
+    res.set('Cache-Control', 'public, max-age=300'); res.set('Vary', 'Accept');
     return res.type('html').send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(d.title)}</title>
 <style>body{font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:760px;margin:0 auto;padding:24px 16px;color:#1f2933}h2{font-size:1.15rem;margin:1.6em 0 .4em}h2:first-child{font-size:1.6rem;margin-top:0}li{margin:.3em 0}small{color:#6b7280}</style></head>
