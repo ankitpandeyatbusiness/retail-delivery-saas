@@ -72,14 +72,48 @@ async function confirm(p, rzp) {
         await alert('admin_refund_failed', { tenantId: p.tenantId, vars: { orderId: `table ${p.table} bill`, amount: ((rzp.amountPaise || 0) / 100).toFixed(2), reason: 'Amount did not match what the guest owed. Check it in Razorpay and refund or credit by hand.' } });
         return { ok: true, paid: false, mismatch: true };
     }
-    const first = (await TablePayment.updateOne({ _id: p._id, status: 'created' }, { $set: { status: 'captured', rzpPaymentId: rzp.id, capturedAt: new Date() } })).modifiedCount === 1;
-    if (!first) return { ok: true, paid: true, repeat: true };
+    const first = (await TablePayment.updateOne({ _id: p._id, status: 'created' }, { $set: { status: 'captured', rzpPaymentId: rzp.id, capturedAt: new Date(), settleStartedAt: new Date() } })).modifiedCount === 1;
+    if (!first) {
+        // a repeat. If the first run died half way (no settledAt), this finishes the work instead of just saying "fine"
+        await resume(p._id).catch((e) => console.error('Table payment resume:', e.message));
+        return { ok: true, paid: true, repeat: true };
+    }
+    await settle(p);
+    return { ok: true, paid: true };
+}
 
+// Takes up a captured payment whose follow-up work never finished (a crash between "captured" and "rounds paid").
+// The claim moves settleStartedAt forward, so two runs never work on it at once. Every step inside settle() is safe to repeat.
+async function resume(id, now = new Date()) {
+    const p = await TablePayment.findOneAndUpdate(
+        { _id: id, status: 'captured', settledAt: { $exists: false }, settleStartedAt: { $exists: true, $lt: new Date(now.getTime() - 2 * 60000) } },
+        { $set: { settleStartedAt: now } },
+        { returnDocument: 'after' },
+    );
+    if (!p) return false;
+    await settle(p, { resumed: true });
+    return true;
+}
+
+// reconcile job: finish every captured table payment that was left half done (rows from before this field existed have no settleStartedAt and are left alone)
+async function repairUnsettled(now = new Date()) {
+    const rows = await TablePayment.find({
+        status: 'captured', settledAt: { $exists: false }, settleStartedAt: { $exists: true, $lt: new Date(now.getTime() - 2 * 60000), $gte: new Date(now.getTime() - 7 * 86400000) },
+    }).select('_id').limit(100).lean();
+    let n = 0;
+    for (const r of rows) {
+        try { if (await resume(r._id, now)) n += 1; } catch (e) { console.error('Table payment repair:', String(r._id), e.message); }
+    }
+    return n;
+}
+
+// The work after the money is recorded: the rounds turn paid, the guest leaves his share, people are told.
+async function settle(p, { resumed = false } = {}) {
     const now = new Date();
     if (p.creditPaise > 0) await require('./bookingCredit').consume(p.sessionId, p.creditPaise / 100);   // the booking amount paid earlier is used up by this bill
     const orders = await Order.find({ _id: { $in: p.orderIds }, 'payment.status': { $ne: 'paid' } }).lean();
     if (orders.length) await Order.updateMany({ _id: { $in: orders.map((o) => o._id) } }, { $set: { 'payment.status': 'paid', 'payment.paidAt': now, 'payment.settledAt': now, 'payment.settledVia': 'online', 'payment.paidBy': p.userId } }); require('./realtime').toOwner(p.tenantId, 'order:update', { kind: 'table_paid' });   // the owner's "On the table" list drops what was paid
-    if (orders.length < p.orderIds.length) {
+    if (orders.length < p.orderIds.length && !resumed) {
         await alert('admin_refund_failed', { tenantId: p.tenantId, vars: { orderId: `table ${p.table} bill`, amount: (p.amountPaise / 100).toFixed(2), reason: 'Some rounds were already paid at the counter when this online payment came in. Refund the extra from Razorpay.' } });
     }
     const loyalty = require('./loyaltyService');
@@ -99,7 +133,7 @@ async function confirm(p, rzp) {
     }
     Promise.resolve().then(() => require('../notifications/center').notify('table_paid_online', { tenantId: p.tenantId, vars: { table, amount, name: payerName }, data: { kind: 'table_paid_online', sessionId: String(p.sessionId), table } })).catch((e) => console.error('Notification error:', e.message));
     require('./waiterAlerts').paidOnline(p.tenantId, { table, amount, name: payerName });
-    return { ok: true, paid: true };
+    await TablePayment.updateOne({ _id: p._id }, { $set: { settledAt: new Date() } });
 }
 
 async function verify({ tenantId, userId, rzpOrderId, rzpPaymentId, signature }) {
@@ -129,4 +163,4 @@ async function onWebhook({ account, rzp }) {
     return p ? confirm(p, rzp) : null;
 }
 
-module.exports = { available, start, verify, check, onWebhook };
+module.exports = { available, start, verify, check, onWebhook, resume, repairUnsettled };

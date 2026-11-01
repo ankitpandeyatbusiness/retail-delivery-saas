@@ -6,6 +6,7 @@
 //   4. a cancelled / undelivered order whose refund was not made                   -> refund it
 //   5. refunds waiting to be sent (network was down)                               -> send them
 //   6. refunds Razorpay accepted but never confirmed                               -> ask Razorpay, close them
+//   7. a table bill paid online whose rounds were not marked paid (crash)          -> finish it
 const Order = require('../models/Order');
 const OnlinePayment = require('../models/OnlinePayment');
 const OnlineRefund = require('../models/OnlineRefund');
@@ -128,7 +129,8 @@ async function runPaymentReconcile(now = new Date()) {
     const orderRefunds = await repairOrderRefunds(now);
     const retried = (await refundIssuer.retryPending()).length;
     const closed = await closeOpenRefunds(now);
-    return { missed, repaired, orderRefunds, retried, closed };
+    const tableRepaired = await require('./tablePayment').repairUnsettled(now);   // 7. a table bill paid online whose rounds were never marked paid
+    return { missed, repaired, orderRefunds, retried, closed, tableRepaired };
 }
 
 // Starts half a minute after boot, then every 2 minutes. Safe on several servers: every step is repeatable.

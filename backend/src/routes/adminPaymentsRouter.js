@@ -56,7 +56,7 @@ router.post('/tenants/:tid/payments/webhook-secret', loadTenant, wrap(async (req
     res.json({
         webhookUrl: `${baseUrl(req)}/api/webhooks/razorpay/${req.tenantDoc._id}`,
         secret,
-        events: ['payment.captured', 'payment.failed', 'refund.processed', 'refund.failed'],
+        events: ['payment.captured', 'payment.failed', 'refund.processed', 'refund.failed', 'qr_code.credited'],
         disputeEvents: ['payment.dispute.created', 'payment.dispute.under_review', 'payment.dispute.action_required', 'payment.dispute.won', 'payment.dispute.lost', 'payment.dispute.closed'],
         note: 'The secret is shown only once. Paste the URL and the secret into the shop\'s Razorpay dashboard (Settings, Webhooks). If payments are already on, webhooks fail until the new secret is pasted there.',
     });

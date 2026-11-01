@@ -46,7 +46,7 @@ function verifyPaymentSignature({ orderId, paymentId, signature, secret }) {
 }
 
 /* ------------------------------ mock ------------------------------ */
-const mockState = { payments: new Map(), qrPayments: new Map() };
+const mockState = { payments: new Map(), qrPayments: new Map(), refunds: new Map() };
 
 const mockProvider = {
     async ping() {
@@ -79,8 +79,8 @@ const mockProvider = {
     async listOrderPayments({ orderId }) {
         return [...mockState.payments.values()].filter((p) => p.orderId === orderId);
     },
-    async listRefunds() {
-        return [];
+    async listRefunds({ paymentId } = {}) {
+        return mockState.refunds.get(paymentId) || [];
     },
     async closeQr() {
         return { ok: true };
@@ -203,5 +203,5 @@ module.exports = {
     closeQr: (args) => provider().closeQr(args),
     listQrPayments: (args) => provider().listQrPayments(args),
     // for tests only
-    _mock: { setPayment: (p) => mockState.payments.set(p.id, p), setQrPayments: (qrId, list) => mockState.qrPayments.set(qrId, list), reset: () => { mockState.payments.clear(); mockState.qrPayments.clear(); } },
+    _mock: { setPayment: (p) => mockState.payments.set(p.id, p), setQrPayments: (qrId, list) => mockState.qrPayments.set(qrId, list), setRefunds: (paymentId, list) => mockState.refunds.set(paymentId, list), reset: () => { mockState.payments.clear(); mockState.qrPayments.clear(); mockState.refunds.clear(); } },
 };

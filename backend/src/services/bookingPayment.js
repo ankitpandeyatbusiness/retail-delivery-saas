@@ -43,16 +43,25 @@ async function start(booking) {
 async function refundDeposit(id, reason, { instant = false } = {}) {
     const b = await TableBooking.findOneAndUpdate({ _id: id, 'deposit.status': { $in: ['paid', 'refund_failed'] } }, { $set: { 'deposit.status': 'refunding' } }, { returnDocument: 'after' });
     if (!b) return { skipped: true };
+    const retry = !!b.deposit.refundError;   // an earlier try failed: it may still have reached Razorpay (a timeout hides the answer)
     try {
+        const creds = await credsFor(b.tenantId);
+        if (retry) {
+            const hit = (await payments.listRefunds({ paymentId: b.payment.rzpPaymentId, credentials: creds }) || []).find((x) => x.status !== 'failed');
+            if (hit) {   // it did go out: record it, never send a second one
+                await TableBooking.updateOne({ _id: b._id }, { $set: { 'deposit.status': 'refunded', 'deposit.refundId': hit.id || hit.refundId, 'deposit.refundedAt': new Date() }, $unset: { 'deposit.refundError': '' } });
+                return { ok: true, already: true };
+            }
+        }
         const r = await payments.refund({
-            paymentId: b.payment.rzpPaymentId, amountPaise: b.payment.amountPaise, credentials: await credsFor(b.tenantId),
+            paymentId: b.payment.rzpPaymentId, amountPaise: b.payment.amountPaise, credentials: creds,
             notes: { kind: 'table_booking', bookingId: String(b._id), reason }, receipt: `bkr-${b.code}`, instant,
         });
         await TableBooking.updateOne({ _id: b._id }, { $set: { 'deposit.status': 'refunded', 'deposit.refundId': r.refundId, 'deposit.refundedAt': new Date() }, $unset: { 'deposit.refundError': '' } });
         return { ok: true };
     } catch (e) {
         await TableBooking.updateOne({ _id: b._id }, { $set: { 'deposit.status': 'refund_failed', 'deposit.refundError': String(e.message || e).slice(0, 200) } });
-        alert('admin_refund_failed', { tenantId: b.tenantId, vars: { orderId: `table booking ${b.code}`, amount: (b.payment.amountPaise / 100).toFixed(2), reason: 'The deposit could not be sent back. It will be tried again by itself.' } });
+        if (!retry) alert('admin_refund_failed', { tenantId: b.tenantId, vars: { orderId: `table booking ${b.code}`, amount: (b.payment.amountPaise / 100).toFixed(2), reason: 'The deposit could not be sent back. It will be tried again by itself.' } });
         return { ok: false };
     }
 }

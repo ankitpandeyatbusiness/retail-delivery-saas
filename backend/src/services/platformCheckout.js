@@ -183,6 +183,9 @@ async function onPlatformPayment(pay) {
         await creditTopup(t, pay, { path: '/api/webhooks/razorpay/platform', method: 'WEBHOOK' });
         return { topup: 'credited' };
     }
+    // Real money reached the platform account for an order no bill or top-up knows (for example a bill whose amount changed
+    // after the customer opened the old payment). Nobody must lose track of it.
+    await alert('admin_webhook_failed', { vars: { event: 'payment.captured', error: `Payment ${pay.id} of Rs ${((pay.amountPaise || 0) / 100).toFixed(2)} (Razorpay order ${pay.orderId}) matches no bill, dues or top-up. Check Razorpay and refund it or mark the bill paid by hand.` } });
     return { ignored: 'unknown_order' };
 }
 
