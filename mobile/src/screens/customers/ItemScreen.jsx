@@ -156,13 +156,13 @@ function Group({ g, chosen, onPick, index, base = 0 }) {
     const radio = max === 1;
     const done = chosen.length >= min;
     const hint = min >= 1
-        ? (radio ? 'Choose 1' : `Choose ${min === max ? max : `${min} to ${max}`}`)
-        : (radio ? 'Optional' : `Optional · Up to ${max}`);
+        ? (radio ? tr('Choose 1') : min === max ? tr('Choose {n}', { n: max }) : tr('Choose {a} to {b}', { a: min, b: max }))
+        : (radio ? tr('Optional') : tr('Optional · Up to {n}', { n: max }));
     return (
         <Appear delay={80 + index * 60} style={[s.group, { backgroundColor: surface, borderColor: border }]}>
             <View style={s.gHead}>
                 <View style={{ flex: 1 }}>
-                    <Text style={[s.gName, { color: text }]}>{g.name}</Text>
+                    <Text style={[s.gName, { color: text }]}>{tr(g.name)}</Text>
                     <Text style={[s.gHint, { color: muted }]}>{hint}</Text>
                 </View>
                 {min >= 1 ? (
@@ -179,7 +179,7 @@ function Group({ g, chosen, onPick, index, base = 0 }) {
                     <Press key={o.id} onPress={() => onPick(g, o)} disabled={off}
                         style={[s.opt, { borderBottomColor: border, backgroundColor: on ? tint(primary) : 'transparent' }, off && { opacity: 0.4 }]}>
                         <Mark on={on} radio={radio} />
-                        <Text style={[s.optName, { color: text, fontWeight: on ? '800' : '600' }]}>{o.name}{off ? ` (${soldOutText(o)})` : ''}</Text>
+                        <Text style={[s.optName, { color: text, fontWeight: on ? '800' : '600' }]}>{tr(o.name)}{off ? ` (${soldOutText(o)})` : ''}</Text>
                         {g.absolute ? <Text style={[s.optPrice, { color: text, fontWeight: '800' }]}>₹{base + (o.price || 0)}</Text> : o.price ? <Text style={[s.optPrice, { color: muted }]}>+₹{o.price}</Text> : null}
                     </Press>
                 );
@@ -321,7 +321,7 @@ export default function ItemScreen() {
     if (p) {
         if (!full.restaurant.isOpen) blocked = closedText(full);
         else if (p.isAvailable === false) blocked = soldOutText(p);
-        else if (!valid) blocked = 'Not available right now';
+        else if (!valid) blocked = tr('Not available right now');
     }
     const total = +(unit * (measured ? 1 : qty)).toFixed(2);
     const cartCount = lines.reduce((a, l) => a + l.quantity, 0);
@@ -418,7 +418,7 @@ export default function ItemScreen() {
         try {
             await Share.share({
                 title: p?.name,
-                message: `${p?.name} · ₹${p?.price}\nOrder it from ${full.restaurant?.name || 'our shop'}!` });
+                message: `${p?.name} · ₹${p?.price}\n${tr('Order it from {shop}!', { shop: full.restaurant?.name || tr('our shop') })}` });
         } catch (e) {
             showToast(tr('Could not open share'));
         }
@@ -510,7 +510,7 @@ export default function ItemScreen() {
                         {p.fewLeft ? <Text style={{ color: '#C2410C', fontSize: 12, fontWeight: '800', marginTop: 6 }}>{tr('Few left. Order soon')}</Text> : null}
                         {p.description ? (
                             <Pressable onPress={() => { if (longDesc) { ease(); setMore((m) => !m); } }}>
-                                <Text style={[s.desc, { color: muted }]} numberOfLines={more || !longDesc ? undefined : 3}>{p.description}</Text>
+                                <Text style={[s.desc, { color: muted }]} numberOfLines={more || !longDesc ? undefined : 3}>{tr(p.description)}</Text>
                                 {longDesc ? <Text style={[s.more, { color: primary }]}>{more ? tr('Show less') : tr('Read more')}</Text> : null}
                             </Pressable>
                         ) : null}
