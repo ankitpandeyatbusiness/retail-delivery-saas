@@ -236,7 +236,11 @@ core.delete('/orders/:id/proof', wrap(async (req, res) => {
 core.put('/online', wrap(async (req, res) => {
     if (typeof req.body?.isOnline !== 'boolean') throw httpError(400, 'Send isOnline: true or false');
     // going off duty can be for a while: pauseMinutes, or untilMorning (6 am, India time); the clock then puts him back on duty by itself
-    const resumeAt = req.body.isOnline ? null : schedule.resumeTime(req.body);
+    let resumeAt = req.body.isOnline ? null : schedule.resumeTime(req.body);
+    if (!req.body.isOnline && req.body.untilNextOpening === true) {   // back on duty when the shop next opens by its hours
+        resumeAt = require('../services/tenantConfigService').nextOpeningOf(req.tenant);
+        if (!resumeAt) throw httpError(400, 'The shop has no opening hours set');
+    }
     const r = await Rider.updateOne(
         { tenantId: req.tenant._id, userId: req.riderId, ...(req.body.isOnline && { isActive: true }) },
         req.body.isOnline ? { $set: { isOnline: true, onlineSince: new Date(), 'duty.autoSession': false }, $unset: { 'duty.resumeAt': 1 } } : { $set: { isOnline: false, 'duty.autoSession': false, ...(resumeAt ? { 'duty.resumeAt': resumeAt } : {}) }, $unset: { onlineSince: 1, ...(resumeAt ? {} : { 'duty.resumeAt': 1 }) } },

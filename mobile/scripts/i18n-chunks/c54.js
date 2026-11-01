@@ -1,5 +1,5 @@
 // [English, Hindi, Bhojpuri, Marathi, Gujarati, Bengali]
-// Pause sheet: with opening hours, "until I start again" ends at the next opening time.
+// Off-duty and pause sheets: with opening hours set, one more choice that ends at the shop's next scheduled opening.
 module.exports = [
-    ['Until my next opening time', 'मेरे अगले खुलने के समय तक', 'हमार अगिला खुले के समय तक', 'माझ्या पुढच्या उघडण्याच्या वेळेपर्यंत', 'મારા આગલા ખુલવાના સમય સુધી', 'আমার পরের খোলার সময় পর্যন্ত'],
+    ['Until the next scheduled opening', 'अगले तय खुलने के समय तक', 'अगिला तय खुले के समय तक', 'पुढच्या ठरलेल्या उघडण्याच्या वेळेपर्यंत', 'આગલા નક્કી કરેલા ખુલવાના સમય સુધી', 'পরবর্তী নির্ধারিত খোলার সময় পর্যন্ত'],
 ];

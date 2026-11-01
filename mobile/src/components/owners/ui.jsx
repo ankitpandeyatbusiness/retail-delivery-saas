@@ -496,10 +496,9 @@ const PAUSE_CHOICES = [
     ['1 hour', { pauseMinutes: 60 }, 'time-outline'],
     ['2 hours', { pauseMinutes: 120 }, 'time-outline'],
     ['Until tomorrow morning', { untilMorning: true }, 'moon-outline'],
+    ['Until the next scheduled opening', { untilNextOpening: true }, 'calendar-outline'],   // only when the shop has opening hours
     ['Until I start again', {}, 'hand-left-outline'],
 ];
-// the shop has opening hours: "until I start again" ends by itself when the shop next opens by its hours (the server does the same)
-const SCHEDULED_LABEL = 'Until my next opening time';
 
 // Stop taking orders for a while, or start again. A timed pause reopens the shop BY ITSELF, so a forgotten pause cannot
 // lose a day of sales.
@@ -509,7 +508,7 @@ export function PauseSheet({ visible, onClose, onPending }) {
     const pausedUntil = useHomeStore((st) => st.full.orders.pausedUntil);
     const [busy, setBusy] = useState(false);
     const paused = accepting === false;
-    const hasHours = useHomeStore((st) => !!st.full.hours?.weekly && Object.keys(st.full.hours.weekly).length > 0);
+    const hasHours = useHomeStore((st) => (!!st.full.hours?.weekly && Object.keys(st.full.hours.weekly).length > 0) || (st.full.hours?.closedDates || []).length > 0);
 
     const apply = async (acceptingOrders, extra) => {
         setBusy(true);
@@ -539,8 +538,8 @@ export function PauseSheet({ visible, onClose, onPending }) {
             ) : (
                 <View>
                     <Text style={{ color: muted, marginBottom: 8 }}>{tr('Customers will see that the shop is not taking orders. Orders already placed are not affected.')}</Text>
-                    {PAUSE_CHOICES.map(([label, extra, icon], i) => (
-                        <Row key={label} icon={icon} title={tr(i === PAUSE_CHOICES.length - 1 && hasHours ? SCHEDULED_LABEL : label)} color={i === PAUSE_CHOICES.length - 1 ? error : undefined} onPress={busy ? undefined : () => apply(false, extra)} last={i === PAUSE_CHOICES.length - 1} />
+                    {PAUSE_CHOICES.filter(([, extra]) => hasHours || !extra.untilNextOpening).map(([label, extra, icon], i, arr) => (
+                        <Row key={label} icon={icon} title={tr(label)} color={i === arr.length - 1 ? error : undefined} onPress={busy ? undefined : () => apply(false, extra)} last={i === arr.length - 1} />
                     ))}
                     {busy ? <LineShimmer width={120} height={14} /> : null}
                 </View>

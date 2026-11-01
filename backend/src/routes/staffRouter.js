@@ -96,6 +96,10 @@ core.get('/duty', wrap(async (req, res) => { res.json(await dutyView(req)); }));
 core.put('/duty', wrap(async (req, res) => {
     const duty = require('../services/staffDuty');
     const c = duty.cleanDuty(req.body);
+    if (c.online === false && req.body?.untilNextOpening === true) {   // off duty until the shop next opens by its hours
+        c.offUntil = require('../services/tenantConfigService').nextOpeningOf(req.tenant);
+        if (!c.offUntil) throw httpError(400, 'The shop has no opening hours set');
+    }
     if (!Object.keys(c).length) throw httpError(400, 'Nothing to change');
     if (c.online === true && (await duty.closedFor(req.tenant, req.staff.role)).closed) throw httpError(409, 'The shop is closed right now, so you cannot go live. You can when it opens.');
     const set = {};

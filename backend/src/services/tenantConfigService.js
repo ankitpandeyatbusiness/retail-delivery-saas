@@ -592,6 +592,22 @@ function forceOpenUntil(weekly, closedDates, from = new Date()) {
     return nextHoursChange(weekly, closedDates, from) || new Date(from.getTime() + 9 * 86400000);
 }
 
+// The next time the shop is open by its hours AFTER now: the next opening when it is closed now, or the opening after the next closing when it is
+// open now. Null when the shop has no opening hours or holidays (nothing to follow). Used by "until the next scheduled opening" (owner, cook, waiter, rider).
+function nextOpening(weekly, closedDates, from = new Date()) {
+    const hasSchedule = (weekly && Object.keys(weekly).length) || (closedDates && closedDates.length);
+    if (!hasSchedule) return null;
+    const openNow = openStatus(weekly, true, from, closedDates).isOpen;
+    const first = nextHoursChange(weekly, closedDates, from);
+    if (!first) return null;
+    return openNow ? (nextHoursChange(weekly, closedDates, first) || null) : first;
+}
+// the same, read from a tenant document
+const nextOpeningOf = (tenant, from = new Date()) => {
+    const cfg = resolveConfig(tenant);
+    return nextOpening(cfg.hours.weekly, cfg.hours.closedDates, from);
+};
+
 /* ------------------------------ RESOLVER ------------------------------ */
 // Turns a raw tenant document into the one config the app uses. Never throws on bad data:
 // invalid parts are dropped and defaults fill the gaps.
@@ -728,4 +744,4 @@ function resolveConfig(tenant, now = new Date()) {
     };
 }
 
-module.exports = { validateSettings, resolveConfig, openStatus, nextHoursChange, forceOpenUntil, DEFAULTS, MIN_SHOP_RATINGS };
+module.exports = { validateSettings, resolveConfig, openStatus, nextHoursChange, forceOpenUntil, nextOpening, nextOpeningOf, DEFAULTS, MIN_SHOP_RATINGS };

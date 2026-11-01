@@ -309,6 +309,7 @@ router.use(ownerChain(requireShopAdmin));
 //   { acceptingOrders: false }                       pause until he starts again
 //   { acceptingOrders: false, pauseMinutes: 30 }     pause for 30 minutes (1 to 1440): the shop reopens BY ITSELF
 //   { acceptingOrders: false, untilMorning: true }   pause until 4 AM (India time): tomorrow's 4 AM, or today's if it is earlier
+//   { acceptingOrders: false, untilNextOpening: true } pause until the shop next opens by its opening hours (400 when it has none)
 //   { acceptingOrders: true, forceOpen: true }       open now although the hours say closed: it holds until the hours change next, then the hours rule again
 router.put('/accepting-orders', wrap(async (req, res) => {
     const b = req.body || {};
@@ -321,23 +322,10 @@ router.put('/accepting-orders', wrap(async (req, res) => {
         pausedUntil = new Date(Date.now() + m * 60000);
     } else if (!b.acceptingOrders && b.untilMorning === true) {
         pausedUntil = nextMorning();
-    } else if (!b.acceptingOrders) {
-        // "until I start again", but the shop HAS opening hours: the stop lasts only until the shop next opens by its hours, then the schedule rules
-        // again by itself (before, the shop stayed off for good and never went live at its next opening time)
-        try {
-            const tcs = require('../services/tenantConfigService');
-            const cfg = resolveConfig(req.tenant);
-            const weekly = cfg.hours.weekly;
-            const closedDates = cfg.hours.closedDates;
-            if ((weekly && Object.keys(weekly).length) || (closedDates && closedDates.length)) {
-                const now = new Date();
-                const first = tcs.nextHoursChange(weekly, closedDates, now);
-                if (first) {
-                    const openNow = tcs.openStatus(weekly, true, now, closedDates).isOpen;
-                    pausedUntil = openNow ? (tcs.nextHoursChange(weekly, closedDates, first) || first) : first;   // open now: past the next closing, up to the opening after it
-                }
-            }
-        } catch (e) { /* no schedule could be read: the stop stays until he starts again */ }
+    } else if (!b.acceptingOrders && b.untilNextOpening === true) {
+        // "until the next scheduled opening": the shop opens again by itself at the next time its opening hours say so
+        pausedUntil = require('../services/tenantConfigService').nextOpeningOf(req.tenant);
+        if (!pausedUntil) throw httpError(400, 'Set your opening hours first');
     }
 
     req.auditBefore = { acceptingOrders: req.tenant.settings?.orders?.acceptingOrders, pausedUntil: req.tenant.settings?.orders?.pausedUntil || null, hoursOverride: req.tenant.settings?.orders?.hoursOverride || null };
