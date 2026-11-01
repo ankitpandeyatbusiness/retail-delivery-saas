@@ -24,7 +24,7 @@ const api = (m, url, who, body) => request(app)[m](`/api/admin${url}`).set(AUTH(
 const MIN = 60000;
 const reload = async () => { tenantRecognizer.invalidateTenant('legal-shop'); return Tenant.findById(w.tenant._id).lean(); };
 const asUser = (who) => ({ who: 'user', userId: who.user._id, role: who.user.role });
-const send = (key, body = {}) => api('post', `/agreements/${key}/send`, boss, { summary: 'First version', ...(key === 'operator_agreement' ? {} : { allowBlanks: true }), ...body });
+const send = (key, body = {}) => api('post', `/agreements/${key}/send`, boss, { summary: 'First version', allowBlanks: true, ...body });
 
 beforeEach(async () => {
     await db.clear();
@@ -44,7 +44,7 @@ describe('the documents', () => {
     test('six documents start as drafts; everybody can read, only the supreme admin writes and sends', async () => {
         const list = await api('get', '/agreements', vivek);
         assert.equal(list.status, 200, JSON.stringify(list.body));
-        assert.deepEqual(list.body.items.map((d) => d.key).sort(), ['about_us', 'customer_terms', 'operator_agreement', 'owner_privacy', 'owner_terms', 'privacy', 'rider_terms', 'team_terms']);
+        assert.deepEqual(list.body.items.map((d) => d.key).sort(), ['about_us', 'customer_terms', 'owner_privacy', 'owner_terms', 'privacy', 'rider_terms', 'team_terms']);
         assert.ok(list.body.items.every((d) => d.currentVersion === 0));
         assert.equal((await api('put', '/agreements/owner_terms/draft', vivek, { title: 'x', body: 'y'.repeat(40) })).status, 403);
         assert.equal((await send('owner_terms').then(() => api('post', '/agreements/owner_terms/send', vivek, {}))).status, 403);
@@ -59,14 +59,16 @@ describe('the documents', () => {
     });
 
     test('sending freezes the text with the names filled in; blanks and missing company details stop it; old versions stay', async () => {
-        const blocked = await send('operator_agreement');
+        await api('put', '/agreements/team_terms/draft', boss, { title: 'Team', body: '# Team\n{{ownerName}} {{partnerName}} {{operatorName}} [fill me]' });
+        const blocked = await send('team_terms', { allowBlanks: false });
         assert.equal(blocked.status, 400);
         assert.match(blocked.body.error, /blanks/i);
-        const ok = await send('operator_agreement', { allowBlanks: true });
+        const ok = await send('team_terms');
         assert.equal(ok.status, 201, JSON.stringify(ok.body));
         assert.equal(ok.body.currentVersion, 1);
         assert.match(ok.body.current.body, /Ankit/);
         assert.match(ok.body.current.body, /Vivek/);
+        assert.match(ok.body.current.body, /Operator Pvt Ltd/);
         assert.doesNotMatch(ok.body.current.body, /\{\{/);
 
         const v1 = (await send('owner_terms')).body;
@@ -186,8 +188,7 @@ describe('the second visit', () => {
 });
 
 describe('the superadmins', () => {
-    test('the partner gets the operating agreement, the others the team terms, the supreme admin neither', async () => {
-        await send('operator_agreement', { allowBlanks: true });
+    test('every other superadmin gets the team terms, the supreme admin none', async () => {
         await send('team_terms');
         const t0 = new Date(Date.now() + MIN);
         const run = async (admin, now) => legal.status({ who: 'admin', userId: admin._id, admin: await SuperAdmin.findById(admin._id).lean(), now });
@@ -198,17 +199,9 @@ describe('the superadmins', () => {
         const team = await run(vivek.admin, new Date(t0.getTime() + 60 * MIN));
         assert.deepEqual([team.required, team.key], [true, 'team_terms']);
 
-        const role = await api('put', `/legal/roles/${vivek.admin._id}`, boss, { legalRole: 'partner' });
-        assert.equal(role.status, 200, JSON.stringify(role.body));
         assert.equal((await api('put', `/legal/roles/${vivek.admin._id}`, boss, { legalRole: 'king' })).status, 400);
-        const asPartner = await run(vivek.admin, new Date(t0.getTime() + 120 * MIN));
-        assert.equal(asPartner.key, 'operator_agreement');
         const route = await api('get', '/legal/status', vivek);
         assert.equal(route.status, 200);
-        assert.equal(route.body.key, 'operator_agreement');
-        const acc = await api('post', '/legal/accept', vivek, { key: 'operator_agreement', version: 1 });
-        assert.equal(acc.status, 200, JSON.stringify(acc.body));
-        assert.equal((await api('post', '/legal/accept', vivek, { key: 'team_terms', version: 1 })).status, 400);
     });
 
     test('who agreed and who has not, and the numbers on the list', async () => {

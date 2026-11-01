@@ -16,7 +16,7 @@ const versionSchema = new Schema({
 }, { _id: false });
 
 const legalDocumentSchema = new Schema({
-    key: { type: String, required: true, unique: true },     // operator_agreement | team_terms | owner_terms | rider_terms | customer_terms | privacy
+    key: { type: String, required: true, unique: true },     // team_terms | owner_terms | rider_terms | customer_terms | privacy
     audience: { type: String, enum: ['partner', 'team', 'owner', 'rider', 'customer'], required: true },
     draft: { _id: false, title: String, body: String, updatedAt: Date, updatedBy: String },
     currentVersion: { type: Number, default: 0 },

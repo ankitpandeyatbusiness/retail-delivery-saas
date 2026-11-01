@@ -12,9 +12,8 @@ import { errMsg } from '../../api/adminClient';
 import { DOC_NAME } from './names';
 
 const GROUPS = [
-    ['Between you and the partner', ['operator_agreement'], 'platform'],
-    ['Asked to agree in the apps', ['team_terms', 'owner_terms', 'rider_terms'], 'people'],
-    ['Customers only read these', ['customer_terms', 'privacy'], 'catalog'],
+    ['Asked to agree in the apps', ['team_terms', 'owner_terms', 'owner_privacy'], 'people'],
+    ['People only read these', ['rider_terms', 'customer_terms', 'privacy', 'about_us'], 'catalog'],
 ];
 const day = (d) => (d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' }) : '');
 

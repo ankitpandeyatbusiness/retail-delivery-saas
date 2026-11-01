@@ -42,7 +42,7 @@ export default function AgreementDocScreen() {
             const r = await fetchAgreement(key);
             setD(r); setTitle(r.draft.title || ''); setBody(r.draft.body || '');
             if (r.currentVersion) fetchAcceptances(key).then(setAcc).catch(() => { });
-            if (key === 'operator_agreement' || key === 'team_terms') fetchTeam().then((x) => setTeam(x.items || x)).catch(() => { });
+            if (key === 'team_terms') fetchTeam().then((x) => setTeam(x.items || x)).catch(() => { });
         } catch (e) { setErr(errMsg(e)); }
     }, [key]);
     useFocusEffect(useCallback(() => { load(); }, [load]));
@@ -126,7 +126,7 @@ export default function AgreementDocScreen() {
                                     {(d.audience === 'owner' || d.audience === 'rider') ? <Text style={{ color: t.muted, fontSize: font.sm, marginTop: spacing.sm }}>Only shops marked as handed over are counted.</Text> : null}
                                 </>
                             )}
-                            {supreme && (key === 'operator_agreement' || key === 'team_terms') && team ? (
+                            {supreme && key === 'team_terms' && team ? (
                                 <>
                                     <SectionTitle section="people">Who is the operator partner?</SectionTitle>
                                     <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>

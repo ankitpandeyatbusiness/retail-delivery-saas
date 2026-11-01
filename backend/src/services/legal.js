@@ -2,7 +2,6 @@
 //
 //   Six documents (services/legalTemplates.js). The supreme admin edits a DRAFT and presses "Send new version"; that freezes a copy
 //   (names filled in) and asks everybody in that audience to agree:
-//     partner   the operator partner's superadmin account   -> operator_agreement
 //     team      every other superadmin (not the supreme one) -> team_terms
 //     owner     shop owners (role admin)                     -> owner_terms
 //     rider     riders: they only READ rider_terms, customer_terms and privacy; nothing to agree to
@@ -24,7 +23,7 @@ const { httpError } = require('../middlewares/apiErrors');
 
 const VISIT_GAP_MS = 30 * 60000;
 const KEYS = Object.keys(DOCS);
-const GATE_DOC = { partner: 'operator_agreement', team: 'team_terms', owner: ['owner_terms', 'owner_privacy'] };
+const GATE_DOC = { team: 'team_terms', owner: ['owner_terms', 'owner_privacy'] };
 const READ_ONLY_DOC = { rider: 'rider_terms' };   // riders only read their terms, nothing to agree to
 const PUBLIC_KEYS = ['customer_terms', 'privacy', 'about_us'];
 
@@ -92,7 +91,7 @@ async function list() {
     }
     return out;
 }
-const GATE_DOC_AUDIENCES = ['partner', 'team', 'owner'];
+const GATE_DOC_AUDIENCES = ['team', 'owner'];
 
 async function getFull(key) {
     const doc = await loadDoc(key);
@@ -172,7 +171,7 @@ const isSupremeAdmin = (admin) => Array.isArray(admin?.phones) && admin.phones.i
 
 // the documents a person must agree to (owners: the terms and the privacy policy), or []
 function gateKeysFor({ who, role, admin }) {
-    if (who === 'admin') return isSupremeAdmin(admin) ? [] : [admin?.legalRole === 'partner' ? GATE_DOC.partner : GATE_DOC.team];
+    if (who === 'admin') return isSupremeAdmin(admin) ? [] : [GATE_DOC.team];
     if (role === 'admin') return GATE_DOC.owner;
     return [];   // customers and riders only read
 }
