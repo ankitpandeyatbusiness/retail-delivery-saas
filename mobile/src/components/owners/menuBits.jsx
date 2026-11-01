@@ -427,7 +427,7 @@ export function MeasureEditor({ sellBy, value, presets, onChange, error }) {
                     <Text style={{ color: primary, fontWeight: '900' }}>{unit} ⇄</Text>
                 </Pressable>
                 <Pressable onPress={addTyped} style={{ height: 46, marginLeft: 8, borderRadius: 12, backgroundColor: primary, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 }}>
-                    <Text style={{ color: onPrimary, fontWeight: '900' }}>{tr('Add')}</Text>
+                    <Text numberOfLines={1} style={{ color: onPrimary, fontWeight: '900' }}>{tr('Add')}</Text>
                 </Pressable>
             </View>
             <View style={{ height: 16 }} />

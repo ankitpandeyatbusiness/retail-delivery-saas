@@ -245,7 +245,7 @@ export function BackHeader({ title }) {
             <Pressable onPress={() => nav.canGoBack() && nav.goBack()} hitSlop={12} style={s.back}>
                 <Ionicons name="arrow-back" size={24} color={text} />
             </Pressable>
-            <Text style={[s.title, { color: text }]} numberOfLines={1}>{title}</Text>
+            <Text style={[s.title, { color: text }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>{title}</Text>
         </View>
     );
 }

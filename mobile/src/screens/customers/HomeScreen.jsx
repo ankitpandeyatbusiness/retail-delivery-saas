@@ -828,7 +828,7 @@ const s = StyleSheet.create({
 
     hpad: { paddingHorizontal: 16, paddingVertical: 8 },
     banner: { height: 170, borderRadius: 24, overflow: 'hidden', padding: 20, justifyContent: 'center' },
-    bTitle: { fontSize: 24, fontWeight: '900', letterSpacing: -0.5, maxWidth: '72%', lineHeight: 29 },
+    bTitle: { fontSize: 24, fontWeight: '900', letterSpacing: -0.5, maxWidth: '72%', lineHeight: 32 },
     bSub: { fontSize: 13, marginTop: 5, maxWidth: '70%', opacity: 0.92 },
     bPill: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', marginTop: 14, borderRadius: 99, paddingHorizontal: 16, paddingVertical: 8 },
     bPillTxt: { fontSize: 13, fontWeight: '800' },

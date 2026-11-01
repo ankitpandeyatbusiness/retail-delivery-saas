@@ -4,7 +4,7 @@
 // It is installed once, at start (App.js). typography.js swaps Text again later and wraps this one, so the two work together.
 import React from 'react';
 import * as RN from 'react-native';
-import { tr } from './index';
+import { tr, getLang } from './index';
 
 let installed = false;
 
@@ -18,7 +18,11 @@ export function installTextTranslation() {
         const BaseText = RN.Text;
         const BaseInput = RN.TextInput;
         const TText = React.forwardRef(function TText({ children, ...rest }, ref) {
-            return <BaseText ref={ref} {...rest}>{tx(children)}</BaseText>;
+            // a one-line text in another language is often longer than the English it was laid out for: it shrinks a little
+            // (to 80%) to fit, instead of being cut with "..." (a screen that already chose its own fitting keeps it)
+            const fit = rest.numberOfLines === 1 && rest.adjustsFontSizeToFit === undefined && getLang() !== 'en'
+                ? { adjustsFontSizeToFit: true, minimumFontScale: 0.8 } : null;
+            return <BaseText ref={ref} {...fit} {...rest}>{tx(children)}</BaseText>;
         });
         const TInput = React.forwardRef(function TInput({ placeholder, ...rest }, ref) {
             return <BaseInput ref={ref} {...rest} placeholder={typeof placeholder === 'string' ? tr(placeholder) : placeholder} />;

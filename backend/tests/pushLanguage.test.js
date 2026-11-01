@@ -29,7 +29,8 @@ describe('push in the person\'s language', () => {
         const t = texts.build('order_status', { status: 'accepted', orderNo: 1042, brief: '2× Butter Naan', total: 540 });
         assert.equal(i18n.translate(t.title, 'hi'), 'ऑर्डर #1042 स्वीकार हुआ');
         assert.match(i18n.translate(t.body, 'gu'), /^2× Butter Naan · ₹540\. /);
-        assert.equal(i18n.translate(t.title, 'bho'), i18n.translate(t.title, 'hi'), 'Bhojpuri falls back to Hindi');
+        assert.equal(i18n.translate(t.title, 'bho'), 'ऑर्डर #1042 स्वीकार भइल', 'Bhojpuri has its own words');
+        assert.equal(i18n.translate('Order is taking long', 'bho'), 'ऑर्डर में देर होत बा');
         assert.equal(i18n.translate(t.title, 'en'), t.title);
         assert.equal(i18n.translate('Something new nobody translated', 'hi'), 'Something new nobody translated');
         assert.equal(i18n.translate('Minimum order is ₹200', 'mr'), 'किमान ऑर्डर ₹200 आहे', 'server messages too');

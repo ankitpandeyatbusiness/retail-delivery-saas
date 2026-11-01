@@ -552,7 +552,7 @@ export default function ItemScreen() {
                                         </Text>
                                     </Press>
                                     <Press onPress={applyTyped} style={{ marginLeft: 8, height: 44, paddingHorizontal: 16, borderRadius: 12, backgroundColor: primary, alignItems: 'center', justifyContent: 'center' }}>
-                                        <Text style={{ color: '#FFFFFF', fontWeight: '800' }}>{tr('Set')}</Text>
+                                        <Text numberOfLines={1} style={{ color: '#FFFFFF', fontWeight: '800' }}>{tr('Set')}</Text>
                                     </Press>
                                 </View>
                             ) : null}

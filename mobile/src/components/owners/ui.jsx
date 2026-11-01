@@ -39,8 +39,8 @@ export function SectionTitle({ title, action, onAction }) {
     const { text, primary } = useBrand();
     return (
         <View style={s.sectionRow}>
-            <Text style={[s.sectionTitle, { color: text }]}>{title}</Text>
-            {action ? <Pressable onPress={onAction} hitSlop={10}><Text style={{ color: primary, fontWeight: '800', fontSize: 13 }}>{action}</Text></Pressable> : null}
+            <Text style={[s.sectionTitle, { color: text, flexShrink: 1, marginRight: action ? 10 : 0 }]}>{title}</Text>
+            {action ? <Pressable onPress={onAction} hitSlop={10} style={{ flexShrink: 0 }}><Text style={{ color: primary, fontWeight: '800', fontSize: 13 }}>{action}</Text></Pressable> : null}
         </View>
     );
 }
@@ -69,12 +69,12 @@ export function Chips({ options, value, onChange, style }) {
                         key={String(v)}
                         onPress={() => onChange(v)}
                         style={{
-                            flexGrow: 1, minWidth: 76, marginRight: 8, marginBottom: 8, paddingHorizontal: 14, paddingVertical: 11,
+                            flexGrow: 1, minWidth: 76, maxWidth: '100%', marginRight: 8, marginBottom: 8, paddingHorizontal: 14, paddingVertical: 11,   // a long word never runs past the screen
                             borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1,
                             borderColor: on ? primary : border, backgroundColor: on ? primary : 'transparent',
                         }}
                     >
-                        <Text numberOfLines={1} style={{ color: on ? onPrimary : text, fontWeight: '800', fontSize: 14 }}>{label}</Text>
+                        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={{ color: on ? onPrimary : text, fontWeight: '800', fontSize: 14, flexShrink: 1 }}>{label}</Text>
                     </Pressable>
                 );
             })}
@@ -110,7 +110,7 @@ export function Stat({ label, value, hint, color, wrap }) {
     const { text, muted } = useBrand();
     return (
         <View style={wrap ? { flexGrow: 1, flexBasis: '30%', minWidth: 100, marginBottom: 4, paddingRight: 8 } : { flex: 1, minWidth: 0 }}>
-            <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }} numberOfLines={1}>{label}</Text>
+            <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{label}</Text>
             <Text style={{ color: color || text, fontSize: 22, fontWeight: '900', marginTop: 2 }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{value}</Text>
             {hint ? <Text style={{ color: muted, fontSize: 11, marginTop: 1 }}>{hint}</Text> : null}
         </View>
@@ -149,7 +149,7 @@ export function Button({ label, onPress, icon, kind = 'primary', busy, working, 
                     ) : icon ? (
                         <Ionicons name={icon} size={18} color={ink} style={{ alignSelf: 'stretch', textAlignVertical: 'center', paddingLeft: 18, paddingRight: 8, paddingVertical: 15 }} />
                     ) : null}
-                    <Text numberOfLines={1} style={{ flexGrow: 1, flexShrink: 1, alignSelf: 'stretch', textAlign: 'center', textAlignVertical: 'center', color: ink, fontWeight: '800', fontSize: 15, paddingVertical: 14, paddingLeft: working || icon ? 0 : 18, paddingRight: working || icon ? 0 : 18 }}>{label}</Text>
+                    <Text numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.8} style={{ flexGrow: 1, flexShrink: 1, alignSelf: 'stretch', textAlign: 'center', textAlignVertical: 'center', color: ink, fontWeight: '800', fontSize: 15, paddingVertical: 14, paddingLeft: working || icon ? 0 : 18, paddingRight: working || icon ? 0 : 18 }}>{label}</Text>
                     {working || icon ? <Ionicons name={icon || 'ellipse'} size={18} color={ink} style={{ opacity: 0, alignSelf: 'stretch', textAlignVertical: 'center', paddingLeft: 8, paddingRight: 18, paddingVertical: 15 }} /> : null}
                 </>
             )}
@@ -392,7 +392,7 @@ function PageHeaderBase({ title, right }) {
             <Pressable onPress={() => nav.canGoBack() && nav.goBack()} hitSlop={12} style={{ paddingRight: 14 }}>
                 <Ionicons name="arrow-back" size={24} color={text} />
             </Pressable>
-            <Text style={{ flex: 1, color: text, fontSize: 18, fontWeight: '900' }} numberOfLines={1}>{title}</Text>
+            <Text style={{ flex: 1, color: text, fontSize: 18, fontWeight: '900' }} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>{title}</Text>
             {right}
         </View>
     );

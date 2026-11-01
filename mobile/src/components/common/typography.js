@@ -73,7 +73,9 @@ export async function applyTypography(fontStyle, look) {
         const Base = { Text: RN.Text, TextInput: RN.TextInput };
         const wrap = (Comp) => function FontComp({ style, ...rest }) {
             const flat = StyleSheet.flatten(style) || {};
-            if (flat.fontFamily) return <Comp style={style} {...rest} />;
+            // Inter, Lora and Nunito have only Latin letters: in Hindi, Marathi, Gujarati, Bengali or Bhojpuri the phone's own
+            // font is used, which has these scripts in every weight (a Latin-only family would make bold text thin)
+            if (flat.fontFamily || require('../../i18n').getLang() !== 'en') return <Comp style={style} {...rest} />;
             return <Comp {...rest} style={[style, { fontFamily: pick(weightOf(flat.fontWeight)), fontWeight: 'normal' }]} />;
         };
         const FText = wrap(Base.Text);

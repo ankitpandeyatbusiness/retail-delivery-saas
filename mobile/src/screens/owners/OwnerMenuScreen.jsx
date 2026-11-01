@@ -178,7 +178,7 @@ export default function OwnerMenuScreen() {
                     style={{ position: 'absolute', right: 20, bottom: 24, flexDirection: 'row', alignItems: 'center', backgroundColor: primary, paddingHorizontal: 18, height: 54, borderRadius: 27, elevation: 6, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } }}
                 >
                     <Ionicons name="add" size={24} color={onPrimary} />
-                    <Text style={{ color: onPrimary, fontWeight: '900', marginLeft: 6 }}>{tr('Add item')}</Text>
+                    <Text numberOfLines={1} style={{ color: onPrimary, fontWeight: '900', marginLeft: 6 }}>{tr('Add item')}</Text>
                 </Pressable>
             ) : null}
             <SoldOutSheet item={asking} onClose={() => setAsking(null)} onPick={pickSoldOut} />
