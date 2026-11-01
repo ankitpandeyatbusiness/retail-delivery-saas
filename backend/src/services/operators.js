@@ -190,7 +190,7 @@ async function checklist(toId) {
         SubscriptionInvoice.aggregate([{ $match: { status: 'pending' } }, { $group: { _id: null, count: { $sum: 1 }, amount: { $sum: '$total' } } }]),
         SmsWallet.aggregate([{ $match: { balancePaise: { $gt: 0 } } }, { $group: { _id: null, shops: { $sum: 1 }, paise: { $sum: '$balancePaise' } } }]),
         SettlementEntry.aggregate([{ $match: { voided: { $ne: true }, status: { $in: ['pending', 'partial'] }, owes: { $ne: null } } }, { $group: { _id: null, count: { $sum: 1 }, amount: { $sum: { $subtract: ['$dueAmount', '$paidAmount'] } } } }]),
-        LegalDocument.find({ key: { $in: ['owner_terms', 'rider_terms', 'customer_terms', 'privacy'] } }).select('key currentVersion versions.publishedAt versions.operatorName').lean(),
+        LegalDocument.find({ key: { $in: ['owner_terms', 'customer_terms', 'privacy'] } }).select('key currentVersion versions.publishedAt versions.operatorName').lean(),
         Tenant.countDocuments({ status: { $ne: 'suspended' } }),
     ]);
     const sameCompany = to && String(live?.activeOperatorId) === String(to._id);

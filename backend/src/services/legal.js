@@ -4,8 +4,7 @@
 //   (names filled in) and asks everybody in that audience to agree:
 //     team      every other superadmin (not the supreme one) -> team_terms
 //     owner     shop owners (role admin)                     -> owner_terms
-//     rider     riders: they only READ rider_terms, customer_terms and privacy; nothing to agree to
-//     customer  customers: they only READ customer_terms and privacy; nothing to agree to
+//     customer  customers, riders, kitchen staff and waiters: they only READ customer_terms, privacy and about_us; nothing to agree to
 //
 //   WHEN the agree screen shows: on the person's SECOND visit after the version was sent (a visit = opening the app after at least
 //   30 minutes away), never at the first. A document sent as askWhen "free_ends" waits for the shop's free period to end.
@@ -24,7 +23,6 @@ const { httpError } = require('../middlewares/apiErrors');
 const VISIT_GAP_MS = 30 * 60000;
 const KEYS = Object.keys(DOCS);
 const GATE_DOC = { team: 'team_terms', owner: ['owner_terms', 'owner_privacy'] };
-const READ_ONLY_DOC = { rider: 'rider_terms' };   // riders only read their terms, nothing to agree to
 const PUBLIC_KEYS = ['customer_terms', 'privacy', 'about_us'];
 
 /* ------------------------------ the text ------------------------------ */
@@ -35,7 +33,7 @@ async function variables() {
     const contact = b.contactPhone || b.phone;
     const day = new Date(Date.now() + 330 * 60000).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
     return {
-        platformName: b.appName || 'the platform',
+        platformName: b.appName || 'Vivyaan',
         operatorName: b.legalName || '[operator name]',
         operatorAddress: b.address || '[operator address]',
         operatorGstin: b.gstin ? ` (GSTIN ${b.gstin})` : '',
@@ -61,6 +59,11 @@ async function ensureDocs() {
             { key },
             { $setOnInsert: { key, audience: d.audience, draft: { title: d.title, body: d.body, updatedAt: new Date(), updatedBy: 'system' }, currentVersion: 0, versions: [] } },
             { upsert: true },
+        );
+        // a draft that nobody has edited follows the template (so a new wording reaches the admin app by itself)
+        await LegalDocument.updateOne(
+            { key, 'draft.updatedBy': 'system', $or: [{ 'draft.body': { $ne: d.body } }, { 'draft.title': { $ne: d.title } }] },
+            { $set: { 'draft.title': d.title, 'draft.body': d.body, 'draft.updatedAt': new Date(), audience: d.audience } },
         );
     }
 }
@@ -231,7 +234,7 @@ async function accept({ who, userId, role, admin, tenant, key, version, name, ph
 async function mine({ who, userId, role, admin }) {
     await ensureDocs();
     const own = gateKeysFor({ who, role, admin });
-    const keys = [...new Set([...own, who === 'user' ? READ_ONLY_DOC[role] : null, 'customer_terms', 'privacy'].filter(Boolean))];
+    const keys = [...new Set([...own, 'customer_terms', 'privacy'].filter(Boolean))];
     const docs = await LegalDocument.find({ key: { $in: keys } }).lean();
     const acc = await LegalAcceptance.find({ who, userId, docKey: { $in: keys } }).sort({ version: -1 }).lean();
     return keys.map((key) => {
@@ -290,6 +293,6 @@ async function markHandover(tenantId, on, by) {
 }
 
 module.exports = {
-    KEYS, PUBLIC_KEYS, GATE_DOC, READ_ONLY_DOC, gateKeysFor, ensureDocs, list, getFull, saveDraft, publish, readCurrent, status, accept, mine, acceptances, markHandover,
+    KEYS, PUBLIC_KEYS, GATE_DOC, gateKeysFor, ensureDocs, list, getFull, saveDraft, publish, readCurrent, status, accept, mine, acceptances, markHandover,
     variables, fill, blanksIn, shopNameFor, gateKeyFor, isSupremeAdmin, VISIT_GAP_MS,
 };

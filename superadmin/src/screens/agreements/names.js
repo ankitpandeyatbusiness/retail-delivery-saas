@@ -4,7 +4,6 @@ export const DOC_NAME = {
     owner_terms: 'Terms for shop owners',
     owner_privacy: 'Privacy Policy for shop owners',
     about_us: 'About Us',
-    rider_terms: 'Terms for riders',
     customer_terms: 'Terms of Service',
     privacy: 'Privacy Policy',
 };
@@ -13,7 +12,6 @@ export const DOC_FOR = {
     owner_terms: 'shop owners',
     owner_privacy: 'shop owners',
     about_us: 'everyone (read only)',
-    rider_terms: 'riders (read only)',
     customer_terms: 'customers (read only)',
     privacy: 'customers (read only)',
 };

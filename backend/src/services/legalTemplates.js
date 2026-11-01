@@ -92,38 +92,6 @@ By pressing "Agree" you confirm that you are the owner (or authorised by the own
     },
 
     /* --------------------------------------------------------------------------------------------------------------- */
-    rider_terms: {
-        audience: 'customer',
-        title: 'Terms for delivery riders',
-        body: `# Terms for delivery riders
-Effective {{effectiveDate}}. These terms are for riders who deliver orders through {{platformName}}.
-
-# 1. Who you work for
-You deliver for the shop that added you in the app. The shop decides what it pays you. {{platformName}} is the software that connects the shop, the customer and you. You are not an employee of the platform.
-
-# 2. How it works
-- You get an offer for an order. You can accept or reject it.
-- After you pick up the order, you deliver it to the customer, ask for the delivery PIN when the shop uses one, and collect cash if the order is cash on delivery.
-- Cash you collect belongs to the shop. Hand it over as the shop tells you; the app keeps a record of what you owe.
-
-# 3. Your location
-While you have an order, the app shares your location with the shop and the customer so they can see where you are. Keep the app open while you deliver. We do not use your location for anything else.
-
-# 4. Your conduct
-- Deliver safely and follow the traffic rules.
-- Be polite to customers and to the shop. Handle the food with care.
-- Do not use the app for anything unlawful, and do not share your login or OTP with anyone.
-
-# 5. Your data
-Your name, phone and delivery record are used to run the service and are shown to the shop that added you. We do not sell your data.
-
-# 6. Stopping
-The shop or the platform can remove you from the app. You can stop at any time after finishing the orders you accepted and handing over any cash you hold.
-
-# 7. Changes
-These terms may change. The current version is always in the app, under Terms and privacy. By working as a rider you accept them.`,
-    },
-
     /* --------------------------------------------------------------------------------------------------------------- */
     customer_terms: {
         audience: 'customer',

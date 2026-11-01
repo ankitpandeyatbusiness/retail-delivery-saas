@@ -44,7 +44,7 @@ describe('the documents', () => {
     test('six documents start as drafts; everybody can read, only the supreme admin writes and sends', async () => {
         const list = await api('get', '/agreements', vivek);
         assert.equal(list.status, 200, JSON.stringify(list.body));
-        assert.deepEqual(list.body.items.map((d) => d.key).sort(), ['about_us', 'customer_terms', 'owner_privacy', 'owner_terms', 'privacy', 'rider_terms', 'team_terms']);
+        assert.deepEqual(list.body.items.map((d) => d.key).sort(), ['about_us', 'customer_terms', 'owner_privacy', 'owner_terms', 'privacy', 'team_terms']);
         assert.ok(list.body.items.every((d) => d.currentVersion === 0));
         assert.equal((await api('put', '/agreements/owner_terms/draft', vivek, { title: 'x', body: 'y'.repeat(40) })).status, 403);
         assert.equal((await send('owner_terms').then(() => api('post', '/agreements/owner_terms/send', vivek, {}))).status, 403);
@@ -108,7 +108,7 @@ describe('the second visit', () => {
 
         const wrongVersion = await legal.accept({ ...asUser(w.owner), tenant: t, key: 'owner_terms', version: 1, name: 'Owner', phone: '9000000010' });
         assert.equal(wrongVersion.ok, true);
-        await assert.rejects(legal.accept({ ...asUser(w.owner), tenant: t, key: 'rider_terms', version: 1 }), /not a document for you/);
+        await assert.rejects(legal.accept({ ...asUser(w.owner), tenant: t, key: 'team_terms', version: 1 }), /not a document for you/);
         const done = await legal.status({ ...asUser(w.owner), tenant: t, now: new Date(t0.getTime() + 200 * MIN) });
         assert.deepEqual([done.required, done.agreed], [false, true]);
         assert.equal(await LegalAcceptance.countDocuments({}), 1);
@@ -126,7 +126,6 @@ describe('the second visit', () => {
 
     test('through the app routes: the visit count, the agree call, and what each role can read', async () => {
         await send('owner_terms');
-        await send('rider_terms');
         await api('post', `/agreements/handover/${w.tenant._id}`, boss, {});
         const get = (u, url) => request(app).get(`/api/legal${url}`).set(u.headers);
         const s1 = await get(w.owner, '/status');
@@ -134,7 +133,7 @@ describe('the second visit', () => {
         assert.equal(s1.body.required, false);
         assert.equal((await get(w.customer, '/status')).body.required, false);          // customers never agree to anything
         assert.equal((await get(w.customer, '/doc/owner_terms')).status, 404);          // and cannot read an owner's terms
-        assert.equal((await get(w.owner, '/doc/rider_terms')).status, 404);
+        assert.equal((await get(w.owner, '/doc/team_terms')).status, 404);
         const mine = await get(w.owner, '/mine');
         assert.deepEqual(mine.body.items.map((d) => d.key).sort(), ['customer_terms', 'owner_privacy', 'owner_terms', 'privacy']);
         assert.equal(mine.body.items.find((d) => d.key === 'owner_terms').mustAgree, true);
@@ -175,15 +174,25 @@ describe('the second visit', () => {
         assert.equal(after.required, false);
     });
 
-    test('a rider only reads the rider terms: never asked to agree', async () => {
-        await send('rider_terms');
+    test('an unedited draft follows the template, an edited one is left alone', async () => {
+        const LegalDocument = require('../src/models/LegalDocument');
+        await legal.ensureDocs();
+        await LegalDocument.updateOne({ key: 'privacy' }, { $set: { 'draft.body': 'OLD TEXT', 'draft.updatedBy': 'system' } });
+        await LegalDocument.updateOne({ key: 'about_us' }, { $set: { 'draft.body': 'MY OWN TEXT', 'draft.updatedBy': 'Ankit' } });
+        await legal.ensureDocs();
+        assert.notEqual((await LegalDocument.findOne({ key: 'privacy' })).draft.body, 'OLD TEXT');
+        assert.equal((await LegalDocument.findOne({ key: 'about_us' })).draft.body, 'MY OWN TEXT');
+    });
+
+    test('a rider only reads the customer documents: never asked to agree', async () => {
+        await send('customer_terms');
         const t = await reload();
         const t0 = new Date(Date.now() + MIN);
         await legal.status({ ...asUser(w.rider), tenant: t, now: t0 });
         const second = await legal.status({ ...asUser(w.rider), tenant: t, now: new Date(t0.getTime() + 40 * MIN) });
         assert.equal(second.required, false);
         const mine = await legal.mine({ ...asUser(w.rider) });
-        assert.ok(mine.some((d) => d.key === 'rider_terms' && !d.mustAgree));
+        assert.ok(mine.some((d) => d.key === 'customer_terms' && !d.mustAgree));
     });
 });
 
