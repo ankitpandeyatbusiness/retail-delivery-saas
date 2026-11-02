@@ -15,6 +15,7 @@ import { addrLine } from '../../components/customers/addresses';
 import { fetchBulk, cancelBulk, changeBulk, startBulkPay, startBulkBalance, previewCancelBulk } from '../../api/customers/shopApi';
 import { viewInvoice, saveInvoice } from '../../components/customers/invoice';
 import { onNotification } from '../../api/common/socket';
+import { Thumb } from './BulkOrderScreen';
 import { tr } from '../../i18n';
 
 export const BULK_STATUS = {
@@ -33,14 +34,30 @@ const STAGE_TEXT = {
 export const bulkTone =(st, b) => (['declined', 'cancelled', 'expired'].includes(st) ? b.error : ['confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'completed'].includes(st) ? b.ok : b.primary);
 export const whenText = (d) => new Date(d).toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
 
-function Line({ l, text, muted, ok }) {
+// was = the same dish in the customer's own estimate: when the shop changed its price, the old one is struck through next to the new one
+function Line({ l, text, muted, ok, was }) {
+    const changed = was && Math.abs((was.unitPrice || 0) - (l.unitPrice || 0)) > 0.005;
     return (
-        <View style={{ flexDirection: 'row', paddingVertical: 5 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 5 }}>
+            <View style={{ marginRight: 10 }}><Thumb uri={l.image} size={40} /></View>
             <View style={{ flex: 1, paddingRight: 8 }}>
                 <Text style={{ color: text, fontWeight: '700' }}>{l.name}{l.options?.length ? ` · ${l.options.join(', ')}` : ''}</Text>
-                <Text style={{ color: l.bulkApplied ? ok : muted, fontSize: 12 }}>{l.quantity} × {rs(l.unitPrice)}</Text>
+                <Text style={{ color: l.bulkApplied ? ok : muted, fontSize: 12 }}>{l.quantity} × {changed ? <Text style={{ textDecorationLine: 'line-through' }}>{rs(was.unitPrice)}</Text> : null}{changed ? '  ' : ''}{rs(l.unitPrice)}</Text>
             </View>
-            <Text style={{ color: text, fontWeight: '800' }}>{rs(l.lineTotal)}</Text>
+            <View style={{ alignItems: 'flex-end' }}>
+                {changed ? <Text style={{ color: muted, fontSize: 12, textDecorationLine: 'line-through' }}>{rs(was.lineTotal)}</Text> : null}
+                <Text style={{ color: text, fontWeight: '800' }}>{rs(l.lineTotal)}</Text>
+            </View>
+        </View>
+    );
+}
+// one row of "what the shop changed": the old amount struck through, then the new one
+function Delta({ k, was, now, text, muted, bold }) {
+    return (
+        <View style={{ flexDirection: 'row', paddingVertical: 2, alignItems: 'center' }}>
+            <Text style={{ flex: 1, color: bold ? text : muted, fontWeight: bold ? '900' : '600' }}>{k}</Text>
+            {was !== null && was !== undefined ? <Text style={{ color: muted, textDecorationLine: 'line-through', marginRight: 8 }}>{rs(was)}</Text> : null}
+            <Text style={{ color: text, fontWeight: bold ? '900' : '700' }}>{now}</Text>
         </View>
     );
 }
@@ -118,6 +135,18 @@ export default function BulkOrderDetailScreen() {
     const p = showQuote ? q.pricing : o.pricing;
     const open = !!o.cancel?.canCancel;   // before paying always; after paying only while the shop has not started
     const pd = o.payment;                 // { advancePaise, paidAt, kept, refundPaise, refundStatus } once the advance is paid
+    // the customer's own estimate, by dish, and what is different in the quote (so a change by the shop is never a surprise)
+    const asked = new Map((o.lines || []).map((l) => [String(l.id), l]));
+    const changes = [];
+    if (showQuote && o.pricing && q?.pricing) {
+        const a = o.pricing; const b = q.pricing; const diff = (x, y) => Math.abs((x || 0) - (y || 0)) > 0.005;
+        if (diff(a.subtotal, b.subtotal)) changes.push({ k: tr('Items'), was: a.subtotal, now: rs(b.subtotal) });
+        if (b.discount > 0) changes.push({ k: b.discountPercent ? tr('Shop discount ({p}%)', { p: b.discountPercent }) : tr('Discount'), was: null, now: `− ${rs(b.discount)}` });
+        if (diff(a.packagingCharge, b.packagingCharge)) changes.push({ k: tr('Packaging'), was: a.packagingCharge, now: rs(b.packagingCharge) });
+        if (o.fulfilment === 'delivery' && diff(a.deliveryFee, b.deliveryFee)) changes.push({ k: tr('Delivery'), was: a.deliveryFee, now: b.deliveryFee > 0 ? rs(b.deliveryFee) : tr('Free') });
+        if (diff(a.taxOnTop, b.taxOnTop)) changes.push({ k: tr('GST'), was: a.taxOnTop, now: rs(b.taxOnTop) });
+        if (!diff(a.total, b.total) && !changes.length) changes.length = 0;
+    }
 
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
@@ -137,12 +166,31 @@ export default function BulkOrderDetailScreen() {
                     {o.status === 'requested' && o.changeNote ? <Text style={{ color: muted, marginTop: 8 }}>{tr('You asked: {r}', { r: o.changeNote })}</Text> : null}
                 </Card>
 
+                {/* the pickup code: shown while the order is being made, to be told at the counter */}
+                {o.pickupCode ? (
+                    <View style={{ alignItems: 'center', marginHorizontal: 16, marginTop: 12, padding: 16, borderRadius: 18, backgroundColor: brand.primary + '1F' }}>
+                        <Text style={{ color: muted, fontWeight: '700', fontSize: 12.5 }}>{tr('YOUR PICKUP CODE')}</Text>
+                        <Text style={{ color: brand.primary, fontSize: 40, fontWeight: '900', letterSpacing: 12, marginTop: 4, paddingLeft: 12 }}>{o.pickupCode}</Text>
+                        <Text style={{ color: muted, fontSize: 12.5, marginTop: 6, textAlign: 'center' }}>{o.status === 'ready' ? tr('Your order is ready. Show this code when you collect it.') : tr('Show this code when you collect your order.')}</Text>
+                    </View>
+                ) : null}
+
+                {/* what the shop changed against the customer's own estimate */}
+                {showQuote && changes.length ? (
+                    <Card>
+                        <Text style={{ color: text, fontWeight: '900', marginBottom: 6 }}>{tr('What the shop changed')}</Text>
+                        {changes.map((c) => <Delta key={c.k} k={c.k} was={c.was} now={c.now} text={text} muted={muted} />)}
+                        <View style={{ height: 1, backgroundColor: border, marginVertical: 6 }} />
+                        <Delta k={tr('Your estimate became')} was={o.pricing.total} now={rs(q.pricing.total)} text={text} muted={muted} bold />
+                    </Card>
+                ) : null}
+
                 <SectionTitle title={showQuote ? tr('The shop\'s quote') : tr('What you asked for (estimate)')} />
                 <Card>
-                    {lines.map((l) => <Line key={l.id || l.productId + l.name} l={l} text={text} muted={muted} ok={ok} />)}
+                    {lines.map((l) => <Line key={l.id || l.productId + l.name} l={l} text={text} muted={muted} ok={ok} was={showQuote ? asked.get(String(l.id)) : undefined} />)}
                     <View style={{ height: 1, backgroundColor: border, marginVertical: 8 }} />
                     <Sum k={tr('Items')} v={rs(p.subtotal)} text={text} muted={muted} />
-                    {p.discount > 0 ? <Sum k={tr('Discount')} v={`− ${rs(p.discount)}`} text={text} muted={muted} /> : null}
+                    {p.discount > 0 ? <Sum k={p.discountPercent ? tr('Shop discount ({p}%)', { p: p.discountPercent }) : tr('Discount')} v={`− ${rs(p.discount)}`} text={text} muted={muted} /> : null}
                     {p.taxOnTop > 0 ? <Sum k={tr('GST')} v={rs(p.taxOnTop)} text={text} muted={muted} /> : null}
                     {p.packagingCharge > 0 ? <Sum k={tr('Packaging')} v={rs(p.packagingCharge)} text={text} muted={muted} /> : null}
                     {o.fulfilment === 'delivery' ? <Sum k={tr('Delivery')} v={p.deliveryFee > 0 ? rs(p.deliveryFee) : tr('Free')} text={text} muted={muted} /> : null}

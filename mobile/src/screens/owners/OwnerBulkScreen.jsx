@@ -2,6 +2,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
 import useBulkLive from '../../hooks/common/useBulkLive';
+import { Thumb } from '../customers/BulkOrderScreen';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
@@ -71,7 +72,11 @@ export default function OwnerBulkScreen() {
                             <Text numberOfLines={1} style={{ flex: 1, color: text, fontWeight: '900', fontSize: 16 }}>{o.contact?.company || o.contact?.name} · {o.code}</Text>
                             <Pill label={tr(BULK_STATUS[o.status] || o.status)} color={bulkTone(o.status, brand)} />
                         </View>
-                        <Text style={{ color: muted, marginTop: 4 }}>{o.fulfilment === 'delivery' ? tr('Delivery') : tr('Pickup')} · {whenText(o.when)}</Text>
+                        <View style={{ flexDirection: 'row', marginTop: 8 }}>
+                            {(o.lines || []).slice(0, 4).map((l, i) => <View key={`${l.productId}${i}`} style={{ marginRight: -8 }}><Thumb uri={l.image} size={36} /></View>)}
+                            {(o.lines || []).length > 4 ? <Text style={{ color: muted, fontWeight: '800', alignSelf: 'center', marginLeft: 14 }}>+{o.lines.length - 4}</Text> : null}
+                        </View>
+                        <Text style={{ color: muted, marginTop: 6 }}>{o.fulfilment === 'delivery' ? tr('Delivery') : tr('Pickup')} · {whenText(o.when)}</Text>
                         <Text style={{ color: text, marginTop: 4 }}>{o.lines.reduce((n, l) => n + l.quantity, 0)} {tr('pieces')} · {rs(o.quote?.pricing?.total ?? o.pricing?.total)}</Text>
                     </Card>
                 ))}

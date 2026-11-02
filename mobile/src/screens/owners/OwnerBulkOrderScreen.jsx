@@ -6,8 +6,9 @@ import useBulkLive from '../../hooks/common/useBulkLive';
 import { useFocusEffect, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
-import { PageHeader, Card, Pill, Button, Empty, Sheet, SectionTitle } from '../../components/owners/ui';
-import { TextBox, NumberBox, Group } from '../../components/owners/menuBits';
+import { PageHeader, Card, Pill, Button, Empty, Sheet, SectionTitle, Field, Chips } from '../../components/owners/ui';
+import { Thumb } from '../customers/BulkOrderScreen';
+import { TextBox, NumberBox, Group, Label } from '../../components/owners/menuBits';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { showToast } from '../../components/customers/shop';
 import { rs } from '../../components/customers/orders';
@@ -29,6 +30,9 @@ export default function OwnerBulkOrderScreen() {
     const [price, setPrice] = useState({});         // line id -> unit price
     const [gone, setGone] = useState({});           // line id -> left out of the quote
     const [discount, setDiscount] = useState(undefined);
+    const [discountMode, setDiscountMode] = useState('rupees');   // rupees | percent: how the discount is typed
+    const [codeOpen, setCodeOpen] = useState(false);               // a pickup is being handed over: asks for the customer's 4-digit code
+    const [code, setCode] = useState('');
     const [delivery, setDelivery] = useState(undefined);
     const [packaging, setPackaging] = useState(undefined);
     const [advance, setAdvance] = useState(undefined);
@@ -68,6 +72,7 @@ export default function OwnerBulkOrderScreen() {
     const delivered = o.fulfilment === 'delivery';
     const kept = o.lines.filter((l) => !gone[l.id]);
     const subtotal = kept.reduce((n, l) => n + (Number(price[l.id]) || 0) * l.quantity, 0);
+    const discountRupees = !discount ? 0 : discountMode === 'percent' ? Math.round(subtotal * Math.min(90, discount)) / 100 : Math.min(discount, subtotal);
 
     const send = async () => {
         if (!kept.length) return showToast(tr('Keep at least one dish in the quote'));
@@ -75,7 +80,7 @@ export default function OwnerBulkOrderScreen() {
         try {
             const r = await api.quote(id, {
                 lines: kept.map((l) => ({ id: l.id, unitPrice: Number(price[l.id]) || 0 })),
-                ...(discount ? { discount } : {}), ...(delivered && delivery !== undefined ? { deliveryFee: delivery } : {}), ...(packaging !== undefined ? { packagingCharge: packaging } : {}),
+                ...(discount ? (discountMode === 'percent' ? { discountPercent: Math.min(90, discount) } : { discount }) : {}), ...(delivered && delivery !== undefined ? { deliveryFee: delivery } : {}), ...(packaging !== undefined ? { packagingCharge: packaging } : {}),
                 ...(advance ? { advancePercent: advance } : {}), ...(hours ? { validHours: hours } : {}), note: note.trim(),
             });
             setO(r); showToast(tr('Quote sent to the customer'));
@@ -102,9 +107,10 @@ export default function OwnerBulkOrderScreen() {
     const next = NEXT[o.status];
     const cashDue = !!o.payment && !o.payment.balancePaid && (q?.balancePaise || 0) > 0 && ['ready', 'out_for_delivery', 'delivered'].includes(o.status);
     const cancelable = ['confirmed', 'preparing', 'ready', 'out_for_delivery'].includes(o.status);
-    const move = async (step) => {
+    const move = async (step, extra) => {
+        if (step.to === 'delivered' && !delivered && !extra) { setCode(''); setCodeOpen(true); return; }   // a pickup is handed over against the customer's code
         setBusy(true);
-        try { setO(await api.stage(id, step.to)); } catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); load(); } finally { setBusy(false); }
+        try { setO(await api.stage(id, step.to, extra)); setCodeOpen(false); } catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); load(); } finally { setBusy(false); }
     };
     const cash = async () => {
         if (!(await ask({ title: tr('Cash received?'), message: tr('Did you receive {a} in cash from the customer? This cannot be undone.', { a: rs(q.balancePaise / 100) }), confirmText: tr('Yes, received'), cancelText: tr('Go back') }))) return;
@@ -146,7 +152,8 @@ export default function OwnerBulkOrderScreen() {
                             {o.lines.map((l) => (
                                 <View key={l.id} style={{ opacity: gone[l.id] ? 0.4 : 1, paddingBottom: 6 }}>
                                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                        <Text style={{ flex: 1, color: text, fontWeight: '800' }}>{l.quantity} × {l.name}{l.options?.length ? ` · ${l.options.join(', ')}` : ''}</Text>
+                                        <Thumb uri={l.image} size={44} />
+                                        <Text style={{ flex: 1, color: text, fontWeight: '800', marginLeft: 10 }}>{l.quantity} × {l.name}{l.options?.length ? ` · ${l.options.join(', ')}` : ''}</Text>
                                         <Pressable onPress={() => setGone((g) => ({ ...g, [l.id]: !g[l.id] }))} hitSlop={8}>
                                             <Text style={{ color: gone[l.id] ? primary : error, fontWeight: '800' }}>{gone[l.id] ? tr('Add back') : tr('Remove')}</Text>
                                         </Pressable>
@@ -157,7 +164,9 @@ export default function OwnerBulkOrderScreen() {
                             ))}
                             <View style={{ height: 1, backgroundColor: border, marginVertical: 8 }} />
                             <Text style={{ color: text, fontWeight: '900', marginBottom: 12 }}>{tr('Items')}: {rs(subtotal)}</Text>
-                            <NumberBox label={tr('Discount (₹)')} prefix="₹" value={discount} onChange={setDiscount} />
+                            <Label>{tr('Discount')}</Label>
+                            <Chips value={discountMode} onChange={(m) => { setDiscountMode(m); setDiscount(undefined); }} options={[['rupees', tr('Amount ₹')], ['percent', tr('Percent %')]]} />
+                            <NumberBox prefix={discountMode === 'percent' ? undefined : '₹'} suffix={discountMode === 'percent' ? '%' : undefined} placeholder={discountMode === 'percent' ? '5' : '0'} value={discount} onChange={setDiscount} hint={discountRupees > 0 ? (discountMode === 'percent' ? tr('The customer is told: {p}% discount, {a} off', { p: discount, a: rs(discountRupees) }) : undefined) : undefined} />
                             {delivered ? <NumberBox label={tr('Delivery fee')} hint={tr('Filled in from your bulk delivery fee')} prefix="₹" value={delivery} onChange={setDelivery} /> : null}
                             <NumberBox label={tr('Packaging')} prefix="₹" value={packaging} onChange={setPackaging} />
                             <NumberBox label={tr('Advance to confirm')} hint={tr('The customer pays this much now and the rest on {w}', { w: delivered ? tr('delivery') : tr('pickup') })} suffix="%" value={advance} onChange={setAdvance} />
@@ -174,7 +183,8 @@ export default function OwnerBulkOrderScreen() {
                         <SectionTitle title={sent ? tr('The quote you sent') : tr('What was asked (estimate)')} />
                         <Card>
                             {(sent ? q.lines : o.lines).map((l) => (
-                                <View key={l.id || l.name} style={{ flexDirection: 'row', paddingVertical: 4 }}>
+                                <View key={l.id || l.name} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 4 }}>
+                                    <View style={{ marginRight: 10 }}><Thumb uri={l.image} size={40} /></View>
                                     <Text style={{ flex: 1, color: text }}>{l.quantity} × {l.name}{l.options?.length ? ` · ${l.options.join(', ')}` : ''}  <Text style={{ color: muted }}>@ {rs(l.unitPrice)}</Text></Text>
                                     <Text style={{ color: text, fontWeight: '800' }}>{rs(l.lineTotal)}</Text>
                                 </View>
@@ -182,7 +192,7 @@ export default function OwnerBulkOrderScreen() {
                             <View style={{ height: 1, backgroundColor: border, marginVertical: 8 }} />
                             {(() => { const p = sent ? q.pricing : o.pricing; return (
                                 <>
-                                    {p.discount > 0 ? <Text style={{ color: muted }}>{tr('Discount')}: − {rs(p.discount)}</Text> : null}
+                                    {p.discount > 0 ? <Text style={{ color: muted }}>{p.discountPercent ? tr('Discount ({p}%)', { p: p.discountPercent }) : tr('Discount')}: − {rs(p.discount)}</Text> : null}
                                     {p.taxOnTop > 0 ? <Text style={{ color: muted }}>GST: {rs(p.taxOnTop)}</Text> : null}
                                     {delivered ? <Text style={{ color: muted }}>{tr('Delivery')}: {rs(p.deliveryFee)}</Text> : null}
                                     <Text style={{ color: text, fontWeight: '900', fontSize: 16, marginTop: 4 }}>{tr('Total')}: {rs(p.total)}</Text>
@@ -216,6 +226,13 @@ export default function OwnerBulkOrderScreen() {
                     </>
                 )}
             </ScrollView>
+
+            <Sheet visible={codeOpen} onClose={() => setCodeOpen(false)} title={tr('Pickup code')}>
+                <Text style={{ fontSize: 14, marginBottom: 12, color: text }}>{tr('Ask the customer for his 4-digit pickup code. It is on his order page.')}</Text>
+                <Field value={code} onChangeText={(x) => setCode(x.replace(/\D/g, '').slice(0, 4))} placeholder="••••" keyboardType="number-pad" maxLength={4} autoFocus style={{ fontSize: 28, fontWeight: '900', letterSpacing: 10, paddingLeft: 10, textAlign: 'center', minHeight: 60 }} />
+                <Button label={tr('Confirm and hand over')} icon="checkmark" busy={busy} disabled={code.length !== 4} onPress={() => move({ to: 'delivered' }, { pickupCode: code })} style={{ marginTop: 14 }} />
+                <Button label={tr('He cannot show the code. Hand over anyway')} kind="ghost" disabled={busy} onPress={() => move({ to: 'delivered' }, { skipCode: true })} style={{ marginTop: 10 }} />
+            </Sheet>
 
             <Sheet visible={declineOpen} onClose={() => setDeclineOpen(false)} title={tr('Why can you not take it?')}>
                 <TextBox value={reason} onChangeText={setReason} multiline maxLength={300} placeholder={tr('The customer will read this')} last />

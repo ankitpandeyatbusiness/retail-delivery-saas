@@ -67,7 +67,7 @@ describe('bulk order: stages, balance, completion, invoice', () => {
     };
     const verify = (pay, pid, h = w.customer.headers) => cust('post', `/${id}/verify`, { razorpay_order_id: pay.rzpOrderId, razorpay_payment_id: pid, razorpay_signature: sign(pay.rzpOrderId, pid) }, h);
     const payAdvance = async () => { const pay = (await cust('post', `/${id}/pay`)).body; const pid = capture(pay); const r = await verify(pay, pid); assert.equal(r.body.paid, true, JSON.stringify(r.body)); return pid; };
-    const stage = (to) => owner('post', `/${id}/stage`, { to });
+    const stage = (to) => owner('post', `/${id}/stage`, { to, ...(to === 'delivered' ? { skipCode: true } : {}) });
     const go = async (...steps) => { for (const s of steps) { const r = await stage(s); assert.equal(r.status, 200, `${s}: ${JSON.stringify(r.body)}`); } };
     const startBalance = () => cust('post', `/${id}/pay-balance`);
     const payBalance = async () => { const s = await startBalance(); assert.equal(s.status, 200, JSON.stringify(s.body)); const pid = capture(s.body); const r = await verify(s.body, pid); return { pay: s.body, pid, res: r }; };

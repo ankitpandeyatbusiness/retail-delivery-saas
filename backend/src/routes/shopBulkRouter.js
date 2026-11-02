@@ -37,7 +37,7 @@ router.get('/:id', wrap(async (req, res) => { res.json(bulk.ownerView(await bulk
 router.post('/:id/quote', wrap(async (req, res) => { res.json(await bulk.quote({ tenant: req.tenant, id: req.params.id, body: req.body || {} })); }));
 router.post('/:id/decline', wrap(async (req, res) => { res.json(await bulk.decline({ tenant: req.tenant, id: req.params.id, reason: req.body?.reason })); }));
 router.post('/:id/cancel', wrap(async (req, res) => { res.json(await bulk.ownerCancel({ tenant: req.tenant, id: req.params.id, reason: req.body?.reason })); }));   // a paid order: the customer gets the whole advance back
-router.post('/:id/stage', wrap(async (req, res) => { res.json(await bulk.setStage({ tenant: req.tenant, id: req.params.id, to: req.body?.to })); }));   // preparing | ready | out_for_delivery | delivered
+router.post('/:id/stage', wrap(async (req, res) => { res.json(await bulk.setStage({ tenant: req.tenant, id: req.params.id, to: req.body?.to, pickupCode: req.body?.pickupCode, skipCode: req.body?.skipCode === true })); }));   // preparing | ready | out_for_delivery | delivered
 router.post('/:id/cash-received', wrap(async (req, res) => { res.json(await bulk.markCash({ tenant: req.tenant, id: req.params.id })); }));   // the balance was paid in cash
 router.get('/:id/invoice', wrap(async (req, res) => {
     const { order, tenant } = await bulk.invoiceFor({ tenant: req.tenant, id: req.params.id });

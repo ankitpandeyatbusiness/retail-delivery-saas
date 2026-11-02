@@ -63,7 +63,7 @@ function OrderCard({ o, onOpen, onCustomer }) {
         <Card onPress={onOpen} style={{ opacity: gone ? 0.88 : 1, overflow: 'hidden', paddingLeft: 20 }}>
             <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 5, backgroundColor: tone }} />
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={{ color: text, fontWeight: '900', fontSize: 17 }}>#{o.orderNo}</Text>
+                <Text style={{ color: text, fontWeight: '900', fontSize: 17 }}>{o.bulk ? (o.bulk.code || tr('Bulk Order')) : `#${o.orderNo}`}</Text>
                 <Ionicons name="time-outline" size={13} color={muted} style={{ marginLeft: 10 }} />
                 <Text style={{ color: muted, fontSize: 12.5, marginLeft: 3, flex: 1 }}>{clock(o.createdAt)}</Text>
                 <Tag label={tr(STATUS[o.status] || o.status)} color={tone} icon={o.status === 'delivered' ? 'checkmark-circle' : gone ? 'close-circle' : 'ellipse'} />
@@ -82,6 +82,7 @@ function OrderCard({ o, onOpen, onCustomer }) {
             </View>
             {o.dishes ? <Text numberOfLines={2} style={{ color: muted, marginTop: 10, fontSize: 13.5, lineHeight: 19 }}>{o.dishes}</Text> : null}
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 10 }}>
+                {o.bulk ? <Tag label={tr('Bulk Order')} color={primary} icon="cube" /> : null}
                 <Tag label={tr(tlabel)} color={primary} icon={ticon} />
                 <Tag label={cash ? tr('Cash') : tr('Online')} color={cash ? warn : ok} icon={cash ? 'cash-outline' : 'card-outline'} />
                 {o.orders > 1 ? <Tag label={tr('Repeat customer')} color={ok} icon="repeat" /> : null}
@@ -110,6 +111,7 @@ export default function OwnerHistoryScreen() {
     const [dates, setDates] = useState(null);             // { from, to } for custom
     const [status, setStatus] = useState('');
     const [type, setType] = useState('');
+    const [kind, setKind] = useState('');                 // '' | normal | bulk
     const [pay, setPay] = useState('');
     const [data, setData] = useState(null);               // { items, hasMore, page, summary, byDay }
     const [more, setMore] = useState(false);
@@ -120,7 +122,7 @@ export default function OwnerHistoryScreen() {
 
     useEffect(() => { const t = setTimeout(() => setQ(input.trim()), 350); return () => clearTimeout(t); }, [input]);   // search a moment after he stops typing
 
-    const params = useMemo(() => ({ range, ...(range === 'custom' && dates ? { from: dates.from, to: dates.to } : {}), ...(q ? { q } : {}), ...(status ? { status } : {}), ...(type ? { type } : {}), ...(pay ? { pay } : {}) }), [range, dates, q, status, type, pay]);
+    const params = useMemo(() => ({ range, ...(range === 'custom' && dates ? { from: dates.from, to: dates.to } : {}), ...(q ? { q } : {}), ...(status ? { status } : {}), ...(type ? { type } : {}), ...(kind ? { kind } : {}), ...(pay ? { pay } : {}) }), [range, dates, kind, q, status, type, pay]);
     const load = useCallback(async (quiet) => {
         const id = ++req.current;
         try {
@@ -146,7 +148,7 @@ export default function OwnerHistoryScreen() {
         } catch (e) { showToast(apiError(e)); } finally { setMore(false); }
     };
 
-    const active = (range !== '24h' ? 1 : 0) + (status ? 1 : 0) + (type ? 1 : 0) + (pay ? 1 : 0);
+    const active = (range !== '24h' ? 1 : 0) + (status ? 1 : 0) + (type ? 1 : 0) + (kind ? 1 : 0) + (pay ? 1 : 0);
     const clearAll = () => { ease(); setRange('24h'); setDates(null); setStatus(''); setType(''); setPay(''); };
     const timeLabel = range === 'custom' && dates ? (dates.from === dates.to ? dates.from : `${dates.from} → ${dates.to}`) : tr(RANGE_LABEL[range] || RANGE_LABEL['24h']);
 
@@ -176,6 +178,7 @@ export default function OwnerHistoryScreen() {
                     {range !== '24h' ? <Chip label={timeLabel} onClear={() => { ease(); setRange('24h'); setDates(null); }} /> : null}
                     {status ? <Chip label={tr({ delivered: 'Delivered', cancelled: 'Cancelled', progress: 'In progress' }[status])} onClear={() => { ease(); setStatus(''); }} /> : null}
                     {type ? <Chip label={tr(TYPE[type][1])} onClear={() => { ease(); setType(''); }} /> : null}
+                    {kind ? <Chip label={kind === 'bulk' ? tr('Bulk') : tr('Normal')} onClear={() => { ease(); setKind(''); }} /> : null}
                     {pay ? <Chip label={tr({ cash: 'Cash', online: 'Online', unpaid: 'Unpaid' }[pay])} onClear={() => { ease(); setPay(''); }} /> : null}
                 </View>
             ) : null}
@@ -242,7 +245,7 @@ export default function OwnerHistoryScreen() {
                         <View style={{ flex: 1, height: 1, backgroundColor: alpha(muted, 0.25), marginHorizontal: 10 }} />
                         {data.byDay?.[item.head] ? <Text style={{ color: muted, fontSize: 12.5, fontWeight: '700' }}>{tr('{n} orders', { n: data.byDay[item.head].orders })} · {rs(data.byDay[item.head].sales)}</Text> : null}
                     </View>
-                ) : <OrderCard o={item.o} onOpen={() => nav.navigate('OwnerOrder', { id: item.o._id })} onCustomer={() => { ease(); setRange('month'); setDates(null); setInput(item.o.customer.phone); }} />}
+                ) : <OrderCard o={item.o} onOpen={() => (item.o.bulk ? nav.navigate('OwnerBulkOrder', { id: item.o.bulk.id }) : nav.navigate('OwnerOrder', { id: item.o._id }))} onCustomer={() => { ease(); setRange('month'); setDates(null); setInput(item.o.customer.phone); }} />}
             />
 
             <FilterPopup
@@ -251,6 +254,7 @@ export default function OwnerHistoryScreen() {
                     { key: 'time', title: tr('Time'), options: [['24h', 'Last 24 hours'], ['week', 'Last week'], ['month', 'Last month'], ['day', 'Pick a date'], ['range', 'Pick dates']], value: range === 'custom' ? '' : range,
                         onChange: (v) => { if (v === 'day' || v === 'range') { setSheet(v); return; } setRange(v); setDates(null); } },
                     { key: 'status', title: tr('Status'), options: [['', 'All'], ['delivered', 'Delivered'], ['cancelled', 'Cancelled'], ['progress', 'In progress']], value: status, onChange: setStatus },
+                    { key: 'kind', title: tr('Kind'), options: [['', 'All'], ['normal', 'Normal'], ['bulk', 'Bulk']], value: kind, onChange: setKind },
                     { key: 'type', title: tr('Type'), options: [['', 'All'], ['delivery', 'Delivery'], ['pickup', 'Pickup'], ['dine_in', 'Dine in']], value: type, onChange: setType },
                     { key: 'pay', title: tr('Payment'), options: [['', 'All'], ['cash', 'Cash'], ['online', 'Online'], ['unpaid', tr('Unpaid')]], value: pay, onChange: setPay },
                 ]}

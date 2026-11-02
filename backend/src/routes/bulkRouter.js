@@ -39,7 +39,7 @@ router.post('/', wrap(async (req, res) => {
     res.status(r.duplicate ? 200 : 201).json(bulk.customerView(r.order));
 }));
 router.get('/mine', wrap(async (req, res) => { res.json({ items: await bulk.listMine({ tenant: req.tenant, userId: req.auth.userId }) }); }));
-router.get('/:id', wrap(async (req, res) => { res.json(bulk.customerView(await bulk.mine({ tenant: req.tenant, userId: req.auth.userId, id: req.params.id }))); }));
+router.get('/:id', wrap(async (req, res) => { res.json(await bulk.customerPage(await bulk.mine({ tenant: req.tenant, userId: req.auth.userId, id: req.params.id }))); }));
 router.get('/:id/cancel-preview', wrap(async (req, res) => { res.json(await bulk.previewCancel({ tenant: req.tenant, userId: req.auth.userId, id: req.params.id })); }));
 // paying the advance of an accepted quote (the shop's own Razorpay keys): start, then the proof, or ask Razorpay
 router.post('/:id/pay', wrap(async (req, res) => { res.json(await pay.startAdvance({ tenant: req.tenant, userId: req.auth.userId, id: req.params.id })); }));

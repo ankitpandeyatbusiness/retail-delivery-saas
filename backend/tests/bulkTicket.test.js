@@ -115,7 +115,7 @@ describe('a paid bulk order gets a work ticket for the kitchen and the rider', (
     /* ------------------------------ the ticket and the bulk order follow each other ------------------------------ */
     const orderStatus = require('../src/services/orderStatusService');
     const cook = { type: 'staff', role: 'kitchen', id: '65f0000000000000000000aa', label: 'Cook' };
-    const stage = (to) => owner('post', `/${id}/stage`, { to });
+    const stage = (to) => owner('post', `/${id}/stage`, { to, ...(to === 'delivered' ? { skipCode: true } : {}) });
     const ticket = () => Order.findOne({ tenantId: w.tenant._id });
     const bulkStatus = async () => (await row()).status;
 
@@ -479,5 +479,62 @@ describe('a paid bulk order gets a work ticket for the kitchen and the rider', (
         const row = q.bulk[0];
         assert.ok(row.bulkCode && !/s/.test(row.bulkCode), 'the code alone: ' + row.bulkCode);
         assert.match(row.note, /^Extra crispy/);
+    });
+
+    /* ------------------------------ Phase 5: the owner's quote, the pickup code, the History ------------------------------ */
+    test('a percent discount on the quote: the customer sees the percent and the rupees it came to', async () => {
+        const o = (await owner('get', `/${id}`)).body;
+        // (beforeEach already quoted it once with no discount: ask for a change, then quote again with 5%)
+        await BulkOrder.updateOne({ _id: id }, { $set: { status: 'requested' } });
+        const q = await owner('post', `/${id}/quote`, { lines: o.lines.map((l) => ({ id: l.id, unitPrice: l.unitPrice })), discountPercent: 5 });
+        assert.equal(q.status, 200, JSON.stringify(q.body));
+        assert.equal(q.body.quote.pricing.discountPercent, 5);
+        assert.equal(q.body.quote.pricing.discount, 500);                 // 5% of Rs 10000
+        assert.equal(q.body.quote.pricing.total, 9500);
+        const mine = (await cust('get', `/${id}`)).body;
+        assert.deepEqual([mine.quote.pricing.discountPercent, mine.quote.pricing.discount, mine.quote.pricing.total], [5, 500, 9500]);
+        assert.equal((await owner('post', `/${id}/quote`, { lines: [], discountPercent: 5 })).status, 409, 'already quoted');
+    });
+
+    test('the pickup code: the customer sees it; handing the pickup over asks for it (the wrong one is refused, he cannot show it is written down)', async () => {
+        await paid();
+        const page = (await cust('get', `/${id}`)).body;
+        assert.match(page.pickupCode, /^[0-9]{4}$/);
+        const t = await ticket();
+        assert.equal(page.pickupCode, require('../src/services/deliveryPinService').pinFor(t));
+        await owner('post', `/${id}/stage`, { to: 'preparing' }); await owner('post', `/${id}/stage`, { to: 'ready' });
+        const bare = await owner('post', `/${id}/stage`, { to: 'delivered' });
+        assert.equal(bare.status, 400);
+        assert.match(bare.body.error, /pickup code/);
+        const wrong = await owner('post', `/${id}/stage`, { to: 'delivered', pickupCode: page.pickupCode === '1234' ? '4321' : '1234' });
+        assert.equal(wrong.status, 400);
+        assert.equal((await bulkStatus()), 'ready');
+        const right = await owner('post', `/${id}/stage`, { to: 'delivered', pickupCode: page.pickupCode });
+        assert.equal(right.status, 200, JSON.stringify(right.body));
+    });
+
+    test('handed over without the code is allowed once the owner says so, and it is written down', async () => {
+        await paid();
+        await owner('post', `/${id}/stage`, { to: 'preparing' }); await owner('post', `/${id}/stage`, { to: 'ready' });
+        assert.equal((await owner('post', `/${id}/stage`, { to: 'delivered', skipCode: true })).status, 200);
+        const b = await row();
+        assert.ok(b.history.some((h) => /without the pickup code/.test(h.note || '')));
+    });
+
+    test('History: a bulk order is one card with its code and its real total, and the Normal / Bulk filter works', async () => {
+        await paid();
+        await owner('post', `/${id}/stage`, { to: 'preparing' }); await owner('post', `/${id}/stage`, { to: 'ready' }); await stage('delivered');
+        await f2.makeOrder(w.tenant, w.customer.user, { orderNo: 7000, status: 'delivered', pricing: { subtotal: 200, total: 200 }, payment: { method: 'cod', status: 'paid' } });
+        const all = (await request(app).get('/api/shop/order-history?range=week').set(w.owner.headers)).body;
+        const bulkCard = all.items.find((c) => c.bulk);
+        assert.ok(bulkCard, 'the bulk order is in History');
+        assert.equal(bulkCard.bulk.code.length > 3, true);
+        assert.equal(bulkCard.total, 10000);                                  // not the Rs 5000 balance
+        assert.equal(all.summary.sales, 10200);                               // 10000 + 200
+        const onlyBulk = (await request(app).get('/api/shop/order-history?range=week&kind=bulk').set(w.owner.headers)).body;
+        assert.deepEqual(onlyBulk.items.map((c) => !!c.bulk), [true]);
+        const normal = (await request(app).get('/api/shop/order-history?range=week&kind=normal').set(w.owner.headers)).body;
+        assert.deepEqual(normal.items.map((c) => !!c.bulk), [false]);
+        assert.equal(normal.summary.sales, 200);
     });
 });

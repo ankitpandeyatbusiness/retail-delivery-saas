@@ -66,7 +66,7 @@ const LOOK_TEXT = {
 };
 
 export function OrderCard({ order, onOpen, onAdvance, onReject, onFoodReady, busy }) {
-    const { text, muted, accent, error } = useBrand();
+    const { text, muted, accent, error, primary } = useBrand();
     const now = useNow(30000, true);
     const isNew = order.status === 'placed';
     const next = flow.forwardStep(order);
@@ -75,6 +75,7 @@ export function OrderCard({ order, onOpen, onAdvance, onReject, onFoodReady, bus
         <Card onPress={onOpen} tone={isNew ? warn : undefined} style={{ marginBottom: 10 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
                 <Text style={{ color: text, fontSize: 17, fontWeight: '900', marginRight: 8 }}>#{order.orderNo}</Text>
+                {order.bulkId ? <View style={{ marginRight: 6 }}><Pill label={order.bulkCode ? `${tr('Bulk Order')} · ${order.bulkCode}` : tr('Bulk Order')} color={primary} icon="cube" /></View> : null}
                 <View style={{ marginRight: 6 }}><Pill label={flow.typeLabel(order.orderType)} color={muted} /></View>
                 <PayBadge order={order} />
                 <View style={{ flex: 1 }} />
@@ -87,7 +88,7 @@ export function OrderCard({ order, onOpen, onAdvance, onReject, onFoodReady, bus
                 <Text style={{ color: muted, fontSize: 12, flex: 1 }} numberOfLines={1}>
                     {order.customer?.name || tr('Customer')} · {flow.ago(order.createdAt, now)}
                 </Text>
-                <Text style={{ color: text, fontWeight: '900', fontSize: 16 }}>{money(order.pricing?.total)}</Text>
+                <Text style={{ color: text, fontWeight: '900', fontSize: 16 }}>{order.bulkId ? `${tr('Balance')} ${money(order.pricing?.total)}` : money(order.pricing?.total)}</Text>
             </View>
 
             {order.scheduledFor ? (
@@ -202,7 +203,7 @@ export function useOrderActions({ onChanged, onOptimistic } = {}) {
         <>
             <Sheet visible={!!codeFor} onClose={() => setCodeFor(null)} title={tr('Pickup code')}>
                 <Text style={{ fontSize: 14, marginBottom: 12, color: ink }}>{tr('Ask the customer for his 4-digit pickup code. It is on his order page.')}</Text>
-                <Field value={code} onChangeText={(x) => setCode(x.replace(/\D/g, '').slice(0, 4))} placeholder="••••" keyboardType="number-pad" maxLength={4} autoFocus style={{ fontSize: 28, fontWeight: '900', letterSpacing: 10, textAlign: 'center', minHeight: 60 }} />
+                <Field value={code} onChangeText={(x) => setCode(x.replace(/\D/g, '').slice(0, 4))} placeholder="••••" keyboardType="number-pad" maxLength={4} autoFocus style={{ fontSize: 28, fontWeight: '900', letterSpacing: 10, paddingLeft: 10, textAlign: 'center', minHeight: 60 }} />
                 <Button label={tr('Confirm and hand over')} icon="checkmark" busy={busyId !== null && !!codeFor && busyId === codeFor.id} disabled={code.length !== 4} onPress={() => handOver(codeFor, { pickupCode: code })} style={{ marginTop: 14 }} />
                 <Button label={tr('He cannot show the code. Hand over anyway')} kind="ghost" disabled={busyId !== null} onPress={() => handOver(codeFor, { skipCode: true })} style={{ marginTop: 10 }} />
             </Sheet>

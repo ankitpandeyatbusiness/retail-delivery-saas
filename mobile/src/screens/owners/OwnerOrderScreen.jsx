@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, ScrollView, RefreshControl, Pressable, AppState } from 'react-native';
 import { Image } from 'expo-image';
 import PhotoViewer from '../../components/common/PhotoViewer';
-import { useRoute } from '@react-navigation/native';
+import { useRoute, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../../components/common/kit';
 import { PageHeader, Card, SectionTitle, Button, Pill, Empty, money } from '../../components/owners/ui';
@@ -70,7 +70,8 @@ function riderStatusText(delivery, rider) {
 
 export default function OwnerOrderScreen() {
     const { id } = useRoute().params || {};
-    const { background, text, muted, error, ok, accent } = useBrand();
+    const { background, text, muted, error, ok, accent, primary } = useBrand();
+    const nav = useNavigation();
     const tones = useToneColors();
     const [order, setOrder] = useState(null);
     const [delivery, setDelivery] = useState(null);
@@ -159,6 +160,18 @@ export default function OwnerOrderScreen() {
                 showsVerticalScrollIndicator={false}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={pull} />}
             >
+                {order.bulkId ? (
+                    <Card tone={primary} style={{ marginTop: 6 }} onPress={() => nav.navigate('OwnerBulkOrder', { id: String(order.bulkId) })}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Ionicons name="cube" size={20} color={primary} style={{ marginRight: 10 }} />
+                            <View style={{ flex: 1 }}>
+                                <Text style={{ color: text, fontWeight: '900' }}>{tr('Bulk Order')}{order.bulkCode ? ` · ${order.bulkCode}` : ''}</Text>
+                                <Text style={{ color: muted, fontSize: 12.5, marginTop: 2 }}>{tr('This is the work ticket of a bulk order. The money, the quote and the invoice are on the bulk order. Tap to open it.')}</Text>
+                            </View>
+                            <Ionicons name="chevron-forward" size={18} color={muted} />
+                        </View>
+                    </Card>
+                ) : null}
                 {isNew && order.acceptBy ? (
                     <Card tone={warn} style={{ marginTop: 6 }}>
                         <Countdown until={order.acceptBy} />

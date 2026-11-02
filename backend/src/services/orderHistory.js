@@ -33,7 +33,7 @@ function rangeOf(query, now = Date.now()) {
 
 function filterOf(tenantId, query = {}, now = Date.now()) {
     const { from, to } = rangeOf(query, now);
-    const filter = { tenantId, ...HIDE_UNPAID, ...require('./onlineOrder').HIDE_BULK_TICKET, createdAt: { $gte: from, ...(to ? { $lte: to } : {}) } };
+    const filter = { tenantId, ...HIDE_UNPAID, createdAt: { $gte: from, ...(to ? { $lte: to } : {}) } };
     const and = [];
 
     const status = String(query.status || '');
@@ -42,6 +42,9 @@ function filterOf(tenantId, query = {}, now = Date.now()) {
     else if (status === 'progress') filter.status = { $in: ACTIVE_STATUSES };
 
     if (['delivery', 'pickup', 'dine_in'].includes(String(query.type))) filter.orderType = query.type;
+    // Normal = the orders customers placed; Bulk = bulk orders (each one is shown by its work ticket, with the bulk order's own code and total)
+    if (String(query.kind) === 'bulk') filter.bulkId = { $exists: true };
+    else if (String(query.kind) === 'normal') filter.bulkId = { $exists: false };
 
     const pay = String(query.pay || '');
     if (pay === 'cash') filter['payment.method'] = 'cod';
@@ -53,7 +56,7 @@ function filterOf(tenantId, query = {}, now = Date.now()) {
     if (q) {
         const rx = new RegExp(esc(q), 'i');
         const digits = q.replace(/\D/g, '');
-        const or = [{ 'customer.name': rx }, { 'items.name': rx }, { 'address.line1': rx }, { 'address.line2': rx }, { 'address.landmark': rx }, { 'address.city': rx }, { 'address.label': rx }, { 'address.name': rx }, { tableNo: rx }];
+        const or = [{ bulkCode: rx }, { 'customer.name': rx }, { 'items.name': rx }, { 'address.line1': rx }, { 'address.line2': rx }, { 'address.landmark': rx }, { 'address.city': rx }, { 'address.label': rx }, { 'address.name': rx }, { tableNo: rx }];
         if (/^\d{1,9}$/.test(q)) or.push({ orderNo: Number(q) });
         if (digits.length >= 3) { const d = new RegExp(esc(digits)); or.push({ 'customer.phone': d }, { 'address.phone': d }); }
         and.push({ $or: or });
@@ -62,7 +65,10 @@ function filterOf(tenantId, query = {}, now = Date.now()) {
     return filter;
 }
 
-const money = { $cond: [{ $in: ['$status', CANCELLED] }, 0, '$pricing.total'] };
+// a bulk order is worth its bulk total (the ticket's own total is only the balance); its cash and online parts are in the bulk order, not here
+const worth = { $ifNull: ['$bulkTotal', '$pricing.total'] };
+const money = { $cond: [{ $in: ['$status', CANCELLED] }, 0, worth] };
+const plain = { $eq: [{ $type: '$bulkId' }, 'missing'] };
 
 // totals for everything the filter matches (not only the page on screen), and a total for every day
 async function totals(filter) {
@@ -74,9 +80,9 @@ async function totals(filter) {
                 orders: { $sum: 1 },
                 sales: { $sum: money },
                 cancelled: { $sum: { $cond: [{ $in: ['$status', CANCELLED] }, 1, 0] } },
-                lost: { $sum: { $cond: [{ $in: ['$status', CANCELLED] }, '$pricing.total', 0] } },
-                cash: { $sum: { $cond: [{ $eq: ['$payment.method', 'cod'] }, money, 0] } },
-                online: { $sum: { $cond: [{ $ne: ['$payment.method', 'cod'] }, money, 0] } },
+                lost: { $sum: { $cond: [{ $in: ['$status', CANCELLED] }, worth, 0] } },
+                cash: { $sum: { $cond: [{ $and: [plain, { $eq: ['$payment.method', 'cod'] }] }, money, 0] } },
+                online: { $sum: { $cond: [{ $and: [plain, { $ne: ['$payment.method', 'cod'] }] }, money, 0] } },
             },
         },
         { $sort: { _id: -1 } },
@@ -123,11 +129,12 @@ async function cards(orders, tenantId) {
             customer: { name: gone ? 'Deleted customer' : o.customer?.name || '', phone: gone ? '' : o.customer?.phone || '' },
             orders: gone ? 0 : orderCount.get(o.customer?.phone) || 0,   // how many orders this customer has made here (the repeat tag)
             dishes: dishLine(o.items), itemCount: (o.items || []).reduce((s, i) => s + (i.quantity || 0), 0),
-            total: o.pricing?.total || 0, couponCode: o.pricing?.couponCode || null,
+            total: (o.bulkId ? o.bulkTotal : undefined) ?? o.pricing?.total ?? 0, couponCode: o.pricing?.couponCode || null,
             payment: { method: o.payment?.method || null, status: o.payment?.status || null },
             table: o.tableNo || null, address: addressLine(o.address),
             rider: o.delivery?.riderId ? riderName.get(String(o.delivery.riderId)) || null : null,
             flags,
+            bulk: o.bulkId ? { id: String(o.bulkId), code: o.bulkCode || null } : null,   // the card says Bulk and opens the bulk order
         };
     });
 }
@@ -181,7 +188,7 @@ async function exportBuffer({ tenantId, query, shopName }) {
             dishes: (o.items || []).map((i) => `${i.quantity} × ${i.name}`).join(', '),
             where: o.orderType === 'dine_in' ? (o.tableNo ? `Table ${o.tableNo}` : '') : addressLine(o.address),
             pay: o.payment?.method === 'cod' ? 'Cash' : (o.payment?.method || '').toUpperCase(), paystatus: o.payment?.status || '',
-            subtotal: o.pricing?.subtotal || 0, fee: o.pricing?.deliveryFee || 0, discount: o.pricing?.discount || 0, total: CANCELLED.includes(o.status) ? 0 : o.pricing?.total || 0,
+            subtotal: o.pricing?.subtotal || 0, fee: o.pricing?.deliveryFee || 0, discount: o.pricing?.discount || 0, total: CANCELLED.includes(o.status) ? 0 : (o.bulkId ? o.bulkTotal : undefined) ?? o.pricing?.total ?? 0,
             coupon: o.pricing?.couponCode || '', rider: o.delivery?.riderId ? riderName.get(String(o.delivery.riderId)) || '' : '', reason: o.cancelReason || '',
         })),
     });

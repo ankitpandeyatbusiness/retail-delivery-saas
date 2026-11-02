@@ -179,9 +179,9 @@ export const bulk = {
     saveSettings: (body) => d(api.put('/shop/bulk/settings', body)),
     list: (params) => d(api.get('/shop/bulk', q(params))),                      // { items, hasMore, page }
     get: (id) => d(api.get(`/shop/bulk/${id}`)),
-    quote: (id, body) => d(api.post(`/shop/bulk/${id}/quote`, body)),          // { lines:[{id,unitPrice}], discount?, deliveryFee?, packagingCharge?, advancePercent?, validHours?, note? }
+    quote: (id, body) => d(api.post(`/shop/bulk/${id}/quote`, body)),          // { lines:[{id,unitPrice}], discount?, discountPercent?, deliveryFee?, packagingCharge?, advancePercent?, validHours?, note? }
     decline: (id, reason) => d(api.post(`/shop/bulk/${id}/decline`, { reason })),
-    stage: (id, to) => d(api.post(`/shop/bulk/${id}/stage`, { to })),                 // preparing | ready | out_for_delivery | delivered
+    stage: (id, to, extra) => d(api.post(`/shop/bulk/${id}/stage`, { to, ...(extra || {}) })),   // preparing | ready | out_for_delivery | delivered; extra = { pickupCode } or { skipCode: true } when a pickup is handed over
     cashReceived: (id) => d(api.post(`/shop/bulk/${id}/cash-received`)),              // the balance was paid in cash
     cancel: (id, reason) => d(api.post(`/shop/bulk/${id}/cancel`, { reason })),      // a confirmed order: the customer gets the whole advance back
 };

@@ -431,16 +431,25 @@ async function balanceFromTicket({ bulkId, via = 'cash' }) {
 // A pickup is "handed over" from ready; a delivery goes out first. The customer hears about every step.
 const NEXT = { confirmed: ['preparing'], preparing: ['ready'], ready: ['out_for_delivery', 'delivered'], out_for_delivery: ['delivered'] };
 
-async function setStage({ tenant, id, to }) {
+async function setStage({ tenant, id, to, pickupCode, skipCode }) {
     const o = await ownerOne({ tenant, id });
     const allowed = (NEXT[o.status] || []).includes(to)
         && !(to === 'out_for_delivery' && o.fulfilment !== 'delivery')                       // a pickup does not go out
         && !(to === 'delivered' && o.fulfilment === 'delivery' && o.status === 'ready');     // a delivery goes out first
     if (!allowed) throw httpError(409, `This order is "${o.status.replace(/_/g, ' ')}": it cannot go to "${String(to).replace(/_/g, ' ')}" now`);
+    // a pickup is handed over against the customer's 4-digit code (or the owner says he could not show it, and it is written down)
+    let skipped = false;
+    if (to === 'delivered' && o.fulfilment === 'pickup' && o.orderId) {
+        if (pickupCode !== undefined && pickupCode !== null && pickupCode !== '') {
+            const ticket = await require('../models/Order').findById(o.orderId);
+            if (!ticket || !require('./deliveryPinService').matches(ticket, pickupCode)) throw httpError(400, 'That is not the right pickup code');
+        } else if (skipCode === true) skipped = true;
+        else throw httpError(400, 'Ask the customer for his 4-digit pickup code');
+    }
     const now = new Date();
     const done = await BulkOrder.findOneAndUpdate(
         { _id: o._id, status: o.status },
-        { $set: { status: to, [`stageAt.${to}`]: now }, $push: { history: { status: to, by: 'owner' } } }, { returnDocument: 'after' },
+        { $set: { status: to, [`stageAt.${to}`]: now }, $push: { history: { status: to, by: 'owner', ...(skipped ? { note: 'handed over without the pickup code' } : {}) } } }, { returnDocument: 'after' },
     ).lean();
     if (!done) throw httpError(409, 'This order was just changed. Open it again.');
     tell('bulk_stage', {
@@ -587,7 +596,9 @@ async function quote({ tenant, id, body = {} }) {
         return { ...base, unitPrice: rate, lineTotal: round2(rate * base.quantity), bulkApplied: rate < (base.listPrice ?? rate) };
     });
     const subtotal = round2(lines.reduce((n, l) => n + l.lineTotal, 0));
-    const discount = body.discount === undefined ? 0 : round2(num(body.discount, 0, subtotal, 'The discount'));
+    // the owner may take a percent off the dishes (5%), or an amount in rupees. A percent wins, and the customer is shown the percent.
+    const discountPercent = body.discountPercent === undefined || body.discountPercent === null || body.discountPercent === '' ? 0 : round2(num(body.discountPercent, 0, 90, 'The discount percent'));
+    const discount = discountPercent > 0 ? round2((subtotal * discountPercent) / 100) : body.discount === undefined ? 0 : round2(num(body.discount, 0, subtotal, 'The discount'));
 
     const mode = o.gstMode || 'none';
     const tax = applyTax(lines, { mode, discount, subtotal });
@@ -605,7 +616,7 @@ async function quote({ tenant, id, body = {} }) {
 
     const quoted = {
         version: (o.quoteCount || 0) + 1, lines,
-        pricing: { subtotal, discount, deliveryFee: delivery, packagingCharge: packaging, tax, taxOnTop: onTop, taxIncluded: inside, taxMode: o.pricing.taxMode, taxPercent: o.pricing.taxPercent, total },
+        pricing: { subtotal, discount, ...(discountPercent > 0 ? { discountPercent } : {}), deliveryFee: delivery, packagingCharge: packaging, tax, taxOnTop: onTop, taxIncluded: inside, taxMode: o.pricing.taxMode, taxPercent: o.pricing.taxPercent, total },
         advancePercent, fullRefundHours: s.fullRefundHours, advancePaise, balancePaise: totalPaise - advancePaise,
         validUntil: new Date(Date.now() + validHours * 3600000), note: typeof body.note === 'string' ? body.note.trim().slice(0, 500) : undefined, quotedAt: new Date(),
     };
@@ -644,7 +655,20 @@ async function expireOld(now = new Date()) {
     return r.modifiedCount;
 }
 
+// the customer's own page of a bulk order: the same view plus, for a pickup that is being made, the 4-digit code he shows when he collects it
+async function customerPage(doc) {
+    const v = customerView(doc);
+    if (doc.fulfilment === 'pickup' && doc.orderId && ['confirmed', 'preparing', 'ready'].includes(v.status)) {
+        try {
+            const ticket = await require('../models/Order').findById(doc.orderId).select('_id tenantId');
+            if (ticket) v.pickupCode = require('./deliveryPinService').pinFor(ticket);
+        } catch (e) { /* the page is fine without it */ }
+    }
+    return v;
+}
+
 module.exports = {
+    customerPage,
     RECOMMENDED, settingsOf, saveSettings, cleanBulkPrice, publicConfig, menuFor, priceRequest, estimate, create, customerView, mine, listMine, cancelByCustomer, previewCancel, cancelOutcome, refundDue, ownerCancel, balanceDue, setStage, markCash, tryComplete, repairCompleted, invoiceFor, askChange,
     advanceFromTicket, balanceFromTicket,
     ownerView, ownerList, ownerOne, quote, decline, setOwnerNote, expireOld, effectiveStatus,

@@ -24,7 +24,8 @@ const lineSchema = new Schema({
 });
 
 const pricingSchema = new Schema({
-    subtotal: Number, discount: { type: Number, default: 0 }, deliveryFee: { type: Number, default: 0 }, packagingCharge: { type: Number, default: 0 },
+    subtotal: Number, discount: { type: Number, default: 0 }, discountPercent: Number,   // discountPercent: the owner gave a percent off (discount is its rupees)
+    deliveryFee: { type: Number, default: 0 }, packagingCharge: { type: Number, default: 0 },
     tax: { type: Number, default: 0 }, taxOnTop: { type: Number, default: 0 }, taxIncluded: { type: Number, default: 0 }, taxMode: String, taxPercent: Number,
     total: Number,
 }, { _id: false });
