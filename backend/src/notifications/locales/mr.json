@@ -68,6 +68,8 @@
  "Bill reminder": "बिलाची आठवण",
  "Booking not found": "बुकिंग सापडली नाही",
  "Bulk order not found": "बल्क ऑर्डर सापडला नाही",
+ "Bulk order to make": "बनवण्यासाठी बल्क ऑर्डर",
+ "Bulk order to make for {v1}": "बनवण्यासाठी बल्क ऑर्डर, {v1} साठी",
  "Bulk order {v1} delivered": "बल्क ऑर्डर {v1} डिलिव्हर झाली",
  "Bulk order {v1} handed over": "बल्क ऑर्डर {v1} सुपूर्द केली",
  "Bulk order {v1} is being made": "बल्क ऑर्डर {v1} तयार होत आहे",

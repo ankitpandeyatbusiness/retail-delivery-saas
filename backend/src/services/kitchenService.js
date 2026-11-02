@@ -14,7 +14,7 @@ const { kitchenSpeech } = require('../utils/orderSpeech');
 const { HIDE_UNPAID } = require('./onlineOrder');
 const { httpError } = require('../middlewares/apiErrors');
 
-const FIELDS = 'orderNo orderType status tableNo items note foodNote scheduledFor pickupUntil customer.name createdAt statusHistory kitchen payment tableSessionId tableParty pickupIntent';
+const FIELDS = 'bulkId orderNo orderType status tableNo items note foodNote scheduledFor pickupUntil customer.name createdAt statusHistory kitchen payment tableSessionId tableParty pickupIntent';
 const KINDS = { out_of_stock: 'a dish is finished', cannot_make: 'it cannot be made', other: 'there is a problem' };
 const PROBLEM_GAP_MS = 2 * 60 * 1000;   // the same order: one message to the owner every two minutes at most
 
@@ -54,11 +54,17 @@ function stageOf(o) {
     return 'ready';
 }
 
+// A paid bulk order is for a day, often days away. It waits in the Bulk tab and comes to the top of "To make" 24 hours before the time the customer chose.
+const BULK_LEAD_MS = 24 * 3600000;
+
 function viewOf(o, { lateMin, now = Date.now() }) {
     const stage = stageOf(o);
     const accepted = at(o, 'accepted') || o.createdAt;
-    // a pickup for later is not started early: it should start about 30 minutes before the time the customer will come
-    const startAt = o.scheduledFor ? new Date(Math.max(new Date(accepted).getTime(), new Date(o.scheduledFor).getTime() - 30 * 60000)) : new Date(accepted);
+    const bulk = !!o.bulkId;
+    const when = o.scheduledFor ? new Date(o.scheduledFor).getTime() : null;
+    const queueAt = bulk && when ? new Date(when - BULK_LEAD_MS) : null;
+    // a pickup for later is not started early: it should start about 30 minutes before the time the customer will come. A bulk order is in the queue from 24 hours before.
+    const startAt = bulk && queueAt ? queueAt : o.scheduledFor ? new Date(Math.max(new Date(accepted).getTime(), new Date(o.scheduledFor).getTime() - 30 * 60000)) : new Date(accepted);
     const waitedMin = Math.max(0, Math.floor((now - startAt.getTime()) / 60000));
     return {
         id: String(o._id),
@@ -80,8 +86,12 @@ function viewOf(o, { lateMin, now = Date.now() }) {
         readyByName: o.kitchen?.readyByName || null,
         scheduledFor: o.scheduledFor || null,
         waitedMin,
-        late: stage !== 'ready' && waitedMin >= lateMin,
-        early: startAt.getTime() - now > 5 * 60000,   // its start time is still some minutes away
+        bulk,
+        bulkCode: bulk ? (String(o.note || '').replace(/^Bulk order\s*/i, '') || null) : null,
+        queueAt,
+        upcoming: bulk && stage === 'new' && !!when && when - now > BULK_LEAD_MS,   // not time yet: only the Bulk tab shows it
+        late: bulk ? stage !== 'ready' && !!when && now > when : stage !== 'ready' && waitedMin >= lateMin,   // a bulk order is late only once its day and time have passed
+        early: !bulk && startAt.getTime() - now > 5 * 60000,   // its start time is still some minutes away
         note: (o.orderType === 'dine_in' ? o.note : o.foodNote) || '',   // the cook sees what is for the kitchen: never the delivery instruction
         ...(stage === 'new' ? { speech: kitchenSpeech(o), speechHi: kitchenSpeech(o, true) } : {}),   // the Soundbox reads it out while the order waits
         items: (o.items || []).map(lineOf),
@@ -96,15 +106,19 @@ async function queue(tenant) {
     const rows = await Order.find({
         tenantId: tenant._id, orderType: { $in: types }, status: { $in: ['accepted', 'preparing', 'ready'] }, ...HIDE_UNPAID,
         // a ready order stays on the list for an hour, then it is the owner's to finish
-        $or: [{ status: { $ne: 'ready' } }, { updatedAt: { $gte: new Date(now - 60 * 60000) } }],
+        $or: [{ status: { $ne: 'ready' } }, { updatedAt: { $gte: new Date(now - 60 * 60000) } }, { bulkId: { $exists: true } }],   // (a bulk order made early waits for its day)
     }).select(FIELDS).sort({ createdAt: 1 }).limit(150).lean();
 
     const all = rows.map((o) => viewOf(o, { lateMin, now }));
-    const make = all.filter((o) => o.stage !== 'ready').sort((a, b) => new Date(a.startAt) - new Date(b.startAt) || a.orderNo - b.orderNo);
-    const done = all.filter((o) => o.stage === 'ready').sort((a, b) => new Date(b.readyAt || b.acceptedAt) - new Date(a.readyAt || a.acceptedAt)).slice(0, 30);
+    // "To make": a bulk order that is due comes FIRST (the nearest day first), then the rest the way it was. A bulk order that is not due yet is not here.
+    const make = all.filter((o) => o.stage !== 'ready' && !o.upcoming).sort((a, b) => (b.bulk ? 1 : 0) - (a.bulk ? 1 : 0) || (a.bulk ? new Date(a.scheduledFor) - new Date(b.scheduledFor) : new Date(a.startAt) - new Date(b.startAt)) || a.orderNo - b.orderNo);
+    const done = all.filter((o) => o.stage === 'ready' && !(o.bulk && now - new Date(o.readyAt || o.acceptedAt).getTime() > 60 * 60000)).sort((a, b) => new Date(b.readyAt || b.acceptedAt) - new Date(a.readyAt || a.acceptedAt)).slice(0, 30);
+    // the Bulk tab: every bulk order still to make or waiting for its day, the nearest day first
+    const bulkAll = all.filter((o) => o.bulk).sort((a, b) => new Date(a.scheduledFor || 0) - new Date(b.scheduledFor || 0));
     return {
         items: [...make, ...done],
-        counts: { new: make.filter((o) => o.stage === 'new').length, cooking: make.filter((o) => o.stage === 'cooking').length, ready: done.length, late: make.filter((o) => o.late).length },
+        bulk: bulkAll,
+        counts: { new: make.filter((o) => o.stage === 'new').length, cooking: make.filter((o) => o.stage === 'cooking').length, ready: done.length, late: make.filter((o) => o.late).length, bulk: bulkAll.filter((o) => o.stage !== 'ready').length },
         rules: { lateMin, sees: types },
         now: new Date(now),
     };
@@ -177,6 +191,10 @@ async function ready({ tenant, orderId, staff }) {
         return { already: true, by: o.kitchen?.readyByName || null, ago: o.kitchen?.readyAt ? ago(o.kitchen.readyAt) : null, order: view(tenant, o) };
     }
     const g = gone(o); if (g) throw g;
+    if (o.status === 'accepted' && o.bulkId) {   // a bulk order made in advance: Start and Ready in one tap
+        await start({ tenant, orderId, staff });
+        return ready({ tenant, orderId, staff });
+    }
     if (o.status === 'accepted') throw httpError(409, 'Start cooking first.');
     if (o.status !== 'preparing') throw httpError(409, 'This order is not being cooked.');
     const now = new Date();
@@ -305,7 +323,7 @@ async function resolve({ tenant, order, action, message, offerPercent, actor }) 
         current = await orderStatus.change({ order, status: 'cancelled', actor, reasonCode: 'out_of_stock', note: text, tenant });
     } else if (action === 'tell') {
         require('../notifications/center').notify('order_shop_note', {
-            tenantId: tenant._id, userId: order.userId, data: { orderId: String(order._id), orderNo: order.orderNo, ...(offer ? { offerCode: offer.code, offerPercent: offer.percent, offerMin: offer.minOrder, offerUntil: offer.until.toISOString() } : {}) }, vars: { orderNo: order.orderNo, text: offer?.text ? `${text} ${offer.text}` : text },
+            tenantId: tenant._id, userId: order.userId, data: { ...(order.bulkId ? { kind: 'bulk', bulkId: String(order.bulkId) } : { orderId: String(order._id) }), orderNo: order.orderNo, ...(offer ? { offerCode: offer.code, offerPercent: offer.percent, offerMin: offer.minOrder, offerUntil: offer.until.toISOString() } : {}) }, vars: { orderNo: order.orderNo, text: offer?.text ? `${text} ${offer.text}` : text },
         });
     }
     if (action === 'cancel' && offer?.text) {   // after the cancellation: the offer, with a code that opens at checkout and a 30-minute clock

@@ -128,12 +128,22 @@ function dayOf(date, hi) {
     return `${t.getUTCDate()} ${(hi ? MONTHS_HI : MONTHS_EN)[t.getUTCMonth()]}`;
 }
 
+// "दोपहर 1:30 बजे": the time of day in Hindi (India time)
+function clockHi(d) {
+    const t = new Date(new Date(d).getTime() + 330 * 60000);
+    const h = t.getUTCHours();
+    const part = h < 12 ? 'सुबह' : h < 16 ? 'दोपहर' : h < 20 ? 'शाम' : 'रात';
+    return `${part} ${h % 12 || 12}:${String(t.getUTCMinutes()).padStart(2, '0')} बजे`;
+}
+
 function whereSpeech(order, hi) {
     if (order.bulkId) {   // a bulk order is made for a day, often days away: say which day and whether it goes out or is collected
         const day = order.scheduledFor ? dayOf(order.scheduledFor, hi) : '';
         const how = order.orderType === 'delivery' ? (hi ? 'डिलीवरी' : 'delivery') : (hi ? 'पिकअप' : 'pickup');
         // short sentences on purpose: the Soundbox speaks Marathi, Gujarati and Bengali by translating each English sentence (mobile utils/common/speechLang.js)
-        return hi ? `नया बल्क ऑर्डर${day ? `, ${day} के लिए` : ''}, ${how}।` : `New bulk order.${day ? ` Wanted on ${day}.` : ''} ${how === 'delivery' ? 'Delivery' : 'Pickup'}.`;
+        const tm = order.scheduledFor ? (hi ? clockHi(order.scheduledFor) : clock(order.scheduledFor)) : '';   // the time, India time
+        const due = !!order.kitchen?.dueAlertAt;   // it is time to make it (24 hours before the day) or it was just booked
+        return hi ? `${due ? 'बनाने के लिए बल्क ऑर्डर' : 'नया बल्क ऑर्डर'}${day ? `, ${day}${tm ? `, ${tm}` : ''} के लिए` : ''}, ${how}।` : `${due ? 'Bulk order to make' : 'New bulk order'}.${day ? ` Wanted on ${day}${tm ? ` at ${tm}` : ''}.` : ''} ${how === 'delivery' ? 'Delivery' : 'Pickup'}.`;
     }
     const bill = order.tableParty ? (hi ? `, बिल ${order.tableParty}` : `, bill ${order.tableParty}`) : '';
     if (order.orderType === 'dine_in') return hi ? `टेबल ${order.tableNo || ''}${bill} के लिए नया ऑर्डर।` : `New order for table ${order.tableNo || ''}${bill}.`;

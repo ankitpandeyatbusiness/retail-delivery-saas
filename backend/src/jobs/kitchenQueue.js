@@ -17,7 +17,7 @@ async function runKitchenQueue(now = new Date()) {
             const types = rules.kitchenSees || ['delivery', 'pickup', 'dine_in'];
             const sec = resolveConfig(tenant).orders.kitchenQueueSec || 60;
             const rows = await Order.find({ tenantId: tenant._id, orderType: { $in: types }, status: 'accepted', 'kitchen.queuedAt': { $exists: false } })
-                .select('orderNo orderType status statusHistory createdAt scheduledFor kitchen').limit(100).lean();
+                .select('bulkId orderNo orderType status statusHistory createdAt scheduledFor kitchen').limit(100).lean();
             for (const o of rows) {
                 const v = kitchen.viewOf(o, { lateMin: rules.lateMin || 20, now: now.getTime() });
                 if (v.early) continue;   // a pickup for later is not started early anyway

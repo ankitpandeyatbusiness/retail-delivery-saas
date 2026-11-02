@@ -21,6 +21,7 @@ const bulkOrders = require('../src/services/bulkOrders');
 const Order = require('../src/models/Order');
 const billable = require('../src/services/billableService');
 const bulkKitchen = require('../src/services/bulkKitchen');
+const f2 = require('./helpers/factory');
 const reconcile = require('../src/services/paymentReconcile');
 const razorpayWebhook = require('../src/services/razorpayWebhook');
 
@@ -189,8 +190,8 @@ describe('a paid bulk order gets a work ticket for the kitchen and the rider', (
     test('the cook hears it is a BULK order and for which day, not just "new order"', () => {
         const speech = require('../src/utils/orderSpeech');
         const o = { bulkId: '65f000000000000000000001', orderType: 'delivery', scheduledFor: new Date('2026-11-07T06:30:00Z'), items: [{ name: 'Dal', quantity: 100 }] };
-        assert.match(speech.kitchenSpeech(o), /^New bulk order. Wanted on 7 November. Delivery./);
-        assert.match(speech.kitchenSpeech(o, true), /^नया बल्क ऑर्डर, 7 नवंबर के लिए, डिलीवरी।/);
+        assert.match(speech.kitchenSpeech(o), /^New bulk order. Wanted on 7 November at 12:00 pm. Delivery./);
+        assert.match(speech.kitchenSpeech(o, true), /^नया बल्क ऑर्डर, 7 नवंबर, दोपहर 12:00 बजे के लिए, डिलीवरी।/);
         assert.match(speech.kitchenSpeech({ ...o, bulkId: undefined }), /^New delivery order./);
     });
 
@@ -240,5 +241,95 @@ describe('a paid bulk order gets a work ticket for the kitchen and the rider', (
         assert.equal(r.series.points.reduce((a, p) => a + p.revenue, 0), 10000);
         const c = await closingReport.build({ tenantId: w.tenant._id });
         assert.deepEqual([c.sales.bulk.orders, c.sales.bulk.revenue, c.sales.revenue, c.sales.orders], [1, 10000, 10000, 1]);
+    });
+
+    /* ------------------------------ the cook's Bulk tab ------------------------------ */
+    const kitchenSvc = require('../src/services/kitchenService');
+    const kitchenAlerts = require('../src/services/kitchenAlerts');
+    const bulkJob = require('../src/jobs/bulkCookAlerts');
+    const staff = { id: '65f0000000000000000000bb', name: 'Cook' };
+    const setWhen = async (hours) => { const when = new Date(Date.now() + hours * 3600000); await BulkOrder.updateOne({ _id: id }, { $set: { when } }); await Order.updateMany({ tenantId: w.tenant._id }, { $set: { scheduledFor: when } }); };
+
+    test('payment: the cooks are told at once (loud), whatever the day; a bulk order due soon is called "to make"', async () => {
+        const calls = [];
+        mock.method(kitchenAlerts, 'onStatus', async (a) => { calls.push({ due: !!a.updated.kitchen?.dueAlertAt, bulk: !!a.updated.bulkId, status: a.status }); });
+        await paid();                       // wanted in 5 days
+        assert.deepEqual(calls, [{ due: false, bulk: true, status: 'accepted' }]);
+    });
+
+    test('a bulk order for a day that is close is called "to make" at payment', async () => {
+        const calls = [];
+        mock.method(kitchenAlerts, 'onStatus', async (a) => { calls.push({ due: !!a.updated.kitchen?.dueAlertAt }); });
+        await setWhen(10);
+        await paid();
+        assert.deepEqual(calls, [{ due: true }]);
+    });
+
+    test('the Bulk tab holds the order; 24 hours before the day it is called again and comes to the top of To make, once', async () => {
+        const calls = [];
+        mock.method(kitchenAlerts, 'onStatus', async (a) => { calls.push({ due: !!a.updated.kitchen?.dueAlertAt }); });
+        await paid();
+        let q = await kitchenSvc.queue(w.tenant);
+        assert.equal(q.items.length, 0, 'not in To make yet');
+        assert.equal(q.bulk.length, 1);
+        assert.deepEqual([q.bulk[0].bulk, q.bulk[0].upcoming, q.counts.bulk, q.counts.new], [true, true, 1, 0]);
+        assert.ok(q.bulk[0].queueAt && new Date(q.bulk[0].queueAt) < new Date(q.bulk[0].scheduledFor));
+        // a normal order is already waiting; then the bulk order's day comes within 24 hours
+        const normal = await f2.makeOrder(w.tenant, w.customer.user, { orderNo: 5000, status: 'accepted', orderType: 'pickup', payment: { method: 'cod', status: 'pending' } });
+        await setWhen(20);
+        assert.deepEqual(await bulkJob.runBulkCookAlerts(), { called: 1, asked: 0 });
+        assert.deepEqual(await bulkJob.runBulkCookAlerts(), { called: 0, asked: 0 });   // once
+        assert.deepEqual(calls.map((c) => c.due), [false, true]);
+        q = await kitchenSvc.queue(w.tenant);
+        assert.equal(q.items[0].bulk, true, 'the bulk order is first');
+        assert.equal(q.items[0].upcoming, false);
+        assert.equal(q.items[0].late, false);
+        assert.ok(q.items.some((o) => o.id === String(normal._id)));
+        assert.equal(q.counts.bulk, 1);
+    });
+
+    test('the cook marks a bulk order made in advance Ready from the Bulk tab; the bulk order is ready, the customer is told', async () => {
+        await paid();
+        const t = await ticket();
+        const r = await kitchenSvc.ready({ tenant: w.tenant, orderId: t._id, staff });
+        assert.equal(r.already, false);
+        await waitFor(async () => (await bulkStatus()) === 'ready');
+        const q = await kitchenSvc.queue(w.tenant);
+        assert.equal(q.bulk.length, 1);
+        assert.equal(q.bulk[0].stage, 'ready');   // it still waits for its day in the Bulk tab
+        assert.equal(q.counts.bulk, 0);           // nothing left to make
+    });
+
+    test('a delivery packed early is offered to riders only 2 hours before its time (once)', async () => {
+        const assignment = require('../src/services/assignmentService');
+        const asks = [];
+        mock.method(assignment, 'startBroadcast', async (a) => { asks.push(String(a.orderId)); return null; });
+        await BulkOrder.updateOne({ _id: id }, { $set: { fulfilment: 'delivery', address: { label: 'Office', line1: '5 MG Road', city: 'Pune', pincode: '411001', name: 'Meera', phone: '9000000041' } } });
+        await paid();
+        const t = await ticket();
+        await kitchenSvc.ready({ tenant: w.tenant, orderId: t._id, staff });
+        await waitFor(async () => (await bulkStatus()) === 'ready');
+        assert.equal(asks.length, 0, 'packed 5 days early: no rider is asked now');
+        assert.deepEqual(await bulkJob.runBulkCookAlerts(), { called: 0, asked: 0 });
+        await setWhen(1);
+        const done = await bulkJob.runBulkCookAlerts();
+        assert.equal(done.asked, 1);
+        assert.equal(asks.length, 1);
+        assert.equal((await bulkJob.runBulkCookAlerts()).asked, 0);   // once
+    });
+
+    test('the cook tells the owner about a problem; the owner answers and the customer hears it on the bulk order', async () => {
+        await paid();
+        const t = await ticket();
+        const r = await kitchenSvc.problem({ tenant: w.tenant, orderId: t._id, staff, kind: 'cannot_make', note: 'No gas' });
+        assert.equal(r.ok, true);
+        const order = await ticket();
+        assert.equal(order.kitchen.problem.kind, 'cannot_make');
+        await kitchenSvc.resolve({ tenant: w.tenant, order, action: 'tell', actor: { type: 'owner', id: String(w.owner.user._id), label: 'Owner' } });
+        const Notification = require('../src/models/Notification');
+        const n = await Notification.findOne({ userId: w.customer.user._id, type: 'order_shop_note' }).lean();
+        assert.ok(n, 'the customer was told');
+        assert.equal(n.data.kind, 'bulk');
+        assert.equal(String(n.data.bulkId), String(id));
     });
 });

@@ -335,6 +335,8 @@ module.exports = [
     "New bulk order for {v1}",
     "New bulk order",
     "Wanted on {v1}",
+    "Bulk order to make",
+    "Bulk order to make for {v1}",
     "{v1} asked for ₹{v2} for {v3}. Open Bulk orders to send your quote.",
     "{v1} asked for ₹{v2}. Open Bulk orders to send your quote.",
     "{v1} asked to change the quote",

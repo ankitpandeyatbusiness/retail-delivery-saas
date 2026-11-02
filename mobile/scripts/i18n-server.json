@@ -68,6 +68,8 @@
  "Bill reminder",
  "Booking not found",
  "Bulk order not found",
+ "Bulk order to make",
+ "Bulk order to make for {v1}",
  "Bulk order {v1} delivered",
  "Bulk order {v1} handed over",
  "Bulk order {v1} is being made",

@@ -58,7 +58,7 @@ async function onStatus({ before, updated, status }) {
 
         const where = updated.orderType === 'dine_in' ? `Dine in${updated.tableNo ? ` · Table ${updated.tableNo}${updated.tableParty ? ` · ${updated.tableParty}` : ''}` : ''}` : TYPE_WORD[updated.orderType];
         const msg = status === 'accepted'
-            ? { title: updated.bulkId ? `New bulk order${updated.scheduledFor ? ` for ${require('../utils/orderSpeech').dayOf(updated.scheduledFor)}` : ''}` : `New order #${updated.orderNo}`, body: [brief(updated, 3), where].filter(Boolean).join(' · '), loud: true }
+            ? { title: updated.bulkId ? `${updated.kitchen?.dueAlertAt ? 'Bulk order to make' : 'New bulk order'}${updated.scheduledFor ? ` for ${require('../utils/orderSpeech').dayOf(updated.scheduledFor)}` : ''}` : `New order #${updated.orderNo}`, body: [brief(updated, 3), where].filter(Boolean).join(' · '), loud: true }
             : { title: `Order #${updated.orderNo} cancelled`, body: 'Stop making it.', loud: false };
         await Promise.all(people.map((p) => pushChannel.send({
             tenantId: updated.tenantId, userId: p.userId, title: msg.title, body: msg.body,

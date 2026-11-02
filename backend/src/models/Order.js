@@ -177,6 +177,8 @@ const orderSchema = new Schema({
         queuedAt: Date, queuedBy: String,   // the cook put it in his queue ("Add to queue"), or it went there by itself when nobody touched it (queuedBy 'auto')
         problem: { _id: false, kind: String, note: String, at: Date, byName: String, dish: String, handledAt: Date, handledAction: String },   // what the cook told the owner, and what the owner did about it (tell | cancel | dismiss)
         offer: { _id: false, code: String, percent: Number, minOrder: Number, until: Date, text: String },   // the "stay with us" discount the owner sent with a cancel or a note (30 minutes)
+        dueAlertAt: Date,   // a bulk order's work ticket: the cooks were told it is time to make it (24 hours before the day), once
+        riderAskedAt: Date, // a bulk delivery that was packed early: the riders were asked / the owner told at the right time, once
         nudgedAt: Date, lateNudgedAt: Date, serveNudgedAt: Date,   // the nudges already sent for this order, each once (jobs/staffNudges.js)
     },
     // something happened that the owner has to see once (services/orderLook.js); seenAt is set when he opens the order

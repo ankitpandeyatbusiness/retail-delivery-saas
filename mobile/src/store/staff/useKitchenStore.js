@@ -18,7 +18,8 @@ const STAGE_AFTER = { start: 'cooking', ready: 'ready' };
 
 export const useKitchenStore = create((set, get) => ({
     items: [],
-    counts: { new: 0, cooking: 0, ready: 0, late: 0 },
+    counts: { new: 0, cooking: 0, ready: 0, late: 0, bulk: 0 },
+    bulk: [],           // every bulk order still to make or waiting for its day (the Bulk tab), nearest day first
     rules: { lateMin: 20, sees: [] },
     state: 'loading',   // loading | ok | error (no connection: the last list stays on screen)
     busy: {},           // orderId -> true while a tap is being sent
@@ -34,8 +35,8 @@ export const useKitchenStore = create((set, get) => ({
             r.items.filter((o) => o.queued).forEach((o) => dismiss(o.id));   // in the queue: it does not ring any more
             if (known) r.items.filter((o) => o.stage === 'new' && !o.queued && !known.has(o.id)).forEach((o) => staffAlert({ kind: 'new', orderNo: o.orderNo }));
             known = fresh;
-            set({ items: r.items, counts: r.counts, rules: r.rules, state: 'ok', loadedAt: Date.now() });
-            writeCache(KEY(), { items: r.items, counts: r.counts, rules: r.rules });
+            set({ items: r.items, counts: r.counts, bulk: r.bulk || [], rules: r.rules, state: 'ok', loadedAt: Date.now() });
+            writeCache(KEY(), { items: r.items, counts: r.counts, bulk: r.bulk || [], rules: r.rules });
         } catch (e) {
             if (mine !== seq) return;
             const status = e?.response?.status;
@@ -91,7 +92,7 @@ export const useKitchenStore = create((set, get) => ({
     // the list shows at once with what was on it last time; the server's answer replaces it a moment later
     hydrate: async () => {
         const c = await readCache(KEY());
-        if (c?.items && get().state === 'loading') set({ items: c.items, counts: c.counts || get().counts, rules: c.rules || get().rules, state: 'ok' });
+        if (c?.items && get().state === 'loading') set({ items: c.items, bulk: c.bulk || [], counts: c.counts || get().counts, rules: c.rules || get().rules, state: 'ok' });
     },
-    reset: () => { seq += 1; known = null; set({ items: [], counts: { new: 0, cooking: 0, ready: 0, late: 0 }, state: 'loading', busy: {}, loadedAt: 0 }); },
+    reset: () => { seq += 1; known = null; set({ items: [], bulk: [], counts: { new: 0, cooking: 0, ready: 0, late: 0, bulk: 0 }, state: 'loading', busy: {}, loadedAt: 0 }); },
 }));

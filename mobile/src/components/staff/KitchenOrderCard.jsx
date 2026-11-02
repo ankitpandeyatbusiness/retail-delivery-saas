@@ -9,6 +9,9 @@ import { ActionButton, UndoLink, useMinuteClock, clock, minsSince, minWord } fro
 import { tr } from '../../i18n';
 import { trNote } from '../../utils/common/noteText';
 
+// "Fri 7 Nov, 1:00 pm": the day and time a bulk order is wanted
+const dayTime = (d) => `${new Date(d).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}, ${clock(d)}`;
+
 function where(o) {
     if (o.orderType === 'dine_in') return { icon: 'restaurant', text: o.tableNo ? (tr('Table {n}', { n: o.tableNo }) + (o.party ? ` · ${o.party}` : '')) : tr('Dine in') };
     if (o.orderType === 'pickup') return { icon: 'bag-handle', text: o.scheduledFor ? tr('Pickup {time}', { time: clock(o.scheduledFor) }) : tr('Pickup') };
@@ -42,6 +45,16 @@ export default function KitchenOrderCard({ o, lateMin, busy, onAct, onProblem, o
                     </Text>
                 </View>
             </View>
+            {o.bulk ? (
+                <View style={{ marginTop: 8 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 99, backgroundColor: alpha(warn, 0.18) }}>
+                        <Ionicons name="cube" size={13} color={warn} style={{ marginRight: 5 }} />
+                        <Text style={{ color: warn, fontWeight: '900', fontSize: 12.5 }}>{tr('BULK ORDER')}{o.bulkCode ? ` · ${o.bulkCode}` : ''}</Text>
+                    </View>
+                    {o.scheduledFor ? <Text style={{ color: text, fontWeight: '900', fontSize: 15, marginTop: 6 }}>{tr('Wanted on {v1}', { v1: dayTime(o.scheduledFor) })}</Text> : null}
+                    {o.upcoming && o.queueAt ? <Text style={{ color: muted, fontWeight: '700', fontSize: 12.5, marginTop: 2 }}>{tr('Comes to your queue on {v1}', { v1: dayTime(o.queueAt) })}</Text> : null}
+                </View>
+            ) : null}
             {o.who ? <Text style={{ color: muted, fontWeight: '700', marginTop: 4 }}>{o.who}</Text> : null}
             {o.intent && o.intent !== 'on_time' ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', marginTop: 6, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 99, backgroundColor: alpha(o.intent === 'arrived' ? ok : primary, 0.16) }}>
@@ -100,14 +113,15 @@ export default function KitchenOrderCard({ o, lateMin, busy, onAct, onProblem, o
                         <ActionButton label={tr('Ready')} icon="checkmark-done" busy={false} bg={ok} ink="#FFFFFF" onPress={() => onAct('ready')} />
                     ) : (
                         <View>
-                            {o.queued ? (
+                            {o.queued && !o.upcoming ? (
                                 <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', marginBottom: 8, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 99, backgroundColor: alpha(primary, 0.14) }}>
                                     <Ionicons name="time" size={13} color={primary} style={{ marginRight: 4 }} />
                                     <Text style={{ color: primary, fontWeight: '800', fontSize: 12.5 }}>{tr('In your queue')}</Text>
                                 </View>
                             ) : null}
                             <ActionButton label={tr('Start cooking')} icon="flame" busy={busy} bg={primary} ink={onPrimary} onPress={() => onAct('start')} />
-                            {!o.queued ? <View style={{ marginTop: 8 }}><ActionButton label={tr('Add to queue')} icon="time" busy={busy} bg={alpha(primary, 0.14)} ink={primary} onPress={() => onAct('queue')} height={48} /></View> : null}
+                            {o.bulk ? <View style={{ marginTop: 8 }}><ActionButton label={tr('Already made: mark Ready')} icon="checkmark-done" busy={busy} bg={alpha(ok, 0.16)} ink={ok} onPress={() => onAct('ready')} height={48} /></View> : null}
+                            {!o.queued && !o.bulk ? <View style={{ marginTop: 8 }}><ActionButton label={tr('Add to queue')} icon="time" busy={busy} bg={alpha(primary, 0.14)} ink={primary} onPress={() => onAct('queue')} height={48} /></View> : null}
                         </View>
                     )}
                     <TouchableOpacity onPress={onProblem} activeOpacity={0.7} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', paddingVertical: 10, marginTop: 4 }}>

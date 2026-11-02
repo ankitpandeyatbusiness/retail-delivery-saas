@@ -10,6 +10,9 @@ const Tenant = require('../models/Tenant');
 const User = require('../models/User');
 const { hashPhone } = require('../utils/phoneHash');
 
+const LEAD_MS = 24 * 3600000;        // a bulk order goes to the top of the cook's queue this long before the time the customer chose
+const RIDER_LEAD_MS = 2 * 3600000;   // a bulk delivery packed early is offered to riders this long before its time
+
 async function nextOrderNo(tenantId) {
     const c = await Counter.findOneAndUpdate({ _id: `order:${tenantId}` }, { $inc: { seq: 1 } }, { returnDocument: 'after', upsert: true });
     return 1000 + c.seq;
@@ -32,6 +35,16 @@ function notesOf(b) {
     if (b.cutlery) parts.push('Include cutlery');
     if (b.note) parts.push(b.note);
     return text(parts.join('. '), 200);
+}
+
+// It is time to make this bulk order (24 hours before the day): the cooks get the loud alert, the sound and the push, ONCE. Then it is in To make.
+async function alertDue(t) {
+    const done = await Order.findOneAndUpdate(
+        { _id: t._id, status: 'accepted', 'kitchen.dueAlertAt': { $exists: false } }, { $set: { 'kitchen.dueAlertAt': new Date() }, $unset: { 'kitchen.queuedAt': 1, 'kitchen.queuedBy': 1 } }, { returnDocument: 'after' },   // the call starts fresh: the auto-queue that quietened the first ring is cleared
+    );
+    if (!done) return null;   // already called, or the cook has started it
+    require('./kitchenAlerts').onStatus({ before: { status: 'placed' }, updated: done, status: 'accepted' }).catch(log('cook alert'));
+    return done;
 }
 
 // Makes the work ticket for a paid bulk order. Returns the Order (new or the one already made), or null when the bulk order is not paid / not live.
@@ -75,8 +88,10 @@ async function ensureLinkedOrder(bulkId) {
             statusHistory: [{ status: 'accepted', byType: 'system', byLabel: `Bulk order ${b.code}: advance paid` }],
         });
         await BulkOrder.updateOne({ _id: b._id }, { $set: { orderId: order._id }, $unset: { linkingAt: 1 } });
-        // the cooks' screens and phones: a new order to make (the cook starts it when it is time; riders are asked once it is packed)
-        require('./kitchenAlerts').onStatus({ before: { status: 'placed' }, updated: order, status: 'accepted' }).catch(log('cook alert'));
+        // The cooks: a bulk order for a day that is close is called at once (loud); a far one is only booked (soft push, the Bulk tab). The loud call comes
+        // 24 hours before the day (jobs/bulkCookAlerts.js). Riders are asked once it is packed.
+        if (new Date(order.scheduledFor).getTime() - Date.now() <= LEAD_MS) await alertDue(order).catch(log('cook alert'));
+        else require('./kitchenAlerts').onStatus({ before: { status: 'placed' }, updated: order, status: 'accepted' }).catch(log('cook alert'));   // loud too: New bulk order, wanted on <day> at <time>
         return order;
     } catch (e) {
         await BulkOrder.updateOne({ _id: b._id }, { $unset: { linkingAt: 1 } }).catch(() => { });   // let the repair job try again
@@ -114,6 +129,9 @@ async function fromTicket(t) {
 // The cook marked a delivery packed. The bulk order says "ready" and the riders are asked now (not when the order was paid: that can be days before).
 async function ticketReady(t) {
     await fromTicket(t);
+    // packed days early: the riders are asked 2 hours before the time (jobs/bulkCookAlerts.js), not now
+    if (t.scheduledFor && new Date(t.scheduledFor).getTime() - Date.now() > RIDER_LEAD_MS) return;
+    await Order.updateOne({ _id: t._id }, { $set: { 'kitchen.riderAskedAt': new Date() } });
     if (t.orderType === 'delivery' && !t.delivery?.riderId) {
         const asked = await require('./assignmentService').startBroadcast({ orderId: t._id, tenantId: t.tenantId }).catch(log('rider offer'));
         // manual assigning (no automatic offer went out): the owner is told it is packed and needs a rider. In automatic mode the offer, and "no rider free", already alert him.
@@ -170,4 +188,4 @@ async function ticketPaid(bulkOrId) {
     );
 }
 
-module.exports = { ensureLinkedOrder, fromTicket, ticketReady, toTicket, closeTicket, ticketPaid };
+module.exports = { LEAD_MS, RIDER_LEAD_MS, alertDue, ensureLinkedOrder, fromTicket, ticketReady, toTicket, closeTicket, ticketPaid };

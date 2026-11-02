@@ -23,6 +23,7 @@ export default function KitchenScreen() {
     const { background, text, muted, warn, primary } = useBrand();
     const shop = useStaffStore((s) => s.me?.shop);
     const items = useKitchenStore((s) => s.items);
+    const bulk = useKitchenStore((s) => s.bulk);
     const counts = useKitchenStore((s) => s.counts);
     const rules = useKitchenStore((s) => s.rules);
     const state = useKitchenStore((s) => s.state);
@@ -38,7 +39,7 @@ export default function KitchenScreen() {
 
     const make = useMemo(() => items.filter((o) => o.stage !== 'ready'), [items]);
     const done = useMemo(() => items.filter((o) => o.stage === 'ready'), [items]);
-    const list = tab === 'make' ? make : done;
+    const list = tab === 'make' ? make : tab === 'bulk' ? bulk : done;
 
     const act = useCallback(async (o, kind) => {
         try {
@@ -59,7 +60,7 @@ export default function KitchenScreen() {
         <View style={{ flex: 1, backgroundColor: background }}>
             <StaffHeader title={tr('Kitchen')} subtitle={sub} />
             <OffDutyBanner />
-            <Segment value={tab} onChange={setTab} tabs={[['make', tr('To make'), counts.new + counts.cooking, counts.late > 0], ['dish', tr('By dish'), 0, false], ['ready', tr('Ready'), counts.ready, false]]} />
+            <Segment value={tab} onChange={setTab} tabs={[['make', tr('To make'), counts.new + counts.cooking, counts.late > 0], ['dish', tr('By dish'), 0, false], ['bulk', tr('Bulk'), counts.bulk || 0, false], ['ready', tr('Ready'), counts.ready, false]]} />
             {state === 'error' && loadedAt ? (
                 <View style={{ marginHorizontal: 16, marginBottom: 10, padding: 10, borderRadius: 12, backgroundColor: alpha(warn, 0.16), flexDirection: 'row', alignItems: 'center' }}>
                     <Ionicons name="cloud-offline-outline" size={18} color={warn} style={{ marginRight: 8 }} />
@@ -99,7 +100,9 @@ export default function KitchenScreen() {
                         contentContainerStyle={{ paddingBottom: 24, flexGrow: 1 }}
                         showsVerticalScrollIndicator={false}
                         refreshControl={<RefreshControl refreshing={pulling} onRefresh={refresh} tintColor={primary} colors={[primary]} />}
-                        ListEmptyComponent={tab === 'make'
+                        ListEmptyComponent={tab === 'bulk'
+                            ? <Empty icon="cube-outline" title={tr('No bulk orders coming')} hint={tr('Paid bulk orders wait here. 24 hours before the day they move to the top of To make, with a sound.')} />
+                            : tab === 'make'
                             ? <Empty icon="restaurant-outline" title={tr('Nothing to make')} hint={tr('New orders appear here by themselves, with a sound.')} />
                             : <Empty icon="checkmark-done-outline" title={tr('Nothing waiting')} hint={tr('Orders you mark Ready stay here for an hour.')} />}
                         initialNumToRender={6}

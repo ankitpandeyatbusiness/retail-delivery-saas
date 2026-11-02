@@ -31,6 +31,7 @@ const { startTableBillJob } = require('../services/tableBill');
 const { startStaffNudges } = require('../jobs/staffNudges');
 const { startBookingHolds } = require('../services/bookingPayment');
 const { startKitchenQueue } = require('../jobs/kitchenQueue');
+const { startBulkCookAlerts } = require('../jobs/bulkCookAlerts');
 const { startBillReminders } = require('../jobs/billReminders');
 
 // A crash is logged and the host restarts the server. A stray rejected promise is only logged.
@@ -92,6 +93,7 @@ connectDB()
             startTableBillJob();         // a visit nobody orders from and nothing is owed on is closed
             startBillReminders();        // a table that asked for the bill and was not served is reminded to the owner and the waiters every 5 minutes
             startKitchenQueue();         // an order the cook did not touch goes to his queue by itself
+            startBulkCookAlerts();       // a bulk order is called to the cooks 24 hours before its day; an early packed delivery goes to riders 2 hours before
             startBookingHolds();         // an unpaid table booking is let go after its hold, and refunds that did not go out are tried again
             startStaffNudges();          // the cooks and the waiters get one nudge for an order that waits too long
             startAutomations();          // the owner's automations: pickups nobody collected, reservations nobody answered, quiet inquiries, reminders
