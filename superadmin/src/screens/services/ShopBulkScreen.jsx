@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, ScrollView } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import { useTheme, spacing, font } from '../../theme';
 import { Screen } from '../../components/layout';
-import { Card, Button, Badge, SectionTitle, KeyValue } from '../../components/ui';
+import { Card, Button, Badge, Chip, SectionTitle, KeyValue } from '../../components/ui';
 import { Segmented } from '../../components/inputs';
 import { Group, Switch, NumberField, Choice, Hint } from '../../components/settingsForm';
 import { Hero, SkeletonList } from '../../components/blocks';
@@ -18,7 +18,9 @@ const STATUS_TONE = {
 };
 const rs = (n) => `₹${+Number(n || 0).toFixed(2)}`;
 const paise = (p) => rs((p || 0) / 100);
-const FEE_TYPES = [{ value: 'free', label: 'Free' }, { value: 'flat', label: 'Same for all' }, { value: 'free_above', label: 'Free above an amount' }, { value: 'distance', label: 'By distance' }];
+// the same chips, in the same order, as the owner's Bulk orders list
+const FILTERS = [['all', 'All'], ['open', 'Active'], ['requested', 'Needs a quote'], ['quoted', 'Quote sent'], ['delivered', 'Delivered'], ['cancelled', 'Cancelled'], ['paid', 'Advance paid']];
+const FEE_TYPES =[{ value: 'free', label: 'Free' }, { value: 'flat', label: 'Same for all' }, { value: 'free_above', label: 'Free above an amount' }, { value: 'distance', label: 'By distance' }];
 
 // Bulk orders of one shop: the rules (the owner sets them too, when you switched Bulk orders on for him) and a read-only list of the orders with their money.
 // The switch itself is in the shop's App features. You can change the rules of any shop, even one that is switched off.
@@ -46,6 +48,13 @@ export default function ShopBulkScreen() {
     const set = (k) => (x) => setV((a) => ({ ...a, [k]: x }));
     const setFee = (k) => (x) => setV((a) => ({ ...a, deliveryFee: { ...a.deliveryFee, [k]: x } }));
 
+    // fills the form with the numbers the server recommends (it does not touch the on/off switch); then Save
+    const recommend = () => {
+        if (!v.recommended) return;
+        setV((a) => ({ ...a, ...a.recommended, deliveryFee: { ...a.deliveryFee, ...a.recommended.deliveryFee } }));
+        toast('Recommended settings filled in. Tap Save.');
+    };
+
     const save = async () => {
         const body = {
             enabled: !!v.enabled, pickup: !!v.pickup, delivery: !!v.delivery,
@@ -70,6 +79,7 @@ export default function ShopBulkScreen() {
 
             {tab === 'rules' ? (
                 <>
+                    <View style={{ marginTop: spacing.lg }}><Button title="Use recommended settings" icon="bolt" kind="outline" onPress={recommend} /></View>
                     <Group title="Bulk ordering" section="alerts">
                         <Switch title="Take bulk orders" subtitle="The owner can switch this off himself when he has the switch" value={!!v.enabled} onValueChange={set('enabled')} />
                         <Switch title="Pickup" value={!!v.pickup} onValueChange={set('pickup')} />
@@ -104,11 +114,10 @@ export default function ShopBulkScreen() {
                 </>
             ) : (
                 <>
-                    <View style={{ marginTop: spacing.lg }}>
-                        <Segmented
-                            value={filter} onChange={setFilter}
-                            options={[{ value: 'all', label: 'All' }, { value: 'requested', label: 'Asked' }, { value: 'quoted', label: 'Quoted' }, { value: 'open', label: 'Active' }, { value: 'completed', label: 'Done' }]}
-                        />
+                    <View style={{ height: 52, marginTop: spacing.md }}>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }}>
+                            {FILTERS.map(([value, label]) => <Chip key={value} label={label} active={filter === value} onPress={() => setFilter(value)} />)}
+                        </ScrollView>
                     </View>
                     {orders === null ? <SkeletonList count={3} avatar={false} /> : null}
                     {orders && !orders.length ? <Empty title="No bulk orders" hint="Nothing here for this filter." /> : null}

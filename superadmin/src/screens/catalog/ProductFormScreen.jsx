@@ -276,10 +276,8 @@ export default function ProductFormScreen() {
                 {v.sellBy === 'piece' ? (
                     <>
                         <Label hint="For bulk orders. Example: from 30 pieces, 10 percent off. Leave both empty for no bulk price. You can set it for any shop; the owner can only when Bulk orders is switched on for his shop.">Bulk price</Label>
-                        <View style={{ flexDirection: 'row', gap: spacing.md }}>
-                            <NumberField style={{ flex: 1 }} integer placeholder="30" suffix="pieces or more" value={v.bulkMinQty} onChange={(x) => f.set('bulkMinQty', x)} hint={f.errors.bulkMinQty} />
-                            <NumberField style={{ flex: 1 }} placeholder="10" suffix="% off" value={v.bulkPercentOff} onChange={(x) => f.set('bulkPercentOff', x)} hint={f.errors.bulkPercentOff} />
-                        </View>
+                        <NumberField label="Bulk price starts from" integer placeholder="30" suffix="pieces" value={v.bulkMinQty} onChange={(x) => f.set('bulkMinQty', x)} hint={f.errors.bulkMinQty} />
+                        <NumberField label="Discount for bulk" placeholder="10" suffix="%" value={v.bulkPercentOff} onChange={(x) => f.set('bulkPercentOff', x)} hint={f.errors.bulkPercentOff} />
                     </>
                 ) : null}
                 <Switch title="Bestseller" value={v.isBestseller} onValueChange={(x) => f.set('isBestseller', x)} />

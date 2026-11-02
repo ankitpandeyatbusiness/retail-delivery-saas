@@ -24,6 +24,13 @@ export default function OwnerBulkSettingsScreen() {
     const fee = v.deliveryFee || { type: 'free' };
     const setFee = (k) => (x) => setV((a) => ({ ...a, deliveryFee: { ...a.deliveryFee, [k]: x } }));
 
+    // fills the form with the numbers the server recommends (it does not touch the on/off switch); he still taps Save
+    const recommend = () => {
+        if (!v.recommended) return;
+        setV((a) => ({ ...a, ...a.recommended, deliveryFee: { ...a.deliveryFee, ...a.recommended.deliveryFee } }));
+        showToast(tr('Recommended settings filled in. Tap Save.'));
+    };
+
     const save = async () => {
         if (v.enabled && !v.pickup && !v.delivery) return showToast(tr('Allow pickup, delivery or both'));
         const body = {
@@ -37,6 +44,9 @@ export default function OwnerBulkSettingsScreen() {
 
     return (
         <FormPage title={tr('Bulk order rules')} footer={<Button label={tr('Save')} icon="checkmark" busy={busy} onPress={save} />}>
+            <View style={{ paddingHorizontal: 16, marginBottom: 12 }}>
+                <Button label={tr('Use recommended settings')} icon="sparkles-outline" kind="ghost" onPress={recommend} />
+            </View>
             <Group title={tr('Bulk orders')}>
                 <ToggleRow title={tr('Take bulk orders')} subtitle={tr('Customers see Bulk order in Services and send you a request.')} value={!!v.enabled} onValueChange={set('enabled')} />
                 <ToggleRow title={tr('Pickup')} value={!!v.pickup} onValueChange={set('pickup')} />

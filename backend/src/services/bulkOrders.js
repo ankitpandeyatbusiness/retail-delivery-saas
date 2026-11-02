@@ -25,7 +25,15 @@ const tell = (event, ctx) => Promise.resolve().then(() => require('../notificati
 const rupees = (n) => `₹${+Number(n || 0).toFixed(2)}`;
 
 /* ------------------------------ settings ------------------------------ */
-const DEFAULTS = { enabled: false, minOrderAmount: 0, noticeHours: 48, maxQtyPerDish: 500, pickup: true, delivery: true, deliveryFee: { type: 'free' }, packagingCharge: 0, advancePercent: 50, quoteValidHours: 24, fullRefundHours: 48 };
+const DEFAULTS = { enabled: false, minOrderAmount: 0, noticeHours: 24, maxQtyPerDish: 500, pickup: true, delivery: true, deliveryFee: { type: 'free' }, packagingCharge: 0, advancePercent: 50, quoteValidHours: 24, fullRefundHours: 18 };
+
+// What the "Recommended settings" button fills in (the owner's rules screen and the super admin's). It does not switch bulk ordering on or off.
+// The apps only apply what the server sends, so the numbers live in one place.
+const RECOMMENDED = {
+    minOrderAmount: 3000, noticeHours: 24, maxQtyPerDish: 500, pickup: true, delivery: true,
+    deliveryFee: { type: 'free_above', amount: 200, freeAbove: 10000 },
+    packagingCharge: 0, advancePercent: 50, quoteValidHours: 24, fullRefundHours: 18,
+};
 
 async function settingsOf(tenantId) {
     const s = await BulkSettings.findOne({ tenantId }).lean();
@@ -469,7 +477,14 @@ function ownerView(o) {
 
 async function ownerList({ tenant, status, page = 1 }) {
     const f = { tenantId: tenant._id };
-    if (status === 'open') f.status = { $in: ['requested', 'quoted', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered'] };
+    // the chips of the owner's list: Active = not finished, Advance paid = paid and not started, Delivered = handed over (balance paid or not), Cancelled = ended without delivery
+    const GROUPS = {
+        open: ['requested', 'quoted', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered'],
+        paid: ['confirmed'],
+        delivered: ['delivered', 'completed'],
+        cancelled: ['cancelled', 'declined', 'expired'],
+    };
+    if (GROUPS[status]) f.status = { $in: GROUPS[status] };
     else if (status) f.status = status;
     const p = Math.max(1, parseInt(page, 10) || 1);
     const rows = await BulkOrder.find(f).sort({ createdAt: -1 }).skip((p - 1) * 20).limit(21).lean();
@@ -561,6 +576,6 @@ async function expireOld(now = new Date()) {
 }
 
 module.exports = {
-    settingsOf, saveSettings, cleanBulkPrice, publicConfig, menuFor, priceRequest, estimate, create, customerView, mine, listMine, cancelByCustomer, previewCancel, cancelOutcome, refundDue, ownerCancel, balanceDue, setStage, markCash, tryComplete, repairCompleted, invoiceFor, askChange,
+    RECOMMENDED, settingsOf, saveSettings, cleanBulkPrice, publicConfig, menuFor, priceRequest, estimate, create, customerView, mine, listMine, cancelByCustomer, previewCancel, cancelOutcome, refundDue, ownerCancel, balanceDue, setStage, markCash, tryComplete, repairCompleted, invoiceFor, askChange,
     ownerView, ownerList, ownerOne, quote, decline, setOwnerNote, expireOld, effectiveStatus,
 };

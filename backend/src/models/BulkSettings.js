@@ -16,7 +16,7 @@ const schema = new mongoose.Schema({
     tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true, unique: true },
     enabled: { type: Boolean, default: false },
     minOrderAmount: { type: Number, min: 0, max: 1000000, default: 0 },   // the least a whole bulk order may cost (after the bulk prices)
-    noticeHours: { type: Number, min: 0, max: 720, default: 48 },         // how long before the pickup / delivery time it must be asked
+    noticeHours: { type: Number, min: 0, max: 720, default: 24 },         // how long before the pickup / delivery time it must be asked
     maxQtyPerDish: { type: Number, min: 2, max: 10000, default: 500 },
     pickup: { type: Boolean, default: true },
     delivery: { type: Boolean, default: true },
@@ -24,7 +24,7 @@ const schema = new mongoose.Schema({
     packagingCharge: { type: Number, min: 0, max: 5000, default: 0 },
     advancePercent: { type: Number, min: 10, max: 100, default: 50 },     // what the customer pays to confirm (the owner can change it in each quote)
     quoteValidHours: { type: Number, min: 1, max: 168, default: 24 },
-    fullRefundHours: { type: Number, min: 0, max: 720, default: 48 },     // cancel this long before the time: the whole advance goes back; later the shop keeps it
+    fullRefundHours: { type: Number, min: 0, max: 720, default: 18 },     // cancel this long before the time: the whole advance goes back; later the shop keeps it
 }, { timestamps: true });
 
 module.exports = mongoose.model('BulkSettings', schema);

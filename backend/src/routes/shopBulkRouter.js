@@ -25,7 +25,7 @@ const router = express.Router();
 const isSuper = (req) => req.actor?.type === 'superadmin';
 const featureOn = (req) => featureGate.isOn(req.tenant, 'bulkOrders');
 
-router.get('/settings', wrap(async (req, res) => { res.json({ ...(await bulk.settingsOf(req.tenant._id)), featureOn: featureOn(req) }); }));
+router.get('/settings', wrap(async (req, res) => { res.json({ ...(await bulk.settingsOf(req.tenant._id)), featureOn: featureOn(req), recommended: bulk.RECOMMENDED }); }));
 router.put('/settings', wrap(async (req, res) => {
     const body = req.body || {};
     const onlySwitchOff = Object.keys(body).length === 1 && body.enabled === false;

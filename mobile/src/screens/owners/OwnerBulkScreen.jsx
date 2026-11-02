@@ -43,7 +43,7 @@ export default function OwnerBulkScreen() {
                     </View>
                 </Card>
                 <View style={{ paddingHorizontal: 16 }}>
-                    <Chips value={status} onChange={setStatus} options={[['requested', tr('Needs a quote')], ['quoted', tr('Quote sent')], ['open', tr('Active')], ['', tr('All')]]} />
+                    <Chips value={status} onChange={setStatus} options={[['', tr('All')], ['open', tr('Active')], ['requested', tr('Needs a quote')], ['quoted', tr('Quote sent')], ['delivered', tr('Delivered')], ['cancelled', tr('Cancelled')], ['paid', tr('Advance paid')]]} />
                 </View>
                 {data === null ? <ListShimmer /> : null}
                 {err && !data?.items?.length ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={err} /> : null}
