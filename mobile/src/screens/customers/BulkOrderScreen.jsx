@@ -3,7 +3,7 @@
 // asks the shop for a quote; nothing is paid here.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, TextInput } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
 import { Button, Empty, Sheet, Chips } from '../../components/owners/ui';
@@ -44,6 +44,7 @@ function Qty({ value, max, onChange }) {
 
 export default function BulkOrderScreen() {
     const nav = useNavigation();
+    const again = useRoute().params?.again;   // from Orders: an earlier bulk order to fill in again { fulfilment, lines: [{ productId, quantity, options, pick }] }
     const { text, muted, primary, border, surface, error, ok } = useBrand();
     const me = useAuthStore((s) => s.user);
     const [cfg, setCfg] = useState(null);
@@ -70,6 +71,14 @@ export default function BulkOrderScreen() {
         Promise.all([fetchBulkConfig(), fetchBulkMenu()]).then(([c, m]) => {
             setCfg(c); setMenu(m.categories || []);
             if (!c.pickup && c.delivery) setFulfilment('delivery');
+            if (again?.lines?.length) {
+                // the same dishes and choices as before; a dish the shop no longer has is left out. Day, time and address are asked afresh.
+                const have = new Set((m.categories || []).flatMap((x) => x.items).map((i) => i.id));
+                const fill = again.lines.filter((l) => have.has(l.productId)).map((l, n) => { const selections = l.pick || []; return { key: keyOf(l.productId, selections), productId: l.productId, selections, label: (l.options || []).join(', ') || tr('Plain'), quantity: Math.min(l.quantity, c.maxQtyPerDish || 500), at: n }; });
+                if (fill.length) setLines(fill);
+                if (again.fulfilment === 'delivery' ? c.delivery : again.fulfilment === 'pickup' ? c.pickup : false) setFulfilment(again.fulfilment);
+                if (fill.length < again.lines.length) showToast(tr('Some dishes are no longer on the menu and were left out'));
+            }
         }).catch((e) => setErr(e?.response?.data?.error || tr('Could not load the menu')));
     }, []);
 

@@ -17,7 +17,8 @@ import { useClosedStyle } from '../../components/customers/shop';
 import DateRangeSheet, { rangeLabel } from '../../components/customers/DateRangeSheet';
 
 import { useHomeStore } from '../../store/customers/useHomeStore';
-import { fetchOrders } from '../../api/customers/shopApi';
+import { fetchOrders, fetchMyBulk } from '../../api/customers/shopApi';
+import { BULK_STATUS, bulkTone } from './BulkOrderDetailScreen';
 import { useAnyOrderLive } from '../../hooks/customers/useOrderLive';
 import { viewInvoice } from '../../components/customers/invoice';
 import OwedStrip from '../../components/customers/OwedStrip';
@@ -25,10 +26,21 @@ import { ease } from '../../utils/common/ease';
 import { tr } from '../../i18n';
 import { useBottomSpace } from '../../store/customers/useLiveTripStore';
 
-const PILLS = [['all', 'All'], ['active', 'Active'], ['delivered', 'Delivered'], ['cancelled', 'Cancelled']];
+const PILLS = [['all', 'All'], ['active', 'Active'], ['delivered', 'Delivered'], ['cancelled', 'Cancelled'], ['bulk', 'Bulk Order']];
+// A bulk order is shown in this list too, as a card of its own. bulkLive = the shop is still working on it (or waiting for the customer).
+const BULK_LIVE = ['requested', 'quoted', 'confirmed', 'preparing', 'ready', 'out_for_delivery'];
+const BULK_DONE = ['delivered', 'completed'];
+const BULK_GONE = ['cancelled', 'declined', 'expired'];
+const live = (o) => (o.isBulk ? o.bulkLive : isActive(o.status));
+const asRow = (b) => ({
+    id: `bulk-${b.id}`, bulkId: b.id, isBulk: true, code: b.code, bulk: b, createdAt: b.createdAt, orderType: b.fulfilment === 'delivery' ? 'delivery' : 'pickup',
+    status: BULK_DONE.includes(b.status) ? 'delivered' : BULK_GONE.includes(b.status) ? 'cancelled' : b.status, bulkLive: BULK_LIVE.includes(b.status),
+    items: (b.lines || []).map((l) => ({ productId: l.productId, name: l.name, image: l.image, quantity: l.quantity })), pricing: { total: (b.quote?.pricing || b.pricing)?.total },
+});
 const FILTERS = {
     all: () => true,
-    active: (o) => isActive(o.status),
+    bulk: (o) => !!o.isBulk,
+    active: (o) => live(o),
     delivered: (o) => o.status === 'delivered',
     cancelled: (o) => o.status === 'cancelled',
 };
@@ -110,6 +122,61 @@ function DateChip({ label, on, onPress, onClear }) {
                 </Animated.View>
             </Pressable>
         </Animated.View>
+    );
+}
+
+// One bulk order in the list: a "Bulk" label, the dishes, the total, and one button (View while it is going on, Order again after)
+function BulkCard({ o, onOpen, onAgain }) {
+    const brand = useBrand();
+    const { primary, text, muted, surface, border } = brand;
+    const b = o.bulk;
+    const tone = bulkTone(b.status, brand);
+    const list = o.items || [];
+    const thumbs = list.slice(0, 3);
+    const extra = list.length - thumbs.length;
+    return (
+        <Press onPress={onOpen} style={[s.card, { backgroundColor: surface, borderColor: border }]}>
+            <CardGlow radius={18} />
+            <View style={[s.accent, { backgroundColor: tone }]} />
+            <View style={s.cardIn}>
+                <View style={s.row}>
+                    <View style={{ flex: 1, paddingRight: 8 }}>
+                        <Text style={[s.no, { color: text }]}>{tr('Bulk order')} {o.code}</Text>
+                        <Text style={[s.date, { color: muted }]}>{fmtDate(o.createdAt)}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', marginTop: 5, paddingHorizontal: 9, paddingVertical: 3, borderRadius: 99, backgroundColor: tint(primary) }}>
+                            <Ionicons name="cube" size={13} color={primary} style={{ marginRight: 4 }} />
+                            <Text style={{ color: primary, fontWeight: '800', fontSize: 12 }}>{tr('Bulk')} · {o.orderType === 'delivery' ? tr('Delivery') : tr('Pickup')}</Text>
+                        </View>
+                    </View>
+                    <View style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 99, backgroundColor: tint(tone), maxWidth: 150 }}>
+                        <Text numberOfLines={2} style={{ color: tone, fontWeight: '800', fontSize: 11.5, textAlign: 'center' }}>{tr(BULK_STATUS[b.status] || b.status)}</Text>
+                    </View>
+                </View>
+                <View style={s.thumbRow}>
+                    {thumbs.map((l, i) => (
+                        <View key={`${l.productId}${i}`} style={[s.thumb, { backgroundColor: tint(primary), borderColor: surface, marginLeft: i ? -10 : 0 }]}>
+                            {l.image ? <Image source={{ uri: l.image }} style={s.thumbImg} contentFit="cover" /> : <Ionicons name="fast-food-outline" size={16} color={primary} />}
+                        </View>
+                    ))}
+                    {extra > 0 ? <View style={[s.thumb, { backgroundColor: border, borderColor: surface, marginLeft: -10 }]}><Text style={[s.more, { color: muted }]}>+{extra}</Text></View> : null}
+                    <Text style={[s.items, { color: muted }]} numberOfLines={2}>{itemsText(o)}</Text>
+                </View>
+                <View style={[s.divider, { backgroundColor: border }]} />
+                <View style={s.row}>
+                    <View>
+                        <Text style={[s.total, { color: text }]}>{rs(o.pricing.total)}</Text>
+                        <Text style={[s.date, { color: muted }]}>{b.quote?.pricing ? tr('Quote') : tr('Estimate')}</Text>
+                    </View>
+                    <View style={s.btns}>
+                        {o.bulkLive ? (
+                            <Press onPress={onOpen} style={[s.fill, { backgroundColor: primary }]}><Text style={s.fillTxt}>{tr('View')}</Text></Press>
+                        ) : (
+                            <Press onPress={onAgain} style={[s.fill, { backgroundColor: primary }]}><Text style={s.fillTxt}>{tr('Order again')}</Text></Press>
+                        )}
+                    </View>
+                </View>
+            </View>
+        </Press>
     );
 }
 
@@ -288,7 +355,7 @@ function Empty({ filter, ranged }) {
     const nav = useNavigation();
     const { text, muted, surface, border, primary } = useBrand();
     const msg = ranged ? tr('No orders in this period')
-        : { all: tr('No orders yet'), active: tr('No active orders'), delivered: tr('No delivered orders'), cancelled: tr('No cancelled orders') }[filter];
+        : { all: tr('No orders yet'), active: tr('No active orders'), delivered: tr('No delivered orders'), cancelled: tr('No cancelled orders'), bulk: tr('No bulk orders yet') }[filter];
     return (
         <Appear style={s.center}>
             <View style={[s.emptyIc, { backgroundColor: surface, borderColor: border }]}>
@@ -313,6 +380,7 @@ function OrdersList() {
     const { primary, text, muted, background } = useBrand();
     const reorderOn = useHomeStore((st) => st.full.features.reorder);
     const [orders, setOrders] = useState([]);
+    const [bulkRows, setBulkRows] = useState([]);   // the customer's bulk orders (none if the shop does not offer bulk)
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(false);
     const [state, setState] = useState('loading'); // loading | ok | error
@@ -341,7 +409,8 @@ function OrdersList() {
     const load = useCallback(async () => {
         try {
             // The orders in progress are asked for on their own as well, so they are always here, whatever the date filter or page
-            const [r, act] = await Promise.all([fetchOrders({ page: 1, limit: 30, ...qParams }), fetchOrders({ active: true, limit: 20 }).catch(() => null)]);
+            const [r, act, bk] = await Promise.all([fetchOrders({ page: 1, limit: 30, ...qParams }), fetchOrders({ active: true, limit: 20 }).catch(() => null), fetchMyBulk().catch(() => null)]);
+            setBulkRows((bk?.items || []).map(asRow));
             const have = new Set((r.items || []).map((o) => o.id));
             const extra = (act?.items || []).filter((o) => isActive(o.status) && !have.has(o.id));
             setOrders([...extra, ...(r.items || [])]);
@@ -369,15 +438,22 @@ function OrdersList() {
         });
     };
 
-    const filtered = useMemo(() => orders.filter(FILTERS[filter]), [orders, filter]);
+    // the bulk orders follow the same date filter, and are mixed in by date with the others
+    const everything = useMemo(() => {
+        const day = (v) => { const d = new Date(v); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+        const bk = bulkRows.filter((o) => !range?.from || (day(o.createdAt) >= range.from && day(o.createdAt) <= (range.to || range.from)));
+        const sign = range?.sort === 'oldest' ? -1 : 1;
+        return [...orders, ...bk].sort((a, b) => sign * (new Date(b.createdAt) - new Date(a.createdAt)));
+    }, [orders, bulkRows, range]);
+    const filtered = useMemo(() => everything.filter(FILTERS[filter]), [everything, filter]);
     // rows: a heading, then its orders. Orders in progress sit under "Live now" as big cards.
     const rows = useMemo(() => {
         const out = [];
         let last = '';
         // active orders first (the rest keep their newest-first order)
-        const sorted = [...filtered].sort((a, b) => (isActive(b.status) ? 1 : 0) - (isActive(a.status) ? 1 : 0));
+        const sorted = [...filtered].sort((a, b) => (live(b) ? 1 : 0) - (live(a) ? 1 : 0));
         sorted.forEach((o) => {
-            const label = isActive(o.status) ? tr('Live now') : dayLabel(o.createdAt);
+            const label = live(o) ? tr('Live now') : dayLabel(o.createdAt);
             if (label !== last) { out.push({ h: label }); last = label; }
             out.push({ o });
         });
@@ -404,7 +480,7 @@ function OrdersList() {
     }, [filtered.length, hasMore, state, page, filter]);
 
     const refresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
-    const activeCount = orders.filter((o) => isActive(o.status)).length;
+    const activeCount = everything.filter((o) => live(o)).length;
     const dateText = [rangeLabel(range), range?.sort === 'oldest' ? tr('Oldest first') : ''].filter(Boolean).join(' · ');
 
     return (
@@ -444,6 +520,16 @@ function OrdersList() {
                                 renderItem={({ item: r, index }) => {
                                     if (r.h) return <Text style={[s.group, { color: r.h === tr('Live now') ? primary : muted }]}>{r.h.toUpperCase()}</Text>;
                                     const o = r.o;
+                                    if (o.isBulk) {
+                                        return (
+                                            <FadeIn index={index} distance={12}>
+                                                <BulkCard
+                                                    o={o} onOpen={() => nav.navigate('BulkOrderDetail', { id: o.bulkId })}
+                                                    onAgain={() => nav.navigate('BulkOrder', { again: { fulfilment: o.bulk.fulfilment, lines: (o.bulk.lines || []).map((l) => ({ productId: l.productId, quantity: l.quantity, options: l.options, pick: l.pick })) } })}
+                                                />
+                                            </FadeIn>
+                                        );
+                                    }
                                     if (isActive(o.status)) {
                                         return (
                                             <FadeIn index={index} distance={12}>

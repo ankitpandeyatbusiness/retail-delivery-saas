@@ -190,10 +190,13 @@ async function estimate({ tenant, userId, body }) {
     return { lines: r.lines.map(lineView), pricing: r.pricing, problems: r.problems, bulkSaved: r.bulkSaved, canSend: r.problems.length === 0 };
 }
 
+// the choices of a line the way the builder wants them ([{ groupId, optionIds }]), so "Order again" can fill it in
+const pickOf = (sel) => { const by = new Map(); for (const x of sel || []) { if (x?.groupId && x?.optionId) by.set(x.groupId, [...(by.get(x.groupId) || []), x.optionId]); } return [...by].map(([groupId, optionIds]) => ({ groupId, optionIds })); };
 const lineView = (l) => ({
     id: l._id ? String(l._id) : undefined, productId: String(l.productId), name: l.name, image: l.image, isVeg: l.isVeg, quantity: l.quantity,
     listPrice: l.listPrice, unitPrice: l.unitPrice, bulkApplied: !!l.bulkApplied, lineTotal: l.lineTotal, tax: l.tax,
     options: (l.selections || []).map((x) => x.optionName || x.name).filter(Boolean),
+    pick: pickOf(l.selections),
 });
 
 /* ------------------------------ the customer ------------------------------ */
