@@ -39,6 +39,7 @@ core.get('/me', wrap(async (req, res) => {
         pausedUntil: t.settings?.orders?.pausedUntil && new Date(t.settings.orders.pausedUntil).getTime() > Date.now() ? t.settings.orders.pausedUntil : null,
         userId: String(req.staff.id), role: req.staff.role, job: staff.JOB[req.staff.role], name: req.staff.name,
         phone: req.shopUser.phone, shop: t.name || '', shopPhone: t.phone || null,
+        upiReady: !!String(t.settings?.orders?.dineIn?.upiId || '').trim(),   // the shop's UPI ID is filled in: the waiter may show a QR for a bill
     });
 }));
 

@@ -25,7 +25,7 @@ async function check({ tenant, config, userId, priced, body }) {
 
     // 2. too many deliveries on the way
     if (type === 'delivery' && rules.deliveryOpenMax > 0) {
-        const n = await Order.countDocuments({ tenantId, userId, orderType: 'delivery', status: { $in: OPEN }, ...HIDE_UNPAID });
+        const n = await Order.countDocuments({ tenantId, userId, orderType: 'delivery', status: { $in: OPEN }, ...HIDE_UNPAID, bulkId: { $exists: false } });   // (a bulk order's work ticket waits for its day: it does not count)
         if (n >= rules.deliveryOpenMax) return { status: 409, message: n === 1 ? 'You already have 1 delivery order on the way. You can order again after it is delivered.' : `You already have ${n} delivery orders on the way. You can order again after one is delivered.` };   // whole sentences, so the app can translate them
     }
 
@@ -33,7 +33,7 @@ async function check({ tenant, config, userId, priced, body }) {
     if (rules.exposureOn && body.paymentMethod === 'cod') {
         const tableBill = require('./tableBill');
         const [cashOrders, session, done] = await Promise.all([
-            Order.find({ tenantId, userId, orderType: { $in: ['delivery', 'pickup'] }, 'payment.method': 'cod', 'payment.status': { $ne: 'paid' }, status: { $in: OPEN }, ...HIDE_UNPAID }).select('pricing.total').lean(),
+            Order.find({ tenantId, userId, orderType: { $in: ['delivery', 'pickup'] }, 'payment.method': 'cod', 'payment.status': { $ne: 'paid' }, status: { $in: OPEN }, ...HIDE_UNPAID, bulkId: { $exists: false } }).select('pricing.total').lean(),
             tableBill.openFor(tenantId, userId),
             Order.countDocuments({ tenantId, userId, status: 'delivered' }),
         ]);

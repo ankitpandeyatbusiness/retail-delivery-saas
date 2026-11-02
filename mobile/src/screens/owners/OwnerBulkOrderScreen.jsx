@@ -8,6 +8,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
 import { PageHeader, Card, Pill, Button, Empty, Sheet, SectionTitle, Field, Chips } from '../../components/owners/ui';
 import { Thumb } from '../customers/BulkOrderScreen';
+import BulkPayQrSheet from '../../components/owners/BulkPayQrSheet';
+import ChatButton from '../../components/common/ChatButton';
 import { TextBox, NumberBox, Group, Label } from '../../components/owners/menuBits';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { showToast } from '../../components/customers/shop';
@@ -31,6 +33,7 @@ export default function OwnerBulkOrderScreen() {
     const [gone, setGone] = useState({});           // line id -> left out of the quote
     const [discount, setDiscount] = useState(undefined);
     const [discountMode, setDiscountMode] = useState('rupees');   // rupees | percent: how the discount is typed
+    const [qrOpen, setQrOpen] = useState(false);               // the balance QR (a pickup, at the counter)
     const [codeOpen, setCodeOpen] = useState(false);               // a pickup is being handed over: asks for the customer's 4-digit code
     const [code, setCode] = useState('');
     const [delivery, setDelivery] = useState(undefined);
@@ -112,6 +115,10 @@ export default function OwnerBulkOrderScreen() {
         setBusy(true);
         try { setO(await api.stage(id, step.to, extra)); setCodeOpen(false); } catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); load(); } finally { setBusy(false); }
     };
+    const upiPaid = async () => {
+        setBusy(true);
+        try { setO(await api.cashReceived(id, 'upi')); setQrOpen(false); showToast(tr('Marked as received')); } catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); load(); } finally { setBusy(false); }
+    };
     const cash = async () => {
         if (!(await ask({ title: tr('Cash received?'), message: tr('Did you receive {a} in cash from the customer? This cannot be undone.', { a: rs(q.balancePaise / 100) }), confirmText: tr('Yes, received'), cancelText: tr('Go back') }))) return;
         setBusy(true);
@@ -145,6 +152,8 @@ export default function OwnerBulkOrderScreen() {
                     {o.changeNote ? <Text style={{ color: error, fontWeight: '800', marginTop: 8 }}>{tr('The customer asked to change the quote: {n}', { n: o.changeNote })}</Text> : null}
                     {o.status === 'declined' && o.declineReason ? <Text style={{ color: muted, marginTop: 8 }}>{tr('You declined: {r}', { r: o.declineReason })}</Text> : null}
                 </Card>
+
+                <View style={{ paddingHorizontal: 16, marginBottom: 6 }}><ChatButton kind="bulk" refId={o.id} title={`${tr('Bulk order')} ${o.code}`} label={tr('Chat with the customer')} /></View>
 
                 {o.status === 'requested' ? (
                     <>
@@ -205,7 +214,7 @@ export default function OwnerBulkOrderScreen() {
                         {o.payment ? (
                             <Card>
                                 <Text style={{ color: text, fontWeight: '900' }}>{tr('Advance received: {a}', { a: rs(o.payment.advancePaise / 100) })}</Text>
-                                {o.payment.balancePaid ? <Text style={{ color: ok, marginTop: 4, fontWeight: '700' }}>{tr('Balance received: {a} ({how})', { a: rs(o.payment.balancePaise / 100), how: o.payment.balanceVia === 'cash' ? tr('cash') : tr('online') })}</Text> : null}
+                                {o.payment.balancePaid ? <Text style={{ color: ok, marginTop: 4, fontWeight: '700' }}>{tr('Balance received: {a} ({how})', { a: rs(o.payment.balancePaise / 100), how: o.payment.balanceVia === 'cash' ? tr('cash') : o.payment.balanceVia === 'upi' ? tr('UPI') : tr('online') })}</Text> : null}
                                 {!o.payment.balancePaid && q.balancePaise > 0 && ['confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered'].includes(o.status) ? <Text style={{ color: muted, marginTop: 4 }}>{tr('Still to collect: {b}, at the handover. The customer can pay in the app, or you take cash and tap "Cash received".', { b: rs(q.balancePaise / 100) })}</Text> : null}
                                 {['confirmed', 'preparing', 'ready', 'out_for_delivery'].includes(o.status) ? <Text style={{ color: muted, marginTop: 4 }}>{tr('If you cancel, the customer gets back everything he paid online.')}</Text> : null}
                                 {o.status === 'cancelled' && o.cancelledBy === 'customer' ? <Text style={{ color: muted, marginTop: 4 }}>{o.payment.kept ? tr('The customer cancelled late: you keep the advance.') : tr('The customer cancelled in time: the advance goes back to him.')}</Text> : null}
@@ -218,6 +227,7 @@ export default function OwnerBulkOrderScreen() {
                         {(next || cashDue || cancelable || o.invoiceReady) ? (
                             <View style={{ paddingHorizontal: 16, marginTop: 12 }}>
                                 {next ? <Button label={next.label} icon={next.icon} busy={busy} onPress={() => move(next)} style={{ marginBottom: 10 }} /> : null}
+                                {cashDue && !delivered && st?.upiReady ? <Button label={tr('Show QR to pay {a}', { a: rs(q.balancePaise / 100) })} icon="qr-code" kind="ghost" busy={busy} onPress={() => setQrOpen(true)} style={{ marginBottom: 10 }} /> : null}
                                 {cashDue ? <Button label={tr('Cash received {a}', { a: rs(q.balancePaise / 100) })} icon="cash-outline" kind="ghost" busy={busy} onPress={cash} style={{ marginBottom: 10 }} /> : null}
                                 {o.invoiceReady ? <Button label={tr('Invoice (PDF)')} icon="document-text" kind="ghost" busy={invBusy} onPress={() => openInvoice({ id: o.id, orderNo: `B${o.code}`, invoicePath: `/shop/bulk/${o.id}/invoice` }, setInvBusy)} style={{ marginBottom: 10 }} /> : null}
                                 {cancelable ? <Button label={tr('Cancel and refund')} icon="close-circle-outline" kind="ghost" onPress={() => setDeclineOpen(true)} /> : null}
@@ -226,6 +236,8 @@ export default function OwnerBulkOrderScreen() {
                     </>
                 )}
             </ScrollView>
+
+            <BulkPayQrSheet visible={qrOpen} bulkId={id} busy={busy} onClose={() => setQrOpen(false)} onPaid={upiPaid} />
 
             <Sheet visible={codeOpen} onClose={() => setCodeOpen(false)} title={tr('Pickup code')}>
                 <Text style={{ fontSize: 14, marginBottom: 12, color: text }}>{tr('Ask the customer for his 4-digit pickup code. It is on his order page.')}</Text>

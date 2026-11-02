@@ -9,6 +9,7 @@ import { ListShimmer } from '../../components/owners/shimmer';
 import { rs } from '../../components/customers/orders';
 import { fetchMyBulk } from '../../api/customers/shopApi';
 import { BULK_STATUS, bulkTone, whenText } from './BulkOrderDetailScreen';
+import { ChatBadge } from '../../components/common/ChatButton';
 import { tr } from '../../i18n';
 
 export default function MyBulkOrdersScreen() {
@@ -32,6 +33,7 @@ export default function MyBulkOrdersScreen() {
                     <Card key={o.id} onPress={() => nav.navigate('BulkOrderDetail', { id: o.id })}>
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                             <Text style={{ flex: 1, color: text, fontWeight: '900', fontSize: 16 }}>{o.code}</Text>
+                            <ChatBadge kind="bulk" refId={o.id} />
                             <Pill label={tr(BULK_STATUS[o.status] || o.status)} color={bulkTone(o.status, brand)} />
                         </View>
                         <Text style={{ color: muted, marginTop: 4 }}>{o.fulfilment === 'delivery' ? tr('Delivery') : tr('Pickup')} · {whenText(o.when)}</Text>

@@ -16,6 +16,7 @@ import { fetchBulk, cancelBulk, changeBulk, startBulkPay, startBulkBalance, prev
 import { viewInvoice, saveInvoice } from '../../components/customers/invoice';
 import { onNotification } from '../../api/common/socket';
 import { Thumb } from './BulkOrderScreen';
+import ChatButton from '../../components/common/ChatButton';
 import { tr } from '../../i18n';
 
 export const BULK_STATUS = {
@@ -166,6 +167,8 @@ export default function BulkOrderDetailScreen() {
                     {o.status === 'requested' && o.changeNote ? <Text style={{ color: muted, marginTop: 8 }}>{tr('You asked: {r}', { r: o.changeNote })}</Text> : null}
                 </Card>
 
+                <View style={{ paddingHorizontal: 16, marginTop: 12 }}><ChatButton kind="bulk" refId={o.id} title={`${tr('Bulk order')} ${o.code}`} label={tr('Chat with the shop')} /></View>
+
                 {/* the pickup code: shown while the order is being made, to be told at the counter */}
                 {o.pickupCode ? (
                     <View style={{ alignItems: 'center', marginHorizontal: 16, marginTop: 12, padding: 16, borderRadius: 18, backgroundColor: brand.primary + '1F' }}>
@@ -213,7 +216,7 @@ export default function BulkOrderDetailScreen() {
                         {pd.refundStatus === 'pending' ? <Text style={{ color: muted, marginTop: 4 }}>{tr('Your refund of {a} is being sent. It can take a little while.', { a: rs(pd.refundPaise / 100) })}</Text> : null}
                         {pd.kept ? <Text style={{ color: muted, marginTop: 4 }}>{tr('The shop keeps the advance.')}</Text> : null}
                         {STAGE_TEXT[o.status] ? <Text style={{ color: text, marginTop: 6, fontWeight: '700' }}>{tr(STAGE_TEXT[o.status](o.fulfilment === 'delivery'))}</Text> : null}
-                        {pd.balancePaid ? <Text style={{ color: ok, marginTop: 4, fontWeight: '700' }}>{tr('Balance paid: {a} ({how})', { a: rs(pd.balancePaise / 100), how: pd.balanceVia === 'cash' ? tr('cash') : tr('online') })}</Text> : null}
+                        {pd.balancePaid ? <Text style={{ color: ok, marginTop: 4, fontWeight: '700' }}>{tr('Balance paid: {a} ({how})', { a: rs(pd.balancePaise / 100), how: pd.balanceVia === 'cash' ? tr('cash') : pd.balanceVia === 'upi' ? tr('UPI') : tr('online') })}</Text> : null}
                         {!pd.balancePaid && o.quote?.balancePaise > 0 && ['confirmed', 'preparing'].includes(o.status) ? <Text style={{ color: muted, marginTop: 4 }}>{tr('The balance of {a} is paid at the handover, in the app or in cash to the shop.', { a: rs(o.quote.balancePaise / 100) })}</Text> : null}
                         {!pd.balancePaid && o.quote?.balancePaise > 0 && ['ready', 'out_for_delivery', 'delivered'].includes(o.status) ? <Text style={{ color: text, marginTop: 4, fontWeight: '800' }}>{tr('Balance to pay: {a}. Pay it in the app, or in cash to the shop.', { a: rs(o.quote.balancePaise / 100) })}</Text> : null}
                     </Card>

@@ -574,6 +574,7 @@
  "The SMS could not be sent. Ask the customer to open the app, or deliver without the PIN.",
  "The advance has not been paid",
  "The amount is too small for an online payment",
+ "The balance is already paid",
  "The balance is collected when the order is ready or delivered",
  "The bulk minimum must be a whole number from 0 to 10000",
  "The complaint for order #{v1} has had no reply for 24 hours. Please answer it.",

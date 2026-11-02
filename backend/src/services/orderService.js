@@ -179,7 +179,7 @@ async function prepare({ tenant, userId, body, quoting }) {
     if (priced.orderType === 'pickup') {
         const max = ({ ...DEFAULTS.orders.pickupRules, ...(config.orders.pickupRules || {}) }).openMax;
         if (max > 0) {
-            const waiting = await Order.countDocuments({ tenantId: tenant._id, userId, orderType: 'pickup', status: { $in: ['placed', 'accepted', 'preparing', 'ready'] }, ...HIDE_UNPAID });
+            const waiting = await Order.countDocuments({ tenantId: tenant._id, userId, orderType: 'pickup', status: { $in: ['placed', 'accepted', 'preparing', 'ready'] }, ...HIDE_UNPAID, bulkId: { $exists: false } });   // (a bulk order's work ticket does not count)
             if (waiting >= max) pickupProblem = { status: 409, message: waiting === 1 ? 'You already have 1 pickup order waiting to be collected. Collect it first, then order again.' : `You already have ${waiting} pickup orders waiting to be collected. Collect one first, then order again.` };   // whole sentences, so the app can translate them
         }
     }

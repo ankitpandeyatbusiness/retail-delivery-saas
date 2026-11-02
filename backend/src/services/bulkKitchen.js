@@ -84,6 +84,7 @@ async function ensureLinkedOrder(bulkId) {
                 latitude: b.address.latitude, longitude: b.address.longitude,
             } : undefined,
             scheduledFor: b.when,
+            pickupUntil: b.fulfilment === 'pickup' ? b.when : undefined,   // the pickup reminders count from this: "your food is waiting" 30 minutes before the time
             foodNote: notesOf(b),
             note: text(`Bulk order ${b.code}${b.fulfilment === 'delivery' && b.deliveryNote ? `. ${b.deliveryNote}` : ''}`, 300),   // (the rider reads the delivery note)
             statusHistory: [{ status: 'accepted', byType: 'system', byLabel: `Bulk order ${b.code}: advance paid` }],
@@ -122,6 +123,7 @@ async function fromTicket(t) {
     if (to === 'delivered') {
         // the balance was collected with the delivery (cash with the rider, or at the counter): written down, and the order completes
         if (t.payment?.status === 'paid' && t.payment?.method === 'cod') await bulks.balanceFromTicket({ bulkId: t.bulkId, via: 'cash' });
+        else if (t.payment?.paidAtDoor) await bulks.balanceFromTicket({ bulkId: t.bulkId, via: 'door' });   // paid by Razorpay QR at the door (usually recorded already)
         await bulks.tryComplete(t.bulkId);
     }
     return to;

@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
 import useBulkLive from '../../hooks/common/useBulkLive';
 import { Thumb } from '../customers/BulkOrderScreen';
+import { ChatBadge } from '../../components/common/ChatButton';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
@@ -70,6 +71,7 @@ export default function OwnerBulkScreen() {
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                             {o.status === 'requested' ? <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: error, marginRight: 8 }} /> : null}
                             <Text numberOfLines={1} style={{ flex: 1, color: text, fontWeight: '900', fontSize: 16 }}>{o.contact?.company || o.contact?.name} · {o.code}</Text>
+                            <ChatBadge kind="bulk" refId={o.id} />
                             <Pill label={tr(BULK_STATUS[o.status] || o.status)} color={bulkTone(o.status, brand)} />
                         </View>
                         <View style={{ flexDirection: 'row', marginTop: 8 }}>

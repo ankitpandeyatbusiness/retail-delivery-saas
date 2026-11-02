@@ -23,6 +23,7 @@ export function bulkStale(type, status, code) {
 export function notificationTarget(role, n) {
     const type = String(n?.type || n?.data?.type || '');
     const d = n?.data || {};
+    if ((role === 'admin' || role === 'customer') && d.kind === 'chat' && d.chatKind && d.refId) return { name: 'Chat', params: { kind: String(d.chatKind), refId: String(d.refId) } };   // a message in a chat
     if (role === 'admin') return ownerRoute({ type, data: d });
 
     if (role === 'customer') {

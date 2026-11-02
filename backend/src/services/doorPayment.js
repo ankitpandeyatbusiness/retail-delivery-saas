@@ -105,6 +105,8 @@ async function credit({ account, qr, pay }) {
         return { ignored: 'already_paid' };
     }
     const row = await ensureRow({ order, qrId: qr.id, pay });
+    // a bulk order's work ticket: what the customer paid at the door is the bulk order's balance (paid online, by Razorpay)
+    if (order.bulkId) await require('./bulkOrders').balanceFromTicket({ bulkId: order.bulkId, via: 'door' }).catch((e) => console.error('Bulk door payment error:', e.message));
     liveFeed.emit(order.tenantId, 'orders', { type: 'order.paid_at_door', orderId: String(order._id), orderNo: order.orderNo, total: order.pricing?.total });
     if (order.status === 'cancelled' && row) await paymentService.settleOrder(row);   // paid after the order was cancelled: the money goes back
     return { door: 'paid' };

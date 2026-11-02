@@ -32,6 +32,8 @@ import ServiceFormScreen from '../screens/customers/ServiceFormScreen';
 import MyInquiriesScreen from '../screens/customers/MyInquiriesScreen';
 import BulkOrderScreen from '../screens/customers/BulkOrderScreen';
 import BulkCartScreen from '../screens/customers/BulkCartScreen';
+import ChatScreen from '../components/common/ChatScreen';
+import useChatSync from '../hooks/common/useChatSync';
 import BulkOrderDetailScreen from '../screens/customers/BulkOrderDetailScreen';
 import MyBulkOrdersScreen from '../screens/customers/MyBulkOrdersScreen';
 import TableBillScreen from '../screens/customers/TableBillScreen';
@@ -294,6 +296,7 @@ function useDoubleBackExit() {
 
 export default function AppNavigator() {
     useDoubleBackExit();
+    useChatSync();   // chat badges, and the 'delivered' tick for what reaches this phone
     const isHydrated = useAuthStore((s) => s.isHydrated);
     const { background, surface, border, primary, text, dark } = useBrand();
     // The default navigation theme is white: it showed as a white bar behind the tabs while they slid, in dark mode.
@@ -371,6 +374,7 @@ export default function AppNavigator() {
                     <Stack.Screen name="MyInquiries" component={MyInquiriesScreen} />
                     <Stack.Screen name="BulkOrder" component={BulkOrderScreen} />
                     <Stack.Screen name="BulkCart" component={BulkCartScreen} />
+                    <Stack.Screen name="Chat" component={ChatScreen} />
                     <Stack.Screen name="BulkOrderDetail" component={BulkOrderDetailScreen} />
                     <Stack.Screen name="MyBulkOrders" component={MyBulkOrdersScreen} />
                     <Stack.Screen name="TableBill" component={TableBillScreen} />
@@ -417,6 +421,7 @@ export default function AppNavigator() {
                     <Stack.Screen name="OwnerService" component={OwnerServiceScreen} />
                     <Stack.Screen name="OwnerBulk" component={OwnerBulkScreen} />
                     <Stack.Screen name="OwnerBulkOrder" component={OwnerBulkOrderScreen} />
+                    <Stack.Screen name="Chat" component={ChatScreen} />
                     <Stack.Screen name="OwnerBulkSettings" component={OwnerBulkSettingsScreen} />
                     <Stack.Screen name="OwnerBanners" component={OwnerBannersScreen} />
                     <Stack.Screen name="OwnerBanner" component={OwnerBannerScreen} />
@@ -457,7 +462,7 @@ export default function AppNavigator() {
             </NavigationContainer>
             <OwnerViewPill onBack={() => { if (navigationRef.isReady() && (navigationRef.getRootState()?.routes?.length || 0) > 1) navigationRef.dispatch(StackActions.popToTop()); }} />
             <LiveOrderHost routeName={routeName} onOpenOrder={(id) => { if (navigationRef.isReady()) navigationRef.navigate('OrderDetail', { id }); }} />
-            <ActiveOrderBar routeName={routeName} onOpen={(id) => { if (navigationRef.isReady()) navigationRef.navigate('OrderDetail', { id }); }} onOpenAll={goOrders} />
+            <ActiveOrderBar routeName={routeName} onOpen={(id, o) => { if (navigationRef.isReady()) { if (o?.isBulk) navigationRef.navigate('BulkOrderDetail', { id: o.bulkId }); else navigationRef.navigate('OrderDetail', { id }); } }} onOpenAll={goOrders} />
             <TableLinkHost onDone={() => { if (navigationRef.isReady()) navigationRef.navigate('MainTabs'); }} />
             <TableBillStrip routeName={routeName} onOpen={() => { if (navigationRef.isReady()) navigationRef.navigate('TableBill'); }} onOpenCart={() => { if (navigationRef.isReady()) navigationRef.navigate('Cart'); }} />
             <BookingStrip routeName={routeName} onOpen={() => { if (navigationRef.isReady()) navigationRef.navigate('MyBookings'); }} />

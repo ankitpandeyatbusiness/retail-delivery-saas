@@ -12,7 +12,8 @@ import { tint } from './shop';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { useTableBill } from '../../store/customers/useTableBill';
 import { useLiveTripStore } from '../../store/customers/useLiveTripStore';
-import { fetchOrders } from '../../api/customers/shopApi';
+import { fetchOrders, fetchMyBulk } from '../../api/customers/shopApi';
+import useBulkLive from '../../hooks/common/useBulkLive';
 import { onOrderUpdate, onNotification } from '../../api/common/socket';
 import { isActive } from './orders';
 import { queueText } from './QueueLine';
@@ -20,7 +21,9 @@ import { useDock, useCrowded } from '../../store/customers/useDock';
 import { useBookingCard } from '../../store/customers/useBookingCard';
 import { tr } from '../../i18n';
 
-const HIDE_ON = ['Login', 'Cart', 'Item', 'OrderPlaced', 'OrderDetail', 'CardDetails', 'PaymentMethods', 'Orders'];
+const HIDE_ON = ['Login', 'Cart', 'Item', 'OrderPlaced', 'OrderDetail', 'CardDetails', 'PaymentMethods', 'Orders', 'BulkOrderDetail'];
+const BULK_WORDS = { confirmed: 'accepted', preparing: 'preparing', ready: 'ready' };   // a bulk order's steps, in the words the bar already has
+const BULK_LEAD_MS = 30 * 60000;   // a bulk pickup shows in the bar this long before its time
 const TAB_H = 62;
 
 const WORDS = {
@@ -53,7 +56,14 @@ export default function ActiveOrderBar({ routeName, onOpen, onOpenAll }) {
             const r = await fetchOrders({ active: true, limit: 5 });
             // an online order that was never paid is not an order in progress
             const live = (r.items || []).filter((o) => isActive(o.status) && o.orderType !== 'dine_in' && !(o.payment?.method && o.payment.method !== 'cod' && o.payment.status !== 'paid'));
-            setOrders(live);
+            // a bulk PICKUP: in the bar from half an hour before its time until it is handed over (the bar says its code, the time and where it is)
+            let bulk = [];
+            try {
+                const b = await fetchMyBulk();
+                bulk = (b.items || []).filter((x) => x.fulfilment === 'pickup' && BULK_WORDS[x.status] && new Date(x.when).getTime() - Date.now() <= BULK_LEAD_MS)
+                    .map((x) => ({ id: `bulk-${x.id}`, bulkId: x.id, isBulk: true, orderNo: x.code, status: BULK_WORDS[x.status], when: x.when, orderType: 'pickup' }));
+            } catch (e) { /* no bulk orders to show */ }
+            setOrders([...live, ...bulk]);
         } catch (e) { /* the bar stays as it was */ } finally { busy.current = false; }
     }, []);
 
@@ -61,19 +71,20 @@ export default function ActiveOrderBar({ routeName, onOpen, onOpenAll }) {
         if (!enabled) { setOrders([]); return undefined; }
         load();
         const a = onOrderUpdate(load);
-        const b = onNotification((n) => { if (n?.data?.orderId) load(); });
+        const b = onNotification((n) => { if (n?.data?.orderId || n?.data?.bulkId) load(); });
         const c = AppState.addEventListener('change', (st) => { if (st === 'active') load(); });
         const t = setInterval(load, 60000);   // a safety net when a live message is missed
         return () => { a(); b(); c.remove(); clearInterval(t); };
     }, [enabled, load]);
 
+    useBulkLive(load);   // a bulk order changed (the cook started it...): the bar follows
     const first = orders[0];
     // One card only: when the live track bar is available (rider on the way), IT is the card (it has Track and Hide), so this one stays away
     const tableOpen = useTableBill((s) => !!s.bill?.open);   // dining in: the table bill bar is shown instead
     const show = enabled && !!first && !HIDE_ON.includes(routeName) && !tracking && liveOffset === 0 && !tableOpen;
     useEffect(() => { useBookingCard.getState().setOrderBar(!!show); return () => useBookingCard.getState().setOrderBar(false); }, [show]);   // the table card sits above this bar
     const orderId = first ? String(first.id || first._id) : '';
-    useEffect(() => { useDock.getState().put('order', show ? { icon: 'bicycle', label: 'Your order', sub: tr((WORDS[first?.status] || [])[1] || 'In progress'), route: orders.length > 1 ? 'Orders' : 'OrderDetail', params: orders.length > 1 ? undefined : { id: orderId } } : null); }, [show, orders.length, orderId, first?.status]);   // eslint-disable-line react-hooks/exhaustive-deps
+    useEffect(() => { useDock.getState().put('order', show ? { icon: 'bicycle', label: 'Your order', sub: tr((WORDS[first?.status] || [])[1] || 'In progress'), route: orders.length > 1 ? 'Orders' : first?.isBulk ? 'BulkOrderDetail' : 'OrderDetail', params: orders.length > 1 ? undefined : first?.isBulk ? { id: first.bulkId } : { id: orderId } } : null); }, [show, orders.length, orderId, first?.status]);   // eslint-disable-line react-hooks/exhaustive-deps
     useEffect(() => () => useDock.getState().put('order', null), []);
     const crowded = useCrowded('order');   // two or more cards: the round dock shows this one
     const orderKey = orders.map((o) => String(o.id || o._id)).join(',');
@@ -117,7 +128,7 @@ export default function ActiveOrderBar({ routeName, onOpen, onOpenAll }) {
             }}
         >
             <Pressable
-                onPress={() => (many ? onOpenAll() : onOpen(String(first.id || first._id)))}
+                onPress={() => (many ? onOpenAll() : onOpen(String(first.id || first._id), first))}
                 style={[s.bar, { backgroundColor: surface, borderColor: border }]}
                 accessibilityRole="button" accessibilityLabel={tr('View your active order')}
             >
@@ -127,9 +138,9 @@ export default function ActiveOrderBar({ routeName, onOpen, onOpenAll }) {
                 </View>
                 <View style={s.mid}>
                     <Text style={[s.head, { color: text }]} numberOfLines={1}>
-                        {many ? tr('{n} orders in progress', { n: orders.length }) : tr('Order #{orderNo}', { orderNo: first.orderNo })}
+                        {many ? tr('{n} orders in progress', { n: orders.length }) : first.isBulk ? tr('Bulk order {c}', { c: first.orderNo }) : tr('Order #{orderNo}', { orderNo: first.orderNo })}
                     </Text>
-                    <Text style={[s.sub, { color: muted }]} numberOfLines={1}>{many ? tr('Tap to see them') : (queueText(first.queue) || tr(words))}</Text>
+                    <Text style={[s.sub, { color: muted }]} numberOfLines={1}>{many ? tr('Tap to see them') : first.isBulk ? `${tr('Pickup at {t}', { t: new Date(first.when).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' }) })} · ${tr(words)}` : (queueText(first.queue) || tr(words))}</Text>
                 </View>
                 <View style={[s.go, { backgroundColor: primary }]}>
                     <Text style={s.goTxt}>{tr('View')}</Text>

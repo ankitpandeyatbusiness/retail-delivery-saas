@@ -25,7 +25,7 @@ const router = express.Router();
 const isSuper = (req) => req.actor?.type === 'superadmin';
 const featureOn = (req) => featureGate.isOn(req.tenant, 'bulkOrders');
 
-router.get('/settings', wrap(async (req, res) => { res.json({ ...(await bulk.settingsOf(req.tenant._id)), featureOn: featureOn(req), recommended: bulk.RECOMMENDED }); }));
+router.get('/settings', wrap(async (req, res) => { res.json({ ...(await bulk.settingsOf(req.tenant._id)), featureOn: featureOn(req), recommended: bulk.RECOMMENDED, upiReady: !!String(req.tenant.settings?.orders?.dineIn?.upiId || '').trim() }); }));
 router.put('/settings', wrap(async (req, res) => {
     const body = req.body || {};
     const onlySwitchOff = Object.keys(body).length === 1 && body.enabled === false;
@@ -38,7 +38,9 @@ router.post('/:id/quote', wrap(async (req, res) => { res.json(await bulk.quote({
 router.post('/:id/decline', wrap(async (req, res) => { res.json(await bulk.decline({ tenant: req.tenant, id: req.params.id, reason: req.body?.reason })); }));
 router.post('/:id/cancel', wrap(async (req, res) => { res.json(await bulk.ownerCancel({ tenant: req.tenant, id: req.params.id, reason: req.body?.reason })); }));   // a paid order: the customer gets the whole advance back
 router.post('/:id/stage', wrap(async (req, res) => { res.json(await bulk.setStage({ tenant: req.tenant, id: req.params.id, to: req.body?.to, pickupCode: req.body?.pickupCode, skipCode: req.body?.skipCode === true })); }));   // preparing | ready | out_for_delivery | delivered
-router.post('/:id/cash-received', wrap(async (req, res) => { res.json(await bulk.markCash({ tenant: req.tenant, id: req.params.id })); }));   // the balance was paid in cash
+router.post('/:id/cash-received', wrap(async (req, res) => { res.json(await bulk.markCash({ tenant: req.tenant, id: req.params.id, via: req.body?.via })); }));
+// a QR for the balance, made from the shop's own UPI ID (the customer at the counter scans it; the owner taps "UPI received" after he sees the success screen)
+router.get('/:id/pay-qr', wrap(async (req, res) => { res.json(await bulk.payQr({ tenant: req.tenant, id: req.params.id })); }));   // the balance was paid in cash
 router.get('/:id/invoice', wrap(async (req, res) => {
     const { order, tenant } = await bulk.invoiceFor({ tenant: req.tenant, id: req.params.id });
     require('../services/invoiceService').streamInvoice(res, order, tenant, { inline: req.query.view === '1' });

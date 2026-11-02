@@ -30,8 +30,9 @@ async function runPickupReminders(now = new Date()) {
             const end = new Date(o.pickupUntil).getTime();
             const t = now.getTime();
             const code = (() => { try { return require('../services/deliveryPinService').pinFor(o); } catch (e) { return null; } })();
-            const vars = { orderNo: o.orderNo, brief: brief(o), until: clock(end), pickupCode: code };
-            const data = { orderId: String(o._id), orderNo: o.orderNo };
+            const vars = { orderNo: o.bulkCode || o.orderNo, brief: brief(o), until: clock(end), pickupCode: code };
+            // a bulk order's reminder opens the bulk order (its page shows the pickup code), not the hidden work ticket
+            const data = { orderId: String(o._id), orderNo: o.orderNo, ...(o.bulkId ? { kind: 'bulk', bulkId: String(o.bulkId) } : {}) };
             if (t >= end - 30 * MIN && t < end && await claim(o, 'waitingAt', now)) {
                 center.notify('pickup_waiting', { tenantId: o.tenantId, userId: o.userId, vars, data }); sent += 1;
             } else if (t >= end && t < end + NO_SHOW_WAIT_MS && await claim(o, 'overAt', now)) {

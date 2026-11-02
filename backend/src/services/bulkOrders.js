@@ -464,7 +464,8 @@ async function setStage({ tenant, id, to, pickupCode, skipCode }) {
 
 // The customer paid the balance in cash: the owner marks it received. If the customer already paid it online the answer is "already paid";
 // if he is paying online at this very moment, that payment is refunded by itself when it lands (bulkPayment.settleBalance).
-async function markCash({ tenant, id }) {
+async function markCash({ tenant, id, via = 'cash' }) {
+    const how = via === 'upi' ? 'upi' : 'cash';
     const o = await ownerOne({ tenant, id });
     if (!o.payment?.advancePaymentId) throw httpError(409, 'The advance has not been paid');
     if (!HANDOVER.includes(o.status)) throw httpError(409, 'The balance is collected when the order is ready or delivered');
@@ -473,13 +474,30 @@ async function markCash({ tenant, id }) {
     if (paise <= 0) throw httpError(409, 'Nothing is left to collect');
     const done = await BulkOrder.findOneAndUpdate(
         { _id: o._id, status: { $in: HANDOVER }, 'payment.balancePaid': { $ne: true } },
-        { $set: { 'payment.balancePaid': true, 'payment.balancePaise': paise, 'payment.balanceVia': 'cash', 'payment.balancePaidAt': new Date() }, $push: { history: { status: 'balance_paid', by: 'owner', note: 'cash received' } } },
+        { $set: { 'payment.balancePaid': true, 'payment.balancePaise': paise, 'payment.balanceVia': how, 'payment.balancePaidAt': new Date() }, $push: { history: { status: 'balance_paid', by: 'owner', note: how === 'upi' ? 'UPI received' : 'cash received' } } },
         { returnDocument: 'after' },
     ).lean();
     if (!done) throw httpError(409, 'This order was just changed. Open it again.');
     await require('./bulkKitchen').ticketPaid(done._id).catch((e) => console.error('Bulk ticket error:', e.message));   // the rider is not asked for it
     await tryComplete(done._id);
     return ownerView(await BulkOrder.findById(done._id).lean());
+}
+
+// The balance, as a QR the customer scans at the counter. It is the shop's own UPI ID (the same as the waiter's table QR): the money goes straight to the shop,
+// and the owner taps "UPI received" once the customer shows the success screen. A shop with no UPI ID has no QR (the app hides the button).
+async function payQr({ tenant, id }) {
+    const o = await ownerOne({ tenant, id });
+    if (!o.payment?.advancePaymentId) throw httpError(409, 'The advance has not been paid');
+    if (!HANDOVER.includes(o.status)) throw httpError(409, 'The balance is collected when the order is ready or delivered');
+    if (o.payment.balancePaid) throw httpError(409, 'The balance is already paid');
+    const paise = o.quote?.balancePaise || 0;
+    if (paise <= 0) throw httpError(409, 'Nothing is left to collect');
+    const upiId = String(tenant.settings?.orders?.dineIn?.upiId || '').trim();
+    if (!upiId) return { available: false, reason: 'no_upi', payable: paise / 100 };
+    const name = String(tenant.name || 'Shop').replace(/[^\w .&-]/g, '').slice(0, 40);
+    const upiString = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(name)}&am=${(paise / 100).toFixed(2)}&cu=INR&tn=${encodeURIComponent(`Bulk order ${o.code} balance`)}`;
+    const image = await require('qrcode').toDataURL(upiString, { margin: 1, width: 520, errorCorrectionLevel: 'M' });
+    return { available: true, mode: 'upi', payable: paise / 100, upiId, code: o.code, upiString, image };
 }
 
 // Delivered and the balance settled (online, cash, or nothing left): the order is completed, and it counts for the rent. Safe to repeat.
@@ -527,8 +545,8 @@ async function invoiceFor({ tenant, id, userId }) {
             seller: { name: t?.business?.legalName || t?.name, gstin: t?.business?.gstin, fssai: t?.business?.fssai },
             customer: { name: o.contact?.company || o.contact?.name, phone: o.contact?.phone, gstin: o.contact?.gstin },
             address: o.address,
-            payment: { method: 'bulk', label: `Advance online${bal ? `, balance ${o.payment.balanceVia === 'cash' ? 'in cash' : 'online'}` : ''}`, status: 'paid' },
-            paidParts: [['Advance paid (online)', rs2(adv)], ...(bal ? [[`Balance paid (${o.payment.balanceVia === 'cash' ? 'cash' : 'online'})`, rs2(bal)]] : [])],
+            payment: { method: 'bulk', label: `Advance online${bal ? `, balance ${o.payment.balanceVia === 'cash' ? 'in cash' : o.payment.balanceVia === 'upi' ? 'by UPI' : 'online'}` : ''}`, status: 'paid' },
+            paidParts: [['Advance paid (online)', rs2(adv)], ...(bal ? [[`Balance paid (${o.payment.balanceVia === 'cash' ? 'cash' : o.payment.balanceVia === 'upi' ? 'UPI' : 'online'})`, rs2(bal)]] : [])],
         },
     };
 }
@@ -668,7 +686,7 @@ async function customerPage(doc) {
 }
 
 module.exports = {
-    customerPage,
+    customerPage, payQr,
     RECOMMENDED, settingsOf, saveSettings, cleanBulkPrice, publicConfig, menuFor, priceRequest, estimate, create, customerView, mine, listMine, cancelByCustomer, previewCancel, cancelOutcome, refundDue, ownerCancel, balanceDue, setStage, markCash, tryComplete, repairCompleted, invoiceFor, askChange,
     advanceFromTicket, balanceFromTicket,
     ownerView, ownerList, ownerOne, quote, decline, setOwnerNote, expireOld, effectiveStatus,

@@ -537,4 +537,91 @@ describe('a paid bulk order gets a work ticket for the kitchen and the rider', (
         assert.deepEqual(normal.items.map((c) => !!c.bulk), [false]);
         assert.equal(normal.summary.sales, 200);
     });
+
+    /* ------------------------------ Phase 6: the balance by QR, and the pickup reminders ------------------------------ */
+    test('the owner QR for the balance: made from the shop UPI ID, none without one; UPI received completes the order', async () => {
+        const Tenant = require('../src/models/Tenant');
+        await paid();
+        await owner('post', `/${id}/stage`, { to: 'preparing' }); await owner('post', `/${id}/stage`, { to: 'ready' });
+        const none = await owner('get', `/${id}/pay-qr`);
+        assert.equal(none.status, 200);
+        assert.deepEqual([none.body.available, none.body.reason], [false, 'no_upi']);
+        assert.equal((await owner('get', '/settings')).body.upiReady, false);
+        await Tenant.updateOne({ _id: w.tenant._id }, { $set: { 'settings.orders.dineIn.upiId': 'myshop@okbank' } });
+        require('../src/middlewares/tenantRecognizer').invalidateTenant(w.tenant.slug);   // the shop is read from a short memory
+        const qr = await owner('get', `/${id}/pay-qr`);
+        assert.equal(qr.body.available, true, JSON.stringify(qr.body));
+        assert.equal(qr.body.payable, 5000);                                  // the BALANCE only
+        assert.ok(qr.body.upiString.startsWith('upi://pay?pa=myshop%40okbank&'), qr.body.upiString);
+        assert.ok(qr.body.upiString.includes('am=5000.00'), qr.body.upiString);
+        assert.ok(qr.body.image.startsWith('data:image/png;base64,'));
+        assert.equal((await owner('get', '/settings')).body.upiReady, true);
+        const got = await owner('post', `/${id}/cash-received`, { via: 'upi' });
+        assert.equal(got.status, 200, JSON.stringify(got.body));
+        assert.equal((await row()).payment.balanceVia, 'upi');
+        await stage('delivered');
+        assert.equal(await bulkStatus(), 'completed');
+        assert.equal((await owner('get', `/${id}/pay-qr`)).status, 409, 'nothing left to collect');
+    });
+
+    test('the rider Razorpay door QR pays the bulk balance (and the order completes)', async () => {
+        const Rider = require('../src/models/Rider');
+        const assignment = require('../src/services/assignmentService');
+        const door = require('../src/services/doorPayment');
+        await Rider.updateOne({ tenantId: w.tenant._id, userId: w.rider.user._id }, { $set: { isActive: true, isOnline: true, activeOrderCount: 0 } });
+        await BulkOrder.updateOne({ _id: id }, { $set: { fulfilment: 'delivery', address: { label: 'Office', line1: '5 MG Road', city: 'Pune', pincode: '411001', name: 'Meera', phone: '9000000041' } } });
+        await paid();
+        let t = await ticket();
+        await orderStatus.change({ order: t, status: 'preparing', actor: cook });
+        await kitchenSvc.ready({ tenant: w.tenant, orderId: t._id, staff });
+        await assignment.assign({ orderId: t._id, tenantId: w.tenant._id, riderUserId: w.rider.user._id, reason: 'test', actor: { type: 'owner', id: String(w.owner.user._id) } });
+        t = await ticket();
+        t = await orderStatus.change({ order: t, status: 'out_for_delivery', actor: { type: 'rider', id: w.rider.user._id, label: 'Rider' } });
+        // the customer scans the rider's QR for the balance (the webhook calls credit)
+        await Order.updateOne({ _id: t._id }, { $set: { 'delivery.doorQr': { qrId: 'qr_door_1', amountPaise: 500000, expiresAt: new Date(Date.now() + 3600000), createdAt: new Date() } } });
+        const r = await door.credit({ account: w.tenant._id, qr: { id: 'qr_door_1', notes: { purpose: 'door_cod', referenceId: String(t._id) } }, pay: { id: 'pay_door_1', status: 'captured', amountPaise: 500000, method: 'upi' } });
+        assert.equal(r.door, 'paid', JSON.stringify(r));
+        const b = await row();
+        assert.deepEqual([b.payment.balancePaid, b.payment.balanceVia, b.payment.balancePaise], [true, 'door', 500000]);
+        t = await ticket();
+        await orderStatus.change({ order: t, status: 'delivered', actor: { type: 'rider', id: w.rider.user._id, label: 'Rider' } });
+        await waitFor(async () => (await bulkStatus()) === 'completed');
+        const CodSettlement = require('../src/models/CodSettlement');
+        assert.equal(await CodSettlement.countDocuments({ tenantId: w.tenant._id, type: 'collect' }), 0, 'the rider holds no cash: the customer paid online');
+    });
+
+    test('a ready bulk pickup reminds the customer 30 minutes before the time, and the reminder opens the bulk order', async () => {
+        const { runPickupReminders } = require('../src/jobs/pickupReminders');
+        const Notification = require('../src/models/Notification');
+        await paid();
+        const t = await ticket();
+        assert.ok(t.pickupUntil && Math.abs(new Date(t.pickupUntil) - new Date(t.scheduledFor)) < 1000, 'the window ends at the time he chose');
+        await owner('post', `/${id}/stage`, { to: 'preparing' }); await owner('post', `/${id}/stage`, { to: 'ready' });
+        const when = new Date(t.scheduledFor).getTime();
+        assert.deepEqual(await runPickupReminders(new Date(when - 3 * 3600000)), { sent: 0 }, 'too early');
+        assert.deepEqual(await runPickupReminders(new Date(when - 20 * 60000)), { sent: 1 });
+        assert.deepEqual(await runPickupReminders(new Date(when - 10 * 60000)), { sent: 0 }, 'once');
+        const n = await Notification.findOne({ userId: w.customer.user._id, type: 'pickup_waiting' }).lean();
+        assert.ok(n, 'the customer was reminded');
+        assert.equal(n.data.kind, 'bulk');
+        assert.equal(String(n.data.bulkId), String(id));
+    });
+
+    test('a bulk delivery waiting for its day does not stop the customer ordering a normal delivery or pickup', async () => {
+        const orderMix = require('../src/services/orderMix');
+        const { resolveConfig } = require('../src/services/tenantConfigService');
+        const Tenant = require('../src/models/Tenant');
+        await Tenant.updateOne({ _id: w.tenant._id }, { $set: { 'settings.orders.mixRules.deliveryOpenMax': 1, 'settings.orders.pickupRules.openMax': 1 } });
+        const tenant = await Tenant.findById(w.tenant._id).lean();
+        await BulkOrder.updateOne({ _id: id }, { $set: { fulfilment: 'delivery', address: { label: 'Office', line1: '5 MG Road', city: 'Pune', pincode: '411001', name: 'Meera', phone: '9000000041' } } });
+        await paid();                                                    // the work ticket is open: a delivery, accepted, cash balance 5000
+        assert.equal((await ticket()).orderType, 'delivery');
+        const ask = (type) => orderMix.check({ tenant, config: resolveConfig(tenant), userId: w.customer.user._id, priced: { orderType: type, pricing: { total: 300 } }, body: { paymentMethod: 'cod' } });
+        assert.equal(await ask('delivery'), null, 'the ticket does not count as a delivery on the way');
+        // a REAL open delivery order does count (the rule still works)
+        await f2.makeOrder(w.tenant, w.customer.user, { orderNo: 8001, orderType: 'delivery', status: 'accepted', payment: { method: 'cod', status: 'pending' } });
+        const blocked = await ask('delivery');
+        assert.equal(blocked?.status, 409);
+        assert.match(blocked.message, /already have 1 delivery order/);
+    });
 });

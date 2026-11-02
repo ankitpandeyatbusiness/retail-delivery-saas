@@ -12,6 +12,7 @@ import { fetchTableBill, waiterSettle, waiterMoveRound, waiterMergeBills, waiter
 import { apiError } from '../../api/owners/shopApi';
 import { showToast } from '../customers/shop';
 import { ask } from '../common/dialog';
+import { useStaffStore } from '../../store/staff/useStaffStore';
 import { tr } from '../../i18n';
 
 const STAGE = (status) => (status === 'delivered' ? ['Served', 'ok'] : status === 'ready' ? ['Ready to serve', 'primary'] : ['Cooking', 'muted']);
@@ -22,6 +23,7 @@ export default function TableSheet({ session, onClose, onPaid }) {
     const [failed, setFailed] = useState('');
     const [busy, setBusy] = useState('');
     const [qrOpen, setQrOpen] = useState(false);
+    const upiReady = useStaffStore((s) => s.me?.upiReady) !== false;   // the shop has not added its UPI ID: no QR button (an old server says nothing: the button stays)
     const [shareOf, setShareOf] = useState(null);   // one guest's share is being taken: { userId, name, due }
     const [moving, setMoving] = useState(null);   // { kind: 'move', round } | { kind: 'merge' }: choosing the other bill
     const load = useCallback(() => {
@@ -125,8 +127,12 @@ export default function TableSheet({ session, onClose, onPaid }) {
                                     <BigButton label={tr('Cash received')} icon="cash" bg={ok} ink="#FFFFFF" busy={busy === 'cash'} disabled={unserved || !!busy || bill.payable <= 0} onPress={() => pay('cash')} />
                                     <View style={{ height: 10 }} />
                                     <BigButton label={tr('UPI received')} icon="phone-portrait" bg={primary} ink="#FFFFFF" busy={busy === 'upi'} disabled={unserved || !!busy || bill.payable <= 0} onPress={() => pay('upi')} />
-                                    <View style={{ height: 10 }} />
-                                    <BigButton label={tr('Show QR to pay')} icon="qr-code" bg={alpha(primary, 0.14)} ink={primary} disabled={unserved || !!busy || bill.payable <= 0} onPress={() => setQrOpen(true)} />
+                                    {upiReady ? (
+                                        <>
+                                            <View style={{ height: 10 }} />
+                                            <BigButton label={tr('Show QR to pay')} icon="qr-code" bg={alpha(primary, 0.14)} ink={primary} disabled={unserved || !!busy || bill.payable <= 0} onPress={() => setQrOpen(true)} />
+                                        </>
+                                    ) : null}
                                 </View>
                             ) : <Text style={{ color: muted, fontWeight: '600', marginTop: 14 }}>{bill.status === 'closed' ? tr('This bill is paid.') : tr('The owner takes the money for this bill.')}</Text>}
                         </View>

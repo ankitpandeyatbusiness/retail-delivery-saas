@@ -573,6 +573,7 @@
  "The SMS could not be sent. Ask the customer to open the app, or deliver without the PIN.": "एसएमएस पाठवता आला नाही. ग्राहकाला ॲप उघडायला सांगा, किंवा पिनशिवाय पोहोचवा.",
  "The advance has not been paid": "आगाऊ रक्कम अजून भरलेली नाही",
  "The amount is too small for an online payment": "ऑनलाइन पेमेंटसाठी रक्कम खूप कमी आहे",
+ "The balance is already paid": "उर्वरित रक्कम आधीच भरली आहे",
  "The balance is collected when the order is ready or delivered": "ऑर्डर तयार झाल्यावर किंवा डिलिव्हर झाल्यावर उर्वरित रक्कम घेतली जाते",
  "The bulk minimum must be a whole number from 0 to 10000": "बल्कचे किमान 0 ते 10000 मधील पूर्ण संख्या असावे",
  "The complaint for order #{v1} has had no reply for 24 hours. Please answer it.": "ऑर्डर #{v1} च्या तक्रारीला २४ तासांपासून उत्तर नाही. कृपया उत्तर द्या.",
