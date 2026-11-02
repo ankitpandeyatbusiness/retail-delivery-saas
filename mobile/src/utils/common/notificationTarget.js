@@ -6,6 +6,20 @@ import { ownerRoute } from '../owners/notificationRoute';
 
 const LEAVE_KINDS = ['staff_leave', 'staff_holiday', 'rider_leave', 'duty_auto', 'off_duty'];
 
+// Is a bulk notification still the latest word? (status = the bulk order's status NOW). null = yes, show it as usual.
+// Otherwise { title, body }: it has moved on, and that is what the owner is shown instead of an old slider and an old voice.
+export function bulkStale(type, status, code) {
+    const title = `Bulk order ${code || ''}`.trim();
+    if (['bulk_new', 'bulk_change'].includes(type)) {
+        if (status === 'cancelled') return { title, body: 'The customer cancelled this bulk order. Nothing to do.' };
+        if (status === 'declined') return { title, body: 'You declined this bulk order. Nothing to do.' };
+        if (status === 'expired') return { title, body: 'The quote ran out. Nothing to do.' };
+        if (status && status !== 'requested') return { title, body: status === 'quoted' ? 'You already sent the quote. Nothing to do.' : 'This bulk order is already confirmed. Nothing to do.' };
+    }
+    if (type === 'bulk_paid' && ['cancelled', 'declined'].includes(status)) return { title, body: 'This bulk order was cancelled.' };
+    return null;
+}
+
 export function notificationTarget(role, n) {
     const type = String(n?.type || n?.data?.type || '');
     const d = n?.data || {};

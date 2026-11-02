@@ -19,6 +19,7 @@ async function runKitchenQueue(now = new Date()) {
             const rows = await Order.find({ tenantId: tenant._id, orderType: { $in: types }, status: 'accepted', 'kitchen.queuedAt': { $exists: false } })
                 .select('bulkId orderNo orderType status statusHistory createdAt scheduledFor kitchen').limit(100).lean();
             for (const o of rows) {
+                if (o.bulkId && !o.kitchen?.dueAlertAt) continue;   // a bulk order that is not called yet waits in the Bulk tab
                 const v = kitchen.viewOf(o, { lateMin: rules.lateMin || 20, now: now.getTime() });
                 if (v.early) continue;   // a pickup for later is not started early anyway
                 if (now.getTime() - new Date(v.acceptedAt).getTime() < sec * 1000) continue;

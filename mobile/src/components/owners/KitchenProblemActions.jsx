@@ -17,6 +17,7 @@ export default function KitchenProblemActions({ order, onDone, onLater }) {
     const [busy, setBusy] = useState('');
     const paid = !!order.payment?.method && order.payment.method !== 'cod' && order.payment.status === 'paid';
     const can = ['accepted', 'preparing', 'ready'].includes(order.status);
+    const isBulk = !!order.bulkId;   // a bulk order is a different thing: no "stay with us" discount, just cancel and tell the customer
     const [offerOpen, setOfferOpen] = useState(false);
     const [pct, setPct] = useState(10);          // 0 = no offer
     const [remember, setRemember] = useState(false);
@@ -53,7 +54,7 @@ export default function KitchenProblemActions({ order, onDone, onLater }) {
     ], { icon: 'close-circle-outline' });
     return (
         <View>
-            {can ? <Button label={tr('Cancel and tell the customer')} icon="chatbubble-ellipses-outline" busy={busy === 'cancel'} disabled={!!busy} onPress={tellFirst} /> : null}
+            {can ? <Button label={tr('Cancel and tell the customer')} icon="chatbubble-ellipses-outline" busy={busy === 'cancel'} disabled={!!busy} onPress={isBulk ? confirmCancel : tellFirst} /> : null}
             <Text style={{ color: muted, fontSize: 12, margin: 6, marginBottom: 10 }}>{paid ? tr('The order is cancelled, the customer is told sorry and the full payment is refunded. You can offer a discount for 30 minutes.') : tr('The order is cancelled and the customer is told sorry. You can offer a discount for 30 minutes.')}</Text>
             <Button label={onLater ? tr('Later') : tr('I will handle it')} kind="ghost" disabled={!!busy} onPress={() => (onLater ? onLater() : go('dismiss'))} />
 

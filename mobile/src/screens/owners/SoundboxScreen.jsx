@@ -17,6 +17,8 @@ const VOLUMES = [[0.4, 'Low'], [0.7, 'Medium'], [1, 'Loud']];
 const LANGUAGES = [['en', 'English'], ['hi', 'हिन्दी'], ['mr', 'मराठी'], ['gu', 'ગુજરાતી'], ['bn', 'বাংলা']];
 const VOICE_TITLE = { en: 'English voice', hi: 'Hindi voice', mr: 'Marathi voice', gu: 'Gujarati voice', bn: 'Bengali voice' };
 const NATIVE = { mr: 'मराठी', gu: 'ગુજરાતી', bn: 'বাংলা' };
+// the title of the voice list in the language itself (the Marathi list says "मराठी आवाज", not "Marathi voice")
+const OWN_TITLE = { hi: 'हिन्दी आवाज़', mr: 'मराठी आवाज', gu: 'ગુજરાતી અવાજ', bn: 'বাংলা কণ্ঠস্বর' };
 
 function Switcher({ title, subtitle, value, onChange }) {
     const { text, muted, primary } = useBrand();
@@ -155,7 +157,7 @@ export default function SoundboxScreen() {
                 </Card>
 
                 <Card>
-                    <Label title={tr(VOICE_TITLE[st.language] || 'English voice')} hint={tr('Tap a name to hear it.')} />
+                    <Label title={OWN_TITLE[st.language] || tr(VOICE_TITLE[st.language] || 'English voice')} hint={tr('Tap a name to hear it.')} />
                     {voices === null ? <View style={{ marginTop: 10 }}><LineShimmer width={200} height={16} /></View> : null}
                     {voices && !voices.length ? (
                         <Text style={{ color: muted, fontSize: 13, marginTop: 10 }}>

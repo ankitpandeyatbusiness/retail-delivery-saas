@@ -88,6 +88,7 @@ const EVENTS = {
     pickup_not_wanted_claim: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // the customer does not want his pickup any more: the owner chooses the refund
     pickup_thanks: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },          // thank you for collecting
     pickup_claim_no: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },        // the shop could not find it collected yet
+    rider_bulk_packed: { to: 'rider', channels: INAPP_PUSH, alsoPush: true, pushChannel: STAFF_CHANNEL, pushSound: 'ting_tong' },   // the kitchen packed a BULK order the rider is coming for: loud, with the slider and the voice
     food_packed_rider: { to: 'rider', channels: INAPP_PUSH, alsoPush: true },        // the kitchen packed the order the rider is coming for
     order_shop_note: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },      // the shop writes to the customer about his order (a polite note)
     order_undone: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },             // someone took their last step back (Ready, Served, Picked up...): the owner knows

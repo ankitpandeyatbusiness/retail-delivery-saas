@@ -239,6 +239,15 @@ const NAMES = {
     gu: { latin: ['Meera', 'Jigar', 'Hetal', 'Dhruv', 'Kinjal', 'Bhavin', 'Nita', 'Parth'], native: ['મીરા', 'જીગર', 'હેતલ', 'ધ્રુવ', 'કિંજલ', 'ભાવિન', 'નીતા', 'પાર્થ'] },
     bn: { latin: ['Ananya', 'Sourav', 'Moumita', 'Debashis', 'Riya', 'Arghya', 'Ritupurna', 'Suman'], native: ['অনন্যা', 'সৌরভ', 'মৌমিতা', 'দেবাশীষ', 'রিয়া', 'অর্ঘ্য', 'ঋতুপর্ণা', 'সুমন'] },
 };
+// spare names for a voice whose name is already taken (the second "Ravi" is "Amit", not "Ravi 2"), in the voice's own language and script
+const SPARE = {
+    hi: ['अमित', 'रोहन', 'विवेक', 'संजय', 'पंकज', 'अनिल'],
+    mr: ['अमोल', 'सुयश', 'नेहा', 'तेजस', 'वैभव', 'प्रज्ञा'],
+    gu: ['અમિત', 'રાહુલ', 'પૂજા', 'નીરવ', 'દીપ', 'હિના'],
+    bn: ['অমিত', 'রাহুল', 'পূজা', 'নীল', 'দীপ', 'হিমা'],
+};
+// the language's own word for it, in its own script (a Marathi voice is called "मराठी", whatever language the app is shown in)
+const OWN_WORD = { hi: 'हिन्दी', mr: 'मराठी', gu: 'ગુજરાતી', bn: 'বাংলা' };
 const nameList = (l) => {
     const code = l.slice(0, 2);
     const pool = NAMES[code];
@@ -275,7 +284,7 @@ export function voiceLabel(v) {
         for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) % 997;
         name = inAppScript(OTHER_NAMES[h % OTHER_NAMES.length]);
     }
-    const kind = l === 'en-in' ? tr('Indian English') : hindi ? tr('Hindi') : l.startsWith('mr') ? tr('Marathi') : l.startsWith('gu') ? tr('Gujarati') : l.startsWith('bn') ? tr('Bengali') : l.startsWith('en') ? tr('English') + ' (' + (l.split('-')[1] || '').toUpperCase() + ')' : l;
+    const kind = l === 'en-in' ? tr('Indian English') : OWN_WORD[l.slice(0, 2)] ? OWN_WORD[l.slice(0, 2)] : l.startsWith('en') ? tr('English') : l.startsWith('en') ? tr('English') + ' (' + (l.split('-')[1] || '').toUpperCase() + ')' : l;
     const quality = String(v.quality).toLowerCase() === 'enhanced' ? ' · ' + tr('high quality') : '';
     const recommended = variant !== null && variant === RECOMMENDED[hindi ? 'hi' : 'en'] && (l === 'en-in' || l === 'hi-in');
     return { name, sub: kind + quality, recommended };
@@ -286,9 +295,14 @@ export async function labelledVoices(language = settings().language) {
     const used = new Map();
     const rows = (await listVoices(language)).map((voice) => {
         const { name, sub, recommended } = voiceLabel(voice);
-        const n = (used.get(name) || 0) + 1;
-        used.set(name, n);
-        return { voice, name: n > 1 ? name + ' ' + n : name, sub, recommended };
+        let shown = name;
+        if (used.has(name)) {   // the name is taken: a spare name of the same language and script, and only then a number
+            const spare = (SPARE[lang(voice).slice(0, 2)] || []).find((x) => !used.has(x));
+            shown = spare || name + ' ' + (used.get(name) + 1);
+        }
+        used.set(name, (used.get(name) || 0) + 1);
+        used.set(shown, used.get(shown) || 1);
+        return { voice, name: shown, sub, recommended };
     });
     // the recommended voice goes on top (the rest keep their order)
     return [...rows.filter((r) => r.recommended), ...rows.filter((r) => !r.recommended)];

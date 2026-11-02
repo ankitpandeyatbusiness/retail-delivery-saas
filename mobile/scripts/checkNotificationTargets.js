@@ -22,7 +22,7 @@ const tcode = babel.transformSync(fs.readFileSync(targetSrcPath, 'utf8'), { file
 const tm = new Module(targetSrcPath, module);
 tm.require = (p) => (p.includes('notificationRoute') ? owner : require(p));
 tm._compile(tcode, targetSrcPath);
-const { notificationTarget } = tm.exports;
+const { notificationTarget, bulkStale } = tm.exports;
 
 const ID = '65f000000000000000000001';
 // [role, type, data, expected screen name or null]
@@ -124,5 +124,16 @@ for (const [role, type, data, want] of cases) {
     const name = got ? got.name : null;
     if (name !== want) { bad += 1; console.log(`WRONG  ${role.padEnd(9)} ${type.padEnd(28)} wanted ${want || 'nothing'}, got ${name || 'nothing'}`); }
 }
-console.log(bad ? `${bad} of ${cases.length} wrong` : `all ${cases.length} notification taps go where they should`);
+// a bulk notification that has moved on is not shown as news again
+const stale = [
+    ['bulk_new', 'requested', null], ['bulk_new', 'quoted', 'already sent the quote'], ['bulk_new', 'confirmed', 'already confirmed'], ['bulk_new', 'cancelled', 'cancelled this bulk order'],
+    ['bulk_new', 'declined', 'declined'], ['bulk_new', 'expired', 'ran out'], ['bulk_change', 'requested', null], ['bulk_change', 'quoted', 'already sent the quote'],
+    ['bulk_paid', 'confirmed', null], ['bulk_paid', 'preparing', null], ['bulk_paid', 'cancelled', 'was cancelled'], ['bulk_cancelled', 'cancelled', null],
+];
+for (const [type, status, want] of stale) {
+    const r = bulkStale(type, status, 'B7K2');
+    const ok = want === null ? r === null : !!r && r.body.includes(want);
+    if (!ok) { bad += 1; console.log(`WRONG  stale ${type} while ${status}: wanted ${want || 'still news'}, got ${r ? r.body : 'still news'}`); }
+}
+console.log(bad ? `${bad} wrong` : `all ${cases.length + stale.length} notification checks pass`);
 process.exit(bad ? 1 : 0);

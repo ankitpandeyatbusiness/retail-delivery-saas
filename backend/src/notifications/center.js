@@ -137,7 +137,9 @@ async function notify(eventKey, ctx = {}) {
 
         // the Hindi sentence for the Soundbox, made from the same values (an alert with none is read in English)
         const hi = textsHi.build(eventKey, vars);
-        const data = hi && !ctx.data?.speechHi ? { ...(ctx.data || {}), speechHi: hi } : ctx.data;
+        let data = hi && !ctx.data?.speechHi ? { ...(ctx.data || {}), speechHi: hi } : ctx.data;
+        // a bulk message carries its English words too, so a tap on it can be read out (the Soundbox reads the notification's own words)
+        if (/^(bulk_|rider_bulk_)/.test(eventKey) && !data?.speech) data = { ...(data || {}), speech: [text.title, text.body].filter(Boolean).join('. ') };
 
         const escalate = def.escalateSmsAfterSec > 0 && wantsSms(def, ctx);
         const doc = await inapp.save({

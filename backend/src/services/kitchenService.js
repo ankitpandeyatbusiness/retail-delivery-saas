@@ -169,7 +169,7 @@ async function addToQueue({ tenant, orderId, staff, by = 'cook' }) {
     const row = updated || o;
     require('./kitchenAlerts').tell(tenant._id, {
         orderId: String(o._id), orderNo: o.orderNo, status: 'accepted', queued: true,
-        ...(by === 'auto' ? { alert: { kind: 'queued', orderNo: o.orderNo, orderId: String(o._id), speech: `Order ${o.orderNo} was added to your queue.`, speechHi: `ऑर्डर ${o.orderNo} आपकी कतार में जोड़ दिया गया।` } } : {}),
+        ...(by === 'auto' ? { alert: { kind: 'queued', orderNo: o.orderNo, orderId: String(o._id), speech: o.bulkId ? 'The bulk order was added to your queue.' : `Order ${o.orderNo} was added to your queue.`, speechHi: o.bulkId ? 'बल्क ऑर्डर आपकी कतार में जोड़ दिया गया।' : `ऑर्डर ${o.orderNo} आपकी कतार में जोड़ दिया गया।` } } : {}),
     });
     return { already: !updated, order: view(tenant, row) };
 }
@@ -217,7 +217,7 @@ async function ready({ tenant, orderId, staff }) {
     tellCustomerPacked(tenant, updated);
     if (updated.bulkId) require('./bulkKitchen').ticketReady(updated).catch((e) => console.error('Bulk ticket error:', e.message));
     if (updated.delivery?.riderId && ['assigned', 'accepted'].includes(updated.delivery.status)) {   // the rider who is coming for it knows it is packed
-        require('../notifications/center').notify('food_packed_rider', { tenantId: tenant._id, userId: updated.delivery.riderId, data: { orderId: String(o._id), orderNo: o.orderNo }, vars: { orderNo: o.orderNo, brief: require('../utils/orderBrief').brief(updated, 2) } });
+        require('../notifications/center').notify(updated.bulkId ? 'rider_bulk_packed' : 'food_packed_rider', { tenantId: tenant._id, userId: updated.delivery.riderId, data: { orderId: String(o._id), orderNo: o.orderNo }, vars: { orderNo: o.orderNo, brief: require('../utils/orderBrief').brief(updated, 2) } });
     }
     return { already: false, order: view(tenant, updated) };
 }
@@ -238,7 +238,7 @@ async function ownerReady({ tenant, orderId, actor }) {
     tellCustomerPacked(tenant, updated);
     if (updated.bulkId) require('./bulkKitchen').ticketReady(updated).catch((e) => console.error('Bulk ticket error:', e.message));
     if (updated.delivery?.riderId && ['assigned', 'accepted'].includes(updated.delivery.status)) {
-        require('../notifications/center').notify('food_packed_rider', { tenantId: tenant._id, userId: updated.delivery.riderId, data: { orderId: String(o._id), orderNo: o.orderNo }, vars: { orderNo: o.orderNo, brief: require('../utils/orderBrief').brief(updated, 2) } });
+        require('../notifications/center').notify(updated.bulkId ? 'rider_bulk_packed' : 'food_packed_rider', { tenantId: tenant._id, userId: updated.delivery.riderId, data: { orderId: String(o._id), orderNo: o.orderNo }, vars: { orderNo: o.orderNo, brief: require('../utils/orderBrief').brief(updated, 2) } });
     }
     return { already: false, order: updated };
 }
@@ -300,6 +300,7 @@ async function resolve({ tenant, order, action, message, offerPercent, actor }) 
     const paidOnline = order.payment?.method && order.payment.method !== 'cod' && order.payment.status === 'paid';
     let text = custom || sorryText(p, action, paidOnline);
     let offer = null;
+    if (order.bulkId) offerPercent = undefined;   // a bulk order is a different thing: no "stay with us" discount
     // "stay with us": a private code for a new order worth at least what this one is worth, valid for 2 hours (only when the owner chose to offer)
     if ((action === 'tell' || action === 'cancel') && [5, 10, 15, 20, 25].includes(Number(offerPercent))) {
         const pct = Number(offerPercent);

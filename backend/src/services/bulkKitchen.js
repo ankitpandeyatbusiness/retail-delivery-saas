@@ -11,7 +11,7 @@ const User = require('../models/User');
 const { hashPhone } = require('../utils/phoneHash');
 
 const LEAD_MS = 24 * 3600000;        // a bulk order goes to the top of the cook's queue this long before the time the customer chose
-const RIDER_LEAD_MS = 2 * 3600000;   // a bulk delivery packed early is offered to riders this long before its time
+const RIDER_LEAD_MS = 4 * 3600000;   // a bulk delivery packed early is offered to riders this long before its time
 
 async function nextOrderNo(tenantId) {
     const c = await Counter.findOneAndUpdate({ _id: `order:${tenantId}` }, { $inc: { seq: 1 } }, { returnDocument: 'after', upsert: true });
@@ -129,7 +129,7 @@ async function fromTicket(t) {
 // The cook marked a delivery packed. The bulk order says "ready" and the riders are asked now (not when the order was paid: that can be days before).
 async function ticketReady(t) {
     await fromTicket(t);
-    // packed days early: the riders are asked 2 hours before the time (jobs/bulkCookAlerts.js), not now
+    // packed days early: the riders are asked 4 hours before the time (jobs/bulkCookAlerts.js), not now
     if (t.scheduledFor && new Date(t.scheduledFor).getTime() - Date.now() > RIDER_LEAD_MS) return;
     await Order.updateOne({ _id: t._id }, { $set: { 'kitchen.riderAskedAt': new Date() } });
     if (t.orderType === 'delivery' && !t.delivery?.riderId) {

@@ -21,6 +21,8 @@ const isId = (v) => typeof v === 'string' && mongoose.isValidObjectId(v);
 const DAY = 86400000;
 const MAX_LINES = 60;
 const OPEN = ['requested', 'quoted', 'expired'];   // nothing paid yet: the customer can still cancel
+// a customer's or a shop's own words inside a notification: the first part, then "..." when it is long
+const clip = (s, n = 100) => { const t = String(s || '').replace(/\s+/g, ' ').trim(); return t.length > n ? `${t.slice(0, n - 1).trimEnd()}…` : t; };
 const tell = (event, ctx) => Promise.resolve().then(() => require('../notifications/center').notify(event, ctx)).catch((e) => console.error('Notification error:', e.message));
 const rupees = (n) => `₹${+Number(n || 0).toFixed(2)}`;
 
@@ -511,7 +513,7 @@ async function askChange({ tenant, userId, id, note }) {
         { $set: { status: 'requested', changeNote: text }, $push: { history: { status: 'requested', by: 'customer', note: text } } }, { returnDocument: 'after' },
     ).lean();
     if (!done) throw httpError(409, 'This quote can no longer be changed');
-    tell('bulk_change', { tenantId: tenant._id, vars: { name: done.contact?.name, code: done.code }, data: { kind: 'bulk', bulkId: String(done._id) } });
+    tell('bulk_change', { tenantId: tenant._id, vars: { name: done.contact?.name, code: done.code, note: clip(text) }, data: { kind: 'bulk', bulkId: String(done._id) } });
     return customerView(done);
 }
 
@@ -591,7 +593,7 @@ async function quote({ tenant, id, body = {} }) {
         { returnDocument: 'after' },
     ).lean();
     if (!done) throw httpError(409, 'This order was just changed. Open it again.');
-    tell('bulk_quoted', { tenantId: tenant._id, userId: done.userId, vars: { code: done.code, total, advance: advancePaise / 100, hours: validHours }, data: { kind: 'bulk', bulkId: String(done._id) } });
+    tell('bulk_quoted', { tenantId: tenant._id, userId: done.userId, vars: { code: done.code, total, advance: advancePaise / 100, hours: validHours, note: clip(quoted.note) }, data: { kind: 'bulk', bulkId: String(done._id) } });
     return ownerView(done);
 }
 

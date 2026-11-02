@@ -332,4 +332,101 @@ describe('a paid bulk order gets a work ticket for the kitchen and the rider', (
         assert.equal(n.data.kind, 'bulk');
         assert.equal(String(n.data.bulkId), String(id));
     });
+
+    /* ------------------------------ Phase 1: what the rider and the cook are told ------------------------------ */
+    test('a bulk delivery packed by the cook is offered to the online rider: the rider gets the offer and sees it on his panel', async () => {
+        const Tenant = require('../src/models/Tenant');
+        const Rider = require('../src/models/Rider');
+        const Notification = require('../src/models/Notification');
+        await Tenant.updateOne({ _id: w.tenant._id }, { $set: { 'settings.riders.assignMode': 'automatic' } });
+        await Rider.updateOne({ tenantId: w.tenant._id, userId: w.rider.user._id }, { $set: { isActive: true, isOnline: true, activeOrderCount: 0 } });
+        await BulkOrder.updateOne({ _id: id }, { $set: { fulfilment: 'delivery', address: { label: 'Office', line1: '5 MG Road', city: 'Pune', pincode: '411001', name: 'Meera', phone: '9000000041', latitude: 18.52, longitude: 73.85 } } });
+        await setWhen(1);
+        await paid();
+        const t = await ticket();
+        await kitchenSvc.ready({ tenant: w.tenant, orderId: t._id, staff });
+        await waitFor(async () => (await bulkStatus()) === 'ready');
+        await waitFor(async () => !!(await Notification.findOne({ userId: w.rider.user._id, type: 'rider_offer' })), 5000);
+        const offer = await Notification.findOne({ userId: w.rider.user._id, type: 'rider_offer' }).lean();
+        assert.ok(offer, 'the rider got an offer');
+        assert.equal(String(offer.data.orderId), String(t._id));
+        const list = await request(app).get('/api/rider/orders?tab=offered').set(w.rider.headers);
+        assert.equal(list.status, 200);
+        assert.ok(list.body.items.some((o) => String(o.id) === String(t._id)), 'it is on his panel');
+    });
+
+    test('words: the owner hears "New Bulk Order Request"; a long change request is cut with ...; the shop note comes with the quote', async () => {
+        const Notification = require('../src/models/Notification');
+        const ownerNote = async (type) => Notification.findOne({ type }).sort({ createdAt: -1 }).lean();
+        // the request was sent in beforeEach (pickup); the owner's notification:
+        const n = await ownerNote('bulk_new');
+        assert.equal(n?.title, 'New Bulk Order Request');
+        // the customer asks for a change, with a very long text
+        const long = 'please change this '.repeat(30);
+        const r = await cust('post', `/${id}/change`, { note: long });
+        assert.equal(r.status, 200, JSON.stringify(r.body));
+        const c = await ownerNote('bulk_change');
+        assert.ok(c.body.includes('“') && c.body.includes('…'), c.body);
+        assert.ok(c.body.length < 260, 'cut short');
+        // the owner answers with a note
+        const o = (await owner('get', `/${id}`)).body;
+        const q = await owner('post', `/${id}/quote`, { lines: o.lines.map((l) => ({ id: l.id, unitPrice: l.unitPrice })), note: 'Done as asked, thank you' });
+        assert.equal(q.status, 200, JSON.stringify(q.body));
+        const qn = await ownerNote('bulk_quoted');
+        assert.match(qn.body, /The shop says: “Done as asked, thank you”/);
+    });
+
+    test('no offers on a bulk order: telling the customer about a kitchen problem ignores the offer percent', async () => {
+        await paid();
+        const t = await ticket();
+        await kitchenSvc.problem({ tenant: w.tenant, orderId: t._id, staff, kind: 'cannot_make', note: 'No gas' });
+        const order = await ticket();
+        const r = await kitchenSvc.resolve({ tenant: w.tenant, order, action: 'tell', offerPercent: 10, actor: { type: 'owner', id: String(w.owner.user._id), label: 'Owner' } });
+        assert.equal(r.offer, null);
+    });
+
+    test('the first word to the cook about a bulk order is a one-time "bulk" alert; the 24-hour call is the repeating "new" one; a bulk order is never auto-queued early', async () => {
+        const alerts = [];
+        const realtime = require('../src/services/realtime');
+        const Tenant = require('../src/models/Tenant');
+        await Tenant.updateOne({ _id: w.tenant._id }, { $set: { 'settings.orders.staff.kitchenOn': true } });
+        mock.method(require('../src/services/staffDuty'), 'peopleOnDuty', async () => [{ userId: staff.id, prefs: {} }]);
+        mock.method(realtime, 'toKitchen', (tenantId, ev, p) => { if (p?.alert) alerts.push(p.alert.kind); });
+        await paid();
+        await waitFor(async () => alerts.length > 0);
+        assert.deepEqual(alerts, ['bulk']);
+        const kitchenQueue = require('../src/jobs/kitchenQueue');
+        await kitchenQueue.runKitchenQueue(new Date(Date.now() + 5 * 60000));
+        assert.equal((await ticket()).kitchen?.queuedAt, undefined, 'not queued before it is called');
+        await setWhen(20);
+        await bulkJob.runBulkCookAlerts();
+        await waitFor(async () => alerts.length > 1);
+        assert.deepEqual(alerts, ['bulk', 'new']);
+    });
+
+    test('a rider who is already assigned hears that the BULK order is packed (its own loud message, not the soft normal one)', async () => {
+        const Rider = require('../src/models/Rider');
+        const Notification = require('../src/models/Notification');
+        const assignment = require('../src/services/assignmentService');
+        await Rider.updateOne({ tenantId: w.tenant._id, userId: w.rider.user._id }, { $set: { isActive: true, isOnline: true, activeOrderCount: 0 } });
+        await BulkOrder.updateOne({ _id: id }, { $set: { fulfilment: 'delivery', address: { label: 'Office', line1: '5 MG Road', city: 'Pune', pincode: '411001', name: 'Meera', phone: '9000000041' } } });
+        await paid();
+        const t = await ticket();
+        await assignment.assign({ orderId: t._id, tenantId: w.tenant._id, riderUserId: w.rider.user._id, reason: 'test', actor: { type: 'owner', id: String(w.owner.user._id) } });
+        await kitchenSvc.ready({ tenant: w.tenant, orderId: t._id, staff });
+        await waitFor(async () => !!(await Notification.findOne({ userId: w.rider.user._id, type: 'rider_bulk_packed' })), 5000);
+        const n = await Notification.findOne({ userId: w.rider.user._id, type: 'rider_bulk_packed' }).lean();
+        assert.equal(n.title, 'Bulk order is packed');
+        assert.equal(String(n.data.orderId), String(t._id));
+        assert.equal(await Notification.countDocuments({ userId: w.rider.user._id, type: 'food_packed_rider' }), 0);
+    });
+
+    test('a bulk message carries the words a tap can read out: English and Hindi (so the voice comes when the notification is tapped)', async () => {
+        const Notification = require('../src/models/Notification');
+        const n = await Notification.findOne({ type: 'bulk_new' }).lean();
+        assert.ok(n.data.speech.startsWith('New Bulk Order Request.'), n.data.speech);
+        assert.ok(n.data.speechHi && /[ऀ-ॿ]/.test(n.data.speechHi));
+        assert.equal(n.data.kind, 'bulk');
+        assert.equal(String(n.data.bulkId), String(id));
+    });
 });

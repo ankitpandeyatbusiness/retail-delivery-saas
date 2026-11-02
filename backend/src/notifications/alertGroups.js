@@ -42,6 +42,7 @@ const OWNER = [
 const RIDER = [
     g('offers', 'New delivery offers', 'An order is offered to you. You have {offer} to take it.', ['rider_offer', 'rider_assigned_owner'], { critical: true }),
     g('late', 'Late delivery warning', 'An order will be cancelled soon if it is not delivered.', ['delivery_late_warning_rider'], { p: true, critical: true, soft: true }),
+    g('bulk_packed', 'Bulk order is packed', 'The kitchen packed the bulk order you are coming for.', ['rider_bulk_packed'], { p: true, critical: true }),
     g('packed', 'Food is packed', 'The kitchen packed the order you are coming for.', ['food_packed_rider'], { p: 'off', soft: true }),
     g('thanks', 'Thanks, ratings and badges', 'A thank you, a review of your delivery, a new badge.', ['delivery_done_rider', 'review_delivery_rider', 'rider_badge'], { p: 'off', soft: true }),
     g('duty', 'Duty and leave', 'You were put on or off duty, or the shop answered your leave.', ['rider_off_duty', 'rider_duty_auto', 'rider_leave_decision', 'rider_leave_removed', 'rider_removed'], { p: 'off', soft: true }),
@@ -49,7 +50,7 @@ const RIDER = [
 ];
 
 const KITCHEN = [
-    g('new', 'New orders', 'An order to make: where it goes, the dishes and the guest\'s note.', ['kitchen_new'], { kinds: ['new', 'queued'], critical: true, sample: ['New order for table 2. 1 Chicken Wings, 2 Paneer Butter Masala. Note: no onion.', 'टेबल 2 के लिए नया ऑर्डर। 1 Chicken Wings, 2 Paneer Butter Masala। विशेष निर्देश: प्याज़ नहीं।'] }),
+    g('new', 'New orders', 'An order to make: where it goes, the dishes and the guest\'s note.', ['kitchen_new', 'kitchen_bulk'], { kinds: ['new', 'queued', 'bulk'], critical: true, sample: ['New order for table 2. 1 Chicken Wings, 2 Paneer Butter Masala. Note: no onion.', 'टेबल 2 के लिए नया ऑर्डर। 1 Chicken Wings, 2 Paneer Butter Masala। विशेष निर्देश: प्याज़ नहीं।'] }),
     g('cancel', 'Cancelled orders', 'Stop making this order.', ['kitchen_cancelled'], { kinds: ['cancel'], p: true, critical: true, sample: ['Order 1166 is cancelled. Stop making it. Table 2. 1 Chicken Wings.', 'ऑर्डर 1166 रद्द हुआ। इसे मत बनाइए। टेबल 2। 1 Chicken Wings।'] }),
     g('hurry', 'A table is waiting', 'A guest pressed "please hurry".', ['kitchen_hurry'], { kinds: ['hurry'], sample: ['Table 4 is waiting.', 'टेबल 4 इंतज़ार कर रही है।'] }),
     g('waiting', 'An order is waiting or late', 'An order has waited too long to be started, or is taking too long to cook.', ['kitchen_nudge', 'kitchen_late'], { sample: ['Order 1166 is waiting. Please start it.', 'ऑर्डर 1166 इंतज़ार कर रहा है। कृपया शुरू कीजिए।'] }),
@@ -98,7 +99,7 @@ const BY_ROLE = { admin: OWNER, rider: RIDER, kitchen: KITCHEN, waiter: WAITER }
 // Every alert has four switches: n notification, s tone, v voice, p slider (the box that slides up over the app). The ones that need an answer
 // keep their slider open until the person acts (sec 0); the rest close by themselves after `sec` seconds (the person can change it).
 const SEC_CHOICES = [0, 3, 5, 7, 10, 15];
-const STICKY = new Set(['admin.new_orders', 'admin.bulk', 'admin.cancelled', 'admin.kitchen', 'admin.pickup', 'admin.help', 'admin.leave', 'rider.offers', 'kitchen.new']);
+const STICKY = new Set(['admin.new_orders', 'admin.bulk', 'rider.bulk_packed', 'admin.cancelled', 'admin.kitchen', 'admin.pickup', 'admin.help', 'admin.leave', 'rider.offers', 'kitchen.new']);
 const TIMED = { 'kitchen.cancel': 8 };   // an alert that is only news: its slider closes by itself after this many seconds
 for (const [role, list] of Object.entries(BY_ROLE)) {
     for (const x of list) {

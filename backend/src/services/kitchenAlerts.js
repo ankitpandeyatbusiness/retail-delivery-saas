@@ -53,8 +53,9 @@ async function onStatus({ before, updated, status }) {
         if (rules.kitchenOn !== true || !(rules.kitchenSees || []).includes(updated.orderType)) return;
         const people = await cooks(updated.tenantId);
         if (!people.length) return;
+        const bulkFirst = !!updated.bulkId && !updated.kitchen?.dueAlertAt;   // the first word about a bulk order is said once; the 24-hour call is the repeating one
         const said = status === 'accepted' ? { speech: kitchenSpeech(updated), speechHi: kitchenSpeech(updated, true) } : { speech: kitchenCancelSpeech(updated), speechHi: kitchenCancelSpeech(updated, true) };
-        tell(updated.tenantId, { orderId: String(updated._id), orderNo: updated.orderNo, status, alert: { kind: status === 'accepted' ? 'new' : 'cancel', orderNo: updated.orderNo, orderId: String(updated._id), table: updated.tableNo || null, ...said } });   // the open screens ring (sound and voice)
+        tell(updated.tenantId, { orderId: String(updated._id), orderNo: updated.orderNo, status, alert: { kind: status === 'accepted' ? (updated.bulkId && !updated.kitchen?.dueAlertAt ? 'bulk' : 'new') : 'cancel', orderNo: updated.orderNo, orderId: String(updated._id), table: updated.tableNo || null, ...said } });   // the open screens ring (sound and voice)
 
         const where = updated.orderType === 'dine_in' ? `Dine in${updated.tableNo ? ` · Table ${updated.tableNo}${updated.tableParty ? ` · ${updated.tableParty}` : ''}` : ''}` : TYPE_WORD[updated.orderType];
         const msg = status === 'accepted'
@@ -63,8 +64,8 @@ async function onStatus({ before, updated, status }) {
         await Promise.all(people.map((p) => pushChannel.send({
             tenantId: updated.tenantId, userId: p.userId, title: msg.title, body: msg.body,
             data: {
-                type: status === 'accepted' ? 'kitchen_new' : 'kitchen_cancelled', orderId: String(updated._id), orderNo: updated.orderNo,
-                kind: status === 'accepted' ? 'new' : 'cancel',
+                type: status === 'accepted' ? (bulkFirst ? 'kitchen_bulk' : 'kitchen_new') : 'kitchen_cancelled', orderId: String(updated._id), orderNo: updated.orderNo,
+                kind: status === 'accepted' ? (bulkFirst ? 'bulk' : 'new') : 'cancel',
                 speech: said.speech, speechHi: said.speechHi,
             },
             channelId: status === 'accepted' ? STAFF_CHANNEL : CANCEL_CHANNEL, sound: status === 'accepted' ? 'ting_tong' : 'cancel_alert',   // a cancelled order has its own alarm

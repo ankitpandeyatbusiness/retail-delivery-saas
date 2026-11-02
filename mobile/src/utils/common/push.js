@@ -8,7 +8,7 @@ import { useMeStore } from '../../store/customers/useMeStore';
 import { useServiceFlags } from '../../utils/customers/serviceFlags';
 import { isOpenInquiry } from '../../store/owners/useOpenInquiry';
 import { ownerRoute } from '../owners/notificationRoute';
-import { notificationTarget } from './notificationTarget';
+import { notificationTarget, bulkStale } from './notificationTarget';
 import { Platform, AppState } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { alertOn, useAlertPrefs } from '../../store/common/useAlertPrefs';
@@ -22,7 +22,7 @@ import { onNotification, realtimeConnected } from '../../api/common/socket';
 import { showToast, showTapToast } from '../../components/customers/shop';
 import { speakOnOpen, isNewsType, sayAlert, markSaid, markTapped, acknowledge } from '../owners/soundbox';
 import { showSlider } from '../../components/common/AlertSliderHost';
-import { fetchOrder } from '../../api/owners/shopApi';
+import { fetchOrder, bulk as ownerBulk } from '../../api/owners/shopApi';
 import { fetchRiderOrder } from '../../api/riders/riderApi';
 import { fetchKitchenOrders } from '../../api/staff/staffApi';
 import { statusLabel, isFinal } from '../owners/orderFlow';
@@ -128,16 +128,22 @@ function showTapSlider(resp, data) {
 // Otherwise { title, body }: the order has moved on, and that is what the person is shown (no old slider, no old voice).
 async function movedOn(role, type, data) {
     const id = String(data.orderId || '');
-    if (!id) return null;
+    if (!id && !data.bulkId) return null;
     try {
-        if (role === 'kitchen' && ['kitchen_new', 'kitchen_nudge', 'kitchen_late'].includes(type)) {
+        // a bulk request, change or payment the owner taps: is it still waiting for him?
+        if (role === 'admin' && data.bulkId && ['bulk_new', 'bulk_change', 'bulk_paid'].includes(type)) {
+            const b = await ownerBulk.get(String(data.bulkId));
+            return bulkStale(type, b?.status, b?.code);
+        }
+        if (!id) return null;
+        if (role === 'kitchen' && ['kitchen_new', 'kitchen_bulk', 'kitchen_nudge', 'kitchen_late'].includes(type)) {
             const q = await fetchKitchenOrders();
-            const row = (q.items || []).find((o) => String(o.id) === id);
+            const row = (q.items || []).find((o) => String(o.id) === id) || (q.bulk || []).find((o) => String(o.id) === id);   // a bulk order that is not due yet is only in the Bulk list
             if (!row) return { title: `Order #${data.orderNo || ''}`, body: 'It is not in your list any more: it was cancelled or is finished.' };
-            if (type === 'kitchen_new' && row.stage !== 'new') return { title: `Order #${row.orderNo} is already ${row.stage === 'cooking' ? 'being cooked' : 'ready'}`, body: 'Nothing to do for this one.' };
+            if (['kitchen_new', 'kitchen_bulk'].includes(type) && row.stage !== 'new') return { title: `Order #${row.orderNo} is already ${row.stage === 'cooking' ? 'being cooked' : 'ready'}`, body: 'Nothing to do for this one.' };
             return null;
         }
-        if (role === 'rider' && ['rider_offer', 'rider_assigned_owner'].includes(type)) {
+        if (role === 'rider' && ['rider_offer', 'rider_assigned_owner', 'rider_bulk_packed'].includes(type)) {
             let o = null;
             try { o = await fetchRiderOrder(id); } catch (e) { o = null; }
             if (!o) return { title: `Order #${data.orderNo || ''}`, body: 'This order is no longer yours. It was taken by another delivery partner, or the offer ran out.' };
@@ -159,12 +165,13 @@ async function handleTap(resp) {
     const data = dataOf(resp);
     const role = useAuthStore.getState().user?.role;
     const tapType = String(data.type || '');
-    if (['kitchen', 'rider', 'admin'].includes(role) && data.orderId && tapType && data.test !== '1') {
+    if (['kitchen', 'rider', 'admin'].includes(role) && (data.orderId || data.bulkId) && tapType && data.test !== '1') {
         const m = await movedOn(role, tapType, data);
         if (m) {
             markTapped(tapType, data);
-            showSlider({ key: `moved:${data.orderId}:${tapType}:${Date.now()}`, type: tapType, title: m.title, body: m.body, data });
+            showSlider({ key: `moved:${data.orderId || data.bulkId}:${tapType}:${Date.now()}`, type: tapType, title: m.title, body: m.body, data });
             if (role === 'rider') openOrder(data.orderId);
+            if (role === 'admin' && data.bulkId) openScreen('OwnerBulkOrder', { id: String(data.bulkId) });   // he can still look at it
             return;
         }
     }
@@ -207,7 +214,7 @@ function handleTapNow(resp, data) {
         }
         const to = ownerRoute({ type: data.type, data });
         // a reservation or its cancellation: the slider (Allow and Deny for a new one) shows over the screen it opens, not only the screen
-        if (to && ['booking_new', 'booking_cancelled', 'booking_reminder'].includes(String(data.type))) showTapSlider(resp, data);
+        if (to && (['booking_new', 'booking_cancelled', 'booking_reminder'].includes(String(data.type)) || /^(bulk|inquiry)_/.test(String(data.type)))) showTapSlider(resp, data);   // (bulk and inquiry messages: the slider too, not only the voice)
         if (to) { openScreen(to.name, to.params); return; }
         showTapSlider(resp, data);   // nothing to open: its words show as a slider
         return;
@@ -226,6 +233,7 @@ function handleTapNow(resp, data) {
         openScreen('MainTabs', { screen: 'Home' });
         return;
     }
+    if (useAuthStore.getState().user?.role === 'rider' && data.type === 'rider_bulk_packed') showTapSlider(resp, data);   // the slider too, not only the voice
     // everything else goes where the inbox would send it: a bulk order, an inquiry, a booking, the points, the table bill, the order
     const to = notificationTarget(useAuthStore.getState().user?.role, { type: data.type, data });
     if (to) openScreen(to.name, to.params);

@@ -20,6 +20,7 @@ const ASKED_HI = { waiter: 'ने वेटर को बुलाया', wate
 const LINES = {
     en: {
         new: (a) => `New order ${a.orderNo}`,
+        bulk: () => 'New bulk order',
         cancel: (a) => `Order ${a.orderNo} cancelled`,
         hurry: (a) => `Table ${a.table} is asking you to please make the food fast. They are hungry!`,
         ready: (a) => `Table ${a.table}, food is ready`,
@@ -32,6 +33,7 @@ const LINES = {
     },
     hi: {
         new: (a) => `नया ऑर्डर ${a.orderNo}`,
+        bulk: () => 'नया बल्क ऑर्डर',
         cancel: (a) => `ऑर्डर ${a.orderNo} रद्द हुआ`,
         hurry: (a) => `टेबल ${a.table} जल्दी खाना बनाने को कह रही है। उन्हें भूख लगी है!`,
         ready: (a) => `टेबल ${a.table}, खाना तैयार है`,
@@ -43,7 +45,7 @@ const LINES = {
         done: (a) => `ऑर्डर ${a.orderNo} ले लिया गया`,
     },
 };
-const BUZZ = { new: [0, 250, 120, 250], cancel: [0, 400, 150, 400], hurry: [0, 200, 100, 200], ready: [0, 200, 100, 200], call: [0, 150, 80, 150], bill: [0, 150, 80, 150], paid: [0, 150, 80, 150], here: [0, 200, 100, 200], queued: [0, 120] };
+const BUZZ = { bulk: [0, 250, 120, 250], new: [0, 250, 120, 250], cancel: [0, 400, 150, 400], hurry: [0, 200, 100, 200], ready: [0, 200, 100, 200], call: [0, 150, 80, 150], bill: [0, 150, 80, 150], paid: [0, 150, 80, 150], here: [0, 200, 100, 200], queued: [0, 120] };
 
 const seen = new Map();
 const WINDOW_MS = 120000;
@@ -78,7 +80,7 @@ export function staffAlert(a, { force } = {}) {
         if (!force) {
             // the slider (if its switch is on); the new order's slider carries the whole order
             const title = (language === 'hi' ? a.speechHi || textHi : a.speech || text) || text;
-            const more = a.kind === 'new' ? (language === 'hi' ? a.speechHi || a.speech : a.speech) : '';
+            const more = (a.kind === 'new' || a.kind === 'bulk') ? (language === 'hi' ? a.speechHi || a.speech : a.speech) : '';
             showSlider({ key: `${key}:${Math.floor(now / WINDOW_MS)}`, type: a.kind, title, body: more && more !== title ? more : '', data: { orderId: a.orderId, orderNo: a.orderNo, table: a.table } });
             markSaid(a.kind, a);   // read out now (the Voice switch decides): a tap on its notification later does not read it again
         }

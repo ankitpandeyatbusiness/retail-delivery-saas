@@ -33,7 +33,7 @@ export const useKitchenStore = create((set, get) => ({
             const fresh = new Set(r.items.filter((o) => o.stage === 'new').map((o) => o.id));
             // a new order after the first load rings (the live message normally did already: one alert sounds once; the push covers a pocket)
             r.items.filter((o) => o.queued).forEach((o) => dismiss(o.id));   // in the queue: it does not ring any more
-            if (known) r.items.filter((o) => o.stage === 'new' && !o.queued && !known.has(o.id)).forEach((o) => staffAlert({ kind: 'new', orderNo: o.orderNo }));
+            if (known) r.items.filter((o) => o.stage === 'new' && !o.queued && !o.bulk && !known.has(o.id)).forEach((o) => staffAlert({ kind: 'new', orderNo: o.orderNo, orderId: o.id, speech: o.speech, speechHi: o.speechHi }));   // (a bulk order is called by the server, with its own words)
             known = fresh;
             set({ items: r.items, counts: r.counts, bulk: r.bulk || [], rules: r.rules, state: 'ok', loadedAt: Date.now() });
             writeCache(KEY(), { items: r.items, counts: r.counts, bulk: r.bulk || [], rules: r.rules });

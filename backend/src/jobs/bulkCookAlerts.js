@@ -1,6 +1,6 @@
 // Bulk orders and the kitchen, on the clock (every minute):
 //   1. 24 hours before the day a paid bulk order is wanted, the cooks get the loud alert (sound + push) and it moves to the top of "To make".
-//   2. A bulk delivery that was packed early is offered to riders 2 hours before its time (or the owner is told to choose one).
+//   2. A bulk delivery that was packed early is offered to riders 4 hours before its time (or the owner is told to choose one).
 const Order = require('../models/Order');
 const { LEAD_MS, RIDER_LEAD_MS, alertDue, } = require('../services/bulkKitchen');
 
