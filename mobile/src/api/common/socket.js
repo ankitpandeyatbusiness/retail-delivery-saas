@@ -17,7 +17,7 @@ const AUTH_ERRORS = ['TOKEN_INVALID', 'SESSION_ENDED', 'AUTH_REQUIRED'];
 let socket = null;
 let retryTimer = null;
 const joined = new Map();   // orderId -> how many screens want it
-const listeners = { 'kitchen:update': new Set(), 'waiter:update': new Set(), 'menu:changed': new Set(), 'order:update': new Set(), notification: new Set(), 'rider:location': new Set(), 'rider:route': new Set(), 'order:eta': new Set(), 'rider:quiet': new Set(), 'rider:offer': new Set(), 'offer:closed': new Set() };
+const listeners = { 'bulk:update': new Set(), 'kitchen:update': new Set(), 'waiter:update': new Set(), 'menu:changed': new Set(), 'order:update': new Set(), notification: new Set(), 'rider:location': new Set(), 'rider:route': new Set(), 'order:eta': new Set(), 'rider:quiet': new Set(), 'rider:offer': new Set(), 'offer:closed': new Set() };
 
 // What the server asks of us: "socket" (normal) or "polling" (it is busy: poll every pollSec seconds and try the socket again
 // later). Screens read this to decide whether they need a timer. We never retry a refused connection sooner than retryAfterSec.
@@ -82,6 +82,7 @@ function connect() {
     socket.on('order:update', (p) => dispatch('order:update', p));
     socket.on('menu:changed', (p) => dispatch('menu:changed', p));
     socket.on('kitchen:update', (p) => dispatch('kitchen:update', p));
+    socket.on('bulk:update', (p) => dispatch('bulk:update', p));      // a bulk order changed (any panel): reload it
     socket.on('waiter:update', (p) => dispatch('waiter:update', p));     // the floor changed (waiters only)   // the kitchen's orders changed (cooks only)
     socket.on('notification', (p) => dispatch('notification', p));
     socket.on('rider:location', (p) => dispatch('rider:location', p));
@@ -153,6 +154,7 @@ export const onRiderQuiet = sub('rider:quiet');
 export const onRiderOffer = sub('rider:offer');
 export const onOfferClosed = sub('offer:closed');
 export const onKitchenUpdate = sub('kitchen:update');
+export const onBulkUpdate = sub('bulk:update');
 export const onWaiterUpdate = sub('waiter:update');
 
 export function onNotification(fn) {

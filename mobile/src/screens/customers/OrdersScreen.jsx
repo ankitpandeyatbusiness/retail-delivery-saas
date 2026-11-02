@@ -1,6 +1,7 @@
 // src/screens/OrdersScreen.jsx
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, FlatList, ScrollView, StyleSheet, Animated, Easing } from 'react-native';
+import useBulkLive from '../../hooks/common/useBulkLive';
 import { ActivityIndicator } from '../../components/common/Loading';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { Image } from 'expo-image';
@@ -421,6 +422,7 @@ function OrdersList() {
     }, [qParams]);
     useFocusEffect(useCallback(() => { load(); }, [load]));
     useAnyOrderLive(load);   // an order changed on the server: refresh the list
+    useBulkLive(load);       // so does a bulk order
 
     useEffect(() => {
         if (state !== 'ok') return undefined;

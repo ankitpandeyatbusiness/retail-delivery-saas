@@ -295,9 +295,11 @@ describe('a paid bulk order gets a work ticket for the kitchen and the rider', (
         assert.equal(r.already, false);
         await waitFor(async () => (await bulkStatus()) === 'ready');
         const q = await kitchenSvc.queue(w.tenant);
-        assert.equal(q.bulk.length, 1);
-        assert.equal(q.bulk[0].stage, 'ready');   // it still waits for its day in the Bulk tab
-        assert.equal(q.counts.bulk, 0);           // nothing left to make
+        assert.equal(q.bulk.length, 0, 'ready: it leaves the Bulk tab');
+        assert.equal(q.counts.bulk, 0);
+        const row = q.items.find((o) => o.id === String(t._id));
+        assert.ok(row && row.stage === 'ready' && row.bulk, 'and it is in the Ready list, like any order');
+        assert.equal(q.counts.ready, 1);
     });
 
     test('a delivery packed early is offered to riders only 2 hours before its time (once)', async () => {
@@ -428,5 +430,33 @@ describe('a paid bulk order gets a work ticket for the kitchen and the rider', (
         assert.ok(n.data.speechHi && /[ऀ-ॿ]/.test(n.data.speechHi));
         assert.equal(n.data.kind, 'bulk');
         assert.equal(String(n.data.bulkId), String(id));
+    });
+
+    /* ------------------------------ Phase 2: live screens and the queue ------------------------------ */
+    test('every change of the bulk order is sent live to the owner and the customer, so their screens reload by themselves', async () => {
+        const realtime = require('../src/services/realtime');
+        const sent = [];
+        mock.method(realtime, 'toOwner', (t, ev, p) => { if (ev === 'bulk:update') sent.push(['owner', p.status]); });
+        mock.method(realtime, 'toUser', (t, u, ev, p) => { if (ev === 'bulk:update') sent.push(['customer', p.status]); });
+        await paid();                                   // confirmed
+        const t = await ticket();
+        await orderStatus.change({ order: t, status: 'preparing', actor: cook });   // the cook starts
+        await waitFor(async () => sent.some((x) => x[1] === 'preparing'));
+        assert.ok(sent.some((x) => x[0] === 'owner' && x[1] === 'confirmed'), 'owner told: confirmed');
+        assert.ok(sent.some((x) => x[0] === 'owner' && x[1] === 'preparing'), 'owner told: the cook started');
+        assert.ok(sent.some((x) => x[0] === 'customer' && x[1] === 'preparing'), 'customer told too');
+    });
+
+    test('the queue counts from the 24-hour call: not queued the moment it is called, queued about a minute later', async () => {
+        const Tenant = require('../src/models/Tenant');
+        await Tenant.updateOne({ _id: w.tenant._id }, { $set: { 'settings.orders.staff.kitchenOn': true } });
+        const kitchenQueue = require('../src/jobs/kitchenQueue');
+        await paid();
+        await setWhen(20);
+        await bulkJob.runBulkCookAlerts();              // called "to make" now
+        await kitchenQueue.runKitchenQueue(new Date(Date.now() + 5000));
+        assert.equal((await ticket()).kitchen?.queuedAt, undefined, '5 seconds after the call: not queued');
+        await kitchenQueue.runKitchenQueue(new Date(Date.now() + 5 * 60000));
+        assert.ok((await ticket()).kitchen?.queuedAt, 'a few minutes after the call, untouched: queued');
     });
 });

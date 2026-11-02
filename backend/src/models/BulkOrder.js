@@ -88,4 +88,18 @@ schema.index({ tenantId: 1, userId: 1, createdAt: -1 });
 schema.index({ code: 1, tenantId: 1 }, { unique: true });
 schema.index({ tenantId: 1, 'billing.at': 1 }, { partialFilterExpression: { 'billing.billable': true } });   // monthly billing count
 
+// Live: whenever a bulk order changes (a quote, a payment, a stage the cook or the owner moved, a cancel), the owner's screens and the customer's reload it
+// by themselves ('bulk:update'). The owner's room is the whole shop; the customer's is his own.
+function ping(doc) {
+    try {
+        if (!doc || !doc._id || !doc.tenantId) return;
+        const p = { bulkId: String(doc._id), code: doc.code, status: doc.status };
+        const rt = require('../services/realtime');
+        rt.toOwner(doc.tenantId, 'bulk:update', p);
+        if (doc.userId) rt.toUser(doc.tenantId, doc.userId, 'bulk:update', p);
+    } catch (e) { /* a live message is only a convenience */ }
+}
+schema.post('findOneAndUpdate', ping);
+schema.post('save', ping);
+
 module.exports = mongoose.model('BulkOrder', schema);

@@ -1,6 +1,7 @@
 // The bulk orders this customer asked for, newest first. Tap one to see the shop's quote.
 import React, { useCallback, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
+import useBulkLive from '../../hooks/common/useBulkLive';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useBrand } from '../../components/common/kit';
 import { PageHeader, Card, Pill, Empty, Button } from '../../components/owners/ui';
@@ -18,6 +19,7 @@ export default function MyBulkOrdersScreen() {
     const [err, setErr] = useState('');
     const load = useCallback(() => { fetchMyBulk().then((r) => { setItems(r.items || []); setErr(''); }).catch((e) => { setErr(e?.response?.data?.error || tr('Could not load')); setItems((x) => x || []); }); }, []);
     useFocusEffect(useCallback(() => { load(); }, [load]));
+    useBulkLive(load);
 
     return (
         <View style={{ flex: 1, backgroundColor: background }}>

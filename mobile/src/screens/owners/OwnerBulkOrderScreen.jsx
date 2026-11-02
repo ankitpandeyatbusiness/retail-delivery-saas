@@ -2,6 +2,7 @@
 // menu price); change any of them, add a discount, set the delivery fee and the advance, and send. The server works out GST and the final total.
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView, Pressable, Linking } from 'react-native';
+import useBulkLive from '../../hooks/common/useBulkLive';
 import { useFocusEffect, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
@@ -54,6 +55,7 @@ export default function OwnerBulkOrderScreen() {
         } catch (e) { useOwnerStore.getState().noteError(e); setErr(apiError(e, 'Could not open this order.')); }
     }, [id, fill]);
     useFocusEffect(useCallback(() => { load(); }, [load]));
+    useBulkLive(load, id);   // the cook started it, the customer paid...: this page follows by itself
 
     if (!o) {
         return (

@@ -106,19 +106,19 @@ async function queue(tenant) {
     const rows = await Order.find({
         tenantId: tenant._id, orderType: { $in: types }, status: { $in: ['accepted', 'preparing', 'ready'] }, ...HIDE_UNPAID,
         // a ready order stays on the list for an hour, then it is the owner's to finish
-        $or: [{ status: { $ne: 'ready' } }, { updatedAt: { $gte: new Date(now - 60 * 60000) } }, { bulkId: { $exists: true } }],   // (a bulk order made early waits for its day)
+        $or: [{ status: { $ne: 'ready' } }, { updatedAt: { $gte: new Date(now - 60 * 60000) } }],
     }).select(FIELDS).sort({ createdAt: 1 }).limit(150).lean();
 
     const all = rows.map((o) => viewOf(o, { lateMin, now }));
     // "To make": a bulk order that is due comes FIRST (the nearest day first), then the rest the way it was. A bulk order that is not due yet is not here.
     const make = all.filter((o) => o.stage !== 'ready' && !o.upcoming).sort((a, b) => (b.bulk ? 1 : 0) - (a.bulk ? 1 : 0) || (a.bulk ? new Date(a.scheduledFor) - new Date(b.scheduledFor) : new Date(a.startAt) - new Date(b.startAt)) || a.orderNo - b.orderNo);
-    const done = all.filter((o) => o.stage === 'ready' && !(o.bulk && now - new Date(o.readyAt || o.acceptedAt).getTime() > 60 * 60000)).sort((a, b) => new Date(b.readyAt || b.acceptedAt) - new Date(a.readyAt || a.acceptedAt)).slice(0, 30);
-    // the Bulk tab: every bulk order still to make or waiting for its day, the nearest day first
-    const bulkAll = all.filter((o) => o.bulk).sort((a, b) => new Date(a.scheduledFor || 0) - new Date(b.scheduledFor || 0));
+    const done = all.filter((o) => o.stage === 'ready').sort((a, b) => new Date(b.readyAt || b.acceptedAt) - new Date(a.readyAt || a.acceptedAt)).slice(0, 30);
+    // the Bulk tab: every bulk order still to make (waiting for its day, or being cooked), the nearest day first. When it is Ready it leaves this tab and is in Ready, like any order.
+    const bulkAll = all.filter((o) => o.bulk && o.stage !== 'ready').sort((a, b) => new Date(a.scheduledFor || 0) - new Date(b.scheduledFor || 0));
     return {
         items: [...make, ...done],
         bulk: bulkAll,
-        counts: { new: make.filter((o) => o.stage === 'new').length, cooking: make.filter((o) => o.stage === 'cooking').length, ready: done.length, late: make.filter((o) => o.late).length, bulk: bulkAll.filter((o) => o.stage !== 'ready').length },
+        counts: { new: make.filter((o) => o.stage === 'new').length, cooking: make.filter((o) => o.stage === 'cooking').length, ready: done.length, late: make.filter((o) => o.late).length, bulk: bulkAll.length },
         rules: { lateMin, sees: types },
         now: new Date(now),
     };

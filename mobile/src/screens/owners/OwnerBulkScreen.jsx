@@ -1,6 +1,7 @@
 // Bulk orders: the requests customers sent. A red dot is a request waiting for your quote. The rules (minimums, delivery fee, advance) are one tap away.
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
+import useBulkLive from '../../hooks/common/useBulkLive';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
@@ -31,6 +32,7 @@ export default function OwnerBulkScreen() {
         catch (e) { useOwnerStore.getState().noteError(e); setErr(apiError(e, 'Could not load the bulk orders.')); setData((x) => x || { items: [] }); }
     }, [status]);
     useFocusEffect(useCallback(() => { load(); }, [load]));
+    useBulkLive(load);
     useEffect(() => onNotification((n) => { if (['bulk_new', 'bulk_change'].includes(String(n?.type))) load(); }), [load]);
 
     const pause = async (on) => {

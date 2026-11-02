@@ -22,7 +22,8 @@ async function runKitchenQueue(now = new Date()) {
                 if (o.bulkId && !o.kitchen?.dueAlertAt) continue;   // a bulk order that is not called yet waits in the Bulk tab
                 const v = kitchen.viewOf(o, { lateMin: rules.lateMin || 20, now: now.getTime() });
                 if (v.early) continue;   // a pickup for later is not started early anyway
-                if (now.getTime() - new Date(v.acceptedAt).getTime() < sec * 1000) continue;
+                const since = o.bulkId ? o.kitchen.dueAlertAt : v.acceptedAt;   // a bulk order waits from the moment it was called "to make", not from when it was paid
+                if (now.getTime() - new Date(since).getTime() < sec * 1000) continue;
                 const r = await kitchen.addToQueue({ tenant, orderId: o._id, staff: null, by: 'auto' }).catch(() => null);
                 if (r && !r.already) moved += 1;
             }

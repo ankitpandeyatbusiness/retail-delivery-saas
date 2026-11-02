@@ -2,6 +2,7 @@
 // (Accepting the quote and paying the advance comes in the next update.)
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
+import useBulkLive from '../../hooks/common/useBulkLive';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useBrand } from '../../components/common/kit';
 import { PageHeader, Card, Pill, Button, Empty, Sheet, SectionTitle } from '../../components/owners/ui';
@@ -65,6 +66,7 @@ export default function BulkOrderDetailScreen() {
 
     const load = useCallback(() => { fetchBulk(id).then((r) => { setO(r); setErr(''); }).catch((e) => setErr(e?.response?.data?.error || tr('Could not load'))); }, [id]);
     useFocusEffect(useCallback(() => { load(); }, [load]));
+    useBulkLive(load, id);
     useEffect(() => onNotification((n) => { if (String(n?.type).startsWith('bulk_')) load(); }), [load]);
     useEffect(() => { if (refresh) load(); }, [refresh, load]);   // back from paying: look again
 
