@@ -283,6 +283,7 @@ function customerView(o) {
             advancePaise: o.payment.advancePaise, paidAt: o.payment.paidAt, kept: !!o.payment.advanceKept, refundPaise: o.payment.refundPaise, refundStatus: o.payment.refundStatus,
             balancePaid: !!o.payment.balancePaid, balancePaise: o.payment.balancePaid ? o.payment.balancePaise : undefined, balanceVia: o.payment.balanceVia, balancePaidAt: o.payment.balancePaidAt,
         } : null,
+        feedbackOrderId: o.orderId && ['delivered', 'completed'].includes(o.status) ? String(o.orderId) : undefined,   // the work ticket: the app rates the food and the delivery and sends a complaint on it
         canPay: status === 'quoted', cancel: cancelOutcome(o), cancelledBy: o.cancelledBy, cancelReason: o.cancelReason,
         trackOrderId: o.orderId && o.fulfilment === 'delivery' && ['ready', 'out_for_delivery'].includes(status) ? String(o.orderId) : undefined,   // the delivery itself, to follow the rider live
         balance: balanceDue(o), stageAt: o.stageAt, completedAt: o.completedAt, invoiceReady: o.status === 'completed',

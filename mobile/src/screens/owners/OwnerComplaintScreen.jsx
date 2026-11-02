@@ -78,7 +78,7 @@ function ComplaintView({ c0 }) {
 
     const done = c.status === 'resolved';
     // the tip is never refunded on a delivered order: what can be given back is the total without it
-    const cap = order?.pricing ? Math.max(0, Math.round(((order.pricing.total || 0) - (order.pricing.tip || 0)) * 100)) : null;
+    const cap = c.bulkTotal ? Math.round(c.bulkTotal * 100) : order?.pricing ? Math.max(0, Math.round(((order.pricing.total || 0) - (order.pricing.tip || 0)) * 100)) : null;
     const online = order?.payment?.method && order.payment.method !== 'cod' && order.payment.status === 'paid';
     const refunds = choice === 'refund_full' || choice === 'refund_partial';
     const paise = toPaise(amount);
@@ -99,7 +99,7 @@ function ComplaintView({ c0 }) {
     };
 
     return (
-        <FormPage title={tr('Complaint · #{orderNo}', { orderNo: c.orderNo })} footer={!done ? <Button label={refunds ? tr('Send decision') : choice === 'no_refund' ? tr('Send decision') : tr('Send reply')} icon="send" disabled={!valid} busy={busy} onPress={submit} /> : null}>
+        <FormPage title={c.bulkCode ? tr('Complaint · Bulk order {c}', { c: c.bulkCode }) : tr('Complaint · #{orderNo}', { orderNo: c.orderNo })} footer={!done ? <Button label={refunds ? tr('Send decision') : choice === 'no_refund' ? tr('Send decision') : tr('Send reply')} icon="send" disabled={!valid} busy={busy} onPress={submit} /> : null}>
             <Card>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <Text style={{ color: text, fontWeight: '900', fontSize: 16, flex: 1 }}>{COMPLAINT_TYPES[c.type] || c.type}</Text>
@@ -113,7 +113,7 @@ function ComplaintView({ c0 }) {
                     </ScrollView>
                 ) : null}
                 <PhotoViewer uri={viewing} onClose={() => setViewing(null)} />
-                <View style={{ marginTop: 12 }}><Button label={tr('Open order #{orderNo}', { orderNo: c.orderNo })} icon="receipt" kind="ghost" onPress={() => nav.navigate('OwnerOrder', { id: String(c.orderId) })} /></View>
+                <View style={{ marginTop: 12 }}><Button label={c.bulkId ? tr('Open bulk order {c}', { c: c.bulkCode }) : tr('Open order #{orderNo}', { orderNo: c.orderNo })} icon="receipt" kind="ghost" onPress={() => (c.bulkId ? nav.navigate('OwnerBulkOrder', { id: String(c.bulkId) }) : nav.navigate('OwnerOrder', { id: String(c.orderId) }))} /></View>
             </Card>
 
             {c.evidence ? <EvidenceCard e={c.evidence} /> : null}

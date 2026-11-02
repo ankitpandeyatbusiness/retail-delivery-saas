@@ -638,4 +638,34 @@ describe('a paid bulk order gets a work ticket for the kitchen and the rider', (
         assert.equal(blocked?.status, 409);
         assert.match(blocked.message, /already have 1 delivery order/);
     });
+
+    test('after delivery the customer can rate the food and send a complaint; a refund on a bulk order is only written down (no money goes out by itself)', async () => {
+        const Complaint = require('../src/models/Complaint');
+        const Review = require('../src/models/Review');
+        await paid();
+        assert.equal((await cust('get', `/${id}`)).body.feedbackOrderId, undefined, 'not before it is delivered');
+        for (const to of ['preparing', 'ready', 'delivered']) assert.equal((await stage(to)).status, 200);
+        const page = (await cust('get', `/${id}`)).body;
+        const tid = page.feedbackOrderId;
+        assert.ok(tid, 'the ticket to rate');
+        const ticket = await Order.findById(tid).lean();
+        const dish = ticket.items[0];
+        const rate = await request(app).post(`/api/orders/${tid}/rating`).set(w.customer.headers).send({ ratings: [{ productId: String(dish.productId), rating: 5, comment: 'Lovely' }] });
+        assert.equal(rate.status, 200, JSON.stringify(rate.body));
+        assert.equal(await Review.countDocuments({ orderId: tid, rating: 5 }), 1);
+        const c = await request(app).post(`/api/orders/${tid}/complaints`).set(w.customer.headers).send({ type: 'late', text: 'It came late' });
+        assert.equal(c.status, 201, JSON.stringify(c.body));
+        assert.match(c.body.bulkCode, /^[A-Z0-9]{6}$/);
+        const list = (await request(app).get('/api/shop/complaints').set(w.owner.headers)).body;
+        assert.equal(list.items[0].bulkCode, c.body.bulkCode);
+        assert.deepEqual([list.items[0].bulkTotal, !!list.items[0].bulkId], [10000, true]);
+        // the owner returns Rs 1000 of Rs 10000: written down only, and cannot be more than the whole bulk order
+        const tooMuch = await request(app).patch(`/api/shop/complaints/${c.body.id}`).set(w.owner.headers).send({ resolution: 'refund_partial', refundPaise: 1000001 });
+        assert.equal(tooMuch.status, 400);
+        const ok = await request(app).patch(`/api/shop/complaints/${c.body.id}`).set(w.owner.headers).send({ resolution: 'refund_partial', refundPaise: 100000, ownerReply: 'Sorry' });
+        assert.equal(ok.status, 200, JSON.stringify(ok.body));
+        assert.deepEqual([ok.body.refundPaise, ok.body.refundStatus], [100000, 'noted']);
+        const OnlineRefund = require('../src/models/OnlineRefund');
+        assert.equal(await OnlineRefund.countDocuments({ orderId: tid }), 0, 'nothing was sent to the payment gateway');
+    });
 });

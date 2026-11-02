@@ -349,7 +349,6 @@
  "Order #{v1}: your delivery partner is at your address now. Please keep your delivery PIN ready.",
  "Order #{v1}: {v2} star(s) for {v3}.",
  "Order #{v1}: {v2} star{v3} for the delivery.{v4}",
- "Order #{v1}: {v2}. Please reply within 24 hours.",
  "Order cancelled",
  "Order history · {v1}",
  "Order is ready",

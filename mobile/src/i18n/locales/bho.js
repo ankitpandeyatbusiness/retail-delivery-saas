@@ -2493,7 +2493,6 @@ export default {
     "Order #{v1}: your delivery partner is at your address now.": "ऑर्डर #{v1}: रउआ डिलीवरी पार्टनर अबहीं रउआ पता पर बाड़ें।",
     "Order #{v1}: your delivery partner is at your address now. Please keep your delivery PIN ready.": "ऑर्डर #{v1}: रउआ डिलीवरी पार्टनर अबहीं रउआ पता पर बाड़ें। आपन डिलीवरी पिन तइयार राखीं।",
     "Order #{v1}: {v2} star(s) for {v3}.": "ऑर्डर #{v1}: {v3} के {v2} स्टार।",
-    "Order #{v1}: {v2}. Please reply within 24 hours.": "ऑर्डर #{v1}: {v2}। 24 घंटा के भीतर जवाब दीं।",
     "Order cancelled": "ऑर्डर रद्द भइल",
     "Order delivered": "ऑर्डर पहुँच गइल",
     "Order history": "ऑर्डर इतिहास",

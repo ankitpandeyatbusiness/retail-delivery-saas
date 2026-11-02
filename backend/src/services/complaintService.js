@@ -21,10 +21,10 @@ const rs = (paise) => (paise / 100).toFixed(2).replace(/\.00$/, '');
 const text = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 
 const view = (c, { forOwner = false } = {}) => ({
-    id: c._id, orderId: c.orderId, orderNo: c.orderNo, type: c.type, text: c.text, photos: c.photos || [],
+    id: c._id, orderId: c.orderId, orderNo: c.orderNo, bulkCode: c.bulkCode || null, type: c.type, text: c.text, photos: c.photos || [],
     status: c.status, ownerReply: c.ownerReply || null, resolution: c.resolution, refundPaise: c.refundPaise || 0,
     refundStatus: c.refundStatus, createdAt: c.createdAt, decidedAt: c.decidedAt || null, repliedAt: c.repliedAt || null, autoReason: c.autoReason || null,
-    ...(forOwner ? { customerName: c.customerName || null, evidence: c.evidence || null, riderFault: c.riderFault ?? null } : {}),
+    ...(forOwner ? { bulkId: c.bulkId || null, bulkTotal: c.bulkTotal ?? null, customerName: c.customerName || null, evidence: c.evidence || null, riderFault: c.riderFault ?? null } : {}),
 });
 
 // For these the customer must send at least one photo of the food (a wrong or bad dish needs proof)
@@ -83,7 +83,7 @@ async function deliveryEvidence({ tenantId, orderId, userId, excludeId }) {
 async function create({ tenant, userId, orderId, body }) {
     if (!isId(orderId)) throw httpError(404, 'Order not found');
     const order = await Order.findOne({ _id: orderId, tenantId: tenant._id, userId })
-        .select('orderNo status deliveredAt customer.name').lean();
+        .select('orderNo bulkId bulkCode bulkTotal status deliveredAt customer.name').lean();
     if (!order) throw httpError(404, 'Order not found');
     if (order.status !== 'delivered') throw httpError(409, 'You can complain after the order is delivered');
     if (!order.deliveredAt) throw httpError(409, 'The delivery time is missing for this order');
@@ -94,7 +94,7 @@ async function create({ tenant, userId, orderId, body }) {
     let doc;
     try {
         doc = await Complaint.create({
-            tenantId: tenant._id, orderId: order._id, orderNo: order.orderNo, userId,
+            tenantId: tenant._id, orderId: order._id, orderNo: order.orderNo, ...(order.bulkCode ? { bulkId: order.bulkId, bulkCode: order.bulkCode, bulkTotal: order.bulkTotal } : {}), userId,
             customerName: order.customer?.name, ...clean,
         });
     } catch (e) {
@@ -111,7 +111,7 @@ async function create({ tenant, userId, orderId, body }) {
         center.notify('complaint_new', {
             tenantId: tenant._id,
             title: doc.type === 'not_received' ? 'Customer says the order did not arrive' : 'New complaint',
-            body: `Order #${doc.orderNo}: ${TYPE_TEXT[doc.type]}. Please reply within 24 hours.`,
+            body: `${doc.bulkCode ? `Bulk order ${doc.bulkCode}` : `Order #${doc.orderNo}`}: ${TYPE_TEXT[doc.type]}. Please reply within 24 hours.`,
             data: { complaintId: String(doc._id), orderId: String(doc.orderId), orderNo: doc.orderNo },
         });
     } catch (e) { console.error('Complaint notify error:', e.message); }
@@ -187,9 +187,10 @@ async function decide({ tenant, id, actor, body }) {
     } else if (resolution === 'no_refund') {
         if (!reply) throw httpError(400, 'Tell the customer why there is no refund');
     } else {
-        const order = await Order.findOne({ _id: c.orderId, tenantId: tenant._id }).select('pricing payment orderType').lean();
-        if (order?.orderType === 'pickup') throw httpError(409, 'A pickup order is not returned or refunded. Choose "No refund" and tell the customer why, or just reply.');
-        const total = Math.round((Number(order?.pricing?.total) || 0) * 100);
+        const order = await Order.findOne({ _id: c.orderId, tenantId: tenant._id }).select('pricing payment orderType bulkId bulkTotal').lean();
+        if (order?.orderType === 'pickup' && !order.bulkId) throw httpError(409, 'A pickup order is not returned or refunded. Choose "No refund" and tell the customer why, or just reply.');
+        // a bulk order: the whole order is worth its quote total (the ticket's own total is only the balance). Money is never sent by itself for it: the owner returns it himself and it is only written down here.
+        const total = Math.round((Number(order?.bulkId ? order.bulkTotal : order?.pricing?.total) || 0) * 100);
         const tip = Math.min(Math.round((Number(order?.pricing?.tip) || 0) * 100), total);
         const cap = total - tip;                       // the tip is not refunded on a delivered order
         if (cap <= 0) throw httpError(409, 'There is nothing to refund on this order');
@@ -201,7 +202,7 @@ async function decide({ tenant, id, actor, body }) {
             refundPaise = b.refundPaise;
         }
         const online = order.payment?.method && order.payment.method !== 'cod' && order.payment.status === 'paid';
-        refundStatus = online ? 'pending' : 'noted';
+        refundStatus = online && !order.bulkId ? 'pending' : 'noted';
     }
 
     if (refundPaise > 0) require('./loyaltyService').voidPendingForOrder(tenant._id, c.orderId);   // a refund (cash too): the points of this order do not stay with the customer

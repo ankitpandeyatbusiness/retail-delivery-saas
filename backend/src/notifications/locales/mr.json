@@ -349,7 +349,6 @@
  "Order #{v1}: your delivery partner is at your address now. Please keep your delivery PIN ready.": "ऑर्डर #{v1}: तुमचा डिलिव्हरी पार्टनर आता तुमच्या पत्त्यावर आहे. कृपया तुमचा डिलिव्हरी पिन तयार ठेवा.",
  "Order #{v1}: {v2} star(s) for {v3}.": "ऑर्डर #{v1}: {v3} यांना {v2} स्टार.",
  "Order #{v1}: {v2} star{v3} for the delivery.{v4}": "ऑर्डर #{v1}: डिलिव्हरीसाठी {v2} स्टार{v3}.{v4}",
- "Order #{v1}: {v2}. Please reply within 24 hours.": "ऑर्डर #{v1}: {v2}. कृपया २४ तासांत उत्तर द्या.",
  "Order cancelled": "ऑर्डर रद्द",
  "Order history · {v1}": "ऑर्डर इतिहास · {v1}",
  "Order is ready": "ऑर्डर तयार आहे",

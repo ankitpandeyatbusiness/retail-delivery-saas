@@ -49,7 +49,7 @@ export default function OwnerComplaintsScreen() {
                     <GlowBorder active={c.status !== 'resolved'} radius={18} style={{ marginHorizontal: 16, marginBottom: 12 }}>
                     <Card onPress={() => nav.navigate('OwnerComplaint', { complaint: c })} style={{ marginHorizontal: 0, marginBottom: 0 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <Text style={{ color: text, fontWeight: '900', flex: 1 }} numberOfLines={1}>{tr('Order #{orderNo} · {v2}', { orderNo: c.orderNo, v2: COMPLAINT_TYPES[c.type] || c.type })}</Text>
+                            <Text style={{ color: text, fontWeight: '900', flex: 1 }} numberOfLines={1}>{tr(c.bulkCode ? 'Bulk order {c} · {v2}' : 'Order #{orderNo} · {v2}', { c: c.bulkCode, orderNo: c.orderNo, v2: COMPLAINT_TYPES[c.type] || c.type })}</Text>
                             {c.status === 'resolved' ? <Pill label={RESOLUTION_TEXT[c.resolution] || tr('Decided')} color={ok} /> : c.status === 'in_progress' ? <Pill label={tr('In progress')} color={primary} /> : <Pill label={tr('New')} color={error} />}
                         </View>
                         <Text style={{ color: text, marginTop: 6 }} numberOfLines={2}>{c.text}</Text>

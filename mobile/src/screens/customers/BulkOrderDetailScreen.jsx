@@ -17,6 +17,7 @@ import { viewInvoice, saveInvoice } from '../../components/customers/invoice';
 import { onNotification } from '../../api/common/socket';
 import { Thumb } from './BulkOrderScreen';
 import ChatButton from '../../components/common/ChatButton';
+import BulkFeedback from '../../components/customers/BulkFeedback';
 import { tr } from '../../i18n';
 
 export const BULK_STATUS = {
@@ -247,6 +248,7 @@ export default function BulkOrderDetailScreen() {
                         <Text style={{ color: muted, fontSize: 12, marginBottom: 10 }}>{tr('Cancel at least {h} hours before the time and the whole advance comes back. Later, the shop keeps it.', { h: q.fullRefundHours ?? 0 })}</Text>
                     </View>
                 ) : null}
+                {o.feedbackOrderId ? <BulkFeedback ticketId={o.feedbackOrderId} delivery={o.fulfilment === 'delivery'} /> : null}
                 {open ? (
                     <View style={{ paddingHorizontal: 16, marginTop: 12 }}>
                         {['quoted', 'expired'].includes(o.status) ? <Button label={tr('Ask for a change')} icon="create-outline" kind="ghost" onPress={() => setChangeOpen(true)} style={{ marginBottom: 10 }} /> : null}

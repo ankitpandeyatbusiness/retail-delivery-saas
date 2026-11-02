@@ -8,6 +8,9 @@ const schema = new mongoose.Schema({
     tenantId: { type: mongoose.Schema.Types.ObjectId, required: true },
     orderId: { type: mongoose.Schema.Types.ObjectId, required: true },
     orderNo: Number,
+    bulkId: mongoose.Schema.Types.ObjectId,
+    bulkTotal: Number,   // a bulk order: what the whole order was worth (the most that can be given back)
+    bulkCode: String,   // set when the complaint is about a bulk order (its hidden work ticket carries the order number)
     userId: { type: mongoose.Schema.Types.ObjectId, required: true },
     customerName: String,
     type: { type: String, enum: TYPES, required: true },
