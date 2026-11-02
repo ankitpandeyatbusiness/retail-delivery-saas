@@ -36,7 +36,7 @@ const NET = {
 
 async function sales(tenantId, from, to) {
     const [row] = await Order.aggregate([
-        { $match: { tenantId, status: 'delivered', deliveredAt: { $gte: from, $lt: to } } },
+        { $match: { tenantId, status: 'delivered', bulkId: { $exists: false }, deliveredAt: { $gte: from, $lt: to } } },
         { $group: { _id: null, orders: { $sum: 1 }, revenue: { $sum: NET } } },
     ]);
     return { orders: row?.orders || 0, revenue: round2(row?.revenue || 0) };
@@ -71,12 +71,12 @@ async function build(tenantId) {
         sales(tenantId, day, new Date(now.getTime() + 1000)),
         sales(tenantId, yesterday, sameTimeYesterday),
         Order.aggregate([
-            { $match: { tenantId, status: 'delivered', deliveredAt: { $gte: day } } },
+            { $match: { tenantId, status: 'delivered', bulkId: { $exists: false }, deliveredAt: { $gte: day } } },
             { $group: { _id: { $hour: { date: '$deliveredAt', timezone: 'Asia/Kolkata' } }, orders: { $sum: 1 }, revenue: { $sum: NET } } },
         ]),
-        Order.countDocuments({ tenantId, createdAt: { $gte: day }, ...HIDE_UNPAID }),
+        Order.countDocuments({ tenantId, createdAt: { $gte: day }, ...HIDE_UNPAID, ...require('./onlineOrder').HIDE_BULK_TICKET }),
         Order.aggregate([
-            { $match: { tenantId, createdAt: { $gte: day }, status: { $in: ['cancelled', 'undelivered'] }, ...HIDE_UNPAID } },
+            { $match: { tenantId, createdAt: { $gte: day }, status: { $in: ['cancelled', 'undelivered'] }, ...HIDE_UNPAID, ...require('./onlineOrder').HIDE_BULK_TICKET } },
             { $group: { _id: null, count: { $sum: 1 }, lost: { $sum: { $ifNull: ['$pricing.total', 0] } } } },
         ]),
         averageAcceptSeconds(tenantId, day),

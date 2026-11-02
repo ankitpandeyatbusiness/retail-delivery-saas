@@ -33,7 +33,7 @@ function rangeOf(query, now = Date.now()) {
 
 function filterOf(tenantId, query = {}, now = Date.now()) {
     const { from, to } = rangeOf(query, now);
-    const filter = { tenantId, ...HIDE_UNPAID, createdAt: { $gte: from, ...(to ? { $lte: to } : {}) } };
+    const filter = { tenantId, ...HIDE_UNPAID, ...require('./onlineOrder').HIDE_BULK_TICKET, createdAt: { $gte: from, ...(to ? { $lte: to } : {}) } };
     const and = [];
 
     const status = String(query.status || '');

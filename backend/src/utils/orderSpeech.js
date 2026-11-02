@@ -120,7 +120,21 @@ const foodOf = (order) => clean(order.orderType === 'dine_in' ? order.note : ord
 const deliveryOf = (order) => (order.orderType === 'delivery' ? clean(order.note).slice(0, 140) : '');
 const lineNotes = (order) => (Array.isArray(order.items) ? order.items : []).filter((l) => clean(l.note)).slice(0, 3).map((l) => `${clean(l.name)}: ${clean(l.note).slice(0, 80)}`);
 
+const MONTHS_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const MONTHS_HI = ['जनवरी', 'फ़रवरी', 'मार्च', 'अप्रैल', 'मई', 'जून', 'जुलाई', 'अगस्त', 'सितंबर', 'अक्टूबर', 'नवंबर', 'दिसंबर'];
+// "7 November" / "7 नवंबर": the day a bulk order is wanted (India date)
+function dayOf(date, hi) {
+    const t = new Date(new Date(date).getTime() + 330 * 60000);
+    return `${t.getUTCDate()} ${(hi ? MONTHS_HI : MONTHS_EN)[t.getUTCMonth()]}`;
+}
+
 function whereSpeech(order, hi) {
+    if (order.bulkId) {   // a bulk order is made for a day, often days away: say which day and whether it goes out or is collected
+        const day = order.scheduledFor ? dayOf(order.scheduledFor, hi) : '';
+        const how = order.orderType === 'delivery' ? (hi ? 'डिलीवरी' : 'delivery') : (hi ? 'पिकअप' : 'pickup');
+        // short sentences on purpose: the Soundbox speaks Marathi, Gujarati and Bengali by translating each English sentence (mobile utils/common/speechLang.js)
+        return hi ? `नया बल्क ऑर्डर${day ? `, ${day} के लिए` : ''}, ${how}।` : `New bulk order.${day ? ` Wanted on ${day}.` : ''} ${how === 'delivery' ? 'Delivery' : 'Pickup'}.`;
+    }
     const bill = order.tableParty ? (hi ? `, बिल ${order.tableParty}` : `, bill ${order.tableParty}`) : '';
     if (order.orderType === 'dine_in') return hi ? `टेबल ${order.tableNo || ''}${bill} के लिए नया ऑर्डर।` : `New order for table ${order.tableNo || ''}${bill}.`;
     if (order.orderType === 'pickup') return hi ? 'नया पिकअप ऑर्डर।' : 'New pickup order.';
@@ -174,4 +188,5 @@ function pickupIntentSpeech(order, answer, hi = false) {
 // the two instructions of an order, as plain text, for the owner's alert and order page: { food, delivery }
 const instructionsOf = (order) => ({ food: foodOf(order), delivery: deliveryOf(order) });
 
-module.exports = { instructionsOf, orderSpeech, orderSpeechHi, cancelSpeech, cancelSpeechHi, kitchenSpeech, kitchenCancelSpeech, pickupIntentSpeech, pickupWindow, MAX_ITEMS };
+module.exports = {
+    dayOf, instructionsOf, orderSpeech, orderSpeechHi, cancelSpeech, cancelSpeechHi, kitchenSpeech, kitchenCancelSpeech, pickupIntentSpeech, pickupWindow, MAX_ITEMS };

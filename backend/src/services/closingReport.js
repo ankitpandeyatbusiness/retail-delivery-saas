@@ -2,6 +2,7 @@
 // Sales = DELIVERED orders counted on the day they were delivered, like the Home screen and the sales report.
 // Amounts named ...Paise are paise; every other amount is rupees.
 const Order = require('../models/Order');
+const BulkOrder = require('../models/BulkOrder');
 const Complaint = require('../models/Complaint');
 const OnlinePayment = require('../models/OnlinePayment');
 const OnlineRefund = require('../models/OnlineRefund');
@@ -28,9 +29,10 @@ async function build({ tenantId, date, now = new Date() }) {
     const to = new Date(from.getTime() + DAY_MS);
     if (from.getTime() > now.getTime()) throw httpError(400, 'That day has not come yet');
 
-    const delivered = { tenantId, status: 'delivered', deliveredAt: { $gte: from, $lt: to } };
-    const placed = { tenantId, createdAt: { $gte: from, $lt: to }, ...HIDE_UNPAID };
+    const delivered = { tenantId, status: 'delivered', bulkId: { $exists: false }, deliveredAt: { $gte: from, $lt: to } };
+    const placed = { tenantId, createdAt: { $gte: from, $lt: to }, ...HIDE_UNPAID, ...require('./onlineOrder').HIDE_BULK_TICKET };
 
+    const bulkRows = BulkOrder.aggregate([{ $match: { tenantId, status: { $in: ['delivered', 'completed'] }, 'stageAt.delivered': { $gte: from, $lt: to } } }, { $group: { _id: null, orders: { $sum: 1 }, sales: { $sum: { $subtract: [{ $add: [{ $ifNull: ['$quote.pricing.subtotal', 0] }, { $ifNull: ['$quote.pricing.packagingCharge', 0] }] }, { $ifNull: ['$quote.pricing.discount', 0] }] } } } }]);
     const [tot, byPay, top, byStatus, cancelledBy, cash, received, refunded, complaints, owed] = await Promise.all([
         Order.aggregate([{ $match: delivered }, {
             $group: {
@@ -51,11 +53,13 @@ async function build({ tenantId, date, now = new Date() }) {
     ]);
 
     const t = tot[0] || {};
+    const bk = (await bulkRows)[0] || { orders: 0, sales: 0 };   // the bulk orders delivered today are part of today's sales
     const status = Object.fromEntries(byStatus.map((s) => [s._id, s.n]));
     return {
         date: day, isToday: day === todayIst(now), from, to,
         sales: {
-            orders: t.orders || 0, revenue: r2(t.sales || 0), averageOrder: t.orders ? r2((t.sales || 0) / t.orders) : 0,
+            orders: (t.orders || 0) + bk.orders, revenue: r2((t.sales || 0) + bk.sales), averageOrder: (t.orders || 0) + bk.orders ? r2(((t.sales || 0) + bk.sales) / ((t.orders || 0) + bk.orders)) : 0,
+            bulk: { orders: bk.orders, revenue: r2(bk.sales) },
             tips: r2(t.tips || 0), deliveryFees: r2(t.fees || 0), tax: r2(t.tax || 0), discounts: r2(t.discount || 0), customersPaid: r2(t.collected || 0),
         },
         payments: byPay.map((p) => ({ method: p._id, orders: p.orders, total: r2(p.total) })),

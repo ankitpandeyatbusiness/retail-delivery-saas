@@ -157,11 +157,41 @@ describe('a paid bulk order gets a work ticket for the kitchen and the rider', (
         assert.equal((await ticket()).status, 'cancelled');
     });
 
-    test('nobody can cancel a ticket from the Orders screen: it must go through Bulk orders', async () => {
+    test('the owner cancels the ticket from the Orders screen: that is the shop cancelling the bulk order, and the customer gets everything back', async () => {
         await paid();
         const t = await ticket();
-        await assert.rejects(() => orderStatus.change({ order: t, status: 'cancelled', actor: { type: 'owner', id: String(w.owner.user._id), label: 'Owner' }, reasonCode: 'other', note: 'x' }), /bulk order/i);
+        await orderStatus.change({ order: t, status: 'cancelled', actor: { type: 'owner', id: String(w.owner.user._id), label: 'Owner' }, reasonCode: 'other', note: 'Cook is ill' });
+        const b = await row();
+        assert.deepEqual([b.status, b.cancelledBy, b.cancelReason], ['cancelled', 'owner', 'Cook is ill']);
+        assert.equal(b.payment.refundDuePaise, ADVANCE);   // the whole advance goes back
+        assert.equal((await ticket()).status, 'cancelled');
+    });
+
+    test('a rider, the system and the customer cannot cancel the ticket', async () => {
+        await paid();
+        const t = await ticket();
+        for (const actor of [{ type: 'system', label: 'auto' }, { type: 'rider', id: w.rider.user._id }]) {
+            await assert.rejects(() => orderStatus.change({ order: t, status: 'cancelled', actor, reasonCode: 'not_accepted' }), /bulk order/i);
+        }
         assert.equal((await ticket()).status, 'accepted');
+    });
+
+    test('the ticket is not a sale: the history and sales leave it out, the cook still sees it', async () => {
+        await paid();
+        const { HIDE_BULK_TICKET } = require('../src/services/onlineOrder');
+        assert.equal(await Order.countDocuments({ tenantId: w.tenant._id, ...HIDE_BULK_TICKET }), 0);
+        assert.equal(await Order.countDocuments({ tenantId: w.tenant._id }), 1);
+        const kitchen = require('../src/services/kitchenService');
+        const q = await kitchen.queue(w.tenant);
+        assert.ok(JSON.stringify(q).includes('Dal'), 'the cook sees the dishes');
+    });
+
+    test('the cook hears it is a BULK order and for which day, not just "new order"', () => {
+        const speech = require('../src/utils/orderSpeech');
+        const o = { bulkId: '65f000000000000000000001', orderType: 'delivery', scheduledFor: new Date('2026-11-07T06:30:00Z'), items: [{ name: 'Dal', quantity: 100 }] };
+        assert.match(speech.kitchenSpeech(o), /^New bulk order. Wanted on 7 November. Delivery./);
+        assert.match(speech.kitchenSpeech(o, true), /^नया बल्क ऑर्डर, 7 नवंबर के लिए, डिलीवरी।/);
+        assert.match(speech.kitchenSpeech({ ...o, bulkId: undefined }), /^New delivery order./);
     });
 
     test('a delivery: packed -> the rider is asked/assigned -> he collects ONLY the balance -> the bulk order is delivered, paid and completed', async () => {
@@ -192,5 +222,23 @@ describe('a paid bulk order gets a work ticket for the kitchen and the rider', (
         assert.deepEqual([b.payment.balancePaid, b.payment.balanceVia, b.payment.balancePaise], [true, 'cash', 500000]);
         const cash = await CodSettlement.find({ tenantId: w.tenant._id, orderId: t._id, type: 'collect' }).lean();
         assert.deepEqual(cash.map((c) => c.amountPaise), [500000]);   // the balance only, never the whole Rs 10000
+    });
+
+    test('the reports show what the bulk orders added to the sales, inside the totals (not apart from them)', async () => {
+        const businessReport = require('../src/services/businessReport');
+        const closingReport = require('../src/services/closingReport');
+        await paid();
+        for (const to of ['preparing', 'ready', 'delivered']) assert.equal((await stage(to)).status, 200);
+        assert.equal((await owner('post', `/${id}/cash-received`)).status, 200);
+        assert.equal(await bulkStatus(), 'completed');
+        const r = await businessReport.build({ tenantId: w.tenant._id, range: '7' });
+        assert.equal(r.bulk.orders, 1);
+        assert.equal(r.bulk.revenue, 10000);
+        assert.equal(r.bulk.sharePct, 100);               // the only sale of the week
+        assert.equal(r.totals.orders, 1);                  // it is counted in the totals, once (its hidden ticket is not a second sale)
+        assert.equal(r.totals.revenue, 10000);
+        assert.equal(r.series.points.reduce((a, p) => a + p.revenue, 0), 10000);
+        const c = await closingReport.build({ tenantId: w.tenant._id });
+        assert.deepEqual([c.sales.bulk.orders, c.sales.bulk.revenue, c.sales.revenue, c.sales.orders], [1, 10000, 10000, 1]);
     });
 });

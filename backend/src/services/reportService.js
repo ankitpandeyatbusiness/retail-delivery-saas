@@ -33,7 +33,7 @@ function parseRange(query = {}) {
 
 async function salesReport({ tenantId, from, to, groupBy, topLimit = 10 }) {
     const shop = tenantId ? { tenantId: oid(tenantId) } : {};
-    const delivered = { ...shop, status: 'delivered', deliveredAt: { $gte: from, $lte: to } };
+    const delivered = { ...shop, status: 'delivered', bulkId: { $exists: false }, deliveredAt: { $gte: from, $lte: to } };
     const placedInRange = { ...shop, createdAt: { $gte: from, $lte: to } };
     const format = groupBy === 'month' ? '%Y-%m' : '%Y-%m-%d';
 

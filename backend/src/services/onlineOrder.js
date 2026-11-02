@@ -19,4 +19,7 @@ function onlineProblem(method, can) {
     return null;
 }
 
-module.exports = { ONLINE, APP_METHODS, isOnline, isUnpaidOnline, UNPAID_QUERY, HIDE_UNPAID, onlineProblem };
+// The work ticket of a paid bulk order (services/bulkKitchen.js) is for the cook and the rider only: the bulk order itself is the sale. Spread it into SALES and REPORT filters, never into the kitchen's or the rider's.
+const HIDE_BULK_TICKET = { bulkId: { $exists: false } };
+
+module.exports = { HIDE_BULK_TICKET, ONLINE, APP_METHODS, isOnline, isUnpaidOnline, UNPAID_QUERY, HIDE_UNPAID, onlineProblem };

@@ -6,6 +6,7 @@
 // screen and the sales report. Money in this file is rupees. Days are India days.
 const mongoose = require('mongoose');
 const Order = require('../models/Order');
+const BulkOrder = require('../models/BulkOrder');
 const Review = require('../models/Review');
 const Product = require('../models/Product');
 const User = require('../models/User');
@@ -29,6 +30,18 @@ const NET = {
         { $ifNull: ['$pricing.discount', 0] },
     ],
 };
+// a bulk order's sale: the quote's food + packaging - discount (the same rule as an order), counted on the day it was delivered
+const NETQ = {
+    $subtract: [
+        { $add: [{ $ifNull: ['$quote.pricing.subtotal', 0] }, { $ifNull: ['$quote.pricing.packagingCharge', 0] }] },
+        { $ifNull: ['$quote.pricing.discount', 0] },
+    ],
+};
+const bulkSold = (tenantId, from, to) => ({ tenantId, status: { $in: ['delivered', 'completed'] }, 'stageAt.delivered': { $gte: from, $lt: to } });
+async function bulkTotals(tenantId, from, to) {
+    const [row] = await BulkOrder.aggregate([{ $match: bulkSold(tenantId, from, to) }, { $group: { _id: null, orders: { $sum: 1 }, revenue: { $sum: NETQ } } }]);
+    return { orders: row?.orders || 0, revenue: r2(row?.revenue || 0) };
+}
 const ymd = (d) => new Date(new Date(d).getTime() + IST_MS).toISOString().slice(0, 10);
 const startOfDay = (s) => new Date(Date.parse(`${s}T00:00:00+05:30`));
 const hourLabel = (h) => `${((h + 11) % 12) + 1} ${h < 12 ? 'AM' : 'PM'}`;
@@ -51,12 +64,14 @@ function rangeOf(spec = '30', now = new Date()) {
 
 async function totalsFor(tenantId, from, to) {
     const [row] = await Order.aggregate([
-        { $match: { tenantId, status: 'delivered', deliveredAt: { $gte: from, $lt: to } } },
+        { $match: { tenantId, status: 'delivered', bulkId: { $exists: false }, deliveredAt: { $gte: from, $lt: to } } },
         { $group: { _id: null, orders: { $sum: 1 }, revenue: { $sum: NET }, tips: { $sum: { $ifNull: ['$pricing.tip', 0] } } } },
     ]);
-    const orders = row?.orders || 0;
-    const revenue = r2(row?.revenue || 0);
-    return { orders, revenue, avgOrder: orders ? r2(revenue / orders) : 0, tips: r2(row?.tips || 0) };
+    // the sales are the delivered orders AND the delivered bulk orders; `bulk` says how much of it came from bulk orders
+    const bulk = await bulkTotals(tenantId, from, to);
+    const orders = (row?.orders || 0) + bulk.orders;
+    const revenue = r2((row?.revenue || 0) + bulk.revenue);
+    return { orders, revenue, avgOrder: orders ? r2(revenue / orders) : 0, tips: r2(row?.tips || 0), bulk };
 }
 
 // per-day numbers -> the points of the chart: days (up to 35), weeks starting Monday (up to 100 days) or months
@@ -105,11 +120,11 @@ async function build({ tenantId, range = '30', now = new Date() }) {
     const { from, to, label } = rangeOf(range, now);
     const days = Math.round((to - from) / DAY_MS);
     const prevFrom = new Date(from.getTime() - (to - from));
-    const delivered = { tenantId, status: 'delivered', deliveredAt: { $gte: from, $lt: to } };
-    const placed = { tenantId, createdAt: { $gte: from, $lt: to }, ...HIDE_UNPAID };
+    const delivered = { tenantId, status: 'delivered', bulkId: { $exists: false }, deliveredAt: { $gte: from, $lt: to } };
+    const placed = { tenantId, createdAt: { $gte: from, $lt: to }, ...HIDE_UNPAID, ...require('./onlineOrder').HIDE_BULK_TICKET };
 
     const [cur, prev, perDay, perHour, perWeekday, top, statusRows, cancelledLost, periodCustomers, riderRows, reviewRows, deliveryRating,
-        life, refunds, fees, platform, owed] = await Promise.all([
+        life, refunds, fees, platform, owed, bulkDays] = await Promise.all([
         totalsFor(tenantId, from, to),
         totalsFor(tenantId, prevFrom, from),
         Order.aggregate([{ $match: delivered }, { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$deliveredAt', timezone: TZ } }, orders: { $sum: 1 }, revenue: { $sum: NET } } }]),
@@ -122,17 +137,23 @@ async function build({ tenantId, range = '30', now = new Date() }) {
         cod.performance({ tenantId, from, to: new Date(to.getTime() - 1) }),
         Review.aggregate([{ $match: { tenantId, createdAt: { $gte: from, $lt: to } } }, { $group: { _id: '$productId', avg: { $avg: '$rating' }, count: { $sum: 1 } } }]),
         Order.aggregate([{ $match: { tenantId, 'deliveryRating.rating': { $gte: 1 }, 'deliveryRating.ratedAt': { $gte: from, $lt: to } } }, { $group: { _id: null, avg: { $avg: '$deliveryRating.rating' }, count: { $sum: 1 } } }]),
-        Order.aggregate([{ $match: { tenantId, status: 'delivered' } }, { $group: { _id: null, orders: { $sum: 1 }, revenue: { $sum: NET }, customers: { $addToSet: '$userId' } } }, { $project: { orders: 1, revenue: 1, customers: { $size: '$customers' } } }]),
+        Order.aggregate([{ $match: { tenantId, status: 'delivered', bulkId: { $exists: false } } }, { $group: { _id: null, orders: { $sum: 1 }, revenue: { $sum: NET }, customers: { $addToSet: '$userId' } } }, { $project: { orders: 1, revenue: 1, customers: { $size: '$customers' } } }]),
         OnlineRefund.aggregate([{ $match: { tenantId, status: 'processed', processedAt: { $gte: from, $lt: to } } }, { $group: { _id: null, paise: { $sum: '$amountPaise' } } }]),
         SubscriptionInvoice.aggregate([{ $match: { tenantId, status: { $ne: 'void' }, issueDate: { $gte: from, $lt: to } } }, { $group: { _id: null, total: { $sum: '$total' } } }]),
         PlatformSettings.findById('main').select('insights').lean(),
         cod.balances(tenantId),
+        BulkOrder.aggregate([{ $match: bulkSold(tenantId, from, to) }, { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$stageAt.delivered', timezone: TZ } }, orders: { $sum: 1 }, revenue: { $sum: NETQ } } }]),
     ]);
+    // a day's sales include the bulk orders delivered that day
+    for (const b of bulkDays) {
+        const day = perDay.find((d) => d._id === b._id);
+        if (day) { day.orders += b.orders; day.revenue += b.revenue; } else perDay.push({ _id: b._id, orders: b.orders, revenue: b.revenue });
+    }
 
     // customers: new (first ever delivered order inside the period) and returning
     const userIds = periodCustomers.map((c) => c._id).filter(Boolean);
     const lifetime = userIds.length
-        ? await Order.aggregate([{ $match: { tenantId, status: 'delivered', userId: { $in: userIds } } }, { $group: { _id: '$userId', first: { $min: '$deliveredAt' }, n: { $sum: 1 } } }])
+        ? await Order.aggregate([{ $match: { tenantId, status: 'delivered', bulkId: { $exists: false }, userId: { $in: userIds } } }, { $group: { _id: '$userId', first: { $min: '$deliveredAt' }, n: { $sum: 1 } } }])
         : [];
     const lifeBy = new Map(lifetime.map((l) => [String(l._id), l]));
     const newCount = lifetime.filter((l) => l.first >= from).length;
@@ -178,7 +199,7 @@ async function build({ tenantId, range = '30', now = new Date() }) {
     const lifeRow = life[0] || {};
 
     // milestones crossed inside this period
-    const before = await Order.aggregate([{ $match: { tenantId, status: 'delivered', deliveredAt: { $lt: from } } }, { $group: { _id: null, orders: { $sum: 1 }, revenue: { $sum: NET } } }]);
+    const before = await Order.aggregate([{ $match: { tenantId, status: 'delivered', bulkId: { $exists: false }, deliveredAt: { $lt: from } } }, { $group: { _id: null, orders: { $sum: 1 }, revenue: { $sum: NET } } }]);
     const b0 = before[0] || { orders: 0, revenue: 0 };
     const milestones = [
         ...MILESTONE_ORDERS.filter((m) => b0.orders < m && (lifeRow.orders || 0) >= m).map((m) => `You reached ${m.toLocaleString('en-IN')} delivered orders`),
@@ -193,6 +214,8 @@ async function build({ tenantId, range = '30', now = new Date() }) {
             refunds: r2((refunds[0]?.paise || 0) / 100),
         },
         previous: prev,
+        // the bulk orders' part of the sales (they are already inside the totals above): how many, how much, and what share of the sales
+        bulk: { orders: cur.bulk.orders, revenue: cur.bulk.revenue, sharePct: cur.revenue > 0 ? Math.round((cur.bulk.revenue / cur.revenue) * 100) : 0, previousRevenue: prev.bulk.revenue, change: pct(cur.bulk.revenue, prev.bulk.revenue) },
         change: { orders: pct(cur.orders, prev.orders), revenue: pct(cur.revenue, prev.revenue), avgOrder: pct(cur.avgOrder, prev.avgOrder) },
         series: bucket(perDay, from, to),
         busiest: { hour: peakHour, hourLabel: peakHour === null ? null : hourLabel(peakHour), weekday: peakDay === null ? null : WEEKDAYS[peakDay], byHour, byWeekday },

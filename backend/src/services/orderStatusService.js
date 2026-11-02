@@ -18,6 +18,7 @@ const Coupon = require('../models/Coupon');
 const Product = require('../models/Product');
 const User = require('../models/User');
 const Rider = require('../models/Rider');
+const Tenant = require('../models/Tenant');
 const CodSettlement = require('../models/CodSettlement');
 const {
     nextStatuses, customerCanCancel, canMarkUndelivered, shopFrozen, ACTIVE_STATUSES,
@@ -74,7 +75,7 @@ function needsFood(order, status) {
 function checkAllowed({ order, status, actor, note, tenant, reasonCode, now }) {
     if (order.bulkId) {   // the work ticket of a bulk order: the bulk order moves it; nobody cancels it from here (that would leave the money and the customer out of it)
         if (actor.type === 'system' && actor.label === 'bulk') return;
-        if (['cancelled', 'undelivered'].includes(status)) throw httpError(409, 'This is a bulk order. Cancel it from Bulk orders in the shop panel, so the customer and the money are handled.');
+        if (['cancelled', 'undelivered'].includes(status)) throw httpError(409, 'This is a bulk order. The shop cancels it from here or from Bulk orders. A delivery partner or the system cannot cancel it.');
     }
     switch (actor.type) {
         case 'owner':
@@ -202,6 +203,13 @@ const releaseCoupon = async (couponId) => {
 
 async function change({ order, status, actor, note, tenant, reasonCode, outcomeOverride, extraSet }) {
     if (!order) throw httpError(404, 'Order not found');
+    // The owner (or the superadmin) cancels the work ticket of a bulk order: that is the SHOP cancelling the bulk order. It goes through the bulk order,
+    // so the customer is told and everything he paid online goes back by the bulk rules (services/bulkOrders.ownerCancel); the bulk order then closes the ticket.
+    if (order.bulkId && status === 'cancelled' && ['owner', 'superadmin'].includes(actor.type)) {
+        const t = tenant || await Tenant.findById(order.tenantId);
+        await require('./bulkOrders').ownerCancel({ tenant: t, id: String(order.bulkId), reason: cleanNote(note) || 'The shop cancelled this order' });
+        return Order.findById(order._id);
+    }
     if (!actor || !ACTOR_TYPES.includes(actor.type)) throw httpError(500, 'Status change needs an actor');
 
     const now = new Date();

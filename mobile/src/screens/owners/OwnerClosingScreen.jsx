@@ -51,6 +51,7 @@ export default function OwnerClosingScreen() {
                                 <Stat label={tr('Average order')} value={money(r.sales.averageOrder)} />
                                 <Stat label={tr('Tips')} value={money(r.sales.tips)} />
                             </View>
+                            {r.sales.bulk?.orders ? <Text style={{ color: muted, marginTop: 12, fontWeight: '700' }}>{tr('Includes bulk orders: {n} · {amount}', { n: r.sales.bulk.orders, amount: money(r.sales.bulk.revenue) })}</Text> : null}
                         </Card>
 
                         {r.payments.length ? (

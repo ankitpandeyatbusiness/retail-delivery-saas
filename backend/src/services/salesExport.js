@@ -21,7 +21,7 @@ function styleHead(ws) {
 }
 
 async function build({ tenantId, from, to }) {
-    const orders = await Order.find({ tenantId, ...HIDE_UNPAID, createdAt: { $gte: from, $lte: to } })
+    const orders = await Order.find({ tenantId, ...HIDE_UNPAID, ...require('./onlineOrder').HIDE_BULK_TICKET, createdAt: { $gte: from, $lte: to } })
         .sort({ createdAt: -1 }).limit(MAX_ORDERS + 1)
         .select('orderNo createdAt deliveredAt status orderType customer items pricing payment cancelledBy').lean();
     const truncated = orders.length > MAX_ORDERS;

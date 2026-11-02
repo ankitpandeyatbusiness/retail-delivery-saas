@@ -53,7 +53,7 @@ function Tip({ tip, onAction }) {
 export default function OwnerBusinessScreen() {
     const nav = useNavigation();
     const given = useRoute().params?.range;
-    const { background, text, muted, primary, ok, error } = useBrand();
+    const { background, text, muted, primary, ok, error, border } = useBrand();
     const [range, setRange] = useState(given ? String(given) : '30');
     const [r, setR] = useState(null);
     const [err, setErr] = useState('');
@@ -105,6 +105,13 @@ export default function OwnerBusinessScreen() {
                                 <Stat label={tr('Customers')} value={String(r.customers.unique)} hint={tr('{newCount} new', { newCount: r.customers.newCount })} />
                                 <Stat label={tr('Came back')} value={`${r.customers.repeatPct}%`} color={r.customers.repeatPct >= 40 ? ok : undefined} />
                             </View>
+                            {r.bulk?.orders ? (
+                                <View style={{ marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: border }}>
+                                    <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }}>{tr('Of this, from bulk orders')}</Text>
+                                    <Text style={{ color: text, fontSize: 20, fontWeight: '900', marginTop: 2 }}>{money(r.bulk.revenue)}</Text>
+                                    <Text style={{ color: muted, marginTop: 2 }}>{tr('{n} orders · {pct}% of your sales', { n: r.bulk.orders, pct: r.bulk.sharePct })}</Text>
+                                </View>
+                            ) : null}
                         </Card>
 
                         {r.milestones.length ? (
