@@ -8,6 +8,8 @@ const app = require('../src/server/app');
 const Category = require('../src/models/Category');
 const Product = require('../src/models/Product');
 const BulkOrder = require('../src/models/BulkOrder');
+const ServiceInquiry = require('../src/models/ServiceInquiry');
+const TableBooking = require('../src/models/TableBooking');
 const ChatMessage = require('../src/models/ChatMessage');
 const Notification = require('../src/models/Notification');
 const pushChannel = require('../src/notifications/channels/push');
@@ -156,6 +158,53 @@ describe('the chat of a bulk order', () => {
         assert.equal(r.status, 409, JSON.stringify(r.body));
         assert.match(r.body.error, /closed/);
         assert.equal((await owner('post', '', { text: 'me too' })).status, 409);
+    });
+});
+
+describe('the chat of an inquiry and of a table booking', () => {
+    let w; let other;
+    before(() => db.connect());
+    after(() => db.disconnect());
+    beforeEach(async () => {
+        await db.clear();
+        mock.method(pushChannel, 'send', async () => ({ sent: 0, tokens: 0 }));
+        mock.method(adminAlerts, 'alert', async () => { });
+        mock.method(realtime, 'toOwner', () => { });
+        mock.method(realtime, 'toUser', () => { });
+        w = await f.makeWorld(`chatib-${Date.now()}`);
+        other = await f.makeUser(w.tenant, 'customer', '9000000098');
+    });
+    afterEach(() => mock.restoreAll());
+    const inq = (o = {}) => ServiceInquiry.create({ tenantId: w.tenant._id, serviceId: new (require('mongoose').Types.ObjectId)(), serviceName: 'Tiffin', userId: w.customer.user._id, name: 'Asha', phone: '9000000030', ...o });
+    const bk = (o = {}) => TableBooking.create({ tenantId: w.tenant._id, userId: w.customer.user._id, code: 'ABCDE', name: 'Asha', phone: '9000000030', date: '2026-11-20', time: '20:00', party: 2, startsAt: new Date(Date.now() + 86400000), endsAt: new Date(Date.now() + 90000000), status: 'confirmed', ...o });
+
+    test('an inquiry chat: both talk, old words show first as read, the list badge follows, the owner ending it closes the chat', async () => {
+        const i = await inq({ messages: [{ from: 'customer', text: 'Old question' }, { from: 'owner', text: 'Old answer' }] });
+        const r = await request(app).post(`/api/chat/inquiry/${i._id}`).set(w.customer.headers).send({ text: 'New question' });
+        assert.equal(r.status, 201, JSON.stringify(r.body));
+        assert.equal((await ServiceInquiry.findById(i._id).lean()).ownerUnread, 1);
+        const seen = (await request(app).get(`/api/shop/chat/inquiry/${i._id}?read=1`).set(w.owner.headers)).body;
+        assert.deepEqual(seen.items.map((m) => m.text), ['Old question', 'Old answer', 'New question']);
+        assert.equal(seen.closed, false);
+        assert.equal((await ServiceInquiry.findById(i._id).lean()).ownerUnread, 0);
+        assert.equal((await request(app).post(`/api/shop/chat/inquiry/${i._id}`).set(w.owner.headers).send({ text: 'Yes we can' })).status, 201);
+        assert.equal((await request(app).get(`/api/chat/inquiry/${i._id}`).set(other.headers)).status, 404);
+        await ServiceInquiry.updateOne({ _id: i._id }, { $set: { status: 'closed' } });
+        const late = await request(app).post(`/api/chat/inquiry/${i._id}`).set(w.customer.headers).send({ text: 'hello?' });
+        assert.equal(late.status, 409);
+        await ServiceInquiry.updateOne({ _id: i._id }, { $set: { status: 'replied' } });
+        assert.equal((await request(app).post(`/api/chat/inquiry/${i._id}`).set(w.customer.headers).send({ text: 'hello?' })).status, 201, 'opened again');
+    });
+
+    test('a booking chat: open until 3 days after the booking, and for a cancelled booking 3 days after it was cancelled', async () => {
+        const b = await bk();
+        assert.equal((await request(app).post(`/api/chat/booking/${b._id}`).set(w.customer.headers).send({ text: 'Window seat?' })).status, 201);
+        assert.equal((await request(app).post(`/api/shop/chat/booking/${b._id}`).set(w.owner.headers).send({ text: 'Yes' })).status, 201);
+        assert.equal((await request(app).get(`/api/chat/booking/${b._id}`).set(other.headers)).status, 404);
+        const old = await bk({ code: 'ZZZZZ', startsAt: new Date(Date.now() - 5 * 86400000), endsAt: new Date(Date.now() - 5 * 86400000 + 3600000) });
+        const g = await request(app).get(`/api/chat/booking/${old._id}`).set(w.customer.headers);
+        assert.equal(g.body.closed, true);
+        assert.equal((await request(app).post(`/api/chat/booking/${old._id}`).set(w.customer.headers).send({ text: 'x' })).status, 409);
     });
 });
 

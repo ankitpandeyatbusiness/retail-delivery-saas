@@ -15,6 +15,7 @@ import { shareBookingReceipt, hasReceipt } from '../../utils/customers/shareBook
 import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
 import { ease } from '../../utils/common/ease';
+import ChatButton from '../../components/common/ChatButton';
 import { tr } from '../../i18n';
 import { niceDate } from '../../utils/common/dayNames';
 
@@ -96,6 +97,7 @@ export default function MyBookingsScreen() {
                             </View>
                             <Pill label={tr(BOOKING_STATUS[b.status])} color={tone(b.status)} />
                         </View>
+                        <ChatButton kind="booking" refId={b._id} title={`${tr('Table booking')} · ${b.date} ${b.time}`} label={tr('Chat with the restaurant')} style={{ marginTop: 10 }} />
                         {b.status === 'confirmed' && b.approvedAt ? <Text style={{ color: ok, fontWeight: '800', marginTop: 8 }}>{tr('The restaurant confirmed your table')}</Text> : null}
                         {b.status === 'cancelled' && b.cancelledBy === 'owner' ? <Text style={{ color: text, marginTop: 8 }}>{tr('The restaurant cancelled this booking.')}{b.deposit?.status === 'refunded' || b.deposit?.status === 'refunding' ? ' ' + tr('Your full deposit is being refunded.') : ''}{b.cancelNote ? ' ' + b.cancelNote : ''}</Text> : null}
                         {waiting(b) ? <Text style={{ color: text, marginTop: 8 }}>{tr('Pay the deposit before {t} or the table is let go.', { t: clock(b.holdUntil) })}</Text> : null}

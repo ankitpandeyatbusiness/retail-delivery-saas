@@ -15,6 +15,7 @@ import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
 import { shareBookingReceipt, hasReceipt } from '../../utils/customers/shareBookingReceipt';
 import { ease } from '../../utils/common/ease';
+import ChatButton from '../../components/common/ChatButton';
 import { tr } from '../../i18n';
 import { niceDate } from '../../utils/common/dayNames';
 
@@ -135,6 +136,7 @@ export default function OwnerBookingsScreen() {
                             </View>
                             <Pill label={tr(BOOKING_STATUS[b.status])} color={tone(b.status)} />
                         </View>
+                        <ChatButton kind="booking" refId={b._id} title={b.name} label={tr('Chat with the guest')} style={{ marginTop: 10 }} />
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 }}>
                             {[tr('{n} guests', { n: b.party }), b.table ? tr('Table {t}', { t: b.table }) : tr('No table'), b.phone, `${tr('Code')} ${b.code}`].map((x) => (
                                 <View key={x} style={{ marginRight: 6, marginBottom: 6, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, backgroundColor: surface, borderWidth: 1, borderColor: border }}>

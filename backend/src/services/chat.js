@@ -26,6 +26,7 @@ function closesAt(kind, d) {
         const base = ['cancelled', 'expired', 'no_show'].includes(d.status) ? (d.cancelledAt || d.updatedAt) : (d.endsAt || d.startsAt);
         return new Date(new Date(base).getTime() + 3 * DAY);
     }
+    if (d.status === 'closed') return new Date(0);   // the owner ended the conversation (he can open it again)
     return new Date(new Date(d.lastMessageAt || d.updatedAt || d.createdAt).getTime() + 7 * DAY);   // a service inquiry: 7 days after the last word
 }
 const titleOf = (kind, d) => (kind === 'bulk' ? `Bulk order ${d.code}` : kind === 'inquiry' ? d.serviceName : `Table booking · ${d.date} ${d.time}`);

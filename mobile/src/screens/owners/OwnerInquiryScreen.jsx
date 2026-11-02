@@ -7,7 +7,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
 import { Button, Card, Empty, Chips } from '../../components/owners/ui';
 import { FormPage, Group, TextBox } from '../../components/owners/menuBits';
-import { Answers, Bubbles, ReplyBox, STATUS_LABEL } from '../../components/common/InquiryThread';
+import { Answers, STATUS_LABEL } from '../../components/common/InquiryThread';
+import ChatButton from '../../components/common/ChatButton';
 import { inquiries as api, apiError } from '../../api/owners/shopApi';
 import { onNotification } from '../../api/common/socket';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
@@ -15,8 +16,6 @@ import { useOpenInquiry } from '../../store/owners/useOpenInquiry';
 import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
 import { FormShimmer } from '../../components/owners/shimmer';
-import { pickImages, uploadImage } from '../../utils/owners/upload';
-import { ease } from '../../utils/common/ease';
 import { tr } from '../../i18n';
 
 const digits = (p) => String(p || '').replace(/\D/g, '');
@@ -29,7 +28,6 @@ export default function OwnerInquiryScreen() {
     const [i, setI] = useState(null);
     const [err, setErr] = useState('');
     const [note, setNote] = useState('');
-    const [tab, setTab] = useState('chat');
 
     useFocusEffect(useCallback(() => { useOpenInquiry.getState().set(id); return () => useOpenInquiry.getState().set(null); }, [id]));   // the voice for this inquiry's replies stays quiet while he is here
     const load = useCallback(() => api.get(id).then((r) => { setI(r); setNote((n) => (n === '' ? r.note || '' : n)); setErr(''); })
@@ -40,26 +38,17 @@ export default function OwnerInquiryScreen() {
     if (!i) return <FormPage title={tr('Inquiry')}>{err ? <Empty icon="cloud-offline-outline" title={tr('Could not open')} hint={err} /> : <FormShimmer />}</FormPage>;
 
     const closed = i.status === 'closed';
-    const send = async ({ text: t, images }) => {
-        try { setI(await api.reply(id, { text: t, images })); } catch (e) { showToast(apiError(e)); throw e; }
-    };
     const setStatus = async (status) => {
         try { setI(await api.update(id, { status })); showToast(tr('Marked {s}', { s: tr(STATUS_LABEL[status]) })); } catch (e) { showToast(apiError(e)); }
     };
     const end = async () => {
         const yes = await ask({ title: tr('End this conversation?'), message: tr('{n} will not be able to write any more. You can open it again.', { n: i.name }), confirmText: tr('End conversation'), destructive: true });
-        if (yes) { await setStatus('closed'); setTab('chat'); }
+        if (yes) await setStatus('closed');
     };
     const saveNote = async () => { try { await api.update(id, { note }); showToast(tr('Note saved')); } catch (e) { showToast(apiError(e)); } };
 
     return (
-        <FormPage fixed title={i.name}
-            footer={closed ? (
-                <View>
-                    <Text style={{ color: muted, textAlign: 'center', marginBottom: 8 }}>{tr('This conversation has ended.')}</Text>
-                    <Button label={tr('Open it again')} icon="refresh" kind="ghost" onPress={() => setStatus('replied')} />
-                </View>
-            ) : <ReplyBox onSend={send} placeholder={tr('Reply to {n}', { n: i.name })} pickMany={(n) => pickImages({ limit: n })} upload={async (p) => (await uploadImage({ kind: 'service', ...p })).url} />}>
+        <FormPage fixed title={i.name}>
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 8 }}>
                 <View style={{ flex: 1, minWidth: 0 }}>
                     <Text numberOfLines={1} style={{ color: text, fontWeight: '900', fontSize: 15 }}>{tr(i.serviceName)}</Text>
@@ -72,27 +61,8 @@ export default function OwnerInquiryScreen() {
                     <Ionicons name="logo-whatsapp" size={22} color={text} />
                 </Pressable>
             </View>
-            <View style={{ flexDirection: 'row', paddingHorizontal: 16 }}>
-                {[['chat', 'Chat'], ['details', 'Details']].map(([k, l]) => (
-                    <Pressable key={k} onPress={() => { ease(); setTab(k); }} style={{ flex: 1, paddingVertical: 10, alignItems: 'center', borderBottomWidth: 3, borderBottomColor: tab === k ? primary : border }}>
-                        <Text style={{ color: tab === k ? primary : muted, fontWeight: '900' }}>{tr(l)}</Text>
-                    </Pressable>
-                ))}
-            </View>
-            {tab === 'chat' ? (
-                <>
-                    <Bubbles messages={i.messages} side="owner" />
-                    {!closed && i.quickReplies?.length ? (
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0, maxHeight: 44 }} contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 4 }}>
-                            {i.quickReplies.map((q) => (
-                                <Pressable key={q} onPress={() => send({ text: q, images: [] }).catch(() => { })} style={{ marginRight: 8, paddingHorizontal: 14, height: 34, justifyContent: 'center', borderRadius: 17, borderWidth: 1, borderColor: border, backgroundColor: surface }}>
-                                    <Text numberOfLines={1} style={{ color: text, fontSize: 13 }}>{tr(q)}</Text>
-                                </Pressable>
-                            ))}
-                        </ScrollView>
-                    ) : null}
-                </>
-            ) : (
+            <View style={{ paddingHorizontal: 16, marginBottom: 8 }}><ChatButton kind="inquiry" refId={id} title={i.name} label={tr('Chat with the customer')} /></View>
+            {(
                 <ScrollView contentContainerStyle={{ paddingTop: 8, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
                     {i.answers?.length || i.estimate ? <Group title={tr('Their answers')}><Answers answers={i.answers} estimate={i.estimate} /></Group> : null}
                     <Group title={tr('Where it stands')} hint={tr('Now: {s}', { s: tr(STATUS_LABEL[i.status]) })}>

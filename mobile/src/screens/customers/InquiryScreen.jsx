@@ -6,14 +6,11 @@ import { useRoute } from '@react-navigation/native';
 import { useBrand } from '../../components/common/kit';
 import { Card, Empty, Pill } from '../../components/owners/ui';
 import { FormPage, Group } from '../../components/owners/menuBits';
-import { Answers, Bubbles, ReplyBox, STATUS_LABEL } from '../../components/common/InquiryThread';
-import { fetchInquiry, sendInquiryMessage } from '../../api/customers/shopApi';
+import { Answers, STATUS_LABEL } from '../../components/common/InquiryThread';
+import ChatButton from '../../components/common/ChatButton';
+import { fetchInquiry } from '../../api/customers/shopApi';
 import { onNotification } from '../../api/common/socket';
 import { FormShimmer } from '../../components/owners/shimmer';
-import { showToast } from '../../components/customers/shop';
-import { pickImages } from '../../utils/owners/upload';
-import { uploadInquiryPhoto } from '../../utils/common/photoUpload';
-import { ease } from '../../utils/common/ease';
 import { tr } from '../../i18n';
 
 export default function InquiryScreen() {
@@ -21,30 +18,17 @@ export default function InquiryScreen() {
     const { text, muted, primary, onPrimary, border, surface } = useBrand();
     const [i, setI] = useState(null);
     const [err, setErr] = useState('');
-    const [tab, setTab] = useState('chat');
     const load = useCallback(() => fetchInquiry(id).then(setI).catch((e) => setErr(e?.response?.data?.error || tr('Could not open this inquiry'))), [id]);
     useEffect(() => { load(); }, [load]);
     useEffect(() => onNotification((n) => { if (String(n?.type || '').startsWith('inquiry_') && String(n?.data?.inquiryId) === String(id)) load(); }), [id, load]);
 
     if (!i) return <FormPage title={tr('Inquiry')}>{err ? <Empty icon="alert-circle-outline" title={tr('Not available')} hint={err} /> : <FormShimmer />}</FormPage>;
 
-    const send = async ({ text: t, images }) => {
-        try { await sendInquiryMessage(id, { text: t, images }); await load(); } catch (e) { showToast(e?.response?.data?.error || tr('Could not send. Try again.')); throw e; }
-    };
-    const closed = i.status === 'closed';
 
     return (
-        <FormPage fixed title={tr(i.serviceName)}
-            footer={closed ? <Text style={{ color: muted, textAlign: 'center' }}>{tr('The shop ended this conversation.')}</Text>
-                : <ReplyBox onSend={send} pickMany={(n) => pickImages({ limit: n })} upload={async (p) => (await uploadInquiryPhoto(p)).url} />}>
-            <View style={{ flexDirection: 'row', paddingHorizontal: 16 }}>
-                {[['chat', tr('Chat')], ['details', tr('Details')]].map(([k, l]) => (
-                    <Pressable key={k} onPress={() => { ease(); setTab(k); }} style={{ flex: 1, paddingVertical: 10, alignItems: 'center', borderBottomWidth: 3, borderBottomColor: tab === k ? primary : border }}>
-                        <Text style={{ color: tab === k ? primary : muted, fontWeight: '900' }}>{tr(l)}</Text>
-                    </Pressable>
-                ))}
-            </View>
-            {tab === 'chat' ? <Bubbles messages={i.messages} side="customer" /> : (
+        <FormPage fixed title={tr(i.serviceName)}>
+            <View style={{ paddingHorizontal: 16, marginBottom: 8 }}><ChatButton kind="inquiry" refId={id} title={tr(i.serviceName)} label={tr('Chat with the shop')} /></View>
+            {(
                 <ScrollView contentContainerStyle={{ paddingTop: 8, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
                     <Card>
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
