@@ -14,7 +14,13 @@ export default function ServiceHeroCard({ service, priceText, onPress }) {
             onPress={onPress}
             style={({ pressed }) => ({ marginHorizontal: 16, marginBottom: 14, borderRadius: 22, opacity: pressed ? 0.92 : 1, shadowColor: '#000', shadowOpacity: 0.16, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4 })}
         >
-            <ServiceCover service={service} style={{ height: 156, borderRadius: 22 }} fade={['rgba(0,0,0,0.05)', 'rgba(0,0,0,0.72)']}>
+            <ServiceCover service={service} style={{ height: 156, borderRadius: 22, opacity: service.paused ? 0.78 : 1 }} fade={service.paused ? ['rgba(0,0,0,0.45)', 'rgba(0,0,0,0.82)'] : ['rgba(0,0,0,0.05)', 'rgba(0,0,0,0.72)']}>
+                {service.paused ? (
+                    <View style={{ position: 'absolute', top: 12, right: 12, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.9)' }}>
+                        <Ionicons name="pause-circle" size={15} color="#B45309" style={{ marginRight: 5 }} />
+                        <Text style={{ color: '#B45309', fontWeight: '800', fontSize: 12 }}>{tr('Temporarily unavailable')}</Text>
+                    </View>
+                ) : null}
                 {hasPhoto ? (
                     <View style={{ position: 'absolute', top: 12, left: 12, width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(0,0,0,0.32)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', alignItems: 'center', justifyContent: 'center' }}>
                         <Ionicons name={service.icon || 'sparkles-outline'} size={19} color="#fff" />

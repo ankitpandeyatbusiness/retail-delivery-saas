@@ -50,7 +50,7 @@ export default function OwnerServiceScreen() {
     const fill = (r) => setForm({
         kind: r.kind, name: r.name || '', description: r.description || '', photos: r.photos || [], priceType: r.priceType, price: r.price || undefined,
         minGuests: r.minGuests || undefined, noticeHours: r.noticeHours || undefined, bullets: toText(r.bullets), quickTexts: toText(r.quickTexts),
-        quickReplies: toText(r.quickReplies), questions: (r.questions || []).map((q) => ({ ...q, options: q.options || [] })), isActive: r.isActive !== false,
+        quickReplies: toText(r.quickReplies), questions: (r.questions || []).map((q) => ({ ...q, options: q.options || [] })), isActive: r.isActive !== false, paused: !!r.paused,
     });
     useEffect(() => {
         (openId ? api.get(openId) : api.blank(kind)).then(fill).catch((e) => { useOwnerStore.getState().noteError(e); setErr(apiError(e, 'Could not open this service.')); });
@@ -73,7 +73,7 @@ export default function OwnerServiceScreen() {
             const body = {
                 name: v.name.trim(), description: v.description.trim(), photos: v.photos, priceType: v.priceType, price: v.price ?? 0,
                 minGuests: v.minGuests ?? 0, noticeHours: v.noticeHours ?? 0, bullets: lines(v.bullets), quickTexts: lines(v.quickTexts),
-                quickReplies: lines(v.quickReplies), isActive: v.isActive,
+                quickReplies: lines(v.quickReplies), isActive: v.isActive, paused: !!v.paused,
                 questions: v.questions.map((q) => ({ ...q, options: q.type === 'choice' || q.type === 'multichoice' ? q.options : [] })),
             };
             if (id) fill(await api.update(id, body));
@@ -182,7 +182,8 @@ export default function OwnerServiceScreen() {
                 <TextBox label={tr('Quick replies for you (one per line)')} value={v.quickReplies} onChangeText={(x) => set('quickReplies', x)} multiline maxLength={2500} placeholder={tr('Yes, available. Price is ₹1000 per plate')} last />
             </Group>
             <Group title={tr('Show it')}>
-                <ToggleRow title={tr('Service is on')} subtitle={tr('Off: customers do not see it')} value={v.isActive} onValueChange={(x) => set('isActive', x)} last />
+                <ToggleRow title={tr('Service is on')} subtitle={tr('Off: customers do not see it')} value={v.isActive} onValueChange={(x) => set('isActive', x)} />
+                <ToggleRow title={tr('Temporarily unavailable')} subtitle={tr('Customers still see it, marked "temporarily unavailable", and cannot send a new inquiry. Chats already started carry on.')} value={!!v.paused} onValueChange={(x) => set('paused', x)} last />
             </Group>
             {id ? <View style={{ paddingHorizontal: 16, marginTop: 8 }}><Button label={tr('Remove this service')} kind="danger" icon="trash" onPress={remove} /></View> : null}
         </FormPage>

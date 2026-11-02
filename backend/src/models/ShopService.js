@@ -31,6 +31,7 @@ const shopServiceSchema = new mongoose.Schema({
     quickReplies: [{ type: String, maxlength: 240 }], // texts the owner taps to answer
     questions: [questionSchema],
     isActive: { type: Boolean, default: true },    // the on/off switch
+    paused: { type: Boolean, default: false },     // temporarily stopped: customers still see it, marked "temporarily unavailable", and cannot send a new inquiry
     sortOrder: { type: Number, default: 0 },
 }, { timestamps: true });
 

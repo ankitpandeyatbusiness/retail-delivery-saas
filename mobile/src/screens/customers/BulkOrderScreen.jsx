@@ -136,6 +136,15 @@ export default function BulkOrderScreen() {
         return <FormPage title={tr('Bulk order')}>{err ? <Empty icon="alert-circle-outline" title={tr('Not available')} hint={err} /> : <FormShimmer />}</FormPage>;
     }
     if (!cfg.enabled) return <FormPage title={tr('Bulk order')}><Empty icon="cube-outline" title={tr('Not available')} hint={tr('This shop does not take bulk orders right now.')} /></FormPage>;
+    // the owner paused bulk orders for a while: the service is still here, with a clear sentence, and no menu to pick from
+    if (cfg.paused) {
+        return (
+            <FormPage title={tr('Bulk order')}>
+                <Empty icon="pause-circle-outline" title={tr('Temporarily unavailable')} hint={`${tr('Sorry, this service is temporarily unavailable.')} ${tr('The shop is not taking new requests for now. Please check again later.')}`} />
+                <View style={{ paddingHorizontal: 16 }}><Button label={tr('My bulk orders')} icon="receipt-outline" kind="ghost" onPress={() => nav.navigate('MyBulkOrders')} /></View>
+            </FormPage>
+        );
+    }
 
     const set = (k) => (x) => setContact((c) => ({ ...c, [k]: x }));
     const shown = menu.map((c) => ({ ...c, items: c.items.filter((i) => !find.trim() || i.name.toLowerCase().includes(find.trim().toLowerCase())) })).filter((c) => c.items.length);

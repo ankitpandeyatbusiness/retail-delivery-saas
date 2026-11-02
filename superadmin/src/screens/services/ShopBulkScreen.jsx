@@ -57,7 +57,7 @@ export default function ShopBulkScreen() {
 
     const save = async () => {
         const body = {
-            enabled: !!v.enabled, pickup: !!v.pickup, delivery: !!v.delivery,
+            enabled: !!v.enabled, paused: !!v.paused, pickup: !!v.pickup, delivery: !!v.delivery,
             ...Object.fromEntries(['minOrderAmount', 'noticeHours', 'maxQtyPerDish', 'packagingCharge', 'advancePercent', 'quoteValidHours', 'fullRefundHours'].filter((k) => v[k] !== undefined).map((k) => [k, v[k]])),
             deliveryFee: Object.fromEntries(['type', 'amount', 'freeAbove', 'baseKm', 'baseFee', 'perKmFee', 'maxFee'].filter((k) => fee[k] !== undefined).map((k) => [k, fee[k]])),
         };
@@ -82,6 +82,7 @@ export default function ShopBulkScreen() {
                     <View style={{ marginTop: spacing.lg }}><Button title="Use recommended settings" icon="bolt" kind="outline" onPress={recommend} /></View>
                     <Group title="Bulk ordering" section="alerts">
                         <Switch title="Take bulk orders" subtitle="The owner can switch this off himself when he has the switch" value={!!v.enabled} onValueChange={set('enabled')} />
+                        <Switch title="Pause bulk orders" subtitle="Customers still see it, marked temporarily unavailable, and cannot send a new request. Orders already taken carry on." value={!!v.paused} onValueChange={set('paused')} />
                         <Switch title="Pickup" value={!!v.pickup} onValueChange={set('pickup')} />
                         <Switch title="Delivery" value={!!v.delivery} onValueChange={set('delivery')} last />
                     </Group>

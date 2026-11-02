@@ -57,6 +57,7 @@ export default function ServiceFormScreen() {
     const estimate = s.priceType === 'per_plate' && s.price > 0 && guests > 0 ? s.price * guests : 0;
 
     const send = async () => {
+        if (s.paused) return showToast(tr('Sorry, this service is temporarily unavailable.'));
         if (!name.trim()) return showToast(tr('Please enter your name'));
         if (phone.replace(/\D/g, '').length < 6) return showToast(tr('Please enter your phone number'));
         for (const q of asked) {
@@ -163,7 +164,7 @@ export default function ServiceFormScreen() {
                         <Text style={{ color: muted, fontSize: 11.5, fontWeight: '700' }}>{tr('Price')}</Text>
                         <Text numberOfLines={1} style={{ color: text, fontWeight: '900', fontSize: 16 }}>{priceLine(s)}</Text>
                     </View>
-                    <View style={{ width: 150 }}><Button label={tr('Inquire')} icon="send" busy={busy} onPress={send} /></View>
+                    <View style={{ width: s.paused ? 190 : 150 }}><Button label={s.paused ? tr('Temporarily unavailable') : tr('Inquire')} icon={s.paused ? 'pause-circle-outline' : 'send'} busy={busy} disabled={!!s.paused} onPress={send} /></View>
                 </View>
             )}
         >
@@ -200,7 +201,17 @@ export default function ServiceFormScreen() {
                 </View>
             ) : null}
 
+            {s.paused ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginTop: 16, padding: 16, borderRadius: 18, borderWidth: 1, borderColor: '#F59E0B', backgroundColor: '#FEF3C7' }}>
+                    <Ionicons name="pause-circle" size={30} color="#B45309" style={{ marginRight: 12 }} />
+                    <View style={{ flex: 1 }}>
+                        <Text style={{ color: '#92400E', fontWeight: '900', fontSize: 15 }}>{tr('Temporarily unavailable')}</Text>
+                        <Text style={{ color: '#92400E', marginTop: 3, lineHeight: 19 }}>{tr('Sorry, this service is temporarily unavailable.')} {tr('The shop is not taking new requests for now. Please check again later.')}</Text>
+                    </View>
+                </View>
+            ) : null}
             <View style={{ height: 8 }} />
+            <View pointerEvents={s.paused ? 'none' : 'auto'} style={{ opacity: s.paused ? 0.45 : 1 }}>
             <Group title={tr('Your details')}>
                 <TextBox label={tr('Your name')} value={name} onChangeText={setName} maxLength={80} />
                 <TextBox label={tr('Phone number')} value={phone} onChangeText={setPhone} keyboardType="phone-pad" maxLength={20} last />
@@ -223,6 +234,7 @@ export default function ServiceFormScreen() {
                 ) : null}
                 <TextBox label={tr('Message')} value={message} onChangeText={setMessage} multiline maxLength={1000} placeholder={tr('Tap a text above or write your own')} last />
             </Group>
+            </View>
             <DateRangeSheet single ahead={365} visible={!!dateFor} value={answers[dateFor]} title={tr('Pick a day')} onClose={() => setDateFor('')} onApply={(d) => { set(dateFor, d || ''); setDateFor(''); }} />
             <AddressSheet visible={!!addrFor} onClose={() => setAddrFor('')} onSelect={(a) => { set(addrFor, addrLine(a).slice(0, 300)); setAddrFor(''); }} />
         </FormPage>

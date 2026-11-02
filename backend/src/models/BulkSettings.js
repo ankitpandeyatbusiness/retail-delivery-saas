@@ -15,6 +15,7 @@ const feeSchema = new mongoose.Schema({
 const schema = new mongoose.Schema({
     tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true, unique: true },
     enabled: { type: Boolean, default: false },
+    paused: { type: Boolean, default: false },   // temporarily stopped: customers still see Bulk order, marked "temporarily unavailable", and cannot send a new request
     minOrderAmount: { type: Number, min: 0, max: 1000000, default: 0 },   // the least a whole bulk order may cost (after the bulk prices)
     noticeHours: { type: Number, min: 0, max: 720, default: 24 },         // how long before the pickup / delivery time it must be asked
     maxQtyPerDish: { type: Number, min: 2, max: 10000, default: 500 },

@@ -34,7 +34,7 @@ export default function OwnerBulkSettingsScreen() {
     const save = async () => {
         if (v.enabled && !v.pickup && !v.delivery) return showToast(tr('Allow pickup, delivery or both'));
         const body = {
-            enabled: v.enabled, pickup: v.pickup, delivery: v.delivery,
+            enabled: v.enabled, paused: !!v.paused, pickup: v.pickup, delivery: v.delivery,
             ...Object.fromEntries(['minOrderAmount', 'noticeHours', 'maxQtyPerDish', 'packagingCharge', 'advancePercent', 'quoteValidHours', 'fullRefundHours'].filter((k) => v[k] !== undefined).map((k) => [k, v[k]])),
             deliveryFee: Object.fromEntries(['type', 'amount', 'freeAbove', 'baseKm', 'baseFee', 'perKmFee', 'maxFee'].filter((k) => fee[k] !== undefined).map((k) => [k, fee[k]])),
         };
@@ -49,6 +49,7 @@ export default function OwnerBulkSettingsScreen() {
             </View>
             <Group title={tr('Bulk orders')}>
                 <ToggleRow title={tr('Take bulk orders')} subtitle={tr('Customers see Bulk order in Services and send you a request.')} value={!!v.enabled} onValueChange={set('enabled')} />
+                <ToggleRow title={tr('Pause bulk orders')} subtitle={tr('Customers still see Bulk order, marked "temporarily unavailable", and cannot send a new request. Orders already taken carry on.')} value={!!v.paused} onValueChange={set('paused')} />
                 <ToggleRow title={tr('Pickup')} value={!!v.pickup} onValueChange={set('pickup')} />
                 <ToggleRow title={tr('Delivery')} value={!!v.delivery} onValueChange={set('delivery')} last />
             </Group>

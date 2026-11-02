@@ -5,6 +5,9 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
 import { PageHeader, Card, Pill, Chips, Empty } from '../../components/owners/ui';
+import { ToggleRow } from '../../components/owners/menuBits';
+import { ask } from '../../components/common/dialog';
+import { showToast } from '../../components/customers/shop';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { bulk as api, apiError } from '../../api/owners/shopApi';
 import { onNotification } from '../../api/common/socket';
@@ -20,18 +23,29 @@ export default function OwnerBulkScreen() {
     const [status, setStatus] = useState('requested');
     const [data, setData] = useState(null);
     const [err, setErr] = useState('');
+    const [paused, setPaused] = useState(false);   // bulk ordering is temporarily stopped: customers still see it, marked unavailable
 
     const load = useCallback(async () => {
+        api.settings().then((s) => setPaused(!!s.paused)).catch(() => { });
         try { setData(await api.list({ status: status || undefined })); setErr(''); }
         catch (e) { useOwnerStore.getState().noteError(e); setErr(apiError(e, 'Could not load the bulk orders.')); setData((x) => x || { items: [] }); }
     }, [status]);
     useFocusEffect(useCallback(() => { load(); }, [load]));
     useEffect(() => onNotification((n) => { if (['bulk_new', 'bulk_change'].includes(String(n?.type))) load(); }), [load]);
 
+    const pause = async (on) => {
+        if (on && !(await ask({ title: tr('Pause bulk orders?'), message: tr('Customers still see Bulk order, marked "temporarily unavailable", and cannot send a new request. Orders already taken carry on.'), confirmText: tr('Pause'), cancelText: tr('Go back') }))) return;
+        try { await api.saveSettings({ paused: on }); setPaused(on); showToast(on ? tr('Bulk orders are paused') : tr('Bulk orders are open again')); }
+        catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); }
+    };
+
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Bulk orders')} />
             <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
+                <Card tone={paused ? error : undefined}>
+                    <ToggleRow title={tr('Pause bulk orders')} subtitle={paused ? tr('Paused: customers see "temporarily unavailable"') : tr('Stop new requests for a while. Orders already taken carry on.')} value={paused} onValueChange={pause} last />
+                </Card>
                 <Card onPress={() => nav.navigate('OwnerBulkSettings')}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Ionicons name="settings-outline" size={20} color={primary} style={{ marginRight: 12 }} />

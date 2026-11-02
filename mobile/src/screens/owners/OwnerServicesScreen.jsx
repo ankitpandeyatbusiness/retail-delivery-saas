@@ -1,6 +1,6 @@
 // Services: bulk orders, tiffin, party booking, or anything the owner makes up. Each one has the same LIVE / OFF slider as the shop.
 import React, { useCallback, useState } from 'react';
-import { View, Text, ScrollView } from 'react-native';
+import { View, Text, ScrollView, Pressable } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
@@ -24,7 +24,7 @@ export const priceLine = (s) => {
 
 export default function OwnerServicesScreen() {
     const nav = useNavigation();
-    const { background, text, muted, primary } = useBrand();
+    const { background, text, muted, primary, error } = useBrand();
     const [items, setItems] = useState(null);
     const [templates, setTemplates] = useState([]);
     const [err, setErr] = useState('');
@@ -43,6 +43,14 @@ export default function OwnerServicesScreen() {
         const on = s.isActive === false;
         setBusyId(s._id);
         try { await api.update(s._id, { isActive: on }); setItems((xs) => xs.map((x) => (x._id === s._id ? { ...x, isActive: on } : x))); }
+        catch (e) { showToast(apiError(e)); } finally { setBusyId(''); }
+    };
+
+    // pause / resume: the service stays on the customer's list, marked "temporarily unavailable", and takes no new inquiry
+    const flipPause = async (s) => {
+        const on = !s.paused;
+        setBusyId(s._id);
+        try { await api.update(s._id, { paused: on }); setItems((xs) => xs.map((x) => (x._id === s._id ? { ...x, paused: on } : x))); showToast(on ? tr('Paused: customers see "temporarily unavailable"') : tr('Open again')); }
         catch (e) { showToast(apiError(e)); } finally { setBusyId(''); }
     };
 
@@ -67,9 +75,16 @@ export default function OwnerServicesScreen() {
                             <View style={{ flex: 1, minWidth: 0, paddingRight: 8 }}>
                                 <Text numberOfLines={1} style={{ color: text, fontWeight: '900', fontSize: 16 }}>{tr(s.name)}</Text>
                                 <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{priceLine(s)}{s.minGuests ? ` · ${tr('min {n} guests', { n: s.minGuests })}` : ''}</Text>
-                                <View style={{ flexDirection: 'row', marginTop: 6 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
                                     <Pill label={tr('{n} questions', { n: (s.questions || []).filter((q) => q.enabled).length })} color={muted} />
+                                    {s.paused ? <View style={{ marginLeft: 6 }}><Pill label={tr('Paused')} color={error} /></View> : null}
                                 </View>
+                                {s.isActive !== false ? (
+                                    <Pressable onPress={() => flipPause(s)} disabled={busyId === s._id} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+                                        <Ionicons name={s.paused ? 'play-circle-outline' : 'pause-circle-outline'} size={17} color={primary} style={{ marginRight: 5 }} />
+                                        <Text style={{ color: primary, fontWeight: '800', fontSize: 13 }}>{s.paused ? tr('Resume') : tr('Pause')}</Text>
+                                    </Pressable>
+                                ) : null}
                             </View>
                             <LiveToggle on={s.isActive !== false} busy={busyId === s._id} onPress={() => flip(s)} />
                         </View>

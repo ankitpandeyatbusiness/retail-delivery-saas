@@ -10,4 +10,7 @@ const isOn = (tenant, key) => !!resolveConfig(tenant).features?.[key];
 // a middleware that lets the request through only when the shop has the feature
 const gate = (key) => (req, res, next) => (isOn(req.tenant, key) ? next() : next(httpError(403, `${NAMES[key]} is not switched on for your shop. Ask us to switch it on.`)));
 
-module.exports = { isOn, gate, NAMES };
+// The sentence a customer reads when the owner has PAUSED a service (Bulk orders, Tiffin, Party / venue booking, his own): it is still shown, but no new request is taken.
+const UNAVAILABLE = 'Sorry, this service is temporarily unavailable.';
+
+module.exports = { isOn, gate, NAMES, UNAVAILABLE };

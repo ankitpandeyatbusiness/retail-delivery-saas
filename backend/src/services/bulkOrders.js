@@ -25,7 +25,7 @@ const tell = (event, ctx) => Promise.resolve().then(() => require('../notificati
 const rupees = (n) => `₹${+Number(n || 0).toFixed(2)}`;
 
 /* ------------------------------ settings ------------------------------ */
-const DEFAULTS = { enabled: false, minOrderAmount: 0, noticeHours: 24, maxQtyPerDish: 500, pickup: true, delivery: true, deliveryFee: { type: 'free' }, packagingCharge: 0, advancePercent: 50, quoteValidHours: 24, fullRefundHours: 18 };
+const DEFAULTS = { enabled: false, paused: false, minOrderAmount: 0, noticeHours: 24, maxQtyPerDish: 500, pickup: true, delivery: true, deliveryFee: { type: 'free' }, packagingCharge: 0, advancePercent: 50, quoteValidHours: 24, fullRefundHours: 18 };
 
 // What the "Recommended settings" button fills in (the owner's rules screen and the super admin's). It does not switch bulk ordering on or off.
 // The apps only apply what the server sends, so the numbers live in one place.
@@ -49,6 +49,7 @@ const num = (v, lo, hi, what) => {
 async function saveSettings(tenantId, body = {}) {
     const set = {};
     if (body.enabled !== undefined) { if (typeof body.enabled !== 'boolean') throw httpError(400, 'enabled must be true or false'); set.enabled = body.enabled; }
+    if (body.paused !== undefined) { if (typeof body.paused !== 'boolean') throw httpError(400, 'paused must be true or false'); set.paused = body.paused; }
     if (body.minOrderAmount !== undefined) set.minOrderAmount = num(body.minOrderAmount, 0, 1000000, 'The minimum order amount');
     if (body.noticeHours !== undefined) set.noticeHours = num(body.noticeHours, 0, 720, 'The notice time');
     if (body.maxQtyPerDish !== undefined) set.maxQtyPerDish = Math.round(num(body.maxQtyPerDish, 2, 10000, 'The most pieces of one dish'));
@@ -73,7 +74,7 @@ async function saveSettings(tenantId, body = {}) {
 
 // what the customer app needs to know (no private numbers)
 const publicConfig = (s) => ({
-    enabled: s.enabled, minOrderAmount: s.minOrderAmount, noticeHours: s.noticeHours, maxQtyPerDish: s.maxQtyPerDish,
+    enabled: s.enabled, paused: !!s.paused, minOrderAmount: s.minOrderAmount, noticeHours: s.noticeHours, maxQtyPerDish: s.maxQtyPerDish,
     pickup: s.pickup, delivery: s.delivery, deliveryFee: s.deliveryFee, packagingCharge: s.packagingCharge,
     advancePercent: s.advancePercent, quoteValidHours: s.quoteValidHours, fullRefundHours: s.fullRefundHours,
 });
@@ -82,6 +83,7 @@ async function needSettings(tenant) {
     if (!require('./featureGate').isOn(tenant, 'bulkOrders')) throw httpError(404, 'Bulk orders are not available at this shop');   // the super admin's switch
     const s = await settingsOf(tenant._id);
     if (!s.enabled) throw httpError(404, 'Bulk orders are not available at this shop');
+    if (s.paused) throw httpError(409, require('./featureGate').UNAVAILABLE);   // paused by the owner: no new request (orders already taken carry on)
     return s;
 }
 

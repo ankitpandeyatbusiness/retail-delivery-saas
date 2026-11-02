@@ -123,6 +123,7 @@ function cleanService(body, { partial } = {}) {
     if (has('quickReplies')) out.quickReplies = strings(body.quickReplies, 12, 240);
     if (has('questions')) out.questions = cleanQuestions(body.questions);
     if (has('isActive')) out.isActive = !!body.isActive;
+    if (has('paused')) out.paused = !!body.paused;   // temporarily stopped: still shown to customers, who cannot send a new inquiry
     return out;
 }
 

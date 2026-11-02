@@ -81,6 +81,7 @@ router.get('/:id', wrap(async (req, res) => {
 
 router.post('/:id/inquiries', wrap(async (req, res) => {
     const s = await live(req);
+    if (s.paused) throw httpError(409, featureGate.UNAVAILABLE);   // paused by the owner: shown, but no new inquiry (the talk on an inquiry already sent goes on)
     const body = req.body || {};
     const name = String(body.name || '').trim().slice(0, 80);
     const phone = String(body.phone || '').trim().slice(0, 20);

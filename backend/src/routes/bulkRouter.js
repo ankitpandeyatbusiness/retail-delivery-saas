@@ -29,7 +29,10 @@ router.use((req, res, next) => {
 });
 
 router.get('/config', wrap(async (req, res) => { res.json(bulk.publicConfig(await bulk.settingsOf(req.tenant._id))); }));
-router.get('/menu', wrap(async (req, res) => { await bulk.settingsOf(req.tenant._id); res.json(await bulk.menuFor(req.tenant)); }));
+router.get('/menu', wrap(async (req, res) => {
+    if ((await bulk.settingsOf(req.tenant._id)).paused) throw httpError(409, featureGate.UNAVAILABLE);
+    res.json(await bulk.menuFor(req.tenant));
+}));
 router.post('/estimate', wrap(async (req, res) => { res.json(await bulk.estimate({ tenant: req.tenant, userId: req.auth.userId, body: req.body || {} })); }));
 router.post('/', wrap(async (req, res) => {
     const r = await bulk.create({ tenant: req.tenant, userId: req.auth.userId, body: req.body || {} });
