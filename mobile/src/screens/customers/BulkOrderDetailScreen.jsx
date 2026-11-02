@@ -202,6 +202,7 @@ export default function BulkOrderDetailScreen() {
                         <View style={{ marginTop: 10 }}>
                             <Sum k={o.payment ? tr('Advance paid ({p}%)', { p: q.advancePercent }) : tr('To pay now to confirm ({p}%)', { p: q.advancePercent })} v={rs(q.advancePaise / 100)} bold text={text} muted={muted} />
                             <Sum k={tr('Balance, on {w}', { w: o.fulfilment === 'delivery' ? tr('delivery') : tr('pickup') })} v={rs(q.balancePaise / 100)} text={text} muted={muted} />
+                            {q.prepHours ? <Text style={{ color: text, fontSize: 13, marginTop: 6 }}>{tr('The shop needs about {n} hours to make this', { n: q.prepHours })}</Text> : null}
                             {o.status === 'quoted' && q.validUntil ? <Text style={{ color: muted, fontSize: 12, marginTop: 6 }}>{tr('This quote is valid until {t}', { t: whenText(q.validUntil) })}</Text> : null}
                             {o.status === 'expired' ? <Text style={{ color: muted, fontSize: 12, marginTop: 6 }}>{tr('This quote has run out. Ask the shop for a new one.')}</Text> : null}
                             {q.note ? <Text style={{ color: text, marginTop: 8 }}>{tr('The shop says: {n}', { n: q.note })}</Text> : null}

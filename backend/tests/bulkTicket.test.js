@@ -496,6 +496,20 @@ describe('a paid bulk order gets a work ticket for the kitchen and the rider', (
         assert.equal((await owner('post', `/${id}/quote`, { lines: [], discountPercent: 5 })).status, 409, 'already quoted');
     });
 
+    test('the time to make it: the owner puts it on the quote, the customer sees it, the cook card carries it', async () => {
+        const o = (await owner('get', `/${id}`)).body;
+        await BulkOrder.updateOne({ _id: id }, { $set: { status: 'requested' } });
+        const lines = o.lines.map((l) => ({ id: l.id, unitPrice: l.unitPrice }));
+        assert.equal((await owner('post', `/${id}/quote`, { lines, prepHours: 0 })).status, 400, 'zero is not a time');
+        const q = await owner('post', `/${id}/quote`, { lines, prepHours: 5.3 });
+        assert.equal(q.status, 200, JSON.stringify(q.body));
+        assert.equal(q.body.quote.prepHours, 5.5, 'to the nearest half hour');
+        assert.equal((await cust('get', `/${id}`)).body.quote.prepHours, 5.5);
+        await paid();
+        const row = (await require('../src/services/kitchenService').queue(w.tenant)).bulk[0];
+        assert.equal(row.bulkPrepHours, 5.5);
+    });
+
     test('the pickup code: the customer sees it; handing the pickup over asks for it (the wrong one is refused, he cannot show it is written down)', async () => {
         await paid();
         const page = (await cust('get', `/${id}`)).body;

@@ -276,7 +276,7 @@ function customerView(o) {
         id: String(o._id), code: o.code, status, fulfilment: o.fulfilment, when: o.when, address: o.address, contact: o.contact, cutlery: o.cutlery, packaging: o.packaging, note: o.note, foodNote: o.foodNote, deliveryNote: o.deliveryNote,
         lines: (o.lines || []).map(lineView), pricing: o.pricing, changeNote: o.changeNote, declineReason: o.declineReason,
         quote: o.quote?.pricing ? {
-            version: o.quote.version, lines: (o.quote.lines || []).map(lineView), pricing: o.quote.pricing, advancePercent: o.quote.advancePercent, fullRefundHours: o.quote.fullRefundHours,
+            version: o.quote.version, lines: (o.quote.lines || []).map(lineView), pricing: o.quote.pricing, advancePercent: o.quote.advancePercent, prepHours: o.quote.prepHours, fullRefundHours: o.quote.fullRefundHours,
             advancePaise: o.quote.advancePaise, balancePaise: o.quote.balancePaise, validUntil: o.quote.validUntil, note: o.quote.note, quotedAt: o.quote.quotedAt,
         } : null,
         payment: o.payment?.advancePaymentId ? {
@@ -629,13 +629,14 @@ async function quote({ tenant, id, body = {} }) {
 
     const advancePercent = body.advancePercent === undefined ? s.advancePercent : num(body.advancePercent, 10, 100, 'The advance');
     const validHours = body.validHours === undefined ? s.quoteValidHours : Math.round(num(body.validHours, 1, 168, 'The quote validity'));
+    const prepHours = body.prepHours === undefined || body.prepHours === null || body.prepHours === '' ? undefined : Math.round(num(body.prepHours, 0.5, 240, 'The time to make it') * 2) / 2;
     const totalPaise = Math.round(total * 100);
     const advancePaise = Math.max(100, Math.min(totalPaise, Math.round((totalPaise * advancePercent) / 100)));
 
     const quoted = {
         version: (o.quoteCount || 0) + 1, lines,
         pricing: { subtotal, discount, ...(discountPercent > 0 ? { discountPercent } : {}), deliveryFee: delivery, packagingCharge: packaging, tax, taxOnTop: onTop, taxIncluded: inside, taxMode: o.pricing.taxMode, taxPercent: o.pricing.taxPercent, total },
-        advancePercent, fullRefundHours: s.fullRefundHours, advancePaise, balancePaise: totalPaise - advancePaise,
+        advancePercent, ...(prepHours ? { prepHours } : {}), fullRefundHours: s.fullRefundHours, advancePaise, balancePaise: totalPaise - advancePaise,
         validUntil: new Date(Date.now() + validHours * 3600000), note: typeof body.note === 'string' ? body.note.trim().slice(0, 500) : undefined, quotedAt: new Date(),
     };
     const done = await BulkOrder.findOneAndUpdate(

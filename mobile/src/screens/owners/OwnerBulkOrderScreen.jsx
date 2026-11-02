@@ -40,6 +40,7 @@ export default function OwnerBulkOrderScreen() {
     const [packaging, setPackaging] = useState(undefined);
     const [advance, setAdvance] = useState(undefined);
     const [hours, setHours] = useState(undefined);
+    const [prep, setPrep] = useState(undefined);
     const [note, setNote] = useState('');
     const [busy, setBusy] = useState(false);
     const [declineOpen, setDeclineOpen] = useState(false);
@@ -84,7 +85,7 @@ export default function OwnerBulkOrderScreen() {
             const r = await api.quote(id, {
                 lines: kept.map((l) => ({ id: l.id, unitPrice: Number(price[l.id]) || 0 })),
                 ...(discount ? (discountMode === 'percent' ? { discountPercent: Math.min(90, discount) } : { discount }) : {}), ...(delivered && delivery !== undefined ? { deliveryFee: delivery } : {}), ...(packaging !== undefined ? { packagingCharge: packaging } : {}),
-                ...(advance ? { advancePercent: advance } : {}), ...(hours ? { validHours: hours } : {}), note: note.trim(),
+                ...(advance ? { advancePercent: advance } : {}), ...(hours ? { validHours: hours } : {}), ...(prep ? { prepHours: prep } : {}), note: note.trim(),
             });
             setO(r); showToast(tr('Quote sent to the customer'));
         } catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); } finally { setBusy(false); }
@@ -179,6 +180,7 @@ export default function OwnerBulkOrderScreen() {
                             {delivered ? <NumberBox label={tr('Delivery fee')} hint={tr('Filled in from your bulk delivery fee')} prefix="₹" value={delivery} onChange={setDelivery} /> : null}
                             <NumberBox label={tr('Packaging')} prefix="₹" value={packaging} onChange={setPackaging} />
                             <NumberBox label={tr('Advance to confirm')} hint={tr('The customer pays this much now and the rest on {w}', { w: delivered ? tr('delivery') : tr('pickup') })} suffix="%" value={advance} onChange={setAdvance} />
+                            <NumberBox label={tr('Time to make it (optional)')} hint={tr('The customer and the cook are told: needs about this many hours')} suffix={tr('hours')} value={prep} onChange={setPrep} />
                             <NumberBox label={tr('Quote is valid for')} suffix={tr('hours')} integer value={hours} onChange={setHours} />
                             <TextBox label={tr('Message to the customer (optional)')} value={note} onChangeText={setNote} multiline maxLength={500} placeholder={tr('For example: ready one hour before your time')} last />
                         </Group>

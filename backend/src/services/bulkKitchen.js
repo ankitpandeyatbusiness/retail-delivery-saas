@@ -69,7 +69,7 @@ async function ensureLinkedOrder(bulkId) {
         const pricing = { ...(q.pricing || b.pricing || {}), total: balance };
         const phone = b.contact?.phone || user?.phone;
         const order = await Order.create({
-            tenantId: b.tenantId, userId: b.userId, orderNo: await nextOrderNo(b.tenantId), bulkId: b._id, bulkCode: b.code, bulkTotal: (b.quote?.pricing || b.pricing)?.total,
+            tenantId: b.tenantId, userId: b.userId, orderNo: await nextOrderNo(b.tenantId), bulkId: b._id, bulkCode: b.code, bulkPrepHours: q.prepHours || undefined, bulkTotal: (b.quote?.pricing || b.pricing)?.total,
             orderType: b.fulfilment === 'delivery' ? 'delivery' : 'pickup',
             status: 'accepted',   // the advance is paid, so the shop has the job: it goes straight to the cook
             items: (q.lines?.length ? q.lines : b.lines).map(lineOf),

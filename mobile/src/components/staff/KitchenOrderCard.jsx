@@ -52,6 +52,7 @@ export default function KitchenOrderCard({ o, lateMin, busy, onAct, onProblem, o
                         <Text style={{ color: warn, fontWeight: '900', fontSize: 12.5 }}>{tr('BULK ORDER')}{o.bulkCode ? ` · ${o.bulkCode}` : ''}</Text>
                     </View>
                     {o.scheduledFor ? <Text style={{ color: text, fontWeight: '900', fontSize: 15, marginTop: 6 }}>{tr('Wanted on {v1}', { v1: dayTime(o.scheduledFor) })}</Text> : null}
+                    {o.bulkPrepHours ? <Text style={{ color: text, fontWeight: '800', fontSize: 13.5, marginTop: 2 }}>{tr('Needs about {n} hours', { n: o.bulkPrepHours })}</Text> : null}
                     {o.upcoming && o.queueAt ? <Text style={{ color: muted, fontWeight: '700', fontSize: 12.5, marginTop: 2 }}>{tr('Comes to your queue on {v1}', { v1: dayTime(o.queueAt) })}</Text> : null}
                 </View>
             ) : null}

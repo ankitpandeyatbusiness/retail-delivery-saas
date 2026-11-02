@@ -29,6 +29,7 @@ const orderSchema = new Schema({
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     orderNo: { type: Number, required: true },              // shown to people, e.g. #1042
     bulkId: { type: Schema.Types.ObjectId, ref: 'BulkOrder' },
+    bulkPrepHours: Number,   // the bulk quote's "about N hours to make", shown on the cook's card
     bulkCode: String,   // the bulk order's short code (B7K2QX), for lists and search
     bulkTotal: Number,  // what the bulk order is worth (the quote's total), for the History totals: the ticket's own total is only the balance   // set when this Order is the kitchen/rider work ticket of a paid bulk order (services/bulkKitchen.js)
     idempotencyKey: { type: String },                       // stops a double-tap creating two orders

@@ -59,6 +59,7 @@ const schema = new Schema({
         lines: [lineSchema],
         pricing: pricingSchema,
         advancePercent: Number,
+        prepHours: Number,   // the owner's "ready in about N hours": the customer and the cook see it
         fullRefundHours: Number,   // the rule the customer saw: cancel at least this long before the time and the whole advance goes back
         advancePaise: Number,
         balancePaise: Number,

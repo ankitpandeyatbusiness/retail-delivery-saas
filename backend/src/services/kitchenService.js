@@ -14,7 +14,7 @@ const { kitchenSpeech } = require('../utils/orderSpeech');
 const { HIDE_UNPAID } = require('./onlineOrder');
 const { httpError } = require('../middlewares/apiErrors');
 
-const FIELDS = 'bulkId orderNo orderType status tableNo items note foodNote scheduledFor pickupUntil customer.name createdAt statusHistory kitchen payment tableSessionId tableParty pickupIntent';
+const FIELDS = 'bulkId bulkPrepHours orderNo orderType status tableNo items note foodNote scheduledFor pickupUntil customer.name createdAt statusHistory kitchen payment tableSessionId tableParty pickupIntent';
 const KINDS = { out_of_stock: 'a dish is finished', cannot_make: 'it cannot be made', other: 'there is a problem' };
 const PROBLEM_GAP_MS = 2 * 60 * 1000;   // the same order: one message to the owner every two minutes at most
 
@@ -87,6 +87,7 @@ function viewOf(o, { lateMin, now = Date.now() }) {
         scheduledFor: o.scheduledFor || null,
         waitedMin,
         bulk,
+        bulkPrepHours: bulk ? (o.bulkPrepHours || null) : null,
         bulkCode: bulk ? (String(o.note || '').match(/^Bulk order\s+([^\s.]+)/i)?.[1] || null) : null,
         queueAt,
         upcoming: bulk && stage === 'new' && !!when && when - now > BULK_LEAD_MS,   // not time yet: only the Bulk tab shows it
