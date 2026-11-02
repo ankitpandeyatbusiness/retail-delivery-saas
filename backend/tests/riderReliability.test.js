@@ -83,6 +83,27 @@ describe('on duty and off duty', () => {
         assert.equal(open.status, 200, JSON.stringify(open.body));
     });
 
+    test('a rider on his own working hours: the shop closes and he goes off, then the schedule puts him back on when the shop reopens inside his time; one who went off by hand stays off', async () => {
+        const riderSchedule = require('../src/services/riderSchedule');
+        const all = Object.fromEntries(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map((d) => [d, { on: true, from: '08:00', to: '23:30' }]));
+        await onDuty({ 'duty.mode': 'auto', 'duty.weekly': all, 'duty.autoSession': true, 'duty.lastAutoOn': atIst(9, 0) });
+        // the owner pauses the shop at 15:00: he goes off at once
+        await Tenant.updateOne({ _id: w.tenant._id }, { $set: { 'settings.orders.acceptingOrders': false } });
+        assert.equal((await runRiderDuty(atIst(15, 0))).off, 1);
+        const off = await riderDoc();
+        assert.equal(off.isOnline, false);
+        assert.equal(off.duty.lastAutoOn, undefined, 'the schedule may start him again');
+        assert.match((await Notification.findOne({ type: 'rider_off_duty' })).body, /back on duty by yourself/);
+        assert.equal((await riderSchedule.tick(atIst(15, 5))).on, 0, 'the shop is still paused');
+        // the shop reopens, his time is still running: the schedule switches him on
+        await Tenant.updateOne({ _id: w.tenant._id }, { $set: { 'settings.orders.acceptingOrders': true } });
+        assert.equal((await riderSchedule.tick(atIst(16, 0))).on, 1);
+        assert.equal((await riderDoc()).isOnline, true);
+        // he switches himself off by hand: the schedule leaves him off
+        await Rider.updateOne({ tenantId: w.tenant._id, userId: w.rider.user._id }, { $set: { isOnline: false } });
+        assert.equal((await riderSchedule.tick(atIst(16, 30))).on, 0);
+    });
+
     test('a very long duty ends by itself, even while the shop is open', async () => {
         await onDuty({ onlineSince: new Date(atIst(15, 0).getTime() - 17 * 3600000) });
         assert.equal((await runRiderDuty(atIst(15, 0))).off, 1);
