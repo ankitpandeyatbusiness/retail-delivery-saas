@@ -316,7 +316,10 @@ export function DateBox({ label, hint, value, onChange, last }) {
 /* ------------------------------ choices on an item (sizes, add-ons) ------------------------------ */
 // basePrice / onBasePrice: the item's selling price. A group with "each option has its own full price" keeps the cheapest option
 // as the item's price and stores the others as the difference, so the totals the server works out stay exactly the real prices.
-export function OptionGroupsEditor({ value = [], onChange, basePrice = 0, onBasePrice }) {
+// A group is a CHOICE (the dish itself in a size or form: Half, Full; in a bulk order each choice can have a minimum) or an ADD-ON (an extra on the dish: mint
+// chutney, extra cheese; never has a minimum). showBulk: the shop has Bulk orders, so the minimum can be set.
+export const groupKindOf = (g) => (g.kind === 'choice' || g.kind === 'addon' ? g.kind : (g.min || 0) >= 1 ? 'choice' : 'addon');
+export function OptionGroupsEditor({ value = [], onChange, basePrice = 0, onBasePrice, showBulk }) {
     const { text, muted, border, surface, error, primary } = useBrand();
     const setGroup = (gi, patch) => onChange(value.map((g, i) => (i === gi ? { ...g, ...patch } : g)));
     const setOption = (gi, oi, patch) => setGroup(gi, { options: value[gi].options.map((o, i) => (i === oi ? { ...o, ...patch } : o)) });
@@ -325,18 +328,24 @@ export function OptionGroupsEditor({ value = [], onChange, basePrice = 0, onBase
             {value.map((g, gi) => (
                 <View key={gi} style={{ borderWidth: 1, borderColor: border, borderRadius: 16, padding: 12, marginBottom: 12 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                        <Text style={{ color: text, fontWeight: '900' }}>{tr('Choice {v1}', { v1: gi + 1 })}</Text>
+                        <Text style={{ color: text, fontWeight: '900' }}>{groupKindOf(g) === 'addon' ? tr('Add-on {v1}', { v1: gi + 1 }) : tr('Choice {v1}', { v1: gi + 1 })}</Text>
                         <Pressable onPress={() => onChange(value.filter((_, i) => i !== gi))} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center' }}>
                             <Ionicons name="trash-outline" size={17} color={error} />
                             <Text style={{ color: error, fontWeight: '700', marginLeft: 4 }}>{tr('Remove')}</Text>
                         </Pressable>
                     </View>
-                    <TextBox label={tr('Question the customer sees')} value={g.name} maxLength={40} placeholder={tr('e.g. Choose size')} onChangeText={(x) => setGroup(gi, { name: x })} />
+                    <ChoiceBox
+                        label={tr('This is')}
+                        options={[['choice', tr('A choice (size, plate)')], ['addon', tr('An add-on (extra)')]]}
+                        value={groupKindOf(g)}
+                        onChange={(k) => setGroup(gi, k === 'addon' ? { kind: 'addon', absolute: false, options: g.options.map(({ bulkMin, ...o }) => o) } : { kind: 'choice' })}
+                    />
+                    <TextBox label={groupKindOf(g) === 'addon' ? tr('Question the customer sees (for add-ons)') : tr('Question the customer sees')} value={g.name} maxLength={40} placeholder={groupKindOf(g) === 'addon' ? tr('e.g. Add extras') : tr('e.g. Choose size')} onChangeText={(x) => setGroup(gi, { name: x })} />
                     <View style={{ flexDirection: 'row' }}>
                         <NumberBox style={{ flex: 1, marginRight: 10 }} label={tr('Must pick at least')} integer value={g.min} onChange={(x) => setGroup(gi, { min: x ?? 0 })} hint={tr('0 = optional')} />
                         <NumberBox style={{ flex: 1 }} label={tr('Can pick up to')} integer value={g.max} onChange={(x) => setGroup(gi, { max: x ?? 1 })} hint={tr('1 = pick one')} />
                     </View>
-                    <ToggleRow
+                    {groupKindOf(g) === 'choice' ? <ToggleRow
                         title={tr('Each option has its own full price')}
                         subtitle={tr('For Half and Full, or Small and Big: type the real price of each, such as Half ₹150 and Full ₹280. The customer sees "From ₹150".')}
                         value={!!g.absolute}
@@ -345,7 +354,7 @@ export function OptionGroupsEditor({ value = [], onChange, basePrice = 0, onBase
                             setGroup(gi, x ? { absolute: true, min: 1, max: 1 } : { absolute: false });
                         }}
                         last
-                    />
+                    /> : null}
                     {g.options.map((o, oi) => (
                         <View key={oi} style={{ backgroundColor: alpha(muted, 0.08), borderRadius: 12, padding: 10, marginBottom: 8 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
@@ -371,6 +380,7 @@ export function OptionGroupsEditor({ value = [], onChange, basePrice = 0, onBase
                                     <Ionicons name="close-circle" size={22} color={muted} />
                                 </Pressable>
                             </View>
+                            {showBulk && groupKindOf(g) === 'choice' ? <NumberBox label={tr('Least a customer must order in a bulk order')} integer suffix={tr('pieces')} placeholder="0" value={o.bulkMin || undefined} onChange={(x) => setOption(gi, oi, { bulkMin: x || undefined })} hint={tr('Leave empty for no minimum')} /> : null}
                             <ToggleRow title={tr('Selected by default')} value={!!o.isDefault} onValueChange={(x) => setOption(gi, oi, { isDefault: x })} />
                             <ToggleRow title={tr('Available')} value={o.isAvailable !== false} onValueChange={(x) => setOption(gi, oi, { isAvailable: x })} last />
                         </View>
@@ -381,7 +391,11 @@ export function OptionGroupsEditor({ value = [], onChange, basePrice = 0, onBase
                 </View>
             ))}
             {value.length < MAX_GROUPS ? (
-                <Button label={tr('Add a choice')} kind="ghost" icon="add-circle-outline" onPress={() => onChange([...value, { name: '', min: 0, max: 1, options: [{ name: '', price: 0, isDefault: false, isAvailable: true }] }])} />
+                <>
+                    <Button label={tr('Add a choice (size, plate)')} kind="ghost" icon="add-circle-outline" onPress={() => onChange([...value, { kind: 'choice', name: '', min: 1, max: 1, options: [{ name: '', price: 0, isDefault: false, isAvailable: true }] }])} />
+                    <View style={{ height: 8 }} />
+                    <Button label={tr('Add an add-on (extra)')} kind="ghost" icon="add-circle-outline" onPress={() => onChange([...value, { kind: 'addon', name: '', min: 0, max: 3, options: [{ name: '', price: 0, isDefault: false, isAvailable: true }] }])} />
+                </>
             ) : null}
         </View>
     );

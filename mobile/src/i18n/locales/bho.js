@@ -239,7 +239,6 @@ export default {
     "Add Address": "पता जोड़ीं",
     "Add a banner": "बैनर जोड़ीं",
     "Add a category": "श्रेणी जोड़ीं",
-    "Add a choice": "विकल्प जोड़ीं",
     "Add a collection": "कलेक्शन जोड़ीं",
     "Add a cook": "रसोइया जोड़ीं",
     "Add a cook or a waiter to start.": "सुरू करे खातिर रसोइया या वेटर जोड़ीं।",

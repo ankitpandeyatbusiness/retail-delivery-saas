@@ -7,6 +7,7 @@ const optionSchema = new mongoose.Schema({
     price: { type: Number, default: 0, min: 0 },     // EXTRA on top of the item's base price
     isDefault: { type: Boolean, default: false },
     isAvailable: { type: Boolean, default: true },
+    bulkMin: { type: Number, min: 0, max: 10000 },   // BULK ORDERS: the least a person must order of this choice (Half: 20). Only on a choice, never on an add-on
     unavailableUntil: Date,                          // switched off for a while ("back in 2 h", "sold out today"): it comes back by itself (stockService.sweepSoldOut)
 }, { _id: false });
 
@@ -15,6 +16,7 @@ const optionGroupSchema = new mongoose.Schema({
     name: { type: String, required: true, trim: true }, // shown to the customer: "Choose size"
     min: { type: Number, default: 0 },               // 0 = optional, 1 = must choose
     max: { type: Number, default: 1 },               // 1 = pick one, 3 = up to three
+    kind: { type: String, enum: ['choice', 'addon'] },   // choice = the dish itself in a size or form (Half, Full); addon = an extra on the dish (extra cheese). Empty (older items): a group you must pick from is a choice, any other is an add-on
     absolute: { type: Boolean, default: false },     // the owner types each option's FULL price (Half 150, Full 280). Stored as base price + extra; this only changes how it is shown
     options: [optionSchema],
 }, { _id: false });
@@ -40,6 +42,7 @@ const productSchema = new mongoose.Schema({
         allowManual: { type: Boolean, default: true },       // may the customer type an amount
     },
 
+    bulkMin: { type: Number, min: 0, max: 10000 },     // BULK ORDERS: the least a person must order of this dish when it has no choices (with choices, each choice has its own)
     price: { type: Number, required: true, min: 0 },   // base / starting price (per kg or litre when sold by weight / volume)
     mrp: Number,                                        // price before discount
 

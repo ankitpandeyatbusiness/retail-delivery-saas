@@ -7,6 +7,7 @@ const crypto = require('crypto');
 const mongoose = require('mongoose');
 const BulkSettings = require('../models/BulkSettings');
 const BulkOrder = require('../models/BulkOrder');
+const { groupKind } = require('./optionGroups');
 const Product = require('../models/Product');
 const Category = require('../models/Category');
 const Address = require('../models/Address');
@@ -106,13 +107,14 @@ async function menuFor(tenant) {
     const products = await Product.find({
         tenantId: tenant._id, isActive: true, isAvailable: { $ne: false }, sellBy: { $in: ['piece', null] }, categoryId: { $in: cats.map((c) => c._id) },
         ...foodModeFilter(config.home.foodMode),
-    }).sort({ sortOrder: 1, _id: 1 }).select('categoryId name description image isVeg price optionGroups bulk serves').lean();
+    }).sort({ sortOrder: 1, _id: 1 }).select('categoryId name description image isVeg price optionGroups bulk bulkMin serves').lean();
     return {
         categories: cats.map((c) => ({
             id: String(c._id), name: c.name,
             items: products.filter((p) => String(p.categoryId) === String(c._id)).map((p) => ({
                 id: String(p._id), name: p.name, description: p.description, image: p.image, isVeg: p.isVeg, price: p.price, serves: p.serves,
-                optionGroups: p.optionGroups || [], bulk: p.bulk?.minQty ? { minQty: p.bulk.minQty, percentOff: p.bulk.percentOff } : null,
+                bulkMin: p.bulkMin || 0,
+                optionGroups: (p.optionGroups || []).map((g) => ({ ...g, kind: groupKind(g) })), bulk: p.bulk?.minQty ? { minQty: p.bulk.minQty, percentOff: p.bulk.percentOff } : null,
             })),
         })).filter((c) => c.items.length),
     };
@@ -149,7 +151,7 @@ async function priceRequest({ tenant, userId, body = {}, settings }) {
     const lines = built.lines;
 
     // the bulk price: pieces of one dish, all its options together
-    const prods = await Product.find({ _id: { $in: lines.map((l) => l.productId) } }).select('bulk').lean();
+    const prods = await Product.find({ _id: { $in: lines.map((l) => l.productId) } }).select('name bulk bulkMin optionGroups').lean();
     const bulkOf = new Map(prods.map((p) => [String(p._id), p.bulk]));
     const pieces = new Map();
     for (const l of lines) pieces.set(String(l.productId), (pieces.get(String(l.productId)) || 0) + l.quantity);
@@ -165,6 +167,24 @@ async function priceRequest({ tenant, userId, body = {}, settings }) {
         subtotal += l.lineTotal;
     }
     subtotal = round2(subtotal);
+    // The least a person must order: set by the owner on each CHOICE (Half 20, Full 10) or on a dish with no choices. Add-ons never have one, and the pieces of one
+    // choice count together whatever add-ons they carry (15 Half with mint + 10 Half with cheese = 25 Half).
+    for (const p of prods) {
+        const choices = (p.optionGroups || []).filter((g) => groupKind(g) === 'choice');
+        const mine = lines.filter((l) => String(l.productId) === String(p._id));
+        if (!choices.length) {
+            const have = mine.reduce((n, l) => n + l.quantity, 0);
+            if (p.bulkMin > 0 && have < p.bulkMin) problem('min_qty', `${p.name}: at least ${p.bulkMin} pieces (you have ${have})`);
+            continue;
+        }
+        for (const g of choices) {
+            for (const o of g.options || []) {
+                if (!(o.bulkMin > 0)) continue;
+                const have = mine.filter((l) => (l.selections || []).some((x) => x.groupId === g.id && (x.optionId === o.id))).reduce((n, l) => n + l.quantity, 0);
+                if (have > 0 && have < o.bulkMin) problem('min_qty', `${p.name} (${o.name}): at least ${o.bulkMin} pieces (you have ${have})`);
+            }
+        }
+    }
     if (subtotal < s.minOrderAmount) problem('minimum', `The minimum bulk order is ${rupees(s.minOrderAmount)}. Add ${rupees(round2(s.minOrderAmount - subtotal))} more.`);
 
     const gstMode = config.orders.gst?.mode || 'none';

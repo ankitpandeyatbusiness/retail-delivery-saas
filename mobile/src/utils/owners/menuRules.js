@@ -47,11 +47,11 @@ export function withIds(groups) {
             let id = o.id || slug(o.name) || `option-${oi + 1}`;
             while (usedO.has(id)) id = `${id}-${oi + 1}`.slice(0, 30);
             usedO.add(id);
-            return { id, name: o.name.trim(), price: Number(o.price) || 0, isDefault: !!o.isDefault, isAvailable: o.isAvailable !== false };
+            return { id, name: o.name.trim(), price: Number(o.price) || 0, isDefault: !!o.isDefault, isAvailable: o.isAvailable !== false, ...(g.kind !== 'addon' && o.bulkMin > 0 ? { bulkMin: Math.floor(o.bulkMin) } : {}) };   // (the bulk minimum is for choices only)
         });
         const max = Math.min(Math.max(Number(g.max) || 1, 1), Math.max(options.length, 1));
         const min = Math.min(Math.max(Number(g.min) || 0, 0), max);
-        return { id: gid, name: g.name.trim(), min, max, options };
+        return { id: gid, name: g.name.trim(), min, max, options, ...(g.kind ? { kind: g.kind } : {}) };
     });
 }
 
@@ -84,7 +84,7 @@ export const SPICE = [['none', 'No spice'], ['mild', 'Mild'], ['medium', 'Medium
 export const BLANK_ITEM = {
     categoryId: '', newCategory: '', name: '', description: '', image: '', images: [], price: undefined, mrp: undefined,
     isVeg: undefined, isEggless: false, isSugarFree: false, isJain: false, spiceLevel: 'none', gstInclusive: true,
-    isBestseller: false, isNewArrival: false, isGiftPack: false, serves: undefined, calories: undefined, prepTimeMin: undefined, maxPerOrder: undefined, bulkMinQty: undefined, bulkPercentOff: undefined,
+    isBestseller: false, isNewArrival: false, isGiftPack: false, serves: undefined, calories: undefined, prepTimeMin: undefined, maxPerOrder: undefined, bulkMinQty: undefined, bulkPercentOff: undefined, bulkMin: undefined,
     optionGroups: [], isActive: true,
     itemKind: '', sellBy: 'piece', measure: { options: [], min: undefined, allowManual: true },
 };
@@ -95,7 +95,7 @@ export const itemFromRecord = (r) => ({
     price: r.price, mrp: r.mrp,
     isVeg: r.isVeg, isEggless: !!r.isEggless, isSugarFree: !!r.isSugarFree, isJain: !!r.isJain, spiceLevel: r.spiceLevel || 'none', gstInclusive: r.gstInclusive !== false,
     isBestseller: !!r.isBestseller, isNewArrival: !!r.isNewArrival, isGiftPack: !!r.isGiftPack,
-    serves: r.serves, calories: r.calories, prepTimeMin: r.prepTimeMin, maxPerOrder: r.maxPerOrder ?? undefined, bulkMinQty: r.bulk?.minQty, bulkPercentOff: r.bulk?.percentOff,
+    serves: r.serves, calories: r.calories, prepTimeMin: r.prepTimeMin, maxPerOrder: r.maxPerOrder ?? undefined, bulkMinQty: r.bulk?.minQty, bulkPercentOff: r.bulk?.percentOff, bulkMin: r.bulkMin || undefined,
     optionGroups: (r.optionGroups || []).map((g) => ({ ...g, options: (g.options || []).map((o) => ({ ...o })) })),
     isActive: r.isActive !== false,
     itemKind: r.itemKind || '', sellBy: r.sellBy || 'piece',
@@ -150,6 +150,8 @@ export const itemBody = (v) => ({
     prepTimeMin: v.prepTimeMin ?? null,
     maxPerOrder: v.maxPerOrder ?? null,
     bulk: v.bulkMinQty !== undefined && v.bulkPercentOff !== undefined ? { minQty: v.bulkMinQty, percentOff: v.bulkPercentOff } : null,
+    // the least a customer must order in a bulk order, for a dish with no choices (a dish with choices has one on each choice)
+    bulkMin: !v.optionGroups.some((g) => g.kind !== 'addon' && (g.kind === 'choice' || (g.min || 0) >= 1)) && v.bulkMin > 0 ? Math.floor(v.bulkMin) : null,
     optionGroups: withIds(v.optionGroups),
     isActive: v.isActive,
 });

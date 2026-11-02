@@ -414,7 +414,7 @@ admin.use('/tenants/:tid/products', loadTenant, crud(Product, {
     fields: [
         'categoryId', 'categoryName', 'name', 'description', 'image', 'price', 'mrp',
         'isVeg', 'isEggless', 'isSugarFree', 'isJain', 'spiceLevel', 'gstInclusive',
-        'isBestseller', 'isNewArrival', 'isGiftPack', 'serves', 'calories', 'prepTimeMin', 'maxPerOrder', 'bulk',
+        'isBestseller', 'isNewArrival', 'isGiftPack', 'serves', 'calories', 'prepTimeMin', 'maxPerOrder', 'bulk', 'bulkMin',
         'optionGroups', 'sizes', 'weightOptions', 'addOns',
         'itemKind', 'sellBy', 'measure',
         'isAvailable', 'isActive', 'sortOrder',
@@ -424,6 +424,7 @@ admin.use('/tenants/:tid/products', loadTenant, crud(Product, {
     softDelete: true,
     check: async (d, req) => {
         const tenant = await Tenant.findById(req.tenantDoc._id).lean();
+        checkBulkMin(d, { ...req, actor: { type: 'superadmin' } });
         if (d.bulk !== undefined) d.bulk = require('../services/bulkOrders').cleanBulkPrice(d.bulk);   // the super admin may set a bulk price for any shop; the numbers are still checked
         await applyItemRules(d, tenant);
         const ok = d.categoryId && isId(String(d.categoryId)) &&
@@ -521,5 +522,14 @@ const riderRoutes = require('./riderRouter');
 admin.use('/tenants/:tid/riders/:rid', loadFullTenant, riderRoutes.asRider, riderRoutes.core);
 
 admin.use(apiErrors);   // keep this LAST
+
+// "bulkMin" (the least a person must order in a bulk order) on a dish or on a choice. Only a shop that has Bulk orders switched on can SET one.
+function checkBulkMin(d, req) {
+    const wants = (d.bulkMin !== undefined && d.bulkMin !== null && Number(d.bulkMin) > 0)
+        || (Array.isArray(d.optionGroups) && d.optionGroups.some((g) => (g?.options || []).some((o) => Number(o?.bulkMin) > 0)));
+    if (d.bulkMin !== undefined && d.bulkMin !== null && (!Number.isInteger(d.bulkMin) || d.bulkMin < 0 || d.bulkMin > 10000)) throw httpError(400, 'The bulk minimum must be a whole number from 0 to 10000');
+    if (d.bulkMin === null || d.bulkMin === 0) d.bulkMin = undefined;
+    if (wants && req.actor?.type !== 'superadmin' && !require('../services/featureGate').isOn(req.tenant, 'bulkOrders')) throw httpError(403, 'Bulk orders are not switched on for your shop. Ask us to switch them on.');
+}
 
 module.exports = admin;

@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { useTheme, spacing, radius, font } from '../theme';
 import { Button } from './ui';
-import { TextField, NumberField } from './settingsForm';
+import { TextField, NumberField, Choice } from './settingsForm';
 import { ToggleRow } from './inputs';
 import Icon from './Icon';
 
@@ -23,13 +23,16 @@ export function withIds(groups) {
             let id = o.id || slug(o.name) || `option-${oi + 1}`;
             while (usedO.has(id)) id = `${id}-${oi + 1}`.slice(0, 30);
             usedO.add(id);
-            return { id, name: o.name.trim(), price: Number(o.price) || 0, isDefault: !!o.isDefault, isAvailable: o.isAvailable !== false };
+            return { id, name: o.name.trim(), price: Number(o.price) || 0, isDefault: !!o.isDefault, isAvailable: o.isAvailable !== false, ...(g.kind !== 'addon' && o.bulkMin > 0 ? { bulkMin: Math.floor(o.bulkMin) } : {}) };   // (the bulk minimum is for choices only)
         });
         const max = Math.min(Math.max(Number(g.max) || 1, 1), Math.max(options.length, 1));
         const min = Math.min(Math.max(Number(g.min) || 0, 0), max);
-        return { id: gid, name: g.name.trim(), min, max, options };
+        return { id: gid, name: g.name.trim(), min, max, options, ...(g.kind ? { kind: g.kind } : {}), ...(g.absolute ? { absolute: true } : {}) };
     });
 }
+
+// A group is a CHOICE (the dish in a size or form: Half, Full; in a bulk order each choice can have a minimum) or an ADD-ON (an extra: mint chutney, extra cheese; never a minimum).
+export const kindOf = (g) => (g.kind === 'choice' || g.kind === 'addon' ? g.kind : (g.min || 0) >= 1 ? 'choice' : 'addon');
 
 // what the customer can choose on a dish: "Choose size", "Add extras", "Milk type"...
 export default function OptionGroupsEditor({ value = [], onChange }) {
@@ -42,12 +45,13 @@ export default function OptionGroupsEditor({ value = [], onChange }) {
             {value.map((g, gi) => (
                 <View key={gi} style={{ borderWidth: 1, borderColor: t.border, borderRadius: radius.lg, padding: spacing.md, marginBottom: spacing.md, backgroundColor: t.surfaceAlt }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm }}>
-                        <Text style={{ color: t.text, fontWeight: '800' }}>Group {gi + 1}</Text>
+                        <Text style={{ color: t.text, fontWeight: '800' }}>{kindOf(g) === 'addon' ? 'Add-on' : 'Choice'} {gi + 1}</Text>
                         <Pressable onPress={() => onChange(value.filter((_, i) => i !== gi))} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center' }}>
                             <Icon name="trash" size={18} color={t.danger} />
                             <Text style={{ color: t.danger, fontWeight: '700', marginLeft: 4 }}>Remove</Text>
                         </Pressable>
                     </View>
+                    <Choice label="This is" value={kindOf(g)} onChange={(k) => setGroup(gi, k === 'addon' ? { kind: 'addon', absolute: false, options: g.options.map(({ bulkMin, ...o }) => o) } : { kind: 'choice' })} options={[{ value: 'choice', label: 'A choice (size, plate)' }, { value: 'addon', label: 'An add-on (extra)' }]} />
                     <TextField label="Question shown to the customer" value={g.name} maxLength={40} placeholder="e.g. Choose size" onChange={(x) => setGroup(gi, { name: x })} />
                     <View style={{ flexDirection: 'row', gap: spacing.md }}>
                         <NumberField style={{ flex: 1 }} label="Must pick at least" integer value={g.min} onChange={(x) => setGroup(gi, { min: x ?? 0 })} hint="0 = optional" />
@@ -67,6 +71,7 @@ export default function OptionGroupsEditor({ value = [], onChange }) {
                                     <Icon name="clear" size={22} color={t.muted} />
                                 </Pressable>
                             </View>
+                            {kindOf(g) === 'choice' ? <NumberField label="Least a customer must order in a bulk order" integer suffix="pieces" placeholder="0" value={o.bulkMin || undefined} hint="Leave empty for no minimum" onChange={(x) => setOption(gi, oi, { bulkMin: x || undefined })} /> : null}
                             <View style={{ flexDirection: 'row' }}>
                                 <View style={{ flex: 1 }}>
                                     <ToggleRow title="Selected by default" value={!!o.isDefault} onValueChange={(x) => setOption(gi, oi, { isDefault: x })} last />
@@ -81,7 +86,10 @@ export default function OptionGroupsEditor({ value = [], onChange }) {
                 </View>
             ))}
             {value.length < MAX_GROUPS ? (
-                <Button title="Add a choice group" kind="outline" icon="addCircle" onPress={() => onChange([...value, { name: '', min: 0, max: 1, options: [{ name: '', price: 0, isDefault: false, isAvailable: true }] }])} />
+                <Button title="Add an add-on (extra)" kind="outline" icon="addCircle" onPress={() => onChange([...value, { kind: 'addon', name: '', min: 0, max: 3, options: [{ name: '', price: 0, isDefault: false, isAvailable: true }] }])} />
+            ) : null}
+            {value.length < MAX_GROUPS ? (
+                <Button title="Add a choice (size, plate)" kind="outline" icon="addCircle" onPress={() => onChange([...value, { kind: 'choice', name: '', min: 1, max: 1, options: [{ name: '', price: 0, isDefault: false, isAvailable: true }] }])} />
             ) : null}
         </View>
     );

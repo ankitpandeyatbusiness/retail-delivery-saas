@@ -6,6 +6,9 @@
 const ID_RE = /^[a-z0-9_-]{1,30}$/;
 const bad = (msg) => Object.assign(new Error(msg), { status: 400 });
 
+// choice = the dish in a size or form (Half, Full); addon = an extra on the dish. Older groups have no kind: one you must pick from is a choice.
+const groupKind = (g) => (g?.kind === 'choice' || g?.kind === 'addon' ? g.kind : (g?.min ?? 0) >= 1 ? 'choice' : 'addon');
+
 // Returns a list of readable error messages (empty list = valid)
 function validateOptionGroups(groups) {
     const errors = [];
@@ -22,6 +25,7 @@ function validateOptionGroups(groups) {
         else groupIds.add(g.id);
 
         if (!g.name || !String(g.name).trim() || String(g.name).length > 40) errors.push(`${p}.name: required, max 40 characters`);
+        if (g.kind !== undefined && !['choice', 'addon'].includes(g.kind)) errors.push(`${p}.kind: must be choice or addon`);
 
         const opts = Array.isArray(g.options) ? g.options : [];
         if (!opts.length) errors.push(`${p}.options: add at least one option`);
@@ -41,6 +45,10 @@ function validateOptionGroups(groups) {
             else optionIds.add(o.id);
             if (!o?.name || !String(o.name).trim() || String(o.name).length > 40) errors.push(`${op}.name: required, max 40 characters`);
             if (o?.price !== undefined && (typeof o.price !== 'number' || o.price < 0 || o.price > 10000)) errors.push(`${op}.price: must be a number from 0 to 10000`);
+            if (o?.bulkMin !== undefined && o.bulkMin !== null) {
+                if (!Number.isInteger(o.bulkMin) || o.bulkMin < 0 || o.bulkMin > 10000) errors.push(`${op}.bulkMin: must be a whole number from 0 to 10000`);
+                else if (o.bulkMin > 0 && groupKind(g) === 'addon') errors.push(`${op}.bulkMin: a minimum for bulk orders belongs on a choice (like Half or Full), not on an add-on`);
+            }
         });
         if (opts.filter((o) => o?.isDefault).length > max) errors.push(`${p}: more default options than max`);
     });
@@ -81,4 +89,4 @@ function priceSelection(product, selections = []) {
     return { unitPrice, chosen };
 }
 
-module.exports = { validateOptionGroups, priceSelection };
+module.exports = { validateOptionGroups, priceSelection, groupKind };

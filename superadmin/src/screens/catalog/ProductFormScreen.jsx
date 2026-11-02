@@ -7,7 +7,7 @@ import { Button, Card, Badge, SectionTitle } from '../../components/ui';
 import { Field } from '../../components/inputs';
 import { Group, Choice, NumberField, Switch, Hint, TextField, Label } from '../../components/settingsForm';
 import { ImageField, MorePictures } from '../../components/catalogBits';
-import OptionGroupsEditor, { withIds } from '../../components/optionGroups';
+import OptionGroupsEditor, { withIds, kindOf } from '../../components/optionGroups';
 import { Loading, ErrorBox, ConfirmSheet, toast } from '../../components/feedback';
 import useRecordForm from '../../hooks/useRecordForm';
 import { listRecords, setStock } from '../../api/catalogApi';
@@ -42,7 +42,7 @@ const SPICE = [['none', 'No spice'], ['mild', 'Mild'], ['medium', 'Medium'], ['h
 const BLANK = {
     categoryId: '', newCategory: '', name: '', description: '', image: '', images: [], price: undefined, mrp: undefined,
     isVeg: undefined, isEggless: false, isSugarFree: false, isJain: false, spiceLevel: 'none', gstInclusive: true,
-    isBestseller: false, isNewArrival: false, isGiftPack: false, serves: undefined, calories: undefined, prepTimeMin: undefined, bulkMinQty: undefined, bulkPercentOff: undefined,
+    isBestseller: false, isNewArrival: false, isGiftPack: false, serves: undefined, calories: undefined, prepTimeMin: undefined, bulkMinQty: undefined, bulkPercentOff: undefined, bulkMin: undefined,
     optionGroups: [], isAvailable: true, isActive: true, sortOrder: 0,
     itemKind: '', sellBy: 'piece', measure: { options: [], min: undefined, allowManual: true },
 };
@@ -53,7 +53,7 @@ const fromRecord = (r) => ({
     price: r.price, mrp: r.mrp,
     isVeg: r.isVeg, isEggless: !!r.isEggless, isSugarFree: !!r.isSugarFree, isJain: !!r.isJain, spiceLevel: r.spiceLevel || 'none', gstInclusive: r.gstInclusive !== false,
     isBestseller: !!r.isBestseller, isNewArrival: !!r.isNewArrival, isGiftPack: !!r.isGiftPack,
-    serves: r.serves, calories: r.calories, prepTimeMin: r.prepTimeMin, bulkMinQty: r.bulk?.minQty, bulkPercentOff: r.bulk?.percentOff,
+    serves: r.serves, calories: r.calories, prepTimeMin: r.prepTimeMin, bulkMinQty: r.bulk?.minQty, bulkPercentOff: r.bulk?.percentOff, bulkMin: r.bulkMin || undefined,
     optionGroups: (r.optionGroups || []).map((g) => ({ ...g, options: (g.options || []).map((o) => ({ ...o })) })),
     isAvailable: r.isAvailable !== false, isActive: r.isActive !== false, sortOrder: r.sortOrder || 0,
     itemKind: r.itemKind || '', sellBy: r.sellBy || 'piece',
@@ -131,6 +131,8 @@ export default function ProductFormScreen() {
             calories: v.calories ?? null,
             prepTimeMin: v.prepTimeMin ?? null,
             bulk: v.bulkMinQty !== undefined && v.bulkPercentOff !== undefined ? { minQty: v.bulkMinQty, percentOff: v.bulkPercentOff } : null,
+            // the least a customer must order in a bulk order, for a dish with no choices (a dish with choices has one on each choice)
+            bulkMin: !v.optionGroups.some((g) => kindOf(g) === 'choice') && v.bulkMin > 0 ? Math.floor(v.bulkMin) : null,
             optionGroups: withIds(v.optionGroups),
             isAvailable: v.isAvailable,
             isActive: v.isActive,
@@ -278,6 +280,7 @@ export default function ProductFormScreen() {
                         <Label hint="For bulk orders. Example: from 30 pieces, 10 percent off. Leave both empty for no bulk price. You can set it for any shop; the owner can only when Bulk orders is switched on for his shop.">Bulk price</Label>
                         <NumberField label="Bulk price starts from" integer placeholder="30" suffix="pieces" value={v.bulkMinQty} onChange={(x) => f.set('bulkMinQty', x)} hint={f.errors.bulkMinQty} />
                         <NumberField label="Discount for bulk" placeholder="10" suffix="%" value={v.bulkPercentOff} onChange={(x) => f.set('bulkPercentOff', x)} hint={f.errors.bulkPercentOff} />
+                        {!(v.optionGroups || []).some((g) => kindOf(g) === 'choice') ? <NumberField label="Least a customer must order in a bulk order" integer placeholder="0" suffix="pieces" value={v.bulkMin} onChange={(x) => f.set('bulkMin', x)} hint="Leave empty for no minimum" /> : <Hint>The least a customer must order is set on each choice, below.</Hint>}
                     </>
                 ) : null}
                 <Switch title="Bestseller" value={v.isBestseller} onValueChange={(x) => f.set('isBestseller', x)} />

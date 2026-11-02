@@ -64,7 +64,7 @@ export function Thumb({ uri, size = 56 }) {
 export default function BulkOrderScreen() {
     const nav = useNavigation();
     const again = useRoute().params?.again;   // from Orders: an earlier bulk order to fill in again { fulfilment, lines: [{ productId, quantity, options, pick }] }
-    const { text, muted, primary, border, ok } = useBrand();
+    const { text, muted, primary, border, ok, error } = useBrand();
     const [cfg, setCfg] = useState(null);
     const [menu, setMenu] = useState(null);
     const [err, setErr] = useState('');
@@ -98,7 +98,7 @@ export default function BulkOrderScreen() {
     const max = cfg?.maxQtyPerDish || 500;
     const qtyOf = (productId, selections) => lines.find((l) => l.key === keyOfBulk(productId, selections))?.quantity || 0;
     const piecesOf = (productId) => lines.filter((l) => l.productId === productId).reduce((n, l) => n + l.quantity, 0);
-    const minOf = (item, option) => Math.max(0, Number(option?.minQty ?? item.minQty) || 0);   // (the owner sets it per choice)
+    const minOf = (item, option) => Math.max(0, Number(option?.bulkMin ?? (item.optionGroups?.some((g) => g.kind === 'choice') ? 0 : item.bulkMin)) || 0);   // (the owner sets it on each choice, or on a dish with no choices)
     const setQty = async (item, selections, label, n, option) => {
         if (n > 0 && !lines.length && !(await allowBulkStart())) return;   // a normal cart is waiting: ask first
         useBulkCartStore.getState().setQty(item, selections, label, n, minOf(item, option));
@@ -120,7 +120,10 @@ export default function BulkOrderScreen() {
 
     const shown = menu.map((c) => ({ ...c, items: c.items.filter((i) => !find.trim() || i.name.toLowerCase().includes(find.trim().toLowerCase())) })).filter((c) => c.items.length);
     const price = (i, o) => rs(i.price + (o?.price || 0));
-    const oneChoice = (i) => i.optionGroups.length === 1 && i.optionGroups[0].max === 1 && i.optionGroups[0].min >= 1;
+    // one required choice (Half / Full) and no add-ons: a counter on each choice, each with its own minimum. Anything more: pick in a sheet (add-ons are a separate part).
+    const oneChoice = (i) => i.optionGroups.length === 1 && i.optionGroups[0].kind === 'choice' && i.optionGroups[0].max === 1 && i.optionGroups[0].min >= 1;
+    // a choice whose pieces (all its add-on variations together) are below its minimum: a line to tell him
+    const shortOf = (i) => i.optionGroups.filter((g) => g.kind === 'choice').flatMap((g) => g.options.filter((o) => o.bulkMin > 0).map((o) => ({ o, have: lines.filter((l) => l.productId === i.id && (l.selections || []).some((x) => x.groupId === g.id && x.optionIds.includes(o.id))).reduce((n, l) => n + l.quantity, 0) }))).filter((x) => x.have > 0 && x.have < x.o.bulkMin);
 
     const dish = (i) => {
         const bulkNote = i.bulk ? tr('{n} or more: {p}% off', { n: i.bulk.minQty, p: i.bulk.percentOff }) : '';
@@ -137,6 +140,8 @@ export default function BulkOrderScreen() {
                         </View>
                         {!i.optionGroups.length ? <Text style={{ color: muted, fontWeight: '700', marginTop: 2 }}>{rs(i.price)}</Text> : null}
                         {bulkNote ? <Text style={{ color: got ? ok : primary, fontSize: 12, fontWeight: '800', marginTop: 2 }}>{got ? `✓ ${bulkNote}` : bulkNote}</Text> : null}
+                        {!i.optionGroups.length && minOf(i) ? <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{tr('Least you can order: {n}', { n: minOf(i) })}</Text> : null}
+                        {!oneChoice(i) ? shortOf(i).map(({ o, have }) => <Text key={o.id} style={{ color: error, fontSize: 12, fontWeight: '800', marginTop: 2 }}>{tr('{name}: at least {n} (you have {have})', { name: o.name, n: o.bulkMin, have })}</Text>) : null}
                     </View>
                 </View>
                 {!i.optionGroups.length ? (
@@ -203,15 +208,15 @@ export default function BulkOrderScreen() {
             </Group>
 
             <Sheet visible={!!sheet} onClose={() => setSheet(null)} title={sheet?.item?.name || ''}>
-                {(sheet?.item?.optionGroups || []).map((g) => (
+                {[...(sheet?.item?.optionGroups || [])].sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'choice' ? -1 : 1)).map((g) => (
                     <View key={g.id} style={{ marginBottom: 12 }}>
-                        <Text style={{ color: text, fontWeight: '900', marginBottom: 6 }}>{g.name}{g.min ? ' *' : ''}</Text>
+                        <Text style={{ color: text, fontWeight: '900', marginBottom: 6 }}>{g.name}{g.min ? ' *' : ''}{g.kind === 'addon' ? <Text style={{ color: muted, fontWeight: '700' }}>{`  (${tr('add-on')})`}</Text> : null}</Text>
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                             {g.options.filter((o) => o.isAvailable !== false).map((o) => {
                                 const on = (sheet.picks[g.id] || []).includes(o.id);
                                 return (
                                     <Pressable key={o.id} onPress={() => togglePick(g, o)} style={{ marginRight: 8, marginBottom: 8, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: on ? primary : border, backgroundColor: on ? primary : 'transparent' }}>
-                                        <Text style={{ color: on ? '#fff' : text, fontWeight: '800' }}>{o.name}{o.price ? `  +${rs(o.price)}` : ''}</Text>
+                                        <Text style={{ color: on ? '#fff' : text, fontWeight: '800' }}>{o.name}{o.price ? `  +${rs(o.price)}` : ''}{o.bulkMin > 0 ? `  · ${tr('min {n}', { n: o.bulkMin })}` : ''}</Text>
                                     </Pressable>
                                 );
                             })}

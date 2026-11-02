@@ -199,7 +199,7 @@ router.use('/products', crud(Product, {
     fields: [
         'categoryId', 'categoryName', 'name', 'description', 'image', 'images', 'price', 'mrp',
         'isVeg', 'isEggless', 'isSugarFree', 'isJain', 'spiceLevel', 'gstInclusive',
-        'isBestseller', 'isNewArrival', 'isGiftPack', 'serves', 'calories', 'prepTimeMin', 'maxPerOrder', 'bulk',
+        'isBestseller', 'isNewArrival', 'isGiftPack', 'serves', 'calories', 'prepTimeMin', 'maxPerOrder', 'bulk', 'bulkMin',
         'optionGroups', 'sizes', 'weightOptions', 'addOns',
         'itemKind', 'sellBy', 'measure',
         'isAvailable', 'isActive', 'sortOrder',
@@ -212,6 +212,7 @@ router.use('/products', crud(Product, {
             if (!Array.isArray(d.images) || d.images.length > 4 || d.images.some((u) => typeof u !== 'string' || !/^https?:\/\//.test(u) || u.length > 500)) throw httpError(400, 'You can add up to 4 more pictures');
             d.images = [...new Set(d.images)].filter((u) => u !== d.image);
         }
+        checkBulkMin(d, req);
         if (d.bulk !== undefined && d.bulk !== null) {   // a bulk price needs both numbers; null clears it
             // only a shop the super admin switched Bulk orders on for can SET a bulk price (clearing one is always allowed)
             if (req.actor?.type !== 'superadmin' && !require('../services/featureGate').isOn(req.tenant, 'bulkOrders')) throw httpError(403, 'Bulk orders are not switched on for your shop. Ask us to switch it on.');
@@ -265,5 +266,14 @@ router.use('/collections', crud(Collection, {
         }
     },
 }));
+
+// "bulkMin" (the least a person must order in a bulk order) on a dish or on a choice. Only a shop that has Bulk orders switched on can SET one.
+function checkBulkMin(d, req) {
+    const wants = (d.bulkMin !== undefined && d.bulkMin !== null && Number(d.bulkMin) > 0)
+        || (Array.isArray(d.optionGroups) && d.optionGroups.some((g) => (g?.options || []).some((o) => Number(o?.bulkMin) > 0)));
+    if (d.bulkMin !== undefined && d.bulkMin !== null && (!Number.isInteger(d.bulkMin) || d.bulkMin < 0 || d.bulkMin > 10000)) throw httpError(400, 'The bulk minimum must be a whole number from 0 to 10000');
+    if (d.bulkMin === null || d.bulkMin === 0) d.bulkMin = undefined;
+    if (wants && req.actor?.type !== 'superadmin' && !require('../services/featureGate').isOn(req.tenant, 'bulkOrders')) throw httpError(403, 'Bulk orders are not switched on for your shop. Ask us to switch them on.');
+}
 
 module.exports = router;

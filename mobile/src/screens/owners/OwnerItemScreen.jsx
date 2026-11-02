@@ -6,7 +6,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { useBrand } from '../../components/common/kit';
 import { Empty, Button } from '../../components/owners/ui';
 import {
-    FormPage, Group, TextBox, NumberBox, ChoiceBox, ToggleRow, Hint, Label, ImageField, MorePictures, OptionGroupsEditor, MeasureEditor,
+    FormPage, Group, TextBox, NumberBox, ChoiceBox, ToggleRow, Hint, Label, ImageField, MorePictures, OptionGroupsEditor, groupKindOf, MeasureEditor,
 } from '../../components/owners/menuBits';
 import { products, setStock, apiError } from '../../api/owners/shopApi';
 import { useMenuStore } from '../../store/owners/useMenuStore';
@@ -207,6 +207,8 @@ export default function OwnerItemScreen() {
                         <Label hint={tr('For bulk orders. Example: from 30 pieces, 10 percent off. Leave both empty for no bulk price. You can still change every price when you send a quote.')}>{tr('Bulk price')}</Label>
                         <NumberBox label={tr('Bulk price starts from')} integer placeholder="30" suffix={tr('pieces')} value={v.bulkMinQty} onChange={(x) => set('bulkMinQty', x)} error={errors.bulkMinQty} />
                         <NumberBox label={tr('Discount for bulk')} placeholder="10" suffix="%" value={v.bulkPercentOff} onChange={(x) => set('bulkPercentOff', x)} error={errors.bulkPercentOff} />
+                        {/* a dish with choices has its minimum on each choice (below); a dish without choices has one here */}
+                        {!(v.optionGroups || []).some((g) => groupKindOf(g) === 'choice') ? <NumberBox label={tr('Least a customer must order in a bulk order')} integer placeholder="0" suffix={tr('pieces')} value={v.bulkMin} onChange={(x) => set('bulkMin', x)} hint={tr('Leave empty for no minimum')} /> : <Hint>{tr('The least a customer must order is set on each choice, below.')}</Hint>}
                     </>
                 ) : null}
                 {v.sellBy === 'piece' ? <NumberBox label={tr('Most per order')} hint={tr('Leave empty for no limit. For example 5: a customer can order at most 5 of this in one order.')} integer value={v.maxPerOrder} onChange={(x) => set('maxPerOrder', x)} error={errors.maxPerOrder} /> : null}
@@ -216,7 +218,7 @@ export default function OwnerItemScreen() {
             </Group>
 
             <Group title={tr('Choices (sizes, add-ons)')} hint={tr('What the customer picks on this item. A price here is an EXTRA on top of the selling price.')}>
-                <OptionGroupsEditor value={v.optionGroups} onChange={(x) => set('optionGroups', x)} basePrice={v.price} onBasePrice={(x) => set('price', x)} />
+                <OptionGroupsEditor value={v.optionGroups} onChange={(x) => set('optionGroups', x)} basePrice={v.price} onBasePrice={(x) => set('price', x)} showBulk={bulkOn && v.sellBy === 'piece'} />
                 {errors.optionGroups ? <Hint tone="warn">{errors.optionGroups}</Hint> : null}
             </Group>
 
