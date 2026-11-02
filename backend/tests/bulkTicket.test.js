@@ -459,4 +459,25 @@ describe('a paid bulk order gets a work ticket for the kitchen and the rider', (
         await kitchenQueue.runKitchenQueue(new Date(Date.now() + 5 * 60000));
         assert.ok((await ticket()).kitchen?.queuedAt, 'a few minutes after the call, untouched: queued');
     });
+
+    /* ------------------------------ Phase 3: the instructions from the bulk cart ------------------------------ */
+    test('the food instructions go to the cook and the delivery instruction to the rider; a pickup has no delivery instruction', async () => {
+        const dish2 = await Product.findOne({ tenantId: w.tenant._id });
+        const post = (extra) => cust('post', '/', { fulfilment: 'pickup', when: days(5), items: [{ productId: String(dish2._id), quantity: 100 }], contact: { name: 'Raj', phone: '9000000061' }, foodNote: 'Less spicy, no onion', deliveryNote: 'Leave at door', ...extra });
+        const r = await post({});
+        assert.equal(r.status, 201, JSON.stringify(r.body));
+        const saved = await BulkOrder.findById(r.body.id).lean();
+        assert.equal(saved.foodNote, 'Less spicy, no onion');
+        assert.equal(saved.deliveryNote, undefined, 'a pickup has no delivery note');
+        // a delivery order keeps both, and the work ticket carries them to the cook and the rider
+        await BulkOrder.updateOne({ _id: id }, { $set: { fulfilment: 'delivery', foodNote: 'Extra crispy', deliveryNote: 'Ring the bell twice', address: { label: 'Office', line1: '5 MG Road', city: 'Pune', pincode: '411001', name: 'Meera', phone: '9000000041' } } });
+        await paid();
+        const t = await ticket();
+        assert.match(t.foodNote, /^Extra crispy/);
+        assert.match(t.note, /^Bulk order .+. Ring the bell twice$/);
+        const q = await kitchenSvc.queue(w.tenant);
+        const row = q.bulk[0];
+        assert.ok(row.bulkCode && !/s/.test(row.bulkCode), 'the code alone: ' + row.bulkCode);
+        assert.match(row.note, /^Extra crispy/);
+    });
 });

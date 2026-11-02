@@ -55,11 +55,12 @@ export function ToggleRow({ title, subtitle, value, onValueChange, last, disable
     );
 }
 
-export function Label({ children, hint }) {
-    const { text, muted } = useBrand();
+// required: a red asterisk after the label (the field must be filled)
+export function Label({ children, hint, required }) {
+    const { text, muted, error } = useBrand();
     return (
         <View style={{ marginBottom: 6 }}>
-            <Text style={{ color: text, fontWeight: '800', fontSize: 13 }}>{children}</Text>
+            <Text style={{ color: text, fontWeight: '800', fontSize: 13 }}>{children}{required ? <Text style={{ color: error, fontWeight: '900' }}> *</Text> : null}</Text>
             {hint ? <Text style={{ color: muted, fontSize: 12, marginTop: 1 }}>{hint}</Text> : null}
         </View>
     );
@@ -71,22 +72,22 @@ export function Hint({ children, tone }) {
 }
 
 // a label above a field, an error or a hint below it
-export function FormField({ label, hint, error, children, last }) {
+export function FormField({ label, hint, error, children, last, required }) {
     return (
         <View style={{ marginBottom: last ? 0 : 16 }}>
-            {label ? <Label>{label}</Label> : null}
+            {label ? <Label required={required}>{label}</Label> : null}
             {children}
             {error ? <Hint tone="warn">{error}</Hint> : hint ? <Hint>{hint}</Hint> : null}
         </View>
     );
 }
 
-export function TextBox({ label, hint, error, last, ...rest }) {
-    return <FormField label={label} hint={hint} error={error} last={last}><Field {...rest} /></FormField>;
+export function TextBox({ label, hint, error, last, required, ...rest }) {
+    return <FormField label={label} hint={hint} error={error} last={last} required={required}><Field {...rest} /></FormField>;
 }
 // A time of day: touch it and a digital clock opens (he can still type it). value and onChange use 'HH:MM', 24-hour.
-export function TimeBox({ label, hint, error, last, ...rest }) {
-    return <FormField label={label} hint={hint} error={error} last={last}><TimeInput {...rest} /></FormField>;
+export function TimeBox({ label, hint, error, last, required, ...rest }) {
+    return <FormField label={label} hint={hint} error={error} last={last} required={required}><TimeInput {...rest} /></FormField>;
 }
 
 // A number the owner types. Keeps what is typed ("1." stays "1.") and reports a number, or undefined when empty.

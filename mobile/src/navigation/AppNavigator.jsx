@@ -31,6 +31,7 @@ import ServicesScreen from '../screens/customers/ServicesScreen';
 import ServiceFormScreen from '../screens/customers/ServiceFormScreen';
 import MyInquiriesScreen from '../screens/customers/MyInquiriesScreen';
 import BulkOrderScreen from '../screens/customers/BulkOrderScreen';
+import BulkCartScreen from '../screens/customers/BulkCartScreen';
 import BulkOrderDetailScreen from '../screens/customers/BulkOrderDetailScreen';
 import MyBulkOrdersScreen from '../screens/customers/MyBulkOrdersScreen';
 import TableBillScreen from '../screens/customers/TableBillScreen';
@@ -369,6 +370,7 @@ export default function AppNavigator() {
                     <Stack.Screen name="Inquiry" component={InquiryScreen} />
                     <Stack.Screen name="MyInquiries" component={MyInquiriesScreen} />
                     <Stack.Screen name="BulkOrder" component={BulkOrderScreen} />
+                    <Stack.Screen name="BulkCart" component={BulkCartScreen} />
                     <Stack.Screen name="BulkOrderDetail" component={BulkOrderDetailScreen} />
                     <Stack.Screen name="MyBulkOrders" component={MyBulkOrdersScreen} />
                     <Stack.Screen name="TableBill" component={TableBillScreen} />

@@ -87,7 +87,7 @@ function viewOf(o, { lateMin, now = Date.now() }) {
         scheduledFor: o.scheduledFor || null,
         waitedMin,
         bulk,
-        bulkCode: bulk ? (String(o.note || '').replace(/^Bulk order\s*/i, '') || null) : null,
+        bulkCode: bulk ? (String(o.note || '').match(/^Bulk order\s+([^\s.]+)/i)?.[1] || null) : null,
         queueAt,
         upcoming: bulk && stage === 'new' && !!when && when - now > BULK_LEAD_MS,   // not time yet: only the Bulk tab shows it
         late: bulk ? stage !== 'ready' && !!when && now > when : stage !== 'ready' && waitedMin >= lateMin,   // a bulk order is late only once its day and time have passed

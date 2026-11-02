@@ -43,6 +43,8 @@ const schema = new Schema({
     distanceKm: Number,
     contact: { _id: false, name: String, phone: String, onSitePhone: String, company: String, gstin: String },
     cutlery: { type: Boolean, default: false },
+    foodNote: { type: String, maxlength: 200 },             // for the cook: the tags he tapped and what he wrote (less spicy, no onion...)
+    deliveryNote: { type: String, maxlength: 300 },         // for the rider (a delivery only): leave at the door, the landmark...
     packaging: { type: String, enum: ['boxes', 'trays', 'any'], default: 'any' },
     note: { type: String, maxlength: 500 },
     gstMode: String,                                        // the shop's GST mode when it was asked: lines without their own switch follow it

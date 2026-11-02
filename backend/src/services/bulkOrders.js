@@ -236,6 +236,8 @@ async function create({ tenant, userId, body = {} }) {
                 distanceKm: r.distanceKm ?? undefined,
                 contact: { name, phone, onSitePhone: String(c.onSitePhone || '').trim().slice(0, 20) || undefined, company: String(c.company || '').trim().slice(0, 100) || undefined, gstin: gstin || undefined },
                 cutlery: body.cutlery === true, packaging, note: typeof body.note === 'string' ? body.note.trim().slice(0, 500) : undefined,
+                foodNote: typeof body.foodNote === 'string' && body.foodNote.trim() ? body.foodNote.trim().slice(0, 200) : undefined,
+                deliveryNote: r.fulfilment === 'delivery' && typeof body.deliveryNote === 'string' && body.deliveryNote.trim() ? body.deliveryNote.trim().slice(0, 300) : undefined,
                 gstMode: r.gstMode, lines: r.lines, pricing: r.pricing, history: [{ status: 'requested', by: 'customer' }],
             });
         } catch (e) { if (e.code !== 11000) throw e; }   // the short code was taken: make another
@@ -251,7 +253,7 @@ const effectiveStatus = (o, now = new Date()) => (o.status === 'quoted' && o.quo
 function customerView(o) {
     const status = effectiveStatus(o);
     return {
-        id: String(o._id), code: o.code, status, fulfilment: o.fulfilment, when: o.when, address: o.address, contact: o.contact, cutlery: o.cutlery, packaging: o.packaging, note: o.note,
+        id: String(o._id), code: o.code, status, fulfilment: o.fulfilment, when: o.when, address: o.address, contact: o.contact, cutlery: o.cutlery, packaging: o.packaging, note: o.note, foodNote: o.foodNote, deliveryNote: o.deliveryNote,
         lines: (o.lines || []).map(lineView), pricing: o.pricing, changeNote: o.changeNote, declineReason: o.declineReason,
         quote: o.quote?.pricing ? {
             version: o.quote.version, lines: (o.quote.lines || []).map(lineView), pricing: o.quote.pricing, advancePercent: o.quote.advancePercent, fullRefundHours: o.quote.fullRefundHours,

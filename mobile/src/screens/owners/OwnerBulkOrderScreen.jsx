@@ -133,6 +133,8 @@ export default function OwnerBulkOrderScreen() {
                     <Text style={{ color: muted, marginTop: 4, fontSize: 12.5 }}>
                         {[o.cutlery ? tr('Send cutlery') : tr('No cutlery'), o.packaging === 'boxes' ? tr('Individual boxes') : o.packaging === 'trays' ? tr('Big trays') : tr('Any packing')].join(' · ')}
                     </Text>
+                    {o.foodNote ? <Text style={{ color: text, marginTop: 6 }}>{tr('For the kitchen')}: {o.foodNote}</Text> : null}
+                    {o.deliveryNote ? <Text style={{ color: text, marginTop: 4 }}>{tr('For the delivery')}: {o.deliveryNote}</Text> : null}
                     {o.note ? <Text style={{ color: text, marginTop: 6 }}>“{o.note}”</Text> : null}
                     {o.changeNote ? <Text style={{ color: error, fontWeight: '800', marginTop: 8 }}>{tr('The customer asked to change the quote: {n}', { n: o.changeNote })}</Text> : null}
                     {o.status === 'declined' && o.declineReason ? <Text style={{ color: muted, marginTop: 8 }}>{tr('You declined: {r}', { r: o.declineReason })}</Text> : null}

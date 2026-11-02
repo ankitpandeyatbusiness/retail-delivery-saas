@@ -63,7 +63,7 @@ export function TimePickerSheet({ visible, value, title, optional, onPick, onClo
     useEffect(() => { if (visible) { const p = parse(value); setH(p.h); setM(p.m); setK((x) => x + 1); } }, [visible]);   // eslint-disable-line react-hooks/exhaustive-deps
     const now = () => { const d = new Date(); setH(d.getHours()); setM(d.getMinutes()); setK((x) => x + 1); };
     return (
-        <Sheet visible={visible} onClose={onClose} title={title || tr('Set the time')}>
+        <Sheet visible={visible} onClose={onClose} title={title || tr('Set the time')} noPull>
             <View style={{ alignItems: 'center' }}>
                 <Text style={{ color: text, fontSize: 52, fontWeight: '900', letterSpacing: 2, fontVariant: ['tabular-nums'] }}>{pad(h)}<Text style={{ color: primary }}> : </Text>{pad(m)}</Text>
                 <Text style={{ color: muted, fontSize: 12, marginBottom: 8 }}>{tr('24-hour time')}</Text>

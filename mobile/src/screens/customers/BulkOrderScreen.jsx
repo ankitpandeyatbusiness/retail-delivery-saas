@@ -1,144 +1,107 @@
-// Bulk order: the whole menu with a counter on every dish (and on every option the owner made: Half, Full...). The price is worked out by the
-// server while the customer picks, with the shop's bulk prices. Then pickup or delivery, the time, and the few questions a shop needs. Sending it
-// asks the shop for a quote; nothing is paid here.
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+// Bulk order, step 1: the whole menu with a picture and a counter on every dish (and on every choice the owner made: Half, Full...).
+// What he picks goes into the BULK ORDER cart (a bar at the bottom shows it). The rest (pickup or delivery, the day and time, the address, the
+// instructions, who he is) is filled in on the cart page, like for a normal order. Nothing is paid here.
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, TextInput } from 'react-native';
+import { Image } from 'expo-image';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
-import { Button, Empty, Sheet, Chips } from '../../components/owners/ui';
-import { FormPage, Group, TextBox, TimeBox, ToggleRow, ChoiceBox, VegMark, Label } from '../../components/owners/menuBits';
+import { Button, Empty, Sheet } from '../../components/owners/ui';
+import { FormPage, Group, TextBox, VegMark } from '../../components/owners/menuBits';
 import { FormShimmer } from '../../components/owners/shimmer';
-import DateRangeSheet from '../../components/customers/DateRangeSheet';
-import { AddressSheet, addrLine } from '../../components/customers/addresses';
+import BulkCartBar from '../../components/customers/BulkCartBar';
 import { showToast } from '../../components/customers/shop';
 import { rs } from '../../components/customers/orders';
-import { fetchBulkConfig, fetchBulkMenu, estimateBulk, sendBulk } from '../../api/customers/shopApi';
-import { useAuthStore } from '../../store/common/useAuthStore';
+import { fetchBulkConfig, fetchBulkMenu } from '../../api/customers/shopApi';
+import { useBulkCartStore, keyOfBulk, allowBulkStart } from '../../store/customers/useBulkCartStore';
 import { tr } from '../../i18n';
 
-const dayText = (k) => { const [y, m, d] = String(k).split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }); };
-const keyOf = (productId, selections) => `${productId}|${JSON.stringify((selections || []).map((s) => [s.groupId, [...s.optionIds].sort()]).sort())}`;
 const clean = (x, max) => Math.max(0, Math.min(max, Math.floor(Number(x) || 0)));
 
-// one counter: minus, a number he can also type, plus (hold plus to add 10)
-function Qty({ value, max, onChange }) {
-    const { text, border, primary, onPrimary, surface } = useBrand();
+// one counter: minus, a number he can also type, plus (hold plus to add 10). min = the least he may order of this one: the minus stops there
+// (a small ✕ takes the dish out), and the first tap on plus starts at the minimum.
+export function Qty({ value, max, min = 0, onChange }) {
+    const { text, border, primary, onPrimary, surface, muted } = useBrand();
     const btn = { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' };
+    const atLeast = Math.max(0, min);
+    const canMinus = value > atLeast && value > 0;
     return (
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Pressable disabled={!value} onPress={() => onChange(clean(value - 1, max))} style={[btn, { borderWidth: 1, borderColor: border, backgroundColor: surface, opacity: value ? 1 : 0.4 }]}>
+            {atLeast > 0 && value > 0 ? (
+                <Pressable onPress={() => onChange(0)} hitSlop={8} accessibilityLabel={tr('Remove')} style={{ marginRight: 6 }}>
+                    <Ionicons name="close-circle-outline" size={22} color={muted} />
+                </Pressable>
+            ) : null}
+            <Pressable disabled={!canMinus} onPress={() => onChange(clean(value - 1, max))} style={[btn, { borderWidth: 1, borderColor: border, backgroundColor: surface, opacity: canMinus ? 1 : 0.4 }]}>
                 <Ionicons name="remove" size={18} color={text} />
             </Pressable>
             <TextInput
-                value={value ? String(value) : ''} placeholder="0" placeholderTextColor={border} keyboardType="number-pad" maxLength={5}
+                value={value ? String(value) : ''} placeholder={atLeast ? String(atLeast) : '0'} placeholderTextColor={border} keyboardType="number-pad" maxLength={5}
                 onChangeText={(t) => onChange(clean(t.replace(/\D/g, ''), max))}
+                onEndEditing={() => { if (value > 0 && value < atLeast) onChange(atLeast); }}   // typed too few: it goes up to the minimum
                 style={{ minWidth: 52, textAlign: 'center', color: text, fontWeight: '900', fontSize: 16, paddingVertical: 4 }}
             />
-            <Pressable onPress={() => onChange(clean(value + 1, max))} onLongPress={() => onChange(clean(value + 10, max))} style={[btn, { backgroundColor: primary }]}>
+            <Pressable
+                onPress={() => onChange(value === 0 && atLeast ? atLeast : clean(value + 1, max))}
+                onLongPress={() => onChange(clean((value === 0 && atLeast ? atLeast : value) + 10, max))}
+                style={[btn, { backgroundColor: primary }]}
+            >
                 <Ionicons name="add" size={18} color={onPrimary} />
             </Pressable>
         </View>
     );
 }
 
+// the dish picture (or a plate when it has none)
+export function Thumb({ uri, size = 56 }) {
+    const { border, muted } = useBrand();
+    return uri
+        ? <Image source={{ uri }} style={{ width: size, height: size, borderRadius: 12 }} contentFit="cover" transition={150} />
+        : <View style={{ width: size, height: size, borderRadius: 12, backgroundColor: border, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="fast-food-outline" size={size * 0.42} color={muted} /></View>;
+}
+
 export default function BulkOrderScreen() {
     const nav = useNavigation();
     const again = useRoute().params?.again;   // from Orders: an earlier bulk order to fill in again { fulfilment, lines: [{ productId, quantity, options, pick }] }
-    const { text, muted, primary, border, surface, error, ok } = useBrand();
-    const me = useAuthStore((s) => s.user);
+    const { text, muted, primary, border, ok } = useBrand();
     const [cfg, setCfg] = useState(null);
     const [menu, setMenu] = useState(null);
     const [err, setErr] = useState('');
     const [find, setFind] = useState('');
-    const [lines, setLines] = useState([]);                 // { key, productId, selections, label, quantity }
-    const [fulfilment, setFulfilment] = useState('pickup');
-    const [day, setDay] = useState('');
-    const [time, setTime] = useState('');
-    const [address, setAddress] = useState(null);
-    const [pickDay, setPickDay] = useState(false);
-    const [pickAddr, setPickAddr] = useState(false);
-    const [cutlery, setCutlery] = useState(false);
-    const [packaging, setPackaging] = useState('any');
-    const [contact, setContact] = useState({ name: me?.name || '', phone: me?.phone || '', onSitePhone: '', company: '', gstin: '' });
-    const [note, setNote] = useState('');
-    const [est, setEst] = useState(null);
-    const [estBusy, setEstBusy] = useState(false);
-    const [sending, setSending] = useState(false);
     const [sheet, setSheet] = useState(null);               // { item, picks } for a dish whose choices need more than one tap
+    const lines = useBulkCartStore((s) => s.lines);
 
     useEffect(() => {
-        Promise.all([fetchBulkConfig(), fetchBulkMenu()]).then(([c, m]) => {
+        Promise.all([fetchBulkConfig(), fetchBulkMenu()]).then(async ([c, m]) => {
             setCfg(c); setMenu(m.categories || []);
-            if (!c.pickup && c.delivery) setFulfilment('delivery');
+            const store = useBulkCartStore.getState();
+            if (!c.pickup && c.delivery) store.setForm({ fulfilment: 'delivery' });
             if (again?.lines?.length) {
                 // the same dishes and choices as before; a dish the shop no longer has is left out. Day, time and address are asked afresh.
-                const have = new Set((m.categories || []).flatMap((x) => x.items).map((i) => i.id));
-                const fill = again.lines.filter((l) => have.has(l.productId)).map((l, n) => { const selections = l.pick || []; return { key: keyOf(l.productId, selections), productId: l.productId, selections, label: (l.options || []).join(', ') || tr('Plain'), quantity: Math.min(l.quantity, c.maxQtyPerDish || 500), at: n }; });
-                if (fill.length) setLines(fill);
-                if (again.fulfilment === 'delivery' ? c.delivery : again.fulfilment === 'pickup' ? c.pickup : false) setFulfilment(again.fulfilment);
-                if (fill.length < again.lines.length) showToast(tr('Some dishes are no longer on the menu and were left out'));
+                if (!(await allowBulkStart())) return;
+                const items = new Map((m.categories || []).flatMap((x) => x.items).map((i) => [i.id, i]));
+                let kept = 0;
+                again.lines.forEach((l) => {
+                    const it = items.get(l.productId);
+                    if (!it) return;
+                    kept += 1;
+                    store.setQty(it, l.pick || [], (l.options || []).join(', ') || tr('Plain'), Math.min(l.quantity, c.maxQtyPerDish || 500), 0);
+                });
+                if (again.fulfilment === 'delivery' ? c.delivery : again.fulfilment === 'pickup' ? c.pickup : false) store.setForm({ fulfilment: again.fulfilment });
+                if (kept < again.lines.length) showToast(tr('Some dishes are no longer on the menu and were left out'));
+                if (kept) nav.replace('BulkCart');
             }
         }).catch((e) => setErr(e?.response?.data?.error || tr('Could not load the menu')));
-    }, []);
+    }, []);   // eslint-disable-line react-hooks/exhaustive-deps
 
     const max = cfg?.maxQtyPerDish || 500;
-    const itemById = useMemo(() => new Map((menu || []).flatMap((c) => c.items).map((i) => [i.id, i])), [menu]);
-    const qtyOf = (productId, selections) => lines.find((l) => l.key === keyOf(productId, selections))?.quantity || 0;
-    const setQty = (item, selections, label, n) => setLines((all) => {
-        const key = keyOf(item.id, selections);
-        const rest = all.filter((l) => l.key !== key);
-        return n > 0 ? [...rest, { key, productId: item.id, selections, label, quantity: n, at: all.find((l) => l.key === key)?.at || Date.now() }].sort((a, b) => a.at - b.at) : rest;
-    });
+    const qtyOf = (productId, selections) => lines.find((l) => l.key === keyOfBulk(productId, selections))?.quantity || 0;
     const piecesOf = (productId) => lines.filter((l) => l.productId === productId).reduce((n, l) => n + l.quantity, 0);
-
-    const whenIso = useMemo(() => {
-        const t = /^\d{2}:\d{2}$/.test(time) ? time : '12:00';
-        const base = day || new Date(Date.now() + ((cfg?.noticeHours || 0) + 24) * 3600000).toISOString().slice(0, 10);
-        const d = new Date(`${base}T${t}:00`);
-        return Number.isNaN(d.getTime()) ? null : d.toISOString();
-    }, [day, time, cfg]);
-    const payload = () => ({
-        fulfilment, when: whenIso, items: lines.map((l) => ({ productId: l.productId, quantity: l.quantity, selections: l.selections })),
-        ...(fulfilment === 'delivery' && address ? { addressId: String(address._id) } : {}),
-    });
-
-    // the live price: asked from the server a moment after the last change
-    const seq = useRef(0);
-    useEffect(() => {
-        if (!cfg || !lines.length || !whenIso) { setEst(null); return undefined; }
-        const my = ++seq.current;
-        setEstBusy(true);
-        const t = setTimeout(() => {
-            const body = payload();
-            if (body.fulfilment === 'delivery' && !body.addressId) body.fulfilment = 'pickup';   // no address yet: the delivery fee is added once he picks one
-            estimateBulk(body).then((r) => { if (my === seq.current) setEst(r); }).catch((e) => { if (my === seq.current) { setEst(null); showToast(e?.response?.data?.error || tr('Could not work out the price')); } })
-                .finally(() => { if (my === seq.current) setEstBusy(false); });
-        }, 500);
-        return () => clearTimeout(t);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [lines, fulfilment, whenIso, address, cfg]);
-
-    const problems = useMemo(() => {
-        const p = [];
-        if (!day) p.push(tr('Choose the date'));
-        if (!/^\d{2}:\d{2}$/.test(time)) p.push(tr('Choose the time'));
-        if (fulfilment === 'delivery' && !address) p.push(tr('Choose the delivery address'));
-        if (!lines.length) p.push(tr('Add at least one dish'));
-        (est?.problems || []).forEach((x) => { if (!(x.code === 'notice' && (!day || !time))) p.push(x.message); });
-        return p;
-    }, [day, time, fulfilment, address, lines, est]);
-
-    const send = async () => {
-        if (problems.length) return showToast(problems[0]);
-        if (!contact.name.trim()) return showToast(tr('Please enter the contact person'));
-        if (contact.phone.replace(/\D/g, '').length < 6) return showToast(tr('Please enter a phone number'));
-        setSending(true);
-        try {
-            const r = await sendBulk({ ...payload(), contact: { ...contact, gstin: contact.gstin.trim().toUpperCase() }, cutlery, packaging, note: note.trim() });
-            showToast(tr('Request sent. The shop will send you a quote.'));
-            nav.replace('BulkOrderDetail', { id: r.id });
-        } catch (e) { showToast(e?.response?.data?.error || tr('Could not send. Try again.')); } finally { setSending(false); }
+    const minOf = (item, option) => Math.max(0, Number(option?.minQty ?? item.minQty) || 0);   // (the owner sets it per choice)
+    const setQty = async (item, selections, label, n, option) => {
+        if (n > 0 && !lines.length && !(await allowBulkStart())) return;   // a normal cart is waiting: ask first
+        useBulkCartStore.getState().setQty(item, selections, label, n, minOf(item, option));
     };
 
     if (!cfg || !menu) {
@@ -155,7 +118,6 @@ export default function BulkOrderScreen() {
         );
     }
 
-    const set = (k) => (x) => setContact((c) => ({ ...c, [k]: x }));
     const shown = menu.map((c) => ({ ...c, items: c.items.filter((i) => !find.trim() || i.name.toLowerCase().includes(find.trim().toLowerCase())) })).filter((c) => c.items.length);
     const price = (i, o) => rs(i.price + (o?.price || 0));
     const oneChoice = (i) => i.optionGroups.length === 1 && i.optionGroups[0].max === 1 && i.optionGroups[0].min >= 1;
@@ -167,19 +129,24 @@ export default function BulkOrderScreen() {
         return (
             <View key={i.id} style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: border }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <VegMark isVeg={i.isVeg} />
-                    <Text style={{ flex: 1, color: text, fontWeight: '800', fontSize: 15, marginLeft: 8 }}>{i.name}</Text>
-                    {!i.optionGroups.length ? <Text style={{ color: muted, fontWeight: '700', marginRight: 10 }}>{rs(i.price)}</Text> : null}
+                    <Thumb uri={i.image} />
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <VegMark isVeg={i.isVeg} />
+                            <Text numberOfLines={2} style={{ flex: 1, color: text, fontWeight: '800', fontSize: 15, marginLeft: 8 }}>{i.name}</Text>
+                        </View>
+                        {!i.optionGroups.length ? <Text style={{ color: muted, fontWeight: '700', marginTop: 2 }}>{rs(i.price)}</Text> : null}
+                        {bulkNote ? <Text style={{ color: got ? ok : primary, fontSize: 12, fontWeight: '800', marginTop: 2 }}>{got ? `✓ ${bulkNote}` : bulkNote}</Text> : null}
+                    </View>
                 </View>
-                {bulkNote ? <Text style={{ color: got ? ok : primary, fontSize: 12, fontWeight: '800', marginTop: 3 }}>{got ? `✓ ${bulkNote}` : bulkNote}</Text> : null}
                 {!i.optionGroups.length ? (
-                    <View style={{ alignItems: 'flex-end', marginTop: 8 }}><Qty value={qtyOf(i.id, [])} max={max} onChange={(n) => setQty(i, [], '', n)} /></View>
+                    <View style={{ alignItems: 'flex-end', marginTop: 8 }}><Qty value={qtyOf(i.id, [])} max={max} min={minOf(i)} onChange={(n) => setQty(i, [], '', n)} /></View>
                 ) : oneChoice(i) ? i.optionGroups[0].options.filter((o) => o.isAvailable !== false).map((o) => {
                     const sel = [{ groupId: i.optionGroups[0].id, optionIds: [o.id] }];
                     return (
                         <View key={o.id} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
-                            <Text style={{ flex: 1, color: text, fontSize: 14 }}>{o.name}  <Text style={{ color: muted }}>{price(i, o)}</Text></Text>
-                            <Qty value={qtyOf(i.id, sel)} max={max} onChange={(n) => setQty(i, sel, o.name, n)} />
+                            <Text style={{ flex: 1, color: text, fontSize: 14 }}>{o.name}  <Text style={{ color: muted }}>{price(i, o)}</Text>{minOf(i, o) ? <Text style={{ color: muted, fontSize: 12 }}>{`  · ${tr('min {n}', { n: minOf(i, o) })}`}</Text> : null}</Text>
+                            <Qty value={qtyOf(i.id, sel)} max={max} min={minOf(i, o)} onChange={(n) => setQty(i, sel, o.name, n, o)} />
                         </View>
                     );
                 }) : (
@@ -187,7 +154,7 @@ export default function BulkOrderScreen() {
                         {lines.filter((l) => l.productId === i.id).map((l) => (
                             <View key={l.key} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
                                 <Text style={{ flex: 1, color: text, fontSize: 13 }}>{l.label}</Text>
-                                <Qty value={l.quantity} max={max} onChange={(n) => setQty(i, l.selections, l.label, n)} />
+                                <Qty value={l.quantity} max={max} min={l.minQty || 0} onChange={(n) => useBulkCartStore.getState().setQty(i, l.selections, l.label, n, l.minQty || 0)} />
                             </View>
                         ))}
                         <Pressable onPress={() => setSheet({ item: i, picks: {} })} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
@@ -218,37 +185,12 @@ export default function BulkOrderScreen() {
         return { ...s, picks: { ...s.picks, [g.id]: next } };
     });
 
-    const total = est?.pricing?.total;
-    const footer = (
-        <View>
-            {problems.length && lines.length ? <Text style={{ color: error, fontWeight: '700', fontSize: 12.5, marginBottom: 6 }}>{problems[0]}</Text> : null}
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                <Text style={{ color: muted, flex: 1 }}>{tr('Estimate, the shop confirms the final price')}</Text>
-                <Text style={{ color: text, fontWeight: '900', fontSize: 20 }}>{total !== undefined ? rs(total) : estBusy ? '…' : '—'}</Text>
-            </View>
-            <Button label={tr('Ask the shop for a quote')} icon="send" busy={sending} disabled={!lines.length || estBusy} onPress={send} />
-        </View>
-    );
+    const footer = lines.length
+        ? <BulkCartBar inFooter />
+        : <Text style={{ color: muted, textAlign: 'center', fontWeight: '700', paddingVertical: 6 }}>{tr('Pick dishes to start your bulk order')}</Text>;
 
     return (
         <FormPage title={tr('Bulk order')} footer={footer}>
-            <Group title={tr('How do you want it?')}>
-                <Chips value={fulfilment} onChange={setFulfilment} options={[cfg.pickup ? ['pickup', tr('Pickup')] : null, cfg.delivery ? ['delivery', tr('Delivery')] : null].filter(Boolean)} />
-                <View style={{ height: 12 }} />
-                <Label hint={cfg.noticeHours ? tr('The shop needs {n} hours notice', { n: cfg.noticeHours }) : undefined}>{fulfilment === 'delivery' ? tr('Delivery date and time') : tr('Pickup date and time')}</Label>
-                <Pressable onPress={() => setPickDay(true)} style={{ minHeight: 46, borderRadius: 12, borderWidth: 1, borderColor: border, backgroundColor: surface, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-                    <Text style={{ flex: 1, color: day ? text : muted, fontSize: 15, fontWeight: '600' }}>{day ? dayText(day) : tr('Tap to pick a day')}</Text>
-                    <Ionicons name="calendar-outline" size={18} color={muted} />
-                </Pressable>
-                <TimeBox label={tr('Time')} value={time} onChange={setTime} placeholder="13:00" last={fulfilment !== 'delivery'} />
-                {fulfilment === 'delivery' ? (
-                    <Pressable onPress={() => setPickAddr(true)} style={{ minHeight: 46, borderRadius: 12, borderWidth: 1, borderColor: border, backgroundColor: surface, paddingHorizontal: 14, paddingVertical: 10, flexDirection: 'row', alignItems: 'center' }}>
-                        <Ionicons name="location-outline" size={18} color={primary} style={{ marginRight: 8 }} />
-                        <Text numberOfLines={2} style={{ flex: 1, color: address ? text : muted, fontWeight: '600' }}>{address ? addrLine(address) : tr('Choose the delivery address')}</Text>
-                    </Pressable>
-                ) : null}
-            </Group>
-
             <Group title={tr('Pick the dishes')} hint={cfg.minOrderAmount ? tr('The minimum bulk order is {a}. Hold + to add 10 at a time, or type the number.', { a: rs(cfg.minOrderAmount) }) : tr('Hold + to add 10 at a time, or type the number.')}>
                 <TextBox placeholder={tr('Search a dish')} value={find} onChangeText={setFind} maxLength={40} last />
                 {shown.map((c) => (
@@ -259,42 +201,6 @@ export default function BulkOrderScreen() {
                 ))}
                 {!shown.length ? <Text style={{ color: muted, marginTop: 10 }}>{tr('No dish found')}</Text> : null}
             </Group>
-
-            {est?.lines?.length ? (
-                <Group title={tr('Your order')}>
-                    {est.lines.map((l, i) => (
-                        <View key={`${l.productId}${i}`} style={{ flexDirection: 'row', paddingVertical: 6 }}>
-                            <View style={{ flex: 1, paddingRight: 8 }}>
-                                <Text style={{ color: text, fontWeight: '700' }}>{l.name}{lines[i]?.label ? ` · ${lines[i].label}` : ''}</Text>
-                                <Text style={{ color: l.bulkApplied ? ok : muted, fontSize: 12 }}>{l.quantity} × {rs(l.unitPrice)}{l.bulkApplied ? `  (${tr('bulk price, was')} ${rs(l.listPrice)})` : ''}</Text>
-                            </View>
-                            <Text style={{ color: text, fontWeight: '800' }}>{rs(l.lineTotal)}</Text>
-                        </View>
-                    ))}
-                    <View style={{ height: 1, backgroundColor: border, marginVertical: 8 }} />
-                    <Row2 k={tr('Items')} v={rs(est.pricing.subtotal)} />
-                    {est.pricing.taxOnTop > 0 ? <Row2 k={tr('GST')} v={rs(est.pricing.taxOnTop)} /> : null}
-                    {est.pricing.packagingCharge > 0 ? <Row2 k={tr('Packaging')} v={rs(est.pricing.packagingCharge)} /> : null}
-                    {fulfilment === 'delivery' ? <Row2 k={tr('Delivery')} v={address ? rs(est.pricing.deliveryFee) : tr('after you pick the address')} /> : null}
-                    <Row2 k={tr('Estimated total')} v={rs(est.pricing.total)} bold />
-                    {est.bulkSaved > 0 ? <Text style={{ color: ok, fontWeight: '800', marginTop: 6 }}>{tr('You save {a} with bulk prices', { a: rs(est.bulkSaved) })}</Text> : null}
-                    <Text style={{ color: muted, fontSize: 12, marginTop: 6 }}>{tr('The shop will send its own quote. You pay only after you accept it.')}</Text>
-                </Group>
-            ) : null}
-
-            <Group title={tr('A few things the shop needs')}>
-                <ToggleRow title={tr('Send cutlery')} subtitle={tr('Plates, spoons and so on')} value={cutlery} onValueChange={setCutlery} />
-                <ChoiceBox label={tr('Packing')} options={[['boxes', tr('Individual boxes')], ['trays', tr('Big trays')], ['any', tr('Any')]]} value={packaging} onChange={setPackaging} />
-                <TextBox label={tr('Contact person')} value={contact.name} onChangeText={set('name')} maxLength={80} />
-                <TextBox label={tr('Phone number')} value={contact.phone} onChangeText={set('phone')} keyboardType="phone-pad" maxLength={20} />
-                <TextBox label={tr('Phone of the person at the place (optional)')} value={contact.onSitePhone} onChangeText={set('onSitePhone')} keyboardType="phone-pad" maxLength={20} />
-                <TextBox label={tr('Company name (optional)')} value={contact.company} onChangeText={set('company')} maxLength={100} />
-                <TextBox label={tr('GST number for the invoice (optional)')} value={contact.gstin} onChangeText={set('gstin')} autoCapitalize="characters" maxLength={15} />
-                <TextBox label={tr('Anything else')} value={note} onChangeText={setNote} multiline maxLength={500} placeholder={tr('Spice level, timing, who receives it...')} last />
-            </Group>
-
-            <DateRangeSheet single ahead={180} visible={pickDay} value={day} title={tr('Pick a day')} onClose={() => setPickDay(false)} onApply={(d) => { setDay(d || ''); setPickDay(false); }} />
-            <AddressSheet visible={pickAddr} onClose={() => setPickAddr(false)} onSelect={(a) => { setAddress(a); setPickAddr(false); }} />
 
             <Sheet visible={!!sheet} onClose={() => setSheet(null)} title={sheet?.item?.name || ''}>
                 {(sheet?.item?.optionGroups || []).map((g) => (
@@ -315,15 +221,5 @@ export default function BulkOrderScreen() {
                 <Button label={tr('Add')} icon="add" onPress={addPicked} />
             </Sheet>
         </FormPage>
-    );
-}
-
-function Row2({ k, v, bold }) {
-    const { text, muted } = useBrand();
-    return (
-        <View style={{ flexDirection: 'row', paddingVertical: 2 }}>
-            <Text style={{ flex: 1, color: bold ? text : muted, fontWeight: bold ? '900' : '600' }}>{k}</Text>
-            <Text style={{ color: text, fontWeight: bold ? '900' : '700' }}>{v}</Text>
-        </View>
     );
 }

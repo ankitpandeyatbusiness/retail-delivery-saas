@@ -16,6 +16,7 @@ import { FadeIn, useMotion } from '../../components/common/motion';
 import { SkelBanner, SkelFeed } from '../../components/customers/skeletons';
 import { CouponTicket } from '../../components/customers/coupon';
 import { StoreLocation } from '../../components/customers/storeLocation';
+import BulkCartBar from '../../components/customers/BulkCartBar';
 import { ItemCard, Tile, CartBar, useClosedStyle, closedText, showToast, tint } from '../../components/customers/shop';
 import FilterDialog from './FilterDialog';
 import { useThemeStore } from '../../store/common/useThemeStore';
@@ -765,6 +766,7 @@ export default function HomeScreen() {
             />
             {searchIdx >= 0 ? <StuckPanel ref={panel} top={insets.top + barH} grouped={grouped} onHeight={(h) => { panelH.current = h; }} /> : null}
             <CartBar />
+            <BulkCartBar />
             <FilterDialog visible={dlg} onClose={() => setDlg(false)} items={all} />
             <TableSheet visible={tableOpen} onClose={() => setTableOpen(false)} />
             <AddressSheet

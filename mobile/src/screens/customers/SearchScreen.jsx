@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand } from '../../components/common/kit';
+import BulkCartBar from '../../components/customers/BulkCartBar';
 import { ItemCard, Pic, CartBar, AddButton, VegDot, ImageRibbon, Tags, useClosedStyle, shownPrice, quickAdd } from '../../components/customers/shop';
 import { Slider, VegSwitch, Cats, FiltersRow, Fade, useVoice, VoiceOverlay } from '../../components/customers/finder';
 import FilterDialog from './FilterDialog';
@@ -265,6 +266,7 @@ export default function SearchScreen() {
             </View>
             <Fade k={fadeKey}>{body}</Fade>
             <CartBar />
+            <BulkCartBar />
             <FilterDialog visible={dlg} onClose={() => setDlg(false)} items={all} />
             <VoiceOverlay on={voice.on} txt={voice.txt} onStop={voice.stop} />
         </View>

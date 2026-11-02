@@ -31,6 +31,7 @@ const lineOf = (l) => ({
 // What the cook and the rider are told besides the dishes
 function notesOf(b) {
     const parts = [];
+    if (b.foodNote) parts.push(b.foodNote);   // what the customer asked of the kitchen: first, because it matters most
     if (b.packaging && b.packaging !== 'any') parts.push(`Pack in ${b.packaging}`);
     if (b.cutlery) parts.push('Include cutlery');
     if (b.note) parts.push(b.note);
@@ -84,7 +85,7 @@ async function ensureLinkedOrder(bulkId) {
             } : undefined,
             scheduledFor: b.when,
             foodNote: notesOf(b),
-            note: text(`Bulk order ${b.code}`, 300),
+            note: text(`Bulk order ${b.code}${b.fulfilment === 'delivery' && b.deliveryNote ? `. ${b.deliveryNote}` : ''}`, 300),   // (the rider reads the delivery note)
             statusHistory: [{ status: 'accepted', byType: 'system', byLabel: `Bulk order ${b.code}: advance paid` }],
         });
         await BulkOrder.updateOne({ _id: b._id }, { $set: { orderId: order._id }, $unset: { linkingAt: 1 } });

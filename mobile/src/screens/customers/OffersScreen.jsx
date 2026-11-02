@@ -4,6 +4,7 @@ import { View, Text, Pressable, FlatList, StyleSheet } from 'react-native';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useBrand, BackHeader } from '../../components/common/kit';
+import BulkCartBar from '../../components/customers/BulkCartBar';
 import { ItemCard, CartBar, showToast, tint, useClosedStyle } from '../../components/customers/shop';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useAuthStore } from '../../store/common/useAuthStore';
@@ -91,6 +92,7 @@ export function BestsellersScreen() {
                 contentContainerStyle={{ paddingBottom: space }}
             />
             <CartBar />
+            <BulkCartBar />
         </View>
     );
 }
@@ -158,6 +160,7 @@ export function FavouritesScreen() {
                     />
                 )}
             <CartBar />
+            <BulkCartBar />
         </View>
     );
 }

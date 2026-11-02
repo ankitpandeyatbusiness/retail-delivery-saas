@@ -40,7 +40,7 @@ const sig = (sel) => (sel || []).map((x) => `${x.groupId}:${[...x.optionIds].sor
 const save = (lines) => writeCache('cart', { lines });
 
 // the screens plug their toast in here (the store file must not import UI code)
-export const cartHooks = { onCap: null };
+export const cartHooks = { onCap: null, beforeAdd: null };   // beforeAdd(line) === false: the dish is not added now (a bulk cart is waiting: the customer is asked first; see useBulkCartStore)
 
 export const useCartStore = create((set, get) => ({
     lines: [],
@@ -54,6 +54,7 @@ export const useCartStore = create((set, get) => ({
     // The item may carry maxQty (the most the shop can give right now: pieces, or g / ml). The cart never asks for
     // more than that, and tells the customer in words, never with the real number. The server checks again.
     add(line) {
+        if (cartHooks.beforeAdd && cartHooks.beforeAdd(line) === false) return;
         const key = `${line.productId}#${sig(line.selections)}#${line.note || ''}#${line.measureQty || ''}`;
         const cur = get().lines;
         const found = cur.find((l) => l.key === key);

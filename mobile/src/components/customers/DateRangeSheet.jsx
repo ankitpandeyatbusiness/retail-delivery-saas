@@ -66,11 +66,13 @@ function Chip({ label, on, onPress }) {
 // value: { from: 'YYYY-MM-DD' | null, to: 'YYYY-MM-DD' | null, sort: 'newest' | 'oldest' } or null
 // single: picks ONE day for a form (value 'YYYY-MM-DD', onApply('YYYY-MM-DD' | null)), from today up to `ahead` days later; no sort row.
 // ahead (also for a range): days after today that can be picked, for future bookings. noun: what the button shows ("Show bookings").
-export default function DateRangeSheet({ visible, value, onClose, onApply, single, ahead = 0, title, noun }) {
+// minDay (single only, 'YYYY-MM-DD'): the earliest day that can be picked; the days before it are greyed out (a bulk order needs notice).
+export default function DateRangeSheet({ visible, value, onClose, onApply, single, ahead = 0, title, noun, minDay }) {
     const closedStyle = useClosedStyle();   // the shop is closed: this popup turns grey
     const { primary, text, muted, background, surface, border, radius } = useBrand();
     const today = useMemo(() => sod(new Date()), [visible]);
-    const earliest = useMemo(() => (single ? today : new Date(today.getFullYear(), today.getMonth() - MAX_BACK, 1)), [today, single]);
+    const floor = useMemo(() => { const m = single && /^d{4}-d{2}-d{2}$/.test(minDay || '') ? fromKey(minDay) : null; return m && m > today ? m : today; }, [today, single, minDay]);
+    const earliest = useMemo(() => (single ? floor : new Date(today.getFullYear(), today.getMonth() - MAX_BACK, 1)), [today, single, floor]);
     const latest = useMemo(() => (single || ahead ? addDays(today, ahead || 365) : today), [today, single, ahead]);
 
     const [start, setStart] = useState(null);
@@ -86,7 +88,7 @@ export default function DateRangeSheet({ visible, value, onClose, onApply, singl
             const s0 = single ? (/^\d{4}-\d{2}-\d{2}$/.test(value || '') ? fromKey(value) : null) : value?.from ? fromKey(value.from) : null;
             const e0 = single ? null : value?.to && value.to !== value.from ? fromKey(value.to) : null;
             setStart(s0); setEnd(e0); setSort(value?.sort || 'newest');
-            const base = e0 || s0 || today;
+            const base = e0 || s0 || floor;
             setView({ y: base.getFullYear(), m: base.getMonth() });
             setShow(true);
             prog.setValue(0);   // the slide-in starts when the window is really on screen (onShow below)

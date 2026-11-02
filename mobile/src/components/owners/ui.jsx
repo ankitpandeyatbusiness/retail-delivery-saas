@@ -1,6 +1,6 @@
 // The owner panel's building blocks. Everything draws from useBrand(), so the panel wears the shop's own logo,
 // colours, font and light/dark look: the owner feels he is on his own app.
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet, RefreshControl, Modal, TextInput, KeyboardAvoidingView, Platform, Animated, Easing, AppState } from 'react-native';
 import { ActivityIndicator } from '../common/Loading';
 import { Image } from 'expo-image';
@@ -22,7 +22,7 @@ import { LineShimmer } from './shimmer';
 import { tr } from '../../i18n';
 import KeyboardScroll from '../common/KeyboardScroll';
 import Reanimated, { interpolate, runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming, cancelAnimation } from 'react-native-reanimated';
-import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSheetPan } from '../common/DragDown';
 
 export const money = (n) => `₹${Math.round(Number(n) || 0).toLocaleString('en-IN')}`;
@@ -420,7 +420,9 @@ const s = StyleSheet.create({
 // hold the handle or the title and pull it down as far as you like. Past a third of its height (or a quick flick) it goes
 // away; let go earlier and it springs back. The position lives on the UI thread, so it follows the finger smoothly.
 const SHEET_OFF = 2000;   // "not on screen yet"
-export function Sheet({ visible, onClose, title, children }) {
+// noPull: the panel cannot be pulled down with a finger (a sheet with wheels to slide: sliding a wheel down must move the wheel, not the sheet). It still closes with the X, the back key or a tap outside.
+export function Sheet({ visible, onClose, title, children, noPull }) {
+    const offGesture = useMemo(() => Gesture.Pan().enabled(false), []);
     const { surface, text, border, muted } = useBrand();
     const insets = useSafeAreaInsets();
     const [shown, setShown] = useState(visible);   // the Modal stays until the slide-out has finished
@@ -448,7 +450,7 @@ export function Sheet({ visible, onClose, title, children }) {
                 <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
                     <Reanimated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.45)' }, fade]} />
                     <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-                    <GestureDetector gesture={drag}>
+                    <GestureDetector gesture={noPull ? offGesture : drag}>
                     <Reanimated.View
                         onLayout={(e) => { h.value = e.nativeEvent.layout.height; if (ty.value >= SHEET_OFF - 1 && visible) ty.value = withTiming(0, { duration: 260 }); }}
                         style={[s.sheet, { backgroundColor: surface, borderTopColor: border, paddingBottom: Math.max(insets.bottom, 12) + 8 }, move]}
