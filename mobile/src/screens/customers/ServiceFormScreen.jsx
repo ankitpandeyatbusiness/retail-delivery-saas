@@ -14,7 +14,6 @@ import { showToast } from '../../components/customers/shop';
 import { maskTime } from '../../utils/owners/menuRules';
 import { priceLine } from '../owners/OwnerServicesScreen';
 import PhotoCarousel from '../../components/customers/PhotoCarousel';
-import ServiceHero from '../../components/customers/ServiceHero';
 import { AddressSheet, addrLine } from '../../components/customers/addresses';
 import { pickPhoto, uploadInquiryPhoto } from '../../utils/common/photoUpload';
 import { tr } from '../../i18n';
@@ -157,7 +156,7 @@ export default function ServiceFormScreen() {
 
     return (
         <FormPage
-            bare title={tr(s.name)}
+            title={tr(s.name)}
             footer={(
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <View style={{ flex: 1, paddingRight: 12 }}>
@@ -168,7 +167,8 @@ export default function ServiceFormScreen() {
                 </View>
             )}
         >
-            <ServiceHero service={s} priceText={priceLine(s)} />
+            {/* simple: the normal page bar with the name; a picture only when the owner added one, and a modest one */}
+            {(s.photos || []).filter(Boolean)[0] ? <Image source={{ uri: (s.photos || []).filter(Boolean)[0] }} style={{ marginHorizontal: 16, marginTop: 4, height: 170, borderRadius: 16 }} contentFit="cover" transition={200} /> : null}
 
             {facts.length ? (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, marginTop: 16 }}>
