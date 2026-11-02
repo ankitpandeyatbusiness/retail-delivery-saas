@@ -628,6 +628,7 @@
  "The shop is bringing your order.": "দোকান আপনার অর্ডার নিয়ে আসছে।",
  "The shop is bringing your order. The balance of ₹{v1} is paid at the handover, in the app or in cash to the shop.": "দোকান আপনার অর্ডার নিয়ে আসছে। বাকি ₹{v1} হস্তান্তরের সময় দিতে হবে, অ্যাপে বা দোকানে নগদ।",
  "The shop is closed right now, so you cannot go live. You can when it opens.": "দোকান এখন বন্ধ, তাই লাইভ হতে পারবেন না। খুললে পারবেন।",
+ "The shop is closed right now, so you cannot go on duty. You can when it opens.": "দোকান এখন বন্ধ, তাই আপনি ডিউটিতে আসতে পারবেন না। দোকান খুললে পারবেন।",
  "The shop is getting started.": "দোকান কাজ শুরু করেছে।",
  "The shop is not accepting orders right now": "দোকান এখন অর্ডার নিচ্ছে না",
  "The shop or the customer has no pin on the map": "দোকান বা গ্রাহকের জায়গা ম্যাপে দেওয়া নেই",

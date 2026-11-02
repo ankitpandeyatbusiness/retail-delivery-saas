@@ -351,6 +351,10 @@ router.put('/accepting-orders', wrap(async (req, res) => {
         rt.toKitchen(req.tenant._id, 'kitchen:update', { shop: true });   // cooks and waiters too: their screen goes grey / comes back at once, not at the next refresh
         rt.toWaiter(req.tenant._id, 'waiter:update', { shop: true });
     } catch (e) { /* the apps also refresh on their own */ }
+    if (!b.acceptingOrders || pausedUntil) {   // the shop went off / paused: idle riders go off duty at once (cooks and waiters follow the shop by themselves)
+        const fresh = await Tenant.findById(req.tenant._id).lean();
+        if (fresh) require('../jobs/riderDuty').runRiderDuty(new Date(), { tenantId: fresh._id }).catch((e) => console.error('Rider duty error:', e.message));
+    }
     res.json({ ok: true, acceptingOrders: b.acceptingOrders, pausedUntil, forcedOpenUntil: forcedUntil });
 }));
 

@@ -4203,6 +4203,7 @@ export default {
     "The shop is checking your payment": "দোকান আপনার পেমেন্ট যাচাই করছে",
     "The shop is closed by its hours": "দোকান সময় অনুযায়ী বন্ধ",
     "The shop is closed right now, so you cannot go live. You can when it opens.": "দোকান এখন বন্ধ, তাই লাইভ হতে পারবেন না। খুললে পারবেন।",
+    "The shop is closed right now, so you cannot go on duty. You can when it opens.": "দোকান এখন বন্ধ, তাই আপনি ডিউটিতে আসতে পারবেন না। দোকান খুললে পারবেন।",
     "The shop is closed then (a holiday or a day off). Cancel them and send the deposits back, or keep them if you will open.": "তখন দোকান বন্ধ (ছুটি বা সাপ্তাহিক ছুটি)। বাতিল করে জমা টাকা ফেরত দিন, অথবা খুললে রেখে দিন।",
     "The shop is closed to new orders. Finish the orders in hand.": "দোকান নতুন অর্ডারের জন্য বন্ধ। হাতের অর্ডারগুলো শেষ করুন।",
     "The shop is closed. No alerts and no going live until it opens.": "দোকান বন্ধ। খোলা পর্যন্ত কোনো সতর্কতা নেই, লাইভও হওয়া যাবে না।",

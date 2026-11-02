@@ -135,7 +135,7 @@ core.get('/me', wrap(async (req, res) => {
     const cfg = require('../services/tenantConfigService').resolveConfig(req.tenant);
     const st = require('../services/tenantConfigService').openStatus(cfg.hours.weekly, cfg.orders.acceptingOrders, new Date(), cfg.hours.closedDates, cfg.orders.hoursOverride);
     res.json({
-        shopClosed: !st.isOpen && st.reason !== 'paused',   // closed by its hours or a holiday (a pause by hand does not count)
+        shopClosed: require('../services/staffDuty').shopClosed(req.tenant),   // closed by its hours, a holiday, or the owner's pause / off duty: the same rule as cooks and waiters
         userId: r.userId, name: r.name || null, phone: req.riderPhone, shop: req.tenant.name, shopPhone: req.tenant.phone || null, pointsOn: req.tenant.settings?.loyalty?.rider?.enabled !== false,
         isActive: r.isActive, isOnline: r.isOnline, vehicle: r.vehicle || null, photo: r.photo || null,
         activeOrderCount: r.activeOrderCount, ratingAvg: r.ratingAvg, ratingCount: r.ratingCount,
@@ -235,6 +235,11 @@ core.delete('/orders/:id/proof', wrap(async (req, res) => {
 // { "isOnline": true }
 core.put('/online', wrap(async (req, res) => {
     if (typeof req.body?.isOnline !== 'boolean') throw httpError(400, 'Send isOnline: true or false');
+    // the shop is closed (hours, closed day, paused or off duty by the owner): nobody goes on duty, whatever his own hours say. A rider with an order in hand is not blocked.
+    if (req.body.isOnline && require('../services/staffDuty').shopClosed(req.tenant)) {
+        const mine = await Rider.findOne({ tenantId: req.tenant._id, userId: req.riderId }).select('activeOrderCount').lean();
+        if (!(mine?.activeOrderCount > 0)) throw httpError(409, 'The shop is closed right now, so you cannot go on duty. You can when it opens.');
+    }
     // going off duty can be for a while: pauseMinutes, or untilMorning (6 am, India time); the clock then puts him back on duty by itself
     let resumeAt = req.body.isOnline ? null : schedule.resumeTime(req.body);
     if (!req.body.isOnline && req.body.untilNextOpening === true) {   // back on duty when the shop next opens by its hours

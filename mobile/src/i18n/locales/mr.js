@@ -4203,6 +4203,7 @@ export default {
     "The shop is checking your payment": "दुकान तुमचे पेमेंट तपासत आहे",
     "The shop is closed by its hours": "दुकान वेळेनुसार बंद आहे",
     "The shop is closed right now, so you cannot go live. You can when it opens.": "दुकान सध्या बंद आहे, म्हणून तुम्ही लाइव्ह होऊ शकत नाही. उघडल्यावर होऊ शकता.",
+    "The shop is closed right now, so you cannot go on duty. You can when it opens.": "दुकान आत्ता बंद आहे, त्यामुळे तुम्ही ड्युटीवर येऊ शकत नाही. दुकान उघडल्यावर येऊ शकता.",
     "The shop is closed then (a holiday or a day off). Cancel them and send the deposits back, or keep them if you will open.": "तेव्हा दुकान बंद आहे (सुट्टी किंवा साप्ताहिक सुट्टी). रद्द करून जमा रक्कम परत करा, किंवा दुकान उघडणार असाल तर तसेच ठेवा.",
     "The shop is closed to new orders. Finish the orders in hand.": "दुकान नव्या ऑर्डरसाठी बंद आहे. हातातले ऑर्डर पूर्ण करा.",
     "The shop is closed. No alerts and no going live until it opens.": "दुकान बंद आहे. उघडेपर्यंत सूचना नाहीत आणि लाइव्ह होता येणार नाही.",

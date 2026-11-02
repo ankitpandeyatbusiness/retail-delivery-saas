@@ -35,33 +35,52 @@ beforeEach(async () => {
 describe('on duty and off duty', () => {
     test('the time he went on duty is kept, and cleared when he ends duty', async () => {
         await Rider.updateOne({ tenantId: w.tenant._id, userId: w.rider.user._id }, { $set: { isActive: true } });
+        await Tenant.updateOne({ _id: w.tenant._id }, { $set: { 'settings.hours.weekly': {} } });   // no hours: the shop is open whatever the real time is
+        tenantRecognizer.invalidateTenant(w.tenant.slug);
         await rider('put', '/online', { isOnline: true });
         assert.ok((await riderDoc()).onlineSince);
         await rider('put', '/online', { isOnline: false });
         assert.equal((await riderDoc()).onlineSince, undefined);
     });
 
-    test('shop closed for half an hour: an idle rider is put off duty and told; the same night he can start again', async () => {
+    test('the shop closes: an idle rider is put off duty at once (no waiting time) and told', async () => {
         await onDuty();
-        assert.equal((await runRiderDuty(atIst(22, 10))).off, 0, 'closed only ten minutes ago');
+        assert.equal((await runRiderDuty(atIst(21, 59))).off, 0, 'the shop is still open');
         assert.equal((await riderDoc()).isOnline, true);
-        assert.equal((await runRiderDuty(atIst(22, 40))).off, 1);
+        assert.equal((await runRiderDuty(atIst(22, 1))).off, 1, 'one minute after closing');
         const r = await riderDoc();
         assert.equal(r.isOnline, false);
         assert.equal(r.onlineSince, undefined);
         const note = await Notification.findOne({ tenantId: w.tenant._id, userId: w.rider.user._id, type: 'rider_off_duty' }).lean();
         assert.match(note.body, /shop is closed/);
-        assert.equal((await rider('put', '/online', { isOnline: true })).status, 200);
     });
 
-    test('a rider with an order, a shop that is open, or a shop the owner paused by hand: nobody is switched off', async () => {
+    test('the owner pauses or switches the shop off: idle riders go off duty at once, a rider with an order stays; the same rule as the cooks', async () => {
         await onDuty({ activeOrderCount: 1 });
-        assert.equal((await runRiderDuty(atIst(23, 30))).off, 0, 'he still has an order');
-        await onDuty();
-        assert.equal((await runRiderDuty(atIst(15, 0))).off, 0, 'the shop is open');
         await Tenant.updateOne({ _id: w.tenant._id }, { $set: { 'settings.orders.acceptingOrders': false } });
-        assert.equal((await runRiderDuty(atIst(23, 30))).off, 0, 'paused by the owner: the rider waits');
+        assert.equal((await runRiderDuty(atIst(15, 0))).off, 0, 'he still has an order');
         assert.equal((await riderDoc()).isOnline, true);
+        await Rider.updateOne({ tenantId: w.tenant._id, userId: w.rider.user._id }, { $set: { activeOrderCount: 0 } });
+        assert.equal((await runRiderDuty(atIst(15, 0))).off, 1, 'paused by the owner: off duty now');
+        assert.equal((await riderDoc()).isOnline, false);
+    });
+
+    test('a closed shop: going on duty is refused with a clear message (a rider with an order is not blocked); open again, he can', async () => {
+        await Rider.updateOne({ tenantId: w.tenant._id, userId: w.rider.user._id }, { $set: { isActive: true, isOnline: false } });
+        await Tenant.updateOne({ _id: w.tenant._id }, { $set: { 'settings.orders.acceptingOrders': false } });
+        tenantRecognizer.invalidateTenant(w.tenant.slug);
+        const no = await rider('put', '/online', { isOnline: true });
+        assert.equal(no.status, 409);
+        assert.match(no.body.error, /shop is closed right now/);
+        assert.equal((await riderDoc()).isOnline, false);
+        assert.equal((await rider('get', '/me')).body.shopClosed, true);
+        await Rider.updateOne({ tenantId: w.tenant._id, userId: w.rider.user._id }, { $set: { activeOrderCount: 1 } });
+        assert.equal((await rider('put', '/online', { isOnline: true })).status, 200, 'he has an order in hand');
+        await Rider.updateOne({ tenantId: w.tenant._id, userId: w.rider.user._id }, { $set: { activeOrderCount: 0, isOnline: false } });
+        await Tenant.updateOne({ _id: w.tenant._id }, { $set: { 'settings.orders.acceptingOrders': true, 'settings.hours.weekly': {} } });
+        tenantRecognizer.invalidateTenant(w.tenant.slug);
+        const open = await rider('put', '/online', { isOnline: true });
+        assert.equal(open.status, 200, JSON.stringify(open.body));
     });
 
     test('a very long duty ends by itself, even while the shop is open', async () => {

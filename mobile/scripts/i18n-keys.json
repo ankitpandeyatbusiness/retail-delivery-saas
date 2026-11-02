@@ -4204,6 +4204,7 @@
  "The shop is checking your payment",
  "The shop is closed by its hours",
  "The shop is closed right now, so you cannot go live. You can when it opens.",
+ "The shop is closed right now, so you cannot go on duty. You can when it opens.",
  "The shop is closed then (a holiday or a day off). Cancel them and send the deposits back, or keep them if you will open.",
  "The shop is closed to new orders. Finish the orders in hand.",
  "The shop is closed. No alerts and no going live until it opens.",

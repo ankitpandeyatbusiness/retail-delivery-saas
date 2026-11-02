@@ -1,15 +1,14 @@
-// Puts a rider OFF DUTY by himself when he forgot to. Runs every 5 minutes. A rider is switched off only when he has no order
+// Puts a rider OFF DUTY by himself. Runs every minute (and at once when the owner pauses the shop). A rider is switched off only when he has no order
 // (an offer or a delivery) and one of these is true:
-//   - the shop has been closed for 30 minutes (closing time, or a holiday). A shop the owner PAUSED by hand does not count:
-//     the rider stays on duty, the owner will open again
+//   - the shop is closed RIGHT NOW (its hours, a closed day, the owner paused it or went off duty, suspended...: the same rule as for cooks and waiters).
+//     No waiting time, whatever his own hours say. A rider with an order finishes it first.
 //   - he has been on duty for too long (16 hours; RIDER_MAX_DUTY_HOURS changes it)
 // He is told by a notification, and can start duty again with one tap.
 const Rider = require('../models/Rider');
 const Tenant = require('../models/Tenant');
 const center = require('../notifications/center');
-const { resolveConfig, openStatus } = require('../services/tenantConfigService');
+const { shopClosed } = require('../services/staffDuty');
 
-const CLOSED_FOR_MS = 30 * 60 * 1000;
 const MAX_DUTY_MS = (Number(process.env.RIDER_MAX_DUTY_HOURS) || 16) * 3600000;
 
 const WHY = {
@@ -17,8 +16,8 @@ const WHY = {
     long_duty: 'You were on duty for a very long time, so you were put off duty. Start duty again when you are ready.',
 };
 
-async function runRiderDuty(now = new Date()) {
-    const idle = await Rider.find({ isOnline: true, isActive: true, activeOrderCount: 0 }).select('tenantId userId onlineSince').lean();
+async function runRiderDuty(now = new Date(), { tenantId } = {}) {
+    const idle = await Rider.find({ isOnline: true, isActive: true, activeOrderCount: 0, ...(tenantId ? { tenantId } : {}) }).select('tenantId userId onlineSince').lean();
     if (!idle.length) return { off: 0 };
     const shops = new Map((await Tenant.find({ _id: { $in: [...new Set(idle.map((r) => String(r.tenantId)))] } }).lean()).map((t) => [String(t._id), t]));
 
@@ -26,13 +25,8 @@ async function runRiderDuty(now = new Date()) {
     for (const r of idle) {
         const shop = shops.get(String(r.tenantId));
         if (!shop) continue;
-        const cfg = resolveConfig(shop);
-        const closedAt = (at) => {
-            const s = openStatus(cfg.hours.weekly, cfg.orders.acceptingOrders, at, cfg.hours.closedDates, cfg.orders.hoursOverride);
-            return !s.isOpen && s.reason !== 'paused';
-        };
         let why = null;
-        if (closedAt(now) && closedAt(new Date(now.getTime() - CLOSED_FOR_MS))) why = 'shop_closed';
+        if (shopClosed(shop, now)) why = 'shop_closed';
         else if (r.onlineSince && now.getTime() - new Date(r.onlineSince).getTime() > MAX_DUTY_MS) why = 'long_duty';
         if (!why) continue;
 
@@ -53,7 +47,7 @@ function startRiderDutyScheduler() {
         try { await runRiderDuty(); } catch (e) { console.error('Rider duty job error:', e.message); } finally { running = false; }
     };
     setTimeout(run, 60 * 1000).unref?.();
-    setInterval(run, 5 * 60 * 1000).unref?.();
+    setInterval(run, 60 * 1000).unref?.();
 }
 
 module.exports = { runRiderDuty, startRiderDutyScheduler };

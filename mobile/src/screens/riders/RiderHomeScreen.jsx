@@ -158,7 +158,7 @@ export default function RiderHomeScreen() {
     // the phone shares its position while he carries an order (the customer sees the bike)
     useRiderLocation(active.length > 0);
 
-    // the shop's closing time came and he has no delivery left: the switch shows OFF (the server also puts him off duty after 30 minutes)
+    // the shop's closing time came and he has no delivery left: the switch shows OFF (the server also puts him off duty at once)
     const shopClosed = !!me?.shopClosed && !(me?.activeOrderCount > 0);
     const onDuty = !!me?.isOnline && !shopClosed;
     const changeDuty = async (v, extra) => {
