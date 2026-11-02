@@ -33,6 +33,8 @@ const schema = new Schema({
     tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true },
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     code: { type: String, required: true },
+    orderId: { type: Schema.Types.ObjectId, ref: 'Order' },   // the work ticket the kitchen and the rider use (services/bulkKitchen.js)
+    linkingAt: Date,                                          // set while that Order is being made
     status: { type: String, enum: ['requested', 'quoted', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'completed', 'declined', 'cancelled', 'expired'], default: 'requested' },
 
     fulfilment: { type: String, enum: ['delivery', 'pickup'], required: true },

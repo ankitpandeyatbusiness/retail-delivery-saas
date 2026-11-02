@@ -685,6 +685,7 @@
  "This guest cannot be blocked",
  "This guest has already arrived",
  "This inquiry is closed",
+ "This is a bulk order. Cancel it from Bulk orders in the shop panel, so the customer and the money are handled.",
  "This is a rider. Use the riders screen.",
  "This is already his number",
  "This is already your email",

@@ -32,6 +32,7 @@ async function countInPeriod(tenantId, period) {
 // Safe to call twice, or from two servers at once: only one call can win.
 // Model: Order (the default) or BulkOrder. Both carry the same `billing` block and both raise the shop's one counter.
 async function markBillable(order, reason, at = new Date(), Model = Order) {
+    if (Model === Order && order.bulkId) return { marked: false, why: 'bulk_ticket' };   // the work ticket of a bulk order: the bulk order itself counts, once
     const tenant = await Tenant.findById(order.tenantId).select('billing.isLive billing.goLiveAt').lean();
     if (!tenant?.billing?.isLive) return { marked: false, why: 'shop_not_live' };
     const goLiveAt = tenant.billing.goLiveAt;

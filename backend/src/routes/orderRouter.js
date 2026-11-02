@@ -99,7 +99,7 @@ router.get('/', wrap(async (req, res) => {
 
     const page = clamp(parseInt(req.query.page, 10) || 1, 1, 1000);
     const limit = clamp(parseInt(req.query.limit, 10) || 20, 1, 50);
-    const filter = { tenantId: req.tenant._id, userId: req.auth.userId };
+    const filter = { tenantId: req.tenant._id, userId: req.auth.userId, bulkId: { $exists: false } };   // a bulk order shows as its own card (the work ticket behind it is hidden)
     if (req.query.active === 'true') filter.status = { $in: ACTIVE_STATUSES };
     // a payment the customer abandoned (cancelled before paying) is not an order: it never shows in his history
     filter.$nor = [{ status: 'cancelled', ...UNPAID_QUERY }];

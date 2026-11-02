@@ -72,6 +72,10 @@ function needsFood(order, status) {
 
 // Throws a clear error if this actor may not make this move
 function checkAllowed({ order, status, actor, note, tenant, reasonCode, now }) {
+    if (order.bulkId) {   // the work ticket of a bulk order: the bulk order moves it; nobody cancels it from here (that would leave the money and the customer out of it)
+        if (actor.type === 'system' && actor.label === 'bulk') return;
+        if (['cancelled', 'undelivered'].includes(status)) throw httpError(409, 'This is a bulk order. Cancel it from Bulk orders in the shop panel, so the customer and the money are handled.');
+    }
     switch (actor.type) {
         case 'owner':
             if (isUnpaidOnline(order)) throw httpError(409, 'Waiting for the customer to pay. You can accept the order once it is paid.');
@@ -348,6 +352,7 @@ async function change({ order, status, actor, note, tenant, reasonCode, outcomeO
     }
 
     notify.orderStatusChanged(updated, status, actor);   // customer, owner, rider (never throws)
+    if (updated.bulkId && !(actor.type === 'system' && actor.label === 'bulk')) require('./bulkKitchen').fromTicket(updated).catch((e) => console.error('Bulk ticket error:', e.message));   // the bulk order follows the work ticket
     require('./kitchenAlerts').onStatus({ before: order, updated, status }).catch(logError('Kitchen alert error'));   // the cooks' screens and phones
     // points: delivered = the customer's wait starts and the rider is scored; cancelled = the points he used go back
     const points = require('./loyaltyService');

@@ -61,7 +61,7 @@ function orderStatusChanged(order, status, actor) {
         const what = { brief: brief(order), total: order.pricing?.total, tableNo: order.tableNo, orderType: order.orderType, ...(order.orderType === 'pickup' ? { pickupCode: (() => { try { return require('./deliveryPinService').pinFor(order); } catch (e) { return null; } })() } : {}) };   // what the order is, for the words of the message
 
         // the customer is told about every step, except a cancel he made himself
-        if (actor.type !== 'customer') {
+        if (actor.type !== 'customer' && !order.bulkId) {   // (a bulk order's work ticket: the customer hears about the bulk order itself, not this)
             center.notify('order_status', {
                 tenantId: t, userId: order.userId, data,
                 vars: {

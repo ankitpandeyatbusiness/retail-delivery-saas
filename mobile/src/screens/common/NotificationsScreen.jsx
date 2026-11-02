@@ -18,6 +18,7 @@ import { fetchInbox, markAllRead, clearAll } from '../../api/common/notification
 import { useNotificationStore } from '../../store/common/useNotificationStore';
 import { onNotification } from '../../api/common/socket';
 import { tr } from '../../i18n';
+import { notificationTarget } from '../../utils/common/notificationTarget';
 import { useClosedStyle } from '../../components/customers/shop';
 
 const ICON = {
@@ -88,7 +89,6 @@ export default function NotificationsScreen() {
     const refresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
     const open = (n) => {
-        const orderId = n.data?.orderId;
         if (/^owed_/.test(String(n.type || n.data?.type || '')) || n.data?.type === 'table_walkout') { useOwedPrompt.getState().show(); return; }
         if (n.data?.offerCode) {   // the shop offers a discount to stay: the code is ready at checkout and the menu opens
             useCouponStore.getState().set(String(n.data.offerCode), n.data.offerUntil ? new Date(n.data.offerUntil).getTime() : 0, { percent: Number(n.data.offerPercent), min: Number(n.data.offerMin) });
@@ -96,13 +96,9 @@ export default function NotificationsScreen() {
             nav.navigate('MainTabs', { screen: 'Home' });
             return;
         }
-        if (n.data?.kind === 'bulk' && n.data?.bulkId && useAuthStore.getState().user?.role !== 'admin') { nav.navigate('BulkOrderDetail', { id: String(n.data.bulkId) }); return; }   // the shop's quote
-        if (n.data?.kind === 'inquiry' && n.data?.inquiryId && useAuthStore.getState().user?.role !== 'admin') { nav.navigate('Inquiry', { id: String(n.data.inquiryId) }); return; }   // the conversation
-        if (orderId) {
-            // a delivery partner opens his own trip page: the customer's order page says "order not found" to him
-            if (useAuthStore.getState().user?.role === 'rider') nav.navigate('RiderTrip', { orderId: String(orderId) });
-            else nav.navigate('OrderDetail', { id: String(orderId) });
-        }
+        // the same place a tapped push would open (utils/common/notificationTarget.js): a bulk order, an inquiry, a booking, points, the table bill, the order, a leave
+        const to = notificationTarget(useAuthStore.getState().user?.role, n);
+        if (to) nav.navigate(to.name, to.params);
     };
 
     const clear = async () => {

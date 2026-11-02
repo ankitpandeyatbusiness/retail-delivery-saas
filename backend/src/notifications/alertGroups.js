@@ -98,7 +98,7 @@ const BY_ROLE = { admin: OWNER, rider: RIDER, kitchen: KITCHEN, waiter: WAITER }
 // Every alert has four switches: n notification, s tone, v voice, p slider (the box that slides up over the app). The ones that need an answer
 // keep their slider open until the person acts (sec 0); the rest close by themselves after `sec` seconds (the person can change it).
 const SEC_CHOICES = [0, 3, 5, 7, 10, 15];
-const STICKY = new Set(['admin.new_orders', 'admin.cancelled', 'admin.kitchen', 'admin.pickup', 'admin.help', 'admin.leave', 'rider.offers', 'kitchen.new']);
+const STICKY = new Set(['admin.new_orders', 'admin.bulk', 'admin.cancelled', 'admin.kitchen', 'admin.pickup', 'admin.help', 'admin.leave', 'rider.offers', 'kitchen.new']);
 const TIMED = { 'kitchen.cancel': 8 };   // an alert that is only news: its slider closes by itself after this many seconds
 for (const [role, list] of Object.entries(BY_ROLE)) {
     for (const x of list) {

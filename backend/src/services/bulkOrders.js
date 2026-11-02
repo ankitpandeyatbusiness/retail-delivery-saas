@@ -260,6 +260,7 @@ function customerView(o) {
             balancePaid: !!o.payment.balancePaid, balancePaise: o.payment.balancePaid ? o.payment.balancePaise : undefined, balanceVia: o.payment.balanceVia, balancePaidAt: o.payment.balancePaidAt,
         } : null,
         canPay: status === 'quoted', cancel: cancelOutcome(o), cancelledBy: o.cancelledBy, cancelReason: o.cancelReason,
+        trackOrderId: o.orderId && o.fulfilment === 'delivery' && ['ready', 'out_for_delivery'].includes(status) ? String(o.orderId) : undefined,   // the delivery itself, to follow the rider live
         balance: balanceDue(o), stageAt: o.stageAt, completedAt: o.completedAt, invoiceReady: o.status === 'completed',
         createdAt: o.createdAt, updatedAt: o.updatedAt,
     };
@@ -328,6 +329,7 @@ async function cancelByCustomer({ tenant, userId, id }) {
     await refundDue(done);   // if this fails or the server stops here, the repair job sends it
     if (out.keptPaise > 0) require('./billableService').markBulk(done, 'cancel_kept').catch((e) => console.error('Billable count error:', e.message));   // the shop kept money: it counts for the rent
     tell('bulk_cancelled', { tenantId: tenant._id, vars: { name: done.contact?.name, code: done.code, kept: out.keptPaise > 0 }, data: { kind: 'bulk', bulkId: String(done._id) } });
+    await require('./bulkKitchen').closeTicket(done).catch((e) => console.error('Bulk ticket error:', e.message));   // the cook and the rider stop
     return customerView(await BulkOrder.findById(done._id).lean());
 }
 
@@ -360,8 +362,44 @@ async function ownerCancel({ tenant, id, reason }) {
     ).lean();
     if (!done) throw httpError(409, 'This order was just changed. Open it again.');
     await refundDue(done);
+    await require('./bulkKitchen').closeTicket(done).catch((e) => console.error('Bulk ticket error:', e.message));   // the cook and the rider stop
     tell('bulk_shop_cancelled', { tenantId: tenant._id, userId: done.userId, vars: { code: done.code, reason: text, amount: (done.payment?.advancePaise || 0) / 100 }, data: { kind: 'bulk', bulkId: String(done._id) } });
     return ownerView(await BulkOrder.findById(done._id).lean());
+}
+
+/* ------------------------------ following the work ticket (services/bulkKitchen.js) ------------------------------ */
+const STAGES = ['confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered'];
+// The cook, the rider or the owner moved the work ticket: the bulk order goes to the same stage. Only forward; a repeat changes nothing.
+async function advanceFromTicket({ bulkId, to }) {
+    const o = await BulkOrder.findById(bulkId).lean();
+    if (!o) return null;
+    const from = STAGES.indexOf(o.status);
+    if (from < 0 || STAGES.indexOf(to) <= from) return o;
+    if (to === 'out_for_delivery' && o.fulfilment !== 'delivery') return o;
+    const done = await BulkOrder.findOneAndUpdate(
+        { _id: o._id, status: o.status },
+        { $set: { status: to, [`stageAt.${to}`]: new Date() }, $push: { history: { status: to, by: 'kitchen' } } }, { returnDocument: 'after' },
+    ).lean();
+    if (!done) return null;
+    tell('bulk_stage', {
+        tenantId: done.tenantId, userId: done.userId,
+        vars: { code: done.code, stage: to, fulfilment: done.fulfilment, balance: done.payment?.balancePaid ? 0 : (done.quote?.balancePaise || 0) / 100 },
+        data: { kind: 'bulk', bulkId: String(done._id) },
+    });
+    return done;
+}
+
+// The balance was collected with the delivery (the rider's cash, or the counter): written down once. Safe to repeat.
+async function balanceFromTicket({ bulkId, via = 'cash' }) {
+    const o = await BulkOrder.findById(bulkId).lean();
+    if (!o || !o.payment?.advancePaymentId || o.payment.balancePaid) return null;
+    const paise = o.quote?.balancePaise || 0;
+    if (paise <= 0) return null;
+    return BulkOrder.findOneAndUpdate(
+        { _id: o._id, 'payment.balancePaid': { $ne: true } },
+        { $set: { 'payment.balancePaid': true, 'payment.balancePaise': paise, 'payment.balanceVia': via, 'payment.balancePaidAt': new Date() }, $push: { history: { status: 'balance_paid', by: 'kitchen', note: `balance collected (${via})` } } },
+        { returnDocument: 'after' },
+    ).lean();
 }
 
 /* ------------------------------ making it, handing it over, getting the balance ------------------------------ */
@@ -386,6 +424,7 @@ async function setStage({ tenant, id, to }) {
         vars: { code: done.code, stage: to, fulfilment: done.fulfilment, balance: done.payment?.balancePaid ? 0 : (done.quote?.balancePaise || 0) / 100 },
         data: { kind: 'bulk', bulkId: String(done._id) },
     });
+    await require('./bulkKitchen').toTicket(done, to).catch((e) => console.error('Bulk ticket error:', e.message));   // the cook's queue and the rider follow
     if (to === 'delivered') await tryComplete(done._id);
     return ownerView(await BulkOrder.findById(done._id).lean());
 }
@@ -405,6 +444,7 @@ async function markCash({ tenant, id }) {
         { returnDocument: 'after' },
     ).lean();
     if (!done) throw httpError(409, 'This order was just changed. Open it again.');
+    await require('./bulkKitchen').ticketPaid(done._id).catch((e) => console.error('Bulk ticket error:', e.message));   // the rider is not asked for it
     await tryComplete(done._id);
     return ownerView(await BulkOrder.findById(done._id).lean());
 }
@@ -582,5 +622,6 @@ async function expireOld(now = new Date()) {
 
 module.exports = {
     RECOMMENDED, settingsOf, saveSettings, cleanBulkPrice, publicConfig, menuFor, priceRequest, estimate, create, customerView, mine, listMine, cancelByCustomer, previewCancel, cancelOutcome, refundDue, ownerCancel, balanceDue, setStage, markCash, tryComplete, repairCompleted, invoiceFor, askChange,
+    advanceFromTicket, balanceFromTicket,
     ownerView, ownerList, ownerOne, quote, decline, setOwnerNote, expireOld, effectiveStatus,
 };

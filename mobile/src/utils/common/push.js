@@ -8,6 +8,7 @@ import { useMeStore } from '../../store/customers/useMeStore';
 import { useServiceFlags } from '../../utils/customers/serviceFlags';
 import { isOpenInquiry } from '../../store/owners/useOpenInquiry';
 import { ownerRoute } from '../owners/notificationRoute';
+import { notificationTarget } from './notificationTarget';
 import { Platform, AppState } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { alertOn, useAlertPrefs } from '../../store/common/useAlertPrefs';
@@ -212,10 +213,12 @@ function handleTapNow(resp, data) {
         return;
     }
     // a cook's or waiter's push: the work screen is their home, there is no order page for them; the alert shows as a slider
-    if (['kitchen', 'waiter'].includes(useAuthStore.getState().user?.role)) { showTapSlider(resp, data); return; }
-    // a message on an inquiry (the shop wrote, or ended the conversation): its conversation opens
-    const inq = inquiryTarget({ type: data.type, data });
-    if (inq) { openScreen(inq.name, inq.params); return; }
+    if (['kitchen', 'waiter'].includes(useAuthStore.getState().user?.role)) {
+        const leave = notificationTarget(useAuthStore.getState().user?.role, { type: data.type, data });   // a leave answer opens the leave page
+        if (leave) { openScreen(leave.name, leave.params); return; }
+        showTapSlider(resp, data);
+        return;
+    }
     // a customer's reminder about the bill he left unpaid: open the bill with the Pay button
     if (/^owed_/.test(String(data.type || '')) || data.type === 'table_walkout') { useOwedPrompt.getState().show(); return; }
     if (data.offerCode) {   // the shop offers a discount to stay: the code is ready at checkout and the menu opens
@@ -223,8 +226,9 @@ function handleTapNow(resp, data) {
         openScreen('MainTabs', { screen: 'Home' });
         return;
     }
-    if (!data.orderId) return;
-    openOrder(data.orderId);
+    // everything else goes where the inbox would send it: a bulk order, an inquiry, a booking, the points, the table bill, the order
+    const to = notificationTarget(useAuthStore.getState().user?.role, { type: data.type, data });
+    if (to) openScreen(to.name, to.params);
 }
 
 /* ------------------------------ the phone's push token ------------------------------ */

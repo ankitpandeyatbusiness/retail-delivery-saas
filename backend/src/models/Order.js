@@ -28,6 +28,7 @@ const orderSchema = new Schema({
     tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true },
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     orderNo: { type: Number, required: true },              // shown to people, e.g. #1042
+    bulkId: { type: Schema.Types.ObjectId, ref: 'BulkOrder' },   // set when this Order is the kitchen/rider work ticket of a paid bulk order (services/bulkKitchen.js)
     idempotencyKey: { type: String },                       // stops a double-tap creating two orders
 
     status: {
@@ -184,6 +185,7 @@ const orderSchema = new Schema({
 
 orderSchema.index({ tenantId: 1, orderNo: 1 }, { unique: true });
 orderSchema.index({ tenantId: 1, userId: 1, createdAt: -1 });
+orderSchema.index({ bulkId: 1 }, { partialFilterExpression: { bulkId: { $type: 'objectId' } } });
 orderSchema.index({ tenantId: 1, status: 1, createdAt: -1 });
 orderSchema.index({ status: 1, createdAt: -1 });   // late-order watcher
 orderSchema.index({ tenantId: 1, status: 1, deliveredAt: 1 });   // reports

@@ -126,7 +126,10 @@ async function settleBalance(p, source) {
     } else {
         tell('bulk_balance_paid', { tenantId: taken.tenantId, vars: { code: taken.code, name: taken.contact?.name, amount: rupees(p.amountPaise) }, data: { kind: 'bulk', bulkId: String(taken._id) } });
     }
-    if (honoured) await require('./bulkOrders').tryComplete(p.bulkId);
+    if (honoured) {
+        await require('./bulkKitchen').ticketPaid(p.bulkId).catch((e) => console.error('Bulk ticket error:', e.message));   // the rider must not ask for money that is already paid
+        await require('./bulkOrders').tryComplete(p.bulkId);
+    }
     await BulkPayment.updateOne({ _id: p._id }, { $set: { settledAt: new Date() } });
     return { honoured };
 }
@@ -152,6 +155,7 @@ async function settle(p, source) {
         tell('bulk_paid', { tenantId: taken.tenantId, vars: { code: taken.code, name: taken.contact?.name, amount: rupees(p.amountPaise) }, data: { kind: 'bulk', bulkId: String(taken._id) } });
         tell('bulk_confirmed', { tenantId: taken.tenantId, userId: taken.userId, vars: { code: taken.code, amount: rupees(p.amountPaise) }, data: { kind: 'bulk', bulkId: String(taken._id) } });
     }
+    if (honoured) await require('./bulkKitchen').ensureLinkedOrder(p.bulkId).catch((e) => console.error('Bulk work ticket error:', e.message));   // the cook and the rider get it now
     await BulkPayment.updateOne({ _id: p._id }, { $set: { settledAt: new Date() } });
     return { honoured };
 }

@@ -168,6 +168,11 @@ export default function BulkOrderDetailScreen() {
                         {!pd.balancePaid && o.quote?.balancePaise > 0 && ['ready', 'out_for_delivery', 'delivered'].includes(o.status) ? <Text style={{ color: text, marginTop: 4, fontWeight: '800' }}>{tr('Balance to pay: {a}. Pay it in the app, or in cash to the shop.', { a: rs(o.quote.balancePaise / 100) })}</Text> : null}
                     </Card>
                 ) : null}
+                {o.trackOrderId ? (
+                    <View style={{ paddingHorizontal: 16, marginTop: 12 }}>
+                        <Button label={tr('Track the delivery')} icon="bicycle-outline" onPress={() => nav.navigate('OrderDetail', { id: o.trackOrderId })} />
+                    </View>
+                ) : null}
                 {o.balance?.ok ? (
                     <View style={{ paddingHorizontal: 16, marginTop: 12 }}>
                         <Button label={tr('Pay the balance {a} now', { a: rs(o.balance.paise / 100) })} icon="lock-closed" busy={busy} onPress={payBalance} />

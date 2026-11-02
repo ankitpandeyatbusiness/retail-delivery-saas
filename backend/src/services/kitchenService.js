@@ -162,6 +162,7 @@ async function addToQueue({ tenant, orderId, staff, by = 'cook' }) {
 
 // a delivery order stays "preparing" for the rider, so the customer gets the "Order is ready" message from here
 function tellCustomerPacked(tenant, o) {
+    if (o.bulkId) return;   // a bulk order tells its own customer (services/bulkKitchen.js)
     try {
         require('../notifications/center').notify('order_status', {
             tenantId: tenant._id, userId: o.userId, data: { orderId: String(o._id), orderNo: o.orderNo, status: 'ready' },
@@ -196,6 +197,7 @@ async function ready({ tenant, orderId, staff }) {
     if (updated.delivery?.riderId) realtime.toUser(tenant._id, updated.delivery.riderId, 'order:update', { orderId: String(o._id), orderNo: o.orderNo, status: o.status, kind: 'kitchen_ready' });
     require('./kitchenAlerts').tell(tenant._id, { orderId: String(o._id), orderNo: o.orderNo, status: updated.status });
     tellCustomerPacked(tenant, updated);
+    if (updated.bulkId) require('./bulkKitchen').ticketReady(updated).catch((e) => console.error('Bulk ticket error:', e.message));
     if (updated.delivery?.riderId && ['assigned', 'accepted'].includes(updated.delivery.status)) {   // the rider who is coming for it knows it is packed
         require('../notifications/center').notify('food_packed_rider', { tenantId: tenant._id, userId: updated.delivery.riderId, data: { orderId: String(o._id), orderNo: o.orderNo }, vars: { orderNo: o.orderNo, brief: require('../utils/orderBrief').brief(updated, 2) } });
     }
@@ -216,6 +218,7 @@ async function ownerReady({ tenant, orderId, actor }) {
     if (updated.delivery?.riderId) realtime.toUser(tenant._id, updated.delivery.riderId, 'order:update', { orderId: String(o._id), orderNo: o.orderNo, status: o.status, kind: 'kitchen_ready' });
     require('./kitchenAlerts').tell(tenant._id, { orderId: String(o._id), orderNo: o.orderNo, status: updated.status });
     tellCustomerPacked(tenant, updated);
+    if (updated.bulkId) require('./bulkKitchen').ticketReady(updated).catch((e) => console.error('Bulk ticket error:', e.message));
     if (updated.delivery?.riderId && ['assigned', 'accepted'].includes(updated.delivery.status)) {
         require('../notifications/center').notify('food_packed_rider', { tenantId: tenant._id, userId: updated.delivery.riderId, data: { orderId: String(o._id), orderNo: o.orderNo }, vars: { orderNo: o.orderNo, brief: require('../utils/orderBrief').brief(updated, 2) } });
     }

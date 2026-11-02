@@ -4498,6 +4498,7 @@ export default {
     "Track and reorder": "ट्रॅक करा आणि पुन्हा ऑर्डर करा",
     "Track and reorder your favourites": "तुमचे आवडते ट्रॅक करा आणि पुन्हा ऑर्डर करा",
     "Track order": "ऑर्डर ट्रॅक करा",
+    "Track the delivery": "डिलिव्हरी ट्रॅक करा",
     "Transactions": "व्यवहार",
     "Transactions and bills": "व्यवहार आणि बिले",
     "Trial (1 day)": "ट्रायल (1 दिवस)",
