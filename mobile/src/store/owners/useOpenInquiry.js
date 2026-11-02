@@ -6,4 +6,7 @@ export const useOpenInquiry = create((set) => ({
     set: (id) => set({ id: id ? String(id) : null }),
 }));
 
-export const isOpenInquiry = (type, data) => type === 'inquiry_customer_reply' && !!data?.inquiryId && String(data.inquiryId) === useOpenInquiry.getState().id;
+export const isOpenInquiry = (type, data) => {
+    if (type === 'chat_message') return !!data?.chatKind && !!data?.refId && require('../common/useChatStore').useChatStore.getState().open === `${data.chatKind}:${data.refId}`;   // that chat is open on screen
+    return type === 'inquiry_customer_reply' && !!data?.inquiryId && String(data.inquiryId) === useOpenInquiry.getState().id;
+};

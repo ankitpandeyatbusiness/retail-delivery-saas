@@ -68,6 +68,7 @@ const HI = {
     bulk_balance_paid: (v) => `बल्क ऑर्डर ${v.code} का बाकी पैसा मिला।${v.name ? ` ${v.name} ने` : ''} ${v.amount} रुपये ऑनलाइन दिए।`,
     bulk_change: (v) => `${v.name || 'ग्राहक'} ने कोट में बदलाव माँगा है।${v.note ? ` उन्होंने लिखा: ${v.note}।` : ''} नया कोट भेजें।`,
     inquiry_unanswered: (v) => `${v.name || 'ग्राहक'} की ${v.service} की पूछताछ का ${v.hours} घंटे से जवाब नहीं गया। कृपया जवाब दीजिए।`,
+    chat_message: (v) => (v.audience === 'customer' ? `${v.name} ने आपको संदेश भेजा है।` : `${v.name} का नया संदेश आया है।`),
     inquiry_new: (v) => `${v.service} के लिए नई पूछताछ आई है।${v.name ? ` ${v.name} ने भेजी है।` : ''}${v.guests ? ` ${v.guests} मेहमान।` : ''}`,
     inquiry_customer_reply: (v) => `${v.name || 'ग्राहक'} ने ${v.service} की पूछताछ पर जवाब दिया है।`,
     table_share_ask: (v) => `${v.name || 'एक मेहमान'} अपना हिस्सा देकर जाना चाहते हैं। टेबल ${v.table}।`,

@@ -60,6 +60,7 @@ const EVENTS = {
     bulk_quoted: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },         // the shop sent its quote for a bulk order
     bulk_declined: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },       // the shop cannot take the bulk order
     inquiry_unanswered: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },      // a customer's message has waited a day for an answer
+    chat_message: { to: 'owner', channels: INAPP_PUSH, alsoPush: true, pushChannel: INQUIRY_CHANNEL, pushSound: 'cust_offer' },   // a new chat message (to the owner, or to the customer when ctx.userId is set)
     inquiry_new: { to: 'owner', channels: INAPP_PUSH, alsoPush: true, pushChannel: INQUIRY_CHANNEL, pushSound: 'cust_offer' },             // a customer sent an inquiry from a service form
     inquiry_customer_reply: { to: 'owner', channels: INAPP_PUSH, alsoPush: true, pushChannel: INQUIRY_CHANNEL, pushSound: 'cust_offer' },  // a customer wrote again on an inquiry
     inquiry_reply: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },        // the shop answered an inquiry

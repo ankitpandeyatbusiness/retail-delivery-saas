@@ -160,6 +160,7 @@ const TEXTS = {
     bulk_completed: (v) => ({ title: `Bulk order ${v.code} is complete`, body: 'Thank you! Your invoice is ready: open My bulk orders.' }),
     bulk_declined: (v) => ({ title: `Bulk order ${v.code} was declined`, body: v.reason ? `The shop said: ${v.reason}` : 'The shop cannot take this order.' }),
     inquiry_unanswered: (v) => ({ title: 'An inquiry is waiting for your reply', body: `${v.name} asked about ${v.service}. No reply for ${v.hours} hours.` }),
+    chat_message: (v) => ({ title: v.audience === 'customer' ? `${v.name} sent you a message` : `New message from ${v.name}`, body: `${v.title}: ${v.text}` }),
     inquiry_new: (v) => ({ title: `New inquiry for ${v.service}`, body: `${v.name} sent an inquiry${v.guests ? ` for ${v.guests} guests` : ''}. Open Inquiries to reply.` }),
     inquiry_customer_reply: (v) => ({ title: `${v.name} replied on an inquiry`, body: `About ${v.service}. Open Inquiries to answer.` }),
     inquiry_ended: (v) => ({ title: `${v.shop || 'The shop'} ended the conversation`, body: `About ${v.service}. You can read it any time in My inquiries.` }),

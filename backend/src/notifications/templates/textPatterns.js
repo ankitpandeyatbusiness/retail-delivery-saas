@@ -332,6 +332,9 @@ module.exports = [
     "Accept it soon",
     // bulk orders (texts.js: bulk_*)
     "New Bulk Order Request",
+    "{v1} sent you a message",
+    "New message from {v1}",
+    "{v1}: {v2}",
     "{v1}: {v2} asked for ₹{v3} for {v4}. Open Bulk orders to send your quote.",
     "{v1}: {v2} asked for ₹{v3}. Open Bulk orders to send your quote.",
     "Bulk order is packed",

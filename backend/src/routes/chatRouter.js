@@ -33,6 +33,7 @@ function make(side) {
         chat.typing({ tenant: req.tenant, kind: req.params.kind, refId: c.doc._id, side, customerId: c.customerId });
         res.json({ ok: true });
     }));
+    router.use(require('../middlewares/apiErrors'));
     return router;
 }
 

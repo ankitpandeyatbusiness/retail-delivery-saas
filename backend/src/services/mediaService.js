@@ -12,6 +12,8 @@ const { invalidateTenant } = require('../middlewares/tenantRecognizer');
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+const AUDIO = { 'audio/mp4': 'm4a', 'audio/x-m4a': 'm4a', 'audio/aac': 'aac', 'audio/mpeg': 'mp3' };   // a voice note in a chat
+const MAX_VOICE_BYTES = 1.5 * 1024 * 1024;
 const REF_RE = /^[a-zA-Z0-9_-]{1,40}$/;
 const MAX_COMPLAINT_PHOTOS = 3;
 const MAX_HERO_IMAGES = 5;
@@ -19,9 +21,9 @@ const MAX_HERO_IMAGES = 5;
 // hero images: the shop owner and the superadmin. icon / splash / adaptive: the superadmin only (they are built into the app).
 const HERO_KINDS = new Set(['hero']);
 const BUILD_KINDS = new Set(['icon', 'splash', 'adaptive']);
-const OWNER_KINDS = new Set(['logo', 'product', 'category', 'banner', 'collection', 'service', 'rider', 'order', 'support', ...HERO_KINDS]);
+const OWNER_KINDS = new Set(['logo', 'product', 'category', 'banner', 'collection', 'service', 'rider', 'order', 'support', 'chat', 'chatvoice', ...HERO_KINDS]);
 const SUPER_KINDS = new Set([...OWNER_KINDS, ...BUILD_KINDS]);
-const CUSTOMER_KINDS = new Set(['customer', 'complaint', 'inquiry']);
+const CUSTOMER_KINDS = new Set(['customer', 'complaint', 'inquiry', 'chat', 'chatvoice']);
 const RIDER_KINDS = new Set(['rider', 'proof']);   // his own photo, and the photo of food handed over on his own delivery
 const MAX_PROOF_PHOTOS = 3;
 const PROOF_WINDOW_MS = 24 * 60 * 60 * 1000;     // a proof can be added up to a day after the delivery
@@ -46,8 +48,10 @@ const KINDS = {
     customer: { fixed: true, max: 512 },
     complaint: { ref: true, max: 1600 },
     inquiry: { max: 1600 },   // a picture a customer attaches to an inquiry answer (cake design, hall)
+    chat: { max: 1600 },      // a picture in a chat
+    chatvoice: { audio: true },   // a voice note in a chat (stored as it is)
 };
-const FOLDER = { logo: 'logo', category: 'categories', banner: 'banners', collection: 'collections', service: 'services', inquiry: 'inquiries' };
+const FOLDER = { logo: 'logo', category: 'categories', banner: 'banners', collection: 'collections', service: 'services', inquiry: 'inquiries', chat: 'chats', chatvoice: 'chats' };
 
 const ist = () => new Date(Date.now() + 330 * 60 * 1000);
 const ymd = () => ist().toISOString().slice(0, 10).replace(/-/g, '');
@@ -114,8 +118,9 @@ async function finalKey(tenant, kind, refId) {
         case 'icon': return `${base}branding/icon.png`;
         case 'adaptive': return `${base}branding/adaptive-foreground.png`;
         case 'splash': return `${base}branding/splash.png`;
-        case 'logo': case 'category': case 'banner': case 'collection': case 'service': case 'inquiry':
+        case 'logo': case 'category': case 'banner': case 'collection': case 'service': case 'inquiry': case 'chat':
             return `${base}${FOLDER[kind]}/${stamp}`;
+        case 'chatvoice': return `${base}chats/${ym()}/${ymd()}-${shortId()}.m4a`;
         case 'product': {
             let name = '';
             if (mongoose.isValidObjectId(refId)) {
@@ -140,9 +145,11 @@ async function finalKey(tenant, kind, refId) {
 }
 
 async function sign({ tenant, actorId, kind, refId, contentType, bytes, allowed }) {
-    const ext = EXT[contentType];
-    if (!ext) throw httpError(400, 'Only jpeg, png or webp images are allowed');
-    if (!Number.isInteger(bytes) || bytes < 1 || bytes > MAX_BYTES) throw httpError(400, 'File must be between 1 byte and 5 MB');
+    const voice = !!KINDS[kind]?.audio;
+    const ext = voice ? AUDIO[contentType] : EXT[contentType];
+    if (!ext) throw httpError(400, voice ? 'Only a voice note (m4a, aac or mp3) can be sent here' : 'Only jpeg, png or webp images are allowed');
+    const cap = voice ? MAX_VOICE_BYTES : MAX_BYTES;
+    if (!Number.isInteger(bytes) || bytes < 1 || bytes > cap) throw httpError(400, voice ? 'A voice note must be under 1.5 MB' : 'File must be between 1 byte and 5 MB');
     await plan({ tenant, kind, refId, actorId, allowed });
 
     const key = `${rawPrefix(tenant, actorId)}${crypto.randomUUID()}.${ext}`;
@@ -158,6 +165,16 @@ async function confirm({ tenant, actorId, kind, refId, key, replaces, uploadedBy
     const dropRaw = () => storage.remove(key).catch(() => { });
     const meta = await storage.head(key).catch(() => null);
     if (!meta) throw httpError(400, 'The file was not uploaded');
+    if (p.cfg.audio) {   // a voice note: checked by its first bytes, kept as it is
+        const head = await storage.peek(key, 12);
+        const isAudio = head && ((head.length >= 8 && head.toString('ascii', 4, 8) === 'ftyp') || (head.length >= 3 && head.toString('ascii', 0, 3) === 'ID3') || (head.length >= 2 && head[0] === 0xff && (head[1] & 0xf0) === 0xf0));
+        if (meta.bytes > MAX_VOICE_BYTES || !isAudio) { await dropRaw(); throw httpError(400, 'Not a valid voice note (m4a, aac or mp3, under 1.5 MB)'); }
+        const buf = await storage.get(key);
+        const voiceKey = await finalKey(tenant, kind, p.refId);
+        await storage.put({ key: voiceKey, buffer: buf, contentType: 'audio/mp4' });
+        await dropRaw();
+        return Media.create({ tenantId: tenant._id, key: voiceKey, url: storage.publicUrl(voiceKey), kind, refType: kind, refId: p.refId, bytes: buf.length, uploadedBy });
+    }
     if (meta.bytes > MAX_BYTES || !sniff(await storage.peek(key, 12))) {
         await dropRaw();
         throw httpError(400, 'Not a valid image (jpeg, png or webp, max 5 MB)');
