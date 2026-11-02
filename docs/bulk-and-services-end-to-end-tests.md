@@ -106,7 +106,9 @@ Expected: the bulk menu opens with the same dishes, choices and quantities alrea
 
 ## E2. Delivery bulk order with a rider (cash balance and live tracking)
 
-**E2-01** Open the **Customer panel** → Bulk order. Order Dal ×100 with the options you like, choose **Delivery**, select your saved address, a time later today or tomorrow, and send.
+**Important for this story:** choose a delivery time **less than 4 hours from now**. The rider is only asked when the food is packed AND the time is within 4 hours (if you assign a rider by hand from the Admin panel, he gets "Bulk order is packed" at any time). Switch the rider **on duty** first, and keep the shop open (a closed or paused shop switches riders off, see E17).
+
+**E2-01** Open the **Customer panel** → Bulk order. Order Dal ×100 with the options you like, choose **Delivery**, select your saved address, a time **within the next 4 hours**, and send.
 Expected: sent, as in E1.
 
 **E2-02** Open the **Admin panel**.
@@ -365,6 +367,128 @@ For each event, tap the notification from the lock screen and again from the Not
 **E11-05** Customer panel: open an old notification for a cancelled order. Expected: it opens and shows the order's state, no crash.
 
 **E11-06** Customer panel: pay the advance **after** the owner already cancelled the request. Expected: the money comes back automatically.
+
+---
+
+## E12. The quote shows the time to make it
+
+**E12-01** Admin panel: open a new bulk request → quote form → find **Time to make it (optional)**. Enter 5.
+Expected: field in hours; a hint says the customer and the cook are told. Enter 0 and send: it is refused.
+
+**E12-02** Enter 5.3 and send the quote.
+Expected: it is kept as 5.5 hours (half-hour steps).
+
+**E12-03** Customer panel: open the quote.
+Expected: "The shop needs about 5.5 hours to make this".
+
+**E12-04** Customer pays the advance. Cook panel: Bulk tab.
+Expected: the card says **Wanted on <day> at <time>** and under it **Needs about 5.5 hours**.
+
+---
+
+## E13. Chat on a bulk order (WhatsApp style)
+
+**E13-01** Customer panel: open the bulk order → **Chat with the shop**. Send "Can you make it less spicy?".
+Expected: your message is on the right with ONE grey tick (sent).
+
+**E13-02** Admin panel: you get a notification "New message from <name>"; tap it.
+Expected: the Chat screen opens (not the bulk list) and the message is there. On the Customer phone the ticks turn to TWO grey ticks (delivered), then TWO coloured ticks (read) once the Admin has the chat open. The tick colours must be easy to see on the bubble colour of the shop.
+
+**E13-03** Admin panel: keep the chat open; the Customer sends another message.
+Expected: it appears at once with **no sound and no slider** (the chat is open). When the Customer types, the Admin sees "typing…".
+
+**E13-04** Admin panel: send a photo from the camera, one from the gallery, then a voice note (hold the mic, speak 5 seconds, release).
+Expected: the Customer sees the photos (tap to open full screen) and can play the voice note. A voice note over about 2 minutes is refused with a clear message.
+
+**E13-05** Customer phone: airplane mode, send a message, switch back on.
+Expected: it shows "Not sent. Tap to try again." and sending again works, with no double message.
+
+**E13-06** Send several messages in a row while the other phone is on another screen.
+Expected: ONE notification for the burst, not one per message. The Chat button on the bulk order shows a red number; the bulk list shows a small chat badge.
+
+**E13-07** (needs 3 days) After the bulk order is delivered or cancelled, wait 3 days.
+Expected: the chat says "This chat is closed." and cannot be written to; old messages can still be read. Before that, a line says it closes in N day(s).
+
+---
+
+## E14. Chat on service inquiries and table bookings
+
+**E14-01** Customer panel: open an inquiry (Services). There is a **Chat with the shop** button; the old Chat tab is gone. Older messages (if any) show first.
+
+**E14-02** Admin panel: open the inquiry → **Chat with the customer**; reply with text and a picture.
+Expected: same ticks, typing and photo behaviour as E13. (The old quick-reply buttons are gone, by design.)
+
+**E14-03** Admin panel: tap **End conversation** on the inquiry.
+Expected: the Customer's chat shows "This chat is closed." Tap **Open it again**: the Customer can write again.
+
+**E14-04** Customer panel: My bookings → a booking card → **Chat with the restaurant**. Ask "Window seat please".
+Expected: Admin panel: Bookings → that booking card has **Chat with the guest**; the message is there, with a red number before opening.
+
+**E14-05** A booking chat closes 3 days after the booking time (or 3 days after it was cancelled): check an old booking, you can read but not write.
+
+---
+
+## E15. Rating, complaint and refund on a bulk order
+
+**E15-01** Finish a bulk order (E1, or E2 until delivered). Customer panel: open the bulk order.
+Expected: BELOW the details you see **Rate this order** (stars and words), for a delivery order also the **delivery rating**, and a **complaint** card.
+
+**E15-02** Give 5 stars with a comment. Close and reopen the order.
+Expected: "Your review" with the stars; **Edit your review** works. (Review points appear in Rewards after the hold time.)
+
+**E15-03** Send a complaint: type "late" and write a few words. (A "wrong item" or "quality" complaint needs a photo.)
+Expected: sent; the card shows it is waiting for the shop.
+
+**E15-04** Admin panel: complaints list.
+Expected: the card says **Bulk order <code> · late** (not a plain number) and a notification came. Open it: the button says **Open bulk order <code>** and opens the bulk order.
+
+**E15-05** Admin panel: choose **Partial refund** of ₹1,000 and write a reply; send.
+Expected: allowed up to the WHOLE bulk total (for example ₹10,000, not just the balance). The Customer is told. **The app sends no money**: the refund is only written down, and you return the money yourself (cash/UPI). Check in the Razorpay dashboard that NO refund was created.
+
+**E15-06** Try a refund bigger than the whole total.
+Expected: refused.
+
+---
+
+## E16. Bulk balance by QR, pickup code, and not blocking normal orders
+
+**E16-01** The shop has a UPI ID saved. Bulk pickup, ready. Admin panel: open it → pay by QR.
+Expected: a QR for the balance only. After paying, the "received" button marks the balance paid (by UPI). Without a UPI ID saved the QR button is hidden.
+
+**E16-02** Waiter panel: on a shop with no UPI ID, "Show QR to pay" is hidden.
+
+**E16-03** Bulk delivery: the rider's door QR pays the balance; the order becomes paid and completed.
+
+**E16-04** Bulk pickup: the Customer sees a **pickup code**. The Admin hands over: the code is asked; a wrong code is refused.
+
+**E16-05** The Customer's bottom bar shows the bulk pickup half an hour before the time.
+
+**E16-06** With a bulk delivery and a bulk pickup open, the same customer can still place a normal delivery and a normal pickup order, and the rider's "open orders / cash owed" limits do not count the bulk ticket.
+
+---
+
+## E17. Shop closed: riders, cooks and waiters
+
+**E17-01** Rider panel on duty with no delivery. Admin panel: pause the shop (or switch it off).
+Expected: the Rider is **off duty** within a minute (usually at once) and gets "The shop is closed, so you were put off duty."
+
+**E17-02** Rider panel: try to go on duty while the shop is paused/closed.
+Expected: refused with "The shop is closed right now, so you cannot go on duty. You can when it opens." A rider who still has a delivery in hand is NOT switched off.
+
+**E17-03** Cook and Waiter panels: with the shop closed they show off duty and cannot go live ("The shop is closed right now, so you cannot go live"). A cook with an accepted order still in hand stays on until it is finished.
+
+**E17-04** A rider with **own working hours (Auto mode)** whose time is still running: open the shop again.
+Expected: within about a minute he is switched ON by himself. A rider in manual mode must tap **Start duty**. A rider who switched himself off by hand during his time stays off.
+
+---
+
+## E18. Quick regression
+
+**E18-01** Normal (non-bulk) orders, delivery and pickup: still place, accept, cook and deliver as before.
+
+**E18-02** Alerts screen: the new group **Chat messages** (Slider, Sound, Voice). Listen plays a sample.
+
+**E18-03** Switch the app to Hindi and Marathi: the chat screen and buttons, "Needs about N hours" and the complaint titles are translated. (Bhojpuri is not translated on purpose.)
 
 ---
 

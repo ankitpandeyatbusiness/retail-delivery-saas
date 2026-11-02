@@ -1,5 +1,7 @@
 # Bulk orders + Services: phone test (3 phones at once)
 
+> **Newer parts (chat, time to make it, bulk ratings and complaints, shop-closed duty) are in `bulk-and-services-end-to-end-tests.md`, stories E12 to E18. For a bulk DELIVERY always pick a time less than 4 hours away, or the rider is not asked yet.**
+
 Every line has a **serial number** (like `C-07`). When something is wrong, tell me the number and what you saw ("C-07: the button was missing").
 The computer tested all the logic (1,300+ tests), but **nothing here was ever tried on a real phone**. That is what this page is for.
 
