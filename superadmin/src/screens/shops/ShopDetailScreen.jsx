@@ -6,6 +6,7 @@ import { Screen } from '../../components/layout';
 import { BroughtByCard, HandoverCard } from '../../components/broughtByBits';
 import { Card, ListRow, SectionTitle, KeyValue, Avatar, Badge, Button } from '../../components/ui';
 import { ShopStateBadge, stateTone } from '../../components/shopBits';
+import MakeBrandCard from '../../components/makeBrandCard';
 import { Hero, QuickActions, SkeletonList } from '../../components/blocks';
 import { ErrorBox } from '../../components/feedback';
 import { useShopStore } from '../../store/useShopStore';
@@ -90,6 +91,7 @@ export default function ShopDetailScreen() {
             </View>
 
             <BroughtByCard shopId={shopId} current={tenant.broughtBy} onChanged={refresh} />
+            <MakeBrandCard tenant={tenant} onDone={refresh} />
             <HandoverCard shopId={shopId} handedOverAt={tenant.handedOverAt} onChanged={refresh} />
 
             <SectionTitle section="orders">Operations</SectionTitle>

@@ -118,3 +118,5 @@ M1. Superadmin: Brands and branches -> a brand -> Add an existing shop: search l
 M2. Pick one, type its city, Attach: it appears as a branch with its menu and orders unchanged; the brand owners can switch to it.
 M3. A shop whose staff also work at another branch of this brand is refused with the reason.
 M4. Its own SMS balance is now in the brand wallet.
+
+M5. Superadmin: a shop page -> Make this shop a brand (name, city, optional owner phone): the brand is made, the shop is its first branch, the owner can switch branches. A shop already in a brand does not show the button.
