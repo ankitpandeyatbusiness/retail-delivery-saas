@@ -44,11 +44,16 @@ export default function DashboardScreen() {
     const [money, setMoney] = useState(null);          // this month's shop money
     const [lastOpen, setLastOpen] = useState(0);       // last month's shops the developer has not answered yet
     useFocusEffect(useCallback(() => {
-        useDashboardStore.getState().load({ refresh: !!useDashboardStore.getState().shops });
-        fetchSupportCounts().then((c) => setHelpOpen(c.open || 0)).catch(() => { });
-        fetchPlatformHealth().then(setHealth).catch(() => { });
-        fetchMoneyRecord(monthOf()).then(setMoney).catch(() => { });
-        fetchMoneyRecord(monthOf(-1)).then((m) => setLastOpen(m.totals.open + m.totals.again)).catch(() => { });
+        // coming back to a screen that already has its numbers: refresh them AFTER the slide has finished, so the slide is not stuttering under network work
+        const had = !!useDashboardStore.getState().shops;
+        const timer = setTimeout(() => {
+            useDashboardStore.getState().load({ refresh: !!useDashboardStore.getState().shops });
+            fetchSupportCounts().then((c) => setHelpOpen(c.open || 0)).catch(() => { });
+            fetchPlatformHealth().then(setHealth).catch(() => { });
+            fetchMoneyRecord(monthOf()).then(setMoney).catch(() => { });
+            fetchMoneyRecord(monthOf(-1)).then((m) => setLastOpen(m.totals.open + m.totals.again)).catch(() => { });
+        }, had ? 450 : 0);
+        return () => clearTimeout(timer);
     }, []));
 
     const first = d.shops === null && d.loading;

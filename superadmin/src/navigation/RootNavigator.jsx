@@ -317,7 +317,7 @@ function AdminTabs() {
                     headerShown: false,
                     animation: 'shift',
                     sceneStyleInterpolator: slideScenes,
-                    transitionSpec: { animation: 'timing', config: { duration: 240, easing: Easing.out(Easing.cubic) } },
+                    transitionSpec: { animation: 'timing', config: { duration: 200, easing: Easing.out(Easing.cubic) } },
                     tabBarActiveTintColor: color,
                     tabBarInactiveTintColor: t.muted,
                     tabBarStyle: {

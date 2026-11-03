@@ -70,7 +70,8 @@ export default function PlatformHealthScreen() {
     const [openNeed, setOpenNeed] = useState(null);    // which "Needs you" line is dropped down
 
     const load = useCallback(async () => { setErr(''); try { const x = await fetchPlatformHealth(); lastHealth = x; setR(x); } catch (e) { setErr(errMsg(e)); } }, []);
-    useFocusEffect(useCallback(() => { load(); }, [load]));
+    // already showing numbers (coming back to it): check again after the slide has finished, so the slide stays smooth
+    useFocusEffect(useCallback(() => { const timer = setTimeout(load, lastHealth ? 450 : 0); return () => clearTimeout(timer); }, [load]));
 
     // where each card's trouble is looked at
     const go = {
