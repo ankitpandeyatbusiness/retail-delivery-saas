@@ -71,6 +71,8 @@ describe('the numbers', () => {
         assert.equal(r.changePercent, -50);
         assert.equal(r.level, 'bad');
         assert.equal(r.cancelled7, 1);
+        assert.ok(r.thisMonth >= 2);                                                         // this month so far, never fewer than today's
+        assert.equal(typeof r.lastMonthSameDays, 'number');
     });
 
     test('rent: this month\'s bills paid and to collect, the money, and overdue ones turn it red', async () => {

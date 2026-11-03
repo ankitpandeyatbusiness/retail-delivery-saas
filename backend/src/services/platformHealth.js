@@ -162,7 +162,9 @@ async function ordersCard(now) {
     const lm = istMonthStart(now, -1); const tm = istMonthStart(now);
     const live = { status: { $ne: 'cancelled' } };
     const is = (cond) => ({ $sum: { $cond: [cond, 1, 0] } });
-    const [todayN, last7, prev7, lastMonth, cancelled7, per, waiting] = await Promise.all([
+    // this month so far, against the same number of days of last month (so the first week of a month is not compared with a whole month)
+    const sameEnd = new Date(Math.min(lm.getTime() + (now.getTime() - tm.getTime()), tm.getTime()));
+    const [todayN, last7, prev7, lastMonth, cancelled7, per, waiting, thisMonth, lastMonthSame] = await Promise.all([
         Order.countDocuments({ ...live, createdAt: { $gte: today } }),
         Order.countDocuments({ ...live, createdAt: { $gte: d7 } }),
         Order.countDocuments({ ...live, createdAt: { $gte: d14, $lt: d7 } }),
@@ -182,7 +184,10 @@ async function ordersCard(now) {
             { $match: { status: 'placed', createdAt: { $gte: new Date(now.getTime() - DAY), $lt: new Date(now.getTime() - T.unacceptedMin * MIN) } } },
             { $group: { _id: '$tenantId', n: { $sum: 1 }, oldest: { $min: '$createdAt' } } },
         ]),
+        Order.countDocuments({ ...live, createdAt: { $gte: tm } }),
+        Order.countDocuments({ ...live, createdAt: { $gte: lm, $lt: sameEnd } }),
     ]);
+    const monthChange = lastMonthSame > 0 ? Math.round(((thisMonth - lastMonthSame) / lastMonthSame) * 100) : null;
     const dropped = per.filter((r) => r.prev7 >= T.shopDropMin && r.last7 <= r.prev7 * T.shopDropTo).sort((a, b) => (b.prev7 - b.last7) - (a.prev7 - a.last7));
     const cancelHigh = per.filter((r) => r.last7 + r.cancelled7 >= T.cancelMin && r.cancelled7 / (r.last7 + r.cancelled7) >= T.cancelRate).sort((a, b) => b.cancelled7 - a.cancelled7);
     const names = await nameMap([...dropped, ...cancelHigh, ...waiting].map((r) => r._id));
@@ -203,7 +208,7 @@ async function ordersCard(now) {
         else if (cancelRate >= 15) { level = 'warn'; note = `${cancelRate}% of orders were cancelled in 7 days`; }
     }
     return {
-        level, note, today: todayN, last7, prev7, lastMonth, changePercent: change, cancelled7, cancelRatePercent: cancelRate,
+        level, note, today: todayN, last7, prev7, lastMonth, thisMonth, lastMonthSameDays: lastMonthSame, monthChangePercent: monthChange, changePercent: change, cancelled7, cancelRatePercent: cancelRate,
         waitingUnaccepted: waiting.reduce((a, r) => a + r.n, 0), droppedShops: dropped.length, cancelShops: cancelHigh.length, ...listOf(items),
     };
 }

@@ -151,7 +151,8 @@ export default function DashboardScreen() {
                         </View>
                         {health ? (
                             <Text style={{ color: t.muted, fontSize: font.sm, marginTop: spacing.sm }}>
-                                {`Last 7 days: ${health.orders.last7} orders${health.orders.changePercent !== null ? ` (${health.orders.changePercent >= 0 ? '+' : ''}${health.orders.changePercent}% on the week before)` : ''}`}
+                                {`Last 7 days: ${health.orders.last7} orders${health.orders.changePercent !== null ? ` (${health.orders.changePercent >= 0 ? '+' : ''}${health.orders.changePercent}% on the week before)` : ''}
+This month so far: ${health.orders.thisMonth} orders${health.orders.monthChangePercent !== null ? ` (${health.orders.monthChangePercent >= 0 ? '+' : ''}${health.orders.monthChangePercent}% on the same days of last month)` : ''}. Last month: ${health.orders.lastMonth}.`}
                             </Text>
                         ) : null}
                     </FadeIn>

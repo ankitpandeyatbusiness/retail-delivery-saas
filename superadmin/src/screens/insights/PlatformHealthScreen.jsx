@@ -136,7 +136,8 @@ export default function PlatformHealthScreen() {
                     <HealthCard title="Orders across all shops" level={r.orders.level} note={r.orders.note} onPress={go.orders}>
                         <Row label="Today" value={num(r.orders.today)} strong />
                         <Row label="Last 7 days" value={`${num(r.orders.last7)}${r.orders.changePercent !== null ? ` (${r.orders.changePercent >= 0 ? '+' : ''}${r.orders.changePercent}%)` : ''}`} strong />
-                        <Row label="Last month" value={num(r.orders.lastMonth)} strong />
+                        <Row label="This month so far" value={`${num(r.orders.thisMonth)}${r.orders.monthChangePercent !== null ? ` (${r.orders.monthChangePercent >= 0 ? '+' : ''}${r.orders.monthChangePercent}% on the same days of last month)` : ''}`} strong />
+                        <Row label="Last month (whole)" value={num(r.orders.lastMonth)} strong />
                         <Row label="Cancelled in 7 days" value={`${num(r.orders.cancelled7)} (${r.orders.cancelRatePercent}%)`} />
                         {r.orders.waitingUnaccepted ? <Row label="Waiting over 10 minutes, not accepted" value={num(r.orders.waitingUnaccepted)} tone={t.warn} strong /> : null}
                         <ShopLines list={r.orders.list} total={r.orders.listTotal} onShop={openShop} max={8} />
