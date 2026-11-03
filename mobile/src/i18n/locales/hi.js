@@ -2287,6 +2287,7 @@ export default {
     "Move to another bill": "दूसरे बिल में ले जाएँ",
     "Move to which bill?": "किस बिल में ले जाएँ?",
     "Moved": "ले जाया गया",
+    "Multi-branch discount {percent}%: -{money}. About {after} before GST.": "मल्टी-ब्रांच छूट {percent}%: -{money}। जीएसटी से पहले लगभग {after}।",
     "Music or DJ": "संगीत या DJ",
     "Must be veg": "शाकाहारी होना चाहिए",
     "Must pick at least": "कम से कम चुनना ज़रूरी",

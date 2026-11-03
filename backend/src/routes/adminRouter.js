@@ -153,7 +153,7 @@ admin.get('/tenants', wrap(async (req, res) => {
     const items = await Tenant.find(filter)
         .sort({ createdAt: -1 })
         .limit(200)
-        .select('_id slug name logo status androidPackage createdAt updatedAt ownerBlocked ownerBlockedReason maintenance settings.orders.acceptingOrders billing subscription.gstPercent')
+        .select('_id slug name logo status androidPackage createdAt updatedAt ownerBlocked ownerBlockedReason maintenance settings.orders.acceptingOrders billing subscription.gstPercent brandId')
         .lean();
     const [icons, rents] = await Promise.all([appIcons(items), require('../services/rentSummary').forShops(items)]);
     res.json({

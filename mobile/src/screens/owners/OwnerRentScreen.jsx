@@ -126,6 +126,7 @@ export default function OwnerRentScreen() {
                                 <Stat label={tr('Orders in {monthName}', { monthName: monthName(bill.thisMonth.period) })} value={String(bill.thisMonth.billableOrders)} />
                                 <Stat label={tr('Rate')} value={bill.thisMonth.tierLabel || '—'} hint={bill.thisMonth.fee != null ? tr('{money} so far', { money: money(bill.thisMonth.fee) }) : undefined} />
                             </View>
+                            {bill.thisMonth.discount > 0 ? <Text style={{ color: ok, fontWeight: '800', marginTop: 10 }}>{tr('Multi-branch discount {percent}%: -{money}. About {after} before GST.', { percent: bill.thisMonth.discountPercent, money: money(bill.thisMonth.discount), after: money(bill.thisMonth.feeAfterDiscount) })}</Text> : null}
                             {bill.nextBill ? <Text style={{ color: muted, fontSize: 12, marginTop: 10 }}>{tr('Next bill on {dayOf}. {note}', { dayOf: dayOf(bill.nextBill.billedOn), note: bill.nextBill.note })}</Text> : null}
                         </Card>
                     </>

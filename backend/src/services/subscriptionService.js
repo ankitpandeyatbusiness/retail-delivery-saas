@@ -241,5 +241,5 @@ const withOverdue = (inv, now = new Date()) => ({
 
 module.exports = {
     PERIOD_RE, periodOf, nextPeriod, previousPeriod, periodStart, financialYear, firstBillablePeriod, monthLabel,
-    syncFreeState, createInvoice, generateForPeriod, startBillingScheduler, withOverdue,
+    syncFreeState, createInvoice, generateForPeriod, startBillingScheduler, withOverdue, brandDiscount,
 };

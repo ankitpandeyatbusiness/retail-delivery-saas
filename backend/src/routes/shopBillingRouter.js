@@ -20,13 +20,14 @@ const monthStart = (p) => new Date(`${p}-01T00:00:00+05:30`);
 router.get('/status', wrap(async (req, res) => {
     const now = new Date();
     const [t, platform] = await Promise.all([
-        Tenant.findById(req.tenant._id).select('createdAt billing').lean(),
+        Tenant.findById(req.tenant._id).select('createdAt billing brandId').lean(),
         PlatformSettings.findById('main').lean(),
     ]);
     const free = freeStatus(t, platform, now);
     const period = periodOf(now);
     const orders = await billable.countInPeriod(t._id, period);   // orders that earned money this month
     const tier = resolveFee(t, platform, orders);
+    const disc = await require('../services/subscriptionService').brandDiscount(t, tier.fee, platform);   // the multi-branch discount of a branch (zero for any other shop)
 
     const [owed] = await SubscriptionInvoice.aggregate([
         { $match: { tenantId: t._id, status: 'pending' } },
@@ -50,13 +51,13 @@ router.get('/status', wrap(async (req, res) => {
         due: { amount: owed?.amount || 0, count: owed?.count || 0 },
         lateFees: { amount: fees?.amount || 0, count: fees?.count || 0 },   // the part of what is due that is late fee
         free: { active: free.free, ordersLeft: free.ordersLeft, freeOrders: free.freeOrders, freeMonths: free.freeMonths, endsAt: free.endsAt, live: free.live !== false },
-        thisMonth: { period, billableOrders: orders, deliveredOrders: orders, tierLabel: tier.label, fee: tier.fee },
+        thisMonth: { period, billableOrders: orders, deliveredOrders: orders, tierLabel: tier.label, fee: tier.fee, discount: disc.amount, discountPercent: disc.percent, feeAfterDiscount: Math.round((tier.fee - disc.amount) * 100) / 100 },
         // the monthly fee plan that applies to THIS shop: one fixed fee, or the order tiers (his own tiers if he has them)
         plan: Number.isFinite(t.billing?.fixedFeeOverride)
             ? { kind: 'fixed', fee: t.billing.fixedFeeOverride, tiers: [] }
             : { kind: 'tiers', fee: null, tiers: tierTable(resolveTiers(t, platform)) },
         nextBill: billed
-            ? { forPeriod: period, deliveredOrders: orders, fee: tier.fee, tierLabel: tier.label, billedOn: monthStart(nextPeriod(period)), note: 'GST is added if it applies' }
+            ? { forPeriod: period, deliveredOrders: orders, fee: tier.fee, discount: disc.amount, feeAfterDiscount: Math.round((tier.fee - disc.amount) * 100) / 100, tierLabel: tier.label, billedOn: monthStart(nextPeriod(period)), note: 'GST is added if it applies' }
             : null,
     });
 }));

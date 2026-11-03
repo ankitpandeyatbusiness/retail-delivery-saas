@@ -8,13 +8,14 @@
 //     plan:    'Fixed ₹2,000 a month' | '0 to 305 orders: ₹3,000' ...     (the way this shop is charged)
 //     free:    { ordersLeft, freeOrders, freeMonths, endsAt }              while the free service lasts
 //     first:   { period }                                                  free: the first month that will be billed (earlier if the free orders run out sooner)
-//     next:    { period, orders, fee, gst, total, billedOn }               paying: the month being counted now, what it comes to so far, and when it is billed
+//     next:    { period, orders, fee, discount, gst, total, billedOn }     paying: the month being counted now, what it comes to so far, and when it is billed
+//              (fee = the tier fee; discount = { percent, amount } the multi-branch discount of a branch, else zero; gst and total are on fee minus discount)
 //     text:    the short sentence the list shows
 //   }
 const PlatformSettings = require('../models/PlatformSettings');
 const Order = require('../models/Order');
 const { resolveFee, freeStatus, resolveTiers, tierTable } = require('../utils/billingRules');
-const { periodOf, nextPeriod, firstBillablePeriod } = require('./subscriptionService');
+const { periodOf, nextPeriod, firstBillablePeriod, brandDiscount } = require('./subscriptionService');
 const billable = require('./billableService');
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -45,7 +46,7 @@ async function countsFor(ids, period) {
   return new Map(rows.map((r) => [String(r._id), r.n]));
 }
 
-// tenants must carry: _id createdAt billing subscription.gstPercent
+// tenants must carry: _id createdAt billing subscription.gstPercent brandId
 async function forShops(tenants, now = new Date()) {
     const out = new Map();
     if (!tenants.length) return out;
@@ -75,10 +76,12 @@ async function forShops(tenants, now = new Date()) {
             const orders = counts.get(String(t._id)) || 0;
             const { fee } = resolveFee(t, platform, orders);
             const gstPercent = gstOn ? (t.subscription?.gstPercent ?? 18) : 0;
-            const gst = round2((fee * gstPercent) / 100);
+            const disc = await brandDiscount(t, fee, platform);   // a branch of a brand: the multi-branch discount, before GST (same rule as the real bill)
+            const net = round2(fee - disc.amount);
+            const gst = round2((net * gstPercent) / 100);
             const billedOn = new Date(`${nextPeriod(period)}-01T00:00:00+05:30`);
-            rent.next = { period, orders, fee, gst, total: round2(fee + gst), billedOn };
-            rent.text = `${monthWord(period)} rent so far: ${rs(fee + gst)} (${orders} orders). Billed on ${dayWord(billedOn)}`;
+            rent.next = { period, orders, fee, discount: disc, gst, total: round2(net + gst), billedOn };
+            rent.text = `${monthWord(period)} rent so far: ${rs(net + gst)} (${orders} orders${disc.amount > 0 ? `, ${disc.percent}% multi-branch discount` : ''}). Billed on ${dayWord(billedOn)}`;
         }
         out.set(String(t._id), rent);
     }
