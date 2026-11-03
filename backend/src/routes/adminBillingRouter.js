@@ -305,6 +305,7 @@ router.post('/tenants/:tid/billing/go-live', loadTenant, wrap(async (req, res) =
     );
     if (!r.matchedCount) throw httpError(409, 'This shop is already live. Send force: true to start its free period again.');
 
+    await require('../services/brandFreePool').onGoLive(id);   // a branch of a brand with a shared free start
     await enforceTenant(id);   // keeps an unpaid bill in force, otherwise sets the free state right
     invalidateTenant(req.tenantDoc.slug);
     require('../services/shopSettingsNotice').freeStarted(id);

@@ -7,6 +7,15 @@ const brandSchema = new mongoose.Schema({
     branchLimit: { type: Number, default: 3, min: 1, max: 100 },   // how many branches the supreme admin allows
     // Rent discount for the 2nd branch onward, in percent. Empty or 0 = off. Only the supreme admin sets it, never above the platform cap.
     discountPercent: { type: Number, min: 0, max: 100 },
+    // "New branches get a free start" (services/brandFreePool.js): off = a new branch has no free time and is billed from the first full month after go-live; on = one shared free pool for the brand
+    freeStart: {
+        _id: false,
+        on: { type: Boolean, default: false },
+        freeOrders: { type: Number, min: 0 },   // empty = the platform's free orders (100)
+        freeMonths: { type: Number, min: 0 },   // empty = the platform's free months (2)
+        startedAt: Date,                        // the first pooled branch went live
+        endedAt: Date,                          // the pool ended: every pooled branch ended its free time at this moment
+    },
     smsWalletTenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant' },   // the branch whose SMS wallet is the brand's one shared wallet (the oldest branch, set when first needed)
     ownerPhones: {   // the brand owners: they may be owner of every branch and switch between them. Set by a superadmin.
         type: [String], default: [],

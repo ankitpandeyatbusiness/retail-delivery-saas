@@ -95,3 +95,11 @@ I3. The brand owner (in that branch) and a superadmin can still change it. Unloc
 
 J1. Superadmin: Brand page -> Statement card -> Share the statement PDF: a one-page A4 opens in the share sheet. Check: the brand and month on top, a row per branch (nothing cut off), the discount column, totals, Unpaid line, SMS wallet lines.
 J2. Brand owner: All branches -> Rent bills card -> Open the statement (PDF): the same page opens.
+
+## K. Free start of a brand
+
+K1. Brand page -> Free start card: "New branches get no free start" by default. Add a branch and press Go live on it: its rent preview says the first rent is the NEXT full month (the go-live month is not billed).
+K2. Press "Give new branches a shared free start": the card shows the orders used out of the free orders and how many branches are in it. Go live on two branches; place orders at both: the count adds them together.
+K3. When the total reaches the free orders (or the months pass) both branches show rent starting the same month; "free ended" on both at the same moment.
+K4. Add a branch while the shared free start runs: it shares what is left. Add one after it ended: no free time.
+K5. "End the free start now" ends it for all at once.

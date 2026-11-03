@@ -111,6 +111,7 @@ const tenantSchema = new mongoose.Schema({
         goLiveAt: Date,                                         // empty = the shop's createdAt
         deliveredCount: { type: Number, default: 0, min: 0 },   // DEPRECATED: replaced by billableCount (kept so no old data is lost)
         billableCount: { type: Number, default: 0, min: 0 },    // orders that earned money for the shop since go-live. Only goes up.
+        pooled: { type: Boolean, default: false },              // this branch's free time is the brand's shared pool (services/brandFreePool.js)
         isLive: { type: Boolean, default: false },              // set by the Go live button. Before that the shop is free and nothing is counted.
         inactiveAlertedAt: Date,                                // "no order for 14 days" was told to the superadmin at this time
         freeOrdersOverride: { type: Number, min: 0, default: null },

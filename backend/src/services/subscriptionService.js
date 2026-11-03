@@ -69,6 +69,15 @@ const freeEndMoment = (fs, now) => (now.getTime() >= fs.endsAt.getTime() ? fs.en
 // Stores freeEndedAt when free service ends, and clears it if a raised limit reopens free service.
 // Every update is filtered, so a shop that just went into grace or paused is never overwritten.
 async function syncFreeState(tenant, platform, now = new Date()) {
+    // a branch in a brand's shared free pool: when the pool is full or its months are over, every pooled branch ends its free time at once
+    if (tenant.billing && tenant.billing.pooled && !tenant.billing.freeForceEndedAt) {
+        try {
+            if (await require('./brandFreePool').checkFor(tenant, platform, now)) {
+                const fresh = await Tenant.findById(tenant._id).select('billing').lean();
+                if (fresh) tenant = { ...tenant, billing: fresh.billing };
+            }
+        } catch (e) { console.error('Free pool error:', e.message); }
+    }
     const b = tenant.billing || {};
     if (b.state === 'grace' || b.state === 'paused') return b.state;
 

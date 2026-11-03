@@ -27,3 +27,4 @@ export async function shareBrandStatementPdf(brand, period) {
     if (!(await Sharing.isAvailableAsync())) throw Object.assign(new Error('Sharing is not available on this phone'), { safe: true });
     await Sharing.shareAsync(file.uri, { mimeType: 'application/pdf', dialogTitle: `Statement ${brand.name} ${period}`, UTI: 'com.adobe.pdf' });
 }
+export const setFreeStart = (id, body) => data(api.put(`/admin/brands/${id}/free-start`, body));   // supreme admin: { on, freeOrders?, freeMonths? }

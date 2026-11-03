@@ -7,6 +7,7 @@
 //   PUT    /brands/:id                     { name?, branchLimit?, notes?, discountPercent? }   discountPercent: rent discount for the 2nd branch onward (0 = off, never above the cap)
 //   POST   /brands/:id/branches            { tenantId } (a shop that already exists) or { name, slug, city, managerPhone?, copyFromTenantId? } (a new branch)
 //   POST   /brands/:id/branches/:tid/area-lock   { locked: true|false }  lock or unlock the map pin and delivery radius (supreme admin): a branch manager cannot change a locked area
+//   PUT    /brands/:id/free-start          { on, freeOrders?, freeMonths? }  "New branches get a free start": on = one shared free pool for the brand, off = no free time for a new branch (supreme admin)
 //   DELETE /brands/:id/branches/:tid       take a branch out of the brand (the shop stays, as a normal shop)
 //   POST   /brands/:id/owners              { phone, ownSlug? }  appoint a brand owner (any superadmin): owner of every branch, can switch between them
 //   DELETE /brands/:id/owners/:phone       take the brand-owner job away (they lose the owner panel in every branch)
@@ -116,7 +117,7 @@ router.get('/brands/:id', loadBrand, wrap(async (req, res) => {
             razorpayKeyId: (t.payments && t.payments.keyId) || null,   // the key id is not secret; the secret is never returned
         });
     }
-    res.json({ brand: req.brand, branches: items, canAdd: items.length < req.brand.branchLimit });
+    res.json({ brand: req.brand, branches: items, canAdd: items.length < req.brand.branchLimit, freeStart: await require('../services/brandFreePool').view(req.brand) });
 }));
 
 router.put('/brands/:id', loadBrand, wrap(async (req, res) => {
@@ -203,11 +204,29 @@ router.post('/brands/:id/branches', loadBrand, wrap(async (req, res) => {
         await User.create({ tenantId: tenant._id, phone: managerPhone, role: 'admin', phoneHash: hashPhone(tenant._id, managerPhone) });
     }
     invalidateTenant(slug);
+    const freeStart = await require('../services/brandFreePool').applyToNewBranch(req.brand, tenant._id);   // pooled with the brand's free start, or no free time
     const problems = await brands.giveOwnersAccess(req.brand, tenant);
     // the starting menu: a copy of the branch we copied the look from (each branch edits its own from now on)
     const menu = base && b.copyMenu !== false ? await require('../services/menuSync').copyMenu({ fromTenantId: b.copyFromTenantId, toTenantId: tenant._id }) : null;
     const extras = menu ? await require('../services/extrasSync').copyExtras({ fromTenantId: b.copyFromTenantId, toTenantId: tenant._id }) : null;   // after the dishes: a collection needs them
-    res.status(201).json({ branch: { id: tenant._id, slug, name }, appBuild: { APP_TENANT: slug }, ...(menu && { menu }), ...(extras && { extras }), ...(problems.length && { problems }) });
+    res.status(201).json({ branch: { id: tenant._id, slug, name }, appBuild: { APP_TENANT: slug }, freeStart, ...(menu && { menu }), ...(extras && { extras }), ...(problems.length && { problems }) });
+}));
+
+router.put('/brands/:id/free-start', loadBrand, wrap(async (req, res) => {
+    const b = req.body || {};
+    if (typeof b.on !== 'boolean') throw httpError(400, 'on must be true or false');
+    const num = (v, what) => {
+        if (v === undefined || v === null) return undefined;
+        const n = Number(v);
+        if (!Number.isInteger(n) || n < 0 || n > 1000) throw httpError(400, `${what} must be a whole number from 0 to 1000`);
+        return n;
+    };
+    const pool = require('../services/brandFreePool');
+    req.auditBefore = { freeStart: req.brand.freeStart };
+    if (b.on) await pool.enable(req.brand, { freeOrders: num(b.freeOrders, 'Free orders'), freeMonths: num(b.freeMonths, 'Free months') });
+    else await pool.disable(req.brand);
+    const fresh = await Brand.findById(req.brand._id);
+    res.json({ freeStart: await pool.view(fresh) });
 }));
 
 router.post('/brands/:id/branches/:tid/area-lock', loadBrand, wrap(async (req, res) => {

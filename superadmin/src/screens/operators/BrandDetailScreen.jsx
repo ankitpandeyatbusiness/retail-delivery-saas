@@ -8,7 +8,7 @@ import { Field } from '../../components/inputs';
 import { SkeletonList } from '../../components/blocks';
 import { ErrorBox, Sheet, ConfirmSheet, toast } from '../../components/feedback';
 import { useSupreme } from '../../hooks/useSupreme';
-import { fetchBrand, addBranch, removeBranch, updateBrand, addBrandOwner, removeBrandOwner, fetchBrandSettings, fetchBrandStatement, setAreaLock, shareBrandStatementPdf } from '../../api/brandsApi';
+import { fetchBrand, addBranch, removeBranch, updateBrand, addBrandOwner, removeBrandOwner, fetchBrandSettings, fetchBrandStatement, setAreaLock, shareBrandStatementPdf, setFreeStart } from '../../api/brandsApi';
 import { errMsg } from '../../api/adminClient';
 
 const STEPS = [['location', 'Pin and radius set'], ['keys', 'Razorpay keys set'], ['owner', 'Owner or manager added'], ['live', 'Live']];
@@ -30,6 +30,9 @@ export default function BrandDetailScreen() {
     const [busy, setBusy] = useState(false);
     const [stmt, setStmt] = useState(null);
     const [cfg, setCfg] = useState(null);
+    const [freeOpen, setFreeOpen] = useState(false);
+    const [freeOrders, setFreeOrders] = useState('');
+    const [freeMonths, setFreeMonths] = useState('');
     const [discOpen, setDiscOpen] = useState(false);
     const [disc, setDisc] = useState('');
     const [ownerOpen, setOwnerOpen] = useState(false);
@@ -84,6 +87,13 @@ export default function BrandDetailScreen() {
         setBusy(true);
         try { await shareBrandStatementPdf(r.brand, stmt.period); } catch (e) { toast(e.safe ? e.message : errMsg(e, 'Could not get the PDF'), 'error'); } finally { setBusy(false); }
     };
+    const saveFree = async (on) => {
+        setBusy(true);
+        try {
+            await setFreeStart(id, { on, ...(on && freeOrders !== '' ? { freeOrders: Number(freeOrders) } : {}), ...(on && freeMonths !== '' ? { freeMonths: Number(freeMonths) } : {}) });
+            toast(on ? 'Free start is on' : 'Free start ended'); setFreeOpen(false); load();
+        } catch (e) { toast(errMsg(e), 'error'); } finally { setBusy(false); }
+    };
     const toggleLock = async (b) => {
         try { await setAreaLock(id, b.id, !b.area.locked); toast(b.area.locked ? 'Pin and radius unlocked' : 'Pin and radius locked'); load(); } catch (e) { toast(errMsg(e), 'error'); }
     };
@@ -131,6 +141,26 @@ export default function BrandDetailScreen() {
                     </Card>
                 </>
             ) : null}
+            {r.freeStart ? (
+                <>
+                    <SectionTitle section="money">Free start</SectionTitle>
+                    <Card style={{ marginBottom: spacing.md }}>
+                        <Text style={{ color: t.text, fontWeight: '800' }}>
+                            {r.freeStart.ended ? 'The shared free start has ended' : r.freeStart.on ? 'New branches share one free start' : 'New branches get no free start'}
+                        </Text>
+                        <Text style={{ color: t.muted, marginTop: 2 }}>
+                            {r.freeStart.on && !r.freeStart.ended
+                                ? `${r.freeStart.ordersSoFar} of ${r.freeStart.freeOrders} orders used${r.freeStart.startedAt ? ` · started ${new Date(r.freeStart.startedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}` : ' · starts when the first branch goes live'} · ends at ${r.freeStart.freeOrders} orders or ${r.freeStart.freeMonths} months · ${r.freeStart.branchesInPool} branches in it`
+                                : r.freeStart.ended ? `It ended on ${new Date(r.freeStart.endedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}. Every branch is billed from the first full month after that.` : 'A new branch is billed from the first full month after it goes live (the month it goes live in is not billed).'}
+                        </Text>
+                        {supreme && !r.freeStart.ended ? (
+                            r.freeStart.on
+                                ? <Button title="End the free start now" kind="outline" small loading={busy} style={{ marginTop: spacing.md }} onPress={() => saveFree(false)} />
+                                : <Button title="Give new branches a shared free start" kind="outline" small style={{ marginTop: spacing.md }} onPress={() => { setFreeOrders(''); setFreeMonths(''); setFreeOpen(true); }} />
+                        ) : null}
+                    </Card>
+                </>
+            ) : null}
             <SectionTitle section="platform">Brand owners</SectionTitle>
             <Card style={{ marginBottom: spacing.md }}>
                 <Text style={{ color: t.muted }}>A brand owner is owner of every branch and can switch between them in the owner app.</Text>
@@ -159,6 +189,13 @@ export default function BrandDetailScreen() {
                 <Field label="Manager phone (optional)" value={f.managerPhone} onChangeText={(v) => set('managerPhone')(v.replace(/\D/g, '').slice(0, 10))} keyboardType="number-pad" />
                 {first ? <Button title={`${copy ? '✓ ' : ''}Start from the look, rules and menu of ${first.name}`} kind={copy ? 'soft' : 'outline'} small onPress={() => setCopy(!copy)} style={{ marginBottom: spacing.md }} /> : null}
                 <Button title="Add branch" loading={busy} disabled={f.name.trim().length < 2 || f.slug.length < 3 || !f.city.trim()} onPress={create} />
+            </Sheet>
+
+            <Sheet visible={freeOpen} onClose={() => setFreeOpen(false)} title="Shared free start">
+                <Text style={{ color: t.muted, marginBottom: spacing.md }}>All branches that are still free now, and every branch you add while it runs, share ONE free start. It starts when the first one goes live and ends when they have sold the free orders together or the free months are over. Then all of them are billed from the first full month after, on the usual bill day. Leave the numbers empty for the platform's (100 orders, 2 months).</Text>
+                <Field label="Free orders (all branches together)" value={freeOrders} onChangeText={(v) => setFreeOrders(v.replace(/\D/g, '').slice(0, 4))} keyboardType="number-pad" />
+                <Field label="Free months" value={freeMonths} onChangeText={(v) => setFreeMonths(v.replace(/\D/g, '').slice(0, 3))} keyboardType="number-pad" />
+                <Button title="Switch it on" loading={busy} onPress={() => saveFree(true)} />
             </Sheet>
 
             <Sheet visible={discOpen} onClose={() => setDiscOpen(false)} title="Rent discount">
