@@ -1,5 +1,8 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, Easing, LayoutAnimation } from 'react-native';
+import { Animated, Easing, LayoutAnimation, Platform, UIManager } from 'react-native';
+
+// the smooth open / close of drop-downs (LayoutAnimation) must be switched on once for Android's older renderer; harmless on the newer one
+try { if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) UIManager.setLayoutAnimationEnabledExperimental(true); } catch (_) { /* animation is only a nicety */ }
 
 /*
  * Small motion helpers. Everything is transform + opacity on the native driver (UI thread, no JS per frame).
