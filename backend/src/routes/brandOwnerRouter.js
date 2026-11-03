@@ -5,6 +5,9 @@
 //   GET  /notify-prefs               which branches' alerts reach his phone: { all, ownSlug, branches: [{ slug, name, own, open, explicit, on }] }
 //   PUT  /notify-prefs               { all?, ownSlug?, branches?: { <slug>: true|false|null } }  -> the same view + warnings
 //   GET  /notifications?branch=&page=   the owner inbox of every branch together, each row with its branch and silent: true when the branch is muted
+//   GET  /customers?range=30         counts per branch (customers, new, ordered) and how many real people the brand has
+//   GET  /complaints?branch=&status=&page=   complaints of every branch, each with its branch, and how many are open per branch
+//   GET  /reviews?branch=&range=30&low=1&page=   dish ratings: average per branch and the newest ratings
 //   POST /switch     { slug }                      sign in to another branch of the brand: returns that branch's tokens
 //   POST /menu/push  { productIds, toSlugs: 'all' | [slug], prices: 'keep'|'untouched'|'all' }   push dishes of THIS branch to other branches
 //   POST /managers   { slug, phone }               make a phone the manager (owner panel) of one branch
@@ -18,6 +21,7 @@ const Tenant = require('../models/Tenant');
 const brands = require('../services/brandService');
 const owners = require('../services/ownerService');
 const panel = require('../services/brandPanel');
+const care = require('../services/brandCare');
 const menuSync = require('../services/menuSync');
 const brandNotify = require('../services/brandNotify');
 const Notification = require('../models/Notification');
@@ -65,6 +69,10 @@ router.get('/me', wrap(async (req, res) => {
 //   GET /orders?branch=<slug>&status=active|delivered,...&page=1&limit=20     orders of every branch (or one), each labelled with its branch
 router.get('/overview', wrap(async (req, res) => { res.json(await panel.overview(req.brand, req.query.range)); }));
 router.get('/orders', wrap(async (req, res) => { res.json(await panel.orders(req.brand, req.query)); }));
+// the care side (services/brandCare.js): customers (counts only), complaints and dish ratings of every branch
+router.get('/customers', wrap(async (req, res) => { res.json(await care.customers(req.brand, req.query.range || '30')); }));
+router.get('/complaints', wrap(async (req, res) => { res.json(await care.complaints(req.brand, req.query)); }));
+router.get('/reviews', wrap(async (req, res) => { res.json(await care.reviews(req.brand, req.query)); }));
 
 router.get('/statement', wrap(async (req, res) => { res.json(await require('../services/brandStatement').build(req.brand, req.query.period)); }));
 

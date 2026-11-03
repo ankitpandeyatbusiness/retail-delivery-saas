@@ -70,3 +70,10 @@ E4. An ordinary single shop: nothing changes, the owner pays as before.
 F1. A cook has started an order (not ready yet): moving him to the other branch is refused with "making order #N right now". Mark it ready: the move works.
 F2. A waiter has an open table or a table waiting to pay: the move is refused with how many tables. Close the tables: the move works.
 F3. A rider with a trip in progress: the move is refused (as before).
+
+## G. All branches: customers, complaints, ratings
+
+G1. All branches page: a Customers card (people, new, ordered, and how many people use more than one branch), then one line per branch.
+G2. Open complaints: the count per branch and the newest five; tapping one asks to open that branch.
+G3. Dish ratings: the average and count per branch and the newest low ratings with dish and branch.
+G4. Change the range chip (7 or 30 days): customers and ratings follow it.

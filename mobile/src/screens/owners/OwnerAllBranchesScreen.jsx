@@ -7,7 +7,7 @@ import { PageHeader, Card, Chips, SectionTitle, Stat, Empty, money } from '../..
 import { StatShimmer } from '../../components/owners/shimmer';
 import { ask } from '../../components/common/dialog';
 import { showToast } from '../../components/customers/shop';
-import { fetchBrandOverview, fetchBrandOrders, fetchBrandStatement } from '../../api/owners/brandApi';
+import { fetchBrandOverview, fetchBrandOrders, fetchBrandStatement, fetchBrandCustomers, fetchBrandComplaints, fetchBrandReviews } from '../../api/owners/brandApi';
 import { switchBranch } from '../../utils/common/switchBranch';
 import { getSlug } from '../../utils/common/branch';
 import { tr } from '../../i18n';
@@ -26,6 +26,9 @@ export default function OwnerAllBranchesScreen() {
     const [ov, setOv] = useState(null);
     const [orders, setOrders] = useState(null);
     const [stmt, setStmt] = useState(null);
+    const [cust, setCust] = useState(null);
+    const [comp, setComp] = useState(null);
+    const [rev, setRev] = useState(null);
     const [err, setErr] = useState('');
 
     const load = useCallback(async () => {
@@ -36,7 +39,14 @@ export default function OwnerAllBranchesScreen() {
     useEffect(() => {
         fetchBrandOrders({ limit: 15 }).then(setOrders).catch(() => setOrders({ items: [] }));
         fetchBrandStatement(lastMonth()).then(setStmt).catch(() => setStmt(null));
+        fetchBrandComplaints({ status: 'open', limit: 5 }).then(setComp).catch(() => setComp(null));
     }, []);
+    // customers and ratings follow the chosen range
+    useEffect(() => {
+        const r = range === 'today' ? '7' : range;
+        fetchBrandCustomers(r).then(setCust).catch(() => setCust(null));
+        fetchBrandReviews({ range: r, limit: 5, low: 1 }).then(setRev).catch(() => setRev(null));
+    }, [range]);
 
     const open = async (b) => {
         if (b.slug === getSlug()) { showToast(tr('You are already in {name}.', { name: b.name })); return; }
@@ -77,6 +87,51 @@ export default function OwnerAllBranchesScreen() {
                                 </Text>
                                 {b.slug === getSlug() ? <Text style={{ color: primary, fontWeight: '800', marginTop: 4 }}>{tr('You are here')}</Text> : null}
                             </Card>
+                        ))}
+                    </>
+                ) : null}
+
+                {cust ? (
+                    <>
+                        <SectionTitle title={tr('Customers')} />
+                        <Card>
+                            <View style={{ flexDirection: 'row' }}>
+                                <Stat label={tr('People')} value={String(cust.totals.people)} hint={cust.totals.inMoreThanOneBranch ? tr('{n} use more than one branch', { n: cust.totals.inMoreThanOneBranch }) : undefined} />
+                                <Stat label={tr('New')} value={String(cust.totals.newInRange)} />
+                                <Stat label={tr('Ordered')} value={String(cust.totals.orderedInRange)} />
+                            </View>
+                            {cust.branches.map((b) => <Text key={b.slug} style={{ color: muted, marginTop: 6 }}>{tr('{name}: {n} customers, {fresh} new', { name: b.name, n: b.customers, fresh: b.newInRange })}</Text>)}
+                        </Card>
+                    </>
+                ) : null}
+
+                {comp ? (
+                    <>
+                        <SectionTitle title={tr('Open complaints')} />
+                        <Card>
+                            {comp.openByBranch.map((b) => <Text key={b.slug} style={{ color: b.open ? error : muted, fontWeight: b.open ? '800' : '600', marginTop: 2 }}>{tr('{name}: {n} open', { name: b.name, n: b.open })}</Text>)}
+                        </Card>
+                        {comp.items.map((c) => (
+                            <Pressable key={c.id} onPress={() => c.branch && open({ slug: c.branch.slug, name: c.branch.name })} style={{ marginHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: border }}>
+                                <Text style={{ color: text, fontWeight: '800' }} numberOfLines={1}>{`${c.branch ? c.branch.name : ''} · #${c.orderNo || c.bulkCode || ''}`}</Text>
+                                <Text style={{ color: muted }} numberOfLines={2}>{c.text}</Text>
+                            </Pressable>
+                        ))}
+                    </>
+                ) : null}
+
+                {rev && rev.total.count ? (
+                    <>
+                        <SectionTitle title={tr('Dish ratings')} />
+                        <Card>
+                            <Text style={{ color: text, fontWeight: '900', fontSize: 18 }}>{tr('{avg} stars from {n} ratings', { avg: rev.total.average, n: rev.total.count })}</Text>
+                            {rev.branches.map((b) => <Text key={b.slug} style={{ color: muted, marginTop: 4 }}>{b.count ? tr('{name}: {avg} stars ({n}), {low} low', { name: b.name, avg: b.average, n: b.count, low: b.low }) : tr('{name}: no ratings', { name: b.name })}</Text>)}
+                        </Card>
+                        {rev.items.map((r) => (
+                            <View key={r.id} style={{ marginHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: border }}>
+                                <Text style={{ color: text, fontWeight: '800' }} numberOfLines={1}>{`${r.rating}★  ${r.dish || ''} · ${r.branch ? r.branch.name : ''}`}</Text>
+                                {r.comment ? <Text style={{ color: muted }} numberOfLines={2}>{r.comment}</Text> : null}
+                            </View>
                         ))}
                     </>
                 ) : null}
