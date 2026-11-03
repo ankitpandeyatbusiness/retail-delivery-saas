@@ -8,25 +8,11 @@ import { SkeletonList } from '../../components/blocks';
 import { ErrorBox } from '../../components/feedback';
 import { fetchPlatformHealth } from '../../api/healthApi';
 import { errMsg } from '../../api/adminClient';
+import { useLevel, Dot } from '../../components/healthBits';
 
 const rs = (n) => `₹${(Number(n) || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 const num = (n) => (Number(n) || 0).toLocaleString('en-IN');
 const timeOf = (d) => new Date(d).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' });
-
-// green / amber / red: the colour, a soft background and a word, so it is not colour alone
-function useLevel() {
-    const t = useTheme();
-    return (level) => ({
-        good: { color: t.success, soft: t.successSoft, word: 'Good' },
-        warn: { color: t.warn, soft: t.warnSoft, word: 'Look' },
-        bad: { color: t.danger, soft: t.dangerSoft, word: 'Act' },
-    }[level] || { color: t.muted, soft: t.surfaceAlt, word: '' });
-}
-
-function Dot({ level, size = 12 }) {
-    const L = useLevel()(level);
-    return <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: L.color }} />;
-}
 
 // one card: a coloured dot and word, the one-line reason, then the numbers
 function HealthCard({ title, level, note, onPress, children }) {

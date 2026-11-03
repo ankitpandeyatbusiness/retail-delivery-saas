@@ -40,6 +40,18 @@ async function invoice(tenant, o = {}) {
 }
 
 describe('search and exports', () => {
+    test('a brand name finds all its branches', async () => {
+        const Brand = require('../src/models/Brand');
+        const Tenant = require('../src/models/Tenant');
+        const x = await f.makeWorld(`br-x-${Date.now().toString(36)}`);
+        const y = await f.makeWorld(`br-y-${Date.now().toString(36)}`);
+        const brand = await Brand.create({ name: 'Zorbaland' });
+        await Tenant.updateMany({ _id: { $in: [x.tenant._id, y.tenant._id] } }, { $set: { brandId: brand._id } });
+        const r = await get('/api/admin/search?q=Zorba');
+        assert.equal(r.status, 200);
+        assert.equal(r.body.shops.length, 2);
+    });
+
     test('finds shops, orders by number and phone (masked), invoices; short text is refused', async () => {
         const w = await f.makeWorld(`ins-${Date.now().toString(36)}`);
         const o = await f.makeOrder(w.tenant, w.customer.user, {});

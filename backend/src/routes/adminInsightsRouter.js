@@ -17,6 +17,7 @@ const Category = require('../models/Category');
 const Complaint = require('../models/Complaint');
 const SubscriptionInvoice = require('../models/SubscriptionInvoice');
 const SmsLog = require('../models/SmsLog');
+const Brand = require('../models/Brand');
 const loadTenant = require('../middlewares/loadTenant');
 const { wrap, httpError } = require('../middlewares/apiErrors');
 const { maskPhone } = require('../utils/phoneHash');
@@ -39,8 +40,10 @@ router.get('/search', wrap(async (req, res) => {
     const isPhone = /^[6-9]\d{9}$/.test(digits);
     const isNo = /^#?\d{1,8}$/.test(q) && !isPhone;
 
+    // a brand's name finds all its branches
+    const brandIds = (await Brand.find({ name: rx }).select('_id').limit(5).lean()).map((b) => b._id);
     const [shops, invoices, people, orders] = await Promise.all([
-        Tenant.find({ $or: [{ name: rx }, { slug: rx }, { phone: rx }] }).select('name slug status phone billing.state').limit(8).lean(),
+        Tenant.find({ $or: [{ name: rx }, { slug: rx }, { phone: rx }, ...(brandIds.length ? [{ brandId: { $in: brandIds } }] : [])] }).select('name slug status phone billing.state').limit(12).lean(),
         SubscriptionInvoice.find({ invoiceNo: rx }).select('tenantId invoiceNo period total status').limit(8).lean(),
         isPhone ? User.find({ phone: digits }).select('tenantId phone name role').limit(10).lean() : [],
         isPhone

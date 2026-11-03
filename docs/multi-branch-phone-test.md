@@ -139,3 +139,14 @@ N5. Orders card: today, 7 days (with the change in percent), last month.
 N6. Google card: every call type with a bar; amber from 60 percent, red from 90 percent.
 N7. Tapping a card opens the matching screen (SMS profit, Receivables, System, Support, Shop health).
 N8. Pull down to check again; the time of the last check is shown.
+
+## O. The new home screen
+
+O1. Superadmin Home: a search box on top; tapping it opens Search. Typing a brand name (for example Savera) lists all its branches.
+O2. The coloured platform box (All fine / Look when you can / Act now) with a line why; tap opens Platform health.
+O3. "Needs you now" lists what is not green, plus shop money still to answer for last month (supreme admin only), support waiting and unread alerts.
+O4. Money this month: Collected and To collect, and the Shop money card with the developer's part.
+O5. Today: orders and sales, and the last 7 days with the change in percent.
+O6. One line for the highest Google call use, with its colour.
+O7. Quick actions: New shop, Shop money, Brands, Alerts. The bell on top opens the alerts inbox.
+O8. Log in as Vivyaan's (ordinary) superadmin: the same home, but no "Shop money to answer" item.
