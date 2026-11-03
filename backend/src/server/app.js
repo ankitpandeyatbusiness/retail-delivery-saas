@@ -79,6 +79,7 @@ app.use('/api/catalog', catalogRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/addresses', addressRouter);
 app.use('/api/geo', require('../routes/customerGeoRouter'));
+app.use('/api/customer-branch', require('../routes/customerBranchRouter'));   // a customer carries one sign-in to any branch of the brand
 app.use('/api/brand', require('../routes/brandOwnerRouter'));   // the brand owner: branch list, switch, managers, move a person
 app.use('/api/orders', orderRouter);
 app.use('/api/shop', shopRouter);
