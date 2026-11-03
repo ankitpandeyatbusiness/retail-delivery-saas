@@ -10,6 +10,7 @@ import { ErrorBox } from '../../components/feedback';
 import { fetchShopsGrowth } from '../../api/reportApi';
 import { errMsg } from '../../api/adminClient';
 import { rupees } from '../../utils/format';
+import { goTab } from '../../navigation/goTo';
 
 const pct = (c) => (c === null || c === undefined ? 'new' : `${c >= 0 ? '+' : ''}${c}%`);
 
@@ -35,7 +36,7 @@ export default function ShopsGrowthScreen() {
             title={s.name}
             subtitle={extra || `${rupees(s.revenue)} · ${s.orders} orders · ${s.customers} customers`}
             right={<Badge label={pct(s.change)} tone={s.change === null ? 'neutral' : s.change >= 0 ? 'success' : 'danger'} />}
-            onPress={() => nav.navigate('ShopsTab', { screen: 'ShopReport', params: { shopId: s.id, name: s.name } })}
+            onPress={() => goTab(nav, 'ShopsTab', { screen: 'ShopReport', params: { shopId: s.id, name: s.name } })}
             last={i === list.length - 1}
         />
     );

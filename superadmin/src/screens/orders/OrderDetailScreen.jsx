@@ -14,6 +14,7 @@ import { getOrder, undoOrder, changeOrderStatus, shareInvoice, getDelivery, assi
 import { listRiders } from '../../api/opsApi';
 import { errMsg } from '../../api/adminClient';
 import { rupees, dateTime, titleCase } from '../../utils/format';
+import { goTab } from '../../navigation/goTo';
 
 const CANCEL_REASONS = [
     { value: 'platform', label: 'Platform decision' },
@@ -109,7 +110,7 @@ export default function OrderDetailScreen() {
                 subtitle={`${TYPE_LABEL[o.orderType] || o.orderType} · ${dateTime(o.createdAt)}`}
                 right={<StatusBadge status={o.status} />}
             >
-                <Pressable onPress={() => nav.navigate('ShopsTab', { screen: 'ShopDetail', params: { shopId: o.tenantId, name: o.shopName } })} style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.md }}>
+                <Pressable onPress={() => goTab(nav, 'ShopsTab', { screen: 'ShopDetail', params: { shopId: o.tenantId, name: o.shopName } })} style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.md }}>
                     <Icon name="shops" size={18} color={t.primary} />
                     <Text style={{ color: t.primary, fontWeight: '800', marginLeft: 6 }}>{o.shopName}</Text>
                     <Icon name="next" size={16} color={t.primary} style={{ marginLeft: 4 }} />

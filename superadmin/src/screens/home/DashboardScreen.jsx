@@ -18,6 +18,7 @@ import { rupees } from '../../utils/format';
 import { fetchSupportCounts } from '../../api/supportApi';
 import { fetchPlatformHealth } from '../../api/healthApi';
 import { fetchMoneyRecord } from '../../api/moneyRecordApi';
+import { goTab } from '../../navigation/goTo';
 
 const greeting = () => {
     const h = new Date().getHours();
@@ -53,13 +54,13 @@ export default function DashboardScreen() {
     const first = d.shops === null && d.loading;
     const goShops = (params) => nav.navigate('ShopsTab', params ? { screen: 'ShopsList', params } : undefined);
     const goHealth = () => nav.navigate('PlatformHealth');
-    const openShop = (x) => nav.navigate('ShopsTab', { screen: 'ShopDetail', params: { shopId: x.id, name: x.name } });
+    const openShop = (x) => goTab(nav, 'ShopsTab', { screen: 'ShopDetail', params: { shopId: x.id, name: x.name } });
     const inHealth = (key) => !!health?.needsYou.some((x) => x.key === key);
 
     // what needs you now: the health cards that are not green, plus the small things the health screen does not carry
     const need = [
         ...(health ? health.needsYou.slice(0, 5).map((x) => ({ key: x.key, level: x.level, title: LABEL[x.key], hint: x.note, go: goHealth, list: x.list, total: x.listTotal })) : []),
-        supreme && lastOpen > 0 && { key: 'answers', level: 'warn', title: 'Shop money to answer', hint: `${lastOpen} shop${lastOpen === 1 ? '' : 's'} of last month: did you get your part?`, go: () => nav.navigate('MoreTab', { screen: 'MoneyRecord' }) },
+        supreme && lastOpen > 0 && { key: 'answers', level: 'warn', title: 'Shop money to answer', hint: `${lastOpen} shop${lastOpen === 1 ? '' : 's'} of last month: did you get your part?`, go: () => goTab(nav, 'MoreTab', { screen: 'MoneyRecord' }) },
         !inHealth('support') && helpOpen > 0 && { key: 'help', level: 'warn', title: `${helpOpen} support request${helpOpen > 1 ? 's' : ''} waiting`, hint: 'Shop owners are waiting for your reply', go: () => nav.navigate('Support') },
         d.unreadAlerts > 0 && { key: 'alerts', level: 'warn', title: `${d.unreadAlerts} unread alert${d.unreadAlerts > 1 ? 's' : ''}`, hint: 'Late orders and platform messages', go: () => nav.navigate('Inbox') },
     ].filter(Boolean);
@@ -93,7 +94,7 @@ export default function DashboardScreen() {
             ) : d.shops && d.shops.total === 0 ? (
                 <>
                     <Empty icon="shops" title="No shops yet" hint="Create your first shop to start taking orders on the platform." />
-                    <Button title="Add the first shop" icon="addCircle" onPress={() => nav.navigate('ShopsTab', { screen: 'ShopCreate' })} />
+                    <Button title="Add the first shop" icon="addCircle" onPress={() => goTab(nav, 'ShopsTab', { screen: 'ShopCreate' })} />
                 </>
             ) : (
                 <>
@@ -198,9 +199,9 @@ This month so far: ${health.orders.thisMonth} orders${health.orders.monthChangeP
                         <SectionTitle section="settings">Quick actions</SectionTitle>
                         <QuickActions
                             items={[
-                                { label: 'New shop', icon: 'addCircle', section: 'shops', onPress: () => nav.navigate('ShopsTab', { screen: 'ShopCreate' }) },
-                                { label: 'Shop money', icon: 'rupee', section: 'money', onPress: () => nav.navigate('MoreTab', { screen: 'MoneyRecord' }) },
-                                { label: 'Brands', icon: 'shops', section: 'platform', onPress: () => nav.navigate('MoreTab', { screen: 'Brands' }) },
+                                { label: 'New shop', icon: 'addCircle', section: 'shops', onPress: () => goTab(nav, 'ShopsTab', { screen: 'ShopCreate' }) },
+                                { label: 'Shop money', icon: 'rupee', section: 'money', onPress: () => goTab(nav, 'MoreTab', { screen: 'MoneyRecord' }) },
+                                { label: 'Brands', icon: 'shops', section: 'platform', onPress: () => goTab(nav, 'MoreTab', { screen: 'Brands' }) },
                                 { label: 'Platform health', icon: 'shield', section: 'alerts', onPress: () => nav.navigate('PlatformHealth') },
                             ]}
                         />
@@ -214,7 +215,7 @@ This month so far: ${health.orders.thisMonth} orders${health.orders.monthChangeP
                                     key={s._id}
                                     shop={s}
                                     compact
-                                    onPress={() => nav.navigate('ShopsTab', { screen: 'ShopDetail', params: { shopId: s._id, name: s.name } })}
+                                    onPress={() => goTab(nav, 'ShopsTab', { screen: 'ShopDetail', params: { shopId: s._id, name: s.name } })}
                                 />
                             ))}
                         </>

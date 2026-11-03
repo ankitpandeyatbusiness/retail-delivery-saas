@@ -10,6 +10,7 @@ import { useShopsStore } from '../store/useShopsStore';
 import { searchAll } from '../api/insightsApi';
 import { errMsg } from '../api/adminClient';
 import { rupeesFromPaise, dateTime, titleCase } from '../utils/format';
+import { toAdmin } from '../navigation/goTo';
 
 // The answers to a search: screens and settings, shops (a brand's name finds its branches), orders, people and rent invoices.
 // Used by the Search screen and by the Home screen, which swaps itself for these while something is typed.
@@ -32,7 +33,7 @@ export default function SearchResults({ q }) {
     const goTo = (e, shop) => {
         const params = shop ? { shopId: String(shop._id), name: shop.name } : undefined;
         if (e.stack === 'root') nav.navigate(e.screen, params);
-        else nav.navigate('Admin', { screen: e.stack, params: { screen: e.screen, ...(params ? { params } : {}) } });
+        else toAdmin(nav, { screen: e.stack, params: { screen: e.screen, ...(params ? { params } : {}) } });
     };
     const open = (e) => {
         if (e.scope !== 'shop') { goTo(e); return; }
@@ -56,7 +57,7 @@ export default function SearchResults({ q }) {
         return () => clearTimeout(id);
     }, [q]);
 
-    const inShops = (screen, params) => nav.navigate('Admin', { screen: 'ShopsTab', params: { screen, params } });
+    const inShops = (screen, params) => toAdmin(nav, { screen: 'ShopsTab', params: { screen, params } });
     const empty = r && !screens.length && !r.shops.length && !r.orders.length && !r.people.length && !r.invoices.length;
 
     return (
@@ -103,7 +104,7 @@ export default function SearchResults({ q }) {
                         {r.orders.map((o, i) => (
                             <ListRow key={o.id} section="orders" icon="orders" title={`#${o.orderNo} · ${o.shop || 'Shop'}`}
                                 subtitle={`${titleCase(o.status)} · ${rupeesFromPaise(o.totalPaise)} · ${dateTime(o.at)}`}
-                                onPress={() => nav.navigate('Admin', { screen: 'OrdersTab', params: { screen: 'OrderDetail', params: { orderId: String(o.id), orderNo: o.orderNo } } })}
+                                onPress={() => toAdmin(nav, { screen: 'OrdersTab', params: { screen: 'OrderDetail', params: { orderId: String(o.id), orderNo: o.orderNo } } })}
                                 last={i === r.orders.length - 1} />
                         ))}
                     </Card>
@@ -129,7 +130,7 @@ export default function SearchResults({ q }) {
                     <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
                         {r.invoices.map((inv, i) => (
                             <ListRow key={inv.id} section="money" icon="receipt" title={inv.invoiceNo} subtitle={`${inv.shop || 'Shop'} · ${rupeesFromPaise(inv.totalPaise)} · ${titleCase(inv.status)}`}
-                                onPress={() => nav.navigate('Admin', { screen: 'MoneyTab', params: { screen: 'InvoiceDetail', params: { invoiceId: String(inv.id), invoiceNo: inv.invoiceNo } } })}
+                                onPress={() => toAdmin(nav, { screen: 'MoneyTab', params: { screen: 'InvoiceDetail', params: { invoiceId: String(inv.id), invoiceNo: inv.invoiceNo } } })}
                                 last={i === r.invoices.length - 1} />
                         ))}
                     </Card>

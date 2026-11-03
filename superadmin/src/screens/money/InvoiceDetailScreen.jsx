@@ -12,6 +12,7 @@ import { InvoiceBadge, invoiceTone } from '../../components/invoiceBits';
 import { getInvoice, setInvoiceStatus, voidInvoice, waiveInvoice, extendGrace, resendInvoiceNotice, shareRentInvoicePdf } from '../../api/moneyApi';
 import { errMsg } from '../../api/adminClient';
 import { rupees, dateOnly, dateTime, titleCase } from '../../utils/format';
+import { goTab } from '../../navigation/goTo';
 
 const MODES = [
     { value: 'upi', label: 'UPI' }, { value: 'bank_transfer', label: 'Bank transfer' }, { value: 'cash', label: 'Cash' },
@@ -134,7 +135,7 @@ export default function InvoiceDetailScreen() {
                     icon="shops"
                     title="Open the shop's billing"
                     subtitle={inv.buyer?.legalName}
-                    onPress={() => nav.navigate('ShopsTab', { screen: 'ShopBilling', params: { shopId: String(inv.tenantId), name: inv.buyer?.legalName } })}
+                    onPress={() => goTab(nav, 'ShopsTab', { screen: 'ShopBilling', params: { shopId: String(inv.tenantId), name: inv.buyer?.legalName } })}
                     last
                 />
             </Card>

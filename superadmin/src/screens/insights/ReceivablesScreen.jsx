@@ -9,6 +9,7 @@ import { ErrorBox, Empty } from '../../components/feedback';
 import { fetchReceivables } from '../../api/insightsApi';
 import { errMsg } from '../../api/adminClient';
 import { rupeesFromPaise, dateOnly } from '../../utils/format';
+import { toAdmin } from '../../navigation/goTo';
 
 const BUCKETS = {
     notDue: 'Not due yet', d1_7: '1 to 7 days late', d8_30: '8 to 30 days late', d31_60: '31 to 60 days late', d60plus: 'Over 60 days late',
@@ -34,7 +35,7 @@ export default function ReceivablesScreen() {
     }, []);
     useFocusEffect(useCallback(() => { load(); }, [load]));
     const refresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
-    const openShop = (s) => nav.navigate('Admin', { screen: 'ShopsTab', params: { screen: 'ShopBilling', params: { shopId: String(s.tenantId), name: s.name } } });
+    const openShop = (s) => toAdmin(nav, { screen: 'ShopsTab', params: { screen: 'ShopBilling', params: { shopId: String(s.tenantId), name: s.name } } });
     const total = d ? d.totals.buckets.reduce((a, b) => a + b.paise, 0) : 0;
 
     return (

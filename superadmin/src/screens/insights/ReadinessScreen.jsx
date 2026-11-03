@@ -9,6 +9,7 @@ import { ErrorBox } from '../../components/feedback';
 import Icon from '../../components/Icon';
 import { fetchReadiness } from '../../api/insightsApi';
 import { errMsg } from '../../api/adminClient';
+import { toAdmin } from '../../navigation/goTo';
 
 // Is this shop set up properly? Each line says what is missing and how to fix it.
 export default function ReadinessScreen() {
@@ -27,7 +28,7 @@ export default function ReadinessScreen() {
         <Screen
             title="Set-up check"
             subtitle={name}
-            footer={<Button title="Open the shop" icon="shops" kind="soft" onPress={() => nav.navigate('Admin', { screen: 'ShopsTab', params: { screen: 'ShopDetail', params: { shopId, name } } })} />}
+            footer={<Button title="Open the shop" icon="shops" kind="soft" onPress={() => toAdmin(nav, { screen: 'ShopsTab', params: { screen: 'ShopDetail', params: { shopId, name } } })} />}
         >
             {error && !d ? <ErrorBox message={error} onRetry={load} /> : !d ? <SkeletonList /> : (
                 <>

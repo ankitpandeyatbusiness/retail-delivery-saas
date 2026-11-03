@@ -8,6 +8,7 @@ import { Sheet, toast } from './feedback';
 import { errMsg } from '../api/adminClient';
 import { createBrand, addBranch, addBrandOwner, deleteBrand } from '../api/brandsApi';
 import { useSupreme } from '../hooks/useSupreme';
+import { goTab } from '../navigation/goTo';
 
 // One button on a shop: "Make this shop a brand". It creates the brand, attaches this shop as its first branch and (if a number is typed)
 // adds the brand owner. If the shop cannot be attached, the brand is taken back so nothing is left half-made.
@@ -38,7 +39,7 @@ export default function MakeBrandCard({ tenant, onDone }) {
             try { await addBrandOwner(brand._id, phone); } catch (e) { note = `The brand is made, but the owner was not added: ${errMsg(e)}`; }
         }
         setBusy(false); setOpen(false); toast(note); onDone?.();
-        nav.navigate('MoreTab', { screen: 'BrandDetail', params: { id: brand._id } });
+        goTab(nav, 'MoreTab', { screen: 'BrandDetail', params: { id: brand._id } });
     };
 
     return (

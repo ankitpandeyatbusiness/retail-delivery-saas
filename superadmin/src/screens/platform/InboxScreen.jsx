@@ -13,6 +13,7 @@ import { useInboxStore } from '../../store/useInboxStore';
 import { fetchInbox, readAllInbox, readInbox, clearInbox, deleteInboxItem } from '../../api/platformApi';
 import { errMsg } from '../../api/adminClient';
 import { ago, titleCase } from '../../utils/format';
+import { toAdmin } from '../../navigation/goTo';
 
 // what an alert is about -> an icon and a colour family
 const KIND = [
@@ -78,9 +79,9 @@ export default function InboxScreen() {
         const d = n.data || {};
         if (d.kind === 'health') nav.navigate('PlatformHealth');
         else if (d.ticketId) nav.navigate('SupportDetail', { id: String(d.ticketId) });
-        else if (d.orderId) nav.navigate('Admin', { screen: 'OrdersTab', params: { screen: 'OrderDetail', params: { orderId: String(d.orderId), orderNo: d.orderNo } } });
-        else if (d.invoiceId) nav.navigate('Admin', { screen: 'MoneyTab', params: { screen: 'InvoiceDetail', params: { invoiceId: String(d.invoiceId) } } });
-        else if (n.shop?.id) nav.navigate('Admin', { screen: 'ShopsTab', params: { screen: 'ShopDetail', params: { shopId: String(n.shop.id), name: n.shop.name } } });
+        else if (d.orderId) toAdmin(nav, { screen: 'OrdersTab', params: { screen: 'OrderDetail', params: { orderId: String(d.orderId), orderNo: d.orderNo } } });
+        else if (d.invoiceId) toAdmin(nav, { screen: 'MoneyTab', params: { screen: 'InvoiceDetail', params: { invoiceId: String(d.invoiceId) } } });
+        else if (n.shop?.id) toAdmin(nav, { screen: 'ShopsTab', params: { screen: 'ShopDetail', params: { shopId: String(n.shop.id), name: n.shop.name } } });
     };
 
     return (
