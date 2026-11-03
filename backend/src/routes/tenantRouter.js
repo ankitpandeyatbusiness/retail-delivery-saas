@@ -46,10 +46,16 @@ tenantRouter.get('/config', tenantRecognizer, async (req, res) => {
             radiusKm: t.delivery?.radiusKm ?? null,
             minOrder: config.orders.minOrder,
         };
+        // a branch of a brand tells the app the brand and its own city (the app then shows the branch chooser); any other shop: null
+        let branch = null;
+        if (t.brandId) {
+            const brand = await require('../models/Brand').findById(t.brandId).select('name').lean();
+            branch = { brand: (brand && brand.name) || null, city: t.branchCity || (t.address && t.address.city) || null };
+        }
         // Changes whenever what the app would see changes (settings, menu data, or open/closed),
         // so the app knows when to refetch.
         const version = crypto.createHash('sha1').update(JSON.stringify({ config, delivery })).digest('hex').slice(0, 12);
-        res.json({ version, config, homeConfig: config.home, delivery });
+        res.json({ version, config, homeConfig: config.home, delivery, branch });
     } catch (e) {
         console.error('Config error:', e);
         res.status(500).json({ error: 'Something went wrong' });

@@ -53,6 +53,15 @@ export default function BranchSwitcher({ onGo }) {
                 <Text style={{ color: primary, fontWeight: '900', marginLeft: 10, flex: 1 }}>{tr('All branches')}</Text>
                 <Ionicons name="chevron-forward" size={18} color={muted} />
             </Pressable>
+            <Pressable
+                onPress={() => { if (onGo) onGo(); nav.navigate('OwnerPushMenu'); }}
+                accessibilityRole="button"
+                style={{ flexDirection: 'row', alignItems: 'center', paddingTop: 10 }}
+            >
+                <Ionicons name="send-outline" size={20} color={primary} />
+                <Text style={{ color: primary, fontWeight: '900', marginLeft: 10, flex: 1 }}>{tr('Send dishes to branches')}</Text>
+                <Ionicons name="chevron-forward" size={18} color={muted} />
+            </Pressable>
         </View>
     );
 }

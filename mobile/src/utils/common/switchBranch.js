@@ -18,8 +18,9 @@ export async function reloadApp() {
 
 export async function switchBranch(slug) {
     const user = useAuthStore.getState().user;
-    if (!user) throw new Error('Sign in first');
     if (slug === getSlug()) return;
+    // a guest has no login to carry: just open the other branch
+    if (!user) { await setActive(slug); await reloadApp(); return; }
     const path = user.role === 'admin' ? '/brand/switch' : user.role === 'customer' ? '/customer-branch/session' : null;
     if (!path) throw new Error('This account cannot switch branches');
 

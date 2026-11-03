@@ -16,6 +16,7 @@ import { FadeIn, useMotion } from '../../components/common/motion';
 import { SkelBanner, SkelFeed } from '../../components/customers/skeletons';
 import { CouponTicket } from '../../components/customers/coupon';
 import { StoreLocation } from '../../components/customers/storeLocation';
+import BranchChip from '../../components/customers/BranchChip';
 import BulkCartBar from '../../components/customers/BulkCartBar';
 import { ItemCard, Tile, CartBar, useClosedStyle, closedText, showToast, tint } from '../../components/customers/shop';
 import FilterDialog from './FilterDialog';
@@ -574,7 +575,7 @@ export default function HomeScreen() {
     const offers = useMemo(() => (dineMode ? allOffers : allOffers.filter((o) => !o.dineInOnly)), [allOffers, dineMode]);   // a dine-in-only coupon is shown only while dining in
     const waiting = !loaded && !errorStatus;   // the menu has not arrived: show shapes instead of nothing
     const rows = useMemo(() => {
-        const R = [{ t: 'header' }, { t: 'where' }];   // 'where': the shop's address and its Directions button (when switched on)
+        const R = [{ t: 'header' }, { t: 'branch' }, { t: 'where' }];   // 'branch': "Savera · Delhi" with Change (only for a branch of a brand)   // 'where': the shop's address and its Directions button (when switched on)
         const B = config.blocks;
         if (B.includes('search')) R.push({ t: 'search' });
         if (!full.restaurant.isOpen) R.push({ t: 'closed' });
@@ -697,6 +698,7 @@ export default function HomeScreen() {
                     <Text style={[s.closedTxt, { color: brand.errorText }]}>{closedText(full)}</Text>
                 </View>
             );
+            case 'branch': return <BranchChip />;
             case 'where': return <StoreLocation />;
             case 'dine': return <DineHomeCard />;
             case 'banner': return banners.length ? <FadeIn><Banners list={banners} onOrder={onOrder} /></FadeIn> : <SkelBanner />;

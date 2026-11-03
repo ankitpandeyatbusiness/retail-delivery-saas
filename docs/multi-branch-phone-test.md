@@ -29,7 +29,7 @@ B0.3 Log out, sign in again; a different phone number works too.
 B0.4 Kill the app, switch the phone off and on, open: signed in, the shop's look appears.
 B0.5 The owner side menu shows NO branch box.
 
-## B. Shop app (owner part is written, customer part is not)
+## B. Shop app (all written, none of it run on a phone yet)
 
 B1. Customer, first open of the brand app: it asks for the location and opens the nearest branch that delivers there. A branch with no radius is never offered.
 B2. Customer in Delhi switches to Mumbai: no second login. The cart, menu, addresses and orders are Mumbai's, empty at first. Switch back: the Delhi cart and orders are still there.

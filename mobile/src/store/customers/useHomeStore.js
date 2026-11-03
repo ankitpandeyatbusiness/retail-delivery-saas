@@ -59,6 +59,7 @@ export const useHomeStore = create((set, get) => ({
     config: HOME_DEFAULTS,
     full: buildFull({}),
     delivery: null,
+    branch: null,   // { brand, city } when this shop is a branch of a brand, else null
     categories: [],
     banners: [],
     offers: [],
@@ -84,6 +85,7 @@ export const useHomeStore = create((set, get) => ({
                 config: { ...HOME_DEFAULTS, ...(c.home || {}) },
                 full: buildFull(c),
                 delivery: cfg.value.delivery || null,
+                branch: cfg.value.branch || null,
                 categories: cats.value?.items ?? get().categories,
                 banners: ban.value?.items ?? get().banners,
                 offers: off.value?.items ?? get().offers,

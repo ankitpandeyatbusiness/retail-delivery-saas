@@ -38,6 +38,15 @@ async function tokenFor(tenantId, phone) {
 const sw = (slug, token, body) => request(app).post('/api/customer-branch/session').set('x-tenant-slug', slug).set('Authorization', `Bearer ${token}`).send(body);
 
 describe('a customer uses any branch with one sign-in', () => {
+    test('the shop config tells a branch its brand and city, and a normal shop null', async () => {
+        const { out } = await brandOfTwo();
+        const r = await request(app).get('/api/tenants/config').set('x-tenant-slug', out[1].slug);
+        assert.equal(r.status, 200);
+        assert.deepEqual(r.body.branch, { brand: 'Savera', city: 'mumbai' });
+        const solo = await makeTenant('solo-config');
+        assert.equal((await request(app).get('/api/tenants/config').set('x-tenant-slug', solo.slug)).body.branch, null);
+    });
+
     test('the same phone gets its own account at the other branch, once, with its name; the two accounts stay separate', async () => {
         const { out } = await brandOfTwo();
         const [delhi, mumbai] = out;
@@ -55,7 +64,10 @@ describe('a customer uses any branch with one sign-in', () => {
         assert.equal(there.name, 'Asha');
         assert.equal(there.language, 'hi');
         assert.notEqual(String(there._id), String(c.user._id));
-        assert.equal(await Address.countDocuments({ tenantId: mumbai.id }), 0);   // nothing of Delhi is copied
+        // his saved address comes along (it is his own); nothing else of Delhi does
+        assert.equal(await Address.countDocuments({ tenantId: mumbai.id, userId: there._id, line1: 'A 1' }), 1);
+        assert.equal(await Address.countDocuments({ tenantId: delhi.id }), 1);   // Delhi keeps its own
+        assert.equal(await require('../src/models/Order').countDocuments({ tenantId: mumbai.id }), 0);
 
         // the new token works at Mumbai only
         assert.equal((await request(app).get('/api/addresses').set('x-tenant-slug', mumbai.slug).set('Authorization', `Bearer ${r.body.accessToken}`)).status, 200);

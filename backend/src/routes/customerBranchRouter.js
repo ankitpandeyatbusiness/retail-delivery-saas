@@ -2,12 +2,14 @@
 //   POST /session   { slug }   (x-tenant-slug = the branch the customer is in now, Bearer token of that branch)
 //        -> the same phone gets an account at the other branch (made on first use) and a session there:
 //           { success, slug, name, user, accessToken, refreshToken }
-// The accounts stay separate on purpose: orders, addresses, points and coupons of one branch are never seen by another.
+// The accounts stay separate on purpose: orders, points and coupons of one branch are never seen by another.
+// Only the person's own saved ADDRESSES are copied, once, when the account at the other branch is made (they are his, not the branch's).
 // Only customers use this. An owner switches with /api/brand/switch; staff and riders stay in their own branch.
 const express = require('express');
 const tenantRecognizer = require('../middlewares/tenantRecognizer');
 const authenticate = require('../middlewares/authMiddleware');
 const User = require('../models/User');
+const Address = require('../models/Address');
 const Tenant = require('../models/Tenant');
 const authController = require('../controllers/authController');
 const { hashPhone } = require('../utils/phoneHash');
@@ -34,6 +36,7 @@ router.post('/session', wrap(async (req, res) => {
     if (target.status === 'suspended') throw httpError(403, 'That branch is not taking orders right now');
 
     let user = await User.findOne({ tenantId: target._id, phone: me.phone });
+    let created = false;
     if (user && user.role !== 'customer') throw httpError(409, 'This number has a job at that branch, so it cannot order there as a customer.');
     if (user && user.isBlocked) throw httpError(403, 'This account cannot sign in there');
     if (!user) {
@@ -42,9 +45,16 @@ router.post('/session', wrap(async (req, res) => {
                 tenantId: target._id, phone: me.phone, role: 'customer', phoneHash: hashPhone(target._id, me.phone),
                 ...(me.name && { name: me.name }), ...(me.language && { language: me.language }), ...(me.email && { email: me.email }),
             });
+            created = true;
         } catch (e) {
             if (e && e.code === 11000) user = await User.findOne({ tenantId: target._id, phone: me.phone });   // made a moment ago by a parallel call
             else throw e;
+        }
+    }
+    if (created) {
+        const mine = await Address.find({ tenantId: req.tenant._id, userId: req.auth.userId }).sort({ createdAt: 1 }).limit(10).lean();
+        if (mine.length) {
+            await Address.insertMany(mine.map(({ _id, tenantId, userId, createdAt, updatedAt, __v, ...rest }) => ({ ...rest, tenantId: target._id, userId: user._id })), { ordered: false }).catch(() => { });
         }
     }
     await User.updateOne({ _id: user._id }, { $set: { lastLoginAt: new Date() } });

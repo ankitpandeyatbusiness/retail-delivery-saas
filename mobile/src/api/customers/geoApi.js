@@ -7,3 +7,6 @@ export const suggestPlaces = ({ q, lat, lng }) => d(api.get('/geo/suggest', { pa
 
 // The point of a suggestion that came with a name only.
 export const placeById = (id) => d(api.get('/geo/place', { params: { id } }));
+
+// The branches of this shop's brand that deliver to a spot, nearest first. { brand, current, branches: [{ slug, name, city, distanceKm }] }. Open to guests.
+export const fetchBranchesNear = ({ lat, lng }) => d(api.get('/geo/branches', { params: { lat, lng } }));
