@@ -127,85 +127,110 @@ const More = createNativeStackNavigator();
 const Orders = createNativeStackNavigator();
 const Money = createNativeStackNavigator();
 
-// Platform health lives inside the Home tab (not above the tabs): when you open a shop or SMS profit from it and press Back, the app just returns to the Home
-// tab where Platform health is still open. It is not closed and rebuilt, so there is no flash of Home and no lag.
-// (Its cards, and the Home quick actions, open SmsProfit, SalesReport, ShopsGrowth, LiveTracking, MoneyRecord, Brands and ShopCreate on this same stack: a plain push, no tab switch, and Back is a plain pop. All of them move at one pace.)
+// Every screen that opens inside a tab (a shop and all its pages, an order, an invoice, Platform health, SMS profit, Brands...) is registered in EVERY stack: each tab's
+// and the one above the tabs. So any screen can be opened from wherever you are as a plain push on the stack you are in: the same slide, the same pace, and Back
+// simply pops it and returns to exactly where you came from (no tab switch, no rebuilding, no remembered way back). Each tab's own first page stays its own.
+const DETAIL = [
+    ['PlatformHealth', PlatformHealthScreen],
+    ['SmsProfit', SmsProfitScreen],
+    ['SalesReport', SalesReportScreen],
+    ['ShopsGrowth', ShopsGrowthScreen],
+    ['LiveTracking', LiveTrackingScreen],
+    ['MoneyRecord', MoneyRecordScreen],
+    ['Brands', BrandsScreen],
+    ['BrandDetail', BrandDetailScreen],
+    ['ShopCreate', ShopCreateScreen],
+    ['ShopDetail', ShopDetailScreen],
+    ['ShopEdit', ShopEditScreen],
+    ['ShopLive', ShopLiveScreen],
+    ['ShopAccess', ShopAccessScreen],
+    ['ShopDev', ShopDevScreen],
+    ['ShopNotify', ShopNotifyScreen],
+    ['ShopUsers', ShopUsersScreen],
+    ['ShopUserDetail', ShopUserDetailScreen],
+    ['ShopOwners', ShopOwnersScreen],
+    ['ShopSettings', ShopSettingsScreen],
+    ['SettingsBrand', SettingsBrandScreen],
+    ['SettingsTabs', SettingsTabsScreen],
+    ['SettingsHome', SettingsHomeScreen],
+    ['SettingsFeatures', SettingsFeaturesScreen],
+    ['SettingsMenuOffers', SettingsMenuOffersScreen],
+    ['SettingsOrders', SettingsOrdersScreen],
+    ['SettingsDineIn', SettingsDineInScreen],
+    ['SettingsPoints', SettingsPointsScreen],
+    ['SettingsHours', SettingsHoursScreen],
+    ['SettingsRiders', SettingsRidersScreen],
+    ['SettingsLabels', SettingsLabelsScreen],
+    ['SettingsApp', SettingsAppScreen],
+    ['ShopBranding', ShopBrandingScreen],
+    ['ShopReport', ShopReportScreen],
+    ['ShopAutopilot', ShopAutopilotScreen],
+    ['ShopOrders', ShopOrdersScreen],
+    ['OrderDetail', OrderDetailScreen],
+    ['ShopRiders', ShopRidersScreen],
+    ['RiderDetail', RiderDetailScreen],
+    ['ShopComplaints', ShopComplaintsScreen],
+    ['ComplaintDetail', ComplaintDetailScreen],
+    ['ShopMessages', ShopMessagesScreen],
+    ['ShopActivity', ShopActivityScreen],
+    ['ShopBilling', ShopBillingScreen],
+    ['CustomInvoice', CustomInvoiceScreen],
+    ['ShopPayments', ShopPaymentsScreen],
+    ['ShopBulk', ShopBulkScreen],
+    ['ShopSms', ShopSmsScreen],
+    ['SmsProvider', SmsProviderScreen],
+    ['Invoices', InvoicesScreen],
+    ['InvoiceDetail', InvoiceDetailScreen],
+    ['Ledger', LedgerScreen],
+    ['ShopMenu', ShopMenuScreen],
+    ['CategoryForm', CategoryFormScreen],
+    ['ProductForm', ProductFormScreen],
+    ['ProductImport', ProductImportScreen],
+    ['Collections', CollectionsScreen],
+    ['CollectionForm', CollectionFormScreen],
+    ['Banners', BannersScreen],
+    ['BannerForm', BannerFormScreen],
+    ['Coupons', CouponsScreen],
+    ['CouponForm', CouponFormScreen],
+    ['PlatformSms', PlatformSmsScreen],
+    ['PlatformBilling', PlatformBillingScreen],
+    ['PlatformBusiness', PlatformBusinessScreen],
+    ['GstRegister', GstRegisterScreen],
+    ['MyRazorpay', MyRazorpayScreen],
+    ['Gst', GstScreen],
+    ['MoneyRules', MoneyRulesScreen],
+    ['Team', TeamScreen],
+    ['AppLock', AppLockScreen],
+    ['Maintenance', MaintenanceScreen],
+    ['InsightsSettings', InsightsSettingsScreen],
+    ['ServicesOverview', ServicesOverviewScreen],
+    ['ServicesShop', ServicesShopScreen],
+    ['ServicesInquiry', ServicesInquiryScreen],
+    ['ServicesDefaults', ServicesDefaultsScreen],
+    ['Agreements', AgreementsScreen],
+    ['AgreementDoc', AgreementDocScreen],
+    ['AlertSettings', AlertSettingsScreen],
+    ['NotificationRules', NotificationRulesScreen],
+    ['AuditLog', AuditLogScreen],
+    ['MyAccount', MyAccountScreen],
+];
+const ROOT_OWN = new Set(["Admin","Inbox","Support","SupportDetail","SupportSettings","OwnerMessages","Search","Health","ShopReadiness","System","Exports","ProfitLoss","Receivables","Expenses","ExpenseForm","Login"]);
+const detailScreens = (S) => DETAIL.map(([name, component]) => <S.Screen key={name} name={name} component={component} />);
+
 function HomeStack() {
     return (
         <Home.Navigator screenOptions={STACK_OPTIONS}>
             <Home.Screen name="HomeMain" component={DashboardScreen} />
-            <Home.Screen name="PlatformHealth" component={PlatformHealthScreen} />
-            <Home.Screen name="SmsProfit" component={SmsProfitScreen} />
-            <Home.Screen name="SalesReport" component={SalesReportScreen} />
-            <Home.Screen name="ShopsGrowth" component={ShopsGrowthScreen} />
-            <Home.Screen name="LiveTracking" component={LiveTrackingScreen} />
-            <Home.Screen name="MoneyRecord" component={MoneyRecordScreen} />
-            <Home.Screen name="Brands" component={BrandsScreen} />
-            <Home.Screen name="BrandDetail" component={BrandDetailScreen} />
-            <Home.Screen name="ShopCreate" component={ShopCreateScreen} />
+            {detailScreens(Home)}
         </Home.Navigator>
     );
 }
 
-// All shop screens live in one stack inside the Shops tab, so the tab bar stays and back always works.
 function ShopsStack() {
     return (
         <Shops.Navigator screenOptions={STACK_OPTIONS}>
             <Shops.Screen name="ShopsList" component={ShopsListScreen} />
-            <Shops.Screen name="ShopCreate" component={ShopCreateScreen} />
-            <Shops.Screen name="ShopDetail" component={ShopDetailScreen} />
-            <Shops.Screen name="ShopEdit" component={ShopEditScreen} />
-            <Shops.Screen name="ShopLive" component={ShopLiveScreen} />
-            <Shops.Screen name="ShopAccess" component={ShopAccessScreen} />
-            <Shops.Screen name="ShopDev" component={ShopDevScreen} />
-            <Shops.Screen name="ShopNotify" component={ShopNotifyScreen} />
-            <Shops.Screen name="ShopUsers" component={ShopUsersScreen} />
-            <Shops.Screen name="ShopUserDetail" component={ShopUserDetailScreen} />
-            <Shops.Screen name="ShopOwners" component={ShopOwnersScreen} />
-            <Shops.Screen name="ShopSettings" component={ShopSettingsScreen} />
-            <Shops.Screen name="SettingsBrand" component={SettingsBrandScreen} />
-            <Shops.Screen name="SettingsTabs" component={SettingsTabsScreen} />
-            <Shops.Screen name="SettingsHome" component={SettingsHomeScreen} />
-            <Shops.Screen name="SettingsFeatures" component={SettingsFeaturesScreen} />
-            <Shops.Screen name="SettingsMenuOffers" component={SettingsMenuOffersScreen} />
-            <Shops.Screen name="SettingsOrders" component={SettingsOrdersScreen} />
-            <Shops.Screen name="SettingsDineIn" component={SettingsDineInScreen} />
-            <Shops.Screen name="SettingsPoints" component={SettingsPointsScreen} />
-            <Shops.Screen name="SettingsHours" component={SettingsHoursScreen} />
-            <Shops.Screen name="SettingsRiders" component={SettingsRidersScreen} />
-            <Shops.Screen name="SettingsLabels" component={SettingsLabelsScreen} />
-            <Shops.Screen name="SettingsApp" component={SettingsAppScreen} />
-            <Shops.Screen name="ShopBranding" component={ShopBrandingScreen} />
-            <Shops.Screen name="ShopReport" component={ShopReportScreen} />
-            <Shops.Screen name="ShopAutopilot" component={ShopAutopilotScreen} />
-            <Shops.Screen name="ShopOrders" component={ShopOrdersScreen} />
-            <Shops.Screen name="OrderDetail" component={OrderDetailScreen} />
-            <Shops.Screen name="SalesReport" component={SalesReportScreen} />
-            <Shops.Screen name="ShopRiders" component={ShopRidersScreen} />
-            <Shops.Screen name="RiderDetail" component={RiderDetailScreen} />
-            <Shops.Screen name="ShopComplaints" component={ShopComplaintsScreen} />
-            <Shops.Screen name="ComplaintDetail" component={ComplaintDetailScreen} />
-            <Shops.Screen name="ShopMessages" component={ShopMessagesScreen} />
-            <Shops.Screen name="ShopActivity" component={ShopActivityScreen} />
-            <Shops.Screen name="ShopBilling" component={ShopBillingScreen} />
-            <Shops.Screen name="CustomInvoice" component={CustomInvoiceScreen} />
-            <Shops.Screen name="ShopPayments" component={ShopPaymentsScreen} />
-            <Shops.Screen name="ShopBulk" component={ShopBulkScreen} />
-            <Shops.Screen name="ShopSms" component={ShopSmsScreen} />
-            <Shops.Screen name="SmsProvider" component={SmsProviderScreen} />
-            <Shops.Screen name="Invoices" component={InvoicesScreen} />
-            <Shops.Screen name="InvoiceDetail" component={InvoiceDetailScreen} />
-            <Shops.Screen name="Ledger" component={LedgerScreen} />
-            <Shops.Screen name="ShopMenu" component={ShopMenuScreen} />
-            <Shops.Screen name="CategoryForm" component={CategoryFormScreen} />
-            <Shops.Screen name="ProductForm" component={ProductFormScreen} />
-            <Shops.Screen name="ProductImport" component={ProductImportScreen} />
-            <Shops.Screen name="Collections" component={CollectionsScreen} />
-            <Shops.Screen name="CollectionForm" component={CollectionFormScreen} />
-            <Shops.Screen name="Banners" component={BannersScreen} />
-            <Shops.Screen name="BannerForm" component={BannerFormScreen} />
-            <Shops.Screen name="Coupons" component={CouponsScreen} />
-            <Shops.Screen name="CouponForm" component={CouponFormScreen} />
+            {detailScreens(Shops)}
         </Shops.Navigator>
     );
 }
@@ -214,9 +239,7 @@ function OrdersStack() {
     return (
         <Orders.Navigator screenOptions={STACK_OPTIONS}>
             <Orders.Screen name="OrdersHome" component={OrdersHomeScreen} />
-            <Orders.Screen name="OrderDetail" component={OrderDetailScreen} />
-            <Orders.Screen name="SalesReport" component={SalesReportScreen} />
-            <Orders.Screen name="ComplaintDetail" component={ComplaintDetailScreen} />
+            {detailScreens(Orders)}
         </Orders.Navigator>
     );
 }
@@ -225,17 +248,7 @@ function MoneyStack() {
     return (
         <Money.Navigator screenOptions={STACK_OPTIONS}>
             <Money.Screen name="MoneyHome" component={MoneyHomeScreen} />
-            <Money.Screen name="Invoices" component={InvoicesScreen} />
-            <Money.Screen name="InvoiceDetail" component={InvoiceDetailScreen} />
-            <Money.Screen name="Ledger" component={LedgerScreen} />
-            <Money.Screen name="SmsProfit" component={SmsProfitScreen} />
-            <Money.Screen name="PlatformSms" component={PlatformSmsScreen} />
-            <Money.Screen name="PlatformBilling" component={PlatformBillingScreen} />
-            <Money.Screen name="PlatformBusiness" component={PlatformBusinessScreen} />
-            <Money.Screen name="GstRegister" component={GstRegisterScreen} />
-            <Money.Screen name="MyRazorpay" component={MyRazorpayScreen} />
-            <Money.Screen name="Gst" component={GstScreen} />
-            <Money.Screen name="MoneyRules" component={MoneyRulesScreen} />
+            {detailScreens(Money)}
         </Money.Navigator>
     );
 }
@@ -244,26 +257,7 @@ function MoreStack() {
     return (
         <More.Navigator screenOptions={STACK_OPTIONS}>
             <More.Screen name="MoreHome" component={MoreScreen} />
-            <More.Screen name="Team" component={TeamScreen} />
-            <More.Screen name="AppLock" component={AppLockScreen} />
-            <More.Screen name="Maintenance" component={MaintenanceScreen} />
-            <More.Screen name="LiveTracking" component={LiveTrackingScreen} />
-            <More.Screen name="InsightsSettings" component={InsightsSettingsScreen} />
-            <More.Screen name="GstRegister" component={GstRegisterScreen} />
-            <More.Screen name="MoneyRecord" component={MoneyRecordScreen} />
-            <More.Screen name="ServicesOverview" component={ServicesOverviewScreen} />
-            <More.Screen name="ServicesShop" component={ServicesShopScreen} />
-            <More.Screen name="ServicesInquiry" component={ServicesInquiryScreen} />
-            <More.Screen name="ServicesDefaults" component={ServicesDefaultsScreen} />
-            <More.Screen name="Agreements" component={AgreementsScreen} />
-            <More.Screen name="Brands" component={BrandsScreen} />
-            <More.Screen name="BrandDetail" component={BrandDetailScreen} />
-            <More.Screen name="AgreementDoc" component={AgreementDocScreen} />
-            <More.Screen name="ShopsGrowth" component={ShopsGrowthScreen} />
-            <More.Screen name="AlertSettings" component={AlertSettingsScreen} />
-            <More.Screen name="NotificationRules" component={NotificationRulesScreen} />
-            <More.Screen name="AuditLog" component={AuditLogScreen} />
-            <More.Screen name="MyAccount" component={MyAccountScreen} />
+            {detailScreens(More)}
         </More.Navigator>
     );
 }
@@ -357,6 +351,7 @@ export default function RootNavigator() {
             {token ? (
                 <>
                     <Root.Screen name="Admin" component={AdminTabs} />
+                    {detailScreens(Root).filter((x) => !ROOT_OWN.has(x.key))}
                     <Root.Screen name="Inbox" component={InboxScreen} />
                     <Root.Screen name="Support" component={SupportInboxScreen} />
                     <Root.Screen name="SupportDetail" component={SupportDetailScreen} />

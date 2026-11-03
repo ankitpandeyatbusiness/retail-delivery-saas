@@ -179,3 +179,5 @@ Q10. Platform health -> SMS card: the Money tab slides in already showing SMS pr
 Q11. Checked on a phone with screenshots: Platform health -> SMS card -> SMS profit slides in as a normal push with the Home tab still lit (no Money overview, no blank screen), and Back is a normal slide back. The Orders, Google and Shops cards do the same (Sales report, Live tracking, Shops growth).
 
 Q12. Home opens with ONE shimmer for the whole page (never two in a row), with a visible shine; Platform health loads with its own page-shaped shimmer. New shop, Shop money, Brands and Platform health from the Home quick actions all slide in at the same pace (plain pushes on the Home stack) and Back slides out the same way.
+
+Q13. Everywhere in the superadmin app a screen opens as the same slide (about 0.4 s) and Back slides it out again, whichever tab or screen you open it from: a shop from Home Needs you, from Search, from the Inbox, an order, an invoice, Platform health, Shop money, Brands. The tab bar stays on the tab you are in.

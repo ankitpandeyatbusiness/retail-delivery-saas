@@ -74,8 +74,15 @@ function prepareStack(nav, tab, p) {
     } catch (e) { return false; }
 }
 
+// THE WAY NOW: every screen that opens inside a tab is registered in every stack (navigation/RootNavigator.jsx DETAIL), so from wherever you are the screen is
+// simply pushed on the stack you are in: one pace, and Back pops it. These two helpers keep their old names and call shapes; they only look for the screen in the
+// stack you are in first. The old tab-switching code below is only used for a tab named on its own (the first page of a tab).
+const hasScreen = (nav, name) => { try { return nav.getState().routeNames.includes(name); } catch (e) { return false; } };
+
 // from a screen above the tabs (Search, Platform health, Inbox...) or from inside them: the one copy of the tabs, then the tab, then the screen
 export const toAdmin = (nav, payload) => {
+    const inner = payload && payload.params;
+    if (inner && typeof inner.screen === 'string' && !(inner.params && typeof inner.params.screen === 'string') && hasScreen(nav, inner.screen)) return nav.navigate(inner.screen, inner.params);
     const o = originOf(nav);
     const bare = payload && TAB_ROOT[payload.screen] && !payload.params ? { screen: payload.screen, params: { screen: TAB_ROOT[payload.screen] } } : payload;
     const p = o && !sameTab(o, bare?.screen) ? leafReturn(bare, o, true) : bare;
@@ -86,6 +93,7 @@ export const toAdmin = (nav, payload) => {
 
 // from inside the tabs: switch to a tab and open a screen in it, reusing the screen if that tab already shows it
 export const goTab = (nav, tab, payload) => {
+    if (payload && typeof payload.screen === 'string' && !(payload.params && typeof payload.params.screen === 'string') && hasScreen(nav, payload.screen)) return nav.navigate(payload.screen, payload.params);
     const o = originOf(nav);
     const p = o && !sameTab(o, tab) ? leafReturn(payload, o, false) : payload;
     if (prepareStack(nav, tab, p)) return nav.navigate(tab, undefined, { pop: true });
