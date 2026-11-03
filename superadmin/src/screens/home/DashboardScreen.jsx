@@ -3,7 +3,7 @@ import { FadeIn, animateNext } from '../../components/motion';
 import { View, Text, Pressable } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useTheme, spacing, font } from '../../theme';
-import { Screen, HeaderButton } from '../../components/layout';
+import { Screen } from '../../components/layout';
 import { Stat, Card, Button, SectionTitle } from '../../components/ui';
 import Icon from '../../components/Icon';
 import { ShopRow } from '../../components/shopBits';
@@ -70,7 +70,6 @@ export default function DashboardScreen() {
     return (
         <Screen
             tabScreen
-            right={<HeaderButton icon="bell" onPress={() => nav.navigate('Inbox')} badge={d.unreadAlerts || undefined} />}
             title={greeting()}
             subtitle={admin?.name || 'Platform overview'}
             refreshing={d.refreshing}
@@ -131,15 +130,6 @@ export default function DashboardScreen() {
                                 <Stat section="money" label="Collected" value={rupees(health.rent.collected)} icon="rupee" onPress={() => nav.navigate('Receivables')} />
                                 <Stat section="alerts" label="To collect" value={rupees(health.rent.toCollect)} icon="receipt" onPress={() => nav.navigate('Receivables')} />
                             </View>
-                            <Card style={{ marginTop: spacing.md }} onPress={() => nav.navigate('MoreTab', { screen: 'MoneyRecord' })}>
-                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <View style={{ flex: 1, paddingRight: 8 }}>
-                                        <Text style={{ color: t.text, fontWeight: '800' }}>Shop money</Text>
-                                        <Text style={{ color: t.muted, fontSize: font.sm }}>{money ? `${money.totals.shops} shop${money.totals.shops === 1 ? '' : 's'} paid ${rupees(money.totals.base)} before GST. The developer's part: ${rupees(money.totals.yourPart)}.` : 'What shops paid, and did you get your part'}</Text>
-                                    </View>
-                                    <Text style={{ color: t.muted }}>›</Text>
-                                </View>
-                            </Card>
                         </FadeIn>
                     ) : null}
 
@@ -188,7 +178,7 @@ export default function DashboardScreen() {
                                 { label: 'New shop', icon: 'addCircle', section: 'shops', onPress: () => nav.navigate('ShopsTab', { screen: 'ShopCreate' }) },
                                 { label: 'Shop money', icon: 'rupee', section: 'money', onPress: () => nav.navigate('MoreTab', { screen: 'MoneyRecord' }) },
                                 { label: 'Brands', icon: 'shops', section: 'platform', onPress: () => nav.navigate('MoreTab', { screen: 'Brands' }) },
-                                { label: 'Alerts', icon: 'bell', section: 'alerts', badge: d.unreadAlerts || undefined, onPress: () => nav.navigate('Inbox') },
+                                { label: 'Platform health', icon: 'shield', section: 'alerts', onPress: () => nav.navigate('PlatformHealth') },
                             ]}
                         />
                     </FadeIn>
