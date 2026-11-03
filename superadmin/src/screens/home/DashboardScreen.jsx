@@ -10,7 +10,7 @@ import SearchResults from '../../components/SearchResults';
 import { ShopRow } from '../../components/shopBits';
 import { QuickActions, StatStrip, RankRow, SkeletonDashboard } from '../../components/blocks';
 import { ErrorBox, Empty } from '../../components/feedback';
-import { Dot, useLevel, ShopLines } from '../../components/healthBits';
+import { Dot, useLevel, NeedItem } from '../../components/healthBits';
 import { useDashboardStore } from '../../store/useDashboardStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useSupreme } from '../../hooks/useSupreme';
@@ -37,6 +37,7 @@ export default function DashboardScreen() {
 
     const [q, setQ] = useState('');                   // the search box: while something is typed, the home screen gives way to the answers
     const searching = q.trim().length > 0;
+    const [openNeed, setOpenNeed] = useState(null);    // which "Needs you now" line is dropped down (one at a time)
     const [helpOpen, setHelpOpen] = useState(0);
     const [health, setHealth] = useState(null);
     const [money, setMoney] = useState(null);          // this month's shop money
@@ -115,17 +116,8 @@ export default function DashboardScreen() {
                             <SectionTitle section="alerts">Needs you now</SectionTitle>
                             <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
                                 {need.map((a, i) => (
-                                    <View key={a.key} style={{ paddingVertical: 12, borderTopWidth: i ? 1 : 0, borderTopColor: t.surfaceAlt }}>
-                                        <Pressable onPress={a.go} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                                            <Dot level={a.level} />
-                                            <View style={{ flex: 1 }}>
-                                                <Text style={{ color: t.text, fontWeight: '700' }}>{a.title}</Text>
-                                                <Text style={{ color: t.muted, fontSize: font.sm }}>{a.hint}</Text>
-                                            </View>
-                                            <Text style={{ color: t.muted }}>›</Text>
-                                        </Pressable>
-                                        <ShopLines list={a.list} total={a.total} max={3} onShop={openShop} />
-                                    </View>
+                                    <NeedItem key={a.key} first={i === 0} level={a.level} title={a.title} hint={a.hint} list={a.list} total={a.total} max={5}
+                                        open={openNeed === a.key} onToggle={() => setOpenNeed(openNeed === a.key ? null : a.key)} onShop={openShop} onOpen={a.go} />
                                 ))}
                             </Card>
                         </FadeIn>

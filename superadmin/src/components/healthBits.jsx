@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { useTheme, spacing, font } from '../theme';
+import { animateNext } from './motion';
 
 // green / amber / red for the platform health: the colour, a soft background and a word, so it is not colour alone
 export function useLevel() {
@@ -32,6 +33,37 @@ export function ShopLines({ list, total, max = 5, onShop }) {
                 </Pressable>
             ))}
             {more > 0 ? <Text style={{ color: t.muted, fontSize: font.sm, paddingTop: 4 }}>{`and ${more} more`}</Text> : null}
+        </View>
+    );
+}
+
+// One line of "Needs you": the problem, and, when shops are behind it, a smooth drop-down with those shops. Tap the line to open or close it.
+// Without shops the tap goes straight to `onOpen`. Inside the drop-down, "See details" goes to `onOpen` too.
+export function NeedItem({ level, title, hint, list, total, max = 5, onShop, onOpen, open, onToggle, first }) {
+    const t = useTheme();
+    const has = !!(list && list.length);
+    const tap = () => { if (!has) { onOpen?.(); return; } animateNext(); onToggle?.(); };
+    return (
+        <View style={{ paddingVertical: 12, borderTopWidth: first ? 0 : 1, borderTopColor: t.surfaceAlt }}>
+            <Pressable onPress={tap} accessibilityRole="button" accessibilityState={has ? { expanded: !!open } : undefined} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Dot level={level} />
+                <View style={{ flex: 1 }}>
+                    <Text style={{ color: t.text, fontWeight: '700' }}>{title}</Text>
+                    <Text style={{ color: t.muted, fontSize: font.sm }}>{hint}</Text>
+                </View>
+                {has ? <Text style={{ color: t.muted, fontSize: font.sm }}>{(total || list.length)}</Text> : null}
+                <Text style={{ color: t.muted, fontSize: font.lg, transform: [{ rotate: has && open ? '90deg' : '0deg' }] }}>›</Text>
+            </Pressable>
+            {has && open ? (
+                <View>
+                    <ShopLines list={list} total={total} max={max} onShop={onShop} />
+                    {onOpen ? (
+                        <Pressable onPress={onOpen} accessibilityRole="button" style={{ paddingTop: 8 }}>
+                            <Text style={{ color: t.primary, fontWeight: '700' }}>See details ›</Text>
+                        </Pressable>
+                    ) : null}
+                </View>
+            ) : null}
         </View>
     );
 }

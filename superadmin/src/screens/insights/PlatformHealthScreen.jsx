@@ -8,7 +8,7 @@ import { SkeletonList } from '../../components/blocks';
 import { ErrorBox } from '../../components/feedback';
 import { fetchPlatformHealth } from '../../api/healthApi';
 import { errMsg } from '../../api/adminClient';
-import { useLevel, Dot, ShopLines } from '../../components/healthBits';
+import { useLevel, Dot, ShopLines, NeedItem } from '../../components/healthBits';
 
 const rs = (n) => `₹${(Number(n) || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 const num = (n) => (Number(n) || 0).toLocaleString('en-IN');
@@ -63,6 +63,7 @@ export default function PlatformHealthScreen() {
     const level = useLevel();
     const [r, setR] = useState(null);
     const [err, setErr] = useState('');
+    const [openNeed, setOpenNeed] = useState(null);    // which "Needs you" line is dropped down
 
     const load = useCallback(async () => { setErr(''); try { setR(await fetchPlatformHealth()); } catch (e) { setErr(errMsg(e)); } }, []);
     useFocusEffect(useCallback(() => { load(); }, [load]));
@@ -104,14 +105,8 @@ export default function PlatformHealthScreen() {
                             <SectionTitle section="alerts">Needs you</SectionTitle>
                             <Card padded={false} style={{ paddingHorizontal: spacing.lg, marginBottom: spacing.md }}>
                                 {r.needsYou.map((x, i) => (
-                                    <View key={x.key} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, borderTopWidth: i ? 1 : 0, borderTopColor: t.surfaceAlt }}>
-                                        <Dot level={x.level} />
-                                        <View style={{ flex: 1 }}>
-                                            <Text style={{ color: t.text, fontWeight: '700' }}>{LABEL[x.key]}</Text>
-                                            <Text style={{ color: t.muted, fontSize: font.sm }}>{x.note}</Text>
-                                            <ShopLines list={x.list} total={x.listTotal} onShop={openShop} />
-                                        </View>
-                                    </View>
+                                    <NeedItem key={x.key} first={i === 0} level={x.level} title={LABEL[x.key]} hint={x.note} list={x.list} total={x.listTotal} max={5}
+                                        open={openNeed === x.key} onToggle={() => setOpenNeed(openNeed === x.key ? null : x.key)} onShop={openShop} onOpen={go[x.key]} />
                                 ))}
                             </Card>
                         </>
