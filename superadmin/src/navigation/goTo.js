@@ -114,3 +114,17 @@ export function backTo(nav, o) {
     }
     nav.goBack();
 }
+
+// Open the other tabs quietly in the background once the app is up (one every 0.7 s). A tab that has never been opened has no stack yet, and opening a
+// screen in it showed the tab's overview page first and only then the screen (the page the user saw flash by). A tab that already exists can be set up
+// out of sight first (prepareStack), so the screen is simply there when the tab slides in.
+let warmed = false;
+export function warmTabs(nav) {
+    if (warmed) return;
+    warmed = true;
+    try {
+        const tabs = nav.getParent?.();
+        if (!tabs?.preload) return;
+        ['ShopsTab', 'OrdersTab', 'MoneyTab', 'MoreTab'].forEach((name, i) => setTimeout(() => { try { tabs.preload(name); } catch (e) { /* only a speed-up */ } }, 1500 + i * 700));
+    } catch (e) { /* only a speed-up */ }
+}

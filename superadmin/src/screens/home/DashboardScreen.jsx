@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { FadeIn, animateNext } from '../../components/motion';
 import { View, Text, Pressable } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -18,7 +18,7 @@ import { rupees } from '../../utils/format';
 import { fetchSupportCounts } from '../../api/supportApi';
 import { fetchPlatformHealth } from '../../api/healthApi';
 import { fetchMoneyRecord } from '../../api/moneyRecordApi';
-import { goTab } from '../../navigation/goTo';
+import { goTab, warmTabs } from '../../navigation/goTo';
 
 const greeting = () => {
     const h = new Date().getHours();
@@ -38,6 +38,7 @@ export default function DashboardScreen() {
 
     const [q, setQ] = useState('');                   // the search box: while something is typed, the home screen gives way to the answers
     const searching = q.trim().length > 0;
+    useEffect(() => { warmTabs(nav); }, [nav]);   // open the other tabs quietly, so opening a screen in one of them is one smooth step
     const [openNeed, setOpenNeed] = useState(null);    // which "Needs you now" line is dropped down (one at a time)
     const [helpOpen, setHelpOpen] = useState(0);
     const [health, setHealth] = useState(null);

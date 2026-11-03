@@ -175,3 +175,5 @@ Q8. Platform health -> Rent card -> Receivables -> a shop -> Back goes to Receiv
 Q9. Platform health now lives inside the Home tab. Open it, tap the SMS card, then Back: you return to Platform health exactly as you left it (scroll place and open drop-downs kept), with no Home in between. Also: More -> Platform health -> Back returns to More; Home -> Platform health -> Back returns to Home; a red-alert push opens Platform health.
 
 Q10. Platform health -> SMS card: the Money tab slides in already showing SMS profit (its own overview page does not flash by first). Same for Orders (Sales report), Shops (Shops growth), Google (Live tracking), and a shop opened from Home, Search or Platform health. Back returns in one slide as well.
+
+Q11. Checked on a phone with screenshots: Platform health -> SMS card -> SMS profit slides in as a normal push with the Home tab still lit (no Money overview, no blank screen), and Back is a normal slide back. The Orders, Google and Shops cards do the same (Sales report, Live tracking, Shops growth).
