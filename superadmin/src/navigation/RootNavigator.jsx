@@ -114,8 +114,10 @@ import CouponFormScreen from '../screens/catalog/CouponFormScreen';
 
 // One pace for every screen that opens and closes. On Android the old "slide_from_right" ignored the 180 ms we asked for (the duration setting is iOS only) and ran
 // the system's slow medium time, with a straight-line pace, while the tabs ran 240 ms with an ease: so opening felt slower than closing and than the tabs.
-// "ios_from_right" slides in and out for the same short time with the same ease in both directions. iOS keeps its own native push, which is already the same both ways.
-const STACK_OPTIONS = { headerShown: false, animation: Platform.OS === 'android' ? 'ios_from_right' : 'default' };
+// "slide_from_right" slides in and out for the same time both ways (Android's medium animation time, about 0.4 s; the quicker "ios_from_right" was about 0.2 s, which felt too fast).
+// The tabs slide for the same time (TAB_SLIDE_MS) so everything moves at one pace. iOS keeps its own native push, which is already the same both ways.
+const TAB_SLIDE_MS = 400;
+const STACK_OPTIONS = { headerShown: false, animation: Platform.OS === 'android' ? 'slide_from_right' : 'default' };
 
 const Root = createNativeStackNavigator();
 const Tabs = createBottomTabNavigator();
@@ -317,7 +319,7 @@ function AdminTabs() {
                     headerShown: false,
                     animation: 'shift',
                     sceneStyleInterpolator: slideScenes,
-                    transitionSpec: { animation: 'timing', config: { duration: 200, easing: Easing.out(Easing.cubic) } },
+                    transitionSpec: { animation: 'timing', config: { duration: TAB_SLIDE_MS, easing: Easing.out(Easing.cubic) } },
                     tabBarActiveTintColor: color,
                     tabBarInactiveTintColor: t.muted,
                     tabBarStyle: {
