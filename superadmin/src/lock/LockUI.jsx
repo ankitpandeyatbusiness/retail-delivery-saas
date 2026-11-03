@@ -80,7 +80,9 @@ function LockModal({ onSignOut }) {
     // the phone's prompt comes up by itself the moment the lock appears (and again on "Unlock")
     const unlockWithPhone = useCallback(async (biometricOnly) => {
         if (asking.current) return;   // one prompt at a time
+        if (!useLockStore.getState().locked) return;   // already open: a late retry timer must never ask again
         asking.current = true;
+        lastEnd.current = Date.now();   // the prompt itself makes the app look "in the background" on a cold start: that must not trigger another prompt
         try {
             const ok = await useLockStore.getState().tryPhone({ biometricOnly });
             if (!ok && !biometricOnly) setError(tr('Not unlocked. Try again.'));
@@ -99,11 +101,15 @@ function LockModal({ onSignOut }) {
         const auto = method === 'device' || (method === 'pin' && biometric && sup.biometric);
         if (!auto) return undefined;
         // only after a real trip to the background, and never right after a prompt that was just cancelled (that would ask forever)
+        let retry = null;
         const sub = AppState.addEventListener('change', (st) => {
-            if (st === 'background') away.current = true;
-            else if (st === 'active' && away.current) { away.current = false; if (Date.now() - lastEnd.current > 2500) setTimeout(() => unlockWithPhone(method === 'pin'), 400); }
+            if (st === 'background') { if (!asking.current) away.current = true; }   // a background caused by our own prompt is not a trip away
+            else if (st === 'active' && away.current) {
+                away.current = false;
+                if (!asking.current && Date.now() - lastEnd.current > 2500) { clearTimeout(retry); retry = setTimeout(() => unlockWithPhone(method === 'pin'), 400); }
+            }
         });
-        return () => sub.remove();
+        return () => { sub.remove(); clearTimeout(retry); };   // once unlocked this effect is torn down, and the waiting retry goes with it
     }, [locked, ready, method, biometric, sup.biometric, unlockWithPhone]);
     // the 30 second wait counts down
     useEffect(() => {

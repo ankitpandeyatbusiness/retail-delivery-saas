@@ -8,7 +8,6 @@ import RootNavigator from './src/navigation/RootNavigator';
 import { ToastHost, toast } from './src/components/feedback';
 import LegalGate from './src/components/LegalGate';
 import LockGate from './src/lock/LockUI';
-import { useSupreme } from './src/hooks/useSupreme';
 import { useAuthStore } from './src/store/useAuthStore';
 import { useThemeStore } from './src/store/useThemeStore';
 import { useInboxStore } from './src/store/useInboxStore';
@@ -19,11 +18,10 @@ import { useTheme } from './src/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => { });
 
-// the panel's lock: every superadmin may switch it on; the supreme admin (money, settlements, agreements) must have it. Signing out is the way out of a forgotten PIN.
+// the panel's lock: every superadmin may switch it on and off (it was forced on for the supreme admin before; the owner asked for the switch to work). Signing out is the way out of a forgotten PIN.
 function PanelLock() {
     const id = useAuthStore((s) => (s.token ? (s.admin?._id || s.admin?.id || s.admin?.email || 'admin') : null));
-    const supreme = useSupreme();
-    return <LockGate uid={id} required={supreme} onSignOut={() => useAuthStore.getState().logout()} />;
+    return <LockGate uid={id} required={false} onSignOut={() => useAuthStore.getState().logout()} />;
 }
 
 function Shell() {
