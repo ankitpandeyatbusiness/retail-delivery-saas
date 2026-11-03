@@ -421,7 +421,6 @@ export default function AppNavigator() {
                     <Stack.Screen name="OwnerService" component={OwnerServiceScreen} />
                     <Stack.Screen name="OwnerBulk" component={OwnerBulkScreen} />
                     <Stack.Screen name="OwnerBulkOrder" component={OwnerBulkOrderScreen} />
-                    <Stack.Screen name="Chat" component={ChatScreen} />
                     <Stack.Screen name="OwnerBulkSettings" component={OwnerBulkSettingsScreen} />
                     <Stack.Screen name="OwnerBanners" component={OwnerBannersScreen} />
                     <Stack.Screen name="OwnerBanner" component={OwnerBannerScreen} />
