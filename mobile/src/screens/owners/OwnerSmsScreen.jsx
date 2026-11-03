@@ -5,6 +5,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useBrand, alpha } from '../../components/common/kit';
 import { PageHeader, Card, Chips, Button, Pill, SectionTitle, Field } from '../../components/owners/ui';
 import { MoneyRow } from '../../components/owners/moneyBits';
+import BrandPayGate from '../../components/owners/BrandPayGate';
 import { fetchSmsWallet, fetchSmsTransactions, fetchTopupOptions } from '../../api/owners/shopApi';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { rupees, toPaise, ago } from '../../utils/owners/riderRules';
@@ -66,6 +67,7 @@ export default function OwnerSmsScreen() {
                     {wallet?.zero ? <View style={{ marginTop: 8 }}><Pill label={tr('Finished: SMS alerts have stopped')} color={error} /></View> : wallet?.low ? <View style={{ marginTop: 8 }}><Pill label={tr('Running low')} color={error} /></View> : null}
                 </Card>
 
+                <BrandPayGate canPay={wallet?.canPay}>
                 <SectionTitle title={tr('Add money')} />
                 <Card>
                     {opts ? (
@@ -83,6 +85,7 @@ export default function OwnerSmsScreen() {
                         <Button label={paise && !bad ? tr('Pay {rupees}', { rupees: rupees(payablePaise) }) : tr('Choose an amount')} icon="card" disabled={!paise || !!bad} onPress={pay} />
                     </View>
                 </Card>
+                </BrandPayGate>
 
                 <SectionTitle title={tr('History')} />
                 <View style={{ paddingHorizontal: 16 }}>

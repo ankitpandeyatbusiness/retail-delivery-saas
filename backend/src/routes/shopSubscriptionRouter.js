@@ -18,6 +18,7 @@ const rentPayments = require('../services/rentPaymentService');
 const platformCheckout = require('../services/platformCheckout');
 const dues = require('../services/dues');
 const { wrap, httpError } = require('../middlewares/apiErrors');
+const { brandPayer, canPay } = require('../middlewares/brandPayer');   // in a brand, only the brand owner pays
 
 const router = express.Router();
 const isId = (v) => typeof v === 'string' && mongoose.isValidObjectId(v);
@@ -44,6 +45,7 @@ router.get('/invoices', wrap(async (req, res) => {
         // internal fields (who marked it, private note) are not shown to the shop
         items: items.map(({ markedBy, note, ...inv }) => withOverdue(inv)),
         due: { amount: owed[0]?.amount || 0, count: owed[0]?.count || 0 },
+        canPay: await canPay(req),   // false for a branch manager: the app shows "your brand owner pays" instead of Pay
         page,
         hasMore,
     });
@@ -51,7 +53,7 @@ router.get('/invoices', wrap(async (req, res) => {
 
 // Pay this bill online: returns a UPI QR (the same one again while it is still open).
 // Works while the shop is paused, because this router is mounted with allowBlocked.
-router.post('/invoices/:id/pay', wrap(async (req, res) => {
+router.post('/invoices/:id/pay', brandPayer, wrap(async (req, res) => {
     const qr = await rentPayments.createQr({ tenantId: req.tenant._id, invoiceId: req.params.id });
     res.status(201).json(qr);
 }));
@@ -59,16 +61,16 @@ router.post('/invoices/:id/pay', wrap(async (req, res) => {
 // Pay this bill with a UPI app or a card (Razorpay checkout in the app), the way a customer pays an order.
 //   POST /invoices/:id/pay/start   -> { keyId, rzpOrderId, amountPaise, currency, description }
 //   POST /invoices/:id/pay/verify  { razorpay_order_id, razorpay_payment_id, razorpay_signature } -> { paid }
-router.post('/invoices/:id/pay/start', wrap(async (req, res) => {
+router.post('/invoices/:id/pay/start', brandPayer, wrap(async (req, res) => {
     res.status(201).json(await platformCheckout.startRent({ tenantId: req.tenant._id, invoiceId: req.params.id }));
 }));
-router.post('/invoices/:id/pay/verify', wrap(async (req, res) => {
+router.post('/invoices/:id/pay/verify', brandPayer, wrap(async (req, res) => {
     res.json(await platformCheckout.verifyRent({ tenantId: req.tenant._id, invoiceId: req.params.id, proof: req.body }));
 }));
 
-router.get('/dues', wrap(async (req, res) => { res.json(await dues.statement(req.tenant._id)); }));
-router.post('/dues/pay/start', wrap(async (req, res) => { res.status(201).json(await platformCheckout.startDues({ tenantId: req.tenant._id })); }));
-router.post('/dues/pay/verify', wrap(async (req, res) => { res.json(await platformCheckout.verifyDues({ tenantId: req.tenant._id, proof: req.body })); }));
+router.get('/dues', wrap(async (req, res) => { res.json({ ...(await dues.statement(req.tenant._id)), canPay: await canPay(req) }); }));
+router.post('/dues/pay/start', brandPayer, wrap(async (req, res) => { res.status(201).json(await platformCheckout.startDues({ tenantId: req.tenant._id })); }));
+router.post('/dues/pay/verify', brandPayer, wrap(async (req, res) => { res.json(await platformCheckout.verifyDues({ tenantId: req.tenant._id, proof: req.body })); }));
 
 router.get('/invoices/:id/pdf', wrap(async (req, res) => {
     const inv = isId(req.params.id)

@@ -57,3 +57,10 @@ D6. A rider SOS or an order nobody accepted at a muted branch still rings him.
 D7. Muting a branch that has no other manager shows a warning.
 D8. The Mumbai manager (not a brand owner) is not affected by any of this and gets plain titles.
 D9. While he looks at Mumbai, does Delhi (his own branch) still ring as a phone notification? Does its live slider and Soundbox also play? (Expected: the phone notification yes; the live slider only for the branch that is open.)
+
+## E. Who pays
+
+E1. The branch manager (not a brand owner) opens Monthly bill: the bills and amounts show, but there is no Pay now or Pay all; a note says the brand owner pays.
+E2. The same manager opens the SMS screen: the balance and history show, but no Add money; the same note.
+E3. The brand owner opens the same screens at that branch: Pay now, Pay all and Add money are there and work. A top-up shows in every branch (one wallet).
+E4. An ordinary single shop: nothing changes, the owner pays as before.

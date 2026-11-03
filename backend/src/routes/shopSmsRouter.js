@@ -15,12 +15,13 @@ const SmsTopup = require('../models/SmsTopup');
 const { streamSubscriptionInvoice } = require('../services/subscriptionInvoicePdf');
 
 const { wrap, httpError } = apiErrors;
+const { brandPayer, canPay } = require('../middlewares/brandPayer');   // in a brand, only the brand owner tops up the shared wallet
 const router = express.Router();
 const clamp = (n, min, max) => Math.min(Math.max(n, min), max);
 const actorOf = (req) => req.actor || { type: 'owner', id: String(req.auth?.userId || ''), label: req.shopUser?.phone || 'shop owner' };
 
 router.get('/wallet', wrap(async (req, res) => {
-    res.json(await wallet.status(req.tenant._id));
+    res.json({ ...(await wallet.status(req.tenant._id)), canPay: await canPay(req) });
 }));
 
 router.get('/transactions', wrap(async (req, res) => {
@@ -54,7 +55,7 @@ router.get('/topup/options', wrap(async (req, res) => {
     res.json(await topups.options());
 }));
 
-router.post('/topup', wrap(async (req, res) => {
+router.post('/topup', brandPayer, wrap(async (req, res) => {
     const t = await topups.create({
         tenantId: req.tenant._id,
         amountPaise: req.body?.amountPaise,
@@ -69,10 +70,10 @@ router.post('/topup', wrap(async (req, res) => {
 // Top up with a UPI app or a card (Razorpay checkout in the app)
 //   POST /topup/start   { amountPaise } -> { topupId, keyId, rzpOrderId, amountPaise, currency }
 //   POST /topup/:id/verify  { razorpay_order_id, razorpay_payment_id, razorpay_signature } -> { paid }
-router.post('/topup/start', wrap(async (req, res) => {
+router.post('/topup/start', brandPayer, wrap(async (req, res) => {
     res.status(201).json(await platformCheckout.startTopup({ tenantId: req.tenant._id, amountPaise: req.body?.amountPaise, actor: actorOf(req) }));
 }));
-router.post('/topup/:id/verify', wrap(async (req, res) => {
+router.post('/topup/:id/verify', brandPayer, wrap(async (req, res) => {
     res.json(await platformCheckout.verifyTopup({ tenantId: req.tenant._id, topupId: req.params.id, proof: req.body }));
 }));
 

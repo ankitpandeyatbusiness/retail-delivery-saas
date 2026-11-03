@@ -4,6 +4,7 @@ import React, { useCallback, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useBrand, alpha } from '../../components/common/kit';
+import BrandPayGate from '../../components/owners/BrandPayGate';
 import { PageHeader, Card, Pill, Button, SectionTitle, Empty, Stat, money } from '../../components/owners/ui';
 import { fetchBillingStatus, fetchRentInvoices, fetchDues, rentInvoicePdfPath, creditNotePdfPath, apiError } from '../../api/owners/shopApi';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
@@ -29,11 +30,13 @@ export default function OwnerRentScreen() {
     const [page, setPage] = useState(1);
     const [busyId, setBusyId] = useState(null);
     const [err, setErr] = useState('');
+    const [canPay, setCanPay] = useState(true);   // false for a branch manager: the brand owner pays
 
     const load = useCallback(async (p = 1) => {
         try {
             const [b, i, du] = await Promise.all([p === 1 ? fetchBillingStatus() : Promise.resolve(null), fetchRentInvoices({ page: p, limit: 20 }), p === 1 ? fetchDues().catch(() => null) : Promise.resolve(null)]);
             if (b) setBill(b);
+            if (p === 1) setCanPay(i.canPay !== false);
             if (p === 1) setDues(du);
             setInvoices((old) => (p === 1 ? i.items : [...(old || []), ...i.items]));
             setMore(!!i.hasMore); setPage(p); setErr('');
@@ -64,6 +67,7 @@ export default function OwnerRentScreen() {
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Monthly bill')} />
             <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 32 }}>
+                <BrandPayGate canPay={canPay}>{null}</BrandPayGate>
                 {bill ? (
                     <>
                         <Card tone={due > 0 ? error : undefined}>
@@ -109,7 +113,7 @@ export default function OwnerRentScreen() {
                                     {dues.lateFeeTotal > 0 ? <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}><Text style={{ color: muted }}>{tr('Late fees (with GST)')}</Text><Text style={{ color: error, fontWeight: '800' }}>{money(dues.lateFeeTotal)}</Text></View> : null}
                                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}><Text style={{ color: text, fontWeight: '900', fontSize: 16 }}>{tr('Total to pay')}</Text><Text style={{ color: error, fontWeight: '900', fontSize: 20 }}>{money(dues.grandTotal)}</Text></View>
                                     <Text style={{ color: muted, fontSize: 12, marginTop: 8 }}>{tr('{text} Paying now stops it from growing.', { text: dues.rule.text })}</Text>
-                                    <View style={{ marginTop: 12 }}><Button label={tr('Pay all {money}', { money: money(dues.grandTotal) })} icon="card" onPress={payAll} /></View>
+                                    {canPay ? <View style={{ marginTop: 12 }}><Button label={tr('Pay all {money}', { money: money(dues.grandTotal) })} icon="card" onPress={payAll} /></View> : null}
                                 </Card>
                             </>
                         ) : null}
@@ -174,7 +178,7 @@ export default function OwnerRentScreen() {
                             </View>
                         </View>
                         <View style={{ flexDirection: 'row', marginTop: 12 }}>
-                            {inv.status === 'pending' ? <View style={{ flex: 1, marginRight: 6 }}><Button label={tr('Pay now')} icon="card" onPress={() => pay(inv)} /></View> : null}
+                            {inv.status === 'pending' && canPay ? <View style={{ flex: 1, marginRight: 6 }}><Button label={tr('Pay now')} icon="card" onPress={() => pay(inv)} /></View> : null}
                             <View style={{ flex: 1, marginLeft: inv.status === 'pending' ? 6 : 0 }}><Button label={tr('Open bill (PDF)')} icon="document-text" kind="ghost" busy={busyId === `pdf${inv._id}`} onPress={() => pdf(inv)} /></View>
                         </View>
                         {inv.status === 'void' && inv.creditNoteId ? <View style={{ marginTop: 8 }}><Button label={tr('Credit note (PDF)')} icon="document-text" kind="ghost" busy={busyId === `cn${inv._id}`} onPress={() => noteOf(inv)} /></View> : null}
