@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { StackActions } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { View, Animated, Dimensions, Easing } from 'react-native';
+import { View, Animated, Dimensions, Easing, Platform } from 'react-native';
 import Icon from '../components/Icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../store/useAuthStore';
@@ -112,6 +112,11 @@ import CouponsScreen from '../screens/catalog/CouponsScreen';
 import CouponFormScreen from '../screens/catalog/CouponFormScreen';
 
 
+// One pace for every screen that opens and closes. On Android the old "slide_from_right" ignored the 180 ms we asked for (the duration setting is iOS only) and ran
+// the system's slow medium time, with a straight-line pace, while the tabs ran 240 ms with an ease: so opening felt slower than closing and than the tabs.
+// "ios_from_right" slides in and out for the same short time with the same ease in both directions. iOS keeps its own native push, which is already the same both ways.
+const STACK_OPTIONS = { headerShown: false, animation: Platform.OS === 'android' ? 'ios_from_right' : 'default' };
+
 const Root = createNativeStackNavigator();
 const Tabs = createBottomTabNavigator();
 const Shops = createNativeStackNavigator();
@@ -122,7 +127,7 @@ const Money = createNativeStackNavigator();
 // All shop screens live in one stack inside the Shops tab, so the tab bar stays and back always works.
 function ShopsStack() {
     return (
-        <Shops.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right', animationDuration: 180 }}>
+        <Shops.Navigator screenOptions={STACK_OPTIONS}>
             <Shops.Screen name="ShopsList" component={ShopsListScreen} />
             <Shops.Screen name="ShopCreate" component={ShopCreateScreen} />
             <Shops.Screen name="ShopDetail" component={ShopDetailScreen} />
@@ -184,7 +189,7 @@ function ShopsStack() {
 
 function OrdersStack() {
     return (
-        <Orders.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right', animationDuration: 180 }}>
+        <Orders.Navigator screenOptions={STACK_OPTIONS}>
             <Orders.Screen name="OrdersHome" component={OrdersHomeScreen} />
             <Orders.Screen name="OrderDetail" component={OrderDetailScreen} />
             <Orders.Screen name="SalesReport" component={SalesReportScreen} />
@@ -195,7 +200,7 @@ function OrdersStack() {
 
 function MoneyStack() {
     return (
-        <Money.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right', animationDuration: 180 }}>
+        <Money.Navigator screenOptions={STACK_OPTIONS}>
             <Money.Screen name="MoneyHome" component={MoneyHomeScreen} />
             <Money.Screen name="Invoices" component={InvoicesScreen} />
             <Money.Screen name="InvoiceDetail" component={InvoiceDetailScreen} />
@@ -214,7 +219,7 @@ function MoneyStack() {
 
 function MoreStack() {
     return (
-        <More.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right', animationDuration: 180 }}>
+        <More.Navigator screenOptions={STACK_OPTIONS}>
             <More.Screen name="MoreHome" component={MoreScreen} />
             <More.Screen name="Team" component={TeamScreen} />
             <More.Screen name="AppLock" component={AppLockScreen} />
@@ -324,7 +329,7 @@ function AdminTabs() {
 export default function RootNavigator() {
     const token = useAuthStore((s) => s.token);
     return (
-        <Root.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right', animationDuration: 180 }}>
+        <Root.Navigator screenOptions={STACK_OPTIONS}>
             {token ? (
                 <>
                     <Root.Screen name="Admin" component={AdminTabs} />
