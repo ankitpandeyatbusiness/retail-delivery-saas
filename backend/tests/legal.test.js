@@ -35,7 +35,7 @@ beforeEach(async () => {
     await PlatformSettings.findByIdAndUpdate('main', {
         $set: {
             'business.legalName': 'Operator Pvt Ltd', 'business.address': '1 Main Road, Lucknow', 'business.gstin': '09AAAAA0000A1Z5', 'business.appName': 'QuickBite',
-            'business.contactPhone': '8318538918', 'business.poweredBy': 'Acme', 'settlement.ownerName': 'Ankit', 'settlement.partnerName': 'Vivek',
+            'business.contactPhone': '8318538918', 'business.poweredBy': 'Acme',
         },
     }, { upsert: true });
 });
@@ -66,8 +66,8 @@ describe('the documents', () => {
         const ok = await send('team_terms');
         assert.equal(ok.status, 201, JSON.stringify(ok.body));
         assert.equal(ok.body.currentVersion, 1);
-        assert.match(ok.body.current.body, /Ankit/);
-        assert.match(ok.body.current.body, /Vivek/);
+        assert.match(ok.body.current.body, /Developer/);
+        assert.match(ok.body.current.body, /Vivyaan/);
         assert.match(ok.body.current.body, /Operator Pvt Ltd/);
         assert.doesNotMatch(ok.body.current.body, /\{\{/);
 

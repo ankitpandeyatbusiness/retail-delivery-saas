@@ -6,7 +6,6 @@
 // and a bill that was paid ONLINE is never turned back to unpaid by hand (real money was captured: it is a refund, not an undo).
 const SubscriptionInvoice = require('../models/SubscriptionInvoice');
 const Tenant = require('../models/Tenant');
-const settlement = require('./settlement');
 const lateFees = require('./lateFees');
 const { withOverdue, PERIOD_RE } = require('./subscriptionService');
 const { enforceTenant } = require('./billingEnforcement');
@@ -67,7 +66,6 @@ async function markPaid(brand, which, body, admin) {
             // only a bill that is still pending changes (a payment that arrived a moment ago is left alone)
             const done = await SubscriptionInvoice.findOneAndUpdate({ _id: inv._id, status: 'pending' }, { $set: set }, { returnDocument: 'after' }).lean();
             if (!done) { row.skipped.push({ invoiceNo: inv.invoiceNo, reason: 'It was paid a moment ago' }); continue; }
-            await settlement.recordInvoicePaid(done, { by: admin }).catch((e) => console.error('Settlement row error:', e.message));
             row.done += 1;
             row.amount = round2(row.amount + done.total);
         }
@@ -91,7 +89,6 @@ async function markUnpaid(brand, which, body, admin) {
                 { returnDocument: 'after' },
             ).lean();
             if (!undone) continue;
-            await settlement.invoiceUnpaid(undone._id, admin).catch((e) => console.error('Settlement row error:', e.message));
             row.done += 1;
             row.amount = round2(row.amount + undone.total);
         }

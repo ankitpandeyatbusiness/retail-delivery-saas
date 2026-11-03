@@ -63,13 +63,11 @@ import BrandsScreen from '../screens/operators/BrandsScreen';
 import BrandDetailScreen from '../screens/operators/BrandDetailScreen';
 import AgreementsScreen from '../screens/agreements/AgreementsScreen';
 import AgreementDocScreen from '../screens/agreements/AgreementDocScreen';
-import SettlementScreen from '../screens/settlement/SettlementScreen';
+import MoneyRecordScreen from '../screens/money/MoneyRecordScreen';
 import ServicesOverviewScreen from '../screens/services/ServicesOverviewScreen';
 import ServicesShopScreen from '../screens/services/ServicesShopScreen';
 import ServicesInquiryScreen from '../screens/services/ServicesInquiryScreen';
 import ServicesDefaultsScreen from '../screens/services/ServicesDefaultsScreen';
-import SettlementEntryScreen from '../screens/settlement/SettlementEntryScreen';
-import SettlementSettingsScreen from '../screens/settlement/SettlementSettingsScreen';
 import ShopBillingScreen from '../screens/money/ShopBillingScreen';
 import CustomInvoiceScreen from '../screens/money/CustomInvoiceScreen';
 import ShopPaymentsScreen from '../screens/money/ShopPaymentsScreen';
@@ -223,7 +221,7 @@ function MoreStack() {
             <More.Screen name="LiveTracking" component={LiveTrackingScreen} />
             <More.Screen name="InsightsSettings" component={InsightsSettingsScreen} />
             <More.Screen name="GstRegister" component={GstRegisterScreen} />
-            <More.Screen name="Settlement" component={SettlementScreen} />
+            <More.Screen name="MoneyRecord" component={MoneyRecordScreen} />
             <More.Screen name="ServicesOverview" component={ServicesOverviewScreen} />
             <More.Screen name="ServicesShop" component={ServicesShopScreen} />
             <More.Screen name="ServicesInquiry" component={ServicesInquiryScreen} />
@@ -232,8 +230,6 @@ function MoreStack() {
             <More.Screen name="Brands" component={BrandsScreen} />
             <More.Screen name="BrandDetail" component={BrandDetailScreen} />
             <More.Screen name="AgreementDoc" component={AgreementDocScreen} />
-            <More.Screen name="SettlementEntry" component={SettlementEntryScreen} />
-            <More.Screen name="SettlementSettings" component={SettlementSettingsScreen} />
             <More.Screen name="ShopsGrowth" component={ShopsGrowthScreen} />
             <More.Screen name="AlertSettings" component={AlertSettingsScreen} />
             <More.Screen name="NotificationRules" component={NotificationRulesScreen} />

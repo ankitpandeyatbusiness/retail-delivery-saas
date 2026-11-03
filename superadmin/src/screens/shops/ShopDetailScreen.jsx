@@ -3,7 +3,7 @@ import { View, Text, Image } from 'react-native';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useTheme, spacing, font, radius } from '../../theme';
 import { Screen } from '../../components/layout';
-import { BroughtByCard, HandoverCard } from '../../components/settlementBits';
+import { BroughtByCard, HandoverCard } from '../../components/broughtByBits';
 import { Card, ListRow, SectionTitle, KeyValue, Avatar, Badge, Button } from '../../components/ui';
 import { ShopStateBadge, stateTone } from '../../components/shopBits';
 import { Hero, QuickActions, SkeletonList } from '../../components/blocks';

@@ -20,7 +20,7 @@ These terms apply to everyone who has an administrator login for the platform.
 - Everything you change is recorded with your name and the time.
 
 # 3. What only the supreme administrator may do
-Changing prices, bills, fees, waivers, payment accounts, SMS prices and wallets, the settlement sheet, company details, agreements and who brought which shop. If you need one of these changed, ask the supreme administrator.
+Changing prices, bills, fees, waivers, payment accounts, SMS prices and wallets, the monthly shop money record, company details, agreements and who brought which shop. If you need one of these changed, ask the supreme administrator.
 
 # 4. Keep it private
 - Do not share your login or the OTP sent to your phone with anyone.

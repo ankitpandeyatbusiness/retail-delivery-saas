@@ -18,7 +18,6 @@ const User = require('../models/User');
 const SuperAdmin = require('../models/SuperAdmin');
 const { DOCS } = require('./legalTemplates');
 const { PHONE: SUPREME_PHONE } = require('../config/supreme');
-const settlement = require('./settlement');
 const { httpError } = require('../middlewares/apiErrors');
 
 const VISIT_GAP_MS = 30 * 60000;
@@ -30,20 +29,16 @@ const READ_ONLY_DOCS = { rider: ['rider_terms', 'rider_privacy'], kitchen: ['sta
 
 /* ------------------------------ the text ------------------------------ */
 async function variables() {
-    const p = await PlatformSettings.findById('main').select('business settlement').lean();
+    const p = await PlatformSettings.findById('main').select('business').lean();
     const b = p?.business || {};
-    const cfg = await settlement.getConfig();
     const contact = b.contactPhone || b.phone;
     const day = new Date(Date.now() + 330 * 60000).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
     return {
         platformName: b.appName || 'Vivyaan',
         operatorName: b.legalName || '[operator name]',
         operatorAddress: b.address || '[operator address]',
+        ownerName: 'Developer', partnerName: 'Vivyaan',   // the two sides, as the MOU names them (old drafts may still use these words)
         operatorGstin: b.gstin ? ` (GSTIN ${b.gstin})` : '',
-        ownerName: cfg.ownerName, partnerName: cfg.partnerName, payDays: cfg.payDays, royaltyPct: cfg.royaltyPct,
-        ownerPctPartnerBrought: cfg.ownerPctPartnerBrought, partnerPctPartnerBrought: 100 - cfg.ownerPctPartnerBrought,
-        ownerPctOwnerBrought: cfg.ownerPctOwnerBrought, partnerPctOwnerBrought: 100 - cfg.ownerPctOwnerBrought,
-        costOwnerPct: cfg.costOwnerPct, costPartnerPct: 100 - cfg.costOwnerPct,
         effectiveDate: day,
         shopName: '{{shopName}}',   // kept as it is when a version is sent; filled with the shop's name each time a customer reads it
         supportLine: contact ? `For any question call ${contact}${b.email ? ` or write to ${b.email}` : ''}.` : (b.email ? `For any question write to ${b.email}.` : 'For any question, contact the support given in the app.'),

@@ -74,7 +74,6 @@ async function complete({ topupId, tenantId, paymentId, actor }) {
         { $set: { status: 'paid', paidAt: new Date(), paymentId: paymentId || undefined, paidBy: actor } },
     );
     await ensureInvoice(t._id).catch((e) => console.error('Top-up invoice error:', e.message));   // the tax invoice / receipt
-    require('./settlement').recordTopupPaid(await SmsTopup.findById(t._id).lean()).catch((e) => console.error('Settlement row error:', e.message));   // a row on the common sheet
     if (!r.duplicate) {   // tell the owner once: in the app, and a receipt by email
         notify.toOwner(t.tenantId, {
             type: 'sms_topup_done', title: 'SMS balance added',

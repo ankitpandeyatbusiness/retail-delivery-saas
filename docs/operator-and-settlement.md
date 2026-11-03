@@ -15,14 +15,12 @@ Not legal advice. Everything here is software; the signed paper agreement betwee
 - Cancelling an issued bill (void or waive) issues a **credit note** automatically. Owners open credit notes and top-up invoices from the app.
 - **GST register** (superadmin: More, GST register): all bills, top-up invoices and credit notes of a month with taxable value, CGST, SGST, IGST, B2B/B2C and the GST due on unpaid bills; Excel download. This is what the operator files his returns from.
 
-## The settlement sheet (More, Settlement sheet)
-- A row appears by itself when a shop pays rent, a setup fee or an SMS top-up. It is shared on the amount **before GST**: shop brought by the partner 50/50, by the owner 70/30 (these numbers are settings). Shared costs (SMS recharge, server, database, API, misc) come off first, as the MOU says net profit is shared: the developer's part is the blended rate of the money received so far (50% before any money came in). The developer never pays a deficit from his pocket: the sheet shows it as "costs to recoup" and takes it from later money.
-- The agency pays by the **15th of the month after** the payment (the MOU; setting `dueDay`, 0 = use `payDays`). After that the row shows as late.
-- Rows are never deleted. Every change is an event on the row's timeline (who, when, amount, reference, note).
-- The supreme admin records payments, confirms "I have paid" notes, sets rows off against each other (with a reason typed by hand), adds costs and adjustments, marks **who brought a shop** (shop detail, or when creating a shop) and changes names and ratios. Changing who brought a shop fixes the unpaid rows and never rewrites a row money was already settled on.
-- The supreme admin gets a notification (inbox and push, nobody else) for every payment: who paid, how much, and what the partner owes.
-- Excel download of the whole sheet. 
-- When a bill is marked paid by hand, `receivedBy` says who got the money (default: the operator's account).
+## Shop money (More, Shop money): replaces the settlement sheet (2026-11-04)
+The settlement sheet (rows, costs, due dates, set-off, "I have paid" notes, alerts, Excel) is GONE: the developer and Vivyaan settle outside the app. What is left is a plain record.
+- **Who brought the shop** stays (shop detail, and when creating a shop; supreme admin sets it): the developer 70%, Vivyaan 50% of what the shop pays before GST. A shop nobody marked counts as Vivyaan's.
+- **Month page:** pick a month. Every shop that paid that month is listed under its brand (a single shop alone): rent, setup or other bills, SMS top-ups, the total before GST, the developer's part. Every superadmin login (Vivyaan's too) can read it.
+- **"Did you get your part?"** one yes / no per shop and month (supreme admin only). No asks for a reason. Nothing else happens: no amounts owed, no due dates, no alerts. If a payment arrives later or "brought by" changes, the answer shows "Ask again".
+- Server: `GET /api/admin/money-record?month=2026-05`, `PUT /money-record/check`, `PUT /money-record/shops/:id/brought-by` (services/moneyRecord.js, models/ShopMoneyCheck.js). Computed from the paid bills and SMS top-ups by the day the money was received; tests/moneyRecord.test.js. Old settlement rows stay in the database, unused.
 
 ## Agreements and terms (More, Agreements and terms)
 Six documents: the operating agreement between the two partners, terms for the other superadmins, shop owners, riders, and (read-only for customers) Terms of Service and the Privacy Policy. The supreme admin edits the draft and presses **Send new version**; it freezes the text with the names filled in (words in `{{double braces}}` come from the company details and the sheet's names; text in [square brackets] are blanks that must be filled before it can be sent).

@@ -185,7 +185,6 @@ const EVENTS = {
     admin_webhook_failed: { to: 'superadmin', channels: ALL, critical: true },
     admin_sms_provider_failing: { to: 'superadmin', channels: ALL, critical: true },
     admin_refund_failed: { to: 'superadmin', channels: ALL, critical: true },
-    admin_settlement_due: { to: 'superadmin', channels: INAPP_PUSH },   // a shop paid: what the partner owes the supreme admin (supreme admin only)
     admin_support_new: { to: 'superadmin', channels: ALL },
     admin_support_reply: { to: 'superadmin', channels: ALL },
 };

@@ -1,5 +1,5 @@
 import { isState } from '../../utils/states';
-import { BroughtByPicker } from '../../components/settlementBits';
+import { BroughtByPicker } from '../../components/broughtByBits';
 import React, { useEffect, useState } from 'react';
 import { View, Text, Image, Pressable } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
