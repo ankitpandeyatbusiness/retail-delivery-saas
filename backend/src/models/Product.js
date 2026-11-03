@@ -90,7 +90,13 @@ const productSchema = new mongoose.Schema({
     },
     isActive: { type: Boolean, default: true },
     sortOrder: { type: Number, default: 0 },
+
+    // multi-branch (services/menuSync.js): copies of one dish in different branches share a brandKey; brandPrice is the price that came with the last copy or push
+    brandKey: { type: mongoose.Schema.Types.ObjectId },
+    brandPrice: Number,
 }, { timestamps: true });
+
+productSchema.index({ tenantId: 1, brandKey: 1 }, { sparse: true });
 
 // Sold by weight or volume: the amount is the quantity, so size, serves and a piece count make no sense
 productSchema.pre('validate', function () {

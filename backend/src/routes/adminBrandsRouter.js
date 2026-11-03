@@ -8,6 +8,7 @@
 //   POST   /brands/:id/owners              { phone }  appoint a brand owner (any superadmin): owner of every branch, can switch between them
 //   DELETE /brands/:id/owners/:phone       take the brand-owner job away (they lose the owner panel in every branch)
 //   POST   /brands/:id/move                { fromTenantId, toTenantId, userId }  move a manager, cook, waiter or rider (any superadmin)
+//   POST   /brands/:id/menu/push           { fromTenantId, productIds, toTenantIds, prices? }  push dishes from one branch to others (supreme admin)
 //   DELETE /brands/:id                     only when it has no branches
 const express = require('express');
 const mongoose = require('mongoose');
@@ -151,7 +152,9 @@ router.post('/brands/:id/branches', loadBrand, wrap(async (req, res) => {
     }
     invalidateTenant(slug);
     const problems = await brands.giveOwnersAccess(req.brand, tenant);
-    res.status(201).json({ branch: { id: tenant._id, slug, name }, appBuild: { APP_TENANT: slug }, ...(problems.length && { problems }) });
+    // the starting menu: a copy of the branch we copied the look from (each branch edits its own from now on)
+    const menu = base && b.copyMenu !== false ? await require('../services/menuSync').copyMenu({ fromTenantId: b.copyFromTenantId, toTenantId: tenant._id }) : null;
+    res.status(201).json({ branch: { id: tenant._id, slug, name }, appBuild: { APP_TENANT: slug }, ...(menu && { menu }), ...(problems.length && { problems }) });
 }));
 
 router.delete('/brands/:id/branches/:tid', loadBrand, wrap(async (req, res) => {
@@ -204,6 +207,15 @@ router.post('/brands/:id/move', loadBrand, wrap(async (req, res) => {
     const [fromTenant, toTenant] = await Promise.all([Tenant.findById(b.fromTenantId), Tenant.findById(b.toTenantId)]);
     if (!fromTenant || !toTenant) throw httpError(404, 'Branch not found');
     res.json(await brands.movePerson({ brand: req.brand, fromTenant, toTenant, userId: b.userId }));
+}));
+
+router.post('/brands/:id/menu/push', loadBrand, wrap(async (req, res) => {
+    const b = req.body || {};
+    if (!isId(b.fromTenantId) || !Array.isArray(b.toTenantIds) || !b.toTenantIds.every(isId)) throw httpError(400, 'Choose the branches');
+    const ids = [b.fromTenantId, ...b.toTenantIds];
+    if ((await Tenant.countDocuments({ _id: { $in: ids }, brandId: req.brand._id })) !== new Set(ids).size) throw httpError(404, 'A chosen branch is not part of this brand');
+    if (b.toTenantIds.includes(b.fromTenantId)) throw httpError(400, 'Choose other branches');
+    res.json(await require('../services/menuSync').push({ fromTenantId: b.fromTenantId, productIds: b.productIds, toTenantIds: b.toTenantIds, prices: b.prices || 'keep' }));
 }));
 
 router.delete('/brands/:id', loadBrand, wrap(async (req, res) => {

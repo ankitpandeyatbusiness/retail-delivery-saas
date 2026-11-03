@@ -2,6 +2,7 @@
 // Needs the usual headers (x-tenant-slug of the branch the owner is in, Bearer token of that branch).
 //   GET  /me         the brand and its branches (the branch switcher's list)
 //   POST /switch     { slug }                      sign in to another branch of the brand: returns that branch's tokens
+//   POST /menu/push  { productIds, toSlugs: 'all' | [slug], prices: 'keep'|'untouched'|'all' }   push dishes of THIS branch to other branches
 //   POST /managers   { slug, phone }               make a phone the manager (owner panel) of one branch
 //   POST /move       { fromSlug, toSlug, userId }  move a manager, cook, waiter or rider to another branch (not with live work)
 const express = require('express');
@@ -13,6 +14,7 @@ const Tenant = require('../models/Tenant');
 const brands = require('../services/brandService');
 const owners = require('../services/ownerService');
 const panel = require('../services/brandPanel');
+const menuSync = require('../services/menuSync');
 const authController = require('../controllers/authController');
 const apiErrors = require('../middlewares/apiErrors');
 
@@ -67,6 +69,18 @@ router.post('/switch', wrap(async (req, res) => {
     if (!user || user.isBlocked) throw httpError(403, 'This account cannot sign in there');
     const { accessToken, refreshToken } = await authController.issueSession(user, target, req, req.ip);
     res.json({ success: true, slug: target.slug, name: target.name, accessToken, refreshToken });
+}));
+
+router.post('/menu/push', wrap(async (req, res) => {
+    const b = req.body || {};
+    const others = await Tenant.find({ brandId: req.brand._id, _id: { $ne: req.tenant._id } }).select('_id slug').lean();
+    let targets = others;
+    if (b.toSlugs !== 'all') {
+        if (!Array.isArray(b.toSlugs) || !b.toSlugs.length) throw httpError(400, 'Choose the branches, or all');
+        targets = others.filter((t) => b.toSlugs.includes(t.slug));
+        if (targets.length !== new Set(b.toSlugs).size) throw httpError(404, 'A chosen branch is not part of your brand');
+    }
+    res.json(await menuSync.push({ fromTenantId: req.tenant._id, productIds: b.productIds, toTenantIds: targets.map((t) => t._id), prices: b.prices || 'keep' }));
 }));
 
 router.post('/managers', wrap(async (req, res) => {
