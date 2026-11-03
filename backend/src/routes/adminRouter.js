@@ -216,6 +216,7 @@ admin.put('/tenants/:tid', wrap(async (req, res) => {
 
     // --- REPLACEMENT STARTS HERE ---
     req.auditBefore = pickFields([...TENANT_FIELDS, 'settings'], tenant.toObject());   // for the audit log
+    const areaBefore = { ...((tenant.delivery && tenant.delivery.toObject ? tenant.delivery.toObject() : tenant.delivery) || {}) };
     const updates = pickFields(TENANT_FIELDS, body);
     if (updates.subscription && typeof updates.subscription === 'object') delete updates.subscription.monthlyFee;   // B18: billing does not use it
     for (const [key, value] of Object.entries(updates)) {
@@ -230,6 +231,10 @@ admin.put('/tenants/:tid', wrap(async (req, res) => {
         }
     }
     // --- REPLACEMENT ENDS HERE ---
+    // the pin or the radius changed: note who did it (a locked area is not locked for a superadmin)
+    if (updates.delivery && require('../services/branchArea').moves(areaBefore, updates.delivery)) {
+        tenant.set('delivery.locationBy', { who: req.admin.name || req.admin.email || 'Superadmin', role: 'superadmin', at: new Date() });
+    }
 
     if (body.settings !== undefined) {
         // what only the owner sets is taken out before checking and put back after (keepOwnerPause), so a panel save never fails on it or wipes it

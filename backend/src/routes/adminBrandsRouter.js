@@ -6,6 +6,7 @@
 //   GET    /brands/:id                     the brand, its branches, each with the go-live checklist and orders this month
 //   PUT    /brands/:id                     { name?, branchLimit?, notes?, discountPercent? }   discountPercent: rent discount for the 2nd branch onward (0 = off, never above the cap)
 //   POST   /brands/:id/branches            { tenantId } (a shop that already exists) or { name, slug, city, managerPhone?, copyFromTenantId? } (a new branch)
+//   POST   /brands/:id/branches/:tid/area-lock   { locked: true|false }  lock or unlock the map pin and delivery radius (supreme admin): a branch manager cannot change a locked area
 //   DELETE /brands/:id/branches/:tid       take a branch out of the brand (the shop stays, as a normal shop)
 //   POST   /brands/:id/owners              { phone, ownSlug? }  appoint a brand owner (any superadmin): owner of every branch, can switch between them
 //   DELETE /brands/:id/owners/:phone       take the brand-owner job away (they lose the owner panel in every branch)
@@ -110,6 +111,7 @@ router.get('/brands/:id', loadBrand, wrap(async (req, res) => {
             billingState: (t.billing && t.billing.state) || 'free',
             ordersThisMonth: orders.get(String(t._id)) || 0,
             checklist: await brands.checklist(t),
+            area: { locked: !!(t.delivery && t.delivery.locked), by: (t.delivery && t.delivery.locationBy) || null },   // the pin and radius: locked by the head office? who changed them last?
             razorpayKeyId: (t.payments && t.payments.keyId) || null,   // the key id is not secret; the secret is never returned
         });
     }
@@ -199,6 +201,20 @@ router.post('/brands/:id/branches', loadBrand, wrap(async (req, res) => {
     const menu = base && b.copyMenu !== false ? await require('../services/menuSync').copyMenu({ fromTenantId: b.copyFromTenantId, toTenantId: tenant._id }) : null;
     const extras = menu ? await require('../services/extrasSync').copyExtras({ fromTenantId: b.copyFromTenantId, toTenantId: tenant._id }) : null;   // after the dishes: a collection needs them
     res.status(201).json({ branch: { id: tenant._id, slug, name }, appBuild: { APP_TENANT: slug }, ...(menu && { menu }), ...(extras && { extras }), ...(problems.length && { problems }) });
+}));
+
+router.post('/brands/:id/branches/:tid/area-lock', loadBrand, wrap(async (req, res) => {
+    if (!isId(req.params.tid)) throw httpError(404, 'Branch not found');
+    if (typeof (req.body && req.body.locked) !== 'boolean') throw httpError(400, 'locked must be true or false');
+    const t = await Tenant.findOne({ _id: req.params.tid, brandId: req.brand._id });
+    if (!t) throw httpError(404, 'Branch not found');
+    req.auditBefore = { locked: !!(t.delivery && t.delivery.locked) };
+    t.set('delivery.locked', req.body.locked);
+    t.set('delivery.lockedBy', req.body.locked ? (req.admin.name || req.admin.email || 'Superadmin') : undefined);
+    t.set('delivery.lockedAt', req.body.locked ? new Date() : undefined);
+    await t.save();
+    invalidateTenant(t.slug);
+    res.json({ ok: true, locked: req.body.locked });
 }));
 
 router.delete('/brands/:id/branches/:tid', loadBrand, wrap(async (req, res) => {

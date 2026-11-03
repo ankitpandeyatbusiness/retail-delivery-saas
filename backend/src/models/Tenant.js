@@ -57,6 +57,11 @@ const tenantSchema = new mongoose.Schema({
         longitude: Number,
         radiusKm: Number,
         minOrder: Number,
+        // who moved the pin or changed the radius last (services/branchArea.js), and the head office's lock on them (branches only)
+        locationBy: { _id: false, who: String, role: String, at: Date },
+        locked: { type: Boolean, default: false },
+        lockedBy: String,
+        lockedAt: Date,
     },
     business: {
         legalName: String,

@@ -12,3 +12,4 @@ export const addBrandOwner = (id, phone) => data(api.post(`/admin/brands/${id}/o
 export const removeBrandOwner = (id, phone) => data(api.delete(`/admin/brands/${id}/owners/${phone}`));
 export const fetchBrandSettings = () => data(api.get('/admin/brands/settings'));                                // { defaultDiscountPercent, maxDiscountPercent }
 export const fetchBrandStatement = (id, period) => data(api.get(`/admin/brands/${id}/statement`, { params: { period } }));
+export const setAreaLock = (id, tid, locked) => data(api.post(`/admin/brands/${id}/branches/${tid}/area-lock`, { locked }));   // supreme admin

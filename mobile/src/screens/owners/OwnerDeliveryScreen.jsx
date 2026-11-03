@@ -22,11 +22,13 @@ export default function OwnerDeliveryScreen() {
     const [gst, setGst] = useState(null);
     const [err, setErr] = useState('');
     const [saving, setSaving] = useState(false);
+    const [area, setArea] = useState({ locked: false, by: null });   // the head office's lock on the pin and radius, and who changed them last
 
     useEffect(() => {
         fetchSettings().then((s) => {
             const fee = s.orders.deliveryFee || {};
             setGst(s.orders.gst);
+            setArea({ locked: !!s.delivery.locked, by: s.delivery.locationBy || null });
             setV({
                 latitude: s.delivery.latitude, longitude: s.delivery.longitude, radiusKm: s.delivery.radiusKm,
                 type: fee.type || 'free', amount: fee.amount, freeAbove: fee.freeAbove || undefined, baseKm: fee.baseKm, baseFee: fee.baseFee, perKmFee: fee.perKmFee, maxFee: fee.maxFee || undefined,
@@ -61,7 +63,7 @@ export default function OwnerDeliveryScreen() {
     return (
         <FormPage title={tr('Delivery area and fees')} footer={<Button label={tr('Save')} icon="checkmark" busy={saving} onPress={save} />}>
             <Group title={tr('Where you deliver')} hint={pinned ? undefined : tr('Pin your shop on the map in Shop settings first. The distance is measured from it.')}>
-                <NumberBox label={tr('How far you deliver')} suffix="km" value={v.radiusKm} onChange={(x) => set('radiusKm', x)} hint={tr('Straight-line distance from your shop.')} />
+                <NumberBox label={tr('How far you deliver')} suffix="km" value={v.radiusKm} onChange={(x) => set('radiusKm', x)} hint={area.locked ? tr('Locked by the head office. Ask your brand owner to change the distance.') : area.by ? tr('Straight-line distance from your shop. Last changed by {who} on {date}.', { who: area.by.who, date: new Date(area.by.at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) }) : tr('Straight-line distance from your shop.')} />
                 <NumberBox label={tr('Smallest order')} prefix="₹" value={v.minOrder} onChange={(x) => set('minOrder', x)} last />
             </Group>
 

@@ -675,6 +675,13 @@ router.put('/settings', wrap(async (req, res) => {
             if (d[key] === undefined) continue;   // not sent, so leave the old value alone
             updates[`delivery.${key}`] = pick(key, min, max);
         }
+        // the pin or the radius really changes: a locked area is for the head office only; and the change is noted (who, when)
+        const branchArea = require('../services/branchArea');
+        const next = Object.fromEntries(branchArea.AREA_KEYS.map((k) => [k, updates[`delivery.${k}`]]));
+        if (branchArea.moves(cur, next)) {
+            if (cur.locked && !(await branchArea.mayChangeLocked(req))) return res.status(403).json({ error: branchArea.LOCK_MESSAGE, areaLocked: true });
+            updates['delivery.locationBy'] = await branchArea.by(req);
+        }
     }
 
     if (!Object.keys(updates).length) throw httpError(400, 'No valid settings provided to update');

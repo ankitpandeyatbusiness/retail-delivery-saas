@@ -8,7 +8,7 @@ import { Field } from '../../components/inputs';
 import { SkeletonList } from '../../components/blocks';
 import { ErrorBox, Sheet, ConfirmSheet, toast } from '../../components/feedback';
 import { useSupreme } from '../../hooks/useSupreme';
-import { fetchBrand, addBranch, removeBranch, updateBrand, addBrandOwner, removeBrandOwner, fetchBrandSettings, fetchBrandStatement } from '../../api/brandsApi';
+import { fetchBrand, addBranch, removeBranch, updateBrand, addBrandOwner, removeBrandOwner, fetchBrandSettings, fetchBrandStatement, setAreaLock } from '../../api/brandsApi';
 import { errMsg } from '../../api/adminClient';
 
 const STEPS = [['location', 'Pin and radius set'], ['keys', 'Razorpay keys set'], ['owner', 'Owner or manager added'], ['live', 'Live']];
@@ -80,6 +80,9 @@ export default function BrandDetailScreen() {
         try { await removeBrandOwner(id, dropOwner); toast('Brand owner removed'); } catch (e) { toast(errMsg(e), 'error'); }
         setDropOwner(null); load();
     };
+    const toggleLock = async (b) => {
+        try { await setAreaLock(id, b.id, !b.area.locked); toast(b.area.locked ? 'Pin and radius unlocked' : 'Pin and radius locked'); load(); } catch (e) { toast(errMsg(e), 'error'); }
+    };
     const takeOut = async () => {
         try { await removeBranch(id, out.id); toast('Taken out of the brand'); setOut(null); load(); } catch (e) { toast(errMsg(e), 'error'); setOut(null); }
     };
@@ -98,8 +101,10 @@ export default function BrandDetailScreen() {
                         {STEPS.map(([k, label]) => (
                             <Text key={k} style={{ color: b.checklist[k] ? t.success : t.muted, marginTop: 2 }}>{b.checklist[k] ? '✓' : '○'}  {label}</Text>
                         ))}
+                        {b.area ? <Text style={{ color: b.area.locked ? t.warn : t.muted, marginTop: 4, fontSize: font.sm }}>{`${b.area.by ? `Pin and radius last changed by ${b.area.by.who} (${b.area.by.role}) on ${new Date(b.area.by.at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}` : 'Pin and radius not set yet'}${b.area.locked ? ' · LOCKED: only you, a superadmin or the brand owner can change them' : ''}`}</Text> : null}
                         {b.razorpayKeyId ? <Text style={{ color: t.muted, marginTop: 4, fontSize: font.sm }}>Pays to Razorpay key {b.razorpayKeyId}</Text> : null}
                     </View>
+                    {supreme && b.area ? <Button title={b.area.locked ? 'Unlock pin and radius' : 'Lock pin and radius'} kind="outline" small style={{ marginTop: spacing.md }} onPress={() => toggleLock(b)} /> : null}
                     {supreme ? <Button title="Take out of brand" kind="outline" small style={{ marginTop: spacing.md }} onPress={() => setOut(b)} /> : null}
                 </Card>
             ))}
