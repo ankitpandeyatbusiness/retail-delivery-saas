@@ -62,6 +62,24 @@ export default function BranchSwitcher({ onGo }) {
                 <Text style={{ color: primary, fontWeight: '900', marginLeft: 10, flex: 1 }}>{tr('Send dishes to branches')}</Text>
                 <Ionicons name="chevron-forward" size={18} color={muted} />
             </Pressable>
+            <Pressable
+                onPress={() => { if (onGo) onGo(); nav.navigate('OwnerBranchInbox'); }}
+                accessibilityRole="button"
+                style={{ flexDirection: 'row', alignItems: 'center', paddingTop: 10 }}
+            >
+                <Ionicons name="notifications-outline" size={20} color={primary} />
+                <Text style={{ color: primary, fontWeight: '900', marginLeft: 10, flex: 1 }}>{tr('Notifications of all branches')}</Text>
+                <Ionicons name="chevron-forward" size={18} color={muted} />
+            </Pressable>
+            <Pressable
+                onPress={() => { if (onGo) onGo(); nav.navigate('OwnerBranchAlerts'); }}
+                accessibilityRole="button"
+                style={{ flexDirection: 'row', alignItems: 'center', paddingTop: 10 }}
+            >
+                <Ionicons name="options-outline" size={20} color={primary} />
+                <Text style={{ color: primary, fontWeight: '900', marginLeft: 10, flex: 1 }}>{tr('Alerts by branch')}</Text>
+                <Ionicons name="chevron-forward" size={18} color={muted} />
+            </Pressable>
         </View>
     );
 }

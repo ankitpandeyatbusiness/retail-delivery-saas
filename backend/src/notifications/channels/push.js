@@ -5,6 +5,7 @@ const User = require('../../models/User');
 const adapter = require('../../services/adapters/push');
 const alertGroups = require('../alertGroups');
 const i18n = require('../i18n');
+const brandNotify = require('../../services/brandNotify');
 
 // channelId / sound: an Android notification channel the app created (the owner's loud "new_orders" channel).
 // A phone that switched Soundbox off (loudAlerts false) does not get it: its push goes to the app's normal channel,
@@ -31,7 +32,11 @@ async function send({ tenantId, userId, title, body, data, channelId, sound, tag
         }
         if (mute.size) rows = rows.filter((r) => !mute.has(String(r.userId)));
     }
+    // a BRAND OWNER hears only the branches he chose (services/brandNotify.js), and every alert of his names its branch
+    const gate = await brandNotify.gate({ tenantId, userIds, type: data && data.type });
+    if (gate.drop.size) rows = rows.filter((r) => !gate.drop.has(String(r.userId)));
     if (!rows.length) return { sent: 0, tokens: 0 };
+    const labelOf = new Map(rows.map((r) => [r.token, gate.label.get(String(r.userId)) || '']));
 
     // [tokens, channel, sound]: loud phones get the loud channel, quiet phones get none (the app's default one)
     const calm = rows.filter((r) => quiet.has(String(r.userId)));   // chose "no sound" for this alert
@@ -55,10 +60,15 @@ async function send({ tenantId, userId, title, body, data, channelId, sound, tag
     const invalid = [];
     for (const [tokens, ch, snd] of groups) {
         if (!tokens.length) continue;
-        const byLang = new Map();
-        for (const t of tokens) { const l = tokenLang.get(t) || 'en'; if (!byLang.has(l)) byLang.set(l, []); byLang.get(l).push(t); }
-        for (const [lang, list] of byLang) {
-            const res = await adapter.send({ tokens: list, title: i18n.translate(title, lang), body: i18n.translate(body, lang), data, channelId: ch, sound: snd, tag });
+        const byLang = new Map();   // language + branch label: a brand owner's alert is worded with the branch in front
+        for (const t of tokens) { const k = `${tokenLang.get(t) || 'en'}|${labelOf.get(t) || ''}`; if (!byLang.has(k)) byLang.set(k, []); byLang.get(k).push(t); }
+        for (const [key, list] of byLang) {
+            const sep = key.indexOf('|');
+            const lang = key.slice(0, sep);
+            const label = key.slice(sep + 1);
+            const heading = label ? `${label} · ${i18n.translate(title, lang)}` : i18n.translate(title, lang);
+            const extra = label ? { ...(data || {}), branch: label, ...(data && data.speech ? { speech: `${label}. ${data.speech}` } : {}), ...(data && data.speechHi ? { speechHi: `${label}. ${data.speechHi}` } : {}) } : data;
+            const res = await adapter.send({ tokens: list, title: heading, body: i18n.translate(body, lang), data: extra, channelId: ch, sound: snd, tag });
             sent += res?.sent || 0;
             if (res?.invalidTokens?.length) invalid.push(...res.invalidTokens);
         }

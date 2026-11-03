@@ -8,3 +8,8 @@ export const fetchBrandOverview = (range = 'today') => d(api.get('/brand/overvie
 export const fetchBrandOrders = (params) => d(api.get('/brand/orders', { params }));          // { items, hasMore } each with its branch
 export const fetchBrandStatement = (period) => d(api.get('/brand/statement', { params: { period } }));
 export const pushMenu = (body) => d(api.post('/brand/menu/push', body));                      // { productIds, toSlugs: 'all' | [slug], prices }
+
+// which branches' alerts reach his phone
+export const fetchNotifyPrefs = () => d(api.get('/brand/notify-prefs'));                       // { all, ownSlug, branches: [{ slug, name, city, own, open, explicit, on }] }
+export const saveNotifyPrefs = (body) => d(api.put('/brand/notify-prefs', body));            // { all?, ownSlug?, branches?: { slug: true|false|null } } -> the same + warnings
+export const fetchBrandInbox = (params) => d(api.get('/brand/notifications', { params }));   // { items: [{ ..., branch, silent }], hasMore }

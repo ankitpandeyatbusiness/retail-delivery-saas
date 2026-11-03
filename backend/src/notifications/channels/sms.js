@@ -5,14 +5,17 @@ const User = require('../../models/User');
 const wallet = require('../../services/smsWalletService');
 const smsAdapter = require('../../services/adapters/sms');
 const smsTemplates = require('../templates/sms');
+const brandNotify = require('../../services/brandNotify');
 
-async function phonesFor(ctx) {
+async function phonesFor(ctx, type) {
     if (ctx.userId) {
         const u = await User.findOne({ _id: ctx.userId, tenantId: ctx.tenantId }).select('phone isBlocked').lean();
         return u && !u.isBlocked ? [u.phone] : [];
     }
     const owners = await User.find({ tenantId: ctx.tenantId, role: 'admin', isBlocked: { $ne: true } }).select('phone').lean();
-    return owners.map((o) => o.phone);
+    const phones = owners.map((o) => o.phone);
+    const muted = await brandNotify.mutedPhones({ tenantId: ctx.tenantId, phones, type });   // a brand owner who muted this branch gets no SMS either
+    return phones.filter((p) => !muted.has(p));
 }
 
 async function send({ eventKey, ctx }) {
@@ -25,7 +28,7 @@ async function send({ eventKey, ctx }) {
         const tpl = smsTemplates.build(eventKey, { ...(ctx.data || {}), ...(ctx.vars || {}), shop: tenant.name });
         if (!tpl) return { sent: false, reason: 'no_template' };
 
-        const phones = await phonesFor(ctx);
+        const phones = await phonesFor(ctx, eventKey);
         let sent = 0;
         for (const phone of phones) {
             const debit = await wallet.debitForSms(ctx.tenantId, { purpose: tpl.purpose });

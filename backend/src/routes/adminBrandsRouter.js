@@ -7,7 +7,7 @@
 //   PUT    /brands/:id                     { name?, branchLimit?, notes?, discountPercent? }   discountPercent: rent discount for the 2nd branch onward (0 = off, never above the cap)
 //   POST   /brands/:id/branches            { tenantId } (a shop that already exists) or { name, slug, city, managerPhone?, copyFromTenantId? } (a new branch)
 //   DELETE /brands/:id/branches/:tid       take a branch out of the brand (the shop stays, as a normal shop)
-//   POST   /brands/:id/owners              { phone }  appoint a brand owner (any superadmin): owner of every branch, can switch between them
+//   POST   /brands/:id/owners              { phone, ownSlug? }  appoint a brand owner (any superadmin): owner of every branch, can switch between them
 //   DELETE /brands/:id/owners/:phone       take the brand-owner job away (they lose the owner panel in every branch)
 //   POST   /brands/:id/move                { fromTenantId, toTenantId, userId }  move a manager, cook, waiter or rider (any superadmin)
 //   POST   /brands/:id/menu/push           { fromTenantId, productIds, toTenantIds, prices? }  push dishes from one branch to others (supreme admin)
@@ -221,6 +221,7 @@ router.delete('/brands/:id/branches/:tid', loadBrand, wrap(async (req, res) => {
     res.json({ ok: true });
 }));
 
+const b_own = (req) => !!(req.body && req.body.ownSlug);
 router.post('/brands/:id/owners', loadBrand, wrap(async (req, res) => {
     const phone = String((req.body && req.body.phone) || '').trim();
     if (!/^[6-9]\d{9}$/.test(phone)) throw httpError(400, 'Enter a valid 10-digit mobile number');
@@ -232,7 +233,14 @@ router.post('/brands/:id/owners', loadBrand, wrap(async (req, res) => {
         const job = await User.findOne({ tenantId: t._id, phone, role: { $in: ['rider', 'kitchen', 'waiter'] } }).select('role').lean();
         if (job) throw httpError(409, `This number works as ${job.role} at ${t.name}. Remove that job first.`);
     }
+    // optional: the branch he manages himself (it always notifies him)
+    let own = null;
+    if (b_own(req)) {
+        own = branches.find((t) => t.slug === String(req.body.ownSlug));
+        if (!own) throw httpError(404, 'That branch is not part of this brand');
+    }
     req.brand.ownerPhones.push(phone);
+    if (own) req.brand.ownerNotify.push({ phone, all: false, ownTenantId: own._id, branches: {} });
     await req.brand.save();
     const problems = [];
     for (const t of branches) {
@@ -245,6 +253,7 @@ router.delete('/brands/:id/owners/:phone', loadBrand, wrap(async (req, res) => {
     const phone = String(req.params.phone || '');
     if (!(req.brand.ownerPhones || []).includes(phone)) throw httpError(404, 'This number is not an owner of the brand');
     req.brand.ownerPhones = req.brand.ownerPhones.filter((p) => p !== phone);
+    req.brand.ownerNotify = req.brand.ownerNotify.filter((p) => p.phone !== phone);
     await req.brand.save();
     const ids = (await Tenant.find({ brandId: req.brand._id }).select('_id').lean()).map((t) => t._id);
     const Session = require('../models/Session');

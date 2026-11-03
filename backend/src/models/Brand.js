@@ -12,6 +12,14 @@ const brandSchema = new mongoose.Schema({
         type: [String], default: [],
         validate: [{ validator: (a) => a.length <= 3, message: 'At most 3 brand owners' }, { validator: (a) => a.every((p) => /^[6-9]\d{9}$/.test(p)), message: 'Owners need 10-digit mobile numbers' }],
     },
+    // what each brand owner chose to be notified about (services/brandNotify.js): { phone, all, ownTenantId, branches: { <tenantId>: true|false } }
+    ownerNotify: [{
+        _id: false,
+        phone: { type: String, required: true },
+        all: { type: Boolean, default: false },
+        ownTenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant' },
+        branches: { type: Map, of: Boolean, default: () => ({}) },
+    }],
     notes: { type: String, trim: true, maxlength: 500 },           // private note, never sent to an app
     createdBy: String,
 }, { timestamps: true });

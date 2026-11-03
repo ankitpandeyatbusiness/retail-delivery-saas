@@ -45,3 +45,15 @@ B9. Push notifications and the Soundbox: an order at Mumbai is heard only on Mum
 
 C1. The owner of the second brand opens the brand screens: only their own branches and orders are visible.
 C2. Nothing of the first brand can be opened from the second brand's app, by link or by switching.
+
+## D. Alerts by branch (brand owner)
+
+D1. Brand owner opens the side menu -> Alerts by branch: a switch for every branch, a master switch "Alerts from every branch" (off), and "I manage this branch myself" under each branch.
+D2. Tick "I manage this branch myself" on Delhi. An order at Delhi rings his phone, even while he has Mumbai open. The alert title starts with the branch name ("Savera Delhi - New order") and the Soundbox says the branch first.
+D3. With Mumbai muted: a new order at Mumbai does NOT ring or text him. It still shows in Notifications of all branches, greyed "Silent", with the branch name.
+D4. Open Mumbai in the app (switch): Mumbai alerts now ring him; switch back to Delhi: Mumbai stops again (Delhi still rings).
+D5. Switch Goa on by hand: Goa rings him. Master switch on: every branch rings. Master off again: back to the choices.
+D6. A rider SOS or an order nobody accepted at a muted branch still rings him.
+D7. Muting a branch that has no other manager shows a warning.
+D8. The Mumbai manager (not a brand owner) is not affected by any of this and gets plain titles.
+D9. While he looks at Mumbai, does Delhi (his own branch) still ring as a phone notification? Does its live slider and Soundbox also play? (Expected: the phone notification yes; the live slider only for the branch that is open.)

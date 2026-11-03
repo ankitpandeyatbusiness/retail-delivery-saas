@@ -2,6 +2,9 @@
 // Needs the usual headers (x-tenant-slug of the branch the owner is in, Bearer token of that branch).
 //   GET  /me         the brand and its branches (the branch switcher's list)
 //   GET  /statement?period=2026-10   the brand's monthly statement: a line per branch (rent, multi-branch discount, GST, status), the SMS wallet and SMS used per branch
+//   GET  /notify-prefs               which branches' alerts reach his phone: { all, ownSlug, branches: [{ slug, name, own, open, explicit, on }] }
+//   PUT  /notify-prefs               { all?, ownSlug?, branches?: { <slug>: true|false|null } }  -> the same view + warnings
+//   GET  /notifications?branch=&page=   the owner inbox of every branch together, each row with its branch and silent: true when the branch is muted
 //   POST /switch     { slug }                      sign in to another branch of the brand: returns that branch's tokens
 //   POST /menu/push  { productIds, toSlugs: 'all' | [slug], prices: 'keep'|'untouched'|'all' }   push dishes of THIS branch to other branches
 //   POST /managers   { slug, phone }               make a phone the manager (owner panel) of one branch
@@ -16,6 +19,8 @@ const brands = require('../services/brandService');
 const owners = require('../services/ownerService');
 const panel = require('../services/brandPanel');
 const menuSync = require('../services/menuSync');
+const brandNotify = require('../services/brandNotify');
+const Notification = require('../models/Notification');
 const authController = require('../controllers/authController');
 const apiErrors = require('../middlewares/apiErrors');
 
@@ -62,6 +67,75 @@ router.get('/overview', wrap(async (req, res) => { res.json(await panel.overview
 router.get('/orders', wrap(async (req, res) => { res.json(await panel.orders(req.brand, req.query)); }));
 
 router.get('/statement', wrap(async (req, res) => { res.json(await require('../services/brandStatement').build(req.brand, req.query.period)); }));
+
+router.get('/notify-prefs', wrap(async (req, res) => { res.json(await brandNotify.view(req.brand, req.brandUser.phone)); }));
+
+router.put('/notify-prefs', wrap(async (req, res) => {
+    const b = req.body || {};
+    const branches = await Tenant.find({ brandId: req.brand._id }).select('_id slug name').lean();
+    const bySlug = new Map(branches.map((t) => [t.slug, t]));
+    const phone = req.brandUser.phone;
+    let entry = req.brand.ownerNotify.find((p) => p.phone === phone);
+    if (!entry) { req.brand.ownerNotify.push({ phone, all: false, branches: {} }); entry = req.brand.ownerNotify[req.brand.ownerNotify.length - 1]; }
+    if (b.all !== undefined) {
+        if (typeof b.all !== 'boolean') throw httpError(400, 'all must be true or false');
+        entry.all = b.all;
+    }
+    if (b.ownSlug !== undefined) {
+        if (b.ownSlug === null) entry.ownTenantId = undefined;
+        else {
+            const t = bySlug.get(String(b.ownSlug));
+            if (!t) throw httpError(404, 'That branch is not part of your brand');
+            entry.ownTenantId = t._id;
+        }
+    }
+    const warnings = [];
+    if (b.branches !== undefined) {
+        if (!b.branches || typeof b.branches !== 'object' || Array.isArray(b.branches)) throw httpError(400, 'branches must be an object of slug: true | false | null');
+        for (const [slug, v] of Object.entries(b.branches)) {
+            const t = bySlug.get(slug);
+            if (!t) throw httpError(404, `${slug} is not part of your brand`);
+            if (v !== true && v !== false && v !== null) throw httpError(400, 'Each branch is true, false or null');
+            if (v === null) entry.branches.delete(String(t._id)); else entry.branches.set(String(t._id), v);
+            // muting a branch nobody else looks after: tell him
+            if (v === false && !(await User.exists({ tenantId: t._id, role: 'admin', phone: { $ne: phone }, isBlocked: { $ne: true } }))) {
+                warnings.push(`${t.name} has no other manager. Its new orders will not alert you or anyone else.`);
+            }
+        }
+    }
+    await req.brand.save();
+    brandNotify.forget();
+    res.json({ ...(await brandNotify.view(req.brand, phone)), warnings });
+}));
+
+router.get('/notifications', wrap(async (req, res) => {
+    const branches = await Tenant.find({ brandId: req.brand._id }).select('slug name').lean();
+    let scope = branches;
+    if (req.query.branch) {
+        scope = branches.filter((t) => t.slug === String(req.query.branch).toLowerCase());
+        if (!scope.length) throw httpError(404, 'That branch is not part of your brand');
+    }
+    const page = Math.min(Math.max(parseInt(req.query.page, 10) || 1, 1), 1000);
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 30, 1), 50);
+    const rows = await Notification.find({ tenantId: { $in: scope.map((t) => t._id) }, role: 'owner', clearedAt: { $exists: false } })
+        .sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit + 1).select('tenantId type title body data readAt createdAt').lean();
+    const hasMore = rows.length > limit;
+    if (hasMore) rows.pop();
+    const view = await brandNotify.view(req.brand, req.brandUser.phone);
+    const on = new Map(view.branches.map((b) => [b.slug, b.on]));
+    const nameOf = new Map(branches.map((t) => [String(t._id), t]));
+    res.json({
+        page, hasMore,
+        items: rows.map((n) => {
+            const t = nameOf.get(String(n.tenantId));
+            return {
+                id: n._id, type: n.type, title: n.title, body: n.body || null, data: n.data || null, read: !!n.readAt, createdAt: n.createdAt,
+                branch: t ? { slug: t.slug, name: t.name } : null,
+                silent: !(t && (on.get(t.slug) || brandNotify.CRITICAL.has(n.type))),   // this branch is muted for him: it did not buzz his phone
+            };
+        }),
+    });
+}));
 
 router.post('/switch', wrap(async (req, res) => {
     const target = await branchBySlug(req, req.body && req.body.slug);
