@@ -13,7 +13,7 @@
 import { CommonActions } from '@react-navigation/native';
 
 // the first screen of each tab's stack: a tab named on its own is opened at this screen, so it can carry its way back
-const TAB_ROOT = { ShopsTab: 'ShopsList', OrdersTab: 'OrdersHome', MoneyTab: 'MoneyHome', MoreTab: 'MoreHome' };
+const TAB_ROOT = { HomeTab: 'HomeMain', ShopsTab: 'ShopsList', OrdersTab: 'OrdersHome', MoneyTab: 'MoneyHome', MoreTab: 'MoreHome' };
 
 const withPop = (p) => {
     if (!p || typeof p !== 'object') return p;
@@ -48,11 +48,39 @@ const leafReturn = (p, o, atTab) => {
 };
 const sameTab = (o, tab) => !!o && o.tab === tab;
 
+// ONE visible step. Opening a screen in another tab used to be two steps: the tab slid in showing whatever it was left at (its overview page), then the
+// screen was pushed on it. So the other tab's first page flashed by. Here the other tab's stack is set up FIRST, out of sight, with the target screen on
+// top; then the tab slides in already showing it. Only used when that tab has been opened before (otherwise it starts straight on the screen) and is not the
+// tab we are in. Returns false when it does not apply, and the caller navigates the plain way.
+function prepareStack(nav, tab, p) {
+    try {
+        if (!p || typeof p.screen !== 'string' || (p.params && typeof p.params === 'object' && typeof p.params.screen === 'string')) return false;
+        let top = nav;
+        while (top.getParent?.()) top = top.getParent();
+        const admin = top.getState().routes.find((x) => x.name === 'Admin');
+        const ts = admin?.state;
+        if (!ts || !TAB_ROOT[tab] || ts.routes[ts.index].name === tab) return false;
+        const stack = ts.routes.find((x) => x.name === tab)?.state;
+        if (!stack?.key) return false;
+        const target = { name: p.screen, params: p.params };
+        const at = stack.routes.map((x) => x.name).lastIndexOf(p.screen);
+        const first = TAB_ROOT[tab];
+        const root = stack.routes.find((x) => x.name === first);
+        const routes = at >= 0
+            ? [...stack.routes.slice(0, at), { ...stack.routes[at], params: { ...stack.routes[at].params, ...p.params } }]   // it is already open (and stays mounted): go back to it, with the new params
+            : p.screen === first ? [target] : [root ? { key: root.key, name: first, params: root.params } : { name: first }, target];
+        top.dispatch({ ...CommonActions.reset({ index: routes.length - 1, routes }), target: stack.key });
+        return true;
+    } catch (e) { return false; }
+}
+
 // from a screen above the tabs (Search, Platform health, Inbox...) or from inside them: the one copy of the tabs, then the tab, then the screen
 export const toAdmin = (nav, payload) => {
     const o = originOf(nav);
     const bare = payload && TAB_ROOT[payload.screen] && !payload.params ? { screen: payload.screen, params: { screen: TAB_ROOT[payload.screen] } } : payload;
     const p = o && !sameTab(o, bare?.screen) ? leafReturn(bare, o, true) : bare;
+    const tab = bare?.screen;
+    if (p && p.params && prepareStack(nav, tab, p.params)) return nav.navigate('Admin', { screen: tab, pop: true }, { pop: true });
     return nav.navigate('Admin', withPop(p), { pop: true });
 };
 
@@ -60,6 +88,7 @@ export const toAdmin = (nav, payload) => {
 export const goTab = (nav, tab, payload) => {
     const o = originOf(nav);
     const p = o && !sameTab(o, tab) ? leafReturn(payload, o, false) : payload;
+    if (prepareStack(nav, tab, p)) return nav.navigate(tab, undefined, { pop: true });
     return nav.navigate(tab, withPop(p), { pop: true });
 };
 
@@ -67,6 +96,7 @@ export const goTab = (nav, tab, payload) => {
 export function backTo(nav, o) {
     if (!o) { nav.goBack(); return; }
     if (o.tab) {
+        if (o.screen && prepareStack(nav, o.tab, { screen: o.screen, params: o.params })) { nav.navigate(o.tab, undefined, { pop: true }); return; }
         nav.navigate(o.tab, o.screen ? withPop({ screen: o.screen, params: o.params }) : undefined, { pop: true });
         return;
     }
