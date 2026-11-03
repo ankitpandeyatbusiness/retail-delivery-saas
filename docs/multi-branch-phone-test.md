@@ -150,3 +150,10 @@ O5. Today: orders and sales, and the last 7 days with the change in percent.
 O6. One line for the highest Google call use, with its colour.
 O7. Quick actions: New shop, Shop money, Brands, Alerts. The bell on top opens the alerts inbox.
 O8. Log in as Vivyaan's (ordinary) superadmin: the same home, but no "Shop money to answer" item.
+
+## P. The red-light push
+
+P1. When a Platform health card turns red (rent with 3 or more overdue bills, orders down 40 percent, no backup, SMS losing money, and so on) every superadmin phone gets a push "Platform: Rent is red" with the reason, even with the app closed. Tapping it opens Platform health.
+P2. The same card is not pushed again for 6 hours; if still red then, "red again" arrives.
+P3. When it goes back to normal and later turns red again, you are told at once.
+P4. Payment notices and a failing SMS provider keep their own older alerts and are not repeated by this one.

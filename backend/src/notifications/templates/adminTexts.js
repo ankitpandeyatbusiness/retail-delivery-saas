@@ -57,6 +57,9 @@ const T = {
     admin_sms_provider_failing: (v) => ({
         title: 'SMS provider is failing', body: `${v.detail || 'Sending keeps failing'}. Login codes may not reach customers. Check the provider.`, sms: 'SMS provider failing',
     }),
+    admin_platform_red: (v) => ({
+        title: `Platform: ${v.title || 'a problem'} is red${v.again ? ' again' : ''}`, body: `${v.detail || 'Open Platform health to see what is wrong.'}`, sms: `Platform red: ${v.title || ''}`,
+    }),
     admin_refund_failed: (v) => ({
         title: `Refund failed · ${v.shop}`, body: `Order #${v.orderNo || ''}: the customer's refund did not go through. Retry it from Payments.`, sms: `Refund failed: ${v.shop}`,
     }),

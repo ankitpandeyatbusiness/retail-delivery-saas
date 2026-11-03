@@ -28,7 +28,8 @@ function handleTap(resp) {
     if (id && id === lastTapped) return;   // the same tap is reported again when the app restarts
     lastTapped = id;
     const data = resp?.notification?.request?.content?.data || {};
-    if (data.ticketId) openScreen('SupportDetail', { id: String(data.ticketId) });
+    if (data.kind === 'health') openScreen('PlatformHealth');
+    else if (data.ticketId) openScreen('SupportDetail', { id: String(data.ticketId) });
     else if (data.orderId) openScreen('Admin', { screen: 'OrdersTab', params: { screen: 'OrderDetail', params: { orderId: String(data.orderId) } } });
     else if (data.invoiceId) openScreen('Admin', { screen: 'MoneyTab', params: { screen: 'InvoiceDetail', params: { invoiceId: String(data.invoiceId) } } });
     else if (data.tenantId) openScreen('Admin', { screen: 'ShopsTab', params: { screen: 'ShopDetail', params: { shopId: String(data.tenantId), name: data.shopName } } });

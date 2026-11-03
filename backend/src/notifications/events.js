@@ -184,6 +184,7 @@ const EVENTS = {
     admin_shop_inactive: { to: 'superadmin', channels: ALL },
     admin_webhook_failed: { to: 'superadmin', channels: ALL, critical: true },
     admin_sms_provider_failing: { to: 'superadmin', channels: ALL, critical: true },
+    admin_platform_red: { to: 'superadmin', channels: INAPP_PUSH },   // a platform-health card turned red (services/healthWatch.js)
     admin_refund_failed: { to: 'superadmin', channels: ALL, critical: true },
     admin_support_new: { to: 'superadmin', channels: ALL },
     admin_support_reply: { to: 'superadmin', channels: ALL },

@@ -117,6 +117,7 @@ const platformSchema = new mongoose.Schema({
         smsToAdmin: { type: Boolean, default: false },
         allEvents: { type: Boolean, default: false },   // false = SMS only for critical alerts
         phone: { type: String, trim: true, match: [/^[6-9]\d{9}$/, 'Enter a valid 10-digit mobile number'] },
+        healthState: { type: mongoose.Schema.Types.Mixed },   // the platform-health cards that are red now and when each was told (services/healthWatch.js)
         lastSmsFailAt: Date,   // when "SMS provider failing" was last sent to you
         rrCursor: { type: mongoose.Schema.Types.ObjectId },   // the shop that paid the last alert SMS (round robin)
     },
