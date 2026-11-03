@@ -157,3 +157,5 @@ P1. When a Platform health card turns red (rent with 3 or more overdue bills, or
 P2. The same card is not pushed again for 6 hours; if still red then, "red again" arrives.
 P3. When it goes back to normal and later turns red again, you are told at once.
 P4. Payment notices and a failing SMS provider keep their own older alerts and are not repeated by this one.
+
+O9. Home: type in the search box on the home screen: the home content glides away and the matching shops, brand branches, orders, people, invoices and screens show right there. Clear the box (the x) and the home comes back. The old Search page still works and shows the same answers.

@@ -5,7 +5,8 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useTheme, spacing, font } from '../../theme';
 import { Screen } from '../../components/layout';
 import { Stat, Card, Button, SectionTitle } from '../../components/ui';
-import Icon from '../../components/Icon';
+import { SearchBar } from '../../components/inputs';
+import SearchResults from '../../components/SearchResults';
 import { ShopRow } from '../../components/shopBits';
 import { QuickActions, StatStrip, RankRow, SkeletonDashboard } from '../../components/blocks';
 import { ErrorBox, Empty } from '../../components/feedback';
@@ -34,6 +35,8 @@ export default function DashboardScreen() {
     const d = useDashboardStore();
     const admin = useAuthStore((s) => s.admin);
 
+    const [q, setQ] = useState('');                   // the search box: while something is typed, the home screen gives way to the answers
+    const searching = q.trim().length > 0;
     const [helpOpen, setHelpOpen] = useState(0);
     const [health, setHealth] = useState(null);
     const [money, setMoney] = useState(null);          // this month's shop money
@@ -64,6 +67,8 @@ export default function DashboardScreen() {
     const shape = `${need.length}-${d.attention.length}-${d.today?.topShops?.length || 0}-${health ? 1 : 0}`;
     const lastShape = useRef(shape);
     if (lastShape.current !== shape) { lastShape.current = shape; animateNext(); }
+    const wasSearching = useRef(false);
+    if (wasSearching.current !== searching) { wasSearching.current = searching; animateNext(); }
 
     const o = health && level(health.overall.level);
     const topGoogle = health && [...health.google.apis].sort((a, b) => b.percent - a.percent)[0];
@@ -76,13 +81,13 @@ export default function DashboardScreen() {
             refreshing={d.refreshing}
             onRefresh={() => { d.load({ refresh: true }); fetchPlatformHealth().then(setHealth).catch(() => { }); }}
         >
-            {/* the search box: shops, orders, people, invoices, brands */}
-            <Pressable onPress={() => nav.navigate('Search')} accessibilityRole="search" style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: t.surface, borderRadius: 14, paddingHorizontal: spacing.lg, height: 48, marginBottom: spacing.md, borderWidth: 1, borderColor: t.surfaceAlt }}>
-                <Icon name="search" size={20} color={t.muted} />
-                <Text style={{ color: t.muted, flex: 1 }}>Search shops, orders, people, invoices</Text>
-            </Pressable>
+            {/* the search box: type here and the home screen gives way to the matching records; clear it and the home comes back */}
+            <View style={{ marginBottom: spacing.md }}>
+                <SearchBar value={q} onChangeText={setQ} placeholder="Search shops, brands, orders, people, invoices" />
+            </View>
 
-            {first ? <SkeletonDashboard /> : d.error && d.shops === null ? (
+            {searching ? <FadeIn index={0}><SearchResults q={q} /></FadeIn> : null}
+            {searching ? null : first ? <SkeletonDashboard /> : d.error && d.shops === null ? (
                 <ErrorBox message={d.error} onRetry={() => d.load()} />
             ) : d.shops && d.shops.total === 0 ? (
                 <>
