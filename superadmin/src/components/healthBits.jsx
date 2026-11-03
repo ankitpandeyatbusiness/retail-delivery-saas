@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { useTheme, spacing, font } from '../theme';
-import { animateNext } from './motion';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 
 // green / amber / red for the platform health: the colour, a soft background and a word, so it is not colour alone
 export function useLevel() {
@@ -37,12 +37,27 @@ export function ShopLines({ list, total, max = 5, onShop }) {
     );
 }
 
+// Opens and closes smoothly on the UI thread (no jerk): the height follows `progress` (0 closed, 1 open) between 0 and the content's own height.
+// The content is measured where it lies, so it can have any height.
+function Collapsible({ progress, children }) {
+    const h = useSharedValue(0);
+    const style = useAnimatedStyle(() => ({ height: h.value * progress.value, opacity: progress.value, overflow: 'hidden' }));
+    return (
+        <Animated.View style={style} pointerEvents="box-none">
+            <View style={{ position: 'absolute', left: 0, right: 0, top: 0 }} onLayout={(e) => { h.value = e.nativeEvent.layout.height; }}>{children}</View>
+        </Animated.View>
+    );
+}
+
 // One line of "Needs you": the problem, and, when shops are behind it, a smooth drop-down with those shops. Tap the line to open or close it.
 // Without shops the tap goes straight to `onOpen`. Inside the drop-down, "See details" goes to `onOpen` too.
 export function NeedItem({ level, title, hint, list, total, max = 5, onShop, onOpen, open, onToggle, first }) {
     const t = useTheme();
     const has = !!(list && list.length);
-    const tap = () => { if (!has) { onOpen?.(); return; } animateNext(); onToggle?.(); };
+    const progress = useSharedValue(0);
+    useEffect(() => { progress.value = withTiming(has && open ? 1 : 0, { duration: 280, easing: Easing.out(Easing.cubic) }); }, [has, open, progress]);
+    const arrow = useAnimatedStyle(() => ({ transform: [{ rotate: `${progress.value * 90}deg` }] }));
+    const tap = () => { if (!has) { onOpen?.(); return; } onToggle?.(); };
     return (
         <View style={{ paddingVertical: 12, borderTopWidth: first ? 0 : 1, borderTopColor: t.surfaceAlt }}>
             <Pressable onPress={tap} accessibilityRole="button" accessibilityState={has ? { expanded: !!open } : undefined} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -52,17 +67,17 @@ export function NeedItem({ level, title, hint, list, total, max = 5, onShop, onO
                     <Text style={{ color: t.muted, fontSize: font.sm }}>{hint}</Text>
                 </View>
                 {has ? <Text style={{ color: t.muted, fontSize: font.sm }}>{(total || list.length)}</Text> : null}
-                <Text style={{ color: t.muted, fontSize: font.lg, transform: [{ rotate: has && open ? '90deg' : '0deg' }] }}>›</Text>
+                <Animated.Text style={[{ color: t.muted, fontSize: font.lg }, arrow]}>›</Animated.Text>
             </Pressable>
-            {has && open ? (
-                <View>
+            {has ? (
+                <Collapsible progress={progress}>
                     <ShopLines list={list} total={total} max={max} onShop={onShop} />
                     {onOpen ? (
-                        <Pressable onPress={onOpen} accessibilityRole="button" style={{ paddingTop: 8 }}>
+                        <Pressable onPress={onOpen} accessibilityRole="button" style={{ paddingTop: 8, paddingBottom: 2 }}>
                             <Text style={{ color: t.primary, fontWeight: '700' }}>See details ›</Text>
                         </Pressable>
                     ) : null}
-                </View>
+                </Collapsible>
             ) : null}
         </View>
     );

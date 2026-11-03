@@ -2,13 +2,13 @@ import React, { useCallback, useRef, useState } from 'react';
 import { FadeIn, animateNext } from '../../components/motion';
 import { View, Text, Pressable } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { useTheme, spacing, font } from '../../theme';
+import { useTheme, spacing, font, radius } from '../../theme';
 import { Screen } from '../../components/layout';
 import { Stat, Card, Button, SectionTitle } from '../../components/ui';
 import { SearchBar } from '../../components/inputs';
 import SearchResults from '../../components/SearchResults';
 import { ShopRow } from '../../components/shopBits';
-import { QuickActions, StatStrip, RankRow, SkeletonDashboard } from '../../components/blocks';
+import { QuickActions, StatStrip, RankRow, SkeletonDashboard, SkeletonBar } from '../../components/blocks';
 import { ErrorBox, Empty } from '../../components/feedback';
 import { Dot, useLevel, NeedItem } from '../../components/healthBits';
 import { useDashboardStore } from '../../store/useDashboardStore';
@@ -65,7 +65,7 @@ export default function DashboardScreen() {
     ].filter(Boolean);
 
     // sections that appear or disappear let their neighbours glide
-    const shape = `${need.length}-${d.attention.length}-${d.today?.topShops?.length || 0}-${health ? 1 : 0}`;
+    const shape = `${d.attention.length}-${d.today?.topShops?.length || 0}`;   // (the health blocks come in from their shimmer, not by gliding)
     const lastShape = useRef(shape);
     if (lastShape.current !== shape) { lastShape.current = shape; animateNext(); }
     const wasSearching = useRef(false);
@@ -108,8 +108,15 @@ export default function DashboardScreen() {
                                 </View>
                                 <Text style={{ color: t.text, marginTop: 4 }}>{health.overall.level === 'good' ? 'Nothing needs your attention.' : health.overall.headline}</Text>
                             </Pressable>
-                        ) : null}
+                        ) : <SkeletonBar height={84} radiusPx={16} />}
                     </FadeIn>
+
+                    {!health ? (
+                        <View>
+                            <SkeletonBar height={20} width="40%" style={{ marginTop: spacing.xl }} />
+                            <SkeletonBar height={150} radiusPx={radius.lg} style={{ marginTop: spacing.md }} />
+                        </View>
+                    ) : null}
 
                     {need.length ? (
                         <FadeIn index={1}>
@@ -132,7 +139,15 @@ export default function DashboardScreen() {
                                 <Stat section="alerts" label="To collect" value={rupees(health.rent.toCollect)} icon="receipt" onPress={() => nav.navigate('Receivables')} />
                             </View>
                         </FadeIn>
-                    ) : null}
+                    ) : (
+                        <View>
+                            <SkeletonBar height={20} width="45%" style={{ marginTop: spacing.xl }} />
+                            <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md }}>
+                                <SkeletonBar height={92} radiusPx={radius.lg} style={{ flex: 1 }} />
+                                <SkeletonBar height={92} radiusPx={radius.lg} style={{ flex: 1 }} />
+                            </View>
+                        </View>
+                    )}
 
                     {/* today */}
                     <FadeIn index={3}>
@@ -146,10 +161,16 @@ export default function DashboardScreen() {
                                 {`Last 7 days: ${health.orders.last7} orders${health.orders.changePercent !== null ? ` (${health.orders.changePercent >= 0 ? '+' : ''}${health.orders.changePercent}% on the week before)` : ''}
 This month so far: ${health.orders.thisMonth} orders${health.orders.monthChangePercent !== null ? ` (${health.orders.monthChangePercent >= 0 ? '+' : ''}${health.orders.monthChangePercent}% on the same days of last month)` : ''}. Last month: ${health.orders.lastMonth}.`}
                             </Text>
-                        ) : null}
+                        ) : (
+                            <View style={{ marginTop: spacing.sm }}>
+                                <SkeletonBar height={12} width="85%" />
+                                <SkeletonBar height={12} width="70%" style={{ marginTop: 6 }} />
+                            </View>
+                        )}
                     </FadeIn>
 
                     {/* the highest Google call use */}
+                    {!health ? <SkeletonBar height={46} radiusPx={radius.lg} style={{ marginTop: spacing.md }} /> : null}
                     {health && topGoogle ? (
                         <FadeIn index={4}>
                             <Card style={{ marginTop: spacing.md }} onPress={goHealth}>
