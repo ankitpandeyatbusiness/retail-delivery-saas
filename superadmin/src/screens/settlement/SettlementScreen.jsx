@@ -77,7 +77,7 @@ export default function SettlementScreen() {
                             {sum.lateRows ? <Badge label={`${sum.lateRows} late · ${rs(sum.lateAmount)}`} tone="danger" /> : <Badge label="Nothing late" tone="success" />}
                             {sum.claims ? <Badge label={`${sum.claims} “I have paid” to confirm`} tone="info" /> : null}
                         </View>
-                        <Text style={{ color: t.muted, fontSize: font.xs, marginTop: spacing.sm }}>Numbers only. The money moves outside the app. {cfg.partnerName} pays within {cfg.payDays} days of each payment.</Text>
+                        <Text style={{ color: t.muted, fontSize: font.xs, marginTop: spacing.sm }}>Numbers only. The money moves outside the app. {cfg.partnerName} pays {cfg.dueDay > 0 ? `by the ${cfg.dueDay}th of the month after each payment` : `within ${cfg.payDays} days of each payment`}.{sum.costsToRecoup > 0 ? ` Costs still to be recouped from later money: ${rs(sum.costsToRecoup)} (not owed by ${cfg.ownerName}).` : ''}</Text>
                     </Card>
 
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>

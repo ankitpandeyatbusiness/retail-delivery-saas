@@ -87,7 +87,6 @@ const platformSchema = new mongoose.Schema({
         autocompleteCap: { type: Number, default: 60000, min: 0, max: 1000000 }, // suggestions while typing
         detailsCap: { type: Number, default: 60000, min: 0, max: 1000000 },      // address and point of the picked place
     },
-    activeOperatorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Operator' },   // the company whose details are in business/payments now (services/operators.js)
 
     // The common settlement sheet between the two partners (services/settlement.js). Only the supreme admin changes it.
     settlement: {
@@ -95,6 +94,7 @@ const platformSchema = new mongoose.Schema({
         partnerName: { type: String, trim: true, maxlength: 40 },        // how the operator partner is named
         mode: { type: String, enum: ['split', 'owner_only', 'royalty'], default: 'split' },   // owner_only: everything is the owner's; royalty: after exit, royaltyPct of net profit
         payDays: { type: Number, default: 15, min: 0, max: 90 },         // the partner pays within this many days of each payment
+        dueDay: { type: Number, default: 15, min: 0, max: 28 },          // the MOU: the agency pays by this day of the month after each payment (0 = use payDays)
         ownerPctPartnerBrought: { type: Number, default: 50, min: 0, max: 100 },   // the owner's share of a shop the partner brought
         ownerPctOwnerBrought: { type: Number, default: 70, min: 0, max: 100 },     // ... of a shop the owner brought
         costOwnerPct: { type: Number, default: 50, min: 0, max: 100 },   // the owner's share of shared costs

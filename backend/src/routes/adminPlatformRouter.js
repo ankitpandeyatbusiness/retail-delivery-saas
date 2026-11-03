@@ -53,7 +53,6 @@ router.put('/platform/business', wrap(async (req, res) => {
     const doc = await loadDoc();
     doc.set(changes);
     await doc.save();   // runs the GST number check
-    await require('../services/operators').syncActiveFromLive().catch((e) => console.error('Company sync error:', e.message));   // the active company's saved copy follows
     res.json(doc.toObject().business);
 }));
 

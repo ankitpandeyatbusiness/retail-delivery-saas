@@ -88,7 +88,6 @@ admin.use(require('./adminBillingRouter'));
 admin.use(require('./adminSubscriptionRouter'));
 admin.use(require('./adminTrackingRouter'));   // live tracking: server health and the sockets / polling / off switch (everyone looks, the supreme admin changes)
 admin.use(require('./adminBrandsRouter'));   // brands with branches (everyone looks, the supreme admin changes)
-admin.use(require('./adminOperatorsRouter'));   // the companies that run the platform + Switch operator (everyone looks, the supreme admin changes)
 admin.use(require('./adminLegalRouter'));   // terms, agreements and privacy (everyone reads, the supreme admin writes and sends)
 admin.use(require('./adminSettlementRouter'));   // the common settlement sheet (everyone reads, the supreme admin changes)
 admin.use(require('./adminServicesRouter'));     // services, inquiries and table booking: totals, lists and threads to read, and the defaults

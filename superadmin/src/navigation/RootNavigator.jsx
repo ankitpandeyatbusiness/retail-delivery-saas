@@ -59,10 +59,8 @@ import PlatformSmsScreen from '../screens/money/PlatformSmsScreen';
 import PlatformBillingScreen from '../screens/money/PlatformBillingScreen';
 import PlatformBusinessScreen from '../screens/money/PlatformBusinessScreen';
 import GstRegisterScreen from '../screens/money/GstRegisterScreen';
-import OperatorsScreen from '../screens/operators/OperatorsScreen';
 import BrandsScreen from '../screens/operators/BrandsScreen';
 import BrandDetailScreen from '../screens/operators/BrandDetailScreen';
-import OperatorEditScreen from '../screens/operators/OperatorEditScreen';
 import AgreementsScreen from '../screens/agreements/AgreementsScreen';
 import AgreementDocScreen from '../screens/agreements/AgreementDocScreen';
 import SettlementScreen from '../screens/settlement/SettlementScreen';
@@ -231,10 +229,8 @@ function MoreStack() {
             <More.Screen name="ServicesInquiry" component={ServicesInquiryScreen} />
             <More.Screen name="ServicesDefaults" component={ServicesDefaultsScreen} />
             <More.Screen name="Agreements" component={AgreementsScreen} />
-            <More.Screen name="Operators" component={OperatorsScreen} />
             <More.Screen name="Brands" component={BrandsScreen} />
             <More.Screen name="BrandDetail" component={BrandDetailScreen} />
-            <More.Screen name="OperatorEdit" component={OperatorEditScreen} />
             <More.Screen name="AgreementDoc" component={AgreementDocScreen} />
             <More.Screen name="SettlementEntry" component={SettlementEntryScreen} />
             <More.Screen name="SettlementSettings" component={SettlementSettingsScreen} />

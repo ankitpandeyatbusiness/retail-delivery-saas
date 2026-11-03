@@ -18,12 +18,30 @@ const DAY_MS = 86400000;
 const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 const other = (side) => (side === 'owner' ? 'partner' : 'owner');
 const COST_CATEGORIES = ['sms_recharge', 'server', 'database', 'api', 'misc'];
-const DEFAULTS = { ownerName: 'Developer', partnerName: 'Vivyaan', mode: 'split', payDays: 15, ownerPctPartnerBrought: 50, ownerPctOwnerBrought: 70, costOwnerPct: 50, royaltyPct: 20 };
+const DEFAULTS = { ownerName: 'Developer', partnerName: 'Vivyaan', mode: 'split', payDays: 15, dueDay: 15, ownerPctPartnerBrought: 50, ownerPctOwnerBrought: 70, costOwnerPct: 50, royaltyPct: 20 };
 
 // the developer's share of one payment: everything (owner_only), the flat royalty (after exit) or the split by who brought the shop
 const pctFor = (cfg, broughtBy) => (cfg.mode === 'owner_only' ? 100 : cfg.mode === 'royalty' ? cfg.royaltyPct : (broughtBy === 'owner' ? cfg.ownerPctOwnerBrought : cfg.ownerPctPartnerBrought));
-// the developer's share of a shared cost (after exit the royalty is on net profit, so costs come off first at the same rate)
-const costPctFor = (cfg) => (cfg.mode === 'royalty' ? cfg.royaltyPct : cfg.costOwnerPct);
+// When the agency pays: the MOU says by the dueDay (15th) of the month AFTER the payment came in (the statement goes out by the 7th).
+// dueDay 0 = the old way, payDays after the payment. Indian time.
+function dueFor(date, cfg) {
+    const d = new Date(date);
+    if (!(cfg.dueDay > 0)) return new Date(d.getTime() + (cfg.payDays || 0) * DAY_MS);
+    const ist = new Date(d.getTime() + 330 * 60000);
+    const y = ist.getUTCFullYear(); const m = ist.getUTCMonth() + 2;   // next month, 1-based
+    const yy = m > 12 ? y + 1 : y; const mm = m > 12 ? 1 : m;
+    return new Date(`${yy}-${String(mm).padStart(2, '0')}-${String(cfg.dueDay).padStart(2, '0')}T23:59:59+05:30`);
+}
+
+// The developer's share of a shared cost. The MOU shares NET profit (money received minus costs), shop by shop by who brought it, so a cost
+// comes off at the blended rate of the money received so far (all 70/30 shops: 70%, a mix: in between). Before any money came in: costOwnerPct.
+// After exit the royalty is on net profit, so costs come off first at the royalty rate.
+async function costPctFor(cfg) {
+    if (cfg.mode === 'royalty') return cfg.royaltyPct;
+    const [t] = await SettlementEntry.aggregate([{ $match: { kind: 'receipt', voided: { $ne: true } } }, { $group: { _id: null, base: { $sum: '$baseAmount' }, own: { $sum: '$ownerShare' } } }]);
+    if (!t || !(t.base > 0)) return cfg.costOwnerPct;
+    return Math.round((t.own / t.base) * 10000) / 100;
+}
 
 async function getConfig() {
     const p = await PlatformSettings.findById('main').select('settlement').lean();
@@ -77,7 +95,7 @@ async function recordReceipt({ key, category, tenantId, invoiceId, topupId, invo
         baseAmount: round2(baseAmount), gstAmount: round2(gstAmount), totalAmount: round2(totalAmount ?? baseAmount + gstAmount),
         broughtBy, receivedBy: got, ratio: { ownerPct, partnerPct: 100 - ownerPct }, ...s,
         owes: dueAmount > 0 ? owes : null, dueAmount, paidAmount: 0,
-        dueAt: new Date(new Date(date).getTime() + cfg.payDays * DAY_MS),
+        dueAt: dueFor(date, cfg),
         events: [{ action: 'created', by: who(by), date, amount: dueAmount, status: dueAmount > 0 ? 'pending' : 'paid' }],
     };
     entry.status = statusOf(entry);
@@ -143,7 +161,7 @@ async function addCost({ category, title, amount, date, paidBy, note }, admin) {
     const when = date ? new Date(date) : new Date();
     if (Number.isNaN(when.getTime())) throw httpError(400, 'date is not a date');
     const cfg = await getConfig();
-    const costPct = costPctFor(cfg);
+    const costPct = await costPctFor(cfg);
     const s = shares(round2(amount), costPct);
     // the one who paid it all gets back the other one's share
     const owes = other(paidBy);
@@ -152,7 +170,7 @@ async function addCost({ category, title, amount, date, paidBy, note }, admin) {
     const entry = {
         no, kind: 'cost', category, title: String(title || '').trim().slice(0, 120) || category.replace('_', ' '), date: when, amount: round2(amount), paidBy,
         ratio: { ownerPct: costPct, partnerPct: 100 - costPct }, ...s, owes, dueAmount, paidAmount: 0,
-        dueAt: new Date(when.getTime() + cfg.payDays * DAY_MS), note: String(note || '').slice(0, 300) || undefined,
+        dueAt: dueFor(when, cfg), note: String(note || '').slice(0, 300) || undefined,
         events: [{ action: 'created', by: who(admin), date: when, amount: dueAmount, status: 'pending' }],
     };
     entry.status = statusOf(entry);
@@ -170,7 +188,7 @@ async function addAdjustment({ owes, amount, reason, date }, admin) {
     const no = await nextNo();
     const entry = {
         no, kind: 'adjustment', category: 'adjustment', title: text.slice(0, 120), date: when, amount: round2(amount), owes, dueAmount: round2(amount), paidAmount: 0,
-        dueAt: new Date(when.getTime() + cfg.payDays * DAY_MS), note: text.slice(0, 300),
+        dueAt: dueFor(when, cfg), note: text.slice(0, 300),
         events: [{ action: 'created', by: who(admin), date: when, amount: round2(amount), note: text, status: 'pending' }],
     };
     entry.status = statusOf(entry);
@@ -312,17 +330,22 @@ async function summary(q = {}) {
     const cfg = await getConfig();
     const rows = await SettlementEntry.find(filterOf({ ...q, status: undefined })).select('kind category owes dueAmount paidAmount status dueAt baseAmount').lean();
     const now = Date.now();
-    const sum = { partnerOwesOwner: 0, ownerOwesPartner: 0, lateAmount: 0, lateRows: 0, openRows: 0, receivedBase: 0, claims: 0 };
+    const sum = { partnerOwesOwner: 0, ownerOwesPartner: 0, ownerOwesCosts: 0, lateAmount: 0, lateRows: 0, openRows: 0, receivedBase: 0, claims: 0 };
     for (const r of rows) {
         if (r.kind === 'receipt') sum.receivedBase += r.baseAmount || 0;
         if (r.status === 'paid' || !r.owes) continue;
         const left = remaining(r);
         sum.openRows += 1;
-        if (r.owes === 'partner') sum.partnerOwesOwner += left; else sum.ownerOwesPartner += left;
+        if (r.owes === 'partner') sum.partnerOwesOwner += left; else if (r.kind === 'cost') sum.ownerOwesCosts += left; else sum.ownerOwesPartner += left;
         if (r.dueAt && new Date(r.dueAt).getTime() < now) { sum.lateAmount += left; sum.lateRows += 1; }
     }
     sum.claims = await SettlementEntry.countDocuments({ 'claim.state': 'open', voided: { $ne: true } });
     const round = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, typeof v === 'number' ? round2(v) : v]));
+    // zero-risk clause: the developer's part of the costs is taken only out of money that comes to him; a deficit is carried and recouped later
+    const room = Math.max(0, sum.partnerOwesOwner - sum.ownerOwesPartner);
+    const costsTaken = Math.min(sum.ownerOwesCosts, room);
+    sum.costsToRecoup = sum.ownerOwesCosts - costsTaken;
+    sum.ownerOwesPartner += costsTaken;
     const net = round2(sum.partnerOwesOwner - sum.ownerOwesPartner);
     return { config: cfg, ...round(sum), netPartnerPaysOwner: net, netOwnerPaysPartner: net < 0 ? -net : 0, netOwed: net > 0 ? { from: 'partner', to: 'owner', amount: net } : net < 0 ? { from: 'owner', to: 'partner', amount: -net } : null };
 }
@@ -341,7 +364,7 @@ async function saveConfig(body = {}) {
         if (!v || v.length > 40) throw httpError(400, `${k} is needed (up to 40 letters)`);
         set[`settlement.${k}`] = v;
     }
-    for (const [k, lo, hi] of [['payDays', 0, 90], ['ownerPctPartnerBrought', 0, 100], ['ownerPctOwnerBrought', 0, 100], ['costOwnerPct', 0, 100], ['royaltyPct', 0, 100]]) {
+    for (const [k, lo, hi] of [['payDays', 0, 90], ['dueDay', 0, 28], ['ownerPctPartnerBrought', 0, 100], ['ownerPctOwnerBrought', 0, 100], ['costOwnerPct', 0, 100], ['royaltyPct', 0, 100]]) {
         if (body[k] === undefined) continue;
         if (!Number.isInteger(body[k]) || body[k] < lo || body[k] > hi) throw httpError(400, `${k} must be a whole number from ${lo} to ${hi}`);
         set[`settlement.${k}`] = body[k];

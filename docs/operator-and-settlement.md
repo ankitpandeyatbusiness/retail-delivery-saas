@@ -16,12 +16,12 @@ Not legal advice. Everything here is software; the signed paper agreement betwee
 - **GST register** (superadmin: More, GST register): all bills, top-up invoices and credit notes of a month with taxable value, CGST, SGST, IGST, B2B/B2C and the GST due on unpaid bills; Excel download. This is what the operator files his returns from.
 
 ## The settlement sheet (More, Settlement sheet)
-- A row appears by itself when a shop pays rent, a setup fee or an SMS top-up. It is shared on the amount **before GST**: shop brought by the partner 50/50, by the owner 70/30 (these numbers are settings). Shared costs (SMS recharge, server, database, API, misc) are always 50/50: one partner paid all, the other owes his half.
-- The partner has to pay within **15 days** (a setting). After that the row shows as late.
+- A row appears by itself when a shop pays rent, a setup fee or an SMS top-up. It is shared on the amount **before GST**: shop brought by the partner 50/50, by the owner 70/30 (these numbers are settings). Shared costs (SMS recharge, server, database, API, misc) come off first, as the MOU says net profit is shared: the developer's part is the blended rate of the money received so far (50% before any money came in). The developer never pays a deficit from his pocket: the sheet shows it as "costs to recoup" and takes it from later money.
+- The agency pays by the **15th of the month after** the payment (the MOU; setting `dueDay`, 0 = use `payDays`). After that the row shows as late.
 - Rows are never deleted. Every change is an event on the row's timeline (who, when, amount, reference, note).
 - The supreme admin records payments, confirms "I have paid" notes, sets rows off against each other (with a reason typed by hand), adds costs and adjustments, marks **who brought a shop** (shop detail, or when creating a shop) and changes names and ratios. Changing who brought a shop fixes the unpaid rows and never rewrites a row money was already settled on.
 - The supreme admin gets a notification (inbox and push, nobody else) for every payment: who paid, how much, and what the partner owes.
-- Excel download of the whole sheet. After the switch (mode "all yours") new payments show nothing to settle.
+- Excel download of the whole sheet. 
 - When a bill is marked paid by hand, `receivedBy` says who got the money (default: the operator's account).
 
 ## Agreements and terms (More, Agreements and terms)
@@ -31,11 +31,8 @@ Six documents: the operating agreement between the two partners, terms for the o
 - The agree screen is full-screen and cannot be closed: "Agree and continue" or "Log out". Each acceptance saves who, when, the version and the company in force. Once agreed, people can only read it.
 - The supreme admin sees who agreed and who is waiting.
 
-## Companies and Switch (More, Companies and Switch)
-- A company profile holds the legal name, address, GSTIN, PAN, state, SAC, **invoice prefix**, "Powered by" name and contact number, mail details, its Razorpay keys (write only, encrypted) and how its money is shared.
-- First press **Save the current company** (what is live now, keys included). Then add the second company (your own agency) and its Razorpay keys.
-- **Switch** shows a checklist (company details, Razorpay keys, a new numbering, open bills, rows still unsettled, prepaid SMS balances, terms sent) and refuses to go while a ✕ item is open. Pressing it copies the company into the live settings, starts the new numbering, sets the sheet mode, tells every shop (in-app message and email) and writes it down. Old bills keep the seller they were made with.
-- After switching: test the new Razorpay keys (Money, My Razorpay), send the owner and rider terms again, and start the SMS (DLT) registration for the new company a month before.
+## Companies and Switch: REMOVED (2026-11-04)
+The Vivyaan MOU replaced the two-company year. There is one operator, Vivyaan Business Systems, and nothing rotates, so the Companies screen, the checklist and the Switch button are gone (server routes `/api/admin/operators/*`, the Operator and OperatorSwitch models, the app screens). Set the operator once in Business details and Platform payments; old saved company profiles stay in the database, unused.
 
 ## "Powered by" in the customer app
 Login screen and Account show "Powered by <name>" with a **Contact** button that calls the contact number. Both come from the active company, so they change with the switch.

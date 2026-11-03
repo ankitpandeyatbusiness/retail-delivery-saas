@@ -46,7 +46,6 @@ export default function MoreScreen() {
             <SectionTitle section="platform">Platform</SectionTitle>
             <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
                 <ListRow section="platform" icon="shops" title="Brands and branches" subtitle="A brand with several branches, each its own shop" onPress={() => nav.navigate('Brands')} />
-                <ListRow section="platform" icon="bank" title="Companies and Switch" subtitle="Who runs the platform now, and the Switch button" onPress={() => nav.navigate('Operators')} />
                 <ListRow section="platform" icon="notes" title="Agreements and terms" subtitle="Read them; the supreme admin writes and sends them" onPress={() => nav.navigate('Agreements')} />
                 <ListRow section="money" icon="rupee" title="Settlement sheet" subtitle="Who owes whom between the two of you, row by row" onPress={() => nav.navigate('Settlement')} />
                 <ListRow section="orders" icon="message" title="Services and booking" subtitle="Inquiries, table bookings and the booking money of every shop, to read" onPress={() => nav.navigate('ServicesOverview')} />

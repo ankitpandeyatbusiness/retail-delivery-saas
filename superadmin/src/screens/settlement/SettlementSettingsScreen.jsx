@@ -10,7 +10,7 @@ import { ErrorBox, toast } from '../../components/feedback';
 import { fetchSettlementConfig, saveSettlementConfig } from '../../api/settlementApi';
 import { errMsg } from '../../api/adminClient';
 
-const RECOMMENDED = { payDays: 15, ownerPctPartnerBrought: 50, ownerPctOwnerBrought: 70, costOwnerPct: 50, royaltyPct: 20, mode: 'split' };
+const RECOMMENDED = { dueDay: 15, payDays: 15, ownerPctPartnerBrought: 50, ownerPctOwnerBrought: 70, costOwnerPct: 50, royaltyPct: 20, mode: 'split' };
 
 // The names on the sheet, the ratios and the payment deadline. Only the supreme admin gets here. A change applies to rows made
 // AFTER it; rows already on the sheet keep the ratio they were made with.
@@ -30,7 +30,7 @@ export default function SettlementSettingsScreen() {
         setBusy(true);
         try {
             await saveSettlementConfig({
-                ownerName: f.ownerName, partnerName: f.partnerName, payDays: f.payDays, ownerPctPartnerBrought: f.ownerPctPartnerBrought,
+                ownerName: f.ownerName, partnerName: f.partnerName, payDays: f.payDays, dueDay: f.dueDay, ownerPctPartnerBrought: f.ownerPctPartnerBrought,
                 ownerPctOwnerBrought: f.ownerPctOwnerBrought, costOwnerPct: f.costOwnerPct, royaltyPct: f.royaltyPct, mode: f.mode,
             });
             toast('Saved'); nav.goBack();
@@ -48,11 +48,12 @@ export default function SettlementSettingsScreen() {
                 <NumberField label="Shop brought by the agency" suffix="% to the developer" value={f.ownerPctPartnerBrought} onChange={int('ownerPctPartnerBrought')} />
                 <NumberField label="Shop brought by the developer" suffix="% to the developer" value={f.ownerPctOwnerBrought} onChange={int('ownerPctOwnerBrought')} last />
             </Group>
-            <Group title="Shared costs" section="catalog" hint="SMS recharge, server, database, API and agreed extras.">
-                <NumberField label="Developer's share of a shared cost" suffix="%" value={f.costOwnerPct} onChange={int('costOwnerPct')} last />
+            <Group title="Shared costs" section="catalog" hint="SMS recharge, server, database, API and agreed extras. They come off before profit is shared, at the blended rate of the money received so far; this number is used only before any money has come in. The developer never pays a deficit out of pocket: it is carried and taken from later money.">
+                <NumberField label="Developer's share before any money came in" suffix="%" value={f.costOwnerPct} onChange={int('costOwnerPct')} last />
             </Group>
             <Group title="Payment deadline" section="orders">
-                <NumberField label="The agency pays within" suffix="days of each payment" value={f.payDays} onChange={int('payDays')} last />
+                <NumberField label="The agency pays by day" suffix="of the next month (0 = use days below)" value={f.dueDay} onChange={int('dueDay')} />
+                <NumberField label="Days after each payment (only if the day above is 0)" suffix="days" value={f.payDays} onChange={int('payDays')} last />
             </Group>
             <Group title="Royalty after exit" section="alerts" hint="Used only if the agreement ends: the developer then gets this share of net profit on every shop.">
                 <NumberField label="Developer's royalty" suffix="% of net profit" value={f.royaltyPct} onChange={int('royaltyPct')} last />
@@ -61,7 +62,7 @@ export default function SettlementSettingsScreen() {
                 <Choice options={[{ value: 'split', label: 'Shared with the agency' }, { value: 'royalty', label: 'Royalty only (after exit)' }, { value: 'owner_only', label: 'Everything is mine' }]} value={f.mode} onChange={set('mode')} last />
             </Group>
             <Button title="Reset to recommended" kind="soft" icon="refresh" onPress={() => { setF((x) => ({ ...x, ...RECOMMENDED })); toast('Back to the recommended numbers. Press Save to keep them.'); }} />
-            <Text style={{ color: t.muted, fontSize: font.sm, marginTop: spacing.md }}>Recommended: 50 / 50 on a partner's shop, 70 / 30 on yours, shared costs 50 / 50, 15 days.</Text>
+            <Text style={{ color: t.muted, fontSize: font.sm, marginTop: spacing.md }}>Recommended: 50 / 50 on a partner's shop, 70 / 30 on yours, costs off first, the 15th of the next month.</Text>
             <Hint>Rows already on the sheet keep the ratio they were made with.</Hint>
         </Screen>
     );

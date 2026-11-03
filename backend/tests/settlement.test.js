@@ -43,7 +43,7 @@ const pay = async (rate = 1000, body = { paymentMode: 'bank_transfer' }) => {
 const mark = (by) => api('put', `/settlement/shops/${w.tenant._id}/brought-by`, boss, { broughtBy: by });
 
 describe('a shop pays', () => {
-    test('a row appears by itself: shares of the amount BEFORE GST, who owes whom, the 15-day due date and the timeline', async () => {
+    test('a row appears by itself: shares of the amount BEFORE GST, who owes whom, the due date (the 15th of next month) and the timeline', async () => {
         await mark('partner');
         const { row } = await pay(1000);                       // + 18% GST = 1180 received
         assert.equal(row.kind, 'receipt');
@@ -53,7 +53,9 @@ describe('a shop pays', () => {
         assert.deepEqual([row.ratio.ownerPct, row.ownerShare, row.partnerShare], [50, 500, 500]);
         assert.equal(row.receivedBy, 'partner');
         assert.deepEqual([row.owes, row.dueAmount, row.status], ['partner', 500, 'pending']);
-        assert.equal(Math.round((new Date(row.dueAt) - new Date(row.date)) / 86400000), 15);
+        const ist = new Date(new Date(row.date).getTime() + 330 * 60000);
+        const next = new Date(Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth() + 1, 15));
+        assert.equal(new Date(row.dueAt).toISOString(), new Date(`${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}-15T23:59:59+05:30`).toISOString());
         assert.equal(row.events[0].action, 'created');
         assert.equal(row.no, 1);
     });
@@ -127,6 +129,31 @@ describe('shared costs', () => {
         for (const bad of [{ category: 'lunch', amount: 10, paidBy: 'owner' }, { category: 'api', amount: 0, paidBy: 'owner' }, { category: 'api', amount: 5, paidBy: 'me' }]) {
             assert.equal((await api('post', '/settlement/costs', boss, bad)).status, 400);
         }
+    });
+});
+
+describe('costs come off first (the MOU)', () => {
+    test('a cost comes off at the blended rate of the money received so far', async () => {
+        await mark('owner');
+        await pay(4000);                                                                  // 70% of 4000 is the developer's
+        const c = (await api('post', '/settlement/costs', boss, { category: 'server', amount: 1000, paidBy: 'partner' })).body;
+        assert.deepEqual([c.ratio.ownerPct, c.dueAmount, c.owes], [70, 700, 'owner']);
+    });
+
+    test('zero risk: the developer never pays a deficit out of his pocket; it is carried and taken from later money', async () => {
+        await mark('partner');
+        await api('post', '/settlement/costs', boss, { category: 'server', amount: 4000, paidBy: 'partner' });   // no money yet: his half is 2000 on the row
+        let s = (await api('get', '/settlement/summary', vivek)).body;
+        assert.equal(s.netOwed, null);
+        assert.equal(s.costsToRecoup, 2000);
+        await pay(1000);                                                                  // the agency owes him 500 from this shop
+        s = (await api('get', '/settlement/summary', vivek)).body;
+        assert.equal(s.netOwed, null);                                                    // 500 is used up against the carried cost
+        assert.equal(s.costsToRecoup, 1500);
+        await pay(5000);                                                                  // 2500 more
+        s = (await api('get', '/settlement/summary', vivek)).body;
+        assert.deepEqual(s.netOwed, { from: 'partner', to: 'owner', amount: 1000 });
+        assert.equal(s.costsToRecoup, 0);
     });
 });
 
