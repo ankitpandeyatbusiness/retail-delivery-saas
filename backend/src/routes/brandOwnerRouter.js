@@ -12,6 +12,7 @@ const Brand = require('../models/Brand');
 const Tenant = require('../models/Tenant');
 const brands = require('../services/brandService');
 const owners = require('../services/ownerService');
+const panel = require('../services/brandPanel');
 const authController = require('../controllers/authController');
 const apiErrors = require('../middlewares/apiErrors');
 
@@ -50,6 +51,12 @@ router.get('/me', wrap(async (req, res) => {
         branches: list.map((t) => ({ slug: t.slug, name: t.name, logo: t.logo || null, status: t.status, city: t.branchCity || (t.address && t.address.city) || null })),
     });
 }));
+
+// The "All branches" panel: read only, one row per branch (services/brandPanel.js)
+//   GET /overview?range=today|7|30|90|2026-10        per-branch totals and the brand total
+//   GET /orders?branch=<slug>&status=active|delivered,...&page=1&limit=20     orders of every branch (or one), each labelled with its branch
+router.get('/overview', wrap(async (req, res) => { res.json(await panel.overview(req.brand, req.query.range)); }));
+router.get('/orders', wrap(async (req, res) => { res.json(await panel.orders(req.brand, req.query)); }));
 
 router.post('/switch', wrap(async (req, res) => {
     const target = await branchBySlug(req, req.body && req.body.slug);
