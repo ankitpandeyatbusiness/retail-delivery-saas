@@ -13,6 +13,7 @@
 //   POST   /brands/:id/move                { fromTenantId, toTenantId, userId }  move a manager, cook, waiter or rider (any superadmin)
 //   POST   /brands/:id/menu/push           { fromTenantId, productIds, toTenantIds, prices? }  push dishes from one branch to others (supreme admin)
 //   GET    /brands/:id/statement?period=2026-10   the brand's monthly statement (everyone looks)
+//   GET    /brands/:id/statement.pdf?period=2026-10   the same as a PDF (?view=1 opens it in the browser)
 //   POST   /brands/:id/extras/push         { fromTenantId, kind, ids, toTenantIds }  push coupons, banners or collections (supreme admin)
 //   DELETE /brands/:id                     only when it has no branches
 const express = require('express');
@@ -138,6 +139,12 @@ router.put('/brands/:id', loadBrand, wrap(async (req, res) => {
     if (typeof b.notes === 'string') req.brand.notes = b.notes.trim().slice(0, 500);
     await req.brand.save();
     res.json({ brand: req.brand });
+}));
+
+router.get('/brands/:id/statement.pdf', loadBrand, wrap(async (req, res) => {
+    const pdf = require('../services/brandStatementPdf');
+    const st = await require('../services/brandStatement').build(req.brand, req.query.period);
+    pdf.streamStatement(res, st, await pdf.sellerOf(), { inline: req.query.view === '1' });
 }));
 
 router.get('/brands/:id/statement', loadBrand, wrap(async (req, res) => { res.json(await require('../services/brandStatement').build(req.brand, req.query.period)); }));

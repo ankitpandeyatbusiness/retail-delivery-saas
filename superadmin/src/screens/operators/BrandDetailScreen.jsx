@@ -8,7 +8,7 @@ import { Field } from '../../components/inputs';
 import { SkeletonList } from '../../components/blocks';
 import { ErrorBox, Sheet, ConfirmSheet, toast } from '../../components/feedback';
 import { useSupreme } from '../../hooks/useSupreme';
-import { fetchBrand, addBranch, removeBranch, updateBrand, addBrandOwner, removeBrandOwner, fetchBrandSettings, fetchBrandStatement, setAreaLock } from '../../api/brandsApi';
+import { fetchBrand, addBranch, removeBranch, updateBrand, addBrandOwner, removeBrandOwner, fetchBrandSettings, fetchBrandStatement, setAreaLock, shareBrandStatementPdf } from '../../api/brandsApi';
 import { errMsg } from '../../api/adminClient';
 
 const STEPS = [['location', 'Pin and radius set'], ['keys', 'Razorpay keys set'], ['owner', 'Owner or manager added'], ['live', 'Live']];
@@ -80,6 +80,10 @@ export default function BrandDetailScreen() {
         try { await removeBrandOwner(id, dropOwner); toast('Brand owner removed'); } catch (e) { toast(errMsg(e), 'error'); }
         setDropOwner(null); load();
     };
+    const sharePdf = async () => {
+        setBusy(true);
+        try { await shareBrandStatementPdf(r.brand, stmt.period); } catch (e) { toast(e.safe ? e.message : errMsg(e, 'Could not get the PDF'), 'error'); } finally { setBusy(false); }
+    };
     const toggleLock = async (b) => {
         try { await setAreaLock(id, b.id, !b.area.locked); toast(b.area.locked ? 'Pin and radius unlocked' : 'Pin and radius locked'); load(); } catch (e) { toast(errMsg(e), 'error'); }
     };
@@ -122,6 +126,7 @@ export default function BrandDetailScreen() {
                         {stmt.branches.map((b) => (
                             <Text key={b.slug} style={{ color: t.muted, marginTop: spacing.xs }}>{`${b.name}: ${b.invoice ? `₹${b.invoice.total} · ${b.invoice.status}` : 'no bill'} · about ${b.sms.count} SMS`}</Text>
                         ))}
+                        {stmt.totals.invoices ? <Button title="Share the statement PDF" kind="outline" small loading={busy} style={{ marginTop: spacing.md }} onPress={sharePdf} /> : null}
                         {stmt.smsWallet ? <Text style={{ color: stmt.smsWallet.low ? t.warn : t.muted, marginTop: spacing.sm }}>{`One SMS wallet for all branches: ₹${(stmt.smsWallet.balancePaise / 100).toFixed(2)}`}</Text> : null}
                     </Card>
                 </>

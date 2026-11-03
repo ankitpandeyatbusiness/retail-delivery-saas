@@ -90,3 +90,8 @@ H4. Send a collection to a branch that lacks some of its dishes: it arrives with
 I1. A branch manager changes the delivery distance: the owner Delivery screen then says "Last changed by <name> on <date>"; the Brand page (superadmin) shows the same with the job.
 I2. Superadmin: Brand page -> Lock pin and radius on that branch. The manager tries to change the distance or move the pin: refused with "locked by the head office". Changing the minimum order or fees still works.
 I3. The brand owner (in that branch) and a superadmin can still change it. Unlock: the manager can again.
+
+## J. Statement PDF
+
+J1. Superadmin: Brand page -> Statement card -> Share the statement PDF: a one-page A4 opens in the share sheet. Check: the brand and month on top, a row per branch (nothing cut off), the discount column, totals, Unpaid line, SMS wallet lines.
+J2. Brand owner: All branches -> Rent bills card -> Open the statement (PDF): the same page opens.

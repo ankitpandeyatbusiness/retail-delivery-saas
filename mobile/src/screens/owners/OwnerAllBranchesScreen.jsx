@@ -9,6 +9,7 @@ import { ask } from '../../components/common/dialog';
 import { showToast } from '../../components/customers/shop';
 import { fetchBrandOverview, fetchBrandOrders, fetchBrandStatement, fetchBrandCustomers, fetchBrandComplaints, fetchBrandReviews } from '../../api/owners/brandApi';
 import { switchBranch } from '../../utils/common/switchBranch';
+import { downloadAndOpen } from '../../utils/owners/files';
 import { getSlug } from '../../utils/common/branch';
 import { tr } from '../../i18n';
 
@@ -48,6 +49,10 @@ export default function OwnerAllBranchesScreen() {
         fetchBrandReviews({ range: r, limit: 5, low: 1 }).then(setRev).catch(() => setRev(null));
     }, [range]);
 
+    const statementPdf = async () => {
+        try { await downloadAndOpen({ path: '/brand/statement.pdf', params: { period: stmt.period }, filename: `statement-${stmt.period}.pdf`, mime: 'application/pdf', title: tr('Rent bills for {month}', { month: stmt.period }) }); }
+        catch (e) { showToast(e.safe ? e.message : tr('Could not open the statement')); }
+    };
     const open = async (b) => {
         if (b.slug === getSlug()) { showToast(tr('You are already in {name}.', { name: b.name })); return; }
         const yes = await ask({ title: tr('Open {name}?', { name: b.name }), message: tr('The app restarts and opens {name}.', { name: b.name }), confirmText: tr('Open') });
@@ -147,6 +152,7 @@ export default function OwnerAllBranchesScreen() {
                             <Text style={{ color: stmt.totals.unpaidCount ? error : muted, fontWeight: '800', marginTop: 4 }}>
                                 {stmt.totals.unpaidCount ? tr('Unpaid: {amount} ({n} bills)', { amount: money(stmt.totals.unpaid), n: stmt.totals.unpaidCount }) : tr('All paid')}
                             </Text>
+                            <Pressable onPress={statementPdf} accessibilityRole="button" style={{ marginTop: 10 }}><Text style={{ color: primary, fontWeight: '900' }}>{tr('Open the statement (PDF)')}</Text></Pressable>
                             {stmt.smsWallet ? <Text style={{ color: muted, marginTop: 4 }}>{tr('SMS wallet for all branches: {amount}', { amount: money(stmt.smsWallet.balancePaise / 100) })}</Text> : null}
                         </Card>
                     </>

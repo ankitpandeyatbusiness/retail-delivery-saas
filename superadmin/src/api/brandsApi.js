@@ -1,3 +1,5 @@
+import { File, Paths } from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import api, { data } from './adminClient';
 
 /* ---- brands with branches (everyone looks, the supreme admin changes) ---- */
@@ -13,3 +15,15 @@ export const removeBrandOwner = (id, phone) => data(api.delete(`/admin/brands/${
 export const fetchBrandSettings = () => data(api.get('/admin/brands/settings'));                                // { defaultDiscountPercent, maxDiscountPercent }
 export const fetchBrandStatement = (id, period) => data(api.get(`/admin/brands/${id}/statement`, { params: { period } }));
 export const setAreaLock = (id, tid, locked) => data(api.post(`/admin/brands/${id}/branches/${tid}/area-lock`, { locked }));   // supreme admin
+
+// the brand's monthly statement as a PDF, shared through the phone's share sheet
+export async function shareBrandStatementPdf(brand, period) {
+    const res = await api.get(`/admin/brands/${brand._id}/statement.pdf`, { params: { period }, responseType: 'arraybuffer' });
+    const safe = String(brand.name || 'brand').replace(/[^A-Za-z0-9_-]+/g, '-');
+    const file = new File(Paths.cache, `Statement-${safe}-${period}.pdf`);
+    if (file.exists) file.delete();
+    file.create();
+    file.write(new Uint8Array(res.data));
+    if (!(await Sharing.isAvailableAsync())) throw Object.assign(new Error('Sharing is not available on this phone'), { safe: true });
+    await Sharing.shareAsync(file.uri, { mimeType: 'application/pdf', dialogTitle: `Statement ${brand.name} ${period}`, UTI: 'com.adobe.pdf' });
+}

@@ -8,6 +8,7 @@
 //   GET  /customers?range=30         counts per branch (customers, new, ordered) and how many real people the brand has
 //   GET  /complaints?branch=&status=&page=   complaints of every branch, each with its branch, and how many are open per branch
 //   GET  /reviews?branch=&range=30&low=1&page=   dish ratings: average per branch and the newest ratings
+//   GET  /statement.pdf?period=2026-10   the same statement as a PDF (?view=1 opens it in the browser)
 //   POST /switch     { slug }                      sign in to another branch of the brand: returns that branch's tokens
 //   POST /menu/push  { productIds, toSlugs: 'all' | [slug], prices: 'keep'|'untouched'|'all' }   push dishes of THIS branch to other branches
 //   POST /extras/push { kind: 'coupons'|'banners'|'collections', ids, toSlugs: 'all' | [slug] }   push coupons, banners or collections of THIS branch to other branches
@@ -76,6 +77,11 @@ router.get('/customers', wrap(async (req, res) => { res.json(await care.customer
 router.get('/complaints', wrap(async (req, res) => { res.json(await care.complaints(req.brand, req.query)); }));
 router.get('/reviews', wrap(async (req, res) => { res.json(await care.reviews(req.brand, req.query)); }));
 
+router.get('/statement.pdf', wrap(async (req, res) => {
+    const pdf = require('../services/brandStatementPdf');
+    const st = await require('../services/brandStatement').build(req.brand, req.query.period);
+    pdf.streamStatement(res, st, await pdf.sellerOf(), { inline: req.query.view === '1' });
+}));
 router.get('/statement', wrap(async (req, res) => { res.json(await require('../services/brandStatement').build(req.brand, req.query.period)); }));
 
 router.get('/notify-prefs', wrap(async (req, res) => { res.json(await brandNotify.view(req.brand, req.brandUser.phone)); }));
