@@ -329,7 +329,8 @@ function AdminTabs() {
 export default function RootNavigator() {
     const token = useAuthStore((s) => s.token);
     return (
-        <Root.Navigator screenOptions={STACK_OPTIONS}>
+        // noAnim: set by Back (navigation/goTo.js) so the screen it brings back does not slide in over the tab under it
+        <Root.Navigator screenOptions={({ route }) => (route.params?.noAnim ? { ...STACK_OPTIONS, animation: 'none' } : STACK_OPTIONS)}>
             {token ? (
                 <>
                     <Root.Screen name="Admin" component={AdminTabs} />

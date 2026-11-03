@@ -57,16 +57,19 @@ function Bar({ percent, level }) {
     );
 }
 
+// what it last knew, so coming back to this screen (Back from a shop or SMS profit) shows it at once instead of a loading shimmer
+let lastHealth = null;
+
 // The platform at a glance: is it running fine, is the money coming in, is anything near a danger line.
 export default function PlatformHealthScreen() {
     const t = useTheme();
     const nav = useNavigation();
     const level = useLevel();
-    const [r, setR] = useState(null);
+    const [r, setR] = useState(lastHealth);
     const [err, setErr] = useState('');
     const [openNeed, setOpenNeed] = useState(null);    // which "Needs you" line is dropped down
 
-    const load = useCallback(async () => { setErr(''); try { setR(await fetchPlatformHealth()); } catch (e) { setErr(errMsg(e)); } }, []);
+    const load = useCallback(async () => { setErr(''); try { const x = await fetchPlatformHealth(); lastHealth = x; setR(x); } catch (e) { setErr(errMsg(e)); } }, []);
     useFocusEffect(useCallback(() => { load(); }, [load]));
 
     // where each card's trouble is looked at

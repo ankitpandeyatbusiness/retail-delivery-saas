@@ -79,7 +79,7 @@ export function backTo(nav, o) {
         const ts = admin?.state;
         const at = ts ? ts.routes.findIndex((x) => x.name === (o.underTab || 'HomeTab')) : -1;
         if (!admin || at < 0) { nav.navigate(o.root, o.params); return; }
-        top.dispatch(CommonActions.reset({ index: 1, routes: [{ key: admin.key, name: 'Admin', state: { ...ts, index: at } }, { name: o.root, params: o.params }] }));
+        top.dispatch(CommonActions.reset({ index: 1, routes: [{ key: admin.key, name: 'Admin', state: { ...ts, index: at } }, { name: o.root, params: { ...(o.params || {}), noAnim: true } }] }));
         return;
     }
     nav.goBack();
