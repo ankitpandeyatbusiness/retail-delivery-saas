@@ -13,6 +13,8 @@ const SmsLog = require('../models/SmsLog');
 const PlatformSettings = require('../models/PlatformSettings');
 const withTransaction = require('./withTransaction');
 const smsConfig = require('./smsConfig');
+const Tenant = require('../models/Tenant');
+const Brand = require('../models/Brand');
 
 // Temporary defaults. The platform settings replace these.
 const DEFAULTS = { ratePerSmsPaise: 30, costPerSmsPaise: 20, lowBalancePaise: 5000 };
@@ -24,7 +26,33 @@ const bad = (status, message) => Object.assign(new Error(message), { status });
 // Mock SMS does not touch the wallet, unless you turn this flag on for testing
 const shouldCharge = () => process.env.SMS_MOCK !== 'true' || process.env.SMS_WALLET_IN_MOCK === 'true';
 
+// A branch of a brand shares ONE wallet with the other branches: the wallet of the brand's wallet branch (the oldest one).
+// Every other shop uses its own wallet. Short cache: a branch moving in or out of a brand is rare.
+const holders = new Map();   // tenantId string -> { id, at }
+async function holderOf(tenantId) {
+    const key = String(tenantId);
+    const hit = holders.get(key);
+    if (hit && Date.now() - hit.at < 30000) return hit.id;
+    let id = tenantId;
+    const t = await Tenant.findById(tenantId).select('brandId').lean();
+    if (t && t.brandId) {
+        const brand = await Brand.findById(t.brandId).select('smsWalletTenantId').lean();
+        let wallet = brand && brand.smsWalletTenantId;
+        // the wallet branch must still be a branch of this brand
+        if (!wallet || !(await Tenant.exists({ _id: wallet, brandId: t.brandId }))) {
+            const first = await Tenant.findOne({ brandId: t.brandId }).sort({ createdAt: 1, _id: 1 }).select('_id').lean();
+            wallet = first && first._id;
+            if (wallet) await Brand.updateOne({ _id: t.brandId }, { $set: { smsWalletTenantId: wallet } });
+        }
+        if (wallet) id = wallet;
+    }
+    holders.set(key, { id, at: Date.now() });
+    return id;
+}
+const forgetHolders = () => holders.clear();
+
 async function getWallet(tenantId) {
+    tenantId = await holderOf(tenantId);
     const find = () => SmsWallet.findOne({ tenantId });
     let w = await find();
     if (w) return w;
@@ -87,7 +115,7 @@ async function debitForSms(tenantId, { purpose = 'otp', allowFree = false } = {}
             return { ok: false, reason: 'no_balance' };
         }
         const [txn] = await SmsTransaction.create([{
-            tenantId, type: 'debit', amountPaise: -rate, balanceAfter: after.balancePaise,
+            tenantId, walletTenantId: w.tenantId, type: 'debit', amountPaise: -rate, balanceAfter: after.balancePaise,
             purpose, actor: { type: 'system', label: 'sms' },
         }], { session });
         return { ok: true, chargedPaise: rate, costPaise: costOf(w), txnId: txn._id, balanceAfter: after.balancePaise };
@@ -104,11 +132,11 @@ async function refund(txnId) {
     try {
         return await withTransaction(async (session) => {
             const after = await SmsWallet.findOneAndUpdate(
-                { tenantId: debit.tenantId }, { $inc: { balancePaise: amount } }, { returnDocument: 'after', session },
+                { tenantId: debit.walletTenantId || debit.tenantId }, { $inc: { balancePaise: amount } }, { returnDocument: 'after', session },
             );
             if (!after) throw new Error('Wallet not found');
             await SmsTransaction.create([{
-                tenantId: debit.tenantId, type: 'refund', amountPaise: amount, balanceAfter: after.balancePaise,
+                tenantId: debit.tenantId, walletTenantId: debit.walletTenantId, type: 'refund', amountPaise: amount, balanceAfter: after.balancePaise,
                 paymentId: `refund:${debit._id}`, purpose: debit.purpose, note: 'SMS failed',
                 actor: { type: 'system', label: 'sms' },
             }], { session });
@@ -124,15 +152,15 @@ async function refund(txnId) {
 async function credit({ tenantId, amountPaise, type = 'topup', paymentId, note, actor }) {
     if (!isPaise(amountPaise)) throw bad(400, 'Amount must be a whole number of paise above 0');
     if (!['topup', 'adjust'].includes(type)) throw bad(400, 'Invalid type');
-    await getWallet(tenantId);
+    const wid = (await getWallet(tenantId)).tenantId;
 
     try {
         return await withTransaction(async (session) => {
             const after = await SmsWallet.findOneAndUpdate(
-                { tenantId }, { $inc: { balancePaise: amountPaise } }, { returnDocument: 'after', session },
+                { tenantId: wid }, { $inc: { balancePaise: amountPaise } }, { returnDocument: 'after', session },
             );
             const [txn] = await SmsTransaction.create([{
-                tenantId, type, amountPaise, balanceAfter: after.balancePaise, paymentId, note, actor,
+                tenantId, walletTenantId: wid, type, amountPaise, balanceAfter: after.balancePaise, paymentId, note, actor,
             }], { session });
             return { ok: true, balanceAfter: after.balancePaise, txnId: txn._id };
         });
@@ -155,18 +183,39 @@ async function manualDebit({ tenantId, amountPaise, note, actor }) {
         );
         if (!after) throw bad(400, 'Balance is lower than this amount');
         const [txn] = await SmsTransaction.create([{
-            tenantId, type: 'adjust', amountPaise: -amountPaise, balanceAfter: after.balancePaise, note, actor,
+            tenantId, walletTenantId: w.tenantId, type: 'adjust', amountPaise: -amountPaise, balanceAfter: after.balancePaise, note, actor,
         }], { session });
         return { ok: true, balanceAfter: after.balancePaise, txnId: txn._id };
     });
 }
 
+// Moves a whole wallet to another shop's wallet (a branch leaves or joins a brand). Two ledger rows, one transaction. Returns the paise moved.
+async function transfer(fromTenantId, toTenantId, note) {
+    if (String(fromTenantId) === String(toTenantId)) return 0;
+    const from = await SmsWallet.findOne({ tenantId: fromTenantId });
+    if (!from || from.balancePaise <= 0) return 0;
+    await getWallet(toTenantId).catch(() => null);
+    const amt = from.balancePaise;
+    const actor = { type: 'system', label: 'brand' };
+    return withTransaction(async (session) => {
+        const a = await SmsWallet.findOneAndUpdate({ _id: from._id, balancePaise: { $gte: amt } }, { $inc: { balancePaise: -amt } }, { returnDocument: 'after', session });
+        if (!a) throw bad(409, 'The wallet changed while moving it. Try again.');
+        const b = await SmsWallet.findOneAndUpdate({ tenantId: toTenantId }, { $inc: { balancePaise: amt } }, { returnDocument: 'after', upsert: true, setDefaultsOnInsert: true, session });
+        await SmsTransaction.create([
+            { tenantId: fromTenantId, walletTenantId: fromTenantId, type: 'adjust', amountPaise: -amt, balanceAfter: a.balancePaise, note, actor },
+            { tenantId: toTenantId, walletTenantId: toTenantId, type: 'adjust', amountPaise: amt, balanceAfter: b.balancePaise, note, actor },
+        ], { session, ordered: true });
+        return amt;
+    });
+}
+
 // Compares the balance with the sum of the ledger. differencePaise must be 0.
 async function reconcileWallet(tenantId) {
-    const id = new mongoose.Types.ObjectId(String(tenantId));
+    const id = new mongoose.Types.ObjectId(String(await holderOf(tenantId)));
     const [w, rows] = await Promise.all([
         SmsWallet.findOne({ tenantId: id }).select('balancePaise').lean(),
-        SmsTransaction.aggregate([{ $match: { tenantId: id } }, { $group: { _id: null, sum: { $sum: '$amountPaise' } } }]),
+        // rows of this wallet: the ones that name it, and every old row of this shop that names no wallet
+        SmsTransaction.aggregate([{ $match: { $or: [{ walletTenantId: id }, { walletTenantId: { $exists: false }, tenantId: id }] } }, { $group: { _id: null, sum: { $sum: '$amountPaise' } } }]),
     ]);
     const balancePaise = w?.balancePaise || 0;
     const ledgerPaise = rows[0]?.sum || 0;
@@ -196,5 +245,5 @@ async function writeSmsLog({ tenantId, phone, purpose, debit, status, providerMe
 
 module.exports = {
     DEFAULTS, refreshPlatform, shouldCharge, getWallet, status, debitForSms, refund, credit, manualDebit,
-    reconcileWallet, logSms, mask, loadPlatform,
+    reconcileWallet, logSms, mask, loadPlatform, holderOf, forgetHolders, transfer,
 };

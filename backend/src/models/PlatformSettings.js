@@ -108,6 +108,12 @@ const platformSchema = new mongoose.Schema({
         verifiedAt: Date,
         lastWebhookAt: Date,
     },
+    // Brands with branches: the rent discount for the 2nd branch onward (per brand, set by the supreme admin)
+    brand: {
+        defaultDiscountPercent: { type: Number, default: 10, min: 0, max: 100 },   // the suggestion shown when a brand's discount is switched on
+        maxDiscountPercent: { type: Number, default: 15, min: 0, max: 100 },       // no brand may get more than this
+    },
+
     // SMS wallet prices. All money is integer paise (100 paise = Rs 1).
     sms: {
         ratePerSmsPaise: { type: Number, default: 30, min: 0 },     // selling price per SMS

@@ -1,21 +1,26 @@
 // Brands with branches. Everybody with a superadmin login can look; only the supreme admin changes anything. Mounted inside adminRouter.
+//   GET    /brands/settings                the multi-branch discount: the suggested % and the most any brand may get
+//   PUT    /brands/settings                { defaultDiscountPercent?, maxDiscountPercent? }   (supreme admin)
 //   GET    /brands                         the brands with their branch counts
 //   POST   /brands                         { name, branchLimit?, notes? }
 //   GET    /brands/:id                     the brand, its branches, each with the go-live checklist and orders this month
-//   PUT    /brands/:id                     { name?, branchLimit?, notes? }
+//   PUT    /brands/:id                     { name?, branchLimit?, notes?, discountPercent? }   discountPercent: rent discount for the 2nd branch onward (0 = off, never above the cap)
 //   POST   /brands/:id/branches            { tenantId } (a shop that already exists) or { name, slug, city, managerPhone?, copyFromTenantId? } (a new branch)
 //   DELETE /brands/:id/branches/:tid       take a branch out of the brand (the shop stays, as a normal shop)
 //   POST   /brands/:id/owners              { phone }  appoint a brand owner (any superadmin): owner of every branch, can switch between them
 //   DELETE /brands/:id/owners/:phone       take the brand-owner job away (they lose the owner panel in every branch)
 //   POST   /brands/:id/move                { fromTenantId, toTenantId, userId }  move a manager, cook, waiter or rider (any superadmin)
 //   POST   /brands/:id/menu/push           { fromTenantId, productIds, toTenantIds, prices? }  push dishes from one branch to others (supreme admin)
+//   GET    /brands/:id/statement?period=2026-10   the brand's monthly statement (everyone looks)
 //   DELETE /brands/:id                     only when it has no branches
 const express = require('express');
 const mongoose = require('mongoose');
 const Brand = require('../models/Brand');
+const PlatformSettings = require('../models/PlatformSettings');
 const Tenant = require('../models/Tenant');
 const User = require('../models/User');
 const brands = require('../services/brandService');
+const wallet = require('../services/smsWalletService');
 const { requireSupreme } = require('../middlewares/supremeAdmin');
 const { hashPhone } = require('../utils/phoneHash');
 const { invalidateTenant } = require('../middlewares/tenantRecognizer');
@@ -47,6 +52,30 @@ const cleanLimit = (v) => {
     if (!Number.isInteger(n) || n < 1 || n > 100) throw httpError(400, 'Branch limit must be a whole number from 1 to 100');
     return n;
 };
+
+const pct = (v, what) => {
+    const n = Number(v);
+    if (!Number.isFinite(n) || n < 0 || n > 100) throw httpError(400, `${what} must be a number from 0 to 100`);
+    return Math.round(n * 100) / 100;
+};
+const discountSettings = async () => {
+    const p = await PlatformSettings.findById('main').select('brand').lean();
+    return { defaultDiscountPercent: (p && p.brand && p.brand.defaultDiscountPercent) ?? 10, maxDiscountPercent: (p && p.brand && p.brand.maxDiscountPercent) ?? 15 };
+};
+
+router.get('/brands/settings', wrap(async (req, res) => { res.json(await discountSettings()); }));
+router.put('/brands/settings', wrap(async (req, res) => {
+    const b = req.body || {};
+    const cur = await discountSettings();
+    const next = {
+        defaultDiscountPercent: b.defaultDiscountPercent === undefined ? cur.defaultDiscountPercent : pct(b.defaultDiscountPercent, 'The suggested discount'),
+        maxDiscountPercent: b.maxDiscountPercent === undefined ? cur.maxDiscountPercent : pct(b.maxDiscountPercent, 'The cap'),
+    };
+    if (next.defaultDiscountPercent > next.maxDiscountPercent) throw httpError(400, 'The suggested discount cannot be above the cap');
+    req.auditBefore = cur;
+    await PlatformSettings.updateOne({ _id: 'main' }, { $set: { 'brand.defaultDiscountPercent': next.defaultDiscountPercent, 'brand.maxDiscountPercent': next.maxDiscountPercent } }, { upsert: true, setDefaultsOnInsert: true });
+    res.json(next);
+}));
 
 router.get('/brands', wrap(async (req, res) => {
     const [items, counts] = await Promise.all([
@@ -96,10 +125,19 @@ router.put('/brands/:id', loadBrand, wrap(async (req, res) => {
         if (n < have) throw httpError(409, `This brand already has ${have} branches. Take one out first, or keep the limit at ${have} or more.`);
         req.brand.branchLimit = n;
     }
+    if (b.discountPercent !== undefined) {
+        const d = b.discountPercent === null ? 0 : pct(b.discountPercent, 'The discount');
+        const cap = (await discountSettings()).maxDiscountPercent;
+        if (d > cap) throw httpError(400, `The discount cannot be above ${cap}% (the platform cap). Raise the cap first.`);
+        req.auditBefore = { ...req.auditBefore, discountPercent: req.brand.discountPercent };
+        req.brand.discountPercent = d;
+    }
     if (typeof b.notes === 'string') req.brand.notes = b.notes.trim().slice(0, 500);
     await req.brand.save();
     res.json({ brand: req.brand });
 }));
+
+router.get('/brands/:id/statement', loadBrand, wrap(async (req, res) => { res.json(await require('../services/brandStatement').build(req.brand, req.query.period)); }));
 
 router.post('/brands/:id/branches', loadBrand, wrap(async (req, res) => {
     const b = req.body || {};
@@ -120,6 +158,10 @@ router.post('/brands/:id/branches', loadBrand, wrap(async (req, res) => {
         if (city) t.branchCity = city;
         await t.save();
         invalidateTenant(t.slug);
+        // the brand has one SMS wallet: money this shop kept in its own wallet moves into it
+        wallet.forgetHolders();
+        const keeper = await wallet.holderOf(t._id);
+        if (String(keeper) !== String(t._id)) await wallet.transfer(t._id, keeper, `Moved into the wallet of ${req.brand.name}`).catch((e) => console.error('Wallet move error:', e.message));
         const problems = await brands.giveOwnersAccess(req.brand, t);
         return res.status(201).json({ branch: { id: t._id, slug: t.slug, name: t.name }, ...(problems.length && { problems }) });
     }
@@ -161,6 +203,17 @@ router.delete('/brands/:id/branches/:tid', loadBrand, wrap(async (req, res) => {
     if (!isId(req.params.tid)) throw httpError(404, 'Branch not found');
     const t = await Tenant.findOne({ _id: req.params.tid, brandId: req.brand._id });
     if (!t) throw httpError(404, 'Branch not found');
+    // if this branch holds the brand's SMS wallet, the money and the job go to the next branch first
+    if (String(await wallet.holderOf(t._id)) === String(t._id)) {
+        const next = await Tenant.findOne({ brandId: req.brand._id, _id: { $ne: t._id } }).sort({ createdAt: 1, _id: 1 }).select('_id').lean();
+        if (next) {
+            await wallet.transfer(t._id, next._id, `Moved to the next wallet branch of ${req.brand.name}`);
+            await Brand.updateOne({ _id: req.brand._id }, { $set: { smsWalletTenantId: next._id } });
+        } else {
+            await Brand.updateOne({ _id: req.brand._id }, { $unset: { smsWalletTenantId: 1 } });
+        }
+        wallet.forgetHolders();
+    }
     t.brandId = undefined;
     t.branchCity = undefined;
     await t.save();

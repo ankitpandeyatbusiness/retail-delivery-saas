@@ -1,6 +1,7 @@
 // The brand owner's own routes, used from the owner app of ANY branch of the brand. Mounted at /api/brand.
 // Needs the usual headers (x-tenant-slug of the branch the owner is in, Bearer token of that branch).
 //   GET  /me         the brand and its branches (the branch switcher's list)
+//   GET  /statement?period=2026-10   the brand's monthly statement: a line per branch (rent, multi-branch discount, GST, status), the SMS wallet and SMS used per branch
 //   POST /switch     { slug }                      sign in to another branch of the brand: returns that branch's tokens
 //   POST /menu/push  { productIds, toSlugs: 'all' | [slug], prices: 'keep'|'untouched'|'all' }   push dishes of THIS branch to other branches
 //   POST /managers   { slug, phone }               make a phone the manager (owner panel) of one branch
@@ -59,6 +60,8 @@ router.get('/me', wrap(async (req, res) => {
 //   GET /orders?branch=<slug>&status=active|delivered,...&page=1&limit=20     orders of every branch (or one), each labelled with its branch
 router.get('/overview', wrap(async (req, res) => { res.json(await panel.overview(req.brand, req.query.range)); }));
 router.get('/orders', wrap(async (req, res) => { res.json(await panel.orders(req.brand, req.query)); }));
+
+router.get('/statement', wrap(async (req, res) => { res.json(await require('../services/brandStatement').build(req.brand, req.query.period)); }));
 
 router.post('/switch', wrap(async (req, res) => {
     const target = await branchBySlug(req, req.body && req.body.slug);

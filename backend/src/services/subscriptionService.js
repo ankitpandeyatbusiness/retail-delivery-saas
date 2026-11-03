@@ -17,6 +17,7 @@ const { freeStatus, resolveFee } = require('../utils/billingRules');
 const billable = require('./billableService');
 const invoicing = require('./platformInvoicing');
 const adminAlerts = require('./adminAlerts');
+const Brand = require('../models/Brand');
 
 const IST_OFFSET_MS = 330 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -97,6 +98,20 @@ async function syncFreeState(tenant, platform, now = new Date()) {
     return want;
 }
 
+/* ------------------------------ multi-branch discount ------------------------------ */
+// { percent, amount }: the brand's discount on this branch's rent. Never for a shop that is not a branch, nor for the brand's first branch.
+async function brandDiscount(tenant, fee, platform) {
+    const none = { percent: 0, amount: 0 };
+    if (!tenant.brandId) return none;
+    const brand = await Brand.findById(tenant.brandId).select('discountPercent').lean();
+    if (!brand || !(brand.discountPercent > 0)) return none;
+    const first = await Tenant.findOne({ brandId: tenant.brandId }).sort({ createdAt: 1, _id: 1 }).select('_id').lean();
+    if (!first || String(first._id) === String(tenant._id)) return none;
+    const cap = Number.isFinite(platform?.brand?.maxDiscountPercent) ? platform.brand.maxDiscountPercent : 15;
+    const percent = Math.min(brand.discountPercent, cap);
+    return { percent, amount: round2((fee * percent) / 100) };
+}
+
 /* ------------------------------ creating one invoice ------------------------------ */
 // Returns { invoice } when created, or { skip: "reason" } when nothing was needed.
 async function buildInvoice(tenant, period, platform, now = new Date()) {
@@ -123,10 +138,14 @@ async function buildInvoice(tenant, period, platform, now = new Date()) {
     const { fee, label } = resolveFee(tenant, platform, orderCount);
     if (!(fee > 0)) return skip('no_fee');
 
+    // Brands with branches: the 2nd branch onward (by the day the branch was made) gets the brand's discount on the rent, before GST
+    const disc = await brandDiscount(tenant, fee, platform);
+    const net = round2(fee - disc.amount);
+
     // GST only if you have a GSTIN
     const gstPercent = b.gstin ? (sub.gstPercent ?? 18) : 0;
-    const gstAmount = round2((fee * gstPercent) / 100);
-    const total = round2(fee + gstAmount);
+    const gstAmount = round2((net * gstPercent) / 100);
+    const total = round2(net + gstAmount);
 
     const issueDate = now;
     const dueDate = new Date(issueDate.getTime() + (platform?.billing?.dueDays ?? 7) * DAY_MS);
@@ -150,10 +169,10 @@ async function buildInvoice(tenant, period, platform, now = new Date()) {
             lineItems: [{
                 description: `App subscription - ${monthLabel(period)} - ${orderCount} orders (${label})`,
                 qty: 1, rate: fee, amount: fee,
-            }],
+            }, ...(disc.amount > 0 ? [{ description: `Multi-branch discount ${disc.percent}%`, qty: 1, rate: -disc.amount, amount: -disc.amount }] : [])],
             orderCount,
             tierLabel: label,
-            baseAmount: fee,
+            baseAmount: net,
             gstPercent,
             gstAmount,
             total,
@@ -186,7 +205,7 @@ async function generateForPeriod({ period, tenantId } = {}) {
     if (p >= periodOf(now)) throw Object.assign(new Error('You can only create an invoice for a month that has finished'), { status: 400 });
 
     const tenants = await Tenant.find(tenantId ? { _id: tenantId } : {})
-        .select('slug name phone address business subscription createdAt billing').lean();
+        .select('slug name phone address business subscription createdAt billing brandId').lean();
     const platform = await PlatformSettings.findById('main').lean();
 
     let created = 0;

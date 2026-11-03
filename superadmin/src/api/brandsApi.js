@@ -10,3 +10,5 @@ export const removeBranch = (id, tid) => data(api.delete(`/admin/brands/${id}/br
 export const deleteBrand = (id) => data(api.delete(`/admin/brands/${id}`));
 export const addBrandOwner = (id, phone) => data(api.post(`/admin/brands/${id}/owners`, { phone }));          // any superadmin
 export const removeBrandOwner = (id, phone) => data(api.delete(`/admin/brands/${id}/owners/${phone}`));
+export const fetchBrandSettings = () => data(api.get('/admin/brands/settings'));                                // { defaultDiscountPercent, maxDiscountPercent }
+export const fetchBrandStatement = (id, period) => data(api.get(`/admin/brands/${id}/statement`, { params: { period } }));
