@@ -1,11 +1,13 @@
 // Platform health: one answer to "is the platform running fine, or do I have to worry?" for the supreme admin and the other superadmins.
 // Every card carries a level: 'good' (green), 'warn' (amber, look when you can) or 'bad' (red, act now), and a plain line saying why.
+// Where shops are the reason, the card carries `list`: the shops themselves, [{ id, name, detail }], worst first (up to 8, `listTotal` says how many).
 // Everything is read from what the platform already records; nothing is written. A number that is not recorded is not shown (see `notTracked`).
 const mongoose = require('mongoose');
 const Tenant = require('../models/Tenant');
 const Order = require('../models/Order');
 const SubscriptionInvoice = require('../models/SubscriptionInvoice');
 const SmsLog = require('../models/SmsLog');
+const SmsWallet = require('../models/SmsWallet');
 const SupportTicket = require('../models/SupportTicket');
 const PaymentWebhookEvent = require('../models/PaymentWebhookEvent');
 const AppVersionSeen = require('../models/AppVersionSeen');
@@ -15,52 +17,73 @@ const rentSummary = require('./rentSummary');
 const backups = require('./backupService');
 
 const DAY = 86400000;
+const MIN = 60000;
+const MAXLIST = 8;
 const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 const rank = { good: 0, warn: 1, bad: 2 };
 const worst = (...levels) => levels.reduce((a, b) => (rank[b] > rank[a] ? b : a), 'good');
+const rs = (n) => `₹${Math.round(n).toLocaleString('en-IN')}`;
+const dayWord = (d) => new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' });
 
 // thresholds in one place (the supreme admin may want to tune them later)
 const T = {
     googleWarn: 60, googleBad: 90,           // % of the monthly allowance used
     collectedWarn: 80,                        // % of this month's bills paid
     ordersWarnDrop: 20, ordersBadDrop: 40,    // % fall of the last 7 days against the 7 before
+    shopDropMin: 10, shopDropTo: 0.6,         // a shop is "down" when it had 10 or more orders in the 7 days before and now has 60% of them or fewer
+    cancelMin: 8, cancelRate: 0.25,           // a shop with 8 or more orders a week and a quarter cancelled
     backupStaleDays: 1,
     quietDays: 14,
     supportWarnHours: 24, supportBadHours: 72,
     unacceptedMin: 10,
     webhookWarn: 1, webhookBad: 3,
     freeEndingDays: 7,
+    smsLowPaise: 5000,                        // a wallet at or under this is "low" (the shop's own setting wins)
 };
 
-const istStartOfDay = (d) => { const x = new Date(d.getTime() + 330 * 60000); x.setUTCHours(0, 0, 0, 0); return new Date(x.getTime() - 330 * 60000); };
-const istMonthStart = (d, plus = 0) => { const x = new Date(d.getTime() + 330 * 60000); return new Date(Date.UTC(x.getUTCFullYear(), x.getUTCMonth() + plus, 1) - 330 * 60000); };
+const istStartOfDay = (d) => { const x = new Date(d.getTime() + 330 * MIN); x.setUTCHours(0, 0, 0, 0); return new Date(x.getTime() - 330 * MIN); };
+const istMonthStart = (d, plus = 0) => { const x = new Date(d.getTime() + 330 * MIN); return new Date(Date.UTC(x.getUTCFullYear(), x.getUTCMonth() + plus, 1) - 330 * MIN); };
 const semver = (v) => String(v).split(/[.+-]/).slice(0, 3).map((n) => parseInt(n, 10) || 0);
 const cmpVer = (a, b) => { const x = semver(a); const y = semver(b); for (let i = 0; i < 3; i += 1) { if (x[i] !== y[i]) return x[i] - y[i]; } return 0; };
 
+// a shop's name as people know it: a branch also shows its city
+const nameMap = async (ids) => {
+    const rows = await Tenant.find({ _id: { $in: ids } }).select('name branchCity brandId').lean();
+    return new Map(rows.map((t) => [String(t._id), t.brandId && t.branchCity ? `${t.name} (${t.branchCity})` : t.name]));
+};
+const item = (names, id, detail) => ({ id: String(id), name: names.get(String(id)) || 'A shop', detail });
+const listOf = (items) => ({ list: items.slice(0, MAXLIST), listTotal: items.length });
+
 /* --------------------------------- shops --------------------------------- */
 async function shopsCard(now) {
-    const tenants = await Tenant.find({}).select('_id createdAt billing subscription.gstPercent brandId status').lean();
+    const tenants = await Tenant.find({}).select('_id name branchCity createdAt billing subscription.gstPercent brandId status').lean();
     const count = { total: tenants.length, notLive: 0, free: 0, paying: 0, grace: 0, paused: 0 };
+    const paused = []; const grace = [];
+    const nm = (t) => (t.brandId && t.branchCity ? `${t.name} (${t.branchCity})` : t.name);
     for (const t of tenants) {
         if (!t.billing?.isLive) { count.notLive += 1; continue; }
         const s = t.billing?.state || 'free';
         count[s] = (count[s] || 0) + 1;
+        if (s === 'paused') paused.push({ id: String(t._id), name: nm(t), detail: 'Paused for unpaid rent' });
+        if (s === 'grace') grace.push({ id: String(t._id), name: nm(t), detail: 'Rent overdue, in the grace period' });
     }
-    let freeEnding = 0;
-    const rents = await rentSummary.forShops(tenants.filter((t) => t.billing?.isLive && (t.billing?.state || 'free') === 'free'), now);
-    for (const r of rents.values()) {
-        const ends = r?.free?.endsAt ? new Date(r.free.endsAt) : null;
-        if (ends && ends.getTime() - now.getTime() <= T.freeEndingDays * DAY && ends.getTime() >= now.getTime()) freeEnding += 1;
+    const ending = [];
+    const freeShops = tenants.filter((t) => t.billing?.isLive && (t.billing?.state || 'free') === 'free');
+    const rents = await rentSummary.forShops(freeShops, now);
+    for (const t of freeShops) {
+        const endsAt = rents.get(String(t._id))?.free?.endsAt;
+        const ends = endsAt ? new Date(endsAt) : null;
+        if (ends && ends.getTime() - now.getTime() <= T.freeEndingDays * DAY && ends.getTime() >= now.getTime()) ending.push({ id: String(t._id), name: nm(t), detail: `Free period ends ${dayWord(ends)}` });
     }
-    const level = count.paused > 0 ? 'warn' : 'good';
-    const note = count.paused > 0 ? `${count.paused} shop${count.paused === 1 ? ' is' : 's are'} paused for unpaid rent` : 'No shop is paused';
-    return { level, note, ...count, freeEnding, paid: count.paying + count.grace + count.paused };
+    const level = paused.length > 0 ? 'warn' : 'good';
+    const note = paused.length > 0 ? `${paused.length} shop${paused.length === 1 ? ' is' : 's are'} paused for unpaid rent` : 'No shop is paused';
+    return { level, note, ...count, freeEnding: ending.length, paid: count.paying + count.grace + count.paused, ...listOf([...paused, ...grace, ...ending]) };
 }
 
 /* ----------------------------------- rent ----------------------------------- */
 async function rentCard(now) {
     const from = istMonthStart(now); const to = istMonthStart(now, 1);
-    const [monthRows, overdue] = await Promise.all([
+    const [monthRows, overdue, overdueBy, unpaidBy] = await Promise.all([
         SubscriptionInvoice.aggregate([
             { $match: { kind: 'monthly', issueDate: { $gte: from, $lt: to }, status: { $in: ['paid', 'pending'] } } },
             { $group: { _id: '$status', n: { $sum: 1 }, total: { $sum: '$total' } } },
@@ -69,7 +92,18 @@ async function rentCard(now) {
             { $match: { status: 'pending', dueDate: { $lt: now } } },
             { $group: { _id: null, n: { $sum: 1 }, total: { $sum: '$total' }, shops: { $addToSet: '$tenantId' } } },
         ]),
+        SubscriptionInvoice.aggregate([
+            { $match: { status: 'pending', dueDate: { $lt: now } } },
+            { $group: { _id: '$tenantId', total: { $sum: '$total' }, n: { $sum: 1 }, oldest: { $min: '$dueDate' } } },
+            { $sort: { total: -1 } }, { $limit: MAXLIST },
+        ]),
+        SubscriptionInvoice.aggregate([
+            { $match: { kind: 'monthly', issueDate: { $gte: from, $lt: to }, status: 'pending', dueDate: { $gte: now } } },
+            { $group: { _id: '$tenantId', total: { $sum: '$total' }, due: { $min: '$dueDate' } } },
+            { $sort: { due: 1 } }, { $limit: MAXLIST },
+        ]),
     ]);
+    const names = await nameMap([...overdueBy, ...unpaidBy].map((r) => r._id));
     const by = Object.fromEntries(monthRows.map((r) => [r._id, r]));
     const paid = by.paid || { n: 0, total: 0 }; const pending = by.pending || { n: 0, total: 0 };
     const billed = paid.n + pending.n;
@@ -79,33 +113,46 @@ async function rentCard(now) {
     if (od.n > 0) level = (od.n >= 3 || (billed >= 4 && od.n / billed >= 0.25)) ? 'bad' : 'warn';
     else if (pct !== null && pct < T.collectedWarn && billed > 0) level = 'warn';
     const note = od.n > 0 ? `${od.n} bill${od.n === 1 ? ' is' : 's are'} overdue (${Math.round(od.total).toLocaleString('en-IN')} rupees)` : billed ? `${paid.n} of ${billed} bills paid this month` : 'No bills this month yet';
+    const overdueList = overdueBy.map((r) => item(names, r._id, `${rs(r.total)} overdue${r.n > 1 ? ` (${r.n} bills)` : ''}, ${Math.max(1, Math.floor((now.getTime() - new Date(r.oldest).getTime()) / DAY))} day(s) late`));
+    const unpaidList = unpaidBy.map((r) => item(names, r._id, `${rs(r.total)} to pay by ${dayWord(r.due)}`));
     return {
         level, note, billed, paidShops: paid.n, collected: round2(paid.total), unpaidShops: pending.n, toCollect: round2(pending.total), percentPaid: pct,
         overdueBills: od.n, overdueShops: od.shops.length, overdueAmount: round2(od.total),
+        ...listOf(overdueList.length ? overdueList : unpaidList), listKind: overdueList.length ? 'overdue' : 'unpaid',
     };
 }
 
 /* ------------------------------------ SMS ------------------------------------ */
 async function smsCard(now) {
-    const since7 = new Date(now.getTime() - 7 * DAY); const since24 = new Date(now.getTime() - DAY); const since10 = new Date(now.getTime() - 10 * 60000);
-    const [sent, failed7, failed24, failed10] = await Promise.all([
+    const since7 = new Date(now.getTime() - 7 * DAY); const since24 = new Date(now.getTime() - DAY); const since10 = new Date(now.getTime() - 10 * MIN);
+    const [sent, failed7, failed24, failed10, wallets, live] = await Promise.all([
         SmsLog.aggregate([{ $match: { status: { $in: ['sent', 'mock'] }, createdAt: { $gte: since7 } } }, { $group: { _id: null, sms: { $sum: 1 }, revenuePaise: { $sum: '$chargedPaise' }, costPaise: { $sum: '$costPaise' } } }]),
         SmsLog.countDocuments({ status: 'failed', createdAt: { $gte: since7 } }),
         SmsLog.countDocuments({ status: 'failed', createdAt: { $gte: since24 } }),
         SmsLog.countDocuments({ status: 'failed', createdAt: { $gte: since10 } }),
+        SmsWallet.find({}).select('tenantId balancePaise lowBalancePaise blockAtZero').lean(),
+        Tenant.find({ 'billing.isLive': true }).select('_id').lean(),
     ]);
+    const liveIds = new Set(live.map((t) => String(t._id)));
+    const flagged = wallets.filter((w) => liveIds.has(String(w.tenantId)) && w.balancePaise <= (w.lowBalancePaise ?? T.smsLowPaise));
+    const names = await nameMap(flagged.map((w) => w.tenantId));
+    const empty = flagged.filter((w) => w.balancePaise <= 0 && w.blockAtZero !== false);
+    const walletItems = flagged.sort((a, b) => a.balancePaise - b.balancePaise).map((w) => item(names, w.tenantId, w.balancePaise <= 0 && w.blockAtZero !== false ? 'SMS balance is empty: login codes for this shop are blocked' : `Only ${rs(w.balancePaise / 100)} of SMS balance left`));
     const s = sent[0] || { sms: 0, revenuePaise: 0, costPaise: 0 };
     const profitPaise = s.revenuePaise - s.costPaise;
     const failing = failed10 >= 3;
     const failRate = s.sms + failed7 ? failed7 / (s.sms + failed7) : 0;
     let level = 'good'; let note = `${s.sms.toLocaleString('en-IN')} SMS sent in 7 days`;
     if (failing) { level = 'bad'; note = `The SMS provider is failing: ${failed10} failed in the last 10 minutes. Logins and alerts may not arrive`; }
+    else if (empty.length) { level = 'bad'; note = `${empty.length} shop${empty.length === 1 ? ' has' : 's have'} an empty SMS balance: their customers cannot get login codes`; }
     else if (profitPaise < 0) { level = 'bad'; note = 'SMS is costing more than it earns'; }
     else if (failRate > 0.05) { level = 'warn'; note = `${Math.round(failRate * 100)}% of SMS failed in 7 days`; }
+    else if (flagged.length) { level = 'warn'; note = `${flagged.length} shop${flagged.length === 1 ? ' is' : 's are'} low on SMS balance`; }
     return {
-        level, note, days: 7, sent: s.sms, failed7, failed24h: failed24, failedLast10Min: failed10, failing,
+        level, note, days: 7, sent: s.sms, failed7, failed24h: failed24, failedLast10Min: failed10, failing, emptyWallets: empty.length, lowWallets: flagged.length,
         revenue: round2(s.revenuePaise / 100), cost: round2(s.costPaise / 100), profit: round2(profitPaise / 100),
         costPerSms: s.sms ? round2(s.costPaise / 100 / s.sms) : null, chargedPerSms: s.sms ? round2(s.revenuePaise / 100 / s.sms) : null,
+        ...listOf(walletItems),
     };
 }
 
@@ -114,21 +161,51 @@ async function ordersCard(now) {
     const today = istStartOfDay(now); const d7 = new Date(now.getTime() - 7 * DAY); const d14 = new Date(now.getTime() - 14 * DAY);
     const lm = istMonthStart(now, -1); const tm = istMonthStart(now);
     const live = { status: { $ne: 'cancelled' } };
-    const [todayN, last7, prev7, lastMonth, cancelled7, unaccepted] = await Promise.all([
+    const is = (cond) => ({ $sum: { $cond: [cond, 1, 0] } });
+    const [todayN, last7, prev7, lastMonth, cancelled7, per, waiting] = await Promise.all([
         Order.countDocuments({ ...live, createdAt: { $gte: today } }),
         Order.countDocuments({ ...live, createdAt: { $gte: d7 } }),
         Order.countDocuments({ ...live, createdAt: { $gte: d14, $lt: d7 } }),
         Order.countDocuments({ ...live, createdAt: { $gte: lm, $lt: tm } }),
         Order.countDocuments({ status: 'cancelled', createdAt: { $gte: d7 } }),
-        Order.countDocuments({ status: 'placed', createdAt: { $gte: new Date(now.getTime() - DAY), $lt: new Date(now.getTime() - T.unacceptedMin * 60000) } }),
+        // every shop: orders in the last 7 days, in the 7 before, and cancelled in the last 7
+        Order.aggregate([
+            { $match: { createdAt: { $gte: d14 } } },
+            { $group: {
+                _id: '$tenantId',
+                last7: is({ $and: [{ $ne: ['$status', 'cancelled'] }, { $gte: ['$createdAt', d7] }] }),
+                prev7: is({ $and: [{ $ne: ['$status', 'cancelled'] }, { $lt: ['$createdAt', d7] }] }),
+                cancelled7: is({ $and: [{ $eq: ['$status', 'cancelled'] }, { $gte: ['$createdAt', d7] }] }),
+            } },
+        ]),
+        Order.aggregate([
+            { $match: { status: 'placed', createdAt: { $gte: new Date(now.getTime() - DAY), $lt: new Date(now.getTime() - T.unacceptedMin * MIN) } } },
+            { $group: { _id: '$tenantId', n: { $sum: 1 }, oldest: { $min: '$createdAt' } } },
+        ]),
     ]);
+    const dropped = per.filter((r) => r.prev7 >= T.shopDropMin && r.last7 <= r.prev7 * T.shopDropTo).sort((a, b) => (b.prev7 - b.last7) - (a.prev7 - a.last7));
+    const cancelHigh = per.filter((r) => r.last7 + r.cancelled7 >= T.cancelMin && r.cancelled7 / (r.last7 + r.cancelled7) >= T.cancelRate).sort((a, b) => b.cancelled7 - a.cancelled7);
+    const names = await nameMap([...dropped, ...cancelHigh, ...waiting].map((r) => r._id));
+    const items = [
+        ...waiting.sort((a, b) => b.n - a.n).map((r) => item(names, r._id, `${r.n} order${r.n === 1 ? '' : 's'} waiting ${Math.round((now.getTime() - new Date(r.oldest).getTime()) / MIN)} min, not accepted`)),
+        ...dropped.map((r) => item(names, r._id, `Orders fell from ${r.prev7} to ${r.last7} in a week (${Math.round(((r.last7 - r.prev7) / r.prev7) * 100)}%)`)),
+        ...cancelHigh.map((r) => item(names, r._id, `${Math.round((r.cancelled7 / (r.last7 + r.cancelled7)) * 100)}% cancelled (${r.cancelled7} of ${r.last7 + r.cancelled7} orders)`)),
+    ];
     const change = prev7 > 0 ? Math.round(((last7 - prev7) / prev7) * 100) : null;
     let level = 'good'; let note = change === null ? 'Not enough history to compare yet' : `${change >= 0 ? 'Up' : 'Down'} ${Math.abs(change)}% on the 7 days before`;
     if (change !== null && change <= -T.ordersBadDrop) level = 'bad';
     else if (change !== null && change <= -T.ordersWarnDrop) level = 'warn';
     const cancelRate = last7 + cancelled7 ? Math.round((cancelled7 / (last7 + cancelled7)) * 100) : 0;
-    if (cancelRate >= 15 && level === 'good') { level = 'warn'; note = `${cancelRate}% of orders were cancelled in 7 days`; }
-    return { level, note, today: todayN, last7, prev7, lastMonth, changePercent: change, cancelled7, cancelRatePercent: cancelRate, waitingUnaccepted: unaccepted };
+    if (level === 'good') {
+        if (waiting.length) { level = 'warn'; note = `${waiting.length} shop${waiting.length === 1 ? ' has' : 's have'} orders waiting over ${T.unacceptedMin} minutes`; }
+        else if (dropped.length) { level = 'warn'; note = `${dropped.length} shop${dropped.length === 1 ? '' : 's'} lost many orders this week`; }
+        else if (cancelHigh.length) { level = 'warn'; note = `${cancelHigh.length} shop${cancelHigh.length === 1 ? ' has' : 's have'} many cancelled orders`; }
+        else if (cancelRate >= 15) { level = 'warn'; note = `${cancelRate}% of orders were cancelled in 7 days`; }
+    }
+    return {
+        level, note, today: todayN, last7, prev7, lastMonth, changePercent: change, cancelled7, cancelRatePercent: cancelRate,
+        waitingUnaccepted: waiting.reduce((a, r) => a + r.n, 0), droppedShops: dropped.length, cancelShops: cancelHigh.length, ...listOf(items),
+    };
 }
 
 /* ------------------------------ Google API calls ------------------------------ */
@@ -181,32 +258,52 @@ async function paymentsCard(now) {
 
 /* --------------------------------- people and shops at risk --------------------------------- */
 async function supportCard(now) {
-    const open = await SupportTicket.find({ status: 'open' }).select('lastMessageAt').sort({ lastMessageAt: 1 }).lean();
-    const oldestHours = open.length && open[0].lastMessageAt ? Math.round((now.getTime() - new Date(open[0].lastMessageAt).getTime()) / 3600000) : 0;
+    const open = await SupportTicket.find({ status: 'open' }).select('tenantId lastMessageAt').sort({ lastMessageAt: 1 }).lean();
+    const hours = (x) => Math.round((now.getTime() - new Date(x.lastMessageAt).getTime()) / 3600000);
+    const oldestHours = open.length && open[0].lastMessageAt ? hours(open[0]) : 0;
     const level = !open.length ? 'good' : oldestHours >= T.supportBadHours ? 'bad' : oldestHours >= T.supportWarnHours ? 'warn' : 'good';
-    return { level, note: open.length ? `${open.length} waiting, the oldest for ${oldestHours} hours` : 'No one is waiting for a reply', open: open.length, oldestHours };
+    const names = await nameMap(open.slice(0, MAXLIST).map((x) => x.tenantId));
+    return {
+        level, note: open.length ? `${open.length} waiting, the oldest for ${oldestHours} hours` : 'No one is waiting for a reply', open: open.length, oldestHours,
+        ...listOf(open.map((x) => item(names, x.tenantId, `Waiting ${hours(x)} hour${hours(x) === 1 ? '' : 's'} for a reply`))),
+    };
 }
 
 async function quietCard(now) {
-    const live = await Tenant.find({ 'billing.isLive': true, status: { $ne: 'suspended' } }).select('_id name').lean();
-    if (!live.length) return { level: 'good', note: 'No live shops yet', quiet: 0, live: 0, shops: [] };
-    const since = new Date(now.getTime() - T.quietDays * DAY);
-    const active = await Order.distinct('tenantId', { tenantId: { $in: live.map((t) => t._id) }, createdAt: { $gte: since } });
-    const on = new Set(active.map(String));
-    const quiet = live.filter((t) => !on.has(String(t._id)));
+    const live = await Tenant.find({ 'billing.isLive': true, status: { $ne: 'suspended' } }).select('_id name branchCity brandId createdAt billing.goLiveAt').lean();
+    if (!live.length) return { level: 'good', note: 'No live shops yet', quiet: 0, live: 0, shops: [], list: [], listTotal: 0 };
+    const last = await Order.aggregate([{ $match: { tenantId: { $in: live.map((t) => t._id) } } }, { $group: { _id: '$tenantId', at: { $max: '$createdAt' } } }]);
+    const lastAt = new Map(last.map((r) => [String(r._id), r.at]));
+    const quiet = [];
+    for (const t of live) {
+        const at = lastAt.get(String(t._id));
+        const since = at || t.billing?.goLiveAt || t.createdAt;
+        const days = Math.floor((now.getTime() - new Date(since).getTime()) / DAY);
+        if (days < T.quietDays) continue;
+        const name = t.brandId && t.branchCity ? `${t.name} (${t.branchCity})` : t.name;
+        quiet.push({ id: String(t._id), name, days, detail: at ? `No order for ${days} days` : `No order at all since it went live ${days} days ago` });
+    }
+    quiet.sort((a, b) => b.days - a.days);
     const level = !quiet.length ? 'good' : quiet.length >= Math.ceil(live.length / 4) ? 'bad' : 'warn';
-    return { level, note: quiet.length ? `${quiet.length} live shop${quiet.length === 1 ? ' has' : 's have'} had no order for ${T.quietDays} days` : 'Every live shop had orders recently', quiet: quiet.length, live: live.length, shops: quiet.slice(0, 8).map((t) => ({ id: String(t._id), name: t.name })) };
+    return {
+        level, note: quiet.length ? `${quiet.length} live shop${quiet.length === 1 ? ' has' : 's have'} had no order for ${T.quietDays} days` : 'Every live shop had orders recently', quiet: quiet.length, live: live.length,
+        shops: quiet.slice(0, MAXLIST).map(({ id, name }) => ({ id, name })), ...listOf(quiet.map(({ id, name, detail }) => ({ id, name, detail }))),
+    };
 }
 
 async function versionsCard(now) {
     const rows = await AppVersionSeen.find({ lastSeenAt: { $gte: new Date(now.getTime() - 7 * DAY) } }).select('tenantId version').lean();
-    if (!rows.length) return { level: 'good', note: 'No app version data yet', latest: null, onLatest: 0, onOlder: 0 };
+    if (!rows.length) return { level: 'good', note: 'No app version data yet', latest: null, onLatest: 0, onOlder: 0, list: [], listTotal: 0 };
     const newest = rows.reduce((a, r) => (cmpVer(r.version, a) > 0 ? r.version : a), rows[0].version);
     const byShop = new Map();
     for (const r of rows) { const k = String(r.tenantId); if (!byShop.has(k) || cmpVer(r.version, byShop.get(k)) > 0) byShop.set(k, r.version); }
-    const older = [...byShop.values()].filter((v) => cmpVer(v, newest) < 0).length;
-    const level = older > byShop.size / 2 ? 'warn' : 'good';
-    return { level, note: older ? `${older} of ${byShop.size} shops are not on the newest app version (${newest})` : `Every shop is on the newest app version (${newest})`, latest: newest, onLatest: byShop.size - older, onOlder: older };
+    const olderIds = [...byShop.entries()].filter(([, v]) => cmpVer(v, newest) < 0);
+    const names = await nameMap(olderIds.map(([k]) => k));
+    const level = olderIds.length > byShop.size / 2 ? 'warn' : 'good';
+    return {
+        level, note: olderIds.length ? `${olderIds.length} of ${byShop.size} shops are not on the newest app version (${newest})` : `Every shop is on the newest app version (${newest})`,
+        latest: newest, onLatest: byShop.size - olderIds.length, onOlder: olderIds.length, ...listOf(olderIds.map(([k, v]) => item(names, k, `Running ${v}, the newest is ${newest}`))),
+    };
 }
 
 /* ------------------------------------- the whole ------------------------------------- */
@@ -218,7 +315,9 @@ async function build(now = new Date()) {
     const level = worst('good', ...Object.values(cards).map((c) => c.level));
     const headline = level === 'good' ? 'All fine'
         : Object.entries(cards).filter(([, c]) => c.level === level).map(([, c]) => c.note)[0];
-    const needsYou = Object.entries(cards).filter(([, c]) => c.level !== 'good').map(([key, c]) => ({ key, level: c.level, note: c.note }))
+    // "needs you": every card that is not green, worst first, with the shops behind it
+    const needsYou = Object.entries(cards).filter(([, c]) => c.level !== 'good')
+        .map(([key, c]) => ({ key, level: c.level, note: c.note, list: (c.list || []).slice(0, 5), listTotal: c.listTotal || 0 }))
         .sort((a, b) => rank[b.level] - rank[a.level]);
     return {
         at: now, overall: { level, text: level === 'good' ? 'All fine' : level === 'warn' ? 'Look when you can' : 'Act now', headline }, needsYou, ...cards,

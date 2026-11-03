@@ -8,7 +8,7 @@ import { SkeletonList } from '../../components/blocks';
 import { ErrorBox } from '../../components/feedback';
 import { fetchPlatformHealth } from '../../api/healthApi';
 import { errMsg } from '../../api/adminClient';
-import { useLevel, Dot } from '../../components/healthBits';
+import { useLevel, Dot, ShopLines } from '../../components/healthBits';
 
 const rs = (n) => `₹${(Number(n) || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 const num = (n) => (Number(n) || 0).toLocaleString('en-IN');
@@ -77,6 +77,7 @@ export default function PlatformHealthScreen() {
         quiet: () => nav.navigate('Health'),
         versions: undefined,
     };
+    const openShop = (x) => nav.navigate('ShopsTab', { screen: 'ShopDetail', params: { shopId: x.id, name: x.name } });
     const LABEL = { system: 'Server and backup', payments: 'Payment notices', sms: 'SMS', rent: 'Rent', orders: 'Orders', google: 'Google calls', shops: 'Shops', support: 'Support', quiet: 'Quiet shops', versions: 'App versions' };
 
     const o = r && level(r.overall.level);
@@ -105,6 +106,7 @@ export default function PlatformHealthScreen() {
                                         <View style={{ flex: 1 }}>
                                             <Text style={{ color: t.text, fontWeight: '700' }}>{LABEL[x.key]}</Text>
                                             <Text style={{ color: t.muted, fontSize: font.sm }}>{x.note}</Text>
+                                            <ShopLines list={x.list} total={x.listTotal} onShop={openShop} />
                                         </View>
                                     </View>
                                 ))}
@@ -119,6 +121,7 @@ export default function PlatformHealthScreen() {
                         <Row label="Shops still to pay" value={num(r.rent.unpaidShops)} />
                         <Row label="Total to collect" value={rs(r.rent.toCollect)} strong />
                         {r.rent.overdueBills ? <Row label="Overdue" value={`${r.rent.overdueBills} bills · ${rs(r.rent.overdueAmount)}`} strong tone={t.danger} /> : null}
+                        <ShopLines list={r.rent.list} total={r.rent.listTotal} onShop={openShop} max={8} />
                     </HealthCard>
                     <HealthCard title="SMS, last 7 days" level={r.sms.level} note={r.sms.note} onPress={go.sms}>
                         <Row label="SMS sent" value={num(r.sms.sent)} strong />
@@ -126,6 +129,7 @@ export default function PlatformHealthScreen() {
                         <Row label="We charged the shops" value={`${rs(r.sms.revenue)}${r.sms.chargedPerSms !== null ? ` (${rs(r.sms.chargedPerSms)} each)` : ''}`} />
                         <Row label="Profit" value={rs(r.sms.profit)} strong tone={r.sms.profit < 0 ? t.danger : t.success} />
                         {r.sms.failed7 ? <Row label="Failed" value={`${num(r.sms.failed7)} (${num(r.sms.failed24h)} in the last day)`} tone={t.warn} /> : null}
+                        <ShopLines list={r.sms.list} total={r.sms.listTotal} onShop={openShop} max={8} />
                     </HealthCard>
 
                     <SectionTitle section="orders">Orders</SectionTitle>
@@ -135,6 +139,7 @@ export default function PlatformHealthScreen() {
                         <Row label="Last month" value={num(r.orders.lastMonth)} strong />
                         <Row label="Cancelled in 7 days" value={`${num(r.orders.cancelled7)} (${r.orders.cancelRatePercent}%)`} />
                         {r.orders.waitingUnaccepted ? <Row label="Waiting over 10 minutes, not accepted" value={num(r.orders.waitingUnaccepted)} tone={t.warn} strong /> : null}
+                        <ShopLines list={r.orders.list} total={r.orders.listTotal} onShop={openShop} max={8} />
                     </HealthCard>
 
                     <SectionTitle section="platform">Google calls this month</SectionTitle>
@@ -160,12 +165,14 @@ export default function PlatformHealthScreen() {
                         {r.shops.paused ? <Row label="Paused for unpaid rent" value={num(r.shops.paused)} tone={t.danger} strong /> : null}
                         <Row label="Not live yet" value={num(r.shops.notLive)} />
                         {r.shops.freeEnding ? <Row label="Free period ends within 7 days" value={num(r.shops.freeEnding)} tone={t.warn} /> : null}
+                        <ShopLines list={r.shops.list} total={r.shops.listTotal} onShop={openShop} max={8} />
                     </HealthCard>
                     <HealthCard title="Quiet shops" level={r.quiet.level} note={r.quiet.note} onPress={go.quiet}>
-                        {r.quiet.shops.map((s) => <Text key={s.id} style={{ color: t.text, paddingVertical: 2 }}>{`• ${s.name}`}</Text>)}
-                        {r.quiet.quiet > r.quiet.shops.length ? <Text style={{ color: t.muted }}>{`and ${r.quiet.quiet - r.quiet.shops.length} more`}</Text> : null}
+                        <ShopLines list={r.quiet.list} total={r.quiet.listTotal} onShop={openShop} max={8} />
                     </HealthCard>
-                    <HealthCard title="App versions" level={r.versions.level} note={r.versions.note} />
+                    <HealthCard title="App versions" level={r.versions.level} note={r.versions.note}>
+                        <ShopLines list={r.versions.list} total={r.versions.listTotal} onShop={openShop} max={8} />
+                    </HealthCard>
 
                     <SectionTitle section="settings">The platform itself</SectionTitle>
                     <HealthCard title="Server and backup" level={r.system.level} note={r.system.note} onPress={go.system}>
@@ -177,7 +184,9 @@ export default function PlatformHealthScreen() {
                         {r.system.problems.map((p) => <Text key={p} style={{ color: t.danger, marginTop: 4 }}>{p}</Text>)}
                     </HealthCard>
                     <HealthCard title="Payment notices" level={r.payments.level} note={r.payments.note} onPress={go.payments} />
-                    <HealthCard title="Support" level={r.support.level} note={r.support.note} onPress={go.support} />
+                    <HealthCard title="Support" level={r.support.level} note={r.support.note} onPress={go.support}>
+                        <ShopLines list={r.support.list} total={r.support.listTotal} onShop={openShop} max={8} />
+                    </HealthCard>
 
                     <Text style={{ color: t.muted, fontSize: font.xs, marginTop: spacing.sm }}>{`Not tracked yet: ${r.notTracked.join('; ')}.`}</Text>
                 </>

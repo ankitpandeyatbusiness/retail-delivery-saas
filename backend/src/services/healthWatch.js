@@ -9,6 +9,9 @@ const adminAlerts = require('./adminAlerts');
 const REPEAT_MS = 6 * 3600000;
 const TITLE = { system: 'Server or backup', sms: 'SMS', rent: 'Rent', orders: 'Orders', google: 'Google calls', shops: 'Shops', support: 'Support', quiet: 'Quiet shops', versions: 'App versions' };
 
+// the reason, and up to three shops behind it, so the push already says which
+const shopsLine = (card) => (card.list && card.list.length ? `${card.note}. ${card.list.slice(0, 3).map((x) => x.name).join(', ')}${(card.listTotal || card.list.length) > 3 ? ` and ${(card.listTotal || card.list.length) - 3} more` : ''}` : card.note);
+
 async function check(now = new Date(), { summary } = {}) {
     let sent = 0;
     try {
@@ -30,7 +33,7 @@ async function check(now = new Date(), { summary } = {}) {
                 claimed = !!r.modifiedCount;
             }
             if (!claimed) continue;
-            await adminAlerts.alert('admin_platform_red', { vars: { title: TITLE[key] || key, detail: card.note, again: !!cur }, data: { kind: 'health', card: key } });
+            await adminAlerts.alert('admin_platform_red', { vars: { title: TITLE[key] || key, detail: shopsLine(card), again: !!cur }, data: { kind: 'health', card: key } });
             sent += 1;
         }
         // back to normal: forget it, so the next red is a new alert

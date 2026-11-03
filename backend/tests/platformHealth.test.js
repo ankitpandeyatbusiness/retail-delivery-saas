@@ -12,6 +12,7 @@ const Tenant = require('../src/models/Tenant');
 const SubscriptionInvoice = require('../src/models/SubscriptionInvoice');
 const Counter = require('../src/models/Counter');
 const PlatformSettings = require('../src/models/PlatformSettings');
+const SmsWallet = require('../src/models/SmsWallet');
 
 // Platform health: one read-only answer, every card with a level (good / warn / bad) and a plain line.
 let w; let boss; let vivyaan;
@@ -102,13 +103,54 @@ describe('the numbers', () => {
     });
 
     test('shops: free and paid counts; quiet live shops; support waiting', async () => {
-        await Tenant.updateOne({ _id: w.tenant._id }, { $set: { 'billing.isLive': true, 'billing.state': 'paying' } });
+        await Tenant.updateOne({ _id: w.tenant._id }, { $set: { 'billing.isLive': true, 'billing.state': 'paying', 'billing.goLiveAt': new Date(Date.now() - 20 * DAY) } });
         const r = (await health()).body;
         assert.deepEqual([r.shops.total, r.shops.paying, r.shops.paid, r.shops.free], [1, 1, 1, 0]);
         assert.deepEqual([r.quiet.live, r.quiet.quiet], [1, 1]);                          // a live shop with no order for 14 days
         assert.equal(r.quiet.level, 'bad');
+        assert.equal(r.quiet.list[0].name, w.tenant.name);                                 // the shop is named, with how long
+        assert.match(r.quiet.list[0].detail, /No order at all since it went live 20 days ago/);
+        assert.equal(r.needsYou.find((x) => x.key === 'quiet').list[0].id, String(w.tenant._id));
         assert.equal(r.support.open, 0);
         assert.ok(r.needsYou.some((x) => x.key === 'quiet'));
         assert.ok(Array.isArray(r.notTracked));
+    });
+});
+
+describe('the shops behind a card', () => {
+    test('orders: a shop that lost orders, a shop with orders waiting and a shop with many cancelled are named with their numbers', async () => {
+        const user = w.customer.user;
+        const make = (n, ago, extra = {}) => Promise.all(Array.from({ length: n }, () => f.makeOrder(w.tenant, user, { createdAt: new Date(Date.now() - ago), ...extra })));
+        await make(12, 10 * DAY);                        // the 7 days before: 12 orders
+        await make(3, 2 * DAY);                          // the last 7 days: 3
+        await make(2, 20 * 60000, { status: 'placed' }); // waiting for 20 minutes, not accepted
+        const r = (await health()).body.orders;
+        assert.equal(r.droppedShops, 1);
+        assert.equal(r.waitingUnaccepted, 2);
+        const details = r.list.map((x) => x.detail).join(' | ');
+        assert.match(details, /2 orders waiting 20 min, not accepted/);
+        assert.match(details, /Orders fell from 12 to 5 in a week/);
+        assert.ok(r.list.every((x) => x.name === w.tenant.name));
+        assert.equal(r.level, 'bad');                    // 12 to 5 is a 58% fall for the whole platform too
+    });
+
+    test('rent: the shops that are overdue are named with the money and the days; an empty SMS balance names the shop and turns SMS red', async () => {
+        const inv = (o) => SubscriptionInvoice.collection.insertOne({ tenantId: w.tenant._id, kind: 'monthly', period: '2026-01', baseAmount: 1000, total: 1180, status: 'pending', issueDate: new Date(Date.now() - 10 * DAY), dueDate: new Date(Date.now() - 3 * DAY), lineItems: [], invoiceNo: `T/${Math.random()}`, ...o });
+        await inv({});
+        let r = (await health()).body;
+        assert.equal(r.rent.list[0].name, w.tenant.name);
+        assert.equal(r.rent.list[0].detail, '₹1,180 overdue, 3 day(s) late');
+
+        await Tenant.updateOne({ _id: w.tenant._id }, { $set: { 'billing.isLive': true } });
+        await SmsWallet.create({ tenantId: w.tenant._id, balancePaise: 0 });
+        r = (await health()).body;
+        assert.equal(r.sms.level, 'bad');
+        assert.match(r.sms.note, /empty SMS balance/);
+        assert.equal(r.sms.list[0].name, w.tenant.name);
+        const need = r.needsYou.find((x) => x.key === 'sms');
+        assert.equal(need.list[0].id, String(w.tenant._id));
+        await SmsWallet.updateOne({ tenantId: w.tenant._id }, { $set: { balancePaise: 2000 } });
+        r = (await health()).body;
+        assert.deepEqual([r.sms.level, r.sms.lowWallets], ['warn', 1]);
     });
 });

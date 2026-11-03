@@ -9,7 +9,7 @@ import Icon from '../../components/Icon';
 import { ShopRow } from '../../components/shopBits';
 import { QuickActions, StatStrip, RankRow, SkeletonDashboard } from '../../components/blocks';
 import { ErrorBox, Empty } from '../../components/feedback';
-import { Dot, useLevel } from '../../components/healthBits';
+import { Dot, useLevel, ShopLines } from '../../components/healthBits';
 import { useDashboardStore } from '../../store/useDashboardStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useSupreme } from '../../hooks/useSupreme';
@@ -49,11 +49,12 @@ export default function DashboardScreen() {
     const first = d.shops === null && d.loading;
     const goShops = (params) => nav.navigate('ShopsTab', params ? { screen: 'ShopsList', params } : undefined);
     const goHealth = () => nav.navigate('PlatformHealth');
+    const openShop = (x) => nav.navigate('ShopsTab', { screen: 'ShopDetail', params: { shopId: x.id, name: x.name } });
     const inHealth = (key) => !!health?.needsYou.some((x) => x.key === key);
 
     // what needs you now: the health cards that are not green, plus the small things the health screen does not carry
     const need = [
-        ...(health ? health.needsYou.slice(0, 4).map((x) => ({ key: x.key, level: x.level, title: LABEL[x.key], hint: x.note, go: goHealth })) : []),
+        ...(health ? health.needsYou.slice(0, 5).map((x) => ({ key: x.key, level: x.level, title: LABEL[x.key], hint: x.note, go: goHealth, list: x.list, total: x.listTotal })) : []),
         supreme && lastOpen > 0 && { key: 'answers', level: 'warn', title: 'Shop money to answer', hint: `${lastOpen} shop${lastOpen === 1 ? '' : 's'} of last month: did you get your part?`, go: () => nav.navigate('MoreTab', { screen: 'MoneyRecord' }) },
         !inHealth('support') && helpOpen > 0 && { key: 'help', level: 'warn', title: `${helpOpen} support request${helpOpen > 1 ? 's' : ''} waiting`, hint: 'Shop owners are waiting for your reply', go: () => nav.navigate('Support') },
         d.unreadAlerts > 0 && { key: 'alerts', level: 'warn', title: `${d.unreadAlerts} unread alert${d.unreadAlerts > 1 ? 's' : ''}`, hint: 'Late orders and platform messages', go: () => nav.navigate('Inbox') },
@@ -109,14 +110,17 @@ export default function DashboardScreen() {
                             <SectionTitle section="alerts">Needs you now</SectionTitle>
                             <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
                                 {need.map((a, i) => (
-                                    <Pressable key={a.key} onPress={a.go} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, borderTopWidth: i ? 1 : 0, borderTopColor: t.surfaceAlt }}>
-                                        <Dot level={a.level} />
-                                        <View style={{ flex: 1 }}>
-                                            <Text style={{ color: t.text, fontWeight: '700' }}>{a.title}</Text>
-                                            <Text style={{ color: t.muted, fontSize: font.sm }}>{a.hint}</Text>
-                                        </View>
-                                        <Text style={{ color: t.muted }}>›</Text>
-                                    </Pressable>
+                                    <View key={a.key} style={{ paddingVertical: 12, borderTopWidth: i ? 1 : 0, borderTopColor: t.surfaceAlt }}>
+                                        <Pressable onPress={a.go} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                                            <Dot level={a.level} />
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={{ color: t.text, fontWeight: '700' }}>{a.title}</Text>
+                                                <Text style={{ color: t.muted, fontSize: font.sm }}>{a.hint}</Text>
+                                            </View>
+                                            <Text style={{ color: t.muted }}>›</Text>
+                                        </Pressable>
+                                        <ShopLines list={a.list} total={a.total} max={3} onShop={openShop} />
+                                    </View>
                                 ))}
                             </Card>
                         </FadeIn>
@@ -194,16 +198,6 @@ export default function DashboardScreen() {
                                     onPress={() => nav.navigate('ShopsTab', { screen: 'ShopDetail', params: { shopId: s._id, name: s.name } })}
                                 />
                             ))}
-                        </>
-                    ) : null}
-
-                    {health && health.quiet.quiet > 0 ? (
-                        <>
-                            <SectionTitle section="alerts">Quiet shops</SectionTitle>
-                            <Card onPress={() => nav.navigate('Health')}>
-                                <Text style={{ color: t.muted, marginBottom: 4 }}>{health.quiet.note}</Text>
-                                {health.quiet.shops.slice(0, 5).map((s) => <Text key={s.id} style={{ color: t.text, paddingVertical: 2 }}>{`• ${s.name}`}</Text>)}
-                            </Card>
                         </>
                     ) : null}
 
