@@ -15,7 +15,7 @@ export function SkeletonBar({ width = '100%', height = 14, radiusPx = 8, style }
     const sweep = useShimmer();
     const [w, setW] = useState(0);
     const band = w * 0.7;
-    const glow = t.dark ? ['#FFFFFF00', '#FFFFFF22', '#FFFFFF00'] : ['#FFFFFF00', '#FFFFFFB3', '#FFFFFF00'];
+    const glow = t.dark ? ['#FFFFFF00', '#FFFFFF55', '#FFFFFF00'] : ['#FFFFFF00', '#FFFFFFCC', '#FFFFFF00'];
     return (
         <View
             onLayout={(e) => setW(e.nativeEvent.layout.width)}

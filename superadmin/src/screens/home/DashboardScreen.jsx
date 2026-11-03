@@ -8,7 +8,7 @@ import { Stat, Card, Button, SectionTitle } from '../../components/ui';
 import { SearchBar } from '../../components/inputs';
 import SearchResults from '../../components/SearchResults';
 import { ShopRow } from '../../components/shopBits';
-import { QuickActions, StatStrip, RankRow, SkeletonDashboard, SkeletonBar } from '../../components/blocks';
+import { QuickActions, StatStrip, RankRow, SkeletonBar } from '../../components/blocks';
 import { ErrorBox, Empty } from '../../components/feedback';
 import { Dot, useLevel, NeedItem } from '../../components/healthBits';
 import { useDashboardStore } from '../../store/useDashboardStore';
@@ -27,6 +27,27 @@ const greeting = () => {
 const monthOf = (plus = 0) => { const x = new Date(Date.now() + 330 * 60000); return new Date(Date.UTC(x.getUTCFullYear(), x.getUTCMonth() + plus, 1)).toISOString().slice(0, 7); };
 const LABEL = { system: 'Server and backup', payments: 'Payment notices', sms: 'SMS', rent: 'Rent', orders: 'Orders', google: 'Google calls', shops: 'Shops', support: 'Support', quiet: 'Quiet shops', versions: 'App versions' };
 
+// What Home looks like while it loads: ONE shimmer for the whole page (the platform light, Needs you, money, today), shown until both the shop numbers and the health numbers are in.
+function HomeSkeleton() {
+    return (
+        <View>
+            <SkeletonBar height={84} radiusPx={16} />
+            <SkeletonBar height={20} width="40%" style={{ marginTop: spacing.xl }} />
+            <SkeletonBar height={150} radiusPx={radius.lg} style={{ marginTop: spacing.md }} />
+            <SkeletonBar height={20} width="45%" style={{ marginTop: spacing.xl }} />
+            <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md }}>
+                <SkeletonBar height={92} radiusPx={radius.lg} style={{ flex: 1 }} />
+                <SkeletonBar height={92} radiusPx={radius.lg} style={{ flex: 1 }} />
+            </View>
+            <SkeletonBar height={20} width="30%" style={{ marginTop: spacing.xl }} />
+            <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md }}>
+                <SkeletonBar height={92} radiusPx={radius.lg} style={{ flex: 1 }} />
+                <SkeletonBar height={92} radiusPx={radius.lg} style={{ flex: 1 }} />
+            </View>
+        </View>
+    );
+}
+
 // The platform at a glance: is it fine, what needs you, this month's money, today's orders, and shortcuts to the common jobs.
 export default function DashboardScreen() {
     const t = useTheme();
@@ -42,6 +63,7 @@ export default function DashboardScreen() {
     const [openNeed, setOpenNeed] = useState(null);    // which "Needs you now" line is dropped down (one at a time)
     const [helpOpen, setHelpOpen] = useState(0);
     const [health, setHealth] = useState(null);
+    const [healthFailed, setHealthFailed] = useState(false);   // the health numbers could not be read: show the rest of Home anyway
     const [money, setMoney] = useState(null);          // this month's shop money
     const [lastOpen, setLastOpen] = useState(0);       // last month's shops the developer has not answered yet
     useFocusEffect(useCallback(() => {
@@ -50,7 +72,7 @@ export default function DashboardScreen() {
         const timer = setTimeout(() => {
             useDashboardStore.getState().load({ refresh: !!useDashboardStore.getState().shops });
             fetchSupportCounts().then((c) => setHelpOpen(c.open || 0)).catch(() => { });
-            fetchPlatformHealth().then(setHealth).catch(() => { });
+            fetchPlatformHealth().then((x) => { setHealth(x); setHealthFailed(false); }).catch(() => setHealthFailed(true));
             fetchMoneyRecord(monthOf()).then(setMoney).catch(() => { });
             fetchMoneyRecord(monthOf(-1)).then((m) => setLastOpen(m.totals.open + m.totals.again)).catch(() => { });
         }, had ? 450 : 0);
@@ -58,6 +80,7 @@ export default function DashboardScreen() {
     }, []));
 
     const first = d.shops === null && d.loading;
+    const loadingHome = first || (!health && !healthFailed && !(d.error && d.shops === null));   // one shimmer until everything is in
     const goShops = (params) => nav.navigate('ShopsTab', params ? { screen: 'ShopsList', params } : undefined);
     const goHealth = () => nav.navigate('PlatformHealth');
     const openShop = (x) => goTab(nav, 'ShopsTab', { screen: 'ShopDetail', params: { shopId: x.id, name: x.name } });
@@ -66,7 +89,7 @@ export default function DashboardScreen() {
     // what needs you now: the health cards that are not green, plus the small things the health screen does not carry
     const need = [
         ...(health ? health.needsYou.slice(0, 5).map((x) => ({ key: x.key, level: x.level, title: LABEL[x.key], hint: x.note, go: goHealth, list: x.list, total: x.listTotal })) : []),
-        supreme && lastOpen > 0 && { key: 'answers', level: 'warn', title: 'Shop money to answer', hint: `${lastOpen} shop${lastOpen === 1 ? '' : 's'} of last month: did you get your part?`, go: () => goTab(nav, 'MoreTab', { screen: 'MoneyRecord' }) },
+        supreme && lastOpen > 0 && { key: 'answers', level: 'warn', title: 'Shop money to answer', hint: `${lastOpen} shop${lastOpen === 1 ? '' : 's'} of last month: did you get your part?`, go: () => nav.navigate('MoneyRecord') },
         !inHealth('support') && helpOpen > 0 && { key: 'help', level: 'warn', title: `${helpOpen} support request${helpOpen > 1 ? 's' : ''} waiting`, hint: 'Shop owners are waiting for your reply', go: () => nav.navigate('Support') },
         d.unreadAlerts > 0 && { key: 'alerts', level: 'warn', title: `${d.unreadAlerts} unread alert${d.unreadAlerts > 1 ? 's' : ''}`, hint: 'Late orders and platform messages', go: () => nav.navigate('Inbox') },
     ].filter(Boolean);
@@ -87,7 +110,7 @@ export default function DashboardScreen() {
             title={greeting()}
             subtitle={admin?.name || 'Platform overview'}
             refreshing={d.refreshing}
-            onRefresh={() => { d.load({ refresh: true }); fetchPlatformHealth().then(setHealth).catch(() => { }); }}
+            onRefresh={() => { d.load({ refresh: true }); fetchPlatformHealth().then((x) => { setHealth(x); setHealthFailed(false); }).catch(() => setHealthFailed(true)); }}
         >
             {/* the search box: type here and the home screen gives way to the matching records; clear it and the home comes back */}
             <View style={{ marginBottom: spacing.md }}>
@@ -95,12 +118,12 @@ export default function DashboardScreen() {
             </View>
 
             {searching ? <FadeIn index={0}><SearchResults q={q} /></FadeIn> : null}
-            {searching ? null : first ? <SkeletonDashboard /> : d.error && d.shops === null ? (
+            {searching ? null : loadingHome ? <HomeSkeleton /> : d.error && d.shops === null ? (
                 <ErrorBox message={d.error} onRetry={() => d.load()} />
             ) : d.shops && d.shops.total === 0 ? (
                 <>
                     <Empty icon="shops" title="No shops yet" hint="Create your first shop to start taking orders on the platform." />
-                    <Button title="Add the first shop" icon="addCircle" onPress={() => goTab(nav, 'ShopsTab', { screen: 'ShopCreate' })} />
+                    <Button title="Add the first shop" icon="addCircle" onPress={() => nav.navigate('ShopCreate')} />
                 </>
             ) : (
                 <>
@@ -115,15 +138,8 @@ export default function DashboardScreen() {
                                 </View>
                                 <Text style={{ color: t.text, marginTop: 4 }}>{health.overall.level === 'good' ? 'Nothing needs your attention.' : health.overall.headline}</Text>
                             </Pressable>
-                        ) : <SkeletonBar height={84} radiusPx={16} />}
+                        ) : null}
                     </FadeIn>
-
-                    {!health ? (
-                        <View>
-                            <SkeletonBar height={20} width="40%" style={{ marginTop: spacing.xl }} />
-                            <SkeletonBar height={150} radiusPx={radius.lg} style={{ marginTop: spacing.md }} />
-                        </View>
-                    ) : null}
 
                     {need.length ? (
                         <FadeIn index={1}>
@@ -146,15 +162,7 @@ export default function DashboardScreen() {
                                 <Stat section="alerts" label="To collect" value={rupees(health.rent.toCollect)} icon="receipt" onPress={() => nav.navigate('Receivables')} />
                             </View>
                         </FadeIn>
-                    ) : (
-                        <View>
-                            <SkeletonBar height={20} width="45%" style={{ marginTop: spacing.xl }} />
-                            <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md }}>
-                                <SkeletonBar height={92} radiusPx={radius.lg} style={{ flex: 1 }} />
-                                <SkeletonBar height={92} radiusPx={radius.lg} style={{ flex: 1 }} />
-                            </View>
-                        </View>
-                    )}
+                    ) : null}
 
                     {/* today */}
                     <FadeIn index={3}>
@@ -168,16 +176,10 @@ export default function DashboardScreen() {
                                 {`Last 7 days: ${health.orders.last7} orders${health.orders.changePercent !== null ? ` (${health.orders.changePercent >= 0 ? '+' : ''}${health.orders.changePercent}% on the week before)` : ''}
 This month so far: ${health.orders.thisMonth} orders${health.orders.monthChangePercent !== null ? ` (${health.orders.monthChangePercent >= 0 ? '+' : ''}${health.orders.monthChangePercent}% on the same days of last month)` : ''}. Last month: ${health.orders.lastMonth}.`}
                             </Text>
-                        ) : (
-                            <View style={{ marginTop: spacing.sm }}>
-                                <SkeletonBar height={12} width="85%" />
-                                <SkeletonBar height={12} width="70%" style={{ marginTop: 6 }} />
-                            </View>
-                        )}
+                        ) : null}
                     </FadeIn>
 
                     {/* the highest Google call use */}
-                    {!health ? <SkeletonBar height={46} radiusPx={radius.lg} style={{ marginTop: spacing.md }} /> : null}
                     {health && topGoogle ? (
                         <FadeIn index={4}>
                             <Card style={{ marginTop: spacing.md }} onPress={goHealth}>
@@ -205,9 +207,9 @@ This month so far: ${health.orders.thisMonth} orders${health.orders.monthChangeP
                         <SectionTitle section="settings">Quick actions</SectionTitle>
                         <QuickActions
                             items={[
-                                { label: 'New shop', icon: 'addCircle', section: 'shops', onPress: () => goTab(nav, 'ShopsTab', { screen: 'ShopCreate' }) },
-                                { label: 'Shop money', icon: 'rupee', section: 'money', onPress: () => goTab(nav, 'MoreTab', { screen: 'MoneyRecord' }) },
-                                { label: 'Brands', icon: 'shops', section: 'platform', onPress: () => goTab(nav, 'MoreTab', { screen: 'Brands' }) },
+                                { label: 'New shop', icon: 'addCircle', section: 'shops', onPress: () => nav.navigate('ShopCreate') },
+                                { label: 'Shop money', icon: 'rupee', section: 'money', onPress: () => nav.navigate('MoneyRecord') },
+                                { label: 'Brands', icon: 'shops', section: 'platform', onPress: () => nav.navigate('Brands') },
                                 { label: 'Platform health', icon: 'shield', section: 'alerts', onPress: () => nav.navigate('PlatformHealth') },
                             ]}
                         />

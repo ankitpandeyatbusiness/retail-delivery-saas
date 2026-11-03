@@ -17,6 +17,7 @@ import { bestPalette, readableOnWhiteText, PALETTE_LABELS } from '../../utils/pa
 import { errMsg } from '../../api/adminClient';
 import { useShopsStore } from '../../store/useShopsStore';
 import { choices, nameOf, RECOMMENDED_LOOK } from '../../utils/settings';
+import { goTab } from '../../navigation/goTo';
 
 const PHONE_RE = /^[6-9]\d{9}$/;
 const SLUG_RE = /^[a-z0-9-]{3,40}$/;
@@ -168,7 +169,9 @@ export default function ShopCreateScreen() {
                 try { await addOwner(tenant._id, f.ownerPhone); } catch (e) { ownerOk = false; toast(`Shop created, but owner not added: ${errMsg(e)}`, 'error'); }
             }
             if (ownerOk) toast('Shop created');
-            nav.replace('ShopDetail', { shopId: tenant._id, name: tenant.name });
+            // from the Shops tab the new shop replaces this form; from Home (which has no shop pages) it opens in the Shops tab
+            if (nav.getState().routeNames.includes('ShopDetail')) nav.replace('ShopDetail', { shopId: tenant._id, name: tenant.name });
+            else goTab(nav, 'ShopsTab', { screen: 'ShopDetail', params: { shopId: tenant._id, name: tenant.name } });
         } catch (e) {
             const m = errMsg(e);
             if (/slug/i.test(m) || /duplicate|exists/i.test(m)) { setErr({ slug: m }); setStep(0); } else toast(m, 'error');

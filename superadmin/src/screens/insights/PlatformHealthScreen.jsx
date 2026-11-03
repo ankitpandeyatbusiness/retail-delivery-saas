@@ -1,10 +1,10 @@
 import React, { useCallback, useState } from 'react';
 import { Text, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { useTheme, spacing, font } from '../../theme';
+import { useTheme, spacing, font, radius } from '../../theme';
 import { Screen } from '../../components/layout';
 import { Card, SectionTitle } from '../../components/ui';
-import { SkeletonList } from '../../components/blocks';
+import { SkeletonBar } from '../../components/blocks';
 import { ErrorBox } from '../../components/feedback';
 import { fetchPlatformHealth } from '../../api/healthApi';
 import { errMsg } from '../../api/adminClient';
@@ -57,6 +57,20 @@ function Bar({ percent, level }) {
     );
 }
 
+// The loading shimmer, shaped like the page (the light, Needs you, then the cards): ONE shimmer, not a list of shop rows.
+function HealthSkeleton() {
+    return (
+        <View>
+            <SkeletonBar height={110} radiusPx={16} />
+            <SkeletonBar height={20} width="35%" style={{ marginTop: spacing.xl }} />
+            <SkeletonBar height={130} radiusPx={radius.lg} style={{ marginTop: spacing.md }} />
+            <SkeletonBar height={20} width="25%" style={{ marginTop: spacing.xl }} />
+            <SkeletonBar height={190} radiusPx={radius.lg} style={{ marginTop: spacing.md }} />
+            <SkeletonBar height={190} radiusPx={radius.lg} style={{ marginTop: spacing.md }} />
+        </View>
+    );
+}
+
 // what it last knew, so coming back to this screen (Back from a shop or SMS profit) shows it at once instead of a loading shimmer
 let lastHealth = null;
 
@@ -92,7 +106,7 @@ export default function PlatformHealthScreen() {
     const o = r && level(r.overall.level);
     return (
         <Screen title="Platform health" subtitle="Is everything running fine?" onRefresh={load}>
-            {!r && !err ? <SkeletonList /> : null}
+            {!r && !err ? <HealthSkeleton /> : null}
             {err ? <ErrorBox message={err} onRetry={load} /> : null}
             {r ? (
                 <>

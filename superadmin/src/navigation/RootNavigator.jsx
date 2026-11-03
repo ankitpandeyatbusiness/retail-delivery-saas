@@ -129,7 +129,7 @@ const Money = createNativeStackNavigator();
 
 // Platform health lives inside the Home tab (not above the tabs): when you open a shop or SMS profit from it and press Back, the app just returns to the Home
 // tab where Platform health is still open. It is not closed and rebuilt, so there is no flash of Home and no lag.
-// (Its cards open SmsProfit, SalesReport, ShopsGrowth and LiveTracking on this same stack: a plain push, no tab switch, and Back is a plain pop.)
+// (Its cards, and the Home quick actions, open SmsProfit, SalesReport, ShopsGrowth, LiveTracking, MoneyRecord, Brands and ShopCreate on this same stack: a plain push, no tab switch, and Back is a plain pop. All of them move at one pace.)
 function HomeStack() {
     return (
         <Home.Navigator screenOptions={STACK_OPTIONS}>
@@ -139,6 +139,10 @@ function HomeStack() {
             <Home.Screen name="SalesReport" component={SalesReportScreen} />
             <Home.Screen name="ShopsGrowth" component={ShopsGrowthScreen} />
             <Home.Screen name="LiveTracking" component={LiveTrackingScreen} />
+            <Home.Screen name="MoneyRecord" component={MoneyRecordScreen} />
+            <Home.Screen name="Brands" component={BrandsScreen} />
+            <Home.Screen name="BrandDetail" component={BrandDetailScreen} />
+            <Home.Screen name="ShopCreate" component={ShopCreateScreen} />
         </Home.Navigator>
     );
 }
