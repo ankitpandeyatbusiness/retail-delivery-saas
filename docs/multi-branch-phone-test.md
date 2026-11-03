@@ -77,3 +77,10 @@ G1. All branches page: a Customers card (people, new, ordered, and how many peop
 G2. Open complaints: the count per branch and the newest five; tapping one asks to open that branch.
 G3. Dish ratings: the average and count per branch and the newest low ratings with dish and branch.
 G4. Change the range chip (7 or 30 days): customers and ratings follow it.
+
+## H. Coupons, banners and collections
+
+H1. Add a new branch copied from the main one: its Coupons, Banners and Collections screens show the main branch's live ones (own copies); a finished coupon is not there; used counts start at 0.
+H2. Owner -> Send to branches -> Coupons: pick a coupon, send to all: the other branch gets it; if that branch already has the same coupon it is updated and keeps its own used count.
+H3. A branch that already has a DIFFERENT coupon with the same code: it is skipped and the app says how many were skipped.
+H4. Send a collection to a branch that lacks some of its dishes: it arrives with only the dishes that branch has.

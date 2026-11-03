@@ -10,6 +10,7 @@
 //   GET  /reviews?branch=&range=30&low=1&page=   dish ratings: average per branch and the newest ratings
 //   POST /switch     { slug }                      sign in to another branch of the brand: returns that branch's tokens
 //   POST /menu/push  { productIds, toSlugs: 'all' | [slug], prices: 'keep'|'untouched'|'all' }   push dishes of THIS branch to other branches
+//   POST /extras/push { kind: 'coupons'|'banners'|'collections', ids, toSlugs: 'all' | [slug] }   push coupons, banners or collections of THIS branch to other branches
 //   POST /managers   { slug, phone }               make a phone the manager (owner panel) of one branch
 //   POST /move       { fromSlug, toSlug, userId }  move a manager, cook, waiter or rider to another branch (not with live work)
 const express = require('express');
@@ -23,6 +24,7 @@ const owners = require('../services/ownerService');
 const panel = require('../services/brandPanel');
 const care = require('../services/brandCare');
 const menuSync = require('../services/menuSync');
+const extrasSync = require('../services/extrasSync');
 const brandNotify = require('../services/brandNotify');
 const Notification = require('../models/Notification');
 const authController = require('../controllers/authController');
@@ -166,6 +168,18 @@ router.post('/menu/push', wrap(async (req, res) => {
         if (targets.length !== new Set(b.toSlugs).size) throw httpError(404, 'A chosen branch is not part of your brand');
     }
     res.json(await menuSync.push({ fromTenantId: req.tenant._id, productIds: b.productIds, toTenantIds: targets.map((t) => t._id), prices: b.prices || 'keep' }));
+}));
+
+router.post('/extras/push', wrap(async (req, res) => {
+    const b = req.body || {};
+    const others = await Tenant.find({ brandId: req.brand._id, _id: { $ne: req.tenant._id } }).select('_id slug').lean();
+    let targets = others;
+    if (b.toSlugs !== 'all') {
+        if (!Array.isArray(b.toSlugs) || !b.toSlugs.length) throw httpError(400, 'Choose the branches, or all');
+        targets = others.filter((t) => b.toSlugs.includes(t.slug));
+        if (targets.length !== new Set(b.toSlugs).size) throw httpError(404, 'A chosen branch is not part of your brand');
+    }
+    res.json(await extrasSync.push({ fromTenantId: req.tenant._id, kind: b.kind, ids: b.ids, toTenantIds: targets.map((t) => t._id) }));
 }));
 
 router.post('/managers', wrap(async (req, res) => {

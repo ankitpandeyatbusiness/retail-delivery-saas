@@ -12,6 +12,7 @@
 //   POST   /brands/:id/move                { fromTenantId, toTenantId, userId }  move a manager, cook, waiter or rider (any superadmin)
 //   POST   /brands/:id/menu/push           { fromTenantId, productIds, toTenantIds, prices? }  push dishes from one branch to others (supreme admin)
 //   GET    /brands/:id/statement?period=2026-10   the brand's monthly statement (everyone looks)
+//   POST   /brands/:id/extras/push         { fromTenantId, kind, ids, toTenantIds }  push coupons, banners or collections (supreme admin)
 //   DELETE /brands/:id                     only when it has no branches
 const express = require('express');
 const mongoose = require('mongoose');
@@ -196,7 +197,8 @@ router.post('/brands/:id/branches', loadBrand, wrap(async (req, res) => {
     const problems = await brands.giveOwnersAccess(req.brand, tenant);
     // the starting menu: a copy of the branch we copied the look from (each branch edits its own from now on)
     const menu = base && b.copyMenu !== false ? await require('../services/menuSync').copyMenu({ fromTenantId: b.copyFromTenantId, toTenantId: tenant._id }) : null;
-    res.status(201).json({ branch: { id: tenant._id, slug, name }, appBuild: { APP_TENANT: slug }, ...(menu && { menu }), ...(problems.length && { problems }) });
+    const extras = menu ? await require('../services/extrasSync').copyExtras({ fromTenantId: b.copyFromTenantId, toTenantId: tenant._id }) : null;   // after the dishes: a collection needs them
+    res.status(201).json({ branch: { id: tenant._id, slug, name }, appBuild: { APP_TENANT: slug }, ...(menu && { menu }), ...(extras && { extras }), ...(problems.length && { problems }) });
 }));
 
 router.delete('/brands/:id/branches/:tid', loadBrand, wrap(async (req, res) => {
@@ -278,6 +280,15 @@ router.post('/brands/:id/menu/push', loadBrand, wrap(async (req, res) => {
     if ((await Tenant.countDocuments({ _id: { $in: ids }, brandId: req.brand._id })) !== new Set(ids).size) throw httpError(404, 'A chosen branch is not part of this brand');
     if (b.toTenantIds.includes(b.fromTenantId)) throw httpError(400, 'Choose other branches');
     res.json(await require('../services/menuSync').push({ fromTenantId: b.fromTenantId, productIds: b.productIds, toTenantIds: b.toTenantIds, prices: b.prices || 'keep' }));
+}));
+
+router.post('/brands/:id/extras/push', loadBrand, wrap(async (req, res) => {
+    const b = req.body || {};
+    if (!isId(b.fromTenantId) || !Array.isArray(b.toTenantIds) || !b.toTenantIds.every(isId)) throw httpError(400, 'Choose the branches');
+    const ids = [b.fromTenantId, ...b.toTenantIds];
+    if ((await Tenant.countDocuments({ _id: { $in: ids }, brandId: req.brand._id })) !== new Set(ids).size) throw httpError(404, 'A chosen branch is not part of this brand');
+    if (b.toTenantIds.includes(b.fromTenantId)) throw httpError(400, 'Choose other branches');
+    res.json(await require('../services/extrasSync').push({ fromTenantId: b.fromTenantId, kind: b.kind, ids: b.ids, toTenantIds: b.toTenantIds }));
 }));
 
 router.delete('/brands/:id', loadBrand, wrap(async (req, res) => {

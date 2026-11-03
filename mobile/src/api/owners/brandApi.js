@@ -18,3 +18,4 @@ export const fetchBrandInbox = (params) => d(api.get('/brand/notifications', { p
 export const fetchBrandCustomers = (range = '30') => d(api.get('/brand/customers', { params: { range } }));   // counts per branch + real people
 export const fetchBrandComplaints = (params) => d(api.get('/brand/complaints', { params }));                   // { openByBranch, items }
 export const fetchBrandReviews = (params) => d(api.get('/brand/reviews', { params }));                         // { branches: [{ average, count, low }], total, items }
+export const pushExtras = (body) => d(api.post('/brand/extras/push', body));                  // { kind: 'coupons'|'banners'|'collections', ids, toSlugs }

@@ -18,6 +18,7 @@ const collectionSchema = new mongoose.Schema({
     endsAt: Date,
     sortOrder: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
+    brandKey: { type: mongoose.Schema.Types.ObjectId },   // multi-branch (services/extrasSync.js): the copies of one item in different branches share it
 }, { timestamps: true });
 
 collectionSchema.index({ tenantId: 1, kind: 1, isActive: 1, sortOrder: 1 });

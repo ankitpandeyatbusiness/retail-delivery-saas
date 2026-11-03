@@ -17,6 +17,7 @@ const couponSchema = new mongoose.Schema({
     startsAt: Date,
     endsAt: Date,
     isActive: { type: Boolean, default: true },
+    brandKey: { type: mongoose.Schema.Types.ObjectId },   // multi-branch (services/extrasSync.js): the copies of one item in different branches share it
 }, { timestamps: true });
 
 couponSchema.index(
