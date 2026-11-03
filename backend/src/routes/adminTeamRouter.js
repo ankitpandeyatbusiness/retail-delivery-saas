@@ -39,6 +39,7 @@ const view = (a, meId) => {
         isActive: !!a.isActive,
         legalRole: a.legalRole || 'team',
         isMe: me,
+        ...(me && { hasPassword: !!a.passwordHash }),
         lastLoginAt: a.lastLoginAt || null,
         createdAt: a.createdAt,
     };
@@ -65,7 +66,7 @@ const notSelf = (req) => {
 };
 
 router.get('/team', wrap(async (req, res) => {
-    const items = await SuperAdmin.find({}).sort({ createdAt: 1 }).lean();
+    const items = await SuperAdmin.find({}).select('+passwordHash').sort({ createdAt: 1 }).lean();
     res.json({ items: items.map((a) => view(a, req.admin._id)) });
 }));
 

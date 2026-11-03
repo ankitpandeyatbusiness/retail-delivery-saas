@@ -131,74 +131,31 @@ describe('superadmin alerts', () => {
         assert.equal(sms.mock.calls.length, 2);
     });
 
-    test('shops pay alert SMS in turns, and the turn wraps around', async () => {
+    test('the platform pays every alert SMS: shop wallets are never charged, and each SMS is counted', async () => {
         const shops = [];
-        for (const slug of ['rr-a', 'rr-b', 'rr-c']) {
+        for (const slug of ['rr-a', 'rr-b']) {
             const t = await makeLive(slug);
             await fund(t, 20000);
             shops.push(t);
         }
-        smsSpy();
-        const paid = [];
-        for (let i = 0; i < 4; i += 1) paid.push((await rotate()).tenantId);
-        assert.deepEqual(paid.map(String), [shops[0], shops[1], shops[2], shops[0]].map((t) => String(t._id)));
-        assert.equal(await balance(shops[0]), 20000 - 60);
-        assert.equal(await balance(shops[1]), 20000 - 30);
-        assert.equal(await balance(shops[2]), 20000 - 30);
-        const debit = await SmsTransaction.findOne({ tenantId: shops[0]._id, type: 'debit' });
-        assert.equal(debit.purpose, 'platform_alert');
-        for (const t of shops) assert.equal((await wallet.reconcileWallet(t._id)).differencePaise, 0);
-    });
-
-    test('a shop that would fall below its low-balance level is skipped', async () => {
-        const [a, b, c] = [await makeLive('lo-a'), await makeLive('lo-b'), await makeLive('lo-c')];
-        await fund(a, 20000);
-        await fund(b, 5020);          // after one SMS it would be 4990, below the Rs 50 level
-        await fund(c, 20000);
-        smsSpy();
-        assert.equal(String((await rotate()).tenantId), String(a._id));
-        assert.equal(String((await rotate()).tenantId), String(c._id));   // b is skipped
-        assert.equal(String((await rotate()).tenantId), String(a._id));
-        assert.equal(await balance(b), 5020);
-    });
-
-    test('a suspended shop and a shop paused for rent never pay', async () => {
-        const a = await makeLive('sk-a', { status: 'suspended' });
-        const b = await makeLive('sk-b', { billing: { state: 'paused' } });
-        const c = await makeLive('sk-c');
-        for (const t of [a, b, c]) await fund(t, 20000);
-        smsSpy();
-        assert.equal(String((await rotate()).tenantId), String(c._id));
-        assert.equal(await balance(a), 20000);
-        assert.equal(await balance(b), 20000);
-    });
-
-    test('when no shop can pay, the platform pays and the cost is saved', async () => {
-        const a = await makeLive('pp-a');
-        const b = await makeLive('pp-b');
-        await fund(a, 5000);
-        await fund(b, 5000);
         const sms = smsSpy();
-        const r = await rotate();
-        assert.equal(r.mode, 'platform');
-        assert.equal(sms.mock.calls.length, 1);
+        for (let i = 0; i < 3; i += 1) assert.equal((await rotate()).mode, 'platform');
+        assert.equal(sms.mock.calls.length, 3);
+        for (const t of shops) assert.equal(await balance(t), 20000);
+        assert.equal(await SmsTransaction.countDocuments({ purpose: 'platform_alert' }), 0);
         const rows = await PlatformSmsCost.find({}).lean();
-        assert.equal(rows.length, 1);
+        assert.equal(rows.length, 3);
         assert.equal(rows[0].costPaise, 20);
         assert.equal(rows[0].phoneMasked, '90XXXXXX99');
-        assert.equal(await SmsTransaction.countDocuments({ purpose: 'platform_alert' }), 0);
-        assert.equal(await balance(a), 5000);
     });
 
-    test('a failed SMS gives the shop its money back and saves no cost', async () => {
+    test('a failed SMS saves no cost and charges nobody', async () => {
         const a = await makeLive('fail-a');
         await fund(a, 20000);
         mock.method(smsAdapter, 'send', async () => { throw new Error('provider down'); });
         const r = await rotate();
         assert.equal(r.mode, 'failed');
         assert.equal(await balance(a), 20000);
-        assert.equal((await wallet.reconcileWallet(a._id)).differencePaise, 0);
-        assert.equal(await SmsTransaction.countDocuments({ tenantId: a._id, type: 'refund' }), 1);
         assert.equal(await PlatformSmsCost.countDocuments({}), 0);
     });
 
@@ -299,25 +256,25 @@ describe('superadmin alert routes', () => {
         assert.equal(await AdminDevice.countDocuments({ token: gone }), 0);
     });
 
-    test('the cost list shows what the shops paid and what the platform paid', async () => {
+    test('the cost list shows what the platform paid, split into alerts and login OTPs', async () => {
         const { token } = await makeSuperAdmin();
         process.env.SMS_WALLET_IN_MOCK = 'true';
         try {
             const a = await makeLive('cost-a');
             await fund(a, 20000);
             smsSpy();
-            await rotate();                                              // charged to shop a
-            await SmsWallet.updateOne({ tenantId: a._id }, { $set: { balancePaise: 100 } });   // now below its level
-            await rotate();                                              // the platform pays
+            await rotate();                                              // the platform pays, never shop a
+            await PlatformSmsCost.create({ eventKey: 'admin_login_otp', costPaise: 20, phoneMasked: '90XXXXXX99' });
         } finally {
             delete process.env.SMS_WALLET_IN_MOCK;
         }
         const res = await request(app).get('/api/admin/alerts/sms-cost').set(auth(token));
         assert.equal(res.status, 200);
-        assert.equal(res.body.shops.count, 1);
-        assert.equal(res.body.shops.chargedPaise, 30);
-        assert.equal(res.body.platform.count, 1);
-        assert.equal(res.body.platform.costPaise, 20);
+        assert.equal(res.body.shops.count, 0);
+        assert.equal(res.body.alerts.count, 1);
+        assert.equal(res.body.loginOtp.count, 1);
+        assert.equal(res.body.platform.count, 2);
+        assert.equal(res.body.platform.costPaise, 40);
         assert.equal((await request(app).get('/api/admin/alerts/sms-cost?from=nope').set(auth(token))).status, 400);
     });
 

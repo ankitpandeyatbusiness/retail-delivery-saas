@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme, spacing, radius, font } from '../../theme';
 import { Button } from '../../components/ui';
 import Icon from '../../components/Icon';
-import { sendOtp, verifyOtp } from '../../api/authApi';
+import { sendOtp, verifyOtp, loginWithPassword } from '../../api/authApi';
 import { errMsg } from '../../api/adminClient';
 import { useAuthStore } from '../../store/useAuthStore';
 
@@ -14,7 +14,7 @@ const PHONE_RE = /^[6-9]\d{9}$/;
 const OTP_LENGTH = 6;
 const EMPTY = Array.from({ length: OTP_LENGTH }, () => '');
 const RESEND_SECONDS = 30;
-const STEP_HEIGHT = 250;
+const STEP_HEIGHT = 310;
 const BLOCK = 190;   // logo + name + tagline, used to centre the hero
 
 const normalizePhone = (text) => {
@@ -41,6 +41,8 @@ export default function LoginScreen() {
 
     const [step, setStep] = useState('phone');   // phone | otp
     const [phone, setPhone] = useState('');
+    const [mode, setMode] = useState('otp');      // otp | password (password login costs no SMS)
+    const [pw, setPw] = useState('');
     const [digits, setDigits] = useState(EMPTY);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState('');
@@ -100,6 +102,21 @@ export default function LoginScreen() {
             setDigits(EMPTY); startWait();
             if (!isResend) goStep('otp');
         } catch (e) { fail(errMsg(e)); } finally { setBusy(false); }
+    };
+
+    const loginPw = async () => {
+        if (busy) return;
+        if (!PHONE_RE.test(phone)) { fail('Enter a valid 10-digit mobile number'); return; }
+        if (!pw) { fail('Enter your password'); return; }
+        setBusy(true); setError(''); clearNotice();
+        try {
+            const r = await loginWithPassword(phone, pw);
+            Keyboard.dismiss();
+            await login(r.token, r.admin);
+        } catch (e) {
+            fail(errMsg(e, 'Could not log in. Please try again.'));
+            setBusy(false);
+        }
     };
 
     const verify = async (code) => {
@@ -188,7 +205,7 @@ export default function LoginScreen() {
                             {/* step 1: phone */}
                             <View style={{ width: inner }}>
                                 <Text style={[s.h1, { color: t.text }]}>Welcome back</Text>
-                                <Text style={[s.sub, { color: t.muted }]}>Sign in with your registered mobile number</Text>
+                                <Text style={[s.sub, { color: t.muted }]}>{mode === 'password' ? 'Sign in with your mobile number and password' : 'Sign in with your registered mobile number'}</Text>
 
                                 <Animated.View style={{ transform: [{ translateX: step === 'phone' ? shake : 0 }] }}>
                                     <View style={[s.phoneRow, { borderColor: error && step === 'phone' ? t.danger : t.border, backgroundColor: t.bg }]}>
@@ -205,14 +222,39 @@ export default function LoginScreen() {
                                             placeholderTextColor={t.muted}
                                             maxLength={14}
                                             style={{ flex: 1, color: t.text, fontSize: font.lg, fontWeight: '600', paddingHorizontal: spacing.md }}
-                                            returnKeyType="done"
-                                            onSubmitEditing={() => send(false)}
+                                            returnKeyType={mode === 'password' ? 'next' : 'done'}
+                                            onSubmitEditing={() => (mode === 'password' ? null : send(false))}
                                         />
                                     </View>
+                                    {mode === 'password' ? (
+                                        <View style={[s.phoneRow, { marginTop: spacing.md, paddingHorizontal: spacing.md, borderColor: error && step === 'phone' ? t.danger : t.border, backgroundColor: t.bg }]}>
+                                            <TextInput
+                                                value={pw}
+                                                onChangeText={(v) => { setPw(v); setError(''); }}
+                                                secureTextEntry
+                                                autoCapitalize="none"
+                                                autoCorrect={false}
+                                                autoComplete="password"
+                                                placeholder="Password"
+                                                placeholderTextColor={t.muted}
+                                                maxLength={100}
+                                                style={{ flex: 1, color: t.text, fontSize: font.lg, fontWeight: '600' }}
+                                                returnKeyType="done"
+                                                onSubmitEditing={loginPw}
+                                            />
+                                        </View>
+                                    ) : null}
                                 </Animated.View>
                                 <Text style={[s.err, { color: t.danger }]}>{step === 'phone' ? error : ' '}</Text>
 
-                                <Button title="Get OTP" onPress={() => send(false)} loading={busy && step === 'phone'} disabled={phone.length !== 10} />
+                                {mode === 'password' ? (
+                                    <Button title="Log in" onPress={loginPw} loading={busy && step === 'phone'} disabled={phone.length !== 10 || !pw} />
+                                ) : (
+                                    <Button title="Get OTP" onPress={() => send(false)} loading={busy && step === 'phone'} disabled={phone.length !== 10} />
+                                )}
+                                <Pressable onPress={() => { setError(''); setPw(''); setMode(mode === 'password' ? 'otp' : 'password'); }} hitSlop={10} style={{ alignSelf: 'center', marginTop: spacing.md }}>
+                                    <Text style={{ color: t.primary, fontWeight: '700' }}>{mode === 'password' ? 'Forgot password? Use OTP instead' : 'Use password instead (free)'}</Text>
+                                </Pressable>
                             </View>
 
                             {/* step 2: otp */}

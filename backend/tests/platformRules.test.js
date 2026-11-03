@@ -136,22 +136,16 @@ describe('who pays the alert SMS', () => {
     const balance = async (t) => (await SmsWallet.findOne({ tenantId: t._id })).balancePaise;
     const send = () => alertSmsRotation.send({ phone: '9000000099', text: 'Platform alert: test', eventKey: 'admin_shop_paused' });
 
-    test('a shop that is not live never pays, a live one does, and the platform pays when no live shop can', async () => {
+    test('no shop pays an alert SMS, live or not; the platform pays and it is counted', async () => {
         const notLive = await makeTenant('rl-notlive');
         const liveShop = await makeTenant('rl-live', { billing: { state: 'active', isLive: true } });
         await fund(notLive, 20000);
         await fund(liveShop, 20000);
 
         const r1 = await send();
-        assert.equal(r1.mode, 'shop');
-        assert.equal(String(r1.tenantId), String(liveShop._id));
+        assert.equal(r1.mode, 'platform');
         assert.equal(await balance(notLive), 20000);
-        assert.equal(await balance(liveShop), 19970);
-
-        await SmsWallet.updateOne({ tenantId: liveShop._id }, { $set: { balancePaise: 100 } });   // now below its low level
-        const r2 = await send();
-        assert.equal(r2.mode, 'platform');
-        assert.equal(await balance(notLive), 20000);                                              // still not charged
+        assert.equal(await balance(liveShop), 20000);
         assert.equal(await PlatformSmsCost.countDocuments({}), 1);
     });
 });

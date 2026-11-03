@@ -10,7 +10,7 @@ import { Field } from '../../components/inputs';
 import { Hint } from '../../components/settingsForm';
 import { ErrorBox, Sheet, toast } from '../../components/feedback';
 import { fetchTeam, renameSuperadmin } from '../../api/teamApi';
-import { sendOtp } from '../../api/authApi';
+import { sendOtp, setMyPassword } from '../../api/authApi';
 import { changeMyPhones } from '../../api/platformApi';
 import { enablePush, pushStatus } from '../../utils/push';
 import { errMsg } from '../../api/adminClient';
@@ -38,6 +38,14 @@ export default function MyAccountScreen() {
     const [otp, setOtp] = useState('');
     const [busy, setBusy] = useState('');
     const [pushMsg, setPushMsg] = useState('');
+    const [pw1, setPw1] = useState('');
+    const [pw2, setPw2] = useState('');
+    const savePassword = async () => {
+        if (pw1.length < 8 || !/[a-zA-Z]/.test(pw1) || !/\d/.test(pw1)) { toast('Use 8 or more characters with a letter and a number', 'error'); return; }
+        if (pw1 !== pw2) { toast('The two passwords are not the same', 'error'); return; }
+        setBusy('pw');
+        try { await setMyPassword({ newPassword: pw1 }); toast('Password saved'); setSheet(null); setPw1(''); setPw2(''); await load(); } catch (e) { toast(errMsg(e), 'error'); } finally { setBusy(''); }
+    };
 
     const load = useCallback(async () => {
         try {
@@ -86,7 +94,8 @@ export default function MyAccountScreen() {
             <SectionTitle section="settings">Account</SectionTitle>
             <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
                 <ListRow section="settings" icon="edit" title="Name" subtitle={me.name || 'Not set'} onPress={() => { setName(me.name || ''); setSheet('name'); }} />
-                <ListRow section="platform" icon="phone" title="Login numbers" subtitle={`${me.phones?.join(' · ')} · proof with a code`} onPress={startPhones} last />
+                <ListRow section="platform" icon="phone" title="Login numbers" subtitle={`${me.phones?.join(' · ')} · proof with a code`} onPress={startPhones} />
+                <ListRow section="settings" icon="lock" title={me.hasPassword ? 'Change password' : 'Set a password'} subtitle="Log in with number + password, free of SMS cost" onPress={() => { setPw1(''); setPw2(''); setSheet('password'); }} last />
             </Card>
 
             <SectionTitle section="alerts">Alerts on this phone</SectionTitle>
@@ -114,6 +123,14 @@ export default function MyAccountScreen() {
                         try { await renameSuperadmin(me.id, name.trim()); useAuthStore.setState((s) => ({ admin: { ...(s.admin || {}), name: name.trim() } })); toast('Saved'); setSheet(null); await load(); } catch (e) { toast(errMsg(e), 'error'); } finally { setBusy(''); }
                     }}
                 />
+            </Sheet>
+
+            <Sheet visible={sheet === 'password'} onClose={() => setSheet(null)} title={me.hasPassword ? 'Change password' : 'Set a password'}>
+                <Text style={{ color: t.muted, marginBottom: spacing.md }}>With a password you can log in with your number and password, and no OTP SMS is paid. If you ever forget it, log in with an OTP and set a new one here.</Text>
+                <Field label="New password" value={pw1} onChangeText={setPw1} secureTextEntry autoCapitalize="none" maxLength={100} />
+                <Field label="Type it again" value={pw2} onChangeText={setPw2} secureTextEntry autoCapitalize="none" maxLength={100} />
+                <Hint>At least 8 characters, with a letter and a number.</Hint>
+                <Button title="Save password" loading={busy === 'pw'} onPress={savePassword} />
             </Sheet>
 
             <Sheet visible={sheet === 'phones'} onClose={() => setSheet(null)} title="Change login numbers">

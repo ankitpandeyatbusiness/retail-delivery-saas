@@ -2,7 +2,8 @@
 //   POST /devices           { token, platform }   register this phone for push (call after login)
 //   POST /devices/remove    { token }             call on logout
 //   GET  /alerts/sms-cost   ?from=2026-10-01&to=2026-10-31
-//        platform = alert SMS YOU paid (no shop could pay); shops = alert SMS charged to shops
+//        platform = every SMS YOU paid (alerts + login OTPs); alerts / loginOtp = the same split in two parts
+//        shops = old alert SMS charged to shop wallets before the change (nothing new is added)
 const express = require('express');
 const AdminDevice = require('../models/AdminDevice');
 const PlatformSmsCost = require('../models/PlatformSmsCost');
@@ -41,8 +42,12 @@ router.get('/alerts/sms-cost', wrap(async (req, res) => {
     if ((from && Number.isNaN(from.getTime())) || (to && Number.isNaN(to.getTime()))) throw httpError(400, 'Invalid date');
     const range = (field) => (from || to ? { [field]: { ...(from && { $gte: from }), ...(to && { $lte: to }) } } : {});
 
-    const [items, charged] = await Promise.all([
+    const [items, byKind, charged] = await Promise.all([
         PlatformSmsCost.find(range('at')).sort({ at: -1 }).limit(200).lean(),
+        PlatformSmsCost.aggregate([
+            { $match: range('at') },
+            { $group: { _id: { $eq: ['$eventKey', 'admin_login_otp'] }, count: { $sum: 1 }, costPaise: { $sum: '$costPaise' } } },
+        ]),
         SmsTransaction.aggregate([
             { $match: { type: { $in: ['debit', 'refund'] }, purpose: 'platform_alert', ...range('createdAt') } },
             {
@@ -54,8 +59,16 @@ router.get('/alerts/sms-cost', wrap(async (req, res) => {
             },
         ]),
     ]);
+    const part = (isOtp) => {
+        const r = byKind.find((k) => k._id === isOtp);
+        return { count: r?.count || 0, costPaise: r?.costPaise || 0 };
+    };
+    const alerts = part(false);
+    const loginOtp = part(true);
     res.json({
-        platform: { count: items.length, costPaise: items.reduce((s, i) => s + i.costPaise, 0), items },
+        platform: { count: alerts.count + loginOtp.count, costPaise: alerts.costPaise + loginOtp.costPaise, items },
+        alerts,
+        loginOtp,
         shops: { count: charged[0]?.count || 0, chargedPaise: -(charged[0]?.net || 0) },
     });
 }));

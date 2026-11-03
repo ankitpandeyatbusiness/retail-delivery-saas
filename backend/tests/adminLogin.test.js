@@ -187,3 +187,49 @@ describe('superadmin password login and phones', () => {
         assert.equal(res.status, 409);
     });
 });
+describe('superadmin phone + password login', () => {
+    const loginPw = (phone, password) => request(app).post('/api/admin/auth/login-phone').send({ phone, password });
+    const setPw = (token, body) => request(app).put('/api/admin/me/password').set('Authorization', `Bearer ${token}`).send(body);
+
+    test('no password yet: login is refused; after setting one it works and costs no SMS', async () => {
+        const phone = newPhone();
+        const { token } = await adminWith([phone]);
+        assert.equal((await loginPw(phone, 'Secret123')).status, 401);
+
+        assert.equal((await setPw(token, { newPassword: 'short1' })).status, 400);
+        assert.equal((await setPw(token, { newPassword: 'onlyletters' })).status, 400);
+        assert.equal((await setPw(token, { newPassword: 'Secret123' })).status, 200);
+
+        const ok = await loginPw(phone, 'Secret123');
+        assert.equal(ok.status, 200);
+        assert.ok(ok.body.token);
+        assert.equal(sent.length, 0);
+        assert.equal(await PlatformSmsCost.countDocuments({}), 0);
+
+        assert.equal((await loginPw(phone, 'Wrong1234')).status, 401);
+        assert.equal((await loginPw(newPhone(), 'Secret123')).status, 401);
+    });
+
+    test('a forgotten password: log in with OTP, set a new one, the old one stops working', async () => {
+        const phone = newPhone();
+        const { token } = await adminWith([phone]);
+        await setPw(token, { newPassword: 'OldPass123' });
+        await sendOtp(phone);
+        const v = await verify(phone, sent[0].otp);
+        assert.equal(v.status, 200);
+        assert.equal((await setPw(v.body.token, { newPassword: 'NewPass456' })).status, 200);
+        assert.equal((await loginPw(phone, 'OldPass123')).status, 401);
+        assert.equal((await loginPw(phone, 'NewPass456')).status, 200);
+    });
+
+    test('a wrong currentPassword is refused; a phone is locked after 10 wrong tries (OTP still works)', async () => {
+        const phone = newPhone();
+        const { token } = await adminWith([phone]);
+        await setPw(token, { newPassword: 'Secret123' });
+        assert.equal((await setPw(token, { newPassword: 'Another123', currentPassword: 'nope' })).status, 400);
+        for (let i = 0; i < 5; i += 1) await loginPw(phone, `bad${i}pass`);
+        assert.equal((await loginPw(phone, 'Secret123')).status, 429);   // 5 wrong from this IP: blocked
+        await sendOtp(phone);
+        assert.equal((await verify(phone, sent[0].otp)).status, 200);
+    });
+});

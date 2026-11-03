@@ -35,6 +35,7 @@ function getLimiters() {
         verifyIp: make(100, 60 * 60, 'rl_adm_ver_ip'),
         lockout: make(MAX_PHONE_FAILS, 30 * 60, 'rl_adm_lock'),
         loginFail: make(5, 15 * 60, 'rl_adm_pw_fail'),   // wrong passwords per IP
+        pwPhoneFail: make(10, 30 * 60, 'rl_adm_pw_phone'),   // wrong passwords per phone (password login only; OTP login still works)
     };
     return limiters;
 }

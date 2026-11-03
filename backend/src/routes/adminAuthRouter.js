@@ -1,6 +1,8 @@
 // Superadmin login. Mounted at /api/admin/auth (public) and /api/admin/me (after login) by adminRouter.
 //   POST /api/admin/auth/send-otp    { phone }
 //   POST /api/admin/auth/verify-otp  { phone, otp }          -> { token, admin }
+//   POST /api/admin/auth/login-phone { phone, password }     -> { token, admin }   (free; password set with PUT /me/password)
+//   PUT  /api/admin/me/password      { newPassword, currentPassword? }
 //   POST /api/admin/auth/login       { email, password }     -> only if SUPERADMIN_PASSWORD_LOGIN=true
 //   PUT  /api/admin/me/phones        { phones, verifyPhone, otp }   (needs login + a fresh OTP of a current phone)
 const express = require('express');
@@ -66,6 +68,36 @@ router.post('/verify-otp', wrap(async (req, res) => {
     res.json({ token: signAdminToken(r.admin), admin: { email: r.admin.email.endsWith('@superadmin.local') ? null : r.admin.email, name: r.admin.name || null } });
 }));
 
+// Phone + password login (free, no SMS). Works only after a password was set from the panel (PUT /me/password).
+// Wrong tries are counted per IP and per phone in MongoDB. Same answer for unknown phone, no password and wrong password.
+router.post('/login-phone', wrap(async (req, res) => {
+    const phone = String(req.body?.phone || '').trim();
+    const password = String(req.body?.password || '');
+    if (!svc.PHONE_RE.test(phone)) return res.status(400).json({ error: 'Invalid Indian mobile number' });
+    if (!password || password.length > 200) return res.status(400).json({ error: 'Enter your password' });
+    if (!ready(res)) return;
+    const ip = req.ip || 'unknown';
+    const L = svc.getLimiters();
+    const [byIp, byPhone] = await Promise.all([L.loginFail.get(ip), L.pwPhoneFail.get(phone)]);
+    if (byIp && byIp.consumedPoints >= 5) return limitReply({ msBeforeNext: byIp.msBeforeNext }, res);
+    if (byPhone && byPhone.consumedPoints >= 10) return limitReply({ msBeforeNext: byPhone.msBeforeNext }, res);
+
+    const account = await SuperAdmin.findOne({ phones: phone, isActive: true }).select('+passwordHash');
+    const ok = account?.passwordHash ? await account.verifyPassword(password) : (await SuperAdmin.dummyVerify(password), false);
+    if (!ok) {
+        await Promise.all([L.loginFail.consume(ip), L.pwPhoneFail.consume(phone)]).catch(() => { });
+        return res.status(401).json({ error: 'Wrong number or password. You can also log in with an OTP.' });
+    }
+
+    await Promise.all([L.loginFail.delete(ip), L.pwPhoneFail.delete(phone)]).catch(() => { });
+    await SuperAdmin.updateOne({ _id: account._id }, { $set: { lastLoginAt: new Date() } });
+    auditTrail.record({
+        actorType: 'superadmin', actorId: account._id, actorLabel: account.email,
+        action: 'LOGIN /api/admin/auth/login-phone', method: 'POST', path: '/api/admin/auth/login-phone', status: 200, ip,
+    });
+    res.json({ token: signAdminToken(account), admin: { email: account.email.endsWith('@superadmin.local') ? null : account.email, name: account.name || null } });
+}));
+
 // Password login: OFF unless SUPERADMIN_PASSWORD_LOGIN=true. Wrong tries per IP are counted in MongoDB.
 router.post('/login', wrap(async (req, res) => {
     if (process.env.SUPERADMIN_PASSWORD_LOGIN !== 'true') {
@@ -122,6 +154,22 @@ me.put('/phones', wrap(async (req, res) => {
     req.auditBefore = { phones: cur.phones };
     await SuperAdmin.updateOne({ _id: req.admin._id }, { $set: { phones } });
     res.json({ phones });
+}));
+
+// Set or change your password. Being logged in is the proof (forgot it? log in with an OTP, then set a new one here).
+// If a password already exists and you do send currentPassword, it is checked; leaving it out is allowed so the OTP route works.
+me.put('/password', wrap(async (req, res) => {
+    const password = String(req.body?.newPassword || '');
+    if (password.length < 8 || password.length > 100) throw httpError(400, 'Password must be 8 to 100 characters');
+    if (!/[a-zA-Z]/.test(password) || !/\d/.test(password)) throw httpError(400, 'Password needs at least one letter and one number');
+    const account = await SuperAdmin.findById(req.admin._id).select('+passwordHash');
+    if (!account) throw httpError(404, 'Account not found');
+    if (req.body?.currentPassword && account.passwordHash && !(await account.verifyPassword(String(req.body.currentPassword)))) {
+        throw httpError(400, 'Current password is wrong');
+    }
+    await account.setPassword(password);
+    await account.save();
+    res.json({ ok: true, hasPassword: true });
 }));
 
 router.me = me;

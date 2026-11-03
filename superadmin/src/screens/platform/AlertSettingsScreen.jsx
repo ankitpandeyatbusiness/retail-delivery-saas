@@ -87,9 +87,10 @@ export default function AlertSettingsScreen() {
                 </View>
                 {!cost ? <Text style={{ color: t.muted }}>Working it out…</Text> : cost.error ? <Text style={{ color: t.danger }}>Could not load.</Text> : (
                     <>
-                        <KeyValue label="Paid by the platform" value={`${cost.platform.count} SMS · ${rupeesFromPaise(cost.platform.costPaise)}`} />
-                        <KeyValue label="Charged to shops" value={`${cost.shops.count} SMS · ${rupeesFromPaise(cost.shops.chargedPaise)}`} last />
-                        <Hint>The platform pays when no shop could pay for the alert.</Hint>
+                        <KeyValue label="Alert SMS" value={`${cost.alerts.count} SMS · ${rupeesFromPaise(cost.alerts.costPaise)}`} />
+                        <KeyValue label="Login OTP SMS" value={`${cost.loginOtp.count} SMS · ${rupeesFromPaise(cost.loginOtp.costPaise)}`} />
+                        <KeyValue label="Total you paid" value={`${cost.platform.count} SMS · ${rupeesFromPaise(cost.platform.costPaise)}`} last />
+                        <Hint>You pay for your own alert and login SMS. No shop is charged. Logging in with your password costs nothing.</Hint>
                     </>
                 )}
             </Group>
