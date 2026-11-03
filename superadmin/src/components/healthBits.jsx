@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { useTheme, spacing, font } from '../theme';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
@@ -79,6 +79,28 @@ export function NeedItem({ level, title, hint, list, total, max = 5, onShop, onO
                     ) : null}
                 </Collapsible>
             ) : null}
+        </View>
+    );
+}
+
+// The shops behind a card, folded away: one line ("3 shops", with an arrow) that opens the list smoothly and closes it again.
+export function ShopsDrop({ list, total, max = 8, onShop, label = 'shop' }) {
+    const t = useTheme();
+    const [open, setOpen] = useState(false);
+    const progress = useSharedValue(0);
+    useEffect(() => { progress.value = withTiming(open ? 1 : 0, { duration: 280, easing: Easing.out(Easing.cubic) }); }, [open, progress]);
+    const arrow = useAnimatedStyle(() => ({ transform: [{ rotate: `${progress.value * 90}deg` }] }));
+    if (!list || !list.length) return null;
+    const n = total || list.length;
+    return (
+        <View style={{ marginTop: spacing.sm, borderTopWidth: 1, borderTopColor: t.surfaceAlt }}>
+            <Pressable onPress={() => setOpen(!open)} accessibilityRole="button" accessibilityState={{ expanded: open }} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10 }}>
+                <Text style={{ color: t.primary, fontWeight: '700' }}>{open ? 'Hide' : 'Show'} the {n} {label}{n === 1 ? '' : 's'}</Text>
+                <Animated.Text style={[{ color: t.primary, fontSize: font.lg }, arrow]}>›</Animated.Text>
+            </Pressable>
+            <Collapsible progress={progress}>
+                <ShopLines list={list} total={total} max={max} onShop={onShop} />
+            </Collapsible>
         </View>
     );
 }
