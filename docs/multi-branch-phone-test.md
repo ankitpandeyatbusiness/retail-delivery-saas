@@ -168,3 +168,6 @@ Q3. Home -> type in the search box -> open a shop -> Back returns to Home with t
 Q4. More -> Platform health -> tap a shop -> Back returns to Platform health.
 Q5. Orders -> an order -> its shop -> Back returns to that order. Inside the shop, opening Billing and pressing Back goes to the shop first, then Back again goes to where you came from.
 Q6. Open a shop from the Shops list itself: Back is the normal Back to the list.
+
+Q7. More -> Platform health -> SMS card -> SMS profit -> Back returns straight to Platform health with no flash of another screen in between. Same for the Orders card (Sales report), Shops card (Shops growth) and Google card (Live tracking).
+Q8. Platform health -> Rent card -> Receivables -> a shop -> Back goes to Receivables; Back again goes to Platform health.

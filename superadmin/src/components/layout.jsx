@@ -26,13 +26,13 @@ export function Header({ title, subtitle, back = true, right, bell }) {
     const insets = useSafeAreaInsets();
     // a screen opened from another place remembers it (navigation/goTo.js): Back, on screen and on the phone, goes there
     const returnTo = useRoute().params?.returnTo;
-    const canBack = back && (!!returnTo || nav.canGoBack());
+    const canBack = !!returnTo || (back && nav.canGoBack());
     const goBack = useCallback(() => { if (returnTo) backTo(nav, returnTo); else nav.goBack(); }, [nav, returnTo]);
     useFocusEffect(useCallback(() => {
-        if (!returnTo || !back) return undefined;
+        if (!returnTo) return undefined;
         const sub = BackHandler.addEventListener('hardwareBackPress', () => { backTo(nav, returnTo); return true; });
         return () => sub.remove();
-    }, [nav, returnTo, back]));
+    }, [nav, returnTo]));
     return (
         <LinearGradient
             colors={t.gradient}

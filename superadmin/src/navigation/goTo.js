@@ -10,6 +10,11 @@
 //    The Back button and the phone's Back key (components/layout.jsx) call backTo(), which goes to that place instead of to the first screen of the
 //    tab the new screen happens to live in. Opened from its own tab, nothing is stored and Back is the normal Back.
 
+import { CommonActions } from '@react-navigation/native';
+
+// the first screen of each tab's stack: a tab named on its own is opened at this screen, so it can carry its way back
+const TAB_ROOT = { ShopsTab: 'ShopsList', OrdersTab: 'OrdersHome', MoneyTab: 'MoneyHome', MoreTab: 'MoreHome' };
+
 const withPop = (p) => {
     if (!p || typeof p !== 'object') return p;
     const out = { ...p };
@@ -46,7 +51,8 @@ const sameTab = (o, tab) => !!o && o.tab === tab;
 // from a screen above the tabs (Search, Platform health, Inbox...) or from inside them: the one copy of the tabs, then the tab, then the screen
 export const toAdmin = (nav, payload) => {
     const o = originOf(nav);
-    const p = o && !sameTab(o, payload?.screen) ? leafReturn(payload, o, true) : payload;
+    const bare = payload && TAB_ROOT[payload.screen] && !payload.params ? { screen: payload.screen, params: { screen: TAB_ROOT[payload.screen] } } : payload;
+    const p = o && !sameTab(o, bare?.screen) ? leafReturn(bare, o, true) : bare;
     return nav.navigate('Admin', withPop(p), { pop: true });
 };
 
@@ -65,8 +71,15 @@ export function backTo(nav, o) {
         return;
     }
     if (o.root) {
-        nav.navigate('Admin', withPop({ screen: o.underTab || 'HomeTab' }), { pop: true });     // the tab that was under it, and drop whatever is above the tabs
-        setTimeout(() => nav.navigate(o.root, o.params), 60);                                   // then the screen above the tabs again
+        // [the tabs, with the tab that was under it showing] + [the screen above the tabs again], in ONE change: no flash of the tab in between
+        let top = nav;
+        while (top.getParent?.()) top = top.getParent();
+        const st = top.getState();
+        const admin = st.routes.find((x) => x.name === 'Admin');
+        const ts = admin?.state;
+        const at = ts ? ts.routes.findIndex((x) => x.name === (o.underTab || 'HomeTab')) : -1;
+        if (!admin || at < 0) { nav.navigate(o.root, o.params); return; }
+        top.dispatch(CommonActions.reset({ index: 1, routes: [{ key: admin.key, name: 'Admin', state: { ...ts, index: at } }, { name: o.root, params: o.params }] }));
         return;
     }
     nav.goBack();
