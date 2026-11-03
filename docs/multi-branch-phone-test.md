@@ -64,3 +64,9 @@ E1. The branch manager (not a brand owner) opens Monthly bill: the bills and amo
 E2. The same manager opens the SMS screen: the balance and history show, but no Add money; the same note.
 E3. The brand owner opens the same screens at that branch: Pay now, Pay all and Add money are there and work. A top-up shows in every branch (one wallet).
 E4. An ordinary single shop: nothing changes, the owner pays as before.
+
+## F. Moving people with live work
+
+F1. A cook has started an order (not ready yet): moving him to the other branch is refused with "making order #N right now". Mark it ready: the move works.
+F2. A waiter has an open table or a table waiting to pay: the move is refused with how many tables. Close the tables: the move works.
+F3. A rider with a trip in progress: the move is refused (as before).

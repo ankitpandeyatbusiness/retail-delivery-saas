@@ -51,6 +51,20 @@ async function ordersThisMonth(ids) {
     return new Map(rows.map((r) => [String(r._id), r.n]));
 }
 
+// What a cook or a waiter is in the middle of (null = nothing). A cook: an order he started and has not marked ready. A waiter: a table he is serving
+// (open, or waiting to pay). Moving him is refused until it is done, like a rider with a trip.
+async function staffLiveWork(tenantId, userId, role) {
+    if (role === 'kitchen') {
+        const o = await Order.findOne({ tenantId, 'kitchen.startedBy': userId, 'kitchen.readyAt': { $exists: false }, status: { $in: ['placed', 'accepted', 'preparing'] } }).select('orderNo').lean();
+        return o ? `This cook is making order #${o.orderNo} right now. Try again when it is ready.` : null;
+    }
+    if (role === 'waiter') {
+        const n = await require('../models/TableSession').countDocuments({ tenantId, billFor: userId, status: { $in: ['open', 'bill_asked'] } });
+        return n ? `This waiter is serving ${n} open ${n === 1 ? 'table' : 'tables'}. Try again after ${n === 1 ? 'it is' : 'they are'} settled.` : null;
+    }
+    return null;
+}
+
 // Move one worker (manager, cook, waiter or rider) from one branch of a brand to another.
 // Not while the person has live work. The history stays with the old branch; the old record becomes a plain customer.
 async function movePerson({ brand, fromTenant, toTenant, userId }) {
@@ -74,6 +88,9 @@ async function movePerson({ brand, fromTenant, toTenant, userId }) {
         else if (user.role === 'admin') await owners.appoint(fromTenant, user.phone);
         else await staff.add({ tenant: fromTenant, phone: user.phone, name: user.name, role: user.role });
     };
+    // a cook or a waiter in the middle of work stays until it is done (a rider is checked by riders.remove below)
+    const busyWith = await staffLiveWork(fromTenant._id, userId, user.role);
+    if (busyWith) throw httpError(409, busyWith);
     // leave the old branch (refused while the person has live work)
     if (user.role === 'rider') {
         const row = await Rider.findOne({ tenantId: fromTenant._id, userId }).select('name').lean();
@@ -110,4 +127,4 @@ async function giveOwnersAccess(brand, tenant) {
     return problems;
 }
 
-module.exports = { movePerson, giveOwnersAccess, assertOneBranch, checklist, ordersThisMonth, JOB_ROLES };
+module.exports = { staffLiveWork, movePerson, giveOwnersAccess, assertOneBranch, checklist, ordersThisMonth, JOB_ROLES };
