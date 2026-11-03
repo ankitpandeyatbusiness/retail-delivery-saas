@@ -120,9 +120,21 @@ const STACK_OPTIONS = { headerShown: false, animation: Platform.OS === 'android'
 const Root = createNativeStackNavigator();
 const Tabs = createBottomTabNavigator();
 const Shops = createNativeStackNavigator();
+const Home = createNativeStackNavigator();
 const More = createNativeStackNavigator();
 const Orders = createNativeStackNavigator();
 const Money = createNativeStackNavigator();
+
+// Platform health lives inside the Home tab (not above the tabs): when you open a shop or SMS profit from it and press Back, the app just returns to the Home
+// tab where Platform health is still open. It is not closed and rebuilt, so there is no flash of Home and no lag.
+function HomeStack() {
+    return (
+        <Home.Navigator screenOptions={STACK_OPTIONS}>
+            <Home.Screen name="HomeMain" component={DashboardScreen} />
+            <Home.Screen name="PlatformHealth" component={PlatformHealthScreen} />
+        </Home.Navigator>
+    );
+}
 
 // All shop screens live in one stack inside the Shops tab, so the tab bar stays and back always works.
 function ShopsStack() {
@@ -317,7 +329,7 @@ function AdminTabs() {
                 };
             }}
         >
-            <Tabs.Screen name="HomeTab" component={DashboardScreen} options={{ title: 'Home' }} />
+            <Tabs.Screen name="HomeTab" component={HomeStack} options={{ title: 'Home' }} />
             <Tabs.Screen name="ShopsTab" component={ShopsStack} options={{ title: 'Shops' }} />
             <Tabs.Screen name="OrdersTab" component={OrdersStack} options={{ title: 'Orders' }} />
             <Tabs.Screen name="MoneyTab" component={MoneyStack} options={{ title: 'Money' }} />
@@ -341,7 +353,6 @@ export default function RootNavigator() {
                     <Root.Screen name="OwnerMessages" component={OwnerMessagesScreen} />
                     <Root.Screen name="Search" component={SearchScreen} />
                     <Root.Screen name="Health" component={HealthScreen} />
-                    <Root.Screen name="PlatformHealth" component={PlatformHealthScreen} />
                     <Root.Screen name="ShopReadiness" component={ReadinessScreen} />
                     <Root.Screen name="System" component={SystemScreen} />
                     <Root.Screen name="Exports" component={ExportsScreen} />

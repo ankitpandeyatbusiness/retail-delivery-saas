@@ -171,3 +171,5 @@ Q6. Open a shop from the Shops list itself: Back is the normal Back to the list.
 
 Q7. More -> Platform health -> SMS card -> SMS profit -> Back returns straight to Platform health with no flash of another screen in between. Same for the Orders card (Sales report), Shops card (Shops growth) and Google card (Live tracking).
 Q8. Platform health -> Rent card -> Receivables -> a shop -> Back goes to Receivables; Back again goes to Platform health.
+
+Q9. Platform health now lives inside the Home tab. Open it, tap the SMS card, then Back: you return to Platform health exactly as you left it (scroll place and open drop-downs kept), with no Home in between. Also: More -> Platform health -> Back returns to More; Home -> Platform health -> Back returns to Home; a red-alert push opens Platform health.
