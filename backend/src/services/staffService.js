@@ -44,6 +44,7 @@ async function add({ tenant, phone, name, role }) {
     const rules = rulesOf(tenant);
     if (!allowed(rules, role)) throw httpError(403, `The ${JOB[role].toLowerCase()} panel is not switched on for your shop. Please contact support.`);
 
+    await require('./brandService').assertOneBranch(tenant, phone);   // one person, one branch
     const existing = await User.findOne({ tenantId, phone }).select('role isBlocked').lean();
     if (existing?.role === 'admin') throw httpError(409, 'This number belongs to the shop owner. Use another number.');
     if (existing?.role === 'rider') throw httpError(409, 'This number is a rider. Remove the rider first, or use another number.');

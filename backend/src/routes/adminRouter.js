@@ -87,6 +87,7 @@ admin.use(require('./adminPlatformRouter'));
 admin.use(require('./adminBillingRouter'));
 admin.use(require('./adminSubscriptionRouter'));
 admin.use(require('./adminTrackingRouter'));   // live tracking: server health and the sockets / polling / off switch (everyone looks, the supreme admin changes)
+admin.use(require('./adminBrandsRouter'));   // brands with branches (everyone looks, the supreme admin changes)
 admin.use(require('./adminOperatorsRouter'));   // the companies that run the platform + Switch operator (everyone looks, the supreme admin changes)
 admin.use(require('./adminLegalRouter'));   // terms, agreements and privacy (everyone reads, the supreme admin writes and sends)
 admin.use(require('./adminSettlementRouter'));   // the common settlement sheet (everyone reads, the supreme admin changes)
@@ -447,6 +448,7 @@ admin.post('/tenants/:tid/owners', loadTenant, wrap(async (req, res) => {
     const phone = String(req.body?.phone || '').trim();
     if (!/^[6-9]\d{9}$/.test(phone)) throw httpError(400, 'Enter a valid 10-digit mobile number');
     const tenantId = req.tenantDoc._id;
+    await require('../services/brandService').assertOneBranch(req.tenantDoc, phone);   // one person, one branch
     const existing = await User.findOne({ tenantId, phone }).select('role isBlocked').lean();
     if (existing) {
         req.auditBefore = { role: existing.role };

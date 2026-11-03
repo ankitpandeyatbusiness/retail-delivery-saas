@@ -1,6 +1,6 @@
 # Multi-branch plan (Brand with branches)
 
-Status: PLAN ONLY, agreed 2026-11-03, nothing coded. Do not code until the user says "start".
+Status: agreed 2026-11-03. PHASE 1 BUILT 2026-11-03 (Brand model, tenant.brandId/branchCity, /api/admin/brands routes, one-person-one-branch rule on owners/staff/riders/new manager, Brands page in the superadmin app, tests/brands.test.js). Phases 2-8 not started.
 
 ## 1. Structure
 - Brand "Savera" -> branches (Delhi, UP, Mumbai). Each branch is a normal tenant (own menu, stock, staff, riders, orders, hours, location, Razorpay keys).

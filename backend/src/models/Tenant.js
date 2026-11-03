@@ -40,6 +40,10 @@ const tenantSchema = new mongoose.Schema({
     businessType: { type: String, enum: ['restaurant', 'general_store', 'stationery', 'garments'], default: 'restaurant' },
     androidPackage: String,
 
+    // multi-branch: a branch belongs to a brand (models/Brand.js). Empty = a normal single shop, nothing changes for it.
+    brandId: { type: mongoose.Schema.Types.ObjectId, ref: 'Brand', index: true },
+    branchCity: { type: String, trim: true, maxlength: 60 },
+
     // Restaurant details shown in the app
     phone: String,
     // state: an Indian state (decides CGST+SGST or IGST on the platform's bills). Free text is refused so a typo cannot change the tax.
