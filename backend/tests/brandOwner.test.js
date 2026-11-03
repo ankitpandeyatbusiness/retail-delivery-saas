@@ -82,6 +82,7 @@ describe('brand owner, switching branches, managers and moving people', () => {
         const sw = await api.post('/switch', { slug: branches[1].slug });
         assert.equal(sw.status, 200, JSON.stringify(sw.body));
         assert.ok(sw.body.accessToken && sw.body.refreshToken);
+        assert.equal(sw.body.user.role, 'admin');   // the app saves this with the new login
         assert.equal((await brandApi(branches[1].slug, sw.body.accessToken).get('/me')).status, 200);   // the new token works at the other branch
         assert.equal((await brandApi(branches[0].slug, sw.body.accessToken).get('/me')).status, 403);   // and only there
 

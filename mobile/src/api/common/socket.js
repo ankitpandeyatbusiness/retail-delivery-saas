@@ -9,7 +9,8 @@
 import { AppState } from 'react-native';
 import { io } from 'socket.io-client';
 import { useAuthStore } from '../../store/common/useAuthStore';
-import { baseURL, tenantSlug, refreshSession } from './client';
+import { baseURL, refreshSession } from './client';
+import { getSlug } from '../../utils/common/branch';
 
 const origin = baseURL.replace(/\/api\/?$/, '');
 const AUTH_ERRORS = ['TOKEN_INVALID', 'SESSION_ENDED', 'AUTH_REQUIRED'];
@@ -63,7 +64,7 @@ function connect() {
     if (socket || !useAuthStore.getState().accessToken) return;
     socket = io(origin, {
         transports: ['websocket'],
-        auth: (cb) => cb({ token: useAuthStore.getState().accessToken, tenant: tenantSlug }),
+        auth: (cb) => cb({ token: useAuthStore.getState().accessToken, tenant: getSlug() }),
         reconnection: true,
         reconnectionDelay: 2000,
         reconnectionDelayMax: 20000,

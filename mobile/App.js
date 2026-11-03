@@ -15,6 +15,7 @@ import { useBrand } from './src/components/common/kit';
 import { useLang, syncLanguage } from './src/i18n';
 import { installTextTranslation } from './src/i18n/textPatch';
 import LockGate from './src/lock/LockUI';
+import { loadActive } from './src/utils/common/branch';
 
 // The native splash screen (brand colour + logo) is the only loading screen. It stays up until the shop's look
 // and the saved login are ready, then fades out into the app: no black screen, no second spinner.
@@ -42,6 +43,7 @@ export default function App() {
     let alive = true;
     (async () => {
       try {
+        await loadActive();   // which branch was last used (the build's own shop unless the person switched): before any request or saved login is read
         const theme = useThemeStore.getState();
         await theme.hydrateFromCache();   // the last look, from disk: instant
         await Promise.all([

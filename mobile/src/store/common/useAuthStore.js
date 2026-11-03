@@ -1,13 +1,15 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
+import { keyFor, getSlug, knownSlugs, forgetBranches } from '../../utils/common/branch';
 
-const REFRESH_KEY = 'refreshToken';
-const USER_KEY = 'user';
+// the saved login belongs to the branch that is active (for a shop without branches: always the same two keys as before)
+const REFRESH_KEY = () => keyFor('refreshToken');
+const USER_KEY = () => keyFor('user');
 
 const clearStoredSession = async () => {
     try {
-        await SecureStore.deleteItemAsync(REFRESH_KEY);
-        await SecureStore.deleteItemAsync(USER_KEY);
+        await SecureStore.deleteItemAsync(REFRESH_KEY());
+        await SecureStore.deleteItemAsync(USER_KEY());
     } catch (e) { }
 };
 
@@ -18,8 +20,8 @@ export const useAuthStore = create((set, get) => ({
 
     // Called by LoginScreen after a successful OTP verify
     login: async (user, accessToken, refreshToken) => {
-        await SecureStore.setItemAsync(REFRESH_KEY, refreshToken);
-        await SecureStore.setItemAsync(USER_KEY, JSON.stringify(user));
+        await SecureStore.setItemAsync(REFRESH_KEY(), refreshToken);
+        await SecureStore.setItemAsync(USER_KEY(), JSON.stringify(user));
         set({ user, accessToken });
     },
 
@@ -32,10 +34,20 @@ export const useAuthStore = create((set, get) => ({
         // a rider who logs out stops sharing his location
         try { await require('../../utils/riders/locationTask').stopRiderTracking(); } catch (e) { }
 
-        let refreshToken = null;
-        try {
-            refreshToken = await SecureStore.getItemAsync(REFRESH_KEY);
-        } catch (e) { }
+        // every branch this phone holds a login for is ended, not just the one on screen
+        const slugs = [...new Set([getSlug(), ...(await knownSlugs())])];
+        const logins = [];
+        for (const slug of slugs) {
+            try {
+                const rt = await SecureStore.getItemAsync(keyFor('refreshToken', slug));
+                if (rt) logins.push({ slug, refreshToken: rt });
+            } catch (e) { }
+            try {
+                await SecureStore.deleteItemAsync(keyFor('refreshToken', slug));
+                await SecureStore.deleteItemAsync(keyFor('user', slug));
+            } catch (e) { }
+        }
+        await forgetBranches();   // back to the build's own shop
 
         await clearStoredSession();
         set({ user: null, accessToken: null });
@@ -44,13 +56,14 @@ export const useAuthStore = create((set, get) => ({
             require('../owners/useOwnerStore').useOwnerStore.getState().reset();
             require('../owners/useMenuStore').useMenuStore.getState().reset();
             require('../owners/useRidersStore').useRidersStore.getState().reset();
+            require('../owners/useBrandStore').useBrandStore.getState().reset();
         } catch (e) { }
 
-        if (refreshToken) {
+        for (const l of logins) {
             try {
                 // required lazily to avoid a circular import with api/client.js
                 const api = require('../../api/common/client').default;
-                api.post('/auth/logout', { refreshToken }).catch(() => { });
+                api.post('/auth/logout', { refreshToken: l.refreshToken }, { headers: { 'x-tenant-slug': l.slug } }).catch(() => { });
             } catch (e) { }
         }
     },
@@ -64,8 +77,8 @@ export const useAuthStore = create((set, get) => ({
         if (get().isHydrated) return;
         try {
             const [refreshToken, userJson] = await Promise.all([
-                SecureStore.getItemAsync(REFRESH_KEY),
-                SecureStore.getItemAsync(USER_KEY),
+                SecureStore.getItemAsync(REFRESH_KEY()),
+                SecureStore.getItemAsync(USER_KEY()),
             ]);
 
             if (!refreshToken || !userJson) {

@@ -104,6 +104,7 @@ import OwnerShopSettingsScreen from '../screens/owners/OwnerShopSettingsScreen';
 import OwnerNotificationsScreen from '../screens/owners/OwnerNotificationsScreen';
 import OwnerActivityScreen from '../screens/owners/OwnerActivityScreen';
 import OwnerClosingScreen from '../screens/owners/OwnerClosingScreen';
+import OwnerAllBranchesScreen from '../screens/owners/OwnerAllBranchesScreen';
 import OwnerItemScreen from '../screens/owners/OwnerItemScreen';
 import OwnerCategoriesScreen from '../screens/owners/OwnerCategoriesScreen';
 import OwnerCategoryScreen from '../screens/owners/OwnerCategoryScreen';
@@ -430,6 +431,7 @@ export default function AppNavigator() {
                     <Stack.Screen name="OwnerNotifications" component={OwnerNotificationsScreen} />
                     <Stack.Screen name="OwnerActivity" component={OwnerActivityScreen} />
                     <Stack.Screen name="OwnerClosing" component={OwnerClosingScreen} />
+                    <Stack.Screen name="OwnerAllBranches" component={OwnerAllBranchesScreen} />
                     <Stack.Screen name="CustomerPreview" component={CustomerPreview} />
                     <Stack.Screen name="OwnerBusiness" component={OwnerBusinessScreen} />
                     <Stack.Screen name="OwnerAutopilot" component={OwnerAutopilotScreen} />

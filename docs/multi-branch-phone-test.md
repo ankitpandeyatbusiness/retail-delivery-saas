@@ -21,7 +21,15 @@ A10. After bills exist, the brand page shows "Statement for <last month>": a lin
 A11. SMS wallet: top up the wallet of one branch by Rs 100. The other branch shows the same balance. Send an OTP at the other branch: both show the lower balance.
 A12. Take the oldest branch out of the brand: the SMS money goes to the next branch, the shop stays a normal shop with an empty wallet.
 
-## B. Shop app (when the screens exist)
+## B0. First, on an ORDINARY shop app (no branches) - the foundation touches login and network for every shop
+
+B0.1 Fresh install, sign in with OTP, close the app fully, open it again: still signed in.
+B0.2 Orders, menu and live updates work as before; push arrives; the Soundbox works (owner).
+B0.3 Log out, sign in again; a different phone number works too.
+B0.4 Kill the app, switch the phone off and on, open: signed in, the shop's look appears.
+B0.5 The owner side menu shows NO branch box.
+
+## B. Shop app (owner part is written, customer part is not)
 
 B1. Customer, first open of the brand app: it asks for the location and opens the nearest branch that delivers there. A branch with no radius is never offered.
 B2. Customer in Delhi switches to Mumbai: no second login. The cart, menu, addresses and orders are Mumbai's, empty at first. Switch back: the Delhi cart and orders are still there.

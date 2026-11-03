@@ -4,13 +4,13 @@ import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
 import { Platform } from 'react-native';
 import { useAuthStore } from '../../store/common/useAuthStore';
+import { BUILD_SLUG, getSlug, keyFor } from '../../utils/common/branch';
 
 const baseURL = process.env.EXPO_PUBLIC_BASE_URL || (__DEV__ ? 'http://localhost:5000/api' : '');
 if (!baseURL) throw new Error('EXPO_PUBLIC_BASE_URL is not set');
 if (!__DEV__ && !baseURL.startsWith('https://')) throw new Error('API must use HTTPS in production');
 
-const tenantSlug = Constants.expoConfig?.extra?.tenantId;
-if (!tenantSlug) throw new Error('extra.tenantId missing in app config');
+if (!BUILD_SLUG) throw new Error('extra.tenantId missing in app config');
 
 // Which build this is, so the superadmin can see which versions are out there (Development details)
 const appHeaders = {
@@ -34,7 +34,7 @@ const getDeviceId = () =>
 })());
 
 api.interceptors.request.use(async (config) => {
-    config.headers['x-tenant-slug'] = tenantSlug;
+    config.headers['x-tenant-slug'] = config.headers['x-tenant-slug'] || getSlug();   // the active branch (the build's shop unless the person switched)
     Object.assign(config.headers, appHeaders);
     config.headers['x-device-id'] = await getDeviceId();
     const { accessToken } = useAuthStore.getState();
@@ -47,7 +47,7 @@ let refreshPromise = null;
 const refreshSession = () => {
     if (!refreshPromise) {
         refreshPromise = (async () => {
-            const refreshToken = await SecureStore.getItemAsync('refreshToken');
+            const refreshToken = await SecureStore.getItemAsync(keyFor('refreshToken'));
             if (!refreshToken) {
                 const e = new Error('No refresh token');
                 e.fatal = true;
@@ -59,10 +59,10 @@ const refreshSession = () => {
                     { refreshToken },
                     {
                         timeout: 15000,
-                        headers: { 'x-tenant-slug': tenantSlug, 'x-device-id': await getDeviceId() },
+                        headers: { 'x-tenant-slug': getSlug(), 'x-device-id': await getDeviceId() },
                     }
                 );
-                await SecureStore.setItemAsync('refreshToken', data.refreshToken);
+                await SecureStore.setItemAsync(keyFor('refreshToken'), data.refreshToken);
                 useAuthStore.getState().setAccessToken(data.accessToken);
                 return data.accessToken;
             } catch (e) {
@@ -95,4 +95,4 @@ api.interceptors.response.use(
 );
 
 export default api;
-export { refreshSession, baseURL, tenantSlug };
+export { refreshSession, baseURL };

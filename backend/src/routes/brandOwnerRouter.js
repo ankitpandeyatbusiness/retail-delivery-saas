@@ -71,7 +71,7 @@ router.post('/switch', wrap(async (req, res) => {
     const user = await User.findOne({ tenantId: target._id, phone: req.brandUser.phone });
     if (!user || user.isBlocked) throw httpError(403, 'This account cannot sign in there');
     const { accessToken, refreshToken } = await authController.issueSession(user, target, req, req.ip);
-    res.json({ success: true, slug: target.slug, name: target.name, accessToken, refreshToken });
+    res.json({ success: true, slug: target.slug, name: target.name, user: { id: user._id, phone: user.phone, name: user.name || null, role: user.role }, accessToken, refreshToken });
 }));
 
 router.post('/menu/push', wrap(async (req, res) => {

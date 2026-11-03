@@ -14,6 +14,7 @@ import { useAuthStore } from '../../store/common/useAuthStore';
 import { ShopMenu } from '../../screens/owners/ShopHubScreen';
 import MenuIndexStrip, { useMenuIndex } from './MenuIndexStrip';
 import { ShopLogo } from './ui';
+import BranchSwitcher from './BranchSwitcher';
 import { tr } from '../../i18n';
 
 const WIDTH = Math.min(340, Math.round(Dimensions.get('window').width * 0.84));
@@ -87,6 +88,7 @@ export default function OwnerDrawer() {
                     <Pressable onPress={close} hitSlop={10}><Ionicons name="close" size={24} color={muted} /></Pressable>
                 </View>
                 <ScrollView ref={menuScroll} scrollEventThrottle={16} onScroll={(e) => useMenuIndex.getState().setScroll(e.nativeEvent.contentOffset.y)} contentContainerStyle={{ paddingTop: 8, paddingBottom: 30 }} showsVerticalScrollIndicator={false}>
+                    <BranchSwitcher onGo={close} />
                     <ShopMenu onGo={close} />
                 </ScrollView>
                 <MenuIndexStrip scrollRef={menuScroll} top={84} bottom={24} pad={8} />

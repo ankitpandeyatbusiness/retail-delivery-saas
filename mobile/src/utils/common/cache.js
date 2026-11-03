@@ -1,10 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getSlug, isHomeBranch } from './branch';
 
-const PREFIX = 'cache:';
+// the build's own shop keeps the old name; another branch gets its own set, so a menu or cart never shows in the wrong branch
+const prefix = () => (isHomeBranch() ? 'cache:' : `cache.${getSlug()}:`);
 
 export async function readCache(key) {
     try {
-        const text = await AsyncStorage.getItem(PREFIX + key);
+        const text = await AsyncStorage.getItem(prefix() + key);
         return text ? JSON.parse(text) : null;
     } catch (e) {
         return null;
@@ -12,5 +14,5 @@ export async function readCache(key) {
 }
 
 export function writeCache(key, value) {
-    AsyncStorage.setItem(PREFIX + key, JSON.stringify(value)).catch(() => { });
+    AsyncStorage.setItem(prefix() + key, JSON.stringify(value)).catch(() => { });
 }
