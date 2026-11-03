@@ -5,6 +5,9 @@
 //   PUT    /brands/:id                     { name?, branchLimit?, notes? }
 //   POST   /brands/:id/branches            { tenantId } (a shop that already exists) or { name, slug, city, managerPhone?, copyFromTenantId? } (a new branch)
 //   DELETE /brands/:id/branches/:tid       take a branch out of the brand (the shop stays, as a normal shop)
+//   POST   /brands/:id/owners              { phone }  appoint a brand owner (any superadmin): owner of every branch, can switch between them
+//   DELETE /brands/:id/owners/:phone       take the brand-owner job away (they lose the owner panel in every branch)
+//   POST   /brands/:id/move                { fromTenantId, toTenantId, userId }  move a manager, cook, waiter or rider (any superadmin)
 //   DELETE /brands/:id                     only when it has no branches
 const express = require('express');
 const mongoose = require('mongoose');
@@ -23,7 +26,9 @@ const isId = (v) => typeof v === 'string' && mongoose.isValidObjectId(v);
 const SLUG_RE = /^[a-z0-9-]{3,40}$/;
 const RESERVED = ['admin', 'api', 'www'];
 
-router.use('/brands', (req, res, next) => (['GET', 'HEAD', 'OPTIONS'].includes(req.method) ? next() : requireSupreme(req, res, next)));
+// the supreme admin changes brands; appointing a brand owner and moving a person are open to every superadmin (as adding a shop owner is today)
+const OPEN = /^\/brands\/[^/]+\/(owners(\/[^/]+)?|move)$/;
+router.use('/brands', (req, res, next) => (['GET', 'HEAD', 'OPTIONS'].includes(req.method) || OPEN.test(`/brands${req.path}`) ? next() : requireSupreme(req, res, next)));
 
 const loadBrand = wrap(async (req, res, next) => {
     if (!isId(req.params.id)) throw httpError(404, 'Brand not found');
@@ -114,7 +119,8 @@ router.post('/brands/:id/branches', loadBrand, wrap(async (req, res) => {
         if (city) t.branchCity = city;
         await t.save();
         invalidateTenant(t.slug);
-        return res.status(201).json({ branch: { id: t._id, slug: t.slug, name: t.name } });
+        const problems = await brands.giveOwnersAccess(req.brand, t);
+        return res.status(201).json({ branch: { id: t._id, slug: t.slug, name: t.name }, ...(problems.length && { problems }) });
     }
 
     // a new branch
@@ -144,7 +150,8 @@ router.post('/brands/:id/branches', loadBrand, wrap(async (req, res) => {
         await User.create({ tenantId: tenant._id, phone: managerPhone, role: 'admin', phoneHash: hashPhone(tenant._id, managerPhone) });
     }
     invalidateTenant(slug);
-    res.status(201).json({ branch: { id: tenant._id, slug, name }, appBuild: { APP_TENANT: slug } });
+    const problems = await brands.giveOwnersAccess(req.brand, tenant);
+    res.status(201).json({ branch: { id: tenant._id, slug, name }, appBuild: { APP_TENANT: slug }, ...(problems.length && { problems }) });
 }));
 
 router.delete('/brands/:id/branches/:tid', loadBrand, wrap(async (req, res) => {
@@ -156,6 +163,47 @@ router.delete('/brands/:id/branches/:tid', loadBrand, wrap(async (req, res) => {
     await t.save();
     invalidateTenant(t.slug);
     res.json({ ok: true });
+}));
+
+router.post('/brands/:id/owners', loadBrand, wrap(async (req, res) => {
+    const phone = String((req.body && req.body.phone) || '').trim();
+    if (!/^[6-9]\d{9}$/.test(phone)) throw httpError(400, 'Enter a valid 10-digit mobile number');
+    if ((req.brand.ownerPhones || []).includes(phone)) return res.json({ brand: req.brand, alreadyOwner: true });
+    if (req.brand.ownerPhones.length >= 3) throw httpError(409, 'A brand can have up to 3 owners.');
+    const branches = await Tenant.find({ brandId: req.brand._id });
+    // refuse before changing anything: a worker of a branch cannot be a brand owner until the job is removed
+    for (const t of branches) {
+        const job = await User.findOne({ tenantId: t._id, phone, role: { $in: ['rider', 'kitchen', 'waiter'] } }).select('role').lean();
+        if (job) throw httpError(409, `This number works as ${job.role} at ${t.name}. Remove that job first.`);
+    }
+    req.brand.ownerPhones.push(phone);
+    await req.brand.save();
+    const problems = [];
+    for (const t of branches) {
+        try { await require('../services/ownerService').appoint(t, phone); } catch (e) { problems.push(`${t.name}: ${e.message}`); }
+    }
+    res.status(201).json({ brand: req.brand, ...(problems.length && { problems }) });
+}));
+
+router.delete('/brands/:id/owners/:phone', loadBrand, wrap(async (req, res) => {
+    const phone = String(req.params.phone || '');
+    if (!(req.brand.ownerPhones || []).includes(phone)) throw httpError(404, 'This number is not an owner of the brand');
+    req.brand.ownerPhones = req.brand.ownerPhones.filter((p) => p !== phone);
+    await req.brand.save();
+    const ids = (await Tenant.find({ brandId: req.brand._id }).select('_id').lean()).map((t) => t._id);
+    const Session = require('../models/Session');
+    const users = await User.find({ tenantId: { $in: ids }, phone, role: 'admin' }).select('_id').lean();
+    await User.updateMany({ _id: { $in: users.map((u) => u._id) } }, { $set: { role: 'customer' } });
+    await Session.deleteMany({ userId: { $in: users.map((u) => u._id) } });
+    res.json({ brand: req.brand });
+}));
+
+router.post('/brands/:id/move', loadBrand, wrap(async (req, res) => {
+    const b = req.body || {};
+    if (![b.fromTenantId, b.toTenantId, b.userId].every(isId)) throw httpError(400, 'Choose the person and both branches');
+    const [fromTenant, toTenant] = await Promise.all([Tenant.findById(b.fromTenantId), Tenant.findById(b.toTenantId)]);
+    if (!fromTenant || !toTenant) throw httpError(404, 'Branch not found');
+    res.json(await brands.movePerson({ brand: req.brand, fromTenant, toTenant, userId: b.userId }));
 }));
 
 router.delete('/brands/:id', loadBrand, wrap(async (req, res) => {

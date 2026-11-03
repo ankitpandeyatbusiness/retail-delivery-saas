@@ -8,3 +8,5 @@ export const updateBrand = (id, body) => data(api.put(`/admin/brands/${id}`, bod
 export const addBranch = (id, body) => data(api.post(`/admin/brands/${id}/branches`, body));             // { tenantId } or { name, slug, city, managerPhone?, copyFromTenantId? }
 export const removeBranch = (id, tid) => data(api.delete(`/admin/brands/${id}/branches/${tid}`));
 export const deleteBrand = (id) => data(api.delete(`/admin/brands/${id}`));
+export const addBrandOwner = (id, phone) => data(api.post(`/admin/brands/${id}/owners`, { phone }));          // any superadmin
+export const removeBrandOwner = (id, phone) => data(api.delete(`/admin/brands/${id}/owners/${phone}`));

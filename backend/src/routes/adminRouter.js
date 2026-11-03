@@ -446,34 +446,10 @@ admin.get('/tenants/:tid/availability', loadTenant, wrap(async (req, res) => {
 // Make someone the owner of this shop. They log in with phone + OTP as usual.
 admin.post('/tenants/:tid/owners', loadTenant, wrap(async (req, res) => {
     const phone = String(req.body?.phone || '').trim();
-    if (!/^[6-9]\d{9}$/.test(phone)) throw httpError(400, 'Enter a valid 10-digit mobile number');
-    const tenantId = req.tenantDoc._id;
-    await require('../services/brandService').assertOneBranch(req.tenantDoc, phone);   // one person, one branch
-    const existing = await User.findOne({ tenantId, phone }).select('role isBlocked').lean();
-    if (existing) {
-        req.auditBefore = { role: existing.role };
-        if (existing.role === 'admin') return res.status(200).json({ ok: true, userId: existing._id, alreadyOwner: true });
-        if (existing.isBlocked) throw httpError(409, 'This number is blocked. Unblock it first, then add it as owner.');
-        if (existing.role === 'rider') {
-            const [rider, riding] = await Promise.all([
-                Rider.findOne({ tenantId, userId: existing._id }).select('isActive').lean(),
-                Order.exists({ tenantId, 'delivery.riderId': existing._id, status: { $in: ACTIVE_STATUSES } }),
-            ]);
-            if (rider?.isActive || riding) {
-                throw httpError(409, 'This number is an active rider. Remove the rider first, then add the number as owner.');
-            }
-        }
-        if (existing.role === 'kitchen' || existing.role === 'waiter') throw httpError(409, 'This number is shop staff. Remove them from Staff first, then add the number as owner.');
-        const busy = await Order.exists({ tenantId, userId: existing._id, status: { $in: ACTIVE_STATUSES } });
-        if (busy) throw httpError(409, 'This person has an order in progress. Try again after it is delivered or cancelled.');
-    }
-    const u = await User.findOneAndUpdate(
-        { tenantId, phone, isBlocked: { $ne: true } },
-        { $set: { role: 'admin', phoneHash: hashPhone(tenantId, phone) } },
-        { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
-    );
-    if (existing?.role === 'rider') await Rider.deleteMany({ tenantId, userId: u._id });   // an owner is not a rider
-    res.status(201).json({ ok: true, userId: u._id });
+    const r = await require('../services/ownerService').appoint(req.tenantDoc, phone);   // also keeps the one-person-one-branch rule
+    if (r.before) req.auditBefore = r.before;
+    if (r.alreadyOwner) return res.status(200).json({ ok: true, userId: r.userId, alreadyOwner: true });
+    res.status(201).json({ ok: true, userId: r.userId });
 })); 
 
 admin.use('/tenants/:tid/banners', loadTenant, crud(Banner, {

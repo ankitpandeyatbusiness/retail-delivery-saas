@@ -167,6 +167,8 @@ const issueSession = async (user, tenant, req, ip) => {
     return { accessToken, refreshToken };
 };
 
+exports.issueSession = issueSession;   // the brand owner's branch switch signs in to another branch with it
+
 // Refresh-token rotation with a grace window.
 // 1) Normal: caller holds the CURRENT token -> rotate.
 // 2) Grace: caller holds the PREVIOUS token, rotated moments ago (lost

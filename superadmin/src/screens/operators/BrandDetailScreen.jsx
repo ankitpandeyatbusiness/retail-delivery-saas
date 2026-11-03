@@ -8,7 +8,7 @@ import { Field } from '../../components/inputs';
 import { SkeletonList } from '../../components/blocks';
 import { ErrorBox, Sheet, ConfirmSheet, toast } from '../../components/feedback';
 import { useSupreme } from '../../hooks/useSupreme';
-import { fetchBrand, addBranch, removeBranch, updateBrand } from '../../api/brandsApi';
+import { fetchBrand, addBranch, removeBranch, updateBrand, addBrandOwner, removeBrandOwner } from '../../api/brandsApi';
 import { errMsg } from '../../api/adminClient';
 
 const STEPS = [['location', 'Pin and radius set'], ['keys', 'Razorpay keys set'], ['owner', 'Owner or manager added'], ['live', 'Live']];
@@ -28,6 +28,9 @@ export default function BrandDetailScreen() {
     const [limitOpen, setLimitOpen] = useState(false);
     const [out, setOut] = useState(null);
     const [busy, setBusy] = useState(false);
+    const [ownerOpen, setOwnerOpen] = useState(false);
+    const [ownerPhone, setOwnerPhone] = useState('');
+    const [dropOwner, setDropOwner] = useState(null);
 
     const load = useCallback(async () => { setErr(''); try { setR(await fetchBrand(id)); } catch (e) { setErr(errMsg(e)); } }, [id]);
     useFocusEffect(useCallback(() => { load(); }, [load]));
@@ -50,6 +53,18 @@ export default function BrandDetailScreen() {
     const saveLimit = async () => {
         setBusy(true);
         try { await updateBrand(id, { branchLimit: Number(limit) }); toast('Saved'); setLimitOpen(false); load(); } catch (e) { toast(errMsg(e), 'error'); } finally { setBusy(false); }
+    };
+    const saveOwner = async () => {
+        setBusy(true);
+        try {
+            const x = await addBrandOwner(id, ownerPhone);
+            toast(x.problems && x.problems.length ? `Added, but: ${x.problems[0]}` : 'Brand owner added');
+            setOwnerOpen(false); setOwnerPhone(''); load();
+        } catch (e) { toast(errMsg(e), 'error'); } finally { setBusy(false); }
+    };
+    const dropOwnerNow = async () => {
+        try { await removeBrandOwner(id, dropOwner); toast('Brand owner removed'); } catch (e) { toast(errMsg(e), 'error'); }
+        setDropOwner(null); load();
     };
     const takeOut = async () => {
         try { await removeBranch(id, out.id); toast('Taken out of the brand'); setOut(null); load(); } catch (e) { toast(errMsg(e), 'error'); setOut(null); }
@@ -74,6 +89,17 @@ export default function BrandDetailScreen() {
                     {supreme ? <Button title="Take out of brand" kind="outline" small style={{ marginTop: spacing.md }} onPress={() => setOut(b)} /> : null}
                 </Card>
             ))}
+            <SectionTitle section="platform">Brand owners</SectionTitle>
+            <Card style={{ marginBottom: spacing.md }}>
+                <Text style={{ color: t.muted }}>A brand owner is owner of every branch and can switch between them in the owner app.</Text>
+                {(r.brand.ownerPhones || []).map((p) => (
+                    <View key={p} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.sm }}>
+                        <Text style={{ color: t.text, fontWeight: '700' }}>{p}</Text>
+                        <Button title="Remove" kind="outline" small onPress={() => setDropOwner(p)} />
+                    </View>
+                ))}
+                <Button title="Add a brand owner" icon="add" small disabled={(r.brand.ownerPhones || []).length >= 3} style={{ marginTop: spacing.md }} onPress={() => setOwnerOpen(true)} />
+            </Card>
             {supreme ? (
                 <>
                     <SectionTitle section="platform">Manage</SectionTitle>
@@ -96,6 +122,13 @@ export default function BrandDetailScreen() {
                 <Field label="Most branches allowed" value={limit} onChangeText={(v) => setLimit(v.replace(/\D/g, '').slice(0, 3))} keyboardType="number-pad" />
                 <Button title="Save" loading={busy} disabled={!limit} onPress={saveLimit} />
             </Sheet>
+
+            <Sheet visible={ownerOpen} onClose={() => setOwnerOpen(false)} title="Add a brand owner">
+                <Field label="Mobile number" value={ownerPhone} onChangeText={(v) => setOwnerPhone(v.replace(/\D/g, '').slice(0, 10))} keyboardType="number-pad" />
+                <Button title="Add" loading={busy} disabled={ownerPhone.length !== 10} onPress={saveOwner} />
+            </Sheet>
+
+            <ConfirmSheet visible={!!dropOwner} onClose={() => setDropOwner(null)} title="Remove this brand owner?" message="They lose the owner panel in every branch of this brand. Nothing is deleted." confirmLabel="Remove" onConfirm={dropOwnerNow} />
 
             <ConfirmSheet visible={!!out} onClose={() => setOut(null)} title="Take this branch out?" message={`${out ? out.name : ''} stays a normal shop. Nothing is deleted.`} confirmLabel="Take out" onConfirm={takeOut} />
         </Screen>

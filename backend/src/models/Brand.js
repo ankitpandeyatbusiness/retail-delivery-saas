@@ -5,6 +5,10 @@ const mongoose = require('mongoose');
 const brandSchema = new mongoose.Schema({
     name: { type: String, required: true, trim: true, maxlength: 80 },
     branchLimit: { type: Number, default: 3, min: 1, max: 100 },   // how many branches the supreme admin allows
+    ownerPhones: {   // the brand owners: they may be owner of every branch and switch between them. Set by a superadmin.
+        type: [String], default: [],
+        validate: [{ validator: (a) => a.length <= 3, message: 'At most 3 brand owners' }, { validator: (a) => a.every((p) => /^[6-9]\d{9}$/.test(p)), message: 'Owners need 10-digit mobile numbers' }],
+    },
     notes: { type: String, trim: true, maxlength: 500 },           // private note, never sent to an app
     createdBy: String,
 }, { timestamps: true });
