@@ -33,12 +33,15 @@ function HealthCard({ title, level, note, onPress, children }) {
     );
 }
 
-const Row = ({ label, value, strong, tone }) => {
+const Row = ({ label, value, strong, tone, sub }) => {
     const t = useTheme();
     return (
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3 }}>
-            <Text style={{ color: t.muted, flex: 1, paddingRight: 8 }}>{label}</Text>
-            <Text style={{ color: tone || t.text, fontWeight: strong ? '800' : '600' }}>{value}</Text>
+        <View style={{ paddingVertical: 3 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <Text style={{ color: t.muted, flexShrink: 1, paddingRight: 12 }}>{label}</Text>
+                <Text style={{ color: tone || t.text, fontWeight: strong ? '800' : '600', flexShrink: 0, textAlign: 'right' }}>{value}</Text>
+            </View>
+            {sub ? <Text style={{ color: t.muted, fontSize: font.xs, marginTop: 1 }}>{sub}</Text> : null}
         </View>
     );
 };
@@ -135,8 +138,8 @@ export default function PlatformHealthScreen() {
                     <SectionTitle section="orders">Orders</SectionTitle>
                     <HealthCard title="Orders across all shops" level={r.orders.level} note={r.orders.note} onPress={go.orders}>
                         <Row label="Today" value={num(r.orders.today)} strong />
-                        <Row label="Last 7 days" value={`${num(r.orders.last7)}${r.orders.changePercent !== null ? ` (${r.orders.changePercent >= 0 ? '+' : ''}${r.orders.changePercent}%)` : ''}`} strong />
-                        <Row label="This month so far" value={`${num(r.orders.thisMonth)}${r.orders.monthChangePercent !== null ? ` (${r.orders.monthChangePercent >= 0 ? '+' : ''}${r.orders.monthChangePercent}% on the same days of last month)` : ''}`} strong />
+                        <Row label="Last 7 days" value={num(r.orders.last7)} strong sub={r.orders.changePercent !== null ? `${r.orders.changePercent >= 0 ? '+' : ''}${r.orders.changePercent}% on the 7 days before` : undefined} />
+                        <Row label="This month so far" value={num(r.orders.thisMonth)} strong sub={r.orders.monthChangePercent !== null ? `${r.orders.monthChangePercent >= 0 ? '+' : ''}${r.orders.monthChangePercent}% on the same days of last month` : undefined} />
                         <Row label="Last month (whole)" value={num(r.orders.lastMonth)} strong />
                         <Row label="Cancelled in 7 days" value={`${num(r.orders.cancelled7)} (${r.orders.cancelRatePercent}%)`} />
                         {r.orders.waitingUnaccepted ? <Row label="Waiting over 10 minutes, not accepted" value={num(r.orders.waitingUnaccepted)} tone={t.warn} strong /> : null}
