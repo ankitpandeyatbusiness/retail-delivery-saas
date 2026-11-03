@@ -8,6 +8,9 @@
 //   POST   /brands/:id/branches            { tenantId } (a shop that already exists) or { name, slug, city, managerPhone?, copyFromTenantId? } (a new branch)
 //   POST   /brands/:id/branches/:tid/area-lock   { locked: true|false }  lock or unlock the map pin and delivery radius (supreme admin): a branch manager cannot change a locked area
 //   PUT    /brands/:id/free-start          { on, freeOrders?, freeMonths? }  "New branches get a free start": on = one shared free pool for the brand, off = no free time for a new branch (supreme admin)
+//   POST   /brands/:id/bulk/waive-late-fees  { tenantIds: [..] | 'all', reason }                       waive every unpaid late fee of the chosen branches (supreme admin)
+//   POST   /brands/:id/bulk/mark-paid        { tenantIds, paymentMode?, paymentRef?, receivedBy, note? }  mark every unpaid bill of the chosen branches paid by hand
+//   POST   /brands/:id/bulk/mark-unpaid      { tenantIds, period }                                  put the paid rent bills of a month back to unpaid
 //   DELETE /brands/:id/branches/:tid       take a branch out of the brand (the shop stays, as a normal shop)
 //   POST   /brands/:id/owners              { phone, ownSlug? }  appoint a brand owner (any superadmin): owner of every branch, can switch between them
 //   DELETE /brands/:id/owners/:phone       take the brand-owner job away (they lose the owner panel in every branch)
@@ -228,6 +231,21 @@ router.put('/brands/:id/free-start', loadBrand, wrap(async (req, res) => {
     const fresh = await Brand.findById(req.brand._id);
     res.json({ freeStart: await pool.view(fresh) });
 }));
+
+// the supreme admin's bulk money actions (services/brandBulkBilling.js): one row per branch, what was done and what was skipped
+const bulk = (name) => wrap(async (req, res) => {
+    const b = req.body || {};
+    const svc = require('../services/brandBulkBilling');
+    req.auditBefore = { action: name, tenantIds: b.tenantIds === undefined ? 'all' : b.tenantIds };
+    let out;
+    if (name === 'waive-late-fees') out = await svc.waiveLateFees(req.brand, b.tenantIds, { reason: b.reason, by: req.admin.email });
+    else if (name === 'mark-paid') out = await svc.markPaid(req.brand, b.tenantIds, b, req.admin);
+    else out = await svc.markUnpaid(req.brand, b.tenantIds, b, req.admin);
+    res.json(out);
+});
+router.post('/brands/:id/bulk/waive-late-fees', loadBrand, bulk('waive-late-fees'));
+router.post('/brands/:id/bulk/mark-paid', loadBrand, bulk('mark-paid'));
+router.post('/brands/:id/bulk/mark-unpaid', loadBrand, bulk('mark-unpaid'));
 
 router.post('/brands/:id/branches/:tid/area-lock', loadBrand, wrap(async (req, res) => {
     if (!isId(req.params.tid)) throw httpError(404, 'Branch not found');

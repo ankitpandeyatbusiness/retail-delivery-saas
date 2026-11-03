@@ -127,6 +127,38 @@ async function settleDues(d, pay, via) {
     return { dues: 'paid', bills: invs.length };
 }
 
+/* ------------------------------ a brand pays several branches at once ------------------------------ */
+// The same payment as "pay all dues", but the bills belong to several branches of one brand (all of them, or one). One Razorpay order for the sum;
+// settleDues settles each bill on its own (its branch is unpaused, its GST and settlement rows are written), so nothing here is new money logic.
+async function startBrandDues({ brand, tenantIds, actingTenantId }) {
+    const pending = await SubscriptionInvoice.find({ tenantId: { $in: tenantIds }, status: 'pending' }).select('_id total').sort({ _id: 1 }).lean();
+    if (!pending.length) throw bad(409, 'Nothing is due');
+    const amountPaise = pending.reduce((s, i) => s + toPaise(i.total), 0);
+    if (!(amountPaise >= 100)) throw bad(400, 'This is too small to pay online. Contact support.');
+    const invoiceKey = pending.map((i) => String(i._id)).join(',');
+    const c = creds();
+    const desc = `${brand.name}: all dues (${pending.length} bill${pending.length === 1 ? '' : 's'})`;
+
+    const open = await DuesPayment.findOne({ brandId: brand._id, invoiceKey, amountPaise, status: 'created' }).sort({ createdAt: -1 }).lean();
+    if (open) return { ...startView(c, open.rzpOrderId, amountPaise, desc), bills: pending.length };   // the same order again
+
+    const o = await makeOrder({ amountPaise, receipt: `bdues_${Date.now()}`, notes: { purpose: 'rent_dues_brand', brandId: String(brand._id), bills: String(pending.length) } });
+    await DuesPayment.create({ tenantId: actingTenantId, brandId: brand._id, rzpOrderId: o.id, invoiceIds: pending.map((i) => i._id), invoiceKey, amountPaise });
+    return { ...startView(c, o.id, amountPaise, desc), bills: pending.length };
+}
+
+async function verifyBrandDues({ brand, proof }) {
+    const d = proof && proof.razorpay_order_id ? await DuesPayment.findOne({ brandId: brand._id, rzpOrderId: String(proof.razorpay_order_id) }).lean() : null;
+    if (!d) throw bad(404, 'Payment not found');
+    if (d.status === 'paid') return { paid: true };
+    proofOk(proof, d.rzpOrderId);
+    const pay = await payments.fetchPayment({ paymentId: proof.razorpay_payment_id, credentials: payments.isMock() ? undefined : creds() });
+    if (pay.orderId !== d.rzpOrderId) throw bad(400, 'This payment does not belong to these bills');
+    if (pay.status !== 'captured') return { paid: false, status: pay.status };
+    const r = await settleDues(d, pay, { path: '/api/brand/dues/pay/verify', method: 'APP' });
+    return { paid: r.dues === 'paid' };
+}
+
 /* ------------------------------ SMS top-up ------------------------------ */
 async function startTopup({ tenantId, amountPaise, actor }) {
     const o = await smsTopups.options();
@@ -189,4 +221,4 @@ async function onPlatformPayment(pay) {
     return { ignored: 'unknown_order' };
 }
 
-module.exports = { startRent, verifyRent, startDues, verifyDues, settleDues, startTopup, verifyTopup, onPlatformPayment, MOCK_SECRET };
+module.exports = { startRent, verifyRent, startDues, verifyDues, startBrandDues, verifyBrandDues, settleDues, startTopup, verifyTopup, onPlatformPayment, MOCK_SECRET };

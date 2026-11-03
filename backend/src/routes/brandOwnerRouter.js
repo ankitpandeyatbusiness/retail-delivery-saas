@@ -9,6 +9,9 @@
 //   GET  /complaints?branch=&status=&page=   complaints of every branch, each with its branch, and how many are open per branch
 //   GET  /reviews?branch=&range=30&low=1&page=   dish ratings: average per branch and the newest ratings
 //   GET  /statement.pdf?period=2026-10   the same statement as a PDF (?view=1 opens it in the browser)
+//   GET  /dues                        what is unpaid in every branch (rent and late fees), one line per branch and the total
+//   POST /dues/pay/start  { slug? }   pay ONE branch's dues (slug) or ALL branches' with a single payment -> { keyId, rzpOrderId, amountPaise, ... }
+//   POST /dues/pay/verify { razorpay_order_id, razorpay_payment_id, razorpay_signature } -> { paid }
 //   POST /switch     { slug }                      sign in to another branch of the brand: returns that branch's tokens
 //   POST /menu/push  { productIds, toSlugs: 'all' | [slug], prices: 'keep'|'untouched'|'all' }   push dishes of THIS branch to other branches
 //   POST /extras/push { kind: 'coupons'|'banners'|'collections', ids, toSlugs: 'all' | [slug] }   push coupons, banners or collections of THIS branch to other branches
@@ -186,6 +189,33 @@ router.post('/extras/push', wrap(async (req, res) => {
         if (targets.length !== new Set(b.toSlugs).size) throw httpError(404, 'A chosen branch is not part of your brand');
     }
     res.json(await extrasSync.push({ fromTenantId: req.tenant._id, kind: b.kind, ids: b.ids, toTenantIds: targets.map((t) => t._id) }));
+}));
+
+router.get('/dues', wrap(async (req, res) => {
+    const duesSvc = require('../services/dues');
+    const branches = await Tenant.find({ brandId: req.brand._id }).sort({ createdAt: 1, _id: 1 }).select('slug name').lean();
+    const rows = [];
+    for (const b of branches) {
+        const d = await duesSvc.statement(b._id);
+        rows.push({ slug: b.slug, name: b.name, count: d.count, rentTotal: d.rentTotal, lateFeeTotal: d.lateFeeTotal, grandTotal: d.grandTotal });
+    }
+    const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
+    res.json({
+        branches: rows, count: rows.reduce((s, r) => s + r.count, 0), grandTotal: round2(rows.reduce((s, r) => s + r.grandTotal, 0)),
+        lateFeeTotal: round2(rows.reduce((s, r) => s + r.lateFeeTotal, 0)),
+    });
+}));
+router.post('/dues/pay/start', wrap(async (req, res) => {
+    const branches = await Tenant.find({ brandId: req.brand._id }).select('_id slug').lean();
+    let scope = branches;
+    if (req.body && req.body.slug) {
+        scope = branches.filter((t) => t.slug === String(req.body.slug).toLowerCase());
+        if (!scope.length) throw httpError(404, 'That branch is not part of your brand');
+    }
+    res.status(201).json(await require('../services/platformCheckout').startBrandDues({ brand: req.brand, tenantIds: scope.map((t) => t._id), actingTenantId: req.tenant._id }));
+}));
+router.post('/dues/pay/verify', wrap(async (req, res) => {
+    res.json(await require('../services/platformCheckout').verifyBrandDues({ brand: req.brand, proof: req.body }));
 }));
 
 router.post('/managers', wrap(async (req, res) => {

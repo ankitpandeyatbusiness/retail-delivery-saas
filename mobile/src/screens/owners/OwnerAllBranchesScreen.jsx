@@ -3,11 +3,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
 import { useBrand } from '../../components/common/kit';
-import { PageHeader, Card, Chips, SectionTitle, Stat, Empty, money } from '../../components/owners/ui';
+import { PageHeader, Card, Chips, SectionTitle, Stat, Empty, Button, money } from '../../components/owners/ui';
 import { StatShimmer } from '../../components/owners/shimmer';
 import { ask } from '../../components/common/dialog';
 import { showToast } from '../../components/customers/shop';
-import { fetchBrandOverview, fetchBrandOrders, fetchBrandStatement, fetchBrandCustomers, fetchBrandComplaints, fetchBrandReviews } from '../../api/owners/brandApi';
+import { useNavigation } from '@react-navigation/native';
+import { fetchBrandDues, fetchBrandOverview, fetchBrandOrders, fetchBrandStatement, fetchBrandCustomers, fetchBrandComplaints, fetchBrandReviews } from '../../api/owners/brandApi';
 import { switchBranch } from '../../utils/common/switchBranch';
 import { downloadAndOpen } from '../../utils/owners/files';
 import { getSlug } from '../../utils/common/branch';
@@ -26,6 +27,8 @@ export default function OwnerAllBranchesScreen() {
     const [range, setRange] = useState('today');
     const [ov, setOv] = useState(null);
     const [orders, setOrders] = useState(null);
+    const nav = useNavigation();
+    const [dues, setDues] = useState(null);
     const [stmt, setStmt] = useState(null);
     const [cust, setCust] = useState(null);
     const [comp, setComp] = useState(null);
@@ -42,6 +45,8 @@ export default function OwnerAllBranchesScreen() {
         fetchBrandStatement(lastMonth()).then(setStmt).catch(() => setStmt(null));
         fetchBrandComplaints({ status: 'open', limit: 5 }).then(setComp).catch(() => setComp(null));
     }, []);
+    // what is unpaid: reloaded every time the page comes back from the payment screen
+    useEffect(() => nav.addListener('focus', () => { fetchBrandDues().then(setDues).catch(() => setDues(null)); }), [nav]);
     // customers and ratings follow the chosen range
     useEffect(() => {
         const r = range === 'today' ? '7' : range;
@@ -138,6 +143,30 @@ export default function OwnerAllBranchesScreen() {
                                 {r.comment ? <Text style={{ color: muted }} numberOfLines={2}>{r.comment}</Text> : null}
                             </View>
                         ))}
+                    </>
+                ) : null}
+
+                {dues && dues.count > 0 ? (
+                    <>
+                        <SectionTitle title={tr('Unpaid bills')} />
+                        <Card tone={error}>
+                            <Text style={{ color: text, fontWeight: '900', fontSize: 20 }}>{money(dues.grandTotal)}</Text>
+                            <Text style={{ color: muted, marginTop: 2 }}>{tr('{n} unpaid bills in all branches, with late fees', { n: dues.count })}</Text>
+                            <View style={{ marginTop: 12 }}>
+                                <Button label={tr('Pay all branches {money}', { money: money(dues.grandTotal) })} icon="card" onPress={() => nav.navigate('OwnerPay', { kind: 'branchdues', amountPaise: Math.round(dues.grandTotal * 100), title: tr('All branches') })} />
+                            </View>
+                            {dues.branches.filter((b) => b.count > 0).map((b) => (
+                                <View key={b.slug} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: border }}>
+                                    <View style={{ flex: 1, paddingRight: 8 }}>
+                                        <Text style={{ color: text, fontWeight: '800' }} numberOfLines={1}>{b.name}</Text>
+                                        <Text style={{ color: muted, fontSize: 12 }}>{tr('{n} bills, {money}', { n: b.count, money: money(b.grandTotal) })}</Text>
+                                    </View>
+                                    <Pressable onPress={() => nav.navigate('OwnerPay', { kind: 'branchdues', id: b.slug, amountPaise: Math.round(b.grandTotal * 100), title: b.name })} accessibilityRole="button">
+                                        <Text style={{ color: primary, fontWeight: '900' }}>{tr('Pay this branch')}</Text>
+                                    </Pressable>
+                                </View>
+                            ))}
+                        </Card>
                     </>
                 ) : null}
 

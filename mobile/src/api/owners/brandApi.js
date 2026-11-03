@@ -19,3 +19,8 @@ export const fetchBrandCustomers = (range = '30') => d(api.get('/brand/customers
 export const fetchBrandComplaints = (params) => d(api.get('/brand/complaints', { params }));                   // { openByBranch, items }
 export const fetchBrandReviews = (params) => d(api.get('/brand/reviews', { params }));                         // { branches: [{ average, count, low }], total, items }
 export const pushExtras = (body) => d(api.post('/brand/extras/push', body));                  // { kind: 'coupons'|'banners'|'collections', ids, toSlugs }
+
+// what is unpaid in every branch, and paying it: one branch (slug) or all branches with a single payment
+export const fetchBrandDues = () => d(api.get('/brand/dues'));                                          // { branches: [{ slug, name, count, grandTotal }], count, grandTotal }
+export const startBrandDuesPay = (slug) => d(api.post('/brand/dues/pay/start', slug ? { slug } : {}));  // { keyId, rzpOrderId, amountPaise, currency, description, bills }
+export const verifyBrandDuesPay = (proof) => d(api.post('/brand/dues/pay/verify', proof));              // { paid }

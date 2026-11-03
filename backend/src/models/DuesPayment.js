@@ -9,6 +9,7 @@ const duesPaymentSchema = new mongoose.Schema({
     invoiceKey: { type: String, required: true },   // the sorted ids joined: the same bills and amount reuse the same Razorpay order
     amountPaise: { type: Number, required: true, min: 100 },
     status: { type: String, enum: ['created', 'paid'], default: 'created' },
+    brandId: { type: mongoose.Schema.Types.ObjectId, ref: 'Brand', index: true },   // set when a BRAND OWNER pays the bills of several branches at once (tenantId is the branch he was in)
     paymentId: String,
     paidAt: Date,
 }, { timestamps: true });

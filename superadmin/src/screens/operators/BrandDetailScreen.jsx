@@ -8,7 +8,7 @@ import { Field } from '../../components/inputs';
 import { SkeletonList } from '../../components/blocks';
 import { ErrorBox, Sheet, ConfirmSheet, toast } from '../../components/feedback';
 import { useSupreme } from '../../hooks/useSupreme';
-import { fetchBrand, addBranch, removeBranch, updateBrand, addBrandOwner, removeBrandOwner, fetchBrandSettings, fetchBrandStatement, setAreaLock, shareBrandStatementPdf, setFreeStart } from '../../api/brandsApi';
+import { fetchBrand, addBranch, removeBranch, updateBrand, addBrandOwner, removeBrandOwner, fetchBrandSettings, fetchBrandStatement, setAreaLock, shareBrandStatementPdf, setFreeStart, bulkWaiveLateFees, bulkMarkPaid, bulkMarkUnpaid } from '../../api/brandsApi';
 import { errMsg } from '../../api/adminClient';
 
 const STEPS = [['location', 'Pin and radius set'], ['keys', 'Razorpay keys set'], ['owner', 'Owner or manager added'], ['live', 'Live']];
@@ -30,6 +30,16 @@ export default function BrandDetailScreen() {
     const [busy, setBusy] = useState(false);
     const [stmt, setStmt] = useState(null);
     const [cfg, setCfg] = useState(null);
+    // bulk money actions (supreme admin): which branches, which action, the answers, the result
+    const [pick, setPick] = useState('all');          // 'all' or a list of branch ids
+    const [bulk, setBulk] = useState(null);           // 'waive' | 'paid' | 'unpaid'
+    const [reason, setReason] = useState('');
+    const [mode, setMode] = useState('upi');
+    const [receiver, setReceiver] = useState('owner');
+    const [ref, setRef] = useState('');
+    const [bnote, setBnote] = useState('');
+    const [month, setMonth] = useState('');
+    const [result, setResult] = useState(null);
     const [freeOpen, setFreeOpen] = useState(false);
     const [freeOrders, setFreeOrders] = useState('');
     const [freeMonths, setFreeMonths] = useState('');
@@ -92,6 +102,21 @@ export default function BrandDetailScreen() {
         try {
             await setFreeStart(id, { on, ...(on && freeOrders !== '' ? { freeOrders: Number(freeOrders) } : {}), ...(on && freeMonths !== '' ? { freeMonths: Number(freeMonths) } : {}) });
             toast(on ? 'Free start is on' : 'Free start ended'); setFreeOpen(false); load();
+        } catch (e) { toast(errMsg(e), 'error'); } finally { setBusy(false); }
+    };
+    const togglePick = (bid) => setPick((cur) => {
+        const list = cur === 'all' ? r.branches.map((b) => b.id) : cur;
+        const next = list.includes(bid) ? list.filter((x) => x !== bid) : [...list, bid];
+        return next.length === r.branches.length ? 'all' : next;
+    });
+    const pickedNames = pick === 'all' ? 'All branches' : r.branches.filter((b) => pick.includes(b.id)).map((b) => b.name).join(', ');
+    const runBulk = async () => {
+        setBusy(true);
+        try {
+            const out = bulk === 'waive' ? await bulkWaiveLateFees(id, pick, reason.trim())
+                : bulk === 'paid' ? await bulkMarkPaid(id, { tenantIds: pick, paymentMode: mode, receivedBy: receiver, ...(ref.trim() ? { paymentRef: ref.trim() } : {}), ...(bnote.trim() ? { note: bnote.trim() } : {}) })
+                    : await bulkMarkUnpaid(id, { tenantIds: pick, period: month.trim() });
+            setBulk(null); setResult({ action: bulk, ...out }); load();
         } catch (e) { toast(errMsg(e), 'error'); } finally { setBusy(false); }
     };
     const toggleLock = async (b) => {
@@ -174,6 +199,19 @@ export default function BrandDetailScreen() {
             </Card>
             {supreme ? (
                 <>
+                    <SectionTitle section="money">Money actions for several branches</SectionTitle>
+                    <Card style={{ marginBottom: spacing.md }}>
+                        <Text style={{ color: t.muted, marginBottom: spacing.sm }}>Choose the branches, then the action. You see what was done for each branch afterwards.</Text>
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+                            <Button title="All branches" small kind={pick === 'all' ? 'primary' : 'outline'} onPress={() => setPick('all')} />
+                            {r.branches.map((b) => <Button key={b.id} title={b.name} small kind={pick !== 'all' && pick.includes(b.id) ? 'primary' : 'outline'} onPress={() => togglePick(b.id)} />)}
+                        </View>
+                        <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
+                            <Button title="Waive late fees" kind="outline" small disabled={pick !== 'all' && !pick.length} onPress={() => { setReason(''); setBulk('waive'); }} />
+                            <Button title="Mark bills paid" kind="outline" small disabled={pick !== 'all' && !pick.length} onPress={() => { setRef(''); setBnote(''); setBulk('paid'); }} />
+                            <Button title="Mark a month's bills not paid" kind="outline" small disabled={pick !== 'all' && !pick.length} onPress={() => { setMonth(''); setBulk('unpaid'); }} />
+                        </View>
+                    </Card>
                     <SectionTitle section="platform">Manage</SectionTitle>
                     <Button title="Add a branch" icon="add" disabled={!r.canAdd} onPress={() => setAdd(true)} />
                     {!r.canAdd ? <Text style={{ color: t.muted, marginTop: 6 }}>The limit is reached. Raise it to add more.</Text> : null}
@@ -189,6 +227,54 @@ export default function BrandDetailScreen() {
                 <Field label="Manager phone (optional)" value={f.managerPhone} onChangeText={(v) => set('managerPhone')(v.replace(/\D/g, '').slice(0, 10))} keyboardType="number-pad" />
                 {first ? <Button title={`${copy ? '✓ ' : ''}Start from the look, rules and menu of ${first.name}`} kind={copy ? 'soft' : 'outline'} small onPress={() => setCopy(!copy)} style={{ marginBottom: spacing.md }} /> : null}
                 <Button title="Add branch" loading={busy} disabled={f.name.trim().length < 2 || f.slug.length < 3 || !f.city.trim()} onPress={create} />
+            </Sheet>
+
+            <Sheet visible={!!bulk} onClose={() => setBulk(null)} title={bulk === 'waive' ? 'Waive late fees' : bulk === 'paid' ? 'Mark bills paid' : "Mark a month's bills not paid"}>
+                <Text style={{ color: t.muted, marginBottom: spacing.md }}>{`For: ${pickedNames}.`}</Text>
+                {bulk === 'waive' ? (
+                    <>
+                        <Text style={{ color: t.muted, marginBottom: spacing.sm }}>Every unpaid late fee of these branches is cancelled. The rent bills stay as they are.</Text>
+                        <Field label="Reason (the owners may see it)" value={reason} onChangeText={setReason} maxLength={200} />
+                    </>
+                ) : null}
+                {bulk === 'paid' ? (
+                    <>
+                        <Text style={{ color: t.muted, marginBottom: spacing.sm }}>Every unpaid bill of these branches, rent and late fees, is marked paid by hand. Use this only when the money really arrived.</Text>
+                        <Text style={{ color: t.text, fontWeight: '700', marginBottom: 6 }}>How was it paid?</Text>
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md }}>
+                            {['upi', 'bank_transfer', 'cash', 'cheque', 'other'].map((m) => <Button key={m} title={m.replace('_', ' ')} small kind={mode === m ? 'primary' : 'outline'} onPress={() => setMode(m)} />)}
+                        </View>
+                        <Text style={{ color: t.text, fontWeight: '700', marginBottom: 6 }}>Who received the money?</Text>
+                        <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md }}>
+                            <Button title="Owner" small kind={receiver === 'owner' ? 'primary' : 'outline'} onPress={() => setReceiver('owner')} />
+                            <Button title="Partner" small kind={receiver === 'partner' ? 'primary' : 'outline'} onPress={() => setReceiver('partner')} />
+                        </View>
+                        <Field label="Payment reference (optional)" value={ref} onChangeText={setRef} maxLength={60} />
+                        <Field label="Note (optional)" value={bnote} onChangeText={setBnote} maxLength={200} />
+                    </>
+                ) : null}
+                {bulk === 'unpaid' ? (
+                    <>
+                        <Text style={{ color: t.muted, marginBottom: spacing.sm }}>The paid rent bills of this month go back to unpaid. A bill paid online is never undone here: that money was really taken.</Text>
+                        <Field label="Month (like 2026-10)" value={month} onChangeText={(v) => setMonth(v.replace(/[^0-9-]/g, '').slice(0, 7))} keyboardType="number-pad" />
+                    </>
+                ) : null}
+                <Button title="Do it" loading={busy} disabled={(bulk === 'waive' && reason.trim().length < 3) || (bulk === 'unpaid' && !/^\d{4}-\d{2}$/.test(month))} onPress={runBulk} />
+            </Sheet>
+
+            <Sheet visible={!!result} onClose={() => setResult(null)} title="What was done">
+                {result ? (
+                    <>
+                        <Text style={{ color: t.text, fontWeight: '800', marginBottom: spacing.sm }}>{`${result.totals.done} bill${result.totals.done === 1 ? '' : 's'} changed, ₹${result.totals.amount}${result.totals.skipped ? `, ${result.totals.skipped} skipped` : ''}`}</Text>
+                        {result.rows.map((row) => (
+                            <View key={row.slug} style={{ marginBottom: spacing.sm }}>
+                                <Text style={{ color: t.text, fontWeight: '700' }}>{`${row.name}: ${row.done} changed${row.amount ? ` (₹${row.amount})` : ''}`}</Text>
+                                {row.skipped.map((k, i) => <Text key={i} style={{ color: t.warn, fontSize: font.sm }}>{`Skipped ${k.invoiceNo}: ${k.reason}`}</Text>)}
+                            </View>
+                        ))}
+                        <Button title="Close" kind="outline" onPress={() => setResult(null)} />
+                    </>
+                ) : null}
             </Sheet>
 
             <Sheet visible={freeOpen} onClose={() => setFreeOpen(false)} title="Shared free start">

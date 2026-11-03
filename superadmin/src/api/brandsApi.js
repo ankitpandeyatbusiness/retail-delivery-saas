@@ -28,3 +28,8 @@ export async function shareBrandStatementPdf(brand, period) {
     await Sharing.shareAsync(file.uri, { mimeType: 'application/pdf', dialogTitle: `Statement ${brand.name} ${period}`, UTI: 'com.adobe.pdf' });
 }
 export const setFreeStart = (id, body) => data(api.put(`/admin/brands/${id}/free-start`, body));   // supreme admin: { on, freeOrders?, freeMonths? }
+
+// the supreme admin's bulk money actions: tenantIds is 'all' or a list of branch ids. Each answers { rows: [{ slug, name, done, amount, skipped: [{ invoiceNo, reason }] }], totals }
+export const bulkWaiveLateFees = (id, tenantIds, reason) => data(api.post(`/admin/brands/${id}/bulk/waive-late-fees`, { tenantIds, reason }));
+export const bulkMarkPaid = (id, body) => data(api.post(`/admin/brands/${id}/bulk/mark-paid`, body));          // { tenantIds, paymentMode?, paymentRef?, receivedBy, note? }
+export const bulkMarkUnpaid = (id, body) => data(api.post(`/admin/brands/${id}/bulk/mark-unpaid`, body));      // { tenantIds, period }

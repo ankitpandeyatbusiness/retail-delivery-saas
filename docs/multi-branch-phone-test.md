@@ -103,3 +103,11 @@ K2. Press "Give new branches a shared free start": the card shows the orders use
 K3. When the total reaches the free orders (or the months pass) both branches show rent starting the same month; "free ended" on both at the same moment.
 K4. Add a branch while the shared free start runs: it shares what is left. Add one after it ended: no free time.
 K5. "End the free start now" ends it for all at once.
+
+## L. Paying for the branches
+
+L1. Brand owner: All branches page -> Unpaid bills card: the total, and a line per branch that owes something.
+L2. "Pay this branch" on one line: the payment screen opens for that branch only; after paying, only that branch's bills are paid.
+L3. "Pay all branches": ONE payment; afterwards every branch's bills are paid and a branch that was paused for rent is open again.
+L4. A branch manager does not see these buttons (he sees the note that the brand owner pays).
+L5. Superadmin, Brand page -> Money actions for several branches: choose branches (or All), Waive late fees / Mark bills paid / Mark a month's bills not paid; the answer sheet lists each branch with what changed and anything skipped (a bill paid online is never undone).
