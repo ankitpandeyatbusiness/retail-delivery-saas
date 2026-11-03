@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import { useFocusEffect, useRoute } from '@react-navigation/native';
 import { useTheme, spacing, font } from '../../theme';
@@ -10,6 +10,7 @@ import { ErrorBox, Sheet, ConfirmSheet, toast } from '../../components/feedback'
 import { useSupreme } from '../../hooks/useSupreme';
 import { fetchBrand, addBranch, removeBranch, updateBrand, addBrandOwner, removeBrandOwner, fetchBrandSettings, fetchBrandStatement, setAreaLock, shareBrandStatementPdf, setFreeStart, bulkWaiveLateFees, bulkMarkPaid, bulkMarkUnpaid } from '../../api/brandsApi';
 import { errMsg } from '../../api/adminClient';
+import { fetchShops } from '../../api/shopsApi';
 
 const STEPS = [['location', 'Pin and radius set'], ['keys', 'Razorpay keys set'], ['owner', 'Owner or manager added'], ['live', 'Live']];
 const blank = { name: '', slug: '', city: '', managerPhone: '' };
@@ -22,6 +23,26 @@ export default function BrandDetailScreen() {
     const [r, setR] = useState(null);
     const [err, setErr] = useState('');
     const [add, setAdd] = useState(false);
+    // attach a shop that already exists
+    const [att, setAtt] = useState(false);
+    const [q, setQ] = useState('');
+    const [found, setFound] = useState(null);         // shops matching the search (null while loading)
+    const [chosen, setChosen] = useState(null);       // the shop picked
+    const [acity, setAcity] = useState('');
+    useEffect(() => {
+        if (!att || chosen) return undefined;
+        setFound(null);
+        const h = setTimeout(() => { fetchShops(q.trim() || undefined).then((x) => setFound((x.items || []).filter((s) => !s.brandId))).catch((e) => { setFound([]); toast(errMsg(e), 'error'); }); }, 300);
+        return () => clearTimeout(h);
+    }, [att, q, chosen]);
+    const attach = async () => {
+        setBusy(true);
+        try {
+            const x = await addBranch(id, { tenantId: chosen._id || chosen.id, city: acity.trim() });
+            toast(x.problems && x.problems.length ? `Attached. Check: ${x.problems.join(' ')}` : 'Shop attached as a branch');
+            setAtt(false); setChosen(null); setQ(''); setAcity(''); load();
+        } catch (e) { toast(errMsg(e), 'error'); } finally { setBusy(false); }
+    };
     const [f, setF] = useState(blank);
     const [copy, setCopy] = useState(true);
     const [limit, setLimit] = useState('');
@@ -214,11 +235,34 @@ export default function BrandDetailScreen() {
                     </Card>
                     <SectionTitle section="platform">Manage</SectionTitle>
                     <Button title="Add a branch" icon="add" disabled={!r.canAdd} onPress={() => setAdd(true)} />
+                    <Button title="Add an existing shop" icon="shops" kind="outline" disabled={!r.canAdd} style={{ marginTop: spacing.sm }} onPress={() => { setChosen(null); setQ(''); setAcity(''); setAtt(true); }} />
                     {!r.canAdd ? <Text style={{ color: t.muted, marginTop: 6 }}>The limit is reached. Raise it to add more.</Text> : null}
                     <Button title={`Rent discount for the 2nd branch onward: ${r.brand.discountPercent || 0}%`} kind="outline" style={{ marginTop: spacing.sm }} onPress={() => { setDisc(String(r.brand.discountPercent || '')); setDiscOpen(true); }} />
                     <Button title="Change branch limit" kind="outline" style={{ marginTop: spacing.sm }} onPress={() => { setLimit(String(r.brand.branchLimit)); setLimitOpen(true); }} />
                 </>
             ) : null}
+
+            <Sheet visible={att} onClose={() => setAtt(false)} title="Add an existing shop">
+                {!chosen ? (
+                    <>
+                        <Text style={{ color: t.muted, marginBottom: spacing.sm }}>Pick a shop that is not part of any brand yet. It keeps its menu, orders and settings and becomes a branch of this brand.</Text>
+                        <Field label="Search by name or short name" value={q} onChangeText={setQ} autoCapitalize="none" maxLength={40} />
+                        {found === null ? <SkeletonList /> : null}
+                        {found && !found.length ? <Text style={{ color: t.muted }}>No free shop found. A shop already in a brand cannot be taken from there.</Text> : null}
+                        {found ? found.slice(0, 20).map((sh) => (
+                            <Button key={sh._id || sh.id} title={`${sh.name} (${sh.slug})`} kind="outline" small style={{ marginBottom: spacing.sm }} onPress={() => { setChosen(sh); setAcity(''); }} />
+                        )) : null}
+                    </>
+                ) : (
+                    <>
+                        <Text style={{ color: t.text, fontWeight: '800', marginBottom: spacing.sm }}>{`${chosen.name} (${chosen.slug})`}</Text>
+                        <Text style={{ color: t.muted, marginBottom: spacing.md }}>It becomes a branch of {r && r.brand ? r.brand.name : 'this brand'}. Its own SMS balance moves into the brand's shared SMS wallet, and the brand owners get access to it. Its staff must not also work at another branch of this brand.</Text>
+                        <Field label="City of this branch" value={acity} onChangeText={setAcity} maxLength={60} />
+                        <Button title="Attach this shop" loading={busy} disabled={!acity.trim()} onPress={attach} />
+                        <Button title="Choose another shop" kind="outline" style={{ marginTop: spacing.sm }} onPress={() => setChosen(null)} />
+                    </>
+                )}
+            </Sheet>
 
             <Sheet visible={add} onClose={() => setAdd(false)} title="Add a branch">
                 <Field label="Branch name" value={f.name} onChangeText={set('name')} maxLength={80} />

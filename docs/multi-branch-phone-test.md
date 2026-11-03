@@ -111,3 +111,10 @@ L2. "Pay this branch" on one line: the payment screen opens for that branch only
 L3. "Pay all branches": ONE payment; afterwards every branch's bills are paid and a branch that was paused for rent is open again.
 L4. A branch manager does not see these buttons (he sees the note that the brand owner pays).
 L5. Superadmin, Brand page -> Money actions for several branches: choose branches (or All), Waive late fees / Mark bills paid / Mark a month's bills not paid; the answer sheet lists each branch with what changed and anything skipped (a bill paid online is never undone).
+
+## M. Attaching an existing shop
+
+M1. Superadmin: Brands and branches -> a brand -> Add an existing shop: search lists only shops that are not in any brand.
+M2. Pick one, type its city, Attach: it appears as a branch with its menu and orders unchanged; the brand owners can switch to it.
+M3. A shop whose staff also work at another branch of this brand is refused with the reason.
+M4. Its own SMS balance is now in the brand wallet.
