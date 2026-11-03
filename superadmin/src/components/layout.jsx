@@ -1,7 +1,8 @@
-import React from 'react';
-import { View, Text, Pressable, ScrollView, RefreshControl, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
+import React, { useCallback } from 'react';
+import { View, Text, Pressable, ScrollView, RefreshControl, KeyboardAvoidingView, Platform, StyleSheet, BackHandler } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
+import { backTo } from '../navigation/goTo';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useTheme, spacing, radius, font } from '../theme';
@@ -23,7 +24,15 @@ export function Header({ title, subtitle, back = true, right, bell }) {
     const unread = useInboxStore((st) => st.unread);
     const nav = useNavigation();
     const insets = useSafeAreaInsets();
-    const canBack = back && nav.canGoBack();
+    // a screen opened from another place remembers it (navigation/goTo.js): Back, on screen and on the phone, goes there
+    const returnTo = useRoute().params?.returnTo;
+    const canBack = back && (!!returnTo || nav.canGoBack());
+    const goBack = useCallback(() => { if (returnTo) backTo(nav, returnTo); else nav.goBack(); }, [nav, returnTo]);
+    useFocusEffect(useCallback(() => {
+        if (!returnTo || !back) return undefined;
+        const sub = BackHandler.addEventListener('hardwareBackPress', () => { backTo(nav, returnTo); return true; });
+        return () => sub.remove();
+    }, [nav, returnTo, back]));
     return (
         <LinearGradient
             colors={t.gradient}
@@ -35,7 +44,7 @@ export function Header({ title, subtitle, back = true, right, bell }) {
             <View style={[s.circle, { width: 180, height: 180, right: -50, top: -60 }]} />
             <View style={[s.circle, { width: 110, height: 110, right: 70, top: 40, opacity: 0.5 }]} />
             <View style={s.row}>
-                {canBack ? <View style={{ marginRight: spacing.md }}><HeaderButton icon="back" onPress={() => nav.goBack()} /></View> : null}
+                {canBack ? <View style={{ marginRight: spacing.md }}><HeaderButton icon="back" onPress={goBack} /></View> : null}
                 <View style={{ flex: 1 }}>
                     <Text style={s.title} numberOfLines={1}>{title}</Text>
                     {subtitle ? <Text style={s.subtitle} numberOfLines={1}>{subtitle}</Text> : null}

@@ -159,3 +159,12 @@ P3. When it goes back to normal and later turns red again, you are told at once.
 P4. Payment notices and a failing SMS provider keep their own older alerts and are not repeated by this one.
 
 O9. Home: type in the search box on the home screen: the home content glides away and the matching shops, brand branches, orders, people, invoices and screens show right there. Clear the box (the x) and the home comes back. The old Search page still works and shows the same answers.
+
+## Q. Back goes to where you came from
+
+Q1. Home -> Needs you -> tap a shop -> the shop opens -> Back (the arrow on top, and the phone's Back key) returns to Home, not to the Shops list.
+Q2. Home -> Quick actions -> Shop money (or Brands) -> Back returns to Home, not to the More menu.
+Q3. Home -> type in the search box -> open a shop -> Back returns to Home with the search results still there.
+Q4. More -> Platform health -> tap a shop -> Back returns to Platform health.
+Q5. Orders -> an order -> its shop -> Back returns to that order. Inside the shop, opening Billing and pressing Back goes to the shop first, then Back again goes to where you came from.
+Q6. Open a shop from the Shops list itself: Back is the normal Back to the list.
