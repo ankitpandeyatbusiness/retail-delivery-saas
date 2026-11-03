@@ -11,9 +11,11 @@ function haversineKm(lat1, lon1, lat2, lon2) {
 
 // Is this point inside the shop's delivery area?
 // If the shop has no location/radius set, delivery is allowed everywhere.
+// A BRANCH of a brand is the opposite: with no location and radius it serves nobody (two branches must never both claim the whole country).
 function serviceability(tenant, lat, lng) {
     const d = tenant.delivery || {};
     const hasRule = [d.latitude, d.longitude, d.radiusKm].every((n) => Number.isFinite(n)) && d.radiusKm > 0;
+    if (!hasRule && tenant.brandId) return { serviceable: false, distanceKm: null, radiusKm: d.radiusKm ?? null, message: 'This branch has not set its delivery area yet' };
     if (!hasRule) return { serviceable: true, distanceKm: null, radiusKm: d.radiusKm ?? null, message: null };
 
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) {

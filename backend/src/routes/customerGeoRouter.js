@@ -56,7 +56,7 @@ router.get('/suggest', wrap(async (req, res) => {
             const out = { ...c };
             out.distanceKm = near && hasPoint ? round1(haversineKm(near.lat, near.lng, c.latitude, c.longitude)) : null;
             // null = the shop has no delivery area (delivers everywhere) or the point is not known yet
-            out.deliverable = hasArea && hasPoint ? serviceability(tenant, c.latitude, c.longitude).serviceable : null;
+            out.deliverable = (hasArea || tenant.brandId) && hasPoint ? serviceability(tenant, c.latitude, c.longitude).serviceable : null;
             return out;
         }),
     });
@@ -70,6 +70,32 @@ router.get('/place', wrap(async (req, res) => {
     if (!p) throw httpError(502, 'Could not open this place');
     const s = serviceability(req.tenant, p.latitude, p.longitude);
     res.json({ place: { ...p, deliverable: s.distanceKm === null && s.serviceable ? null : s.serviceable } });
+}));
+
+// Which branch of this brand delivers to the customer's spot? Only branches with a pin AND a radius that cover the point, nearest first.
+// The app's own shop (x-tenant-slug) tells us the brand. A shop that is not a branch answers with just itself.
+router.get('/branches', wrap(async (req, res) => {
+    if (!finite(req.query.lat) || !finite(req.query.lng)) throw httpError(400, 'Send lat and lng');
+    const lat = Number(req.query.lat);
+    const lng = Number(req.query.lng);
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) throw httpError(400, 'Invalid location');
+    const me = req.tenant;
+    if (!me.brandId) {
+        const s = serviceability(me, lat, lng);
+        return res.json({ brand: null, current: me.slug, branches: s.serviceable ? [{ slug: me.slug, name: me.name, city: null, distanceKm: s.distanceKm }] : [] });
+    }
+    const Tenant = require('../models/Tenant');
+    const Brand = require('../models/Brand');
+    const [brand, all] = await Promise.all([
+        Brand.findById(me.brandId).select('name').lean(),
+        Tenant.find({ brandId: me.brandId, status: 'active' }).select('slug name branchCity address.city logo delivery').lean(),
+    ]);
+    const branches = all
+        .map((t) => ({ t, s: serviceability(t, lat, lng) }))
+        .filter((x) => x.s.serviceable && x.s.distanceKm !== null)   // a branch with no radius is never shown
+        .sort((a, b) => a.s.distanceKm - b.s.distanceKm)
+        .map(({ t, s }) => ({ slug: t.slug, name: t.name, city: t.branchCity || (t.address && t.address.city) || null, logo: t.logo || null, distanceKm: s.distanceKm }));
+    res.json({ brand: brand ? { name: brand.name } : null, current: me.slug, branches });
 }));
 
 module.exports = router;

@@ -22,7 +22,7 @@ beforeEach(async () => {
 });
 
 async function brandWith(...slugs) {
-    const brand = (await post('/api/admin/brands', { name: 'Savera' })).body.brand;
+    const brand = (await post('/api/admin/brands', { name: 'Savera', branchLimit: 10 })).body.brand;
     const out = [];
     for (const s of slugs) {
         const r = await post(`/api/admin/brands/${brand._id}/branches`, { name: `Savera ${s}`, slug: `savera-${s}`, city: s });
@@ -106,5 +106,51 @@ describe('brands and branches', () => {
         // a shop outside any brand: nothing changes
         const solo = await makeTenant('solo-shop');
         assert.equal((await post(`/api/admin/tenants/${solo._id}/owners`, { phone: '9822222222' })).status, 201);
+    });
+});
+
+describe('branch location rules', () => {
+    const setArea = (slug, latitude, longitude, radiusKm) => Tenant.updateOne({ slug }, { $set: { delivery: { latitude, longitude, radiusKm } } });
+    const geo = (slug, path) => request(app).get(path).set('x-tenant-slug', slug);
+
+    test('a branch with no radius serves nobody; a normal shop with no radius still serves everywhere', async () => {
+        const { branches } = await brandWith('delhi');
+        const solo = await makeTenant('plain-shop');
+        const b = await geo(branches[0].slug, '/api/addresses/serviceability?lat=28.6&lng=77.2');
+        assert.equal(b.body.serviceable, false);
+        assert.match(b.body.message, /not set its delivery area/);
+        assert.equal((await geo(solo.slug, '/api/addresses/serviceability?lat=28.6&lng=77.2')).body.serviceable, true);
+    });
+
+    test('the branch pick shows only branches whose pin and radius cover the customer, nearest first', async () => {
+        const { branches } = await brandWith('delhi', 'noida', 'mumbai', 'goa');
+        const [delhi, noida, mumbai, goa] = branches.map((x) => x.slug);
+        await setArea(delhi, 28.6139, 77.2090, 10);      // Connaught Place
+        await setArea(noida, 28.5355, 77.3910, 25);      // about 20 km from the customer
+        await setArea(mumbai, 19.0760, 72.8777, 15);     // far away
+        // goa: no radius at all
+        const { invalidateTenant } = require('../src/middlewares/tenantRecognizer');
+        for (const s of [delhi, noida, mumbai, goa]) invalidateTenant(s);
+
+        const r = await geo(mumbai, '/api/geo/branches?lat=28.6304&lng=77.2177');   // asked from the Mumbai app, customer in Delhi
+        assert.equal(r.status, 200);
+        assert.equal(r.body.brand.name, 'Savera');
+        assert.deepEqual(r.body.branches.map((x) => x.slug), [delhi, noida]);
+        assert.ok(r.body.branches[0].distanceKm < r.body.branches[1].distanceKm);
+
+        const far = await geo(delhi, '/api/geo/branches?lat=12.97&lng=77.59');       // Bengaluru: nobody delivers there
+        assert.deepEqual(far.body.branches, []);
+        assert.equal((await geo(delhi, '/api/geo/branches?lat=abc&lng=1')).status, 400);
+    });
+
+    test('a branch cannot go live without its pin and radius; with them it can', async () => {
+        const { branches } = await brandWith('delhi');
+        const t = await Tenant.findOne({ slug: branches[0].slug });
+        const goLive = () => post(`/api/admin/tenants/${t._id}/billing/go-live`, {});
+        const no = await goLive();
+        assert.equal(no.status, 409);
+        assert.match(no.body.error, /pin and delivery radius/);
+        await setArea(branches[0].slug, 28.6, 77.2, 8);
+        assert.equal((await goLive()).status, 200);
     });
 });

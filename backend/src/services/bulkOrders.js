@@ -15,7 +15,7 @@ const User = require('../models/User');
 const { resolveConfig } = require('./tenantConfigService');
 const { buildLines, applyTax, computeTotals, round2 } = require('./orderPricing');
 const { foodModeFilter } = require('./catalogQuery');
-const { haversineKm } = require('../utils/geo');
+const { haversineKm, serviceability } = require('../utils/geo');
 const { httpError } = require('../middlewares/apiErrors');
 
 const isId = (v) => typeof v === 'string' && mongoose.isValidObjectId(v);
@@ -142,6 +142,8 @@ async function priceRequest({ tenant, userId, body = {}, settings }) {
         if (!isId(String(body.addressId || ''))) throw httpError(400, 'Choose the delivery address');
         address = await Address.findOne({ _id: body.addressId, tenantId: tenant._id, userId }).lean();
         if (!address) throw httpError(400, 'Address not found');
+        // a branch delivers only inside its own pin and radius (other shops keep their old rule here)
+        if (tenant.brandId) { const sv = serviceability(tenant, address.latitude, address.longitude); if (!sv.serviceable) throw httpError(400, sv.message); }
     }
     const shopAt = tenant.delivery || {};
     const distanceKm = address && [shopAt.latitude, shopAt.longitude, address.latitude, address.longitude].every(Number.isFinite)

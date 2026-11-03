@@ -288,6 +288,11 @@ router.post('/tenants/:tid/billing/go-live', loadTenant, wrap(async (req, res) =
     const force = req.body?.force === true;
     const id = req.tenantDoc._id;
     req.auditBefore = { billing: (await Tenant.findById(id).select('billing').lean())?.billing };
+    // a branch must have its pin and radius before it opens, or it would serve nobody (and nobody would find it)
+    const own = await Tenant.findById(id).select('brandId delivery').lean();
+    if (own?.brandId && !(Number.isFinite(own.delivery?.latitude) && Number.isFinite(own.delivery?.longitude) && own.delivery?.radiusKm > 0)) {
+        throw httpError(409, 'Set the map pin and delivery radius of this branch first. A branch without them cannot go live.');
+    }
 
     const r = await Tenant.updateOne(
         { _id: id, ...(!force && { 'billing.isLive': { $ne: true } }) },

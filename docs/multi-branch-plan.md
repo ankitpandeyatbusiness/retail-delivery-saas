@@ -1,6 +1,6 @@
 # Multi-branch plan (Brand with branches)
 
-Status: agreed 2026-11-03. PHASE 1 BUILT 2026-11-03 (Brand model, tenant.brandId/branchCity, /api/admin/brands routes, one-person-one-branch rule on owners/staff/riders/new manager, Brands page in the superadmin app, tests/brands.test.js). Phases 2-8 not started.
+Status: agreed 2026-11-03. PHASE 1 BUILT 2026-11-03 (Brand model, tenant.brandId/branchCity, /api/admin/brands routes, one-person-one-branch rule on owners/staff/riders/new manager, Brands page in the superadmin app, tests/brands.test.js). PHASE 2 BUILT 2026-11-03 (geo.serviceability: a branch with no radius serves nobody; GET /api/geo/branches?lat&lng picks the branches that cover the customer, nearest first; bulk delivery checked for branches; a branch cannot Go live without pin+radius). Phases 3-8 not started. Not done in phase 2: app screen that uses /geo/branches (phase 7), "who last changed the pin" and the franchise lock (optional).
 
 ## 1. Structure
 - Brand "Savera" -> branches (Delhi, UP, Mumbai). Each branch is a normal tenant (own menu, stock, staff, riders, orders, hours, location, Razorpay keys).
