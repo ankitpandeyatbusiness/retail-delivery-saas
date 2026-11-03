@@ -43,6 +43,7 @@ import MyRazorpayScreen from '../screens/money/MyRazorpayScreen';
 import GstScreen from '../screens/money/GstScreen';
 import MoneyRulesScreen from '../screens/money/MoneyRulesScreen';
 import SearchScreen from '../screens/insights/SearchScreen';
+import PlatformHealthScreen from '../screens/insights/PlatformHealthScreen';
 import HealthScreen from '../screens/insights/HealthScreen';
 import ReadinessScreen from '../screens/insights/ReadinessScreen';
 import SystemScreen from '../screens/insights/SystemScreen';
@@ -334,6 +335,7 @@ export default function RootNavigator() {
                     <Root.Screen name="OwnerMessages" component={OwnerMessagesScreen} />
                     <Root.Screen name="Search" component={SearchScreen} />
                     <Root.Screen name="Health" component={HealthScreen} />
+                    <Root.Screen name="PlatformHealth" component={PlatformHealthScreen} />
                     <Root.Screen name="ShopReadiness" component={ReadinessScreen} />
                     <Root.Screen name="System" component={SystemScreen} />
                     <Root.Screen name="Exports" component={ExportsScreen} />

@@ -29,6 +29,7 @@ export default function MoreScreen() {
             <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
                 <ListRow section="settings" icon="lock" title="App lock" subtitle="PIN, fingerprint or face when the panel opens" onPress={() => nav.navigate('AppLock')} />
                 <ListRow section="shops" icon="search" title="Search everything" subtitle="Shops, orders, people, invoices" onPress={() => nav.navigate('Search')} />
+                <ListRow section="riders" icon="shield" title="Platform health" subtitle="Is everything running fine? Money, orders, SMS, Google, servers" onPress={() => nav.navigate('PlatformHealth')} />
                 <ListRow section="riders" icon="shield" title="Shop health" subtitle="Scores, cancellations, late orders" onPress={() => nav.navigate('Health')} />
                 <ListRow section="settings" icon="bolt" title="System and backups" subtitle="Database, SMS, nightly jobs, backups" onPress={() => nav.navigate('System')} />
                 <ListRow section="money" icon="copy" title="Export data" subtitle="Orders, invoices, customers as Excel sheets" onPress={() => nav.navigate('Exports')} last />

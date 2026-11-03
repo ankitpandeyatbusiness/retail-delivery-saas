@@ -120,3 +120,22 @@ M3. A shop whose staff also work at another branch of this brand is refused with
 M4. Its own SMS balance is now in the brand wallet.
 
 M5. Superadmin: a shop page -> Make this shop a brand (name, city, optional owner phone): the brand is made, the shop is its first branch, the owner can switch branches. A shop already in a brand does not show the button.
+
+## N. Platform health
+
+N1. Superadmin: More -> Platform health opens. The top box is green "All fine", amber "Look when you can" or red "Act now", with one line why.
+N2. "Needs you" lists every card that is not green, worst first.
+N3. Rent card: shops that paid / total collected / shops still to pay / total to collect; overdue bills show red.
+N4. SMS card: sent in 7 days, cost and price per SMS, profit.
+N5. Orders card: today, 7 days (with  hange), last month.
+N6. Google card: every call type with a bar; amber from 60
+## N. Platform health
+
+N1. Superadmin: More -> Platform health opens. The top box is green "All fine", amber "Look when you can" or red "Act now", with one line why.
+N2. "Needs you" lists every card that is not green, worst first.
+N3. Rent card: shops that paid / total collected / shops still to pay / total to collect; overdue bills show red.
+N4. SMS card: sent in 7 days, cost and price per SMS, profit.
+N5. Orders card: today, 7 days (with the change in percent), last month.
+N6. Google card: every call type with a bar; amber from 60 percent, red from 90 percent.
+N7. Tapping a card opens the matching screen (SMS profit, Receivables, System, Support, Shop health).
+N8. Pull down to check again; the time of the last check is shown.
