@@ -71,16 +71,16 @@ export default function PlatformHealthScreen() {
     const go = {
         system: () => nav.navigate('System'),
         payments: () => nav.navigate('System'),
-        sms: () => nav.navigate('MoneyTab', { screen: 'SmsProfit' }),
+        sms: () => nav.navigate('Admin', { screen: 'MoneyTab', params: { screen: 'SmsProfit' } }),
         rent: () => nav.navigate('Receivables'),
-        orders: () => nav.navigate('OrdersTab'),
-        google: () => nav.navigate('MoreTab', { screen: 'LiveTracking' }),
-        shops: () => nav.navigate('ShopsTab'),
+        orders: () => nav.navigate('Admin', { screen: 'OrdersTab' }),
+        google: () => nav.navigate('Admin', { screen: 'MoreTab', params: { screen: 'LiveTracking' } }),
+        shops: () => nav.navigate('Admin', { screen: 'ShopsTab' }),
         support: () => nav.navigate('Support'),
         quiet: () => nav.navigate('Health'),
         versions: undefined,
     };
-    const openShop = (x) => nav.navigate('ShopsTab', { screen: 'ShopDetail', params: { shopId: x.id, name: x.name } });
+    const openShop = (x) => nav.navigate('Admin', { screen: 'ShopsTab', params: { screen: 'ShopDetail', params: { shopId: x.id, name: x.name } } });
     const LABEL = { system: 'Server and backup', payments: 'Payment notices', sms: 'SMS', rent: 'Rent', orders: 'Orders', google: 'Google calls', shops: 'Shops', support: 'Support', quiet: 'Quiet shops', versions: 'App versions' };
 
     const o = r && level(r.overall.level);
