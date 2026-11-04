@@ -16,7 +16,12 @@ const LIMIT = {
     on_the_way_long: num('STUCK_ON_THE_WAY_MIN', 75),
 };
 // minutes after which the superadmin is told too (the owner had his chance first)
-const ESCALATE_MIN = { not_started: num('ESC_ACCEPTED_MIN', 40), slow_prep: num('ESC_PREPARING_MIN', 90), no_rider: num('ESC_NO_RIDER_MIN', 30), on_the_way_long: num('ESC_ON_THE_WAY_MIN', 120), not_accepted: num('ESC_NOT_ACCEPTED_MIN', 10) };
+// (set by the superadmin in the Orders limits screen; reloaded at the start of every check)
+let ESCALATE_MIN = { not_started: 40, slow_prep: 90, no_rider: 30, on_the_way_long: 120, not_accepted: 10 };
+async function loadEscalation() {
+    const a = (await require('./orderWatchSettings').get()).alert;
+    ESCALATE_MIN = { not_started: a.notStarted, slow_prep: a.slowPrep, no_rider: a.noRider, on_the_way_long: a.onWay, not_accepted: a.notAccepted };
+}
 const MIN = 60000;
 const ACTIVE = ['accepted', 'preparing', 'ready', 'out_for_delivery'];
 const LOOKBACK_MS = 8 * 86400000;   // scheduled orders can be made up to 7 days ahead
@@ -77,6 +82,7 @@ const BATCH = 200;
 
 // reads all active orders in batches (by _id), so no order is skipped when there are many
 async function checkStuck(now = new Date()) {
+    await loadEscalation().catch(() => { /* keep the last limits */ });
     let alerts = 0;
     let lastId = null;
     for (; ;) {

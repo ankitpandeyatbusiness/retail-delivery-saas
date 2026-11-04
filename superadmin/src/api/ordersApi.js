@@ -35,3 +35,6 @@ export const listRefunds = (status) => data(api.get('/admin/refunds', { params: 
 export const retryRefund = (id) => data(api.post(`/admin/refunds/${id}/retry`));
 // how each shop performed over the last days: shop cancels, prepare and delivery time, complaints (weak shops first, with the reason)
 export const getShopQuality = (days = 30) => data(api.get('/admin/orders/quality', { params: { days } }));
+// the limits behind the Orders tab (stuck times, your alert times, "needs a talk" cut-offs)
+export const getWatchSettings = () => data(api.get('/admin/orders/watch-settings'));
+export const saveWatchSettings = (body) => data(api.put('/admin/orders/watch-settings', body));

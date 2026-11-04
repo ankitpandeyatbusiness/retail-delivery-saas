@@ -34,7 +34,12 @@ export default function OrdersHomeScreen() {
             title="Orders"
             subtitle="Across every shop"
             scroll={false}
-            right={<HeaderButton icon="chart" onPress={() => nav.navigate('SalesReport', {})} />}
+            right={(
+                <View style={{ flexDirection: 'row' }}>
+                    <HeaderButton icon="settings" onPress={() => nav.navigate('OrderLimits')} />
+                    <HeaderButton icon="chart" onPress={() => nav.navigate('SalesReport', {})} />
+                </View>
+            )}
         >
             {tab === 'attention' ? <AttentionList header={switcher} />
                 : tab === 'live' ? <LiveBoard header={switcher} />

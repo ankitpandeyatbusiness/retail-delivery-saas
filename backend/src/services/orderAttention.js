@@ -6,8 +6,10 @@ const Tenant = require('../models/Tenant');
 const ACTIVE = ['placed', 'accepted', 'preparing', 'ready', 'out_for_delivery'];
 const MIN = 60000;
 
-// minutes an order may stay in a state before it is called stuck
-const LIMITS = { notAccepted: 5, cooking: 60, noRider: 10, onTheWay: 60, payment: 15 };
+const watch = require('./orderWatchSettings');
+// minutes an order may stay in a state before it is called stuck (the superadmin sets them: orderWatchSettings.attention)
+const limitsOf = (a) => ({ notAccepted: a.accept, cooking: a.cooking, noRider: a.noRider, onTheWay: a.onWay, payment: a.payment });
+const LIMITS = limitsOf(watch.defaults().attention);
 
 const LABEL = {
     not_accepted: 'Shop has not accepted',
@@ -29,7 +31,7 @@ const lastAt = (o, status) => {
 };
 
 // the first (most urgent) problem of one order, or null
-function problemOf(o, now) {
+function problemOf(o, now, LIMITS = limitsOf(watch.defaults().attention)) {
     const online = o.payment?.method && o.payment.method !== 'cod';
     if (o.status === 'cancelled' && online && o.payment?.status === 'paid' && !(o.cancel?.refundPaise > 0)) {
         return { code: 'refund_due', since: lastAt(o, 'cancelled') };
@@ -63,10 +65,11 @@ async function attention({ tenantId, now = Date.now() } = {}) {
             { 'payment.status': { $in: ['failed', 'pending'] }, status: { $ne: 'cancelled' }, createdAt: { $gte: since } },
         ],
     };
+    const limits = limitsOf((await watch.get()).attention);
     const orders = await Order.find(filter).sort({ createdAt: -1 }).limit(400);
     const found = [];
     for (const o of orders) {
-        const p = problemOf(o, now);
+        const p = problemOf(o, now, limits);
         if (p) found.push({ code: p.code, label: LABEL[p.code], minutes: mins(p.since, now), order: o });
     }
     found.sort((a, b) => (RANK[a.code] - RANK[b.code]) || (b.minutes - a.minutes));

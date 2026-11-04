@@ -84,6 +84,15 @@ router.get('/orders/attention', wrap(async (req, res) => {
 }));
 // how each shop performed over the last days (default 30): shop cancels, prepare and delivery time, complaints; weak shops first, with the reason
 router.get('/orders/quality', wrap(async (req, res) => { res.json(await require('../services/shopQuality').report({ days: clamp(parseInt(req.query.days, 10) || 30, 1, 365) })); }));
+// the limits behind this tab: when an order is stuck, when you are alerted, when a shop needs a talk (changing them: supreme admin)
+router.get('/orders/watch-settings', wrap(async (req, res) => {
+    const w = require('../services/orderWatchSettings');
+    res.json({ values: await w.get(), defaults: w.defaults(), ranges: w.SPEC });
+}));
+router.put('/orders/watch-settings', require('../middlewares/supremeAdmin').requireSupreme, wrap(async (req, res) => {
+    req.auditBefore = await require('../services/orderWatchSettings').get();
+    res.json({ values: await require('../services/orderWatchSettings').set(req.body) });
+}));
 router.get('/orders/live', wrap(async (req, res) => { res.json(await require('../services/orderAttention').live()); }));
 
 // money going back to customers: open = not finished yet (pending, processing, failed), done = processed

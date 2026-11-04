@@ -154,4 +154,26 @@ describe('orders attention and live', () => {
         assert.ok(!told.some((n) => n.data.orderNo === fresh.orderNo));
         assert.equal((await Order.findById(prep._id).lean()).stuck.stage, 'slow_prep', 'the owner mark is still there');
     });
+
+    test('the limits can be read and changed, bad values are refused, and the new limit is used', async () => {
+        const w = await f.makeWorld('ow-' + Date.now().toString(36));
+        const o = await f.makeOrder(w.tenant, w.customer.user, {});
+        await Order.collection.updateOne({ _id: o._id }, { $set: { status: 'placed', createdAt: ago(8) } });
+        let r = await request(app).get('/api/admin/orders/watch-settings').set(auth());
+        assert.equal(r.status, 200);
+        assert.equal(r.body.values.attention.accept, 5);
+        assert.equal((await request(app).get('/api/admin/orders/attention').set(auth())).body.counts.not_accepted, 1);
+
+        r = await request(app).put('/api/admin/orders/watch-settings').set(auth()).send({ attention: { accept: 15 } });
+        assert.equal(r.status, 200, JSON.stringify(r.body));
+        assert.equal(r.body.values.attention.accept, 15);
+        assert.equal((await request(app).get('/api/admin/orders/attention').set(auth())).body.counts.not_accepted, undefined, '8 minutes is now within the limit');
+
+        assert.equal((await request(app).put('/api/admin/orders/watch-settings').set(auth()).send({ attention: { accept: 0 } })).status, 400);
+        assert.equal((await request(app).put('/api/admin/orders/watch-settings').set(auth()).send({ nope: { x: 1 } })).status, 400);
+        assert.equal((await request(app).put('/api/admin/orders/watch-settings').set(auth()).send({ talk: { prepMin: 'abc' } })).status, 400);
+
+        r = await request(app).put('/api/admin/orders/watch-settings').set(auth()).send({ reset: true });
+        assert.equal(r.body.values.attention.accept, 5);
+    });
 });

@@ -6,13 +6,16 @@ const Tenant = require('../models/Tenant');
 
 const MIN = 60000;
 const MIN_ORDERS = 10;                         // fewer orders than this is too few to judge
-const LIMIT = { shopCancelPct: 10, prepMin: 45, deliveryMin: 50, complaintPct: 8 };
+const watch = require('./orderWatchSettings');
+const LIMIT = watch.defaults().talk;   // the superadmin changes them in the Orders limits screen
 
 // first time the order reached a status (from its history), as a pipeline expression
 const firstAt = (status) => ({ $arrayElemAt: [{ $map: { input: { $filter: { input: { $ifNull: ['$statusHistory', []] }, cond: { $eq: ['$$this.status', status] } } }, in: '$$this.at' } }, 0] });
 
 async function report({ days = 30, now = Date.now() } = {}) {
     const since = new Date(now - days * 86400000);
+    const LIMIT = (await watch.get()).talk;
+    const MIN_ORDERS = LIMIT.minOrders;
     const rows = await Order.aggregate([
         { $match: { createdAt: { $gte: since } } },
         { $project: {
@@ -46,7 +49,7 @@ async function report({ days = 30, now = Date.now() } = {}) {
         return { tenantId: id, shopName: names.get(id) || 'Unknown shop', orders: r.orders, delivered: r.delivered, sales: r.sales || 0, shopCancels: r.shopCancels, otherCancels: r.otherCancels, shopCancelPct: pct(r.shopCancels), prepMin: round(r.prepAvg), deliveryMin: round(r.tripAvg), complaints: c, weak: why.length > 0, why };
     });
     items.sort((a, b) => (b.weak - a.weak) || (b.why.length - a.why.length) || (b.orders - a.orders));
-    return { days, items, weak: items.filter((i) => i.weak).length };
+    return { days, minOrders: MIN_ORDERS, items, weak: items.filter((i) => i.weak).length };
 }
 
 module.exports = { report, LIMIT, MIN_ORDERS };

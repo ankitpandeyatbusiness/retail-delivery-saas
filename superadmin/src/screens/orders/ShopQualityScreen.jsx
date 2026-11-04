@@ -35,7 +35,7 @@ export default function ShopQualityScreen() {
                         <Card key={s.tenantId} onPress={() => nav.navigate('ShopOrders', { shopId: s.tenantId, name: s.shopName })} style={{ marginBottom: spacing.md }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                                 <Text style={{ flex: 1, color: t.text, fontWeight: '800', fontSize: font.md }} numberOfLines={1}>{s.shopName}</Text>
-                                <Badge label={s.weak ? 'Needs a talk' : s.orders < 10 ? 'Too few orders' : 'Good'} tone={s.weak ? 'danger' : s.orders < 10 ? 'neutral' : 'success'} />
+                                <Badge label={s.weak ? 'Needs a talk' : s.orders < (data.minOrders || 10) ? 'Too few orders' : 'Good'} tone={s.weak ? 'danger' : s.orders < (data.minOrders || 10) ? 'neutral' : 'success'} />
                             </View>
                             <View style={{ flexDirection: 'row', marginTop: spacing.sm }}>
                                 {[['Orders', s.orders], ['Sales', rupees(s.sales)], ['Shop cancels', `${s.shopCancelPct}%`], ['Prepare', num(s.prepMin, ' min')], ['Delivery', num(s.deliveryMin, ' min')], ['Complaints', s.complaints]].map(([l, v]) => (
