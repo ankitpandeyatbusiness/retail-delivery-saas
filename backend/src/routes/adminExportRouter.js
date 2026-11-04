@@ -23,7 +23,7 @@ const writeDown = (req, key, full, rows) => AuditLog.create({
     method: req.method, path: req.originalUrl.split('?')[0], query: { ...req.query, rows }, ip: req.ip,
 }).catch((e) => console.error('Audit log error:', e.message));
 
-router.get('/exports/catalog', wrap(async (req, res) => { res.json({ items: centre.catalog(), max: centre.MAX_ROWS, canSeeFullPhones: isSupreme(req.admin) }); }));
+router.get('/exports/catalog', wrap(async (req, res) => { res.json({ items: centre.catalog(), max: centre.MAX_ROWS, csvMax: centre.CSV_MAX, canSeeFullPhones: isSupreme(req.admin) }); }));
 
 router.get('/exports/:key/count', wrap(async (req, res) => { res.json(await centre.count(req.params.key, req.query)); }));
 

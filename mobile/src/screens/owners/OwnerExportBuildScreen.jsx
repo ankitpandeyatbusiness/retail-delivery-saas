@@ -57,9 +57,9 @@ export default function OwnerExportBuildScreen() {
     useEffect(() => {
         if (!item) return undefined;
         setCount(null);
-        const id = setTimeout(() => { countExport(key, params).then(setCount).catch(() => setCount({ error: true })); }, 400);
+        const id = setTimeout(() => { countExport(key, { ...params, format }).then(setCount).catch(() => setCount({ error: true })); }, 400);
         return () => clearTimeout(id);
-    }, [item, key, params]);
+    }, [item, key, params, format]);
 
     if (!item) return <OwnerScreen title={tr('Download your data')} page>{err ? <Text style={{ color: red, margin: 16 }}>{err}</Text> : <View style={{ padding: 16 }}><ListShimmer /></View>}</OwnerScreen>;
 
@@ -79,7 +79,7 @@ export default function OwnerExportBuildScreen() {
     return (
         <OwnerScreen title={tr(item.title)} page>
             <View style={{ padding: 16 }}>
-                <Text style={{ color: muted, fontSize: 13 }}>{item.hint}</Text>
+                <Text style={{ color: muted, fontSize: 13 }}>{tr(item.hint)}</Text>
 
                 {pickShops ? (
                     <>
@@ -115,7 +115,7 @@ export default function OwnerExportBuildScreen() {
                         <SectionTitle title={tr('Filters')} />
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                             <Text style={{ flex: 1, color: activeFilters ? primary : muted, fontWeight: '700', fontSize: 13, paddingRight: 8 }} numberOfLines={2}>
-                                {activeFilters ? item.filters.filter((f) => filters[f.key]).map((f) => `${f.label}: ${(f.options.find((o) => o[0] === filters[f.key]) || [0, filters[f.key]])[1]}`).join(' · ') : tr('None: everything that matches')}
+                                {activeFilters ? item.filters.filter((f) => filters[f.key]).map((f) => `${tr(f.label)}: ${tr((f.options.find((o) => o[0] === filters[f.key]) || [0, filters[f.key]])[1])}`).join(' · ') : tr('None: everything that matches')}
                             </Text>
                             <FunnelButton count={activeFilters} onPress={() => setFilterOpen(true)} />
                         </View>
@@ -130,7 +130,7 @@ export default function OwnerExportBuildScreen() {
                         {count === null ? tr('Counting...') : count.error ? tr('Could not count') : `${count.count.toLocaleString('en-IN')} ${tr(count.count === 1 ? 'row' : 'rows')}`}
                     </Text>
                     <Text style={{ color: muted, fontSize: 12.5, marginTop: 2 }}>
-                        {count && count.capped ? tr('The file holds the first {n}. Pick a shorter period to get them all.', { n: count.max.toLocaleString('en-IN') }) : count && count.count === 0 ? tr('Nothing matches. Change the period or the filters.') : tr('This is what the file will hold.')}
+                        {count && count.capped ? tr('The file holds the first {n}. Pick a shorter period to get them all.', { n: count.max.toLocaleString('en-IN') }) + (format === 'xlsx' ? ' ' + tr('Or choose CSV: it holds more.') : '') : count && count.count === 0 ? tr('Nothing matches. Change the period or the filters.') : tr('This is what the file will hold.')}
                     </Text>
                 </Card>
                 <Button label={busy ? tr('Making the file...') : tr(format === 'csv' ? 'Download CSV' : 'Download Excel')} icon="download" onPress={go} busy={busy} disabled={count && count.count === 0} style={{ marginTop: 16 }} />

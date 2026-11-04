@@ -77,7 +77,7 @@ export default function OfferPopup() {
                     <Grip style={{ paddingTop: 10 }}><View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: muted, opacity: 0.4 }} /></Grip>
                     <ScrollView {...scroll} contentContainerStyle={{ padding: 16 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <Text style={{ color: primary, fontWeight: '900', fontSize: 17 }}>{T.newOrder} · #{o.orderNo}</Text>
+                            <Text style={{ color: primary, fontWeight: '900', fontSize: 17 }}>{T.newOrder} · {o.ref || '#' + o.orderNo}</Text>
                             {left != null ? <Text style={{ color: left <= 10 ? '#DC2626' : muted, fontWeight: '900', fontSize: 15 }}>{T.secondsLeft(left)}</Text> : null}
                         </View>
                         <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 14 }}>

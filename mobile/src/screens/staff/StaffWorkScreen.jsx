@@ -65,7 +65,7 @@ export default function StaffWorkScreen() {
                             {d.working.length ? (
                                 <Card>
                                     {d.working.map((o, i) => (
-                                        <Row key={o.id} icon="flame" title={tr('Order #{orderNo}', { orderNo: o.orderNo })} subtitle={`${o.orderType === 'dine_in' ? tr('Table {n}', { n: o.table || '' }) : o.orderType === 'pickup' ? tr('Pickup') : tr('Delivery')} · ${o.dishes} ${tr('dishes')} · ${ago(o.since)}`} last={i === d.working.length - 1} />
+                                        <Row key={o.id} icon="flame" title={tr('Order #{orderNo}', { orderNo: o.ref || o.orderNo })} subtitle={`${o.orderType === 'dine_in' ? tr('Table {n}', { n: o.table || '' }) : o.orderType === 'pickup' ? tr('Pickup') : tr('Delivery')} · ${o.dishes} ${tr('dishes')} · ${ago(o.since)}`} last={i === d.working.length - 1} />
                                     ))}
                                 </Card>
                             ) : <Card><Text style={{ color: muted }}>{tr('Nothing on the stove right now.')}</Text></Card>}
@@ -84,7 +84,7 @@ export default function StaffWorkScreen() {
                                     return rows.map((o, i) => (
                                         <View key={o.id} style={{ paddingVertical: 10, borderTopWidth: i ? 0.5 : 0, borderTopColor: muted + '55' }}>
                                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                                <Text style={{ color: text, fontWeight: '900', flex: 1 }}>{tr('Order #{orderNo}', { orderNo: o.orderNo })}{o.orderType === 'dine_in' ? ` · ${tr('Table {n}', { n: o.table || '' })}` : o.orderType === 'pickup' ? ` · ${tr('Pickup')}` : ` · ${tr('Delivery')}`}</Text>
+                                                <Text style={{ color: text, fontWeight: '900', flex: 1 }}>{tr('Order #{orderNo}', { orderNo: o.ref || o.orderNo })}{o.orderType === 'dine_in' ? ` · ${tr('Table {n}', { n: o.table || '' })}` : o.orderType === 'pickup' ? ` · ${tr('Pickup')}` : ` · ${tr('Delivery')}`}</Text>
                                                 <Text style={{ color: muted, fontSize: 12 }}>{new Date(o.at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</Text>
                                             </View>
                                             <Text style={{ color: text, marginTop: 3 }}>{o.items.map((x) => `${x.quantity}× ${x.name}`).join(', ')}</Text>

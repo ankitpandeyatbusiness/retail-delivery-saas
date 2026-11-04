@@ -108,7 +108,7 @@ export default function RiderHistoryScreen() {
                                     {missed.map((o) => (
                                         <View key={String(o.id)} style={{ marginHorizontal: 16, marginBottom: 10, borderRadius: 18, padding: 14, paddingLeft: 20, backgroundColor: alpha(error, 0.07), borderWidth: 1, borderColor: alpha(error, 0.35), overflow: 'hidden' }}>
                                             <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 5, backgroundColor: error }} />
-                                            <Text style={{ color: text, fontWeight: '900', fontSize: 16 }}>{tr('Order #{orderNo}', { orderNo: o.orderNo })}</Text>
+                                            <Text style={{ color: text, fontWeight: '900', fontSize: 16 }}>{tr('Order #{orderNo}', { orderNo: o.ref || o.orderNo })}</Text>
                                             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 3 }}>
                                                 <Ionicons name="time-outline" size={13} color={muted} />
                                                 <Text style={{ color: muted, fontWeight: '600', fontSize: 12.5, marginLeft: 4 }}>{tr('You did not answer in time')} · {o.missed?.at ? when(o.missed.at) : ''}</Text>
@@ -141,7 +141,7 @@ export default function RiderHistoryScreen() {
                                     <Ionicons name={done ? 'checkmark-circle' : 'close-circle'} size={24} color={tone} />
                                 </View>
                                 <View style={{ flex: 1 }}>
-                                    <Text style={{ color: text, fontWeight: '900', fontSize: 16 }}>{tr('Order #{orderNo}', { orderNo: o.orderNo })}</Text>
+                                    <Text style={{ color: text, fontWeight: '900', fontSize: 16 }}>{tr('Order #{orderNo}', { orderNo: o.ref || o.orderNo })}</Text>
                                     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 3 }}>
                                         <Ionicons name="time-outline" size={13} color={muted} />
                                         <Text style={{ color: muted, fontWeight: '600', fontSize: 12.5, marginLeft: 4 }}>{when(o.delivery?.deliveredAt || o.createdAt)}</Text>

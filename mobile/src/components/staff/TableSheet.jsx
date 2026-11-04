@@ -89,7 +89,7 @@ export default function TableSheet({ session, onClose, onPaid }) {
                                 return (
                                     <View key={r.id} style={{ paddingVertical: 10, borderBottomWidth: 0.5, borderBottomColor: border }}>
                                         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                                            <Text style={{ color: text, fontWeight: '900', flex: 1 }} numberOfLines={1}>#{r.orderNo}{r.by?.name ? ` · ${r.by.name}` : ''}</Text>
+                                            <Text style={{ color: text, fontWeight: '900', flex: 1 }} numberOfLines={1}>{r.ref || '#' + r.orderNo}{r.by?.name ? ` · ${r.by.name}` : ''}</Text>
                                             <Pill label={tr(label)} color={c} />
                                             <Text style={{ color: text, fontWeight: '900', marginLeft: 10, minWidth: 64, textAlign: 'right' }}>{money(r.total)}{r.paid ? ' ✓' : ''}</Text>
                                         </View>

@@ -35,12 +35,12 @@ async function overview(tenant) {
         Order.find({ tenantId: tenant._id, orderType: 'dine_in', status: 'delivered', deliveredAt: { $gte: new Date(now - 5 * 60000) } }).select('orderNo tableNo items deliveredAt orderType status tableSessionId statusHistory').sort({ deliveredAt: -1 }).limit(20).lean(),
     ]);
     const orderUndo = require('./orderUndo');
-    const served = servedRows.map((o) => ({ id: String(o._id), orderNo: o.orderNo, table: o.tableNo || '', servedAt: o.deliveredAt, items: (o.items || []).map(lineOf), undo: orderUndo.offer(o, 'staff', 'waiter') })).filter((o) => o.undo);
+    const served = servedRows.map((o) => ({ id: String(o._id), orderNo: o.orderNo, ref: o.ref || '', table: o.tableNo || '', servedAt: o.deliveredAt, items: (o.items || []).map(lineOf), undo: orderUndo.offer(o, 'staff', 'waiter') })).filter((o) => o.undo);
     const serve = ready.map((o) => {
         const at = readyAt(o);
         const waitedMin = Math.max(0, Math.floor((now - new Date(at).getTime()) / 60000));
         return {
-            id: String(o._id), orderNo: o.orderNo, table: o.tableNo || '', party: o.tableParty || null, who: String(o.customer?.name || '').trim().split(/\s+/)[0] || null, sessionId: o.tableSessionId ? String(o.tableSessionId) : null,
+            id: String(o._id), orderNo: o.orderNo, ref: o.ref || '', table: o.tableNo || '', party: o.tableParty || null, who: String(o.customer?.name || '').trim().split(/\s+/)[0] || null, sessionId: o.tableSessionId ? String(o.tableSessionId) : null,
             readyAt: at, waitedMin, late: waitedMin >= serveLateMin, note: o.note || '', items: (o.items || []).map(lineOf),
         };
     }).sort((a, b) => new Date(a.readyAt) - new Date(b.readyAt));

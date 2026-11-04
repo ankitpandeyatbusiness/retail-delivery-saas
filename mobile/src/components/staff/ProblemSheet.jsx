@@ -28,7 +28,7 @@ export default function ProblemSheet({ order, onClose, onDone }) {
     };
 
     return (
-        <Sheet visible={!!order} onClose={onClose} title={order ? tr('Order #{n}: tell the owner', { n: order.orderNo }) : ''}>
+        <Sheet visible={!!order} onClose={onClose} title={order ? tr('Order #{n}: tell the owner', { n: order.ref || order.orderNo }) : ''}>
             {order ? (
                 <View>
                     <Option selected={kind === 'out_of_stock'} title={tr('A dish is finished')} subtitle={tr('It is switched off on the menu, and the owner decides about this order')} onPress={() => setKind('out_of_stock')} />

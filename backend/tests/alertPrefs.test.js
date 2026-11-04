@@ -62,7 +62,7 @@ describe('the alerts screen', () => {
         assert.ok(groups.groupsFor('kitchen').some((x) => x.id === 'cancel' && x.types.includes('kitchen_cancelled')));
         assert.ok(!groups.groupsFor('waiter').some((x) => x.types.includes('waiter_cancelled') || x.id === 'cancel'));
         assert.ok(groups.groupsFor('rider').some((x) => x.types.includes('rider_offer')));
-        assert.deepEqual(groups.groupsFor('customer'), []);
+        assert.ok(groups.groupsFor('customer').length >= 8);   // a customer has his own alert groups too (notification and tone only)
     });
 });
 

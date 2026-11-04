@@ -16,6 +16,7 @@ const { XLSX_TYPE } = require('../services/xlsxExport');
 
 const router = express.Router();
 const TITLE = { invoices: 'Rent bills', staff: 'Cooks and waiters' };
+const HINT = { invoices: 'Your monthly rent bills from the platform, with GST and payment details.' };
 
 // the shops this person may export: his own, plus the branches of his brand when he is a brand owner
 async function allowed(req) {
@@ -49,9 +50,9 @@ const writeDown = (req, key, rows) => AuditLog.create({
 
 router.get('/catalog', wrap(async (req, res) => {
     const a = await allowed(req);
-    const items = centre.catalog({ keys: centre.OWNER_KEYS }).map((i) => ({ ...i, title: TITLE[i.key] || i.title, shops: i.key === 'branches' ? false : i.shops && a.shops.length > 1 }));
+    const items = centre.catalog({ keys: centre.OWNER_KEYS }).map((i) => ({ ...i, title: TITLE[i.key] || i.title, hint: HINT[i.key] || i.hint, shops: i.key === 'branches' ? false : i.shops && a.shops.length > 1 }));
     res.json({
-        items, max: centre.MAX_ROWS,
+        items, max: centre.MAX_ROWS, csvMax: centre.CSV_MAX,
         shops: a.shops.map((t) => ({ id: String(t._id), name: t.name, city: t.branchCity || (t.address && t.address.city) || '' })),
     });
 }));

@@ -79,9 +79,9 @@ export default function ExportBuildScreen() {
     useEffect(() => {
         if (!item) return undefined;
         setCount(null);
-        const id = setTimeout(() => { countExport(key, params).then(setCount).catch(() => setCount({ error: true })); }, 400);
+        const id = setTimeout(() => { countExport(key, { ...params, format }).then(setCount).catch(() => setCount({ error: true })); }, 400);
         return () => clearTimeout(id);
-    }, [item, key, params]);
+    }, [item, key, params, format]);
 
     const activeFilters = Object.values(filters).filter(Boolean).length;
     const toggleShop = (id) => setShopIds((a) => (a.includes(id) ? a.filter((x) => x !== id) : [...a, id]));
@@ -178,7 +178,7 @@ export default function ExportBuildScreen() {
                     {count === null ? 'Counting...' : count.error ? 'Could not count' : `${count.count.toLocaleString('en-IN')} row${count.count === 1 ? '' : 's'}`}
                 </Text>
                 <Text style={{ color: t.muted, fontSize: font.sm, marginTop: 2 }}>
-                    {count?.capped ? `The file holds the first ${count.max.toLocaleString('en-IN')}. Narrow the period or pick fewer shops to get them all.` : count?.count === 0 ? 'Nothing matches. Change the shops, period or filters.' : 'This is what the file will hold.'}
+                    {count?.capped ? `The file holds the first ${count.max.toLocaleString('en-IN')}. Narrow the period or pick fewer shops, or choose CSV (it holds ${(cat.csvMax || 100000).toLocaleString("en-IN")}), to get them all.` : count?.count === 0 ? 'Nothing matches. Change the shops, period or filters.' : 'This is what the file will hold.'}
                 </Text>
             </Card>
             <Button kind="outline" icon="bolt" title="Save this choice for next time" onPress={() => setSaveOpen(true)} style={{ marginTop: spacing.md }} />

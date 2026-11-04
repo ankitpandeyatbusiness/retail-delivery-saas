@@ -14,6 +14,9 @@ const { wrap, httpError } = apiErrors;
 const router = express.Router();
 
 router.post('/messages', wrap(async (req, res) => {
+    // to EVERY shop owner (no shops chosen) is the supreme admin's; to chosen shops it is open to the other superadmins
+    const chosen = Array.isArray(req.body && req.body.tenantIds) && req.body.tenantIds.length;
+    if (!chosen && !require('../config/supreme').isSupreme(req.admin)) throw httpError(403, 'Only the supreme admin can write to every shop owner. You can choose the shops.');
     const b = await messages.startPlatform({ admin: req.admin, body: req.body });
     res.locals.auditAction = 'BROADCAST';
     res.locals.auditParams = { broadcastId: String(b._id), recipients: b.recipients, audience: b.audience };

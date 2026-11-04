@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useSupreme } from '../../hooks/useSupreme';
 import { View, Text, ScrollView } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme, spacing, font } from '../../theme';
@@ -18,11 +19,12 @@ const TONE = { done: 'success', sending: 'warn', queued: 'info', failed: 'danger
 // A message from the platform to the owners of all shops, or of the shops you choose.
 export default function OwnerMessagesScreen() {
     const t = useTheme();
+    const supreme = useSupreme();
     const shops = useShopsStore((s) => s.items);
     const [items, setItems] = useState(null);
     const [error, setError] = useState('');
     const [compose, setCompose] = useState(false);
-    const [form, setForm] = useState({ title: '', body: '', all: true, ids: [], sendEmail: false });
+    const [form, setForm] = useState({ title: '', body: '', all: supreme, ids: [], sendEmail: false });
     const [busy, setBusy] = useState(false);
     const [open, setOpen] = useState(null);
 
@@ -75,7 +77,7 @@ export default function OwnerMessagesScreen() {
             <Sheet visible={compose} onClose={() => setCompose(false)} title="New message to owners">
                 <Field label="Title" placeholder="e.g. A new feature for your shop" hint="The first line of the notification the shop owners get." value={form.title} onChangeText={(v) => setForm({ ...form, title: v })} maxLength={120} />
                 <Field label="Message" value={form.body} onChangeText={(v) => setForm({ ...form, body: v })} multiline maxLength={1000} hint={`${form.body.length}/1000`} />
-                <Switch title="Every shop" subtitle="Switch off to choose shops" value={form.all} onValueChange={(v) => setForm({ ...form, all: v })} />
+                {supreme ? <Switch title="Every shop" subtitle="Switch off to choose shops" value={form.all} onValueChange={(v) => setForm({ ...form, all: v })} /> : <Text style={{ color: t.muted, marginBottom: spacing.sm }}>Choose the shops. Writing to every shop owner is for the supreme admin.</Text>}
                 {!form.all ? (
                     <View style={{ marginVertical: spacing.sm }}>
                         <Label>Shops ({form.ids.length} chosen)</Label>

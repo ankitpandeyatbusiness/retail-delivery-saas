@@ -18,6 +18,7 @@ const MONEY = [
     /^\/finance\//,                                         // the platform's expenses
     /^\/money-record(\/|$)/,                                // the developer's yes/no and who brought a shop
     /^\/agreements(\/|$)/,
+    /^\/platform\/maintenance$/,                            // switching EVERY shop's app off (one shop's own switch stays open)
 ];
 
 function moneyGuard(req, res, next) {
@@ -32,4 +33,4 @@ function moneyGuard(req, res, next) {
     return next();
 }
 
-module.exports = { requireSupreme, moneyGuard, MESSAGE };
+module.exports = { requireSupreme, moneyGuard, MESSAGE, isSupreme };

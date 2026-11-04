@@ -722,6 +722,7 @@ router.put('/settings', wrap(async (req, res) => {
 router.use('/uploads', require('./uploadRouter'));   // direct-to-R2 uploads (owner and superadmin)
 router.get('/reviews', wrap(async (req, res) => { res.json(await require('../services/reviewsService').list({ tenantId: req.tenant._id, query: req.query })); }));   // what customers say: dishes and delivery
 router.use('/staff', require('./shopStaffRouter'));   // kitchen and waiter people: add, pause, remove
+router.use('/costs', require('./shopCostsRouter'));   // what the shop spends and what it really kept (profit)
 router.use('/exports', require('./shopExportRouter'));   // Excel or CSV of his own shop (or all his branches): customers, orders, riders, cooks, waiters ...
 router.use('/customers', require('./shopCustomersRouter'));   // customer tools: list, detail, edit, Cash on delivery block
 router.use('/booking', require('./shopBookingRouter'));   // table booking: rules, the day's bookings, seat, no-show, cancel

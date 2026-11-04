@@ -22,7 +22,8 @@ const { maskPhone } = require('../utils/phoneHash');
 const { buildWorkbook } = require('./xlsxExport');
 const { httpError } = require('../middlewares/apiErrors');
 
-const MAX_ROWS = 20000;
+const MAX_ROWS = 20000;          // an Excel file holds the first 20,000 rows (it is built in memory)
+const CSV_MAX = 100000;          // a CSV is plain text, so it can hold five times as many
 const IST = 330 * 60000;
 const DAY = 86400000;
 const LEVELS = { quick: 1, standard: 2, everything: 3 };
@@ -64,6 +65,7 @@ const list = (v) => String(v || '').split(',').map((x) => x.trim()).filter(Boole
 
 // ----- the datasets -----
 // columns: { h: header, k: key, kind, lv: first level it shows at (1 quick, 2 standard, 3 everything), get(doc, ctx) }
+const ShopExpense = require('../models/ShopExpense');
 const D = {};
 
 // ----- a customer in plain words (the Everything level of the customers export) -----
@@ -182,7 +184,7 @@ D.customers = {
         const [cnt] = await User.aggregate([...base, { $count: 'n' }]);
         const count = cnt ? cnt.n : 0;
         if (ctx.countOnly) return { count };
-        const rows = await User.aggregate([...base, { $sort: { spent: -1, _id: 1 } }, { $limit: MAX_ROWS }]);
+        const rows = await User.aggregate([...base, { $sort: { spent: -1, _id: 1 } }, { $limit: ctx.max }]);
         // the heavy part: favourites, usual time, day, how he pays (only when asked for)
         const extra = new Map();
         if (ctx.lv >= 3 && rows.length) {
@@ -517,7 +519,7 @@ D.owners = {
     ],
     async fetch(f, ctx) {
         const um = { role: 'admin', ...(ctx.scope ? { tenantId: { $in: ctx.scope } } : {}), ...inRange('createdAt', ctx.period) };
-        const users = await User.find(um).sort({ createdAt: -1 }).limit(MAX_ROWS * 2).select('tenantId name phone isBlocked createdAt lastLoginAt').lean();
+        const users = await User.find(um).sort({ createdAt: -1 }).limit(ctx.max * 2).select('tenantId name phone isBlocked createdAt lastLoginAt').lean();
         const ids = [...new Set(users.map((u) => String(u.tenantId)))].map(oid);
         const [tenants, st, inv, wallets, comp, tix, vers] = await Promise.all([
             Tenant.find({ _id: { $in: ids } }).select('name status billing brandId stats').lean(),
@@ -548,7 +550,7 @@ D.owners = {
             if (f.login === 'old' && !(seen === null || seen > 14 * DAY)) return false;
             return true;
         });
-        return { count: rows.length, rows: ctx.countOnly ? [] : rows.slice(0, MAX_ROWS) };
+        return { count: rows.length, rows: ctx.countOnly ? [] : rows.slice(0, ctx.max) };
     },
     map(r, c) {
         const { u, t, s } = r;
@@ -624,7 +626,7 @@ D.brand_people = {
             }
         }
         const out = rows.filter((r) => (!f.role || (f.role === 'brand') === (r.role === 'Brand owner')) && (f.rent !== 'owing' || r.tot.unpaid > 0));
-        return { count: out.length, rows: ctx.countOnly ? [] : out.slice(0, MAX_ROWS) };
+        return { count: out.length, rows: ctx.countOnly ? [] : out.slice(0, ctx.max) };
     },
     map(r, c) {
         const u = r.person || {};
@@ -662,7 +664,7 @@ D.staff = {
         if (['kitchen', 'waiter'].includes(f.role)) m.role = f.role;
         if (f.active === 'yes') m.isActive = { $ne: false };
         if (f.active === 'no') m.isActive = false;
-        const staff = await Staff.find(m).sort({ createdAt: -1 }).limit(MAX_ROWS).lean();
+        const staff = await Staff.find(m).sort({ createdAt: -1 }).limit(ctx.max).lean();
         const uids = staff.map((s) => s.userId);
         const users = new Map((await User.find({ _id: { $in: uids } }).select('phone name isBlocked lastLoginAt').lean()).map((u) => [String(u._id), u]));
         const since = new Date(ctx.now - 30 * DAY);
@@ -703,6 +705,18 @@ D.staff = {
             words: bits.join(' '), cookedAll: cook ? x.cookedAll : '', problems: cook ? r.problems || 0 : '', offUntil: (s.duty && s.duty.offUntil) || '', blocked: u.isBlocked ? 'Yes' : 'No',
         };
     },
+};
+
+D.shop_costs = {
+    title: 'My costs', group: 'My business', hint: 'What you wrote down as costs of the shop (ingredients, salaries, rent...).',
+    model: ShopExpense, shopField: 'tenantId', dateField: 'date', periodLabel: 'Spent between', sort: { date: -1 },
+    filters: [{ key: 'category', label: 'Kind', options: [['', 'Any'], ...ShopExpense.CATEGORIES.map((x) => [x, nice(x)])] }],
+    where: (f) => (ShopExpense.CATEGORIES.includes(f.category) ? { category: f.category } : {}),
+    columns: [
+        { h: 'Date', k: 'date', kind: 'date', lv: 1 }, { h: 'Shop', k: 'shop', lv: 1 }, { h: 'Kind', k: 'cat', lv: 1 }, { h: 'Amount (₹)', k: 'amount', kind: 'money', lv: 1 },
+        { h: 'Paid to', k: 'vendor', lv: 2 }, { h: 'Note', k: 'note', kind: 'wide', lv: 2 }, { h: 'Repeats monthly', k: 'repeat', kind: 'center', lv: 2 }, { h: 'Stops after', k: 'ends', kind: 'date', lv: 3 }, { h: 'Added by', k: 'by', lv: 3 },
+    ],
+    map: (e, c) => ({ date: e.date, shop: c.shop(e.tenantId), cat: e.category === 'other' && e.otherName ? 'other: ' + e.otherName : nice(e.category), amount: rs(e.amountPaise), vendor: e.vendor || '', note: e.note || '', repeat: e.repeatMonthly ? 'Yes' : '', ends: e.endsOn || '', by: e.createdBy || '' }),
 };
 
 D.branches = {
@@ -763,14 +777,15 @@ D.branches = {
     },
 };
 
-const ORDER = ['customers', 'owners', 'brand_people', 'staff', 'riders', 'orders', 'invoices', 'payments', 'refunds', 'complaints', 'menu', 'shops', 'sms_topups', 'sms_sent', 'expenses', 'audit', 'branches'];
+const ORDER = ['customers', 'owners', 'brand_people', 'staff', 'riders', 'orders', 'invoices', 'payments', 'refunds', 'complaints', 'menu', 'shops', 'sms_topups', 'sms_sent', 'expenses', 'audit', 'branches', 'shop_costs'];
 
 // ----- the engine -----
 const hasPeriod = (d) => !d.noPeriod && (d.dateField !== undefined || !!d.periodOn);
 const cols = (d, lv) => d.columns.filter((c) => c.lv <= lv);
 
+const SHOP_ONLY = ['branches', 'shop_costs'];   // exports that are the owner's own, not the platform's
 function catalog({ keys } = {}) {
-    return ORDER.filter((k) => (keys ? keys.includes(k) : k !== 'branches')).map((key) => {
+    return ORDER.filter((k) => (keys ? keys.includes(k) : !SHOP_ONLY.includes(k))).map((key) => {
         const d = D[key];
         return {
             key, title: d.title, group: d.group, hint: d.hint, shops: d.shopField !== null, period: hasPeriod(d), periodLabel: d.periodLabel || 'Between',
@@ -784,7 +799,7 @@ async function context(d, q, full, forced) {
     const names = new Map((await Tenant.find({}).select('name').lean()).map((t) => [String(t._id), t.name]));
     const lv = LEVELS[q.level] || 2;
     return {
-        now: Date.now(), lv, scope: forced || (await scopeOf(q)), period: periodOf(q),
+        now: Date.now(), lv, max: q.format === 'csv' ? CSV_MAX : MAX_ROWS, scope: forced || (await scopeOf(q)), period: periodOf(q),
         shop: (id) => names.get(String(id)) || '',
         phone: (p) => (full ? (p || '') : (maskPhone(p) || '')),
     };
@@ -806,7 +821,7 @@ async function count(key, q, { full = false, forced } = {}) {
     ctx.countOnly = true;
     const f = filtersOf(d, q);
     const n = d.fetch ? (await d.fetch(f, ctx)).count : await d.model.countDocuments(matchFor(d, f, ctx));
-    return { count: n, max: MAX_ROWS, capped: n > MAX_ROWS };
+    return { count: n, max: ctx.max, capped: n > ctx.max };
 }
 
 async function rowsFor(key, q, full, forced) {
@@ -817,7 +832,7 @@ async function rowsFor(key, q, full, forced) {
     let docs; let total;
     if (d.fetch) { const r = await d.fetch(f, ctx); docs = r.rows; total = r.count; } else {
         const m = matchFor(d, f, ctx);
-        [docs, total] = await Promise.all([d.model.find(m).sort(d.sort || { _id: -1 }).limit(MAX_ROWS).lean(), d.model.countDocuments(m)]);
+        [docs, total] = await Promise.all([d.model.find(m).sort(d.sort || { _id: -1 }).limit(ctx.max).lean(), d.model.countDocuments(m)]);
     }
     if (d.prepare) await d.prepare(docs, ctx);
     const columns = cols(d, ctx.lv);
@@ -837,7 +852,7 @@ async function workbook(key, q, { full = false, admin = '', forced } = {}) {
         { a: 'Export', b: d.title }, { a: 'Detail', b: `${LEVEL_NAME[lvName]} (${columns.length} columns)` }, { a: 'Shops', b: d.shopField === null ? 'Not per shop' : shopsText },
         { a: d.periodLabel || 'Period', b: hasPeriod(d) ? periodText(ctx) : 'Not used' }, { a: 'Filters', b: filterText },
         { a: 'Rows', b: String(rows.length) }, { a: 'Phone numbers', b: full ? 'Full' : 'Hidden in the middle' },
-        ...(total > rows.length ? [{ a: 'Note', b: `${total} rows match; the file holds the first ${rows.length}. Narrow the period or pick fewer shops and download again.` }] : []),
+        ...(total > rows.length ? [{ a: 'Note', b: `${total} rows match; the file holds the first ${rows.length}. Narrow the period or pick fewer shops, or choose CSV (up to ${CSV_MAX}), and download again.` }] : []),
         { a: 'Made by', b: admin || 'Superadmin' }, { a: 'Made on', b: new Date(ctx.now) },
     ].map((x) => ({ a: x.a, b: x.b }));
     const sheets = [
@@ -861,5 +876,5 @@ async function csv(key, q, { full = false, forced } = {}) {
     return { text: `﻿${head}\r\n${body}`, rows: rows.length, total };
 }
 
-const OWNER_KEYS = ['customers', 'orders', 'riders', 'staff', 'branches', 'menu', 'complaints', 'invoices'];
-module.exports = { OWNER_KEYS, catalog, count, workbook, csv, MAX_ROWS, DATASETS: D, ORDER };
+const OWNER_KEYS = ['customers', 'orders', 'riders', 'staff', 'branches', 'menu', 'complaints', 'invoices', 'shop_costs'];
+module.exports = { OWNER_KEYS, catalog, count, workbook, csv, MAX_ROWS, CSV_MAX, DATASETS: D, ORDER };

@@ -32,7 +32,7 @@ export default function KitchenOrderCard({ o, lateMin, busy, onAct, onProblem, o
     return (
         <View style={{ backgroundColor: surface, borderColor: lateNow ? alpha(error, 0.55) : border, borderWidth: lateNow ? 1.5 : 1, borderLeftColor: edge, borderLeftWidth: 5, borderRadius: 18, padding: 14, marginHorizontal: 16, marginBottom: 12 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={{ color: text, fontSize: 24, fontWeight: '900' }}>#{o.orderNo}</Text>
+                <Text style={{ color: text, fontSize: 24, fontWeight: '900' }}>{o.ref || '#' + o.orderNo}</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 10, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 99, backgroundColor: alpha(primary, 0.14), flexShrink: 1 }}>
                     <Ionicons name={w.icon} size={13} color={primary} style={{ marginRight: 4 }} />
                     <Text numberOfLines={1} style={{ color: primary, fontWeight: '800', fontSize: 12.5, flexShrink: 1 }}>{w.text}</Text>

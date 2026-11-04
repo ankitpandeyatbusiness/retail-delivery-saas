@@ -410,6 +410,9 @@ function AccountInner() {
                     <Appear delay={150} style={s.tileCell}>
                         <AccountTile icon="notifications-outline" label={tr('Notifications')} sub={unread > 0 ? tr('{unread} unread', { unread: unread }) : tr('All caught up')} badge={unread} onPress={() => nav.navigate('Notifications')} />
                     </Appear>
+                    <Appear delay={165} style={s.tileCell}>
+                        <AccountTile icon="volume-high-outline" label={tr('Alert sounds')} sub={tr('Choose what rings')} onPress={() => nav.navigate('AlertSettings')} />
+                    </Appear>
                     {referOn ? (
                         <Appear delay={180} style={s.tileCell}>
                             <AccountTile icon="gift-outline" label={tr('Refer a friend')} sub={tr('Share your code')} onPress={() => nav.navigate('ReferFriend')} />

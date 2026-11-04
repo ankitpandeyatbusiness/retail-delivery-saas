@@ -83,6 +83,7 @@ import ShopsToCloseScreen from '../screens/shops/ShopsToCloseScreen';
 import RefundsScreen from '../screens/orders/RefundsScreen';
 import MoneyAttentionScreen from '../screens/money/MoneyAttentionScreen';
 import SmsSetupScreen from '../screens/platform/SmsSetupScreen';
+import ServerSetupScreen from '../screens/platform/ServerSetupScreen';
 import ExportBuildScreen from '../screens/insights/ExportBuildScreen';
 import MaintenancePlanScreen from '../screens/platform/MaintenancePlanScreen';
 import ShopsToolsScreen from '../screens/shops/ShopsToolsScreen';
@@ -163,6 +164,7 @@ const DETAIL = [
     ['Refunds', RefundsScreen],
     ['MoneyAttention', MoneyAttentionScreen],
     ['SmsSetup', SmsSetupScreen],
+    ['ServerSetup', ServerSetupScreen],
     ['ExportBuild', ExportBuildScreen],
     ['MaintenancePlan', MaintenancePlanScreen],
     ['ShopsTools', ShopsToolsScreen],

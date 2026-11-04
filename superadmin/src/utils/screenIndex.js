@@ -35,6 +35,7 @@ export const SCREEN_INDEX = [
     E('Alert SMS', 'More', 'AlertSettings', 'MoreTab', 'message', 'catalog', 'alert sms my phone number text message critical events cost'),
     E('Notification rules', 'More', 'NotificationRules', 'MoreTab', 'tune', 'settings', 'notification rules events channels push sms escalate delivered how'),
     E('Maintenance', 'More', 'Maintenance', 'MoreTab', 'tool', 'alerts', 'maintenance pause all shops upgrade downtime message until'),
+    E('Server setup', 'More', 'ServerSetup', 'root', 'tool', 'platform', 'server setup checklist env settings secrets firebase push r2 images backups email brevo google maps sentry razorpay missing mock test mode'),
     E('SMS and DLT setup', 'More', 'SmsSetup', 'root', 'message', 'catalog', 'sms dlt setup msg91 sender id entity template auth key otp test sms register provider header'),
     E('Brands and branches', 'Shops', 'Brands', 'root', 'shops', 'platform', 'brands branches brand chain group several shops add branch make brand'),
     E('Shops growth', 'Shops', 'ShopsGrowth', 'root', 'chart', 'shops', 'growth top shops slowing down growing rank'),

@@ -47,6 +47,7 @@ export default function AlertSettingsScreen() {
         { text: tr('Cancel'), style: 'cancel' },
         { text: tr('Use recommended'), onPress: async () => { showToast((await reset()) ? tr('Recommended settings are on') : tr('Could not save. Try again.')); } },
     ], { icon: 'sparkles-outline' });
+    const withVoice = groups.some((g) => g.can.v || g.can.p);
     const changed = groups.some((g) => ['n', 'p', 's', 'v'].some((k) => g.can[k] && g.pref[k] !== g.defaults[k]) || g.pref.sec !== g.defaults.sec);
 
     return (
@@ -54,7 +55,7 @@ export default function AlertSettingsScreen() {
             <PageHeader title={tr('Alerts')} />
             <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
                 <View style={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: 6 }}>
-                    <Text style={{ color: muted, fontSize: 12.5, lineHeight: 18 }}>{tr('Notification shows on the phone, even when the app is closed. Tone is its sound. Voice reads it out while the app is open. Slider is the box that slides up over the app.')}</Text>
+                    <Text style={{ color: muted, fontSize: 12.5, lineHeight: 18 }}>{withVoice ? tr('Notification shows on the phone, even when the app is closed. Tone is its sound. Voice reads it out while the app is open. Slider is the box that slides up over the app.') : tr('Notification shows on the phone, even when the app is closed. Tone is its sound.')}</Text>
                     <Button label={changed ? tr('Use recommended settings') : tr('You are on the recommended settings')} icon="sparkles" kind={changed ? 'primary' : 'ghost'} disabled={!changed} onPress={recommended} style={{ marginTop: 10 }} />
                 </View>
                 {!loaded ? <ListShimmer count={5} /> : null}

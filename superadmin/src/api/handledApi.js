@@ -10,6 +10,7 @@ export const fetchAttentionList = (key) => data(api.get(`/admin/finance/attentio
 export const searchMoney = (q) => data(api.get('/admin/finance/search', { params: { q } }));
 
 /* ---- More tab ---- */
+export const fetchServerSetup = () => data(api.get('/admin/ops/setup'));
 export const fetchMoreAttention = () => data(api.get('/admin/more/attention'));
 // your SMS provider setup (sender, entity, key, template IDs); changing it and the test SMS are for the supreme admin
 export const fetchSmsSetup = () => data(api.get('/admin/platform/sms-setup'));

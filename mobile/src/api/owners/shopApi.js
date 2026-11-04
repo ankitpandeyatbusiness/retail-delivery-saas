@@ -29,6 +29,12 @@ export const automations = {   // what the system does by itself for this shop (
     reset: () => d(api.delete('/shop/automations')),
 };
 export const orderHistory = (params) => d(api.get('/shop/order-history', q(params)));   // the History tab: { items, hasMore, page, summary, byDay }
+// costs and profit: what the shop spends, and what it really kept
+export const fetchCosts = (params) => d(api.get('/shop/costs', q(params)));
+export const addCost = (body) => d(api.post('/shop/costs', body));
+export const updateCost = (id, body) => d(api.patch(`/shop/costs/${id}`, body));
+export const deleteCost = (id) => d(api.delete(`/shop/costs/${id}`));
+export const fetchProfit = (params) => d(api.get('/shop/costs/profit', q(params)));
 // "Download your data": Excel or CSV of his own shop (or all his branches). Catalog, a row count, and the file path (downloadAndOpen).
 export const fetchExportCatalog = () => d(api.get('/shop/exports/catalog'));
 export const countExport = (key, params) => d(api.get(`/shop/exports/${key}/count`, q(params)));

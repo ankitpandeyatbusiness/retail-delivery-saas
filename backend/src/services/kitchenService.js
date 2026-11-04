@@ -69,6 +69,7 @@ function viewOf(o, { lateMin, now = Date.now() }) {
     return {
         id: String(o._id),
         orderNo: o.orderNo,
+        ref: o.ref || '',
         orderType: o.orderType,
         tableNo: o.tableNo || null,
         party: o.tableParty || null,   // shared tables: the bill's letter, shown next to the table number

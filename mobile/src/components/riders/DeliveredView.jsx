@@ -59,7 +59,7 @@ export default function DeliveredView({ o, onDone }) {
                 </View>
                 <Text style={{ color: text, fontSize: 30, fontWeight: '900', marginTop: 18 }}>{T.delivered}</Text>
                 <Text style={{ color: muted, fontSize: 14.5, fontWeight: '600', marginTop: 6, textAlign: 'center' }}>
-                    {`#${o.orderNo}${o.customer?.name ? ` · ${o.customer.name}` : ''}${items ? ` · ${items} ${items === 1 ? tr('item') : tr('items')}` : ''}`}
+                    {`${o.ref || '#' + o.orderNo}${o.customer?.name ? ` · ${o.customer.name}` : ''}${items ? ` · ${items} ${items === 1 ? tr('item') : tr('items')}` : ''}`}
                 </Text>
                 <Text style={{ color: muted, fontSize: 14, marginTop: 4 }}>{tr('Great work. Thank you!')}</Text>
 

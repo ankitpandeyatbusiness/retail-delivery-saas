@@ -69,3 +69,14 @@ Not tried on a phone yet.
 3. A shop with one branch sees only its own shop. A **brand owner** also sees "Which shops": all branches, or any ticked ones. Nobody can export a shop that is not theirs (the server refuses).
 4. Customers at Everything level have the **Behaviour in words** sentence for each customer; cooks and waiters and branches have one too.
 5. Phone numbers in these files are full, because they are the owner's own customers and staff. Every download is written to the shop's audit log.
+
+## 10. The fix list (not tried on a phone yet)
+1. **Only the supreme admin stops every shop.** As an ordinary superadmin: More > Maintenance shows no "start for all shops" button; Plan maintenance has no "Every shop" choice (chosen shops and brands work); Messages to owners must have shops chosen. As the supreme admin everything works.
+2. **More > Server setup**: each group is Set / Missing / Test mode with what it is for and how to set it. No values are shown.
+3. **Brand page > Move a person between branches** (shows when the brand has 2+ branches): pick the branch, the person (manager, cook, waiter, rider), the other branch. A person with live work is refused.
+4. **Exports**: a CSV can hold 100,000 rows (Excel 20,000); the count card says so when a file is capped.
+5. **Shop owner app, Money group > Costs and profit**: add costs (ingredients, salaries, shop rent, electricity, packaging, marketing, repairs, transport, other), a monthly cost counts a share for each day, profit = sales - costs - rent and SMS paid to the platform, with the period before. The closing report has a "Profit after costs" card. The costs can be downloaded from Download your data.
+6. **Pictures**: tap a dish picture (item page), a service picture, a complaint or support-ticket photo: full screen, pinch, double tap, drag, swipe down to close.
+7. **Order references** (SAV-1042) now show on the rider's and the cook's and the waiter's screens.
+8. **Alerts screen for the customer**: Account > Alert sounds. Nine groups, each with a Notification and a Tone switch (no slider or voice: the customer app has no Soundbox). Turning Notification off silences that kind of push.
+9. **Hindi, Marathi, Gujarati, Bengali** (Bhojpuri follows Hindi) for the new owner and customer texts.

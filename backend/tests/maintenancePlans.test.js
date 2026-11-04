@@ -113,4 +113,20 @@ describe('planned maintenance', () => {
         assert.equal((await post('/api/admin/maintenance/plans', { scope: 'shops', tenantIds: [], startAt: s.toISOString() })).status, 400);
         assert.equal((await post('/api/admin/maintenance/plans', { scope: 'all', startAt: s.toISOString(), audience: { owners: false, staff: false, riders: false, customers: false } })).status, 400);
     });
+
+    test('only the supreme admin can stop every shop or write to every shop owner; other superadmins can act on chosen shops', async () => {
+        const other = (await f.makeSuperAdmin('other@test.com', { phones: [] })).token;
+        const as = (m, u, b) => request(app)[m](u).set({ Authorization: 'Bearer ' + other }).send(b || {});
+        const start = new Date(Date.now() + 3 * H).toISOString();
+        assert.equal((await as('post', '/api/admin/maintenance/plans', { scope: 'all', startAt: start })).status, 403);
+        assert.equal((await as('put', '/api/admin/platform/maintenance', { on: true })).status, 403);
+        assert.equal((await as('post', '/api/admin/messages', { title: 'Hello', body: 'To everybody' })).status, 403);
+        const ok = await as('post', '/api/admin/maintenance/plans', { scope: 'shops', tenantIds: [String(w.tenant._id)], startAt: start });
+        assert.equal(ok.status, 201);
+        // an "all shops" plan made by the supreme admin cannot be cancelled by the other one
+        const big = await post('/api/admin/maintenance/plans', { scope: 'all', startAt: start });
+        assert.equal(big.status, 201);
+        assert.equal((await as('post', `/api/admin/maintenance/plans/${big.body.id}/cancel`)).status, 403);
+        assert.equal((await post(`/api/admin/maintenance/plans/${big.body.id}/cancel`)).status, 200);
+    });
 });

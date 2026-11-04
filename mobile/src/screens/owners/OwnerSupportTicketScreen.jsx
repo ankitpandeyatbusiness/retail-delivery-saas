@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, ScrollView, Pressable, TextInput, KeyboardAvoidingView, Platform, Linking, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
+import { ZoomPress } from '../../components/common/PhotoViewer';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -30,9 +31,9 @@ function Bubble({ m }) {
                 {m.photos?.length ? (
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 }}>
                         {m.photos.map((u) => (
-                            <Pressable key={u} onPress={() => Linking.openURL(u).catch(() => { })} style={{ marginRight: 6, marginBottom: 6 }}>
+                            <ZoomPress key={u} uri={u} uris={m.photos} style={{ marginRight: 6, marginBottom: 6 }}>
                                 <Image source={{ uri: u }} style={{ width: 96, height: 96, borderRadius: 10 }} contentFit="cover" />
-                            </Pressable>
+                            </ZoomPress>
                         ))}
                     </View>
                 ) : null}

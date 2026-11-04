@@ -96,13 +96,27 @@ const SAMPLES = {
     'waiter.undo': ['Order 1173: Ready was undone.', 'ऑर्डर 1173: Ready वापस लिया गया।'],
     'waiter.leave': ['Your leave was approved.', 'आपकी छुट्टी मंज़ूर हुई।'],
 };
-const BY_ROLE = { admin: OWNER, rider: RIDER, kitchen: KITCHEN, waiter: WAITER };
+// The customer's own alerts: a notification and a tone for each kind (no slider and no voice: the customer app has no Soundbox).
+const cg = (id, label, hint, types, o = {}) => ({ ...g(id, label, hint, types, o), can: { n: true, p: false, s: true, v: false }, defaults: { n: true, p: false, s: true, v: false, sec: 5 } });
+const CUSTOMER = [
+    cg('order_updates', 'Order updates', 'Your order was accepted, is on the way, a delivery partner is at your door, or the shop sent a note about it.', ['order_status', 'order_shop_note', 'order_cancel_no', 'rider_assigned', 'rider_arriving', 'rider_reached'], { critical: true }),
+    cg('pickup', 'Pickup orders', 'Your food is waiting, the shop answered your pickup time, or asked about your pickup.', ['pickup_waiting', 'pickup_time_ok', 'pickup_time_no', 'pickup_thanks', 'pickup_claim_no']),
+    cg('tables', 'Table and dining', 'Friends joining your table, a shared bill paid, your bill is ready, or the table is free again.', ['table_share_paid', 'table_share_left', 'table_join_request', 'table_joined', 'table_join_answer', 'table_walkout', 'table_bill_ready', 'table_freed', 'table_paid']),
+    cg('bookings', 'Table bookings', 'A reminder before your booking, your payment, a table that came free, or a booking the shop changed.', ['booking_reminder_customer', 'booking_paid', 'booking_waitlist_free', 'booking_allowed', 'booking_owner_cancelled']),
+    cg('bulk', 'Bulk orders', 'A quote, a confirmation, the stages of your bulk order, a refund, or the shop declined.', ['bulk_confirmed', 'bulk_refund', 'bulk_shop_cancelled', 'bulk_stage', 'bulk_completed', 'bulk_quoted', 'bulk_declined']),
+    cg('inquiries', 'Service inquiries', 'The shop answered your inquiry, or it was closed or opened again.', ['inquiry_reply', 'inquiry_ended', 'inquiry_reopened']),
+    cg('money', 'Refunds and dues', 'A refund is on its way, an amount you owe was cleared or rejected, or a reminder to pay.', ['refund_processed', 'owed_cleared', 'owed_claim_rejected', 'owed_reminder'], { critical: true }),
+    cg('complaints', 'Complaint answers', 'The shop decided on your complaint.', ['complaint_decision']),
+    cg('offers', 'Offers and rewards', 'A message or an offer from the shop, points that arrived, and referral rewards.', ['shop_nudge', 'broadcast', 'points_arrived', 'referral_reward'], { soft: true }),
+];
+const BY_ROLE = { admin: OWNER, rider: RIDER, kitchen: KITCHEN, waiter: WAITER, customer: CUSTOMER };
 // Every alert has four switches: n notification, s tone, v voice, p slider (the box that slides up over the app). The ones that need an answer
 // keep their slider open until the person acts (sec 0); the rest close by themselves after `sec` seconds (the person can change it).
 const SEC_CHOICES = [0, 3, 5, 7, 10, 15];
 const STICKY = new Set(['admin.new_orders', 'admin.bulk', 'rider.bulk_packed', 'admin.cancelled', 'admin.kitchen', 'admin.pickup', 'admin.help', 'admin.leave', 'rider.offers', 'kitchen.new']);
 const TIMED = { 'kitchen.cancel': 8 };   // an alert that is only news: its slider closes by itself after this many seconds
 for (const [role, list] of Object.entries(BY_ROLE)) {
+    if (role === 'customer') continue;   // a customer has no slider and no voice
     for (const x of list) {
         const e = !x.sample && SAMPLES[`${role}.${x.id}`]; if (e) x.sample = { en: e[0], hi: e[1] };
         x.can.p = true; x.can.v = true;

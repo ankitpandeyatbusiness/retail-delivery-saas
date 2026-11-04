@@ -29,7 +29,7 @@ export default function OwnerExportScreen() {
                         <SectionTitle title={tr(g)} />
                         <Card style={{ paddingHorizontal: 12 }}>
                             {cat.items.filter((i) => i.group === g).map((i, idx, arr) => (
-                                <Row key={i.key} icon={ICON[i.key] || 'download'} title={tr(i.title)} subtitle={i.hint} onPress={() => nav.navigate('OwnerExportBuild', { key: i.key })} last={idx === arr.length - 1} />
+                                <Row key={i.key} icon={ICON[i.key] || 'download'} title={tr(i.title)} subtitle={tr(i.hint)} onPress={() => nav.navigate('OwnerExportBuild', { key: i.key })} last={idx === arr.length - 1} />
                             ))}
                         </Card>
                     </View>

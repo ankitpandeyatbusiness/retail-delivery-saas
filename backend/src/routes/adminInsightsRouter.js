@@ -195,6 +195,9 @@ router.get('/tenants/:tid/readiness', loadTenant, wrap(async (req, res) => {
 const JOBS = [{ name: 'db-backup', label: 'Database backup', hour: 2 }, { name: 'nightly-reconcile', label: 'Nightly money check', hour: 3 }];
 const istDay = (d) => new Date(d.getTime() + IST_MS).toISOString().slice(0, 10);
 
+// which server settings are set and which are missing (never the values)
+router.get('/ops/setup', wrap(async (req, res) => { res.json(await require('../services/serverSetup').build()); }));
+
 router.get('/ops/system', wrap(async (req, res) => {
     const t0 = Date.now();
     let dbOk = true;

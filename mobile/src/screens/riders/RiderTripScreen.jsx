@@ -288,7 +288,7 @@ export default function RiderTripScreen() {
     if (finished) {
         return (
             <View style={{ flex: 1, backgroundColor: background }}>
-                <PageHeader title={tr('Order #{orderNo}', { orderNo: o.orderNo })} />
+                <PageHeader title={tr('Order #{orderNo}', { orderNo: o.ref || o.orderNo })} />
                 <View style={{ paddingTop: 16 }}>
                     <Banner tone="bad" icon="close-circle" text={T.cancelledTitle} />
                     <Text style={{ color: text, fontWeight: '700', fontSize: 16, marginHorizontal: 16 }}>{T.cancelledText}</Text>
@@ -301,7 +301,7 @@ export default function RiderTripScreen() {
     const ready = (o.status === 'preparing' || o.status === 'ready') && o.foodReady !== false;   // the food must be ready: the cook (or the owner) marks it
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
-            <PageHeader title={tr('Order #{orderNo}', { orderNo: o.orderNo })} />
+            <PageHeader title={tr('Order #{orderNo}', { orderNo: o.ref || o.orderNo })} />
             <Steps labels={STEP_LABELS} step={step} />
             <KeyboardScroll contentContainerStyle={{ paddingTop: 8, paddingBottom: dockH + 16 }} keyboardShouldPersistTaps="handled" scrollEnabled={!mapTouch}>
                 {offline ? <Banner tone="warn" icon="cloud-offline" text={T.offline} /> : null}

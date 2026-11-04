@@ -57,7 +57,7 @@ function OfferCard({ o, busy, onAccept, onReject, onExpire }) {
             <LinearGradient colors={[primaryLight, primaryDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 11 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <Ionicons name="flash" size={18} color={onPrimary} />
-                    <Text style={{ color: onPrimary, fontWeight: '900', fontSize: 15, marginLeft: 6 }}>{T.newOrder} · #{o.orderNo}</Text>
+                    <Text style={{ color: onPrimary, fontWeight: '900', fontSize: 15, marginLeft: 6 }}>{T.newOrder} · {o.ref || '#' + o.orderNo}</Text>
                 </View>
                 {left != null ? <Text style={{ color: left <= 10 ? '#FFE0E0' : onPrimary, fontWeight: '900', fontSize: 14 }}>{T.secondsLeft(left)}</Text> : null}
             </LinearGradient>
@@ -104,7 +104,7 @@ function ActiveCard({ o, onPress }) {
                         <Ionicons name="bicycle" size={15} color={onPrimary} />
                         <Text style={{ color: onPrimary, fontWeight: '900', fontSize: 12, marginLeft: 5 }}>{tr('ON A DELIVERY')}</Text>
                     </View>
-                    <Text style={{ color: onPrimary, fontWeight: '900', fontSize: 15 }}>{tr('Order #{orderNo}', { orderNo: o.orderNo })}</Text>
+                    <Text style={{ color: onPrimary, fontWeight: '900', fontSize: 15 }}>{tr('Order #{orderNo}', { orderNo: o.ref || o.orderNo })}</Text>
                 </View>
                 <Text style={{ color: onPrimary, fontSize: 24, fontWeight: '900', marginTop: 14 }} numberOfLines={2}>{nextStep(o)}</Text>
                 {cash ? <Text style={{ color: onPrimary, opacity: 0.92, fontSize: 14, fontWeight: '800', marginTop: 4 }}>{T.collectCash(rupeeAmount(o.payment.collectAmount))}</Text> : null}
@@ -284,7 +284,7 @@ export default function RiderHomeScreen() {
                                     return (
                                         <View key={String(o.id)} style={{ marginHorizontal: 16, marginBottom: 10, borderRadius: 16, padding: 14, backgroundColor: surface, borderWidth: 1, borderColor: border, flexDirection: 'row', alignItems: 'center' }}>
                                             <View style={{ flex: 1 }}>
-                                                <Text style={{ color: text, fontWeight: '900', fontSize: 15 }}>{tr('Order #{orderNo}', { orderNo: o.orderNo })}</Text>
+                                                <Text style={{ color: text, fontWeight: '900', fontSize: 15 }}>{tr('Order #{orderNo}', { orderNo: o.ref || o.orderNo })}</Text>
                                                 <Text style={{ color: muted, fontWeight: '600', fontSize: 12.5, marginTop: 2 }}>{when(o.delivery?.deliveredAt || o.createdAt)}</Text>
                                             </View>
                                             <View style={{ alignItems: 'flex-end' }}>

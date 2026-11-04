@@ -7,6 +7,7 @@ import { Card, Button, Badge, SectionTitle, Chip } from '../../components/ui';
 import { Field } from '../../components/inputs';
 import { SkeletonList } from '../../components/blocks';
 import { ErrorBox, Sheet, ConfirmSheet, toast } from '../../components/feedback';
+import MovePersonSheet from './MovePersonSheet';
 import { useSupreme } from '../../hooks/useSupreme';
 import { fetchBrand, addBranch, removeBranch, updateBrand, addBrandOwner, removeBrandOwner, fetchBrandSettings, fetchBrandStatement, setAreaLock, shareBrandStatementPdf, setFreeStart, bulkWaiveLateFees, bulkMarkPaid, bulkMarkUnpaid } from '../../api/brandsApi';
 import { errMsg } from '../../api/adminClient';
@@ -30,6 +31,7 @@ export default function BrandDetailScreen() {
     const [r, setR] = useState(null);
     const [err, setErr] = useState('');
     const [add, setAdd] = useState(false);
+    const [moveOpen, setMoveOpen] = useState(false);
     // attach a shop that already exists
     const [att, setAtt] = useState(false);
     const [q, setQ] = useState('');
@@ -253,6 +255,7 @@ export default function BrandDetailScreen() {
                         <Button title="Remove" kind="outline" small onPress={() => setDropOwner(p)} />
                     </View>
                 ))}
+                {r.branches.length > 1 ? <Button title="Move a person between branches" icon="next" kind="outline" small style={{ marginTop: spacing.md }} onPress={() => setMoveOpen(true)} /> : null}
                 <Button title="Add a brand owner" icon="add" small disabled={(r.brand.ownerPhones || []).length >= 3} style={{ marginTop: spacing.md }} onPress={() => setOwnerOpen(true)} />
             </Card>
             {supreme ? (
@@ -405,6 +408,7 @@ export default function BrandDetailScreen() {
             <ConfirmSheet visible={!!dropOwner} onClose={() => setDropOwner(null)} title="Remove this brand owner?" message="They lose the owner panel in every branch of this brand. Nothing is deleted." confirmLabel="Remove" onConfirm={dropOwnerNow} />
 
             <ConfirmSheet visible={!!out} onClose={() => setOut(null)} title="Take this branch out?" message={`${out ? out.name : ''} stays a normal shop. Nothing is deleted.`} confirmLabel="Take out" onConfirm={takeOut} />
+            <MovePersonSheet visible={moveOpen} onClose={() => setMoveOpen(false)} brandId={id} branches={r.branches} onDone={load} />
         </Screen>
     );
 }

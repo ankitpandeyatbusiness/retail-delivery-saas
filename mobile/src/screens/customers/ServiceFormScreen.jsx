@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
+import { ZoomPress } from '../../components/common/PhotoViewer';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
@@ -168,7 +169,7 @@ export default function ServiceFormScreen() {
             )}
         >
             {/* simple: the normal page bar with the name; a picture only when the owner added one, and a modest one */}
-            {(s.photos || []).filter(Boolean)[0] ? <Image source={{ uri: (s.photos || []).filter(Boolean)[0] }} style={{ marginHorizontal: 16, marginTop: 4, height: 170, borderRadius: 16 }} contentFit="cover" transition={200} /> : null}
+            {(s.photos || []).filter(Boolean)[0] ? <ZoomPress uri={(s.photos || []).filter(Boolean)[0]} uris={(s.photos || []).filter(Boolean)} style={{ marginHorizontal: 16, marginTop: 4 }}><Image source={{ uri: (s.photos || []).filter(Boolean)[0] }} style={{ width: '100%', height: 170, borderRadius: 16 }} contentFit="cover" transition={200} /></ZoomPress> : null}
 
             {facts.length ? (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, marginTop: 16 }}>

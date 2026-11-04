@@ -11,6 +11,7 @@ import { Sheet, SheetScroll, ConfirmSheet, toast } from '../../components/feedba
 import Icon from '../../components/Icon';
 import { useShopsStore } from '../../store/useShopsStore';
 import { planMaintenance } from '../../api/exportApi';
+import { useSupreme } from '../../hooks/useSupreme';
 import { errMsg } from '../../api/adminClient';
 
 const IST = 330 * 60000;
@@ -25,8 +26,9 @@ const show = (d) => d.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', weekda
 export default function MaintenancePlanScreen() {
     const t = useTheme();
     const nav = useNavigation();
+    const supreme = useSupreme();
     const shops = useShopsStore((s) => s.items);
-    const [scope, setScope] = useState('all');
+    const [scope, setScope] = useState('shops');
     const [shopIds, setShopIds] = useState([]);
     const [brandId, setBrandId] = useState('');
     const [date, setDate] = useState(ymd(Date.now()));
@@ -66,7 +68,7 @@ export default function MaintenancePlanScreen() {
         <Screen title="Plan maintenance" subtitle="Warn first, pause at the exact time" footer={<Button title="Plan it" icon="tool" onPress={() => setConfirm(true)} disabled={!valid} />}>
             <SectionTitle section="shops">Which shops</SectionTitle>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-                {SCOPES.map((s) => <Chip key={s.v} label={s.l} active={scope === s.v} onPress={() => setScope(s.v)} />)}
+                {SCOPES.filter((s) => s.v !== 'all' || supreme).map((s) => <Chip key={s.v} label={s.l} active={scope === s.v} onPress={() => setScope(s.v)} />)}
             </View>
             {scope === 'shops' ? (
                 <Card onPress={() => setPicker(true)} style={{ marginTop: spacing.md }}>

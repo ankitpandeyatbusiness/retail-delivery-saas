@@ -2,10 +2,11 @@
 // as a message (WhatsApp, to a partner or an accountant).
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView, Share } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useBrand } from '../../components/common/kit';
 import { PageHeader, Card, Chips, Button, SectionTitle, Stat, Empty, money } from '../../components/owners/ui';
 import { MoneyRow } from '../../components/owners/moneyBits';
-import { fetchClosingReport, apiError } from '../../api/owners/shopApi';
+import { fetchClosingReport, fetchProfit, apiError } from '../../api/owners/shopApi';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { useThemeStore } from '../../store/common/useThemeStore';
 import { closingText } from '../../utils/owners/settingsRules';
@@ -30,13 +31,15 @@ const TYPE_NAME = { delivery: 'Home delivery', pickup: 'Pickup', dine_in: 'Dinin
 export default function OwnerClosingScreen() {
     const { background, text, muted, error, primary } = useBrand();
     const name = useThemeStore((s) => s.theme.name);
+    const nav = useNavigation();
     const [which, setWhich] = useState('0');
     const [r, setR] = useState(null);
     const [err, setErr] = useState('');
+    const [pf, setPf] = useState(null);   // profit of the same period: sales minus the costs written down, the rent and the SMS paid
 
     const load = useCallback(async () => {
-        setR(null); setErr('');
-        try { setR(await fetchClosingReport(rangeOf(which))); }
+        setR(null); setPf(null); setErr('');
+        try { const x = rangeOf(which); const rep = await fetchClosingReport(x); setR(rep); const dd = x.date || null; fetchProfit(dd ? { from: dd, to: dd } : x).then(setPf).catch(() => setPf(null)); }
         catch (e) { useOwnerStore.getState().noteError(e); setErr(apiError(e, 'Could not make the report.')); }
     }, [which]);
     useEffect(() => { load(); }, [load]);
@@ -133,6 +136,17 @@ export default function OwnerClosingScreen() {
                                 <Card>
                                     {r.team.cooks.map((c, i) => <MoneyRow key={'c' + c.name} title={c.name} note={tr('Cook')} value={`${c.orders} ${tr('orders')}`} last={i === r.team.cooks.length - 1 && !r.team.riders.length} />)}
                                     {r.team.riders.map((x, i) => <MoneyRow key={'r' + x.name + i} title={x.name} note={tr('Rider')} value={`${x.deliveries} ${tr('deliveries')}`} last={i === r.team.riders.length - 1} />)}
+                                </Card>
+                            </>
+                        ) : null}
+
+                        {pf && (pf.costs.total || pf.sales.revenue) ? (
+                            <>
+                                <SectionTitle title={tr('Profit after costs')} action={tr('Costs')} onAction={() => nav.navigate('OwnerCosts')} />
+                                <Card>
+                                    <MoneyRow title={tr('Sales')} value={money(pf.sales.revenue)} />
+                                    <MoneyRow title={tr('Costs, rent and SMS')} note={pf.costs.total ? undefined : tr('No costs written down yet')} value={`- ${money(pf.costs.total)}`} />
+                                    <MoneyRow title={tr('Profit')} value={money(pf.profit)} color={pf.profit >= 0 ? primary : error} last />
                                 </Card>
                             </>
                         ) : null}

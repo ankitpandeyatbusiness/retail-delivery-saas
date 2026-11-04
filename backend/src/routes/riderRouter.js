@@ -80,7 +80,7 @@ function riderView(o, ctx = {}) {
     return {
         undo,
         rating: o.status === 'delivered' && o.deliveryRating?.rating ? { stars: o.deliveryRating.rating, tags: o.deliveryRating.tags || [], comment: o.deliveryRating.comment || null } : null,   // what the customer said about this trip
-        id: o._id, orderNo: o.orderNo, status: o.status, createdAt: o.createdAt,
+        id: o._id, orderNo: o.orderNo, ref: o.ref || '', status: o.status, createdAt: o.createdAt,
         items: (o.items || []).map((i) => ({ name: i.name, quantity: i.quantity })),
         note: o.note || null,
         foodReady: o.orderType !== 'delivery' || !!o.kitchen?.readyAt,   // he cannot collect it before the food is ready

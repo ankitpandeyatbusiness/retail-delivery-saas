@@ -4,6 +4,7 @@ import {
     View, Text, Pressable, FlatList, Share, KeyboardAvoidingView, Platform, StyleSheet,
     Animated, Easing, LayoutAnimation, ScrollView, Dimensions } from 'react-native';
 import { Image } from 'expo-image';
+import { ZoomPress } from '../../components/common/PhotoViewer';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -87,7 +88,7 @@ function Gallery({ item, width, height, onShown }) {
     useEffect(() => { if (!n) onShown && onShown(); }, [n]);   // no picture: nothing to wait for
     if (!n) return <Pic item={item} style={{ width, height }} />;
     if (n === 1) {
-        return <Image source={{ uri: list[0] }} style={[{ width, height, backgroundColor: soft }, off && GREY]} contentFit="cover" cachePolicy="memory-disk" priority="high" transition={0} onLoad={onShown} onError={onShown} />;
+        return <ZoomPress uri={list[0]} uris={list}><Image source={{ uri: list[0] }} style={[{ width, height, backgroundColor: soft }, off && GREY]} contentFit="cover" cachePolicy="memory-disk" priority="high" transition={0} onLoad={onShown} onError={onShown} /></ZoomPress>;
     }
     return (
         <View style={{ width, height, backgroundColor: soft }}>
@@ -96,7 +97,7 @@ function Gallery({ item, width, height, onShown }) {
                 onScrollBeginDrag={() => { touched.current = Date.now(); }}
                 onMomentumScrollEnd={(e) => settle(e.nativeEvent.contentOffset.x)}
             >
-                {pages.map((u, i) => <Image key={`${i}-${u}`} source={{ uri: u }} style={[{ width, height, backgroundColor: soft }, off && GREY]} contentFit="cover" cachePolicy="memory-disk" priority={i === 1 ? 'high' : 'normal'} transition={0} onLoad={i === 1 ? onShown : undefined} onError={i === 1 ? onShown : undefined} />)}
+                {pages.map((u, i) => <ZoomPress key={`${i}-${u}`} uri={u} uris={list}><Image source={{ uri: u }} style={[{ width, height, backgroundColor: soft }, off && GREY]} contentFit="cover" cachePolicy="memory-disk" priority={i === 1 ? 'high' : 'normal'} transition={0} onLoad={i === 1 ? onShown : undefined} onError={i === 1 ? onShown : undefined} /></ZoomPress>)}
             </ScrollView>
             <View pointerEvents="none" style={{ position: 'absolute', bottom: 34, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center' }}>
                 {list.map((u, i) => <View key={u} style={{ width: i === at ? 18 : 7, height: 7, borderRadius: 4, marginHorizontal: 3, backgroundColor: i === at ? '#FFFFFF' : 'rgba(255,255,255,0.55)' }} />)}

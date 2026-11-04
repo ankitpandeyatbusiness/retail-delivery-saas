@@ -11,6 +11,7 @@ import { ErrorBox, ConfirmSheet, toast } from '../../components/feedback';
 import { fetchPlatform, saveMaintenance } from '../../api/platformApi';
 import { errMsg } from '../../api/adminClient';
 import { dateTime } from '../../utils/format';
+import { useSupreme } from '../../hooks/useSupreme';
 import { fetchMaintenancePlans, cancelMaintenancePlan } from '../../api/exportApi';
 
 const STATUS = { planned: ['Planned', 'warn'], active: ['Running now', 'danger'], ended: ['Done', 'success'], cancelled: ['Cancelled', 'neutral'] };
@@ -23,6 +24,7 @@ const HOURS = [
 export default function MaintenanceScreen() {
     const t = useTheme();
     const nav = useNavigation();
+    const supreme = useSupreme();
     const [plans, setPlans] = useState([]);
     const [cancelId, setCancelId] = useState(null);
     const loadPlans = useCallback(() => { fetchMaintenancePlans().then((r) => setPlans(r.items)).catch(() => { }); }, []);
@@ -61,7 +63,7 @@ export default function MaintenanceScreen() {
                 ) : null}
             </Hero>
 
-            {on ? (
+            {!supreme ? <Hint tone="warn">Switching every shop on or off is for the supreme admin. You can plan maintenance for the shops you choose below.</Hint> : on ? (
                 <Button title="Switch maintenance off" icon="ok" style={{ marginTop: spacing.lg }} onPress={() => setConfirm('off')} />
             ) : (
                 <>

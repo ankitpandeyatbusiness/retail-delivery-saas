@@ -32,7 +32,7 @@ export function ServeCard({ o, lateMin, busy, onServe }) {
                     <Text style={{ color: late ? error : muted, fontSize: 11.5, fontWeight: '700' }}>{late ? tr('Waiting too long') : tr('Ready')}</Text>
                 </View>
             </View>
-            <Text style={{ color: muted, fontWeight: '700', marginTop: 2 }}>#{o.orderNo}{o.party && o.who ? ` · ${o.who}` : ''}</Text>
+            <Text style={{ color: muted, fontWeight: '700', marginTop: 2 }}>{o.ref || '#' + o.orderNo}{o.party && o.who ? ` · ${o.who}` : ''}</Text>
             <View style={{ marginTop: 8 }}>
                 {o.items.map((l, i) => (
                     <View key={i} style={{ flexDirection: 'row', paddingVertical: 5, borderTopWidth: i ? 0.5 : 0, borderTopColor: border }}>
