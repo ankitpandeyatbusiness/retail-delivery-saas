@@ -6,15 +6,25 @@ import { Screen, HeaderButton } from '../../components/layout';
 import { Segmented } from '../../components/inputs';
 import OrdersList from '../../components/OrdersList';
 import ComplaintsList from '../../components/ComplaintsList';
+import { AttentionList, LiveBoard } from '../../components/OrdersWatch';
 
-// The Orders tab: every order and every complaint of every shop.
+// The Orders tab, a control room: what is in trouble, what is running, every order, and complaints.
 export default function OrdersHomeScreen() {
     const nav = useNavigation();
-    const [tab, setTab] = useState('orders');
+    const [tab, setTab] = useState('attention');
 
     const switcher = (
         <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
-            <Segmented value={tab} onChange={setTab} options={[{ value: 'orders', label: 'Orders' }, { value: 'complaints', label: 'Complaints' }]} />
+            <Segmented
+                value={tab}
+                onChange={setTab}
+                options={[
+                    { value: 'attention', label: 'Attention' },
+                    { value: 'live', label: 'Live' },
+                    { value: 'orders', label: 'All' },
+                    { value: 'complaints', label: 'Complaints' },
+                ]}
+            />
         </View>
     );
 
@@ -26,12 +36,14 @@ export default function OrdersHomeScreen() {
             scroll={false}
             right={<HeaderButton icon="chart" onPress={() => nav.navigate('SalesReport', {})} />}
         >
-            {tab === 'orders' ? <OrdersList header={switcher} /> : (
-                <View style={{ flex: 1 }}>
-                    {switcher}
-                    <ComplaintsList />
-                </View>
-            )}
+            {tab === 'attention' ? <AttentionList header={switcher} />
+                : tab === 'live' ? <LiveBoard header={switcher} />
+                : tab === 'orders' ? <OrdersList header={switcher} /> : (
+                    <View style={{ flex: 1 }}>
+                        {switcher}
+                        <ComplaintsList />
+                    </View>
+                )}
         </Screen>
     );
 }

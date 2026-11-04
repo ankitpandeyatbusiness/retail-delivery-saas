@@ -73,6 +73,42 @@ router.get('/orders', wrap(async (req, res) => {
     res.json({ items: await withShop(items), page, hasMore });
 }));
 
+// orders in trouble (not accepted, no rider, too slow, money not settled) and what every shop has running now
+router.get('/orders/attention', wrap(async (req, res) => {
+    const tenantId = isId(req.query.tenantId) ? req.query.tenantId : undefined;
+    res.json(await require('../services/orderAttention').attention({ tenantId }));
+}));
+router.get('/orders/live', wrap(async (req, res) => { res.json(await require('../services/orderAttention').live()); }));
+
+// money going back to customers: open = not finished yet (pending, processing, failed), done = processed
+router.get('/refunds', wrap(async (req, res) => {
+    const OnlineRefund = require('../models/OnlineRefund');
+    const done = req.query.status === 'done';
+    const rows = await OnlineRefund.find(done ? { status: 'processed' } : { status: { $in: ['pending', 'processing', 'failed'] } }).sort({ createdAt: -1 }).limit(100).lean();
+    const orders = await Order.find({ _id: { $in: rows.map((r) => r.orderId) } }).select('orderNo tenantId customer').lean();
+    const byOrder = new Map(orders.map((o) => [String(o._id), o]));
+    const names = new Map((await Tenant.find({ _id: { $in: rows.map((r) => r.tenantId) } }).select('name').lean()).map((s) => [String(s._id), s.name]));
+    const open = await OnlineRefund.aggregate([{ $match: { status: { $in: ['pending', 'processing', 'failed'] } } }, { $group: { _id: '$status', n: { $sum: 1 }, sum: { $sum: '$amountPaise' } } }]);
+    res.json({
+        open: Object.fromEntries(open.map((g) => [g._id, { count: g.n, paise: g.sum }])),
+        items: rows.map((r) => {
+            const o = byOrder.get(String(r.orderId));
+            return { id: String(r._id), orderId: String(r.orderId), orderNo: o?.orderNo, shopName: names.get(String(r.tenantId)) || 'Unknown shop', customer: o?.customer?.name || '', status: r.status, amountPaise: r.amountPaise, reason: r.reason || '', attempts: r.attempts || 0, lastError: r.lastError || '', createdAt: r.createdAt, processedAt: r.processedAt || null };
+        }),
+    });
+}));
+// a refund that failed (the shop's Razorpay balance was short, or Razorpay refused) is sent again with the same key, so the customer can never get it twice
+router.post('/refunds/:id/retry', wrap(async (req, res) => {
+    const OnlineRefund = require('../models/OnlineRefund');
+    const r = isId(req.params.id) ? await OnlineRefund.findById(req.params.id) : null;
+    if (!r) throw httpError(404, 'Refund not found');
+    if (r.status !== 'failed') throw httpError(409, 'Only a failed refund can be sent again');
+    await OnlineRefund.updateOne({ _id: r._id, status: 'failed' }, { $set: { status: 'pending', attempts: 0 }, $unset: { lockedUntil: 1, lastError: 1 } });
+    await require('../services/refundIssuer').send(r._id);
+    const now = await OnlineRefund.findById(r._id).lean();
+    res.json({ status: now.status, lastError: now.lastError || '' });
+}));
+
 router.get('/orders/:id', wrap(async (req, res) => {
     const order = isId(req.params.id) ? await Order.findById(req.params.id) : null;
     if (!order) throw httpError(404, 'Order not found');

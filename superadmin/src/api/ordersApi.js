@@ -26,3 +26,10 @@ const S = (shopId) => `/admin/tenants/${shopId}/shop`;
 export const getDelivery = (shopId, orderId) => data(api.get(`${S(shopId)}/orders/${orderId}/delivery`));
 export const assignRider = (shopId, orderId, body) => data(api.post(`${S(shopId)}/orders/${orderId}/assign`, body));   // { riderId } or { auto: true }, reason when changing
 export const unassignRider = (shopId, orderId, reason) => data(api.post(`${S(shopId)}/orders/${orderId}/unassign`, { reason }));
+
+// orders in trouble (with the reason) and what each shop has running now
+export const getAttention = () => data(api.get('/admin/orders/attention'));
+export const getLive = () => data(api.get('/admin/orders/live'));
+// money going back to customers: status 'open' (default) or 'done'; a failed one can be sent again
+export const listRefunds = (status) => data(api.get('/admin/refunds', { params: { status } }));
+export const retryRefund = (id) => data(api.post(`/admin/refunds/${id}/retry`));
