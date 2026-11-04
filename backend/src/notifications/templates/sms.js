@@ -31,12 +31,12 @@ const TEMPLATES = {
         text: 'New bill {#var#} of Rs {#var#} for {#var#}. Please pay by {#var#} to keep taking orders.',
     },
     delivery_pin: {
-        purpose: 'order', vars: ['orderNo', 'pin', 'shop'],
-        text: 'Your delivery PIN for order #{#var#} is {#var#}. Tell it to the delivery partner at your door. {#var#}',
+        purpose: 'order', vars: ['shop', 'orderNo', 'pin'],
+        text: 'Your {#var#} delivery PIN for order #{#var#} is {#var#}. Tell it to the delivery partner at your door.',
     },
     rider_sos: {
-        purpose: 'alert', vars: ['riderName', 'phone'],
-        text: 'Rider {#var#} pressed the help button. Call him now on {#var#}.',
+        purpose: 'alert', vars: ['riderName', 'shop', 'phone'],
+        text: 'Rider {#var#} of {#var#} pressed the help button. Call him now on {#var#}.',
     },
     bill_overdue: {
         purpose: 'alert', vars: ['amount', 'shop'],
