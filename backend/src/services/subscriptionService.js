@@ -213,7 +213,8 @@ async function generateForPeriod({ period, tenantId } = {}) {
     if (!PERIOD_RE.test(p)) throw Object.assign(new Error('period must look like 2026-10'), { status: 400 });
     if (p >= periodOf(now)) throw Object.assign(new Error('You can only create an invoice for a month that has finished'), { status: 400 });
 
-    const tenants = await Tenant.find(tenantId ? { _id: tenantId } : {})
+    // a shop the superadmin closed gets no new bills while it is closed
+    const tenants = await Tenant.find({ ...(tenantId ? { _id: tenantId } : {}), 'closure.on': { $ne: true } })
         .select('slug name phone address business subscription createdAt billing brandId').lean();
     const platform = await PlatformSettings.findById('main').lean();
 

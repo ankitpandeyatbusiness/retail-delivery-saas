@@ -35,7 +35,7 @@ export const FILTERS = [
     { value: 'all', label: 'All' },
     { value: 'open', label: 'Taking orders' },
     { value: 'attention', label: 'Needs attention' },
-    { value: 'suspended', label: 'Suspended' },
+    { value: 'suspended', label: 'Closed' },
 ];
 
 export const matchesFilter = (shop, f) => {

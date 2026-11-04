@@ -255,6 +255,8 @@ export const startTopup = (body) => d(api.post('/shop/sms/topup', body));
 export const fetchTopups = (params) => d(api.get('/shop/sms/topups', q(params)));
 
 /* ------------------------------ rent and billing ------------------------------ */
+// why the shop is closed (rent: with what is owed; anything else is private)
+export const fetchClosure = () => d(api.get('/shop/closure'));
 export const fetchBillingStatus = () => d(api.get('/shop/billing/status'));
 export const fetchBillingPrompts = () => d(api.get('/shop/billing/prompts'));
 export const answerBillingPrompt = (kind, choice) => d(api.post('/shop/billing/prompts/choice', { kind, choice }));

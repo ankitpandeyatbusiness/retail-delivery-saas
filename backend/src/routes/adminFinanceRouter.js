@@ -22,6 +22,9 @@ router.get('/finance/receivables', wrap(async (req, res) => {
     res.json(await finance.receivables());
 }));
 
+// shops whose rent is unpaid for months: the list to decide on closing from
+router.get('/finance/to-close', wrap(async (req, res) => { res.json(await require('../services/shopClosure').toClose()); }));
+
 // Remind: a push to the owner of one shop, or to every branch of a brand that owes rent
 router.post('/finance/receivables/brand/:brandId/remind', wrap(async (req, res) => {
     if (!mongoose.isValidObjectId(req.params.brandId)) throw httpError(400, 'Invalid brand');

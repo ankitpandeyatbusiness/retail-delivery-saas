@@ -10,6 +10,7 @@ import { useThemeStore } from '../../store/common/useThemeStore';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useMenuStore } from '../../store/customers/shopStores';
 import { fetchConfig } from '../../api/customers/catalogApi';
+import { fetchClosure } from '../../api/owners/shopApi';
 import { onShopChanged } from '../../api/common/socket';
 import { tr } from '../../i18n';
 
@@ -29,7 +30,7 @@ const reloadShop = async () => {
 
 // What a closed / paused shop looks like: the app stays visible but dimmed behind ONE message card. Nothing underneath can be touched.
 // The wording depends on who is looking: a customer is told the shop is closed or back soon; staff and riders are told to contact the owner.
-export function FrozenOverlay({ onOrders }) {
+export function FrozenOverlay({ onOrders, routeName, onRent }) {
     const frozen = useAppStatus((st) => st.frozen);
     const user = useAuthStore((st) => st.user);
     const shop = useThemeStore((st) => st.theme.name);
@@ -45,7 +46,16 @@ export function FrozenOverlay({ onOrders }) {
         return () => clearInterval(t);
     }, [frozen]);
 
+    // the owner of a shop closed for rent: what is owed, and a way to the Rent page (the overlay steps aside while he is on it)
+    const isOwner = user?.role === 'admin';
+    const [why, setWhy] = useState(null);
+    useEffect(() => {
+        if (!frozen || !isOwner || frozen.status === 503 || frozen.maintenance) { setWhy(null); return; }
+        fetchClosure().then(setWhy).catch(() => setWhy(null));
+    }, [frozen, isOwner]);
+
     if (!frozen) return null;
+    if (isOwner && routeName === 'OwnerRent') return null;
 
     const role = user?.role || 'customer';
     const staff = role === 'kitchen' || role === 'waiter' || role === 'rider';
@@ -54,6 +64,8 @@ export function FrozenOverlay({ onOrders }) {
     const title = maint ? tr('Back soon') : tr(role === 'customer' ? 'Closed for now' : 'Shop is closed');
     const msg = staff
         ? (maint ? (frozen.message || tr('We are down for maintenance. Please try again soon.')) : tr('The shop is closed. Please contact the owner.'))
+        : isOwner && why?.closed && !maint
+            ? (why.kind === 'rent' ? tr('Your shop is closed because rent is unpaid. It opens again by itself when you pay.') : tr('Your shop was closed by the platform team. Please contact support.'))
         : (frozen.message || (maint ? tr('We are down for maintenance. Please try again soon.') : tr('This shop is not accepting orders right now')));
 
     const retry = async () => {
@@ -73,6 +85,12 @@ export function FrozenOverlay({ onOrders }) {
                     <Text style={[s.msg, { color: muted }]}>{msg}</Text>
                     {maint && until ? <Text style={[s.until, { color: muted }]}>{tr('Expected back by {until}', { until: until })}</Text> : null}
 
+                    {isOwner && why?.closed && why.kind === 'rent' && why.owed?.total > 0 ? <Text style={[s.owed, { color: text }]}>{tr('Rent due')}: ₹{why.owed.total}</Text> : null}
+                    {isOwner && why?.closed && onRent ? (
+                        <Pressable onPress={onRent} style={[s.solid, { backgroundColor: primary, borderRadius: radius }]}>
+                            <Text style={s.solidTxt}>{tr('Open Rent page')}</Text>
+                        </Pressable>
+                    ) : null}
                     <Pressable onPress={retry} disabled={busy} style={[s.solid, { backgroundColor: primary, borderRadius: radius }]}>
                         {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.solidTxt}>{tr('Try again')}</Text>}
                     </Pressable>
@@ -115,6 +133,7 @@ const s = StyleSheet.create({
     emoji: { fontSize: 56 },
     title: { fontSize: 22, fontWeight: '800', marginTop: 14 },
     msg: { fontSize: 14, color: '#666666', textAlign: 'center', marginTop: 8, lineHeight: 20 },
+    owed: { fontSize: 18, fontWeight: '800', marginTop: 14 },
     until: { fontSize: 12, color: '#777777', marginTop: 10 },
     solid: { alignSelf: 'stretch', marginTop: 28, paddingVertical: 14, alignItems: 'center' },
     solidTxt: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },

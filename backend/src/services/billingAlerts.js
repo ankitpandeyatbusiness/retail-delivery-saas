@@ -100,6 +100,7 @@ async function paymentsReceived(now) {
 async function tellPaid(inv, now = new Date()) {
     const claimed = await SubscriptionInvoice.updateOne({ _id: inv._id, status: 'paid', paidNotifiedAt: null }, { $set: { paidNotifiedAt: now } });
     if (!claimed.modifiedCount) return false;
+    require('./shopClosure').reopenIfSettled(inv.tenantId).catch((e) => console.error('Reopen check error:', e.message));   // a shop closed for rent opens the moment everything is paid
     notify.toOwner(inv.tenantId, {
         type: 'payment_received', title: 'Payment received',
         body: `Thank you. Invoice ${inv.invoiceNo} (${rs(inv.total)}) is paid.`,
@@ -185,8 +186,11 @@ async function smsBalances(now) {
     }
 }
 
+// shops closed by the superadmin: finish a closing, reopen settled rent shops, list shops that may need closing
+async function closureSweep(now) { await require('./shopClosure').sweep(now); }
+
 async function runAlerts(now = new Date()) {
-    for (const step of [issueLateFees, billIssued, graceReminders, pausedNotices, overdueReminders, paymentsReceived, freeEnding, smsBalances]) {
+    for (const step of [closureSweep, issueLateFees, billIssued, graceReminders, pausedNotices, overdueReminders, paymentsReceived, freeEnding, smsBalances]) {
         try {
             await step(now);
         } catch (e) {

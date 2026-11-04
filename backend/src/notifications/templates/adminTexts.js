@@ -45,6 +45,9 @@ const T = {
     admin_shop_inactive: (v) => ({
         title: `${v.shop} is quiet`, body: `No orders for ${v.days || 14} days. Check if its menu, hours or delivery area need help.`, sms: `No orders: ${v.shop}`,
     }),
+    admin_shop_close_due: (v) => ({
+        title: `${v.shop} may need closing`, body: `Rent unpaid for ${v.months || 6} months (Rs ${v.amount}). Open Shops to close and decide. Nothing closes without your tap.`, sms: `May need closing: ${v.shop}`,
+    }),
     admin_support_new: (v) => ({
         title: `Support #${v.number} · ${v.shop}`, body: v.subject ? `"${String(v.subject).slice(0, 90)}". Open it to reply.` : 'The shop needs help. Open it to reply.', sms: `Support: ${v.shop}`,
     }),

@@ -14,6 +14,11 @@ export const savePoints = (id, body) => data(api.put(`${T(id)}/loyalty`, body));
 export const fetchOptions = () => data(api.get('/admin/options'));
 
 export const fetchLive = (id) => data(api.get(`${T(id)}/live`));
+// closing a shop (everything kept) and opening it again; the shops whose rent is unpaid for months
+export const fetchClosure = (id) => data(api.get(`${T(id)}/closure`));
+export const closeShop = (id, body) => data(api.post(`${T(id)}/close`, body));
+export const reopenShop = (id, body) => data(api.post(`${T(id)}/reopen`, body));
+export const fetchToClose = () => data(api.get('/admin/finance/to-close'));
 export const setOwnerAccess = (id, blocked, reason) => data(api.put(`${T(id)}/owner-access`, { blocked, reason }));
 export const setMaintenance = (id, body) => data(api.put(`${T(id)}/maintenance`, body));
 export const notifyShop = (id, body) => data(api.post(`${T(id)}/notify`, body));

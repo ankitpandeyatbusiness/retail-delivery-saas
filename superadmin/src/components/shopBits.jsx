@@ -15,7 +15,7 @@ export const stateTone = (shop) => {
 
 // Why a shop is not taking orders, as one badge. `state` comes from the backend (shopState).
 export function ShopStateBadge({ shop }) {
-    if (shop.status && shop.status !== 'active') return <Badge label="Suspended" tone="danger" />;
+    if (shop.status && shop.status !== 'active') return <Badge label="Closed" tone="danger" />;
     const s = shop.state;
     if (!s || s.acceptingOrders) return <Badge label="Taking orders" tone="success" />;
     return <Badge label={s.reasons[0].label} tone={stateTone(shop)} />;

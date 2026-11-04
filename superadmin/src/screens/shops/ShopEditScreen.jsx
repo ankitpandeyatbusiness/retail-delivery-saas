@@ -8,7 +8,7 @@ import { Button, Card, SectionTitle } from '../../components/ui';
 import { Field, Segmented } from '../../components/inputs';
 import { SkeletonList } from '../../components/blocks';
 import MapPicker from '../../components/MapPicker';
-import { toast, ConfirmSheet } from '../../components/feedback';
+import { toast } from '../../components/feedback';
 import { updateShop } from '../../api/shopsApi';
 import { errMsg } from '../../api/adminClient';
 import { useShopStore } from '../../store/useShopStore';
@@ -43,7 +43,6 @@ export default function ShopEditScreen() {
     const [mapOpen, setMapOpen] = useState(false);
     const [err, setErr] = useState({});
     const [busy, setBusy] = useState(false);
-    const [confirmStatus, setConfirmStatus] = useState(false);
     // fetch the shop again when the form opens: what the owner saved a minute ago (his phone, address) is what shows. The boxes are
     // refreshed in place (never blanked), and only while nothing has been typed yet, so the form does not jump or lose an edit.
     useEffect(() => {
@@ -212,26 +211,10 @@ export default function ShopEditScreen() {
             </Card>
 
             <SectionTitle section="alerts">Shop status</SectionTitle>
-            <Card>
-                <Segmented
-                    value={f.status}
-                    onChange={(v) => { if (v === 'suspended' && f.status !== 'suspended') setConfirmStatus(true); else set('status')(v); }}
-                    options={[{ value: 'active', label: 'Active' }, { value: 'suspended', label: 'Suspended' }]}
-                />
-                <Text style={{ color: t.muted, fontSize: font.sm, marginTop: spacing.md }}>
-                    A suspended shop stops taking orders. Customers only see "not accepting orders right now".
-                </Text>
+            <Card onPress={() => nav.navigate('ShopClose', { shopId, name: f.name })}>
+                <Text style={{ color: t.text, fontWeight: '800' }}>{f.status === 'active' ? 'Close this shop' : 'This shop is closed'}</Text>
+                <Text style={{ color: t.muted, fontSize: font.sm, marginTop: 4 }}>Closing stops the shop but keeps everything, and asks for a reason. Tap to {f.status === 'active' ? 'close it' : 'see why and open it'}.</Text>
             </Card>
-
-            <ConfirmSheet
-                visible={confirmStatus}
-                onClose={() => setConfirmStatus(false)}
-                title="Suspend this shop?"
-                message="Customers will not be able to order. You can set it back to Active any time."
-                confirmLabel="Suspend shop"
-                danger
-                onConfirm={async () => { set('status')('suspended'); }}
-            />
         </Screen>
     );
 }

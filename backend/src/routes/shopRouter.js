@@ -35,6 +35,8 @@ const ownerOnly = (mw) => (req, res, next) => (isSuper(req) ? next() : mw(req, r
 const ownerChain = (chain) => { const r = express.Router(); r.use(chain); return ownerOnly(r); };
 const actorOf = (req) => req.actor || { type: 'owner', id: req.auth.userId, label: req.shopUser?.phone || 'shop owner' };
 
+// A closed shop (or one in maintenance) still lets its owner read and pay his rent and ask why it is closed: the owner can sign in read-only.
+router.use(['/subscription', '/billing', '/closure'], (req, res, next) => { req.allowFrozenShop = true; next(); });
 router.use(ownerOnly(tenantRecognizer));
 router.use(ownerOnly(auditTrail('owner')));   // records every change a shop owner makes
 
@@ -46,6 +48,14 @@ router.use(ownerOnly(auditTrail('owner')));   // records every change a shop own
    ------------------------------------------------------------------------------------------------ */
 
 /* ---------- level 1: orders in progress, billing, bills, messages ---------- */
+// why the shop is closed, for the owner's closed screen. A closing for rent says so and shows what is owed; any other reason is private ("contact support").
+router.get('/closure', ownerChain(requireShopAdmin.allowBlocked), wrap(async (req, res) => {
+    const closure = require('../services/shopClosure');
+    const t = await require('../models/Tenant').findById(req.tenant._id).select('status closure').lean();
+    if (!t?.closure?.on) return res.json({ closed: false });
+    const rent = t.closure.kind === 'rent';
+    res.json({ closed: true, closing: !!t.closure.closing, kind: rent ? 'rent' : 'manual', owed: rent ? await closure.owedOf(req.tenant._id) : null });
+}));
 router.use('/subscription', ownerChain(requireShopAdmin.allowBlocked), require('./shopSubscriptionRouter'));   // rent invoices stay visible
 router.use('/orders', ownerChain(requireShopAdmin.allowBlocked));
 router.use('/orders', require('./shopRiderRouter').orders);   // assign riders (orders in progress must finish)

@@ -76,7 +76,8 @@ async function run(now = new Date()) {
     const { percent, everyDays } = rulesOf(platform);
     if (!(percent > 0) || !platform?.business?.legalName) return { issued: 0 };
 
-    const late = await SubscriptionInvoice.find({
+    const closedIds = await Tenant.find({ 'closure.on': true }).distinct('_id');   // no new late fees on a closed shop
+    const late = await SubscriptionInvoice.find({ tenantId: { $nin: closedIds },
         status: 'pending',
         kind: { $ne: 'custom' },
         dueDate: { $lte: new Date(now.getTime() - everyDays * DAY_MS) },

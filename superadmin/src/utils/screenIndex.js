@@ -16,6 +16,7 @@ export const SCREEN_INDEX = [
     E('Billing rules', 'Money', 'PlatformBilling', 'MoneyTab', 'tune', 'settings', 'billing rules free orders free months due days grace days tiers monthly fee pricing slabs'),
     E('Business details', 'Money', 'PlatformBusiness', 'MoneyTab', 'bank', 'platform', 'business details gst gstin legal name address sac code invoice header logo payment instructions upi bank'),
     E('My Razorpay', 'Money', 'MyRazorpay', 'MoneyTab', 'bank', 'money', 'razorpay my account keys webhook secret platform payments top up rent receive'),
+    E('Shops to close', 'Shops', 'ShopsToClose', 'root', 'lock', 'alerts', 'close closed closing shut shop unpaid rent months stop'),
     /* ---- find and watch ---- */
     E('Shop health', 'More', 'Health', 'root', 'shield', 'riders', 'health score cancellations late orders stuck rating complaints success rate attention'),
     E('System and backups', 'More', 'System', 'root', 'bolt', 'settings', 'system backups database sms provider jobs nightly status test mode back up now restore'),

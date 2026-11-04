@@ -43,4 +43,20 @@ router.put('/tenants/:tid/maintenance', loadTenant, wrap(async (req, res) => {
     res.json({ ok: true, maintenance: m });
 }));
 
+// ---- closing a shop (services/shopClosure.js). Supreme admin only.
+const { requireSupreme } = require('../middlewares/supremeAdmin');
+const closure = require('../services/shopClosure');
+router.get('/tenants/:tid/closure', loadTenant, wrap(async (req, res) => { res.json(await closure.preview(req.tenantDoc._id)); }));
+router.post('/tenants/:tid/close', requireSupreme, loadTenant, wrap(async (req, res) => {
+    req.auditBefore = { closed: false };
+    res.json(await closure.close(req.tenantDoc._id, req.body || {}, req.admin));
+}));
+router.post('/tenants/:tid/reopen', requireSupreme, loadTenant, wrap(async (req, res) => {
+    req.auditBefore = { closed: true };
+    try { res.json(await closure.reopen(req.tenantDoc._id, req.body || {}, req.admin)); } catch (e) {
+        if (e.needsConfirm) return res.status(409).json({ error: e.message, needsConfirm: true, owed: e.owed });
+        throw e;
+    }
+}));
+
 module.exports = router;

@@ -71,6 +71,13 @@ export default function ShopDetailScreen() {
                 ) : null}
             </Hero>
 
+            {tenant.status !== 'active' ? (
+                <Card style={{ marginTop: spacing.md }} onPress={go('ShopClose')}>
+                    <Text style={{ color: t.danger, fontWeight: '800', fontSize: font.md }}>This shop is closed</Text>
+                    <Text style={{ color: t.muted, fontSize: font.sm, marginTop: 4 }}>Tap to see why and to open it again.</Text>
+                </Card>
+            ) : null}
+
             <View style={{ marginTop: spacing.xl, marginBottom: spacing.lg }}>
                 {noArea ? (
                 <Card>
@@ -142,6 +149,7 @@ export default function ShopDetailScreen() {
                 <ListRow section="settings" icon="edit" title="Edit shop" subtitle="Name, contact, address, delivery, GST" onPress={go('ShopEdit')} />
                 <ListRow section="platform" icon="bell" title="Message the owner" subtitle="A notice in the owner's app" onPress={go('ShopNotify')} />
                 <ListRow section="alerts" icon="shield" title="Access and maintenance" subtitle="Block owner panel, pause the shop" onPress={go('ShopAccess')} />
+                <ListRow section="alerts" icon="lock" danger={tenant.status !== 'active'} title={tenant.status !== 'active' ? 'Open this shop again' : 'Close this shop'} subtitle={tenant.status !== 'active' ? 'It is closed now: see why, and open it' : 'Stop the shop but keep all its data, with a reason'} onPress={go('ShopClose')} />
                 <ListRow section="platform" icon="tool" title="Development details" subtitle="App id, versions, Razorpay, SMS and DLT, build commands" onPress={go('ShopDev')} last />
             </Card>
 

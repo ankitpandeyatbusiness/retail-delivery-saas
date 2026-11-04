@@ -183,6 +183,7 @@ const EVENTS = {
     admin_sms_topup_done: { to: 'superadmin', channels: ALL },
     admin_shop_first_order: { to: 'superadmin', channels: ALL },
     admin_shop_inactive: { to: 'superadmin', channels: ALL },
+    admin_shop_close_due: { to: 'superadmin', channels: ['inapp', 'push'] },   // rent unpaid for months: the shop is on the Shops to close list (services/shopClosure.js)
     admin_webhook_failed: { to: 'superadmin', channels: ALL, critical: true },
     admin_sms_provider_failing: { to: 'superadmin', channels: ALL, critical: true },
     admin_platform_red: { to: 'superadmin', channels: INAPP_PUSH },   // a platform-health card turned red (services/healthWatch.js)

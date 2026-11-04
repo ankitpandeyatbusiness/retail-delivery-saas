@@ -93,7 +93,8 @@ export default function InboxScreen() {
             readInbox(n.id).catch(() => { });
         }
         const d = n.data || {};
-        if (d.kind === 'health') toAdmin(nav, { screen: 'HomeTab', params: { screen: 'PlatformHealth' } });
+        if (d.kind === 'toClose') nav.navigate('ShopsToClose');
+        else if (d.kind === 'health') toAdmin(nav, { screen: 'HomeTab', params: { screen: 'PlatformHealth' } });
         else if (d.ticketId) nav.navigate('SupportDetail', { id: String(d.ticketId) });
         else if (d.orderId) toAdmin(nav, { screen: 'OrdersTab', params: { screen: 'OrderDetail', params: { orderId: String(d.orderId), orderNo: d.orderNo } } });
         else if (d.invoiceId) toAdmin(nav, { screen: 'MoneyTab', params: { screen: 'InvoiceDetail', params: { invoiceId: String(d.invoiceId) } } });

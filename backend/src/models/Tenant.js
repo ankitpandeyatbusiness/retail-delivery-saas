@@ -95,6 +95,18 @@ const tenantSchema = new mongoose.Schema({
 
     ownerBlocked: { type: Boolean, default: false },
     ownerBlockedReason: { type: String, trim: true, maxlength: 200 },   // private note, never sent to the app
+    // Closed by the superadmin (services/shopClosure.js): everything is kept, the shop just stops. status is "suspended" while it is closed.
+    closure: {
+        _id: false,
+        on: { type: Boolean, default: false },
+        kind: { type: String, enum: ['rent', 'manual'] },          // closed because of unpaid rent (opens again by itself when it is paid) or for another reason
+        reason: { type: String, trim: true, maxlength: 200 },       // private: the owner is never shown the words, customers neither
+        at: Date, by: String,
+        mode: { type: String, enum: ['finish', 'cancel'] },         // what happened to the orders in progress
+        closing: { type: Boolean, default: false },                 // waiting for the last order to finish; new orders are already stopped
+        owedAtClose: Number, prevAccepting: Boolean, dueAlertedAt: Date,
+        history: [{ _id: false, kind: String, reason: String, at: Date, by: String, reopenedAt: Date, reopenedBy: String, how: String }],
+    },
     maintenance: {
         on: { type: Boolean, default: false },
         message: { type: String, trim: true, maxlength: 200 },

@@ -63,6 +63,7 @@ const platformSchema = new mongoose.Schema({
         graceDays: { type: Number, default: 5, min: 0, max: 60 }, // days after a bill is issued before the shop is paused
         lateFeePercent: { type: Number, default: 5, min: 0, max: 100 },      // late fee: % of the bill's amount for every overdue month (0 = no late fee)
         lateFeeEveryDays: { type: Number, default: 30, min: 1, max: 90 },    // how many days make one overdue month
+        closeAfterMonths: { type: Number, default: 6, min: 1, max: 60 },     // a shop with rent unpaid this many months is listed for closing (the superadmin decides)
         overdueRemindDays: { type: Number, default: 3, min: 1, max: 30 },    // an overdue shop is reminded this often
         // monthly rent by delivered orders in that month. The last tier has upTo: null (open ended)
         tiers: {

@@ -77,6 +77,8 @@ import SmsProviderScreen from '../screens/money/SmsProviderScreen';
 import ShopsListScreen from '../screens/shops/ShopsListScreen';
 import ShopCreateScreen from '../screens/shops/ShopCreateScreen';
 import ShopDetailScreen from '../screens/shops/ShopDetailScreen';
+import ShopCloseScreen from '../screens/shops/ShopCloseScreen';
+import ShopsToCloseScreen from '../screens/shops/ShopsToCloseScreen';
 import ShopEditScreen from '../screens/shops/ShopEditScreen';
 import ShopLiveScreen from '../screens/shops/ShopLiveScreen';
 import ShopAccessScreen from '../screens/shops/ShopAccessScreen';
@@ -141,6 +143,8 @@ const DETAIL = [
     ['ShopCreate', ShopCreateScreen],
     ['ShopDetail', ShopDetailScreen],
     ['ShopEdit', ShopEditScreen],
+    ['ShopClose', ShopCloseScreen],
+    ['ShopsToClose', ShopsToCloseScreen],
     ['ShopLive', ShopLiveScreen],
     ['ShopAccess', ShopAccessScreen],
     ['ShopDev', ShopDevScreen],

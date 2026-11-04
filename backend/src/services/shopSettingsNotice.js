@@ -33,7 +33,14 @@ const maintenanceOn = (tenantId, { message, until } = {}) => send(tenantId, {
 }, 'shop');
 const maintenanceOff = (tenantId) => send(tenantId, { title: 'Your shop is back', body: 'Maintenance is over. Your shop works as usual.' }, 'shop');
 // the owner panel was locked or opened again (the reason is private and never sent)
+// the shop was closed (the reason is private and never sent), and opened again
+const closed = (tenantId, kind, closing) => send(tenantId, closing
+    ? { title: 'Your shop is closing', body: 'New orders have stopped. Your shop closes when the orders in progress are done.' }
+    : kind === 'rent'
+        ? { title: 'Your shop is closed', body: 'Your shop is closed because rent is unpaid. Pay your dues in the Rent page and it opens again by itself.' }
+        : { title: 'Your shop is closed', body: 'Your shop was closed by the platform team. Please contact support.' }, kind === 'rent' ? 'rent' : 'shop');
+const reopened = (tenantId) => send(tenantId, { title: 'Your shop is open again', body: 'Your shop works as usual. Customers can order again.' }, 'shop');
 const ownerBlocked = (tenantId) => send(tenantId, { title: 'Your shop panel was locked', body: 'The platform team locked your panel for now. Please contact support.' }, 'shop');
 const ownerAllowed = (tenantId) => send(tenantId, { title: 'Your shop panel is open again', body: 'You can use your shop panel as before.' }, 'shop');
 
-module.exports = { maintenanceOn, maintenanceOff, ownerBlocked, ownerAllowed, freeEnded, freeStarted, freeExtended, freeChanged, billCancelled, graceExtended, lateFeesWaived, TEXT };
+module.exports = { closed, reopened, maintenanceOn, maintenanceOff, ownerBlocked, ownerAllowed, freeEnded, freeStarted, freeExtended, freeChanged, billCancelled, graceExtended, lateFeesWaived, TEXT };

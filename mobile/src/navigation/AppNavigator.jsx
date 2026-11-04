@@ -487,7 +487,7 @@ export default function AppNavigator() {
             <PickupChangeHost />
             <CustomerAskHost />
             <LegalGate />
-            <FrozenOverlay onOrders={goOrders} />
+            <FrozenOverlay onOrders={goOrders} routeName={routeName} onRent={() => { if (navigationRef.isReady()) navigationRef.navigate('OwnerRent'); }} />
             <OfflineBanner />
             <ToastHost />
         </View>

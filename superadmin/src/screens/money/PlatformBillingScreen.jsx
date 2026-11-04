@@ -28,7 +28,7 @@ export default function PlatformBillingScreen() {
             const r = await fetchPlatform();
             const b = r.billing || {};
             setP(r);
-            setRules({ dueDays: b.dueDays ?? 7, graceDays: b.graceDays ?? 5, freeOrders: b.freeOrders ?? 100, freeMonths: b.freeMonths ?? 2, lateFeePercent: b.lateFeePercent ?? 5, lateFeeEveryDays: b.lateFeeEveryDays ?? 30, overdueRemindDays: b.overdueRemindDays ?? 3 });
+            setRules({ dueDays: b.dueDays ?? 7, graceDays: b.graceDays ?? 5, freeOrders: b.freeOrders ?? 100, freeMonths: b.freeMonths ?? 2, lateFeePercent: b.lateFeePercent ?? 5, lateFeeEveryDays: b.lateFeeEveryDays ?? 30, overdueRemindDays: b.overdueRemindDays ?? 3, closeAfterMonths: b.closeAfterMonths ?? 6 });
             setTiers((b.tiers && b.tiers.length ? b.tiers : DEFAULT_TIERS).map((x) => ({ upTo: x.upTo, fee: x.fee })));
             setError('');
         } catch (e) { setError(errMsg(e)); }
@@ -44,7 +44,7 @@ export default function PlatformBillingScreen() {
         if (problem) { toast(problem, 'error'); return; }
         setBusy(true);
         try {
-            await saveBillingRules({ dueDays: rules.dueDays, graceDays: rules.graceDays, freeOrders: rules.freeOrders, freeMonths: rules.freeMonths, lateFeePercent: rules.lateFeePercent, lateFeeEveryDays: rules.lateFeeEveryDays, overdueRemindDays: rules.overdueRemindDays });
+            await saveBillingRules({ dueDays: rules.dueDays, graceDays: rules.graceDays, freeOrders: rules.freeOrders, freeMonths: rules.freeMonths, lateFeePercent: rules.lateFeePercent, lateFeeEveryDays: rules.lateFeeEveryDays, overdueRemindDays: rules.overdueRemindDays, closeAfterMonths: rules.closeAfterMonths });
             await saveTiers(tiers);
             toast('Billing rules saved');
             nav.goBack();
@@ -66,7 +66,8 @@ export default function PlatformBillingScreen() {
             <Group title="Late fee and reminders" section="alerts" hint="A bill that stays unpaid after its due date adds a late fee as its own invoice (with GST) for every overdue month, and the shop is reminded until it pays.">
                 <NumberField label="Late fee per month (%)" integer value={rules.lateFeePercent} onChange={set('lateFeePercent')} hint="Of that bill's amount. GST is added. 0 means no late fee. 0 to 100." />
                 <NumberField label="Days that make one overdue month" integer value={rules.lateFeeEveryDays} onChange={set('lateFeeEveryDays')} hint="A fee is added each time a bill passes another block of this many days. 1 to 90." />
-                <NumberField label="Remind an overdue shop every (days)" integer value={rules.overdueRemindDays} onChange={set('overdueRemindDays')} hint="In the app, by push and by email. 1 to 30." last />
+                <NumberField label="Remind an overdue shop every (days)" integer value={rules.overdueRemindDays} onChange={set('overdueRemindDays')} hint="In the app, by push and by email. 1 to 30." />
+                <NumberField label="List a shop for closing after unpaid months" integer value={rules.closeAfterMonths} onChange={set('closeAfterMonths')} hint="A shop with rent unpaid this long goes on the Shops to close list and you are told. Nothing closes without your tap. 1 to 60." last />
             </Group>
 
             <Group title="Monthly rent by orders" section="shops" hint="The fee for a month depends on how many orders earned money that month. A shop can have its own tiers (Shop → Billing).">
