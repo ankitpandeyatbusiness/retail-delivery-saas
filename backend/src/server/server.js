@@ -79,6 +79,7 @@ connectDB()
             startOfferScheduler();
             startBillingAlertsScheduler();
             startStuckOrdersScheduler();
+            require('../services/dailyDigest').startDailyDigestScheduler();
             startHealthWatchScheduler();
             startLateDeliveryScheduler();
             startNotificationEscalationScheduler();

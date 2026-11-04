@@ -44,3 +44,6 @@ export const shareCustomersExcel = async (params) => saveAndShare(await api.get(
 // the customers of every shop with what each one did (masked phones; full=1 only for the supreme admin) and the same list as Excel
 export const listCustomers = (params) => data(api.get("/admin/customers", { params }));
 export const shareCustomerListExcel = async (params) => saveAndShare(await api.get("/admin/customers/export", sheetOpts(params)), "customers");
+
+// the whole sales report as one Excel file (a sheet each): same ?from=&to=&tenantId= as the report
+export const shareSalesReportExcel = async (params) => saveAndShare(await api.get('/admin/reports/sales/export', sheetOpts(params)), 'sales-report');

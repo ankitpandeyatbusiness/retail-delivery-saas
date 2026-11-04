@@ -40,3 +40,9 @@ export const getWatchSettings = () => data(api.get('/admin/orders/watch-settings
 export const saveWatchSettings = (body) => data(api.put('/admin/orders/watch-settings', body));
 // customers who cancel or are not there again and again (view only)
 export const getRepeatCancellers = (days = 30) => data(api.get('/admin/orders/repeat-cancellers', { params: { days } }));
+
+// money that did not become a sale (cancelled, not delivered, refunded), and the platform's own income this month
+export const fetchLostSales = (params) => data(api.get('/admin/reports/lost', { params }));
+export const fetchIncome = () => data(api.get('/admin/reports/income'));
+// when people order, new against returning customers, cash still with riders
+export const fetchPatterns = (params) => data(api.get('/admin/reports/patterns', { params }));

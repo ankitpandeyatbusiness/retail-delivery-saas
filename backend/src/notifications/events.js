@@ -175,6 +175,7 @@ const EVENTS = {
     admin_bill_issued: { to: 'superadmin', channels: ALL },
     admin_bill_paid: { to: 'superadmin', channels: ALL },
     admin_order_stuck: { to: 'superadmin', channels: INAPP_PUSH },   // an order stayed stuck long after the owner was told (services/stuckOrders.js escalate)
+    admin_daily_summary: { to: 'superadmin', channels: INAPP_PUSH },   // the morning push: yesterday's orders and sales, what needs attention (services/dailyDigest.js)
     admin_shop_paused: { to: 'superadmin', channels: ALL, critical: true },
     admin_shop_unpaused: { to: 'superadmin', channels: ALL },
     admin_grace_ending: { to: 'superadmin', channels: ALL },

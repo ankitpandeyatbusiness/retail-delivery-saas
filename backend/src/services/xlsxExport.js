@@ -27,10 +27,7 @@ const nice = (v) => String(v ?? '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c
 const thin = { style: 'thin', color: { argb: C.border } };
 const border = { top: thin, left: thin, bottom: thin, right: thin };
 
-async function buildSheet({ title, subtitle, columns, rows, total = false }) {
-    const wb = new ExcelJS.Workbook();
-    wb.creator = 'Retail Control';
-    wb.created = new Date();
+function addSheet(wb, { title, subtitle, columns, rows, total = false }) {
     const ws = wb.addWorksheet(String(title).slice(0, 28), { views: [{ state: 'frozen', ySplit: 4, showGridLines: false }] });
 
     // widths from the content, so nothing is cut off and nothing is far too wide
@@ -142,8 +139,21 @@ async function buildSheet({ title, subtitle, columns, rows, total = false }) {
 
     ws.autoFilter = { from: { row: 4, column: 1 }, to: { row: 4 + Math.max(rows.length, 1), column: last } };
     ws.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
+    return ws;
+}
+
+const newBook = () => { const wb = new ExcelJS.Workbook(); wb.creator = 'Retail Control'; wb.created = new Date(); return wb; };
+async function buildSheet(opts) {
+    const wb = newBook();
+    addSheet(wb, opts);
+    return Buffer.from(await wb.xlsx.writeBuffer());
+}
+// sheets: [{ title, subtitle, columns, rows, total }]; the first one opens first
+async function buildWorkbook(sheets) {
+    const wb = newBook();
+    for (const sh of sheets) addSheet(wb, sh);
     return Buffer.from(await wb.xlsx.writeBuffer());
 }
 
 const XLSX_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-module.exports = { buildSheet, XLSX_TYPE };
+module.exports = { buildSheet, buildWorkbook, XLSX_TYPE };

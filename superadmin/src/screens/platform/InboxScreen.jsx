@@ -104,6 +104,7 @@ export default function InboxScreen() {
             const page = SHOP_PAGE[n.type];
             if (shopId && page) toAdmin(nav, { screen: 'MoneyTab', params: { screen: page, params: { shopId: String(shopId), name: shopName } } });
             else if (shopId) toAdmin(nav, { screen: 'ShopsTab', params: { screen: 'ShopDetail', params: { shopId: String(shopId), name: shopName } } });
+            else if (n.type === 'admin_daily_summary') toAdmin(nav, { screen: 'OrdersTab', params: { screen: 'SalesReport' } });
             else if (PLATFORM_PAGE[n.type]) toAdmin(nav, { screen: 'MoneyTab', params: { screen: PLATFORM_PAGE[n.type] } });
             else toast('Nothing more to open for this alert');
         }

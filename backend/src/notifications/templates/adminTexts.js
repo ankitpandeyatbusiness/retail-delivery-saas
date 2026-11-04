@@ -15,6 +15,10 @@ const T = {
         title: `Order #${v.orderNo} is stuck · ${v.shop}`,
         body: `${{ not_accepted: 'The shop has not accepted it', not_started: 'Accepted but not started', slow_prep: 'Still being prepared', no_rider: 'Still has no rider', on_the_way_long: 'Still on the way' }[v.stage] || 'Waiting'} for ${v.minutes} min. Open the order to step in.`,
     }),
+    admin_daily_summary: (v) => ({
+        title: v.orders ? `Yesterday: ${v.orders} order${v.orders === 1 ? '' : 's'}, ₹${Math.round(v.sales).toLocaleString('en-IN')}` : 'Yesterday: no orders',
+        body: `${v.change === null || v.change === undefined ? (v.beforeOrders ? '' : 'Nothing the day before to compare. ') : (v.change === 0 ? 'Same as the day before. ' : (v.change > 0 ? 'Up ' : 'Down ') + Math.abs(v.change) + '% on the day before. ')}${v.attention ? v.attention + ' order' + (v.attention === 1 ? '' : 's') + ' need attention. ' : 'Nothing is stuck. '}${v.refunds ? v.refunds + ' refund' + (v.refunds === 1 ? '' : 's') + ' not finished.' : ''}`.trim(),
+    }),
     admin_shop_paused: (v) => ({
         title: `${v.shop} is paused`,
         body: `${inv(v)} is unpaid, so customers cannot order. Call the owner to get it paid.`,

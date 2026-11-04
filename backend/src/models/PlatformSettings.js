@@ -56,6 +56,7 @@ const platformSchema = new mongoose.Schema({
         paymentInstructions: { type: String, trim: true, maxlength: 500 }, // e.g. UPI id or bank details, printed on pending invoices
     },
 
+    dailyDigest: { type: mongoose.Schema.Types.Mixed },   // { day } the India date the morning summary was last sent
     orderWatch: { type: mongoose.Schema.Types.Mixed },   // limits of the Orders tab (services/orderWatchSettings.js: attention, alert, talk)
     billing: {
         dueDays: { type: Number, default: 7, min: 0, max: 60 },   // days between issue date and due date

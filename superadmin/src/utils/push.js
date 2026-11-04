@@ -29,6 +29,7 @@ function handleTap(resp) {
     lastTapped = id;
     const data = resp?.notification?.request?.content?.data || {};
     if (data.kind === 'health') openScreen('Admin', { screen: 'HomeTab', params: { screen: 'PlatformHealth' } });
+    else if (data.type === 'admin_daily_summary') openScreen('Admin', { screen: 'OrdersTab', params: { screen: 'SalesReport' } });
     else if (data.ticketId) openScreen('SupportDetail', { id: String(data.ticketId) });
     else if (data.orderId) openScreen('Admin', { screen: 'OrdersTab', params: { screen: 'OrderDetail', params: { orderId: String(data.orderId) } } });
     else if (data.invoiceId) openScreen('Admin', { screen: 'MoneyTab', params: { screen: 'InvoiceDetail', params: { invoiceId: String(data.invoiceId) } } });

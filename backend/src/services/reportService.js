@@ -31,6 +31,16 @@ function parseRange(query = {}) {
     return { from, to };
 }
 
+const pctChange = (now, before) => (before > 0 ? Math.round(((now - before) / before) * 1000) / 10 : null);
+// growing = up 20% or more; falling = down 30% or more; quiet = sold last time and nothing now; new = nothing last time
+const trendOf = (now, before) => {
+    if (before > 0 && now === 0) return 'quiet';
+    if (before === 0 && now > 0) return 'new';
+    const c = pctChange(now, before);
+    if (c === null) return 'same';
+    return c >= 20 ? 'growing' : c <= -30 ? 'falling' : 'same';
+};
+
 async function salesReport({ tenantId, from, to, groupBy, topLimit = 10 }) {
     const shop = tenantId ? { tenantId: oid(tenantId) } : {};
     const delivered = { ...shop, status: 'delivered', bulkId: { $exists: false }, deliveredAt: { $gte: from, $lte: to } };
@@ -55,7 +65,13 @@ async function salesReport({ tenantId, from, to, groupBy, topLimit = 10 }) {
         tips: { $sum: '$pricing.tip' },
     };
 
-    const [totalsRows, byPeriod, byShop, topItems, byPayment, byStatus] = await Promise.all([
+    // the period of the same length right before this one, to say "up" or "down"
+    const span = to.getTime() - from.getTime();
+    const prevTo = new Date(from.getTime() - 1);
+    const prevFrom = new Date(prevTo.getTime() - span);
+    const deliveredBefore = { ...shop, status: 'delivered', bulkId: { $exists: false }, deliveredAt: { $gte: prevFrom, $lte: prevTo } };
+
+    const [totalsRows, byPeriod, byShop, topItems, byPayment, byStatus, prevRows, prevByShop] = await Promise.all([
         Order.aggregate([{ $match: delivered }, { $group: { _id: null, ...sums } }]),
         Order.aggregate([
             { $match: delivered },
@@ -82,6 +98,11 @@ async function salesReport({ tenantId, from, to, groupBy, topLimit = 10 }) {
             { $sort: { revenue: -1 } },
         ]),
         Order.aggregate([{ $match: placedInRange }, { $group: { _id: '$status', n: { $sum: 1 } } }]),
+        Order.aggregate([{ $match: deliveredBefore }, { $group: { _id: null, orders: { $sum: 1 }, revenue: { $sum: netRevenue } } }]),
+        tenantId ? Promise.resolve([]) : Order.aggregate([
+            { $match: deliveredBefore },
+            { $group: { _id: '$tenantId', orders: { $sum: 1 }, revenue: { $sum: netRevenue } } },
+        ]),
     ]);
 
     const t = totalsRows[0] || {};
@@ -99,20 +120,40 @@ async function salesReport({ tenantId, from, to, groupBy, topLimit = 10 }) {
     };
 
     let shops = [];
-    if (byShop.length) {
-        const names = await Tenant.find({ _id: { $in: byShop.map((s) => s._id) } }).select('name slug').lean();
+    const prevBy = new Map(prevByShop.map((r) => [String(r._id), r]));
+    const shopRows = [...byShop, ...prevByShop.filter((r) => !byShop.some((x) => String(x._id) === String(r._id))).map((r) => ({ _id: r._id, orders: 0, revenue: 0 }))];
+    if (shopRows.length) {
+        const names = await Tenant.find({ _id: { $in: shopRows.map((s) => s._id) } }).select('name slug').lean();
         const nameById = new Map(names.map((n) => [String(n._id), n]));
-        shops = byShop.map((s) => ({
-            tenantId: s._id,
-            name: nameById.get(String(s._id))?.name || 'Unknown shop',
-            slug: nameById.get(String(s._id))?.slug || null,
-            orders: s.orders,
-            revenue: round2(s.revenue),
-        }));
+        shops = shopRows.map((s) => {
+            const before = prevBy.get(String(s._id));
+            const prev = round2(before?.revenue || 0);
+            const now = round2(s.revenue);
+            return {
+                tenantId: s._id,
+                name: nameById.get(String(s._id))?.name || 'Unknown shop',
+                slug: nameById.get(String(s._id))?.slug || null,
+                orders: s.orders,
+                revenue: now,
+                previousRevenue: prev,
+                previousOrders: before?.orders || 0,
+                changePct: pctChange(now, prev),
+                trend: trendOf(now, prev),
+            };
+        }).sort((a, b) => b.revenue - a.revenue);
     }
+
+    const pt = prevRows[0] || {};
+    const prevAov = pt.orders ? round2((pt.revenue || 0) / pt.orders) : 0;
+    const previous = {
+        range: { from: prevFrom, to: prevTo },
+        totals: { orders: pt.orders || 0, revenue: round2(pt.revenue || 0), averageOrderValue: prevAov },
+        change: { revenue: pctChange(totals.revenue, round2(pt.revenue || 0)), orders: pctChange(orders, pt.orders || 0), averageOrderValue: pctChange(totals.averageOrderValue, prevAov) },
+    };
 
     return {
         range: { from, to, groupBy: groupBy === 'month' ? 'month' : 'day' },
+        previous,
         totals,
         series: byPeriod.map((r) => ({ period: r._id, orders: r.orders, revenue: round2(r.revenue) })),
         shops,

@@ -102,7 +102,7 @@ export function Chip({ label, active, onPress, icon }) {
  *   section="orders"  -> a solid colour tile (white text): use it for the numbers that matter most
  *   no section        -> a white card with a coloured icon chip
  */
-export function Stat({ label, value, tone, icon, section, onPress }) {
+export function Stat({ label, value, tone, icon, section, onPress, note }) {
     const t = useTheme();
     if (section) {
         const g = sec(t, section).gradient;
@@ -114,6 +114,7 @@ export function Stat({ label, value, tone, icon, section, onPress }) {
                         {icon ? <View style={{ marginLeft: spacing.sm, flexShrink: 0 }}><Icon name={icon} size={22} color="#FFFFFF" /></View> : null}
                     </View>
                     <Text style={{ color: '#FFFFFF', fontSize: font.xxl, fontWeight: '800', marginTop: spacing.sm }} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
+                    {note ? <Text style={{ color: 'rgba(255,255,255,0.92)', fontSize: font.xs, fontWeight: '700', marginTop: 2 }} numberOfLines={1}>{note}</Text> : null}
                 </LinearGradient>
             </View>
         );
@@ -127,6 +128,7 @@ export function Stat({ label, value, tone, icon, section, onPress }) {
                 {icon ? <View style={{ marginLeft: spacing.sm, flexShrink: 0 }}><Icon name={icon} size={22} color={color === t.text ? t.primary : color} /></View> : null}
             </View>
             <Text style={{ color, fontSize: font.xxl, fontWeight: '800', marginTop: spacing.xs }} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
+            {note ? <Text style={{ color: t.muted, fontSize: font.xs, fontWeight: '700', marginTop: 2 }} numberOfLines={1}>{note}</Text> : null}
         </Card>
     );
 }

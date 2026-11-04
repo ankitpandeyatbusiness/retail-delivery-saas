@@ -156,6 +156,112 @@ router.get('/reports/sales', wrap(async (req, res) => {
 }));
 
 
+// money that did not become a sale (cancelled, not delivered, refunded) by who caused it. Same ?from=&to=&tenantId= as the sales report.
+router.get('/reports/lost', wrap(async (req, res) => {
+    const { from, to } = parseRange(req.query);
+    let tenantId;
+    if (req.query.tenantId !== undefined) {
+        if (!isId(req.query.tenantId)) throw httpError(400, 'Invalid tenantId');
+        tenantId = req.query.tenantId;
+    }
+    res.json(await require('../services/lostSales').report({ tenantId, from, to }));
+}));
+
+// when people order (by hour and weekday), how (delivery, pickup, dine-in), new against returning customers, cash still with riders
+router.get('/reports/patterns', wrap(async (req, res) => {
+    const { from, to } = parseRange(req.query);
+    let tenantId;
+    if (req.query.tenantId !== undefined) {
+        if (!isId(req.query.tenantId)) throw httpError(400, 'Invalid tenantId');
+        tenantId = req.query.tenantId;
+    }
+    res.json(await require('../services/salesPatterns').report({ tenantId, from, to }));
+}));
+
+// the whole sales report as one Excel file with a sheet each: summary, by day, by shop, best items, sales lost, how people order
+router.get('/reports/sales/export', wrap(async (req, res) => {
+    const { from, to } = parseRange(req.query);
+    let tenantId;
+    if (req.query.tenantId !== undefined) {
+        if (!isId(req.query.tenantId)) throw httpError(400, 'Invalid tenantId');
+        tenantId = req.query.tenantId;
+    }
+    const { buildWorkbook, XLSX_TYPE } = require('../services/xlsxExport');
+    const [r, lost, pat] = await Promise.all([
+        salesReport({ tenantId, from, to, groupBy: 'day', topLimit: 50 }),
+        require('../services/lostSales').report({ tenantId, from, to }),
+        require('../services/salesPatterns').report({ tenantId, from, to }),
+    ]);
+    const day = (d) => new Date(d).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' });
+    const rs = (n) => '₹' + Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+    const pct = (c) => (c === null || c === undefined ? 'n/a' : (c > 0 ? '+' : '') + c + '%');
+    const prev = r.previous;
+    const period = day(from) + ' to ' + day(to);
+    const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const buf = await buildWorkbook([
+        {
+            title: 'Summary', subtitle: period,
+            columns: [{ header: 'Measure', key: 'what' }, { header: 'This period', key: 'now', kind: 'center' }, { header: 'Period before', key: 'before', kind: 'center' }, { header: 'Change', key: 'change', kind: 'center' }],
+            rows: [
+                { what: 'Sales (delivered orders)', now: rs(r.totals.revenue), before: rs(prev.totals.revenue), change: pct(prev.change.revenue) },
+                { what: 'Orders delivered', now: r.totals.orders, before: prev.totals.orders, change: pct(prev.change.orders) },
+                { what: 'Average order', now: rs(r.totals.averageOrderValue), before: rs(prev.totals.averageOrderValue), change: pct(prev.change.averageOrderValue) },
+                { what: 'Not delivered', now: r.undelivered, before: '', change: '' },
+                { what: 'Cancelled or not delivered', now: lost.lost.count + ' orders, ' + rs(lost.lost.value), before: '', change: lost.lost.sharePct + '% of all orders' },
+                { what: 'Refunded to customers', now: rs(lost.refunds.paise / 100), before: '', change: '' },
+                { what: 'Customers who ordered', now: pat.customers.total, before: '', change: pat.customers.new + ' new, ' + pat.customers.returning + ' coming back' },
+                { what: 'Cash still with riders', now: rs(pat.cash.paise / 100), before: '', change: pat.cash.riders + ' riders' },
+            ],
+        },
+        {
+            title: 'By day',
+            columns: [{ header: 'Day', key: 'day' }, { header: 'Orders', key: 'orders', kind: 'int' }, { header: 'Sales (₹)', key: 'revenue', kind: 'money' }],
+            rows: r.series.map((x) => ({ day: x.period, orders: x.orders, revenue: x.revenue })), total: true,
+        },
+        ...(tenantId ? [] : [{
+            title: 'By shop',
+            columns: [{ header: 'Shop', key: 'shop' }, { header: 'Orders', key: 'orders', kind: 'int' }, { header: 'Sales (₹)', key: 'revenue', kind: 'money' }, { header: 'Before (₹)', key: 'before', kind: 'money' }, { header: 'Change', key: 'change', kind: 'center' }, { header: 'Trend', key: 'trend', kind: 'status' }],
+            rows: r.shops.map((x) => ({ shop: x.name, orders: x.orders, revenue: x.revenue, before: x.previousRevenue, change: pct(x.changePct), trend: x.trend === 'same' ? '' : x.trend })),
+        }]),
+        {
+            title: 'Best items',
+            columns: [{ header: 'Item', key: 'name', kind: 'wide' }, { header: 'Sold', key: 'quantity', kind: 'int' }, { header: 'Sales (₹)', key: 'revenue', kind: 'money' }],
+            rows: r.topItems.map((x) => ({ name: x.name, quantity: x.quantity, revenue: x.revenue })),
+        },
+        {
+            title: 'Sales lost',
+            columns: [{ header: 'Reason', key: 'why', kind: 'wide' }, { header: 'Orders', key: 'count', kind: 'int' }, { header: 'Value (₹)', key: 'value', kind: 'money' }],
+            rows: lost.byWho.map((x) => ({ why: x.key.replace(/^nohome_/, 'Not delivered, fault: ').replace(/_/g, ' '), count: x.count, value: x.value })), total: true,
+        },
+        {
+            title: 'By hour',
+            columns: [{ header: 'Hour (India time)', key: 'hour', kind: 'center' }, { header: 'Orders', key: 'orders', kind: 'int' }, { header: 'Sales (₹)', key: 'revenue', kind: 'money' }],
+            rows: pat.hours.map((x) => ({ hour: String(x.hour).padStart(2, '0') + ':00', orders: x.orders, revenue: x.revenue })),
+        },
+        {
+            title: 'By weekday',
+            columns: [{ header: 'Weekday', key: 'day' }, { header: 'Orders', key: 'orders', kind: 'int' }, { header: 'Sales (₹)', key: 'revenue', kind: 'money' }],
+            rows: pat.days.map((x) => ({ day: DAYS[x.day - 1], orders: x.orders, revenue: x.revenue })),
+        },
+    ]);
+    res.set('Content-Type', XLSX_TYPE);
+    res.set('Content-Disposition', 'attachment; filename="sales-report.xlsx"');
+    res.send(buf);
+}));
+
+// the platform's OWN money this month: rent billed and collected, SMS margin, costs, net, and what shops still owe
+router.get('/reports/income', wrap(async (req, res) => {
+    const fin = require('../services/financeService');
+    const [sum, rec] = await Promise.all([fin.summary({ months: 1 }), fin.receivables({})]);
+    const t = sum.totals;
+    res.json({
+        month: sum.months[0],
+        billedPaise: t.billedPaise, collectedPaise: t.collectedPaise, rentIncomePaise: t.rentIncomePaise, smsMarginPaise: t.smsMarginPaise,
+        costsPaise: t.costsPaise, netPaise: t.netPaise, verdict: sum.verdict,
+        owedPaise: rec.totals.pendingPaise, overduePaise: rec.totals.overduePaise, overdueShops: rec.totals.overdueShops,
+    });
+}));
+
 router.patch('/orders/:id/status', wrap(async (req, res) => {
     const order = isId(req.params.id) ? await Order.findById(req.params.id) : null;
     if (!order) throw httpError(404, 'Order not found');
