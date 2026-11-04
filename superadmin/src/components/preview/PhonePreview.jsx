@@ -18,6 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, spacing, font } from '../../theme';
 import { CATEGORIES, DISHES, BANNERS, OFFERS, ORDERS, STEPS, USER } from './previewData';
+import { makeFixed } from './FixedScreens';
 
 /* ============================== colours (the same rules as the customer app's kit.jsx) ============================== */
 const isHex = (c) => /^#[0-9a-fA-F]{6}$/.test(c || '');
@@ -137,6 +138,7 @@ function normalize(c) {
             emptyCart: cfg.labels?.emptyCart || 'Your cart is empty', closed: cfg.labels?.closedMessage || 'We are closed right now',
         },
         orders: cfg.orders || {},
+        loyalty: cfg.loyalty || {},
         offers: { enabled: cfg.offers?.couponsEnabled !== false, onHome: cfg.offers?.showOnHome !== false },
         grouped: cfg.menu?.groupByCategory !== false,
     };
@@ -1015,64 +1017,8 @@ function NotificationsPage() {
 }
 
 /* ============================== ACCOUNT ============================== */
-function AccountScreen() {
-    const { T, C, nav } = useP();
-    const tiles = [
-        ['receipt-outline', 'Orders', 'Track and reorder', () => nav.tab('orders')],
-        ['location-outline', 'Addresses', 'Where we deliver', () => nav.sheet('address')],
-        C.features.favourites
-            ? ['heart-outline', 'Favourites', 'Dishes you love', () => nav.push('favourites')]
-            : ['pricetags-outline', 'Offers', 'Coupons for you', () => nav.push('offers')],
-        ['notifications-outline', 'Notifications', '2 unread', () => nav.push('notifications')],
-    ];
-    return (
-        <ScrollView showsVerticalScrollIndicator={false} style={{ backgroundColor: T.background }} contentContainerStyle={{ paddingBottom: 90 }}>
-            <Tx style={{ color: T.text, fontSize: 21, fontWeight: '900', letterSpacing: -0.4, paddingHorizontal: 14, paddingTop: 12 }}>Account</Tx>
-            <View style={{ marginHorizontal: 14, marginTop: 10, borderRadius: 22, overflow: 'hidden' }}>
-                <LinearGradient colors={[T.primaryLight, T.primaryDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ padding: 16, flexDirection: 'row', alignItems: 'center' }}>
-                    <View style={[s.blob, { top: -40, right: -20, width: 120, height: 120 }]} />
-                    <View style={{ width: 52, height: 52, borderRadius: 26, borderWidth: 2, borderColor: 'rgba(255,255,255,0.7)', backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' }}>
-                        <Tx style={{ color: T.onPrimary, fontSize: 20, fontWeight: '800' }}>A</Tx>
-                    </View>
-                    <View style={{ flex: 1, marginLeft: 12 }}>
-                        <Tx style={{ color: T.onPrimary, fontSize: 16, fontWeight: '900' }}>{USER.name}</Tx>
-                        <Tx style={{ color: T.onPrimary, fontSize: 10.5, opacity: 0.88, marginTop: 1 }}>{USER.phone}</Tx>
-                    </View>
-                    <Pressable onPress={() => nav.sheet('edit')} style={{ backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6 }}><Tx style={{ color: T.onPrimary, fontSize: 11, fontWeight: '800' }}>Edit</Tx></Pressable>
-                </LinearGradient>
-            </View>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginHorizontal: 14, marginTop: 12 }}>
-                {tiles.map(([ic, label, sub, go]) => (
-                    <Pressable key={label} onPress={go} style={{ width: '48.5%', marginBottom: 10, borderRadius: 16, borderWidth: HAIR, borderColor: T.border, backgroundColor: T.surface, padding: 12 }}>
-                        <Glow radius={16} />
-                        <View style={{ width: 38, height: 38, borderRadius: 13, backgroundColor: alpha(T.primary, 0.12), alignItems: 'center', justifyContent: 'center' }}><Ionicons name={ic} size={19} color={T.primary} /></View>
-                        <Tx style={{ color: T.text, fontSize: 13, fontWeight: '900', marginTop: 10 }}>{label}</Tx>
-                        <Tx style={{ color: T.muted, fontSize: 10 }}>{sub}</Tx>
-                    </Pressable>
-                ))}
-            </View>
-            <Card style={{ marginTop: 4 }}>
-                <Tx style={{ color: T.text, fontSize: 12.5, fontWeight: '800' }}>Appearance</Tx>
-                <View style={{ flexDirection: 'row', marginTop: 8, borderRadius: 11, borderWidth: 1, borderColor: T.border, backgroundColor: T.background, padding: 3 }}>
-                    {['System', 'Light', 'Dark'].map((m, i) => (
-                        <View key={m} style={{ flex: 1, alignItems: 'center', paddingVertical: 6, borderRadius: 8, backgroundColor: i === 0 ? T.primary : 'transparent' }}>
-                            <Tx style={{ color: i === 0 ? T.onPrimary : T.muted, fontSize: 11, fontWeight: '800' }}>{m}</Tx>
-                        </View>
-                    ))}
-                </View>
-            </Card>
-            <Card>
-                {[['call-outline', `Contact ${C.name}`, false], ['log-out-outline', 'Log out', false], ['trash-outline', 'Delete account', true]].map(([ic, label, danger], i, a) => (
-                    <Pressable key={label} onPress={label === 'Log out' ? () => nav.reset(['login']) : undefined} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: i < a.length - 1 ? HAIR : 0, borderBottomColor: T.border }}>
-                        <Ionicons name={ic} size={17} color={danger ? T.errorText : T.primary} />
-                        <Tx style={{ flex: 1, marginLeft: 10, color: danger ? T.errorText : T.text, fontSize: 12.5, fontWeight: '700' }}>{label}</Tx>
-                        <Ionicons name="chevron-forward" size={15} color={T.muted} />
-                    </Pressable>
-                ))}
-            </Card>
-        </ScrollView>
-    );
-}
+// The account page is drawn by FixedScreens.jsx (the same groups and rows as the customer app, only the ones this shop has switched on)
+function AccountScreen() { return <AccountPageFixed />; }
 
 /* ============================== ITEM PAGE ============================== */
 function ItemPage({ d }) {
@@ -1778,6 +1724,7 @@ function Phone({ C, dark, fonts, jump }) {
             case 'services': return <ServicesPage />;
             case 'inquiry': return <InquiryPage />;
             case 'myinquiries': return <MyInquiriesPage />;
+            case 'inquirysent': return <InquiryDetailPage />;
             case 'booktable': return <BookTablePage />;
             case 'mybookings': return <MyBookingsPage />;
             case 'scantable': return <ScanTablePage />;
@@ -1846,7 +1793,11 @@ function Scaled({ scale, children }) {
 // A page that belongs to a feature switch: when the switch is off for this shop the page is shown dimmed under a note, so you SEE what the switch does.
 function Gate({ feature, label, children }) {
     const { T, C } = useP();
-    const on = !feature || C.features[feature] === true;
+    // dine-in is a setting of orders (orders.dineIn.enabled); the others are the feature switches
+    const on = !feature || (feature === 'dineIn' ? C.orders?.dineIn?.enabled === true
+        : feature === 'refer' ? C.orders?.dineIn?.enabled === true && C.orders?.dineIn?.referOn === true
+            : feature === 'points' ? C.loyalty?.customer?.enabled !== false
+                : C.features[feature] === true);
     return (
         <View>
             {on ? null : (
@@ -1881,202 +1832,32 @@ const Pill = ({ text, tone }) => {
     return <View style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, backgroundColor: alpha(c, 0.14) }}><Tx style={{ color: c, fontSize: 9.5, fontWeight: '900' }}>{text}</Tx></View>;
 };
 
-function ServicesPage() {
-    const { T } = useP();
-    const rows = [['cut-outline', 'Birthday cake order', 'Starts at ₹800 · ready in 1 day'], ['people-outline', 'Catering for a party', 'Ask for a price'], ['flower-outline', 'Table decoration', '₹500 · book 2 days ahead']];
-    return (
-        <Page title="Services">
-            <Gate feature="services" label="Services">
-                {rows.map(([ic, name, sub]) => (
-                    <Card key={name}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: alpha(T.primary, 0.12), alignItems: 'center', justifyContent: 'center' }}><Ionicons name={ic} size={19} color={T.primary} /></View>
-                            <View style={{ flex: 1, marginHorizontal: 10 }}><Tx style={{ color: T.text, fontSize: 13, fontWeight: '800' }}>{name}</Tx><Tx style={{ color: T.muted, fontSize: 10.5 }}>{sub}</Tx></View>
-                            <Pill text="Ask" tone="ok" />
-                        </View>
-                    </Card>
-                ))}
-            </Gate>
-        </Page>
-    );
-}
-function InquiryPage() {
-    return (
-        <Page title="Birthday cake order" footer={<Dock><Btn title="Send inquiry" /></Dock>}>
-            <Gate feature="services" label="Services">
-                <Card><Field label="Your name" value="Ananya" /><Field label="Phone" value="98765 43210" /><Field label="When do you need it?" value="Saturday evening" /><Field label="Tell the shop what you want" value="1 kg chocolate cake with a name" /></Card>
-            </Gate>
-        </Page>
-    );
-}
-function MyInquiriesPage() {
-    const rows = [['Birthday cake order', 'The shop replied: ready by 6 pm for ₹950', 'Answered', 'ok'], ['Catering for a party', 'Waiting for the shop', 'Waiting', 'warn']];
-    const { T } = useP();
-    return (
-        <Page title="My inquiries">
-            <Gate feature="services" label="Services">
-                {rows.map(([t, sub, st, tone]) => <Card key={t}><View style={{ flexDirection: 'row', alignItems: 'center' }}><View style={{ flex: 1 }}><Tx style={{ color: T.text, fontSize: 13, fontWeight: '800' }}>{t}</Tx><Tx style={{ color: T.muted, fontSize: 10.5, marginTop: 2 }}>{sub}</Tx></View><Pill text={st} tone={tone} /></View></Card>)}
-            </Gate>
-        </Page>
-    );
-}
-function BookTablePage() {
-    const { T } = useP();
-    const taken = [1, 4, 6, 9];
-    return (
-        <Page title="Book a table" footer={<Dock><Btn title="Pay ₹200 deposit and book" /></Dock>}>
-            <Gate feature="tableBooking" label="Table booking">
-                <Card>
-                    <Tx style={{ color: T.muted, fontSize: 10.5, fontWeight: '800' }}>DAY</Tx>
-                    <View style={{ flexDirection: 'row', marginTop: 6 }}><Chipx label="Today" /><Chipx label="Tomorrow" on /><Chipx label="Sat 8 Nov" /></View>
-                    <Tx style={{ color: T.muted, fontSize: 10.5, fontWeight: '800', marginTop: 6 }}>TIME</Tx>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 }}>{['7:00 pm', '7:30 pm', '8:00 pm', '8:30 pm', '9:00 pm'].map((x, i) => <Chipx key={x} label={x} on={i === 2} />)}</View>
-                    <Tx style={{ color: T.muted, fontSize: 10.5, fontWeight: '800', marginTop: 6 }}>PEOPLE</Tx>
-                    <View style={{ flexDirection: 'row', marginTop: 6 }}>{[1, 2, 3, 4, 5, 6].map((n) => <Chipx key={n} label={String(n)} on={n === 4} />)}</View>
-                </Card>
-                <Card>
-                    <Tx style={{ color: T.text, fontSize: 12, fontWeight: '800', marginBottom: 8 }}>Pick your table</Tx>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                        {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
-                            <View key={n} style={{ width: '25%', alignItems: 'center', marginBottom: 8 }}>
-                                <View style={{ width: 38, height: 38, borderRadius: 10, backgroundColor: taken.includes(n) ? alpha(T.muted, 0.2) : n === 5 ? T.primary : alpha(T.primary, 0.12), alignItems: 'center', justifyContent: 'center' }}>
-                                    <Tx style={{ color: taken.includes(n) ? T.muted : n === 5 ? T.onPrimary : T.primary, fontSize: 12, fontWeight: '900' }}>{n}</Tx>
-                                </View>
-                            </View>
-                        ))}
-                    </View>
-                    <Tx style={{ color: T.muted, fontSize: 10 }}>Grey tables are taken. The deposit is taken off your bill when you eat.</Tx>
-                </Card>
-            </Gate>
-        </Page>
-    );
-}
-function MyBookingsPage() {
-    const { T } = useP();
-    return (
-        <Page title="My bookings">
-            <Gate feature="tableBooking" label="Table booking">
-                <Card><View style={{ flexDirection: 'row', alignItems: 'center' }}><View style={{ flex: 1 }}><Tx style={{ color: T.text, fontSize: 13, fontWeight: '800' }}>Table 5 · 4 people</Tx><Tx style={{ color: T.muted, fontSize: 10.5, marginTop: 2 }}>Tomorrow, 8:00 pm · ₹200 deposit paid</Tx></View><Pill text="Confirmed" tone="ok" /></View><Btn kind="danger" title="Cancel booking" style={{ marginTop: 10, height: 38 }} /></Card>
-                <Card><View style={{ flexDirection: 'row', alignItems: 'center' }}><View style={{ flex: 1 }}><Tx style={{ color: T.text, fontSize: 13, fontWeight: '800' }}>Table 2 · 2 people</Tx><Tx style={{ color: T.muted, fontSize: 10.5, marginTop: 2 }}>Last Sunday, 1:00 pm</Tx></View><Pill text="Done" /></View></Card>
-            </Gate>
-        </Page>
-    );
-}
-function ScanTablePage() {
-    const { T } = useP();
-    return (
-        <Page title="Scan your table">
-            <View style={{ margin: 14, height: 300, borderRadius: 18, backgroundColor: '#111114', alignItems: 'center', justifyContent: 'center' }}>
-                <View style={{ width: 170, height: 170 }}>
-                    {[[0, 0], [1, 0], [0, 1], [1, 1]].map(([x, y]) => <View key={String(x) + y} style={{ position: 'absolute', [x ? 'right' : 'left']: 0, [y ? 'bottom' : 'top']: 0, width: 36, height: 36, borderColor: T.primary, borderTopWidth: y ? 0 : 4, borderBottomWidth: y ? 4 : 0, borderLeftWidth: x ? 0 : 4, borderRightWidth: x ? 4 : 0, borderRadius: 8 }} />)}
-                    <View style={{ position: 'absolute', top: 84, left: 10, right: 10, height: 2, backgroundColor: T.primary }} />
-                </View>
-                <Tx style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '700', marginTop: 18 }}>Point the camera at the QR code on your table</Tx>
-            </View>
-            <Tx style={{ color: T.muted, fontSize: 11, textAlign: 'center', paddingHorizontal: 24 }}>You can then order from your table and pay the bill here.</Tx>
-        </Page>
-    );
-}
-function TableBillPage() {
-    return (
-        <Page title="Table 5 · your bill" footer={<Dock><Btn title="Pay ₹731" /></Dock>}>
-            <Card>
-                <Line left="Paneer Tikka" sub="Round 1" right="₹260" />
-                <Line left="Butter Naan x2" sub="Round 1" right="₹80" />
-                <Line left="Veg Biryani" sub="Round 2" right="₹220" />
-                <Line left="Sweet Lassi" sub="Round 2" right="₹90" />
-                <Line left="GST" right="₹81" />
-                <Line left="Total" right="₹731" strong />
-            </Card>
-            <Card><Btn kind="outline" title="Ask the waiter for the bill" icon="hand-left-outline" /></Card>
-        </Page>
-    );
-}
-function BulkOrderPage() {
-    const { T } = useP();
-    return (
-        <Page title="Bulk order" footer={<Dock><Btn title="Add to bulk cart" /></Dock>}>
-            <Gate feature="bulkOrders" label="Bulk orders">
-                <Card><Tx style={{ color: T.muted, fontSize: 10.5 }}>For parties and events. The shop needs notice, and confirms with a quote.</Tx></Card>
-                {[['Veg Biryani', '₹220 each', 40], ['Paneer Tikka', '₹260 each', 25], ['Gulab Jamun', '₹30 each', 60]].map(([n, pr, q]) => (
-                    <Card key={n}><View style={{ flexDirection: 'row', alignItems: 'center' }}><View style={{ flex: 1 }}><Tx style={{ color: T.text, fontSize: 13, fontWeight: '800' }}>{n}</Tx><Tx style={{ color: T.muted, fontSize: 10.5 }}>{pr}</Tx></View><View style={{ flexDirection: 'row', alignItems: 'center' }}><Ionicons name="remove-circle-outline" size={22} color={T.primary} /><Tx style={{ color: T.text, fontWeight: '900', marginHorizontal: 8 }}>{q}</Tx><Ionicons name="add-circle" size={22} color={T.primary} /></View></View></Card>
-                ))}
-                <Card><Field label="Needed on" value="Saturday, 12:30 pm" /></Card>
-            </Gate>
-        </Page>
-    );
-}
-function BulkCartPage() {
-    const { T } = useP();
-    return (
-        <Page title="Bulk cart" footer={<Dock><Btn title="Ask the shop for a quote" /></Dock>}>
-            <Gate feature="bulkOrders" label="Bulk orders">
-                <Card><Line left="Veg Biryani x40" right="₹8,800" /><Line left="Paneer Tikka x25" right="₹6,500" /><Line left="Gulab Jamun x60" right="₹1,800" /><Line left="Delivery" right="₹150" /><Line left="Estimated total" right="₹17,250" strong /></Card>
-                <Card><Tx style={{ color: T.muted, fontSize: 10.5 }}>The shop sends a final price. You pay an advance of 30% (₹5,175) to confirm.</Tx></Card>
-            </Gate>
-        </Page>
-    );
-}
-function BulkOrderDetailPage() {
-    const { T } = useP();
-    const steps = [['Asked for a quote', true], ['Shop sent a quote', true], ['You paid the advance', true], ['Being cooked', false], ['Delivered', false]];
-    return (
-        <Page title="Bulk order #B-102">
-            <Gate feature="bulkOrders" label="Bulk orders">
-                <Card>{steps.map(([t, done]) => <View key={t} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6 }}><Ionicons name={done ? 'checkmark-circle' : 'ellipse-outline'} size={18} color={done ? '#12A66A' : T.muted} /><Tx style={{ marginLeft: 8, color: done ? T.text : T.muted, fontSize: 12, fontWeight: done ? '800' : '600' }}>{t}</Tx></View>)}</Card>
-                <Card><Line left="Quote" right="₹16,900" /><Line left="Advance paid" right="₹5,070" /><Line left="Balance on delivery" right="₹11,830" strong /></Card>
-            </Gate>
-        </Page>
-    );
-}
-function MyBulkPage() {
-    const { T } = useP();
-    return (
-        <Page title="My bulk orders">
-            <Gate feature="bulkOrders" label="Bulk orders">
-                <Card><View style={{ flexDirection: 'row', alignItems: 'center' }}><View style={{ flex: 1 }}><Tx style={{ color: T.text, fontSize: 13, fontWeight: '800' }}>#B-102 · 125 pieces</Tx><Tx style={{ color: T.muted, fontSize: 10.5, marginTop: 2 }}>Saturday, 12:30 pm</Tx></View><Pill text="Confirmed" tone="ok" /></View></Card>
-                <Card><View style={{ flexDirection: 'row', alignItems: 'center' }}><View style={{ flex: 1 }}><Tx style={{ color: T.text, fontSize: 13, fontWeight: '800' }}>#B-097 · 60 pieces</Tx><Tx style={{ color: T.muted, fontSize: 10.5, marginTop: 2 }}>Waiting for the quote</Tx></View><Pill text="Quote" tone="warn" /></View></Card>
-            </Gate>
-        </Page>
-    );
-}
-function PointsPage() {
-    const { T } = useP();
-    return (
-        <Page title="My points">
-            <Card style={{ alignItems: 'center', paddingVertical: 18 }}><Tx style={{ color: T.muted, fontSize: 11 }}>You have</Tx><Tx style={{ color: T.primary, fontSize: 34, fontWeight: '900' }}>240</Tx><Tx style={{ color: T.muted, fontSize: 11 }}>points · worth ₹24 off your next order</Tx></Card>
-            <Card>
-                <Tx style={{ color: T.text, fontSize: 12, fontWeight: '900', marginBottom: 4 }}>History</Tx>
-                <Line left="Order #2481" sub="Today" right="+22" />
-                <Line left="Used on order #2476" sub="Yesterday" right="-100" />
-                <Line left="Referral: Rohit joined" sub="Last week" right="+50" />
-            </Card>
-        </Page>
-    );
-}
-function ReferPage() {
-    const { T } = useP();
-    return (
-        <Page title="Refer a friend" footer={<Dock><Btn title="Share my code" icon="share-social-outline" /></Dock>}>
-            <Card style={{ alignItems: 'center', paddingVertical: 20 }}>
-                <Ionicons name="gift-outline" size={34} color={T.primary} />
-                <Tx style={{ color: T.text, fontSize: 14, fontWeight: '900', marginTop: 8 }}>Give a friend 20% off</Tx>
-                <Tx style={{ color: T.muted, fontSize: 11, textAlign: 'center', marginTop: 4 }}>You get 50 points when your friend places a first order.</Tx>
-                <View style={{ marginTop: 14, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 12, borderWidth: 1.5, borderStyle: 'dashed', borderColor: T.primary }}><Tx style={{ color: T.primary, fontSize: 18, fontWeight: '900', letterSpacing: 2 }}>ANANYA7K</Tx></View>
-            </Card>
-            <Card><Line left="Friends who joined" right="3" /><Line left="Points earned" right="150" strong /></Card>
-        </Page>
-    );
-}
+// The fixed screens, drawn exactly as the customer app draws them (see FixedScreens.jsx)
+const FIXED = makeFixed({ useP, Tx, Gate, alpha });
+const BookTablePage = FIXED.BookTablePage;
+const MyBookingsPage = FIXED.MyBookingsPage;
+const ScanTablePage = FIXED.ScanTablePage;
+const TableBillPage = FIXED.TableBillPage;
+const ServicesPage = FIXED.ServicesPage;
+const InquiryPage = FIXED.InquiryPage;
+const MyInquiriesPage = FIXED.MyInquiriesPage;
+const InquiryDetailPage = FIXED.InquiryDetailPage;
 
-// every screen of the app, in the order a customer meets them
+const AccountPageFixed = FIXED.AccountPage;
+const BulkOrderPage = FIXED.BulkOrderPage;
+const BulkCartPage = FIXED.BulkCartPage;
+const BulkOrderDetailPage = FIXED.BulkOrderDetailPage;
+const MyBulkPage = FIXED.MyBulkPage;
+const PointsPage = FIXED.PointsPage;
+const ReferPage = FIXED.ReferPage;
+
 const JUMPS = [
     ['login', 'Login'], ['home', 'Home'], ['search', 'Search'], ['results', 'Search results'], ['item', 'Dish page'],
     ['cart', 'Cart'], ['emptycart', 'Empty cart'], ['payment', 'Payment options'], ['card', 'Card details'], ['placed', 'Order placed'],
     ['orders', 'Orders'], ['live', 'Live order'], ['delivered', 'Delivered order'], ['offers', 'Offers'], ['favourites', 'Favourites'],
     ['bestsellers', 'Bestsellers'], ['notifications', 'Notifications'], ['account', 'Account'], ['addresses', 'Addresses'],
     ['edit', 'Edit profile'], ['filters', 'Filters'], ['closed', 'Shop closed'],
-    ['services', 'Services'], ['inquiry', 'Inquiry form'], ['myinquiries', 'My inquiries'], ['booktable', 'Book a table'], ['mybookings', 'My bookings'],
+    ['services', 'Services'], ['inquiry', 'Inquiry form'], ['myinquiries', 'My inquiries'], ['inquirysent', 'Inquiry I sent'], ['booktable', 'Book a table'], ['mybookings', 'My bookings'],
     ['scantable', 'Scan table'], ['tablebill', 'Table bill'], ['bulkorder', 'Bulk order'], ['bulkcart', 'Bulk cart'], ['bulkdetail', 'Bulk order status'], ['mybulk', 'My bulk orders'],
     ['points', 'My points'], ['refer', 'Refer a friend'],
 ];

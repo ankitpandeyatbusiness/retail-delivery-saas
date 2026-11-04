@@ -52,3 +52,12 @@ Deploy the server first, then update the superadmin app. Use one test shop with 
 1. Tap a rider photo, a dish picture, a shop logo, a banner or collection picture, a complaint photo, a support chat picture, or the rider proof of delivery on an order: it opens full screen.
 2. Pinch to zoom in and out, drag a zoomed picture, double tap to zoom in or back, swipe down or tap the cross to close.
 3. A dish with several pictures, and complaint or support photos, show "1 / 3" with arrows to page through.
+
+## 11. Live phone preview: the fixed customer screens
+Open a shop > the phone preview > Full size > the Screens bar. These now follow the real customer screens (same order of parts, sizes and words; only the shop colours, font and logo change):
+- Account: tiles, then SERVICES / REWARDS / PREFERENCES / HELP / MANAGE. A group or row appears only when its switch is on (Table booking, Bulk orders, Services, Points, Refer a friend in Dine-in settings).
+- Book a table (day, guests, time, table map with Free / Your choice / Taken, deposit, your details) and My reservations (with the ticket and QR).
+- Scan table, Table bill (call the waiter, rounds, tip, split the bill, pay online).
+- Services (picture cards), the service form, My inquiries, and "Inquiry I sent".
+- Bulk order, Bulk cart, the shop quote (Bulk order status), My bulk orders, My points, Refer a friend.
+Turn the switch off for the shop: the page shows dimmed under a red note saying which switch to turn on.
