@@ -116,12 +116,7 @@ export default function ShopMenuScreen() {
             title="Menu"
             subtitle={name}
             scroll={false}
-            right={
-                <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-                    <HeaderButton icon="box" onPress={() => nav.navigate('ProductImport', { shopId, name })} />
-                    <HeaderButton icon="add" onPress={tab === 'items' ? addProduct : addCategory} />
-                </View>
-            }
+            right={<HeaderButton icon="add" onPress={tab === 'items' ? addProduct : addCategory} />}
         >
             {tab === 'items' ? (
                 <>

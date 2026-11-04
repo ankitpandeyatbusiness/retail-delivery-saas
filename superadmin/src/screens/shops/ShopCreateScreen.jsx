@@ -251,7 +251,7 @@ export default function ShopCreateScreen() {
                         onPick={(p) => {
                             setF((x) => ({
                                 ...x, latitude: p.latitude, longitude: p.longitude, radiusKm: p.radiusKm ?? x.radiusKm,
-                                line: x.line || p.line || '', city: x.city || p.city || '', pincode: x.pincode || p.pincode || '',
+                                line: p.line || x.line || '', city: p.city || x.city || '', pincode: p.pincode || x.pincode || '', state: x.state || p.state || '',
                             }));
                             setMapOpen(false);
                         }}

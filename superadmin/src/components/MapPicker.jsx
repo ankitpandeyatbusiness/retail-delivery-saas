@@ -169,6 +169,7 @@ export default function MapPicker({ visible, initial, onClose, onPick, withRadiu
             address: label,
             line: [...new Set([place?.name, place?.street].filter(Boolean))].join(', ') || label,
             city: place?.city || place?.subregion || '',
+            state: place?.region || '',
             pincode: /^\d{6}$/.test(place?.postalCode || '') ? place.postalCode : '',
             ...(withRadius ? { radiusKm: radius } : {}),
         });
