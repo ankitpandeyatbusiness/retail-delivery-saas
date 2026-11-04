@@ -79,6 +79,7 @@ admin.use(require('./adminComplaintsRouter'));   // all complaints
 admin.use(require('./adminSupportRouter'));   // help & support requests from shop owners
 admin.use(require('./adminReportRouter'));   // how the progress report is presented (commission used for the estimate...)
 admin.use(require('./adminOrdersRouter'));
+admin.use(require('./adminCustomersRouter'));
 admin.use(require('./adminUsersRouter'));
 admin.use(require('./adminTeamRouter'));
 admin.use(require('./adminMediaRouter'));   // list a shop's uploaded images (hero, logo, build icons)   // other superadmins: add, rename, revoke, restore

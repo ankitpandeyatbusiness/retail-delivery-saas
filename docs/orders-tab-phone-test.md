@@ -32,3 +32,10 @@ Deploy the server first, then update the superadmin app. Use one test shop with 
 1. Change "Shop has not accepted" from 5 to 15. Save. An order waiting 8 minutes leaves the Attention list.
 2. "Use suggested numbers" puts the defaults back. A bad value (0) is refused.
 3. Only the supreme admin can save; another admin can look.
+
+## 8. Sales report and customers
+1. Orders > chart icon: the funnel has Period and Shop. Pick a shop: the whole report is for that shop. In "By shop", tapping a row opens that shop.
+2. "Customers of every shop" (also on the Live view): search by name or part of a phone, sort and shop in the funnel. Each row shows spent, orders, cancelled and not-home counts.
+3. **Excel** on that screen downloads the list with the same filters. Phones are masked.
+4. As the supreme admin: the funnel has "Phone numbers: Full numbers". The list and the Excel then show full numbers. Another admin does not see that option, and the server refuses it.
+5. Each full-number look or download is in the audit log ("SEE FULL CUSTOMER PHONES", "DOWNLOAD CUSTOMERS WITH FULL PHONES").

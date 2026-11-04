@@ -117,6 +117,13 @@ export function LiveBoard({ header }) {
                 <Text style={{ color: t.muted, fontSize: font.xs, marginTop: spacing.sm, marginLeft: 4 }}>Sales today (delivered): {rupees(tod.sales)}</Text>
             </View>
             <View style={{ paddingHorizontal: spacing.lg }}>
+                <Card onPress={() => nav.navigate('Customers')} style={{ marginBottom: spacing.sm }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Icon name="users" size={18} color={t.primary} />
+                        <Text style={{ flex: 1, color: t.text, fontWeight: '800', fontSize: font.md, marginLeft: spacing.sm }}>Customers of every shop</Text>
+                        <Icon name="next" size={16} color={t.muted} />
+                    </View>
+                </Card>
                 <Card onPress={() => nav.navigate('ShopQuality')}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Icon name="chart" size={18} color={t.primary} />

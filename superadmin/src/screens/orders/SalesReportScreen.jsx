@@ -1,9 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
-import { useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useTheme, spacing, font } from '../../theme';
 import { Screen } from '../../components/layout';
-import { Card, Chip, SectionTitle, KeyValue, Stat, Badge } from '../../components/ui';
+import { Card, SectionTitle, KeyValue, Stat, Badge } from '../../components/ui';
+import { FunnelButton, FilterPopup } from '../../components/FilterPopup';
+import { Sheet, SheetScroll } from '../../components/feedback';
+import Icon from '../../components/Icon';
+import { useShopsStore } from '../../store/useShopsStore';
 import { SkeletonDashboard } from '../../components/blocks';
 import { ErrorBox, Empty } from '../../components/feedback';
 import BarChart from '../../components/charts';
@@ -37,7 +41,15 @@ const short = (period) => { const [, mo, d] = period.split('-'); return d ? `${d
 // Sales = delivered orders, counted on the day they were delivered (the same rule as the backend report).
 export default function SalesReportScreen() {
     const t = useTheme();
-    const { shopId, name } = useRoute().params || {};
+    const nav = useNavigation();
+    const fromRoute = useRoute().params || {};
+    const shops = useShopsStore((st) => st.items);
+    const [shop, setShop] = useState({ id: fromRoute.shopId || '', name: fromRoute.name || '' });   // one shop, or all shops when id is empty
+    const [filters, setFilters] = useState(false);
+    const [picker, setPicker] = useState(false);
+    const shopId = shop.id;
+    const name = shop.name;
+    useEffect(() => { if (!shops.length) useShopsStore.getState().load(); }, [shops.length]);
     const [range, setRange] = useState('30');
     const [r, setR] = useState(null);
     const [error, setError] = useState('');
@@ -56,11 +68,45 @@ export default function SalesReportScreen() {
 
     return (
         <Screen title="Sales report" subtitle={name || 'All shops'}>
-            <View style={{ height: 48, marginHorizontal: -spacing.lg }}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: spacing.lg, alignItems: 'center' }} style={{ flexGrow: 0 }}>
-                    {RANGES.map((x) => <Chip key={x.value} label={x.label} active={range === x.value} onPress={() => setRange(x.value)} />)}
-                </ScrollView>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm }}>
+                <Text style={{ flex: 1, color: shopId || range !== '30' ? t.primary : t.muted, fontWeight: '800', fontSize: font.sm }} numberOfLines={1}>
+                    {RANGES.find((x) => x.value === range)?.label}{shopId ? ' · ' + name : ' · All shops'}
+                </Text>
+                <FunnelButton count={(shopId ? 1 : 0) + (range !== '30' ? 1 : 0)} onPress={() => setFilters(true)} />
             </View>
+            <FilterPopup
+                visible={filters}
+                onClose={() => setFilters(false)}
+                title="Filter the report"
+                activeCount={(shopId ? 1 : 0) + (range !== '30' ? 1 : 0)}
+                onClear={() => { setRange('30'); setShop({ id: '', name: '' }); }}
+                sections={[
+                    { key: 'range', title: 'Period', options: RANGES.map((x) => [x.value, x.label]), value: range, onChange: setRange },
+                    { key: 'shop', title: 'Shop', row: shopId ? name : 'All shops', active: !!shopId, onPress: () => { setFilters(false); setTimeout(() => setPicker(true), 250); } },
+                ]}
+            />
+            <Sheet visible={picker} onClose={() => setPicker(false)} title="Which shop?">
+                <SheetScroll style={{ maxHeight: 380 }}>
+                    <Pressable onPress={() => { setShop({ id: '', name: '' }); setPicker(false); }} style={{ paddingVertical: spacing.md, flexDirection: 'row', alignItems: 'center' }}>
+                        <Text style={{ flex: 1, color: t.text, fontWeight: '800', fontSize: font.md }}>All shops</Text>
+                        {!shopId ? <Icon name="ok" size={20} color={t.primary} /> : null}
+                    </Pressable>
+                    {shops.map((x) => (
+                        <Pressable key={x._id} onPress={() => { setShop({ id: x._id, name: x.name }); setPicker(false); }} style={{ paddingVertical: spacing.md, flexDirection: 'row', alignItems: 'center', borderTopWidth: 0.5, borderTopColor: t.border }}>
+                            <Text style={{ flex: 1, color: t.text, fontWeight: '700', fontSize: font.md }} numberOfLines={1}>{x.name}</Text>
+                            {shopId === x._id ? <Icon name="ok" size={20} color={t.primary} /> : null}
+                        </Pressable>
+                    ))}
+                </SheetScroll>
+            </Sheet>
+
+            <Card onPress={() => nav.navigate('Customers', shopId ? { shopId, name } : {})} style={{ marginBottom: spacing.sm }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Icon name="users" size={18} color={t.primary} />
+                    <Text style={{ flex: 1, color: t.text, fontWeight: '800', fontSize: font.md, marginLeft: spacing.sm }}>{shopId ? 'Customers of this shop' : 'Customers of every shop'}</Text>
+                    <Icon name="next" size={16} color={t.muted} />
+                </View>
+            </Card>
 
             {error ? <ErrorBox message={error} onRetry={() => setRange((v) => v)} /> : !r ? <SkeletonDashboard /> : r.totals.orders === 0 ? (
                 <Empty icon="chart" title="No sales in this period" hint="Only delivered orders count as sales." />
@@ -99,7 +145,9 @@ export default function SalesReportScreen() {
                             <SectionTitle section="shops">By shop</SectionTitle>
                             <Card style={{ paddingVertical: 0 }}>
                                 {r.shops.map((s, i) => (
-                                    <KeyValue key={String(s.tenantId)} label={`${s.name} · ${s.orders}`} value={rupees(s.revenue)} last={i === r.shops.length - 1} />
+                                    <Pressable key={String(s.tenantId)} onPress={() => setShop({ id: String(s.tenantId), name: s.name })}>
+                                        <KeyValue label={`${s.name} · ${s.orders}`} value={rupees(s.revenue)} last={i === r.shops.length - 1} />
+                                    </Pressable>
                                 ))}
                             </Card>
                         </>

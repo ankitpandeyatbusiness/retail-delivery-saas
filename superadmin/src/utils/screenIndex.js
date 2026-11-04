@@ -19,6 +19,7 @@ export const SCREEN_INDEX = [
     E('Customers who cancel a lot', 'Orders', 'RepeatCancellers', 'root', 'block', 'orders', 'cancel cancelled customers repeat abuse not home no show block'),
     E('Order limits', 'Orders', 'OrderLimits', 'root', 'settings', 'orders', 'limits stuck alert minutes late slow talk quality cancel threshold'),
     E('Shop quality', 'Orders', 'ShopQuality', 'root', 'chart', 'orders', 'quality cancel slow prepare delivery complaints weak shops performance'),
+    E('Customers', 'Orders', 'Customers', 'root', 'users', 'orders', 'customers people phone spent orders cancel excel download every shop'),
     E('Refunds', 'Orders', 'Refunds', 'root', 'rupee', 'orders', 'refund money back failed customer razorpay'),
     E('Shops to close', 'Shops', 'ShopsToClose', 'root', 'lock', 'alerts', 'close closed closing shut shop unpaid rent months stop'),
     /* ---- find and watch ---- */

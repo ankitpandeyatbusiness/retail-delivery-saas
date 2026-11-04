@@ -40,3 +40,7 @@ async function saveAndShare(res, name) {
 export const shareOrdersExcel = async (params) => saveAndShare(await api.get('/admin/export/orders', sheetOpts(params)), 'orders');
 export const shareInvoicesExcel = async (params) => saveAndShare(await api.get('/admin/export/invoices', sheetOpts(params)), 'invoices');
 export const shareCustomersExcel = async (params) => saveAndShare(await api.get('/admin/export/customers', sheetOpts(params)), 'customers');
+
+// the customers of every shop with what each one did (masked phones; full=1 only for the supreme admin) and the same list as Excel
+export const listCustomers = (params) => data(api.get("/admin/customers", { params }));
+export const shareCustomerListExcel = async (params) => saveAndShare(await api.get("/admin/customers/export", sheetOpts(params)), "customers");

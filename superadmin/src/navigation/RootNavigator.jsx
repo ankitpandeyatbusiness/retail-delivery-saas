@@ -82,6 +82,7 @@ import ShopFolderScreen from '../screens/shops/ShopFolderScreen';
 import ShopCloseScreen from '../screens/shops/ShopCloseScreen';
 import ShopsToCloseScreen from '../screens/shops/ShopsToCloseScreen';
 import RefundsScreen from '../screens/orders/RefundsScreen';
+import CustomersScreen from '../screens/orders/CustomersScreen';
 import ShopQualityScreen from '../screens/orders/ShopQualityScreen';
 import OrderLimitsScreen from '../screens/orders/OrderLimitsScreen';
 import RepeatCancellersScreen from '../screens/orders/RepeatCancellersScreen';
@@ -153,6 +154,7 @@ const DETAIL = [
     ['ShopSetup', ShopSetupScreen],
     ['ShopsToClose', ShopsToCloseScreen],
     ['Refunds', RefundsScreen],
+    ['Customers', CustomersScreen],
     ['ShopQuality', ShopQualityScreen],
     ['OrderLimits', OrderLimitsScreen],
     ['RepeatCancellers', RepeatCancellersScreen],
