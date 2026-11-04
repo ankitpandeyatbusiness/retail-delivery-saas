@@ -93,6 +93,10 @@ router.put('/orders/watch-settings', require('../middlewares/supremeAdmin').requ
     req.auditBefore = await require('../services/orderWatchSettings').get();
     res.json({ values: await require('../services/orderWatchSettings').set(req.body) });
 }));
+// customers who cancel or are not there again and again (?days=30&min=3). View only.
+router.get('/orders/repeat-cancellers', wrap(async (req, res) => {
+    res.json(await require('../services/repeatCancellers').report({ days: clamp(parseInt(req.query.days, 10) || 30, 1, 365), min: clamp(parseInt(req.query.min, 10) || 3, 2, 50) }));
+}));
 router.get('/orders/live', wrap(async (req, res) => { res.json(await require('../services/orderAttention').live()); }));
 
 // money going back to customers: open = not finished yet (pending, processing, failed), done = processed

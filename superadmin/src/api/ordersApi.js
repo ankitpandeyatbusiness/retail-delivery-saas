@@ -38,3 +38,5 @@ export const getShopQuality = (days = 30) => data(api.get('/admin/orders/quality
 // the limits behind the Orders tab (stuck times, your alert times, "needs a talk" cut-offs)
 export const getWatchSettings = () => data(api.get('/admin/orders/watch-settings'));
 export const saveWatchSettings = (body) => data(api.put('/admin/orders/watch-settings', body));
+// customers who cancel or are not there again and again (view only)
+export const getRepeatCancellers = (days = 30) => data(api.get('/admin/orders/repeat-cancellers', { params: { days } }));

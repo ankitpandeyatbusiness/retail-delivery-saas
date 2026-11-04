@@ -176,4 +176,27 @@ describe('orders attention and live', () => {
         r = await request(app).put('/api/admin/orders/watch-settings').set(auth()).send({ reset: true });
         assert.equal(r.body.values.attention.accept, 5);
     });
+
+    test('repeat cancellers: a customer who cancels or is not home 3 times is listed, others are not', async () => {
+        const w = await f.makeWorld('rc-' + Date.now().toString(36));
+        const mk = async (patch) => { const o = await f.makeOrder(w.tenant, w.customer.user, {}); await Order.collection.updateOne({ _id: o._id }, { $set: patch }); return o; };
+        await mk({ status: 'cancelled', cancelledBy: 'customer' });
+        await mk({ status: 'cancelled', cancelledBy: 'customer' });
+        let r = await request(app).get('/api/admin/orders/repeat-cancellers').set(auth());
+        assert.equal(r.status, 200);
+        assert.equal(r.body.items.length, 0, 'twice is not yet a habit');
+        await mk({ status: 'undelivered', 'undelivered.reasonCode': 'customer' });
+        await mk({ status: 'cancelled', cancelledBy: 'shop' });          // the shop's own cancel never counts against the customer
+        await mk({ status: 'undelivered', 'undelivered.reasonCode': 'rider' });
+        await mk({ status: 'delivered' });
+        r = await request(app).get('/api/admin/orders/repeat-cancellers').set(auth());
+        assert.equal(r.body.items.length, 1);
+        const row = r.body.items[0];
+        assert.equal(row.cancelled, 2);
+        assert.equal(row.noShow, 1);
+        assert.equal(row.times, 3);
+        assert.equal(row.orders, 6);
+        assert.equal(row.blocked, false);
+        assert.ok(row.shopName);
+    });
 });

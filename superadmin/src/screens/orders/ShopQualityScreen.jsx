@@ -28,6 +28,10 @@ export default function ShopQualityScreen() {
     return (
         <Screen title="Shop quality" subtitle={data ? `${data.weak} need a talk` : 'How each shop is doing'} onRefresh={() => load()}>
             <Segmented value={days} onChange={(v) => { setDays(v); setData(null); load(v); }} options={[{ value: '7', label: '7 days' }, { value: '30', label: '30 days' }, { value: '90', label: '90 days' }]} />
+            <Card onPress={() => nav.navigate('RepeatCancellers')} style={{ marginTop: spacing.md }}>
+                <Text style={{ color: t.text, fontWeight: '800', fontSize: font.md }}>Customers who cancel a lot</Text>
+                <Text style={{ color: t.muted, fontSize: font.sm, marginTop: 2 }}>Cancelled or not at home 3 times or more</Text>
+            </Card>
             <View style={{ marginTop: spacing.md }}>
                 {!data ? (error ? <ErrorBox message={error} onRetry={() => load()} /> : <SkeletonList />)
                     : !data.items.length ? <Empty icon="shops" title="No orders in this time" hint="Shops appear here once they get orders." />
