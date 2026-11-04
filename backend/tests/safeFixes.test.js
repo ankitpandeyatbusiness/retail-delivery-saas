@@ -109,7 +109,7 @@ describe('safe fixes', () => {
         assert.ok(ok.upiString);   // mock mode still works
     });
 
-    test('B20: a late order alerts the owner only, never the superadmin', async () => {
+    test('B20: a late order alerts the owner first; the superadmin only when it is still stuck much later, and only once', async () => {
         const t = await makeTenant('late-shop');
         const c = await makeUser(t, 'customer', '9000000002');
         await makeOrder(t, c.user, { status: 'accepted' });
@@ -118,9 +118,18 @@ describe('safe fixes', () => {
         await checkStuck(t0);
         assert.ok(await waitFor(async () => (await Notification.countDocuments({ tenantId: t._id, role: 'owner' })) === 1));
 
-        await checkStuck(new Date(t0.getTime() + 20 * 60000));   // 20 more minutes: used to escalate
-        await sleep(500);
+        await checkStuck(new Date(t0.getTime() + 5 * 60000));   // 30 minutes in: the owner was told, the superadmin is not yet
+        await sleep(300);
         assert.equal(await Notification.countDocuments({ role: 'superadmin' }), 0);
+
+        await checkStuck(new Date(t0.getTime() + 20 * 60000));   // 45 minutes in: now the superadmin is told too
+        await checkStuck(new Date(t0.getTime() + 25 * 60000));   // and never twice
+        await sleep(500);
+        const sent = await Notification.countDocuments({ role: 'superadmin', type: 'admin_order_stuck' });
+        assert.ok(sent >= 1);
+        await checkStuck(new Date(t0.getTime() + 30 * 60000));
+        await sleep(300);
+        assert.equal(await Notification.countDocuments({ role: 'superadmin', type: 'admin_order_stuck' }), sent, 'a later pass sends nothing more');
         assert.equal(await Notification.countDocuments({ tenantId: t._id, role: 'owner' }), 1);
     });
 });

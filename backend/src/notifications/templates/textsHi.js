@@ -48,6 +48,7 @@ const HI = {
     rider_arrived_shop: (v) => `${v.riderName || 'डिलीवरी पार्टनर'} ऑर्डर ${v.orderNo} के लिए ग्राहक के पास पहुँच गए।`,
     delivery_late_warning: (v) => `ऑर्डर ${v.orderNo} ${v.late} मिनट लेट है। ${v.left} मिनट में डिलीवर न हुआ तो रद्द होकर पूरा पैसा लौट जाएगा।`,
     delivery_late_warning_rider: (v) => `ऑर्डर ${v.orderNo} ${v.late} मिनट लेट है। अभी डिलीवर कीजिए। ${v.left} मिनट में रद्द हो जाएगा।`,
+    order_by_platform: (v) => (v.status === 'cancelled' ? `प्लेटफ़ॉर्म ने ऑर्डर ${v.orderNo} रद्द किया।` : `प्लेटफ़ॉर्म ने ऑर्डर ${v.orderNo} का स्टेटस बदला।`),
     order_delivered_shop: (v) => `ऑर्डर ${v.orderNo} ग्राहक तक पहुँच गया।`,
     rider_bulk_packed: () => 'बल्क ऑर्डर पैक हो गया है। आकर ले जाइए।',
     food_packed_rider: (v) => `ऑर्डर ${v.orderNo} पैक हो गया है। आकर ले जाइए।`,

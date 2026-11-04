@@ -32,6 +32,7 @@ const EVENTS = {
     order_new: { to: 'owner', channels: ALL, alsoPush: true, escalateSmsAfterSec: 180, key: true, pushChannel: NEW_ORDER_CHANNEL, pushSound: 'new_order' },
     order_unaccepted_reminder: { to: 'owner', channels: ALL, alsoPush: true, key: true, pushChannel: NEW_ORDER_CHANNEL, pushSound: 'new_order' },
     order_delivered_shop: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // the food reached the customer
+    order_by_platform: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },   // the platform (superadmin) cancelled or moved the shop's order by hand
     order_cancelled: { to: 'owner', channels: INAPP_PUSH, alsoPush: true, pushChannel: CANCEL_CHANNEL, pushSound: 'cancel_alert' },
     order_late: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },
     rider_accepted: { to: 'owner', channels: INAPP_PUSH, alsoPush: true },
@@ -173,6 +174,7 @@ const EVENTS = {
     // superadmin (his own keys, so an owner rule never changes them). SMS only if he switched it on.
     admin_bill_issued: { to: 'superadmin', channels: ALL },
     admin_bill_paid: { to: 'superadmin', channels: ALL },
+    admin_order_stuck: { to: 'superadmin', channels: INAPP_PUSH },   // an order stayed stuck long after the owner was told (services/stuckOrders.js escalate)
     admin_shop_paused: { to: 'superadmin', channels: ALL, critical: true },
     admin_shop_unpaused: { to: 'superadmin', channels: ALL },
     admin_grace_ending: { to: 'superadmin', channels: ALL },

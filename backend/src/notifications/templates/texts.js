@@ -62,6 +62,9 @@ const TEXTS = {
     }),
     delivery_late_warning: (v) => ({ title: 'Delivery is very late', body: `Order #${v.orderNo} is ${v.late} min late. It is cancelled and fully refunded in ${v.left} min if it is not delivered.` }),
     delivery_late_warning_rider: (v) => ({ title: `Order #${v.orderNo} is ${v.late} min late`, body: `Deliver it now. It is cancelled in ${v.left} min if it is not delivered.` }),
+    order_by_platform: (v) => (v.status === 'cancelled'
+        ? { title: `Order #${v.orderNo} cancelled by the platform`, body: `${v.reason ? `Reason: ${v.reason}. ` : ''}${v.refund ? 'The customer is refunded.' : 'Open the order to see the details.'}` }
+        : { title: `Order #${v.orderNo} moved by the platform`, body: `The platform marked it ${String(v.status || '').replace(/_/g, ' ')}.` }),
     order_delivered_shop: (v) => ({ title: `Delivered #${v.orderNo}`, body: `${v.brief ? `${v.brief}${v.total ? ` · ₹${Math.round(v.total)}` : ''}. ` : ''}Reached the customer.` }),
     delivery_done_rider: (v) => ({ title: 'Delivery complete', body: `Order #${v.orderNo}${v.brief ? ` (${v.brief})` : ''} is done. Great work, thank you!` }),
     rider_offer: (v) => ({

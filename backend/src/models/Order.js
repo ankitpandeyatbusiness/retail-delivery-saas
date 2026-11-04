@@ -160,7 +160,7 @@ const orderSchema = new Schema({
         byLabel: String,                                    // readable name, e.g. a phone number or email
         note: String,
     }],
-    stuck: { stage: String, ownerAt: Date, adminAt: Date },   // late-order alerts already sent (internal)
+    stuck: { stage: String, ownerAt: Date, adminStage: String, adminAt: Date },   // late-order alerts already sent (internal)
     unacceptedReminders: { type: [Number], default: undefined },   // the "please accept" reminders already sent to the owner, in minutes (3, 6)
     cancelReason: String,
     cancelledBy: { type: String, enum: ['customer', 'shop', 'rider', 'admin', 'system'] },

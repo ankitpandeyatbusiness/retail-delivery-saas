@@ -112,4 +112,46 @@ describe('orders attention and live', () => {
         assert.equal(one.status, 200);
         assert.equal(one.body.complaint, null);
     });
+
+    test('the owner is told when the platform cancels or moves an order by hand', async () => {
+        const Notification = require('../src/models/Notification');
+        const w = await f.makeWorld('on-' + Date.now().toString(36));
+        const o = await f.makeOrder(w.tenant, w.customer.user, {});
+        const r = await request(app).patch('/api/admin/orders/' + o._id + '/status').set(auth()).send({ status: 'cancelled', note: 'Shop phone was off', reasonCode: 'platform' });
+        assert.equal(r.status, 200, JSON.stringify(r.body));
+        await new Promise((ok) => setTimeout(ok, 400));
+        const told = await Notification.find({ tenantId: w.tenant._id, type: 'order_by_platform' }).lean();
+        assert.ok(told.length >= 1, 'the owner got a message');
+        assert.match(told[0].title, /cancelled by the platform/);
+    });
+
+    test('the superadmin is told once when an order stays stuck long after the owner was told, and when a new order is never accepted', async () => {
+        const Notification = require('../src/models/Notification');
+        const { checkStuck } = require('../src/services/stuckOrders');
+        const w = await f.makeWorld('es-' + Date.now().toString(36));
+        const mk = async (patch) => { const o = await f.makeOrder(w.tenant, w.customer.user, {}); await Order.collection.updateOne({ _id: o._id }, { $set: patch }); return o; };
+        const prep = await mk({ status: 'preparing', orderType: 'pickup', statusHistory: [{ status: 'preparing', at: ago(50) }], createdAt: ago(60) });
+        const unaccepted = await mk({ status: 'placed', createdAt: ago(15) });
+        const fresh = await mk({ status: 'placed', createdAt: ago(2) });
+        const adminTold = () => Notification.find({ role: 'superadmin', type: 'admin_order_stuck' }).lean();
+
+        await checkStuck(new Date());
+        await new Promise((ok) => setTimeout(ok, 300));
+        let told = await adminTold();
+        assert.deepEqual([...new Set(told.map((n) => n.data.orderNo))], [unaccepted.orderNo], 'only the unaccepted order so far: the slow one is past the owner limit (45) but not the superadmin limit (90)');
+        const first = told.length;
+
+        await Order.collection.updateOne({ _id: prep._id }, { $set: { statusHistory: [{ status: 'preparing', at: ago(100) }] } });
+        await checkStuck(new Date());
+        await new Promise((ok) => setTimeout(ok, 300));
+        told = await adminTold();
+        const second = told.length;
+        await checkStuck(new Date());   // another pass must not send anything again
+        await new Promise((ok) => setTimeout(ok, 300));
+        assert.equal((await adminTold()).length, second);
+        assert.equal(second, first * 2, 'one more order alerted, once');
+        assert.ok(told.some((n) => n.data.orderNo === prep.orderNo && n.data.stage === 'slow_prep'));
+        assert.ok(!told.some((n) => n.data.orderNo === fresh.orderNo));
+        assert.equal((await Order.findById(prep._id).lean()).stuck.stage, 'slow_prep', 'the owner mark is still there');
+    });
 });

@@ -70,6 +70,10 @@ function orderStatusChanged(order, status, actor) {
                 },
             });
         }
+        // the platform changed the shop's order by hand: the owner is told what and why (a delivered order is already told below)
+        if (actor.type === 'superadmin' && status !== 'delivered' && !order.bulkId) {
+            center.notify('order_by_platform', { tenantId: t, data, vars: { orderNo: no, status, reason: order.cancelReason, refund: order.cancel?.refundPaise > 0 } });
+        }
         if (status === 'delivered') {
             if (actor.type !== 'owner') center.notify('order_delivered_shop', { tenantId: t, data, vars: { orderNo: no, ...what } });   // the shop already knows when it marked it itself
             if (order.delivery?.riderId) center.notify('delivery_done_rider', { tenantId: t, userId: order.delivery.riderId, data, vars: { orderNo: no, brief: what.brief } });
