@@ -27,3 +27,13 @@ Needs the server redeployed, the superadmin app and the shop app updated.
 6. A closed shop gets no new rent bills and no new late fees.
 7. Shops to close: make a test shop with a rent bill due more than 6 months ago (or lower the number in Billing rules). Home shows "1 shop may need closing" in Needs you now, you get a push and an alert (once a week per shop). Tap it: the list shows the shop (a brand's branches together, with "Close all N branches"). Nothing closes until you press Close.
 8. Billing rules has a new line "List a shop for closing after unpaid months" (default 6).
+
+## Phase 3: shops list and the shop page
+1. Shops tab: the chips are All, Taking orders, Rent due, No orders 14 days, Needs attention, Free period, Closed (each with a count) and "Group brands". Tap each; the list narrows to the right shops.
+2. Every row shows "N orders today", "last order 2 h ago" (amber when quiet) and "Rent due Rs ..." (red when overdue). A brand's name shows before the shop code.
+3. Header icon (sliders): Sort the shops. Try Most orders today, Most rent due, Quietest first, Newest, A to Z. The default puts problems on top and closed shops last.
+4. "Group brands" on: a brand's branches are one row ("Savera, 3 branches, 12 orders today, Rent due Rs ..."). Tap it to open the branches; tap a branch to open that shop. Typing in the search box shows a plain list.
+5. Open a shop: the page shows its status, the delivery-area warning if any, the four quick buttons, then ONE card "Everything about this shop" with six rows: Running now, Money, Menu and offers, Settings, People, Shop control. Each has a plain one-line description.
+6. Open each folder. Check that every old page is still reachable: Live activity, Orders, Riders and cash, Complaints, Services and booking, Bulk orders, Messages to customers, Autopilot, Progress report, Sales report; Billing and rent, Rent invoices, Online payments, SMS wallet, Transactions; Menu, Collections, Banners, Coupons, Points and rewards; Owners, Users, Message the owner; Edit shop, Close this shop, Access and maintenance, Activity log, Branding, Development details. "Shop control" also holds who brought the shop, Make this shop a brand, and the handover.
+7. Settings: the phone preview on top, then Ordering, Dine in pickup and staff, Riders and delivery, Features, How the customer app looks, App version and alerts. "Words and language" is gone.
+8. Search "words" no longer finds a Words and language screen; search "close" finds Shops to close.

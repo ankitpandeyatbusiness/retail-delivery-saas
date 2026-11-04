@@ -166,8 +166,8 @@ export default function ShopRidersScreen() {
 
             <Sheet visible={adding} onClose={() => setAdding(false)} title="Add a rider">
                 <Text style={{ color: t.muted, marginBottom: spacing.lg }}>The rider logs in to this shop's app with this number and an OTP. A number that is a shop owner cannot be a rider.</Text>
-                <Field label="Mobile number" value={form.phone} onChangeText={(v) => setForm({ ...form, phone: v.replace(/\D/g, '').slice(0, 10) })} keyboardType="number-pad" autoFocus />
-                <Field label="Name (optional)" value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} maxLength={80} />
+                <Field label="Mobile number" placeholder="10 digits, e.g. 9876543210" hint="The person logs in with this number, and gets codes and alerts on it." value={form.phone} onChangeText={(v) => setForm({ ...form, phone: v.replace(/\D/g, '').slice(0, 10) })} keyboardType="number-pad" autoFocus />
+                <Field label="Name (optional)" placeholder="e.g. Ramesh Kumar" hint="The rider's name, shown to the shop and customers." value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} maxLength={80} />
                 <Button title="Add rider" onPress={add} loading={busy === 'add'} />
             </Sheet>
         </Screen>

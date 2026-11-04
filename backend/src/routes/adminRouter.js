@@ -155,12 +155,12 @@ admin.get('/tenants', wrap(async (req, res) => {
         .limit(200)
         .select('_id slug name logo status androidPackage createdAt updatedAt ownerBlocked ownerBlockedReason maintenance settings.orders.acceptingOrders billing subscription.gstPercent brandId')
         .lean();
-    const [icons, rents] = await Promise.all([appIcons(items), require('../services/rentSummary').forShops(items)]);
+    const [icons, rents, stats] = await Promise.all([appIcons(items), require('../services/rentSummary').forShops(items), require('../services/shopListStats').forShops(items)]);
     res.json({
         items: items.map((t) => {
             const { settings, maintenance, ownerBlockedReason, billing, subscription, ...rest } = t;
             // the list only needs the rent state and the one-line rent answer (what the shop pays next, for which month, or that it is still free)
-            return { ...rest, billing: { state: billing?.state, graceEndsAt: billing?.graceEndsAt }, rent: rents.get(String(t._id)) || null, appIcon: icons.get(String(t._id)) || null, state: shopState(t) };
+            return { ...rest, billing: { state: billing?.state, graceEndsAt: billing?.graceEndsAt }, rent: rents.get(String(t._id)) || null, stats: stats.get(String(t._id)) || null, appIcon: icons.get(String(t._id)) || null, state: shopState(t) };
         }),
     });
 }));

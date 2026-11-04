@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Image } from 'react-native';
 import { Badge, Avatar } from './ui';
+import { ago, rupees } from '../utils/format';
 import Icon from './Icon';
 import { useTheme, spacing, radius, font } from '../theme';
 
@@ -40,7 +41,7 @@ export function ShopRow({ shop, onPress, compact }) {
                         : <Avatar name={shop.name} size={compact ? 38 : 46} />}
                     <View style={{ flex: 1, marginLeft: spacing.md }}>
                         <Text style={{ color: t.text, fontSize: font.md, fontWeight: '800' }} numberOfLines={1}>{shop.name}</Text>
-                        <Text style={{ color: t.muted, fontSize: font.sm, marginTop: 1 }} numberOfLines={1}>{shop.slug}</Text>
+                        <Text style={{ color: t.muted, fontSize: font.sm, marginTop: 1 }} numberOfLines={1}>{shop.stats?.brandName ? `${shop.stats.brandName} · ` : ''}{shop.slug}</Text>
                     </View>
                     <Icon name="next" size={18} color={t.muted} />
                 </View>
@@ -50,6 +51,13 @@ export function ShopRow({ shop, onPress, compact }) {
                     {billing === 'paused' || billing === 'grace' ? <Badge label={`Rent ${billing}`} tone={billing === 'paused' ? 'danger' : 'warn'} icon="receipt" /> : null}
                     {shop.rent?.custom ? <Badge label="Own rent plan" tone="info" icon="tune" /> : null}
                 </View>
+                {shop.stats && shop.status === 'active' ? (
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', marginTop: spacing.sm }}>
+                        <Text style={{ color: t.text, fontSize: font.sm, fontWeight: '700', marginRight: spacing.md }}>{shop.stats.ordersToday} order{shop.stats.ordersToday === 1 ? '' : 's'} today</Text>
+                        <Text style={{ color: shop.stats.quiet ? t.warn : t.muted, fontSize: font.sm, marginRight: spacing.md }}>{shop.stats.lastOrderAt ? `last order ${ago(shop.stats.lastOrderAt)}` : 'no order yet'}</Text>
+                        {shop.stats.owed > 0 ? <Text style={{ color: shop.stats.overdue > 0 ? t.danger : t.muted, fontSize: font.sm, fontWeight: '800' }}>Rent due {rupees(shop.stats.owed)}</Text> : null}
+                    </View>
+                ) : null}
                 {shop.rent?.text ? (
                     <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: spacing.sm }}>
                         <Icon name="receipt" size={14} color={shop.rent.stage === 'paying' ? t.primary : shop.rent.stage === 'free' || shop.rent.stage === 'not_live' ? t.success : t.danger} style={{ marginTop: 2 }} />

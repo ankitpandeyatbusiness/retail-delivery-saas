@@ -114,7 +114,7 @@ export default function MyAccountScreen() {
             </Card>
 
             <Sheet visible={sheet === 'name'} onClose={() => setSheet(null)} title="Your name">
-                <Field label="Name" value={name} onChangeText={setName} maxLength={80} />
+                <Field label="Name" placeholder="e.g. Ankit Pandey" hint="Your name, shown in the activity log and to your team." value={name} onChangeText={setName} maxLength={80} />
                 <Button
                     title="Save"
                     loading={busy === 'name'}
@@ -127,8 +127,8 @@ export default function MyAccountScreen() {
 
             <Sheet visible={sheet === 'password'} onClose={() => setSheet(null)} title={me.hasPassword ? 'Change password' : 'Set a password'}>
                 <Text style={{ color: t.muted, marginBottom: spacing.md }}>With a password you can log in with your number and password, and no OTP SMS is paid. If you ever forget it, log in with an OTP and set a new one here.</Text>
-                <Field label="New password" value={pw1} onChangeText={setPw1} secureTextEntry autoCapitalize="none" maxLength={100} />
-                <Field label="Type it again" value={pw2} onChangeText={setPw2} secureTextEntry autoCapitalize="none" maxLength={100} />
+                <Field label="New password" placeholder="At least 8 letters or numbers" hint="You sign in with this and your phone number." value={pw1} onChangeText={setPw1} secureTextEntry autoCapitalize="none" maxLength={100} />
+                <Field label="Type it again" placeholder="Type the same password again" hint="To be sure it is typed right." value={pw2} onChangeText={setPw2} secureTextEntry autoCapitalize="none" maxLength={100} />
                 <Hint>At least 8 characters, with a letter and a number.</Hint>
                 <Button title="Save password" loading={busy === 'pw'} onPress={savePassword} />
             </Sheet>
@@ -137,8 +137,8 @@ export default function MyAccountScreen() {
                 {step === 1 ? (
                     <>
                         <Text style={{ color: t.muted, marginBottom: spacing.md }}>One or two numbers can log in as you. A code is sent to one of your CURRENT numbers to confirm it is you.</Text>
-                        <Field label="Number 1" value={p1} onChangeText={(v) => setP1(v.replace(/\D/g, '').slice(0, 10))} keyboardType="number-pad" />
-                        <Field label="Number 2 (optional)" value={p2} onChangeText={(v) => setP2(v.replace(/\D/g, '').slice(0, 10))} keyboardType="number-pad" />
+                        <Field label="Number 1" placeholder="10 digits, e.g. 9876543210" hint="Your phone number: you sign in and get codes on it." value={p1} onChangeText={(v) => setP1(v.replace(/\D/g, '').slice(0, 10))} keyboardType="number-pad" />
+                        <Field label="Number 2 (optional)" placeholder="10 digits, e.g. 9876543210" hint="A second phone that can also sign in. Can stay empty." value={p2} onChangeText={(v) => setP2(v.replace(/\D/g, '').slice(0, 10))} keyboardType="number-pad" />
                         {me.phones?.length > 1 ? (
                             <View style={{ marginBottom: spacing.md }}>
                                 <Text style={{ color: t.text, fontWeight: '700', marginBottom: 6 }}>Send the code to</Text>
@@ -152,7 +152,7 @@ export default function MyAccountScreen() {
                 ) : (
                     <>
                         <Text style={{ color: t.muted, marginBottom: spacing.md }}>Enter the 6-digit code sent to {verify}.</Text>
-                        <Field label="Code" value={otp} onChangeText={(v) => setOtp(v.replace(/\D/g, '').slice(0, 6))} keyboardType="number-pad" autoFocus />
+                        <Field label="Code" placeholder="6 digits" hint="The code sent to the phone, to prove it is yours." value={otp} onChangeText={(v) => setOtp(v.replace(/\D/g, '').slice(0, 6))} keyboardType="number-pad" autoFocus />
                         <Button title="Confirm and change" loading={busy === 'confirm'} onPress={confirm} />
                         <Button title="Back" kind="outline" onPress={() => setStep(1)} style={{ marginTop: spacing.sm }} />
                     </>

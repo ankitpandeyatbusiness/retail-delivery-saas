@@ -41,7 +41,7 @@ export default function ServicesDefaultsScreen() {
     return (
         <Screen title="Services defaults" subtitle="For new services only" footer={<Button title="Save" icon="check" onPress={save} loading={busy} />}>
             <Group title="Unanswered inquiries" section="platform" hint="The owner gets a reminder when a customer's message has waited this long.">
-                <NumberField label="Remind the owner after (hours)" integer value={hours} onChange={(v) => setHours(v === undefined ? 24 : Math.round(v))} last />
+                <NumberField label="Remind the owner after (hours)" placeholder="e.g. 24" hint="If an inquiry or booking is still unanswered after this many hours, the owner is reminded." integer value={hours} onChange={(v) => setHours(v === undefined ? 24 : Math.round(v))} last />
             </Group>
             {Object.entries(d.kinds).map(([k, v]) => (
                 <Group key={k} title={v.name} section="platform">

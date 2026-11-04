@@ -104,8 +104,8 @@ export default function LiveTrackingScreen() {
                         <Choice options={MODES} value={d.settings.mode} onChange={(v) => { if (v !== d.settings.mode) setConfirm(v); }} last />
                     </Group>
                     <Group title="Limits" section="settings">
-                        <Field label="Most phones connected at once" value={caps.maxSockets} onChangeText={set('maxSockets')} keyboardType="number-pad" />
-                        <Field label="Polling: ask every (seconds)" value={caps.pollSec} onChangeText={set('pollSec')} keyboardType="number-pad" />
+                        <Field label="Most phones connected at once" placeholder="e.g. 500" hint="When more phones than this are connected, the app falls back to asking every few seconds." value={caps.maxSockets} onChangeText={set('maxSockets')} keyboardType="number-pad" />
+                        <Field label="Polling: ask every (seconds)" placeholder="e.g. 15" hint="How often phones ask for updates when they cannot stay connected." value={caps.pollSec} onChangeText={set('pollSec')} keyboardType="number-pad" />
                         {GOOGLE_ROWS.map(([key, field, title]) => <Field key={field} label={title} value={caps[field]} onChangeText={set(field)} keyboardType="number-pad" />)}
                         <Button title="Save limits" loading={busy} disabled={!changed} onPress={() => apply(Object.fromEntries(Object.entries(caps).map(([k, v]) => [k, num(v)])), 'Limits saved').catch(() => { })} />
                         <Button title="Back to the recommended values" kind="outline" small onPress={() => setConfirm('reset')} style={{ marginTop: spacing.sm }} />

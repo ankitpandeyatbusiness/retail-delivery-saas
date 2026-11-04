@@ -233,9 +233,9 @@ export default function ShopBillingScreen() {
                     <SheetScroll style={{ maxHeight: 460 }} keyboardShouldPersistTaps="handled">
                         <Hint>Leave a box empty to use the platform rule.</Hint>
                         <View style={{ height: spacing.md }} />
-                        <NumberField label="Free orders" integer value={rules.freeOrders} onChange={(v) => setRules({ ...rules, freeOrders: v })} />
-                        <NumberField label="Free months" integer value={rules.freeMonths} onChange={(v) => setRules({ ...rules, freeMonths: v })} />
-                        <NumberField label="Fixed monthly fee (instead of tiers)" prefix="₹" value={rules.fixedFee} onChange={(v) => setRules({ ...rules, fixedFee: v })} />
+                        <NumberField label="Free orders" placeholder="e.g. 100" hint="Orders this shop takes free before rent starts. Empty = the platform value." integer value={rules.freeOrders} onChange={(v) => setRules({ ...rules, freeOrders: v })} />
+                        <NumberField label="Free months" placeholder="e.g. 2" hint="Months after going live without rent. Empty = the platform value." integer value={rules.freeMonths} onChange={(v) => setRules({ ...rules, freeMonths: v })} />
+                        <NumberField label="Fixed monthly fee (instead of tiers)" placeholder="e.g. 2000" hint="A flat monthly rent in rupees instead of the order-based price list. Empty = use the price list." prefix="₹" value={rules.fixedFee} onChange={(v) => setRules({ ...rules, fixedFee: v })} />
                         <DateField label="Go-live date (optional)" hint="Free service counts from this day" value={rules.goLive} onChange={(v) => setRules({ ...rules, goLive: v })} />
                         <Switch title="Use own price tiers" subtitle="Instead of the platform tiers" value={rules.ownTiers} onValueChange={(v) => setRules({ ...rules, ownTiers: v })} last />
                         {rules.ownTiers ? <View style={{ marginTop: spacing.md }}><TiersEditor value={rules.tiers} onChange={(v) => setRules({ ...rules, tiers: v })} /></View> : null}

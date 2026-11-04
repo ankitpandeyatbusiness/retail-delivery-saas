@@ -101,8 +101,8 @@ export default function AgreementDocScreen() {
                             <Text style={{ color: t.muted, fontSize: font.sm, marginBottom: spacing.md, lineHeight: 19 }}>
                                 Words in {'{{double braces}}'} are filled in when you send (operator, platform name, ratios). Words in [square brackets] are blanks you must replace first. Start a line with “# ” for a heading, “- ” for a bullet, “1. ” for a numbered line.
                             </Text>
-                            <Field label="Title" value={title} onChangeText={setTitle} maxLength={120} />
-                            <Field label="Text" value={body} onChangeText={setBody} multiline style={{ minHeight: 360 }} />
+                            <Field label="Title" placeholder="e.g. Terms and Conditions" hint="The document's name, shown to people when they are asked to accept it." value={title} onChangeText={setTitle} maxLength={120} />
+                            <Field label="Text" placeholder="Write the full wording here…" hint="The full text people read before accepting. Changing it asks them to accept again." value={body} onChangeText={setBody} multiline style={{ minHeight: 360 }} />
                             {d.blanks.length ? <Text style={{ color: t.danger, fontSize: font.sm, marginBottom: spacing.md }}>Blanks still to fill: {d.blanks.slice(0, 6).join(', ')}{d.blanks.length > 6 ? ' …' : ''}</Text> : null}
                             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
                                 <View style={{ flexGrow: 1, flexBasis: 150 }}><Button title="Save draft" icon="check" kind="soft" onPress={saveDraft} loading={busy} /></View>
@@ -158,7 +158,7 @@ export default function AgreementDocScreen() {
                         <Text style={{ color: t.muted, fontSize: font.sm, marginBottom: spacing.md, lineHeight: 19 }}>
                             Everybody it is for is asked to agree on their second visit. Owners and riders only once their shop is marked as handed over. A sent version cannot be taken back; you can send a newer one.
                         </Text>
-                        <Field label="What changed (shown to them, optional)" value={summary} onChangeText={setSummary} maxLength={300} />
+                        <Field label="What changed (shown to them, optional)" placeholder="e.g. We changed how rent is charged" hint="A short note shown to people when they are asked to accept the new version." value={summary} onChangeText={setSummary} maxLength={300} />
                         {key === 'owner_terms' ? (
                             <View style={{ marginBottom: spacing.lg }}>
                                 <Text style={{ color: t.text, fontWeight: '600', marginBottom: 6 }}>When to ask shop owners</Text>

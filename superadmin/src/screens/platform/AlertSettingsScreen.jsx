@@ -57,7 +57,7 @@ export default function AlertSettingsScreen() {
     return (
         <Screen title="Alert SMS" subtitle="Alerts to your phone" refreshing={false} onRefresh={load}>
             <Group title="Your number" section="alerts" hint="Alert SMS go to this number. Push alerts on this phone are separate (More → My account).">
-                <Field label="Mobile number" value={phone} onChangeText={(v) => setPhone(v.replace(/\D/g, '').slice(0, 10))} keyboardType="number-pad" />
+                <Field label="Mobile number" placeholder="10 digits, e.g. 9876543210" hint="The platform alerts (late orders, unpaid bills) are sent by SMS to this number." value={phone} onChangeText={(v) => setPhone(v.replace(/\D/g, '').slice(0, 10))} keyboardType="number-pad" />
                 <Button title="Save number" kind="soft" small loading={busy} disabled={!phoneOk || phone === a.phone} onPress={() => apply({ phone }, 'Number saved')} />
             </Group>
 

@@ -305,6 +305,12 @@ describe('map place search', () => {
             assert.equal(r.status, 200);
             assert.equal(r.body.items[0].latitude, 26.4499);
             assert.equal(r.body.items[0].pincode, '208001');
+            // with no Google key on the server the screen is told why only other sources answered
+            const saved = { a: process.env.GOOGLE_PLACES_SERVER_KEY, b: process.env.GOOGLE_GEOCODING_API_KEY, c: process.env.GOOGLE_MAPS_API_KEY };
+            delete process.env.GOOGLE_PLACES_SERVER_KEY; delete process.env.GOOGLE_GEOCODING_API_KEY; delete process.env.GOOGLE_MAPS_API_KEY;
+            try { assert.equal((await get('/api/admin/geo/search?q=Kanpur city')).body.google, 'no_key'); } finally {
+                if (saved.a) process.env.GOOGLE_PLACES_SERVER_KEY = saved.a; if (saved.b) process.env.GOOGLE_GEOCODING_API_KEY = saved.b; if (saved.c) process.env.GOOGLE_MAPS_API_KEY = saved.c;
+            }
             const v = await get('/api/admin/geo/reverse?lat=26.45&lng=80.33');
             assert.equal(v.body.place.city, 'Kanpur');
             assert.equal((await get('/api/admin/geo/reverse?lat=999&lng=1')).status, 400);

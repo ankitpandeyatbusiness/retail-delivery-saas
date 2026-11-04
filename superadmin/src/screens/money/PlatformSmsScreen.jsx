@@ -61,9 +61,9 @@ export default function PlatformSmsScreen() {
             </Group>
 
             <Group title="Wallet" section="catalog">
-                <NumberField label="Warn the owner below" prefix="₹" value={f.low} onChange={set('low')} />
-                <NumberField label="Smallest top-up" prefix="₹" value={f.min} onChange={set('min')} />
-                <NumberField label="Largest top-up" prefix="₹" value={f.max} onChange={set('max')} />
+                <NumberField label="Warn the owner below" placeholder="e.g. 50" hint="When a shop's SMS balance goes below this (rupees), its owner is warned to top up." prefix="₹" value={f.low} onChange={set('low')} />
+                <NumberField label="Smallest top-up" placeholder="e.g. 100" hint="The least a shop can add in one top-up, in rupees." prefix="₹" value={f.min} onChange={set('min')} />
+                <NumberField label="Largest top-up" placeholder="e.g. 5000" hint="The most a shop can add in one top-up, in rupees." prefix="₹" value={f.max} onChange={set('max')} />
                 <NumberField label="GST added on top of a top-up" value={f.gst} onChange={set('gst')} hint="Percent. The owner types the amount he wants in his balance and pays that plus this GST. Recommended: 18. 0 = no GST." last />
             </Group>
 

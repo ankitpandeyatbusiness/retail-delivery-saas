@@ -93,7 +93,7 @@ export default function MoneyRecordScreen() {
 
             <Sheet visible={!!ask} onClose={() => setAsk(null)} title="Why not?">
                 <Text style={{ color: t.muted, marginBottom: spacing.md }}>{ask ? `${ask.name}: you did not get ${rs(ask.yourPart)}. Write the reason; it is kept with the month.` : ''}</Text>
-                <Field label="Reason" value={reason} onChangeText={setReason} maxLength={300} />
+                <Field label="Reason" placeholder="e.g. Vivyaan has not sent my share yet" hint="Why you answered No. Kept in the record for you and Vivyaan." value={reason} onChangeText={setReason} maxLength={300} />
                 <Button title="Save" loading={busy} disabled={reason.trim().length < 3} onPress={() => answer(ask, false, reason.trim())} />
             </Sheet>
         </Screen>

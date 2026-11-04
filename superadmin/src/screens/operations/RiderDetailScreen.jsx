@@ -134,22 +134,22 @@ export default function RiderDetailScreen() {
 
             <Sheet visible={sheet === 'handover'} onClose={() => setSheet(null)} title="Cash received from the rider">
                 <Text style={{ color: t.muted, marginBottom: spacing.md }}>The rider holds {rupees(owed / 100)}. Enter what was handed over.</Text>
-                <NumberField label="Amount" prefix="₹" value={amount} onChange={setAmount} />
-                <Field label="Note (optional)" value={note} onChangeText={setNote} maxLength={200} />
+                <NumberField label="Amount" placeholder="e.g. 500" hint="The amount in rupees." prefix="₹" value={amount} onChange={setAmount} />
+                <Field label="Note (optional)" placeholder="e.g. Paid by bank transfer, ref 12345" hint="For your own records. Not shown to anyone else." value={note} onChangeText={setNote} maxLength={200} />
                 <Button title="Record handover" loading={busy} onPress={() => submitCash('handover')} />
             </Sheet>
 
             <Sheet visible={sheet === 'adjust'} onClose={() => setSheet(null)} title="Adjust the cash balance">
                 <Text style={{ color: t.muted, marginBottom: spacing.md }}>Use this to fix a mistake. A reason is needed and is kept in the log.</Text>
                 <Choice options={[{ value: 'plus', label: 'Rider holds more' }, { value: 'minus', label: 'Rider holds less' }]} value={sign} onChange={setSign} />
-                <NumberField label="Amount" prefix="₹" value={amount} onChange={setAmount} />
-                <Field label="Reason" value={note} onChangeText={setNote} maxLength={200} />
+                <NumberField label="Amount" placeholder="e.g. 500" hint="The amount in rupees." prefix="₹" value={amount} onChange={setAmount} />
+                <Field label="Reason" placeholder="e.g. Wrong entry, corrected" hint="Why you are doing this. It is kept in the activity log." value={note} onChangeText={setNote} maxLength={200} />
                 <Button title="Save adjustment" loading={busy} disabled={note.trim().length < 3} onPress={() => submitCash('adjust')} />
             </Sheet>
 
             <Sheet visible={sheet === 'rename'} onClose={() => setSheet(null)} title="Rider details">
-                <Field label="Name" value={newName} onChangeText={setNewName} maxLength={80} />
-                <Field label="Email (optional)" value={newEmail} onChangeText={setNewEmail} autoCapitalize="none" keyboardType="email-address" />
+                <Field label="Name" placeholder="e.g. Ramesh Kumar" hint="The rider's name, shown to the shop and customers." value={newName} onChangeText={setNewName} maxLength={80} />
+                <Field label="Email (optional)" placeholder="e.g. ramesh@example.com" hint="Used only to send this person important mail. Can stay empty." value={newEmail} onChangeText={setNewEmail} autoCapitalize="none" keyboardType="email-address" />
                 <Button title="Save" loading={busy} onPress={async () => {
                     setBusy(true);
                     try { await updateRider(shopId, userId, { name: newName.trim(), email: newEmail.trim() }); toast('Saved'); setSheet(null); await load(); } catch (e) { toast(errMsg(e), 'error'); } finally { setBusy(false); }

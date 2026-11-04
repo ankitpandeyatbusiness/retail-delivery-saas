@@ -49,14 +49,14 @@ export default function ExpenseFormScreen() {
         >
             <Group title="What" section="catalog">
                 <Choice label="Kind of cost" options={CATEGORIES.map((c) => ({ value: c, label: titleCase(c) }))} value={category} onChange={setCategory} />
-                <NumberField label="Amount" prefix="₹" value={amount} onChange={setAmount} />
+                <NumberField label="Amount" placeholder="e.g. 1500" hint="What you spent, in rupees. Counted in your profit and loss." prefix="₹" value={amount} onChange={setAmount} />
                 <Field label="Paid to (optional)" value={vendor} onChangeText={setVendor} maxLength={80} placeholder="e.g. Render, Atlas, MSG91" />
-                <Field label="Note (optional)" value={note} onChangeText={setNote} maxLength={200} />
+                <Field label="Note (optional)" placeholder="e.g. Render hosting for November" hint="For your own records." value={note} onChangeText={setNote} maxLength={200} />
             </Group>
             <Group title="When" section="platform">
-                <Field label="Date (YYYY-MM-DD)" value={date} onChangeText={setDate} maxLength={10} keyboardType="numbers-and-punctuation" />
+                <Field label="Date (YYYY-MM-DD)" placeholder="e.g. 2026-11-04" hint="The day the money was spent." value={date} onChangeText={setDate} maxLength={10} keyboardType="numbers-and-punctuation" />
                 <Switch title="Repeats every month" subtitle="For fixed costs like hosting or a salary" value={repeat} onValueChange={setRepeat} last={!repeat} />
-                {repeat ? <Field label="Stops after (optional, YYYY-MM-DD)" value={endsOn} onChangeText={setEndsOn} maxLength={10} keyboardType="numbers-and-punctuation" /> : null}
+                {repeat ? <Field label="Stops after (optional, YYYY-MM-DD)" placeholder="e.g. 2027-03-31" hint="For a monthly repeating cost: the last day it counts. Empty = it repeats until you stop it." value={endsOn} onChangeText={setEndsOn} maxLength={10} keyboardType="numbers-and-punctuation" /> : null}
             </Group>
             {old ? <Button title="Delete this expense" kind="danger" icon="trash" style={{ marginTop: 16 }} onPress={() => setConfirm(true)} /> : null}
             <ConfirmSheet

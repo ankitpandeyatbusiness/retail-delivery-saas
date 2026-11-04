@@ -300,7 +300,7 @@ export default function OrderDetailScreen() {
 
             <Sheet visible={sheet === 'cancel'} onClose={() => setSheet(null)} title="Cancel this order">
                 <Choice label="Reason" options={CANCEL_REASONS} value={cancel.reasonCode} onChange={(v) => setCancel({ ...cancel, reasonCode: v })} />
-                <Field label="Note (optional)" value={cancel.note} onChangeText={(v) => setCancel({ ...cancel, note: v })} maxLength={200} />
+                <Field label="Note (optional)" placeholder="e.g. Paid by bank transfer, ref 12345" hint="For your own records. Not shown to anyone else." value={cancel.note} onChangeText={(v) => setCancel({ ...cancel, note: v })} maxLength={200} />
                 <Text style={{ color: t.muted, fontSize: font.sm, marginBottom: spacing.md }}>An online payment is refunded by the platform's rules for this reason.</Text>
                 <Button
                     title="Cancel order"

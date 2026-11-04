@@ -58,7 +58,7 @@ export default function SettingsDineInScreen() {
                         <NumberField label="A regular customer after" suffix="paid visits" integer value={dn.trustedAfter} onChange={num('trustedAfter', 3)} />
                         <Switch title="Customer must be at the shop to order" value={dn.atShopCheck !== false} onValueChange={D('atShopCheck')} />
                         <NumberField label="Distance counted as at the shop" suffix="metres" integer value={dn.radiusM} onChange={num('radiusM', 250)} />
-                        <NumberField label="Alert the owner when nobody asked for the bill after" suffix="min" integer value={dn.checkMinutes} onChange={num('checkMinutes', 20)} />
+                        <NumberField label="Alert the owner when nobody asked for the bill after" placeholder="e.g. 15" hint="Minutes a table can sit finished before the owner is alerted." suffix="min" integer value={dn.checkMinutes} onChange={num('checkMinutes', 20)} />
                         <Switch title="Order only by scanning the table QR" value={dn.qrRequired === true} onValueChange={D('qrRequired')} />
                         <Switch title="A first visit must be paid online" value={dn.firstOnline === true} onValueChange={D('firstOnline')} last />
                     </Group>
@@ -156,16 +156,16 @@ export default function SettingsDineInScreen() {
                     </Group>
 
                     <Group title="Platform timings and counts" section="platform" hint="Only you can change these, not the owner. They used to be fixed in the code.">
-                        <NumberField label="Times a customer can ask to change a pickup time" integer value={lm.pickupAsksMax} onChange={(v) => P('limits', lm, 'pickupAsksMax')(v ?? 3)} />
-                        <NumberField label="Pickup time windows shown per day" integer value={lm.pickupSlotsPerDay} onChange={(v) => P('limits', lm, 'pickupSlotsPerDay')(v ?? 12)} />
-                        <NumberField label="'Bring it fast' works after" suffix="min" integer value={lm.nudgeFirstMin} onChange={(v) => P('limits', lm, 'nudgeFirstMin')(v ?? 3)} />
-                        <NumberField label="'Bring it fast' again after" suffix="min" integer value={lm.nudgeEveryMin} onChange={(v) => P('limits', lm, 'nudgeEveryMin')(v ?? 10)} />
+                        <NumberField label="Times a customer can ask to change a pickup time" placeholder="e.g. 2" hint="How many times a customer can ask the shop to move his pickup time." integer value={lm.pickupAsksMax} onChange={(v) => P('limits', lm, 'pickupAsksMax')(v ?? 3)} />
+                        <NumberField label="Pickup time windows shown per day" placeholder="e.g. 8" hint="How many pickup time choices the customer sees for one day." integer value={lm.pickupSlotsPerDay} onChange={(v) => P('limits', lm, 'pickupSlotsPerDay')(v ?? 12)} />
+                        <NumberField label="'Bring it fast' works after" placeholder="e.g. 10" hint={"Minutes after ordering that the customer can press \"Bring it fast\"."} suffix="min" integer value={lm.nudgeFirstMin} onChange={(v) => P('limits', lm, 'nudgeFirstMin')(v ?? 3)} />
+                        <NumberField label="'Bring it fast' again after" placeholder="e.g. 5" hint="Minutes the customer must wait before pressing it again." suffix="min" integer value={lm.nudgeEveryMin} onChange={(v) => P('limits', lm, 'nudgeEveryMin')(v ?? 10)} />
                         <NumberField label="Same call to the waiter again after" suffix="min" integer hint="0 = no wait" value={lm.callGapMin} onChange={(v) => P('limits', lm, 'callGapMin')(v ?? 2)} />
-                        <NumberField label="Open calls close by themselves after" suffix="hours" integer value={lm.callClearHours} onChange={(v) => P('limits', lm, 'callClearHours')(v ?? 2)} />
-                        <NumberField label="Owner can remind about one bill again after" suffix="min" integer value={lm.remindGapMin} onChange={(v) => P('limits', lm, 'remindGapMin')(v ?? 30)} />
-                        <NumberField label="'I already paid' can be sent again after" suffix="min" integer value={lm.claimRetryMin} onChange={(v) => P('limits', lm, 'claimRetryMin')(v ?? 5)} />
+                        <NumberField label="Open calls close by themselves after" placeholder="e.g. 30" hint="A table's call for help closes by itself after this many minutes." suffix="hours" integer value={lm.callClearHours} onChange={(v) => P('limits', lm, 'callClearHours')(v ?? 2)} />
+                        <NumberField label="Owner can remind about one bill again after" placeholder="e.g. 24" hint="Hours before the owner can remind the customer about the same unpaid bill again." suffix="min" integer value={lm.remindGapMin} onChange={(v) => P('limits', lm, 'remindGapMin')(v ?? 30)} />
+                        <NumberField label="'I already paid' can be sent again after" placeholder="e.g. 12" hint={"Hours before a customer can send \"I already paid\" again for the same bill."} suffix="min" integer value={lm.claimRetryMin} onChange={(v) => P('limits', lm, 'claimRetryMin')(v ?? 5)} />
                         <NumberField label="Same phone counted again as a QR scan after" suffix="min" integer hint="0 = count every scan" value={lm.scanGapMin} onChange={(v) => P('limits', lm, 'scanGapMin')(v ?? 5)} />
-                        <NumberField label="Strikes before cash is blocked for a phone" integer value={lm.strikesMax} onChange={(v) => P('limits', lm, 'strikesMax')(v ?? 2)} last />
+                        <NumberField label="Strikes before cash is blocked for a phone" placeholder="e.g. 3" hint="After this many unpaid bills, that phone can no longer choose cash." integer value={lm.strikesMax} onChange={(v) => P('limits', lm, 'strikesMax')(v ?? 2)} last />
                     </Group>
                     <Hint>These apply to this shop only. Other shops keep their own values.</Hint>
                 </>

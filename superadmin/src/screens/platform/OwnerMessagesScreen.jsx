@@ -73,7 +73,7 @@ export default function OwnerMessagesScreen() {
             ))}
 
             <Sheet visible={compose} onClose={() => setCompose(false)} title="New message to owners">
-                <Field label="Title" value={form.title} onChangeText={(v) => setForm({ ...form, title: v })} maxLength={120} />
+                <Field label="Title" placeholder="e.g. A new feature for your shop" hint="The first line of the notification the shop owners get." value={form.title} onChangeText={(v) => setForm({ ...form, title: v })} maxLength={120} />
                 <Field label="Message" value={form.body} onChangeText={(v) => setForm({ ...form, body: v })} multiline maxLength={1000} hint={`${form.body.length}/1000`} />
                 <Switch title="Every shop" subtitle="Switch off to choose shops" value={form.all} onValueChange={(v) => setForm({ ...form, all: v })} />
                 {!form.all ? (

@@ -89,21 +89,21 @@ export default function ShopBulkScreen() {
                     <Group title="Minimums" section="orders">
                         <NumberField label="Minimum order" hint="After the bulk prices. 0 = none" prefix="₹" value={v.minOrderAmount} onChange={set('minOrderAmount')} />
                         <NumberField label="Notice needed" integer suffix="hours" value={v.noticeHours} onChange={set('noticeHours')} />
-                        <NumberField label="Most pieces of one dish" integer value={v.maxQtyPerDish} onChange={set('maxQtyPerDish')} last />
+                        <NumberField label="Most pieces of one dish" placeholder="e.g. 200" hint="The most pieces of one dish in a single bulk order." integer value={v.maxQtyPerDish} onChange={set('maxQtyPerDish')} last />
                     </Group>
                     <Group title="Delivery fee for bulk orders" section="orders">
                         <Choice options={FEE_TYPES} value={fee.type} onChange={setFee('type')} />
-                        {fee.type === 'flat' || fee.type === 'free_above' ? <NumberField label="Delivery fee" prefix="₹" value={fee.amount} onChange={setFee('amount')} /> : null}
+                        {fee.type === 'flat' || fee.type === 'free_above' ? <NumberField label="Delivery fee" placeholder="e.g. 100" hint="A flat delivery fee in rupees for bulk orders." prefix="₹" value={fee.amount} onChange={setFee('amount')} /> : null}
                         {fee.type === 'free_above' || fee.type === 'distance' ? <NumberField label="Free when the order is above" hint="0 = never free" prefix="₹" value={fee.freeAbove} onChange={setFee('freeAbove')} /> : null}
                         {fee.type === 'distance' ? (
                             <>
-                                <NumberField label="Fee for the first km" prefix="₹" value={fee.baseFee} onChange={setFee('baseFee')} />
-                                <NumberField label="First km covered by that fee" suffix="km" value={fee.baseKm} onChange={setFee('baseKm')} />
-                                <NumberField label="Extra fee for every further km" prefix="₹" value={fee.perKmFee} onChange={setFee('perKmFee')} />
+                                <NumberField label="Fee for the first km" placeholder="e.g. 100" hint="The fee in rupees that covers the first kilometres." prefix="₹" value={fee.baseFee} onChange={setFee('baseFee')} />
+                                <NumberField label="First km covered by that fee" placeholder="e.g. 5" hint="How many kilometres that first fee covers." suffix="km" value={fee.baseKm} onChange={setFee('baseKm')} />
+                                <NumberField label="Extra fee for every further km" placeholder="e.g. 10" hint="Rupees added for each kilometre after that." prefix="₹" value={fee.perKmFee} onChange={setFee('perKmFee')} />
                                 <NumberField label="Highest fee" hint="0 = no limit" prefix="₹" value={fee.maxFee} onChange={setFee('maxFee')} />
                             </>
                         ) : null}
-                        <NumberField label="Packaging charge" prefix="₹" value={v.packagingCharge} onChange={set('packagingCharge')} last />
+                        <NumberField label="Packaging charge" placeholder="e.g. 10" hint="A flat rupee charge added to each order for packaging. 0 = none." prefix="₹" value={v.packagingCharge} onChange={set('packagingCharge')} last />
                     </Group>
                     <Group title="Quote and advance" section="money">
                         <NumberField label="Advance to confirm" suffix="%" value={v.advancePercent} onChange={set('advancePercent')} />

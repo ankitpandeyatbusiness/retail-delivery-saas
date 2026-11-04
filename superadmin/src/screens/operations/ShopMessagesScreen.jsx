@@ -78,7 +78,7 @@ export default function ShopMessagesScreen() {
             <Sheet visible={compose} onClose={() => setCompose(false)} title="New message">
                 <Choice label="Send to" options={AUDIENCE} value={form.audience} onChange={(v) => setForm({ ...form, audience: v })} />
                 <Choice label="Kind" options={KIND} value={form.kind} onChange={(v) => setForm({ ...form, kind: v })} />
-                <Field label="Title" value={form.title} onChangeText={(v) => setForm({ ...form, title: v })} maxLength={120} />
+                <Field label="Title" placeholder="e.g. We are open late tonight" hint="The first line of the notification customers or riders get." value={form.title} onChangeText={(v) => setForm({ ...form, title: v })} maxLength={120} />
                 <Field label="Message" value={form.body} onChangeText={(v) => setForm({ ...form, body: v })} multiline maxLength={1000} hint={`${form.body.length}/1000`} />
                 <Switch title="Also send by email" value={form.sendEmail} onValueChange={(v) => setForm({ ...form, sendEmail: v })} last />
                 <Hint>A promotion skips customers who switched promotions off. A shop can send 5 messages a day.</Hint>

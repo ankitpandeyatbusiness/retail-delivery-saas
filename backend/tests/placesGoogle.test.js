@@ -48,6 +48,32 @@ beforeEach(async () => {
 afterEach(() => { mock.restoreAll(); delete process.env.GOOGLE_PLACES_SERVER_KEY; });
 
 describe('place search with Google Places API (New)', () => {
+    const osmCalls = () => calls.filter((c) => /photon|nominatim/.test(c.url));
+
+    test('OpenStreetMap is asked ONLY when Google cannot answer (allowance used up, no key, nothing found), never next to a Google answer', async () => {
+        // Google answers: the free sources are not asked at all
+        await places.search('city fashion', KANPUR, { limit: 5 });
+        assert.equal(osmCalls().length, 0, 'Google answered, so no OpenStreetMap call');
+
+        // the allowance is used up: Google is not called, the free sources are, and the screen is told why
+        calls.length = 0; places.googleCache.clear();
+        await setCaps({ textSearchCap: 0, autocompleteCap: 0, detailsCap: 0 });
+        const report = {};
+        await places.search('city fashion', KANPUR, { limit: 5, report });
+        assert.equal(googleCalls('places:').length, 0);
+        assert.ok(osmCalls().length > 0, 'the free sources step in');
+        assert.equal(report.google, 'budget');
+
+        // no key on the server: the same
+        calls.length = 0; places.googleCache.clear();
+        await setCaps({});
+        delete process.env.GOOGLE_PLACES_SERVER_KEY;
+        const r2 = {};
+        await places.search('city fashion', KANPUR, { limit: 5, report: r2 });
+        assert.ok(osmCalls().length > 0);
+        assert.equal(r2.google, 'no_key');
+    });
+
     test('asks the new endpoints with the key and a field mask, and reads the answers', async () => {
         const items = await places.search('city fashion', KANPUR, { limit: 5 });
         const t = googleCalls('places:searchText')[0];

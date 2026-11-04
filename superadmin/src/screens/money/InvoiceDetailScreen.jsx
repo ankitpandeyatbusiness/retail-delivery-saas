@@ -143,7 +143,7 @@ export default function InvoiceDetailScreen() {
             <Sheet visible={sheet === 'paid'} onClose={() => setSheet(null)} title="Mark as paid">
                 <Choice label="How was it paid?" options={MODES} value={mode} onChange={setMode} />
                 <Field label="Reference (optional)" value={ref} onChangeText={setRef} maxLength={60} placeholder="UPI reference, cheque number..." />
-                <Field label="Note (optional)" value={note} onChangeText={setNote} maxLength={200} />
+                <Field label="Note (optional)" placeholder="e.g. Paid by bank transfer, ref 12345" hint="For your own records. Not shown to anyone else." value={note} onChangeText={setNote} maxLength={200} />
                 <Button
                     title={`Mark ${rupees(inv.total)} as paid`}
                     loading={busy === 'paid'}

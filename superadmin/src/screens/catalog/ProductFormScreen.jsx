@@ -238,7 +238,7 @@ export default function ProductFormScreen() {
                 {!cats.length && !v.newCategory.trim() ? <Hint tone="warn">This shop has no category yet. Type a new one above, or add one in Menu → Categories.</Hint> : null}
                 <View style={{ height: spacing.md }} />
                 <Field label="Item name" value={v.name} onChangeText={(x) => f.set('name', x)} error={f.errors.name} maxLength={80} placeholder="e.g. Paneer Tikka" />
-                <Field label="Description (optional)" value={v.description} onChangeText={(x) => f.set('description', x)} multiline maxLength={300} />
+                <Field label="Description (optional)" placeholder="e.g. Fresh paneer in a creamy tomato gravy" hint="Shown under the dish name on the dish page in the customer app." value={v.description} onChangeText={(x) => f.set('description', x)} multiline maxLength={300} />
                 <ImageField value={v.image} onChange={(x) => f.set('image', x)} shopId={shopId} kind="product" refId={refId} />
                 <MorePictures value={v.images || []} onChange={(x) => f.set('images', x)} onMain={(u) => { const old = v.image; f.set('image', u); f.set('images', (v.images || []).map((x) => (x === u ? old : x))); }} shopId={shopId} refId={refId} disabled={!v.image} />
             </Card>
@@ -271,10 +271,10 @@ export default function ProductFormScreen() {
 
             <Group title="Details and labels" section="orders">
                 <View style={{ flexDirection: 'row', gap: spacing.md }}>
-                    {v.sellBy === 'piece' ? <NumberField style={{ flex: 1 }} label="Serves" integer value={v.serves} onChange={(x) => f.set('serves', x)} /> : null}
-                    <NumberField style={{ flex: 1 }} label="Calories" integer value={v.calories} onChange={(x) => f.set('calories', x)} />
+                    {v.sellBy === 'piece' ? <NumberField style={{ flex: 1 }} label="Serves" placeholder="e.g. 2" hint="How many people it feeds, shown on the dish. Optional." integer value={v.serves} onChange={(x) => f.set('serves', x)} /> : null}
+                    <NumberField style={{ flex: 1 }} label="Calories" placeholder="e.g. 450" hint="Calories per serving, shown on the dish page. Optional." integer value={v.calories} onChange={(x) => f.set('calories', x)} />
                 </View>
-                <NumberField label="Preparation time" suffix="min" integer value={v.prepTimeMin} onChange={(x) => f.set('prepTimeMin', x)} />
+                <NumberField label="Preparation time" placeholder="e.g. 20" hint="Minutes to prepare. Used for the estimated time customers see." suffix="min" integer value={v.prepTimeMin} onChange={(x) => f.set('prepTimeMin', x)} />
                 {v.sellBy === 'piece' ? (
                     <>
                         <Label hint="For bulk orders. Example: from 30 pieces, 10 percent off. Leave both empty for no bulk price. You can set it for any shop; the owner can only when Bulk orders is switched on for his shop.">Bulk price</Label>

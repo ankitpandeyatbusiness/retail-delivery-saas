@@ -49,7 +49,7 @@ export default function BrandsScreen() {
             {supreme ? <View style={{ marginTop: spacing.lg }}><Button title="New brand" icon="add" onPress={() => setOpen(true)} /></View> : null}
 
             <Sheet visible={open} onClose={() => setOpen(false)} title="New brand">
-                <Field label="Brand name" value={name} onChangeText={setName} maxLength={80} />
+                <Field label="Brand name" placeholder="e.g. Savera" hint="The name of the group of branches, shown to the brand owner." value={name} onChangeText={setName} maxLength={80} />
                 <Field label="Most branches allowed" value={limit} onChangeText={(v) => setLimit(v.replace(/\D/g, '').slice(0, 3))} keyboardType="number-pad" />
                 <Button title="Create" loading={busy} disabled={name.trim().length < 2} onPress={create} />
             </Sheet>

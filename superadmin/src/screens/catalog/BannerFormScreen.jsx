@@ -50,7 +50,7 @@ export default function BannerFormScreen() {
             <Card>
                 <ImageField label="Banner picture" value={v.image} onChange={(x) => f.set('image', x)} shopId={shopId} kind="banner" />
                 <Field label="Title" value={v.title} onChangeText={(x) => f.set('title', x)} error={f.errors.title} maxLength={60} placeholder="e.g. Flat 20% off" />
-                <Field label="Subtitle (optional)" value={v.subtitle} onChangeText={(x) => f.set('subtitle', x)} maxLength={100} />
+                <Field label="Subtitle (optional)" placeholder="e.g. Free delivery this weekend" hint="The smaller line under the title on the customer app's home screen." value={v.subtitle} onChangeText={(x) => f.set('subtitle', x)} maxLength={100} />
                 <Field label="Coupon code shown on it (optional)" value={v.couponCode} onChangeText={(x) => f.set('couponCode', x.toUpperCase().replace(/[^A-Z0-9]/g, ''))} autoCapitalize="characters" maxLength={20} placeholder="e.g. FIRST50" hint="Make sure a coupon with this code exists (Coupons)." />
                 <Switch title="Show to first-time customers only" value={v.firstOrderOnly} onValueChange={(x) => f.set('firstOrderOnly', x)} last />
             </Card>

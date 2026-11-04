@@ -79,7 +79,7 @@ export default function CollectionFormScreen() {
                     onChange={(x) => f.set('kind', x)}
                 />
                 <Field label="Title" value={v.title} onChangeText={(x) => f.set('title', x)} error={f.errors.title} maxLength={60} placeholder="e.g. Diwali Gift Boxes" />
-                <Field label="Subtitle (optional)" value={v.subtitle} onChangeText={(x) => f.set('subtitle', x)} maxLength={120} />
+                <Field label="Subtitle (optional)" placeholder="e.g. Free delivery this weekend" hint="The smaller line under the title on the customer app's home screen." value={v.subtitle} onChangeText={(x) => f.set('subtitle', x)} maxLength={120} />
                 <ImageField value={v.image} onChange={(x) => f.set('image', x)} shopId={shopId} kind="collection" last />
             </Card>
 

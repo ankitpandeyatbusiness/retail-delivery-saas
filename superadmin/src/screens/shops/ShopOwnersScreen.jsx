@@ -57,7 +57,7 @@ export default function ShopOwnersScreen() {
                 <Text style={{ color: t.muted, marginBottom: spacing.lg }}>
                     This number logs in to the shop panel with an OTP. If it already belongs to a customer, they become the owner.
                 </Text>
-                <Field label="Mobile number" value={phone} onChangeText={(v) => setPhone(v.replace(/\D/g, '').slice(0, 10))} keyboardType="number-pad" autoFocus />
+                <Field label="Mobile number" placeholder="10 digits, e.g. 9876543210" hint="The owner logs in with this number and gets the shop's alerts on it." value={phone} onChangeText={(v) => setPhone(v.replace(/\D/g, '').slice(0, 10))} keyboardType="number-pad" autoFocus />
                 <Button title="Add owner" onPress={add} loading={busy} />
             </Sheet>
 

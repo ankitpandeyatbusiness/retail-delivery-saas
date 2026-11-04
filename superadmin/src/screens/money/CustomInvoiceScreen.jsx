@@ -67,8 +67,8 @@ export default function CustomInvoiceScreen() {
                         </View>
                         <Field label="Description" value={l.description} onChangeText={(v) => setLine(i, { description: v })} maxLength={200} placeholder="e.g. Set-up and training" />
                         <View style={{ flexDirection: 'row', gap: spacing.md }}>
-                            <NumberField style={{ flex: 1 }} label="Quantity" value={l.qty} onChange={(v) => setLine(i, { qty: v })} last />
-                            <NumberField style={{ flex: 1 }} label="Rate" prefix="₹" value={l.rate} onChange={(v) => setLine(i, { rate: v })} last />
+                            <NumberField style={{ flex: 1 }} label="Quantity" placeholder="e.g. 1" hint="How many units of this line." value={l.qty} onChange={(v) => setLine(i, { qty: v })} last />
+                            <NumberField style={{ flex: 1 }} label="Rate" placeholder="e.g. 2500" hint="The price of one unit in rupees, before GST." prefix="₹" value={l.rate} onChange={(v) => setLine(i, { rate: v })} last />
                         </View>
                     </View>
                 ))}
@@ -77,13 +77,13 @@ export default function CustomInvoiceScreen() {
 
             <Group title="Tax and dates" section="money">
                 <NumberField label="GST" suffix="%" value={gst} onChange={(v) => setGst(v ?? 0)} hint="Only added if your GST number is saved in Business details" />
-                <NumberField label="Days to pay" integer value={dueDays} onChange={(v) => setDueDays(v ?? 0)} />
+                <NumberField label="Days to pay" placeholder="e.g. 7" hint="Days from the invoice date until it is due." integer value={dueDays} onChange={(v) => setDueDays(v ?? 0)} />
                 <Switch title="Can pause the shop if unpaid" subtitle="Off = this bill never pauses the shop" value={blocks} onValueChange={setBlocks} last={!blocks} />
-                {blocks ? <View style={{ marginTop: spacing.md }}><NumberField label="Grace days before pausing" integer value={graceDays} onChange={(v) => setGraceDays(v ?? 1)} last /></View> : null}
+                {blocks ? <View style={{ marginTop: spacing.md }}><NumberField label="Grace days before pausing" placeholder="e.g. 5" hint="After the due date, how many more days before the shop is paused for non-payment." integer value={graceDays} onChange={(v) => setGraceDays(v ?? 1)} last /></View> : null}
             </Group>
 
             <Group title="Note" section="platform">
-                <Field label="Note on the invoice (optional)" value={note} onChangeText={setNote} maxLength={200} />
+                <Field label="Note on the invoice (optional)" placeholder="e.g. Setup and training charge" hint="Printed on the invoice and shown to the shop owner." value={note} onChangeText={setNote} maxLength={200} />
                 <Hint>Amount {rupees(base)} + GST {rupees(gstAmt)} = {rupees(base + gstAmt)}</Hint>
             </Group>
         </Screen>

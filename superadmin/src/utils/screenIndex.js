@@ -63,7 +63,6 @@ export const SCREEN_INDEX = [
     E('Brand and look', 'Customer app', 'SettingsBrand', 'ShopsTab', 'palette', 'settings', 'brand look colours colour primary background text font style button shape rounded pill square theme', 'shop'),
     E('Bottom tabs', 'Customer app', 'SettingsTabs', 'ShopsTab', 'menu', 'settings', 'bottom tabs navigation home search offers orders profile', 'shop'),
     E('Home layout', 'Customer app', 'SettingsHome', 'ShopsTab', 'home', 'settings', 'home layout blocks order banner categories filters bestsellers new arrivals card style big compact grid food mode veg nonveg eggless sort options filter chips', 'shop'),
-    E('Words and language', 'Customer app', 'SettingsLabels', 'ShopsTab', 'message', 'settings', 'words language labels hindi english add button order button empty cart closed message text', 'shop'),
     E('App features', 'Customer app', 'SettingsFeatures', 'ShopsTab', 'tune', 'catalog', 'features veg toggle veg dot rating badge prep time serves calories special instructions schedule order reorder favourites guest browsing skip coupon field tips', 'shop'),
     E('Menu and offers', 'Customer app', 'SettingsMenuOffers', 'ShopsTab', 'coupon', 'catalog', 'menu offers out of stock dim hide group by category coupons show offers home cart', 'shop'),
     E('Orders and fees', 'Customer app', 'SettingsOrders', 'ShopsTab', 'orders', 'orders', 'orders fees accepting orders pause delivery pickup dine in minimum order delivery fee free above distance packaging charge gst tax tips cash on delivery cod limit payments', 'shop'),

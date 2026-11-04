@@ -3,10 +3,10 @@ import { View, Text, Image } from 'react-native';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useTheme, spacing, font, radius } from '../../theme';
 import { Screen } from '../../components/layout';
-import { BroughtByCard, HandoverCard } from '../../components/broughtByBits';
+import { FOLDERS } from './shopFolders';
+import ShopAreaMap from '../../components/ShopAreaMap';
 import { Card, ListRow, SectionTitle, KeyValue, Avatar, Badge, Button } from '../../components/ui';
 import { ShopStateBadge, stateTone } from '../../components/shopBits';
-import MakeBrandCard from '../../components/makeBrandCard';
 import { Hero, QuickActions, SkeletonList } from '../../components/blocks';
 import { ErrorBox } from '../../components/feedback';
 import { useShopStore } from '../../store/useShopStore';
@@ -97,60 +97,19 @@ export default function ShopDetailScreen() {
                 />
             </View>
 
-            <BroughtByCard shopId={shopId} current={tenant.broughtBy} onChanged={refresh} />
-            <MakeBrandCard tenant={tenant} onDone={refresh} />
-            <HandoverCard shopId={shopId} handedOverAt={tenant.handedOverAt} onChanged={refresh} />
+            {Number.isFinite(d.latitude) && Number.isFinite(d.longitude) ? (
+                <View style={{ marginBottom: spacing.md }}><ShopAreaMap latitude={d.latitude} longitude={d.longitude} radiusKm={d.radiusKm} onPress={go('ShopEdit')} /></View>
+            ) : null}
 
-            <SectionTitle section="orders">Operations</SectionTitle>
+            <SectionTitle section="settings">Everything about this shop</SectionTitle>
             <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
-                <ListRow section="money" icon="chart" title="Progress report" subtitle="How this shop is doing: sales, customers, food, riders, tips" onPress={() => nav.navigate('ShopReport', { shopId, name: tenant.name })} />
-                <ListRow section="platform" icon="megaphone" title="Autopilot" subtitle="Reminders this shop sends its customers: what it did, stop it" onPress={() => nav.navigate('ShopAutopilot', { shopId, name: tenant.name })} />
-                <ListRow section="orders" icon="orders" title="Orders" subtitle="Every order of this shop, with status and rider" onPress={go('ShopOrders')} />
-                <ListRow section="riders" icon="rider" title="Riders and cash" subtitle="Riders, cash they hold, performance" onPress={go('ShopRiders')} />
-                <ListRow section="alerts" icon="message" title="Complaints" subtitle="Answer and refund customer complaints" onPress={go('ShopComplaints')} />
-                <ListRow section="platform" icon="megaphone" title="Messages to customers" subtitle="Tell customers and riders something" onPress={go('ShopMessages')} />
-                <ListRow section="orders" icon="message" title="Services and booking" subtitle="Inquiries and table bookings of this shop, to read (the switches are in App features)" onPress={() => nav.navigate('ServicesShop', { tenantId: shopId, name })} />
-                <ListRow section="orders" icon="receipt" title="Bulk orders" subtitle="Bulk rules and the bulk orders of this shop with their money (the switch is in App features)" onPress={go('ShopBulk')} />
-                <ListRow section="settings" icon="notes" title="Activity log" subtitle="Who changed what in this shop" onPress={go('ShopActivity')} />
-                <ListRow section="money" icon="chart" title="Sales report" subtitle="Sales per day, items, payments" onPress={() => nav.navigate('SalesReport', { shopId, name: tenant.name })} last />
-            </Card>
-
-            <SectionTitle section="money">Money</SectionTitle>
-            <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
-                <ListRow section="money" icon="bank" title="Billing and rent" subtitle="Go live, free limits, bill preview, pricing" onPress={go('ShopBilling')} />
-                <ListRow section="people" icon="receipt" title="Rent invoices" subtitle="Bills sent to this shop" onPress={() => nav.navigate('Invoices', { shopId, name: tenant.name })} />
-                <ListRow section="orders" icon="wallet" title="Online payments" subtitle="Razorpay setup, money, refunds, chargebacks" onPress={go('ShopPayments')} />
-                <ListRow section="catalog" icon="message" title="SMS wallet" subtitle="Balance, top-ups, prices, own sender" onPress={go('ShopSms')} />
-                <ListRow section="platform" icon="chart" title="Transactions" subtitle="Every money movement of this shop" onPress={() => nav.navigate('Ledger', { shopId, name: tenant.name })} last />
-            </Card>
-
-            <SectionTitle section="people">People</SectionTitle>
-            <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
-                <ListRow section="money" icon="key" title="Owners" subtitle="Who can run this shop" onPress={go('ShopOwners')} />
-                <ListRow section="people" icon="users" title="Users" subtitle="Customers, riders and owners" onPress={go('ShopUsers')} last />
-            </Card>
-
-            <SectionTitle section="catalog">Catalog</SectionTitle>
-            <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
-                <ListRow section="catalog" icon="food" title="Menu" subtitle="Items, categories, stock, CSV import" onPress={go('ShopMenu')} />
-                <ListRow section="catalog" icon="sparkle" title="Collections" subtitle="Festival specials and combo deals" onPress={go('Collections')} />
-                <ListRow section="catalog" icon="banner" title="Banners" subtitle="Offer cards on the home screen" onPress={go('Banners')} />
-                <ListRow section="money" icon="coupon" title="Coupons" subtitle="Discount codes" onPress={go('Coupons')} last />
-            </Card>
-
-            <SectionTitle section="settings">Customer app</SectionTitle>
-            <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
-                <ListRow section="settings" icon="tune" title="App settings" subtitle="Veg switch, home layout, tabs, fees, hours, riders" onPress={go('ShopSettings')} />
-                <ListRow section="catalog" icon="palette" title="Branding" subtitle="Logo, home pictures, colours from logo, app icon" onPress={go('ShopBranding')} last />
-            </Card>
-
-            <SectionTitle section="alerts">Manage</SectionTitle>
-            <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
-                <ListRow section="settings" icon="edit" title="Edit shop" subtitle="Name, contact, address, delivery, GST" onPress={go('ShopEdit')} />
-                <ListRow section="platform" icon="bell" title="Message the owner" subtitle="A notice in the owner's app" onPress={go('ShopNotify')} />
-                <ListRow section="alerts" icon="shield" title="Access and maintenance" subtitle="Block owner panel, pause the shop" onPress={go('ShopAccess')} />
-                <ListRow section="alerts" icon="lock" danger={tenant.status !== 'active'} title={tenant.status !== 'active' ? 'Open this shop again' : 'Close this shop'} subtitle={tenant.status !== 'active' ? 'It is closed now: see why, and open it' : 'Stop the shop but keep all its data, with a reason'} onPress={go('ShopClose')} />
-                <ListRow section="platform" icon="tool" title="Development details" subtitle="App id, versions, Razorpay, SMS and DLT, build commands" onPress={go('ShopDev')} last />
+                {FOLDERS.slice(0, 3).map((f) => (
+                    <ListRow key={f.key} section={f.section} icon={f.icon} title={f.title} subtitle={f.subtitle} onPress={() => nav.navigate('ShopFolder', { shopId, name: tenant.name, folder: f.key })} />
+                ))}
+                <ListRow section="settings" icon="tune" title="Settings" subtitle="How this shop works: ordering, hours, riders, features and how the customer app looks" onPress={go('ShopSettings')} />
+                {FOLDERS.slice(3).map((f, i, arr) => (
+                    <ListRow key={f.key} section={f.section} icon={f.icon} title={f.title} subtitle={f.subtitle} onPress={() => nav.navigate('ShopFolder', { shopId, name: tenant.name, folder: f.key })} last={i === arr.length - 1} />
+                ))}
             </Card>
 
             {rec.rent ? (

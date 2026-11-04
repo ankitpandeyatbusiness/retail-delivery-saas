@@ -246,7 +246,7 @@ export default function BrandDetailScreen() {
                 {!chosen ? (
                     <>
                         <Text style={{ color: t.muted, marginBottom: spacing.sm }}>Pick a shop that is not part of any brand yet. It keeps its menu, orders and settings and becomes a branch of this brand.</Text>
-                        <Field label="Search by name or short name" value={q} onChangeText={setQ} autoCapitalize="none" maxLength={40} />
+                        <Field label="Search by name or short name" placeholder="e.g. Savera Hyderabad" hint="Type part of the shop's name to find it." value={q} onChangeText={setQ} autoCapitalize="none" maxLength={40} />
                         {found === null ? <SkeletonList /> : null}
                         {found && !found.length ? <Text style={{ color: t.muted }}>No free shop found. A shop already in a brand cannot be taken from there.</Text> : null}
                         {found ? found.slice(0, 20).map((sh) => (
@@ -257,7 +257,7 @@ export default function BrandDetailScreen() {
                     <>
                         <Text style={{ color: t.text, fontWeight: '800', marginBottom: spacing.sm }}>{`${chosen.name} (${chosen.slug})`}</Text>
                         <Text style={{ color: t.muted, marginBottom: spacing.md }}>It becomes a branch of {r && r.brand ? r.brand.name : 'this brand'}. Its own SMS balance moves into the brand's shared SMS wallet, and the brand owners get access to it. Its staff must not also work at another branch of this brand.</Text>
-                        <Field label="City of this branch" value={acity} onChangeText={setAcity} maxLength={60} />
+                        <Field label="City of this branch" placeholder="e.g. Hyderabad" hint="Shown to customers when they choose a branch." value={acity} onChangeText={setAcity} maxLength={60} />
                         <Button title="Attach this shop" loading={busy} disabled={!acity.trim()} onPress={attach} />
                         <Button title="Choose another shop" kind="outline" style={{ marginTop: spacing.sm }} onPress={() => setChosen(null)} />
                     </>
@@ -265,10 +265,10 @@ export default function BrandDetailScreen() {
             </Sheet>
 
             <Sheet visible={add} onClose={() => setAdd(false)} title="Add a branch">
-                <Field label="Branch name" value={f.name} onChangeText={set('name')} maxLength={80} />
-                <Field label="Short name for the link (letters, numbers, hyphen)" value={f.slug} onChangeText={(v) => set('slug')(v.toLowerCase().replace(/[^a-z0-9-]/g, ''))} autoCapitalize="none" maxLength={40} />
-                <Field label="City" value={f.city} onChangeText={set('city')} maxLength={60} />
-                <Field label="Manager phone (optional)" value={f.managerPhone} onChangeText={(v) => set('managerPhone')(v.replace(/\D/g, '').slice(0, 10))} keyboardType="number-pad" />
+                <Field label="Branch name" placeholder="e.g. Savera Hyderabad" hint="The name of this branch shop." value={f.name} onChangeText={set('name')} maxLength={80} />
+                <Field label="Short name for the link (letters, numbers, hyphen)" placeholder="e.g. savera-hyderabad" hint="This branch's short code in its address. Letters, numbers and hyphens only." value={f.slug} onChangeText={(v) => set('slug')(v.toLowerCase().replace(/[^a-z0-9-]/g, ''))} autoCapitalize="none" maxLength={40} />
+                <Field label="City" placeholder="e.g. Kanpur" hint="Shown with the address in the customer app." value={f.city} onChangeText={set('city')} maxLength={60} />
+                <Field label="Manager phone (optional)" placeholder="10 digits, e.g. 9876543210" hint="A manager who runs this branch day to day. Can stay empty." value={f.managerPhone} onChangeText={(v) => set('managerPhone')(v.replace(/\D/g, '').slice(0, 10))} keyboardType="number-pad" />
                 {first ? <Button title={`${copy ? '✓ ' : ''}Start from the look, rules and menu of ${first.name}`} kind={copy ? 'soft' : 'outline'} small onPress={() => setCopy(!copy)} style={{ marginBottom: spacing.md }} /> : null}
                 <Button title="Add branch" loading={busy} disabled={f.name.trim().length < 2 || f.slug.length < 3 || !f.city.trim()} onPress={create} />
             </Sheet>
@@ -278,7 +278,7 @@ export default function BrandDetailScreen() {
                 {bulk === 'waive' ? (
                     <>
                         <Text style={{ color: t.muted, marginBottom: spacing.sm }}>Every unpaid late fee of these branches is cancelled. The rent bills stay as they are.</Text>
-                        <Field label="Reason (the owners may see it)" value={reason} onChangeText={setReason} maxLength={200} />
+                        <Field label="Reason (the owners may see it)" placeholder="e.g. Rent paid late, please remember the due date" hint="The owners may read this, so write it politely." value={reason} onChangeText={setReason} maxLength={200} />
                     </>
                 ) : null}
                 {bulk === 'paid' ? (
@@ -293,14 +293,14 @@ export default function BrandDetailScreen() {
                             <Button title="Owner" small kind={receiver === 'owner' ? 'primary' : 'outline'} onPress={() => setReceiver('owner')} />
                             <Button title="Partner" small kind={receiver === 'partner' ? 'primary' : 'outline'} onPress={() => setReceiver('partner')} />
                         </View>
-                        <Field label="Payment reference (optional)" value={ref} onChangeText={setRef} maxLength={60} />
-                        <Field label="Note (optional)" value={bnote} onChangeText={setBnote} maxLength={200} />
+                        <Field label="Payment reference (optional)" placeholder="e.g. UTR 4021XXXX or cheque no." hint="The bank reference of the payment, for your records." value={ref} onChangeText={setRef} maxLength={60} />
+                        <Field label="Note (optional)" placeholder="e.g. Paid by bank transfer, ref 12345" hint="For your own records. Not shown to anyone else." value={bnote} onChangeText={setBnote} maxLength={200} />
                     </>
                 ) : null}
                 {bulk === 'unpaid' ? (
                     <>
                         <Text style={{ color: t.muted, marginBottom: spacing.sm }}>The paid rent bills of this month go back to unpaid. A bill paid online is never undone here: that money was really taken.</Text>
-                        <Field label="Month (like 2026-10)" value={month} onChangeText={(v) => setMonth(v.replace(/[^0-9-]/g, '').slice(0, 7))} keyboardType="number-pad" />
+                        <Field label="Month (like 2026-10)" placeholder="e.g. 2026-10" hint="The month this applies to (year-month)." value={month} onChangeText={(v) => setMonth(v.replace(/[^0-9-]/g, '').slice(0, 7))} keyboardType="number-pad" />
                     </>
                 ) : null}
                 <Button title="Do it" loading={busy} disabled={(bulk === 'waive' && reason.trim().length < 3) || (bulk === 'unpaid' && !/^\d{4}-\d{2}$/.test(month))} onPress={runBulk} />
@@ -323,14 +323,14 @@ export default function BrandDetailScreen() {
 
             <Sheet visible={freeOpen} onClose={() => setFreeOpen(false)} title="Shared free start">
                 <Text style={{ color: t.muted, marginBottom: spacing.md }}>All branches that are still free now, and every branch you add while it runs, share ONE free start. It starts when the first one goes live and ends when they have sold the free orders together or the free months are over. Then all of them are billed from the first full month after, on the usual bill day. Leave the numbers empty for the platform's (100 orders, 2 months).</Text>
-                <Field label="Free orders (all branches together)" value={freeOrders} onChangeText={(v) => setFreeOrders(v.replace(/\D/g, '').slice(0, 4))} keyboardType="number-pad" />
-                <Field label="Free months" value={freeMonths} onChangeText={(v) => setFreeMonths(v.replace(/\D/g, '').slice(0, 3))} keyboardType="number-pad" />
+                <Field label="Free orders (all branches together)" placeholder="e.g. 300" hint="Free orders shared by all the brand's branches before rent starts." value={freeOrders} onChangeText={(v) => setFreeOrders(v.replace(/\D/g, '').slice(0, 4))} keyboardType="number-pad" />
+                <Field label="Free months" placeholder="e.g. 2" hint="Months after going live without rent. Empty = the platform value." value={freeMonths} onChangeText={(v) => setFreeMonths(v.replace(/\D/g, '').slice(0, 3))} keyboardType="number-pad" />
                 <Button title="Switch it on" loading={busy} onPress={() => saveFree(true)} />
             </Sheet>
 
             <Sheet visible={discOpen} onClose={() => setDiscOpen(false)} title="Rent discount">
                 <Text style={{ color: t.muted, marginBottom: spacing.md }}>{`The 2nd branch onward pays this much less rent each month (the first branch pays full). Suggested ${cfg ? cfg.defaultDiscountPercent : 10}%, at most ${cfg ? cfg.maxDiscountPercent : 15}%. 0 switches it off.`}</Text>
-                <Field label="Discount in percent" value={disc} onChangeText={(v) => setDisc(v.replace(/[^0-9.]/g, '').slice(0, 5))} keyboardType="decimal-pad" />
+                <Field label="Discount in percent" placeholder="e.g. 10" hint="Percent off the rent of the brand's second branch onward. 0 = no discount." value={disc} onChangeText={(v) => setDisc(v.replace(/[^0-9.]/g, '').slice(0, 5))} keyboardType="decimal-pad" />
                 <Button title="Save" loading={busy} onPress={saveDisc} />
             </Sheet>
 
@@ -340,7 +340,7 @@ export default function BrandDetailScreen() {
             </Sheet>
 
             <Sheet visible={ownerOpen} onClose={() => setOwnerOpen(false)} title="Add a brand owner">
-                <Field label="Mobile number" value={ownerPhone} onChangeText={(v) => setOwnerPhone(v.replace(/\D/g, '').slice(0, 10))} keyboardType="number-pad" />
+                <Field label="Mobile number" placeholder="10 digits, e.g. 9876543210" hint="A brand owner logs in with this number and can open every branch." value={ownerPhone} onChangeText={(v) => setOwnerPhone(v.replace(/\D/g, '').slice(0, 10))} keyboardType="number-pad" />
                 <Button title="Add" loading={busy} disabled={ownerPhone.length !== 10} onPress={saveOwner} />
             </Sheet>
 

@@ -94,9 +94,9 @@ export default function TeamScreen() {
                 <Text style={{ color: t.muted, marginBottom: spacing.lg }}>
                     They log in to Retail Control with this number and an OTP. They get full platform access.
                 </Text>
-                <Field label="Name" value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} maxLength={80} />
-                <Field label="Mobile number" value={form.phone} onChangeText={(v) => setForm({ ...form, phone: v.replace(/\D/g, '').slice(0, 10) })} keyboardType="number-pad" />
-                <Field label="Second number (optional)" value={form.phone2} onChangeText={(v) => setForm({ ...form, phone2: v.replace(/\D/g, '').slice(0, 10) })} keyboardType="number-pad" />
+                <Field label="Name" placeholder="e.g. Priya Sharma" hint="The team member's name, shown in the activity log." value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} maxLength={80} />
+                <Field label="Mobile number" placeholder="10 digits, e.g. 9876543210" hint="The team member signs in with this number." value={form.phone} onChangeText={(v) => setForm({ ...form, phone: v.replace(/\D/g, '').slice(0, 10) })} keyboardType="number-pad" />
+                <Field label="Second number (optional)" placeholder="10 digits, e.g. 9876543210" hint="A second phone for this person. Can stay empty." value={form.phone2} onChangeText={(v) => setForm({ ...form, phone2: v.replace(/\D/g, '').slice(0, 10) })} keyboardType="number-pad" />
                 <Button title="Add superadmin" onPress={add} loading={busy} />
             </Sheet>
 

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
+import { Text } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Screen } from '../../components/layout';
 import { Card, ListRow, SectionTitle } from '../../components/ui';
@@ -7,13 +8,14 @@ import { Loading, ErrorBox } from '../../components/feedback';
 import { useShopStore } from '../../store/useShopStore';
 import { useOptionsStore } from '../../store/useOptionsStore';
 import { effectiveSettings, nameOf } from '../../utils/settings';
-import { spacing } from '../../theme';
+import { spacing, font, useTheme } from '../../theme';
 
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
 // The hub of the customer app's configuration: one row per group of settings, each with a one-line summary.
 export default function ShopSettingsScreen() {
     const nav = useNavigation();
+    const t = useTheme();
     const { shopId, name } = useRoute().params;
     const rec = useShopStore((s) => s.byId[shopId]);
     const { options, defaults, presets, error } = useOptionsStore();
@@ -29,7 +31,7 @@ export default function ShopSettingsScreen() {
     );
 
     if (!eff) {
-        return <Screen title="Customer app" subtitle={name}>{error ? <ErrorBox message={error} onRetry={() => useOptionsStore.getState().load()} /> : <Loading />}</Screen>;
+        return <Screen title="Settings" subtitle={name}>{error ? <ErrorBox message={error} onRetry={() => useOptionsStore.getState().load()} /> : <Loading />}</Screen>;
     }
 
     const go = (screen) => () => nav.navigate(screen, { shopId, name });
@@ -39,39 +41,45 @@ export default function ShopSettingsScreen() {
     const enabledBlocks = eff.home.blocks.filter((b) => b.enabled).length;
 
     return (
-        <Screen title="Customer app" subtitle={name}>
+        <Screen title="Settings" subtitle={name}>
             <AppPreview config={rec.resolved} />
 
-            <SectionTitle section="settings">Look and layout</SectionTitle>
-            <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
-                <ListRow section="settings" icon="palette" title="Brand and look" subtitle={`${eff.brand.colors.primary || 'Colours from logo'} · ${nameOf('shape', eff.brand.buttonShape)} buttons`} onPress={go('SettingsBrand')} />
-                <ListRow section="settings" icon="menu" title="Bottom tabs" subtitle={eff.tabs.map((t) => nameOf('tab', t)).join(' · ')} onPress={go('SettingsTabs')} />
-                <ListRow section="settings" icon="home" title="Home layout" subtitle={`${nameOf('foodMode', eff.home.foodMode)} · ${enabledBlocks} blocks · ${nameOf('cardStyle', eff.home.cardStyle)}`} onPress={go('SettingsHome')} />
-                <ListRow section="settings" icon="message" title="Words and language" subtitle={nameOf('language', eff.labels.language)} onPress={go('SettingsLabels')} last />
-            </Card>
-
-            <SectionTitle section="catalog">Features and menu</SectionTitle>
-            <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
-                <ListRow section="catalog" icon="tune" title="App features" subtitle={`${onFeatures} switched on · veg switch ${eff.features.vegToggle ? 'on' : 'off'}`} onPress={go('SettingsFeatures')} />
-                <ListRow section="catalog" icon="coupon" title="Menu and offers" subtitle={`Out of stock: ${nameOf('outOfStock', eff.menu.outOfStock).toLowerCase()} · coupons ${eff.offers.couponsEnabled ? 'on' : 'off'}`} onPress={go('SettingsMenuOffers')} />
-                <ListRow section="catalog" icon="coupon" title="Points and rewards" subtitle="Customer points, rider points and badges" onPress={go('SettingsPoints')} last />
-            </Card>
-
             <SectionTitle section="orders">Ordering</SectionTitle>
+            <Text style={{ color: t.muted, fontSize: font.sm, marginBottom: spacing.sm }}>What customers can order, what it costs, and when.</Text>
             <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
-                <ListRow
-                    section="orders"
-                    icon="orders"
-                    title="Orders and fees"
-                    subtitle={`${(eff.orders.types || []).map((t) => nameOf('orderType', t)).join(', ')} · min ₹${eff.orders.minOrder || 0} · fee ${nameOf('fee', fee.type || 'free').toLowerCase()}`}
-                    onPress={go('SettingsOrders')}
-                />
-                <ListRow section="orders" icon="orders" title="Dine in and pickup rules" subtitle={`Dine in ${eff.orders.dineIn?.enabled ? 'on' : 'off'} · pickup waiting ${eff.orders.pickupRules?.openMax ?? 2} · delivery at once ${eff.orders.mixRules?.deliveryOpenMax ?? 3}`} onPress={go('SettingsDineIn')} />
+                <ListRow section="orders" icon="orders" title="Orders and fees" subtitle={`${(eff.orders.types || []).map((t) => nameOf('orderType', t)).join(', ')} · min ₹${eff.orders.minOrder || 0} · fee ${nameOf('fee', fee.type || 'free').toLowerCase()}`} onPress={go('SettingsOrders')} />
                 <ListRow section="orders" icon="clock" title="Opening hours" subtitle={openDays ? `Open ${openDays} day${openDays > 1 ? 's' : ''} a week${eff.hours.closedDates.length ? ` · ${eff.hours.closedDates.length} holiday(s)` : ''}` : 'Always open'} onPress={go('SettingsHours')} />
+                <ListRow section="catalog" icon="coupon" title="Menu and offers" subtitle={`Out of stock: ${nameOf('outOfStock', eff.menu.outOfStock).toLowerCase()} · coupons ${eff.offers.couponsEnabled ? 'on' : 'off'}`} onPress={go('SettingsMenuOffers')} last />
+            </Card>
+
+            <SectionTitle section="orders">Dine in, pickup and staff</SectionTitle>
+            <Text style={{ color: t.muted, fontSize: font.sm, marginBottom: spacing.sm }}>Tables, pickup waiting rules, kitchen and waiter screens.</Text>
+            <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
+                <ListRow section="orders" icon="orders" title="Dine in and pickup rules" subtitle={`Dine in ${eff.orders.dineIn?.enabled ? 'on' : 'off'} · pickup waiting ${eff.orders.pickupRules?.openMax ?? 2} · delivery at once ${eff.orders.mixRules?.deliveryOpenMax ?? 3}`} onPress={go('SettingsDineIn')} last />
+            </Card>
+
+            <SectionTitle section="riders">Riders and delivery</SectionTitle>
+            <Text style={{ color: t.muted, fontSize: font.sm, marginBottom: spacing.sm }}>How riders are picked, the delivery PIN and live tracking.</Text>
+            <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
                 <ListRow section="riders" icon="rider" title="Riders and delivery" subtitle={`${nameOf('assign', eff.riders.assignMode)} assigning · PIN ${eff.riders.deliveryPin ? 'on' : 'off'} · tracking ${eff.riders.liveTracking ? 'on' : 'off'}`} onPress={go('SettingsRiders')} last />
             </Card>
 
-            <SectionTitle section="platform">Platform</SectionTitle>
+            <SectionTitle section="catalog">Features</SectionTitle>
+            <Text style={{ color: t.muted, fontSize: font.sm, marginBottom: spacing.sm }}>Switches that add or remove parts of the app.</Text>
+            <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
+                <ListRow section="catalog" icon="tune" title="App features" subtitle={`${onFeatures} switched on · veg switch ${eff.features.vegToggle ? 'on' : 'off'}`} onPress={go('SettingsFeatures')} />
+                <ListRow section="catalog" icon="coupon" title="Points and rewards" subtitle="Customer points, rider points and badges" onPress={go('SettingsPoints')} last />
+            </Card>
+
+            <SectionTitle section="settings">How the customer app looks</SectionTitle>
+            <Text style={{ color: t.muted, fontSize: font.sm, marginBottom: spacing.sm }}>Colours, tabs and the home screen. The phone above shows the change as it is.</Text>
+            <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
+                <ListRow section="settings" icon="palette" title="Brand and look" subtitle={`${eff.brand.colors.primary || 'Colours from logo'} · ${nameOf('shape', eff.brand.buttonShape)} buttons`} onPress={go('SettingsBrand')} />
+                <ListRow section="settings" icon="menu" title="Bottom tabs" subtitle={eff.tabs.map((t) => nameOf('tab', t)).join(' · ')} onPress={go('SettingsTabs')} />
+                <ListRow section="settings" icon="home" title="Home layout" subtitle={`${nameOf('foodMode', eff.home.foodMode)} · ${enabledBlocks} blocks · ${nameOf('cardStyle', eff.home.cardStyle)}`} onPress={go('SettingsHome')} last />
+            </Card>
+
+            <SectionTitle section="platform">App version and alerts</SectionTitle>
             <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
                 <ListRow section="platform" icon="bolt" title="App version and alerts" subtitle={eff.app.minVersion ? `Minimum version ${eff.app.minVersion}` : 'No minimum version'} onPress={go('SettingsApp')} last />
             </Card>

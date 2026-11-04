@@ -100,7 +100,7 @@ export default function MyRazorpayScreen() {
             <Sheet visible={sheet === 'keys'} onClose={() => setSheet(null)} title="My Razorpay keys">
                 <Text style={{ color: t.muted, marginBottom: spacing.md }}>From your Razorpay dashboard (Account & Settings → API keys). The secret is saved encrypted and can never be read back.</Text>
                 <Field label="Key ID" value={keys.keyId} onChangeText={(v) => setKeys({ ...keys, keyId: v.trim() })} autoCapitalize="none" placeholder="rzp_live_xxxxxxxx" />
-                <Field label="Key secret" value={keys.keySecret} onChangeText={(v) => setKeys({ ...keys, keySecret: v.trim() })} autoCapitalize="none" secureTextEntry />
+                <Field label="Key secret" placeholder="Paste the secret from your Razorpay dashboard" hint="Stored encrypted and never shown again. Rent and SMS top-up payments go into this Razorpay account." value={keys.keySecret} onChangeText={(v) => setKeys({ ...keys, keySecret: v.trim() })} autoCapitalize="none" secureTextEntry />
                 <Hint tone="warn">New keys must be tested again before you rely on them.</Hint>
                 <Button
                     title="Save keys"

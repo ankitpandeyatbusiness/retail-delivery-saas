@@ -203,7 +203,7 @@ export default function ShopPaymentsScreen() {
             <Sheet visible={sheet === 'keys'} onClose={() => setSheet(null)} title="Razorpay keys">
                 <Text style={{ color: t.muted, marginBottom: spacing.md }}>From the shop's own Razorpay account (Settings, API keys). The secret is saved encrypted and can never be read back.</Text>
                 <Field label="Key ID" value={keys.keyId} onChangeText={(v) => setKeys({ ...keys, keyId: v.trim() })} autoCapitalize="none" placeholder="rzp_live_xxxxxxxx" />
-                <Field label="Key secret" value={keys.keySecret} onChangeText={(v) => setKeys({ ...keys, keySecret: v.trim() })} autoCapitalize="none" secureTextEntry />
+                <Field label="Key secret" placeholder="Paste the secret from the shop's Razorpay dashboard" hint="Stored encrypted and never shown again. Customers' online payments go to this shop's own Razorpay account." value={keys.keySecret} onChangeText={(v) => setKeys({ ...keys, keySecret: v.trim() })} autoCapitalize="none" secureTextEntry />
                 {st.enabled ? <Hint tone="warn">Online payments are on. Switch them off first, then change the keys.</Hint> : null}
                 <Button
                     title={needAck ? 'Save the keys anyway' : 'Save keys'}
@@ -251,7 +251,7 @@ export default function ShopPaymentsScreen() {
             </Sheet>
 
             <Sheet visible={!!noteFor} onClose={() => setNoteFor(null)} title="Evidence note">
-                <Field label="What to remember for this chargeback" value={noteText} onChangeText={setNoteText} multiline maxLength={500} />
+                <Field label="What to remember for this chargeback" placeholder="e.g. Customer says the order never arrived" hint="A note on this dispute for your records." value={noteText} onChangeText={setNoteText} multiline maxLength={500} />
                 <Button
                     title="Save note"
                     loading={busy === 'note'}

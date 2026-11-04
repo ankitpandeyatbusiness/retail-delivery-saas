@@ -180,9 +180,9 @@ export default function ShopUserDetailScreen() {
             />
 
             <Sheet visible={sheet === 'edit'} onClose={() => setSheet(null)} title="Edit profile">
-                <Field label="Name" value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} maxLength={80} />
-                <Field label="Email" value={form.email} onChangeText={(v) => setForm({ ...form, email: v })} autoCapitalize="none" keyboardType="email-address" />
-                <Field label="Notes" value={form.notes} onChangeText={(v) => setForm({ ...form, notes: v })} multiline maxLength={300} />
+                <Field label="Name" placeholder="e.g. Ramesh Kumar" hint="The person's name, as shown in the app." value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} maxLength={80} />
+                <Field label="Email" placeholder="e.g. ramesh@example.com" hint="Used to send this person important mail. Can stay empty." value={form.email} onChangeText={(v) => setForm({ ...form, email: v })} autoCapitalize="none" keyboardType="email-address" />
+                <Field label="Notes" placeholder="e.g. Prefers calls in the evening" hint="For your own records. Not shown to the person." value={form.notes} onChangeText={(v) => setForm({ ...form, notes: v })} multiline maxLength={300} />
                 <Button title="Save" onPress={saveProfile} loading={busy} />
             </Sheet>
 
@@ -190,8 +190,8 @@ export default function ShopUserDetailScreen() {
                 <Text style={{ color: t.muted, marginBottom: spacing.lg }}>
                     The person is logged out everywhere. Old and new numbers are kept in the audit log.
                 </Text>
-                <Field label="New number" value={form.phone} onChangeText={(v) => setForm({ ...form, phone: v.replace(/\D/g, '').slice(0, 10) })} keyboardType="number-pad" />
-                <Field label="Reason" value={form.reason} onChangeText={(v) => setForm({ ...form, reason: v })} maxLength={200} />
+                <Field label="New number" placeholder="10 digits, e.g. 9876543210" hint="The person logs in with this number from now on." value={form.phone} onChangeText={(v) => setForm({ ...form, phone: v.replace(/\D/g, '').slice(0, 10) })} keyboardType="number-pad" />
+                <Field label="Reason" placeholder="e.g. Wrong entry, corrected" hint="Why you are doing this. It is kept in the activity log." value={form.reason} onChangeText={(v) => setForm({ ...form, reason: v })} maxLength={200} />
                 <Button title="Change number" kind="danger" onPress={savePhone} loading={busy} />
             </Sheet>
         </Screen>

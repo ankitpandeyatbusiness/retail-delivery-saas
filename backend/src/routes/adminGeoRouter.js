@@ -1,5 +1,5 @@
 // Superadmin: place search for the "point on the map" screen. Mounted under /api/admin.
-//   GET /geo/search?q=...&lat=&lng=   the most relevant places in India for what was typed (see services/placeSearch.js)
+//   GET /geo/search?q=...&lat=&lng=   the most relevant places in India for what was typed (see services/placeSearch.js). Uses the Google limits you set in Tracking settings, in full.
 //   GET /geo/place?id=...             the point of a Google suggestion
 //   GET /geo/reverse?lat=&lng=        the address of a point
 // The Google key stays on the server: a phone never sees it.
@@ -46,7 +46,8 @@ router.get('/geo/search', wrap(async (req, res) => {
     const lat = Number(req.query.lat);
     const lng = Number(req.query.lng);
     const near = req.query.lat !== undefined && req.query.lng !== undefined && Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
-    try { res.json({ items: await places.search(q, near, { share: 0.5 }) }); } catch { throw httpError(502, 'Place search is not reachable right now'); }
+    const report = {};
+    try { const items = await places.search(q, near, { report, limit: 8, showSource: true, ...(near ? { proximity: 'strong' } : {}) }); res.json({ items, google: report.google || 'ok' }); } catch { throw httpError(502, 'Place search is not reachable right now'); }
 }));
 
 router.get('/geo/place', wrap(async (req, res) => {

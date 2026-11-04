@@ -99,7 +99,7 @@ export default function ComplaintDetailScreen() {
                     <SectionTitle section="settings">Your answer</SectionTitle>
                     <Card>
                         <Choice label="Decision" options={DECISIONS} value={decision} onChange={setDecision} />
-                        {decision === 'refund_partial' ? <NumberField label="Refund amount" prefix="₹" value={amount} onChange={setAmount} /> : null}
+                        {decision === 'refund_partial' ? <NumberField label="Refund amount" placeholder="e.g. 150" hint="Rupees sent back to the customer. Not more than the order total." prefix="₹" value={amount} onChange={setAmount} /> : null}
                         <Field label={decision === 'none' || decision === 'no_refund' ? 'Reply to the customer' : 'Reply (optional)'} value={reply} onChangeText={setReply} multiline maxLength={500} />
                         <Hint>
                             {decision === 'refund_full' ? 'The whole order (except the tip) is refunded. An online payment goes back automatically.'

@@ -77,11 +77,11 @@ export default function CouponFormScreen() {
                 />
                 <NumberField label={percent ? 'Percent' : 'Amount'} prefix={percent ? undefined : '₹'} suffix={percent ? '%' : undefined} value={v.discountValue} onChange={(x) => f.set('discountValue', x)} hint={f.errors.discountValue} />
                 {percent ? <NumberField label="Highest discount (optional)" prefix="₹" value={v.maxDiscount} onChange={(x) => f.set('maxDiscount', x)} hint="Caps a percent coupon, e.g. 20% off up to ₹100" /> : null}
-                <NumberField label="Minimum order" prefix="₹" value={v.minOrder} onChange={(x) => f.set('minOrder', x ?? 0)} last />
+                <NumberField label="Minimum order" placeholder="e.g. 150" hint="The smallest basket in rupees. 0 or empty = no minimum." prefix="₹" value={v.minOrder} onChange={(x) => f.set('minOrder', x ?? 0)} last />
             </Group>
 
             <Group title="Limits" section="alerts">
-                <NumberField label="Uses per customer" integer value={v.usageLimitPerUser} onChange={(x) => f.set('usageLimitPerUser', x ?? 1)} />
+                <NumberField label="Uses per customer" placeholder="e.g. 1" hint="How many times one customer can use this code. Empty = no limit." integer value={v.usageLimitPerUser} onChange={(x) => f.set('usageLimitPerUser', x ?? 1)} />
                 <NumberField label="Total uses (optional)" integer value={v.totalUsageLimit} onChange={(x) => f.set('totalUsageLimit', x)} hint="Empty = no limit" />
                 <Switch title="First order only" subtitle="Only for customers who never ordered" value={v.firstOrderOnly} onValueChange={(x) => f.set('firstOrderOnly', x)} last />
             </Group>

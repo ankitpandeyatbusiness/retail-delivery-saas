@@ -131,23 +131,23 @@ export default function ShopEditScreen() {
         <Screen title="Edit shop" footer={<Button title="Save changes" icon="check" onPress={save} loading={busy} />}>
             <SectionTitle section="shops">Shop</SectionTitle>
             <Card>
-                <Field label="Shop name" value={f.name} onChangeText={set('name')} error={err.name} />
-                <Field label="Tagline" value={f.tagline} onChangeText={set('tagline')} />
-                <Field label="Phone" value={f.phone} onChangeText={(v) => set('phone')(v.replace(/\D/g, '').slice(0, 10))} keyboardType="number-pad" error={err.phone} style={{ marginBottom: 0 }} />
+                <Field label="Shop name" placeholder="e.g. Sweet Crumbs Bakery" hint="Shown at the top of the customer app, on the login screen, on bills and in your shop lists." value={f.name} onChangeText={set('name')} error={err.name} />
+                <Field label="Tagline" placeholder="e.g. Fresh cakes baked every morning" hint="One short line under the shop name on the customer app's login and home screens. Can stay empty." value={f.tagline} onChangeText={set('tagline')} />
+                <Field label="Phone" placeholder="10 digits, e.g. 9876543210" hint="The shop's own contact number. Customers can call the shop on it from the app." value={f.phone} onChangeText={(v) => set('phone')(v.replace(/\D/g, '').slice(0, 10))} keyboardType="number-pad" error={err.phone} style={{ marginBottom: 0 }} />
             </Card>
 
             <SectionTitle section="orders">Address</SectionTitle>
             <Card>
-                <Field label="Address" value={f.line} onChangeText={set('line')} multiline />
-                <Field label="City" value={f.city} onChangeText={set('city')} />
+                <Field label="Address" placeholder="e.g. 12 Civil Lines, near the clock tower" hint="The shop's street address. Shown on the customer app's location card and printed on the shop's bills." value={f.line} onChangeText={set('line')} multiline />
+                <Field label="City" placeholder="e.g. Kanpur" hint="Shown with the address in the customer app, and used to find the shop when you search." value={f.city} onChangeText={set('city')} />
                 <Field label="State" value={f.state} onChangeText={set('state')} placeholder="e.g. Uttar Pradesh" error={err.state} hint="Decides the tax on this shop's bills" />
-                <Field label="Pincode" value={f.pincode} onChangeText={(v) => set('pincode')(v.replace(/\D/g, '').slice(0, 6))} keyboardType="number-pad" error={err.pincode} style={{ marginBottom: 0 }} />
+                <Field label="Pincode" placeholder="6 digits, e.g. 208001" hint="Printed in the address on bills and shown on the location card." value={f.pincode} onChangeText={(v) => set('pincode')(v.replace(/\D/g, '').slice(0, 6))} keyboardType="number-pad" error={err.pincode} style={{ marginBottom: 0 }} />
             </Card>
 
             <SectionTitle section="riders">Delivery</SectionTitle>
             <Card>
-                <Field label="Minimum order (₹)" value={f.minOrder} onChangeText={(v) => set('minOrder')(v.replace(/[^\d.]/g, ''))} keyboardType="decimal-pad" error={err.minOrder} />
-                <Field label="Delivery radius (km)" value={f.radiusKm} onChangeText={(v) => set('radiusKm')(v.replace(/[^\d.]/g, ''))} keyboardType="decimal-pad" error={err.radiusKm} hint="How far from the shop it delivers" style={{ marginBottom: 0 }} />
+                <Field label="Minimum order (₹)" placeholder="e.g. 150" hint="The smallest basket a customer can order. Shown in the cart. 0 or empty = no minimum." value={f.minOrder} onChangeText={(v) => set('minOrder')(v.replace(/[^\d.]/g, ''))} keyboardType="decimal-pad" error={err.minOrder} />
+                <Field label="Delivery radius (km)" placeholder="e.g. 5" value={f.radiusKm} onChangeText={(v) => set('radiusKm')(v.replace(/[^\d.]/g, ''))} keyboardType="decimal-pad" error={err.radiusKm} hint="How far from the shop it delivers" style={{ marginBottom: 0 }} />
             </Card>
 
             <SectionTitle section="people">Shop location on the map</SectionTitle>
@@ -159,18 +159,20 @@ export default function ShopEditScreen() {
                 <MapPicker
                     visible={mapOpen}
                     initial={hasPoint ? { latitude: f.latitude, longitude: f.longitude } : null}
+                    withRadius
+                    radiusKm={Number(f.radiusKm) > 0 ? Number(f.radiusKm) : 5}
                     onClose={() => setMapOpen(false)}
                     onPick={(p) => {
                         touched.current = true;
                         setF((x) => ({
-                            ...x, latitude: String(p.latitude), longitude: String(p.longitude),
+                            ...x, latitude: String(p.latitude), longitude: String(p.longitude), radiusKm: p.radiusKm != null ? String(p.radiusKm) : x.radiusKm,
                             line: x.line || p.line || '', city: x.city || p.city || '', pincode: x.pincode || p.pincode || '',
                         }));
                         setMapOpen(false);
                     }}
                 />
-                <Field label="Latitude" value={f.latitude} onChangeText={(v) => set('latitude')(decimal(v))} keyboardType="numbers-and-punctuation" error={err.latitude} placeholder="e.g. 18.5204" />
-                <Field label="Longitude" value={f.longitude} onChangeText={(v) => set('longitude')(decimal(v))} keyboardType="numbers-and-punctuation" error={err.longitude} placeholder="e.g. 73.8567" style={{ marginBottom: hasPoint ? spacing.md : 0 }} />
+                <Field label="Latitude" hint="Filled in for you when you point on the map. Only type it by hand if you know it." value={f.latitude} onChangeText={(v) => set('latitude')(decimal(v))} keyboardType="numbers-and-punctuation" error={err.latitude} placeholder="e.g. 18.5204" />
+                <Field label="Longitude" hint="Filled in for you when you point on the map. Only type it by hand if you know it." value={f.longitude} onChangeText={(v) => set('longitude')(decimal(v))} keyboardType="numbers-and-punctuation" error={err.longitude} placeholder="e.g. 73.8567" style={{ marginBottom: hasPoint ? spacing.md : 0 }} />
                 {hasPoint ? (
                     <Button
                         title="Check this point on the map"
@@ -184,16 +186,16 @@ export default function ShopEditScreen() {
 
             <SectionTitle section="money">Business and billing</SectionTitle>
             <Card>
-                <Field label="Legal name" value={f.legalName} onChangeText={set('legalName')} />
-                <Field label="GST number" value={f.gstin} onChangeText={(v) => set('gstin')(v.toUpperCase())} autoCapitalize="characters" maxLength={15} error={err.gstin} hint="Only you can set this. GST is charged on this shop's bills only while this number is filled." />
-                <Field label="FSSAI number" value={f.fssai} onChangeText={(v) => set('fssai')(v.replace(/\D/g, '').slice(0, 14))} keyboardType="number-pad" error={err.fssai} />
-                <Field label="Billing email" value={f.billingEmail} onChangeText={set('billingEmail')} keyboardType="email-address" autoCapitalize="none" hint="Bills and money mails go here. Empty = the owners' emails." error={err.billingEmail} style={{ marginBottom: 0 }} />
+                <Field label="Legal name" placeholder="e.g. Sweet Crumbs Foods Pvt Ltd" hint="The business name on the shop's rent invoices (the name to bill). Empty = the shop name." value={f.legalName} onChangeText={set('legalName')} />
+                <Field label="GST number" placeholder="15 characters, e.g. 09AAAAA0000A1Z5" value={f.gstin} onChangeText={(v) => set('gstin')(v.toUpperCase())} autoCapitalize="characters" maxLength={15} error={err.gstin} hint="Only you can set this. GST is charged on this shop's bills only while this number is filled." />
+                <Field label="FSSAI number" placeholder="14 digits, e.g. 12345678901234" hint="The food licence number. Shown on food bills. Leave empty for non-food shops." value={f.fssai} onChangeText={(v) => set('fssai')(v.replace(/\D/g, '').slice(0, 14))} keyboardType="number-pad" error={err.fssai} />
+                <Field label="Billing email" placeholder="e.g. accounts@sweetcrumbs.com" value={f.billingEmail} onChangeText={set('billingEmail')} keyboardType="email-address" autoCapitalize="none" hint="Bills and money mails go here. Empty = the owners' emails." error={err.billingEmail} style={{ marginBottom: 0 }} />
             </Card>
 
             <SectionTitle section="catalog">Rent invoices</SectionTitle>
             <Card>
-                <Field label="GST on this shop's rent (%)" value={f.gstPercent} onChangeText={(v) => set('gstPercent')(v.replace(/[^\d.]/g, ''))} keyboardType="decimal-pad" error={err.gstPercent} hint="Empty = 18%. Added only if your GST number is saved." />
-                <Field label="Rent starts from month" value={f.startMonth} onChangeText={(v) => set('startMonth')(v.replace(/[^\d-]/g, '').slice(0, 7))} keyboardType="numbers-and-punctuation" error={err.startMonth} placeholder="2026-10" style={{ marginBottom: 0 }} />
+                <Field label="GST on this shop's rent (%)" placeholder="18" value={f.gstPercent} onChangeText={(v) => set('gstPercent')(v.replace(/[^\d.]/g, ''))} keyboardType="decimal-pad" error={err.gstPercent} hint="Empty = 18%. Added only if your GST number is saved." />
+                <Field label="Rent starts from month" hint="The first month rent is charged (year-month). Rent bills before this month are not made." value={f.startMonth} onChangeText={(v) => set('startMonth')(v.replace(/[^\d-]/g, '').slice(0, 7))} keyboardType="numbers-and-punctuation" error={err.startMonth} placeholder="2026-10" style={{ marginBottom: 0 }} />
             </Card>
 
             <SectionTitle section="settings">The shop's app</SectionTitle>

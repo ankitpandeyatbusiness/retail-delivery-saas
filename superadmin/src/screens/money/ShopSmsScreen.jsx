@@ -117,9 +117,9 @@ export default function ShopSmsScreen() {
             <Sheet visible={sheet === 'prices'} onClose={() => setSheet(null)} title="Prices for this shop">
                 <Hint>Leave a box empty to use the platform price.</Hint>
                 <View style={{ height: spacing.md }} />
-                <NumberField label="Price of one SMS" prefix="₹" value={prices.rate} onChange={(v) => setPrices({ ...prices, rate: v })} />
-                <NumberField label="Cost of one SMS" prefix="₹" value={prices.cost} onChange={(v) => setPrices({ ...prices, cost: v })} />
-                <NumberField label="Warn below" prefix="₹" value={prices.low} onChange={(v) => setPrices({ ...prices, low: v })} />
+                <NumberField label="Price of one SMS" placeholder="e.g. 0.25" hint="What this shop is charged per SMS, in rupees. Empty = the platform price." prefix="₹" value={prices.rate} onChange={(v) => setPrices({ ...prices, rate: v })} />
+                <NumberField label="Cost of one SMS" placeholder="e.g. 0.12" hint="What one SMS costs you, in rupees. Used for your SMS profit figures only." prefix="₹" value={prices.cost} onChange={(v) => setPrices({ ...prices, cost: v })} />
+                <NumberField label="Warn below" placeholder="e.g. 50" hint="The owner is warned when the SMS balance falls below this (rupees)." prefix="₹" value={prices.low} onChange={(v) => setPrices({ ...prices, low: v })} />
                 <Switch title="Stop SMS at zero balance" value={!!prices.block} onValueChange={(v) => setPrices({ ...prices, block: v })} last />
                 <Button title="Save" loading={busy === 'prices'} onPress={savePrices} style={{ marginTop: spacing.md }} />
             </Sheet>

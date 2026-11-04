@@ -108,11 +108,12 @@ const googleCache = new LRUCache({ max: 500, ttl: 10 * 60 * 1000 });
 const G_PLACES = 'https://places.googleapis.com/v1';
 
 // share: how much of the monthly allowance this caller may use (1 = all; the superadmin's own searches use half)
-async function googleSources(q, near, strong = false, share = 1) {
-    if (!KEY()) return [];
+// report (optional) gets report.google = 'ok' | 'no_key' | 'budget' | 'refused' | 'error': why Google gave nothing, so the screen can say so instead of quietly showing other sources
+async function googleSources(q, near, strong = false, share = 1, report = {}) {
+    if (!KEY()) { report.google = 'no_key'; return []; }
     const ckey = [norm(q), near ? `${near.lat.toFixed(2)},${near.lng.toFixed(2)}` : '-', strong ? 's' : 'n', share].join('|');
     const hit = googleCache.get(ckey);
-    if (hit) return hit;
+    if (hit) { report.google = 'ok'; return hit; }
 
     const key = { 'X-Goog-Api-Key': KEY() };
     const circle = near ? { circle: { center: { latitude: near.lat, longitude: near.lng }, radius: strong ? 25000 : 50000 } } : null;
@@ -162,7 +163,10 @@ async function googleSources(q, near, strong = false, share = 1) {
         }
     }
     suggestions(auto, 0.1);
-    if (out.length) googleCache.set(ckey, out);
+    if (out.length) { googleCache.set(ckey, out); report.google = 'ok'; } else {
+        const errs = [text, auto].filter((r) => r.status === 'rejected').map((r) => String(r.reason?.message || ''));
+        report.google = errs.length && errs.every((e) => e === 'skip') ? 'budget' : errs.some((e) => /HTTP (400|401|403)/.test(e)) ? 'refused' : errs.length ? 'error' : 'ok';
+    }
     return out;
 }
 
@@ -254,22 +258,29 @@ async function placeDetails(placeId) {
 //   bonus      (candidate) => number, added to a candidate's score (e.g. "inside the delivery area")
 //   keep       also return each candidate's score
 async function search(q, near, opts = {}) {
-    const asks = [];
     const strongNear = opts.proximity === 'strong' && near;
-    asks.push(googleSources(q, near, !!strongNear, opts.share ?? 1));
-    for (const v of variants(q)) {
-        asks.push(photonSource(v, near));
-        if (v === q.trim()) asks.push(nominatimSource(v, near));
+    // Google first. OpenStreetMap (Photon, Nominatim) is only the fallback: it is asked when Google cannot answer (no key, the month's / the day's allowance
+    // used up, the key refused, Google not reachable, or nothing found), never next to a good Google answer.
+    const report = opts.report || {};
+    let googleList = [];
+    try { googleList = await googleSources(q, near, !!strongNear, opts.share ?? 1, report); } catch { report.google = report.google || 'error'; }
+    let all = googleList;
+    if (!googleList.length) {
+        const asks = [];
+        for (const v of variants(q)) {
+            asks.push(photonSource(v, near));
+            if (v === q.trim()) asks.push(nominatimSource(v, near));
+        }
+        if (strongNear) {
+            // the same question asked only inside the ~50 km around the customer: the best matches of ALL India
+            // may be far away, and would otherwise crowd the nearby ones out
+            asks.push(photonSource(q, near, { box: true }));
+            asks.push(nominatimSource(q, near, { box: true }));
+        }
+        const settled = await Promise.allSettled(asks);
+        all = settled.filter((x) => x.status === 'fulfilled').flatMap((x) => x.value);
+        if (!all.length && settled.every((x) => x.status === 'rejected')) throw new Error('no place source reachable');
     }
-    if (strongNear) {
-        // the same question asked only inside the ~50 km around the customer: the best matches of ALL India
-        // may be far away, and would otherwise crowd the nearby ones out
-        asks.push(photonSource(q, near, { box: true }));
-        asks.push(nominatimSource(q, near, { box: true }));
-    }
-    const settled = await Promise.allSettled(asks);
-    let all = settled.filter((s) => s.status === 'fulfilled').flatMap((s) => s.value);
-    if (!all.length && settled.every((s) => s.status === 'rejected')) throw new Error('no place source reachable');
 
     // India only
     all = all.filter((c) => (c.latitude == null || c.longitude == null) || IN_BOX(c.latitude, c.longitude));
@@ -314,7 +325,7 @@ async function search(q, near, opts = {}) {
         return { ...c, score, rel };
     }).filter((c) => (strong ? c.rel >= 0.35 : c.score >= 0.35)).sort((a, b) => b.score - a.score);
 
-    return ranked.slice(0, opts.limit || 8).map(({ src, boost, score, rel, ...c }) => (opts.keep ? { ...c, score } : c));
+    return ranked.slice(0, opts.limit || 8).map(({ src, boost, score, rel, ...c }) => ({ ...c, ...(opts.keep ? { score } : {}), ...(opts.showSource ? { source: src } : {}) }));   // showSource: say which source found it (the superadmin's map shows it)
 }
 
 module.exports = { search, relevance, wordSimilarity, placeDetails, KEY, getJson, postJson, UA, googleCache };

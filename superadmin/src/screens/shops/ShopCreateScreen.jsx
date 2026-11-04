@@ -229,7 +229,7 @@ export default function ShopCreateScreen() {
                         <Text style={{ color: t.text, fontSize: font.md, fontWeight: '800', marginTop: 2 }}>Restaurant</Text>
                         <Text style={{ color: t.muted, fontSize: font.sm }}>Food, sweets and drinks. More kinds of shops are coming.</Text>
                     </Card>
-                    <Field label="Shop phone (optional)" value={f.phone} onChangeText={(v) => set('phone')(v.replace(/\D/g, '').slice(0, 10))} keyboardType="number-pad" error={err.phone} />
+                    <Field label="Shop phone (optional)" placeholder="10 digits, e.g. 9876543210" hint="The shop's own contact number. Customers can call the shop on it." value={f.phone} onChangeText={(v) => set('phone')(v.replace(/\D/g, '').slice(0, 10))} keyboardType="number-pad" error={err.phone} />
                 </>
             ) : null}
 
@@ -245,19 +245,21 @@ export default function ShopCreateScreen() {
                     <MapPicker
                         visible={mapOpen}
                         initial={f.latitude != null ? { latitude: f.latitude, longitude: f.longitude } : null}
+                        withRadius
+                        radiusKm={f.radiusKm || 5}
                         onClose={() => setMapOpen(false)}
                         onPick={(p) => {
                             setF((x) => ({
-                                ...x, latitude: p.latitude, longitude: p.longitude,
+                                ...x, latitude: p.latitude, longitude: p.longitude, radiusKm: p.radiusKm ?? x.radiusKm,
                                 line: x.line || p.line || '', city: x.city || p.city || '', pincode: x.pincode || p.pincode || '',
                             }));
                             setMapOpen(false);
                         }}
                     />
                     <Field label="Address" value={f.line} onChangeText={set('line')} placeholder="Street, area" multiline />
-                    <Field label="City" value={f.city} onChangeText={set('city')} />
+                    <Field label="City" placeholder="e.g. Kanpur" hint="Shown with the address in the customer app." value={f.city} onChangeText={set('city')} />
                     <Field label="State" value={f.state} onChangeText={set('state')} placeholder="e.g. Uttar Pradesh" error={err.state} hint="Decides the tax on this shop's bills" />
-                    <Field label="Pincode" value={f.pincode} onChangeText={(v) => set('pincode')(v.replace(/\D/g, '').slice(0, 6))} keyboardType="number-pad" error={err.pincode} />
+                    <Field label="Pincode" placeholder="6 digits, e.g. 208001" hint="Part of the address shown in the app and on bills." value={f.pincode} onChangeText={(v) => set('pincode')(v.replace(/\D/g, '').slice(0, 6))} keyboardType="number-pad" error={err.pincode} />
                     <NumberField label="Delivery radius" suffix="km" value={f.radiusKm} onChange={(v) => set('radiusKm')(v ?? 5)} hint="How far from the pin this shop delivers" last />
                 </>
             ) : null}
@@ -268,10 +270,10 @@ export default function ShopCreateScreen() {
                         <>
                             <Choice label="Food" options={choices('foodMode', opts.options.FOOD_MODES)} value={f.foodMode} onChange={set('foodMode')} />
                             <MultiChoice label="How customers get orders" options={choices('orderType', opts.options.ORDER_TYPES)} value={f.types} min={1} onChange={set('types')} />
-                            <NumberField label="Minimum order" prefix="₹" value={f.minOrder} onChange={(v) => set('minOrder')(v ?? 0)} />
+                            <NumberField label="Minimum order" placeholder="e.g. 150" hint="The smallest basket in rupees. 0 or empty = no minimum." prefix="₹" value={f.minOrder} onChange={(v) => set('minOrder')(v ?? 0)} />
                             <Choice label="Delivery fee" options={choices('fee', (opts.options.FEE_TYPES || []).filter((x) => x !== 'distance'))} value={f.feeType} onChange={set('feeType')} last={f.feeType === 'free'} />
-                            {f.feeType === 'flat' || f.feeType === 'free_above' ? <NumberField label="Fee" prefix="₹" value={f.feeAmount} onChange={(v) => set('feeAmount')(v ?? 0)} last={f.feeType === 'flat'} /> : null}
-                            {f.feeType === 'free_above' ? <NumberField label="Free for orders above" prefix="₹" value={f.freeAbove} onChange={(v) => set('freeAbove')(v ?? 0)} last /> : null}
+                            {f.feeType === 'flat' || f.feeType === 'free_above' ? <NumberField label="Fee" placeholder="e.g. 30" hint="The delivery fee in rupees." prefix="₹" value={f.feeAmount} onChange={(v) => set('feeAmount')(v ?? 0)} last={f.feeType === 'flat'} /> : null}
+                            {f.feeType === 'free_above' ? <NumberField label="Free for orders above" placeholder="e.g. 500" hint="Delivery is free when the order is more than this (rupees)." prefix="₹" value={f.freeAbove} onChange={(v) => set('freeAbove')(v ?? 0)} last /> : null}
                             <Hint>Hours, riders, payments and more are under Shop → Customer app after the shop is created.</Hint>
                         </>
                     ) : <Text style={{ color: t.muted }}>Loading options…</Text>}

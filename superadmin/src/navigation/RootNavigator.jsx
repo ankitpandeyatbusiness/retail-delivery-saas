@@ -77,6 +77,7 @@ import SmsProviderScreen from '../screens/money/SmsProviderScreen';
 import ShopsListScreen from '../screens/shops/ShopsListScreen';
 import ShopCreateScreen from '../screens/shops/ShopCreateScreen';
 import ShopDetailScreen from '../screens/shops/ShopDetailScreen';
+import ShopFolderScreen from '../screens/shops/ShopFolderScreen';
 import ShopCloseScreen from '../screens/shops/ShopCloseScreen';
 import ShopsToCloseScreen from '../screens/shops/ShopsToCloseScreen';
 import ShopEditScreen from '../screens/shops/ShopEditScreen';
@@ -98,7 +99,6 @@ import SettingsDineInScreen from '../screens/settings/SettingsDineInScreen';
 import SettingsPointsScreen from '../screens/settings/SettingsPointsScreen';
 import SettingsHoursScreen from '../screens/settings/SettingsHoursScreen';
 import SettingsRidersScreen from '../screens/settings/SettingsRidersScreen';
-import SettingsLabelsScreen from '../screens/settings/SettingsLabelsScreen';
 import SettingsAppScreen from '../screens/settings/SettingsAppScreen';
 import ShopBrandingScreen from '../screens/shops/ShopBrandingScreen';
 import ShopMenuScreen from '../screens/catalog/ShopMenuScreen';
@@ -144,6 +144,7 @@ const DETAIL = [
     ['ShopDetail', ShopDetailScreen],
     ['ShopEdit', ShopEditScreen],
     ['ShopClose', ShopCloseScreen],
+    ['ShopFolder', ShopFolderScreen],
     ['ShopsToClose', ShopsToCloseScreen],
     ['ShopLive', ShopLiveScreen],
     ['ShopAccess', ShopAccessScreen],
@@ -163,7 +164,6 @@ const DETAIL = [
     ['SettingsPoints', SettingsPointsScreen],
     ['SettingsHours', SettingsHoursScreen],
     ['SettingsRiders', SettingsRidersScreen],
-    ['SettingsLabels', SettingsLabelsScreen],
     ['SettingsApp', SettingsAppScreen],
     ['ShopBranding', ShopBrandingScreen],
     ['ShopReport', ShopReportScreen],

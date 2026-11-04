@@ -52,31 +52,31 @@ export default function SettingsOrdersScreen() {
                             onChange={(v) => ed.set('orders', 'payments', v)}
                         />
                         {noArea ? <Hint tone="warn">Delivery is on but this shop has no delivery area (map pin and radius). Anyone, anywhere can order delivery. Set it in Edit shop.</Hint> : null}
-                        <NumberField label="Minimum order" prefix="₹" value={o.minOrder} onChange={(v) => ed.set('orders', 'minOrder', v ?? 0)} />
-                        <NumberField label="Preparation time" suffix="min" integer value={o.prepTimeMin} onChange={(v) => ed.set('orders', 'prepTimeMin', v ?? 0)} last />
+                        <NumberField label="Minimum order" placeholder="e.g. 150" hint="The smallest basket in rupees. 0 or empty = no minimum." prefix="₹" value={o.minOrder} onChange={(v) => ed.set('orders', 'minOrder', v ?? 0)} />
+                        <NumberField label="Preparation time" placeholder="e.g. 20" hint="Minutes to prepare. Used for the estimated time customers see." suffix="min" integer value={o.prepTimeMin} onChange={(v) => ed.set('orders', 'prepTimeMin', v ?? 0)} last />
                     </Group>
 
                     <Group title="Delivery fee" section="orders">
                         <Choice options={choices('fee', ed.options.FEE_TYPES)} value={fee.type || 'free'} onChange={(v) => setFee('type', v)} last={(fee.type || 'free') === 'free'} />
-                        {fee.type === 'flat' ? <NumberField label="Fee" prefix="₹" value={fee.amount} onChange={(v) => setFee('amount', v ?? 0)} last /> : null}
+                        {fee.type === 'flat' ? <NumberField label="Fee" placeholder="e.g. 30" hint="The delivery fee in rupees." prefix="₹" value={fee.amount} onChange={(v) => setFee('amount', v ?? 0)} last /> : null}
                         {fee.type === 'free_above' ? (
                             <>
-                                <NumberField label="Fee below the limit" prefix="₹" value={fee.amount} onChange={(v) => setFee('amount', v ?? 0)} />
-                                <NumberField label="Free for orders above" prefix="₹" value={fee.freeAbove} onChange={(v) => setFee('freeAbove', v ?? 0)} last />
+                                <NumberField label="Fee below the limit" placeholder="e.g. 40" hint="The fee in rupees for orders below the free-delivery amount." prefix="₹" value={fee.amount} onChange={(v) => setFee('amount', v ?? 0)} />
+                                <NumberField label="Free for orders above" placeholder="e.g. 500" hint="Delivery is free when the order is more than this (rupees)." prefix="₹" value={fee.freeAbove} onChange={(v) => setFee('freeAbove', v ?? 0)} last />
                             </>
                         ) : null}
                         {fee.type === 'distance' ? (
                             <>
-                                <NumberField label="Covers the first" suffix="km" value={fee.baseKm} onChange={(v) => setFee('baseKm', v ?? 0)} />
-                                <NumberField label="Fee for that distance" prefix="₹" value={fee.baseFee} onChange={(v) => setFee('baseFee', v ?? 0)} />
-                                <NumberField label="Then, for every extra km" prefix="₹" value={fee.perKmFee} onChange={(v) => setFee('perKmFee', v ?? 0)} />
-                                <NumberField label="Highest fee (0 = no limit)" prefix="₹" value={fee.maxFee} onChange={(v) => setFee('maxFee', v ?? 0)} last />
+                                <NumberField label="Covers the first" placeholder="e.g. 3" hint="The kilometres the first fee covers." suffix="km" value={fee.baseKm} onChange={(v) => setFee('baseKm', v ?? 0)} />
+                                <NumberField label="Fee for that distance" placeholder="e.g. 30" hint="The fee in rupees for those first kilometres." prefix="₹" value={fee.baseFee} onChange={(v) => setFee('baseFee', v ?? 0)} />
+                                <NumberField label="Then, for every extra km" placeholder="e.g. 8" hint="Rupees added for each further kilometre." prefix="₹" value={fee.perKmFee} onChange={(v) => setFee('perKmFee', v ?? 0)} />
+                                <NumberField label="Highest fee (0 = no limit)" placeholder="e.g. 150" hint="The delivery fee never goes above this (rupees). 0 = no limit." prefix="₹" value={fee.maxFee} onChange={(v) => setFee('maxFee', v ?? 0)} last />
                             </>
                         ) : null}
                     </Group>
 
                     <Group title="Charges and tax" section="money">
-                        <NumberField label="Packaging charge" prefix="₹" value={o.packagingCharge} onChange={(v) => ed.set('orders', 'packagingCharge', v ?? 0)} />
+                        <NumberField label="Packaging charge" placeholder="e.g. 10" hint="A flat rupee charge added to each order for packaging. 0 = none." prefix="₹" value={o.packagingCharge} onChange={(v) => ed.set('orders', 'packagingCharge', v ?? 0)} />
                         <Hint tone={hasGstin ? 'muted' : 'warn'}>
                             {hasGstin
                                 ? 'GST on this shop\'s bills is the one platform rate (Money → GST on shop bills). It cannot be set per shop.'
