@@ -10,7 +10,7 @@ const Tenant = require('../models/Tenant');
 const loadTenant = require('../middlewares/loadTenant');
 const { invalidateTenant } = require('../middlewares/tenantRecognizer');
 const { wrap, httpError } = require('../middlewares/apiErrors');
-const { parseMaintenanceBody } = require('../utils/maintenance');
+const { parseMaintenanceBody, isMaintenanceOn } = require('../utils/maintenance');
 
 const router = express.Router();
 
@@ -18,22 +18,28 @@ router.put('/tenants/:tid/owner-access', loadTenant, wrap(async (req, res) => {
     if (typeof req.body?.blocked !== 'boolean') throw httpError(400, 'Send blocked: true or false');
     const blocked = req.body.blocked;
     const reason = typeof req.body.reason === 'string' ? req.body.reason.trim().slice(0, 200) : '';
+    const was = !!req.tenantDoc.ownerBlocked;
 
     await Tenant.updateOne(
         { _id: req.tenantDoc._id },
         { $set: { ownerBlocked: blocked, ownerBlockedReason: blocked ? reason : '' } },
     );
     invalidateTenant(req.tenantDoc.slug);   // takes effect at once on this server
+    if (was !== blocked) require('../services/shopSettingsNotice')[blocked ? 'ownerBlocked' : 'ownerAllowed'](req.tenantDoc._id);   // the owner hears about it
     res.json({ ok: true, ownerBlocked: blocked });
 }));
 
 router.put('/tenants/:tid/maintenance', loadTenant, wrap(async (req, res) => {
     const m = parseMaintenanceBody(req.body);
+    const wasOn = isMaintenanceOn(req.tenantDoc.maintenance);
     await Tenant.updateOne(
         { _id: req.tenantDoc._id },
         { $set: { 'maintenance.on': m.on, 'maintenance.message': m.message, 'maintenance.until': m.until } },
     );
     invalidateTenant(req.tenantDoc.slug);
+    const nowOn = isMaintenanceOn(m);
+    if (nowOn && !wasOn) require('../services/shopSettingsNotice').maintenanceOn(req.tenantDoc._id, m);   // the owner hears about it, with your message and end time
+    else if (!nowOn && wasOn) require('../services/shopSettingsNotice').maintenanceOff(req.tenantDoc._id);
     res.json({ ok: true, maintenance: m });
 }));
 

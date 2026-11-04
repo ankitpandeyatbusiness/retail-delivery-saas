@@ -18,6 +18,8 @@ const Complaint = require('../models/Complaint');
 const SubscriptionInvoice = require('../models/SubscriptionInvoice');
 const SmsLog = require('../models/SmsLog');
 const Brand = require('../models/Brand');
+const Coupon = require('../models/Coupon');
+const SupportTicket = require('../models/SupportTicket');
 const loadTenant = require('../middlewares/loadTenant');
 const { wrap, httpError } = require('../middlewares/apiErrors');
 const { maskPhone } = require('../utils/phoneHash');
@@ -40,25 +42,33 @@ router.get('/search', wrap(async (req, res) => {
     const isPhone = /^[6-9]\d{9}$/.test(digits);
     const isNo = /^#?\d{1,8}$/.test(q) && !isPhone;
 
-    // a brand's name finds all its branches
-    const brandIds = (await Brand.find({ name: rx }).select('_id').limit(5).lean()).map((b) => b._id);
-    const [shops, invoices, people, orders] = await Promise.all([
-        Tenant.find({ $or: [{ name: rx }, { slug: rx }, { phone: rx }, ...(brandIds.length ? [{ brandId: { $in: brandIds } }] : [])] }).select('name slug status phone billing.state').limit(12).lean(),
+    // a brand's name finds all its branches (and the brand itself)
+    const words = q.length >= 3 && !/^#?\d+$/.test(q);      // a name or word, not a number
+    const phoneRx = digits.length >= 4 ? new RegExp(digits) : null;   // part of a phone number
+    const brands = await Brand.find({ name: rx }).select('name').limit(5).lean();
+    const brandIds = brands.map((x) => x._id);
+    const peopleOr = [...(phoneRx ? [{ phone: phoneRx }] : []), ...(words ? [{ name: rx }] : [])];
+    const orderOr = [...(isNo ? [{ orderNo: Number(q.replace('#', '')) }] : []), ...(phoneRx ? [{ 'customer.phone': phoneRx }] : []), ...(words ? [{ 'customer.name': rx }] : [])];
+    const [shops, invoices, people, orders, products, coupons, tickets] = await Promise.all([
+        Tenant.find({ $or: [{ name: rx }, { slug: rx }, { phone: rx }, ...(words ? [{ 'address.city': rx }, { 'business.gstin': rx }] : []), ...(brandIds.length ? [{ brandId: { $in: brandIds } }] : [])] }).select('name slug status phone billing.state').limit(12).lean(),
         SubscriptionInvoice.find({ invoiceNo: rx }).select('tenantId invoiceNo period total status').limit(8).lean(),
-        isPhone ? User.find({ phone: digits }).select('tenantId phone name role').limit(10).lean() : [],
-        isPhone
-            ? Order.find({ 'customer.phone': digits }).sort({ createdAt: -1 }).select('tenantId orderNo status pricing.total createdAt customer.name').limit(10).lean()
-            : isNo
-                ? Order.find({ orderNo: Number(q.replace('#', '')) }).sort({ createdAt: -1 }).select('tenantId orderNo status pricing.total createdAt customer.name').limit(10).lean()
-                : [],
+        peopleOr.length ? User.find({ $or: peopleOr }).select('tenantId phone name role').limit(12).lean() : [],
+        orderOr.length ? Order.find({ $or: orderOr }).sort({ createdAt: -1 }).select('tenantId orderNo status pricing.total createdAt customer.name').limit(10).lean() : [],
+        words ? Product.find({ name: rx }).select('tenantId name price isActive').limit(8).lean() : [],
+        q.length >= 3 ? Coupon.find({ code: rx }).select('tenantId code description isActive').limit(6).lean() : [],
+        words ? SupportTicket.find({ subject: rx }).select('tenantId subject status').limit(6).lean() : [],
     ]);
-    const ids = [...new Set([...invoices, ...people, ...orders].map((x) => String(x.tenantId)))];
+    const ids = [...new Set([...invoices, ...people, ...orders, ...products, ...coupons, ...tickets].map((x) => String(x.tenantId)))];
     const names = new Map((await Tenant.find({ _id: { $in: ids } }).select('name').lean()).map((t) => [String(t._id), t.name]));
     res.json({
         q,
         shops: shops.map((t) => ({ id: t._id, name: t.name, slug: t.slug, status: t.status, billingState: t.billing?.state })),
         orders: orders.map((o) => ({ id: o._id, tenantId: o.tenantId, shop: names.get(String(o.tenantId)), orderNo: o.orderNo, status: o.status, totalPaise: Math.round((o.pricing?.total || 0) * 100), at: o.createdAt, customer: o.customer?.name || null })),
         people: people.map((u) => ({ id: u._id, tenantId: u.tenantId, shop: names.get(String(u.tenantId)), phone: maskPhone(u.phone), name: u.name || null, role: u.role })),
+        brands: brands.map((x) => ({ id: x._id, name: x.name })),
+        products: products.map((x) => ({ id: x._id, tenantId: x.tenantId, shop: names.get(String(x.tenantId)), name: x.name, price: x.price, active: x.isActive !== false })),
+        coupons: coupons.map((x) => ({ id: x._id, tenantId: x.tenantId, shop: names.get(String(x.tenantId)), code: x.code, description: x.description || null, active: x.isActive !== false })),
+        tickets: tickets.map((x) => ({ id: x._id, tenantId: x.tenantId, shop: names.get(String(x.tenantId)), subject: x.subject, status: x.status })),
         invoices: invoices.map((i) => ({ id: i._id, tenantId: i.tenantId, shop: names.get(String(i.tenantId)), invoiceNo: i.invoiceNo, period: i.period, totalPaise: Math.round(i.total * 100), status: i.status })),
     });
 }));

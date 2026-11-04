@@ -18,7 +18,7 @@ const AUTH_ERRORS = ['TOKEN_INVALID', 'SESSION_ENDED', 'AUTH_REQUIRED'];
 let socket = null;
 let retryTimer = null;
 const joined = new Map();   // orderId -> how many screens want it
-const listeners = { 'chat:message': new Set(), 'chat:status': new Set(), 'chat:typing': new Set(), 'bulk:update': new Set(), 'kitchen:update': new Set(), 'waiter:update': new Set(), 'menu:changed': new Set(), 'order:update': new Set(), notification: new Set(), 'rider:location': new Set(), 'rider:route': new Set(), 'order:eta': new Set(), 'rider:quiet': new Set(), 'rider:offer': new Set(), 'offer:closed': new Set() };
+const listeners = { 'chat:message': new Set(), 'chat:status': new Set(), 'chat:typing': new Set(), 'bulk:update': new Set(), 'kitchen:update': new Set(), 'waiter:update': new Set(), 'menu:changed': new Set(), 'shop:changed': new Set(), 'order:update': new Set(), notification: new Set(), 'rider:location': new Set(), 'rider:route': new Set(), 'order:eta': new Set(), 'rider:quiet': new Set(), 'rider:offer': new Set(), 'offer:closed': new Set() };
 
 // What the server asks of us: "socket" (normal) or "polling" (it is busy: poll every pollSec seconds and try the socket again
 // later). Screens read this to decide whether they need a timer. We never retry a refused connection sooner than retryAfterSec.
@@ -82,6 +82,7 @@ function connect() {
     });
     socket.on('order:update', (p) => dispatch('order:update', p));
     socket.on('menu:changed', (p) => dispatch('menu:changed', p));
+    socket.on('shop:changed', (p) => dispatch('shop:changed', p));   // the shop's settings, or its open / closed / paused state, changed
     socket.on('kitchen:update', (p) => dispatch('kitchen:update', p));
     socket.on('bulk:update', (p) => dispatch('bulk:update', p));
     socket.on('chat:message', (p) => dispatch('chat:message', p));    // a chat message arrived (from the other person, or sent from my other phone)
@@ -130,6 +131,12 @@ export function startRealtime() {
         if (s === 'active' && useAuthStore.getState().user && socket && !socket.connected) socket.connect();
     });
     sync();
+}
+
+// The shop's settings or its open / paused state changed (by the platform team or the owner). Returns a function that stops listening.
+export function onShopChanged(fn) {
+    listeners['shop:changed'].add(fn);
+    return () => listeners['shop:changed'].delete(fn);
 }
 
 // A dish changed in the shop (price, sold out, back in stock...). Returns a function that stops listening.

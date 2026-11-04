@@ -4,6 +4,7 @@ import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
 import { Platform } from 'react-native';
 import { useAuthStore } from '../../store/common/useAuthStore';
+import { useAppStatus } from '../../store/common/useAppStatus';
 import { BUILD_SLUG, getSlug, keyFor } from '../../utils/common/branch';
 
 const baseURL = process.env.EXPO_PUBLIC_BASE_URL || (__DEV__ ? 'http://localhost:5000/api' : '');
@@ -76,9 +77,15 @@ const refreshSession = () => {
 };
 
 api.interceptors.response.use(
-    (r) => r,
+    (r) => { useAppStatus.getState().setOffline(false); return r; },   // an answer came: we are online
     async (error) => {
         const original = error.config;
+        // The shop is closed or paused (402) or in maintenance (503): the app shows it on a message screen. No answer at all: the app is offline.
+        const code = error.response?.status;
+        if (code === 402 || code === 503) {
+            const d = error.response.data || {};
+            useAppStatus.getState().setFrozen({ status: code, message: d.error || '', maintenance: !!d.maintenance, until: d.until || null });
+        } else if (!error.response && error.request) useAppStatus.getState().setOffline(true);
         if (error.response?.status !== 401 || !original || original._retry) {
             return Promise.reject(error);
         }

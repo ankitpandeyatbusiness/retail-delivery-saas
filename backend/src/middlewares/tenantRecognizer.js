@@ -67,6 +67,27 @@ const tenantRecognizer = async (req, res, next) => {
 
 // The superadmin save endpoints call this so changes show up immediately on this server.
 // (With several server instances, others catch up within 60 seconds.)
-tenantRecognizer.invalidateTenant = (slug) => cache.delete(String(slug).trim().toLowerCase());
+// A change of the shop's settings (by the superadmin or the owner) also reaches the shop's OPEN apps at once: a quiet "shop:changed" message to everyone of the
+// shop (customers, owner, cook, waiter, riders). The apps reload the shop's settings; if the shop was closed or paused meanwhile, they show it within seconds.
+// A burst of saves sends one message (not more than one a second per shop).
+const lastTold = new Map();
+function tellApps(tenantId) {
+    try {
+        const key = String(tenantId);
+        const now = Date.now();
+        if (now - (lastTold.get(key) || 0) < 1000) return;
+        lastTold.set(key, now);
+        if (lastTold.size > 2000) lastTold.clear();
+        require('../services/realtime').toShop(tenantId, 'shop:changed', {});
+    } catch (e) { /* the apps catch up on their next request */ }
+}
+tenantRecognizer.tellApps = tellApps;
+tenantRecognizer.invalidateTenant = (slug) => {
+    const key = String(slug).trim().toLowerCase();
+    const was = cache.get(key);
+    cache.delete(key);
+    if (was && was._id) tellApps(was._id);
+    else Tenant.findOne({ slug: key }).select('_id').lean().then((t) => { if (t) tellApps(t._id); }).catch(() => { });
+};
 
 module.exports = tenantRecognizer;

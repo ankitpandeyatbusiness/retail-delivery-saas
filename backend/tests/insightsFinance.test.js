@@ -68,6 +68,34 @@ describe('search and exports', () => {
         assert.equal(byInv.body.invoices.length, 1);
     });
 
+    test('search finds a rider or customer by name or part of a phone, a dish, a coupon, a support request, a brand, a customer name on an order', async () => {
+        const Brand = require('../src/models/Brand');
+        const Category = require('../src/models/Category');
+        const Product = require('../src/models/Product');
+        const Coupon = require('../src/models/Coupon');
+        const SupportTicket = require('../src/models/SupportTicket');
+        const Tenant = require('../src/models/Tenant');
+        const w = await f.makeWorld('god-' + Date.now().toString(36));
+        const brand = await Brand.create({ name: 'Quibblers' });
+        await Tenant.updateOne({ _id: w.tenant._id }, { $set: { brandId: brand._id } });
+        const cat = await Category.create({ tenantId: w.tenant._id, name: 'Mains' });
+        await Product.create({ tenantId: w.tenant._id, categoryId: cat._id, name: 'Paneer Zingaro', price: 180, isVeg: true });
+        await Coupon.create({ tenantId: w.tenant._id, code: 'DIWALIZZ', discountType: 'percent', discountValue: 10 });
+        await SupportTicket.create({ tenantId: w.tenant._id, userId: w.owner.user._id, subject: 'Printer stopped working', number: 1 });
+        await f.makeOrder(w.tenant, w.customer.user, { customer: { name: 'Gopalakrishnan', phone: w.customer.user.phone } });
+
+        const rider = await get('/api/admin/search?q=' + encodeURIComponent('rider 0020'));
+        assert.ok(rider.body.people.some((x) => x.role === 'rider'), 'a rider is found by name');
+        const part = await get('/api/admin/search?q=000030');
+        assert.ok(part.body.people.some((x) => x.role === 'customer'), 'part of a phone finds the customer');
+        assert.ok(part.body.orders.length >= 1, 'and his orders');
+        assert.equal((await get('/api/admin/search?q=Zingaro')).body.products[0].name, 'Paneer Zingaro');
+        assert.equal((await get('/api/admin/search?q=diwali')).body.coupons[0].code, 'DIWALIZZ');
+        assert.equal((await get('/api/admin/search?q=printer')).body.tickets.length, 1);
+        assert.equal((await get('/api/admin/search?q=Quibb')).body.brands[0].name, 'Quibblers');
+        assert.ok((await get('/api/admin/search?q=Gopala')).body.orders.length >= 1, 'an order is found by the customer name');
+    });
+
     test('exports are Excel only (no CSV) and need a superadmin', async () => {
         const w = await f.makeWorld(`exp-${Date.now().toString(36)}`);
         await f.makeOrder(w.tenant, w.customer.user, { customer: { name: '=HYPERLINK("x")', phone: w.customer.user.phone } });

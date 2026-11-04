@@ -58,11 +58,12 @@ export default function SearchResults({ q }) {
     }, [q]);
 
     const inShops = (screen, params) => toAdmin(nav, { screen: 'ShopsTab', params: { screen, params } });
-    const empty = r && !screens.length && !r.shops.length && !r.orders.length && !r.people.length && !r.invoices.length;
+    const more = (k) => (r && r[k]) || [];
+    const empty = r && !screens.length && !r.shops.length && !r.orders.length && !r.people.length && !r.invoices.length && !more('brands').length && !more('products').length && !more('coupons').length && !more('tickets').length;
 
     return (
         <View>
-            {q.trim().length < 2 ? <Text style={{ color: t.muted, fontSize: font.sm, marginTop: spacing.sm }}>Keep typing: a shop or brand name, an order number, a phone, an invoice number, or a setting like "delivery fee".</Text> : null}
+            {q.trim().length < 2 ? <Text style={{ color: t.muted, fontSize: font.sm, marginTop: spacing.sm }}>Keep typing: a shop or brand name, an order number, a phone or part of one, a customer or rider name, a dish, a coupon code, an invoice number, or a setting like "delivery fee".</Text> : null}
             {screens.length ? (
                 <>
                     <SectionTitle section="settings">Screens and settings</SectionTitle>
@@ -83,7 +84,7 @@ export default function SearchResults({ q }) {
             ) : null}
             {busy && !r ? <Loading label="Searching" /> : null}
             {error ? <Text style={{ color: t.danger, marginTop: spacing.md }}>{error}</Text> : null}
-            {empty ? <Empty icon="search" title="Nothing found" hint="Check the spelling or the number." /> : null}
+            {empty ? <Empty icon="search" title="Nothing found" hint="Try part of a name, a phone number, an order number, a dish, a coupon code or a setting." /> : null}
 
             {r?.shops.length ? (
                 <>
@@ -92,6 +93,53 @@ export default function SearchResults({ q }) {
                         {r.shops.map((s, i) => (
                             <ListRow key={s.id} section="shops" icon="shops" title={s.name} subtitle={`${s.slug} · ${titleCase(s.billingState || 'free')}${s.status === 'suspended' ? ' · suspended' : ''}`}
                                 onPress={() => inShops('ShopDetail', { shopId: String(s.id), name: s.name })} last={i === r.shops.length - 1} />
+                        ))}
+                    </Card>
+                </>
+            ) : null}
+
+            {more('brands').length ? (
+                <>
+                    <SectionTitle section="platform">Brands</SectionTitle>
+                    <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
+                        {more('brands').map((b, i) => (
+                            <ListRow key={b.id} section="platform" icon="shops" title={b.name} subtitle="Brand: all its branches" onPress={() => nav.navigate('BrandDetail', { id: String(b.id) })} last={i === more('brands').length - 1} />
+                        ))}
+                    </Card>
+                </>
+            ) : null}
+
+            {more('products').length ? (
+                <>
+                    <SectionTitle section="catalog">Dishes and items</SectionTitle>
+                    <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
+                        {more('products').map((x, i) => (
+                            <ListRow key={x.id} section="catalog" icon="food" title={x.name} subtitle={`${x.shop || 'Shop'} · ${rupeesFromPaise(Math.round((x.price || 0) * 100))}${x.active ? '' : ' · hidden'}`}
+                                onPress={() => inShops('ShopMenu', { shopId: String(x.tenantId), name: x.shop })} last={i === more('products').length - 1} />
+                        ))}
+                    </Card>
+                </>
+            ) : null}
+
+            {more('coupons').length ? (
+                <>
+                    <SectionTitle section="money">Coupons</SectionTitle>
+                    <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
+                        {more('coupons').map((x, i) => (
+                            <ListRow key={x.id} section="money" icon="coupon" title={x.code} subtitle={`${x.shop || 'Shop'}${x.active ? '' : ' · off'}${x.description ? ` · ${x.description}` : ''}`}
+                                onPress={() => inShops('Coupons', { shopId: String(x.tenantId), name: x.shop })} last={i === more('coupons').length - 1} />
+                        ))}
+                    </Card>
+                </>
+            ) : null}
+
+            {more('tickets').length ? (
+                <>
+                    <SectionTitle section="alerts">Support requests</SectionTitle>
+                    <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
+                        {more('tickets').map((x, i) => (
+                            <ListRow key={x.id} section="alerts" icon="message" title={x.subject} subtitle={`${x.shop || 'Shop'} · ${titleCase(x.status)}`}
+                                onPress={() => nav.navigate('SupportDetail', { id: String(x.id) })} last={i === more('tickets').length - 1} />
                         ))}
                     </Card>
                 </>
@@ -117,7 +165,7 @@ export default function SearchResults({ q }) {
                     <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
                         {r.people.map((p, i) => (
                             <ListRow key={p.id} section="people" icon="user" title={`${p.name || 'No name'} · ${p.phone}`} subtitle={`${titleCase(p.role)} at ${p.shop || 'a shop'}`}
-                                onPress={() => inShops('ShopUserDetail', { shopId: String(p.tenantId), userId: String(p.id), shopName: p.shop })}
+                                onPress={() => (p.role === 'rider' ? inShops('RiderDetail', { shopId: String(p.tenantId), name: p.shop, userId: String(p.id) }) : inShops('ShopUserDetail', { shopId: String(p.tenantId), userId: String(p.id), shopName: p.shop }))}
                                 last={i === r.people.length - 1} />
                         ))}
                     </Card>

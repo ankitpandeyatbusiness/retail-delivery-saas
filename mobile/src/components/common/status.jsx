@@ -9,6 +9,8 @@ import { useAuthStore } from '../../store/common/useAuthStore';
 import { useThemeStore } from '../../store/common/useThemeStore';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useMenuStore } from '../../store/customers/shopStores';
+import { fetchConfig } from '../../api/customers/catalogApi';
+import { onShopChanged } from '../../api/common/socket';
 import { tr } from '../../i18n';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -19,8 +21,14 @@ const fmt = (v) => {
 };
 
 // any call that works clears the frozen / offline state (see client.js)
-const reloadShop = () => Promise.allSettled([useHomeStore.getState().load(), useMenuStore.getState().load()]);
+// A call that works clears the frozen state; a 402 / 503 sets it again (see client.js). Safe to call at any time.
+const reloadShop = async () => {
+    try { await fetchConfig(); useAppStatus.getState().clearFrozen(); } catch (e) { /* client.js notes a closed shop or a lost connection */ }
+    await Promise.allSettled([useHomeStore.getState().load(), useMenuStore.getState().load()]);
+};
 
+// What a closed / paused shop looks like: the app stays visible but dimmed behind ONE message card. Nothing underneath can be touched.
+// The wording depends on who is looking: a customer is told the shop is closed or back soon; staff and riders are told to contact the owner.
 export function FrozenOverlay({ onOrders }) {
     const frozen = useAppStatus((st) => st.frozen);
     const user = useAuthStore((st) => st.user);
@@ -28,35 +36,52 @@ export function FrozenOverlay({ onOrders }) {
     const { primary, radius, text, background, muted } = useBrand();
     const insets = useSafeAreaInsets();
     const [busy, setBusy] = useState(false);
+
+    // told live when the shop changes, and (while it is closed) asked again every 20 seconds: this also catches a maintenance that ends by its end time
+    useEffect(() => onShopChanged(() => { reloadShop(); }), []);
+    useEffect(() => {
+        if (!frozen) return undefined;
+        const t = setInterval(reloadShop, 20000);
+        return () => clearInterval(t);
+    }, [frozen]);
+
     if (!frozen) return null;
 
+    const role = user?.role || 'customer';
+    const staff = role === 'kitchen' || role === 'waiter' || role === 'rider';
     const maint = frozen.status === 503 || frozen.maintenance;
-    const msg = frozen.message
-        || (maint ? 'We are down for maintenance. Please try again soon.' : 'This shop is not accepting orders right now');
     const until = frozen.until && !Number.isNaN(new Date(frozen.until).getTime()) ? fmt(frozen.until) : '';
+    const title = maint ? tr('Back soon') : tr(role === 'customer' ? 'Closed for now' : 'Shop is closed');
+    const msg = staff
+        ? (maint ? (frozen.message || tr('We are down for maintenance. Please try again soon.')) : tr('The shop is closed. Please contact the owner.'))
+        : (frozen.message || (maint ? tr('We are down for maintenance. Please try again soon.') : tr('This shop is not accepting orders right now')));
 
     const retry = async () => {
         setBusy(true);
         try { await reloadShop(); } finally { setBusy(false); }
     };
+    // the app behind shows through (dimmed); a plain colour when the brand colour is not a simple #RRGGBB
+    const dim = /^#[0-9a-fA-F]{6}$/.test(background || '') ? background + 'F0' : background;
 
     return (
-        <View style={[s.full, { backgroundColor: background, paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+        <View style={[s.full, { backgroundColor: dim, paddingTop: insets.top, paddingBottom: insets.bottom }]}>
             <Text style={[s.shop, { color: muted }]}>{shop}</Text>
             <View style={s.body}>
-                <Text style={s.emoji}>{maint ? '🛠' : '⛔'}</Text>
-                <Text style={[s.title, { color: text }]}>{maint ? tr('Back soon') : tr('Not available right now')}</Text>
-                <Text style={[s.msg, { color: muted }]}>{msg}</Text>
-                {maint && until ? <Text style={[s.until, { color: muted }]}>{tr('Expected back by {until}', { until: until })}</Text> : null}
+                <View style={[s.card, { backgroundColor: background, borderColor: muted + '33', borderRadius: radius + 8 }]}>
+                    <Text style={s.emoji}>{maint ? '🛠' : '🔒'}</Text>
+                    <Text style={[s.title, { color: text }]}>{title}</Text>
+                    <Text style={[s.msg, { color: muted }]}>{msg}</Text>
+                    {maint && until ? <Text style={[s.until, { color: muted }]}>{tr('Expected back by {until}', { until: until })}</Text> : null}
 
-                <Pressable onPress={retry} disabled={busy} style={[s.solid, { backgroundColor: primary, borderRadius: radius }]}>
-                    {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.solidTxt}>{tr('Try again')}</Text>}
-                </Pressable>
-                {user ? (
-                    <Pressable onPress={onOrders} style={[s.ghost, { borderColor: primary, borderRadius: radius }]}>
-                        <Text style={[s.ghostTxt, { color: primary }]}>{tr('My orders')}</Text>
+                    <Pressable onPress={retry} disabled={busy} style={[s.solid, { backgroundColor: primary, borderRadius: radius }]}>
+                        {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.solidTxt}>{tr('Try again')}</Text>}
                     </Pressable>
-                ) : null}
+                    {user && role === 'customer' ? (
+                        <Pressable onPress={onOrders} style={[s.ghost, { borderColor: primary, borderRadius: radius }]}>
+                            <Text style={[s.ghostTxt, { color: primary }]}>{tr('My orders')}</Text>
+                        </Pressable>
+                    ) : null}
+                </View>
             </View>
         </View>
     );
@@ -85,7 +110,8 @@ export function OfflineBanner() {
 const s = StyleSheet.create({
     full: { ...StyleSheet.absoluteFillObject, zIndex: 50, elevation: 50 },
     shop: { textAlign: 'center', fontSize: 15, fontWeight: '800', color: '#777777', paddingTop: 16 },
-    body: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
+    body: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
+    card: { alignSelf: 'stretch', alignItems: 'center', borderWidth: 1, paddingHorizontal: 24, paddingVertical: 28, shadowColor: '#000000', shadowOpacity: 0.12, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 8 },
     emoji: { fontSize: 56 },
     title: { fontSize: 22, fontWeight: '800', marginTop: 14 },
     msg: { fontSize: 14, color: '#666666', textAlign: 'center', marginTop: 8, lineHeight: 20 },

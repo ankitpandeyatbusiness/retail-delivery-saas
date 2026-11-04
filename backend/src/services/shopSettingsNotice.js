@@ -4,8 +4,8 @@ const notify = require('./notificationService');
 
 const date = (d) => new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
 
-const send = (tenantId, { title, body }) => notify.toOwner(tenantId, {
-    type: 'platform_message', title, body, data: { kind: 'rent' },
+const send = (tenantId, { title, body }, kind = 'rent') => notify.toOwner(tenantId, {
+    type: 'platform_message', title, body, data: { kind },
 }).catch((e) => console.error('Shop notice error:', e.message));
 
 const TEXT = {
@@ -26,4 +26,14 @@ const billCancelled = (tenantId, { waived }) => send(tenantId, waived ? TEXT.wai
 const lateFeesWaived = (tenantId) => send(tenantId, TEXT.lateFeesWaived);
 const graceExtended = (tenantId, until) => send(tenantId, { title: 'Your payment deadline was extended', body: `You now have until ${date(until)} to pay your bill.` });
 
-module.exports = { freeEnded, freeStarted, freeExtended, freeChanged, billCancelled, graceExtended, lateFeesWaived, TEXT };
+// the shop was paused for maintenance, and is back: the message and end time are the ones the superadmin wrote
+const maintenanceOn = (tenantId, { message, until } = {}) => send(tenantId, {
+    title: 'Your shop is paused for maintenance',
+    body: `${message || 'The platform team is working on your shop.'}${until ? ` Expected back by ${new Date(until).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' })}.` : ''}`,
+}, 'shop');
+const maintenanceOff = (tenantId) => send(tenantId, { title: 'Your shop is back', body: 'Maintenance is over. Your shop works as usual.' }, 'shop');
+// the owner panel was locked or opened again (the reason is private and never sent)
+const ownerBlocked = (tenantId) => send(tenantId, { title: 'Your shop panel was locked', body: 'The platform team locked your panel for now. Please contact support.' }, 'shop');
+const ownerAllowed = (tenantId) => send(tenantId, { title: 'Your shop panel is open again', body: 'You can use your shop panel as before.' }, 'shop');
+
+module.exports = { maintenanceOn, maintenanceOff, ownerBlocked, ownerAllowed, freeEnded, freeStarted, freeExtended, freeChanged, billCancelled, graceExtended, lateFeesWaived, TEXT };
