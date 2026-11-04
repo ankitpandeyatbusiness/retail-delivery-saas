@@ -5,6 +5,8 @@ import { spacing } from '../../theme';
 import { Screen } from '../../components/layout';
 import { Card, Stat, SectionTitle, ListRow, Badge } from '../../components/ui';
 import { SkeletonDashboard } from '../../components/blocks';
+import { SearchBar } from '../../components/inputs';
+import MoneySearch from '../../components/MoneySearch';
 import { ErrorBox } from '../../components/feedback';
 import { fetchPlatform } from '../../api/moneyApi';
 import { fetchMonth, fetchNext30, fetchMoneyAttention } from '../../api/insightsApi';
@@ -19,6 +21,7 @@ export default function MoneyHomeScreen() {
     const [d, setD] = useState(null);
     const [error, setError] = useState('');
     const [refreshing, setRefreshing] = useState(false);
+    const [q, setQ] = useState('');
 
     const load = useCallback(async () => {
         try {
@@ -33,7 +36,8 @@ export default function MoneyHomeScreen() {
 
     return (
         <Screen tabScreen title="Money" subtitle="Rent, profit and what to look at" refreshing={refreshing} onRefresh={refresh}>
-            {error && !d ? <ErrorBox message={error} onRetry={load} /> : !d ? <SkeletonDashboard /> : (
+            <View style={{ marginBottom: spacing.lg }}><SearchBar value={q} onChangeText={setQ} placeholder="Search bills, refunds, payments" /></View>
+            {q.trim() ? <MoneySearch q={q} /> : error && !d ? <ErrorBox message={error} onRetry={load} /> : !d ? <SkeletonDashboard /> : (
                 <>
                     <View style={{ flexDirection: 'row', gap: spacing.md }}>
                         <Stat section="money" label="Collected this month" value={rupeesFromPaise(d.month.current.collectedPaise)} icon="wallet" note={vs(d.month.change.collected)} onPress={go('MonthClose')} />
@@ -60,7 +64,7 @@ export default function MoneyHomeScreen() {
                                 icon={it.level === 'bad' ? 'warning' : 'clock'}
                                 title={`${it.title} · ${it.count}${it.paise ? ' · ' + rupeesFromPaise(it.paise) : ''}`}
                                 subtitle={it.hint}
-                                onPress={go(it.screen, it.params)}
+                                onPress={it.key === 'sms_provider' ? go(it.screen, it.params) : go('MoneyAttention', { key: it.key, title: it.title })}
                                 last={i === d.att.items.length - 1}
                             />
                         )) : <ListRow section="riders" icon="ok" title="All clear" subtitle="No bill, refund or payment needs a look right now." last />}

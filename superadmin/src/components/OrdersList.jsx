@@ -49,7 +49,7 @@ const fromOf = (v) => (v === 'today' ? startOfTodayIst() : v === 'all' ? undefin
  * Orders with search and filters. tenantId given = one shop only (no shop picker).
  * Embedded in a screen's scroll={false} body.
  */
-export default function OrdersList({ tenantId, showShop = true, header }) {
+export default function OrdersList({ tenantId, showShop = true, header, search }) {
     const t = useTheme();
     const nav = useNavigation();
     const shops = useShopsStore((s) => s.items);
@@ -62,17 +62,19 @@ export default function OrdersList({ tenantId, showShop = true, header }) {
     const [picker, setPicker] = useState(false);
     const [filters, setFilters] = useState(false);
     const first = useRef(true);
+    const outside = search !== undefined;   // the Orders tab owns the search box and passes its text in
+    const word = outside ? String(search).trim() : dq;
 
     useEffect(() => { const id = setTimeout(() => setDq(q.trim()), 350); return () => clearTimeout(id); }, [q]);
     useEffect(() => { if (!tenantId && !shops.length) useShopsStore.getState().load(); }, [tenantId, shops.length]);
 
     const params = useMemo(() => ({
         ...(shopId ? { tenantId: shopId } : {}),
-        ...(status ? { status } : {}),
-        ...(dq ? { q: dq } : {}),
+        ...(status && !(word && status === 'active') ? { status } : {}),   // typing a search looks in finished orders too
+        ...(word ? { q: word } : {}),
         ...(type ? { type } : {}),
         ...(range !== 'all' ? { from: fromOf(range) } : {}),
-    }), [shopId, status, dq, range, type]);
+    }), [shopId, status, word, range, type]);
 
     const list = usePagedList((page) => listOrders({ ...params, page, limit: 20 }), [params]);
 
@@ -84,7 +86,7 @@ export default function OrdersList({ tenantId, showShop = true, header }) {
     }, []));
 
     const shopName = shops.find((s) => s._id === shopId)?.name;
-    const filtered = !!(dq || type || status !== 'active' || range !== 'all' || (!tenantId && shopId));
+    const filtered = !!(word || type || status !== 'active' || range !== 'all' || (!tenantId && shopId));
     // the filters that differ from what the list opens with ("In progress", any type, any time, all shops)
     const activeCount = (status !== 'active' ? 1 : 0) + (type ? 1 : 0) + (range !== 'all' ? 1 : 0) + (!tenantId && shopId ? 1 : 0);
     const summary = [
@@ -105,9 +107,11 @@ export default function OrdersList({ tenantId, showShop = true, header }) {
         <View style={{ flex: 1 }}>
             {header}
             <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, flexDirection: 'row', alignItems: 'center' }}>
-                <View style={{ flex: 1, marginRight: spacing.md }}>
-                    <SearchBar value={q} onChangeText={setQ} placeholder="Reference (SAV-1042), number or phone" />
-                </View>
+                {outside ? <View style={{ flex: 1 }} /> : (
+                    <View style={{ flex: 1, marginRight: spacing.md }}>
+                        <SearchBar value={q} onChangeText={setQ} placeholder="Search every order" />
+                    </View>
+                )}
                 <FunnelButton count={activeCount} onPress={() => setFilters(true)} />
             </View>
             <Text style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: 2, color: activeCount ? t.primary : t.muted, fontWeight: '800', fontSize: font.sm }} numberOfLines={1}>{summary}</Text>

@@ -37,7 +37,7 @@ export default function ExpensesScreen() {
             ) : items.map((e) => (
                 <Card key={e.id} onPress={() => nav.navigate('ExpenseForm', { expense: e })} style={{ marginBottom: spacing.md }}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Text style={{ color: t.text, fontSize: font.md, fontWeight: '800', flex: 1 }}>{titleCase(e.category)}{e.vendor ? ` · ${e.vendor}` : ''}</Text>
+                        <Text style={{ color: t.text, fontSize: font.md, fontWeight: '800', flex: 1 }}>{e.category === 'other' && e.otherName ? e.otherName : titleCase(e.category)}{e.vendor ? ` · ${e.vendor}` : ''}</Text>
                         <Text style={{ color: t.danger, fontSize: font.md, fontWeight: '800' }}>{rupeesFromPaise(e.amountPaise)}</Text>
                     </View>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: 6 }}>

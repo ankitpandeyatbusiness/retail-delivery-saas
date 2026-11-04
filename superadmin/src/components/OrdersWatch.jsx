@@ -6,6 +6,7 @@ import { Card, Chip } from './ui';
 import { StatStrip, SkeletonList } from './blocks';
 import { Empty, ErrorBox } from './feedback';
 import { OrderRow } from './orderBits';
+import { HandleBar } from './HandledBits';
 import Icon from './Icon';
 import { rupees } from '../utils/format';
 import { getAttention, getLive } from '../api/ordersApi';
@@ -90,8 +91,21 @@ export function AttentionList({ header }) {
                             <Text style={{ color: t.muted, fontSize: font.xs, fontWeight: '700' }}>{span(it.minutes)}</Text>
                         </View>
                         <OrderRow order={it.order} onPress={() => nav.navigate('OrderDetail', { orderId: it.order.id, orderNo: it.order.orderNo })} />
+                        <HandleBar kind="order_problem" refId={it.refId} title={`${it.label} · ${it.order.shopName} · #${it.order.orderNo}`} onChanged={load} />
                     </View>
                 ))}
+                {data.handled?.length ? (
+                    <View style={{ marginTop: spacing.lg }}>
+                        <Text style={{ color: t.muted, fontWeight: '800', fontSize: font.sm, marginBottom: spacing.sm }}>Marked as handled · {data.handled.length}</Text>
+                        {data.handled.map((it) => (
+                            <View key={it.refId} style={{ marginBottom: spacing.md }}>
+                                <Text style={{ color: t.muted, fontSize: font.xs, fontWeight: '700', marginBottom: 6, paddingHorizontal: 4 }}>{it.label}</Text>
+                                <OrderRow order={it.order} onPress={() => nav.navigate('OrderDetail', { orderId: it.order.id, orderNo: it.order.orderNo })} />
+                                <HandleBar kind="order_problem" refId={it.refId} mark={it.mark} onChanged={load} />
+                            </View>
+                        ))}
+                    </View>
+                ) : null}
             </View>
         </ScrollView>
     );

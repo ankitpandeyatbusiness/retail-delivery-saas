@@ -19,6 +19,7 @@ export default function ExpenseFormScreen() {
     const [category, setCategory] = useState(old?.category || 'hosting');
     const [amount, setAmount] = useState(old ? old.amountPaise / 100 : undefined);
     const [date, setDate] = useState(old ? ymdOf(old.date) : todayYmd());
+    const [otherName, setOtherName] = useState(old?.otherName || '');
     const [vendor, setVendor] = useState(old?.vendor || '');
     const [note, setNote] = useState(old?.note || '');
     const [repeat, setRepeat] = useState(!!old?.repeatMonthly);
@@ -28,10 +29,11 @@ export default function ExpenseFormScreen() {
 
     const save = async () => {
         if (!(amount > 0)) { toast('Enter the amount', 'error'); return; }
+        if (category === 'other' && !otherName.trim()) { toast('Write what this expense is', 'error'); return; }
         if (!isoOfYmd(date)) { toast('Date must look like 2026-10-31', 'error'); return; }
         if (repeat && endsOn && !isoOfYmd(endsOn)) { toast('End date must look like 2026-10-31', 'error'); return; }
         const body = {
-            date: isoOfYmd(date), category, amountPaise: Math.round(amount * 100), vendor: vendor.trim(), note: note.trim(),
+            date: isoOfYmd(date), category, otherName: category === 'other' ? otherName.trim() : '', amountPaise: Math.round(amount * 100), vendor: vendor.trim(), note: note.trim(),
             repeatMonthly: repeat, endsOn: repeat && endsOn ? isoOfYmd(endsOn) : null,
         };
         setBusy(true);
@@ -49,6 +51,7 @@ export default function ExpenseFormScreen() {
         >
             <Group title="What" section="catalog">
                 <Choice label="Kind of cost" options={CATEGORIES.map((c) => ({ value: c, label: titleCase(c) }))} value={category} onChange={setCategory} />
+                {category === 'other' ? <Field label="What is this expense?" value={otherName} onChangeText={setOtherName} maxLength={60} placeholder="e.g. Legal fee, office tea, domain name" /> : null}
                 <NumberField label="Amount" placeholder="e.g. 1500" hint="What you spent, in rupees. Counted in your profit and loss." prefix="₹" value={amount} onChange={setAmount} />
                 <Field label="Paid to (optional)" value={vendor} onChangeText={setVendor} maxLength={80} placeholder="e.g. Render, Atlas, MSG91" />
                 <Field label="Note (optional)" placeholder="e.g. Render hosting for November" hint="For your own records." value={note} onChangeText={setNote} maxLength={200} />

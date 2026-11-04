@@ -49,7 +49,7 @@ export default function SupportInboxScreen() {
     return (
         <Screen title="Support" subtitle="Help requests from shop owners" scroll={false} right={<HeaderButton icon="tune" onPress={() => nav.navigate('SupportSettings')} />}>
             <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
-                <SearchBar value={typed} onChangeText={onType} placeholder="Shop name, title or #number" />
+                <SearchBar value={typed} onChangeText={onType} placeholder="Shop, title or #number" />
             </View>
             <View style={{ height: 52, marginTop: spacing.sm }}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: spacing.lg, alignItems: 'center' }} style={{ flexGrow: 0 }}>

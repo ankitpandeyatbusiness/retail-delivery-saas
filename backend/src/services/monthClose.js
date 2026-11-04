@@ -120,7 +120,7 @@ async function workbook(month) {
         {
             title: 'Expenses',
             columns: [{ header: 'Date', key: 'date', kind: 'date' }, { header: 'Category', key: 'category' }, { header: 'Vendor', key: 'vendor' }, { header: 'Note', key: 'note', kind: 'wide' }, { header: 'Repeats monthly', key: 'repeat', kind: 'center' }, { header: 'Amount', key: 'amount', kind: 'money' }],
-            rows: spent.map((e) => ({ date: e.date, category: e.category, vendor: e.vendor || '', note: e.note || '', repeat: e.repeatMonthly ? 'Yes' : '', amount: rs(e.amountPaise) })),
+            rows: spent.map((e) => ({ date: e.date, category: e.category === 'other' && e.otherName ? `other: ${e.otherName}` : e.category, vendor: e.vendor || '', note: e.note || '', repeat: e.repeatMonthly ? 'Yes' : '', amount: rs(e.amountPaise) })),
             total: true,
         },
     ]);

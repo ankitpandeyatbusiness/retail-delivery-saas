@@ -8,6 +8,7 @@ import { Card, Button, Badge } from '../../components/ui';
 import { SkeletonList } from '../../components/blocks';
 import { Empty, ErrorBox, toast } from '../../components/feedback';
 import { errMsg } from '../../api/adminClient';
+import { HandleBar } from '../../components/HandledBits';
 import { listRefunds, retryRefund } from '../../api/ordersApi';
 import { paise, ago } from '../../utils/format';
 
@@ -58,7 +59,8 @@ export default function RefundsScreen() {
                             <Text style={{ color: t.primary, fontWeight: '700', fontSize: font.sm, marginTop: 2 }} numberOfLines={1}>{r.shopName} · order {r.ref || '#' + r.orderNo}</Text>
                             <Text style={{ color: t.muted, fontSize: font.sm, marginTop: 2 }} numberOfLines={1}>{r.customer || 'Customer'}{r.reason ? ` · ${r.reason.replace(/_/g, ' ')}` : ''} · {ago(r.processedAt || r.createdAt)}</Text>
                             {r.status === 'failed' && r.lastError ? <Text style={{ color: t.danger, fontSize: font.xs, marginTop: spacing.sm }}>{r.lastError}</Text> : null}
-                            {r.status === 'failed' ? <Button title="Send again" icon="next" loading={busy === r.id} onPress={() => again(r)} style={{ marginTop: spacing.md }} /> : null}
+                            {r.status === 'failed' && !r.mark ? <Button title="Send again" icon="next" loading={busy === r.id} onPress={() => again(r)} style={{ marginTop: spacing.md }} /> : null}
+                            {r.status === 'failed' ? <HandleBar kind="refund_failed" refId={r.id} title={`${r.shopName} · refund ${paise(r.amountPaise)}`} mark={r.mark} onChanged={() => load()} /> : null}
                         </Card>
                     ))}
             </View>

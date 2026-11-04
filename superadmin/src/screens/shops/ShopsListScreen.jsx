@@ -86,7 +86,7 @@ export default function ShopsListScreen() {
             right={<View style={{ flexDirection: 'row', alignItems: 'center' }}><HeaderButton icon="funnel" onPress={() => setSortOpen(true)} /><View style={{ width: spacing.md }} /><HeaderButton icon="add" onPress={() => nav.navigate('ShopCreate')} /></View>}
         >
             <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
-                <SearchBar value={q} onChangeText={setQ} placeholder="Search by shop name or code" />
+                <SearchBar value={q} onChangeText={setQ} placeholder="Shop name or code" />
             </View>
             <View style={{ height: 56, marginTop: spacing.sm }}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: spacing.lg, alignItems: 'center' }} style={{ flexGrow: 0 }}>

@@ -61,7 +61,7 @@ export default function CustomersScreen() {
         <Screen title="Customers" subtitle={fixed.name || 'Every shop'} scroll={false}>
             <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, flexDirection: 'row', alignItems: 'center' }}>
                 <View style={{ flex: 1, marginRight: spacing.md }}>
-                    <SearchBar value={q} onChangeText={setQ} placeholder="Name or part of a phone number" />
+                    <SearchBar value={q} onChangeText={setQ} placeholder="Name or phone" />
                 </View>
                 <FunnelButton count={activeCount} onPress={() => setFilters(true)} />
             </View>

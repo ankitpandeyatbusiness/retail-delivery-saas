@@ -63,9 +63,9 @@ router.get('/orders', wrap(async (req, res) => {
     else if (['delivery', 'pickup', 'dine_in'].includes(req.query.type)) filter.orderType = req.query.type;
 
     const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
-    if (require('../services/refs').looksLikeRef(q)) filter.ref = q.toUpperCase();   // SAV-1042
-    else if (/^[6-9]\d{9}$/.test(q)) filter['customer.phone'] = q;
-    else if (/^\d{1,9}$/.test(q)) filter.orderNo = Number(q);
+    // every word must fit: status, type, payment, day, number, reference, phone, amount, or text (shop, customer, dish, address, rider ...)
+    const search = q ? await require('../services/orderSearch').filter(q) : null;
+    if (search) Object.assign(filter, search);
 
     const from = req.query.from ? new Date(req.query.from) : null;
     const to = req.query.to ? new Date(req.query.to) : null;
@@ -109,11 +109,13 @@ router.get('/refunds', wrap(async (req, res) => {
     const byOrder = new Map(orders.map((o) => [String(o._id), o]));
     const names = new Map((await Tenant.find({ _id: { $in: rows.map((r) => r.tenantId) } }).select('name').lean()).map((s) => [String(s._id), s.name]));
     const open = await OnlineRefund.aggregate([{ $match: { status: { $in: ['pending', 'processing', 'failed'] } } }, { $group: { _id: '$status', n: { $sum: 1 }, sum: { $sum: '$amountPaise' } } }]);
+    const marks = await require('../services/handledMarks').mapFor('refund_failed');
     res.json({
         open: Object.fromEntries(open.map((g) => [g._id, { count: g.n, paise: g.sum }])),
         items: rows.map((r) => {
             const o = byOrder.get(String(r.orderId));
-            return { id: String(r._id), orderId: String(r.orderId), orderNo: o?.orderNo, ref: o?.ref || '', shopName: names.get(String(r.tenantId)) || 'Unknown shop', customer: o?.customer?.name || '', status: r.status, amountPaise: r.amountPaise, reason: r.reason || '', attempts: r.attempts || 0, lastError: r.lastError || '', createdAt: r.createdAt, processedAt: r.processedAt || null };
+            return {
+                mark: marks.get(String(r._id)) || null, id: String(r._id), orderId: String(r.orderId), orderNo: o?.orderNo, ref: o?.ref || '', shopName: names.get(String(r.tenantId)) || 'Unknown shop', customer: o?.customer?.name || '', status: r.status, amountPaise: r.amountPaise, reason: r.reason || '', attempts: r.attempts || 0, lastError: r.lastError || '', createdAt: r.createdAt, processedAt: r.processedAt || null };
         }),
     });
 }));

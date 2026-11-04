@@ -110,6 +110,7 @@ admin.use(require('./adminMoneyRulesRouter'));    // who bears the cost of a can
 admin.use(require('./adminPlatformPaymentsRouter'));   // my own Razorpay account
 admin.use(require('./adminGeoRouter'));   // place search for the map picker
 admin.use(require('./adminFinanceRouter'));   // profit and loss, receivables, expenses
+admin.use(require('./adminHandledRouter'));   // "handled by hand" marks and the 10 minute undo
 
 // any change to a shop's data refreshes that shop's cached counts
 admin.use('/tenants/:tid', (req, res, next) => {

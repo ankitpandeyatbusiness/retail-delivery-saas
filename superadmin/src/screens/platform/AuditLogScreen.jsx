@@ -60,7 +60,7 @@ export default function AuditLogScreen() {
     return (
         <Screen title="Audit log" subtitle="Who changed what" scroll={false}>
             <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
-                <SearchBar value={q} onChangeText={setQ} placeholder="Search an action, like coupons or owners" />
+                <SearchBar value={q} onChangeText={setQ} placeholder="Search an action" />
             </View>
             <View style={{ height: 52, marginTop: spacing.sm }}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: spacing.lg, alignItems: 'center' }} style={{ flexGrow: 0 }}>

@@ -20,6 +20,13 @@ router.get('/finance/summary', wrap(async (req, res) => {
 
 // the Money tab's "Needs attention": overdue bills, shops to close, failed refunds and Razorpay events, money that does not add up, low SMS wallets
 router.get('/finance/attention', wrap(async (req, res) => { res.json(await require('../services/moneyAttention').attention()); }));
+// one attention list opened: every record with its reason, open ones and the ones marked handled
+router.get('/finance/attention/:key', wrap(async (req, res) => {
+    const r = await require('../services/moneyAttention').records(req.params.key);
+    if (!r) throw httpError(404, 'Unknown list');
+    res.json(r);
+}));
+router.get('/finance/search', wrap(async (req, res) => { res.json(await require('../services/moneySearch').search(req.query.q)); }));
 
 // one month closed: this month against last, GST, what is owed (?month=2026-11, default this month)
 router.get('/finance/month', wrap(async (req, res) => { res.json(await require('../services/monthClose').summary(req.query.month || undefined)); }));
@@ -62,7 +69,7 @@ router.post('/finance/receivables/:tenantId/remind', wrap(async (req, res) => {
 }));
 
 const view = (e) => ({
-    id: e._id, date: e.date, category: e.category, amountPaise: e.amountPaise, vendor: e.vendor || '', note: e.note || '',
+    id: e._id, date: e.date, category: e.category, amountPaise: e.amountPaise, vendor: e.vendor || '', note: e.note || '', otherName: e.otherName || '',
     repeatMonthly: !!e.repeatMonthly, endsOn: e.endsOn || null,
 });
 
@@ -82,6 +89,8 @@ function clean(body, partial) {
         if (!Number.isInteger(n) || n < 1 || n > 100000000) throw httpError(400, 'Amount must be a whole number of paise above 0');
         out.amountPaise = n;
     }
+    if (body.otherName !== undefined) out.otherName = String(body.otherName || '').trim().slice(0, 60);
+    if (out.category === 'other' && !partial && !String(body.otherName || '').trim()) throw httpError(400, 'Write what this expense is');
     if (body.vendor !== undefined) out.vendor = String(body.vendor || '').slice(0, 80);
     if (body.note !== undefined) out.note = String(body.note || '').slice(0, 200);
     if (body.repeatMonthly !== undefined) out.repeatMonthly = !!body.repeatMonthly;

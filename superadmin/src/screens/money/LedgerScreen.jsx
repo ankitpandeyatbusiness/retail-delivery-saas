@@ -4,7 +4,8 @@ import { ActivityIndicator } from '../../components/Loading';
 import { useRoute } from '@react-navigation/native';
 import { useTheme, spacing, font } from '../../theme';
 import { Screen, HeaderButton } from '../../components/layout';
-import { Card, Chip, Badge } from '../../components/ui';
+import { Card, Badge } from '../../components/ui';
+import { FunnelButton, FilterPopup } from '../../components/FilterPopup';
 import { SkeletonList } from '../../components/blocks';
 import { Empty, ErrorBox, toast } from '../../components/feedback';
 import usePagedList from '../../hooks/usePagedList';
@@ -38,6 +39,8 @@ export default function LedgerScreen() {
     const [range, setRange] = useState('30');
     const [busy, setBusy] = useState(false);
     const [totals, setTotals] = useState(null);
+    const [filterOpen, setFilterOpen] = useState(false);
+    const activeCount = (category ? 1 : 0) + (status ? 1 : 0) + (range !== '30' ? 1 : 0);
 
     const query = useMemo(() => ({
         ...(category ? { category } : {}),
@@ -77,18 +80,22 @@ export default function LedgerScreen() {
                     </Card>
                 </View>
             ) : null}
-            <View style={{ height: 52, marginTop: spacing.sm }}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: spacing.lg, alignItems: 'center' }} style={{ flexGrow: 0 }}>
-                    {CATS[view].map((c) => <Chip key={c.label} label={c.label} active={category === c.value} onPress={() => setCategory(c.value)} />)}
-                </ScrollView>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.sm }}>
+                <Text style={{ color: t.muted, fontSize: font.sm, fontWeight: '700' }}>{RANGES.find((r) => r.value === range)?.label}</Text>
+                <FunnelButton count={activeCount} onPress={() => setFilterOpen(true)} />
             </View>
-            <View style={{ height: 48 }}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: spacing.lg, alignItems: 'center' }} style={{ flexGrow: 0 }}>
-                    {RANGES.map((c) => <Chip key={c.value} label={c.label} active={range === c.value} onPress={() => setRange(c.value)} />)}
-                    <Chip label="Done only" active={status === 'done'} icon="ok" onPress={() => setStatus(status === 'done' ? '' : 'done')} />
-                    <Chip label="Pending only" active={status === 'pending'} icon="clock" onPress={() => setStatus(status === 'pending' ? '' : 'pending')} />
-                </ScrollView>
-            </View>
+            <FilterPopup
+                visible={filterOpen}
+                onClose={() => setFilterOpen(false)}
+                title="Filter transactions"
+                activeCount={activeCount}
+                onClear={() => { setCategory(''); setStatus(''); setRange('30'); }}
+                sections={[
+                    { key: 'cat', title: 'Type', options: CATS[view].map((c) => [c.value, c.label]), value: category, onChange: setCategory },
+                    { key: 'range', title: 'Period', options: RANGES.map((c) => [c.value, c.label]), value: range, onChange: setRange },
+                    { key: 'status', title: 'Status', options: [['', 'All'], ['done', 'Done only'], ['pending', 'Pending only']], value: status, onChange: setStatus },
+                ]}
+            />
         </View>
     );
 

@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { spacing } from '../../theme';
 import { Screen, HeaderButton } from '../../components/layout';
-import { Segmented } from '../../components/inputs';
+import { Segmented, SearchBar } from '../../components/inputs';
 import OrdersList from '../../components/OrdersList';
 import ComplaintsList from '../../components/ComplaintsList';
 import { AttentionList, LiveBoard } from '../../components/OrdersWatch';
@@ -12,6 +12,7 @@ import { AttentionList, LiveBoard } from '../../components/OrdersWatch';
 export default function OrdersHomeScreen() {
     const nav = useNavigation();
     const [tab, setTab] = useState('attention');
+    const [q, setQ] = useState('');
 
     const switcher = (
         <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
@@ -25,6 +26,13 @@ export default function OrdersHomeScreen() {
                     { value: 'complaints', label: 'Complaints' },
                 ]}
             />
+        </View>
+    );
+
+    // one search box for the whole tab: while something is typed, the answers (every order of every shop) replace the tabs
+    const searchBar = (
+        <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
+            <SearchBar value={q} onChangeText={setQ} placeholder="Search orders, shops, customers" />
         </View>
     );
 
@@ -42,7 +50,10 @@ export default function OrdersHomeScreen() {
                 </View>
             )}
         >
-            {tab === 'attention' ? <AttentionList header={switcher} />
+            <View style={{ flex: 1 }}>
+            {searchBar}
+            {q.trim() ? <OrdersList search={q} />
+                : tab === 'attention' ? <AttentionList header={switcher} />
                 : tab === 'live' ? <LiveBoard header={switcher} />
                 : tab === 'orders' ? <OrdersList header={switcher} /> : (
                     <View style={{ flex: 1 }}>
@@ -50,6 +61,7 @@ export default function OrdersHomeScreen() {
                         <ComplaintsList />
                     </View>
                 )}
+            </View>
         </Screen>
     );
 }

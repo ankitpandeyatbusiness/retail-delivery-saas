@@ -37,8 +37,11 @@ export function SearchBar({ value, onChangeText, placeholder = 'Search', onSubmi
                 placeholder={placeholder}
                 placeholderTextColor={t.muted}
                 returnKeyType="search"
+                numberOfLines={1}
+                multiline={false}
+                textAlignVertical="center"
                 autoCapitalize="none"
-                style={{ flex: 1, color: t.text, fontSize: font.md, marginLeft: spacing.sm }}
+                style={{ flex: 1, color: t.text, fontSize: font.md, marginLeft: spacing.sm, paddingVertical: 0 }}
             />
             {value ? (
                 <Pressable onPress={() => onChangeText('')} hitSlop={10}>

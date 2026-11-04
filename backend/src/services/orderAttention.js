@@ -72,9 +72,15 @@ async function attention({ tenantId, now = Date.now() } = {}) {
         const p = problemOf(o, now, limits);
         if (p) found.push({ code: p.code, label: LABEL[p.code], minutes: mins(p.since, now), order: o });
     }
+    // an order the superadmin marked "handled by hand" for this very problem leaves the list (it comes back if a different problem appears)
+    const marks = await require('./handledMarks').mapFor('order_problem', now);
+    const mine = (f) => marks.get(`${f.order._id}:${f.code}`);
+    const doneFound = found.filter(mine);
+    found.splice(0, found.length, ...found.filter((f) => !mine(f)));
     found.sort((a, b) => (RANK[a.code] - RANK[b.code]) || (b.minutes - a.minutes));
     const top = found.slice(0, 100);
-    const names = await shopNames([...new Set(top.map((f) => String(f.order.tenantId)))]);
+    const doneTop = doneFound.slice(0, 30);
+    const names = await shopNames([...new Set([...top, ...doneTop].map((f) => String(f.order.tenantId)))]);
     const counts = { total: found.length };
     for (const f of found) counts[f.code] = (counts[f.code] || 0) + 1;
     const refundsOpen = await require('../models/OnlineRefund').countDocuments({ status: { $in: ['pending', 'processing', 'failed'] }, ...(tenantId ? { tenantId } : {}) });
@@ -82,6 +88,11 @@ async function attention({ tenantId, now = Date.now() } = {}) {
         counts, refundsOpen,
         items: top.map((f) => ({
             code: f.code, label: f.label, minutes: f.minutes,
+            order: { ...f.order.toJSON(), shopName: names.get(String(f.order.tenantId))?.name || 'Unknown shop' },
+            refId: `${f.order._id}:${f.code}`,
+        })),
+        handled: doneTop.map((f) => ({
+            code: f.code, label: f.label, minutes: f.minutes, refId: `${f.order._id}:${f.code}`, mark: mine(f),
             order: { ...f.order.toJSON(), shopName: names.get(String(f.order.tenantId))?.name || 'Unknown shop' },
         })),
     };
