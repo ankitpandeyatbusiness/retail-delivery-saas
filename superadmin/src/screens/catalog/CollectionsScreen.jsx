@@ -6,6 +6,7 @@ import { Card, Badge } from '../../components/ui';
 import Icon from '../../components/Icon';
 import { useTheme, spacing, font, radius } from '../../theme';
 import { dateOnly } from '../../utils/format';
+import { ZoomImage } from '../../components/ImageViewer';
 
 export default function CollectionsScreen() {
     const t = useTheme();
@@ -24,7 +25,7 @@ export default function CollectionsScreen() {
                 <Card onPress={open} style={{ marginBottom: spacing.sm, opacity: c.isActive === false ? 0.55 : 1 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         {c.image
-                            ? <Image source={{ uri: c.image }} style={{ width: 56, height: 56, borderRadius: radius.md, backgroundColor: t.surfaceAlt }} />
+                            ? <ZoomImage source={{ uri: c.image }} style={{ width: 56, height: 56, borderRadius: radius.md, backgroundColor: t.surfaceAlt }} />
                             : <View style={{ width: 56, height: 56, borderRadius: radius.md, backgroundColor: t.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}><Icon name="sparkle" size={24} color={t.muted} /></View>}
                         <View style={{ flex: 1, marginLeft: spacing.md }}>
                             <Text style={{ color: t.text, fontWeight: '800', fontSize: font.md }} numberOfLines={1}>{c.title}</Text>

@@ -11,6 +11,7 @@ import { errMsg } from '../../api/adminClient';
 import { pickImage, uploadImage } from '../../utils/upload';
 import { useShopStore } from '../../store/useShopStore';
 import { isHex } from '../../utils/settings';
+import { ZoomImage } from '../../components/ImageViewer';
 
 const MAX_HERO = 5;
 const BUILD = [
@@ -22,7 +23,7 @@ const BUILD = [
 function Thumb({ uri, size = 96, radiusPx = radius.md }) {
     const t = useTheme();
     return uri
-        ? <Image source={{ uri }} style={{ width: size, height: size, borderRadius: radiusPx, backgroundColor: t.surfaceAlt }} resizeMode="cover" />
+        ? <ZoomImage source={{ uri }} style={{ width: size, height: size, borderRadius: radiusPx, backgroundColor: t.surfaceAlt }} resizeMode="cover" />
         : <View style={{ width: size, height: size, borderRadius: radiusPx, backgroundColor: t.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}><Icon name="banner" size={size * 0.35} color={t.muted} /></View>;
 }
 

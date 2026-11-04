@@ -14,6 +14,7 @@ import { errMsg } from '../../api/adminClient';
 import usePagedList from '../../hooks/usePagedList';
 import { rupees } from '../../utils/format';
 import { nameOf } from '../../utils/settings';
+import { ZoomImage } from '../../components/ImageViewer';
 
 const DAYS = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' };
 
@@ -25,7 +26,7 @@ const timingText = (timings) => {
 function Thumb({ uri, item, size = 56 }) {
     const t = useTheme();
     return uri
-        ? (item ? <DishPic item={item} size={size} /> : <Image source={{ uri }} style={{ width: size, height: size, borderRadius: radius.md, backgroundColor: t.surfaceAlt }} />)
+        ? (item ? <DishPic item={item} size={size} /> : <ZoomImage source={{ uri }} style={{ width: size, height: size, borderRadius: radius.md, backgroundColor: t.surfaceAlt }} />)
         : <View style={{ width: size, height: size, borderRadius: radius.md, backgroundColor: t.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}><Icon name="food" size={size * 0.45} color={t.muted} /></View>;
 }
 

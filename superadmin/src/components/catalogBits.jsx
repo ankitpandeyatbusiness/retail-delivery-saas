@@ -10,6 +10,7 @@ import { pickImage, uploadImage } from '../utils/upload';
 import { errMsg } from '../api/adminClient';
 import { ActivityIndicator } from './Loading';
 import { useSlideTick, seedOf } from '../hooks/useSlideTick';
+import { ZoomPress } from './ImageViewer';
 
 /*
  * A picture for a record. Shows the current one, uploads a new one right away, and gives back its url.
@@ -127,7 +128,7 @@ export function DishPic({ item, size = 56, fallback }) {
         Animated.timing(fade, { toValue: 1, duration: 450, useNativeDriver: true }).start();
     }, [uri]);   // eslint-disable-line react-hooks/exhaustive-deps
     if (!uri) return fallback || null;
-    return <Animated.Image source={{ uri }} style={{ width: size, height: size, borderRadius: radius.md, backgroundColor: t.surfaceAlt, opacity: fade }} />;
+    return <ZoomPress uri={uri} uris={pics}><Animated.Image source={{ uri }} style={{ width: size, height: size, borderRadius: radius.md, backgroundColor: t.surfaceAlt, opacity: fade }} /></ZoomPress>;
 }
 
 // "20261101" -> "2026-11-01" while typing

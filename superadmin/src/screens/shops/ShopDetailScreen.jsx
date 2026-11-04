@@ -12,6 +12,7 @@ import { Hero, QuickActions, SkeletonList } from '../../components/blocks';
 import { ErrorBox } from '../../components/feedback';
 import { useShopStore } from '../../store/useShopStore';
 import { dateOnly, rupees } from '../../utils/format';
+import { ZoomImage } from '../../components/ImageViewer';
 
 // The hub of one shop. Big shortcuts on top for the common jobs, then focused groups: nothing is crowded.
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -54,7 +55,7 @@ export default function ShopDetailScreen() {
                 title={tenant.name}
                 subtitle={[tenant.address?.city, `Since ${dateOnly(tenant.createdAt)}`].filter(Boolean).join(' · ')}
                 leading={(rec.appIcon || tenant.logo)
-                    ? <Image source={{ uri: rec.appIcon || tenant.logo }} style={{ width: 56, height: 56, borderRadius: radius.md, backgroundColor: t.surfaceAlt }} />
+                    ? <ZoomImage source={{ uri: rec.appIcon || tenant.logo }} style={{ width: 56, height: 56, borderRadius: radius.md, backgroundColor: t.surfaceAlt }} />
                     : <Avatar name={tenant.name} size={56} />}
             >
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md }}>

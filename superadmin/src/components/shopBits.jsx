@@ -5,6 +5,7 @@ import { Badge, Avatar } from './ui';
 import { ago, rupees } from '../utils/format';
 import Icon from './Icon';
 import { useTheme, spacing, radius, font } from '../theme';
+import { ZoomImage } from './ImageViewer';
 
 // one colour for the state of a shop: green taking orders, amber paused by owner, red blocked / suspended
 export const stateTone = (shop) => {
@@ -37,7 +38,7 @@ export function ShopRow({ shop, onPress, compact }) {
             <View style={{ flex: 1, padding: spacing.md, paddingLeft: spacing.lg }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     {(shop.appIcon || shop.logo)
-                        ? <Image source={{ uri: shop.appIcon || shop.logo }} resizeMode="contain" style={{ width: compact ? 38 : 46, height: compact ? 38 : 46, borderRadius: radius.md, backgroundColor: t.surfaceAlt }} />
+                        ? <ZoomImage source={{ uri: shop.appIcon || shop.logo }} resizeMode="contain" style={{ width: compact ? 38 : 46, height: compact ? 38 : 46, borderRadius: radius.md, backgroundColor: t.surfaceAlt }} />
                         : <Avatar name={shop.name} size={compact ? 38 : 46} />}
                     <View style={{ flex: 1, marginLeft: spacing.md }}>
                         <Text style={{ color: t.text, fontSize: font.md, fontWeight: '800' }} numberOfLines={1}>{shop.name}</Text>

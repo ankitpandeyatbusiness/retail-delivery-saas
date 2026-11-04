@@ -12,6 +12,7 @@ import { TYPE_NAME } from '../../components/ComplaintsList';
 import { decideComplaint } from '../../api/opsApi';
 import { errMsg } from '../../api/adminClient';
 import { dateTime, rupees, titleCase } from '../../utils/format';
+import { ZoomImage } from '../../components/ImageViewer';
 
 const DECISIONS = [
     { value: 'none', label: 'Reply only' },
@@ -69,7 +70,7 @@ export default function ComplaintDetailScreen() {
                 <>
                     <SectionTitle section="people">Photos</SectionTitle>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                        {c.photos.map((p) => <Image key={p} source={{ uri: p }} style={{ width: 150, height: 150, borderRadius: radius.md, marginRight: spacing.md, backgroundColor: t.surfaceAlt }} />)}
+                        {c.photos.map((p) => <ZoomImage key={p} group={c.photos} source={{ uri: p }} style={{ width: 150, height: 150, borderRadius: radius.md, marginRight: spacing.md, backgroundColor: t.surfaceAlt }} />)}
                     </ScrollView>
                 </>
             ) : null}

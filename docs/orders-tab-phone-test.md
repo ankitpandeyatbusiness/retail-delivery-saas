@@ -47,3 +47,8 @@ Deploy the server first, then update the superadmin app. Use one test shop with 
 4. "Your income this month" (all shops only): rent billed and collected, SMS margin, costs, net, and what is still owed (tap to open Who owes you).
 5. **Excel** downloads one file with a sheet each: Summary, By day, By shop, Best items, Sales lost, By hour, By weekday. **Share summary** opens WhatsApp or any app with a short text.
 6. The morning push: after 8:00 India time, once a day: "Yesterday: N orders, Rs X", up or down on the day before, orders needing attention, refunds not finished. Tapping it opens the Sales report. Switch it off in the notification rules (admin_daily_summary).
+
+## 10. Pictures full screen (superadmin app)
+1. Tap a rider photo, a dish picture, a shop logo, a banner or collection picture, a complaint photo, a support chat picture, or the rider proof of delivery on an order: it opens full screen.
+2. Pinch to zoom in and out, drag a zoomed picture, double tap to zoom in or back, swipe down or tap the cross to close.
+3. A dish with several pictures, and complaint or support photos, show "1 / 3" with arrows to page through.

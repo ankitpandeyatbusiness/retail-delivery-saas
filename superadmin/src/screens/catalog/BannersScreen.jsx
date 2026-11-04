@@ -6,6 +6,7 @@ import { Card, Badge } from '../../components/ui';
 import Icon from '../../components/Icon';
 import { useTheme, spacing, font, radius } from '../../theme';
 import { dateOnly } from '../../utils/format';
+import { ZoomImage } from '../../components/ImageViewer';
 
 export default function BannersScreen() {
     const t = useTheme();
@@ -23,7 +24,7 @@ export default function BannersScreen() {
             renderRow={(b, { open }) => (
                 <Card onPress={open} padded={false} style={{ marginBottom: spacing.md, overflow: 'hidden', opacity: b.isActive === false ? 0.55 : 1 }}>
                     {b.image
-                        ? <Image source={{ uri: b.image }} style={{ height: 120, width: '100%', backgroundColor: t.surfaceAlt }} resizeMode="cover" />
+                        ? <ZoomImage source={{ uri: b.image }} style={{ height: 120, width: '100%', backgroundColor: t.surfaceAlt }} resizeMode="cover" />
                         : <View style={{ height: 80, backgroundColor: t.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}><Icon name="banner" size={28} color={t.muted} /></View>}
                     <View style={{ padding: spacing.md }}>
                         <Text style={{ color: t.text, fontWeight: '800', fontSize: font.md }} numberOfLines={1}>{b.title || 'Untitled banner'}</Text>

@@ -15,6 +15,7 @@ import { listRiders } from '../../api/opsApi';
 import { errMsg } from '../../api/adminClient';
 import { rupees, dateTime, titleCase } from '../../utils/format';
 import { goTab } from '../../navigation/goTo';
+import { ZoomImage } from '../../components/ImageViewer';
 
 const CANCEL_REASONS = [
     { value: 'platform', label: 'Platform decision' },
@@ -230,7 +231,7 @@ export default function OrderDetailScreen() {
                         {d?.proof?.url ? (
                             <Pressable onPress={() => Linking.openURL(d.proof.url).catch(() => toast('Could not open the photo', 'error'))} style={{ marginTop: spacing.md }}>
                                 <Text style={{ color: t.text, fontWeight: '800', marginBottom: 6 }}>Delivery photo (proof of safe delivery)</Text>
-                                <Image source={{ uri: d.proof.url }} style={{ width: '100%', height: 200, borderRadius: radius.md, backgroundColor: t.surfaceAlt }} resizeMode="cover" />
+                                <ZoomImage source={{ uri: d.proof.url }} style={{ width: '100%', height: 200, borderRadius: radius.md, backgroundColor: t.surfaceAlt }} resizeMode="cover" />
                                 <Text style={{ color: t.muted, fontSize: font.xs, marginTop: 4 }}>Taken by the rider {dateTime(d.proof.at)} · tap to open</Text>
                             </Pressable>
                         ) : d?.deliveredAt || o.status === 'delivered' ? (

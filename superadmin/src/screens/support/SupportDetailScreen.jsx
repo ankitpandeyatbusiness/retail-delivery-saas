@@ -13,6 +13,7 @@ import { pickImage, uploadImage } from '../../utils/upload';
 import { ago } from '../../utils/format';
 import { TOPIC, STATUS } from './SupportInboxScreen';
 import { toAdmin } from '../../navigation/goTo';
+import { ZoomImage } from '../../components/ImageViewer';
 
 // answers you send often
 const SAVED = [
@@ -42,9 +43,9 @@ function Bubble({ m }) {
                 {m.photos?.length ? (
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 }}>
                         {m.photos.map((u) => (
-                            <Pressable key={u} onPress={() => Linking.openURL(u).catch(() => { })} style={{ marginRight: 6, marginBottom: 6 }}>
-                                <Image source={{ uri: u }} style={{ width: 100, height: 100, borderRadius: radius.sm }} />
-                            </Pressable>
+                            <View key={u} style={{ marginRight: 6, marginBottom: 6 }}>
+                                <ZoomImage group={m.photos} source={{ uri: u }} style={{ width: 100, height: 100, borderRadius: radius.sm }} />
+                            </View>
                         ))}
                     </View>
                 ) : null}
