@@ -1,7 +1,7 @@
 import React from 'react';
 import { useRoute } from '@react-navigation/native';
 import { SettingsPage } from '../../components/settingsPage';
-import { Group, NumberField, TextField, Switch, Hint, MultiChoice } from '../../components/settingsForm';
+import { Group, NumberField, TextField, Switch, Hint, MultiChoice, Choice } from '../../components/settingsForm';
 import useSettingsEditor from '../../hooks/useSettingsEditor';
 
 // Dine in, pickup rules, orders at the same time, and the timings and counts that used to be fixed in the code.
@@ -50,6 +50,27 @@ export default function SettingsDineInScreen() {
                         <Switch title="A waiter can take the money for a bill" subtitle="The owner has the same switch in the shop app" value={dn.waiterSettles !== false} onValueChange={D('waiterSettles')} />
                         <NumberField label="Nudge the cooks when an order waits" suffix="min" integer hint="A push for an accepted order nobody started. 0 = no nudges. Late and unserved dishes are nudged once too." value={sf.nudgeMin} onChange={(v) => P('staff', sf, 'nudgeMin')(v ?? 10)} />
                         <NumberField label="Show an order as late after" suffix="min" integer hint="Counted from when it was accepted (a pickup for later: from 30 minutes before its time)" value={sf.lateMin} onChange={(v) => P('staff', sf, 'lateMin')(v ?? 20)} last />
+                    </Group>
+
+                    <Group title="Kitchen queue and offers" section="orders" hint="What happens when an order waits for the cook, and what the owner may offer a customer when the kitchen has a problem.">
+                        <NumberField label="An order the cook did not touch goes to his queue after" suffix="seconds" integer placeholder="e.g. 60" hint="15 to 600. Until then the order waits to be picked by the cook." value={o.kitchenQueueSec} onChange={(v) => ed.set('orders', 'kitchenQueueSec', v ?? 60)} />
+                        <Choice
+                            label="When the kitchen has a problem with an order"
+                            hint="The owner tells the customer. Should a discount be offered to keep the order?"
+                            options={[{ value: 'ask', label: 'Ask the owner each time' }, { value: 'always', label: 'Always offer' }, { value: 'never', label: 'Never offer' }]}
+                            value={o.kitchenOfferMode || 'ask'}
+                            onChange={(v) => ed.set('orders', 'kitchenOfferMode', v)}
+                            last={(o.kitchenOfferMode || 'ask') === 'never'}
+                        />
+                        {(o.kitchenOfferMode || 'ask') !== 'never' ? (
+                            <Choice
+                                label="The discount offered"
+                                options={[5, 10, 15, 20, 25].map((n) => ({ value: n, label: n + '% off' }))}
+                                value={o.kitchenOfferPercent || 10}
+                                onChange={(v) => ed.set('orders', 'kitchenOfferPercent', v)}
+                                last
+                            />
+                        ) : null}
                     </Group>
 
                     <Group title="Walk-out protection" section="orders">

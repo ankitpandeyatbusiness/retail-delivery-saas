@@ -30,6 +30,12 @@ export default function SettingsAppScreen() {
                             subtitle="New order, bill and order-step messages. These use the shop's SMS wallet."
                             value={!!ed.draft.notifications.smsAlerts}
                             onValueChange={(v) => ed.set('notifications', 'smsAlerts', v)}
+                        />
+                        <Switch
+                            title="Monthly progress report"
+                            subtitle="Once a month the owner gets a summary of the shop (sales, orders, customers) in the app and by email."
+                            value={ed.draft.notifications.monthlyReport !== false}
+                            onValueChange={(v) => ed.set('notifications', 'monthlyReport', v)}
                             last
                         />
                     </Group>
