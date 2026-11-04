@@ -5,6 +5,7 @@ import { useTheme, spacing, font, radius } from '../../theme';
 import { Screen } from '../../components/layout';
 import { FOLDERS } from './shopFolders';
 import ShopAreaMap from '../../components/ShopAreaMap';
+import SetupCard from '../../components/setupCard';
 import { Card, ListRow, SectionTitle, KeyValue, Avatar, Badge, Button } from '../../components/ui';
 import { ShopStateBadge, stateTone } from '../../components/shopBits';
 import { Hero, QuickActions, SkeletonList } from '../../components/blocks';
@@ -77,6 +78,8 @@ export default function ShopDetailScreen() {
                     <Text style={{ color: t.muted, fontSize: font.sm, marginTop: 4 }}>Tap to see why and to open it again.</Text>
                 </Card>
             ) : null}
+
+            <SetupCard shopId={shopId} name={tenant.name} />
 
             <View style={{ marginTop: spacing.xl, marginBottom: spacing.lg }}>
                 {noArea ? (

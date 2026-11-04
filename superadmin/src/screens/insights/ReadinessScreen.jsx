@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useTheme, spacing, font } from '../../theme';
 import { Screen } from '../../components/layout';
@@ -10,6 +10,7 @@ import Icon from '../../components/Icon';
 import { fetchReadiness } from '../../api/insightsApi';
 import { errMsg } from '../../api/adminClient';
 import { toAdmin } from '../../navigation/goTo';
+import { FIX_SCREEN } from '../../utils/setupFlow';
 
 // Is this shop set up properly? Each line says what is missing and how to fix it.
 export default function ReadinessScreen() {
@@ -38,13 +39,14 @@ export default function ReadinessScreen() {
                     </Card>
                     <Card padded={false} style={{ marginTop: spacing.md, paddingHorizontal: spacing.lg }}>
                         {d.checks.map((c, i) => (
-                            <View key={c.key} style={{ flexDirection: 'row', paddingVertical: spacing.md, borderBottomWidth: i === d.checks.length - 1 ? 0 : 1, borderBottomColor: t.border }}>
+                            <Pressable key={c.key} onPress={() => { if (!c.ok && FIX_SCREEN[c.key]) nav.navigate(FIX_SCREEN[c.key], { shopId, name }); }} style={{ flexDirection: 'row', paddingVertical: spacing.md, borderBottomWidth: i === d.checks.length - 1 ? 0 : 1, borderBottomColor: t.border }}>
                                 <Icon name={c.ok ? 'ok' : c.optional ? 'info' : 'warning'} size={22} color={c.ok ? t.success : c.optional ? t.muted : t.danger} />
                                 <View style={{ flex: 1, marginLeft: spacing.md }}>
                                     <Text style={{ color: t.text, fontWeight: '700' }}>{c.label}{c.optional ? ' (optional)' : ''}</Text>
                                     {!c.ok ? <Text style={{ color: t.muted, fontSize: font.sm }}>{c.fix}</Text> : null}
                                 </View>
-                            </View>
+                                {!c.ok && FIX_SCREEN[c.key] ? <Icon name="next" size={16} color={t.muted} /> : null}
+                            </Pressable>
                         ))}
                     </Card>
                 </>

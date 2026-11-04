@@ -44,3 +44,10 @@ Needs the server redeployed, the superadmin app and the shop app updated.
 3. Shop, Settings, App version and alerts: a new switch "Monthly progress report". Turn it off: the owner stops getting the monthly report.
 4. Shop, Settings: the phone preview has a "Screens" bar. It now also has: Services, Inquiry form, My inquiries, Book a table, My bookings, Scan table, Table bill, Bulk order, Bulk cart, Bulk order status, My bulk orders, My points, Refer a friend. Open each.
 5. With the switch OFF (Features: Services, Table booking, Bulk orders) the preview shows that page dimmed with the note "Switched off for this shop: customers do not see this". Switch it ON in App features and the page shows normally.
+
+## Phase 5: guided setup of a new shop, and the set-up check
+1. Shops, the + button, fill the new-shop steps and create it. Instead of the shop page you now land on "Shop created" with the list of setup steps. "Start the setup" opens step 1.
+2. Each step is the normal settings screen for that group (Opening hours, Orders and fees, App features, Dine in pickup and staff, Riders and delivery, Menu and offers, Brand and look, Home layout, Bottom tabs, App version and alerts). The header says "Step 3 of 10". The bottom has "Skip" (keeps the defaults) and "Save and next" (shows "Next" if you changed nothing). The last step opens the Set-up check.
+3. "Open the shop, I will do it later" skips the whole setup. The shop page now shows a "Set-up: 8 of 12 done" card with the first three missing things; tap one to open where it is fixed, or "Guided setup" to do the steps any time.
+4. The Set-up check screen: every missing line is tappable and opens its fix (logo and pictures to Branding, phone and address and map to Edit shop, menu to Menu, hours, owner, rider, payments, going live to Billing).
+5. In the app features step switch Services, Table booking and Bulk orders on and off: the phone preview in that step shows the effect.

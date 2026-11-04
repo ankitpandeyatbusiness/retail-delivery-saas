@@ -95,7 +95,8 @@ export default function useSettingsEditor(shopId, sections, { fixPatches } = {})
         return () => clearTimeout(id);
     }, [rec, draft, settingsNow, dirty]);
 
-    const save = useCallback(async () => {
+    const save = useCallback(async (opts) => {
+        const stay = opts?.stay === true;   // the guided setup goes to the next step itself
         if (!dirty || saving) return false;
         setSaving(true);
         try {
@@ -104,7 +105,7 @@ export default function useSettingsEditor(shopId, sections, { fixPatches } = {})
             useShopStore.getState().load(shopId, { quiet: true });
             useShopsStore.getState().patch(shopId, {});
             toast('Saved');
-            nav.goBack();
+            if (!stay) nav.goBack();
             return true;
         } catch (e) {
             toast(errMsg(e), 'error');

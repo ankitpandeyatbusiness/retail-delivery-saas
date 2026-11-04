@@ -170,8 +170,8 @@ export default function ShopCreateScreen() {
             }
             if (ownerOk) toast('Shop created');
             // from the Shops tab the new shop replaces this form; from Home (which has no shop pages) it opens in the Shops tab
-            if (nav.getState().routeNames.includes('ShopDetail')) nav.replace('ShopDetail', { shopId: tenant._id, name: tenant.name });
-            else goTab(nav, 'ShopsTab', { screen: 'ShopDetail', params: { shopId: tenant._id, name: tenant.name } });
+            if (nav.getState().routeNames.includes('ShopSetup')) nav.replace('ShopSetup', { shopId: tenant._id, name: tenant.name, fresh: true });
+            else goTab(nav, 'ShopsTab', { screen: 'ShopSetup', params: { shopId: tenant._id, name: tenant.name, fresh: true } });
         } catch (e) {
             const m = errMsg(e);
             if (/slug/i.test(m) || /duplicate|exists/i.test(m)) { setErr({ slug: m }); setStep(0); } else toast(m, 'error');

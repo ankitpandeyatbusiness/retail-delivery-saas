@@ -1,5 +1,7 @@
 import React from 'react';
 import { View, Text } from 'react-native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { SETUP_STEPS, goSetupStep } from '../utils/setupFlow';
 import { useTheme, spacing, radius, font, tint } from '../theme';
 import { Screen } from './layout';
 import { Card, Button, Badge, SectionTitle } from './ui';
@@ -27,8 +29,24 @@ export function AppPreview({ config, scale = 0.7, collapsible, screens = true })
  */
 export function SettingsPage({ ed, title, subtitle, children, preview = false, saveBlocked = '' }) {
     const t = useTheme();
+    const nav = useNavigation();
+    const params = useRoute().params || {};
+    const setup = params.setup;   // { i }: this screen is step i of the guided setup of a new shop
+    const next = () => goSetupStep(nav, params.shopId, params.name, setup.i + 1);
     const phone = preview && ed.ready ? previewFrom(ed.preview || ed.rec?.resolved, ed.draft) : null;
-    const footer = (
+    const footer = setup ? (
+        <View style={{ flexDirection: 'row' }}>
+            <Button title="Skip" kind="outline" onPress={next} style={{ flex: 1, marginRight: spacing.sm }} />
+            <Button
+                title={ed.dirty ? 'Save and next' : 'Next'}
+                icon="next"
+                loading={ed.saving}
+                disabled={!!saveBlocked}
+                onPress={async () => { if (ed.dirty) { const ok = await ed.save({ stay: true }); if (!ok) return; } next(); }}
+                style={{ flex: 2 }}
+            />
+        </View>
+    ) : (
         <Button
             title={saveBlocked || (ed.dirty ? 'Save changes' : 'No changes yet')}
             icon={ed.dirty && !saveBlocked ? 'check' : undefined}
@@ -40,7 +58,7 @@ export function SettingsPage({ ed, title, subtitle, children, preview = false, s
     return (
         <Screen
             title={title}
-            subtitle={subtitle}
+            subtitle={setup ? `Step ${setup.i + 1} of ${SETUP_STEPS.length} · ${subtitle || ''}` : subtitle}
             footer={ed.ready ? footer : null}
             pinned={phone ? (
                 <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.sm, backgroundColor: t.surface, borderBottomWidth: 1, borderBottomColor: t.border }}>
