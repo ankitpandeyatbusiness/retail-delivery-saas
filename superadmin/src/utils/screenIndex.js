@@ -17,7 +17,6 @@ export const SCREEN_INDEX = [
     E('Business details', 'Money', 'PlatformBusiness', 'MoneyTab', 'bank', 'platform', 'business details gst gstin legal name address sac code invoice header logo payment instructions upi bank'),
     E('My Razorpay', 'Money', 'MyRazorpay', 'MoneyTab', 'bank', 'money', 'razorpay my account keys webhook secret platform payments top up rent receive'),
     /* ---- find and watch ---- */
-    E('Search everything', 'More', 'Search', 'root', 'search', 'shops', 'search find lookup'),
     E('Shop health', 'More', 'Health', 'root', 'shield', 'riders', 'health score cancellations late orders stuck rating complaints success rate attention'),
     E('System and backups', 'More', 'System', 'root', 'bolt', 'settings', 'system backups database sms provider jobs nightly status test mode back up now restore'),
     E('Export data', 'More', 'Exports', 'root', 'copy', 'money', 'export csv spreadsheet orders invoices customers download excel'),

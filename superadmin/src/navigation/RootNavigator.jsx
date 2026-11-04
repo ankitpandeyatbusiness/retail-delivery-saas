@@ -42,7 +42,6 @@ import MoneyHomeScreen from '../screens/money/MoneyHomeScreen';
 import MyRazorpayScreen from '../screens/money/MyRazorpayScreen';
 import GstScreen from '../screens/money/GstScreen';
 import MoneyRulesScreen from '../screens/money/MoneyRulesScreen';
-import SearchScreen from '../screens/insights/SearchScreen';
 import PlatformHealthScreen from '../screens/insights/PlatformHealthScreen';
 import HealthScreen from '../screens/insights/HealthScreen';
 import ReadinessScreen from '../screens/insights/ReadinessScreen';
@@ -214,7 +213,7 @@ const DETAIL = [
     ['AuditLog', AuditLogScreen],
     ['MyAccount', MyAccountScreen],
 ];
-const ROOT_OWN = new Set(["Admin","Inbox","Support","SupportDetail","SupportSettings","OwnerMessages","Search","Health","ShopReadiness","System","Exports","ProfitLoss","Receivables","Expenses","ExpenseForm","Login"]);
+const ROOT_OWN = new Set(["Admin","Inbox","Support","SupportDetail","SupportSettings","OwnerMessages","Health","ShopReadiness","System","Exports","ProfitLoss","Receivables","Expenses","ExpenseForm","Login"]);
 const detailScreens = (S) => DETAIL.map(([name, component]) => <S.Screen key={name} name={name} component={component} />);
 
 function HomeStack() {
@@ -357,7 +356,6 @@ export default function RootNavigator() {
                     <Root.Screen name="SupportDetail" component={SupportDetailScreen} />
                     <Root.Screen name="SupportSettings" component={SupportSettingsScreen} />
                     <Root.Screen name="OwnerMessages" component={OwnerMessagesScreen} />
-                    <Root.Screen name="Search" component={SearchScreen} />
                     <Root.Screen name="Health" component={HealthScreen} />
                     <Root.Screen name="ShopReadiness" component={ReadinessScreen} />
                     <Root.Screen name="System" component={SystemScreen} />
