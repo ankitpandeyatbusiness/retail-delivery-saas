@@ -89,7 +89,7 @@ export function MorePictures({ value = [], onChange, onMain, shopId, refId, disa
                 {value.map((u, i) => (
                     <View key={u} style={{ marginRight: spacing.md, marginBottom: spacing.md }}>
                         <Image source={{ uri: u }} style={{ width: 84, height: 84, borderRadius: radius.md, backgroundColor: t.surfaceAlt }} />
-                        <Pressable onPress={() => onChange(value.filter((x) => x !== u))} hitSlop={8} style={{ position: 'absolute', top: -6, right: -6, width: 22, height: 22, borderRadius: 11, backgroundColor: t.danger, alignItems: 'center', justifyContent: 'center' }}>
+                        <Pressable onPress={() => onChange(value.filter((x) => x !== u))} hitSlop={8} style={{ position: 'absolute', top: -6, right: -6, width: 22, height: 22, borderRadius: 11, backgroundColor: '#D92D48', alignItems: 'center', justifyContent: 'center' }}>
                             <Ionicons name="close" size={14} color="#FFFFFF" />
                         </Pressable>
                         {onMain ? <View style={{ position: 'absolute', top: 4, left: 4 }}>{chip('star', () => onMain(u), false, 's')}</View> : null}

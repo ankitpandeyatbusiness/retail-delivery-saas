@@ -50,7 +50,7 @@ export function OrderRow({ order, onPress, showShop = true }) {
     return (
         <Pressable
             onPress={onPress}
-            style={({ pressed }) => [st.row, { backgroundColor: t.surface, opacity: pressed ? 0.9 : 1 }, t.shadow]}
+            style={({ pressed }) => [st.row, { backgroundColor: t.surface, opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.985 : 1 }] }, t.shadow]}
         >
             <View style={[st.edge, { backgroundColor: edge }]} />
             <View style={{ flex: 1, padding: spacing.md, paddingLeft: spacing.lg }}>

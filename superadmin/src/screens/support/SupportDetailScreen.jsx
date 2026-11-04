@@ -119,7 +119,7 @@ export default function SupportDetailScreen() {
                     {photos.map((u) => (
                         <Pressable key={u} onPress={() => setPhotos((p) => p.filter((y) => y !== u))} style={{ marginRight: 6 }}>
                             <Image source={{ uri: u }} style={{ width: 50, height: 50, borderRadius: 10 }} />
-                            <View style={{ position: 'absolute', top: -4, right: -4, width: 18, height: 18, borderRadius: 9, backgroundColor: t.danger, alignItems: 'center', justifyContent: 'center' }}><Icon name="clear" size={11} color="#FFFFFF" /></View>
+                            <View style={{ position: 'absolute', top: -4, right: -4, width: 18, height: 18, borderRadius: 9, backgroundColor: '#D92D48', alignItems: 'center', justifyContent: 'center' }}><Icon name="clear" size={11} color="#FFFFFF" /></View>
                         </Pressable>
                     ))}
                 </View>

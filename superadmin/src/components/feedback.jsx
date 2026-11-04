@@ -127,7 +127,7 @@ export function Sheet({ visible, onClose, title, children, dismissible = true })
  * onConfirm(reason) returns a promise: the button shows a spinner until it finishes, and the sheet
  * stays open if it throws (the caller shows the error).
  */
-export function ConfirmSheet({ visible, onClose, title, message, confirmLabel = 'Confirm', danger, needReason, reasonLabel = 'Reason', onConfirm }) {
+export function ConfirmSheet({ visible, onClose, icon, title, message, confirmLabel = 'Confirm', danger, needReason, reasonLabel = 'Reason', onConfirm }) {
     const t = useTheme();
     const [reason, setReason] = useState('');
     const [busy, setBusy] = useState(false);
@@ -138,8 +138,16 @@ export function ConfirmSheet({ visible, onClose, title, message, confirmLabel = 
         try { await onConfirm(reason.trim()); onClose(); } catch (e) { /* the caller shows the error */ } finally { setBusy(false); }
     };
     return (
-        <Sheet visible={visible} onClose={busy ? () => { } : onClose} title={title} dismissible={!busy}>
-            {message ? <Text style={{ color: t.muted, fontSize: font.md, marginBottom: spacing.lg }}>{message}</Text> : null}
+        <Sheet visible={visible} onClose={busy ? () => { } : onClose} title={icon ? undefined : title} dismissible={!busy}>
+            {icon ? (
+                <View style={{ alignItems: 'center', marginBottom: spacing.lg }}>
+                    <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: danger ? t.dangerSoft : t.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
+                        <Icon name={icon} size={30} color={danger ? t.danger : t.primary} />
+                    </View>
+                    <Text style={{ color: t.text, fontSize: font.lg, fontWeight: '800', marginTop: spacing.md, textAlign: 'center' }}>{title}</Text>
+                </View>
+            ) : null}
+            {message ? <Text style={{ color: t.muted, fontSize: font.md, marginBottom: spacing.lg, textAlign: icon ? 'center' : 'left' }}>{message}</Text> : null}
             {needReason ? <Field label={reasonLabel} value={reason} onChangeText={setReason} maxLength={200} /> : null}
             <Button title={confirmLabel} kind={danger ? 'danger' : 'primary'} onPress={go} loading={busy} disabled={needReason && !reason.trim()} />
             <Button title="Cancel" kind="outline" onPress={onClose} disabled={busy} style={{ marginTop: spacing.sm }} />
@@ -194,7 +202,7 @@ export function ToastHost() {
     if (!msg) return null;
     const bad = msg.tone === 'error';
     return (
-        <Animated.View {...pan.panHandlers} style={[s.toast, { opacity: Animated.multiply(opacity, drag.interpolate({ inputRange: [0, 300], outputRange: [1, 0], extrapolate: 'clamp' })), transform: [{ translateX: drag }], bottom: insets.bottom + 90, backgroundColor: bad ? t.danger : t.text }]}>
+        <Animated.View {...pan.panHandlers} style={[s.toast, { opacity: Animated.multiply(opacity, drag.interpolate({ inputRange: [0, 300], outputRange: [1, 0], extrapolate: 'clamp' })), transform: [{ translateX: drag }], bottom: insets.bottom + 90, backgroundColor: bad ? '#D92D48' : t.text }]}>
             <Text style={{ color: bad ? '#FFFFFF' : t.bg, fontWeight: '600' }}>{msg.message}</Text>
         </Animated.View>
     );

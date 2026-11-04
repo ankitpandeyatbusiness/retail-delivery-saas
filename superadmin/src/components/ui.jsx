@@ -13,7 +13,7 @@ export function Card({ children, style, onPress, padded = true }) {
     const base = [s.card, { backgroundColor: t.surface }, t.shadow, padded && { padding: spacing.lg }, style];
     if (!onPress) return <View style={base}>{children}</View>;
     return (
-        <Pressable onPress={onPress} style={({ pressed }) => [...base, pressed && { opacity: 0.88, transform: [{ scale: 0.99 }] }]}>
+        <Pressable onPress={onPress} style={({ pressed }) => [...base, pressed && { opacity: 0.88, transform: [{ scale: 0.985 }] }]}>
             {children}
         </Pressable>
     );
@@ -45,7 +45,7 @@ export function Button({ title, onPress, kind = 'primary', loading, disabled, ic
 
     if (kind === 'primary') {
         return (
-            <Pressable onPress={off ? undefined : onPress} style={({ pressed }) => [{ opacity: off ? 0.5 : pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.985 : 1 }] }, style]}>
+            <Pressable onPress={off ? undefined : onPress} style={({ pressed }) => [{ opacity: off ? 0.5 : pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] }, style]}>
                 {/* no shadow while faded: Android draws the elevation as a hard rectangle behind a translucent button */}
                 <View style={[{ borderRadius: radius.md, overflow: 'hidden', backgroundColor: t.gradient[0] }, !off && t.shadow]}>
                     <LinearGradient colors={t.gradient} {...GRAD} style={[s.btn, { height }]}>{content('#FFFFFF')}</LinearGradient>
@@ -56,14 +56,14 @@ export function Button({ title, onPress, kind = 'primary', loading, disabled, ic
     const map = {
         soft: { bg: t.primarySoft, fg: t.primary, border: 'transparent' },
         outline: { bg: 'transparent', fg: t.text, border: t.border },
-        danger: { bg: t.danger, fg: '#FFFFFF', border: t.danger },
+        danger: { bg: '#D92D48', fg: '#FFFFFF', border: '#D92D48' },   // a solid red in both themes (the dark-theme danger colour is a light pink, which made white text look faded)
         dangerSoft: { bg: t.dangerSoft, fg: t.danger, border: 'transparent' },
     }[kind] || { bg: 'transparent', fg: t.text, border: t.border };   // an unknown kind looks like outline instead of crashing the screen
     return (
         <Pressable
             onPress={off ? undefined : onPress}
             android_ripple={{ color: tint(map.fg, 0.16) }}
-            style={({ pressed }) => [s.btn, { height, backgroundColor: map.bg, borderColor: map.border, borderWidth: 1, overflow: 'hidden', opacity: off ? 0.5 : pressed ? 0.88 : 1, transform: [{ scale: pressed ? 0.985 : 1 }] }, style]}
+            style={({ pressed }) => [s.btn, { height, backgroundColor: map.bg, borderColor: map.border, borderWidth: 1, overflow: 'hidden', opacity: off ? 0.5 : pressed ? 0.88 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] }, style]}
         >
             {content(map.fg)}
         </Pressable>
@@ -119,7 +119,7 @@ export function Stat({ label, value, tone, icon, section, onPress }) {
                 </LinearGradient>
             </View>
         );
-        return onPress ? <Pressable onPress={onPress} style={{ flex: 1 }}>{body}</Pressable> : <View style={{ flex: 1 }}>{body}</View>;
+        return onPress ? <Pressable onPress={onPress} style={({ pressed }) => ({ flex: 1, transform: [{ scale: pressed ? 0.97 : 1 }] })}>{body}</Pressable> : <View style={{ flex: 1 }}>{body}</View>;
     }
     const color = { success: t.success, warn: t.warn, danger: t.danger, info: t.info }[tone] || t.text;
     return (
@@ -152,7 +152,7 @@ export function ListRow({ icon, title, subtitle, right, onPress, last, danger, s
     return (
         <Pressable
             onPress={onPress}
-            style={({ pressed }) => [s.listRow, pressed && onPress && { opacity: 0.6 }, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: t.border }]}
+            style={({ pressed }) => [s.listRow, pressed && onPress && { opacity: 0.85, transform: [{ scale: 0.985 }] }, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: t.border }]}
         >
             {icon ? <View style={{ marginRight: spacing.md }}><IconTile icon={icon} section={section} danger={danger} size={42} /></View> : null}
             <View style={{ flex: 1 }}>

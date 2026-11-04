@@ -4,7 +4,7 @@ import { ActivityIndicator } from '../../components/Loading';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useTheme, spacing, font, radius } from '../../theme';
 import { Screen, HeaderButton } from '../../components/layout';
-import { Chip, Badge } from '../../components/ui';
+import { Chip, Badge, IconTile } from '../../components/ui';
 import { SkeletonList } from '../../components/blocks';
 import { Empty, ErrorBox, ConfirmSheet, toast } from '../../components/feedback';
 import Icon from '../../components/Icon';
@@ -14,6 +14,17 @@ import { fetchInbox, readAllInbox, readInbox, clearInbox, deleteInboxItem } from
 import { errMsg } from '../../api/adminClient';
 import { ago, titleCase } from '../../utils/format';
 import { toAdmin } from '../../navigation/goTo';
+
+// where an alert leads, by what it is about. The shop's own page is the fallback for anything that names a shop.
+const SHOP_PAGE = {
+    admin_refund_failed: 'ShopPayments', admin_webhook_failed: 'ShopPayments',
+    admin_sms_low: 'ShopSms', admin_sms_zero: 'ShopSms', admin_sms_topup_done: 'ShopSms',
+    admin_bill_issued: 'ShopBilling', admin_bill_paid: 'ShopBilling', admin_grace_ending: 'ShopBilling', admin_free_ending: 'ShopBilling', admin_free_ended: 'ShopBilling',
+};
+const PLATFORM_PAGE = {   // alerts about no particular shop
+    admin_webhook_failed: 'MyRazorpay', admin_refund_failed: 'MyRazorpay', admin_sms_provider_failing: 'SmsProvider', admin_sms_low: 'PlatformSms', admin_sms_zero: 'PlatformSms',
+    admin_wallet_mismatch: 'System', admin_platform_red: 'PlatformHealth',
+};
 
 // what an alert is about -> an icon and a colour family
 const KIND = [
@@ -34,6 +45,8 @@ export default function InboxScreen() {
     const [busy, setBusy] = useState(false);
     const [confirmClear, setConfirmClear] = useState(false);
     const first = useRef(true);
+    const listRef = useRef(null);
+    const offset = useRef(0);   // how far the list is scrolled, so coming back from a card keeps your place
     const autoRead = useRef(false);
     const setUnread = useInboxStore((s) => s.setUnread);
 
@@ -52,7 +65,8 @@ export default function InboxScreen() {
 
     useFocusEffect(useCallback(() => {
         if (first.current) { first.current = false; return; }
-        list.silentReload();
+        // a quiet refresh puts the list back to its first page: only do it when you are at the top, so the place you scrolled to is not lost
+        if (offset.current < 80) list.silentReload();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []));
 
@@ -81,7 +95,15 @@ export default function InboxScreen() {
         else if (d.ticketId) nav.navigate('SupportDetail', { id: String(d.ticketId) });
         else if (d.orderId) toAdmin(nav, { screen: 'OrdersTab', params: { screen: 'OrderDetail', params: { orderId: String(d.orderId), orderNo: d.orderNo } } });
         else if (d.invoiceId) toAdmin(nav, { screen: 'MoneyTab', params: { screen: 'InvoiceDetail', params: { invoiceId: String(d.invoiceId) } } });
-        else if (n.shop?.id) toAdmin(nav, { screen: 'ShopsTab', params: { screen: 'ShopDetail', params: { shopId: String(n.shop.id), name: n.shop.name } } });
+        else {
+            const shopId = n.shop?.id || d.tenantId || n.tenantId;
+            const shopName = n.shop?.name || d.shopName;
+            const page = SHOP_PAGE[n.type];
+            if (shopId && page) toAdmin(nav, { screen: 'MoneyTab', params: { screen: page, params: { shopId: String(shopId), name: shopName } } });
+            else if (shopId) toAdmin(nav, { screen: 'ShopsTab', params: { screen: 'ShopDetail', params: { shopId: String(shopId), name: shopName } } });
+            else if (PLATFORM_PAGE[n.type]) toAdmin(nav, { screen: 'MoneyTab', params: { screen: PLATFORM_PAGE[n.type] } });
+            else toast('Nothing more to open for this alert');
+        }
     };
 
     return (
@@ -94,6 +116,9 @@ export default function InboxScreen() {
             </View>
             {list.state === 'loading' ? <SkeletonList /> : list.state === 'error' ? <ErrorBox message={list.error} onRetry={list.reload} /> : (
                 <FlatList
+                    ref={listRef}
+                    onScroll={(e) => { offset.current = e.nativeEvent.contentOffset.y; }}
+                    scrollEventThrottle={32}
                     data={list.items}
                     keyExtractor={(n) => String(n.id)}
                     contentContainerStyle={{ padding: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xxl * 2, flexGrow: 1 }}
@@ -107,25 +132,30 @@ export default function InboxScreen() {
                         const [, icon, section] = kindOf(n.type, n.title);
                         const c = t.sections[section]?.color || t.primary;
                         return (
-                            <Pressable
-                                onPress={() => open(n)}
-                                style={({ pressed }) => [{ flexDirection: 'row', padding: spacing.md, marginBottom: spacing.sm, borderRadius: radius.lg, backgroundColor: n.read ? t.surface : t.primarySoft, opacity: pressed ? 0.9 : 1 }, !n.read && { borderLeftWidth: 4, borderLeftColor: c }]}
-                            >
-                                <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: `${c}22`, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md }}>
-                                    <Icon name={icon} size={22} color={c} />
-                                </View>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={{ color: t.text, fontWeight: n.read ? '600' : '800', fontSize: font.md }}>{n.title}</Text>
-                                    {n.body ? <Text style={{ color: t.muted, fontSize: font.sm, marginTop: 2 }} numberOfLines={3}>{n.body}</Text> : null}
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: 6, flexWrap: 'wrap' }}>
-                                        {n.shop?.name ? <Badge label={n.shop.name} tone="primary" icon="shops" /> : null}
-                                        <Text style={{ color: t.muted, fontSize: font.xs }}>{ago(n.createdAt)}</Text>
+                            <View style={{ marginBottom: spacing.md }}>
+                                <Pressable
+                                    onPress={() => open(n)}
+                                    accessibilityRole="button"
+                                    style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'flex-start', padding: spacing.md, paddingRight: 52, borderRadius: radius.lg, backgroundColor: t.surface, borderWidth: 1, borderColor: n.read ? t.border : c, opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.985 : 1 }] }, t.shadow]}
+                                >
+                                    <View style={{ marginRight: spacing.md }}>
+                                        <IconTile icon={icon} section={section} size={44} />
+                                        {!n.read ? <View style={{ position: 'absolute', top: -3, right: -3, width: 12, height: 12, borderRadius: 6, backgroundColor: c, borderWidth: 2, borderColor: t.surface }} /> : null}
                                     </View>
-                                </View>
-                                <Pressable onPress={() => removeOne(n)} hitSlop={10} style={{ paddingLeft: spacing.sm, justifyContent: 'flex-start' }}>
-                                    <Icon name="clear" size={20} color={t.muted} />
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={{ color: t.text, fontWeight: n.read ? '700' : '800', fontSize: font.md }}>{n.title}</Text>
+                                        {n.body ? <Text style={{ color: t.muted, fontSize: font.sm, marginTop: 3, lineHeight: 19 }} numberOfLines={3}>{n.body}</Text> : null}
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm, flexWrap: 'wrap' }}>
+                                            {n.shop?.name ? <Badge label={n.shop.name} tone="primary" icon="shops" /> : null}
+                                            <Text style={{ color: t.muted, fontSize: font.xs, fontWeight: '600' }}>{ago(n.createdAt)}</Text>
+                                        </View>
+                                    </View>
                                 </Pressable>
-                            </Pressable>
+                                {/* the remove button sits beside the card (not inside it) in its own small round spot, so a tap on the card never reaches it */}
+                                <Pressable onPress={() => removeOne(n)} accessibilityRole="button" accessibilityLabel="Remove this alert" style={({ pressed }) => ({ position: 'absolute', top: 8, right: 8, width: 32, height: 32, borderRadius: 16, backgroundColor: t.surfaceAlt, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.6 : 1 })}>
+                                    <Icon name="clear" size={16} color={t.muted} />
+                                </Pressable>
+                            </View>
                         );
                     }}
                 />
@@ -133,8 +163,9 @@ export default function InboxScreen() {
             <ConfirmSheet
                 visible={confirmClear}
                 onClose={() => setConfirmClear(false)}
+                icon="trash"
                 title="Clear all alerts?"
-                message="Every alert in this list is deleted for good."
+                message="Every alert in this list is deleted for good. This cannot be undone."
                 confirmLabel="Clear all"
                 danger
                 onConfirm={clearAll}

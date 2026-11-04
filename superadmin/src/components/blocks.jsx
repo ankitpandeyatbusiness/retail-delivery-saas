@@ -78,7 +78,7 @@ export function QuickActions({ items }) {
             {items.map((it) => {
                 const g = sec(t, it.section || 'shops').gradient;
                 return (
-                    <Pressable key={it.label} onPress={it.onPress} style={({ pressed }) => ({ flex: 1, alignItems: 'center', opacity: pressed ? 0.8 : 1 })}>
+                    <Pressable key={it.label} onPress={it.onPress} style={({ pressed }) => ({ flex: 1, alignItems: 'center', opacity: pressed ? 0.85 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] })}>
                         <View>
                             <View style={[s.qa, { backgroundColor: g[0], overflow: 'hidden' }, t.shadow]}>
                                 <LinearGradient colors={g} {...GRAD} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -111,7 +111,7 @@ export function StatStrip({ items }) {
                     </View>
                 );
                 return it.onPress
-                    ? <Pressable key={it.label} onPress={it.onPress} style={{ flex: 1 }}>{body}</Pressable>
+                    ? <Pressable key={it.label} onPress={it.onPress} style={({ pressed }) => ({ flex: 1, transform: [{ scale: pressed ? 0.97 : 1 }] })}>{body}</Pressable>
                     : <View key={it.label} style={{ flex: 1 }}>{body}</View>;
             })}
         </Card>
@@ -146,7 +146,7 @@ export function RankRow({ rank, title, subtitle, value, last, onPress }) {
     const t = useTheme();
     const medal = ['#F5B301', '#9AA3B2', '#C98A4B'][rank - 1] || t.muted;
     return (
-        <Pressable onPress={onPress} style={[s.rank, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: t.border }]}>
+        <Pressable onPress={onPress} style={({ pressed }) => [s.rank, pressed && { transform: [{ scale: 0.985 }] }, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: t.border }]}>
             <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: tint(medal, 0.2), alignItems: 'center', justifyContent: 'center' }}>
                 <Text style={{ color: medal, fontWeight: '800' }}>{rank}</Text>
             </View>

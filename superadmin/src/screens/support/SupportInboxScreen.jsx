@@ -75,7 +75,7 @@ export default function SupportInboxScreen() {
                         return (
                             <Pressable
                                 onPress={() => nav.navigate('SupportDetail', { id: String(x.id) })}
-                                style={({ pressed }) => [{ padding: spacing.md, marginBottom: spacing.sm, borderRadius: radius.lg, backgroundColor: x.platformUnread ? t.primarySoft : t.surface, opacity: pressed ? 0.9 : 1 }, x.platformUnread && { borderLeftWidth: 4, borderLeftColor: t.primary }]}
+                                style={({ pressed }) => [{ padding: spacing.md, marginBottom: spacing.sm, borderRadius: radius.lg, backgroundColor: x.platformUnread ? t.primarySoft : t.surface, opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.985 : 1 }] }, x.platformUnread && { borderLeftWidth: 4, borderLeftColor: t.primary }]}
                             >
                                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                     <Text style={{ flex: 1, color: t.text, fontWeight: x.platformUnread ? '800' : '700', fontSize: font.md }} numberOfLines={1}>{x.shop}</Text>

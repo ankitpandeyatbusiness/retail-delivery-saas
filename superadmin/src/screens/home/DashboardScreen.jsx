@@ -129,7 +129,7 @@ export default function DashboardScreen() {
                     {/* the platform light */}
                     <FadeIn index={0}>
                         {health ? (
-                            <Pressable onPress={goHealth} accessibilityRole="button" style={{ backgroundColor: o.soft, borderRadius: 16, padding: spacing.lg, borderWidth: 2, borderColor: o.color }}>
+                            <Pressable onPress={goHealth} accessibilityRole="button" style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.985 : 1 }], backgroundColor: o.soft, borderRadius: 16, padding: spacing.lg, borderWidth: 2, borderColor: o.color })}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                                     <Dot level={health.overall.level} size={18} />
                                     <Text style={{ color: o.color, fontWeight: '900', fontSize: font.xl, flex: 1 }}>{health.overall.text}</Text>
