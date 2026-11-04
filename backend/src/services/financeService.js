@@ -120,6 +120,8 @@ async function receivables({ now = new Date() } = {}) {
         const lm = new Map(last.map((r) => [String(r._id), r.at]));
         for (const s of all) s.remindedAt = lm.get(s.tenantId) || null;
     }
+    const promises = await require('./collectionNotes').openFor(owingIds);
+    for (const s of all) s.promise = promises.get(s.tenantId) || null;
     const owing = all.filter((s) => s.unpaidPaise > 0).sort((a, b) => b.overduePaise - a.overduePaise || b.unpaidPaise - a.unpaidPaise);
     return {
         totals: {

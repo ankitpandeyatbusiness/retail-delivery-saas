@@ -40,7 +40,9 @@ async function resolve({ tenantId, purpose, templateKey }) {
             templateId: ids[templateKey] || ids[purpose] || cfg.templateId || null,
         };
     }
-    const envKey = templateKey ? process.env[`SMS_TEMPLATE_${String(templateKey).toUpperCase().replace(/[^A-Z0-9]/g, '_')}`] : undefined;
+    // the template id of THIS message, from SMS_TEMPLATE_<KEY> or DLT_TEMPLATE_<KEY> (the docs use the second name), e.g. SMS_TEMPLATE_ORDER_NEW
+    const tk = templateKey ? String(templateKey).toUpperCase().replace(/[^A-Z0-9]/g, '_') : '';
+    const envKey = tk ? (process.env[`SMS_TEMPLATE_${tk}`] || process.env[`DLT_TEMPLATE_${tk}`]) : undefined;
     return {
         own: false,
         senderId: process.env.SMS_SENDER_ID,

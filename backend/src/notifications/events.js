@@ -176,6 +176,9 @@ const EVENTS = {
     admin_bill_paid: { to: 'superadmin', channels: ALL },
     admin_order_stuck: { to: 'superadmin', channels: INAPP_PUSH },   // an order stayed stuck long after the owner was told (services/stuckOrders.js escalate)
     admin_daily_summary: { to: 'superadmin', channels: INAPP_PUSH },   // the morning push: yesterday's orders and sales, what needs attention (services/dailyDigest.js)
+    admin_promise_due: { to: 'superadmin', channels: INAPP_PUSH },   // a shop promised to pay today (services/collectionNotes.js, sent with the morning summary)
+    admin_sms_provider_low: { to: 'superadmin', channels: INAPP_PUSH },   // the balance at the SMS provider is under your low line (services/smsProviderBalance.js)
+    admin_sms_provider_empty: { to: 'superadmin', channels: ALL, critical: true },   // almost empty: only login OTPs still go
     admin_shop_paused: { to: 'superadmin', channels: ALL, critical: true },
     admin_shop_unpaused: { to: 'superadmin', channels: ALL },
     admin_grace_ending: { to: 'superadmin', channels: ALL },

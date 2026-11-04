@@ -48,11 +48,20 @@ async function deliver({ to, text, senderId, templateId, authKey }) {
 async function send({ to, text, purpose, tenant, templateKey }) {
     if (process.env.SMS_MOCK === 'true') return mockProvider.send({ to, text, purpose, tenant });
     const route = await smsConfig.resolve({ tenantId: tenant && tenant._id, purpose, templateKey });
+    if (!route.own && await require('../smsProviderBalance').pauseFor(purpose)) throw new Error('SMS paused: the provider balance is almost empty, kept for login OTPs');
     return deliver({ to, text, ...route });
 }
 
-// The text must match your DLT-approved OTP template when the real provider is connected.
+// The login OTP names the SHOP, so every shop's customers see their own shop (the shop name is the first {#var#}, the code the second).
+// Register exactly this on DLT:  Your OTP for {#var#} is {#var#}. Valid for 5 minutes. Do not share it.
+// If the operator approves other wording, change OTP_TEXT (and only it) to match.
+const OTP_TEXT = 'Your OTP for {name} is {otp}. Valid for 5 minutes. Do not share it.';
+const shopLabel = (tenant) => {
+    const n = String((tenant && tenant.name) || process.env.SMS_BRAND_NAME || 'your account').replace(/[^\p{L}\p{N} &.,'-]/gu, '').replace(/\s+/g, ' ').trim().slice(0, 30);   // a variable is at most 30 characters
+    return n || 'your account';
+};
+const otpText = ({ otp, tenant }) => OTP_TEXT.replace('{name}', () => shopLabel(tenant)).replace('{otp}', () => String(otp));
 const sendOtp = ({ phone, otp, tenant }) =>
-    send({ to: phone, purpose: 'otp', text: `OTP ${otp}`, tenant, templateKey: 'otp' });
+    send({ to: phone, purpose: 'otp', text: otpText({ otp, tenant }), tenant, templateKey: 'otp' });
 
-module.exports = { send, sendOtp };
+module.exports = { send, sendOtp, otpText, OTP_TEXT };

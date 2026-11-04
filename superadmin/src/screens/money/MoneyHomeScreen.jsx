@@ -6,14 +6,14 @@ import { Screen } from '../../components/layout';
 import { Card, Stat, SectionTitle, ListRow, Badge } from '../../components/ui';
 import { SkeletonDashboard } from '../../components/blocks';
 import { ErrorBox } from '../../components/feedback';
-import { platformLedger, listInvoices, fetchPlatform } from '../../api/moneyApi';
+import { fetchPlatform } from '../../api/moneyApi';
+import { fetchMonth, fetchNext30, fetchMoneyAttention } from '../../api/insightsApi';
 import { errMsg } from '../../api/adminClient';
-import { rupeesFromPaise, rupees } from '../../utils/format';
+import { rupeesFromPaise } from '../../utils/format';
 
-const IST = 330 * 60000;
-const ymd = (d) => new Date(d.getTime() + IST).toISOString().slice(0, 10);
+const vs = (pct) => (pct === null || pct === undefined ? '' : pct === 0 ? 'Same as last month' : `${pct > 0 ? 'Up' : 'Down'} ${Math.abs(pct)}% on last month`);
 
-// The Money tab: what came in, what is waiting, and the doors to invoices, transactions, SMS and rules.
+// The Money tab: how this month is going, what needs a look today, and the doors to collecting, profit, closing the month and the rules.
 export default function MoneyHomeScreen() {
     const nav = useNavigation();
     const [d, setD] = useState(null);
@@ -22,42 +22,26 @@ export default function MoneyHomeScreen() {
 
     const load = useCallback(async () => {
         try {
-            const to = new Date();
-            const from = new Date(to.getTime() - 29 * 86400000);
-            const [led, overdue, pending, plat] = await Promise.all([
-                platformLedger({ from: ymd(from), to: ymd(to), limit: 1 }),
-                listInvoices({ status: 'overdue', limit: 50 }),
-                listInvoices({ status: 'pending', limit: 50 }),
-                fetchPlatform(),
-            ]);
-            setD({
-                received: led.totals?.inPaise || 0,
-                pendingPaise: led.totals?.pending?.paise || 0,
-                overdue: overdue.items, overdueMore: overdue.hasMore,
-                waiting: pending.items.reduce((s, i) => s + (i.total || 0), 0),
-                waitingCount: pending.items.length, waitingMore: pending.hasMore,
-                businessSet: !!plat.business?.legalName,
-                gstSet: !!plat.business?.gstin,
-            });
+            const [month, next, att, plat] = await Promise.all([fetchMonth(), fetchNext30(), fetchMoneyAttention(), fetchPlatform()]);
+            setD({ month, next, att, businessSet: !!plat.business?.legalName, gstSet: !!plat.business?.gstin });
             setError('');
         } catch (e) { setError(errMsg(e)); }
     }, []);
     useFocusEffect(useCallback(() => { load(); }, [load]));
     const refresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
-
     const go = (screen, params) => () => nav.navigate(screen, params);
 
     return (
-        <Screen tabScreen title="Money" subtitle="Rent, transactions and SMS" refreshing={refreshing} onRefresh={refresh}>
+        <Screen tabScreen title="Money" subtitle="Rent, profit and what to look at" refreshing={refreshing} onRefresh={refresh}>
             {error && !d ? <ErrorBox message={error} onRetry={load} /> : !d ? <SkeletonDashboard /> : (
                 <>
                     <View style={{ flexDirection: 'row', gap: spacing.md }}>
-                        <Stat section="money" label="Received (30 days)" value={rupeesFromPaise(d.received)} icon="wallet" onPress={go('Ledger')} />
-                        <Stat section={d.overdue.length ? 'alerts' : 'riders'} label="Overdue bills" value={`${d.overdue.length}${d.overdueMore ? '+' : ''}`} icon="warning" onPress={go('Invoices', { status: 'overdue' })} />
+                        <Stat section="money" label="Collected this month" value={rupeesFromPaise(d.month.current.collectedPaise)} icon="wallet" note={vs(d.month.change.collected)} onPress={go('MonthClose')} />
+                        <Stat section={d.month.owed.overduePaise ? 'alerts' : 'riders'} label="Overdue" value={rupeesFromPaise(d.month.owed.overduePaise)} icon="warning" note={d.month.owed.overdueShops ? `${d.month.owed.overdueShops} shop${d.month.owed.overdueShops === 1 ? '' : 's'}` : 'Nobody is late'} onPress={go('Receivables')} />
                     </View>
                     <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md }}>
-                        <Stat label="Waiting to be paid" value={rupees(d.waiting)} icon="clock" tone={d.waiting ? 'warn' : undefined} onPress={go('Invoices', { status: 'pending' })} />
-                        <Stat label="Pending transactions" value={rupeesFromPaise(d.pendingPaise)} icon="receipt" onPress={go('Ledger')} />
+                        <Stat label="Expected next 30 days" value={rupeesFromPaise(d.next.dueSoon.paise + d.next.nextBillsEstimatePaise)} icon="clock" note="Estimate" onPress={go('MonthClose')} />
+                        <Stat label={d.month.current.netPaise < 0 ? 'Loss this month' : 'Net this month'} value={rupeesFromPaise(d.month.current.netPaise)} icon="chart" tone={d.month.current.netPaise < 0 ? 'danger' : 'success'} note={vs(d.month.change.net)} onPress={go('ProfitLoss')} />
                     </View>
 
                     {!d.businessSet ? (
@@ -67,32 +51,47 @@ export default function MoneyHomeScreen() {
                         </Card>
                     ) : null}
 
-                    <SectionTitle section="alerts">Am I in profit?</SectionTitle>
+                    <SectionTitle section="alerts">Needs attention{d.att.counts.total ? ` · ${d.att.counts.total}` : ''}</SectionTitle>
                     <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
-                        <ListRow section="money" icon="chart" title="Profit and loss" subtitle="Income, costs and exactly why" onPress={go('ProfitLoss')} />
-                        <ListRow section="alerts" icon="warning" title="Who owes you money" subtitle="Unpaid rent, late payers, never paid" onPress={go('Receivables')} />
-                        <ListRow section="catalog" icon="wallet" title="Your expenses" subtitle="Hosting, SMS provider, staff..." onPress={go('Expenses')} last />
+                        {d.att.items.length ? d.att.items.map((it, i) => (
+                            <ListRow
+                                key={it.key}
+                                section={it.level === 'bad' ? 'alerts' : 'catalog'}
+                                icon={it.level === 'bad' ? 'warning' : 'clock'}
+                                title={`${it.title} · ${it.count}${it.paise ? ' · ' + rupeesFromPaise(it.paise) : ''}`}
+                                subtitle={it.hint}
+                                onPress={go(it.screen, it.params)}
+                                last={i === d.att.items.length - 1}
+                            />
+                        )) : <ListRow section="riders" icon="ok" title="All clear" subtitle="No bill, refund or payment needs a look right now." last />}
                     </Card>
 
-                    <SectionTitle section="money">Invoices and money</SectionTitle>
+                    <SectionTitle section="money">Collect</SectionTitle>
                     <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
+                        <ListRow section="alerts" icon="warning" title="Who owes you money" subtitle="Unpaid rent, notes and promises, reminders" onPress={go('Receivables')} />
                         <ListRow section="money" icon="receipt" title="Rent invoices" subtitle="Monthly bills to shops: pay, waive, void, extend" onPress={go('Invoices')} />
                         <ListRow section="people" icon="wallet" title="Transactions" subtitle="Everything received from shops" onPress={go('Ledger')} last />
                     </Card>
 
-                    <SectionTitle section="catalog">SMS</SectionTitle>
+                    <SectionTitle section="catalog">Profit</SectionTitle>
                     <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
+                        <ListRow section="money" icon="chart" title="This month" subtitle="This month against last, GST, what is owed" onPress={go('MonthClose')} />
+                        <ListRow section="money" icon="chart" title="Profit and loss" subtitle="Income, costs and exactly why" onPress={go('ProfitLoss')} />
+                        <ListRow section="catalog" icon="wallet" title="Your expenses" subtitle="Hosting, SMS provider, staff..." onPress={go('Expenses')} />
                         <ListRow section="catalog" icon="chart" title="SMS profit" subtitle="Revenue minus cost, per shop" onPress={go('SmsProfit')} />
-                        <ListRow section="catalog" icon="coupon" title="SMS prices" subtitle="Price, cost and top-up packs" onPress={go('PlatformSms')} last />
+                        <ListRow section="catalog" icon="wallet" title="SMS balance" subtitle="What is left at your SMS provider, and the low line" onPress={go('SmsBalance')} last />
                     </Card>
 
-                    <SectionTitle section="settings">Rules and details</SectionTitle>
+                    <SectionTitle section="platform">Close the month</SectionTitle>
                     <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
-                        <ListRow section="money" icon="tune" title="Cancel and refund rules" subtitle="Who bears the cost of a cancelled order. Recommended in one tap" onPress={go('MoneyRules')} />
-                        <ListRow section="money" icon="percent" title="GST on shop bills" subtitle="One rate for every shop, set only by you" onPress={go('Gst')} />
-                        <ListRow section="settings" icon="tune" title="Billing rules" subtitle="Free service, due days, grace, price tiers" onPress={go('PlatformBilling')} />
-                        <ListRow section="platform" icon="bank" title="Business details" subtitle={d.gstSet ? 'Printed on every invoice' : 'No GST number saved yet'} onPress={go('PlatformBusiness')} />
-                        <ListRow section="money" icon="bank" title="My Razorpay" subtitle="Your account for SMS top-ups and rent" onPress={go('MyRazorpay')} last />
+                        <ListRow section="money" icon="receipt" title="Download for my CA" subtitle="One Excel: bills, SMS top-ups, GST register, expenses" onPress={go('MonthClose')} />
+                        <ListRow section="money" icon="receipt" title="GST register" subtitle="Every bill and credit note with its tax" onPress={go('GstRegister')} />
+                        <ListRow section="people" icon="rupee" title="Shop money" subtitle="What shops paid each month, and your yes/no" onPress={go('MoneyRecord')} last />
+                    </Card>
+
+                    <SectionTitle section="settings">Settings</SectionTitle>
+                    <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
+                        <ListRow section="settings" icon="tune" title="Money settings" subtitle={d.gstSet ? 'Billing rules, GST, refund rules, business details, Razorpay, SMS prices' : 'No GST number saved yet. Open to set it'} onPress={go('MoneySettings')} last />
                     </Card>
                 </>
             )}

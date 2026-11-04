@@ -47,3 +47,11 @@ export const shareCustomerListExcel = async (params) => saveAndShare(await api.g
 
 // the whole sales report as one Excel file (a sheet each): same ?from=&to=&tenantId= as the report
 export const shareSalesReportExcel = async (params) => saveAndShare(await api.get('/admin/reports/sales/export', sheetOpts(params)), 'sales-report');
+
+/* ---------------- money: needs attention, the month, the next 30 days, notes about unpaid rent ---------------- */
+export const fetchMoneyAttention = () => data(api.get('/admin/finance/attention'));
+export const fetchMonth = (month) => data(api.get('/admin/finance/month', { params: month ? { month } : {} }));
+export const fetchNext30 = () => data(api.get('/admin/finance/next30'));
+export const shareMonthExcel = async (month) => saveAndShare(await api.get('/admin/finance/month/export', sheetOpts(month ? { month } : {})), 'month-close' + (month ? '-' + month : ''));
+export const addCollectionNote = (tenantId, body) => data(api.post('/admin/finance/receivables/' + tenantId + '/note', body));   // { note, promiseDate? }
+export const closeCollectionNote = (id, outcome) => data(api.patch('/admin/finance/notes/' + id, { outcome }));   // paid | broken | closed

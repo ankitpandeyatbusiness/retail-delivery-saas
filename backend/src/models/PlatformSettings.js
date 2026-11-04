@@ -56,6 +56,7 @@ const platformSchema = new mongoose.Schema({
         paymentInstructions: { type: String, trim: true, maxlength: 500 }, // e.g. UPI id or bank details, printed on pending invoices
     },
 
+    smsProvider: { type: mongoose.Schema.Types.Mixed },   // your balance at the SMS provider, its lines and the estimate (services/smsProviderBalance.js)
     dailyDigest: { type: mongoose.Schema.Types.Mixed },   // { day } the India date the morning summary was last sent
     orderWatch: { type: mongoose.Schema.Types.Mixed },   // limits of the Orders tab (services/orderWatchSettings.js: attention, alert, talk)
     billing: {

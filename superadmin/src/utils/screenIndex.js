@@ -20,6 +20,9 @@ export const SCREEN_INDEX = [
     E('Order limits', 'Orders', 'OrderLimits', 'root', 'settings', 'orders', 'limits stuck alert minutes late slow talk quality cancel threshold'),
     E('Shop quality', 'Orders', 'ShopQuality', 'root', 'chart', 'orders', 'quality cancel slow prepare delivery complaints weak shops performance'),
     E('Customers', 'Orders', 'Customers', 'root', 'users', 'orders', 'customers people phone spent orders cancel excel download every shop'),
+    E('This month (money)', 'Money', 'MonthClose', 'root', 'chart', 'money', 'month close ca download excel gst net profit next 30 days expected'),
+    E('SMS balance (provider)', 'Money', 'SmsBalance', 'root', 'wallet', 'catalog', 'sms balance msg91 provider low empty otp reserve dlt credits estimate'),
+    E('Money settings', 'Money', 'MoneySettings', 'root', 'tune', 'settings', 'money settings billing rules gst refund razorpay business sms prices'),
     E('Refunds', 'Orders', 'Refunds', 'root', 'rupee', 'orders', 'refund money back failed customer razorpay'),
     E('Shops to close', 'Shops', 'ShopsToClose', 'root', 'lock', 'alerts', 'close closed closing shut shop unpaid rent months stop'),
     /* ---- find and watch ---- */

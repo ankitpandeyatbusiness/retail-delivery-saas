@@ -82,6 +82,9 @@ import ShopFolderScreen from '../screens/shops/ShopFolderScreen';
 import ShopCloseScreen from '../screens/shops/ShopCloseScreen';
 import ShopsToCloseScreen from '../screens/shops/ShopsToCloseScreen';
 import RefundsScreen from '../screens/orders/RefundsScreen';
+import MonthCloseScreen from '../screens/money/MonthCloseScreen';
+import MoneySettingsScreen from '../screens/money/MoneySettingsScreen';
+import SmsBalanceScreen from '../screens/money/SmsBalanceScreen';
 import CustomersScreen from '../screens/orders/CustomersScreen';
 import ShopQualityScreen from '../screens/orders/ShopQualityScreen';
 import OrderLimitsScreen from '../screens/orders/OrderLimitsScreen';
@@ -154,6 +157,9 @@ const DETAIL = [
     ['ShopSetup', ShopSetupScreen],
     ['ShopsToClose', ShopsToCloseScreen],
     ['Refunds', RefundsScreen],
+    ['MonthClose', MonthCloseScreen],
+    ['MoneySettings', MoneySettingsScreen],
+    ['SmsBalance', SmsBalanceScreen],
     ['Customers', CustomersScreen],
     ['ShopQuality', ShopQualityScreen],
     ['OrderLimits', OrderLimitsScreen],

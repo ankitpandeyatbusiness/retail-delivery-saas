@@ -4,11 +4,13 @@ import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from '
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useTheme, spacing, font } from '../../theme';
 import { Screen } from '../../components/layout';
-import { Card, Stat, SectionTitle, Badge, Button } from '../../components/ui';
+import { Card, Stat, SectionTitle, Badge, Button, Chip } from '../../components/ui';
 import { Collapsible } from '../../components/healthBits';
 import { SkeletonDashboard } from '../../components/blocks';
 import { ErrorBox, Empty, toast } from '../../components/feedback';
-import { fetchReceivables, remindShop, remindBrand } from '../../api/insightsApi';
+import { fetchReceivables, remindShop, remindBrand, addCollectionNote, closeCollectionNote } from '../../api/insightsApi';
+import { Field } from '../../components/inputs';
+import { Sheet } from '../../components/feedback';
 import { errMsg } from '../../api/adminClient';
 import { rupeesFromPaise, dateOnly, ago } from '../../utils/format';
 import { toAdmin } from '../../navigation/goTo';
@@ -23,6 +25,52 @@ const BEHAVIOUR = {
     on_time: { label: 'Pays on time', tone: 'success' },
     new: { label: 'New', tone: 'neutral' },
 };
+
+const ymdIn = (days) => new Date(Date.now() + 330 * 60000 + days * 86400000).toISOString().slice(0, 10);
+const WHEN = [['No day', null], ['Today', 0], ['Tomorrow', 1], ['In 3 days', 3], ['In a week', 7]];
+
+// A note about what the shop said ("will pay on Friday") with the day it promised. A new note replaces the open one; a promise can be closed as paid or broken.
+function NoteButton({ s, onDone }) {
+    const t = useTheme();
+    const [open, setOpen] = useState(false);
+    const [note, setNote] = useState('');
+    const [days, setDays] = useState(1);
+    const [busy, setBusy] = useState(false);
+    const save = async () => {
+        setBusy(true);
+        try {
+            await addCollectionNote(s.tenantId, { note, ...(days === null ? {} : { promiseDate: ymdIn(days) }) });
+            toast('Note saved'); setOpen(false); setNote(''); onDone && onDone();
+        } catch (e) { toast(errMsg(e), 'error'); } finally { setBusy(false); }
+    };
+    const closeIt = async (outcome) => {
+        setBusy(true);
+        try { await closeCollectionNote(s.promise.id, outcome); toast(outcome === 'paid' ? 'Marked as paid' : 'Marked as not kept'); setOpen(false); onDone && onDone(); } catch (e) { toast(errMsg(e), 'error'); } finally { setBusy(false); }
+    };
+    return (
+        <>
+            <Button small kind="outline" icon="notes" title={s.promise ? 'Update note' : 'Add note'} onPress={() => setOpen(true)} style={{ marginTop: spacing.sm }} />
+            <Sheet visible={open} onClose={() => setOpen(false)} title={s.name || 'Note'}>
+                {s.promise ? (
+                    <View style={{ marginBottom: spacing.md }}>
+                        <Text style={{ color: t.text, fontWeight: '800' }}>{s.promise.note}</Text>
+                        <Text style={{ color: s.promise.late ? t.danger : t.muted, fontSize: font.sm, marginTop: 2 }}>{s.promise.promiseDate ? (s.promise.late ? 'Promised ' : 'Promised for ') + dateOnly(s.promise.promiseDate) : 'No day promised'}</Text>
+                        <View style={{ flexDirection: 'row', marginTop: spacing.sm }}>
+                            <Button small kind="soft" icon="ok" title="He paid" onPress={() => closeIt('paid')} loading={busy} style={{ marginRight: spacing.sm }} />
+                            <Button small kind="outline" title="Did not pay" onPress={() => closeIt('broken')} loading={busy} />
+                        </View>
+                    </View>
+                ) : null}
+                <Field label="What did the shop say?" placeholder="e.g. Ramesh says he will pay after the weekend" hint="Only you see this" value={note} onChangeText={setNote} multiline />
+                <Text style={{ color: t.muted, fontSize: font.sm, fontWeight: '700', marginBottom: spacing.sm }}>Promised day</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                    {WHEN.map(([l, d]) => <Chip key={l} label={l} active={days === d} onPress={() => setDays(d)} />)}
+                </View>
+                <Button title="Save note" icon="check" onPress={save} loading={busy} disabled={note.trim().length < 3} style={{ marginTop: spacing.md }} />
+            </Sheet>
+        </>
+    );
+}
 
 // "Remind" for one shop: sends the owner a push with the amount and the month. Shows how long ago it was last sent.
 function RemindButton({ s, onDone }) {
@@ -62,6 +110,11 @@ function ShopFigures({ s }) {
                 {s.paidCount ? `Paid ${s.paidCount} bill(s) before, on average ${s.avgDaysLate} days late` : 'Has never paid a bill'}
                 {s.billingState === 'paused' ? ' · shop is paused' : s.billingState === 'grace' ? ' · in grace period' : ''}
             </Text>
+            {s.promise ? (
+                <Text style={{ color: s.promise.late ? t.danger : t.primary, fontSize: font.sm, fontWeight: '700', marginTop: 4 }} numberOfLines={2}>
+                    {s.promise.late ? 'Promise not kept: ' : 'Promise: '}{s.promise.note}{s.promise.promiseDate ? ' · ' + dateOnly(s.promise.promiseDate) : ''}
+                </Text>
+            ) : null}
         </>
     );
 }
@@ -103,6 +156,7 @@ function BrandCard({ g, onOpenShop, onDone }) {
                                 <ShopFigures s={s} />
                             </Pressable>
                             <RemindButton s={s} onDone={onDone} />
+                            <NoteButton s={s} onDone={onDone} />
                         </View>
                     ))}
                     <Button small icon="bell" title={`Remind all ${g.branches.length} branches`} onPress={all} loading={busy} style={{ marginTop: spacing.sm }} />
@@ -181,6 +235,7 @@ export default function ReceivablesScreen() {
                                 <Text style={{ color: t.text, fontSize: font.md, fontWeight: '800', marginBottom: spacing.xs }} numberOfLines={1}>{r.s.name}</Text>
                                 <ShopFigures s={r.s} />
                                 <RemindButton s={r.s} onDone={load} />
+                                <NoteButton s={r.s} onDone={load} />
                             </Card>
                         )))}
 

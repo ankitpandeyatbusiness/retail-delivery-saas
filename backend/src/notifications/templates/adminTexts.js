@@ -17,7 +17,21 @@ const T = {
     }),
     admin_daily_summary: (v) => ({
         title: v.orders ? `Yesterday: ${v.orders} order${v.orders === 1 ? '' : 's'}, ₹${Math.round(v.sales).toLocaleString('en-IN')}` : 'Yesterday: no orders',
-        body: `${v.change === null || v.change === undefined ? (v.beforeOrders ? '' : 'Nothing the day before to compare. ') : (v.change === 0 ? 'Same as the day before. ' : (v.change > 0 ? 'Up ' : 'Down ') + Math.abs(v.change) + '% on the day before. ')}${v.attention ? v.attention + ' order' + (v.attention === 1 ? '' : 's') + ' need attention. ' : 'Nothing is stuck. '}${v.refunds ? v.refunds + ' refund' + (v.refunds === 1 ? '' : 's') + ' not finished.' : ''}`.trim(),
+        body: `${v.change === null || v.change === undefined ? (v.beforeOrders ? '' : 'Nothing the day before to compare. ') : (v.change === 0 ? 'Same as the day before. ' : (v.change > 0 ? 'Up ' : 'Down ') + Math.abs(v.change) + '% on the day before. ')}${v.attention ? v.attention + ' order' + (v.attention === 1 ? '' : 's') + ' need attention. ' : 'Nothing is stuck. '}${v.refunds ? v.refunds + ' refund' + (v.refunds === 1 ? '' : 's') + ' not finished. ' : ''}${v.collected ? 'Rent and top-ups collected: ₹' + Number(v.collected).toLocaleString('en-IN') + '. ' : ''}${v.overdue ? '₹' + Number(v.overdue).toLocaleString('en-IN') + ' rent overdue. ' : ''}${v.moneyBad ? v.moneyBad + ' money problem' + (v.moneyBad === 1 ? '' : 's') + ' to look at.' : ''}`.trim(),
+    }),
+    admin_promise_due: (v) => ({
+        title: `${v.shop} promised to pay`,
+        body: `${v.late ? 'The promised day has passed' : 'Promised for today'}: "${String(v.note || '').slice(0, 90)}". ${v.owed ? `Still owes ${v.owed}.` : ''}`.trim(),
+    }),
+    admin_sms_provider_low: (v) => ({
+        title: 'SMS balance is getting low',
+        body: `About ${v.amount} left at your SMS provider${v.estimate ? ' (an estimate)' : ''}. Add money before it reaches ${v.reserve}.`,
+        sms: 'SMS balance low',
+    }),
+    admin_sms_provider_empty: (v) => ({
+        title: 'SMS balance almost empty',
+        body: `About ${v.amount} left at your SMS provider${v.estimate ? ' (an estimate)' : ''}. ${v.protectOtp ? 'Shop messages are paused so login OTPs keep working.' : 'Messages may start failing.'} Add money now.`,
+        sms: 'SMS balance almost empty: add money',
     }),
     admin_shop_paused: (v) => ({
         title: `${v.shop} is paused`,

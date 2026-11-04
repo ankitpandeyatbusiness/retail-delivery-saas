@@ -18,6 +18,32 @@ router.get('/finance/summary', wrap(async (req, res) => {
     res.json(await finance.summary({ months }));
 }));
 
+// the Money tab's "Needs attention": overdue bills, shops to close, failed refunds and Razorpay events, money that does not add up, low SMS wallets
+router.get('/finance/attention', wrap(async (req, res) => { res.json(await require('../services/moneyAttention').attention()); }));
+
+// one month closed: this month against last, GST, what is owed (?month=2026-11, default this month)
+router.get('/finance/month', wrap(async (req, res) => { res.json(await require('../services/monthClose').summary(req.query.month || undefined)); }));
+// the next 30 days: rent due soon, overdue (not counted), the next bills and the costs, as estimates
+router.get('/finance/next30', wrap(async (req, res) => { res.json(await require('../services/monthClose').next30()); }));
+// everything the CA needs for the month in one Excel: summary, bills, SMS top-ups, GST register, expenses
+router.get('/finance/month/export', wrap(async (req, res) => {
+    const mc = require('../services/monthClose');
+    const month = req.query.month || new Date(Date.now() + 330 * 60000).toISOString().slice(0, 7);
+    const buf = await mc.workbook(month);
+    res.set('Content-Type', require('../services/xlsxExport').XLSX_TYPE);
+    res.set('Content-Disposition', `attachment; filename="month-close-${month}.xlsx"`);
+    res.send(buf);
+}));
+
+// notes and promises about a shop's unpaid rent ("will pay on Friday"); a new one replaces the open one
+router.get('/finance/receivables/:tenantId/notes', wrap(async (req, res) => { res.json({ items: await require('../services/collectionNotes').listFor(req.params.tenantId) }); }));
+router.post('/finance/receivables/:tenantId/note', wrap(async (req, res) => {
+    const n = await require('../services/collectionNotes').add({ tenantId: req.params.tenantId, note: req.body?.note, promiseDate: req.body?.promiseDate, by: req.admin?.email });
+    req.auditBefore = null;
+    res.json(require('../services/collectionNotes').view(n));
+}));
+router.patch('/finance/notes/:id', wrap(async (req, res) => { res.json(require('../services/collectionNotes').view(await require('../services/collectionNotes').close(req.params.id, req.body?.outcome))); }));
+
 router.get('/finance/receivables', wrap(async (req, res) => {
     res.json(await finance.receivables());
 }));

@@ -25,6 +25,23 @@ const actorOf = (req) => ({
 });
 const isInt = (v, min) => Number.isInteger(v) && v >= min;
 
+/* ------------------------------ your balance at the SMS provider ------------------------------ */
+//   GET  /platform/sms-balance              the best number now (from the provider, or an estimate), the lines, the last check
+//   PUT  /platform/sms-balance              { lowPaise?, reservePaise?, unit?, protectOtp? }   (supreme admin)
+//   POST /platform/sms-balance/check        ask the provider now and show what it said
+//   POST /platform/sms-balance/added        { amountPaise } "I added money / the balance is this": the start of the estimate
+router.get('/platform/sms-balance', wrap(async (req, res) => {
+    const c = await require('../services/smsProviderBalance').current();
+    res.json({ ...c, keyOnServer: !!process.env.SMS_AUTH_KEY, mock: process.env.SMS_MOCK === 'true' });
+}));
+router.put('/platform/sms-balance', wrap(async (req, res) => { req.auditBefore = null; res.json(await require('../services/smsProviderBalance').saveSettings(req.body)); }));
+router.post('/platform/sms-balance/check', wrap(async (req, res) => {
+    const svc = require('../services/smsProviderBalance');
+    const r = await svc.check();
+    res.json({ result: r, current: await svc.current() });
+}));
+router.post('/platform/sms-balance/added', wrap(async (req, res) => { req.auditBefore = null; res.json(await require('../services/smsProviderBalance').added(req.body?.amountPaise)); }));
+
 /* ------------------------------ platform ------------------------------ */
 router.get('/platform/sms', wrap(async (req, res) => {
     const p = await PlatformSettings.findById('main').select('sms').lean();
