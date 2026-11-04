@@ -15,6 +15,17 @@ import { StatShimmer } from '../../components/owners/shimmer';
 import { tr } from '../../i18n';
 
 const istDay = (offset = 0) => new Date(Date.now() + 330 * 60000 - offset * 86400000).toISOString().slice(0, 10);
+// the days a choice covers: a single day, or a range (from / to, India dates)
+const rangeOf = (which) => {
+    if (which === '0' || which === '1' || which === '2') return { date: istDay(Number(which)) };
+    if (which === '7') return { from: istDay(6), to: istDay(0) };
+    if (which === 'month') return { from: `${istDay(0).slice(0, 8)}01`, to: istDay(0) };
+    const d = new Date(Date.now() + 330 * 60000); d.setUTCDate(1); d.setUTCDate(0);   // the last day of last month
+    const last = d.toISOString().slice(0, 10);
+    return { from: `${last.slice(0, 8)}01`, to: last };
+};
+const hourName = (h) => `${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}`;
+const TYPE_NAME = { delivery: 'Home delivery', pickup: 'Pickup', dine_in: 'Dining in' };
 
 export default function OwnerClosingScreen() {
     const { background, text, muted, error, primary } = useBrand();
@@ -25,7 +36,7 @@ export default function OwnerClosingScreen() {
 
     const load = useCallback(async () => {
         setR(null); setErr('');
-        try { setR(await fetchClosingReport({ date: istDay(Number(which)) })); }
+        try { setR(await fetchClosingReport(rangeOf(which))); }
         catch (e) { useOwnerStore.getState().noteError(e); setErr(apiError(e, 'Could not make the report.')); }
     }, [which]);
     useEffect(() => { load(); }, [load]);
@@ -37,7 +48,7 @@ export default function OwnerClosingScreen() {
             <PageHeader title={tr('Closing report')} />
             <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 32 }}>
                 <View style={{ paddingHorizontal: 16 }}>
-                    <Chips options={[['0', tr('Today')], ['1', tr('Yesterday')], ['2', istDay(2).slice(5).split('-').reverse().join('/')]]} value={which} onChange={setWhich} style={{ marginTop: 0 }} />
+                    <Chips options={[['0', tr('Today')], ['1', tr('Yesterday')], ['7', tr('7 days')], ['month', tr('This month')], ['lastmonth', tr('Last month')]]} value={which} onChange={setWhich} style={{ marginTop: 0 }} />
                 </View>
                 {!r && !err ? <StatShimmer /> : null}
                 {err ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={err} /> : null}
@@ -61,6 +72,13 @@ export default function OwnerClosingScreen() {
                             </>
                         ) : null}
 
+                        {(() => {
+                            const now = r.sales.revenue - (r.sales.bulk?.revenue || 0);
+                            if (!r.before || !r.before.revenue) return null;
+                            const pct = Math.round(((now - r.before.revenue) / r.before.revenue) * 100);
+                            return <Text style={{ color: pct >= 0 ? primary : error, fontWeight: '800', paddingHorizontal: 16, marginTop: 6 }}>{pct >= 0 ? tr('Up {n}%', { n: pct }) : tr('Down {n}%', { n: -pct })} {tr('on the {d} before ({amount})', { d: r.days === 1 ? tr('day') : `${r.days} ${tr('days')}`, amount: money(r.before.revenue) })}</Text>;
+                        })()}
+
                         <SectionTitle title={tr('Orders')} />
                         <Card>
                             <MoneyRow title={tr('Placed')} value={String(r.orders.placed)} />
@@ -68,6 +86,56 @@ export default function OwnerClosingScreen() {
                             <MoneyRow title={tr('Cancelled')} value={String(r.orders.cancelled)} color={r.orders.cancelled ? error : undefined} note={Object.entries(r.orders.cancelledBy).map(([k, n]) => `${n} by ${k === 'shop' ? 'you' : k}`).join(' · ') || undefined} />
                             <MoneyRow title={tr('Not delivered')} value={String(r.orders.undelivered)} color={r.orders.undelivered ? error : undefined} last />
                         </Card>
+
+                        <SectionTitle title={tr('Tax, discounts and fees')} />
+                        <Card>
+                            <MoneyRow title={tr('GST in the sales')} note={tr('Collected from customers')} value={money(r.sales.tax)} />
+                            <MoneyRow title={tr('Discounts given')} value={money(r.sales.discounts)} />
+                            <MoneyRow title={tr('Delivery fees')} value={money(r.sales.deliveryFees)} />
+                            <MoneyRow title={tr('Tips')} value={money(r.sales.tips)} last />
+                        </Card>
+
+                        {r.hours && r.hours.length ? (
+                            <>
+                                <SectionTitle title={tr('Busiest hours')} />
+                                <Card>{[...r.hours].sort((a, b) => b.sales - a.sales).slice(0, 4).map((h, i, arr) => <MoneyRow key={h.hour} title={`${hourName(h.hour)} - ${hourName((h.hour + 1) % 24)}`} note={`${h.orders} ${h.orders === 1 ? 'order' : 'orders'}`} value={money(h.sales)} last={i === arr.length - 1} />)}</Card>
+                            </>
+                        ) : null}
+
+                        {r.types && r.types.length ? (
+                            <>
+                                <SectionTitle title={tr('How orders were served')} />
+                                <Card>{r.types.map((x, i) => <MoneyRow key={x.type} title={tr(TYPE_NAME[x.type] || x.type)} note={`${x.orders} ${x.orders === 1 ? 'order' : 'orders'}`} value={money(x.sales)} last={i === r.types.length - 1} />)}</Card>
+                            </>
+                        ) : null}
+
+                        {r.customers && r.customers.total ? (
+                            <>
+                                <SectionTitle title={tr('Customers')} />
+                                <Card>
+                                    <MoneyRow title={tr('Ordered in this time')} value={String(r.customers.total)} />
+                                    <MoneyRow title={tr('New customers')} note={tr('First order with you')} value={String(r.customers.new)} />
+                                    <MoneyRow title={tr('Came back')} note={tr('Had ordered before')} value={String(r.customers.returning)} last />
+                                </Card>
+                            </>
+                        ) : null}
+
+                        {r.lost && r.lost.orders ? (
+                            <>
+                                <SectionTitle title={tr('Lost to cancels')} />
+                                <Card><MoneyRow title={tr('Orders cancelled or not delivered')} note={`${r.lost.orders} ${r.lost.orders === 1 ? 'order' : 'orders'}`} value={money(r.lost.total)} color={error} last /></Card>
+                            </>
+                        ) : null}
+
+                        {r.team && (r.team.cooks.length || r.team.riders.length) ? (
+                            <>
+                                <SectionTitle title={tr('Your team')} />
+                                <Card>
+                                    {r.team.cooks.map((c, i) => <MoneyRow key={'c' + c.name} title={c.name} note={tr('Cook')} value={`${c.orders} ${tr('orders')}`} last={i === r.team.cooks.length - 1 && !r.team.riders.length} />)}
+                                    {r.team.riders.map((x, i) => <MoneyRow key={'r' + x.name + i} title={x.name} note={tr('Rider')} value={`${x.deliveries} ${tr('deliveries')}`} last={i === r.team.riders.length - 1} />)}
+                                </Card>
+                            </>
+                        ) : null}
 
                         <SectionTitle title={tr('Cash and online')} />
                         <Card>

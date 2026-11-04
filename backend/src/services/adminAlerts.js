@@ -46,7 +46,8 @@ async function pushToAdmins({ title, body, data, supremeOnly }) {
     const rows = await AdminDevice.find(filter).select('token').lean();
     const tokens = rows.map((r) => r.token);
     if (!tokens.length) return { sent: 0 };
-    const res = await pushAdapter.send({ tokens, title, body, data });
+    // this app's own tone: the app made the channel (superadmin push.js) with the bundled sound; a phone on an older build falls back to its default channel
+    const res = await pushAdapter.send({ tokens, title, body, data, channelId: 'platform_alerts_v1', sound: 'platform_alert' });
     if (res?.invalidTokens?.length) await AdminDevice.deleteMany({ token: { $in: res.invalidTokens } });
     return { sent: res?.sent || 0 };
 }

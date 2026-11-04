@@ -586,9 +586,9 @@ router.put('/busy', wrap(async (req, res) => {
     res.json({ ok: true, busy: { extraMin: b.extraMin, until } });
 }));
 
-// The end-of-day summary. ?date=2026-10-31 (default today, India time)
+// The end-of-day summary. ?date=2026-10-31 (default today, India time), or a range: ?from=2026-10-01&to=2026-10-31
 router.get('/closing-report', wrap(async (req, res) => {
-    res.json(await require('../services/closingReport').build({ tenantId: req.tenant._id, date: req.query.date }));
+    res.json(await require('../services/closingReport').build({ tenantId: req.tenant._id, date: req.query.date, from: req.query.from, to: req.query.to }));
 }));
 
 router.put('/settings', wrap(async (req, res) => {
@@ -722,6 +722,7 @@ router.put('/settings', wrap(async (req, res) => {
 router.use('/uploads', require('./uploadRouter'));   // direct-to-R2 uploads (owner and superadmin)
 router.get('/reviews', wrap(async (req, res) => { res.json(await require('../services/reviewsService').list({ tenantId: req.tenant._id, query: req.query })); }));   // what customers say: dishes and delivery
 router.use('/staff', require('./shopStaffRouter'));   // kitchen and waiter people: add, pause, remove
+router.use('/exports', require('./shopExportRouter'));   // Excel or CSV of his own shop (or all his branches): customers, orders, riders, cooks, waiters ...
 router.use('/customers', require('./shopCustomersRouter'));   // customer tools: list, detail, edit, Cash on delivery block
 router.use('/booking', require('./shopBookingRouter'));   // table booking: rules, the day's bookings, seat, no-show, cancel
 router.use('/inquiries', ownerOnly(featureGate.gate('services')), require('./shopInquiriesRouter'));   // what customers sent from the service forms, and the replies

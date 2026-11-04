@@ -1,12 +1,11 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import { StackActions } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { View, Animated, Dimensions, Easing, Platform } from 'react-native';
-import Icon from '../components/Icon';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Dimensions, Easing, Platform } from 'react-native';
 import { useAuthStore } from '../store/useAuthStore';
-import { useTheme, section } from '../theme';
+import { useTheme } from '../theme';
+import FloatingTabBar, { gate, holdGate, releaseGate } from './FloatingTabBar';
 
 import LoginScreen from '../screens/auth/LoginScreen';
 import DashboardScreen from '../screens/home/DashboardScreen';
@@ -302,27 +301,6 @@ const TABS = {
     MoreTab: { icon: 'menu', section: 'platform' },
 };
 
-// the pill grows out of the icon and the icon pops with a spring when its tab becomes active
-function TabIcon({ focused, color, icon, soft }) {
-    const v = useRef(new Animated.Value(focused ? 1 : 0)).current;
-    useEffect(() => {
-        Animated.spring(v, { toValue: focused ? 1 : 0, friction: 5, tension: 160, useNativeDriver: true }).start();
-    }, [focused, v]);
-    return (
-        <View style={{ width: 46, height: 30, alignItems: 'center', justifyContent: 'center' }}>
-            <Animated.View
-                style={{
-                    position: 'absolute', width: 46, height: 30, borderRadius: 15, backgroundColor: soft,
-                    opacity: v, transform: [{ scaleX: v.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) }],
-                }}
-            />
-            <Animated.View style={{ transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [1, 1.14] }) }] }}>
-                <Icon name={icon} size={24} color={color} filled={focused} />
-            </Animated.View>
-        </View>
-    );
-}
-
 // Tabs slide the FULL width and a tab that is not open is parked completely off screen. No opacity on purpose: on
 // Android a card's shadow ignores its parent's opacity, so a faded-out page still showed its shadows as a ghost.
 const slideScenes = ({ current }) => {
@@ -336,33 +314,24 @@ const slideScenes = ({ current }) => {
 
 function AdminTabs() {
     const t = useTheme();
-    const insets = useSafeAreaInsets();
     return (
         <Tabs.Navigator
             // pressing any tab (even from another tab) lands on that tab's first screen, not wherever it was left
+            tabBar={(props) => <FloatingTabBar {...props} defs={TABS} />}
             screenListeners={({ navigation, route }) => ({
-                tabPress: () => {
+                tabPress: (e) => {
+                    if (gate.busy) { e.preventDefault(); gate.pending = route.name; return; }
                     const child = navigation.getState().routes.find((r) => r.key === route.key)?.state;
                     if (child?.key && child.index > 0) navigation.dispatch({ ...StackActions.popToTop(), target: child.key });
                 },
             })}
-            screenOptions={({ route }) => {
-                const cfg = TABS[route.name];
-                const color = section(t, cfg.section).color;
-                return {
-                    headerShown: false,
-                    animation: 'shift',
-                    sceneStyleInterpolator: slideScenes,
-                    transitionSpec: { animation: 'timing', config: { duration: TAB_SLIDE_MS, easing: Easing.out(Easing.cubic) } },
-                    tabBarActiveTintColor: color,
-                    tabBarInactiveTintColor: t.muted,
-                    tabBarStyle: {
-                        backgroundColor: t.surface, borderTopWidth: 0, height: 62 + insets.bottom, paddingTop: 8,
-                        borderTopLeftRadius: 24, borderTopRightRadius: 24, ...t.shadow, shadowOpacity: t.dark ? 0 : 0.18, elevation: 12,
-                    },
-                    tabBarLabelStyle: { fontSize: 12, fontWeight: '700', marginBottom: 4 },
-                    tabBarIcon: ({ focused, color: c }) => <TabIcon focused={focused} color={c} icon={cfg.icon} soft={section(t, cfg.section).soft} />,
-                };
+            screenOptions={{
+                headerShown: false,
+                animation: 'shift',
+                sceneStyleInterpolator: slideScenes,
+                transitionSpec: { animation: 'timing', config: { duration: TAB_SLIDE_MS, easing: Easing.out(Easing.cubic) } },
+                tabBarHideOnKeyboard: true,
+                sceneStyle: { backgroundColor: t.bg },
             }}
         >
             <Tabs.Screen name="HomeTab" component={HomeStack} options={{ title: 'Home' }} />
@@ -378,7 +347,7 @@ export default function RootNavigator() {
     const token = useAuthStore((s) => s.token);
     return (
         // noAnim: set by Back (navigation/goTo.js) so the screen it brings back does not slide in over the tab under it
-        <Root.Navigator screenOptions={({ route }) => (route.params?.noAnim ? { ...STACK_OPTIONS, animation: 'none' } : STACK_OPTIONS)}>
+        <Root.Navigator screenListeners={{ transitionStart: holdGate, transitionEnd: releaseGate }} screenOptions={({ route }) => (route.params?.noAnim ? { ...STACK_OPTIONS, animation: 'none' } : STACK_OPTIONS)}>
             {token ? (
                 <>
                     <Root.Screen name="Admin" component={AdminTabs} />

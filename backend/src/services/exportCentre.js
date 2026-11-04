@@ -705,14 +705,72 @@ D.staff = {
     },
 };
 
-const ORDER = ['customers', 'owners', 'brand_people', 'staff', 'riders', 'orders', 'invoices', 'payments', 'refunds', 'complaints', 'menu', 'shops', 'sms_topups', 'sms_sent', 'expenses', 'audit'];
+D.branches = {
+    title: 'My shops and branches', group: 'My business', hint: 'Each shop or branch of yours: sales, orders, rent, team size and how it is doing.',
+    shopField: '_id', noPeriod: true,
+    filters: [{ key: 'status', label: 'Shop', options: [['', 'Any'], ['active', 'Open'], ['suspended', 'Suspended']] }],
+    columns: [
+        { h: 'Shop', k: 'name', lv: 1 }, { h: 'City', k: 'city', lv: 1 }, { h: 'Status', k: 'status', kind: 'status', lv: 1 }, { h: 'Manager', k: 'manager', lv: 1 },
+        { h: 'Orders (30 days)', k: 'orders30', kind: 'int', lv: 1 }, { h: 'Sales (30 days) (₹)', k: 'sales30', kind: 'money', lv: 1 }, { h: 'Rent', k: 'rent', kind: 'status', lv: 1 },
+        { h: 'Delivered (30 days)', k: 'delivered30', kind: 'int', lv: 2 }, { h: 'Cancelled (30 days) %', k: 'cancelPct', kind: 'int', lv: 2 }, { h: 'Rating', k: 'rating', kind: 'center', lv: 2 }, { h: 'Accepts an order in (min)', k: 'accept', kind: 'center', lv: 2 },
+        { h: 'Unpaid bills (₹)', k: 'owed', kind: 'money', lv: 2 }, { h: 'SMS balance (₹)', k: 'sms', kind: 'money', lv: 2 }, { h: 'Customers', k: 'customers', kind: 'int', lv: 2 }, { h: 'Riders', k: 'riders', kind: 'int', lv: 2 }, { h: 'Cooks', k: 'cooks', kind: 'int', lv: 2 }, { h: 'Waiters', k: 'waiters', kind: 'int', lv: 2 },
+        { h: 'Behaviour in words', k: 'words', kind: 'wide', lv: 3 }, { h: 'Orders (all time)', k: 'allOrders', kind: 'int', lv: 3 }, { h: 'Sales (all time) (₹)', k: 'allSales', kind: 'money', lv: 3 }, { h: 'Busiest hour', k: 'peak', kind: 'center', lv: 3 }, { h: 'Last order', k: 'lastOrder', kind: 'date', lv: 3 }, { h: 'Complaints (90 days)', k: 'complaints', kind: 'int', lv: 3 }, { h: 'Open since', k: 'joined', kind: 'date', lv: 3 },
+    ],
+    async fetch(f, ctx) {
+        const SmsWallet = require('../models/SmsWallet');
+        const m = { ...(ctx.scope ? { _id: { $in: ctx.scope } } : {}), ...(['active', 'suspended'].includes(f.status) ? { status: f.status } : {}) };
+        const tenants = await Tenant.find(m).sort({ createdAt: 1 }).select('name status billing address.city branchCity stats createdAt').lean();
+        if (ctx.countOnly) return { count: tenants.length };
+        const ids = tenants.map((t) => t._id);
+        const [st, inv, wallets, comp, people, admins] = await Promise.all([
+            shopRecent(ids, ctx.now),
+            SubscriptionInvoice.aggregate([{ $match: { tenantId: { $in: ids }, status: 'pending' } }, { $group: { _id: '$tenantId', owed: { $sum: '$total' }, n: { $sum: 1 }, overdue: { $sum: { $cond: [{ $lt: ['$dueDate', new Date(ctx.now)] }, 1, 0] } } } }]),
+            SmsWallet.find({ tenantId: { $in: ids } }).select('tenantId balancePaise').lean(),
+            Complaint.aggregate([{ $match: { tenantId: { $in: ids }, createdAt: { $gte: new Date(ctx.now - 90 * DAY) } } }, { $group: { _id: '$tenantId', n: { $sum: 1 } } }]),
+            User.aggregate([{ $match: { tenantId: { $in: ids }, role: { $in: ['customer', 'rider', 'kitchen', 'waiter'] } } }, { $group: { _id: { t: '$tenantId', r: '$role' }, n: { $sum: 1 } } }]),
+            User.find({ tenantId: { $in: ids }, role: 'admin' }).select('tenantId name phone').lean(),
+        ]);
+        const I = new Map(inv.map((x) => [String(x._id), x])); const W = new Map(wallets.map((x) => [String(x.tenantId), x])); const C = new Map(comp.map((x) => [String(x._id), x.n]));
+        const P = new Map(); for (const x of people) P.set(`${x._id.t}:${x._id.r}`, x.n);
+        const A = new Map(); for (const u of admins) { const k = String(u.tenantId); if (!A.has(k)) A.set(k, []); A.get(k).push(u); }
+        return { count: tenants.length, rows: tenants.map((t) => ({ t, s: st.get(String(t._id)) || {}, inv: I.get(String(t._id)), wallet: W.get(String(t._id)), complaints: C.get(String(t._id)) || 0, admins: A.get(String(t._id)) || [], n: (r) => P.get(`${t._id}:${r}`) || 0 })) };
+    },
+    map(r, c) {
+        const { t, s } = r;
+        const o30 = s.orders30 || 0;
+        const cancelPct = o30 ? Math.round(((s.cancelled30 || 0) / o30) * 100) : 0;
+        const rating = t.stats && t.stats.rating && t.stats.rating.count ? t.stats.rating : null;
+        const owed = r.inv ? r.inv.owed : 0;
+        const lastOrder = days(s.lastOrder, c.now);
+        const bits = [];
+        if (!s.allOrders) bits.push('No order has come in yet.');
+        else {
+            bits.push(o30 ? `Gets about ${Math.max(1, Math.round(o30 / 30))} order${Math.round(o30 / 30) > 1 ? 's' : ''} a day (${o30} in 30 days)${s.peak !== undefined ? `, busiest around ${hourText(s.peak)}` : ''}.` : `No orders in the last 30 days; the last one was ${inDays(lastOrder)}.`);
+            if (s.acceptMin != null) bits.push(`Accepts an order in about ${Math.max(1, Math.round(s.acceptMin))} min (${s.acceptMin <= 3 ? 'fast' : s.acceptMin <= 8 ? 'ordinary' : 'slow'}).`);
+            if (o30 >= 5) bits.push(`${cancelPct}% of orders were cancelled${cancelPct >= 20 ? ' (high)' : ''}.`);
+        }
+        if (rating) bits.push(`Rated ${r2(rating.avg)} from ${rating.count} rating${rating.count === 1 ? '' : 's'}.`);
+        bits.push(`Team: ${r.n('kitchen')} cook${r.n('kitchen') === 1 ? '' : 's'}, ${r.n('waiter')} waiter${r.n('waiter') === 1 ? '' : 's'}, ${r.n('rider')} rider${r.n('rider') === 1 ? '' : 's'}; ${r.n('customer')} customers.`);
+        const rentState = t.billing && t.billing.state;
+        bits.push(rentState === 'paused' ? 'Paused because rent is unpaid.' : rentState === 'free' ? 'Still in the free period.' : r.inv && r.inv.n ? `${r.inv.n} unpaid bill${r.inv.n === 1 ? '' : 's'} worth ₹${Math.round(owed)}.` : 'Rent is paid up.');
+        bits.push(!s.allOrders ? 'Needs the first order.' : o30 === 0 ? 'Quiet: think of an offer or a message to customers.' : cancelPct >= 20 ? 'Many cancels: find out why.' : r.n('rider') === 0 && o30 > 0 ? 'No riders yet.' : 'Looks healthy.');
+        return {
+            name: t.name, city: t.branchCity || (t.address && t.address.city) || '', status: t.status, manager: r.admins.map((u) => `${u.name || ''} ${c.phone(u.phone)}`.trim()).join(', '),
+            orders30: o30, sales30: r2(s.sales30), rent: (t.billing && t.billing.state) || '', delivered30: s.delivered30 || 0, cancelPct, rating: rating ? r2(rating.avg) : '', accept: s.acceptMin != null ? Math.round(s.acceptMin * 10) / 10 : '',
+            owed: r2(owed), sms: rs(r.wallet && r.wallet.balancePaise), customers: r.n('customer'), riders: r.n('rider'), cooks: r.n('kitchen'), waiters: r.n('waiter'),
+            words: bits.join(' '), allOrders: s.allOrders || 0, allSales: r2(s.allSales), peak: s.peak !== undefined ? hourText(s.peak) : '', lastOrder: s.lastOrder || '', complaints: r.complaints, joined: t.createdAt,
+        };
+    },
+};
+
+const ORDER = ['customers', 'owners', 'brand_people', 'staff', 'riders', 'orders', 'invoices', 'payments', 'refunds', 'complaints', 'menu', 'shops', 'sms_topups', 'sms_sent', 'expenses', 'audit', 'branches'];
 
 // ----- the engine -----
 const hasPeriod = (d) => !d.noPeriod && (d.dateField !== undefined || !!d.periodOn);
 const cols = (d, lv) => d.columns.filter((c) => c.lv <= lv);
 
-function catalog() {
-    return ORDER.map((key) => {
+function catalog({ keys } = {}) {
+    return ORDER.filter((k) => (keys ? keys.includes(k) : k !== 'branches')).map((key) => {
         const d = D[key];
         return {
             key, title: d.title, group: d.group, hint: d.hint, shops: d.shopField !== null, period: hasPeriod(d), periodLabel: d.periodLabel || 'Between',
@@ -722,11 +780,11 @@ function catalog() {
     });
 }
 
-async function context(d, q, full) {
+async function context(d, q, full, forced) {
     const names = new Map((await Tenant.find({}).select('name').lean()).map((t) => [String(t._id), t.name]));
     const lv = LEVELS[q.level] || 2;
     return {
-        now: Date.now(), lv, scope: await scopeOf(q), period: periodOf(q),
+        now: Date.now(), lv, scope: forced || (await scopeOf(q)), period: periodOf(q),
         shop: (id) => names.get(String(id)) || '',
         phone: (p) => (full ? (p || '') : (maskPhone(p) || '')),
     };
@@ -741,20 +799,20 @@ function matchFor(d, f, ctx) {
 }
 
 // { count, capped }
-async function count(key, q, { full = false } = {}) {
+async function count(key, q, { full = false, forced } = {}) {
     const d = D[key];
     if (!d) throw httpError(404, 'Unknown export');
-    const ctx = await context(d, q, full);
+    const ctx = await context(d, q, full, forced);
     ctx.countOnly = true;
     const f = filtersOf(d, q);
     const n = d.fetch ? (await d.fetch(f, ctx)).count : await d.model.countDocuments(matchFor(d, f, ctx));
     return { count: n, max: MAX_ROWS, capped: n > MAX_ROWS };
 }
 
-async function rowsFor(key, q, full) {
+async function rowsFor(key, q, full, forced) {
     const d = D[key];
     if (!d) throw httpError(404, 'Unknown export');
-    const ctx = await context(d, q, full);
+    const ctx = await context(d, q, full, forced);
     const f = filtersOf(d, q);
     let docs; let total;
     if (d.fetch) { const r = await d.fetch(f, ctx); docs = r.rows; total = r.count; } else {
@@ -770,8 +828,8 @@ async function rowsFor(key, q, full) {
 const periodText = (ctx) => (ctx.period.from || ctx.period.to ? `${ctx.period.from ? fmtDay(ctx.period.from) : 'the beginning'} to ${ctx.period.to ? fmtDay(new Date(ctx.period.to.getTime() - DAY)) : 'today'}` : 'All time');
 
 // the Excel file: a Summary sheet first (what you asked for, in words), then the data, then any extra sheet
-async function workbook(key, q, { full = false, admin = '' } = {}) {
-    const { d, ctx, docs, columns, rows, total, f } = await rowsFor(key, q, full);
+async function workbook(key, q, { full = false, admin = '', forced } = {}) {
+    const { d, ctx, docs, columns, rows, total, f } = await rowsFor(key, q, full, forced);
     const lvName = Object.keys(LEVELS).find((n) => LEVELS[n] === ctx.lv);
     const shopsText = ctx.scope ? `${ctx.scope.length} shop${ctx.scope.length === 1 ? '' : 's'} chosen` : 'All shops';
     const filterText = (d.filters || []).map((x) => { const v = list(f[x.key]); if (!v.length) return null; return `${x.label}: ${v.map((id) => (x.options.find((o) => o[0] === id) || [id, id])[1]).join(', ')}`; }).filter(Boolean).join(' · ') || 'None';
@@ -796,11 +854,12 @@ const csvCell = (v) => {
     if (/^[=+\-@]/.test(s)) s = `'${s}`;   // a text that starts like a formula stays text in Excel
     return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
-async function csv(key, q, { full = false } = {}) {
-    const { columns, rows, total } = await rowsFor(key, q, full);
+async function csv(key, q, { full = false, forced } = {}) {
+    const { columns, rows, total } = await rowsFor(key, q, full, forced);
     const head = columns.map((c) => csvCell(c.h)).join(',');
     const body = rows.map((r) => columns.map((c) => csvCell(r[c.k])).join(',')).join('\r\n');
     return { text: `﻿${head}\r\n${body}`, rows: rows.length, total };
 }
 
-module.exports = { catalog, count, workbook, csv, MAX_ROWS, DATASETS: D, ORDER };
+const OWNER_KEYS = ['customers', 'orders', 'riders', 'staff', 'branches', 'menu', 'complaints', 'invoices'];
+module.exports = { OWNER_KEYS, catalog, count, workbook, csv, MAX_ROWS, DATASETS: D, ORDER };

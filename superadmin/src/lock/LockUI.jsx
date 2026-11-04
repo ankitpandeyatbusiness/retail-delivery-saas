@@ -7,6 +7,7 @@ import { useTheme } from '../theme';
 const tr = (s, v) => (v ? s.replace(/\{(\w+)\}/g, (_, k) => String(v[k] ?? '')) : s);
 // the colours this screen needs, from the panel's theme (light or dark)
 const useColors = () => { const t = useTheme(); return { bg: t.bg, surface: t.surface, text: t.text, muted: t.muted, border: t.border, primary: t.primary, onPrimary: '#FFFFFF', danger: t.danger, ok: t.success }; };
+import { Sheet, ConfirmSheet } from '../components/feedback';
 import { useLockStore } from './useLockStore';
 import { AUTO_CHOICES, support } from './appLockCore';
 
@@ -252,7 +253,8 @@ export function AppLockSettings() {
         </View>
     );
     const sw = (value, onValueChange, disabled) => <Switch value={value} onValueChange={onValueChange} disabled={disabled} trackColor={{ true: alpha(c.primary, 0.5), false: c.border }} thumbColor={value ? c.primary : c.muted} />;
-    const turnOff = () => Alert.alert(tr('Switch the lock off?'), tr('Anyone who opens your phone could open this app.'), [{ text: tr('Keep it on'), style: 'cancel' }, { text: tr('Switch off'), style: 'destructive', onPress: () => st.disable() }]);
+    const [askOff, setAskOff] = useState(false);
+    const turnOff = () => setAskOff(true);
     const changePin = () => setSetup('pin');
     return (
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
@@ -285,14 +287,19 @@ export function AppLockSettings() {
                 <Text style={{ color: c.muted, marginTop: 4, lineHeight: 19 }}>{tr('Tap "Forgot PIN?" on the lock screen, sign in again with your usual OTP or password, and set a new lock. Nothing is deleted from your shop.')}</Text>
             </View>
 
-            <Modal visible={!!setup} transparent animationType="slide" onRequestClose={() => setSetup(false)} statusBarTranslucent>
-                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
-                    <View style={{ backgroundColor: c.bg, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20, paddingBottom: 30 }}>
-                        <Text style={{ color: c.text, fontWeight: '900', fontSize: 19, marginBottom: 12 }}>{tr('App lock')}</Text>
-                        <LockSetup onDone={() => setSetup(false)} onCancel={() => setSetup(false)} />
-                    </View>
-                </View>
-            </Modal>
+            <ConfirmSheet
+                visible={askOff}
+                onClose={() => setAskOff(false)}
+                icon="lock"
+                title={tr('Switch the lock off?')}
+                message={tr('Anyone who opens your phone could open this app.')}
+                confirmLabel={tr('Switch off')}
+                danger
+                onConfirm={async () => { await st.disable(); }}
+            />
+            <Sheet visible={!!setup} onClose={() => setSetup(false)} title={tr('App lock')}>
+                <LockSetup onDone={() => setSetup(false)} onCancel={() => setSetup(false)} />
+            </Sheet>
         </ScrollView>
     );
 }

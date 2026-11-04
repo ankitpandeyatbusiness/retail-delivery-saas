@@ -29,6 +29,10 @@ export const automations = {   // what the system does by itself for this shop (
     reset: () => d(api.delete('/shop/automations')),
 };
 export const orderHistory = (params) => d(api.get('/shop/order-history', q(params)));   // the History tab: { items, hasMore, page, summary, byDay }
+// "Download your data": Excel or CSV of his own shop (or all his branches). Catalog, a row count, and the file path (downloadAndOpen).
+export const fetchExportCatalog = () => d(api.get('/shop/exports/catalog'));
+export const countExport = (key, params) => d(api.get(`/shop/exports/${key}/count`, q(params)));
+export const exportDownloadPath = (key) => `/shop/exports/${key}/download`;
 export const orderHistoryExportPath = '/shop/order-history/export';   // + the same params: an Excel file
 export const fetchOrder = (id) => d(api.get(`/shop/orders/${id}`));
 // body: { status, note?, reasonCode? }   (cancelling needs a note)

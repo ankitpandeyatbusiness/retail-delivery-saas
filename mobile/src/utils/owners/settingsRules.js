@@ -113,6 +113,11 @@ export function closingText(r, shopName) {
     for (const p of r.payments) lines.push(`  ${PAY[p.method] || p.method}: ${rs(p.total)} (${p.orders})`);
     lines.push(`Orders: ${r.orders.placed} placed, ${r.orders.delivered} delivered, ${r.orders.cancelled} cancelled${r.orders.undelivered ? `, ${r.orders.undelivered} not delivered` : ''}`);
     if (r.sales.tips) lines.push(`Tips: ${rs(r.sales.tips)}`);
+    if (r.sales.tax) lines.push(`GST in the sales: ${rs(r.sales.tax)}`);
+    if (r.sales.discounts) lines.push(`Discounts given: ${rs(r.sales.discounts)}`);
+    if (r.busiest) lines.push(`Busiest hour: ${r.busiest.hour % 12 || 12} ${r.busiest.hour < 12 ? 'AM' : 'PM'} (${rs(r.busiest.sales)})`);
+    if (r.customers && r.customers.total) lines.push(`Customers: ${r.customers.total} (${r.customers.new} new, ${r.customers.returning} came back)`);
+    if (r.lost && r.lost.orders) lines.push(`Lost to cancels: ${rs(r.lost.total)} (${r.lost.orders} ${r.lost.orders === 1 ? 'order' : 'orders'})`);
     lines.push(`Cash collected by riders: ${rupees(r.cash.collectedByRidersPaise)} (still with riders: ${rupees(r.cash.withRidersNowPaise)})`);
     if (r.online.receivedCount || r.online.refundedCount) lines.push(`Online: received ${rupees(r.online.receivedPaise)}, refunded ${rupees(r.online.refundedPaise)}`);
     if (r.topItems.length) lines.push('', 'Best sellers:', ...r.topItems.map((i) => `  ${i.name} × ${i.quantity}`));

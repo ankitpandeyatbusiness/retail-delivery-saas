@@ -8,7 +8,8 @@ import { registerDevice, removeDevice } from '../api/platformApi';
 import { openScreen } from '../navigation/ref';
 
 const TOKEN_KEY = 'rc_push_token';
-const CHANNEL = 'alerts';
+// This app's own alert tone (assets/sounds/platform_alert.wav, bundled by app.config.js). Same id as the server sends (services/adminAlerts.js).
+const CHANNEL = 'platform_alerts_v1';
 
 let configured = false;
 export function configurePush() {
@@ -59,7 +60,10 @@ export async function enablePush({ ask = false } = {}) {
     try {
         configurePush();
         if (Platform.OS === 'android') {
-            await Notifications.setNotificationChannelAsync(CHANNEL, { name: 'Platform alerts', importance: Notifications.AndroidImportance.HIGH });
+            await Notifications.setNotificationChannelAsync(CHANNEL, {
+                name: 'Platform alerts', importance: Notifications.AndroidImportance.HIGH, sound: 'platform_alert.wav',
+                vibrationPattern: [0, 250, 150, 250], enableVibrate: true, lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+            });
         }
         let { status, canAskAgain } = await Notifications.getPermissionsAsync();
         if (status !== 'granted' && ask && canAskAgain) status = (await Notifications.requestPermissionsAsync()).status;

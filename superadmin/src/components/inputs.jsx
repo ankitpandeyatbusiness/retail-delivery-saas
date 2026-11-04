@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, TextInput, Switch, Pressable, StyleSheet } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, TextInput, Switch, Pressable, StyleSheet, Animated, Easing } from 'react-native';
 import Icon from './Icon';
 import { useTheme, spacing, radius, font, TAP } from '../theme';
 
@@ -66,15 +66,25 @@ export function ToggleRow({ title, subtitle, value, onValueChange, disabled, las
 }
 
 /* a short row of choices: exactly one is selected */
+// A row of choices with a highlight that SLIDES to the chosen one (the same look and motion as the customer app's Appearance switch).
+// The choice shows at once; onChange is called at once too. A caller that repaints the whole app (the theme) waits for the slide itself.
 export function Segmented({ options, value, onChange }) {
     const t = useTheme();
+    const [w, setW] = useState(0);
+    const [sel, setSel] = useState(value);
+    const idx = Math.max(0, options.findIndex((o) => o.value === sel));
+    const slide = useRef(new Animated.Value(idx)).current;
+    useEffect(() => { setSel(value); }, [value]);
+    useEffect(() => { Animated.timing(slide, { toValue: idx, duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start(); }, [idx, slide]);
+    const segW = w ? (w - 6) / options.length : 0;
     return (
-        <View style={[s.seg, { backgroundColor: t.surfaceAlt }]}>
+        <View onLayout={(e) => setW(e.nativeEvent.layout.width)} style={[s.seg, { backgroundColor: t.surfaceAlt }]}>
+            {segW ? <Animated.View pointerEvents="none" style={[s.segThumb, { width: segW, backgroundColor: t.surface, transform: [{ translateX: Animated.multiply(slide, segW) }] }]} /> : null}
             {options.map((o) => {
-                const on = o.value === value;
+                const on = o.value === sel;
                 return (
-                    <Pressable key={o.value} onPress={() => onChange(o.value)} style={[s.segItem, on && { backgroundColor: t.surface }]}>
-                        <Text style={{ color: on ? t.text : t.muted, fontWeight: '600', fontSize: font.sm }}>{o.label}</Text>
+                    <Pressable key={o.value} onPress={() => { if (o.value === sel) return; setSel(o.value); onChange(o.value); }} style={s.segItem} accessibilityRole="button" accessibilityState={{ selected: on }}>
+                        <Text style={{ color: on ? t.text : t.muted, fontWeight: on ? '700' : '600', fontSize: font.sm }}>{o.label}</Text>
                     </Pressable>
                 );
             })}
@@ -86,5 +96,6 @@ const s = StyleSheet.create({
     search: { flexDirection: 'row', alignItems: 'center', height: TAP, borderRadius: radius.md, borderWidth: 1, paddingHorizontal: spacing.md },
     toggle: { flexDirection: 'row', alignItems: 'center', minHeight: 60, paddingVertical: spacing.sm },
     seg: { flexDirection: 'row', borderRadius: radius.md, padding: 3 },
+    segThumb: { position: 'absolute', left: 3, top: 3, bottom: 3, borderRadius: radius.sm },
     segItem: { flex: 1, height: 40, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
 });

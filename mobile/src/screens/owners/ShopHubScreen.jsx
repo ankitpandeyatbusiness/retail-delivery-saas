@@ -59,12 +59,13 @@ const WORDS = {
     OwnerShopSettings: 'phone address sms alerts monthly report shop name contact',
     OwnerActivity: 'activity log history changes audit who changed',
     LegalList: 'terms privacy policy agreement legal',
+    OwnerExport: 'download export excel csv data customers orders riders cooks waiters branches menu report file spreadsheet',
 };
 // the search finds a screen by its English words and by the same words in the owner's language
 const wordsOf = (w) => (w ? `${w} ${tr(w)}` : '');
 
 // Easy mode shows only these (the things a shop uses every day); everything else is one switch away.
-const EASY = new Set(['@busy', 'OwnerAutomations', 'OwnerRiders', 'OwnerBookings', 'OwnerServices', 'OwnerBulk', 'OwnerInquiries', 'OwnerClosing', 'OwnerDineIn', 'OwnerCooks', 'OwnerWaiters', 'OwnerCustomers', 'OwnerComplaints', 'OwnerMessages', 'OwnerCategories', 'OwnerCoupons', 'OwnerMoney', 'OwnerMoneyHub', 'OwnerBillsHub', 'OwnerReportsHub', 'OwnerHours', 'OwnerShopSettings', 'AlertSettings', 'Soundbox', 'OwnerAppLock']);
+const EASY = new Set(['@busy', 'OwnerAutomations', 'OwnerRiders', 'OwnerBookings', 'OwnerServices', 'OwnerBulk', 'OwnerInquiries', 'OwnerClosing', 'OwnerDineIn', 'OwnerCooks', 'OwnerWaiters', 'OwnerCustomers', 'OwnerExport', 'OwnerComplaints', 'OwnerMessages', 'OwnerCategories', 'OwnerCoupons', 'OwnerMoney', 'OwnerMoneyHub', 'OwnerBillsHub', 'OwnerReportsHub', 'OwnerHours', 'OwnerShopSettings', 'AlertSettings', 'Soundbox', 'OwnerAppLock']);
 const EASY_APP = new Set(['My profile', 'Appearance', 'Language', 'See the customer app', 'Log out']);
 
 // [icon, title, subtitle, route]   ('@busy' opens the Busy mode sheet). The order is the order of a working day.
@@ -100,6 +101,7 @@ const GROUPS = [
         ['swap-vertical', 'Transactions', 'Every rupee in and out, by month, refunds and chargebacks', 'OwnerMoneyHub'],
         ['receipt', 'Bills and SMS', 'Your monthly bill and SMS balance', 'OwnerBillsHub'],
         ['trending-up', 'Business report', 'Progress charts, popular items, tips', 'OwnerReportsHub'],
+        ['download', 'Download your data', 'Excel files: customers, cooks, waiters, riders, orders, branches', 'OwnerExport'],
     ]],
     ['Shop settings', [
         ['time', 'Opening hours', 'Weekly hours and holidays', 'OwnerHours'],

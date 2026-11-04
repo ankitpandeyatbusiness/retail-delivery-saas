@@ -61,3 +61,11 @@ Not tried on a phone yet.
 - **Brand owners and branch managers**: one row per brand owner and per branch manager, with the branches they run, 30 day orders and sales, unpaid bills, last login, and a sentence. Filters: role, has unpaid bills.
 - **Cooks and waiters**: status, on duty now, last active, holidays; for cooks the orders they handled in 30 days and the average cooking time compared with the other cooks, problems they told the owner. Everything adds a sentence. Filters: role, active or paused, on duty now.
 - Alerts are not listed in More any more: the bell in the header shows them.
+
+## 9. Download your data (shop owner app: Shop menu > Money > Download your data)
+Not tried on a phone yet.
+1. The list: People (customers, cooks and waiters, riders), Orders and money (orders, rent bills, complaints), Shop data (menu), My business (my shops and branches).
+2. Tap one: period (quick buttons), **how much detail** (Quick / Standard / Everything; "See the columns" lists them), filters (funnel), Excel or CSV, the row count, **Download**. The file opens in the share sheet (Sheets, Drive, WhatsApp).
+3. A shop with one branch sees only its own shop. A **brand owner** also sees "Which shops": all branches, or any ticked ones. Nobody can export a shop that is not theirs (the server refuses).
+4. Customers at Everything level have the **Behaviour in words** sentence for each customer; cooks and waiters and branches have one too.
+5. Phone numbers in these files are full, because they are the owner's own customers and staff. Every download is written to the shop's audit log.

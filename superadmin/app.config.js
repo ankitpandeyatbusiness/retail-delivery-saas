@@ -39,7 +39,8 @@ module.exports = {
             ['expo-location', { locationWhenInUsePermission: 'Allow Retail Control to use your location to point to a shop on the map.' }],
             // no coloured box on autofilled fields (phone number, OTP). Written into the Android theme on every prebuild.
             './plugins/withNoAutofillHighlight',
-            ['expo-notifications', { defaultChannel: 'alerts', color: palette.brand.gradient[1] }],
+            // platform_alert.wav is this app's own alert tone, so a push from it is known by ear. A new channel id (v1) because Android freezes a channel's sound when it is first made.
+            ['expo-notifications', { defaultChannel: 'platform_alerts_v1', sounds: ['./assets/sounds/platform_alert.wav'], color: palette.brand.gradient[1] }],
             ['expo-splash-screen', { image: './assets/splash-icon.png', imageWidth: 260, backgroundColor: palette.brand.gradient[1] }],
         ],
     },

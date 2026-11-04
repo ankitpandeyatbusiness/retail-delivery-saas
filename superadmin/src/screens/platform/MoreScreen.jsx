@@ -88,7 +88,7 @@ export default function MoreScreen() {
                     <Card>
                         <Segmented
                             value={mode}
-                            onChange={setMode}
+                            onChange={(m) => setTimeout(() => setMode(m), 280)}
                             options={[{ value: 'system', label: 'Phone setting' }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]}
                         />
                     </Card>
