@@ -6,7 +6,7 @@ import { View, Text, ScrollView, Pressable } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
-import { PageHeader, Empty } from '../../components/owners/ui';
+import { PageHeader, Empty, Button } from '../../components/owners/ui';
 import { ListShimmer } from '../../components/owners/shimmer';
 import ServiceHeroCard from '../../components/customers/ServiceHeroCard';
 import { fetchServices } from '../../api/customers/shopApi';
@@ -25,6 +25,7 @@ export default function ServicesScreen() {
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Services')} />
             <ScrollView contentContainerStyle={{ paddingTop: 10, paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
+                {items && items.length ? <View style={{ paddingHorizontal: 16, marginBottom: 10 }}><Button label={tr('My inquiries')} icon="chatbubbles-outline" kind="ghost" onPress={() => nav.navigate('MyInquiries')} /></View> : null}
                 {items === null ? <ListShimmer /> : null}
                 {err && !items?.length ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={err} /> : null}
                 {items && !items.length && !err ? <Empty icon="briefcase-outline" title={tr('Nothing here right now')} hint={tr('This shop has not switched on any services.')} /> : null}

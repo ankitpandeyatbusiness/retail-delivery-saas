@@ -195,7 +195,8 @@ export default function BulkOrderScreen() {
         : <Text style={{ color: muted, textAlign: 'center', fontWeight: '700', paddingVertical: 6 }}>{tr('Pick dishes to start your bulk order')}</Text>;
 
     return (
-        <FormPage title={tr('Bulk order')} footer={footer}>
+        <FormPage title={tr('Bulk order')} footer={footer} hideableFooter footerKey={lines.reduce((n, l) => n + (Number(l.quantity) || 0), 0)}>
+            <View style={{ paddingHorizontal: 16, marginBottom: 6 }}><Button label={tr('My bulk orders')} icon="receipt-outline" kind="ghost" onPress={() => nav.navigate('MyBulkOrders')} /></View>
             <Group title={tr('Pick the dishes')} hint={cfg.minOrderAmount ? tr('The minimum bulk order is {a}. Hold + to add 10 at a time, or type the number.', { a: rs(cfg.minOrderAmount) }) : tr('Hold + to add 10 at a time, or type the number.')}>
                 <TextBox placeholder={tr('Search a dish')} value={find} onChangeText={setFind} maxLength={40} last />
                 {shown.map((c) => (

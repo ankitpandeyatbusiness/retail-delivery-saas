@@ -22,7 +22,7 @@ import { useAddressStore } from '../../store/customers/useAddressStore';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useThemeStore } from '../../store/common/useThemeStore';
 import { useFavStore } from '../../store/customers/shopStores';
-import { fetchMe, updateMe, deleteMe, updatePrefs, deleteUpload } from '../../api/customers/shopApi';
+import { fetchMe, updateMe, deleteMe, updatePrefs, deleteUpload, fetchMyBookings, fetchMyBulk, fetchMyInquiries } from '../../api/customers/shopApi';
 import { useServiceFlags } from '../../utils/customers/serviceFlags';
 import { useMeStore } from '../../store/customers/useMeStore';
 import { pickPhoto, uploadAvatar } from '../../utils/common/photoUpload';
@@ -91,7 +91,7 @@ function EditDialog({ visible, me, onClose, onSaved }) {
     );
 }
 
-function Item({ icon, label, sub, onPress, danger, last }) {
+function Item({ icon, label, sub, onPress, danger, last, badge }) {
     const { primary, text, muted, error, border } = useBrand();
     const c = danger ? error : primary;
     return (
@@ -101,6 +101,7 @@ function Item({ icon, label, sub, onPress, danger, last }) {
                 <Text style={[s.rowTxt, { color: danger ? error : text }]}>{label}</Text>
                 {sub ? <Text style={[s.rowSub, { color: muted }]} numberOfLines={1}>{sub}</Text> : null}
             </View>
+            {badge ? <View style={{ backgroundColor: c, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2, marginRight: 6 }}><Text style={{ color: '#FFFFFF', fontSize: 11.5, fontWeight: '800' }}>{badge}</Text></View> : null}
             <Ionicons name="chevron-forward" size={18} color={muted} />
         </Press>
     );
@@ -233,6 +234,7 @@ function AccountInner() {
     const bulkOn = useServiceFlags((st) => st.bulkOn);   // the shop takes bulk orders (the super admin's switch and the owner's own)
     const serviceCount = useServiceFlags((st) => st.serviceCount);   // the Services section shows only when the shop offers something; kept between openings so it is there at once
     const bookingOn = useServiceFlags((st) => st.bookingOn);
+    const [live, setLive] = useState({ tables: 0, next: '', bulk: 0, quote: 0, inq: 0, replied: 0 });   // what I have open in each service, for the badges
     useEffect(() => { useServiceFlags.getState().refresh(); }, []);
     const referOn = useHomeStore((st) => !!(st.full.orders.dineIn?.enabled && st.full.orders.dineIn?.referOn));
     const shop = useThemeStore((st) => st.theme.name);
@@ -262,8 +264,22 @@ function AccountInner() {
     useFocusEffect(useCallback(() => {
         let on = true;
         useMeStore.getState().refresh();
+        const none = { items: [] };
+        Promise.all([
+            bookingOn ? fetchMyBookings().catch(() => none) : none,
+            bulkOn ? fetchMyBulk().catch(() => none) : none,
+            serviceCount ? fetchMyInquiries().catch(() => none) : none,
+        ]).then(([b, k, q]) => {
+            if (!on) return;
+            const nowMs = Date.now();
+            const tables = (b.items || []).filter((x) => ['confirmed', 'seated'].includes(x.status) && new Date(x.endsAt || x.startsAt) > nowMs).sort((x, y) => new Date(x.startsAt) - new Date(y.startsAt));
+            const next = tables[0] ? new Date(tables[0].startsAt).toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true }) : '';
+            const bulkOpen = (k.items || []).filter((x) => !['delivered', 'completed', 'declined', 'cancelled', 'expired'].includes(x.status));
+            const inqOpen = (q.items || []).filter((x) => !['closed', 'rejected'].includes(x.status));
+            setLive({ tables: tables.length, next, bulk: bulkOpen.length, quote: bulkOpen.filter((x) => x.status === 'quoted').length, inq: inqOpen.length, replied: inqOpen.filter((x) => x.status === 'replied' || x.status === 'quoted').length });
+        });
         return () => { on = false; };
-    }, []));
+    }, [bookingOn, bulkOn, serviceCount]));
 
     const p = me || user || {};
     const name = p.name || '';
@@ -422,14 +438,11 @@ function AccountInner() {
 
                 {serviceCount || bookingOn || bulkOn ? (
                     <Group title={tr('SERVICES')} delay={90}>
-                        {bookingOn ? <Item icon="calendar-outline" label={tr('Reserve a table')} sub={tr('Pick a day, a time and your group')} onPress={() => nav.navigate('BookTable')} /> : null}
-                        {bookingOn ? <Item icon="calendar-number-outline" label={tr('My reservations')} sub={tr('Your tables and the code to show')} onPress={() => nav.navigate('MyBookings')} last={!serviceCount && !bulkOn} /> : null}
-                        {bulkOn ? <Item icon="cube-outline" label={tr('Bulk order')} sub={bulkPaused ? tr('Temporarily unavailable') : tr('Pick dishes and quantities for an office, a function or a party. The shop sends you a quote.')} onPress={() => nav.navigate('BulkOrder')} /> : null}
-                        {bulkOn ? <Item icon="receipt-outline" label={tr('My bulk orders')} sub={tr('Your requests, quotes and invoices')} onPress={() => nav.navigate('MyBulkOrders')} last={!serviceCount} /> : null}
+                        {bookingOn ? <Item icon="calendar-outline" label={tr('Reserve a table')} sub={live.next ? tr('Your next table: {d}', { d: live.next }) : tr('Book a table. Your reservations are inside')} badge={live.tables ? tr('{n} active', { n: live.tables }) : ''} onPress={() => nav.navigate('BookTable')} last={!bulkOn && !serviceCount} /> : null}
+                        {bulkOn ? <Item icon="cube-outline" label={tr('Bulk order')} sub={bulkPaused ? tr('Temporarily unavailable') : live.quote ? tr('A quote is waiting for you') : tr('Pick dishes and quantities for an office, a function or a party. The shop sends you a quote.')} badge={live.bulk ? tr('{n} active', { n: live.bulk }) : ''} onPress={() => nav.navigate('BulkOrder')} last={!serviceCount} /> : null}
                         {serviceCount === 1 && onlyService
-                            ? <Item icon={onlyService.icon} label={tr(onlyService.name)} sub={onlyService.paused ? tr('Temporarily unavailable') : tr('Ask the shop. Replies come in My inquiries')} onPress={() => nav.navigate('ServiceForm', { id: onlyService.id })} />
-                            : serviceCount ? <Item icon="briefcase-outline" label={tr('Services')} sub={tr('Tiffin, party booking and more')} onPress={() => nav.navigate('Services')} /> : null}
-                        {serviceCount ? <Item icon="chatbubbles-outline" label={tr('My inquiries')} sub={tr('Replies from the shop')} onPress={() => nav.navigate('MyInquiries')} last /> : null}
+                            ? <Item icon={onlyService.icon} label={tr(onlyService.name)} sub={onlyService.paused ? tr('Temporarily unavailable') : live.replied ? tr('The shop replied to you') : tr('Ask the shop. Your inquiries are inside')} badge={live.inq ? tr('{n} active', { n: live.inq }) : ''} onPress={() => nav.navigate('ServiceForm', { id: onlyService.id })} last />
+                            : serviceCount ? <Item icon="briefcase-outline" label={tr('Services')} sub={live.replied ? tr('The shop replied to you') : tr('Tiffin, party booking and more')} badge={live.inq ? tr('{n} active', { n: live.inq }) : ''} onPress={() => nav.navigate('Services')} last /> : null}
                     </Group>
                 ) : null}
 

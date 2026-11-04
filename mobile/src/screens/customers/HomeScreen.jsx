@@ -163,8 +163,8 @@ function Header({ onAddress, onTable, scrollY }) {
 
             {/* the shop is the hero */}
             <Animated.View style={drift}>
-                <Text style={[s.hdTitle, compact && s.hdTitleCompact, { color: fg }]} numberOfLines={1}>{theme.name}</Text>
-                {theme.tagline && !compact ? <Text style={[s.hdTagline, { color: fg }]} numberOfLines={1}>{tr(theme.tagline)}</Text> : null}
+                <Text style={[s.hdTitle, compact && s.hdTitleCompact, titleFit(theme.name, compact), { color: fg }]}>{theme.name}</Text>
+                {theme.tagline && !compact ? <Text style={[s.hdTagline, { color: fg, lineHeight: 19 }]}>{tr(theme.tagline)}</Text> : null}
 
                 <View style={[s.chipRow, compact && { marginTop: 10 }]}>
                     <View style={[s.hChip, { backgroundColor: glassBg, borderColor: glassLine }]}>
@@ -782,6 +782,13 @@ export default function HomeScreen() {
         </View>
     );
 }
+
+// a long shop name gets a little smaller and a line height that fits, so two lines look like a title, not a crowd
+const titleFit = (name, compact) => {
+    const n = String(name || '').length;
+    const size = compact ? (n <= 22 ? 22 : n <= 36 ? 19 : 17) : (n <= 18 ? 30 : n <= 28 ? 26 : n <= 40 ? 23 : 20);
+    return { fontSize: size, lineHeight: Math.round(size * 1.15) };
+};
 
 const s = StyleSheet.create({
     hd: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 22, borderBottomLeftRadius: 28, borderBottomRightRadius: 28, overflow: 'hidden' },

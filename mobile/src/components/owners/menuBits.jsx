@@ -154,8 +154,10 @@ export function Group({ title, hint, children, flush, flash, flashText, onLayout
 // The frame of a form page: back arrow + title, the fields scrolling, and the main button pinned to the bottom.
 // fixed: the children fill the space and manage their own scrolling (a chat); the page itself does not scroll
 // bare: no bar at the top and no gap: the first child is a picture header that has its own back button (the service pages)
-export function FormPage({ title, children, footer, right, scrollRef, fixed, bare }) {
-    const { background, border } = useBrand();
+export function FormPage({ title, children, footer, right, scrollRef, fixed, bare, hideableFooter, footerKey }) {
+    const { background, border, muted } = useBrand();
+    const [down, setDown] = useState(false);   // hideableFooter: the bar is slid down to a thin strip
+    useEffect(() => { setDown(false); }, [footerKey]);   // it comes back when what it shows changes (a dish was added)
     const insets = useSafeAreaInsets();
     const [boxRef, lift] = useKeyboardLift();   // Android: the page, with its bar, is lifted above the keyboard
     return (
@@ -167,8 +169,17 @@ export function FormPage({ title, children, footer, right, scrollRef, fixed, bar
                 <KeyboardScroll ref={scrollRef} contentContainerStyle={{ paddingTop: bare ? 0 : 6, paddingBottom: 40 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
                     {children}
                 </KeyboardScroll>)}
-                {footer ? (
-                    <View style={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: Math.max(insets.bottom, 10), borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: border, backgroundColor: background }}>
+                {footer && hideableFooter && down ? (
+                    <Pressable onPress={() => setDown(false)} accessibilityRole="button" accessibilityLabel={tr('Show the bar')} hitSlop={8} style={{ alignItems: 'center', paddingTop: 4, paddingBottom: Math.max(insets.bottom, 4), borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: border, backgroundColor: background }}>
+                        <Ionicons name="chevron-up" size={22} color={muted} />
+                    </Pressable>
+                ) : footer ? (
+                    <View style={{ paddingHorizontal: 16, paddingTop: hideableFooter ? 2 : 10, paddingBottom: Math.max(insets.bottom, 10), borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: border, backgroundColor: background }}>
+                        {hideableFooter ? (
+                            <Pressable onPress={() => setDown(true)} accessibilityRole="button" accessibilityLabel={tr('Hide the bar')} hitSlop={8} style={{ alignItems: 'center', paddingBottom: 2 }}>
+                                <Ionicons name="chevron-down" size={22} color={muted} />
+                            </Pressable>
+                        ) : null}
                         {footer}
                     </View>
                 ) : null}

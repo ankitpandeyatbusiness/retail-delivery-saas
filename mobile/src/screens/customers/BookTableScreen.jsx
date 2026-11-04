@@ -119,6 +119,7 @@ export default function BookTableScreen() {
     return (
         <FormPage title={tr('Reserve a table')} footer={<Button label={table ? tr('Pay ₹{n} deposit · Table {t}', { n: deposit, t: table }) : tr('Tap a table to book')} icon="calendar" busy={busy} disabled={!table} onPress={send} />}>
             <View style={{ paddingHorizontal: 16 }}>
+            <Button label={tr('My reservations')} icon="calendar-number-outline" kind="ghost" onPress={() => nav.navigate('MyBookings')} style={{ marginBottom: 10 }} />
             <Label>{tr('Day')}</Label>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
                 {days.map((x) => {

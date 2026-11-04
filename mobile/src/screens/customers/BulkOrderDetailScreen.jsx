@@ -220,7 +220,7 @@ export default function BulkOrderDetailScreen() {
                         {STAGE_TEXT[o.status] ? <Text style={{ color: text, marginTop: 6, fontWeight: '700' }}>{tr(STAGE_TEXT[o.status](o.fulfilment === 'delivery'))}</Text> : null}
                         {pd.balancePaid ? <Text style={{ color: ok, marginTop: 4, fontWeight: '700' }}>{tr('Balance paid: {a} ({how})', { a: rs(pd.balancePaise / 100), how: pd.balanceVia === 'cash' ? tr('cash') : pd.balanceVia === 'upi' ? tr('UPI') : tr('online') })}</Text> : null}
                         {!pd.balancePaid && o.quote?.balancePaise > 0 && ['confirmed', 'preparing'].includes(o.status) ? <Text style={{ color: muted, marginTop: 4 }}>{tr('The balance of {a} is paid at the handover, in the app or in cash to the shop.', { a: rs(o.quote.balancePaise / 100) })}</Text> : null}
-                        {!pd.balancePaid && o.quote?.balancePaise > 0 && ['ready', 'out_for_delivery', 'delivered'].includes(o.status) ? <Text style={{ color: text, marginTop: 4, fontWeight: '800' }}>{tr('Balance to pay: {a}. Pay it in the app, or in cash to the shop.', { a: rs(o.quote.balancePaise / 100) })}</Text> : null}
+                        {!pd.balancePaid && o.quote?.balancePaise > 0 && ['ready', 'out_for_delivery', 'delivered'].includes(o.status) ? <Text style={{ color: text, marginTop: 4, fontWeight: '800' }}>{(o.fulfilment === 'delivery' ? tr('Balance to pay: {a}. Pay it in the app now, or online with the QR the delivery partner shows, or in cash to him.', { a: rs(o.quote.balancePaise / 100) }) : tr('Balance to pay: {a}. Pay it in the app, or in cash to the shop.', { a: rs(o.quote.balancePaise / 100) }))}</Text> : null}
                     </Card>
                 ) : null}
                 {o.trackOrderId ? (

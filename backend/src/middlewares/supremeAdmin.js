@@ -18,6 +18,7 @@ const MONEY = [
     /^\/finance\//,                                         // the platform's expenses
     /^\/money-record(\/|$)/,                                // the developer's yes/no and who brought a shop
     /^\/agreements(\/|$)/,
+    /^\/tenants\/[^/]+\/shop\/bulk\/[^/]+\/(cancel|cash-received)$/,   // cancelling a paid bulk order (the advance goes back) and writing down the balance as received
     /^\/platform\/maintenance$/,                            // switching EVERY shop's app off (one shop's own switch stays open)
 ];
 

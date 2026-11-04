@@ -20,6 +20,13 @@ import { useTheme, spacing, font } from '../../theme';
 import { CATEGORIES, DISHES, BANNERS, OFFERS, ORDERS, STEPS, USER } from './previewData';
 import { makeFixed } from './FixedScreens';
 
+// a long shop name gets a little smaller (same steps as the real home screen, scaled to the preview)
+const nameFit = (name, compact) => {
+    const n = String(name || '').length;
+    const size = compact ? (n <= 22 ? 19 : n <= 36 ? 16 : 14) : (n <= 18 ? 25 : n <= 28 ? 22 : n <= 40 ? 19 : 17);
+    return { fontSize: size, lineHeight: Math.round(size * 1.15) };
+};
+
 /* ============================== colours (the same rules as the customer app's kit.jsx) ============================== */
 const isHex = (c) => /^#[0-9a-fA-F]{6}$/.test(c || '');
 const rgb = (c) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16));
@@ -431,9 +438,9 @@ function HomeHeader() {
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: compact ? 8 : 12 }}>
                 {C.logo ? <Image source={{ uri: C.logo }} style={{ width: compact ? 28 : 38, height: compact ? 28 : 38, borderRadius: 10, marginRight: 10, backgroundColor: 'rgba(255,255,255,0.35)' }} /> : null}
-                <Tx numberOfLines={1} style={{ flex: 1, color: fg, fontSize: compact ? 19 : 25, fontWeight: '900', letterSpacing: -0.6 }}>{C.name}</Tx>
+                <Tx style={{ flex: 1, color: fg, ...nameFit(C.name, compact), fontWeight: '900', letterSpacing: -0.6 }}>{C.name}</Tx>
             </View>
-            {!compact ? <Tx numberOfLines={1} style={{ color: fg, fontSize: 11.5, opacity: 0.9, marginTop: 2 }}>{C.tagline}</Tx> : null}
+            {!compact ? <Tx style={{ color: fg, fontSize: 11.5, lineHeight: 15, opacity: 0.9, marginTop: 3 }}>{C.tagline}</Tx> : null}
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: compact ? 8 : 12 }}>
                 <View style={[s.hChip, { backgroundColor: glass, borderColor: line }]}>
                     <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: open ? '#4ADE80' : '#FF6B6B', marginRight: 5 }} />

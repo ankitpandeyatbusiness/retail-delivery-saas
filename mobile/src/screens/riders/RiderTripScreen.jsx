@@ -352,7 +352,8 @@ export default function RiderTripScreen() {
 
                 {step === 2 ? (
                     <View style={{ marginHorizontal: 16 }}>
-                        {cash && o.doorPay?.canStart ? <SmallLink label={T.customerPaysOnline} icon="qr-code" onPress={payByQr} /> : null}
+                        {cash && o.doorPay?.canStart && o.bulk ? <Button label={T.customerPaysOnline} icon="qr-code" kind="ghost" onPress={payByQr} style={{ marginBottom: 8 }} /> : null}
+                        {cash && o.doorPay?.canStart && !o.bulk ? <SmallLink label={T.customerPaysOnline} icon="qr-code" onPress={payByQr} /> : null}
                         {!d.pinRequired ? <SmallLink label={d.proof ? tr('Retake the photo') : T.addPhoto} icon="camera" onPress={addPhoto} /> : null}
                     </View>
                 ) : null}

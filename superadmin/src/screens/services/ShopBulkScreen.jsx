@@ -7,8 +7,9 @@ import { Card, Button, Badge, Chip, SectionTitle, KeyValue } from '../../compone
 import { Segmented } from '../../components/inputs';
 import { Group, Switch, NumberField, Choice, Hint } from '../../components/settingsForm';
 import { Hero, SkeletonList } from '../../components/blocks';
-import { Empty, ErrorBox, toast } from '../../components/feedback';
-import { bulkRules, saveBulkRules, listBulkOrders } from '../../api/bulkApi';
+import { Empty, ErrorBox, toast, ConfirmSheet } from '../../components/feedback';
+import { useSupreme } from '../../hooks/useSupreme';
+import { bulkRules, saveBulkRules, listBulkOrders, cancelBulkOrder, bulkCashReceived } from '../../api/bulkApi';
 import { errMsg } from '../../api/adminClient';
 import { dateTime } from '../../utils/format';
 
@@ -33,6 +34,10 @@ export default function ShopBulkScreen() {
     const [saving, setSaving] = useState(false);
     const [orders, setOrders] = useState(null);
     const [filter, setFilter] = useState('all');
+    const supreme = useSupreme();
+    const [cancelFor, setCancelFor] = useState(null);   // the order being cancelled
+    const [cashFor, setCashFor] = useState(null);      // the order whose balance was paid
+    const [tick, setTick] = useState(0);
 
     const load = useCallback(async () => { try { setV(await bulkRules(shopId)); setError(''); } catch (e) { setError(errMsg(e)); } }, [shopId]);
     useEffect(() => { load(); }, [load]);
@@ -40,7 +45,7 @@ export default function ShopBulkScreen() {
         if (tab !== 'orders') return;
         setOrders(null);
         listBulkOrders(shopId, filter === 'all' ? {} : { status: filter }).then((r) => setOrders(r.items || [])).catch((e) => { setOrders([]); toast(errMsg(e), 'error'); });
-    }, [tab, filter, shopId]);
+    }, [tab, filter, shopId, tick]);
 
     if (!v) return <Screen title="Bulk orders" subtitle={name}>{error ? <ErrorBox message={error} onRetry={load} /> : <SkeletonList count={3} avatar={false} />}</Screen>;
 
@@ -144,13 +149,17 @@ export default function ShopBulkScreen() {
                                             last
                                         />
                                     </View>
+                                    {supreme && ['confirmed', 'preparing', 'ready', 'out_for_delivery'].includes(o.status) ? <Button title="Cancel and refund" icon="block" kind="danger" onPress={() => setCancelFor(o)} style={{ marginTop: spacing.md }} /> : null}
+                                    {supreme && pd && !pd.balancePaid && (o.quote?.balancePaise || 0) > 0 && ['ready', 'out_for_delivery', 'delivered'].includes(o.status) ? <Button title="Balance received" icon="ok" kind="outline" onPress={() => setCashFor(o)} style={{ marginTop: spacing.sm }} /> : null}
                                     {refundPending ? <Text style={{ color: t.danger, fontWeight: '800', marginTop: spacing.sm }}>A refund did not go out yet. It is tried again by itself; check the shop's Razorpay balance.</Text> : null}
                                 </Card>
                             </View>
                         );
                     })}
-                    <SectionTitle section="settings">Read only</SectionTitle>
-                    <Hint>The owner quotes, makes and hands over these orders. You see the money here; payments and refunds are also in Online payments.</Hint>
+                    <SectionTitle section="settings">{supreme ? 'For a stuck order' : 'Read only'}</SectionTitle>
+                    <Hint>{supreme ? 'The owner quotes, makes and hands over these orders. If one is stuck you can cancel it (the customer gets the whole advance back) or write down a balance that was paid.' : 'The owner quotes, makes and hands over these orders. You see the money here; only the supreme admin can cancel an order or write down a balance.'} Payments and refunds are also in Online payments.</Hint>
+                    <ConfirmSheet visible={!!cancelFor} onClose={() => setCancelFor(null)} icon="block" danger needReason title="Cancel this bulk order?" message="The customer is told, and gets back everything paid online. The cook and the rider stop." confirmLabel="Cancel and refund" reasonLabel="Why (the customer sees this)" onConfirm={async (reason) => { try { await cancelBulkOrder(shopId, cancelFor.id, reason); toast('Cancelled'); setTick((n) => n + 1); } catch (e) { toast(errMsg(e), 'error'); throw e; } }} />
+                    <ConfirmSheet visible={!!cashFor} onClose={() => setCashFor(null)} icon="ok" title="Balance received?" message="Only if the shop really got the balance (cash or UPI). The order then completes and the invoice is made." confirmLabel="Yes, received" onConfirm={async () => { try { await bulkCashReceived(shopId, cashFor.id, 'cash'); toast('Written down'); setTick((n) => n + 1); } catch (e) { toast(errMsg(e), 'error'); throw e; } }} />
                 </>
             )}
         </Screen>
