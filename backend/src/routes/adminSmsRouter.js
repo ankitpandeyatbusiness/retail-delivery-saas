@@ -32,8 +32,12 @@ const isInt = (v, min) => Number.isInteger(v) && v >= min;
 //   POST /platform/sms-balance/added        { amountPaise } "I added money / the balance is this": the start of the estimate
 router.get('/platform/sms-balance', wrap(async (req, res) => {
     const c = await require('../services/smsProviderBalance').current();
-    res.json({ ...c, keyOnServer: !!process.env.SMS_AUTH_KEY, mock: process.env.SMS_MOCK === 'true' });
+    res.json({ ...c, keyOnServer: !!(process.env.SMS_AUTH_KEY || (await require('../services/smsPlatformSetup').effective()).authKey), mock: process.env.SMS_MOCK === 'true' });
 }));
+// the provider setup (sender, entity, key, template IDs) and a test SMS: supreme admin only for changes
+router.get('/platform/sms-setup', wrap(async (req, res) => { res.json(await require('../services/smsPlatformSetup').view()); }));
+router.put('/platform/sms-setup', wrap(async (req, res) => { req.auditBefore = null; res.json(await require('../services/smsPlatformSetup').save(req.body)); }));
+router.post('/platform/sms-setup/test', wrap(async (req, res) => { res.json(await require('../services/smsPlatformSetup').sendTest(req.body?.phone)); }));
 router.put('/platform/sms-balance', wrap(async (req, res) => { req.auditBefore = null; res.json(await require('../services/smsProviderBalance').saveSettings(req.body)); }));
 router.post('/platform/sms-balance/check', wrap(async (req, res) => {
     const svc = require('../services/smsProviderBalance');

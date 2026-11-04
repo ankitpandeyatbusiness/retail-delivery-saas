@@ -16,8 +16,10 @@ router.post('/handled', wrap(async (req, res) => {
 router.post('/handled/:id/undo', wrap(async (req, res) => {
     res.json({ ...handled.view(await handled.undo({ id: req.params.id, by: who(req) })), undone: true });
 }));
+// the More tab's Needs attention
+router.get('/more/attention', wrap(async (req, res) => { res.json(await require('../services/moreAttention').attention({ supreme: require('../config/supreme').isSupreme(req.admin) })); }));
 router.get('/handled', wrap(async (req, res) => {
-    const scope = ['money', 'orders'].includes(req.query.scope) ? req.query.scope : undefined;
+    const scope = ['money', 'orders', 'platform'].includes(req.query.scope) ? req.query.scope : undefined;
     res.json({ items: await handled.list({ scope, kind: typeof req.query.kind === 'string' ? req.query.kind : undefined }) });
 }));
 

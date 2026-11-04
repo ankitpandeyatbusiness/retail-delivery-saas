@@ -1,80 +1,106 @@
 import React, { useCallback, useState } from 'react';
+import { View, Text } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { spacing } from '../../theme';
+import { useTheme, spacing, font } from '../../theme';
 import { Screen } from '../../components/layout';
-import { Card, SectionTitle, KeyValue, Button, ListRow, Badge } from '../../components/ui';
-import { fetchSupportCounts } from '../../api/supportApi';
+import { Card, SectionTitle, KeyValue, Button, ListRow } from '../../components/ui';
+import { SearchBar, Segmented } from '../../components/inputs';
+import SearchResults from '../../components/SearchResults';
+import { HandleBar } from '../../components/HandledBits';
+import { fetchMoreAttention } from '../../api/handledApi';
 import ProfileCard from '../../components/ProfileCard';
 import { ConfirmSheet } from '../../components/feedback';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useThemeStore } from '../../store/useThemeStore';
-import { Segmented } from '../../components/inputs';
 import pkg from '../../../package.json';
-import { goTab } from '../../navigation/goTo';
 
+// The More tab: your own account and the platform's controls. Everything about shops, orders and money lives in its own tab.
 export default function MoreScreen() {
+    const t = useTheme();
     const nav = useNavigation();
     const admin = useAuthStore((s) => s.admin);
     const logout = useAuthStore((s) => s.logout);
     const [confirm, setConfirm] = useState(false);
-    const [help, setHelp] = useState(0);   // support requests waiting for a reply
-    useFocusEffect(useCallback(() => { fetchSupportCounts().then((c) => setHelp(c.open || 0)).catch(() => { }); }, []));
+    const [q, setQ] = useState('');
+    const [att, setAtt] = useState(null);
+    const load = useCallback(() => { fetchMoreAttention().then(setAtt).catch(() => { }); }, []);
+    useFocusEffect(useCallback(() => { load(); }, [load]));
     const mode = useThemeStore((s2) => s2.mode);
     const setMode = useThemeStore((s2) => s2.setMode);
+    const go = (screen) => () => nav.navigate(screen);
 
     return (
-        <Screen tabScreen title="More" subtitle="Account and platform">
-            <ProfileCard name={admin?.name} subtitle={admin?.email} />
+        <Screen tabScreen title="More" subtitle="Account and platform" onRefresh={async () => { load(); }}>
+            <View style={{ marginBottom: spacing.lg }}><SearchBar value={q} onChangeText={setQ} placeholder="Search a screen, setting or shop" /></View>
+            {q.trim() ? <SearchResults q={q} /> : (
+                <>
+                    <ProfileCard name={admin?.name} subtitle={admin?.email} />
 
-            <SectionTitle section="shops">Find and watch</SectionTitle>
-            <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
-                <ListRow section="settings" icon="lock" title="App lock" subtitle="PIN, fingerprint or face when the panel opens" onPress={() => nav.navigate('AppLock')} />
-                <ListRow section="riders" icon="shield" title="Platform health" subtitle="Is everything running fine? Money, orders, SMS, Google, servers" onPress={() => goTab(nav, 'HomeTab', { screen: 'PlatformHealth' })} />
-                <ListRow section="riders" icon="shield" title="Shop health" subtitle="Scores, cancellations, late orders" onPress={() => nav.navigate('Health')} />
-                <ListRow section="settings" icon="bolt" title="System and backups" subtitle="Database, SMS, nightly jobs, backups" onPress={() => nav.navigate('System')} />
-                <ListRow section="money" icon="copy" title="Export data" subtitle="Orders, invoices, customers as Excel sheets" onPress={() => nav.navigate('Exports')} last />
-            </Card>
+                    {att && (att.items.length || att.handled.length) ? (
+                        <>
+                            <SectionTitle section="alerts">Needs attention{att.counts.total ? ` · ${att.counts.total}` : ''}</SectionTitle>
+                            <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
+                                {att.items.map((it, i) => (
+                                    <View key={it.key} style={{ borderBottomWidth: i === att.items.length - 1 && !att.handled.length ? 0 : 0.5, borderBottomColor: t.border, paddingBottom: it.kind ? spacing.md : 0 }}>
+                                        <ListRow section={it.level === 'bad' ? 'alerts' : 'catalog'} icon={it.level === 'bad' ? 'warning' : 'clock'} title={it.title} subtitle={it.hint} onPress={go(it.screen)} last />
+                                        {it.kind ? <HandleBar kind={it.kind} refId={it.refId} title={it.title} onChanged={load} /> : null}
+                                    </View>
+                                ))}
+                                {att.handled.map((it) => (
+                                    <View key={it.key} style={{ paddingVertical: spacing.md }}>
+                                        <Text style={{ color: t.muted, fontWeight: '700', fontSize: font.sm }}>{it.title}</Text>
+                                        <HandleBar kind={it.kind} refId={it.refId} mark={it.mark} onChanged={load} />
+                                    </View>
+                                ))}
+                                {!att.items.length ? <ListRow section="riders" icon="ok" title="All clear" subtitle="Everything else is marked as handled." last /> : null}
+                            </Card>
+                        </>
+                    ) : null}
 
-            <SectionTitle section="alerts">Alerts and messages</SectionTitle>
-            <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
-                <ListRow section="orders" icon="message" title="Support requests" subtitle="Help requests from shop owners" right={help > 0 ? <Badge label={`${help} waiting`} tone="danger" /> : null} onPress={() => nav.navigate('Support')} />
-                <ListRow section="alerts" icon="bell" title="Alerts inbox" subtitle="Late orders, unpaid bills, problems" onPress={() => nav.navigate('Inbox')} />
-                <ListRow section="platform" icon="megaphone" title="Messages to owners" subtitle="Write to all shop owners" onPress={() => nav.navigate('OwnerMessages')} />
-                <ListRow section="catalog" icon="message" title="Alert SMS" subtitle="SMS to your phone and what they cost" onPress={() => nav.navigate('AlertSettings')} />
-                <ListRow section="settings" icon="tune" title="Notification rules" subtitle="How each event is delivered" onPress={() => nav.navigate('NotificationRules')} last />
-            </Card>
+                    <SectionTitle section="alerts">Rules and SMS</SectionTitle>
+                    <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
+                        <ListRow section="settings" icon="tune" title="Notification rules" subtitle="How each event is delivered" onPress={go('NotificationRules')} />
+                        <ListRow section="catalog" icon="message" title="Alert SMS" subtitle="SMS to your phone and what they cost" onPress={go('AlertSettings')} />
+                        <ListRow section="catalog" icon="message" title="SMS and DLT setup" subtitle="MSG91 key, sender, template IDs, send a test" onPress={go('SmsSetup')} />
+                        <ListRow section="money" icon="chart" title="Owner report settings" subtitle="Monthly report email and the comparison shown to owners" onPress={go('InsightsSettings')} last />
+                    </Card>
 
-            <SectionTitle section="platform">Platform</SectionTitle>
-            <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
-                <ListRow section="platform" icon="shops" title="Brands and branches" subtitle="A brand with several branches, each its own shop" onPress={() => nav.navigate('Brands')} />
-                <ListRow section="platform" icon="notes" title="Agreements and terms" subtitle="Read them; the supreme admin writes and sends them" onPress={() => nav.navigate('Agreements')} />
-                <ListRow section="money" icon="rupee" title="Shop money" subtitle="What shops paid each month, and did you get your part" onPress={() => nav.navigate('MoneyRecord')} />
-                <ListRow section="orders" icon="message" title="Services and booking" subtitle="Inquiries, table bookings and the booking money of every shop, to read" onPress={() => nav.navigate('ServicesOverview')} />
-                <ListRow section="money" icon="receipt" title="GST register" subtitle="Every bill and credit note of a month, with CGST, SGST and IGST" onPress={() => nav.navigate('GstRegister')} />
-                <ListRow section="shops" icon="chart" title="Shops growth" subtitle="Top shops, who is growing, who is slowing down" onPress={() => nav.navigate('ShopsGrowth')} />
-                <ListRow section="money" icon="chart" title="Owner report settings" subtitle="Monthly report email and the comparison shown to owners" onPress={() => nav.navigate('InsightsSettings')} />
-                <ListRow section="platform" icon="live" title="Live tracking" subtitle="Riders on the map: how the server copes, and the switch" onPress={() => nav.navigate('LiveTracking')} />
-                <ListRow section="alerts" icon="tool" title="Maintenance" subtitle="Pause every shop's app for an upgrade" onPress={() => nav.navigate('Maintenance')} />
-                <ListRow section="settings" icon="crown" title="Superadmin team" subtitle="Add, revoke or restore superadmins" onPress={() => nav.navigate('Team')} />
-                <ListRow section="platform" icon="notes" title="Audit log" subtitle="Who changed what, everywhere" onPress={() => nav.navigate('AuditLog')} />
-                <ListRow section="shops" icon="user" title="My account" subtitle="Name, login numbers, alerts on this phone" onPress={() => nav.navigate('MyAccount')} last />
-            </Card>
+                    <SectionTitle section="platform">Platform controls</SectionTitle>
+                    <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
+                        <ListRow section="alerts" icon="tool" title="Maintenance" subtitle="Pause every shop's app for an upgrade" onPress={go('Maintenance')} />
+                        <ListRow section="settings" icon="bolt" title="System and backups" subtitle="Database, SMS, nightly jobs, backups" onPress={go('System')} last />
+                    </Card>
 
-            <SectionTitle section="settings">Appearance</SectionTitle>
-            <Card>
-                <Segmented
-                    value={mode}
-                    onChange={setMode}
-                    options={[{ value: 'system', label: 'Phone setting' }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]}
-                />
-            </Card>
+                    <SectionTitle section="money">Records</SectionTitle>
+                    <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
+                        <ListRow section="platform" icon="notes" title="Audit log" subtitle="Who changed what, everywhere" onPress={go('AuditLog')} />
+                        <ListRow section="money" icon="copy" title="Export data" subtitle="Orders, invoices, customers as Excel sheets" onPress={go('Exports')} last />
+                    </Card>
 
-            <SectionTitle section="platform">App</SectionTitle>
-            <Card style={{ paddingVertical: 0 }}>
-                <KeyValue label="Version" value={pkg.version} last />
-            </Card>
+                    <SectionTitle section="shops">Me</SectionTitle>
+                    <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
+                        <ListRow section="shops" icon="user" title="My account" subtitle="Name, login numbers, alerts on this phone" onPress={go('MyAccount')} />
+                        <ListRow section="settings" icon="crown" title="Superadmin team" subtitle="Add, revoke or restore superadmins" onPress={go('Team')} />
+                        <ListRow section="settings" icon="lock" title="App lock" subtitle="PIN, fingerprint or face when the panel opens" onPress={go('AppLock')} last />
+                    </Card>
 
-            <Button title="Log out" kind="dangerSoft" icon="logout" style={{ marginTop: spacing.xl }} onPress={() => setConfirm(true)} />
+                    <SectionTitle section="settings">Appearance</SectionTitle>
+                    <Card>
+                        <Segmented
+                            value={mode}
+                            onChange={setMode}
+                            options={[{ value: 'system', label: 'Phone setting' }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]}
+                        />
+                    </Card>
+
+                    <SectionTitle section="platform">App</SectionTitle>
+                    <Card style={{ paddingVertical: 0 }}>
+                        <KeyValue label="Version" value={pkg.version} last />
+                    </Card>
+
+                    <Button title="Log out" kind="dangerSoft" icon="logout" style={{ marginTop: spacing.xl }} onPress={() => setConfirm(true)} />
+                </>
+            )}
 
             <ConfirmSheet
                 visible={confirm}

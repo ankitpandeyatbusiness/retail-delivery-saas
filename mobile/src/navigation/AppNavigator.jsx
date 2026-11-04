@@ -126,7 +126,7 @@ import { useBrand, alpha } from '../components/common/kit';
 import { useMotion } from '../components/common/motion';
 import { useThemeStore } from '../store/common/useThemeStore';
 import { ToastHost, showToast, useClosedStyle } from '../components/customers/shop';
-import { FrozenOverlay, OfflineBanner } from '../components/common/status';
+import { FrozenOverlay, OfflineBanner, MaintenanceBanner } from '../components/common/status';
 import { useAppStatus } from '../store/common/useAppStatus';
 import { useViewMode } from '../store/owners/useViewMode';
 import OwnerViewPill from '../components/owners/OwnerViewPill';
@@ -489,6 +489,7 @@ export default function AppNavigator() {
             <LegalGate />
             <FrozenOverlay onOrders={goOrders} routeName={routeName} onRent={() => { if (navigationRef.isReady()) navigationRef.navigate('OwnerRent'); }} />
             <OfflineBanner />
+            <MaintenanceBanner />
             <ToastHost />
         </View>
     );

@@ -1,43 +1,74 @@
-import React, { useState } from 'react';
-import { View } from 'react-native';
-import { spacing } from '../../theme';
+import React, { useCallback, useState } from 'react';
+import { View, Text, Pressable } from 'react-native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useTheme, spacing, font } from '../../theme';
 import { Screen } from '../../components/layout';
-import { Card, Chip, ListRow, SectionTitle } from '../../components/ui';
+import { Card, SectionTitle, ListRow } from '../../components/ui';
 import { Hint } from '../../components/settingsForm';
-import { toast } from '../../components/feedback';
-import { shareOrdersExcel, shareInvoicesExcel, shareCustomersExcel } from '../../api/insightsApi';
+import { SkeletonList } from '../../components/blocks';
+import { ErrorBox } from '../../components/feedback';
+import Icon from '../../components/Icon';
+import { fetchExportCatalog, loadPresets, savePresets } from '../../api/exportApi';
 import { errMsg } from '../../api/adminClient';
-import { ymdOf } from '../../utils/format';
 
-const RANGES = [{ value: 30, label: '30 days' }, { value: 90, label: '90 days' }, { value: 365, label: '1 year' }, { value: 0, label: 'Everything' }];
+const ICON = { customers: 'users', owners: 'crown', brand_people: 'shops', staff: 'user', orders: 'orders', invoices: 'receipt', payments: 'wallet', refunds: 'rupee', complaints: 'message', riders: 'rider', menu: 'notes', shops: 'shops', sms_topups: 'wallet', sms_sent: 'message', expenses: 'wallet', audit: 'notes' };
+const SECTION = { People: 'people', 'Orders and money': 'money', SMS: 'catalog', 'Shop data': 'shops', Platform: 'platform' };
 
-// Save your data as a coloured Excel sheet: up to 5,000 rows each.
+// The Export centre: pick what, then (on the next screen) the shops, the period, how much detail and the filters.
+// Saved choices ("Last month orders for my CA") are kept on this phone and open the same screen already filled in.
 export default function ExportsScreen() {
-    const [days, setDays] = useState(30);
-    const [busy, setBusy] = useState('');
+    const t = useTheme();
+    const nav = useNavigation();
+    const [cat, setCat] = useState(null);
+    const [error, setError] = useState('');
+    const [presets, setPresets] = useState([]);
 
-    const go = async (kind, withRange = true) => {
-        setBusy(kind);
-        try {
-            const params = {};
-            if (withRange && days) params.from = ymdOf(new Date(Date.now() - days * 86400000).toISOString());
-            await ({ orders: shareOrdersExcel, invoices: shareInvoicesExcel, customers: shareCustomersExcel })[kind](params);
-        } catch (e) { toast(errMsg(e), 'error'); } finally { setBusy(''); }
-    };
+    const load = useCallback(async () => {
+        try { setCat(await fetchExportCatalog()); setError(''); } catch (e) { setError(errMsg(e)); }
+        setPresets(await loadPresets());
+    }, []);
+    useFocusEffect(useCallback(() => { load(); }, [load]));
+
+    const remove = async (id) => { const next = presets.filter((p) => p.id !== id); setPresets(next); await savePresets(next); };
+    const groups = cat ? [...new Set(cat.items.map((i) => i.group))] : [];
 
     return (
-        <Screen title="Export data" subtitle="Excel sheets">
-            <SectionTitle section="platform">How far back</SectionTitle>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-                {RANGES.map((r) => <Chip key={r.value} label={r.label} active={days === r.value} onPress={() => setDays(r.value)} />)}
-            </View>
-            <SectionTitle section="money">Files</SectionTitle>
-            <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
-                <ListRow section="orders" icon="orders" title="Orders" subtitle={busy === 'orders' ? 'Preparing...' : 'All shops, newest first'} onPress={() => go('orders')} />
-                <ListRow section="money" icon="receipt" title="Rent invoices" subtitle={busy === 'invoices' ? 'Preparing...' : 'Billed, paid and pending'} onPress={() => go('invoices')} />
-                <ListRow section="people" icon="users" title="Customers" subtitle={busy === 'customers' ? 'Preparing...' : 'Name and masked phone, all shops'} onPress={() => go('customers', false)} last />
-            </Card>
-            <Hint>Opens in Excel, Google Sheets or WPS. Colours show status at a glance, money is formatted in rupees, and totals are at the bottom. Phone numbers are masked, and every cell is plain text, so nothing can run as a formula.</Hint>
+        <Screen title="Export data" subtitle="Excel or CSV, as much detail as you need" onRefresh={load}>
+            {!cat ? (error ? <ErrorBox message={error} onRetry={load} /> : <SkeletonList />) : (
+                <>
+                    {presets.length ? (
+                        <>
+                            <SectionTitle section="money">Your saved choices</SectionTitle>
+                            <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
+                                {presets.map((p, i) => (
+                                    <ListRow
+                                        key={p.id}
+                                        section="money"
+                                        icon="bolt"
+                                        title={p.name}
+                                        subtitle={`${cat.items.find((x) => x.key === p.key)?.title || p.key} · ${p.level}`}
+                                        right={<Pressable onPress={() => remove(p.id)} hitSlop={10}><Icon name="trash" size={18} color={t.muted} /></Pressable>}
+                                        onPress={() => nav.navigate('ExportBuild', { key: p.key, preset: p })}
+                                        last={i === presets.length - 1}
+                                    />
+                                ))}
+                            </Card>
+                        </>
+                    ) : null}
+
+                    {groups.map((g) => (
+                        <View key={g}>
+                            <SectionTitle section={SECTION[g] || 'platform'}>{g}</SectionTitle>
+                            <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
+                                {cat.items.filter((i) => i.group === g).map((i, idx, arr) => (
+                                    <ListRow key={i.key} section={SECTION[g] || 'platform'} icon={ICON[i.key] || 'copy'} title={i.title} subtitle={i.hint} onPress={() => nav.navigate('ExportBuild', { key: i.key })} last={idx === arr.length - 1} />
+                                ))}
+                            </Card>
+                        </View>
+                    ))}
+                    <Hint>Every file starts with a Summary sheet that says what you chose. Up to {cat.max.toLocaleString('en-IN')} rows per file; if more match, narrow the period or the shops. Phone numbers are hidden in the middle, only the supreme admin can export full ones and every such download is logged.</Hint>
+                </>
+            )}
         </Screen>
     );
 }

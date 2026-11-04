@@ -7,7 +7,8 @@ const { httpError } = require('../middlewares/apiErrors');
 const UNDO_MS = 10 * 60000;
 const MONEY = ['overdue', 'to_close', 'refund_failed', 'webhook_failed', 'unmatched', 'topup_uncredited', 'paid_no_date', 'sms_low'];
 const ORDERS = ['order_problem'];
-const scopeOf = (kind) => (MONEY.includes(kind) ? 'money' : ORDERS.includes(kind) ? 'orders' : null);
+const PLATFORM = ['backup_old', 'health_card'];   // the More tab
+const scopeOf = (kind) => (MONEY.includes(kind) ? 'money' : ORDERS.includes(kind) ? 'orders' : PLATFORM.includes(kind) ? 'platform' : null);
 
 async function mark({ kind, refId, note, title, by }) {
     const scope = scopeOf(kind);
@@ -53,4 +54,4 @@ async function mapFor(kind, now = Date.now()) {
     return new Map(rows.map((m) => [m.refId, view(m, now)]));
 }
 
-module.exports = { mark, undo, activeIds, objectIds, list, mapFor, view, scopeOf, UNDO_MS, MONEY, ORDERS };
+module.exports = { mark, undo, activeIds, objectIds, list, mapFor, view, scopeOf, UNDO_MS, MONEY, ORDERS, PLATFORM };

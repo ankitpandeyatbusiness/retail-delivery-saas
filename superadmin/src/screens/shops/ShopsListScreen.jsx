@@ -62,6 +62,8 @@ export default function ShopsListScreen() {
     const counts = useMemo(() => Object.fromEntries(FILTERS.map((f) => [f.value, items.filter((s) => matchesFilter(s, f.value)).length])), [items]);
     const filtered = q || filter !== 'all';
     const sortName = SORTS.find((x) => x.value === sort)?.label;
+    const brandCount = useMemo(() => new Set(items.filter((s) => s.brandId).map((s) => String(s.brandId))).size, [items]);
+    const branchCount = useMemo(() => items.filter((s) => s.brandId).length, [items]);
     const openShop = (s) => nav.navigate('ShopDetail', { shopId: s._id, name: s.name });
 
     // brands together (a search shows a plain list, so every match is visible at once)
@@ -103,6 +105,12 @@ export default function ShopsListScreen() {
                 <FlatList
                     data={rows}
                     keyExtractor={(r) => r.key}
+                    ListHeaderComponent={filtered ? null : (
+                        <View style={{ backgroundColor: t.surface, borderRadius: radius.lg, paddingHorizontal: spacing.lg, marginBottom: spacing.md }}>
+                            <ListRow section="platform" icon="shops" title="Brands and branches" subtitle={brandCount ? `${brandCount} brand${brandCount === 1 ? '' : 's'} · ${branchCount} branches` : 'A brand with several branches'} onPress={() => nav.navigate('Brands')} />
+                            <ListRow section="riders" icon="shield" title="Health, support and owners" subtitle="Shop health, growth, support requests, messages, agreements" onPress={() => nav.navigate('ShopsTools')} last />
+                        </View>
+                    )}
                     contentContainerStyle={{ padding: spacing.lg, paddingTop: spacing.xs, paddingBottom: spacing.xxl * 2, flexGrow: 1 }}
                     refreshing={refreshing}
                     onRefresh={() => load({ q, refresh: true })}

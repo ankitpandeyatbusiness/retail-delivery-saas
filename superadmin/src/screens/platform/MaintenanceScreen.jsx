@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useTheme, spacing, font } from '../../theme';
 import { Screen } from '../../components/layout';
-import { Card, Button, Badge } from '../../components/ui';
+import { Card, Button, Badge, SectionTitle } from '../../components/ui';
 import { Hero, SkeletonList } from '../../components/blocks';
 import { Field } from '../../components/inputs';
 import { Choice, Hint } from '../../components/settingsForm';
@@ -10,6 +11,9 @@ import { ErrorBox, ConfirmSheet, toast } from '../../components/feedback';
 import { fetchPlatform, saveMaintenance } from '../../api/platformApi';
 import { errMsg } from '../../api/adminClient';
 import { dateTime } from '../../utils/format';
+import { fetchMaintenancePlans, cancelMaintenancePlan } from '../../api/exportApi';
+
+const STATUS = { planned: ['Planned', 'warn'], active: ['Running now', 'danger'], ended: ['Done', 'success'], cancelled: ['Cancelled', 'neutral'] };
 
 const HOURS = [
     { value: 1, label: '1 hour' }, { value: 3, label: '3 hours' }, { value: 12, label: '12 hours' }, { value: 0, label: 'Until I switch it off' },
@@ -18,6 +22,11 @@ const HOURS = [
 // Puts EVERY shop's app into maintenance. Your own superadmin app keeps working.
 export default function MaintenanceScreen() {
     const t = useTheme();
+    const nav = useNavigation();
+    const [plans, setPlans] = useState([]);
+    const [cancelId, setCancelId] = useState(null);
+    const loadPlans = useCallback(() => { fetchMaintenancePlans().then((r) => setPlans(r.items)).catch(() => { }); }, []);
+    useFocusEffect(useCallback(() => { loadPlans(); }, [loadPlans]));
     const [m, setM] = useState(null);
     const [error, setError] = useState('');
     const [message, setMessage] = useState('');
@@ -65,6 +74,28 @@ export default function MaintenanceScreen() {
                 </>
             )}
 
+            <SectionTitle section="alerts">Planned maintenance</SectionTitle>
+            <Button title="Plan a maintenance" icon="clock" kind="outline" onPress={() => nav.navigate('MaintenancePlan')} />
+            <Hint>Warn everybody first, then every chosen shop pauses at the exact time and opens at the end time. For every shop, chosen shops or one brand.</Hint>
+            {plans.slice(0, 8).map((p) => (
+                <Card key={p.id} style={{ marginTop: spacing.md }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Text style={{ color: t.text, fontWeight: '800', fontSize: font.md, flex: 1 }}>{dateTime(p.startAt)}{p.endAt ? ` to ${new Date(p.endAt).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit' })}` : ' until switched off'}</Text>
+                        <Badge label={STATUS[p.status][0]} tone={STATUS[p.status][1]} />
+                    </View>
+                    <Text style={{ color: t.muted, fontSize: font.sm, marginTop: 2 }}>{p.scope === 'all' ? 'Every shop' : p.scope === 'brand' ? `Brand ${p.brandName} (${p.shops} branches)` : (p.shopNames.length ? p.shopNames.join(', ') + (p.shops > p.shopNames.length ? ` and ${p.shops - p.shopNames.length} more` : '') : `${p.shops} shops`)}{p.message ? ` · ${p.message}` : ''}</Text>
+                    {p.status === 'planned' || p.status === 'active' ? <Button small kind="outline" title={p.status === 'active' ? 'End it now' : 'Cancel it'} onPress={() => setCancelId(p.id)} style={{ marginTop: spacing.sm }} /> : null}
+                </Card>
+            ))}
+            <ConfirmSheet
+                visible={!!cancelId}
+                onClose={() => setCancelId(null)}
+                title="Cancel this plan?"
+                message="A plan that has not started is cancelled and people are told. A running one is ended now and the shops open."
+                confirmLabel="Yes, do it"
+                danger
+                onConfirm={async () => { try { await cancelMaintenancePlan(cancelId); toast('Done'); loadPlans(); load(); } catch (e) { toast(errMsg(e), 'error'); throw e; } }}
+            />
             <ConfirmSheet
                 visible={confirm === 'on'}
                 onClose={() => setConfirm(null)}

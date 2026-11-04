@@ -111,6 +111,7 @@ const tenantSchema = new mongoose.Schema({
         on: { type: Boolean, default: false },
         message: { type: String, trim: true, maxlength: 200 },
         until: Date,
+        planId: String,   // set when a planned maintenance (services/maintenancePlans.js) switched it on
     },
     subscription: {
         monthlyFee: { type: Number, min: 0 },                              // DEPRECATED: billing does not use this, and the panel cannot set it any more

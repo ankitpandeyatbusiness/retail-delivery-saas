@@ -3,7 +3,8 @@ import { View, Text, FlatList, ScrollView, Pressable } from 'react-native';
 import { ActivityIndicator } from '../../components/Loading';
 import { useTheme, spacing, font } from '../../theme';
 import { Screen } from '../../components/layout';
-import { Card, Chip, Badge } from '../../components/ui';
+import { Card, Badge } from '../../components/ui';
+import { FunnelButton, FilterPopup } from '../../components/FilterPopup';
 import { SearchBar } from '../../components/inputs';
 import { SkeletonList } from '../../components/blocks';
 import { Empty, ErrorBox, Sheet, SheetScroll } from '../../components/feedback';
@@ -42,6 +43,8 @@ export default function AuditLogScreen() {
     const [dq, setDq] = useState('');
     const [picker, setPicker] = useState(false);
     const [row, setRow] = useState(null);
+    const [filters, setFilters] = useState(false);
+    const activeCount = (who ? 1 : 0) + (shopId ? 1 : 0) + (range !== '7' ? 1 : 0);
 
     useEffect(() => { const id = setTimeout(() => setDq(q.trim()), 350); return () => clearTimeout(id); }, [q]);
     useEffect(() => { if (!shops.length) useShopsStore.getState().load(); }, [shops.length]);
@@ -59,20 +62,24 @@ export default function AuditLogScreen() {
 
     return (
         <Screen title="Audit log" subtitle="Who changed what" scroll={false}>
-            <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
-                <SearchBar value={q} onChangeText={setQ} placeholder="Search an action" />
+            <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.sm, flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{ flex: 1, marginRight: spacing.md }}>
+                    <SearchBar value={q} onChangeText={setQ} placeholder="Search: action, shop, person" />
+                </View>
+                <FunnelButton count={activeCount} onPress={() => setFilters(true)} />
             </View>
-            <View style={{ height: 52, marginTop: spacing.sm }}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: spacing.lg, alignItems: 'center' }} style={{ flexGrow: 0 }}>
-                    {WHO.map((w) => <Chip key={w.label} label={w.label} active={who === w.value} onPress={() => setWho(w.value)} />)}
-                </ScrollView>
-            </View>
-            <View style={{ height: 48 }}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: spacing.lg, alignItems: 'center' }} style={{ flexGrow: 0 }}>
-                    <Chip label={shopId ? (shopName || 'Shop') : 'All shops'} icon="shops" active={!!shopId} onPress={() => setPicker(true)} />
-                    {RANGE.map((r) => <Chip key={r.value} label={r.label} active={range === r.value} onPress={() => setRange(r.value)} />)}
-                </ScrollView>
-            </View>
+            <FilterPopup
+                visible={filters}
+                onClose={() => setFilters(false)}
+                title="Filter the log"
+                activeCount={activeCount}
+                onClear={() => { setWho(''); setShopId(''); setRange('7'); }}
+                sections={[
+                    { key: 'who', title: 'Who', options: WHO.map((w) => [w.value, w.label]), value: who, onChange: setWho },
+                    { key: 'when', title: 'When', options: RANGE.map((r) => [r.value, r.label]), value: range, onChange: setRange },
+                    { key: 'shop', title: 'Shop', row: shopId ? (shopName || 'One shop') : 'All shops', active: !!shopId, onPress: () => { setFilters(false); setTimeout(() => setPicker(true), 250); } },
+                ]}
+            />
 
             {list.state === 'loading' ? <SkeletonList avatar={false} /> : list.state === 'error' ? <ErrorBox message={list.error} onRetry={list.reload} /> : (
                 <FlatList

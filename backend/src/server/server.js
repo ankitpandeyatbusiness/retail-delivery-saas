@@ -103,6 +103,7 @@ connectDB()
             startBookingHolds();         // an unpaid table booking is let go after its hold, and refunds that did not go out are tried again
             startStaffNudges();          // the cooks and the waiters get one nudge for an order that waits too long
             startAutomations();          // the owner's automations: pickups nobody collected, reservations nobody answered, quiet inquiries, reminders
+            require('../services/maintenancePlans').start();   // planned maintenance: warnings, the exact start, the end
             startPickupReminders();      // pickup orders that are ready: reminders to the customer, and the owner is told when nobody came
             setInterval(() => require('../services/loyaltyService').releaseDue().catch((e) => console.error('Points job error:', e.message)), 5 * 60 * 1000).unref?.();   // points whose 24 hours are over become spendable
             require('../services/platformTax').start();   // the one GST for all shops

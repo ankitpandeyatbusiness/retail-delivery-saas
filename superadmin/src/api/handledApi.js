@@ -8,3 +8,10 @@ export const undoHandled = (id) => data(api.post(`/admin/handled/${id}/undo`));
 export const fetchAttentionList = (key) => data(api.get(`/admin/finance/attention/${key}`));
 // the Money tab search: { total, groups: [{ key, title, items }] }
 export const searchMoney = (q) => data(api.get('/admin/finance/search', { params: { q } }));
+
+/* ---- More tab ---- */
+export const fetchMoreAttention = () => data(api.get('/admin/more/attention'));
+// your SMS provider setup (sender, entity, key, template IDs); changing it and the test SMS are for the supreme admin
+export const fetchSmsSetup = () => data(api.get('/admin/platform/sms-setup'));
+export const saveSmsSetup = (body) => data(api.put('/admin/platform/sms-setup', body));
+export const testSms = (phone) => data(api.post('/admin/platform/sms-setup/test', { phone }));

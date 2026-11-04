@@ -71,7 +71,15 @@ router.get('/notifications', wrap(async (req, res) => {
     const page = clamp(parseInt(req.query.page, 10) || 1, 1, 1000);
     const limit = clamp(parseInt(req.query.limit, 10) || 20, 1, 50);
     const base = scope(req);
-    const filter = req.query.unread === 'true' ? { ...base, readAt: null } : base;
+    const filter = req.query.unread === 'true' ? { ...base, readAt: null } : { ...base };
+    // search the words in the title or text, and pick one kind of alert
+    if (typeof req.query.q === 'string' && req.query.q.trim()) {
+        filter.$and = req.query.q.trim().slice(0, 100).split(/\s+/).slice(0, 6).map((w) => {
+            const rx = new RegExp(w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+            return { $or: [{ title: rx }, { body: rx }, { type: rx }] };
+        });
+    }
+    if (typeof req.query.type === 'string' && /^[a-z_]{2,60}$/.test(req.query.type)) filter.type = req.query.type;
 
     const [items, unreadCount] = await Promise.all([
         Notification.find(filter).sort({ createdAt: -1, _id: -1 }).skip((page - 1) * limit).limit(limit + 1)

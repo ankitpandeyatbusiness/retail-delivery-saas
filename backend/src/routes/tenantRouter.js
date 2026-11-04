@@ -55,7 +55,9 @@ tenantRouter.get('/config', tenantRecognizer, async (req, res) => {
         // Changes whenever what the app would see changes (settings, menu data, or open/closed),
         // so the app knows when to refetch.
         const version = crypto.createHash('sha1').update(JSON.stringify({ config, delivery })).digest('hex').slice(0, 12);
-        res.json({ version, config, homeConfig: config.home, delivery, branch });
+        // a planned maintenance that touches this shop within 48 hours: the apps show a banner (services/maintenancePlans.js). Not part of the version.
+        const maintenanceNotice = await require('../services/maintenancePlans').noticeFor(t._id).catch(() => null);
+        res.json({ version, config, homeConfig: config.home, delivery, branch, maintenanceNotice });
     } catch (e) {
         console.error('Config error:', e);
         res.status(500).json({ error: 'Something went wrong' });

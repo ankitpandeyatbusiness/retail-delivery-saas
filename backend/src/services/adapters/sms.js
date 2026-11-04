@@ -57,11 +57,13 @@ async function send({ to, text, purpose, tenant, templateKey }) {
 // If the operator approves other wording, change OTP_TEXT (and only it) to match.
 const OTP_TEXT = 'Your OTP for {name} is {otp}. Valid for 5 minutes. Do not share it.';
 const shopLabel = (tenant) => {
-    const n = String((tenant && tenant.name) || process.env.SMS_BRAND_NAME || 'your account').replace(/[^\p{L}\p{N} &.,'-]/gu, '').replace(/\s+/g, ' ').trim().slice(0, 30);   // a variable is at most 30 characters
+    const n = String((tenant && tenant.name) || require('../smsPlatformSetup').brandSync() || 'your account').replace(/[^\p{L}\p{N} &.,'-]/gu, '').replace(/\s+/g, ' ').trim().slice(0, 30);   // a variable is at most 30 characters
     return n || 'your account';
 };
 const otpText = ({ otp, tenant }) => OTP_TEXT.replace('{name}', () => shopLabel(tenant)).replace('{otp}', () => String(otp));
-const sendOtp = ({ phone, otp, tenant }) =>
-    send({ to: phone, purpose: 'otp', text: otpText({ otp, tenant }), tenant, templateKey: 'otp' });
+const sendOtp = async ({ phone, otp, tenant }) => {
+    await require('../smsPlatformSetup').effective().catch(() => { });   // warms the brand name used when there is no shop
+    return send({ to: phone, purpose: 'otp', text: otpText({ otp, tenant }), tenant, templateKey: 'otp' });
+};
 
 module.exports = { send, sendOtp, otpText, OTP_TEXT };

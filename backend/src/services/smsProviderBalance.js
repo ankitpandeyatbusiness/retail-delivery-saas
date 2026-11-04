@@ -37,8 +37,8 @@ function parseBalance(text) {
 }
 
 async function fetchFromProvider() {
-    const key = process.env.SMS_AUTH_KEY;
-    if (!key) throw new Error('No SMS key on the server (SMS_AUTH_KEY)');
+    const key = (await require('./smsPlatformSetup').effective()).authKey;
+    if (!key) throw new Error('No SMS auth key yet. Save it in SMS and DLT setup');
     const url = (process.env.SMS_BALANCE_URL || 'https://control.msg91.com/api/balance.php?authkey={authkey}&type=4').replace('{authkey}', encodeURIComponent(key));
     const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
     const text = (await res.text()).trim();

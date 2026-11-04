@@ -125,6 +125,32 @@ export function OfflineBanner() {
     );
 }
 
+// A planned maintenance (set in the superadmin app) shows as a banner before it starts, so people finish their work first.
+// The shop's config carries it for the next 48 hours; this asks again every few minutes and whenever the shop changes.
+export function MaintenanceBanner() {
+    const insets = useSafeAreaInsets();
+    const [n, setN] = useState(null);
+    const [hidden, setHidden] = useState('');
+    const frozen = useAppStatus((st) => st.frozen);
+    useEffect(() => {
+        let live = true;
+        const ask = () => { fetchConfig().then((r) => { if (live) setN((r && r.maintenanceNotice) || null); }).catch(() => { }); };
+        ask();
+        const t = setInterval(ask, 3 * 60000);
+        const off = onShopChanged(ask);
+        return () => { live = false; clearInterval(t); if (typeof off === 'function') off(); };
+    }, []);
+    if (!n || frozen || hidden === n.startAt) return null;
+    const time = (v) => new Date(v).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    const text = `${n.message ? n.message + ' ' : ''}${tr('Maintenance')}: ${fmt(n.startAt)}${n.endAt ? ` ${tr('to')} ${time(n.endAt)}` : ''}. ${tr('Please finish your work before then.')}`;
+    return (
+        <View style={[s.off, { paddingTop: insets.top + 4, backgroundColor: '#8A5A00' }]}>
+            <Text style={[s.offTxt, { flex: 1, paddingRight: 8 }]} numberOfLines={3}>{text}</Text>
+            <Pressable onPress={() => setHidden(n.startAt)} hitSlop={10}><Text style={s.offBtn}>{tr('OK')}</Text></Pressable>
+        </View>
+    );
+}
+
 const s = StyleSheet.create({
     full: { ...StyleSheet.absoluteFillObject, zIndex: 50, elevation: 50 },
     shop: { textAlign: 'center', fontSize: 15, fontWeight: '800', color: '#777777', paddingTop: 16 },

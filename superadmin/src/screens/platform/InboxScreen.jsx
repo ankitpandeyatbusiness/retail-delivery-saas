@@ -4,7 +4,9 @@ import { ActivityIndicator } from '../../components/Loading';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useTheme, spacing, font, radius } from '../../theme';
 import { Screen, HeaderButton } from '../../components/layout';
-import { Chip, Badge, IconTile } from '../../components/ui';
+import { Badge, IconTile } from '../../components/ui';
+import { SearchBar } from '../../components/inputs';
+import { FunnelButton, FilterPopup } from '../../components/FilterPopup';
 import { SkeletonList } from '../../components/blocks';
 import { Empty, ErrorBox, ConfirmSheet, toast } from '../../components/feedback';
 import Icon from '../../components/Icon';
@@ -44,6 +46,13 @@ export default function InboxScreen() {
     const t = useTheme();
     const nav = useNavigation();
     const [unreadOnly, setUnreadOnly] = useState(false);
+    const [kind, setKind] = useState('');
+    const [q, setQ] = useState('');
+    const [dq, setDq] = useState('');
+    const [filters, setFilters] = useState(false);
+    useEffect(() => { const id = setTimeout(() => setDq(q.trim()), 350); return () => clearTimeout(id); }, [q]);
+    const word = [dq, kind].filter(Boolean).join(' ');
+    const activeCount = (unreadOnly ? 1 : 0) + (kind ? 1 : 0);
     const [busy, setBusy] = useState(false);
     const [confirmClear, setConfirmClear] = useState(false);
     const first = useRef(true);
@@ -53,10 +62,10 @@ export default function InboxScreen() {
     const setUnread = useInboxStore((s) => s.setUnread);
 
     const list = usePagedList(async (page) => {
-        const r = await fetchInbox({ page, limit: 20, ...(unreadOnly ? { unread: 'true' } : {}) });
+        const r = await fetchInbox({ page, limit: 20, ...(unreadOnly ? { unread: 'true' } : {}), ...(word ? { q: word } : {}) });
         setUnread(r.unreadCount || 0);
         return { items: r.items, hasMore: r.hasMore, page: r.page };
-    }, [unreadOnly]);
+    }, [unreadOnly, word]);
 
     useEffect(() => {
         if (list.state !== 'ready' || autoRead.current) return;
@@ -113,12 +122,23 @@ export default function InboxScreen() {
     return (
         <GestureHandlerRootView style={{ flex: 1 }}>
         <Screen title="Alerts" subtitle="Things that need you" scroll={false} right={<HeaderButton icon="trash" onPress={() => setConfirmClear(true)} />}>
-            <View style={{ height: 52, marginTop: spacing.md }}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: spacing.lg, alignItems: 'center' }} style={{ flexGrow: 0 }}>
-                    <Chip label="All" active={!unreadOnly} onPress={() => setUnreadOnly(false)} />
-                    <Chip label="Unread" active={unreadOnly} onPress={() => setUnreadOnly(true)} />
-                </ScrollView>
+            <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.sm, flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{ flex: 1, marginRight: spacing.md }}>
+                    <SearchBar value={q} onChangeText={setQ} placeholder="Search alerts" />
+                </View>
+                <FunnelButton count={activeCount} onPress={() => setFilters(true)} />
             </View>
+            <FilterPopup
+                visible={filters}
+                onClose={() => setFilters(false)}
+                title="Filter alerts"
+                activeCount={activeCount}
+                onClear={() => { setUnreadOnly(false); setKind(''); }}
+                sections={[
+                    { key: 'show', title: 'Show', options: [[false, 'All'], [true, 'Unread only']], value: unreadOnly, onChange: setUnreadOnly },
+                    { key: 'kind', title: 'About', options: [['', 'Everything'], ['order', 'Orders'], ['bill', 'Bills'], ['sms', 'SMS'], ['payment', 'Payments'], ['complaint', 'Complaints'], ['shop', 'Shops']], value: kind, onChange: setKind },
+                ]}
+            />
             {list.state === 'loading' ? <SkeletonList /> : list.state === 'error' ? <ErrorBox message={list.error} onRetry={list.reload} /> : (
                 <FlatList
                     ref={listRef}

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, ScrollView, RefreshControl } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useTheme, spacing, font } from '../theme';
-import { Card, Chip } from './ui';
+import { Card, Chip, ListRow } from './ui';
 import { StatStrip, SkeletonList } from './blocks';
 import { Empty, ErrorBox } from './feedback';
 import { OrderRow } from './orderBits';
@@ -106,6 +106,11 @@ export function AttentionList({ header }) {
                         ))}
                     </View>
                 ) : null}
+                <Text style={{ color: t.muted, fontWeight: '800', fontSize: font.sm, marginTop: spacing.lg, marginBottom: spacing.sm }}>More for orders</Text>
+                <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
+                    <ListRow section="orders" icon="message" title="Services and booking" subtitle="Inquiries, table bookings and booking money of every shop" onPress={() => nav.navigate('ServicesOverview')} />
+                    <ListRow section="platform" icon="live" title="Live tracking" subtitle="Riders on the map: how the server copes, and the switch" onPress={() => nav.navigate('LiveTracking')} last />
+                </Card>
             </View>
         </ScrollView>
     );

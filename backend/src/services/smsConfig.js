@@ -41,15 +41,15 @@ async function resolve({ tenantId, purpose, templateKey }) {
         };
     }
     // the template id of THIS message, from SMS_TEMPLATE_<KEY> or DLT_TEMPLATE_<KEY> (the docs use the second name), e.g. SMS_TEMPLATE_ORDER_NEW
-    const tk = templateKey ? String(templateKey).toUpperCase().replace(/[^A-Z0-9]/g, '_') : '';
-    const envKey = tk ? (process.env[`SMS_TEMPLATE_${tk}`] || process.env[`DLT_TEMPLATE_${tk}`]) : undefined;
+    // the server settings win; what was saved from the app (services/smsPlatformSetup.js) fills the gaps
+    const setup = await require('./smsPlatformSetup').effective();
     return {
         own: false,
-        senderId: process.env.SMS_SENDER_ID,
-        entityId: process.env.SMS_ENTITY_ID,
-        authKey: process.env.SMS_AUTH_KEY,
+        senderId: setup.senderId || undefined,
+        entityId: setup.entityId || undefined,
+        authKey: setup.authKey || undefined,
         // the shop template wins, then a template for this message, then the platform default
-        templateId: cfg.templateId || envKey || process.env.SMS_DEFAULT_TEMPLATE_ID || null,
+        templateId: cfg.templateId || (templateKey && setup.templateId(templateKey)) || setup.defaultTemplateId || null,
     };
 }
 

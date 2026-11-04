@@ -36,8 +36,19 @@ router.get('/audit-logs', wrap(async (req, res) => {
         filter.actorId = req.query.actorId;
     }
     if (['superadmin', 'owner', 'rider', 'staff', 'system'].includes(req.query.actorType)) filter.actorType = req.query.actorType;
+    // several words, each must fit: the action, the address, who did it, the shop, the method or the answer code ("coupons shop savera PUT")
     if (typeof req.query.q === 'string' && req.query.q.trim()) {
-        filter.action = new RegExp(esc(req.query.q.trim().slice(0, 40)), 'i');
+        const Tenant = require('../models/Tenant');
+        const and = [];
+        for (const w of req.query.q.trim().slice(0, 100).split(/\s+/).slice(0, 6)) {
+            const rx = new RegExp(esc(w), 'i');
+            const or = [{ action: rx }, { path: rx }, { actorLabel: rx }, { method: new RegExp('^' + esc(w) + '$', 'i') }];
+            if (/^\d{3}$/.test(w)) or.push({ status: Number(w) });
+            const shops = w.length >= 3 ? await Tenant.find({ name: rx }).select('_id').limit(40).lean() : [];
+            if (shops.length) or.push({ tenantId: { $in: shops.map((s) => s._id) } });
+            and.push({ $or: or });
+        }
+        if (and.length) filter.$and = and;
     }
 
     const from = req.query.from ? dayStart(String(req.query.from)) : null;

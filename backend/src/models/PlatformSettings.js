@@ -32,6 +32,7 @@ const platformSchema = new mongoose.Schema({
         on: { type: Boolean, default: false },
         message: { type: String, trim: true, maxlength: 200 },
         until: Date,   // optional: maintenance ends by itself at this time
+        planId: String,   // set when a planned maintenance switched it on
     },
 
     business: {
@@ -57,6 +58,7 @@ const platformSchema = new mongoose.Schema({
     },
 
     smsProvider: { type: mongoose.Schema.Types.Mixed },   // your balance at the SMS provider, its lines and the estimate (services/smsProviderBalance.js)
+    smsSetup: { type: mongoose.Schema.Types.Mixed },   // sender, entity, encrypted auth key and template IDs set from the app (services/smsPlatformSetup.js)
     dailyDigest: { type: mongoose.Schema.Types.Mixed },   // { day } the India date the morning summary was last sent
     orderWatch: { type: mongoose.Schema.Types.Mixed },   // limits of the Orders tab (services/orderWatchSettings.js: attention, alert, talk)
     billing: {
