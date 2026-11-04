@@ -33,3 +33,5 @@ export const getLive = () => data(api.get('/admin/orders/live'));
 // money going back to customers: status 'open' (default) or 'done'; a failed one can be sent again
 export const listRefunds = (status) => data(api.get('/admin/refunds', { params: { status } }));
 export const retryRefund = (id) => data(api.post(`/admin/refunds/${id}/retry`));
+// how each shop performed over the last days: shop cancels, prepare and delivery time, complaints (weak shops first, with the reason)
+export const getShopQuality = (days = 30) => data(api.get('/admin/orders/quality', { params: { days } }));

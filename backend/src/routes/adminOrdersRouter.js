@@ -58,6 +58,10 @@ router.get('/orders', wrap(async (req, res) => {
         filter.status = { $in: list };
     }
 
+    // ?type=delivery | pickup | dine_in | bulk (a bulk order's work ticket)
+    if (req.query.type === 'bulk') filter.bulkId = { $exists: true, $ne: null };
+    else if (['delivery', 'pickup', 'dine_in'].includes(req.query.type)) filter.orderType = req.query.type;
+
     const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
     if (/^[6-9]\d{9}$/.test(q)) filter['customer.phone'] = q;
     else if (/^\d{1,9}$/.test(q)) filter.orderNo = Number(q);
@@ -78,6 +82,8 @@ router.get('/orders/attention', wrap(async (req, res) => {
     const tenantId = isId(req.query.tenantId) ? req.query.tenantId : undefined;
     res.json(await require('../services/orderAttention').attention({ tenantId }));
 }));
+// how each shop performed over the last days (default 30): shop cancels, prepare and delivery time, complaints; weak shops first, with the reason
+router.get('/orders/quality', wrap(async (req, res) => { res.json(await require('../services/shopQuality').report({ days: clamp(parseInt(req.query.days, 10) || 30, 1, 365) })); }));
 router.get('/orders/live', wrap(async (req, res) => { res.json(await require('../services/orderAttention').live()); }));
 
 // money going back to customers: open = not finished yet (pending, processing, failed), done = processed
@@ -112,7 +118,9 @@ router.post('/refunds/:id/retry', wrap(async (req, res) => {
 router.get('/orders/:id', wrap(async (req, res) => {
     const order = isId(req.params.id) ? await Order.findById(req.params.id) : null;
     if (!order) throw httpError(404, 'Order not found');
-    res.json((await withShop([order]))[0]);
+    const one = (await withShop([order]))[0];
+    one.complaint = await require('../services/complaintService').adminForOrder(order._id);   // opens from the order page
+    res.json(one);
 }));
 
 router.get('/orders/:id/invoice', wrap(async (req, res) => {

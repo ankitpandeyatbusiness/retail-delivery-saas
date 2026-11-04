@@ -23,6 +23,13 @@ const STATUS_CHIPS = [
     { value: 'delivered', label: 'Delivered' },
     { value: 'cancelled,undelivered', label: 'Cancelled' },
 ];
+const TYPE_CHIPS = [
+    { value: '', label: 'Every type' },
+    { value: 'delivery', label: 'Delivery' },
+    { value: 'pickup', label: 'Pickup' },
+    { value: 'dine_in', label: 'Dine-in' },
+    { value: 'bulk', label: 'Bulk' },
+];
 const DATE_CHIPS = [
     { value: 'all', label: 'Any time' },
     { value: 'today', label: 'Today' },
@@ -50,6 +57,7 @@ export default function OrdersList({ tenantId, showShop = true, header }) {
     const [dq, setDq] = useState('');
     const [status, setStatus] = useState('active');
     const [range, setRange] = useState('all');
+    const [type, setType] = useState('');
     const [shopId, setShopId] = useState(tenantId || '');
     const [picker, setPicker] = useState(false);
     const first = useRef(true);
@@ -61,8 +69,9 @@ export default function OrdersList({ tenantId, showShop = true, header }) {
         ...(shopId ? { tenantId: shopId } : {}),
         ...(status ? { status } : {}),
         ...(dq ? { q: dq } : {}),
+        ...(type ? { type } : {}),
         ...(range !== 'all' ? { from: fromOf(range) } : {}),
-    }), [shopId, status, dq, range]);
+    }), [shopId, status, dq, range, type]);
 
     const list = usePagedList((page) => listOrders({ ...params, page, limit: 20 }), [params]);
 
@@ -74,7 +83,7 @@ export default function OrdersList({ tenantId, showShop = true, header }) {
     }, []));
 
     const shopName = shops.find((s) => s._id === shopId)?.name;
-    const filtered = !!(dq || status !== 'active' || range !== 'all' || (!tenantId && shopId));
+    const filtered = !!(dq || type || status !== 'active' || range !== 'all' || (!tenantId && shopId));
 
     return (
         <View style={{ flex: 1 }}>
@@ -85,6 +94,11 @@ export default function OrdersList({ tenantId, showShop = true, header }) {
             <View style={{ height: 52, marginTop: spacing.sm }}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: spacing.lg, alignItems: 'center' }} style={{ flexGrow: 0 }}>
                     {STATUS_CHIPS.map((c) => <Chip key={c.label} label={c.label} active={status === c.value} onPress={() => setStatus(c.value)} />)}
+                </ScrollView>
+            </View>
+            <View style={{ height: 48 }}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: spacing.lg, alignItems: 'center' }} style={{ flexGrow: 0 }}>
+                    {TYPE_CHIPS.map((c) => <Chip key={c.label} label={c.label} active={type === c.value} onPress={() => setType(c.value)} />)}
                 </ScrollView>
             </View>
             <View style={{ height: 48 }}>

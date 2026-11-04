@@ -258,6 +258,22 @@ export default function OrderDetailScreen() {
                 </>
             ) : null}
 
+            {o.complaint ? (
+                <>
+                    <SectionTitle section="alerts">Complaint</SectionTitle>
+                    <Card padded={false}>
+                        <ListRow
+                            icon="warning"
+                            section="alerts"
+                            title={titleCase(String(o.complaint.type || 'Complaint').replace(/_/g, ' '))}
+                            subtitle={`${o.complaint.status === 'resolved' ? 'Decided' : 'Waiting for the shop'}${o.complaint.text ? ' · ' + o.complaint.text : ''}`}
+                            onPress={() => nav.navigate('ComplaintDetail', { shopId: String(o.tenantId), shopName: o.shopName, complaint: o.complaint })}
+                            last
+                        />
+                    </Card>
+                </>
+            ) : null}
+
             <SectionTitle section="platform">Timeline</SectionTitle>
             <Card>
                 {(o.statusHistory || []).slice().reverse().map((h, i, a) => (

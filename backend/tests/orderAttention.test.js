@@ -75,4 +75,41 @@ describe('orders attention and live', () => {
         assert.equal(bad.status, 409);
         assert.ok(failed);
     });
+
+    test('shop quality flags a shop that cancels too much, with the reason', async () => {
+        const w = await f.makeWorld('oq-' + Date.now().toString(36));
+        for (let i = 0; i < 12; i++) {
+            const o = await f.makeOrder(w.tenant, w.customer.user, {});
+            const patch = i < 3 ? { status: 'cancelled', cancelledBy: 'shop' } : { status: 'delivered', statusHistory: [{ status: 'accepted', at: ago(80) }, { status: 'ready', at: ago(30) }, { status: 'out_for_delivery', at: ago(25) }, { status: 'delivered', at: ago(5) }] };
+            await Order.collection.updateOne({ _id: o._id }, { $set: patch });
+        }
+        const r = await request(app).get('/api/admin/orders/quality?days=7').set(auth());
+        assert.equal(r.status, 200);
+        const row = r.body.items[0];
+        assert.equal(row.orders, 12);
+        assert.equal(row.shopCancels, 3);
+        assert.equal(row.shopCancelPct, 25);
+        assert.equal(row.prepMin, 50);
+        assert.equal(row.deliveryMin, 20);
+        assert.equal(row.weak, true);
+        assert.ok(row.why.some((x) => /cancelled 25%/.test(x)));
+        assert.ok(row.why.some((x) => /50 min to prepare/.test(x)));
+        assert.equal(r.body.weak, 1);
+    });
+
+    test('orders filter by type, and an order shows its complaint', async () => {
+        const w = await f.makeWorld('ot-' + Date.now().toString(36));
+        const a = await f.makeOrder(w.tenant, w.customer.user, {});
+        const b = await f.makeOrder(w.tenant, w.customer.user, {});
+        await Order.collection.updateOne({ _id: a._id }, { $set: { orderType: 'pickup' } });
+        await Order.collection.updateOne({ _id: b._id }, { $set: { orderType: 'dine_in' } });
+        const r = await request(app).get('/api/admin/orders?type=pickup').set(auth());
+        assert.equal(r.body.items.length, 1);
+        assert.equal(r.body.items[0].orderNo, a.orderNo);
+        const bulk = await request(app).get('/api/admin/orders?type=bulk').set(auth());
+        assert.equal(bulk.body.items.length, 0);
+        const one = await request(app).get('/api/admin/orders/' + a._id).set(auth());
+        assert.equal(one.status, 200);
+        assert.equal(one.body.complaint, null);
+    });
 });

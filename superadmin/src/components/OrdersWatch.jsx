@@ -116,6 +116,15 @@ export function LiveBoard({ header }) {
                 ]} />
                 <Text style={{ color: t.muted, fontSize: font.xs, marginTop: spacing.sm, marginLeft: 4 }}>Sales today (delivered): {rupees(tod.sales)}</Text>
             </View>
+            <View style={{ paddingHorizontal: spacing.lg }}>
+                <Card onPress={() => nav.navigate('ShopQuality')}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Icon name="chart" size={18} color={t.primary} />
+                        <Text style={{ flex: 1, color: t.text, fontWeight: '800', fontSize: font.md, marginLeft: spacing.sm }}>Shop quality: who needs a talk</Text>
+                        <Icon name="next" size={16} color={t.muted} />
+                    </View>
+                </Card>
+            </View>
             <View style={{ padding: spacing.lg }}>
                 {!data.shops.length ? <Empty icon="orders" title="Nothing running" hint="Shops with orders in progress show here." /> : data.shops.map((s) => {
                     const slow = s.oldestMin >= 30;

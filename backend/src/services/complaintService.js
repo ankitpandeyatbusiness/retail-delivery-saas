@@ -161,6 +161,15 @@ async function adminList({ query }) {
     return { items: rows.map((c) => ({ ...view(c, { forOwner: true }), tenantId: c.tenantId, shop: slug[String(c.tenantId)] || null })), page, hasMore };
 }
 
+// the complaint on one order in the same shape as the admin list (or null), so the order page can open it
+async function adminForOrder(orderId) {
+    if (!isId(String(orderId))) return null;
+    const c = await Complaint.findOne({ orderId }).lean();
+    if (!c) return null;
+    const shop = await Tenant.findById(c.tenantId).select('slug').lean();
+    return { ...view(c, { forOwner: true }), tenantId: c.tenantId, shop: shop?.slug || null };
+}
+
 const DECISION_TEXT = {
     refund_full: (c) => `The shop will refund Rs ${rs(c.refundPaise)} for order #${c.orderNo}.`,
     refund_partial: (c) => `The shop will refund Rs ${rs(c.refundPaise)} for order #${c.orderNo}.`,
@@ -251,4 +260,4 @@ async function decide({ tenant, id, actor, body }) {
     return view(final, { forOwner: true });
 }
 
-module.exports = { create, forOrder, ownerList, ownerOne, adminList, decide, view, WINDOW_MS };
+module.exports = { adminForOrder, create, forOrder, ownerList, ownerOne, adminList, decide, view, WINDOW_MS };
