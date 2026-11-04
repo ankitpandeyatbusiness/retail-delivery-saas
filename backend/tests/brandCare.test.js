@@ -27,7 +27,7 @@ beforeEach(async () => {
 });
 
 async function setup() {
-    const brand = (await post('/api/admin/brands', { name: 'Savera', branchLimit: 4 })).body.brand;
+    const brand = (await post('/api/admin/brands', { name: 'Savera' })).body.brand;
     const d = (await post(`/api/admin/brands/${brand._id}/branches`, { name: 'Savera Delhi', slug: 'savera-delhi', city: 'Delhi' })).body.branch;
     const m = (await post(`/api/admin/brands/${brand._id}/branches`, { name: 'Savera Mumbai', slug: 'savera-mumbai', city: 'Mumbai' })).body.branch;
     await post(`/api/admin/brands/${brand._id}/owners`, { phone: OWNER });

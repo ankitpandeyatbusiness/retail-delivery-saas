@@ -25,7 +25,7 @@ beforeEach(async () => {
 
 // two branches with the cook and waiter panels switched on; a cook and a waiter in Delhi
 async function setup() {
-    const brand = (await post('/api/admin/brands', { name: 'Savera', branchLimit: 4 })).body.brand;
+    const brand = (await post('/api/admin/brands', { name: 'Savera' })).body.brand;
     const d = (await post(`/api/admin/brands/${brand._id}/branches`, { name: 'Savera Delhi', slug: 'savera-delhi', city: 'Delhi' })).body.branch;
     const m = (await post(`/api/admin/brands/${brand._id}/branches`, { name: 'Savera Mumbai', slug: 'savera-mumbai', city: 'Mumbai' })).body.branch;
     for (const b of [d, m]) await Tenant.updateOne({ _id: b.id }, { $set: { 'settings.orders.staff': { kitchenOn: true, waiterOn: true, max: 10 } } });

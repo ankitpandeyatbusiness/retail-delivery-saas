@@ -33,7 +33,7 @@ async function login(tenantId, phone) {
 
 // a brand with a main branch that has a small menu
 async function setup() {
-    const brand = (await post('/api/admin/brands', { name: 'Savera', branchLimit: 6 })).body.brand;
+    const brand = (await post('/api/admin/brands', { name: 'Savera' })).body.brand;
     const main = (await post(`/api/admin/brands/${brand._id}/branches`, { name: 'Savera Delhi', slug: 'savera-delhi', city: 'Delhi' })).body.branch;
     const starters = await Category.create({ tenantId: main.id, name: 'Starters', sortOrder: 1 });
     const mains = await Category.create({ tenantId: main.id, name: 'Mains', sortOrder: 2 });

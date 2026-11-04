@@ -22,7 +22,7 @@ beforeEach(async () => {
 });
 
 async function brandWith(...slugs) {
-    const brand = (await post('/api/admin/brands', { name: 'Savera', branchLimit: 10 })).body.brand;
+    const brand = (await post('/api/admin/brands', { name: 'Savera' })).body.brand;
     const out = [];
     for (const s of slugs) {
         const r = await post(`/api/admin/brands/${brand._id}/branches`, { name: `Savera ${s}`, slug: `savera-${s}`, city: s });
@@ -41,14 +41,13 @@ describe('brands and branches', () => {
         assert.equal((await request(app).put(`/api/admin/brands/${brand._id}`).set(as(plain)).send({ name: 'X' })).status, 403);
     });
 
-    test('a new branch is its own shop with a city, and the limit is kept', async () => {
-        const brand = (await post('/api/admin/brands', { name: 'Savera', branchLimit: 2 })).body.brand;
+    test('a new branch is its own shop with a city, and a brand can have as many branches as it likes', async () => {
+        const brand = (await post('/api/admin/brands', { name: 'Savera' })).body.brand;
         const add = (slug) => post(`/api/admin/brands/${brand._id}/branches`, { name: `Savera ${slug}`, slug: `sav-${slug}`, city: slug, managerPhone: slug === 'delhi' ? '9811111111' : undefined });
         assert.equal((await add('delhi')).status, 201);
         assert.equal((await add('noida')).status, 201);
-        const third = await add('mumbai');
-        assert.equal(third.status, 409);
-        assert.match(third.body.error, /limit of 2/);
+        assert.equal((await add('mumbai')).status, 201, 'no limit on the number of branches');
+        assert.equal((await add('pune')).status, 201);
 
         const t = await Tenant.findOne({ slug: 'sav-delhi' }).lean();
         assert.equal(String(t.brandId), String(brand._id));
@@ -56,14 +55,15 @@ describe('brands and branches', () => {
         assert.equal(await User.countDocuments({ tenantId: t._id, role: 'admin', phone: '9811111111' }), 1);
 
         const detail = (await request(app).get(`/api/admin/brands/${brand._id}`).set(as(supreme))).body;
-        assert.equal(detail.branches.length, 2);
+        assert.equal(detail.branches.length, 4);
         const delhi = detail.branches.find((b) => b.slug === 'sav-delhi');
         assert.equal(delhi.checklist.owner, true);
         assert.equal(delhi.checklist.location, false);   // no pin and radius yet
         assert.equal(delhi.checklist.keys, false);
         assert.equal(delhi.checklist.ready, false);
-        assert.equal(detail.canAdd, false);
-        assert.equal((await request(app).put(`/api/admin/brands/${brand._id}`).set(as(supreme)).send({ branchLimit: 1 })).status, 409);
+        assert.equal(detail.canAdd, undefined, 'the limit is gone');
+        assert.equal(delhi.closed, false);
+        assert.equal(typeof delhi.owed, 'number');
     });
 
     test('an existing shop can join once, and leave again', async () => {

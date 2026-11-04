@@ -2,9 +2,9 @@
 //   GET    /brands/settings                the multi-branch discount: the suggested % and the most any brand may get
 //   PUT    /brands/settings                { defaultDiscountPercent?, maxDiscountPercent? }   (supreme admin)
 //   GET    /brands                         the brands with their branch counts
-//   POST   /brands                         { name, branchLimit?, notes? }
+//   POST   /brands                         { name, notes? }   (a brand can have as many branches as you like)
 //   GET    /brands/:id                     the brand, its branches, each with the go-live checklist and orders this month
-//   PUT    /brands/:id                     { name?, branchLimit?, notes?, discountPercent? }   discountPercent: rent discount for the 2nd branch onward (0 = off, never above the cap)
+//   PUT    /brands/:id                     { name?, notes?, discountPercent? }   discountPercent: rent discount for the 2nd branch onward (0 = off, never above the cap)
 //   POST   /brands/:id/branches            { tenantId } (a shop that already exists) or { name, slug, city, managerPhone?, copyFromTenantId? } (a new branch)
 //   POST   /brands/:id/branches/:tid/area-lock   { locked: true|false }  lock or unlock the map pin and delivery radius (supreme admin): a branch manager cannot change a locked area
 //   PUT    /brands/:id/free-start          { on, freeOrders?, freeMonths? }  "New branches get a free start": on = one shared free pool for the brand, off = no free time for a new branch (supreme admin)
@@ -18,6 +18,7 @@
 //   POST   /brands/:id/menu/push           { fromTenantId, productIds, toTenantIds, prices? }  push dishes from one branch to others (supreme admin)
 //   GET    /brands/:id/statement?period=2026-10   the brand's monthly statement (everyone looks)
 //   GET    /brands/:id/statement.pdf?period=2026-10   the same as a PDF (?view=1 opens it in the browser)
+//   POST   /brands/:id/settings/push       { fromTenantId, toTenantIds, sections }  copy settings groups (hours, orders, features, look...) of one branch onto others (supreme admin)
 //   POST   /brands/:id/extras/push         { fromTenantId, kind, ids, toTenantIds }  push coupons, banners or collections (supreme admin)
 //   DELETE /brands/:id                     only when it has no branches
 const express = require('express');
@@ -53,11 +54,6 @@ const cleanName = (v) => {
     const s = typeof v === 'string' ? v.trim() : '';
     if (s.length < 2 || s.length > 80) throw httpError(400, 'Brand name must be 2 to 80 characters');
     return s;
-};
-const cleanLimit = (v) => {
-    const n = Number(v);
-    if (!Number.isInteger(n) || n < 1 || n > 100) throw httpError(400, 'Branch limit must be a whole number from 1 to 100');
-    return n;
 };
 
 const pct = (v, what) => {
@@ -97,7 +93,6 @@ router.post('/brands', wrap(async (req, res) => {
     const b = req.body || {};
     const brand = await Brand.create({
         name: cleanName(b.name),
-        ...(b.branchLimit !== undefined && { branchLimit: cleanLimit(b.branchLimit) }),
         ...(typeof b.notes === 'string' && { notes: b.notes.trim().slice(0, 500) }),
         createdBy: req.admin.name || req.admin.email,
     });
@@ -108,6 +103,7 @@ router.get('/brands/:id', loadBrand, wrap(async (req, res) => {
     const branches = await Tenant.find({ brandId: req.brand._id }).sort({ createdAt: 1 })
         .select('_id slug name logo status branchCity address.city delivery payments.enabled payments.keyId billing.isLive billing.state createdAt').lean();
     const orders = await brands.ordersThisMonth(branches.map((t) => t._id));
+    const stats = await require('../services/shopListStats').forShops(await Tenant.find({ brandId: req.brand._id }).select('_id brandId status createdAt billing.isLive billing.goLiveAt').lean());
     const items = [];
     for (const t of branches) {
         items.push({
@@ -115,24 +111,20 @@ router.get('/brands/:id', loadBrand, wrap(async (req, res) => {
             city: t.branchCity || (t.address && t.address.city) || null,
             billingState: (t.billing && t.billing.state) || 'free',
             ordersThisMonth: orders.get(String(t._id)) || 0,
+            closed: t.status !== 'active',
+            ordersToday: stats.get(String(t._id))?.ordersToday || 0, owed: stats.get(String(t._id))?.owed || 0, overdue: stats.get(String(t._id))?.overdue || 0, lastOrderAt: stats.get(String(t._id))?.lastOrderAt || null,
             checklist: await brands.checklist(t),
             area: { locked: !!(t.delivery && t.delivery.locked), by: (t.delivery && t.delivery.locationBy) || null },   // the pin and radius: locked by the head office? who changed them last?
             razorpayKeyId: (t.payments && t.payments.keyId) || null,   // the key id is not secret; the secret is never returned
         });
     }
-    res.json({ brand: req.brand, branches: items, canAdd: items.length < req.brand.branchLimit, freeStart: await require('../services/brandFreePool').view(req.brand) });
+    res.json({ brand: req.brand, branches: items, freeStart: await require('../services/brandFreePool').view(req.brand) });
 }));
 
 router.put('/brands/:id', loadBrand, wrap(async (req, res) => {
     const b = req.body || {};
-    req.auditBefore = { name: req.brand.name, branchLimit: req.brand.branchLimit };
+    req.auditBefore = { name: req.brand.name };
     if (b.name !== undefined) req.brand.name = cleanName(b.name);
-    if (b.branchLimit !== undefined) {
-        const n = cleanLimit(b.branchLimit);
-        const have = await Tenant.countDocuments({ brandId: req.brand._id });
-        if (n < have) throw httpError(409, `This brand already has ${have} branches. Take one out first, or keep the limit at ${have} or more.`);
-        req.brand.branchLimit = n;
-    }
     if (b.discountPercent !== undefined) {
         const d = b.discountPercent === null ? 0 : pct(b.discountPercent, 'The discount');
         const cap = (await discountSettings()).maxDiscountPercent;
@@ -155,8 +147,6 @@ router.get('/brands/:id/statement', loadBrand, wrap(async (req, res) => { res.js
 
 router.post('/brands/:id/branches', loadBrand, wrap(async (req, res) => {
     const b = req.body || {};
-    const have = await Tenant.countDocuments({ brandId: req.brand._id });
-    if (have >= req.brand.branchLimit) throw httpError(409, `The limit of ${req.brand.branchLimit} branches is reached. Raise the limit first.`);
     const city = typeof b.city === 'string' ? b.city.trim().slice(0, 60) : '';
 
     // an existing shop becomes a branch
@@ -340,6 +330,13 @@ router.post('/brands/:id/menu/push', loadBrand, wrap(async (req, res) => {
     if ((await Tenant.countDocuments({ _id: { $in: ids }, brandId: req.brand._id })) !== new Set(ids).size) throw httpError(404, 'A chosen branch is not part of this brand');
     if (b.toTenantIds.includes(b.fromTenantId)) throw httpError(400, 'Choose other branches');
     res.json(await require('../services/menuSync').push({ fromTenantId: b.fromTenantId, productIds: b.productIds, toTenantIds: b.toTenantIds, prices: b.prices || 'keep' }));
+}));
+
+router.post('/brands/:id/settings/push', requireSupreme, loadBrand, wrap(async (req, res) => {
+    const b = req.body || {};
+    if (!isId(b.fromTenantId) || !Array.isArray(b.toTenantIds) || !b.toTenantIds.every(isId)) throw httpError(400, 'Choose the branches');
+    req.auditBefore = { from: b.fromTenantId, sections: b.sections };
+    res.json(await require('../services/settingsSync').apply({ brandId: req.brand._id, fromTenantId: b.fromTenantId, toTenantIds: b.toTenantIds, sections: b.sections }));
 }));
 
 router.post('/brands/:id/extras/push', loadBrand, wrap(async (req, res) => {

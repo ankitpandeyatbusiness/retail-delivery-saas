@@ -41,7 +41,7 @@ async function tokenFor(tenantId, phone) {
     return accessToken;
 }
 async function newBrand(name, cities, prefix) {
-    const brand = (await post('/api/admin/brands', { name, branchLimit: 6 })).body.brand;
+    const brand = (await post('/api/admin/brands', { name })).body.brand;
     const out = [];
     for (const c of cities) {
         const r = await post(`/api/admin/brands/${brand._id}/branches`, { name: `${name} ${c}`, slug: `${prefix}-${c}`, city: c });

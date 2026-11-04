@@ -42,7 +42,7 @@ const bulk = (t, user, n, at) => Order.insertMany(Array.from({ length: n }, () =
 
 // a brand of three LIVE branches that are past the free period, each with 306 orders in June 2025 (tier 6000)
 async function brandOfThree() {
-    const brand = (await post('/api/admin/brands', { name: 'Savera', branchLimit: 6 })).body.brand;
+    const brand = (await post('/api/admin/brands', { name: 'Savera' })).body.brand;
     const out = [];
     for (const c of ['delhi', 'mumbai', 'goa']) {
         const r = await post(`/api/admin/brands/${brand._id}/branches`, { name: `Savera ${c}`, slug: `savera-${c}`, city: c });

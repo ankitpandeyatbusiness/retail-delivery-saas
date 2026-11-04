@@ -29,7 +29,7 @@ beforeEach(async () => {
 const HOUR = 3600000;
 // the main branch (Delhi) has two dishes, two coupons (one used 7 times, one over), a banner, a collection of both dishes, and an expired banner
 async function setup() {
-    const brand = (await post('/api/admin/brands', { name: 'Savera', branchLimit: 5 })).body.brand;
+    const brand = (await post('/api/admin/brands', { name: 'Savera' })).body.brand;
     const d = (await post(`/api/admin/brands/${brand._id}/branches`, { name: 'Savera Delhi', slug: 'savera-delhi', city: 'Delhi' })).body.branch;
     const cat = await Category.create({ tenantId: d.id, name: 'Mains' });
     const tikka = await Product.create({ tenantId: d.id, categoryId: cat._id, name: 'Tikka', price: 200, isVeg: true });

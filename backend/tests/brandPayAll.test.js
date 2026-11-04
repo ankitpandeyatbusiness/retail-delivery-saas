@@ -46,7 +46,7 @@ const bill = (branch, o = {}) => SubscriptionInvoice.create({
 
 // Delhi has two unpaid bills, Mumbai one (and it is paused for it), Goa none
 async function setup() {
-    const brand = (await post('/api/admin/brands', { name: 'Savera', branchLimit: 5 })).body.brand;
+    const brand = (await post('/api/admin/brands', { name: 'Savera' })).body.brand;
     const out = {};
     for (const c of ['delhi', 'mumbai', 'goa']) out[c] = (await post(`/api/admin/brands/${brand._id}/branches`, { name: `Savera ${c}`, slug: `savera-${c}`, city: c })).body.branch;
     await post(`/api/admin/brands/${brand._id}/owners`, { phone: RAJU });

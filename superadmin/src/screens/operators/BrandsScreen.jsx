@@ -19,7 +19,6 @@ export default function BrandsScreen() {
     const [err, setErr] = useState('');
     const [open, setOpen] = useState(false);
     const [name, setName] = useState('');
-    const [limit, setLimit] = useState('3');
     const [busy, setBusy] = useState(false);
 
     const load = useCallback(async () => { setErr(''); try { setR(await fetchBrands()); } catch (e) { setErr(errMsg(e)); } }, []);
@@ -28,7 +27,7 @@ export default function BrandsScreen() {
     const create = async () => {
         setBusy(true);
         try {
-            const x = await createBrand({ name: name.trim(), branchLimit: Number(limit) || 3 });
+            const x = await createBrand({ name: name.trim() });
             setOpen(false); setName(''); toast('Brand created');
             nav.navigate('BrandDetail', { id: x.brand._id });
         } catch (e) { toast(errMsg(e), 'error'); } finally { setBusy(false); }
@@ -42,7 +41,7 @@ export default function BrandsScreen() {
             {r && r.items.length ? (
                 <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
                     {r.items.map((b, i) => (
-                        <ListRow key={b._id} section="platform" icon="shops" title={b.name} subtitle={`${b.branchCount} of ${b.branchLimit} branches`} onPress={() => nav.navigate('BrandDetail', { id: b._id })} last={i === r.items.length - 1} />
+                        <ListRow key={b._id} section="platform" icon="shops" title={b.name} subtitle={`${b.branchCount} branch${b.branchCount === 1 ? '' : 'es'}`} onPress={() => nav.navigate('BrandDetail', { id: b._id })} last={i === r.items.length - 1} />
                     ))}
                 </Card>
             ) : null}
@@ -50,7 +49,6 @@ export default function BrandsScreen() {
 
             <Sheet visible={open} onClose={() => setOpen(false)} title="New brand">
                 <Field label="Brand name" placeholder="e.g. Savera" hint="The name of the group of branches, shown to the brand owner." value={name} onChangeText={setName} maxLength={80} />
-                <Field label="Most branches allowed" value={limit} onChangeText={(v) => setLimit(v.replace(/\D/g, '').slice(0, 3))} keyboardType="number-pad" />
                 <Button title="Create" loading={busy} disabled={name.trim().length < 2} onPress={create} />
             </Sheet>
         </Screen>

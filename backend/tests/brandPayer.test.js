@@ -43,7 +43,7 @@ const PAY_ROUTES = [
 ];
 
 async function brand() {
-    const b = (await post('/api/admin/brands', { name: 'Savera', branchLimit: 4 })).body.brand;
+    const b = (await post('/api/admin/brands', { name: 'Savera' })).body.brand;
     const mumbai = (await post(`/api/admin/brands/${b._id}/branches`, { name: 'Savera Mumbai', slug: 'savera-mumbai', city: 'Mumbai' })).body.branch;
     await post(`/api/admin/tenants/${mumbai.id}/owners`, { phone: MGR });
     return { b, mumbai };

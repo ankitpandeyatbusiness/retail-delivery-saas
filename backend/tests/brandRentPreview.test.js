@@ -34,7 +34,7 @@ const bulk = (t, user, n) => Order.insertMany(Array.from({ length: n }, () => ({
 
 // two live branches past the free period, 306 orders each this month (tier Rs 6000), a 10% brand discount
 async function setup() {
-    const brand = (await post('/api/admin/brands', { name: 'Savera', branchLimit: 4 })).body.brand;
+    const brand = (await post('/api/admin/brands', { name: 'Savera' })).body.brand;
     const out = [];
     for (const c of ['delhi', 'mumbai']) {
         const b = (await post(`/api/admin/brands/${brand._id}/branches`, { name: `Savera ${c}`, slug: `savera-${c}`, city: c })).body.branch;

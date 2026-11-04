@@ -4,9 +4,9 @@ import api, { data } from './adminClient';
 
 /* ---- brands with branches (everyone looks, the supreme admin changes) ---- */
 export const fetchBrands = () => data(api.get('/admin/brands'));                                         // { items }
-export const createBrand = (body) => data(api.post('/admin/brands', body));                              // { name, branchLimit? }
-export const fetchBrand = (id) => data(api.get(`/admin/brands/${id}`));                                  // { brand, branches, canAdd }
-export const updateBrand = (id, body) => data(api.put(`/admin/brands/${id}`, body));                     // { name?, branchLimit?, notes? }
+export const createBrand = (body) => data(api.post('/admin/brands', body));                              // { name }
+export const fetchBrand = (id) => data(api.get(`/admin/brands/${id}`));                                  // { brand, branches, freeStart }
+export const updateBrand = (id, body) => data(api.put(`/admin/brands/${id}`, body));                     // { name?, notes?, discountPercent? }
 export const addBranch = (id, body) => data(api.post(`/admin/brands/${id}/branches`, body));             // { tenantId } or { name, slug, city, managerPhone?, copyFromTenantId? }
 export const removeBranch = (id, tid) => data(api.delete(`/admin/brands/${id}/branches/${tid}`));
 export const deleteBrand = (id) => data(api.delete(`/admin/brands/${id}`));
@@ -33,3 +33,6 @@ export const setFreeStart = (id, body) => data(api.put(`/admin/brands/${id}/free
 export const bulkWaiveLateFees = (id, tenantIds, reason) => data(api.post(`/admin/brands/${id}/bulk/waive-late-fees`, { tenantIds, reason }));
 export const bulkMarkPaid = (id, body) => data(api.post(`/admin/brands/${id}/bulk/mark-paid`, body));          // { tenantIds, paymentMode?, paymentRef?, receivedBy, note? }
 export const bulkMarkUnpaid = (id, body) => data(api.post(`/admin/brands/${id}/bulk/mark-unpaid`, body));      // { tenantIds, period }
+
+// copy settings groups of one branch onto other branches (supreme admin): { fromTenantId, toTenantIds, sections }
+export const pushBrandSettings = (id, body) => data(api.post(`/admin/brands/${id}/settings/push`, body));

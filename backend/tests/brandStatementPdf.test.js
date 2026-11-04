@@ -28,7 +28,7 @@ beforeEach(async () => {
 
 let n = 0;
 async function setup() {
-    const brand = (await post('/api/admin/brands', { name: 'Savera', branchLimit: 4 })).body.brand;
+    const brand = (await post('/api/admin/brands', { name: 'Savera' })).body.brand;
     const out = [];
     for (const c of ['delhi', 'mumbai']) out.push((await post(`/api/admin/brands/${brand._id}/branches`, { name: `Savera ${c}`, slug: `savera-${c}`, city: c })).body.branch);
     const bill = (b, base, discount) => SubscriptionInvoice.create({

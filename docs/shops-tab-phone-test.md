@@ -51,3 +51,12 @@ Needs the server redeployed, the superadmin app and the shop app updated.
 3. "Open the shop, I will do it later" skips the whole setup. The shop page now shows a "Set-up: 8 of 12 done" card with the first three missing things; tap one to open where it is fixed, or "Guided setup" to do the steps any time.
 4. The Set-up check screen: every missing line is tappable and opens its fix (logo and pictures to Branding, phone and address and map to Edit shop, menu to Menu, hours, owner, rider, payments, going live to Billing).
 5. In the app features step switch Services, Table booking and Bulk orders on and off: the phone preview in that step shows the effect.
+
+## Phase 6: the brand page
+1. More, Brands and branches: each brand shows "N branches" (no "of 3" any more). New brand asks for the name only.
+2. Open a brand. The header says "3 branches · 2 owners". A summary card shows Orders today and Rent due for all branches, with "Remind every branch that owes".
+3. Under Branches each branch shows Live / Setting up / Closed, orders today and this month, and "Rent due Rs ..." (red when overdue) or "Rent: all paid", with three small buttons: Open shop, Remind to pay (only when rent is due) and Close this branch (or Opening options when closed).
+4. Add more than 3 branches to the same brand: there is no limit and no "limit reached" message any more. "Add a branch" and "Add an existing shop" are always on.
+5. Manage, "Apply one branch's settings to the others": pick the branch to copy from, tick the groups (Opening hours, Orders and fees, App features, Menu and offers display, Riders and delivery, Home layout, Brand and look, Alerts and reports, App version), press Copy. Open another branch's Settings: the values are the same. Its map pin and delivery radius, payment keys and menu are unchanged, and a branch whose owner had paused orders by hand is still paused.
+6. Manage, "Close every open branch": asks for a reason, then each open branch stops taking new orders and closes when its orders are done. Each can be opened again from its own Close shop page.
+7. Money for the whole brand (statement, shared free start, bulk actions, rent discount) and Brand owners are all still there.

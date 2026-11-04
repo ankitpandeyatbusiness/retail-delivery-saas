@@ -4,7 +4,6 @@ const mongoose = require('mongoose');
 // Phase 1: the brand itself, the branch limit and who made it. Owner, discount and the shared SMS wallet come in later phases.
 const brandSchema = new mongoose.Schema({
     name: { type: String, required: true, trim: true, maxlength: 80 },
-    branchLimit: { type: Number, default: 3, min: 1, max: 100 },   // how many branches the supreme admin allows
     // Rent discount for the 2nd branch onward, in percent. Empty or 0 = off. Only the supreme admin sets it, never above the platform cap.
     discountPercent: { type: Number, min: 0, max: 100 },
     // "New branches get a free start" (services/brandFreePool.js): off = a new branch has no free time and is billed from the first full month after go-live; on = one shared free pool for the brand

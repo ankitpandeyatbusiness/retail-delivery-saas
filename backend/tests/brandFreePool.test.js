@@ -26,7 +26,7 @@ beforeEach(async () => {
 
 const fresh = (id) => Tenant.findById(id).lean();
 const platform = () => PlatformSettings.findById('main').lean();
-async function newBrand() { return (await post('/api/admin/brands', { name: 'Savera', branchLimit: 8 })).body.brand; }
+async function newBrand() { return (await post('/api/admin/brands', { name: 'Savera' })).body.brand; }
 async function addBranch(brand, city) {
     const r = await post(`/api/admin/brands/${brand._id}/branches`, { name: `Savera ${city}`, slug: `savera-${city}`, city });
     assert.equal(r.status, 201, JSON.stringify(r.body));

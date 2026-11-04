@@ -49,7 +49,7 @@ const tokenOf = (slug, who) => `tok-${who}-${slug}-padding-padding-padding`;
 
 // Savera: Delhi, Mumbai, Goa. Raju is the brand owner (owner of all three). Mumbai also has its own manager. Every one has a phone registered at the branch.
 async function world() {
-    const brand = (await post('/api/admin/brands', { name: 'Savera', branchLimit: 6 })).body.brand;
+    const brand = (await post('/api/admin/brands', { name: 'Savera' })).body.brand;
     const b = {};
     for (const c of ['delhi', 'mumbai', 'goa']) {
         const r = await post(`/api/admin/brands/${brand._id}/branches`, { name: `Savera ${c}`, slug: `savera-${c}`, city: c });
@@ -167,7 +167,7 @@ describe('which branch alerts reach a brand owner', () => {
     });
 
     test('settings: the superadmin can name his own branch when appointing; bad input is refused; muting a branch nobody else runs warns', async () => {
-        const brand = (await post('/api/admin/brands', { name: 'Savera', branchLimit: 6 })).body.brand;
+        const brand = (await post('/api/admin/brands', { name: 'Savera' })).body.brand;
         const d = (await post(`/api/admin/brands/${brand._id}/branches`, { name: 'Savera Delhi', slug: 'savera-delhi', city: 'Delhi' })).body.branch;
         await post(`/api/admin/brands/${brand._id}/branches`, { name: 'Savera Mumbai', slug: 'savera-mumbai', city: 'Mumbai' });
         assert.equal((await post(`/api/admin/brands/${brand._id}/owners`, { phone: RAJU, ownSlug: 'nowhere' })).status, 404);

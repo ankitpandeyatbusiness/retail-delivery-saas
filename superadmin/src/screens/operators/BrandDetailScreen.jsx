@@ -1,16 +1,22 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
-import { useFocusEffect, useRoute } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useTheme, spacing, font } from '../../theme';
 import { Screen } from '../../components/layout';
-import { Card, Button, Badge, SectionTitle } from '../../components/ui';
+import { Card, Button, Badge, SectionTitle, Chip } from '../../components/ui';
 import { Field } from '../../components/inputs';
 import { SkeletonList } from '../../components/blocks';
 import { ErrorBox, Sheet, ConfirmSheet, toast } from '../../components/feedback';
 import { useSupreme } from '../../hooks/useSupreme';
 import { fetchBrand, addBranch, removeBranch, updateBrand, addBrandOwner, removeBrandOwner, fetchBrandSettings, fetchBrandStatement, setAreaLock, shareBrandStatementPdf, setFreeStart, bulkWaiveLateFees, bulkMarkPaid, bulkMarkUnpaid } from '../../api/brandsApi';
 import { errMsg } from '../../api/adminClient';
-import { fetchShops } from '../../api/shopsApi';
+import { fetchShops, closeShop } from '../../api/shopsApi';
+import { remindShop, remindBrand } from '../../api/insightsApi';
+import { pushBrandSettings } from '../../api/brandsApi';
+import { rupees } from '../../utils/format';
+
+// the settings groups "Apply to all branches" can copy (never the map pin, the keys or what an owner switches by hand)
+const GROUPS = [['hours', 'Opening hours'], ['orders', 'Orders and fees'], ['features', 'App features'], ['menu', 'Menu and offers display'], ['riders', 'Riders and delivery'], ['home', 'Home layout'], ['brand', 'Brand and look'], ['notifications', 'Alerts and reports'], ['app', 'App version']];
 
 const STEPS = [['location', 'Pin and radius set'], ['keys', 'Razorpay keys set'], ['owner', 'Owner or manager added'], ['live', 'Live']];
 const blank = { name: '', slug: '', city: '', managerPhone: '' };
@@ -18,6 +24,7 @@ const blank = { name: '', slug: '', city: '', managerPhone: '' };
 // One brand: its branches, each with the go-live checklist, and the form to add a branch.
 export default function BrandDetailScreen() {
     const t = useTheme();
+    const nav = useNavigation();
     const { id } = useRoute().params || {};
     const supreme = useSupreme();
     const [r, setR] = useState(null);
@@ -45,8 +52,12 @@ export default function BrandDetailScreen() {
     };
     const [f, setF] = useState(blank);
     const [copy, setCopy] = useState(true);
-    const [limit, setLimit] = useState('');
-    const [limitOpen, setLimitOpen] = useState(false);
+    // apply a branch's settings to the others
+    const [applyOpen, setApplyOpen] = useState(false);
+    const [applyFrom, setApplyFrom] = useState(null);
+    const [applyWhat, setApplyWhat] = useState([]);
+    // close every open branch
+    const [closeAll, setCloseAll] = useState(false);
     const [out, setOut] = useState(null);
     const [busy, setBusy] = useState(false);
     const [stmt, setStmt] = useState(null);
@@ -94,9 +105,20 @@ export default function BrandDetailScreen() {
             toast('Branch added'); setAdd(false); setF(blank); load();
         } catch (e) { toast(errMsg(e), 'error'); } finally { setBusy(false); }
     };
-    const saveLimit = async () => {
+    const remindOne = async (b) => {
+        try { const x = await remindShop(b.id); toast(`Reminder sent to ${x.shopName}: ₹${x.amount} for ${x.month}`); load(); } catch (e) { toast(errMsg(e), 'error'); }
+    };
+    const remindAll = async () => {
         setBusy(true);
-        try { await updateBrand(id, { branchLimit: Number(limit) }); toast('Saved'); setLimitOpen(false); load(); } catch (e) { toast(errMsg(e), 'error'); } finally { setBusy(false); }
+        try { const x = await remindBrand(id); toast(x.sent.length ? `Reminded ${x.sent.length} branch${x.sent.length === 1 ? '' : 'es'}${x.skipped.length ? ` (${x.skipped.length} reminded recently or nothing due)` : ''}` : 'Nobody to remind: nothing is due, or they were reminded in the last hour'); load(); } catch (e) { toast(errMsg(e), 'error'); } finally { setBusy(false); }
+    };
+    const doApply = async () => {
+        setBusy(true);
+        try {
+            const to = r.branches.filter((b) => b.id !== applyFrom).map((b) => b.id);
+            const x = await pushBrandSettings(id, { fromTenantId: applyFrom, toTenantIds: to, sections: applyWhat });
+            toast(`Copied to ${x.applied.length} branch${x.applied.length === 1 ? '' : 'es'}`); setApplyOpen(false);
+        } catch (e) { toast(errMsg(e), 'error'); } finally { setBusy(false); }
     };
     const saveDisc = async () => {
         setBusy(true);
@@ -148,15 +170,30 @@ export default function BrandDetailScreen() {
     };
 
     return (
-        <Screen title={r.brand.name} subtitle={`${r.branches.length} of ${r.brand.branchLimit} branches`} onRefresh={load}>
-            {!r.branches.length ? <Card><Text style={{ color: t.muted }}>No branches yet. Add the first one below.</Text></Card> : null}
+        <Screen title={r.brand.name} subtitle={`${r.branches.length} branch${r.branches.length === 1 ? '' : 'es'} · ${(r.brand.ownerPhones || []).length} owner${(r.brand.ownerPhones || []).length === 1 ? '' : 's'}`} onRefresh={load}>
+            {r.branches.length ? (
+                <Card style={{ marginBottom: spacing.md }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                        <View><Text style={{ color: t.muted, fontSize: font.sm }}>Orders today</Text><Text style={{ color: t.text, fontSize: font.xl, fontWeight: '800' }}>{r.branches.reduce((a, b) => a + (b.ordersToday || 0), 0)}</Text></View>
+                        <View style={{ alignItems: 'flex-end' }}><Text style={{ color: t.muted, fontSize: font.sm }}>Rent due, all branches</Text><Text style={{ color: r.branches.some((b) => b.overdue > 0) ? t.danger : t.text, fontSize: font.xl, fontWeight: '800' }}>{rupees(r.branches.reduce((a, b) => a + (b.owed || 0), 0))}</Text></View>
+                    </View>
+                    {supreme && r.branches.some((b) => b.owed > 0) ? <Button small kind="soft" icon="bell" title="Remind every branch that owes" loading={busy} onPress={remindAll} style={{ marginTop: spacing.md }} /> : null}
+                </Card>
+            ) : <Card><Text style={{ color: t.muted }}>No branches yet. Add the first one below.</Text></Card>}
+            <SectionTitle section="shops">Branches</SectionTitle>
             {r.branches.map((b) => (
                 <Card key={b.id} style={{ marginBottom: spacing.md }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                         <Text style={{ color: t.text, fontWeight: '800', fontSize: font.md, flex: 1 }}>{b.name}</Text>
-                        <Badge label={b.checklist.live ? 'Live' : b.checklist.ready ? 'Ready to go live' : 'Setting up'} tone={b.checklist.live ? 'success' : b.checklist.ready ? 'info' : 'warn'} />
+                        {b.closed ? <Badge label="Closed" tone="danger" icon="lock" /> : <Badge label={b.checklist.live ? 'Live' : b.checklist.ready ? 'Ready to go live' : 'Setting up'} tone={b.checklist.live ? 'success' : b.checklist.ready ? 'info' : 'warn'} />}
                     </View>
-                    <Text style={{ color: t.muted, marginTop: 2 }}>{b.city || 'City not set'} · {b.ordersThisMonth} orders this month</Text>
+                    <Text style={{ color: t.muted, marginTop: 2 }}>{b.city || 'City not set'} · {b.ordersToday} today · {b.ordersThisMonth} this month</Text>
+                    {b.owed > 0 ? <Text style={{ color: b.overdue > 0 ? t.danger : t.muted, fontWeight: '800', marginTop: 4 }}>Rent due {rupees(b.owed)}{b.overdue > 0 ? ` (${rupees(b.overdue)} overdue)` : ''}</Text> : <Text style={{ color: t.muted, marginTop: 4 }}>Rent: all paid</Text>}
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: spacing.sm }}>
+                        <Chip label="Open shop" icon="shops" onPress={() => nav.navigate('ShopDetail', { shopId: b.id, name: b.name })} />
+                        {supreme && b.owed > 0 ? <Chip label="Remind to pay" icon="bell" onPress={() => remindOne(b)} /> : null}
+                        {supreme ? <Chip label={b.closed ? 'Opening options' : 'Close this branch'} icon="lock" onPress={() => nav.navigate('ShopClose', { shopId: b.id, name: b.name })} /> : null}
+                    </View>
                     <View style={{ marginTop: spacing.sm }}>
                         {STEPS.map(([k, label]) => (
                             <Text key={k} style={{ color: b.checklist[k] ? t.success : t.muted, marginTop: 2 }}>{b.checklist[k] ? '✓' : '○'}  {label}</Text>
@@ -234,11 +271,11 @@ export default function BrandDetailScreen() {
                         </View>
                     </Card>
                     <SectionTitle section="platform">Manage</SectionTitle>
-                    <Button title="Add a branch" icon="add" disabled={!r.canAdd} onPress={() => setAdd(true)} />
-                    <Button title="Add an existing shop" icon="shops" kind="outline" disabled={!r.canAdd} style={{ marginTop: spacing.sm }} onPress={() => { setChosen(null); setQ(''); setAcity(''); setAtt(true); }} />
-                    {!r.canAdd ? <Text style={{ color: t.muted, marginTop: 6 }}>The limit is reached. Raise it to add more.</Text> : null}
+                    <Button title="Add a branch" icon="add" onPress={() => setAdd(true)} />
+                    <Button title="Add an existing shop" icon="shops" kind="outline" style={{ marginTop: spacing.sm }} onPress={() => { setChosen(null); setQ(''); setAcity(''); setAtt(true); }} />
                     <Button title={`Rent discount for the 2nd branch onward: ${r.brand.discountPercent || 0}%`} kind="outline" style={{ marginTop: spacing.sm }} onPress={() => { setDisc(String(r.brand.discountPercent || '')); setDiscOpen(true); }} />
-                    <Button title="Change branch limit" kind="outline" style={{ marginTop: spacing.sm }} onPress={() => { setLimit(String(r.brand.branchLimit)); setLimitOpen(true); }} />
+                    {r.branches.length > 1 ? <Button title="Apply one branch's settings to the others" icon="tune" kind="outline" style={{ marginTop: spacing.sm }} onPress={() => { setApplyFrom(r.branches[0].id); setApplyWhat([]); setApplyOpen(true); }} /> : null}
+                    {r.branches.some((b) => !b.closed) ? <Button title="Close every open branch" icon="lock" kind="dangerSoft" style={{ marginTop: spacing.sm }} onPress={() => setCloseAll(true)} /> : null}
                 </>
             ) : null}
 
@@ -334,10 +371,31 @@ export default function BrandDetailScreen() {
                 <Button title="Save" loading={busy} onPress={saveDisc} />
             </Sheet>
 
-            <Sheet visible={limitOpen} onClose={() => setLimitOpen(false)} title="Branch limit">
-                <Field label="Most branches allowed" value={limit} onChangeText={(v) => setLimit(v.replace(/\D/g, '').slice(0, 3))} keyboardType="number-pad" />
-                <Button title="Save" loading={busy} disabled={!limit} onPress={saveLimit} />
+            <Sheet visible={applyOpen} onClose={() => setApplyOpen(false)} title="Apply settings to the other branches">
+                <Text style={{ color: t.muted, marginBottom: spacing.md }}>Copy chosen settings from one branch onto every other branch. Their map pin and delivery area, payment keys, menu, owners and bills are never touched, and neither is what an owner switches by hand (accepting orders, pause).</Text>
+                <Text style={{ color: t.text, fontWeight: '800', marginBottom: 6 }}>Copy from</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.md }}>
+                    {r.branches.map((b) => <Chip key={b.id} label={b.name} active={applyFrom === b.id} onPress={() => setApplyFrom(b.id)} />)}
+                </View>
+                <Text style={{ color: t.text, fontWeight: '800', marginBottom: 6 }}>What to copy</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.md }}>
+                    {GROUPS.map(([k, label]) => <Chip key={k} label={label} active={applyWhat.includes(k)} onPress={() => setApplyWhat((cur) => (cur.includes(k) ? cur.filter((x) => x !== k) : [...cur, k]))} />)}
+                </View>
+                <Button title={`Copy to ${r.branches.length - 1} other branch${r.branches.length - 1 === 1 ? '' : 'es'}`} loading={busy} disabled={!applyFrom || !applyWhat.length} onPress={doApply} />
             </Sheet>
+
+            <ConfirmSheet
+                visible={closeAll}
+                onClose={() => setCloseAll(false)}
+                icon="lock"
+                danger
+                title={`Close every open branch of ${r.brand.name}?`}
+                message="Each open branch stops taking new orders and closes when its orders in progress are done. Nothing is deleted. You can open each one again."
+                needReason
+                reasonLabel="Reason (kept in your records, never shown to owners or customers)"
+                confirmLabel="Close all"
+                onConfirm={async (why) => { const list = r.branches.filter((x) => !x.closed); let done = 0; for (const b of list) { try { await closeShop(b.id, { reason: why, kind: 'manual', orders: 'finish' }); done += 1; } catch (e) { toast(`${b.name}: ${errMsg(e)}`, 'error'); } } toast(`${done} branch${done === 1 ? '' : 'es'} closed`); load(); }}
+            />
 
             <Sheet visible={ownerOpen} onClose={() => setOwnerOpen(false)} title="Add a brand owner">
                 <Field label="Mobile number" placeholder="10 digits, e.g. 9876543210" hint="A brand owner logs in with this number and can open every branch." value={ownerPhone} onChangeText={(v) => setOwnerPhone(v.replace(/\D/g, '').slice(0, 10))} keyboardType="number-pad" />

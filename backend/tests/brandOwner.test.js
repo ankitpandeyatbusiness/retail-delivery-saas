@@ -29,7 +29,7 @@ beforeEach(async () => {
 });
 
 async function brandWith(...cities) {
-    const brand = (await post('/api/admin/brands', { name: 'Savera', branchLimit: 10 })).body.brand;
+    const brand = (await post('/api/admin/brands', { name: 'Savera' })).body.brand;
     const branches = [];
     for (const c of cities) {
         const r = await post(`/api/admin/brands/${brand._id}/branches`, { name: `Savera ${c}`, slug: `savera-${c}`, city: c });
