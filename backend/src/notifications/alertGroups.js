@@ -36,7 +36,7 @@ const OWNER = [
     g('offduty', 'Staff comes on or goes off duty', 'A cook, a waiter or a rider came on duty, or switched themselves off duty.', ['staff_on_duty', 'staff_off_duty', 'rider_ended_duty'], { p: true, soft: true }),
     g('undo', 'Steps taken back (undo)', 'Someone undid Ready, Served or Picked up.', ['order_undone'], { p: 'off', soft: true }),
     g('reviews', 'Reviews and complaints', 'A new complaint, a review, or a low rating.', ['complaint_new', 'complaint_reminder', 'review_food', 'review_delivery', 'delivery_low_rating', 'dish_low_rating'], { p: 'off', soft: true }),
-    g('money', 'Rent, money and SMS', 'Your rent bill, payments, and your SMS balance.', ['bill_issued', 'bill_reminder', 'bill_overdue', 'shop_paused', 'shop_unpaused', 'payment_received', 'sms_topup_done', 'sms_low', 'sms_zero', 'free_ending', 'platform_message'], { p: 'off', soft: true, critical: true }),
+    g('money', 'Rent, money and SMS', 'Your rent bill, payments, and your SMS balance.', ['bill_issued', 'bill_reminder', 'rent_nudge', 'bill_overdue', 'shop_paused', 'shop_unpaused', 'payment_received', 'sms_topup_done', 'sms_low', 'sms_zero', 'free_ending', 'platform_message'], { p: 'off', soft: true, critical: true }),
     g('reports', 'Daily and weekly reports', 'How today and last week went.', ['owner_daily_summary', 'owner_weekly_digest', 'monthly_report'], { p: 'off', soft: true }),
 ];
 

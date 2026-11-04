@@ -39,7 +39,7 @@ export function ShopLines({ list, total, max = 5, onShop }) {
 
 // Opens and closes smoothly on the UI thread (no jerk): the height follows `progress` (0 closed, 1 open) between 0 and the content's own height.
 // The content is measured where it lies, so it can have any height.
-function Collapsible({ progress, children }) {
+export function Collapsible({ progress, children }) {
     const h = useSharedValue(0);
     const style = useAnimatedStyle(() => ({ height: h.value * progress.value, opacity: progress.value, overflow: 'hidden' }));
     return (

@@ -11,7 +11,7 @@ const User = require('../models/User');
 const Session = require('../models/Session');
 
 // a rider's SOS, an order nobody accepted, a shop paused for rent, a bill that is overdue or about to be
-const CRITICAL = new Set(['rider_sos', 'order_unaccepted_reminder', 'shop_paused', 'bill_overdue', 'bill_reminder']);
+const CRITICAL = new Set(['rider_sos', 'order_unaccepted_reminder', 'shop_paused', 'bill_overdue', 'bill_reminder', 'rent_nudge']);
 
 const TTL = 15000;
 const cache = new Map();   // key -> { at, value }

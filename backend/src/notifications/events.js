@@ -133,6 +133,7 @@ const EVENTS = {
     complaint_reminder: { to: 'owner', channels: INAPP_PUSH },
     bill_issued: { to: 'owner', channels: ALL, key: true, email: 'rent_invoice', adminAlert: 'admin_bill_issued' },
     bill_reminder: { to: 'owner', channels: INAPP_PUSH, email: 'bill_reminder', adminAlert: 'admin_grace_ending' },
+    rent_nudge: { to: 'owner', channels: INAPP_PUSH },   // the superadmin's Remind button on Who-owes-you: a push with the amount and month (no platform alert about it)
     shop_paused: { to: 'owner', channels: ALL, key: true, email: 'shop_paused', adminAlert: 'admin_shop_paused' },
     bill_overdue: { to: 'owner', channels: ALL, key: true, email: 'bill_overdue' },   // every few days while a bill is overdue (SMS only when the app cannot be reached)
     shop_unpaused: { to: 'owner', channels: INAPP_PUSH, email: 'shop_unpaused', adminAlert: 'admin_shop_unpaused' },

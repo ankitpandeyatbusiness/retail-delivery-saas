@@ -15,6 +15,8 @@ export const runBackup = () => data(api.post('/admin/ops/backup', {}, { timeout:
 /* ---------------- profit and loss, who owes, expenses ---------------- */
 export const fetchProfitLoss = (months) => data(api.get('/admin/finance/summary', { params: { months } }));
 export const fetchReceivables = () => data(api.get('/admin/finance/receivables'));
+export const remindShop = (tenantId) => data(api.post(`/admin/finance/receivables/${tenantId}/remind`));
+export const remindBrand = (brandId) => data(api.post(`/admin/finance/receivables/brand/${brandId}/remind`));
 export const listExpenses = () => data(api.get('/admin/finance/expenses'));
 export const addExpense = (body) => data(api.post('/admin/finance/expenses', body));              // { date, category, amountPaise, vendor?, note?, repeatMonthly?, endsOn? }
 export const updateExpense = (id, body) => data(api.patch(`/admin/finance/expenses/${id}`, body));

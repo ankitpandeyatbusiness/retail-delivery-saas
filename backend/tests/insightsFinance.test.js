@@ -207,6 +207,46 @@ describe('profit and loss, receivables, expenses', () => {
         assert.equal(bk.d31_60, 118000);
         assert.equal(bk.d1_7, 23600);
     });
+
+    test('receivables names the brand of a branch; Remind sends the owner a push once an hour; brand remind reaches each branch that owes', async () => {
+        const Brand = require('../src/models/Brand');
+        const Tenant = require('../src/models/Tenant');
+        const tag = Date.now().toString(36);
+        const a = await f.makeWorld('rm1-' + tag);
+        const b = await f.makeWorld('rm2-' + tag);
+        const c = await f.makeWorld('rm3-' + tag);
+        const brand = await Brand.create({ name: 'Savera' });
+        await Tenant.updateMany({ _id: { $in: [a.tenant._id, b.tenant._id] } }, { $set: { brandId: brand._id } });
+        await invoice(a.tenant, { status: 'pending', base: 1000 });
+        await invoice(b.tenant, { status: 'pending', base: 2000 });
+        const r = await get('/api/admin/finance/receivables');
+        const sa = r.body.shops.find((x) => String(x.tenantId) === String(a.tenant._id));
+        assert.equal(sa.brandName, 'Savera');
+        assert.equal(sa.remindedAt, null);
+
+        // nothing owed: refused in plain words
+        const none = await post('/api/admin/finance/receivables/' + c.tenant._id + '/remind', {});
+        assert.equal(none.status, 400);
+
+        const one = await post('/api/admin/finance/receivables/' + a.tenant._id + '/remind', {});
+        assert.equal(one.status, 200, JSON.stringify(one.body));
+        assert.equal(one.body.amount, 1180);
+        const note = await Notification.findOne({ tenantId: a.tenant._id, role: 'owner', type: 'rent_nudge' }).lean();
+        assert.ok(note, 'the owner got an alert');
+        assert.match(note.body, /Rs 1,180/);
+        assert.equal(note.data.manual, true);
+        // a second tap within the hour is refused
+        assert.equal((await post('/api/admin/finance/receivables/' + a.tenant._id + '/remind', {})).status, 429);
+        const again = (await get('/api/admin/finance/receivables')).body.shops.find((x) => String(x.tenantId) === String(a.tenant._id));
+        assert.ok(again.remindedAt);
+
+        // the brand: a was reminded just now (skipped), b is reminded
+        const all = await post('/api/admin/finance/receivables/brand/' + brand._id + '/remind', {});
+        assert.equal(all.status, 200, JSON.stringify(all.body));
+        assert.equal(all.body.sent.length, 1);
+        assert.equal(all.body.skipped.length, 1);
+        assert.equal(all.body.sent[0].amount, 2360);
+    });
 });
 
 describe('alerts inbox: clear', () => {

@@ -22,6 +22,16 @@ router.get('/finance/receivables', wrap(async (req, res) => {
     res.json(await finance.receivables());
 }));
 
+// Remind: a push to the owner of one shop, or to every branch of a brand that owes rent
+router.post('/finance/receivables/brand/:brandId/remind', wrap(async (req, res) => {
+    if (!mongoose.isValidObjectId(req.params.brandId)) throw httpError(400, 'Invalid brand');
+    res.json(await require('../services/rentReminder').remindBrand(req.params.brandId));
+}));
+router.post('/finance/receivables/:tenantId/remind', wrap(async (req, res) => {
+    if (!mongoose.isValidObjectId(req.params.tenantId)) throw httpError(400, 'Invalid shop');
+    res.json(await require('../services/rentReminder').remindShop(req.params.tenantId));
+}));
+
 const view = (e) => ({
     id: e._id, date: e.date, category: e.category, amountPaise: e.amountPaise, vendor: e.vendor || '', note: e.note || '',
     repeatMonthly: !!e.repeatMonthly, endsOn: e.endsOn || null,

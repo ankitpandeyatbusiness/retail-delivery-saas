@@ -47,7 +47,7 @@ async function receivables({ now = new Date() } = {}) {
         SubscriptionInvoice.find({ status: 'paid' }).select('tenantId dueDate paidAt').lean(),
     ]);
     const ids = [...new Set([...pending, ...paid].map((i) => String(i.tenantId)))];
-    const tenants = await Tenant.find({ _id: { $in: ids } }).select('name slug phone status billing.state').lean();
+    const tenants = await Tenant.find({ _id: { $in: ids } }).select('name slug phone status billing.state brandId').lean();
     const tmap = new Map(tenants.map((t) => [String(t._id), t]));
     const buckets = { notDue: 0, d1_7: 0, d8_30: 0, d31_60: 0, d60plus: 0 };
     const bucketOf = (days) => (days <= 0 ? 'notDue' : days <= 7 ? 'd1_7' : days <= 30 ? 'd8_30' : days <= 60 ? 'd31_60' : 'd60plus');
@@ -56,7 +56,7 @@ async function receivables({ now = new Date() } = {}) {
         if (!shops.has(id)) {
             const t = tmap.get(id) || {};
             shops.set(id, {
-                tenantId: id, name: t.name || 'Deleted shop', slug: t.slug, billingState: t.billing?.state || 'free',
+                tenantId: id, name: t.name || 'Deleted shop', slug: t.slug, brandId: t.brandId ? String(t.brandId) : null, brandName: null, remindedAt: null, billingState: t.billing?.state || 'free',
                 unpaidPaise: 0, overduePaise: 0, invoices: 0, overdueInvoices: 0, oldestDueAt: null, daysOverdue: 0,
                 paidCount: 0, avgDaysLate: 0, onTimeRate: null, lastPaidAt: null, behaviour: 'new',
             });
@@ -106,6 +106,20 @@ async function receivables({ now = new Date() } = {}) {
         else if (s.paidCount) s.behaviour = 'on_time';
     }
     const all = [...shops.values()];
+    // the brand each branch belongs to, and when it was last reminded by hand (the Remind button)
+    const brandIds = [...new Set(all.map((s) => s.brandId).filter(Boolean))];
+    const brands = brandIds.length ? await require('../models/Brand').find({ _id: { $in: brandIds } }).select('name').lean() : [];
+    const bname = new Map(brands.map((b) => [String(b._id), b.name]));
+    for (const s of all) s.brandName = s.brandId ? bname.get(s.brandId) || null : null;
+    const owingIds = all.filter((s) => s.unpaidPaise > 0).map((s) => s.tenantId);
+    if (owingIds.length) {
+        const last = await require('../models/Notification').aggregate([
+            { $match: { tenantId: { $in: owingIds.map((x) => new (require('mongoose').Types.ObjectId)(x)) }, role: 'owner', type: 'rent_nudge' } },
+            { $group: { _id: '$tenantId', at: { $max: '$createdAt' } } },
+        ]);
+        const lm = new Map(last.map((r) => [String(r._id), r.at]));
+        for (const s of all) s.remindedAt = lm.get(s.tenantId) || null;
+    }
     const owing = all.filter((s) => s.unpaidPaise > 0).sort((a, b) => b.overduePaise - a.overduePaise || b.unpaidPaise - a.unpaidPaise);
     return {
         totals: {
