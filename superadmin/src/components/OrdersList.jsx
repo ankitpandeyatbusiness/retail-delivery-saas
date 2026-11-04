@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, FlatList, ScrollView, Text, Pressable } from 'react-native';
+import { View, FlatList, Text, Pressable } from 'react-native';
 import { ActivityIndicator } from './Loading';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useTheme, spacing, font } from '../theme';
-import { Chip } from './ui';
+import { FunnelButton, FilterPopup } from './FilterPopup';
 import { SearchBar } from './inputs';
 import { SkeletonList } from './blocks';
 import { FadeInRow } from './motion';
@@ -60,6 +60,7 @@ export default function OrdersList({ tenantId, showShop = true, header }) {
     const [type, setType] = useState('');
     const [shopId, setShopId] = useState(tenantId || '');
     const [picker, setPicker] = useState(false);
+    const [filters, setFilters] = useState(false);
     const first = useRef(true);
 
     useEffect(() => { const id = setTimeout(() => setDq(q.trim()), 350); return () => clearTimeout(id); }, [q]);
@@ -84,31 +85,32 @@ export default function OrdersList({ tenantId, showShop = true, header }) {
 
     const shopName = shops.find((s) => s._id === shopId)?.name;
     const filtered = !!(dq || type || status !== 'active' || range !== 'all' || (!tenantId && shopId));
+    // the filters that differ from what the list opens with ("In progress", any type, any time, all shops)
+    const activeCount = (status !== 'active' ? 1 : 0) + (type ? 1 : 0) + (range !== 'all' ? 1 : 0) + (!tenantId && shopId ? 1 : 0);
+    const summary = [
+        STATUS_CHIPS.find((c) => c.value === status)?.label || 'All',
+        type ? TYPE_CHIPS.find((c) => c.value === type)?.label : null,
+        range !== 'all' ? DATE_CHIPS.find((c) => c.value === range)?.label : null,
+        !tenantId && shopId ? (shopName || 'One shop') : null,
+    ].filter(Boolean).join(' · ');
+    const clearFilters = () => { setStatus('active'); setType(''); setRange('all'); if (!tenantId) setShopId(''); };
+    const sections = [
+        { key: 'status', title: 'Status', options: STATUS_CHIPS.map((c) => [c.value, c.label]), value: status, onChange: setStatus },
+        { key: 'type', title: 'Order type', options: TYPE_CHIPS.map((c) => [c.value, c.label]), value: type, onChange: setType },
+        { key: 'when', title: 'When', options: DATE_CHIPS.map((c) => [c.value, c.label]), value: range, onChange: setRange },
+        ...(!tenantId ? [{ key: 'shop', title: 'Shop', row: shopId ? (shopName || 'One shop') : 'All shops', active: !!shopId, onPress: () => { setFilters(false); setTimeout(() => setPicker(true), 250); } }] : []),
+    ];
 
     return (
         <View style={{ flex: 1 }}>
             {header}
-            <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
-                <SearchBar value={q} onChangeText={setQ} placeholder="Order number or customer phone" />
+            <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{ flex: 1, marginRight: spacing.md }}>
+                    <SearchBar value={q} onChangeText={setQ} placeholder="Order number or customer phone" />
+                </View>
+                <FunnelButton count={activeCount} onPress={() => setFilters(true)} />
             </View>
-            <View style={{ height: 52, marginTop: spacing.sm }}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: spacing.lg, alignItems: 'center' }} style={{ flexGrow: 0 }}>
-                    {STATUS_CHIPS.map((c) => <Chip key={c.label} label={c.label} active={status === c.value} onPress={() => setStatus(c.value)} />)}
-                </ScrollView>
-            </View>
-            <View style={{ height: 48 }}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: spacing.lg, alignItems: 'center' }} style={{ flexGrow: 0 }}>
-                    {TYPE_CHIPS.map((c) => <Chip key={c.label} label={c.label} active={type === c.value} onPress={() => setType(c.value)} />)}
-                </ScrollView>
-            </View>
-            <View style={{ height: 48 }}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: spacing.lg, alignItems: 'center' }} style={{ flexGrow: 0 }}>
-                    {!tenantId ? (
-                        <Chip label={shopId ? (shopName || 'Shop') : 'All shops'} active={!!shopId} icon="shops" onPress={() => setPicker(true)} />
-                    ) : null}
-                    {DATE_CHIPS.map((c) => <Chip key={c.value} label={c.label} active={range === c.value} icon={c.value === 'all' ? undefined : 'clock'} onPress={() => setRange(c.value)} />)}
-                </ScrollView>
-            </View>
+            <Text style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: 2, color: activeCount ? t.primary : t.muted, fontWeight: '800', fontSize: font.sm }} numberOfLines={1}>{summary}</Text>
 
             {list.state === 'loading' ? <SkeletonList /> : list.state === 'error' ? <ErrorBox message={list.error} onRetry={list.reload} /> : (
                 <FlatList
@@ -135,6 +137,7 @@ export default function OrdersList({ tenantId, showShop = true, header }) {
                 />
             )}
 
+            <FilterPopup visible={filters} onClose={() => setFilters(false)} title="Filter orders" sections={sections} activeCount={activeCount} onClear={clearFilters} />
             <Sheet visible={picker} onClose={() => setPicker(false)} title="Which shop?">
                 <SheetScroll style={{ maxHeight: 380 }}>
                     <Pressable onPress={() => { setShopId(''); setPicker(false); }} style={{ paddingVertical: spacing.md, flexDirection: 'row', alignItems: 'center' }}>

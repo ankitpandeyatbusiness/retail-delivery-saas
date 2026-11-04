@@ -35,8 +35,9 @@ export default function OrdersHomeScreen() {
             subtitle="Across every shop"
             scroll={false}
             right={(
-                <View style={{ flexDirection: 'row' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <HeaderButton icon="settings" onPress={() => nav.navigate('OrderLimits')} />
+                    <View style={{ width: spacing.md }} />
                     <HeaderButton icon="chart" onPress={() => nav.navigate('SalesReport', {})} />
                 </View>
             )}
