@@ -60,7 +60,7 @@ async function dataFor(session, tenant) {
     const starter = (bill.shares || []).find((x) => x.userId === starterId);
     return {
         shop: { name: safe(orders[0]?.seller?.name || tenant?.name || 'Shop'), gstin: orders[0]?.seller?.gstin || '', fssai: orders[0]?.seller?.fssai || '', phone: tenant?.phone || '', address: [tenant?.address?.line, tenant?.address?.city, tenant?.address?.pincode].filter(Boolean).join(', ') },
-        table: session.table, label: session.label || '', openedAt: session.openedAt, closedAt: session.closedAt || null, startedBy: starter ? safe(starter.name) : 'Guest',
+        ref: session.ref || '', table: session.table, label: session.label || '', openedAt: session.openedAt, closedAt: session.closedAt || null, startedBy: starter ? safe(starter.name) : 'Guest',
         people: (bill.shares || []).map((x) => ({ name: safe(x.name), ordered: x.total, paid: x.paid, due: x.due })),
         rounds,
         tax: { rows: [...rates.values()].sort((a, b) => a.rate - b.rate).map((g) => ({ rate: g.rate, taxable: round2(g.taxable), tax: round2(g.tax) })), onTop: round2(onTop), included: round2(included) },
@@ -84,7 +84,7 @@ function render(doc, d) {
     for (const line of [d.shop.address, d.shop.phone ? `Phone: ${d.shop.phone}` : '', d.shop.gstin ? `GSTIN: ${d.shop.gstin}` : '', d.shop.fssai ? `FSSAI Lic. No: ${d.shop.fssai}` : ''].filter(Boolean)) { doc.text(line, LEFT, y, { width: 300 }); y = doc.y; }
     doc.font('Helvetica-Bold').fontSize(20).fillColor(BRAND).text('TABLE BILL', 340, 40, { width: RIGHT - 340, align: 'right' });
     doc.font('Helvetica').fontSize(9).fillColor(MUTED)
-        .text(`Table ${d.table}${d.label ? ` - Bill ${d.label}` : ''}`, 340, 66, { width: RIGHT - 340, align: 'right' })
+        .text(`${d.ref ? `Bill ${d.ref} · ` : ''}Table ${d.table}${d.label ? ` - Bill ${d.label}` : ''}`, 340, 66, { width: RIGHT - 340, align: 'right' })
         .text(`Seated: ${when(d.openedAt)}`, 340, 79, { width: RIGHT - 340, align: 'right' })
         .text(d.closedAt ? `Closed: ${when(d.closedAt)}` : 'Bill still open', 340, 92, { width: RIGHT - 340, align: 'right' })
         .text(`Bill started by: ${d.startedBy}`, 340, 105, { width: RIGHT - 340, align: 'right' });

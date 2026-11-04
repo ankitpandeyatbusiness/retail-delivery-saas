@@ -89,7 +89,7 @@ async function complete({ topupId, tenantId, paymentId, actor }) {
 async function ensureInvoice(topupId) {
     const t = await SmsTopup.findById(topupId).lean();
     if (!t || t.status !== 'paid') return null;
-    if (t.invoice && t.invoice.invoiceNo) return t.invoice;
+    if (t.invoice && t.invoice.invoiceNo) return { ...t.invoice, ref: t.ref || t.invoice.ref };
     const platform = await PlatformSettings.findById('main').select('business').lean();
     if (!platform?.business?.legalName) return null;
     const tenant = await Tenant.findById(t.tenantId).select('name phone address business').lean();
@@ -101,7 +101,7 @@ async function ensureInvoice(topupId) {
     const gstAmount = (t.gstPaise || 0) / 100;
     const tax = invoicing.taxFor({ seller, buyer, gstAmount });
     const invoice = {
-        invoiceNo: num.invoiceNo, kind: 'sms_topup', issueDate, status: 'paid', paidAt: issueDate,
+        ref: t.ref, invoiceNo: num.invoiceNo, kind: 'sms_topup', issueDate, status: 'paid', paidAt: issueDate,
         paymentMode: t.paidBy?.type === 'superadmin' ? 'other' : 'online', paymentRef: t.paymentId || undefined,
         description: 'SMS balance top-up',
         lineItems: [{ description: 'SMS balance top-up (prepaid, used for SMS sent from your shop)', qty: 1, rate: baseAmount, amount: baseAmount }],

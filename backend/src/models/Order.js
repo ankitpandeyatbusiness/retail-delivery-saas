@@ -232,4 +232,6 @@ orderSchema.set('toJSON', {
     },
 });
 
+schemaPlugRef(orderSchema);
+function schemaPlugRef(sch) { sch.plugin(require('./plugins/ref'), { kind: 'order' }); }
 module.exports = mongoose.model('Order', orderSchema);

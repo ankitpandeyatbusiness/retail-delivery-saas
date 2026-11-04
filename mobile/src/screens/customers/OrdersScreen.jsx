@@ -242,7 +242,7 @@ function LiveOrderCard({ o, onOpen }) {
                                 <Animated.View style={[s.beat, { opacity: beat.interpolate({ inputRange: [0, 1], outputRange: [0.7, 0] }), transform: [{ scale: beat.interpolate({ inputRange: [0, 1], outputRange: [1, 2.6] }) }] }]} />
                                 <View style={s.beatDot} />
                             </View>
-                            <Text style={[s.liveTagTxt, { color: onPrimary }]}>{tr('LIVE · ORDER #{orderNo}', { orderNo: o.orderNo })} · {(o.orderType === 'delivery' ? tr('Delivery') : o.orderType === 'dine_in' ? tr('Dine in') : tr('Pickup')).toUpperCase()}</Text>
+                            <Text style={[s.liveTagTxt, { color: onPrimary }]}>{tr('LIVE · ORDER #{orderNo}', { orderNo: o.ref || o.orderNo })} · {(o.orderType === 'delivery' ? tr('Delivery') : o.orderType === 'dine_in' ? tr('Dine in') : tr('Pickup')).toUpperCase()}</Text>
                         </View>
                         <Text style={[s.liveStep, { color: onPrimary }]} numberOfLines={1}>{tr(lab(shown) || 'In progress')}</Text>
                         <Text style={[s.liveEta, { color: onPrimary }]} numberOfLines={1}>{eta}</Text>
@@ -288,7 +288,7 @@ function OrderCard({ o, index, animate, onOpen, onCancel, onReorder, onInvoice, 
                 <View style={s.cardIn}>
                     <View style={s.row}>
                         <View style={{ flex: 1, paddingRight: 8 }}>
-                            <Text style={[s.no, { color: text }]}>{tr('Order #{orderNo}', { orderNo: o.orderNo })}</Text>
+                            <Text style={[s.no, { color: text }]}>{tr('Order #{orderNo}', { orderNo: o.ref || o.orderNo })}</Text>
                             <Text style={[s.date, { color: muted }]}>{fmtDate(o.createdAt)}</Text>
                             {/* which kind of order this was, in words and an icon, so the list is clear at a glance */}
                             <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', marginTop: 5, paddingHorizontal: 9, paddingVertical: 3, borderRadius: 99, backgroundColor: tint(primary) }}>

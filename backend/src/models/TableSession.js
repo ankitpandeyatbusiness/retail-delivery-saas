@@ -50,4 +50,6 @@ const tableSessionSchema = new mongoose.Schema({
 tableSessionSchema.index({ tenantId: 1, table: 1, party: 1 }, { unique: true, partialFilterExpression: { status: { $in: ['open', 'bill_asked'] } } });
 tableSessionSchema.index({ tenantId: 1, customers: 1, status: 1 });
 
+schemaPlugRef(tableSessionSchema);
+function schemaPlugRef(sch) { sch.plugin(require('./plugins/ref'), { kind: 'table' }); }
 module.exports = mongoose.model('TableSession', tableSessionSchema);

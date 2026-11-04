@@ -16,6 +16,8 @@ const ROLES = [
     { value: 'customer', label: 'Customer', hint: 'Orders from the shop', icon: 'user', section: 'people' },
     { value: 'rider', label: 'Rider', hint: 'Delivers orders', icon: 'rider', section: 'riders' },
     { value: 'admin', label: 'Shop owner', hint: 'Runs the shop panel', icon: 'key', section: 'money' },
+    { value: 'kitchen', label: 'Cook', hint: 'Sees the orders and makes them in the kitchen panel', icon: 'food', section: 'catalog' },
+    { value: 'waiter', label: 'Waiter', hint: 'Takes the table orders and calls in the waiter panel', icon: 'bell', section: 'alerts' },
 ];
 const roleSection = (role) => ROLES.find((r) => r.value === role)?.section || 'people';
 const roleLabel = (role) => ROLES.find((r) => r.value === role)?.label || titleCase(role);
@@ -88,9 +90,9 @@ export default function ShopUserDetailScreen() {
             </Hero>
 
             <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg }}>
-                <Stat label="Orders" value={u.stats?.orders ?? 0} icon="orders" section="orders" />
-                <Stat label="Delivered" value={u.stats?.delivered ?? 0} icon="ok" section="riders" />
-                <Stat label="Spent" value={rupees(u.stats?.spentTotal)} icon="rupee" section="money" />
+                <Stat compact label="Orders" value={u.stats?.orders ?? 0} icon="orders" section="orders" />
+                <Stat compact label="Delivered" value={u.stats?.delivered ?? 0} icon="ok" section="riders" />
+                <Stat compact label="Spent" value={rupees(u.stats?.spentTotal)} icon="rupee" section="money" />
             </View>
 
             <SectionTitle section="people">Details</SectionTitle>

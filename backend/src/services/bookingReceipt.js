@@ -39,6 +39,7 @@ function dataFor(b, tenant) {
     return {
         shop: { name: safe(seller.name || tenant?.business?.legalName || tenant?.name || 'Shop'), gstin: seller.gstin || tenant?.business?.gstin || '', fssai: seller.fssai || tenant?.business?.fssai || '', phone: tenant?.phone || '', address: [tenant?.address?.line, tenant?.address?.city, tenant?.address?.pincode].filter(Boolean).join(', ') },
         receiptNo: `BK-${b.code}`,
+        ref: b.ref || '',
         table: b.table || '', code: b.code, name: safe(b.name) || 'Guest', phone: b.phone, date: b.date, time: b.time, party: b.party, note: safe(b.note),
         amount: b.deposit?.amount || 0, paidAt: b.payment.paidAt || null, paymentId: b.payment.rzpPaymentId,
         status: b.status, outcome: outcome(b), refundId: b.deposit?.refundId || '', refundHours: b.rules?.refundHours,
@@ -54,7 +55,7 @@ function render(doc, d) {
     for (const line of [d.shop.address, d.shop.phone ? `Phone: ${d.shop.phone}` : '', d.shop.gstin ? `GSTIN: ${d.shop.gstin}` : '', d.shop.fssai ? `FSSAI Lic. No: ${d.shop.fssai}` : ''].filter(Boolean)) { doc.text(line, LEFT, y, { width: 300 }); y = doc.y; }
     doc.font('Helvetica-Bold').fontSize(20).fillColor(BRAND).text('BOOKING RECEIPT', 300, 40, { width: RIGHT - 300, align: 'right' });
     doc.font('Helvetica').fontSize(9).fillColor(MUTED)
-        .text(`Receipt no: ${d.receiptNo}`, 300, 66, { width: RIGHT - 300, align: 'right' })
+        .text(`Receipt no: ${d.receiptNo}${d.ref ? `  ·  Ref ${d.ref}` : ''}`, 300, 66, { width: RIGHT - 300, align: 'right' })
         .text(d.paidAt ? `Paid on: ${when(d.paidAt)}` : '', 300, 79, { width: RIGHT - 300, align: 'right' });
     y = Math.max(y, 100) + 8;
     doc.moveTo(LEFT, y).lineTo(RIGHT, y).lineWidth(1).strokeColor(LINE).stroke();

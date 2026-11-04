@@ -14,7 +14,7 @@ const { ACTIVE_STATUSES } = require('./orderflow');
 const { hashPhone } = require('../utils/phoneHash');
 const { httpError } = require('../middlewares/apiErrors');
 
-const ROLES = ['customer', 'rider', 'admin'];
+const ROLES = ['customer', 'rider', 'admin', 'kitchen', 'waiter'];
 const PHONE_RE = /^[6-9]\d{9}$/;
 
 async function busyWithOrders(tenantId, userId) {
@@ -53,6 +53,14 @@ async function changeRole({ tenantId, user, role }) {
         await Rider.findOneAndUpdate(
             { tenantId, userId: user._id },
             { $set: { isActive: true, ...(user.name ? { name: user.name } : {}) } },
+            { upsert: true, setDefaultsOnInsert: true },
+        );
+    }
+    if (role === 'kitchen' || role === 'waiter') {
+        // the cook's or the waiter's own record (their panel reads it); a person who was one of the two is changed from the old record
+        await require('../models/Staff').findOneAndUpdate(
+            { tenantId, userId: user._id },
+            { $set: { role, isActive: true, ...(user.name ? { name: user.name } : {}) } },
             { upsert: true, setDefaultsOnInsert: true },
         );
     }

@@ -106,4 +106,6 @@ function ping(doc) {
 schema.post('findOneAndUpdate', ping);
 schema.post('save', ping);
 
+schemaPlugRef(schema);
+function schemaPlugRef(sch) { sch.plugin(require('./plugins/ref'), { kind: 'bulk' }); }
 module.exports = mongoose.model('BulkOrder', schema);

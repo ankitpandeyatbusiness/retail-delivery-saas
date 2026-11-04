@@ -45,6 +45,8 @@ router.get('/search', wrap(async (req, res) => {
     // a brand's name finds all its branches (and the brand itself)
     const words = q.length >= 3 && !/^#?\d+$/.test(q);      // a name or word, not a number
     const phoneRx = digits.length >= 4 ? new RegExp(digits) : null;   // part of a phone number
+    // a reference (SAV-1042, SAV-T7, SAV-B12, SAV-BK-..., SAV-TB-...) opens the very document it names
+    const refHit = require('../services/refs').looksLikeRef(q) ? await require('../services/refs').resolve(q) : null;
     const brands = await Brand.find({ name: rx }).select('name').limit(5).lean();
     const brandIds = brands.map((x) => x._id);
     const peopleOr = [...(phoneRx ? [{ phone: phoneRx }] : []), ...(words ? [{ name: rx }] : [])];
@@ -62,6 +64,7 @@ router.get('/search', wrap(async (req, res) => {
     const names = new Map((await Tenant.find({ _id: { $in: ids } }).select('name').lean()).map((t) => [String(t._id), t.name]));
     res.json({
         q,
+        refs: refHit ? refHit.docs.map((d) => ({ kind: refHit.kind, ref: d.ref, id: d._id, tenantId: refHit.tenantId, shop: refHit.shop, orderNo: d.orderNo, status: d.status })) : [],
         shops: shops.map((t) => ({ id: t._id, name: t.name, slug: t.slug, status: t.status, billingState: t.billing?.state })),
         orders: orders.map((o) => ({ id: o._id, tenantId: o.tenantId, shop: names.get(String(o.tenantId)), orderNo: o.orderNo, status: o.status, totalPaise: Math.round((o.pricing?.total || 0) * 100), at: o.createdAt, customer: o.customer?.name || null })),
         people: people.map((u) => ({ id: u._id, tenantId: u.tenantId, shop: names.get(String(u.tenantId)), phone: maskPhone(u.phone), name: u.name || null, role: u.role })),

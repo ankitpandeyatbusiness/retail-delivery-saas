@@ -102,7 +102,8 @@ export function Chip({ label, active, onPress, icon }) {
  *   section="orders"  -> a solid colour tile (white text): use it for the numbers that matter most
  *   no section        -> a white card with a coloured icon chip
  */
-export function Stat({ label, value, tone, icon, section, onPress, note }) {
+// compact: the label stays on one line (it shrinks a little if it must) and the icon goes, for three cards side by side
+export function Stat({ label, value, tone, icon, section, onPress, note, compact }) {
     const t = useTheme();
     if (section) {
         const g = sec(t, section).gradient;
@@ -110,8 +111,8 @@ export function Stat({ label, value, tone, icon, section, onPress, note }) {
             <View style={[s.statWrap, { backgroundColor: g[0] }, t.shadow]}>
                 <LinearGradient colors={g} {...GRAD} style={s.statFill}>
                     <View style={s.rowBetween}>
-                        <Text style={{ flex: 1, color: 'rgba(255,255,255,0.9)', fontSize: font.sm, fontWeight: '600' }} numberOfLines={2}>{label}</Text>
-                        {icon ? <View style={{ marginLeft: spacing.sm, flexShrink: 0 }}><Icon name={icon} size={22} color="#FFFFFF" /></View> : null}
+                        <Text style={{ flex: 1, color: 'rgba(255,255,255,0.9)', fontSize: font.sm, fontWeight: '600' }} numberOfLines={compact ? 1 : 2} adjustsFontSizeToFit={!!compact} minimumFontScale={0.75}>{label}</Text>
+                        {icon && !compact ? <View style={{ marginLeft: spacing.sm, flexShrink: 0 }}><Icon name={icon} size={22} color="#FFFFFF" /></View> : null}
                     </View>
                     <Text style={{ color: '#FFFFFF', fontSize: font.xxl, fontWeight: '800', marginTop: spacing.sm }} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
                     {note ? <Text style={{ color: 'rgba(255,255,255,0.92)', fontSize: font.xs, fontWeight: '700', marginTop: 2 }} numberOfLines={1}>{note}</Text> : null}
@@ -124,8 +125,8 @@ export function Stat({ label, value, tone, icon, section, onPress, note }) {
     return (
         <Card onPress={onPress} style={{ flex: 1 }}>
             <View style={s.rowBetween}>
-                <Text style={{ flex: 1, color: t.muted, fontSize: font.sm, fontWeight: '600' }} numberOfLines={2}>{label}</Text>
-                {icon ? <View style={{ marginLeft: spacing.sm, flexShrink: 0 }}><Icon name={icon} size={22} color={color === t.text ? t.primary : color} /></View> : null}
+                <Text style={{ flex: 1, color: t.muted, fontSize: font.sm, fontWeight: '600' }} numberOfLines={compact ? 1 : 2} adjustsFontSizeToFit={!!compact} minimumFontScale={0.75}>{label}</Text>
+                {icon && !compact ? <View style={{ marginLeft: spacing.sm, flexShrink: 0 }}><Icon name={icon} size={22} color={color === t.text ? t.primary : color} /></View> : null}
             </View>
             <Text style={{ color, fontSize: font.xxl, fontWeight: '800', marginTop: spacing.xs }} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
             {note ? <Text style={{ color: t.muted, fontSize: font.xs, fontWeight: '700', marginTop: 2 }} numberOfLines={1}>{note}</Text> : null}

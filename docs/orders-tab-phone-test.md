@@ -61,3 +61,9 @@ Open a shop > the phone preview > Full size > the Screens bar. These now follow 
 - Services (picture cards), the service form, My inquiries, and "Inquiry I sent".
 - Bulk order, Bulk cart, the shop quote (Bulk order status), My bulk orders, My points, Refer a friend.
 Turn the switch off for the shop: the page shows dimmed under a red note saying which switch to turn on.
+
+## 0. References
+1. Every shop has a short code (SAV for Savera). Check it in the order screen: an order shows as SAV-1042, not only #1042. The customer app and the shop owner app show the same reference.
+2. Search (Home) and the Orders list find a document by its reference: SAV-1042 (order), SAV-T7 (SMS top-up), SAV-B12 (table bill), SAV-BK-XXXXXX (bulk order), SAV-TB-XXXXXX (table booking). The top result opens that exact document.
+3. The order invoice says "Order Ref: SAV-1042" (its INV-1042 number is unchanged). The table bill, booking receipt and SMS top-up invoice print their reference too. The legal numbers SUB/..., TOP/..., CN/... are unchanged.
+4. Old orders, top-ups and table bills got their references when the server started (nothing was renumbered).

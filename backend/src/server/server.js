@@ -79,6 +79,8 @@ connectDB()
             startOfferScheduler();
             startBillingAlertsScheduler();
             startStuckOrdersScheduler();
+            // every shop gets its short code and every old order, bulk order, booking, SMS top-up and table bill its quotable reference (only what is missing)
+            require('../services/refs').backfillAll().then((r) => { if (Object.values(r).some(Boolean)) console.log('References filled in:', JSON.stringify(r)); }).catch((e) => console.error('References error:', e.message));
             require('../services/dailyDigest').startDailyDigestScheduler();
             startHealthWatchScheduler();
             startLateDeliveryScheduler();

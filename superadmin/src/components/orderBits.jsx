@@ -55,7 +55,7 @@ export function OrderRow({ order, onPress, showShop = true }) {
             <View style={[st.edge, { backgroundColor: edge }]} />
             <View style={{ flex: 1, padding: spacing.md, paddingLeft: spacing.lg }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Text style={{ color: t.text, fontWeight: '800', fontSize: font.md }}>#{order.orderNo}</Text>
+                    <Text style={{ color: t.text, fontWeight: '800', fontSize: font.md }}>{order.ref || '#' + order.orderNo}</Text>
                     <Text style={{ color: t.text, fontWeight: '800', fontSize: font.md }}>{rupees(order.pricing?.total)}</Text>
                 </View>
                 {showShop && order.shopName ? <Text style={{ color: t.primary, fontWeight: '700', fontSize: font.sm, marginTop: 2 }} numberOfLines={1}>{order.shopName}</Text> : null}

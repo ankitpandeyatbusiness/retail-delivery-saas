@@ -151,7 +151,7 @@ function drawHeader(doc, order, tenant, titleText) {
         .text(titleText, 340, 40, { width: PAGE_RIGHT - 340, align: 'right' });
     doc.font('Helvetica').fontSize(9).fillColor(MUTED)
         .text(`Invoice No: INV-${order.orderNo}`, 340, 66, { width: PAGE_RIGHT - 340, align: 'right' })
-        .text(`Order No: #${order.orderNo}`, 340, 79, { width: PAGE_RIGHT - 340, align: 'right' })
+        .text(`Order Ref: ${order.ref || '#' + order.orderNo}`, 340, 79, { width: PAGE_RIGHT - 340, align: 'right' })
         .text(`Date: ${istDateTime(order.createdAt)}`, 340, 92, { width: PAGE_RIGHT - 340, align: 'right' });
 
     y = Math.max(y, 110) + 8;

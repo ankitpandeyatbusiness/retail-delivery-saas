@@ -23,4 +23,6 @@ const smsTopupSchema = new mongoose.Schema({
 
 smsTopupSchema.index({ tenantId: 1, createdAt: -1 });
 
+schemaPlugRef(smsTopupSchema);
+function schemaPlugRef(sch) { sch.plugin(require('./plugins/ref'), { kind: 'topup' }); }
 module.exports = mongoose.model('SmsTopup', smsTopupSchema);

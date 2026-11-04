@@ -55,7 +55,7 @@ export default function RefundsScreen() {
                                 <Text style={{ color: t.text, fontWeight: '800', fontSize: font.md }}>{paise(r.amountPaise)}</Text>
                                 <Badge label={WORD[r.status] || r.status} tone={TONE[r.status]} />
                             </View>
-                            <Text style={{ color: t.primary, fontWeight: '700', fontSize: font.sm, marginTop: 2 }} numberOfLines={1}>{r.shopName} · order #{r.orderNo}</Text>
+                            <Text style={{ color: t.primary, fontWeight: '700', fontSize: font.sm, marginTop: 2 }} numberOfLines={1}>{r.shopName} · order {r.ref || '#' + r.orderNo}</Text>
                             <Text style={{ color: t.muted, fontSize: font.sm, marginTop: 2 }} numberOfLines={1}>{r.customer || 'Customer'}{r.reason ? ` · ${r.reason.replace(/_/g, ' ')}` : ''} · {ago(r.processedAt || r.createdAt)}</Text>
                             {r.status === 'failed' && r.lastError ? <Text style={{ color: t.danger, fontSize: font.xs, marginTop: spacing.sm }}>{r.lastError}</Text> : null}
                             {r.status === 'failed' ? <Button title="Send again" icon="next" loading={busy === r.id} onPress={() => again(r)} style={{ marginTop: spacing.md }} /> : null}

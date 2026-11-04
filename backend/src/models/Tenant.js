@@ -185,4 +185,10 @@ tenantSchema.pre('validate', function () {
     }
 });
 
+// the shop's short code for references (SAV-1042): made once from its name, never changed
+tenantSchema.add({ refCode: { type: String, uppercase: true, trim: true, match: /^[A-Z0-9]{2,6}$/ } });
+tenantSchema.index({ refCode: 1 }, { unique: true, partialFilterExpression: { refCode: { $type: 'string' } } });
+tenantSchema.pre('validate', async function giveCode() {
+    if (this.isNew && !this.refCode) this.refCode = await require('../services/refs').generate(this.name, this.slug);
+});
 module.exports = mongoose.model('Tenant', tenantSchema);

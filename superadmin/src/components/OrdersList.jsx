@@ -106,7 +106,7 @@ export default function OrdersList({ tenantId, showShop = true, header }) {
             {header}
             <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, flexDirection: 'row', alignItems: 'center' }}>
                 <View style={{ flex: 1, marginRight: spacing.md }}>
-                    <SearchBar value={q} onChangeText={setQ} placeholder="Order number or customer phone" />
+                    <SearchBar value={q} onChangeText={setQ} placeholder="Reference (SAV-1042), number or phone" />
                 </View>
                 <FunnelButton count={activeCount} onPress={() => setFilters(true)} />
             </View>

@@ -103,7 +103,7 @@ export default function OrderDetailScreen() {
     };
 
     return (
-        <Screen title={`Order #${o.orderNo}`} subtitle={o.shopName} refreshing={refreshing} onRefresh={refresh}>
+        <Screen title={`Order ${o.ref || '#' + o.orderNo}`} subtitle={o.shopName} refreshing={refreshing} onRefresh={refresh}>
             <Hero
                 section={heroSection}
                 leading={<View style={{ width: 52, height: 52, borderRadius: 16, backgroundColor: t.primarySoft, alignItems: 'center', justifyContent: 'center' }}><Icon name="orders" size={26} color={t.primary} /></View>}

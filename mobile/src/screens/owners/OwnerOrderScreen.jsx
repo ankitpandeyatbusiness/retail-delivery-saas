@@ -153,7 +153,7 @@ export default function OwnerOrderScreen() {
 
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
-            <PageHeader title={tr('Order #{orderNo}', { orderNo: order.orderNo })} right={<StatusPill status={order.status} order={order} />} />
+            <PageHeader title={tr('Order #{orderNo}', { orderNo: order.ref || order.orderNo })} right={<StatusPill status={order.status} order={order} />} />
 
             <ScrollView
                 contentContainerStyle={{ paddingBottom: next ? dockH + 24 : 32 }}

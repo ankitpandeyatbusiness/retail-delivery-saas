@@ -45,4 +45,6 @@ bookingSchema.index({ tenantId: 1, userId: 1, createdAt: -1 });
 bookingSchema.index({ status: 1, holdUntil: 1 });
 bookingSchema.index({ 'payment.rzpOrderId': 1 });
 
+schemaPlugRef(bookingSchema);
+function schemaPlugRef(sch) { sch.plugin(require('./plugins/ref'), { kind: 'booking', unique: false }); }
 module.exports = mongoose.model('TableBooking', bookingSchema);

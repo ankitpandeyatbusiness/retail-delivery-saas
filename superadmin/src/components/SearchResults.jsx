@@ -12,6 +12,7 @@ import { errMsg } from '../api/adminClient';
 import { rupeesFromPaise, dateTime, titleCase } from '../utils/format';
 import { toAdmin } from '../navigation/goTo';
 
+const REF_KIND = { order: 'Order', topup: 'SMS top-up', table: 'Table bill', bulk: 'Bulk order', booking: 'Table booking' };
 // The answers to a search: screens and settings, shops (a brand's name finds its branches), orders, people and rent invoices.
 // Used by the Search screen and by the Home screen, which swaps itself for these while something is typed.
 export default function SearchResults({ q }) {
@@ -59,7 +60,7 @@ export default function SearchResults({ q }) {
 
     const inShops = (screen, params) => toAdmin(nav, { screen: 'ShopsTab', params: { screen, params } });
     const more = (k) => (r && r[k]) || [];
-    const empty = r && !screens.length && !r.shops.length && !r.orders.length && !r.people.length && !r.invoices.length && !more('brands').length && !more('products').length && !more('coupons').length && !more('tickets').length;
+    const empty = r && !screens.length && !r.shops.length && !r.orders.length && !r.refs?.length && !r.people.length && !r.invoices.length && !more('brands').length && !more('products').length && !more('coupons').length && !more('tickets').length;
 
     return (
         <View>
@@ -140,6 +141,24 @@ export default function SearchResults({ q }) {
                         {more('tickets').map((x, i) => (
                             <ListRow key={x.id} section="alerts" icon="message" title={x.subject} subtitle={`${x.shop || 'Shop'} · ${titleCase(x.status)}`}
                                 onPress={() => nav.navigate('SupportDetail', { id: String(x.id) })} last={i === more('tickets').length - 1} />
+                        ))}
+                    </Card>
+                </>
+            ) : null}
+
+            {r?.refs?.length ? (
+                <>
+                    <SectionTitle section="orders">Reference</SectionTitle>
+                    <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
+                        {r.refs.map((x, i) => (
+                            <ListRow key={x.ref + x.id} section="orders" icon={x.kind === 'topup' ? 'wallet' : x.kind === 'order' ? 'orders' : 'receipt'} title={`${x.ref} · ${REF_KIND[x.kind] || 'Document'}`}
+                                subtitle={`${x.shop || 'Shop'}${x.status ? ' · ' + titleCase(x.status) : ''}`}
+                                onPress={() => (x.kind === 'order'
+                                    ? toAdmin(nav, { screen: 'OrdersTab', params: { screen: 'OrderDetail', params: { orderId: String(x.id), orderNo: x.orderNo } } })
+                                    : x.kind === 'topup' ? inShops('ShopSms', { shopId: x.tenantId, name: x.shop })
+                                        : x.kind === 'bulk' ? inShops('ShopBulk', { shopId: x.tenantId, name: x.shop })
+                                            : inShops('ShopDetail', { shopId: x.tenantId, name: x.shop }))}
+                                last={i === r.refs.length - 1} />
                         ))}
                     </Card>
                 </>

@@ -63,7 +63,8 @@ router.get('/orders', wrap(async (req, res) => {
     else if (['delivery', 'pickup', 'dine_in'].includes(req.query.type)) filter.orderType = req.query.type;
 
     const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
-    if (/^[6-9]\d{9}$/.test(q)) filter['customer.phone'] = q;
+    if (require('../services/refs').looksLikeRef(q)) filter.ref = q.toUpperCase();   // SAV-1042
+    else if (/^[6-9]\d{9}$/.test(q)) filter['customer.phone'] = q;
     else if (/^\d{1,9}$/.test(q)) filter.orderNo = Number(q);
 
     const from = req.query.from ? new Date(req.query.from) : null;
@@ -104,7 +105,7 @@ router.get('/refunds', wrap(async (req, res) => {
     const OnlineRefund = require('../models/OnlineRefund');
     const done = req.query.status === 'done';
     const rows = await OnlineRefund.find(done ? { status: 'processed' } : { status: { $in: ['pending', 'processing', 'failed'] } }).sort({ createdAt: -1 }).limit(100).lean();
-    const orders = await Order.find({ _id: { $in: rows.map((r) => r.orderId) } }).select('orderNo tenantId customer').lean();
+    const orders = await Order.find({ _id: { $in: rows.map((r) => r.orderId) } }).select('orderNo ref tenantId customer').lean();
     const byOrder = new Map(orders.map((o) => [String(o._id), o]));
     const names = new Map((await Tenant.find({ _id: { $in: rows.map((r) => r.tenantId) } }).select('name').lean()).map((s) => [String(s._id), s.name]));
     const open = await OnlineRefund.aggregate([{ $match: { status: { $in: ['pending', 'processing', 'failed'] } } }, { $group: { _id: '$status', n: { $sum: 1 }, sum: { $sum: '$amountPaise' } } }]);
@@ -112,7 +113,7 @@ router.get('/refunds', wrap(async (req, res) => {
         open: Object.fromEntries(open.map((g) => [g._id, { count: g.n, paise: g.sum }])),
         items: rows.map((r) => {
             const o = byOrder.get(String(r.orderId));
-            return { id: String(r._id), orderId: String(r.orderId), orderNo: o?.orderNo, shopName: names.get(String(r.tenantId)) || 'Unknown shop', customer: o?.customer?.name || '', status: r.status, amountPaise: r.amountPaise, reason: r.reason || '', attempts: r.attempts || 0, lastError: r.lastError || '', createdAt: r.createdAt, processedAt: r.processedAt || null };
+            return { id: String(r._id), orderId: String(r.orderId), orderNo: o?.orderNo, ref: o?.ref || '', shopName: names.get(String(r.tenantId)) || 'Unknown shop', customer: o?.customer?.name || '', status: r.status, amountPaise: r.amountPaise, reason: r.reason || '', attempts: r.attempts || 0, lastError: r.lastError || '', createdAt: r.createdAt, processedAt: r.processedAt || null };
         }),
     });
 }));
