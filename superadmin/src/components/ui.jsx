@@ -152,8 +152,7 @@ export function ListRow({ icon, title, subtitle, right, onPress, last, danger, s
     return (
         <Pressable
             onPress={onPress}
-            android_ripple={onPress ? { color: tint(t.primary, 0.1) } : undefined}
-            style={({ pressed }) => [s.listRow, pressed && onPress && { backgroundColor: tint(t.primary, 0.05) }, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: t.border }]}
+            style={({ pressed }) => [s.listRow, pressed && onPress && { opacity: 0.6 }, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: t.border }]}
         >
             {icon ? <View style={{ marginRight: spacing.md }}><IconTile icon={icon} section={section} danger={danger} size={42} /></View> : null}
             <View style={{ flex: 1 }}>

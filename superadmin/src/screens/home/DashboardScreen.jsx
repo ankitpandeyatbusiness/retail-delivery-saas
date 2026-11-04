@@ -113,7 +113,7 @@ export default function DashboardScreen() {
         >
             {/* the search box: type here and the home screen gives way to the matching records; clear it and the home comes back */}
             <View style={{ marginBottom: spacing.md }}>
-                <SearchBar value={q} onChangeText={setQ} placeholder="Search shops, brands, orders, people, invoices" />
+                <SearchBar value={q} onChangeText={setQ} placeholder="Search" />
             </View>
 
             {searching ? <FadeIn index={0}><SearchResults q={q} /></FadeIn> : null}
