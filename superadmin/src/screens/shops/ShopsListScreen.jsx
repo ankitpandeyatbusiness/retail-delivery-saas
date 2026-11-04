@@ -83,7 +83,7 @@ export default function ShopsListScreen() {
             title="Shops"
             subtitle={loaded ? `${items.length} shop${items.length === 1 ? '' : 's'} · ${sortName}` : undefined}
             scroll={false}
-            right={<View style={{ flexDirection: 'row' }}><HeaderButton icon="tune" onPress={() => setSortOpen(true)} /><HeaderButton icon="add" onPress={() => nav.navigate('ShopCreate')} /></View>}
+            right={<View style={{ flexDirection: 'row', alignItems: 'center' }}><HeaderButton icon="funnel" onPress={() => setSortOpen(true)} /><View style={{ width: spacing.md }} /><HeaderButton icon="add" onPress={() => nav.navigate('ShopCreate')} /></View>}
         >
             <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
                 <SearchBar value={q} onChangeText={setQ} placeholder="Search by shop name or code" />
@@ -123,7 +123,7 @@ export default function ShopsListScreen() {
 
             <Sheet visible={sortOpen} onClose={() => setSortOpen(false)} title="Sort the shops">
                 {SORTS.map((x, i) => (
-                    <ListRow key={x.value} section="settings" icon={sort === x.value ? 'ok' : 'tune'} title={x.label} subtitle={x.hint} onPress={() => { setSort(x.value); setSortOpen(false); }} last={i === SORTS.length - 1} />
+                    <ListRow key={x.value} section={x.section} icon={x.icon} title={x.label} subtitle={x.hint} right={sort === x.value ? <Icon name="ok" size={22} color={t.primary} /> : null} onPress={() => { setSort(x.value); setSortOpen(false); }} last={i === SORTS.length - 1} />
                 ))}
             </Sheet>
         </Screen>

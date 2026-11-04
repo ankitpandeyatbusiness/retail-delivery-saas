@@ -61,6 +61,7 @@ import { Percent } from 'phosphor-react-native/src/icons/Percent';
 import { Lightning } from 'phosphor-react-native/src/icons/Lightning';
 import { Broadcast } from 'phosphor-react-native/src/icons/Broadcast';
 import { Info } from 'phosphor-react-native/src/icons/Info';
+import { Funnel } from 'phosphor-react-native/src/icons/Funnel';
 
 // Ask for icons by MEANING. To change an icon app-wide, change it here, once.
 const MAP = {
@@ -70,7 +71,7 @@ const MAP = {
     edit: PencilSimple, shield: ShieldCheck, message: ChatCircleDots, fire: Fire, rider: Bicycle,
     eye: Eye, phone: Phone, block: Prohibit, ok: CheckCircle, userAdd: UserPlus, send: PaperPlaneTilt,
     logout: SignOut, empty: Tray, offline: CloudSlash, orders: ShoppingBag, wallet: Wallet, settings: Gear,
-    coupon: Tag, banner: Image, food: ForkKnife, tune: Sliders, clock: Clock, megaphone: Megaphone,
+    coupon: Tag, banner: Image, food: ForkKnife, tune: Sliders, funnel: Funnel, clock: Clock, megaphone: Megaphone,
     chart: ChartLineUp, palette: Palette, lock: Lock, star: Star, tool: Wrench, bank: Bank,
     notes: ClipboardText, box: Package, crown: Crown, sparkle: Sparkle, check: Check, trash: Trash,
     copy: Copy, pin: MapPin, percent: Percent, bolt: Lightning, broadcast: Broadcast, info: Info,

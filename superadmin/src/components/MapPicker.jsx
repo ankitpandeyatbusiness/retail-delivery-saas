@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Modal, View, Text, Pressable, StyleSheet, Linking, Platform, TextInput, Keyboard } from 'react-native';
+import { Modal, View, Text, Pressable, StyleSheet, Linking, Platform, TextInput, Keyboard, ScrollView } from 'react-native';
 import { ActivityIndicator } from './Loading';
 import MapView, { PROVIDER_GOOGLE, Circle } from 'react-native-maps';
 import * as Location from 'expo-location';
@@ -251,9 +251,9 @@ export default function MapPicker({ visible, initial, onClose, onPick, withRadiu
                                     <Pressable onPress={() => setRadius((r) => Math.min(50, Math.round((r + 0.5) * 10) / 10))} hitSlop={8} style={[s.step, { borderColor: t.border, marginLeft: 8 }]}><Text style={{ color: t.text, fontSize: 20, fontWeight: '800' }}>+</Text></Pressable>
                                 </View>
                             </View>
-                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 }}>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: spacing.sm, flexGrow: 0 }} contentContainerStyle={{ alignItems: 'center', paddingRight: spacing.lg }}>
                                 {RADII.map((r) => <Chip key={r} label={`${r} km`} active={radius === r} onPress={() => setRadius(r)} />)}
-                            </View>
+                            </ScrollView>
                         </View>
                     ) : null}
                     <Button title="Use this location" icon="check" onPress={confirm} disabled={resolving} />

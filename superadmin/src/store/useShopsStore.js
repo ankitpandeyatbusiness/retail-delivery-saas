@@ -52,12 +52,12 @@ export const matchesFilter = (shop, f) => {
 };
 
 export const SORTS = [
-    { value: 'attention', label: 'Needs attention first', hint: 'Problems on top, closed shops last' },
-    { value: 'orders', label: 'Most orders today', hint: 'The busiest shops first' },
-    { value: 'rent', label: 'Most rent due', hint: 'Who owes the most first' },
-    { value: 'quiet', label: 'Quietest first', hint: 'Longest without an order first' },
-    { value: 'newest', label: 'Newest', hint: 'Added most recently first' },
-    { value: 'name', label: 'A to Z', hint: 'By shop name' },
+    { value: 'attention', icon: 'warning', section: 'alerts', label: 'Needs attention first', hint: 'Problems on top, closed shops last' },
+    { value: 'orders', icon: 'orders', section: 'orders', label: 'Most orders today', hint: 'The busiest shops first' },
+    { value: 'rent', icon: 'rupee', section: 'money', label: 'Most rent due', hint: 'Who owes the most first' },
+    { value: 'quiet', icon: 'clock', section: 'catalog', label: 'Quietest first', hint: 'Longest without an order first' },
+    { value: 'newest', icon: 'sparkle', section: 'platform', label: 'Newest', hint: 'Added most recently first' },
+    { value: 'name', icon: 'notes', section: 'settings', label: 'A to Z', hint: 'By shop name' },
 ];
 
 // how urgent a shop is: closed last; then not taking orders, rent overdue, quiet; then the busiest

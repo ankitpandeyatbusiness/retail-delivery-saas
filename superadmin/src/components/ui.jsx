@@ -62,7 +62,6 @@ export function Button({ title, onPress, kind = 'primary', loading, disabled, ic
     return (
         <Pressable
             onPress={off ? undefined : onPress}
-            android_ripple={{ color: tint(map.fg, 0.16) }}
             style={({ pressed }) => [s.btn, { height, backgroundColor: map.bg, borderColor: map.border, borderWidth: 1, overflow: 'hidden', opacity: off ? 0.5 : pressed ? 0.88 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] }, style]}
         >
             {content(map.fg)}
@@ -90,7 +89,6 @@ export function Chip({ label, active, onPress, icon }) {
     return (
         <Pressable
             onPress={onPress}
-            android_ripple={{ color: tint(t.primary, 0.18) }}
             style={({ pressed }) => [s.chip, { overflow: 'hidden', transform: [{ scale: pressed ? 0.96 : 1 }] }, active ? { backgroundColor: t.primary, borderColor: t.primary } : { backgroundColor: t.surface, borderColor: t.border }]}
         >
             {icon ? <Icon name={icon} size={15} color={active ? '#FFFFFF' : t.muted} style={{ marginRight: 6 }} /> : null}
