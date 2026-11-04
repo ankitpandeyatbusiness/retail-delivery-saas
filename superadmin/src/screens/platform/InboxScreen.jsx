@@ -8,6 +8,8 @@ import { Chip, Badge, IconTile } from '../../components/ui';
 import { SkeletonList } from '../../components/blocks';
 import { Empty, ErrorBox, ConfirmSheet, toast } from '../../components/feedback';
 import Icon from '../../components/Icon';
+import SwipeAway from '../../components/SwipeAway';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import usePagedList from '../../hooks/usePagedList';
 import { useInboxStore } from '../../store/useInboxStore';
 import { fetchInbox, readAllInbox, readInbox, clearInbox, deleteInboxItem } from '../../api/platformApi';
@@ -107,6 +109,7 @@ export default function InboxScreen() {
     };
 
     return (
+        <GestureHandlerRootView style={{ flex: 1 }}>
         <Screen title="Alerts" subtitle="Things that need you" scroll={false} right={<HeaderButton icon="trash" onPress={() => setConfirmClear(true)} />}>
             <View style={{ height: 52, marginTop: spacing.md }}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: spacing.lg, alignItems: 'center' }} style={{ flexGrow: 0 }}>
@@ -132,7 +135,8 @@ export default function InboxScreen() {
                         const [, icon, section] = kindOf(n.type, n.title);
                         const c = t.sections[section]?.color || t.primary;
                         return (
-                            <View style={{ marginBottom: spacing.md }}>
+                            <SwipeAway onDismiss={() => removeOne(n)}>
+                            <View style={{ paddingBottom: spacing.md }}>
                                 <Pressable
                                     onPress={() => open(n)}
                                     accessibilityRole="button"
@@ -156,6 +160,7 @@ export default function InboxScreen() {
                                     <Icon name="clear" size={16} color={t.muted} />
                                 </Pressable>
                             </View>
+                            </SwipeAway>
                         );
                     }}
                 />
@@ -171,5 +176,6 @@ export default function InboxScreen() {
                 onConfirm={clearAll}
             />
         </Screen>
+        </GestureHandlerRootView>
     );
 }
