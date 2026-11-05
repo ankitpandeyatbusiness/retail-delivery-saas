@@ -85,10 +85,10 @@ async function authSocket(socket, next) {
         if (!alive) return next(new Error('SESSION_ENDED'));
 
         // the role is read from the database, not from the token
-        const user = await User.findOne({ _id: decoded.sub, tenantId: tenant._id }).select('role').lean();
-        if (!user) return next(new Error('FORBIDDEN'));
+        const user = await User.findOne({ _id: decoded.sub, tenantId: tenant._id }).select('role isBlocked').lean();
+        if (!user || user.isBlocked) return next(new Error('FORBIDDEN'));
 
-        socket.data = { userId: String(decoded.sub), tenantId: String(tenant._id), role: user.role, exp: decoded.exp };
+        socket.data = { userId: String(decoded.sub), tenantId: String(tenant._id), role: user.role, exp: decoded.exp, sid: String(decoded.sid) };
         next();
     } catch (e) {
         console.error('Socket auth error:', e.message);
@@ -214,12 +214,42 @@ function onConnection(socket) {
     });
 }
 
+const RECHECK_MS = 60 * 1000;
+// Closes the sockets of people who may no longer be here: blocked, signed out (session gone), role changed, or an owner whose panel the superadmin blocked.
+// The app reconnects by itself and then gets the right rooms (or is refused). Returns how many sockets were closed.
+async function recheckSockets() {
+    if (!io) return 0;
+    const socks = [...io.sockets.sockets.values()].filter((s) => s.data && !s.data.isAdmin && s.data.userId);
+    let closed = 0;
+    for (let i = 0; i < socks.length; i += 500) {
+        const part = socks.slice(i, i + 500);
+        const [users, sessions, tenants] = await Promise.all([
+            User.find({ _id: { $in: [...new Set(part.map((s) => s.data.userId))] } }).select('role isBlocked').lean(),
+            require('../models/Session').find({ _id: { $in: [...new Set(part.map((s) => s.data.sid).filter(Boolean))] } }).select('_id').lean(),
+            Tenant.find({ _id: { $in: [...new Set(part.map((s) => s.data.tenantId))] } }).select('ownerBlocked').lean(),
+        ]);
+        const u = new Map(users.map((x) => [String(x._id), x]));
+        const alive = new Set(sessions.map((x) => String(x._id)));
+        const blockedShop = new Set(tenants.filter((t) => t.ownerBlocked).map((t) => String(t._id)));
+        for (const s of part) {
+            const { userId, role, sid, tenantId } = s.data;
+            const now = u.get(userId);
+            const gone = !now || now.isBlocked || now.role !== role || (sid && !alive.has(sid)) || (role === 'admin' && blockedShop.has(tenantId));
+            if (gone) { s.disconnect(true); closed += 1; }
+        }
+    }
+    return closed;
+}
+
 function init(httpServer) {
     if (io) return io;
     io = new Server(httpServer, { cors: { origin: true }, maxHttpBufferSize: 10 * 1024 });
     io.use(guard.middleware(() => io.engine.clientsCount));   // refuses new sockets when the server is struggling or full
     io.use(authSocket);
     io.on('connection', onConnection);
+    // a role or a block changes AFTER someone connected: every minute the open sockets are checked again, so a removed owner or cook stops hearing the shop
+    const sweep = setInterval(() => { recheckSockets().catch((e) => console.error('Socket recheck error:', e.message)); }, RECHECK_MS);
+    sweep.unref?.();
     // when the mode changes, tell every connected app at once (they switch to polling, or come back)
     guard.start((st) => {
         try {
@@ -277,4 +307,4 @@ const connectionCount = () => (io ? io.engine.clientsCount : 0);
 const isUserOnline = (tenantId, userId) => online.users.has(`${tenantId}:${userId}`);
 const isOwnerOnline = (tenantId) => online.owners.has(String(tenantId));
 
-module.exports = { init, connectionCount, toUser, toOwner, toShop, toKitchen, toWaiter, toOrder, toAdmin, leaveOrder, isUserOnline, isOwnerOnline };
+module.exports = { recheckSockets, init, connectionCount, toUser, toOwner, toShop, toKitchen, toWaiter, toOrder, toAdmin, leaveOrder, isUserOnline, isOwnerOnline };

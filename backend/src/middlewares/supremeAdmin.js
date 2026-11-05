@@ -19,6 +19,8 @@ const MONEY = [
     /^\/money-record(\/|$)/,                                // the developer's yes/no and who brought a shop
     /^\/agreements(\/|$)/,
     /^\/tenants\/[^/]+\/shop\/bulk\/[^/]+\/(cancel|cash-received)$/,   // cancelling a paid bulk order (the advance goes back) and writing down the balance as received
+    /^\/tenants\/[^/]+\/payments(\/|$)/,                    // where a shop's online money goes: its Razorpay keys, webhook secret, on/off
+    /^\/platform\/money-rules(\/|$)/,                       // who bears the cost of a cancelled order
     /^\/platform\/maintenance$/,                            // switching EVERY shop's app off (one shop's own switch stays open)
 ];
 
@@ -34,4 +36,4 @@ function moneyGuard(req, res, next) {
     return next();
 }
 
-module.exports = { requireSupreme, moneyGuard, MESSAGE, isSupreme };
+module.exports = { MONEY, requireSupreme, moneyGuard, MESSAGE, isSupreme };
