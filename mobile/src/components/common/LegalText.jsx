@@ -7,6 +7,15 @@ import { tr } from '../../i18n';
 
 const norm = (x) => String(x || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
+// "About Vivyaan": the server fills the platform name into "About {platformName}". That text is too short for the app-wide pattern matcher (it would
+// also catch other sentences that start with "About "), so this one heading is matched here.
+const trHeading = (text) => {
+    const done = tr(text);
+    if (done !== text) return done;
+    const m = /^About (.+)$/.exec(text);
+    return m ? tr('About {platformName}', { platformName: m[1] }) : text;
+};
+
 export default function LegalText({ text, title }) {
     const { text: ink, muted } = useBrand();
     const lines = String(text || '').split('\n');
@@ -19,7 +28,7 @@ export default function LegalText({ text, title }) {
                 const line = raw.trim();
                 if (!line) return <View key={i} style={{ height: 6 }} />;
                 let m = line.match(/^#\s+(.*)$/);
-                if (m) return <Text key={i} style={{ color: ink, fontSize: 16, fontWeight: '900', marginTop: i === 0 ? 0 : 18, marginBottom: 4 }}>{tr(m[1])}</Text>;
+                if (m) return <Text key={i} style={{ color: ink, fontSize: 16, fontWeight: '900', marginTop: i === 0 ? 0 : 18, marginBottom: 4 }}>{trHeading(m[1])}</Text>;
                 m = line.match(/^-\s+(.*)$/);
                 if (m) return <Text key={i} style={{ color: ink, fontSize: 14.5, lineHeight: 21, marginTop: 3, paddingLeft: 14 }}>{'•  '}{tr(m[1])}</Text>;
                 m = line.match(/^(\d+)\.\s+(.*)$/);

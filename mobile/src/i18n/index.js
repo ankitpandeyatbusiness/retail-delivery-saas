@@ -37,15 +37,15 @@ const bookFor = (code) => (code === 'en' ? {} : { ...(BOOKS[FALLBACK[code]] || {
 // values are put back. Patterns are grouped by their first word, and answers are remembered, so a screen stays fast.
 let patterns = new Map();   // first word -> [{ re, names, to }]
 let seen = new Map();       // text -> translated text, or null when nothing matched
-const SLOT = /\{(v\d+)\}/g;
+const SLOT = /\{(\w+)\}/g;   // any {name}: {v1} of the server messages, and the named slots of the terms and privacy pages ({effectiveDate}, {platformName}...)
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const firstWord = (s) => (String(s).match(/^\S+/) || [''])[0];
 // a pattern is found by its first word when that word is fixed text; one that starts with a value is tried for every text
-const patternKey = (en) => (en.split('{v')[0].match(/^(\S+)\s/) || ['', ''])[1];
+const patternKey = (en) => (en.split(/\{\w+\}/)[0].match(/^(\S+)\s/) || ['', ''])[1];
 function buildPatterns(b) {
     const map = new Map();
     for (const [en, to] of Object.entries(b)) {
-        if (!en.includes('{v') || typeof to !== 'string' || !to) continue;
+        if (!/\{\w+\}/.test(en) || typeof to !== 'string' || !to) continue;
         const names = [...en.matchAll(SLOT)].map((m) => m[1]);
         if (!names.length || en.replace(SLOT, '').replace(/[^A-Za-z]/g, '').length < 8) continue;   // enough fixed words to be matched safely
         // a value may be empty: an optional part at the start ("Spice: a table is free") then simply is not there
