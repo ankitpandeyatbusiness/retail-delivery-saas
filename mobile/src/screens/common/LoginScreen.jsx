@@ -12,6 +12,7 @@ import Animated, {
     Easing,
     Extrapolation,
     FadeInDown,
+    SlideInDown,
     interpolate,
     useAnimatedKeyboard,
     useAnimatedReaction,
@@ -244,7 +245,6 @@ export default function LoginScreen({ navigation }) {
         if (keyboardGone.value || !(st === 1 || st === 2 || st === 3)) return 0;
         return Math.min(keyboard.height.value, windowHeight * 0.6);
     });
-    const panelIn = useSharedValue(1);
     const stepProgress = useSharedValue(0);
 
     const phoneFade = useSharedValue(1);
@@ -306,10 +306,6 @@ export default function LoginScreen({ navigation }) {
     }, [startAuto, stopAuto, heroCount]);
 
     useEffect(() => {
-        panelIn.value = withTiming(0, { duration: 550, easing: Easing.out(Easing.cubic) });
-    }, []);
-
-    useEffect(() => {
         stepProgress.value = withTiming(step === 'otp' ? 1 : 0, {
             duration: 260,
             easing: Easing.out(Easing.cubic),
@@ -324,8 +320,10 @@ export default function LoginScreen({ navigation }) {
 
     const shift = useDerivedValue(() => Math.max(0, keyboardHeight.value - bottomInset));
 
+    // The panel's RESTING style is its visible place. The slide-in from below is a Reanimated entering animation on the view (below), not a value that
+    // starts at "pushed down half a screen": a start value like that was re-applied after the phone-number pop-up changed the layout, and the panel stayed below the screen.
     const panelStyle = useAnimatedStyle(() => ({
-        transform: [{ translateY: panelIn.value * windowHeight * 0.5 - shift.value }],
+        transform: [{ translateY: -shift.value }],
     }));
 
     const phoneStepStyle = useAnimatedStyle(() => ({
@@ -651,7 +649,7 @@ export default function LoginScreen({ navigation }) {
 
             {/* LOGIN PANEL */}
             <View style={styles.panelOuter}>
-                <Animated.View style={[styles.panel, { paddingBottom: insets.bottom + 16, backgroundColor: brand.surface }, panelStyle]}>
+                <Animated.View entering={SlideInDown.duration(550).easing(Easing.out(Easing.cubic))} style={[styles.panel, { paddingBottom: insets.bottom + 16, backgroundColor: brand.surface }, panelStyle]}>
                     {/* The panel is lifted by the keyboard height. This filler rides along under it, so the dark
                         background can never show below the panel while the keyboard hides or shows. */}
                     <View pointerEvents="none" style={[styles.panelFiller, { backgroundColor: brand.surface }]} />
