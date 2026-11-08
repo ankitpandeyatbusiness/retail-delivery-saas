@@ -1,5 +1,7 @@
 import React, { useCallback } from 'react';
 import { View, Text, Pressable, ScrollView, RefreshControl, KeyboardAvoidingView, Platform, StyleSheet, BackHandler } from 'react-native';
+import Animated from 'react-native-reanimated';
+import useKeyboardLift from '../hooks/useKeyboardLift';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { backTo } from '../navigation/goTo';
@@ -66,6 +68,10 @@ export function Header({ title, subtitle, back = true, right, bell }) {
 export function Screen({ title, subtitle, back, right, children, scroll = true, refreshing, onRefresh, footer, tabScreen, pinned }) {
     const t = useTheme();
     const insets = useSafeAreaInsets();
+    const lift = useKeyboardLift();
+    // a screen with a pinned footer (a message box, a save bar): the footer rides above the keyboard. KeyboardAvoidingView does nothing on Android here (edge to edge).
+    const Wrap = footer ? Animated.View : KeyboardAvoidingView;
+    const wrapProps = footer ? { style: [{ flex: 1 }, lift] } : { style: { flex: 1 }, behavior: Platform.OS === 'ios' ? 'padding' : undefined };
     const body = scroll ? (
         <ScrollView
             contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing.xxl * 2 }}
@@ -82,14 +88,14 @@ export function Screen({ title, subtitle, back, right, children, scroll = true, 
             <StatusBar style="light" />
             <Header title={title} subtitle={subtitle} back={back ?? !tabScreen} right={right} bell={!!tabScreen} />
             {pinned || null}
-            <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <Wrap {...wrapProps}>
                 {body}
                 {footer ? (
                     <View style={[s.footer, { backgroundColor: t.surface, borderTopColor: t.border, paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
                         {footer}
                     </View>
                 ) : null}
-            </KeyboardAvoidingView>
+            </Wrap>
         </View>
     );
 }

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { View, Text, Image, Pressable, ScrollView, TextInput, Linking } from 'react-native';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useTheme, spacing, font, radius } from '../../theme';
@@ -14,6 +14,8 @@ import { ago } from '../../utils/format';
 import { TOPIC, STATUS } from './SupportInboxScreen';
 import { toAdmin } from '../../navigation/goTo';
 import { ZoomImage } from '../../components/ImageViewer';
+import ChatBackdrop from '../../components/ChatBackdrop';
+import { playSfx } from '../../utils/sfx';
 
 // answers you send often
 const SAVED = [
@@ -44,7 +46,7 @@ function Bubble({ m }) {
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 }}>
                         {m.photos.map((u) => (
                             <View key={u} style={{ marginRight: 6, marginBottom: 6 }}>
-                                <ZoomImage group={m.photos} source={{ uri: u }} style={{ width: 100, height: 100, borderRadius: radius.sm }} />
+                                <ZoomImage save group={m.photos} source={{ uri: u }} style={{ width: 100, height: 100, borderRadius: radius.sm }} />
                             </View>
                         ))}
                     </View>
@@ -67,11 +69,22 @@ export default function SupportDetailScreen() {
     const [busy, setBusy] = useState(false);
     const [picBusy, setPicBusy] = useState(false);
     const refId = useMemo(() => `s${Date.now().toString(36)}`, []);
+    const seen = useRef(null);   // how many messages there were the last time
 
     const load = useCallback(async () => {
-        try { setX(await fetchSupportOne(id)); setErr(''); } catch (e) { setErr(errMsg(e)); }
+        try {
+            const r = await fetchSupportOne(id);
+            setX(r); setErr('');
+            const n = r.messages.length;
+            if (seen.current !== null && n > seen.current && r.messages[n - 1].from === 'owner') playSfx('chatReceived');   // the owner wrote while this is open
+            seen.current = n;
+        } catch (e) { setErr(errMsg(e)); }
     }, [id]);
-    useFocusEffect(useCallback(() => { load(); }, [load]));
+    useFocusEffect(useCallback(() => {
+        load();
+        const timer = setInterval(load, 15000);   // an answer from the owner shows up by itself
+        return () => clearInterval(timer);
+    }, [load]));
 
     if (!x) return <Screen title="Request">{err ? <ErrorBox message={err} onRetry={load} /> : <Loading />}</Screen>;
     const st = STATUS[x.status] || STATUS.open;
@@ -91,9 +104,11 @@ export default function SupportDetailScreen() {
         if (!text.trim() || busy) return;
         setBusy(true);
         try {
+            if (mode === 'reply') playSfx('chatSent');   // the bubble pop (a private note makes no sound)
             const r = mode === 'note'
                 ? await noteSupportOne(id, { message: text.trim() })
                 : await replySupportOne(id, { message: text.trim(), photos, ...(resolve ? { resolve: true } : {}) });
+            seen.current = r.messages.length;
             setX(r); setText(''); setPhotos([]);
             toast(mode === 'note' ? 'Note saved (only your team sees it)' : resolve ? 'Sent and marked solved' : 'Reply sent');
         } catch (e) { toast(errMsg(e), 'error'); } finally { setBusy(false); }
@@ -169,7 +184,9 @@ export default function SupportDetailScreen() {
             <Segmented value={x.priority} onChange={(v) => change({ priority: v })} options={[{ value: 'normal', label: 'Normal' }, { value: 'high', label: 'High' }, { value: 'urgent', label: 'Urgent' }]} />
 
             <View style={{ height: spacing.lg }} />
-            {x.messages.map((m) => <Bubble key={m.id} m={m} />)}
+            <ChatBackdrop style={{ borderRadius: radius.lg, overflow: 'hidden', padding: spacing.md, marginBottom: spacing.md }}>
+                {x.messages.map((m) => <Bubble key={m.id} m={m} />)}
+            </ChatBackdrop>
             {x.rating?.comment ? <Text style={{ color: t.muted, textAlign: 'center' }}>Owner's comment: “{x.rating.comment}”</Text> : null}
         </Screen>
     );

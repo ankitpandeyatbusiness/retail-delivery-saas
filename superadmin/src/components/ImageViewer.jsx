@@ -60,7 +60,8 @@ function Page({ uri, active, onClose, onZoomChange }) {
     });
 
     const style = useAnimatedStyle(() => ({ transform: [{ translateX: tx.value }, { translateY: ty.value }, { scale: scale.value }] }));
-    const gesture = Gesture.Exclusive(doubleTap, Gesture.Simultaneous(pinch, pan));
+    // all three run side by side. (Exclusive(doubleTap, ...) made pinch and drag wait until the double tap had given up, so a two-finger pinch never started.)
+    const gesture = Gesture.Simultaneous(doubleTap, pinch, pan);
 
     return (
         <GestureDetector gesture={gesture}>
@@ -71,7 +72,8 @@ function Page({ uri, active, onClose, onZoomChange }) {
     );
 }
 
-export function ImageViewer({ visible, uris, start = 0, onClose }) {
+// onSave(uri), when given, adds a save button next to the cross
+export function ImageViewer({ visible, uris, start = 0, onClose, onSave }) {
     const insets = useSafeAreaInsets();
     const [i, setI] = useState(start);
     const [zoomed, setZoomed] = useState(false);
@@ -85,6 +87,11 @@ export function ImageViewer({ visible, uris, start = 0, onClose }) {
                 <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close" style={[st.close, { top: insets.top + 10 }]}>
                     <Icon name="clear" size={22} color="#FFFFFF" />
                 </Pressable>
+                {onSave ? (
+                    <Pressable onPress={() => onSave(uris[i])} hitSlop={12} accessibilityRole="button" accessibilityLabel="Save" style={[st.close, { top: insets.top + 10, right: 62 }]}>
+                        <Icon name="download-outline" size={22} color="#FFFFFF" />
+                    </Pressable>
+                ) : null}
                 {uris.length > 1 ? (
                     <>
                         <Text style={[st.count, { top: insets.top + 16 }]}>{i + 1} / {uris.length}</Text>
@@ -98,7 +105,8 @@ export function ImageViewer({ visible, uris, start = 0, onClose }) {
 }
 
 // a picture (any children) that opens the viewer when tapped
-export function ZoomPress({ uri, uris, children, style }) {
+// save: the viewer gets a save button (the phone's save and share sheet)
+export function ZoomPress({ uri, uris, children, style, save }) {
     const [open, setOpen] = useState(false);
     const list = (uris && uris.length ? uris : [uri]).filter(Boolean);
     const start = Math.max(0, list.indexOf(uri));
@@ -106,17 +114,17 @@ export function ZoomPress({ uri, uris, children, style }) {
     return (
         <>
             <Pressable onPress={() => setOpen(true)} accessibilityRole="imagebutton" accessibilityLabel="Open the picture" style={style}>{children}</Pressable>
-            <ImageViewer visible={open} uris={list} start={start} onClose={() => setOpen(false)} />
+            <ImageViewer visible={open} uris={list} start={start} onClose={() => setOpen(false)} onSave={save ? (u) => require('../utils/saveMedia').savePicture(u) : undefined} />
         </>
     );
 }
 
 // an Image that opens the viewer. Same props as Image, plus group (all pictures to page through).
-export function ZoomImage({ source, group, style, ...rest }) {
+export function ZoomImage({ source, group, style, save, ...rest }) {
     const uri = source && source.uri;
     if (!uri) return <Image source={source} style={style} {...rest} />;
     return (
-        <ZoomPress uri={uri} uris={group}>
+        <ZoomPress uri={uri} uris={group} save={save}>
             <Image source={source} style={style} {...rest} />
         </ZoomPress>
     );

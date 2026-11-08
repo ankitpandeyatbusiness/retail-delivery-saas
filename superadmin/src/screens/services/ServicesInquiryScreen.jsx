@@ -6,6 +6,7 @@ import { Screen } from '../../components/layout';
 import { Card, KeyValue, SectionTitle, Badge } from '../../components/ui';
 import { SkeletonList } from '../../components/blocks';
 import { ErrorBox } from '../../components/feedback';
+import ChatBackdrop from '../../components/ChatBackdrop';
 import { fetchServiceInquiry } from '../../api/servicesApi';
 import { errMsg } from '../../api/adminClient';
 
@@ -38,6 +39,7 @@ export default function ServicesInquiryScreen() {
                 </>
             ) : null}
             <SectionTitle section="orders">Conversation</SectionTitle>
+            <ChatBackdrop style={{ borderRadius: radius.lg, overflow: 'hidden', padding: spacing.md, marginBottom: spacing.md }}>
             {(i.messages || []).map((m, n) => (
                 <View key={n} style={{ alignSelf: m.from === 'owner' ? 'flex-end' : 'flex-start', maxWidth: '85%', marginBottom: spacing.sm }}>
                     <View style={{ backgroundColor: m.from === 'owner' ? t.primary : t.surface, borderRadius: radius.md, borderWidth: m.from === 'owner' ? 0 : 1, borderColor: t.border, padding: spacing.md }}>
@@ -46,6 +48,7 @@ export default function ServicesInquiryScreen() {
                     <Text style={{ color: t.muted, fontSize: font.xs, marginTop: 2, alignSelf: m.from === 'owner' ? 'flex-end' : 'flex-start' }}>{m.from === 'owner' ? 'Shop' : 'Customer'} · {when(m.at)}</Text>
                 </View>
             ))}
+            </ChatBackdrop>
             <Badge label="Read only" tone="neutral" />
         </Screen>
     );
