@@ -265,7 +265,7 @@ async function create({ tenant, userId, body = {} }) {
         } catch (e) { if (e.code !== 11000) throw e; }   // the short code was taken: make another
     }
     if (!doc) throw httpError(503, 'Could not save the request. Please try again.');
-    tell('bulk_new', { tenantId: tenant._id, vars: { name, code: doc.code, total: doc.pricing.total, when: r.when.toISOString().slice(0, 10) }, data: { kind: 'bulk', bulkId: String(doc._id) } });
+    tell('bulk_new', { tenantId: tenant._id, vars: { name, code: doc.code, total: doc.pricing.total, when: r.when.toISOString().slice(0, 10) }, data: { kind: 'bulk', bulkId: String(doc._id), speech: `New bulk order received${name ? ` from ${name}` : ''}. Open Bulk orders to send your quote.`, speechHi: `नया बल्क ऑर्डर मिला है${name ? `, ${name} की तरफ़ से` : ''}। कोट भेजने के लिए बल्क ऑर्डर खोलें।` } });
     return { duplicate: false, order: doc.toObject() };
 }
 
@@ -343,6 +343,7 @@ async function cancelByCustomer({ tenant, userId, id }) {
             { $set: { status: 'cancelled', cancelledBy: 'customer' }, $push: { history: { status: 'cancelled', by: 'customer' } } }, { returnDocument: 'after' },
         ).lean();
         if (!done) throw httpError(409, 'This order can no longer be cancelled here');   // a payment landed a moment ago: open it again
+        tell('bulk_cancelled', { tenantId: tenant._id, vars: { name: done.contact?.name, code: done.code, unpaid: true }, data: { kind: 'bulk', bulkId: String(done._id), speech: `Bulk order cancelled${done.contact?.name ? ` by ${done.contact.name}` : ''}.`, speechHi: `बल्क ऑर्डर रद्द हुआ${done.contact?.name ? `, ${done.contact.name} ने किया` : ''}।` } });   // (it was cancelled before any payment: the owner is told too)
         return customerView(done);
     }
     if (o.status !== 'confirmed') throw httpError(409, 'This order can no longer be cancelled here. Please talk to the shop.');
@@ -355,7 +356,7 @@ async function cancelByCustomer({ tenant, userId, id }) {
     if (!done) throw httpError(409, 'This order was just changed. Open it again.');
     await refundDue(done);   // if this fails or the server stops here, the repair job sends it
     if (out.keptPaise > 0) require('./billableService').markBulk(done, 'cancel_kept').catch((e) => console.error('Billable count error:', e.message));   // the shop kept money: it counts for the rent
-    tell('bulk_cancelled', { tenantId: tenant._id, vars: { name: done.contact?.name, code: done.code, kept: out.keptPaise > 0 }, data: { kind: 'bulk', bulkId: String(done._id) } });
+    tell('bulk_cancelled', { tenantId: tenant._id, vars: { name: done.contact?.name, code: done.code, kept: out.keptPaise > 0 }, data: { kind: 'bulk', bulkId: String(done._id), speech: `Bulk order cancelled${done.contact?.name ? ` by ${done.contact.name}` : ''}. ${out.keptPaise > 0 ? 'You keep the advance.' : 'The advance goes back to the customer.'}`, speechHi: `बल्क ऑर्डर रद्द हुआ${done.contact?.name ? `, ${done.contact.name} ने किया` : ''}। ${out.keptPaise > 0 ? 'एडवांस आपके पास रहेगा।' : 'एडवांस ग्राहक को वापस जाएगा।'}` } });
     await require('./bulkKitchen').closeTicket(done).catch((e) => console.error('Bulk ticket error:', e.message));   // the cook and the rider stop
     return customerView(await BulkOrder.findById(done._id).lean());
 }

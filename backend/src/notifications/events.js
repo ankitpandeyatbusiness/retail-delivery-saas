@@ -12,6 +12,8 @@
 // The id of the owner app's loud new-order channel. Android freezes a channel's sound and vibration when it is first
 // created on a phone, so a changed sound needs a NEW id (and the app creates it under the same name: mobile push.js).
 const NEW_ORDER_CHANNEL = 'new_orders_v2';
+// the loud channel for a new BULK order: the bell and the voice "New bulk order received" (mobile push.js creates it under the same id)
+const NEW_BULK_CHANNEL = 'new_bulk_orders_v1';
 // every push to a cook or a waiter rings on this channel: the "ting-tong" clip, so their phones never fall back to a random device tone.
 // Built into the app (mobile/src/utils/common/push.js and app.config.js sounds).
 const STAFF_CHANNEL = 'staff_alerts_v1';
@@ -48,7 +50,7 @@ const EVENTS = {
     booking_waitlist_free: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },   // a table came free in a slot the guest was waiting for
     booking_allowed: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },      // the shop confirmed a guest's table
     booking_owner_cancelled: { to: 'customer', channels: INAPP_PUSH, alsoPush: true }, // the shop cancelled a guest's booking
-    bulk_new: { to: 'owner', channels: INAPP_PUSH, alsoPush: true, pushChannel: INQUIRY_CHANNEL, pushSound: 'cust_offer' },     // a customer sent a bulk order request
+    bulk_new: { to: 'owner', channels: INAPP_PUSH, alsoPush: true, pushChannel: NEW_BULK_CHANNEL, pushSound: 'new_bulk_order' },     // a customer sent a bulk order request
     bulk_change: { to: 'owner', channels: INAPP_PUSH, alsoPush: true, pushChannel: INQUIRY_CHANNEL, pushSound: 'cust_offer' },  // a customer asked to change the quote
     bulk_paid: { to: 'owner', channels: INAPP_PUSH, alsoPush: true, pushChannel: INQUIRY_CHANNEL, pushSound: 'cust_offer' },       // the customer paid the advance: the order is confirmed
     bulk_cancelled: { to: 'owner', channels: INAPP_PUSH, alsoPush: true, pushChannel: INQUIRY_CHANNEL, pushSound: 'cust_offer' },  // the customer cancelled a confirmed bulk order

@@ -37,6 +37,7 @@ const CHANNEL = 'orders';   // must match defaultChannel in app.config.js
 // The server names it in the push (backend notifications/events.js: pushChannel / pushSound). A channel's sound can not be
 // changed once it exists on a phone, so a new sound needs a new channel id.
 const NEW_ORDERS_CHANNEL = 'new_orders_v2';   // must match NEW_ORDER_CHANNEL in backend notifications/events.js
+const NEW_BULK_CHANNEL = 'new_bulk_orders_v1';   // the loud "New bulk order received" clip. Must match NEW_BULK_CHANNEL in the backend events.js
 const CANCEL_CHANNEL = 'cancel_alert_v2';   // the cancelled-order alarm (owner, cook, waiter). Must match the backend
 const HELP_CHANNEL = 'help_alarm_v2';       // the owner's: a rider pressed help
 const STAFF_INFO_CHANNEL = 'staff_info_v1';   // a quiet staff message ("order handed over"): the soft ping. Must match the backend
@@ -276,6 +277,9 @@ async function getToken() {
         // clip) would keep a later, correct build silent. With no channel, the push lands on the app's default one.
     }
 
+    if (useAuthStore.getState().user?.role === 'admin') {
+        try { await Notifications.setNotificationChannelAsync(NEW_BULK_CHANNEL, { ...loud, name: 'New bulk orders', description: 'Rings loudly when a customer sends a bulk order request', sound: 'new_bulk_order.wav' }); } catch (e) { /* the push then lands on the default channel */ }
+    }
     // the cancelled-order alarm: the owner, the cook and the waiter; and the owner's help alarm
     const who = useAuthStore.getState().user?.role;
     if (who === 'admin' || who === 'kitchen' || who === 'waiter') {

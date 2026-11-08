@@ -74,8 +74,8 @@ const silence = (rate, ms) => new Float32Array(Math.round(rate * ms / 1000));
 const cat = (...a) => { const o = new Float32Array(a.reduce((s, x) => s + x.length, 0)); let p = 0; for (const x of a) { o.set(x, p); p += x.length; } return o; };
 
 /* ---- the voice: trimmed, and as loud as the bell ---- */
-function prepareVoice(rate) {
-    const v = readWav(voiceFile);
+function prepareVoice(rate, file = voiceFile) {
+    const v = readWav(file);
     let x = resample(v.samples, v.rate, rate);
     let a = 0, z = x.length - 1;
     while (a < z && Math.abs(x[a]) < 0.01) a++;
@@ -86,6 +86,14 @@ function prepareVoice(rate) {
 }
 
 fs.mkdirSync(outDir, { recursive: true });
+
+// new_bulk_order.wav: the same bell, then "New bulk order received". Made on its own with a third argument (the voice file),
+// so the other sounds are left exactly as they are:  node make-sounds.js voice.wav assets/sounds bulk_voice.wav
+if (process.argv[4]) {
+    const R = 22050;
+    writeWav(`${outDir}/new_bulk_order.wav`, cat(arpeggio(R), silence(R, 150), prepareVoice(R, process.argv[4]), silence(R, 450)), R);
+    process.exit(0);
+}
 
 // new_order.wav (22.05 kHz): bell, "New order received", once
 {
