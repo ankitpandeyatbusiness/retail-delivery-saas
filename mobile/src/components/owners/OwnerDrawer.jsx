@@ -16,13 +16,16 @@ import MenuIndexStrip, { useMenuIndex } from './MenuIndexStrip';
 import { ShopLogo } from './ui';
 import BranchSwitcher from './BranchSwitcher';
 import { tr } from '../../i18n';
+import { useAppStatus } from '../../store/common/useAppStatus';
 
 const WIDTH = Math.min(340, Math.round(Dimensions.get('window').width * 0.84));
 
 export default function OwnerDrawer() {
     const insets = useSafeAreaInsets();
     // keep clear of the status bar and the phone's navigation bar, whichever way the phone reports them
-    const top = Math.max(insets.top, StatusBar.currentHeight || 0);
+    // While the maintenance bar shows, the bar already covers the status bar and the app below it starts under the bar: the menu starts at the top of that area.
+    const barOn = useAppStatus((s) => !!s.maintenance);
+    const top = barOn ? 0 : Math.max(insets.top, StatusBar.currentHeight || 0);
     const bottom = insets.bottom;
     const { background, surface, border, text, muted } = useBrand();
     const motion = useMotion();

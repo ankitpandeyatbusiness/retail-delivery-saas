@@ -133,7 +133,7 @@ export default function OwnerTxTabScreen() {
             </View>
             <View style={{ paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
                 <View style={{ flex: 1 }}>
-                    <Field value={qText} onChangeText={(v) => setQText(v.replace(/[^0-9A-Za-z#]/g, '').slice(0, 9))} placeholder={tr('Search by order number or bulk code')} autoCapitalize="characters" returnKeyType="search" onSubmitEditing={() => setQApplied(qText.replace('#', ''))} />
+                    <Field value={qText} onChangeText={(v) => setQText(v.replace(/[^0-9A-Za-z#]/g, '').slice(0, 9))} placeholder={tr('Order no. or bulk code')} autoCapitalize="characters" returnKeyType="search" onSubmitEditing={() => setQApplied(qText.replace('#', ''))} />
                 </View>
                 {qApplied ? <Pressable onPress={() => { setQText(''); setQApplied(''); }} hitSlop={8} style={{ marginLeft: 8 }}><Ionicons name="close-circle" size={24} color={muted} /></Pressable> : null}
                 {/* the Excel sheet is at the top: nobody has to scroll down the whole list to find it */}

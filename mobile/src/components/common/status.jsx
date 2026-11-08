@@ -1,6 +1,6 @@
 // src/ui/status.jsx
 import React, { useEffect, useState } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Platform, StatusBar } from 'react-native';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { ActivityIndicator } from './Loading';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -154,6 +154,7 @@ const left = (ms) => {
 export function MaintenanceBar() {
     const m = useMaintenance();
     const insets = useSafeAreaInsets();
+    const topPad = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0);
     const [, tick] = useState(0);
     useEffect(() => { if (!m) return undefined; const t = setInterval(() => tick((x) => x + 1), 30000); return () => clearInterval(t); }, [m]);
     if (!m) return null;
@@ -172,7 +173,7 @@ export function MaintenanceBar() {
         line = [m.message ? tr(m.message) : '', when, ms > 0 && ms < 3 * 3600000 ? tr('Starts in {t}', { t: left(ms) }) : '', tr('Please finish your work before then.')].filter(Boolean).join(' · ');
     }
     return (
-        <View style={[s.maint, { paddingTop: insets.top + 6, backgroundColor: on ? '#B3261E' : '#8A5A00' }]}>
+        <View style={[s.maint, { paddingTop: topPad + 6, backgroundColor: on ? '#B3261E' : '#8A5A00' }]}>
             <Text style={s.maintHead}>{on ? '🛠 ' : '⏰ '}{head}</Text>
             <Text style={s.maintTxt} numberOfLines={3}>{line}</Text>
         </View>
