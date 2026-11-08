@@ -20,7 +20,7 @@ export function useLiveTrip(enabled) {
 
     // 1. which order is on the way
     useEffect(() => {
-        if (!enabled || !user) { useLiveTripStore.getState().reset(); return undefined; }
+        if (!enabled || !user) { useLiveTripStore.getState().reset(); useLiveTripStore.getState().setOther(null); return undefined; }
         let dead = false;
         const find = async () => {
             if (busy.current) return;
@@ -28,9 +28,9 @@ export function useLiveTrip(enabled) {
             try {
                 const r = await fetchOrders({ active: true, limit: 5 });
                 if (dead) return;
-                let o = (r.items || []).find((x) => x.orderType === 'delivery' && x.status === 'out_for_delivery');
-                // a bulk delivery is a hidden work ticket the order list never shows: the bulk order itself says which ticket to follow
-                if (!o) {
+                // every delivery on its way: the normal ones, and the bulk ones (a hidden work ticket the order list never shows: the bulk order itself says which one)
+                const list = (r.items || []).filter((x) => x.orderType === 'delivery' && x.status === 'out_for_delivery').map((x) => ({ id: String(x.id || x._id), orderNo: x.orderNo, bulkId: null }));
+                {
                     try {
                         const b = await fetchMyBulk();
                         // do not trust the bulk order's own word alone: the ticket itself says whether the rider has the food (state on_the_way)
@@ -38,14 +38,18 @@ export function useLiveTrip(enabled) {
                         for (const y of cands) {
                             const t = await fetchTracking(String(y.trackOrderId)).catch(() => null);
                             if (dead) return;
-                            if (t && t.state === 'on_the_way') { o = { id: y.trackOrderId, orderNo: y.code, bulkId: y.id }; break; }
+                            if (t && t.state === 'on_the_way') list.push({ id: String(y.trackOrderId), orderNo: y.code, bulkId: String(y.id) });
                         }
                     } catch (e) { /* no bulk delivery to follow */ }
                     if (dead) return;
                 }
                 const cur = useLiveTripStore.getState().orderId;
-                if (!o) { if (cur) useLiveTripStore.getState().reset(); return; }
-                if (String(o.id || o._id) !== String(cur)) useLiveTripStore.getState().reset(String(o.id || o._id), o.orderNo, o.bulkId ? String(o.bulkId) : null);
+                // the one already followed stays the main one; the next is the second delivery (round dock)
+                const pick = list.find((x) => x.id === String(cur)) || list[0];
+                const second = list.find((x) => x !== pick);
+                useLiveTripStore.getState().setOther(second ? { orderId: second.id, orderNo: second.orderNo, bulkId: second.bulkId } : null);
+                if (!pick) { if (cur) useLiveTripStore.getState().reset(); return; }
+                if (pick.id !== String(cur)) useLiveTripStore.getState().reset(pick.id, pick.orderNo, pick.bulkId);
             } catch (e) { /* the bar simply stays as it was */ } finally { busy.current = false; }
         };
         find();

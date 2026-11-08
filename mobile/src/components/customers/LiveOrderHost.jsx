@@ -94,6 +94,7 @@ export default function LiveOrderHost({ routeName, onOpenOrder }) {
         });
     }, [enabled]);
 
+    const other = useLiveTripStore((s) => s.other);   // a second delivery on its way at the same time
     const { orderId, orderNo, bulkId, track, loc, route, eta: e, dest, quiet, sheet } = useLiveTripStore();
     const setSheet = useLiveTripStore((s) => s.setSheet);
     const { primary, text, muted, surface, border, background } = useBrand();
@@ -113,6 +114,11 @@ export default function LiveOrderHost({ routeName, onOpenOrder }) {
     const barOn = enabled && !!orderId && !!track && !HIDE_ON.includes(routeName) && sheet === 'bar';
     useEffect(() => { useDock.getState().put('track', barOn ? { icon: 'bicycle', label: 'Track your order', sub: `#${orderNo || ''}`.replace('#', tr('Order #')), route: bulkId ? 'BulkOrderDetail' : 'OrderDetail', params: { id: String(bulkId || orderId) } } : null); }, [barOn, orderId, orderNo, bulkId]);   // eslint-disable-line react-hooks/exhaustive-deps
     useEffect(() => () => useDock.getState().put('track', null), []);
+    // the second delivery: its own place on the round dock (shown only while the first one is, so the dock always holds both)
+    useEffect(() => {
+        useDock.getState().put('track2', barOn && other ? { icon: 'bicycle', label: 'Track your order', sub: other.bulkId ? `${tr('Bulk order')} ${other.orderNo || ''}` : `${tr('Order #')}${other.orderNo || ''}`, route: other.bulkId ? 'BulkOrderDetail' : 'OrderDetail', params: { id: String(other.bulkId || other.orderId) } } : null);
+    }, [barOn, other?.orderId, other?.orderNo, other?.bulkId]);   // eslint-disable-line react-hooks/exhaustive-deps
+    useEffect(() => () => useDock.getState().put('track2', null), []);
     const crowded = useCrowded('track');   // two or more cards: the round dock shows the tracking instead of this bar
     useEffect(() => {
         const visible = enabled && !!orderId && !!track && !HIDE_ON.includes(routeName) && sheet === 'bar' && !crowded;

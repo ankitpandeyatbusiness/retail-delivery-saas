@@ -7,6 +7,10 @@ const EMPTY = { orderId: null, orderNo: null, bulkId: null, track: null, loc: nu
 export const useLiveTripStore = create((set) => ({
     ...EMPTY,
     sheet: 'bar',
+    // a SECOND delivery on its way at the same time (a normal one and a bulk one): { orderId, orderNo, bulkId }. The map and the bar follow the first;
+    // this one has its own place on the round dock. Kept apart from the trip itself, so changing the trip does not wipe it.
+    other: null,
+    setOther: (other) => set((s) => (String(s.other?.orderId || '') === String(other?.orderId || '') ? s : { other })),
     liveOffset: 0,   // how much room the delivery bar (or its small chip) takes above the tabs, so the active-order bar can sit above it
     setLiveOffset: (liveOffset) => set((s) => (s.liveOffset === liveOffset ? s : { liveOffset })),
     barH: 0,   // room the floating active-order bar takes above the tabs (0 when it is not shown)
