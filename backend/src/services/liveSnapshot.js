@@ -26,14 +26,17 @@ function startOf(now, unit) {
 //   ready         ready orders with no rider yet, or waiting 5+ minutes to be handed over
 //   roadDue       when each order on the road is due (the app turns the late ones red and counts the minutes)
 const READY_WAIT_MS = 5 * 60 * 1000;
+const BULK_LEAD_MS = 24 * 3600000;   // the same lead as the cook's screen (kitchenService)
 async function attention(tenantId, now) {
     const rows = await Order.find({ tenantId, status: { $in: ['accepted', 'preparing', 'ready', 'out_for_delivery'] }, ...HIDE_UNPAID })
-        .select('status orderType kitchen.readyAt delivery.riderId delivery.status delivery.dueAt updatedAt').limit(300).lean();
+        .select('status orderType bulkId scheduledFor kitchen.readyAt delivery.riderId delivery.status delivery.dueAt updatedAt').limit(300).lean();
     const out = { accepted: 0, cookingNoRider: 0, ready: 0, roadDue: [], kitchenProblems: 0 };
     for (const raw of rows) {
         const o = { ...raw, status: boardStatusOf(raw) };   // a packed delivery order counts as ready
         const noRider = o.orderType === 'delivery' && (!o.delivery?.riderId || o.delivery?.status === 'rejected');
-        if (o.status === 'accepted') out.accepted += 1;
+        // a paid bulk order for a day that is not near yet waits for its day (the cook gets it 24 hours before): nothing for the owner to do, so it does not blink
+        const bulkLater = !!o.bulkId && !!o.scheduledFor && new Date(o.scheduledFor).getTime() - now.getTime() > BULK_LEAD_MS;
+        if (o.status === 'accepted') { if (!bulkLater) out.accepted += 1; }
         else if (o.status === 'preparing' && noRider) out.cookingNoRider += 1;
         else if (o.status === 'ready' && (noRider || now.getTime() - new Date(o.updatedAt).getTime() >= READY_WAIT_MS)) out.ready += 1;
         else if (o.status === 'out_for_delivery' && o.delivery?.dueAt) out.roadDue.push(new Date(o.delivery.dueAt).toISOString());
@@ -50,7 +53,7 @@ async function build(tenantId, { owner = false } = {}) {
     const day = startOf(now, 'day');
     const month = startOf(now, 'month');
 
-    const [counts, riders, billableToday, billableMonth, revenue, customers, wallet, tenant, feed] = await Promise.all([
+    const [counts, riders, billableToday, billableMonth, revenue, customers, bulkCounts, wallet, tenant, feed] = await Promise.all([
         Order.aggregate([
             { $match: { tenantId, status: { $in: ACTIVE_STATUSES }, ...HIDE_UNPAID } },
             { $group: { _id: statusExpr, n: { $sum: 1 } } },
@@ -77,6 +80,11 @@ async function build(tenantId, { owner = false } = {}) {
             },
         ]),
         User.countDocuments({ tenantId, role: 'customer' }),
+        // how many of each step are BULK orders' work tickets (the pipeline shows a small "N bulk" under the number)
+        Order.aggregate([
+            { $match: { tenantId, status: { $in: ACTIVE_STATUSES }, bulkId: { $exists: true, $ne: null }, ...HIDE_UNPAID } },
+            { $group: { _id: statusExpr, n: { $sum: 1 } } },
+        ]),
         SmsWallet.findOne({ tenantId }).select('balancePaise').lean(),
         Tenant.findById(tenantId).select('billing.state').lean(),
         liveFeed.recent(tenantId, { owner, limit: 50 }),
@@ -89,7 +97,7 @@ async function build(tenantId, { owner = false } = {}) {
     const active = Object.fromEntries(counts.map((c) => [c._id, c.n]));
     return {
         at: now,
-        orders: { active, activeTotal: Object.values(active).reduce((a, b) => a + b, 0), attention: await attention(tenantId, now) },
+        orders: { bulk: Object.fromEntries(bulkCounts.map((c) => [c._id, c.n])), active, activeTotal: Object.values(active).reduce((a, b) => a + b, 0), attention: await attention(tenantId, now) },
         riders: riders.map((r) => ({
             riderId: r.userId, name: r.name || null, isOnline: !!r.isOnline, activeOrderCount: r.activeOrderCount || 0,
             location: (() => { const p = liveTracking.newest(r.userId, r.lastLocation); return p?.at ? { lat: p.lat, lng: p.lng, at: p.at } : null; })(),

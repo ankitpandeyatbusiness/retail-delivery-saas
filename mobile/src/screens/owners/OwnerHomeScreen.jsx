@@ -13,12 +13,14 @@ import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { useSoundboxStore } from '../../store/owners/useSoundboxStore';
 import { useAlertStore } from '../../store/owners/useAlertStore';
 import { useHomeStore } from '../../store/customers/useHomeStore';
-import { setAcceptingOrders, fetchStaff, apiError, booking as bookingApi, bulk as bulkApi } from '../../api/owners/shopApi';
+import { setAcceptingOrders, fetchStaff, apiError, booking as bookingApi } from '../../api/owners/shopApi';
 import { onNotification } from '../../api/common/socket';
 import { showToast } from '../../components/customers/shop';
 import { onOrderUpdate } from '../../api/common/socket';
 import { clearAll } from '../../utils/owners/soundbox';
 import { useNow } from '../../hooks/owners/useNow';
+import { useBulkAwaiting } from '../../hooks/owners/useBulkAwaiting';
+import useBulkLive from '../../hooks/common/useBulkLive';
 import * as flow from '../../utils/owners/orderFlow';
 import OccupiedTables from '../../components/owners/OccupiedTables';
 import TableRequests from '../../components/owners/TableRequests';
@@ -130,12 +132,8 @@ export default function OwnerHomeScreen() {
     const loadPending = useCallback(() => { if (bookingOn) bookingApi.pending().then(setPendingRes).catch(() => { }); else setPendingRes({ count: 0, first: null }); }, [bookingOn]);
     useFocusEffect(useCallback(() => { loadPending(); }, [loadPending]));
     useEffect(() => onNotification((n) => { if (String(n?.type || '').startsWith('booking_')) loadPending(); }), [loadPending]);
-    // bulk orders that are still running: a card on top (blinking while the owner must answer) until they are delivered, cancelled or declined
-    const bulkOn = useMenuFlags((s) => s.bulkOn);
-    const [bulkLive, setBulkLive] = useState([]);
-    const loadBulk = useCallback(() => { if (bulkOn) bulkApi.list({ status: 'open' }).then((r) => setBulkLive((r.items || []).filter((x) => x.status !== 'delivered'))).catch(() => { }); else setBulkLive([]); }, [bulkOn]);
-    useFocusEffect(useCallback(() => { loadBulk(); const t = setInterval(loadBulk, 60000); return () => clearInterval(t); }, [loadBulk]));
-    useEffect(() => onNotification((n) => { if (String(n?.type || '').startsWith('bulk_')) loadBulk(); }), [loadBulk]);
+    const { items: bulkWait, needs: bulkNeeds } = useBulkAwaiting();
+    useBulkLive(refresh);   // any bulk order changed (its cook ticket made, a stage moved...): the step counts and the "N bulk" tags load again at once
     useFocusEffect(useCallback(() => { fetchStaff().then(setStaff).catch(() => { }); useMenuFlags.getState().refresh(); }, []));   // (the side menu's rows are ready before it opens)
     // an order changed anywhere: update the numbers (a moment later, so a burst of events is one refresh)
     useEffect(() => {
@@ -162,12 +160,14 @@ export default function OwnerHomeScreen() {
     const attn = live?.orders?.attention || {};
     const lateMin = Math.max(0, ...(attn.roadDue || []).map((d) => Math.floor((now - new Date(d).getTime()) / 60000)));   // the most late delivery on the road, in minutes
     const blink = {
-        placed: (active.placed || 0) > 0,                 // accept or reject
+        placed: (active.placed || 0) > 0 || bulkNeeds.length > 0,   // accept or reject; or a bulk request waits for the owner's quote
         accepted: (attn.accepted || 0) > 0,               // mark preparing
         preparing: (attn.cookingNoRider || 0) > 0 || (attn.kitchenProblems || 0) > 0,   // nobody took it: assign a rider by hand, or the kitchen reported a problem
         ready: (attn.ready || 0) > 0,                     // no rider yet, or waiting to be handed over
         out_for_delivery: lateMin > 0,                    // a delivery is late
     };
+    const countOf = (key) => (active[key] || 0) + (key === 'placed' ? bulkWait.length : 0);   // New also holds the bulk orders not paid yet
+    const bulkIn = (key) => (key === 'placed' ? bulkWait.length : (live?.orders?.bulk?.[key] || 0));   // how many of them are bulk orders
     const riders = d?.riders;
     const staffLine = (role, none) => {
         const people = (staff?.items || []).filter((p) => p.role === role);
@@ -239,28 +239,6 @@ export default function OwnerHomeScreen() {
                 </GlowBorder>
             ) : null}
 
-            {/* bulk orders still running: one card (or one for all); it blinks while one waits for the owner's quote */}
-            {bulkOn && bulkLive.length > 0 ? (() => {
-                const needs = bulkLive.filter((x) => x.status === 'requested');
-                const one = bulkLive.length === 1 ? bulkLive[0] : null;
-                const title = one ? `${tr('Bulk order')} ${one.code} · ${tr(BULK_OWNER[one.status] || one.status)}` : tr('{n} bulk orders running', { n: bulkLive.length });
-                const sub = needs.length ? (needs.length === 1 ? tr('A customer is waiting for your quote') : tr('{n} customers are waiting for your answer', { n: needs.length })) : (one ? `${one.contact?.name || ''}` : tr('Tap to see their status'));
-                return (
-                    <GlowBorder active={needs.length > 0} radius={18} style={{ marginHorizontal: 16, marginTop: 14, marginBottom: 16 }}>
-                        <Card onPress={() => (one ? nav.navigate('OwnerBulkOrder', { id: String(one.id) }) : nav.navigate('OwnerBulk'))} style={{ marginHorizontal: 0, marginBottom: 0 }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <Ionicons name="cube" size={22} color={needs.length ? error : primary} />
-                                <View style={{ flex: 1, marginLeft: 10 }}>
-                                    <Text style={{ color: needs.length ? error : text, fontWeight: '900' }}>{title}</Text>
-                                    {sub ? <Text style={{ color: muted, fontSize: 12, marginTop: 2 }} numberOfLines={1}>{sub}</Text> : null}
-                                </View>
-                                <Ionicons name="chevron-forward" size={18} color={muted} />
-                            </View>
-                        </Card>
-                    </GlowBorder>
-                );
-            })() : null}
-
             {/* complaints nobody has answered: always on top, blinking, until they are decided */}
             {d?.complaints?.open ? (
                 <GlowBorder active radius={18} style={{ marginHorizontal: 16, marginTop: 14, marginBottom: 16 }}>
@@ -302,9 +280,15 @@ export default function OwnerHomeScreen() {
                     // New orders blink with a glowing rim until they are accepted or rejected (the count drops to 0)
                     <GlowBorder key={key} active={!!blink[key]} radius={18} style={{ flex: 1, marginHorizontal: 3, marginBottom: 12 }}>
                         <Card onPress={() => toOrders(key)} style={{ flex: 1, marginHorizontal: 0, marginBottom: 0, paddingHorizontal: 2, alignItems: 'center', paddingVertical: 12 }}>
-                            <Ionicons name={icon} size={20} color={active[key] ? primary : muted} />
-                            <Text style={{ fontSize: 22, fontWeight: '900', color: active[key] ? primary : muted, marginTop: 2 }}>{active[key] || 0}</Text>
+                            <Ionicons name={icon} size={20} color={countOf(key) ? primary : muted} />
+                            <Text style={{ fontSize: 22, fontWeight: '900', color: countOf(key) ? primary : muted, marginTop: 2 }}>{countOf(key)}</Text>
                             <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={{ fontSize: 11, color: muted, fontWeight: '700', maxWidth: '100%' }}>{tr(label)}</Text>
+                            {bulkIn(key) > 0 ? (
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 3 }}>
+                                    <Ionicons name="cube" size={10} color={primary} />
+                                    <Text numberOfLines={1} style={{ color: primary, fontSize: 10, fontWeight: '900', marginLeft: 2 }}>{tr('{n} bulk', { n: bulkIn(key) })}</Text>
+                                </View>
+                            ) : null}
                             {key === 'out_for_delivery' && lateMin > 0 ? (
                                 <View style={{ marginTop: 4, backgroundColor: error, borderRadius: 99, paddingHorizontal: 6, paddingVertical: 1 }}>
                                     <Text numberOfLines={1} style={{ color: '#FFFFFF', fontSize: 9.5, fontWeight: '900' }}>{tr('Late {min}m', { min: lateMin })}</Text>

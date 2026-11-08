@@ -5,7 +5,8 @@ import { View, Text, FlatList, Pressable, ScrollView, RefreshControl, LayoutAnim
 import { useFocusEffect, useIsFocused, useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../../components/common/kit';
-import { OwnerScreen, Empty, Field } from '../../components/owners/ui';
+import { OwnerScreen, Empty, Field, Card, Pill, money } from '../../components/owners/ui';
+import { useBulkAwaiting } from '../../hooks/owners/useBulkAwaiting';
 import { OrderCard, useOrderActions } from '../../components/owners/orderBits';
 import { useOrdersStore } from '../../store/owners/useOrdersStore';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
@@ -39,6 +40,28 @@ function Chip({ label, count, on, onPress, urgent }) {
     );
 }
 
+// A bulk order that is not paid yet, in the New list: the same place a new order would be, with the bulk tag. Tap = the bulk order (quote, change, send).
+function BulkWaitCard({ o, onOpen }) {
+    const { primary, text, muted, error } = useBrand();
+    const needs = o.status === 'requested';
+    const when = o.when ? new Date(o.when).toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : '';
+    return (
+        <Card tone={needs ? error : primary} onPress={onOpen}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
+                <View style={{ marginRight: 6 }}><Pill label={`${tr('Bulk Order')} · ${o.code}`} color={primary} icon="cube" /></View>
+                <Text style={{ color: needs ? error : muted, fontWeight: '800', fontSize: 12.5 }}>{needs ? tr('Needs your quote') : tr('Quote sent, waiting for the customer')}</Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+                <View style={{ flex: 1 }}>
+                    <Text style={{ color: text, fontWeight: '900', fontSize: 15 }} numberOfLines={1}>{o.contact?.name || tr('A customer')}</Text>
+                    {when ? <Text style={{ color: muted, fontSize: 12.5, marginTop: 2 }} numberOfLines={1}>{`${o.fulfilment === 'delivery' ? tr('Delivery') : tr('Pickup')} · ${when}`}</Text> : null}
+                </View>
+                <Text style={{ color: text, fontWeight: '900', fontSize: 16 }}>{money(o.quote?.pricing?.total ?? o.pricing?.total)}</Text>
+            </View>
+        </Card>
+    );
+}
+
 function Skeleton() {
     const { surface, border } = useBrand();
     return (
@@ -58,6 +81,7 @@ export default function OwnerOrdersScreen() {
     const { primary, muted } = useBrand();
     const s = useOrdersStore();
     const access = useOwnerStore((st) => st.access);
+    const { items: bulkWait, reload: reloadBulk } = useBulkAwaiting();   // bulk requests and sent quotes not paid yet: they live in New until the advance is paid
     const live = useOwnerStore((st) => st.live);
     const [typed, setTyped] = useState('');
     const debounce = useRef(null);
@@ -93,8 +117,8 @@ export default function OwnerOrdersScreen() {
     };
 
     const active = live?.orders?.active || s.counts || {};
-    const activeTotal = ACTIVE_STAGES.reduce((n, k) => n + (active[k] || 0), 0);
-    const countOf = (id) => (id === 'active' ? activeTotal : id === 'table' ? s.counts?.table || 0 : (id === 'delivered' || id === 'cancelled' || id === 'history') ? 0 : active[id] || 0);
+    const activeTotal = ACTIVE_STAGES.reduce((n, k) => n + (active[k] || 0), 0) + bulkWait.length;
+    const countOf = (id) => (id === 'active' ? activeTotal : id === 'table' ? s.counts?.table || 0 : (id === 'delivered' || id === 'cancelled' || id === 'history') ? 0 : (active[id] || 0) + (id === 'placed' ? bulkWait.length : 0));
 
     const data = useMemo(() => arrange(s.items, s.filter), [s.items, s.filter]);
     const searching = /^\d{1,9}$/.test(s.query.trim());
@@ -110,6 +134,7 @@ export default function OwnerOrdersScreen() {
                     <Chip key={id} label={tr(label)} count={countOf(id)} on={!unpaid && s.filter === id} urgent={id === 'placed'} onPress={() => { setUnpaid(false); useOrdersStore.getState().setFilter(id); }} />
                 ))}
             </ScrollView>
+            {!unpaid && !/^d{1,9}$/.test(s.query.trim()) && (s.filter === 'placed' || s.filter === 'active') ? bulkWait.map((o) => <BulkWaitCard key={o.id} o={o} onOpen={() => nav.navigate('OwnerBulkOrder', { id: String(o.id) })} />) : null}
             {unpaid && debts?.length ? <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}><RemindAll count={debts.length} onDone={loadDebts} /></View> : null}
         </View>
     );
@@ -137,7 +162,7 @@ export default function OwnerOrdersScreen() {
                 )}
                 ListEmptyComponent={unpaid ? <Empty icon="checkmark-circle-outline" title={tr('No unpaid bills')} hint={tr('Customers who leave a table without paying will show here.')} /> : s.loading ? <Skeleton /> : s.error ? (
                     <Empty icon="cloud-offline-outline" title={tr('Could not load the orders')} hint={s.error} />
-                ) : (
+                ) : (bulkWait.length > 0 && !searching && (s.filter === 'placed' || s.filter === 'active')) ? null : (   // (the bulk cards above are the content)
                     <Empty
                         icon="receipt-outline"
                         title={searching ? tr('No order with that number') : s.filter === 'active' ? tr('No orders right now') : tr('Nothing here')}
@@ -147,7 +172,7 @@ export default function OwnerOrdersScreen() {
                 ListFooterComponent={s.loadingMore ? <ListShimmer count={1} /> : <View style={{ height: 24 }} />}
                 onEndReachedThreshold={0.4}
                 onEndReached={() => useOrdersStore.getState().loadMore()}
-                refreshControl={<RefreshControl refreshing={s.refreshing} onRefresh={() => useOrdersStore.getState().refresh()} tintColor={primary} colors={[primary]} />}
+                refreshControl={<RefreshControl refreshing={s.refreshing} onRefresh={() => { useOrdersStore.getState().refresh(); reloadBulk(); }} tintColor={primary} colors={[primary]} />}
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
                 extraData={actions.busyId}

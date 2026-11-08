@@ -105,6 +105,9 @@ function ping(doc) {
 }
 schema.post('findOneAndUpdate', ping);
 schema.post('save', ping);
+// a plain updateOne (the work ticket is linked, a refund is written down...) changes the order too: tell the screens
+schema.post('updateOne', async function () { try { const d = await this.model.findOne(this.getFilter()).select('tenantId userId code status').lean(); ping(d); } catch (e) { /* only a convenience */ } });
+schema.statics.pingLive = ping;   // for a bulk update (updateMany) that has no single document: bulkOrders.expireOld
 
 schemaPlugRef(schema);
 function schemaPlugRef(sch) { sch.plugin(require('./plugins/ref'), { kind: 'bulk' }); }

@@ -674,7 +674,9 @@ async function setOwnerNote({ tenant, id, note }) {
 
 // quotes that ran out are marked (the customer already sees them as expired)
 async function expireOld(now = new Date()) {
-    const r = await BulkOrder.updateMany({ status: 'quoted', 'quote.validUntil': { $lt: now } }, { $set: { status: 'expired' }, $push: { history: { status: 'expired', by: 'system' } } });
+    const due = await BulkOrder.find({ status: 'quoted', 'quote.validUntil': { $lt: now } }).select('tenantId userId code').lean();
+    const r = await BulkOrder.updateMany({ _id: { $in: due.map((x) => x._id) }, status: 'quoted' }, { $set: { status: 'expired' }, $push: { history: { status: 'expired', by: 'system' } } });
+    due.forEach((x) => BulkOrder.pingLive({ ...x, status: 'expired' }));   // the owner's and the customer's screens drop it at once
     return r.modifiedCount;
 }
 

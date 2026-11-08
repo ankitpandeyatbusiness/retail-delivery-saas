@@ -7,71 +7,42 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand } from '../common/kit';
+import { ImageViewer } from '../common/PhotoViewer';
 import { tr } from '../../i18n';
 
 const GAP = 12;
 const SIDE = 16;
 
-// Full screen: one photo at a time, swipe for the next. startAt: index to open on. onBack: back to the grid (or close).
-function Viewer({ photos, startAt, onClose, backIcon }) {
-    const { width, height } = useWindowDimensions();
-    const insets = useSafeAreaInsets();
-    const [cur, setCur] = useState(startAt);
-    return (
-        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#000' }}>
-            <FlatList
-                data={photos} horizontal pagingEnabled showsHorizontalScrollIndicator={false}
-                initialScrollIndex={startAt} getItemLayout={(_, i) => ({ length: width, offset: i * width, index: i })}
-                keyExtractor={(u, i) => `${u}-${i}`}
-                onMomentumScrollEnd={(e) => setCur(Math.round(e.nativeEvent.contentOffset.x / width))}
-                renderItem={({ item }) => (
-                    <View style={{ width, height, justifyContent: 'center' }}>
-                        <Image source={{ uri: item }} style={{ width: '100%', height: '100%' }} contentFit="contain" />
-                    </View>
-                )}
-            />
-            <Pressable onPress={onClose} hitSlop={10} style={{ position: 'absolute', top: insets.top + 12, left: 16, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name={backIcon} size={24} color="#fff" />
-            </Pressable>
-            <View style={{ position: 'absolute', top: insets.top + 20, right: 16, paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.18)' }}>
-                <Text style={{ color: '#fff', fontWeight: '800' }}>{cur + 1} / {photos.length}</Text>
-            </View>
-        </View>
-    );
-}
-
-// The grid of every photo; opening on a photo (open = its index) goes straight to full screen.
+// The grid of every photo (open === -1). A tap on a photo opens it in the shared viewer (components/common/PhotoViewer): pinch with two fingers to zoom
+// in and out, drag a zoomed photo, double tap to zoom, swipe down or tap the cross to close, arrows for the next photo.
 function PhotosModal({ photos, open, onClose }) {
     const { width } = useWindowDimensions();
     const insets = useSafeAreaInsets();
     const { background, text } = useBrand();
-    const [view, setView] = useState(null);   // index of the photo in full screen
-    const visible = open !== null;
-    const direct = open !== null && open >= 0;   // opened on one photo from the slider: closing the viewer closes everything
-    useEffect(() => { setView(direct ? open : null); }, [open, direct]);
+    const [view, setView] = useState(null);   // index of the photo that is open in the viewer
+    const visible = open === -1;
+    useEffect(() => { if (!visible) setView(null); }, [visible]);
     const cell = Math.floor((width - SIDE * 2 - 8 * 2) / 3);
     return (
-        <Modal visible={visible} animationType="fade" statusBarTranslucent onRequestClose={() => (view !== null && !direct ? setView(null) : onClose())}>
+        <Modal visible={visible} animationType="fade" statusBarTranslucent onRequestClose={onClose}>
             <StatusBar barStyle="light-content" />
-            {open === -1 ? (
-                <View style={{ flex: 1, backgroundColor: background, paddingTop: insets.top }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 }}>
-                        <Text style={{ color: text, fontWeight: '900', fontSize: 18, flex: 1 }}>{tr('Photos')} ({photos.length})</Text>
-                        <Pressable onPress={onClose} hitSlop={10}><Ionicons name="close" size={26} color={text} /></Pressable>
-                    </View>
-                    <FlatList
-                        data={photos} numColumns={3} keyExtractor={(u, i) => `${u}-${i}`}
-                        contentContainerStyle={{ paddingHorizontal: SIDE, paddingBottom: insets.bottom + 20 }}
-                        columnWrapperStyle={{ marginBottom: 8, justifyContent: 'flex-start' }}
-                        renderItem={({ item, index }) => (
-                            <Pressable onPress={() => setView(index)} style={{ marginRight: index % 3 === 2 ? 0 : 8 }}>
-                                <Image source={{ uri: item }} style={{ width: cell, height: cell, borderRadius: 12 }} contentFit="cover" />
-                            </Pressable>
-                        )}
-                    />
+            <View style={{ flex: 1, backgroundColor: background, paddingTop: insets.top }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 }}>
+                    <Text style={{ color: text, fontWeight: '900', fontSize: 18, flex: 1 }}>{tr('Photos')} ({photos.length})</Text>
+                    <Pressable onPress={onClose} hitSlop={10}><Ionicons name="close" size={26} color={text} /></Pressable>
                 </View>
-            ) : <View style={{ flex: 1, backgroundColor: '#000' }} />}
-            {view !== null ? <Viewer key={view} photos={photos} startAt={view} backIcon={direct ? 'close' : 'arrow-back'} onClose={() => (direct ? onClose() : setView(null))} /> : null}
+                <FlatList
+                    data={photos} numColumns={3} keyExtractor={(u, i) => `${u}-${i}`}
+                    contentContainerStyle={{ paddingHorizontal: SIDE, paddingBottom: insets.bottom + 20 }}
+                    columnWrapperStyle={{ marginBottom: 8, justifyContent: 'flex-start' }}
+                    renderItem={({ item, index }) => (
+                        <Pressable onPress={() => setView(index)} style={{ marginRight: index % 3 === 2 ? 0 : 8 }}>
+                            <Image source={{ uri: item }} style={{ width: cell, height: cell, borderRadius: 12 }} contentFit="cover" />
+                        </Pressable>
+                    )}
+                />
+            </View>
+            {view !== null ? <ImageViewer visible uris={photos} start={view} onClose={() => setView(null)} /> : null}
         </Modal>
     );
 }
@@ -141,7 +112,9 @@ export default function PhotoCarousel({ photos }) {
                     <Ionicons name="grid-outline" size={15} color={primary} style={{ marginLeft: 6 }} />
                 </Pressable>
             ) : null}
-            <PhotosModal photos={list} open={open} onClose={() => setOpen(null)} />
+            {/* a tap on a photo in the slider: straight to the zoomable viewer; the grid is for 'See all photos' */}
+            {open !== null && open >= 0 ? <ImageViewer visible uris={list} start={open} onClose={() => setOpen(null)} /> : null}
+            <PhotosModal photos={list} open={open === -1 ? -1 : null} onClose={() => setOpen(null)} />
         </View>
     );
 }
