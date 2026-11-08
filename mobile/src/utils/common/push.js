@@ -119,10 +119,14 @@ const dataOf = (resp) => {
 
 // the notification's own words as a slider (for the ones that have no screen of their own to open)
 function showTapSlider(resp, data) {
-    const c = resp?.notification?.request?.content || {};
+    const req = resp?.notification?.request || {};
+    const c = req.content || {};
+    const rn = req.trigger?.remoteMessage?.notification || {};   // a push tapped while the app was closed or in the background: Android often leaves content.title and content.body empty and keeps the words here
     const type = String(data.type || '');
     if (!type) return;
-    showSlider({ key: `tap:${data.nid || type}:${data.orderId || data.table || ''}`, type, title: c.title, body: c.body, data });
+    const title = c.title || rn.title || data.title;
+    const body = c.body || rn.body || data.body || (!title ? data.speech : '');   // the server also sends the words inside the data (backend notifications/center.js)
+    showSlider({ key: `tap:${data.nid || type}:${data.orderId || data.table || ''}`, type, title, body, data });
 }
 
 // What is true NOW about the order a tapped notification talks about. null = the notification is still the latest word.

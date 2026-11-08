@@ -82,7 +82,7 @@ async function deliver(eventKey, def, ctx, doc) {
     // the push carries the words, and a second silent message wakes the app to say them (notifications/channels/push.js)
     const news = ctx.userId ? def.voice === true : (!!alertGroups.groupOf('admin', eventKey) && !ALREADY_SPOKEN.includes(eventKey));
     // the push always carries the words to say (a tap on it reads them, unless the app already said them) and its own id
-    const pushData = { ...(ctx.data || {}), type: doc.type, nid: String(doc._id), speech: ctx.data?.speech || `${doc.title}. ${doc.body}`, ...(news && def.noPush !== true ? { voice: '1' } : {}) };
+    const pushData = { ...(ctx.data || {}), type: doc.type, nid: String(doc._id), title: ctx.data?.title ?? String(doc.title || ''), body: ctx.data?.body ?? String(doc.body || ''), speech: ctx.data?.speech || `${doc.title}. ${doc.body}`, ...(news && def.noPush !== true ? { voice: '1' } : {}) };
 
     // the owner's news (a leave, a review, rent, a rider's answer...) gets the soft ping, not the phone's random default sound
     const softOwner = !def.pushChannel && !ctx.userId && !!alertGroups.groupOf('admin', eventKey)?.soft;
