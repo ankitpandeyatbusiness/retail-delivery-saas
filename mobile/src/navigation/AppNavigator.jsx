@@ -135,7 +135,6 @@ import { useViewMode } from '../store/owners/useViewMode';
 import OwnerViewPill from '../components/owners/OwnerViewPill';
 import NewOrderPopup from '../components/owners/NewOrderPopup';
 import KitchenProblemPopup from '../components/owners/KitchenProblemPopup';
-import LegalGate from '../components/common/LegalGate';
 import { LegalDocScreen, LegalListScreen, AboutUsScreen } from '../screens/common/LegalScreens';
 import OwnerBusinessScreen from '../screens/owners/OwnerBusinessScreen';
 import OwnerAutopilotScreen from '../screens/owners/OwnerAutopilotScreen';
@@ -492,7 +491,6 @@ export default function AppNavigator() {
             <OwedClaimHost />
             <PickupChangeHost />
             <CustomerAskHost />
-            <LegalGate />
             <FrozenOverlay onOrders={goOrders} routeName={routeName} onRent={() => { if (navigationRef.isReady()) navigationRef.navigate('OwnerRent'); }} />
             <OfflineBanner />
             <MaintenanceBanner />
