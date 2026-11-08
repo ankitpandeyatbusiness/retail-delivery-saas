@@ -919,7 +919,7 @@ async function syncWaiting() {
                 ids.add(String(o.id));
                 if (o.queued) continue;   // in the cook's queue: no slider and no ringing
                 // an order that came in while the app was closed: the slider catches up too (once), unless the live alert already showed it
-                if (!wasSaid('new', { orderNo: o.orderNo, orderId: o.id })) showSlider({ key: 'new:' + o.orderNo, type: 'new', title: 'New order ' + o.orderNo, body: o.speech || '', data: { orderNo: o.orderNo, orderId: String(o.id) }, once: true });
+                if (!wasSaid('new', { orderNo: o.orderNo, orderId: o.id })) showSlider({ key: 'new:' + o.orderNo, type: 'new', title: tr('New order') + ' ' + o.orderNo, body: o.speech || '', data: { orderNo: o.orderNo, orderId: String(o.id) }, once: true });
                 raise({ orderId: o.id, orderNo: o.orderNo, speech: o.speech, speechHi: o.speechHi });
             }
             for (const id of [...pending.keys()]) if (!ids.has(id) && !id.startsWith(BULK)) dismiss(id);

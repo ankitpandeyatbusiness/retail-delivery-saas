@@ -1,3 +1,4 @@
+import { tr } from '../../i18n';
 // Pays the deposit of a table booking (the shop's own Razorpay keys). The seats are held while the guest pays.
 //   1. POST /bookings            -> the booking is held and the server made the Razorpay order ({ booking, pay })
 //   2. Razorpay.open             -> Android shows its UPI app chooser, he pays, we are brought back
@@ -44,7 +45,7 @@ export async function payBooking({ booking, pay, user, upiApp, card }) {
     warmRazorpay(pay.keyId);   // started once and kept ready, like for an order: opening it cold can fail and look like a cancel
     const options = {
         key_id: pay.keyId, order_id: pay.rzpOrderId, amount: String(pay.amountPaise), currency: pay.currency || 'INR',
-        description: 'Table booking deposit', email: user?.email || FALLBACK_EMAIL, contact: tenDigits(user?.phone || booking?.phone),
+        description: tr('Table booking deposit'), email: user?.email || FALLBACK_EMAIL, contact: tenDigits(user?.phone || booking?.phone),
         ...(card ? {
             method: 'card', 'card[name]': card.name || 'Customer', 'card[number]': String(card.number).replace(/\s/g, ''),
             'card[expiry_month]': String(card.month).padStart(2, '0'), 'card[expiry_year]': String(card.year).slice(-2), 'card[cvv]': String(card.cvv),

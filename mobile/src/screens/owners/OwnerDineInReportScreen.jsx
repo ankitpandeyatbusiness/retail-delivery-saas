@@ -5,7 +5,7 @@ import { useBrand, alpha } from '../../components/common/kit';
 import { PageHeader, Card, Chips, SectionTitle, Stat, Empty, money } from '../../components/owners/ui';
 import { StatShimmer } from '../../components/owners/shimmer';
 import { fetchDineReport, apiError } from '../../api/owners/shopApi';
-import { tr } from '../../i18n';
+import { tr, tl } from '../../i18n';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const ap = (h) => (h === 0 ? '12a' : h < 12 ? h + 'a' : h === 12 ? '12p' : (h - 12) + 'p');
@@ -100,7 +100,7 @@ export default function OwnerDineInReportScreen() {
                         <Card>
                             <Text style={{ color: muted, fontSize: 12.5, marginBottom: 8 }}>{tr('Scans are guests who scanned the table sticker. A table with no scans may have a missing or unreadable sticker.')}</Text>
                             <View style={{ flexDirection: 'row', paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: alpha(muted, 0.25) }}>
-                                {['Table', 'Scans', 'Visits', 'Sales'].map((h, i) => <Text key={h} style={{ flex: i === 3 ? 1.4 : 1, color: muted, fontWeight: '800', fontSize: 11.5, textAlign: i ? 'right' : 'left' }}>{tr(h)}</Text>)}
+                                {[tl('Table'), tl('Scans'), tl('Visits'), tl('Sales')].map((h, i) => <Text key={h} style={{ flex: i === 3 ? 1.4 : 1, color: muted, fontWeight: '800', fontSize: 11.5, textAlign: i ? 'right' : 'left' }}>{tr(h)}</Text>)}
                             </View>
                             {r.tables.map((t) => (
                                 <View key={t.table} style={{ flexDirection: 'row', paddingVertical: 5, alignItems: 'center' }}>

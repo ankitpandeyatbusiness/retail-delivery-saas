@@ -227,7 +227,7 @@ export default function MapPicker({ visible, initial, onClose, onPick, startAtSh
                     const g = await Location.geocodeAsync(term);
                     if (id === askId.current) {
                         setResults(g.slice(0, 3).map((x) => ({
-                            title: term, subtitle: 'Found on the map', latitude: x.latitude, longitude: x.longitude,
+                            title: term, subtitle: tr('Found on the map'), latitude: x.latitude, longitude: x.longitude,
                             distanceKm: Math.round(kmBetween(measureFrom, x) * 10) / 10, deliverable: null,
                         })));
                     }

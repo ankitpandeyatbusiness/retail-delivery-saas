@@ -54,7 +54,7 @@ export default function OwnerRentScreen() {
 
     const noteOf = async (inv) => {
         setBusyId(`cn${inv._id}`);
-        try { await downloadAndOpen({ path: creditNotePdfPath(inv.creditNoteId), filename: `credit-note-${String(inv.invoiceNo).replace(/\W+/g, '-')}.pdf`, mime: 'application/pdf', title: 'Credit note' }); }
+        try { await downloadAndOpen({ path: creditNotePdfPath(inv.creditNoteId), filename: `credit-note-${String(inv.invoiceNo).replace(/\W+/g, '-')}.pdf`, mime: 'application/pdf', title: tr('Credit note') }); }
         catch (e) { showToast(e.safe ? e.message : tr('Could not open the credit note')); } finally { setBusyId(null); }
     };
 

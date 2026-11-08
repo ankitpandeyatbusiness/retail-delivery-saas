@@ -1,3 +1,4 @@
+import { tl } from '../../i18n';
 // What the Soundbox says to the owner before reading a new order, like the greeting of a payment soundbox:
 //   "Jai Shri Krishna sir. New order. 2 Butter Naan ..."
 // Two independent parts, both chosen by the owner on the Soundbox screen:
@@ -33,7 +34,7 @@ export const FAITH_GREETINGS = [
 ];
 
 // how the owner can be addressed (the Call me switch turns it on or off)
-export const ADDRESS_CHOICES = [['sir', 'Sir'], ['madam', 'Madam'], ['name', 'My name']];
+export const ADDRESS_CHOICES = [['sir', tl('Sir')], ['madam', tl('Madam')], ['name', tl('My name')]];
 
 const FAITH_BY_ID = Object.fromEntries(FAITH_GREETINGS.flatMap(([, rows]) => rows.map(([id, en, hi]) => [id, { en, hi }])));
 export const faithText = (id, language) => (FAITH_BY_ID[id] ? FAITH_BY_ID[id][language === 'hi' ? 'hi' : 'en'] : '');

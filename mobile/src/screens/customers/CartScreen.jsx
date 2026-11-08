@@ -53,7 +53,7 @@ function makeSlots(prepMin) {
     const tm = new Date(now);
     tm.setDate(tm.getDate() + 1);
     tm.setHours(13, 0, 0, 0);
-    out.tomorrow = { label: 'Tomorrow 1 PM', iso: tm.toISOString() };
+    out.tomorrow = { label: tr('Tomorrow 1 PM'), iso: tm.toISOString() };
     return out;
 }
 

@@ -1,3 +1,4 @@
+import { tr } from '../../i18n';
 // Pays online the bill a customer left unpaid at a table (the shop's own Razorpay keys), with the UPI app he picks.
 //   1. POST /dinein/owed/pay        -> the server makes the Razorpay order for exactly what he owes
 //   2. Razorpay.open(intent flow)   -> Android shows its UPI app chooser, he pays, we are brought back
@@ -31,7 +32,7 @@ export async function payOwed({ user }) {
     Razorpay.initRazorpay(start.keyId);   // the promise it returns never settles, so it is not awaited
     const options = {
         key_id: start.keyId, order_id: start.rzpOrderId, amount: String(start.amountPaise), currency: start.currency || 'INR',
-        description: 'Unpaid table bill', email: user?.email || FALLBACK_EMAIL, contact: tenDigits(user?.phone),
+        description: tr('Unpaid table bill'), email: user?.email || FALLBACK_EMAIL, contact: tenDigits(user?.phone),
         method: 'upi', '_[flow]': 'intent',
     };
     let proof;

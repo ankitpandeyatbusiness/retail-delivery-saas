@@ -84,7 +84,7 @@ export default function ActiveOrderBar({ routeName, onOpen, onOpenAll }) {
     const show = enabled && !!first && !HIDE_ON.includes(routeName) && !tracking && liveOffset === 0 && !tableOpen;
     useEffect(() => { useBookingCard.getState().setOrderBar(!!show); return () => useBookingCard.getState().setOrderBar(false); }, [show]);   // the table card sits above this bar
     const orderId = first ? String(first.id || first._id) : '';
-    useEffect(() => { useDock.getState().put('order', show ? { icon: 'bicycle', label: 'Your order', sub: tr((WORDS[first?.status] || [])[1] || 'In progress'), route: orders.length > 1 ? 'Orders' : first?.isBulk ? 'BulkOrderDetail' : 'OrderDetail', params: orders.length > 1 ? undefined : first?.isBulk ? { id: first.bulkId } : { id: orderId } } : null); }, [show, orders.length, orderId, first?.status]);   // eslint-disable-line react-hooks/exhaustive-deps
+    useEffect(() => { useDock.getState().put('order', show ? { icon: 'bicycle', label: tr('Your order'), sub: tr((WORDS[first?.status] || [])[1] || 'In progress'), route: orders.length > 1 ? 'Orders' : first?.isBulk ? 'BulkOrderDetail' : 'OrderDetail', params: orders.length > 1 ? undefined : first?.isBulk ? { id: first.bulkId } : { id: orderId } } : null); }, [show, orders.length, orderId, first?.status]);   // eslint-disable-line react-hooks/exhaustive-deps
     useEffect(() => () => useDock.getState().put('order', null), []);
     const crowded = useCrowded('order');   // two or more cards: the round dock shows this one
     const orderKey = orders.map((o) => String(o.id || o._id)).join(',');

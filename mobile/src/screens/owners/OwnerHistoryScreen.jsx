@@ -234,7 +234,7 @@ export default function OwnerHistoryScreen() {
                 onEndReached={loadMore}
                 onEndReachedThreshold={0.6}
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ paddingBottom: 110 }}
+                contentContainerStyle={{ paddingBottom: 24 }}
                 ListEmptyComponent={data === null ? <ListShimmer count={4} /> : <Empty icon="receipt-outline" title={tr('No orders found')} hint={q || active ? tr('Try another word or clear the filters.') : tr('Orders will show here.')} />}
                 ListFooterComponent={more ? <ListShimmer count={1} /> : null}
                 renderItem={({ item }) => item.head ? (

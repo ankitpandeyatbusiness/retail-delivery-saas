@@ -199,7 +199,7 @@ router.use('/products', crud(Product, {
     fields: [
         'categoryId', 'categoryName', 'name', 'description', 'image', 'images', 'price', 'mrp',
         'isVeg', 'isEggless', 'isSugarFree', 'isJain', 'spiceLevel', 'gstInclusive',
-        'isBestseller', 'isNewArrival', 'isGiftPack', 'serves', 'calories', 'prepTimeMin', 'maxPerOrder', 'bulk', 'bulkMin',
+        'isBestseller', 'isNewArrival', 'isGiftPack', 'serves', 'calories', 'prepTimeMin', 'maxPerOrder', 'bulk', 'bulkMin', 'bulkAllowed',
         'optionGroups', 'sizes', 'weightOptions', 'addOns',
         'itemKind', 'sellBy', 'measure',
         'isAvailable', 'isActive', 'sortOrder',

@@ -76,7 +76,7 @@ export default function OwnerReviewsScreen() {
                         </View>
                         {sum ? <Summary s={sum} /> : null}
                         <FilterBar title={tr('Filter reviews')} summary={rating ? `${rating} ★` : tr('All ratings')} activeCount={rating ? 1 : 0} onClear={() => setRating('')}
-                            sections={[{ key: 'stars', title: 'Stars', options: [['', 'All'], ['5', '5 ★'], ['4', '4 ★'], ['3', '3 ★'], ['2', '2 ★'], ['1', '1 ★']], value: rating, onChange: setRating }]} />
+                            sections={[{ key: 'stars', title: tr('Stars'), options: [['', 'All'], ['5', '5 ★'], ['4', '4 ★'], ['3', '3 ★'], ['2', '2 ★'], ['1', '1 ★']], value: rating, onChange: setRating }]} />
                     </View>
                 )}
                 renderItem={({ item: r }) => (

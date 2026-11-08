@@ -18,7 +18,7 @@ import { personName } from '../../utils/owners/hubRules';
 import { ago } from '../../utils/owners/riderRules';
 import { TAGS, TAG_ORDER, usualLine, sinceLine } from '../../utils/owners/customerTags';
 import { LineShimmer, ListShimmer } from '../../components/owners/shimmer';
-import { tr } from '../../i18n';
+import { tr, tl } from '../../i18n';
 
 export default function OwnerCustomersScreen() {
     const nav = useNavigation();
@@ -98,7 +98,7 @@ export default function OwnerCustomersScreen() {
                 sections={[{ key: 'tag', title: 'Show', value: tag, onChange: setTag, options: [['all', 'Everyone'], ...TAG_ORDER.map((k) => [k, `${tr(TAGS[k].label)}${counts && counts[k] != null ? ` ${counts[k]}` : ''}`]), ['blocked', `${tr('Blocked')}${blocked ? ` ${blocked.length}` : ''}`]] }]} />
             <Sheet visible={sheetOpen} onClose={() => !fileBusy && setSheetOpen(false)} title={tr('Download customers as Excel')}>
                 <Text style={{ color: muted, marginBottom: 10 }}>{tr('Choose a list. The sheet has orders, spend, most ordered food, the time they usually order and more.')}</Text>
-                {[['all', 'All customers', 'Everyone who ordered, newest first'], ['repeat', 'Most repeating customers', 'Ordered 2 or more times, most orders first'], ['valuable', 'Most valuable customers', 'Highest spend first'], ['recent', 'Recent customers', 'Ordered in the last 30 days'], ['lapsed', 'Lapsed customers', 'No order for 30 days or more, biggest spenders first']].map(([k, label, hint]) => (
+                {[['all', tl('All customers'), tl('Everyone who ordered, newest first')], ['repeat', tl('Most repeating customers'), tl('Ordered 2 or more times, most orders first')], ['valuable', tl('Most valuable customers'), tl('Highest spend first')], ['recent', tl('Recent customers'), tl('Ordered in the last 30 days')], ['lapsed', tl('Lapsed customers'), tl('No order for 30 days or more, biggest spenders first')]].map(([k, label, hint]) => (
                     <Pressable key={k} disabled={!!fileBusy} onPress={async () => {
                         setFileBusy(k);
                         try { await downloadAndOpen({ path: customersExportPath, params: { kind: k }, filename: `customers-${k}.xlsx`, mime: XLSX, title: tr(label) }); setSheetOpen(false); } catch (e) { showToast(e?.safe ? e.message : apiError(e)); } finally { setFileBusy(''); }

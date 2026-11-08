@@ -164,14 +164,14 @@ export default function PaymentMethodsScreen() {
     const codBlocked = route.params?.codBlocked || null;   // a pickup order the shop does not take cash for (or too big for cash)
     const dineIn = !!route.params?.dineIn;   // eating at the shop: pay once, at the end
     const cash = { key: 'cod', value: 'cod', label: dineIn ? 'Pay at the end' : 'Cash on Delivery', cartLabel: 'Cash on Delivery', icon: 'cash-outline', desc: codBlocked || (dineIn ? 'Order now and pay once when you finish. Cash or UPI at the counter' : 'Pay in cash or UPI when the order arrives') };
-    const cardRow = { key: 'card', value: 'card', label: 'Credit / Debit card', cartLabel: 'Credit / Debit card', icon: 'card-outline', desc: 'Visa, Mastercard, RuPay. You confirm with your bank OTP' };
+    const cardRow = { key: 'card', value: 'card', label: tr('Credit / Debit card'), cartLabel: 'Credit / Debit card', icon: 'card-outline', desc: tr('Visa, Mastercard, RuPay. You confirm with your bank OTP') };
     const upiRows = [
         ...(apps || []).map((a) => ({
             key: `upi:${a.pkg}`, value: 'upi', app: { pkg: a.pkg, label: a.label }, label: a.label, cartLabel: `${a.label} (UPI)`,
             logo: a.logo, mark: a.mark || a.label.slice(0, 1).toUpperCase(), desc: `Pay with ${a.label}. It opens directly`,
         })),
         // any other UPI app on the phone (or when the phone could not tell us which ones it has): Android shows its own list
-        ...(apps?.other ? [{ key: 'upi:any', value: 'upi', app: { chooser: true, label: 'UPI' }, label: 'Other UPI app', cartLabel: 'UPI', icon: 'phone-portrait-outline', desc: 'Choose any UPI app on this phone' }] : []),
+        ...(apps?.other ? [{ key: 'upi:any', value: 'upi', app: { chooser: true, label: 'UPI' }, label: tr('Other UPI app'), cartLabel: 'UPI', icon: 'phone-portrait-outline', desc: tr('Choose any UPI app on this phone') }] : []),
     ];
 
     return (

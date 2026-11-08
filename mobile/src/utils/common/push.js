@@ -1,3 +1,4 @@
+import { tr } from '../../i18n';
 // Notifications for the customer app:
 //   - push (Firebase Cloud Messaging) so messages arrive when the app is closed
 //   - the unread badge, kept live from the socket
@@ -262,7 +263,7 @@ async function getToken() {
     // default channel.
     const loud = {
         name: 'New orders',
-        description: 'Rings loudly when a customer places an order',
+        description: tr('Rings loudly when a customer places an order'),
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 600, 300, 600, 300, 600],
         lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
@@ -282,19 +283,19 @@ async function getToken() {
     }
 
     if (useAuthStore.getState().user?.role === 'admin') {
-        try { await Notifications.setNotificationChannelAsync(NEW_BULK_CHANNEL, { ...loud, name: 'New bulk orders', description: 'Rings loudly when a customer sends a bulk order request', sound: 'new_bulk_order.wav' }); } catch (e) { /* the push then lands on the default channel */ }
+        try { await Notifications.setNotificationChannelAsync(NEW_BULK_CHANNEL, { ...loud, name: 'New bulk orders', description: tr('Rings loudly when a customer sends a bulk order request'), sound: 'new_bulk_order.wav' }); } catch (e) { /* the push then lands on the default channel */ }
     }
     // the cancelled-order alarm: the owner, the cook and the waiter; and the owner's help alarm
     const who = useAuthStore.getState().user?.role;
     if (who === 'admin' || who === 'kitchen' || who === 'waiter') {
-        try { await Notifications.setNotificationChannelAsync(CANCEL_CHANNEL, { ...loud, name: 'Cancelled orders', description: 'A short alarm when an order is cancelled', sound: 'cancel_alert.wav' }); } catch (e) { /* the push then lands on the default channel */ }
+        try { await Notifications.setNotificationChannelAsync(CANCEL_CHANNEL, { ...loud, name: 'Cancelled orders', description: tr('A short alarm when an order is cancelled'), sound: 'cancel_alert.wav' }); } catch (e) { /* the push then lands on the default channel */ }
     }
     if (who === 'admin') {
-        try { await Notifications.setNotificationChannelAsync(HELP_CHANNEL, { ...loud, name: 'Delivery partner needs help', description: 'A gentle alarm when a delivery partner presses the help button', sound: 'help_alarm.wav' }); } catch (e) { /* the push then lands on the default channel */ }
+        try { await Notifications.setNotificationChannelAsync(HELP_CHANNEL, { ...loud, name: 'Delivery partner needs help', description: tr('A gentle alarm when a delivery partner presses the help button'), sound: 'help_alarm.wav' }); } catch (e) { /* the push then lands on the default channel */ }
     }
     // the ting-tong: the owner's pickup, kitchen and table alerts, and the rider's new offers (the cook's and waiter's own is made below)
     if (who === 'admin' || who === 'rider') {
-        try { await Notifications.setNotificationChannelAsync(STAFF_CHANNEL, { ...loud, name: 'Work alerts', description: 'Rings when there is work to do', sound: 'ting_tong.wav' }); } catch (e) { /* the push then lands on the default channel */ }
+        try { await Notifications.setNotificationChannelAsync(STAFF_CHANNEL, { ...loud, name: 'Work alerts', description: tr('Rings when there is work to do'), sound: 'ting_tong.wav' }); } catch (e) { /* the push then lands on the default channel */ }
     }
     // the customer's own tones: accepted, cancelled, a delivery partner on the way, an offer from the shop, and this app's signature tone for the rest
     if (who === 'customer') {
@@ -305,9 +306,9 @@ async function getToken() {
     }
     // the soft ping for news: the owner's too (leave, reviews, rent, rider answers...)
     if (who === 'admin') {
-        try { await Notifications.setNotificationChannelAsync('inquiry_v1', { name: 'Customer inquiries', description: 'Its own tone for an inquiry or a reply', importance: Notifications.AndroidImportance.HIGH, sound: 'cust_offer.wav' }); } catch (e) { /* the push then lands on the default channel */ }
+        try { await Notifications.setNotificationChannelAsync('inquiry_v1', { name: 'Customer inquiries', description: tr('Its own tone for an inquiry or a reply'), importance: Notifications.AndroidImportance.HIGH, sound: 'cust_offer.wav' }); } catch (e) { /* the push then lands on the default channel */ }
         try {
-            await Notifications.setNotificationChannelAsync(STAFF_INFO_CHANNEL, { name: 'News and updates', description: 'A soft ping for news', importance: Notifications.AndroidImportance.HIGH, sound: 'notify.wav' });
+            await Notifications.setNotificationChannelAsync(STAFF_INFO_CHANNEL, { name: 'News and updates', description: tr('A soft ping for news'), importance: Notifications.AndroidImportance.HIGH, sound: 'notify.wav' });
         } catch (e) { /* the push then lands on the app's default channel */ }
     }
     // the cook's and the waiter's channel: loud, with the ting-tong clip (created only on their phones)
@@ -317,7 +318,7 @@ async function getToken() {
             await Notifications.setNotificationChannelAsync(STAFF_CHANNEL, { ...loud, name: 'Kitchen and waiter alerts', description: 'Rings when there is work to do', sound: 'ting_tong.wav' });
         } catch (e) { /* the push then lands on the app's default channel */ }
         try {
-            await Notifications.setNotificationChannelAsync(STAFF_INFO_CHANNEL, { name: 'Kitchen and waiter updates', description: 'A soft ping when an order has left the kitchen', importance: Notifications.AndroidImportance.HIGH, sound: 'notify.wav' });
+            await Notifications.setNotificationChannelAsync(STAFF_INFO_CHANNEL, { name: 'Kitchen and waiter updates', description: tr('A soft ping when an order has left the kitchen'), importance: Notifications.AndroidImportance.HIGH, sound: 'notify.wav' });
         } catch (e) { /* the push then lands on the app's default channel */ }
     }
 

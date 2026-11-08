@@ -43,7 +43,7 @@ const BLANK = {
     categoryId: '', newCategory: '', name: '', description: '', image: '', images: [], price: undefined, mrp: undefined,
     isVeg: undefined, isEggless: false, isSugarFree: false, isJain: false, spiceLevel: 'none', gstInclusive: true,
     isBestseller: false, isNewArrival: false, isGiftPack: false, serves: undefined, calories: undefined, prepTimeMin: undefined, bulkMinQty: undefined, bulkPercentOff: undefined, bulkMin: undefined,
-    optionGroups: [], isAvailable: true, isActive: true, sortOrder: 0,
+    optionGroups: [], isAvailable: true, isActive: true, bulkAllowed: true, sortOrder: 0,
     itemKind: '', sellBy: 'piece', measure: { options: [], min: undefined, allowManual: true },
 };
 
@@ -130,6 +130,7 @@ export default function ProductFormScreen() {
             serves: v.serves ?? null,
             calories: v.calories ?? null,
             prepTimeMin: v.prepTimeMin ?? null,
+            bulkAllowed: v.bulkAllowed !== false,
             bulk: v.bulkMinQty !== undefined && v.bulkPercentOff !== undefined ? { minQty: v.bulkMinQty, percentOff: v.bulkPercentOff } : null,
             // the least a customer must order in a bulk order, for a dish with no choices (a dish with choices has one on each choice)
             bulkMin: !v.optionGroups.some((g) => kindOf(g) === 'choice') && v.bulkMin > 0 ? Math.floor(v.bulkMin) : null,
@@ -277,10 +278,15 @@ export default function ProductFormScreen() {
                 <NumberField label="Preparation time" placeholder="e.g. 20" hint="Minutes to prepare. Used for the estimated time customers see." suffix="min" integer value={v.prepTimeMin} onChange={(x) => f.set('prepTimeMin', x)} />
                 {v.sellBy === 'piece' ? (
                     <>
+                        <Switch title="Allow in bulk orders" subtitle="Off: customers cannot add this dish to a bulk order." value={v.bulkAllowed !== false} onValueChange={(x) => f.set('bulkAllowed', x)} />
+                        {v.bulkAllowed !== false ? (
+                        <>
                         <Label hint="For bulk orders. Example: from 30 pieces, 10 percent off. Leave both empty for no bulk price. You can set it for any shop; the owner can only when Bulk orders is switched on for his shop.">Bulk price</Label>
                         <NumberField label="Bulk price starts from" integer placeholder="30" suffix="pieces" value={v.bulkMinQty} onChange={(x) => f.set('bulkMinQty', x)} hint={f.errors.bulkMinQty} />
                         <NumberField label="Discount for bulk" placeholder="10" suffix="%" value={v.bulkPercentOff} onChange={(x) => f.set('bulkPercentOff', x)} hint={f.errors.bulkPercentOff} />
                         {!(v.optionGroups || []).some((g) => kindOf(g) === 'choice') ? <NumberField label="Least a customer must order in a bulk order" integer placeholder="0" suffix="pieces" value={v.bulkMin} onChange={(x) => f.set('bulkMin', x)} hint="Leave empty for no minimum" /> : <Hint>The least a customer must order is set on each choice, below.</Hint>}
+                        </>
+                        ) : null}
                     </>
                 ) : null}
                 <Switch title="Bestseller" value={v.isBestseller} onValueChange={(x) => f.set('isBestseller', x)} />

@@ -85,7 +85,7 @@ export const BLANK_ITEM = {
     categoryId: '', newCategory: '', name: '', description: '', image: '', images: [], price: undefined, mrp: undefined,
     isVeg: undefined, isEggless: false, isSugarFree: false, isJain: false, spiceLevel: 'none', gstInclusive: true,
     isBestseller: false, isNewArrival: false, isGiftPack: false, serves: undefined, calories: undefined, prepTimeMin: undefined, maxPerOrder: undefined, bulkMinQty: undefined, bulkPercentOff: undefined, bulkMin: undefined,
-    optionGroups: [], isActive: true,
+    optionGroups: [], isActive: true, bulkAllowed: true,
     itemKind: '', sellBy: 'piece', measure: { options: [], min: undefined, allowManual: true },
 };
 
@@ -98,6 +98,7 @@ export const itemFromRecord = (r) => ({
     serves: r.serves, calories: r.calories, prepTimeMin: r.prepTimeMin, maxPerOrder: r.maxPerOrder ?? undefined, bulkMinQty: r.bulk?.minQty, bulkPercentOff: r.bulk?.percentOff, bulkMin: r.bulkMin || undefined,
     optionGroups: (r.optionGroups || []).map((g) => ({ ...g, options: (g.options || []).map((o) => ({ ...o })) })),
     isActive: r.isActive !== false,
+    bulkAllowed: r.bulkAllowed !== false,   // a dish with no value is on
     itemKind: r.itemKind || '', sellBy: r.sellBy || 'piece',
     measure: { options: r.measure?.options || [], min: r.measure?.min, allowManual: r.measure?.allowManual !== false },
 });
@@ -149,6 +150,7 @@ export const itemBody = (v) => ({
     calories: v.calories ?? null,
     prepTimeMin: v.prepTimeMin ?? null,
     maxPerOrder: v.maxPerOrder ?? null,
+    bulkAllowed: v.bulkAllowed !== false,
     bulk: v.bulkMinQty !== undefined && v.bulkPercentOff !== undefined ? { minQty: v.bulkMinQty, percentOff: v.bulkPercentOff } : null,
     // the least a customer must order in a bulk order, for a dish with no choices (a dish with choices has one on each choice)
     bulkMin: !v.optionGroups.some((g) => g.kind !== 'addon' && (g.kind === 'choice' || (g.min || 0) >= 1)) && v.bulkMin > 0 ? Math.floor(v.bulkMin) : null,

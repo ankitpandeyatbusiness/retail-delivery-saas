@@ -54,7 +54,7 @@ export default function BookingStrip({ routeName, onOpen }) {
     }, [enabled]);
 
     const presentBooking = enabled && !!card && !dining && !HIDE_ON.includes(routeName) && new Date(card.endsAt).getTime() > now;
-    useEffect(() => { useDock.getState().put('booking', presentBooking ? { icon: 'calendar', label: 'Reservation', sub: `${dayWord(card.date, now)} ${card.time}`, route: 'MyBookings' } : null); }, [presentBooking, card?.id, card?.time]);   // eslint-disable-line react-hooks/exhaustive-deps
+    useEffect(() => { useDock.getState().put('booking', presentBooking ? { icon: 'calendar', label: tr('Reservation'), sub: `${dayWord(card.date, now)} ${card.time}`, route: 'MyBookings' } : null); }, [presentBooking, card?.id, card?.time]);   // eslint-disable-line react-hooks/exhaustive-deps
     useEffect(() => () => useDock.getState().put('booking', null), []);
     const crowded = useCrowded('booking');
     if (!enabled || !card || dining || HIDE_ON.includes(routeName) || new Date(card.endsAt).getTime() <= now || crowded) return null;

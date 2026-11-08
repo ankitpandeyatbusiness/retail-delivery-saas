@@ -32,12 +32,12 @@ function timeline(o) {
     const d = o.delivery || {};
     const by = (h) => (h.byType ? (h.byType === 'owner' ? 'you' : h.byType === 'staff' ? (h.byLabel || 'kitchen') : h.byType) : '');
     const rows = (o.statusHistory || []).map((h) => ({ label: flow.statusLabel(h.status), at: h.at, by: by(h), note: h.note, tone: flow.statusTone(h.status) }));
-    if (k.queuedAt) rows.push({ label: 'Added to the cook\'s queue', at: k.queuedAt, by: k.queuedBy === 'auto' ? 'itself' : k.queuedBy });
-    if (k.startedAt) rows.push({ label: 'Cooking started', at: k.startedAt, by: k.startedByName });
-    if (k.readyAt) rows.push({ label: 'Food is ready', at: k.readyAt, by: k.readyByName });
-    if (d.assignedAt) rows.push({ label: 'Delivery partner assigned', at: d.assignedAt });
-    if (d.arrivedAt) rows.push({ label: 'Delivery partner arrived', at: d.arrivedAt });
-    if (d.pinSkipped?.at) rows.push({ label: 'Delivered without the PIN', at: d.pinSkipped.at, tone: 'warn' });
+    if (k.queuedAt) rows.push({ label: tr('Added to the cook\'s queue'), at: k.queuedAt, by: k.queuedBy === 'auto' ? 'itself' : k.queuedBy });
+    if (k.startedAt) rows.push({ label: tr('Cooking started'), at: k.startedAt, by: k.startedByName });
+    if (k.readyAt) rows.push({ label: tr('Food is ready'), at: k.readyAt, by: k.readyByName });
+    if (d.assignedAt) rows.push({ label: tr('Delivery partner assigned'), at: d.assignedAt });
+    if (d.arrivedAt) rows.push({ label: tr('Delivery partner arrived'), at: d.arrivedAt });
+    if (d.pinSkipped?.at) rows.push({ label: tr('Delivered without the PIN'), at: d.pinSkipped.at, tone: 'warn' });
     return rows.filter((r) => r.at).sort((a, b) => new Date(b.at) - new Date(a.at));
 }
 

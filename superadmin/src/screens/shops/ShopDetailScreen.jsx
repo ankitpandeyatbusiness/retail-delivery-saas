@@ -84,7 +84,7 @@ export default function ShopDetailScreen() {
 
             <View style={{ marginTop: spacing.xl, marginBottom: spacing.lg }}>
                 {noArea ? (
-                <Card>
+                <Card style={{ marginBottom: spacing.lg }}>
                     <Text style={{ color: t.warn, fontWeight: '800', fontSize: font.md }}>Delivery is on, but no delivery area is set</Text>
                     <Text style={{ color: t.muted, fontSize: font.sm, marginTop: 4, lineHeight: 19 }}>Without a map pin and a radius, a customer anywhere can order delivery from this shop. Set the shop pin and the distance it delivers within.</Text>
                     <Button title="Set the delivery area" kind="soft" small icon="map" onPress={go('ShopEdit')} style={{ marginTop: spacing.md, alignSelf: 'flex-start' }} />

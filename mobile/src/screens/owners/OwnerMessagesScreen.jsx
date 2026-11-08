@@ -12,7 +12,7 @@ import { ago } from '../../utils/owners/riderRules';
 import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
 import { ListShimmer } from '../../components/owners/shimmer';
-import { tr } from '../../i18n';
+import { tr, tl } from '../../i18n';
 
 function Compose({ visible, onClose, onSent }) {
     const [title, setTitle] = useState('');
@@ -40,7 +40,7 @@ function Compose({ visible, onClose, onSent }) {
             <Label>{tr('Send to')}</Label>
             <Chips options={AUDIENCES} value={audience} onChange={(a) => { setAudience(a); if (a !== 'customers') setKind('info'); }} style={{ marginTop: 0 }} />
             <Label hint={kind === 'promo' ? tr('Customers who turned promotions off are skipped.') : tr('Important news, like closing for a day.')}>{tr('Kind')}</Label>
-            <Chips options={audience === 'customers' ? [['info', 'Information'], ['promo', 'Offer']] : [['info', 'Information']]} value={kind} onChange={setKind} style={{ marginTop: 0 }} />
+            <Chips options={audience === 'customers' ? [['info', tl('Information')], ['promo', tl('Offer')]] : [['info', tl('Information')]]} value={kind} onChange={setKind} style={{ marginTop: 0 }} />
             <View style={{ height: 6 }} />
             <Field value={title} onChangeText={setTitle} placeholder={tr('Title (shown in bold)')} maxLength={120} style={{ marginBottom: 10 }} />
             <Field value={body} onChangeText={setBody} placeholder={tr('Message')} multiline maxLength={1000} style={{ marginBottom: 6 }} />

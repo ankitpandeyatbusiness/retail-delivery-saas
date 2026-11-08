@@ -35,7 +35,7 @@ export default function OwnerActivityScreen() {
                 data={items || []}
                 keyExtractor={(a, i) => String(a._id || i)}
                 contentContainerStyle={{ paddingBottom: 32 }}
-                ListHeaderComponent={<FilterBar title={tr('Filter activity')} summary={tr(ACTOR_FILTERS.find((a) => a[0] === actor)?.[1] || 'Everyone')} activeCount={actor ? 1 : 0} onClear={() => setActor('')} sections={[{ key: 'who', title: 'Done by', options: ACTOR_FILTERS, value: actor, onChange: setActor }]} />}
+                ListHeaderComponent={<FilterBar title={tr('Filter activity')} summary={tr(ACTOR_FILTERS.find((a) => a[0] === actor)?.[1] || 'Everyone')} activeCount={actor ? 1 : 0} onClear={() => setActor('')} sections={[{ key: 'who', title: tr('Done by'), options: ACTOR_FILTERS, value: actor, onChange: setActor }]} />}
                 renderItem={({ item: a }) => (
                     <View style={{ paddingHorizontal: 16, paddingVertical: 11, flexDirection: 'row', alignItems: 'center' }}>
                         <View style={{ flex: 1, minWidth: 0 }}>

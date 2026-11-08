@@ -41,7 +41,7 @@ export default function OwnerSmsScreen() {
     useEffect(() => { setRows(null); loadRows(1, type); }, [type]);   // eslint-disable-line react-hooks/exhaustive-deps
 
     const openInvoice = async (id) => {
-        try { await downloadAndOpen({ path: topupInvoicePdfPath(id), filename: `sms-invoice-${id}.pdf`, mime: 'application/pdf', title: 'SMS top-up invoice' }); }
+        try { await downloadAndOpen({ path: topupInvoicePdfPath(id), filename: `sms-invoice-${id}.pdf`, mime: 'application/pdf', title: tr('SMS top-up invoice') }); }
         catch (e) { showToast(e.safe ? e.message : (e?.response?.status === 409 ? tr('The invoice is not ready yet') : tr('Could not open the invoice'))); }
     };
     const paise = toPaise(amount);

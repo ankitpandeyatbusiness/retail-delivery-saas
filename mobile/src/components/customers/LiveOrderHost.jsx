@@ -112,7 +112,7 @@ export default function LiveOrderHost({ routeName, onOpenOrder }) {
     // tell the active-order bar how much room this bar takes (the bar, or the small chip when it is hidden)
     const setLiveOffset = useLiveTripStore((s) => s.setLiveOffset);
     const barOn = enabled && !!orderId && !!track && !HIDE_ON.includes(routeName) && sheet === 'bar';
-    useEffect(() => { useDock.getState().put('track', barOn ? { icon: 'bicycle', label: 'Track your order', sub: `#${orderNo || ''}`.replace('#', tr('Order #')), route: bulkId ? 'BulkOrderDetail' : 'OrderDetail', params: { id: String(bulkId || orderId) } } : null); }, [barOn, orderId, orderNo, bulkId]);   // eslint-disable-line react-hooks/exhaustive-deps
+    useEffect(() => { useDock.getState().put('track', barOn ? { icon: 'bicycle', label: tr('Track your order'), sub: `#${orderNo || ''}`.replace('#', tr('Order #')), route: bulkId ? 'BulkOrderDetail' : 'OrderDetail', params: { id: String(bulkId || orderId) } } : null); }, [barOn, orderId, orderNo, bulkId]);   // eslint-disable-line react-hooks/exhaustive-deps
     useEffect(() => () => useDock.getState().put('track', null), []);
     // the second delivery: its own place on the round dock (shown only while the first one is, so the dock always holds both)
     useEffect(() => {

@@ -105,7 +105,7 @@ async function menuFor(tenant) {
     const config = resolveConfig(tenant);
     const cats = await Category.find({ tenantId: tenant._id, isActive: true }).sort({ sortOrder: 1, _id: 1 }).select('name').lean();
     const products = await Product.find({
-        tenantId: tenant._id, isActive: true, isAvailable: { $ne: false }, sellBy: { $in: ['piece', null] }, categoryId: { $in: cats.map((c) => c._id) },
+        tenantId: tenant._id, isActive: true, isAvailable: { $ne: false }, bulkAllowed: { $ne: false }, sellBy: { $in: ['piece', null] }, categoryId: { $in: cats.map((c) => c._id) },   // (a dish the shop switched off for bulk is not on this menu)
         ...foodModeFilter(config.home.foodMode),
     }).sort({ sortOrder: 1, _id: 1 }).select('categoryId name description image isVeg price optionGroups bulk bulkMin serves').lean();
     return {
@@ -153,7 +153,9 @@ async function priceRequest({ tenant, userId, body = {}, settings }) {
     const lines = built.lines;
 
     // the bulk price: pieces of one dish, all its options together
-    const prods = await Product.find({ _id: { $in: lines.map((l) => l.productId) } }).select('name bulk bulkMin optionGroups').lean();
+    const prods = await Product.find({ _id: { $in: lines.map((l) => l.productId) } }).select('name bulk bulkMin bulkAllowed optionGroups').lean();
+    // a dish the shop does not take in bulk (an old basket, or a request made by hand) stops the request
+    for (const p of prods) if (p.bulkAllowed === false) problem('not_bulk', `${p.name} is not available in bulk orders`);
     const bulkOf = new Map(prods.map((p) => [String(p._id), p.bulk]));
     const pieces = new Map();
     for (const l of lines) pieces.set(String(l.productId), (pieces.get(String(l.productId)) || 0) + l.quantity);

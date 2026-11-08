@@ -397,6 +397,7 @@ module.exports = [
     "Bulk order cancelled",
     "Bulk order cancelled by {v1}",
     "Open Bulk orders to send a new quote",
+    "{v1} is not available in bulk orders",   // a dish the shop switched off for bulk orders, in a request
     "{v1} booked table {v2} for {v3} at {v4}",
     "{v1} booked for {v2} at {v3}",
     "You keep the advance",
