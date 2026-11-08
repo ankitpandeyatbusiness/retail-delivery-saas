@@ -129,7 +129,7 @@ import { useBrand, alpha } from '../components/common/kit';
 import { useMotion } from '../components/common/motion';
 import { useThemeStore } from '../store/common/useThemeStore';
 import { ToastHost, showToast, useClosedStyle } from '../components/customers/shop';
-import { FrozenOverlay, OfflineBanner, MaintenanceBanner } from '../components/common/status';
+import { FrozenOverlay, OfflineBanner, MaintenanceFrame } from '../components/common/status';
 import { useAppStatus } from '../store/common/useAppStatus';
 import { useViewMode } from '../store/owners/useViewMode';
 import OwnerViewPill from '../components/owners/OwnerViewPill';
@@ -341,7 +341,7 @@ export default function AppNavigator() {
     if (!isHydrated) return null;   // App.js keeps the native splash screen up until this is true
 
     return (
-        <View style={{ flex: 1, backgroundColor: background }}>
+        <MaintenanceFrame background={background}>
             <NavigationContainer ref={navigationRef} onReady={() => { navigationReady(); setRouteName(navigationRef.getCurrentRoute()?.name); }} onStateChange={() => setRouteName(navigationRef.getCurrentRoute()?.name)} theme={navTheme}>
                 <Stack.Navigator
                     screenOptions={{ headerShown: false, contentStyle: { backgroundColor: background }, animation: slide, animationDuration: 220, gestureEnabled: true }}
@@ -493,8 +493,7 @@ export default function AppNavigator() {
             <CustomerAskHost />
             <FrozenOverlay onOrders={goOrders} routeName={routeName} onRent={() => { if (navigationRef.isReady()) navigationRef.navigate('OwnerRent'); }} />
             <OfflineBanner />
-            <MaintenanceBanner />
             <ToastHost />
-        </View>
+        </MaintenanceFrame>
     );
 }

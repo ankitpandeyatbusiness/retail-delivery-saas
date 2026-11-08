@@ -1,6 +1,7 @@
 // src/ui/status.jsx
 import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { ActivityIndicator } from './Loading';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand } from './kit';
@@ -13,6 +14,7 @@ import { fetchConfig } from '../../api/customers/catalogApi';
 import { fetchClosure } from '../../api/owners/shopApi';
 import { onShopChanged } from '../../api/common/socket';
 import { tr } from '../../i18n';
+import { GREY } from '../customers/shop';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const fmt = (v) => {
@@ -50,7 +52,7 @@ export function FrozenOverlay({ onOrders, routeName, onRent }) {
     const isOwner = user?.role === 'admin';
     const [why, setWhy] = useState(null);
     useEffect(() => {
-        if (!frozen || !isOwner || frozen.status === 503 || frozen.maintenance) { setWhy(null); return; }
+        if (!frozen || !isOwner || frozen.status === 503) { setWhy(null); return; }
         fetchClosure().then(setWhy).catch(() => setWhy(null));
     }, [frozen, isOwner]);
 
@@ -59,14 +61,12 @@ export function FrozenOverlay({ onOrders, routeName, onRent }) {
 
     const role = user?.role || 'customer';
     const staff = role === 'kitchen' || role === 'waiter' || role === 'rider';
-    const maint = frozen.status === 503 || frozen.maintenance;
-    const until = frozen.until && !Number.isNaN(new Date(frozen.until).getTime()) ? fmt(frozen.until) : '';
-    const title = maint ? tr('Back soon') : tr(role === 'customer' ? 'Closed for now' : 'Shop is closed');
+    const title = tr(role === 'customer' ? 'Closed for now' : 'Shop is closed');
     const msg = staff
-        ? (maint ? (frozen.message || tr('We are down for maintenance. Please try again soon.')) : tr('The shop is closed. Please contact the owner.'))
-        : isOwner && why?.closed && !maint
+        ? tr('The shop is closed. Please contact the owner.')
+        : isOwner && why?.closed
             ? (why.kind === 'rent' ? tr('Your shop is closed because rent is unpaid. It opens again by itself when you pay.') : tr('Your shop was closed by the platform team. Please contact support.'))
-        : (frozen.message || (maint ? tr('We are down for maintenance. Please try again soon.') : tr('This shop is not accepting orders right now')));
+        : (frozen.message || tr('This shop is not accepting orders right now'));
 
     const retry = async () => {
         setBusy(true);
@@ -80,10 +80,9 @@ export function FrozenOverlay({ onOrders, routeName, onRent }) {
             <Text style={[s.shop, { color: muted }]}>{shop}</Text>
             <View style={s.body}>
                 <View style={[s.card, { backgroundColor: background, borderColor: muted + '33', borderRadius: radius + 8 }]}>
-                    <Text style={s.emoji}>{maint ? '🛠' : '🔒'}</Text>
+                    <Text style={s.emoji}>🔒</Text>
                     <Text style={[s.title, { color: text }]}>{title}</Text>
                     <Text style={[s.msg, { color: muted }]}>{msg}</Text>
-                    {maint && until ? <Text style={[s.until, { color: muted }]}>{tr('Expected back by {until}', { until: until })}</Text> : null}
 
                     {isOwner && why?.closed && why.kind === 'rent' && why.owed?.total > 0 ? <Text style={[s.owed, { color: text }]}>{tr('Rent due')}: ₹{why.owed.total}</Text> : null}
                     {isOwner && why?.closed && onRent ? (
@@ -125,28 +124,73 @@ export function OfflineBanner() {
     );
 }
 
-// A planned maintenance (set in the superadmin app) shows as a banner before it starts, so people finish their work first.
-// The shop's config carries it for the next 48 hours; this asks again every few minutes and whenever the shop changes.
-export function MaintenanceBanner() {
-    const insets = useSafeAreaInsets();
-    const [n, setN] = useState(null);
-    const [hidden, setHidden] = useState('');
-    const frozen = useAppStatus((st) => st.frozen);
+// MAINTENANCE. One non-dismissible bar at the top of every screen, for everybody (customer, owner, staff, rider):
+//   on        "Maintenance mode" + the message + "Back by <time>" or "until further notice"; while running orders are being finished: "no new orders".
+//   upcoming  a planned maintenance (the shop's config carries it for the next 48 hours): the time range, and a countdown when it is near.
+// The bar takes its own space (nothing is covered); the content under it is told the status bar height is 0, so no double gap (see MaintenanceFrame).
+const useMaintenance = () => useAppStatus((st) => st.maintenance);
+
+export function useMaintenanceWatcher() {
     useEffect(() => {
         let live = true;
-        const ask = () => { fetchConfig().then((r) => { if (live) setN((r && r.maintenanceNotice) || null); }).catch(() => { }); };
+        const ask = () => {
+            fetchConfig().then((r) => {
+                if (live) useAppStatus.getState().setMaintenance((r && r.maintenance) || null);
+            }).catch(() => { });
+        };
         ask();
-        const t = setInterval(ask, 3 * 60000);
+        const t = setInterval(ask, 60000);
         const off = onShopChanged(ask);
         return () => { live = false; clearInterval(t); if (typeof off === 'function') off(); };
     }, []);
-    if (!n || frozen || hidden === n.startAt) return null;
-    const time = (v) => new Date(v).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-    const text = `${n.message ? n.message + ' ' : ''}${tr('Maintenance')}: ${fmt(n.startAt)}${n.endAt ? ` ${tr('to')} ${time(n.endAt)}` : ''}. ${tr('Please finish your work before then.')}`;
+}
+
+const clock = (v) => new Date(v).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+const left = (ms) => {
+    const m = Math.max(1, Math.round(ms / 60000));
+    return m >= 90 ? tr('{n} hours', { n: Math.round(m / 60) }) : tr('{n} min', { n: m });
+};
+
+export function MaintenanceBar() {
+    const m = useMaintenance();
+    const insets = useSafeAreaInsets();
+    const [, tick] = useState(0);
+    useEffect(() => { if (!m) return undefined; const t = setInterval(() => tick((x) => x + 1), 30000); return () => clearInterval(t); }, [m]);
+    if (!m) return null;
+    const valid = (v) => v && !Number.isNaN(new Date(v).getTime());
+    const on = m.phase === 'on';
+    let head; let line;
+    if (on) {
+        head = tr('Maintenance mode');
+        const back = valid(m.until) ? tr('Back by {time}', { time: fmt(m.until) }) : tr('Back soon, until further notice');
+        const run = m.draining ? tr('No new orders. Running orders are being finished.') : '';
+        line = [m.message, run, back].filter(Boolean).join(' · ');
+    } else {
+        head = tr('Maintenance planned');
+        const when = valid(m.startAt) ? fmt(m.startAt) + (valid(m.until) ? ` ${tr('to')} ${clock(m.until)}` : '') : '';
+        const ms = valid(m.startAt) ? new Date(m.startAt).getTime() - Date.now() : 0;
+        line = [m.message, when, ms > 0 && ms < 3 * 3600000 ? tr('Starts in {t}', { t: left(ms) }) : '', tr('Please finish your work before then.')].filter(Boolean).join(' · ');
+    }
     return (
-        <View style={[s.off, { paddingTop: insets.top + 4, backgroundColor: '#8A5A00' }]}>
-            <Text style={[s.offTxt, { flex: 1, paddingRight: 8 }]} numberOfLines={3}>{text}</Text>
-            <Pressable onPress={() => setHidden(n.startAt)} hitSlop={10}><Text style={s.offBtn}>{tr('OK')}</Text></Pressable>
+        <View style={[s.maint, { paddingTop: insets.top + 6, backgroundColor: on ? '#B3261E' : '#8A5A00' }]}>
+            <Text style={s.maintHead}>{on ? '🛠 ' : '⏰ '}{head}</Text>
+            <Text style={s.maintTxt} numberOfLines={3}>{line}</Text>
+        </View>
+    );
+}
+
+// The bar on top, the app below it (grey while the maintenance is on, like a closed shop). Place this around the whole app content.
+export function MaintenanceFrame({ children, background }) {
+    useMaintenanceWatcher();
+    const m = useMaintenance();
+    const insets = useSafeAreaInsets();
+    const inner = m ? { ...insets, top: 0 } : insets;
+    return (
+        <View style={{ flex: 1, backgroundColor: background }}>
+            <MaintenanceBar />
+            <View style={[{ flex: 1 }, m?.phase === 'on' && GREY]}>
+                <SafeAreaInsetsContext.Provider value={inner}>{children}</SafeAreaInsetsContext.Provider>
+            </View>
         </View>
     );
 }
@@ -165,6 +209,9 @@ const s = StyleSheet.create({
     solidTxt: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
     ghost: { alignSelf: 'stretch', marginTop: 12, borderWidth: 1, paddingVertical: 13, alignItems: 'center' },
     ghostTxt: { fontSize: 15, fontWeight: '800' },
+    maint: { paddingHorizontal: 16, paddingBottom: 8 },
+    maintHead: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
+    maintTxt: { color: '#FFFFFF', fontSize: 12, fontWeight: '600', marginTop: 2 },
     off: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 60, elevation: 60, backgroundColor: '#1C1C1C', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 7 },
     offTxt: { color: '#FFFFFF', fontSize: 12, fontWeight: '600' },
     offBtn: { color: '#FFFFFF', fontSize: 12, fontWeight: '800', textDecorationLine: 'underline' },

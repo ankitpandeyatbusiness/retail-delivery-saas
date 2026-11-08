@@ -86,6 +86,7 @@ export default function MaintenanceScreen() {
                         <Badge label={STATUS[p.status][0]} tone={STATUS[p.status][1]} />
                     </View>
                     <Text style={{ color: t.muted, fontSize: font.sm, marginTop: 2 }}>{p.scope === 'all' ? 'Every shop' : p.scope === 'brand' ? `Brand ${p.brandName} (${p.shops} branches)` : (p.shopNames.length ? p.shopNames.join(', ') + (p.shops > p.shopNames.length ? ` and ${p.shops - p.shopNames.length} more` : '') : `${p.shops} shops`)}{p.message ? ` · ${p.message}` : ''}</Text>
+                    {p.status === 'planned' ? <Button small kind="outline" title="Change the time" icon="clock" onPress={() => nav.navigate('MaintenancePlan', { plan: p })} style={{ marginTop: spacing.sm }} /> : null}
                     {p.status === 'planned' || p.status === 'active' ? <Button small kind="outline" title={p.status === 'active' ? 'End it now' : 'Cancel it'} onPress={() => setCancelId(p.id)} style={{ marginTop: spacing.sm }} /> : null}
                 </Card>
             ))}

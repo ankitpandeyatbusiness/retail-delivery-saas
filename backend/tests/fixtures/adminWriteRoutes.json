@@ -63,6 +63,7 @@
  "POST /logo-colors",
  "POST /maintenance/plans",
  "POST /maintenance/plans/:id/cancel",
+ "PUT /maintenance/plans/:id",
  "POST /me/photo",
  "POST /me/photo/sign",
  "POST /messages",

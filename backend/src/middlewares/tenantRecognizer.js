@@ -1,6 +1,6 @@
 const { LRUCache } = require('lru-cache');
 const Tenant = require('../models/Tenant');
-const { isMaintenanceOn, maintenanceBody } = require('../utils/maintenance');
+const maintenanceState = require('../services/maintenanceState');
 const { isOlder } = require('../utils/appVersion');
 const { noteAppVersion } = require('../services/appVersionTracker');
 
@@ -46,10 +46,12 @@ const tenantRecognizer = async (req, res, next) => {
                 return res.status(402).json({ error: 'This shop is not accepting orders right now' });
             }
 
-            // Maintenance for this one shop (the whole-platform switch is handled by platformGate)
-            if (isMaintenanceOn(tenant.maintenance)) {
+            // Maintenance for this one shop (the whole-platform switch is handled by platformGate, by the same rule): a shop that still has work running
+            // refuses only NEW work; a shop with nothing running refuses every change (reading always works)
+            const blocked = await maintenanceState.decide(req, tenant);
+            if (blocked) {
                 res.set('Retry-After', '300');
-                return res.status(503).json(maintenanceBody(tenant.maintenance));
+                return res.status(503).json(blocked);
             }
         }
 
@@ -82,6 +84,13 @@ function tellApps(tenantId) {
     } catch (e) { /* the apps catch up on their next request */ }
 }
 tenantRecognizer.tellApps = tellApps;
+// the shop of a slug, from the same cache (the platform gate needs it to know whether the shop still has work running)
+tenantRecognizer.lookup = async (slug) => {
+    const key = String(slug).trim().toLowerCase();
+    let tenant = cache.get(key);
+    if (tenant === undefined) { tenant = await Tenant.findOne({ slug: key }).select(FIELDS).lean(); cache.set(key, tenant || false); }
+    return tenant || null;
+};
 tenantRecognizer.invalidateTenant = (slug) => {
     const key = String(slug).trim().toLowerCase();
     const was = cache.get(key);

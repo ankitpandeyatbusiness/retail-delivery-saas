@@ -28,10 +28,13 @@ router.put('/platform/maintenance', wrap(async (req, res) => {
     const m = parseMaintenanceBody(req.body);
     const doc = await PlatformSettings.findByIdAndUpdate(
         'main',
-        { $set: { 'maintenance.on': m.on, 'maintenance.message': m.message, 'maintenance.until': m.until } },
+        { $set: { 'maintenance.on': m.on, 'maintenance.message': m.message, 'maintenance.until': m.until, 'maintenance.since': m.on ? new Date() : null } },
         { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
     ).lean();
     platformGate.invalidate();   // the gate re-reads the switch right away
+    require('../services/maintenanceState').invalidatePlatform();
+    require('../services/maintenancePlans').tellEveryShop();
+    require('../services/maintenanceShopSwitch').sweep().catch(() => { });   // every shop's open apps show the badge (or lose it) within seconds
     res.json({ ok: true, maintenance: doc.maintenance });
 }));
 

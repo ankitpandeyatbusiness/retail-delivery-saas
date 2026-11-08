@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useTheme, spacing, font } from '../../theme';
 import { Screen } from '../../components/layout';
 import { Card, Button, Chip, SectionTitle } from '../../components/ui';
@@ -10,7 +10,7 @@ import { TimeField } from '../../components/TimePicker';
 import { Sheet, SheetScroll, ConfirmSheet, toast } from '../../components/feedback';
 import Icon from '../../components/Icon';
 import { useShopsStore } from '../../store/useShopsStore';
-import { planMaintenance } from '../../api/exportApi';
+import { planMaintenance, updateMaintenancePlan } from '../../api/exportApi';
 import { useSupreme } from '../../hooks/useSupreme';
 import { errMsg } from '../../api/adminClient';
 
@@ -26,16 +26,19 @@ const show = (d) => d.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', weekda
 export default function MaintenancePlanScreen() {
     const t = useTheme();
     const nav = useNavigation();
+    const editing = useRoute().params?.plan || null;   // a plan that has not started: only its time and words change
     const supreme = useSupreme();
     const shops = useShopsStore((s) => s.items);
     const [scope, setScope] = useState('shops');
     const [shopIds, setShopIds] = useState([]);
     const [brandId, setBrandId] = useState('');
-    const [date, setDate] = useState(ymd(Date.now()));
-    const [time, setTime] = useState('21:00');
-    const [mins, setMins] = useState(60);
-    const [message, setMessage] = useState('');
-    const [aud, setAud] = useState({ owners: true, staff: true, riders: true, customers: true });
+    const hmOf = (ms) => new Date(ms + IST).toISOString().slice(11, 16);
+    const minsOf = editing && editing.endAt ? Math.round((new Date(editing.endAt) - new Date(editing.startAt)) / 60000) : 60;
+    const [date, setDate] = useState(editing ? ymd(new Date(editing.startAt).getTime()) : ymd(Date.now()));
+    const [time, setTime] = useState(editing ? hmOf(new Date(editing.startAt).getTime()) : '21:00');
+    const [mins, setMins] = useState(editing && !editing.endAt ? 0 : minsOf);
+    const [message, setMessage] = useState(editing ? editing.message || '' : '');
+    const [aud, setAud] = useState({ owners: editing?.audience?.owners !== false, staff: editing?.audience?.staff !== false, riders: editing?.audience?.riders !== false });
     const [picker, setPicker] = useState(false);
     const [q, setQ] = useState('');
     const [confirm, setConfirm] = useState(false);
@@ -49,12 +52,18 @@ export default function MaintenancePlanScreen() {
 
     const startAt = /^\d{4}-\d{2}-\d{2}$/.test(date) && /^\d{2}:\d{2}$/.test(time) ? new Date(`${date}T${time}:00+05:30`) : null;
     const endAt = startAt && mins ? new Date(startAt.getTime() + mins * 60000) : null;
-    const valid = startAt && !Number.isNaN(startAt.getTime()) && startAt.getTime() > Date.now() && (scope === 'all' || (scope === 'shops' && shopIds.length) || (scope === 'brand' && brandId));
+    const valid = startAt && !Number.isNaN(startAt.getTime()) && startAt.getTime() > Date.now() && (editing || scope === 'all' || (scope === 'shops' && shopIds.length) || (scope === 'brand' && brandId));
     const who = scope === 'all' ? 'Every shop' : scope === 'brand' ? (brands.find((b) => b.id === brandId)?.name || 'The brand') : `${shopIds.length} shop${shopIds.length === 1 ? '' : 's'}`;
     const shown = shops.filter((s) => !q.trim() || s.name.toLowerCase().includes(q.trim().toLowerCase()));
 
     const save = async () => {
         try {
+            if (editing) {
+                await updateMaintenancePlan(editing.id, { startAt: startAt.toISOString(), endAt: endAt ? endAt.toISOString() : null, message: message.trim(), audience: aud });
+                toast('Changed. Everybody is told the new time.');
+                nav.goBack();
+                return;
+            }
             await planMaintenance({
                 scope, ...(scope === 'shops' ? { tenantIds: shopIds } : {}), ...(scope === 'brand' ? { brandId } : {}),
                 startAt: startAt.toISOString(), ...(endAt ? { endAt: endAt.toISOString() } : {}), message: message.trim(), audience: aud,
@@ -65,12 +74,12 @@ export default function MaintenancePlanScreen() {
     };
 
     return (
-        <Screen title="Plan maintenance" subtitle="Warn first, pause at the exact time" footer={<Button title="Plan it" icon="tool" onPress={() => setConfirm(true)} disabled={!valid} />}>
-            <SectionTitle section="shops">Which shops</SectionTitle>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+        <Screen title={editing ? 'Change the time' : 'Plan maintenance'} subtitle={editing ? 'The shops stay the same' : 'Warn first, pause at the exact time'} footer={<Button title={editing ? 'Save the change' : 'Plan it'} icon="tool" onPress={() => setConfirm(true)} disabled={!valid} />}>
+            {editing ? null : <SectionTitle section="shops">Which shops</SectionTitle>}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, ...(editing ? { display: 'none' } : {}) }}>
                 {SCOPES.filter((s) => s.v !== 'all' || supreme).map((s) => <Chip key={s.v} label={s.l} active={scope === s.v} onPress={() => setScope(s.v)} />)}
             </View>
-            {scope === 'shops' ? (
+            {!editing && scope === 'shops' ? (
                 <Card onPress={() => setPicker(true)} style={{ marginTop: spacing.md }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Icon name="shops" size={20} color={t.primary} />
@@ -79,7 +88,7 @@ export default function MaintenancePlanScreen() {
                     </View>
                 </Card>
             ) : null}
-            {scope === 'brand' ? (
+            {!editing && scope === 'brand' ? (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md }}>
                     {brands.length ? brands.map((b) => <Chip key={b.id} label={`${b.name} (${b.n})`} icon="shops" active={brandId === b.id} onPress={() => setBrandId(b.id)} />) : <Text style={{ color: t.muted }}>There is no brand yet.</Text>}
                 </View>
@@ -101,11 +110,11 @@ export default function MaintenancePlanScreen() {
             <Field label="Message (optional)" value={message} onChangeText={setMessage} multiline maxLength={200} placeholder="We are upgrading our servers." />
 
             <SectionTitle section="settings">Who is warned and told</SectionTitle>
+            <Hint>Customers are not messaged. They only see the maintenance badge and the grey screen.</Hint>
             <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
                 <Switch title="Shop owners" value={aud.owners} onValueChange={(v) => setAud((a) => ({ ...a, owners: v }))} />
                 <Switch title="Cooks and waiters" value={aud.staff} onValueChange={(v) => setAud((a) => ({ ...a, staff: v }))} />
-                <Switch title="Riders" value={aud.riders} onValueChange={(v) => setAud((a) => ({ ...a, riders: v }))} />
-                <Switch title="Customers" subtitle="A push message, not an SMS (SMS cost money and are not used)" value={aud.customers} onValueChange={(v) => setAud((a) => ({ ...a, customers: v }))} last />
+                <Switch title="Riders" value={aud.riders} onValueChange={(v) => setAud((a) => ({ ...a, riders: v }))} last />
             </Card>
 
             {startAt && !Number.isNaN(startAt.getTime()) ? (
@@ -131,7 +140,7 @@ export default function MaintenancePlanScreen() {
                 visible={confirm}
                 onClose={() => setConfirm(false)}
                 icon="tool"
-                title="Plan this maintenance?"
+                title={editing ? 'Save the new time?' : 'Plan this maintenance?'}
                 message={`${who} will pause at ${startAt ? show(startAt) : ''}. People are told right away. You can cancel it any time before it starts.`}
                 confirmLabel="Plan it"
                 danger

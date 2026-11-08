@@ -57,7 +57,14 @@ tenantRouter.get('/config', tenantRecognizer, async (req, res) => {
         const version = crypto.createHash('sha1').update(JSON.stringify({ config, delivery })).digest('hex').slice(0, 12);
         // a planned maintenance that touches this shop within 48 hours: the apps show a banner (services/maintenancePlans.js). Not part of the version.
         const maintenanceNotice = await require('../services/maintenancePlans').noticeFor(t._id).catch(() => null);
-        res.json({ version, config, homeConfig: config.home, delivery, branch, maintenanceNotice });
+        // What the badge on every screen shows: phase 'on' (maintenance now; draining = only finishing running orders) or 'upcoming' (planned, announced)
+        let maintenance = null;
+        try {
+            const st = await require('../services/maintenanceState').stateOf(t);
+            if (st.on) maintenance = { phase: 'on', scope: st.scope, message: st.message, until: st.until, since: st.since, draining: st.draining };
+            else if (maintenanceNotice) maintenance = { phase: 'upcoming', message: maintenanceNotice.message, startAt: maintenanceNotice.startAt, until: maintenanceNotice.endAt };
+        } catch (e) { /* the badge is optional */ }
+        res.json({ version, config, homeConfig: config.home, delivery, branch, maintenanceNotice, maintenance });
     } catch (e) {
         console.error('Config error:', e);
         res.status(500).json({ error: 'Something went wrong' });

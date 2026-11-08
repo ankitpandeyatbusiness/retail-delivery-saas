@@ -19,6 +19,12 @@ router.post('/maintenance/plans', wrap(async (req, res) => {
     if (req.body?.scope === 'all' && !isSupreme(req.admin)) throw Object.assign(httpError(403, MESSAGE), { supremeOnly: true });
     res.status(201).json(plans.view(await plans.create(req.body, who(req))));
 }));
+// change the time (and message) of a plan that has not started yet
+router.put('/maintenance/plans/:id', wrap(async (req, res) => {
+    const p = /^[a-f0-9]{24}$/.test(req.params.id) ? await MaintenancePlan.findById(req.params.id).select('scope').lean() : null;
+    if (p && p.scope === 'all' && !isSupreme(req.admin)) throw Object.assign(httpError(403, MESSAGE), { supremeOnly: true });
+    res.json(plans.view(await plans.update(req.params.id, req.body, who(req))));
+}));
 router.post('/maintenance/plans/:id/cancel', wrap(async (req, res) => {
     const p = /^[a-f0-9]{24}$/.test(req.params.id) ? await MaintenancePlan.findById(req.params.id).select('scope').lean() : null;
     if (p && p.scope === 'all' && !isSupreme(req.admin)) throw httpError(403, MESSAGE);

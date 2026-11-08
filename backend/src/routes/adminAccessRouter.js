@@ -24,7 +24,7 @@ router.put('/tenants/:tid/owner-access', loadTenant, wrap(async (req, res) => {
         { _id: req.tenantDoc._id },
         { $set: { ownerBlocked: blocked, ownerBlockedReason: blocked ? reason : '' } },
     );
-    invalidateTenant(req.tenantDoc.slug);   // takes effect at once on this server
+    invalidateTenant(req.tenantDoc.slug);
     if (was !== blocked) require('../services/shopSettingsNotice')[blocked ? 'ownerBlocked' : 'ownerAllowed'](req.tenantDoc._id);   // the owner hears about it
     res.json({ ok: true, ownerBlocked: blocked });
 }));
@@ -34,9 +34,10 @@ router.put('/tenants/:tid/maintenance', loadTenant, wrap(async (req, res) => {
     const wasOn = isMaintenanceOn(req.tenantDoc.maintenance);
     await Tenant.updateOne(
         { _id: req.tenantDoc._id },
-        { $set: { 'maintenance.on': m.on, 'maintenance.message': m.message, 'maintenance.until': m.until } },
+        { $set: { 'maintenance.on': m.on, 'maintenance.message': m.message, 'maintenance.until': m.until, 'maintenance.since': m.on ? new Date() : null } },
     );
     invalidateTenant(req.tenantDoc.slug);
+    require('../services/maintenanceShopSwitch').sweep().catch(() => { });   // the shop's order switch follows at once
     const nowOn = isMaintenanceOn(m);
     if (nowOn && !wasOn) require('../services/shopSettingsNotice').maintenanceOn(req.tenantDoc._id, m);   // the owner hears about it, with your message and end time
     else if (!nowOn && wasOn) require('../services/shopSettingsNotice').maintenanceOff(req.tenantDoc._id);

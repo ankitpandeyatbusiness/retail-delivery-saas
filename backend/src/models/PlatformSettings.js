@@ -33,6 +33,7 @@ const platformSchema = new mongoose.Schema({
         message: { type: String, trim: true, maxlength: 200 },
         until: Date,   // optional: maintenance ends by itself at this time
         planId: String,   // set when a planned maintenance switched it on
+        since: Date,      // when it was switched on
     },
 
     business: {

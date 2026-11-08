@@ -34,4 +34,5 @@ export async function savePresets(list) {
 export const fetchMaintenancePlans = () => data(api.get('/admin/maintenance/plans'));
 // { scope: 'all' | 'shops' | 'brand', tenantIds?, brandId?, startAt, endAt?, message?, audience?: { owners, staff, riders, customers } }
 export const planMaintenance = (body) => data(api.post('/admin/maintenance/plans', body));
+export const updateMaintenancePlan = (id, body) => data(api.put(`/admin/maintenance/plans/${id}`, body));   // { startAt?, endAt?, message?, audience? } while it is planned
 export const cancelMaintenancePlan = (id) => data(api.post(`/admin/maintenance/plans/${id}/cancel`));

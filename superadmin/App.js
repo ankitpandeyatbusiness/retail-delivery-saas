@@ -5,6 +5,7 @@ import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/
 import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';
 import RootNavigator from './src/navigation/RootNavigator';
+import MaintenanceFrame from './src/components/MaintenanceBar';
 import { ToastHost, toast } from './src/components/feedback';
 import LockGate from './src/lock/LockUI';
 import { useAuthStore } from './src/store/useAuthStore';
@@ -55,11 +56,13 @@ function Shell() {
     if (!hydrated) return null;   // the splash stays up until the saved login is read
     const base = t.dark ? DarkTheme : DefaultTheme;
     return (
+        <MaintenanceFrame background={t.bg}>
         <NavigationContainer ref={navigationRef} onReady={flushPending} theme={{ ...base, colors: { ...base.colors, background: t.bg, card: t.surface, text: t.text, border: t.border, primary: t.primary } }}>
             <RootNavigator />
             <PanelLock />
             <ToastHost />
         </NavigationContainer>
+        </MaintenanceFrame>
     );
 }
 

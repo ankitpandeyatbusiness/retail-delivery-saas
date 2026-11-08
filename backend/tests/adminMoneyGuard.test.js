@@ -41,6 +41,7 @@ const REVIEWED = {
     'POST /brands/:id/bulk/waive-late-fees': 'the brands router blocks every non-GET except owners/move for non-supreme admins',
     'POST /maintenance/plans': 'the handler refuses scope "all" for non-supreme admins',
     'POST /maintenance/plans/:id/cancel': 'the handler refuses a scope "all" plan for non-supreme admins',
+    'PUT /maintenance/plans/:id': 'the handler refuses a scope "all" plan for non-supreme admins',
     'POST /tenants/:tid/riders/:rid/orders/:id/door-pay': 'only starts a QR for the customer to pay; moves no money by itself',
 };
 

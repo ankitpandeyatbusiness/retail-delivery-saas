@@ -24,7 +24,7 @@ beforeEach(async () => {
 });
 const H = 3600000;
 const post = (u, b) => request(app).post(u).set({ Authorization: 'Bearer ' + token }).send(b || {});
-const settle = () => new Promise((r) => setTimeout(r, 400));   // notices are sent without waiting
+const settle = () => new Promise((r) => setTimeout(r, 1200));   // notices are sent without waiting
 
 describe('planned maintenance', () => {
     test('a plan for one shop: announced, warned, paused at the start, opened at the end; the other shop is untouched', async () => {
@@ -128,5 +128,26 @@ describe('planned maintenance', () => {
         assert.equal(big.status, 201);
         assert.equal((await as('post', `/api/admin/maintenance/plans/${big.body.id}/cancel`)).status, 403);
         assert.equal((await post(`/api/admin/maintenance/plans/${big.body.id}/cancel`)).status, 200);
+    });
+});
+
+describe('changing a plan and the customers', () => {
+    const put = (u, b) => request(app).put(u).set({ Authorization: 'Bearer ' + token }).send(b || {});
+    test('the time of a planned maintenance can be changed; one that has started cannot; customers are never messaged', async () => {
+        const start = Date.now() + 5 * H;
+        const r = await post('/api/admin/maintenance/plans', { scope: 'shops', tenantIds: [String(w.tenant._id)], startAt: new Date(start).toISOString(), endAt: new Date(start + H).toISOString(), message: 'Upgrade' });
+        assert.equal(r.status, 201, JSON.stringify(r.body));
+        await settle();
+        assert.equal(await Notification.countDocuments({ type: 'broadcast', userId: w.customer.user._id }), 0, 'a customer is not messaged');
+        assert.equal(r.body.audience.customers, false);
+        const newStart = Date.now() + 8 * H;
+        const e = await put(`/api/admin/maintenance/plans/${r.body.id}`, { startAt: new Date(newStart).toISOString(), endAt: new Date(newStart + 2 * H).toISOString(), message: 'Moved' });
+        assert.equal(e.status, 200, JSON.stringify(e.body));
+        assert.equal(new Date(e.body.startAt).getTime(), newStart);
+        assert.equal(e.body.message, 'Moved');
+        const bad = await put(`/api/admin/maintenance/plans/${r.body.id}`, { startAt: new Date(newStart).toISOString(), endAt: new Date(newStart - H).toISOString() });
+        assert.equal(bad.status, 400, 'the end must be after the start');
+        await MaintenancePlan.updateOne({ _id: r.body.id }, { $set: { status: 'active' } });
+        assert.equal((await put(`/api/admin/maintenance/plans/${r.body.id}`, { startAt: new Date(newStart).toISOString() })).status, 409, 'a running one cannot be edited');
     });
 });

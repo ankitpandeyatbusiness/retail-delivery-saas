@@ -82,7 +82,12 @@ api.interceptors.response.use(
         const original = error.config;
         // The shop is closed or paused (402) or in maintenance (503): the app shows it on a message screen. No answer at all: the app is offline.
         const code = error.response?.status;
-        if (code === 402 || code === 503) {
+        if (code === 503 && error.response.data?.maintenance) {
+            // maintenance: no full-screen card; the bar and the grey screen show it (the server lets running orders be finished, so nobody is locked out)
+            const d = error.response.data;
+            const cur = useAppStatus.getState().maintenance;
+            useAppStatus.getState().setMaintenance({ ...(cur || {}), phase: 'on', message: d.message || d.error || cur?.message || '', until: d.until || cur?.until || null, draining: !!d.draining });
+        } else if (code === 402 || code === 503) {
             const d = error.response.data || {};
             useAppStatus.getState().setFrozen({ status: code, message: d.error || '', maintenance: !!d.maintenance, until: d.until || null });
         } else if (!error.response && error.request) useAppStatus.getState().setOffline(true);

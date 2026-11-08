@@ -33,28 +33,35 @@ async function tell(p) {
     for (const t of await shopsOf(p)) { try { recog.invalidateTenant(t.slug); } catch (e) { /* the apps catch up on their own */ } }
 }
 
+async function tellEveryShop() {
+    try {
+        const recog = require('../middlewares/tenantRecognizer');
+        for (const t of await Tenant.find({}).select('_id slug').lean()) { try { recog.invalidateTenant(t.slug); } catch (e) { /* the apps catch up on their own */ } }
+    } catch (e) { console.error('Maintenance tell error:', e.message); }
+}
+
 // ----- who is told -----
-async function notifyOne(p, title, body, row, toShop) {
+async function notifyOne(p, title, body, row, toShop, hi) {
     const center = require('../notifications/center');
     return center.notify('broadcast', {
         tenantId: toShop ? row._id : row.tenantId,
         ...(toShop ? {} : { userId: row._id }),
-        title, body, data: { kind: 'maintenance', planId: String(p._id) }, noEmail: true,
+        title, body, data: { kind: 'maintenance', planId: String(p._id), speech: `${title}. ${body}`, ...(hi ? { speechHi: hi } : {}) }, noEmail: true,
         vars: { title, body, kind: 'info', sender: 'Platform', ...(toShop ? {} : { audience: 'shop' }) },
     });
 }
-async function audienceNotify(p, title, body) {
+async function audienceNotify(p, title, body, hi) {
     const ids = p.scope === 'all' ? null : p.tenantIds;
     const a = p.audience || {};
     let sent = 0;
     const each = async (rows, toShop) => {
         for (let i = 0; i < rows.length; i += 20) {
-            const results = await Promise.allSettled(rows.slice(i, i + 20).map((r) => notifyOne(p, title, body, r, toShop)));
+            const results = await Promise.allSettled(rows.slice(i, i + 20).map((r) => notifyOne(p, title, body, r, toShop, hi)));
             sent += results.filter((x) => x.status === 'fulfilled').length;
         }
     };
     if (a.owners !== false) await each(await Tenant.find({ status: 'active', ...(ids ? { _id: { $in: ids } } : {}) }).select('_id').lean(), true);
-    const roles = [...(a.staff !== false ? ['kitchen', 'waiter'] : []), ...(a.riders !== false ? ['rider'] : []), ...(a.customers !== false ? ['customer'] : [])];
+    const roles = [...(a.staff !== false ? ['kitchen', 'waiter'] : []), ...(a.riders !== false ? ['rider'] : [])];   // customers are never messaged: they see the badge and the grey screen
     if (roles.length) {
         let last = null;
         for (;;) {
@@ -81,18 +88,29 @@ const texts = {
     end: () => ({ title: 'We are back', body: 'Maintenance is over. Everything works as usual.' }),
     cancelled: () => ({ title: 'Maintenance cancelled', body: 'The planned maintenance will not happen. Everything works as usual.' }),
 };
+// the Hindi sentence the phone reads out (the other languages are made from the written words by the notification layer)
+const spokenHi = (mark, p) => ({
+    announce: `रखरखाव की योजना है, ${hm(p.startAt)} पर। कृपया तब तक अपना काम पूरा कर लें।`,
+    '24h': 'कल रखरखाव है। ऐप थोड़ी देर के लिए बंद रहेगा।',
+    '1h': 'एक घंटे में रखरखाव शुरू होगा। कृपया अपने ऑर्डर पूरे कर लें।',
+    '15m': 'पंद्रह मिनट में रखरखाव शुरू होगा। कृपया अपना काम पूरा करें।',
+    start: 'रखरखाव शुरू हो गया है। नए ऑर्डर बंद हैं, चल रहे ऑर्डर पूरे किए जा सकते हैं।',
+    end: 'रखरखाव खत्म हो गया। सब कुछ पहले की तरह चल रहा है।',
+    cancelled: 'तय किया हुआ रखरखाव रद्द हो गया है।',
+})[mark];
 async function send(p, mark) {
     if (!(await claim(p, mark))) return 0;
     const t = texts[mark](p);
-    return audienceNotify(p, t.title, t.body).catch((e) => { console.error('Maintenance notice error:', e.message); return 0; });
+    return audienceNotify(p, t.title, t.body, spokenHi(mark, p)).catch((e) => { console.error('Maintenance notice error:', e.message); return 0; });
 }
 
 // ----- the pause -----
 async function applyOn(p) {
-    const set = { 'maintenance.on': true, 'maintenance.message': p.message || '', 'maintenance.until': p.endAt || null, 'maintenance.planId': String(p._id) };
+    const set = { 'maintenance.on': true, 'maintenance.message': p.message || '', 'maintenance.until': p.endAt || null, 'maintenance.planId': String(p._id), 'maintenance.since': new Date() };
     if (p.scope === 'all') {
         await PlatformSettings.updateOne({ _id: 'main' }, { $set: set }, { upsert: true });
         require('../middlewares/platformGate').invalidate();
+        require('./maintenanceState').invalidatePlatform();
     } else await Tenant.updateMany({ _id: { $in: p.tenantIds } }, { $set: set });
     await tell(p);
 }
@@ -102,6 +120,7 @@ async function applyOff(p) {
     if (p.scope === 'all') {
         await PlatformSettings.updateOne({ _id: 'main', 'maintenance.planId': String(p._id) }, off);
         require('../middlewares/platformGate').invalidate();
+        require('./maintenanceState').invalidatePlatform();
     } else await Tenant.updateMany({ _id: { $in: p.tenantIds }, 'maintenance.planId': String(p._id) }, off);
     await tell(p);
 }
@@ -120,8 +139,8 @@ async function create(body = {}, by = '') {
     if (endAt && endAt.getTime() <= startAt.getTime()) throw httpError(400, 'The end must be after the start');
     const message = String(body.message || '').trim().slice(0, 200);
     const a = body.audience || {};
-    const audience = { owners: a.owners !== false, staff: a.staff !== false, riders: a.riders !== false, customers: a.customers !== false };
-    if (!Object.values(audience).some(Boolean)) throw httpError(400, 'Choose at least one group to warn');
+    const audience = { owners: a.owners !== false, staff: a.staff !== false, riders: a.riders !== false, customers: false };
+    if (!audience.owners && !audience.staff && !audience.riders) throw httpError(400, 'Choose at least one group to warn');
 
     // a warning whose time has already passed when it is planned is not sent (the first notice says it all)
     const doc = { startAt, endAt, message, audience, createdBy: String(by || '').slice(0, 80), sent: WARN.filter(([, before]) => startAt.getTime() - now <= before).map(([m]) => m) };
@@ -147,6 +166,35 @@ async function create(body = {}, by = '') {
         send(p, 'announce').catch(() => { });
     }
     return p;
+}
+
+// Change the time (and words) of a plan that has not started. The shops stay the same (to change them, cancel and plan again).
+// Everybody warned is told the new time; the warnings (a day, an hour, 15 minutes before) are counted again from the new start.
+async function update(id, body = {}, by = '') {
+    const p = mongoose.isValidObjectId(id) ? await MaintenancePlan.findById(id) : null;
+    if (!p) throw httpError(404, 'Plan not found');
+    if (p.status !== 'planned') throw httpError(409, p.status === 'active' ? 'It has already started. End it and plan a new one.' : 'It is already over');
+    const now = Date.now();
+    const startAt = body.startAt !== undefined ? parseTime(body.startAt, 'The start') : p.startAt;
+    let endAt = p.endAt || null;
+    if (body.endAt !== undefined) endAt = body.endAt ? parseTime(body.endAt, 'The end') : null;
+    if (startAt.getTime() < now - MIN) throw httpError(400, 'The start must be a time in the future');
+    if (endAt && endAt.getTime() <= startAt.getTime()) throw httpError(400, 'The end must be after the start');
+    const set = { startAt, endAt };
+    if (body.message !== undefined) set.message = String(body.message || '').trim().slice(0, 200);
+    if (body.audience) {
+        const a = body.audience;
+        const aud = { owners: a.owners !== false, staff: a.staff !== false, riders: a.riders !== false, customers: false };
+        if (!aud.owners && !aud.staff && !aud.riders) throw httpError(400, 'Choose at least one group to warn');
+        set.audience = aud;
+    }
+    set.sent = WARN.filter(([, before]) => startAt.getTime() - now <= before).map(([m]) => m);
+    const r = await MaintenancePlan.updateOne({ _id: p._id, status: 'planned' }, { $set: set });
+    if (!r.modifiedCount) throw httpError(409, 'It has just started');
+    const fresh = await MaintenancePlan.findById(p._id);
+    await tell(fresh);                                   // the badge shows the new time
+    if (startAt.getTime() - now > 2 * MIN) send({ ...fresh.toObject(), sent: fresh.sent.filter((x) => x !== 'announce') }, 'announce').catch(() => { });   // everybody hears the new time
+    return fresh;
 }
 
 async function cancel(id, by = '') {
@@ -190,6 +238,8 @@ async function tick(now = Date.now()) {
     }
     // the ones that are over
     for (const over of await MaintenancePlan.find({ status: 'active', endAt: { $lte: n } }).lean()) await finish(over, 'automatic');
+    // the shops' own "taking orders" switch follows: off when nothing is running during maintenance, back on when it is over
+    await require('./maintenanceShopSwitch').sweep(n);
 }
 
 function start() {
@@ -222,4 +272,5 @@ async function noticeFor(tenantId, now = Date.now()) {
     return p ? { message: p.message || '', startAt: p.startAt, endAt: p.endAt || null } : null;
 }
 
-module.exports = { create, cancel, tick, start, list, noticeFor, view, texts };
+module.exports = {
+    tellEveryShop, create, update, cancel, tick, start, list, noticeFor, view, texts };
