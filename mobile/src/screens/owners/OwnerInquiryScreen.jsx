@@ -61,7 +61,7 @@ export default function OwnerInquiryScreen() {
                     <Ionicons name="logo-whatsapp" size={22} color={text} />
                 </Pressable>
             </View>
-            <View style={{ paddingHorizontal: 16, marginBottom: 8 }}><ChatButton kind="inquiry" refId={id} title={i.name} label={tr('Chat with the customer')} /></View>
+            <View style={{ paddingHorizontal: 16, marginTop: 8, marginBottom: 12 }}><ChatButton kind="inquiry" refId={id} title={i.name} label={tr('Chat with the customer')} /></View>
             {(
                 <ScrollView contentContainerStyle={{ paddingTop: 8, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
                     {i.answers?.length || i.estimate ? <Group title={tr('Their answers')}><Answers answers={i.answers} estimate={i.estimate} /></Group> : null}

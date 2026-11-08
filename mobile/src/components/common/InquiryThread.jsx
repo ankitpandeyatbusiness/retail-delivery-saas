@@ -1,12 +1,12 @@
 // The conversation on an inquiry, shared by the owner's and the customer's screens, WhatsApp style: the messages in their own area (newest at the bottom,
 // older ones move up, no scrollbar), a box under it, and pictures either way. Also the answers the customer gave.
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, ScrollView, Pressable, Animated, ActivityIndicator, Modal, TextInput } from 'react-native';
+import { View, Text, ScrollView, Pressable, Animated, ActivityIndicator, TextInput } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand } from './kit';
 import UploadThumb from './UploadThumb';
+import PhotoViewer from './PhotoViewer';
 import { showToast } from '../customers/shop';
 import { tr } from '../../i18n';
 
@@ -14,19 +14,9 @@ export const STATUS_LABEL = { new: 'New', replied: 'Replied', quoted: 'Price sen
 
 export const answerText = (a) => (Array.isArray(a.value) ? a.value.map(tr).join(', ') : typeof a.value === 'boolean' ? (a.value ? tr('Yes') : tr('No')) : tr(String(a.value)));
 
-// a picture opened full screen
-export function PictureViewer({ uri, onClose }) {
-    const insets = useSafeAreaInsets();
-    return (
-        <Modal visible={!!uri} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
-            <View style={{ flex: 1, backgroundColor: '#000' }}>
-                {uri ? <Image source={{ uri }} style={{ flex: 1 }} contentFit="contain" /> : null}
-                <Pressable onPress={onClose} hitSlop={12} style={{ position: 'absolute', top: insets.top + 12, right: 16, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' }}>
-                    <Ionicons name="close" size={24} color="#fff" />
-                </Pressable>
-            </View>
-        </Modal>
-    );
+// a picture opened full screen: pinch to zoom in and out, double tap, drag, swipe down to close (the same viewer as everywhere else in the app)
+export function PictureViewer({ uri, onClose, onSave }) {
+    return <PhotoViewer uri={uri} onClose={onClose} onSave={onSave} />;
 }
 
 // what the customer filled in, as "Question: answer" lines (pictures as small squares)

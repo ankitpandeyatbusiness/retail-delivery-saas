@@ -3,7 +3,7 @@
 //   <ZoomPress uri uris style>{a picture}</ZoomPress> any picture that opens the viewer when tapped (uris = all the pictures to page through)
 //   <ZoomImage source group style ... />             an expo-image Image that opens the viewer
 import React, { useCallback, useEffect, useState } from 'react';
-import { Modal, Pressable, Text, StyleSheet, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, Text, StyleSheet, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated';
@@ -60,7 +60,8 @@ function Page({ uri, onClose, onZoomChange }) {
     });
 
     const style = useAnimatedStyle(() => ({ transform: [{ translateX: tx.value }, { translateY: ty.value }, { scale: scale.value }] }));
-    const gesture = Gesture.Exclusive(doubleTap, Gesture.Simultaneous(pinch, pan));
+    // all three run side by side. (Exclusive(doubleTap, ...) made pinch and drag wait until the double tap had given up, so a two-finger pinch never started.)
+    const gesture = Gesture.Simultaneous(doubleTap, pinch, pan);
     return (
         <GestureDetector gesture={gesture}>
             <Animated.View style={[{ width, height, alignItems: 'center', justifyContent: 'center' }, style]} renderToHardwareTextureAndroid>
@@ -70,10 +71,12 @@ function Page({ uri, onClose, onZoomChange }) {
     );
 }
 
-export function ImageViewer({ visible, uris, start = 0, onClose }) {
+// onSave(uri), when given, adds a save button next to the cross (the chat uses it: save the picture to the phone)
+export function ImageViewer({ visible, uris, start = 0, onClose, onSave }) {
     const insets = useSafeAreaInsets();
     const [i, setI] = useState(start);
     const [zoomed, setZoomed] = useState(false);
+    const [saving, setSaving] = useState(false);   // the save button shows a spinner while the picture is being got ready
     useEffect(() => { if (visible) { setI(start); setZoomed(false); } }, [visible, start]);
     const go = useCallback((d) => { setI((v) => Math.min(Math.max(v + d, 0), uris.length - 1)); setZoomed(false); }, [uris.length]);
     if (!visible || !uris || !uris.length) return null;
@@ -84,6 +87,11 @@ export function ImageViewer({ visible, uris, start = 0, onClose }) {
                 <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close" style={[st.close, { top: insets.top + 10 }]}>
                     <Ionicons name="close" size={24} color="#FFFFFF" />
                 </Pressable>
+                {onSave ? (
+                    <Pressable onPress={async () => { if (saving) return; setSaving(true); try { await onSave(uris[i]); } finally { setSaving(false); } }} hitSlop={12} accessibilityRole="button" accessibilityLabel="Save" style={[st.close, { top: insets.top + 10, right: 62 }]}>
+                        {saving ? <ActivityIndicator color="#FFFFFF" /> : <Ionicons name="download-outline" size={22} color="#FFFFFF" />}
+                    </Pressable>
+                ) : null}
                 {uris.length > 1 ? (
                     <>
                         <Text style={[st.count, { top: insets.top + 16 }]}>{i + 1} / {uris.length}</Text>
@@ -97,12 +105,20 @@ export function ImageViewer({ visible, uris, start = 0, onClose }) {
 }
 
 // the old one-photo way: open while a uri is set
-export default function PhotoViewer({ uri, onClose }) {
-    return <ImageViewer visible={!!uri} uris={uri ? [uri] : []} onClose={onClose} />;
+export default function PhotoViewer({ uri, onClose, onSave }) {
+    return <ImageViewer visible={!!uri} uris={uri ? [uri] : []} onClose={onClose} onSave={onSave} />;
 }
 
+// saving needs the helper only when the button is pressed (loaded then, so this file stays light)
+const saveThePicture = async (uri) => {
+    const { saveMedia, notify } = require('../../utils/common/saveMedia');
+    const { tr } = require('../../i18n');
+    try { await saveMedia(uri, 'image'); } catch (e) { notify(e && e.safe ? e.message : tr('Could not save it')); }
+};
+
 // a picture (any children) that opens the viewer when tapped
-export function ZoomPress({ uri, uris, children, style }) {
+// save: the viewer gets a save button (the phone's save and share sheet)
+export function ZoomPress({ uri, uris, children, style, save }) {
     const [open, setOpen] = useState(false);
     const list = (uris && uris.length ? uris : [uri]).filter(Boolean);
     const start = Math.max(0, list.indexOf(uri));
@@ -110,7 +126,7 @@ export function ZoomPress({ uri, uris, children, style }) {
     return (
         <>
             <Pressable onPress={() => setOpen(true)} accessibilityRole="imagebutton" accessibilityLabel="Open the picture" style={style}>{children}</Pressable>
-            <ImageViewer visible={open} uris={list} start={start} onClose={() => setOpen(false)} />
+            <ImageViewer visible={open} uris={list} start={start} onClose={() => setOpen(false)} onSave={save ? saveThePicture : undefined} />
         </>
     );
 }

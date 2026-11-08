@@ -40,6 +40,11 @@ yarn-error.*
 /ios
 /android
 
+# the small native modules in modules/ (for example the ringer-mode module): their source is kept, what Gradle builds from it is not
+modules/**/android/build/
+modules/**/android/.gradle/
+modules/**/android/.cxx/
+
 
 .claude/
 AGENTS.md

@@ -12,7 +12,7 @@ export default function ChatButton({ kind, refId, title, label, style }) {
     const { primary, text, border, surface, error } = useBrand();
     const n = useChatStore(unreadOf(kind, refId));
     return (
-        <Pressable onPress={() => nav.navigate('Chat', { kind, refId: String(refId), title })} accessibilityRole="button" style={[{ flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderColor: primary, backgroundColor: surface, borderRadius: 14, paddingHorizontal: 14, minHeight: 48 }, style]}>
+        <Pressable onPress={() => nav.navigate('Chat', { kind, refId: String(refId), title })} accessibilityRole="button" style={[{ flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderColor: primary, backgroundColor: surface, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, minHeight: 54 }, style]}>
             <Ionicons name="chatbubbles-outline" size={22} color={primary} />
             <Text style={{ flex: 1, marginLeft: 10, color: text, fontWeight: '800', fontSize: 15 }}>{label}</Text>
             {n > 0 ? <View style={{ minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 6, backgroundColor: error, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#fff', fontWeight: '900', fontSize: 12 }}>{n > 99 ? '99+' : n}</Text></View> : <Ionicons name="chevron-forward" size={18} color={border} />}

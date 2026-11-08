@@ -1,7 +1,8 @@
 // One help request as a conversation. The owner's messages sit on the right, the platform team's on the left. He can
 // reply (with pictures), mark it solved, rate the help, and reopen it for 7 days by replying. Opened with params { id }.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, ScrollView, Pressable, TextInput, KeyboardAvoidingView, Platform, Linking, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, Pressable, TextInput, Linking, StyleSheet } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { ZoomPress } from '../../components/common/PhotoViewer';
 import { useFocusEffect } from '@react-navigation/native';
@@ -19,6 +20,9 @@ import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
 import { tr } from '../../i18n';
 import KeyboardScroll from '../../components/common/KeyboardScroll';
+import ChatBackdrop from '../../components/common/ChatBackdrop';
+import useKeyboardLift from '../../hooks/common/useKeyboardLift';
+import { playSfx } from '../../utils/common/sfx';
 
 function Bubble({ m }) {
     const { primary, onPrimary, surface, border, text, muted } = useBrand();
@@ -31,7 +35,7 @@ function Bubble({ m }) {
                 {m.photos?.length ? (
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 }}>
                         {m.photos.map((u) => (
-                            <ZoomPress key={u} uri={u} uris={m.photos} style={{ marginRight: 6, marginBottom: 6 }}>
+                            <ZoomPress save key={u} uri={u} uris={m.photos} style={{ marginRight: 6, marginBottom: 6 }}>
                                 <Image source={{ uri: u }} style={{ width: 96, height: 96, borderRadius: 10 }} contentFit="cover" />
                             </ZoomPress>
                         ))}
@@ -72,12 +76,17 @@ export default function OwnerSupportTicketScreen({ route }) {
     const [photos, setPhotos] = useState([]);
     const [sending, setSending] = useState(false);
     const scroll = useRef(null);
+    const lift = useKeyboardLift();      // the message box rides on the keyboard
+    const seen = useRef(null);           // how many messages there were the last time
     const refId = useMemo(() => `s${Date.now().toString(36)}`, []);
 
     const load = useCallback(async () => {
         try {
             const x = await fetchSupportTicket(id);
             setT(x); setErr('');
+            const n = x.messages.length;
+            if (seen.current !== null && n > seen.current && x.messages[n - 1].from !== 'owner') playSfx('chatReceived');   // the team answered while this is open
+            seen.current = n;
             useOwnerStore.getState().refresh();
         } catch (e) { useOwnerStore.getState().noteError(e); setErr(apiError(e, 'Could not open this request.')); }
     }, [id]);
@@ -96,7 +105,9 @@ export default function OwnerSupportTicketScreen({ route }) {
         if (!msg.trim() || sending) return;
         setSending(true);
         try {
+            playSfx('chatSent');
             const x = await replySupport(id, { message: msg.trim(), photos });
+            seen.current = x.messages.length;
             setT(x); setMsg(''); setPhotos([]);
         } catch (e) { useOwnerStore.getState().noteError(e); showToast(apiError(e)); } finally { setSending(false); }
     };
@@ -112,7 +123,8 @@ export default function OwnerSupportTicketScreen({ route }) {
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
             <PageHeader title={tr('Request #{number}', { number: t.number })} right={!resolved ? <Pressable onPress={solved} hitSlop={10}><Text style={{ color: primary, fontWeight: '800' }}>{tr('Mark solved')}</Text></Pressable> : null} />
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+            <Animated.View style={[{ flex: 1 }, lift]}>
+                <ChatBackdrop>
                 <KeyboardScroll ref={scroll} contentContainerStyle={{ paddingTop: 6, paddingBottom: 16 }} keyboardShouldPersistTaps="handled">
                     <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
                         <Text style={{ color: text, fontSize: 18, fontWeight: '900' }}>{t.subject}</Text>
@@ -125,6 +137,7 @@ export default function OwnerSupportTicketScreen({ route }) {
                     {resolved && !t.rating ? <Rate onRate={rate} /> : null}
                     {resolved && t.rating ? <Text style={{ color: muted, textAlign: 'center', marginVertical: 8 }}>{tr('You rated this {stars} of 5. Thank you!', { stars: t.rating.stars })}</Text> : null}
                 </KeyboardScroll>
+                </ChatBackdrop>
 
                 {resolved && !t.canReopen ? (
                     <View style={{ padding: 16, paddingBottom: Math.max(insets.bottom, 12) + 4, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: border, backgroundColor: background }}>
@@ -145,7 +158,7 @@ export default function OwnerSupportTicketScreen({ route }) {
                         </View>
                     </View>
                 )}
-            </KeyboardAvoidingView>
+            </Animated.View>
         </View>
     );
 }

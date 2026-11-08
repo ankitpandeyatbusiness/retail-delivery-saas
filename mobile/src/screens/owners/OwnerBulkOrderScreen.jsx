@@ -154,7 +154,7 @@ export default function OwnerBulkOrderScreen() {
                     {o.status === 'declined' && o.declineReason ? <Text style={{ color: muted, marginTop: 8 }}>{tr('You declined: {r}', { r: o.declineReason })}</Text> : null}
                 </Card>
 
-                <View style={{ paddingHorizontal: 16, marginBottom: 6 }}><ChatButton kind="bulk" refId={o.id} title={`${tr('Bulk order')} ${o.code}`} label={tr('Chat with the customer')} /></View>
+                <View style={{ paddingHorizontal: 16, marginVertical: 12 }}><ChatButton kind="bulk" refId={o.id} title={`${tr('Bulk order')} ${o.code}`} label={tr('Chat with the customer')} /></View>
 
                 {o.status === 'requested' ? (
                     <>

@@ -10,6 +10,7 @@ export const chatApi = {
     send: (kind, id, body) => d(api.post(`${base()}/${kind}/${id}`, body)),                                          // { text?, images?, voice?, clientId } -> the saved message
     ack: (kind, id, ids) => d(api.post(`${base()}/${kind}/${id}/ack`, { ids })),                                      // delivered
     read: (kind, id) => d(api.post(`${base()}/${kind}/${id}/read`)),                                                  // the chat is open: read
+    remove: (kind, id, messageId, scope) => d(api.delete(`${base()}/${kind}/${id}/messages/${messageId}`, { params: { scope } })),   // scope 'me' | 'all'
     typing: (kind, id) => d(api.post(`${base()}/${kind}/${id}/typing`)),
     unread: () => d(api.get(`${base()}/unread`)),                                                                    // { total, byRef }
 };

@@ -6,7 +6,8 @@
 //
 // These follow the phone's sound: a phone on silent / vibrate plays nothing (playsInSilentMode is off), and other apps'
 // music is not paused (mixWithOthers). Everything is best effort: a sound problem must never get in the way of the app.
-import { Vibration } from 'react-native';
+import { Platform, Vibration } from 'react-native';
+import { isPhoneQuiet } from '../../../modules/ringer-mode';
 import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 
 const SOUNDS = {
@@ -21,6 +22,8 @@ const SOUNDS = {
     helpAlarm: { source: require('../../../assets/sounds/help_alarm.wav'), volume: 1 },   // a rider pressed the help button: a gentle pee-poo, three times
     inquiry: { source: require('../../../assets/sounds/cust_offer.wav'), volume: 0.9 },   // a customer's inquiry: its own bright tone, so the owner knows it without looking
     riderReject: { source: require('../../../assets/sounds/rider_reject.wav'), volume: 0.9 },   // short low "no"
+    chatSent: { source: require('../../../assets/sounds/chat_sent.mp3'), volume: 0.8, quiet: true },   // the sound of a message you send while the chat is open (assets/sounds/chat_sent.mp3: replace the file to change it)
+    chatReceived: { source: require('../../../assets/sounds/chat_received.mp3'), volume: 0.9, quiet: true },   // the sound of a message that arrives while the chat is open (assets/sounds/chat_received.mp3)
 };
 
 const players = {};
@@ -32,6 +35,9 @@ export const buzz = (pattern = [0, 60, 70, 90]) => { try { Vibration.vibrate(pat
 export async function playSfx(name, volume) {
     const def = SOUNDS[name];
     if (!def) return;
+    // quiet: true = a chat tone: nothing when the phone is on silent or vibrate. (On Android a new sound still plays on a silent phone, the audio library only reacts when the
+    // switch is changed while a sound plays, so the ringer is asked here. The kitchen, order and alert sounds have no quiet flag: they must be heard.)
+    if (def.quiet && Platform.OS === 'android' && isPhoneQuiet()) return;
     try {
         if (!modeSet) {
             modeSet = true;

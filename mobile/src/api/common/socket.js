@@ -18,7 +18,7 @@ const AUTH_ERRORS = ['TOKEN_INVALID', 'SESSION_ENDED', 'AUTH_REQUIRED'];
 let socket = null;
 let retryTimer = null;
 const joined = new Map();   // orderId -> how many screens want it
-const listeners = { 'chat:message': new Set(), 'chat:status': new Set(), 'chat:typing': new Set(), 'bulk:update': new Set(), 'kitchen:update': new Set(), 'waiter:update': new Set(), 'menu:changed': new Set(), 'shop:changed': new Set(), 'order:update': new Set(), notification: new Set(), 'rider:location': new Set(), 'rider:route': new Set(), 'order:eta': new Set(), 'rider:quiet': new Set(), 'rider:offer': new Set(), 'offer:closed': new Set() };
+const listeners = { 'chat:message': new Set(), 'chat:status': new Set(), 'chat:typing': new Set(), 'chat:deleted': new Set(), 'bulk:update': new Set(), 'kitchen:update': new Set(), 'waiter:update': new Set(), 'menu:changed': new Set(), 'shop:changed': new Set(), 'order:update': new Set(), notification: new Set(), 'rider:location': new Set(), 'rider:route': new Set(), 'order:eta': new Set(), 'rider:quiet': new Set(), 'rider:offer': new Set(), 'offer:closed': new Set() };
 
 // What the server asks of us: "socket" (normal) or "polling" (it is busy: poll every pollSec seconds and try the socket again
 // later). Screens read this to decide whether they need a timer. We never retry a refused connection sooner than retryAfterSec.
@@ -87,6 +87,7 @@ function connect() {
     socket.on('bulk:update', (p) => dispatch('bulk:update', p));
     socket.on('chat:message', (p) => dispatch('chat:message', p));    // a chat message arrived (from the other person, or sent from my other phone)
     socket.on('chat:status', (p) => dispatch('chat:status', p));      // my messages were delivered / read
+    socket.on('chat:deleted', (p) => dispatch('chat:deleted', p));    // a message was deleted (for everyone, or for me on my other phone)
     socket.on('chat:typing', (p) => dispatch('chat:typing', p));      // the other person is typing      // a bulk order changed (any panel): reload it
     socket.on('waiter:update', (p) => dispatch('waiter:update', p));     // the floor changed (waiters only)   // the kitchen's orders changed (cooks only)
     socket.on('notification', (p) => dispatch('notification', p));
@@ -169,6 +170,7 @@ export const onBulkUpdate = sub('bulk:update');
 export const onChatMessage = sub('chat:message');
 export const onChatStatus = sub('chat:status');
 export const onChatTyping = sub('chat:typing');
+export const onChatDeleted = sub('chat:deleted');   // { kind, refId, ids, scope: 'me' | 'all' }
 export const onWaiterUpdate = sub('waiter:update');
 
 export function onNotification(fn) {

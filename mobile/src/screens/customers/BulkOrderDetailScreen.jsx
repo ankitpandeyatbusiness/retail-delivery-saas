@@ -168,7 +168,7 @@ export default function BulkOrderDetailScreen() {
                     {o.status === 'requested' && o.changeNote ? <Text style={{ color: muted, marginTop: 8 }}>{tr('You asked: {r}', { r: o.changeNote })}</Text> : null}
                 </Card>
 
-                <View style={{ paddingHorizontal: 16, marginTop: 12 }}><ChatButton kind="bulk" refId={o.id} title={`${tr('Bulk order')} ${o.code}`} label={tr('Chat with the shop')} /></View>
+                <View style={{ paddingHorizontal: 16, marginVertical: 12 }}><ChatButton kind="bulk" refId={o.id} title={`${tr('Bulk order')} ${o.code}`} label={tr('Chat with the shop')} /></View>
 
                 {/* the pickup code: shown while the order is being made, to be told at the counter */}
                 {o.pickupCode ? (

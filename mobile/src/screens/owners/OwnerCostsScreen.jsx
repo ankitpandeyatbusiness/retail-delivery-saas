@@ -28,7 +28,7 @@ const LABEL = {
 const blank = () => ({ id: null, category: 'ingredients', amount: '', date: ymd(Date.now()), otherName: '', vendor: '', note: '', repeatMonthly: false });
 
 export default function OwnerCostsScreen() {
-    const { background, text, muted, primary, error, success } = useBrand();
+    const { background, text, muted, primary, errorText, ok } = useBrand();   // ok and errorText stay readable on a dark canvas (there is no "success" colour: it was undefined, so the profit drew in default black)
     const [which, setWhich] = useState('month');
     const [p, setP] = useState(null);
     const [list, setList] = useState(null);
@@ -74,7 +74,7 @@ export default function OwnerCostsScreen() {
                     <>
                         <Card>
                             <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }}>{p.from === p.to ? p.from : `${p.from} - ${p.to}`}</Text>
-                            <Text style={{ color: p.profit >= 0 ? success : error, fontSize: 34, fontWeight: '900', marginTop: 2 }}>{money(p.profit)}</Text>
+                            <Text style={{ color: p.profit >= 0 ? ok : errorText, fontSize: 34, fontWeight: '900', marginTop: 2 }}>{money(p.profit)}</Text>
                             <Text style={{ color: muted, fontSize: 13, marginTop: 2 }}>{p.profit >= 0 ? tr('Profit') : tr('Loss')}{p.marginPct !== null ? ` · ${p.marginPct}%` : ''}</Text>
                             {p.before && (p.before.revenue || p.before.costs) ? <Text style={{ color: muted, fontSize: 12.5, marginTop: 6 }}>{tr('The period before: {amount}', { amount: money(p.before.profit) })}</Text> : null}
                         </Card>
@@ -85,7 +85,7 @@ export default function OwnerCostsScreen() {
                             {p.costs.items.map((i) => <MoneyRow key={i.key} title={tr(i.label)} value={`- ${money(i.amount)}`} />)}
                             {p.costs.rentPaid ? <MoneyRow title={tr('Rent paid to the platform')} value={`- ${money(p.costs.rentPaid)}`} /> : null}
                             {p.costs.smsPaid ? <MoneyRow title={tr('SMS top-ups')} value={`- ${money(p.costs.smsPaid)}`} /> : null}
-                            <MoneyRow title={tr('Profit')} value={money(p.profit)} color={p.profit >= 0 ? success : error} last />
+                            <MoneyRow title={tr('Profit')} value={money(p.profit)} color={p.profit >= 0 ? ok : errorText} last />
                         </Card>
                     </>
                 ) : null}

@@ -27,7 +27,7 @@ export default function InquiryScreen() {
 
     return (
         <FormPage fixed title={tr(i.serviceName)}>
-            <View style={{ paddingHorizontal: 16, marginBottom: 8 }}><ChatButton kind="inquiry" refId={id} title={tr(i.serviceName)} label={tr('Chat with the shop')} /></View>
+            <View style={{ paddingHorizontal: 16, marginTop: 8, marginBottom: 12 }}><ChatButton kind="inquiry" refId={id} title={tr(i.serviceName)} label={tr('Chat with the shop')} /></View>
             {(
                 <ScrollView contentContainerStyle={{ paddingTop: 8, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
                     <Card>
