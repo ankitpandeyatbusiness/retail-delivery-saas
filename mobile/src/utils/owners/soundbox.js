@@ -767,7 +767,7 @@ async function announceNews(n) {
     const d = n.data || {};
     note('news: ' + n.type);
     if (isOpenInquiry(n.type, d)) return;   // he is on that inquiry's screen and can see the reply: no ping, no voice (the toast still shows)
-    if (alertOn(n.type, 's')) playSfx((String(n.type).startsWith('inquiry_') || n.type === 'bulk_new') ? 'inquiry' : 'notify');
+    if (alertOn(n.type, 's')) playSfx(n.type === 'bulk_cancelled' ? 'cancelAlarm' : (String(n.type).startsWith('inquiry_') || n.type === 'bulk_new') ? 'inquiry' : 'notify');
     try {
         const wanted = await languageToUse();
         const plain = [n.title, n.body].filter(Boolean).join('. ');

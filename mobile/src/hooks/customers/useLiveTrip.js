@@ -33,8 +33,13 @@ export function useLiveTrip(enabled) {
                 if (!o) {
                     try {
                         const b = await fetchMyBulk();
-                        const x = (b.items || []).find((y) => y.fulfilment === 'delivery' && y.status === 'out_for_delivery' && y.trackOrderId);
-                        if (x) o = { id: x.trackOrderId, orderNo: x.code, bulkId: x.id };
+                        // do not trust the bulk order's own word alone: the ticket itself says whether the rider has the food (state on_the_way)
+                        const cands = (b.items || []).filter((y) => y.fulfilment === 'delivery' && y.trackOrderId && ['ready', 'out_for_delivery'].includes(y.status)).slice(0, 3);
+                        for (const y of cands) {
+                            const t = await fetchTracking(String(y.trackOrderId)).catch(() => null);
+                            if (dead) return;
+                            if (t && t.state === 'on_the_way') { o = { id: y.trackOrderId, orderNo: y.code, bulkId: y.id }; break; }
+                        }
                     } catch (e) { /* no bulk delivery to follow */ }
                     if (dead) return;
                 }

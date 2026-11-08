@@ -53,7 +53,7 @@ const EVENTS = {
     bulk_new: { to: 'owner', channels: INAPP_PUSH, alsoPush: true, pushChannel: NEW_BULK_CHANNEL, pushSound: 'new_bulk_order' },     // a customer sent a bulk order request
     bulk_change: { to: 'owner', channels: INAPP_PUSH, alsoPush: true, pushChannel: INQUIRY_CHANNEL, pushSound: 'cust_offer' },  // a customer asked to change the quote
     bulk_paid: { to: 'owner', channels: INAPP_PUSH, alsoPush: true, pushChannel: INQUIRY_CHANNEL, pushSound: 'cust_offer' },       // the customer paid the advance: the order is confirmed
-    bulk_cancelled: { to: 'owner', channels: INAPP_PUSH, alsoPush: true, pushChannel: INQUIRY_CHANNEL, pushSound: 'cust_offer' },  // the customer cancelled a confirmed bulk order
+    bulk_cancelled: { to: 'owner', channels: INAPP_PUSH, alsoPush: true, pushChannel: CANCEL_CHANNEL, pushSound: 'cancel_alert' },  // the customer cancelled a confirmed bulk order
     bulk_confirmed: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },       // the advance arrived: the order is confirmed
     bulk_refund: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },          // the advance is on its way back
     bulk_shop_cancelled: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },  // the shop cancelled a confirmed bulk order
