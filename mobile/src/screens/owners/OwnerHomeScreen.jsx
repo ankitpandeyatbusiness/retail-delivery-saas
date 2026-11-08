@@ -13,7 +13,7 @@ import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { useSoundboxStore } from '../../store/owners/useSoundboxStore';
 import { useAlertStore } from '../../store/owners/useAlertStore';
 import { useHomeStore } from '../../store/customers/useHomeStore';
-import { setAcceptingOrders, fetchStaff, apiError, booking as bookingApi } from '../../api/owners/shopApi';
+import { setAcceptingOrders, fetchStaff, apiError, booking as bookingApi, bulk as bulkApi } from '../../api/owners/shopApi';
 import { onNotification } from '../../api/common/socket';
 import { showToast } from '../../components/customers/shop';
 import { onOrderUpdate } from '../../api/common/socket';
@@ -33,6 +33,8 @@ const PIPELINE = [
     ['ready', 'Ready', 'restaurant'],
     ['out_for_delivery', 'On the road', 'bicycle'],
 ];
+// a bulk order's step, in the owner's words (the card on top)
+const BULK_OWNER = { requested: 'Needs your quote', quoted: 'Quote sent, waiting for the customer', confirmed: 'Advance paid', preparing: 'Being made', ready: 'Ready', out_for_delivery: 'On the way' };
 const HOUR_LABELS = { 0: '12 AM', 6: '6 AM', 12: '12 PM', 18: '6 PM', 23: '11 PM' };
 
 // today's sales, hour by hour. The current hour is the strong bar.
@@ -128,6 +130,12 @@ export default function OwnerHomeScreen() {
     const loadPending = useCallback(() => { if (bookingOn) bookingApi.pending().then(setPendingRes).catch(() => { }); else setPendingRes({ count: 0, first: null }); }, [bookingOn]);
     useFocusEffect(useCallback(() => { loadPending(); }, [loadPending]));
     useEffect(() => onNotification((n) => { if (String(n?.type || '').startsWith('booking_')) loadPending(); }), [loadPending]);
+    // bulk orders that are still running: a card on top (blinking while the owner must answer) until they are delivered, cancelled or declined
+    const bulkOn = useMenuFlags((s) => s.bulkOn);
+    const [bulkLive, setBulkLive] = useState([]);
+    const loadBulk = useCallback(() => { if (bulkOn) bulkApi.list({ status: 'open' }).then((r) => setBulkLive((r.items || []).filter((x) => x.status !== 'delivered'))).catch(() => { }); else setBulkLive([]); }, [bulkOn]);
+    useFocusEffect(useCallback(() => { loadBulk(); const t = setInterval(loadBulk, 60000); return () => clearInterval(t); }, [loadBulk]));
+    useEffect(() => onNotification((n) => { if (String(n?.type || '').startsWith('bulk_')) loadBulk(); }), [loadBulk]);
     useFocusEffect(useCallback(() => { fetchStaff().then(setStaff).catch(() => { }); useMenuFlags.getState().refresh(); }, []));   // (the side menu's rows are ready before it opens)
     // an order changed anywhere: update the numbers (a moment later, so a burst of events is one refresh)
     useEffect(() => {
@@ -230,6 +238,28 @@ export default function OwnerHomeScreen() {
                     </Card>
                 </GlowBorder>
             ) : null}
+
+            {/* bulk orders still running: one card (or one for all); it blinks while one waits for the owner's quote */}
+            {bulkOn && bulkLive.length > 0 ? (() => {
+                const needs = bulkLive.filter((x) => x.status === 'requested');
+                const one = bulkLive.length === 1 ? bulkLive[0] : null;
+                const title = one ? `${tr('Bulk order')} ${one.code} · ${tr(BULK_OWNER[one.status] || one.status)}` : tr('{n} bulk orders running', { n: bulkLive.length });
+                const sub = needs.length ? (needs.length === 1 ? tr('A customer is waiting for your quote') : tr('{n} customers are waiting for your answer', { n: needs.length })) : (one ? `${one.contact?.name || ''}` : tr('Tap to see their status'));
+                return (
+                    <GlowBorder active={needs.length > 0} radius={18} style={{ marginHorizontal: 16, marginTop: 14, marginBottom: 16 }}>
+                        <Card onPress={() => (one ? nav.navigate('OwnerBulkOrder', { id: String(one.id) }) : nav.navigate('OwnerBulk'))} style={{ marginHorizontal: 0, marginBottom: 0 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <Ionicons name="cube" size={22} color={needs.length ? error : primary} />
+                                <View style={{ flex: 1, marginLeft: 10 }}>
+                                    <Text style={{ color: needs.length ? error : text, fontWeight: '900' }}>{title}</Text>
+                                    {sub ? <Text style={{ color: muted, fontSize: 12, marginTop: 2 }} numberOfLines={1}>{sub}</Text> : null}
+                                </View>
+                                <Ionicons name="chevron-forward" size={18} color={muted} />
+                            </View>
+                        </Card>
+                    </GlowBorder>
+                );
+            })() : null}
 
             {/* complaints nobody has answered: always on top, blinking, until they are decided */}
             {d?.complaints?.open ? (
