@@ -31,6 +31,7 @@ export const SCREEN_INDEX = [
     E('Export data', 'More', 'Exports', 'root', 'copy', 'money', 'export data csv excel spreadsheet download orders invoices customers payments refunds complaints riders menu shops sms expenses audit detail quick standard everything saved'),
     /* ---- platform ---- */
     E('Alerts inbox', 'More', 'Inbox', 'root', 'bell', 'alerts', 'alerts inbox notifications late orders unpaid problems clear read'),
+    E('Terms and policies', 'Shops', 'LegalPages', 'root', 'notes', 'platform', 'terms privacy policy legal about us edit publish refund contact owners customers'),
     E('Messages to owners', 'Shops', 'OwnerMessages', 'root', 'megaphone', 'platform', 'messages owners announcement broadcast write send notice email'),
     E('Alert SMS', 'More', 'AlertSettings', 'MoreTab', 'message', 'catalog', 'alert sms my phone number text message critical events cost'),
     E('Notification rules', 'More', 'NotificationRules', 'MoreTab', 'tune', 'settings', 'notification rules events channels push sms escalate delivered how'),
@@ -40,7 +41,6 @@ export const SCREEN_INDEX = [
     E('Brands and branches', 'Shops', 'Brands', 'root', 'shops', 'platform', 'brands branches brand chain group several shops add branch make brand'),
     E('Shops growth', 'Shops', 'ShopsGrowth', 'root', 'chart', 'shops', 'growth top shops slowing down growing rank'),
     E('Support requests', 'Shops', 'Support', 'root', 'message', 'orders', 'support help requests tickets owners reply'),
-    E('Agreements and terms', 'Shops', 'Agreements', 'root', 'notes', 'platform', 'agreements terms legal mou contract send owners'),
     E('Services and booking', 'Orders', 'ServicesOverview', 'root', 'message', 'orders', 'services booking inquiries table booking reservations bulk'),
     E('Live tracking', 'Orders', 'LiveTracking', 'root', 'live', 'platform', 'live tracking riders map server switch gps'),
     E('Superadmin team', 'More', 'Team', 'MoreTab', 'crown', 'settings', 'team superadmins admins add revoke restore rename colleagues access'),

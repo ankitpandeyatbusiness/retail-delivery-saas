@@ -12,12 +12,11 @@ function requireSupreme(req, res, next) {
 
 // paths are relative to /api/admin
 const MONEY = [
-    /^\/platform\/(business|billing|tax|payments|sms|sms-balance|sms-setup|agreements|tracking)(\/|$)/,
+    /^\/platform\/(business|billing|tax|payments|sms|sms-balance|sms-setup|tracking)(\/|$)/,
     /^\/subscriptions\//,                                   // generate, mark paid, void, waive, extend the grace
     /^\/tenants\/[^/]+\/(billing|invoices|sms|sms-provider)(\/|$)/,   // a shop's fee plan, go-live, custom bills, SMS wallet and prices
     /^\/finance\//,                                         // the platform's expenses
     /^\/money-record(\/|$)/,                                // the developer's yes/no and who brought a shop
-    /^\/agreements(\/|$)/,
     /^\/tenants\/[^/]+\/shop\/bulk\/[^/]+\/(cancel|cash-received)$/,   // cancelling a paid bulk order (the advance goes back) and writing down the balance as received
     /^\/tenants\/[^/]+\/payments(\/|$)/,                    // where a shop's online money goes: its Razorpay keys, webhook secret, on/off
     /^\/platform\/money-rules(\/|$)/,                       // who bears the cost of a cancelled order

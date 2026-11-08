@@ -17,6 +17,8 @@ import SupportInboxScreen from '../screens/support/SupportInboxScreen';
 import SupportDetailScreen from '../screens/support/SupportDetailScreen';
 import SupportSettingsScreen from '../screens/support/SupportSettingsScreen';
 import OwnerMessagesScreen from '../screens/platform/OwnerMessagesScreen';
+import LegalPagesScreen from '../screens/legalPages/LegalPagesScreen';
+import LegalPageEditScreen from '../screens/legalPages/LegalPageEditScreen';
 import MaintenanceScreen from '../screens/platform/MaintenanceScreen';
 import LiveTrackingScreen from '../screens/platform/LiveTrackingScreen';
 import AlertSettingsScreen from '../screens/platform/AlertSettingsScreen';
@@ -60,8 +62,6 @@ import PlatformBusinessScreen from '../screens/money/PlatformBusinessScreen';
 import GstRegisterScreen from '../screens/money/GstRegisterScreen';
 import BrandsScreen from '../screens/operators/BrandsScreen';
 import BrandDetailScreen from '../screens/operators/BrandDetailScreen';
-import AgreementsScreen from '../screens/agreements/AgreementsScreen';
-import AgreementDocScreen from '../screens/agreements/AgreementDocScreen';
 import MoneyRecordScreen from '../screens/money/MoneyRecordScreen';
 import ServicesOverviewScreen from '../screens/services/ServicesOverviewScreen';
 import ServicesShopScreen from '../screens/services/ServicesShopScreen';
@@ -239,12 +239,12 @@ const DETAIL = [
     ['ServicesShop', ServicesShopScreen],
     ['ServicesInquiry', ServicesInquiryScreen],
     ['ServicesDefaults', ServicesDefaultsScreen],
-    ['Agreements', AgreementsScreen],
-    ['AgreementDoc', AgreementDocScreen],
     ['AlertSettings', AlertSettingsScreen],
     ['NotificationRules', NotificationRulesScreen],
     ['AuditLog', AuditLogScreen],
     ['MyAccount', MyAccountScreen],
+    ['LegalPages', LegalPagesScreen],
+    ['LegalPageEdit', LegalPageEditScreen],
 ];
 const ROOT_OWN = new Set(["Admin","Inbox","Support","SupportDetail","SupportSettings","OwnerMessages","Health","ShopReadiness","System","Exports","ProfitLoss","Receivables","Expenses","ExpenseForm","Login"]);
 const detailScreens = (S) => DETAIL.map(([name, component]) => <S.Screen key={name} name={name} component={component} />);

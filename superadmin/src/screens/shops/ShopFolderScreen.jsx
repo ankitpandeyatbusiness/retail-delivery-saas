@@ -3,7 +3,7 @@ import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/nativ
 import { spacing } from '../../theme';
 import { Screen } from '../../components/layout';
 import { Card, ListRow } from '../../components/ui';
-import { BroughtByCard, HandoverCard } from '../../components/broughtByBits';
+import { BroughtByCard } from '../../components/broughtByBits';
 import MakeBrandCard from '../../components/makeBrandCard';
 import { SkeletonList } from '../../components/blocks';
 import { useShopStore } from '../../store/useShopStore';
@@ -29,7 +29,6 @@ export default function ShopFolderScreen() {
                 <>
                     <BroughtByCard shopId={shopId} current={tenant.broughtBy} onChanged={refresh} />
                     <MakeBrandCard tenant={tenant} onDone={refresh} />
-                    <HandoverCard shopId={shopId} handedOverAt={tenant.handedOverAt} onChanged={refresh} />
                 </>
             ) : null}
             <Card padded={false} style={{ paddingHorizontal: spacing.lg, marginTop: f.cards ? spacing.md : 0 }}>

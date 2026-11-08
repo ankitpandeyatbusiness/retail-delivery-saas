@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { View, Text } from 'react-native';
 import { useTheme, spacing, font } from '../theme';
-import { Button, Chip } from './ui';
+import { Chip } from './ui';
 import { toast } from './feedback';
 import { errMsg } from '../api/adminClient';
-import { setHandover } from '../api/legalApi';
 import { setShopBroughtBy } from '../api/moneyRecordApi';
 import { useSupreme } from '../hooks/useSupreme';
 
@@ -54,33 +53,6 @@ export function BroughtByPicker({ value, onChange }) {
                 <Chip label="Vivyaan brought it" active={value === 'partner'} onPress={() => onChange('partner')} />
             </View>
             <Text style={{ color: t.muted, fontSize: font.xs, marginTop: 4 }}>Decides the developer's part of its payments: 70% if the developer brought it, 50% if Vivyaan did. You can change it later.</Text>
-        </View>
-    );
-}
-
-// "Mark as handed over to the client": from then on the shop's owner and riders are asked to agree to the terms on their second visit.
-// Everybody sees the state; only the supreme admin presses the button.
-export function HandoverCard({ shopId, handedOverAt, onChanged }) {
-    const t = useTheme();
-    const supreme = useSupreme();
-    const [busy, setBusy] = useState(false);
-    if (!supreme && !handedOverAt) return null;
-    const go = async (on) => {
-        setBusy(true);
-        try { await setHandover(shopId, on); toast(on ? 'Marked as handed over. Their owner and riders will be asked to agree on their second visit.' : 'Handover mark removed'); onChanged?.(); }
-        catch (e) { toast(errMsg(e), 'error'); } finally { setBusy(false); }
-    };
-    return (
-        <View style={{ marginBottom: spacing.md, padding: spacing.lg, borderRadius: 16, backgroundColor: t.surface }}>
-            <Text style={{ color: t.text, fontWeight: '800' }}>Handover to the client</Text>
-            <Text style={{ color: t.muted, fontSize: font.sm, marginTop: 2 }}>
-                {handedOverAt ? `Handed over on ${dayOf(handedOverAt)}. The owner and riders are asked to agree to the terms on their second visit.` : 'Not handed over yet, so nobody here is asked to agree to anything. Press this when you give the shop to the client.'}
-            </Text>
-            {supreme ? (
-                <View style={{ marginTop: spacing.md }}>
-                    {handedOverAt ? <Button title="Remove the handover mark" kind="outline" onPress={() => go(false)} loading={busy} /> : <Button title="Mark as handed over to the client" icon="check" onPress={() => go(true)} loading={busy} />}
-                </View>
-            ) : null}
         </View>
     );
 }

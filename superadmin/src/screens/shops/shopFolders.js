@@ -59,7 +59,7 @@ export const FOLDERS = [
             { section: 'catalog', icon: 'palette', title: 'Branding', subtitle: 'Logo, home pictures, colours from logo, app icon', screen: 'ShopBranding' },
             { section: 'platform', icon: 'tool', title: 'Development details', subtitle: 'App id, versions, Razorpay, SMS and DLT, build commands', screen: 'ShopDev' },
         ],
-        cards: true,   // this folder also holds who brought the shop, make a brand, and the handover
+        cards: true,   // this folder also holds who brought the shop and make a brand
     },
 ];
 export const folderOf = (key) => FOLDERS.find((f) => f.key === key);

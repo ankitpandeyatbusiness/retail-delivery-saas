@@ -1,12 +1,16 @@
-// The Terms of Service and the Privacy Policy as plain web pages, for the store listing and for anybody to read:
-//   GET /legal/terms     GET /legal/privacy
-// They show the version that was last sent from the admin app (or the draft, with the names filled in, until one is sent).
+// The terms and privacy policies as plain web pages, for the store listing, Razorpay and anybody to read (services/legal.js, the texts as they are in the apps):
+//   GET /legal/terms   /legal/privacy   /legal/about   /legal/owner-terms   /legal/owner-privacy   /legal/rider-terms   /legal/rider-privacy   /legal/staff-terms   /legal/staff-privacy
 const express = require('express');
 const legal = require('../services/legal');
 const { wrap } = require('../middlewares/apiErrors');
 
 const router = express.Router();
-const PAGES = { terms: 'customer_terms', privacy: 'privacy' };
+const PAGES = {
+    terms: 'customer_terms', privacy: 'privacy', about: 'about_us',
+    'owner-terms': 'owner_terms', 'owner-privacy': 'owner_privacy',
+    'rider-terms': 'rider_terms', 'rider-privacy': 'rider_privacy',
+    'staff-terms': 'staff_terms', 'staff-privacy': 'staff_privacy',
+};
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -35,11 +39,11 @@ router.get('/:page', wrap(async (req, res) => {
     const key = PAGES[req.params.page];
     if (!key) return res.status(404).type('text/plain').send('Not found');
     const d = await legal.readCurrent(key, { shopName: await legal.shopNameFor(req.query.shop) });
-    res.set('Cache-Control', 'public, max-age=300'); res.set('Vary', 'Accept');
+    res.set('Cache-Control', 'public, max-age=30'); res.set('Vary', 'Accept');   // short: a published change shows within seconds
     return res.type('html').send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(d.title)}</title>
 <style>body{font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:760px;margin:0 auto;padding:24px 16px;color:#1f2933}h2{font-size:1.15rem;margin:1.6em 0 .4em}h2:first-child{font-size:1.6rem;margin-top:0}li{margin:.3em 0}small{color:#6b7280}</style></head>
-<body>${html(d.body)}<p><small>${d.no ? `Version ${d.no}${d.publishedAt ? `, ${new Date(d.publishedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Kolkata' })}` : ''}` : 'Draft'}</small></p></body></html>`);
+<body>${html(d.body)}</body></html>`);
 }));
 
 module.exports = router;

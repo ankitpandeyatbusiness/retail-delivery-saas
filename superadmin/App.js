@@ -6,7 +6,6 @@ import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';
 import RootNavigator from './src/navigation/RootNavigator';
 import { ToastHost, toast } from './src/components/feedback';
-import LegalGate from './src/components/LegalGate';
 import LockGate from './src/lock/LockUI';
 import { useAuthStore } from './src/store/useAuthStore';
 import { useThemeStore } from './src/store/useThemeStore';
@@ -58,7 +57,6 @@ function Shell() {
     return (
         <NavigationContainer ref={navigationRef} onReady={flushPending} theme={{ ...base, colors: { ...base.colors, background: t.bg, card: t.surface, text: t.text, border: t.border, primary: t.primary } }}>
             <RootNavigator />
-            <LegalGate />
             <PanelLock />
             <ToastHost />
         </NavigationContainer>

@@ -1,17 +1,10 @@
 import api, { data } from './adminClient';
 
-/* ---- terms, agreements and the privacy policy ---- */
-// everybody with a login
-export const fetchLegalStatus = () => data(api.get('/admin/legal/status'));              // { required, key, version, title, body, summary }
-export const acceptLegal = (key, version) => data(api.post('/admin/legal/accept', { key, version }));
-export const fetchLegalMine = () => data(api.get('/admin/legal/mine'));
-export const fetchAgreements = () => data(api.get('/admin/agreements'));                  // { items: [{ key, audience, title, currentVersion, publishedAt, draftChanged, stats }] }
-export const fetchAgreement = (key) => data(api.get(`/admin/agreements/${key}`));          // draft, current, versions, blanks
-export const fetchAgreementVersion = (key, no) => data(api.get(`/admin/agreements/${key}/versions/${no}`));
-export const fetchAcceptances = (key) => data(api.get(`/admin/agreements/${key}/acceptances`));   // { version, agreed: [], waiting: [] }
-
-// the supreme admin only
-export const saveAgreementDraft = (key, body) => data(api.put(`/admin/agreements/${key}/draft`, body));       // { title, body }
-export const sendAgreement = (key, body) => data(api.post(`/admin/agreements/${key}/send`, body));            // { summary, askWhen, allowBlanks }
-export const setHandover = (shopId, handedOver) => data(api.post(`/admin/agreements/handover/${shopId}`, { handedOver }));
-export const setLegalRole = (adminId, legalRole) => data(api.put(`/admin/legal/roles/${adminId}`, { legalRole }));
+/* ---- the terms, privacy policies and About Us texts (backend/src/routes/adminLegalPagesRouter.js) ---- */
+export const fetchLegalPages = () => data(api.get('/admin/legal-pages'));                                     // { items: [{ key, title, audience, currentNo, publishedAt, publishedBy, hasDraft, versions }] }
+export const fetchLegalPage = (key) => data(api.get(`/admin/legal-pages/${key}`));                            // { draft, current, versions, names, blanks, preview, builtIn }
+export const fetchLegalPageVersion = (key, no) => data(api.get(`/admin/legal-pages/${key}/versions/${no}`));  // an old text
+export const saveLegalDraft = (key, body) => data(api.put(`/admin/legal-pages/${key}/draft`, body));          // { title, body }  (supreme admin)
+export const discardLegalDraft = (key) => data(api.post(`/admin/legal-pages/${key}/discard`));                // (supreme admin)
+export const publishLegalPage = (key) => data(api.post(`/admin/legal-pages/${key}/publish`));                 // (supreme admin) everybody sees it at once
+export const restoreLegalVersion = (key, no) => data(api.post(`/admin/legal-pages/${key}/restore/${no}`));    // (supreme admin) an old text becomes the draft

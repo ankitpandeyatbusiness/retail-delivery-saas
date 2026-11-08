@@ -90,7 +90,6 @@ const tenantSchema = new mongoose.Schema({
     broughtBy: { type: String, enum: ['owner', 'partner'] },
     broughtBySetAt: Date,
     // the day the supreme admin handed the app to this shop's owner: from then on the owner and riders are asked to agree to the terms
-    handedOverAt: Date,
     handedOverBy: String,
 
     ownerBlocked: { type: Boolean, default: false },

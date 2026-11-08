@@ -71,6 +71,7 @@ admin.use(requireSuperAdmin);
 admin.use(auditTrail('superadmin'));   // records every change a superadmin makes
 admin.use(moneyGuard);                 // changes that touch the platform's income: the supreme admin only (middlewares/supremeAdmin.js)
 
+admin.use(require('./adminLegalPagesRouter'));   // terms, privacy and About Us: everyone reads, the supreme admin edits and publishes
 admin.use(require('./adminProfilePhotoRouter'));   // my profile picture
 admin.use('/me', authRoutes.me);   // PUT /me/phones
 admin.use(require('./adminLiveRouter'));   // live picture of a shop, phone reveal
@@ -89,7 +90,6 @@ admin.use(require('./adminBillingRouter'));
 admin.use(require('./adminSubscriptionRouter'));
 admin.use(require('./adminTrackingRouter'));   // live tracking: server health and the sockets / polling / off switch (everyone looks, the supreme admin changes)
 admin.use(require('./adminBrandsRouter'));   // brands with branches (everyone looks, the supreme admin changes)
-admin.use(require('./adminLegalRouter'));   // terms, agreements and privacy (everyone reads, the supreme admin writes and sends)
 admin.use(require('./adminPlatformHealthRouter'));   // is the platform running fine (everyone reads)
 admin.use(require('./adminMoneyRecordRouter'));   // what shops paid each month and the developer's yes/no (everyone reads, the supreme admin changes)
 admin.use(require('./adminServicesRouter'));     // services, inquiries and table booking: totals, lists and threads to read, and the defaults

@@ -24,7 +24,7 @@ export default function ShopsToolsScreen() {
             <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
                 <ListRow section="orders" icon="message" title="Support requests" subtitle="Help requests from shop owners" right={help > 0 ? <Badge label={`${help} waiting`} tone="danger" /> : null} onPress={go('Support')} />
                 <ListRow section="platform" icon="megaphone" title="Messages to owners" subtitle="Write to all shop owners" onPress={go('OwnerMessages')} />
-                <ListRow section="platform" icon="notes" title="Agreements and terms" subtitle="Read them; the supreme admin writes and sends them" onPress={go('Agreements')} last />
+                <ListRow section="platform" icon="notes" title="Terms and policies" subtitle="Terms of service and privacy: edit, then publish" onPress={go('LegalPages')} last />
             </Card>
         </Screen>
     );
