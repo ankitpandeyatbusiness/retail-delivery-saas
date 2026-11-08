@@ -20,10 +20,12 @@ import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { openInvoice } from '../../components/owners/orderBits';
 import { ask } from '../../components/common/dialog';
 import { BULK_STATUS, bulkTone, whenText } from '../customers/BulkOrderDetailScreen';
+import { dismissBulk } from '../../utils/owners/soundbox';
 import { tr } from '../../i18n';
 
 export default function OwnerBulkOrderScreen() {
     const { id } = useRoute().params || {};
+    useFocusEffect(useCallback(() => { if (id) dismissBulk(id); }, [id]));   // opening the request stops its ringing, like opening a new order
     const brand = useBrand();
     const { background, text, muted, primary, ok, error, border } = brand;
     const [o, setO] = useState(null);

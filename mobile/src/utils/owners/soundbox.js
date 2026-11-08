@@ -23,10 +23,10 @@ import { useAuthStore } from '../../store/common/useAuthStore';
 import { useSoundboxStore } from '../../store/owners/useSoundboxStore';
 import { useThemeStore } from '../../store/common/useThemeStore';
 import { setRinging } from '../../store/owners/useAlertStore';
-import { onNotification, onOrderUpdate, realtimeConnected } from '../../api/common/socket';
+import { onNotification, onOrderUpdate, onBulkUpdate, realtimeConnected } from '../../api/common/socket';
 import { playSfx } from '../common/sfx';
 import api from '../../api/common/client';
-import { fetchOrders, fetchOrder } from '../../api/owners/shopApi';
+import { fetchOrders, fetchOrder, bulk as ownerBulk } from '../../api/owners/shopApi';
 import { fetchKitchenOrders } from '../../api/staff/staffApi';
 import { buildGreeting } from './greetings';
 import { useAlertPrefs, alertOn } from '../../store/common/useAlertPrefs';
@@ -430,9 +430,13 @@ export function sampleGreeting(language = settings().language) {
 }
 
 // the sentence of one waiting order in the language being used
-const textOf = (entry, language) => (language === 'hi'
-    ? (entry.speechHi || 'ऑर्डर ' + (entry.orderNo || '') + ' इंतज़ार कर रहा है।')
-    : (entry.speech || 'New order ' + (entry.orderNo || '') + ' is waiting.'));
+const textOf = (entry, language) => (entry.bulk
+    ? (language === 'hi'
+        ? (entry.speechHi || 'बल्क ऑर्डर ' + (entry.orderNo || '') + ' आपके कोटेशन का इंतज़ार कर रहा है।')
+        : (entry.speech || 'Bulk order ' + (entry.orderNo || '') + ' is waiting for your quote.'))
+    : language === 'hi'
+        ? (entry.speechHi || 'ऑर्डर ' + (entry.orderNo || '') + ' इंतज़ार कर रहा है।')
+        : (entry.speech || 'New order ' + (entry.orderNo || '') + ' is waiting.'));
 
 /* ------------------------------ the loop ------------------------------ */
 function firstPending() {
@@ -495,11 +499,17 @@ async function speakRound() {
     if (firstId && firstId !== 'test-push') {
         try {
             const slow = new Promise((r) => setTimeout(() => r(null), 3000));   // a slow network must not hold the voice back
+            if (firstId.startsWith(BULK)) {
+                // a bulk request waits while it is "requested" (not quoted, declined or cancelled yet)
+                const b = await Promise.race([ownerBulk.get(firstId.slice(BULK.length)), slow]);
+                if (b && b.status !== 'requested') { note('bulk order ' + (b.code || firstId) + ' is no longer waiting: dropped'); speaking = false; bulkAnswered(firstId.slice(BULK.length)); endVoice(); return; }
+            } else {
             // the owner's order is waiting while it is "placed"; the cook's while it is "new" in his queue (accepted, not started)
             const o = isCook()
                 ? await Promise.race([fetchKitchenOrders().then((q) => { const row = (q.items || []).find((x) => String(x.id) === firstId); return row ? { orderNo: row.orderNo, status: row.stage === 'new' ? 'placed' : row.stage } : { status: 'gone' }; }), slow])
                 : await Promise.race([fetchOrder(firstId), slow]);
             if (o && o.status !== 'placed') { note('order ' + (o.orderNo || firstId) + ' is no longer waiting: dropped'); speaking = false; dismiss(firstId); endVoice(); return; }
+            }
         } catch (e) { /* offline: read it as before */ }
     }
     note('round' + (AppState.currentState !== 'active' ? ' (app in background)' : ''));
@@ -510,7 +520,8 @@ async function speakRound() {
         : more + ' more ' + (more === 1 ? 'order is' : 'orders are') + ' waiting.';
     let text = more > 0 ? textOf(next, language) + ' ' + tail : textOf(next, language);
     if (!next.greeted) { next.greeted = true; text = withGreeting(text, language); }   // the greeting is said once per order, not on every repeat
-    if (alertOn(isCook() ? 'new' : 'order_new', 'v')) await speak(text, language, isCook() ? 'new' : 'order_new');
+    const kind = next.bulk ? 'bulk_new' : (isCook() ? 'new' : 'order_new');   // (a bulk request follows the Bulk orders switches of the Alerts screen)
+    if (alertOn(kind, 'v')) await speak(text, language, kind);
     else speaking = false;   // the Voice switch of this alert is off: the bell rings, nothing is said
     endVoice();   // the voice has finished: the next bell comes after the gap
 }
@@ -560,6 +571,44 @@ export function raise({ orderId, orderNo, speech, speechHi, autoAccepted }) {
     if (isNew) note('order ' + (orderNo || id) + ' arrived');
     pending.set(id, { orderNo, speech, speechHi });
     if (isNew) { stopLoop(); kick(); } else kick();   // a new order starts a fresh round at once
+}
+
+/* ------------------------------ bulk requests waiting for the owner's quote ------------------------------ */
+// A new bulk request (and a customer's "please change the quote") rings and speaks like a new order until the owner opens it, or it is quoted, declined or
+// cancelled. It waits in the same list under the id 'bulk:<id>', so the same bell, the same voice and the same repeat time are used.
+const BULK = 'bulk:';
+const bulkSeen = new Set();   // requests the owner opened: they do not ring again (until the customer changes something)
+export function raiseBulk({ bulkId, code, speech, speechHi }) {
+    if (!bulkId || roleNow() !== 'admin' || !settings().soundbox) return;   // the owner only: the cook and the waiter do not quote
+    if (!alertOn('bulk_new', 's') && !alertOn('bulk_new', 'v')) return;   // the Alerts screen: no tone and no voice for bulk orders
+    if (!settings().alwaysReady && AppState.currentState !== 'active') return;   // the loud push rings instead (same rule as a new order)
+    if (bulkSeen.has(String(bulkId))) return;
+    const id = BULK + String(bulkId);
+    const isNew = !pending.has(id);
+    note('bulk request ' + (code || bulkId) + (isNew ? ' arrived' : ''));
+    pending.set(id, { orderNo: code, speech, speechHi, bulk: true });
+    if (isNew) { stopLoop(); kick(); } else kick();   // a new one starts a fresh round at once
+}
+// The owner opened the request: it stops ringing (and does not start again by itself).
+export function dismissBulk(bulkId) {
+    if (!bulkId) return;
+    bulkSeen.add(String(bulkId));
+    dismiss(BULK + String(bulkId));
+}
+// The request moved on (quoted, declined, cancelled...): no more ringing, and a later change request may ring again.
+function bulkAnswered(bulkId) {
+    bulkSeen.delete(String(bulkId));
+    dismiss(BULK + String(bulkId));
+}
+// What waits now (the app was closed, or a live message was missed): every request still "requested" that the owner has not opened rings.
+async function syncBulk() {
+    if (roleNow() !== 'admin') return;
+    try {
+        const r = await ownerBulk.list({ status: 'requested' });
+        const ids = new Set();
+        for (const o of r.items || []) { ids.add(String(o.id)); raiseBulk({ bulkId: o.id, code: o.code }); }
+        for (const id of [...pending.keys()]) if (id.startsWith(BULK) && !ids.has(id.slice(BULK.length))) dismiss(id);
+    } catch (e) { /* offline: the live message and the push still work */ }
 }
 
 // An order the shop accepted BY ITSELF (auto accept): the same Soundbox, but once: the "accepted" chime, then the order read out
@@ -869,7 +918,7 @@ async function syncWaiting() {
                 if (!wasSaid('new', { orderNo: o.orderNo, orderId: o.id })) showSlider({ key: 'new:' + o.orderNo, type: 'new', title: 'New order ' + o.orderNo, body: o.speech || '', data: { orderNo: o.orderNo, orderId: String(o.id) }, once: true });
                 raise({ orderId: o.id, orderNo: o.orderNo, speech: o.speech, speechHi: o.speechHi });
             }
-            for (const id of [...pending.keys()]) if (!ids.has(id)) dismiss(id);
+            for (const id of [...pending.keys()]) if (!ids.has(id) && !id.startsWith(BULK)) dismiss(id);
         } catch (e) { /* offline: the socket and the push still work */ }
         return;
     }
@@ -881,8 +930,8 @@ async function syncWaiting() {
             ids.add(String(o._id || o.id));
             raise({ orderId: o._id || o.id, orderNo: o.orderNo, speech: o.speech, speechHi: o.speechHi });
         }
-        // anything we were ringing for that is no longer "placed"
-        for (const id of [...pending.keys()]) if (!ids.has(id)) dismiss(id);
+        // anything we were ringing for that is no longer "placed" (a bulk request has its own list: syncBulk)
+        for (const id of [...pending.keys()]) if (!ids.has(id) && !id.startsWith(BULK)) dismiss(id);
     } catch (e) { /* offline: the socket and the push still work */ }
 }
 
@@ -915,6 +964,7 @@ function begin() {
     useSoundboxStore.getState().hydrate().then(() => {
         holdAlive(keepAliveWanted());
         syncWaiting();
+        syncBulk();
         fillOwnerName();
     });
 
@@ -924,11 +974,19 @@ function begin() {
         if (n?.type === 'table_call') { announceCall(n.data); return; }
         if (n?.type === 'kitchen_problem' || n?.type === 'pickup_intent') { announceKitchen(n.data, n.type); return; }
         if (n?.type === 'rider_sos') { announceHelp(n.data); return; }
+        if (n?.type === 'bulk_new' || n?.type === 'bulk_change') {
+            const d = n.data || {};
+            raiseBulk({ bulkId: d.bulkId, speech: d.speech || [n.title, n.body].filter(Boolean).join('. '), speechHi: d.speechHi });
+            return;
+        }
         if (isNewsType(n?.type)) { announceNews(n); return; }
         if (!n || !ALERT_TYPES.includes(n.type)) return;
         const d = n.data || {};
         raise({ orderId: d.orderId, orderNo: d.orderNo, speech: d.speech, speechHi: d.speechHi, autoAccepted: !!d.autoAccepted });
     }));
+
+    // a bulk request that was quoted, declined or cancelled (on this phone, another phone, or by the customer): it stops ringing
+    unsubs.push(onBulkUpdate((p) => { if (p?.bulkId && p.status && p.status !== 'requested') bulkAnswered(p.bulkId); }));
 
     unsubs.push(onOrderUpdate((p) => {
         // somebody dealt with it (this phone, another owner phone, the customer, the timeout job)
@@ -937,7 +995,7 @@ function begin() {
         else if (p?.orderId && p.status === 'placed') syncWaiting();
     }));
 
-    const sub = AppState.addEventListener('change', (s) => { note('app is ' + s); if (s === 'active') { syncWaiting(); useAlertPrefs.getState().load(); } });
+    const sub = AppState.addEventListener('change', (s) => { note('app is ' + s); if (s === 'active') { syncWaiting(); syncBulk(); useAlertPrefs.getState().load(); } });
     unsubs.push(() => sub.remove());
 
     // the settings changed on the Soundbox screen

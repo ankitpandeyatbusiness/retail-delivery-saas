@@ -71,7 +71,7 @@ Notifications.setNotificationHandler({
 // Messages the app already makes a sound for (the owner's Soundbox, the customer's order steps). Every other message gets one soft ping,
 // because with the app open the system sound is muted on purpose: without this a pickup-time request or the shop's reply would be silent.
 const QUIET_TYPES = ['table_guest_alert'];   // meant to be silent: only in the list
-const SOUNDBOX_TYPES = ['order_new', 'order_unaccepted_reminder', 'order_cancelled', 'table_bill_asked', 'table_call', 'kitchen_problem', 'pickup_intent', 'rider_sos'];
+const SOUNDBOX_TYPES = ['bulk_new', 'bulk_change', 'order_new', 'order_unaccepted_reminder', 'order_cancelled', 'table_bill_asked', 'table_call', 'kitchen_problem', 'pickup_intent', 'rider_sos'];
 // the tone for a message the Soundbox is not saying: a new order or a call for help is clearly louder than an ordinary ping
 const toneFor = (n) => (String(n?.type || '').startsWith('inquiry_') || String(n?.type || '').startsWith('bulk_') ? 'inquiry' : ['order_new', 'order_unaccepted_reminder', 'table_bill_asked', 'table_call', 'kitchen_problem', 'pickup_intent'].includes(n?.type) ? 'tingTong'
     : n?.type === 'order_cancelled' ? 'cancelAlarm' : n?.type === 'rider_sos' ? 'helpAlarm' : 'notify');

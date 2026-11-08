@@ -386,4 +386,18 @@ module.exports = [
     "Bulk order {v1} is complete",
     "Thank you! Your invoice is ready: open My bulk orders.",
     "Thank you!",
+    // the bulk order alerts of the owner (the push, the spoken sentences for the Marathi, Gujarati and Bengali voices, and the rider rule messages)
+    "Bulk order needs a rider",
+    "Bulk order {v1} is packed but no rider has taken it. Choose a free rider, or free one by finishing an order.",
+    "Bulk order {v1} is packed but no rider has taken it",
+    "Please choose a free rider",
+    "New bulk order received",
+    "New bulk order received from {v1}",
+    "Open Bulk orders to send your quote",
+    "Bulk order cancelled",
+    "Bulk order cancelled by {v1}",
+    "You keep the advance",
+    "The advance goes back to the customer",
+    "A bulk order needs a rider with no other order. Choose a rider who is free.",
+    "This rider is carrying a bulk order and can not take another one until it is delivered.",
 ];
