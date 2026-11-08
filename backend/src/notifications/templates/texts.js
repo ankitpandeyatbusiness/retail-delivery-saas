@@ -144,6 +144,7 @@ const TEXTS = {
     bulk_new: (v) => ({ title: 'New Bulk Order Request', body: `${v.code}: ${v.name || 'A customer'} asked for ₹${v.total}${v.when ? ` for ${v.when}` : ''}. Open Bulk orders to send your quote.` }),
     bulk_change: (v) => ({ title: `${v.name || 'A customer'} asked to change the quote`, body: v.note ? `Bulk order ${v.code}: “${v.note}”. Open Bulk orders to send a new quote.` : `Bulk order ${v.code}. Open Bulk orders to send a new quote.` }),
     bulk_quoted: (v) => ({ title: `Your quote for bulk order ${v.code} is ready`, body: `Total ₹${v.total}. Pay ₹${v.advance} now to confirm. Valid for ${v.hours} hours.${v.note ? ` The shop says: “${v.note}”` : ''}` }),
+    bulk_no_rider: (v) => ({ title: 'Bulk order needs a rider', body: `Bulk order ${v.code} is packed but no rider has taken it. Choose a free rider, or free one by finishing an order.` }),
     bulk_paid: (v) => ({ title: `Bulk order ${v.code} is confirmed`, body: `${v.name || 'The customer'} paid the advance of ₹${v.amount}. Open Bulk orders.` }),
     bulk_cancelled: (v) => ({ title: `Bulk order ${v.code} was cancelled`, body: `${v.name || 'The customer'} cancelled it.${v.unpaid ? '' : v.kept ? ' You keep the advance.' : ' The advance goes back to the customer.'}` }),
     bulk_confirmed: (v) => ({ title: `Bulk order ${v.code} is confirmed`, body: `Your advance of ₹${v.amount} arrived. The shop will make your order.` }),

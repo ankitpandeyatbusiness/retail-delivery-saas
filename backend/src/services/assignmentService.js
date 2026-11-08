@@ -59,6 +59,19 @@ async function settingsOf(tenantId) {
     };
 }
 
+/* ------------------------------ a bulk delivery has a rider to itself ------------------------------ */
+// A bulk order is big (30 meals, not one burger). It goes only to a rider with an empty bag, and a rider who carries one gets no other order until it is
+// delivered. Normal orders keep going to the other riders.
+const BULK = { bulkId: { $exists: true, $ne: null } };
+const isBulkOrder = async (orderId) => !!(await Order.exists({ _id: orderId, ...BULK }));
+const carriesBulk = async (tenantId, riderUserId) => !!(await Order.exists({
+    tenantId, ...BULK, 'delivery.riderId': riderUserId, 'delivery.status': { $in: ['assigned', 'accepted', 'picked_up'] }, status: { $in: ['accepted', 'preparing', 'ready', 'out_for_delivery'] },
+}));
+const BULK_ALONE = 'A bulk order needs a rider with no other order. Choose a rider who is free.';
+const BULK_BUSY = 'This rider is carrying a bulk order and can not take another one until it is delivered.';
+// the most orders a rider may hold when this order is added: a bulk order only goes to an empty bag
+const limitFor = (bulk, settings) => (bulk ? 1 : settings.maxActiveOrders);
+
 /* ------------------------------ rider slots ------------------------------ */
 const reserveSlot = (tenantId, userId, limit, needOnline) => Rider.findOneAndUpdate(
     { tenantId, userId, isActive: true, ...(needOnline && { isOnline: true }), activeOrderCount: { $lt: limit } },
@@ -74,8 +87,10 @@ const releaseSlot = (tenantId, userId) => Rider.updateOne(
 async function offerTo({ orderId, tenantId, riderUserId, by, settings, slotReserved = false, needOnline = false }) {
     settings = settings || await settingsOf(tenantId);
     if (!slotReserved) {
-        const slot = await reserveSlot(tenantId, riderUserId, settings.maxActiveOrders, needOnline);
-        if (!slot) throw httpError(409, 'This rider is not available (switched off, offline, or has too many orders)');
+        const bulk = await isBulkOrder(orderId);
+        if (!bulk && await carriesBulk(tenantId, riderUserId)) throw httpError(409, BULK_BUSY);
+        const slot = await reserveSlot(tenantId, riderUserId, limitFor(bulk, settings), needOnline);
+        if (!slot) throw httpError(409, bulk ? BULK_ALONE : 'This rider is not available (switched off, offline, or has too many orders)');
     }
     const now = new Date();
     const expires = new Date(now.getTime() + settings.offerSeconds * 1000);
@@ -128,9 +143,11 @@ async function autoAssign({ orderId, tenantId, settings }) {
     if (!order || !OPEN.includes(order.status) || order.delivery?.riderId) return null;
 
     const tried = (order.delivery?.offers || []).map((o) => o.riderId);
+    const bulk = await isBulkOrder(orderId);
     let pool = await Rider.find({
-        tenantId, isActive: true, isOnline: true, activeOrderCount: { $lt: settings.maxActiveOrders }, userId: { $nin: tried },
+        tenantId, isActive: true, isOnline: true, activeOrderCount: { $lt: limitFor(bulk, settings) }, userId: { $nin: tried },
     }).select('userId').lean();
+    if (!bulk) { const keep = []; for (const r of pool) if (!(await carriesBulk(tenantId, r.userId))) keep.push(r); pool = keep; }   // (a rider on a bulk delivery gets nothing else)
     const full = await cod.overLimitIds(tenantId, settings.cashLimitPaise);   // riders holding too much cash get no new orders
     pool = pool.filter((r) => !full.has(String(r.userId)));
 
@@ -224,11 +241,13 @@ async function offerOpenToRider({ tenantId, riderUserId }) {
     if (settings.assignMode !== 'automatic') return 0;
     const rider = await Rider.findOne({ tenantId, userId: riderUserId, isActive: true, isOnline: true }).select('activeOrderCount').lean();
     if (!rider || rider.activeOrderCount >= settings.maxActiveOrders) return 0;
+    if (await carriesBulk(tenantId, riderUserId)) return 0;   // on a bulk delivery: nothing else is shown to him
     if (settings.cashLimitPaise > 0 && (await cod.balanceOf(tenantId, riderUserId)).balancePaise >= settings.cashLimitPaise) return 0;
 
     const { HIDE_UNPAID } = require('./onlineOrder');
     const open = await Order.find({
         tenantId, orderType: 'delivery', status: { $in: ['accepted', 'preparing'] }, 'delivery.riderId': { $exists: false }, ...HIDE_UNPAID,
+        ...(rider.activeOrderCount > 0 && { bulkId: { $exists: false } }),   // a bulk order is shown only to a rider with an empty bag
     }).sort({ createdAt: 1 }).limit(3).select('_id').lean();
 
     const now = new Date();
@@ -264,13 +283,15 @@ async function acceptBroadcast({ orderId, tenantId, riderUserId }) {
         throw httpError(409, 'You hold too much cash. Give it to the shop before taking more orders.');
     }
 
-    // 1) take a slot for this rider
+    // 1) take a slot for this rider (a bulk order only for an empty bag; a rider on a bulk delivery takes nothing else)
+    const bulk = await isBulkOrder(orderId);
+    if (!bulk && await carriesBulk(tenantId, riderUserId)) throw httpError(409, BULK_BUSY);
     const slot = await Rider.findOneAndUpdate(
-        { tenantId, userId: riderUserId, isActive: true, isOnline: true, activeOrderCount: { $lt: settings.maxActiveOrders } },
+        { tenantId, userId: riderUserId, isActive: true, isOnline: true, activeOrderCount: { $lt: limitFor(bulk, settings) } },
         { $inc: { activeOrderCount: 1 } },
         { returnDocument: 'after' },
     );
-    if (!slot) throw httpError(409, 'You cannot take this order now');
+    if (!slot) throw httpError(409, bulk ? 'A bulk order needs a rider with no other order. Finish your orders first.' : 'You cannot take this order now');
 
     // 2) win the order
     let won;
@@ -402,8 +423,10 @@ async function assign({ orderId, tenantId, riderUserId, auto = false, reason, ac
     if (current && !String(reason || '').trim()) throw httpError(400, 'Please give a reason for changing the rider');
 
     // owner picks by hand: the rider must be active and under the limit (online is not required)
-    const slot = await reserveSlot(tenantId, riderUserId, settings.maxActiveOrders, false);
-    if (!slot) throw httpError(409, 'This rider is not available (switched off, not found, or has too many orders)');
+    const bulk = await isBulkOrder(orderId);
+    if (!bulk && await carriesBulk(tenantId, riderUserId)) throw httpError(409, BULK_BUSY);
+    const slot = await reserveSlot(tenantId, riderUserId, limitFor(bulk, settings), false);
+    if (!slot) throw httpError(409, bulk ? BULK_ALONE : 'This rider is not available (switched off, not found, or has too many orders)');
     try {
         if (current) await removeCurrent({ orderId, tenantId, current, reason, actor });
         await endBroadcast(orderId, tenantId, 'cancelled');   // the other riders are told it is closed

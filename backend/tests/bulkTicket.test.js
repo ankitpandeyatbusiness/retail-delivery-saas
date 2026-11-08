@@ -277,8 +277,8 @@ describe('a paid bulk order gets a work ticket for the kitchen and the rider', (
         // a normal order is already waiting; then the bulk order's day comes within 24 hours
         const normal = await f2.makeOrder(w.tenant, w.customer.user, { orderNo: 5000, status: 'accepted', orderType: 'pickup', payment: { method: 'cod', status: 'pending' } });
         await setWhen(20);
-        assert.deepEqual(await bulkJob.runBulkCookAlerts(), { called: 1, asked: 0 });
-        assert.deepEqual(await bulkJob.runBulkCookAlerts(), { called: 0, asked: 0 });   // once
+        assert.deepEqual(await bulkJob.runBulkCookAlerts(), { called: 1, asked: 0, warned: 0 });
+        assert.deepEqual(await bulkJob.runBulkCookAlerts(), { called: 0, asked: 0, warned: 0 });   // once
         assert.deepEqual(calls.map((c) => c.due), [false, true]);
         q = await kitchenSvc.queue(w.tenant);
         assert.equal(q.items[0].bulk, true, 'the bulk order is first');
@@ -312,7 +312,7 @@ describe('a paid bulk order gets a work ticket for the kitchen and the rider', (
         await kitchenSvc.ready({ tenant: w.tenant, orderId: t._id, staff });
         await waitFor(async () => (await bulkStatus()) === 'ready');
         assert.equal(asks.length, 0, 'packed 5 days early: no rider is asked now');
-        assert.deepEqual(await bulkJob.runBulkCookAlerts(), { called: 0, asked: 0 });
+        assert.deepEqual(await bulkJob.runBulkCookAlerts(), { called: 0, asked: 0, warned: 0 });
         await setWhen(1);
         const done = await bulkJob.runBulkCookAlerts();
         assert.equal(done.asked, 1);
@@ -423,10 +423,48 @@ describe('a paid bulk order gets a work ticket for the kitchen and the rider', (
         assert.equal(await Notification.countDocuments({ userId: w.rider.user._id, type: 'food_packed_rider' }), 0);
     });
 
+    test('a bulk delivery has a rider to itself: he gets nothing else, and a bulk order only goes to a rider with an empty bag', async () => {
+        const Rider = require('../src/models/Rider');
+        const assignment = require('../src/services/assignmentService');
+        const actor = { type: 'owner', id: String(w.owner.user._id) };
+        await Rider.updateOne({ tenantId: w.tenant._id, userId: w.rider.user._id }, { $set: { isActive: true, isOnline: true, activeOrderCount: 0 } });
+        await BulkOrder.updateOne({ _id: id }, { $set: { fulfilment: 'delivery', address: { label: 'Office', line1: '5 MG Road', city: 'Pune', pincode: '411001', name: 'Meera', phone: '9000000041' } } });
+        await paid();
+        const t = await ticket();
+        const normal = await f2.makeOrder(w.tenant, w.customer.user, { status: 'accepted' });
+        // a rider with a normal order in his bag cannot be given the bulk delivery
+        await assignment.assign({ orderId: normal._id, tenantId: w.tenant._id, riderUserId: w.rider.user._id, reason: 'test', actor });
+        await assert.rejects(() => assignment.assign({ orderId: t._id, tenantId: w.tenant._id, riderUserId: w.rider.user._id, reason: 'test', actor }), /no other order/);
+        // free again: he takes the bulk delivery, and now a normal order is refused for him
+        await Order.updateOne({ _id: normal._id }, { $unset: { 'delivery.riderId': 1, 'delivery.status': 1 } });
+        await Rider.updateOne({ tenantId: w.tenant._id, userId: w.rider.user._id }, { $set: { activeOrderCount: 0 } });
+        await assignment.assign({ orderId: t._id, tenantId: w.tenant._id, riderUserId: w.rider.user._id, reason: 'test', actor });
+        await Rider.updateOne({ tenantId: w.tenant._id, userId: w.rider.user._id }, { $set: { activeOrderCount: 1 } });   // (the limit would not stop him: only the bulk rule does)
+        await assert.rejects(() => assignment.assign({ orderId: normal._id, tenantId: w.tenant._id, riderUserId: w.rider.user._id, reason: 'test', actor }), /carrying a bulk order/);
+    });
+
+    test('a packed bulk delivery nobody takes: the owner is warned after 15 minutes, once per 15 minutes, until a rider has it', async () => {
+        const center = require('../src/notifications/center');
+        const told = [];
+        mock.method(center, 'notify', async (key, ctx) => { told.push({ key, ctx }); });
+        await BulkOrder.updateOne({ _id: id }, { $set: { fulfilment: 'delivery', address: { label: 'Office', line1: '5 MG Road', city: 'Pune', pincode: '411001', name: 'Meera', phone: '9000000041' } } });
+        await paid();
+        const t = await ticket();
+        await Order.updateOne({ _id: t._id }, { $set: { status: 'preparing', 'kitchen.readyAt': new Date(Date.now() - 20 * 60000) } });
+        assert.equal((await bulkJob.runBulkCookAlerts()).warned, 1);
+        assert.equal(told.filter((x) => x.key === 'bulk_no_rider').length, 1);
+        assert.match(told.find((x) => x.key === 'bulk_no_rider').ctx.data.speech, /no rider has taken it/);
+        assert.equal((await bulkJob.runBulkCookAlerts()).warned, 0, 'not again at once');
+        await Order.updateOne({ _id: t._id }, { $set: { 'kitchen.bulkNoRiderAt': new Date(Date.now() - 16 * 60000) } });
+        assert.equal((await bulkJob.runBulkCookAlerts()).warned, 1, 'again after 15 minutes');
+        await Order.updateOne({ _id: t._id }, { $set: { 'delivery.riderId': w.rider.user._id, 'delivery.status': 'accepted', 'kitchen.bulkNoRiderAt': new Date(Date.now() - 16 * 60000) } });
+        assert.equal((await bulkJob.runBulkCookAlerts()).warned, 0, 'a rider has it: no more warnings');
+    });
+
     test('a bulk message carries the words a tap can read out: English and Hindi (so the voice comes when the notification is tapped)', async () => {
         const Notification = require('../src/models/Notification');
         const n = await Notification.findOne({ type: 'bulk_new' }).lean();
-        assert.ok(n.data.speech.startsWith('New Bulk Order Request.'), n.data.speech);
+        assert.ok(n.data.speech.startsWith('New bulk order received'), n.data.speech);   // the owner hears "New bulk order received", like "New order received" for a normal order
         assert.ok(n.data.speechHi && /[ऀ-ॿ]/.test(n.data.speechHi));
         assert.equal(n.data.kind, 'bulk');
         assert.equal(String(n.data.bulkId), String(id));

@@ -181,6 +181,7 @@ const orderSchema = new Schema({
         problem: { _id: false, kind: String, note: String, at: Date, byName: String, dish: String, handledAt: Date, handledAction: String },   // what the cook told the owner, and what the owner did about it (tell | cancel | dismiss)
         offer: { _id: false, code: String, percent: Number, minOrder: Number, until: Date, text: String },   // the "stay with us" discount the owner sent with a cancel or a note (30 minutes)
         dueAlertAt: Date,   // a bulk order's work ticket: the cooks were told it is time to make it (24 hours before the day), once
+        bulkNoRiderAt: Date, // a packed bulk delivery nobody has taken: the owner was warned at this time (again every 15 minutes: jobs/bulkCookAlerts.js)
         riderAskedAt: Date, // a bulk delivery that was packed early: the riders were asked / the owner told at the right time, once
         nudgedAt: Date, lateNudgedAt: Date, serveNudgedAt: Date,   // the nudges already sent for this order, each once (jobs/staffNudges.js)
     },

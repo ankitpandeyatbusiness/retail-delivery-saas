@@ -50,6 +50,8 @@ const EVENTS = {
     booking_waitlist_free: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },   // a table came free in a slot the guest was waiting for
     booking_allowed: { to: 'customer', channels: INAPP_PUSH, alsoPush: true },      // the shop confirmed a guest's table
     booking_owner_cancelled: { to: 'customer', channels: INAPP_PUSH, alsoPush: true }, // the shop cancelled a guest's booking
+    // a packed bulk delivery that no rider has taken 15 minutes later (and again every 15 minutes): loud, so the owner picks a rider or frees one
+    bulk_no_rider: { to: 'owner', channels: INAPP_PUSH, alsoPush: true, pushChannel: STAFF_CHANNEL, pushSound: 'ting_tong' },
     bulk_new: { to: 'owner', channels: INAPP_PUSH, alsoPush: true, pushChannel: NEW_BULK_CHANNEL, pushSound: 'new_bulk_order' },     // a customer sent a bulk order request
     bulk_change: { to: 'owner', channels: INAPP_PUSH, alsoPush: true, pushChannel: INQUIRY_CHANNEL, pushSound: 'cust_offer' },  // a customer asked to change the quote
     bulk_paid: { to: 'owner', channels: INAPP_PUSH, alsoPush: true, pushChannel: INQUIRY_CHANNEL, pushSound: 'cust_offer' },       // the customer paid the advance: the order is confirmed
