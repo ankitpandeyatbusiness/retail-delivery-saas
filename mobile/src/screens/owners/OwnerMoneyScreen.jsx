@@ -39,7 +39,7 @@ export default function OwnerMoneyScreen({ page = false } = {}) {
             fetchBillingStatus(),
         ]);
         if (mine !== seq.current) return;
-        if (s.status === 'fulfilled') { setSales(s.value); setSalesErr(''); } else { useOwnerStore.getState().noteError(s.reason); setSalesErr(apiError(s.reason, 'Could not load your sales.')); }
+        if (s.status === 'fulfilled') { setSales(s.value); setSalesErr(''); } else { useOwnerStore.getState().noteError(s.reason); setSalesErr(apiError(s.reason, tr('Could not load your sales.'))); }
         if (o.status === 'fulfilled') setOnline(o.value);
         if (w.status === 'fulfilled') setSms(w.value);
         if (b.status === 'fulfilled') setBill(b.value);
@@ -54,7 +54,7 @@ export default function OwnerMoneyScreen({ page = false } = {}) {
         setExporting(true);
         try {
             const r = periodRange(period);
-            await downloadAndOpen({ path: '/shop/reports/export', params: r, filename: `sales-${r.from}-to-${r.to}.xlsx`, mime: XLSX, title: 'Sales report' });
+            await downloadAndOpen({ path: '/shop/reports/export', params: r, filename: `sales-${r.from}-to-${r.to}.xlsx`, mime: XLSX, title: tr('Sales report') });
         } catch (e) { showToast(e.safe ? e.message : tr('Could not make the Excel file')); } finally { setExporting(false); }
     };
 

@@ -22,7 +22,7 @@ export default function OwnerBannersScreen() {
 
     const load = useCallback(async () => {
         try { setItems((await bannersApi.list({ limit: 100 })).items || []); setErr(''); }
-        catch (e) { useOwnerStore.getState().noteError(e); setErr(apiError(e, 'Could not load your banners.')); setItems((x) => x || []); }
+        catch (e) { useOwnerStore.getState().noteError(e); setErr(apiError(e, tr('Could not load your banners.'))); setItems((x) => x || []); }
     }, []);
     useFocusEffect(useCallback(() => { load(); }, [load]));
 

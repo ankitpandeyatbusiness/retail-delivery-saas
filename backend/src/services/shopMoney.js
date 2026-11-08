@@ -16,6 +16,7 @@ const Complaint = require('../models/Complaint');
 const Order = require('../models/Order');
 const BulkPayment = require('../models/BulkPayment');
 const BulkOrder = require('../models/BulkOrder');
+const TableBooking = require('../models/TableBooking');
 const Rider = require('../models/Rider');
 const User = require('../models/User');
 
@@ -110,6 +111,15 @@ async function fromBulkRefunds(tenantId, r) {
     const rows = await BulkPayment.find({ tenantId, 'refund.status': 'refunded', 'refund.amountPaise': { $gt: 0 }, ...withRange('refund.at', r) }).sort({ 'refund.at': -1 }).limit(PER_SOURCE).lean();
     return rows.map((x) => ({ key: `br${x._id}`, at: x.refund.at, category: 'refund_online', amountPaise: x.refund.amountPaise, how: 'online', ref: x.refund.refundId || null, orderId: null, bulkId: x.bulkId, by: 'Razorpay', meta: { reason: x.refund.reason, paymentRef: x.rzpPaymentId, kind: x.kind } }));
 }
+// the deposit of a table booking is paid online but lives on the booking, not in the order payments: it is listed here, and when it goes back to the guest
+async function fromBookingDeposits(tenantId, r) {
+    const rows = await TableBooking.find({ tenantId, 'payment.amountPaise': { $gt: 0 }, ...withRange('payment.paidAt', r) }).sort({ 'payment.paidAt': -1 }).limit(PER_SOURCE).lean();
+    return rows.map((b) => ({ key: `bk${b._id}`, at: b.payment.paidAt, category: 'online', amountPaise: b.payment.amountPaise, how: 'online', ref: b.payment.rzpPaymentId || null, orderId: null, by: 'Razorpay', person: b.name || null, note: 'Table booking deposit', meta: { table: b.table || null, party: null, kind: 'booking_deposit', bookingParty: b.party, date: b.date, time: b.time } }));
+}
+async function fromBookingRefunds(tenantId, r) {
+    const rows = await TableBooking.find({ tenantId, 'deposit.status': 'refunded', 'payment.amountPaise': { $gt: 0 }, ...withRange('deposit.refundedAt', r) }).sort({ 'deposit.refundedAt': -1 }).limit(PER_SOURCE).lean();
+    return rows.filter((b) => b.deposit.refundedAt).map((b) => ({ key: `bf${b._id}`, at: b.deposit.refundedAt, category: 'refund_online', amountPaise: b.payment.amountPaise, how: 'online', ref: b.deposit.refundId || null, orderId: null, by: 'Razorpay', person: b.name || null, note: 'Table booking deposit returned', meta: { table: b.table || null, kind: 'booking_deposit', paymentRef: b.payment.rzpPaymentId } }));
+}
 async function fromRefunds(tenantId, r) {
     const rows = await OnlineRefund.find({ tenantId, status: 'processed', ...withRange('processedAt', r) }).sort({ processedAt: -1 }).limit(PER_SOURCE).lean();
     return rows.map((x) => ({ key: `rf${x._id}`, at: x.processedAt, category: 'refund_online', amountPaise: x.amountPaise, how: 'online', ref: x.rzpRefundId || null, orderId: x.orderId, by: 'Razorpay', meta: { reason: x.reason, paymentRef: x.rzpPaymentId } }));
@@ -192,8 +202,8 @@ async function list({ tenantId, filter }) {
     const r = rangeOf(f);
     const want = (...cats) => !f.category || cats.includes(f.category);
     const jobs = [];
-    if (want('online') && f.direction !== 'out') { jobs.push(fromOnlinePayments(tenantId, r)); jobs.push(fromBulkPayments(tenantId, r)); }
-    if (want('refund_online') && f.direction !== 'in') { jobs.push(fromRefunds(tenantId, r)); jobs.push(fromBulkRefunds(tenantId, r)); }
+    if (want('online') && f.direction !== 'out') { jobs.push(fromOnlinePayments(tenantId, r)); jobs.push(fromBulkPayments(tenantId, r)); jobs.push(fromBookingDeposits(tenantId, r)); }
+    if (want('refund_online') && f.direction !== 'in') { jobs.push(fromRefunds(tenantId, r)); jobs.push(fromBulkRefunds(tenantId, r)); jobs.push(fromBookingRefunds(tenantId, r)); }
     if (want('dispute_lost') && f.direction !== 'in') jobs.push(fromDisputes(tenantId, r));
     if (want('sms_topup') && f.direction !== 'in') jobs.push(fromSms(tenantId, r));
     if (want('rent') && f.direction !== 'in') jobs.push(fromRent(tenantId, r));

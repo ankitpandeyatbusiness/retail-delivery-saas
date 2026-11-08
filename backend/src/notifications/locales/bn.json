@@ -461,6 +461,7 @@
  "SMS balance added": "এসএমএস ব্যালেন্স যোগ হয়েছে",
  "SMS balance is finished": "এসএমএস ব্যালেন্স শেষ",
  "SMS balance is low": "এসএমএস ব্যালেন্স কম",
+ "SMS sent": "SMS পাঠানো হয়েছে",
  "SMS top-ups": "SMS টপ-আপ",
  "SMS wallet does not match its ledger": "এসএমএস ওয়ালেট তার খাতার সঙ্গে মিলছে না",
  "Same item sent twice": "একই আইটেম দুইবার পাঠানো হয়েছে",

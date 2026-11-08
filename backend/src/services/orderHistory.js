@@ -4,6 +4,7 @@
 //   exportBuffer(...)           -> the Excel file (up to 5000 orders)
 // Dates are India dates. Orders that are online and never paid are left out, like everywhere else (HIDE_UNPAID).
 const Order = require('../models/Order');
+const BulkOrder = require('../models/BulkOrder');
 const Rider = require('../models/Rider');
 const Complaint = require('../models/Complaint');
 const { ACTIVE_STATUSES } = require('./orderflow');
@@ -139,22 +140,70 @@ async function cards(orders, tenantId) {
     });
 }
 
+// A bulk request that never got paid (waiting for a quote, quote sent, declined, expired, cancelled before paying) has no work ticket, so it is not an order
+// in the list above. It is shown here as a card of its own (it says Bulk, and opens the bulk order), in the places it fits the filter. It is not a sale:
+// the totals do not count it.
+const BULK_STATUSES = { all: ['requested', 'quoted', 'declined', 'expired', 'cancelled'], cancelled: ['declined', 'expired', 'cancelled'], progress: ['requested', 'quoted'] };
+function bulkFilterOf(tenantId, query = {}, now = Date.now()) {
+    if (String(query.kind) === 'normal') return null;
+    if (String(query.pay || '') || String(query.type) === 'dine_in') return null;   // a request has no payment, and is never a table
+    const status = String(query.status || '');
+    if (status === 'delivered') return null;
+    const { from, to } = rangeOf(query, now);
+    const f = { tenantId, orderId: { $exists: false }, status: { $in: BULK_STATUSES[status] || BULK_STATUSES.all }, createdAt: { $gte: from, ...(to ? { $lte: to } : {}) } };
+    if (['delivery', 'pickup'].includes(String(query.type))) f.fulfilment = query.type;
+    const q = String(query.q || '').trim().slice(0, 60);
+    if (q) {
+        const rx = new RegExp(esc(q), 'i');
+        const digits = q.replace(/\D/g, '');
+        f.$or = [{ code: rx }, { 'contact.name': rx }, { 'contact.company': rx }, { 'lines.name': rx }, { 'address.line1': rx }, { 'address.line2': rx }, { 'address.landmark': rx }, { 'address.city': rx },
+            ...(digits.length >= 3 ? [{ 'contact.phone': new RegExp(esc(digits)) }] : [])];
+    }
+    return f;
+}
+const bulkCard = (b) => {
+    const q = b.quote?.pricing || b.pricing || {};
+    return {
+        _id: `bulk-${b._id}`, orderNo: null, createdAt: b.createdAt, status: b.status, orderType: b.fulfilment,
+        customer: { name: b.contact?.name || '', phone: b.contact?.phone || '' }, orders: 0,
+        dishes: dishLine(b.lines), itemCount: (b.lines || []).reduce((n, i) => n + (i.quantity || 0), 0),
+        total: ['requested', 'quoted'].includes(b.status) ? (q.total || 0) : 0, couponCode: null,
+        payment: { method: null, status: null }, table: null, address: addressLine(b.address), rider: null, flags: [],
+        bulk: { id: String(b._id), code: b.code || null }, bulkRequest: true,   // not an order yet: the card shows where the request stands
+    };
+};
+
 async function list({ tenantId, query, page = 1, limit = 20 }) {
     const filter = filterOf(tenantId, query);
-    const [rows, t] = await Promise.all([
-        Order.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit + 1).lean(),
+    const bf = bulkFilterOf(tenantId, query);
+    const take = page * limit + 1;
+    const [rows, bulkRows, t] = await Promise.all([
+        bf ? Order.find(filter).sort({ createdAt: -1 }).limit(take).lean() : Order.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit + 1).lean(),
+        bf ? BulkOrder.find(bf).sort({ createdAt: -1 }).limit(take).lean() : [],
         page === 1 ? totals(filter) : null,   // the totals are for the whole filter: asked once, with the first page
     ]);
-    const hasMore = rows.length > limit;
-    if (hasMore) rows.pop();
-    return { items: await cards(rows, tenantId), hasMore, page, ...(t || {}), range: rangeOf(query).label };
+    if (!bf) {
+        const hasMore = rows.length > limit;
+        if (hasMore) rows.pop();
+        return { items: await cards(rows, tenantId), hasMore, page, ...(t || {}), range: rangeOf(query).label };
+    }
+    // two sources (the orders and the unpaid bulk requests): merged by time, then the page is cut
+    const merged = [...rows.map((o) => ({ at: o.createdAt, o })), ...bulkRows.map((b) => ({ at: b.createdAt, b }))].sort((x, y) => new Date(y.at) - new Date(x.at));
+    const window = merged.slice((page - 1) * limit, page * limit);
+    const orderCards = new Map((await cards(window.filter((x) => x.o).map((x) => x.o), tenantId)).map((c) => [c._id, c]));
+    const items = window.map((x) => (x.o ? orderCards.get(String(x.o._id)) : bulkCard(x.b)));
+    return { items, hasMore: merged.length > page * limit, page, ...(t || {}), range: rangeOf(query).label };
 }
 
 const MAX_EXPORT = 5000;
 async function exportBuffer({ tenantId, query, shopName }) {
     const { buildSheet } = require('./xlsxExport');
     const filter = filterOf(tenantId, query);
-    const rows = await Order.find(filter).sort({ createdAt: -1 }).limit(MAX_EXPORT).lean();
+    const bf = bulkFilterOf(tenantId, query);
+    const orderRows = await Order.find(filter).sort({ createdAt: -1 }).limit(MAX_EXPORT).lean();
+    const bulkRows = bf ? await BulkOrder.find(bf).sort({ createdAt: -1 }).limit(MAX_EXPORT).lean() : [];
+    // each row is an order or an unpaid bulk request, newest first
+    const rows = [...orderRows.map((o) => ({ ...o, _src: 'order' })), ...bulkRows.map((b) => ({ ...b, _src: 'bulk' }))].sort((x, y) => new Date(y.createdAt) - new Date(x.createdAt)).slice(0, MAX_EXPORT);
     const riderIds = [...new Set(rows.map((o) => o.delivery?.riderId).filter(Boolean).map(String))];
     const riders = riderIds.length ? await Rider.find({ tenantId, userId: { $in: riderIds } }).select('userId name').lean() : [];
     const riderName = new Map(riders.map((r) => [String(r.userId), r.name]));
@@ -165,6 +214,7 @@ async function exportBuffer({ tenantId, query, shopName }) {
         total: true,
         columns: [
             { header: 'Order no', key: 'no', kind: 'int' },
+            { header: 'Bulk order', key: 'bulk', kind: 'text' },
             { header: 'Date and time', key: 'at', kind: 'date' },
             { header: 'Customer', key: 'name', kind: 'text' },
             { header: 'Phone', key: 'phone', kind: 'text' },
@@ -182,7 +232,14 @@ async function exportBuffer({ tenantId, query, shopName }) {
             { header: 'Rider', key: 'rider', kind: 'text' },
             { header: 'Cancel reason', key: 'reason', kind: 'wide' },
         ],
-        rows: rows.map((o) => ({
+        rows: rows.map((o) => (o._src === 'bulk' ? {
+            // an unpaid bulk request: it has no order number, only its code
+            no: '', bulk: o.code || '', at: o.createdAt, name: o.contact?.name || '', phone: o.contact?.phone || '', type: o.fulfilment, status: o.status,
+            dishes: (o.lines || []).map((i) => `${i.quantity} × ${i.name}`).join(', '), where: addressLine(o.address), pay: '', paystatus: '',
+            subtotal: o.quote?.pricing?.subtotal ?? o.pricing?.subtotal ?? 0, fee: o.quote?.pricing?.deliveryFee ?? o.pricing?.deliveryFee ?? 0, discount: o.quote?.pricing?.discount ?? o.pricing?.discount ?? 0,
+            total: ['requested', 'quoted'].includes(o.status) ? (o.quote?.pricing?.total ?? o.pricing?.total ?? 0) : 0, coupon: '', rider: '', reason: o.cancelReason || o.declineReason || '',
+        } : {
+            bulk: o.bulkId ? (o.bulkCode || 'Bulk') : '',
             no: o.orderNo, at: o.createdAt, name: o.customer?.deleted ? 'Deleted customer' : o.customer?.name || '', phone: o.customer?.deleted ? '' : o.customer?.phone || '',
             type: o.orderType, status: o.status,
             dishes: (o.items || []).map((i) => `${i.quantity} × ${i.name}`).join(', '),

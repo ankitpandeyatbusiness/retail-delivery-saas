@@ -16,7 +16,7 @@ import { rupees } from '../../utils/owners/riderRules';
 import { downloadAndOpen } from '../../utils/owners/files';
 import { showToast } from '../../components/customers/shop';
 import { PERIODS, KIND, KIND_CHIPS, HOW_CHIPS, DIRECTION_CHIPS, periodParams, periodTitle, dayKey, dayLabel, timeOf, fullStamp, subtitle } from '../../utils/owners/txRules';
-import { tr } from '../../i18n';
+import { tr, tl } from '../../i18n';
 
 function Line({ label, value, onPress, strong }) {
     const { text, muted, primary, border } = useBrand();
@@ -203,8 +203,8 @@ export default function OwnerTxTabScreen() {
             <FilterPopup visible={filtering} onClose={() => setFiltering(false)} title={tr('Filter transactions')} activeCount={filterCount} onClear={clearFilters}
                 sections={[
                     { key: 'period', title: 'When', options: PERIODS, value: period, onChange: (v) => { if (v === 'day' || v === 'range' || v === 'monthpick') setFiltering(false); choose(v); } },
-                    { key: 'dir', title: 'Money in or out', options: DIRECTION_CHIPS, value: direction, onChange: setDirection },
-                    { key: 'how', title: 'How it was paid', options: HOW_CHIPS, value: how, onChange: setHow },
+                    { key: 'dir', title: tl('Money in or out'), options: DIRECTION_CHIPS, value: direction, onChange: setDirection },
+                    { key: 'how', title: tl('How it was paid'), options: HOW_CHIPS, value: how, onChange: setHow },
                     { key: 'kind', title: 'Type', options: KIND_CHIPS, value: category, onChange: setCategory },
                 ]} />
             <CalendarSheet visible={sheet === 'day'} mode="day" onClose={() => setSheet('')} onPick={(v) => picked('day', v)} />

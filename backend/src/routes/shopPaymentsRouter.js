@@ -36,7 +36,8 @@ router.get('/report', wrap(async (req, res) => {
     const tenantId = req.tenant._id;
 
     const BulkPayment = require('../models/BulkPayment');
-    const [captured, refunded, open, failed, lost, disputesOpen, bulkCaptured, bulkRefunded, bulkOpen, bulkFailed] = await Promise.all([
+    const TableBooking = require('../models/TableBooking');
+    const [captured, refunded, open, failed, lost, disputesOpen, bulkCaptured, bulkRefunded, bulkOpen, bulkFailed, depPaid, depBack] = await Promise.all([
         OnlinePayment.aggregate([
             { $match: { tenantId, status: 'captured', capturedAt: { $gte: from, $lte: to } } },
             { $group: { _id: null, n: { $sum: 1 }, paise: { $sum: '$capturedPaise' } } },
@@ -60,10 +61,13 @@ router.get('/report', wrap(async (req, res) => {
         BulkPayment.aggregate([{ $match: { tenantId, 'refund.status': 'refunded', 'refund.at': { $gte: from, $lte: to } } }, { $group: { _id: null, n: { $sum: 1 }, paise: { $sum: '$refund.amountPaise' } } }]),
         BulkPayment.aggregate([{ $match: { tenantId, 'refund.status': 'sending' } }, { $group: { _id: null, n: { $sum: 1 }, paise: { $sum: { $ifNull: ['$refund.amountPaise', 0] } } } }]),
         BulkPayment.countDocuments({ tenantId, 'refund.status': 'failed', 'refund.at': { $gte: from, $lte: to } }),
+        // the deposits of table bookings (paid online, kept on the booking) and the ones sent back
+        TableBooking.aggregate([{ $match: { tenantId, 'payment.amountPaise': { $gt: 0 }, 'payment.paidAt': { $gte: from, $lte: to } } }, { $group: { _id: null, n: { $sum: 1 }, paise: { $sum: '$payment.amountPaise' } } }]),
+        TableBooking.aggregate([{ $match: { tenantId, 'deposit.status': 'refunded', 'payment.amountPaise': { $gt: 0 }, 'deposit.refundedAt': { $gte: from, $lte: to } } }, { $group: { _id: null, n: { $sum: 1 }, paise: { $sum: '$payment.amountPaise' } } }]),
     ]);
     const plus = (a, b) => ({ count: a.count + b.count, paise: a.paise + b.paise });
-    const c = plus(sum(captured, 'paise'), sum(bulkCaptured, 'paise'));
-    const r = plus(sum(refunded, 'paise'), sum(bulkRefunded, 'paise'));
+    const c = plus(plus(sum(captured, 'paise'), sum(bulkCaptured, 'paise')), sum(depPaid, 'paise'));
+    const r = plus(plus(sum(refunded, 'paise'), sum(bulkRefunded, 'paise')), sum(depBack, 'paise'));
     const l = sum(lost, 'paise');
     res.json({
         from, to,
@@ -91,9 +95,13 @@ router.get('/refunds', wrap(async (req, res) => {
     const BULK_STATUS = { processing: 'sending', processed: 'refunded', failed: 'failed' };   // (a bulk refund is never 'pending': it is sending, done or failed)
     const bulkFilter = { tenantId: req.tenant._id, 'refund.status': req.query.status === undefined ? { $exists: true } : (BULK_STATUS[req.query.status] || '__none__') };
     const take = page * 30 + 1;
-    const [rows, bulkRows] = await Promise.all([
+    // a table booking's deposit that went back to the guest is a refund too (it is kept on the booking, not in the order refunds)
+    const TableBooking = require('../models/TableBooking');
+    const wantDeposits = req.query.status === undefined || req.query.status === 'processed';
+    const [rows, bulkRows, depositRows] = await Promise.all([
         OnlineRefund.find(filter).sort({ createdAt: -1, _id: -1 }).limit(take).lean(),
         BulkPayment.find(bulkFilter).sort({ 'refund.at': -1, _id: -1 }).limit(take).lean(),
+        wantDeposits ? TableBooking.find({ tenantId: req.tenant._id, 'deposit.status': 'refunded', 'payment.amountPaise': { $gt: 0 }, 'deposit.refundedAt': { $exists: true } }).sort({ 'deposit.refundedAt': -1 }).limit(take).lean() : [],
     ]);
     const orders = await Order.find({ _id: { $in: rows.map((x) => x.orderId) }, tenantId: req.tenant._id }).select('orderNo').lean();
     const no = new Map(orders.map((o) => [String(o._id), o.orderNo]));
@@ -108,6 +116,10 @@ router.get('/refunds', wrap(async (req, res) => {
         ...bulkRows.map((x) => ({
             id: x._id, orderId: null, orderNo: null, bulk: { id: String(x.bulkId), code: code.get(String(x.bulkId)) || null }, amountPaise: x.refund.amountPaise || 0,
             reason: x.refund.reason || null, status: NAME[x.refund.status] || x.refund.status, createdAt: x.refund.at || x.updatedAt, processedAt: x.refund.status === 'refunded' ? x.refund.at : null,
+        })),
+        ...depositRows.map((b) => ({
+            id: b._id, orderId: null, orderNo: null, booking: { id: String(b._id), name: b.name || null, date: b.date, time: b.time }, amountPaise: b.payment.amountPaise,
+            reason: 'booking_deposit_returned', status: 'processed', createdAt: b.deposit.refundedAt, processedAt: b.deposit.refundedAt,
         })),
     ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     const hasMore = merged.length > page * 30;

@@ -93,7 +93,7 @@ async function salesReport({ tenantId, from, to, groupBy, topLimit = 10 }) {
 
     const bulkNow = bulkSold(shop, from, to);
     const bulkBefore = bulkSold(shop, prevFrom, prevTo);
-    const [totalsRows, byPeriod, byShop, topItems, byPayment, byStatus, prevRows, prevByShop, bulkTotalsRows, bulkByPeriod, bulkByShop, bulkPrevRows, bulkPrevByShop] = await Promise.all([
+    const [totalsRows, byPeriod, byShop, topItems, byPayment, byStatus, prevRows, prevByShop, bulkTotalsRows, bulkByPeriod, bulkByShop, bulkPrevRows, bulkPrevByShop, bulkItems] = await Promise.all([
         Order.aggregate([{ $match: delivered }, { $group: { _id: null, ...sums } }]),
         Order.aggregate([
             { $match: delivered },
@@ -112,7 +112,7 @@ async function salesReport({ tenantId, from, to, groupBy, topLimit = 10 }) {
             // topItems uses item.lineTotal which is already correct, leave it alone
             { $group: { _id: '$items.productId', name: { $first: '$items.name' }, quantity: { $sum: '$items.quantity' }, revenue: { $sum: '$items.lineTotal' } } },
             { $sort: { quantity: -1 } },
-            { $limit: Math.min(Math.max(Number(topLimit) || 10, 1), 50) },
+            { $limit: 500 },
         ]),
         Order.aggregate([
             { $match: delivered },
@@ -131,6 +131,8 @@ async function salesReport({ tenantId, from, to, groupBy, topLimit = 10 }) {
         tenantId ? Promise.resolve([]) : BulkOrder.aggregate([{ $match: bulkNow }, { $group: { _id: '$tenantId', orders: { $sum: 1 }, revenue: { $sum: NETQ } } }]),
         BulkOrder.aggregate([{ $match: bulkBefore }, { $group: { _id: null, orders: { $sum: 1 }, revenue: { $sum: NETQ } } }]),
         tenantId ? Promise.resolve([]) : BulkOrder.aggregate([{ $match: bulkBefore }, { $group: { _id: '$tenantId', orders: { $sum: 1 }, revenue: { $sum: NETQ } } }]),
+        // what the delivered bulk orders were made of (the quote's lines)
+        BulkOrder.aggregate([{ $match: bulkNow }, { $unwind: '$quote.lines' }, { $group: { _id: '$quote.lines.productId', name: { $first: '$quote.lines.name' }, quantity: { $sum: '$quote.lines.quantity' }, revenue: { $sum: '$quote.lines.lineTotal' } } }, { $limit: 500 }]),
     ]);
 
     // the sales are the delivered orders AND the delivered bulk orders (`bulk` says how much of it came from bulk orders)
@@ -147,6 +149,19 @@ async function salesReport({ tenantId, from, to, groupBy, topLimit = 10 }) {
     const pb = bulkPrevRows[0] || {};
     const pr0 = prevRows[0] || {};
     prevRows[0] = { orders: (pr0.orders || 0) + (pb.orders || 0), revenue: (pr0.revenue || 0) + (pb.revenue || 0) };
+    // the items sold: the dishes of the bulk orders count with the others (a dish sold by the tray to an office is still a dish sold)
+    const itemMap = new Map(topItems.map((r) => [String(r._id), { ...r }]));
+    for (const b of bulkItems) {
+        const k = String(b._id);
+        const r = itemMap.get(k) || { _id: b._id, name: b.name, quantity: 0, revenue: 0 };
+        r.quantity += b.quantity; r.revenue += b.revenue;
+        itemMap.set(k, r);
+    }
+    const itemRows = [...itemMap.values()].sort((a, b) => b.quantity - a.quantity).slice(0, Math.min(Math.max(Number(topLimit) || 10, 1), 50));
+    // by how it was paid: the bulk orders are their own row (their money is an advance online and a balance in cash or online, not one payment)
+    const paymentRows = [...byPayment];
+    if (bt.orders) paymentRows.push({ _id: 'bulk', orders: bt.orders, revenue: bt.revenue });
+    paymentRows.sort((a, b) => b.revenue - a.revenue);
     const bulkOut = {
         orders: bt.orders || 0, revenue: round2(bt.revenue || 0), previousRevenue: round2(pb.revenue || 0),
         sharePct: totalsRows[0].revenue > 0 ? Math.round(((bt.revenue || 0) / totalsRows[0].revenue) * 100) : 0,
@@ -205,8 +220,8 @@ async function salesReport({ tenantId, from, to, groupBy, topLimit = 10 }) {
         bulk: bulkOut,
         series: periods.map((r) => ({ period: r._id, orders: r.orders, revenue: round2(r.revenue) })),
         shops,
-        topItems: topItems.map((r) => ({ productId: r._id, name: r.name, quantity: r.quantity, revenue: round2(r.revenue) })),
-        payments: byPayment.map((r) => ({ method: r._id, orders: r.orders, revenue: round2(r.revenue) })),
+        topItems: itemRows.map((r) => ({ productId: r._id, name: r.name, quantity: r.quantity, revenue: round2(r.revenue) })),
+        payments: paymentRows.map((r) => ({ method: r._id, orders: r.orders, revenue: round2(r.revenue) })),
         statuses: Object.fromEntries(byStatus.map((r) => [r._id, r.n])),
         undelivered: byStatus.find((r) => r._id === 'undelivered')?.n || 0,   // not delivered: shown on its own, never counted as revenue
     };

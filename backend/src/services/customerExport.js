@@ -31,7 +31,7 @@ async function build({ tenantId, kind = 'all' }) {
     const now = Date.now();
     const per = new Map();
     const cursor = Order.find({ tenantId, userId: { $exists: true, $ne: null } })
-        .select('userId createdAt status orderType items.name items.quantity pricing.total payment.method deliveryRating.rating').lean().cursor();
+        .select('userId createdAt status orderType items.name items.quantity pricing.total bulkTotal payment.method deliveryRating.rating').lean().cursor();
     for await (const o of cursor) {
         const id = String(o.userId);
         let c = per.get(id);
@@ -40,7 +40,7 @@ async function build({ tenantId, kind = 'all' }) {
         if (o.status !== 'delivered') continue;
         const at = new Date(o.createdAt).getTime();
         c.orders += 1;
-        c.spent += Number(o.pricing?.total) || 0;
+        c.spent += Number(o.bulkTotal ?? o.pricing?.total) || 0;   // a bulk order is worth its whole bulk total (its ticket total is only the balance)
         if (c.first === null || at < c.first) c.first = at;
         if (c.last === null || at > c.last) c.last = at;
         if (now - at <= 30 * DAY) c.last30 += 1;

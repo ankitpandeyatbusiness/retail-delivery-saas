@@ -40,7 +40,7 @@ export default function OwnerPaymentsScreen() {
             } else { const x = await fetchDisputes(); items = x.items; }
             setList((old) => (p === 1 ? items : [...(old || []), ...items]));
             setMore(hasMore); setPage(p);
-        } catch (e) { useOwnerStore.getState().noteError(e); setErr(apiError(e, 'Could not load this list.')); setList((x) => x || []); }
+        } catch (e) { useOwnerStore.getState().noteError(e); setErr(apiError(e, tr('Could not load this list.'))); setList((x) => x || []); }
     }, [tab, range, move]);
 
     useEffect(() => { run(1); }, [run]);

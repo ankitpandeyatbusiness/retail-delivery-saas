@@ -24,7 +24,7 @@ export default function OwnerCollectionsScreen() {
             const r = await collectionsApi.list({ limit: 100 });
             setItems(r.items || []);
             setError('');
-        } catch (e) { useOwnerStore.getState().noteError(e); setError(apiError(e, 'Could not load the collections.')); setItems((x) => x || []); }
+        } catch (e) { useOwnerStore.getState().noteError(e); setError(apiError(e, tr('Could not load the collections.'))); setItems((x) => x || []); }
     }, []);
     useFocusEffect(useCallback(() => { load(); }, [load]));
 

@@ -18,7 +18,7 @@ import { ease } from '../../utils/common/ease';
 import { tr } from '../../i18n';
 
 const rs = (n) => `₹${Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
-const STATUS = { placed: 'New', accepted: 'Accepted', preparing: 'Preparing', ready: 'Ready', out_for_delivery: 'On the way', delivered: 'Delivered', cancelled: 'Cancelled', undelivered: 'Not delivered' };
+const STATUS = { requested: 'Waiting for quote', quoted: 'Quote sent', declined: 'Declined', expired: 'Quote expired', placed: 'New', accepted: 'Accepted', preparing: 'Preparing', ready: 'Ready', out_for_delivery: 'On the way', delivered: 'Delivered', cancelled: 'Cancelled', undelivered: 'Not delivered' };
 const TYPE = { delivery: ['bicycle', 'Delivery'], pickup: ['walk', 'Pickup'], dine_in: ['restaurant', 'Dine in'] };
 const FLAG = { cancelled: 'Cancelled', undelivered: 'Not delivered', refunded: 'Refunded', late: 'Late', kitchen: 'Kitchen problem', rider_problem: 'Rider problem', complaint: 'Complaint' };
 const WHO = { customer: 'customer', shop: 'you', rider: 'rider', admin: 'platform', system: 'system' };
@@ -54,7 +54,7 @@ function Round({ icon, onPress, label, busy }) {
 function OrderCard({ o, onOpen, onCustomer }) {
     const { text, muted, primary, ok, error, warn, border } = useBrand();
     const [inv, setInv] = useState(false);
-    const gone = o.status === 'cancelled' || o.status === 'undelivered';
+    const gone = ['cancelled', 'undelivered', 'declined', 'expired'].includes(o.status);
     const tone = o.status === 'delivered' ? ok : gone ? error : primary;
     const [ticon, tlabel] = TYPE[o.orderType] || ['receipt', o.orderType];
     const cash = o.payment.method === 'cod';
@@ -84,7 +84,7 @@ function OrderCard({ o, onOpen, onCustomer }) {
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 10 }}>
                 {o.bulk ? <Tag label={tr('Bulk Order')} color={primary} icon="cube" /> : null}
                 <Tag label={tr(tlabel)} color={primary} icon={ticon} />
-                <Tag label={cash ? tr('Cash') : tr('Online')} color={cash ? warn : ok} icon={cash ? 'cash-outline' : 'card-outline'} />
+                {o.bulkRequest ? <Tag label={tr('Not paid yet')} color={warn} icon="time-outline" /> : <Tag label={cash ? tr('Cash') : tr('Online')} color={cash ? warn : ok} icon={cash ? 'cash-outline' : 'card-outline'} />}
                 {o.orders > 1 ? <Tag label={tr('Repeat customer')} color={ok} icon="repeat" /> : null}
                 {o.couponCode ? <Tag label={o.couponCode} color={muted} icon="pricetag-outline" /> : null}
                 {o.flags.map((f) => <Tag key={f.k} label={`${tr(FLAG[f.k] || f.k)}${f.by && WHO[f.by] ? ` · ${tr(WHO[f.by])}` : ''}`} color={error} icon="alert-circle" />)}

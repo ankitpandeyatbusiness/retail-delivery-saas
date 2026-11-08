@@ -9,6 +9,7 @@ const User = require('../models/User');
 const Order = require('../models/Order');
 const BulkOrder = require('../models/BulkOrder');
 const BulkPayment = require('../models/BulkPayment');
+const TableBooking = require('../models/TableBooking');
 const Brand = require('../models/Brand');
 const SubscriptionInvoice = require('../models/SubscriptionInvoice');
 const OnlinePayment = require('../models/OnlinePayment');
@@ -164,7 +165,7 @@ D.customers = {
                     { $group: {
                         _id: null, orders: { $sum: 1 },
                         delivered: { $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, 1, 0] } },
-                        spent: { $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, { $ifNull: ['$pricing.total', 0] }, 0] } },
+                        spent: { $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, { $ifNull: ['$bulkTotal', { $ifNull: ['$pricing.total', 0] }] }, 0] } },
                         cancelled: { $sum: { $cond: [{ $and: [{ $eq: ['$status', 'cancelled'] }, { $eq: ['$cancelledBy', 'customer'] }] }, 1, 0] } },
                         noShow: { $sum: { $cond: [{ $and: [{ $eq: ['$status', 'undelivered'] }, { $eq: ['$undelivered.reasonCode', 'customer'] }] }, 1, 0] } },
                         last30: { $sum: { $cond: [{ $gte: ['$createdAt', new Date(ctx.now - 30 * DAY)] }, 1, 0] } },
@@ -390,10 +391,40 @@ D.payments = {
         { h: 'Razorpay order', k: 'oid', lv: 2 }, { h: 'Method', k: 'method', kind: 'center', lv: 2 }, { h: 'Received (₹)', k: 'captured', kind: 'money', lv: 2 }, { h: 'Refunded (₹)', k: 'refunded', kind: 'money', lv: 2 }, { h: 'Received at', k: 'capturedAt', kind: 'date', lv: 2 },
         { h: 'Test or live', k: 'mode', kind: 'center', lv: 3 }, { h: 'Confirmed by', k: 'source', kind: 'center', lv: 3 }, { h: 'Last failure', k: 'fail', kind: 'wide', lv: 3 },
     ],
-    async prepare(docs, ctx) { ctx.orders = new Map((await Order.find({ _id: { $in: docs.map((d) => d.orderId) } }).select('orderNo ref').lean()).map((o) => [String(o._id), o])); },
-    map: (p, c) => ({ at: p.createdAt, shop: c.shop(p.tenantId), order: ref(c.orders.get(String(p.orderId))), amount: rs(p.amountPaise), status: p.status, pid: p.rzpPaymentId || '', oid: p.rzpOrderId, method: p.method || '', captured: rs(p.capturedPaise), refunded: rs(p.refundedPaise), capturedAt: p.capturedAt || '', mode: p.mode, source: p.source || '', fail: p.lastFailure ? `${p.lastFailure.reason || ''}` : '' }),
+    // Three places keep a customer's online money: the order payments, the payments of bulk orders (the advance, and the balance when paid online), and the deposits of
+    // table bookings. They are one sheet here, newest first, so the file agrees with the Transactions tab. The Order column says which a row is.
+    async fetch(f, ctx) {
+        const m = matchFor(D.payments, f, ctx);
+        const scope = ctx.scope ? { tenantId: { $in: ctx.scope } } : {};
+        const bulkWhere = { ...scope, ...inRange('createdAt', ctx.period), ...(f.status ? { status: f.status === 'mismatch' ? '__none__' : f.status } : {}) };   // (a bulk payment is never a "mismatch")
+        const depWhere = !f.status || f.status === 'captured' ? { ...scope, 'payment.amountPaise': { $gt: 0 }, ...inRange('payment.paidAt', ctx.period) } : null;   // (a deposit is recorded when it is paid)
+        const [n1, n2, n3] = await Promise.all([OnlinePayment.countDocuments(m), BulkPayment.countDocuments(bulkWhere), depWhere ? TableBooking.countDocuments(depWhere) : 0]);
+        if (ctx.countOnly) return { count: n1 + n2 + n3 };
+        const [a1, a2, a3] = await Promise.all([
+            OnlinePayment.find(m).sort({ createdAt: -1 }).limit(ctx.max).lean(),
+            BulkPayment.find(bulkWhere).sort({ createdAt: -1 }).limit(ctx.max).lean(),
+            depWhere ? TableBooking.find(depWhere).sort({ 'payment.paidAt': -1 }).limit(ctx.max).lean() : [],
+        ]);
+        const when = (x) => new Date(x._src === 'deposit' ? x.payment.paidAt : x.createdAt).getTime();
+        const rows = [...a1.map((x) => ({ ...x, _src: 'online' })), ...a2.map((x) => ({ ...x, _src: 'bulk' })), ...a3.map((x) => ({ ...x, _src: 'deposit' }))].sort((x, y) => when(y) - when(x)).slice(0, ctx.max);
+        return { count: n1 + n2 + n3, rows };
+    },
+    async prepare(docs, ctx) {
+        const online = docs.filter((d) => d._src === 'online');
+        const bulk = docs.filter((d) => d._src === 'bulk');
+        ctx.orders = new Map((await Order.find({ _id: { $in: online.map((d) => d.orderId) } }).select('orderNo ref').lean()).map((o) => [String(o._id), o]));
+        ctx.bulks = new Map((bulk.length ? await BulkOrder.find({ _id: { $in: bulk.map((d) => d.bulkId) } }).select('code').lean() : []).map((o) => [String(o._id), o.code]));
+    },
+    map(p, c) {
+        if (p._src === 'bulk') {
+            return { at: p.createdAt, shop: c.shop(p.tenantId), order: `Bulk ${c.bulks.get(String(p.bulkId)) || ''}`.trim(), amount: rs(p.amountPaise), status: p.status, pid: p.rzpPaymentId || '', oid: p.rzpOrderId, method: `Bulk ${p.kind}`, captured: p.status === 'captured' ? rs(p.amountPaise) : 0, refunded: p.refund?.status === 'refunded' ? rs(p.refund.amountPaise) : 0, capturedAt: p.capturedAt || '', mode: p.mode, source: '', fail: '' };
+        }
+        if (p._src === 'deposit') {
+            return { at: p.payment.paidAt, shop: c.shop(p.tenantId), order: `Table booking ${p.code || ''}`.trim(), amount: rs(p.payment.amountPaise), status: 'captured', pid: p.payment.rzpPaymentId || '', oid: p.payment.rzpOrderId || '', method: 'Booking deposit', captured: rs(p.payment.amountPaise), refunded: p.deposit?.status === 'refunded' ? rs(p.payment.amountPaise) : 0, capturedAt: p.payment.paidAt, mode: '', source: '', fail: '' };
+        }
+        return { at: p.createdAt, shop: c.shop(p.tenantId), order: ref(c.orders.get(String(p.orderId))), amount: rs(p.amountPaise), status: p.status, pid: p.rzpPaymentId || '', oid: p.rzpOrderId, method: p.method || '', captured: rs(p.capturedPaise), refunded: rs(p.refundedPaise), capturedAt: p.capturedAt || '', mode: p.mode, source: p.source || '', fail: p.lastFailure ? `${p.lastFailure.reason || ''}` : '' };
+    },
 };
-
 D.refunds = {
     title: 'Refunds', group: 'Orders and money', hint: 'Money sent back to customers, and the ones that failed.',
     model: OnlineRefund, shopField: 'tenantId', dateField: 'createdAt', periodLabel: 'Asked between', sort: { createdAt: -1 },
@@ -404,10 +435,41 @@ D.refunds = {
         { h: 'Razorpay payment', k: 'pid', lv: 2 }, { h: 'Razorpay refund', k: 'rid', lv: 2 }, { h: 'Tries', k: 'tries', kind: 'int', lv: 2 }, { h: 'Done at', k: 'doneAt', kind: 'date', lv: 2 },
         { h: 'Why it failed', k: 'err', kind: 'wide', lv: 3 }, { h: 'Made in Razorpay dashboard', k: 'external', kind: 'center', lv: 3 }, { h: 'Customer told at', k: 'told', kind: 'date', lv: 3 },
     ],
-    async prepare(docs, ctx) { ctx.orders = new Map((await Order.find({ _id: { $in: docs.map((d) => d.orderId) } }).select('orderNo ref').lean()).map((o) => [String(o._id), o])); },
-    map: (r, c) => ({ at: r.createdAt, shop: c.shop(r.tenantId), order: ref(c.orders.get(String(r.orderId))), amount: rs(r.amountPaise), status: r.status, reason: nice(r.reason), pid: r.rzpPaymentId, rid: r.rzpRefundId || '', tries: r.attempts || 0, doneAt: r.processedAt || '', err: r.lastError || '', external: r.external ? 'Yes' : 'No', told: r.customerNotifiedAt || '' }),
+    // The money sent back: order refunds, the refunds of bulk orders (kept on the payment), and the table booking deposits that went back. One sheet.
+    async fetch(f, ctx) {
+        const m = matchFor(D.refunds, f, ctx);
+        const scope = ctx.scope ? { tenantId: { $in: ctx.scope } } : {};
+        const BULK = { processing: 'sending', processed: 'refunded', failed: 'failed' };   // (a bulk refund is never "waiting": it is sending, done or failed)
+        const bulkWhere = { ...scope, ...inRange('refund.at', ctx.period), 'refund.status': f.status ? (BULK[f.status] || '__none__') : { $exists: true } };
+        const depWhere = !f.status || f.status === 'processed' ? { ...scope, 'deposit.status': 'refunded', 'payment.amountPaise': { $gt: 0 }, ...inRange('deposit.refundedAt', ctx.period) } : null;
+        const [n1, n2, n3] = await Promise.all([OnlineRefund.countDocuments(m), BulkPayment.countDocuments(bulkWhere), depWhere ? TableBooking.countDocuments(depWhere) : 0]);
+        if (ctx.countOnly) return { count: n1 + n2 + n3 };
+        const [a1, a2, a3] = await Promise.all([
+            OnlineRefund.find(m).sort({ createdAt: -1 }).limit(ctx.max).lean(),
+            BulkPayment.find(bulkWhere).sort({ 'refund.at': -1 }).limit(ctx.max).lean(),
+            depWhere ? TableBooking.find(depWhere).sort({ 'deposit.refundedAt': -1 }).limit(ctx.max).lean() : [],
+        ]);
+        const when = (x) => new Date(x._src === 'deposit' ? x.deposit.refundedAt : x._src === 'bulk' ? (x.refund.at || x.updatedAt) : x.createdAt).getTime();
+        const rows = [...a1.map((x) => ({ ...x, _src: 'online' })), ...a2.map((x) => ({ ...x, _src: 'bulk' })), ...a3.map((x) => ({ ...x, _src: 'deposit' }))].sort((x, y) => when(y) - when(x)).slice(0, ctx.max);
+        return { count: n1 + n2 + n3, rows };
+    },
+    async prepare(docs, ctx) {
+        const online = docs.filter((d) => d._src === 'online');
+        const bulk = docs.filter((d) => d._src === 'bulk');
+        ctx.orders = new Map((await Order.find({ _id: { $in: online.map((d) => d.orderId) } }).select('orderNo ref').lean()).map((o) => [String(o._id), o]));
+        ctx.bulks = new Map((bulk.length ? await BulkOrder.find({ _id: { $in: bulk.map((d) => d.bulkId) } }).select('code').lean() : []).map((o) => [String(o._id), o.code]));
+    },
+    map(r, c) {
+        if (r._src === 'bulk') {
+            const NAME = { sending: 'processing', refunded: 'processed', failed: 'failed' };
+            return { at: r.refund.at || r.updatedAt, shop: c.shop(r.tenantId), order: `Bulk ${c.bulks.get(String(r.bulkId)) || ''}`.trim(), amount: rs(r.refund.amountPaise), status: NAME[r.refund.status] || r.refund.status, reason: nice(r.refund.reason), pid: r.rzpPaymentId, rid: r.refund.refundId || '', tries: r.refund.attempts || 0, doneAt: r.refund.status === 'refunded' ? r.refund.at : '', err: r.refund.lastError || '', external: 'No', told: '' };
+        }
+        if (r._src === 'deposit') {
+            return { at: r.deposit.refundedAt, shop: c.shop(r.tenantId), order: `Table booking ${r.code || ''}`.trim(), amount: rs(r.payment.amountPaise), status: 'processed', reason: 'Booking deposit returned', pid: r.payment.rzpPaymentId || '', rid: r.deposit.refundId || '', tries: '', doneAt: r.deposit.refundedAt, err: r.deposit.refundError || '', external: 'No', told: '' };
+        }
+        return { at: r.createdAt, shop: c.shop(r.tenantId), order: ref(c.orders.get(String(r.orderId))), amount: rs(r.amountPaise), status: r.status, reason: nice(r.reason), pid: r.rzpPaymentId, rid: r.rzpRefundId || '', tries: r.attempts || 0, doneAt: r.processedAt || '', err: r.lastError || '', external: r.external ? 'Yes' : 'No', told: r.customerNotifiedAt || '' };
+    },
 };
-
 D.sms_topups = {
     title: 'SMS top-ups', group: 'SMS', hint: 'What shops paid to add SMS balance.',
     model: SmsTopup, shopField: 'tenantId', dateField: 'createdAt', periodLabel: 'Asked between', sort: { createdAt: -1 },
@@ -492,7 +554,7 @@ D.shops = {
     async prepare(docs, ctx) {
         const [b, g] = await Promise.all([
             Brand.find({ _id: { $in: docs.map((d) => d.brandId).filter(Boolean) } }).select('name').lean(),
-            ctx.lv >= 3 ? Order.aggregate([{ $match: { tenantId: { $in: docs.map((d) => d._id) } } }, { $group: { _id: '$tenantId', n: { $sum: 1 }, sales: { $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, { $ifNull: ['$pricing.total', 0] }, 0] } }, last: { $max: '$createdAt' } } }]) : [],
+            ctx.lv >= 3 ? Order.aggregate([{ $match: { tenantId: { $in: docs.map((d) => d._id) } } }, { $group: { _id: '$tenantId', n: { $sum: 1 }, sales: { $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, { $ifNull: ['$bulkTotal', { $ifNull: ['$pricing.total', 0] }] }, 0] } }, last: { $max: '$createdAt' } } }]) : [],
         ]);
         ctx.brands = new Map(b.map((x) => [String(x._id), x.name]));
         ctx.stats = new Map(g.map((x) => [String(x._id), x]));
@@ -535,9 +597,9 @@ async function shopRecent(ids, now) {
     const tz = '+05:30';
     const m = { tenantId: { $in: ids }, createdAt: { $gte: since } };
     const [life, rec, hours] = await Promise.all([
-        Order.aggregate([{ $match: { tenantId: { $in: ids } } }, { $group: { _id: '$tenantId', orders: { $sum: 1 }, delivered: { $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, 1, 0] } }, sales: { $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, { $ifNull: ['$pricing.total', 0] }, 0] } }, last: { $max: '$createdAt' } } }]),
+        Order.aggregate([{ $match: { tenantId: { $in: ids } } }, { $group: { _id: '$tenantId', orders: { $sum: 1 }, delivered: { $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, 1, 0] } }, sales: { $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, { $ifNull: ['$bulkTotal', { $ifNull: ['$pricing.total', 0] }] }, 0] } }, last: { $max: '$createdAt' } } }]),
         Order.aggregate([{ $match: m }, { $addFields: { acc: { $arrayElemAt: [{ $filter: { input: { $ifNull: ['$statusHistory', []] }, cond: { $eq: ['$$this.status', 'accepted'] } } }, 0] } } },
-            { $group: { _id: '$tenantId', orders: { $sum: 1 }, delivered: { $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, 1, 0] } }, cancelled: { $sum: { $cond: [{ $in: ['$status', ['cancelled', 'undelivered']] }, 1, 0] } }, sales: { $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, { $ifNull: ['$pricing.total', 0] }, 0] } }, acceptMin: { $avg: { $cond: [{ $ifNull: ['$acc.at', false] }, { $divide: [{ $subtract: ['$acc.at', '$createdAt'] }, 60000] }, null] } } } }]),
+            { $group: { _id: '$tenantId', orders: { $sum: 1 }, delivered: { $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, 1, 0] } }, cancelled: { $sum: { $cond: [{ $in: ['$status', ['cancelled', 'undelivered']] }, 1, 0] } }, sales: { $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, { $ifNull: ['$bulkTotal', { $ifNull: ['$pricing.total', 0] }] }, 0] } }, acceptMin: { $avg: { $cond: [{ $ifNull: ['$acc.at', false] }, { $divide: [{ $subtract: ['$acc.at', '$createdAt'] }, 60000] }, null] } } } }]),
         Order.aggregate([{ $match: m }, { $group: { _id: { t: '$tenantId', h: { $hour: { date: '$createdAt', timezone: tz } } }, n: { $sum: 1 } } }]),
     ]);
     const out = new Map();

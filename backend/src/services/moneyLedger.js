@@ -13,6 +13,7 @@ const Tenant = require('../models/Tenant');
 const Order = require('../models/Order');
 const BulkPayment = require('../models/BulkPayment');
 const BulkOrder = require('../models/BulkOrder');
+const TableBooking = require('../models/TableBooking');
 
 const IST_MS = 330 * 60000;
 const bad = (status, message) => Object.assign(new Error(message), { status });
@@ -54,6 +55,25 @@ const BRANCHES = [
         project: {
             at: '$refund.at', amountPaise: '$refund.amountPaise', status: lit('done'), orderId: lit(null), bulkId: '$bulkId', ref: '$refund.refundId',
             meta: { reason: '$refund.reason', paymentRef: '$rzpPaymentId', kind: '$kind' },
+        },
+    },
+    {
+        // the deposit of a table booking: paid online, kept on the booking itself
+        category: 'customer_payment', model: TableBooking, views: { shop: 'in' },
+        match: { 'payment.amountPaise': { $gt: 0 } },
+        dateMatch: (r) => ({ 'payment.paidAt': r }),
+        project: {
+            at: '$payment.paidAt', amountPaise: '$payment.amountPaise', status: lit('done'), orderId: lit(null), ref: '$payment.rzpPaymentId',
+            meta: { method: lit('booking deposit'), kind: lit('booking_deposit'), name: '$name', date: '$date', time: '$time' },
+        },
+    },
+    {
+        category: 'customer_refund', model: TableBooking, views: { shop: 'out' },
+        match: { 'deposit.status': 'refunded', 'payment.amountPaise': { $gt: 0 }, 'deposit.refundedAt': { $exists: true } },
+        dateMatch: (r) => ({ 'deposit.refundedAt': r }),
+        project: {
+            at: '$deposit.refundedAt', amountPaise: '$payment.amountPaise', status: lit('done'), orderId: lit(null), ref: '$deposit.refundId',
+            meta: { reason: lit('booking deposit returned'), paymentRef: '$payment.rzpPaymentId', kind: lit('booking_deposit') },
         },
     },
     {

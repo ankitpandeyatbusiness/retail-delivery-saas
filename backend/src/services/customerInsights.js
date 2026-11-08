@@ -43,7 +43,7 @@ function tagFor({ orders, daysSince, gapDays }) {
 async function build({ tenantId, now = new Date() }) {
     const since = new Date(now.getTime() - WINDOW_DAYS * DAY);
     const rows = await Order.find({ tenantId: new mongoose.Types.ObjectId(String(tenantId)), status: 'delivered', createdAt: { $gte: since } })
-        .select('userId createdAt items.name items.quantity pricing.total').sort({ createdAt: 1 }).limit(50000).lean();
+        .select('userId createdAt items.name items.quantity pricing.total bulkTotal').sort({ createdAt: 1 }).limit(50000).lean();
 
     const by = new Map();
     for (const o of rows) {
@@ -77,7 +77,7 @@ async function build({ tenantId, now = new Date() }) {
         out.set(uid, {
             userId: uid,
             orders,
-            spent: Math.round(list.reduce((s, o) => s + (o.pricing?.total || 0), 0)),
+            spent: Math.round(list.reduce((s, o) => s + ((o.bulkTotal ?? o.pricing?.total) || 0), 0)),
             firstOrderAt: new Date(times[0]),
             lastOrderAt: new Date(last),
             daysSince,

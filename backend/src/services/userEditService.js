@@ -100,7 +100,7 @@ async function detail(tenantId, user) {
                     orders: { $sum: 1 },
                     delivered: { $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, 1, 0] } },
                     cancelled: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] } },
-                    spent: { $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, { $ifNull: ['$pricing.total', 0] }, 0] } },
+                    spent: { $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, { $ifNull: ['$bulkTotal', { $ifNull: ['$pricing.total', 0] }] }, 0] } },
                     lastOrderAt: { $max: '$createdAt' },
                 }
             },

@@ -163,7 +163,7 @@ export default function ShopPaymentsScreen() {
                     {refunds === null ? <SkeletonList count={3} avatar={false} /> : !refunds.length ? <Empty icon="receipt" title="No refunds" hint="Refunds of online payments appear here." /> : refunds.map((r) => (
                         <Card key={String(r.id)} style={{ marginBottom: spacing.sm }}>
                             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <Text style={{ color: t.text, fontWeight: '800' }}>{r.bulk ? 'Bulk order ' + (r.bulk.code || '') : 'Order #' + (r.orderNo ?? '—')}</Text>
+                                <Text style={{ color: t.text, fontWeight: '800' }}>{r.bulk ? 'Bulk order ' + (r.bulk.code || '') : r.booking ? 'Table booking · ' + (r.booking.name || '') : 'Order #' + (r.orderNo ?? '—')}</Text>
                                 <Text style={{ color: t.text, fontWeight: '800' }}>{rupeesFromPaise(r.amountPaise)}</Text>
                             </View>
                             <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm, alignItems: 'center' }}>

@@ -15,6 +15,7 @@ const HandledMark = require('../models/HandledMark');
 const Order = require('../models/Order');
 const BulkPayment = require('../models/BulkPayment');
 const BulkOrder = require('../models/BulkOrder');
+const TableBooking = require('../models/TableBooking');
 const { httpError } = require('../middlewares/apiErrors');
 
 const esc = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -113,6 +114,18 @@ async function search(q) {
         }
         return { $or: or };
     });
+    // the deposit a guest paid online to book a table is kept on the booking itself: found by a payment id, the booking code, the guest, an amount, a shop or its state
+    const depositF = await build(words, async (w) => {
+        const lw = w.toLowerCase();
+        if (SKIP.has(lw) || lw === 'deposit' || lw === 'booking' || lw === 'table') return null;
+        if (['paid', 'refunded', 'kept', 'adjusted'].includes(lw)) return { 'deposit.status': lw };
+        const or = [{ 'payment.rzpPaymentId': word(w) }, { 'payment.rzpOrderId': word(w) }, { code: word(w) }, { name: word(w) }];
+        const n = amountOf(w);
+        if (n !== null) or.push({ 'payment.amountPaise': paise(n) });
+        const sids = w.length >= 3 ? await shopsFor(w) : [];
+        if (sids.length) or.push({ tenantId: { $in: sids } });
+        return { $or: or };
+    });
     const expenseF = await build(words, async (w) => {
         if (SKIP.has(w.toLowerCase())) return null;
         const or = [{ vendor: word(w) }, { note: word(w) }, { category: word(w) }];
@@ -131,12 +144,13 @@ async function search(q) {
     const markF = await build(words, async (w) => (SKIP.has(w.toLowerCase()) ? null : { $or: [{ note: word(w) }, { title: word(w) }, { by: word(w) }, { kind: word(w.replace(/\s/g, '_')) }] }));
     const shopF = words.length === 1 && words[0].length >= 2 ? { $or: [{ name: word(words[0]) }, { slug: word(words[0]) }, { phone: word(words[0]) }] } : null;
 
-    const [invoices, topups, refunds, payments, bulkPays, expenses, notes, events, marks, shops] = await Promise.all([
+    const [invoices, topups, refunds, payments, bulkPays, deposits, expenses, notes, events, marks, shops] = await Promise.all([
         invoiceF ? SubscriptionInvoice.find(invoiceF).sort({ issueDate: -1 }).limit(LIMIT).select('tenantId invoiceNo total status period dueDate').lean() : [],
         topupF ? SmsTopup.find(topupF).sort({ createdAt: -1 }).limit(LIMIT).select('tenantId ref amountPaise payablePaise status paymentId paidAt createdAt').lean() : [],
         refundF ? OnlineRefund.find(refundF).sort({ createdAt: -1 }).limit(LIMIT).lean() : [],
         paymentF ? OnlinePayment.find(paymentF).sort({ createdAt: -1 }).limit(LIMIT).select('tenantId orderId rzpPaymentId amountPaise status capturedAt createdAt').lean() : [],
         bulkPayF ? BulkPayment.find(bulkPayF).sort({ createdAt: -1 }).limit(LIMIT).select('tenantId bulkId kind rzpPaymentId amountPaise status capturedAt createdAt refund').lean() : [],
+        depositF ? TableBooking.find({ 'payment.amountPaise': { $gt: 0 }, $and: [depositF] }).sort({ 'payment.paidAt': -1 }).limit(LIMIT).select('tenantId code name payment deposit').lean() : [],
         expenseF ? Expense.find(expenseF).sort({ date: -1 }).limit(LIMIT).lean() : [],
         noteF ? CollectionNote.find(noteF).sort({ createdAt: -1 }).limit(LIMIT).lean() : [],
         eventF ? PaymentWebhookEvent.find({ account: 'platform', ...eventF }).sort({ createdAt: -1 }).limit(LIMIT).select('event eventId status error createdAt').lean() : [],
@@ -144,7 +158,7 @@ async function search(q) {
         shopF ? Tenant.find(shopF).select('name slug billing.state').limit(8).lean() : [],
     ]);
 
-    const need = [...invoices, ...topups, ...refunds, ...payments, ...bulkPays, ...notes].map((x) => String(x.tenantId));
+    const need = [...invoices, ...topups, ...refunds, ...payments, ...bulkPays, ...deposits, ...notes].map((x) => String(x.tenantId));
     const bulkCodes = new Map((bulkPays.length ? await BulkOrder.find({ _id: { $in: bulkPays.map((x) => x.bulkId) } }).select('code').lean() : []).map((b) => [String(b._id), b.code]));
     const orders = new Map((await Order.find({ _id: { $in: [...refunds, ...payments].map((x) => x.orderId) } }).select('orderNo ref').lean()).map((o) => [String(o._id), o]));
     const names = new Map((await Tenant.find({ _id: { $in: need.filter((x) => mongoose.isValidObjectId(x)) } }).select('name').lean()).map((s) => [String(s._id), s.name]));
@@ -159,6 +173,7 @@ async function search(q) {
         { key: 'refunds', title: 'Refunds', items: refunds.map((r) => ({ id: String(r._id), title: `${nm(r.tenantId)} · order ${ordLabel(r.orderId)}`, detail: `${r.status}${r.lastError ? ` · ${r.lastError}` : ''} · ${date(r.createdAt)}`, paise: r.amountPaise, open: { screen: 'Refunds' } })) },
         { key: 'payments', title: 'Customer payments', items: payments.map((p) => ({ id: String(p._id), title: `${nm(p.tenantId)} · order ${ordLabel(p.orderId)}`, detail: `${p.status}${p.rzpPaymentId ? ` · ${p.rzpPaymentId}` : ''} · ${date(p.capturedAt || p.createdAt)}`, paise: p.amountPaise, open: { screen: 'OrderDetail', params: { orderId: String(p.orderId) } } })) },
         { key: 'bulkPayments', title: 'Bulk order payments', items: bulkPays.map((p) => ({ id: String(p._id), title: `${nm(p.tenantId)} · bulk order ${bulkCodes.get(String(p.bulkId)) || ''}`, detail: `${p.kind} · ${p.status}${p.refund?.status ? ` · refund ${p.refund.status}` : ''}${p.rzpPaymentId ? ` · ${p.rzpPaymentId}` : ''} · ${date(p.capturedAt || p.createdAt)}`, paise: p.amountPaise, open: { screen: 'ShopBulk', params: { shopId: String(p.tenantId), name: nm(p.tenantId) } } })) },
+        { key: 'deposits', title: 'Table booking deposits', items: deposits.map((b) => ({ id: String(b._id), title: `${nm(b.tenantId)} · table booking ${b.code} · ${b.name}`, detail: `${b.deposit?.status || 'paid'}${b.payment?.rzpPaymentId ? ` · ${b.payment.rzpPaymentId}` : ''} · ${date(b.payment?.paidAt)}`, paise: b.payment?.amountPaise, open: { screen: 'ShopPayments', params: { shopId: String(b.tenantId), name: nm(b.tenantId) } } })) },
         { key: 'expenses', title: 'Your expenses', items: expenses.map((e) => ({ id: String(e._id), title: `${e.category}${e.vendor ? ` · ${e.vendor}` : ''}`, detail: `${e.note || ''} ${date(e.date)}`.trim(), paise: e.amountPaise, open: { screen: 'Expenses' } })) },
         { key: 'notes', title: 'Notes about unpaid rent', items: notes.map((n) => ({ id: String(n._id), title: `${nm(n.tenantId)} · ${n.status}`, detail: `${n.note}${n.promiseDate ? ` · promised ${date(n.promiseDate)}` : ''}`, open: { screen: 'Receivables' } })) },
         { key: 'events', title: 'Razorpay events', items: events.map((e) => ({ id: String(e._id), title: e.event || 'event', detail: `${e.status}${e.error ? ` · ${String(e.error).slice(0, 120)}` : ''} · ${date(e.createdAt)}`, open: { screen: 'MyRazorpay' } })) },

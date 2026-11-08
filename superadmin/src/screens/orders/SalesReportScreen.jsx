@@ -322,7 +322,7 @@ export default function SalesReportScreen() {
                     <SectionTitle section="platform">How customers paid</SectionTitle>
                     <Card style={{ paddingVertical: 0 }}>
                         {(r.payments || []).map((p, i) => (
-                            <KeyValue key={String(p.method)} label={`${{ cod: 'Cash', upi: 'UPI', card: 'Card', wallet: 'Wallet' }[p.method] || titleCase(p.method)} · ${p.orders} orders`} value={rupees(p.revenue)} last={i === r.payments.length - 1} />
+                            <KeyValue key={String(p.method)} label={`${{ cod: 'Cash', upi: 'UPI', card: 'Card', wallet: 'Wallet', bulk: 'Bulk orders' }[p.method] || titleCase(p.method)} · ${p.orders} orders`} value={rupees(p.revenue)} last={i === r.payments.length - 1} />
                         ))}
                     </Card>
 

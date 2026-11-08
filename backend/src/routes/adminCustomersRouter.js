@@ -51,7 +51,7 @@ function pipeline(match, sort, tail) {
                 { $group: {
                     _id: null, orders: { $sum: 1 },
                     delivered: { $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, 1, 0] } },
-                    spent: { $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, { $ifNull: ['$pricing.total', 0] }, 0] } },
+                    spent: { $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, { $ifNull: ['$bulkTotal', { $ifNull: ['$pricing.total', 0] }] }, 0] } },
                     cancelled: { $sum: { $cond: [{ $and: [{ $eq: ['$status', 'cancelled'] }, { $eq: ['$cancelledBy', 'customer'] }] }, 1, 0] } },
                     noShow: { $sum: { $cond: [{ $and: [{ $eq: ['$status', 'undelivered'] }, { $eq: ['$undelivered.reasonCode', 'customer'] }] }, 1, 0] } },
                     lastAt: { $max: '$createdAt' },

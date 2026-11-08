@@ -1,5 +1,7 @@
 // Pure helpers for the Money screens. Amounts: the sales report is in RUPEES, wallet / payments / bills are in PAISE.
 
+import { tr } from '../../i18n';
+
 const istDay = (d) => new Date(d.getTime() + 330 * 60000).toISOString().slice(0, 10);
 
 export const PERIODS = [['today', 'Today'], ['7', '7 days'], ['30', '30 days'], ['month', 'This month']];
@@ -19,7 +21,7 @@ export function shortDay(ymd) {
     return `${Number(d)} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][Number(m) - 1] || ''}`;
 }
 
-export const PAY_LABEL = { cod: 'Cash on delivery', upi: 'UPI', card: 'Card', wallet: 'Wallet' };
+export const PAY_LABEL = { cod: 'Cash on delivery', upi: 'UPI', card: 'Card', wallet: 'Wallet', bulk: 'Bulk orders' };
 
 // money screens that can be filtered by what moved
 export const MOVES = [['', 'All'], ['customer_payment', 'Received'], ['customer_refund', 'Refunds'], ['dispute_lost', 'Chargebacks'], ['sms_topup', 'SMS'], ['rent', 'Bills']];
@@ -29,10 +31,10 @@ export const DISPUTE_STATE = { created: 'New', under_review: 'Under review', act
 
 // "SMS used for an order alert" etc.
 export function smsLine(t) {
-    if (t.type === 'topup') return 'Top-up';
-    if (t.type === 'refund') return 'Refund for a failed SMS';
-    if (t.type === 'adjust') return t.note || 'Correction by support';
-    return t.purpose ? `SMS: ${String(t.purpose).replace(/_/g, ' ')}` : 'SMS sent';
+    if (t.type === 'topup') return tr('Top-up');
+    if (t.type === 'refund') return tr('Refund for a failed SMS');
+    if (t.type === 'adjust') return t.note || tr('Correction by support');
+    return t.purpose ? `SMS: ${String(t.purpose).replace(/_/g, ' ')}` : tr('SMS sent');
 }
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
