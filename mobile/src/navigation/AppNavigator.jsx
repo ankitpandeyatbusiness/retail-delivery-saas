@@ -473,7 +473,7 @@ export default function AppNavigator() {
                 </Stack.Navigator>
             </NavigationContainer>
             <OwnerViewPill onBack={() => { if (navigationRef.isReady() && (navigationRef.getRootState()?.routes?.length || 0) > 1) navigationRef.dispatch(StackActions.popToTop()); }} />
-            <LiveOrderHost routeName={routeName} onOpenOrder={(id) => { if (navigationRef.isReady()) navigationRef.navigate('OrderDetail', { id }); }} />
+            <LiveOrderHost routeName={routeName} onOpenOrder={(id, isBulk) => { if (navigationRef.isReady()) navigationRef.navigate(isBulk ? 'BulkOrderDetail' : 'OrderDetail', { id }); }} />
             <ActiveOrderBar routeName={routeName} onOpen={(id, o) => { if (navigationRef.isReady()) { if (o?.isBulk) navigationRef.navigate('BulkOrderDetail', { id: o.bulkId }); else navigationRef.navigate('OrderDetail', { id }); } }} onOpenAll={goOrders} />
             <TableLinkHost onDone={() => { if (navigationRef.isReady()) navigationRef.navigate('MainTabs'); }} />
             <TableBillStrip routeName={routeName} onOpen={() => { if (navigationRef.isReady()) navigationRef.navigate('TableBill'); }} onOpenCart={() => { if (navigationRef.isReady()) navigationRef.navigate('Cart'); }} />

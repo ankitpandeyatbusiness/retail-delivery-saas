@@ -8,7 +8,7 @@ import { useEffect, useRef } from 'react';
 import { AppState } from 'react-native';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { useLiveTripStore } from '../../store/customers/useLiveTripStore';
-import { fetchOrders, fetchTracking } from '../../api/customers/shopApi';
+import { fetchOrders, fetchTracking, fetchMyBulk } from '../../api/customers/shopApi';
 import { onRiderLocation, onRiderRoute, onOrderEta, onRiderQuiet, onOrderUpdate, onNotification, watchOrder, getTrackingMode, realtimeConnected } from '../../api/common/socket';
 
 const SAFETY_SEC = 40;
@@ -28,15 +28,24 @@ export function useLiveTrip(enabled) {
             try {
                 const r = await fetchOrders({ active: true, limit: 5 });
                 if (dead) return;
-                const o = (r.items || []).find((x) => x.orderType === 'delivery' && x.status === 'out_for_delivery');
+                let o = (r.items || []).find((x) => x.orderType === 'delivery' && x.status === 'out_for_delivery');
+                // a bulk delivery is a hidden work ticket the order list never shows: the bulk order itself says which ticket to follow
+                if (!o) {
+                    try {
+                        const b = await fetchMyBulk();
+                        const x = (b.items || []).find((y) => y.fulfilment === 'delivery' && y.status === 'out_for_delivery' && y.trackOrderId);
+                        if (x) o = { id: x.trackOrderId, orderNo: x.code, bulkId: x.id };
+                    } catch (e) { /* no bulk delivery to follow */ }
+                    if (dead) return;
+                }
                 const cur = useLiveTripStore.getState().orderId;
                 if (!o) { if (cur) useLiveTripStore.getState().reset(); return; }
-                if (String(o.id || o._id) !== String(cur)) useLiveTripStore.getState().reset(String(o.id || o._id), o.orderNo);
+                if (String(o.id || o._id) !== String(cur)) useLiveTripStore.getState().reset(String(o.id || o._id), o.orderNo, o.bulkId ? String(o.bulkId) : null);
             } catch (e) { /* the bar simply stays as it was */ } finally { busy.current = false; }
         };
         find();
         const a = onOrderUpdate(find);
-        const b = onNotification((n) => { if (n?.data?.orderId) find(); });
+        const b = onNotification((n) => { if (n?.data?.orderId || n?.data?.bulkId) find(); });
         const c = AppState.addEventListener('change', (st) => { if (st === 'active') find(); });
         return () => { dead = true; a(); b(); c.remove(); };
     }, [enabled, user]);

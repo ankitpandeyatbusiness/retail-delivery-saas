@@ -2,7 +2,7 @@
 //   sheet: 'bar' (only the small bar) | 'half' | 'full'
 import { create } from 'zustand';
 
-const EMPTY = { orderId: null, orderNo: null, track: null, loc: null, route: null, eta: null, dest: null, quiet: false, lastDataAt: 0 };
+const EMPTY = { orderId: null, orderNo: null, bulkId: null, track: null, loc: null, route: null, eta: null, dest: null, quiet: false, lastDataAt: 0 };
 
 export const useLiveTripStore = create((set) => ({
     ...EMPTY,
@@ -13,7 +13,7 @@ export const useLiveTripStore = create((set) => ({
     setBarH: (barH) => set((s) => (s.barH === barH ? s : { barH })),
     setSheet: (sheet) => set({ sheet }),
     // a different (or no) order: forget the old one completely
-    reset: (orderId = null, orderNo = null) => set({ ...EMPTY, orderId, orderNo, sheet: 'bar' }),
+    reset: (orderId = null, orderNo = null, bulkId = null) => set({ ...EMPTY, orderId, orderNo, bulkId, sheet: 'bar' }),   // bulkId: the delivery is a bulk order's ticket (View order opens the bulk page)
     setTrack: (track) => set((s) => ({
         track,
         loc: track?.riderLocation ? { lat: track.riderLocation.lat, lng: track.riderLocation.lng, heading: track.riderLocation.heading ?? null, at: track.riderLocation.at } : s.loc,

@@ -94,7 +94,7 @@ export default function LiveOrderHost({ routeName, onOpenOrder }) {
         });
     }, [enabled]);
 
-    const { orderId, orderNo, track, loc, route, eta: e, dest, quiet, sheet } = useLiveTripStore();
+    const { orderId, orderNo, bulkId, track, loc, route, eta: e, dest, quiet, sheet } = useLiveTripStore();
     const setSheet = useLiveTripStore((s) => s.setSheet);
     const { primary, text, muted, surface, border, background } = useBrand();
     const mapStyle = useMapStyle();
@@ -111,7 +111,7 @@ export default function LiveOrderHost({ routeName, onOpenOrder }) {
     // tell the active-order bar how much room this bar takes (the bar, or the small chip when it is hidden)
     const setLiveOffset = useLiveTripStore((s) => s.setLiveOffset);
     const barOn = enabled && !!orderId && !!track && !HIDE_ON.includes(routeName) && sheet === 'bar';
-    useEffect(() => { useDock.getState().put('track', barOn ? { icon: 'bicycle', label: 'Track your order', sub: `#${orderNo || ''}`.replace('#', tr('Order #')), route: 'OrderDetail', params: { id: String(orderId) } } : null); }, [barOn, orderId, orderNo]);   // eslint-disable-line react-hooks/exhaustive-deps
+    useEffect(() => { useDock.getState().put('track', barOn ? { icon: 'bicycle', label: 'Track your order', sub: `#${orderNo || ''}`.replace('#', tr('Order #')), route: bulkId ? 'BulkOrderDetail' : 'OrderDetail', params: { id: String(bulkId || orderId) } } : null); }, [barOn, orderId, orderNo, bulkId]);   // eslint-disable-line react-hooks/exhaustive-deps
     useEffect(() => () => useDock.getState().put('track', null), []);
     const crowded = useCrowded('track');   // two or more cards: the round dock shows the tracking instead of this bar
     useEffect(() => {
@@ -221,7 +221,7 @@ export default function LiveOrderHost({ routeName, onOpenOrder }) {
                                 </Pressable>
                             </View>
                             <View style={{ flexDirection: 'row', marginTop: 10 }}>
-                                <Pressable onPress={() => onOpenOrder && onOpenOrder(String(orderId))} style={[s.act, { borderColor: primary, flex: 1 }]} accessibilityRole="button" accessibilityLabel={tr('View your active order')}>
+                                <Pressable onPress={() => onOpenOrder && onOpenOrder(String(bulkId || orderId), !!bulkId)} style={[s.act, { borderColor: primary, flex: 1 }]} accessibilityRole="button" accessibilityLabel={tr('View your active order')}>
                                     <Ionicons name="receipt-outline" size={16} color={primary} />
                                     <Text style={[s.actTxt, { color: primary }]}>{tr('View order')}</Text>
                                 </Pressable>
