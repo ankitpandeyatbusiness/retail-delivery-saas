@@ -59,6 +59,7 @@ async function wordCondition(w, now) {
         or.push({ 'customer.phone': prx }, { 'address.phone': prx });
     }
     if (/^[a-z0-9_]{6,}$/i.test(w) && /pay_/i.test(w)) or.push({ 'payment.paymentId': rx });
+    if (/^[A-Za-z0-9]{4,8}$/.test(w)) or.push({ bulkCode: new RegExp(`^${esc(w)}`, 'i') });   // the code of a bulk order, like B7K2QX (also found by the note of its work ticket)
 
     if (!/^\d+$/.test(w) || w.length >= 3) {
         const [shops, people] = await Promise.all([

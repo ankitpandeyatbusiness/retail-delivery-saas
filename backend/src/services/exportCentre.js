@@ -7,6 +7,8 @@ const mongoose = require('mongoose');
 const Tenant = require('../models/Tenant');
 const User = require('../models/User');
 const Order = require('../models/Order');
+const BulkOrder = require('../models/BulkOrder');
+const BulkPayment = require('../models/BulkPayment');
 const Brand = require('../models/Brand');
 const SubscriptionInvoice = require('../models/SubscriptionInvoice');
 const OnlinePayment = require('../models/OnlinePayment');
@@ -252,8 +254,9 @@ D.orders = {
         return w;
     },
     columns: [
-        { h: 'Date', k: 'at', kind: 'date', lv: 1 }, { h: 'Shop', k: 'shop', lv: 1 }, { h: 'Order', k: 'ref', lv: 1 }, { h: 'Customer', k: 'customer', lv: 1 },
+        { h: 'Date', k: 'at', kind: 'date', lv: 1 }, { h: 'Shop', k: 'shop', lv: 1 }, { h: 'Order', k: 'ref', lv: 1 }, { h: 'Bulk order', k: 'bulk', kind: 'center', lv: 1 }, { h: 'Customer', k: 'customer', lv: 1 },
         { h: 'Status', k: 'status', kind: 'status', lv: 1 }, { h: 'Type', k: 'type', kind: 'center', lv: 1 }, { h: 'Paid by', k: 'method', kind: 'center', lv: 1 }, { h: 'Total (₹)', k: 'total', kind: 'money', lv: 1 },
+        { h: 'Whole bulk order (₹)', k: 'bulkTotal', kind: 'money', lv: 2 },
         { h: 'Phone', k: 'phone', kind: 'center', lv: 2 }, { h: 'Items', k: 'items', kind: 'wide', lv: 2 }, { h: 'Subtotal (₹)', k: 'subtotal', kind: 'money', lv: 2 }, { h: 'Discount (₹)', k: 'discount', kind: 'money', lv: 2 },
         { h: 'Delivery fee (₹)', k: 'delivery', kind: 'money', lv: 2 }, { h: 'Packaging (₹)', k: 'packaging', kind: 'money', lv: 2 }, { h: 'GST (₹)', k: 'tax', kind: 'money', lv: 2 }, { h: 'Tip (₹)', k: 'tip', kind: 'money', lv: 2 },
         { h: 'Payment status', k: 'pay', kind: 'status', lv: 2 }, { h: 'Coupon', k: 'coupon', kind: 'center', lv: 2 }, { h: 'Rider', k: 'rider', lv: 2 }, { h: 'Delivered at', k: 'deliveredAt', kind: 'date', lv: 2 }, { h: 'Minutes to deliver', k: 'mins', kind: 'int', lv: 2 },
@@ -272,7 +275,8 @@ D.orders = {
         const rider = o.delivery?.riderId ? c.riders.get(String(o.delivery.riderId)) : null;
         const placed = new Date(o.createdAt).getTime();
         return {
-            at: o.createdAt, shop: c.shop(o.tenantId), ref: ref(o), customer: o.customer?.name || '', status: o.status, type: nice(o.orderType), method: String(o.payment?.method || '').toUpperCase(), total: r2(o.pricing?.total),
+            at: o.createdAt, shop: c.shop(o.tenantId), ref: ref(o), bulk: o.bulkId ? (o.bulkCode || 'Bulk') : '', bulkTotal: o.bulkId ? r2(o.bulkTotal) : '',
+            customer: o.customer?.name || '', status: o.status, type: nice(o.orderType), method: String(o.payment?.method || '').toUpperCase(), total: r2(o.pricing?.total),
             phone: c.phone(o.customer?.phone), items: (o.items || []).map((l) => `${l.quantity}× ${l.name}`).join(', '), subtotal: r2(o.pricing?.subtotal), discount: r2(o.pricing?.discount),
             delivery: r2(o.pricing?.deliveryFee), packaging: r2(o.pricing?.packagingCharge), tax: r2(o.pricing?.tax), tip: r2(o.pricing?.tip), pay: o.payment?.status, coupon: o.pricing?.couponCode || '',
             rider: rider ? `${rider.name || ''} ${c.phone(rider.phone)}`.trim() : '', deliveredAt: o.deliveredAt || '', mins: o.deliveredAt ? Math.round((new Date(o.deliveredAt).getTime() - placed) / 60000) : '',
@@ -287,6 +291,52 @@ D.orders = {
         const rows = [];
         for (const o of docs) for (const l of o.items || []) rows.push({ at: o.createdAt, shop: c.shop(o.tenantId), ref: ref(o), dish: l.name, qty: l.quantity, unit: r2(l.unitPrice), line: r2(l.lineTotal), gst: r2(l.tax), note: l.note || '' });
         return [{ title: 'Dishes', columns: [{ header: 'Date', key: 'at', kind: 'date' }, { header: 'Shop', key: 'shop' }, { header: 'Order', key: 'ref' }, { header: 'Dish', key: 'dish', kind: 'wide' }, { header: 'Qty', key: 'qty', kind: 'int' }, { header: 'Price each (₹)', key: 'unit', kind: 'money' }, { header: 'Line total (₹)', key: 'line', kind: 'money' }, { header: 'GST (₹)', key: 'gst', kind: 'money' }, { header: 'Note', key: 'note' }], rows, total: true }];
+    },
+};
+
+D.bulk_orders = {
+    title: 'Bulk orders', group: 'Orders and money', hint: 'Every bulk order from the request to the end: the quote, the advance, the balance, and any refund.',
+    model: BulkOrder, shopField: 'tenantId', dateField: 'createdAt', periodLabel: 'Asked between', sort: { createdAt: -1 },
+    filters: [
+        { key: 'status', label: 'Status', multi: true, options: [['requested', 'Waiting for quote'], ['quoted', 'Quote sent'], ['confirmed', 'Advance paid'], ['preparing', 'Being made'], ['ready', 'Ready'], ['out_for_delivery', 'On the way'], ['delivered', 'Delivered'], ['completed', 'Completed'], ['declined', 'Declined'], ['cancelled', 'Cancelled'], ['expired', 'Quote expired']] },
+        { key: 'type', label: 'Type', options: [['', 'Every type'], ['delivery', 'Delivery'], ['pickup', 'Pickup']] },
+    ],
+    where(f) {
+        const w = {};
+        const st = list(f.status);
+        if (st.length) w.status = { $in: st };
+        if (['delivery', 'pickup'].includes(f.type)) w.fulfilment = f.type;
+        return w;
+    },
+    columns: [
+        { h: 'Date', k: 'at', kind: 'date', lv: 1 }, { h: 'Shop', k: 'shop', lv: 1 }, { h: 'Bulk order', k: 'code', kind: 'center', lv: 1 }, { h: 'Customer', k: 'customer', lv: 1 },
+        { h: 'Status', k: 'status', kind: 'status', lv: 1 }, { h: 'Type', k: 'type', kind: 'center', lv: 1 }, { h: 'Total (₹)', k: 'total', kind: 'money', lv: 1 },
+        { h: 'Phone', k: 'phone', kind: 'center', lv: 2 }, { h: 'Wanted for', k: 'when', kind: 'date', lv: 2 }, { h: 'Items', k: 'items', kind: 'wide', lv: 2 }, { h: 'Sales after discount (₹)', k: 'sales', kind: 'money', lv: 2 },
+        { h: 'Advance paid (₹)', k: 'advance', kind: 'money', lv: 2 }, { h: 'Balance (₹)', k: 'balance', kind: 'money', lv: 2 }, { h: 'Balance paid', k: 'balPaid', kind: 'center', lv: 2 }, { h: 'Balance paid by', k: 'via', kind: 'center', lv: 2 },
+        { h: 'Delivered at', k: 'deliveredAt', kind: 'date', lv: 2 },
+        { h: 'Refund (₹)', k: 'refund', kind: 'money', lv: 3 }, { h: 'Advance kept by shop', k: 'kept', kind: 'center', lv: 3 }, { h: 'Cancelled by', k: 'cancelBy', kind: 'center', lv: 3 }, { h: 'Cancel reason', k: 'cancelReason', kind: 'wide', lv: 3 },
+        { h: 'Company', k: 'company', lv: 3 }, { h: 'GSTIN', k: 'gstin', kind: 'center', lv: 3 }, { h: 'Address', k: 'address', kind: 'wide', lv: 3 }, { h: 'Note', k: 'note', kind: 'wide', lv: 3 },
+        { h: 'Advance Razorpay payment', k: 'paymentId', lv: 3 }, { h: 'Advance paid at', k: 'paidAt', kind: 'date', lv: 3 },
+    ],
+    // the advance's Razorpay payment id (the bulk order only keeps the id of its own payment record)
+    async prepare(docs, ctx) {
+        const ids = docs.map((b) => b.payment?.advancePaymentId).filter(Boolean);
+        ctx.bulkPays = new Map((ids.length ? await BulkPayment.find({ _id: { $in: ids } }).select('rzpPaymentId').lean() : []).map((x) => [String(x._id), x.rzpPaymentId]));
+    },
+    map(b, c) {
+        const q = b.quote?.pricing || b.pricing || {};
+        const net = r2((b.quote?.pricing?.subtotal || 0) + (b.quote?.pricing?.packagingCharge || 0) - (b.quote?.pricing?.discount || 0));
+        const a = b.address || {};
+        const pay = b.payment || {};
+        return {
+            at: b.createdAt, shop: c.shop(b.tenantId), code: b.code, customer: b.contact?.name || '', status: b.status, type: nice(b.fulfilment), total: r2(q.total),
+            phone: c.phone(b.contact?.phone), when: b.when || '', items: (b.lines || []).map((l) => `${l.quantity}× ${l.name}`).join(', '),
+            sales: ['delivered', 'completed'].includes(b.status) ? net : '', advance: pay.advancePaise ? rs(pay.advancePaise) : '', balance: b.quote?.balancePaise ? rs(b.quote.balancePaise) : '',
+            balPaid: pay.balancePaid ? 'Yes' : (pay.advancePaise ? 'No' : ''), via: pay.balanceVia || '', deliveredAt: b.stageAt?.delivered || '',
+            refund: pay.refundPaise ? rs(pay.refundPaise) : '', kept: pay.advanceKept ? 'Yes' : '', cancelBy: b.cancelledBy || '', cancelReason: b.cancelReason || '',
+            company: b.contact?.company || '', gstin: b.contact?.gstin || '', address: [a.line1, a.line2, a.landmark, a.city, a.pincode].filter(Boolean).join(', '), note: b.note || '',
+            paymentId: (pay.advancePaymentId && c.bulkPays.get(String(pay.advancePaymentId))) || '', paidAt: pay.paidAt || '',
+        };
     },
 };
 
@@ -777,7 +827,7 @@ D.branches = {
     },
 };
 
-const ORDER = ['customers', 'owners', 'brand_people', 'staff', 'riders', 'orders', 'invoices', 'payments', 'refunds', 'complaints', 'menu', 'shops', 'sms_topups', 'sms_sent', 'expenses', 'audit', 'branches', 'shop_costs'];
+const ORDER = ['customers', 'owners', 'brand_people', 'staff', 'riders', 'orders', 'bulk_orders', 'invoices', 'payments', 'refunds', 'complaints', 'menu', 'shops', 'sms_topups', 'sms_sent', 'expenses', 'audit', 'branches', 'shop_costs'];
 
 // ----- the engine -----
 const hasPeriod = (d) => !d.noPeriod && (d.dateField !== undefined || !!d.periodOn);
@@ -876,5 +926,5 @@ async function csv(key, q, { full = false, forced } = {}) {
     return { text: `﻿${head}\r\n${body}`, rows: rows.length, total };
 }
 
-const OWNER_KEYS = ['customers', 'orders', 'riders', 'staff', 'branches', 'menu', 'complaints', 'invoices', 'shop_costs'];
+const OWNER_KEYS = ['customers', 'orders', 'bulk_orders', 'riders', 'staff', 'branches', 'menu', 'complaints', 'invoices', 'shop_costs'];
 module.exports = { OWNER_KEYS, catalog, count, workbook, csv, MAX_ROWS, CSV_MAX, DATASETS: D, ORDER };

@@ -11,6 +11,8 @@ const SmsTransaction = require('../models/SmsTransaction');
 const SubscriptionInvoice = require('../models/SubscriptionInvoice');
 const Tenant = require('../models/Tenant');
 const Order = require('../models/Order');
+const BulkPayment = require('../models/BulkPayment');
+const BulkOrder = require('../models/BulkOrder');
 
 const IST_MS = 330 * 60000;
 const bad = (status, message) => Object.assign(new Error(message), { status });
@@ -33,6 +35,25 @@ const BRANCHES = [
         project: {
             at: '$capturedAt', amountPaise: '$capturedPaise', status: lit('done'), orderId: '$orderId', ref: '$rzpPaymentId',
             meta: { mode: '$mode', method: '$method', refundedPaise: '$refundedPaise' },
+        },
+    },
+    {
+        // the advance (and the balance, when it is paid online) of a BULK order: its own table, the same kind of money
+        category: 'customer_payment', model: BulkPayment, views: { shop: 'in' },
+        match: { status: 'captured', amountPaise: { $gt: 0 } },
+        dateMatch: (r) => ({ capturedAt: r }),
+        project: {
+            at: '$capturedAt', amountPaise: '$amountPaise', status: lit('done'), orderId: lit(null), bulkId: '$bulkId', ref: '$rzpPaymentId',
+            meta: { mode: '$mode', method: lit('bulk'), kind: '$kind', refundedPaise: { $ifNull: ['$refund.amountPaise', 0] } },
+        },
+    },
+    {
+        category: 'customer_refund', model: BulkPayment, views: { shop: 'out' },
+        match: { 'refund.status': 'refunded', 'refund.amountPaise': { $gt: 0 } },
+        dateMatch: (r) => ({ 'refund.at': r }),
+        project: {
+            at: '$refund.at', amountPaise: '$refund.amountPaise', status: lit('done'), orderId: lit(null), bulkId: '$bulkId', ref: '$refund.refundId',
+            meta: { reason: '$refund.reason', paymentRef: '$rzpPaymentId', kind: '$kind' },
         },
     },
     {
@@ -169,10 +190,13 @@ async function list({ view, tenantId, filter, maxLimit }) {
     // names and order numbers, only for the rows on this page
     const tIds = [...new Set(items.map((i) => String(i.tenantId)))];
     const oIds = items.filter((i) => i.orderId).map((i) => i.orderId);
-    const [tenants, orders] = await Promise.all([
+    const bIds = items.filter((i) => i.bulkId).map((i) => i.bulkId);
+    const [tenants, orders, bulks] = await Promise.all([
         view === 'platform' ? Tenant.find({ _id: { $in: tIds } }).select('name slug').lean() : [],
         oIds.length ? Order.find({ _id: { $in: oIds } }).select('orderNo').lean() : [],
+        bIds.length ? BulkOrder.find({ _id: { $in: bIds } }).select('code').lean() : [],
     ]);
+    const bCode = new Map(bulks.map((b) => [String(b._id), b.code]));
     const tName = new Map(tenants.map((t) => [String(t._id), { name: t.name, slug: t.slug }]));
     const oNo = new Map(orders.map((o) => [String(o._id), o.orderNo]));
 
@@ -181,6 +205,7 @@ async function list({ view, tenantId, filter, maxLimit }) {
             id: i._id, at: i.at, category: i.category, label: LABELS[i.category], direction: i.direction,
             amountPaise: i.amountPaise, status: i.status, ref: i.ref || null,
             orderId: i.orderId || null, orderNo: i.orderId ? oNo.get(String(i.orderId)) ?? null : null,
+            bulk: i.bulkId ? { id: String(i.bulkId), code: bCode.get(String(i.bulkId)) || null } : null,   // money of a BULK order: the app says Bulk and opens the bulk order
             ...(view === 'platform' ? { tenantId: i.tenantId, shop: tName.get(String(i.tenantId)) || null } : {}),
             meta: i.meta || {},
         })),

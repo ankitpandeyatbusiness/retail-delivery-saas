@@ -35,7 +35,8 @@ router.get('/report', wrap(async (req, res) => {
     if (from > to) throw httpError(400, 'The "from" date must not be after the "to" date');
     const tenantId = req.tenant._id;
 
-    const [captured, refunded, open, failed, lost, disputesOpen] = await Promise.all([
+    const BulkPayment = require('../models/BulkPayment');
+    const [captured, refunded, open, failed, lost, disputesOpen, bulkCaptured, bulkRefunded, bulkOpen, bulkFailed] = await Promise.all([
         OnlinePayment.aggregate([
             { $match: { tenantId, status: 'captured', capturedAt: { $gte: from, $lte: to } } },
             { $group: { _id: null, n: { $sum: 1 }, paise: { $sum: '$capturedPaise' } } },
@@ -54,9 +55,15 @@ router.get('/report', wrap(async (req, res) => {
             { $group: { _id: null, n: { $sum: 1 }, paise: { $sum: '$amountPaise' } } },
         ]),
         PaymentDispute.countDocuments({ tenantId, status: { $in: ['created', 'under_review', 'action_required'] } }),
+        // bulk orders keep their online money in their own table (the advance, and the balance when paid online)
+        BulkPayment.aggregate([{ $match: { tenantId, status: 'captured', capturedAt: { $gte: from, $lte: to } } }, { $group: { _id: null, n: { $sum: 1 }, paise: { $sum: '$amountPaise' } } }]),
+        BulkPayment.aggregate([{ $match: { tenantId, 'refund.status': 'refunded', 'refund.at': { $gte: from, $lte: to } } }, { $group: { _id: null, n: { $sum: 1 }, paise: { $sum: '$refund.amountPaise' } } }]),
+        BulkPayment.aggregate([{ $match: { tenantId, 'refund.status': 'sending' } }, { $group: { _id: null, n: { $sum: 1 }, paise: { $sum: { $ifNull: ['$refund.amountPaise', 0] } } } }]),
+        BulkPayment.countDocuments({ tenantId, 'refund.status': 'failed', 'refund.at': { $gte: from, $lte: to } }),
     ]);
-    const c = sum(captured, 'paise');
-    const r = sum(refunded, 'paise');
+    const plus = (a, b) => ({ count: a.count + b.count, paise: a.paise + b.paise });
+    const c = plus(sum(captured, 'paise'), sum(bulkCaptured, 'paise'));
+    const r = plus(sum(refunded, 'paise'), sum(bulkRefunded, 'paise'));
     const l = sum(lost, 'paise');
     res.json({
         from, to,
@@ -64,8 +71,9 @@ router.get('/report', wrap(async (req, res) => {
         refunded: r,                       // money that went back to customers
         disputesLost: l,                   // chargebacks the shop lost in this period
         netPaise: c.paise - r.paise - l.paise,   // what stayed with the shop in this period
-        refundsOnTheWay: sum(open, 'paise'),   // asked for, not finished yet (any date)
-        refundsFailed: failed,             // need a look by the platform
+        refundsOnTheWay: plus(sum(open, 'paise'), sum(bulkOpen, 'paise')),   // asked for, not finished yet (any date)
+        refundsFailed: failed + bulkFailed,   // need a look by the platform
+        bulk: { captured: sum(bulkCaptured, 'paise'), refunded: sum(bulkRefunded, 'paise') },   // how much of the above is from bulk orders
         disputesOpen,                      // chargebacks waiting for an answer (any date)
     });
 }));
@@ -77,18 +85,33 @@ router.get('/refunds', wrap(async (req, res) => {
         filter.status = req.query.status;
     }
     const page = Math.min(Math.max(parseInt(req.query.page, 10) || 1, 1), 1000);
-    const rows = await OnlineRefund.find(filter).sort({ createdAt: -1, _id: -1 }).skip((page - 1) * 30).limit(31).lean();
-    const hasMore = rows.length > 30;
-    if (hasMore) rows.pop();
+    // the refunds of BULK orders live in their own table (the payment record): they are listed with the others, with the bulk order's code
+    const BulkPayment = require('../models/BulkPayment');
+    const BulkOrder = require('../models/BulkOrder');
+    const BULK_STATUS = { processing: 'sending', processed: 'refunded', failed: 'failed' };   // (a bulk refund is never 'pending': it is sending, done or failed)
+    const bulkFilter = { tenantId: req.tenant._id, 'refund.status': req.query.status === undefined ? { $exists: true } : (BULK_STATUS[req.query.status] || '__none__') };
+    const take = page * 30 + 1;
+    const [rows, bulkRows] = await Promise.all([
+        OnlineRefund.find(filter).sort({ createdAt: -1, _id: -1 }).limit(take).lean(),
+        BulkPayment.find(bulkFilter).sort({ 'refund.at': -1, _id: -1 }).limit(take).lean(),
+    ]);
     const orders = await Order.find({ _id: { $in: rows.map((x) => x.orderId) }, tenantId: req.tenant._id }).select('orderNo').lean();
     const no = new Map(orders.map((o) => [String(o._id), o.orderNo]));
-    res.json({
-        items: rows.map((x) => ({
+    const bulks = bulkRows.length ? await BulkOrder.find({ _id: { $in: bulkRows.map((x) => x.bulkId) } }).select('code').lean() : [];
+    const code = new Map(bulks.map((b) => [String(b._id), b.code]));
+    const NAME = { sending: 'processing', refunded: 'processed', failed: 'failed' };
+    const merged = [
+        ...rows.map((x) => ({
             id: x._id, orderId: x.orderId, orderNo: no.get(String(x.orderId)) ?? null, amountPaise: x.amountPaise,
             reason: x.reason, status: x.status, createdAt: x.createdAt, processedAt: x.processedAt || null,
         })),
-        page, hasMore,
-    });
+        ...bulkRows.map((x) => ({
+            id: x._id, orderId: null, orderNo: null, bulk: { id: String(x.bulkId), code: code.get(String(x.bulkId)) || null }, amountPaise: x.refund.amountPaise || 0,
+            reason: x.refund.reason || null, status: NAME[x.refund.status] || x.refund.status, createdAt: x.refund.at || x.updatedAt, processedAt: x.refund.status === 'refunded' ? x.refund.at : null,
+        })),
+    ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const hasMore = merged.length > page * 30;
+    res.json({ items: merged.slice((page - 1) * 30, page * 30), page, hasMore });
 }));
 
 router.get('/disputes', wrap(async (req, res) => {

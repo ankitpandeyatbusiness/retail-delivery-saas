@@ -29,7 +29,7 @@ function Line({ label, value, onPress, strong }) {
     );
 }
 
-function Detail({ x, onClose, onOpenOrder }) {
+function Detail({ x, onClose, onOpenOrder, onOpenBulk }) {
     const { text, muted, ok, error } = useBrand();
     if (!x) return <Sheet visible={false} onClose={onClose} title="" />;
     const k = KIND[x.category] || {};
@@ -47,6 +47,7 @@ function Detail({ x, onClose, onOpenOrder }) {
             <Line label={tr('Customer')} value={x.customer} />
             <Line label={tr('Phone')} value={x.phone} onPress={x.phone ? () => callPhone(x.phone) : undefined} />
             <Line label={tr('Order')} value={x.orderNo ? `#${x.orderNo}${x.orderType ? ' · ' + tr(x.orderType === 'dine_in' ? 'Dine in' : x.orderType === 'pickup' ? 'Pickup' : 'Delivery') : ''}` : null} onPress={x.orderId ? () => onOpenOrder(x.orderId) : undefined} />
+            <Line label={tr('Bulk order')} value={x.bulk ? (x.bulk.code || tr('Bulk order')) : null} onPress={x.bulk ? () => onOpenBulk(x.bulk.id) : undefined} />
             <Line label={tr('Table')} value={x.table ? `${x.table}${x.party ? ' · bill ' + x.party : ''}` : null} />
             <Line label={tr('Payment method')} value={m.method ? String(m.method).toUpperCase() : null} />
             <Line label={tr('Reference')} value={x.ref} />
@@ -132,7 +133,7 @@ export default function OwnerTxTabScreen() {
             </View>
             <View style={{ paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
                 <View style={{ flex: 1 }}>
-                    <Field value={qText} onChangeText={(v) => setQText(v.replace(/[^0-9#]/g, ''))} placeholder={tr('Search by order number')} keyboardType="number-pad" returnKeyType="search" onSubmitEditing={() => setQApplied(qText.replace('#', ''))} />
+                    <Field value={qText} onChangeText={(v) => setQText(v.replace(/[^0-9A-Za-z#]/g, '').slice(0, 9))} placeholder={tr('Search by order number or bulk code')} autoCapitalize="characters" returnKeyType="search" onSubmitEditing={() => setQApplied(qText.replace('#', ''))} />
                 </View>
                 {qApplied ? <Pressable onPress={() => { setQText(''); setQApplied(''); }} hitSlop={8} style={{ marginLeft: 8 }}><Ionicons name="close-circle" size={24} color={muted} /></Pressable> : null}
                 {/* the Excel sheet is at the top: nobody has to scroll down the whole list to find it */}
@@ -209,7 +210,7 @@ export default function OwnerTxTabScreen() {
             <CalendarSheet visible={sheet === 'day'} mode="day" onClose={() => setSheet('')} onPick={(v) => picked('day', v)} />
             <CalendarSheet visible={sheet === 'range'} mode="range" onClose={() => setSheet('')} onPick={(v) => picked('range', v)} />
             <MonthSheet visible={sheet === 'month'} onClose={() => setSheet('')} onPick={(v) => picked('monthpick', v)} />
-            <Detail x={open} onClose={() => setOpen(null)} onOpenOrder={(id) => { setOpen(null); nav.navigate('OwnerOrder', { id: String(id) }); }} />
+            <Detail x={open} onClose={() => setOpen(null)} onOpenOrder={(id) => { setOpen(null); nav.navigate('OwnerOrder', { id: String(id) }); }} onOpenBulk={(id) => { setOpen(null); nav.navigate('OwnerBulkOrder', { id: String(id) }); }} />
         </OwnerScreen>
     );
 }

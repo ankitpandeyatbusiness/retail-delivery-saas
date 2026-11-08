@@ -3115,7 +3115,6 @@ export default {
     "Search area, landmark or street": "इलाका, लैंडमार्क भा गली खोजीं",
     "Search automations": "ऑटोमेशन खोजीं",
     "Search by name or phone": "नाम भा फोन से खोजीं",
-    "Search by order number": "ऑर्डर नंबर से खोजीं",
     "Search dishes": "व्यंजन खोजीं",
     "Search failed. Check your internet and try again.": "खोज विफल रहल। इंटरनेट जाँचीं आ फेर कोशिश करीं।",
     "Search the menu": "मेन्यू खोजीं",

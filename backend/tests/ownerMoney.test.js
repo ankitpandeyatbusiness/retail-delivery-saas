@@ -33,7 +33,7 @@ describe('GET /reports/export', () => {
 
         const wb = new ExcelJS.Workbook();
         await wb.xlsx.load(r.body);
-        assert.deepEqual(wb.worksheets.map((s) => s.name), ['Orders', 'Sales by day', 'Items sold']);
+        assert.deepEqual(wb.worksheets.map((s) => s.name), ['Orders', 'Bulk orders', 'Sales by day', 'Items sold']);
         assert.equal(wb.getWorksheet('Orders').rowCount, 3, 'header + 2 orders');
         const days = wb.getWorksheet('Sales by day');
         assert.equal(days.getRow(2).getCell(2).value, 1, 'only the delivered one counts as sales');

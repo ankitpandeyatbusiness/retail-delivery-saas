@@ -87,6 +87,12 @@ export default function OwnerMoneyScreen({ page = false } = {}) {
                     <Card>
                         <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }}>{tr('Sales (delivered orders)')}</Text>
                         <Text style={{ color: text, fontSize: 34, fontWeight: '900', marginTop: 2 }}>{money(t.revenue)}</Text>
+                        {sales.bulk?.orders > 0 ? (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                                <Ionicons name="cube" size={13} color={primary} />
+                                <Text style={{ color: primary, fontWeight: '800', fontSize: 12.5, marginLeft: 5 }}>{tr('Includes {n} bulk orders: {amount}', { n: sales.bulk.orders, amount: money(sales.bulk.revenue) })}</Text>
+                            </View>
+                        ) : null}
                         <View style={{ flexDirection: 'row', marginTop: 12 }}>
                             <Stat label={tr('Orders')} value={String(t.orders)} />
                             <Stat label={tr('Average order')} value={money(t.averageOrderValue)} />

@@ -125,7 +125,7 @@ export default function LedgerScreen() {
                                     <Text style={{ color: t.text, fontWeight: '800', fontSize: font.md }} numberOfLines={1}>{m.label}</Text>
                                     {m.shop?.name ? <Text style={{ color: t.primary, fontWeight: '700', fontSize: font.sm }} numberOfLines={1}>{m.shop.name}</Text> : null}
                                     <Text style={{ color: t.muted, fontSize: font.xs, marginTop: 2 }}>
-                                        {dateTime(m.at)}{m.orderNo ? ` · order #${m.orderNo}` : ''}{m.ref ? ` · ${m.ref}` : ''}
+                                        {dateTime(m.at)}{m.bulk ? ` · bulk ${m.bulk.code || 'order'}` : ''}{m.orderNo ? ` · order #${m.orderNo}` : ''}{m.ref ? ` · ${m.ref}` : ''}
                                     </Text>
                                 </View>
                                 <View style={{ alignItems: 'flex-end' }}>

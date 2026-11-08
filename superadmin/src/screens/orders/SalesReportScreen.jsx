@@ -159,6 +159,7 @@ export default function SalesReportScreen() {
                         <Stat section="money" label="Sales" value={rupees(r.totals.revenue)} icon="rupee" note={vs(r.previous?.change.revenue, r.previous?.totals.revenue)} />
                         <Stat section="orders" label="Orders" value={r.totals.orders} icon="orders" note={vs(r.previous?.change.orders, r.previous?.totals.orders)} />
                     </View>
+                    {r.bulk?.orders > 0 ? <Text style={{ color: t.muted, fontSize: font.sm, marginTop: spacing.sm }}>{'Includes ' + r.bulk.orders + ' bulk order' + (r.bulk.orders === 1 ? '' : 's') + ': ' + rupees(r.bulk.revenue) + ' (' + r.bulk.sharePct + '% of sales)'}</Text> : null}
                     <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md }}>
                         <Stat label="Average order" value={rupees(r.totals.averageOrderValue)} icon="chart" note={vs(r.previous?.change.averageOrderValue, r.previous?.totals.averageOrderValue)} />
                         <Stat label="Not delivered" value={r.undelivered || 0} icon="warning" tone={r.undelivered ? 'warn' : undefined} />

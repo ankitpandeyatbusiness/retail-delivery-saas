@@ -66,6 +66,7 @@ export const DIRECTION_CHIPS = [['', 'In and out'], ['in', 'Money in'], ['out', 
 // the line under the title of a row: the order, the table, the person
 export function subtitle(x) {
     const bits = [];
+    if (x.bulk) bits.push(`Bulk ${x.bulk.code || 'order'}`);   // money of a bulk order: told apart from a normal order
     if (x.orderNo) bits.push(`Order #${x.orderNo}`);
     if (x.table) bits.push(`Table ${x.table}${x.party ? ' ' + x.party : ''}`);
     if (x.customer) bits.push(x.customer);

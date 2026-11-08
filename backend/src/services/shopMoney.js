@@ -14,6 +14,8 @@ const SubscriptionInvoice = require('../models/SubscriptionInvoice');
 const TableSession = require('../models/TableSession');
 const Complaint = require('../models/Complaint');
 const Order = require('../models/Order');
+const BulkPayment = require('../models/BulkPayment');
+const BulkOrder = require('../models/BulkOrder');
 const Rider = require('../models/Rider');
 const User = require('../models/User');
 
@@ -76,9 +78,11 @@ function parseQuery(q = {}) {
         f.how = q.how;
     }
     if (q.q !== undefined && String(q.q).trim()) {
-        const n = Number(String(q.q).replace(/^#/, '').trim());
-        if (!Number.isInteger(n) || n < 1) throw bad(400, 'Search by an order number, like 1042');
-        f.orderNo = n;
+        const text = String(q.q).replace(/^#/, '').trim();
+        const n = Number(text);
+        if (Number.isInteger(n) && n >= 1) f.orderNo = n;
+        else if (/^[A-Za-z0-9]{4,8}$/.test(text)) f.bulkCode = text.toUpperCase();   // the code of a bulk order, like B7K2QX
+        else throw bad(400, 'Search by an order number, like 1042, or a bulk order code, like B7K2QX');
     }
     const page = Number.parseInt(q.page, 10);
     const limit = Number.parseInt(q.limit, 10);
@@ -96,6 +100,15 @@ const upiWord = (v) => (String(v || '').toLowerCase() === 'upi' ? 'upi' : String
 async function fromOnlinePayments(tenantId, r) {
     const rows = await OnlinePayment.find({ tenantId, status: { $in: ['captured', 'mismatch'] }, capturedPaise: { $gt: 0 }, ...withRange('capturedAt', r) }).sort({ capturedAt: -1 }).limit(PER_SOURCE).lean();
     return rows.map((x) => ({ key: `op${x._id}`, at: x.capturedAt, category: 'online', amountPaise: x.capturedPaise, how: 'online', ref: x.rzpPaymentId || null, orderId: x.orderId, by: 'Razorpay', meta: { method: x.method || null, mode: x.mode, refundedPaise: x.refundedPaise || 0 } }));
+}
+// the advance (and the balance, when it is paid online) of a BULK order, and what went back to the customer: the same kind of money, kept in its own table
+async function fromBulkPayments(tenantId, r) {
+    const rows = await BulkPayment.find({ tenantId, status: 'captured', amountPaise: { $gt: 0 }, ...withRange('capturedAt', r) }).sort({ capturedAt: -1 }).limit(PER_SOURCE).lean();
+    return rows.map((x) => ({ key: `bp${x._id}`, at: x.capturedAt, category: 'online', amountPaise: x.amountPaise, how: 'online', ref: x.rzpPaymentId || null, orderId: null, bulkId: x.bulkId, by: 'Razorpay', note: x.kind === 'balance' ? 'Balance' : 'Advance', meta: { mode: x.mode, kind: x.kind, refundedPaise: x.refund?.amountPaise || 0 } }));
+}
+async function fromBulkRefunds(tenantId, r) {
+    const rows = await BulkPayment.find({ tenantId, 'refund.status': 'refunded', 'refund.amountPaise': { $gt: 0 }, ...withRange('refund.at', r) }).sort({ 'refund.at': -1 }).limit(PER_SOURCE).lean();
+    return rows.map((x) => ({ key: `br${x._id}`, at: x.refund.at, category: 'refund_online', amountPaise: x.refund.amountPaise, how: 'online', ref: x.refund.refundId || null, orderId: null, bulkId: x.bulkId, by: 'Razorpay', meta: { reason: x.refund.reason, paymentRef: x.rzpPaymentId, kind: x.kind } }));
 }
 async function fromRefunds(tenantId, r) {
     const rows = await OnlineRefund.find({ tenantId, status: 'processed', ...withRange('processedAt', r) }).sort({ processedAt: -1 }).limit(PER_SOURCE).lean();
@@ -121,13 +134,14 @@ async function fromCashOrders(tenantId, r) {
     const rows = await Order.find({
         tenantId, 'payment.method': 'cod', 'payment.status': 'paid', orderType: { $in: ['delivery', 'pickup'] },
         ...(r ? { $or: [{ 'payment.paidAt': r }, { 'payment.paidAt': { $exists: false }, deliveredAt: r }] } : {}),
-    }).select('orderNo orderType payment pricing deliveredAt delivery.riderId customer').sort({ deliveredAt: -1 }).limit(PER_SOURCE).lean();
+    }).select('orderNo orderType payment pricing deliveredAt delivery.riderId customer bulkId bulkCode').sort({ deliveredAt: -1 }).limit(PER_SOURCE).lean();
     const riders = await Rider.find({ tenantId, userId: { $in: ids(rows.map((o) => ({ r: o.delivery?.riderId })), 'r') } }).select('userId name').lean();
     const rName = new Map(riders.map((x) => [String(x.userId), x.name || 'Rider']));
-    return rows.map((o) => {
+    return rows.filter((o) => !o.bulkId || (o.pricing?.total || 0) > 0).map((o) => {   // (a bulk ticket paid online has total 0: its money is the bulk payment above)
         const delivery = o.orderType === 'delivery';
         const door = !!o.payment.paidAtDoor;
         return {
+            bulkId: o.bulkId || null, bulkCode: o.bulkCode || null,
             key: `co${o._id}`, at: o.payment.paidAt || o.deliveredAt, category: delivery ? 'cash_delivery' : 'cash_pickup', amountPaise: Math.round((o.pricing?.total || 0) * 100),
             how: door ? 'upi' : 'cash', ref: null, orderId: o._id,
             by: delivery ? (rName.get(String(o.delivery?.riderId)) ? `Rider ${rName.get(String(o.delivery.riderId))}` : 'Rider') : 'You, at the counter',
@@ -178,8 +192,8 @@ async function list({ tenantId, filter }) {
     const r = rangeOf(f);
     const want = (...cats) => !f.category || cats.includes(f.category);
     const jobs = [];
-    if (want('online') && f.direction !== 'out') jobs.push(fromOnlinePayments(tenantId, r));
-    if (want('refund_online') && f.direction !== 'in') jobs.push(fromRefunds(tenantId, r));
+    if (want('online') && f.direction !== 'out') { jobs.push(fromOnlinePayments(tenantId, r)); jobs.push(fromBulkPayments(tenantId, r)); }
+    if (want('refund_online') && f.direction !== 'in') { jobs.push(fromRefunds(tenantId, r)); jobs.push(fromBulkRefunds(tenantId, r)); }
     if (want('dispute_lost') && f.direction !== 'in') jobs.push(fromDisputes(tenantId, r));
     if (want('sms_topup') && f.direction !== 'in') jobs.push(fromSms(tenantId, r));
     if (want('rent') && f.direction !== 'in') jobs.push(fromRent(tenantId, r));
@@ -193,7 +207,12 @@ async function list({ tenantId, filter }) {
     // the order each row belongs to (number, kind, table, the customer)
     const orders = await Order.find({ _id: { $in: ids(rows, 'orderId') }, tenantId }).select('orderNo orderType tableNo tableParty customer.name customer.phone').lean();
     const oBy = new Map(orders.map((o) => [String(o._id), o]));
+    // the code of the bulk order each row belongs to (a payment of a bulk order knows only its id; a ticket's cash row already has the code)
+    const bulkRows = await BulkOrder.find({ _id: { $in: ids(rows.filter((x) => x.bulkId && !x.bulkCode), 'bulkId') }, tenantId }).select('code').lean();
+    const bCode = new Map(bulkRows.map((b) => [String(b._id), b.code]));
+    for (const x of rows) if (x.bulkId && !x.bulkCode) x.bulkCode = bCode.get(String(x.bulkId)) || null;
     if (f.orderNo) rows = rows.filter((x) => x.orderId && oBy.get(String(x.orderId))?.orderNo === f.orderNo);
+    if (f.bulkCode) rows = rows.filter((x) => x.bulkCode === f.bulkCode);
     rows.sort((a, b) => new Date(b.at) - new Date(a.at) || String(b.key).localeCompare(String(a.key)));
 
     const totals = { inPaise: 0, outPaise: 0, pending: { count: 0, paise: 0 }, byCategory: new Map(), byHow: new Map() };
@@ -218,6 +237,7 @@ async function list({ tenantId, filter }) {
             return {
                 id: x.key, at: x.at, category: x.category, label: LABELS[x.category], direction: IN.has(x.category) ? 'in' : 'out',
                 amountPaise: x.amountPaise, status: x.status || 'done', how: x.how, howLabel: HOW_LABEL[x.how] || null, ref: x.ref || null,
+                bulk: x.bulkId ? { id: String(x.bulkId), code: x.bulkCode || null } : null,   // money of a BULK order: the app says Bulk and opens the bulk order
                 orderId: x.orderId || null, orderNo: o?.orderNo ?? null, orderType: o?.orderType || null, table: o?.tableNo || x.meta?.table || null, party: o?.tableParty || x.meta?.party || null,
                 customer: o?.customer?.name || x.person || p?.name || null, phone: o?.customer?.phone || p?.phone || null,
                 by: x.by || null, note: x.note || '', meta: x.meta || {},
