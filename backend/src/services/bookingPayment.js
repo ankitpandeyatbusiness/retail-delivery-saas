@@ -98,7 +98,7 @@ async function confirm(booking, rzp) {
             return { ok: true, paid: false, refunded: true };
         }
     }
-    tell('booking_new', { tenantId: done.tenantId, vars: { name: done.name, party: done.party, date: done.date, time: done.time, table: done.table }, data: { kind: 'booking', bookingId: String(done._id) } });
+    tell('booking_new', { tenantId: done.tenantId, vars: { name: done.name, party: done.party, date: done.date, time: done.time, table: done.table }, data: { kind: 'booking', bookingId: String(done._id), speech: `New table booking for ${done.party} guests. ${done.name} booked ${done.table ? `table ${done.table} ` : ''}for ${done.date} at ${done.time}.` } });   // (the voice says it with words the Marathi, Gujarati and Bengali translation can match)
     if ((await tb.getConfig(done.tenantId)).autoAllow) await allow({ _id: done._id, shopName: shop?.name || '' });   // the owner chose to allow paid bookings by themselves
     tell('booking_paid', { tenantId: done.tenantId, userId: done.userId, vars: { shop: shop?.name || '', date: done.date, time: done.time, amount: done.deposit.amount, code: done.code, table: done.table }, data: { kind: 'booking', bookingId: String(done._id) } });
     return { ok: true, paid: true };

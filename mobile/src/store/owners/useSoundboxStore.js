@@ -2,6 +2,7 @@
 // one), so they are kept on the phone and never sent to the server.
 import { create } from 'zustand';
 import { readCache, writeCache } from '../../utils/common/cache';
+import { useLang, getLang } from '../../i18n';
 
 const KEY = 'soundbox';
 
@@ -12,6 +13,7 @@ export const DEFAULTS = {
     volume: 1,         // 0..1
     repeatSec: 20,     // pause between two rounds
     language: 'en',    // the language orders are read in: 'en', 'hi' (Hindi), 'mr' (Marathi), 'gu' (Gujarati), 'bn' (Bengali)
+    languageSet: false, // true once the person chose the voice language by hand. Until then it follows the language of the app (every panel).
     voiceId: null,     // the phone's voice for English (null = the best Indian English voice it has)
     voiceIdHi: null,   // the phone's voice for Hindi
     voiceIds: {},      // the phone's voice for Marathi, Gujarati and Bengali: { mr: 'mr-in-x-...' }
@@ -25,12 +27,16 @@ export const DEFAULTS = {
 
 export const REPEAT_CHOICES = [10, 20, 30, 60];
 
+// the voice language that goes with the app's language (Bhojpuri has no voice of its own: Hindi)
+export const spokenFor = (appLang) => (['hi', 'mr', 'gu', 'bn'].includes(appLang) ? appLang : appLang === 'bho' ? 'hi' : 'en');
+
 const clean = (v = {}) => ({
     soundbox: typeof v.soundbox === 'boolean' ? v.soundbox : DEFAULTS.soundbox,
     ring: typeof v.ring === 'boolean' ? v.ring : DEFAULTS.ring,
     volume: Number.isFinite(v.volume) ? Math.min(1, Math.max(0.2, v.volume)) : DEFAULTS.volume,
     repeatSec: REPEAT_CHOICES.includes(v.repeatSec) ? v.repeatSec : DEFAULTS.repeatSec,
     language: ['hi', 'mr', 'gu', 'bn'].includes(v.language) ? v.language : 'en',
+    languageSet: v.languageSet === true,
     voiceId: typeof v.voiceId === 'string' ? v.voiceId : null,
     voiceIdHi: typeof v.voiceIdHi === 'string' ? v.voiceIdHi : null,
     voiceIds: Object.fromEntries(Object.entries(v.voiceIds || {}).filter(([k, id]) => ['mr', 'gu', 'bn'].includes(k) && typeof id === 'string')),
@@ -47,7 +53,21 @@ export const useSoundboxStore = create((set, get) => ({
 
     hydrate: async () => {
         const saved = await readCache(KEY);
-        set({ ...clean(saved || {}), loaded: true });
+        const c = clean(saved || {});
+        // a phone from before this setting existed: a language other than English was chosen by hand; English may only be the old default
+        if (!saved || typeof saved.languageSet !== 'boolean') c.languageSet = !!saved && c.language !== 'en';
+        if (!c.languageSet) c.language = spokenFor(getLang());
+        set({ ...c, loaded: true });
+    },
+
+    // the app's language changed (any panel): the voice follows it, unless the person chose the voice language himself
+    followApp: (appLang) => {
+        if (get().languageSet) return;
+        const language = spokenFor(appLang);
+        if (language === get().language) return;
+        const next = clean({ ...get(), language, languageSet: false });
+        set(next);
+        if (get().loaded) writeCache(KEY, next);
     },
 
     // change one or more settings
@@ -57,3 +77,6 @@ export const useSoundboxStore = create((set, get) => ({
         writeCache(KEY, next);
     },
 }));
+
+// the app's language changed (the person picked it, or it was read at start): the voice language follows it
+useLang.subscribe((state, prev) => { if (state.lang !== prev.lang) useSoundboxStore.getState().followApp(state.lang); });

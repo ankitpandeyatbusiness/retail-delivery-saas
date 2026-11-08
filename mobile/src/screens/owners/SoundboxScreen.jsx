@@ -153,7 +153,7 @@ export default function SoundboxScreen() {
                             ? tr('नया ऑर्डर। 2 Butter Naan… कुल 540 रुपये। Dish names stay as on your menu.')
                             : tr('New order. 2 Butter Naan… Total 540 rupees.')}
                     />
-                    <Chips options={LANGUAGES} value={st.language} onChange={(v) => st.update({ language: v })} />
+                    <Chips options={LANGUAGES} value={st.language} onChange={(v) => st.update({ language: v, languageSet: true })} />
                 </Card>
 
                 <Card>

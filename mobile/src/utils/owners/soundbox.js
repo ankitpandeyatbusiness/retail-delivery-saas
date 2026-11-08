@@ -17,6 +17,7 @@ import { isOpenInquiry } from '../../store/owners/useOpenInquiry';
 import { AppState } from 'react-native';
 import * as Speech from 'expo-speech';
 import { LOCAL_VOICES, localizeSpeech } from '../common/speechLang';
+import { inScript } from '../common/indicScript';
 import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useAuthStore } from '../../store/common/useAuthStore';
@@ -368,7 +369,9 @@ export async function previewGreeting() {
 
 async function speak(said, language, type) {
     if (type && !alertOn(type, 'v')) return;   // the Voice switch of this alert (Alerts screen)
-    const text = LOCAL_VOICES.includes(language) ? localizeSpeech(said, language) : said;   // Marathi, Gujarati, Bengali: the English line, translated
+    // Marathi, Gujarati, Bengali: the English line, translated. Hindi and these three: the English letters still in the line (a customer's name, a dish) are written in the
+    // voice's own script, so the voice says "अनिल" the way it sounds and not "Anil" with an English accent
+    const text = inScript(LOCAL_VOICES.includes(language) ? localizeSpeech(said, language) : said, language);
     const voice = await pickVoice(language);
     return new Promise((resolve) => {
         let done = false;
@@ -686,7 +689,8 @@ export async function sayAlert(type, data) {
         await useAlertPrefs.getState().hydrate();
         if (!settings().soundbox || !alertOn(type, 'v')) return;
         const wanted = await languageToUse();
-        const language = wanted === 'hi' && data?.speechHi ? 'hi' : 'en';
+        // Hindi: the server's own Hindi sentence. Marathi, Gujarati, Bengali: the English line, which speak() translates. (It used to fall back to English for these three.)
+        const language = wanted === 'hi' ? (data?.speechHi ? 'hi' : 'en') : wanted;
         const said = language === 'hi' ? data.speechHi : data?.speech;
         if (!said) return;
         markSaid(type, data);
@@ -821,7 +825,7 @@ async function announceNews(n) {
         const wanted = await languageToUse();
         const plain = [n.title, n.body].filter(Boolean).join('. ');
         // Hindi only when there is a Hindi sentence: English words are never given to a Hindi voice
-        const language = wanted === 'hi' && d.speechHi ? 'hi' : 'en';
+        const language = wanted === 'hi' ? (d.speechHi ? 'hi' : 'en') : wanted;   // (Marathi, Gujarati, Bengali: the English line, translated by speak())
         const text = language === 'hi' ? d.speechHi : (d.speech || plain);
         if (!text) return;
         await new Promise((r) => setTimeout(r, 700));   // the ping first, then the words
