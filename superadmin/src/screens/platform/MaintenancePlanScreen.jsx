@@ -7,10 +7,11 @@ import { Card, Button, Chip, SectionTitle } from '../../components/ui';
 import { Field, SearchBar } from '../../components/inputs';
 import { Switch, Hint } from '../../components/settingsForm';
 import { TimeField } from '../../components/TimePicker';
+import { DatePickField } from '../../components/DatePicker';
 import { Sheet, SheetScroll, ConfirmSheet, toast } from '../../components/feedback';
 import Icon from '../../components/Icon';
 import { useShopsStore } from '../../store/useShopsStore';
-import { planMaintenance, updateMaintenancePlan } from '../../api/exportApi';
+import { planMaintenance, updateMaintenancePlan, fetchMaintenancePlans } from '../../api/exportApi';
 import { useSupreme } from '../../hooks/useSupreme';
 import { errMsg } from '../../api/adminClient';
 
@@ -44,6 +45,9 @@ export default function MaintenancePlanScreen() {
     const [confirm, setConfirm] = useState(false);
 
     useEffect(() => { if (!shops.length) useShopsStore.getState().load(); }, [shops.length]);
+    // ready-made messages (the server keeps them, with their translations in every language)
+    const [presets, setPresets] = useState([]);
+    useEffect(() => { fetchMaintenancePlans().then((r) => setPresets(r.presets || [])).catch(() => { }); }, []);
     const brands = useMemo(() => {
         const m = new Map();
         for (const s of shops) if (s.brandId) { const k = String(s.brandId); if (!m.has(k)) m.set(k, { id: k, name: s.stats?.brandName || 'Brand', n: 0 }); m.get(k).n += 1; }
@@ -98,7 +102,7 @@ export default function MaintenancePlanScreen() {
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
                 {DAYS.map((d) => <Chip key={d.v} label={d.l} active={date === ymd(Date.now() + d.v * 86400000)} onPress={() => setDate(ymd(Date.now() + d.v * 86400000))} />)}
             </View>
-            <Field label="Date" value={date} onChangeText={setDate} placeholder="2026-11-07" maxLength={10} keyboardType="numbers-and-punctuation" style={{ marginTop: spacing.md }} />
+            <View style={{ marginTop: spacing.md }}><DatePickField label="Date" value={date} onChange={setDate} title="Pick the start date" /></View>
             <TimeField label="Time (India)" value={time} onChange={setTime} title="Start time" />
 
             <SectionTitle section="catalog">How long</SectionTitle>
@@ -107,6 +111,14 @@ export default function MaintenancePlanScreen() {
             </View>
 
             <SectionTitle section="platform">What people read</SectionTitle>
+            {presets.length ? (
+                <View style={{ marginBottom: spacing.md }}>
+                    <Text style={{ color: t.muted, fontSize: font.sm, marginBottom: spacing.sm }}>Tap a ready message (it is shown in every person's own language), or write your own.</Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+                        {presets.map((m) => <Chip key={m} label={m} active={message === m} onPress={() => setMessage(message === m ? '' : m)} />)}
+                    </View>
+                </View>
+            ) : null}
             <Field label="Message (optional)" value={message} onChangeText={setMessage} multiline maxLength={200} placeholder="We are upgrading our servers." />
 
             <SectionTitle section="settings">Who is warned and told</SectionTitle>

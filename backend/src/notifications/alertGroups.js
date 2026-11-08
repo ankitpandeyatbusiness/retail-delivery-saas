@@ -37,6 +37,7 @@ const OWNER = [
     g('undo', 'Steps taken back (undo)', 'Someone undid Ready, Served or Picked up.', ['order_undone'], { p: 'off', soft: true }),
     g('reviews', 'Reviews and complaints', 'A new complaint, a review, or a low rating.', ['complaint_new', 'complaint_reminder', 'review_food', 'review_delivery', 'delivery_low_rating', 'dish_low_rating'], { p: 'off', soft: true }),
     g('money', 'Rent, money and SMS', 'Your rent bill, payments, and your SMS balance.', ['bill_issued', 'bill_reminder', 'rent_nudge', 'bill_overdue', 'shop_paused', 'shop_unpaused', 'payment_received', 'sms_topup_done', 'sms_low', 'sms_zero', 'free_ending', 'platform_message'], { p: 'off', soft: true, critical: true }),
+    g('platform', 'Maintenance and platform news', 'Planned maintenance (a day, an hour and 15 minutes before it, when it starts and ends, or when its time changes).', ['broadcast'], { p: true, critical: true, sample: ['Maintenance is planned. The app will be paused tonight at 10 PM. Please finish your work before then.', 'रखरखाव की योजना है। आज रात 10 बजे ऐप बंद रहेगा। कृपया तब तक अपना काम पूरा कर लें।'] }),
     g('reports', 'Daily and weekly reports', 'How today and last week went.', ['owner_daily_summary', 'owner_weekly_digest', 'monthly_report'], { p: 'off', soft: true }),
 ];
 
@@ -48,6 +49,7 @@ const RIDER = [
     g('thanks', 'Thanks, ratings and badges', 'A thank you, a review of your delivery, a new badge.', ['delivery_done_rider', 'review_delivery_rider', 'rider_badge'], { p: 'off', soft: true }),
     g('duty', 'Duty and leave', 'You were put on or off duty, or the shop answered your leave.', ['rider_off_duty', 'rider_duty_auto', 'rider_leave_decision', 'rider_leave_removed', 'rider_removed'], { p: 'off', soft: true }),
     g('undo', 'Steps taken back (undo)', 'Someone undid a step of your order.', ['order_undone'], { soft: true }),
+    g('platform', 'Maintenance and platform news', 'Planned maintenance (a day, an hour and 15 minutes before it, when it starts and ends, or when its time changes).', ['broadcast'], { p: true, critical: true, sample: ['Maintenance is planned. The app will be paused tonight at 10 PM. Please finish your work before then.', 'रखरखाव की योजना है। आज रात 10 बजे ऐप बंद रहेगा। कृपया तब तक अपना काम पूरा कर लें।'] }),
 ];
 
 const KITCHEN = [
@@ -60,6 +62,7 @@ const KITCHEN = [
     g('undo', 'Steps taken back (undo)', 'Someone undid Served or Picked up.', ['order_undone'], { soft: true }),
     g('rating', 'Ratings for your food', 'A customer rated a dish you cooked.', ['food_rating_cook'], { soft: true }),
     g('leave', 'Answers to your leave', 'The owner approved or rejected your leave.', ['staff_leave_decision', 'staff_leave_removed'], { p: true, soft: true }),
+    g('platform', 'Maintenance and platform news', 'Planned maintenance (a day, an hour and 15 minutes before it, when it starts and ends, or when its time changes).', ['broadcast'], { p: true, critical: true, sample: ['Maintenance is planned. The app will be paused tonight at 10 PM. Please finish your work before then.', 'रखरखाव की योजना है। आज रात 10 बजे ऐप बंद रहेगा। कृपया तब तक अपना काम पूरा कर लें।'] }),
 ];
 
 const WAITER = [
@@ -71,6 +74,7 @@ const WAITER = [
     g('booking', 'A booked table is coming', 'A table a guest booked is due in half an hour, so you can get it ready.', ['waiter_booking'], { sample: ['Table 4 is booked for 4 guests at 20:00. Anil.', 'टेबल 4, 4 मेहमान, रात 8 बजे के लिए बुक है। Anil।'] }),
     g('undo', 'Steps taken back (undo)', 'Someone undid Ready.', ['order_undone'], { soft: true }),
     g('leave', 'Answers to your leave', 'The owner approved or rejected your leave.', ['staff_leave_decision', 'staff_leave_removed'], { p: true, soft: true }),
+    g('platform', 'Maintenance and platform news', 'Planned maintenance (a day, an hour and 15 minutes before it, when it starts and ends, or when its time changes).', ['broadcast'], { p: true, critical: true, sample: ['Maintenance is planned. The app will be paused tonight at 10 PM. Please finish your work before then.', 'रखरखाव की योजना है। आज रात 10 बजे ऐप बंद रहेगा। कृपया तब तक अपना काम पूरा कर लें।'] }),
 ];
 
 // examples for "Listen" (and what the voice says) for the groups that had none

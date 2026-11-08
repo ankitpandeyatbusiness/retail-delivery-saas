@@ -151,3 +151,38 @@ describe('changing a plan and the customers', () => {
         assert.equal((await put(`/api/admin/maintenance/plans/${r.body.id}`, { startAt: new Date(newStart).toISOString() })).status, 409, 'a running one cannot be edited');
     });
 });
+
+describe('after the time is changed', () => {
+    const put = (u, b) => request(app).put(u).set({ Authorization: 'Bearer ' + token }).send(b || {});
+    test('the badge stays and everybody is told the new time', async () => {
+        const start = Date.now() + 5 * H;
+        const r = await post('/api/admin/maintenance/plans', { scope: 'shops', tenantIds: [String(w.tenant._id)], startAt: new Date(start).toISOString(), endAt: new Date(start + H).toISOString(), message: 'Upgrade' });
+        await settle();
+        const before = await Notification.countDocuments({ type: 'broadcast' });
+        const ns = Date.now() + 8 * H;
+        const e = await put(`/api/admin/maintenance/plans/${r.body.id}`, { startAt: new Date(ns).toISOString(), endAt: new Date(ns + H).toISOString() });
+        assert.equal(e.status, 200);
+        await settle();
+        const p = await MaintenancePlan.findById(r.body.id).lean();
+        assert.ok(p.sent.includes('announce'), 'the plan still counts as announced: ' + JSON.stringify(p.sent));
+        const n = await plans.noticeFor(w.tenant._id);
+        assert.ok(n && new Date(n.startAt).getTime() === ns, 'the badge shows the new time');
+        assert.ok(await Notification.countDocuments({ type: 'broadcast' }) > before, 'the new time was sent');
+    });
+});
+
+describe('after the time is changed to a near time', () => {
+    const put = (u, b) => request(app).put(u).set({ Authorization: 'Bearer ' + token }).send(b || {});
+    test('a start only a minute or two away still keeps the badge and tells everybody', async () => {
+        const start = Date.now() + 5 * H;
+        const r = await post('/api/admin/maintenance/plans', { scope: 'shops', tenantIds: [String(w.tenant._id)], startAt: new Date(start).toISOString(), message: 'Upgrade' });
+        await settle();
+        const before = await Notification.countDocuments({ type: 'broadcast' });
+        const ns = Date.now() + 90000;
+        assert.equal((await put(`/api/admin/maintenance/plans/${r.body.id}`, { startAt: new Date(ns).toISOString() })).status, 200);
+        await settle();
+        const n = await plans.noticeFor(w.tenant._id);
+        assert.ok(n && new Date(n.startAt).getTime() === ns, 'the badge shows the new time');
+        assert.ok(await Notification.countDocuments({ type: 'broadcast' }) > before, 'the new time was sent');
+    });
+});

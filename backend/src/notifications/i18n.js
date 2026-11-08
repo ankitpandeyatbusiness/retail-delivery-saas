@@ -35,6 +35,10 @@ function load(code) {
     return cache[code];
 }
 
+// A value that is a whole sentence the book knows word for word (a ready-made message, 15+ letters with spaces) is translated too;
+// names, dishes and numbers are never in the book as such, so they stay as they are.
+const whole = (v, book) => (typeof v === 'string' && v.length >= 15 && /\s/.test(v) && typeof book[v] === 'string' && book[v] ? book[v] : v);
+
 // text in the language `code`; the English text when there is no translation (or no text, or English)
 function translate(text, code) {
     if (typeof text !== 'string' || !text || !CODES.includes(code)) return text;
@@ -42,7 +46,7 @@ function translate(text, code) {
     if (typeof book[text] === 'string' && book[text]) return book[text];
     for (const p of [...(patterns.get(firstWord(text)) || []), ...(patterns.get('') || [])]) {
         const m = p.re.exec(text);
-        if (m) return p.to.replace(SLOT, (all, name) => { const i = p.names.indexOf(name); return i >= 0 ? m[i + 1] : all; });
+        if (m) return p.to.replace(SLOT, (all, name) => { const i = p.names.indexOf(name); return i >= 0 ? whole(m[i + 1], book) : all; });
     }
     return text;
 }

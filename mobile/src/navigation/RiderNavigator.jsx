@@ -23,15 +23,23 @@ const TABS = {
     RiderProfileTab: { label: 'Profile', icon: 'person', component: RiderProfileScreen },
 };
 
+import { GREY } from '../components/customers/shop';
+import { useHomeStore } from '../store/customers/useHomeStore';
+
 export default function RiderTabs() {
     const { background } = useBrand();
     const motion = useMotion();
     const offers = useRiderStore((s) => s.offers.length);   // a new order shows as a number on Home
     const missedNew = useRiderStore((s) => s.missedNew);    // red blinking dot on History: an offer ran out unanswered
+    // The shop's order switch is off (by the owner, by itself, by maintenance or by its hours): the whole rider app turns grey, like the customer's,
+    // unless he still carries a delivery or has an offer to answer (those are never greyed out: he must see them to finish them).
+    const shopClosed = useHomeStore((s) => s.full?.restaurant?.isOpen === false);
+    const inHand = useRiderStore((s) => s.active.length + s.offers.length > 0);
+    const grey = shopClosed && !inHand;
     // someone else took the order, or the request closed: the list (and the popup) update at once
     useEffect(() => onOfferClosed(() => useRiderStore.getState().load()), []);
     return (
-        <View style={{ flex: 1, backgroundColor: background }}>
+        <View style={[{ flex: 1, backgroundColor: background }, grey ? GREY : null]}>
             {/* a new order: buzz and a popup with the map and Accept, whichever tab he is on */}
             <OfferPopup />
             <Tab.Navigator

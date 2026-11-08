@@ -12,7 +12,7 @@ const { isSupreme, MESSAGE } = require('../middlewares/supremeAdmin');
 const router = express.Router();
 const who = (req) => req.admin?.name || req.admin?.email || '';
 
-router.get('/maintenance/plans', wrap(async (req, res) => { res.json({ items: await plans.list() }); }));
+router.get('/maintenance/plans', wrap(async (req, res) => { res.json({ items: await plans.list(), presets: plans.PRESETS.map((x) => x.message) }); }));
 // a plan for EVERY shop is the supreme admin's; a plan for chosen shops or a brand is open to the other superadmins
 router.post('/maintenance/plans', wrap(async (req, res) => {
     req.auditBefore = null;

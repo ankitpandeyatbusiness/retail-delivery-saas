@@ -164,12 +164,12 @@ export function MaintenanceBar() {
         head = tr('Maintenance mode');
         const back = valid(m.until) ? tr('Back by {time}', { time: fmt(m.until) }) : tr('Back soon, until further notice');
         const run = m.draining ? tr('No new orders. Running orders are being finished.') : '';
-        line = [m.message, run, back].filter(Boolean).join(' · ');
+        line = [m.message ? tr(m.message) : '', run, back].filter(Boolean).join(' · ');
     } else {
         head = tr('Maintenance planned');
         const when = valid(m.startAt) ? fmt(m.startAt) + (valid(m.until) ? ` ${tr('to')} ${clock(m.until)}` : '') : '';
         const ms = valid(m.startAt) ? new Date(m.startAt).getTime() - Date.now() : 0;
-        line = [m.message, when, ms > 0 && ms < 3 * 3600000 ? tr('Starts in {t}', { t: left(ms) }) : '', tr('Please finish your work before then.')].filter(Boolean).join(' · ');
+        line = [m.message ? tr(m.message) : '', when, ms > 0 && ms < 3 * 3600000 ? tr('Starts in {t}', { t: left(ms) }) : '', tr('Please finish your work before then.')].filter(Boolean).join(' · ');
     }
     return (
         <View style={[s.maint, { paddingTop: insets.top + 6, backgroundColor: on ? '#B3261E' : '#8A5A00' }]}>

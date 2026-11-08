@@ -18,6 +18,17 @@ const HOUR = 60 * MIN;
 const WARN = [['24h', 24 * HOUR], ['1h', HOUR], ['15m', 15 * MIN]];
 const NOTICE_WINDOW = 48 * HOUR;
 
+// Ready-made messages for the superadmin to tap. Written here as plain sentences so each one is translated into every language
+// (mobile/scripts/i18n-chunks/c89.js): the apps translate a shown message, and a push is translated before it leaves.
+const PRESETS = [
+    { message: 'We are upgrading our servers to make the app faster.' },
+    { message: 'Scheduled system maintenance. Thank you for your patience.' },
+    { message: 'We are adding new features for you.' },
+    { message: 'We are fixing some issues to serve you better.' },
+    { message: 'Payment system maintenance is in progress.' },
+    { message: 'Urgent server work is in progress. We will be back soon.' },
+];
+
 const when = (d) => new Date(d).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
 const hm = (d) => new Date(d).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit' });
 const span = (p) => (p.endAt ? `from ${when(p.startAt)} to ${hm(p.endAt)}` : `from ${when(p.startAt)}`);
@@ -79,12 +90,33 @@ async function claim(p, mark) {
     const r = await MaintenancePlan.updateOne({ _id: p._id, sent: { $ne: mark } }, { $addToSet: { sent: mark } });
     return r.modifiedCount === 1;
 }
+// The sentences of the notices. Each form is written out whole (as a message: field) so the translator finds it and every language gets it;
+// a ready-made message the superadmin chose (PRESETS) is joined to the rest by " · " and is translated as a whole too (notifications/i18n.js).
+const F = {
+    announce: (x) => ({ message: `The app will be paused ${x}. Please finish your work before then.` }).message,
+    announceMsg: (m, x) => ({ message: `${m} · The app will be paused ${x}. Please finish your work before then.` }).message,
+    day: (x) => ({ message: `The app will be paused ${x}.` }).message,
+    dayMsg: (m, x) => ({ message: `${m} · The app will be paused ${x}.` }).message,
+    hour: (x) => ({ message: `The app will be paused ${x}. Please finish your orders now.` }).message,
+    quarter: (a) => ({ message: `The app will be paused at ${a}. Please finish what you are doing.` }).message,
+    quarterTo: (a, b) => ({ message: `The app will be paused at ${a} until ${b}. Please finish what you are doing.` }).message,
+    startTo: (t) => ({ message: `The app is paused for maintenance. We will be back by ${t}. Thank you for your patience.` }).message,
+    startToMsg: (m, t) => ({ message: `${m} · We will be back by ${t}. Thank you for your patience.` }).message,
+    startOpen: () => ({ message: 'The app is paused for maintenance. It opens again when the work is done.' }).message,
+    startOpenMsg: (m) => ({ message: `${m} · It opens again when the work is done.` }).message,
+    changed: (x) => ({ message: `The app will now be paused ${x}. Please finish your work before then.` }).message,
+};
 const texts = {
-    announce: (p) => ({ title: 'Maintenance is planned', body: `${p.message || 'The app will be paused for a short time.'} ${span(p)[0].toUpperCase()}${span(p).slice(1)}. Please finish your work before then.` }),
-    '24h': (p) => ({ title: 'Maintenance tomorrow', body: `The app will be paused ${span(p)}. ${p.message || ''}`.trim() }),
-    '1h': (p) => ({ title: 'Maintenance in 1 hour', body: `The app will be paused ${span(p)}. Please finish your orders now.` }),
-    '15m': (p) => ({ title: 'Maintenance in 15 minutes', body: `The app will be paused at ${hm(p.startAt)}${p.endAt ? ` until ${hm(p.endAt)}` : ''}. Please finish what you are doing.` }),
-    start: (p) => ({ title: 'Maintenance has started', body: `${p.message || 'The app is paused for maintenance.'}${p.endAt ? ` Back by ${hm(p.endAt)}.` : ' It opens again when the work is done.'}` }),
+    announce: (p) => ({ title: 'Maintenance is planned', body: p.message ? F.announceMsg(p.message, span(p)) : F.announce(span(p)) }),
+    '24h': (p) => ({ title: 'Maintenance tomorrow', body: p.message ? F.dayMsg(p.message, span(p)) : F.day(span(p)) }),
+    '1h': (p) => ({ title: 'Maintenance in 1 hour', body: F.hour(span(p)) }),
+    '15m': (p) => ({ title: 'Maintenance in 15 minutes', body: p.endAt ? F.quarterTo(hm(p.startAt), hm(p.endAt)) : F.quarter(hm(p.startAt)) }),
+    start: (p) => ({
+        title: 'Maintenance has started',
+        body: p.endAt ? (p.message ? F.startToMsg(p.message, hm(p.endAt)) : F.startTo(hm(p.endAt)))
+            : (p.message ? F.startOpenMsg(p.message) : F.startOpen()),
+    }),
+    changed: (p) => ({ title: 'Maintenance time changed', body: F.changed(span(p)) }),
     end: () => ({ title: 'We are back', body: 'Maintenance is over. Everything works as usual.' }),
     cancelled: () => ({ title: 'Maintenance cancelled', body: 'The planned maintenance will not happen. Everything works as usual.' }),
 };
@@ -137,7 +169,7 @@ async function create(body = {}, by = '') {
     const now = Date.now();
     if (startAt.getTime() < now - MIN) throw httpError(400, 'The start must be a time in the future');
     if (endAt && endAt.getTime() <= startAt.getTime()) throw httpError(400, 'The end must be after the start');
-    const message = String(body.message || '').trim().slice(0, 200);
+    const message = String(body.message || '').replace(/\s+/g, ' ').trim().slice(0, 200);
     const a = body.audience || {};
     const audience = { owners: a.owners !== false, staff: a.staff !== false, riders: a.riders !== false, customers: false };
     if (!audience.owners && !audience.staff && !audience.riders) throw httpError(400, 'Choose at least one group to warn');
@@ -181,19 +213,22 @@ async function update(id, body = {}, by = '') {
     if (startAt.getTime() < now - MIN) throw httpError(400, 'The start must be a time in the future');
     if (endAt && endAt.getTime() <= startAt.getTime()) throw httpError(400, 'The end must be after the start');
     const set = { startAt, endAt };
-    if (body.message !== undefined) set.message = String(body.message || '').trim().slice(0, 200);
+    if (body.message !== undefined) set.message = String(body.message || '').replace(/\s+/g, ' ').trim().slice(0, 200);
     if (body.audience) {
         const a = body.audience;
         const aud = { owners: a.owners !== false, staff: a.staff !== false, riders: a.riders !== false, customers: false };
         if (!aud.owners && !aud.staff && !aud.riders) throw httpError(400, 'Choose at least one group to warn');
         set.audience = aud;
     }
-    set.sent = WARN.filter(([, before]) => startAt.getTime() - now <= before).map(([m]) => m);
+    // 'announce' stays (the banner in the apps is shown for announced plans); the warnings already passed for the NEW time are not sent again
+    set.sent = [...new Set(['announce', ...WARN.filter(([, before]) => startAt.getTime() - now <= before).map(([m]) => m)])];
     const r = await MaintenancePlan.updateOne({ _id: p._id, status: 'planned' }, { $set: set });
     if (!r.modifiedCount) throw httpError(409, 'It has just started');
     const fresh = await MaintenancePlan.findById(p._id);
     await tell(fresh);                                   // the badge shows the new time
-    if (startAt.getTime() - now > 2 * MIN) send({ ...fresh.toObject(), sent: fresh.sent.filter((x) => x !== 'announce') }, 'announce').catch(() => { });   // everybody hears the new time
+    // everybody warned hears the new time, however near it is
+    audienceNotify(fresh, texts.changed(fresh).title, texts.changed(fresh).body,
+        `रखरखाव का समय बदल गया है। अब ऐप ${hm(fresh.startAt)} पर बंद होगा। कृपया तब तक अपना काम पूरा कर लें।`).catch((e) => console.error('Maintenance notice error:', e.message));
     return fresh;
 }
 
@@ -273,4 +308,4 @@ async function noticeFor(tenantId, now = Date.now()) {
 }
 
 module.exports = {
-    tellEveryShop, create, update, cancel, tick, start, list, noticeFor, view, texts };
+    PRESETS, tellEveryShop, create, update, cancel, tick, start, list, noticeFor, view, texts };

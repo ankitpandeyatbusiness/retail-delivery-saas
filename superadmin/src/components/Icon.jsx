@@ -4,6 +4,7 @@ import { useTheme } from '../theme';
 
 // Phosphor icons, two-tone ("duotone"). Each one is imported by its own path so only the icons used are bundled.
 import { House } from 'phosphor-react-native/src/icons/House';
+import { Calendar } from 'phosphor-react-native/src/icons/Calendar';
 import { Storefront } from 'phosphor-react-native/src/icons/Storefront';
 import { List } from 'phosphor-react-native/src/icons/List';
 import { MagnifyingGlass } from 'phosphor-react-native/src/icons/MagnifyingGlass';
@@ -71,7 +72,7 @@ const MAP = {
     edit: PencilSimple, shield: ShieldCheck, message: ChatCircleDots, fire: Fire, rider: Bicycle,
     eye: Eye, phone: Phone, block: Prohibit, ok: CheckCircle, userAdd: UserPlus, send: PaperPlaneTilt,
     logout: SignOut, empty: Tray, offline: CloudSlash, orders: ShoppingBag, wallet: Wallet, settings: Gear,
-    coupon: Tag, banner: Image, food: ForkKnife, tune: Sliders, funnel: Funnel, clock: Clock, megaphone: Megaphone,
+    coupon: Tag, banner: Image, food: ForkKnife, tune: Sliders, funnel: Funnel, clock: Clock, calendar: Calendar, megaphone: Megaphone,
     chart: ChartLineUp, palette: Palette, lock: Lock, star: Star, tool: Wrench, bank: Bank,
     notes: ClipboardText, box: Package, crown: Crown, sparkle: Sparkle, check: Check, trash: Trash,
     copy: Copy, pin: MapPin, percent: Percent, bolt: Lightning, broadcast: Broadcast, info: Info,

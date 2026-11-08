@@ -34,6 +34,14 @@ describe('alert switches cover every alert', () => {
         assert.deepEqual(missing, []);
     });
 
+    test('the planned-maintenance notice (a broadcast) has its own switches on the owner, cook, waiter and rider screens', () => {
+        for (const role of ['admin', 'kitchen', 'waiter', 'rider']) {
+            const g = groups.groupOf(role, 'broadcast');
+            assert.ok(g, role + ' has no group for a maintenance notice');
+            assert.equal(g.can.p && g.can.s && g.can.v, true, role + ' needs the slider, tone and voice switches');
+        }
+    });
+
     test('a customer has a notification and a tone for each kind, but no slider or voice', () => {
         const list = groups.view('customer', {});
         assert.ok(list.length >= 8);
