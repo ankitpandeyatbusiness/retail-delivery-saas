@@ -10,6 +10,7 @@ import { useMotion } from '../components/common/motion';
 import { useOwnerStore } from '../store/owners/useOwnerStore';
 import { setRiderAttention } from '../store/owners/useAlertStore';
 import { onNotification } from '../api/common/socket';
+import useBulkLive from '../hooks/common/useBulkLive';
 import { useHomeStore } from '../store/customers/useHomeStore';
 import { FloatingTabBar, slideScenes, gate } from './tabKit';
 import OwnerDrawer from '../components/owners/OwnerDrawer';
@@ -34,7 +35,8 @@ const TABS = {
 export default function OwnerTabs() {
     const { background } = useBrand();
     const motion = useMotion();
-    const waiting = useOwnerStore((st) => st.live?.orders?.active?.placed || 0);
+    const waiting = useOwnerStore((st) => (st.live?.orders?.active?.placed || 0) + (st.live?.orders?.bulkWaiting || 0));   // New orders, and bulk requests not paid yet
+    useBulkLive(() => useOwnerStore.getState().refresh?.());   // a bulk order changed anywhere: the tab's number follows at once
     // a rider cancelled, reported a problem or pressed help: a dot on the menu button and on the Riders row until the owner opens the Riders page
     useEffect(() => onNotification((n) => {
         if (n?.type === 'rider_problem' || n?.type === 'rider_sos' || (n?.type === 'order_cancelled' && n.data?.byRider)) setRiderAttention(true);

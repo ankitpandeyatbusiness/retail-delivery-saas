@@ -14,8 +14,8 @@ export function useBulkAwaiting() {
     const [items, setItems] = useState([]);
     const load = useCallback(() => {
         if (!bulkOn) { setItems([]); return Promise.resolve(); }
-        return bulkApi.list({ status: 'open' })
-            .then((r) => setItems((r.items || []).filter((x) => x.status === 'requested' || x.status === 'quoted')))   // (the view's status: a quote that ran out already says 'expired')
+        return Promise.all([bulkApi.list({ status: 'requested' }), bulkApi.list({ status: 'quoted' })])
+            .then(([a, b]) => setItems([...(a.items || []), ...(b.items || [])].filter((x) => x.status === 'requested' || x.status === 'quoted')))   // (the view's status: a quote that ran out already says 'expired')
             .catch(() => { });
     }, [bulkOn]);
     useFocusEffect(useCallback(() => { load(); }, [load]));

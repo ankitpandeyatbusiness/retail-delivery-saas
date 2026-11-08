@@ -23,7 +23,7 @@ async function runBulkCookAlerts(now = new Date()) {
         bulkId: { $exists: true }, orderType: 'delivery', status: { $in: ['preparing', 'ready'] }, 'kitchen.readyAt': { $lte: new Date(now.getTime() - WAIT_MS) },
         'delivery.riderId': { $exists: false },
         $or: [{ 'kitchen.bulkNoRiderAt': { $exists: false } }, { 'kitchen.bulkNoRiderAt': { $lte: new Date(now.getTime() - WAIT_MS) } }],
-    }).select('tenantId orderNo bulkCode note kitchen.bulkNoRiderAt').limit(50).lean();
+    }).select('tenantId orderNo bulkId bulkCode note kitchen.bulkNoRiderAt').limit(50).lean();
     for (const t of stuck) {
         try {
             // one job at a time wins the order (a second server instance or a slow run must not warn twice)
@@ -32,7 +32,7 @@ async function runBulkCookAlerts(now = new Date()) {
             const code = t.bulkCode || String(t.note || '').match(/^Bulk order\s+([^\s.]+)/i)?.[1] || String(t.orderNo);
             require('../notifications/center').notify('bulk_no_rider', {
                 tenantId: t.tenantId, vars: { code },
-                data: { kind: 'bulk', orderId: String(t._id), speech: `Bulk order ${code} is packed but no rider has taken it. Please choose a free rider.`, speechHi: `बल्क ऑर्डर ${code} पैक हो गया है, पर किसी राइडर ने नहीं लिया। कृपया कोई खाली राइडर चुनें।` },
+                data: { kind: 'bulk', bulkId: String(t.bulkId), orderId: String(t._id), speech: `Bulk order ${code} is packed but no rider has taken it. Please choose a free rider.`, speechHi: `बल्क ऑर्डर ${code} पैक हो गया है, पर किसी राइडर ने नहीं लिया। कृपया कोई खाली राइडर चुनें।` },
             });
             warned += 1;
         } catch (e) { console.error('Bulk no-rider alert error:', e.message); }

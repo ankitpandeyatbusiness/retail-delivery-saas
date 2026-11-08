@@ -94,10 +94,15 @@ async function build(tenantId, { owner = false } = {}) {
     const Complaint = mongoose.models.Complaint;
     const openComplaints = Complaint ? await Complaint.countDocuments({ tenantId, status: { $in: ['open', 'in_progress'] } }) : 0;
 
+    // bulk orders not paid yet and waiting on the owner or on the customer's advance: they count in "New" (the Orders tab badge and the Home box)
+    const BulkOrder = mongoose.models.BulkOrder || require('../models/BulkOrder');
+    const bulkWaiting = await BulkOrder.countDocuments({ tenantId, $or: [{ status: 'requested' }, { status: 'quoted', 'quote.validUntil': { $gte: now } }] }).catch(() => 0);
+    const bulkNeedsQuote = await BulkOrder.countDocuments({ tenantId, status: 'requested' }).catch(() => 0);
+
     const active = Object.fromEntries(counts.map((c) => [c._id, c.n]));
     return {
         at: now,
-        orders: { bulk: Object.fromEntries(bulkCounts.map((c) => [c._id, c.n])), active, activeTotal: Object.values(active).reduce((a, b) => a + b, 0), attention: await attention(tenantId, now) },
+        orders: { bulkWaiting, bulkNeedsQuote, bulk: Object.fromEntries(bulkCounts.map((c) => [c._id, c.n])), active, activeTotal: Object.values(active).reduce((a, b) => a + b, 0), attention: await attention(tenantId, now) },
         riders: riders.map((r) => ({
             riderId: r.userId, name: r.name || null, isOnline: !!r.isOnline, activeOrderCount: r.activeOrderCount || 0,
             location: (() => { const p = liveTracking.newest(r.userId, r.lastLocation); return p?.at ? { lat: p.lat, lng: p.lng, at: p.at } : null; })(),
