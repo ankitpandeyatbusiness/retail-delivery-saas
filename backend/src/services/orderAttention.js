@@ -33,7 +33,8 @@ const lastAt = (o, status) => {
 // the first (most urgent) problem of one order, or null
 function problemOf(o, now, LIMITS = limitsOf(watch.defaults().attention)) {
     const online = o.payment?.method && o.payment.method !== 'cod';
-    if (o.status === 'cancelled' && online && o.payment?.status === 'paid' && !(o.cancel?.refundPaise > 0)) {
+    // (money the shop chose to KEEP, all of it, is not owed back: only a paid order with no refund and no kept money is flagged)
+    if (o.status === 'cancelled' && online && o.payment?.status === 'paid' && !(o.cancel?.refundPaise > 0) && !((o.cancel?.keptPaise || 0) >= Math.round((o.pricing?.total || 0) * 100))) {
         return { code: 'refund_due', since: lastAt(o, 'cancelled') };
     }
     if (!ACTIVE.includes(o.status)) return null;

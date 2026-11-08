@@ -367,8 +367,19 @@ export async function previewGreeting() {
     return speak(g + ' ' + sampleFor(language), language);
 }
 
+// Voices are said ONE AFTER ANOTHER, in the order they were asked. A new voice used to stop the one that was talking (the "queue" line and a new bulk request
+// at the same moment: only the second was heard). Now it waits for the first to finish. Stopping everything (stopLoop) drops the voices still waiting.
+let voiceChain = Promise.resolve();
+let voiceEpoch = 0;
 async function speak(said, language, type) {
     if (type && !alertOn(type, 'v')) return;   // the Voice switch of this alert (Alerts screen)
+    const epoch = voiceEpoch;
+    const run = voiceChain.then(() => (epoch === voiceEpoch ? speakNow(said, language, type) : undefined));
+    voiceChain = run.catch(() => { });   // a voice that failed never holds back the next one
+    return run;
+}
+
+async function speakNow(said, language, type) {
     // Marathi, Gujarati, Bengali: the English line, translated. Hindi and these three: the English letters still in the line (a customer's name, a dish) are written in the
     // voice's own script, so the voice says "अनिल" the way it sounds and not "Anil" with an English accent
     const text = inScript(LOCAL_VOICES.includes(language) ? localizeSpeech(said, language) : said, language);
@@ -471,11 +482,19 @@ function startRound() {
     try { player?.seekTo(0); player?.play(); } catch (e) { /* ignore */ }
 }
 
+let freshAfterVoice = false;   // something new arrived while a voice was talking: its round starts right after that voice, with no gap
 function endVoice() {
     if (phase !== 'voice') return;
     phase = 'gap';
-    // the wait is counted from the moment the voice FINISHED: "repeat every 10 s" = 10 s of quiet, then the bell again
-    nextBellAt = Date.now() + Math.max(5, settings().repeatSec) * 1000;
+    // the wait is counted from the moment the voice FINISHED: "repeat every 10 s" = 10 s of quiet, then the bell again (at once when something new is waiting to be said)
+    nextBellAt = freshAfterVoice ? Date.now() : Date.now() + Math.max(5, settings().repeatSec) * 1000;
+    freshAfterVoice = false;
+}
+// a new order or request arrived: its round starts now, unless a voice is talking. That voice is NOT cut: the new one follows it.
+function freshRound() {
+    if (speaking) { freshAfterVoice = true; kick(); return; }
+    stopLoop();
+    kick();
 }
 
 function onClock(status) {
@@ -492,13 +511,15 @@ function onClock(status) {
 
 // What one round says: the first waiting order (with the greeting, once), then how many more are waiting.
 async function speakRound() {
-    const next = firstPending();
+    // what is said: the first one nobody has heard yet (a new arrival), else the oldest that waits (the repeat rounds)
+    const pick = [...pending.entries()].find(([, e]) => !e.announced) || (pending.size ? pending.entries().next().value : null);
+    const next = pick ? pick[1] : null;
     const s = settings();
     if (!next || !isOwner() || !s.soundbox || speaking) { endVoice(); return; }   // Soundbox off: no voice at all
     speaking = true;   // from now until the voice has finished, no clock tick may take the voice as done or ring the bell
     // Ask the server whether this order is still waiting. One that was accepted, cancelled or is already out for delivery
     // (the update never reached this phone) must never be read out as a new order again.
-    const firstId = pending.keys().next().value;
+    const firstId = pick[0];
     if (firstId && firstId !== 'test-push') {
         try {
             const slow = new Promise((r) => setTimeout(() => r(null), 3000));   // a slow network must not hold the voice back
@@ -523,6 +544,7 @@ async function speakRound() {
         : more + ' more ' + (more === 1 ? 'order is' : 'orders are') + ' waiting.';
     let text = more > 0 ? textOf(next, language) + ' ' + tail : textOf(next, language);
     if (!next.greeted) { next.greeted = true; text = withGreeting(text, language); }   // the greeting is said once per order, not on every repeat
+    next.announced = true;   // heard: the next round says the next new one, or the oldest again
     const kind = next.bulk ? 'bulk_new' : (isCook() ? 'new' : 'order_new');   // (a bulk request follows the Bulk orders switches of the Alerts screen)
     if (alertOn(kind, 'v')) await speak(text, language, kind);
     else speaking = false;   // the Voice switch of this alert is off: the bell rings, nothing is said
@@ -552,6 +574,7 @@ function stopLoop() {
     stopBackupClock();
     setRinging(false);
     resetClock();
+    voiceEpoch += 1;   // the voices still waiting their turn are dropped
     try { Speech.stop(); } catch (e) { /* ignore */ }
     // "Always ready": back to the silent keep-alive. Otherwise everything stops, and the notification goes away.
     if (keepAliveWanted()) setTrack('idle');
@@ -573,7 +596,7 @@ export function raise({ orderId, orderNo, speech, speechHi, autoAccepted }) {
     const isNew = !pending.has(id);
     if (isNew) note('order ' + (orderNo || id) + ' arrived');
     pending.set(id, { orderNo, speech, speechHi });
-    if (isNew) { stopLoop(); kick(); } else kick();   // a new order starts a fresh round at once
+    if (isNew) freshRound(); else kick();   // a new order starts a fresh round at once (after the voice that is talking)
 }
 
 /* ------------------------------ bulk requests waiting for the owner's quote ------------------------------ */
@@ -590,7 +613,7 @@ export function raiseBulk({ bulkId, code, speech, speechHi }) {
     const isNew = !pending.has(id);
     note('bulk request ' + (code || bulkId) + (isNew ? ' arrived' : ''));
     pending.set(id, { orderNo: code, speech, speechHi, bulk: true });
-    if (isNew) { stopLoop(); kick(); } else kick();   // a new one starts a fresh round at once
+    if (isNew) freshRound(); else kick();   // a new one starts a fresh round at once (after the voice that is talking)
 }
 // The owner opened the request: it stops ringing (and does not start again by itself).
 export function dismissBulk(bulkId) {

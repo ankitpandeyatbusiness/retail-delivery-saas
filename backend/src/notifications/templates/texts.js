@@ -58,7 +58,7 @@ const TEXTS = {
                 ? `Order #${v.orderNo} was cancelled by the delivery partner${v.reason ? `: ${v.reason}` : ''}.`
                 : v.lateDelivery
                     ? `Order #${v.orderNo} was cancelled: the delivery was more than an hour late. The customer is refunded in full.`
-                    : `Order #${v.orderNo} was cancelled${v.bySystem ? ' (not accepted in time)' : ' by the customer'}.`,
+                    : `Order #${v.orderNo} was cancelled${v.autoOther ? '' : v.bySystem ? ' (not accepted in time)' : ' by the customer'}.`,
     }),
     delivery_late_warning: (v) => ({ title: 'Delivery is very late', body: `Order #${v.orderNo} is ${v.late} min late. It is cancelled and fully refunded in ${v.left} min if it is not delivered.` }),
     delivery_late_warning_rider: (v) => ({ title: `Order #${v.orderNo} is ${v.late} min late`, body: `Deliver it now. It is cancelled in ${v.left} min if it is not delivered.` }),

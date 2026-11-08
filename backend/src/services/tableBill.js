@@ -78,6 +78,21 @@ async function billOf(session, { owner = false } = {}) {
         note: o.note || null, times: timesOf(o), queue: q.get(String(o._id)) || null,
         ...(owner ? { customer: { name: o.customer?.name || null, phone: o.customer?.phone || null } } : {}),
     }));
+    // The rounds that were cancelled or removed: they do not count in the total, but the guest is TOLD what was taken off his bill, with the dishes, who did it, when and why
+    const gone = (o) => { const h = [...(o.statusHistory || [])].reverse().find((x) => x.status === o.status); return h?.at || o.undelivered?.at || o.updatedAt || o.createdAt; };
+    const removedBy = (o) => {
+        if (o.status === 'undelivered') return 'shop';
+        if (o.cancelledBy === 'customer' || o.cancel?.by === 'customer') return 'guest';
+        if (['shop', 'admin', 'rider'].includes(o.cancelledBy) || ['owner', 'shop', 'staff', 'admin', 'rider'].includes(o.cancel?.by)) return 'shop';
+        return 'system';
+    };
+    const removed = orders.filter((o) => DEAD.includes(o.status)).map((o) => ({
+        id: String(o._id), orderNo: o.orderNo, status: o.status, at: o.createdAt, removedAt: gone(o), total: o.pricing?.total || 0,
+        by: { id: String(o.userId), name: names.get(String(o.userId)) },   // who ordered it
+        removedBy: removedBy(o),   // shop | guest | system
+        reason: String(o.cancelReason || o.undelivered?.note || '').replace(/_/g, ' ').trim() || null,
+        items: (o.items || []).map((l) => ({ name: l.name, quantity: l.quantity, total: l.lineTotal, addons: (l.selections || []).map((x) => x.name).filter(Boolean) })),
+    }));
     const total = rounds.reduce((n, r) => n + r.total, 0);
     const due = rounds.filter((r) => !r.paid).reduce((n, r) => n + r.total, 0);
     const people = owner ? await peopleOf(session.tenantId, session.customers) : null;
@@ -101,7 +116,7 @@ async function billOf(session, { owner = false } = {}) {
 
         ...(owner ? { guests: session.customers.map((c) => people.get(String(c))).filter(Boolean) } : {}),
         id: String(session._id), table: session.table, party: session.party || 1, label: session.label || null, status: session.status, openedAt: session.openedAt, billAskedAt: session.billAskedAt || null, closedAt: session.closedAt || null,
-        rounds, total: Math.round(total * 100) / 100, due: Math.round(due * 100) / 100, kitchenBusy: rounds.some((r) => ACTIVE.includes(r.status)),
+        rounds, removed, total: Math.round(total * 100) / 100, due: Math.round(due * 100) / 100, kitchenBusy: rounds.some((r) => ACTIVE.includes(r.status)),
         paidVia: session.paidVia || null, nudgeAt: session.lastNudgeAt || null,   // when he last pressed "please hurry"
     };
 }

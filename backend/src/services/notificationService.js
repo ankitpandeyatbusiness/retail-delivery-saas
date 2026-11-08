@@ -79,18 +79,26 @@ function orderStatusChanged(order, status, actor) {
             if (order.delivery?.riderId) center.notify('delivery_done_rider', { tenantId: t, userId: order.delivery.riderId, data, vars: { orderNo: no, brief: what.brief } });
         }
         if (status === 'cancelled') {
+            // Why an automatic (system) cancel happened, from the reason it was given: not accepted in time | more than an hour late | anything else (said with no reason,
+            // never with a wrong one). A cancel by the shop is never announced to the shop itself.
+            const sysWhy = (() => {
+                const c = order.cancel?.reasonCode;
+                if (c === 'late_delivery' || /hour late/.test(order.cancelReason || '')) return 'late';
+                if (c === 'not_accepted') return 'system';
+                return 'other';
+            })();
             // the sentence the owner's phone may read out (Soundbox) when the app is closed: only for a cancelled order
             // said with the full detail of a new order: who cancelled it, the dishes, the total and how it was paid
             const spoken = (who) => ({ ...data, speech: cancelSpeech(order, who), speechHi: cancelSpeechHi(order, who) });
             // the owner has to look at it once (Orders tab: "Needs a look")
             if (actor.type === 'rider') look.byId(t, order._id, 'rider_cancelled');
             else if (!isUnpaidOnline(order)) {
-                if (actor.type === 'system') look.byId(t, order._id, /hour late/.test(order.cancelReason || '') ? 'late_cancelled' : 'not_accepted');
+                if (actor.type === 'system') { if (sysWhy === 'late') look.byId(t, order._id, 'late_cancelled'); else if (sysWhy === 'system') look.byId(t, order._id, 'not_accepted'); }
                 else if (actor.type === 'customer') look.byId(t, order._id, 'customer_cancelled');   // whether or not the shop had accepted it yet
             }
             if ((actor.type === 'customer' || actor.type === 'system') && !isUnpaidOnline(order)) {   // the owner never saw an unpaid online order
                 center.notify('order_cancelled', {
-                    tenantId: t, data: spoken(actor.type === 'system' ? (/hour late/.test(order.cancelReason || '') ? 'late' : 'system') : 'customer'), vars: { audience: 'owner', orderNo: no, bySystem: actor.type === 'system', lateDelivery: /hour late/.test(order.cancelReason || '') },
+                    tenantId: t, data: spoken(actor.type === 'system' ? (sysWhy === 'other' ? '' : sysWhy) : 'customer'), vars: { audience: 'owner', orderNo: no, bySystem: actor.type === 'system' && sysWhy === 'system', autoOther: actor.type === 'system' && sysWhy === 'other', lateDelivery: sysWhy === 'late' },
                 });
             }
             if (actor.type === 'rider') {   // the delivery partner cancelled: the shop is told at once, with his reason
@@ -100,7 +108,7 @@ function orderStatusChanged(order, status, actor) {
             }
             if (order.delivery?.riderId && actor.type !== 'rider') {
                 center.notify('order_cancelled', {
-                    tenantId: t, userId: order.delivery.riderId, data, vars: { audience: 'rider', orderNo: no, lateDelivery: /hour late/.test(order.cancelReason || '') },
+                    tenantId: t, userId: order.delivery.riderId, data, vars: { audience: 'rider', orderNo: no, lateDelivery: sysWhy === 'late' },
                 });
             }
         }

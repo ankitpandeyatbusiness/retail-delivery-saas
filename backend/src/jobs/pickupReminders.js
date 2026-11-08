@@ -22,6 +22,7 @@ async function claim(order, field, now) {
 async function runPickupReminders(now = new Date()) {
     const orders = await Order.find({
         orderType: 'pickup', status: 'ready', pickupUntil: { $ne: null }, ...HIDE_UNPAID,
+        'pickupClaim.kind': { $exists: false },   // the customer already told the shop 'I collected it' or 'I cannot come': the shop is deciding, so nothing says he has not come
         $or: [{ 'pickupNotified.noShowAt': { $exists: false } }, { 'pickupNotified.overAt': { $exists: false } }, { 'pickupNotified.waitingAt': { $exists: false } }],
     }).limit(200);
     let sent = 0;

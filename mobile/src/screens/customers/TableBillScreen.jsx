@@ -26,7 +26,7 @@ const clock = (d) => new Date(d).toLocaleTimeString('en-IN', { hour: 'numeric', 
 
 export default function TableBillScreen() {
     const nav = useNavigation();
-    const { background, text, muted, ok, warn, border } = useBrand();
+    const { background, text, muted, ok, warn, border, error } = useBrand();
     const bill = useTableBill((s) => s.bill);
     const loading = useTableBill((s) => s.loading);
     const user = useAuthStore((s) => s.user);
@@ -172,6 +172,39 @@ export default function TableBillScreen() {
                         </Card>
                     </View>
                 ))}
+
+                {/* what was taken off the bill: shown clearly, with the dishes, so nothing disappears without a word */}
+                {(bill.removed || []).length ? (
+                    <View style={{ marginBottom: 14 }}>
+                        <SectionTitle title={tr('Removed from your bill')} />
+                        {bill.removed.map((r) => {
+                            const yours = r.by?.id === me;
+                            const who = r.removedBy === 'shop' ? tr('Removed by the shop') : r.removedBy === 'guest' ? (yours ? tr('Cancelled by you') : tr('Cancelled by {name}', { name: r.by?.name || tr('a guest') })) : tr('Cancelled');
+                            return (
+                                <Card key={r.id} tone={r.removedBy === 'shop' ? error : undefined} style={{ marginBottom: 10 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                                        <Pill label={who} color={r.removedBy === 'shop' ? error : muted} />
+                                        <Text style={{ color: muted, fontSize: 12.5, marginLeft: 8, flex: 1 }} numberOfLines={1}>{clock(r.removedAt)}{shared && r.by?.name ? ` · ${yours ? tr('You') : r.by.name}` : ''}</Text>
+                                    </View>
+                                    {r.items.map((it, k) => (
+                                        <View key={k} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 4 }}>
+                                            <View style={{ flex: 1, minWidth: 0 }}>
+                                                <Text style={{ color: muted, fontWeight: '700', textDecorationLine: 'line-through' }} numberOfLines={2}>{it.quantity}× {it.name}</Text>
+                                                {it.addons?.length ? <Text style={{ color: muted, fontSize: 12, textDecorationLine: 'line-through' }} numberOfLines={1}>{it.addons.join(', ')}</Text> : null}
+                                            </View>
+                                            <Text style={{ color: muted, fontWeight: '700', marginLeft: 8, textDecorationLine: 'line-through' }}>{rs(it.total)}</Text>
+                                        </View>
+                                    ))}
+                                    {r.reason ? <Text style={{ color: muted, fontSize: 12.5, marginTop: 6 }}>{tr('Reason')}: {tr(r.reason.charAt(0).toUpperCase() + r.reason.slice(1))}</Text> : null}
+                                    <View style={{ flexDirection: 'row', paddingTop: 8, marginTop: 6, borderTopWidth: 1, borderTopColor: alpha(border, 0.7) }}>
+                                        <Text style={{ flex: 1, color: muted, fontWeight: '700' }}>{tr('Not charged')}</Text>
+                                        <Text style={{ color: muted, fontWeight: '900', textDecorationLine: 'line-through' }}>{rs(r.total)}</Text>
+                                    </View>
+                                </Card>
+                            );
+                        })}
+                    </View>
+                ) : null}
 
                 <TipCard bill={bill} />
 
