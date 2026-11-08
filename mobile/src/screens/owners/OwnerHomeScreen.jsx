@@ -20,6 +20,7 @@ import { onOrderUpdate } from '../../api/common/socket';
 import { clearAll } from '../../utils/owners/soundbox';
 import { useNow } from '../../hooks/owners/useNow';
 import { useBulkAwaiting } from '../../hooks/owners/useBulkAwaiting';
+import { useInquiriesWaiting } from '../../hooks/owners/useInquiriesWaiting';
 import useBulkLive from '../../hooks/common/useBulkLive';
 import * as flow from '../../utils/owners/orderFlow';
 import OccupiedTables from '../../components/owners/OccupiedTables';
@@ -133,6 +134,7 @@ export default function OwnerHomeScreen() {
     useFocusEffect(useCallback(() => { loadPending(); }, [loadPending]));
     useEffect(() => onNotification((n) => { if (String(n?.type || '').startsWith('booking_')) loadPending(); }), [loadPending]);
     const { items: bulkWait, needs: bulkNeeds } = useBulkAwaiting();
+    const { items: inquiriesWaiting } = useInquiriesWaiting();   // customers who wrote from a service form and are waiting for an answer: a blinking card on top
     useBulkLive(refresh);   // any bulk order changed (its cook ticket made, a stage moved...): the step counts and the "N bulk" tags load again at once
     useFocusEffect(useCallback(() => { fetchStaff().then(setStaff).catch(() => { }); useMenuFlags.getState().refresh(); }, []));   // (the side menu's rows are ready before it opens)
     // an order changed anywhere: update the numbers (a moment later, so a burst of events is one refresh)
@@ -238,6 +240,26 @@ export default function OwnerHomeScreen() {
                     </Card>
                 </GlowBorder>
             ) : null}
+
+            {/* service inquiries (party booking, tiffin, your own services) nobody has opened yet: on top, blinking, until the owner opens them */}
+            {inquiriesWaiting.length > 0 ? (() => {
+                const first = inquiriesWaiting[0];
+                const one = inquiriesWaiting.length === 1;
+                return (
+                    <GlowBorder active radius={18} style={{ marginHorizontal: 16, marginTop: 14, marginBottom: 16 }}>
+                        <Card onPress={() => (one ? nav.navigate('OwnerInquiry', { id: String(first._id || first.id) }) : nav.navigate('OwnerInquiries'))} style={{ marginHorizontal: 0, marginBottom: 0 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <Ionicons name="chatbubbles" size={22} color={error} />
+                                <View style={{ flex: 1, marginLeft: 10 }}>
+                                    <Text style={{ color: error, fontWeight: '900' }}>{one ? tr('1 inquiry is waiting for your answer') : tr('{n} inquiries are waiting for your answer', { n: inquiriesWaiting.length })}</Text>
+                                    <Text style={{ color: muted, fontSize: 12, marginTop: 2 }} numberOfLines={1}>{`${first.serviceName || tr('Service')} · ${first.name || tr('A customer')}`}</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={18} color={muted} />
+                            </View>
+                        </Card>
+                    </GlowBorder>
+                );
+            })() : null}
 
             {/* complaints nobody has answered: always on top, blinking, until they are decided */}
             {d?.complaints?.open ? (
