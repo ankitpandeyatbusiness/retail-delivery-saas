@@ -31,7 +31,7 @@ const supportTicketSchema = new mongoose.Schema({
     ownerUnread: { type: Boolean, default: false },      // the platform replied and the owner has not opened it yet
     platformUnread: { type: Boolean, default: true },    // the owner wrote and nobody on the team opened it yet
     resolvedAt: Date,
-    resolvedBy: { type: String, enum: ['owner', 'platform'] },
+    resolvedBy: { type: String, enum: ['owner', 'platform', 'system'] },
     rating: { stars: { type: Number, min: 1, max: 5 }, comment: { type: String, maxlength: 300 }, at: Date },
     context: { appVersion: String, platform: String },
 }, { timestamps: true });

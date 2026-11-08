@@ -94,6 +94,93 @@ describe('the chat of a bulk order', () => {
         assert.equal(await ChatMessage.countDocuments({ refId: id }), 1);
     });
 
+    describe('deleting a message', () => {
+        const del = (who, mid, scope) => (who === 'owner'
+            ? request(app).delete(`/api/shop/chat/bulk/${id}/messages/${mid}`).query({ scope }).set(w.owner.headers)
+            : request(app).delete(`/api/chat/bulk/${id}/messages/${mid}`).query({ scope }).set(w.customer.headers));
+        const ownerView = async () => (await request(app).get(`/api/shop/chat/bulk/${id}`).set(w.owner.headers)).body.items;
+
+        test('delete for me: gone for me only, any message; the other person still has it', async () => {
+            const a = (await cust('post', '', { text: 'from customer' })).body;
+            const b = (await owner('post', '', { text: 'from owner' })).body;
+            assert.equal((await del('customer', b.id, 'me')).status, 200);   // the customer hides the OWNER's message
+            assert.deepEqual((await mine()).items.map((x) => x.text), ['from customer']);
+            assert.deepEqual((await ownerView()).map((x) => x.text), ['from customer', 'from owner']);
+            assert.equal((await del('customer', a.id, 'me')).status, 200);   // and his own
+            assert.equal((await mine()).items.length, 0);
+            assert.equal((await ownerView()).length, 2, 'the owner still sees both');
+            assert.equal((await del('customer', b.id, 'me')).status, 404, 'it is already gone for him');
+        });
+
+        test('delete for everyone: the words, picture and voice are removed for both; a note stays; both phones are told live', async () => {
+            const m = (await cust('post', '', { text: 'a secret', images: [PIC] })).body;
+            live.length = 0;
+            const r = await del('customer', m.id, 'all');
+            assert.equal(r.status, 200);
+            assert.deepEqual(r.body, { ok: true, id: m.id, scope: 'all' });
+            const row = await ChatMessage.findById(m.id).lean();
+            assert.equal(row.text, '');
+            assert.equal(row.images, undefined);
+            assert.equal(row.deletedAll, true);
+            const o = (await ownerView()).find((x) => x.id === m.id);
+            assert.equal(o.deleted, true);
+            assert.deepEqual([o.text, o.images, o.voice], ['', [], null]);
+            const c = (await mine()).items.find((x) => x.id === m.id);
+            assert.equal(c.deleted, true);
+            assert.equal(c.mine, true);
+            const told = live.filter(([, ev]) => ev === 'chat:deleted');
+            assert.ok(told.some(([to]) => to === 'owner'), 'the owner is told');
+            assert.ok(told.some(([to]) => to === 'user:' + w.customer.user._id), 'his other phone is told');
+            assert.deepEqual(told[0][2].ids, [m.id]);
+            assert.equal((await del('customer', m.id, 'all')).status, 200, 'doing it twice is fine');
+        });
+
+        test('the rules: own message only, while the chat is open, within 2 days, a good scope, and only the two people of the chat', async () => {
+            const a = (await cust('post', '', { text: 'mine' })).body;
+            assert.equal((await del('owner', a.id, 'all')).status, 403, 'the owner cannot delete the customer message for everyone');
+            assert.equal((await del('owner', a.id, 'me')).status, 200, 'but he can hide it for himself');
+            assert.equal((await del('customer', a.id, 'sideways')).status, 400);
+            assert.equal((await request(app).delete(`/api/chat/bulk/${id}/messages/${a.id}`).query({ scope: 'me' }).set(other.headers)).status, 404, 'a stranger');
+            assert.equal((await del('customer', '000000000000000000000000', 'me')).status, 404);
+
+            const old = (await cust('post', '', { text: 'old one' })).body;
+            await ChatMessage.collection.updateOne({ _id: new (require('mongoose').Types.ObjectId)(old.id) }, { $set: { createdAt: new Date(Date.now() - 3 * 86400000) } });
+            const tooOld = await del('customer', old.id, 'all');
+            assert.equal(tooOld.status, 409);
+            assert.match(tooOld.body.error, /too old/);
+            assert.equal((await del('customer', old.id, 'me')).status, 200, 'for me there is no age limit');
+
+            const late = (await cust('post', '', { text: 'before it closed' })).body;
+            await BulkOrder.updateOne({ _id: id }, { $set: { status: 'completed', completedAt: new Date(Date.now() - 5 * 86400000) } });
+            assert.equal((await mine()).closed, true);
+            const closed = await del('customer', late.id, 'all');
+            assert.equal(closed.status, 409, 'a closed chat cannot be written to');
+            assert.equal((await del('customer', late.id, 'me')).status, 200, 'but you can still tidy it for yourself');
+        });
+
+        test('an unread message that is deleted leaves the badge', async () => {
+            const b = (await owner('post', '', { text: 'for him' })).body;
+            assert.equal((await request(app).get('/api/chat/unread').set(w.customer.headers)).body.total, 1);
+            await del('customer', b.id, 'me');
+            assert.equal((await request(app).get('/api/chat/unread').set(w.customer.headers)).body.total, 0);
+
+            const a = (await cust('post', '', { text: 'for the owner' })).body;
+            assert.equal((await request(app).get('/api/shop/chat/unread').set(w.owner.headers)).body.total, 1);
+            await del('customer', a.id, 'all');
+            assert.equal((await request(app).get('/api/shop/chat/unread').set(w.owner.headers)).body.total, 0, 'deleted for everyone: the owner has nothing to read');
+        });
+    });
+
+    test('the sender gets his own clientId back (so his phone swaps its "sending" bubble for the real one, no twin); the other side never sees it', async () => {
+        const r = await cust('post', '', { text: 'Matching', clientId: 'mine-77' });
+        assert.equal(r.body.clientId, 'mine-77');
+        const seen = (await request(app).get(`/api/shop/chat/bulk/${id}`).set(w.owner.headers)).body;
+        const m = seen.items.find((x) => x.text === 'Matching');
+        assert.ok(m && m.clientId === undefined, 'the owner does not get the customer clientId');
+        const mineAgain = (await request(app).get(`/api/chat/bulk/${id}`).set(w.customer.headers)).body;
+        assert.equal(mineAgain.items.find((x) => x.text === 'Matching').clientId, 'mine-77');
+    });
+
     test('pictures and voice notes; an empty message or a bad address is refused', async () => {
         const p = await cust('post', '', { images: [PIC, 'not a url', PIC.replace('pic1', 'pic2')] });
         assert.equal(p.status, 201);

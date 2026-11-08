@@ -45,6 +45,7 @@ router.get('/:id', wrap(async (req, res) => {
 
 router.post('/:id/reply', wrap(async (req, res) => {
     const doc = await mine(req);
+    if (doc.status === 'closed') throw httpError(409, 'This conversation has ended. Open it again first.');
     const text = String(req.body?.text || '').trim().slice(0, 1000);
     const images = require('../services/shopServices').cleanImages(req.body?.images);
     if (!text && !images.length) throw httpError(400, 'Write a reply first');
@@ -64,6 +65,8 @@ router.patch('/:id', wrap(async (req, res) => {
     const b = req.body || {};
     const before = doc.status;
     if (b.status !== undefined) { if (!STATUSES.includes(b.status)) throw httpError(400, 'Unknown status'); doc.status = b.status; }
+    // opened again: its quiet time starts over. Without this the old last-message time made the automation (quiet inquiries are ended after some days) close it again within minutes.
+    if (before === 'closed' && doc.status !== 'closed') doc.lastMessageAt = new Date();
     if (b.note !== undefined) doc.note = String(b.note).trim().slice(0, 1000);
     await doc.save();
     // the guest is told when the conversation is ended or opened again (a push and the inbox; the app also shows it as a toast he can tap)

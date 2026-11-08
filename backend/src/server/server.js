@@ -19,6 +19,7 @@ const { startNotificationEscalationScheduler } = require('../jobs/notificationEs
 const { startEmailWorkerScheduler } = require('../jobs/emailWorker');
 const { startMonthlyReportsScheduler } = require('../jobs/monthlyReports');
 const { startInactiveShopsScheduler } = require('../jobs/inactiveShops');
+const { startSupportAutoResolveScheduler } = require('../jobs/supportAutoResolve');
 const { startAutopilotScheduler } = require('../jobs/autopilot');
 const { startCleanupUploadsScheduler } = require('../jobs/cleanupUploads');
 const { startBackupScheduler } = require('../jobs/backupDump');
@@ -89,6 +90,7 @@ connectDB()
             startEmailWorkerScheduler();
             startMonthlyReportsScheduler();
             startInactiveShopsScheduler();
+            startSupportAutoResolveScheduler();   // a quiet, answered support request is solved after 7 days
             startAutopilotScheduler();
             startPaymentReconcileScheduler();
             require('../services/paymentAccounts').checkKeysReadable().catch((e) => console.error('Payment keys check error:', e.message));

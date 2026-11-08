@@ -15,6 +15,9 @@ const schema = new mongoose.Schema({
     clientId: String,                                                         // made by the phone: a message sent twice is saved once
     deliveredAt: Date,
     readAt: Date,
+    deletedFor: { type: [String], default: undefined },   // 'customer' and/or 'owner': hidden for that person only ("delete for me")
+    deletedAll: Boolean,                                  // "delete for everyone": the words, pictures and voice are gone, only a note that it was deleted stays
+    deletedAllAt: Date,
 }, { timestamps: { createdAt: true, updatedAt: false } });
 
 schema.index({ tenantId: 1, kind: 1, refId: 1, createdAt: 1 });

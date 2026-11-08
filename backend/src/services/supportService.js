@@ -13,6 +13,7 @@ const adminAlerts = require('./adminAlerts');
 const { httpError } = require('../middlewares/apiErrors');
 
 const REOPEN_MS = 7 * 24 * 60 * 60 * 1000;
+const AUTO_RESOLVE_MS = 7 * 24 * 60 * 60 * 1000;   // answered by the team, then 7 days of silence from the owner: solved by itself
 const MAX_NEW_PER_DAY = 5;
 const MAX_OPEN = 10;
 const MAX_PHOTOS = 3;
@@ -279,7 +280,28 @@ async function adminSet({ id, body }) {
     return adminGet(id);
 }
 
+// A request the team has answered ("Waiting") and the owner never replied to for 7 days is marked solved by itself, with a note, and the owner is told. Writing in it within
+// the next 7 days opens it again (ownerReply). A request that waits for the TEAM ("open") is never closed this way: the team owes the answer.
+async function autoResolveQuiet(now = new Date()) {
+    const cutoff = new Date(now.getTime() - AUTO_RESOLVE_MS);
+    const rows = await SupportTicket.find({ status: 'answered', lastMessageAt: { $lte: cutoff } }).select('_id lastMessageAt').limit(300).lean();
+    let n = 0;
+    for (const r of rows) {
+        const text = 'We have not heard back, so we are marking this request as solved. If you still need help, write here within 7 days and it opens again.';
+        // claimed with a filtered update: still "answered", untouched since: two servers never do it twice
+        const t = await SupportTicket.findOneAndUpdate(
+            { _id: r._id, status: 'answered', lastMessageAt: r.lastMessageAt },
+            { $set: { status: 'resolved', resolvedAt: now, resolvedBy: 'system', lastFrom: 'platform', ownerUnread: true }, $push: { messages: { from: 'platform', text, photos: [], by: 'Support (automatic)' } } },
+            { returnDocument: 'after' },
+        );
+        if (!t) continue;
+        n += 1;
+        notify.toOwner(t.tenantId, { type: 'platform_message', title: `Support: request #${t.number} marked solved`, body: snippet(text, 140), data: { kind: 'support', ticketId: String(t._id) } });
+    }
+    return n;
+}
+
 module.exports = {
     getInfo, setInfo, create, ownerList, ownerGet, ownerReply, ownerResolve, ownerRate,
-    adminList, adminCounts, adminGet, adminReply, adminNote, adminSet, REOPEN_MS,
+    adminList, adminCounts, adminGet, adminReply, adminNote, adminSet, REOPEN_MS, AUTO_RESOLVE_MS, autoResolveQuiet,
 };

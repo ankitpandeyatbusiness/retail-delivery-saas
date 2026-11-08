@@ -170,8 +170,9 @@ async function declineCancelRequests(now, cfgOf) {
 // an inquiry that was answered and then went quiet: ended (the guest can start a new one)
 async function closeQuietInquiries(now, cfgOf) {
     const realtime = require('./realtime');
-    const rows = await ServiceInquiry.find({ status: { $in: ['replied', 'quoted', 'confirmed', 'rejected'] }, lastMessageAt: { $lte: new Date(now - 3 * DAY) } }).select('_id tenantId userId status lastMessageAt').limit(400).lean();
+    const rows = await ServiceInquiry.find({ status: { $in: ['replied', 'quoted', 'confirmed', 'rejected'] }, lastMessageAt: { $lte: new Date(now - 3 * DAY) } }).select('_id tenantId userId status lastMessageAt serviceName').limit(400).lean();
     const per = new Map();
+    const shopNames = new Map();
     for (const i of rows) {
         const cfg = await cfgOf(i.tenantId);
         if (!cfg.inquiryCloseDays || now - new Date(i.lastMessageAt).getTime() < cfg.inquiryCloseDays * DAY) continue;
@@ -179,6 +180,10 @@ async function closeQuietInquiries(now, cfgOf) {
         if (!r.modifiedCount) continue;
         per.set(String(i.tenantId), (per.get(String(i.tenantId)) || 0) + 1);
         realtime.toUser(i.tenantId, i.userId, 'notification', { id: `ac${i._id}`, type: 'inquiry_changed', title: null, body: null, data: { kind: 'inquiry', inquiryId: String(i._id) } });
+        // and he is told in words, the same message as when the owner ends the conversation himself (a push and the inbox)
+        const shop = shopNames.get(String(i.tenantId)) ?? (await require('../models/Tenant').findById(i.tenantId).select('name').lean())?.name;
+        shopNames.set(String(i.tenantId), shop);
+        require('../notifications/center').notify('inquiry_ended', { tenantId: i.tenantId, userId: i.userId, vars: { shop: shop || 'The shop', service: i.serviceName }, data: { kind: 'inquiry', inquiryId: String(i._id) } }).catch((e) => console.error('Notification error:', e.message));
     }
     for (const [tid, c] of per) await tell(tid, 'automation_done', `${c} quiet inquir${c === 1 ? 'y was' : 'ies were'} ended automatically.`, `${c} शांत पूछताछ अपने आप बंद की गई।`);
     return [...per.values()].reduce((a, b) => a + b, 0);

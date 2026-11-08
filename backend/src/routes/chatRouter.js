@@ -7,6 +7,7 @@
 //   POST /:kind/:id/ack               { ids? }   the app got these messages (delivered)
 //   POST /:kind/:id/read              the chat is open on screen (read)
 //   POST /:kind/:id/typing            "typing..." to the other person
+//   DELETE /:kind/:id/messages/:mid?scope=me|all   delete a message: "me" hides it for you; "all" (your own message, chat open, within 2 days) removes it for both of you
 // kind = bulk | inquiry | booking
 const express = require('express');
 const { wrap } = require('../middlewares/apiErrors');
@@ -33,6 +34,7 @@ function make(side) {
         chat.typing({ tenant: req.tenant, kind: req.params.kind, refId: c.doc._id, side, customerId: c.customerId });
         res.json({ ok: true });
     }));
+    router.delete('/:kind/:id/messages/:mid', wrap(async (req, res) => { res.json(await chat.remove({ ...who(req), kind: req.params.kind, refId: req.params.id, messageId: req.params.mid, scope: req.query.scope })); }));
     router.use(require('../middlewares/apiErrors'));
     return router;
 }
