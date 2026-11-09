@@ -13,6 +13,7 @@ function requireSupreme(req, res, next) {
 // paths are relative to /api/admin
 const MONEY = [
     /^\/platform\/(business|billing|tax|payments|sms|sms-balance|sms-setup|tracking)(\/|$)/,
+    /^\/plans\/migration(\/|$)/,                           // moving every existing shop onto Pro (phase 9)
     /^\/platform\/plans$/,                                  // plan prices, fee slabs, free days, GST, branch add-on, multi-month discounts
     /^\/tenants\/[^/]+\/wallet(\/|$)/,                      // adding to or taking from a Partner wallet
     /^\/tenants\/[^/]+\/plan(\/|$)/,                        // switching a shop's plan, extras, per-shop amount and free days

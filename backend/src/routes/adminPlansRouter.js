@@ -73,4 +73,22 @@ router.post('/tenants/:tid/wallet/adjust', requireSupreme, loadTenant, wrap(asyn
     res.json({ ...r, status: await w.status(req.tenantDoc._id) });
 }));
 
+// Phase 9: move the shops that exist today onto Pro, free for 30 days. Supreme only. The preview is a dry run; the run takes a backup first.
+//   GET  /plans/migration/preview
+//   POST /plans/migration/run      { confirm: "MOVE SHOPS TO PRO" }
+//   POST /plans/migration/rollback { confirm: "UNDO THE MOVE" }
+const CONFIRM_RUN = 'MOVE SHOPS TO PRO';
+const CONFIRM_BACK = 'UNDO THE MOVE';
+router.get('/plans/migration/preview', requireSupreme, wrap(async (req, res) => { res.json(await require('../services/planMigration').preview()); }));
+router.post('/plans/migration/run', requireSupreme, wrap(async (req, res) => {
+    if (req.body?.confirm !== CONFIRM_RUN) throw Object.assign(new Error(`Type exactly: ${CONFIRM_RUN}`), { status: 400 });
+    req.auditBefore = { action: 'plan migration' };
+    res.json(await require('../services/planMigration').run({ by: String(req.admin?.phone || req.admin?.email || 'supreme') }));
+}));
+router.post('/plans/migration/rollback', requireSupreme, wrap(async (req, res) => {
+    if (req.body?.confirm !== CONFIRM_BACK) throw Object.assign(new Error(`Type exactly: ${CONFIRM_BACK}`), { status: 400 });
+    req.auditBefore = { action: 'plan migration rollback' };
+    res.json(await require('../services/planMigration').rollback({ by: String(req.admin?.phone || req.admin?.email || 'supreme') }));
+}));
+
 module.exports = router;

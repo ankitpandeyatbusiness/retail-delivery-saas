@@ -96,6 +96,10 @@ export const setShopPlanTerms = (id, body) => data(api.put(`${T(id)}/plan/terms`
 export const fetchPlanPreview = (shopId, plan, freeDays) => (shopId
     ? data(api.get(`${T(shopId)}/plan/preview`, { params: { plan, ...(freeDays !== undefined ? { freeDays } : {}) } }))
     : data(api.get('/admin/plans/preview', { params: { plan, ...(freeDays !== undefined ? { freeDays } : {}) } })));
+// phase 9: move every existing shop onto Pro, free for 30 days (the preview is a dry run)
+export const fetchPlanMigration = () => data(api.get('/admin/plans/migration/preview'));
+export const runPlanMigration = (confirm) => data(api.post('/admin/plans/migration/run', { confirm }));
+export const rollbackPlanMigration = (confirm) => data(api.post('/admin/plans/migration/rollback', { confirm }));
 export const fetchShopWallet = (id) => data(api.get(`${T(id)}/wallet`));
 export const adjustShopWallet = (id, body) => data(api.post(`${T(id)}/wallet/adjust`, body));
 export const savePlanDefaults = (body) => data(api.put('/admin/platform/plans', body));

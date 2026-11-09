@@ -70,6 +70,8 @@
  "POST /notifications/read-all",
  "POST /ops/backup",
  "POST /orders/:id/undo",
+ "POST /plans/migration/rollback",
+ "POST /plans/migration/run",
  "POST /platform/payments/test",
  "POST /platform/payments/webhook-secret",
  "POST /platform/sms-balance/added",
