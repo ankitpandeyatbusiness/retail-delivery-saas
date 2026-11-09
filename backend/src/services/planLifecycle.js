@@ -30,7 +30,7 @@ async function claim(tenantId, key, value) {
 // tells the owner and the superadmin that a plan was changed: who, from which plan, to which
 function notifyChanged({ tenantId, from, to, by }) {
     safe(() => center.notify('plan_changed', {
-        tenantId, title: 'Your plan was changed', body: `${from ? NAME[from] : 'No plan'} to ${NAME[to]}, by ${by || 'the platform team'}.`,
+        tenantId, title: 'Your plan was changed', body: `${from ? NAME[from] : 'No plan'} to ${NAME[to]}, by ${by || 'the platform team'}.`,   // fixed words + values (translated by pattern)
         vars: { summary: `${from ? NAME[from] : 'No plan'} to ${NAME[to]}, by ${by || 'the platform team'}` }, data: { prompt: 'plan' },
     }));
 }
@@ -46,8 +46,8 @@ async function one(t, def, now) {
         const days = Math.ceil(left / DAY);
         const due = [1, 3, 7].find((d) => days <= d);
         if (due && (await claim(t._id, `r${due}`, mark))) {
-            const summary = `${NAME[p.id]} ends on ${dayText(endsAt)} (${days} day${days === 1 ? '' : 's'} left)`;
-            safe(() => center.notify('plan_ending', { tenantId: t._id, title: 'Your plan is ending', body: `${summary}. Renew to keep every feature.`, vars: { summary }, data: { prompt: 'plan' } }));
+            const summary = `${NAME[p.id]} ends on ${dayText(endsAt)} (${days} day${days === 1 ? '' : 's'} left)`;   // the admin text (English)
+            safe(() => center.notify('plan_ending', { tenantId: t._id, title: 'Your plan is ending', body: `${NAME[p.id]} ends on ${dayText(endsAt)}. Days left: ${days}. Renew to keep every feature.`, vars: { summary }, data: { prompt: 'plan' } }));
         }
         return;
     }
@@ -70,8 +70,8 @@ async function one(t, def, now) {
     }
 
     if (await claim(t._id, 'ended', mark)) {
-        const summary = `${NAME[p.id]} ended on ${dayText(endsAt)}. ${def.graceDays} grace day${def.graceDays === 1 ? '' : 's'} to choose a plan`;
-        safe(() => center.notify('plan_ended', { tenantId: t._id, title: 'Your plan has ended', body: `${summary}. After that new orders stop.`, vars: { summary }, data: { prompt: 'plan' } }));
+        const summary = `${NAME[p.id]} ended on ${dayText(endsAt)}. ${def.graceDays} grace day${def.graceDays === 1 ? '' : 's'} to choose a plan`;   // the admin text (English)
+        safe(() => center.notify('plan_ended', { tenantId: t._id, title: 'Your plan has ended', body: `${NAME[p.id]} ended on ${dayText(endsAt)}. Grace days to choose a plan: ${def.graceDays}. After that new orders stop.`, vars: { summary }, data: { prompt: 'plan' } }));
     }
     if (!p.paused && now.getTime() > graceEnd(endsAt, def.graceDays).getTime()) {
         const r = await Tenant.updateOne({ _id: t._id, 'plan.paused': { $ne: true }, 'plan.endsAt': endsAt }, { $set: { 'plan.paused': true } });
@@ -95,14 +95,15 @@ async function wallets(now) {
         if (w.balancePaise <= 0) {
             const c = await PartnerWallet.updateOne({ _id: w._id, zeroAlertedAt: { $in: [null, undefined] } }, { $set: { zeroAlertedAt: now, lowAlertedAt: w.lowAlertedAt || now } });
             if (c.modifiedCount) {
-                const summary = `The wallet is ${w.balancePaise < 0 ? `${rs(-w.balancePaise)} in overdraft` : 'finished'}`;
-                safe(() => center.notify('wallet_empty', { tenantId: t._id, title: 'Your wallet is finished', body: `${summary}. Add money so new orders can keep coming.`, vars: { summary }, data: { prompt: 'wallet' } }));
+                const summary = `The wallet is ${w.balancePaise < 0 ? `${rs(-w.balancePaise)} in overdraft` : 'finished'}`;   // the admin text (English)
+                const body = w.balancePaise < 0 ? `The wallet is ${rs(-w.balancePaise)} in overdraft. Add money so new orders can keep coming.` : 'The wallet is finished. Add money so new orders can keep coming.';
+                safe(() => center.notify('wallet_empty', { tenantId: t._id, title: 'Your wallet is finished', body, vars: { summary }, data: { prompt: 'wallet' } }));
             }
         } else if (lowAt > 0 && w.balancePaise <= lowAt) {
             const c = await PartnerWallet.updateOne({ _id: w._id, lowAlertedAt: { $in: [null, undefined] } }, { $set: { lowAlertedAt: now } });
             if (c.modifiedCount) {
-                const summary = `The wallet has ${rs(w.balancePaise)} left`;
-                safe(() => center.notify('wallet_low', { tenantId: t._id, title: 'Your wallet is running low', body: `${summary}. Add money soon.`, vars: { summary }, data: { prompt: 'wallet' } }));
+                const summary = `The wallet has ${rs(w.balancePaise)} left`;   // the admin text (English)
+                safe(() => center.notify('wallet_low', { tenantId: t._id, title: 'Your wallet is running low', body: `The wallet has ${rs(w.balancePaise)} left. Add money soon.`, vars: { summary }, data: { prompt: 'wallet' } }));
             }
         }
     }
