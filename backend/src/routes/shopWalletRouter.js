@@ -25,6 +25,17 @@ router.get('/history', wrap(async (req, res) => {
     res.json(await wallet.history(req.tenant._id, { limit: parseInt(req.query.limit, 10) || 50 }));
 }));
 
+// the tax invoice (or receipt) of a paid top-up, as a PDF (?view=1 shows it instead of downloading)
+router.get('/topups/:id/invoice', wrap(async (req, res) => {
+    const PartnerTopup = require('../models/PartnerTopup');
+    const t = /^[0-9a-f]{24}$/.test(req.params.id) ? await PartnerTopup.findOne({ _id: req.params.id, tenantId: req.tenant._id }).select('status').lean() : null;
+    if (!t) throw httpError(404, 'Top-up not found');
+    if (t.status !== 'paid') throw httpError(409, 'The invoice is made when the top-up is paid');
+    const inv = await topups.ensureInvoice(req.params.id);
+    if (!inv) throw httpError(409, 'The invoice is not ready yet. Please try again later.');
+    require('../services/subscriptionInvoicePdf').streamSubscriptionInvoice(res, inv, { inline: req.query.view === '1' });
+}));
+
 router.post('/topup/start', wrap(async (req, res) => {
     res.status(201).json(await platformCheckout.startPartnerTopup({ tenantId: req.tenant._id, amountPaise: req.body?.amountPaise, actor: actorOf(req) }));
 }));

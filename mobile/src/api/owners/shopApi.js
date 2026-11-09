@@ -307,6 +307,7 @@ export const startWalletPay = (amountPaise) => d(api.post('/shop/wallet/topup/st
 export const verifyWalletPay = (id, proof) => d(api.post(`/shop/wallet/topup/${id}/verify`, proof));
 export const startTopupPay = (amountPaise) => d(api.post('/shop/sms/topup/start', { amountPaise }));
 export const verifyTopupPay = (id, proof) => d(api.post(`/shop/sms/topup/${id}/verify`, proof));
+export const walletInvoicePdfPath = (id) => `/shop/wallet/topups/${id}/invoice`;               // the tax invoice / receipt of a paid wallet top-up
 export const topupInvoicePdfPath = (id) => `/shop/sms/topups/${id}/invoice`;               // the tax invoice / receipt of a paid SMS top-up
 
 /* ------------------------------ activity and notifications ------------------------------ */

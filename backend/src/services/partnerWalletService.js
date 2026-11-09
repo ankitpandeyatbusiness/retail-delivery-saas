@@ -145,7 +145,7 @@ async function history(tenantId, { limit = 50 } = {}) {
     const monthStart = new Date(); monthStart.setUTCHours(0, 0, 0, 0); monthStart.setUTCDate(1);
     const m = await PartnerTransaction.aggregate([{ $match: { tenantId: new mongoose.Types.ObjectId(String(tenantId)), type: 'fee', createdAt: { $gte: monthStart } } }, { $group: { _id: null, sum: { $sum: '$amountPaise' }, n: { $sum: 1 } } }]);
     return {
-        items: rows.map((r) => ({ id: String(r._id), type: r.type, amountPaise: r.amountPaise, balanceAfter: r.balanceAfter, orderNo: r.orderNo || null, baseRs: r.baseRs ?? null, note: r.note || '', at: r.createdAt })),
+        items: rows.map((r) => ({ id: String(r._id), type: r.type, amountPaise: r.amountPaise, balanceAfter: r.balanceAfter, orderNo: r.orderNo || null, baseRs: r.baseRs ?? null, topupId: r.type === 'topup' && /^ptopup:[0-9a-f]{24}$/.test(r.paymentId || '') ? r.paymentId.slice(7) : null, note: r.note || '', at: r.createdAt })),
         feesThisMonth: { paise: -(m[0]?.sum || 0), orders: m[0]?.n || 0 },
     };
 }

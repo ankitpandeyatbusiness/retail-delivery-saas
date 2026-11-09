@@ -6,7 +6,9 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useBrand, alpha } from '../../components/common/kit';
 import { PageHeader, Card, Chips, Button, Pill, SectionTitle, Field } from '../../components/owners/ui';
 import { MoneyRow } from '../../components/owners/moneyBits';
-import { fetchWallet, fetchWalletHistory } from '../../api/owners/shopApi';
+import { fetchWallet, fetchWalletHistory, walletInvoicePdfPath } from '../../api/owners/shopApi';
+import { showToast } from '../../components/customers/shop';
+import { downloadAndOpen } from '../../utils/owners/files';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { rupees, toPaise, ago } from '../../utils/owners/riderRules';
 import { LineShimmer, ListShimmer } from '../../components/owners/shimmer';
@@ -30,6 +32,11 @@ export default function OwnerWalletScreen() {
         try { const [a, b] = await Promise.all([fetchWallet(), fetchWalletHistory()]); setW(a); setH(b); } catch (e) { useOwnerStore.getState().noteError(e); setH((x) => x || { items: [] }); }
     }, []);
     useFocusEffect(useCallback(() => { load(); }, [load]));
+
+    const openInvoice = async (id) => {
+        try { await downloadAndOpen({ path: walletInvoicePdfPath(id), filename: `wallet-invoice-${id}.pdf`, mime: 'application/pdf', title: tr('Wallet top-up invoice') }); }
+        catch (e) { showToast(e?.response?.status === 409 ? tr('The invoice is not ready yet') : tr('Could not open the invoice')); }
+    };
 
     const paise = toPaise(amount);
     const bad = paise && w && (paise < w.minPaise || paise > w.maxPaise);
@@ -78,6 +85,8 @@ export default function OwnerWalletScreen() {
                             value={`${t.amountPaise < 0 ? '−' : '+'}${rupees(Math.abs(t.amountPaise))}`}
                             color={t.amountPaise < 0 ? text : ok}
                             last={i === h.items.length - 1}
+                            action={t.topupId ? tr('Open invoice (PDF)') : undefined}
+                            onAction={() => openInvoice(t.topupId)}
                         />
                     ))}
                 </Card>

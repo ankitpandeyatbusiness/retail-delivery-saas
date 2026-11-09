@@ -181,3 +181,22 @@ describe('supreme admin corrections', () => {
         assert.equal(g.body.check.differencePaise, 0);
     });
 });
+
+describe('the top-up invoice (PDF)', () => {
+    test('the history carries the top-up id, and the invoice opens as a PDF once the business is set up', async () => {
+        const PlatformSettings = require('../src/models/PlatformSettings');
+        await PlatformSettings.updateOne({ _id: 'main' }, { $set: { 'business.gstin': '09AAAAA0000A1Z5', 'business.legalName': 'Test Co', 'business.state': 'Uttar Pradesh', 'business.address': 'Lucknow' } }, { upsert: true });
+        const start = await owner('post', '/wallet/topup/start', { amountPaise: 50000 });
+        const t = await PartnerTopup.findById(start.body.topupId).lean();
+        payments._mock.setPayment({ id: 'pay_inv1', orderId: start.body.rzpOrderId, status: 'captured', amountPaise: t.payablePaise });
+        await owner('post', `/wallet/topup/${start.body.topupId}/verify`, { razorpay_order_id: start.body.rzpOrderId, razorpay_payment_id: 'pay_inv1', razorpay_signature: sign(start.body.rzpOrderId, 'pay_inv1') });
+        const h = (await owner('get', '/wallet/history')).body;
+        const row = h.items.find((x) => x.type === 'topup');
+        assert.equal(row.topupId, String(start.body.topupId));
+        const pdf = await owner('get', `/wallet/topups/${row.topupId}/invoice`).buffer(true).parse((res, cb) => { const c = []; res.on('data', (d) => c.push(d)); res.on('end', () => cb(null, Buffer.concat(c))); });
+        assert.equal(pdf.status, 200);
+        assert.match(pdf.headers['content-type'], /pdf/);
+        assert.equal(pdf.body.slice(0, 4).toString(), '%PDF');
+        assert.equal((await owner('get', `/wallet/topups/${'0'.repeat(24)}/invoice`)).status, 404);   // another shop's or unknown top-up
+    });
+});

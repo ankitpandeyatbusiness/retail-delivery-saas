@@ -5229,6 +5229,7 @@ export default {
     "Walk-outs": "ચૂકવ્યા વગર ગયેલા",
     "Wallet": "વૉલેટ",
     "Wallet balance adjusted (GST already paid on it)": "વૉલેટ બૅલેન્સ સમાયોજિત (તેના પર GST પહેલેથી ચૂકવાયેલ છે)",
+    "Wallet top-up invoice": "વૉલેટ ટૉપ-અપ ઇન્વૉઇસ",
     "Wallet {rupees}. Open the wallet": "વૉલેટ {rupees}. વૉલેટ ખોલો",
     "Wanted on {v1}": "{v1} ના રોજ જોઈએ",
     "Wants the bill": "બિલ જોઈએ",
