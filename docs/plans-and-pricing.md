@@ -25,3 +25,12 @@ All values are defaults in `backend/src/config/plans.js` and editable by the sup
 
 ## To confirm with your CA
 GST on the per-order fee and on wallet top-ups; the SAC code; delivery charge excluded from the fee base; the Terms wording (shop owner Terms sections 3, 4, 6, 11 were rewritten for plans and need a lawyer's check).
+
+## Brands (one plan per brand)
+- A brand has ONE plan, set by the supreme admin on its MAIN shop; every branch carries a copy (`plan.inheritedFrom`), kept in step by `services/brandPlan.js`. The plan of a branch cannot be edited on its own.
+- 3 shops are free (the main shop + 2 branches). This is editable PER BRAND (Brand screen > Plan and shops) and the platform default is More > Plan defaults (`includedBranches`, the branches besides the main shop). The supreme admin can also allow free extra shops (audit logged).
+- Each extra shop is Rs 1,499 a month + GST (setting `branchAddonPaise`). The brand owner pays FIRST (owner app: Plan > Your shops > Add an extra shop): Rs 1,499 split by the whole days left of the paid term / 30, with its own small invoice. Then the platform team can create the branch; creating beyond the paid places is refused.
+- The RENEWAL is one payment and one invoice: the plan + the extra shops x months, the 1 to 6 month discount on both, GST once. A branch removed stops being billed at the next renewal. No refund of paid days.
+- Only the brand owner pays; a branch's owner works on the main shop's plan.
+- With no multi-branch (Pro) in the brand, switching to another branch is VIEW ONLY and the brand tools are refused.
+- Existing brands whose branches had plans of their own: the brand screen lists them, and "Make every branch follow the main plan" merges them. The phase 9 move moves the main shop and the branches follow.
