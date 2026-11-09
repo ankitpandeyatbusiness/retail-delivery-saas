@@ -51,7 +51,7 @@ export default function SoundboxScreen() {
     const hindi = st.language === 'hi';
     const role = useAuthStore((x) => x.user?.role);
     const planVoice = usePlanHas('soundboxVoice');
-    const voiceOk = role !== 'admin' || planVoice;   // the owner's plan decides; staff and riders are not asked
+    const voiceOk = planVoice;   // the shop's plan decides, for every role (the owner's settings or the shop config)
     const staff = role === 'kitchen' || role === 'waiter';
     const rider = role === 'rider';   // a rider only chooses the voice, the language and the volume
 

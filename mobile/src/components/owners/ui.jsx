@@ -12,6 +12,7 @@ import { useThemeStore } from '../../store/common/useThemeStore';
 import { useNotificationStore } from '../../store/common/useNotificationStore';
 import { useHomeStore } from '../../store/customers/useHomeStore';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
+import { useBrandStore } from '../../store/owners/useBrandStore';
 import { useDrawer } from '../../store/owners/useDrawer';
 import { useAlertStore } from '../../store/owners/useAlertStore';
 import { setAcceptingOrders, apiError } from '../../api/owners/shopApi';
@@ -335,6 +336,21 @@ export function AccessBanner() {
     const { error } = useBrand();
     const access = useOwnerStore((st) => st.access);
     const billing = useOwnerStore((st) => st.billing);
+    // A brand owner looking at another branch while no branch of the brand has multi-branch (Pro): everything can be read, nothing can be changed.
+    const viewOnly = useBrandStore((st) => !!st.me?.viewOnly);
+    if (viewOnly) {
+        return (
+            <Card tone={error} style={{ marginHorizontal: 16, marginBottom: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Ionicons name="eye" size={22} color={error} />
+                    <View style={{ flex: 1, marginLeft: 10 }}>
+                        <Text style={{ color: error, fontWeight: '900' }}>{tr('View only')}</Text>
+                        <Text style={{ color: error, opacity: 0.85, fontSize: 12, marginTop: 2 }}>{tr('You can look at this branch but not change anything. Managing your branches needs the Pro plan.')}</Text>
+                    </View>
+                </View>
+            </Card>
+        );
+    }
     if (access === 'ok') return null;
     const blocked = access === 'blocked';
     const planPaused = !blocked && !!billing?.planPaused;

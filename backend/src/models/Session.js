@@ -2,6 +2,9 @@ const mongoose = require('mongoose');
 
 // One document per logged-in device. Replaces User.refreshTokens[].
 const sessionSchema = new mongoose.Schema({
+    // View-only session (a brand owner looking at another branch when no branch of the brand has multi-branch, Pro): the server refuses every change on it.
+    viewOnly: { type: Boolean, default: undefined },
+    homeTenantId: { type: mongoose.Schema.Types.ObjectId },   // the branch this owner really works in; switching back to it gives a full session
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true },
 

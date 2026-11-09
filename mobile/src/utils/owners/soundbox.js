@@ -32,6 +32,7 @@ import { fetchKitchenOrders } from '../../api/staff/staffApi';
 import { buildGreeting } from './greetings';
 import { useAlertPrefs, alertOn } from '../../store/common/useAlertPrefs';
 import { useMenuFlags, planHas } from './menuFlags';
+import { useHomeStore } from '../../store/customers/useHomeStore';
 import { showSlider } from '../../components/common/AlertSliderHost';
 import { tr, getLang } from '../../i18n';
 
@@ -372,8 +373,8 @@ export async function previewGreeting() {
 // at the same moment: only the second was heard). Now it waits for the first to finish. Stopping everything (stopLoop) drops the voices still waiting.
 let voiceChain = Promise.resolve();
 let voiceEpoch = 0;
-// Soundbox voice is in Growth and Pro. An owner on Partner keeps the sound, the slider and the tone, but nothing is read out loud (kitchen, waiters and riders are not asked: they have no plan).
-const voiceAllowed = () => { try { return useAuthStore.getState().user?.role !== 'admin' || planHas(useMenuFlags.getState().plan, 'soundboxVoice'); } catch (e) { return true; } };
+// Soundbox voice is in Growth and Pro. On Partner the sound, the slider and the tone stay, but nothing is read out loud (every role: the shop config carries the plan).
+const voiceAllowed = () => { try { return planHas(useMenuFlags.getState().plan || useHomeStore.getState().plan, 'soundboxVoice'); } catch (e) { return true; } };
 async function speak(said, language, type) {
     if (!voiceAllowed()) return;
     if (type && !alertOn(type, 'v')) return;   // the Voice switch of this alert (Alerts screen)

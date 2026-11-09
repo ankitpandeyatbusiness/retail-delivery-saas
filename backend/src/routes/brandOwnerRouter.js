@@ -50,6 +50,13 @@ router.use(wrap(async (req, res, next) => {
     if (!brand || !(brand.ownerPhones || []).includes(user.phone)) throw httpError(403, 'Only a brand owner can do this');
     req.brand = brand;
     req.brandUser = user;
+    // Multi-branch (Pro): if ANY branch of the brand is on a plan with it, the brand tools work for the whole brand. Otherwise the owner can still LOOK at every branch
+    // (the switch gives a view-only session) but the tools that change things are refused. Paying dues and switching always work.
+    const gate = require('../services/featureGate');
+    req.brandPro = (await Tenant.find({ brandId: brand._id }).select('plan').lean()).some((b) => gate.hasFeature(b, 'multiBranch'));
+    if (!req.brandPro && !['GET', 'HEAD', 'OPTIONS'].includes(req.method) && !/^\/(switch|dues)(\/|$)/.test(req.path)) {
+        throw httpError(403, 'Branch tools are in the Pro plan. You can look at your branches, not change them. See Plan to upgrade.');
+    }
     next();
 }));
 
@@ -66,6 +73,8 @@ router.get('/me', wrap(async (req, res) => {
     res.json({
         brand: { id: req.brand._id, name: req.brand.name },
         current: req.tenant.slug,
+        viewOnly: !!(req.sessionFlags && req.sessionFlags.viewOnly),   // this session can only look (see /switch)
+        canManage: req.brandPro,                                       // the brand tools are open (some branch has multi-branch)
         branches: list.map((t) => ({ slug: t.slug, name: t.name, logo: t.logo || null, status: t.status, city: t.branchCity || (t.address && t.address.city) || null })),
     });
 }));
@@ -163,8 +172,11 @@ router.post('/switch', wrap(async (req, res) => {
     await appoint(target, req.brandUser.phone);   // the owner is an owner there too (made once, then it only reads)
     const user = await User.findOne({ tenantId: target._id, phone: req.brandUser.phone });
     if (!user || user.isBlocked) throw httpError(403, 'This account cannot sign in there');
-    const { accessToken, refreshToken } = await authController.issueSession(user, target, req, req.ip);
-    res.json({ success: true, slug: target.slug, name: target.name, user: { id: user._id, phone: user.phone, name: user.name || null, role: user.role }, accessToken, refreshToken });
+    // no multi-branch anywhere in the brand: the other branches open VIEW ONLY; the branch this owner really works in (where his full session began) stays full
+    const home = (req.sessionFlags && req.sessionFlags.homeTenantId) || req.tenant._id;
+    const viewOnly = !req.brandPro && String(target._id) !== String(home);
+    const { accessToken, refreshToken } = await authController.issueSession(user, target, req, req.ip, { viewOnly, homeTenantId: req.brandPro ? undefined : home });
+    res.json({ success: true, viewOnly, slug: target.slug, name: target.name, user: { id: user._id, phone: user.phone, name: user.name || null, role: user.role }, accessToken, refreshToken });
 }));
 
 router.post('/menu/push', wrap(async (req, res) => {

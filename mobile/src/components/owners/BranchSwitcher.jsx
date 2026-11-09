@@ -22,7 +22,7 @@ export default function BranchSwitcher({ onGo }) {
         if (b.slug === me.current) return;
         const yes = await ask({
             title: tr('Switch to {name}?', { name: b.name }),
-            message: tr('The app restarts and opens {name}.', { name: b.name }),
+            message: me.canManage === false && me.viewOnly !== undefined ? tr('The app restarts and opens {name}. You can look at it but not change anything, because managing branches needs the Pro plan.', { name: b.name }) : tr('The app restarts and opens {name}.', { name: b.name }),
             confirmText: tr('Switch'),
         });
         if (!yes) return;

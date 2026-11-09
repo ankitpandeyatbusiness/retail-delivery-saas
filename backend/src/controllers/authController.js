@@ -135,7 +135,7 @@ const findOrCreateUser = async (tenantId, phone) => {
     }
 };
 
-const issueSession = async (user, tenant, req, ip) => {
+const issueSession = async (user, tenant, req, ip, { viewOnly, homeTenantId } = {}) => {
     const sessionId = new mongoose.Types.ObjectId();
     const { accessToken, refreshToken } = tokenService.generateTokens({
         userId: user._id,
@@ -148,6 +148,7 @@ const issueSession = async (user, tenant, req, ip) => {
         userId: user._id,
         tenantId: tenant._id,
         refreshTokenHash: tokenService.hashToken(refreshToken),
+        ...(viewOnly ? { viewOnly: true } : {}), ...(homeTenantId ? { homeTenantId } : {}),
         deviceId: String(req.headers['x-device-id'] || 'unknown').substring(0, 64),
         userAgent: String(req.headers['user-agent'] || '').substring(0, 200),
         ipHash: sha256(ip),

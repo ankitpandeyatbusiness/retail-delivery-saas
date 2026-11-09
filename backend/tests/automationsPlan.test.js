@@ -107,3 +107,72 @@ describe('other owner options follow the plan', () => {
         }
     });
 });
+
+describe('the staff limit and the branch tools follow the plan', () => {
+    const staffSvc = require('../src/services/staffService');
+    const Brand = require('../src/models/Brand');
+
+    test('the owner screens read the plan\'s number of logins (Growth 5, Pro the shop\'s own), an extra lifts Partner', async () => {
+        await setPlan('growth');
+        const t = await Tenant.findById(w.tenant._id).lean();
+        assert.equal(staffSvc.rulesOf(t).max, 5);
+        await setPlan('pro');
+        assert.ok(staffSvc.rulesOf(await Tenant.findById(w.tenant._id).lean()).max >= 5);
+        await setPlan('partner', [{ key: 'staffLogins' }]);
+        assert.equal(staffSvc.rulesOf(await Tenant.findById(w.tenant._id).lean()).max, 5);
+        await setPlan('partner');
+        assert.equal(staffSvc.rulesOf(await Tenant.findById(w.tenant._id).lean()).max, 0);
+    });
+
+    // ---- branches: any branch on Pro unlocks the brand tools; otherwise the owner can switch and LOOK, never change
+    const brandOf = async (planA, planB) => {
+        const second = await f.makeWorld(slug + '-b');
+        const brand = await Brand.create({ name: 'Savera', ownerPhones: ['9000000010'] });
+        await Tenant.updateMany({ _id: { $in: [w.tenant._id, second.tenant._id] } }, { $set: { brandId: brand._id } });
+        await setPlan(planA);
+        await Tenant.updateOne({ _id: second.tenant._id }, { $set: { plan: { id: planB } } });
+        tenantRecognizer.invalidateTenant(second.tenant.slug);
+        return second;
+    };
+    const asOwner = (tenantSlug, token) => ({ 'x-tenant-slug': tenantSlug, Authorization: 'Bearer ' + token });
+    const jump = async (fromHeaders, toSlug) => (await request(app).post('/api/brand/switch').set(fromHeaders).send({ slug: toSlug }));
+
+    test('no branch on Pro: the brand tools that change things are refused, looking and paying are not', async () => {
+        await brandOf('growth', 'growth');
+        const me = await request(app).get('/api/brand/me').set(w.owner.headers);
+        assert.equal(me.status, 200, JSON.stringify(me.body));
+        assert.equal(me.body.canManage, false);
+        const change = await request(app).post('/api/brand/managers').set(w.owner.headers).send({ slug: slug + '-b', phone: '9000000099' });
+        assert.equal(change.status, 403);
+        assert.match(change.body.error, /Pro plan/);
+        assert.notEqual((await request(app).get('/api/brand/dues').set(w.owner.headers)).status, 403);
+    });
+
+    test('no branch on Pro: switching opens the other branch VIEW ONLY (reads work, every change is refused); switching back is full again', async () => {
+        const second = await brandOf('growth', 'growth');
+        const sw = await jump(w.owner.headers, second.tenant.slug);
+        assert.equal(sw.status, 200);
+        assert.equal(sw.body.viewOnly, true);
+        const h = asOwner(second.tenant.slug, sw.body.accessToken);
+        assert.equal((await request(app).get('/api/shop/orders').set(h)).status, 200);
+        const write = await request(app).put('/api/shop/accepting-orders').set(h).send({ acceptingOrders: false });
+        assert.equal(write.status, 403);
+        assert.equal(write.body.viewOnly, true);
+        assert.equal((await request(app).get('/api/brand/me').set(h)).body.viewOnly, true);
+        // back to the branch he really works in: a full session
+        const back = await jump(h, slug);
+        assert.equal(back.status, 200);
+        assert.equal(back.body.viewOnly, false);
+        const hb = asOwner(slug, back.body.accessToken);
+        assert.notEqual((await request(app).put('/api/shop/accepting-orders').set(hb).send({ acceptingOrders: true })).status, 403);
+    });
+
+    test('ANY branch on Pro unlocks the whole brand: tools work and switching is full', async () => {
+        const second = await brandOf('growth', 'pro');
+        assert.equal((await request(app).get('/api/brand/me').set(w.owner.headers)).body.canManage, true);
+        const sw = await jump(w.owner.headers, second.tenant.slug);
+        assert.equal(sw.body.viewOnly, false);
+        const h = asOwner(second.tenant.slug, sw.body.accessToken);
+        assert.notEqual((await request(app).put('/api/shop/accepting-orders').set(h).send({ acceptingOrders: true })).status, 403);
+    });
+});

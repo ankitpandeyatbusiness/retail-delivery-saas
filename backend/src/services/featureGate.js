@@ -24,7 +24,13 @@ function hasFeature(tenant, key) {
     return !!p.extras?.some((e) => e.key === key);
 }
 // the plan's number for riders / staff (null = unlimited, also for a shop with no plan yet)
-const limitOf = (tenant, what) => (tenant?.plan?.id ? plans.limitFor(tenant.plan.id, what) : null);
+const limitOf = (tenant, what) => {
+    if (!tenant?.plan?.id) return null;
+    const n = plans.limitFor(tenant.plan.id, what);
+    // a Partner shop the supreme admin gave kitchen and waiter logins as an extra gets the Growth number
+    if (what === 'staff' && n === 0 && hasFeature(tenant, 'staffLogins')) return plans.limitFor('growth', 'staff');
+    return n;
+};
 const planGate = (key) => (req, res, next) => (hasFeature(req.tenant, key) ? next() : next(httpError(403, `${plans.FEATURES[key]?.label || key} is not in your plan. See Plan to upgrade.`)));
 
 module.exports = { isOn, gate, hasFeature, planGate, limitOf, NAMES, UNAVAILABLE };

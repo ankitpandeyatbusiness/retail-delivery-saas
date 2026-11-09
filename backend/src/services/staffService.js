@@ -14,7 +14,13 @@ const PHONE_RE = /^[6-9]\d{9}$/;
 const ROLES = ['kitchen', 'waiter'];
 const JOB = { kitchen: 'Kitchen', waiter: 'Waiter' };
 
-const rulesOf = (tenant) => ({ ...DEFAULTS.orders.staff, ...(resolveConfig(tenant).orders.staff || {}) });
+// the plan's number of kitchen and waiter logins (Growth 5, Pro unlimited) caps the shop's own limit; the owner screens read max from here
+const rulesOf = (tenant) => {
+    const r = { ...DEFAULTS.orders.staff, ...(resolveConfig(tenant).orders.staff || {}) };
+    const cap = require('./featureGate').limitOf(tenant, 'staff');
+    if (cap !== null && cap !== undefined) r.max = Math.min(Number.isFinite(r.max) ? r.max : cap, cap);
+    return r;
+};
 const allowed = (rules, role) => (role === 'kitchen' ? rules.kitchenOn : rules.waiterOn) === true;
 
 const shape = (s, phone, closed = false) => ({ userId: String(s.userId), role: s.role, job: JOB[s.role], name: s.name || '', phone: phone || '', isActive: s.isActive, photo: s.photo || null, lastSeenAt: s.lastSeenAt || null, duty: require('./staffDuty').statusOf(s, new Date(), closed) });   // duty: on | off | outside | holiday

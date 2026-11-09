@@ -6,9 +6,15 @@ import { create } from 'zustand';
 import { readCache, writeCache } from '../common/cache';
 import { fetchSettings } from '../../api/owners/shopApi';
 import { ease } from '../common/ease';
+import { useHomeStore } from '../../store/customers/useHomeStore';
 
 const KEY = 'menuFlags';
-export const usePlanHas = (key) => useMenuFlags((s) => planHas(s.plan, key));
+// the owner's own plan (from his settings) or, for every other role, what the shop config says (the same features map)
+export const usePlanHas = (key) => {
+    const own = useMenuFlags((s) => s.plan);
+    const shop = useHomeStore((s) => s.plan);
+    return planHas(own || shop, key);
+};
 
 // Does the shop's plan include a feature? Screens use it to show an option only when the plan has it (the server refuses the rest anyway). No plan yet = everything.
 export const planHas = (plan, key) => !plan || plan.features?.[key] !== false;

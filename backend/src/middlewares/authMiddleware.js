@@ -30,12 +30,17 @@ module.exports = async function authenticate(req, res, next) {
     try {
         // Logout, a blocked user, or a stolen-token kill deletes the session,
         // so the access token stops working immediately.
-        const alive = await Session.exists({
+        const alive = await Session.findOne({
             _id: decoded.sid,
             userId: decoded.sub,
             tenantId: req.tenant._id,
-        });
+        }).select('viewOnly homeTenantId').lean();
         if (!alive) return res.status(401).json({ error: 'Session ended' });
+        // a view-only session may look at everything and change nothing (only switching branch, signing out and refreshing are allowed)
+        if (alive.viewOnly && !['GET', 'HEAD', 'OPTIONS'].includes(req.method) && !/^\/api\/(brand\/switch|auth\/)/.test(req.originalUrl)) {
+            return res.status(403).json({ error: 'View only. This branch is open for you to look at. Upgrade to Pro to manage your branches.', viewOnly: true });
+        }
+        req.sessionFlags = { viewOnly: !!alive.viewOnly, homeTenantId: alive.homeTenantId || null };
     } catch (e) {
         return res.status(500).json({ error: 'Could not verify session' });
     }

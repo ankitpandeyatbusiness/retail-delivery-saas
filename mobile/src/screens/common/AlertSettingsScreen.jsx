@@ -34,7 +34,7 @@ export default function AlertSettingsScreen() {
     const { groups, loaded, load, change, reset } = useAlertPrefs();
     const language = useSoundboxStore((s) => s.language);
     const planVoice = usePlanHas('soundboxVoice');
-    const voiceOk = useAuthStore((x) => x.user?.role) !== 'admin' || planVoice;   // Soundbox voice is Growth and Pro: on Partner the owner has the sound, tone and slider only
+    const voiceOk = planVoice;   // Soundbox voice is Growth and Pro: on Partner there is the sound, tone and slider only
     useEffect(() => { load(); }, [load]);
 
     const flip = (g, k, v) => {
