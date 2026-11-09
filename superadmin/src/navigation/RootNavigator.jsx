@@ -57,7 +57,6 @@ import InvoiceDetailScreen from '../screens/money/InvoiceDetailScreen';
 import LedgerScreen from '../screens/money/LedgerScreen';
 import SmsProfitScreen from '../screens/money/SmsProfitScreen';
 import PlatformSmsScreen from '../screens/money/PlatformSmsScreen';
-import PlatformBillingScreen from '../screens/money/PlatformBillingScreen';
 import PlatformBusinessScreen from '../screens/money/PlatformBusinessScreen';
 import GstRegisterScreen from '../screens/money/GstRegisterScreen';
 import BrandsScreen from '../screens/operators/BrandsScreen';
@@ -228,8 +227,6 @@ const DETAIL = [
     ['Coupons', CouponsScreen],
     ['CouponForm', CouponFormScreen],
     ['PlatformSms', PlatformSmsScreen],
-    ['PlatformBilling', PlatformBillingScreen],
-    ['PlanDefaults', PlanDefaultsScreen],
     ['PlatformBusiness', PlatformBusinessScreen],
     ['GstRegister', GstRegisterScreen],
     ['MyRazorpay', MyRazorpayScreen],

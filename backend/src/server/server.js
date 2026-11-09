@@ -70,7 +70,7 @@ connectDB()
             console.log(`🚀 Server running on port ${PORT}`);
             registerShutdown(server);
             realtime.init(server);   // live updates (Socket.IO)
-            startBillingScheduler();
+            // old rent billing is stopped (plans replace it, docs/old-billing-removal-list.md): no monthly bills, no rent grace/pause job
             startComplaintRemindersScheduler();
             startCleanupUploadsScheduler();
             startBackupScheduler();

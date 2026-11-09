@@ -69,7 +69,7 @@ export default function OwnerMoneyScreen({ page = false } = {}) {
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Ionicons name="alert-circle" size={26} color={error} />
                         <View style={{ flex: 1, marginLeft: 12 }}>
-                            <Text style={{ color: error, fontWeight: '900' }}>{tr('Monthly bill due: {money}', { money: money(due) })}</Text>
+                            <Text style={{ color: error, fontWeight: '900' }}>{tr('Old bill due: {money}', { money: money(due) })}</Text>
                             <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{bill.paused ? tr('Your menu and settings are locked until it is paid.') : bill.graceDaysLeft != null ? tr('{graceDaysLeft} {v2} left to pay.', { graceDaysLeft: bill.graceDaysLeft, v2: bill.graceDaysLeft === 1 ? 'day' : 'days' }) : tr('Please pay it.')}</Text>
                         </View>
                         <Pill label={tr('Pay')} color={error} />

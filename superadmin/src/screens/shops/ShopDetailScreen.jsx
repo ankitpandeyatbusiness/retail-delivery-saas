@@ -116,23 +116,12 @@ export default function ShopDetailScreen() {
                 ))}
             </Card>
 
-            {rec.rent ? (
-                <>
-                    <SectionTitle section="money">Rent</SectionTitle>
-                    <Card style={{ paddingVertical: 0 }}>
-                        <KeyValue label="Now" value={{ not_live: 'Not live yet', free: 'Free period', paying: 'Paying', grace: 'Bill unpaid (grace)', paused: 'Paused: unpaid bill' }[rec.rent.stage]} />
-                        {rec.rent.stage === 'free' ? <KeyValue label="Free orders left" value={String(rec.rent.free.ordersLeft)} /> : null}
-                        {rec.rent.stage === 'free' ? <KeyValue label="Free period ends by" value={dateOnly(rec.rent.free.endsAt)} /> : null}
-                        {rec.rent.stage === 'free' && rec.rent.first ? <KeyValue label="First rent for" value={monthName(rec.rent.first.period)} /> : null}
-                        {rec.rent.next ? <KeyValue label="Month being counted" value={monthName(rec.rent.next.period)} /> : null}
-                        {rec.rent.next ? <KeyValue label="Orders so far" value={String(rec.rent.next.orders)} /> : null}
-                        {rec.rent.next ? <KeyValue label="Rent so far" value={rupees(rec.rent.next.total)} /> : null}
-                        {rec.rent.next ? <KeyValue label="Billed on" value={dateOnly(rec.rent.next.billedOn)} /> : null}
-                        <KeyValue label={rec.rent.custom ? 'This shop\'s own plan' : 'Platform plan'} value={rec.rent.plan} last />
-                    </Card>
-                    <Button title="Open rent and plan" kind="soft" icon="receipt" onPress={() => nav.navigate('ShopBilling', { shopId, name: tenant.name })} style={{ marginTop: spacing.sm }} />
-                </>
-            ) : null}
+            <SectionTitle section="money">Plan</SectionTitle>
+            <Card>
+                <Text style={{ color: t.muted }}>{rec.rent && ['grace', 'paused'].includes(rec.rent.stage) ? 'An old rent bill is still open.' : 'Plan, free days, extras, wallet and the website and app switches.'}</Text>
+                <Button title="Open the plan" kind="soft" icon="star" onPress={() => nav.navigate('ShopPlan', { shopId, name: tenant.name })} style={{ marginTop: spacing.sm }} />
+                {rec.rent && ['grace', 'paused'].includes(rec.rent.stage) ? <Button title="Open the old rent bills" kind="soft" icon="receipt" onPress={() => nav.navigate('ShopBilling', { shopId, name: tenant.name })} style={{ marginTop: spacing.sm }} /> : null}
+            </Card>
 
             <SectionTitle section="platform">Details</SectionTitle>
             <Card style={{ paddingVertical: 0 }}>

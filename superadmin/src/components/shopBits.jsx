@@ -59,7 +59,6 @@ export function ShopRow({ shop, onPress, compact }) {
                     {shop.plan?.id ? <Badge label={planLine(shop.plan)} tone="info" icon="star" /> : null}
                     {shop.state?.reasons?.length > 1 ? <Badge label={`+${shop.state.reasons.length - 1} more`} /> : null}
                     {billing === 'paused' || billing === 'grace' ? <Badge label={`Rent ${billing}`} tone={billing === 'paused' ? 'danger' : 'warn'} icon="receipt" /> : null}
-                    {shop.rent?.custom ? <Badge label="Own rent plan" tone="info" icon="tune" /> : null}
                 </View>
                 {shop.stats && shop.status === 'active' ? (
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', marginTop: spacing.sm }}>

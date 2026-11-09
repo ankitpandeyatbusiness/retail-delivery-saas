@@ -9,7 +9,6 @@ const S = (shopId) => `${T(shopId)}/shop`;
 export const fetchPlatform = () => data(api.get('/admin/platform'));
 export const saveBusiness = (body) => data(api.put('/admin/platform/business', body));
 export const saveBillingRules = (body) => data(api.put('/admin/platform/billing', body));        // { dueDays?, graceDays?, freeOrders?, freeMonths?, lateFeePercent?, lateFeeEveryDays?, overdueRemindDays? }
-export const saveTiers = (tiers) => data(api.put('/admin/platform/billing/tiers', { tiers }));   // [{ upTo, fee }]  last upTo = null
 export const fetchPlatformSms = () => data(api.get('/admin/platform/sms'));
 export const savePlatformSms = (body) => data(api.put('/admin/platform/sms', body));
 export const fetchSmsProfit = (params) => data(api.get('/admin/sms/profit', { params }));
@@ -17,20 +16,15 @@ export const fetchSmsProfit = (params) => data(api.get('/admin/sms/profit', { pa
 /* ---------------- rent invoices ---------------- */
 export const listInvoices = (params) => data(api.get('/admin/subscriptions/invoices', { params }));
 export const getInvoice = (id) => data(api.get(`/admin/subscriptions/invoices/${id}`));
-export const generateInvoices = (body) => data(api.post('/admin/subscriptions/invoices/generate', body));   // { period, tenantId? }
 export const setInvoiceStatus = (id, body) => data(api.patch(`/admin/subscriptions/invoices/${id}/status`, body));
 export const voidInvoice = (id, reason) => data(api.patch(`/admin/subscriptions/invoices/${id}/void`, { reason }));
 export const waiveInvoice = (id, reason) => data(api.patch(`/admin/subscriptions/invoices/${id}/waive`, { reason }));
-export const waiveAllLateFees = (shopId, reason) => data(api.post(`/admin/tenants/${shopId}/invoices/late-fees/waive-all`, { reason }));   // every unpaid late fee of one shop; the rent bills stay
 export const extendGrace = (id, days) => data(api.patch(`/admin/subscriptions/invoices/${id}/extend-grace`, { days }));
 export const resendInvoiceNotice = (id) => data(api.post(`/admin/subscriptions/invoices/${id}/resend`));
 
 /* ---------------- one shop's billing ---------------- */
 export const billingStatus = (shopId) => data(api.get(`${S(shopId)}/billing/status`));
-export const billingPreview = (shopId, period) => data(api.get(`${T(shopId)}/billing/preview`, { params: period ? { period } : undefined }));
-export const saveShopBilling = (shopId, body) => data(api.put(`${T(shopId)}/billing`, body));
 export const endFreePeriod = (shopId) => data(api.post(`${T(shopId)}/billing/end-free`, {}));
-export const goLive = (shopId, force) => data(api.post(`${T(shopId)}/billing/go-live`, force ? { force: true } : {}));
 export const unpauseShop = (shopId, days) => data(api.post(`${T(shopId)}/billing/unpause`, days ? { days } : {}));
 export const createCustomInvoice = (shopId, body) => data(api.post(`${T(shopId)}/invoices/custom`, body));
 

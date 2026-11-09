@@ -63,7 +63,7 @@ router.get('/subscriptions/invoices', wrap(async (req, res) => {
 }));
 
 // Registered before the /:id routes so "generate" is never read as an id (different method anyway)
-router.post('/subscriptions/invoices/generate', wrap(async (req, res) => {
+router.post('/subscriptions/invoices/generate', (req, res) => res.status(410).json({ error: 'Monthly rent bills were replaced by plans. Nothing is generated any more.', gone: true }), wrap(async (req, res) => {
     const period = req.body?.period || previousPeriod();
     if (!PERIOD_RE.test(String(period))) throw httpError(400, 'period must look like 2026-10');
     if (period >= periodOf(new Date())) throw httpError(400, 'You can only create an invoice for a month that has finished');

@@ -33,6 +33,8 @@ const feePlanNotice = require('../services/feePlanNotice');
 const { wrap, httpError } = require('../middlewares/apiErrors');
 
 const router = express.Router();
+// Old rent rules were replaced by plans (docs/old-billing-removal-list.md): these routes no longer change anything
+const gone = (req, res) => res.status(410).json({ error: 'This was replaced by plans. Use the shop Plan screen and Plan defaults.', gone: true });
 const DAY_MS = 24 * 60 * 60 * 1000;
 const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
 const isId = (v) => typeof v === 'string' && mongoose.isValidObjectId(v);
@@ -44,7 +46,7 @@ const wholeDays = (v, min, max, name) => {
 };
 
 /* ------------------------------ platform tiers ------------------------------ */
-router.put('/platform/billing/tiers', wrap(async (req, res) => {
+router.put('/platform/billing/tiers', gone, wrap(async (req, res) => {
     const v = validateTiers(req.body?.tiers);
     if (!v.ok) return res.status(400).json({ error: 'Invalid tiers', errors: v.errors });
     const before = await PlatformSettings.findById('main').select('billing.tiers').lean();
@@ -57,7 +59,7 @@ router.put('/platform/billing/tiers', wrap(async (req, res) => {
 }));
 
 /* ------------------------------ one shop: overrides ------------------------------ */
-router.put('/tenants/:tid/billing', loadTenant, wrap(async (req, res) => {
+router.put('/tenants/:tid/billing', gone, loadTenant, wrap(async (req, res) => {
     const body = req.body || {};
     const id = req.tenantDoc._id;
     req.auditBefore = { billing: (await Tenant.findById(id).select('billing').lean())?.billing };
@@ -228,7 +230,7 @@ router.post('/tenants/:tid/invoices/custom', loadTenant, wrap(async (req, res) =
 }));
 
 // Waive EVERY unpaid late fee of one shop. The rent bills stay unpaid and later fees are still made while a bill stays unpaid.
-router.post('/tenants/:tid/invoices/late-fees/waive-all', loadTenant, wrap(async (req, res) => {
+router.post('/tenants/:tid/invoices/late-fees/waive-all', gone, loadTenant, wrap(async (req, res) => {
     const reason = cleanText(req.body?.reason, 200);
     if (!reason) throw httpError(400, 'Write a reason');
     const r = await require('../services/lateFees').waiveAllFor(req.tenantDoc._id, { reason, by: req.admin.email });
@@ -283,7 +285,7 @@ router.patch('/subscriptions/invoices/:id/extend-grace', wrap(async (req, res) =
 // POST /api/admin/tenants/:tid/billing/go-live   { force?: true }
 // The shop opens for real business: the free period (orders and months) starts NOW and the counter starts at 0.
 // Before this a shop is free and nothing is counted. A shop that is already live is refused unless force is true.
-router.post('/tenants/:tid/billing/go-live', loadTenant, wrap(async (req, res) => {
+router.post('/tenants/:tid/billing/go-live', gone, loadTenant, wrap(async (req, res) => {
     if (req.body?.force !== undefined && typeof req.body.force !== 'boolean') throw httpError(400, 'force must be true or false');
     const force = req.body?.force === true;
     const id = req.tenantDoc._id;

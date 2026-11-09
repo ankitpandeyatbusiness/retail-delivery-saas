@@ -208,6 +208,10 @@ async function createInvoice(tenant, period, platform, now = new Date()) {
 
 // period "2026-09" (must be a finished month). tenantId is optional (leave out to do every shop).
 async function generateForPeriod({ period, tenantId } = {}) {
+    return { period: period || null, created: 0, stopped: true };   // STOPPED: shops pay plans now (old rent billing, docs/old-billing-removal-list.md)
+}
+
+async function generateForPeriodOld({ period, tenantId } = {}) {
     const now = new Date();
     const p = period || previousPeriod(now);
     if (!PERIOD_RE.test(p)) throw Object.assign(new Error('period must look like 2026-10'), { status: 400 });

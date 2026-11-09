@@ -193,7 +193,7 @@ async function planSweep(now) { await require('./planLifecycle').sweep(now); }
 async function closureSweep(now) { await require('./shopClosure').sweep(now); }
 
 async function runAlerts(now = new Date()) {
-    for (const step of [closureSweep, planSweep, issueLateFees, billIssued, graceReminders, pausedNotices, overdueReminders, paymentsReceived, freeEnding, smsBalances]) {
+    for (const step of [closureSweep, planSweep, paymentsReceived, smsBalances]) {   // old rent steps (bills issued, grace, paused, overdue, free ending, late fees) are stopped
         try {
             await step(now);
         } catch (e) {

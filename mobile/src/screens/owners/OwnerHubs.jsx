@@ -24,7 +24,7 @@ export const OwnerShopFrontHub = () => (
     <TabsHost title={tr('Home screen')} tabs={[['banners', 'Banners', OwnerBannersScreen], ['collections', 'Collections', OwnerCollectionsScreen], ['pictures', tl('Login pictures'), OwnerHeroScreen]]} />
 );
 export const OwnerBillsHub = () => (
-    <TabsHost title={tr('Bills and SMS')} tabs={[['bill', 'Monthly bill', OwnerRentScreen], ['sms', 'SMS', OwnerSmsScreen]]} />
+    <TabsHost title={tr('Bills and SMS')} tabs={[['bill', 'Old bills', OwnerRentScreen], ['sms', 'SMS', OwnerSmsScreen]]} />
 );
 export const OwnerDeliveryHub = () => (
     <TabsHost title={tr('Delivery')} tabs={[['area', tl('Area and fees'), OwnerDeliveryScreen], ['rules', tl('Rules and cash'), OwnerRiderRulesScreen]]} />

@@ -11,7 +11,7 @@ import { Empty, ErrorBox, Sheet, SheetScroll, toast } from '../../components/fee
 import Icon from '../../components/Icon';
 import usePagedList from '../../hooks/usePagedList';
 import { useShopsStore } from '../../store/useShopsStore';
-import { listInvoices, generateInvoices } from '../../api/moneyApi';
+import { listInvoices } from '../../api/moneyApi';
 import { errMsg } from '../../api/adminClient';
 
 const CHIPS = [
@@ -64,21 +64,11 @@ export default function InvoicesScreen() {
 
     const shopName = params.name || shops.find((s) => s._id === shopId)?.name;
 
-    const generate = async () => {
-        setBusy(true);
-        try {
-            const r = await generateInvoices({ period, ...(shopId ? { tenantId: shopId } : {}) });
-            toast(`Created ${r.created ?? r.count ?? 0} invoice(s) for ${period}`);
-            setGen(false); list.reload();
-        } catch (e) { toast(errMsg(e), 'error'); } finally { setBusy(false); }
-    };
-
     return (
         <Screen
             title="Rent invoices"
             subtitle={shopName || 'All shops'}
             scroll={false}
-            right={<HeaderButton icon="add" onPress={() => setGen(true)} />}
         >
             <View style={{ height: 52, marginTop: spacing.md }}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: spacing.lg, alignItems: 'center' }} style={{ flexGrow: 0 }}>
@@ -125,17 +115,6 @@ export default function InvoicesScreen() {
                 </SheetScroll>
             </Sheet>
 
-            <Sheet visible={gen} onClose={() => setGen(false)} title="Create monthly invoices">
-                <Text style={{ color: t.muted, marginBottom: spacing.md }}>
-                    Invoices are made automatically after each month. Use this if one was missed. A month that is already invoiced is skipped.
-                </Text>
-                <Text style={{ color: t.text, fontWeight: '700', marginBottom: 8 }}>Month</Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.md }}>
-                    {monthsBack(6).map((m) => <View key={m} style={{ marginBottom: spacing.sm }}><Chip label={m} active={period === m} onPress={() => setPeriod(m)} /></View>)}
-                </View>
-                <Text style={{ color: t.muted, fontSize: font.sm, marginBottom: spacing.md }}>{shopId ? `Only for ${shopName}` : 'For every shop that is due'}</Text>
-                <Button title="Create invoices" icon="receipt" loading={busy} onPress={generate} />
-            </Sheet>
         </Screen>
     );
 }

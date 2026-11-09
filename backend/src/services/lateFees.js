@@ -72,6 +72,10 @@ async function issueOne({ inv, k, platform, tenant, now }) {
 
 // all fees that have come due for every unpaid monthly bill
 async function run(now = new Date()) {
+    return { issued: 0, stopped: true };   // STOPPED: no late fee any more (everything is prepaid). The rest of this file goes in the cleanup step.
+}
+
+async function runOld(now = new Date()) {
     const platform = await PlatformSettings.findById('main').lean();
     const { percent, everyDays } = rulesOf(platform);
     if (!(percent > 0) || !platform?.business?.legalName) return { issued: 0 };

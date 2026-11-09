@@ -65,7 +65,7 @@ export default function OwnerRentScreen() {
 
     return (
         <View style={{ flex: 1, backgroundColor: background }}>
-            <PageHeader title={tr('Monthly bill')} />
+            <PageHeader title={tr('Old bills')} />
             <ScrollView contentContainerStyle={{ paddingTop: 6, paddingBottom: 32 }}>
                 <BrandPayGate canPay={canPay}>{null}</BrandPayGate>
                 {bill ? (
@@ -118,52 +118,13 @@ export default function OwnerRentScreen() {
                             </>
                         ) : null}
 
-                        <Card>
-                            {bill.free?.active ? (
-                                <Text style={{ color: ok, fontWeight: '800', marginBottom: 8 }}>{tr('Free period{v1}{v2}', { v1: bill.free.ordersLeft != null ? ` · ${bill.free.ordersLeft} free orders left` : '', v2: bill.free.endsAt ? ` · until ${dayOf(bill.free.endsAt)}` : '' })}</Text>
-                            ) : null}
-                            <View style={{ flexDirection: 'row' }}>
-                                <Stat label={tr('Orders in {monthName}', { monthName: monthName(bill.thisMonth.period) })} value={String(bill.thisMonth.billableOrders)} />
-                                <Stat label={tr('Rate')} value={bill.thisMonth.tierLabel || '—'} hint={bill.thisMonth.fee != null ? tr('{money} so far', { money: money(bill.thisMonth.fee) }) : undefined} />
-                            </View>
-                            {bill.thisMonth.discount > 0 ? <Text style={{ color: ok, fontWeight: '800', marginTop: 10 }}>{tr('Multi-branch discount {percent}%: -{money}. About {after} before GST.', { percent: bill.thisMonth.discountPercent, money: money(bill.thisMonth.discount), after: money(bill.thisMonth.feeAfterDiscount) })}</Text> : null}
-                            {bill.nextBill ? <Text style={{ color: muted, fontSize: 12, marginTop: 10 }}>{tr('Next bill on {dayOf}. {note}', { dayOf: dayOf(bill.nextBill.billedOn), note: bill.nextBill.note })}</Text> : null}
-                        </Card>
                     </>
                 ) : !err ? <StatShimmer /> : null}
 
-                {bill?.plan ? (
-                    <>
-                        <SectionTitle title={tr('Your monthly fee plan')} />
-                        <Card>
-                            {bill.plan.kind === 'fixed' ? (
-                                <Text style={{ color: text, fontWeight: '800' }}>{tr('A fixed fee of {money} every month, however many orders you get.', { money: money(bill.plan.fee) })}</Text>
-                            ) : (
-                                <>
-                                    <Text style={{ color: muted, fontSize: 12, marginBottom: 6 }}>{tr('The monthly fee depends on how many orders you deliver in the month.')}</Text>
-                                    {bill.plan.tiers.map((t, i) => {
-                                        const n = bill.thisMonth.billableOrders;
-                                        const here = n >= t.from && (t.to === null || n <= t.to);
-                                        return (
-                                            <View key={t.label} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 10, marginVertical: 2, borderRadius: 12, backgroundColor: here ? alpha(primary, 0.12) : 'transparent' }}>
-                                                <View style={{ flex: 1 }}>
-                                                    <Text style={{ color: text, fontWeight: '800' }}>{t.label}</Text>
-                                                    {here ? <Text style={{ color: primary, fontSize: 12, fontWeight: '700', marginTop: 1 }}>{tr('You are here · {n} so far this month', { n: n })}</Text> : null}
-                                                </View>
-                                                <Text style={{ color: text, fontWeight: '900' }}>{money(t.fee)}</Text>
-                                            </View>
-                                        );
-                                    })}
-                                </>
-                            )}
-                            <Text style={{ color: muted, fontSize: 12, marginTop: 8 }}>{tr('GST is added if it applies. If the plan changes you get a message, and bills already issued do not change.')}</Text>
-                        </Card>
-                    </>
-                ) : null}
 
                 <SectionTitle title={tr('All bills')} />
                 {err && !invoices?.length ? <Empty icon="cloud-offline-outline" title={tr('Could not load')} hint={err} /> : null}
-                {invoices && !invoices.length && !err ? <Empty icon="receipt-outline" title={tr('No bills yet')} hint={tr('Your first bill appears after the free period.')} /> : null}
+                {invoices && !invoices.length && !err ? <Empty icon="receipt-outline" title={tr('No bills yet')} hint={tr('Monthly rent was replaced by plans. Open Plan to see your plan.')} /> : null}
                 {(invoices || []).map((inv) => (
                     <Card key={inv._id}>
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
