@@ -92,6 +92,7 @@ import ShopLiveScreen from '../screens/shops/ShopLiveScreen';
 import ShopAccessScreen from '../screens/shops/ShopAccessScreen';
 import ShopPlanScreen from '../screens/shops/ShopPlanScreen';
 import PlanDefaultsScreen from '../screens/platform/PlanDefaultsScreen';
+import PlanCouponsScreen from '../screens/platform/PlanCouponsScreen';
 import PlanMigrationScreen from '../screens/platform/PlanMigrationScreen';
 import ShopDevScreen from '../screens/shops/ShopDevScreen';
 import ShopNotifyScreen from '../screens/shops/ShopNotifyScreen';
@@ -222,6 +223,7 @@ const DETAIL = [
     ['MyRazorpay', MyRazorpayScreen],
     ['Gst', GstScreen],
     ['PlanDefaults', PlanDefaultsScreen],
+    ['PlanCoupons', PlanCouponsScreen],
     ['PlanMigration', PlanMigrationScreen],
     ['MoneyRules', MoneyRulesScreen],
     ['Team', TeamScreen],
