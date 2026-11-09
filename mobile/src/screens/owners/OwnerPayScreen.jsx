@@ -14,7 +14,7 @@ import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { standardUpiApps, detectInstalledUpiApps } from '../../utils/customers/upiApps';
 import { payPlatform } from '../../utils/owners/payPlatform';
 import { fetchBrandDues } from '../../api/owners/brandApi';
-import { fetchRentInvoices, payRentInvoice, startTopup, fetchTopups, fetchDues, apiError } from '../../api/owners/shopApi';
+import { fetchRentInvoices, fetchPlan, payRentInvoice, startTopup, fetchTopups, fetchDues, apiError } from '../../api/owners/shopApi';
 import { rupees } from '../../utils/owners/riderRules';
 import { showToast } from '../../components/customers/shop';
 import { ListShimmer } from '../../components/owners/shimmer';
@@ -98,7 +98,7 @@ function cardProblems(c) {
 
 export default function OwnerPayScreen() {
     const nav = useNavigation();
-    const { kind, id, amountPaise, title, payablePaise, gstPaise, gstPercent } = useRoute().params || {};
+    const { kind, id, amountPaise, title, payablePaise, gstPaise, gstPercent, to, months } = useRoute().params || {};
     const toPay = payablePaise || amountPaise;   // an SMS top-up: the amount plus GST
     const { background, primary, text, muted, ok, border } = useBrand();
     const user = useAuthStore((s) => s.user);
@@ -122,6 +122,7 @@ export default function OwnerPayScreen() {
     const confirmPaid = async () => {
         if (kind === 'rent') return !!(await fetchRentInvoices({ page: 1, limit: 20 })).items.find((x) => String(x._id) === String(id) && x.status === 'paid');
         if (kind === 'dues') return (await fetchDues()).count === 0;
+        if (kind === 'plan') { const o = await fetchPlan(); return o.current?.id === to && o.current?.status !== 'ended'; }
         if (kind === 'branchdues') { const d = await fetchBrandDues(); return (id ? (d.branches.find((b) => b.slug === id) || { count: 0 }).count : d.count) === 0; }
         return false;
     };
@@ -137,7 +138,7 @@ export default function OwnerPayScreen() {
         ...upiRows,
         { key: 'upi:any', app: { chooser: true, label: 'UPI' }, label: tr('Other UPI app'), icon: 'phone-portrait-outline', desc: tr('Choose any UPI app on this phone') },
         { key: 'card', label: tr('Credit / Debit card'), icon: 'card-outline', desc: tr('Visa, Mastercard, RuPay. You confirm with your bank OTP') },
-        ...(kind === 'dues' || kind === 'branchdues' || kind === 'wallet' ? [] : [{ key: 'qr', label: tr('Scan a QR code'), icon: 'qr-code-outline', desc: tr('Pay from another phone by scanning a code') }]),   // a QR is made for one bill
+        ...(kind === 'dues' || kind === 'branchdues' || kind === 'wallet' || kind === 'plan' ? [] : [{ key: 'qr', label: tr('Scan a QR code'), icon: 'qr-code-outline', desc: tr('Pay from another phone by scanning a code') }]),   // a QR is made for one bill
     ];
     const current = rows.find((r) => r.key === picked);
 
@@ -159,7 +160,7 @@ export default function OwnerPayScreen() {
             cardBody = { number: card.number, month: mm, year: yy, cvv: card.cvv, name: card.name.trim() };
         }
         setPaying(current.app?.label || 'your card');
-        const r = await payPlatform({ kind, id, amountPaise, upiApp: current.app, card: cardBody, user, confirmPaid });
+        const r = await payPlatform({ kind, id, to, months, amountPaise, upiApp: current.app, card: cardBody, user, confirmPaid });
         setPaying(null);
         setCard((c) => ({ ...c, number: '', cvv: '' }));   // the card is never kept
         if (r.status === 'paid') finish();
@@ -189,7 +190,7 @@ export default function OwnerPayScreen() {
                         <Card>
                             <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }}>{title}</Text>
                             <Text style={{ color: text, fontSize: 34, fontWeight: '900', marginTop: 2 }}>{rupees(toPay)}</Text>
-                            {gstPaise ? <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{tr('{rupees} added to your balance + {gstPercent}% GST {rupees3}', { rupees: rupees(amountPaise), gstPercent: gstPercent, rupees3: rupees(gstPaise) })}</Text> : null}
+                            {gstPaise && kind !== 'plan' ? <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{tr('{rupees} added to your balance + {gstPercent}% GST {rupees3}', { rupees: rupees(amountPaise), gstPercent: gstPercent, rupees3: rupees(gstPaise) })}</Text> : null}
                             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
                                 <Ionicons name="shield-checkmark" size={15} color={ok} />
                                 <Text style={{ color: muted, fontSize: 12, marginLeft: 6 }}>{tr('Secure payment by Razorpay')}</Text>

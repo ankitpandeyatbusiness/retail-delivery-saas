@@ -130,6 +130,7 @@ const tenantSchema = new mongoose.Schema({
         freeDaysOverride: { type: Number, min: 0, max: 365 },
         feeSlabsOverride: { type: mongoose.Schema.Types.Mixed },   // Partner only: per-shop fee slabs
         extras: { type: [new mongoose.Schema({ key: String, at: Date, by: String }, { _id: false })], default: undefined },   // features switched on outside the plan
+        scheduled: { type: new mongoose.Schema({ to: String, at: Date, by: String, requestedAt: Date }, { _id: false }) },   // a lower plan that starts when the paid term ends (phase 6 applies it)
         webEnabled: { type: Boolean, default: true },
         nativeEnabled: { type: Boolean, default: true },
         history: { type: [new mongoose.Schema({ at: Date, by: String, from: String, to: String, note: String }, { _id: false })], default: undefined },

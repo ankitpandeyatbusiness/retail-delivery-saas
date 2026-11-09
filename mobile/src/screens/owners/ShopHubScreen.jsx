@@ -59,6 +59,7 @@ const WORDS = {
     OwnerShopSettings: 'phone address sms alerts monthly report shop name contact',
     OwnerActivity: 'activity log history changes audit who changed',
     LegalList: 'terms privacy policy agreement legal',
+    OwnerPlan: 'plan partner growth pro upgrade renew subscription price months features',
     OwnerWallet: 'wallet partner balance top up recharge fee per order',
     OwnerCosts: 'costs expenses profit loss spend salary rent ingredients electricity margin',
     OwnerExport: 'download export excel csv data customers orders riders cooks waiters branches menu report file spreadsheet',
@@ -67,6 +68,13 @@ const WORDS = {
 const wordsOf = (w) => (w ? `${w} ${tr(w)}` : '');
 
 // Easy mode shows only these (the things a shop uses every day); everything else is one switch away.
+// "Growth, ends 12 Dec (21 days left)"
+const planLineOf = (p) => {
+    const name = p.id[0].toUpperCase() + p.id.slice(1);
+    if (p.status === 'ended') return tr('{name} ended. Choose your plan', { name });
+    return p.endsAt ? tr('{name}, ends {date} ({n} days left)', { name, date: new Date(p.endsAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }), n: p.daysLeft }) : name;
+};
+
 // menu row -> the plan feature it needs (config/plans.js on the server)
 const LOCKS = { OwnerAutopilot: 'customPush', OwnerRewards: 'loyalty', OwnerCosts: 'costsProfit', OwnerReportsHub: 'analytics', OwnerCooks: 'staffLogins', OwnerWaiters: 'staffLogins' };
 
@@ -102,6 +110,7 @@ const GROUPS = [
         ['images', 'Home screen', 'Banners, festival strips and the big pictures at the top', 'OwnerShopFrontHub'],
     ]],
     ['Money', [
+        ['ribbon', 'Plan', 'Your plan, what is in it, upgrade or renew', 'OwnerPlan'],
         ['wallet', 'Money', 'Your rent, SMS balance and top up', 'OwnerMoney'],
         ['card', 'Wallet', 'Your Partner wallet: balance, top up, the fee of each order', 'OwnerWallet'],
         ['swap-vertical', 'Transactions', 'Every rupee in and out, by month, refunds and chargebacks', 'OwnerMoneyHub'],
@@ -195,6 +204,8 @@ export function ShopMenu({ onGo }) {
     const sections = useMemo(() => [
         ...GROUPS.map(([group, rows]) => [group, rows.filter((r) => !hidden(r[3])).map(([icon, title, subtitle, route]) => (route === '@busy'
             ? { icon, title, subtitle: busy ? tr('On: +{extraMin} min until {clockTime}', { extraMin: busy.extraMin, clockTime: clockTime(busy.until) }) : tr(subtitle), group, words: 'busy rushed longer wait kitchen crowd', color: busy ? error : undefined, act: () => setBusyOpen(true) }
+            : route === 'OwnerPlan' && plan?.id
+                ? { icon, title, subtitle: planLineOf(plan), group, words: wordsOf(WORDS[route]), right: plan.status === 'ended' ? <Pill label="!" color={error} /> : undefined, act: () => go(route) }
             : lockedBy(route)
                 ? { icon: 'lock-closed', title, subtitle: tr('Available in {plan}', { plan: lockedBy(route) }), group, words: wordsOf(WORDS[route]), act: () => showToast(tr('{title} is available in {plan}. Ask us to upgrade your plan.', { title: tr(title), plan: lockedBy(route) })) }
                 : { icon, title, subtitle: tr(subtitle), group, words: wordsOf(WORDS[route]), right: route === 'OwnerRiders' && riderAttention ? <Pill label="!" color={error} /> : undefined, act: () => go(route) }))]),

@@ -10,6 +10,8 @@ const SubscriptionInvoice = require('../models/SubscriptionInvoice');
 const SmsTopup = require('../models/SmsTopup');
 const PartnerTopup = require('../models/PartnerTopup');
 const partnerTopups = require('./partnerTopupService');
+const PlanPayment = require('../models/PlanPayment');
+const planBilling = require('./planBilling');
 const DuesPayment = require('../models/DuesPayment');
 const alert = require('./paymentAlerts');
 const payments = require('./adapters/payments');
@@ -204,6 +206,33 @@ async function creditTopup(t, pay, via) {
     return done;
 }
 
+/* ------------------------------ a plan (Growth / Pro) ------------------------------ */
+// The price is worked out by planBilling.quote (the same function the preview uses) and stored with the payment; the app never sends an amount.
+async function startPlan({ tenant, to, months, actor }) {
+    const { payment, quote, reused } = await planBilling.createPayment(tenant, { to, months }, actor);
+    if (quote.free) throw bad(409, 'Nothing to pay: confirm the plan instead');
+    const c = creds();
+    if (reused) return { paymentId: payment._id, ...startView(c, payment.rzpOrderId, payment.payablePaise, `${quote.toName} plan`), quote };
+    const order = await makeOrder({ amountPaise: payment.payablePaise, receipt: `plan_${payment._id}`, notes: { purpose: 'plan', referenceId: String(payment._id), tenantId: String(tenant._id) } });
+    payment.rzpOrderId = order.id;
+    await payment.save();
+    return { paymentId: payment._id, ...startView(c, order.id, payment.payablePaise, `${quote.toName} plan`), quote };
+}
+
+async function verifyPlan({ tenantId, paymentId, proof }) {
+    if (!mongoose.isValidObjectId(paymentId)) throw bad(404, 'Payment not found');
+    const row = await PlanPayment.findOne({ _id: paymentId, tenantId }).lean();
+    if (!row) throw bad(404, 'Payment not found');
+    if (row.status === 'paid') return { paid: true };
+    if (!row.rzpOrderId) throw bad(400, 'Start the payment first');
+    proofOk(proof, row.rzpOrderId);
+    const pay = await payments.fetchPayment({ paymentId: proof.razorpay_payment_id, credentials: payments.isMock() ? undefined : creds() });
+    if (pay.orderId !== row.rzpOrderId) throw bad(400, 'This payment does not belong to this plan');
+    if (pay.status !== 'captured') return { paid: false, status: pay.status };
+    const r = await planBilling.settle(row._id, { payId: pay.id, amountPaise: pay.amountPaise });
+    return { paid: true, held: !!r.held };
+}
+
 /* ------------------------------ Partner wallet top-up ------------------------------ */
 async function startPartnerTopup({ tenantId, amountPaise, actor }) {
     const o = await partnerTopups.options();
@@ -262,6 +291,8 @@ async function onPlatformPayment(pay) {
         await creditTopup(t, pay, { path: '/api/webhooks/razorpay/platform', method: 'WEBHOOK' });
         return { topup: 'credited' };
     }
+    const pp = await PlanPayment.findOne({ rzpOrderId: pay.orderId }).select('_id').lean();
+    if (pp) { await planBilling.settle(pp._id, { payId: pay.id, amountPaise: pay.amountPaise, via: 'webhook' }); return { plan: 'settled' }; }
     const pt = await PartnerTopup.findOne({ rzpOrderId: pay.orderId }).lean();
     if (pt) {
         await creditPartnerTopup(pt, pay, { path: '/api/webhooks/razorpay/platform', method: 'WEBHOOK' });
@@ -273,4 +304,4 @@ async function onPlatformPayment(pay) {
     return { ignored: 'unknown_order' };
 }
 
-module.exports = { startRent, verifyRent, startDues, verifyDues, startBrandDues, verifyBrandDues, settleDues, startTopup, verifyTopup, startPartnerTopup, verifyPartnerTopup, onPlatformPayment, MOCK_SECRET };
+module.exports = { startRent, verifyRent, startDues, verifyDues, startBrandDues, verifyBrandDues, settleDues, startTopup, verifyTopup, startPartnerTopup, verifyPartnerTopup, startPlan, verifyPlan, onPlatformPayment, MOCK_SECRET };

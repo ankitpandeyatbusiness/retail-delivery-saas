@@ -308,6 +308,7 @@ router.use('/riders', openWhilePaused, require('./shopRiderRouter').manage);   /
 router.use('/cod', openWhilePaused, require('./shopCodRouter'));               // COD cash with riders, rider performance
 router.use('/activity', openWhilePaused, require('./shopAuditRouter'));        // owner activity log (rows of this shop only)
 router.use('/sms', openWhilePaused, require('./shopSmsRouter'));
+router.use('/plan', openWhilePaused, ownerOnly(require('./shopPlanRouter')));   // the Plan screen: compare, preview, pay, schedule a lower plan
 router.use('/wallet', openWhilePaused, ownerOnly(require('./shopWalletRouter')));   // the Partner plan's prepaid wallet (top-up, fees per order)
 router.use('/payments', openWhilePaused, require('./shopPaymentsRouter'));     // online money: report and refunds       // SMS wallet and top-up
 router.use('/reports', openWhilePaused, invoiceRoutes.reports);                // sales report
@@ -540,7 +541,7 @@ router.get('/settings', wrap(async (req, res) => {
         address: req.tenant.address || {},
         delivery: req.tenant.delivery || {},
         addons: { services: featureGate.isOn(req.tenant, 'services'), tableBooking: featureGate.isOn(req.tenant, 'tableBooking'), bulkOrders: featureGate.isOn(req.tenant, 'bulkOrders') },
-        plan: (() => { const planSvc = require('../services/planService'); const v = planSvc.viewOf(req.tenant); return v.id ? { id: v.id, features: v.features, limits: v.limits, needs: planSvc.needsOf() } : null; })(),   // what the plan allows; the app shows "Available in Growth" on the rest   // the super admin's switches: a shop without them sees no Services, Inquiries or Bookings
+        plan: (() => { const planSvc = require('../services/planService'); const v = planSvc.viewOf(req.tenant); return v.id ? { id: v.id, status: v.status, endsAt: v.endsAt, daysLeft: v.daysLeft, scheduled: v.scheduled, features: v.features, limits: v.limits, needs: planSvc.needsOf() } : null; })(),   // what the plan allows; the app shows "Available in Growth" on the rest   // the super admin's switches: a shop without them sees no Services, Inquiries or Bookings
         hours: { weekly: cfg.hours.weekly || {}, closedMessage: st.hours?.closedMessage || '', closedDates: cfg.hours.closedDates || [] },
         riders: { payPerDelivery: 0, ...DEFAULTS.riders, ...(st.riders || {}), pay: riderPay.effectivePlan(st.riders) },
         notifications: { ...DEFAULTS.notifications, ...(st.notifications || {}) },

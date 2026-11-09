@@ -299,6 +299,13 @@ export const verifyRentPay = (id, proof) => d(api.post(`/shop/subscription/invoi
 export const fetchDues = () => d(api.get('/shop/subscription/dues'));
 export const startDuesPay = () => d(api.post('/shop/subscription/dues/pay/start'));
 export const verifyDuesPay = (proof) => d(api.post('/shop/subscription/dues/pay/verify', proof));
+// the Plan screen: overview, the preview (quote), a move that costs nothing, paying for a plan
+export const fetchPlan = () => d(api.get('/shop/plan'));
+export const quotePlan = (body) => d(api.post('/shop/plan/quote', body));
+export const choosePlan = (body) => d(api.post('/shop/plan/choose', body));
+export const cancelScheduledPlan = () => d(api.delete('/shop/plan/scheduled'));
+export const startPlanPay = (body) => d(api.post('/shop/plan/pay/start', body));
+export const verifyPlanPay = (id, proof) => d(api.post(`/shop/plan/pay/${id}/verify`, proof));
 // the Partner plan's wallet
 export const fetchWallet = () => d(api.get('/shop/wallet'));
 export const fetchWalletHistory = () => d(api.get('/shop/wallet/history'));
