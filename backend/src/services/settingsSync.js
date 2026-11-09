@@ -11,7 +11,7 @@ const KEEP_OF_TARGET = { orders: ['acceptingOrders', 'pausedUntil', 'busy', 'hou
 async function apply({ brandId, fromTenantId, toTenantIds, sections }) {
     if (!Array.isArray(sections) || !sections.length) throw httpError(400, 'Choose what to copy');
     const bad = sections.filter((s) => !SECTIONS.includes(s));
-    if (bad.length) throw httpError(400, 'Cannot copy: ' + bad.join(', '));
+    if (bad.length) throw httpError(400, `Cannot copy: ${bad.join(', ')}`);
     const from = await Tenant.findOne({ _id: fromTenantId, brandId }).select('name settings').lean();
     if (!from) throw httpError(404, 'The branch to copy from is not part of this brand');
     const targets = await Tenant.find({ _id: { $in: toTenantIds, $ne: from._id }, brandId }).select('name slug settings').lean();

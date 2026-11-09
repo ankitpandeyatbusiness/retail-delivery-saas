@@ -86,7 +86,7 @@ const mine = async (req) => {
 
 const move = (to, then) => wrap(async (req, res) => {
     const b = await mine(req);
-    if (b.status !== 'confirmed') throw httpError(400, 'This booking is already ' + b.status.replace('_', ' '));
+    if (b.status !== 'confirmed') throw httpError(400, `This booking is already ${b.status.replace('_', ' ')}`);
     if (!b.approvedAt) throw httpError(400, 'Allow this booking first');
     if (Date.now() < new Date(b.startsAt).getTime()) throw httpError(400, 'Too early. You can mark a guest seated or no-show once the booking time has started');
     b.status = to;
@@ -165,7 +165,7 @@ router.post('/:id/cancel', wrap(async (req, res) => {
     const b = await mine(req);
     const message = String(req.body?.message || '').trim().slice(0, 300);
     const done = await bp.cancelBooking(b, 'owner', { message });
-    if (!done) throw httpError(400, 'This booking is already ' + b.status.replace('_', ' '));
+    if (!done) throw httpError(400, `This booking is already ${b.status.replace('_', ' ')}`);
     const refund = ['refunding', 'refunded', 'refund_failed'].includes(done.deposit.status);
     tell('booking_owner_cancelled', { tenantId: done.tenantId, userId: done.userId, vars: { shop: req.tenant.name, date: done.date, time: done.time, message, refund, amount: done.deposit.amount }, data: { kind: 'booking', bookingId: String(done._id) } });
     res.json(done);
