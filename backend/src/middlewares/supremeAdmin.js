@@ -13,7 +13,9 @@ function requireSupreme(req, res, next) {
 // paths are relative to /api/admin
 const MONEY = [
     /^\/platform\/(business|billing|tax|payments|sms|sms-balance|sms-setup|tracking)(\/|$)/,
-    /^\/subscriptions\//,                                   // generate, mark paid, void, waive, extend the grace
+    /^\/platform\/plans$/,                                  // plan prices, fee slabs, free days, GST, branch add-on, multi-month discounts
+    /^\/tenants\/[^/]+\/plan(\/|$)/,                        // switching a shop's plan, extras, per-shop amount and free days
+    /^\/subscriptions\//,                                  // generate, mark paid, void, waive, extend the grace
     /^\/tenants\/[^/]+\/(billing|invoices|sms|sms-provider)(\/|$)/,   // a shop's fee plan, go-live, custom bills, SMS wallet and prices
     /^\/finance\//,                                         // the platform's expenses
     /^\/money-record(\/|$)/,                                // the developer's yes/no and who brought a shop

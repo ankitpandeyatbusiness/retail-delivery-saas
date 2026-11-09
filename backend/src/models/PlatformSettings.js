@@ -77,6 +77,8 @@ const platformSchema = new mongoose.Schema({
             default: () => [{ upTo: 305, fee: 3000 }, { upTo: 1005, fee: 6000 }, { upTo: null, fee: 10000 }],
         },
     },
+    // Plan defaults (config/plans.js DEFAULTS holds the starting values; only what the supreme admin changed is stored here). Money in paise.
+    plans: { type: mongoose.Schema.Types.Mixed, default: {} },
     // The ONE GST for every shop's bills. Set only by the superadmin; a shop charges it only while it has a GST number.
     tax: {
         gstPercent: { type: Number, default: 0, min: 0, max: 28 },

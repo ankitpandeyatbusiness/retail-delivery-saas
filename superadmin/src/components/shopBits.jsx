@@ -16,6 +16,14 @@ export const stateTone = (shop) => {
 };
 
 // Why a shop is not taking orders, as one badge. `state` comes from the backend (shopState).
+// "Growth, ends 12 Dec" (Partner has no end date)
+export const planLine = (p) => {
+    const name = p.id[0].toUpperCase() + p.id.slice(1);
+    if (p.status === 'ended') return `${name} ended`;
+    if (!p.endsAt) return name;
+    return `${name}, ends ${new Date(p.endsAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`;
+};
+
 export function ShopStateBadge({ shop }) {
     if (shop.status && shop.status !== 'active') return <Badge label="Closed" tone="danger" />;
     const s = shop.state;
@@ -48,6 +56,7 @@ export function ShopRow({ shop, onPress, compact }) {
                 </View>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm }}>
                     <ShopStateBadge shop={shop} />
+                    {shop.plan?.id ? <Badge label={planLine(shop.plan)} tone="info" icon="star" /> : null}
                     {shop.state?.reasons?.length > 1 ? <Badge label={`+${shop.state.reasons.length - 1} more`} /> : null}
                     {billing === 'paused' || billing === 'grace' ? <Badge label={`Rent ${billing}`} tone={billing === 'paused' ? 'danger' : 'warn'} icon="receipt" /> : null}
                     {shop.rent?.custom ? <Badge label="Own rent plan" tone="info" icon="tune" /> : null}

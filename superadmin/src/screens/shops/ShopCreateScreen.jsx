@@ -11,7 +11,7 @@ import { Choice, MultiChoice, NumberField, Hint, ReorderList, ColorField } from 
 import PhonePreview from '../../components/preview/PhonePreview';
 import MapPicker from '../../components/MapPicker';
 import { toast } from '../../components/feedback';
-import { createShop, addOwner, fetchOptions, previewLogoColors, updateShop, logoColors } from '../../api/shopsApi';
+import { createShop, setShopPlan, addOwner, fetchOptions, previewLogoColors, updateShop, logoColors } from '../../api/shopsApi';
 import { pickImage, uploadImage } from '../../utils/upload';
 import { bestPalette, readableOnWhiteText, PALETTE_LABELS } from '../../utils/palette';
 import { errMsg } from '../../api/adminClient';
@@ -49,6 +49,7 @@ export default function ShopCreateScreen() {
     const [opts, setOpts] = useState(null);
     const [f, setF] = useState({
         name: '', slug: '', slugTouched: false, phone: '', line: '', city: '', state: '', pincode: '', ownerPhone: '', broughtBy: '',
+        plan: 'growth',   // Partner / Growth / Pro: switches that plan's features on (only the supreme admin can set it; others create the shop without a plan)
         foodMode: 'mixed', types: ['delivery'], minOrder: 0, feeType: 'free', feeAmount: 0, freeAbove: 0,
         latitude: null, longitude: null, radiusKm: 5,
         primary: '#E8590C', accent: '', fontStyle: 'modern', buttonShape: 'rounded', cardStyle: 'big',
@@ -164,6 +165,7 @@ export default function ShopCreateScreen() {
                     if (f.source === 'logo' && f.logoCols) await logoColors(tenant._id, m.url, 'empty');
                 } catch (e) { toast(`Shop created, but the logo was not saved: ${e.safe ? e.message : errMsg(e)}`, 'error'); }
             }
+            try { await setShopPlan(tenant._id, { to: f.plan }); } catch (e) { toast(`Shop created, but the plan was not set: ${errMsg(e)}`, 'error'); }
             let ownerOk = true;
             if (f.ownerPhone) {
                 try { await addOwner(tenant._id, f.ownerPhone); } catch (e) { ownerOk = false; toast(`Shop created, but owner not added: ${errMsg(e)}`, 'error'); }
@@ -409,6 +411,7 @@ export default function ShopCreateScreen() {
                             {choices('foodMode', [f.foodMode])[0].label} · {f.types.map((x) => choices('orderType', [x])[0].label).join(', ')}
                         </Text>
                     </Card>
+                    <Choice label="Plan (starts with the free days from Plan defaults)" options={[{ value: 'partner', label: 'Partner' }, { value: 'growth', label: 'Growth' }, { value: 'pro', label: 'Pro' }]} value={f.plan} onChange={set('plan')} />
                     <BroughtByPicker value={f.broughtBy} onChange={set('broughtBy')} />
                     <Field
                         label="Owner mobile number (optional)"

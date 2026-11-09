@@ -59,6 +59,7 @@ export default function MoreScreen() {
 
                     <SectionTitle section="alerts">Rules and SMS</SectionTitle>
                     <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
+                        <ListRow section="money" icon="star" title="Plan defaults" subtitle="Growth and Pro prices, Partner fee, free days, GST, branch add-on" onPress={go('PlanDefaults')} />
                         <ListRow section="settings" icon="tune" title="Notification rules" subtitle="How each event is delivered" onPress={go('NotificationRules')} />
                         <ListRow section="catalog" icon="message" title="Alert SMS" subtitle="SMS to your phone and what they cost" onPress={go('AlertSettings')} />
                         <ListRow section="catalog" icon="message" title="SMS and DLT setup" subtitle="MSG91 key, sender, template IDs, send a test" onPress={go('SmsSetup')} />

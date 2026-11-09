@@ -38,6 +38,9 @@ export const FILTERS = [
     { value: 'quiet', label: 'No orders 14 days' },
     { value: 'attention', label: 'Needs attention' },
     { value: 'free', label: 'Free period' },
+    { value: 'partner', label: 'Partner' },
+    { value: 'growth', label: 'Growth' },
+    { value: 'pro', label: 'Pro' },
     { value: 'suspended', label: 'Closed' },   // (the value stays "suspended": the Home screen opens this list with it)
 ];
 
@@ -48,6 +51,7 @@ export const matchesFilter = (shop, f) => {
     if (f === 'attention') return !shop.state?.acceptingOrders && shop.status === 'active';
     if (f === 'free') return shop.status === 'active' && shop.rent?.stage === 'free';
     if (f === 'suspended') return shop.status !== 'active';
+    if (f === 'partner' || f === 'growth' || f === 'pro') return shop.plan?.id === f;
     return true;
 };
 

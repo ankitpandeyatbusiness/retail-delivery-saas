@@ -85,3 +85,11 @@ export async function previewLogoColors(uri) {
 export const searchPlaces = (q, near) => data(api.get('/admin/geo/search', { params: { q, ...(near ? { lat: near.latitude, lng: near.longitude } : {}) } }));
 export const placePoint = (id) => data(api.get('/admin/geo/place', { params: { id } }));
 export const reversePlace = (lat, lng) => data(api.get('/admin/geo/reverse', { params: { lat, lng } }));
+
+// Plans (Partner / Growth / Pro). Changes are for the supreme admin only; the server refuses everybody else.
+export const fetchPlanCatalog = () => data(api.get('/admin/plans'));
+export const fetchShopPlan = (id) => data(api.get(`${T(id)}/plan`));
+export const setShopPlan = (id, body) => data(api.put(`${T(id)}/plan`, body));
+export const setShopPlanExtra = (id, key, on) => data(api.put(`${T(id)}/plan/extras`, { key, on }));
+export const setShopPlanTerms = (id, body) => data(api.put(`${T(id)}/plan/terms`, body));
+export const savePlanDefaults = (body) => data(api.put('/admin/platform/plans', body));

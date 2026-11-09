@@ -86,6 +86,7 @@ admin.use(require('./adminTeamRouter'));
 admin.use(require('./adminMediaRouter'));   // list a shop's uploaded images (hero, logo, build icons)   // other superadmins: add, rename, revoke, restore
 admin.use(require('./adminAccessRouter'));
 admin.use(require('./adminPlatformRouter'));
+admin.use(require('./adminPlansRouter'));
 admin.use(require('./adminBillingRouter'));
 admin.use(require('./adminSubscriptionRouter'));
 admin.use(require('./adminTrackingRouter'));   // live tracking: server health and the sockets / polling / off switch (everyone looks, the supreme admin changes)
@@ -157,14 +158,14 @@ admin.get('/tenants', wrap(async (req, res) => {
     const items = await Tenant.find(filter)
         .sort({ createdAt: -1 })
         .limit(200)
-        .select('_id slug name logo status androidPackage createdAt updatedAt ownerBlocked ownerBlockedReason maintenance settings.orders.acceptingOrders billing subscription.gstPercent brandId')
+        .select('_id slug name logo status androidPackage createdAt updatedAt ownerBlocked ownerBlockedReason maintenance settings.orders.acceptingOrders billing subscription.gstPercent brandId plan')
         .lean();
     const [icons, rents, stats] = await Promise.all([appIcons(items), require('../services/rentSummary').forShops(items), require('../services/shopListStats').forShops(items)]);
     res.json({
         items: items.map((t) => {
             const { settings, maintenance, ownerBlockedReason, billing, subscription, ...rest } = t;
             // the list only needs the rent state and the one-line rent answer (what the shop pays next, for which month, or that it is still free)
-            return { ...rest, billing: { state: billing?.state, graceEndsAt: billing?.graceEndsAt }, rent: rents.get(String(t._id)) || null, stats: stats.get(String(t._id)) || null, appIcon: icons.get(String(t._id)) || null, state: shopState(t) };
+            return { ...rest, plan: require('../services/planService').viewOf(t), billing: { state: billing?.state, graceEndsAt: billing?.graceEndsAt }, rent: rents.get(String(t._id)) || null, stats: stats.get(String(t._id)) || null, appIcon: icons.get(String(t._id)) || null, state: shopState(t) };
         }),
     });
 }));

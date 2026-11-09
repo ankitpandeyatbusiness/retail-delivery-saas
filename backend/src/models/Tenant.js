@@ -119,6 +119,22 @@ const tenantSchema = new mongoose.Schema({
         startMonth: { type: String, match: /^\d{4}-(0[1-9]|1[0-2])$/ },    // "2026-10"
     },
 
+    // Plan (Partner / Growth / Pro), see config/plans.js and docs/plans-and-pricing.md. No plan id = an old shop not moved yet (phase 9): nothing is gated.
+    // Written only by the supreme admin routes (services/planService.js).
+    plan: {
+        id: { type: String, enum: ['partner', 'growth', 'pro'] },
+        startedAt: Date,
+        endsAt: Date,                                   // the paid period (or the free period) ends at this moment
+        freeUntil: Date,                                // a free period, no invoice
+        priceOverridePaise: { type: Number, min: 0 },   // empty = the platform price
+        freeDaysOverride: { type: Number, min: 0, max: 365 },
+        feeSlabsOverride: { type: mongoose.Schema.Types.Mixed },   // Partner only: per-shop fee slabs
+        extras: { type: [new mongoose.Schema({ key: String, at: Date, by: String }, { _id: false })], default: undefined },   // features switched on outside the plan
+        webEnabled: { type: Boolean, default: true },
+        nativeEnabled: { type: Boolean, default: true },
+        history: { type: [new mongoose.Schema({ at: Date, by: String, from: String, to: String, note: String }, { _id: false })], default: undefined },
+    },
+
     // Rent engine. null means "use the platform value". Only billing code and the superadmin billing routes write this.
     billing: {
         goLiveAt: Date,                                         // empty = the shop's createdAt

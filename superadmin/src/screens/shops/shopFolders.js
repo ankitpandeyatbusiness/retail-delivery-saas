@@ -54,6 +54,7 @@ export const FOLDERS = [
         rows: [
             { section: 'settings', icon: 'edit', title: 'Edit shop', subtitle: 'Name, contact, address, delivery area, GST', screen: 'ShopEdit' },
             { section: 'alerts', icon: 'lock', title: 'Close this shop', subtitle: 'Stop the shop but keep all its data, with a reason', screen: 'ShopClose', closeRow: true },
+            { section: 'catalog', icon: 'star', title: 'Plan', subtitle: 'Partner, Growth or Pro, free days, extra features, website and app switches', screen: 'ShopPlan' },
             { section: 'alerts', icon: 'shield', title: 'Access and maintenance', subtitle: 'Block the owner panel, pause the shop for maintenance', screen: 'ShopAccess' },
             { section: 'settings', icon: 'notes', title: 'Activity log', subtitle: 'Who changed what in this shop', screen: 'ShopActivity' },
             { section: 'catalog', icon: 'palette', title: 'Branding', subtitle: 'Logo, home pictures, colours from logo, app icon', screen: 'ShopBranding' },

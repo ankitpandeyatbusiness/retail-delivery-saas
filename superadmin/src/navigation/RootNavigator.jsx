@@ -97,6 +97,8 @@ import RepeatCancellersScreen from '../screens/orders/RepeatCancellersScreen';
 import ShopEditScreen from '../screens/shops/ShopEditScreen';
 import ShopLiveScreen from '../screens/shops/ShopLiveScreen';
 import ShopAccessScreen from '../screens/shops/ShopAccessScreen';
+import ShopPlanScreen from '../screens/shops/ShopPlanScreen';
+import PlanDefaultsScreen from '../screens/platform/PlanDefaultsScreen';
 import ShopDevScreen from '../screens/shops/ShopDevScreen';
 import ShopNotifyScreen from '../screens/shops/ShopNotifyScreen';
 import ShopUsersScreen from '../screens/shops/ShopUsersScreen';
@@ -177,6 +179,7 @@ const DETAIL = [
     ['RepeatCancellers', RepeatCancellersScreen],
     ['ShopLive', ShopLiveScreen],
     ['ShopAccess', ShopAccessScreen],
+    ['ShopPlan', ShopPlanScreen],
     ['ShopDev', ShopDevScreen],
     ['ShopNotify', ShopNotifyScreen],
     ['ShopUsers', ShopUsersScreen],
@@ -226,6 +229,7 @@ const DETAIL = [
     ['CouponForm', CouponFormScreen],
     ['PlatformSms', PlatformSmsScreen],
     ['PlatformBilling', PlatformBillingScreen],
+    ['PlanDefaults', PlanDefaultsScreen],
     ['PlatformBusiness', PlatformBusinessScreen],
     ['GstRegister', GstRegisterScreen],
     ['MyRazorpay', MyRazorpayScreen],
