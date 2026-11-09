@@ -53,7 +53,7 @@ router.get('/payments/:id/invoice', wrap(async (req, res) => {
     if (!r) throw httpError(404, 'Payment not found');
     const inv = await billing.ensureInvoice(r._id);
     if (!inv) throw httpError(409, 'The invoice is not ready yet');
-    res.json(inv);
+    require('../services/subscriptionInvoicePdf').streamSubscriptionInvoice(res, inv, { inline: req.query.view === '1' });   // the tax invoice as a PDF
 }));
 
 router.use(apiErrors);

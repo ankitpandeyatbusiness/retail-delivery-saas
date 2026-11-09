@@ -297,6 +297,7 @@ export const cancelScheduledPlan = () => d(api.delete('/shop/plan/scheduled'));
 // one extra shop for the brand (Pro): the preview, then pay; after paying the platform team can create the branch
 export const quoteBranchPlan = () => d(api.post('/shop/plan/branch/quote'));
 export const startBranchPay = () => d(api.post('/shop/plan/branch/pay/start'));
+export const planInvoicePdfPath = (id) => `/shop/plan/payments/${id}/invoice`;   // the tax invoice PDF of a paid plan payment
 export const startPlanPay = (body) => d(api.post('/shop/plan/pay/start', body));
 export const verifyPlanPay = (id, proof) => d(api.post(`/shop/plan/pay/${id}/verify`, proof));
 // the Partner plan's wallet

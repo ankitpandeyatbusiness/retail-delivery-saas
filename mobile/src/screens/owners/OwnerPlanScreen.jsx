@@ -6,13 +6,14 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../../components/common/kit';
 import { PageHeader, Card, Chips, Button, Pill, SectionTitle } from '../../components/owners/ui';
-import { fetchPlan, quotePlan, choosePlan, cancelScheduledPlan, quoteBranchPlan, apiError } from '../../api/owners/shopApi';
+import { fetchPlan, quotePlan, choosePlan, cancelScheduledPlan, quoteBranchPlan, planInvoicePdfPath, apiError } from '../../api/owners/shopApi';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { useMenuFlags } from '../../utils/owners/menuFlags';
 import { rupees } from '../../utils/owners/riderRules';
 import { showToast } from '../../components/customers/shop';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { ask } from '../../components/common/dialog';
+import { downloadAndOpen } from '../../utils/owners/files';
 import { tr } from '../../i18n';
 
 // Texts the server sends inside the extra-shop quote. They are listed here (never called) so the translation list picks them up; tr() matches the server's real values to these {v1} patterns.
@@ -22,6 +23,10 @@ export const _serverQuoteTexts = () => [
     tr('Extra shop: Rs {v1} a month x {v2} of 30 days (the days left of your plan)'),
 ];
 
+const openInvoice = async (id) => {
+    try { await downloadAndOpen({ path: planInvoicePdfPath(id), filename: `invoice-${id}.pdf`, mime: 'application/pdf', title: tr('Invoice') }); }
+    catch (e) { showToast(e?.response?.status === 409 ? tr('The invoice is not ready yet') : tr('Could not open the invoice')); }
+};
 const day = (d) => new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 const planLine = (c) => {
     if (!c?.id) return tr('No plan yet');
@@ -179,6 +184,7 @@ export default function OwnerPlanScreen() {
                                     {o.payments.map((p) => (
                                         <View key={p.id} style={{ flexDirection: 'row', paddingVertical: 4 }}>
                                             <Text style={{ color: text, flex: 1 }}>{p.to[0].toUpperCase() + p.to.slice(1)}{p.months ? ` × ${p.months}` : ''} · {p.paidAt ? day(p.paidAt) : ''}{p.status === 'held' ? ` · ${tr('being checked')}` : ''}</Text>
+                                            {p.status === 'paid' ? <Pressable onPress={() => openInvoice(p.id)} hitSlop={8} style={{ marginRight: 10 }}><Text style={{ color: primary, fontWeight: '700' }}>{tr('Invoice (PDF)')}</Text></Pressable> : null}
                                             <Text style={{ color: text, fontWeight: '800' }}>{rupees(p.payablePaise)}</Text>
                                         </View>
                                     ))}

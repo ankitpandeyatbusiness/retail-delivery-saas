@@ -2100,7 +2100,7 @@ export default {
     "Invalid type": "પ્રકાર ખોટો છે",
     "Invalid vehicle": "વાહન ખોટું છે",
     "Invoice": "ઇનવૉઇસ",
-    "Invoice (PDF)": "ઇનવૉઇસ (PDF)",
+    "Invoice (PDF)": "ઇન્વૉઇસ (PDF)",
     "Is a big table free on my date?": "શું મારી તારીખે મોટું ટેબલ ખાલી છે?",
     "Is my date available?": "શું મારી તારીખ ખાલી છે?",
     "Is this phone ready for new orders?": "શું આ ફોન નવા ઓર્ડર માટે તૈયાર છે?",
