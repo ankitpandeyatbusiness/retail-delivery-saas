@@ -1,5 +1,6 @@
 // Home: the owner's control room. What needs him now comes first, then how the day is going, then the small things.
 // One call (GET /shop/dashboard) fills it; it refreshes whenever an order changes anywhere.
+import { usePlanHas } from '../../utils/owners/menuFlags';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useMenuFlags } from '../../utils/owners/menuFlags';
 import { View, Text, Pressable } from 'react-native';
@@ -108,6 +109,7 @@ function FreePeriod({ free, now }) {
 }
 
 export default function OwnerHomeScreen() {
+    const staffOk = usePlanHas('staffLogins');   // cooks and waiters are Growth and Pro
     const nav = useNavigation();
     const { muted, primary, onPrimary, error, ok, text, accent } = useBrand();
     const live = useOwnerStore((st) => st.live);
@@ -391,7 +393,7 @@ export default function OwnerHomeScreen() {
                 />
             </Card>
 
-            {staff?.rules?.kitchenOn || staff?.rules?.waiterOn ? (
+            {staffOk && (staff?.rules?.kitchenOn || staff?.rules?.waiterOn) ? (
                 <>
                     <SectionTitle title={tr('Staff')} />
                     <Card>

@@ -14,6 +14,7 @@ const router = express.Router();
 const actorOf = (req) => req.actor || { type: 'owner', id: req.auth.userId, label: req.shopUser?.phone || 'shop owner' };
 
 router.post('/', wrap(async (req, res) => {
+    if (req.body?.audience !== 'riders' && !require('../services/featureGate').hasFeature(req.tenant, 'customPush')) throw httpError(403, 'Messages to customers are in the Pro plan. See Plan to upgrade.');   // custom push
     const b = await messages.startShop({ tenant: req.tenant, actor: actorOf(req), body: req.body });
     res.locals.auditAction = 'BROADCAST';   // one audit row per broadcast
     res.locals.auditParams = { broadcastId: String(b._id), recipients: b.recipients, audience: b.audience, kind: b.kind };

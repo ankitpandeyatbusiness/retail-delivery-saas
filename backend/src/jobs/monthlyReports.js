@@ -36,7 +36,7 @@ async function runMonthlyReports({ now = new Date(), force = false } = {}) {
     if (platform?.insights?.monthlyReportEmail === false) return { sent: 0, off: true };
 
     const period = lastMonth(now);
-    const shops = await Tenant.find({ status: { $ne: 'suspended' } }).select('_id name settings.notifications').lean();
+    const shops = (await Tenant.find({ status: { $ne: 'suspended' } }).select('_id name settings.notifications plan').lean()).filter((s) => require('../services/featureGate').hasFeature(s, 'analytics'));   // the report is the Pro business report
     let sent = 0;
     for (const shop of shops) {
         try {

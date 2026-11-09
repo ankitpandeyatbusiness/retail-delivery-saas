@@ -43,7 +43,11 @@ function Quick({ icon, label, onPress }) {
 const StyleSheetHair = 0.8;
 
 function AddSheet({ visible, onClose }) {
-    const { muted } = useBrand();
+    const { muted, error } = useBrand();
+    // the plan's number of riders (Partner 2): at the limit the sheet says so and does not add
+    const limit = useMenuFlags((st) => st.plan?.limits?.riders);
+    const count = useRidersStore((st) => st.riders.length);
+    const atLimit = limit !== null && limit !== undefined && count >= limit;
     const [phone, setPhone] = useState('');
     const [name, setName] = useState('');
     const [busy, setBusy] = useState(false);
@@ -63,7 +67,8 @@ function AddSheet({ visible, onClose }) {
             <Text style={{ color: muted, marginBottom: 10 }}>{tr('The rider logs in to this app with his phone number and sees his deliveries.')}</Text>
             <Field value={phone} onChangeText={(x) => setPhone(x.replace(/\D/g, '').slice(0, 10))} placeholder={tr('Mobile number (10 digits)')} maxLength={10} keyboardType="number-pad" style={{ marginBottom: 10 }} />
             <Field value={name} onChangeText={setName} placeholder={tr('Name (optional)')} maxLength={40} style={{ marginBottom: 14 }} />
-            <Button label={tr('Add rider')} icon="person-add" disabled={!ok} busy={busy} onPress={submit} />
+            {atLimit ? <Text style={{ color: error, marginBottom: 10 }}>{tr('Your plan allows {n} riders. See Plan to upgrade.', { n: limit })}</Text> : null}
+            <Button label={tr('Add rider')} icon="person-add" disabled={!ok || atLimit} busy={busy} onPress={submit} />
         </Sheet>
     );
 }

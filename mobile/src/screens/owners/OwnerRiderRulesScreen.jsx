@@ -1,5 +1,6 @@
 // Delivery rules: how riders are picked, how many orders at once, what a delivery pays, the PIN check, live tracking, and the
 // cash-on-delivery limit for a customer's first orders. Closed while rent is unpaid (the server says so).
+import { usePlanHas } from '../../utils/owners/menuFlags';
 import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +19,7 @@ import { tr } from '../../i18n';
 const RECOMMENDED = { pickupCodOn: true, pickupCodMax: 0, pickupOpenMax: 2, pickupChange: true, mixDine: true, mixDelivery: 3, mixCashOn: true, mixCashNew: 800, mixCashTrusted: 3000, assignMode: 'automatic', offerSeconds: 120, maxActiveOrders: 3, pay: { type: 'none' }, trackPayouts: false, payUndelivered: false, cashLimit: 0, deliveryPin: true, liveTracking: true, locationIntervalSec: 10, codAmount: 1000, codFirst: 3 };
 
 export default function OwnerRiderRulesScreen() {
+    const liveMapOk = usePlanHas('riderLiveMap');   // Partner has no rider map for customers: the Live tracking options are not shown
     const nav = useNavigation();
     const { primary, text, muted } = useBrand();
     const access = useOwnerStore((s) => s.access);
@@ -101,6 +103,7 @@ export default function OwnerRiderRulesScreen() {
                 <ToggleRow title={tr('Delivery PIN')} subtitle={tr('The customer tells the rider a PIN to confirm the delivery')} value={v.deliveryPin} onValueChange={(x) => set('deliveryPin', x)} last />
             </Group>
 
+            {liveMapOk ? (
             <Group title={tr('Live tracking')}>
                 <ToggleRow title={tr('Customer sees the rider on a map')} value={v.liveTracking} onValueChange={(x) => set('liveTracking', x)} last={!v.liveTracking} />
                 {v.liveTracking ? (
@@ -109,6 +112,7 @@ export default function OwnerRiderRulesScreen() {
                     </View>
                 ) : null}
             </Group>
+            ) : null}
 
             <Group title={tr('Cash on delivery limit')} hint={tr('A new customer can pay cash only up to this amount on his first orders. Then cash is open to him.')}>
                 <NumberBox label={tr('Highest cash order for a new customer')} prefix="₹" value={v.codAmount} onChange={(x) => set('codAmount', x)} error={errors.codAmount} hint={tr('0 = no limit')} />

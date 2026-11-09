@@ -1,4 +1,5 @@
 // Messages: send a notification to all your customers and/or riders, and see what you sent. 5 messages a day. Never by SMS.
+import { usePlanHas } from '../../utils/owners/menuFlags';
 import React, { useCallback, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -17,7 +18,7 @@ import { tr, tl } from '../../i18n';
 function Compose({ visible, onClose, onSent }) {
     const [title, setTitle] = useState('');
     const [body, setBody] = useState('');
-    const [audience, setAudience] = useState('customers');
+    const [audience, setAudience] = useState(pushOk ? 'customers' : 'riders');
     const [kind, setKind] = useState('info');
     const [busy, setBusy] = useState(false);
     const ok = title.trim().length >= 1 && body.trim().length >= 1;
@@ -38,7 +39,7 @@ function Compose({ visible, onClose, onSent }) {
     return (
         <Sheet visible={visible} onClose={onClose} title={tr('New message')}>
             <Label>{tr('Send to')}</Label>
-            <Chips options={AUDIENCES} value={audience} onChange={(a) => { setAudience(a); if (a !== 'customers') setKind('info'); }} style={{ marginTop: 0 }} />
+            <Chips options={pushOk ? AUDIENCES : AUDIENCES.filter((a) => a[0] === 'riders')} value={audience} onChange={(a) => { setAudience(a); if (a !== 'customers') setKind('info'); }} style={{ marginTop: 0 }} />
             <Label hint={kind === 'promo' ? tr('Customers who turned promotions off are skipped.') : tr('Important news, like closing for a day.')}>{tr('Kind')}</Label>
             <Chips options={audience === 'customers' ? [['info', tl('Information')], ['promo', tl('Offer')]] : [['info', tl('Information')]]} value={kind} onChange={setKind} style={{ marginTop: 0 }} />
             <View style={{ height: 6 }} />
@@ -52,6 +53,7 @@ function Compose({ visible, onClose, onSent }) {
 }
 
 export default function OwnerMessagesScreen() {
+    const pushOk = usePlanHas('customPush');   // messages to customers are the custom push (Pro); riders can always be messaged
     const { background, text, muted, ok, error, primary } = useBrand();
     const [items, setItems] = useState(null);
     const [err, setErr] = useState('');

@@ -8,6 +8,7 @@ import { useSoundboxStore, REPEAT_CHOICES } from '../../store/owners/useSoundbox
 import { labelledVoices, sampleVoice, previewGreeting } from '../../utils/owners/soundbox';
 import { FAITH_GREETINGS, ADDRESS_CHOICES } from '../../utils/owners/greetings';
 import { newOrderChannelInfo } from '../../utils/common/push';
+import { usePlanHas } from '../../utils/owners/menuFlags';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { LineShimmer } from '../../components/owners/shimmer';
 import { tr } from '../../i18n';
@@ -49,6 +50,8 @@ export default function SoundboxScreen() {
     const st = useSoundboxStore();
     const hindi = st.language === 'hi';
     const role = useAuthStore((x) => x.user?.role);
+    const planVoice = usePlanHas('soundboxVoice');
+    const voiceOk = role !== 'admin' || planVoice;   // the owner's plan decides; staff and riders are not asked
     const staff = role === 'kitchen' || role === 'waiter';
     const rider = role === 'rider';   // a rider only chooses the voice, the language and the volume
 
@@ -145,6 +148,7 @@ export default function SoundboxScreen() {
                     ) : null}
                 </Card>
 
+                {voiceOk ? (<>
                 <SectionTitle title={tr('Voice')} />
                 <Card>
                     <Label
@@ -242,6 +246,7 @@ export default function SoundboxScreen() {
                         {tr('The greeting is said once, in front of the order.')}
                     </Text>
                 </Card>
+                </>) : null}
                 </>
                 ) : null}
 

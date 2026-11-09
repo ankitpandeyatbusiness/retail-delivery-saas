@@ -1,5 +1,6 @@
 // Customers of the shop: filter by how they are doing (slipping, lost, new, regular, loyal, VIP), search by name or phone.
 // Tap one for his page; "Remind" on a row sends him a friendly nudge (push and his in-app inbox).
+import { usePlanHas } from '../../utils/owners/menuFlags';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, FlatList, Pressable, ScrollView } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -21,6 +22,7 @@ import { LineShimmer, ListShimmer } from '../../components/owners/shimmer';
 import { tr, tl } from '../../i18n';
 
 export default function OwnerCustomersScreen() {
+    const autopilotOk = usePlanHas('customPush');   // Autopilot is Pro
     const nav = useNavigation();
     const { background, text, muted, primary, border, onPrimary } = useBrand();
     const [sheetOpen, setSheetOpen] = useState(false);
@@ -83,11 +85,13 @@ export default function OwnerCustomersScreen() {
             </View>
             {tag !== 'all' ? <Text style={{ color: primary, fontWeight: '800', paddingHorizontal: 16, marginBottom: 4 }}>{tag === 'blocked' ? tr('Blocked') : tr(TAGS[tag]?.label || tag)}</Text> : null}
             {tag === 'blocked' ? <Text style={{ color: muted, fontSize: 12, paddingHorizontal: 16, marginTop: 8 }}>{tr('Customers you blocked: when, why, and the order it was about. You can unblock them here.')}</Text> : tag !== 'all' ? <Text style={{ color: muted, fontSize: 12, paddingHorizontal: 16, marginTop: 8 }}>{TAGS[tag].hint}</Text> : null}
+            {autopilotOk ? (
             <Pressable onPress={() => nav.navigate('OwnerAutopilot')} style={{ marginHorizontal: 16, marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: alpha(primary, 0.1), flexDirection: 'row', alignItems: 'center' }}>
                 <Ionicons name="rocket" size={20} color={primary} />
                 <Text style={{ flex: 1, color: text, fontWeight: '800', marginLeft: 10 }}>{tr('Autopilot: reminders that go out by themselves')}</Text>
                 <Ionicons name="chevron-forward" size={18} color={muted} />
             </Pressable>
+            ) : null}
         </View>
     );
 

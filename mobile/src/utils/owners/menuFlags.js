@@ -8,6 +8,10 @@ import { fetchSettings } from '../../api/owners/shopApi';
 import { ease } from '../common/ease';
 
 const KEY = 'menuFlags';
+export const usePlanHas = (key) => useMenuFlags((s) => planHas(s.plan, key));
+
+// Does the shop's plan include a feature? Screens use it to show an option only when the plan has it (the server refuses the rest anyway). No plan yet = everything.
+export const planHas = (plan, key) => !plan || plan.features?.[key] !== false;
 
 export const useMenuFlags = create((set, get) => ({
     kitchenOn: false, waiterOn: false, servicesOn: false, bookingOn: false, bulkOn: false, busy: null, plan: null, easy: false, sortAZ: true, azChosen: false, ready: false,

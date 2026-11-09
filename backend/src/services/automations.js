@@ -32,22 +32,36 @@ const CHOICES = {
 };
 const FLAGS = ['depositAutoAdjust', 'stageAlerts', 'cashLimitReminders', 'leaveReminders', 'kitchenProblemReminders', 'complaintReminders', 'closedDayReminders', 'autoApproveLeave'];
 
+// An automation that belongs to a feature the shop's plan does not include is OFF and cannot be switched on (the owner screen does not show it either).
+//   staffLogins (Growth, Pro): the kitchen-problem reminders and approving a staff leave request. services: closing a quiet inquiry.
+const NEEDS = { kitchenProblemReminders: 'staffLogins', autoApproveLeave: 'staffLogins', inquiryCloseDays: 'services' };
+const OFF = { kitchenProblemReminders: false, autoApproveLeave: false, inquiryCloseDays: 0 };
+async function planOf(tenantId) { return (await Tenant.findById(tenantId).select('plan').lean()) || {}; }
+const gated = (cfg, tenant) => {
+    const gate = require('./featureGate');
+    const out = { ...cfg };
+    for (const [k, feature] of Object.entries(NEEDS)) if (!gate.hasFeature(tenant, feature)) out[k] = OFF[k];
+    return out;
+};
+
 async function get(tenantId) {
-    const row = await ShopAutomation.findOne({ tenantId }).lean();
+    const [row, tenant] = await Promise.all([ShopAutomation.findOne({ tenantId }).lean(), planOf(tenantId)]);
     const out = { ...DEFAULTS };
     for (const k of Object.keys(DEFAULTS)) if (row && row[k] !== undefined && row[k] !== null) out[k] = row[k];
-    return out;
+    return gated(out, tenant);
 }
 
 // only the fields sent change; every number must be one of the choices on the screen
 async function save(tenantId, body = {}) {
     const set = {};
+    const tenant = await planOf(tenantId);
+    const allowed = (k) => !NEEDS[k] || require('./featureGate').hasFeature(tenant, NEEDS[k]);   // a setting of a feature outside the plan is ignored
     for (const [k, list] of Object.entries(CHOICES)) {
-        if (body[k] === undefined) continue;
+        if (body[k] === undefined || !allowed(k)) continue;
         if (!list.includes(Number(body[k]))) throw httpError(400, `Choose one of ${list.join(', ')} for this automation`);
         set[k] = Number(body[k]);
     }
-    for (const k of FLAGS) if (body[k] !== undefined) set[k] = !!body[k];
+    for (const k of FLAGS) if (body[k] !== undefined && allowed(k)) set[k] = !!body[k];
     if (Object.keys(set).length) await ShopAutomation.updateOne({ tenantId }, { $set: set }, { upsert: true });
     return get(tenantId);
 }

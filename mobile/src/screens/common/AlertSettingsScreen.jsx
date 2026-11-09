@@ -1,5 +1,6 @@
 // Alerts: for every kind of alert, four switches side by side: Notification, Tone, Voice, Slider (and a small "Listen"). The same screen for the shop owner, the
 // rider, the cook and the waiter; the groups come from the server for the person's job. "Recommended settings" puts everything back as it was given.
+import { usePlanHas } from '../../utils/owners/menuFlags';
 import React, { useEffect } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -11,6 +12,7 @@ import { themedAlert } from '../../components/common/dialog';
 import { showToast } from '../../components/customers/shop';
 import { useAlertPrefs } from '../../store/common/useAlertPrefs';
 import { useSoundboxStore } from '../../store/owners/useSoundboxStore';
+import { useAuthStore } from '../../store/common/useAuthStore';
 import { sayExample } from '../../utils/owners/soundbox';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { tr } from '../../i18n';
@@ -31,6 +33,8 @@ export default function AlertSettingsScreen() {
     const nav = useNavigation();
     const { groups, loaded, load, change, reset } = useAlertPrefs();
     const language = useSoundboxStore((s) => s.language);
+    const planVoice = usePlanHas('soundboxVoice');
+    const voiceOk = useAuthStore((x) => x.user?.role) !== 'admin' || planVoice;   // Soundbox voice is Growth and Pro: on Partner the owner has the sound, tone and slider only
     useEffect(() => { load(); }, [load]);
 
     const flip = (g, k, v) => {
@@ -69,7 +73,7 @@ export default function AlertSettingsScreen() {
                         <View style={{ flexDirection: 'row', marginTop: 12 }}>
                             <Col label={tr('Notification')} value={g.pref.n} onChange={(v) => flip(g, 'n', v)} />
                             {g.can.s ? <Col label={tr('Tone')} value={g.pref.s} onChange={(v) => flip(g, 's', v)} /> : null}
-                            {g.can.v ? <Col label={tr('Voice')} value={g.pref.v} onChange={(v) => flip(g, 'v', v)} /> : null}
+                            {g.can.v && voiceOk ? <Col label={tr('Voice')} value={g.pref.v} onChange={(v) => flip(g, 'v', v)} /> : null}
                             {g.can.p ? <Col label={tr('Slider')} value={g.pref.p} onChange={(v) => flip(g, 'p', v)} /> : null}
                         </View>
                         {g.can.p && g.pref.p ? (

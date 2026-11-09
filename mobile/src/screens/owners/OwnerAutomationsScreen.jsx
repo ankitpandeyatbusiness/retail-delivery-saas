@@ -40,6 +40,10 @@ export default function OwnerAutomationsScreen() {
     const { muted, text, primary, border, surface } = useBrand();
     const bookingOn = useMenuFlags((s) => s.bookingOn);
     const servicesOn = useMenuFlags((s) => s.servicesOn);
+    // What the plan includes: a rule whose feature is not in the plan is not shown at all (the server also keeps it off). No plan yet = nothing is hidden.
+    const plan = useMenuFlags((s) => s.plan);
+    const has = (k) => !plan || plan.features?.[k] !== false;
+    useEffect(() => { useMenuFlags.getState().refresh(); }, []);
     const [a, setA] = useState(null);          // the shop's own automations (services/automations.js)
     const [dine, setDine] = useState(null);    // settings.orders.dineIn
     const [rid, setRid] = useState(null);      // settings.riders
@@ -100,7 +104,7 @@ export default function OwnerAutomationsScreen() {
         const I = (id, section, title, sub, words = '', tag = tr('Always on'), show = true) => { if (show) R.push({ id, section, kind: 'info', title, sub, words, tag }); };
 
         // new orders
-        R.push({ id: 'autoaccept', section: 'orders', kind: 'custom', title: tr('Accept new orders by themselves'), words: 'auto accept busy hours schedule', node: <AutoAcceptCard /> });
+        if (has('autoAccept')) R.push({ id: 'autoaccept', section: 'orders', kind: 'custom', title: tr('Accept new orders by themselves'), words: 'auto accept busy hours schedule', node: <AutoAcceptCard /> });
         I('accept10', 'orders', tr('An order nobody accepts is cancelled'), tr('After 10 minutes, with a full refund and no penalty for you. You get reminders at 3 and 6 minutes.'), 'cancel not accepted timeout refund reminder');
         I('sms3', 'orders', tr('An unread new-order alert gets an SMS'), tr('After about 3 minutes, so a missed order is not lost.'), 'sms escalation unread');
         I('unpaid15', 'orders', tr('An online order the customer never paid is cancelled'), tr('After 15 minutes. If the money arrives later it goes back.'), 'online unpaid payment timeout cancel refund');
@@ -161,8 +165,10 @@ export default function OwnerAutomationsScreen() {
         I('p1', 'platform', tr('Backups of your shop data'), tr('Taken every day, and kept for a week. A weekly copy is kept for a month.'), 'backup data safe', tr('Done for you'));
         I('p2', 'platform', tr('Monthly reports'), tr('Made at the start of each month.'), 'monthly report', tr('Done for you'));
         I('p3', 'platform', tr('Loyalty points'), tr('Points a customer earned are released by themselves after the order is safe.'), 'loyalty points release rewards', tr('Done for you'));
-        return R;
-    }, [a, dine, rid, staff, bk, ap, bookingOn, servicesOn]);   // eslint-disable-line react-hooks/exhaustive-deps
+        // a rule whose feature is not in the plan is left out (the same rules the server uses: services/automations.js)
+        const NEEDS = { kp: 'staffLogins', nudge: 'staffLogins', leaveauto: 'staffLogins', p2: 'analytics', p3: 'loyalty', autoaccept: 'autoAccept' };
+        return R.filter((r) => !NEEDS[r.id] || has(NEEDS[r.id]));
+    }, [a, dine, rid, staff, bk, ap, bookingOn, servicesOn, plan]);   // eslint-disable-line react-hooks/exhaustive-deps
 
     if (!a || !dine || !rid) return <FormPage title={tr('Automations')}>{err ? <Text style={{ color: muted, padding: 20 }}>{err}</Text> : <FormShimmer cards={4} />}</FormPage>;
 

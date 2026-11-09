@@ -1,5 +1,6 @@
 // Closing report: the day in one page (sales, payment split, orders, cash, best sellers). Pick another day, or share it
 // as a message (WhatsApp, to a partner or an accountant).
+import { useMenuFlags, planHas } from '../../utils/owners/menuFlags';
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView, Share } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -39,7 +40,7 @@ export default function OwnerClosingScreen() {
 
     const load = useCallback(async () => {
         setR(null); setPf(null); setErr('');
-        try { const x = rangeOf(which); const rep = await fetchClosingReport(x); setR(rep); const dd = x.date || null; fetchProfit(dd ? { from: dd, to: dd } : x).then(setPf).catch(() => setPf(null)); }
+        try { const x = rangeOf(which); const rep = await fetchClosingReport(x); setR(rep); const dd = x.date || null; (planHas(useMenuFlags.getState().plan, 'costsProfit') ? fetchProfit(dd ? { from: dd, to: dd } : x) : Promise.resolve(null)).then(setPf).catch(() => setPf(null)); }
         catch (e) { useOwnerStore.getState().noteError(e); setErr(apiError(e, 'Could not make the report.')); }
     }, [which]);
     useEffect(() => { load(); }, [load]);

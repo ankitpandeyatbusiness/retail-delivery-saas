@@ -1,5 +1,6 @@
 // The owner's side menu: slides in from the left when the hamburger is tapped. No dark layer over the page; a tap on the
 // page beside it, the Android back button, or a swipe towards the left (on the menu or on the page beside it) closes it.
+import { usePlanHas } from '../../utils/owners/menuFlags';
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, Animated, Easing, BackHandler, ScrollView, StyleSheet, Dimensions, StatusBar, PanResponder } from 'react-native';
 import { Image } from 'expo-image';
@@ -21,6 +22,7 @@ import { useAppStatus } from '../../store/common/useAppStatus';
 const WIDTH = Math.min(340, Math.round(Dimensions.get('window').width * 0.84));
 
 export default function OwnerDrawer() {
+    const branchesOk = usePlanHas('multiBranch');   // Pro
     const insets = useSafeAreaInsets();
     // keep clear of the status bar and the phone's navigation bar, whichever way the phone reports them
     // While the maintenance bar shows, the bar already covers the status bar and the app below it starts under the bar: the menu starts at the top of that area.
@@ -91,7 +93,7 @@ export default function OwnerDrawer() {
                     <Pressable onPress={close} hitSlop={10}><Ionicons name="close" size={24} color={muted} /></Pressable>
                 </View>
                 <ScrollView ref={menuScroll} scrollEventThrottle={16} onScroll={(e) => useMenuIndex.getState().setScroll(e.nativeEvent.contentOffset.y)} contentContainerStyle={{ paddingTop: 8, paddingBottom: 30 }} showsVerticalScrollIndicator={false}>
-                    <BranchSwitcher onGo={close} />
+                    {branchesOk ? <BranchSwitcher onGo={close} /> : null}
                     <ShopMenu onGo={close} />
                 </ScrollView>
                 <MenuIndexStrip scrollRef={menuScroll} top={84} bottom={24} pad={8} />
