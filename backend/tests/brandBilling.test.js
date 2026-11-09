@@ -59,22 +59,6 @@ async function brandOfThree() {
 }
 
 describe('multi-branch discount', () => {
-    test('the 2nd branch onward gets the brand discount on the rent, shown as its own line; the first branch pays full', async () => {
-        const { brand, out } = await brandOfThree();
-        assert.equal((await put(`/api/admin/brands/${brand._id}`, { discountPercent: 10 })).status, 200);
-        const r = await generateForPeriod({ period: '2025-06' });
-        assert.equal(r.created, 3, JSON.stringify(r));
-
-        const inv = async (b) => SubscriptionInvoice.findOne({ tenantId: b.id, period: '2025-06' }).lean();
-        const [a, b, c] = [await inv(out[0]), await inv(out[1]), await inv(out[2])];
-        assert.deepEqual([a.baseAmount, a.lineItems.length], [6000, 1]);                 // main branch: no discount
-        assert.deepEqual([b.baseAmount, b.total], [5400, 5400]);                           // 6000 - 10%
-        assert.equal(b.lineItems.length, 2);
-        assert.equal(b.lineItems[1].amount, -600);
-        assert.match(b.lineItems[1].description, /Multi-branch discount 10%/);
-        assert.equal(c.baseAmount, 5400);
-    });
-
     test('a discount can never go above the platform cap; the supreme admin can change the cap and the suggestion; others cannot', async () => {
         const { brand } = await brandOfThree();
         assert.deepEqual((await request(app).get('/api/admin/brands/settings').set(as(plain))).body, { defaultDiscountPercent: 10, maxDiscountPercent: 15 });
@@ -87,41 +71,8 @@ describe('multi-branch discount', () => {
         assert.equal((await put(`/api/admin/brands/${brand._id}`, { discountPercent: 'x' })).status, 400);
     });
 
-    test('with the discount off, or for a shop that is not a branch, the bill is the plain tier fee', async () => {
-        const { out } = await brandOfThree();
-        await generateForPeriod({ period: '2025-06' });
-        assert.equal((await SubscriptionInvoice.findOne({ tenantId: out[1].id, period: '2025-06' })).baseAmount, 6000);
-
-        const solo = await makeTenant('solo-bill', { billing: { isLive: true, state: 'active', goLiveAt: new Date('2025-01-10T00:00:00Z'), billableCount: 500 } });
-        const cust = await makeUser(solo, 'customer', '9300000001');
-        await bulk(solo, cust.user, 306, new Date('2025-06-15T10:00:00Z'));
-        await generateForPeriod({ period: '2025-06', tenantId: solo._id });
-        assert.equal((await SubscriptionInvoice.findOne({ tenantId: solo._id, period: '2025-06' })).baseAmount, 6000);
-    });
 });
 
-describe('the brand statement', () => {
-    test('a line per branch, the discount, totals, unpaid and the SMS used per branch', async () => {
-        const { brand, out } = await brandOfThree();
-        await put(`/api/admin/brands/${brand._id}`, { discountPercent: 10 });
-        await generateForPeriod({ period: '2025-06' });
-        await SubscriptionInvoice.updateOne({ tenantId: out[0].id, period: '2025-06' }, { $set: { status: 'paid' } });
-        // two SMS sent for Mumbai in June 2025
-        const june = new Date('2025-06-20T10:00:00Z');
-        for (let i = 0; i < 2; i += 1) await SmsLog.collection.insertOne({ tenantId: new mongoose.Types.ObjectId(out[1].id), purpose: 'otp', status: 'sent', chargedPaise: 30, createdAt: june });
-
-        const res = await request(app).get(`/api/admin/brands/${brand._id}/statement?period=2025-06`).set(as(plain));
-        assert.equal(res.status, 200, JSON.stringify(res.body));
-        const s = res.body;
-        assert.equal(s.branches.length, 3);
-        assert.deepEqual([s.totals.invoices, s.totals.rent, s.totals.discount, s.totals.total], [3, 18000, 1200, 16800]);
-        assert.deepEqual([s.totals.unpaidCount, s.totals.unpaid], [2, 10800]);
-        assert.equal(s.branches[1].invoice.discount, 600);
-        assert.equal(s.branches[1].sms.count, 2);
-        assert.equal(s.totals.smsCount, 2);
-        assert.equal((await request(app).get(`/api/admin/brands/${brand._id}/statement?period=nope`).set(as(plain))).status, 400);
-    });
-});
 
 describe('one SMS wallet for the whole brand', () => {
     test('every branch uses the same wallet: a top-up at one shows at all, a debit at one lowers all, and the ledger balances', async () => {

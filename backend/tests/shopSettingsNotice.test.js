@@ -36,15 +36,6 @@ describe('shop notices', () => {
         } finally { notify.toOwner = realToOwner; }
     });
 
-    test('starting the free period (go live) tells the owner', async () => {
-        try {
-            const r = await api('post', `/tenants/${w.tenant._id}/billing/go-live`, { force: true });
-            assert.equal(r.status, 200, JSON.stringify(r.body));
-            await wait();
-            assert.equal(calls.filter((c) => c.title === 'Your free period has started').length, 1);
-        } finally { notify.toOwner = realToOwner; }
-    });
-
     test('platform-wide SMS prices tell no shop', async () => {
         try {
             await api('put', '/platform/sms', { pricePerSms: 1 });

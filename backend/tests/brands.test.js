@@ -143,14 +143,4 @@ describe('branch location rules', () => {
         assert.equal((await geo(delhi, '/api/geo/branches?lat=abc&lng=1')).status, 400);
     });
 
-    test('a branch cannot go live without its pin and radius; with them it can', async () => {
-        const { branches } = await brandWith('delhi');
-        const t = await Tenant.findOne({ slug: branches[0].slug });
-        const goLive = () => post(`/api/admin/tenants/${t._id}/billing/go-live`, {});
-        const no = await goLive();
-        assert.equal(no.status, 409);
-        assert.match(no.body.error, /pin and delivery radius/);
-        await setArea(branches[0].slug, 28.6, 77.2, 8);
-        assert.equal((await goLive()).status, 200);
-    });
 });

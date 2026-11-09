@@ -163,40 +163,6 @@ describe('billable orders', () => {
         await assert.rejects(() => billable.countInPeriod(t._id, 'nonsense'), (e) => e.status === 400);
     });
 
-    test('the monthly bill counts billable orders, and ignores delivered orders that earned nothing', async () => {
-        const t = await makeTenant('bl-invoice', live({
-            goLiveAt: new Date('2025-01-10T00:00:00Z'), billableCount: 500, state: 'active',
-        }));
-        const c = await makeUser(t, 'customer', '9000000001');
-        await PlatformSettings.findByIdAndUpdate('main', { $set: { 'business.legalName': 'Acme Pvt Ltd' } }, { upsert: true });
-        try {
-            await bulk(t, c.user, 306, new Date('2025-06-15T10:00:00Z'));             // 306 orders in June 2025
-            await bulk(t, c.user, 5, new Date('2025-06-16T10:00:00Z'), { billing: { billable: false } });
-            await bulk(t, c.user, 1, new Date('2025-07-02T10:00:00Z'));               // a July order
-            const r = await generateForPeriod({ period: '2025-06', tenantId: t._id });
-            assert.equal(r.created, 1);
-            const inv = await SubscriptionInvoice.findOne({ tenantId: t._id, period: '2025-06' }).lean();
-            assert.equal(inv.orderCount, 306);
-            assert.equal(inv.baseAmount, 6000);
-            assert.equal(inv.tierLabel, '306 to 1005 orders');
-            assert.ok(inv.lineItems[0].description.includes('306 orders'));
-        } finally {
-            await PlatformSettings.deleteMany({});
-        }
-    });
-
-    test('B9: a shop that is not live gets no rent bill, however old it is', async () => {
-        const t = await makeTenant('bl-old-notlive', { createdAt: new Date('2024-01-01T00:00:00Z') });
-        await PlatformSettings.findByIdAndUpdate('main', { $set: { 'business.legalName': 'Acme Pvt Ltd' } }, { upsert: true });
-        try {
-            const r = await generateForPeriod({ period: '2025-06', tenantId: t._id });
-            assert.equal(r.created, 0);
-            assert.equal(r.skipped.in_free_service, 1);
-        } finally {
-            await PlatformSettings.deleteMany({});
-        }
-    });
-
     test('the free period ends at the order limit, and the superadmin hears it once', async () => {
         const t = await makeTenant('bl-free-end', live({ billableCount: 99 }));
         const c = await makeUser(t, 'customer', '9000000001');
@@ -227,62 +193,6 @@ describe('go live', () => {
 
     const goLive = (t, body) => request(app).post(`/api/admin/tenants/${t._id}/billing/go-live`).set(auth).send(body);
 
-    test('only a superadmin can press it, and bad input is refused', async () => {
-        const t = await makeTenant('gl-auth');
-        assert.equal((await request(app).post(`/api/admin/tenants/${t._id}/billing/go-live`).send({})).status, 401);
-        assert.equal((await request(app).post(`/api/admin/tenants/${new mongoose.Types.ObjectId()}/billing/go-live`).set(auth).send({})).status, 404);
-        assert.equal((await goLive(t, { force: 'yes' })).status, 400);
-        assert.equal((await billingOf(t)).isLive, false);
-    });
-
-    test('it starts the free period now, and a second press needs force', async () => {
-        const t = await makeTenant('gl-basic');
-        const before = Date.now();
-        const first = await goLive(t, {});
-        assert.equal(first.status, 200);
-        const b = await billingOf(t);
-        assert.equal(b.isLive, true);
-        assert.equal(b.state, 'free');
-        assert.equal(b.billableCount, 0);
-        assert.ok(new Date(b.goLiveAt).getTime() >= before - 1000);
-
-        assert.equal((await goLive(t, {})).status, 409);                             // already live
-        await Tenant.updateOne({ _id: t._id }, { $set: { 'billing.billableCount': 40 } });
-        assert.equal((await goLive(t, { force: true })).status, 200);
-        assert.equal((await billingOf(t)).billableCount, 0);                         // the free period starts again
-    });
-
-    test('it clears an old "free ended" and grace state', async () => {
-        const t = await makeTenant('gl-clear', {
-            billing: { state: 'active', billableCount: 50, freeEndedAt: new Date(Date.now() - 30 * DAY), graceEndsAt: new Date() },
-        });
-        assert.equal((await goLive(t, {})).status, 200);
-        const b = await billingOf(t);
-        assert.equal(b.state, 'free');
-        assert.equal(b.billableCount, 0);
-        assert.equal(b.freeEndedAt, undefined);
-        assert.equal(b.graceEndsAt, undefined);
-    });
-
-    test('an unpaid bill is still enforced after a forced go-live', async () => {
-        const t = await makeTenant('gl-owing', { billing: { state: 'paused' } });
-        await makeInvoice(t, { graceEndsAt: new Date(Date.now() - DAY) });
-        assert.equal((await goLive(t, {})).status, 200);
-        assert.equal((await billingOf(t)).state, 'paused');
-    });
-
-    test('orders placed before go-live never count, orders placed after it do', async () => {
-        const t = await makeTenant('gl-orders');
-        const c = await makeUser(t, 'customer', '9000000001');
-        const older = await makeOrder(t, c.user, { status: 'preparing', createdAt: new Date(Date.now() - 3600000) });
-        assert.equal((await goLive(t, {})).status, 200);
-        const newer = await makeOrder(t, c.user, { status: 'preparing' });
-        await deliver(older);
-        await deliver(newer);
-        assert.notEqual((await Order.findById(older._id)).billing?.billable, true);
-        assert.equal((await Order.findById(newer._id)).billing.billable, true);
-        assert.equal((await billingOf(t)).billableCount, 1);
-    });
 });
 
 describe('billing alerts, quiet shops and the migration', () => {

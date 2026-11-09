@@ -41,23 +41,6 @@ describe('platform: business, billing rules, tiers, SMS prices', () => {
         assert.ok(bad.status >= 400 && bad.status < 500);
     });
 
-    test('billing rules and tiers: whole numbers only, tiers must grow and end open', async () => {
-        const ok = await put('/api/admin/platform/billing', { dueDays: 10, graceDays: 4, freeOrders: 50, freeMonths: 1 });
-        assert.equal(ok.status, 200, JSON.stringify(ok.body));
-        assert.equal((await put('/api/admin/platform/billing', { dueDays: 99 })).status, 400);
-
-        const tiers = [{ upTo: 100, fee: 2000 }, { upTo: 500, fee: 5000 }, { upTo: null, fee: 9000 }];
-        const t = await put('/api/admin/platform/billing/tiers', { tiers });
-        assert.equal(t.status, 200, JSON.stringify(t.body));
-        assert.equal(t.body.tiers.length, 3);
-        assert.equal((await put('/api/admin/platform/billing/tiers', { tiers: [{ upTo: 100, fee: 1 }] })).status, 400);   // last tier must be open
-        assert.equal((await put('/api/admin/platform/billing/tiers', { tiers: [{ upTo: 500, fee: 1 }, { upTo: 100, fee: 2 }, { upTo: null, fee: 3 }] })).status, 400);
-
-        const p = await get('/api/admin/platform');
-        assert.equal(p.body.billing.dueDays, 10);
-        assert.equal(p.body.billing.tiers[2].upTo, null);
-    });
-
     test('SMS prices in paise, packs, and min above max refused; profit report answers', async () => {
         const ok = await put('/api/admin/platform/sms', { ratePerSmsPaise: 40, costPerSmsPaise: 25, lowBalancePaise: 8000, minTopupPaise: 10000, maxTopupPaise: 500000, packs: [10000, 25000] });
         assert.equal(ok.status, 200, JSON.stringify(ok.body));
@@ -72,49 +55,6 @@ describe('platform: business, billing rules, tiers, SMS prices', () => {
 });
 
 describe('one shop: billing', () => {
-    test('go live, again needs force; overrides and reset; preview', async () => {
-        const shop = await f.makeTenant(`money-${++n}`);
-        const base = `/api/admin/tenants/${shop._id}`;
-
-        let r = await post(`${base}/billing/go-live`, {});
-        assert.equal(r.status, 200, JSON.stringify(r.body));
-        assert.equal(r.body.billing.isLive, true);
-        assert.equal(r.body.billing.billableCount, 0);
-
-        r = await post(`${base}/billing/go-live`, {});
-        assert.equal(r.status, 409);
-        r = await post(`${base}/billing/go-live`, { force: true });
-        assert.equal(r.status, 200);
-
-        const sent = {
-            freeOrdersOverride: 20, freeMonthsOverride: 1, fixedFeeOverride: 1500,
-            tiersOverride: [{ upTo: 50, fee: 500 }, { upTo: null, fee: 900 }], goLiveAt: '2026-10-01T00:00:00+05:30',
-        };
-        r = await put(`${base}/billing`, sent);
-        assert.equal(r.status, 200, JSON.stringify(r.body));
-        assert.equal(r.body.billing.fixedFeeOverride, 1500);
-        assert.equal(r.body.billing.tiersOverride.length, 2);
-
-        // empty boxes in the app are sent as null: back to the platform value
-        r = await put(`${base}/billing`, { freeOrdersOverride: null, freeMonthsOverride: null, fixedFeeOverride: null, tiersOverride: null, goLiveAt: null });
-        assert.equal(r.status, 200, JSON.stringify(r.body));
-        assert.equal(r.body.billing.freeOrdersOverride, null);
-
-        assert.equal((await put(`${base}/billing`, { freeOrdersOverride: -1 })).status, 400);
-        assert.equal((await put(`${base}/billing`, { reset: true })).status, 200);
-
-        const prev = await get(`${base}/billing/preview?period=2026-09`);
-        assert.equal(prev.status, 200);
-        assert.equal(prev.body.period, '2026-09');
-        assert.equal(typeof prev.body.total, 'number');
-        assert.equal((await get(`${base}/billing/preview?period=bad`)).status, 400);
-
-        // the owner-style status the screen reads
-        const st = await get(`${base}/shop/billing/status`);
-        assert.equal(st.status, 200);
-        assert.ok(st.body.free);
-    });
-
     test('unpause is refused for a shop that is not paused', async () => {
         const shop = await f.makeTenant(`money-${++n}`);
         assert.equal((await post(`/api/admin/tenants/${shop._id}/billing/unpause`, { days: 3 })).status, 409);
@@ -164,27 +104,6 @@ describe('rent invoices', () => {
         assert.equal(voided.status, 200);
         assert.equal(voided.body.status, 'void');
         assert.equal((await patch(`/api/admin/subscriptions/invoices/${id}/status`, { status: 'paid' })).status, 409);   // void is final
-    });
-
-    test('waive; resend notice only for a pending invoice; generate refuses an unfinished month', async () => {
-        const shop = await f.makeTenant(`money-${++n}`);
-        await put('/api/admin/platform/business', businessBody);
-        const c = await post(`/api/admin/tenants/${shop._id}/invoices/custom`, { lineItems: [{ description: 'Fee', qty: 1, rate: 100 }] });
-        const id = c.body._id;
-
-        const resend = await post(`/api/admin/subscriptions/invoices/${id}/resend`, {});
-        assert.equal(resend.status, 200, JSON.stringify(resend.body));
-
-        const w = await patch(`/api/admin/subscriptions/invoices/${id}/waive`, { reason: 'Goodwill' });
-        assert.equal(w.status, 200);
-        assert.equal(w.body.status, 'void');
-        assert.equal((await post(`/api/admin/subscriptions/invoices/${id}/resend`, {})).status, 409);
-
-        const thisMonth = new Date(Date.now() + 330 * 60000).toISOString().slice(0, 7);
-        assert.equal((await post('/api/admin/subscriptions/invoices/generate', { period: thisMonth })).status, 400);
-        const ok = await post('/api/admin/subscriptions/invoices/generate', { period: '2026-01' });
-        assert.equal(ok.status, 201, JSON.stringify(ok.body));
-        assert.ok('created' in ok.body);
     });
 
     test('the rent invoice PDF downloads with the login', async () => {

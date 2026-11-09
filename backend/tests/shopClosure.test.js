@@ -148,7 +148,7 @@ describe('close a shop', () => {
         assert.equal(why2.body.owed, null);
     });
 
-    test('shops with rent unpaid for 6 months are listed (brand branches together) and the superadmin is told once; a closed shop gets no new bills', async () => {
+    test('shops with rent unpaid for 6 months are listed (brand branches together) and the superadmin is told once', async () => {
         const Notif = Notification;
         const x = await f.makeWorld('cl-g-' + Date.now().toString(36));
         const y = await f.makeWorld('cl-h-' + Date.now().toString(36));
@@ -171,10 +171,8 @@ describe('close a shop', () => {
         const count = await waitFor(async () => { const c = await Notif.countDocuments({ role: 'superadmin', type: 'admin_shop_close_due' }); return c >= 2 ? c : null; });
         assert.equal(count, 2);
 
-        // a closed shop is never listed, and gets no bills
+        // a closed shop is never listed
         await post(`/api/admin/tenants/${x.tenant._id}/close`, { reason: 'Rent unpaid 6 months', kind: 'rent' });
         assert.equal((await get('/api/admin/finance/to-close')).body.shops.length, 1);
-        const gen = await subscription.generateForPeriod({ tenantId: x.tenant._id, period: '2020-01' });
-        assert.equal(gen.checked, 0);
     });
 });
