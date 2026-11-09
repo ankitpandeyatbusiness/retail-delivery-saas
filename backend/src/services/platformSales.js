@@ -8,6 +8,7 @@ const PlanPayment = require('../models/PlanPayment');
 const PartnerTopup = require('../models/PartnerTopup');
 const SmsTopup = require('../models/SmsTopup');
 const PartnerTransaction = require('../models/PartnerTransaction');
+const PlatformRefund = require('../models/PlatformRefund');
 
 const rs = (paise) => Math.round(paise || 0) / 100;
 
@@ -26,15 +27,22 @@ const fromTopup = (kind, label) => (t) => ({
     baseAmount: rs(t.amountPaise), gstPercent: t.gstPercent || 0, gstAmount: rs(t.gstPaise), total: rs(Number.isInteger(t.payablePaise) ? t.payablePaise : t.amountPaise), invoice: t.invoice || null,
 });
 
+const fromRefund = (r) => ({
+    id: `rf${r._id}`, kind: r.salesKind, tenantId: r.tenantId, paidAt: r.createdAt, issueDate: r.createdAt, invoiceNo: `RF-${String(r._id).slice(-6).toUpperCase()}`,
+    description: `Refund: ${r.kind === 'plan' ? 'plan payment' : r.kind === 'wallet' ? 'wallet balance' : 'SMS balance'}`,
+    baseAmount: -rs(r.basePaise), gstPercent: r.basePaise ? Math.round((r.gstPaise / r.basePaise) * 100) : 0, gstAmount: -rs(r.gstPaise), total: -rs(r.cashPaise), invoice: null, refund: true,
+});
+
 async function paid({ from, to, tenantId, tenantIds } = {}) {
     const when = (field) => (from || to ? { [field]: { ...(from ? { $gte: from } : {}), ...(to ? { $lt: to } : {}) } } : {});
     const who = tenantId ? { tenantId } : tenantIds ? { tenantId: { $in: tenantIds } } : {};
-    const [plans, wallets, sms] = await Promise.all([
+    const [plans, wallets, sms, refunds] = await Promise.all([
         PlanPayment.find({ status: 'paid', ...when('paidAt'), ...who }).lean(),
         PartnerTopup.find({ status: 'paid', ...when('paidAt'), ...who }).lean(),
         SmsTopup.find({ status: 'paid', ...when('paidAt'), ...who }).lean(),
+        PlatformRefund.find({ status: 'processed', counted: true, ...when('createdAt'), ...who }).lean(),   // emergency refunds: money sent back, a negative row on the day it went
     ]);
-    return [...plans.map(fromPlan), ...wallets.map(fromTopup('wallet', 'Wallet top-up')), ...sms.map(fromTopup('sms', 'SMS top-up'))]
+    return [...plans.map(fromPlan), ...wallets.map(fromTopup('wallet', 'Wallet top-up')), ...sms.map(fromTopup('sms', 'SMS top-up')), ...refunds.map(fromRefund)]
         .sort((a, b) => new Date(a.paidAt) - new Date(b.paidAt));
 }
 

@@ -107,6 +107,7 @@
  "POST /tenants/:tid/plan/end-free",
  "POST /tenants/:tid/products/",
  "POST /tenants/:tid/products/import",
+ "POST /tenants/:tid/refunds",
  "POST /tenants/:tid/reopen",
  "POST /tenants/:tid/riders/:rid/duty/holidays",
  "POST /tenants/:tid/riders/:rid/leaves",
