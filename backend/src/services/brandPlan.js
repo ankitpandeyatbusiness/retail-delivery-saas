@@ -85,7 +85,9 @@ async function guardBranch(tenant) {
 async function summary(brand) {
     const mainId = await mainOf(brand);
     const [c, main] = await Promise.all([capacity(brand), mainId ? Tenant.findById(mainId).select('name slug plan').lean() : null]);
-    return { main: main ? { id: String(main._id), name: main.name, slug: main.slug } : null, plan: main ? planService.viewOf(main) : null, locations: c };
+    const others = await Tenant.find({ brandId: brand._id, ...(mainId ? { _id: { $ne: mainId } } : {}) }).select('name plan').lean();
+    const differing = main ? others.filter((b) => (b.plan?.id || null) !== (main.plan?.id || null) || (!b.plan?.inheritedFrom && b.plan?.id)).map((b) => ({ id: String(b._id), name: b.name, plan: b.plan?.id || null })) : [];
+    return { main: main ? { id: String(main._id), name: main.name, slug: main.slug } : null, plan: main ? planService.viewOf(main) : null, locations: c, differing };
 }
 
 // The shop whose plan is billed: a branch's owner pays on the MAIN shop (the plan lives there). Returns the main shop's document (lean) or the shop itself.

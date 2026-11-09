@@ -8,6 +8,7 @@ import { Field } from '../../components/inputs';
 import { SkeletonList } from '../../components/blocks';
 import { ErrorBox, Sheet, ConfirmSheet, toast } from '../../components/feedback';
 import MovePersonSheet from './MovePersonSheet';
+import BrandPlanCard from './BrandPlanCard';
 import { useSupreme } from '../../hooks/useSupreme';
 import { fetchBrand, addBranch, removeBranch, updateBrand, addBrandOwner, removeBrandOwner, fetchBrandSettings, fetchBrandStatement, setAreaLock, shareBrandStatementPdf, setFreeStart, bulkWaiveLateFees, bulkMarkPaid, bulkMarkUnpaid } from '../../api/brandsApi';
 import { errMsg } from '../../api/adminClient';
@@ -182,6 +183,7 @@ export default function BrandDetailScreen() {
                     {supreme && r.branches.some((b) => b.owed > 0) ? <Button small kind="soft" icon="bell" title="Remind every branch that owes" loading={busy} onPress={remindAll} style={{ marginTop: spacing.md }} /> : null}
                 </Card>
             ) : <Card><Text style={{ color: t.muted }}>No branches yet. Add the first one below.</Text></Card>}
+            <BrandPlanCard brandId={id} plan={r.plan} canEdit={supreme} onChanged={load} />
             <SectionTitle section="shops">Branches</SectionTitle>
             {r.branches.map((b) => (
                 <Card key={b.id} style={{ marginBottom: spacing.md }}>

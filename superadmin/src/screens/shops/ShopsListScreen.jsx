@@ -5,7 +5,7 @@ import { useTheme, spacing, font, radius } from '../../theme';
 import { Screen, HeaderButton } from '../../components/layout';
 import { Chip, Badge, ListRow } from '../../components/ui';
 import { SearchBar } from '../../components/inputs';
-import { ShopRow } from '../../components/shopBits';
+import { ShopRow, planLine } from '../../components/shopBits';
 import { SkeletonList } from '../../components/blocks';
 import { FadeInRow, animateNext } from '../../components/motion';
 import { Empty, ErrorBox, Sheet } from '../../components/feedback';
@@ -21,6 +21,7 @@ function BrandRow({ g, open, onToggle, onShop }) {
             <Pressable onPress={onToggle} accessibilityRole="button" accessibilityState={{ expanded: open }} style={({ pressed }) => [{ backgroundColor: t.surface, borderRadius: radius.lg, padding: spacing.md, opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.985 : 1 }] }, t.shadow]}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <Text style={{ color: t.text, fontSize: font.md, fontWeight: '800', flex: 1 }} numberOfLines={1}>{g.name}</Text>
+                    {g.shops[0]?.plan?.id ? <Badge label={planLine(g.shops[0].plan)} tone="info" icon="star" /> : null}
                     <Badge label={`${g.shops.length} branch${g.shops.length === 1 ? '' : 'es'}`} tone="primary" icon="shops" />
                     <Icon name="next" size={18} color={t.muted} style={{ marginLeft: spacing.sm, transform: [{ rotate: open ? '90deg' : '0deg' }] }} />
                 </View>

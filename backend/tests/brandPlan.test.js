@@ -236,3 +236,19 @@ describe('paying for extra shops', () => {
         assert.equal(q.lines.length, 1);
     });
 });
+
+describe('a brand whose branches had their own plans', () => {
+    test('the brand screen lists the branches that differ; one action makes every branch follow the main plan', async () => {
+        const { brand, shops, main } = await makeBrand(3);
+        await Tenant.updateOne({ _id: main.tenant._id }, { $set: { plan: { id: 'pro', endsAt: new Date(Date.now() + 9 * DAY) } } });
+        await Tenant.updateOne({ _id: shops[1].tenant._id }, { $set: { plan: { id: 'growth', endsAt: new Date(Date.now() + 3 * DAY) } } });   // its own plan from before
+        const before = (await call(plain, 'get', `/brands/${brand._id}`)).body.plan;
+        assert.equal(before.differing.length, 2);   // the growth branch, and the branch with no plan
+        assert.equal((await call(plain, 'post', `/brands/${brand._id}/sync-plan`)).status, 403);
+        const r = await call(supreme, 'post', `/brands/${brand._id}/sync-plan`);
+        assert.equal(r.status, 200);
+        assert.equal((await plan(shops[1])).id, 'pro');
+        assert.equal(String((await plan(shops[1])).inheritedFrom), String(main.tenant._id));
+        assert.equal(r.body.summary.differing.length, 0);
+    });
+});

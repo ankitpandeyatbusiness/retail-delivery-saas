@@ -138,7 +138,7 @@ export default function OwnerPayScreen() {
         ...upiRows,
         { key: 'upi:any', app: { chooser: true, label: 'UPI' }, label: tr('Other UPI app'), icon: 'phone-portrait-outline', desc: tr('Choose any UPI app on this phone') },
         { key: 'card', label: tr('Credit / Debit card'), icon: 'card-outline', desc: tr('Visa, Mastercard, RuPay. You confirm with your bank OTP') },
-        ...(kind === 'dues' || kind === 'branchdues' || kind === 'wallet' || kind === 'plan' ? [] : [{ key: 'qr', label: tr('Scan a QR code'), icon: 'qr-code-outline', desc: tr('Pay from another phone by scanning a code') }]),   // a QR is made for one bill
+        ...(kind === 'dues' || kind === 'branchdues' || kind === 'wallet' || kind === 'plan' || kind === 'branchshop' ? [] : [{ key: 'qr', label: tr('Scan a QR code'), icon: 'qr-code-outline', desc: tr('Pay from another phone by scanning a code') }]),   // a QR is made for one bill
     ];
     const current = rows.find((r) => r.key === picked);
 
@@ -190,7 +190,7 @@ export default function OwnerPayScreen() {
                         <Card>
                             <Text style={{ color: muted, fontSize: 12, fontWeight: '700' }}>{title}</Text>
                             <Text style={{ color: text, fontSize: 34, fontWeight: '900', marginTop: 2 }}>{rupees(toPay)}</Text>
-                            {gstPaise && kind !== 'plan' ? <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{tr('{rupees} added to your balance + {gstPercent}% GST {rupees3}', { rupees: rupees(amountPaise), gstPercent: gstPercent, rupees3: rupees(gstPaise) })}</Text> : null}
+                            {gstPaise && kind !== 'plan' && kind !== 'branchshop' ? <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{tr('{rupees} added to your balance + {gstPercent}% GST {rupees3}', { rupees: rupees(amountPaise), gstPercent: gstPercent, rupees3: rupees(gstPaise) })}</Text> : null}
                             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
                                 <Ionicons name="shield-checkmark" size={15} color={ok} />
                                 <Text style={{ color: muted, fontSize: 12, marginLeft: 6 }}>{tr('Secure payment by Razorpay')}</Text>

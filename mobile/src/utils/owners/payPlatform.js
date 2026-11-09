@@ -4,7 +4,7 @@
 //   3. the server checks the proof and asks Razorpay itself; only then is the bill or the balance updated.
 // Resolves { status: 'paid' | 'cancelled' | 'failed' | 'pending', message? }. Never throws.
 import Razorpay from 'react-native-customui';
-import { startRentPay, verifyRentPay, startTopupPay, verifyTopupPay, startDuesPay, verifyDuesPay, startWalletPay, verifyWalletPay, startPlanPay, verifyPlanPay } from '../../api/owners/shopApi';
+import { startRentPay, verifyRentPay, startTopupPay, verifyTopupPay, startDuesPay, verifyDuesPay, startWalletPay, verifyWalletPay, startPlanPay, verifyPlanPay, startBranchPay } from '../../api/owners/shopApi';
 import { startBrandDuesPay, verifyBrandDuesPay } from '../../api/owners/brandApi';
 import { rememberUpiApp } from '../customers/upiApps';
 
@@ -23,12 +23,12 @@ const isCancel = (e) => e?.code === PAYMENT_CANCELED || /cancel/i.test(e?.descri
 export async function payPlatform({ kind, id, amountPaise, upiApp, card, user, confirmPaid, to, months }) {
     let start;
     try {
-        start = kind === 'rent' ? await startRentPay(id) : kind === 'dues' ? await startDuesPay() : kind === 'branchdues' ? await startBrandDuesPay(id) : kind === 'wallet' ? await startWalletPay(amountPaise) : kind === 'plan' ? await startPlanPay({ to, months }) : await startTopupPay(amountPaise);
+        start = kind === 'rent' ? await startRentPay(id) : kind === 'dues' ? await startDuesPay() : kind === 'branchdues' ? await startBrandDuesPay(id) : kind === 'wallet' ? await startWalletPay(amountPaise) : kind === 'plan' ? await startPlanPay({ to, months }) : kind === 'branchshop' ? await startBranchPay() : await startTopupPay(amountPaise);
     } catch (e) {
         if (e?.response?.status === 409 && (await confirmPaid().catch(() => false))) return { status: 'paid' };
         return { status: 'failed', message: text(e, 'Could not start the payment') };
     }
-    const verifyOnce = (proof) => (kind === 'rent' ? verifyRentPay(id, proof) : kind === 'dues' ? verifyDuesPay(proof) : kind === 'branchdues' ? verifyBrandDuesPay(proof) : kind === 'wallet' ? verifyWalletPay(start.topupId, proof) : kind === 'plan' ? verifyPlanPay(start.paymentId, proof) : verifyTopupPay(start.topupId, proof));
+    const verifyOnce = (proof) => (kind === 'rent' ? verifyRentPay(id, proof) : kind === 'dues' ? verifyDuesPay(proof) : kind === 'branchdues' ? verifyBrandDuesPay(proof) : kind === 'wallet' ? verifyWalletPay(start.topupId, proof) : kind === 'plan' || kind === 'branchshop' ? verifyPlanPay(start.paymentId, proof) : verifyTopupPay(start.topupId, proof));
 
     if (upiApp?.pkg) rememberUpiApp(upiApp.pkg);
     Razorpay.initRazorpay(start.keyId);   // the promise it returns never settles, so it is not awaited

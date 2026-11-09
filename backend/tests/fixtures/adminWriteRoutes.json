@@ -49,6 +49,7 @@
  "POST /brands/:id/move",
  "POST /brands/:id/owners",
  "POST /brands/:id/settings/push",
+ "POST /brands/:id/sync-plan",
  "POST /devices",
  "POST /devices/remove",
  "POST /finance/expenses",

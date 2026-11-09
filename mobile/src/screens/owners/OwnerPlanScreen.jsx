@@ -6,7 +6,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../../components/common/kit';
 import { PageHeader, Card, Chips, Button, Pill, SectionTitle } from '../../components/owners/ui';
-import { fetchPlan, quotePlan, choosePlan, cancelScheduledPlan, apiError } from '../../api/owners/shopApi';
+import { fetchPlan, quotePlan, choosePlan, cancelScheduledPlan, quoteBranchPlan, apiError } from '../../api/owners/shopApi';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { useMenuFlags } from '../../utils/owners/menuFlags';
 import { rupees } from '../../utils/owners/riderRules';
@@ -14,6 +14,13 @@ import { showToast } from '../../components/customers/shop';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { ask } from '../../components/common/dialog';
 import { tr } from '../../i18n';
+
+// Texts the server sends inside the extra-shop quote. They are listed here (never called) so the translation list picks them up; tr() matches the server's real values to these {v1} patterns.
+export const _serverQuoteTexts = () => [
+    tr('No refund if you remove the shop later.'),
+    tr('One more shop can be created. It runs until {v1} with your plan, and is part of your next renewal.'),
+    tr('Extra shop: Rs {v1} a month x {v2} of 30 days (the days left of your plan)'),
+];
 
 const day = (d) => new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 const planLine = (c) => {
@@ -55,6 +62,15 @@ export default function OwnerPlanScreen() {
         setBusy(true);
         try { await choosePlan({ to: pick, months: Number(months) }); showToast(q.kind === 'downgrade' ? tr('Scheduled') : tr('Done')); setPick(null); await load(); useMenuFlags.getState().refresh(); } catch (e) { showToast(apiError(e)); } finally { setBusy(false); }
     };
+    // a brand: one more shop. The server works out the price from the days left; he sees it, then pays, then the platform team can create the branch.
+    const addShop = async () => {
+        try {
+            const bq = await quoteBranchPlan();
+            const lines = bq.lines.map((l) => `${l.label}: ${rupees(l.paise)}`).join('\n');
+            const yes = await ask({ title: tr('Add an extra shop'), message: `${lines}${bq.gstPaise ? `\n${tr('GST {p}%', { p: bq.gstPercent })}: ${rupees(bq.gstPaise)}` : ''}\n${tr('You pay {rupees}', { rupees: rupees(bq.totalPaise) })}\n\n${bq.notes.map(tr).join('\n')}`, confirmText: tr('Pay {rupees}', { rupees: rupees(bq.totalPaise) }) });
+            if (yes) nav.navigate('OwnerPay', { kind: 'branchshop', amountPaise: bq.totalPaise, payablePaise: bq.totalPaise, gstPaise: bq.gstPaise, gstPercent: bq.gstPercent, title: tr('Extra shop') });
+        } catch (e) { showToast(apiError(e)); }
+    };
     const cancelMove = async () => { try { await cancelScheduledPlan(); showToast(tr('Cancelled')); load(); } catch (e) { showToast(apiError(e)); } };
 
     return (
@@ -76,6 +92,17 @@ export default function OwnerPlanScreen() {
                                 </View>
                             ) : null}
                         </Card>
+
+                        {o.brand ? (
+                            <>
+                                <SectionTitle title={tr('Your shops')} />
+                                <Card>
+                                    <Text style={{ color: text, fontWeight: '800' }}>{tr('{used} of {capacity} shops used', { used: o.brand.used, capacity: o.brand.capacity })}</Text>
+                                    <Text style={{ color: muted, marginTop: 4 }}>{tr('{n} shops are free. Each extra shop is {rupees} a month + GST, paid before the shop is created.', { n: o.brand.includedLocations, rupees: rupees(o.brand.addonPaise) })}</Text>
+                                    <View style={{ marginTop: 10 }}><Button label={tr('Add an extra shop')} icon="storefront" kind="ghost" onPress={addShop} /></View>
+                                </Card>
+                            </>
+                        ) : null}
 
                         <SectionTitle title={tr('Compare plans')} />
                         {o.plans.map((p) => {

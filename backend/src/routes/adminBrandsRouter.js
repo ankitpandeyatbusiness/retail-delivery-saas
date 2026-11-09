@@ -158,6 +158,13 @@ router.put('/brands/:id/locations', loadBrand, wrap(async (req, res) => {
     res.json(await require('../services/brandPlan').summary(fresh));
 }));
 
+// Make every branch follow the main shop's plan now (a brand whose branches had plans of their own). Supreme only.
+router.post('/brands/:id/sync-plan', loadBrand, wrap(async (req, res) => {
+    req.auditBefore = { action: 'brand plan sync' };
+    const r = await require('../services/brandPlan').syncPlan(req.brand._id);
+    res.json({ ...r, summary: await require('../services/brandPlan').summary(await Brand.findById(req.brand._id)) });
+}));
+
 router.get('/brands/:id/statement.pdf', loadBrand, wrap(async (req, res) => {
     const pdf = require('../services/brandStatementPdf');
     const st = await require('../services/brandStatement').build(req.brand, req.query.period);

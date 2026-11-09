@@ -5,6 +5,8 @@ import api, { data } from './adminClient';
 /* ---- brands with branches (everyone looks, the supreme admin changes) ---- */
 export const fetchBrands = () => data(api.get('/admin/brands'));                                         // { items }
 export const createBrand = (body) => data(api.post('/admin/brands', body));                              // { name }
+export const syncBrandPlan = (id) => data(api.post(`/admin/brands/${id}/sync-plan`));   // every branch follows the main shop's plan (supreme)
+export const setBrandLocations = (id, body) => data(api.put(`/admin/brands/${id}/locations`, body));   // { includedBranches: n | null (platform default), freeExtra: n } supreme admin
 export const fetchBrand = (id) => data(api.get(`/admin/brands/${id}`));                                  // { brand, branches, freeStart }
 export const updateBrand = (id, body) => data(api.put(`/admin/brands/${id}`, body));                     // { name?, notes?, discountPercent? }
 export const addBranch = (id, body) => data(api.post(`/admin/brands/${id}/branches`, body));             // { tenantId } or { name, slug, city, managerPhone?, copyFromTenantId? }
