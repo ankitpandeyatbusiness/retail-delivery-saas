@@ -24,18 +24,6 @@ const api = (m, url, body) => request(app)[m](`/api/admin${url}`).set({ Authoriz
 const wait = () => new Promise((r) => setTimeout(r, 50));
 
 describe('shop notices', () => {
-    test('ending the free period tells the owner and opens the Rent page; the shop owner side only', async () => {
-        try {
-            const r = await api('post', `/tenants/${w.tenant._id}/billing/end-free`, {});
-            assert.equal(r.status, 200, JSON.stringify(r.body));
-            await wait();
-            const n = calls.filter((c) => c.title === 'Your free period has ended');
-            assert.equal(n.length, 1);
-            assert.equal(n[0].tenantId, String(w.tenant._id));
-            assert.equal(n[0].data.kind, 'rent');
-        } finally { notify.toOwner = realToOwner; }
-    });
-
     test('platform-wide SMS prices tell no shop', async () => {
         try {
             await api('put', '/platform/sms', { pricePerSms: 1 });

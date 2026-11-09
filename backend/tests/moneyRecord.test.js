@@ -32,11 +32,7 @@ beforeEach(async () => {
     await PlatformSettings.findByIdAndUpdate('main', { $set: { 'business.legalName': 'Operator Pvt Ltd', 'business.gstin': '09AAAAA0000A1Z5', 'business.state': 'Uttar Pradesh', 'business.stateCode': '09' } }, { upsert: true });
 });
 
-const paid = async (w, rate) => {
-    const inv = (await api('post', `/tenants/${w.tenant._id}/invoices/custom`, boss, { lineItems: [{ description: 'Rent', qty: 1, rate }] })).body;
-    const r = await api('patch', `/subscriptions/invoices/${inv._id}/status`, boss, { status: 'paid', paymentMode: 'bank_transfer' });
-    assert.equal(r.status, 200, JSON.stringify(r.body));
-};
+const paid = async (w, rate) => { await require('./helpers/planPay').paidPlan(w.tenant._id, { baseRs: rate, gstPercent: 0 }); };
 const find = (view, tid) => view.groups.flatMap((g) => g.shops).find((s) => s.tenantId === String(tid));
 
 describe('the month', () => {
@@ -54,7 +50,7 @@ describe('the month', () => {
         assert.equal(savera.shops.length, 1);
         const sa = savera.shops[0];
         assert.deepEqual([sa.base, sa.pct, sa.yourPart, sa.state], [3200, 70, 2240, 'open']);   // 3000 + 200 top-up, before GST
-        assert.deepEqual(sa.lines.map((l) => l.kind).sort(), ['other', 'topup']);
+        assert.deepEqual(sa.lines.map((l) => l.kind).sort(), ['rent', 'topup']);
         const alone = find(v, b.tenant._id);
         assert.deepEqual([alone.base, alone.pct, alone.yourPart], [1000, 50, 500]);
         assert.deepEqual([v.totals.base, v.totals.yourPart, v.totals.shops, v.totals.open], [4200, 2740, 2, 2]);

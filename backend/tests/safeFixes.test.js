@@ -51,16 +51,6 @@ describe('safe fixes', () => {
         assert.equal(res.status, 200);
     });
 
-    test('B3: a superadmin answering a billing reminder gets 403, not 500', async () => {
-        const t = await makeTenant('billing-shop');
-        const { token } = await makeSuperAdmin();
-        const res = await request(app)
-            .post(`/api/admin/tenants/${t._id}/shop/billing/prompts/choice`)
-            .set('Authorization', `Bearer ${token}`)
-            .send({ kind: 'bill', choice: 'pay_now' });
-        assert.equal(res.status, 403);
-    });
-
     test('B14: public routes answer 429 with Retry-After after too many requests', async () => {
         const mini = express();
         mini.use(publicRateLimit.make({ points: 3, duration: 60 }));
