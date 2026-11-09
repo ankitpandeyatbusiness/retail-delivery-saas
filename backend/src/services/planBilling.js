@@ -198,6 +198,7 @@ async function settle(paymentId, { payId, amountPaise, via = 'app' }) {
         });
     } catch (e) { if (e && e.code === 11000) return { ok: true, duplicate: true }; throw e; }
     invalidateTenant(tenant.slug);
+    await require('./brandPlan').afterPlanChange(await Tenant.findById(row.tenantId).select('brandId').lean());
     if (row.from !== row.to) require('./planLifecycle').notifyChanged({ tenantId: row.tenantId, from: row.from, to: row.to, by: 'the owner (paid online)' });
     await ensureInvoice(row._id).catch((e) => console.error('Plan invoice error:', e.message));
     return { ok: true, applied: true };
@@ -237,6 +238,7 @@ async function chooseFree(tenant, { to, months = 1 }, actor) {
     if (q.kind === 'downgrade') {
         await Tenant.updateOne({ _id: tenant._id }, { $set: { 'plan.scheduled': { to, at: q.startsAt, by, requestedAt: now } } });
         invalidateTenant(tenant.slug);
+        await require('./brandPlan').afterPlanChange(tenant);
         return { scheduled: true, quote: q };
     }
     if (q.kind === 'switch' && to === 'partner') {
@@ -250,6 +252,7 @@ async function chooseFree(tenant, { to, months = 1 }, actor) {
 async function cancelScheduled(tenant) {
     await Tenant.updateOne({ _id: tenant._id }, { $unset: { 'plan.scheduled': 1 } });
     invalidateTenant(tenant.slug);
+    await require('./brandPlan').afterPlanChange(tenant);
     return { ok: true };
 }
 

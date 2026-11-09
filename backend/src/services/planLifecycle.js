@@ -61,6 +61,7 @@ async function one(t, def, now) {
         const r = await Tenant.updateOne({ _id: t._id, 'plan.id': from, 'plan.scheduled.to': to }, { $set: { plan: np } });
         if (r.modifiedCount) {
             invalidateTenant(t.slug);
+            await require('./brandPlan').afterPlanChange(await Tenant.findById(t._id).select('brandId').lean());
             notifyChanged({ tenantId: t._id, from, to, by: 'the plan you chose at the end of your term' });
             if (to === 'partner') return;
             t = { ...t, plan: np };   // a lower paid plan has nothing paid yet: it is ended and goes through grace like any other
@@ -77,6 +78,7 @@ async function one(t, def, now) {
         const r = await Tenant.updateOne({ _id: t._id, 'plan.paused': { $ne: true }, 'plan.endsAt': endsAt }, { $set: { 'plan.paused': true } });
         if (r.modifiedCount) {
             invalidateTenant(t.slug);
+            await require('./brandPlan').afterPlanChange(await Tenant.findById(t._id).select('brandId').lean());
             await claim(t._id, 'paused', mark);
             safe(() => center.notify('plan_paused', { tenantId: t._id, title: 'Your shop is paused', body: 'Your plan was not renewed. New orders have stopped. Open Plan to choose and pay. Running orders can be finished.', vars: {}, data: { prompt: 'plan' } }));
         }
@@ -111,7 +113,7 @@ async function wallets(now) {
 
 async function sweep(now = new Date()) {
     const def = await planService.getDefaults();
-    const shops = await Tenant.find({ status: 'active', 'plan.id': { $in: ['growth', 'pro'] }, 'plan.endsAt': { $type: 'date' } }).select('_id name slug plan').lean();
+    const shops = await Tenant.find({ status: 'active', 'plan.id': { $in: ['growth', 'pro'] }, 'plan.endsAt': { $type: 'date' }, 'plan.inheritedFrom': { $exists: false } }).select('_id name slug plan').lean();
     for (const t of shops) {
         try { await one(t, def, now); } catch (e) { console.error('Plan lifecycle error:', e.message); }
     }

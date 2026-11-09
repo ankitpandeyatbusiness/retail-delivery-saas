@@ -15,6 +15,14 @@ const brandSchema = new mongoose.Schema({
         startedAt: Date,                        // the first pooled branch went live
         endedAt: Date,                          // the pool ended: every pooled branch ended its free time at this moment
     },
+    // ONE plan per brand, set on the main shop; the branches carry a copy (services/brandPlan.js)
+    mainTenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant' },
+    locations: {
+        _id: false,
+        includedBranches: { type: Number, min: 0, max: 50 },   // branches besides the main shop that are free for THIS brand (empty = the platform default, 2: so 3 shops free)
+        freeExtra: { type: Number, default: 0, min: 0, max: 50 },   // extra shops the supreme admin allowed free (an exception, audit logged)
+        paidExtra: { type: Number, default: 0, min: 0, max: 50 },   // extra shops the brand owner paid for (Rs 1,499 a month each + GST)
+    },
     smsWalletTenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant' },   // the branch whose SMS wallet is the brand's one shared wallet (the oldest branch, set when first needed)
     ownerPhones: {   // the brand owners: they may be owner of every branch and switch between them. Set by a superadmin.
         type: [String], default: [],

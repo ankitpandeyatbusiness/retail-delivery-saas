@@ -130,6 +130,7 @@ const tenantSchema = new mongoose.Schema({
         freeDaysOverride: { type: Number, min: 0, max: 365 },
         feeSlabsOverride: { type: mongoose.Schema.Types.Mixed },   // Partner only: per-shop fee slabs
         extras: { type: [new mongoose.Schema({ key: String, at: Date, by: String }, { _id: false })], default: undefined },   // features switched on outside the plan
+        inheritedFrom: { type: mongoose.Schema.Types.ObjectId },   // a branch of a brand: this plan is a copy of the main shop's plan (services/brandPlan.js)
         migration: { type: mongoose.Schema.Types.Mixed },   // set by services/planMigration.js: { version, at, by, prevBillState }. A second run skips shops that have it.
         paused: { type: Boolean, default: undefined },   // the paid time and the grace days are over: new orders stop until the plan is paid (services/planLifecycle.js)
         notified: { type: mongoose.Schema.Types.Mixed },  // which reminders were sent for which end date { r7, r3, r1, ended, paused } (so a renewal starts clean)

@@ -92,6 +92,7 @@ function viewOf(tenant, now = new Date()) {
 // Switch a shop's plan (supreme admin, instant). `extras` = feature keys outside the plan to keep (default: keep the old extras only if they still lie outside the new plan).
 // freeDays > 0 starts a free period (no invoice). Partner has no end date (wallet based).
 async function setPlan(tenantDoc, { to, freeDays, keepExtras = true, by = 'supreme' }) {
+    await require('./brandPlan').guardBranch(tenantDoc);   // a branch follows its brand's main shop
     if (!plans.isPlan(to)) throw Object.assign(new Error('Plan must be partner, growth or pro'), { status: 400 });
     const now = new Date();
     const def = await getDefaults();
@@ -110,12 +111,14 @@ async function setPlan(tenantDoc, { to, freeDays, keepExtras = true, by = 'supre
     await Tenant.updateOne({ _id: tenantDoc._id }, { $set: { plan: p } });   // loadTenant hands over a plain object, so write with updateOne
     tenantDoc.plan = p;
     invalidateTenant(tenantDoc.slug);
+    await require('./brandPlan').afterPlanChange(tenantDoc);
     if (from !== to) require('./planLifecycle').notifyChanged({ tenantId: tenantDoc._id, from, to, by });
     return viewOf(tenantDoc, now);
 }
 
 // Turn a feature outside the plan on or off for one shop (a tagged "extra")
 async function setExtra(tenantDoc, key, on, by = 'supreme') {
+    await require('./brandPlan').guardBranch(tenantDoc);
     if (!plans.FEATURES[key]) throw Object.assign(new Error('Unknown feature'), { status: 400 });
     const p = tenantDoc.plan || {};
     if (!p.id) throw Object.assign(new Error('This shop has no plan yet'), { status: 400 });
@@ -124,11 +127,13 @@ async function setExtra(tenantDoc, key, on, by = 'supreme') {
     await Tenant.updateOne({ _id: tenantDoc._id }, { $set: { plan: p } });   // loadTenant hands over a plain object, so write with updateOne
     tenantDoc.plan = p;
     invalidateTenant(tenantDoc.slug);
+    await require('./brandPlan').afterPlanChange(tenantDoc);
     return viewOf(tenantDoc);
 }
 
 // per-shop amount / free days / fee slabs and the web + native switches (null clears an override)
 async function setShopTerms(tenantDoc, b) {
+    if (b.pricePaise !== undefined || b.freeDays !== undefined || b.feeSlabs !== undefined) await require('./brandPlan').guardBranch(tenantDoc);   // price and free days belong to the main shop; the website and app switches are per shop
     const bad = (m) => Object.assign(new Error(m), { status: 400 });
     const p = tenantDoc.plan || {};
     if (b.pricePaise !== undefined) { if (b.pricePaise !== null && !INT(b.pricePaise, 0, 100000000)) throw bad('Price must be whole paise'); p.priceOverridePaise = b.pricePaise ?? undefined; }

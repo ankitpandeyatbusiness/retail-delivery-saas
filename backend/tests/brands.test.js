@@ -23,6 +23,7 @@ beforeEach(async () => {
 
 async function brandWith(...slugs) {
     const brand = (await post('/api/admin/brands', { name: 'Savera' })).body.brand;
+    await require('../src/models/Brand').updateOne({ _id: brand._id }, { $set: { 'locations.includedBranches': 50 } });   // these tests make many branches; the free count is tested in brandPlan.test.js
     const out = [];
     for (const s of slugs) {
         const r = await post(`/api/admin/brands/${brand._id}/branches`, { name: `Savera ${s}`, slug: `savera-${s}`, city: s });
@@ -43,6 +44,7 @@ describe('brands and branches', () => {
 
     test('a new branch is its own shop with a city, and a brand can have as many branches as it likes', async () => {
         const brand = (await post('/api/admin/brands', { name: 'Savera' })).body.brand;
+        await require('../src/models/Brand').updateOne({ _id: brand._id }, { $set: { 'locations.includedBranches': 50 } });   // these tests make many branches; the free count is tested in brandPlan.test.js
         const add = (slug) => post(`/api/admin/brands/${brand._id}/branches`, { name: `Savera ${slug}`, slug: `sav-${slug}`, city: slug, managerPhone: slug === 'delhi' ? '9811111111' : undefined });
         assert.equal((await add('delhi')).status, 201);
         assert.equal((await add('noida')).status, 201);

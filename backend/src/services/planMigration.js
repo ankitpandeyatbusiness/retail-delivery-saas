@@ -31,9 +31,15 @@ async function preview(now = new Date()) {
     const shops = await Tenant.find(baseFilter).select('name slug status closure.on billing.state brandId plan').lean();
     const bills = await openBills(shops.map((s) => s._id));
     const move = []; const skip = [];
+    // a branch of a brand has no plan of its own: it follows the main shop (services/brandPlan.js), so it is not moved by itself
+    const Brand = require('../models/Brand');
+    const brandPlan = require('./brandPlan');
+    const mainOfBrand = new Map();
+    for (const id of new Set(shops.filter((x) => x.brandId).map((x) => String(x.brandId)))) { const b = await Brand.findById(id); mainOfBrand.set(id, b ? String(await brandPlan.mainOf(b)) : null); }
     for (const s of shops) {
         const row = { id: String(s._id), name: s.name, slug: s.slug, billState: s.billing?.state || 'free', brand: !!s.brandId, openBills: bills.get(String(s._id)) || null };
-        if (s.status !== 'active') skip.push({ ...row, why: 'The shop is not active (it is closed or suspended). It is moved when it opens again.' });
+        if (s.brandId && mainOfBrand.get(String(s.brandId)) && mainOfBrand.get(String(s.brandId)) !== String(s._id)) skip.push({ ...row, why: 'A branch of a brand. It follows the plan of the main shop.' });
+        else if (s.status !== 'active') skip.push({ ...row, why: 'The shop is not active (it is closed or suspended). It is moved when it opens again.' });
         else if (s.closure?.on) skip.push({ ...row, why: 'The shop is closed by the platform.' });
         else move.push(row);
     }
@@ -68,6 +74,7 @@ async function run({ by = 'supreme', now = new Date(), backup = true } = {}) {
         const r = await Tenant.updateOne({ _id: m.id, ...baseFilter }, { $set: set });
         if (!r.modifiedCount) continue;
         invalidateTenant(t.slug);
+        await require('./brandPlan').afterPlanChange(await Tenant.findById(m.id).select('brandId').lean());   // the branches of its brand get the same plan
         moved.push(m.id);
         try {
             require('../notifications/center').notify('plan_changed', {
@@ -89,7 +96,7 @@ async function rollback({ by = 'supreme' } = {}) {
         const prev = t.plan.migration?.prevBillState;
         if (['grace', 'paused'].includes(prev)) set['billing.state'] = prev;
         const r = await Tenant.updateOne({ _id: t._id, 'plan.migration.version': VERSION }, { $unset: unset, ...(Object.keys(set).length ? { $set: set } : {}) });
-        if (r.modifiedCount) { invalidateTenant(t.slug); n += 1; }
+        if (r.modifiedCount) { invalidateTenant(t.slug); n += 1; await require('./brandPlan').afterPlanChange(await Tenant.findById(t._id).select('brandId').lean()); }
     }
     return { rolledBack: n, by };
 }

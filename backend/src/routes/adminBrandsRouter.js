@@ -118,7 +118,7 @@ router.get('/brands/:id', loadBrand, wrap(async (req, res) => {
             razorpayKeyId: (t.payments && t.payments.keyId) || null,   // the key id is not secret; the secret is never returned
         });
     }
-    res.json({ brand: req.brand, branches: items, freeStart: await require('../services/brandFreePool').view(req.brand) });
+    res.json({ brand: req.brand, plan: await require('../services/brandPlan').summary(req.brand), branches: items, freeStart: await require('../services/brandFreePool').view(req.brand) });
 }));
 
 router.put('/brands/:id', loadBrand, wrap(async (req, res) => {
@@ -137,6 +137,27 @@ router.put('/brands/:id', loadBrand, wrap(async (req, res) => {
     res.json({ brand: req.brand });
 }));
 
+// How many shops are free for THIS brand, and the free extras you allow. { includedBranches: 2 | null (the platform default), freeExtra: 0 }  Supreme only (money). Audit logged.
+router.put('/brands/:id/locations', loadBrand, wrap(async (req, res) => {
+    const b = req.body || {};
+    const set = {};
+    if (b.includedBranches !== undefined) {
+        if (b.includedBranches !== null && !(Number.isInteger(b.includedBranches) && b.includedBranches >= 0 && b.includedBranches <= 50)) throw httpError(400, 'Free branches must be a whole number from 0 to 50');
+        set['locations.includedBranches'] = b.includedBranches === null ? undefined : b.includedBranches;
+    }
+    if (b.freeExtra !== undefined) {
+        if (!(Number.isInteger(b.freeExtra) && b.freeExtra >= 0 && b.freeExtra <= 50)) throw httpError(400, 'Free extra shops must be a whole number from 0 to 50');
+        set['locations.freeExtra'] = b.freeExtra;
+    }
+    if (!Object.keys(set).length) throw httpError(400, 'Send includedBranches and/or freeExtra');
+    req.auditBefore = { locations: req.brand.locations || {} };
+    const $set = {}; const $unset = {};
+    for (const [k, v] of Object.entries(set)) { if (v === undefined) $unset[k] = 1; else $set[k] = v; }
+    await Brand.updateOne({ _id: req.brand._id }, { ...(Object.keys($set).length ? { $set } : {}), ...(Object.keys($unset).length ? { $unset } : {}) });
+    const fresh = await Brand.findById(req.brand._id);
+    res.json(await require('../services/brandPlan').summary(fresh));
+}));
+
 router.get('/brands/:id/statement.pdf', loadBrand, wrap(async (req, res) => {
     const pdf = require('../services/brandStatementPdf');
     const st = await require('../services/brandStatement').build(req.brand, req.query.period);
@@ -147,6 +168,7 @@ router.get('/brands/:id/statement', loadBrand, wrap(async (req, res) => { res.js
 
 router.post('/brands/:id/branches', loadBrand, wrap(async (req, res) => {
     const b = req.body || {};
+    await require('../services/brandPlan').assertRoomForBranch(req.brand);   // 3 shops are free; more need the brand owner's payment first (or a free one from you)
     const city = typeof b.city === 'string' ? b.city.trim().slice(0, 60) : '';
 
     // an existing shop becomes a branch
@@ -167,6 +189,7 @@ router.post('/brands/:id/branches', loadBrand, wrap(async (req, res) => {
         const keeper = await wallet.holderOf(t._id);
         if (String(keeper) !== String(t._id)) await wallet.transfer(t._id, keeper, `Moved into the wallet of ${req.brand.name}`).catch((e) => console.error('Wallet move error:', e.message));
         const problems = await brands.giveOwnersAccess(req.brand, t);
+        await require('../services/brandPlan').syncPlan(req.brand._id);   // the new branch carries the brand's plan
         return res.status(201).json({ branch: { id: t._id, slug: t.slug, name: t.name }, ...(problems.length && { problems }) });
     }
 
@@ -202,6 +225,7 @@ router.post('/brands/:id/branches', loadBrand, wrap(async (req, res) => {
     // the starting menu: a copy of the branch we copied the look from (each branch edits its own from now on)
     const menu = base && b.copyMenu !== false ? await require('../services/menuSync').copyMenu({ fromTenantId: b.copyFromTenantId, toTenantId: tenant._id }) : null;
     const extras = menu ? await require('../services/extrasSync').copyExtras({ fromTenantId: b.copyFromTenantId, toTenantId: tenant._id }) : null;   // after the dishes: a collection needs them
+    await require('../services/brandPlan').syncPlan(req.brand._id);   // the new branch carries the brand's plan
     res.status(201).json({ branch: { id: tenant._id, slug, name }, appBuild: { APP_TENANT: slug }, freeStart, ...(menu && { menu }), ...(extras && { extras }), ...(problems.length && { problems }) });
 }));
 

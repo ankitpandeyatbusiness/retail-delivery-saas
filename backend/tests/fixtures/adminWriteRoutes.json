@@ -131,6 +131,7 @@
  "POST /tenants/:tid/wallet/adjust",
  "PUT /brands/:id",
  "PUT /brands/:id/free-start",
+ "PUT /brands/:id/locations",
  "PUT /brands/settings",
  "PUT /legal-pages/:key/draft",
  "PUT /maintenance/plans/:id",
