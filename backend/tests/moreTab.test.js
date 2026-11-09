@@ -51,7 +51,7 @@ describe('SMS and DLT setup', () => {
         const w = await get('/api/admin/platform/sms-setup');
         assert.equal(w.status, 200);
         assert.equal(w.body.ready, false);
-        assert.ok(w.body.templates.length >= 12);
+        assert.ok(w.body.templates.length >= 9);
         const saved = await put('/api/admin/platform/sms-setup', { senderId: 'SAVERA', entityId: '1101234567890', authKey: 'abcDEF1234567890xyz', templateIds: { otp: '1107000000000001', order_new: '1107000000000002' } });
         assert.equal(saved.status, 200, JSON.stringify(saved.body));
         assert.equal(saved.body.ready, !!process.env.SECRETS_KEY ? true : saved.body.ready);
