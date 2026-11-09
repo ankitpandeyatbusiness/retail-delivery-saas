@@ -20,7 +20,6 @@ const Notification = require('../src/models/Notification');
 const NotificationRule = require('../src/models/NotificationRule');
 const SmsTransaction = require('../src/models/SmsTransaction');
 const SmsWallet = require('../src/models/SmsWallet');
-const SubscriptionInvoice = require('../src/models/SubscriptionInvoice');
 const { makeTenant, makeWorld, makeSuperAdmin } = require('./helpers/factory');
 
 const ADMIN_PHONE = '9000000099';
@@ -35,15 +34,6 @@ const balance = async (tenant) => (await SmsWallet.findOne({ tenantId: tenant._i
 const smsSpy = () => mock.method(smsAdapter, 'send', async () => ({ providerMessageId: 'p1' }));
 const pushSpy = (r = { sent: 1, invalidTokens: [] }) => mock.method(pushAdapter, 'send', async () => r);
 const rotate = () => alertSmsRotation.send({ phone: ADMIN_PHONE, text: 'Platform alert: test', eventKey: 'admin_shop_paused' });
-
-let invoiceSeq = 0;
-const makeInvoice = (tenant) => SubscriptionInvoice.create({
-    tenantId: tenant._id, kind: 'custom', invoiceNo: `SUB/2026-27/${String(++invoiceSeq + 70).padStart(4, '0')}`,
-    issueDate: new Date(), dueDate: new Date(Date.now() + 7 * 86400000), graceEndsAt: new Date(Date.now() + 5 * 86400000),
-    description: 'Setup', lineItems: [{ description: 'Setup', qty: 1, rate: 1000, amount: 1000 }],
-    baseAmount: 1000, gstPercent: 18, gstAmount: 180, total: 1180,
-    seller: { legalName: 'Acme Pvt Ltd' }, buyer: { legalName: tenant.name },
-});
 
 describe('superadmin alerts', () => {
     before(() => db.connect());
@@ -81,14 +71,6 @@ describe('superadmin alerts', () => {
         pushSpy({ sent: 0, invalidTokens: [token] });
         await adminAlerts.alert('admin_shop_paused', { tenantId: w.tenant._id });
         assert.equal(await AdminDevice.countDocuments({ token }), 0);
-    });
-
-    test('the invoice number is found from the invoice id', async () => {
-        const w = await makeWorld('adm-invoice');
-        const inv = await makeInvoice(w.tenant);
-        pushSpy();
-        const doc = await adminAlerts.alert('admin_bill_paid', { tenantId: w.tenant._id, data: { invoiceId: String(inv._id) } });
-        assert.ok(doc.body.includes(inv.invoiceNo));
     });
 
     test('an unknown alert key sends nothing, a rule can switch an alert off', async () => {
@@ -169,20 +151,6 @@ describe('superadmin alerts', () => {
         assert.equal(sms.mock.calls.length, 1);
         assert.equal(await balance(a), 20000);
         assert.equal(await PlatformSmsCost.countDocuments({}), 0);
-    });
-
-    test('an owner event also alerts the superadmin, even when the owner rule is off', async () => {
-        const w = await makeWorld('adm-hook');
-        const inv = await makeInvoice(w.tenant);
-        pushSpy();
-        mock.method(smsChannel, 'send', async () => ({ sent: false }));
-        await NotificationRule.create({ eventKey: 'bill_issued', enabled: false });   // the owner hears nothing
-        rules.invalidate();
-        await center.notify('bill_issued', { tenantId: w.tenant._id, title: 'New bill', data: { invoiceId: String(inv._id) } });
-        assert.equal(await Notification.countDocuments({ tenantId: w.tenant._id, role: 'owner' }), 0);
-        const admin = await Notification.findOne({ role: 'superadmin', type: 'admin_bill_issued' });
-        assert.ok(admin);
-        assert.ok(admin.title.includes(w.tenant.name) && admin.body.includes(inv.invoiceNo));
     });
 
     test('customer and rider events never alert the superadmin', async () => {

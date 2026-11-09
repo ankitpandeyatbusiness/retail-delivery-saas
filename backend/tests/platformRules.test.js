@@ -5,7 +5,6 @@ const assert = require('node:assert/strict');
 const request = require('supertest');
 const db = require('./helpers/db');
 const app = require('../src/server/app');
-const { enforce, enforceTenant } = require('../src/services/billingEnforcement');
 const alertSmsRotation = require('../src/services/alertSmsRotation');
 const adminAlerts = require('../src/services/adminAlerts');
 const wallet = require('../src/services/smsWalletService');
@@ -21,7 +20,6 @@ const PlatformSettings = require('../src/models/PlatformSettings');
 const PlatformSmsCost = require('../src/models/PlatformSmsCost');
 const SmsLog = require('../src/models/SmsLog');
 const SmsWallet = require('../src/models/SmsWallet');
-const SubscriptionInvoice = require('../src/models/SubscriptionInvoice');
 const { makeTenant, makeUser, makeSuperAdmin, waitFor, sleep } = require('./helpers/factory');
 
 const DAY = 86400000;
@@ -32,58 +30,6 @@ const quiet = () => {
     mock.method(pushChannel, 'send', async () => ({ sent: 0, tokens: 0 }));
     mock.method(pushAdapter, 'send', async () => ({ sent: 0, invalidTokens: [] }));
 };
-
-let invoiceSeq = 0;
-const makeInvoice = (tenant, o = {}) => SubscriptionInvoice.create({
-    tenantId: tenant._id, kind: 'custom', invoiceNo: `SUB/2026-27/${String(++invoiceSeq + 600).padStart(4, '0')}`,
-    issueDate: new Date(), dueDate: new Date(Date.now() + 7 * DAY), graceEndsAt: new Date(Date.now() + 5 * DAY),
-    description: 'Setup', lineItems: [{ description: 'Setup', qty: 1, rate: 1000, amount: 1000 }],
-    baseAmount: 1000, gstPercent: 0, gstAmount: 0, total: 1000,
-    seller: { legalName: 'Acme Pvt Ltd' }, buyer: { legalName: tenant.name }, ...o,
-});
-
-describe('a shop that is open again', () => {
-    before(() => db.connect());
-    after(() => db.disconnect());
-    beforeEach(quiet);
-    afterEach(() => mock.restoreAll());
-
-    test('paying (no unpaid bill left) tells the owner and the superadmin, once', async () => {
-        const t = await makeTenant('pr-unpause', { billing: { state: 'paused' } });
-        await makeUser(t, 'admin', '9000000010');
-
-        await enforceTenant(t._id);
-        assert.ok(await waitFor(async () => (await ownerCount('shop_unpaused', t._id)) === 1));
-        assert.ok(await waitFor(async () => (await adminCount('admin_shop_unpaused', t._id)) === 1));
-        assert.notEqual((await Tenant.findById(t._id)).billing.state, 'paused');
-
-        await enforceTenant(t._id);   // already open: nothing more
-        await sleep(500);
-        assert.equal(await ownerCount('shop_unpaused', t._id), 1);
-        assert.equal(await adminCount('admin_shop_unpaused', t._id), 1);
-    });
-
-    test('more grace on an unpaid bill also counts as open again (the scheduler path)', async () => {
-        const t = await makeTenant('pr-grace', { billing: { state: 'paused' } });
-        await makeInvoice(t, { graceEndsAt: new Date(Date.now() + 3 * DAY) });
-        await enforce();
-        assert.equal((await Tenant.findById(t._id)).billing.state, 'grace');
-        assert.ok(await waitFor(async () => (await adminCount('admin_shop_unpaused', t._id)) === 1));
-
-        await enforce();   // nothing changed
-        await sleep(400);
-        assert.equal(await adminCount('admin_shop_unpaused', t._id), 1);
-    });
-
-    test('a shop that goes from free to grace is NOT announced as open again', async () => {
-        const t = await makeTenant('pr-notpaused', { billing: { state: 'active' } });
-        await makeInvoice(t, { graceEndsAt: new Date(Date.now() + 3 * DAY) });
-        await enforce();
-        await sleep(500);
-        assert.equal(await adminCount('admin_shop_unpaused', t._id), 0);
-        assert.equal(await ownerCount('shop_unpaused', t._id), 0);
-    });
-});
 
 describe('SMS provider failing', () => {
     before(() => db.connect());
@@ -223,22 +169,5 @@ describe('notification rules routes and B18', () => {
         } finally {
             await NotificationRule.deleteMany({});
         }
-    });
-
-    test('B18: monthlyFee is ignored when a shop is made or changed, the other billing fields still work', async () => {
-        const made = await request(app).post('/api/admin/tenants').set(auth)
-            .send({ slug: 'b18-new-shop', name: 'B18 shop', subscription: { monthlyFee: 99, startMonth: '2026-10' } });
-        assert.equal(made.status, 201);
-        const created = await Tenant.findOne({ slug: 'b18-new-shop' }).lean();
-        assert.equal(created.subscription.monthlyFee, undefined);
-        assert.equal(created.subscription.startMonth, '2026-10');
-
-        const changed = await request(app).put(`/api/admin/tenants/${created._id}`).set(auth)
-            .send({ subscription: { monthlyFee: 500, gstPercent: 12 } });
-        assert.equal(changed.status, 200);
-        const after = await Tenant.findById(created._id).lean();
-        assert.equal(after.subscription.monthlyFee, undefined);
-        assert.equal(after.subscription.gstPercent, 12);
-        assert.equal(after.subscription.startMonth, '2026-10');
     });
 });

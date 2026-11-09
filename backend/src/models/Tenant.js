@@ -113,11 +113,6 @@ const tenantSchema = new mongoose.Schema({
         planId: String,   // set when a planned maintenance (services/maintenancePlans.js) switched it on
         since: Date,      // when it was switched on
     },
-    subscription: {
-        monthlyFee: { type: Number, min: 0 },                              // DEPRECATED: billing does not use this, and the panel cannot set it any more
-        gstPercent: { type: Number, min: 0, max: 28 },                     // empty = 18
-        startMonth: { type: String, match: /^\d{4}-(0[1-9]|1[0-2])$/ },    // "2026-10"
-    },
 
     // Plan (Partner / Growth / Pro), see config/plans.js and docs/plans-and-pricing.md. No plan id = an old shop not moved yet (phase 9): nothing is gated.
     // Written only by the supreme admin routes (services/planService.js).
@@ -140,21 +135,11 @@ const tenantSchema = new mongoose.Schema({
         history: { type: [new mongoose.Schema({ at: Date, by: String, from: String, to: String, note: String }, { _id: false })], default: undefined },
     },
 
-    // Rent engine. null means "use the platform value". Only billing code and the superadmin billing routes write this.
+    // Old rent engine, removed. Only isLive / goLiveAt (the shop went live), state and the dates remain, read by the plan migration.
     billing: {
         goLiveAt: Date,                                         // empty = the shop's createdAt
-        deliveredCount: { type: Number, default: 0, min: 0 },   // DEPRECATED: replaced by billableCount (kept so no old data is lost)
-        billableCount: { type: Number, default: 0, min: 0 },    // orders that earned money for the shop since go-live. Only goes up.
-        pooled: { type: Boolean, default: false },              // this branch's free time is the brand's shared pool (services/brandFreePool.js)
         isLive: { type: Boolean, default: false },              // set by the Go live button. Before that the shop is free and nothing is counted.
         inactiveAlertedAt: Date,                                // "no order for 14 days" was told to the superadmin at this time
-        freeOrdersOverride: { type: Number, min: 0, default: null },
-        freeMonthsOverride: { type: Number, min: 0, default: null },
-        tiersOverride: {
-            type: [new mongoose.Schema({ upTo: { type: Number, default: null }, fee: { type: Number, required: true, min: 0 } }, { _id: false })],
-            default: undefined,
-        },
-        fixedFeeOverride: { type: Number, min: 0, default: null },
         state: { type: String, enum: ['free', 'active', 'grace', 'paused'], default: 'free' },
         graceEndsAt: Date,
         freeEndedAt: Date,

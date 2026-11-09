@@ -1,21 +1,18 @@
-// Paying the PLATFORM (rent bills and SMS top-ups) from the app with any UPI app or a card, the same way a customer pays an
+// Paying the PLATFORM (plans, extra shops, Partner wallet and SMS top-ups) from the app with any UPI app or a card, the same way a customer pays an
 // order: the server makes a Razorpay order on the platform account, the app pays it with Razorpay's checkout, and then the
 // server checks the proof and asks Razorpay itself before anything is marked paid. (The UPI QR still works as before.)
 //
-//   startRent / startTopup     -> { keyId, rzpOrderId, amountPaise, currency, description }
-//   verifyRent / verifyTopup   -> { paid: true } once Razorpay says the money is captured, else { paid: false, status }
+//   startTopup / startPlan     -> { keyId, rzpOrderId, amountPaise, currency, description }
+//   verifyTopup / verifyPlan   -> { paid: true } once Razorpay says the money is captured, else { paid: false, status }
 //   onPlatformPayment          -> the webhook's safety net: the app may die right after paying
 const mongoose = require('mongoose');
-const SubscriptionInvoice = require('../models/SubscriptionInvoice');
 const SmsTopup = require('../models/SmsTopup');
 const PartnerTopup = require('../models/PartnerTopup');
 const partnerTopups = require('./partnerTopupService');
 const PlanPayment = require('../models/PlanPayment');
 const planBilling = require('./planBilling');
-const DuesPayment = require('../models/DuesPayment');
 const alert = require('./paymentAlerts');
 const payments = require('./adapters/payments');
-const rentPayments = require('./rentPaymentService');
 const smsTopups = require('./smsTopupService');
 const auditTrail = require('../middlewares/auditTrail');
 
@@ -48,119 +45,6 @@ async function makeOrder({ amountPaise, receipt, notes }) {
         console.error('Platform checkout order error:', e.message);
         throw bad(503, 'Online payment is not available right now. Please try again later or contact support.');
     }
-}
-
-/* ------------------------------ rent ------------------------------ */
-async function startRent({ tenantId, invoiceId }) {
-    if (!mongoose.isValidObjectId(invoiceId)) throw bad(404, 'Invoice not found');
-    const inv = await SubscriptionInvoice.findOne({ _id: invoiceId, tenantId });
-    if (!inv) throw bad(404, 'Invoice not found');
-    if (inv.status === 'paid') throw bad(409, 'This bill is already paid');
-    if (inv.status === 'void') throw bad(409, 'This bill was cancelled');
-    const amountPaise = toPaise(inv.total);
-    if (!(amountPaise >= 100)) throw bad(400, 'This bill is too small to pay online. Contact support.');
-    const c = creds();
-    const desc = `Bill ${inv.invoiceNo}`;
-
-    if (inv.payOrder?.rzpOrderId && inv.payOrder.amountPaise === amountPaise) return startView(c, inv.payOrder.rzpOrderId, amountPaise, desc);   // same order again
-    const o = await makeOrder({ amountPaise, receipt: `rent_${inv._id}`, notes: { purpose: 'rent', referenceId: String(inv._id), tenantId: String(tenantId) } });
-    const r = await SubscriptionInvoice.updateOne({ _id: inv._id, status: 'pending' }, { $set: { payOrder: { rzpOrderId: o.id, amountPaise, createdAt: new Date() } } });
-    if (!r.matchedCount) throw bad(409, 'This bill was just paid or cancelled');
-    return startView(c, o.id, amountPaise, desc);
-}
-
-async function verifyRent({ tenantId, invoiceId, proof }) {
-    if (!mongoose.isValidObjectId(invoiceId)) throw bad(404, 'Invoice not found');
-    const inv = await SubscriptionInvoice.findOne({ _id: invoiceId, tenantId }).lean();
-    if (!inv) throw bad(404, 'Invoice not found');
-    if (inv.status === 'paid') return { paid: true };
-    if (!inv.payOrder?.rzpOrderId) throw bad(400, 'Start the payment first');
-    proofOk(proof, inv.payOrder.rzpOrderId);
-    const pay = await payments.fetchPayment({ paymentId: proof.razorpay_payment_id, credentials: payments.isMock() ? undefined : creds() });
-    if (pay.orderId !== inv.payOrder.rzpOrderId) throw bad(400, 'This payment does not belong to this bill');
-    if (pay.status !== 'captured') return { paid: false, status: pay.status };
-    const r = await rentPayments.settle({ invoiceId: inv._id, pay, via: { path: '/api/shop/subscription/invoices/:id/pay/verify', method: 'APP' } });
-    return { paid: r.rent === 'paid' || r.rent === 'already_paid' };
-}
-
-/* ------------------------------ all dues in one payment ------------------------------ */
-// Every unpaid bill of the shop (rent months and late fees) is paid with ONE Razorpay payment for the sum.
-// The list is fixed when the payment starts. When the money is captured each listed bill is settled the usual way (rentPayments.settle).
-async function startDues({ tenantId }) {
-    const pending = await SubscriptionInvoice.find({ tenantId, status: 'pending' }).select('_id total').sort({ _id: 1 }).lean();
-    if (!pending.length) throw bad(409, 'Nothing is due');
-    const amountPaise = pending.reduce((s, i) => s + toPaise(i.total), 0);
-    if (!(amountPaise >= 100)) throw bad(400, 'This is too small to pay online. Contact support.');
-    const invoiceKey = pending.map((i) => String(i._id)).join(',');
-    const c = creds();
-    const desc = `All dues (${pending.length} bill${pending.length === 1 ? '' : 's'})`;
-
-    const open = await DuesPayment.findOne({ tenantId, invoiceKey, amountPaise, status: 'created' }).sort({ createdAt: -1 }).lean();
-    if (open) return { ...startView(c, open.rzpOrderId, amountPaise, desc), bills: pending.length };   // the same order again
-
-    const o = await makeOrder({ amountPaise, receipt: `dues_${Date.now()}`, notes: { purpose: 'rent_dues', tenantId: String(tenantId), bills: String(pending.length) } });
-    await DuesPayment.create({ tenantId, rzpOrderId: o.id, invoiceIds: pending.map((i) => i._id), invoiceKey, amountPaise });
-    return { ...startView(c, o.id, amountPaise, desc), bills: pending.length };
-}
-
-async function verifyDues({ tenantId, proof }) {
-    const d = proof?.razorpay_order_id ? await DuesPayment.findOne({ tenantId, rzpOrderId: String(proof.razorpay_order_id) }).lean() : null;
-    if (!d) throw bad(404, 'Payment not found');
-    if (d.status === 'paid') return { paid: true };
-    proofOk(proof, d.rzpOrderId);
-    const pay = await payments.fetchPayment({ paymentId: proof.razorpay_payment_id, credentials: payments.isMock() ? undefined : creds() });
-    if (pay.orderId !== d.rzpOrderId) throw bad(400, 'This payment does not belong to these bills');
-    if (pay.status !== 'captured') return { paid: false, status: pay.status };
-    const r = await settleDues(d, pay, { path: '/api/shop/subscription/dues/pay/verify', method: 'APP' });
-    return { paid: r.dues === 'paid' };
-}
-
-// A captured payment for a dues order: the amount must be exactly the sum that was asked. Safe to repeat (each bill settles once).
-async function settleDues(d, pay, via) {
-    if (pay.status !== 'captured') return { ignored: 'not_captured' };
-    if (pay.amountPaise !== d.amountPaise) {
-        await alert('admin_webhook_failed', { tenantId: d.tenantId, vars: { event: 'rent dues payment', error: `Amount ${pay.amountPaise} paise does not match the dues order (${d.amountPaise}) (payment ${pay.id}). Check Razorpay.` } });
-        return { ignored: 'amount_mismatch' };
-    }
-    const invs = await SubscriptionInvoice.find({ _id: { $in: d.invoiceIds } }).select('_id total').lean();
-    for (const inv of invs) {
-        // each bill is settled as if the payment were for it alone: the payment is split by the bill's own total
-        await rentPayments.settle({ invoiceId: inv._id, pay: { ...pay, amountPaise: toPaise(inv.total) }, via });
-    }
-    await DuesPayment.updateOne({ _id: d._id, status: 'created' }, { $set: { status: 'paid', paymentId: pay.id, paidAt: new Date() } });
-    return { dues: 'paid', bills: invs.length };
-}
-
-/* ------------------------------ a brand pays several branches at once ------------------------------ */
-// The same payment as "pay all dues", but the bills belong to several branches of one brand (all of them, or one). One Razorpay order for the sum;
-// settleDues settles each bill on its own (its branch is unpaused, its GST and settlement rows are written), so nothing here is new money logic.
-async function startBrandDues({ brand, tenantIds, actingTenantId }) {
-    const pending = await SubscriptionInvoice.find({ tenantId: { $in: tenantIds }, status: 'pending' }).select('_id total').sort({ _id: 1 }).lean();
-    if (!pending.length) throw bad(409, 'Nothing is due');
-    const amountPaise = pending.reduce((s, i) => s + toPaise(i.total), 0);
-    if (!(amountPaise >= 100)) throw bad(400, 'This is too small to pay online. Contact support.');
-    const invoiceKey = pending.map((i) => String(i._id)).join(',');
-    const c = creds();
-    const desc = `${brand.name}: all dues (${pending.length} bill${pending.length === 1 ? '' : 's'})`;
-
-    const open = await DuesPayment.findOne({ brandId: brand._id, invoiceKey, amountPaise, status: 'created' }).sort({ createdAt: -1 }).lean();
-    if (open) return { ...startView(c, open.rzpOrderId, amountPaise, desc), bills: pending.length };   // the same order again
-
-    const o = await makeOrder({ amountPaise, receipt: `bdues_${Date.now()}`, notes: { purpose: 'rent_dues_brand', brandId: String(brand._id), bills: String(pending.length) } });
-    await DuesPayment.create({ tenantId: actingTenantId, brandId: brand._id, rzpOrderId: o.id, invoiceIds: pending.map((i) => i._id), invoiceKey, amountPaise });
-    return { ...startView(c, o.id, amountPaise, desc), bills: pending.length };
-}
-
-async function verifyBrandDues({ brand, proof }) {
-    const d = proof && proof.razorpay_order_id ? await DuesPayment.findOne({ brandId: brand._id, rzpOrderId: String(proof.razorpay_order_id) }).lean() : null;
-    if (!d) throw bad(404, 'Payment not found');
-    if (d.status === 'paid') return { paid: true };
-    proofOk(proof, d.rzpOrderId);
-    const pay = await payments.fetchPayment({ paymentId: proof.razorpay_payment_id, credentials: payments.isMock() ? undefined : creds() });
-    if (pay.orderId !== d.rzpOrderId) throw bad(400, 'This payment does not belong to these bills');
-    if (pay.status !== 'captured') return { paid: false, status: pay.status };
-    const r = await settleDues(d, pay, { path: '/api/brand/dues/pay/verify', method: 'APP' });
-    return { paid: r.dues === 'paid' };
 }
 
 /* ------------------------------ SMS top-up ------------------------------ */
@@ -282,10 +166,6 @@ async function creditPartnerTopup(t, pay, via) {
 // payment.captured on the platform account for one of the orders made above
 async function onPlatformPayment(pay) {
     if (!pay.orderId || pay.status !== 'captured') return { ignored: 'not_captured' };
-    const dues = await DuesPayment.findOne({ rzpOrderId: pay.orderId }).lean();
-    if (dues) return settleDues(dues, pay, { path: '/api/webhooks/razorpay/platform', method: 'WEBHOOK' });
-    const inv = await SubscriptionInvoice.findOne({ 'payOrder.rzpOrderId': pay.orderId }).select('_id').lean();
-    if (inv) return rentPayments.settle({ invoiceId: inv._id, pay, via: { path: '/api/webhooks/razorpay/platform', method: 'WEBHOOK' } });
     const t = await SmsTopup.findOne({ rzpOrderId: pay.orderId }).lean();
     if (t) {
         await creditTopup(t, pay, { path: '/api/webhooks/razorpay/platform', method: 'WEBHOOK' });
@@ -300,8 +180,8 @@ async function onPlatformPayment(pay) {
     }
     // Real money reached the platform account for an order no bill or top-up knows (for example a bill whose amount changed
     // after the customer opened the old payment). Nobody must lose track of it.
-    await alert('admin_webhook_failed', { vars: { event: 'payment.captured', error: `Payment ${pay.id} of Rs ${((pay.amountPaise || 0) / 100).toFixed(2)} (Razorpay order ${pay.orderId}) matches no bill, dues or top-up. Check Razorpay and refund it or mark the bill paid by hand.` } });
+    await alert('admin_webhook_failed', { vars: { event: 'payment.captured', error: `Payment ${pay.id} of Rs ${((pay.amountPaise || 0) / 100).toFixed(2)} (Razorpay order ${pay.orderId}) matches no payment or top-up. Check Razorpay and refund it or mark the bill paid by hand.` } });
     return { ignored: 'unknown_order' };
 }
 
-module.exports = { startRent, verifyRent, startDues, verifyDues, startBrandDues, verifyBrandDues, settleDues, startTopup, verifyTopup, startPartnerTopup, verifyPartnerTopup, startPlan, verifyPlan, onPlatformPayment, MOCK_SECRET };
+module.exports = { startTopup, verifyTopup, startPartnerTopup, verifyPartnerTopup, startPlan, verifyPlan, onPlatformPayment, MOCK_SECRET };

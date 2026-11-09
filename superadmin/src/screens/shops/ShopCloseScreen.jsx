@@ -11,12 +11,11 @@ import { fetchClosure, closeShop, reopenShop } from '../../api/shopsApi';
 import { useShopStore } from '../../store/useShopStore';
 import { useShopsStore } from '../../store/useShopsStore';
 import { errMsg } from '../../api/adminClient';
-import { rupees, dateOnly } from '../../utils/format';
+import { dateOnly } from '../../utils/format';
 
 // Close a shop (everything is kept, the shop just stops) or open it again.
-// Closed for rent: the shop opens by itself the moment its rent is paid. Closed for another reason: only you open it.
+// A closed shop stays closed until you open it.
 const REASONS = [
-    { label: 'Rent unpaid', kind: 'rent', text: 'Rent unpaid for months' },
     { label: 'Owner asked', kind: 'manual', text: 'The owner asked us to close it' },
     { label: 'Other reason', kind: 'manual', text: '' },
 ];
@@ -37,10 +36,10 @@ function Choice({ on, title, hint, onPress }) {
 export default function ShopCloseScreen() {
     const t = useTheme();
     const nav = useNavigation();
-    const { shopId, name, kind: kindParam, reason: reasonParam } = useRoute().params;
+    const { shopId, name, reason: reasonParam } = useRoute().params;
     const [p, setP] = useState(null);
     const [error, setError] = useState('');
-    const [pick, setPick] = useState(kindParam === 'rent' ? 0 : 2);
+    const [pick, setPick] = useState(1);
     const [reason, setReason] = useState(reasonParam || '');
     const [orders, setOrders] = useState('finish');
     const [ask, setAsk] = useState(false);
@@ -64,12 +63,10 @@ export default function ShopCloseScreen() {
         } catch (e) { toast(errMsg(e), 'error'); throw e; }
     };
     const doOpen = async () => {
-        try { await reopenShop(shopId, { confirmDue: true }); await after(`${name} is open again`); } catch (e) { toast(errMsg(e), 'error'); throw e; }
+        try { await reopenShop(shopId, {}); await after(`${name} is open again`); } catch (e) { toast(errMsg(e), 'error'); throw e; }
     };
 
     if (!p) return <Screen title="Close shop" subtitle={name}>{error ? <ErrorBox message={error} onRetry={load} /> : <SkeletonList count={3} />}</Screen>;
-    const owes = p.owed.total > 0;
-    const owedLine = `${rupees(p.owed.total)} unpaid in ${p.owed.bills} bill${p.owed.bills === 1 ? '' : 's'}${p.owed.oldestDueAt ? `, the oldest due ${dateOnly(p.owed.oldestDueAt)}` : ''}`;
 
     // ---------- the shop is closed (or closing) ----------
     if (p.closed) {
@@ -79,28 +76,19 @@ export default function ShopCloseScreen() {
                 <Card>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
                         <Badge label={p.closing ? 'Closing: waiting for orders' : 'Closed'} tone="danger" icon="lock" />
-                        <Badge label={c.kind === 'rent' ? 'For rent' : 'Other reason'} tone={c.kind === 'rent' ? 'warn' : 'neutral'} />
                     </View>
                     <Text style={{ color: t.text, fontWeight: '800', fontSize: font.md, marginTop: spacing.md }}>{c.reason}</Text>
                     <Text style={{ color: t.muted, fontSize: font.sm, marginTop: 4 }}>Closed {dateOnly(c.at)}{c.by ? ` by ${c.by}` : ''}. Menu, orders, customers and bills are all kept.</Text>
-                    <Text style={{ color: t.muted, fontSize: font.sm, marginTop: spacing.sm }}>
-                        {c.kind === 'rent' ? 'It opens again by itself the moment all rent is paid.' : 'It stays closed until you open it.'}
-                    </Text>
-                </Card>
-                <Card style={{ marginTop: spacing.md }}>
-                    <Text style={{ color: t.text, fontWeight: '800' }}>Rent</Text>
-                    <Text style={{ color: owes ? t.danger : t.success, fontWeight: '800', fontSize: font.lg, marginTop: 4 }}>{owes ? owedLine : 'Nothing is unpaid'}</Text>
-                    <Text style={{ color: t.muted, fontSize: font.sm, marginTop: 4 }}>No new rent bills or late fees are added while the shop is closed.</Text>
+                    <Text style={{ color: t.muted, fontSize: font.sm, marginTop: spacing.sm }}>It stays closed until you open it.</Text>
                 </Card>
                 <Button style={{ marginTop: spacing.lg }} title="Open this shop again" icon="ok" onPress={() => setAsk(true)} />
                 <ConfirmSheet
                     visible={ask}
                     onClose={() => setAsk(false)}
-                    icon={owes ? 'warning' : 'ok'}
-                    danger={owes}
-                    title={owes ? 'Rent is still due' : 'Open this shop?'}
-                    message={owes ? `${name} still owes ${owedLine}. Open it anyway? Customers can order again straight away.` : 'Customers, the owner and the staff can use the shop again.'}
-                    confirmLabel={owes ? 'Open anyway' : 'Open shop'}
+                    icon="ok"
+                    title="Open this shop?"
+                    message="Customers, the owner and the staff can use the shop again."
+                    confirmLabel="Open shop"
                     onConfirm={doOpen}
                 />
             </Screen>
@@ -116,7 +104,6 @@ export default function ShopCloseScreen() {
                 <Text style={{ color: t.muted, fontSize: font.sm, marginTop: 4, lineHeight: 19 }}>
                     Customers, the owner, the cook, the waiter and the riders see "closed". Menu, orders, customers and bills stay as they are. You can open the shop again any time.
                 </Text>
-                {owes ? <Text style={{ color: t.danger, fontWeight: '700', marginTop: spacing.md }}>This shop owes {owedLine}.</Text> : null}
             </Card>
 
             <SectionTitle section="alerts">Why are you closing it?</SectionTitle>
@@ -124,7 +111,6 @@ export default function ShopCloseScreen() {
                 {REASONS.map((r, i) => <Chip key={r.label} label={r.label} active={pick === i} onPress={() => choose(i)} />)}
             </View>
             <Field label="Reason (kept in your records, never shown to the owner or customers)" value={reason} onChangeText={setReason} maxLength={200} multiline placeholder="Write the reason" style={{ marginTop: spacing.md }} />
-            {REASONS[pick].kind === 'rent' ? <Text style={{ color: t.muted, fontSize: font.sm, marginTop: -spacing.sm, marginBottom: spacing.md }}>Closed for rent: it opens again by itself when all rent is paid.</Text> : null}
 
             {p.activeOrders > 0 ? (
                 <>

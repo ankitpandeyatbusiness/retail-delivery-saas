@@ -1,6 +1,5 @@
 // Superadmin messages and inbox.
 //   POST /tenants/:tid/notify                    { title, body?, channel?: "app", userId? }  message to the owner (or one user)
-//   POST /subscriptions/invoices/:id/resend      send the bill notice again
 //   GET  /notifications                          superadmin inbox (late-order alerts) ?unread=true&page=1&limit=20
 //   POST /notifications/read-all
 //   POST /notifications/:id/read
@@ -14,7 +13,6 @@ const loadTenant = require('../middlewares/loadTenant');
 const apiErrors = require('../middlewares/apiErrors');
 const notify = require('../services/notificationService');
 const Notification = require('../models/Notification');
-const SubscriptionInvoice = require('../models/SubscriptionInvoice');
 const User = require('../models/User');
 
 const { wrap, httpError } = apiErrors;
@@ -41,27 +39,6 @@ router.post('/tenants/:tid/notify', loadTenant, wrap(async (req, res) => {
     const doc = userId ? await notify.toUser(tenantId, userId, p) : await notify.toOwner(tenantId, p);
     if (!doc) throw httpError(500, 'Could not send the message');
     res.status(201).json({ ok: true, id: doc._id, to: userId ? 'user' : 'owner' });
-}));
-
-router.post('/subscriptions/invoices/:id/resend', wrap(async (req, res) => {
-    if (!isId(req.params.id)) throw httpError(404, 'Invoice not found');
-    const inv = await SubscriptionInvoice.findById(req.params.id).select('tenantId invoiceNo total status graceEndsAt dueDate').lean();
-    if (!inv) throw httpError(404, 'Invoice not found');
-    if (inv.status !== 'pending') throw httpError(409, 'Only an unpaid invoice can be sent again');
-
-    const paused = inv.graceEndsAt && new Date(inv.graceEndsAt) <= new Date();
-    const doc = await notify.toOwner(inv.tenantId, {
-        type: paused ? 'shop_paused' : 'bill_issued',
-        vars: { invoiceNo: inv.invoiceNo, amount: String(inv.total), date: day(inv.graceEndsAt || inv.dueDate) },
-        title: paused ? 'Your shop is paused' : 'Bill notice',
-        body: paused
-            ? `Invoice ${inv.invoiceNo} (Rs ${inv.total}) is unpaid, so new orders are stopped. Pay now to start again.`
-            : `Invoice ${inv.invoiceNo}: Rs ${inv.total}. Please pay by ${day(inv.graceEndsAt || inv.dueDate)} to keep taking orders.`,
-        data: { invoiceId: String(inv._id), prompt: 'bill' },
-    });
-    if (!doc) throw httpError(500, 'Could not send the notice');
-    await SubscriptionInvoice.updateOne({ _id: inv._id }, { $set: { notifiedAt: new Date() } });
-    res.json({ ok: true });
 }));
 
 /* ------------------------------ superadmin inbox ------------------------------ */

@@ -78,7 +78,7 @@ const planLineOf = (p) => {
 // menu row -> the plan feature it needs (config/plans.js on the server)
 const LOCKS = { OwnerAutopilot: 'customPush', OwnerRewards: 'loyalty', OwnerCosts: 'costsProfit', OwnerReportsHub: 'analytics', OwnerCooks: 'staffLogins', OwnerWaiters: 'staffLogins' };
 
-const EASY = new Set(['@busy', 'OwnerAutomations', 'OwnerRiders', 'OwnerBookings', 'OwnerServices', 'OwnerBulk', 'OwnerInquiries', 'OwnerClosing', 'OwnerDineIn', 'OwnerCooks', 'OwnerWaiters', 'OwnerCustomers', 'OwnerExport', 'OwnerCosts', 'OwnerComplaints', 'OwnerMessages', 'OwnerCategories', 'OwnerCoupons', 'OwnerMoney', 'OwnerMoneyHub', 'OwnerBillsHub', 'OwnerReportsHub', 'OwnerHours', 'OwnerShopSettings', 'AlertSettings', 'Soundbox', 'OwnerAppLock']);
+const EASY = new Set(['@busy', 'OwnerAutomations', 'OwnerRiders', 'OwnerBookings', 'OwnerServices', 'OwnerBulk', 'OwnerInquiries', 'OwnerClosing', 'OwnerDineIn', 'OwnerCooks', 'OwnerWaiters', 'OwnerCustomers', 'OwnerExport', 'OwnerCosts', 'OwnerComplaints', 'OwnerMessages', 'OwnerCategories', 'OwnerCoupons', 'OwnerMoney', 'OwnerMoneyHub', 'OwnerReportsHub', 'OwnerHours', 'OwnerShopSettings', 'AlertSettings', 'Soundbox', 'OwnerAppLock']);
 const EASY_APP = new Set(['My profile', 'Appearance', 'Language', 'See the customer app', 'Log out']);
 
 // [icon, title, subtitle, route]   ('@busy' opens the Busy mode sheet). The order is the order of a working day.
@@ -111,10 +111,10 @@ const GROUPS = [
     ]],
     ['Money', [
         ['ribbon', 'Plan', 'Your plan, what is in it, upgrade or renew', 'OwnerPlan'],
-        ['wallet', 'Money', 'Your rent, SMS balance and top up', 'OwnerMoney'],
+        ['wallet', 'Money', 'Your sales, online money and SMS balance', 'OwnerMoney'],
         ['card', 'Wallet', 'Your Partner wallet: balance, top up, the fee of each order', 'OwnerWallet'],
         ['swap-vertical', 'Transactions', 'Every rupee in and out, by month, refunds and chargebacks', 'OwnerMoneyHub'],
-        ['receipt', 'Bills and SMS', 'Your monthly bill and SMS balance', 'OwnerBillsHub'],
+        ['chatbubble-ellipses', 'SMS balance', 'Your SMS balance and top up', 'OwnerSms'],
         ['calculator', 'Costs and profit', 'What you spend, and what the shop really kept', 'OwnerCosts'],
         ['trending-up', 'Business report', 'Progress charts, popular items, tips', 'OwnerReportsHub'],
         ['download', 'Download your data', 'Excel files: customers, cooks, waiters, riders, orders, branches', 'OwnerExport'],

@@ -102,14 +102,14 @@ describe('live feed: saving and cleaning', () => {
 });
 
 describe('live picture of a shop', () => {
-    test('the superadmin sees counts, riders, billable orders, revenue, customers and the feed', async () => {
+    test('the superadmin sees counts, riders, revenue, customers and the feed', async () => {
         const w = await f.makeWorld('snap-admin');
         const { token } = await f.makeSuperAdmin('snap-admin@test.com');
         await f.makeOrder(w.tenant, w.customer.user, { status: 'placed' });
         await f.makeOrder(w.tenant, w.customer.user, {
             status: 'delivered', deliveredAt: new Date(),
             pricing: { subtotal: 200, discount: 20, packagingCharge: 10, total: 190 },
-            billing: { billable: true, at: new Date(), reason: 'delivered' },
+            
         });
         await Rider.updateOne({ tenantId: w.tenant._id, userId: w.rider.user._id }, { $set: { isOnline: true } });
         const trip = await f.makeOrder(w.tenant, w.customer.user, { status: 'out_for_delivery', delivery: { riderId: w.rider.user._id, status: 'picked_up' } });
@@ -123,8 +123,6 @@ describe('live picture of a shop', () => {
         assert.equal(res.body.orders.active.placed, 1);
         assert.equal(res.body.orders.activeTotal, 2);   // the placed order and the one on its way (the rider's live position needs it)
         assert.equal(res.body.revenueToday, 190);
-        assert.equal(res.body.billable.today, 1);
-        assert.equal(res.body.billable.month, 1);
         assert.equal(res.body.customers, 1);
         assert.equal(typeof res.body.sms.balancePaise, 'number');
         assert.equal(res.body.openComplaints, 0);

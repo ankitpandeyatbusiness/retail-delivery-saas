@@ -23,7 +23,7 @@ export function ownerRoute(n) {
     if (REVIEWS.has(type)) return { name: 'OwnerReviews' };
     if (d.kind === 'bulk' && d.bulkId) return { name: 'OwnerBulkOrder', params: { id: String(d.bulkId) } };
     if (d.kind === 'inquiry' && d.inquiryId) return { name: 'OwnerInquiry', params: { id: String(d.inquiryId) } };
-    if (d.kind === 'fee_plan' || d.kind === 'rent') return { name: 'OwnerRent' };
+    if (d.kind === 'fee_plan' || d.kind === 'rent') return { name: 'OwnerPlan' };
     if (d.kind === 'closing_report') return { name: 'OwnerClosing' };
     if (d.kind === 'business_report') return { name: 'OwnerBusiness', params: d.period ? { range: String(d.period) } : undefined };
     if ((type === 'complaint_new' || type === 'complaint_reminder') && d.complaintId) return { name: 'OwnerComplaint', params: { id: String(d.complaintId) } };
@@ -31,7 +31,7 @@ export function ownerRoute(n) {
     if (d.orderId && (ORDER.has(type) || !isTable(type, d))) return { name: 'OwnerOrder', params: { id: String(d.orderId) } };
     if (isTable(type, d)) return { name: 'OwnerDineIn' };   // a table: the guests, the bill, a call
     if (type === 'rider_sos' && d.riderId) return { name: 'OwnerRider', params: { userId: String(d.riderId) } };
-    if (BILL.has(type)) return { name: 'OwnerRent' };
+    if (BILL.has(type)) return { name: 'OwnerPlan' };
     if (SMS.has(type)) return { name: 'OwnerSms' };
     if (type === 'owner_daily_summary') return { name: 'OwnerBusiness', params: { range: '1' } };
     if (type === 'owner_weekly_digest') return { name: 'OwnerBusiness', params: { range: '7' } };

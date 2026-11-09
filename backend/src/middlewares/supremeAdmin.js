@@ -33,10 +33,6 @@ function moneyGuard(req, res, next) {
     if (isSupreme(req.admin)) return next();
     const path = req.path;
     if (MONEY.some((re) => re.test(path))) return res.status(403).json({ error: MESSAGE, supremeOnly: true });
-    // a shop's fee plan can also arrive inside the shop form
-    if (/^\/tenants(\/[^/]+)?$/.test(path) && req.body && typeof req.body === 'object' && req.body.subscription !== undefined) {
-        return res.status(403).json({ error: MESSAGE, supremeOnly: true });
-    }
     return next();
 }
 

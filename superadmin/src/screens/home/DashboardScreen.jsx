@@ -16,7 +16,6 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { useSupreme } from '../../hooks/useSupreme';
 import { rupees } from '../../utils/format';
 import { fetchSupportCounts } from '../../api/supportApi';
-import { fetchToClose } from '../../api/shopsApi';
 import { fetchPlatformHealth } from '../../api/healthApi';
 import { fetchMoneyRecord } from '../../api/moneyRecordApi';
 import { goTab } from '../../navigation/goTo';
@@ -26,7 +25,7 @@ const greeting = () => {
     return h < 5 ? 'Good night' : h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
 };
 const monthOf = (plus = 0) => { const x = new Date(Date.now() + 330 * 60000); return new Date(Date.UTC(x.getUTCFullYear(), x.getUTCMonth() + plus, 1)).toISOString().slice(0, 7); };
-const LABEL = { system: 'Server and backup', payments: 'Payment notices', sms: 'SMS', rent: 'Rent', orders: 'Orders', google: 'Google calls', shops: 'Shops', support: 'Support', quiet: 'Quiet shops', versions: 'App versions' };
+const LABEL = { system: 'Server and backup', payments: 'Payment notices', sms: 'SMS', rent: 'Plans', orders: 'Orders', google: 'Google calls', shops: 'Shops', support: 'Support', quiet: 'Quiet shops', versions: 'App versions' };
 
 // What Home looks like while it loads: ONE shimmer for the whole page (the platform light, Needs you, money, today), shown until both the shop numbers and the health numbers are in.
 function HomeSkeleton() {
@@ -65,7 +64,6 @@ export default function DashboardScreen() {
     const [health, setHealth] = useState(null);
     const [healthFailed, setHealthFailed] = useState(false);   // the health numbers could not be read: show the rest of Home anyway
     const [money, setMoney] = useState(null);          // this month's shop money
-    const [toClose, setToClose] = useState(0);        // shops whose rent is unpaid for months: waiting for your decision
     const [lastOpen, setLastOpen] = useState(0);       // last month's shops the developer has not answered yet
     useFocusEffect(useCallback(() => {
         // coming back to a screen that already has its numbers: refresh them AFTER the slide has finished, so the slide is not stuttering under network work
@@ -74,7 +72,6 @@ export default function DashboardScreen() {
             useDashboardStore.getState().load({ refresh: !!useDashboardStore.getState().shops });
             fetchSupportCounts().then((c) => setHelpOpen(c.open || 0)).catch(() => { });
             fetchPlatformHealth().then((x) => { setHealth(x); setHealthFailed(false); }).catch(() => setHealthFailed(true));
-            fetchToClose().then((r) => setToClose(r.shops.length)).catch(() => { });
             fetchMoneyRecord(monthOf()).then(setMoney).catch(() => { });
             fetchMoneyRecord(monthOf(-1)).then((m) => setLastOpen(m.totals.open + m.totals.again)).catch(() => { });
         }, had ? 450 : 0);
@@ -92,7 +89,6 @@ export default function DashboardScreen() {
     const need = [
         ...(health ? health.needsYou.slice(0, 5).map((x) => ({ key: x.key, level: x.level, title: LABEL[x.key], hint: x.note, go: goHealth, list: x.list, total: x.listTotal })) : []),
         supreme && lastOpen > 0 && { key: 'answers', level: 'warn', title: 'Shop money to answer', hint: `${lastOpen} shop${lastOpen === 1 ? '' : 's'} of last month: did you get your part?`, go: () => nav.navigate('MoneyRecord') },
-        toClose > 0 && { key: 'toclose', level: 'bad', title: `${toClose} shop${toClose > 1 ? 's' : ''} may need closing`, hint: 'Rent unpaid for months. Nothing closes until you decide.', go: () => nav.navigate('ShopsToClose') },
         !inHealth('support') && helpOpen > 0 && { key: 'help', level: 'warn', title: `${helpOpen} support request${helpOpen > 1 ? 's' : ''} waiting`, hint: 'Shop owners are waiting for your reply', go: () => nav.navigate('Support') },
         d.unreadAlerts > 0 && { key: 'alerts', level: 'warn', title: `${d.unreadAlerts} unread alert${d.unreadAlerts > 1 ? 's' : ''}`, hint: 'Late orders and platform messages', go: () => nav.navigate('Inbox') },
     ].filter(Boolean);
@@ -161,8 +157,7 @@ export default function DashboardScreen() {
                         <FadeIn index={2}>
                             <SectionTitle section="money">Money this month</SectionTitle>
                             <View style={{ flexDirection: 'row', gap: spacing.md }}>
-                                <Stat section="money" label="Collected" value={rupees(health.rent.collected)} icon="rupee" onPress={() => nav.navigate('Receivables')} />
-                                <Stat section="alerts" label="To collect" value={rupees(health.rent.toCollect)} icon="receipt" onPress={() => nav.navigate('Receivables')} />
+                                <Stat section="money" label="Collected" value={rupees(health.rent.collected)} icon="rupee" onPress={() => nav.navigate('Ledger')} />
                             </View>
                         </FadeIn>
                     ) : null}

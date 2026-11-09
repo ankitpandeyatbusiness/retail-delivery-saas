@@ -82,9 +82,8 @@ export default function ShopLiveScreen() {
             <Card style={{ paddingVertical: 0 }}>
                 <KeyValue label="Customers" value={String(live.customers ?? 0)} />
                 <KeyValue label="Billable orders today" value={String(live.billable?.today ?? 0)} />
-                <KeyValue label="Billable orders this month" value={String(live.billable?.month ?? 0)} />
                 <KeyValue label="SMS wallet" value={paise(live.sms?.balancePaise)} />
-                <KeyValue label="Billing" value={live.billingState ? titleCase(live.billingState) : '—'} last />
+                <KeyValue label="Plan" value={live.plan ? titleCase(live.plan) : 'No plan yet'} last />
             </Card>
 
             <SectionTitle section="people">Recent activity</SectionTitle>

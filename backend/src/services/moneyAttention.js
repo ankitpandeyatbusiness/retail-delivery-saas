@@ -1,8 +1,7 @@
 // The Money tab's "Needs attention": everything about money that wants a decision or a look today, each with how many, how much, and where to fix it.
-// Two kinds: things owed or lost (overdue bills, shops to close, failed refunds, low SMS wallets) and things that do not add up
-// (a Razorpay event that failed, money that reached the platform for a bill nobody knows, a paid top-up whose wallet was not credited).
+// Two kinds: things owed or lost (failed refunds, low SMS wallets) and things that do not add up
+// (a Razorpay event that failed, money that reached the platform for a payment nobody knows, a paid top-up whose wallet was not credited).
 // An item the superadmin marked "handled by hand" (services/handledMarks.js) leaves the count; the thing itself is never changed.
-const SubscriptionInvoice = require('../models/SubscriptionInvoice');
 const PaymentWebhookEvent = require('../models/PaymentWebhookEvent');
 const OnlineRefund = require('../models/OnlineRefund');
 const SmsWallet = require('../models/SmsWallet');
@@ -32,23 +31,14 @@ async function attention({ now = Date.now() } = {}) {
     const add = (it) => { if (it.count > 0) items.push(it); };
     const h = await marks();
 
-    const [overdue, failedHooks, stuckHooks, refunds, lowWallets, unmatched, paidTopups, paidNoDate] = await Promise.all([
-        SubscriptionInvoice.aggregate([{ $match: { status: 'pending', dueDate: { $lt: n }, ...notIn(h.overdue) } }, { $group: { _id: null, count: { $sum: 1 }, total: { $sum: '$total' }, shops: { $addToSet: '$tenantId' } } }]),
+    const [failedHooks, stuckHooks, refunds, lowWallets, unmatched, paidTopups] = await Promise.all([
         PaymentWebhookEvent.find({ account: 'platform', status: 'failed', createdAt: { $gte: since }, ...notIn(h.webhook_failed) }).sort({ createdAt: -1 }).limit(5).select('event error createdAt').lean(),
         PaymentWebhookEvent.countDocuments({ account: 'platform', status: 'processing', updatedAt: { $lt: new Date(now - 15 * 60000) }, createdAt: { $gte: since }, ...notIn(h.webhook_failed) }),
         OnlineRefund.aggregate([{ $match: { status: 'failed', ...notIn(h.refund_failed) } }, { $group: { _id: null, count: { $sum: 1 }, paise: { $sum: '$amountPaise' } } }]),
         SmsWallet.countDocuments({ $expr: { $lte: ['$balancePaise', { $ifNull: ['$lowBalancePaise', LOW_DEFAULT] }] }, ...notIn(h.sms_low) }),
         Notification.find({ role: 'superadmin', type: 'admin_webhook_failed', createdAt: { $gte: since }, ...notIn(h.unmatched) }).sort({ createdAt: -1 }).limit(5).select('title body createdAt').lean(),
         SmsTopup.find({ status: 'paid', paidAt: { $gte: since }, paymentId: { $type: 'string' }, ...notIn(h.topup_uncredited) }).select('paymentId tenantId ref').lean(),
-        SubscriptionInvoice.countDocuments({ status: 'paid', paidAt: { $exists: false }, ...notIn(h.paid_no_date) }),
     ]);
-
-    const o = overdue[0];
-    add({ key: 'overdue', level: 'bad', title: 'Overdue rent bills', hint: o ? `${o.shops.length} shop${o.shops.length === 1 ? '' : 's'} have not paid after the due date.` : '', count: o?.count || 0, paise: Math.round((o?.total || 0) * 100), screen: 'Invoices', params: { status: 'overdue' } });
-
-    let toClose = 0;
-    try { toClose = ((await require('./shopClosure').toClose(n)).shops || []).filter((s) => !h.to_close.ids.includes(String(s.tenantId))).length; } catch (e) { toClose = 0; }
-    add({ key: 'to_close', level: 'warn', title: 'Shops to close', hint: 'Rent unpaid for months. They close only when you tap.', count: toClose, screen: 'ShopsToClose' });
 
     const f = refunds[0];
     add({ key: 'refunds_failed', level: 'bad', title: 'Refunds that failed', hint: 'The customer has not got the money back. Open to see why, send again or mark it handled.', count: f?.count || 0, paise: f?.paise || 0, screen: 'Refunds' });
@@ -65,8 +55,6 @@ async function attention({ now = Date.now() } = {}) {
     }
     add({ key: 'topup_uncredited', level: 'bad', title: 'SMS top-ups paid but not credited', hint: 'The shop paid and its wallet did not grow. Open to see which.', count: uncredited, screen: 'Ledger' });
 
-    add({ key: 'paid_no_date', level: 'warn', title: 'Bills marked paid without a date', hint: 'They will be missing from the monthly numbers and the GST register.', count: paidNoDate, screen: 'Invoices', params: { status: 'paid' } });
-
     add({ key: 'sms_low', level: 'warn', title: 'SMS wallets running low', hint: 'Those shops stop sending messages when the wallet is empty.', count: lowWallets, screen: 'SmsProfit' });
 
     try {
@@ -82,7 +70,7 @@ async function attention({ now = Date.now() } = {}) {
 }
 
 // ---------- one list opened: every record with the reason, so it can be opened, sorted out by hand or marked handled ----------
-const KIND_OF = { overdue: 'overdue', to_close: 'to_close', refunds_failed: 'refund_failed', webhook_failed: 'webhook_failed', unmatched: 'unmatched', topup_uncredited: 'topup_uncredited', paid_no_date: 'paid_no_date', sms_low: 'sms_low' };
+const KIND_OF = { refunds_failed: 'refund_failed', webhook_failed: 'webhook_failed', unmatched: 'unmatched', topup_uncredited: 'topup_uncredited', sms_low: 'sms_low' };
 const shopNames = async (ids) => new Map((await Tenant.find({ _id: { $in: [...new Set(ids.map(String))] } }).select('name').lean()).map((s) => [String(s._id), s.name]));
 const days = (from, now) => Math.max(0, Math.floor((now - new Date(from).getTime()) / DAY));
 
@@ -90,15 +78,6 @@ const days = (from, now) => Math.max(0, Math.floor((now - new Date(from).getTime
 async function candidates(key, now) {
     const n = new Date(now);
     const since = new Date(now - 14 * DAY);
-    if (key === 'overdue') {
-        const rows = await SubscriptionInvoice.find({ status: 'pending', dueDate: { $lt: n } }).sort({ dueDate: 1 }).limit(100).select('tenantId invoiceNo total dueDate period').lean();
-        const names = await shopNames(rows.map((r) => r.tenantId));
-        return rows.map((r) => ({ id: String(r._id), title: `${names.get(String(r.tenantId)) || 'Shop'} · ${r.invoiceNo || 'bill'}`, detail: `${days(r.dueDate, now)} day(s) past the due date`, paise: Math.round((r.total || 0) * 100), at: r.dueDate, open: { screen: 'InvoiceDetail', params: { invoiceId: String(r._id), invoiceNo: r.invoiceNo } } }));
-    }
-    if (key === 'to_close') {
-        const { shops } = await require('./shopClosure').toClose(n);
-        return (shops || []).map((s) => ({ id: String(s.tenantId), title: s.name || 'Shop', detail: `Rent unpaid for ${s.monthsLate} month(s)`, paise: Math.round((s.owed || 0) * 100), open: { screen: 'ShopsToClose' } }));
-    }
     if (key === 'refunds_failed') {
         const rows = await OnlineRefund.find({ status: 'failed' }).sort({ createdAt: -1 }).limit(100).lean();
         const orders = new Map((await Order.find({ _id: { $in: rows.map((r) => r.orderId) } }).select('orderNo ref customer').lean()).map((x) => [String(x._id), x]));
@@ -121,11 +100,6 @@ async function candidates(key, now) {
         const have = new Set((await SmsTransaction.find({ type: 'topup', paymentId: { $in: rows.map((t) => t.paymentId) } }).select('paymentId').lean()).map((x) => x.paymentId));
         const names = await shopNames(rows.map((r) => r.tenantId));
         return rows.filter((t) => !have.has(t.paymentId)).map((r) => ({ id: String(r._id), title: `${names.get(String(r.tenantId)) || 'Shop'} · top-up ${r.ref || ''}`.trim(), detail: `Paid, payment ${r.paymentId}. The wallet did not grow.`, paise: r.payablePaise || r.amountPaise, at: r.paidAt, open: { screen: 'Ledger' } }));
-    }
-    if (key === 'paid_no_date') {
-        const rows = await SubscriptionInvoice.find({ status: 'paid', paidAt: { $exists: false } }).sort({ createdAt: -1 }).limit(100).select('tenantId invoiceNo total period').lean();
-        const names = await shopNames(rows.map((r) => r.tenantId));
-        return rows.map((r) => ({ id: String(r._id), title: `${names.get(String(r.tenantId)) || 'Shop'} · ${r.invoiceNo || 'bill'}`, detail: 'Marked paid, but no paid date was saved', paise: Math.round((r.total || 0) * 100), open: { screen: 'InvoiceDetail', params: { invoiceId: String(r._id), invoiceNo: r.invoiceNo } } }));
     }
     if (key === 'sms_low') {
         const rows = await SmsWallet.find({ $expr: { $lte: ['$balancePaise', { $ifNull: ['$lowBalancePaise', LOW_DEFAULT] }] } }).sort({ balancePaise: 1 }).limit(100).lean();

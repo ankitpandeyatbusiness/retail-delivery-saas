@@ -24,7 +24,7 @@ export function shortDay(ymd) {
 export const PAY_LABEL = { cod: 'Cash on delivery', upi: 'UPI', card: 'Card', wallet: 'Wallet', bulk: 'Bulk orders' };
 
 // money screens that can be filtered by what moved
-export const MOVES = [['', 'All'], ['customer_payment', 'Received'], ['customer_refund', 'Refunds'], ['dispute_lost', 'Chargebacks'], ['sms_topup', 'SMS'], ['rent', 'Bills']];
+export const MOVES = [['', 'All'], ['customer_payment', 'Received'], ['customer_refund', 'Refunds'], ['dispute_lost', 'Chargebacks'], ['sms_topup', 'SMS'], ['plan', 'Plan'], ['wallet', 'Wallet']];
 
 export const REFUND_STATE = { pending: 'Asked', processing: 'On the way', processed: 'Done', failed: 'Failed' };
 export const DISPUTE_STATE = { created: 'New', under_review: 'Under review', action_required: 'Needs an answer', won: 'Won', lost: 'Lost', closed: 'Closed' };

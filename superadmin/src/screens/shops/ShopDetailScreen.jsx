@@ -43,7 +43,7 @@ export default function ShopDetailScreen() {
     const shop = { ...tenant, state };
     const tone = stateTone(shop);
     const section = { success: 'money', warn: 'catalog', danger: 'alerts' }[tone];
-    const billing = tenant.billing?.state;
+    const planId = tenant.plan?.id;
     const takesDelivery = (rec.resolved?.orders?.types || tenant.settings?.orders?.types || ['delivery']).includes('delivery');
     const d = tenant.delivery || {};
     const noArea = takesDelivery && !([d.latitude, d.longitude, d.radiusKm].every((n) => Number.isFinite(n)) && d.radiusKm > 0);
@@ -60,7 +60,6 @@ export default function ShopDetailScreen() {
             >
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md }}>
                     <ShopStateBadge shop={shop} />
-                    {billing === 'paused' || billing === 'grace' ? <Badge label={`Rent ${billing}`} tone={billing === 'paused' ? 'danger' : 'warn'} icon="receipt" /> : null}
                 </View>
                 {state?.reasons?.length ? (
                     <View style={{ marginTop: spacing.md }}>
@@ -118,9 +117,8 @@ export default function ShopDetailScreen() {
 
             <SectionTitle section="money">Plan</SectionTitle>
             <Card>
-                <Text style={{ color: t.muted }}>{rec.rent && ['grace', 'paused'].includes(rec.rent.stage) ? 'An old rent bill is still open.' : 'Plan, free days, extras, wallet and the website and app switches.'}</Text>
+                <Text style={{ color: t.muted }}>Plan, free days, extras, wallet and the website and app switches.</Text>
                 <Button title="Open the plan" kind="soft" icon="star" onPress={() => nav.navigate('ShopPlan', { shopId, name: tenant.name })} style={{ marginTop: spacing.sm }} />
-                {rec.rent && ['grace', 'paused'].includes(rec.rent.stage) ? <Button title="Open the old rent bills" kind="soft" icon="receipt" onPress={() => nav.navigate('ShopBilling', { shopId, name: tenant.name })} style={{ marginTop: spacing.sm }} /> : null}
             </Card>
 
             <SectionTitle section="platform">Details</SectionTitle>
@@ -128,7 +126,7 @@ export default function ShopDetailScreen() {
                 <KeyValue label="Phone" value={tenant.phone} />
                 <KeyValue label="Address" value={[tenant.address?.line, tenant.address?.city, tenant.address?.pincode].filter(Boolean).join(', ')} />
                 <KeyValue label="Android package" value={tenant.androidPackage} />
-                <KeyValue label="Rent billing" value={billing ? billing[0].toUpperCase() + billing.slice(1) : null} last />
+                <KeyValue label="Plan" value={planId ? planId[0].toUpperCase() + planId.slice(1) : 'No plan yet'} last />
             </Card>
         </Screen>
     );

@@ -92,7 +92,7 @@ export default function PlatformHealthScreen() {
         system: () => nav.navigate('System'),
         payments: () => nav.navigate('System'),
         sms: () => nav.navigate('SmsProfit'),
-        rent: () => nav.navigate('Receivables'),
+        rent: () => nav.navigate('Ledger'),
         orders: () => nav.navigate('SalesReport'),
         google: () => nav.navigate('LiveTracking'),
         shops: () => nav.navigate('ShopsGrowth'),
@@ -101,7 +101,7 @@ export default function PlatformHealthScreen() {
         versions: undefined,
     };
     const openShop = (x) => toAdmin(nav, { screen: 'ShopsTab', params: { screen: 'ShopDetail', params: { shopId: x.id, name: x.name } } });
-    const LABEL = { system: 'Server and backup', payments: 'Payment notices', sms: 'SMS', rent: 'Rent', orders: 'Orders', google: 'Google calls', shops: 'Shops', support: 'Support', quiet: 'Quiet shops', versions: 'App versions' };
+    const LABEL = { system: 'Server and backup', payments: 'Payment notices', sms: 'SMS', rent: 'Plans', orders: 'Orders', google: 'Google calls', shops: 'Shops', support: 'Support', quiet: 'Quiet shops', versions: 'App versions' };
 
     const o = r && level(r.overall.level);
     return (
@@ -132,12 +132,10 @@ export default function PlatformHealthScreen() {
                     ) : null}
 
                     <SectionTitle section="money">Money</SectionTitle>
-                    <HealthCard title="Rent this month" level={r.rent.level} note={r.rent.note} onPress={go.rent}>
-                        <Row label="Shops that paid" value={`${r.rent.paidShops} of ${r.rent.billed}`} />
+                    <HealthCard title="Plans and money in this month" level={r.rent.level} note={r.rent.note} onPress={go.rent}>
+                        <Row label="Shops that paid for a plan" value={num(r.rent.paidShops)} />
                         <Row label="Total collected" value={rs(r.rent.collected)} strong />
-                        <Row label="Shops still to pay" value={num(r.rent.unpaidShops)} />
-                        <Row label="Total to collect" value={rs(r.rent.toCollect)} strong />
-                        {r.rent.overdueBills ? <Row label="Overdue" value={`${r.rent.overdueBills} bills · ${rs(r.rent.overdueAmount)}`} strong tone={t.danger} /> : null}
+                        {r.rent.held ? <Row label="Payments held for you" value={num(r.rent.held)} strong tone={t.danger} /> : null}
                         <ShopsDrop list={r.rent.list} total={r.rent.listTotal} onShop={openShop} max={8} />
                     </HealthCard>
                     <HealthCard title="SMS, last 7 days" level={r.sms.level} note={r.sms.note} onPress={go.sms}>
@@ -180,7 +178,7 @@ export default function PlatformHealthScreen() {
                         <Row label="In the free period" value={num(r.shops.free)} />
                         <Row label="Paying" value={num(r.shops.paid)} strong />
                         {r.shops.grace ? <Row label="In grace (bill overdue)" value={num(r.shops.grace)} tone={t.warn} /> : null}
-                        {r.shops.paused ? <Row label="Paused for unpaid rent" value={num(r.shops.paused)} tone={t.danger} strong /> : null}
+                        {r.shops.paused ? <Row label="Paused (plan not renewed)" value={num(r.shops.paused)} tone={t.danger} strong /> : null}
                         <Row label="Not live yet" value={num(r.shops.notLive)} />
                         {r.shops.freeEnding ? <Row label="Free period ends within 7 days" value={num(r.shops.freeEnding)} tone={t.warn} /> : null}
                         <ShopsDrop list={r.shops.list} total={r.shops.listTotal} onShop={openShop} max={8} />

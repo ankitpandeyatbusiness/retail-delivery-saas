@@ -1,4 +1,4 @@
-// All branches (brand owner only): today's or the last days' orders and sales for every branch side by side, last month's bills,
+// All branches (brand owner only): today's or the last days' orders and sales for every branch side by side, 
 // and the newest orders of all branches. Read only: to change something, switch to that branch (tap its row).
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
@@ -8,18 +8,11 @@ import { StatShimmer } from '../../components/owners/shimmer';
 import { ask } from '../../components/common/dialog';
 import { showToast } from '../../components/customers/shop';
 import { useNavigation } from '@react-navigation/native';
-import { fetchBrandDues, fetchBrandOverview, fetchBrandOrders, fetchBrandStatement, fetchBrandCustomers, fetchBrandComplaints, fetchBrandReviews } from '../../api/owners/brandApi';
+import { fetchBrandOverview, fetchBrandOrders, fetchBrandCustomers, fetchBrandComplaints, fetchBrandReviews } from '../../api/owners/brandApi';
 import { switchBranch } from '../../utils/common/switchBranch';
-import { downloadAndOpen } from '../../utils/owners/files';
 import { getSlug } from '../../utils/common/branch';
 import { tr } from '../../i18n';
 
-const lastMonth = () => {
-    const d = new Date(Date.now() + 330 * 60000);
-    d.setUTCDate(1);
-    d.setUTCMonth(d.getUTCMonth() - 1);
-    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
-};
 const STATUS = { placed: 'New', accepted: 'Accepted', preparing: 'Preparing', ready: 'Ready', out_for_delivery: 'On the way', delivered: 'Delivered', cancelled: 'Cancelled', undelivered: 'Not delivered' };
 
 export default function OwnerAllBranchesScreen() {
@@ -28,8 +21,6 @@ export default function OwnerAllBranchesScreen() {
     const [ov, setOv] = useState(null);
     const [orders, setOrders] = useState(null);
     const nav = useNavigation();
-    const [dues, setDues] = useState(null);
-    const [stmt, setStmt] = useState(null);
     const [cust, setCust] = useState(null);
     const [comp, setComp] = useState(null);
     const [rev, setRev] = useState(null);
@@ -42,11 +33,8 @@ export default function OwnerAllBranchesScreen() {
     useEffect(() => { load(); }, [load]);
     useEffect(() => {
         fetchBrandOrders({ limit: 15 }).then(setOrders).catch(() => setOrders({ items: [] }));
-        fetchBrandStatement(lastMonth()).then(setStmt).catch(() => setStmt(null));
         fetchBrandComplaints({ status: 'open', limit: 5 }).then(setComp).catch(() => setComp(null));
     }, []);
-    // what is unpaid: reloaded every time the page comes back from the payment screen
-    useEffect(() => nav.addListener('focus', () => { fetchBrandDues().then(setDues).catch(() => setDues(null)); }), [nav]);
     // customers and ratings follow the chosen range
     useEffect(() => {
         const r = range === 'today' ? '7' : range;
@@ -54,10 +42,6 @@ export default function OwnerAllBranchesScreen() {
         fetchBrandReviews({ range: r, limit: 5, low: 1 }).then(setRev).catch(() => setRev(null));
     }, [range]);
 
-    const statementPdf = async () => {
-        try { await downloadAndOpen({ path: '/brand/statement.pdf', params: { period: stmt.period }, filename: `statement-${stmt.period}.pdf`, mime: 'application/pdf', title: tr('Rent bills for {month}', { month: stmt.period }) }); }
-        catch (e) { showToast(e.safe ? e.message : tr('Could not open the statement')); }
-    };
     const open = async (b) => {
         if (b.slug === getSlug()) { showToast(tr('You are already in {name}.', { name: b.name })); return; }
         const yes = await ask({ title: tr('Open {name}?', { name: b.name }), message: tr('The app restarts and opens {name}.', { name: b.name }), confirmText: tr('Open') });
@@ -143,47 +127,6 @@ export default function OwnerAllBranchesScreen() {
                                 {r.comment ? <Text style={{ color: muted }} numberOfLines={2}>{r.comment}</Text> : null}
                             </View>
                         ))}
-                    </>
-                ) : null}
-
-                {dues && dues.count > 0 ? (
-                    <>
-                        <SectionTitle title={tr('Unpaid bills')} />
-                        <Card tone={error}>
-                            <Text style={{ color: text, fontWeight: '900', fontSize: 20 }}>{money(dues.grandTotal)}</Text>
-                            <Text style={{ color: muted, marginTop: 2 }}>{tr('{n} unpaid bills in all branches, with late fees', { n: dues.count })}</Text>
-                            <View style={{ marginTop: 12 }}>
-                                <Button label={tr('Pay all branches {money}', { money: money(dues.grandTotal) })} icon="card" onPress={() => nav.navigate('OwnerPay', { kind: 'branchdues', amountPaise: Math.round(dues.grandTotal * 100), title: tr('All branches') })} />
-                            </View>
-                            {dues.branches.filter((b) => b.count > 0).map((b) => (
-                                <View key={b.slug} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: border }}>
-                                    <View style={{ flex: 1, paddingRight: 8 }}>
-                                        <Text style={{ color: text, fontWeight: '800' }} numberOfLines={1}>{b.name}</Text>
-                                        <Text style={{ color: muted, fontSize: 12 }}>{tr('{n} bills, {money}', { n: b.count, money: money(b.grandTotal) })}</Text>
-                                    </View>
-                                    <Pressable onPress={() => nav.navigate('OwnerPay', { kind: 'branchdues', id: b.slug, amountPaise: Math.round(b.grandTotal * 100), title: b.name })} accessibilityRole="button">
-                                        <Text style={{ color: primary, fontWeight: '900' }}>{tr('Pay this branch')}</Text>
-                                    </Pressable>
-                                </View>
-                            ))}
-                        </Card>
-                    </>
-                ) : null}
-
-                {stmt && stmt.totals && stmt.totals.invoices ? (
-                    <>
-                        <SectionTitle title={tr('Rent bills for {month}', { month: stmt.period })} />
-                        <Card>
-                            <Text style={{ color: text, fontWeight: '900', fontSize: 18 }}>{money(stmt.totals.total)}</Text>
-                            <Text style={{ color: muted, marginTop: 2 }}>
-                                {tr('Rent {rent}, multi-branch discount -{discount}, GST {gst}', { rent: money(stmt.totals.rent), discount: money(stmt.totals.discount), gst: money(stmt.totals.gst) })}
-                            </Text>
-                            <Text style={{ color: stmt.totals.unpaidCount ? error : muted, fontWeight: '800', marginTop: 4 }}>
-                                {stmt.totals.unpaidCount ? tr('Unpaid: {amount} ({n} bills)', { amount: money(stmt.totals.unpaid), n: stmt.totals.unpaidCount }) : tr('All paid')}
-                            </Text>
-                            <Pressable onPress={statementPdf} accessibilityRole="button" style={{ marginTop: 10 }}><Text style={{ color: primary, fontWeight: '900' }}>{tr('Open the statement (PDF)')}</Text></Pressable>
-                            {stmt.smsWallet ? <Text style={{ color: muted, marginTop: 4 }}>{tr('SMS wallet for all branches: {amount}', { amount: money(stmt.smsWallet.balancePaise / 100) })}</Text> : null}
-                        </Card>
                     </>
                 ) : null}
 

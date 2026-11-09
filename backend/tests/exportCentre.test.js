@@ -9,7 +9,7 @@ const f = require('./helpers/factory');
 const appModule = require('../src/server/app');
 const app = appModule.app || appModule;
 const centre = require('../src/services/exportCentre');
-const SubscriptionInvoice = require('../src/models/SubscriptionInvoice');
+const { paidPlan } = require('./helpers/planPay');
 const Expense = require('../src/models/Expense');
 const Tenant = require('../src/models/Tenant');
 
@@ -23,7 +23,7 @@ beforeEach(async () => {
     w2 = await f.makeWorld('ex2-' + Date.now().toString(36));
     await f.makeOrder(w.tenant, w.customer.user, { status: 'delivered' });
     await f.makeOrder(w2.tenant, w2.customer.user, { status: 'cancelled' });
-    await SubscriptionInvoice.create({ tenantId: w.tenant._id, kind: 'custom', invoiceNo: 'EX/1', issueDate: new Date(), dueDate: new Date(Date.now() + 86400000), baseAmount: 1000, gstPercent: 18, gstAmount: 180, total: 1180, status: 'pending', lineItems: [{ description: 'Platform fee', qty: 1, rate: 1000, amount: 1000 }] });
+    await paidPlan(w.tenant._id, { baseRs: 1000, invoiceNo: 'EX/1' });
     await Expense.create({ date: new Date(), category: 'other', otherName: 'Legal fee', amountPaise: 150000 });
 });
 const get = (u, q) => request(app).get(u).set({ Authorization: 'Bearer ' + token }).query(q || {}).buffer(true).parse((res, cb) => { const c = []; res.on('data', (d) => c.push(d)); res.on('end', () => cb(null, Buffer.concat(c))); });

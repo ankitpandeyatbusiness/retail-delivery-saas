@@ -9,7 +9,8 @@ const app = appModule.app || appModule;
 const Order = require('../src/models/Order');
 const SmsLog = require('../src/models/SmsLog');
 const Tenant = require('../src/models/Tenant');
-const SubscriptionInvoice = require('../src/models/SubscriptionInvoice');
+const PlanPayment = require('../src/models/PlanPayment');
+const { paidPlan } = require('./helpers/planPay');
 const Counter = require('../src/models/Counter');
 const PlatformSettings = require('../src/models/PlatformSettings');
 const SmsWallet = require('../src/models/SmsWallet');
@@ -75,21 +76,17 @@ describe('the numbers', () => {
         assert.equal(typeof r.lastMonthSameDays, 'number');
     });
 
-    test('rent: this month\'s bills paid and to collect, the money, and overdue ones turn it red', async () => {
-        const base = { tenantId: w.tenant._id, kind: 'monthly', period: '2026-01', baseAmount: 1000, total: 1180, issueDate: new Date(), dueDate: new Date(Date.now() + 5 * DAY), lineItems: [] };
-        const mk = (o) => SubscriptionInvoice.collection.insertOne({ ...base, ...o, invoiceNo: `T/${Math.random()}` });
+    test('plan payments: the payments this month and the money; a held payment turns it amber and is named', async () => {
         const second = await f.makeWorld('health-shop-2');
-        await mk({ status: 'paid', paidAt: new Date() });
-        await mk({ tenantId: second.tenant._id, status: 'pending' });
+        await paidPlan(w.tenant._id, { baseRs: 1000 });
         let r = (await health()).body.rent;
-        assert.deepEqual([r.billed, r.paidShops, r.collected, r.unpaidShops, r.toCollect, r.percentPaid, r.overdueBills], [2, 1, 1180, 1, 1180, 50, 0]);
-        assert.equal(r.level, 'warn');                                                      // under 80% paid
-        await SubscriptionInvoice.updateMany({ status: 'pending' }, { $set: { dueDate: new Date(Date.now() - 2 * DAY) } });
+        assert.deepEqual([r.billed, r.paidShops, r.collected, r.held, r.overdueBills], [1, 1, 1180, 0, 0]);
+        assert.equal(r.level, 'good');                                                      // everything is prepaid: nothing is ever overdue
+        await PlanPayment.create({ tenantId: second.tenant._id, kind: 'renew', to: 'growth', months: 1, quote: {}, payablePaise: 118000, status: 'held', heldWhy: 'The plan changed while paying' });
         r = (await health()).body.rent;
-        assert.deepEqual([r.overdueBills, r.overdueAmount, r.level], [1, 1180, 'warn']);   // one late bill: look
-        for (const period of ['2026-02', '2026-03']) await mk({ period, status: 'pending', dueDate: new Date(Date.now() - DAY) });
-        r = (await health()).body.rent;
-        assert.deepEqual([r.overdueBills, r.level], [3, 'bad']);                           // three late bills: act
+        assert.deepEqual([r.held, r.level], [1, 'warn']);
+        assert.equal(r.list[0].name, second.tenant.name);
+        assert.match(r.list[0].detail, /held/);
     });
 
     test('Google: each call type apart, with its allowance; 60% amber, 90% red; the worst one decides', async () => {
@@ -105,7 +102,7 @@ describe('the numbers', () => {
     });
 
     test('shops: free and paid counts; quiet live shops; support waiting', async () => {
-        await Tenant.updateOne({ _id: w.tenant._id }, { $set: { 'billing.isLive': true, 'billing.state': 'paying', 'billing.goLiveAt': new Date(Date.now() - 20 * DAY) } });
+        await Tenant.updateOne({ _id: w.tenant._id }, { $set: { 'billing.isLive': true, 'plan.id': 'growth', 'plan.endsAt': new Date(Date.now() + 20 * DAY), 'billing.goLiveAt': new Date(Date.now() - 20 * DAY) } });
         const r = (await health()).body;
         assert.deepEqual([r.shops.total, r.shops.paying, r.shops.paid, r.shops.free], [1, 1, 1, 0]);
         assert.deepEqual([r.quiet.live, r.quiet.quiet], [1, 1]);                          // a live shop with no order for 14 days
@@ -136,13 +133,8 @@ describe('the shops behind a card', () => {
         assert.equal(r.level, 'bad');                    // 12 to 5 is a 58% fall for the whole platform too
     });
 
-    test('rent: the shops that are overdue are named with the money and the days; an empty SMS balance names the shop and turns SMS red', async () => {
-        const inv = (o) => SubscriptionInvoice.collection.insertOne({ tenantId: w.tenant._id, kind: 'monthly', period: '2026-01', baseAmount: 1000, total: 1180, status: 'pending', issueDate: new Date(Date.now() - 10 * DAY), dueDate: new Date(Date.now() - 3 * DAY), lineItems: [], invoiceNo: `T/${Math.random()}`, ...o });
-        await inv({});
-        let r = (await health()).body;
-        assert.equal(r.rent.list[0].name, w.tenant.name);
-        assert.equal(r.rent.list[0].detail, '₹1,180 overdue, 3 day(s) late');
-
+    test('an empty SMS balance names the shop and turns SMS red', async () => {
+        let r;
         await Tenant.updateOne({ _id: w.tenant._id }, { $set: { 'billing.isLive': true } });
         await SmsWallet.create({ tenantId: w.tenant._id, balancePaise: 0 });
         r = (await health()).body;

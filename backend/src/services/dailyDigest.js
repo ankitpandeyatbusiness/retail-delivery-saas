@@ -19,21 +19,17 @@ async function build(now = Date.now()) {
     const yEnd = new Date(istStart(today).getTime() - 1);
     const bStart = istStart(istDayKey(now - 2 * DAY));
     const bEnd = new Date(yStart.getTime() - 1);
-    const SubscriptionInvoice = require('../models/SubscriptionInvoice');
-    const SmsTopup = require('../models/SmsTopup');
-    const [y, b, a, rent, tops, over, money] = await Promise.all([
+    const [y, b, a, sales, money] = await Promise.all([
         salesReport({ from: yStart, to: yEnd, topLimit: 1 }),
         salesReport({ from: bStart, to: bEnd, topLimit: 1 }),
         attention({ now }),
-        SubscriptionInvoice.aggregate([{ $match: { status: 'paid', paidAt: { $gte: yStart, $lte: yEnd } } }, { $group: { _id: null, total: { $sum: '$total' } } }]),
-        SmsTopup.aggregate([{ $match: { status: 'paid', paidAt: { $gte: yStart, $lte: yEnd } } }, { $group: { _id: null, paise: { $sum: { $ifNull: ['$payablePaise', '$amountPaise'] } } } }]),
-        SubscriptionInvoice.aggregate([{ $match: { status: 'pending', dueDate: { $lt: new Date(now) } } }, { $group: { _id: null, total: { $sum: '$total' } } }]),
+        require('./platformSales').paid({ from: yStart, to: yEnd }),
         require('./moneyAttention').attention({ now }),
     ]);
     return {
         orders: y.totals.orders, sales: y.totals.revenue, beforeOrders: b.totals.orders, beforeSales: b.totals.revenue,
         change: pct(y.totals.revenue, b.totals.revenue), attention: a.counts.total || 0, refunds: a.refundsOpen || 0,
-        collected: Math.round((rent[0]?.total || 0) + (tops[0]?.paise || 0) / 100), overdue: Math.round(over[0]?.total || 0), moneyBad: money.counts.bad,
+        collected: Math.round(sales.reduce((n, r) => n + r.total, 0)), overdue: 0, moneyBad: money.counts.bad,
     };
 }
 
@@ -50,7 +46,6 @@ async function sendIfDue(now = Date.now()) {
         throw e;
     }
     if (!claim.modifiedCount && !claim.upsertedCount) return false;
-    await promisesDue(now).catch((e) => console.error('Promise alerts error:', e.message));
     const d = await build(now);
     if (!d.orders && !d.beforeOrders && !d.attention && !d.refunds && !d.collected && !d.overdue && !d.moneyBad) return false;   // a quiet platform: nothing to say
     await require('./adminAlerts').alert('admin_daily_summary', {
@@ -58,20 +53,6 @@ async function sendIfDue(now = Date.now()) {
         data: { kind: 'digest' },
     });
     return true;
-}
-
-// shops that promised to pay today (or earlier) and still owe: one alert each, once. A shop that has paid since is closed quietly.
-async function promisesDue(now) {
-    const notes = require('./collectionNotes');
-    const SubscriptionInvoice = require('../models/SubscriptionInvoice');
-    for (const n of await notes.dueToday(now)) {
-        const pend = await SubscriptionInvoice.aggregate([{ $match: { tenantId: n.tenantId, status: 'pending' } }, { $group: { _id: null, total: { $sum: '$total' } } }]);
-        if (!pend[0]) { await notes.close(n._id, 'paid').catch(() => { }); continue; }
-        await notes.markReminded(n._id);
-        await require('./adminAlerts').alert('admin_promise_due', {
-            tenantId: n.tenantId, vars: { note: n.note, late: new Date(n.promiseDate).getTime() < notes.todayStart(now).getTime(), owed: '₹' + Math.round(pend[0].total).toLocaleString('en-IN') }, data: { kind: 'promise' },
-        });
-    }
 }
 
 function startDailyDigestScheduler() {
@@ -85,4 +66,4 @@ function startDailyDigestScheduler() {
     setInterval(run, 10 * 60 * 1000).unref?.();
 }
 
-module.exports = { sendIfDue, startDailyDigestScheduler, build, promisesDue };
+module.exports = { sendIfDue, startDailyDigestScheduler, build };

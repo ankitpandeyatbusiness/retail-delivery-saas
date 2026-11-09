@@ -10,7 +10,6 @@ const appModule = require('../src/server/app');
 const app = appModule.app || appModule;
 const Order = require('../src/models/Order');
 const OnlineRefund = require('../src/models/OnlineRefund');
-const SubscriptionInvoice = require('../src/models/SubscriptionInvoice');
 
 let token;
 before(() => db.connect());
@@ -47,17 +46,14 @@ describe('sales lost and income', () => {
         assert.equal((await request(app).get('/api/admin/reports/lost').query({ tenantId: 'x' }).set(auth())).status, 400);
     });
 
-    test('income: rent billed, collected and owed this month', async () => {
+    test('income: plans collected this month', async () => {
         const w = await f.makeWorld('si-' + Date.now().toString(36));
-        await SubscriptionInvoice.create({ tenantId: w.tenant._id, kind: 'custom', invoiceNo: 'IN/1', issueDate: new Date(), dueDate: new Date(Date.now() + 5 * 86400000), baseAmount: 1000, gstPercent: 18, gstAmount: 180, total: 1180, status: 'paid', paidAt: new Date() });
-        await SubscriptionInvoice.create({ tenantId: w.tenant._id, kind: 'custom', invoiceNo: 'IN/2', issueDate: new Date(), dueDate: new Date(Date.now() - 3 * 86400000), baseAmount: 500, gstPercent: 18, gstAmount: 90, total: 590, status: 'pending' });
+        await require('./helpers/planPay').paidPlan(w.tenant._id, { baseRs: 1000 });
         const r = await request(app).get('/api/admin/reports/income').set(auth());
         assert.equal(r.status, 200, JSON.stringify(r.body));
-        assert.equal(r.body.billedPaise, 177000);
+        assert.equal(r.body.billedPaise, 118000);
         assert.equal(r.body.collectedPaise, 118000);
         assert.equal(r.body.rentIncomePaise, 100000);
-        assert.equal(r.body.owedPaise, 59000);
-        assert.equal(r.body.overduePaise, 59000);
-        assert.equal(r.body.overdueShops, 1);
+        assert.equal(r.body.owedPaise, 0);
     });
 });

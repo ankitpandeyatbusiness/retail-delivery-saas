@@ -4,7 +4,6 @@
 const Order = require('../models/Order');
 const BulkOrder = require('../models/BulkOrder');
 const ShopExpense = require('../models/ShopExpense');
-const SubscriptionInvoice = require('../models/SubscriptionInvoice');
 const SmsTopup = require('../models/SmsTopup');
 const { httpError } = require('../middlewares/apiErrors');
 
@@ -62,7 +61,7 @@ async function build({ tenantId, from: fromDay, to: toDay, now = new Date() }) {
             by.set(key, (by.get(key) || 0) + paise);
         }
         const [rent, sms] = await Promise.all([
-            SubscriptionInvoice.aggregate([{ $match: { tenantId, status: 'paid', paidAt: { $gte: a, $lt: b } } }, { $group: { _id: null, total: { $sum: '$total' } } }]),
+            require('./platformSales').shopCosts({ tenantId, from: a, to: b }).then((c) => [{ total: c.plan + c.fees }]),   // the plan and the per-order fees paid to the platform
             SmsTopup.aggregate([{ $match: { tenantId, status: 'paid', paidAt: { $gte: a, $lt: b } } }, { $group: { _id: null, paise: { $sum: { $ifNull: ['$payablePaise', '$amountPaise'] } } } }]),
         ]);
         const items = [...by.entries()].map(([k, p]) => ({ key: k, label: LABEL[k] || (k.startsWith('other: ') ? k.replace('other: ', 'Other: ') : k), amount: r2(p / 100) })).sort((x, y) => y.amount - x.amount);

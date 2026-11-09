@@ -5,7 +5,9 @@
 const mongoose = require('mongoose');
 const Tenant = require('../models/Tenant');
 const Order = require('../models/Order');
-const SubscriptionInvoice = require('../models/SubscriptionInvoice');
+const PlanPayment = require('../models/PlanPayment');
+const platformSales = require('./platformSales');
+const planService = require('./planService');
 const SmsLog = require('../models/SmsLog');
 const SmsWallet = require('../models/SmsWallet');
 const SupportTicket = require('../models/SupportTicket');
@@ -13,7 +15,6 @@ const PaymentWebhookEvent = require('../models/PaymentWebhookEvent');
 const AppVersionSeen = require('../models/AppVersionSeen');
 const PlatformSettings = require('../models/PlatformSettings');
 const googleBudget = require('./googleBudget');
-const rentSummary = require('./rentSummary');
 const backups = require('./backupService');
 
 const DAY = 86400000;
@@ -55,70 +56,44 @@ const item = (names, id, detail) => ({ id: String(id), name: names.get(String(id
 const listOf = (items) => ({ list: items.slice(0, MAXLIST), listTotal: items.length });
 
 /* --------------------------------- shops --------------------------------- */
+// where every shop stands on its plan: free period, paid, in the grace days after the end, paused, or still without a plan
 async function shopsCard(now) {
-    const tenants = await Tenant.find({}).select('_id name branchCity createdAt billing subscription.gstPercent brandId status').lean();
-    const count = { total: tenants.length, notLive: 0, free: 0, paying: 0, grace: 0, paused: 0 };
-    const paused = []; const grace = [];
+    const tenants = await Tenant.find({}).select('_id name branchCity createdAt plan billing brandId status').lean();
+    const count = { total: tenants.length, notLive: 0, free: 0, paying: 0, grace: 0, paused: 0, noPlan: 0 };
+    const paused = []; const grace = []; const ending = [];
     const nm = (t) => (t.brandId && t.branchCity ? `${t.name} (${t.branchCity})` : t.name);
     for (const t of tenants) {
         if (!t.billing?.isLive) { count.notLive += 1; continue; }
-        const s = t.billing?.state || 'free';
-        count[s] = (count[s] || 0) + 1;
-        if (s === 'paused') paused.push({ id: String(t._id), name: nm(t), detail: 'Paused for unpaid rent' });
-        if (s === 'grace') grace.push({ id: String(t._id), name: nm(t), detail: 'Rent overdue, in the grace period' });
-    }
-    const ending = [];
-    const freeShops = tenants.filter((t) => t.billing?.isLive && (t.billing?.state || 'free') === 'free');
-    const rents = await rentSummary.forShops(freeShops, now);
-    for (const t of freeShops) {
-        const endsAt = rents.get(String(t._id))?.free?.endsAt;
-        const ends = endsAt ? new Date(endsAt) : null;
-        if (ends && ends.getTime() - now.getTime() <= T.freeEndingDays * DAY && ends.getTime() >= now.getTime()) ending.push({ id: String(t._id), name: nm(t), detail: `Free period ends ${dayWord(ends)}` });
+        const v = planService.viewOf(t, now);
+        if (v.status === 'none') { count.noPlan += 1; continue; }
+        if (t.plan?.paused) { count.paused += 1; paused.push({ id: String(t._id), name: nm(t), detail: 'Paused: the plan was not renewed' }); continue; }
+        if (v.status === 'ended') { count.grace += 1; grace.push({ id: String(t._id), name: nm(t), detail: 'The plan ended, in the grace days' }); continue; }
+        if (v.status === 'free') count.free += 1; else count.paying += 1;
+        const ends = v.endsAt ? new Date(v.endsAt) : null;
+        if (ends && ends.getTime() - now.getTime() <= T.freeEndingDays * DAY && ends.getTime() >= now.getTime()) ending.push({ id: String(t._id), name: nm(t), detail: `${v.status === 'free' ? 'Free period' : 'Plan'} ends ${dayWord(ends)}` });
     }
     const level = paused.length > 0 ? 'warn' : 'good';
-    const note = paused.length > 0 ? `${paused.length} shop${paused.length === 1 ? ' is' : 's are'} paused for unpaid rent` : 'No shop is paused';
+    const note = paused.length > 0 ? `${paused.length} shop${paused.length === 1 ? ' is' : 's are'} paused because the plan was not renewed` : 'No shop is paused';
     return { level, note, ...count, freeEnding: ending.length, paid: count.paying + count.grace + count.paused, ...listOf([...paused, ...grace, ...ending]) };
 }
 
-/* ----------------------------------- rent ----------------------------------- */
+/* ----------------------------------- plans and money in ----------------------------------- */
+// everything is prepaid: what was paid this month, and payments that were taken but are held for the supreme admin to look at
 async function rentCard(now) {
     const from = istMonthStart(now); const to = istMonthStart(now, 1);
-    const [monthRows, overdue, overdueBy, unpaidBy] = await Promise.all([
-        SubscriptionInvoice.aggregate([
-            { $match: { kind: 'monthly', issueDate: { $gte: from, $lt: to }, status: { $in: ['paid', 'pending'] } } },
-            { $group: { _id: '$status', n: { $sum: 1 }, total: { $sum: '$total' } } },
-        ]),
-        SubscriptionInvoice.aggregate([
-            { $match: { status: 'pending', dueDate: { $lt: now } } },
-            { $group: { _id: null, n: { $sum: 1 }, total: { $sum: '$total' }, shops: { $addToSet: '$tenantId' } } },
-        ]),
-        SubscriptionInvoice.aggregate([
-            { $match: { status: 'pending', dueDate: { $lt: now } } },
-            { $group: { _id: '$tenantId', total: { $sum: '$total' }, n: { $sum: 1 }, oldest: { $min: '$dueDate' } } },
-            { $sort: { total: -1 } }, { $limit: MAXLIST },
-        ]),
-        SubscriptionInvoice.aggregate([
-            { $match: { kind: 'monthly', issueDate: { $gte: from, $lt: to }, status: 'pending', dueDate: { $gte: now } } },
-            { $group: { _id: '$tenantId', total: { $sum: '$total' }, due: { $min: '$dueDate' } } },
-            { $sort: { due: 1 } }, { $limit: MAXLIST },
-        ]),
+    const [rows, held] = await Promise.all([
+        platformSales.paid({ from, to }),
+        PlanPayment.find({ status: 'held' }).sort({ createdAt: 1 }).limit(MAXLIST).select('tenantId payablePaise createdAt heldWhy').lean(),
     ]);
-    const names = await nameMap([...overdueBy, ...unpaidBy].map((r) => r._id));
-    const by = Object.fromEntries(monthRows.map((r) => [r._id, r]));
-    const paid = by.paid || { n: 0, total: 0 }; const pending = by.pending || { n: 0, total: 0 };
-    const billed = paid.n + pending.n;
-    const pct = billed ? Math.round((paid.n / billed) * 100) : null;
-    const od = overdue[0] || { n: 0, total: 0, shops: [] };
-    let level = 'good';
-    if (od.n > 0) level = (od.n >= 3 || (billed >= 4 && od.n / billed >= 0.25)) ? 'bad' : 'warn';
-    else if (pct !== null && pct < T.collectedWarn && billed > 0) level = 'warn';
-    const note = od.n > 0 ? `${od.n} bill${od.n === 1 ? ' is' : 's are'} overdue (${Math.round(od.total).toLocaleString('en-IN')} rupees)` : billed ? `${paid.n} of ${billed} bills paid this month` : 'No bills this month yet';
-    const overdueList = overdueBy.map((r) => item(names, r._id, `${rs(r.total)} overdue${r.n > 1 ? ` (${r.n} bills)` : ''}, ${Math.max(1, Math.floor((now.getTime() - new Date(r.oldest).getTime()) / DAY))} day(s) late`));
-    const unpaidList = unpaidBy.map((r) => item(names, r._id, `${rs(r.total)} to pay by ${dayWord(r.due)}`));
+    const names = await nameMap(held.map((r) => r.tenantId));
+    const plan = rows.filter((r) => r.kind === 'plan' || r.kind === 'branch');
+    const collected = round2(rows.reduce((n, r) => n + r.total, 0));
+    const level = held.length ? 'warn' : 'good';
+    const note = held.length ? `${held.length} plan payment${held.length === 1 ? ' is' : 's are'} held for you to look at` : plan.length ? `${plan.length} plan payment${plan.length === 1 ? '' : 's'} this month` : 'No plan payments this month yet';
     return {
-        level, note, billed, paidShops: paid.n, collected: round2(paid.total), unpaidShops: pending.n, toCollect: round2(pending.total), percentPaid: pct,
-        overdueBills: od.n, overdueShops: od.shops.length, overdueAmount: round2(od.total),
-        ...listOf(overdueList.length ? overdueList : unpaidList), listKind: overdueList.length ? 'overdue' : 'unpaid',
+        level, note, billed: plan.length, paidShops: new Set(plan.map((r) => String(r.tenantId))).size, collected, held: held.length,
+        unpaidShops: 0, toCollect: 0, percentPaid: null, overdueBills: 0, overdueShops: 0, overdueAmount: 0,
+        ...listOf(held.map((r) => item(names, r.tenantId, `${rs(r.payablePaise / 100)} held: ${r.heldWhy || 'the plan changed while paying'}`))), listKind: 'held',
     };
 }
 

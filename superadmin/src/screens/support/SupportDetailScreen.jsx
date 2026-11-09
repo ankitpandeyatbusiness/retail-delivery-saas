@@ -173,7 +173,7 @@ export default function SupportDetailScreen() {
 
             {x.shop ? (
                 <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
-                    <ListRow section="shops" icon="shops" title={x.shop.name} subtitle={`Billing: ${x.shop.billingState || 'n/a'} · ${x.shop.status}`} onPress={() => toAdmin(nav, { screen: 'ShopsTab', params: { screen: 'ShopDetail', params: { shopId: String(x.shop.id), name: x.shop.name } } })} last={!x.owner} />
+                    <ListRow section="shops" icon="shops" title={x.shop.name} subtitle={`Plan: ${x.shop.plan || 'none'} · ${x.shop.status}`} onPress={() => toAdmin(nav, { screen: 'ShopsTab', params: { screen: 'ShopDetail', params: { shopId: String(x.shop.id), name: x.shop.name } } })} last={!x.owner} />
                     {x.owner ? <ListRow section="riders" icon="phone" title={x.owner.name || 'Owner'} subtitle={`${x.owner.phone}${x.owner.email ? ` · ${x.owner.email}` : ''}`} onPress={() => Linking.openURL(`tel:${x.owner.phone}`)} last /> : null}
                 </Card>
             ) : null}

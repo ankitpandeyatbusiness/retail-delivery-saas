@@ -6,7 +6,6 @@ const d = (p) => p.then((r) => r.data);
 export const fetchBrandMe = () => d(api.get('/brand/me'));                                   // { brand, current, branches: [{ slug, name, city, status }] }
 export const fetchBrandOverview = (range = 'today') => d(api.get('/brand/overview', { params: { range } }));   // { branches, totals }
 export const fetchBrandOrders = (params) => d(api.get('/brand/orders', { params }));          // { items, hasMore } each with its branch
-export const fetchBrandStatement = (period) => d(api.get('/brand/statement', { params: { period } }));
 export const pushMenu = (body) => d(api.post('/brand/menu/push', body));                      // { productIds, toSlugs: 'all' | [slug], prices }
 
 // which branches' alerts reach his phone
@@ -21,6 +20,3 @@ export const fetchBrandReviews = (params) => d(api.get('/brand/reviews', { param
 export const pushExtras = (body) => d(api.post('/brand/extras/push', body));                  // { kind: 'coupons'|'banners'|'collections', ids, toSlugs }
 
 // what is unpaid in every branch, and paying it: one branch (slug) or all branches with a single payment
-export const fetchBrandDues = () => d(api.get('/brand/dues'));                                          // { branches: [{ slug, name, count, grandTotal }], count, grandTotal }
-export const startBrandDuesPay = (slug) => d(api.post('/brand/dues/pay/start', slug ? { slug } : {}));  // { keyId, rzpOrderId, amountPaise, currency, description, bills }
-export const verifyBrandDuesPay = (proof) => d(api.post('/brand/dues/pay/verify', proof));              // { paid }

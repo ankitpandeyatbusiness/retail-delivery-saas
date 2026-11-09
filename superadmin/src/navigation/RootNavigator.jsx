@@ -49,11 +49,8 @@ import ReadinessScreen from '../screens/insights/ReadinessScreen';
 import SystemScreen from '../screens/insights/SystemScreen';
 import ExportsScreen from '../screens/insights/ExportsScreen';
 import ProfitLossScreen from '../screens/insights/ProfitLossScreen';
-import ReceivablesScreen from '../screens/insights/ReceivablesScreen';
 import ExpensesScreen from '../screens/insights/ExpensesScreen';
 import ExpenseFormScreen from '../screens/insights/ExpenseFormScreen';
-import InvoicesScreen from '../screens/money/InvoicesScreen';
-import InvoiceDetailScreen from '../screens/money/InvoiceDetailScreen';
 import LedgerScreen from '../screens/money/LedgerScreen';
 import SmsProfitScreen from '../screens/money/SmsProfitScreen';
 import PlatformSmsScreen from '../screens/money/PlatformSmsScreen';
@@ -66,8 +63,6 @@ import ServicesOverviewScreen from '../screens/services/ServicesOverviewScreen';
 import ServicesShopScreen from '../screens/services/ServicesShopScreen';
 import ServicesInquiryScreen from '../screens/services/ServicesInquiryScreen';
 import ServicesDefaultsScreen from '../screens/services/ServicesDefaultsScreen';
-import ShopBillingScreen from '../screens/money/ShopBillingScreen';
-import CustomInvoiceScreen from '../screens/money/CustomInvoiceScreen';
 import ShopPaymentsScreen from '../screens/money/ShopPaymentsScreen';
 import ShopBulkScreen from '../screens/services/ShopBulkScreen';
 import ShopSmsScreen from '../screens/money/ShopSmsScreen';
@@ -78,7 +73,6 @@ import ShopDetailScreen from '../screens/shops/ShopDetailScreen';
 import ShopSetupScreen from '../screens/shops/ShopSetupScreen';
 import ShopFolderScreen from '../screens/shops/ShopFolderScreen';
 import ShopCloseScreen from '../screens/shops/ShopCloseScreen';
-import ShopsToCloseScreen from '../screens/shops/ShopsToCloseScreen';
 import RefundsScreen from '../screens/orders/RefundsScreen';
 import MoneyAttentionScreen from '../screens/money/MoneyAttentionScreen';
 import SmsSetupScreen from '../screens/platform/SmsSetupScreen';
@@ -162,7 +156,6 @@ const DETAIL = [
     ['ShopClose', ShopCloseScreen],
     ['ShopFolder', ShopFolderScreen],
     ['ShopSetup', ShopSetupScreen],
-    ['ShopsToClose', ShopsToCloseScreen],
     ['Refunds', RefundsScreen],
     ['MoneyAttention', MoneyAttentionScreen],
     ['SmsSetup', SmsSetupScreen],
@@ -208,14 +201,10 @@ const DETAIL = [
     ['ComplaintDetail', ComplaintDetailScreen],
     ['ShopMessages', ShopMessagesScreen],
     ['ShopActivity', ShopActivityScreen],
-    ['ShopBilling', ShopBillingScreen],
-    ['CustomInvoice', CustomInvoiceScreen],
     ['ShopPayments', ShopPaymentsScreen],
     ['ShopBulk', ShopBulkScreen],
     ['ShopSms', ShopSmsScreen],
     ['SmsProvider', SmsProviderScreen],
-    ['Invoices', InvoicesScreen],
-    ['InvoiceDetail', InvoiceDetailScreen],
     ['Ledger', LedgerScreen],
     ['ShopMenu', ShopMenuScreen],
     ['CategoryForm', CategoryFormScreen],
@@ -250,7 +239,7 @@ const DETAIL = [
     ['LegalPages', LegalPagesScreen],
     ['LegalPageEdit', LegalPageEditScreen],
 ];
-const ROOT_OWN = new Set(["Admin","Inbox","Support","SupportDetail","SupportSettings","OwnerMessages","Health","ShopReadiness","System","Exports","ProfitLoss","Receivables","Expenses","ExpenseForm","Login"]);
+const ROOT_OWN = new Set(["Admin","Inbox","Support","SupportDetail","SupportSettings","OwnerMessages","Health","ShopReadiness","System","Exports","ProfitLoss","Expenses","ExpenseForm","Login"]);
 const detailScreens = (S) => DETAIL.map(([name, component]) => <S.Screen key={name} name={name} component={component} />);
 
 function HomeStack() {
@@ -368,7 +357,6 @@ export default function RootNavigator() {
                     <Root.Screen name="System" component={SystemScreen} />
                     <Root.Screen name="Exports" component={ExportsScreen} />
                     <Root.Screen name="ProfitLoss" component={ProfitLossScreen} />
-                    <Root.Screen name="Receivables" component={ReceivablesScreen} />
                     <Root.Screen name="Expenses" component={ExpensesScreen} />
                     <Root.Screen name="ExpenseForm" component={ExpenseFormScreen} />
                 </>

@@ -19,7 +19,6 @@ const paymentService = require('../src/services/paymentService');
 const bulkPayment = require('../src/services/bulkPayment');
 const bulkOrders = require('../src/services/bulkOrders');
 const Order = require('../src/models/Order');
-const billable = require('../src/services/billableService');
 const bulkKitchen = require('../src/services/bulkKitchen');
 const f2 = require('./helpers/factory');
 const reconcile = require('../src/services/paymentReconcile');
@@ -102,14 +101,11 @@ describe('a paid bulk order gets a work ticket for the kitchen and the rider', (
         assert.equal(await Order.countDocuments({ tenantId: w.tenant._id }), 0);
     });
 
-    test('the customer does not see the ticket in his orders, and it never counts for rent', async () => {
+    test('the customer does not see the ticket in his orders', async () => {
         await paid();
         const list = await request(app).get('/api/orders').set(w.customer.headers);
         assert.equal(list.status, 200);
         assert.equal(list.body.items.length, 0);
-        const o = await Order.findOne({ tenantId: w.tenant._id }).lean();
-        const r = await billable.markBillable(o, 'delivered');
-        assert.deepEqual([r.marked, r.why], [false, 'bulk_ticket']);
     });
 
     /* ------------------------------ the ticket and the bulk order follow each other ------------------------------ */

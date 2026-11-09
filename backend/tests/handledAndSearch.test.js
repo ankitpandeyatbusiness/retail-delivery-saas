@@ -10,7 +10,7 @@ const appModule = require('../src/server/app');
 const app = appModule.app || appModule;
 const OnlineRefund = require('../src/models/OnlineRefund');
 const HandledMark = require('../src/models/HandledMark');
-const SubscriptionInvoice = require('../src/models/SubscriptionInvoice');
+const { paidPlan } = require('./helpers/planPay');
 const Order = require('../src/models/Order');
 
 let token;
@@ -109,14 +109,14 @@ describe('order search', () => {
 describe('money search', () => {
     test('finds a bill by number, shop and amount, a refund by its Razorpay id, and needs 2 characters', async () => {
         const w = await f.makeWorld('ms-' + Date.now().toString(36));
-        const inv = await SubscriptionInvoice.create({ tenantId: w.tenant._id, kind: 'custom', invoiceNo: 'MS/2026/0007', issueDate: new Date(), dueDate: new Date(Date.now() - 86400000), baseAmount: 1000, gstPercent: 18, gstAmount: 180, total: 1180, status: 'pending' });
+        const inv = await paidPlan(w.tenant._id, { baseRs: 1000, invoiceNo: 'MS/2026/0007' });
         const r = await failedRefund(w);
         const s = async (x) => (await get('/api/admin/finance/search').query({ q: x })).body;
         let b = await s('MS/2026/0007');
         assert.equal(b.groups.find((g) => g.key === 'invoices').items[0].id, String(inv._id));
-        b = await s('1180 pending');
-        assert.equal(b.groups.find((g) => g.key === 'invoices').items.length, 1);
         b = await s('1180 paid');
+        assert.equal(b.groups.find((g) => g.key === 'invoices').items.length, 1);
+        b = await s('1180 held');
         assert.ok(!b.groups.find((g) => g.key === 'invoices'));
         b = await s('pay_x1 failed');
         assert.equal(b.groups.find((g) => g.key === 'refunds').items[0].id, String(r._id));

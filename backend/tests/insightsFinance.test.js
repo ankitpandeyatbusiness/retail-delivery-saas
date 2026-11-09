@@ -8,7 +8,7 @@ const db = require('./helpers/db');
 const f = require('./helpers/factory');
 const appModule = require('../src/server/app');
 const app = appModule.app || appModule;
-const SubscriptionInvoice = require('../src/models/SubscriptionInvoice');
+const { paidPlan } = require('./helpers/planPay');
 const SmsLog = require('../src/models/SmsLog');
 const PlatformSmsCost = require('../src/models/PlatformSmsCost');
 const Notification = require('../src/models/Notification');
@@ -31,12 +31,7 @@ beforeEach(async () => {
 const day = 86400000;
 async function invoice(tenant, o = {}) {
     n += 1;
-    const base = o.base ?? 1000;
-    return SubscriptionInvoice.create({
-        tenantId: tenant._id, kind: 'custom', invoiceNo: `T/${n}`, issueDate: o.issueDate || new Date(Date.now() - 10 * day),
-        dueDate: o.dueDate || new Date(Date.now() - 3 * day), baseAmount: base, gstPercent: 18, gstAmount: base * 0.18, total: base * 1.18,
-        status: o.status || 'pending', paidAt: o.paidAt,
-    });
+    return paidPlan(tenant._id, { baseRs: o.base ?? 1000, paidAt: o.paidAt, invoiceNo: `T/${n}` });
 }
 
 describe('search and exports', () => {
@@ -64,7 +59,7 @@ describe('search and exports', () => {
         assert.ok(byPhone.body.people.length >= 1);
         assert.match(byPhone.body.people[0].phone, /^\d\dXXXXXX\d\d$/);
         const inv = await invoice(w.tenant);
-        const byInv = await get(`/api/admin/search?q=${encodeURIComponent(inv.invoiceNo)}`);
+        const byInv = await get(`/api/admin/search?q=${encodeURIComponent(inv.invoice.invoiceNo)}`);
         assert.equal(byInv.body.invoices.length, 1);
     });
 
@@ -110,7 +105,6 @@ describe('search and exports', () => {
         const w = await f.makeWorld(`xl-${Date.now().toString(36)}`);
         await f.makeOrder(w.tenant, w.customer.user, { customer: { name: '=HYPERLINK("x")', phone: w.customer.user.phone } });
         await invoice(w.tenant, { status: 'paid', paidAt: new Date(), base: 1000 });
-        await invoice(w.tenant, { status: 'pending', base: 500 });
 
         const res = await get('/api/admin/export/orders').buffer(true).parse((rs, cb) => { const d = []; rs.on('data', (c) => d.push(c)); rs.on('end', () => cb(null, Buffer.concat(d))); });
         assert.equal(res.status, 200);
@@ -128,15 +122,8 @@ describe('search and exports', () => {
         assert.equal(name, '=HYPERLINK("x")');
 
         const inv = await get('/api/admin/export/invoices').buffer(true).parse((rs, cb) => { const d = []; rs.on('data', (c) => d.push(c)); rs.on('end', () => cb(null, Buffer.concat(d))); });
-        const wb2 = new ExcelJS.Workbook();
-        await wb2.xlsx.load(inv.body);
-        const sh = wb2.worksheets[0];
-        const statusCells = [5, 6].map((r) => sh.getCell(r, 9));
-        const paid = statusCells.find((c) => c.value === 'Paid');
-        const pending = statusCells.find((c) => c.value === 'Pending');
-        assert.equal(paid.fill.fgColor.argb, 'FFDCFCE7');                 // green
-        assert.equal(pending.fill.fgColor.argb, 'FFFEF3C7');              // amber
-        assert.equal(sh.getCell(7, 1).value, 'Total');                    // totals line
+        assert.equal(inv.status, 200);
+        assert.match(inv.headers['content-type'], /spreadsheetml/);
 });
 });
 
@@ -180,7 +167,7 @@ describe('health, readiness, system, backups', () => {
     });
 });
 
-describe('profit and loss, receivables, expenses', () => {
+describe('profit and loss, expenses', () => {
     test('expense add, change, delete; bad input refused', async () => {
         const a = await post('/api/admin/finance/expenses', { date: new Date().toISOString(), category: 'hosting', amountPaise: 50000, vendor: 'Render' });
         assert.equal(a.status, 201, JSON.stringify(a.body));
@@ -196,7 +183,6 @@ describe('profit and loss, receivables, expenses', () => {
     test('profit and loss adds income, takes costs, explains a loss, and GST is not income', async () => {
         const w = await f.makeWorld(`pl-${Date.now().toString(36)}`);
         await invoice(w.tenant, { status: 'paid', paidAt: new Date(), base: 1000 });
-        await invoice(w.tenant, { status: 'pending', base: 500, dueDate: new Date(Date.now() - 40 * day) });
         await SmsLog.create({ tenantId: w.tenant._id, purpose: 'otp', status: 'sent', chargedPaise: 3000, costPaise: 1000 });
         await PlatformSmsCost.create({ eventKey: 'x', tenantId: w.tenant._id, costPaise: 500 });
         await post('/api/admin/finance/expenses', { date: new Date().toISOString(), category: 'hosting', amountPaise: 400000, repeatMonthly: true });
@@ -213,67 +199,6 @@ describe('profit and loss, receivables, expenses', () => {
         assert.equal(r.body.verdict, 'loss');
         const codes = r.body.reasons.map((x) => x.code);
         assert.ok(codes.includes('costs_above_income'));
-        assert.ok(codes.includes('unpaid_rent'));
-    });
-
-    test('receivables: aging buckets, never paid vs paying late', async () => {
-        const a = await f.makeWorld(`rc1-${Date.now().toString(36)}`);
-        const b = await f.makeWorld(`rc2-${Date.now().toString(36)}`);
-        await invoice(a.tenant, { status: 'pending', base: 1000, dueDate: new Date(Date.now() - 45 * day) });
-        await invoice(b.tenant, { status: 'paid', paidAt: new Date(Date.now() - 5 * day), dueDate: new Date(Date.now() - 10 * day) });
-        await invoice(b.tenant, { status: 'pending', base: 200, dueDate: new Date(Date.now() - 2 * day) });
-        const r = await get('/api/admin/finance/receivables');
-        assert.equal(r.status, 200);
-        assert.equal(r.body.totals.owingShops, 2);
-        assert.equal(r.body.totals.neverPaid, 1);
-        const sa = r.body.shops.find((s) => String(s.tenantId) === String(a.tenant._id));
-        assert.equal(sa.behaviour, 'not_paying');
-        const sb = r.body.shops.find((s) => String(s.tenantId) === String(b.tenant._id));
-        assert.equal(sb.behaviour, 'late_now');
-        assert.equal(r.body.behaviour[0].avgDaysLate, 5);
-        const bk = Object.fromEntries(r.body.totals.buckets.map((x) => [x.key, x.paise]));
-        assert.equal(bk.d31_60, 118000);
-        assert.equal(bk.d1_7, 23600);
-    });
-
-    test('receivables names the brand of a branch; Remind sends the owner a push once an hour; brand remind reaches each branch that owes', async () => {
-        const Brand = require('../src/models/Brand');
-        const Tenant = require('../src/models/Tenant');
-        const tag = Date.now().toString(36);
-        const a = await f.makeWorld('rm1-' + tag);
-        const b = await f.makeWorld('rm2-' + tag);
-        const c = await f.makeWorld('rm3-' + tag);
-        const brand = await Brand.create({ name: 'Savera' });
-        await Tenant.updateMany({ _id: { $in: [a.tenant._id, b.tenant._id] } }, { $set: { brandId: brand._id } });
-        await invoice(a.tenant, { status: 'pending', base: 1000 });
-        await invoice(b.tenant, { status: 'pending', base: 2000 });
-        const r = await get('/api/admin/finance/receivables');
-        const sa = r.body.shops.find((x) => String(x.tenantId) === String(a.tenant._id));
-        assert.equal(sa.brandName, 'Savera');
-        assert.equal(sa.remindedAt, null);
-
-        // nothing owed: refused in plain words
-        const none = await post('/api/admin/finance/receivables/' + c.tenant._id + '/remind', {});
-        assert.equal(none.status, 400);
-
-        const one = await post('/api/admin/finance/receivables/' + a.tenant._id + '/remind', {});
-        assert.equal(one.status, 200, JSON.stringify(one.body));
-        assert.equal(one.body.amount, 1180);
-        const note = await Notification.findOne({ tenantId: a.tenant._id, role: 'owner', type: 'rent_nudge' }).lean();
-        assert.ok(note, 'the owner got an alert');
-        assert.match(note.body, /Rs 1,180/);
-        assert.equal(note.data.manual, true);
-        // a second tap within the hour is refused
-        assert.equal((await post('/api/admin/finance/receivables/' + a.tenant._id + '/remind', {})).status, 429);
-        const again = (await get('/api/admin/finance/receivables')).body.shops.find((x) => String(x.tenantId) === String(a.tenant._id));
-        assert.ok(again.remindedAt);
-
-        // the brand: a was reminded just now (skipped), b is reminded
-        const all = await post('/api/admin/finance/receivables/brand/' + brand._id + '/remind', {});
-        assert.equal(all.status, 200, JSON.stringify(all.body));
-        assert.equal(all.body.sent.length, 1);
-        assert.equal(all.body.skipped.length, 1);
-        assert.equal(all.body.sent[0].amount, 2360);
     });
 });
 

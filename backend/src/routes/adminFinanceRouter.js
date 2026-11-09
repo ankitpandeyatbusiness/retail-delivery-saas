@@ -1,6 +1,5 @@
-// Superadmin: profit and loss, who owes money, and your own expenses. Mounted under /api/admin.
+// Superadmin: profit and loss and your own expenses. Mounted under /api/admin.
 //   GET    /finance/summary?months=6|12   monthly profit and loss + reasons
-//   GET    /finance/receivables           unpaid rent: aging, per shop, who pays late
 //   GET    /finance/expenses              list (newest first)
 //   POST   /finance/expenses              add
 //   PATCH  /finance/expenses/:id          change
@@ -40,32 +39,6 @@ router.get('/finance/month/export', wrap(async (req, res) => {
     res.set('Content-Type', require('../services/xlsxExport').XLSX_TYPE);
     res.set('Content-Disposition', `attachment; filename="month-close-${month}.xlsx"`);
     res.send(buf);
-}));
-
-// notes and promises about a shop's unpaid rent ("will pay on Friday"); a new one replaces the open one
-router.get('/finance/receivables/:tenantId/notes', wrap(async (req, res) => { res.json({ items: await require('../services/collectionNotes').listFor(req.params.tenantId) }); }));
-router.post('/finance/receivables/:tenantId/note', wrap(async (req, res) => {
-    const n = await require('../services/collectionNotes').add({ tenantId: req.params.tenantId, note: req.body?.note, promiseDate: req.body?.promiseDate, by: req.admin?.email });
-    req.auditBefore = null;
-    res.json(require('../services/collectionNotes').view(n));
-}));
-router.patch('/finance/notes/:id', wrap(async (req, res) => { res.json(require('../services/collectionNotes').view(await require('../services/collectionNotes').close(req.params.id, req.body?.outcome))); }));
-
-router.get('/finance/receivables', wrap(async (req, res) => {
-    res.json(await finance.receivables());
-}));
-
-// shops whose rent is unpaid for months: the list to decide on closing from
-router.get('/finance/to-close', wrap(async (req, res) => { res.json(await require('../services/shopClosure').toClose()); }));
-
-// Remind: a push to the owner of one shop, or to every branch of a brand that owes rent
-router.post('/finance/receivables/brand/:brandId/remind', wrap(async (req, res) => {
-    if (!mongoose.isValidObjectId(req.params.brandId)) throw httpError(400, 'Invalid brand');
-    res.json(await require('../services/rentReminder').remindBrand(req.params.brandId));
-}));
-router.post('/finance/receivables/:tenantId/remind', wrap(async (req, res) => {
-    if (!mongoose.isValidObjectId(req.params.tenantId)) throw httpError(400, 'Invalid shop');
-    res.json(await require('../services/rentReminder').remindShop(req.params.tenantId));
 }));
 
 const view = (e) => ({

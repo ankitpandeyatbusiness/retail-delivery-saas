@@ -117,7 +117,6 @@ export default function ProfitLossScreen() {
 
                     <SectionTitle section="people">Next</SectionTitle>
                     <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
-                        <ListRow section="alerts" icon="warning" title="Who owes you money" subtitle={`${rupeesFromPaise(d.receivables.overduePaise)} overdue from ${d.receivables.overdueShops} shop(s)`} onPress={() => nav.navigate('Receivables')} />
                         <ListRow section="catalog" icon="wallet" title="Your expenses" subtitle="Hosting, SMS provider, staff and more" onPress={() => nav.navigate('Expenses')} last />
                     </Card>
                 </>

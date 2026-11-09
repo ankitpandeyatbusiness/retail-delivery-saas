@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { fetchShops } from '../api/shopsApi';
-import { fetchSales, fetchInbox, fetchInvoices } from '../api/dashboardApi';
+import { fetchSales, fetchInbox } from '../api/dashboardApi';
 import { errMsg } from '../api/adminClient';
 
 const todayIst = () => new Date(Date.now() + 330 * 60 * 1000).toISOString().slice(0, 10);
@@ -10,7 +10,6 @@ export const useDashboardStore = create((set) => ({
     shops: null,        // { total, taking, attention, suspended }
     today: null,        // { orders, revenue, topShops }
     unreadAlerts: null,
-    overdueInvoices: null,
     attention: [],      // shops that are not taking orders (first few)
     loading: false,
     refreshing: false,
@@ -19,11 +18,10 @@ export const useDashboardStore = create((set) => ({
     async load({ refresh = false } = {}) {
         set(refresh ? { refreshing: true } : { loading: true });
         const day = todayIst();
-        const [shops, sales, inbox, inv] = await Promise.allSettled([
+        const [shops, sales, inbox] = await Promise.allSettled([
             fetchShops(),
             fetchSales({ from: day, to: day }),
             fetchInbox({ unread: 'true', limit: 1 }),
-            fetchInvoices({ status: 'overdue', limit: 50 }),
         ]);
 
         const patch = { loading: false, refreshing: false, error: null };
@@ -44,7 +42,6 @@ export const useDashboardStore = create((set) => ({
             patch.today = { orders: r.totals?.orders || 0, revenue: r.totals?.revenue || 0, topShops: (r.shops || []).slice(0, 3) };
         }
         if (inbox.status === 'fulfilled') patch.unreadAlerts = inbox.value.unreadCount ?? 0;
-        if (inv.status === 'fulfilled') patch.overdueInvoices = (inv.value.items || []).length + (inv.value.hasMore ? '+' : '');
         set(patch);
     },
 }));

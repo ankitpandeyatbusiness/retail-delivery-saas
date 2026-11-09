@@ -32,7 +32,7 @@ const reloadShop = async () => {
 
 // What a closed / paused shop looks like: the app stays visible but dimmed behind ONE message card. Nothing underneath can be touched.
 // The wording depends on who is looking: a customer is told the shop is closed or back soon; staff and riders are told to contact the owner.
-export function FrozenOverlay({ onOrders, routeName, onRent }) {
+export function FrozenOverlay({ onOrders }) {
     const frozen = useAppStatus((st) => st.frozen);
     const user = useAuthStore((st) => st.user);
     const shop = useThemeStore((st) => st.theme.name);
@@ -53,7 +53,7 @@ export function FrozenOverlay({ onOrders, routeName, onRent }) {
         return () => clearInterval(t);
     }, [frozen, channelOff]);
 
-    // the owner of a shop closed for rent: what is owed, and a way to the Rent page (the overlay steps aside while he is on it)
+    // the owner of a closed shop: why it was closed
     const isOwner = user?.role === 'admin';
     const [why, setWhy] = useState(null);
     useEffect(() => {
@@ -62,7 +62,6 @@ export function FrozenOverlay({ onOrders, routeName, onRent }) {
     }, [frozen, isOwner]);
 
     if (!frozen && !channelOff) return null;
-    if (isOwner && routeName === 'OwnerRent') return null;
 
     const role = user?.role || 'customer';
     const staff = role === 'kitchen' || role === 'waiter' || role === 'rider';
@@ -71,7 +70,7 @@ export function FrozenOverlay({ onOrders, routeName, onRent }) {
     const msg = viaChannel ? tr(channel.message || 'This shop is temporarily unavailable.') : staff
         ? tr('The shop is closed. Please contact the owner.')
         : isOwner && why?.closed
-            ? (why.kind === 'rent' ? tr('Your shop is closed because rent is unpaid. It opens again by itself when you pay.') : tr('Your shop was closed by the platform team. Please contact support.'))
+            ? tr('Your shop was closed by the platform team. Please contact support.')
         : (frozen.message || tr('This shop is not accepting orders right now'));
 
     const retry = async () => {
@@ -89,13 +88,6 @@ export function FrozenOverlay({ onOrders, routeName, onRent }) {
                     <Text style={s.emoji}>{viaChannel ? '🌐' : '🔒'}</Text>
                     <Text style={[s.title, { color: text }]}>{title}</Text>
                     <Text style={[s.msg, { color: muted }]}>{msg}</Text>
-
-                    {isOwner && why?.closed && why.kind === 'rent' && why.owed?.total > 0 ? <Text style={[s.owed, { color: text }]}>{tr('Rent due')}: ₹{why.owed.total}</Text> : null}
-                    {isOwner && why?.closed && onRent ? (
-                        <Pressable onPress={onRent} style={[s.solid, { backgroundColor: primary, borderRadius: radius }]}>
-                            <Text style={s.solidTxt}>{tr('Open Rent page')}</Text>
-                        </Pressable>
-                    ) : null}
                     <Pressable onPress={retry} disabled={busy} style={[s.solid, { backgroundColor: primary, borderRadius: radius }]}>
                         {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.solidTxt}>{tr('Try again')}</Text>}
                     </Pressable>

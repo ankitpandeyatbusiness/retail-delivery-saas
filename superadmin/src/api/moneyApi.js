@@ -5,28 +5,12 @@ import api, { data } from './adminClient';
 const T = (shopId) => `/admin/tenants/${shopId}`;
 const S = (shopId) => `${T(shopId)}/shop`;
 
-/* ---------------- platform: your business, billing rules, SMS prices ---------------- */
+/* ---------------- platform: your business, SMS prices ---------------- */
 export const fetchPlatform = () => data(api.get('/admin/platform'));
 export const saveBusiness = (body) => data(api.put('/admin/platform/business', body));
-export const saveBillingRules = (body) => data(api.put('/admin/platform/billing', body));        // { dueDays?, graceDays?, freeOrders?, freeMonths?, lateFeePercent?, lateFeeEveryDays?, overdueRemindDays? }
 export const fetchPlatformSms = () => data(api.get('/admin/platform/sms'));
 export const savePlatformSms = (body) => data(api.put('/admin/platform/sms', body));
 export const fetchSmsProfit = (params) => data(api.get('/admin/sms/profit', { params }));
-
-/* ---------------- rent invoices ---------------- */
-export const listInvoices = (params) => data(api.get('/admin/subscriptions/invoices', { params }));
-export const getInvoice = (id) => data(api.get(`/admin/subscriptions/invoices/${id}`));
-export const setInvoiceStatus = (id, body) => data(api.patch(`/admin/subscriptions/invoices/${id}/status`, body));
-export const voidInvoice = (id, reason) => data(api.patch(`/admin/subscriptions/invoices/${id}/void`, { reason }));
-export const waiveInvoice = (id, reason) => data(api.patch(`/admin/subscriptions/invoices/${id}/waive`, { reason }));
-export const extendGrace = (id, days) => data(api.patch(`/admin/subscriptions/invoices/${id}/extend-grace`, { days }));
-export const resendInvoiceNotice = (id) => data(api.post(`/admin/subscriptions/invoices/${id}/resend`));
-
-/* ---------------- one shop's billing ---------------- */
-export const billingStatus = (shopId) => data(api.get(`${S(shopId)}/billing/status`));
-export const endFreePeriod = (shopId) => data(api.post(`${T(shopId)}/billing/end-free`, {}));
-export const unpauseShop = (shopId, days) => data(api.post(`${T(shopId)}/billing/unpause`, days ? { days } : {}));
-export const createCustomInvoice = (shopId, body) => data(api.post(`${T(shopId)}/invoices/custom`, body));
 
 /* ---------------- payment gateway (Razorpay) of one shop ---------------- */
 export const paymentStatus = (shopId) => data(api.get(`${T(shopId)}/payments`));
@@ -81,14 +65,3 @@ export async function shareLedgerExcel(shopId, params) {
     });
 }
 
-// A rent invoice PDF
-export async function shareRentInvoicePdf(inv) {
-    const res = await api.get(`/admin/subscriptions/invoices/${inv.id || inv._id}/pdf`, { responseType: 'arraybuffer' });
-    const safe = String(inv.invoiceNo || 'invoice').replace(/[\/:*?"<>|]/g, '-');
-    const file = new File(Paths.cache, `${safe}.pdf`);
-    if (file.exists) file.delete();
-    file.create();
-    file.write(new Uint8Array(res.data));
-    if (!(await Sharing.isAvailableAsync())) throw Object.assign(new Error('Sharing is not available on this phone'), { safe: true });
-    await Sharing.shareAsync(file.uri, { mimeType: 'application/pdf', dialogTitle: `Invoice ${inv.invoiceNo}`, UTI: 'com.adobe.pdf' });
-}

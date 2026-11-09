@@ -686,11 +686,6 @@ function resolveConfig(tenant, now = new Date()) {
         delete orders.busy;
     }
 
-    // No COD during free service. Switched on with ENFORCE_NO_COD_IN_FREE=true (keep it OFF until online payments exist)
-    if (process.env.ENFORCE_NO_COD_IN_FREE === 'true' && tenant.billing?.state === 'free') {
-        orders.payments = (orders.payments || []).filter((m) => m !== 'cod');
-    }
-
     // GST is ONE rate for every shop, set by the superadmin (never the shop), and only for a shop whose GST number
     // the superadmin has saved. Whatever a shop's own settings say about GST is ignored.
     orders.gst = tenant.business?.gstin ? platformTax.get() : { mode: 'none', percent: 0 };

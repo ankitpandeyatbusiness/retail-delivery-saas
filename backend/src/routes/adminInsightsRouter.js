@@ -15,7 +15,7 @@ const Rider = require('../models/Rider');
 const Product = require('../models/Product');
 const Category = require('../models/Category');
 const Complaint = require('../models/Complaint');
-const SubscriptionInvoice = require('../models/SubscriptionInvoice');
+const PlanPayment = require('../models/PlanPayment');
 const SmsLog = require('../models/SmsLog');
 const Brand = require('../models/Brand');
 const Coupon = require('../models/Coupon');
@@ -52,8 +52,8 @@ router.get('/search', wrap(async (req, res) => {
     const peopleOr = [...(phoneRx ? [{ phone: phoneRx }] : []), ...(words ? [{ name: rx }] : [])];
     const orderOr = [...(isNo ? [{ orderNo: Number(q.replace('#', '')) }] : []), ...(phoneRx ? [{ 'customer.phone': phoneRx }] : []), ...(words ? [{ 'customer.name': rx }] : [])];
     const [shops, invoices, people, orders, products, coupons, tickets] = await Promise.all([
-        Tenant.find({ $or: [{ name: rx }, { slug: rx }, { phone: rx }, ...(words ? [{ 'address.city': rx }, { 'business.gstin': rx }] : []), ...(brandIds.length ? [{ brandId: { $in: brandIds } }] : [])] }).select('name slug status phone billing.state').limit(12).lean(),
-        SubscriptionInvoice.find({ invoiceNo: rx }).select('tenantId invoiceNo period total status').limit(8).lean(),
+        Tenant.find({ $or: [{ name: rx }, { slug: rx }, { phone: rx }, ...(words ? [{ 'address.city': rx }, { 'business.gstin': rx }] : []), ...(brandIds.length ? [{ brandId: { $in: brandIds } }] : [])] }).select('name slug status phone plan.id').limit(12).lean(),
+        PlanPayment.find({ 'invoice.invoiceNo': rx }).select('tenantId invoice.invoiceNo to payablePaise status').limit(8).lean(),
         peopleOr.length ? User.find({ $or: peopleOr }).select('tenantId phone name role').limit(12).lean() : [],
         orderOr.length ? Order.find({ $or: orderOr }).sort({ createdAt: -1 }).select('tenantId orderNo status pricing.total createdAt customer.name').limit(10).lean() : [],
         words ? Product.find({ name: rx }).select('tenantId name price isActive').limit(8).lean() : [],
@@ -65,14 +65,14 @@ router.get('/search', wrap(async (req, res) => {
     res.json({
         q,
         refs: refHit ? refHit.docs.map((d) => ({ kind: refHit.kind, ref: d.ref, id: d._id, tenantId: refHit.tenantId, shop: refHit.shop, orderNo: d.orderNo, status: d.status })) : [],
-        shops: shops.map((t) => ({ id: t._id, name: t.name, slug: t.slug, status: t.status, billingState: t.billing?.state })),
+        shops: shops.map((t) => ({ id: t._id, name: t.name, slug: t.slug, status: t.status, plan: t.plan?.id || null })),
         orders: orders.map((o) => ({ id: o._id, tenantId: o.tenantId, shop: names.get(String(o.tenantId)), orderNo: o.orderNo, status: o.status, totalPaise: Math.round((o.pricing?.total || 0) * 100), at: o.createdAt, customer: o.customer?.name || null })),
         people: people.map((u) => ({ id: u._id, tenantId: u.tenantId, shop: names.get(String(u.tenantId)), phone: maskPhone(u.phone), name: u.name || null, role: u.role })),
         brands: brands.map((x) => ({ id: x._id, name: x.name })),
         products: products.map((x) => ({ id: x._id, tenantId: x.tenantId, shop: names.get(String(x.tenantId)), name: x.name, price: x.price, active: x.isActive !== false })),
         coupons: coupons.map((x) => ({ id: x._id, tenantId: x.tenantId, shop: names.get(String(x.tenantId)), code: x.code, description: x.description || null, active: x.isActive !== false })),
         tickets: tickets.map((x) => ({ id: x._id, tenantId: x.tenantId, shop: names.get(String(x.tenantId)), subject: x.subject, status: x.status })),
-        invoices: invoices.map((i) => ({ id: i._id, tenantId: i.tenantId, shop: names.get(String(i.tenantId)), invoiceNo: i.invoiceNo, period: i.period, totalPaise: Math.round(i.total * 100), status: i.status })),
+        invoices: invoices.map((i) => ({ id: i._id, tenantId: i.tenantId, shop: names.get(String(i.tenantId)), invoiceNo: i.invoice?.invoiceNo, period: i.to, totalPaise: i.payablePaise, status: i.status })),
     });
 }));
 
@@ -96,8 +96,7 @@ function scoreShop(s, tenant, hasOrdersBefore) {
     const rating = tenant.stats?.rating;
     if (rating?.count >= 5 && rating.avg < 3.5) take(15, `Rating is only ${rating.avg.toFixed(1)}`);
     if (!s.total) take(hasOrdersBefore ? 25 : 10, hasOrdersBefore ? 'No orders in this period' : 'No orders yet');
-    if (tenant.billing?.state === 'paused') take(25, 'The shop is paused for non-payment');
-    else if (tenant.billing?.state === 'grace') take(10, 'The rent is overdue (grace period)');
+    if (tenant.plan?.paused) take(25, 'The shop is paused: the plan was not renewed');
     if (tenant.status === 'suspended') take(30, 'The shop is suspended');
     score = Math.max(0, score);
     return { score, level: score >= 80 ? 'good' : score >= 55 ? 'watch' : 'bad', reasons };
@@ -107,7 +106,7 @@ router.get('/insights/health', wrap(async (req, res) => {
     const days = Math.min(90, Math.max(7, Number(req.query.days) || 30));
     const since = new Date(Date.now() - days * DAY);
     const [tenants, orderAgg, complaintAgg, lastOrders] = await Promise.all([
-        Tenant.find({}).select('name slug status billing.state billing.isLive stats.rating').lean(),
+        Tenant.find({}).select('name slug status plan.id billing.isLive stats.rating').lean(),
         Order.aggregate([
             { $match: { createdAt: { $gte: since } } },
             { $group: {
@@ -135,7 +134,7 @@ router.get('/insights/health', wrap(async (req, res) => {
         };
         const h = scoreShop(s, t, lm.has(String(t._id)));
         return {
-            id: t._id, name: t.name, slug: t.slug, status: t.status, billingState: t.billing?.state || 'free', isLive: !!t.billing?.isLive,
+            id: t._id, name: t.name, slug: t.slug, status: t.status, plan: t.plan?.id || null, isLive: !!t.billing?.isLive,
             orders: s.total, delivered: s.delivered, cancelled: s.cancelled, undelivered: s.undelivered, stuck: s.stuck,
             complaints: s.complaints, avgMinutes: s.avgMinutes ? Math.round(s.avgMinutes) : null,
             revenuePaise: Math.round((o.revenue || 0) * 100), rating: t.stats?.rating?.avg || null,
@@ -325,37 +324,27 @@ router.get('/export/customers', wrap(async (req, res) => {
 }));
 
 router.get('/export/invoices', wrap(async (req, res) => {
-    const match = {};
     const r = range(req.query);
-    if (r) match.issueDate = r;
-    if (['pending', 'paid', 'void'].includes(req.query.status)) match.status = req.query.status;
+    // plans, extra shops, wallet and SMS top-ups: everything paid (services/platformSales.js); everything is prepaid, so every row is paid
     const [list, names] = await Promise.all([
-        SubscriptionInvoice.find(match).sort({ issueDate: -1 }).limit(EXPORT_MAX).lean(),
+        require('../services/platformSales').paid({ from: r?.$gte, to: r?.$lt }),
         tenantNames(),
     ]);
     await sendExport(req, res, {
         file: 'invoices',
-        title: 'Rent invoices',
+        title: 'Platform invoices',
         total: true,
         columns: [
             { header: 'Invoice no', key: 'no', kind: 'center' },
             { header: 'Shop', key: 'shop' },
-            { header: 'Period', key: 'period', kind: 'center' },
+            { header: 'What', key: 'what' },
             { header: 'Issued', key: 'issued', kind: 'date' },
-            { header: 'Due', key: 'due', kind: 'date' },
             { header: 'Amount (before GST)', key: 'base', kind: 'money' },
             { header: 'GST', key: 'gst', kind: 'money' },
             { header: 'Total', key: 'total', kind: 'money' },
-            { header: 'Status', key: 'status', kind: 'status' },
             { header: 'Paid on', key: 'paidAt', kind: 'date' },
-            { header: 'Paid by', key: 'mode', kind: 'center' },
-            { header: 'Reference', key: 'ref' },
         ],
-        rows: list.map((i) => ({
-            no: i.invoiceNo, shop: names.get(String(i.tenantId)) || '', period: i.period || '', issued: i.issueDate, due: i.dueDate,
-            base: i.baseAmount || 0, gst: i.gstAmount || 0, total: i.total || 0, status: i.status, paidAt: i.paidAt,
-            mode: String(i.paymentMode || '').replace(/_/g, ' '), ref: i.paymentRef || '',
-        })),
+        rows: list.slice(0, EXPORT_MAX).map((i) => ({ no: i.invoiceNo || '', shop: names.get(String(i.tenantId)) || '', what: i.description, issued: i.issueDate, base: i.baseAmount, gst: i.gstAmount, total: i.total, paidAt: i.paidAt })),
     });
 }));
 

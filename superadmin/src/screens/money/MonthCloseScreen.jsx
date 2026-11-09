@@ -60,40 +60,30 @@ export default function MonthCloseScreen() {
                     <Card style={{ paddingVertical: 0 }}>
                         <KeyValue label={`Billed ${d.change.billed !== null ? '(' + vs(d.change.billed) + ')' : ''}`} value={rupeesFromPaise(c.billedPaise)} />
                         <KeyValue label={`Collected ${d.change.collected !== null ? '(' + vs(d.change.collected) + ')' : ''}`} value={rupeesFromPaise(c.collectedPaise)} />
-                        <KeyValue label="Your income from rent (before GST)" value={rupeesFromPaise(c.rentIncomePaise)} />
+                        <KeyValue label="Your income from plans and fees (before GST)" value={rupeesFromPaise(c.rentIncomePaise)} />
                         <KeyValue label="SMS margin" value={rupeesFromPaise(c.smsMarginPaise)} />
                         <KeyValue label="Costs" value={'− ' + rupeesFromPaise(c.costsPaise)} last />
                     </Card>
 
                     <SectionTitle section="platform">GST</SectionTitle>
                     <Card style={{ paddingVertical: 0 }}>
-                        <KeyValue label={`GST on ${d.gst.documents} bills issued this month`} value={rupees(d.gst.toPay)} />
-                        <KeyValue label="Of which on bills not yet paid" value={rupees(d.gst.onUnpaidBills)} last />
-                    </Card>
-                    <Text style={{ color: t.muted, fontSize: font.xs, marginTop: spacing.sm }}>The tax is due on the bill even while the shop has not paid. Keep this cash ready.</Text>
-
-                    <SectionTitle section="alerts">Still owed to you (all months)</SectionTitle>
-                    <Card onPress={() => nav.navigate('Receivables')}>
-                        <Text style={{ color: d.owed.overduePaise ? t.danger : t.text, fontWeight: '800', fontSize: font.lg }}>{rupeesFromPaise(d.owed.pendingPaise)} unpaid</Text>
-                        <Text style={{ color: t.muted, fontSize: font.sm, marginTop: 2 }}>{d.owed.overduePaise ? `${rupeesFromPaise(d.owed.overduePaise)} is overdue from ${d.owed.overdueShops} shop(s). Tap to see who.` : 'Nothing is overdue.'}</Text>
+                        <KeyValue label={`GST on ${d.gst.documents} payments this month`} value={rupees(d.gst.toPay)} last />
                     </Card>
 
                     {next ? (
                         <>
                             <SectionTitle section="catalog">Next 30 days</SectionTitle>
                             <Card style={{ paddingVertical: 0 }}>
-                                <KeyValue label={`Rent due soon (${next.dueSoon.bills} bills)`} value={rupeesFromPaise(next.dueSoon.paise)} />
-                                <KeyValue label="Next bills (guessed from last month)" value={rupeesFromPaise(next.nextBillsEstimatePaise)} />
+                                <KeyValue label="Plans and fees (guessed from last month)" value={rupeesFromPaise(next.nextBillsEstimatePaise)} />
                                 <KeyValue label="Costs (average of 3 months)" value={'− ' + rupeesFromPaise(next.costsEstimatePaise)} />
                                 <KeyValue label="Likely" value={rupeesFromPaise(next.netEstimatePaise)} last />
                             </Card>
-                            <View style={{ marginTop: spacing.sm }}><Badge label={`${rupeesFromPaise(next.overdue.paise)} overdue is not counted`} tone="warn" /></View>
                         </>
                     ) : null}
 
                     <SectionTitle section="money">For your CA</SectionTitle>
                     <Button title={`Download ${label(month)} (Excel)`} icon="receipt" onPress={download} loading={busy} />
-                    <Text style={{ color: t.muted, fontSize: font.xs, marginTop: spacing.sm }}>One file: summary, bills issued, SMS top-ups, the GST register and expenses.</Text>
+                    <Text style={{ color: t.muted, fontSize: font.xs, marginTop: spacing.sm }}>One file: summary, payments received, SMS top-ups, the GST register and expenses.</Text>
                     <Card padded={false} style={{ paddingHorizontal: spacing.lg, marginTop: spacing.md }}>
                         <ListRow section="money" icon="receipt" title="GST register" subtitle="The same month, document by document" onPress={() => nav.navigate('GstRegister')} last />
                     </Card>

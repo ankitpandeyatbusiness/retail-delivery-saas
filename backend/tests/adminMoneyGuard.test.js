@@ -38,7 +38,6 @@ const SOUNDS_LIKE_MONEY = /bill|invoice|pay|refund|wallet|price|fee|rent|commiss
 // Money-sounding routes that are deliberately open to every superadmin (or guarded inside their own router). Say WHY.
 const REVIEWED = {
     'POST /refunds/:id/retry': 'sends a failed refund again with the same key: the customer cannot be paid twice, a support task',
-    'POST /brands/:id/bulk/waive-late-fees': 'the brands router blocks every non-GET except owners/move for non-supreme admins',
     'POST /maintenance/plans': 'the handler refuses scope "all" for non-supreme admins',
     'POST /maintenance/plans/:id/cancel': 'the handler refuses a scope "all" plan for non-supreme admins',
     'PUT /maintenance/plans/:id': 'the handler refuses a scope "all" plan for non-supreme admins',

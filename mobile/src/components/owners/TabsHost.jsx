@@ -1,6 +1,6 @@
 // One page made of a few screens that belong together (Transactions, Home screen pictures, Bills and SMS...). The tabs sit under one title; each
 // screen is shown as it always was, minus its own title bar, and stays alive when the owner switches tabs (nothing reloads or loses its place).
-//   <TabsHost title="Bills and SMS" tabs={[['bill', 'Monthly bill', OwnerRentScreen], ['sms', 'SMS', OwnerSmsScreen]]} />
+//   <TabsHost title="Delivery" tabs={[['area', 'Area and fees', OwnerDeliveryScreen], ['rules', 'Rules and cash', OwnerRiderRulesScreen]]} />
 import React, { useState } from 'react';
 import { View } from 'react-native';
 import { useRoute } from '@react-navigation/native';

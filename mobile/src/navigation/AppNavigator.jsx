@@ -75,7 +75,6 @@ import OwnerPaymentsScreen from '../screens/owners/OwnerPaymentsScreen';
 import OwnerSmsScreen from '../screens/owners/OwnerSmsScreen';
 import OwnerWalletScreen from '../screens/owners/OwnerWalletScreen';
 import OwnerPlanScreen from '../screens/owners/OwnerPlanScreen';
-import OwnerRentScreen from '../screens/owners/OwnerRentScreen';
 import OwnerCustomersScreen from '../screens/owners/OwnerCustomersScreen';
 import OwnerExportScreen from '../screens/owners/OwnerExportScreen';
 import OwnerCostsScreen from '../screens/owners/OwnerCostsScreen';
@@ -147,7 +146,7 @@ import OwnerProfileScreen from '../screens/owners/OwnerProfileScreen';
 import OwnerPopularScreen from '../screens/owners/OwnerPopularScreen';
 import OwnerPayScreen from '../screens/owners/OwnerPayScreen';
 import OwnerTransactionsScreen from '../screens/owners/OwnerTransactionsScreen';
-import { OwnerMoneyHub, OwnerShopFrontHub, OwnerBillsHub, OwnerDeliveryHub, OwnerReportsHub, OwnerInboxHub } from '../screens/owners/OwnerHubs';
+import { OwnerMoneyHub, OwnerShopFrontHub, OwnerDeliveryHub, OwnerReportsHub, OwnerInboxHub } from '../screens/owners/OwnerHubs';
 import OwnerMonthScreen from '../screens/owners/OwnerMonthScreen';
 import { FloatingTabBar, slideScenes, TabGlyph, gate, holdGate, releaseGate, bindGateNavigation } from './tabKit';
 import { tr } from '../i18n';
@@ -412,7 +411,6 @@ export default function AppNavigator() {
                     <Stack.Screen name="OwnerSms" component={OwnerSmsScreen} />
                     <Stack.Screen name="OwnerWallet" component={OwnerWalletScreen} />
                     <Stack.Screen name="OwnerPlan" component={OwnerPlanScreen} />
-                    <Stack.Screen name="OwnerRent" component={OwnerRentScreen} />
                     <Stack.Screen name="OwnerCustomers" component={OwnerCustomersScreen} />
                     <Stack.Screen name="OwnerExport" component={OwnerExportScreen} />
                     <Stack.Screen name="OwnerCosts" component={OwnerCostsScreen} />
@@ -469,7 +467,6 @@ export default function AppNavigator() {
                     <Stack.Screen name="OwnerCollections" component={OwnerCollectionsScreen} />
                     <Stack.Screen name="OwnerMoneyHub" component={OwnerMoneyHub} />
                     <Stack.Screen name="OwnerShopFrontHub" component={OwnerShopFrontHub} />
-                    <Stack.Screen name="OwnerBillsHub" component={OwnerBillsHub} />
                     <Stack.Screen name="OwnerDeliveryHub" component={OwnerDeliveryHub} />
                     <Stack.Screen name="OwnerReportsHub" component={OwnerReportsHub} />
                     <Stack.Screen name="OwnerInboxHub" component={OwnerInboxHub} />
@@ -495,7 +492,7 @@ export default function AppNavigator() {
             <OwedClaimHost />
             <PickupChangeHost />
             <CustomerAskHost />
-            <FrozenOverlay onOrders={goOrders} routeName={routeName} onRent={() => { if (navigationRef.isReady()) navigationRef.navigate('OwnerRent'); }} />
+            <FrozenOverlay onOrders={goOrders} />
             <OfflineBanner />
             <ToastHost />
         </MaintenanceFrame>

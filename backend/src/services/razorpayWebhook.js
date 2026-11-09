@@ -12,7 +12,6 @@ const accounts = require('./paymentAccounts');
 const paymentService = require('./paymentService');
 const refundIssuer = require('./refundIssuer');
 const smsTopupService = require('./smsTopupService');
-const rentPayments = require('./rentPaymentService');
 const auditTrail = require('../middlewares/auditTrail');
 const alert = require('./paymentAlerts');
 const disputeService = require('./disputeService');
@@ -53,7 +52,6 @@ async function onQrCredited(account, body) {
     const qr = body.payload?.qr_code?.entity || {};
     const pay = paymentService.fromEntity(body.payload?.payment?.entity);
     if (account !== 'platform') return require('./doorPayment').credit({ account, qr, pay });   // a customer paid a Cash on delivery order by QR at the door
-    if (qr.notes?.purpose === 'rent') return rentPayments.onCredited({ qr, pay });
     if (qr.notes?.purpose !== 'sms_topup') return { ignored: 'other_purpose' };
     const topupId = qr.notes.referenceId;
     const topup = mongoose.isValidObjectId(topupId) ? await SmsTopup.findById(topupId) : null;

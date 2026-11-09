@@ -10,7 +10,6 @@ const Tenant = require('../models/Tenant');
 const Notification = require('../models/Notification');
 const AdminDevice = require('../models/AdminDevice');
 const PlatformSettings = require('../models/PlatformSettings');
-const SubscriptionInvoice = require('../models/SubscriptionInvoice');
 const rules = require('../notifications/rules');
 const adminTexts = require('../notifications/templates/adminTexts');
 const pushAdapter = require('./adapters/push');
@@ -24,15 +23,6 @@ const day = (d) => new Date(d).toLocaleDateString('en-IN', { timeZone: 'Asia/Kol
 async function extraVars(tenantId, data) {
     const out = {};
     if (Number.isInteger(data?.amountPaise)) out.amount = (data.amountPaise / 100).toFixed(2);
-    if (data?.invoiceId && mongoose.isValidObjectId(String(data.invoiceId))) {
-        const inv = await SubscriptionInvoice
-            .findOne({ _id: data.invoiceId, ...(tenantId && { tenantId }) }).select('invoiceNo total graceEndsAt').lean();
-        if (inv) {
-            out.invoiceNo = inv.invoiceNo;
-            out.amount = String(inv.total);
-            if (inv.graceEndsAt) out.graceDate = day(inv.graceEndsAt);
-        }
-    }
     return out;
 }
 

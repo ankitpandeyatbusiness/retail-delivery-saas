@@ -28,7 +28,6 @@ const formOf = (x) => ({
     legalName: str(x.business?.legalName), gstin: str(x.business?.gstin), fssai: str(x.business?.fssai),
     billingEmail: str(x.contact?.billingEmail),
     androidPackage: str(x.androidPackage),
-    gstPercent: str(x.subscription?.gstPercent), startMonth: str(x.subscription?.startMonth),
     status: x.status || 'active',
 });
 
@@ -76,8 +75,6 @@ export default function ShopEditScreen() {
         if (f.longitude !== '' && !(Number(f.longitude) >= -180 && Number(f.longitude) <= 180)) e.longitude = 'Longitude is between -180 and 180';
         if ((f.latitude === '') !== (f.longitude === '')) e.latitude = 'Enter both latitude and longitude';
         if (f.androidPackage && !PACKAGE_RE.test(f.androidPackage)) e.androidPackage = 'Use small letters and dots, like com.mycompany.shopname';
-        if (f.gstPercent !== '' && !(Number(f.gstPercent) >= 0 && Number(f.gstPercent) <= 28)) e.gstPercent = 'GST is between 0 and 28';
-        if (f.startMonth && !/^\d{4}-(0[1-9]|1[0-2])$/.test(f.startMonth)) e.startMonth = 'Use the form 2026-10';
         setErr(e);
         return !Object.keys(e).length;
     };
@@ -106,12 +103,6 @@ export default function ShopEditScreen() {
             body.business = { legalName: f.legalName.trim(), gstin: f.gstin.trim().toUpperCase(), fssai: f.fssai.trim() };
         }
         if (f.billingEmail !== str(orig.contact?.billingEmail)) body.contact = { billingEmail: f.billingEmail.trim().toLowerCase() };
-        if (f.gstPercent !== str(orig.subscription?.gstPercent) || f.startMonth !== str(orig.subscription?.startMonth)) {
-            body.subscription = {};
-            if (f.gstPercent !== str(orig.subscription?.gstPercent) && f.gstPercent !== '') body.subscription.gstPercent = Number(f.gstPercent);
-            if (f.startMonth !== str(orig.subscription?.startMonth) && f.startMonth !== '') body.subscription.startMonth = f.startMonth;
-            if (!Object.keys(body.subscription).length) delete body.subscription;
-        }
         if (!Object.keys(body).length) { toast('Nothing changed'); return; }
 
         setBusy(true);
@@ -190,12 +181,6 @@ export default function ShopEditScreen() {
                 <Field label="GST number" placeholder="15 characters, e.g. 09AAAAA0000A1Z5" value={f.gstin} onChangeText={(v) => set('gstin')(v.toUpperCase())} autoCapitalize="characters" maxLength={15} error={err.gstin} hint="Only you can set this. GST is charged on this shop's bills only while this number is filled." />
                 <Field label="FSSAI number" placeholder="14 digits, e.g. 12345678901234" hint="The food licence number. Shown on food bills. Leave empty for non-food shops." value={f.fssai} onChangeText={(v) => set('fssai')(v.replace(/\D/g, '').slice(0, 14))} keyboardType="number-pad" error={err.fssai} />
                 <Field label="Billing email" placeholder="e.g. accounts@sweetcrumbs.com" value={f.billingEmail} onChangeText={set('billingEmail')} keyboardType="email-address" autoCapitalize="none" hint="Bills and money mails go here. Empty = the owners' emails." error={err.billingEmail} style={{ marginBottom: 0 }} />
-            </Card>
-
-            <SectionTitle section="catalog">Rent invoices</SectionTitle>
-            <Card>
-                <Field label="GST on this shop's rent (%)" placeholder="18" value={f.gstPercent} onChangeText={(v) => set('gstPercent')(v.replace(/[^\d.]/g, ''))} keyboardType="decimal-pad" error={err.gstPercent} hint="Empty = 18%. Added only if your GST number is saved." />
-                <Field label="Rent starts from month" hint="The first month rent is charged (year-month). Rent bills before this month are not made." value={f.startMonth} onChangeText={(v) => set('startMonth')(v.replace(/[^\d-]/g, '').slice(0, 7))} keyboardType="numbers-and-punctuation" error={err.startMonth} placeholder="2026-10" style={{ marginBottom: 0 }} />
             </Card>
 
             <SectionTitle section="settings">The shop's app</SectionTitle>

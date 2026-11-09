@@ -10,7 +10,7 @@ const OnlineRefund = require('../models/OnlineRefund');
 const PaymentDispute = require('../models/PaymentDispute');
 const OwedPayment = require('../models/OwedPayment');
 const SmsTransaction = require('../models/SmsTransaction');
-const SubscriptionInvoice = require('../models/SubscriptionInvoice');
+const platformSales = require('./platformSales');
 const TableSession = require('../models/TableSession');
 const Complaint = require('../models/Complaint');
 const Order = require('../models/Order');
@@ -36,7 +36,7 @@ const LABELS = {
     refund_cash: 'Refund you gave',
     dispute_lost: 'Chargeback lost',
     sms_topup: 'SMS top-up',
-    rent: 'Your monthly bill',
+    rent: 'Your plan, extra shops and wallet',
 };
 const CATEGORIES = Object.keys(LABELS);
 const IN = new Set(['online', 'cash_delivery', 'cash_pickup', 'table_bill', 'table_share', 'earlier_bill', 'table_online']);
@@ -132,11 +132,12 @@ async function fromSms(tenantId, r) {
     const rows = await SmsTransaction.find({ tenantId, type: 'topup', amountPaise: { $gt: 0 }, ...withRange('createdAt', r) }).sort({ createdAt: -1 }).limit(PER_SOURCE).lean();
     return rows.map((x) => ({ key: `sm${x._id}`, at: x.createdAt, category: 'sms_topup', amountPaise: x.amountPaise, how: 'online', ref: x.paymentId || null, orderId: null, by: x.actor?.label || 'You', note: x.note || '' }));
 }
+// what the shop paid the platform: its plan, extra shops and Partner wallet top-ups (everything is prepaid, so only paid rows exist)
 async function fromRent(tenantId, r) {
-    const rows = await SubscriptionInvoice.find({ tenantId, status: { $in: ['paid', 'pending'] }, ...(r ? { $or: [{ status: 'paid', paidAt: r }, { status: 'pending', issueDate: r }] } : {}) }).sort({ issueDate: -1 }).limit(PER_SOURCE).lean();
-    return rows.map((x) => ({
-        key: `iv${x._id}`, at: x.paidAt || x.issueDate, category: 'rent', amountPaise: Math.round((x.total || 0) * 100), how: x.paymentMode === 'cash' ? 'cash' : 'online', ref: x.invoiceNo || null, orderId: null,
-        status: x.status === 'paid' ? 'done' : 'pending', by: 'You', note: x.description || '', meta: { period: x.period, kind: x.kind, paymentMode: x.paymentMode, paymentRef: x.paymentRef, dueDate: x.dueDate },
+    const rows = await platformSales.paid({ tenantId, from: r?.$gte, to: r?.$lte ? new Date(r.$lte.getTime() + 1) : r?.$lt });
+    return rows.filter((x) => x.kind !== 'sms').slice(-PER_SOURCE).reverse().map((x) => ({
+        key: `iv${x.id}`, at: x.paidAt, category: 'rent', amountPaise: Math.round(x.total * 100), how: 'online', ref: x.invoiceNo || null, orderId: null,
+        status: 'done', by: 'You', note: x.description || '', meta: { kind: x.kind },
     }));
 }
 // cash on delivery and pickup: paid to a person, not online. A dine in round is part of its table bill (below), so it is not listed twice.

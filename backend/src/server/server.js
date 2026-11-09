@@ -5,9 +5,7 @@ const mongoose = require('mongoose');
 const connectDB = require('../database/database');
 const app = require('./app');
 const realtime = require('../services/realtime');
-const { startBillingScheduler } = require('../services/subscriptionService');
 const { startOrderTimeoutScheduler } = require('../services/orderTimeout');
-const { startBillingEnforcementScheduler } = require('../services/billingEnforcement');
 const { startOfferScheduler } = require('../services/assignmentService');
 const { startBillingAlertsScheduler } = require('../services/billingAlerts');
 const { startStuckOrdersScheduler } = require('../services/stuckOrders');
@@ -70,13 +68,11 @@ connectDB()
             console.log(`🚀 Server running on port ${PORT}`);
             registerShutdown(server);
             realtime.init(server);   // live updates (Socket.IO)
-            // old rent billing is stopped (plans replace it, docs/old-billing-removal-list.md): no monthly bills, no rent grace/pause job
             startComplaintRemindersScheduler();
             startCleanupUploadsScheduler();
             startBackupScheduler();
             startNightlyReconcileScheduler();
             startOrderTimeoutScheduler();
-            startBillingEnforcementScheduler();
             startOfferScheduler();
             startBillingAlertsScheduler();
             startStuckOrdersScheduler();

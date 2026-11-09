@@ -1,17 +1,12 @@
 // The brand owner's own routes, used from the owner app of ANY branch of the brand. Mounted at /api/brand.
 // Needs the usual headers (x-tenant-slug of the branch the owner is in, Bearer token of that branch).
 //   GET  /me         the brand and its branches (the branch switcher's list)
-//   GET  /statement?period=2026-10   the brand's monthly statement: a line per branch (rent, multi-branch discount, GST, status), the SMS wallet and SMS used per branch
 //   GET  /notify-prefs               which branches' alerts reach his phone: { all, ownSlug, branches: [{ slug, name, own, open, explicit, on }] }
 //   PUT  /notify-prefs               { all?, ownSlug?, branches?: { <slug>: true|false|null } }  -> the same view + warnings
 //   GET  /notifications?branch=&page=   the owner inbox of every branch together, each row with its branch and silent: true when the branch is muted
 //   GET  /customers?range=30         counts per branch (customers, new, ordered) and how many real people the brand has
 //   GET  /complaints?branch=&status=&page=   complaints of every branch, each with its branch, and how many are open per branch
 //   GET  /reviews?branch=&range=30&low=1&page=   dish ratings: average per branch and the newest ratings
-//   GET  /statement.pdf?period=2026-10   the same statement as a PDF (?view=1 opens it in the browser)
-//   GET  /dues                        what is unpaid in every branch (rent and late fees), one line per branch and the total
-//   POST /dues/pay/start  { slug? }   pay ONE branch's dues (slug) or ALL branches' with a single payment -> { keyId, rzpOrderId, amountPaise, ... }
-//   POST /dues/pay/verify { razorpay_order_id, razorpay_payment_id, razorpay_signature } -> { paid }
 //   POST /switch     { slug }                      sign in to another branch of the brand: returns that branch's tokens
 //   POST /menu/push  { productIds, toSlugs: 'all' | [slug], prices: 'keep'|'untouched'|'all' }   push dishes of THIS branch to other branches
 //   POST /extras/push { kind: 'coupons'|'banners'|'collections', ids, toSlugs: 'all' | [slug] }   push coupons, banners or collections of THIS branch to other branches
@@ -51,10 +46,10 @@ router.use(wrap(async (req, res, next) => {
     req.brand = brand;
     req.brandUser = user;
     // Multi-branch (Pro): if ANY branch of the brand is on a plan with it, the brand tools work for the whole brand. Otherwise the owner can still LOOK at every branch
-    // (the switch gives a view-only session) but the tools that change things are refused. Paying dues and switching always work.
+    // (the switch gives a view-only session) but the tools that change things are refused. Switching always works.
     const gate = require('../services/featureGate');
     req.brandPro = (await Tenant.find({ brandId: brand._id }).select('plan').lean()).some((b) => gate.hasFeature(b, 'multiBranch'));
-    if (!req.brandPro && !['GET', 'HEAD', 'OPTIONS'].includes(req.method) && !/^\/(switch|dues)(\/|$)/.test(req.path)) {
+    if (!req.brandPro && !['GET', 'HEAD', 'OPTIONS'].includes(req.method) && !/^\/switch(\/|$)/.test(req.path)) {
         throw httpError(403, 'Branch tools are in the Pro plan. You can look at your branches, not change them. See Plan to upgrade.');
     }
     next();
@@ -88,13 +83,6 @@ router.get('/orders', wrap(async (req, res) => { res.json(await panel.orders(req
 router.get('/customers', wrap(async (req, res) => { res.json(await care.customers(req.brand, req.query.range || '30')); }));
 router.get('/complaints', wrap(async (req, res) => { res.json(await care.complaints(req.brand, req.query)); }));
 router.get('/reviews', wrap(async (req, res) => { res.json(await care.reviews(req.brand, req.query)); }));
-
-router.get('/statement.pdf', wrap(async (req, res) => {
-    const pdf = require('../services/brandStatementPdf');
-    const st = await require('../services/brandStatement').build(req.brand, req.query.period);
-    pdf.streamStatement(res, st, await pdf.sellerOf(), { inline: req.query.view === '1' });
-}));
-router.get('/statement', wrap(async (req, res) => { res.json(await require('../services/brandStatement').build(req.brand, req.query.period)); }));
 
 router.get('/notify-prefs', wrap(async (req, res) => { res.json(await brandNotify.view(req.brand, req.brandUser.phone)); }));
 
@@ -201,33 +189,6 @@ router.post('/extras/push', wrap(async (req, res) => {
         if (targets.length !== new Set(b.toSlugs).size) throw httpError(404, 'A chosen branch is not part of your brand');
     }
     res.json(await extrasSync.push({ fromTenantId: req.tenant._id, kind: b.kind, ids: b.ids, toTenantIds: targets.map((t) => t._id) }));
-}));
-
-router.get('/dues', wrap(async (req, res) => {
-    const duesSvc = require('../services/dues');
-    const branches = await Tenant.find({ brandId: req.brand._id }).sort({ createdAt: 1, _id: 1 }).select('slug name').lean();
-    const rows = [];
-    for (const b of branches) {
-        const d = await duesSvc.statement(b._id);
-        rows.push({ slug: b.slug, name: b.name, count: d.count, rentTotal: d.rentTotal, lateFeeTotal: d.lateFeeTotal, grandTotal: d.grandTotal });
-    }
-    const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
-    res.json({
-        branches: rows, count: rows.reduce((s, r) => s + r.count, 0), grandTotal: round2(rows.reduce((s, r) => s + r.grandTotal, 0)),
-        lateFeeTotal: round2(rows.reduce((s, r) => s + r.lateFeeTotal, 0)),
-    });
-}));
-router.post('/dues/pay/start', wrap(async (req, res) => {
-    const branches = await Tenant.find({ brandId: req.brand._id }).select('_id slug').lean();
-    let scope = branches;
-    if (req.body && req.body.slug) {
-        scope = branches.filter((t) => t.slug === String(req.body.slug).toLowerCase());
-        if (!scope.length) throw httpError(404, 'That branch is not part of your brand');
-    }
-    res.status(201).json(await require('../services/platformCheckout').startBrandDues({ brand: req.brand, tenantIds: scope.map((t) => t._id), actingTenantId: req.tenant._id }));
-}));
-router.post('/dues/pay/verify', wrap(async (req, res) => {
-    res.json(await require('../services/platformCheckout').verifyBrandDues({ brand: req.brand, proof: req.body }));
 }));
 
 router.post('/managers', wrap(async (req, res) => {

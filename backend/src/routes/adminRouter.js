@@ -87,8 +87,6 @@ admin.use(require('./adminMediaRouter'));   // list a shop's uploaded images (he
 admin.use(require('./adminAccessRouter'));
 admin.use(require('./adminPlatformRouter'));
 admin.use(require('./adminPlansRouter'));
-admin.use(require('./adminBillingRouter'));
-admin.use(require('./adminSubscriptionRouter'));
 admin.use(require('./adminTrackingRouter'));   // live tracking: server health and the sockets / polling / off switch (everyone looks, the supreme admin changes)
 admin.use(require('./adminBrandsRouter'));   // brands with branches (everyone looks, the supreme admin changes)
 admin.use(require('./adminPlatformHealthRouter'));   // is the platform running fine (everyone reads)
@@ -158,14 +156,13 @@ admin.get('/tenants', wrap(async (req, res) => {
     const items = await Tenant.find(filter)
         .sort({ createdAt: -1 })
         .limit(200)
-        .select('_id slug name logo status androidPackage createdAt updatedAt ownerBlocked ownerBlockedReason maintenance settings.orders.acceptingOrders billing subscription.gstPercent brandId plan')
+        .select('_id slug name logo status androidPackage createdAt updatedAt ownerBlocked ownerBlockedReason maintenance settings.orders.acceptingOrders billing brandId plan')
         .lean();
-    const [icons, rents, stats] = await Promise.all([appIcons(items), require('../services/rentSummary').forShops(items), require('../services/shopListStats').forShops(items)]);
+    const [icons, stats] = await Promise.all([appIcons(items), require('../services/shopListStats').forShops(items)]);
     res.json({
         items: items.map((t) => {
-            const { settings, maintenance, ownerBlockedReason, billing, subscription, ...rest } = t;
-            // the list only needs the rent state and the one-line rent answer (what the shop pays next, for which month, or that it is still free)
-            return { ...rest, plan: require('../services/planService').viewOf(t), billing: { state: billing?.state, graceEndsAt: billing?.graceEndsAt }, rent: rents.get(String(t._id)) || null, stats: stats.get(String(t._id)) || null, appIcon: icons.get(String(t._id)) || null, state: shopState(t) };
+            const { settings, maintenance, ownerBlockedReason, billing, ...rest } = t;
+            return { ...rest, plan: require('../services/planService').viewOf(t), billing: { isLive: !!billing?.isLive }, stats: stats.get(String(t._id)) || null, appIcon: icons.get(String(t._id)) || null, state: shopState(t) };
         }),
     });
 }));
@@ -183,7 +180,6 @@ admin.post('/tenants', wrap(async (req, res) => {
     if (fields.businessType && BUSINESS_TYPES[fields.businessType]?.status !== 'active') {
         throw httpError(400, 'This kind of business is not open yet');
     }
-    if (fields.subscription && typeof fields.subscription === 'object') delete fields.subscription.monthlyFee;   // B18
     const tenant = new Tenant({ slug, ...fields, settings: v.clean });
     // who brought the shop decides the revenue split; only the supreme admin marks it
     if (isSupreme(req.admin) && ['owner', 'partner'].includes(body.broughtBy)) { tenant.broughtBy = body.broughtBy; tenant.broughtBySetAt = new Date(); }
@@ -201,8 +197,7 @@ admin.get('/tenants/:tid', wrap(async (req, res) => {
     const tenant = await Tenant.findById(req.params.tid).lean();
     if (!tenant) throw httpError(404, 'Tenant not found');
     const icons = await appIcons([tenant]);
-    const rent = (await require('../services/rentSummary').forShops([tenant])).get(String(tenant._id)) || null;
-    res.json({ tenant, appIcon: icons.get(String(tenant._id)) || null, resolved: resolveConfig(tenant), state: shopState(tenant), rent });
+    res.json({ tenant, appIcon: icons.get(String(tenant._id)) || null, resolved: resolveConfig(tenant), state: shopState(tenant) });
 }));
 
 // heroImages is not a field here: hero images are uploaded (and deleted from the bucket) through
@@ -223,7 +218,6 @@ admin.put('/tenants/:tid', wrap(async (req, res) => {
     req.auditBefore = pickFields([...TENANT_FIELDS, 'settings'], tenant.toObject());   // for the audit log
     const areaBefore = { ...((tenant.delivery && tenant.delivery.toObject ? tenant.delivery.toObject() : tenant.delivery) || {}) };
     const updates = pickFields(TENANT_FIELDS, body);
-    if (updates.subscription && typeof updates.subscription === 'object') delete updates.subscription.monthlyFee;   // B18: billing does not use it
     for (const [key, value] of Object.entries(updates)) {
         // Deep merge for nested objects (delivery, business, subscription, colors, address)
         if (value !== null && typeof value === 'object' && !Array.isArray(value)) {

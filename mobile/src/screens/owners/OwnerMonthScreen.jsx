@@ -1,5 +1,5 @@
-// One month of transactions: totals, a filter (received, refunds, SMS, bills), every entry, and downloads.
-// A monthly bill opens its PDF; an order payment or refund opens the order. Opened with params { month: '2026-10' }.
+// One month of transactions: totals, a filter (received, refunds, SMS, plan), every entry, and downloads.
+// A plan payment opens its invoice (PDF); an order payment or refund opens the order. Opened with params { month: '2026-10' }.
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, FlatList, Pressable } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
 import { FunnelButton, FilterPopup } from '../../components/owners/FilterPopup';
 import { PageHeader, Card, Stat, Empty, Button, Pill } from '../../components/owners/ui';
-import { fetchTransactions, transactionsFilePath, rentInvoicePdfPath, apiError } from '../../api/owners/shopApi';
+import { fetchTransactions, transactionsFilePath, apiError } from '../../api/owners/shopApi';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { rupees } from '../../utils/owners/riderRules';
 import { MOVES, monthName, monthRange } from '../../utils/owners/moneyRules';
@@ -48,11 +48,11 @@ export default function OwnerMonthScreen() {
     };
     const bill = async (t) => {
         setBusy(String(t.id));
-        try { await downloadAndOpen({ path: rentInvoicePdfPath(t.id), filename: `bill-${String(t.ref || t.id).replace(/\W+/g, '-')}.pdf`, mime: 'application/pdf', title: String(t.ref || 'Bill') }); }
-        catch (e) { showToast(e.safe ? e.message : tr('Could not open the bill')); } finally { setBusy(null); }
+        try { await downloadAndOpen({ path: `/shop/plan/payments/${t.id}/invoice`, filename: `invoice-${String(t.ref || t.id).replace(/\W+/g, '-')}.pdf`, mime: 'application/pdf', title: String(t.ref || 'Invoice') }); }
+        catch (e) { showToast(e.safe ? e.message : tr('Could not open the invoice')); } finally { setBusy(null); }
     };
     const open = (t) => {
-        if (t.category === 'rent') bill(t);
+        if (t.category === 'plan') bill(t);
         else if (t.orderId) nav.navigate('OwnerOrder', { id: String(t.orderId) });
     };
 
@@ -85,18 +85,18 @@ export default function OwnerMonthScreen() {
                     </View>
                 )}
                 renderItem={({ item: t }) => {
-                    const tappable = t.category === 'rent' || !!t.orderId;
+                    const tappable = t.category === 'plan' || !!t.orderId;
                     return (
                         <Pressable onPress={tappable ? () => open(t) : undefined} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 0.5, borderBottomColor: border, opacity: pressed && tappable ? 0.7 : 1 })}>
                             <View style={{ flex: 1, minWidth: 0, paddingRight: 10 }}>
-                                <Text style={{ color: text, fontWeight: '800' }} numberOfLines={1}>{t.label}{t.orderNo ? ` · #${t.orderNo}` : ''}{t.category === 'rent' && t.ref ? ` · ${t.ref}` : ''}</Text>
-                                <Text style={{ color: muted, fontSize: 12, marginTop: 1 }}>{dayTime(t.at)}{t.category === 'rent' ? tr(' · tap to open the bill') : ''}</Text>
+                                <Text style={{ color: text, fontWeight: '800' }} numberOfLines={1}>{t.label}{t.orderNo ? ` · #${t.orderNo}` : ''}{t.category === 'plan' && t.ref ? ` · ${t.ref}` : ''}</Text>
+                                <Text style={{ color: muted, fontSize: 12, marginTop: 1 }}>{dayTime(t.at)}{t.category === 'plan' ? tr(' · tap to open the invoice') : ''}</Text>
                             </View>
                             {t.status === 'pending' ? <Pill label={tr('To pay')} color={error} /> : null}
                             {busy === String(t.id) ? <LineShimmer width={64} height={16} /> : (
                                 <Text style={{ color: t.status === 'pending' ? muted : t.direction === 'in' ? ok : text, fontWeight: '900', marginLeft: 8 }}>{t.direction === 'in' ? '+' : '−'}{rupees(t.amountPaise)}</Text>
                             )}
-                            {tappable ? <Ionicons name={t.category === 'rent' ? 'document-text-outline' : 'chevron-forward'} size={18} color={muted} style={{ marginLeft: 8 }} /> : null}
+                            {tappable ? <Ionicons name={t.category === 'plan' ? 'document-text-outline' : 'chevron-forward'} size={18} color={muted} style={{ marginLeft: 8 }} /> : null}
                         </Pressable>
                     );
                 }}

@@ -40,16 +40,14 @@ function checkPlacement({ tenant, config, body, priced, address, user, cod, onli
     // dine in is switched on by the shop in its Dine in screen; delivery and pickup follow the order types
     if (priced.orderType === 'dine_in' ? !o.dineIn?.enabled : !o.types.includes(priced.orderType)) return { status: 400, message: `This shop does not offer ${TYPE_LABEL[priced.orderType]}` };
     // unpaid rent after grace (the shop is already shown as not accepting orders; this is a second guard)
-    if (tenant.billing?.state === 'paused' || tenant.plan?.paused) return { status: 409, message: 'The shop is not accepting orders right now' };
+    if (tenant.plan?.paused) return { status: 409, message: 'The shop is not accepting orders right now' };
 
-    // No COD during free service. Switched on with ENFORCE_NO_COD_IN_FREE=true (keep it OFF until online payments exist)
-    const noCod = process.env.ENFORCE_NO_COD_IN_FREE === 'true' && tenant.billing?.state === 'free';
-    const methods = noCod ? o.payments.filter((m) => m !== 'cod') : o.payments;
+    const methods = o.payments;
     // Online methods are switched on per shop by the superadmin (payments.enabled, keys tested), so a shop whose online
     // payments work does not also have to list them in orders.payments. `online` is only set for online methods.
     const onlineSwitchedOn = !!online?.ok && APP_METHODS.includes(body.paymentMethod);
     if (!onlineSwitchedOn && !methods.includes(body.paymentMethod)) {
-        return { status: 400, message: noCod && body.paymentMethod === 'cod' ? 'Cash on delivery is not available right now' : 'This payment method is not available' };
+        return { status: 400, message: 'This payment method is not available' };
     }
 
     // Online payment: only UPI for now, and this shop must be able to take money right now

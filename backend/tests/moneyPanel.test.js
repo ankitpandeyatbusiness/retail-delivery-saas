@@ -10,7 +10,7 @@ const f = require('./helpers/factory');
 const appModule = require('../src/server/app');
 const app = appModule.app || appModule;
 const PaymentDispute = require('../src/models/PaymentDispute');
-const SubscriptionInvoice = require('../src/models/SubscriptionInvoice');
+const { paidPlan } = require('./helpers/planPay');
 const Tenant = require('../src/models/Tenant');
 const mongoose = require('mongoose');
 
@@ -51,68 +51,6 @@ describe('platform: business, billing rules, tiers, SMS prices', () => {
         const profit = await get('/api/admin/sms/profit');
         assert.equal(profit.status, 200);
         assert.ok(profit.body.totals);
-    });
-});
-
-describe('one shop: billing', () => {
-    test('unpause is refused for a shop that is not paused', async () => {
-        const shop = await f.makeTenant(`money-${++n}`);
-        assert.equal((await post(`/api/admin/tenants/${shop._id}/billing/unpause`, { days: 3 })).status, 409);
-    });
-});
-
-describe('rent invoices', () => {
-    test('custom invoice needs business details; then paid, undo, extend grace, void', async () => {
-        const shop = await f.makeTenant(`money-${++n}`);
-        const base = `/api/admin/tenants/${shop._id}`;
-        const body = { lineItems: [{ description: 'Set-up', qty: 1, rate: 2000 }, { description: 'Training', qty: 2, rate: 500 }], gstPercent: 18, dueDays: 7, graceDays: 5, blocksShop: true, note: 'Thanks' };
-
-        assert.equal((await post(`${base}/invoices/custom`, body)).status, 400);   // no business details yet
-        await put('/api/admin/platform/business', businessBody);
-
-        const c = await post(`${base}/invoices/custom`, body);
-        assert.equal(c.status, 201, JSON.stringify(c.body));
-        assert.equal(c.body.baseAmount, 3000);
-        assert.equal(c.body.gstAmount, 540);
-        assert.equal(c.body.total, 3540);
-        assert.equal(c.body.status, 'pending');
-        const id = c.body._id;
-
-        const list = await get(`/api/admin/subscriptions/invoices?tenantId=${shop._id}&status=pending`);
-        assert.equal(list.body.items.length, 1);
-        assert.equal(list.body.items[0].shopName, shop.name);
-
-        const grace = await patch(`/api/admin/subscriptions/invoices/${id}/extend-grace`, { days: 3 });
-        assert.equal(grace.status, 200);
-        assert.equal((await patch(`/api/admin/subscriptions/invoices/${id}/extend-grace`, { days: 0 })).status, 400);
-
-        const paid = await patch(`/api/admin/subscriptions/invoices/${id}/status`, { status: 'paid', paymentMode: 'upi', paymentRef: 'UTR1', note: 'Phone call' });
-        assert.equal(paid.status, 200, JSON.stringify(paid.body));
-        assert.equal(paid.body.status, 'paid');
-        assert.equal(paid.body.paymentMode, 'upi');
-        assert.equal((await patch(`/api/admin/subscriptions/invoices/${id}/status`, { status: 'paid', paymentMode: 'barter' })).status, 400);
-
-        // a paid invoice cannot be voided, but can be set back to pending
-        assert.equal((await patch(`/api/admin/subscriptions/invoices/${id}/void`, { reason: 'x' })).status, 409);
-        const undo = await patch(`/api/admin/subscriptions/invoices/${id}/status`, { status: 'pending' });
-        assert.equal(undo.body.status, 'pending');
-
-        const one = await get(`/api/admin/subscriptions/invoices/${id}`);
-        assert.equal(one.body.invoiceNo, c.body.invoiceNo);
-
-        const voided = await patch(`/api/admin/subscriptions/invoices/${id}/void`, { reason: 'Made by mistake' });
-        assert.equal(voided.status, 200);
-        assert.equal(voided.body.status, 'void');
-        assert.equal((await patch(`/api/admin/subscriptions/invoices/${id}/status`, { status: 'paid' })).status, 409);   // void is final
-    });
-
-    test('the rent invoice PDF downloads with the login', async () => {
-        const shop = await f.makeTenant(`money-${++n}`);
-        await put('/api/admin/platform/business', businessBody);
-        const c = await post(`/api/admin/tenants/${shop._id}/invoices/custom`, { lineItems: [{ description: 'Fee', qty: 1, rate: 100 }] });
-        const pdf = await get(`/api/admin/subscriptions/invoices/${c.body._id}/pdf`);
-        assert.equal(pdf.status, 200);
-        assert.match(String(pdf.headers['content-type']), /pdf/);
     });
 });
 
@@ -216,24 +154,22 @@ describe('SMS wallet and sender of one shop', () => {
 describe('ledger', () => {
     test('platform and shop views, filters, and a CSV export', async () => {
         const shop = await f.makeTenant(`money-${++n}`);
-        await put('/api/admin/platform/business', businessBody);
-        await post(`/api/admin/tenants/${shop._id}/invoices/custom`, { lineItems: [{ description: 'Fee', qty: 1, rate: 100 }] });
+        await paidPlan(shop._id, { baseRs: 100 });
 
         const day = new Date(Date.now() + 330 * 60000).toISOString().slice(0, 10);   // the Indian day, as the server counts it
         const plat = await get(`/api/admin/ledger?from=${day}&to=${day}&limit=20`);
         assert.equal(plat.status, 200);
         assert.equal(plat.body.items.length, 1);
-        assert.equal(plat.body.items[0].category, 'rent');
-        assert.equal(plat.body.items[0].status, 'pending');
-        assert.equal(plat.body.totals.pending.count, 1);
+        assert.equal(plat.body.items[0].category, 'plan');
+        assert.equal(plat.body.items[0].status, 'done');
+        assert.equal(plat.body.totals.pending.count, 0);
 
         assert.equal((await get('/api/admin/ledger?category=customer_payment')).status, 400);   // not a platform category
-        const shopView = await get(`/api/admin/tenants/${shop._id}/ledger?category=rent&status=pending`);
+        const shopView = await get(`/api/admin/tenants/${shop._id}/ledger?category=plan&status=done`);
         assert.equal(shopView.body.items.length, 1);
 
         const sheet = await require('./helpers/sheet').readSheet(get(`/api/admin/tenants/${shop._id}/ledger/export`));   // an Excel file now
         assert.equal(sheet.res.status, 200);
         assert.match(String(sheet.res.headers['content-type']), /spreadsheetml/);
-        assert.match(sheet.text, /Monthly bill/);
     });
 });

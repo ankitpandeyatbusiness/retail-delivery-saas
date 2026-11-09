@@ -5,7 +5,7 @@
 //           'paused'  rent is unpaid: orders, riders, cash, money and rent stay open; menu and settings are closed
 //           'blocked' the platform switched this panel off: only orders in progress, rent and notifications stay open
 import { create } from 'zustand';
-import { fetchLive, fetchBillingStatus, fetchDashboard, fetchShopNotifications, fetchSupport, accessState } from '../../api/owners/shopApi';
+import { fetchLive, fetchPlan, fetchDashboard, fetchShopNotifications, fetchSupport, accessState } from '../../api/owners/shopApi';
 
 let seq = 0;   // the newest answer wins when two refreshes overlap
 
@@ -29,7 +29,7 @@ export const useOwnerStore = create((set, get) => ({
     refresh: async () => {
         const mine = ++seq;
         try {
-            const [live, billing, dashboard, inbox, help] = await Promise.allSettled([fetchLive(), fetchBillingStatus(), fetchDashboard(), fetchShopNotifications({ unread: true, limit: 1 }), fetchSupport({ status: 'open' })]);
+            const [live, billing, dashboard, inbox, help] = await Promise.allSettled([fetchLive(), fetchPlan(), fetchDashboard(), fetchShopNotifications({ unread: true, limit: 1 }), fetchSupport({ status: 'open' })]);
             if (mine !== seq) return;
             const next = { loadedAt: Date.now(), error: null };
             if (live.status === 'fulfilled') next.live = live.value;
@@ -37,10 +37,10 @@ export const useOwnerStore = create((set, get) => ({
             if (inbox.status === 'fulfilled') next.unread = inbox.value.unreadCount || 0;
             if (help.status === 'fulfilled') next.supportUnread = help.value.unreadCount || 0;
             if (billing.status === 'fulfilled') {
-                next.billing = billing.value;
-                if (get().access !== 'blocked') next.access = billing.value.paused ? 'paused' : 'ok';
+                next.billing = { paused: !!billing.value?.current?.paused };
+                if (get().access !== 'blocked') next.access = next.billing.paused ? 'paused' : 'ok';
             }
-            // /live and /dashboard are open while rent is unpaid, so a "blocked" answer there means the panel itself is switched off
+            // /live and /dashboard stay open while the plan is paused, so a "blocked" answer there means the panel itself is switched off
             const failed = [live, dashboard].find((r) => r.status === 'rejected');
             if (failed) {
                 const a = accessState(failed.reason);

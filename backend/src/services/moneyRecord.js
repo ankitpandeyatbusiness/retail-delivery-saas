@@ -2,7 +2,7 @@
 // "did you get your part?" (50% of a shop Vivyaan brought, 70% of one the developer brought, on the amount before GST).
 // A plain record for the two of them: no due dates, no amounts owed, no alerts. The real money moves outside the app.
 const mongoose = require('mongoose');
-const SubscriptionInvoice = require('../models/SubscriptionInvoice');
+const platformSales = require('./platformSales');
 const SmsTopup = require('../models/SmsTopup');
 const Tenant = require('../models/Tenant');
 const Brand = require('../models/Brand');
@@ -25,19 +25,12 @@ const nowMonth = () => new Date(Date.now() + 330 * 60000).toISOString().slice(0,
 // what each shop paid in the month (by the day the money was received): Map tenantId -> [{ kind, label, amount }]
 async function paidLines(month) {
     const range = monthRange(month);
-    const [invoices, topups] = await Promise.all([
-        SubscriptionInvoice.find({ status: 'paid', paidAt: range }).select('tenantId kind period invoiceNo baseAmount paidAt').sort({ paidAt: 1 }).lean(),
-        SmsTopup.find({ status: 'paid', paidAt: range }).select('tenantId amountPaise paidAt').sort({ paidAt: 1 }).lean(),
-    ]);
+    const sales = await platformSales.paid({ from: range.$gte, to: range.$lt });   // plans, extra shops, wallet and SMS top-ups
     const byShop = new Map();
     const add = (tid, line) => { const k = String(tid); if (!byShop.has(k)) byShop.set(k, []); byShop.get(k).push(line); };
-    for (const i of invoices) {
-        if (!(i.baseAmount > 0)) continue;
-        add(i.tenantId, { kind: i.kind === 'custom' ? 'other' : 'rent', label: i.kind === 'custom' ? 'Setup fee or other bill' : `Rent of ${i.period}`, invoiceNo: i.invoiceNo, amount: round2(i.baseAmount) });
-    }
-    for (const t of topups) {
-        if (!(t.amountPaise > 0)) continue;
-        add(t.tenantId, { kind: 'topup', label: 'SMS top-up', amount: round2(t.amountPaise / 100) });
+    for (const x of sales) {
+        if (x.kind === 'wallet' || !(x.baseAmount > 0)) continue;   // a wallet top-up is prepaid money, not a sale
+        add(x.tenantId, { kind: x.kind === 'sms' ? 'topup' : 'rent', label: x.description, invoiceNo: x.invoiceNo, amount: round2(x.baseAmount) });
     }
     return byShop;
 }

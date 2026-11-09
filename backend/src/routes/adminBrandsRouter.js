@@ -7,17 +7,11 @@
 //   PUT    /brands/:id                     { name?, notes?, discountPercent? }   discountPercent: rent discount for the 2nd branch onward (0 = off, never above the cap)
 //   POST   /brands/:id/branches            { tenantId } (a shop that already exists) or { name, slug, city, managerPhone?, copyFromTenantId? } (a new branch)
 //   POST   /brands/:id/branches/:tid/area-lock   { locked: true|false }  lock or unlock the map pin and delivery radius (supreme admin): a branch manager cannot change a locked area
-//   PUT    /brands/:id/free-start          { on, freeOrders?, freeMonths? }  "New branches get a free start": on = one shared free pool for the brand, off = no free time for a new branch (supreme admin)
-//   POST   /brands/:id/bulk/waive-late-fees  { tenantIds: [..] | 'all', reason }                       waive every unpaid late fee of the chosen branches (supreme admin)
-//   POST   /brands/:id/bulk/mark-paid        { tenantIds, paymentMode?, paymentRef?, receivedBy, note? }  mark every unpaid bill of the chosen branches paid by hand
-//   POST   /brands/:id/bulk/mark-unpaid      { tenantIds, period }                                  put the paid rent bills of a month back to unpaid
 //   DELETE /brands/:id/branches/:tid       take a branch out of the brand (the shop stays, as a normal shop)
 //   POST   /brands/:id/owners              { phone, ownSlug? }  appoint a brand owner (any superadmin): owner of every branch, can switch between them
 //   DELETE /brands/:id/owners/:phone       take the brand-owner job away (they lose the owner panel in every branch)
 //   POST   /brands/:id/move                { fromTenantId, toTenantId, userId }  move a manager, cook, waiter or rider (any superadmin)
 //   POST   /brands/:id/menu/push           { fromTenantId, productIds, toTenantIds, prices? }  push dishes from one branch to others (supreme admin)
-//   GET    /brands/:id/statement?period=2026-10   the brand's monthly statement (everyone looks)
-//   GET    /brands/:id/statement.pdf?period=2026-10   the same as a PDF (?view=1 opens it in the browser)
 //   POST   /brands/:id/settings/push       { fromTenantId, toTenantIds, sections }  copy settings groups (hours, orders, features, look...) of one branch onto others (supreme admin)
 //   POST   /brands/:id/extras/push         { fromTenantId, kind, ids, toTenantIds }  push coupons, banners or collections (supreme admin)
 //   DELETE /brands/:id                     only when it has no branches
@@ -101,7 +95,7 @@ router.post('/brands', wrap(async (req, res) => {
 
 router.get('/brands/:id', loadBrand, wrap(async (req, res) => {
     const branches = await Tenant.find({ brandId: req.brand._id }).sort({ createdAt: 1 })
-        .select('_id slug name logo status branchCity address.city delivery payments.enabled payments.keyId billing.isLive billing.state createdAt').lean();
+        .select('_id slug name logo status branchCity address.city delivery payments.enabled payments.keyId billing.isLive plan.id createdAt').lean();
     const orders = await brands.ordersThisMonth(branches.map((t) => t._id));
     const stats = await require('../services/shopListStats').forShops(await Tenant.find({ brandId: req.brand._id }).select('_id brandId status createdAt billing.isLive billing.goLiveAt').lean());
     const items = [];
@@ -109,7 +103,7 @@ router.get('/brands/:id', loadBrand, wrap(async (req, res) => {
         items.push({
             id: t._id, slug: t.slug, name: t.name, logo: t.logo || null, status: t.status,
             city: t.branchCity || (t.address && t.address.city) || null,
-            billingState: (t.billing && t.billing.state) || 'free',
+            plan: t.plan?.id || null,
             ordersThisMonth: orders.get(String(t._id)) || 0,
             closed: t.status !== 'active',
             ordersToday: stats.get(String(t._id))?.ordersToday || 0, owed: stats.get(String(t._id))?.owed || 0, overdue: stats.get(String(t._id))?.overdue || 0, lastOrderAt: stats.get(String(t._id))?.lastOrderAt || null,
@@ -118,7 +112,7 @@ router.get('/brands/:id', loadBrand, wrap(async (req, res) => {
             razorpayKeyId: (t.payments && t.payments.keyId) || null,   // the key id is not secret; the secret is never returned
         });
     }
-    res.json({ brand: req.brand, plan: await require('../services/brandPlan').summary(req.brand), branches: items, freeStart: await require('../services/brandFreePool').view(req.brand) });
+    res.json({ brand: req.brand, plan: await require('../services/brandPlan').summary(req.brand), branches: items });
 }));
 
 router.put('/brands/:id', loadBrand, wrap(async (req, res) => {
@@ -164,14 +158,6 @@ router.post('/brands/:id/sync-plan', loadBrand, wrap(async (req, res) => {
     const r = await require('../services/brandPlan').syncPlan(req.brand._id);
     res.json({ ...r, summary: await require('../services/brandPlan').summary(await Brand.findById(req.brand._id)) });
 }));
-
-router.get('/brands/:id/statement.pdf', loadBrand, wrap(async (req, res) => {
-    const pdf = require('../services/brandStatementPdf');
-    const st = await require('../services/brandStatement').build(req.brand, req.query.period);
-    pdf.streamStatement(res, st, await pdf.sellerOf(), { inline: req.query.view === '1' });
-}));
-
-router.get('/brands/:id/statement', loadBrand, wrap(async (req, res) => { res.json(await require('../services/brandStatement').build(req.brand, req.query.period)); }));
 
 router.post('/brands/:id/branches', loadBrand, wrap(async (req, res) => {
     const b = req.body || {};
@@ -227,46 +213,13 @@ router.post('/brands/:id/branches', loadBrand, wrap(async (req, res) => {
         await User.create({ tenantId: tenant._id, phone: managerPhone, role: 'admin', phoneHash: hashPhone(tenant._id, managerPhone) });
     }
     invalidateTenant(slug);
-    const freeStart = await require('../services/brandFreePool').applyToNewBranch(req.brand, tenant._id);   // pooled with the brand's free start, or no free time
     const problems = await brands.giveOwnersAccess(req.brand, tenant);
     // the starting menu: a copy of the branch we copied the look from (each branch edits its own from now on)
     const menu = base && b.copyMenu !== false ? await require('../services/menuSync').copyMenu({ fromTenantId: b.copyFromTenantId, toTenantId: tenant._id }) : null;
     const extras = menu ? await require('../services/extrasSync').copyExtras({ fromTenantId: b.copyFromTenantId, toTenantId: tenant._id }) : null;   // after the dishes: a collection needs them
     await require('../services/brandPlan').syncPlan(req.brand._id);   // the new branch carries the brand's plan
-    res.status(201).json({ branch: { id: tenant._id, slug, name }, appBuild: { APP_TENANT: slug }, freeStart, ...(menu && { menu }), ...(extras && { extras }), ...(problems.length && { problems }) });
+    res.status(201).json({ branch: { id: tenant._id, slug, name }, appBuild: { APP_TENANT: slug }, ...(menu && { menu }), ...(extras && { extras }), ...(problems.length && { problems }) });
 }));
-
-router.put('/brands/:id/free-start', loadBrand, wrap(async (req, res) => {
-    const b = req.body || {};
-    if (typeof b.on !== 'boolean') throw httpError(400, 'on must be true or false');
-    const num = (v, what) => {
-        if (v === undefined || v === null) return undefined;
-        const n = Number(v);
-        if (!Number.isInteger(n) || n < 0 || n > 1000) throw httpError(400, `${what} must be a whole number from 0 to 1000`);
-        return n;
-    };
-    const pool = require('../services/brandFreePool');
-    req.auditBefore = { freeStart: req.brand.freeStart };
-    if (b.on) await pool.enable(req.brand, { freeOrders: num(b.freeOrders, 'Free orders'), freeMonths: num(b.freeMonths, 'Free months') });
-    else await pool.disable(req.brand);
-    const fresh = await Brand.findById(req.brand._id);
-    res.json({ freeStart: await pool.view(fresh) });
-}));
-
-// the supreme admin's bulk money actions (services/brandBulkBilling.js): one row per branch, what was done and what was skipped
-const bulk = (name) => wrap(async (req, res) => {
-    const b = req.body || {};
-    const svc = require('../services/brandBulkBilling');
-    req.auditBefore = { action: name, tenantIds: b.tenantIds === undefined ? 'all' : b.tenantIds };
-    let out;
-    if (name === 'waive-late-fees') out = await svc.waiveLateFees(req.brand, b.tenantIds, { reason: b.reason, by: req.admin.email });
-    else if (name === 'mark-paid') out = await svc.markPaid(req.brand, b.tenantIds, b, req.admin);
-    else out = await svc.markUnpaid(req.brand, b.tenantIds, b, req.admin);
-    res.json(out);
-});
-router.post('/brands/:id/bulk/waive-late-fees', loadBrand, bulk('waive-late-fees'));
-router.post('/brands/:id/bulk/mark-paid', loadBrand, bulk('mark-paid'));
-router.post('/brands/:id/bulk/mark-unpaid', loadBrand, bulk('mark-unpaid'));
 
 router.post('/brands/:id/branches/:tid/area-lock', loadBrand, wrap(async (req, res) => {
     if (!isId(req.params.tid)) throw httpError(404, 'Branch not found');

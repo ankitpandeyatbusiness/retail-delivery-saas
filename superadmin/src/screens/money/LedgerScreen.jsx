@@ -22,10 +22,10 @@ const RANGES = [
     { value: '90', label: '90 days' },
 ];
 const CATS = {
-    platform: [{ value: '', label: 'Everything' }, { value: 'rent', label: 'Monthly bills' }, { value: 'sms_topup', label: 'SMS top-ups' }],
+    platform: [{ value: '', label: 'Everything' }, { value: 'plan', label: 'Plans and extra shops' }, { value: 'wallet', label: 'Wallet top-ups' }, { value: 'sms_topup', label: 'SMS top-ups' }],
     shop: [
         { value: '', label: 'Everything' }, { value: 'customer_payment', label: 'From customers' }, { value: 'customer_refund', label: 'Refunds' },
-        { value: 'dispute_lost', label: 'Chargebacks' }, { value: 'sms_topup', label: 'SMS top-ups' }, { value: 'rent', label: 'Monthly bills' },
+        { value: 'dispute_lost', label: 'Chargebacks' }, { value: 'sms_topup', label: 'SMS top-ups' }, { value: 'plan', label: 'Plans and extra shops' }, { value: 'wallet', label: 'Wallet top-ups' },
     ],
 };
 

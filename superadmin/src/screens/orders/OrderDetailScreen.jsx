@@ -195,7 +195,6 @@ export default function OrderDetailScreen() {
                 <KeyValue label="Status" value={titleCase(o.payment?.status || '')} />
                 {o.payment?.paidAt ? <KeyValue label="Paid at" value={dateTime(o.payment.paidAt)} /> : null}
                 {o.payment?.paymentId ? <KeyValue label="Payment id" value={o.payment.paymentId} /> : null}
-                {o.billing?.billable !== undefined ? <KeyValue label="Counts for rent" value={o.billing.billable ? 'Yes' : 'No'} /> : null}
                 <KeyValue label="Cancel / refund" value={o.cancel?.refundPaise ? `Refund ${rupees(o.cancel.refundPaise / 100)}` : null} last />
             </Card>
 

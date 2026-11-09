@@ -335,7 +335,6 @@ export function AccessBanner() {
     const nav = useNavigation();
     const { error } = useBrand();
     const access = useOwnerStore((st) => st.access);
-    const billing = useOwnerStore((st) => st.billing);
     // A brand owner looking at another branch while no branch of the brand has multi-branch (Pro): everything can be read, nothing can be changed.
     const viewOnly = useBrandStore((st) => !!st.me?.viewOnly);
     if (viewOnly) {
@@ -353,24 +352,21 @@ export function AccessBanner() {
     }
     if (access === 'ok') return null;
     const blocked = access === 'blocked';
-    const planPaused = !blocked && !!billing?.planPaused;
-    const due = billing?.due?.amount ? ` ${money(billing.due.amount)} is due.` : '';
+    const planPaused = !blocked;   // the only other state is a plan that was not renewed
     return (
         <Card tone={error} style={{ marginHorizontal: 16, marginBottom: 12 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Ionicons name={blocked ? 'lock-closed' : 'alert-circle'} size={22} color={error} />
                 <View style={{ flex: 1, marginLeft: 10 }}>
-                    <Text style={{ color: error, fontWeight: '900' }}>{blocked ? tr('Your shop panel is paused') : planPaused ? tr('Your plan has ended') : tr('Rent is unpaid')}</Text>
+                    <Text style={{ color: error, fontWeight: '900' }}>{blocked ? tr('Your shop panel is paused') : tr('Your plan has ended')}</Text>
                     <Text style={{ color: error, opacity: 0.85, fontSize: 12, marginTop: 2 }}>
                         {blocked
                             ? tr('Please contact support. You can still finish orders that are in progress.')
-                            : planPaused
-                                ? tr('New orders have stopped. Choose your plan to open your shop again. Orders in progress can be finished.')
-                                : tr('Menu and settings are locked until it is paid.{due} Orders, riders and money still work.', { due: due })}
+                            : tr('New orders have stopped. Choose your plan to open your shop again. Orders in progress can be finished.')}
                     </Text>
                 </View>
             </View>
-            {!blocked ? <Button label={planPaused ? tr('Choose your plan') : tr('Pay rent')} kind="primary" onPress={() => nav.navigate(planPaused ? 'OwnerPlan' : 'OwnerMoney')} style={{ marginTop: 10 }} /> : null}
+            {!blocked ? <Button label={tr('Choose your plan')} kind="primary" onPress={() => nav.navigate('OwnerPlan')} style={{ marginTop: 10 }} /> : null}
         </Card>
     );
 }

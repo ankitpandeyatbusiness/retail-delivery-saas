@@ -5,7 +5,6 @@
 //       Switches EVERY shop's app to maintenance. /api/admin and /health keep working.
 //   PUT /api/admin/platform/business      your details printed on rent invoices:
 //       legalName, address, gstin, email, phone, sacCode, paymentInstructions
-//   PUT /api/admin/platform/billing       body { "dueDays": 7 }
 
 const express = require('express');
 const PlatformSettings = require('../models/PlatformSettings');
@@ -57,23 +56,6 @@ router.put('/platform/business', wrap(async (req, res) => {
     doc.set(changes);
     await doc.save();   // runs the GST number check
     res.json(doc.toObject().business);
-}));
-
-router.put('/platform/billing', wrap(async (req, res) => {
-    const rules = { dueDays: [0, 60], graceDays: [0, 60], freeOrders: [0, 100000], freeMonths: [0, 36], lateFeePercent: [0, 100], lateFeeEveryDays: [1, 90], overdueRemindDays: [1, 30], closeAfterMonths: [1, 60] };
-    const changes = {};
-    for (const [key, [min, max]] of Object.entries(rules)) {
-        const v = req.body?.[key];
-        if (v === undefined) continue;
-        if (!Number.isInteger(v) || v < min || v > max) throw httpError(400, `${key} must be a whole number from ${min} to ${max}`);
-        changes[`billing.${key}`] = v;
-    }
-    if (!Object.keys(changes).length) throw httpError(400, `Send at least one of: ${Object.keys(rules).join(', ')}`);
-
-    const doc = await loadDoc();
-    doc.set(changes);
-    await doc.save();
-    res.json(doc.toObject().billing);
 }));
 
 // Your alert SMS switch.  PUT /api/admin/platform/alerts  { smsToAdmin, allEvents, phone }

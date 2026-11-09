@@ -7,7 +7,7 @@
 //   waiting     orders nobody has accepted yet, each with the moment the server will cancel it
 //   stock       items that are out of stock, and items that are nearly out (only those with a stock count)
 //   riders      online, free, and the cash they hold
-//   complaints, sms, rent   the small things that need him
+//   complaints, sms   the small things that need him
 //
 // "Sales" means DELIVERED orders counted on the day they were delivered, the same rule as the sales report.
 const Order = require('../models/Order');
@@ -15,7 +15,6 @@ const Product = require('../models/Product');
 const Rider = require('../models/Rider');
 const Complaint = require('../models/Complaint');
 const Tenant = require('../models/Tenant');
-const SubscriptionInvoice = require('../models/SubscriptionInvoice');
 const smsWallet = require('./smsWalletService');
 const cod = require('./codService');
 const { startOf } = require('./liveSnapshot');
@@ -66,7 +65,7 @@ async function build(tenantId) {
 
     const [
         today, before, byHourRows, placed, cancelledRows, acceptSec, waitingRows, itemRows,
-        riders, owed, complaints, wallet, tenant, invoiceRows,
+        riders, owed, complaints, wallet,
     ] = await Promise.all([
         sales(tenantId, day, new Date(now.getTime() + 1000)),
         sales(tenantId, yesterday, sameTimeYesterday),
@@ -91,11 +90,6 @@ async function build(tenantId) {
         cod.balances(tenantId),
         Complaint.countDocuments({ tenantId, status: { $in: ['open', 'in_progress'] } }),
         smsWallet.status(tenantId),
-        Tenant.findById(tenantId).select('billing.state').lean(),
-        SubscriptionInvoice.aggregate([
-            { $match: { tenantId, status: 'pending' } },
-            { $group: { _id: null, amount: { $sum: '$total' }, count: { $sum: 1 }, graceEndsAt: { $min: '$graceEndsAt' } } },
-        ]),
     ]);
 
     // all 24 hours, so the chart has no gaps
@@ -109,7 +103,6 @@ async function build(tenantId) {
     const brief = (p) => ({ id: p._id, name: p.name, qty: p.stock?.enabled ? p.stock.qty : null, sellBy: p.sellBy || null });
 
     const online = riders.filter((r) => r.isOnline);
-    const invoice = invoiceRows[0];
     const cancelled = cancelledRows[0];
 
     return {
@@ -139,12 +132,6 @@ async function build(tenantId) {
         },
         complaints: { open: complaints },
         sms: { balancePaise: wallet.balancePaise, low: !!wallet.low, zero: !!wallet.zero },
-        rent: {
-            state: tenant?.billing?.state || null,
-            dueAmount: invoice?.amount || 0,
-            dueCount: invoice?.count || 0,
-            graceEndsAt: invoice?.graceEndsAt || null,
-        },
     };
 }
 

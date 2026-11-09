@@ -9,7 +9,6 @@
 //
 // Kept as they were: amounts, free days and free-period settings, past invoices, credit notes, the shop's own settings.
 const Tenant = require('../models/Tenant');
-const SubscriptionInvoice = require('../models/SubscriptionInvoice');
 const planService = require('./planService');
 const { invalidateTenant } = require('../middlewares/tenantRecognizer');
 const { httpError } = require('../middlewares/apiErrors');
@@ -19,13 +18,8 @@ const FREE_DAYS = 30;
 
 const baseFilter = { 'plan.id': { $exists: false }, 'plan.migration.version': { $ne: VERSION } };
 
-async function openBills(ids) {
-    const rows = await SubscriptionInvoice.aggregate([
-        { $match: { tenantId: { $in: ids }, status: 'pending' } },
-        { $group: { _id: '$tenantId', count: { $sum: 1 }, totalRs: { $sum: '$total' }, oldestDue: { $min: '$dueDate' } } },
-    ]);
-    return new Map(rows.map((r) => [String(r._id), { count: r.count, totalRs: Math.round(r.totalRs * 100) / 100, oldestDue: r.oldestDue }]));
-}
+// the old rent bills are gone, so nobody has open bills
+async function openBills() { return new Map(); }
 
 async function preview(now = new Date()) {
     const shops = await Tenant.find(baseFilter).select('name slug status closure.on billing.state brandId plan').lean();

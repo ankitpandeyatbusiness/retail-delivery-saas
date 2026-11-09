@@ -8,7 +8,8 @@ const OnlinePayment = require('../models/OnlinePayment');
 const OnlineRefund = require('../models/OnlineRefund');
 const PaymentDispute = require('../models/PaymentDispute');
 const SmsTransaction = require('../models/SmsTransaction');
-const SubscriptionInvoice = require('../models/SubscriptionInvoice');
+const PlanPayment = require('../models/PlanPayment');
+const PartnerTopup = require('../models/PartnerTopup');
 const Tenant = require('../models/Tenant');
 const Order = require('../models/Order');
 const BulkPayment = require('../models/BulkPayment');
@@ -24,7 +25,8 @@ const LABELS = {
     customer_refund: 'Refund to customer',
     dispute_lost: 'Chargeback lost',
     sms_topup: 'SMS top-up',
-    rent: 'Monthly bill',
+    plan: 'Plan or extra shop',
+    wallet: 'Partner wallet top-up',
 };
 
 // perspective: who is asking. dir = which way the money moves for him.
@@ -104,15 +106,21 @@ const BRANCHES = [
         },
     },
     {
-        category: 'rent', model: SubscriptionInvoice, views: { shop: 'out', platform: 'in' },
-        match: { status: { $in: ['paid', 'pending'] } },
-        dateMatch: (r) => ({ $or: [{ status: 'paid', paidAt: r }, { status: 'pending', issueDate: r }] }),
+        category: 'plan', model: PlanPayment, views: { shop: 'out', platform: 'in' },
+        match: { status: 'paid' },
+        dateMatch: (r) => ({ paidAt: r }),
         project: {
-            at: { $ifNull: ['$paidAt', '$issueDate'] },
-            amountPaise: { $toLong: { $round: [{ $multiply: ['$total', 100] }, 0] } },
-            status: { $cond: [{ $eq: ['$status', 'paid'] }, lit('done'), lit('pending')] },
-            orderId: lit(null), ref: '$invoiceNo',
-            meta: { period: '$period', kind: '$kind', paymentMode: '$paymentMode', paymentRef: '$paymentRef', dueDate: '$dueDate', description: '$description' },
+            at: '$paidAt', amountPaise: '$payablePaise', status: lit('done'), orderId: lit(null), ref: '$invoice.invoiceNo',
+            meta: { kind: '$kind', plan: '$to', months: '$months' },
+        },
+    },
+    {
+        category: 'wallet', model: PartnerTopup, views: { shop: 'out', platform: 'in' },
+        match: { status: 'paid' },
+        dateMatch: (r) => ({ paidAt: r }),
+        project: {
+            at: '$paidAt', amountPaise: { $ifNull: ['$payablePaise', '$amountPaise'] }, status: lit('done'), orderId: lit(null), ref: '$invoice.invoiceNo',
+            meta: { note: 'Partner wallet top-up' },
         },
     },
 ];
@@ -160,9 +168,7 @@ function branchPipeline(b, view, tenantId, f) {
     const and = [b.match];
     if (tenantId) and.push({ tenantId });
     if (Object.keys(range).length) and.push(b.dateMatch(range));
-    if (f.status === 'pending' && b.category !== 'rent') return null;   // only bills can be pending
-    if (f.status === 'pending') and.push({ status: 'pending' });
-    if (f.status === 'done' && b.category === 'rent') and.push({ status: 'paid' });
+    if (f.status === 'pending') return null;   // everything is prepaid: nothing is pending
     return [
         { $match: { $and: and } },
         { $project: { tenantId: 1, ...b.project, category: lit(b.category), direction: lit(b.views[view]) } },

@@ -14,7 +14,7 @@ const { makeWorld, makeOrder, makeSuperAdmin } = require('./helpers/factory');
 const OPEN = [
     '/api/shop/orders', '/api/shop/riders', '/api/shop/riders/locations', '/api/shop/cod/riders',
     '/api/shop/sms/wallet', '/api/shop/activity', '/api/shop/reports/sales',
-    '/api/shop/billing/status', '/api/shop/subscription/invoices', '/api/shop/notifications',
+    '/api/shop/plan', '/api/shop/notifications',
 ];
 // ...and these are CLOSED
 const CLOSED = [
@@ -36,7 +36,7 @@ async function worldWith(slug, billingOrTenantFields) {
     return w;
 }
 
-describe('rent pause: what stays open and what closes', () => {
+describe('plan pause: what stays open and what closes', () => {
     before(() => db.connect());
     after(() => db.disconnect());
     beforeEach(() => {
@@ -46,7 +46,7 @@ describe('rent pause: what stays open and what closes', () => {
     afterEach(() => mock.restoreAll());
 
     test('the open routes answer 200 while the shop is paused', async () => {
-        const w = await worldWith('pause-open', { 'billing.state': 'paused' });
+        const w = await worldWith('pause-open', { 'plan.id': 'growth', 'plan.paused': true, 'plan.endsAt': new Date(Date.now() - 864e5) });
         for (const path of OPEN) {
             const res = await request(app).get(path).set(w.owner.headers);
             assert.equal(res.status, 200, `${path} should stay open`);
@@ -54,7 +54,7 @@ describe('rent pause: what stays open and what closes', () => {
     });
 
     test('the closed routes answer 403 "paused" while the shop is paused', async () => {
-        const w = await worldWith('pause-closed', { 'billing.state': 'paused' });
+        const w = await worldWith('pause-closed', { 'plan.id': 'growth', 'plan.paused': true, 'plan.endsAt': new Date(Date.now() - 864e5) });
         for (const route of CLOSED) {
             const res = await call(w.owner.headers, route);
             assert.equal(res.status, 403, `${route[0]} ${route[1]} should be closed`);
@@ -63,7 +63,7 @@ describe('rent pause: what stays open and what closes', () => {
     });
 
     test('the owner can still finish an order while the shop is paused', async () => {
-        const w = await worldWith('pause-finish', { 'billing.state': 'paused' });
+        const w = await worldWith('pause-finish', { 'plan.id': 'growth', 'plan.paused': true, 'plan.endsAt': new Date(Date.now() - 864e5) });
         const order = await makeOrder(w.tenant, w.customer.user, { status: 'ready', orderType: 'pickup' });
         const res = await request(app).patch(`/api/shop/orders/${order._id}/status`).set(w.owner.headers).send({ status: 'delivered', skipCode: true });   // a pickup is handed over with its code, or without it on purpose
         assert.equal(res.status, 200);
@@ -71,7 +71,7 @@ describe('rent pause: what stays open and what closes', () => {
     });
 
     test('the invoice of a delivered order can be downloaded while the shop is paused', async () => {
-        const w = await worldWith('pause-invoice', { 'billing.state': 'paused' });
+        const w = await worldWith('pause-invoice', { 'plan.id': 'growth', 'plan.paused': true, 'plan.endsAt': new Date(Date.now() - 864e5) });
         const order = await makeOrder(w.tenant, w.customer.user, { status: 'delivered', deliveredAt: new Date() });
         const res = await request(app).get(`/api/shop/orders/${order._id}/invoice`).set(w.owner.headers);
         assert.equal(res.status, 200);
@@ -98,7 +98,7 @@ describe('rent pause: what stays open and what closes', () => {
     });
 
     test('the superadmin is never closed out of a paused shop', async () => {
-        const w = await worldWith('pause-admin', { 'billing.state': 'paused' });
+        const w = await worldWith('pause-admin', { 'plan.id': 'growth', 'plan.paused': true, 'plan.endsAt': new Date(Date.now() - 864e5) });
         const { token } = await makeSuperAdmin('pause-admin@example.com');
         const auth = { Authorization: `Bearer ${token}` };
         for (const path of ['/shop/riders', '/shop/categories', '/shop/cod/riders', '/shop/reports/sales']) {
@@ -108,7 +108,7 @@ describe('rent pause: what stays open and what closes', () => {
     });
 
     test('a customer or a rider still cannot use the open owner routes', async () => {
-        const w = await worldWith('pause-roles', { 'billing.state': 'paused' });
+        const w = await worldWith('pause-roles', { 'plan.id': 'growth', 'plan.paused': true, 'plan.endsAt': new Date(Date.now() - 864e5) });
         assert.equal((await request(app).get('/api/shop/riders').set(w.customer.headers)).status, 403);
         assert.equal((await request(app).get('/api/shop/cod/riders').set(w.rider.headers)).status, 403);
         assert.equal((await request(app).get('/api/shop/reports/sales')).status, 400);   // no shop header: refused before anything else

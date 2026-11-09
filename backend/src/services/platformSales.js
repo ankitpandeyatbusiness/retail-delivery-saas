@@ -7,6 +7,7 @@
 const PlanPayment = require('../models/PlanPayment');
 const PartnerTopup = require('../models/PartnerTopup');
 const SmsTopup = require('../models/SmsTopup');
+const PartnerTransaction = require('../models/PartnerTransaction');
 
 const rs = (paise) => Math.round(paise || 0) / 100;
 
@@ -48,4 +49,16 @@ async function byMonth({ from, to } = {}) {
     return out;
 }
 
-module.exports = { paid, byMonth };
+// What ONE shop paid the platform in a period, in rupees: its plan (and extra shops) and the per-order fees taken from its Partner wallet (net of fees put back).
+// Wallet top-ups are not a cost: they are prepaid money, the cost is the fees taken out of it.
+async function shopCosts({ tenantId, from, to }) {
+    const when = from || to ? { createdAt: { ...(from ? { $gte: from } : {}), ...(to ? { $lt: to } : {}) } } : {};
+    const [rows, fees] = await Promise.all([
+        paid({ tenantId, from, to }),
+        PartnerTransaction.aggregate([{ $match: { tenantId, type: { $in: ['fee', 'reverse'] }, ...when } }, { $group: { _id: null, paise: { $sum: '$amountPaise' } } }]),
+    ]);
+    const plan = rows.filter((r) => r.kind === 'plan' || r.kind === 'branch').reduce((n, r) => n + r.total, 0);
+    return { plan: Math.round(plan * 100) / 100, fees: Math.round(-(fees[0]?.paise || 0)) / 100, sms: Math.round(rows.filter((r) => r.kind === 'sms').reduce((n, r) => n + r.total, 0) * 100) / 100 };
+}
+
+module.exports = { paid, byMonth, shopCosts };

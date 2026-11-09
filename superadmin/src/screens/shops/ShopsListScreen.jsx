@@ -27,7 +27,6 @@ function BrandRow({ g, open, onToggle, onShop }) {
                 </View>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: spacing.sm }}>
                     <Text style={{ color: t.text, fontSize: font.sm, fontWeight: '700', marginRight: spacing.md }}>{g.ordersToday} orders today</Text>
-                    {g.owed > 0 ? <Text style={{ color: g.overdue > 0 ? t.danger : t.muted, fontSize: font.sm, fontWeight: '800' }}>Rent due {rupees(g.owed)}</Text> : <Text style={{ color: t.muted, fontSize: font.sm }}>all rent paid</Text>}
                 </View>
             </Pressable>
             {open ? <View style={{ marginTop: spacing.sm, paddingLeft: spacing.md }}>{g.shops.map((s) => <ShopRow key={s._id} shop={s} compact onPress={() => onShop(s)} />)}</View> : null}

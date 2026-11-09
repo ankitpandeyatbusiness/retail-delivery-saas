@@ -29,7 +29,6 @@ const {
 const risk = require('./customerRisk');
 const liveTracking = require('./liveTracking');
 const refundService = require('./refundService');
-const billable = require('./billableService');
 const stockService = require('./stockService');
 const riderPay = require('./riderPay');
 const { httpError } = require('../middlewares/apiErrors');
@@ -307,10 +306,6 @@ async function change({ order, status, actor, note, tenant, reasonCode, outcomeO
             await stockService.restoreForOrder(updated).catch(logError('Stock restore error'));
         }
         // The shop kept money: the order counts for the rent
-        if (outcome.billable) {
-            await billable.markBillable(updated, status === 'undelivered' ? 'undelivered_customer' : 'cancel_kept')
-                .catch(logError('Billable count error'));
-        }
         // Money back to the customer (online orders that were paid). It is saved with a fixed key first, so it can never go out twice.
         // If this step fails, the reconcile job finds the order and sends the refund (paymentReconcile).
         if (outcome.refundPaise > 0) {
@@ -324,7 +319,6 @@ async function change({ order, status, actor, note, tenant, reasonCode, outcomeO
 
     if (status === 'delivered') {
         // Billing counter: orders that earned money. It never goes down.
-        await billable.markDelivered(updated).catch(logError('Billable count error'));
 
         // Bestseller count: skip orders bought by shop owners. A failure here must not hurt the order.
         try {

@@ -1,8 +1,10 @@
-// Profit and loss of the PLATFORM (your business), and who owes you money.
+// Profit and loss of the PLATFORM (your business). Everything is prepaid, so nobody owes money: what came in is what was paid (services/platformSales.js).
 // Money rules: invoices are stored in rupees, everything else in paise. This file answers in PAISE.
-//   income  = rent collected WITHOUT GST (GST is not yours) + SMS margin (what shops paid minus what the provider charged)
+//   income  = plans and extra shops WITHOUT GST (GST is not yours) + the per-order fees taken from Partner wallets + SMS margin (what shops paid minus what the provider charged)
+//             (a wallet top-up is prepaid money, not income until it is used as a fee)
 //   costs   = expenses you typed in + alert SMS the platform paid itself
-const SubscriptionInvoice = require('../models/SubscriptionInvoice');
+const platformSales = require('./platformSales');
+const PartnerTransaction = require('../models/PartnerTransaction');
 const SmsLog = require('../models/SmsLog');
 const PlatformSmsCost = require('../models/PlatformSmsCost');
 const Expense = require('../models/Expense');
@@ -40,117 +42,12 @@ function expenseMonths(e, firstKey, lastKey) {
     return out;
 }
 
-// Who owes money, how late, and who pays on time or late.
-async function receivables({ now = new Date() } = {}) {
-    const [pending, paid] = await Promise.all([
-        SubscriptionInvoice.find({ status: 'pending' }).select('tenantId total baseAmount dueDate').lean(),
-        SubscriptionInvoice.find({ status: 'paid' }).select('tenantId dueDate paidAt').lean(),
-    ]);
-    const ids = [...new Set([...pending, ...paid].map((i) => String(i.tenantId)))];
-    const tenants = await Tenant.find({ _id: { $in: ids } }).select('name slug phone status billing.state brandId').lean();
-    const tmap = new Map(tenants.map((t) => [String(t._id), t]));
-    const buckets = { notDue: 0, d1_7: 0, d8_30: 0, d31_60: 0, d60plus: 0 };
-    const bucketOf = (days) => (days <= 0 ? 'notDue' : days <= 7 ? 'd1_7' : days <= 30 ? 'd8_30' : days <= 60 ? 'd31_60' : 'd60plus');
-    const shops = new Map();
-    const shop = (id) => {
-        if (!shops.has(id)) {
-            const t = tmap.get(id) || {};
-            shops.set(id, {
-                tenantId: id, name: t.name || 'Deleted shop', slug: t.slug, brandId: t.brandId ? String(t.brandId) : null, brandName: null, remindedAt: null, billingState: t.billing?.state || 'free',
-                unpaidPaise: 0, overduePaise: 0, invoices: 0, overdueInvoices: 0, oldestDueAt: null, daysOverdue: 0,
-                paidCount: 0, avgDaysLate: 0, onTimeRate: null, lastPaidAt: null, behaviour: 'new',
-            });
-        }
-        return shops.get(id);
-    };
-    let pendingPaise = 0;
-    let overduePaise = 0;
-    let overdueBasePaise = 0;
-    for (const i of pending) {
-        const p = toPaise(i.total);
-        const days = Math.floor((now - new Date(i.dueDate)) / DAY);
-        const s = shop(String(i.tenantId));
-        s.unpaidPaise += p;
-        s.invoices += 1;
-        pendingPaise += p;
-        buckets[bucketOf(days)] += p;
-        if (days > 0) {
-            overduePaise += p;
-            overdueBasePaise += toPaise(i.baseAmount);
-            s.overduePaise += p;
-            s.overdueInvoices += 1;
-            s.daysOverdue = Math.max(s.daysOverdue, days);
-        }
-        if (!s.oldestDueAt || new Date(i.dueDate) < new Date(s.oldestDueAt)) s.oldestDueAt = i.dueDate;
-    }
-    const lateSum = new Map();
-    const onTime = new Map();
-    for (const i of paid) {
-        if (!i.paidAt || !i.dueDate) continue;
-        const id = String(i.tenantId);
-        const s = shop(id);
-        s.paidCount += 1;
-        const late = Math.max(0, Math.floor((new Date(i.paidAt) - new Date(i.dueDate)) / DAY));
-        lateSum.set(id, (lateSum.get(id) || 0) + late);
-        if (late === 0) onTime.set(id, (onTime.get(id) || 0) + 1);
-        if (!s.lastPaidAt || new Date(i.paidAt) > new Date(s.lastPaidAt)) s.lastPaidAt = i.paidAt;
-    }
-    for (const [id, s] of shops) {
-        if (s.paidCount) {
-            s.avgDaysLate = Math.round((lateSum.get(id) / s.paidCount) * 10) / 10;
-            s.onTimeRate = Math.round(((onTime.get(id) || 0) / s.paidCount) * 100);
-        }
-        // not_paying: nothing ever paid, or waiting over 30 days, or paused. late_now: overdue a short while.
-        if (s.overduePaise > 0) s.behaviour = (s.paidCount === 0 || s.daysOverdue > 30 || s.billingState === 'paused') ? 'not_paying' : 'late_now';
-        else if (s.paidCount && s.avgDaysLate > 0) s.behaviour = 'paying_late';
-        else if (s.paidCount) s.behaviour = 'on_time';
-    }
-    const all = [...shops.values()];
-    // the brand each branch belongs to, and when it was last reminded by hand (the Remind button)
-    const brandIds = [...new Set(all.map((s) => s.brandId).filter(Boolean))];
-    const brands = brandIds.length ? await require('../models/Brand').find({ _id: { $in: brandIds } }).select('name').lean() : [];
-    const bname = new Map(brands.map((b) => [String(b._id), b.name]));
-    for (const s of all) s.brandName = s.brandId ? bname.get(s.brandId) || null : null;
-    const owingIds = all.filter((s) => s.unpaidPaise > 0).map((s) => s.tenantId);
-    if (owingIds.length) {
-        const last = await require('../models/Notification').aggregate([
-            { $match: { tenantId: { $in: owingIds.map((x) => new (require('mongoose').Types.ObjectId)(x)) }, role: 'owner', type: 'rent_nudge' } },
-            { $group: { _id: '$tenantId', at: { $max: '$createdAt' } } },
-        ]);
-        const lm = new Map(last.map((r) => [String(r._id), r.at]));
-        for (const s of all) s.remindedAt = lm.get(s.tenantId) || null;
-    }
-    const promises = await require('./collectionNotes').openFor(owingIds);
-    for (const s of all) s.promise = promises.get(s.tenantId) || null;
-    const owing = all.filter((s) => s.unpaidPaise > 0).sort((a, b) => b.overduePaise - a.overduePaise || b.unpaidPaise - a.unpaidPaise);
-    return {
-        totals: {
-            pendingPaise,
-            overduePaise,
-            overdueBasePaise,
-            overdueShops: owing.filter((s) => s.overduePaise > 0).length,
-            owingShops: owing.length,
-            neverPaid: owing.filter((s) => s.paidCount === 0).length,
-            buckets: Object.entries(buckets).map(([key, paise]) => ({ key, paise })),
-        },
-        shops: owing,
-        behaviour: all.filter((s) => s.paidCount > 0).sort((a, b) => b.avgDaysLate - a.avgDaysLate),
-    };
-}
-
 // Plain-words reasons: why it is a loss, or what is eating the profit
-async function explain({ totals, list, rec, from, to }) {
+async function explain({ totals, list, from, to }) {
     const out = [];
     const add = (level, code, text) => out.push({ level, code, text });
     if (totals.costsPaise > totals.incomePaise) {
         add('bad', 'costs_above_income', `Costs (${rs(totals.costsPaise)}) are more than income (${rs(totals.incomePaise)}).`);
-    }
-    if (rec.totals.overduePaise > 0) {
-        const would = totals.netPaise + rec.totals.overdueBasePaise;
-        add('bad', 'unpaid_rent', `${rs(rec.totals.overduePaise)} of rent is overdue from ${rec.totals.overdueShops} shop(s). If it was paid you would be at ${would >= 0 ? 'a profit' : 'a loss'} of about ${rs(would)}.`);
-    }
-    if (rec.totals.pendingPaise > rec.totals.overduePaise) {
-        add('info', 'not_due_yet', `${rs(rec.totals.pendingPaise - rec.totals.overduePaise)} is billed but not due yet.`);
     }
     if (totals.platformSmsCostPaise > 0) {
         add('warn', 'platform_sms', `You paid ${rs(totals.platformSmsCostPaise)} for alert SMS because shop wallets were empty.`);
@@ -164,13 +61,14 @@ async function explain({ totals, list, rec, from, to }) {
         { $match: { $expr: { $lt: ['$charged', '$cost'] } } },
     ]);
     if (losing.length) add('warn', 'sms_negative_shops', `${losing.length} shop(s) cost you more in SMS than they pay.`);
+    const now = new Date();
     const [free, paused, suspended] = await Promise.all([
-        Tenant.countDocuments({ status: 'active', 'billing.state': 'free' }),
-        Tenant.countDocuments({ 'billing.state': 'paused' }),
+        Tenant.countDocuments({ status: 'active', 'plan.freeUntil': { $gt: now } }),
+        Tenant.countDocuments({ 'plan.paused': true }),
         Tenant.countDocuments({ status: 'suspended' }),
     ]);
-    if (free) add('info', 'free_period', `${free} shop(s) are still in the free period and do not pay yet.`);
-    if (paused) add('warn', 'paused', `${paused} shop(s) are paused for non-payment, so they bring no income.`);
+    if (free) add('info', 'free_period', `${free} shop(s) are still in a free period and do not pay yet.`);
+    if (paused) add('warn', 'paused', `${paused} shop(s) are paused because their plan was not renewed, so they bring no income.`);
     if (suspended) add('info', 'suspended', `${suspended} shop(s) are suspended.`);
     if (totals.expensesPaise === 0) add('info', 'no_expenses', 'No expenses are entered, so the profit shown may be too high. Add hosting, SMS provider and other costs.');
     const worst = [...list].sort((a, b) => a.netPaise - b.netPaise)[0];
@@ -189,9 +87,9 @@ async function summary({ months = 6, now = new Date() } = {}) {
     }]));
     const row = (d) => rows.get(istKey(d));
 
-    const [billed, paid, sms, platformSms, expenses] = await Promise.all([
-        SubscriptionInvoice.find({ status: { $ne: 'void' }, issueDate: { $gte: from, $lt: to } }).select('issueDate total').lean(),
-        SubscriptionInvoice.find({ status: 'paid', paidAt: { $gte: from, $lt: to } }).select('paidAt total baseAmount gstAmount').lean(),
+    const [paid, fees, sms, platformSms, expenses] = await Promise.all([
+        platformSales.paid({ from, to }),
+        PartnerTransaction.find({ type: { $in: ['fee', 'reverse'] }, createdAt: { $gte: from, $lt: to } }).select('createdAt amountPaise').lean(),
         SmsLog.aggregate([
             { $match: { createdAt: { $gte: from, $lt: to }, status: 'sent', own: { $ne: true } } },
             { $group: { _id: { $dateToString: { format: '%Y-%m', date: '$createdAt', timezone: '+05:30' } }, charged: { $sum: '$chargedPaise' }, cost: { $sum: '$costPaise' } } },
@@ -200,13 +98,15 @@ async function summary({ months = 6, now = new Date() } = {}) {
         Expense.find({}).lean(),
     ]);
 
-    for (const i of billed) row(i.issueDate).billedPaise += toPaise(i.total);
-    for (const i of paid) {
+    // plans, extra shops and wallet top-ups: what was collected. Income is the plans' own price (no GST) plus the fees that were used out of the wallets.
+    for (const i of paid.filter((x) => x.kind !== 'sms')) {
         const r = row(i.paidAt);
+        r.billedPaise += toPaise(i.total);   // everything is prepaid: billed = collected
         r.collectedPaise += toPaise(i.total);
-        r.rentIncomePaise += toPaise(i.baseAmount);
+        if (i.kind === 'plan' || i.kind === 'branch') r.rentIncomePaise += toPaise(i.baseAmount);
         r.gstPaise += toPaise(i.gstAmount);
     }
+    for (const f of fees) row(f.createdAt).rentIncomePaise -= f.amountPaise;   // fees are stored negative, a put-back positive
     for (const s of sms) {
         const r = rows.get(s._id);
         if (r) {
@@ -235,9 +135,8 @@ async function summary({ months = 6, now = new Date() } = {}) {
     const verdict = totals.netPaise > 0 ? 'profit' : totals.netPaise < 0 ? 'loss' : 'break_even';
     const expensesByCategory = [...byCategory.entries()].map(([category, paise]) => ({ category, paise })).sort((a, b) => b.paise - a.paise);
 
-    const rec = await receivables({ now });
-    const reasons = await explain({ totals, list, rec, from, to });
-    return { months: keys, rows: list, totals, verdict, expensesByCategory, reasons, receivables: rec.totals };
+    const reasons = await explain({ totals, list, from, to });
+    return { months: keys, rows: list, totals, verdict, expensesByCategory, reasons };
 }
 
-module.exports = { summary, receivables, lastMonths, expenseMonths, istKey };
+module.exports = { summary, lastMonths, expenseMonths, istKey };

@@ -49,7 +49,6 @@ const stuck = (s, minutes, extra = {}) => codOrder(s, 'out_for_delivery', {
 const fresh = (o) => Order.findById(o._id);
 const couponUsed = async (s) => (await Coupon.findById(s.coupon._id)).usedCount;
 const risk = (s) => CustomerRisk.findOne({ tenantId: s.tenant._id, phoneHash: hashPhone(s.tenant._id, '9000000030') }).lean();
-const billableCount = async (s) => (await Tenant.findById(s.tenant._id).lean()).billing.billableCount;
 const customerActor = (s) => ({ type: 'customer', id: s.customer.user._id, label: '9000000030' });
 const ownerActor = (s) => ({ type: 'owner', id: s.owner.user._id, label: '9000000010' });
 const ownerPatch = (s, o, b) => request(app).patch(`/api/shop/orders/${o._id}/status`).set(s.owner.headers).send(b);
@@ -75,11 +74,9 @@ describe('cancel rules', () => {
             assert.equal(done.status, 'cancelled');
             assert.deepEqual(cancelOf(done), { by: 'customer', code: 'customer_cancel', kept: 0, refund: 0 });
             assert.equal(done.cancelReason, 'changed my mind');
-            assert.notEqual((await fresh(o)).billing?.billable, true);
         }
         assert.equal(await couponUsed(s), 3);              // both uses came back
         assert.equal(await risk(s), null);                 // no strike
-        assert.equal(await billableCount(s), 0);
     });
 
     test('COD: a customer cannot cancel once the shop is preparing, and the app is told (canCancel)', async () => {
@@ -106,9 +103,6 @@ describe('cancel rules', () => {
         const done = await customerCancel(s, o);
         assert.deepEqual(cancelOf(done), { by: 'customer', code: 'customer_cancel', kept: 25000, refund: 27000 });
         const saved = await fresh(o);
-        assert.equal(saved.billing.billable, true);
-        assert.equal(saved.billing.reason, 'cancel_kept');
-        assert.equal(await billableCount(s), 1);
         assert.equal(await couponUsed(s), 5);
         assert.equal(await risk(s), null);                 // an online customer gets no strike
     });
@@ -118,12 +112,10 @@ describe('cancel rules', () => {
         const placed = await onlineOrder(s, 'placed');
         assert.deepEqual(cancelOf(await customerCancel(s, placed)), { by: 'customer', code: 'customer_cancel', kept: 0, refund: 52000 });
         assert.equal(await couponUsed(s), 4);
-        assert.notEqual((await fresh(placed)).billing?.billable, true);
 
         const out = await onlineOrder(s, 'out_for_delivery');
         assert.deepEqual(cancelOf(await customerCancel(s, out)), { by: 'customer', code: 'customer_cancel', kept: 50000, refund: 2000 });
         assert.equal(await couponUsed(s), 4);
-        assert.equal((await fresh(out)).billing.billable, true);
     });
 
     test('a frozen shop: the customer cancels at "preparing" with no cost, no strike and the coupon back', async () => {
@@ -135,7 +127,6 @@ describe('cancel rules', () => {
         assert.equal(res.status, 200);
         const saved = await fresh(o);
         assert.equal(saved.cancel.reasonCode, 'platform');
-        assert.notEqual(saved.billing?.billable, true);
         assert.equal(await couponUsed(s), 4);
         assert.equal(await risk(s), null);
     });
@@ -166,7 +157,6 @@ describe('cancel rules', () => {
         const saved = await fresh(cash);
         assert.equal(saved.cancelReason, 'The shop is too busy right now');
         assert.deepEqual(cancelOf(saved), { by: 'shop', code: 'busy', kept: 0, refund: 0 });
-        assert.notEqual(saved.billing?.billable, true);
         assert.equal(await couponUsed(s), 4);
         assert.equal(await risk(s), null);
 
@@ -174,20 +164,17 @@ describe('cancel rules', () => {
         assert.equal((await ownerPatch(s, paid, { status: 'cancelled', reasonCode: 'out_of_stock' })).status, 200);
         assert.deepEqual(cancelOf(await fresh(paid)), { by: 'shop', code: 'out_of_stock', kept: 0, refund: 52000 });
         assert.equal(await couponUsed(s), 3);
-        assert.equal(await billableCount(s), 0);
     });
 
     test('R7: the owner cancels because the customer asked: free before preparing; after it a cash order is billable and gives a strike, and 2 strikes block cash', async () => {
         const s = await shop('or-owner-asked');
         const early = await codOrder(s, 'accepted');
         assert.equal((await ownerPatch(s, early, { status: 'cancelled', reasonCode: 'customer_asked' })).status, 200);
-        assert.notEqual((await fresh(early)).billing?.billable, true);
         assert.equal(await couponUsed(s), 4);
         assert.equal(await risk(s), null);
 
         const first = await codOrder(s, 'preparing');
         assert.equal((await ownerPatch(s, first, { status: 'cancelled', reasonCode: 'customer_asked' })).status, 200);
-        assert.equal((await fresh(first)).billing.billable, true);
         assert.equal(await couponUsed(s), 4);                                  // not returned
         const one = await risk(s);
         assert.equal(one.strikes, 1);
@@ -199,7 +186,6 @@ describe('cancel rules', () => {
         assert.equal(two.strikes, 2);
         assert.equal(two.codBlocked, true);
         assert.ok(two.codBlockedAt);
-        assert.equal(await billableCount(s), 2);
     });
 
     test('R7 online: customer asked after preparing follows the share, with no strike', async () => {
@@ -207,7 +193,6 @@ describe('cancel rules', () => {
         const o = await onlineOrder(s, 'preparing');
         assert.equal((await ownerPatch(s, o, { status: 'cancelled', reasonCode: 'customer_asked' })).status, 200);
         assert.deepEqual(cancelOf(await fresh(o)), { by: 'shop', code: 'customer_asked', kept: 25000, refund: 27000 });
-        assert.equal((await fresh(o)).billing.billable, true);
         assert.equal(await risk(s), null);
     });
 
@@ -219,7 +204,6 @@ describe('cancel rules', () => {
         const a = await codOrder(s, 'preparing');
         assert.equal((await patch(a, { status: 'cancelled', note: 'platform problem' })).status, 200);
         assert.deepEqual(cancelOf(await fresh(a)), { by: 'admin', code: 'platform', kept: 0, refund: 0 });
-        assert.notEqual((await fresh(a)).billing?.billable, true);
 
         const b = await onlineOrder(s, 'preparing');
         assert.equal((await patch(b, { status: 'cancelled', reasonCode: 'shop_fault' })).status, 200);
@@ -227,7 +211,6 @@ describe('cancel rules', () => {
 
         const c = await codOrder(s, 'preparing');
         assert.equal((await patch(c, { status: 'cancelled', reasonCode: 'customer_fault' })).status, 200);
-        assert.equal((await fresh(c)).billing.billable, true);
         assert.equal((await risk(s)).strikes, 1);
 
         const d = await codOrder(s, 'preparing');
@@ -244,7 +227,6 @@ describe('cancel rules', () => {
         assert.equal(saved.status, 'cancelled');
         assert.deepEqual(cancelOf(saved), { by: 'system', code: 'not_accepted', kept: 0, refund: 0 });
         assert.equal(saved.cancelReason, 'The shop did not respond in time');
-        assert.notEqual(saved.billing?.billable, true);
         assert.equal(await couponUsed(s), 4);
         assert.equal(await risk(s), null);
     });
@@ -298,9 +280,6 @@ describe('undelivered orders', () => {
         assert.equal(saved.undelivered.keptPaise, 0);                      // cash order: no money moves
         assert.ok(saved.undelivered.at);
         assert.equal(saved.statusHistory.at(-1).status, 'undelivered');
-        assert.equal(saved.billing.billable, true);
-        assert.equal(saved.billing.reason, 'undelivered_customer');
-        assert.equal(await billableCount(s), 1);
         assert.equal((await risk(s)).strikes, 1);
         assert.equal(await couponUsed(s), 5);
         assert.equal((await Rider.findOne({ userId: s.rider.user._id })).activeOrderCount, 0);
@@ -325,15 +304,12 @@ describe('undelivered orders', () => {
         assert.equal((await markUndelivered(s, b, 'rider')).status, 200);
         assert.equal((await fresh(b)).undelivered.refundPaise, 52000);
         assert.equal(await couponUsed(s), 3);
-        for (const o of [a, b]) assert.notEqual((await fresh(o)).billing?.billable, true);
         assert.equal(await risk(s), null);
-        assert.equal(await billableCount(s), 0);
 
         const c = await mkOnline(25);                                       // customer fault online: the shop keeps the food, the tip comes back
         assert.equal((await markUndelivered(s, c, 'customer')).status, 200);
         assert.equal((await fresh(c)).undelivered.keptPaise, 50000);
         assert.equal((await fresh(c)).undelivered.refundPaise, 2000);
-        assert.equal((await fresh(c)).billing.billable, true);
         assert.equal((await risk(s)).strikes, 1);
     });
 

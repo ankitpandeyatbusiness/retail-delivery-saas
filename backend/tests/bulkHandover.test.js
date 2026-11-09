@@ -17,7 +17,6 @@ const pushChannel = require('../src/notifications/channels/push');
 const adminAlerts = require('../src/services/adminAlerts');
 const payments = require('../src/services/adapters/payments');
 const paymentService = require('../src/services/paymentService');
-const billable = require('../src/services/billableService');
 const reconcile = require('../src/services/paymentReconcile');
 
 // Step 3: making it, the handover, the balance (online or cash), completion, the rent count and the invoice.
@@ -25,7 +24,6 @@ const reconcile = require('../src/services/paymentReconcile');
 const sign = (orderId, paymentId) => crypto.createHmac('sha256', paymentService.MOCK_SECRET).update(`${orderId}|${paymentId}`).digest('hex');
 const days = (n) => new Date(Date.now() + n * 86400000).toISOString();
 const PART = 500000;
-const period = () => new Date(Date.now() + 330 * 60000).toISOString().slice(0, 7);
 let n = 0; let payN = 0;
 
 describe('bulk order: stages, balance, completion, invoice', () => {
@@ -125,16 +123,11 @@ describe('bulk order: stages, balance, completion, invoice', () => {
         assert.ok(await waitFor(() => Notification.findOne({ type: 'bulk_balance_paid' }).lean()), 'the owner is told');
         assert.equal((await startBalance()).status, 409, 'already paid');
 
-        assert.equal(await billable.countInPeriod(w.tenant._id, period()), 0, 'not counted before the handover');
         await go('delivered');
         cur = await row();
         assert.equal(cur.status, 'completed');
         assert.ok(cur.completedAt);
-        assert.deepEqual([cur.billing.billable, cur.billing.reason], [true, 'completed']);
-        assert.equal(await billable.countInPeriod(w.tenant._id, period()), 1);
-        assert.equal((await Tenant.findById(w.tenant._id).lean()).billing.billableCount, 1);
         await verify(s.body, pid);
-        assert.equal((await Tenant.findById(w.tenant._id).lean()).billing.billableCount, 1, 'a repeat counts nothing more');
         assert.ok(await waitFor(() => Notification.findOne({ userId: w.customer.user._id, type: 'bulk_completed' }).lean()));
     });
 
@@ -144,7 +137,6 @@ describe('bulk order: stages, balance, completion, invoice', () => {
         assert.equal((await row()).status, 'delivered');
         const { res } = await payBalance();
         assert.equal(res.body.order.status, 'completed');
-        assert.equal(await billable.countInPeriod(w.tenant._id, period()), 1);
     });
 
     test('a balance payment of the wrong amount goes back in full and the order stays open', async () => {
@@ -172,7 +164,6 @@ describe('bulk order: stages, balance, completion, invoice', () => {
         assert.equal(s.status, 409);
         await go('delivered');
         assert.equal((await row()).status, 'completed');
-        assert.equal(await billable.countInPeriod(w.tenant._id, period()), 1);
     });
 
     test('cash cannot be marked after the customer paid online', async () => {
@@ -212,9 +203,7 @@ describe('bulk order: stages, balance, completion, invoice', () => {
         await BulkOrder.updateOne({ _id: id }, { $set: { updatedAt: new Date(Date.now() - 10 * 60000) } }, { timestamps: false });
         await reconcile.runPaymentReconcile();
         assert.equal((await row()).status, 'completed');
-        assert.equal(await billable.countInPeriod(w.tenant._id, period()), 1);
         await reconcile.runPaymentReconcile();
-        assert.equal(await billable.countInPeriod(w.tenant._id, period()), 1);
     });
 
     test('the crash between "captured" and "recorded" for the balance is finished by the repair job, once', async () => {
@@ -269,9 +258,6 @@ describe('bulk order: stages, balance, completion, invoice', () => {
         const send = spyRefund();
         await cust('post', `/${id}/cancel`);
         assert.equal(send.mock.callCount(), 0);
-        await waitFor(async () => (await row()).billing?.billable);
-        assert.deepEqual([(await row()).billing.billable, (await row()).billing.reason], [true, 'cancel_kept']);
-        assert.equal(await billable.countInPeriod(w.tenant._id, period()), 1);
     });
 
     /* ------------------------------ the invoice ------------------------------ */

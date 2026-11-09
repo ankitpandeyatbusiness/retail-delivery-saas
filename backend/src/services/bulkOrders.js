@@ -357,7 +357,6 @@ async function cancelByCustomer({ tenant, userId, id }) {
     ).lean();
     if (!done) throw httpError(409, 'This order was just changed. Open it again.');
     await refundDue(done);   // if this fails or the server stops here, the repair job sends it
-    if (out.keptPaise > 0) require('./billableService').markBulk(done, 'cancel_kept').catch((e) => console.error('Billable count error:', e.message));   // the shop kept money: it counts for the rent
     tell('bulk_cancelled', { tenantId: tenant._id, vars: { name: done.contact?.name, code: done.code, kept: out.keptPaise > 0 }, data: { kind: 'bulk', bulkId: String(done._id), speech: `Bulk order cancelled${done.contact?.name ? ` by ${done.contact.name}` : ''}. ${out.keptPaise > 0 ? 'You keep the advance.' : 'The advance goes back to the customer.'}`, speechHi: `बल्क ऑर्डर रद्द हुआ${done.contact?.name ? `, ${done.contact.name} ने किया` : ''}। ${out.keptPaise > 0 ? 'एडवांस आपके पास रहेगा।' : 'एडवांस ग्राहक को वापस जाएगा।'}` } });
     await require('./bulkKitchen').closeTicket(done).catch((e) => console.error('Bulk ticket error:', e.message));   // the cook and the rider stop
     return customerView(await BulkOrder.findById(done._id).lean());
@@ -516,18 +515,15 @@ async function tryComplete(id) {
         { $set: { status: 'completed', completedAt: new Date() }, $push: { history: { status: 'completed', by: 'system' } } }, { returnDocument: 'after' },
     ).lean();
     if (!done) return null;
-    await require('./billableService').markBulk(done, 'completed').catch((e) => console.error('Billable count error:', e.message));
     tell('bulk_completed', { tenantId: done.tenantId, userId: done.userId, vars: { code: done.code }, data: { kind: 'bulk', bulkId: String(done._id) } });
     return done;
 }
 
-// repair: orders that are delivered and paid but were not completed (a crash), and completed ones that were not counted for the rent
+// repair: orders that are delivered and paid but were not completed (a crash)
 async function repairCompleted(now = new Date()) {
     let n = 0;
     const stuck = await BulkOrder.find({ status: 'delivered', updatedAt: { $lte: new Date(now.getTime() - 2 * 60000) } }).select('_id').limit(50).lean();
     for (const s of stuck) { if (await tryComplete(s._id).catch(() => null)) n += 1; }
-    const uncounted = await BulkOrder.find({ status: 'completed', 'billing.billable': { $ne: true }, completedAt: { $gte: new Date(now.getTime() - 2 * 86400000), $lte: new Date(now.getTime() - 2 * 60000) } }).limit(50).lean();
-    for (const u of uncounted) { const r = await require('./billableService').markBulk(u, 'completed').catch(() => null); if (r?.marked) n += 1; }
     return n;
 }
 

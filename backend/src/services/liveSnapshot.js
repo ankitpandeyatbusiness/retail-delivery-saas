@@ -53,15 +53,13 @@ async function build(tenantId, { owner = false } = {}) {
     const day = startOf(now, 'day');
     const month = startOf(now, 'month');
 
-    const [counts, riders, billableToday, billableMonth, revenue, customers, bulkCounts, wallet, tenant, feed] = await Promise.all([
+    const [counts, riders, revenue, customers, bulkCounts, wallet, tenant, feed] = await Promise.all([
         Order.aggregate([
             { $match: { tenantId, status: { $in: ACTIVE_STATUSES }, ...HIDE_UNPAID } },
             { $group: { _id: statusExpr, n: { $sum: 1 } } },
         ]),
         Rider.find({ tenantId, isActive: true, $or: [{ isOnline: true }, { activeOrderCount: { $gt: 0 } }] })
             .select('userId name isOnline activeOrderCount lastLocation').lean(),
-        Order.countDocuments({ tenantId, 'billing.billable': true, 'billing.at': { $gte: day } }),
-        Order.countDocuments({ tenantId, 'billing.billable': true, 'billing.at': { $gte: month } }),
         // revenue = food + packaging - discount, of orders delivered today
         Order.aggregate([
             { $match: { tenantId, status: 'delivered', deliveredAt: { $gte: day } } },
@@ -86,7 +84,7 @@ async function build(tenantId, { owner = false } = {}) {
             { $group: { _id: statusExpr, n: { $sum: 1 } } },
         ]),
         SmsWallet.findOne({ tenantId }).select('balancePaise').lean(),
-        Tenant.findById(tenantId).select('billing.state').lean(),
+        Tenant.findById(tenantId).select('plan.id').lean(),
         liveFeed.recent(tenantId, { owner, limit: 50 }),
     ]);
 
@@ -107,11 +105,10 @@ async function build(tenantId, { owner = false } = {}) {
             riderId: r.userId, name: r.name || null, isOnline: !!r.isOnline, activeOrderCount: r.activeOrderCount || 0,
             location: (() => { const p = liveTracking.newest(r.userId, r.lastLocation); return p?.at ? { lat: p.lat, lng: p.lng, at: p.at } : null; })(),
         })),
-        billable: { today: billableToday, month: billableMonth },
         revenueToday: Math.round((revenue[0]?.total || 0) * 100) / 100,   // rupees
         customers,
         sms: { balancePaise: wallet?.balancePaise || 0 },
-        billingState: tenant?.billing?.state || null,
+        plan: tenant?.plan?.id || null,
         openComplaints,
         feed,
     };

@@ -222,14 +222,14 @@ async function adminGet(id) {
     if (!t) throw httpError(404, 'Request not found');
     if (t.platformUnread) { t.platformUnread = false; await t.save(); }
     const [tenant, owner] = await Promise.all([
-        Tenant.findById(t.tenantId).select('name slug phone billing.state status').lean(),
+        Tenant.findById(t.tenantId).select('name slug phone plan.id status').lean(),
         User.findById(t.userId).select('name phone email').lean(),
     ]);
     return {
         id: t._id, number: t.number, category: t.category, subject: t.subject, status: t.status, priority: t.priority,
         messages: t.messages.map(messageView), createdAt: t.createdAt, lastMessageAt: t.lastMessageAt,
         resolvedAt: t.resolvedAt || null, resolvedBy: t.resolvedBy || null, rating: t.rating?.stars ? t.rating : null, context: t.context || {},
-        shop: tenant ? { id: tenant._id, name: tenant.name, slug: tenant.slug, phone: tenant.phone || null, status: tenant.status, billingState: tenant.billing?.state || null } : null,
+        shop: tenant ? { id: tenant._id, name: tenant.name, slug: tenant.slug, phone: tenant.phone || null, status: tenant.status, plan: tenant.plan?.id || null } : null,
         owner: owner ? { name: owner.name || null, phone: owner.phone, email: owner.email || null } : null,
     };
 }

@@ -1,11 +1,8 @@
-// The GST register of the platform's own documents for one month: every bill, SMS top-up invoice and credit note, with the
+// The GST register of the platform's own documents for one month: every plan, extra shop, wallet and SMS top-up invoice, with the
 // buyer, the place of supply, the taxable value and the tax heads. This is what the business that issues them (the operator)
-// files its returns from. Credit notes count as minus.
+// files its returns from.
 //   build({ month: '2026-10' })  ->  { month, rows, summary }
-// Amounts are rupees. A bill that is cancelled shows its own row AND a credit note row, so the month nets out correctly.
-const SubscriptionInvoice = require('../models/SubscriptionInvoice');
-const CreditNote = require('../models/CreditNote');
-const SmsTopup = require('../models/SmsTopup');
+// Amounts are rupees.
 const { httpError } = require('../middlewares/apiErrors');
 
 const IST_MS = 330 * 60000;
@@ -53,19 +50,13 @@ function row(doc, { type, sign = 1, name, status, paidAt }) {
 
 async function build({ month }) {
     const { from, to } = range(month);
-    const [bills, topups, notes] = await Promise.all([
-        SubscriptionInvoice.find({ issueDate: { $gte: from, $lt: to } }).sort({ issueDate: 1 }).lean(),
-        SmsTopup.find({ 'invoice.issueDate': { $gte: from, $lt: to } }).select('invoice tenantId').lean(),
-        CreditNote.find({ issueDate: { $gte: from, $lt: to } }).sort({ issueDate: 1 }).lean(),
-    ]);
-    const rows = [
-        ...bills.map((i) => row(i, { type: i.kind === 'custom' ? 'Bill (custom)' : 'Bill (rent)', status: i.status, paidAt: i.paidAt })),
-        ...topups.map((t) => row(t.invoice, { type: 'SMS top-up', status: 'paid', paidAt: t.invoice.paidAt })),
-        ...notes.map((n) => row(n, { type: 'Credit note', sign: -1, status: 'credit note' })),
-    ].sort((a, b) => new Date(a.date) - new Date(b.date) || String(a.docNo).localeCompare(String(b.docNo)));
+    // plans, extra shops, wallet top-ups and SMS top-ups: every paid document of the month (services/platformSales.js)
+    const sales = await require('./platformSales').paid({ from, to });
+    const TYPE = { plan: 'Plan', branch: 'Extra shop', wallet: 'Wallet top-up', sms: 'SMS top-up' };
+    const rows = sales.map((x) => row({ ...(x.invoice || {}), invoiceNo: x.invoiceNo, issueDate: x.issueDate, baseAmount: x.baseAmount, gstAmount: x.gstAmount, gstPercent: x.gstPercent, total: x.total }, { type: TYPE[x.kind], status: 'paid', paidAt: x.paidAt }))
+        .sort((p, q) => new Date(p.date) - new Date(q.date) || String(p.docNo).localeCompare(String(q.docNo)));
 
     const sum = (key, list = rows) => round2(list.reduce((s, r) => s + r[key], 0));
-    const unpaid = rows.filter((r) => r.type.startsWith('Bill') && r.status === 'pending');
     return {
         month,
         rows,
@@ -74,10 +65,8 @@ async function build({ month }) {
             taxable: sum('taxable'), cgst: sum('cgst'), sgst: sum('sgst'), igst: sum('igst'), gst: sum('gst'), total: sum('total'),
             b2b: { documents: rows.filter((r) => r.supply === 'B2B').length, taxable: sum('taxable', rows.filter((r) => r.supply === 'B2B')), gst: sum('gst', rows.filter((r) => r.supply === 'B2B')) },
             b2c: { documents: rows.filter((r) => r.supply === 'B2C').length, taxable: sum('taxable', rows.filter((r) => r.supply === 'B2C')), gst: sum('gst', rows.filter((r) => r.supply === 'B2C')) },
-            // GST that is due on bills issued this month but not yet paid by the shop: the operator pays the tax on the bill
-            // even while the shop has not paid, so this is the cash to keep ready
-            gstOnUnpaidBills: sum('gst', unpaid),
-            unpaidBills: unpaid.length,
+            gstOnUnpaidBills: 0,   // everything is prepaid: nothing is unpaid
+            unpaidBills: 0,
         },
     };
 }

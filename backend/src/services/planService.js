@@ -83,7 +83,7 @@ function viewOf(tenant, now = new Date()) {
         daysLeft: endsAt ? Math.max(0, Math.ceil((endsAt - now) / DAY)) : null,
         extras: (p.extras || []).map((e) => e.key),
         scheduled: p.scheduled ? { to: p.scheduled.to, at: p.scheduled.at } : null,
-        webEnabled: p.webEnabled !== false, nativeEnabled: p.nativeEnabled !== false,
+        paused: !!p.paused, webEnabled: p.webEnabled !== false, nativeEnabled: p.nativeEnabled !== false,
         limits: { riders: plans.limitFor(p.id, 'riders'), staff: plans.limitFor(p.id, 'staff') },
         features: { ...plans.featuresOf(p.id), ...Object.fromEntries((p.extras || []).map((e) => [e.key, true])) },   // the plan plus the extras the supreme admin switched on
     };

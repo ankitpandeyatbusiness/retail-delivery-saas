@@ -23,7 +23,7 @@ import { toAdmin } from '../../navigation/goTo';
 const SHOP_PAGE = {
     admin_refund_failed: 'ShopPayments', admin_webhook_failed: 'ShopPayments',
     admin_sms_low: 'ShopSms', admin_sms_zero: 'ShopSms', admin_sms_topup_done: 'ShopSms',
-    admin_bill_issued: 'ShopBilling', admin_bill_paid: 'ShopBilling', admin_grace_ending: 'ShopBilling', admin_free_ending: 'ShopBilling', admin_free_ended: 'ShopBilling',
+    admin_bill_paid: 'ShopPlan', admin_grace_ending: 'ShopPlan', admin_free_ending: 'ShopPlan', admin_free_ended: 'ShopPlan',
 };
 const PLATFORM_PAGE = {   // alerts about no particular shop
     admin_webhook_failed: 'MyRazorpay', admin_refund_failed: 'MyRazorpay', admin_sms_provider_failing: 'SmsProvider', admin_sms_low: 'PlatformSms', admin_sms_zero: 'PlatformSms',
@@ -102,11 +102,9 @@ export default function InboxScreen() {
             readInbox(n.id).catch(() => { });
         }
         const d = n.data || {};
-        if (d.kind === 'toClose') nav.navigate('ShopsToClose');
-        else if (d.kind === 'health') toAdmin(nav, { screen: 'HomeTab', params: { screen: 'PlatformHealth' } });
+        if (d.kind === 'health') toAdmin(nav, { screen: 'HomeTab', params: { screen: 'PlatformHealth' } });
         else if (d.ticketId) nav.navigate('SupportDetail', { id: String(d.ticketId) });
         else if (d.orderId) toAdmin(nav, { screen: 'OrdersTab', params: { screen: 'OrderDetail', params: { orderId: String(d.orderId), orderNo: d.orderNo } } });
-        else if (d.invoiceId) toAdmin(nav, { screen: 'MoneyTab', params: { screen: 'InvoiceDetail', params: { invoiceId: String(d.invoiceId) } } });
         else {
             const shopId = n.shop?.id || d.tenantId || n.tenantId;
             const shopName = n.shop?.name || d.shopName;

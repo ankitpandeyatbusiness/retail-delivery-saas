@@ -1,4 +1,4 @@
-// Money tab: how much the shop sold (pick a period), what came in online, the SMS balance, and the monthly bill.
+// Money tab: how much the shop sold (pick a period), what came in online and the SMS balance.
 // Sales are DELIVERED orders only. Sales numbers are rupees; online money, SMS and bills are paise.
 import React, { useCallback, useRef, useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
@@ -8,7 +8,7 @@ import { useBrand } from '../../components/common/kit';
 import { OwnerScreen, Card, SectionTitle, Stat, Row, Button, Chips, Pill, Empty, money } from '../../components/owners/ui';
 import { Bars, MoneyRow } from '../../components/owners/moneyBits';
 import { StatShimmer } from '../../components/owners/shimmer';
-import { fetchSalesReport, fetchPaymentsReport, fetchSmsWallet, fetchBillingStatus, apiError } from '../../api/owners/shopApi';
+import { fetchSalesReport, fetchPaymentsReport, fetchSmsWallet, apiError } from '../../api/owners/shopApi';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { periodRange, PERIODS, PAY_LABEL, shortDay } from '../../utils/owners/moneyRules';
 import { rupees } from '../../utils/owners/riderRules';
@@ -25,24 +25,21 @@ export default function OwnerMoneyScreen({ page = false } = {}) {
     const [salesErr, setSalesErr] = useState('');
     const [online, setOnline] = useState(null);
     const [sms, setSms] = useState(null);
-    const [bill, setBill] = useState(null);
     const [refreshing, setRefreshing] = useState(false);
     const [exporting, setExporting] = useState(false);
     const seq = useRef(0);
 
     const load = useCallback(async (id) => {
         const mine = ++seq.current;
-        const [s, o, w, b] = await Promise.allSettled([
+        const [s, o, w] = await Promise.allSettled([
             fetchSalesReport({ ...periodRange(id), groupBy: 'day' }),
             fetchPaymentsReport(periodRange('30')),
             fetchSmsWallet(),
-            fetchBillingStatus(),
         ]);
         if (mine !== seq.current) return;
         if (s.status === 'fulfilled') { setSales(s.value); setSalesErr(''); } else { useOwnerStore.getState().noteError(s.reason); setSalesErr(apiError(s.reason, tr('Could not load your sales.'))); }
         if (o.status === 'fulfilled') setOnline(o.value);
         if (w.status === 'fulfilled') setSms(w.value);
-        if (b.status === 'fulfilled') setBill(b.value);
     }, []);
 
     useFocusEffect(useCallback(() => { load(period); }, [load, period]));
@@ -60,22 +57,9 @@ export default function OwnerMoneyScreen({ page = false } = {}) {
 
     const t = sales?.totals;
     const series = (sales?.series || []).map((x) => ({ label: x.period, value: x.revenue }));
-    const due = bill?.due?.amount || 0;
 
     return (
         <OwnerScreen title={tr('Money')} onRefresh={refresh} refreshing={refreshing} page={page === true}>
-            {due > 0 ? (
-                <Card tone={error} onPress={() => nav.navigate('OwnerRent')}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Ionicons name="alert-circle" size={26} color={error} />
-                        <View style={{ flex: 1, marginLeft: 12 }}>
-                            <Text style={{ color: error, fontWeight: '900' }}>{tr('Old bill due: {money}', { money: money(due) })}</Text>
-                            <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{bill.paused ? tr('Your menu and settings are locked until it is paid.') : bill.graceDaysLeft != null ? tr('{graceDaysLeft} {v2} left to pay.', { graceDaysLeft: bill.graceDaysLeft, v2: bill.graceDaysLeft === 1 ? 'day' : 'days' }) : tr('Please pay it.')}</Text>
-                        </View>
-                        <Pill label={tr('Pay')} color={error} />
-                    </View>
-                </Card>
-            ) : null}
 
             <View style={{ paddingHorizontal: 16 }}>
                 <Chips options={PERIODS} value={period} onChange={pick} style={{ marginTop: 0 }} />

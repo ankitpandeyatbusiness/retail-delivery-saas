@@ -267,11 +267,6 @@ export const fetchTopups = (params) => d(api.get('/shop/sms/topups', q(params)))
 /* ------------------------------ rent and billing ------------------------------ */
 // why the shop is closed (rent: with what is owed; anything else is private)
 export const fetchClosure = () => d(api.get('/shop/closure'));
-export const fetchBillingStatus = () => d(api.get('/shop/billing/status'));
-export const fetchBillingPrompts = () => d(api.get('/shop/billing/prompts'));
-export const answerBillingPrompt = (kind, choice) => d(api.post('/shop/billing/prompts/choice', { kind, choice }));
-export const fetchRentInvoices = (params) => d(api.get('/shop/subscription/invoices', q(params)));
-export const payRentInvoice = (id) => d(api.post(`/shop/subscription/invoices/${id}/pay`));
 /* ------------------------------ help & support (works even when the shop is paused for rent) ------------------------------ */
 export const fetchSupportInfo = () => d(api.get('/shop/support/info'));                 // { phone, whatsapp, email, hours, replyPromise }
 export const fetchSupport = (params) => d(api.get('/shop/support', q(params)));         // { items, unreadCount, page, hasMore }; params { status:'open'|'resolved', page }
@@ -293,12 +288,7 @@ export const saveProfile = (body) => d(api.put('/shop/profile', body));   // { n
 export const sendEmailCode = (email) => d(api.post('/shop/profile/email/send-code', { email }));
 export const verifyEmailCode = (email, code) => d(api.post('/shop/profile/email/verify', { email, code }));
 // Pay with a UPI app or a card (Razorpay checkout in the app): start -> pay -> verify
-export const startRentPay = (id) => d(api.post(`/shop/subscription/invoices/${id}/pay/start`));
-export const verifyRentPay = (id, proof) => d(api.post(`/shop/subscription/invoices/${id}/pay/verify`, proof));
 // Everything owed (every unpaid month and its late fees) as one list, and one payment for all of it
-export const fetchDues = () => d(api.get('/shop/subscription/dues'));
-export const startDuesPay = () => d(api.post('/shop/subscription/dues/pay/start'));
-export const verifyDuesPay = (proof) => d(api.post('/shop/subscription/dues/pay/verify', proof));
 // the Plan screen: overview, the preview (quote), a move that costs nothing, paying for a plan
 export const fetchPlan = () => d(api.get('/shop/plan'));
 export const quotePlan = (body) => d(api.post('/shop/plan/quote', body));
@@ -316,8 +306,6 @@ export const startWalletPay = (amountPaise) => d(api.post('/shop/wallet/topup/st
 export const verifyWalletPay = (id, proof) => d(api.post(`/shop/wallet/topup/${id}/verify`, proof));
 export const startTopupPay = (amountPaise) => d(api.post('/shop/sms/topup/start', { amountPaise }));
 export const verifyTopupPay = (id, proof) => d(api.post(`/shop/sms/topup/${id}/verify`, proof));
-export const rentInvoicePdfPath = (id) => `/shop/subscription/invoices/${id}/pdf`;
-export const creditNotePdfPath = (id) => `/shop/subscription/credit-notes/${id}/pdf`;   // issued when a bill was cancelled
 export const topupInvoicePdfPath = (id) => `/shop/sms/topups/${id}/invoice`;               // the tax invoice / receipt of a paid SMS top-up
 
 /* ------------------------------ activity and notifications ------------------------------ */

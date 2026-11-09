@@ -10,7 +10,7 @@ const app = appModule.app || appModule;
 const Product = require('../src/models/Product');
 const Category = require('../src/models/Category');
 const Review = require('../src/models/Review');
-const SubscriptionInvoice = require('../src/models/SubscriptionInvoice');
+const { paidPlan } = require('./helpers/planPay');
 const PlatformSettings = require('../src/models/PlatformSettings');
 const { buildTips, quoteFor } = require('../src/services/businessTips');
 const tenantRecognizer = require('../src/middlewares/tenantRecognizer');
@@ -111,7 +111,7 @@ describe('the report', () => {
 
     test('the app\'s value uses the platform commission and what the shop was billed', async () => {
         await sale(w.customer.user, paneer, 5, daysAgo(2));   // 1000
-        await SubscriptionInvoice.create({ tenantId: w.tenant._id, kind: 'custom', invoiceNo: 'SUB/REP/1', issueDate: daysAgo(1), dueDate: daysAgo(-5), baseAmount: 100, total: 100, status: 'paid' });
+        await paidPlan(w.tenant._id, { baseRs: 100, gstPercent: 0, paidAt: daysAgo(1) });
         let v = (await get('?range=7')).body.value;
         assert.equal(v.commissionPct, 25);
         assert.equal(v.marketplaceCost, 250);

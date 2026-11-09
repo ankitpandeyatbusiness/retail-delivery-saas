@@ -33,7 +33,6 @@ function handleTap(resp) {
     else if (data.type === 'admin_daily_summary') openScreen('Admin', { screen: 'OrdersTab', params: { screen: 'SalesReport' } });
     else if (data.ticketId) openScreen('SupportDetail', { id: String(data.ticketId) });
     else if (data.orderId) openScreen('Admin', { screen: 'OrdersTab', params: { screen: 'OrderDetail', params: { orderId: String(data.orderId) } } });
-    else if (data.invoiceId) openScreen('Admin', { screen: 'MoneyTab', params: { screen: 'InvoiceDetail', params: { invoiceId: String(data.invoiceId) } } });
     else if (data.tenantId) openScreen('Admin', { screen: 'ShopsTab', params: { screen: 'ShopDetail', params: { shopId: String(data.tenantId), name: data.shopName } } });
     else openScreen('Inbox');
 }

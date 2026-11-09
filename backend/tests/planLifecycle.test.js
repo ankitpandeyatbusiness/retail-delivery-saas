@@ -157,14 +157,3 @@ describe('Partner wallet alerts', () => {
         assert.deepEqual(kinds(), []);
     });
 });
-
-describe('no late fee on a plan', () => {
-    test('the old late-fee job skips a shop that has a plan', async () => {
-        await setPlan({ id: 'growth', startedAt: new Date(), endsAt: new Date(Date.now() + 5 * DAY) });
-        const SubscriptionInvoice = require('../src/models/SubscriptionInvoice');
-        const PlatformSettings = require('../src/models/PlatformSettings');
-        await PlatformSettings.updateOne({ _id: 'main' }, { $set: { 'business.legalName': 'Test Co' } }, { upsert: true });
-        await SubscriptionInvoice.create({ tenantId: w.tenant._id, invoiceNo: 'T/1', kind: 'monthly', period: '2026-05', status: 'pending', baseAmount: 1000, total: 1000, gstPercent: 0, gstAmount: 0, issueDate: new Date(Date.now() - 90 * DAY), dueDate: new Date(Date.now() - 80 * DAY) });
-        assert.equal((await require('../src/services/lateFees').run()).issued, 0);
-    });
-});

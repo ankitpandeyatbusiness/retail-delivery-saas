@@ -202,7 +202,7 @@ export default function ShopDevScreen() {
                 <KeyValue label="GSTIN" value={c.gst.gstin} />
                 <KeyValue label="FSSAI" value={c.gst.fssai} />
                 <KeyValue label="Map pin" value={c.delivery.latitude != null ? `${c.delivery.latitude}, ${c.delivery.longitude}` : 'Not set'} />
-                <KeyValue label="Rent billing" value={`${c.billing.state}${c.billing.isLive ? ' (live)' : ''}`} last />
+                <KeyValue label="Live" value={c.billing.isLive ? 'Yes' : 'Not yet'} last />
             </Box>
             <Box>
                 <Text style={{ color: t.muted, marginBottom: spacing.sm }}>Features</Text>

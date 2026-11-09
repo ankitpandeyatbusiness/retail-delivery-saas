@@ -1,25 +1,14 @@
 // The list of mails. An event in events.js points here with  email: '<key>'.
 //   audience  platform = the platform's brand (bills), shop = the shop's own brand (mails to its customers)
-//   priority  1 = sent first (rent bills), 3 = last (broadcasts)
-//   needs     'invoice' = no mail unless the invoice is found
+//   priority  1 = sent first, 3 = last (broadcasts)
 //   load      fetches extra data (and the PDF) before the mail is built
 const mongoose = require('mongoose');
-const SubscriptionInvoice = require('../../../models/SubscriptionInvoice');
 const { renderToBuffer, pdfFileName } = require('../../../services/subscriptionInvoicePdf');
 const b = require('./builders');
 const businessReport = require('../../../services/businessReport');
 const { renderReportPdf, pdfFileName: reportPdfName } = require('../../../services/businessReportPdf');
 const PlatformSettings = require('../../../models/PlatformSettings');
 const SmsTopup = require('../../../models/SmsTopup');
-
-const withInvoice = (attachPdf) => async ({ tenant, vars }) => {
-    if (!vars.invoiceId || !mongoose.isValidObjectId(String(vars.invoiceId))) return {};
-    const invoice = await SubscriptionInvoice.findOne({ _id: vars.invoiceId, tenantId: tenant._id }).lean();
-    if (!invoice) return {};
-    const out = { invoice };
-    if (attachPdf) out.attachments = [{ name: pdfFileName(invoice), content: (await renderToBuffer(invoice)).toString('base64') }];
-    return out;
-};
 
 // the receipt of an SMS top-up: the tax invoice / receipt PDF is attached
 const withTopup = async ({ tenant, vars }) => {
@@ -43,16 +32,8 @@ const withReport = async ({ tenant, vars }) => {
 
 const REGISTRY = {
     monthly_report: { build: b.monthlyReport, audience: 'platform', priority: 2, load: withReport },
-    rent_invoice: { build: b.rentInvoice, audience: 'platform', priority: 1, needs: 'invoice', load: withInvoice(true) },
-    payment_receipt: { build: b.paymentReceipt, audience: 'platform', priority: 2, needs: 'invoice', load: withInvoice(true) },   // the paid bill (stamped PAID) is the receipt
-    bill_reminder: { build: b.billReminder, audience: 'platform', priority: 1, needs: 'invoice', load: withInvoice(false) },
-    bill_overdue: { build: b.billOverdue, audience: 'platform', priority: 1 },
-    shop_paused: { build: b.shopPaused, audience: 'platform', priority: 1, load: withInvoice(false) },
-    shop_unpaused: { build: b.shopUnpaused, audience: 'platform', priority: 2 },
-    free_ending: { build: b.freeEnding, audience: 'platform', priority: 2 },
     sms_topup_receipt: { build: b.smsTopupReceipt, audience: 'platform', priority: 2, load: withTopup },
     welcome: { build: b.welcome, audience: 'platform', priority: 2 },
-    invoice_void: { build: b.invoiceVoid, audience: 'platform', priority: 2, needs: 'invoice', load: withInvoice(false) },
     owner_email_changed: { build: b.ownerEmailChanged, audience: 'platform', priority: 1 },
     email_code: { build: b.emailCode, audience: 'platform', priority: 1 },
     login_alert: { build: b.loginAlert, audience: 'platform', priority: 2 },

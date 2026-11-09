@@ -36,7 +36,6 @@ export function ShopRow({ shop, onPress, compact }) {
     const t = useTheme();
     const tone = stateTone(shop);
     const edge = { success: t.success, warn: t.warn, danger: t.danger }[tone];
-    const billing = shop.billing?.state;
     return (
         <Pressable
             onPress={onPress}
@@ -58,19 +57,11 @@ export function ShopRow({ shop, onPress, compact }) {
                     <ShopStateBadge shop={shop} />
                     {shop.plan?.id ? <Badge label={planLine(shop.plan)} tone="info" icon="star" /> : null}
                     {shop.state?.reasons?.length > 1 ? <Badge label={`+${shop.state.reasons.length - 1} more`} /> : null}
-                    {billing === 'paused' || billing === 'grace' ? <Badge label={`Rent ${billing}`} tone={billing === 'paused' ? 'danger' : 'warn'} icon="receipt" /> : null}
                 </View>
                 {shop.stats && shop.status === 'active' ? (
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', marginTop: spacing.sm }}>
                         <Text style={{ color: t.text, fontSize: font.sm, fontWeight: '700', marginRight: spacing.md }}>{shop.stats.ordersToday} order{shop.stats.ordersToday === 1 ? '' : 's'} today</Text>
                         <Text style={{ color: shop.stats.quiet ? t.warn : t.muted, fontSize: font.sm, marginRight: spacing.md }}>{shop.stats.lastOrderAt ? `last order ${ago(shop.stats.lastOrderAt)}` : 'no order yet'}</Text>
-                        {shop.stats.owed > 0 ? <Text style={{ color: shop.stats.overdue > 0 ? t.danger : t.muted, fontSize: font.sm, fontWeight: '800' }}>Rent due {rupees(shop.stats.owed)}</Text> : null}
-                    </View>
-                ) : null}
-                {shop.rent?.text ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: spacing.sm }}>
-                        <Icon name="receipt" size={14} color={shop.rent.stage === 'paying' ? t.primary : shop.rent.stage === 'free' || shop.rent.stage === 'not_live' ? t.success : t.danger} style={{ marginTop: 2 }} />
-                        <Text style={{ color: t.muted, fontSize: font.xs, marginLeft: 6, flex: 1, lineHeight: 17 }} numberOfLines={2}>{shop.rent.text}</Text>
                     </View>
                 ) : null}
             </View>

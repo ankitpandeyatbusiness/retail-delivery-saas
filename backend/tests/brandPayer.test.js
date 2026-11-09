@@ -32,11 +32,7 @@ async function login(tenantId, phone) {
 const as = (slug, token) => ({ get: (p) => request(app).get(p).set('x-tenant-slug', slug).set('Authorization', `Bearer ${token}`), post: (p, b) => request(app).post(p).set('x-tenant-slug', slug).set('Authorization', `Bearer ${token}`).send(b || {}) });
 
 const PAY_ROUTES = [
-    ['/api/shop/subscription/invoices/64b000000000000000000001/pay', {}],
-    ['/api/shop/subscription/invoices/64b000000000000000000001/pay/start', {}],
-    ['/api/shop/subscription/invoices/64b000000000000000000001/pay/verify', {}],
-    ['/api/shop/subscription/dues/pay/start', {}],
-    ['/api/shop/subscription/dues/pay/verify', {}],
+    ['/api/shop/plan/pay/start', { to: 'growth', months: 1 }],
     ['/api/shop/sms/topup', { amountPaise: 10000 }],
     ['/api/shop/sms/topup/start', { amountPaise: 10000 }],
     ['/api/shop/sms/topup/64b000000000000000000001/verify', {}],
@@ -49,7 +45,7 @@ async function brand() {
     return { b, mumbai };
 }
 
-describe('in a brand the brand owner pays rent and tops up SMS', () => {
+describe('in a brand the brand owner pays for the plan and tops up SMS', () => {
     test('a branch manager is refused on every pay and top-up route, and sees canPay: false', async () => {
         const { mumbai } = await brand();
         await post(`/api/admin/brands/${(await mongoose.model('Brand').findOne({}))._id}/owners`, { phone: RAJU });
@@ -59,11 +55,8 @@ describe('in a brand the brand owner pays rent and tops up SMS', () => {
             assert.equal(r.status, 403, path);
             assert.equal(r.body.brandOwnerPays, true, path);
         }
-        assert.equal((await mgr.get('/api/shop/subscription/invoices')).body.canPay, false);
-        assert.equal((await mgr.get('/api/shop/subscription/dues')).body.canPay, false);
         assert.equal((await mgr.get('/api/shop/sms/wallet')).body.canPay, false);
         // reading is still allowed
-        assert.equal((await mgr.get('/api/shop/subscription/invoices')).status, 200);
     });
 
     test('the brand owner is not stopped by this rule', async () => {
@@ -74,8 +67,6 @@ describe('in a brand the brand owner pays rent and tops up SMS', () => {
             const r = await raju.post(path, body);
             assert.notEqual(r.body.brandOwnerPays, true, `${path} -> ${r.status}`);
         }
-        assert.equal((await raju.get('/api/shop/subscription/invoices')).body.canPay, true);
-        assert.equal((await raju.get('/api/shop/subscription/dues')).body.canPay, true);
         assert.equal((await raju.get('/api/shop/sms/wallet')).body.canPay, true);
     });
 

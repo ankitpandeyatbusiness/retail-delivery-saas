@@ -29,8 +29,8 @@ function shopState(tenant) {
         });
     }
 
-    if (tenant.billing?.state === 'paused') {
-        reasons.push({ code: 'billing_paused', setBy: 'platform', label: 'Paused: unpaid bill', note: null });
+    if (tenant.plan?.paused) {
+        reasons.push({ code: 'plan_paused', setBy: 'platform', label: 'Paused: plan not renewed', note: null });
     }
 
     return { acceptingOrders: reasons.length === 0, reasons };

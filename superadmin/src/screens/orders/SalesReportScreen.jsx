@@ -339,15 +339,11 @@ export default function SalesReportScreen() {
                         <>
                             <SectionTitle section="money">Your income this month</SectionTitle>
                             <Card style={{ paddingVertical: 0 }}>
-                                <KeyValue label="Rent billed" value={paise(income.billedPaise)} />
-                                <KeyValue label="Rent collected" value={paise(income.collectedPaise)} />
+                                <KeyValue label="Plans and fees billed" value={paise(income.billedPaise)} />
+                                <KeyValue label="Plans and fees collected" value={paise(income.collectedPaise)} />
                                 <KeyValue label="SMS margin" value={paise(income.smsMarginPaise)} />
                                 <KeyValue label="Costs" value={'− ' + paise(income.costsPaise)} />
                                 <KeyValue label={income.netPaise < 0 ? 'Loss' : 'Net'} value={paise(income.netPaise)} last />
-                            </Card>
-                            <Card onPress={() => nav.navigate('Receivables')} style={{ marginTop: spacing.sm }}>
-                                <Text style={{ color: income.overduePaise ? t.danger : t.text, fontWeight: '800', fontSize: font.md }}>{paise(income.owedPaise)} still owed to you</Text>
-                                <Text style={{ color: t.muted, fontSize: font.xs, marginTop: 2 }}>{income.overduePaise ? paise(income.overduePaise) + ' is overdue from ' + income.overdueShops + ' shop(s). Tap to see who and send a reminder.' : 'Nothing is overdue. Tap to see who owes you.'}</Text>
                             </Card>
                         </>
                     ) : null}

@@ -11,7 +11,8 @@ const BulkOrder = require('../models/BulkOrder');
 const BulkPayment = require('../models/BulkPayment');
 const TableBooking = require('../models/TableBooking');
 const Brand = require('../models/Brand');
-const SubscriptionInvoice = require('../models/SubscriptionInvoice');
+const PlanPayment = require('../models/PlanPayment');
+const planWord = (t) => { const v = require('./planService').viewOf(t); return t.plan?.paused ? 'paused' : v.status === 'none' ? 'no plan' : v.status === 'free' ? 'free' : v.id; };
 const OnlinePayment = require('../models/OnlinePayment');
 const OnlineRefund = require('../models/OnlineRefund');
 const SmsTopup = require('../models/SmsTopup');
@@ -342,42 +343,29 @@ D.bulk_orders = {
 };
 
 D.invoices = {
-    title: 'Rent invoices', group: 'Orders and money', hint: 'Your monthly bills to shops, with GST and payment details.',
-    model: SubscriptionInvoice, shopField: 'tenantId', dateField: 'issueDate', periodLabel: 'Issued between', sort: { issueDate: -1 },
+    title: 'Plan payments', group: 'Orders and money', hint: 'What shops paid you for plans and extra shops, with GST and payment details.',
+    model: PlanPayment, shopField: 'tenantId', dateField: 'paidAt', periodLabel: 'Paid between', sort: { paidAt: -1 },
     filters: [
-        { key: 'status', label: 'Status', options: [['', 'Any'], ['pending', 'Pending'], ['paid', 'Paid'], ['void', 'Void'], ['overdue', 'Overdue']] },
-        { key: 'kind', label: 'Kind', options: [['', 'Any'], ['monthly', 'Monthly'], ['custom', 'Custom']] },
+        { key: 'status', label: 'Status', options: [['', 'Paid'], ['held', 'Held for you']] },
+        { key: 'kind', label: 'Kind', options: [['', 'Any'], ['new', 'New plan'], ['renew', 'Renewal'], ['upgrade', 'Upgrade'], ['branch', 'Extra shop']] },
     ],
     where(f) {
-        const w = {};
-        if (f.status === 'overdue') { w.status = 'pending'; w.dueDate = { $lt: new Date() }; } else if (['pending', 'paid', 'void'].includes(f.status)) w.status = f.status;
-        if (['monthly', 'custom'].includes(f.kind)) w.kind = f.kind;
+        const w = { status: f.status === 'held' ? 'held' : 'paid' };
+        if (['new', 'renew', 'upgrade', 'branch'].includes(f.kind)) w.kind = f.kind;
         return w;
     },
     columns: [
-        { h: 'Invoice no', k: 'no', lv: 1 }, { h: 'Shop', k: 'shop', lv: 1 }, { h: 'Period', k: 'period', kind: 'center', lv: 1 }, { h: 'Total (₹)', k: 'total', kind: 'money', lv: 1 },
-        { h: 'Status', k: 'status', kind: 'status', lv: 1 }, { h: 'Due', k: 'due', kind: 'date', lv: 1 }, { h: 'Paid on', k: 'paidAt', kind: 'date', lv: 1 },
-        { h: 'Issued', k: 'issued', kind: 'date', lv: 2 }, { h: 'Base amount (₹)', k: 'base', kind: 'money', lv: 2 }, { h: 'GST %', k: 'gstPct', kind: 'int', lv: 2 }, { h: 'GST (₹)', k: 'gst', kind: 'money', lv: 2 },
-        { h: 'CGST (₹)', k: 'cgst', kind: 'money', lv: 2 }, { h: 'SGST (₹)', k: 'sgst', kind: 'money', lv: 2 }, { h: 'IGST (₹)', k: 'igst', kind: 'money', lv: 2 },
-        { h: 'Paid by', k: 'mode', kind: 'center', lv: 2 }, { h: 'Orders that month', k: 'orders', kind: 'int', lv: 2 }, { h: 'Fee tier', k: 'tier', lv: 2 }, { h: 'Description', k: 'desc', kind: 'wide', lv: 2 },
-        { h: 'Shop legal name', k: 'legal', lv: 3 }, { h: 'Shop GSTIN', k: 'gstin', kind: 'center', lv: 3 }, { h: 'State', k: 'state', lv: 3 }, { h: 'Grace ends', k: 'grace', kind: 'date', lv: 3 },
-        { h: 'Voided on', k: 'voidedAt', kind: 'date', lv: 3 }, { h: 'Void reason', k: 'voidReason', kind: 'wide', lv: 3 }, { h: 'Bill message sent', k: 'notified', kind: 'date', lv: 3 },
-        { h: 'Late fee for bill', k: 'lateFor', lv: 3 }, { h: 'Late fee %', k: 'latePct', kind: 'int', lv: 3 }, { h: 'Reverse charge', k: 'rcm', kind: 'center', lv: 3 },
+        { h: 'Invoice no', k: 'no', lv: 1 }, { h: 'Shop', k: 'shop', lv: 1 }, { h: 'Plan', k: 'plan', kind: 'center', lv: 1 }, { h: 'Months', k: 'months', kind: 'int', lv: 1 }, { h: 'Total (₹)', k: 'total', kind: 'money', lv: 1 },
+        { h: 'Status', k: 'status', kind: 'status', lv: 1 }, { h: 'Paid on', k: 'paidAt', kind: 'date', lv: 1 },
+        { h: 'Kind', k: 'kind', kind: 'center', lv: 2 }, { h: 'Base amount (₹)', k: 'base', kind: 'money', lv: 2 }, { h: 'GST %', k: 'gstPct', kind: 'int', lv: 2 }, { h: 'GST (₹)', k: 'gst', kind: 'money', lv: 2 },
+        { h: 'Payment id', k: 'payId', lv: 3 }, { h: 'Held because', k: 'heldWhy', kind: 'wide', lv: 3 },
     ],
     map(i, c) {
+        const q = i.quote || {};
         return {
-            no: i.invoiceNo, shop: c.shop(i.tenantId), period: i.period || '', total: r2(i.total), status: i.status, due: i.dueDate, paidAt: i.paidAt || '',
-            issued: i.issueDate, base: r2(i.baseAmount), gstPct: i.gstPercent || 0, gst: r2(i.gstAmount), cgst: r2(i.taxSplit?.cgst), sgst: r2(i.taxSplit?.sgst), igst: r2(i.taxSplit?.igst),
-            mode: nice(i.paymentMode), orders: i.orderCount ?? '', tier: i.tierLabel || '', desc: i.description || '',
-            legal: i.buyer?.legalName || '', gstin: i.buyer?.gstin || '', state: i.buyer?.state || '', grace: i.graceEndsAt || '',
-            voidedAt: i.voidedAt || '', voidReason: i.voidReason || '', notified: i.notifiedAt || '', lateFor: i.lateFee?.forInvoiceNo || '', latePct: i.lateFee?.percent ?? '', rcm: i.reverseCharge ? 'Yes' : 'No',
+            no: i.invoice?.invoiceNo || '', shop: c.shop(i.tenantId), plan: i.to, months: i.months || 1, total: r2((i.payablePaise || 0) / 100), status: i.status, paidAt: i.paidAt || '',
+            kind: i.kind, base: r2((q.taxablePaise ?? i.payablePaise ?? 0) / 100), gstPct: q.gstPercent || 0, gst: r2((q.gstPaise || 0) / 100), payId: i.paymentId || '', heldWhy: i.heldWhy || '',
         };
-    },
-    extraSheets(docs, c, lv) {
-        if (lv < 3) return [];
-        const rows = [];
-        for (const i of docs) for (const l of i.lineItems || []) rows.push({ no: i.invoiceNo, shop: c.shop(i.tenantId), desc: l.description, qty: l.qty, rate: r2(l.rate), amount: r2(l.amount) });
-        return rows.length ? [{ title: 'Bill lines', columns: [{ header: 'Invoice no', key: 'no' }, { header: 'Shop', key: 'shop' }, { header: 'Line', key: 'desc', kind: 'wide' }, { header: 'Qty', key: 'qty', kind: 'int' }, { header: 'Rate (₹)', key: 'rate', kind: 'money' }, { header: 'Amount (₹)', key: 'amount', kind: 'money' }], rows, total: true }] : [];
     },
 };
 
@@ -544,8 +532,8 @@ D.menu = {
 D.shops = {
     title: 'Shops', group: 'Shop data', hint: 'All shops with their status, place and bill state.',
     model: Tenant, shopField: '_id', dateField: 'createdAt', periodLabel: 'Joined between', sort: { name: 1 },
-    filters: [{ key: 'status', label: 'Status', options: [['', 'Any'], ['active', 'Active'], ['suspended', 'Suspended']] }, { key: 'billing', label: 'Bill', options: [['', 'Any'], ['ok', 'Fine'], ['grace', 'Grace'], ['paused', 'Paused']] }],
-    where(f) { const w = {}; if (['active', 'suspended'].includes(f.status)) w.status = f.status; if (['grace', 'paused'].includes(f.billing)) w['billing.state'] = f.billing; if (f.billing === 'ok') w['billing.state'] = { $nin: ['grace', 'paused'] }; return w; },
+    filters: [{ key: 'status', label: 'Status', options: [['', 'Any'], ['active', 'Active'], ['suspended', 'Suspended']] }, { key: 'billing', label: 'Bill', options: [['', 'Any'], ['ok', 'Fine'], ['paused', 'Paused']] }],
+    where(f) { const w = {}; if (['active', 'suspended'].includes(f.status)) w.status = f.status; if (f.billing === 'paused') w['plan.paused'] = true; if (f.billing === 'ok') w['plan.paused'] = { $ne: true }; return w; },
     columns: [
         { h: 'Shop', k: 'name', lv: 1 }, { h: 'Code', k: 'code', kind: 'center', lv: 1 }, { h: 'Status', k: 'status', kind: 'status', lv: 1 }, { h: 'City', k: 'city', lv: 1 }, { h: 'Phone', k: 'phone', kind: 'center', lv: 1 }, { h: 'Bill', k: 'bill', kind: 'status', lv: 1 },
         { h: 'Brand', k: 'brand', lv: 2 }, { h: 'Joined', k: 'joined', kind: 'date', lv: 2 }, { h: 'Address', k: 'address', kind: 'wide', lv: 2 }, { h: 'GSTIN', k: 'gstin', kind: 'center', lv: 2 },
@@ -559,7 +547,7 @@ D.shops = {
         ctx.brands = new Map(b.map((x) => [String(x._id), x.name]));
         ctx.stats = new Map(g.map((x) => [String(x._id), x]));
     },
-    map(t, c) { const s = c.stats.get(String(t._id)) || {}; return { name: t.name, code: t.refCode || t.slug, status: t.status, city: t.address?.city || '', phone: c.phone(t.phone), bill: t.billing?.state || 'ok', brand: t.brandId ? c.brands.get(String(t.brandId)) || '' : '', joined: t.createdAt, address: [t.address?.line, t.address?.city, t.address?.pincode].filter(Boolean).join(', '), gstin: t.business?.gstin || '', orders: s.n || 0, sales: r2(s.sales), last: s.last || '' }; },
+    map(t, c) { const s = c.stats.get(String(t._id)) || {}; return { name: t.name, code: t.refCode || t.slug, status: t.status, city: t.address?.city || '', phone: c.phone(t.phone), bill: t.plan?.paused ? 'paused' : 'ok', brand: t.brandId ? c.brands.get(String(t.brandId)) || '' : '', joined: t.createdAt, address: [t.address?.line, t.address?.city, t.address?.pincode].filter(Boolean).join(', '), gstin: t.business?.gstin || '', orders: s.n || 0, sales: r2(s.sales), last: s.last || '' }; },
 };
 
 D.expenses = {
@@ -616,14 +604,14 @@ D.owners = {
     title: 'Shop owners', group: 'People', hint: 'Every shop owner: how the shop is doing, rent, SMS balance and how active the owner is.',
     shopField: 'tenantId', periodLabel: 'Owner joined between', periodOn: true,
     filters: [
-        { key: 'rent', label: 'Rent', options: [['', 'Any'], ['free', 'Free period'], ['active', 'Paying, fine'], ['grace', 'Late (grace)'], ['paused', 'Paused for rent'], ['owing', 'Has unpaid bills']] },
+        { key: 'rent', label: 'Plan', options: [['', 'Any'], ['free', 'Free period'], ['paused', 'Paused (plan not renewed)']] },
         { key: 'status', label: 'Shop', options: [['', 'Any'], ['active', 'Open'], ['suspended', 'Suspended']] },
         { key: 'activity', label: 'Orders in 30 days', options: [['', 'Any'], ['busy', '10 or more'], ['quiet', 'Fewer than 10'], ['none', 'None']] },
         { key: 'login', label: 'Owner last seen', options: [['', 'Any'], ['week', 'Within 7 days'], ['old', 'Over 14 days ago or never']] },
     ],
     columns: [
         { h: 'Shop', k: 'shop', lv: 1 }, { h: 'Owner', k: 'name', lv: 1 }, { h: 'Phone', k: 'phone', kind: 'center', lv: 1 }, { h: 'Shop status', k: 'status', kind: 'status', lv: 1 },
-        { h: 'Rent', k: 'rent', kind: 'status', lv: 1 }, { h: 'Orders (30 days)', k: 'orders30', kind: 'int', lv: 1 }, { h: 'Sales (30 days) (₹)', k: 'sales30', kind: 'money', lv: 1 }, { h: 'Last order', k: 'lastOrder', kind: 'date', lv: 1 },
+        { h: 'Plan', k: 'rent', kind: 'status', lv: 1 }, { h: 'Orders (30 days)', k: 'orders30', kind: 'int', lv: 1 }, { h: 'Sales (30 days) (₹)', k: 'sales30', kind: 'money', lv: 1 }, { h: 'Last order', k: 'lastOrder', kind: 'date', lv: 1 },
         { h: 'Joined', k: 'joined', kind: 'date', lv: 2 }, { h: 'Owner last logged in', k: 'login', kind: 'date', lv: 2 }, { h: 'Unpaid bills (₹)', k: 'owed', kind: 'money', lv: 2 }, { h: 'Overdue bills', k: 'overdue', kind: 'int', lv: 2 },
         { h: 'SMS balance (₹)', k: 'sms', kind: 'money', lv: 2 }, { h: 'Rating', k: 'rating', kind: 'center', lv: 2 }, { h: 'Cancelled (30 days) %', k: 'cancelPct', kind: 'int', lv: 2 }, { h: 'Accepts an order in (min)', k: 'accept', kind: 'center', lv: 2 }, { h: 'Brand', k: 'brand', lv: 2 },
         { h: 'Behaviour in words', k: 'words', kind: 'wide', lv: 3 }, { h: 'Orders (all time)', k: 'allOrders', kind: 'int', lv: 3 }, { h: 'Sales (all time) (₹)', k: 'allSales', kind: 'money', lv: 3 }, { h: 'Busiest hour', k: 'peak', kind: 'center', lv: 3 },
@@ -634,9 +622,9 @@ D.owners = {
         const users = await User.find(um).sort({ createdAt: -1 }).limit(ctx.max * 2).select('tenantId name phone isBlocked createdAt lastLoginAt').lean();
         const ids = [...new Set(users.map((u) => String(u.tenantId)))].map(oid);
         const [tenants, st, inv, wallets, comp, tix, vers] = await Promise.all([
-            Tenant.find({ _id: { $in: ids } }).select('name status billing brandId stats').lean(),
+            Tenant.find({ _id: { $in: ids } }).select('name status billing plan brandId stats').lean(),
             shopRecent(ids, ctx.now),
-            SubscriptionInvoice.aggregate([{ $match: { tenantId: { $in: ids }, status: 'pending' } }, { $group: { _id: '$tenantId', owed: { $sum: '$total' }, n: { $sum: 1 }, overdue: { $sum: { $cond: [{ $lt: ['$dueDate', new Date(ctx.now)] }, 1, 0] } } } }]),
+            Promise.resolve([]),   // everything is prepaid: nobody owes anything
             require('../models/SmsWallet').find({ tenantId: { $in: ids } }).select('tenantId balancePaise').lean(),
             Complaint.aggregate([{ $match: { tenantId: { $in: ids }, createdAt: { $gte: new Date(ctx.now - 90 * DAY) } } }, { $group: { _id: '$tenantId', n: { $sum: 1 } } }]),
             require('../models/SupportTicket').aggregate([{ $match: { tenantId: { $in: ids }, status: 'open' } }, { $group: { _id: '$tenantId', n: { $sum: 1 } } }]),
@@ -652,7 +640,7 @@ D.owners = {
         });
         rows = rows.filter((r) => {
             if (f.status && r.t.status !== f.status) return false;
-            if (f.rent === 'owing') { if (!(r.inv && r.inv.n)) return false; } else if (f.rent && (r.t.billing && r.t.billing.state) !== f.rent) return false;
+            if (f.rent && planWord(r.t) !== f.rent) return false;
             const o = r.s.orders30 || 0;
             if (f.activity === 'busy' && o < 10) return false;
             if (f.activity === 'quiet' && !(o > 0 && o < 10)) return false;
@@ -680,12 +668,12 @@ D.owners = {
             if (o30 >= 5) bits.push(`${cancelPct}% of orders were cancelled${cancelPct >= 20 ? ' (high)' : ''}.`);
         }
         if (rating) bits.push(`Rated ${r2(rating.avg)} from ${rating.count} rating${rating.count === 1 ? '' : 's'}.`);
-        const rentState = t.billing && t.billing.state;
-        bits.push(rentState === 'paused' ? 'Paused because rent is unpaid.' : rentState === 'free' ? 'Still in the free period.' : r.inv && r.inv.overdue ? `${r.inv.overdue} bill${r.inv.overdue === 1 ? ' is' : 's are'} overdue (${rs(owed * 100) ? '₹' + Math.round(owed) : ''}).` : r.inv && r.inv.n ? `${r.inv.n} unpaid bill${r.inv.n === 1 ? '' : 's'}, not late yet.` : 'Rent is paid up.');
+        const pw = planWord(t);
+        bits.push(pw === 'paused' ? 'Paused: the plan was not renewed.' : pw === 'free' ? 'Still in the free period.' : pw === 'no plan' ? 'No plan yet.' : `On the ${pw} plan.`);
         bits.push(`Owner last logged in ${inDays(seen)}.`);
         bits.push(!s.allOrders ? 'Needs help to get the first order.' : o30 === 0 ? 'Quiet shop: worth a call.' : seen !== null && seen > 14 ? 'Shop runs but the owner is rarely in the app: worth a check.' : cancelPct >= 20 ? 'Many cancels: talk about why.' : 'Looks healthy.');
         return {
-            shop: c.shop(u.tenantId), name: u.name || '', phone: c.phone(u.phone), status: t.status || '', rent: (t.billing && t.billing.state) || '', orders30: o30, sales30: r2(s.sales30), lastOrder: s.lastOrder || '',
+            shop: c.shop(u.tenantId), name: u.name || '', phone: c.phone(u.phone), status: t.status || '', rent: planWord(t), orders30: o30, sales30: r2(s.sales30), lastOrder: s.lastOrder || '',
             joined: u.createdAt, login: u.lastLoginAt || '', owed: r2(owed), overdue: r.inv ? r.inv.overdue : 0, sms: rs(r.wallet && r.wallet.balancePaise), rating: rating ? r2(rating.avg) : '', cancelPct,
             accept: s.acceptMin != null ? Math.round(s.acceptMin * 10) / 10 : '', brand: r.brand, words: bits.join(' '), allOrders: s.allOrders || 0, allSales: r2(s.allSales), peak: s.peak !== undefined ? hourText(s.peak) : '',
             ratingN: rating ? rating.count : 0, complaints: r.complaints, tickets: r.tickets, version: r.version, blocked: u.isBlocked ? 'Yes' : 'No',
@@ -698,7 +686,7 @@ D.brand_people = {
     shopField: 'tenantId', noPeriod: true,
     filters: [
         { key: 'role', label: 'Role', options: [['', 'Both'], ['brand', 'Brand owners'], ['branch', 'Branch managers']] },
-        { key: 'rent', label: 'Rent', options: [['', 'Any'], ['owing', 'Has unpaid bills']] },
+        
     ],
     columns: [
         { h: 'Brand', k: 'brand', lv: 1 }, { h: 'Person', k: 'name', lv: 1 }, { h: 'Phone', k: 'phone', kind: 'center', lv: 1 }, { h: 'Role', k: 'role', kind: 'center', lv: 1 }, { h: 'Runs', k: 'runs', lv: 1 }, { h: 'Branches', k: 'branches', kind: 'int', lv: 1 },
@@ -713,7 +701,7 @@ D.brand_people = {
         const tids = tenants.map((t) => t._id);
         const [st, inv, owners] = await Promise.all([
             shopRecent(tids, ctx.now),
-            SubscriptionInvoice.aggregate([{ $match: { tenantId: { $in: tids }, status: 'pending' } }, { $group: { _id: '$tenantId', owed: { $sum: '$total' }, n: { $sum: 1 } } }]),
+            Promise.resolve([]),   // everything is prepaid: nobody owes anything
             User.find({ role: 'admin', tenantId: { $in: tids } }).select('tenantId name phone isBlocked createdAt lastLoginAt').lean(),
         ]);
         const I = new Map(inv.map((x) => [String(x._id), x]));
@@ -837,7 +825,7 @@ D.branches = {
     filters: [{ key: 'status', label: 'Shop', options: [['', 'Any'], ['active', 'Open'], ['suspended', 'Suspended']] }],
     columns: [
         { h: 'Shop', k: 'name', lv: 1 }, { h: 'City', k: 'city', lv: 1 }, { h: 'Status', k: 'status', kind: 'status', lv: 1 }, { h: 'Manager', k: 'manager', lv: 1 },
-        { h: 'Orders (30 days)', k: 'orders30', kind: 'int', lv: 1 }, { h: 'Sales (30 days) (₹)', k: 'sales30', kind: 'money', lv: 1 }, { h: 'Rent', k: 'rent', kind: 'status', lv: 1 },
+        { h: 'Orders (30 days)', k: 'orders30', kind: 'int', lv: 1 }, { h: 'Sales (30 days) (₹)', k: 'sales30', kind: 'money', lv: 1 }, { h: 'Plan', k: 'rent', kind: 'status', lv: 1 },
         { h: 'Delivered (30 days)', k: 'delivered30', kind: 'int', lv: 2 }, { h: 'Cancelled (30 days) %', k: 'cancelPct', kind: 'int', lv: 2 }, { h: 'Rating', k: 'rating', kind: 'center', lv: 2 }, { h: 'Accepts an order in (min)', k: 'accept', kind: 'center', lv: 2 },
         { h: 'Unpaid bills (₹)', k: 'owed', kind: 'money', lv: 2 }, { h: 'SMS balance (₹)', k: 'sms', kind: 'money', lv: 2 }, { h: 'Customers', k: 'customers', kind: 'int', lv: 2 }, { h: 'Riders', k: 'riders', kind: 'int', lv: 2 }, { h: 'Cooks', k: 'cooks', kind: 'int', lv: 2 }, { h: 'Waiters', k: 'waiters', kind: 'int', lv: 2 },
         { h: 'Behaviour in words', k: 'words', kind: 'wide', lv: 3 }, { h: 'Orders (all time)', k: 'allOrders', kind: 'int', lv: 3 }, { h: 'Sales (all time) (₹)', k: 'allSales', kind: 'money', lv: 3 }, { h: 'Busiest hour', k: 'peak', kind: 'center', lv: 3 }, { h: 'Last order', k: 'lastOrder', kind: 'date', lv: 3 }, { h: 'Complaints (90 days)', k: 'complaints', kind: 'int', lv: 3 }, { h: 'Open since', k: 'joined', kind: 'date', lv: 3 },
@@ -845,12 +833,12 @@ D.branches = {
     async fetch(f, ctx) {
         const SmsWallet = require('../models/SmsWallet');
         const m = { ...(ctx.scope ? { _id: { $in: ctx.scope } } : {}), ...(['active', 'suspended'].includes(f.status) ? { status: f.status } : {}) };
-        const tenants = await Tenant.find(m).sort({ createdAt: 1 }).select('name status billing address.city branchCity stats createdAt').lean();
+        const tenants = await Tenant.find(m).sort({ createdAt: 1 }).select('name status billing plan address.city branchCity stats createdAt').lean();
         if (ctx.countOnly) return { count: tenants.length };
         const ids = tenants.map((t) => t._id);
         const [st, inv, wallets, comp, people, admins] = await Promise.all([
             shopRecent(ids, ctx.now),
-            SubscriptionInvoice.aggregate([{ $match: { tenantId: { $in: ids }, status: 'pending' } }, { $group: { _id: '$tenantId', owed: { $sum: '$total' }, n: { $sum: 1 }, overdue: { $sum: { $cond: [{ $lt: ['$dueDate', new Date(ctx.now)] }, 1, 0] } } } }]),
+            Promise.resolve([]),   // everything is prepaid: nobody owes anything
             SmsWallet.find({ tenantId: { $in: ids } }).select('tenantId balancePaise').lean(),
             Complaint.aggregate([{ $match: { tenantId: { $in: ids }, createdAt: { $gte: new Date(ctx.now - 90 * DAY) } } }, { $group: { _id: '$tenantId', n: { $sum: 1 } } }]),
             User.aggregate([{ $match: { tenantId: { $in: ids }, role: { $in: ['customer', 'rider', 'kitchen', 'waiter'] } } }, { $group: { _id: { t: '$tenantId', r: '$role' }, n: { $sum: 1 } } }]),
@@ -877,12 +865,12 @@ D.branches = {
         }
         if (rating) bits.push(`Rated ${r2(rating.avg)} from ${rating.count} rating${rating.count === 1 ? '' : 's'}.`);
         bits.push(`Team: ${r.n('kitchen')} cook${r.n('kitchen') === 1 ? '' : 's'}, ${r.n('waiter')} waiter${r.n('waiter') === 1 ? '' : 's'}, ${r.n('rider')} rider${r.n('rider') === 1 ? '' : 's'}; ${r.n('customer')} customers.`);
-        const rentState = t.billing && t.billing.state;
-        bits.push(rentState === 'paused' ? 'Paused because rent is unpaid.' : rentState === 'free' ? 'Still in the free period.' : r.inv && r.inv.n ? `${r.inv.n} unpaid bill${r.inv.n === 1 ? '' : 's'} worth ₹${Math.round(owed)}.` : 'Rent is paid up.');
+        const pw = planWord(t);
+        bits.push(pw === 'paused' ? 'Paused: the plan was not renewed.' : pw === 'free' ? 'Still in the free period.' : pw === 'no plan' ? 'No plan yet.' : `On the ${pw} plan.`);
         bits.push(!s.allOrders ? 'Needs the first order.' : o30 === 0 ? 'Quiet: think of an offer or a message to customers.' : cancelPct >= 20 ? 'Many cancels: find out why.' : r.n('rider') === 0 && o30 > 0 ? 'No riders yet.' : 'Looks healthy.');
         return {
             name: t.name, city: t.branchCity || (t.address && t.address.city) || '', status: t.status, manager: r.admins.map((u) => `${u.name || ''} ${c.phone(u.phone)}`.trim()).join(', '),
-            orders30: o30, sales30: r2(s.sales30), rent: (t.billing && t.billing.state) || '', delivered30: s.delivered30 || 0, cancelPct, rating: rating ? r2(rating.avg) : '', accept: s.acceptMin != null ? Math.round(s.acceptMin * 10) / 10 : '',
+            orders30: o30, sales30: r2(s.sales30), rent: planWord(t), delivered30: s.delivered30 || 0, cancelPct, rating: rating ? r2(rating.avg) : '', accept: s.acceptMin != null ? Math.round(s.acceptMin * 10) / 10 : '',
             owed: r2(owed), sms: rs(r.wallet && r.wallet.balancePaise), customers: r.n('customer'), riders: r.n('rider'), cooks: r.n('kitchen'), waiters: r.n('waiter'),
             words: bits.join(' '), allOrders: s.allOrders || 0, allSales: r2(s.allSales), peak: s.peak !== undefined ? hourText(s.peak) : '', lastOrder: s.lastOrder || '', complaints: r.complaints, joined: t.createdAt,
         };

@@ -28,16 +28,9 @@ function blockedGate(req, res, next) {
     if (req.tenant.ownerBlocked) {
         return res.status(403).json({ error: 'Your shop panel is paused. Please contact support.', blocked: true });
     }
-    // unpaid rent after grace: only the routes mounted with .allowBlocked stay open
-    // (orders, billing, and later notifications)
+    // plan not renewed after the grace days: only the routes mounted with .allowBlocked stay open
     if (req.tenant.plan?.paused) {
         return res.status(403).json({ error: 'Your plan has ended. Choose your plan to open your shop again. You can finish current orders and open Plan.', paused: true, planPaused: true });
-    }
-    if (req.tenant.billing?.state === 'paused') {
-        return res.status(403).json({
-            error: 'Your shop is paused because a bill is unpaid. You can finish current orders and open Billing.',
-            paused: true,
-        });
     }
     next();
 }
@@ -45,12 +38,12 @@ function blockedGate(req, res, next) {
 module.exports = [authenticate, checkAdmin, blockedGate];
 module.exports.allowBlocked = [authenticate, checkAdmin];
 
-// Only the superadmin's "block the owner panel" switch. NOT the rent pause.
+// Only the superadmin's "block the owner panel" switch. NOT the plan pause.
 function ownerBlockedGate(req, res, next) {
     if (req.tenant.ownerBlocked) {
         return res.status(403).json({ error: 'Your shop panel is paused. Please contact support.', blocked: true });
     }
     next();
 }
-// Open while the shop is paused for unpaid rent, but still closed when the superadmin blocked the owner panel
+// Open while the plan is paused, but still closed when the superadmin blocked the owner panel
 module.exports.allowPaused = [authenticate, checkAdmin, ownerBlockedGate];

@@ -1,6 +1,6 @@
-// Payment options for the owner's own payments (a monthly bill, an SMS top-up): pay with PhonePe / Google Pay / Paytm /
+// Payment options for the owner's own payments (a plan, an extra shop, the wallet, an SMS top-up): pay with PhonePe / Google Pay / Paytm /
 // any UPI app, a credit or debit card, or scan a QR from another phone. Looks and works like the customer's checkout.
-// Opened with params { kind: 'rent' | 'sms' | 'dues' | 'branchdues' (a brand owner: id = a branch slug, or none = all branches), id? (the bill), amountPaise, title }. 'dues' pays every unpaid bill and late fee at once.
+// Opened with params { kind: 'plan' | 'branchshop' | 'wallet' | 'sms', to?, months?, amountPaise, title }.
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, ScrollView, TextInput, Image, StyleSheet } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -13,8 +13,7 @@ import { useAuthStore } from '../../store/common/useAuthStore';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { standardUpiApps, detectInstalledUpiApps } from '../../utils/customers/upiApps';
 import { payPlatform } from '../../utils/owners/payPlatform';
-import { fetchBrandDues } from '../../api/owners/brandApi';
-import { fetchRentInvoices, fetchPlan, payRentInvoice, startTopup, fetchTopups, fetchDues, apiError } from '../../api/owners/shopApi';
+import { fetchPlan, startTopup, fetchTopups, apiError } from '../../api/owners/shopApi';
 import { rupees } from '../../utils/owners/riderRules';
 import { showToast } from '../../components/customers/shop';
 import { ListShimmer } from '../../components/owners/shimmer';
@@ -120,10 +119,7 @@ export default function OwnerPayScreen() {
 
     // has the money arrived? (also asked when an app gives no proof)
     const confirmPaid = async () => {
-        if (kind === 'rent') return !!(await fetchRentInvoices({ page: 1, limit: 20 })).items.find((x) => String(x._id) === String(id) && x.status === 'paid');
-        if (kind === 'dues') return (await fetchDues()).count === 0;
         if (kind === 'plan') { const o = await fetchPlan(); return o.current?.id === to && o.current?.status !== 'ended'; }
-        if (kind === 'branchdues') { const d = await fetchBrandDues(); return (id ? (d.branches.find((b) => b.slug === id) || { count: 0 }).count : d.count) === 0; }
         return false;
     };
 
@@ -138,7 +134,7 @@ export default function OwnerPayScreen() {
         ...upiRows,
         { key: 'upi:any', app: { chooser: true, label: 'UPI' }, label: tr('Other UPI app'), icon: 'phone-portrait-outline', desc: tr('Choose any UPI app on this phone') },
         { key: 'card', label: tr('Credit / Debit card'), icon: 'card-outline', desc: tr('Visa, Mastercard, RuPay. You confirm with your bank OTP') },
-        ...(kind === 'dues' || kind === 'branchdues' || kind === 'wallet' || kind === 'plan' || kind === 'branchshop' ? [] : [{ key: 'qr', label: tr('Scan a QR code'), icon: 'qr-code-outline', desc: tr('Pay from another phone by scanning a code') }]),   // a QR is made for one bill
+        ...(kind === 'wallet' || kind === 'plan' || kind === 'branchshop' ? [] : [{ key: 'qr', label: tr('Scan a QR code'), icon: 'qr-code-outline', desc: tr('Pay from another phone by scanning a code') }]),   // a QR is made for one bill
     ];
     const current = rows.find((r) => r.key === picked);
 
@@ -147,7 +143,7 @@ export default function OwnerPayScreen() {
         if (current.key === 'qr') {
             setQrBusy(true);
             try {
-                setQr(kind === 'rent' ? { ...(await payRentInvoice(id)), id } : await startTopup({ amountPaise }));
+                setQr(await startTopup({ amountPaise }));
             } catch (e) { showToast(apiError(e)); } finally { setQrBusy(false); }
             return;
         }
@@ -170,7 +166,6 @@ export default function OwnerPayScreen() {
 
     // QR sheet: the same checks as before
     const qrPoll = async () => {
-        if (kind === 'rent') return confirmPaid();
         const r = await fetchTopups();
         return !!r.items?.find((t) => String(t.id || t._id) === String(qr.id) && t.status === 'paid');
     };

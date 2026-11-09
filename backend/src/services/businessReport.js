@@ -10,7 +10,6 @@ const BulkOrder = require('../models/BulkOrder');
 const Review = require('../models/Review');
 const Product = require('../models/Product');
 const User = require('../models/User');
-const SubscriptionInvoice = require('../models/SubscriptionInvoice');
 const OnlineRefund = require('../models/OnlineRefund');
 const PlatformSettings = require('../models/PlatformSettings');
 const cod = require('./codService');
@@ -139,7 +138,7 @@ async function build({ tenantId, range = '30', now = new Date() }) {
         Order.aggregate([{ $match: { tenantId, 'deliveryRating.rating': { $gte: 1 }, 'deliveryRating.ratedAt': { $gte: from, $lt: to } } }, { $group: { _id: null, avg: { $avg: '$deliveryRating.rating' }, count: { $sum: 1 } } }]),
         Order.aggregate([{ $match: { tenantId, status: 'delivered', bulkId: { $exists: false } } }, { $group: { _id: null, orders: { $sum: 1 }, revenue: { $sum: NET }, customers: { $addToSet: '$userId' } } }, { $project: { orders: 1, revenue: 1, customers: { $size: '$customers' } } }]),
         OnlineRefund.aggregate([{ $match: { tenantId, status: 'processed', processedAt: { $gte: from, $lt: to } } }, { $group: { _id: null, paise: { $sum: '$amountPaise' } } }]),
-        SubscriptionInvoice.aggregate([{ $match: { tenantId, status: { $ne: 'void' }, issueDate: { $gte: from, $lt: to } } }, { $group: { _id: null, total: { $sum: '$total' } } }]),
+        require('./platformSales').shopCosts({ tenantId, from, to }).then((c) => [{ total: c.plan + c.fees }]),   // what the shop paid the platform: its plan and the per-order fees
         PlatformSettings.findById('main').select('insights').lean(),
         cod.balances(tenantId),
         BulkOrder.aggregate([{ $match: bulkSold(tenantId, from, to) }, { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$stageAt.delivered', timezone: TZ } }, orders: { $sum: 1 }, revenue: { $sum: NETQ } } }]),

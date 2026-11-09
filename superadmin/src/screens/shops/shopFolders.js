@@ -19,10 +19,8 @@ export const FOLDERS = [
     },
     {
         key: 'money', icon: 'bank', section: 'money', title: 'Money',
-        subtitle: 'Rent, invoices, online payments, SMS balance, every money movement',
+        subtitle: 'Plan, online payments, SMS balance, every money movement',
         rows: [
-            { section: 'money', icon: 'bank', title: 'Old rent bills', subtitle: 'Bills issued before plans: unpause, invoices, custom invoice', screen: 'ShopBilling' },
-            { section: 'people', icon: 'receipt', title: 'Rent invoices', subtitle: 'The bills sent to this shop', screen: 'Invoices' },
             { section: 'orders', icon: 'wallet', title: 'Online payments', subtitle: 'Razorpay setup, money received, refunds, chargebacks', screen: 'ShopPayments' },
             { section: 'catalog', icon: 'message', title: 'SMS wallet', subtitle: 'Balance, top-ups, prices, own sender', screen: 'ShopSms' },
             { section: 'platform', icon: 'chart', title: 'Transactions', subtitle: 'Every money movement of this shop', screen: 'Ledger' },

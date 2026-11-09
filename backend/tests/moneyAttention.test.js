@@ -8,7 +8,6 @@ const db = require('./helpers/db');
 const f = require('./helpers/factory');
 const appModule = require('../src/server/app');
 const app = appModule.app || appModule;
-const SubscriptionInvoice = require('../src/models/SubscriptionInvoice');
 const PaymentWebhookEvent = require('../src/models/PaymentWebhookEvent');
 const OnlineRefund = require('../src/models/OnlineRefund');
 const SmsWallet = require('../src/models/SmsWallet');
@@ -29,10 +28,8 @@ describe('money attention', () => {
         assert.equal(b.counts.total, 0);
     });
 
-    test('lists overdue bills, failed refunds and events, low wallets and a paid top-up that was never credited', async () => {
+    test('lists failed refunds and events, low wallets and a paid top-up that was never credited', async () => {
         const w = await f.makeWorld('ma-' + Date.now().toString(36));
-        await SubscriptionInvoice.create({ tenantId: w.tenant._id, kind: 'custom', invoiceNo: 'MA/1', issueDate: new Date(Date.now() - 10 * 86400000), dueDate: new Date(Date.now() - 3 * 86400000), baseAmount: 1000, gstPercent: 18, gstAmount: 180, total: 1180, status: 'pending' });
-        await SubscriptionInvoice.create({ tenantId: w.tenant._id, kind: 'custom', invoiceNo: 'MA/2', issueDate: new Date(), dueDate: new Date(Date.now() + 5 * 86400000), baseAmount: 100, gstPercent: 18, gstAmount: 18, total: 118, status: 'pending' });
         const o = await f.makeOrder(w.tenant, w.customer.user, {});
         await OnlineRefund.create({ tenantId: w.tenant._id, orderId: o._id, paymentId: new mongoose.Types.ObjectId(), rzpPaymentId: 'pay_1', amountPaise: 25000, key: 'ma-k1', status: 'failed' });
         await PaymentWebhookEvent.create({ account: 'platform', eventId: 'evt_1', event: 'payment.captured', status: 'failed', error: 'signature did not match' });
@@ -44,8 +41,6 @@ describe('money attention', () => {
 
         const b = await get();
         const by = Object.fromEntries(b.items.map((i) => [i.key, i]));
-        assert.equal(by.overdue.count, 1);
-        assert.equal(by.overdue.paise, 118000);
         assert.equal(by.refunds_failed.count, 1);
         assert.equal(by.refunds_failed.paise, 25000);
         assert.equal(by.webhook_failed.count, 1);

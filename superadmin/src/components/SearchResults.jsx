@@ -92,7 +92,7 @@ export default function SearchResults({ q }) {
                     <SectionTitle section="shops">Shops</SectionTitle>
                     <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
                         {r.shops.map((s, i) => (
-                            <ListRow key={s.id} section="shops" icon="shops" title={s.name} subtitle={`${s.slug} · ${titleCase(s.billingState || 'free')}${s.status === 'suspended' ? ' · suspended' : ''}`}
+                            <ListRow key={s.id} section="shops" icon="shops" title={s.name} subtitle={`${s.slug} · ${titleCase(s.plan || 'no plan')}${s.status === 'suspended' ? ' · suspended' : ''}`}
                                 onPress={() => inShops('ShopDetail', { shopId: String(s.id), name: s.name })} last={i === r.shops.length - 1} />
                         ))}
                     </Card>
@@ -193,11 +193,11 @@ export default function SearchResults({ q }) {
 
             {r?.invoices.length ? (
                 <>
-                    <SectionTitle section="money">Rent invoices</SectionTitle>
+                    <SectionTitle section="money">Plan payments</SectionTitle>
                     <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
                         {r.invoices.map((inv, i) => (
                             <ListRow key={inv.id} section="money" icon="receipt" title={inv.invoiceNo} subtitle={`${inv.shop || 'Shop'} · ${rupeesFromPaise(inv.totalPaise)} · ${titleCase(inv.status)}`}
-                                onPress={() => toAdmin(nav, { screen: 'MoneyTab', params: { screen: 'InvoiceDetail', params: { invoiceId: String(inv.id), invoiceNo: inv.invoiceNo } } })}
+                                onPress={() => toAdmin(nav, { screen: 'ShopsTab', params: { screen: 'ShopPlan', params: { shopId: String(inv.tenantId), name: inv.shop } } })}
                                 last={i === r.invoices.length - 1} />
                         ))}
                     </Card>

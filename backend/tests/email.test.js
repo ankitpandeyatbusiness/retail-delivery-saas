@@ -15,7 +15,6 @@ const Notification = require('../src/models/Notification');
 const User = require('../src/models/User');
 const Tenant = require('../src/models/Tenant');
 const PlatformSettings = require('../src/models/PlatformSettings');
-const SubscriptionInvoice = require('../src/models/SubscriptionInvoice');
 const { makeWorld, waitFor, sleep } = require('./helpers/factory');
 
 // sets environment values for one test and puts them back after (undefined = remove)
@@ -46,16 +45,8 @@ const INV = {
     seller: { paymentInstructions: 'UPI: acme@upi' },
 };
 const SAMPLES = {
-    rent_invoice: { invoice: INV },
-    payment_receipt: { invoice: INV },
-    bill_reminder: { invoice: INV },
-    shop_paused: { invoice: INV },
-    bill_overdue: { count: 2, rent: 3540, fees: 177, total: 3717 },
-    shop_unpaused: { reason: 'We received your payment.' },
-    free_ending: { summary: '3 free order(s) left and 5 day(s) left' },
     sms_topup_receipt: { amountPaise: 20000, gstPercent: 18, gstPaise: 3600, payablePaise: 23600, balanceAfter: 25000, paidAt: new Date() },
     welcome: { name: 'Ravi', phoneMasked: '98XXXXXX10' },
-    invoice_void: { invoice: INV, action: 'waived', reason: 'Goodwill' },
     owner_email_changed: { newEmailMasked: 'n***@shop.test', when: new Date() },
     login_alert: { when: new Date(), device: 'Android phone', ip: '49.36.1.1', who: 'boss@acme.test' },
     policy_change: { kind: 'terms', summary: 'We changed the cancellation rules.', url: 'https://acme.test/terms', effectiveDate: new Date() },
@@ -65,15 +56,6 @@ const SAMPLES = {
     email_code: { code: '482913', minutes: 10, ownerName: 'Ravi' },
     monthly_report: { report: { range: { label: 'September 2026' }, totals: { revenue: 125000, orders: 80, avgOrder: 1562, placed: 90, cancelled: 10 }, change: { revenue: 12 }, customers: { unique: 50, newCount: 20, repeatPct: 40 }, food: { top: [{ name: 'Paneer Roll', quantity: 30 }], loved: [{ name: 'Paneer Roll', avg: 4.6 }] }, delivery: { best: { name: 'Raju', deliveries: 25 } }, value: { show: true, revenue: 125000, marketplaceCost: 31250, feeBilled: 1180 }, tips: [{ title: 'Try a coupon', detail: 'Coupons bring people back.' }], quote: 'Keep going.', milestones: ['100 orders reached'] } },
 };
-
-let invoiceSeq = 0;
-const makeInvoice = (tenant) => SubscriptionInvoice.create({
-    tenantId: tenant._id, kind: 'custom', invoiceNo: `SUB/2026-27/${String(++invoiceSeq).padStart(4, '0')}`,
-    issueDate: new Date(), dueDate: new Date(Date.now() + 7 * 86400000), graceEndsAt: new Date(Date.now() + 5 * 86400000),
-    description: 'Setup', lineItems: [{ description: 'Setup', qty: 1, rate: 1000, amount: 1000 }],
-    baseAmount: 1000, gstPercent: 18, gstAmount: 180, total: 1180,
-    seller: { legalName: 'Acme Pvt Ltd', paymentInstructions: 'UPI: acme@upi' }, buyer: { legalName: tenant.name },
-});
 
 // no SMS on these tests: the mail is what we look at
 const quietSms = () => mock.method(smsChannel, 'send', async () => ({ sent: false }));
@@ -149,7 +131,7 @@ describe('email templates', () => {
     test('only promotional mails carry the "stop promotional messages" note', () => {
         const promo = registry.get('broadcast').build({ ...SAMPLES.broadcast, ctx: CTX });
         const info = registry.get('broadcast').build({ ...SAMPLES.broadcast, kind: 'info', ctx: CTX });
-        const bill = registry.get('rent_invoice').build({ ...SAMPLES.rent_invoice, ctx: CTX });
+        const bill = registry.get('welcome').build({ ...SAMPLES.welcome, ctx: CTX });
         assert.ok(promo.html.includes('switch off Promotions') && promo.text.includes('switch off Promotions'));
         assert.ok(!info.html.includes('switch off Promotions'));
         assert.ok(!bill.html.includes('switch off Promotions'));
@@ -221,76 +203,6 @@ describe('email channel', () => {
     before(() => db.connect());
     after(() => db.disconnect());
     afterEach(() => mock.restoreAll());
-
-    test('a new bill is mailed to the owner first in the queue, with the PDF attached', async () => {
-        const w = await makeWorld('mail-bill');
-        await setOwnerEmail(w);
-        const invoice = await makeInvoice(w.tenant);
-        quietSms();
-        await center.notify('bill_issued', {
-            tenantId: w.tenant._id, title: 'New bill', body: 'Pay please', data: { invoiceId: String(invoice._id) },
-        });
-        const jobs = await EmailJob.find({ tenantId: w.tenant._id }).lean();
-        assert.equal(jobs.length, 1);
-        assert.equal(jobs[0].to, 'owner@shop.test');
-        assert.equal(jobs[0].priority, 1);
-        assert.equal(jobs[0].kind, 'rent_invoice');
-        assert.ok(jobs[0].subject.includes(invoice.invoiceNo));
-        assert.equal(jobs[0].attachments.length, 1);
-        assert.match(jobs[0].attachments[0].name, /^Invoice-SUB-.*\.pdf$/);
-        assert.equal(Buffer.from(jobs[0].attachments[0].content, 'base64').subarray(0, 4).toString(), '%PDF');
-    });
-
-    test('the shop billing email wins over the owner emails', async () => {
-        const w = await makeWorld('mail-billing-email');
-        await setOwnerEmail(w);
-        await Tenant.updateOne({ _id: w.tenant._id }, { $set: { 'contact.billingEmail': 'accounts@shop.test' } });
-        const invoice = await makeInvoice(w.tenant);
-        quietSms();
-        await center.notify('bill_reminder', { tenantId: w.tenant._id, title: 'Reminder', data: { invoiceId: String(invoice._id) } });
-        const jobs = await EmailJob.find({ tenantId: w.tenant._id }).lean();
-        assert.deepEqual(jobs.map((j) => j.to), ['accounts@shop.test']);
-    });
-
-    test('no recipient (owner has no email) means no mail, and the in-app message is still saved', async () => {
-        const w = await makeWorld('mail-nobody');
-        const invoice = await makeInvoice(w.tenant);
-        quietSms();
-        await center.notify('bill_issued', { tenantId: w.tenant._id, title: 'New bill', data: { invoiceId: String(invoice._id) } });
-        assert.equal(await EmailJob.countDocuments({ tenantId: w.tenant._id }), 0);
-        assert.equal(await Notification.countDocuments({ tenantId: w.tenant._id, type: 'bill_issued' }), 1);
-    });
-
-    test('with email switched off (no mock, no key) nothing is queued', async () => {
-        const w = await makeWorld('mail-off');
-        await setOwnerEmail(w);
-        const invoice = await makeInvoice(w.tenant);
-        quietSms();
-        await withEnv({ EMAIL_MOCK: 'false', BREVO_API_KEY: undefined, MAIL_FROM_EMAIL: undefined }, () => center.notify('bill_issued', {
-            tenantId: w.tenant._id, title: 'New bill', data: { invoiceId: String(invoice._id) },
-        }));
-        assert.equal(await EmailJob.countDocuments({ tenantId: w.tenant._id }), 0);
-    });
-
-    test('the look follows the platform brand and legal details', async () => {
-        const w = await makeWorld('mail-brand');
-        await setOwnerEmail(w);
-        const invoice = await makeInvoice(w.tenant);
-        await PlatformSettings.findByIdAndUpdate('main', {
-            $set: { business: { legalName: 'Acme Pvt Ltd', address: '1 Road, Lucknow', gstin: '22AAAAA0000A1Z5', appName: 'Acme Eats', brandColor: '#0a5c36' } },
-        }, { upsert: true });
-        try {
-            quietSms();
-            await center.notify('payment_received', { tenantId: w.tenant._id, title: 'Paid', data: { invoiceId: String(invoice._id) } });
-            const job = await EmailJob.findOne({ tenantId: w.tenant._id }).lean();
-            assert.equal(job.kind, 'payment_receipt');
-            for (const piece of ['#0a5c36', 'Acme Eats', 'Acme Pvt Ltd', 'GSTIN: 22AAAAA0000A1Z5']) {
-                assert.ok(job.html.includes(piece), piece);
-            }
-        } finally {
-            await PlatformSettings.deleteMany({});
-        }
-    });
 
     test('a mail can go to a fixed address, for example the OLD email of an account', async () => {
         const w = await makeWorld('mail-old-address');

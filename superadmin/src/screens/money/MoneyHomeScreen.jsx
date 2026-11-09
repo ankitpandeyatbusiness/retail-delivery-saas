@@ -35,16 +35,15 @@ export default function MoneyHomeScreen() {
     const go = (screen, params) => () => nav.navigate(screen, params);
 
     return (
-        <Screen tabScreen title="Money" subtitle="Rent, profit and what to look at" refreshing={refreshing} onRefresh={refresh}>
-            <View style={{ marginBottom: spacing.lg }}><SearchBar value={q} onChangeText={setQ} placeholder="Search bills, refunds, payments" /></View>
+        <Screen tabScreen title="Money" subtitle="Plans, profit and what to look at" refreshing={refreshing} onRefresh={refresh}>
+            <View style={{ marginBottom: spacing.lg }}><SearchBar value={q} onChangeText={setQ} placeholder="Search payments, refunds, invoices" /></View>
             {q.trim() ? <MoneySearch q={q} /> : error && !d ? <ErrorBox message={error} onRetry={load} /> : !d ? <SkeletonDashboard /> : (
                 <>
                     <View style={{ flexDirection: 'row', gap: spacing.md }}>
                         <Stat section="money" label="Collected this month" value={rupeesFromPaise(d.month.current.collectedPaise)} icon="wallet" note={vs(d.month.change.collected)} onPress={go('MonthClose')} />
-                        <Stat section={d.month.owed.overduePaise ? 'alerts' : 'riders'} label="Overdue" value={rupeesFromPaise(d.month.owed.overduePaise)} icon="warning" note={d.month.owed.overdueShops ? `${d.month.owed.overdueShops} shop${d.month.owed.overdueShops === 1 ? '' : 's'}` : 'Nobody is late'} onPress={go('Receivables')} />
                     </View>
                     <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md }}>
-                        <Stat label="Expected next 30 days" value={rupeesFromPaise(d.next.dueSoon.paise + d.next.nextBillsEstimatePaise)} icon="clock" note="Estimate" onPress={go('MonthClose')} />
+                        <Stat label="Expected next 30 days" value={rupeesFromPaise(d.next.nextBillsEstimatePaise)} icon="clock" note="Estimate" onPress={go('MonthClose')} />
                         <Stat label={d.month.current.netPaise < 0 ? 'Loss this month' : 'Net this month'} value={rupeesFromPaise(d.month.current.netPaise)} icon="chart" tone={d.month.current.netPaise < 0 ? 'danger' : 'success'} note={vs(d.month.change.net)} onPress={go('ProfitLoss')} />
                     </View>
 
@@ -70,10 +69,8 @@ export default function MoneyHomeScreen() {
                         )) : <ListRow section="riders" icon="ok" title="All clear" subtitle="No bill, refund or payment needs a look right now." last />}
                     </Card>
 
-                    <SectionTitle section="money">Collect</SectionTitle>
+                    <SectionTitle section="money">Money in</SectionTitle>
                     <Card padded={false} style={{ paddingHorizontal: spacing.lg }}>
-                        <ListRow section="alerts" icon="warning" title="Who owes you money" subtitle="Unpaid rent, notes and promises, reminders" onPress={go('Receivables')} />
-                        <ListRow section="money" icon="receipt" title="Rent invoices" subtitle="Monthly bills to shops: pay, waive, void, extend" onPress={go('Invoices')} />
                         <ListRow section="people" icon="wallet" title="Transactions" subtitle="Everything received from shops" onPress={go('Ledger')} last />
                     </Card>
 

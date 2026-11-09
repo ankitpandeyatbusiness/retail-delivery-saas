@@ -6,7 +6,6 @@ const db = require('./helpers/db');
 const f = require('./helpers/factory');
 const app = require('../src/server/app');
 const Tenant = require('../src/models/Tenant');
-const SubscriptionInvoice = require('../src/models/SubscriptionInvoice');
 const center = require('../src/notifications/center');
 const backup = require('../src/jobs/backupDump');
 const mig = require('../src/services/planMigration');
@@ -31,17 +30,15 @@ beforeEach(async () => {
 afterEach(() => mock.restoreAll());
 
 describe('the dry run', () => {
-    test('lists who would move, who is skipped and the old open bills; changes nothing', async () => {
+    test('lists who would move, who is skipped; changes nothing', async () => {
         const a = await shop({ 'billing.state': 'paused' });
         const b = await shop();
         const closed = await shop({ status: 'suspended' });
-        await SubscriptionInvoice.create({ tenantId: a.tenant._id, invoiceNo: 'T/1', kind: 'monthly', period: '2026-09', status: 'pending', baseAmount: 3000, total: 3000, gstPercent: 0, gstAmount: 0, issueDate: new Date(Date.now() - 40 * DAY), dueDate: new Date(Date.now() - 30 * DAY) });
         const pv = await mig.preview();
         assert.equal(pv.dryRun, true);
         assert.equal(pv.counts.move, 2);
         assert.equal(pv.counts.skip, 1);
         assert.equal(pv.counts.paused, 1);
-        assert.equal(pv.move.find((m) => m.id === String(a.tenant._id)).openBills.totalRs, 3000);
         assert.match(pv.skip[0].why, /not active/);
         for (const w of [a, b, closed]) assert.equal((await get(w)).plan?.id, undefined);
         assert.equal(sent.length, 0);
@@ -49,9 +46,8 @@ describe('the dry run', () => {
 });
 
 describe('the move', () => {
-    test('backup first, then Pro free for 30 days; a paused shop is unpaused; bills and settings are kept', async () => {
-        const a = await shop({ 'billing.state': 'paused', 'billing.freeOrdersOverride': 250 });
-        const inv = await SubscriptionInvoice.create({ tenantId: a.tenant._id, invoiceNo: 'T/2', kind: 'monthly', period: '2026-09', status: 'pending', baseAmount: 3000, total: 3000, gstPercent: 0, gstAmount: 0, issueDate: new Date(Date.now() - 40 * DAY), dueDate: new Date(Date.now() - 30 * DAY) });
+    test('backup first, then Pro free for 30 days; a paused shop is unpaused; settings are kept', async () => {
+        const a = await shop({ 'billing.state': 'paused' });
         const r = await mig.run({ by: 'test' });
         assert.equal(r.movedCount, 1);
         assert.equal(backup.runBackup.mock.callCount(), 1);
@@ -61,8 +57,6 @@ describe('the move', () => {
         assert.ok(new Date(t.plan.endsAt) > new Date(Date.now() + 28 * DAY) && new Date(t.plan.endsAt) < new Date(Date.now() + 31 * DAY));
         assert.equal(String(t.plan.freeUntil), String(t.plan.endsAt));
         assert.equal(t.billing.state, 'active');   // the old pause is cleared
-        assert.equal(t.billing.freeOrdersOverride, 250);   // amounts and free-period settings kept
-        assert.equal((await SubscriptionInvoice.findById(inv._id).lean()).status, 'pending');   // the old bill is untouched
         assert.equal(sent.filter((s) => s.type === 'plan_changed').length, 1);
     });
 

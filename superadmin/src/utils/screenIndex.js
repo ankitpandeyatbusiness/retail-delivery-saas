@@ -6,9 +6,7 @@ const E = (title, where, screen, stack, icon, section, keywords, scope = 'app') 
 export const SCREEN_INDEX = [
     /* ---- money ---- */
     E('Profit and loss', 'Money', 'ProfitLoss', 'root', 'chart', 'money', 'profit loss income cost expenses margin month net earnings analysis'),
-    E('Who owes you money', 'Money', 'Receivables', 'root', 'warning', 'alerts', 'receivables unpaid overdue pending dues late paying not paying aging defaulters outstanding rent'),
     E('Your expenses', 'Money', 'Expenses', 'root', 'wallet', 'catalog', 'expenses costs hosting server sms provider staff salary marketing tools tax spending add expense'),
-    E('Rent invoices', 'Money', 'Invoices', 'MoneyTab', 'receipt', 'money', 'invoices bills rent subscription generate mark paid void waive grace overdue pdf'),
     E('Transactions', 'Money', 'Ledger', 'MoneyTab', 'wallet', 'people', 'transactions ledger money received payments csv export statement history'),
     E('SMS profit', 'Money', 'SmsProfit', 'MoneyTab', 'chart', 'catalog', 'sms profit revenue cost margin per shop'),
     E('SMS prices', 'Money', 'PlatformSms', 'MoneyTab', 'coupon', 'catalog', 'sms prices rate cost packs top up minimum maximum low balance'),
@@ -23,7 +21,6 @@ export const SCREEN_INDEX = [
     E('SMS balance (provider)', 'Money', 'SmsBalance', 'root', 'wallet', 'catalog', 'sms balance msg91 provider low empty otp reserve dlt credits estimate'),
     E('Money settings', 'Money', 'MoneySettings', 'root', 'tune', 'settings', 'money settings billing rules gst refund razorpay business sms prices'),
     E('Refunds', 'Orders', 'Refunds', 'root', 'rupee', 'orders', 'refund money back failed customer razorpay'),
-    E('Shops to close', 'Shops', 'ShopsToClose', 'root', 'lock', 'alerts', 'close closed closing shut shop unpaid rent months stop'),
     /* ---- find and watch ---- */
     E('Shop health', 'Shops', 'Health', 'root', 'shield', 'riders', 'health score cancellations late orders stuck rating complaints success rate attention'),
     E('System and backups', 'More', 'System', 'root', 'bolt', 'settings', 'system backups database sms provider jobs nightly status test mode back up now restore'),
@@ -55,8 +52,6 @@ export const SCREEN_INDEX = [
     E('Complaints', 'Shop', 'ShopComplaints', 'ShopsTab', 'message', 'alerts', 'complaints refund resolve missing wrong quality late customer problem', 'shop'),
     E('Messages to customers', 'Shop', 'ShopMessages', 'ShopsTab', 'megaphone', 'platform', 'messages customers riders promotion information announce push', 'shop'),
     E('Activity log', 'Shop', 'ShopActivity', 'ShopsTab', 'notes', 'settings', 'activity log who changed shop history', 'shop'),
-    E('Old rent bills', 'Shop', 'ShopBilling', 'ShopsTab', 'bank', 'money', 'old rent bills unpause pause grace invoices custom invoice fixed fee override custom invoice', 'shop'),
-    E('Custom invoice', 'Shop', 'CustomInvoice', 'ShopsTab', 'receipt', 'money', 'custom invoice setup fee training extra charge bill gst line items', 'shop'),
     E('Online payments (Razorpay)', 'Shop', 'ShopPayments', 'ShopsTab', 'wallet', 'orders', 'online payments razorpay keys webhook secret test refunds disputes chargebacks upi card', 'shop'),
     E('Bulk orders', 'Shop', 'ShopBulk', 'ShopsTab', 'receipt', 'orders', 'bulk orders large quantity catering office party function quote advance balance refund minimum notice delivery fee rules', 'shop'),
     E('SMS wallet', 'Shop', 'ShopSms', 'ShopsTab', 'message', 'catalog', 'sms wallet balance top up prices rate cost warn block zero history', 'shop'),

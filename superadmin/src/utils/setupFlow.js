@@ -23,5 +23,5 @@ export function goSetupStep(nav, shopId, name, i, replace = true) {
 // where a "set-up check" line is fixed: [screen, params kind]
 export const FIX_SCREEN = {
     logo: 'ShopBranding', hero: 'ShopBranding', contact: 'ShopEdit', location: 'ShopEdit', menu: 'ShopMenu', hours: 'SettingsHours',
-    owner: 'ShopOwners', rider: 'ShopRiders', payments: 'ShopPayments', business: 'ShopEdit', package: 'ShopEdit', live: 'ShopBilling',
+    owner: 'ShopOwners', rider: 'ShopRiders', payments: 'ShopPayments', business: 'ShopEdit', package: 'ShopEdit', live: 'ShopPlan',
 };

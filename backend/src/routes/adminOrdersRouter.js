@@ -252,16 +252,16 @@ router.get('/reports/sales/export', wrap(async (req, res) => {
     res.send(buf);
 }));
 
-// the platform's OWN money this month: rent billed and collected, SMS margin, costs, net, and what shops still owe
+// the platform's OWN money this month: plans, extra shops and fees collected, SMS margin, costs, net
 router.get('/reports/income', wrap(async (req, res) => {
     const fin = require('../services/financeService');
-    const [sum, rec] = await Promise.all([fin.summary({ months: 1 }), fin.receivables({})]);
+    const sum = await fin.summary({ months: 1 });
     const t = sum.totals;
     res.json({
         month: sum.months[0],
         billedPaise: t.billedPaise, collectedPaise: t.collectedPaise, rentIncomePaise: t.rentIncomePaise, smsMarginPaise: t.smsMarginPaise,
         costsPaise: t.costsPaise, netPaise: t.netPaise, verdict: sum.verdict,
-        owedPaise: rec.totals.pendingPaise, overduePaise: rec.totals.overduePaise, overdueShops: rec.totals.overdueShops,
+        owedPaise: 0, overduePaise: 0, overdueShops: 0,
     });
 }));
 

@@ -14,9 +14,6 @@ export const runBackup = () => data(api.post('/admin/ops/backup', {}, { timeout:
 
 /* ---------------- profit and loss, who owes, expenses ---------------- */
 export const fetchProfitLoss = (months) => data(api.get('/admin/finance/summary', { params: { months } }));
-export const fetchReceivables = () => data(api.get('/admin/finance/receivables'));
-export const remindShop = (tenantId) => data(api.post(`/admin/finance/receivables/${tenantId}/remind`));
-export const remindBrand = (brandId) => data(api.post(`/admin/finance/receivables/brand/${brandId}/remind`));
 export const listExpenses = () => data(api.get('/admin/finance/expenses'));
 export const addExpense = (body) => data(api.post('/admin/finance/expenses', body));              // { date, category, amountPaise, vendor?, note?, repeatMonthly?, endsOn? }
 export const updateExpense = (id, body) => data(api.patch(`/admin/finance/expenses/${id}`, body));
@@ -53,5 +50,4 @@ export const fetchMoneyAttention = () => data(api.get('/admin/finance/attention'
 export const fetchMonth = (month) => data(api.get('/admin/finance/month', { params: month ? { month } : {} }));
 export const fetchNext30 = () => data(api.get('/admin/finance/next30'));
 export const shareMonthExcel = async (month) => saveAndShare(await api.get('/admin/finance/month/export', sheetOpts(month ? { month } : {})), 'month-close' + (month ? '-' + month : ''));
-export const addCollectionNote = (tenantId, body) => data(api.post('/admin/finance/receivables/' + tenantId + '/note', body));   // { note, promiseDate? }
 export const closeCollectionNote = (id, outcome) => data(api.patch('/admin/finance/notes/' + id, { outcome }));   // paid | broken | closed

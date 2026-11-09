@@ -34,7 +34,6 @@ export const useShopsStore = create((set, get) => ({
 export const FILTERS = [
     { value: 'all', label: 'All' },
     { value: 'open', label: 'Taking orders' },
-    { value: 'rent', label: 'Rent due' },
     { value: 'quiet', label: 'No orders 14 days' },
     { value: 'attention', label: 'Needs attention' },
     { value: 'free', label: 'Free period' },
@@ -46,10 +45,9 @@ export const FILTERS = [
 
 export const matchesFilter = (shop, f) => {
     if (f === 'open') return !!shop.state?.acceptingOrders;
-    if (f === 'rent') return shop.status === 'active' && (shop.stats?.owed || 0) > 0;
     if (f === 'quiet') return !!shop.stats?.quiet;
     if (f === 'attention') return !shop.state?.acceptingOrders && shop.status === 'active';
-    if (f === 'free') return shop.status === 'active' && shop.rent?.stage === 'free';
+    if (f === 'free') return shop.status === 'active' && shop.plan?.status === 'free';
     if (f === 'suspended') return shop.status !== 'active';
     if (f === 'partner' || f === 'growth' || f === 'pro') return shop.plan?.id === f;
     return true;
@@ -58,7 +56,6 @@ export const matchesFilter = (shop, f) => {
 export const SORTS = [
     { value: 'attention', icon: 'warning', section: 'alerts', label: 'Needs attention first', hint: 'Problems on top, closed shops last' },
     { value: 'orders', icon: 'orders', section: 'orders', label: 'Most orders today', hint: 'The busiest shops first' },
-    { value: 'rent', icon: 'rupee', section: 'money', label: 'Most rent due', hint: 'Who owes the most first' },
     { value: 'quiet', icon: 'clock', section: 'catalog', label: 'Quietest first', hint: 'Longest without an order first' },
     { value: 'newest', icon: 'sparkle', section: 'platform', label: 'Newest', hint: 'Added most recently first' },
     { value: 'name', icon: 'notes', section: 'settings', label: 'A to Z', hint: 'By shop name' },
@@ -77,7 +74,6 @@ export const sortShops = (list, by) => {
     const a = [...list];
     const num = (x) => Number(x || 0);
     if (by === 'orders') return a.sort((x, y) => num(y.stats?.ordersToday) - num(x.stats?.ordersToday) || x.name.localeCompare(y.name));
-    if (by === 'rent') return a.sort((x, y) => num(y.stats?.owed) - num(x.stats?.owed) || x.name.localeCompare(y.name));
     if (by === 'quiet') return a.sort((x, y) => (x.stats?.lastOrderAt ? new Date(x.stats.lastOrderAt).getTime() : 0) - (y.stats?.lastOrderAt ? new Date(y.stats.lastOrderAt).getTime() : 0));
     if (by === 'newest') return a.sort((x, y) => new Date(y.createdAt) - new Date(x.createdAt));
     if (by === 'name') return a.sort((x, y) => x.name.localeCompare(y.name));
