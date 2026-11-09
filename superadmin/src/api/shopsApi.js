@@ -103,6 +103,8 @@ export const rollbackPlanMigration = (confirm) => data(api.post('/admin/plans/mi
 export const fetchShopWallet = (id) => data(api.get(`${T(id)}/wallet`));
 export const adjustShopWallet = (id, body) => data(api.post(`${T(id)}/wallet/adjust`, body));
 export const savePlanDefaults = (body) => data(api.put('/admin/platform/plans', body));
+export const fetchShopRefunds = (id) => data(api.get(`/admin/tenants/${id}/refunds`));
+export const sendShopRefund = (id, body) => data(api.post(`/admin/tenants/${id}/refunds`, body));
 export const fetchPlanCoupons = () => data(api.get('/admin/plan-coupons'));
 export const createPlanCoupon = (body) => data(api.post('/admin/plan-coupons', body));
 export const updatePlanCoupon = (id, body) => data(api.put(`/admin/plan-coupons/${id}`, body));

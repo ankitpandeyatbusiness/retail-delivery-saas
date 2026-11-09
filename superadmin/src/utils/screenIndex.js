@@ -64,6 +64,7 @@ export const SCREEN_INDEX = [
     E('Plan coupons', 'More', 'PlanCoupons', 'MoreTab', 'star', 'money', 'plan coupons coupon code offer discount percent off push shops 3 months 6 months'),
     E('Move shops to plans', 'More', 'PlanMigration', 'MoreTab', 'bolt', 'money', 'move shops plans migrate pro free 30 days existing shops preview backup undo'),
     E('Plan', 'Shop', 'ShopPlan', 'ShopsTab', 'star', 'catalog', 'plan partner growth pro free days extras website app switch subscription', 'shop'),
+    E('Send money back', 'Shop', 'ShopRefund', 'ShopsTab', 'star', 'money', 'refund money back emergency wallet balance plan unused sms razorpay return', 'shop'),
     E('Access and maintenance', 'Shop', 'ShopAccess', 'ShopsTab', 'shield', 'alerts', 'access block owner panel pause shop maintenance suspend', 'shop'),
     E('Branding', 'Shop', 'ShopBranding', 'ShopsTab', 'palette', 'catalog', 'branding logo home pictures hero banner colours from logo app icon splash adaptive upload', 'shop'),
     E('Menu', 'Shop', 'ShopMenu', 'ShopsTab', 'food', 'catalog', 'menu items categories products stock add item dish price veg weight kind', 'shop'),

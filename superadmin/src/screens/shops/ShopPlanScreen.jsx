@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, Switch } from 'react-native';
-import { useRoute } from '@react-navigation/native';
+import { useRoute, useNavigation } from '@react-navigation/native';
 import { useTheme, spacing, font } from '../../theme';
 import { Screen } from '../../components/layout';
 import { Card, SectionTitle, Badge, Chip, Button } from '../../components/ui';
@@ -22,6 +22,7 @@ const priceText = (c, id) => (id === 'partner' ? 'Rs 0 rent, Rs 3 to Rs 15 per o
 export default function ShopPlanScreen() {
     const t = useTheme();
     const { shopId } = useRoute().params;
+    const nav = useNavigation();
     const tenant = useShopStore((s) => s.byId[shopId])?.tenant;
     const [cat, setCat] = useState(null);
     const [plan, setPlan] = useState(null);
@@ -94,6 +95,12 @@ export default function ShopPlanScreen() {
                 </View>
                 <Text style={{ color: t.muted, marginTop: spacing.md }}>{plan.id ? priceText(cat, plan.id) : 'Pick a plan to start.'}</Text>
                 <Field label="Free days for the new plan (empty = platform default)" value={days} onChangeText={(v) => setDays(v.replace(/\D/g, ''))} keyboardType="number-pad" maxLength={3} />
+            </Card>
+
+            <SectionTitle section="money">Emergency</SectionTitle>
+            <Card>
+                <Text style={{ color: t.muted, marginBottom: spacing.sm }}>Send real money back to this shop's payment method: the unused part of its plan, its wallet balance or its SMS balance.</Text>
+                <Button title="Send money back" kind="outline" icon="cash-outline" onPress={() => nav.navigate('ShopRefund', { shopId })} />
             </Card>
 
             <SectionTitle section="shops">{look ? `Preview: ${NAMES[look]}` : 'How the shop looks now'}</SectionTitle>

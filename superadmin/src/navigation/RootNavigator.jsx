@@ -91,6 +91,7 @@ import ShopEditScreen from '../screens/shops/ShopEditScreen';
 import ShopLiveScreen from '../screens/shops/ShopLiveScreen';
 import ShopAccessScreen from '../screens/shops/ShopAccessScreen';
 import ShopPlanScreen from '../screens/shops/ShopPlanScreen';
+import ShopRefundScreen from '../screens/shops/ShopRefundScreen';
 import PlanDefaultsScreen from '../screens/platform/PlanDefaultsScreen';
 import PlanCouponsScreen from '../screens/platform/PlanCouponsScreen';
 import PlanMigrationScreen from '../screens/platform/PlanMigrationScreen';
@@ -174,6 +175,7 @@ const DETAIL = [
     ['ShopLive', ShopLiveScreen],
     ['ShopAccess', ShopAccessScreen],
     ['ShopPlan', ShopPlanScreen],
+    ['ShopRefund', ShopRefundScreen],
     ['ShopDev', ShopDevScreen],
     ['ShopNotify', ShopNotifyScreen],
     ['ShopUsers', ShopUsersScreen],
