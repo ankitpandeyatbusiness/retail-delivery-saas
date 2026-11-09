@@ -4637,7 +4637,6 @@ export default {
     "Your shop gets this request and will approve or reject it.": "रउआ दुकान के ई अनुरोध मिली आ ऊ मंजूर या नामंजूर करी।",
     "Your shop is open again": "रउआ दुकान फेर से खुल गइल",
     "Your shop is paused": "रउआ दुकान रुकल बा",
-    "Your shop is paused because a bill is unpaid. You can finish current orders and open Billing.": "बिल बाकी भइला के वजह से रउआ के दुकान रुकल बा। रउआ चलत ऑर्डर पूरा कर सकीलें आ बिलिंग खोल सकीलें।",
     "Your shop panel is paused": "रउआ के दुकान पैनल रुकल बा",
     "Your shop panel is paused by the platform": "रउआ के दुकान पैनल प्लेटफ़ॉर्म रोकले बा",
     "Your shop panel is paused. Please contact support.": "रउआ के दुकान पैनल रुकल बा। कृपया सहायता से संपर्क करीं।",

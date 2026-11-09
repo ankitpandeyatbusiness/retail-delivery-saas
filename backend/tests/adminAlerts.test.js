@@ -33,7 +33,7 @@ const fund = (tenant, paise) => wallet.credit({ tenantId: tenant._id, amountPais
 const balance = async (tenant) => (await SmsWallet.findOne({ tenantId: tenant._id })).balancePaise;
 const smsSpy = () => mock.method(smsAdapter, 'send', async () => ({ providerMessageId: 'p1' }));
 const pushSpy = (r = { sent: 1, invalidTokens: [] }) => mock.method(pushAdapter, 'send', async () => r);
-const rotate = () => alertSmsRotation.send({ phone: ADMIN_PHONE, text: 'Platform alert: test', eventKey: 'admin_shop_paused' });
+const rotate = () => alertSmsRotation.send({ phone: ADMIN_PHONE, text: 'Platform alert: test', eventKey: 'admin_plan_ended' });
 
 describe('superadmin alerts', () => {
     before(() => db.connect());
@@ -54,11 +54,11 @@ describe('superadmin alerts', () => {
         const token = 't'.repeat(30);
         await AdminDevice.create({ adminId: new mongoose.Types.ObjectId(), token, platform: 'android' });
         const push = pushSpy();
-        const doc = await adminAlerts.alert('admin_bill_issued', { tenantId: w.tenant._id, vars: { invoiceNo: 'SUB/2026-27/0001', amount: '1180' } });
+        const doc = await adminAlerts.alert('admin_plan_ending', { tenantId: w.tenant._id, vars: { summary: 'Plan ends on 20 Nov' } });
         assert.equal(doc.role, 'superadmin');
-        assert.equal(doc.type, 'admin_bill_issued');
-        assert.equal(doc.title, `Bill issued · ${w.tenant.name}`);   // the shop is named in the title
-        assert.ok(doc.body.includes('SUB/2026-27/0001'));   // the invoice is in the words, the shop in the title
+        assert.equal(doc.type, 'admin_plan_ending');
+        assert.equal(doc.title, `${w.tenant.name}: plan ending`);   // the shop is named in the title
+        assert.ok(doc.body.includes('Plan ends on 20 Nov'));
         assert.equal(String(doc.tenantId), String(w.tenant._id));
         assert.equal(push.mock.calls.length, 1);
         assert.deepEqual(push.mock.calls[0].arguments[0].tokens, [token]);
@@ -69,7 +69,7 @@ describe('superadmin alerts', () => {
         const token = 'd'.repeat(30);
         await AdminDevice.create({ adminId: new mongoose.Types.ObjectId(), token });
         pushSpy({ sent: 0, invalidTokens: [token] });
-        await adminAlerts.alert('admin_shop_paused', { tenantId: w.tenant._id });
+        await adminAlerts.alert('admin_plan_ended', { tenantId: w.tenant._id });
         assert.equal(await AdminDevice.countDocuments({ token }), 0);
     });
 
@@ -77,9 +77,9 @@ describe('superadmin alerts', () => {
         const w = await makeWorld('adm-off');
         pushSpy();
         assert.equal(await adminAlerts.alert('admin_does_not_exist', { tenantId: w.tenant._id }), null);
-        await NotificationRule.create({ eventKey: 'admin_shop_paused', enabled: false });
+        await NotificationRule.create({ eventKey: 'admin_plan_ended', enabled: false });
         rules.invalidate();
-        assert.equal(await adminAlerts.alert('admin_shop_paused', { tenantId: w.tenant._id }), null);
+        assert.equal(await adminAlerts.alert('admin_plan_ended', { tenantId: w.tenant._id }), null);
         assert.equal(await Notification.countDocuments({ role: 'superadmin' }), 0);
     });
 
@@ -88,7 +88,7 @@ describe('superadmin alerts', () => {
         await fund(w.tenant, 20000);
         pushSpy();
         const sms = smsSpy();
-        await adminAlerts.alert('admin_shop_paused', { tenantId: w.tenant._id });
+        await adminAlerts.alert('admin_plan_ended', { tenantId: w.tenant._id });
         assert.equal(sms.mock.calls.length, 0);
     });
 
@@ -99,17 +99,17 @@ describe('superadmin alerts', () => {
         pushSpy();
         const sms = smsSpy();
 
-        await adminAlerts.alert('admin_bill_issued', { tenantId: w.tenant._id, vars: { invoiceNo: 'S1', amount: '1' } });
+        await adminAlerts.alert('admin_plan_ended', { tenantId: w.tenant._id, vars: { summary: 'S1' } });
         assert.equal(sms.mock.calls.length, 0);                      // not critical
 
-        await adminAlerts.alert('admin_shop_paused', { tenantId: w.tenant._id });
+        await adminAlerts.alert('admin_sms_provider_empty', { vars: { amount: 'Rs 10' } });
         assert.equal(sms.mock.calls.length, 1);
         const arg = sms.mock.calls[0].arguments[0];
         assert.equal(arg.to, ADMIN_PHONE);
-        assert.match(arg.text, /^Platform alert: Shop paused: Shop adm-sms-on\. Open your panel/);
+        assert.match(arg.text, /^Platform alert: SMS balance almost empty: add . Open your panel/);
 
         await PlatformSettings.updateOne({ _id: 'main' }, { $set: { 'alerts.allEvents': true } });
-        await adminAlerts.alert('admin_bill_issued', { tenantId: w.tenant._id, vars: { invoiceNo: 'S1', amount: '1' } });
+        await adminAlerts.alert('admin_plan_ended', { tenantId: w.tenant._id, vars: { summary: 'S1' } });
         assert.equal(sms.mock.calls.length, 2);
     });
 

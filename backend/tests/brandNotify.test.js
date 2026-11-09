@@ -129,7 +129,7 @@ describe('which branch alerts reach a brand owner', () => {
     test('serious alerts come through from a muted branch; ordinary ones do not', async () => {
         const w = await world();
         await sessionAt(w.b.delhi.id, RAJU);
-        for (const type of ['rider_sos', 'order_unaccepted_reminder', 'shop_paused', 'bill_overdue', 'bill_reminder']) {
+        for (const type of ['rider_sos', 'order_unaccepted_reminder']) {
             sent.length = 0; await alert(w, 'goa', type);
             assert.deepEqual(reached(), [tokenOf('goa', 'raju')], type);
         }

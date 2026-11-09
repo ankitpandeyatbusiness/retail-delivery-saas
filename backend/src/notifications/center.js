@@ -29,16 +29,10 @@ const liveFeed = require('../services/liveFeed');
 // Owner-side events that also show in the superadmin live feed: eventKey -> [category, line type].
 // Order and rider lines are made in notificationService, so they are not repeated here.
 const FEED = {
-    bill_issued: ['billing', 'bill.issued'],
-    bill_reminder: ['billing', 'bill.reminder'],
-    payment_received: ['billing', 'payment.received'],
-    free_ending: ['billing', 'free.ending'],
-    shop_paused: ['billing', 'shop.paused'],
     plan_ended: ['billing', 'plan.ended'],
     plan_changed: ['billing', 'plan.changed'],
     plan_paused: ['billing', 'shop.paused'],
     wallet_empty: ['billing', 'wallet.empty'],
-    shop_unpaused: ['billing', 'shop.unpaused'],
     sms_topup_done: ['sms', 'sms.topup'],
     sms_low: ['sms', 'sms.low'],
     sms_zero: ['sms', 'sms.zero'],

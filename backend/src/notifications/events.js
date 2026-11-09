@@ -136,15 +136,7 @@ const EVENTS = {
     dish_low_rating: { to: 'owner', channels: INAPP_PUSH },
     complaint_new: { to: 'owner', channels: INAPP_PUSH },
     complaint_reminder: { to: 'owner', channels: INAPP_PUSH },
-    bill_issued: { to: 'owner', channels: ALL, key: true, email: 'rent_invoice', adminAlert: 'admin_bill_issued' },
-    bill_reminder: { to: 'owner', channels: INAPP_PUSH, email: 'bill_reminder', adminAlert: 'admin_grace_ending' },
-    rent_nudge: { to: 'owner', channels: INAPP_PUSH },   // the superadmin's Remind button on Who-owes-you: a push with the amount and month (no platform alert about it)
-    shop_paused: { to: 'owner', channels: ALL, key: true, email: 'shop_paused', adminAlert: 'admin_shop_paused' },
-    bill_overdue: { to: 'owner', channels: ALL, key: true, email: 'bill_overdue' },   // every few days while a bill is overdue (SMS only when the app cannot be reached)
-    shop_unpaused: { to: 'owner', channels: INAPP_PUSH, email: 'shop_unpaused', adminAlert: 'admin_shop_unpaused' },
-    payment_received: { to: 'owner', channels: INAPP_PUSH, email: 'payment_receipt', adminAlert: 'admin_bill_paid' },
     monthly_report: { to: 'owner', channels: INAPP_PUSH, email: 'monthly_report' },   // the shop's progress report, once a month
-    free_ending: { to: 'owner', channels: INAPP_PUSH, email: 'free_ending', adminAlert: 'admin_free_ending' },
     sms_topup_done: { to: 'owner', channels: INAPP_PUSH, email: 'sms_topup_receipt', adminAlert: 'admin_sms_topup_done' },
     plan_ending: { to: 'owner', channels: INAPP_PUSH, adminAlert: 'admin_plan_ending' },     // 7, 3 and 1 days before the paid time ends (services/planLifecycle.js)
     plan_ended: { to: 'owner', channels: ALL, key: true, adminAlert: 'admin_plan_ended' },     // the paid time ended: choose a plan
@@ -182,18 +174,10 @@ const EVENTS = {
     rider_off_duty: { to: 'rider', channels: INAPP_PUSH },   // the app put him off duty (shop closed, or a very long duty)
     rider_sos: { to: 'owner', channels: ALL, key: true, alsoPush: true, pushChannel: HELP_CHANNEL, pushSound: 'help_alarm' },   // the rider pressed the help button: push AND, if the phone is unreachable, SMS
     // superadmin (his own keys, so an owner rule never changes them). SMS only if he switched it on.
-    admin_bill_issued: { to: 'superadmin', channels: ALL },
-    admin_bill_paid: { to: 'superadmin', channels: ALL },
     admin_order_stuck: { to: 'superadmin', channels: INAPP_PUSH },   // an order stayed stuck long after the owner was told (services/stuckOrders.js escalate)
     admin_daily_summary: { to: 'superadmin', channels: INAPP_PUSH },   // the morning push: yesterday's orders and sales, what needs attention (services/dailyDigest.js)
-    admin_promise_due: { to: 'superadmin', channels: INAPP_PUSH },   // a shop promised to pay today (services/collectionNotes.js, sent with the morning summary)
     admin_sms_provider_low: { to: 'superadmin', channels: INAPP_PUSH },   // the balance at the SMS provider is under your low line (services/smsProviderBalance.js)
     admin_sms_provider_empty: { to: 'superadmin', channels: ALL, critical: true },   // almost empty: only login OTPs still go
-    admin_shop_paused: { to: 'superadmin', channels: ALL, critical: true },
-    admin_shop_unpaused: { to: 'superadmin', channels: ALL },
-    admin_grace_ending: { to: 'superadmin', channels: ALL },
-    admin_free_ending: { to: 'superadmin', channels: ALL },
-    admin_free_ended: { to: 'superadmin', channels: ALL },
     admin_plan_ending: { to: 'superadmin', channels: INAPP_PUSH },
     admin_plan_ended: { to: 'superadmin', channels: ALL },
     admin_plan_changed: { to: 'superadmin', channels: INAPP_PUSH },

@@ -26,10 +26,6 @@ const TEMPLATES = {
         purpose: 'order', vars: ['orderNo', 'shop'],
         text: 'Order #{#var#} at {#var#} is still waiting to be accepted. Please open the app now.',
     },
-    bill_issued: {
-        purpose: 'alert', vars: ['invoiceNo', 'amount', 'shop', 'date'],
-        text: 'New bill {#var#} of Rs {#var#} for {#var#}. Please pay by {#var#} to keep taking orders.',
-    },
     delivery_pin: {
         purpose: 'order', vars: ['shop', 'orderNo', 'pin'],
         text: 'Your {#var#} delivery PIN for order #{#var#} is {#var#}. Tell it to the delivery partner at your door.',
@@ -37,14 +33,6 @@ const TEMPLATES = {
     rider_sos: {
         purpose: 'alert', vars: ['riderName', 'shop', 'phone'],
         text: 'Rider {#var#} of {#var#} pressed the help button. Call him now on {#var#}.',
-    },
-    bill_overdue: {
-        purpose: 'alert', vars: ['amount', 'shop'],
-        text: 'Rs {#var#} is overdue for {#var#}. Pay now in the app to stop the late fee from growing.',
-    },
-    shop_paused: {
-        purpose: 'alert', vars: ['shop'],
-        text: 'Your shop {#var#} is paused because a bill is unpaid. Pay now to start taking orders again.',
     },
 };
 

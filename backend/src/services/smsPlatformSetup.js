@@ -14,7 +14,7 @@ const KEYS = ['otp', ...Object.keys(TEMPLATES)];
 const NAMES = {
     otp: 'Login OTP', order_new: 'New order (to the owner)', order_accepted: 'Order accepted', order_out_for_delivery: 'Order on the way',
     order_delivered: 'Order delivered', order_cancelled: 'Order cancelled', order_unaccepted_reminder: 'Order not accepted reminder',
-    bill_issued: 'New bill', delivery_pin: 'Delivery PIN', rider_sos: 'Rider help alert', bill_overdue: 'Bill overdue', shop_paused: 'Shop paused',
+    delivery_pin: 'Delivery PIN', rider_sos: 'Rider help alert',
 };
 const envName = (k) => String(k).toUpperCase().replace(/[^A-Z0-9]/g, '_');
 const envTemplate = (k) => process.env[`SMS_TEMPLATE_${envName(k)}`] || process.env[`DLT_TEMPLATE_${envName(k)}`] || '';

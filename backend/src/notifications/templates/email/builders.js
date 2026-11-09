@@ -2,7 +2,6 @@
 // Change the words of a mail HERE.
 const { compose, rs, day, dateTime, monthLabel } = require('./layout');
 
-const inv = (v) => v.invoice || {};
 const shop = (v) => v.shopName || 'your shop';
 const panelButton = (v, label) => (v.ctx?.panelUrl ? { label, url: v.ctx.panelUrl } : null);
 const help = (ctx = {}) => {
@@ -12,116 +11,6 @@ const help = (ctx = {}) => {
 };
 
 /* ------------------------------ billing (from the platform to the shop owner) ------------------------------ */
-function rentInvoice(v) {
-    const i = inv(v);
-    const month = i.period ? monthLabel(i.period) : null;
-    return compose({
-        ctx: v.ctx,
-        subject: `Your bill ${i.invoiceNo}${month ? ` for ${month}` : ''}`,
-        preheader: `${rs(i.total)} to pay${i.graceEndsAt ? ` by ${day(i.graceEndsAt)}` : ''}`,
-        heading: 'Your new bill is ready',
-        paragraphs: [
-            `Hello ${shop(v)}, your bill is ready. The invoice is attached as a PDF.`,
-            i.seller?.paymentInstructions ? `How to pay: ${i.seller.paymentInstructions}` : '',
-        ],
-        rows: [
-            ['Invoice no', i.invoiceNo], ['Billing month', month], ['Billable orders', i.orderCount], ['Plan', i.tierLabel],
-            ['Amount to pay', rs(i.total)], ['Due date', day(i.dueDate)], ['Keep taking orders until', day(i.graceEndsAt)],
-        ],
-        button: panelButton(v, 'Open billing'),
-        note: help(v.ctx),
-    });
-}
-
-function paymentReceipt(v) {
-    const i = inv(v);
-    return compose({
-        ctx: v.ctx,
-        subject: `Payment received for invoice ${i.invoiceNo}`,
-        preheader: `Thank you. ${rs(i.total)} received.`,
-        heading: 'Payment received',
-        paragraphs: [`Thank you, ${shop(v)}. We received your payment.`],
-        rows: [
-            ['Invoice no', i.invoiceNo], ['Amount paid', rs(i.total)], ['Paid on', day(i.paidAt)],
-            ['Payment mode', i.paymentMode ? String(i.paymentMode).replace('_', ' ') : null], ['Reference', i.paymentRef],
-        ],
-        button: panelButton(v, 'Open billing'),
-        note: help(v.ctx),
-    });
-}
-
-function billReminder(v) {
-    const i = inv(v);
-    return compose({
-        ctx: v.ctx,
-        subject: `Reminder: bill ${i.invoiceNo} is unpaid`,
-        preheader: `New orders will stop after ${day(i.graceEndsAt)}`,
-        heading: 'Your bill is still unpaid',
-        paragraphs: [`Hello ${shop(v)}, bill ${i.invoiceNo} (${rs(i.total)}) is still unpaid.`, `New orders will stop after ${day(i.graceEndsAt)} if it is not paid.`],
-        rows: [['Invoice no', i.invoiceNo], ['Amount to pay', rs(i.total)], ['Pay before', day(i.graceEndsAt)]],
-        button: panelButton(v, 'Pay now'),
-        note: help(v.ctx),
-    });
-}
-
-function billOverdue(v) {
-    const fees = Number(v.fees) || 0;
-    return compose({
-        ctx: v.ctx,
-        subject: 'Your payment is overdue',
-        preheader: `${rs(v.total)} is unpaid${fees > 0 ? `, including a late fee of ${rs(fees)}` : ''}`,
-        heading: 'Your payment is overdue',
-        paragraphs: [
-            `Hello ${shop(v)}, ${v.count} bill${Number(v.count) === 1 ? ' is' : 's are'} unpaid and past the due date.`,
-            fees > 0 ? 'A late fee is added for every month a bill stays unpaid. Paying now stops it from growing.' : 'Please pay now to avoid a late fee.',
-        ],
-        rows: [['Unpaid bills', v.count], ['Rent and other bills', rs(v.rent)], ['Late fees (with GST)', fees > 0 ? rs(fees) : null], ['Total to pay', rs(v.total)]],
-        button: panelButton(v, 'See what you owe and pay'),
-        note: help(v.ctx),
-    });
-}
-
-function shopPaused(v) {
-    const i = inv(v);
-    return compose({
-        ctx: v.ctx,
-        subject: 'Your shop is paused',
-        preheader: 'New orders are stopped until the bill is paid',
-        heading: 'Your shop is paused',
-        paragraphs: [
-            `${shop(v)} is paused, so new orders are stopped. ${v.reason || (i.invoiceNo ? `Invoice ${i.invoiceNo} (${rs(i.total)}) is unpaid.` : 'A bill is unpaid.')}`,
-            'Orders already in progress can still be finished. Pay the bill and your shop opens again.',
-        ],
-        rows: [['Invoice no', i.invoiceNo], ['Amount to pay', i.invoiceNo ? rs(i.total) : null]],
-        button: panelButton(v, 'Pay now'),
-        note: help(v.ctx),
-    });
-}
-
-function shopUnpaused(v) {
-    return compose({
-        ctx: v.ctx,
-        subject: 'Your shop is open again',
-        preheader: 'You can take new orders again',
-        heading: 'Your shop is open again',
-        paragraphs: [`Good news, ${shop(v)} can take new orders again.`, v.reason || ''],
-        button: panelButton(v, 'Open the app panel'),
-        note: help(v.ctx),
-    });
-}
-
-function freeEnding(v) {
-    return compose({
-        ctx: v.ctx,
-        subject: 'Your free service is ending soon',
-        preheader: v.summary || 'A monthly rent applies after the free period',
-        heading: 'Your free service is ending soon',
-        paragraphs: [`Hello ${shop(v)}, ${v.summary || 'your free period is almost over'}.`, 'After that a monthly rent applies. Your first bill will come after the month ends.'],
-        button: panelButton(v, 'See billing'),
-        note: help(v.ctx),
-    });
-}
-
 function smsTopupReceipt(v) {
     return compose({
         ctx: v.ctx,
@@ -131,20 +20,6 @@ function smsTopupReceipt(v) {
         paragraphs: [`Thank you, ${shop(v)}. Your SMS top-up is done.`],
         rows: [['Amount added to your balance', rs((v.amountPaise || 0) / 100)], ...(v.gstPaise ? [[`GST (${v.gstPercent}%)`, rs(v.gstPaise / 100)], ['Total paid', rs((v.payablePaise || 0) / 100)]] : []), ['New balance', rs((v.balanceAfter || 0) / 100)], ['Date', dateTime(v.paidAt || new Date())]],
         button: panelButton(v, 'Open SMS balance'),
-        note: help(v.ctx),
-    });
-}
-
-function invoiceVoid(v) {
-    const i = inv(v);
-    const action = v.action === 'waived' ? 'waived' : 'voided';
-    return compose({
-        ctx: v.ctx,
-        subject: `Invoice ${i.invoiceNo} was ${action}`,
-        preheader: 'You do not need to pay this bill',
-        heading: `Your bill was ${action}`,
-        paragraphs: [`Invoice ${i.invoiceNo} (${rs(i.total)}) was ${action}. You do not need to pay it.`, v.reason ? `Reason: ${v.reason}` : ''],
-        rows: [['Invoice no', i.invoiceNo], ['Amount', rs(i.total)]],
         note: help(v.ctx),
     });
 }
@@ -303,6 +178,6 @@ function broadcast(v) {
 }
 
 module.exports = { monthlyReport, emailCode,
-    rentInvoice, paymentReceipt, billReminder, billOverdue, shopPaused, shopUnpaused, freeEnding, smsTopupReceipt, invoiceVoid,
+    smsTopupReceipt,
     welcome, ownerEmailChanged, loginAlert, policyChange, refundDecision, complaintDecision, broadcast,
 };

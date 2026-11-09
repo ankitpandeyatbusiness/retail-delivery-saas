@@ -202,7 +202,7 @@ describe('notifications lead somewhere', () => {
         assert.equal((await request(app).get('/api/shop/complaints/not-an-id').set(a.owner.headers)).status, 404);
     });
 
-    test('the superadmin push for a bill names the invoice and the shop', async () => {
+    test('the superadmin push names the shop and carries the ids', async () => {
         const { mock } = require('node:test');
         const mongoose = require('mongoose');
         const pushAdapter = require('../src/services/adapters/push');
@@ -212,7 +212,7 @@ describe('notifications lead somewhere', () => {
         const push = mock.method(pushAdapter, 'send', async () => ({ sent: 1, invalidTokens: [] }));
         try {
             const invoiceId = String(new mongoose.Types.ObjectId());
-            await adminAlerts.alert('admin_bill_issued', { tenantId: a.tenant._id, data: { invoiceId } });
+            await adminAlerts.alert('admin_plan_ending', { tenantId: a.tenant._id, data: { invoiceId } });
             const sent = push.mock.calls[0].arguments[0];
             assert.equal(sent.data.invoiceId, invoiceId);
             assert.ok(sent.data.shopName);

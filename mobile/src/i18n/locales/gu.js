@@ -5714,7 +5714,6 @@ export default {
     "Your shop is now on the Pro plan, free": "તમારી દુકાન હવે પ્રો પ્લાન પર છે, મફત",
     "Your shop is open again": "તમારી દુકાન ફરી ખૂલી",
     "Your shop is paused": "તમારી દુકાન અટકાવાઈ છે",
-    "Your shop is paused because a bill is unpaid. You can finish current orders and open Billing.": "બિલ બાકી હોવાથી તમારી દુકાન અટકી છે. તમે ચાલુ ઓર્ડર પૂરા કરી શકો છો અને બિલિંગ ખોલી શકો છો.",
     "Your shop is paused for maintenance": "તમારી દુકાન જાળવણી માટે થોભાવી છે",
     "Your shop may start with a free period. Nothing is charged during it.": "તમારી દુકાન મફત સમયગાળાથી શરૂ થઈ શકે છે. તે દરમિયાન કંઈ ચાર્જ લાગતો નથી.",
     "Your shop panel is open again": "તમારું દુકાન પેનલ ફરી ખૂલી ગયું છે",

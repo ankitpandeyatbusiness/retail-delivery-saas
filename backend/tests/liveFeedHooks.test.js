@@ -89,13 +89,12 @@ describe('feed lines from the order and rider notifications', () => {
     describe('feed lines from billing, SMS wallet and platform messages', () => {
         test('billing events make "billing" lines', async () => {
             const w = await f.makeWorld('hook-bill');
-            await center.notify('bill_issued', { tenantId: w.tenant._id, vars: {}, data: { invoiceNo: 'INV-1' } });
-            await center.notify('shop_paused', { tenantId: w.tenant._id, vars: {} });
+            await center.notify('plan_changed', { tenantId: w.tenant._id, vars: {}, data: {} });
+            await center.notify('plan_paused', { tenantId: w.tenant._id, vars: {} });
             await waitCount(w.tenant._id, 2);
             const list = await rows(w.tenant._id);
-            assert.deepEqual(list.map((r) => r.type).sort(), ['bill.issued', 'shop.paused']);
+            assert.deepEqual(list.map((r) => r.type).sort(), ['plan.changed', 'shop.paused']);
             assert.ok(list.every((r) => r.category === 'billing'));
-            assert.equal((await one(w.tenant._id, 'bill.issued')).data.invoiceNo, 'INV-1');
         });
 
         test('SMS wallet events make "sms" lines', async () => {

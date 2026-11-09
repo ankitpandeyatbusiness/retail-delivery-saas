@@ -80,7 +80,7 @@ describe('who pays the alert SMS', () => {
 
     const fund = (t, paise) => wallet.credit({ tenantId: t._id, amountPaise: paise, type: 'adjust', note: 'test', actor: { type: 'system' } });
     const balance = async (t) => (await SmsWallet.findOne({ tenantId: t._id })).balancePaise;
-    const send = () => alertSmsRotation.send({ phone: '9000000099', text: 'Platform alert: test', eventKey: 'admin_shop_paused' });
+    const send = () => alertSmsRotation.send({ phone: '9000000099', text: 'Platform alert: test', eventKey: 'admin_sms_provider_empty' });
 
     test('no shop pays an alert SMS, live or not; the platform pays and it is counted', async () => {
         const notLive = await makeTenant('rl-notlive');
@@ -115,8 +115,8 @@ describe('notification rules routes and B18', () => {
         const list = await request(app).get('/api/admin/notification-rules').set(auth);
         assert.equal(list.status, 200);
         const keys = list.body.events.map((e) => e.eventKey);
-        assert.ok(keys.includes('order_new') && keys.includes('admin_shop_paused') && keys.includes('shop_unpaused'));
-        assert.equal(list.body.events.find((e) => e.eventKey === 'admin_shop_paused').critical, true);
+        assert.ok(keys.includes('order_new') && keys.includes('admin_sms_provider_empty') && keys.includes('plan_paused'));
+        assert.equal(list.body.events.find((e) => e.eventKey === 'admin_sms_provider_empty').critical, true);
         assert.equal(list.body.events.find((e) => e.eventKey === 'order_new').escalateSmsAfterSec, 180);
 
         assert.equal((await put({ eventKey: 'no_such_event', enabled: false })).status, 404);
@@ -160,12 +160,12 @@ describe('notification rules routes and B18', () => {
 
     test('an alert switched off by a rule sends nothing, and comes back after a reset', async () => {
         try {
-            await put({ eventKey: 'admin_bill_paid', enabled: false });
-            assert.equal(await adminAlerts.alert('admin_bill_paid', { vars: { shop: 'X' } }), null);
-            assert.equal(await adminCount('admin_bill_paid'), 0);
-            await put({ eventKey: 'admin_bill_paid', reset: true });
-            assert.ok(await adminAlerts.alert('admin_bill_paid', { vars: { shop: 'X' } }));
-            assert.equal(await adminCount('admin_bill_paid'), 1);
+            await put({ eventKey: 'admin_plan_ended', enabled: false });
+            assert.equal(await adminAlerts.alert('admin_plan_ended', { vars: { shop: 'X' } }), null);
+            assert.equal(await adminCount('admin_plan_ended'), 0);
+            await put({ eventKey: 'admin_plan_ended', reset: true });
+            assert.ok(await adminAlerts.alert('admin_plan_ended', { vars: { shop: 'X' } }));
+            assert.equal(await adminCount('admin_plan_ended'), 1);
         } finally {
             await NotificationRule.deleteMany({});
         }

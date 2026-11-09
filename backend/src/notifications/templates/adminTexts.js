@@ -2,15 +2,8 @@
 // Each one says WHO (the shop in the title), WHAT happened, and what to do about it, in about two lines.
 // sms = a very short text for the SMS (at most 30 characters, it is the one {#var#} of the DLT template).
 const rs = (n) => (n === undefined || n === null || n === '' ? '' : `₹${Number(n).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`);
-const inv = (v) => (v.invoiceNo ? `invoice ${v.invoiceNo}` : 'the bill');
 
 const T = {
-    admin_bill_issued: (v) => ({
-        title: `Bill issued · ${v.shop}`, body: `${inv(v)}${v.amount !== undefined ? ` for ${rs(v.amount)}` : ''} was sent. The owner has been told.`, sms: `Bill issued: ${v.shop}`,
-    }),
-    admin_bill_paid: (v) => ({
-        title: `Bill paid · ${v.shop}`, body: `${v.shop} paid ${inv(v)}${v.amount !== undefined ? ` (${rs(v.amount)})` : ''}. Nothing to do.`, sms: `Bill paid: ${v.shop}`,
-    }),
     admin_order_stuck: (v) => ({
         title: `Order #${v.orderNo} is stuck · ${v.shop}`,
         body: `${{ not_accepted: 'The shop has not accepted it', not_started: 'Accepted but not started', slow_prep: 'Still being prepared', no_rider: 'Still has no rider', on_the_way_long: 'Still on the way' }[v.stage] || 'Waiting'} for ${v.minutes} min. Open the order to step in.`,
@@ -18,10 +11,6 @@ const T = {
     admin_daily_summary: (v) => ({
         title: v.orders ? `Yesterday: ${v.orders} order${v.orders === 1 ? '' : 's'}, ₹${Math.round(v.sales).toLocaleString('en-IN')}` : 'Yesterday: no orders',
         body: `${v.change === null || v.change === undefined ? (v.beforeOrders ? '' : 'Nothing the day before to compare. ') : (v.change === 0 ? 'Same as the day before. ' : (v.change > 0 ? 'Up ' : 'Down ') + Math.abs(v.change) + '% on the day before. ')}${v.attention ? v.attention + ' order' + (v.attention === 1 ? '' : 's') + ' need attention. ' : 'Nothing is stuck. '}${v.refunds ? v.refunds + ' refund' + (v.refunds === 1 ? '' : 's') + ' not finished. ' : ''}${v.collected ? 'Rent and top-ups collected: ₹' + Number(v.collected).toLocaleString('en-IN') + '. ' : ''}${v.overdue ? '₹' + Number(v.overdue).toLocaleString('en-IN') + ' rent overdue. ' : ''}${v.moneyBad ? v.moneyBad + ' money problem' + (v.moneyBad === 1 ? '' : 's') + ' to look at.' : ''}`.trim(),
-    }),
-    admin_promise_due: (v) => ({
-        title: `${v.shop} promised to pay`,
-        body: `${v.late ? 'The promised day has passed' : 'Promised for today'}: "${String(v.note || '').slice(0, 90)}". ${v.owed ? `Still owes ${v.owed}.` : ''}`.trim(),
     }),
     admin_sms_provider_low: (v) => ({
         title: 'SMS balance is getting low',
@@ -32,25 +21,6 @@ const T = {
         title: 'SMS balance almost empty',
         body: `About ${v.amount} left at your SMS provider${v.estimate ? ' (an estimate)' : ''}. ${v.protectOtp ? 'Shop messages are paused so login OTPs keep working.' : 'Messages may start failing.'} Add money now.`,
         sms: 'SMS balance almost empty: add money',
-    }),
-    admin_shop_paused: (v) => ({
-        title: `${v.shop} is paused`,
-        body: `${inv(v)} is unpaid, so customers cannot order. Call the owner to get it paid.`,
-        sms: `Shop paused: ${v.shop}`,
-    }),
-    admin_shop_unpaused: (v) => ({
-        title: `${v.shop} is open again`, body: 'The bill is cleared. Customers can order again.', sms: `Shop open: ${v.shop}`,
-    }),
-    admin_grace_ending: (v) => ({
-        title: `${v.shop}: grace ends ${v.graceDate || 'soon'}`,
-        body: `${inv(v)} is still unpaid. New orders stop on ${v.graceDate || 'that day'}. A reminder call helps.`,
-        sms: `Grace ending: ${v.shop}`,
-    }),
-    admin_free_ending: (v) => ({
-        title: `${v.shop}: free period ending`, body: `${v.summary || 'The free period is almost over'}. Rent starts after it.`, sms: `Free ending: ${v.shop}`,
-    }),
-    admin_free_ended: (v) => ({
-        title: `${v.shop}: rent starts now`, body: 'The free period is over. The first bill follows the usual cycle.', sms: `Free ended: ${v.shop}`,
     }),
     admin_plan_ending: (v) => ({ title: `${v.shop}: plan ending`, body: `${v.summary || 'The paid time is almost over'}. A reminder call helps.`, sms: `Plan ending: ${v.shop}` }),
     admin_plan_ended: (v) => ({ title: `${v.shop}: plan ended`, body: `${v.summary || 'The paid time is over'}. Grace days have started.`, sms: `Plan ended: ${v.shop}` }),
