@@ -123,7 +123,7 @@ export default function ShopPlanScreen() {
                                 <Switch value={plan[k]} disabled={busy} onValueChange={(v) => run(() => setShopPlanTerms(shopId, { [k]: v }), v ? 'Switched on' : 'Switched off').catch(() => { })} />
                             </View>
                         ))}
-                        <Text style={{ color: t.muted, marginTop: spacing.sm }}>These only take effect once the website is built and the switches are wired in the last plan phase.</Text>
+                        <Text style={{ color: t.muted, marginTop: spacing.sm }}>Website off: the website says the shop is on its app only. App off: the installed app tells customers the shop is now on the website, with a button. Both off: both say temporarily unavailable. Owners, riders and staff are not affected.</Text>
                     </Card>
                 </>
             ) : null}

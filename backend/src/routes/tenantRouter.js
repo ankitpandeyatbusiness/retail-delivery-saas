@@ -67,7 +67,10 @@ tenantRouter.get('/config', tenantRecognizer, async (req, res) => {
         // what the plan allows, so the apps can hide what is not in it (the server refuses anyway). No plan name, dates or prices here: customers read this too.
         const pl = require('../services/planService').viewOf(t);
         const plan = pl.id ? { features: pl.features, limits: pl.limits } : null;
-        res.json({ version, config, homeConfig: config.home, delivery, branch, maintenanceNotice, maintenance, plan });
+        // the web / app switch for the client that asked (the website sends x-client: web)
+        const sw = require('../services/channelSwitch');
+        const channel = sw.forConfig(t, sw.isWeb(req) ? 'web' : 'app');
+        res.json({ version, config, homeConfig: config.home, delivery, branch, maintenanceNotice, maintenance, plan, channel });
     } catch (e) {
         console.error('Config error:', e);
         res.status(500).json({ error: 'Something went wrong' });

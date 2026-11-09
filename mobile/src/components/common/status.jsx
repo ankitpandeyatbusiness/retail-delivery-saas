@@ -1,6 +1,6 @@
 // src/ui/status.jsx
 import React, { useEffect, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Platform, StatusBar } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Platform, StatusBar, Linking } from 'react-native';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { ActivityIndicator } from './Loading';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -39,14 +39,19 @@ export function FrozenOverlay({ onOrders, routeName, onRent }) {
     const { primary, radius, text, background, muted } = useBrand();
     const insets = useSafeAreaInsets();
     const [busy, setBusy] = useState(false);
+    // The supreme admin can switch the installed app off for a shop (it lives on the website then) or both channels off. Only CUSTOMERS see this:
+    // owners, riders and staff keep working, and "I run this shop" lets the owner reach the login.
+    const channel = useHomeStore((st) => st.channel);
+    const [staffEntry, setStaffEntry] = useState(false);
+    const channelOff = !!channel?.off && (user?.role || 'customer') === 'customer' && !staffEntry;
 
     // told live when the shop changes, and (while it is closed) asked again every 20 seconds: this also catches a maintenance that ends by its end time
     useEffect(() => onShopChanged(() => { reloadShop(); }), []);
     useEffect(() => {
-        if (!frozen) return undefined;
+        if (!frozen && !channelOff) return undefined;
         const t = setInterval(reloadShop, 20000);
         return () => clearInterval(t);
-    }, [frozen]);
+    }, [frozen, channelOff]);
 
     // the owner of a shop closed for rent: what is owed, and a way to the Rent page (the overlay steps aside while he is on it)
     const isOwner = user?.role === 'admin';
@@ -56,13 +61,14 @@ export function FrozenOverlay({ onOrders, routeName, onRent }) {
         fetchClosure().then(setWhy).catch(() => setWhy(null));
     }, [frozen, isOwner]);
 
-    if (!frozen) return null;
+    if (!frozen && !channelOff) return null;
     if (isOwner && routeName === 'OwnerRent') return null;
 
     const role = user?.role || 'customer';
     const staff = role === 'kitchen' || role === 'waiter' || role === 'rider';
-    const title = tr(role === 'customer' ? 'Closed for now' : 'Shop is closed');
-    const msg = staff
+    const viaChannel = !frozen && channelOff;
+    const title = viaChannel ? tr(channel.kind === 'web_only' ? 'We are on the website now' : 'Not available right now') : tr(role === 'customer' ? 'Closed for now' : 'Shop is closed');
+    const msg = viaChannel ? tr(channel.message || 'This shop is temporarily unavailable.') : staff
         ? tr('The shop is closed. Please contact the owner.')
         : isOwner && why?.closed
             ? (why.kind === 'rent' ? tr('Your shop is closed because rent is unpaid. It opens again by itself when you pay.') : tr('Your shop was closed by the platform team. Please contact support.'))
@@ -80,7 +86,7 @@ export function FrozenOverlay({ onOrders, routeName, onRent }) {
             <Text style={[s.shop, { color: muted }]}>{shop}</Text>
             <View style={s.body}>
                 <View style={[s.card, { backgroundColor: background, borderColor: muted + '33', borderRadius: radius + 8 }]}>
-                    <Text style={s.emoji}>🔒</Text>
+                    <Text style={s.emoji}>{viaChannel ? '🌐' : '🔒'}</Text>
                     <Text style={[s.title, { color: text }]}>{title}</Text>
                     <Text style={[s.msg, { color: muted }]}>{msg}</Text>
 
@@ -93,7 +99,17 @@ export function FrozenOverlay({ onOrders, routeName, onRent }) {
                     <Pressable onPress={retry} disabled={busy} style={[s.solid, { backgroundColor: primary, borderRadius: radius }]}>
                         {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.solidTxt}>{tr('Try again')}</Text>}
                     </Pressable>
-                    {user && role === 'customer' ? (
+                    {viaChannel && channel.webUrl ? (
+                        <Pressable onPress={() => Linking.openURL(channel.webUrl).catch(() => { })} style={[s.solid, { backgroundColor: primary, borderRadius: radius }]}>
+                            <Text style={s.solidTxt}>{tr('Open the website')}</Text>
+                        </Pressable>
+                    ) : null}
+                    {viaChannel ? (
+                        <Pressable onPress={() => setStaffEntry(true)} style={[s.ghost, { borderColor: muted, borderRadius: radius }]}>
+                            <Text style={[s.ghostTxt, { color: muted }]}>{tr('I run this shop')}</Text>
+                        </Pressable>
+                    ) : null}
+                    {user && role === 'customer' && !viaChannel ? (
                         <Pressable onPress={onOrders} style={[s.ghost, { borderColor: primary, borderRadius: radius }]}>
                             <Text style={[s.ghostTxt, { color: primary }]}>{tr('My orders')}</Text>
                         </Pressable>

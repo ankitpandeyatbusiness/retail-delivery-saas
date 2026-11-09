@@ -11,7 +11,7 @@ const cache = new LRUCache({ max: 1000, ttl: 60 * 1000 });
 // (ownerBlockedReason is deliberately NOT selected, so it can never reach an app.)
 const FIELDS =
     '_id name slug businessType tagline logo colors heroImages status androidPackage ' +
-    'homeConfig delivery settings phone address business ownerBlocked maintenance updatedAt billing.state billing.graceEndsAt stats.rating brandId branchCity plan';
+    'homeConfig delivery settings phone address business ownerBlocked maintenance updatedAt billing.state billing.graceEndsAt stats.rating brandId branchCity plan androidPackage';
 
 const tenantRecognizer = async (req, res, next) => {
     const raw = req.headers['x-tenant-slug'];
@@ -53,6 +53,12 @@ const tenantRecognizer = async (req, res, next) => {
                 res.set('Retry-After', '300');
                 return res.status(503).json(blocked);
             }
+        }
+
+        // The web / app switch (services/channelSwitch.js): a customer cannot START an order, booking or inquiry on a channel the supreme admin switched off. Reads still work.
+        if (!req.allowFrozenShop) {
+            const off = require('../services/channelSwitch').refusal(req, tenant);
+            if (off) return res.status(409).json(off);
         }
 
         // Unpaid rent after grace: customers get the normal "not accepting orders" answer.
