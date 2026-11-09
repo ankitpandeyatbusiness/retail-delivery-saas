@@ -28,6 +28,7 @@ const PATTERNS = [
     /httpError\(\s*\d{3}\s*,\s*`([^`$]*)`/g,
     /\berror:\s*'((?:[^'\\]|\\.)*)'/g,
     /\bmessage:\s*'((?:[^'\\]|\\.)*)'/g,
+    /\bmessage\s*=\s*'((?:[^'\\]|\\.)*)'/g,   // a message set with = (services/channelSwitch.js)
     // the first sentence of an either/or message: httpError(409, n === 1 ? 'One sentence' : `Other ${n} sentence`)
     /(?:httpError\(\s*\d{3}\s*,|\b(?:error|message):)\s*[^,'"`?]+\?\s*'((?:[^'\\]|\\.)*)'/g,
 ];
@@ -94,8 +95,9 @@ const walkAll = (d) => {
     }
 };
 ['services', 'jobs', 'notifications'].forEach((d) => walkAll(path.join(SRC, d)));
-const NOTE_FIXED = /\b(?:title|body):\s*'((?:[^'\\]|\\.)*)'/g;
-const NOTE_TEMPLATE = /\b(?:title|body):\s*`((?:[^`\\]|\\.)*)`/g;
+// also a body written as a variable: body = cond ? `template` : 'text' (services/planLifecycle.js)
+const NOTE_FIXED = /(?:\b(?:title|body):\s*|\bbody\s*=\s*|`\s*:\s*)'((?:[^'\\]|\\.)*)'/g;
+const NOTE_TEMPLATE = /(?:\b(?:title|body):\s*|\bbody\s*=\s*[^`'\n?]*\?\s*)`((?:[^`\\]|\\.)*)`/g;
 for (const f of pushFiles) {
     const src = fs.readFileSync(f, 'utf8');
     for (const m of src.matchAll(NOTE_FIXED)) {

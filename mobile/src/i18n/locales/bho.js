@@ -4542,6 +4542,7 @@ export default {
     "Your account is switched off": "रउआ अकाउंट बंद बा",
     "Your address": "रउआ के पता",
     "Your answer": "रउआ के जवाब",
+    "Your app": "रउआ के ऐप",
     "Your badge is shown to customers": "रउआ बैज ग्राहक के देखाला",
     "Your balance is {v1} points. Use them to get money off your next order.": "रउआ लगे {v1} पॉइंट बा। अगिला ऑर्डर पर छूट खातिर एकरा इस्तेमाल करीं।",
     "Your balance is {v1}. Top up so customers can keep logging in.": "रउआ बैलेंस {v1} बा। रिचार्ज करीं ताकि ग्राहक लॉगिन करत रहस।",

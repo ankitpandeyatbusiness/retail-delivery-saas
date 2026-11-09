@@ -76,6 +76,9 @@ const planLineOf = (p) => {
     return p.endsAt ? tr('{name}, ends {date} ({n} days left)', { name, date: new Date(p.endsAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }), n: p.daysLeft }) : name;
 };
 
+// the menu heading below is shown through tr(group); this list lets the translation tool find the text (nothing calls it)
+export const _menuHeadings = () => [tr('Your app')];
+
 // menu row -> the plan feature it needs (config/plans.js on the server)
 const LOCKS = { OwnerAutopilot: 'customPush', OwnerRewards: 'loyalty', OwnerCosts: 'costsProfit', OwnerReportsHub: 'analytics', OwnerCooks: 'staffLogins', OwnerWaiters: 'staffLogins', OwnerServices: 'services', OwnerInquiries: 'services', OwnerBulk: 'bulkOrders' };
 
