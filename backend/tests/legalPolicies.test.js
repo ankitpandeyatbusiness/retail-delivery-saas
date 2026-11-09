@@ -44,10 +44,10 @@ describe('the documents in the apps (JSON)', () => {
         assert.ok(!/asked to agree|Agree"/.test(t));
     });
 
-    test('the owner terms cover rent, the late fee, Razorpay payment, refunds for rent and SMS, and contact', async () => {
+    test('the owner terms cover plans, prepaid wallet, Razorpay payment, no refunds, and contact', async () => {
         await setBusiness();
         const t = (await request(app).get('/api/legal/public/owner_terms')).body.body;
-        for (const s of ['late fee of 5% per month', 'through our payment partner Razorpay', '# 6. Cancellation and refund policy for rent and SMS', '5 to 7 working days', 'written agreement you sign', '+91 91515 66767']) assert.ok(t.includes(s), s);
+        for (const s of ['we do not charge late fees', 'through our payment partner Razorpay', '# 6. No refunds', 'All payments to the Operator are non-refundable', '5 to 7 working days', 'written agreement you sign', '+91 91515 66767']) assert.ok(t.includes(s), s);
         const p = (await request(app).get('/api/legal/public/owner_privacy')).body.body;
         assert.ok(p.includes('Razorpay') && p.includes('never your card number'));
         assert.ok(!/asked to agree|Agree"/.test(t + p));

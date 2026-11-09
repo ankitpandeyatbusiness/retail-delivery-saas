@@ -163,7 +163,7 @@ async function overview(tenant, now = new Date()) {
     let brand = null;
     if (tenant.brandId) { const b = await Brand.findById(tenant.brandId); if (b) brand = await require('./brandPlan').capacity(b, def); }
     return {
-        brand, current: v, scheduled: tenant.plan?.scheduled || null, wallet,
+        brand, includedLocations: 1 + (Number.isInteger(def.includedBranches) ? def.includedBranches : 2), current: v, scheduled: tenant.plan?.scheduled || null, wallet,
         plans: plans.PLAN_IDS.map((id) => ({
             id, name: NAME[id], pricePaise: priceOf(def, tenant, id), feeRange: id === 'partner' ? { minRs: def.partner.feeMinRs, maxRs: def.partner.feeMaxRs } : null,
             features: plans.featuresOf(id), limits: { riders: plans.limitFor(id, 'riders'), staff: plans.limitFor(id, 'staff') },

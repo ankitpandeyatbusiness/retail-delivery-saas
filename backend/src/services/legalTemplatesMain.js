@@ -123,32 +123,36 @@ We may change this policy. The latest version is always in the app and on our we
 Effective {{effectiveDate}}. These terms are between you (the shop) and the operator of {{platformName}}. By using the app as a shop owner you confirm that you are the owner (or authorised by the owner) of the shop and accept these terms. They are also covered by the written agreement you sign with the operator.
 
 # 1. Who provides the service
-- {{platformName}} is a product of {{operatorName}}, {{operatorAddress}}{{operatorGstin}}. This is the "Operator". It runs the business and is responsible for billing, tax and compliance. Bills and receipts come in the Operator's name, and your rent and SMS payments go to the Operator.
+- {{platformName}} is a product of {{operatorName}}, {{operatorAddress}}{{operatorGstin}}. This is the "Operator". It runs the business and is responsible for billing, tax and compliance. Bills and receipts come in the Operator's name, and your plan, wallet and SMS payments go to the Operator.
 - The technology behind the app is provided to the Operator by an independent developer.
 
 # 2. What you get
-A customer ordering app for your shop, an owner panel (orders, menu, riders, money, reports), a rider app, and notifications by app, SMS and email. If you want, you can also give your kitchen staff and waiters their own panels.
+A customer ordering app for your shop (on a website and in the app), an owner panel (orders, menu, riders, money, reports), a rider app, and notifications by app, SMS and email. What is included depends on your plan. The Plan screen in the app lists what each plan gives.
 
-# 3. Free period, rent and bills
-- Your shop may start with a free period. When it ends, a monthly rent applies, worked out from your delivered orders as shown in the app (Money, Monthly bill).
-- Bills are sent to the email you saved and are shown in the app. A bill must be paid by its due date. If a bill is not paid by its due date, a late fee of 5% per month is added, shown as a separate bill. GST is added on it when it applies.
-- If a bill stays unpaid after the grace period, your shop can be paused until it is paid. Orders in progress can still be finished.
-- GST is added when the Operator has a GST registration. A shop with a GST number can use the bill for input credit.
+# 3. Plans and payments
+- There are three plans: Partner, Growth and Pro. Partner has no monthly price: a small fee per completed order (Rs 3 to Rs 15, depending on the order value) is taken from your prepaid wallet. Growth and Pro have a monthly price, paid in advance for 1 to 6 months. In Pro, shops beyond the ones included in your plan are an extra monthly add-on.
+- Everything is prepaid. We do not send bills after the fact and we do not charge late fees.
+- Your shop may start with a free period. When it ends you choose a plan and pay to continue.
+- Plan prices, features and fees may change. A change does not affect the term you have already paid for.
+- If your plan ends and is not renewed, we remind you before the end and after a short grace period your shop is paused for new orders. Orders in progress can still be finished.
+- Orders taken through the platform are to be completed in the app, and the fee (Partner) or plan (Growth, Pro) applies to them. We may suspend a shop that avoids the platform to skip fees.
+- GST is added on plan payments, add-ons and wallet top-ups when the Operator has a GST registration. A shop with a GST number can use the invoice for input credit.
 - A one-time setup fee applies when your shop joins. It is non-refundable and is charged outside the app.
 
 # 4. How you pay the Operator
-- Rent, late fees and SMS top-ups are paid in the app through our payment partner Razorpay, by UPI, card or other methods shown. We do not see or store your card details.
-- You receive a bill or receipt for every payment. Keep the email address saved in the app correct.
+- Plan payments, extra shops, wallet top-ups and SMS top-ups are paid in the app through our payment partner Razorpay, by UPI, card or other methods shown. We do not see or store your card details.
+- You receive a tax invoice or receipt for every payment. Keep the email address saved in the app correct.
 
-# 5. SMS balance
-- SMS messages (such as login codes and order alerts) are paid from your SMS balance. You top it up in the app. GST is added on top of the amount you choose, when it applies.
-- An SMS balance cannot be withdrawn and is non-refundable. It can only be used to send SMS. If a top-up is paid but the balance is not added, we add it or refund it to the original payment method within 5 to 7 working days.
+# 5. Wallet and SMS balance
+- The wallet is used only to pay the per-order fee of the Partner plan. The fee for an order is taken when the order is completed. Your wallet may go below zero by a small amount (about Rs 100), which is taken from your next top-up. When the balance is empty, new orders pause until you top up. Orders in progress and refunds to customers always continue.
+- SMS messages (such as login codes and order alerts) are paid from your SMS balance. You top it up in the app.
+- A wallet or SMS balance cannot be withdrawn, transferred or exchanged for money. If a top-up is paid but the balance is not added, we add it or refund it to the original payment method within 5 to 7 working days.
 
-# 6. Cancellation and refund policy for rent and SMS
-- You can stop using the service at any time. You pay for the months up to the day you stop, and rent already paid for a month that has started is not refunded.
-- If you pay the same bill twice, or pay by mistake, write to us. We refund the extra amount to the original payment method within 5 to 7 working days.
-- Refunds are sent back to the same payment method you used. We cannot refund to a different account.
-- Setup fee and SMS balance: see sections 3 and 5.
+# 6. No refunds
+- All payments to the Operator are non-refundable. This includes plan fees, prepaid months, extra shops, wallet top-ups, per-order fees, SMS top-ups and the setup fee.
+- You can stop using the service at any time. The time you have already paid for stays available until it ends. Nothing is refunded for the unused part, and no cash is paid for a leftover wallet or SMS balance.
+- If you move to a lower plan, it starts after your paid time ends.
+- The only exceptions are a payment taken twice or by mistake, and a payment taken but not credited. Write to us and the extra amount is returned to the original payment method within 5 to 7 working days. We cannot refund to a different account.
 
 # 7. Your shop and your customers
 - You are responsible for your menu, prices, taxes, food safety (including your FSSAI licence), delivery and refunds to your customers.
@@ -160,13 +164,13 @@ A customer ordering app for your shop, an owner panel (orders, menu, riders, mon
 You are responsible for the riders, kitchen staff and waiters you add to your shop and for what you agree with them. They are not employees of the platform.
 
 # 9. Your data
-Your shop's data stays on the platform's servers. You can see your orders, customers and reports in the app. We use it to run and improve the service and to send you bills and reports. We do not sell it.
+Your shop's data stays on the platform's servers. You can see your orders, customers and reports in the app. We use it to run and improve the service and to send you invoices and reports. We do not sell it.
 
 # 10. Stopping
 You can stop using the service at any time after paying what is due. We can suspend or end your shop if you break these terms, do not pay, or use the platform for anything unlawful.
 
 # 11. Our responsibility
-We work to keep the service running, but cannot promise it will never be down. We are not liable for lost sales caused by outages beyond our control. Our total liability is limited to the rent you paid in the last 3 months, except where the law does not allow this.
+We work to keep the service running, but cannot promise it will never be down. We are not liable for lost sales caused by outages beyond our control. Our total liability is limited to the plan fees you paid in the last 3 months, except where the law does not allow this.
 
 # 12. Changes
 We may change these terms or the fees. The latest version is always in the app and on our website. Using the app after a change means you accept it.
@@ -188,12 +192,12 @@ Effective {{effectiveDate}}. This explains what we collect about you and your sh
 - Your name, phone number and email.
 - Your shop's details: name, address, GST and FSSAI numbers, menu, prices, pictures and settings.
 - Your orders, customers' order details, payments, bills, SMS balance and reports.
-- Payment records for your rent and SMS top-ups (the payment status and reference, never your card number).
+- Payment records for your plan, wallet and SMS top-ups (the payment status and reference, never your card number).
 - The people you add: riders, kitchen staff and waiters (name, phone, work records).
 - Your phone's notification address and basic details such as the app version.
 
 # Why we use it
-To run your shop on the app: take and deliver orders, send OTPs and alerts, raise bills and receipts, take your rent and SMS payments, show you reports, give you support and prevent misuse. We do not sell your data and we do not show ads from other companies.
+To run your shop on the app: take and deliver orders, send OTPs and alerts, raise invoices and receipts, take your plan, wallet and SMS payments, show you reports, give you support and prevent misuse. We do not sell your data and we do not show ads from other companies.
 
 # Your customers' data
 Customers' names, phones and addresses are shown to you only so you can serve their orders. Do not use them for anything else and do not share them.

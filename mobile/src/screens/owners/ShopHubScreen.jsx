@@ -75,6 +75,13 @@ const planLineOf = (p) => {
     return p.endsAt ? tr('{name}, ends {date} ({n} days left)', { name, date: new Date(p.endsAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }), n: p.daysLeft }) : name;
 };
 
+// rows that exist only in Pro get a small PRO tag, so owners see what the Pro payment brings
+const PRO_TITLES = new Set(['Autopilot', 'Bulk orders', 'Business report']);
+function ProTag() {
+    const { primary } = useBrand();
+    return <View style={{ backgroundColor: primary, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}><Text style={{ color: '#fff', fontSize: 10, fontWeight: '900', letterSpacing: 0.5 }}>PRO</Text></View>;
+}
+
 // menu row -> the plan feature it needs (config/plans.js on the server)
 const LOCKS = { OwnerAutopilot: 'customPush', OwnerRewards: 'loyalty', OwnerCosts: 'costsProfit', OwnerReportsHub: 'analytics', OwnerCooks: 'staffLogins', OwnerWaiters: 'staffLogins' };
 
@@ -305,7 +312,7 @@ export function ShopMenu({ onGo }) {
                                 <View key={letter} onLayout={(e) => { if (letter !== '#') useMenuIndex.getState().setY(letter, e.nativeEvent.layout.y); }}>
                                     <SectionTitle title={letter} />
                                     <Card>
-                                        {rows.map((e, i) => <Row key={e.title} icon={e.icon} title={tr(e.title)} subtitle={`${tr(e.group)} · ${e.subtitle}`} color={e.color} right={e.right} last={i === rows.length - 1} onPress={e.act} />)}
+                                        {rows.map((e, i) => <Row key={e.title} icon={e.icon} title={tr(e.title)} subtitle={`${tr(e.group)} · ${e.subtitle}`} color={e.color} right={e.right || (PRO_TITLES.has(e.title) ? <ProTag /> : undefined)} last={i === rows.length - 1} onPress={e.act} />)}
                                     </Card>
                                 </View>
                             ))}
@@ -315,7 +322,7 @@ export function ShopMenu({ onGo }) {
                         <View key={group} style={az ? { paddingRight: 26 } : null}>
                             <SectionTitle title={tr(group)} />
                             <Card>
-                                {rows.map((e, i) => (e.custom ? <AppearanceSwitch key={e.title} /> : <Row key={e.title} icon={e.icon} title={tr(e.title)} subtitle={tr(e.subtitle)} color={e.color} right={e.right} last={i === rows.length - 1} onPress={e.act} />))}
+                                {rows.map((e, i) => (e.custom ? <AppearanceSwitch key={e.title} /> : <Row key={e.title} icon={e.icon} title={tr(e.title)} subtitle={tr(e.subtitle)} color={e.color} right={e.right || (PRO_TITLES.has(e.title) ? <ProTag /> : undefined)} last={i === rows.length - 1} onPress={e.act} />))}
                             </Card>
                         </View>
                     ) : null); })}

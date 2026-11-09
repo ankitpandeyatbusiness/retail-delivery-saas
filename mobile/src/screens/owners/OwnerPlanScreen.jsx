@@ -27,18 +27,29 @@ const openInvoice = async (id) => {
     try { await downloadAndOpen({ path: planInvoicePdfPath(id), filename: `invoice-${id}.pdf`, mime: 'application/pdf', title: tr('Invoice') }); }
     catch (e) { showToast(e?.response?.status === 409 ? tr('The invoice is not ready yet') : tr('Could not open the invoice')); }
 };
-// What a plan gives. Partner: the basics every plan has. Growth and Pro: only what is new on top of the plan below (the server catalog decides, so this always matches what is enforced).
-const BASICS = [
-    'Customer app on website and phone', 'Order progress timeline and rider Call button', 'Dine-in QR tables, waitlist and table booking', 'Your own shopname.vivyaan.co.in website',
-    'Coupons, basic sales summary and the Money tab', 'Invoices, payments, refunds, languages and maintenance mode',
-];
-const includedLines = (p, prev, labels) => {
-    if (!prev) return { head: null, lines: [...BASICS.map((b) => tr(b)), tr('Up to {n} riders', { n: p.limits.riders }), tr('Exports with money columns only')] };
-    const lines = [];
-    if (p.limits.riders == null && prev.limits.riders != null) lines.push(tr('Unlimited riders'));
-    if (p.limits.staff !== prev.limits.staff) lines.push(p.limits.staff == null ? tr('Unlimited kitchen and waiter logins') : tr('Up to {n} kitchen and waiter logins', { n: p.limits.staff }));
-    for (const k of Object.keys(labels)) if (k !== 'staffLogins' && p.features[k] && !prev.features[k]) lines.push(tr(labels[k]));
-    return { head: tr('Everything in {name}, plus', { name: prev.name }), lines };
+// What each plan gives, in words that sell it. A line with a feature key shows only if the server says the plan has it, so this can never promise more than is enforced.
+const COPY = {
+    partner: [
+        [null, 'Your own online shop, on a website and in the customer app'], [null, 'Your own shopname.vivyaan.co.in link to share'], [null, 'Customers follow their order step by step and can call the rider'],
+        [null, 'Dine-in QR tables, waitlist and table booking'], [null, 'Coupons and offers to bring customers back'], [null, 'Online payments and refunds in one place'],
+        [null, 'Daily sales summary and your Money tab'], [null, 'Tax invoices for every order'], [null, 'App in Hindi, Marathi, Gujarati, Bengali and more'],
+        [null, 'Up to {riders} riders for your own deliveries'],
+    ],
+    growth: [
+        ['riderLiveMap', 'Customers watch the rider live on a map'], [null, 'Unlimited riders'], [null, 'Up to {staff} kitchen and waiter logins'], ['soundboxVoice', 'Soundbox voice announces every new order'],
+        ['services', 'Sell services and take inquiries'], ['loyalty', 'Loyalty and rewards to keep customers coming back'], ['autoAccept', 'Auto-accept orders, no waiting'],
+        ['costsProfit', 'Costs and profit view, see what you really earn'],
+    ],
+    pro: [
+        ['multiBranch', 'Run up to {shops} shops from one account, and add more whenever you grow'], ['customDomain', 'Your own website name (custom domain)'], [null, 'Unlimited kitchen and waiter logins'],
+        ['bulkOrders', 'Take bulk and party orders'], ['analytics', 'Business analytics and PDF reports'], ['customPush', 'Send offers to your customers by push'],
+        ['customPush', 'Daily automatic push messages'], ['fullExports', 'Full exports: customers, orders, items and reports'],
+    ],
+};
+const includedLines = (p, prev, o) => {
+    const vars = { riders: p.limits.riders, staff: p.limits.staff, shops: o.includedLocations };
+    const lines = COPY[p.id].filter(([k]) => !k || p.features[k]).map(([, t]) => tr(t, vars));
+    return { head: prev ? tr('Everything in {name}, plus', { name: prev.name }) : null, lines };
 };
 const day = (d) => new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 const planLine = (c) => {
@@ -133,13 +144,13 @@ export default function OwnerPlanScreen() {
                                             {isCur ? <Pill label={tr('Current')} color={ok} /> : null}
                                         </View>
                                         <Text style={{ color: muted, marginTop: 2 }}>
-                                            {p.id === 'partner' ? tr('No monthly price. Rs {min} to Rs {max} per completed order from your wallet.', { min: p.feeRange.minRs, max: p.feeRange.maxRs })
-                                                : tr('{rupees} + GST per month', { rupees: rupees(p.pricePaise) })}
+                                            {p.id === 'partner' ? tr('No monthly price. Rs {min} to Rs {max} per completed order from your wallet.', { min: p.feeRange.minRs, max: p.feeRange.maxRs }) + '*'
+                                                : tr('{rupees} + GST per month', { rupees: rupees(p.pricePaise) }) + '*'}
                                         </Text>
                                         {sel || isCur ? (
                                             <View style={{ marginTop: 8 }}>
                                                 {(() => {
-                                                    const inc = includedLines(p, o.plans[o.plans.findIndex((x) => x.id === p.id) - 1], o.featureLabels);
+                                                    const inc = includedLines(p, o.plans[o.plans.findIndex((x) => x.id === p.id) - 1], o);
                                                     return (
                                                         <>
                                                             {inc.head ? <Text style={{ color: text, fontWeight: '800', fontSize: 13 }}>{inc.head}</Text> : null}
@@ -212,6 +223,7 @@ export default function OwnerPlanScreen() {
                             </>
                         ) : null}
                         <Text style={{ color: muted, fontSize: 12, marginHorizontal: 16, marginTop: 12 }}>{tr('Need help choosing? Open Help and support and we will set it up for you.')}</Text>
+                        <Text style={{ color: muted, fontSize: 11, marginHorizontal: 16, marginTop: 10, marginBottom: 24 }}>{tr('* All payments, including plan fees, extra shops and wallet top-ups, are non-refundable. Prepaid plan time and wallet balance cannot be returned or cashed out.')}</Text>
                     </>
                 )}
             </ScrollView>
