@@ -217,7 +217,7 @@ describe('paying for extra shops', () => {
         assert.equal(q.extraShops, 2);
         const gross = 499900 * 3 + 2 * 149900 * 3;
         assert.equal(q.lines.length, 3);   // the plan, the extra shops, the 3-month discount
-        assert.match(q.lines[1].label, /2 extra shops/);
+        assert.match(q.lines[1].label, /2 extra shop/);
         assert.equal(q.taxablePaise, gross - Math.round(gross * 0.05));
         const start = await owner(main, 'post', '/pay/start', { to: 'pro', months: 3 });
         assert.equal(start.body.amountPaise, q.totalPaise);

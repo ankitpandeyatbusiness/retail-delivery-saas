@@ -19,6 +19,10 @@ import { tr } from '../../i18n';
 // Texts the server sends inside the extra-shop quote. They are listed here (never called) so the translation list picks them up; tr() matches the server's real values to these {v1} patterns.
 export const _serverQuoteTexts = () => [
     tr('No refund if you remove the shop later.'),
+    // the notes and price lines the server writes into the preview (services/planBilling.js)
+    tr('Partner starts on {v1} when your paid time ends. Until then you keep {v2}.'), tr('Partner has no monthly price. You pay a small fee per completed order from your wallet.'), tr('{v1} starts when your paid time ends. Until then you keep {v2}. No refund for the rest of the term.'), tr('{v1} starts now and runs until {v2}.'), tr('{v1} runs until {v2}. The price is locked for this term.'), tr('No refund of prepaid months.'), tr('{v1} plan for {v2} month'), tr('{v1} plan for {v2} months'), tr('{v1} to {v2}: Rs {v3} difference x {v4} days left of 30'), tr('{v1} extra shop(s): Rs {v2} a month each, for {v3} month(s)'), tr('{v1} months discount {v2}%'), tr('Wallet balance adjusted (GST already paid on it)'),
+    // the feature names of the plan catalog (config/plans.js)
+    tr('Rider live map for customers'), tr('Soundbox voice (app only)'), tr('Services and inquiries'), tr('Loyalty and rewards'), tr('Auto-accept orders'), tr('Costs and profit view'), tr('Kitchen and waiter logins'), tr('Bulk orders'), tr('Full exports (customers, orders, items, reports)'), tr('Business analytics and PDF reports'), tr('Custom and daily automatic push'), tr('Multi-branch'), tr('Custom domain'),
     tr('Coupon {v1} {v2}% off'),
     tr('Your {v1} months discount is already better than this coupon, so it is not used.'),
     tr('One more shop can be created. It runs until {v1} with your plan, and is part of your next renewal.'),
@@ -90,7 +94,7 @@ export default function OwnerPlanScreen() {
     const go = async () => {
         if (!q || busy) return;
         if (paid) { nav.navigate('OwnerPay', { kind: 'plan', to: pick, months: q.months || 1, coupon: q.coupon ? q.coupon.code : undefined, amountPaise: q.totalPaise, payablePaise: q.totalPaise, gstPaise: q.gstPaise, gstPercent: q.gstPercent, title: tr('{name} plan', { name: q.toName }) }); return; }
-        const yes = await ask({ title: q.kind === 'downgrade' ? tr('Move to {name} later?', { name: q.toName }) : tr('Switch to {name}?', { name: q.toName }), message: q.notes.join('\n'), confirmText: tr('Confirm') });
+        const yes = await ask({ title: q.kind === 'downgrade' ? tr('Move to {name} later?', { name: q.toName }) : tr('Switch to {name}?', { name: q.toName }), message: q.notes.map((n) => tr(n)).join('\n'), confirmText: tr('Confirm') });
         if (!yes) return;
         setBusy(true);
         try { await choosePlan({ to: pick, months: Number(months), coupon: coupon || undefined }); showToast(q.kind === 'downgrade' ? tr('Scheduled') : tr('Done')); setPick(null); await load(); useMenuFlags.getState().refresh(); } catch (e) { showToast(apiError(e)); } finally { setBusy(false); }

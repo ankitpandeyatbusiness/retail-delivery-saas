@@ -113,8 +113,8 @@ async function quote(tenant, { to, months = 1, coupon: couponCode }, now = new D
         }
         out.coupon = couponUsed || undefined;
         const disc = Math.round((gross * pct) / 100);
-        out.lines.push({ label: `${NAME[to]} x ${m} month${m > 1 ? 's' : ''}`, paise: planGross });
-        if (extraGross) out.lines.push({ label: `${bx.extra} extra shop${bx.extra > 1 ? 's' : ''}: Rs ${(bx.addonPaise / 100).toFixed(0)} x ${bx.extra} x ${m} month${m > 1 ? 's' : ''}`, paise: extraGross });
+        out.lines.push({ label: `${NAME[to]} plan for ${m} month${m > 1 ? 's' : ''}`, paise: planGross });
+        if (extraGross) out.lines.push({ label: `${bx.extra} extra shop(s): Rs ${(bx.addonPaise / 100).toFixed(0)} a month each, for ${m} month(s)`, paise: extraGross });
         out.extraShops = to === 'pro' ? bx.extra : undefined;   // what the brand has paid for in this term (stored when the payment is applied)
         if (disc) out.lines.push({ label: couponUsed ? `Coupon ${couponUsed.code} ${pct}% off` : `${m} months discount ${pct}%`, paise: -disc });
         let taxable = gross - disc;
