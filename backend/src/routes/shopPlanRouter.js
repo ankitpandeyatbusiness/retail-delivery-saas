@@ -24,7 +24,7 @@ router.use((req, res, next) => (req.method !== 'GET' && req.actor?.type === 'sup
 
 router.get('/', wrap(async (req, res) => { res.json(await billing.overview(await mine(req))); }));
 
-router.post('/quote', wrap(async (req, res) => { res.json(await billing.quote(await mine(req), { to: req.body?.to, months: req.body?.months })); }));
+router.post('/quote', wrap(async (req, res) => { res.json(await billing.quote(await mine(req), { to: req.body?.to, months: req.body?.months, coupon: req.body?.coupon })); }));
 
 // ONE extra shop for the brand: the quote, then pay (the same payment screen), then a branch can be created
 router.post('/branch/quote', wrap(async (req, res) => { res.json(await billing.quoteBranch(await mine(req))); }));
@@ -34,13 +34,13 @@ router.post('/branch/pay/start', brandPayer, wrap(async (req, res) => {
 
 router.post('/choose', brandPayer, wrap(async (req, res) => {
     const t = await mine(req);
-    const q = await billing.quote(t, { to: req.body?.to, months: req.body?.months });
-    if (q.free && q.kind !== 'downgrade' && q.kind !== 'switch') return res.json(await billing.payFree(t, { to: req.body.to, months: req.body.months }, actorOf(req)));
-    res.json(await billing.chooseFree(t, { to: req.body?.to, months: req.body?.months }, actorOf(req)));
+    const q = await billing.quote(t, { to: req.body?.to, months: req.body?.months, coupon: req.body?.coupon });
+    if (q.free && q.kind !== 'downgrade' && q.kind !== 'switch') return res.json(await billing.payFree(t, { to: req.body.to, months: req.body.months, coupon: req.body.coupon }, actorOf(req)));
+    res.json(await billing.chooseFree(t, { to: req.body?.to, months: req.body?.months, coupon: req.body?.coupon }, actorOf(req)));
 }));
 
 router.post('/pay/start', brandPayer, wrap(async (req, res) => {
-    res.status(201).json(await platformCheckout.startPlan({ tenant: await mine(req), to: req.body?.to, months: req.body?.months, actor: actorOf(req) }));
+    res.status(201).json(await platformCheckout.startPlan({ tenant: await mine(req), to: req.body?.to, months: req.body?.months, coupon: req.body?.coupon, actor: actorOf(req) }));
 }));
 router.post('/pay/:id/verify', wrap(async (req, res) => {
     res.json(await platformCheckout.verifyPlan({ tenantId: (await mine(req))._id, paymentId: req.params.id, proof: req.body }));

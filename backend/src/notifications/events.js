@@ -140,6 +140,7 @@ const EVENTS = {
     sms_topup_done: { to: 'owner', channels: INAPP_PUSH, email: 'sms_topup_receipt', adminAlert: 'admin_sms_topup_done' },
     plan_ending: { to: 'owner', channels: INAPP_PUSH, adminAlert: 'admin_plan_ending' },     // 7, 3 and 1 days before the paid time ends (services/planLifecycle.js)
     plan_ended: { to: 'owner', channels: ALL, key: true, adminAlert: 'admin_plan_ended' },     // the paid time ended: choose a plan
+    plan_offer: { to: 'owner', channels: INAPP_PUSH },     // a platform coupon the supreme admin sent (services/platformCoupons.js)
     plan_changed: { to: 'owner', channels: INAPP_PUSH, adminAlert: 'admin_plan_changed' },     // who changed it, from which plan to which
     plan_paused: { to: 'owner', channels: ALL, key: true, adminAlert: 'admin_plan_paused' },   // the grace days are over: new orders stopped
     wallet_low: { to: 'owner', channels: INAPP_PUSH, adminAlert: 'admin_wallet_low' },         // the Partner wallet is under 20% of the last top-up

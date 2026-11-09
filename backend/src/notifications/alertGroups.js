@@ -36,7 +36,7 @@ const OWNER = [
     g('offduty', 'Staff comes on or goes off duty', 'A cook, a waiter or a rider came on duty, or switched themselves off duty.', ['staff_on_duty', 'staff_off_duty', 'rider_ended_duty'], { p: true, soft: true }),
     g('undo', 'Steps taken back (undo)', 'Someone undid Ready, Served or Picked up.', ['order_undone'], { p: 'off', soft: true }),
     g('reviews', 'Reviews and complaints', 'A new complaint, a review, or a low rating.', ['complaint_new', 'complaint_reminder', 'review_food', 'review_delivery', 'delivery_low_rating', 'dish_low_rating'], { p: 'off', soft: true }),
-    g('money', 'Plan, money and SMS', 'Your plan, wallet, payments and your SMS balance.', ['sms_topup_done', 'sms_low', 'sms_zero', 'plan_ending', 'plan_ended', 'plan_changed', 'plan_paused', 'wallet_low', 'wallet_empty', 'platform_message'], { p: 'off', soft: true, critical: true }),
+    g('money', 'Plan, money and SMS', 'Your plan, wallet, payments and your SMS balance.', ['sms_topup_done', 'sms_low', 'sms_zero', 'plan_offer', 'plan_ending', 'plan_ended', 'plan_changed', 'plan_paused', 'wallet_low', 'wallet_empty', 'platform_message'], { p: 'off', soft: true, critical: true }),
     g('platform', 'Maintenance and platform news', 'Planned maintenance (a day, an hour and 15 minutes before it, when it starts and ends, or when its time changes).', ['broadcast'], { p: true, critical: true, sample: ['Maintenance is planned. The app will be paused tonight at 10 PM. Please finish your work before then.', 'रखरखाव की योजना है। आज रात 10 बजे ऐप बंद रहेगा। कृपया तब तक अपना काम पूरा कर लें।'] }),
     g('reports', 'Daily and weekly reports', 'How today and last week went.', ['owner_daily_summary', 'owner_weekly_digest', 'monthly_report'], { p: 'off', soft: true }),
 ];

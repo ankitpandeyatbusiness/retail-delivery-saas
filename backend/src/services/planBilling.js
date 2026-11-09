@@ -47,7 +47,7 @@ async function gstPercentNow(def) {
 }
 
 // What a switch to `to` (for `months`) would do and cost right now. Pure: writes nothing.
-async function quote(tenant, { to, months = 1 }, now = new Date()) {
+async function quote(tenant, { to, months = 1, coupon: couponCode }, now = new Date()) {
     if (!plans.isPlan(to)) throw httpError(400, 'Choose Partner, Growth or Pro');
     const def = await planService.getDefaults();
     const p = tenant.plan || {};
@@ -104,12 +104,19 @@ async function quote(tenant, { to, months = 1 }, now = new Date()) {
         const planGross = monthly * m;
         const extraGross = bx.extra * bx.addonPaise * m;
         const gross = planGross + extraGross;
-        const pct = def.monthDiscounts[m] || 0;
+        // the better of the term discount and the coupon (never added together)
+        const termPct = def.monthDiscounts[m] || 0;
+        let pct = termPct; let couponUsed = null;
+        if (couponCode) {
+            const c = await require('./platformCoupons').check(couponCode, tenant, { to, months: m }, now);
+            if (c.pct > termPct) { pct = c.pct; couponUsed = { id: String(c._id), code: c.code, pct: c.pct }; } else out.notes.push(`Your ${m} months discount is already better than this coupon, so it is not used.`);
+        }
+        out.coupon = couponUsed || undefined;
         const disc = Math.round((gross * pct) / 100);
         out.lines.push({ label: `${NAME[to]} x ${m} month${m > 1 ? 's' : ''}`, paise: planGross });
         if (extraGross) out.lines.push({ label: `${bx.extra} extra shop${bx.extra > 1 ? 's' : ''}: Rs ${(bx.addonPaise / 100).toFixed(0)} x ${bx.extra} x ${m} month${m > 1 ? 's' : ''}`, paise: extraGross });
         out.extraShops = to === 'pro' ? bx.extra : undefined;   // what the brand has paid for in this term (stored when the payment is applied)
-        if (disc) out.lines.push({ label: `${m} months discount ${pct}%`, paise: -disc });
+        if (disc) out.lines.push({ label: couponUsed ? `Coupon ${couponUsed.code} ${pct}% off` : `${m} months discount ${pct}%`, paise: -disc });
         let taxable = gross - disc;
         // a Partner wallet balance is credited once against the price; the leftover stays in the wallet
         if (from === 'partner' && taxable > 0) {
@@ -169,15 +176,15 @@ async function overview(tenant, now = new Date()) {
             features: plans.featuresOf(id), limits: { riders: plans.limitFor(id, 'riders'), staff: plans.limitFor(id, 'staff') },
         })),
         featureLabels: Object.fromEntries(Object.entries(plans.FEATURES).map(([k, f]) => [k, f.label])),
-        discounts: def.monthDiscounts, gstPercent: await gstPercentNow(def),
+        coupons: await require('./platformCoupons').cardsFor(tenant, now), discounts: def.monthDiscounts, gstPercent: await gstPercentNow(def),
         payments: recent.map((r) => ({ id: String(r._id), to: r.to, months: r.months, status: r.status, payablePaise: r.payablePaise, paidAt: r.paidAt, invoiceNo: r.invoice?.invoiceNo || null })),
     };
 }
 
 // Start paying: store the quote exactly as shown. One pending payment per shop (a second start reuses it while nothing changed).
-async function createPayment(tenant, { to, months = 1, branch = false }, actor) {
+async function createPayment(tenant, { to, months = 1, branch = false, coupon }, actor) {
     if (!branch && to === 'partner') throw httpError(400, 'Partner has nothing to pay');
-    const q = branch ? await quoteBranch(tenant) : await quote(tenant, { to, months });
+    const q = branch ? await quoteBranch(tenant) : await quote(tenant, { to, months, coupon });
     if (q.kind === 'downgrade') throw httpError(409, 'A lower plan starts when your paid time ends. Nothing to pay now.');
     if (!q.canPay && !q.free) throw httpError(400, 'This is too small to pay online. Contact support.');
     const open = await PlanPayment.findOne({ tenantId: tenant._id, status: 'pending', expiresAt: { $gt: new Date() } }).sort({ createdAt: -1 });
@@ -226,6 +233,7 @@ async function settle(paymentId, { payId, amountPaise, via = 'app' }) {
             else { p.startedAt = new Date(q.startsAt); p.endsAt = new Date(q.endsAt); p.freeUntil = undefined; if (new Date(q.startsAt) <= now) p.startedAt = now; }
             p.extras = (p.extras || []).filter((e) => !plans.planIncludes(row.to, e.key));
             await Tenant.updateOne({ _id: row.tenantId }, { $set: { plan: p } }, { session });
+            if (q.coupon) await require('./platformCoupons').redeem(q.coupon.id, row.tenantId, row._id, q.coupon.pct, session);
             if (q.extraShops !== undefined && tenant.brandId) await Brand.updateOne({ _id: tenant.brandId }, { $set: { 'locations.paidExtra': q.extraShops } }, { session });   // what this term pays for
             if (q.walletCreditPaise > 0) {
                 const w = await PartnerWallet.findOneAndUpdate({ tenantId: row.tenantId, balancePaise: { $gte: q.walletCreditPaise } }, { $inc: { balancePaise: -q.walletCreditPaise } }, { returnDocument: 'after', session });
@@ -267,8 +275,8 @@ async function ensureInvoice(paymentId) {
 }
 
 // A move that costs nothing: down to Partner / lower plan at the end of the term (scheduled), or at once when nothing is paid. Also a covered-by-wallet plan (total 0).
-async function chooseFree(tenant, { to, months = 1 }, actor) {
-    const q = await quote(tenant, { to, months });
+async function chooseFree(tenant, { to, months = 1, coupon }, actor) {
+    const q = await quote(tenant, { to, months, coupon });
     const now = new Date();
     const by = actor?.label || 'owner';
     if (q.kind === 'downgrade') {
@@ -293,8 +301,8 @@ async function cancelScheduled(tenant) {
 }
 
 // total Rs 0 (the wallet balance covers the price): no Razorpay, the owner confirms and the plan is applied
-async function payFree(tenant, { to, months = 1 }, actor) {
-    const { payment, quote: q } = await createPayment(tenant, { to, months }, actor);
+async function payFree(tenant, { to, months = 1, coupon }, actor) {
+    const { payment, quote: q } = await createPayment(tenant, { to, months, coupon }, actor);
     if (!q.free) throw httpError(409, 'This needs a payment');
     await payment.save();
     return settle(payment._id, { payId: `free:${payment._id}`, amountPaise: 0 });

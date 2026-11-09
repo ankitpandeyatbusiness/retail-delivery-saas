@@ -43,7 +43,7 @@ const DEFAULTS = {
     includedBranches: 2,
     branchAddonPaise: 149900,
     // multi-month prepay discount by months (percent)
-    monthDiscounts: { 1: 0, 2: 0, 3: 5, 4: 6, 5: 8, 6: 10 },
+    monthDiscounts: { 1: 0, 2: 0, 3: 5, 4: 0, 5: 0, 6: 10 },
 };
 
 // The owner menu rows that depend on the plan: [app route, title, the plan feature it needs ('' = by plan id), where it shows]. The owner app (ShopHubScreen LOCKS)
