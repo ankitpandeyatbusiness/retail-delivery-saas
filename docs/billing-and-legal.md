@@ -1,5 +1,7 @@
 # Billing, papers and legal position (a working note, not legal advice)
 
+> **2026-11: monthly rent, price tiers, go live, free orders/months and the late fee were REPLACED by plans** (Partner wallet, Growth, Pro). See docs/plans-and-pricing.md and docs/old-billing-removal-list.md. Sections below that talk about monthly rent, tiers and late fees describe the OLD system and apply only to bills issued before the change, which can still be paid, waived or voided until they are settled. Nothing new is generated. There is no late fee any more.
+
 I am a software assistant, not a CA or a lawyer. Everything below is how the app behaves today and what usually matters; please have a CA or lawyer confirm the legal points before relying on them. Rules change, so check the current ones.
 
 ## 1. Who are the parties?
@@ -53,7 +55,7 @@ SMS top-up GST is now added only while the platform business has a GSTIN saved (
 - The arrangement with the company whose GSTIN you use now (section 2).
 - A privacy notice naming the company that holds customer data.
 
-## 7. Unpaid rent: late fee, reminders and "pay all" (built 2026-10-18)
+## 7. (OLD, no longer issued) Unpaid rent: late fee, reminders and "pay all" (built 2026-10-18)
 - **What happens:** a monthly bill unpaid after its due date earns a **late fee for every overdue month** (a block of `lateFeeEveryDays`, 30 by default): `lateFeePercent` (5) % **of that bill's amount**, not compounding, plus GST at the bill's own rate. Settings are in the superadmin app: Billing rules > "Late fee and reminders" (`PUT /api/admin/platform/billing`). 0 percent switches it off. At most 12 fees per bill.
 - **Each fee is its own invoice** (kind `custom` with `lateFee` filled, numbered SUB/..., GST shown, one line saying which bill, which overdue month, the dates and the working: "5% of Rs 3000"). It never pauses the shop (no grace date). One per bill per month (unique index), so the job can run twice safely. Code: `services/lateFees.js`, run every 10 minutes by the billing alerts job.
 - **Cancel or waive a bill:** its unpaid late fees are cancelled with it, each with a credit note. A bill that is paid stops earning fees; fees already issued stay to be paid.
