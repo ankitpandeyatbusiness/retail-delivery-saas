@@ -212,7 +212,7 @@ export function ShopMenu({ onGo }) {
             : route === 'OwnerPlan' && plan?.id
                 ? { icon, title, subtitle: planLineOf(plan), group, words: wordsOf(WORDS[route]), right: plan.status === 'ended' ? <Pill label="!" color={error} /> : undefined, act: () => go(route) }
             : lockedBy(route)
-                ? { icon: 'lock-closed', title, subtitle: tr('Available in {plan}', { plan: lockedBy(route) }), group, words: wordsOf(WORDS[route]), tag: lockedBy(route), act: () => askUpgrade(nav, { title: tr(title), message: tr(subtitle), need: lockedBy(route) }, go) }
+                ? { icon: 'lock-closed', title, subtitle: tr('Available in {plan}', { plan: lockedBy(route) }), group, words: wordsOf(WORDS[route]), tag: lockedBy(route), act: () => askUpgrade(nav, { title: tr(title), message: tr(subtitle), need: lockedBy(route), feature: LOCKS[route] }, go) }
                 : { icon, title, subtitle: tr(subtitle), group, words: wordsOf(WORDS[route]), right: route === 'OwnerRiders' && riderAttention ? <Pill label="!" color={error} /> : undefined, tag: route === 'OwnerExport' && plan?.features?.fullExports === false ? plan.needs?.fullExports || 'Pro' : undefined, act: () => go(route) }))]),
         ['Your app', [
             { icon: 'help-buoy', title: 'Help and support', subtitle: tr('Ask the platform team for help'), group: 'Your app', words: 'help support ask platform team contact problem', right: supportUnread > 0 ? <Pill label={String(supportUnread)} color={error} /> : undefined, act: () => go('OwnerSupport') },
