@@ -86,6 +86,7 @@ export const useHomeStore = create((set, get) => ({
                 full: buildFull(c),
                 delivery: cfg.value.delivery || null,
                 branch: cfg.value.branch || null,
+                plan: cfg.value.plan || null,   // what the shop's plan allows (null = no plan yet: nothing is hidden)
                 categories: cats.value?.items ?? get().categories,
                 banners: ban.value?.items ?? get().banners,
                 offers: off.value?.items ?? get().offers,

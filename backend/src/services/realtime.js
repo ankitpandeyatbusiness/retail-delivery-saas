@@ -45,6 +45,8 @@ const room = {
     shop: (t) => `shop:${t}`,                       // everyone of one shop (customers, riders, owners): shop-wide news such as "the menu changed"
     user: (t, u) => `user:${t}:${u}`,
     order: (o) => `order:${o}`,
+    orderMap: (o) => `ordermap:${o}`,                 // the rider's live position and route (plans with the live map; the owner and the rider always)
+    orderMap: (o) => `ordermap:${o}`,                 // the rider's live position and route (plans with the live map; the owner and the rider always)
     kitchen: (t) => `kitchen:${t}`,                 // the cooks of one shop
     waiter: (t) => `waiter:${t}`,                   // the waiters of one shop
     adminAll: 'admin:all',                          // a superadmin sees every shop
@@ -177,9 +179,12 @@ function onConnection(socket) {
             if (!isOwner && !isCustomer && !isRider) return done({ ok: false, error: 'Order not found' });
 
             socket.join(room.order(orderId));
+            let mapOk = isOwner || isRider;
+            if (!mapOk) { const t = await require('../models/Tenant').findById(tenantId).select('plan').lean(); mapOk = require('./featureGate').hasFeature(t, 'riderLiveMap'); }
+            if (mapOk) socket.join(room.orderMap(orderId));
             done({ ok: true });
             // the map should not wait for the next ping: send the last known position of the rider at once
-            if (o.status === 'out_for_delivery' && o.delivery?.status === 'picked_up' && o.delivery?.riderId) {
+            if (mapOk && o.status === 'out_for_delivery' && o.delivery?.status === 'picked_up' && o.delivery?.riderId) {
                 require('./liveTracking').sendSnapshot(socket, orderId, o.delivery.riderId);   // required here: liveTracking uses this file
                 require('./tripEta').sendSnapshot(socket, orderId);                            // and the route + arrival time
             }
@@ -210,7 +215,7 @@ function onConnection(socket) {
     }
 
     socket.on('order:leave', (payload) => {
-        if (typeof payload?.orderId === 'string') socket.leave(room.order(payload.orderId));
+        if (typeof payload?.orderId === 'string') { socket.leave(room.order(payload.orderId)); socket.leave(room.orderMap(payload.orderId)); }
     });
 }
 
@@ -285,6 +290,7 @@ const toShop = (tenantId, event, payload) => emit(room.shop(tenantId), event, pa
 const toKitchen = (tenantId, event, payload) => emit(room.kitchen(tenantId), event, payload);
 const toWaiter = (tenantId, event, payload) => emit(room.waiter(tenantId), event, payload);
 const toOrder = (orderId, event, payload) => emit(room.order(orderId), event, payload);
+const toOrderMap = (orderId, event, payload) => emit(room.orderMap(orderId), event, payload);
 // to every superadmin who watches all shops, and to those who watch this one shop
 const toAdmin = (tenantId, event, payload) => {
     try {
@@ -298,6 +304,7 @@ const toAdmin = (tenantId, event, payload) => {
 function leaveOrder({ tenantId, userId, orderId }) {
     try {
         if (io) io.in(room.user(tenantId, userId)).socketsLeave(room.order(orderId));
+        if (io) io.in(room.user(tenantId, userId)).socketsLeave(room.orderMap(orderId));
     } catch (e) {
         console.error('Realtime leave error:', e.message);
     }
@@ -307,4 +314,4 @@ const connectionCount = () => (io ? io.engine.clientsCount : 0);
 const isUserOnline = (tenantId, userId) => online.users.has(`${tenantId}:${userId}`);
 const isOwnerOnline = (tenantId) => online.owners.has(String(tenantId));
 
-module.exports = { recheckSockets, init, connectionCount, toUser, toOwner, toShop, toKitchen, toWaiter, toOrder, toAdmin, leaveOrder, isUserOnline, isOwnerOnline };
+module.exports = { recheckSockets, init, connectionCount, toUser, toOwner, toShop, toKitchen, toWaiter, toOrder, toOrderMap, toAdmin, leaveOrder, isUserOnline, isOwnerOnline };

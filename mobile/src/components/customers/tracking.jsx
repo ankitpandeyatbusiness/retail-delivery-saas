@@ -16,6 +16,7 @@ import { useBrand } from '../common/kit';
 import { tint } from './shop';
 import { RiderStanding } from '../common/RiderBadge';
 import { useLiveTripStore } from '../../store/customers/useLiveTripStore';
+import { useHomeStore } from '../../store/customers/useHomeStore';
 import { tr } from '../../i18n';
 
 const HEADLINE = {
@@ -74,6 +75,8 @@ export default function TrackingCard({ tracking: t, destination }) {
     const title = ['rider_assigned', 'on_the_way'].includes(t.state) && name ? `${name} ${HEADLINE[t.state]}` : HEADLINE[t.state] || 'Tracking';
     const eta = etaText(t);
     // the big live map (the sheet that opens over the app) is for this order when it is the one on the way
+    // Partner shops have no rider map: the timeline, the rider's name and the Call button only
+    const mapOn = useHomeStore((st) => st.plan?.features?.riderLiveMap !== false);
     const liveHere = useLiveTripStore((st) => !!st.orderId && String(st.orderId) === String(t.orderId));
     const openLive = useLiveTripStore((st) => st.setSheet);
 
@@ -89,7 +92,7 @@ export default function TrackingCard({ tracking: t, destination }) {
                 </View>
             </View>
 
-            {liveHere && t.state === 'on_the_way' ? (
+            {mapOn && liveHere && t.state === 'on_the_way' ? (
                 <Pressable onPress={() => openLive('full')} style={[s.liveBtn, { backgroundColor: primary }]} accessibilityRole="button">
                     <Ionicons name="map" size={18} color="#FFFFFF" />
                     <Text style={s.liveTxt}>{tr('Open live map')}</Text>
@@ -129,7 +132,7 @@ export default function TrackingCard({ tracking: t, destination }) {
                 </View>
             ) : null}
 
-            {(rider || (dest && ['rider_assigned', 'on_the_way'].includes(t.state))) ? (
+            {mapOn && (rider || (dest && ['rider_assigned', 'on_the_way'].includes(t.state))) ? (
                 <View style={[s.mapBox, { borderColor: border }]}>
                     <MapView
                         ref={map}

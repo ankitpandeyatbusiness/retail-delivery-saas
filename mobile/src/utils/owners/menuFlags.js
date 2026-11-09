@@ -10,7 +10,7 @@ import { ease } from '../common/ease';
 const KEY = 'menuFlags';
 
 export const useMenuFlags = create((set, get) => ({
-    kitchenOn: false, waiterOn: false, servicesOn: false, bookingOn: false, bulkOn: false, busy: null, easy: false, sortAZ: true, azChosen: false, ready: false,
+    kitchenOn: false, waiterOn: false, servicesOn: false, bookingOn: false, bulkOn: false, busy: null, plan: null, easy: false, sortAZ: true, azChosen: false, ready: false,
     hydrate: async () => {
         if (get().ready) return;
         const c = await readCache(KEY);
@@ -22,7 +22,7 @@ export const useMenuFlags = create((set, get) => ({
             const x = await fetchSettings();
             const st = x.orders?.staff;
             const next = {
-                busy: x.orders?.busy || null, ...(st ? { kitchenOn: st.kitchenOn === true, waiterOn: st.waiterOn === true } : {}),
+                plan: x.plan || null, busy: x.orders?.busy || null, ...(st ? { kitchenOn: st.kitchenOn === true, waiterOn: st.waiterOn === true } : {}),
                 ...(x.addons ? { servicesOn: x.addons.services === true, bookingOn: x.addons.tableBooking === true, bulkOn: x.addons.bulkOrders === true } : {}),
             };
             set(next);

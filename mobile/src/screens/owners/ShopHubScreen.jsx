@@ -66,6 +66,9 @@ const WORDS = {
 const wordsOf = (w) => (w ? `${w} ${tr(w)}` : '');
 
 // Easy mode shows only these (the things a shop uses every day); everything else is one switch away.
+// menu row -> the plan feature it needs (config/plans.js on the server)
+const LOCKS = { OwnerAutopilot: 'customPush', OwnerRewards: 'loyalty', OwnerCosts: 'costsProfit', OwnerReportsHub: 'analytics', OwnerCooks: 'staffLogins', OwnerWaiters: 'staffLogins' };
+
 const EASY = new Set(['@busy', 'OwnerAutomations', 'OwnerRiders', 'OwnerBookings', 'OwnerServices', 'OwnerBulk', 'OwnerInquiries', 'OwnerClosing', 'OwnerDineIn', 'OwnerCooks', 'OwnerWaiters', 'OwnerCustomers', 'OwnerExport', 'OwnerCosts', 'OwnerComplaints', 'OwnerMessages', 'OwnerCategories', 'OwnerCoupons', 'OwnerMoney', 'OwnerMoneyHub', 'OwnerBillsHub', 'OwnerReportsHub', 'OwnerHours', 'OwnerShopSettings', 'AlertSettings', 'Soundbox', 'OwnerAppLock']);
 const EASY_APP = new Set(['My profile', 'Appearance', 'Language', 'See the customer app', 'Log out']);
 
@@ -164,6 +167,9 @@ export function ShopMenu({ onGo }) {
     const servicesOn = useMenuFlags((s) => s.servicesOn);   // the super admin's switches for Services (with Inquiries) and Table booking
     const bookingOn = useMenuFlags((s) => s.bookingOn);
     const bulkOn = useMenuFlags((s) => s.bulkOn);   // the super admin's switch for Bulk orders
+    const plan = useMenuFlags((s) => s.plan);   // what the plan allows (null = no plan yet: nothing is locked)
+    // a row whose feature is not in the plan: it stays visible with "Available in Pro" and opens nothing (the server refuses it anyway)
+    const lockedBy = (route) => { const key = LOCKS[route]; return key && plan && plan.features?.[key] === false ? plan.needs?.[key] || 'a higher plan' : null; };
     const lang = useLang((st) => st.lang);
     useFocusEffect(useCallback(() => { useMenuFlags.getState().refresh(); }, []));
 
@@ -187,7 +193,9 @@ export function ShopMenu({ onGo }) {
     const sections = useMemo(() => [
         ...GROUPS.map(([group, rows]) => [group, rows.filter((r) => !hidden(r[3])).map(([icon, title, subtitle, route]) => (route === '@busy'
             ? { icon, title, subtitle: busy ? tr('On: +{extraMin} min until {clockTime}', { extraMin: busy.extraMin, clockTime: clockTime(busy.until) }) : tr(subtitle), group, words: 'busy rushed longer wait kitchen crowd', color: busy ? error : undefined, act: () => setBusyOpen(true) }
-            : { icon, title, subtitle: tr(subtitle), group, words: wordsOf(WORDS[route]), right: route === 'OwnerRiders' && riderAttention ? <Pill label="!" color={error} /> : undefined, act: () => go(route) }))]),
+            : lockedBy(route)
+                ? { icon: 'lock-closed', title, subtitle: tr('Available in {plan}', { plan: lockedBy(route) }), group, words: wordsOf(WORDS[route]), act: () => showToast(tr('{title} is available in {plan}. Ask us to upgrade your plan.', { title: tr(title), plan: lockedBy(route) })) }
+                : { icon, title, subtitle: tr(subtitle), group, words: wordsOf(WORDS[route]), right: route === 'OwnerRiders' && riderAttention ? <Pill label="!" color={error} /> : undefined, act: () => go(route) }))]),
         ['Your app', [
             { icon: 'help-buoy', title: 'Help and support', subtitle: tr('Ask the platform team for help'), group: 'Your app', words: 'help support ask platform team contact problem', right: supportUnread > 0 ? <Pill label={String(supportUnread)} color={error} /> : undefined, act: () => go('OwnerSupport') },
             { icon: 'person-circle', title: 'My profile', subtitle: user?.name || user?.phone || tr('Your name, picture and email'), group: 'Your app', words: 'profile name picture email account', act: () => go('OwnerProfile') },
@@ -198,7 +206,7 @@ export function ShopMenu({ onGo }) {
             { icon: 'log-out', title: 'Log out', subtitle: tr('Sign out of this phone'), group: 'Your app', words: 'logout log out sign out exit', color: error, act: out },
         ]],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    ], [busy, staffOn, servicesOn, bookingOn, bulkOn, riderAttention, supportUnread, user, lang, easy]);
+    ], [busy, staffOn, servicesOn, bookingOn, bulkOn, plan, riderAttention, supportUnread, user, lang, easy]);
     const entries = useMemo(() => sections.flatMap(([, rows]) => rows).filter((e) => !e.custom), [sections]);
     const found = q.trim() ? searchMenu(entries, q, (e) => `${e.title} ${tr(e.title)}`) : null;
 

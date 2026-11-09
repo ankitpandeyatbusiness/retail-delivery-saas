@@ -82,7 +82,7 @@ function viewOf(tenant, now = new Date()) {
         extras: (p.extras || []).map((e) => e.key),
         webEnabled: p.webEnabled !== false, nativeEnabled: p.nativeEnabled !== false,
         limits: { riders: plans.limitFor(p.id, 'riders'), staff: plans.limitFor(p.id, 'staff') },
-        features: plans.featuresOf(p.id),
+        features: { ...plans.featuresOf(p.id), ...Object.fromEntries((p.extras || []).map((e) => [e.key, true])) },   // the plan plus the extras the supreme admin switched on
     };
 }
 
@@ -136,4 +136,7 @@ async function setShopTerms(tenantDoc, b) {
     return viewOf(tenantDoc);
 }
 
-module.exports = { getDefaults, saveDefaults, viewOf, setPlan, setExtra, setShopTerms, endOfIstDay };
+// the cheapest plan that includes a feature, for the "Available in Growth" notes: { costsProfit: 'Growth', analytics: 'Pro', ... }
+const needsOf = () => Object.fromEntries(Object.entries(plans.FEATURES).map(([k, f]) => [k, plans.PLAN_IDS.find((id) => f.plans.includes(id)).replace(/^./, (c) => c.toUpperCase())]));
+
+module.exports = { needsOf, getDefaults, saveDefaults, viewOf, setPlan, setExtra, setShopTerms, endOfIstDay };

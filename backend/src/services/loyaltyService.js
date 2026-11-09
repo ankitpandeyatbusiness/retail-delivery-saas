@@ -55,7 +55,11 @@ const merge = (base, over) => {
     }
     return out;
 };
-const settingsOf = (tenant) => merge(RECOMMENDED, tenant?.settings?.loyalty);
+const settingsOf = (tenant) => {
+    const cfg = merge(RECOMMENDED, tenant?.settings?.loyalty);
+    if (!require('./featureGate').hasFeature(tenant, 'loyalty')) { cfg.customer.enabled = false; cfg.rider.enabled = false; }   // not in the plan
+    return cfg;
+};
 
 const fail = (m) => Object.assign(new Error(m), { status: 400 });
 const num = (v, name, min, max, whole = true) => {
@@ -152,7 +156,7 @@ async function earnPending({ tenantId, userId, orderId, orderNo, reason, points,
 
 // a bonus that is not an order's own (a referral): written once per reason per order, waits like any points
 async function grant({ tenantId, userId, orderId, orderNo, reason, points, note }) {
-    const tenant = await Tenant.findById(tenantId).select('settings.loyalty').lean();
+    const tenant = await Tenant.findById(tenantId).select('settings.loyalty plan').lean();
     const cfg = settingsOf(tenant);
     if (!cfg.customer.enabled) return null;
     return earnPending({ tenantId, userId, orderId, orderNo, reason, points, cfg: cfg.customer, note });
@@ -160,7 +164,7 @@ async function grant({ tenantId, userId, orderId, orderNo, reason, points, note 
 
 // the order was delivered: the customer's points start waiting, the rider's points are written
 async function onDelivered(order) {
-    const tenant = await Tenant.findById(order.tenantId).select('settings.loyalty').lean();
+    const tenant = await Tenant.findById(order.tenantId).select('settings.loyalty plan').lean();
     const cfg = settingsOf(tenant);
     // a round on a table bill earns nothing until the bill is paid (settle in tableBill.js calls this again, with the round paid)
     if (cfg.customer.enabled && order.userId && !(order.tableSessionId && order.payment?.status !== 'paid')) {
@@ -184,13 +188,13 @@ async function onDelivered(order) {
 
 // the customer rated the food (+ bonus) or the delivery (+ bonus for him, stars for the rider)
 async function onFoodRated(order) {
-    const tenant = await Tenant.findById(order.tenantId).select('settings.loyalty').lean();
+    const tenant = await Tenant.findById(order.tenantId).select('settings.loyalty plan').lean();
     const cfg = settingsOf(tenant);
     if (!cfg.customer.enabled) return;
     await earnPending({ tenantId: order.tenantId, userId: order.userId, orderId: order._id, orderNo: order.orderNo, reason: 'review_food', points: cfg.customer.foodReviewBonus, cfg: cfg.customer, note: 'Food review' });
 }
 async function onDeliveryRated(order, rating) {
-    const tenant = await Tenant.findById(order.tenantId).select('settings.loyalty').lean();
+    const tenant = await Tenant.findById(order.tenantId).select('settings.loyalty plan').lean();
     const cfg = settingsOf(tenant);
     if (cfg.customer.enabled) await earnPending({ tenantId: order.tenantId, userId: order.userId, orderId: order._id, orderNo: order.orderNo, reason: 'review_delivery', points: cfg.customer.deliveryReviewBonus, cfg: cfg.customer, note: 'Delivery review' });
     const riderId = order.delivery?.riderId;
@@ -324,7 +328,7 @@ async function customerView(tenant, userId) {
 async function riderAdd({ tenantId, userId, orderId, orderNo, reason, points, note, cfg, stars }) {
     try {
         if (!points && !stars) return;
-        const c = cfg || settingsOf(await Tenant.findById(tenantId).select('settings.loyalty').lean());
+        const c = cfg || settingsOf(await Tenant.findById(tenantId).select('settings.loyalty plan').lean());
         if (!c.rider.enabled) return;
         await writeOnce({ tenantId, userId, kind: 'rider', reason, points, status: 'done', orderId, orderNo, note, ...(stars ? { stars } : {}) });
         await refreshRider(tenantId, userId, c);
@@ -349,7 +353,7 @@ function nextBadge(badge, points, r) {
 
 // recalculates and saves a rider's standing from the last 30 days
 async function refreshRider(tenantId, userId, cfg) {
-    const c = cfg || settingsOf(await Tenant.findById(tenantId).select('settings.loyalty').lean());
+    const c = cfg || settingsOf(await Tenant.findById(tenantId).select('settings.loyalty plan').lean());
     const since = new Date(Date.now() - 30 * DAY);
     const [rows, rider] = await Promise.all([
         LoyaltyEntry.aggregate([
@@ -370,7 +374,7 @@ async function refreshRider(tenantId, userId, cfg) {
 
 // riders whose saved standing is missing or more than 6 hours old are recalculated (the 30 days keep moving)
 async function freshen(tenantId, riders) {
-    const c = settingsOf(await Tenant.findById(tenantId).select('settings.loyalty').lean());
+    const c = settingsOf(await Tenant.findById(tenantId).select('settings.loyalty plan').lean());
     if (!c.rider.enabled) return;
     for (const r of riders) {
         if (!r.userId) continue;
@@ -423,11 +427,11 @@ async function board(tenant) {
 
 // a complaint was decided as the rider's fault / he cancelled after collecting the food
 async function onRiderFault({ tenantId, userId, orderId, orderNo }) {
-    const c = settingsOf(await Tenant.findById(tenantId).select('settings.loyalty').lean());
+    const c = settingsOf(await Tenant.findById(tenantId).select('settings.loyalty plan').lean());
     return riderAdd({ tenantId, userId, orderId, orderNo, reason: 'fault', points: c.rider.fault, note: 'A complaint was decided as his fault', cfg: c });
 }
 async function onRiderCancelledAfterPickup(order) {
-    const c = settingsOf(await Tenant.findById(order.tenantId).select('settings.loyalty').lean());
+    const c = settingsOf(await Tenant.findById(order.tenantId).select('settings.loyalty plan').lean());
     return riderAdd({ tenantId: order.tenantId, userId: order.delivery.riderId, orderId: order._id, orderNo: order.orderNo, reason: 'cancel_pickup', points: c.rider.cancelAfterPickup, note: 'Cancelled after collecting the food', cfg: c });
 }
 

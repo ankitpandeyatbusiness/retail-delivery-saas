@@ -56,6 +56,12 @@ manage.delete('/leaves/:id', wrap(async (req, res) => {
 
 // { "phone": "9876543210", "name": "Ravi" }
 manage.post('/', wrap(async (req, res) => {
+    const cap = require('../services/featureGate').limitOf(req.tenant, 'riders');
+    if (cap !== null) {
+        const User = require('../models/User');
+        const already = await User.exists({ tenantId: req.tenant._id, phone: String(req.body?.phone || '').trim(), role: 'rider' });
+        if (!already && (await User.countDocuments({ tenantId: req.tenant._id, role: 'rider' })) >= cap) throw apiErrors.httpError(403, `Your plan allows ${cap} riders. See Plan to upgrade.`);
+    }
     const r = await riders.addByPhone({ tenantId: req.tenant._id, phone: req.body?.phone, name: req.body?.name });
     res.status(201).json(r);
 }));

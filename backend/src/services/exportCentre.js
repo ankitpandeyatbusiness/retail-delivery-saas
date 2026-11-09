@@ -893,16 +893,18 @@ const ORDER = ['customers', 'owners', 'brand_people', 'staff', 'riders', 'orders
 
 // ----- the engine -----
 const hasPeriod = (d) => !d.noPeriod && (d.dateField !== undefined || !!d.periodOn);
-const cols = (d, lv) => d.columns.filter((c) => c.lv <= lv);
+// Plans without full exports (Partner, Growth): the money columns only, never a customer's name, phone or address (q.moneyOnly === '1', set by the owner's export route)
+const PII_KEYS = new Set(['customer', 'phone', 'address', 'company', 'gstin', 'note', 'rider', 'name', 'email', 'landmark']);
+const cols = (d, lv, moneyOnly) => d.columns.filter((c) => c.lv <= lv && !(moneyOnly && PII_KEYS.has(c.k)));
 
 const SHOP_ONLY = ['branches', 'shop_costs'];   // exports that are the owner's own, not the platform's
-function catalog({ keys } = {}) {
+function catalog({ keys, moneyOnly } = {}) {
     return ORDER.filter((k) => (keys ? keys.includes(k) : !SHOP_ONLY.includes(k))).map((key) => {
         const d = D[key];
         return {
             key, title: d.title, group: d.group, hint: d.hint, shops: d.shopField !== null, period: hasPeriod(d), periodLabel: d.periodLabel || 'Between',
             filters: (d.filters || []).map((f) => ({ key: f.key, label: f.label, multi: !!f.multi, options: f.options })),
-            levels: Object.fromEntries(Object.keys(LEVELS).map((n) => [n, { label: LEVEL_NAME[n], columns: cols(d, LEVELS[n]).map((c) => c.h), extra: n === 'everything' && !!d.extraSheets }])),
+            levels: Object.fromEntries(Object.keys(LEVELS).map((n) => [n, { label: LEVEL_NAME[n], columns: cols(d, LEVELS[n], moneyOnly).map((c) => c.h), extra: n === 'everything' && !!d.extraSheets }])),
         };
     });
 }
@@ -947,7 +949,7 @@ async function rowsFor(key, q, full, forced) {
         [docs, total] = await Promise.all([d.model.find(m).sort(d.sort || { _id: -1 }).limit(ctx.max).lean(), d.model.countDocuments(m)]);
     }
     if (d.prepare) await d.prepare(docs, ctx);
-    const columns = cols(d, ctx.lv);
+    const columns = cols(d, ctx.lv, q.moneyOnly === '1');
     const rows = docs.map((x) => d.map(x, ctx));
     return { d, ctx, docs, columns, rows, total, f };
 }

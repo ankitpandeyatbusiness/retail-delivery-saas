@@ -43,6 +43,7 @@ async function tracking({ tenant, userId, orderId }) {
     const state = stateOf(order);
     const showRider = !!d.riderId && ['accepted', 'picked_up', 'delivered'].includes(d.status) && order.status !== 'cancelled';
 
+    const mapOn = require('./featureGate').hasFeature(tenant, 'riderLiveMap');
     let rider = null;
     let live = null;
     if (showRider) {
@@ -61,13 +62,13 @@ async function tracking({ tenant, userId, orderId }) {
             // his badge and rating, so the customer knows who is coming (null when the shop switched rider points off)
             standing: require('./loyaltyService').standing(tenant, profile),
         };
-        live = liveTracking.newest(d.riderId, profile?.lastLocation);   // the live position (memory) is never behind the saved one
+        live = mapOn ? liveTracking.newest(d.riderId, profile?.lastLocation) : null;   // Partner: no rider dot on a map, the timeline only   // the live position (memory) is never behind the saved one
     }
 
     // ETA: distance based when the rider is on the way and sent a fresh location, otherwise the shop's estimate
     let etaAt = null;
     let etaSource = null;
-    const trip = state === 'on_the_way' ? tripEta.view(order._id) : null;   // the road route and arrival time kept up to date by the pings
+    const trip = state === 'on_the_way' && mapOn ? tripEta.view(order._id) : null;   // the road route and arrival time kept up to date by the pings
     if (!DONE.includes(order.status)) {
         const a = order.address;
         const fresh = live?.at && Date.now() - new Date(live.at).getTime() < FRESH_MS;

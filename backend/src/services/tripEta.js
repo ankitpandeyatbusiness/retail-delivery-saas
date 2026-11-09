@@ -153,7 +153,7 @@ const serialEta = (trip) => ({ ...trip.eta, etaAt: trip.eta.etaAt.toISOString?.(
 function emitRoute(trip, socket) {
     try {
         const body = { orderId: trip.orderId, polyline: polyline.encode(trip.route.points), distanceM: trip.route.distanceM, durationSec: trip.route.durationSec, source: trip.route.source };
-        if (socket) socket.emit('rider:route', body); else realtime.toOrder(trip.orderId, 'rider:route', body);
+        if (socket) socket.emit('rider:route', body); else realtime.toOrderMap(trip.orderId, 'rider:route', body);
     } catch (e) { /* the map just draws without the line */ }
 }
 
@@ -182,7 +182,7 @@ async function sweep(now = Date.now()) {
         const quiet = now - trip.lastPingAt;
         if (quiet > QUIET_MS && !trip.quiet) {
             trip.quiet = true;
-            realtime.toOrder(id, 'rider:quiet', { orderId: id, since: new Date(trip.lastPingAt).toISOString() });
+            realtime.toOrderMap(id, 'rider:quiet', { orderId: id, since: new Date(trip.lastPingAt).toISOString() });
         }
         if (quiet > OWNER_QUIET_MS && !trip.quietOwner) {
             trip.quietOwner = true;

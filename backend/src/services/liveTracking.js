@@ -107,7 +107,7 @@ async function ingest({ tenantId, riderId, body, via = 'http', now = Date.now() 
     if (via === 'http') guard.counters.httpFallbacks += 1;
 
     for (const id of ids) {
-        realtime.toOrder(id, 'rider:location', { orderId: id, lat, lng, heading, speed, accuracy, at, seq });
+        realtime.toOrderMap(id, 'rider:location', { orderId: id, lat, lng, heading, speed, accuracy, at, seq });
     }
     // the road route, the arrival time and the "arriving" alerts. Never waits for it and never fails the ping.
     const cached = ordersCache.get(key);

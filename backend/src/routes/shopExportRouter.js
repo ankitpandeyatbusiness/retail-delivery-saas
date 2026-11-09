@@ -13,6 +13,12 @@ const Tenant = require('../models/Tenant');
 const User = require('../models/User');
 const { wrap, httpError } = require('../middlewares/apiErrors');
 const { XLSX_TYPE } = require('../services/xlsxExport');
+const { hasFeature } = require('../services/featureGate');
+
+// Partner and Growth: money columns only, and the exports that are all about people (customers, riders, cooks and waiters, complaints, bulk) are Pro. Pro: everything.
+const PEOPLE = ['customers', 'riders', 'staff', 'complaints', 'bulk_orders'];
+const full = (req) => hasFeature(req.tenant, 'fullExports');
+const qOf = (req) => (full(req) ? { ...req.query, moneyOnly: undefined } : { ...req.query, moneyOnly: '1' });
 
 const router = express.Router();
 const TITLE = { invoices: 'Rent bills', staff: 'Cooks and waiters' };
@@ -41,6 +47,7 @@ function chosen(a, q) {
 }
 function keyOf(req) {
     if (!centre.OWNER_KEYS.includes(req.params.key)) throw httpError(404, 'Unknown export');
+    if (!full(req) && PEOPLE.includes(req.params.key)) throw httpError(403, 'This export has customer or staff details. It is in the Pro plan. See Plan to upgrade.');
     return req.params.key;
 }
 const writeDown = (req, key, rows) => AuditLog.create({
@@ -50,7 +57,7 @@ const writeDown = (req, key, rows) => AuditLog.create({
 
 router.get('/catalog', wrap(async (req, res) => {
     const a = await allowed(req);
-    const items = centre.catalog({ keys: centre.OWNER_KEYS }).map((i) => ({ ...i, title: TITLE[i.key] || i.title, hint: HINT[i.key] || i.hint, shops: i.key === 'branches' ? false : i.shops && a.shops.length > 1 }));
+    const items = centre.catalog({ keys: centre.OWNER_KEYS.filter((k) => full(req) || !PEOPLE.includes(k)), moneyOnly: !full(req) }).map((i) => ({ ...i, title: TITLE[i.key] || i.title, hint: HINT[i.key] || i.hint, shops: i.key === 'branches' ? false : i.shops && a.shops.length > 1 }));
     res.json({
         items, max: centre.MAX_ROWS, csvMax: centre.CSV_MAX,
         shops: a.shops.map((t) => ({ id: String(t._id), name: t.name, city: t.branchCity || (t.address && t.address.city) || '' })),
@@ -59,7 +66,7 @@ router.get('/catalog', wrap(async (req, res) => {
 
 router.get('/:key/count', wrap(async (req, res) => {
     const key = keyOf(req);
-    res.json(await centre.count(key, req.query, { full: true, forced: chosen(await allowed(req), req.query) }));
+    res.json(await centre.count(key, qOf(req), { full: true, forced: chosen(await allowed(req), req.query) }));
 }));
 
 router.get('/:key/download', wrap(async (req, res) => {
@@ -67,13 +74,13 @@ router.get('/:key/download', wrap(async (req, res) => {
     const forced = chosen(await allowed(req), req.query);
     const stamp = new Date(Date.now() + 330 * 60000).toISOString().slice(0, 10);
     if (req.query.format === 'csv') {
-        const r = await centre.csv(key, req.query, { full: true, forced });
+        const r = await centre.csv(key, qOf(req), { full: true, forced });
         writeDown(req, key, r.rows);
         res.set('Content-Type', 'text/csv; charset=utf-8');
         res.set('Content-Disposition', `attachment; filename="${key}-${stamp}.csv"`);
         return res.send(r.text);
     }
-    const r = await centre.workbook(key, req.query, { full: true, admin: req.shopUser?.name || 'Shop owner', forced });
+    const r = await centre.workbook(key, qOf(req), { full: true, admin: req.shopUser?.name || 'Shop owner', forced });
     writeDown(req, key, r.rows);
     res.set('Content-Type', XLSX_TYPE);
     res.set('Content-Disposition', `attachment; filename="${key}-${stamp}.xlsx"`);

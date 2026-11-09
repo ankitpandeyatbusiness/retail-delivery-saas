@@ -64,7 +64,10 @@ tenantRouter.get('/config', tenantRecognizer, async (req, res) => {
             if (st.on) maintenance = { phase: 'on', scope: st.scope, message: st.message, until: st.until, since: st.since, draining: st.draining };
             else if (maintenanceNotice) maintenance = { phase: 'upcoming', message: maintenanceNotice.message, startAt: maintenanceNotice.startAt, until: maintenanceNotice.endAt };
         } catch (e) { /* the badge is optional */ }
-        res.json({ version, config, homeConfig: config.home, delivery, branch, maintenanceNotice, maintenance });
+        // what the plan allows, so the apps can hide what is not in it (the server refuses anyway). No plan name, dates or prices here: customers read this too.
+        const pl = require('../services/planService').viewOf(t);
+        const plan = pl.id ? { features: pl.features, limits: pl.limits } : null;
+        res.json({ version, config, homeConfig: config.home, delivery, branch, maintenanceNotice, maintenance, plan });
     } catch (e) {
         console.error('Config error:', e);
         res.status(500).json({ error: 'Something went wrong' });

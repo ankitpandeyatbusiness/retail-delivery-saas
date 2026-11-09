@@ -265,7 +265,7 @@ router.get('/dashboard', openWhilePaused, wrap(async (req, res) => {
     });
 }));
 // The shop's progress report: GET /api/shop/business-report?range=7|30|90|2026-09
-router.get('/business-report', openWhilePaused, wrap(async (req, res) => {
+router.get('/business-report', openWhilePaused, featureGate.planGate('analytics'), wrap(async (req, res) => {
     res.json(await require('../services/businessReport').build({ tenantId: req.tenant._id, range: req.query.range || '30' }));
 }));
 router.get('/live', openWhilePaused, wrap(async (req, res) => {
@@ -538,7 +538,8 @@ router.get('/settings', wrap(async (req, res) => {
         phone: req.tenant.phone || null,
         address: req.tenant.address || {},
         delivery: req.tenant.delivery || {},
-        addons: { services: !!cfg.features?.services, tableBooking: !!cfg.features?.tableBooking, bulkOrders: !!cfg.features?.bulkOrders },   // the super admin's switches: a shop without them sees no Services, Inquiries or Bookings
+        addons: { services: featureGate.isOn(req.tenant, 'services'), tableBooking: featureGate.isOn(req.tenant, 'tableBooking'), bulkOrders: featureGate.isOn(req.tenant, 'bulkOrders') },
+        plan: (() => { const planSvc = require('../services/planService'); const v = planSvc.viewOf(req.tenant); return v.id ? { features: v.features, limits: v.limits, needs: planSvc.needsOf() } : null; })(),   // what the plan allows; the app shows "Available in Growth" on the rest   // the super admin's switches: a shop without them sees no Services, Inquiries or Bookings
         hours: { weekly: cfg.hours.weekly || {}, closedMessage: st.hours?.closedMessage || '', closedDates: cfg.hours.closedDates || [] },
         riders: { payPerDelivery: 0, ...DEFAULTS.riders, ...(st.riders || {}), pay: riderPay.effectivePlan(st.riders) },
         notifications: { ...DEFAULTS.notifications, ...(st.notifications || {}) },
@@ -722,7 +723,7 @@ router.put('/settings', wrap(async (req, res) => {
 router.use('/uploads', require('./uploadRouter'));   // direct-to-R2 uploads (owner and superadmin)
 router.get('/reviews', wrap(async (req, res) => { res.json(await require('../services/reviewsService').list({ tenantId: req.tenant._id, query: req.query })); }));   // what customers say: dishes and delivery
 router.use('/staff', require('./shopStaffRouter'));   // kitchen and waiter people: add, pause, remove
-router.use('/costs', require('./shopCostsRouter'));   // what the shop spends and what it really kept (profit)
+router.use('/costs', ownerOnly(featureGate.planGate('costsProfit')), require('./shopCostsRouter'));   // what the shop spends and what it really kept (profit)
 router.use('/exports', require('./shopExportRouter'));   // Excel or CSV of his own shop (or all his branches): customers, orders, riders, cooks, waiters ...
 router.use('/customers', require('./shopCustomersRouter'));   // customer tools: list, detail, edit, Cash on delivery block
 router.use('/booking', require('./shopBookingRouter'));   // table booking: rules, the day's bookings, seat, no-show, cancel
@@ -730,7 +731,7 @@ router.use('/inquiries', ownerOnly(featureGate.gate('services')), require('./sho
 router.use('/chat', require('./chatRouter').ownerChat());   // the owner's side of the same chats
 router.use('/bulk', require('./shopBulkRouter'));   // bulk orders: the rules, the requests, the quotes. The super admin's Bulk orders switch is checked inside: orders already taken are always finished
 router.use('/services', ownerOnly(featureGate.gate('services')), require('./shopServicesRouter'));   // bulk order, tiffin, party booking and the owner's own services
-router.use('/autopilot', require('./shopAutopilotRouter'));   // automatic reminders to customers (push and inbox only)
+router.use('/autopilot', ownerOnly(featureGate.planGate('customPush')), require('./shopAutopilotRouter'));   // automatic reminders to customers (push and inbox only)
 router.use('/messages', require('./shopMessagesRouter'));     // messages to his customers and riders
 router.use('/complaints', require('./shopComplaintsRouter')); // complaints of his customers
 router.use(require('./shopManageRouter'));           // menu: categories, products, banners, coupons, collections

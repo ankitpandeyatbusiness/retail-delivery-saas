@@ -53,6 +53,8 @@ async function add({ tenant, phone, name, role }) {
     const mine = existing ? await Staff.findOne({ tenantId, userId: existing._id }).select('_id isActive').lean() : null;
     if (!mine) {
         const count = await Staff.countDocuments({ tenantId });
+        const cap = require('./featureGate').limitOf(tenant, 'staff');
+        if (cap !== null && count >= cap) throw httpError(403, cap === 0 ? 'Kitchen and waiter logins are not in your plan. See Plan to upgrade.' : `Your plan allows ${cap} kitchen and waiter logins. See Plan to upgrade.`);
         if (count >= rules.max) throw httpError(409, `You can add up to ${rules.max} staff. Remove someone first, or ask support to raise the limit.`);
     }
     if (existing && !mine) {

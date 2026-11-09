@@ -70,8 +70,8 @@ async function afterPlaced(order) {
     let auto = false;
     let tenantA = null;   // the auto accept setting of the shop
     try {
-        const tenant = await Tenant.findById(order.tenantId).select('settings.orders').lean();
-        auto = applies(tenant);
+        const tenant = await Tenant.findById(order.tenantId).select('settings.orders plan').lean();
+        auto = require('./featureGate').hasFeature(tenant, 'autoAccept') && applies(tenant);
         tenantA = tenant?.settings?.orders?.autoAccept || null;
     } catch (e) { /* manual */ }
     notify.orderPlaced(order, { autoAccepted: auto });   // the Soundbox rings as usual, with "auto accepted" on it

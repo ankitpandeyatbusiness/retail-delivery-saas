@@ -5,7 +5,8 @@ const { httpError } = require('../middlewares/apiErrors');
 
 const NAMES = { services: 'Services and inquiries', tableBooking: 'Table booking', bulkOrders: 'Bulk orders' };
 
-const isOn = (tenant, key) => !!resolveConfig(tenant).features?.[key];
+// A feature that is plan-gated (config/plans.js) needs the plan AND the super admin's per-shop switch. Table booking is in every plan.
+const isOn = (tenant, key) => hasFeature(tenant, key) && !!resolveConfig(tenant).features?.[key];
 
 // a middleware that lets the request through only when the shop has the feature
 const gate = (key) => (req, res, next) => (isOn(req.tenant, key) ? next() : next(httpError(403, `${NAMES[key]} is not switched on for your shop. Ask us to switch it on.`)));
@@ -22,6 +23,8 @@ function hasFeature(tenant, key) {
     if (plans.planIncludes(p.id, key)) return true;
     return !!p.extras?.some((e) => e.key === key);
 }
+// the plan's number for riders / staff (null = unlimited, also for a shop with no plan yet)
+const limitOf = (tenant, what) => (tenant?.plan?.id ? plans.limitFor(tenant.plan.id, what) : null);
 const planGate = (key) => (req, res, next) => (hasFeature(req.tenant, key) ? next() : next(httpError(403, `${plans.FEATURES[key]?.label || key} is not in your plan. See Plan to upgrade.`)));
 
-module.exports = { isOn, gate, hasFeature, planGate, NAMES, UNAVAILABLE };
+module.exports = { isOn, gate, hasFeature, planGate, limitOf, NAMES, UNAVAILABLE };
