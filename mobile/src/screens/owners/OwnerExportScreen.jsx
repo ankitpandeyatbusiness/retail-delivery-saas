@@ -8,6 +8,7 @@ import { OwnerScreen, Card, SectionTitle, Row } from '../../components/owners/ui
 import { ListShimmer } from '../../components/owners/shimmer';
 import { fetchExportCatalog, apiError } from '../../api/owners/shopApi';
 import { tr } from '../../i18n';
+import { UpgradeNote } from '../../components/owners/PlanLock';
 
 const ICON = { customers: 'people', staff: 'restaurant', riders: 'bicycle', orders: 'receipt', invoices: 'document-text', complaints: 'chatbubble-ellipses', menu: 'list', branches: 'storefront' };
 
@@ -24,6 +25,7 @@ export default function OwnerExportScreen() {
         <OwnerScreen title={tr('Download your data')} page onRefresh={load}>
             <View style={{ padding: 16 }}>
                 <Text style={{ color: muted, fontSize: 13, marginBottom: 4 }}>{tr('Excel or CSV files of your own shop. Pick one, choose how much detail you want, and download.')}</Text>
+                <UpgradeNote feature="fullExports" text={tr('Files below Pro leave out customer names, phones and addresses')} style={{ marginHorizontal: 0 }} />
                 {!cat ? (err ? <Text style={{ color: red, marginTop: 12 }}>{err}</Text> : <ListShimmer />) : groups.map((g) => (
                     <View key={g}>
                         <SectionTitle title={tr(g)} />

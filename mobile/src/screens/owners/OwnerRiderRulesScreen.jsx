@@ -14,6 +14,7 @@ import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { showToast } from '../../components/customers/shop';
 import { FormShimmer } from '../../components/owners/shimmer';
 import { tr } from '../../i18n';
+import { UpgradeNote } from '../../components/owners/PlanLock';
 
 // what we recommend for most shops (the platform's own defaults)
 const RECOMMENDED = { pickupCodOn: true, pickupCodMax: 0, pickupOpenMax: 2, pickupChange: true, mixDine: true, mixDelivery: 3, mixCashOn: true, mixCashNew: 800, mixCashTrusted: 3000, assignMode: 'automatic', offerSeconds: 120, maxActiveOrders: 3, pay: { type: 'none' }, trackPayouts: false, payUndelivered: false, cashLimit: 0, deliveryPin: true, liveTracking: true, locationIntervalSec: 10, codAmount: 1000, codFirst: 3 };
@@ -103,6 +104,7 @@ export default function OwnerRiderRulesScreen() {
                 <ToggleRow title={tr('Delivery PIN')} subtitle={tr('The customer tells the rider a PIN to confirm the delivery')} value={v.deliveryPin} onValueChange={(x) => set('deliveryPin', x)} last />
             </Group>
 
+            {!liveMapOk ? <UpgradeNote feature="riderLiveMap" text={tr('Customers watch the rider live on a map')} /> : null}
             {liveMapOk ? (
             <Group title={tr('Live tracking')}>
                 <ToggleRow title={tr('Customer sees the rider on a map')} value={v.liveTracking} onValueChange={(x) => set('liveTracking', x)} last={!v.liveTracking} />

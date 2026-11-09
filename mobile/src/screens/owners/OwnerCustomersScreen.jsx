@@ -20,6 +20,7 @@ import { ago } from '../../utils/owners/riderRules';
 import { TAGS, TAG_ORDER, usualLine, sinceLine } from '../../utils/owners/customerTags';
 import { LineShimmer, ListShimmer } from '../../components/owners/shimmer';
 import { tr, tl } from '../../i18n';
+import { UpgradeNote } from '../../components/owners/PlanLock';
 
 export default function OwnerCustomersScreen() {
     const autopilotOk = usePlanHas('customPush');   // Autopilot is Pro
@@ -85,6 +86,7 @@ export default function OwnerCustomersScreen() {
             </View>
             {tag !== 'all' ? <Text style={{ color: primary, fontWeight: '800', paddingHorizontal: 16, marginBottom: 4 }}>{tag === 'blocked' ? tr('Blocked') : tr(TAGS[tag]?.label || tag)}</Text> : null}
             {tag === 'blocked' ? <Text style={{ color: muted, fontSize: 12, paddingHorizontal: 16, marginTop: 8 }}>{tr('Customers you blocked: when, why, and the order it was about. You can unblock them here.')}</Text> : tag !== 'all' ? <Text style={{ color: muted, fontSize: 12, paddingHorizontal: 16, marginTop: 8 }}>{TAGS[tag].hint}</Text> : null}
+            {!autopilotOk ? <UpgradeNote feature="customPush" text={tr('Reminders that bring customers back, by themselves')} /> : null}
             {autopilotOk ? (
             <Pressable onPress={() => nav.navigate('OwnerAutopilot')} style={{ marginHorizontal: 16, marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: alpha(primary, 0.1), flexDirection: 'row', alignItems: 'center' }}>
                 <Ionicons name="rocket" size={20} color={primary} />

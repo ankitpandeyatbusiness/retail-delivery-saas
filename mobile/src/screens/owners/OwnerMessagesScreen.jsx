@@ -14,6 +14,7 @@ import { showToast } from '../../components/customers/shop';
 import { ask } from '../../components/common/dialog';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { tr, tl } from '../../i18n';
+import { UpgradeNote } from '../../components/owners/PlanLock';
 
 function Compose({ visible, onClose, onSent }) {
     const [title, setTitle] = useState('');
@@ -39,6 +40,7 @@ function Compose({ visible, onClose, onSent }) {
     return (
         <Sheet visible={visible} onClose={onClose} title={tr('New message')}>
             <Label>{tr('Send to')}</Label>
+            {!pushOk ? <UpgradeNote feature="customPush" text={tr('Send offers to your customers by push')} style={{ marginHorizontal: 0, marginBottom: 8 }} /> : null}
             <Chips options={pushOk ? AUDIENCES : AUDIENCES.filter((a) => a[0] === 'riders')} value={audience} onChange={(a) => { setAudience(a); if (a !== 'customers') setKind('info'); }} style={{ marginTop: 0 }} />
             <Label hint={kind === 'promo' ? tr('Customers who turned promotions off are skipped.') : tr('Important news, like closing for a day.')}>{tr('Kind')}</Label>
             <Chips options={audience === 'customers' ? [['info', tl('Information')], ['promo', tl('Offer')]] : [['info', tl('Information')]]} value={kind} onChange={setKind} style={{ marginTop: 0 }} />

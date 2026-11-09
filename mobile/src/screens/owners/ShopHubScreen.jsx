@@ -18,6 +18,7 @@ import { clockTime } from '../../utils/owners/orderFlow';
 import { showToast } from '../../components/customers/shop';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { ask } from '../../components/common/dialog';
+import { PlanTag, askUpgrade } from '../../components/owners/PlanLock';
 import MenuIndexStrip, { useMenuIndex } from '../../components/owners/MenuIndexStrip';
 import { ease } from '../../utils/common/ease';
 import { tr, LANGS, useLang } from '../../i18n';
@@ -75,15 +76,8 @@ const planLineOf = (p) => {
     return p.endsAt ? tr('{name}, ends {date} ({n} days left)', { name, date: new Date(p.endsAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }), n: p.daysLeft }) : name;
 };
 
-// rows that exist only in Pro get a small PRO tag, so owners see what the Pro payment brings
-const PRO_TITLES = new Set(['Autopilot', 'Bulk orders', 'Business report']);
-function ProTag() {
-    const { primary } = useBrand();
-    return <View style={{ backgroundColor: primary, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}><Text style={{ color: '#fff', fontSize: 10, fontWeight: '900', letterSpacing: 0.5 }}>PRO</Text></View>;
-}
-
 // menu row -> the plan feature it needs (config/plans.js on the server)
-const LOCKS = { OwnerAutopilot: 'customPush', OwnerRewards: 'loyalty', OwnerCosts: 'costsProfit', OwnerReportsHub: 'analytics', OwnerCooks: 'staffLogins', OwnerWaiters: 'staffLogins' };
+const LOCKS = { OwnerAutopilot: 'customPush', OwnerRewards: 'loyalty', OwnerCosts: 'costsProfit', OwnerReportsHub: 'analytics', OwnerCooks: 'staffLogins', OwnerWaiters: 'staffLogins', OwnerServices: 'services', OwnerInquiries: 'services', OwnerBulk: 'bulkOrders' };
 
 const EASY = new Set(['@busy', 'OwnerAutomations', 'OwnerRiders', 'OwnerBookings', 'OwnerServices', 'OwnerBulk', 'OwnerInquiries', 'OwnerClosing', 'OwnerDineIn', 'OwnerCooks', 'OwnerWaiters', 'OwnerCustomers', 'OwnerExport', 'OwnerCosts', 'OwnerComplaints', 'OwnerMessages', 'OwnerCategories', 'OwnerCoupons', 'OwnerMoney', 'OwnerMoneyHub', 'OwnerReportsHub', 'OwnerHours', 'OwnerShopSettings', 'AlertSettings', 'Soundbox', 'OwnerAppLock']);
 const EASY_APP = new Set(['My profile', 'Appearance', 'Language', 'See the customer app', 'Log out']);
@@ -206,7 +200,7 @@ export function ShopMenu({ onGo }) {
     const [q, setQ] = useState('');
     const { border, muted, text, surface, primary } = useBrand();
     const easy = useMenuFlags((s) => s.easy);
-    const hidden = (route) => (route === 'OwnerWallet' && plan?.id !== 'partner') || ((route === 'OwnerServices' || route === 'OwnerInquiries') && !servicesOn) || (route === 'OwnerBulk' && !bulkOn) || (route === 'OwnerBookings' && !bookingOn) || (route === 'OwnerCooks' && !staffOn.kitchenOn) || (route === 'OwnerWaiters' && !staffOn.waiterOn) || (easy && !EASY.has(route));
+    const hidden = (route) => (route === 'OwnerWallet' && plan?.id !== 'partner') || ((route === 'OwnerServices' || route === 'OwnerInquiries') && !servicesOn && !lockedBy(route)) || (route === 'OwnerBulk' && !bulkOn && !lockedBy(route)) || (route === 'OwnerBookings' && !bookingOn) || (route === 'OwnerCooks' && !staffOn.kitchenOn) || (route === 'OwnerWaiters' && !staffOn.waiterOn) || (easy && !EASY.has(route));
     // every row of the menu as one list (what is shown, and what the search looks through)
     const sections = useMemo(() => [
         ...GROUPS.map(([group, rows]) => [group, rows.filter((r) => !hidden(r[3])).map(([icon, title, subtitle, route]) => (route === '@busy'
@@ -214,8 +208,8 @@ export function ShopMenu({ onGo }) {
             : route === 'OwnerPlan' && plan?.id
                 ? { icon, title, subtitle: planLineOf(plan), group, words: wordsOf(WORDS[route]), right: plan.status === 'ended' ? <Pill label="!" color={error} /> : undefined, act: () => go(route) }
             : lockedBy(route)
-                ? { icon: 'lock-closed', title, subtitle: tr('Available in {plan}', { plan: lockedBy(route) }), group, words: wordsOf(WORDS[route]), act: () => showToast(tr('{title} is available in {plan}. Ask us to upgrade your plan.', { title: tr(title), plan: lockedBy(route) })) }
-                : { icon, title, subtitle: tr(subtitle), group, words: wordsOf(WORDS[route]), right: route === 'OwnerRiders' && riderAttention ? <Pill label="!" color={error} /> : undefined, act: () => go(route) }))]),
+                ? { icon: 'lock-closed', title, subtitle: tr('Available in {plan}', { plan: lockedBy(route) }), group, words: wordsOf(WORDS[route]), tag: lockedBy(route), act: () => askUpgrade(nav, { title: tr(title), message: tr(subtitle), need: lockedBy(route) }, go) }
+                : { icon, title, subtitle: tr(subtitle), group, words: wordsOf(WORDS[route]), right: route === 'OwnerRiders' && riderAttention ? <Pill label="!" color={error} /> : undefined, tag: route === 'OwnerExport' && plan?.features?.fullExports === false ? plan.needs?.fullExports || 'Pro' : undefined, act: () => go(route) }))]),
         ['Your app', [
             { icon: 'help-buoy', title: 'Help and support', subtitle: tr('Ask the platform team for help'), group: 'Your app', words: 'help support ask platform team contact problem', right: supportUnread > 0 ? <Pill label={String(supportUnread)} color={error} /> : undefined, act: () => go('OwnerSupport') },
             { icon: 'person-circle', title: 'My profile', subtitle: user?.name || user?.phone || tr('Your name, picture and email'), group: 'Your app', words: 'profile name picture email account', act: () => go('OwnerProfile') },
@@ -312,7 +306,7 @@ export function ShopMenu({ onGo }) {
                                 <View key={letter} onLayout={(e) => { if (letter !== '#') useMenuIndex.getState().setY(letter, e.nativeEvent.layout.y); }}>
                                     <SectionTitle title={letter} />
                                     <Card>
-                                        {rows.map((e, i) => <Row key={e.title} icon={e.icon} title={tr(e.title)} subtitle={`${tr(e.group)} · ${e.subtitle}`} color={e.color} right={e.right || (PRO_TITLES.has(e.title) ? <ProTag /> : undefined)} last={i === rows.length - 1} onPress={e.act} />)}
+                                        {rows.map((e, i) => <Row key={e.title} icon={e.icon} title={tr(e.title)} subtitle={`${tr(e.group)} · ${e.subtitle}`} color={e.color} right={e.right || (e.tag ? <PlanTag need={e.tag} /> : undefined)} last={i === rows.length - 1} onPress={e.act} />)}
                                     </Card>
                                 </View>
                             ))}
@@ -322,7 +316,7 @@ export function ShopMenu({ onGo }) {
                         <View key={group} style={az ? { paddingRight: 26 } : null}>
                             <SectionTitle title={tr(group)} />
                             <Card>
-                                {rows.map((e, i) => (e.custom ? <AppearanceSwitch key={e.title} /> : <Row key={e.title} icon={e.icon} title={tr(e.title)} subtitle={tr(e.subtitle)} color={e.color} right={e.right || (PRO_TITLES.has(e.title) ? <ProTag /> : undefined)} last={i === rows.length - 1} onPress={e.act} />))}
+                                {rows.map((e, i) => (e.custom ? <AppearanceSwitch key={e.title} /> : <Row key={e.title} icon={e.icon} title={tr(e.title)} subtitle={tr(e.subtitle)} color={e.color} right={e.right || (e.tag ? <PlanTag need={e.tag} /> : undefined)} last={i === rows.length - 1} onPress={e.act} />))}
                             </Card>
                         </View>
                     ) : null); })}

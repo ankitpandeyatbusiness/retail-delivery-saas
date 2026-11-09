@@ -12,6 +12,7 @@ import { usePlanHas } from '../../utils/owners/menuFlags';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { LineShimmer } from '../../components/owners/shimmer';
 import { tr } from '../../i18n';
+import { UpgradeNote } from '../../components/owners/PlanLock';
 import KeyboardScroll from '../../components/common/KeyboardScroll';
 
 const VOLUMES = [[0.4, 'Low'], [0.7, 'Medium'], [1, 'Loud']];
@@ -148,6 +149,7 @@ export default function SoundboxScreen() {
                     ) : null}
                 </Card>
 
+                {!voiceOk ? <UpgradeNote feature="soundboxVoice" text={tr('Soundbox voice announces every new order')} style={{ marginHorizontal: 0, marginBottom: 8 }} /> : null}
                 {voiceOk ? (<>
                 <SectionTitle title={tr('Voice')} />
                 <Card>
