@@ -1152,7 +1152,7 @@ export function makeFixed({ useP, Tx, Gate, alpha }) {
         const bookingOn = C.features.tableBooking === true;
         const bulkOn = C.features.bulkOrders === true;
         const servicesOn = C.features.services === true;
-        const pointsOn = C.loyalty?.customer?.enabled !== false;
+        const pointsOn = C.loyalty?.customer?.enabled !== false && C.plan?.features?.loyalty !== false;
         const referOn = C.orders?.dineIn?.enabled === true && C.orders?.dineIn?.referOn === true;
         const favOn = C.features.favourites === true;
         const tile = (icon, label, sub, go, badge) => (

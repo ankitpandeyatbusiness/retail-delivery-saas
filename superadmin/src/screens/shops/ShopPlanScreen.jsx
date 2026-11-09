@@ -12,6 +12,7 @@ import { errMsg } from '../../api/adminClient';
 import { useShopStore } from '../../store/useShopStore';
 import { planLine } from '../../components/shopBits';
 import PlanPreview from '../../components/PlanPreview';
+import OwnerMenuPreview from '../../components/preview/OwnerMenuPreview';
 import { dateTime } from '../../utils/format';
 
 const NAMES = { partner: 'Partner', growth: 'Growth', pro: 'Pro' };
@@ -94,6 +95,7 @@ export default function ShopPlanScreen() {
 
             <SectionTitle section="shops">{look ? `Preview: ${NAMES[look]}` : 'How the shop looks now'}</SectionTitle>
             {(look || plan.id) ? <PlanPreview shopId={shopId} plan={look || plan.id} freeDays={look ? days : undefined} title={look ? `If you switch to ${NAMES[look]}` : undefined} /> : null}
+            {(look || plan.id) ? <OwnerMenuPreview shopId={shopId} plan={look || plan.id} freeDays={look ? days : undefined} /> : null}
             {look ? <Button title={`Switch to ${NAMES[look]}`} onPress={() => setPick(look)} style={{ marginTop: spacing.sm }} /> : null}
 
             {plan.id ? (

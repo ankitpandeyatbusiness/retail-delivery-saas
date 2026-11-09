@@ -166,6 +166,7 @@ async function previewOf(tenant, to, { freeDays } = {}) {
     return {
         plan: to, name: to[0].toUpperCase() + to.slice(1),
         header: { line: endsAt ? `${to[0].toUpperCase() + to.slice(1)}, ends ${endsAt.toISOString().slice(0, 10)}` : to[0].toUpperCase() + to.slice(1), endsAt, freeDays: to === 'partner' ? 0 : days, pricePaise: price, perOrderFee: to === 'partner' ? { minRs: def.partner.feeMinRs, maxRs: def.partner.feeMaxRs } : null },
+        features: Object.fromEntries(Object.keys(plans.FEATURES).map((k) => [k, has(k)])),   // the plan plus the extras the shop keeps
         ownerMenu: menu,
         customer: {
             tracking: has('riderLiveMap') ? 'live_map' : 'timeline',   // Partner customers see the order timeline, not the rider on a map; the rider's name and Call button stay

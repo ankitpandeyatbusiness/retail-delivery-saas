@@ -146,6 +146,7 @@ function normalize(c) {
         },
         orders: cfg.orders || {},
         loyalty: cfg.loyalty || {},
+        plan: cfg.plan || null,   // { features }: what the shop's plan includes (the wizard passes it), so the preview shows what the customer will really get
         offers: { enabled: cfg.offers?.couponsEnabled !== false, onHome: cfg.offers?.showOnHome !== false },
         grouped: cfg.menu?.groupByCategory !== false,
     };
@@ -902,7 +903,8 @@ function CartScreen() {
 
 /* ============================== ORDERS ============================== */
 function OrdersScreen() {
-    const { T, nav } = useP();
+    const { T, C, nav } = useP();
+    const mapOn = C.plan?.features?.riderLiveMap !== false;   // Partner: the timeline only, no rider on a map
     const live = ORDERS.live;
     return (
         <ScrollView showsVerticalScrollIndicator={false} style={{ backgroundColor: T.background }} contentContainerStyle={{ paddingBottom: 90 }}>
@@ -1242,12 +1244,12 @@ function OrderDetailPage({ delivered }) {
 
             {!delivered ? (
                 <Card style={{ marginTop: 0 }}>
-                    <View style={{ height: 96, borderRadius: 12, backgroundColor: T.soft, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
+                    {mapOn ? <View style={{ height: 96, borderRadius: 12, backgroundColor: T.soft, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
                         {[18, 46, 74].map((top) => <View key={top} style={{ position: 'absolute', left: -10, right: -10, top, height: 6, backgroundColor: alpha(T.muted, 0.25), transform: [{ rotate: '-8deg' }] }} />)}
                         <View style={{ position: 'absolute', left: 52, top: 30, width: 28, height: 28, borderRadius: 14, backgroundColor: T.primary, borderWidth: 2, borderColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' }}><Ionicons name="bicycle" size={14} color={T.onPrimary} /></View>
                         <View style={{ position: 'absolute', right: 52, top: 40, width: 26, height: 26, borderRadius: 13, backgroundColor: T.ok, borderWidth: 2, borderColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' }}><Ionicons name="home" size={13} color="#FFFFFF" /></View>
-                    </View>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
+                    </View> : null}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: mapOn ? 10 : 0 }}>
                         <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: alpha(T.primary, 0.14), alignItems: 'center', justifyContent: 'center' }}><Tx style={{ color: T.primary, fontSize: 14, fontWeight: '900' }}>R</Tx></View>
                         <View style={{ flex: 1, marginLeft: 10 }}>
                             <Tx style={{ color: T.text, fontSize: 12.5, fontWeight: '800' }}>Ravi is on the way</Tx>
@@ -1803,7 +1805,7 @@ function Gate({ feature, label, children }) {
     // dine-in is a setting of orders (orders.dineIn.enabled); the others are the feature switches
     const on = !feature || (feature === 'dineIn' ? C.orders?.dineIn?.enabled === true
         : feature === 'refer' ? C.orders?.dineIn?.enabled === true && C.orders?.dineIn?.referOn === true
-            : feature === 'points' ? C.loyalty?.customer?.enabled !== false
+            : feature === 'points' ? C.loyalty?.customer?.enabled !== false && C.plan?.features?.loyalty !== false
                 : C.features[feature] === true);
     return (
         <View>

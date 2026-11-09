@@ -12,7 +12,8 @@ import PhonePreview from '../../components/preview/PhonePreview';
 import MapPicker from '../../components/MapPicker';
 import { toast } from '../../components/feedback';
 import PlanPreview from '../../components/PlanPreview';
-import { createShop, setShopPlan, addOwner, fetchOptions, previewLogoColors, updateShop, logoColors } from '../../api/shopsApi';
+import OwnerMenuPreview from '../../components/preview/OwnerMenuPreview';
+import { createShop, setShopPlan, fetchPlanPreview, addOwner, fetchOptions, previewLogoColors, updateShop, logoColors } from '../../api/shopsApi';
 import { pickImage, uploadImage } from '../../utils/upload';
 import { bestPalette, readableOnWhiteText, PALETTE_LABELS } from '../../utils/palette';
 import { errMsg } from '../../api/adminClient';
@@ -62,6 +63,8 @@ export default function ShopCreateScreen() {
     const [mapOpen, setMapOpen] = useState(false);
     const [err, setErr] = useState({});
     const [logoBusy, setLogoBusy] = useState(false);
+    const [planFeatures, setPlanFeatures] = useState(null);   // what the chosen plan includes: the pinned phone preview shows the customer app as this plan gives it
+    useEffect(() => { let on = true; fetchPlanPreview(null, f.plan).then((r) => { if (on) setPlanFeatures((r.preview || r).features || null); }).catch(() => { }); return () => { on = false; }; }, [f.plan]);
 
     // the colours the shop will really use: the logo's, or the ones picked here. Never both.
     const fromLogo = f.source === 'logo' && f.logoCols;
@@ -196,6 +199,7 @@ export default function ShopCreateScreen() {
         tabs: f.tabs,
         home: { blocks, cardStyle: f.cardStyle, foodMode: f.foodMode },
         orders: { minOrder: f.minOrder || 0, prepTimeMin: 25, deliveryFee: { type: f.feeType, amount: f.feeAmount || 0, freeAbove: f.freeAbove || 0 } },
+        plan: planFeatures ? { features: planFeatures } : null,
         features: { vegToggle: f.foodMode === 'mixed', vegDot: f.foodMode === 'mixed', ratingBadge: true, prepTime: true, directions: true },
     };
     return (
@@ -413,7 +417,9 @@ export default function ShopCreateScreen() {
                         </Text>
                     </Card>
                     <Choice label="Plan (starts with the free days from Plan defaults)" options={[{ value: 'partner', label: 'Partner' }, { value: 'growth', label: 'Growth' }, { value: 'pro', label: 'Pro' }]} value={f.plan} onChange={set('plan')} />
-                    <PlanPreview plan={f.plan} title={`How the shop will look on ${f.plan[0].toUpperCase() + f.plan.slice(1)}`} />
+                    <Text style={{ color: t.muted, marginBottom: spacing.sm }}>The phone at the top shows the customer app on this plan (open Live order to see the map or the timeline). Below: the owner's menu, and the numbers.</Text>
+                    <OwnerMenuPreview plan={f.plan} />
+                    <PlanPreview plan={f.plan} title={`Limits and numbers on ${f.plan[0].toUpperCase() + f.plan.slice(1)}`} />
                     <BroughtByPicker value={f.broughtBy} onChange={set('broughtBy')} />
                     <Field
                         label="Owner mobile number (optional)"
