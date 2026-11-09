@@ -11,6 +11,7 @@ import { fetchPlanCatalog, fetchShopPlan, setShopPlan, setShopPlanExtra, setShop
 import { errMsg } from '../../api/adminClient';
 import { useShopStore } from '../../store/useShopStore';
 import { planLine } from '../../components/shopBits';
+import PlanPreview from '../../components/PlanPreview';
 import { dateTime } from '../../utils/format';
 
 const NAMES = { partner: 'Partner', growth: 'Growth', pro: 'Pro' };
@@ -24,6 +25,7 @@ export default function ShopPlanScreen() {
     const [cat, setCat] = useState(null);
     const [plan, setPlan] = useState(null);
     const [pick, setPick] = useState(null);        // the plan chip waiting for confirmation
+    const [look, setLook] = useState(null);        // the plan chip being previewed (nothing changes until Switch is confirmed)
     const [extra, setExtra] = useState(null);      // { key, on } waiting for confirmation
     const [days, setDays] = useState('');
     const [busy, setBusy] = useState(false);
@@ -84,11 +86,15 @@ export default function ShopPlanScreen() {
             <SectionTitle section="settings">Change plan</SectionTitle>
             <Card>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-                    {cat.ids.map((id) => <Chip key={id} label={NAMES[id]} active={plan.id === id} onPress={() => plan.id !== id && setPick(id)} />)}
+                    {cat.ids.map((id) => <Chip key={id} label={NAMES[id]} active={(look || plan.id) === id} onPress={() => setLook(plan.id === id ? null : id)} />)}
                 </View>
                 <Text style={{ color: t.muted, marginTop: spacing.md }}>{plan.id ? priceText(cat, plan.id) : 'Pick a plan to start.'}</Text>
                 <Field label="Free days for the new plan (empty = platform default)" value={days} onChangeText={(v) => setDays(v.replace(/\D/g, ''))} keyboardType="number-pad" maxLength={3} />
             </Card>
+
+            <SectionTitle section="shops">{look ? `Preview: ${NAMES[look]}` : 'How the shop looks now'}</SectionTitle>
+            {(look || plan.id) ? <PlanPreview shopId={shopId} plan={look || plan.id} freeDays={look ? days : undefined} title={look ? `If you switch to ${NAMES[look]}` : undefined} /> : null}
+            {look ? <Button title={`Switch to ${NAMES[look]}`} onPress={() => setPick(look)} style={{ marginTop: spacing.sm }} /> : null}
 
             {plan.id ? (
                 <>
@@ -126,7 +132,7 @@ export default function ShopPlanScreen() {
                 title={`Switch to ${NAMES[pick] || ''}?`}
                 message={switchMsg}
                 confirmLabel="Switch plan"
-                onConfirm={() => run(() => setShopPlan(shopId, { to: pick, ...(days !== '' ? { freeDays: Number(days) } : {}) }), `Now on ${NAMES[pick]}`)}
+                onConfirm={() => run(() => setShopPlan(shopId, { to: pick, ...(days !== '' ? { freeDays: Number(days) } : {}) }), `Now on ${NAMES[pick]}`).then(() => setLook(null))}
             />
             <ConfirmSheet
                 visible={!!adj}

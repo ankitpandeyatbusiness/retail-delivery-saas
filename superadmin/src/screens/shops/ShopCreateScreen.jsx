@@ -11,6 +11,7 @@ import { Choice, MultiChoice, NumberField, Hint, ReorderList, ColorField } from 
 import PhonePreview from '../../components/preview/PhonePreview';
 import MapPicker from '../../components/MapPicker';
 import { toast } from '../../components/feedback';
+import PlanPreview from '../../components/PlanPreview';
 import { createShop, setShopPlan, addOwner, fetchOptions, previewLogoColors, updateShop, logoColors } from '../../api/shopsApi';
 import { pickImage, uploadImage } from '../../utils/upload';
 import { bestPalette, readableOnWhiteText, PALETTE_LABELS } from '../../utils/palette';
@@ -412,6 +413,7 @@ export default function ShopCreateScreen() {
                         </Text>
                     </Card>
                     <Choice label="Plan (starts with the free days from Plan defaults)" options={[{ value: 'partner', label: 'Partner' }, { value: 'growth', label: 'Growth' }, { value: 'pro', label: 'Pro' }]} value={f.plan} onChange={set('plan')} />
+                    <PlanPreview plan={f.plan} title={`How the shop will look on ${f.plan[0].toUpperCase() + f.plan.slice(1)}`} />
                     <BroughtByPicker value={f.broughtBy} onChange={set('broughtBy')} />
                     <Field
                         label="Owner mobile number (optional)"

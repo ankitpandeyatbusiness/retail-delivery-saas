@@ -144,4 +144,45 @@ async function setShopTerms(tenantDoc, b) {
 // the cheapest plan that includes a feature, for the "Available in Growth" notes: { costsProfit: 'Growth', analytics: 'Pro', ... }
 const needsOf = () => Object.fromEntries(Object.entries(plans.FEATURES).map(([k, f]) => [k, plans.PLAN_IDS.find((id) => f.plans.includes(id)).replace(/^./, (c) => c.toUpperCase())]));
 
-module.exports = { needsOf, getDefaults, saveDefaults, viewOf, setPlan, setExtra, setShopTerms, endOfIstDay };
+// How a shop would look on `to`: built from the SAME catalog the server gates with, so the picture and the real thing cannot drift apart.
+// tenant (optional) gives the shop's own price, free days and extras; `current` is what it has now, for the "changes" lists.
+async function previewOf(tenant, to, { freeDays } = {}) {
+    if (!plans.isPlan(to)) throw Object.assign(new Error('Plan must be partner, growth or pro'), { status: 400 });
+    const def = await getDefaults();
+    const p = tenant?.plan || {};
+    const extras = (p.extras || []).map((e) => e.key).filter((k) => !plans.planIncludes(to, k));   // extras still outside the new plan stay (keepExtras default)
+    const has = (k) => plans.planIncludes(to, k) || extras.includes(k);
+    const days = freeDays ?? p.freeDaysOverride ?? def.freeDays;
+    const now = new Date();
+    const price = to === 'partner' ? 0 : (p.priceOverridePaise ?? def[to].pricePaise);
+    const endsAt = to === 'partner' || !(days > 0) ? null : endOfIstDay(now, days - 1);
+    const menu = plans.OWNER_MENU.map((r) => {
+        const on = r.only ? to === r.only : r.feature ? has(r.feature) : true;
+        return { route: r.route, title: r.title, state: on ? 'on' : r.only || r.hiddenWhenOff ? 'hidden' : 'locked', needs: !on && r.feature ? needsOf()[r.feature] : null };
+    });
+    const cur = p.id || null;
+    const had = (k) => !cur || plans.planIncludes(cur, k) || (p.extras || []).some((e) => e.key === k);
+    const label = (k) => plans.FEATURES[k].label;
+    return {
+        plan: to, name: to[0].toUpperCase() + to.slice(1),
+        header: { line: endsAt ? `${to[0].toUpperCase() + to.slice(1)}, ends ${endsAt.toISOString().slice(0, 10)}` : to[0].toUpperCase() + to.slice(1), endsAt, freeDays: to === 'partner' ? 0 : days, pricePaise: price, perOrderFee: to === 'partner' ? { minRs: def.partner.feeMinRs, maxRs: def.partner.feeMaxRs } : null },
+        ownerMenu: menu,
+        customer: {
+            tracking: has('riderLiveMap') ? 'live_map' : 'timeline',   // Partner customers see the order timeline, not the rider on a map; the rider's name and Call button stay
+            riderCallButton: true, tableBooking: true, dineInQr: true, webAndApp: true,
+            loyalty: has('loyalty'), services: has('services'),
+        },
+        limits: { riders: plans.limitFor(to, 'riders'), staff: has('staffLogins') && plans.limitFor(to, 'staff') === 0 ? plans.limitFor('growth', 'staff') : plans.limitFor(to, 'staff') },
+        other: {
+            soundboxVoice: has('soundboxVoice'), autoAccept: has('autoAccept'), costsProfit: has('costsProfit'), analytics: has('analytics'), customPush: has('customPush'),
+            multiBranch: has('multiBranch'), customDomain: has('customDomain'), exports: has('fullExports') ? 'everything' : 'money columns only',
+        },
+        extras,
+        changes: {
+            on: Object.keys(plans.FEATURES).filter((k) => has(k) && !had(k)).map(label),
+            off: cur ? Object.keys(plans.FEATURES).filter((k) => !has(k) && had(k)).map(label) : [],
+        },
+    };
+}
+
+module.exports = { previewOf, needsOf, getDefaults, saveDefaults, viewOf, setPlan, setExtra, setShopTerms, endOfIstDay };

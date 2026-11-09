@@ -92,6 +92,10 @@ export const fetchShopPlan = (id) => data(api.get(`${T(id)}/plan`));
 export const setShopPlan = (id, body) => data(api.put(`${T(id)}/plan`, body));
 export const setShopPlanExtra = (id, key, on) => data(api.put(`${T(id)}/plan/extras`, { key, on }));
 export const setShopPlanTerms = (id, body) => data(api.put(`${T(id)}/plan/terms`, body));
+// how a shop looks on a plan (shopId empty: the plain plan, used by the new-shop wizard)
+export const fetchPlanPreview = (shopId, plan, freeDays) => (shopId
+    ? data(api.get(`${T(shopId)}/plan/preview`, { params: { plan, ...(freeDays !== undefined ? { freeDays } : {}) } }))
+    : data(api.get('/admin/plans/preview', { params: { plan, ...(freeDays !== undefined ? { freeDays } : {}) } })));
 export const fetchShopWallet = (id) => data(api.get(`${T(id)}/wallet`));
 export const adjustShopWallet = (id, body) => data(api.post(`${T(id)}/wallet/adjust`, body));
 export const savePlanDefaults = (body) => data(api.put('/admin/platform/plans', body));

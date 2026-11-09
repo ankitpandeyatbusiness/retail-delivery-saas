@@ -46,6 +46,22 @@ const DEFAULTS = {
     monthDiscounts: { 1: 0, 2: 0, 3: 5, 4: 6, 5: 8, 6: 10 },
 };
 
+// The owner menu rows that depend on the plan: [app route, title, the plan feature it needs ('' = by plan id), where it shows]. The owner app (ShopHubScreen LOCKS)
+// and this list must agree; tests/plansPreview.test.js compares them.
+const OWNER_MENU = [
+    { route: 'OwnerPlan', title: 'Plan', feature: null, always: true },
+    { route: 'OwnerWallet', title: 'Wallet', feature: null, only: 'partner' },
+    { route: 'OwnerAutopilot', title: 'Autopilot', feature: 'customPush' },
+    { route: 'OwnerRewards', title: 'Rewards and points', feature: 'loyalty' },
+    { route: 'OwnerCosts', title: 'Costs and profit', feature: 'costsProfit' },
+    { route: 'OwnerReportsHub', title: 'Business report', feature: 'analytics' },
+    { route: 'OwnerCooks', title: 'Kitchen staff', feature: 'staffLogins' },
+    { route: 'OwnerWaiters', title: 'Waiters', feature: 'staffLogins' },
+    { route: 'OwnerServices', title: 'Services', feature: 'services', hiddenWhenOff: true },
+    { route: 'OwnerInquiries', title: 'Inquiries', feature: 'services', hiddenWhenOff: true },
+    { route: 'OwnerBulk', title: 'Bulk orders', feature: 'bulkOrders', hiddenWhenOff: true },
+];
+
 const isPlan = (id) => PLAN_IDS.includes(id);
 
 // does this plan include the feature? An unknown feature key is not plan-gated (true).
@@ -80,4 +96,4 @@ function checkFeeSlabs(slabs) {
     return null;
 }
 
-module.exports = { PLAN_IDS, FEATURES, LIMITS, DEFAULTS, isPlan, planIncludes, limitFor, featuresOf, checkFeeSlabs };
+module.exports = { OWNER_MENU, PLAN_IDS, FEATURES, LIMITS, DEFAULTS, isPlan, planIncludes, limitFor, featuresOf, checkFeeSlabs };

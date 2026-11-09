@@ -25,6 +25,10 @@ router.put('/platform/plans', requireSupreme, wrap(async (req, res) => {
     res.json(await svc.saveDefaults(req.body));
 }));
 
+// the live preview: how a shop looks on a plan. With a shop, its own price, free days and extras are used. Reads only.
+router.get('/plans/preview', wrap(async (req, res) => { res.json(await svc.previewOf(null, req.query.plan, { freeDays: req.query.freeDays !== undefined ? Number(req.query.freeDays) : undefined })); }));
+router.get('/tenants/:tid/plan/preview', loadTenant, wrap(async (req, res) => { res.json({ current: svc.viewOf(req.tenantDoc), preview: await svc.previewOf(req.tenantDoc, req.query.plan, { freeDays: req.query.freeDays !== undefined && req.query.freeDays !== '' ? Number(req.query.freeDays) : undefined }) }); }));
+
 router.get('/tenants/:tid/plan', loadTenant, wrap(async (req, res) => {
     res.json(svc.viewOf(req.tenantDoc));
 }));
