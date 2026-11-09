@@ -52,6 +52,12 @@ const T = {
     admin_free_ended: (v) => ({
         title: `${v.shop}: rent starts now`, body: 'The free period is over. The first bill follows the usual cycle.', sms: `Free ended: ${v.shop}`,
     }),
+    admin_plan_ending: (v) => ({ title: `${v.shop}: plan ending`, body: `${v.summary || 'The paid time is almost over'}. A reminder call helps.`, sms: `Plan ending: ${v.shop}` }),
+    admin_plan_ended: (v) => ({ title: `${v.shop}: plan ended`, body: `${v.summary || 'The paid time is over'}. Grace days have started.`, sms: `Plan ended: ${v.shop}` }),
+    admin_plan_changed: (v) => ({ title: `${v.shop}: plan changed`, body: v.summary || 'The plan was changed.', sms: `Plan changed: ${v.shop}` }),
+    admin_plan_paused: (v) => ({ title: `${v.shop}: paused, plan not renewed`, body: 'The grace days are over. New orders have stopped until the plan is paid.', sms: `Paused (plan): ${v.shop}` }),
+    admin_wallet_low: (v) => ({ title: `${v.shop}: wallet low`, body: v.summary || 'The Partner wallet is running low.', sms: `Wallet low: ${v.shop}` }),
+    admin_wallet_empty: (v) => ({ title: `${v.shop}: wallet finished`, body: v.summary || 'The Partner wallet is finished. New orders stop when the overdraft is used up.', sms: `Wallet empty: ${v.shop}` }),
     admin_sms_low: (v) => ({
         title: `${v.shop}: SMS balance low`, body: 'Ask the owner to top up soon, or customer login codes will stop.', sms: `SMS low: ${v.shop}`,
     }),

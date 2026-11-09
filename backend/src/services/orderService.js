@@ -40,7 +40,7 @@ function checkPlacement({ tenant, config, body, priced, address, user, cod, onli
     // dine in is switched on by the shop in its Dine in screen; delivery and pickup follow the order types
     if (priced.orderType === 'dine_in' ? !o.dineIn?.enabled : !o.types.includes(priced.orderType)) return { status: 400, message: `This shop does not offer ${TYPE_LABEL[priced.orderType]}` };
     // unpaid rent after grace (the shop is already shown as not accepting orders; this is a second guard)
-    if (tenant.billing?.state === 'paused') return { status: 409, message: 'The shop is not accepting orders right now' };
+    if (tenant.billing?.state === 'paused' || tenant.plan?.paused) return { status: 409, message: 'The shop is not accepting orders right now' };
 
     // No COD during free service. Switched on with ENFORCE_NO_COD_IN_FREE=true (keep it OFF until online payments exist)
     const noCod = process.env.ENFORCE_NO_COD_IN_FREE === 'true' && tenant.billing?.state === 'free';

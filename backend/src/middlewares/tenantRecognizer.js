@@ -57,7 +57,7 @@ const tenantRecognizer = async (req, res, next) => {
 
         // Unpaid rent after grace: customers get the normal "not accepting orders" answer.
         // A copy is used, so the cached shop object is never changed.
-        req.tenant = tenant.billing?.state === 'paused'
+        req.tenant = (tenant.billing?.state === 'paused' || tenant.plan?.paused)
             ? { ...tenant, settings: { ...tenant.settings, orders: { ...tenant.settings?.orders, acceptingOrders: false } } }
             : tenant;
         next();

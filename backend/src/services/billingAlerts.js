@@ -187,10 +187,13 @@ async function smsBalances(now) {
 }
 
 // shops closed by the superadmin: finish a closing, reopen settled rent shops, list shops that may need closing
+// plan ending, ended, grace, pause; Partner wallet low and empty (services/planLifecycle.js)
+async function planSweep(now) { await require('./planLifecycle').sweep(now); }
+
 async function closureSweep(now) { await require('./shopClosure').sweep(now); }
 
 async function runAlerts(now = new Date()) {
-    for (const step of [closureSweep, issueLateFees, billIssued, graceReminders, pausedNotices, overdueReminders, paymentsReceived, freeEnding, smsBalances]) {
+    for (const step of [closureSweep, planSweep, issueLateFees, billIssued, graceReminders, pausedNotices, overdueReminders, paymentsReceived, freeEnding, smsBalances]) {
         try {
             await step(now);
         } catch (e) {

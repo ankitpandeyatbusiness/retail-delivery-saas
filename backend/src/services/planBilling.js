@@ -186,7 +186,7 @@ async function settle(paymentId, { payId, amountPaise, via = 'app' }) {
             if (!claim) return;   // someone else applied it a moment ago
             const p = { ...(tenant.plan || {}) };
             const history = [...(p.history || []).slice(-49), { at: now, by: 'owner payment', from: row.from, to: row.to, note: `${row.kind} ${row.months || ''}`.trim() }];
-            p.id = row.to; p.history = history; delete p.scheduled;
+            p.id = row.to; p.history = history; delete p.scheduled; delete p.paused; delete p.notified;
             if (row.kind === 'upgrade') { p.startedAt = now; /* the end date stays */ p.freeUntil = undefined; }
             else { p.startedAt = new Date(q.startsAt); p.endsAt = new Date(q.endsAt); p.freeUntil = undefined; if (new Date(q.startsAt) <= now) p.startedAt = now; }
             p.extras = (p.extras || []).filter((e) => !plans.planIncludes(row.to, e.key));
@@ -198,6 +198,7 @@ async function settle(paymentId, { payId, amountPaise, via = 'app' }) {
         });
     } catch (e) { if (e && e.code === 11000) return { ok: true, duplicate: true }; throw e; }
     invalidateTenant(tenant.slug);
+    if (row.from !== row.to) require('./planLifecycle').notifyChanged({ tenantId: row.tenantId, from: row.from, to: row.to, by: 'the owner (paid online)' });
     await ensureInvoice(row._id).catch((e) => console.error('Plan invoice error:', e.message));
     return { ok: true, applied: true };
 }

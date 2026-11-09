@@ -101,6 +101,7 @@ async function setPlan(tenantDoc, { to, freeDays, keepExtras = true, by = 'supre
     const p = tenantDoc.plan || {};
     p.id = to;
     p.startedAt = now;
+    delete p.paused; delete p.notified; delete p.scheduled;
     if (to === 'partner') { p.endsAt = undefined; p.freeUntil = undefined; }
     else if (days > 0) { p.endsAt = endOfIstDay(now, days - 1); p.freeUntil = p.endsAt; }
     else { p.endsAt = endOfIstDay(now, -1); p.freeUntil = undefined; }   // no free days and nothing paid yet: it ended, the owner is asked to choose/pay (phase 5)
@@ -109,6 +110,7 @@ async function setPlan(tenantDoc, { to, freeDays, keepExtras = true, by = 'supre
     await Tenant.updateOne({ _id: tenantDoc._id }, { $set: { plan: p } });   // loadTenant hands over a plain object, so write with updateOne
     tenantDoc.plan = p;
     invalidateTenant(tenantDoc.slug);
+    if (from !== to) require('./planLifecycle').notifyChanged({ tenantId: tenantDoc._id, from, to, by });
     return viewOf(tenantDoc, now);
 }
 

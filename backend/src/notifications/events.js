@@ -146,6 +146,12 @@ const EVENTS = {
     monthly_report: { to: 'owner', channels: INAPP_PUSH, email: 'monthly_report' },   // the shop's progress report, once a month
     free_ending: { to: 'owner', channels: INAPP_PUSH, email: 'free_ending', adminAlert: 'admin_free_ending' },
     sms_topup_done: { to: 'owner', channels: INAPP_PUSH, email: 'sms_topup_receipt', adminAlert: 'admin_sms_topup_done' },
+    plan_ending: { to: 'owner', channels: INAPP_PUSH, adminAlert: 'admin_plan_ending' },     // 7, 3 and 1 days before the paid time ends (services/planLifecycle.js)
+    plan_ended: { to: 'owner', channels: ALL, key: true, adminAlert: 'admin_plan_ended' },     // the paid time ended: choose a plan
+    plan_changed: { to: 'owner', channels: INAPP_PUSH, adminAlert: 'admin_plan_changed' },     // who changed it, from which plan to which
+    plan_paused: { to: 'owner', channels: ALL, key: true, adminAlert: 'admin_plan_paused' },   // the grace days are over: new orders stopped
+    wallet_low: { to: 'owner', channels: INAPP_PUSH, adminAlert: 'admin_wallet_low' },         // the Partner wallet is under 20% of the last top-up
+    wallet_empty: { to: 'owner', channels: ALL, key: true, adminAlert: 'admin_wallet_empty' }, // the Partner wallet is finished
     sms_low: { to: 'owner', channels: INAPP_PUSH, adminAlert: 'admin_sms_low' },
     sms_zero: { to: 'owner', channels: INAPP_PUSH, adminAlert: 'admin_sms_zero' },
     platform_message: { to: 'owner', channels: INAPP_PUSH },
@@ -188,6 +194,12 @@ const EVENTS = {
     admin_grace_ending: { to: 'superadmin', channels: ALL },
     admin_free_ending: { to: 'superadmin', channels: ALL },
     admin_free_ended: { to: 'superadmin', channels: ALL },
+    admin_plan_ending: { to: 'superadmin', channels: INAPP_PUSH },
+    admin_plan_ended: { to: 'superadmin', channels: ALL },
+    admin_plan_changed: { to: 'superadmin', channels: INAPP_PUSH },
+    admin_plan_paused: { to: 'superadmin', channels: ALL, critical: true },
+    admin_wallet_low: { to: 'superadmin', channels: INAPP_PUSH },
+    admin_wallet_empty: { to: 'superadmin', channels: ALL },
     admin_sms_low: { to: 'superadmin', channels: ALL },
     admin_sms_zero: { to: 'superadmin', channels: ALL },
     admin_sms_topup_done: { to: 'superadmin', channels: ALL },

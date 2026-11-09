@@ -20,7 +20,7 @@ const monthStart = (p) => new Date(`${p}-01T00:00:00+05:30`);
 router.get('/status', wrap(async (req, res) => {
     const now = new Date();
     const [t, platform] = await Promise.all([
-        Tenant.findById(req.tenant._id).select('createdAt billing brandId').lean(),
+        Tenant.findById(req.tenant._id).select('createdAt billing brandId plan').lean(),
         PlatformSettings.findById('main').lean(),
     ]);
     const free = freeStatus(t, platform, now);
@@ -45,7 +45,8 @@ router.get('/status', wrap(async (req, res) => {
 
     res.json({
         state: t.billing?.state || (free.free ? 'free' : 'active'),
-        paused: t.billing?.state === 'paused',
+        paused: t.billing?.state === 'paused' || !!t.plan?.paused,
+        planPaused: !!t.plan?.paused,   // the plan ended and the grace days are over: the app says "choose your plan", not "rent is unpaid"
         graceEndsAt,
         graceDaysLeft: graceEndsAt ? Math.max(0, Math.ceil((new Date(graceEndsAt) - now) / DAY_MS)) : null,
         due: { amount: owed?.amount || 0, count: owed?.count || 0 },

@@ -30,6 +30,9 @@ function blockedGate(req, res, next) {
     }
     // unpaid rent after grace: only the routes mounted with .allowBlocked stay open
     // (orders, billing, and later notifications)
+    if (req.tenant.plan?.paused) {
+        return res.status(403).json({ error: 'Your plan has ended. Choose your plan to open your shop again. You can finish current orders and open Plan.', paused: true, planPaused: true });
+    }
     if (req.tenant.billing?.state === 'paused') {
         return res.status(403).json({
             error: 'Your shop is paused because a bill is unpaid. You can finish current orders and open Billing.',

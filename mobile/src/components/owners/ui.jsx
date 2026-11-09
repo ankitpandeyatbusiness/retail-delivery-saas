@@ -337,21 +337,24 @@ export function AccessBanner() {
     const billing = useOwnerStore((st) => st.billing);
     if (access === 'ok') return null;
     const blocked = access === 'blocked';
+    const planPaused = !blocked && !!billing?.planPaused;
     const due = billing?.due?.amount ? ` ${money(billing.due.amount)} is due.` : '';
     return (
         <Card tone={error} style={{ marginHorizontal: 16, marginBottom: 12 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Ionicons name={blocked ? 'lock-closed' : 'alert-circle'} size={22} color={error} />
                 <View style={{ flex: 1, marginLeft: 10 }}>
-                    <Text style={{ color: error, fontWeight: '900' }}>{blocked ? tr('Your shop panel is paused') : tr('Rent is unpaid')}</Text>
+                    <Text style={{ color: error, fontWeight: '900' }}>{blocked ? tr('Your shop panel is paused') : planPaused ? tr('Your plan has ended') : tr('Rent is unpaid')}</Text>
                     <Text style={{ color: error, opacity: 0.85, fontSize: 12, marginTop: 2 }}>
                         {blocked
                             ? tr('Please contact support. You can still finish orders that are in progress.')
-                            : tr('Menu and settings are locked until it is paid.{due} Orders, riders and money still work.', { due: due })}
+                            : planPaused
+                                ? tr('New orders have stopped. Choose your plan to open your shop again. Orders in progress can be finished.')
+                                : tr('Menu and settings are locked until it is paid.{due} Orders, riders and money still work.', { due: due })}
                     </Text>
                 </View>
             </View>
-            {!blocked ? <Button label={tr('Pay rent')} kind="primary" onPress={() => nav.navigate('OwnerMoney')} style={{ marginTop: 10 }} /> : null}
+            {!blocked ? <Button label={planPaused ? tr('Choose your plan') : tr('Pay rent')} kind="primary" onPress={() => nav.navigate(planPaused ? 'OwnerPlan' : 'OwnerMoney')} style={{ marginTop: 10 }} /> : null}
         </Card>
     );
 }

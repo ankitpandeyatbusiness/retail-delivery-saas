@@ -77,7 +77,8 @@ async function run(now = new Date()) {
     if (!(percent > 0) || !platform?.business?.legalName) return { issued: 0 };
 
     const closedIds = await Tenant.find({ 'closure.on': true }).distinct('_id');   // no new late fees on a closed shop
-    const late = await SubscriptionInvoice.find({ tenantId: { $nin: closedIds },
+    const plannedIds = await Tenant.find({ 'plan.id': { $exists: true } }).distinct('_id');   // a shop on a plan (Partner, Growth, Pro) pays no late fee: everything is prepaid
+    const late = await SubscriptionInvoice.find({ tenantId: { $nin: [...closedIds, ...plannedIds] },
         status: 'pending',
         kind: { $ne: 'custom' },
         dueDate: { $lte: new Date(now.getTime() - everyDays * DAY_MS) },
