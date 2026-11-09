@@ -157,3 +157,16 @@ describe('Partner wallet alerts', () => {
         assert.deepEqual(kinds(), []);
     });
 });
+
+describe('who the owner is told changed the plan', () => {
+    test('a change by the platform team says "Changed by the Platform", never the admin\'s own name; the superadmin alert keeps who', async () => {
+        const planService = require('../src/services/planService');
+        const t = await Tenant.findById(w.tenant._id).lean();
+        await planService.setPlan(t, { to: 'pro', freeDays: 0, by: 'ankit@example.com' });
+        const m = sent.find((s) => s.type === 'plan_changed');
+        assert.ok(m, 'the owner is told');
+        assert.match(m.body, /Changed by the Platform\./);
+        assert.ok(!m.body.includes('ankit@example.com'));
+        assert.ok(m.vars.summary.includes('ankit@example.com'));   // the superadmin alert still names who
+    });
+});

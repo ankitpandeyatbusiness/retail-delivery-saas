@@ -6367,6 +6367,7 @@ export default {
     "{v1} shops are not open yet": "{v1} দোকান এখনও চালু হয়নি",
     "{v1} starts now and runs until {v2}.": "{v1} এখনই শুরু হয় এবং {v2} পর্যন্ত চলে।",
     "{v1} starts when your paid time ends. Until then you keep {v2}. No refund for the rest of the term.": "আপনার পেমেন্ট করা সময় শেষ হলে {v1} শুরু হবে। ততদিন আপনার {v2} চলবে। বাকি সময়ের কোনো রিফান্ড নেই।",
+    "{v1} to {v2}. Changed by the Platform.": "{v1} থেকে {v2}। প্ল্যাটফর্ম পরিবর্তন করেছে।",
     "{v1} to {v2}: Rs {v3} difference x {v4} days left of 30": "{v1} থেকে {v2}: Rs {v3} পার্থক্য x বাকি {v4} দিন (30 এর মধ্যে)",
     "{v1} took their day off back": "{v1} ছুটির দিন ফিরিয়ে নিয়েছেন",
     "{v1} took their leave back": "{v1} ছুটি ফিরিয়ে নিয়েছেন",

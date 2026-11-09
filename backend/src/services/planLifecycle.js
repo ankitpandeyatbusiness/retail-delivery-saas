@@ -27,12 +27,16 @@ async function claim(tenantId, key, value) {
     return r.modifiedCount === 1;
 }
 
-// tells the owner and the superadmin that a plan was changed: who, from which plan, to which
-function notifyChanged({ tenantId, from, to, by }) {
-    safe(() => center.notify('plan_changed', {
-        tenantId, title: 'Your plan was changed', body: `${from ? NAME[from] : 'No plan'} to ${NAME[to]}, by ${by || 'the platform team'}.`,   // fixed words + values (translated by pattern)
-        vars: { summary: `${from ? NAME[from] : 'No plan'} to ${NAME[to]}, by ${by || 'the platform team'}` }, data: { prompt: 'plan' },
-    }));
+// tells the owner and the superadmin that a plan was changed: who, from which plan, to which.
+// admin: true = the platform team changed it. The owner reads "Changed by the Platform" (never the admin's own name or email); the superadmin alert keeps who did it.
+function notifyChanged({ tenantId, from, to, by, admin }) {
+    const was = from ? NAME[from] : 'No plan';
+    const vars = { summary: `${was} to ${NAME[to]}, by ${by || 'the platform team'}` };   // the admin text (English)
+    const base = { tenantId, title: 'Your plan was changed', vars, data: { prompt: 'plan' } };
+    // the owner text is fixed words + values (translated by pattern)
+    safe(() => center.notify('plan_changed', admin
+        ? { ...base, body: `${was} to ${NAME[to]}. Changed by the Platform.` }
+        : { ...base, body: `${was} to ${NAME[to]}, by ${by || 'the platform team'}.` }));
 }
 
 async function one(t, def, now) {

@@ -6367,6 +6367,7 @@ export default {
     "{v1} shops are not open yet": "{v1} दुकाने अजून सुरू झाली नाहीत",
     "{v1} starts now and runs until {v2}.": "{v1} आता सुरू होते आणि {v2} पर्यंत चालते.",
     "{v1} starts when your paid time ends. Until then you keep {v2}. No refund for the rest of the term.": "तुमचा भरलेला कालावधी संपल्यावर {v1} सुरू होईल. तोपर्यंत तुमचा {v2} चालू राहील. उरलेल्या कालावधीचा परतावा नाही.",
+    "{v1} to {v2}. Changed by the Platform.": "{v1} ते {v2}. प्लॅटफॉर्मद्वारे बदलले.",
     "{v1} to {v2}: Rs {v3} difference x {v4} days left of 30": "{v1} ते {v2}: Rs {v3} फरक x उरलेले {v4} दिवस (30 पैकी)",
     "{v1} took their day off back": "{v1} यांनी सुट्टी परत घेतली",
     "{v1} took their leave back": "{v1} यांनी रजा परत घेतली",

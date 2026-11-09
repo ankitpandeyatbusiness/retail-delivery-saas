@@ -112,7 +112,7 @@ async function setPlan(tenantDoc, { to, freeDays, keepExtras = true, by = 'supre
     tenantDoc.plan = p;
     invalidateTenant(tenantDoc.slug);
     await require('./brandPlan').afterPlanChange(tenantDoc);
-    if (from !== to) require('./planLifecycle').notifyChanged({ tenantId: tenantDoc._id, from, to, by });
+    if (from !== to) require('./planLifecycle').notifyChanged({ tenantId: tenantDoc._id, from, to, by, admin: true });
     return viewOf(tenantDoc, now);
 }
 
