@@ -77,10 +77,10 @@ const planLineOf = (p) => {
 };
 
 // the menu heading below is shown through tr(group); this list lets the translation tool find the text (nothing calls it)
-export const _menuHeadings = () => [tr('Your app')];
+export const _menuHeadings = () => [tr('Your app'), tr('Branches'), tr('Run several shops from one account')];
 
 // menu row -> the plan feature it needs (config/plans.js on the server)
-const LOCKS = { OwnerAutopilot: 'customPush', OwnerRewards: 'loyalty', OwnerCosts: 'costsProfit', OwnerReportsHub: 'analytics', OwnerCooks: 'staffLogins', OwnerWaiters: 'staffLogins', OwnerServices: 'services', OwnerInquiries: 'services', OwnerBulk: 'bulkOrders' };
+const LOCKS = { OwnerAutopilot: 'customPush', OwnerRewards: 'loyalty', OwnerCosts: 'costsProfit', OwnerReportsHub: 'analytics', OwnerCooks: 'staffLogins', OwnerWaiters: 'staffLogins', OwnerServices: 'services', OwnerInquiries: 'services', OwnerBulk: 'bulkOrders', OwnerAllBranches: 'multiBranch' };
 
 const EASY = new Set(['@busy', 'OwnerAutomations', 'OwnerRiders', 'OwnerBookings', 'OwnerServices', 'OwnerBulk', 'OwnerInquiries', 'OwnerClosing', 'OwnerDineIn', 'OwnerCooks', 'OwnerWaiters', 'OwnerCustomers', 'OwnerExport', 'OwnerCosts', 'OwnerComplaints', 'OwnerMessages', 'OwnerCategories', 'OwnerCoupons', 'OwnerMoney', 'OwnerMoneyHub', 'OwnerReportsHub', 'OwnerHours', 'OwnerShopSettings', 'AlertSettings', 'Soundbox', 'OwnerAppLock']);
 const EASY_APP = new Set(['My profile', 'Appearance', 'Language', 'See the customer app', 'Log out']);
@@ -128,6 +128,7 @@ const GROUPS = [
         ['navigate', 'Delivery', 'Area, fees, riders, cash limits and pickup rules', 'OwnerDeliveryHub'],
         ['cash', 'Cancel and refund rules', 'Who bears the cost of a cancelled order', 'OwnerMoneyRules'],
         ['settings', 'Shop settings', 'Phone, address, SMS alerts', 'OwnerShopSettings'],
+        ['storefront', 'Branches', 'Run several shops from one account', 'OwnerAllBranches'],
         ['list-circle', 'Inbox and activity', 'Your messages, and who changed what', 'OwnerInboxHub'],
     ]],
     ['Alerts and security', [
@@ -203,7 +204,7 @@ export function ShopMenu({ onGo }) {
     const [q, setQ] = useState('');
     const { border, muted, text, surface, primary } = useBrand();
     const easy = useMenuFlags((s) => s.easy);
-    const hidden = (route) => (route === 'OwnerWallet' && plan?.id !== 'partner') || ((route === 'OwnerServices' || route === 'OwnerInquiries') && !servicesOn && !lockedBy(route)) || (route === 'OwnerBulk' && !bulkOn && !lockedBy(route)) || (route === 'OwnerBookings' && !bookingOn) || (route === 'OwnerCooks' && !staffOn.kitchenOn) || (route === 'OwnerWaiters' && !staffOn.waiterOn) || (easy && !EASY.has(route));
+    const hidden = (route) => (route === 'OwnerAllBranches' && !lockedBy(route)) || (route === 'OwnerWallet' && plan?.id !== 'partner') || ((route === 'OwnerServices' || route === 'OwnerInquiries') && !servicesOn && !lockedBy(route)) || (route === 'OwnerBulk' && !bulkOn && !lockedBy(route)) || (route === 'OwnerBookings' && !bookingOn) || (route === 'OwnerCooks' && !staffOn.kitchenOn) || (route === 'OwnerWaiters' && !staffOn.waiterOn) || (easy && !EASY.has(route));
     // every row of the menu as one list (what is shown, and what the search looks through)
     const sections = useMemo(() => [
         ...GROUPS.map(([group, rows]) => [group, rows.filter((r) => !hidden(r[3])).map(([icon, title, subtitle, route]) => (route === '@busy'

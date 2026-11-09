@@ -3707,6 +3707,7 @@ export default {
     "Rude or abusive": "ઉદ્ધત કે ગાળો આપનાર",
     "Rules": "નિયમો",
     "Rules and cash": "નિયમો અને રોકડ",
+    "Run several shops from one account": "એક એકાઉન્ટથી ઘણી દુકાનો ચલાવો",
     "Run up to {shops} shops from one account, and add more whenever you grow": "એક એકાઉન્ટથી {shops} દુકાનો સુધી ચલાવો, અને વધો ત્યારે ગમે ત્યારે વધુ ઉમેરો",
     "Running low": "ઓછું બચ્યું છે",
     "Rupees off": "રૂપિયા ડિસ્કાઉન્ટ",
