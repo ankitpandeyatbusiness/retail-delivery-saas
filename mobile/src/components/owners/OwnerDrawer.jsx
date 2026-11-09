@@ -1,5 +1,6 @@
 // The owner's side menu: slides in from the left when the hamburger is tapped. No dark layer over the page; a tap on the
 // page beside it, the Android back button, or a swipe towards the left (on the menu or on the page beside it) closes it.
+import PlanChip from './PlanChip';
 import { usePlanHas } from '../../utils/owners/menuFlags';
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, Animated, Easing, BackHandler, ScrollView, StyleSheet, Dimensions, StatusBar, PanResponder } from 'react-native';
@@ -88,6 +89,7 @@ export default function OwnerDrawer() {
                     <View style={{ flex: 1, marginLeft: 12 }}>
                         <Text style={{ color: text, fontSize: 18, fontWeight: '900' }} numberOfLines={1}>{name || tr('My shop')}</Text>
                         <Text style={{ color: muted, fontSize: 12, marginTop: 1 }} numberOfLines={1}>{user?.name || user?.phone || tr('Owner')}</Text>
+                        <PlanChip compact />
                     </View>
                     <Pressable onPress={close} hitSlop={10}><Ionicons name="close" size={24} color={muted} /></Pressable>
                 </View>

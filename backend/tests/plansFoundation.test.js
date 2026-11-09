@@ -96,3 +96,22 @@ describe('platform defaults', () => {
         assert.equal((await put(supreme, '/platform/plans', {})).status, 400);
     });
 });
+
+describe('ending a free period by hand', () => {
+    test('the plan ends now, a paid term is refused, a branch is refused, only the supreme admin can', async () => {
+        const Tenant = require('../src/models/Tenant');
+        await put(supreme, `/tenants/${w.tenant._id}/plan`, { to: 'growth', freeDays: 30 });
+        assert.equal((await request(app).post(`/api/admin/tenants/${w.tenant._id}/plan/end-free`).set(as(plain)).send({})).status, 403);
+        const r = await request(app).post(`/api/admin/tenants/${w.tenant._id}/plan/end-free`).set(as(supreme)).send({});
+        assert.equal(r.status, 200);
+        assert.equal(r.body.status, 'ended');
+        const t = await Tenant.findById(w.tenant._id).lean();
+        assert.equal(t.plan.freeUntil, undefined);
+        assert.ok(new Date(t.plan.endsAt) < new Date());
+        // not in a free period any more: refused
+        assert.equal((await request(app).post(`/api/admin/tenants/${w.tenant._id}/plan/end-free`).set(as(supreme)).send({})).status, 409);
+        // a paid term is never touched
+        await Tenant.updateOne({ _id: w.tenant._id }, { $set: { plan: { id: 'pro', endsAt: new Date(Date.now() + 9 * 86400000) } } });
+        assert.equal((await request(app).post(`/api/admin/tenants/${w.tenant._id}/plan/end-free`).set(as(supreme)).send({})).status, 409);
+    });
+});

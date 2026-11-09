@@ -7,7 +7,7 @@ import { Card, SectionTitle, Badge, Chip, Button } from '../../components/ui';
 import { Field } from '../../components/inputs';
 import { SkeletonList } from '../../components/blocks';
 import { ConfirmSheet, toast } from '../../components/feedback';
-import { fetchPlanCatalog, fetchShopPlan, setShopPlan, setShopPlanExtra, setShopPlanTerms, fetchShopWallet, adjustShopWallet } from '../../api/shopsApi';
+import { fetchPlanCatalog, fetchShopPlan, setShopPlan, setShopPlanExtra, setShopPlanTerms, fetchShopWallet, adjustShopWallet, endShopFreePeriod } from '../../api/shopsApi';
 import { errMsg } from '../../api/adminClient';
 import { useShopStore } from '../../store/useShopStore';
 import { planLine } from '../../components/shopBits';
@@ -33,6 +33,7 @@ export default function ShopPlanScreen() {
     const [wallet, setWallet] = useState(null);     // the Partner wallet (balance, last movements, ledger check)
     const [adj, setAdj] = useState(null);           // 'add' | 'take' waiting for the amount and the reason
     const [adjAmt, setAdjAmt] = useState('');
+    const [endFree, setEndFree] = useState(false);   // the "End the free period now" confirm
 
     const load = useCallback(async () => {
         try { const [c, p, wl] = await Promise.all([fetchPlanCatalog(), fetchShopPlan(shopId), fetchShopWallet(shopId).catch(() => null)]); setCat(c); setPlan(p); setWallet(wl?.partner ? wl : null); setDays(''); } catch (e) { toast(errMsg(e), 'error'); }
@@ -83,6 +84,8 @@ export default function ShopPlanScreen() {
                     </Card>
                 </>
             ) : null}
+
+            {plan.id && plan.status === 'free' ? <Button title="End the free period now" kind="dangerSoft" icon="bolt" small onPress={() => setEndFree(true)} style={{ marginTop: spacing.sm }} /> : null}
 
             <SectionTitle section="settings">Change plan</SectionTitle>
             <Card>
@@ -150,6 +153,15 @@ export default function ShopPlanScreen() {
                     if (!(rs > 0)) { toast('Type an amount first', 'error'); throw new Error('amount'); }
                     try { await adjustShopWallet(shopId, { direction: adj, amountPaise: rs, note: reason }); toast('Wallet updated'); await load(); } catch (e) { toast(errMsg(e), 'error'); throw e; }
                 }}
+            />
+            <ConfirmSheet
+                visible={endFree}
+                onClose={() => setEndFree(false)}
+                title="End the free period now?"
+                message="The plan ends at once and the grace days start. The owner is told and has to choose and pay. A paid term is never touched."
+                confirmLabel="End it"
+                danger
+                onConfirm={() => run(() => endShopFreePeriod(shopId), 'Free period ended')}
             />
             <ConfirmSheet
                 visible={!!extra}

@@ -105,6 +105,7 @@
  "POST /tenants/:tid/owners",
  "POST /tenants/:tid/payments/test",
  "POST /tenants/:tid/payments/webhook-secret",
+ "POST /tenants/:tid/plan/end-free",
  "POST /tenants/:tid/products/",
  "POST /tenants/:tid/products/import",
  "POST /tenants/:tid/reopen",

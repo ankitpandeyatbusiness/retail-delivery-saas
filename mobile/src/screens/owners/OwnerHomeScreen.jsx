@@ -1,5 +1,6 @@
 // Home: the owner's control room. What needs him now comes first, then how the day is going, then the small things.
 // One call (GET /shop/dashboard) fills it; it refreshes whenever an order changes anywhere.
+import PlanChip from '../../components/owners/PlanChip';
 import { usePlanHas } from '../../utils/owners/menuFlags';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useMenuFlags } from '../../utils/owners/menuFlags';
@@ -197,6 +198,7 @@ export default function OwnerHomeScreen() {
     return (
         <View style={{ flex: 1 }}>
         <OwnerScreen onRefresh={pull} refreshing={refreshing}>
+            <PlanChip />
             {loadError && !d ? <Card tone={error}><Text style={{ color: error, fontWeight: '700' }}>{loadError}</Text></Card> : null}
 
 

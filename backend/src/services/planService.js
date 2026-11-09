@@ -116,6 +116,23 @@ async function setPlan(tenantDoc, { to, freeDays, keepExtras = true, by = 'supre
     return viewOf(tenantDoc, now);
 }
 
+// End the FREE period now: the plan ends at this moment and the grace days start (a paid term is never touched). Supreme admin; a branch follows its main shop.
+async function endFree(tenantDoc, by = 'supreme') {
+    await require('./brandPlan').guardBranch(tenantDoc);
+    const p = tenantDoc.plan || {};
+    const now = new Date();
+    if (!p.id || !(p.freeUntil && new Date(p.freeUntil) > now)) throw Object.assign(new Error('This shop is not in a free period'), { status: 409 });
+    p.endsAt = new Date(now.getTime() - 1);
+    p.freeUntil = undefined;
+    p.history = [...(p.history || []).slice(-49), { at: now, by, from: p.id, to: p.id, note: 'free period ended by hand' }];
+    delete p.notified;
+    await Tenant.updateOne({ _id: tenantDoc._id }, { $set: { plan: p } });
+    tenantDoc.plan = p;
+    invalidateTenant(tenantDoc.slug);
+    await require('./brandPlan').afterPlanChange(tenantDoc);
+    return viewOf(tenantDoc, now);
+}
+
 // Turn a feature outside the plan on or off for one shop (a tagged "extra")
 async function setExtra(tenantDoc, key, on, by = 'supreme') {
     await require('./brandPlan').guardBranch(tenantDoc);
@@ -191,4 +208,4 @@ async function previewOf(tenant, to, { freeDays } = {}) {
     };
 }
 
-module.exports = { previewOf, needsOf, getDefaults, saveDefaults, viewOf, setPlan, setExtra, setShopTerms, endOfIstDay };
+module.exports = { endFree, previewOf, needsOf, getDefaults, saveDefaults, viewOf, setPlan, setExtra, setShopTerms, endOfIstDay };

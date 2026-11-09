@@ -45,6 +45,11 @@ router.put('/tenants/:tid/plan/extras', requireSupreme, loadTenant, wrap(async (
     res.json(await svc.setExtra(req.tenantDoc, req.body?.key, req.body?.on === true, String(who)));
 }));
 
+router.post('/tenants/:tid/plan/end-free', requireSupreme, loadTenant, wrap(async (req, res) => {
+    req.auditBefore = svc.viewOf(req.tenantDoc);
+    res.json(await svc.endFree(req.tenantDoc, String(req.admin?.phone || req.admin?.email || 'supreme')));
+}));
+
 router.put('/tenants/:tid/plan/terms', requireSupreme, loadTenant, wrap(async (req, res) => {
     req.auditBefore = svc.viewOf(req.tenantDoc);
     res.json(await svc.setShopTerms(req.tenantDoc, req.body || {}));
