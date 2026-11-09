@@ -1,7 +1,7 @@
 // The owner's Plan screen: what he has now, all three plans side by side, and a PREVIEW before anything changes (what turns on or off, the new end date,
 // the exact amount). Paying uses the same payment options page as the wallet (UPI app or card). A lower plan starts only when the paid time ends.
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, ScrollView, Pressable } from 'react-native';
+import { View, Text, ScrollView, Pressable, TextInput } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../../components/common/kit';
@@ -19,6 +19,8 @@ import { tr } from '../../i18n';
 // Texts the server sends inside the extra-shop quote. They are listed here (never called) so the translation list picks them up; tr() matches the server's real values to these {v1} patterns.
 export const _serverQuoteTexts = () => [
     tr('No refund if you remove the shop later.'),
+    tr('Coupon {v1} {v2}% off'),
+    tr('Your {v1} months discount is already better than this coupon, so it is not used.'),
     tr('One more shop can be created. It runs until {v1} with your plan, and is part of your next renewal.'),
     tr('Extra shop: Rs {v1} a month x {v2} of 30 days (the days left of your plan)'),
 ];
@@ -67,6 +69,8 @@ export default function OwnerPlanScreen() {
     const [months, setMonths] = useState('1');
     const [q, setQ] = useState(null);             // the preview for the pick
     const [busy, setBusy] = useState(false);
+    const [coupon, setCoupon] = useState('');     // the code applied (tapped on a card or typed)
+    const [codeText, setCodeText] = useState('');
 
     const load = useCallback(async () => { try { setO(await fetchPlan()); } catch (e) { useOwnerStore.getState().noteError(e); } }, []);
     useFocusEffect(useCallback(() => { load(); useMenuFlags.getState().refresh(); }, [load]));
@@ -76,20 +80,20 @@ export default function OwnerPlanScreen() {
         if (!pick) { setQ(null); return undefined; }
         let on = true;
         setQ(null);
-        quotePlan({ to: pick, months: Number(months) }).then((r) => { if (on) setQ(r); }).catch((e) => { if (on) { showToast(apiError(e)); setPick(null); } });
+        quotePlan({ to: pick, months: Number(months), coupon: coupon || undefined }).then((r) => { if (on) setQ(r); }).catch((e) => { if (on) { showToast(apiError(e)); if (coupon) setCoupon(''); else setPick(null); } });
         return () => { on = false; };
-    }, [pick, months]);
+    }, [pick, months, coupon]);
 
     const cur = o?.current;
     const paid = q && q.totalPaise > 0 && q.kind !== 'downgrade' && q.kind !== 'switch';
 
     const go = async () => {
         if (!q || busy) return;
-        if (paid) { nav.navigate('OwnerPay', { kind: 'plan', to: pick, months: q.months || 1, amountPaise: q.totalPaise, payablePaise: q.totalPaise, gstPaise: q.gstPaise, gstPercent: q.gstPercent, title: tr('{name} plan', { name: q.toName }) }); return; }
+        if (paid) { nav.navigate('OwnerPay', { kind: 'plan', to: pick, months: q.months || 1, coupon: q.coupon ? q.coupon.code : undefined, amountPaise: q.totalPaise, payablePaise: q.totalPaise, gstPaise: q.gstPaise, gstPercent: q.gstPercent, title: tr('{name} plan', { name: q.toName }) }); return; }
         const yes = await ask({ title: q.kind === 'downgrade' ? tr('Move to {name} later?', { name: q.toName }) : tr('Switch to {name}?', { name: q.toName }), message: q.notes.join('\n'), confirmText: tr('Confirm') });
         if (!yes) return;
         setBusy(true);
-        try { await choosePlan({ to: pick, months: Number(months) }); showToast(q.kind === 'downgrade' ? tr('Scheduled') : tr('Done')); setPick(null); await load(); useMenuFlags.getState().refresh(); } catch (e) { showToast(apiError(e)); } finally { setBusy(false); }
+        try { await choosePlan({ to: pick, months: Number(months), coupon: coupon || undefined }); showToast(q.kind === 'downgrade' ? tr('Scheduled') : tr('Done')); setPick(null); await load(); useMenuFlags.getState().refresh(); } catch (e) { showToast(apiError(e)); } finally { setBusy(false); }
     };
     // a brand: one more shop. The server works out the price from the days left; he sees it, then pays, then the platform team can create the branch.
     const addShop = async () => {
@@ -174,6 +178,27 @@ export default function OwnerPlanScreen() {
                             <View style={{ paddingHorizontal: 16 }}>
                                 <Text style={{ color: muted, fontSize: 12, fontWeight: '700', marginBottom: 6 }}>{tr('How many months')}</Text>
                                 <Chips options={['1', '2', '3', '4', '5', '6'].map((m) => [m, `${m}${o.discounts[m] ? ` · ${o.discounts[m]}% off` : ''}`])} value={months} onChange={setMonths} style={{ marginTop: 0 }} />
+                                {(o.coupons || []).filter((c) => c.plans.includes(pick)).map((c) => {
+                                    const on = coupon === c.code;
+                                    return (
+                                        <Pressable key={c.id} onPress={() => { if (on) { setCoupon(''); return; } if (c.months.length && !c.months.includes(Number(months))) setMonths(String(c.months[0])); setCoupon(c.code); }}
+                                            style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, padding: 12, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: on ? ok : primary, backgroundColor: alpha(on ? ok : primary, 0.08) }}>
+                                            <Ionicons name={on ? 'checkmark-circle' : 'pricetag'} size={22} color={on ? ok : primary} />
+                                            <View style={{ flex: 1, marginHorizontal: 10 }}>
+                                                <Text style={{ color: text, fontWeight: '900' }}>{c.code} · {tr('{p}% off', { p: c.pct })}</Text>
+                                                <Text style={{ color: muted, fontSize: 12, marginTop: 2 }}>{(c.months.length ? tr('For {m} months', { m: c.months.join(' / ') }) + ' · ' : '') + tr('Valid till {date}', { date: day(c.endsAt) })}</Text>
+                                            </View>
+                                            <Text style={{ color: on ? ok : primary, fontWeight: '800' }}>{on ? tr('Applied') : tr('Tap to apply')}</Text>
+                                        </Pressable>
+                                    );
+                                })}
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
+                                    <TextInput value={codeText} onChangeText={(t) => setCodeText(t.toUpperCase())} placeholder={tr('Have a coupon code?')} placeholderTextColor={muted} autoCapitalize="characters" autoCorrect={false}
+                                        style={{ flex: 1, color: text, borderWidth: 1, borderColor: border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 }} />
+                                    <Pressable onPress={() => { const t = codeText.trim(); if (t) { setCoupon(t); setCodeText(''); } }} style={{ marginLeft: 8, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, backgroundColor: primary }}>
+                                        <Text style={{ color: '#fff', fontWeight: '800' }}>{tr('Apply')}</Text>
+                                    </Pressable>
+                                </View>
                             </View>
                         ) : null}
 
@@ -186,7 +211,7 @@ export default function OwnerPlanScreen() {
                                         {q.features.off.length ? <Text style={{ color: error, marginTop: 6 }}>{tr('Turns off: {list}.', { list: q.features.off.map(tr).join(', ') })}</Text> : null}
                                         {q.lines.map((l, i) => (
                                             <View key={i} style={{ flexDirection: 'row', marginTop: 6 }}>
-                                                <Text style={{ color: text, flex: 1 }}>{l.label}</Text>
+                                                <Text style={{ color: text, flex: 1 }}>{tr(l.label)}</Text>
                                                 <Text style={{ color: l.paise < 0 ? ok : text, fontWeight: '800' }}>{l.paise < 0 ? '−' : ''}{rupees(Math.abs(l.paise))}</Text>
                                             </View>
                                         ))}

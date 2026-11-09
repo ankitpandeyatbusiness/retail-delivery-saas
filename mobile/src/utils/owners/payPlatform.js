@@ -18,10 +18,10 @@ const isCancel = (e) => e?.code === PAYMENT_CANCELED || /cancel/i.test(e?.descri
 // kind 'branchshop': one extra shop of a brand.   kind 'wallet' / 'sms': amountPaise = the top-up.
 //   upiApp: { pkg } | { chooser: true }     card: { number, month, year, cvv, name }
 //   confirmPaid(): resolves true when the money has arrived (asked when the app gives no proof)
-export async function payPlatform({ kind, id, amountPaise, upiApp, card, user, confirmPaid, to, months }) {
+export async function payPlatform({ kind, id, amountPaise, upiApp, card, user, confirmPaid, to, months, coupon }) {
     let start;
     try {
-        start = kind === 'wallet' ? await startWalletPay(amountPaise) : kind === 'plan' ? await startPlanPay({ to, months }) : kind === 'branchshop' ? await startBranchPay() : await startTopupPay(amountPaise);
+        start = kind === 'wallet' ? await startWalletPay(amountPaise) : kind === 'plan' ? await startPlanPay({ to, months, coupon }) : kind === 'branchshop' ? await startBranchPay() : await startTopupPay(amountPaise);
     } catch (e) {
         if (e?.response?.status === 409 && (await confirmPaid().catch(() => false))) return { status: 'paid' };
         return { status: 'failed', message: text(e, 'Could not start the payment') };

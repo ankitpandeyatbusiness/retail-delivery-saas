@@ -97,7 +97,7 @@ function cardProblems(c) {
 
 export default function OwnerPayScreen() {
     const nav = useNavigation();
-    const { kind, id, amountPaise, title, payablePaise, gstPaise, gstPercent, to, months } = useRoute().params || {};
+    const { kind, id, amountPaise, title, payablePaise, gstPaise, gstPercent, to, months, coupon } = useRoute().params || {};
     const toPay = payablePaise || amountPaise;   // an SMS top-up: the amount plus GST
     const { background, primary, text, muted, ok, border } = useBrand();
     const user = useAuthStore((s) => s.user);
@@ -156,7 +156,7 @@ export default function OwnerPayScreen() {
             cardBody = { number: card.number, month: mm, year: yy, cvv: card.cvv, name: card.name.trim() };
         }
         setPaying(current.app?.label || 'your card');
-        const r = await payPlatform({ kind, id, to, months, amountPaise, upiApp: current.app, card: cardBody, user, confirmPaid });
+        const r = await payPlatform({ kind, id, to, months, coupon, amountPaise, upiApp: current.app, card: cardBody, user, confirmPaid });
         setPaying(null);
         setCard((c) => ({ ...c, number: '', cvv: '' }));   // the card is never kept
         if (r.status === 'paid') finish();
