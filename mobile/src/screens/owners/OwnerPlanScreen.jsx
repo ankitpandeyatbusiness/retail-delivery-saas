@@ -27,6 +27,19 @@ const openInvoice = async (id) => {
     try { await downloadAndOpen({ path: planInvoicePdfPath(id), filename: `invoice-${id}.pdf`, mime: 'application/pdf', title: tr('Invoice') }); }
     catch (e) { showToast(e?.response?.status === 409 ? tr('The invoice is not ready yet') : tr('Could not open the invoice')); }
 };
+// What a plan gives. Partner: the basics every plan has. Growth and Pro: only what is new on top of the plan below (the server catalog decides, so this always matches what is enforced).
+const BASICS = [
+    'Customer app on website and phone', 'Order progress timeline and rider Call button', 'Dine-in QR tables, waitlist and table booking', 'Your own shopname.vivyaan.co.in website',
+    'Coupons, basic sales summary and the Money tab', 'Invoices, payments, refunds, languages and maintenance mode',
+];
+const includedLines = (p, prev, labels) => {
+    if (!prev) return { head: null, lines: [...BASICS.map((b) => tr(b)), tr('Up to {n} riders', { n: p.limits.riders }), tr('Exports with money columns only')] };
+    const lines = [];
+    if (p.limits.riders == null && prev.limits.riders != null) lines.push(tr('Unlimited riders'));
+    if (p.limits.staff !== prev.limits.staff) lines.push(p.limits.staff == null ? tr('Unlimited kitchen and waiter logins') : tr('Up to {n} kitchen and waiter logins', { n: p.limits.staff }));
+    for (const k of Object.keys(labels)) if (k !== 'staffLogins' && p.features[k] && !prev.features[k]) lines.push(tr(labels[k]));
+    return { head: tr('Everything in {name}, plus', { name: prev.name }), lines };
+};
 const day = (d) => new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 const planLine = (c) => {
     if (!c?.id) return tr('No plan yet');
@@ -125,13 +138,20 @@ export default function OwnerPlanScreen() {
                                         </Text>
                                         {sel || isCur ? (
                                             <View style={{ marginTop: 8 }}>
-                                                {Object.keys(o.featureLabels).map((k) => (
-                                                    <View key={k} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 3 }}>
-                                                        <Ionicons name={p.features[k] ? 'checkmark-circle' : 'close-circle'} size={16} color={p.features[k] ? ok : muted} />
-                                                        <Text style={{ color: p.features[k] ? text : muted, marginLeft: 6, fontSize: 13 }}>{tr(o.featureLabels[k])}</Text>
-                                                    </View>
-                                                ))}
-                                                <Text style={{ color: muted, marginTop: 6, fontSize: 12 }}>{tr('Riders: {n}. Kitchen and waiter logins: {m}.', { n: p.limits.riders ?? tr('unlimited'), m: p.limits.staff === 0 ? tr('none') : p.limits.staff ?? tr('unlimited') })}</Text>
+                                                {(() => {
+                                                    const inc = includedLines(p, o.plans[o.plans.findIndex((x) => x.id === p.id) - 1], o.featureLabels);
+                                                    return (
+                                                        <>
+                                                            {inc.head ? <Text style={{ color: text, fontWeight: '800', fontSize: 13 }}>{inc.head}</Text> : null}
+                                                            {inc.lines.map((l) => (
+                                                                <View key={l} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 3 }}>
+                                                                    <Ionicons name="checkmark-circle" size={16} color={ok} />
+                                                                    <Text style={{ color: text, marginLeft: 6, fontSize: 13, flex: 1 }}>{l}</Text>
+                                                                </View>
+                                                            ))}
+                                                        </>
+                                                    );
+                                                })()}
                                             </View>
                                         ) : <Text style={{ color: primary, marginTop: 6, fontSize: 12, fontWeight: '800' }}>{tr('Tap to see everything and the price')}</Text>}
                                     </View>
