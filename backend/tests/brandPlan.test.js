@@ -148,3 +148,91 @@ describe('moving existing shops to plans', () => {
         for (const b of shops) assert.equal((await plan(b))?.id, undefined);
     });
 });
+
+describe('paying for extra shops', () => {
+    const crypto = require('crypto');
+    const payments = require('../src/services/adapters/payments');
+    const sign = (o, p) => crypto.createHmac('sha256', 'mock_key_secret').update(`${o}|${p}`).digest('hex');
+    const owner = (w, m, p, b) => request(app)[m](`/api/shop/plan${p}`).set(w.owner.headers).send(b);
+    const proBrand = async (count = 3, daysLeft = 20.5) => {
+        const x = await makeBrand(count);
+        await Tenant.updateOne({ _id: x.main.tenant._id }, { $set: { plan: { id: 'pro', startedAt: new Date(), endsAt: new Date(Date.now() + daysLeft * DAY) } } });
+        await brandPlan.syncPlan(x.brand._id);
+        return x;
+    };
+    const pay = async (w, start, id) => {
+        payments._mock.setPayment({ id, orderId: start.body.rzpOrderId, status: 'captured', amountPaise: start.body.amountPaise });
+        return owner(w, 'post', `/pay/${start.body.paymentId}/verify`, { razorpay_order_id: start.body.rzpOrderId, razorpay_payment_id: id, razorpay_signature: sign(start.body.rzpOrderId, id) });
+    };
+    beforeEach(() => payments._mock.reset());
+
+    test('one extra shop: Rs 1,499 split by the whole days left of 30; a branch\'s owner gets the same quote', async () => {
+        const { shops, main } = await proBrand();
+        const q = (await owner(main, 'post', '/branch/quote', {})).body;
+        assert.equal(q.kind, 'branch');
+        assert.equal(q.daysLeft, 20);
+        assert.equal(q.taxablePaise, Math.round((149900 * 20) / 30));
+        assert.equal(q.totalPaise, q.taxablePaise);   // no GST number in the test platform
+        const fromBranch = (await owner(shops[1], 'post', '/branch/quote', {})).body;
+        assert.equal(fromBranch.totalPaise, q.totalPaise);
+    });
+
+    test('pay first, then the branch can be created; the next one needs another payment', async () => {
+        const { brand, main } = await proBrand();
+        const extra = await spare();
+        const add = (w) => call(supreme, 'post', `/brands/${brand._id}/branches`, { tenantId: String(w.tenant._id), city: 'Lucknow' });
+        assert.equal((await add(extra)).status, 409);
+        const start = await owner(main, 'post', '/branch/pay/start', {});
+        assert.equal(start.status, 201);
+        assert.equal((await pay(main, start, 'pay_b1')).body.paid, true);
+        assert.equal((await Brand.findById(brand._id).lean()).locations.paidExtra, 1);
+        // the same payment again changes nothing
+        assert.equal((await pay(main, start, 'pay_b1')).body.paid, true);
+        assert.equal((await Brand.findById(brand._id).lean()).locations.paidExtra, 1);
+        assert.equal((await add(extra)).status, 201);
+        assert.equal((await plan(extra)).id, 'pro');   // the new shop carries the brand plan
+        const another = await spare();
+        assert.equal((await add(another)).status, 409);
+        assert.equal((await call(plain, 'get', `/brands/${brand._id}`)).body.plan.locations.paidExtra, 1);
+    });
+
+    test('only a brand owner pays, a plan that is not Pro or has ended cannot add shops', async () => {
+        const { shops, main, brand } = await proBrand();
+        // a branch manager (not in the brand owners' phones)
+        const manager = await f.makeUser(shops[1].tenant, 'admin', '9000000077');
+        const r = await request(app).post('/api/shop/plan/branch/pay/start').set(manager.headers).send({});
+        assert.equal(r.status, 403);
+        assert.equal(r.body.brandOwnerPays, true);
+        await Tenant.updateOne({ _id: main.tenant._id }, { $set: { 'plan.id': 'growth' } });
+        assert.equal((await owner(main, 'post', '/branch/quote', {})).status, 409);
+        await Tenant.updateOne({ _id: main.tenant._id }, { $set: { 'plan.id': 'pro', 'plan.endsAt': new Date(Date.now() - DAY) } });
+        assert.equal((await owner(main, 'post', '/branch/quote', {})).status, 409);
+        assert.ok(brand);
+    });
+
+    test('the renewal is ONE payment: the plan plus the extra shops, discount on both, and it stores what is paid for', async () => {
+        const { brand, main } = await proBrand(5);   // 5 shops: 3 are free, 2 are extra
+        const q = (await owner(main, 'post', '/quote', { to: 'pro', months: 3 })).body;
+        assert.equal(q.kind, 'renew');
+        assert.equal(q.extraShops, 2);
+        const gross = 499900 * 3 + 2 * 149900 * 3;
+        assert.equal(q.lines.length, 3);   // the plan, the extra shops, the 3-month discount
+        assert.match(q.lines[1].label, /2 extra shops/);
+        assert.equal(q.taxablePaise, gross - Math.round(gross * 0.05));
+        const start = await owner(main, 'post', '/pay/start', { to: 'pro', months: 3 });
+        assert.equal(start.body.amountPaise, q.totalPaise);
+        assert.equal((await pay(main, start, 'pay_b2')).body.paid, true);
+        assert.equal((await Brand.findById(brand._id).lean()).locations.paidExtra, 2);
+        // a free extra the supreme admin allowed is not billed
+        await call(supreme, 'put', `/brands/${brand._id}/locations`, { freeExtra: 1 });
+        assert.equal((await owner(main, 'post', '/quote', { to: 'pro', months: 1 })).body.extraShops, 1);
+    });
+
+    test('a brand with no extra shops pays the plain plan price', async () => {
+        const { main } = await proBrand(3);
+        const q = (await owner(main, 'post', '/quote', { to: 'pro', months: 1 })).body;
+        assert.equal(q.extraShops, 0);
+        assert.equal(q.taxablePaise, 499900);
+        assert.equal(q.lines.length, 1);
+    });
+});

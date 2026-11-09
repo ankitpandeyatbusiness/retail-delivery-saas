@@ -208,15 +208,15 @@ async function creditTopup(t, pay, via) {
 
 /* ------------------------------ a plan (Growth / Pro) ------------------------------ */
 // The price is worked out by planBilling.quote (the same function the preview uses) and stored with the payment; the app never sends an amount.
-async function startPlan({ tenant, to, months, actor }) {
-    const { payment, quote, reused } = await planBilling.createPayment(tenant, { to, months }, actor);
+async function startPlan({ tenant, to, months, branch, actor }) {
+    const { payment, quote, reused } = await planBilling.createPayment(tenant, { to, months, branch: !!branch }, actor);
     if (quote.free) throw bad(409, 'Nothing to pay: confirm the plan instead');
     const c = creds();
-    if (reused) return { paymentId: payment._id, ...startView(c, payment.rzpOrderId, payment.payablePaise, `${quote.toName} plan`), quote };
+    if (reused) return { paymentId: payment._id, ...startView(c, payment.rzpOrderId, payment.payablePaise, `${quote.kind === 'branch' ? 'Extra shop' : quote.toName + ' plan'}`), quote };
     const order = await makeOrder({ amountPaise: payment.payablePaise, receipt: `plan_${payment._id}`, notes: { purpose: 'plan', referenceId: String(payment._id), tenantId: String(tenant._id) } });
     payment.rzpOrderId = order.id;
     await payment.save();
-    return { paymentId: payment._id, ...startView(c, order.id, payment.payablePaise, `${quote.toName} plan`), quote };
+    return { paymentId: payment._id, ...startView(c, order.id, payment.payablePaise, quote.kind === 'branch' ? 'Extra shop' : `${quote.toName} plan`), quote };
 }
 
 async function verifyPlan({ tenantId, paymentId, proof }) {

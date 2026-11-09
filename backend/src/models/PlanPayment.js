@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 // money is captured, and if the plan changed meanwhile the payment is held for the supreme admin instead of being applied blindly.
 const planPaymentSchema = new mongoose.Schema({
     tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true },
-    kind: { type: String, enum: ['new', 'renew', 'upgrade'], required: true },
+    kind: { type: String, enum: ['new', 'renew', 'upgrade', 'branch'], required: true },   // branch = one extra shop of a brand (prorated by the days left of the paid term)
     from: String,                                   // the plan held when the owner started
     to: { type: String, enum: ['growth', 'pro'], required: true },
     months: { type: Number, default: 1 },

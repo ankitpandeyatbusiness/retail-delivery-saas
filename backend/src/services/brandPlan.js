@@ -88,4 +88,23 @@ async function summary(brand) {
     return { main: main ? { id: String(main._id), name: main.name, slug: main.slug } : null, plan: main ? planService.viewOf(main) : null, locations: c };
 }
 
-module.exports = { mainOf, capacity, assertRoomForBranch, syncPlan, afterPlanChange, guardBranch, summary };
+// The shop whose plan is billed: a branch's owner pays on the MAIN shop (the plan lives there). Returns the main shop's document (lean) or the shop itself.
+async function planTenant(tenant) {
+    if (!tenant?.brandId) return tenant;
+    const brand = await Brand.findById(tenant.brandId);
+    if (!brand) return tenant;
+    const mainId = await mainOf(brand);
+    if (!mainId || String(mainId) === String(tenant._id)) return tenant;
+    return (await Tenant.findById(mainId).select('_id slug name phone address business plan brandId androidPackage').lean()) || tenant;
+}
+
+// the shops beyond the free ones that a renewal bills (a branch that was removed stops being billed at the next renewal): used - (1 + free branches) - free extras
+async function billableExtra(tenant) {
+    if (!tenant?.brandId) return { extra: 0, addonPaise: 0 };
+    const brand = await Brand.findById(tenant.brandId);
+    if (!brand) return { extra: 0, addonPaise: 0 };
+    const c = await capacity(brand);
+    return { extra: Math.max(0, c.used - c.includedLocations - c.freeExtra), addonPaise: c.addonPaise };
+}
+
+module.exports = { planTenant, billableExtra, mainOf, capacity, assertRoomForBranch, syncPlan, afterPlanChange, guardBranch, summary };
