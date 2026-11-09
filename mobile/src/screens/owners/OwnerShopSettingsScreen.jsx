@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import MapPicker from '../../components/customers/MapPicker';
+import ShopAreaMap from '../../components/owners/ShopAreaMap';
 import { useBrand } from '../../components/common/kit';
 import { useNavigation } from '@react-navigation/native';
 import { Button, Empty } from '../../components/owners/ui';
@@ -25,7 +26,7 @@ export default function OwnerShopSettingsScreen() {
 
     useEffect(() => {
         fetchSettings().then((s) => setV({
-            latitude: s.delivery?.latitude, longitude: s.delivery?.longitude,
+            latitude: s.delivery?.latitude, longitude: s.delivery?.longitude, radiusKm: s.delivery?.radiusKm,
             phone: s.phone || '', line: s.address.line || '', city: s.address.city || '', state: s.address.state || '', pincode: s.address.pincode || '',
             showSoldOut: s.menu?.outOfStock !== 'hide',
             smsAlerts: s.notifications.smsAlerts !== false, monthlyReport: s.notifications.monthlyReport !== false,
@@ -63,14 +64,15 @@ export default function OwnerShopSettingsScreen() {
                 <TextBox label={tr('Shop phone')} value={v.phone} onChangeText={(x) => set('phone', x.replace(/\D/g, '').slice(0, 10))} keyboardType="number-pad" maxLength={10} placeholder={tr('10-digit mobile number')} last />
             </Group>
             <Group title={tr('Address')} hint={tr('Shown to customers and on invoices.')}>
-                <Pressable onPress={() => setPin(true)} style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: border, borderRadius: 14, padding: 12, marginBottom: 14 }}>
+                {pinned ? <ShopAreaMap latitude={v.latitude} longitude={v.longitude} radiusKm={v.radiusKm} onPress={() => setPin(true)} /> : null}
+                {!pinned ? <Pressable onPress={() => setPin(true)} style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: border, borderRadius: 14, padding: 12, marginBottom: 14 }}>
                     <Ionicons name="location" size={24} color={pinned ? primary : muted} />
                     <View style={{ flex: 1, marginHorizontal: 12 }}>
                         <Text style={{ color: text, fontWeight: '800' }}>{pinned ? tr('Shop is pinned on the map') : tr('Pin your shop on the map')}</Text>
                         <Text style={{ color: muted, fontSize: 12 }}>{pinned ? tr('Pin again and the address below is filled in for you') : tr('Needed for delivery distance and fees. Fills the address below.')}</Text>
                     </View>
                     <Text style={{ color: primary, fontWeight: '800' }}>{pinned ? tr('Change') : tr('Set')}</Text>
-                </Pressable>
+                </Pressable> : null}
                 <TextBox label={tr('Street and area')} value={v.line} onChangeText={(x) => set('line', x)} maxLength={150} multiline />
                 <TextBox label={tr('City')} value={v.city} onChangeText={(x) => set('city', x)} maxLength={60} />
                 <TextBox label={tr('State')} value={v.state} onChangeText={(x) => set('state', x)} maxLength={40} placeholder={tr('e.g. Uttar Pradesh')} hint={tr('Needed for the tax on your bills')} />
