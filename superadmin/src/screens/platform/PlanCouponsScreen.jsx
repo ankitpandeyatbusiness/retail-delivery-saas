@@ -69,8 +69,9 @@ export default function PlanCouponsScreen() {
             <Card>
                 <Field label="Code" placeholder="e.g. PRO6" hint="Letters and numbers. Owners can also type it." value={f.code} onChangeText={(v) => set('code')(v.toUpperCase().replace(/[^A-Z0-9]/g, ''))} autoCapitalize="characters" maxLength={20} />
                 <Field label="Discount %" hint="Whole number from 1 to 90. It is never added to the 3 or 6 month discount: the better one applies." value={f.pct} onChangeText={(v) => set('pct')(v.replace(/\D/g, ''))} keyboardType="number-pad" maxLength={2} />
-                <Text style={{ color: t.muted, fontSize: font.sm, marginBottom: spacing.xs }}>Plan</Text>
+                <Text style={{ color: t.muted, fontSize: font.sm, marginBottom: spacing.xs }}>The shop gets the discount when it buys</Text>
                 <Segmented options={PLANS} value={f.plan} onChange={set('plan')} />
+                <Text style={{ color: t.muted, fontSize: font.sm, marginTop: spacing.xs }}>Partner has no monthly price, so there is nothing to discount on it. Partner shops, shops in their free period and shops whose plan ended get this coupon when they buy the plan chosen here.</Text>
                 <Text style={{ color: t.muted, fontSize: font.sm, marginTop: spacing.md, marginBottom: spacing.xs }}>Term</Text>
                 <Segmented options={TERMS} value={f.term} onChange={set('term')} />
                 <View style={{ height: spacing.md }} />
