@@ -60,6 +60,7 @@ const orderSchema = new Schema({
         tip: { type: Number, default: 0 },
         total: { type: Number, required: true },
     },
+    partnerFeeBase: Number,   // rupees: items after coupon, before delivery charge and taxes, fixed at checkout. The Partner plan's per-order fee is worked out from it (services/partnerWalletService.js)
     couponId: { type: Schema.Types.ObjectId, ref: 'Coupon' },
     seller: { name: String, gstin: String, fssai: String },   // copied at order time, for the invoice
 

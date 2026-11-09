@@ -137,7 +137,7 @@ export default function OwnerPayScreen() {
         ...upiRows,
         { key: 'upi:any', app: { chooser: true, label: 'UPI' }, label: tr('Other UPI app'), icon: 'phone-portrait-outline', desc: tr('Choose any UPI app on this phone') },
         { key: 'card', label: tr('Credit / Debit card'), icon: 'card-outline', desc: tr('Visa, Mastercard, RuPay. You confirm with your bank OTP') },
-        ...(kind === 'dues' || kind === 'branchdues' ? [] : [{ key: 'qr', label: tr('Scan a QR code'), icon: 'qr-code-outline', desc: tr('Pay from another phone by scanning a code') }]),   // a QR is made for one bill
+        ...(kind === 'dues' || kind === 'branchdues' || kind === 'wallet' ? [] : [{ key: 'qr', label: tr('Scan a QR code'), icon: 'qr-code-outline', desc: tr('Pay from another phone by scanning a code') }]),   // a QR is made for one bill
     ];
     const current = rows.find((r) => r.key === picked);
 

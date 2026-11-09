@@ -8,6 +8,8 @@
 const mongoose = require('mongoose');
 const SubscriptionInvoice = require('../models/SubscriptionInvoice');
 const SmsTopup = require('../models/SmsTopup');
+const PartnerTopup = require('../models/PartnerTopup');
+const partnerTopups = require('./partnerTopupService');
 const DuesPayment = require('../models/DuesPayment');
 const alert = require('./paymentAlerts');
 const payments = require('./adapters/payments');
@@ -202,6 +204,51 @@ async function creditTopup(t, pay, via) {
     return done;
 }
 
+/* ------------------------------ Partner wallet top-up ------------------------------ */
+async function startPartnerTopup({ tenantId, amountPaise, actor }) {
+    const o = await partnerTopups.options();
+    if (!Number.isInteger(amountPaise) || amountPaise < o.minPaise || amountPaise > o.maxPaise) throw bad(400, `Amount must be between ${o.minPaise} and ${o.maxPaise} paise`);
+    const open = await PartnerTopup.countDocuments({ tenantId, status: 'pending', expiresAt: { $gt: new Date() } });
+    if (open >= 5) throw bad(429, 'Too many open top-ups. Pay one or wait a few minutes.');
+    const c = creds();
+    const cost = partnerTopups.price(amountPaise, o.gstPercent);   // the amount is always worked out here, never trusted from the app
+    const topup = new PartnerTopup({ tenantId, ...cost, createdBy: actor, expiresAt: new Date(Date.now() + TOPUP_WINDOW_MS) });
+    const order = await makeOrder({ amountPaise: cost.payablePaise, receipt: `ptopup_${topup._id}`, notes: { purpose: 'partner_topup', referenceId: String(topup._id), tenantId: String(tenantId) } });
+    topup.rzpOrderId = order.id;
+    await topup.save();
+    return { topupId: topup._id, ...startView(c, order.id, cost.payablePaise, 'Wallet top-up'), creditPaise: amountPaise, gstPaise: cost.gstPaise, gstPercent: cost.gstPercent };
+}
+
+async function verifyPartnerTopup({ tenantId, topupId, proof }) {
+    if (!mongoose.isValidObjectId(topupId)) throw bad(404, 'Top-up not found');
+    const t = await PartnerTopup.findOne({ _id: topupId, tenantId }).lean();
+    if (!t) throw bad(404, 'Top-up not found');
+    if (t.status === 'paid') return { paid: true };
+    if (!t.rzpOrderId) throw bad(400, 'Start the payment first');
+    proofOk(proof, t.rzpOrderId);
+    const pay = await payments.fetchPayment({ paymentId: proof.razorpay_payment_id, credentials: payments.isMock() ? undefined : creds() });
+    if (pay.orderId !== t.rzpOrderId) throw bad(400, 'This payment does not belong to this top-up');
+    if (pay.status !== 'captured') return { paid: false, status: pay.status };
+    await creditPartnerTopup(t, pay, { path: '/api/shop/wallet/topup/:id/verify', method: 'APP' });
+    return { paid: true };
+}
+
+// a captured payment for a wallet top-up: check the amount, credit once (the ledger's payment key makes a repeat harmless)
+async function creditPartnerTopup(t, pay, via) {
+    if (pay.amountPaise !== partnerTopups.payable(t)) {
+        await alert('admin_webhook_failed', { tenantId: t.tenantId, vars: { event: 'wallet top-up', error: `Amount ${pay.amountPaise} paise does not match the top-up (${partnerTopups.payable(t)}) (payment ${pay.id}). Check Razorpay.` } });
+        throw bad(409, 'The amount paid does not match this top-up. Please contact support.');
+    }
+    const done = await partnerTopups.complete({ topupId: t._id, tenantId: t.tenantId, paymentId: pay.id, actor: { type: 'system' } });
+    if (!done.duplicate) {
+        await auditTrail.record({
+            actorType: 'system', actorLabel: 'razorpay', tenantId: t.tenantId, action: 'WALLET_TOPUP_PAID_ONLINE', method: via.method, path: via.path, status: 200,
+            params: { topupId: String(t._id), amountPaise: t.amountPaise, paymentId: pay.id, rzpOrderId: t.rzpOrderId },
+        });
+    }
+    return done;
+}
+
 /* ------------------------------ webhook safety net ------------------------------ */
 // payment.captured on the platform account for one of the orders made above
 async function onPlatformPayment(pay) {
@@ -215,10 +262,15 @@ async function onPlatformPayment(pay) {
         await creditTopup(t, pay, { path: '/api/webhooks/razorpay/platform', method: 'WEBHOOK' });
         return { topup: 'credited' };
     }
+    const pt = await PartnerTopup.findOne({ rzpOrderId: pay.orderId }).lean();
+    if (pt) {
+        await creditPartnerTopup(pt, pay, { path: '/api/webhooks/razorpay/platform', method: 'WEBHOOK' });
+        return { topup: 'credited' };
+    }
     // Real money reached the platform account for an order no bill or top-up knows (for example a bill whose amount changed
     // after the customer opened the old payment). Nobody must lose track of it.
     await alert('admin_webhook_failed', { vars: { event: 'payment.captured', error: `Payment ${pay.id} of Rs ${((pay.amountPaise || 0) / 100).toFixed(2)} (Razorpay order ${pay.orderId}) matches no bill, dues or top-up. Check Razorpay and refund it or mark the bill paid by hand.` } });
     return { ignored: 'unknown_order' };
 }
 
-module.exports = { startRent, verifyRent, startDues, verifyDues, startBrandDues, verifyBrandDues, settleDues, startTopup, verifyTopup, onPlatformPayment, MOCK_SECRET };
+module.exports = { startRent, verifyRent, startDues, verifyDues, startBrandDues, verifyBrandDues, settleDues, startTopup, verifyTopup, startPartnerTopup, verifyPartnerTopup, onPlatformPayment, MOCK_SECRET };

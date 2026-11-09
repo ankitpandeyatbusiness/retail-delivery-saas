@@ -92,4 +92,6 @@ export const fetchShopPlan = (id) => data(api.get(`${T(id)}/plan`));
 export const setShopPlan = (id, body) => data(api.put(`${T(id)}/plan`, body));
 export const setShopPlanExtra = (id, key, on) => data(api.put(`${T(id)}/plan/extras`, { key, on }));
 export const setShopPlanTerms = (id, body) => data(api.put(`${T(id)}/plan/terms`, body));
+export const fetchShopWallet = (id) => data(api.get(`${T(id)}/wallet`));
+export const adjustShopWallet = (id, body) => data(api.post(`${T(id)}/wallet/adjust`, body));
 export const savePlanDefaults = (body) => data(api.put('/admin/platform/plans', body));

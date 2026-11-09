@@ -126,6 +126,7 @@
  "POST /tenants/:tid/riders/:rid/orders/:id/undo-pickup",
  "POST /tenants/:tid/riders/:rid/sos",
  "POST /tenants/:tid/sms/topups/:id/mark-paid",
+ "POST /tenants/:tid/wallet/adjust",
  "PUT /brands/:id",
  "PUT /brands/:id/free-start",
  "PUT /brands/settings",

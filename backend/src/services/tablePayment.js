@@ -60,6 +60,7 @@ async function settleByCredit({ tenantId, userId, s, rows, creditPaise }) {
     await require('./bookingCredit').consume(s._id, creditPaise / 100);
     const loyalty = require('./loyaltyService');
     for (const o of orders) loyalty.onDelivered({ ...o, payment: { ...(o.payment || {}), status: 'paid' }, deliveredAt: now }).catch((e) => console.error('Points error:', e.message));
+    for (const o of orders) require('./partnerWalletService').chargeOrder({ ...(o.toObject ? o.toObject() : o), payment: { status: 'paid' } }).catch((e) => console.error('Partner fee error:', e.message));   // the Partner plan's per-order fee, now that the bill is paid
     try { require('./realtime').toOwner(tenantId, 'order:update', { kind: 'table_paid' }); } catch (e) { /* the screens refresh on their own */ }
     return { settled: true };
 }
@@ -118,6 +119,7 @@ async function settle(p, { resumed = false } = {}) {
     }
     const loyalty = require('./loyaltyService');
     for (const o of orders) loyalty.onDelivered({ ...o, payment: { ...(o.payment || {}), status: 'paid' }, deliveredAt: now }).catch((e) => console.error('Points error:', e.message));
+    for (const o of orders) require('./partnerWalletService').chargeOrder({ ...(o.toObject ? o.toObject() : o), payment: { status: 'paid' } }).catch((e) => console.error('Partner fee error:', e.message));   // the Partner plan's per-order fee, now that the bill is paid
 
     const s = await TableSession.findById(p.sessionId).select('table customers').lean();
     const table = s?.table || p.table;

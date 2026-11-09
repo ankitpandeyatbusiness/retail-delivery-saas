@@ -73,6 +73,7 @@ import OwnerPerformanceScreen from '../screens/owners/OwnerPerformanceScreen';
 import OwnerRiderRulesScreen from '../screens/owners/OwnerRiderRulesScreen';
 import OwnerPaymentsScreen from '../screens/owners/OwnerPaymentsScreen';
 import OwnerSmsScreen from '../screens/owners/OwnerSmsScreen';
+import OwnerWalletScreen from '../screens/owners/OwnerWalletScreen';
 import OwnerRentScreen from '../screens/owners/OwnerRentScreen';
 import OwnerCustomersScreen from '../screens/owners/OwnerCustomersScreen';
 import OwnerExportScreen from '../screens/owners/OwnerExportScreen';
@@ -408,6 +409,7 @@ export default function AppNavigator() {
                     <Stack.Screen name="OwnerAppLock" component={OwnerAppLockScreen} />
                     <Stack.Screen name="OwnerPayments" component={OwnerPaymentsScreen} />
                     <Stack.Screen name="OwnerSms" component={OwnerSmsScreen} />
+                    <Stack.Screen name="OwnerWallet" component={OwnerWalletScreen} />
                     <Stack.Screen name="OwnerRent" component={OwnerRentScreen} />
                     <Stack.Screen name="OwnerCustomers" component={OwnerCustomersScreen} />
                     <Stack.Screen name="OwnerExport" component={OwnerExportScreen} />

@@ -364,7 +364,11 @@ async function change({ order, status, actor, note, tenant, reasonCode, outcomeO
     require('./kitchenAlerts').onStatus({ before: order, updated, status }).catch(logError('Kitchen alert error'));   // the cooks' screens and phones
     // points: delivered = the customer's wait starts and the rider is scored; cancelled = the points he used go back
     const points = require('./loyaltyService');
-    if (status === 'delivered') points.onDelivered(updated).catch(logError('Points error'));
+    if (status === 'delivered') {
+        points.onDelivered(updated).catch(logError('Points error'));
+        // the Partner plan's per-order fee (a table round pays when its bill is paid, like the points)
+        if (!(updated.tableSessionId && updated.payment?.status !== 'paid')) require('./partnerWalletService').chargeOrder(updated).catch(logError('Partner fee error'));
+    }
     if (status === 'cancelled') {
         Promise.resolve(points.returnForOrder(updated)).catch(logError('Points give-back error'));
         if (actor.type === 'rider' && order.delivery?.status === 'picked_up' && order.delivery?.riderId) points.onRiderCancelledAfterPickup(updated).catch(logError('Points error'));

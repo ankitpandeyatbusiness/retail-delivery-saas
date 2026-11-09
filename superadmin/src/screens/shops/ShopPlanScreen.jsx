@@ -3,11 +3,11 @@ import { View, Text, Switch } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import { useTheme, spacing, font } from '../../theme';
 import { Screen } from '../../components/layout';
-import { Card, SectionTitle, Badge, Chip } from '../../components/ui';
+import { Card, SectionTitle, Badge, Chip, Button } from '../../components/ui';
 import { Field } from '../../components/inputs';
 import { SkeletonList } from '../../components/blocks';
 import { ConfirmSheet, toast } from '../../components/feedback';
-import { fetchPlanCatalog, fetchShopPlan, setShopPlan, setShopPlanExtra, setShopPlanTerms } from '../../api/shopsApi';
+import { fetchPlanCatalog, fetchShopPlan, setShopPlan, setShopPlanExtra, setShopPlanTerms, fetchShopWallet, adjustShopWallet } from '../../api/shopsApi';
 import { errMsg } from '../../api/adminClient';
 import { useShopStore } from '../../store/useShopStore';
 import { planLine } from '../../components/shopBits';
@@ -27,9 +27,12 @@ export default function ShopPlanScreen() {
     const [extra, setExtra] = useState(null);      // { key, on } waiting for confirmation
     const [days, setDays] = useState('');
     const [busy, setBusy] = useState(false);
+    const [wallet, setWallet] = useState(null);     // the Partner wallet (balance, last movements, ledger check)
+    const [adj, setAdj] = useState(null);           // 'add' | 'take' waiting for the amount and the reason
+    const [adjAmt, setAdjAmt] = useState('');
 
     const load = useCallback(async () => {
-        try { const [c, p] = await Promise.all([fetchPlanCatalog(), fetchShopPlan(shopId)]); setCat(c); setPlan(p); setDays(''); } catch (e) { toast(errMsg(e), 'error'); }
+        try { const [c, p, wl] = await Promise.all([fetchPlanCatalog(), fetchShopPlan(shopId), fetchShopWallet(shopId).catch(() => null)]); setCat(c); setPlan(p); setWallet(wl?.partner ? wl : null); setDays(''); } catch (e) { toast(errMsg(e), 'error'); }
     }, [shopId]);
     useEffect(() => { load(); }, [load]);
 
@@ -37,7 +40,7 @@ export default function ShopPlanScreen() {
 
     const run = async (fn, ok) => {
         setBusy(true);
-        try { const r = await fn(); setPlan(r); toast(ok); useShopStore.getState().load(shopId, { quiet: true }); } catch (e) { toast(errMsg(e), 'error'); throw e; } finally { setBusy(false); }
+        try { const r = await fn(); setPlan(r); toast(ok); fetchShopWallet(shopId).then((wl) => setWallet(wl?.partner ? wl : null)).catch(() => setWallet(null)); useShopStore.getState().load(shopId, { quiet: true }); } catch (e) { toast(errMsg(e), 'error'); throw e; } finally { setBusy(false); }
     };
     const outside = Object.entries(cat.features).filter(([, f]) => plan.id && !f.plans.includes(plan.id));   // features this plan does not include
     const lost = pick ? Object.values(cat.features).filter((f) => plan.id && f.plans.includes(plan.id) && !f.plans.includes(pick)).map((f) => f.label) : [];
@@ -54,6 +57,29 @@ export default function ShopPlanScreen() {
                 {plan.id && plan.endsAt ? <Text style={{ color: t.muted, marginTop: spacing.xs }}>{plan.status === 'free' ? 'Free period' : 'Paid period'} until {dateTime(plan.endsAt)} ({plan.daysLeft} days left)</Text> : null}
                 {plan.id ? <Text style={{ color: t.muted, marginTop: spacing.xs }}>Riders: {plan.limits.riders ?? 'unlimited'}. Kitchen and waiter logins: {plan.limits.staff ?? 'unlimited'}.</Text> : null}
             </Card>
+
+            {wallet ? (
+                <>
+                    <SectionTitle section="money">Wallet (Partner)</SectionTitle>
+                    <Card>
+                        <Text style={{ color: wallet.balancePaise < 0 ? t.danger : t.text, fontSize: font.xl, fontWeight: '800' }}>Rs {(wallet.balancePaise / 100).toFixed(2)}</Text>
+                        <Text style={{ color: t.muted, marginTop: spacing.xs }}>
+                            {wallet.canTakeOrders ? 'Taking orders' : 'New orders stopped (wallet and overdraft used up)'}. Overdraft Rs {(wallet.overdraftPaise / 100).toFixed(0)}. Fees this month Rs {(wallet.feesThisMonth.paise / 100).toFixed(0)} for {wallet.feesThisMonth.orders} orders.
+                        </Text>
+                        <Text style={{ color: wallet.check.differencePaise === 0 ? t.muted : t.danger, marginTop: spacing.xs }}>{wallet.check.differencePaise === 0 ? 'Ledger matches the balance' : `Ledger differs by Rs ${(wallet.check.differencePaise / 100).toFixed(2)}. Check it.`}</Text>
+                        {wallet.items.slice(0, 5).map((r) => (
+                            <Text key={r.id} style={{ color: t.text, marginTop: spacing.xs, fontSize: font.sm }}>
+                                {r.type === 'fee' ? `Order #${r.orderNo}, Rs ${r.baseRs}, fee Rs ${-r.amountPaise / 100}` : `${r.type}${r.note ? ': ' + r.note : ''} ${r.amountPaise > 0 ? '+' : '-'}Rs ${Math.abs(r.amountPaise) / 100}`}
+                            </Text>
+                        ))}
+                        <Field label="Correction amount in Rs" value={adjAmt} onChangeText={(v) => setAdjAmt(v.replace(/[^\d.]/g, '').slice(0, 8))} keyboardType="decimal-pad" />
+                        <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
+                            <Button title="Add money" kind="soft" small onPress={() => (Number(adjAmt) > 0 ? setAdj('add') : toast('Type an amount first', 'error'))} />
+                            <Button title="Take money" kind="dangerSoft" small onPress={() => (Number(adjAmt) > 0 ? setAdj('take') : toast('Type an amount first', 'error'))} />
+                        </View>
+                    </Card>
+                </>
+            ) : null}
 
             <SectionTitle section="settings">Change plan</SectionTitle>
             <Card>
@@ -101,6 +127,21 @@ export default function ShopPlanScreen() {
                 message={switchMsg}
                 confirmLabel="Switch plan"
                 onConfirm={() => run(() => setShopPlan(shopId, { to: pick, ...(days !== '' ? { freeDays: Number(days) } : {}) }), `Now on ${NAMES[pick]}`)}
+            />
+            <ConfirmSheet
+                visible={!!adj}
+                onClose={() => setAdj(null)}
+                title={adj === 'add' ? 'Add money to the wallet' : 'Take money from the wallet'}
+                message="A manual correction. It is written to the wallet ledger and the audit log with your reason."
+                confirmLabel={adj === 'add' ? 'Add' : 'Take'}
+                danger={adj === 'take'}
+                needReason
+                reasonLabel="Reason (the owner sees it in the wallet history)"
+                onConfirm={async (reason) => {
+                    const rs = Math.round(Number(adjAmt) * 100);
+                    if (!(rs > 0)) { toast('Type an amount first', 'error'); throw new Error('amount'); }
+                    try { await adjustShopWallet(shopId, { direction: adj, amountPaise: rs, note: reason }); toast('Wallet updated'); await load(); } catch (e) { toast(errMsg(e), 'error'); throw e; }
+                }}
             />
             <ConfirmSheet
                 visible={!!extra}

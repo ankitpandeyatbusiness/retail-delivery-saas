@@ -26,6 +26,8 @@ async function getDefaults() {
         freeDays: saved.freeDays ?? d.freeDays,
         graceDays: saved.graceDays ?? d.graceDays,
         gstPercent: saved.gstPercent ?? d.gstPercent,
+        overdraftPaise: saved.overdraftPaise ?? d.overdraftPaise, minTopupPaise: saved.minTopupPaise ?? d.minTopupPaise, maxTopupPaise: saved.maxTopupPaise ?? d.maxTopupPaise,
+        packsPaise: saved.packsPaise || d.packsPaise, walletLowPercent: saved.walletLowPercent ?? d.walletLowPercent,
         includedBranches: saved.includedBranches ?? d.includedBranches,
         branchAddonPaise: saved.branchAddonPaise ?? d.branchAddonPaise,
         monthDiscounts: { ...d.monthDiscounts, ...(saved.monthDiscounts || {}) },
@@ -50,7 +52,7 @@ async function saveDefaults(body) {
         if (e) throw bad(e);
         set['plans.feeSlabs'] = b.feeSlabs.map((s) => ({ upTo: s.upTo, feeRs: s.feeRs }));
     }
-    const nums = { freeDays: [0, 365], graceDays: [0, 30], gstPercent: [0, 28], includedBranches: [0, 50], branchAddonPaise: [0, 100000000] };
+    const nums = { freeDays: [0, 365], graceDays: [0, 30], gstPercent: [0, 28], includedBranches: [0, 50], branchAddonPaise: [0, 100000000], overdraftPaise: [0, 1000000], minTopupPaise: [100, 100000000], walletLowPercent: [0, 100] };
     for (const [k, [min, max]] of Object.entries(nums)) {
         if (b[k] === undefined) continue;
         if (!INT(b[k], min, max)) throw bad(`${k} must be a whole number from ${min} to ${max}`);

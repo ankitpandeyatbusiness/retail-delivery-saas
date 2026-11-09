@@ -38,6 +38,8 @@ const DEFAULTS = {
     freeDays: 30,
     graceDays: 3,
     gstPercent: 18,
+    // Partner wallet: how far below zero a fee may push it, top-up limits and packs (paise), and the "low" warning (% of the last top-up)
+    overdraftPaise: 10000, minTopupPaise: 10000, maxTopupPaise: 2000000, packsPaise: [30000, 50000, 100000], walletLowPercent: 20,
     includedBranches: 2,
     branchAddonPaise: 149900,
     // multi-month prepay discount by months (percent)

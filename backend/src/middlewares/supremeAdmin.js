@@ -14,6 +14,7 @@ function requireSupreme(req, res, next) {
 const MONEY = [
     /^\/platform\/(business|billing|tax|payments|sms|sms-balance|sms-setup|tracking)(\/|$)/,
     /^\/platform\/plans$/,                                  // plan prices, fee slabs, free days, GST, branch add-on, multi-month discounts
+    /^\/tenants\/[^/]+\/wallet(\/|$)/,                      // adding to or taking from a Partner wallet
     /^\/tenants\/[^/]+\/plan(\/|$)/,                        // switching a shop's plan, extras, per-shop amount and free days
     /^\/subscriptions\//,                                  // generate, mark paid, void, waive, extend the grace
     /^\/tenants\/[^/]+\/(billing|invoices|sms|sms-provider)(\/|$)/,   // a shop's fee plan, go-live, custom bills, SMS wallet and prices

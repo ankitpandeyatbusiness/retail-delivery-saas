@@ -299,6 +299,11 @@ export const verifyRentPay = (id, proof) => d(api.post(`/shop/subscription/invoi
 export const fetchDues = () => d(api.get('/shop/subscription/dues'));
 export const startDuesPay = () => d(api.post('/shop/subscription/dues/pay/start'));
 export const verifyDuesPay = (proof) => d(api.post('/shop/subscription/dues/pay/verify', proof));
+// the Partner plan's wallet
+export const fetchWallet = () => d(api.get('/shop/wallet'));
+export const fetchWalletHistory = () => d(api.get('/shop/wallet/history'));
+export const startWalletPay = (amountPaise) => d(api.post('/shop/wallet/topup/start', { amountPaise }));
+export const verifyWalletPay = (id, proof) => d(api.post(`/shop/wallet/topup/${id}/verify`, proof));
 export const startTopupPay = (amountPaise) => d(api.post('/shop/sms/topup/start', { amountPaise }));
 export const verifyTopupPay = (id, proof) => d(api.post(`/shop/sms/topup/${id}/verify`, proof));
 export const rentInvoicePdfPath = (id) => `/shop/subscription/invoices/${id}/pdf`;

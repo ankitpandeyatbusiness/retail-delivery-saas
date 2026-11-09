@@ -59,6 +59,7 @@ const WORDS = {
     OwnerShopSettings: 'phone address sms alerts monthly report shop name contact',
     OwnerActivity: 'activity log history changes audit who changed',
     LegalList: 'terms privacy policy agreement legal',
+    OwnerWallet: 'wallet partner balance top up recharge fee per order',
     OwnerCosts: 'costs expenses profit loss spend salary rent ingredients electricity margin',
     OwnerExport: 'download export excel csv data customers orders riders cooks waiters branches menu report file spreadsheet',
 };
@@ -102,6 +103,7 @@ const GROUPS = [
     ]],
     ['Money', [
         ['wallet', 'Money', 'Your rent, SMS balance and top up', 'OwnerMoney'],
+        ['card', 'Wallet', 'Your Partner wallet: balance, top up, the fee of each order', 'OwnerWallet'],
         ['swap-vertical', 'Transactions', 'Every rupee in and out, by month, refunds and chargebacks', 'OwnerMoneyHub'],
         ['receipt', 'Bills and SMS', 'Your monthly bill and SMS balance', 'OwnerBillsHub'],
         ['calculator', 'Costs and profit', 'What you spend, and what the shop really kept', 'OwnerCosts'],
@@ -188,7 +190,7 @@ export function ShopMenu({ onGo }) {
     const [q, setQ] = useState('');
     const { border, muted, text, surface, primary } = useBrand();
     const easy = useMenuFlags((s) => s.easy);
-    const hidden = (route) => ((route === 'OwnerServices' || route === 'OwnerInquiries') && !servicesOn) || (route === 'OwnerBulk' && !bulkOn) || (route === 'OwnerBookings' && !bookingOn) || (route === 'OwnerCooks' && !staffOn.kitchenOn) || (route === 'OwnerWaiters' && !staffOn.waiterOn) || (easy && !EASY.has(route));
+    const hidden = (route) => (route === 'OwnerWallet' && plan?.id !== 'partner') || ((route === 'OwnerServices' || route === 'OwnerInquiries') && !servicesOn) || (route === 'OwnerBulk' && !bulkOn) || (route === 'OwnerBookings' && !bookingOn) || (route === 'OwnerCooks' && !staffOn.kitchenOn) || (route === 'OwnerWaiters' && !staffOn.waiterOn) || (easy && !EASY.has(route));
     // every row of the menu as one list (what is shown, and what the search looks through)
     const sections = useMemo(() => [
         ...GROUPS.map(([group, rows]) => [group, rows.filter((r) => !hidden(r[3])).map(([icon, title, subtitle, route]) => (route === '@busy'

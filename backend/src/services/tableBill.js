@@ -172,6 +172,7 @@ async function settle({ tenantId, sessionId, method, by }) {
     // the points of the rounds that were on the tab start waiting now (they were held back until the money was in)
     const loyalty = require('./loyaltyService');
     for (const o of unpaid) loyalty.onDelivered({ ...o.toObject(), payment: { ...(o.payment?.toObject ? o.payment.toObject() : o.payment), status: 'paid' }, deliveredAt: now }).catch((e) => console.error('Points error:', e.message));
+    for (const o of unpaid) require('./partnerWalletService').chargeOrder({ ...(o.toObject ? o.toObject() : o), payment: { status: 'paid' } }).catch((e) => console.error('Partner fee error:', e.message));   // the Partner plan's per-order fee, now that the bill is paid
     // a friend's first meal is paid: the one who referred him is thanked with points
     for (const uid of s.customers) {
         const first = orders.find((o) => String(o.userId) === String(uid)) || orders[0];

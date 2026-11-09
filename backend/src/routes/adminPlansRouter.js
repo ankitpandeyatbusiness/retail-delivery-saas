@@ -46,4 +46,27 @@ router.put('/tenants/:tid/plan/terms', requireSupreme, loadTenant, wrap(async (r
     res.json(await svc.setShopTerms(req.tenantDoc, req.body || {}));
 }));
 
+// the Partner wallet of one shop: balance, ledger, and the nightly check (balance must equal the ledger)
+router.get('/tenants/:tid/wallet', loadTenant, wrap(async (req, res) => {
+    const w = require('../services/partnerWalletService');
+    if (!w.isPartner(req.tenantDoc)) return res.json({ partner: false });
+    const [status, history, check] = await Promise.all([w.status(req.tenantDoc._id), w.history(req.tenantDoc._id, { limit: 30 }), w.reconcile(req.tenantDoc._id)]);
+    res.json({ partner: true, ...status, ...history, check });
+}));
+
+// { direction: 'add' | 'take', amountPaise, note }  a manual correction by the supreme admin; always in the ledger and the audit log
+router.post('/tenants/:tid/wallet/adjust', requireSupreme, loadTenant, wrap(async (req, res) => {
+    const w = require('../services/partnerWalletService');
+    const { direction, amountPaise, note } = req.body || {};
+    if (!w.isPartner(req.tenantDoc)) throw Object.assign(new Error('This shop is not on the Partner plan'), { status: 400 });
+    if (typeof note !== 'string' || note.trim().length < 3) throw Object.assign(new Error('Write a reason (at least 3 letters)'), { status: 400 });
+    if (!['add', 'take'].includes(direction)) throw Object.assign(new Error('direction must be add or take'), { status: 400 });
+    req.auditBefore = await w.status(req.tenantDoc._id);
+    const actor = { type: 'superadmin', id: String(req.admin?._id || ''), label: String(req.admin?.phone || req.admin?.email || 'supreme') };
+    const r = direction === 'add'
+        ? await w.credit({ tenantId: req.tenantDoc._id, amountPaise, type: 'adjust', note: note.trim().slice(0, 200), actor })
+        : await w.manualDebit({ tenantId: req.tenantDoc._id, amountPaise, note: note.trim().slice(0, 200), actor });
+    res.json({ ...r, status: await w.status(req.tenantDoc._id) });
+}));
+
 module.exports = router;

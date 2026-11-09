@@ -287,6 +287,7 @@ async function placeOrderLocked({ tenant, userId, body, idempotencyKey }) {
     const { config, priced, address, problem } = await prepare({ tenant, userId, body });
     if (problem) throw Object.assign(httpError(problem.status, problem.message), problem.extra ? { extra: problem.extra } : {});
     checkExpectedTotal(body, priced);
+    await require('./partnerWalletService').assertCanTakeOrders(tenant);   // a Partner shop whose wallet and overdraft are used up takes no NEW orders
 
     // the same cart again within 10 seconds is refused
     const guardKey = cartKey(tenant._id, userId, priced);
@@ -334,6 +335,7 @@ async function placeOrderLocked({ tenant, userId, body, idempotencyKey }) {
             orderType: priced.orderType,
             items: priced.lines,
             pricing: priced.pricing,
+            partnerFeeBase: Math.max(0, (priced.pricing.subtotal || 0) - (priced.pricing.discount || 0)),
             couponId: priced.coupon?._id,
             // copied now, so the invoice stays correct even if the shop's details change later
             seller: {
