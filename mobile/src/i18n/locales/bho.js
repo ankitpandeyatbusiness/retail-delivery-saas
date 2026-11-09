@@ -3817,7 +3817,6 @@ export default {
     "This bill is already closed.": "ई बिल पहिलहीं बंद हो चुकल बा।",
     "This bill is paid.": "ई बिल भर दिहल गइल बा।",
     "This booking cannot be allowed (it is already allowed, cancelled or past)": "ई बुकिंग मंजूर ना हो सकेला (पहिलहीं मंजूर, रद्द या बीत चुकल बा)",
-    "This booking is already {s}.": "ई बुकिंग पहिलहीं से {s} बा।",
     "This booking is for another day": "ई बुकिंग कवनो दोसर दिन के बा",
     "This booking is not waiting for payment": "ई बुकिंग पेमेंट के इंतजार ना करत बा",
     "This booking time has passed": "एह बुकिंग के समय बीत चुकल बा",

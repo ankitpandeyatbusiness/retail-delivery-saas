@@ -43,7 +43,7 @@ export default function OwnerBookingDenyScreen() {
                 <Text style={{ color: muted, marginTop: 2 }}>{b.date} · {b.time} · {tr('Code')} {b.code}</Text>
                 <Text style={{ color: text, marginTop: 8, fontWeight: '700' }}>{paid ? tr('The whole deposit of ₹{n} goes back to the guest at once.', { n: amount }) : tr('No deposit was paid.')}</Text>
             </Card>
-            {!open ? <Text style={{ color: muted, textAlign: 'center', marginVertical: 14 }}>{tr('This booking is already {s}.', { s: String(b.status).replace('_', ' ') })}</Text> : (
+            {!open ? <Text style={{ color: muted, textAlign: 'center', marginVertical: 14 }}>{({ held: tr('This booking is already on hold'), confirmed: tr('This booking is already confirmed'), seated: tr('This booking is already seated'), no_show: tr('This booking is already marked no show'), cancelled: tr('This booking is already cancelled'), expired: tr('This booking is already expired') })[b.status] || tr('This booking is already closed')}</Text> : (
                 <>
                     <Group title={tr('What the guest is told')} hint={tr('This text is always sent. Your reason below is added after it.')}>
                         <Text style={{ color: text, lineHeight: 20 }}>{standard}</Text>
