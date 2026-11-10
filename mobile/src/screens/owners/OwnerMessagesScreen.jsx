@@ -2,7 +2,7 @@
 import { usePlanHas } from '../../utils/owners/menuFlags';
 import React, { useCallback, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { useBrand } from '../../components/common/kit';
 import { PageHeader, Card, Button, Pill, Sheet, Field, Chips, SectionTitle, Empty } from '../../components/owners/ui';
 import { ToggleRow, Label, Hint } from '../../components/owners/menuBits';

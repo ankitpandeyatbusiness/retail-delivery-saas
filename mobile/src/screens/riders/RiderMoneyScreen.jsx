@@ -3,7 +3,7 @@ import React, { useCallback, useState } from 'react';
 import { View, Text, ScrollView, RefreshControl } from 'react-native';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../../components/common/kit';
 import { Card, Stat } from '../../components/owners/ui';

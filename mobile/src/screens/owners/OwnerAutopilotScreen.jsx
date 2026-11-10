@@ -3,7 +3,7 @@
 // The recommended settings are shown, and "Reset to recommended" brings them all back.
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../../components/common/kit';
 import { Card, Button, Sheet, Field, SectionTitle, Stat, Empty, money } from '../../components/owners/ui';

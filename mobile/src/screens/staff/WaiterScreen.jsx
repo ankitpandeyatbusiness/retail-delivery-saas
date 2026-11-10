@@ -2,7 +2,8 @@
 // "Tables" (who is eating, who owes what; tap a table for its bill). Things arrive by themselves with a sound, and the screen stays awake.
 import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, FlatList, ScrollView, Pressable, RefreshControl } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { Ionicons } from '@expo/vector-icons';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useBrand, alpha } from '../../components/common/kit';

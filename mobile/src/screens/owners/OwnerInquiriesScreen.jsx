@@ -1,7 +1,8 @@
 // Inquiries: what customers sent from your service forms. Newest conversation first; a dot means they wrote and you have not opened it.
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { useBrand } from '../../components/common/kit';
 import { PageHeader, Card, Pill, Chips, Empty } from '../../components/owners/ui';
 import { ListShimmer } from '../../components/owners/shimmer';

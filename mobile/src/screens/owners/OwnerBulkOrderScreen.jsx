@@ -3,7 +3,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView, Pressable, Linking } from 'react-native';
 import useBulkLive from '../../hooks/common/useBulkLive';
-import { useFocusEffect, useRoute } from '@react-navigation/native';
+import { useRoute } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
 import { PageHeader, Card, Pill, Button, Empty, Sheet, SectionTitle, Field, Chips } from '../../components/owners/ui';

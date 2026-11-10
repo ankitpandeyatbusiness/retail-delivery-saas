@@ -2,7 +2,8 @@
 // Sales are DELIVERED orders only. Sales numbers are rupees; online money, SMS and bills are paise.
 import React, { useCallback, useRef, useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
 import { OwnerScreen, Card, SectionTitle, Stat, Row, Button, Chips, Pill, Empty, money } from '../../components/owners/ui';

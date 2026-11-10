@@ -1,7 +1,8 @@
 // Rider performance: deliveries, average time from pick-up to door, cash collected and customer rating, for a period.
 import React, { useCallback, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { useBrand } from '../../components/common/kit';
 import { PageHeader, Card, Chips, Empty, Stat } from '../../components/owners/ui';
 import { Avatar } from './OwnerRidersScreen';

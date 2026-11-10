@@ -5,7 +5,7 @@ import { View, Text, ScrollView, Pressable, TextInput, Linking, StyleSheet } fro
 import Animated from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { ZoomPress } from '../../components/common/PhotoViewer';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../../components/common/kit';

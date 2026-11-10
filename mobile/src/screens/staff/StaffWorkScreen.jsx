@@ -2,7 +2,7 @@
 // The Home tab stays clean: only the orders. Reloads when the owner answers a leave (the live message) and whenever the tab is opened.
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView, RefreshControl } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { useBrand } from '../../components/common/kit';
 import { Card, Pill, Row, SectionTitle, Stat, Empty, Button, Chips } from '../../components/owners/ui';
 import { StaffHeader, JobBadge, StaffSkeleton } from '../../components/staff/staffBits';

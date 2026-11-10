@@ -2,7 +2,8 @@
 // the exact amount). Paying uses the same payment options page as the wallet (UPI app or card). A lower plan starts only when the paid time ends.
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView, Pressable, TextInput } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../../components/common/kit';
 import { PageHeader, Card, Chips, Button, Pill, SectionTitle } from '../../components/owners/ui';

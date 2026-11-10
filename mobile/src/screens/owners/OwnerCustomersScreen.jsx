@@ -3,7 +3,8 @@
 import { usePlanHas } from '../../utils/owners/menuFlags';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, FlatList, Pressable, ScrollView } from 'react-native';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../../components/common/kit';
 import { PageHeader, Field, Empty, Sheet } from '../../components/owners/ui';

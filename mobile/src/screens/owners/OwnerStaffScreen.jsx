@@ -2,7 +2,7 @@
 // their own phone and sees only their screen. Which jobs exist, and how many people, is decided by the platform (super admin) for this shop.
 import React, { useCallback, useState } from 'react';
 import { View, Text } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { useBrand } from '../../components/common/kit';
 import { Card, Pill, Button, Empty, Sheet, Field, Chips, SectionTitle } from '../../components/owners/ui';
 import { FormPage, Toggle } from '../../components/owners/menuBits';

@@ -33,6 +33,7 @@ app.use(require('../middlewares/corsPolicy'));   // only the shop websites (and 
 app.use('/api/webhooks', webhookRouter);
 
 app.use(express.json({ limit: '200kb' }));
+app.use(require('../middlewares/syncNotify'));   // after a successful change, the person's other devices are told (web phase 12)
 app.use(require('../middlewares/planFeatureOverrides'));   // the plan feature table (Plan defaults) stays in step with the database
 
 // Whole-platform maintenance. /health and /api/admin are skipped inside the gate, so you can switch it off again.
@@ -73,6 +74,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/tenants', tenantRouter);
 app.use('/api/catalog/collections', collectionRouter);
 app.use('/api/favourites', favouriteRouter);
+app.use('/api/cart', require('../routes/cartRouter'));   // the customer's cart, the same on the app and the website
 app.use('/api/loyalty', require('../routes/loyaltyRouter'));
 app.use('/api/dinein', require('../routes/dineInRouter'));
 app.use('/api/catalog', catalogRouter);

@@ -3,7 +3,7 @@
 //   <LeavePanel riderId="..." />   one rider: his requests and the days he has taken this month (his page)
 import React, { useCallback, useState } from 'react';
 import { View, Text, Alert, Pressable } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { useBrand, alpha } from '../common/kit';
 import { Card, SectionTitle, Button, Pill } from './ui';
 import { LineShimmer } from './shimmer';

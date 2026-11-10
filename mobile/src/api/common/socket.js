@@ -97,6 +97,7 @@ function connect() {
     socket.on('chat:typing', (p) => dispatch('chat:typing', p));      // the other person is typing      // a bulk order changed (any panel): reload it
     socket.on('waiter:update', (p) => dispatch('waiter:update', p));     // the floor changed (waiters only)   // the kitchen's orders changed (cooks only)
     socket.on('notification', (p) => dispatch('notification', p));
+    socket.on('sync:changed', (p) => dispatch('sync:changed', p));   // another device of mine changed something: { area, sid } (utils/common/syncEvents.js)
     socket.on('notification:read', (p) => dispatch('notification:read', p));   // messages were read (or cleared) on my other phone or browser: { ids?, all?, unread }
     socket.on('rider:location', (p) => dispatch('rider:location', p));
     socket.on('rider:route', (p) => dispatch('rider:route', p));
@@ -185,6 +186,7 @@ export const onWaiterUpdate = sub('waiter:update');
 export const onNotificationRead = sub('notification:read');
 // The connection came back after a break, or the app / browser tab came back to the front: fetch the badge numbers again.
 export const onResync = sub('resync');
+export const onSyncChanged = sub('sync:changed');
 
 export function onNotification(fn) {
     listeners.notification.add(fn);

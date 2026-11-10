@@ -1,7 +1,7 @@
 // The rider's points and badge: where he stands, how far the next badge is, what earns and loses points, and his last lines.
 import React, { useCallback, useState } from 'react';
 import { View, Text, ScrollView, RefreshControl } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { useBrand, alpha } from '../../components/common/kit';
 import { PageHeader, Card, SectionTitle } from '../../components/owners/ui';
 import { ListShimmer } from '../../components/owners/shimmer';

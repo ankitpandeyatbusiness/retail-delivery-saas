@@ -2,7 +2,7 @@
 // bill opens its bill. Also: what guests told the owner privately after their meal.
 import React, { useCallback, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../common/kit';
 import { Button, Card, SectionTitle } from './ui';

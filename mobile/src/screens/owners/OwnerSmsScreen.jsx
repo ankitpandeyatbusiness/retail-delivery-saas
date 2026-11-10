@@ -1,7 +1,8 @@
 // SMS wallet: the balance, a top-up by UPI (pick a pack or type an amount), and what the balance was spent on.
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { useBrand, alpha } from '../../components/common/kit';
 import { PageHeader, Card, Chips, Button, Pill, SectionTitle, Field } from '../../components/owners/ui';
 import { MoneyRow } from '../../components/owners/moneyBits';

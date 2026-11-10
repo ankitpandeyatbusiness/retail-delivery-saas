@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, Animated, Easing, Keyboard, StyleSheet, Platform, Dimensions, BackHandler } from 'react-native';
-import { NavigationContainer, DefaultTheme, createNavigationContainerRef, CommonActions, StackActions, useNavigation, useFocusEffect } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, createNavigationContainerRef, CommonActions, StackActions, useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '../hooks/common/useLiveFocus';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

@@ -2,7 +2,7 @@
 // A cost that repeats every month (a salary, the shop rent) counts a share for each day, so any period gives a fair profit.
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { useBrand } from '../../components/common/kit';
 import { PageHeader, Card, Chips, Button, SectionTitle, Row, Sheet, Field, Empty, money } from '../../components/owners/ui';
 import { MoneyRow } from '../../components/owners/moneyBits';

@@ -5,7 +5,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView, Pressable, TextInput, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { onNotification } from '../../api/common/socket';
 import { useBrand, alpha } from '../../components/common/kit';
 import { PageHeader, Card, SectionTitle, Sheet, Button, Chips, Pill } from '../../components/owners/ui';

@@ -2,7 +2,7 @@
 // waiter, the rider or the customer). New orders arrive by themselves with a chime; the screen stays awake while it is open.
 import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, FlatList, ScrollView, Pressable, RefreshControl } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { Ionicons } from '@expo/vector-icons';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useBrand, alpha } from '../../components/common/kit';

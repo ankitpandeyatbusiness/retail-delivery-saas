@@ -20,6 +20,7 @@ import { useAuthStore } from '../../store/common/useAuthStore';
 import { useNotificationStore } from '../../store/common/useNotificationStore';
 import { registerDevice, removeDevice } from '../../api/common/notificationApi';
 import { onNotification, onNotificationRead, onResync, realtimeConnected } from '../../api/common/socket';
+import { wireSync } from './syncWiring';
 import { showToast, showTapToast } from '../../components/customers/shop';
 import { speakOnOpen, isNewsType, sayAlert, markSaid, markTapped, acknowledge } from '../owners/soundbox';
 import { showSlider } from '../../components/common/AlertSliderHost';
@@ -405,6 +406,8 @@ export function startNotifications() {
     };
     useAuthStore.subscribe((st, prev) => { if (st.user !== prev.user) onUser(st.user); });
     if (useAuthStore.getState().user) onUser(useAuthStore.getState().user);
+
+    wireSync();   // a change on another device of this person refreshes what this one shows (utils/common/syncWiring.js)
 
     // The website: a tap on a browser notification comes back from the service worker (public/sw.js), or arrives in the address when the site was closed.
     // It opens the same screen the phone app would (no voice: Soundbox is app-only).

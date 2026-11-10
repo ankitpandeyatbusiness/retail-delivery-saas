@@ -2,7 +2,7 @@
 // One button cancels them all and sends every deposit back; the guests are told. Nothing shows when there are none.
 import React, { useCallback, useState } from 'react';
 import { View, Text } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../common/kit';
 import { Button } from './ui';

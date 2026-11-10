@@ -4,7 +4,7 @@
 // Real time: every change of a bulk order comes by the live connection ('bulk:update', whoever made it: the customer, another owner phone, the
 // server's job), and a quote that runs out is dropped by a timer set for its exact time.
 import { useCallback, useEffect, useState } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from '../common/useLiveFocus';
 import { useMenuFlags } from '../../utils/owners/menuFlags';
 import { bulk as bulkApi } from '../../api/owners/shopApi';
 import useBulkLive from '../common/useBulkLive';

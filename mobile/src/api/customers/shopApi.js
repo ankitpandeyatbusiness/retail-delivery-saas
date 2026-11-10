@@ -16,6 +16,9 @@ export const reportPresence = (loc) => d(api.post('/dinein/presence', { loc }));
 export const freeMyTable = () => d(api.post('/dinein/free'));   // everything is paid: release the table (everyone on this bill is told)
 export const askLeaveShare = () => d(api.post('/dinein/leave-ask'));   // "pay my share and leave": { ok, amount, busy }
 export const fetchTableBill = () => d(api.get('/dinein/bill'));
+// the cart on the server, so the phone app and the website show the same one: { lines, updatedAt }
+export const fetchCart = () => d(api.get('/cart'));
+export const saveCart = (lines) => d(api.put('/cart', { lines }));
 // shared tables: who sits at this table, his choice (separate bill, or join them), and the answers
 export const fetchTableState = (table) => d(api.get(`/dinein/table/${table}`));                                 // { shared, occupied, parties, canSeparate, max, mine, pending }
 export const enterTable = (table, choice, sessionId) => d(api.post(`/dinein/table/${table}/enter`, { choice, ...(sessionId ? { sessionId } : {}) }));   // choice: 'separate' | 'with'

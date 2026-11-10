@@ -2,7 +2,8 @@
 // The fee table is never shown here: the owner reads only "Rs 3 to Rs 15 per order, depending on the order value".
 import React, { useCallback, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { useBrand, alpha } from '../../components/common/kit';
 import { PageHeader, Card, Chips, Button, Pill, SectionTitle, Field } from '../../components/owners/ui';
 import { MoneyRow } from '../../components/owners/moneyBits';

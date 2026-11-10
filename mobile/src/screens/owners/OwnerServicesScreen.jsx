@@ -1,7 +1,8 @@
 // Services: bulk orders, tiffin, party booking, or anything the owner makes up. Each one has the same LIVE / OFF slider as the shop.
 import React, { useCallback, useState } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
 import { PageHeader, Card, Pill, Row, SectionTitle, Empty, LiveToggle } from '../../components/owners/ui';

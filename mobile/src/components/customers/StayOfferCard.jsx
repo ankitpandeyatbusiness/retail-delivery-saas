@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { useBrand, alpha } from '../common/kit';
 import { useCouponStore } from '../../store/customers/useCouponStore';
 import { fetchStayOffer } from '../../api/customers/shopApi';

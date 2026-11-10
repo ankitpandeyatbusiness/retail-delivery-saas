@@ -1,7 +1,8 @@
 // Coupons: discount codes. Switch one on or off, tap to edit, add a new one.
 import React, { useCallback, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { useBrand } from '../../components/common/kit';
 import { PageHeader, Card, Pill, Button, Empty } from '../../components/owners/ui';
 import { Toggle } from '../../components/owners/menuBits';

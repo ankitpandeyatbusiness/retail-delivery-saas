@@ -2,7 +2,8 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
 import useBulkLive from '../../hooks/common/useBulkLive';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { useBrand } from '../../components/common/kit';
 import { PageHeader, Card, Pill, Empty, Button } from '../../components/owners/ui';
 import { ListShimmer } from '../../components/owners/shimmer';

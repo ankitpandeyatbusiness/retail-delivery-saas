@@ -1,7 +1,7 @@
 // One rider's points for the owner: his badge, how far the next one is, and what gave or took points lately.
 import React, { useCallback, useState } from 'react';
 import { View, Text } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { useBrand, alpha } from '../common/kit';
 import { Card, SectionTitle } from './ui';
 import { LineShimmer } from './shimmer';

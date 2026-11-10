@@ -6,7 +6,7 @@
 // Nothing is shown to a guest, when the shop has favourites switched off, or when there is nothing to show.
 import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, FlatList, ScrollView, StyleSheet } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../common/kit';
 import { FadeIn, Skel } from '../common/motion';

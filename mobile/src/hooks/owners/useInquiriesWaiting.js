@@ -3,7 +3,7 @@
 // Real time: a new inquiry or a customer's message comes by the live connection, and opening the conversation (on this phone or another) changes it back.
 import { useCallback, useEffect, useState } from 'react';
 import { AppState } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from '../common/useLiveFocus';
 import { useMenuFlags } from '../../utils/owners/menuFlags';
 import { inquiries as inquiryApi } from '../../api/owners/shopApi';
 import { onChatMessage, onChatStatus, onNotification } from '../../api/common/socket';

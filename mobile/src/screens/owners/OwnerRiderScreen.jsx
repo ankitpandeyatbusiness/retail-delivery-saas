@@ -2,7 +2,8 @@
 // and switching him off / removing him. Opened with params { userId }.
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
-import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
 import { PageHeader, Card, Pill, Button, Row, Sheet, Field, Chips, SectionTitle, Empty } from '../../components/owners/ui';

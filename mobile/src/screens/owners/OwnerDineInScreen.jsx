@@ -5,7 +5,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { useBrand, alpha } from '../../components/common/kit';
 import { Button, Sheet, SectionTitle, Card, Pill } from '../../components/owners/ui';
 import { FormPage, Group, NumberBox, TextBox, TimeBox, ToggleRow } from '../../components/owners/menuBits';

@@ -2,7 +2,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { onNotification } from '../../api/common/socket';
 import { View, Text, ScrollView } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { useBrand } from '../../components/common/kit';
 import { PageHeader, Card, Pill, Empty } from '../../components/owners/ui';
 import { ListShimmer } from '../../components/owners/shimmer';

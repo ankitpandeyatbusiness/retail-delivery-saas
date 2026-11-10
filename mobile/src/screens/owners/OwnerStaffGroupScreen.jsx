@@ -2,7 +2,8 @@
 // leave requests, then every person: tap one for their page. The owner adds, pauses or removes people here too.
 import React, { useCallback, useState } from 'react';
 import { View, Text } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { Image } from 'expo-image';
 import { useBrand, alpha } from '../../components/common/kit';
 import { Card, Pill, Button, Empty, SectionTitle, Stat, Chips } from '../../components/owners/ui';

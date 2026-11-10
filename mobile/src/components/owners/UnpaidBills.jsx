@@ -2,7 +2,8 @@
 // its buttons (Cash Paid, Online Paid, Remind, Call, Block), a one-tap "remind everyone", and the card on the owner's Home.
 import React, { useCallback, useState } from 'react';
 import { Linking, Pressable, Text, View } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../common/kit';
 import { Button, Card, Pill, Sheet } from './ui';

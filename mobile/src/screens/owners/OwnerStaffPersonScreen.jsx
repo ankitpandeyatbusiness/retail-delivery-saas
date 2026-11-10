@@ -3,7 +3,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { onNotification } from '../../api/common/socket';
 import { View, Text, ScrollView } from 'react-native';
-import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { useBrand } from '../../components/common/kit';
 import { PageHeader, Card, Pill, Button, Row, Sheet, Field, SectionTitle, Empty, Stat } from '../../components/owners/ui';
 import { Toggle } from '../../components/owners/menuBits';

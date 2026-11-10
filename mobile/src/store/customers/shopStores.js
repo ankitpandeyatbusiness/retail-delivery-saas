@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { fetchMenu, fetchCollections, fetchFavIds, addFav, removeFav } from '../../api/customers/shopApi';
+import { fetchMenu, fetchCollections, fetchFavIds, addFav, removeFav, fetchCart, saveCart } from '../../api/customers/shopApi';
+import { useAuthStore } from '../common/useAuthStore';
 import { readCache, writeCache } from '../../utils/common/cache';
 
 /* ---------------- menu (whole menu + festival / combo strips) ---------------- */
@@ -37,7 +38,17 @@ export const useMenuStore = create((set, get) => ({
 
 /* ---------------- cart (shown prices are only a preview; the server quote is the truth) ---------------- */
 const sig = (sel) => (sel || []).map((x) => `${x.groupId}:${[...x.optionIds].sort().join('.')}`).sort().join('|');
-const save = (lines) => writeCache('cart', { lines });
+// The cart is kept on this device AND on the server (a logged-in customer), so the phone app and the website show the same one. A change here is sent a
+// moment later; a change on another device arrives as a 'sync:changed' (cart) message and is fetched (pull). Last change wins.
+let pushTimer = null;
+const isCustomer = () => { const u = useAuthStore.getState().user; return !!u && (!u.role || u.role === 'customer'); };
+const schedulePush = (lines, now) => {
+    if (!isCustomer()) return;
+    clearTimeout(pushTimer);
+    const go = () => { pushTimer = null; saveCart(lines).catch(() => { /* the next change sends it again */ }); };
+    if (now) go(); else pushTimer = setTimeout(go, 600);
+};
+const save = (lines) => { writeCache('cart', { lines }); schedulePush(lines); };
 
 // the screens plug their toast in here (the store file must not import UI code)
 export const cartHooks = { onCap: null, beforeAdd: null };   // beforeAdd(line) === false: the dish is not added now (a bulk cart is waiting: the customer is asked first; see useBulkCartStore)
@@ -48,6 +59,24 @@ export const useCartStore = create((set, get) => ({
     async hydrate() {
         const c = await readCache('cart');
         if (c?.lines && !get().lines.length) set({ lines: c.lines });
+    },
+
+    // the other device's cart (the server's): shown here without being sent back. Not while a change of ours is still waiting to be sent: ours is newer.
+    async pull() {
+        if (!isCustomer() || pushTimer) return;
+        try {
+            const r = await fetchCart();
+            const lines = Array.isArray(r && r.lines) ? r.lines : [];
+            if (pushTimer || JSON.stringify(lines) === JSON.stringify(get().lines)) return;
+            set({ lines });
+            writeCache('cart', { lines });
+        } catch (e) { /* offline: this device keeps its own cart */ }
+    },
+    // after login or at start: a cart already here is sent up (it is the latest thing the person did); an empty one takes the server's
+    async syncOnLogin() {
+        if (!isCustomer()) return;
+        await get().hydrate();
+        if (get().lines.length) schedulePush(get().lines, true); else await get().pull();
     },
 
     // line: { productId, name, image, isVeg, price, quantity, selections:[{groupId,optionIds}], optionsText, note }

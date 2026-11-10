@@ -1,7 +1,8 @@
 // Bookings: one day at a time, or all of them with a date filter. Filter by time of day and by status. Mark a guest seated or a no-show, or cancel a booking.
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, Pressable, ScrollView, Linking } from 'react-native';
-import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
 import { PageHeader, Card, Pill, Button, Empty } from '../../components/owners/ui';

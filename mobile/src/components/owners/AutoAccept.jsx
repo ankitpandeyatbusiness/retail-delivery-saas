@@ -4,7 +4,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { useBrand, alpha } from '../common/kit';
 import { Card, Sheet, Button, Chips, Pill } from './ui';
 import { ToggleRow } from './menuBits';

@@ -2,7 +2,7 @@
 // The same screen for the customer, owner, cook, waiter and rider (all share one login). Ending a device signs it out at once.
 import React, { useCallback, useState } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, Pressable } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
 import { PageHeader, Card, Button, Pill } from '../../components/owners/ui';

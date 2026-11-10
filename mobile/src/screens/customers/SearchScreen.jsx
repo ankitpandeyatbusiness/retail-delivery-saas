@@ -5,7 +5,8 @@ import {
 } from 'react-native';
 import { ListShimmer } from '../../components/owners/shimmer';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand } from '../../components/common/kit';
 import BulkCartBar from '../../components/customers/BulkCartBar';

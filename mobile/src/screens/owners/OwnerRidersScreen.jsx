@@ -2,7 +2,8 @@
 // performance and delivery rules. Tap a rider for his page (cash history, handover, orders, switch off).
 import React, { useCallback, useState } from 'react';
 import { View, Text, ScrollView, Pressable, RefreshControl } from 'react-native';
-import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { setRiderAttention } from '../../store/owners/useAlertStore';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../../components/common/kit';

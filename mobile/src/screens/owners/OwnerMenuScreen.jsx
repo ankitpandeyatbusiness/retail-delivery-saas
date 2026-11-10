@@ -3,7 +3,8 @@
 // by itself. Tap an item to edit it; the + button adds one.
 import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, FlatList, Pressable, ScrollView, RefreshControl } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../../components/common/kit';
 import { OwnerScreen, Empty, Field, Card, Pill, Button } from '../../components/owners/ui';

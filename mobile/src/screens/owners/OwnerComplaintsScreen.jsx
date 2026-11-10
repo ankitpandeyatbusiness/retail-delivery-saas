@@ -2,7 +2,8 @@
 import React, { useCallback, useState } from 'react';
 import { FilterBar } from '../../components/owners/FilterPopup';
 import { View, Text, FlatList, Pressable } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { useBrand } from '../../components/common/kit';
 import { PageHeader, Card, Chips, Pill, Empty } from '../../components/owners/ui';
 import { fetchComplaints, apiError } from '../../api/owners/shopApi';

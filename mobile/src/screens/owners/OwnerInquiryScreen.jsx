@@ -2,7 +2,8 @@
 // the private note, and the button to end the conversation (and open it again). While this screen is open the voice for this customer's replies stays quiet.
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, Pressable, Linking, ScrollView } from 'react-native';
-import { useFocusEffect, useRoute } from '@react-navigation/native';
+import { useRoute } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand } from '../../components/common/kit';
 import { Button, Card, Empty, Chips } from '../../components/owners/ui';

@@ -2,7 +2,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, FlatList, StyleSheet } from 'react-native';
 import { ListShimmer } from '../../components/owners/shimmer';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { useBrand, BackHeader } from '../../components/common/kit';
 import BulkCartBar from '../../components/customers/BulkCartBar';
 import { ItemCard, CartBar, showToast, tint, useClosedStyle } from '../../components/customers/shop';

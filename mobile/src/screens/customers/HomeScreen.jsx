@@ -1,6 +1,7 @@
 // src/screens/HomeScreen.jsx
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { AddressSheet } from '../../components/customers/addresses';
 import { useAddressStore } from '../../store/customers/useAddressStore';
 import {

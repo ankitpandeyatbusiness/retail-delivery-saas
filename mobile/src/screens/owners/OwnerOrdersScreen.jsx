@@ -2,7 +2,8 @@
 // Accept / Reject and the next step right on them. It refreshes by itself when an order changes anywhere.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, FlatList, Pressable, ScrollView, RefreshControl, LayoutAnimation } from 'react-native';
-import { useFocusEffect, useIsFocused, useNavigation, useRoute } from '@react-navigation/native';
+import { useIsFocused, useNavigation, useRoute } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../../components/common/kit';
 import { OwnerScreen, Empty, Field, Card, Pill, money } from '../../components/owners/ui';

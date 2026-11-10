@@ -3,7 +3,8 @@
 // finished eating without paying, glows amber.
 import React, { useCallback, useState } from 'react';
 import { View } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '../../hooks/common/useLiveFocus';
 import { SectionTitle } from './ui';
 import BillSheet from './BillSheet';
 import PartyPickSheet from './PartyPickSheet';
