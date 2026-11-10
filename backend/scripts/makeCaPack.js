@@ -54,6 +54,93 @@ FILES.push(
     ['10-credit-note-lost-bank-dispute.pdf', 'Credit note: the bank took Rs 590 back (a chargeback the platform lost)', 'wallet', 'Wallet top-up', credit('CN/2026-27/0003', SHOP_NOGST, 500, 'Bank dispute lost: money taken back', 'TOP/2026-27/0001', 'Bank dispute lost: the bank took the money back', '2026-11-25'), -1],
 );
 
+// the one-page-ish questions page for the CA, as a PDF with room to write the answers
+const QUESTIONS = [
+    ['The plan price', [
+        'Is 18% GST right for our monthly plans, and which SAC code goes on the invoice?',
+        'We add GST on top of the price. Is that the right way to show it?',
+        'For 3 and 6 month plans we give a discount and charge GST on the reduced price. Is that correct?',
+        'If an owner pays months in advance, is GST due now or month by month?',
+    ]],
+    ['The Partner wallet', [
+        'The owner tops up Rs 500 and pays Rs 500 + 18% GST. Is it right to charge GST at top-up time?',
+        'We then take Rs 3 to Rs 15 from the wallet per order. Does that fee need GST, and what invoice does it need?',
+        'We count wallet money as our income only when it is used up. Is that the right way to show profit?',
+    ]],
+    ['Refunds', [
+        'When we refund a plan or wallet top-up we make a credit note. Is that the right form and timing?',
+        'Do we get the GST back when we refund?',
+        'If a bank takes money back (a chargeback), what do we record?',
+        'Our rule is "no refunds except mistakes". Is that fine for GST and consumer law?',
+    ]],
+    ['Other cases', [
+        'Is a coupon a discount before GST, or something else?',
+        'We give free days at the start. Does a free period need any invoice or GST?',
+        'Sometimes the owner pays us directly by bank or UPI and we record it. Is the invoice timing right?',
+        'Do we need e-invoicing (IRN/QR) at our size, and from what turnover?',
+        'Our invoice numbers look like PLN/2026-27/0001 (plans), TOP/2026-27/0001 (top-ups) and CN/2026-27/0001 (credit notes). Is that fine?',
+        'Do any GST or TCS duties fall on us when customers order from each shop\'s own app?',
+        'How should your share and Vivek\'s share of the money be recorded?',
+    ]],
+];
+
+function writeQuestionsPdf(file, files) {
+    const PDFDocument = require('pdfkit');
+    return new Promise((resolve, reject) => {
+        const doc = new PDFDocument({ size: 'A4', margin: 48, info: { Title: 'Questions for the CA', Author: 'Sample Platform' } });
+        const stream = fs.createWriteStream(file);
+        stream.on('finish', resolve); stream.on('error', reject);
+        doc.pipe(stream);
+        const L = 48; const W = 595 - 96;
+        const need = (h) => { if (doc.y + h > 800) doc.addPage(); };
+        doc.font('Helvetica-Bold').fontSize(20).fillColor('#111827').text('Questions for the CA', L, 48);
+        doc.font('Helvetica').fontSize(9.5).fillColor('#6b7280').text('Please read with the sample files in this folder. Every file is a SAMPLE: fake names, fake numbers, made by the app\'s real invoice code. Nothing here is a real invoice.', L, doc.y + 4, { width: W });
+        doc.moveDown(0.8);
+        doc.font('Helvetica-Bold').fontSize(12).fillColor('#111827').text('How the money works, in four lines');
+        doc.font('Helvetica').fontSize(10.5).fillColor('#1f2933');
+        [
+            'A shop owner pays us for a plan (Growth Rs 2,999 or Pro Rs 4,999 a month, paid in advance). We add 18% GST on top.',
+            'Or the owner is on "Partner": no monthly price. He adds money to a wallet (GST on top) and we take Rs 3 to Rs 15 from it for each completed order.',
+            'If we send money back we make a credit note. If a bank takes money back from us (a chargeback) we also make a credit note.',
+            'We call wallet money our income only when it is used up as order fees. A top-up is only cash we hold until then.',
+        ].forEach((t, i) => doc.text(`${i + 1}.  ${t}`, L + 6, doc.y + 3, { width: W - 6 }));
+        doc.moveDown(1);
+        let n = 0;
+        for (const [group, qs] of QUESTIONS) {
+            need(60);
+            doc.font('Helvetica-Bold').fontSize(12).fillColor('#047857').text(group, L, doc.y + 4);
+            doc.moveDown(0.3);
+            for (const q of qs) {
+                n += 1;
+                need(62);
+                const y = doc.y;
+                doc.font('Helvetica-Bold').fontSize(10.5).fillColor('#111827').text(`${n}.`, L, y, { width: 22 });
+                doc.font('Helvetica').fontSize(10.5).fillColor('#111827').text(q, L + 22, y, { width: W - 22 });
+                const yy = doc.y + 6;
+                doc.moveTo(L + 22, yy + 14).lineTo(L + W, yy + 14).lineWidth(0.4).strokeColor('#d1d5db').stroke();
+                doc.moveTo(L + 22, yy + 30).lineTo(L + W, yy + 30).lineWidth(0.4).strokeColor('#d1d5db').stroke();
+                doc.y = yy + 36;
+            }
+            doc.moveDown(0.3);
+        }
+        need(120);
+        doc.font('Helvetica-Bold').fontSize(12).fillColor('#111827').text('The files in this folder', L, doc.y + 6);
+        doc.moveDown(0.3);
+        for (const [fname, what] of files) {
+            need(34);
+            const y = doc.y;
+            doc.font('Helvetica-Bold').fontSize(9.5).fillColor('#111827').text(fname, L, y, { width: 210 });
+            doc.font('Helvetica').fontSize(9.5).fillColor('#1f2933').text(what, L + 220, y, { width: W - 220 });
+            doc.y = Math.max(doc.y, y + 12) + 4;
+        }
+        need(70);
+        doc.moveDown(0.8);
+        doc.font('Helvetica-Bold').fontSize(11).fillColor('#111827').text('Also for a lawyer (not the CA)', L, doc.y);
+        doc.font('Helvetica').fontSize(10).fillColor('#1f2933').text('The Terms of Service and the Privacy Policy, the "no refund" wording, and the agreement between Ankit and Vivek.', L, doc.y + 2, { width: W });
+        doc.end();
+    });
+}
+
 (async () => {
     for (const [file, , , , d] of FILES) {
         const credit = d.kind === 'credit_note';
@@ -76,52 +163,8 @@ FILES.push(
     });
     fs.writeFileSync(path.join(OUT, '11-gst-register-sample.xlsx'), buf);
 
-    const list = [...FILES.map(([file, what]) => `| ${file} | ${what} |`), '| 11-gst-register-sample.xlsx | The month\'s GST register with all of the above. The credit notes are minus rows |'].join('\n');
-    fs.writeFileSync(path.join(OUT, 'QUESTIONS-FOR-THE-CA.md'), `# Questions for the CA
-
-Show him this page and the files in this folder. Every file is a SAMPLE with fake names and fake numbers, made by the app's real invoice code. Nothing here is a real invoice.
-
-## How the money works, in four lines
-1. A shop owner pays us for a plan (Growth Rs 2,999 or Pro Rs 4,999 a month, paid in advance) and we add 18% GST on top.
-2. Or the owner is on "Partner": no monthly price. He adds money to a wallet (GST on top) and we take Rs 3 to Rs 15 from it for each completed order.
-3. If we send money back we make a credit note. If a bank takes money back from us (a chargeback) we also make a credit note.
-4. We call wallet money our income only when it is used up as order fees. A top-up is only cash we hold until then.
-
-## Questions (one line each)
-
-**The plan price**
-1. Is 18% GST right for our monthly plans, and which SAC code goes on the invoice?
-2. We add GST on top of the price. Is that the right way to show it?
-3. For 3 and 6 month plans we give a discount and charge GST on the reduced price. Is that correct?
-4. If an owner pays months in advance, is GST due now or month by month?
-
-**The Partner wallet**
-5. The owner tops up Rs 500 and pays Rs 500 + 18% GST. Is it right to charge GST at top-up time?
-6. We then take Rs 3 to Rs 15 from the wallet per order. Does that fee need GST, and what invoice does it need?
-7. We count wallet money as our income only when it is used up. Is that the right way to show profit?
-
-**Refunds**
-8. When we refund a plan or wallet top-up we make a credit note. Is that the right form and timing?
-9. Do we get the GST back when we refund?
-10. If a bank takes money back (a chargeback), what do we record?
-11. Our rule is "no refunds except mistakes". Is that fine for GST and consumer law?
-
-**Other cases**
-12. Is a coupon a discount before GST, or something else?
-13. We give free days at the start. Does a free period need any invoice or GST?
-14. Sometimes the owner pays us directly by bank or UPI and we record it. Is the invoice timing right?
-15. Do we need e-invoicing (IRN/QR) at our size, and from what turnover?
-16. Our invoice numbers look like PLN/2026-27/0001 (plans), TOP/2026-27/0001 (top-ups), CN/2026-27/0001 (credit notes). Is that fine?
-17. Do any GST or TCS duties fall on us when customers order from each shop's own app?
-18. How should your share and Vivek's share of the money be recorded?
-
-## What is in this folder
-| File | What it shows |
-|---|---|
-${list}
-
-## Also ask a lawyer
-The Terms of Service and the Privacy Policy (drafts are in the admin app), the "no refund" wording, and the agreement between Ankit and Vivek.
-`);
+    await writeQuestionsPdf(path.join(OUT, 'QUESTIONS-FOR-THE-CA.pdf'), FILES.map(([file, what]) => [file, what]).concat([['11-gst-register-sample.xlsx', "The month's GST register with all of the above. The credit notes are minus rows."]]));
+    const old = path.join(OUT, 'QUESTIONS-FOR-THE-CA.md');
+    if (fs.existsSync(old)) fs.unlinkSync(old);   // the questions are a PDF now
     console.log('Made', FILES.length + 2, 'files in', OUT);
 })().catch((e) => { console.error(e); process.exit(1); });
