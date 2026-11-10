@@ -5844,6 +5844,7 @@ export default {
     "Your wallet is running low": "आपके वॉलेट में पैसे कम हैं",
     "Your work record: orders, shifts and leave.": "आपके काम का रिकॉर्ड: ऑर्डर, शिफ़्ट और छुट्टी।",
     "Your {many} ({n})": "आपके {many} ({n})",
+    "Your {v1} leftover free days are added at the end.": "आपके बचे हुए {v1} मुफ़्त दिन अंत में जोड़े जाते हैं।",
     "Your {v1} months discount is already better than this coupon, so it is not used.": "आपकी {v1} महीने की छूट इस कूपन से पहले ही बेहतर है, इसलिए कूपन इस्तेमाल नहीं हुआ।",
     "Your {v1} report is ready": "आपकी {v1} रिपोर्ट तैयार है",
     "Your ₹{v1} bill from {v2} is paid. Thank you! You can order again.": "{v2} का आपका ₹{v1} का बिल चुका दिया गया। धन्यवाद! आप फिर से ऑर्डर कर सकते हैं।",
