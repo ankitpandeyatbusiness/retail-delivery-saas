@@ -78,6 +78,9 @@ function setFeatureOverrides(map) {
 // every feature with the plans that have it NOW, as the admin screens and the apps need it
 const featureTable = () => Object.fromEntries(Object.entries(FEATURES).map(([k, f]) => [k, { label: f.label, plans: plansOf(k), editable: EDITABLE.includes(k) }]));
 
+// The extras a shop has NOW: the supreme admin's extras, and the features kept until renewal (those carry an `until` date, the end of the term the shop paid for).
+const liveExtras = (plan, now = new Date()) => ((plan && plan.extras) || []).filter((e) => !e.until || new Date(e.until) > now);
+
 // does this plan include the feature? An unknown feature key is not plan-gated (true).
 function planIncludes(planId, key) {
     if (!FEATURES[key]) return true;
@@ -109,4 +112,4 @@ function checkFeeSlabs(slabs) {
     return null;
 }
 
-module.exports = { OWNER_MENU, PLAN_IDS, FEATURES, EDITABLE, LIMITS, DEFAULTS, isPlan, planIncludes, plansOf, setFeatureOverrides, featureTable, limitFor, featuresOf, checkFeeSlabs };
+module.exports = { OWNER_MENU, PLAN_IDS, FEATURES, EDITABLE, LIMITS, DEFAULTS, isPlan, planIncludes, liveExtras, plansOf, setFeatureOverrides, featureTable, limitFor, featuresOf, checkFeeSlabs };

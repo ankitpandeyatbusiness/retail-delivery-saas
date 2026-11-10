@@ -21,7 +21,7 @@ function hasFeature(tenant, key) {
     const p = tenant?.plan;
     if (!p?.id) return true;
     if (plans.planIncludes(p.id, key)) return true;
-    return !!p.extras?.some((e) => e.key === key);
+    return plans.liveExtras(p).some((e) => e.key === key);
 }
 // the plan's number for riders / staff (null = unlimited, also for a shop with no plan yet)
 const limitOf = (tenant, what) => {

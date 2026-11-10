@@ -236,3 +236,91 @@ describe('free days left when buying another plan', () => {
         assert.ok(new Date(q.startsAt) > freeEnd);
     });
 });
+
+describe('a lower plan paid in advance during a free period', () => {
+    const start = (b) => owner('post', '/pay/start', b);
+    const pay = async (s, id) => {
+        payments._mock.setPayment({ id, orderId: s.body.rzpOrderId, status: 'captured', amountPaise: s.body.amountPaise });
+        return owner('post', `/pay/${s.body.paymentId}/verify`, { razorpay_order_id: s.body.rzpOrderId, razorpay_payment_id: id, razorpay_signature: sign(s.body.rzpOrderId, id) });
+    };
+    const freeEnd = () => new Date(Date.now() + 10 * DAY);
+
+    test('free Pro, Growth for 1 month: it is paid now, starts after the free days, nothing changes until then', async () => {
+        const end = freeEnd();
+        await setPlan({ id: 'pro', startedAt: new Date(), endsAt: end, freeUntil: end });
+        const q = (await owner('post', '/quote', { to: 'growth', months: 1 })).body;
+        assert.equal(q.kind, 'new');
+        assert.equal(q.deferred, true);
+        assert.equal(q.totalPaise, 299900);
+        assert.deepEqual(q.features, { on: [], off: [] });
+        assert.ok(new Date(q.startsAt) > end);
+        assert.ok(q.notes.some((x) => /starts on .* when your free time ends/.test(x)));
+        const s = await start({ to: 'growth', months: 1 });
+        assert.equal(s.status, 201);
+        assert.equal((await pay(s, 'pay_def1')).status, 200);
+        const t = await tenantNow();
+        assert.equal(t.plan.id, 'pro');                                   // still Pro now
+        assert.equal(new Date(t.plan.endsAt).getTime(), end.getTime());
+        assert.equal(t.plan.scheduled.to, 'growth');
+        assert.equal(!!t.plan.scheduled.prepaid, true);
+    });
+
+    test('it cannot be cancelled, and nothing else can be bought on top of it', async () => {
+        const end = freeEnd();
+        await setPlan({ id: 'pro', startedAt: new Date(), endsAt: end, freeUntil: end });
+        await pay(await start({ to: 'growth', months: 1 }), 'pay_def2');
+        assert.equal((await owner('delete', '/scheduled')).status, 409);
+        assert.equal((await owner('post', '/quote', { to: 'pro', months: 1 })).status, 409);
+        assert.equal((await owner('post', '/quote', { to: 'growth', months: 1 })).status, 409);
+    });
+
+    test('when the free days end, Growth starts at once for the paid time (no pause, no second payment)', async () => {
+        const end = freeEnd();
+        await setPlan({ id: 'pro', startedAt: new Date(), endsAt: end, freeUntil: end });
+        await pay(await start({ to: 'growth', months: 1 }), 'pay_def3');
+        await require('../src/services/planLifecycle').sweep(new Date(end.getTime() + 60000));
+        const t = await tenantNow();
+        assert.equal(t.plan.id, 'growth');
+        assert.equal(t.plan.freeUntil, undefined);
+        assert.ok(new Date(t.plan.endsAt) > new Date(end.getTime() + 25 * DAY));
+        assert.equal(t.plan.paused, undefined);
+        assert.equal(require('../src/services/planService').viewOf(t, new Date(end.getTime() + 60000)).status, 'active');
+    });
+
+    test('a PAID Pro still cannot buy Growth in advance (the lower plan waits, nothing is paid)', async () => {
+        await setPlan({ id: 'pro', startedAt: new Date(), endsAt: new Date(Date.now() + 20 * DAY) });
+        const q = (await owner('post', '/quote', { to: 'growth', months: 1 })).body;
+        assert.equal(q.kind, 'downgrade');
+        assert.equal(q.deferred, undefined);
+    });
+});
+
+describe('the most prepaid time', () => {
+    test('12 months in total: the part that fits is named, and nothing more can be added at the limit', async () => {
+        await setPlan({ id: 'pro', startedAt: new Date(), endsAt: billing.endAfterMonths(new Date(), 11) });
+        const r3 = await owner('post', '/quote', { to: 'pro', months: 3 });
+        assert.equal(r3.status, 400);
+        assert.match(r3.body.error, /up to 12 months in total.*1 more month/);
+        assert.equal((await owner('post', '/quote', { to: 'pro', months: 1 })).status, 200);
+        await setPlan({ id: 'pro', startedAt: new Date(), endsAt: billing.endAfterMonths(new Date(), 12) });
+        const r1 = await owner('post', '/quote', { to: 'pro', months: 1 });
+        assert.equal(r1.status, 400);
+        assert.match(r1.body.error, /already runs for the most prepaid time/);
+    });
+    test('a normal first purchase of 6 months is fine', async () => {
+        await setPlan({ id: 'partner' });
+        assert.equal((await owner('post', '/quote', { to: 'growth', months: 6 })).status, 200);
+    });
+});
+
+describe('notes in the preview', () => {
+    test('moving to Partner at the end tells the owner to add wallet money; an upgrade says the month discounts do not apply to it', async () => {
+        await setPlan({ id: 'pro', startedAt: new Date(), endsAt: new Date(Date.now() + 20 * DAY) });
+        const down = (await owner('post', '/quote', { to: 'partner', months: 1 })).body;
+        assert.ok(down.notes.some((x) => /Add money to your wallet before then/.test(x)));
+        await setPlan({ id: 'growth', startedAt: new Date(), endsAt: new Date(Date.now() + 20 * DAY) });
+        const up = (await owner('post', '/quote', { to: 'pro', months: 1 })).body;
+        assert.equal(up.kind, 'upgrade');
+        assert.ok(up.notes.some((x) => /month discounts and coupons are for new purchases/.test(x)));
+    });
+});

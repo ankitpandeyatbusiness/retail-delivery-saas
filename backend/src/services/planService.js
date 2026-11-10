@@ -35,6 +35,17 @@ async function getDefaults() {
     };
 }
 
+// A feature taken away from a plan: the shops already on that plan (paid or free, term not over) keep it until their term ends. Adding a feature reaches everyone at once.
+async function keepUntilRenewal(pairs, now = new Date()) {
+    for (const [key, planId] of pairs) {
+        const q = { 'plan.id': planId, 'plan.endsAt': { $gt: now }, 'plan.extras.key': { $ne: key } };
+        const slugs = (await Tenant.find(q).select('slug').lean()).map((t) => t.slug);
+        if (!slugs.length) continue;
+        await Tenant.updateMany(q, [{ $set: { 'plan.extras': { $concatArrays: [{ $ifNull: ['$plan.extras', []] }, [{ key, at: '$$NOW', by: 'kept until the term ends', until: '$plan.endsAt' }]] } } }], { updatePipeline: true });
+        for (const slug of slugs) invalidateTenant(slug);
+    }
+}
+
 const INT = (v, min, max) => Number.isInteger(v) && v >= min && v <= max;
 
 // Validate + save the platform defaults. Returns the new defaults. Throws Error with .status 400 on bad input.
@@ -42,6 +53,7 @@ async function saveDefaults(body) {
     const b = body || {};
     const bad = (m) => Object.assign(new Error(m), { status: 400 });
     const set = {};
+    let taken = [];
     for (const id of ['growth', 'pro']) {
         const v = b[id]?.pricePaise;
         if (v === undefined) continue;
@@ -77,9 +89,11 @@ async function saveDefaults(body) {
         }
         const all = Object.fromEntries(plans.EDITABLE.map((k) => [k, map[k] || plans.plansOf(k)]));
         set['plans.features'] = all;
+        taken = plans.EDITABLE.flatMap((k) => plans.plansOf(k).filter((id) => !all[k].includes(id) && id !== 'partner').map((id) => [k, id]));   // [feature, plan] pairs taken away (Partner has no term to wait for)
     }
     if (!Object.keys(set).length) throw bad('Nothing to change');
     await PlatformSettings.findByIdAndUpdate('main', { $set: set }, { upsert: true, setDefaultsOnInsert: true });
+    if (taken.length) await keepUntilRenewal(taken);
     if (set['plans.features']) plans.setFeatureOverrides(set['plans.features']);   // takes effect at once on this server; the others pick it up within seconds
     return getDefaults();
 }
@@ -94,11 +108,12 @@ function viewOf(tenant, now = new Date()) {
     return {
         id: p.id, status, startedAt: p.startedAt || null, endsAt, freeUntil: p.freeUntil || null,
         daysLeft: endsAt ? Math.max(0, Math.ceil((endsAt - now) / DAY)) : null,
-        extras: (p.extras || []).map((e) => e.key),
-        scheduled: p.scheduled ? { to: p.scheduled.to, at: p.scheduled.at } : null,
+        extras: plans.liveExtras(p).map((e) => e.key),
+        keptUntil: Object.fromEntries(plans.liveExtras(p).filter((e) => e.until).map((e) => [e.key, e.until])),   // features kept until the term ends (taken from the plan later)
+        scheduled: p.scheduled ? { to: p.scheduled.to, at: p.scheduled.at, prepaid: !!p.scheduled.prepaid } : null,
         paused: !!p.paused, webEnabled: p.webEnabled !== false, nativeEnabled: p.nativeEnabled !== false,
         limits: { riders: plans.limitFor(p.id, 'riders'), staff: plans.limitFor(p.id, 'staff') },
-        features: { ...plans.featuresOf(p.id), ...Object.fromEntries((p.extras || []).map((e) => [e.key, true])) },   // the plan plus the extras the supreme admin switched on
+        features: { ...plans.featuresOf(p.id), ...Object.fromEntries(plans.liveExtras(p).map((e) => [e.key, true])) },   // the plan plus the extras the supreme admin switched on
     };
 }
 
@@ -211,7 +226,7 @@ async function previewOf(tenant, to, { freeDays } = {}) {
     if (!plans.isPlan(to)) throw Object.assign(new Error('Plan must be partner, growth or pro'), { status: 400 });
     const def = await getDefaults();
     const p = tenant?.plan || {};
-    const extras = (p.extras || []).map((e) => e.key).filter((k) => !plans.planIncludes(to, k));   // extras still outside the new plan stay (keepExtras default)
+    const extras = plans.liveExtras(p).map((e) => e.key).filter((k) => !plans.planIncludes(to, k));   // extras still outside the new plan stay (keepExtras default)
     const has = (k) => plans.planIncludes(to, k) || extras.includes(k);
     const days = freeDays ?? p.freeDaysOverride ?? def.freeDays;
     const now = new Date();
@@ -222,7 +237,7 @@ async function previewOf(tenant, to, { freeDays } = {}) {
         return { route: r.route, title: r.title, state: on ? 'on' : r.only || r.hiddenWhenOff ? 'hidden' : 'locked', needs: !on && r.feature ? needsOf()[r.feature] : null };
     });
     const cur = p.id || null;
-    const had = (k) => !cur || plans.planIncludes(cur, k) || (p.extras || []).some((e) => e.key === k);
+    const had = (k) => !cur || plans.planIncludes(cur, k) || plans.liveExtras(p).some((e) => e.key === k);
     const label = (k) => plans.FEATURES[k].label;
     return {
         plan: to, name: to[0].toUpperCase() + to.slice(1),

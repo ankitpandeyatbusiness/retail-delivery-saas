@@ -170,3 +170,19 @@ describe('who the owner is told changed the plan', () => {
         assert.ok(m.vars.summary.includes('ankit@example.com'));   // the superadmin alert still names who
     });
 });
+
+describe('a move to Partner next', () => {
+    test('the reminder tells the owner to add money to the wallet; a normal reminder does not', async () => {
+        const end = new Date(Date.now() + 3 * DAY - 3600000);
+        await setPlan({ id: 'pro', startedAt: new Date(), endsAt: end, scheduled: { to: 'partner', at: new Date(end.getTime() + 1), by: 'owner' } });
+        await sweepAt(Date.now());
+        const m = sent.find((s) => s.type === 'plan_ending');
+        assert.match(m.body, /Then you move to Partner\. Add money to your wallet so new orders keep coming\./);
+    });
+    test('without a scheduled move the reminder says renew', async () => {
+        const end = new Date(Date.now() + 3 * DAY - 3600000);
+        await setPlan({ id: 'pro', startedAt: new Date(), endsAt: end });
+        await sweepAt(Date.now());
+        assert.match(sent.find((s) => s.type === 'plan_ending').body, /Renew to keep every feature\./);
+    });
+});

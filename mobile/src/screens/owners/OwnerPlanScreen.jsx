@@ -6,7 +6,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBrand, alpha } from '../../components/common/kit';
 import { PageHeader, Card, Chips, Button, Pill, SectionTitle } from '../../components/owners/ui';
-import { fetchPlan, quotePlan, choosePlan, cancelScheduledPlan, quoteBranchPlan, planInvoicePdfPath, apiError } from '../../api/owners/shopApi';
+import { fetchPlan, quotePlan, choosePlan, cancelScheduledPlan, quoteBranchPlan, planInvoicePdfPath, creditNotePdfPath, apiError } from '../../api/owners/shopApi';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { useMenuFlags } from '../../utils/owners/menuFlags';
 import { rupees } from '../../utils/owners/riderRules';
@@ -20,7 +20,7 @@ import { tr } from '../../i18n';
 export const _serverQuoteTexts = () => [
     tr('No refund if you remove the shop later.'),
     // the notes and price lines the server writes into the preview (services/planBilling.js)
-    tr('Partner starts on {v1} when your paid time ends. Until then you keep {v2}.'), tr('Partner has no monthly price. You pay a small fee per completed order from your wallet.'), tr('{v1} starts when your paid time ends. Until then you keep {v2}. No refund for the rest of the term.'), tr('{v1} starts now and runs until {v2}.'), tr('{v1} runs until {v2}. The price is locked for this term.'), tr('No refund of prepaid months.'), tr('Your {v1} leftover free days are added at the end.'), tr('{v1} plan for {v2} month'), tr('{v1} plan for {v2} months'), tr('{v1} to {v2}: Rs {v3} difference x {v4} days left of 30'), tr('{v1} extra shop(s): Rs {v2} a month each, for {v3} month(s)'), tr('{v1} months discount {v2}%'), tr('Wallet balance adjusted (GST already paid on it)'),
+    tr('Partner starts on {v1} when your paid time ends. Until then you keep {v2}.'), tr('Partner has no monthly price. You pay a small fee per completed order from your wallet.'), tr('{v1} starts when your paid time ends. Until then you keep {v2}. No refund for the rest of the term.'), tr('{v1} starts now and runs until {v2}.'), tr('{v1} runs until {v2}. The price is locked for this term.'), tr('No refund of prepaid months.'), tr('Add money to your wallet before then, so new orders keep coming.'), tr('The month discounts and coupons are for new purchases, not for the difference on an upgrade.'), tr('{v1} starts on {v2} when your free time ends. Until then you keep {v3}.'), tr('Your {v1} leftover free days are added at the end.'), tr('{v1} plan for {v2} month'), tr('{v1} plan for {v2} months'), tr('{v1} to {v2}: Rs {v3} difference x {v4} days left of 30'), tr('{v1} extra shop(s): Rs {v2} a month each, for {v3} month(s)'), tr('{v1} months discount {v2}%'), tr('Wallet balance adjusted (GST already paid on it)'),
     // the feature names of the plan catalog (config/plans.js)
     tr('Rider live map for customers'), tr('Soundbox voice (app only)'), tr('Services and inquiries'), tr('Loyalty and rewards'), tr('Auto-accept orders'), tr('Costs and profit view'), tr('Kitchen and waiter logins'), tr('Bulk orders'), tr('Full exports (customers, orders, items, reports)'), tr('Business analytics and PDF reports'), tr('Custom and daily automatic push'), tr('Multi-branch'), tr('Custom domain'),
     tr('Coupon {v1} {v2}% off'),
@@ -62,6 +62,10 @@ const includedLines = (p, prev, o) => {
     }
     for (const [k, texts] of FEATURE_LINES) if (has(p, k) && !(plus && has(prev, k))) lines.push(...texts.map(tl));
     return { head: plus ? tr('Everything in {name}, plus', { name: prev.name }) : null, lines: lines.filter(Boolean) };
+};
+const openCreditNote = async (id) => {
+    try { await downloadAndOpen({ path: creditNotePdfPath(id), filename: `credit-note-${id}.pdf`, mime: 'application/pdf', title: tr('Credit note') }); }
+    catch (e) { showToast(e?.response?.status === 409 ? tr('The credit note is not ready yet') : tr('Could not open the credit note')); }
 };
 const day = (d) => new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 const planLine = (c) => {
@@ -131,7 +135,7 @@ export default function OwnerPlanScreen() {
                             {o.scheduled ? (
                                 <View style={{ marginTop: 8 }}>
                                     <Text style={{ color: muted }}>{tr('{name} starts on {date}', { name: o.scheduled.to[0].toUpperCase() + o.scheduled.to.slice(1), date: day(o.scheduled.at) })}</Text>
-                                    <Pressable onPress={cancelMove}><Text style={{ color: primary, fontWeight: '800', marginTop: 4 }}>{tr('Cancel this move')}</Text></Pressable>
+                                    {o.scheduled.prepaid ? <Text style={{ color: ok, fontWeight: '800', marginTop: 4 }}>{tr('Already paid')}</Text> : <Pressable onPress={cancelMove}><Text style={{ color: primary, fontWeight: '800', marginTop: 4 }}>{tr('Cancel this move')}</Text></Pressable>}
                                 </View>
                             ) : null}
                         </Card>
@@ -252,6 +256,20 @@ export default function OwnerPlanScreen() {
                                             <Text style={{ color: text, flex: 1 }}>{p.to[0].toUpperCase() + p.to.slice(1)}{p.months ? ` × ${p.months}` : ''} · {p.paidAt ? day(p.paidAt) : ''}{p.status === 'held' ? ` · ${tr('being checked')}` : ''}</Text>
                                             {p.status === 'paid' ? <Pressable onPress={() => openInvoice(p.id)} hitSlop={8} style={{ marginRight: 10 }}><Text style={{ color: primary, fontWeight: '700' }}>{tr('Invoice (PDF)')}</Text></Pressable> : null}
                                             <Text style={{ color: text, fontWeight: '800' }}>{rupees(p.payablePaise)}</Text>
+                                        </View>
+                                    ))}
+                                </Card>
+                            </>
+                        ) : null}
+                        {o.refunds && o.refunds.length ? (
+                            <>
+                                <SectionTitle title={tr('Refunds')} />
+                                <Card>
+                                    {o.refunds.map((r) => (
+                                        <View key={r.id} style={{ flexDirection: 'row', paddingVertical: 4 }}>
+                                            <Text style={{ color: text, flex: 1 }}>{r.kind === 'plan' ? tr('Plan') : r.kind === 'wallet' ? tr('Wallet') : tr('SMS')} · {day(r.at)}</Text>
+                                            {r.creditNoteNo ? <Pressable onPress={() => openCreditNote(r.id)} hitSlop={8} style={{ marginRight: 10 }}><Text style={{ color: primary, fontWeight: '700' }}>{tr('Credit note (PDF)')}</Text></Pressable> : null}
+                                            <Text style={{ color: ok, fontWeight: '800' }}>−{rupees(r.cashPaise)}</Text>
                                         </View>
                                     ))}
                                 </Card>

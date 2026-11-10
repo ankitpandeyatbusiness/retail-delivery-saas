@@ -124,12 +124,12 @@ const tenantSchema = new mongoose.Schema({
         priceOverridePaise: { type: Number, min: 0 },   // empty = the platform price
         freeDaysOverride: { type: Number, min: 0, max: 365 },
         feeSlabsOverride: { type: mongoose.Schema.Types.Mixed },   // Partner only: per-shop fee slabs
-        extras: { type: [new mongoose.Schema({ key: String, at: Date, by: String }, { _id: false })], default: undefined },   // features switched on outside the plan
+        extras: { type: [new mongoose.Schema({ key: String, at: Date, by: String, until: Date }, { _id: false })], default: undefined },   // features switched on outside the plan; `until` = a feature the plan lost later, kept until the paid term ends
         inheritedFrom: { type: mongoose.Schema.Types.ObjectId },   // a branch of a brand: this plan is a copy of the main shop's plan (services/brandPlan.js)
         migration: { type: mongoose.Schema.Types.Mixed },   // set by services/planMigration.js: { version, at, by, prevBillState }. A second run skips shops that have it.
         paused: { type: Boolean, default: undefined },   // the paid time and the grace days are over: new orders stop until the plan is paid (services/planLifecycle.js)
         notified: { type: mongoose.Schema.Types.Mixed },  // which reminders were sent for which end date { r7, r3, r1, ended, paused } (so a renewal starts clean)
-        scheduled: { type: new mongoose.Schema({ to: String, at: Date, by: String, requestedAt: Date }, { _id: false }) },   // a lower plan that starts when the paid term ends (phase 6 applies it)
+        scheduled: { type: new mongoose.Schema({ to: String, at: Date, by: String, requestedAt: Date, prepaid: { startsAt: Date, endsAt: Date, months: Number, paymentId: String } }, { _id: false }) },   // a lower plan that starts when the paid term ends (phase 6 applies it)
         webEnabled: { type: Boolean, default: true },
         nativeEnabled: { type: Boolean, default: true },
         history: { type: [new mongoose.Schema({ at: Date, by: String, from: String, to: String, note: String }, { _id: false })], default: undefined },

@@ -43,18 +43,37 @@ describe('what each plan includes', () => {
         assert.deepEqual(c.defaults.features.bulkOrders, ['pro']);
     });
 
-    test('moving a feature changes the shop at once: the plan, the gate, the "Available in" note', async () => {
-        await setPlan({ id: 'growth', startedAt: new Date(), endsAt: new Date(Date.now() + 20 * 86400000) });
+    test('adding a feature to a plan reaches its shops at once; taking one away lets shops already on the plan keep it until their term ends', async () => {
+        const end = new Date(Date.now() + 20 * 86400000);
+        await setPlan({ id: 'growth', startedAt: new Date(), endsAt: end });
         assert.equal(featureGate.hasFeature(await shopNow(), 'loyalty'), true);
         const r = await call(supreme, 'put', '/platform/plans', { features: { loyalty: ['pro'], bulkOrders: ['growth', 'pro'] } });
         assert.equal(r.status, 200);
         assert.deepEqual(r.body.features.loyalty, ['pro']);
-        assert.equal(featureGate.hasFeature(await shopNow(), 'loyalty'), false);      // Growth lost it
-        assert.equal(featureGate.hasFeature(await shopNow(), 'bulkOrders'), true);    // Growth gained it
+        const t = await shopNow();
+        assert.equal(featureGate.hasFeature(t, 'bulkOrders'), true);     // added: at once
+        assert.equal(featureGate.hasFeature(t, 'loyalty'), true);        // taken away: kept until the term ends
+        assert.equal(new Date(t.plan.extras.find((e) => e.key === 'loyalty').until).getTime(), end.getTime());
         const s = (await ownerSettings()).body.plan;
-        assert.equal(s.features.loyalty, false);
-        assert.equal(s.features.bulkOrders, true);
-        assert.equal(s.needs.loyalty, 'Pro');
+        assert.equal(s.features.loyalty, true);
+        assert.equal(s.needs.loyalty, 'Pro');                             // a new buyer is told it is Pro now
+        // the term is over: it is gone
+        await Tenant.updateOne({ _id: w.tenant._id }, { $set: { 'plan.endsAt': new Date(Date.now() - 1000), 'plan.extras.0.until': new Date(Date.now() - 1000) } });
+        assert.equal(featureGate.hasFeature(await shopNow(), 'loyalty'), false);
+    });
+
+    test('a shop that joins Growth AFTER the feature was taken away does not get it', async () => {
+        await call(supreme, 'put', '/platform/plans', { features: { loyalty: ['pro'] } });
+        await setPlan({ id: 'growth', startedAt: new Date(), endsAt: new Date(Date.now() + 20 * 86400000) });
+        assert.equal(featureGate.hasFeature(await shopNow(), 'loyalty'), false);
+    });
+
+    test('a feature taken from Partner is gone at once (Partner has no term)', async () => {
+        await setPlan({ id: 'partner' });
+        await call(supreme, 'put', '/platform/plans', { features: { riderLiveMap: ['partner', 'growth', 'pro'] } });
+        assert.equal(featureGate.hasFeature(await shopNow(), 'riderLiveMap'), true);
+        await call(supreme, 'put', '/platform/plans', { features: { riderLiveMap: ['growth', 'pro'] } });
+        assert.equal(featureGate.hasFeature(await shopNow(), 'riderLiveMap'), false);
     });
 
     test('the choice is kept in the database: a fresh server memory reads it back', async () => {
@@ -74,7 +93,7 @@ describe('what each plan includes', () => {
     });
 
     test('a feature on no plan is possible: nobody has it, a shop can still get it as an extra', async () => {
-        await setPlan({ id: 'pro', startedAt: new Date(), endsAt: new Date(Date.now() + 20 * 86400000) });
+        await setPlan({ id: 'growth', startedAt: new Date(), endsAt: new Date(Date.now() + 20 * 86400000) });
         await call(supreme, 'put', '/platform/plans', { features: { customDomain: [] } });
         assert.equal(featureGate.hasFeature(await shopNow(), 'customDomain'), false);
         assert.equal((await call(supreme, 'put', `/tenants/${w.tenant._id}/plan/extras`, { key: 'customDomain', on: true })).status, 200);

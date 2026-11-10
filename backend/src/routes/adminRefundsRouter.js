@@ -16,6 +16,15 @@ router.get('/tenants/:tid/refunds', requireSupreme, loadTenant, wrap(async (req,
     res.json(await refunds.overview(req.tenantDoc));
 }));
 
+router.get('/tenants/:tid/refunds/:id/credit-note', requireSupreme, loadTenant, wrap(async (req, res) => {
+    const PlatformRefund = require('../models/PlatformRefund');
+    const r = /^[0-9a-f]{24}$/.test(req.params.id) ? await PlatformRefund.findOne({ _id: req.params.id, tenantId: req.tenantDoc._id }).select('_id').lean() : null;
+    if (!r) throw httpError(404, 'Refund not found');
+    const note = await refunds.ensureCreditNote(r._id);
+    if (!note) throw httpError(409, 'The credit note is not ready. Fill in the business details first.');
+    require('../services/subscriptionInvoicePdf').streamSubscriptionInvoice(res, note, { inline: req.query.view === '1', creditNote: true });
+}));
+
 router.post('/tenants/:tid/refunds', requireSupreme, loadTenant, wrap(async (req, res) => {
     const b = req.body || {};
     const reason = String(b.reason || '').trim();

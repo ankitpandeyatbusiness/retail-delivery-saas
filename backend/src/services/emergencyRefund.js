@@ -18,6 +18,8 @@ const withTransaction = require('./withTransaction');
 const payments = require('./adapters/payments');
 const partnerWallet = require('./partnerWalletService');
 const smsWallet = require('./smsWalletService');
+const PlatformSettings = require('../models/PlatformSettings');
+const invoicing = require('./platformInvoicing');
 const { invalidateTenant } = require('../middlewares/tenantRecognizer');
 const { httpError } = require('../middlewares/apiErrors');
 
@@ -61,8 +63,35 @@ async function overview(tenant, now = new Date()) {
         out[kind] = { balancePaise: balance, refundableBasePaise: base, estimatedCashPaise: room ? Math.round((cashRoom * base) / room) : 0 };
     }
     out.history = (await PlatformRefund.find({ tenantId: tenant._id }).sort({ createdAt: -1 }).limit(30).lean())
-        .map((r) => ({ id: String(r._id), kind: r.kind, cashPaise: r.cashPaise, status: r.status, reason: r.reason, by: r.by, at: r.createdAt, endedPlan: r.endedPlan, error: r.error || null }));
+        .map((r) => ({ id: String(r._id), kind: r.kind, cashPaise: r.cashPaise, status: r.status, reason: r.reason, by: r.by, at: r.createdAt, endedPlan: r.endedPlan, error: r.error || null, creditNoteNo: r.creditNote?.invoiceNo || null }));
     return out;
+}
+
+// The GST credit note of a SENT refund, made once (the number is taken only if it is saved). Nothing is made while the platform's business details are empty; it is made the next time it is asked for.
+async function ensureCreditNote(refundId) {
+    const r = await PlatformRefund.findById(refundId).lean();
+    if (!r || r.status !== 'processed' || !r.counted) return null;
+    if (r.creditNote && r.creditNote.invoiceNo) return r.creditNote;
+    const platform = await PlatformSettings.findById('main').select('business').lean();
+    if (!platform?.business?.legalName) return null;
+    const tenant = await Tenant.findById(r.tenantId).select('name phone address business').lean();
+    if (!tenant) return null;
+    const Source = r.kind === 'plan' ? PlanPayment : r.kind === 'wallet' ? PartnerTopup : SmsTopup;
+    const src = await Source.findById(r.sourceId).select('invoice').lean();
+    const now = r.createdAt || new Date();
+    const num = await invoicing.allocate('CN', { now });
+    const { seller, buyer } = invoicing.parties(platform.business, tenant);
+    const base = r.basePaise / 100; const gstAmount = r.gstPaise / 100;
+    const label = r.kind === 'plan' ? 'Refund of a plan payment' : r.kind === 'wallet' ? 'Refund of wallet money' : 'Refund of SMS balance';
+    const tax = invoicing.taxFor({ seller, buyer, gstAmount });
+    const note = {
+        invoiceNo: num.invoiceNo, kind: 'credit_note', issueDate: now, originalInvoiceNo: src?.invoice?.invoiceNo || null, originalIssueDate: src?.invoice?.issueDate || null,
+        description: label, lineItems: [{ description: label, qty: 1, rate: base, amount: base }], baseAmount: base, gstPercent: r.basePaise ? Math.round((r.gstPaise / r.basePaise) * 100) : 0,
+        gstAmount, total: r.cashPaise / 100, reason: r.reason, reverseCharge: false, ...tax, seller, buyer,
+    };
+    const u = await PlatformRefund.updateOne({ _id: r._id, 'creditNote.invoiceNo': { $exists: false } }, { $set: { creditNote: note } });
+    if (!u.modifiedCount) { await num.undo(); return (await PlatformRefund.findById(r._id).select('creditNote').lean())?.creditNote || null; }
+    return note;
 }
 
 const askPartner = async (paymentId, amountPaise, key, reason) => {
@@ -94,6 +123,7 @@ async function refundPlan({ tenant, sourceId, amountPaise, endPlan = true, reaso
         throw httpError(409, 'The payment partner did not accept the refund. Nothing was changed.');
     }
     await PlatformRefund.updateOne({ _id: row._id }, { $set: { status: 'processed', refundId: r.refundId } });
+    await ensureCreditNote(row._id).catch((e) => console.error('Credit note error:', e.message));
     if (endPlan && p.kind !== 'branch') await endPlanNow(tenant._id, tenant.slug);
     return { ok: true, status: 'processed', cashPaise: amountPaise, refundId: r.refundId, endedPlan: !!endPlan && p.kind !== 'branch' };
 }
@@ -146,6 +176,7 @@ async function refundWallet({ tenant, kind, amountPaise, reason, requestId, by }
         try {
             const r = await askPartner(x.t.paymentId, x.cash, keys[i], reason);
             await PlatformRefund.updateOne({ key: keys[i] }, { $set: { status: 'processed', refundId: r.refundId } });
+            await ensureCreditNote((await PlatformRefund.findOne({ key: keys[i] }).select('_id').lean())._id).catch((e) => console.error('Credit note error:', e.message));
             out.processed += 1; out.cashPaise += x.cash;
         } catch (e) {
             await PlatformRefund.updateOne({ key: keys[i] }, { $set: { status: 'failed', error: String(e.message || e).slice(0, 200) } });
@@ -160,4 +191,4 @@ async function refundWallet({ tenant, kind, amountPaise, reason, requestId, by }
     return out;
 }
 
-module.exports = { overview, refundPlan, refundWallet, endPlanNow };
+module.exports = { overview, refundPlan, refundWallet, endPlanNow, ensureCreditNote };

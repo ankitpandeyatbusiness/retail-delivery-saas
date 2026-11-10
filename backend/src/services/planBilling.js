@@ -22,6 +22,7 @@ const { invalidateTenant } = require('../middlewares/tenantRecognizer');
 const { httpError } = require('../middlewares/apiErrors');
 
 const DAY = 86400000;
+const MAX_PREPAID_MONTHS = 12;   // an owner can prepay at most this much in total (a price change then reaches him within a year)
 const IST = 5.5 * 3600000;
 const RANK = { partner: 0, growth: 1, pro: 2 };
 const NAME = { partner: 'Partner', growth: 'Growth', pro: 'Pro' };
@@ -54,26 +55,30 @@ async function quote(tenant, { to, months = 1, coupon: couponCode }, now = new D
     const from = p.id || null;
     const endsAt = p.endsAt ? new Date(p.endsAt) : null;
     const free = !!(p.freeUntil && new Date(p.freeUntil) > now);
+    if (p.scheduled && p.scheduled.prepaid) throw httpError(409, `You already paid for ${NAME[p.scheduled.to]}, which starts on ${new Date(p.scheduled.at).toISOString().slice(0, 10)}. Ask us if you want to change it.`);
     const paidActive = !!(from && from !== 'partner' && endsAt && endsAt > now && !free);
     const out = { from, to, fromName: from ? NAME[from] : null, toName: NAME[to], months: 0, lines: [], gstPercent: 0, gstPaise: 0, totalPaise: 0, walletCreditPaise: 0, features: { on: [], off: [] }, notes: [] };
 
     // features that turn on / off (the extras the shop already holds stay)
     const label = (k) => plans.FEATURES[k].label;
-    const has = (id, k) => !id || plans.planIncludes(id, k) || (p.extras || []).some((e) => e.key === k);
+    const kept = plans.liveExtras(p);
+    const has = (id, k) => !id || plans.planIncludes(id, k) || kept.some((e) => e.key === k);
     for (const k of Object.keys(plans.FEATURES)) {
-        const was = from ? has(from, k) : false; const will = plans.planIncludes(to, k) || (p.extras || []).some((e) => e.key === k);
+        const was = from ? has(from, k) : false; const will = plans.planIncludes(to, k) || kept.some((e) => e.key === k);
         if (!was && will) out.features.on.push(label(k)); if (was && !will) out.features.off.push(label(k));
     }
 
     if (to === from && !(from === 'partner')) out.kind = 'renew';
     else if (from && RANK[to] > RANK[from] && paidActive) out.kind = 'upgrade';
-    else if (from && RANK[to] < RANK[from]) out.kind = 'downgrade';
+    else if (from && RANK[to] < RANK[from]) { if (free && to !== 'partner') { out.kind = 'new'; out.deferred = true; } else out.kind = 'downgrade'; }
     else out.kind = 'new';
+    if (out.deferred) out.features = { on: [], off: [] };   // nothing changes until the free time ends
 
     if (to === 'partner') {   // no payment: a scheduled move at the end of the paid term, or at once when there is nothing paid
         out.kind = paidActive ? 'downgrade' : 'switch';
         out.startsAt = paidActive ? dayAfter(endsAt) : now;
         out.notes.push(paidActive ? `Partner starts on ${endsAt.toISOString().slice(0, 10)} when your paid time ends. Until then you keep ${NAME[from]}.` : 'Partner has no monthly price. You pay a small fee per completed order from your wallet.');
+        out.notes.push('Add money to your wallet before then, so new orders keep coming.');
         return out;
     }
     if (out.kind === 'downgrade') {
@@ -94,6 +99,7 @@ async function quote(tenant, { to, months = 1, coupon: couponCode }, now = new D
         out.taxablePaise = base;
         out.startsAt = now; out.endsAt = endsAt; out.daysLeft = days;
         out.notes.push(`${NAME[to]} starts now and runs until ${endsAt.toISOString().slice(0, 10)}.`);
+        out.notes.push('The month discounts and coupons are for new purchases, not for the difference on an upgrade.');
     } else {
         const m = Number(months);
         if (!Number.isInteger(m) || m < 1 || m > 6) throw httpError(400, 'Choose 1 to 6 months');
@@ -127,11 +133,19 @@ async function quote(tenant, { to, months = 1, coupon: couponCode }, now = new D
         out.taxablePaise = taxable;
         // renew in time: the new months come after the current end; after a free period too; otherwise from now
         const sameFree = free && from === to;
-        const after = (out.kind === 'renew' && paidActive) || sameFree ? dayAfter(endsAt) : now;
+        const after = (out.kind === 'renew' && paidActive) || sameFree || out.deferred ? dayAfter(endsAt) : now;
         out.startsAt = after; out.endsAt = endAfterMonths(after, m);
+        const cap = endAfterMonths(now, MAX_PREPAID_MONTHS);
+        if (out.endsAt > cap) {
+            let fit = 0;
+            for (let k = 1; k <= m; k += 1) if (endAfterMonths(after, k) <= cap) fit = k;
+            if (!fit) throw httpError(400, 'Your plan already runs for the most prepaid time (12 months). You can renew again later.');
+            throw httpError(400, `You can prepay up to 12 months in total. You can add up to ${fit} more month(s).`);
+        }
         // buying a paid plan while a free period of ANOTHER plan is running: the free days left are added at the end, so buying early never loses them
-        const carry = free && from && from !== to && endsAt && endsAt > now ? Math.ceil((endsAt.getTime() - now.getTime()) / DAY) : 0;
+        const carry = free && from && from !== to && !out.deferred && endsAt && endsAt > now ? Math.ceil((endsAt.getTime() - now.getTime()) / DAY) : 0;
         if (carry) { out.endsAt = new Date(out.endsAt.getTime() + carry * DAY); out.carryDays = carry; out.notes.push(`Your ${carry} leftover free days are added at the end.`); }
+        if (out.deferred) out.notes.push(`${NAME[to]} starts on ${out.startsAt.toISOString().slice(0, 10)} when your free time ends. Until then you keep ${NAME[from]}.`);
         out.notes.push(`${NAME[to]} runs until ${out.endsAt.toISOString().slice(0, 10)}. The price is locked for this term.`);
     }
     out.gstPaise = Math.round((out.taxablePaise * gstPercent) / 100);   // GST is worked out once, on the whole taxable amount
@@ -147,7 +161,7 @@ async function quoteBranch(tenant, now = new Date()) {
     const def = await planService.getDefaults();
     const p = tenant.plan || {};
     if (!tenant.brandId) throw httpError(409, 'This shop is not part of a brand');
-    if (p.id !== 'pro' && !(p.extras || []).some((e) => e.key === 'multiBranch')) throw httpError(409, 'Extra shops are in the Pro plan');
+    if (p.id !== 'pro' && !plans.liveExtras(p).some((e) => e.key === 'multiBranch')) throw httpError(409, 'Extra shops are in the Pro plan');
     const endsAt = p.endsAt ? new Date(p.endsAt) : null;
     if (!endsAt || endsAt <= now) throw httpError(409, 'Your plan has ended. Renew it first, the extra shops are part of the renewal.');
     const days = wholeDaysLeft(endsAt, now);
@@ -169,6 +183,8 @@ async function overview(tenant, now = new Date()) {
     const def = await planService.getDefaults();
     const v = planService.viewOf(tenant, now);
     const wallet = v.id === 'partner' ? await require('./partnerWalletService').status(tenant._id) : null;
+    const refunds = (await require('../models/PlatformRefund').find({ tenantId: tenant._id, status: 'processed' }).sort({ createdAt: -1 }).limit(10).lean())
+        .map((r) => ({ id: String(r._id), kind: r.kind, cashPaise: r.cashPaise, at: r.createdAt, creditNoteNo: r.creditNote?.invoiceNo || null }));
     const recent = await PlanPayment.find({ tenantId: tenant._id, status: { $in: ['paid', 'held'] } }).sort({ createdAt: -1 }).limit(10).select('to months status payablePaise paidAt invoice.invoiceNo').lean();
     let brand = null;
     if (tenant.brandId) { const b = await Brand.findById(tenant.brandId); if (b) brand = await require('./brandPlan').capacity(b, def); }
@@ -179,7 +195,7 @@ async function overview(tenant, now = new Date()) {
             features: plans.featuresOf(id), limits: { riders: plans.limitFor(id, 'riders'), staff: plans.limitFor(id, 'staff') },
         })),
         featureLabels: Object.fromEntries(Object.entries(plans.FEATURES).map(([k, f]) => [k, f.label])),
-        coupons: await require('./platformCoupons').cardsFor(tenant, now), discounts: def.monthDiscounts, gstPercent: await gstPercentNow(def),
+        refunds, coupons: await require('./platformCoupons').cardsFor(tenant, now), discounts: def.monthDiscounts, gstPercent: await gstPercentNow(def),
         payments: recent.map((r) => ({ id: String(r._id), to: r.to, months: r.months, status: r.status, payablePaise: r.payablePaise, paidAt: r.paidAt, invoiceNo: r.invoice?.invoiceNo || null })),
     };
 }
@@ -235,6 +251,11 @@ async function settle(paymentId, { payId, amountPaise, via = 'app' }) {
             if (row.kind === 'upgrade') { p.startedAt = now; /* the end date stays */ p.freeUntil = undefined; }
             else { p.startedAt = new Date(q.startsAt); p.endsAt = new Date(q.endsAt); p.freeUntil = undefined; if (new Date(q.startsAt) <= now) p.startedAt = now; }
             p.extras = (p.extras || []).filter((e) => !plans.planIncludes(row.to, e.key));
+            if (q.deferred) {   // a lower plan paid in advance during a free period: the shop keeps what it has now; the paid plan starts when the free time ends (planLifecycle)
+                const keep = tenant.plan || {};
+                p.id = keep.id; p.startedAt = keep.startedAt; p.endsAt = keep.endsAt; p.freeUntil = keep.freeUntil; p.extras = keep.extras;
+                p.scheduled = { to: row.to, at: new Date(q.startsAt), by: 'owner payment', requestedAt: now, prepaid: { startsAt: new Date(q.startsAt), endsAt: new Date(q.endsAt), months: row.months, paymentId: String(row._id) } };
+            }
             await Tenant.updateOne({ _id: row.tenantId }, { $set: { plan: p } }, { session });
             if (q.coupon) await require('./platformCoupons').redeem(q.coupon.id, row.tenantId, row._id, q.coupon.pct, session);
             if (q.extraShops !== undefined && tenant.brandId) await Brand.updateOne({ _id: tenant.brandId }, { $set: { 'locations.paidExtra': q.extraShops } }, { session });   // what this term pays for
@@ -246,7 +267,7 @@ async function settle(paymentId, { payId, amountPaise, via = 'app' }) {
     } catch (e) { if (e && e.code === 11000) return { ok: true, duplicate: true }; throw e; }
     invalidateTenant(tenant.slug);
     if (row.kind !== 'branch') await require('./brandPlan').afterPlanChange(await Tenant.findById(row.tenantId).select('brandId').lean());
-    if (row.from !== row.to) require('./planLifecycle').notifyChanged({ tenantId: row.tenantId, from: row.from, to: row.to, by: 'the owner (paid online)' });
+    if (row.from !== row.to && !q.deferred) require('./planLifecycle').notifyChanged({ tenantId: row.tenantId, from: row.from, to: row.to, by: 'the owner (paid online)' });
     await ensureInvoice(row._id).catch((e) => console.error('Plan invoice error:', e.message));
     return { ok: true, applied: true };
 }
@@ -297,6 +318,7 @@ async function chooseFree(tenant, { to, months = 1, coupon }, actor) {
 }
 // the owner changes his mind before the scheduled move happens
 async function cancelScheduled(tenant) {
+    if (tenant.plan && tenant.plan.scheduled && tenant.plan.scheduled.prepaid) throw httpError(409, 'You already paid for this plan, so it cannot be cancelled. Ask us if you need a change.');
     await Tenant.updateOne({ _id: tenant._id }, { $unset: { 'plan.scheduled': 1 } });
     invalidateTenant(tenant.slug);
     await require('./brandPlan').afterPlanChange(tenant);

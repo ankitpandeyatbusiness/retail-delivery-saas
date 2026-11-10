@@ -298,6 +298,7 @@ export const cancelScheduledPlan = () => d(api.delete('/shop/plan/scheduled'));
 export const quoteBranchPlan = () => d(api.post('/shop/plan/branch/quote'));
 export const startBranchPay = () => d(api.post('/shop/plan/branch/pay/start'));
 export const planInvoicePdfPath = (id) => `/shop/plan/payments/${id}/invoice`;   // the tax invoice PDF of a paid plan payment
+export const creditNotePdfPath = (id) => `/shop/plan/refunds/${id}/credit-note`;   // the GST credit note of a refund the platform sent
 export const startPlanPay = (body) => d(api.post('/shop/plan/pay/start', body));
 export const verifyPlanPay = (id, proof) => d(api.post(`/shop/plan/pay/${id}/verify`, proof));
 // the Partner plan's wallet

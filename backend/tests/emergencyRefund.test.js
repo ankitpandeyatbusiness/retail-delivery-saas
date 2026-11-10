@@ -156,3 +156,50 @@ describe('the wallet', () => {
         assert.equal((await sales.paid({ tenantId: w.tenant._id })).filter((x) => x.refund).length, 0);
     });
 });
+
+describe('the credit note', () => {
+    const PlatformSettings = require('../src/models/PlatformSettings');
+    const biz = () => PlatformSettings.updateOne({ _id: 'main' }, { $set: { 'business.gstin': '09AAAAA0000A1Z5', 'business.legalName': 'Test Co', 'business.state': 'Uttar Pradesh', 'business.address': 'Lucknow' } }, { upsert: true });
+    const pdf = (req) => req.buffer(true).parse((res, cb) => { const c = []; res.on('data', (d) => c.push(d)); res.on('end', () => cb(null, Buffer.concat(c))); });
+
+    test('a sent refund gets a credit note: its number is in the history and in the money screens, the PDF opens for the admin and the owner, once only', async () => {
+        await biz();
+        const p = await paidPro();
+        const r = await post({ kind: 'plan', sourceId: String(p._id), amountPaise: 200000, endPlan: false });
+        assert.equal(r.status, 201);
+        const h = (await call(supreme, 'get', url())).body.history[0];
+        assert.match(h.creditNoteNo, /\//);
+        const row = (await sales.paid({ tenantId: w.tenant._id })).find((x) => x.refund);
+        assert.equal(row.invoiceNo, h.creditNoteNo);
+        assert.equal(row.invoice.kind, 'credit_note');
+        const refundId = h.id;
+        const a = await pdf(call(supreme, 'get', `/tenants/${w.tenant._id}/refunds/${refundId}/credit-note`));
+        assert.equal(a.status, 200);
+        assert.equal(a.body.slice(0, 4).toString(), '%PDF');
+        const o = await pdf(request(app).get(`/api/shop/plan/refunds/${refundId}/credit-note`).set(w.owner.headers));
+        assert.equal(o.status, 200);
+        assert.equal((await call(supreme, 'get', url())).body.history[0].creditNoteNo, h.creditNoteNo);   // the same number, none taken again
+        const ov = (await request(app).get('/api/shop/plan').set(w.owner.headers)).body;
+        assert.equal(ov.refunds[0].creditNoteNo, h.creditNoteNo);
+    });
+
+    test('without business details the refund still goes, the credit note is made the first time it is asked for after they are filled in', async () => {
+        const p = await paidPro();
+        assert.equal((await post({ kind: 'plan', sourceId: String(p._id), amountPaise: 100000, endPlan: false })).status, 201);
+        const id = (await call(supreme, 'get', url())).body.history[0].id;
+        assert.equal((await call(supreme, 'get', url())).body.history[0].creditNoteNo, null);
+        assert.equal((await call(supreme, 'get', `/tenants/${w.tenant._id}/refunds/${id}/credit-note`)).status, 409);
+        await biz();
+        const a = await pdf(call(supreme, 'get', `/tenants/${w.tenant._id}/refunds/${id}/credit-note`));
+        assert.equal(a.status, 200);
+    });
+
+    test('another shop cannot open it', async () => {
+        await biz();
+        const p = await paidPro();
+        await post({ kind: 'plan', sourceId: String(p._id), amountPaise: 100000, endPlan: false });
+        const id = (await call(supreme, 'get', url())).body.history[0].id;
+        const other = await f.makeWorld(`refund-other-${n}`);
+        assert.equal((await request(app).get(`/api/shop/plan/refunds/${id}/credit-note`).set(other.owner.headers)).status, 404);
+    });
+});

@@ -28,9 +28,9 @@ const fromTopup = (kind, label) => (t) => ({
 });
 
 const fromRefund = (r) => ({
-    id: `rf${r._id}`, kind: r.salesKind, tenantId: r.tenantId, paidAt: r.createdAt, issueDate: r.createdAt, invoiceNo: `RF-${String(r._id).slice(-6).toUpperCase()}`,
+    id: `rf${r._id}`, kind: r.salesKind, tenantId: r.tenantId, paidAt: r.createdAt, issueDate: r.createdAt, invoiceNo: r.creditNote?.invoiceNo || `RF-${String(r._id).slice(-6).toUpperCase()}`,
     description: `Refund: ${r.kind === 'plan' ? 'plan payment' : r.kind === 'wallet' ? 'wallet balance' : 'SMS balance'}`,
-    baseAmount: -rs(r.basePaise), gstPercent: r.basePaise ? Math.round((r.gstPaise / r.basePaise) * 100) : 0, gstAmount: -rs(r.gstPaise), total: -rs(r.cashPaise), invoice: null, refund: true,
+    baseAmount: -rs(r.basePaise), gstPercent: r.basePaise ? Math.round((r.gstPaise / r.basePaise) * 100) : 0, gstAmount: -rs(r.gstPaise), total: -rs(r.cashPaise), invoice: r.creditNote || null, refund: true, creditNote: !!r.creditNote,
 });
 
 async function paid({ from, to, tenantId, tenantIds } = {}) {

@@ -56,5 +56,16 @@ router.get('/payments/:id/invoice', wrap(async (req, res) => {
     require('../services/subscriptionInvoicePdf').streamSubscriptionInvoice(res, inv, { inline: req.query.view === '1' });   // the tax invoice as a PDF
 }));
 
+// the credit note of a refund the platform sent, as a PDF
+router.get('/refunds/:id/credit-note', wrap(async (req, res) => {
+    const PlatformRefund = require('../models/PlatformRefund');
+    const t = await mine(req);
+    const r = /^[0-9a-f]{24}$/.test(req.params.id) ? await PlatformRefund.findOne({ _id: req.params.id, tenantId: t._id, status: 'processed' }).select('_id').lean() : null;
+    if (!r) throw httpError(404, 'Refund not found');
+    const note = await require('../services/emergencyRefund').ensureCreditNote(r._id);
+    if (!note) throw httpError(409, 'The credit note is not ready yet. Please try again later.');
+    require('../services/subscriptionInvoicePdf').streamSubscriptionInvoice(res, note, { inline: req.query.view === '1', creditNote: true });
+}));
+
 router.use(apiErrors);
 module.exports = router;

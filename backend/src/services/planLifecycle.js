@@ -59,7 +59,10 @@ async function one(t, def, now) {
         const due = [1, 3, 7].find((d) => days <= d);
         if (due && (await claim(t._id, `r${due}`, mark))) {
             const summary = `${NAME[p.id]} ends on ${dayText(endsAt)} (${days} day${days === 1 ? '' : 's'} left)`;   // the admin text (English)
-            safe(() => center.notify('plan_ending', { tenantId: t._id, title: 'Your plan is ending', body: `${NAME[p.id]} ends on ${dayText(endsAt)}. Days left: ${days}. Renew to keep every feature.`, vars: { summary }, data: { prompt: 'plan' } }));
+            const ending = { tenantId: t._id, title: 'Your plan is ending', vars: { summary }, data: { prompt: 'plan' } };
+            // a shop that moves to Partner next starts with an empty wallet: say so, so its orders do not stop by surprise
+            if (p.scheduled && p.scheduled.to === 'partner') safe(() => center.notify('plan_ending', { ...ending, body: `${NAME[p.id]} ends on ${dayText(endsAt)}. Days left: ${days}. Then you move to Partner. Add money to your wallet so new orders keep coming.` }));
+            else safe(() => center.notify('plan_ending', { ...ending, body: `${NAME[p.id]} ends on ${dayText(endsAt)}. Days left: ${days}. Renew to keep every feature.` }));
         }
         return;
     }
@@ -69,6 +72,7 @@ async function one(t, def, now) {
         const from = p.id; const to = p.scheduled.to;
         const np = { ...p, id: to, startedAt: now, extras: (p.extras || []).filter((e) => !plans.planIncludes(to, e.key)), history: [...(p.history || []).slice(-49), { at: now, by: 'scheduled move', from, to, note: 'paid time ended' }] };
         delete np.scheduled; delete np.notified; delete np.paused;
+        if (p.scheduled.prepaid) { np.startedAt = new Date(p.scheduled.prepaid.startsAt); np.endsAt = new Date(p.scheduled.prepaid.endsAt); np.freeUntil = undefined; }   // paid in advance during the free period
         if (to === 'partner') { delete np.endsAt; delete np.freeUntil; }   // Partner has no end date
         const r = await Tenant.updateOne({ _id: t._id, 'plan.id': from, 'plan.scheduled.to': to }, { $set: { plan: np } });
         if (r.modifiedCount) {

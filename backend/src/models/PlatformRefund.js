@@ -20,6 +20,7 @@ const platformRefundSchema = new mongoose.Schema({
     by: String,
     key: { type: String, required: true, unique: true },  // one request id + part number: a double tap cannot refund twice
     endedPlan: { type: Boolean, default: false },
+    creditNote: { type: mongoose.Schema.Types.Mixed },   // the GST credit note for this refund (made once the refund is sent)
 }, { timestamps: true });
 
 module.exports = mongoose.models.PlatformRefund || mongoose.model('PlatformRefund', platformRefundSchema);
