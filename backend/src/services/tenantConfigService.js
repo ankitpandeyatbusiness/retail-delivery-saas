@@ -742,4 +742,4 @@ function resolveConfig(tenant, now = new Date()) {
     };
 }
 
-module.exports = { validateSettings, resolveConfig, openStatus, nextHoursChange, forceOpenUntil, nextOpening, nextOpeningOf, DEFAULTS, MIN_SHOP_RATINGS };
+module.exports = { brandingIcon, validateSettings, resolveConfig, openStatus, nextHoursChange, forceOpenUntil, nextOpening, nextOpeningOf, DEFAULTS, MIN_SHOP_RATINGS };

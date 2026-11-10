@@ -2,7 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const tenantRouter = express.Router();
 const tenantRecognizer = require('../middlewares/tenantRecognizer');
-const { resolveConfig } = require('../services/tenantConfigService');
+const { resolveConfig, brandingIcon } = require('../services/tenantConfigService');
 const { getAvailability, applyAutoHide } = require('../services/availability');
 const { getDefaultHeroUrls } = require('../services/defaultHeroes');
 
@@ -17,6 +17,7 @@ tenantRouter.get('/theme', tenantRecognizer, async (req, res) => {
         tagline: t.tagline,
         phone: t.phone || null,   // the shop's own number (the owner sets it; the Account page has a Call the shop block)
         logo: t.logo,
+        icon: brandingIcon(t.slug),   // the shop's app icon (square): the website's tab icon. null when the media storage is not set up
         colors: c.brand.colors,
         fontStyle: c.brand.fontStyle,
         buttonShape: c.brand.buttonShape,

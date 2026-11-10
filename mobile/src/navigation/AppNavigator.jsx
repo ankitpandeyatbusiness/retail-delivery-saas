@@ -344,7 +344,8 @@ export default function AppNavigator() {
 
     return (
         <MaintenanceFrame background={background}>
-            <NavigationContainer ref={navigationRef} onReady={() => { navigationReady(); setRouteName(navigationRef.getCurrentRoute()?.name); }} onStateChange={() => setRouteName(navigationRef.getCurrentRoute()?.name)} theme={navTheme}>
+            <NavigationContainer ref={navigationRef} onReady={() => { navigationReady(); setRouteName(navigationRef.getCurrentRoute()?.name); }} onStateChange={() => setRouteName(navigationRef.getCurrentRoute()?.name)} theme={navTheme}
+                documentTitle={{ formatter: () => useThemeStore.getState().theme?.name || 'Shop' }}>   {/* the website's tab title is the shop name on every screen (the phone app ignores this) */}
                 <Stack.Navigator
                     screenOptions={{ headerShown: false, contentStyle: { backgroundColor: background }, animation: slide, animationDuration: 220, gestureEnabled: true }}
                     screenListeners={{ transitionStart: holdGate, transitionEnd: releaseGate }}

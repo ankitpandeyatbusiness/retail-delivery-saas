@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { Image } from 'expo-image';
 import api from '../../api/common/client';
 import { readCache, writeCache } from '../../utils/common/cache';
+import { applyWebIdentity } from '../../utils/common/webIdentity';
 
 const THEME_CACHE_KEY = 'theme';
 
@@ -49,13 +50,16 @@ export const useThemeStore = create((set, get) => ({
         writeCache('appearance', m);
     },
 
-    setTheme: (newTheme) => set((state) => ({
-        theme: {
-            ...state.theme,
-            ...newTheme,
-            colors: { ...state.theme.colors, ...(newTheme.colors || {}) },
-        },
-    })),
+    setTheme: (newTheme) => {
+        set((state) => ({
+            theme: {
+                ...state.theme,
+                ...newTheme,
+                colors: { ...state.theme.colors, ...(newTheme.colors || {}) },
+            },
+        }));
+        applyWebIdentity(get().theme);   // the website's tab icon, title and colour follow the shop (nothing happens in the phone app)
+    },
 
     // The last theme this phone saw, read from disk. Used at start so the app opens in the shop's own look at once,
     // instead of waiting for the network (or showing another shop's default).
