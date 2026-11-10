@@ -1,6 +1,8 @@
 // src/screens/LoginScreen.jsx
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import PoweredBy from '../../components/common/PoweredBy';
+import LoginDesktop from './LoginDesktop';
+import { useIsDesktopWeb } from '../../utils/common/layout';
 import {
     View, Text, TextInput, StyleSheet, Keyboard, Pressable, BackHandler, Platform, StatusBar, useWindowDimensions,
 } from 'react-native';
@@ -169,7 +171,7 @@ function OtpBoxes({ digits, setDigits, inputRefs, hasError, dimmed, onEdit, colo
 
 /* ---------------------------------- screen --------------------------------- */
 
-export default function LoginScreen({ navigation }) {
+function LoginMobile({ navigation }) {
     const insets = useSafeAreaInsets();
     const [langOpen, setLangOpen] = useState(false);
     const lang = useLang((st) => st.lang);
@@ -1063,3 +1065,8 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
 });
+// A wide browser window (the desktop website) gets its own layout. The phone, the phone browser, tablets and the native app keep the screen above, unchanged.
+export default function LoginScreen(props) {
+    const desktop = useIsDesktopWeb();
+    return desktop ? <LoginDesktop {...props} /> : <LoginMobile {...props} />;
+}
