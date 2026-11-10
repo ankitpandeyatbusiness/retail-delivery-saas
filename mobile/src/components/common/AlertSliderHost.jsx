@@ -3,6 +3,7 @@
 // is open come here. New orders, the kitchen's problems and the customer's asks have their own bigger sheets and are not shown here.
 import { isOpenInquiry } from '../../store/owners/useOpenInquiry';
 import React, { useEffect } from 'react';
+import { Platform } from 'react-native';
 import { useAuthStore } from '../../store/common/useAuthStore';
 import { useOwnerStore } from '../../store/owners/useOwnerStore';
 import { useAlertPrefs, alertOn, alertGroup, alertSeconds } from '../../store/common/useAlertPrefs';
@@ -25,7 +26,7 @@ export async function turnOffSlider(type) {
     if (!g) return;
     const prefs = useAlertPrefs.getState();
     if (!(await prefs.change(g.id, { p: false }))) { showToast(tr('Could not save. Try again.')); return; }
-    if (alertOn(type, 'v')) {
+    if (alertOn(type, 'v') && Platform.OS !== 'web') {   // the website has no voice: nothing more to ask there
         themedAlert(tr('Also turn off the voice?'), tr('{name} will no longer be read out.', { name: tr(g.label) }), [
             { text: tr('Keep the voice'), style: 'cancel', onPress: () => showToast(tr('Slider turned off for good. You can turn it on again in Alerts.')) },
             { text: tr('Turn off the voice'), onPress: async () => { await prefs.change(g.id, { v: false }); showToast(tr('Slider and voice turned off for good. You can turn them on again in Alerts.')); } },
